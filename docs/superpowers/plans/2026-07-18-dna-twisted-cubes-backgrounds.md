@@ -71,6 +71,11 @@ export const DEFAULT_DNA_BACKGROUND_OPTIONS = Object.freeze({
   outlineThickness: 0.5,
 });
 
+export const DNA_SOURCE_GEOMETRY = Object.freeze({
+  heightVmin: 65,
+  aspectRatio: "2 / 5",
+});
+
 export function sanitizeDnaBackgroundOptions(value) {}
 export function getDnaNodeCycleSeconds(speed) {}
 export function getDnaStrandRotationSeconds(speed) {}
@@ -78,7 +83,7 @@ export function getDnaStrandDelaySeconds({ oneBasedIndex, total, speed }) {}
 export function getDnaStrandPhase({ oneBasedIndex, total }) {}
 ```
 
-Assert defaults produce `2` and `14` second durations. `getDnaStrandPhase` must calculate with `Math.sin`, not return a CSS `sin()` expression.
+Assert defaults produce `2` and `14` second durations. `getDnaStrandPhase` must calculate with `Math.sin`, not return a CSS `sin()` expression. `DNA_SOURCE_GEOMETRY` is fixed renderer metadata—not persisted user options—and tests/render-source assertions require exactly `65vmin` height with CSS `aspect-ratio: 2 / 5`.
 
 Run: `node --test tests/dna-background.test.mjs`
 
@@ -98,7 +103,7 @@ export function resolveResponsiveBackgroundTransform({
 }) {}
 ```
 
-Require two role assignments per strand, values limited to integers `0..3`, deterministic injected randomness, and invalid random results clamped into that range. For the layout helper, use this exact rendering-only rule:
+Require two role assignments per strand, values limited to integers `0..3`, deterministic injected randomness, and invalid random results handled explicitly: `NaN`, `Infinity`, and `-Infinity` fall back to `0` before floor/clamp, while finite values clamp into the range. Add exact cases for every non-finite input. For the layout helper, use this exact rendering-only rule:
 
 - shortest viewport edge below `480px`: effective scale maximum `1`, X/Y maximum magnitude `20%`;
 - otherwise: effective scale maximum `1.2`, X/Y maximum magnitude `35%`.
@@ -440,13 +445,13 @@ Declare exactly these roles and zero-based swatch indexes:
 
 ```ts
 [
-  { id: "background", label: "Background", sourceColor: "hsl(210 80% 12%)", defaultSwatch: 3 },
-  { id: "node-one", label: "Node 1", sourceColor: "hsl(44 98% 60%)", defaultSwatch: 0 },
-  { id: "node-two", label: "Node 2", sourceColor: "hsl(197 50% 44%)", defaultSwatch: 1 },
-  { id: "node-three", label: "Node 3", sourceColor: "hsl(300 100% 100%)", defaultSwatch: 2 },
-  { id: "node-four", label: "Node 4", sourceColor: "hsl(331 76% 50%)", defaultSwatch: 5 },
-  { id: "connector", label: "Connector", sourceColor: "#ffffff", defaultSwatch: 4 },
-  { id: "outline", label: "Outline", sourceColor: "#000000", defaultSwatch: 6 },
+  { id: "background", label: "Background", sourceColor: "hsl(210 80% 12%)", defaultSwatch: 3, rendererTarget: "massageLabDna.backgroundColor" },
+  { id: "node-one", label: "Node 1", sourceColor: "hsl(44 98% 60%)", defaultSwatch: 0, rendererTarget: "massageLabDna.nodeRoleColors[0]" },
+  { id: "node-two", label: "Node 2", sourceColor: "hsl(197 50% 44%)", defaultSwatch: 1, rendererTarget: "massageLabDna.nodeRoleColors[1]" },
+  { id: "node-three", label: "Node 3", sourceColor: "hsl(300 100% 100%)", defaultSwatch: 2, rendererTarget: "massageLabDna.nodeRoleColors[2]" },
+  { id: "node-four", label: "Node 4", sourceColor: "hsl(331 76% 50%)", defaultSwatch: 5, rendererTarget: "massageLabDna.nodeRoleColors[3]" },
+  { id: "connector", label: "Connector", sourceColor: "#ffffff", defaultSwatch: 4, rendererTarget: "massageLabDna.connectorColor" },
+  { id: "outline", label: "Outline", sourceColor: "#000000", defaultSwatch: 6, rendererTarget: "massageLabDna.outlineColor" },
 ]
 ```
 
@@ -454,7 +459,7 @@ Set renderer family `css-dom`, status `supported`, and source behavior `fixed`. 
 
 - [ ] **Step 3: Add the Twisted Cubes adapter**
 
-Declare Background plus `outline-one` through `outline-six`, mapping Background to Swatch 4 and outlines to Swatches 1, 2, 3, 5, 6, 7. Use source-derived anchors at 180, 212, 244, 276, 308, and 340 degrees for labels/fallbacks.
+Declare Background plus `outline-one` through `outline-six`, mapping Background to Swatch 4 and outlines to Swatches 1, 2, 3, 5, 6, 7. Set Background's target to `massageLabTwistedCubes.backgroundColor`; set the six outline targets to `massageLabTwistedCubes.outlineAnchors[0]` through `[5]` in order. Use source-derived anchors at 180, 212, 244, 276, 308, and 340 degrees for labels/fallbacks. Registry tests assert all seven exact target paths are unique and `applyRoleColors` changes only those targets.
 
 Set `sourceBehavior: "automatic"`. In Source, `resolveBackgroundEffectProps` leaves `paletteMode: "source"` so the renderer uses the continuous HSL formula. In Custom/Harmony, `applyRoleColors` sets `paletteMode: "resolved"` and supplies all six resolved anchors. Never persist intermediate colors.
 

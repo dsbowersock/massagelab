@@ -106,7 +106,7 @@ Use `productType` plus `productKey` on cart/order items and retain immutable dis
 
 - [ ] **Step 4: Add wallet and ownership records**
 
-`BackgroundCreditWallet.balance` is current state; every delta has a `BackgroundCreditEntry`. `BackgroundOwnership` has exactly one acquisition source: a credit entry or an order item. Keep inactive rows; status transitions replace deletion. Add all back-relations to `User` with `onDelete: Restrict` for financial/audit history.
+`BackgroundCreditWallet.balance` is current state; every delta has a `BackgroundCreditEntry`. `BackgroundOwnership` has exactly one acquisition source: a credit entry or an order item. Keep inactive rows; status transitions replace deletion. Ephemeral `CommerceCart`/`CommerceCartItem` rows may cascade with the account. Durable wallet, credit-entry, ownership, order, payment, refund, dispute, webhook-receipt, and commerce-event relations use `onDelete: Restrict`, matching `LegalAcceptance`. MassageLab has no account-deletion workflow today; a later dedicated branch must define lawful retention plus atomic anonymization before deleting a user with durable commerce history. Track 1 must test that such deletion is blocked instead of silently cascading financial/audit records.
 
 - [ ] **Step 5: Write the SQL migration and database checks**
 
@@ -300,8 +300,13 @@ Cover free backgrounds, an active `premium_backgrounds` subscription, active cre
 export type BackgroundAccessDecision = {
   canUse: boolean;
   canCustomizeColors: boolean;
-  accessSource: "free" | "subscription" | "permanent" | "locked";
+  accessSource: "free" | "subscription" | "ownership" | "locked";
+  isPermanentlyOwned: boolean;
   ownershipStatus: BackgroundOwnershipStatus | null;
+  creditEligibility: { eligible: boolean; disabledReason: string | null };
+  purchaseEligibility: { eligible: boolean; disabledReason: string | null };
+  reservation: { active: boolean; orderId: string | null; expiresAt: string | null };
+  disabledReason: string | null;
 };
 
 export async function resolveBackgroundAccessForUser(input: {
@@ -311,7 +316,7 @@ export async function resolveBackgroundAccessForUser(input: {
 }): Promise<BackgroundAccessDecision>;
 ```
 
-`canUse` is true for `premium_backgrounds` or active permanent ownership. `canCustomizeColors` is true for `chimer_custom_colors` or active permanent ownership of that background. The two feature checks are independent.
+`canUse` is true for `premium_backgrounds` or active permanent ownership. `canCustomizeColors` is true for `chimer_custom_colors` or active permanent ownership of that background. The two feature checks are independent. `isPermanentlyOwned` is true only for active credit/purchase ownership, even when subscription access also exists. Eligibility, reservation, and safe disabled-reason fields come from the same fresh server transaction so Track 1B never reconstructs them from badges, feature keys, cart rows, or stale client state.
 
 - [ ] **Step 2: Remove the compatibility shortcut**
 
@@ -430,7 +435,7 @@ The UI control is unchecked for every order and combines policy acceptance, fina
 
 - [ ] **Step 2: Write failing checkout-route tests**
 
-Cover signed-in/verified requirements, nonempty reconciled cart, explicit current consent, U.S. country, tax-readiness fail-closed behavior, exactly one line item per distinct background at 100 cents, 30-minute session expiry, explicit metadata, safe success/cancel URLs, subscriber purchase, and Stripe failure returning the order to a retryable state.
+Cover signed-in/verified requirements, nonempty reconciled cart, explicit current consent, provisional U.S. request context, required Stripe billing-address collection, production purchasing enablement, tax-readiness fail-closed behavior, exactly one line item per distinct background at 100 cents, 30-minute session expiry, explicit metadata, safe success/cancel URLs, subscriber purchase, and Stripe failure returning the order to a retryable state. Treat browser-submitted country as untrusted. Bind the final order country only from the retrieved Stripe Session's `customer_details.address.country`, require `US`, and revalidate it before fulfillment; missing or non-U.S. processor evidence transitions the order to `REVIEW_REQUIRED` without granting ownership.
 
 Stripe metadata must include only stable identifiers:
 
@@ -445,7 +450,9 @@ Stripe metadata must include only stable identifiers:
 
 - [ ] **Step 3: Add a dedicated background Checkout helper**
 
-Do not overload subscription or donation helpers with ambiguous behavior. Add `createBackgroundPurchaseCheckoutSession` using `mode: "payment"`, `customer`, one line item per order item, `expires_at` 30 minutes from creation, metadata on both session and payment intent, and an idempotency key derived from order ID plus checkout attempt. Use inline price data at the fixed amount until a catalog-price migration is deliberately planned. Set `automatic_tax.enabled` only when `BACKGROUND_COMMERCE_TAX_MODE=stripe` and a configured digital-product tax code passes readiness; otherwise keep it false. Production checkout remains disabled until the selected tax posture is explicitly approved and configured.
+Do not overload subscription or donation helpers with ambiguous behavior. Add `createBackgroundPurchaseCheckoutSession` using `mode: "payment"`, `customer`, `billing_address_collection: "required"`, one line item per order item, `expires_at` 30 minutes from creation, metadata on both session and payment intent, and an idempotency key derived from order ID plus checkout attempt. Use inline price data at the fixed amount until a catalog-price migration is deliberately planned. Set `automatic_tax.enabled` only when `BACKGROUND_COMMERCE_TAX_MODE=stripe` and a configured digital-product tax code passes readiness; otherwise keep it false.
+
+Add a separate `BACKGROUND_COMMERCE_PURCHASING_ENABLED=true` production kill switch. Both the route and Stripe helper call one `assertBackgroundCommercePurchasingReady` guard that requires the switch plus legal, catalog, U.S.-country, tax, webhook, and reconciliation readiness. A valid disabled-tax posture alone is never sufficient to enable purchasing.
 
 - [ ] **Step 4: Implement checkout creation without a long transaction**
 
@@ -453,14 +460,15 @@ Do not overload subscription or donation helpers with ambiguous behavior. Add `c
 2. Prepare/reserve the order in a short database transaction.
 3. Ensure the existing Stripe customer outside that transaction.
 4. Create the Stripe session outside that transaction.
-5. Persist session ID, expiry, and `AWAITING_PAYMENT` using a conditional order update.
-6. If Stripe creation fails, conditionally mark `PAYMENT_FAILED` and release reservations.
+5. Persist session ID, expiry, and `AWAITING_PAYMENT` using a conditional update from `PREPARING`.
+6. If that conditional update loses a race, retrieve the local order and Stripe Session: expire a still-unpaid Session before releasing/restoring local reservation state, leave a paid Session for monotonic webhook fulfillment, and return the already-associated Session only when identifiers match.
+7. If Stripe creation fails, conditionally mark `PAYMENT_FAILED` and release reservations only while the order remains `PREPARING`.
 
 Return only `{ url, orderId }`; never return processor objects.
 
 - [ ] **Step 5: Implement explicit cancellation**
 
-The cancel route validates order ownership, expires an open Stripe session when present, then transitions the local order and releases items. A paid/fulfilled order is immutable through this route.
+The cancel route validates order ownership, expires an open Stripe Session when present, retrieves its final payment status, then conditionally transitions only `PREPARING`/`AWAITING_PAYMENT` unpaid orders and releases items in one transaction. Payment completion and fulfillment use their own monotonic predicates, so cancellation cannot overwrite a paid/fulfilled order or release its reservation while a Session remains payable.
 
 - [ ] **Step 6: Pass focused tests and commit**
 
@@ -513,7 +521,7 @@ Handle `checkout.session.completed`, `checkout.session.async_payment_succeeded`,
 Retrieve the Checkout Session with line items/payment intent outside the transaction when the event payload is incomplete. Then, in one short transaction:
 
 1. insert `CommerceWebhookReceipt(provider="stripe", eventId)`;
-2. lock behavior through conditional order/status updates and unique keys;
+2. enforce a monotonic transition table through conditional order/status predicates and processor event timestamps, so late `expired` or `async_payment_failed` events cannot regress `PAID`, fulfilled, partially refunded, or refunded state;
 3. validate customer, user, currency, item keys, and totals against the order snapshot;
 4. upsert the payment state;
 5. create one active purchase ownership per unowned order item;
@@ -626,7 +634,7 @@ export type BackgroundCommerceSnapshot = {
   ownerships: Array<{
     backgroundId: string;
     source: "credit" | "purchase";
-    status: "active" | "refund_pending" | "dispute_suspended" | "retired";
+    status: "active" | "refund_pending" | "dispute_suspended" | "refund_revoked" | "dispute_revoked" | "retired";
     acquiredAt: string;
   }>;
   cart: CommerceCartSnapshot;

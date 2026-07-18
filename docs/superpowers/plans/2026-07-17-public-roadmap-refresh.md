@@ -70,7 +70,7 @@ describe("public Roadmap page", () => {
     ]
 
     for (const title of trackTitles) {
-      assert.match(source, new RegExp(title.replace(/[&]/g, "\\\\&")))
+      assert.equal(source.includes(title), true)
     }
 
     assert.equal(source.match(/availableNow:/g)?.length, 5)
@@ -329,11 +329,11 @@ export default function RoadmapPage() {
                 contentClassName="gap-4"
               >
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-primary">Available now</p>
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-primary">Available now</h4>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">{track.availableNow}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-primary">Long-term direction</p>
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-primary">Long-term direction</h4>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">{track.longTermDirection}</p>
                 </div>
                 <ul className="mt-auto flex flex-wrap gap-2" aria-label={`${track.title} representative capabilities`}>
@@ -404,7 +404,15 @@ Run:
 npm run test:browser -- tests/browser/public-routes.spec.ts -g "Roadmap presents an unordered product portfolio" --project=mobile-chromium
 ```
 
-Expected: the same Roadmap contract passes at the repository's mobile Chromium viewport; the portfolio renders as a single readable column without horizontal overflow.
+Add an explicit viewport assertion after locating the portfolio grid:
+
+```ts
+const viewportWidth = page.viewportSize()?.width ?? 0
+const portfolioBox = await page.locator("[aria-labelledby='product-portfolio-heading']").boundingBox()
+expect((portfolioBox?.x ?? 0) + (portfolioBox?.width ?? 0)).toBeLessThanOrEqual(viewportWidth + 1)
+```
+
+Expected: the same Roadmap contract passes at the repository's mobile Chromium viewport; the portfolio renders as a single readable column and its right edge does not exceed the viewport width.
 
 - [ ] **Step 8: Commit the working public page and its regression coverage**
 
@@ -461,9 +469,10 @@ npm run typecheck
 npm run test
 npm run build
 git diff --check
+git diff --check origin/main...HEAD
 ```
 
-Expected: lint, TypeScript, the full Node test suite, and the production build all pass; `git diff --check` reports no whitespace errors. If a command fails, fix only failures caused by this branch and rerun that command before continuing.
+Expected: lint, TypeScript, the full Node test suite, and the production build all pass; both the working-tree and committed-range diff checks report no whitespace errors. If a command fails, fix only failures caused by this branch and rerun that command before continuing.
 
 - [ ] **Step 5: Commit the canonical documentation**
 

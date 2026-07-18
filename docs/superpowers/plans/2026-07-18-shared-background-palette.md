@@ -215,6 +215,7 @@ export interface BackgroundPaletteRole {
   label: string;
   sourceColor: string;
   defaultSwatch: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  rendererTarget: string;
 }
 
 export interface SupportedBackgroundPaletteAdapter {
@@ -238,7 +239,7 @@ export interface UnsupportedBackgroundPaletteAdapter {
 }
 ```
 
-Use a separate keyed registry file to keep the large source ledger readable, then attach the adapter in `backgroundRegistry.map(...)` so each exported `BackgroundDefinition` has one authoritative palette contract.
+`rendererTarget` is a stable, adapter-owned dot/bracket path describing the concrete prop/CSS-variable/canvas-uniform destination. Require unique non-empty targets per adapter and test that `applyRoleColors` changes exactly those targets and no undeclared property. Use a separate keyed registry file to keep the large source ledger readable, then attach the adapter in `backgroundRegistry.map(...)` so each exported `BackgroundDefinition` has one authoritative palette contract.
 
 - [ ] **Step 3: Inventory every enabled background without changing production rendering**
 
@@ -648,7 +649,7 @@ git add lib/background-palette.js lib/chimer-timer.js app/chimer/page.tsx app/ch
 git commit -m "feat: cut over to shared background palettes"
 ```
 
-Before committing, verify `git status --short` contains the user-owned `TODO.md` modification but `git diff --cached --name-only` does not.
+Before committing, inspect `git status --short` and preserve every unrelated working-tree change. If the user-owned `TODO.md` modification is still present in this workspace, confirm `git diff --cached --name-only` does not include it; do not require that branch-specific dirty state in a different workspace.
 
 ---
 

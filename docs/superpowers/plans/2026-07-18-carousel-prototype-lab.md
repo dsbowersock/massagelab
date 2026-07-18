@@ -555,11 +555,24 @@ export function resolveEffectiveLoop(itemCount, visibleRadius, requested) {
   return Boolean(requested && itemCount > visibleRadius * 2 + 1)
 }
 
+export function normalizeCarouselLabItems(items) {
+  const seen = new Set()
+  return items.filter((item) => {
+    if (!item?.id || seen.has(item.id)) {
+      if (process.env.NODE_ENV !== "production") console.warn("Carousel Lab ignored a missing or duplicate item id", item?.id)
+      return false
+    }
+    seen.add(item.id)
+    return true
+  })
+}
+
 export function reconcileCenteredId(items, preferredId, selectedId) {
-  const ids = new Set(items.map(({ id }) => id))
+  const uniqueItems = normalizeCarouselLabItems(items)
+  const ids = new Set(uniqueItems.map(({ id }) => id))
   if (preferredId && ids.has(preferredId)) return preferredId
   if (selectedId && ids.has(selectedId)) return selectedId
-  return items[0]?.id ?? null
+  return uniqueItems[0]?.id ?? null
 }
 
 export function getMountedItemIds(items, centeredId, visibleRadius, loop) {
@@ -633,7 +646,7 @@ git commit -m "Add carousel lab tuning model"
 - Create: `tests/carousel-lab-source.test.mjs`
 
 **Interfaces:**
-- Consumes: `CarouselLabItem { id: string; label: string; disabled?: boolean }`, sanitized tuning, surface, presentation, initial/selected IDs, and `onCenteredItemChange(id)`.
+- Consumes: `CarouselLabItem { id: string; label: string; disabled?: boolean; statusLabel?: string }`, sanitized tuning, surface, presentation, initial/selected IDs, and `onCenteredItemChange(id)`.
 - Produces: `useCarouselLabController(options)` with `viewportRef`, `centeredId`, `centeredIndex`, `mountedIds`, `effectiveLoop`, `canGoPrevious`, `canGoNext`, `centerItem(id, jump?)`, `goPrevious()`, `goNext()`, `handleKeyDown(event)`, `registerItemElement(id, element)`, and `statusText`.
 - Produces: generic `CarouselStage<T>` whose `renderItem(item, state)` receives `centered`, `nearby`, and `detailLevel: "full" | "summary" | "shell"`; it also reports `effectiveLoop` through `onEffectiveLoopChange(value)`.
 
@@ -694,6 +707,7 @@ export interface CarouselLabItem {
   id: string
   label: string
   disabled?: boolean
+  statusLabel?: string
 }
 
 interface UseCarouselLabControllerOptions {
@@ -856,7 +870,9 @@ const centered = controller.centeredId === item.id
 const detailLevel = centered ? "full" : nearby ? "summary" : "shell"
 ```
 
-Render `renderItem(item, { centered, nearby, detailLevel })` only for `full` and `summary`; render a fixed-size `aria-label={item.label}` lightweight shell for `shell`. Set `aria-current={centered ? "true" : undefined}`, `aria-label={`${item.label}, item ${index + 1} of ${items.length}`}`, `data-centered`, and `data-detail-level`. Only a centered full renderer may include focusable actions.
+Normalize items once through `normalizeCarouselLabItems` before controller navigation, Embla slide construction, React keys, and status counts. Add tests proving missing/duplicate IDs are rejected consistently and valid preferred/selected/first-item precedence remains unchanged.
+
+Render `renderItem(item, { centered, nearby, detailLevel })` only for `full` and `summary`; render a fixed-size, non-interactive lightweight shell for `shell`. Its accessible label is `${item.label}, item ${index + 1} of ${items.length}, ${item.statusLabel ?? (item.disabled ? "disabled" : "available")}` so locked/owned/subscriber/free/disabled state remains available without mounting actions. Set `aria-current={centered ? "true" : undefined}`, the same complete `aria-label` on every detail level, `data-centered`, and `data-detail-level`. Only a centered full renderer may include focusable actions. Background items populate `statusLabel` from `LabBackgroundAccessState`; stations use `disabled`/`available`.
 
 On the stage root set `data-surface={surface}`, `data-presentation={presentation}`, `data-reflection={presentation === "cover-flow" && tuning.reflection === true}`, and `data-reduced-motion={reducedMotion || tuning.motion === false}`. Set the sanitized card-width, gap, perspective, reflection-opacity, and reflection-gap CSS variables on that same root.
 
@@ -1228,6 +1244,8 @@ git commit -m "Add real background carousel prototypes"
 - Create: `app/dev/buttons/carousel-lab/station-lab-card.tsx`
 - Create: `app/dev/buttons/carousel-lab/station-lab-surface.tsx`
 - Modify: `app/browse/workspace.tsx:319-509`
+- Modify: `components/providers/music-provider.tsx`
+- Modify: `lib/atmosphere/generative-fm-runtime.ts`
 - Modify: `tests/carousel-lab-source.test.mjs`
 
 **Interfaces:**
@@ -1333,6 +1351,7 @@ Inside `StationLabSurface`:
 const music = useMusic()
 const [groupId, setGroupId] = useState(stationGroups[0]?.id ?? "")
 const positionsRef = useRef(new Map<string, string>())
+const prewarmAbortRef = useRef<AbortController | null>(null)
 const group = stationGroups.find((candidate) => candidate.id === groupId) ?? stationGroups[0]
 
 const initialItemId =
@@ -1345,8 +1364,15 @@ const prewarmStation = useCallback((
   stationId: string,
   options: { includeSamplePayloads?: boolean } = {},
 ) => {
-  void music.prewarmStation(stationId, options)
+  prewarmAbortRef.current?.abort()
+  const controller = new AbortController()
+  prewarmAbortRef.current = controller
+  void music.prewarmStation(stationId, { ...options, signal: controller.signal })
 }, [music])
+
+useEffect(() => () => {
+  prewarmAbortRef.current?.abort()
+}, [])
 
 const handleCenteredItemChange = useCallback((stationId: string) => {
   positionsRef.current.set(group.id, stationId)
@@ -1354,7 +1380,9 @@ const handleCenteredItemChange = useCallback((stationId: string) => {
 }, [group.id, prewarmStation])
 ```
 
-Give `StationLabSurface` the same `onEffectiveLoopChange: (value: boolean) => void` prop as the Background surface. Render a labeled category `Select`, the selected group's real title/description, and `CarouselStage key={group.id}` with `initialItemId` and `onEffectiveLoopChange={props.onEffectiveLoopChange}`. The category key applies the saved session position or active-station fallback only when the category changes; do not add an effect that recenters on every playback-state update. Render `StationLabCard` for full/summary detail. Full cards retain explicit Play/Stop/Favorite actions; centering never invokes them.
+Give `StationLabSurface` the same `onEffectiveLoopChange: (value: boolean) => void` prop as the Background surface. Render a labeled category `Select`, the selected group's real title/description, and `CarouselStage key={group.id}` with `initialItemId` and `onEffectiveLoopChange={props.onEffectiveLoopChange}`. Abort the prior controller before changing category. The category key applies the saved session position or active-station fallback only when the category changes; do not add an effect that recenters on every playback-state update. Render `StationLabCard` for full/summary detail. Full cards retain explicit Play/Stop/Favorite actions; centering never invokes them.
+
+Extend `MusicContextType.prewarmStation` and `prewarmGenerativeFmPiece` options with `signal?: AbortSignal`. Propagate the signal through optional sample-payload fetch/decode work and check it between bounded batches. Keep shared metadata/module preparation cache-safe: aborting one lab consumer must not poison a prepared runtime reused by playback, but it must stop lab-requested payload escalation and ignore completion after abort. Add focused source/runtime tests for category-change and unmount cancellation.
 
 - [ ] **Step 6: Run focused regression tests**
 
@@ -1369,7 +1397,7 @@ Expected: PASS with the extracted Station type and `useMusic` return type.
 - [ ] **Step 7: Commit the Station prototype**
 
 ```bash
-git add components/atmosphere/station-carousel-card.tsx app/browse/workspace.tsx app/dev/buttons/carousel-lab/station-lab-card.tsx app/dev/buttons/carousel-lab/station-lab-surface.tsx tests/carousel-lab-source.test.mjs
+git add components/atmosphere/station-carousel-card.tsx components/providers/music-provider.tsx lib/atmosphere/generative-fm-runtime.ts app/browse/workspace.tsx app/dev/buttons/carousel-lab/station-lab-card.tsx app/dev/buttons/carousel-lab/station-lab-surface.tsx tests/carousel-lab-source.test.mjs
 git commit -m "Add real station carousel prototypes"
 ```
 

@@ -228,7 +228,13 @@ React.useEffect(() => {
 Make the anchored inner surface the modal dialog, keep the current group/action JSX inside `<nav aria-label="Quick create actions">`, stop inner clicks from reaching the backdrop, and keep the current Close quick actions button as the final focusable control. The resulting structure is:
 
 ```tsx
-<div className="ml-quick-action-layer fixed inset-0 z-[10030] bg-background/35 backdrop-blur-md" onClick={() => onOpenChange(false)}>
+<div
+  className="ml-quick-action-layer fixed inset-0 z-[10030] bg-background/35 backdrop-blur-md"
+  onClick={() => {
+    returnFocusRef.current?.focus()
+    onOpenChange(false)
+  }}
+>
   <div
     ref={dialogRef}
     role="dialog"
@@ -779,7 +785,7 @@ const helpTopics = [
     id: "premium-access",
     title: "Premium backgrounds and subscriptions",
     body: "Subscriptions can unlock supported premium backgrounds. Free background credits and individual background purchases are not available yet.",
-    links: [{ href: "/pricing", label: "View Pricing" }, { href: "/account?tab=billing", label: "Account and Billing" }],
+    links: [{ href: "/pricing", label: "View Pricing" }, { href: "/account?tab=membership", label: "Account and Billing" }],
   },
   {
     id: "local-first-privacy",
@@ -1266,8 +1272,8 @@ Add to `app/globals.css`:
 }
 
 @media (min-width: 768px) {
-  .ml-app-shell[data-app-bar-position="top"] { --ml-page-top-safe: var(--ml-desktop-app-bar-height); }
-  .ml-app-shell[data-app-bar-position="bottom"] {
+  html[data-app-bar-position="top"] .ml-app-shell { --ml-page-top-safe: var(--ml-desktop-app-bar-height); }
+  html[data-app-bar-position="bottom"] .ml-app-shell {
     --ml-bottom-stack-height: calc(var(--ml-safe-bottom) + var(--ml-desktop-app-bar-height));
     --ml-page-bottom-safe: calc(var(--ml-safe-bottom) + var(--ml-page-edge-gap) + var(--ml-scroll-end-buffer) + var(--ml-desktop-app-bar-height));
   }
@@ -1290,11 +1296,11 @@ Update the mobile layout and top/bottom safe offsets:
 .ml-main-bar-tools { display: flex; min-width: 0; flex: 1 1 auto; align-items: center; justify-content: space-around; }
 
 @media (max-width: 767px) {
-  .ml-app-shell[data-app-bar-position="top"][data-main-bar-visible="true"] {
+  html[data-app-bar-position="top"] .ml-app-shell[data-main-bar-visible="true"] {
     --ml-page-top-safe: calc(var(--ml-safe-top) + var(--ml-main-bar-height));
     --ml-bottom-stack-height: var(--ml-safe-bottom);
   }
-  .ml-app-shell[data-app-bar-position="bottom"][data-main-bar-visible="true"] {
+  html[data-app-bar-position="bottom"] .ml-app-shell[data-main-bar-visible="true"] {
     --ml-bottom-stack-height: calc(var(--ml-safe-bottom) + var(--ml-main-bar-height));
     --ml-page-bottom-safe: calc(var(--ml-safe-bottom) + var(--ml-page-edge-gap) + var(--ml-scroll-end-buffer) + var(--ml-main-bar-height));
   }
@@ -1419,6 +1425,47 @@ test("account menu launches a captured install prompt and keeps help or feedback
   await expect(page.getByRole("menuitem", { name: "Send Feedback" })).toBeVisible()
   await page.getByRole("menuitem", { name: "Install MassageLab" }).click()
   await expect(page.locator("html")).toHaveAttribute("data-install-prompt-called", "true")
+  await page.getByTestId("account-menu-trigger").click()
+  await expect(page.getByRole("menuitem", { name: "Install MassageLab" })).toHaveCount(0)
+})
+
+test("account menu hides install when already installed", async ({ page }) => {
+  await page.addInitScript(() => {
+    const original = window.matchMedia.bind(window)
+    window.matchMedia = (query) => query === "(display-mode: standalone)"
+      ? ({ matches: true, media: query, onchange: null, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent: () => true } as MediaQueryList)
+      : original(query)
+  })
+  await page.goto("/")
+  await page.getByTestId("account-menu-trigger").click()
+  await expect(page.getByRole("menuitem", { name: "Install MassageLab" })).toHaveCount(0)
+  await expect(page.getByRole("menuitem", { name: "Help & FAQ" })).toBeVisible()
+  await expect(page.getByRole("menuitem", { name: "Send Feedback" })).toBeVisible()
+})
+
+test("account menu hides install on an unsupported browser", async ({ page }) => {
+  await page.goto("/")
+  await page.getByTestId("account-menu-trigger").click()
+  await expect(page.getByRole("menuitem", { name: "Install MassageLab" })).toHaveCount(0)
+  await expect(page.getByRole("menuitem", { name: "Help & FAQ" })).toBeVisible()
+  await expect(page.getByRole("menuitem", { name: "Send Feedback" })).toBeVisible()
+})
+
+test("failed install prompt stays hidden after the failed attempt", async ({ page }) => {
+  await page.goto("/")
+  await page.evaluate(() => {
+    const event = new Event("beforeinstallprompt") as Event & {
+      prompt: () => Promise<void>
+      userChoice: Promise<{ outcome: "dismissed"; platform: string }>
+    }
+    event.prompt = async () => { throw new Error("prompt failed") }
+    event.userChoice = Promise.resolve({ outcome: "dismissed", platform: "web" })
+    window.dispatchEvent(event)
+  })
+  await page.getByTestId("account-menu-trigger").click()
+  await page.getByRole("menuitem", { name: "Install MassageLab" }).click()
+  await page.getByTestId("account-menu-trigger").click()
+  await expect(page.getByRole("menuitem", { name: "Install MassageLab" })).toHaveCount(0)
 })
 
 test("help routes installation and problem reports without claiming commerce is live", async ({ page }) => {

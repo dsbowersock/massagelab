@@ -113,7 +113,7 @@ Defaults:
 - `backgroundId: null`, which means no explicit device selection;
 - `showClock: false`.
 
-The storage migration must preserve favorites, recent stations, volume, and collapsed-player state from v1. If the legacy `massagelab.music.background` key exists, its value becomes the device visualizer background because the old page wrote that key only after background selection. The migration does not assume the stored background is currently eligible.
+The storage migration must preserve favorites, recent stations, volume, and collapsed-player state from v1. If the legacy `massagelab.music.background` key exists, its value becomes the device visualizer background only during the first migration when v2 has no explicit visualizer field. V2 persists a `legacyMusicBackground` consumed marker; any explicit v2 value, including `backgroundId: null`, is authoritative. Restore or clearing writes the explicit null plus marker, so retaining the legacy key for rollback cannot resurrect stale state. A future unknown storage version is preserved untouched and reported as unsupported rather than normalized or overwritten by v2 code. The migration does not assume a stored background is currently eligible.
 
 Device background choices persist for anonymous and signed-in users. For a signed-in user, choosing a non-default background remembers that override on the current device without changing the account default.
 

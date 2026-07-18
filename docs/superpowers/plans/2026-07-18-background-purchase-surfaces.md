@@ -267,8 +267,7 @@ Run: `node --test tests/background-checkout-surfaces.test.mjs`
 Expected: PASS.
 
 ```powershell
-git add components/backgrounds/BackgroundCheckoutReview.tsx components/backgrounds/BackgroundCommerceCart.tsx tests/background-checkout-surfaces.test.mjs
-git add app/chimer/immersive-panel-shell.tsx
+git add components/backgrounds/BackgroundCheckoutReview.tsx components/backgrounds/BackgroundCommerceCart.tsx app/chimer/immersive-panel-shell.tsx app/chimer/page.tsx app/chimer/running-timer.tsx components/providers/music-provider.tsx lib/music-visualizer.js tests/background-checkout-surfaces.test.mjs
 git commit -m "feat: add background checkout review and recovery"
 ```
 

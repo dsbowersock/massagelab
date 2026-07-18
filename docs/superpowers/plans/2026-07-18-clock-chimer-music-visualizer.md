@@ -155,7 +155,7 @@ Test all of these inputs:
 - v1 state preserving favorites, recent stations, clamped volume, and mini-player collapse;
 - v1 state plus legacy `massagelab.music.background` becoming `visualizer.backgroundId`;
 - malformed JSON;
-- a future unknown version;
+- a future unknown version returning an explicit `unsupported-version` result while preserving the original raw value;
 - serialize/parse round trip.
 
 ### Step 2: Define explicit old/new keys
@@ -177,11 +177,13 @@ parseAtmosphereStorage(
 );
 ```
 
-Precedence is current valid v2 state, then v1 audio state, with `legacyBackgroundId` used only when v2 has no explicit visualizer choice.
+Return a discriminated parse result: `{ status: "ready", state, shouldPersist }` or `{ status: "unsupported-version", rawVersion, rawValue }`. A future version is never normalized, serialized, or overwritten by v2 code; the provider keeps usable in-memory defaults and exposes the unsupported status until newer code can read it.
+
+Precedence is an explicit current v2 `visualizer.backgroundId` value (including `null`), then v1 audio state, with `legacyBackgroundId` used only during the first migration when v2 has no visualizer field and `migrations.legacyMusicBackground` is not true. Every successful v2 write includes `migrations: { legacyMusicBackground: true }`. Restore/clear writes `backgroundId: null` with that marker, so the retained read-only legacy key can never resurrect a stale background.
 
 ### Step 3: Implement and document the migration
 
-Reuse the normalizers from `lib/music-visualizer.js`. Serialization must always emit version 2 and must not include arbitrary fields.
+Reuse the normalizers from `lib/music-visualizer.js`. Serialization of supported state must always emit version 2, the one-shot migration marker, and no arbitrary fields. An `unsupported-version` result has no serialization path.
 
 Keep `BACKGROUND_STORAGE_KEYS.music` only as a named legacy migration key. Rename it to `musicLegacy` if all call sites/tests are updated in the same commit, or add a deprecation comment if retaining the property avoids unnecessary churn. It must have no write path after Task 4.
 
@@ -295,6 +297,8 @@ interface MusicVisualizerState {
   backgroundId: string | null;
   accountDefaultBackgroundId: string | null;
   showClock: boolean;
+  storageStatus: "loading" | "available" | "unavailable" | "unsupported-version";
+  storageError: string | null;
   accountStatus: "anonymous" | "loading" | "synced" | "saving" | "error";
   accountError: string | null;
 }
@@ -343,7 +347,7 @@ In `readStoredAtmosphereState`, read:
 - `LEGACY_ATMOSPHERE_STORAGE_KEY`;
 - the legacy Music background key.
 
-After a successful migration, persist v2. Do not delete legacy keys in this track; leaving them read-only keeps rollback recoverable. If localStorage is denied, retain in-memory defaults and expose a nonblocking storage status for the Visual panel.
+After a successful supported migration, persist v2 and its consumed marker. Do not delete legacy keys in this track; leaving them read-only keeps rollback recoverable while the marker prevents re-consumption. If localStorage is denied, retain in-memory defaults and set `storageStatus: "unavailable"` with a safe `storageError`. If a future version is encountered, set `storageStatus: "unsupported-version"`, preserve the raw value, and do not write. Neither storage condition blocks visualizer use or changes account sync status.
 
 ### Step 4: Hydrate and sync account visualizer preferences
 
@@ -594,6 +598,8 @@ interface ImmersiveDisplayMode {
   canToggleClock: boolean;
   initialPanel: ImmersivePanelId;
   unavailableBackgroundMessage: string | null;
+  storageStatus: MusicVisualizerState["storageStatus"];
+  storageError: string | null;
   onShowClockChange?: (showClock: boolean) => void;
   onBackgroundChange: (backgroundId: string) => void;
   onClose: () => void;
@@ -610,6 +616,8 @@ interface ImmersiveDisplayMode {
 ```
 
 Write a source test that requires this single mode prop and rejects a parallel `MusicVisualizerRunningTimer` component.
+
+The Visual panel renders a nonblocking device-storage notice from `storageStatus`/`storageError`, independently from account sync notices. Clock and Chimer pass `available`/`null`; Music visualizer passes the provider's live storage fields.
 
 Run:
 

@@ -257,7 +257,7 @@ Track 1A includes a rerunnable backfill that provisions every user whose `emailV
 - repeated execution does not change an existing balance; and
 - a partial failure can be safely retried.
 
-Credits do not expire. Account deletion follows the existing cascade and deletion policy; Track 1 does not add a transferable email-level benefit outside the account.
+Credits do not expire. MassageLab does not yet ship account deletion, and durable commerce records follow the same conservative retention posture as `LegalAcceptance`: database relations restrict deleting a `User` while wallet, ledger, ownership, order, payment, refund, dispute, or commerce-audit rows remain. A later account-deletion branch must define lawful retention and transactional anonymization before it can remove that user; Track 1 neither cascades durable commerce history nor adds a transferable email-level benefit outside the account.
 
 ## Canonical Background Access Resolver
 
