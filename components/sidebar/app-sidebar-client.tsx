@@ -561,7 +561,6 @@ function AccountMenu({
   const isAccountRouteActive = accountRoutes.some((route) => isNavigationRouteActive(pathname, route.href))
   const installAvailable = status === "prompt" || status === "instructions"
   const authRoutes = accountRoutes.filter((route) => ["account", "settings", "account-security"].includes(route.id))
-  // Help & FAQ, Send Feedback, and Legal remain common actions regardless of authentication.
   const publicRoutes = accountRoutes.filter((route) => ["help-faq", "send-feedback", "legal"].includes(route.id))
 
   async function handleInstall() {

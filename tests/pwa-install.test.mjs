@@ -43,11 +43,21 @@ describe("PWA install capability", () => {
     }), false)
   })
 
-  it("keeps install conditional and help or feedback public", () => {
+  it("keeps install conditional and renders the selected public actions", () => {
     const sidebar = readFileSync(new URL("../components/sidebar/app-sidebar-client.tsx", import.meta.url), "utf8")
     assert.match(sidebar, /status === "prompt" \|\| status === "instructions"/)
     assert.match(sidebar, /Install MassageLab/)
-    assert.match(sidebar, /Help & FAQ/)
-    assert.match(sidebar, /Send Feedback/)
+    assert.match(
+      sidebar,
+      /const publicRoutes = accountRoutes\.filter\(\(route\) => \["help-faq", "send-feedback", "legal"\]\.includes\(route\.id\)\)/,
+    )
+
+    const commonMenuGroup = sidebar.match(
+      /<DropdownMenuGroup>\s*\{installAvailable[\s\S]*?<\/DropdownMenuGroup>/,
+    )?.[0]
+    assert.ok(commonMenuGroup)
+    assert.match(commonMenuGroup, /\{publicRoutes\.map\(\(route\) => \{/)
+    assert.match(commonMenuGroup, /<DropdownMenuItem key=\{route\.id\} asChild>/)
+    assert.match(commonMenuGroup, /\{route\.label\}/)
   })
 })
