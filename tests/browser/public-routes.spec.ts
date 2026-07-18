@@ -132,7 +132,7 @@ async function openQuickActionsAboveTrigger(page: Page, quickCreate: Locator) {
 
   const quickActions = page.getByRole("navigation", { name: /^Quick create actions$/i })
   await expect(quickActions).toBeVisible()
-  const quickActionsBox = await quickActions.boundingBox()
+  const quickActionsBox = await page.getByRole("dialog", { name: /^Quick actions$/i }).boundingBox()
   expect(quickActionsBox, "quick-action menu box").not.toBeNull()
 
   if (triggerBox && quickActionsBox) {
@@ -290,7 +290,7 @@ test("top app bar quick actions open inside the viewport below the plus button",
 
   const quickActions = page.getByRole("navigation", { name: /^Quick create actions$/i })
   await expect(quickActions).toBeVisible()
-  const quickActionsBox = await quickActions.boundingBox()
+  const quickActionsBox = await page.getByRole("dialog", { name: /^Quick actions$/i }).boundingBox()
   expect(quickActionsBox, "top-bar quick-action menu box").not.toBeNull()
 
   if (triggerBox && quickActionsBox) {
@@ -319,7 +319,7 @@ test("mobile quick-create button opens a vertical speed dial", async ({ page }) 
   await expect(quickActions.getByRole("link", { name: /^Create calendar item$/i })).toHaveAttribute("href", "/login?callbackUrl=%2Fcalendar%2Fnew")
   await expect(quickActions.getByRole("link", { name: /^Customize quick actions$/i })).toHaveAttribute("href", "/login?callbackUrl=%2Faccount%3Ftab%3Dapp-settings")
 
-  const quickActionsBox = await quickActions.boundingBox()
+  const quickActionsBox = await page.getByRole("dialog", { name: /^Quick actions$/i }).boundingBox()
   expect(quickActionsBox, "quick-action menu box before outside dismissal").not.toBeNull()
   if (quickActionsBox) {
     await page.mouse.click(quickActionsBox.x + 8, quickActionsBox.y + (quickActionsBox.height / 2))
