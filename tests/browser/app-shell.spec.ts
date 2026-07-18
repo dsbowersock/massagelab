@@ -82,6 +82,85 @@ function drawerControl(cluster: Locator) {
   return cluster.locator("button").first()
 }
 
+type WideMobileShellCase = {
+  appBarPosition: "top" | "bottom"
+  drawerEdge: "left" | "right"
+}
+
+async function expectWideMobileSidebarBoundary(
+  page: Page,
+  appBarPosition: WideMobileShellCase["appBarPosition"],
+) {
+  const bar = page.getByRole("navigation", { name: "MassageLab main navigation" })
+  const frame = page.locator(".ml-app-sidebar-frame")
+
+  await expect(frame).toBeVisible()
+  await expect.poll(async () => {
+    const barBox = await bar.boundingBox()
+    const frameBox = await frame.boundingBox()
+    if (!barBox || !frameBox) return Number.POSITIVE_INFINITY
+
+    return appBarPosition === "top"
+      ? Math.abs(frameBox.y - (barBox.y + barBox.height))
+      : Math.abs(frameBox.y + frameBox.height - barBox.y)
+  }).toBeLessThanOrEqual(1)
+}
+
+async function expectWideMobileShellGeometry(page: Page, shellCase: WideMobileShellCase) {
+  const bar = page.getByRole("navigation", { name: "MassageLab main navigation" })
+  const edgeCluster = bar.locator(".ml-main-bar-drawer-brand")
+  const drawer = drawerControl(edgeCluster)
+  const brand = edgeCluster.getByRole("link", { name: "MassageLab home" })
+  const tools = bar.locator(".ml-main-bar-tools")
+  const sidebarContainer = page.locator('[data-sidebar-container="true"]')
+  const [barBox, drawerBox, brandBox, toolsBox] = await Promise.all([
+    bar.boundingBox(),
+    drawer.boundingBox(),
+    brand.boundingBox(),
+    tools.boundingBox(),
+  ])
+
+  expect(barBox?.x).toBeLessThanOrEqual(1)
+  expect(barBox?.width).toBeGreaterThanOrEqual(762)
+  expect(barBox?.height).toBeCloseTo(52, 0)
+  expect(drawerBox, "wide-mobile drawer box").not.toBeNull()
+  expect(brandBox, "wide-mobile brand box").not.toBeNull()
+  expect(toolsBox, "wide-mobile tools box").not.toBeNull()
+  await expect(edgeCluster.locator(".ml-app-bar-brand-wordmark")).toBeVisible()
+  await expect(edgeCluster.locator(".ml-app-bar-brand-mark")).toBeHidden()
+
+  if (shellCase.drawerEdge === "left") {
+    expect(drawerBox?.x ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(8)
+    expect((drawerBox?.x ?? 0) + (drawerBox?.width ?? 0)).toBeLessThanOrEqual(brandBox?.x ?? 0)
+    expect((toolsBox?.x ?? 0) + (toolsBox?.width ?? 0)).toBeGreaterThanOrEqual(756)
+  } else {
+    expect((drawerBox?.x ?? 0) + (drawerBox?.width ?? 0)).toBeGreaterThanOrEqual(756)
+    expect((brandBox?.x ?? 0) + (brandBox?.width ?? 0)).toBeLessThanOrEqual(drawerBox?.x ?? 0)
+    expect(toolsBox?.x ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(8)
+  }
+
+  const toolBoxes = await tools.locator(":scope > *").evaluateAll((elements) => elements
+    .map((element) => element.getBoundingClientRect())
+    .filter((rect) => rect.width > 0 && rect.height > 0)
+    .map((rect) => ({ x: rect.x, width: rect.width })))
+  expect(toolBoxes).toHaveLength(5)
+  for (let index = 1; index < toolBoxes.length; index += 1) {
+    const gap = toolBoxes[index].x - (toolBoxes[index - 1].x + toolBoxes[index - 1].width)
+    expect(gap).toBeGreaterThanOrEqual(3)
+    expect(gap).toBeLessThanOrEqual(5)
+  }
+
+  const initialState = await sidebarContainer.getAttribute("data-state")
+  expect(["collapsed", "expanded"]).toContain(initialState)
+  await expectWideMobileSidebarBoundary(page, shellCase.appBarPosition)
+  await drawer.click()
+  await expect(sidebarContainer).toHaveAttribute(
+    "data-state",
+    initialState === "collapsed" ? "expanded" : "collapsed",
+  )
+  await expectWideMobileSidebarBoundary(page, shellCase.appBarPosition)
+}
+
 test("anonymous quick actions stay focused and preserve the full-screen overlay", async ({ page }) => {
   await gotoShell(page, "/wellness")
   const trigger = page.getByRole("button", { name: "Open quick actions" })
@@ -277,12 +356,33 @@ test("right drawer keeps the drawer and brand ordered at the right edge", async 
   expect((drawerBox?.x ?? 0) + (drawerBox?.width ?? 0)).toBeGreaterThan(1240)
 })
 
+for (const shellCase of [
+  { appBarPosition: "bottom", drawerEdge: "left" },
+  { appBarPosition: "top", drawerEdge: "right" },
+] as const satisfies readonly WideMobileShellCase[]) {
+  test(`764px ${shellCase.drawerEdge} drawer and ${shellCase.appBarPosition} bar keep compact tools clear of the sidebar`, async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== desktopProject, "Wide-mobile fixed-sidebar geometry is covered in desktop Chromium.")
+    await page.setViewportSize({ width: 764, height: 597 })
+    await page.addInitScript((settings) => localStorage.setItem("massage-lab-settings", JSON.stringify(settings)), {
+      appBarPosition: shellCase.appBarPosition,
+      sidebarPosition: shellCase.drawerEdge,
+      sidebarTriggerPosition: shellCase.appBarPosition,
+      themeMode: "dark",
+    })
+    await gotoShell(page, "/music")
+
+    await expectWideMobileShellGeometry(page, shellCase)
+  })
+}
+
 test("narrow mobile keeps every tool and collapses only the wordmark", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== mobileProject, "Narrow main-bar behavior is covered in mobile Chromium.")
   await page.setViewportSize({ width: 390, height: 844 })
   await gotoShell(page, "/music")
 
   const bar = page.getByRole("navigation", { name: "MassageLab main navigation" })
+  const barBox = await bar.boundingBox()
+  expect(barBox?.height).toBeCloseTo(52, 0)
   await expect(bar.locator(".ml-app-bar-brand-mark")).toBeVisible()
   await expect(bar.locator(".ml-app-bar-brand-wordmark")).toBeHidden()
   for (const name of ["Open music", "Open clock", "Open quick actions", "Open calendar"]) {

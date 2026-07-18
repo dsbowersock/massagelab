@@ -118,7 +118,7 @@
     --ml-page-edge-gap: clamp(1rem, 3vw, 2rem);
     --ml-scroll-end-buffer: 1.5rem;
     --ml-audio-toolbar-height: 5rem;
-    --ml-main-bar-height: 4.75rem;
+    --ml-main-bar-height: 3.25rem;
     --ml-desktop-app-bar-height: 3.5rem;
     --ml-bottom-stack-height: var(--ml-safe-bottom);
   }
@@ -1951,7 +1951,7 @@
 
   .ml-app-bar-brand-wordmark {
     display: block;
-    width: min(9rem, 18vw);
+    width: 9rem;
     height: auto;
     object-fit: contain;
   }
@@ -1967,26 +1967,43 @@
     display: flex;
     align-items: center;
     width: 100%;
-    min-height: var(--ml-main-bar-height);
+    /* Keep the configured stack height inclusive of the bar's single edge border. */
+    min-height: calc(var(--ml-main-bar-height) - 1px);
   }
 
   .ml-main-bar-drawer-brand {
+    container-name: ml-main-bar-brand;
+    container-type: inline-size;
     display: flex;
     min-width: 0;
-    flex: 0 1 auto;
+    flex: 0 1 11.875rem;
     align-items: center;
     gap: 0.25rem;
+  }
+
+  .ml-main-bar-drawer-brand[data-drawer-edge="right"] {
+    justify-content: flex-end;
   }
 
   .ml-main-bar-tools {
     display: flex;
     min-width: 0;
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     align-items: center;
-    justify-content: space-around;
+    gap: 0.25rem;
   }
 
-  @media (max-width: 1023px) {
+  .ml-main-bar-layout[data-drawer-edge="left"] .ml-main-bar-tools {
+    margin-left: auto;
+    justify-content: flex-end;
+  }
+
+  .ml-main-bar-layout[data-drawer-edge="right"] .ml-main-bar-tools {
+    margin-right: auto;
+    justify-content: flex-start;
+  }
+
+  @container ml-main-bar-brand (max-width: 11.75rem) {
     .ml-app-bar-brand-wordmark {
       display: none;
     }
@@ -2128,12 +2145,20 @@
   }
 
   @media (min-width: 601px) and (max-width: 767px) {
-    .ml-mobile-main-bar[data-sidebar-position="left"] {
-      padding-left: calc(var(--sidebar-width-icon, 3.25rem) + 1.25rem);
+    [data-sidebar-container="true"] > :first-child {
+      pointer-events: none;
     }
 
-    .ml-mobile-main-bar[data-sidebar-position="right"] {
-      padding-right: calc(var(--sidebar-width-icon, 3.25rem) + 1.25rem);
+    html[data-app-bar-position="top"] [data-sidebar-container="true"] > .ml-app-sidebar-frame {
+      top: calc(var(--ml-safe-top) + var(--ml-main-bar-height));
+      bottom: auto;
+      height: calc(100svh - var(--ml-safe-top) - var(--ml-main-bar-height));
+    }
+
+    html[data-app-bar-position="bottom"] [data-sidebar-container="true"] > .ml-app-sidebar-frame {
+      top: auto;
+      bottom: calc(var(--ml-safe-bottom) + var(--ml-main-bar-height));
+      height: calc(100svh - var(--ml-safe-bottom) - var(--ml-main-bar-height));
     }
   }
 

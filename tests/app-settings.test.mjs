@@ -301,6 +301,44 @@ describe("App settings helpers", () => {
     }
   })
 
+  it("groups wide-mobile tools opposite the drawer and gives the sidebar frame the bar offset", () => {
+    const globalsSource = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
+    const toolsRule = globalsSource.match(/\.ml-main-bar-tools \{[\s\S]*?\n  \}/)?.[0] ?? ""
+    const leftToolsRule = globalsSource.match(
+      /\.ml-main-bar-layout\[data-drawer-edge="left"\] \.ml-main-bar-tools \{[\s\S]*?\n  \}/,
+    )?.[0] ?? ""
+    const rightToolsRule = globalsSource.match(
+      /\.ml-main-bar-layout\[data-drawer-edge="right"\] \.ml-main-bar-tools \{[\s\S]*?\n  \}/,
+    )?.[0] ?? ""
+    const wideMobileStart = globalsSource.indexOf("@media (min-width: 601px) and (max-width: 767px)")
+    const wideMobileEnd = globalsSource.indexOf("@supports selector(:has(*))", wideMobileStart)
+    const wideMobileRules = globalsSource.slice(wideMobileStart, wideMobileEnd)
+
+    assert.match(toolsRule, /flex:\s*0 0 auto/)
+    assert.match(toolsRule, /gap:\s*0\.25rem/)
+    assert.doesNotMatch(toolsRule, /space-around/)
+    assert.match(leftToolsRule, /margin-left:\s*auto/)
+    assert.match(leftToolsRule, /justify-content:\s*flex-end/)
+    assert.match(rightToolsRule, /margin-right:\s*auto/)
+    assert.match(rightToolsRule, /justify-content:\s*flex-start/)
+    assert.ok(wideMobileStart >= 0)
+    assert.ok(wideMobileEnd > wideMobileStart)
+    assert.doesNotMatch(globalsSource, /\.ml-mobile-main-bar\[data-sidebar-position="(?:left|right)"\]/)
+    assert.match(
+      wideMobileRules,
+      /html\[data-app-bar-position="top"\] \[data-sidebar-container="true"\] > \.ml-app-sidebar-frame/,
+    )
+    assert.match(wideMobileRules, /top:\s*calc\(var\(--ml-safe-top\) \+ var\(--ml-main-bar-height\)\)/)
+    assert.match(wideMobileRules, /height:\s*calc\(100svh - var\(--ml-safe-top\) - var\(--ml-main-bar-height\)\)/)
+    assert.match(
+      wideMobileRules,
+      /html\[data-app-bar-position="bottom"\] \[data-sidebar-container="true"\] > \.ml-app-sidebar-frame/,
+    )
+    assert.match(wideMobileRules, /bottom:\s*calc\(var\(--ml-safe-bottom\) \+ var\(--ml-main-bar-height\)\)/)
+    assert.match(wideMobileRules, /height:\s*calc\(100svh - var\(--ml-safe-bottom\) - var\(--ml-main-bar-height\)\)/)
+    assert.match(wideMobileRules, /\[data-sidebar-container="true"\] > :first-child \{[\s\S]*pointer-events:\s*none/)
+  })
+
   it("keeps the mobile main bar controls styled as physical buttons", () => {
     const globalsSource = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
     const mainBarSource = readFileSync(new URL("../components/shell/mobile-main-bar.tsx", import.meta.url), "utf8")
@@ -310,10 +348,26 @@ describe("App settings helpers", () => {
     const settingsProviderSource = readFileSync(new URL("../components/providers/settings-provider.tsx", import.meta.url), "utf8")
 
     assert.match(globalsSource, /--ml-site-blue:\s*225 73% 57%/)
+    assert.match(globalsSource, /--ml-main-bar-height:\s*3\.25rem/)
     assert.match(mainBarSource, /pb-\[var\(--ml-safe-bottom\)\]/)
     assert.match(mainBarSource, /pt-0/)
+    assert.match(
+      globalsSource,
+      /\.ml-main-bar-layout \{[\s\S]*min-height:\s*calc\(var\(--ml-main-bar-height\) - 1px\)/,
+    )
     assert.match(globalsSource, /\.ml-main-bar-layout \{[\s\S]*align-items: center/)
     assert.match(globalsSource, /\.ml-main-bar-drawer-brand \{[\s\S]*align-items: center/)
+    assert.match(globalsSource, /\.ml-main-bar-drawer-brand \{[\s\S]*container-name:\s*ml-main-bar-brand/)
+    assert.match(globalsSource, /\.ml-main-bar-drawer-brand \{[\s\S]*container-type:\s*inline-size/)
+    assert.match(globalsSource, /\.ml-main-bar-drawer-brand \{[\s\S]*flex:\s*0 1 11\.875rem/)
+    assert.match(
+      globalsSource,
+      /@container ml-main-bar-brand \(max-width: 11\.75rem\) \{[\s\S]*\.ml-app-bar-brand-wordmark \{[\s\S]*display:\s*none[\s\S]*\.ml-app-bar-brand-mark \{[\s\S]*display:\s*block/,
+    )
+    assert.doesNotMatch(
+      globalsSource,
+      /@media \(max-width: 1023px\) \{[\s\S]*?\.ml-app-bar-brand-(?:wordmark|mark)/,
+    )
     assert.match(globalsSource, /\.ml-main-bar-button \{[\s\S]*align-items: center/)
     assert.match(globalsSource, /\.ml-main-bar-button \{[\s\S]*justify-content: center/)
     assert.equal((mainBarSource.match(/<AppToolLink\b/g) ?? []).length, 3)
