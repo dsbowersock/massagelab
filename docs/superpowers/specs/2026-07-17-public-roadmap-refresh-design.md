@@ -1,7 +1,7 @@
 # Public Roadmap Refresh Design
 
-**Date:** 2026-07-17  
-**Status:** Approved for implementation planning  
+**Date:** 2026-07-17
+**Status:** Approved for implementation planning
 **Surface:** Public `/roadmap` page
 
 ## Summary

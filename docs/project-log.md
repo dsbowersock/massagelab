@@ -4,6 +4,10 @@ This is the canonical chronological planning and progress log for MassageLab. Us
 
 Existing plans, audits, roadmaps, and checklists remain source evidence. Keep them for context, but mirror meaningful progress, plan changes, and priority changes in [project-state.md](project-state.md) and here.
 
+## 2026-07-18
+
+- Reviewed and approved the six-track product design and implementation plans in the requested planning order: app shell/install/help, outcome-focused public Roadmap, shared Clock/Chimer/Music visualizer controls, shared background palette plus DNA and Twisted Cubes, production-faithful carousel review, and permanent background commerce. The plans preserve the public Roadmap boundary, local-first/privacy constraints, feature-key entitlements, staged review gates, and cross-track dependencies; implementation has not started.
+
 ## 2026-07-17
 
 - Restricted the CI workflow token to explicit read-only repository access and added a workflow-contract regression assertion, resolving CodeQL's `actions/missing-workflow-permissions` finding without introducing a duplicate CodeQL workflow alongside GitHub's healthy default setup.

@@ -1,8 +1,8 @@
 # Clock, Chimer, and Music Visualizer Design
 
-**Date:** 2026-07-18  
-**Status:** Approved for implementation planning  
-**Track:** 2 of 6  
+**Date:** 2026-07-18
+**Status:** Approved for implementation planning
+**Track:** 2 of 6
 **Surfaces:** Active Chimer, `/clock`, persistent Music player, and Music visualizer
 
 ## Summary
