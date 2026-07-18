@@ -49,6 +49,22 @@ describe("App settings helpers", () => {
     assert.match(mobileBar, /AppToolLink/)
   })
 
+  it("forwards tooltip trigger props and refs through the shared tool link", () => {
+    const toolLink = readFileSync(new URL("../components/shell/app-tool-link.tsx", import.meta.url), "utf8")
+
+    assert.match(toolLink, /forwardRef<HTMLAnchorElement/)
+    assert.match(toolLink, /\.\.\.triggerProps/)
+    assert.match(toolLink, /<Link[\s\S]*\{\.\.\.triggerProps\}[\s\S]*ref=\{ref\}/)
+  })
+
+  it("adds active tool glow without replacing CTA Blue shadows", () => {
+    const globalsSource = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
+    const activeRule = globalsSource.match(/\.ml-app-tool-link\[data-active="true"\],[\s\S]*?\n  \}/)?.[0] ?? ""
+
+    assert.match(activeRule, /filter:[\s\S]*drop-shadow\(/)
+    assert.doesNotMatch(activeRule, /box-shadow|--ml-button-shadow/)
+  })
+
   it("keeps compact top-bar drawer and theme controls the same size", () => {
     const globalsSource = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
     const themeSwitcherSource = readFileSync(new URL("../components/theme-switcher-multi-button.tsx", import.meta.url), "utf8")

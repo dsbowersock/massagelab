@@ -1931,11 +1931,11 @@
 
   .ml-app-tool-link[data-active="true"],
   .ml-calendar-drawer-trigger[data-active="true"] {
-    filter: brightness(1.08) saturate(1.08);
-    box-shadow:
-      0 0 0 2px hsl(var(--primary) / 0.48),
-      0 0 1rem hsl(var(--primary) / 0.52),
-      var(--ml-button-shadow, 0 2px 6px hsl(var(--foreground) / 0.18));
+    filter:
+      brightness(1.08)
+      saturate(1.08)
+      drop-shadow(0 0 0.15rem hsl(var(--primary) / 0.64))
+      drop-shadow(0 0 0.5rem hsl(var(--primary) / 0.52));
   }
 
   .ml-app-tool-link[data-active="true"]:focus-visible,
