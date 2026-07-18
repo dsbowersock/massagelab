@@ -255,6 +255,24 @@ describe("App settings helpers", () => {
     assert.match(globalsSource, /body\.chimer-running \.ml-mobile-main-bar/)
   })
 
+  it("keeps immersive Chimer offsets stronger and later than responsive app-bar offsets", () => {
+    const globalsSource = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
+    const responsiveOffsetIndex = globalsSource.indexOf(
+      'html[data-app-bar-position="bottom"] .ml-app-shell[data-main-bar-visible="true"]',
+    )
+    const immersiveReset = globalsSource.match(
+      /html\[data-app-bar-position\] body\.chimer-running \.ml-app-shell,\s*html\[data-app-bar-position\] body\.chimer-alerting \.ml-app-shell,\s*html\[data-app-bar-position\] body\.chimer-preview-capture \.ml-app-shell \{[\s\S]*?\n  \}/,
+    )
+
+    assert.ok(responsiveOffsetIndex >= 0)
+    assert.ok(immersiveReset?.index !== undefined)
+    assert.ok(immersiveReset.index > responsiveOffsetIndex)
+    assert.match(immersiveReset[0], /--ml-page-top-safe:\s*0px/)
+    assert.match(immersiveReset[0], /--ml-page-bottom-safe:\s*0px/)
+    assert.match(immersiveReset[0], /--ml-bottom-stack-height:\s*var\(--ml-safe-bottom\)/)
+    assert.doesNotMatch(immersiveReset[0], /!important/)
+  })
+
   it("keeps the mobile main bar controls styled as physical buttons", () => {
     const globalsSource = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
     const mainBarSource = readFileSync(new URL("../components/shell/mobile-main-bar.tsx", import.meta.url), "utf8")

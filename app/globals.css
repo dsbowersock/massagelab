@@ -2031,6 +2031,15 @@
     }
   }
 
+  /* Hidden immersive bars must win over both desktop and mobile app-bar offsets above. */
+  html[data-app-bar-position] body.chimer-running .ml-app-shell,
+  html[data-app-bar-position] body.chimer-alerting .ml-app-shell,
+  html[data-app-bar-position] body.chimer-preview-capture .ml-app-shell {
+    --ml-page-top-safe: 0px;
+    --ml-page-bottom-safe: 0px;
+    --ml-bottom-stack-height: var(--ml-safe-bottom);
+  }
+
   .ml-mobile-main-bar .ml-main-bar-button {
     height: 2.625rem;
     width: 2.625rem;
