@@ -33,6 +33,8 @@ const foundationPrinciples = [
   },
 ] as const
 
+// Keep five equally weighted, unordered tracks with current and long-term outcomes;
+// capabilities are representative examples, not an exhaustive feature inventory.
 const productTracks = [
   {
     title: "Education & Anatomy",
