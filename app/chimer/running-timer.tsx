@@ -16783,6 +16783,7 @@ export function RunningTimer({
           onActivePanelChange={handleActivePanelChange}
           protectedDisplayRef={protectedDisplayRef}
           hapticsEnabled={hapticsEnabled}
+          chromeVisibility={controlState}
           visualHintMessage={visualHintMessage}
           backgroundUnavailableMessage={mode.unavailableBackgroundMessage}
           clockContent={(

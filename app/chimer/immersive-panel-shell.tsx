@@ -2,6 +2,7 @@
 
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { Clock3, ImageIcon, Palette, X } from "lucide-react"
+import { createPortal } from "react-dom"
 import {
   type CSSProperties,
   type ReactNode,
@@ -32,6 +33,7 @@ interface ImmersivePanelShellProps {
   backgroundUnavailableMessage?: string | null
   visualHintMessage?: string | null
   hapticsEnabled: boolean
+  chromeVisibility: "visible" | "faded" | "hidden"
 }
 
 type DockPlacement = ReturnType<typeof calculateDockPlacement>
@@ -99,6 +101,7 @@ export function ImmersivePanelShell({
   backgroundUnavailableMessage,
   visualHintMessage,
   hapticsEnabled,
+  chromeVisibility,
 }: ImmersivePanelShellProps) {
   const visualHintId = useId()
   const dockRef = useRef<HTMLDivElement | null>(null)
@@ -107,8 +110,13 @@ export function ImmersivePanelShell({
   const toolbarButtonRefs = useRef<Partial<Record<PanelKey, HTMLButtonElement | null>>>({})
   const [placement, setPlacement] = useState<DockPlacement>(DEFAULT_PLACEMENT)
   const [visualViewportFrame, setVisualViewportFrame] = useState<VisualViewportFrame | null>(null)
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null)
   const nonmodalPanel = activePanel === "clock" || activePanel === "visual" ? activePanel : null
   const activePanelLabel = nonmodalPanel === "clock" ? "Clock" : "Visual"
+
+  useLayoutEffect(() => {
+    setPortalTarget(document.body)
+  }, [])
 
   const closeNonmodalPanel = useCallback((restoreFocus: boolean) => {
     if (!nonmodalPanel) {
@@ -126,8 +134,10 @@ export function ImmersivePanelShell({
     const protectedDisplay = protectedDisplayRef.current
     const dock = dockRef.current
     const dockInsetProbe = dockInsetProbeRef.current
+    // The body portal cannot discover the timer stage through DOM ancestry,
+    // and Music visualizer may intentionally render without a protected clock.
     const stage = protectedDisplay?.closest<HTMLElement>("[data-immersive-stage]")
-      ?? dock?.closest<HTMLElement>("[data-immersive-stage]")
+      ?? document.querySelector<HTMLElement>("[data-immersive-stage]")
 
     if (!dock || !dockInsetProbe || !stage || !nonmodalPanel) {
       setPlacement(DEFAULT_PLACEMENT)
@@ -305,8 +315,21 @@ export function ImmersivePanelShell({
     } : {}),
   } as CSSProperties
 
-  return (
-    <div className={styles.root} style={rootStyle} data-chimer-control="true" data-immersive-shell>
+  if (!portalTarget) {
+    return null
+  }
+
+  return createPortal((
+    <div
+      className={[
+        styles.root,
+        chromeVisibility === "faded" ? styles.rootFaded : "",
+        chromeVisibility === "hidden" ? styles.rootHidden : "",
+      ].filter(Boolean).join(" ")}
+      style={rootStyle}
+      data-chimer-control="true"
+      data-immersive-shell
+    >
       <span
         ref={dockInsetProbeRef}
         className={styles.dockInsetProbe}
@@ -428,5 +451,5 @@ export function ImmersivePanelShell({
         </DialogPrimitive.Portal>
       </DialogPrimitive.Root>
     </div>
-  )
+  ), portalTarget)
 }

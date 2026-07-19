@@ -40,13 +40,19 @@ async function seedDeviceVisualizer(
 
 async function installWakeLockProof(page: Page) {
   await page.addInitScript(() => {
-    const state = { requests: 0, releases: 0 }
+    const requestKey = "__task8WakeLockRequests"
+    const releaseKey = "__task8WakeLockReleases"
+    const state = {
+      requests: Number(sessionStorage.getItem(requestKey) ?? 0),
+      releases: Number(sessionStorage.getItem(releaseKey) ?? 0),
+    }
     Reflect.set(window, "__task8WakeLock", state)
     Object.defineProperty(Navigator.prototype, "wakeLock", {
       configurable: true,
       get: () => ({
         request: async () => {
           state.requests += 1
+          sessionStorage.setItem(requestKey, String(state.requests))
           const listeners = new Map<string, EventListener>()
           return {
             released: false,
@@ -58,6 +64,7 @@ async function installWakeLockProof(page: Page) {
             },
             async release() {
               state.releases += 1
+              sessionStorage.setItem(releaseKey, String(state.releases))
             },
           }
         },
@@ -183,25 +190,59 @@ async function expectDockAvoidsDisplay(
       ?.getBoundingClientRect()
     const dockBox = document.querySelector<HTMLElement>("[data-immersive-dock]")
       ?.getBoundingClientRect()
-    if (!displayBox || !dockBox) return false
+    if (!displayBox || !dockBox) return null
     const viewport = window.visualViewport
     const viewportLeft = viewport?.offsetLeft ?? 0
     const viewportTop = viewport?.offsetTop ?? 0
     const viewportRight = viewportLeft + (viewport?.width ?? window.innerWidth)
     const viewportBottom = viewportTop + (viewport?.height ?? window.innerHeight)
+    const viewportCenter = (viewportLeft + viewportRight) / 2
+    const dockCenter = (dockBox.left + dockBox.right) / 2
     const intersects = !(
       dockBox.right <= displayBox.left
       || displayBox.right <= dockBox.left
       || dockBox.bottom <= displayBox.top
       || displayBox.bottom <= dockBox.top
     )
-    return !intersects
-      && dockBox.left >= viewportLeft - 1
-      && dockBox.top >= viewportTop - 1
-      && dockBox.right <= viewportRight + 1
-      && dockBox.bottom <= viewportBottom + 1
-  })).toBe(true)
+    return {
+      intersects,
+      insideLeft: dockBox.left >= viewportLeft - 1,
+      insideTop: dockBox.top >= viewportTop - 1,
+      insideRight: dockBox.right <= viewportRight + 1,
+      insideBottom: dockBox.bottom <= viewportBottom + 1,
+      centered: Math.abs(dockCenter - viewportCenter) <= 1,
+      dock: {
+        top: dockBox.top,
+        right: dockBox.right,
+        bottom: dockBox.bottom,
+        left: dockBox.left,
+      },
+      display: {
+        top: displayBox.top,
+        right: displayBox.right,
+        bottom: displayBox.bottom,
+        left: displayBox.left,
+      },
+      viewport: {
+        top: viewportTop,
+        right: viewportRight,
+        bottom: viewportBottom,
+        left: viewportLeft,
+      },
+    }
+  })).toEqual(expect.objectContaining({
+    intersects: false,
+    insideLeft: true,
+    insideTop: true,
+    insideRight: true,
+    insideBottom: true,
+    centered: true,
+  }))
   const close = page.getByRole("button", { name: "Close " + panelName + " panel" })
+  if (!useKeyboard) {
+    await expectHitTestable(page, control)
+    await expectHitTestable(page, close)
+  }
   if (useKeyboard) {
     await close.focus()
     await page.keyboard.press("Enter")
@@ -209,6 +250,10 @@ async function expectDockAvoidsDisplay(
     await close.click()
   }
   await expect(dock).toHaveCount(0)
+}
+
+async function expectHitTestable(page: Page, locator: Locator) {
+  await locator.click({ trial: true })
 }
 
 async function expectFocusInside(page: Page, panel: Locator) {
@@ -241,12 +286,16 @@ test("anonymous visualizer journey preserves playback, exact origin, and stopped
   await expect.poll(() => showClock.evaluate((element) => {
     const rect = element.getBoundingClientRect()
     const dock = element.closest<HTMLElement>("[data-immersive-dock]")?.getBoundingClientRect()
-    const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
-    if (!dock) return false
-    return dock.top <= rect.top
-      && dock.bottom >= rect.bottom
-      && (hit === element || element.contains(hit))
-  })).toBe(true)
+    if (!dock) return null
+    return {
+      inside: dock.top <= rect.top && dock.bottom >= rect.bottom,
+      rect: { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right },
+      dock: { top: dock.top, bottom: dock.bottom, left: dock.left, right: dock.right },
+      pointerEvents: window.getComputedStyle(element).pointerEvents,
+      rootClass: element.closest<HTMLElement>("[data-immersive-shell]")?.className ?? null,
+    }
+  })).toEqual(expect.objectContaining({ inside: true }))
+  await expectHitTestable(page, showClock)
   await showClock.click()
   await expect(page.getByTestId("running-current-time")).toBeVisible()
   await page.getByRole("button", { name: "Close Clock panel" }).click()
@@ -309,6 +358,33 @@ test("Music Show clock persists across reload without changing ordinary Clock", 
   await expect(page.getByTestId("running-current-time")).toBeVisible()
 })
 
+test("top-player state keeps the Music clock dock and its real control reachable", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "single top-player state proof")
+  await seedDeviceVisualizer(page, { backgroundId: "static-gradient", showClock: false })
+  const player = await startProofStation(page, "/music?task8=top-player")
+  await player.evaluate((element) => {
+    element.setAttribute("data-placement", "top")
+    document.body.classList.remove("ml-music-player-bottom")
+    document.body.classList.add("ml-music-player-active", "ml-music-player-top")
+  })
+  await expect(player).toHaveAttribute("data-placement", "top")
+  await expect(page.locator("body")).toHaveClass(/ml-music-player-top/)
+
+  await openVisualizerFromPlayer(page)
+  await page.getByRole("button", { name: "Clock", exact: true }).click()
+  const showClock = page.getByRole("switch", { name: /^Show clock:/ })
+  await expect.poll(async () => {
+    const [dockBox, playerBox] = await Promise.all([
+      page.locator("[data-immersive-dock]").boundingBox(),
+      player.boundingBox(),
+    ])
+    return Boolean(dockBox && playerBox && playerBox.y + playerBox.height <= dockBox.y)
+  }).toBe(true)
+  await expectHitTestable(page, showClock)
+  await showClock.click()
+  await expect(page.getByTestId("running-current-time")).toBeVisible()
+})
+
 test("Clock, Music, and active Chimer keep wake and timer controls context-specific", async ({ page }) => {
   await installWakeLockProof(page)
   await seedDeviceVisualizer(page, { backgroundId: "static-gradient", showClock: false })
@@ -321,8 +397,13 @@ test("Clock, Music, and active Chimer keep wake and timer controls context-speci
   await expect(clockVisual.getByText("Remaining time", { exact: true })).toHaveCount(0)
   await page.getByRole("button", { name: "Close Visual panel" }).click()
 
+  await page.goto("/music", { waitUntil: "domcontentloaded" })
+  await expect(
+    page.getByRole("heading", { name: /Atmosphere audio stations/i, includeHidden: true }),
+  ).toBeAttached()
+  const musicWakeBaseline = await wakeLockRequestCount(page)
   await page.goto("/clock?source=music&returnTo=%2Fmusic", { waitUntil: "domcontentloaded" })
-  await expect.poll(() => wakeLockRequestCount(page)).toBeGreaterThan(0)
+  await expect.poll(() => wakeLockRequestCount(page)).toBeGreaterThan(musicWakeBaseline)
   await page.getByRole("button", { name: "Visual", exact: true }).click()
   const musicVisual = page.getByRole("dialog", { name: "Visual controls" })
   await expect(musicVisual.getByRole("switch", { name: /^Keep timer screen awake:/ })).toHaveCount(0)
@@ -497,8 +578,9 @@ test("Clock and Visual docks avoid protected digits at required viewport shapes"
 })
 
 test("Clock and Visual docks remain safe at 200 percent Chromium page scale", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop-chromium", "desktop Chromium scale proof")
-  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.setViewportSize(testInfo.project.name === "mobile-chromium"
+    ? { width: 412, height: 915 }
+    : { width: 1280, height: 900 })
   await openClock(page)
   const session = await page.context().newCDPSession(page)
   await session.send("Emulation.setPageScaleFactor", { pageScaleFactor: 2 })
@@ -529,6 +611,25 @@ test("rotation and forward glow follow the centered display and stop for reduced
   await expect.poll(() => protectedDisplay.locator("[data-forward-projection]").evaluate(
     (element) => getComputedStyle(element).pointerEvents,
   )).toBe("none")
+  await expect.poll(() => page.evaluate(() => {
+    const projection = document.querySelector<HTMLElement>("[data-forward-projection]")
+      ?.getBoundingClientRect()
+    const toolbar = document.querySelector<HTMLElement>("[aria-label='Immersive display controls']")
+      ?.getBoundingClientRect()
+    if (!projection || !toolbar) return false
+    const toolbarControl = document.querySelector<HTMLElement>(
+      "[aria-label='Immersive display controls'] [aria-label='Visual']",
+    )
+    if (!toolbarControl) return false
+    const controlRect = toolbarControl.getBoundingClientRect()
+    const hit = document.elementFromPoint(
+      controlRect.left + (controlRect.width / 2),
+      controlRect.top + (controlRect.height / 2),
+    )
+    return projection.right <= toolbar.left
+      && projection.right <= window.innerWidth
+      && (hit === toolbarControl || toolbarControl.contains(hit))
+  })).toBe(true)
   await expect.poll(() => protectedDisplay.evaluate((element) => (
     element.closest("button")?.getAttribute("data-testid")
   ))).toBe("running-timer-clock")

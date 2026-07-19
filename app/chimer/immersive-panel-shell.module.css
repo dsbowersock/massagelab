@@ -5,6 +5,21 @@
   --immersive-panel-max-height: min(70dvh, 44rem);
   --immersive-dock-top-inset: max(0.75rem, env(safe-area-inset-top, 0px));
   --immersive-dock-bottom-inset: max(0.75rem, env(safe-area-inset-bottom, 0px));
+
+  transition: opacity 900ms ease;
+}
+
+.rootFaded {
+  opacity: 0.34;
+}
+
+.rootHidden {
+  opacity: 0;
+}
+
+.rootHidden .toolbar,
+.rootHidden .dock {
+  pointer-events: none;
 }
 
 :global(body.ml-music-player-active.ml-music-player-top) .root {
@@ -83,7 +98,10 @@
 
 .dock {
   position: fixed;
-  right: auto;
+  right: calc(
+    var(--immersive-visual-viewport-right, 0px)
+    + max(0.75rem, env(safe-area-inset-right, 0px))
+  );
   left: calc(
     var(--immersive-visual-viewport-left, 0px)
     + max(0.75rem, env(safe-area-inset-left, 0px))
@@ -91,7 +109,8 @@
   z-index: 10017;
   display: flex;
   flex-direction: column;
-  width: min(58rem, calc(var(--immersive-visual-viewport-width, 100vw) - 1.5rem));
+  width: auto;
+  max-width: 58rem;
   max-height: var(--immersive-panel-max-height);
   margin-inline: auto;
   overflow: hidden;
@@ -152,6 +171,7 @@
   z-index: var(--immersive-global-chrome-z);
   background: rgba(2, 6, 23, 0.86);
   backdrop-filter: blur(14px);
+  pointer-events: auto;
 }
 
 .backgroundPanel {
@@ -168,6 +188,7 @@
   overflow: hidden;
   background: rgba(5, 5, 5, 0.98);
   color: #fff;
+  pointer-events: auto;
 }
 
 .backgroundHeader {
@@ -202,10 +223,17 @@
   }
 
   .dock {
-    right: max(0.4rem, env(safe-area-inset-right, 0px));
-    left: max(0.4rem, env(safe-area-inset-left, 0px));
+    right: calc(
+      var(--immersive-visual-viewport-right, 0px)
+      + max(0.4rem, env(safe-area-inset-right, 0px))
+    );
+    left: calc(
+      var(--immersive-visual-viewport-left, 0px)
+      + max(0.4rem, env(safe-area-inset-left, 0px))
+    );
     width: auto;
-    margin-inline: 0;
+    max-width: 58rem;
+    margin-inline: auto;
   }
 }
 
