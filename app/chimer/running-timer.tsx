@@ -26,6 +26,7 @@ import {
 import { StyledRangeControl } from "@/components/chimer-controls/StyledRangeControl"
 import { StyledToggleControl } from "@/components/chimer-controls/StyledToggleControl"
 import { Button } from "@/components/ui/button"
+import type { MusicVisualizerState } from "@/components/providers/music-provider"
 import { DEFAULT_CHIMER_SETTINGS } from "@/lib/chimer-timer"
 import {
   MASSAGE_LAB_GRADIENT_HARMONY_OPTIONS,
@@ -941,7 +942,33 @@ const getBackgroundVisualTags = (option: BackgroundDefinition) => {
   return Array.from(new Set(tags))
 }
 
+export interface ImmersiveDisplayMode {
+  context: "chimer" | "clock" | "musicVisualizer"
+  backgroundCategory: "chimer" | "clock" | "music"
+  selectedBackgroundId: string | null
+  showClock: boolean
+  canToggleClock: boolean
+  initialPanel: ImmersivePanelId
+  unavailableBackgroundMessage: string | null
+  storageStatus: MusicVisualizerState["storageStatus"]
+  storageError: string | null
+  wakeLockMessage: string | null
+  onShowClockChange?: (showClock: boolean) => void
+  onBackgroundChange: (backgroundId: string) => void
+  onClose: () => void
+  musicDefaultActions?: {
+    signedIn: boolean
+    currentIsDefault: boolean
+    accountStatus: MusicVisualizerState["accountStatus"]
+    accountError: string | null
+    onSetDefault: () => Promise<void>
+    onRestoreDefault: () => void
+    onRetry: () => Promise<void>
+  }
+}
+
 interface RunningTimerProps {
+  mode: ImmersiveDisplayMode
   timeDisplay: { hours: string; minutes: string; seconds: string }
   activeTimeDisplay: { hours: string; minutes: string; seconds: string }
   currentTime: CurrentTimeParts
@@ -950,7 +977,6 @@ interface RunningTimerProps {
   isAlerting: boolean
   fontSize: number
   movingBackgroundEnabled: boolean
-  backgroundId: ChimerSettings["backgroundId"]
   keepTimerScreenAwake: boolean
   showTimerSeconds: boolean
   showCurrentTimeSeconds: boolean
@@ -1873,7 +1899,6 @@ interface RunningTimerProps {
   canUseAccountColorControls: boolean
   featureKeys: string[]
   activeIntervalMinutes: number | null
-  onClose: () => void
   onPause: () => void
   onFullscreen: () => void
   onSettingsChange: (settings: Partial<ChimerSettings>) => void
@@ -1885,6 +1910,7 @@ interface RunningTimerProps {
 }
 
 export function RunningTimer({
+  mode,
   timeDisplay,
   activeTimeDisplay,
   currentTime,
@@ -1893,7 +1919,6 @@ export function RunningTimer({
   isAlerting,
   fontSize,
   movingBackgroundEnabled,
-  backgroundId,
   keepTimerScreenAwake,
   showTimerSeconds,
   showCurrentTimeSeconds,
@@ -2816,7 +2841,6 @@ export function RunningTimer({
   canUseAccountColorControls,
   featureKeys,
   activeIntervalMinutes,
-  onClose,
   onPause,
   onFullscreen,
   onSettingsChange,
@@ -2830,12 +2854,15 @@ export function RunningTimer({
   const isComplete = status === "complete"
   const isClockMode = status === "clock"
   const canEditActiveTimer = status === "running" || status === "paused"
-  const backgroundCategory = isClockMode ? "clock" : "chimer"
+  const backgroundCategory = mode.backgroundCategory
+  const backgroundId = mode.selectedBackgroundId ?? DEFAULT_BACKGROUND_ID
   // Preserve the original Lamp path; BackgroundHost owns static fallbacks for premium alternatives.
   const useOriginalLampBackground = backgroundId === DEFAULT_BACKGROUND_ID
   const isLiveBackgroundSession = status === "running" || status === "paused" || status === "clock"
-  const shouldRenderLiveBackground = movingBackgroundEnabled && isLiveBackgroundSession
+  const shouldRenderLiveBackground = mode.selectedBackgroundId !== null && (
+    movingBackgroundEnabled && isLiveBackgroundSession
     || !canUseBackgroundId(backgroundId, featureKeys, backgroundCategory)
+  )
   const astralFlowDisplaySpeed = getMassageLabAstralFlowDisplaySpeed(massageLabAstralFlowSpeed)
   const astralFlowColors = resolveMassageLabAstralFlowColors({
     massageLabAstralFlowPaletteMode,
@@ -3233,6 +3260,20 @@ export function RunningTimer({
   const visualPanelOpenedRef = useRef(false)
   const visualPanelOpenedHydratedRef = useRef(false)
   const visualHintTimeoutRef = useRef<number | null>(null)
+  const initialPanelAppliedRef = useRef(false)
+
+  useEffect(() => {
+    if (!initialPanelAppliedRef.current && mode.initialPanel) {
+      initialPanelAppliedRef.current = true
+      setActivePanel(mode.initialPanel)
+    }
+  }, [mode.initialPanel])
+
+  useEffect(() => {
+    if (mode.unavailableBackgroundMessage) {
+      setActivePanel("background")
+    }
+  }, [mode.unavailableBackgroundMessage])
 
   useEffect(() => {
     visualPanelOpenedRef.current = readVisualPanelOpened()
@@ -3760,7 +3801,7 @@ export function RunningTimer({
       return
     }
 
-    handleSettingsChange({ movingBackgroundEnabled: true, backgroundId: nextBackgroundId })
+    mode.onBackgroundChange(nextBackgroundId)
     setActivePanel(null)
 
     if (!visualPanelOpenedHydratedRef.current) {
@@ -3999,6 +4040,7 @@ export function RunningTimer({
   }
 
   const getCurrentLocationForGlobe = () => {
+    pressHaptic()
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       return
     }
@@ -5311,10 +5353,7 @@ export function RunningTimer({
               <button
                 type="button"
                 className={`${styles.inlineButton} ${styles.tactileButton}`}
-                onClick={() => {
-                  pressHaptic()
-                  getCurrentLocationForGlobe()
-                }}
+                onClick={getCurrentLocationForGlobe}
               >
                 Use my location
               </button>
@@ -15710,12 +15749,13 @@ export function RunningTimer({
   return (
     <section
       className={`${styles.container} ${isClockMode ? styles.clockMode : ""} ${isAlerting ? styles.alerting : ""}`}
-      aria-label={isClockMode ? "Chimer clock" : "Running Chimer timer"}
+      aria-label={mode.context === "musicVisualizer" ? "Music visualizer" : isClockMode ? "Chimer clock" : "Running Chimer timer"}
       style={containerStyle}
       data-immersive-stage
     >
       {shouldRenderLiveBackground && useOriginalLampBackground && (
         <MovingBackground
+          key={`${mode.context}:${backgroundId}`}
           className={styles.runningBackground}
           mainColor={resolvedMovingBackgroundMainColor}
           orbColor={resolvedMovingBackgroundOrbColor}
@@ -15725,6 +15765,7 @@ export function RunningTimer({
 
       {shouldRenderLiveBackground && !useOriginalLampBackground && (
         <BackgroundHost
+          key={`${mode.context}:${backgroundId}`}
           className={premiumBackgroundClassName}
           style={premiumBackgroundStyle}
           selectedId={backgroundId}
@@ -16644,7 +16685,7 @@ export function RunningTimer({
         </button>
       )}
 
-      <button
+      {(!isClockMode || mode.showClock) ? <button
         type="button"
         className={`${styles.displayButton} ${isCurrentTimePrimary ? styles.primaryDisplay : styles.secondaryDisplay} ${isCurrentTimePrimary && !isClockMode ? styles.timerModeClockPrimary : ""} ${styles.currentTimeDisplay} ${currentTimeSwapClass}`}
         onClick={() => {
@@ -16666,16 +16707,16 @@ export function RunningTimer({
             {renderCurrentTimeDisplay(isCurrentTimePrimary)}
           </span>
         </span>
-      </button>
+      </button> : null}
 
       <div className={chromeClassName}>
         <button
           className={`${styles.control} ${styles.closeButton} ${styles.tactileButton}`}
           onClick={() => {
             triggerHapticFeedback(hapticsEnabled)
-            onClose()
+            mode.onClose()
           }}
-          aria-label={isClockMode ? "Close clock" : "End timer"}
+          aria-label={mode.context === "musicVisualizer" ? "Minimize visualizer" : isClockMode ? "Close clock" : "End timer"}
           data-chimer-control="true"
         >
           <X className="h-5 w-5" />
@@ -16699,8 +16740,25 @@ export function RunningTimer({
           protectedDisplayRef={protectedDisplayRef}
           hapticsEnabled={hapticsEnabled}
           visualHintMessage={visualHintMessage}
+          backgroundUnavailableMessage={mode.unavailableBackgroundMessage}
           clockContent={(
             <div className={styles.settingsTabContent}>
+                {mode.canToggleClock ? (
+                  <div className={styles.switchRow}>
+                    <StyledToggleControl
+                      label="Show clock"
+                      checked={mode.showClock}
+                      valueLabel={mode.showClock ? "On" : "Off"}
+                      hapticsEnabled={hapticsEnabled}
+                      onCheckedChange={(value) => mode.onShowClockChange?.(value)}
+                    />
+                  </div>
+                ) : null}
+                {mode.canToggleClock && !mode.showClock ? (
+                  <div className={styles.settingsNotice} role="status">
+                    Clock is hidden. Display rotation and Forward glow remain saved until Show clock is on.
+                  </div>
+                ) : null}
                 <div className={styles.settingsSection}>
                   <div className={styles.settingsSectionHeader}>
                     <span>Clock text</span>
@@ -17078,7 +17136,22 @@ export function RunningTimer({
           )}
           visualContent={(
             <div className={styles.settingsTabContent}>
-                {!isClockMode ? (
+                {mode.wakeLockMessage ? (
+                  <div className={styles.settingsNotice} role="status">{mode.wakeLockMessage}</div>
+                ) : null}
+
+                {mode.storageStatus !== "available" ? (
+                  <div className={styles.settingsNotice} role="status">
+                    {mode.storageError
+                      ?? (mode.storageStatus === "loading"
+                        ? "Loading device visualizer preferences…"
+                        : mode.storageStatus === "unsupported-version"
+                          ? "This device has visualizer preferences from a newer app version. Your saved value was left unchanged."
+                          : "Device visualizer preferences are unavailable. Changes remain active for this visit.")}
+                  </div>
+                ) : null}
+
+                {!isClockMode && mode.context === "chimer" ? (
                   <div className={styles.switchRow}>
                     <StyledToggleControl
                       label="Keep timer screen awake"
@@ -17090,13 +17163,61 @@ export function RunningTimer({
                   </div>
                 ) : null}
 
-                <StyledToggleControl
-                  label="Visual background"
-                  checked={movingBackgroundEnabled}
-                  valueLabel={movingBackgroundEnabled ? "On" : "Off"}
-                  hapticsEnabled={hapticsEnabled}
-                  onCheckedChange={(value) => handleSettingsChange({ movingBackgroundEnabled: value })}
-                />
+                {mode.context !== "musicVisualizer" ? (
+                  <StyledToggleControl
+                    label="Visual background"
+                    checked={movingBackgroundEnabled}
+                    valueLabel={movingBackgroundEnabled ? "On" : "Off"}
+                    hapticsEnabled={hapticsEnabled}
+                    onCheckedChange={(value) => handleSettingsChange({ movingBackgroundEnabled: value })}
+                  />
+                ) : null}
+
+                {mode.context === "musicVisualizer" && mode.musicDefaultActions?.signedIn ? (
+                  <div className={styles.settingsSection}>
+                    <div className={styles.settingsSectionHeader}>
+                      <span>Visualizer default</span>
+                      <span className={styles.settingsPill}>
+                        {mode.musicDefaultActions.currentIsDefault ? "Current default" : "Device choice"}
+                      </span>
+                    </div>
+                    <div className={styles.musicDefaultActions}>
+                      {!mode.musicDefaultActions.currentIsDefault ? (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => void mode.musicDefaultActions?.onSetDefault()}
+                          disabled={mode.musicDefaultActions.accountStatus === "saving" || mode.selectedBackgroundId === null}
+                        >
+                          Set as visualizer default
+                        </Button>
+                      ) : null}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={mode.musicDefaultActions.onRestoreDefault}
+                        disabled={mode.musicDefaultActions.accountStatus === "saving"}
+                      >
+                        Restore account default
+                      </Button>
+                    </div>
+                    {mode.musicDefaultActions.accountStatus === "saving" ? (
+                      <div className={styles.settingsNotice} role="status">Saving visualizer default…</div>
+                    ) : null}
+                    {mode.musicDefaultActions.accountStatus === "error" ? (
+                      <div className={styles.settingsNotice} role="status">
+                        <span>{mode.musicDefaultActions.accountError ?? "Visualizer account sync failed."}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => void mode.musicDefaultActions?.onRetry()}
+                        >
+                          Retry
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
 
                 <div className={styles.settingsSection}>
                   <div className={styles.settingsSectionHeader}>

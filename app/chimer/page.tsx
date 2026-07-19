@@ -1,10 +1,12 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { MovingBackground } from "@/components/moving-background"
 import { useSettings } from "@/components/providers/settings-provider"
+import { useMusic } from "@/components/providers/music-provider"
+import { canUseBackgroundId } from "@/components/backgrounds/backgroundRegistry"
 import {
   clampActiveTimerMs,
   CHIMER_STORAGE_KEY,
@@ -22,8 +24,17 @@ import { canSyncAccountPreferencesFromSession } from "@/lib/account-preferences"
 import { fetchWithTimeout } from "@/lib/client-fetch"
 import { FEATURE_KEYS } from "@/lib/membership"
 import { triggerHapticFeedback } from "@/lib/haptics"
+import { isBackgroundId } from "@/lib/background-options"
+import {
+  resolveMusicVisualizerBackground,
+  sanitizeMusicVisualizerReturnTo,
+} from "@/lib/music-visualizer"
+import {
+  resolveImmersiveDisplayContext,
+  shouldRequestImmersiveWakeLock,
+} from "@/lib/immersive-display"
 import { SetTimer, type ChimerSettings, type ChimerSetupStartOptions } from "./set-timer"
-import { RunningTimer } from "./running-timer"
+import { RunningTimer, type ImmersiveDisplayMode } from "./running-timer"
 
 type TimerStatus = "idle" | "running" | "paused" | "complete" | "clock"
 type AccountSyncStatus = "checking" | "local" | "synced" | "conflict"
@@ -90,8 +101,32 @@ function areChimerSettingsEqual(left: ChimerSettings, right: ChimerSettings) {
 
 export default function ChimerPage() {
   const pathname = usePathname() ?? ""
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const { settings: appSettings } = useSettings()
-  const startsInClockMode = pathname === "/clock" || pathname.startsWith("/clock/")
+  const {
+    visualizer,
+    selectVisualizerBackground,
+    setVisualizerShowClock,
+    setCurrentVisualizerBackgroundAsDefault,
+    restoreVisualizerAccountDefault,
+    retryVisualizerAccountSync,
+  } = useMusic()
+  const immersiveContext = resolveImmersiveDisplayContext({
+    pathname,
+    source: searchParams.get("source"),
+  })
+  const startsInClockMode = immersiveContext !== "chimer"
+  const returnToParam = searchParams.get("returnTo")
+  const safeReturnTo = useMemo(
+    () => sanitizeMusicVisualizerReturnTo(returnToParam),
+    [returnToParam],
+  )
+  const requestedInitialPanel = (
+    immersiveContext === "musicVisualizer" && searchParams.get("panel") === "background"
+      ? "background"
+      : null
+  )
   const [settings, setSettings] = useState<ChimerSettings>(DEFAULT_CHIMER_SETTINGS as ChimerSettings)
   const [timerState, setTimerState] = useState<TimerState>(() => (
     startsInClockMode ? createClockTimerState() : idleTimerState
@@ -111,6 +146,7 @@ export default function ChimerPage() {
   const [hasEditedLocalConflictSettings, setHasEditedLocalConflictSettings] = useState(false)
   const [isResolvingSync, setIsResolvingSync] = useState(false)
   const [featureKeys, setFeatureKeys] = useState<string[]>([])
+  const [wakeLockMessage, setWakeLockMessage] = useState<string | null>(null)
   const canUseCustomColors = featureKeys.includes(FEATURE_KEYS.chimerCustomColors)
   const hasAccountPreferenceAccess = accountSyncStatus === "synced" || accountSyncStatus === "conflict"
   const canUseAccountColorControls = canUseCustomColors || hasAccountPreferenceAccess
@@ -129,8 +165,11 @@ export default function ChimerPage() {
     () => getTotalTimerMs(settings.hours, settings.minutes),
     [settings.hours, settings.minutes],
   )
-  const shouldKeepScreenAwake =
-    timerState.status === "clock" || (timerState.status !== "idle" && settings.keepTimerScreenAwake)
+  const shouldKeepScreenAwake = shouldRequestImmersiveWakeLock({
+    context: immersiveContext,
+    timerStatus: timerState.status,
+    keepScreenAwake: settings.keepTimerScreenAwake,
+  })
 
   useEffect(() => {
     timerStateRef.current = timerState
@@ -329,6 +368,7 @@ export default function ChimerPage() {
 
     const wakeLock = (navigator as WakeLockCapableNavigator).wakeLock
     if (!wakeLock?.request) {
+      setWakeLockMessage("Screen wake lock is not supported by this browser.")
       return
     }
 
@@ -339,6 +379,7 @@ export default function ChimerPage() {
           return
         }
 
+        setWakeLockMessage(null)
         sentinel.onrelease = () => {
           if (wakeLockRef.current === sentinel) {
             wakeLockRef.current = null
@@ -346,7 +387,9 @@ export default function ChimerPage() {
         }
         wakeLockRef.current = sentinel
       })
-      .catch(() => undefined)
+      .catch(() => {
+        setWakeLockMessage("Screen wake lock was denied. The display will continue normally.")
+      })
 
     wakeLockRequestRef.current = request
     void request.finally(() => {
@@ -852,6 +895,89 @@ export default function ChimerPage() {
   const timeDisplay = formatDurationParts(timerState.remainingMs, { showTimerSeconds: settings.showTimerSeconds })
   const isTimerActive = timerState.status !== "idle"
   const backgroundCategory = startsInClockMode ? "clock" : "chimer"
+  const musicSelectionHydrated =
+    visualizer.storageStatus !== "loading"
+    && visualizer.accountStatus !== "loading"
+    && accountSyncStatus !== "checking"
+  const resolvedMusicBackground = musicSelectionHydrated
+    ? resolveMusicVisualizerBackground({
+      deviceBackgroundId: visualizer.backgroundId,
+      accountDefaultBackgroundId: visualizer.accountDefaultBackgroundId,
+      canUseBackground: (id: string) => isBackgroundId(id) && canUseBackgroundId(id, featureKeys, "music"),
+    })
+    : { backgroundId: null, source: "none", unavailableSavedId: null }
+  const selectedMusicBackgroundId = resolvedMusicBackground.backgroundId
+  const unavailableBackgroundMessage = musicSelectionHydrated && resolvedMusicBackground.unavailableSavedId
+    ? "Your saved Music background is not available with the current access. Choose an available Music background."
+    : null
+  const initialMusicPanel = requestedInitialPanel
+    ?? (musicSelectionHydrated && selectedMusicBackgroundId === null ? "background" : null)
+  const immersiveMode: ImmersiveDisplayMode = immersiveContext === "musicVisualizer"
+    ? {
+      context: "musicVisualizer",
+      backgroundCategory: "music",
+      selectedBackgroundId: selectedMusicBackgroundId,
+      showClock: visualizer.showClock,
+      canToggleClock: true,
+      initialPanel: initialMusicPanel,
+      unavailableBackgroundMessage,
+      storageStatus: visualizer.storageStatus,
+      storageError: visualizer.storageError,
+      wakeLockMessage,
+      onShowClockChange: setVisualizerShowClock,
+      onBackgroundChange: selectVisualizerBackground,
+      onClose: () => router.replace(safeReturnTo),
+      musicDefaultActions: {
+        signedIn: visualizer.signedIn,
+        currentIsDefault: Boolean(
+          selectedMusicBackgroundId
+          && selectedMusicBackgroundId === visualizer.accountDefaultBackgroundId,
+        ),
+        accountStatus: visualizer.accountStatus,
+        accountError: visualizer.accountError,
+        onSetDefault: setCurrentVisualizerBackgroundAsDefault,
+        onRestoreDefault: restoreVisualizerAccountDefault,
+        onRetry: retryVisualizerAccountSync,
+      },
+    }
+    : immersiveContext === "clock"
+      ? {
+        context: "clock",
+        backgroundCategory: "clock",
+        selectedBackgroundId: settings.backgroundId,
+        showClock: (settings as ChimerSettings & { showClockDisplay: boolean }).showClockDisplay,
+        canToggleClock: true,
+        initialPanel: null,
+        unavailableBackgroundMessage: null,
+        storageStatus: "available",
+        storageError: null,
+        wakeLockMessage,
+        onShowClockChange: (showClock) => updateSettings(
+          { showClockDisplay: showClock } as Partial<ChimerSettings>,
+        ),
+        onBackgroundChange: (backgroundId) => updateSettings({
+          movingBackgroundEnabled: true,
+          backgroundId: backgroundId as ChimerSettings["backgroundId"],
+        }),
+        onClose: endTimer,
+      }
+      : {
+        context: "chimer",
+        backgroundCategory: "chimer",
+        selectedBackgroundId: settings.backgroundId,
+        showClock: true,
+        canToggleClock: false,
+        initialPanel: null,
+        unavailableBackgroundMessage: null,
+        storageStatus: "available",
+        storageError: null,
+        wakeLockMessage,
+        onBackgroundChange: (backgroundId) => updateSettings({
+          movingBackgroundEnabled: true,
+          backgroundId: backgroundId as ChimerSettings["backgroundId"],
+        }),
+        onClose: endTimer,
+      }
 
   return (
     <div className="relative min-h-full px-4 py-[7px]">
@@ -889,6 +1015,7 @@ export default function ChimerPage() {
           />
         ) : (
           <RunningTimer
+            mode={immersiveMode}
             timeDisplay={timeDisplay}
             activeTimeDisplay={activeTimeDisplay}
             currentTime={currentTime}
@@ -896,8 +1023,9 @@ export default function ChimerPage() {
             isFullscreen={isFullscreen}
             isAlerting={isAlerting}
             fontSize={fontSize}
-            movingBackgroundEnabled={runWithoutAnimatedBackground ? false : settings.movingBackgroundEnabled}
-            backgroundId={settings.backgroundId}
+            movingBackgroundEnabled={immersiveContext === "musicVisualizer"
+              ? true
+              : runWithoutAnimatedBackground ? false : settings.movingBackgroundEnabled}
             keepTimerScreenAwake={settings.keepTimerScreenAwake}
             showTimerSeconds={settings.showTimerSeconds}
             showCurrentTimeSeconds={settings.showCurrentTimeSeconds}
@@ -1820,7 +1948,6 @@ export default function ChimerPage() {
             canUseAccountColorControls={canUseAccountColorControls}
             featureKeys={featureKeys}
             activeIntervalMinutes={timerState.intervalMs ? Math.max(1, Math.round(timerState.intervalMs / 60_000)) : null}
-            onClose={endTimer}
             onPause={togglePause}
             onFullscreen={toggleFullscreen}
             onSettingsChange={updateSettings}

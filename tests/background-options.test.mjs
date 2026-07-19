@@ -4,6 +4,7 @@ import { describe, it } from "node:test"
 import {
   BACKGROUND_STORAGE_KEYS,
   DEFAULT_BACKGROUND_ID,
+  isBackgroundId,
   normalizeBackgroundId,
 } from "../lib/background-options.js"
 import { FEATURE_KEYS } from "../lib/membership.js"
@@ -23,6 +24,13 @@ describe("premium background registry", () => {
     assert.equal(canUseBackgroundId(DEFAULT_BACKGROUND_ID, []), true)
     assert.equal(canUseBackgroundId("static-gradient", []), true)
     assert.equal(resolveAccessibleBackgroundDefinition("unknown", []).id, DEFAULT_BACKGROUND_ID)
+  })
+
+  it("requires explicit known IDs before applying Music category eligibility", () => {
+    assert.equal(isBackgroundId("static-gradient"), true)
+    assert.equal(canUseBackgroundId("static-gradient", [], "music"), true)
+    assert.equal(isBackgroundId("unknown-music-background"), false)
+    assert.equal(canUseBackgroundId("unknown-music-background", [], "music"), true)
   })
 
   it("gates active premium backgrounds behind premium background access", () => {

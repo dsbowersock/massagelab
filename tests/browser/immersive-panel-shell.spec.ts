@@ -488,6 +488,9 @@ test("rendered panel teardown cancels its exact pending frame and removes viewpo
       const frame = lifecycle.rafRecords
         .slice(priorFrameCount)
         .find((entry) => entry.requestedByListenerId === listenerId)
+      if (!(closeButton instanceof HTMLButtonElement)) {
+        throw new Error("Expected the immersive panel close control to be a button.")
+      }
       closeButton.click()
 
       return frame

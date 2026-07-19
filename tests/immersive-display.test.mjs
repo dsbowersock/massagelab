@@ -45,6 +45,16 @@ describe("immersive display rules", () => {
     }
   })
 
+  it("requests wake lock for Music independently from display visibility", () => {
+    for (const showClock of [true, false]) {
+      assert.equal(shouldRequestImmersiveWakeLock({
+        context: IMMERSIVE_DISPLAY_CONTEXTS.musicVisualizer,
+        timerStatus: "clock",
+        keepScreenAwake: showClock,
+      }), true)
+    }
+  })
+
   it("lets only active Chimer opt out of wake lock", () => {
     assert.equal(shouldRequestImmersiveWakeLock({
       context: IMMERSIVE_DISPLAY_CONTEXTS.chimer,

@@ -27,7 +27,7 @@ import {
 
 type PlaybackState = "stopped" | "loading" | "playing" | "failed"
 
-interface MusicVisualizerState {
+export interface MusicVisualizerState {
   backgroundId: string | null
   accountDefaultBackgroundId: string | null
   showClock: boolean
@@ -35,6 +35,7 @@ interface MusicVisualizerState {
   storageError: string | null
   accountStatus: "anonymous" | "loading" | "synced" | "saving" | "error"
   accountError: string | null
+  signedIn: boolean
 }
 
 interface MusicContextType {
@@ -195,6 +196,7 @@ const defaultMusicContext: MusicContextType = {
     storageError: null,
     accountStatus: "loading",
     accountError: null,
+    signedIn: false,
   },
   playStation: async () => undefined,
   playNextStation: async () => undefined,
@@ -228,6 +230,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const [accountDefaultBackgroundId, setAccountDefaultBackgroundId] = useState<string | null>(null)
   const [accountStatus, setAccountStatus] = useState<MusicVisualizerState["accountStatus"]>("loading")
   const [accountError, setAccountError] = useState<string | null>(null)
+  const [accountSignedIn, setAccountSignedIn] = useState(false)
   const playbackRequestIdRef = useRef(0)
   const loadingStationIdRef = useRef<string | null>(null)
   const volumeRef = useRef(defaultStorage.volume)
@@ -352,6 +355,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     const { controller, requestId } = beginAccountRequest()
     accountSyncVerifiedRef.current = false
     accountPreferencesHydratedRef.current = false
+    setAccountSignedIn(false)
     setAccountStatus("loading")
     setAccountError(null)
 
@@ -375,10 +379,12 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         setAccountDefaultBackgroundId(null)
         setAccountStatus("anonymous")
         setAccountError(null)
+        setAccountSignedIn(false)
         return
       }
 
       accountSyncVerifiedRef.current = true
+      setAccountSignedIn(true)
       const response = await fetchWithTimeout("/api/account/preferences", {
         signal: controller.signal,
       })
@@ -809,6 +815,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       storageError,
       accountStatus,
       accountError,
+      signedIn: accountSignedIn,
     },
     playStation,
     playNextStation,
@@ -826,6 +833,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   }), [
     accountDefaultBackgroundId,
     accountError,
+    accountSignedIn,
     accountStatus,
     activeStationId,
     activeStationTitle,
