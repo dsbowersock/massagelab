@@ -83,15 +83,45 @@ describe("Music visualizer provider contract", () => {
 })
 
 describe("Persistent player visualizer boundary", () => {
-  it("uses routing helpers without importing the registry", () => {
+  it("replaces visualizer history on minimize but pushes on entry", () => {
+    const actionStart = miniPlayerSource.indexOf("const handleVisualizerAction")
+    const actionSource = miniPlayerSource.slice(
+      actionStart,
+      miniPlayerSource.indexOf("useEffect", actionStart),
+    )
+
+    assert.notEqual(actionStart, -1)
     for (const contract of [
       /usePathname/, /useSearchParams/, /useRouter/, /buildMusicVisualizerHref/,
       /sanitizeMusicVisualizerReturnTo/, /Minimize visualizer/, /Background/,
     ]) assert.match(miniPlayerSource, contract)
+    assert.match(
+      actionSource,
+      /router\.replace\(sanitizeMusicVisualizerReturnTo\(searchParams\.get\("returnTo"\)\)\)/,
+    )
+    assert.match(actionSource, /router\.push\(buildMusicVisualizerHref\(/)
+    assert.doesNotMatch(
+      actionSource,
+      /router\.push\(sanitizeMusicVisualizerReturnTo/,
+    )
     assert.doesNotMatch(miniPlayerSource, /backgroundRegistry/)
   })
 
   it("keeps background rendering and legacy writes out of Music discovery", () => {
     assert.doesNotMatch(musicWorkspaceSource, /BackgroundHost|BackgroundSelector|BACKGROUND_STORAGE_KEYS|localStorage/)
+  })
+})
+
+describe("Music visualizer account timeout boundary", () => {
+  it("surfaces timeout failures as retryable account errors", () => {
+    assert.match(providerSource, /function isAbortError[\s\S]*error\.name === "AbortError"/)
+    assert.match(
+      providerSource,
+      /failedAccountPayloadRef\.current = payload[\s\S]*setAccountStatus\("error"\)[\s\S]*Try again/,
+    )
+    assert.match(
+      providerSource,
+      /setAccountStatus\("error"\)[\s\S]*preferences could not be loaded\. Try again/,
+    )
   })
 })

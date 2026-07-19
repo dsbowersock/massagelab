@@ -29,7 +29,7 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
 
   const handleVisualizerAction = () => {
     if (isMusicVisualizerRoute) {
-      router.push(sanitizeMusicVisualizerReturnTo(searchParams.get("returnTo")))
+      router.replace(sanitizeMusicVisualizerReturnTo(searchParams.get("returnTo")))
       return
     }
 
