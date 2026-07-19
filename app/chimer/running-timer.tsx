@@ -1,7 +1,7 @@
 "use client"
 
 import { type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
-import { ChevronLeft, ChevronRight, Maximize2, Minimize2, Minus, Pause, Play, Plus, Settings, Star, X } from "lucide-react"
+import { ChevronLeft, ChevronRight, Maximize2, Minimize2, Minus, Pause, Play, Plus, Star, X } from "lucide-react"
 import Image from "next/image"
 import { DEFAULT_BACKGROUND_ID } from "@/lib/background-options"
 import { BackgroundHost } from "@/components/backgrounds/BackgroundHost"
@@ -18,7 +18,6 @@ import { Loader } from "@/components/chimer-controls/Loader"
 import { MovingBackground } from "@/components/moving-background"
 import { CHIMER_HARMONY_OPTIONS, HarmonyToggleGroup, type ChimerHarmonyValue } from "@/components/chimer-controls/HarmonyToggleGroup"
 import {
-  CHIMER_CONTROL_PORTAL_SELECTOR,
   ColorPickerInput,
   ColorPickerSwatch,
   GlobalColorPicker,
@@ -27,7 +26,6 @@ import {
 import { StyledRangeControl } from "@/components/chimer-controls/StyledRangeControl"
 import { StyledToggleControl } from "@/components/chimer-controls/StyledToggleControl"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DEFAULT_CHIMER_SETTINGS } from "@/lib/chimer-timer"
 import {
   MASSAGE_LAB_GRADIENT_HARMONY_OPTIONS,
@@ -205,10 +203,10 @@ import {
   type ColorHarmony,
 } from "./set-timer"
 import styles from "./running-timer.module.css"
+import { ImmersivePanelShell, type ImmersivePanelId } from "./immersive-panel-shell"
 import { TileGridFadeTimeControl } from "./tile-grid-fade-time-control"
 
 type PrimaryDisplay = "timer" | "currentTime"
-type SettingsTab = "clock" | "visual" | "backgrounds"
 type BackgroundVisualCategory = "all" | "animated" | "image" | "interactive" | "premium" | "saved" | "static" | "shader" | "video"
 
 const BACKGROUND_VISUAL_CATEGORIES: ReadonlyArray<{ value: BackgroundVisualCategory; label: string }> = [
@@ -262,7 +260,6 @@ const MAX_FONT_SIZE = 70
 const FONT_SIZE_STEP = 3
 const FONT_FIT_EDGE_INSET_PX = 2
 const SWAP_ANIMATION_MS = 360
-const SETTINGS_AUTO_CLOSE_MS = 60_000
 const DEFAULT_PRIMARY_FONT_COLOR = "#FFFFFF"
 const DEFAULT_SECONDARY_FONT_COLOR = "#FF7A1A"
 const DEFAULT_CLOCK_MODE_FONT_COLOR = "#FFFFFF"
@@ -3196,8 +3193,7 @@ export function RunningTimer({
     massageLabSynthesisColorThree,
   })
   const [primaryDisplay, setPrimaryDisplay] = useState<PrimaryDisplay>(isClockMode ? "currentTime" : "timer")
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-  const [settingsTab, setSettingsTab] = useState<SettingsTab>("clock")
+  const [activePanel, setActivePanel] = useState<ImmersivePanelId>(null)
   const [backgroundCategoryFilter, setBackgroundCategoryFilter] =
     useState<BackgroundVisualCategory>("all")
   const [savedBackgroundIds, setSavedBackgroundIds] = useState<BackgroundId[]>([])
@@ -3225,9 +3221,7 @@ export function RunningTimer({
   const [swapAnimationTarget, setSwapAnimationTarget] = useState<PrimaryDisplay | null>(null)
   const fadeTimerRef = useRef<number | null>(null)
   const hideTimerRef = useRef<number | null>(null)
-  const settingsAutoCloseTimerRef = useRef<number | null>(null)
-  const settingsButtonRef = useRef<HTMLButtonElement | null>(null)
-  const settingsPanelRef = useRef<HTMLDivElement | null>(null)
+  const protectedDisplayRef = useRef<HTMLElement | null>(null)
   const primaryDisplayRef = useRef<HTMLButtonElement | null>(null)
   const primaryContentRef = useRef<HTMLSpanElement | null>(null)
   const backgroundVideoRefMap = useRef<Map<BackgroundId, HTMLVideoElement | null>>(new Map())
@@ -3407,31 +3401,17 @@ export function RunningTimer({
     }
   }, [])
 
-  const clearSettingsAutoCloseTimer = useCallback(() => {
-    if (settingsAutoCloseTimerRef.current) {
-      window.clearTimeout(settingsAutoCloseTimerRef.current)
-      settingsAutoCloseTimerRef.current = null
-    }
-  }, [])
-
-  const scheduleSettingsAutoClose = useCallback(() => {
-    clearSettingsAutoCloseTimer()
-    settingsAutoCloseTimerRef.current = window.setTimeout(() => {
-      setIsSettingsOpen(false)
-    }, SETTINGS_AUTO_CLOSE_MS)
-  }, [clearSettingsAutoCloseTimer])
-
   const scheduleControlHide = useCallback((options: { force?: boolean } = {}) => {
     clearControlTimers()
 
-    if (isSettingsOpen && !options.force) {
+    if (activePanel && !options.force) {
       setControlState("visible")
       return
     }
 
     fadeTimerRef.current = window.setTimeout(() => setControlState("faded"), 3000)
     hideTimerRef.current = window.setTimeout(() => setControlState("hidden"), 6000)
-  }, [clearControlTimers, isSettingsOpen])
+  }, [activePanel, clearControlTimers])
 
   const revealControls = useCallback(() => {
     setControlState("visible")
@@ -3507,61 +3487,14 @@ export function RunningTimer({
   }, [swapAnimationTarget])
 
   useEffect(() => {
-    if (!isSettingsOpen) {
-      return
-    }
-
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target as Node | null
-      if (!target) {
-        return
-      }
-
-      if (settingsPanelRef.current?.contains(target) || settingsButtonRef.current?.contains(target)) {
-        return
-      }
-
-      // The color picker is portaled to document.body so it can escape panel clipping.
-      if (target instanceof Element && target.closest(CHIMER_CONTROL_PORTAL_SELECTOR)) {
-        return
-      }
-
-      setIsSettingsOpen(false)
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsSettingsOpen(false)
-      }
-    }
-
-    document.addEventListener("pointerdown", handlePointerDown)
-    document.addEventListener("keydown", handleKeyDown)
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown)
-      document.removeEventListener("keydown", handleKeyDown)
-    }
-  }, [isSettingsOpen])
-
-  useEffect(() => {
-    if (isSettingsOpen) {
+    if (activePanel) {
       clearControlTimers()
       setControlState("visible")
       return
     }
 
     scheduleControlHide()
-  }, [clearControlTimers, isSettingsOpen, scheduleControlHide])
-
-  useEffect(() => {
-    if (!isSettingsOpen) {
-      clearSettingsAutoCloseTimer()
-      return
-    }
-
-    scheduleSettingsAutoClose()
-    return () => clearSettingsAutoCloseTimer()
-  }, [clearSettingsAutoCloseTimer, isSettingsOpen, scheduleSettingsAutoClose])
+  }, [activePanel, clearControlTimers, scheduleControlHide])
 
   useEffect(() => {
     const loadedSavedBackgroundIds = getSavedBackgroundIdsFromStorage()
@@ -3602,7 +3535,7 @@ export function RunningTimer({
 
   useEffect(() => {
     // The radial carousel renders several absolute cards, so preview loading is based on the active arc instead of scroll observation.
-    if (!isSettingsOpen || settingsTab !== "backgrounds") {
+    if (activePanel !== "background") {
       setVisibleBackgroundPreviewIds(new Set())
       backgroundVideoRefMap.current.forEach((videoRef) => {
         videoRef?.pause()
@@ -3623,9 +3556,8 @@ export function RunningTimer({
     setVisibleBackgroundPreviewIds(nextVisibleIds)
   }, [
     activeBackgroundCarouselIndex,
-    isSettingsOpen,
+    activePanel,
     selectedBackgroundDefinition.id,
-    settingsTab,
     visibleBackgroundOptions,
   ])
 
@@ -3635,13 +3567,13 @@ export function RunningTimer({
         return
       }
 
-      if (visibleBackgroundPreviewIds.has(previewId) && isSettingsOpen && settingsTab === "backgrounds") {
+      if (visibleBackgroundPreviewIds.has(previewId) && activePanel === "background") {
         void videoRef.play().catch(() => undefined)
       } else {
         videoRef.pause()
       }
     })
-  }, [isSettingsOpen, settingsTab, visibleBackgroundPreviewIds])
+  }, [activePanel, visibleBackgroundPreviewIds])
 
   useLayoutEffect(() => {
     const primaryElement = primaryDisplayRef.current
@@ -3774,7 +3706,6 @@ export function RunningTimer({
     }
 
     setBackgroundCategoryFilter(nextFilter)
-    scheduleSettingsAutoClose()
   }
 
   const handleBackgroundSelection = (nextBackgroundId: BackgroundId) => {
@@ -3785,6 +3716,7 @@ export function RunningTimer({
     }
 
     handleSettingsChange({ movingBackgroundEnabled: true, backgroundId: nextBackgroundId })
+    setActivePanel(null)
   }
 
   const moveBackgroundCarousel = useCallback(
@@ -3869,7 +3801,6 @@ export function RunningTimer({
       saveBackgroundIdsToStorage(next)
       return next
     })
-    scheduleSettingsAutoClose()
   }
 
   const handleGlobalColorsChange = (nextColors: GlobalColorValues) => {
@@ -3969,7 +3900,6 @@ export function RunningTimer({
 
     saveGlobalColorState(nextColors, nextHarmony)
     saveGlobalPalettesToStorage(nextPalettes)
-    scheduleSettingsAutoClose()
   }
 
   const handlePauseControl = () => {
@@ -3980,19 +3910,6 @@ export function RunningTimer({
   const handleFullscreenControl = () => {
     onFullscreen()
     scheduleHideAfterControlAction({ force: true })
-  }
-
-  const handleSettingsButtonClick = () => {
-    if (isSettingsOpen) {
-      setIsSettingsOpen(false)
-      scheduleHideAfterControlAction({ force: true })
-      return
-    }
-
-    clearControlTimers()
-    setControlState("visible")
-    setSettingsTab("clock")
-    setIsSettingsOpen(true)
   }
 
   const canUseCoreColorControls = canUseCustomColors || canUseAccountColorControls
@@ -4009,39 +3926,23 @@ export function RunningTimer({
     }
 
     onSettingsChange(nextSettings)
-    scheduleSettingsAutoClose()
     scheduleControlHide()
-  }
-
-  const handleSettingsPanelActivity = () => {
-    scheduleSettingsAutoClose()
-  }
-
-  const handleSettingsTabChange = (nextTab: string) => {
-    if (nextTab === "clock" || nextTab === "visual" || nextTab === "backgrounds") {
-      setSettingsTab(nextTab)
-    }
-    scheduleSettingsAutoClose()
   }
 
   const handleActiveRemainingHoursChange = (value: string) => {
     onSetActiveRemainingDuration(Number(value), activeRemainingMinutes)
-    scheduleSettingsAutoClose()
   }
 
   const handleActiveRemainingMinutesChange = (value: string) => {
     onSetActiveRemainingDuration(activeRemainingHours, Number(value))
-    scheduleSettingsAutoClose()
   }
 
   const handleActiveIntervalChange = (value: string) => {
     onSetActiveIntervalMinutes(Number(value))
-    scheduleSettingsAutoClose()
   }
 
   const handleActiveRemainingStep = (deltaMinutes: number) => {
     onAdjustActiveRemainingMinutes(deltaMinutes)
-    scheduleSettingsAutoClose()
   }
 
   const getCurrentLocationForGlobe = () => {
@@ -15758,6 +15659,7 @@ export function RunningTimer({
       className={`${styles.container} ${isClockMode ? styles.clockMode : ""} ${isAlerting ? styles.alerting : ""}`}
       aria-label={isClockMode ? "Chimer clock" : "Running Chimer timer"}
       style={containerStyle}
+      data-immersive-stage
     >
       {shouldRenderLiveBackground && useOriginalLampBackground && (
         <MovingBackground
@@ -16677,8 +16579,14 @@ export function RunningTimer({
           aria-live={isTimerPrimary ? "polite" : undefined}
           data-testid="running-timer-clock"
         >
-          <span ref={isTimerPrimary ? primaryContentRef : undefined} className={styles.displayContent}>
-            {renderTimerDisplay()}
+          <span
+            ref={isTimerPrimary ? protectedDisplayRef : undefined}
+            className={styles.protectedDisplay}
+            data-protected-display={isTimerPrimary ? "true" : undefined}
+          >
+            <span ref={isTimerPrimary ? primaryContentRef : undefined} className={styles.displayContent}>
+              {renderTimerDisplay()}
+            </span>
           </span>
         </button>
       )}
@@ -16696,8 +16604,14 @@ export function RunningTimer({
         aria-label={isCurrentTimePrimary ? (isClockMode ? "Reveal clock controls" : isComplete ? "Session complete" : `${primaryActionLabel} from center display`) : "Show current time in center"}
         style={isCurrentTimePrimary ? primaryDisplayStyle : undefined}
       >
-        <span ref={isCurrentTimePrimary ? primaryContentRef : undefined} className={styles.displayContent}>
-          {renderCurrentTimeDisplay(isCurrentTimePrimary)}
+        <span
+          ref={isCurrentTimePrimary ? protectedDisplayRef : undefined}
+          className={styles.protectedDisplay}
+          data-protected-display={isCurrentTimePrimary ? "true" : undefined}
+        >
+          <span ref={isCurrentTimePrimary ? primaryContentRef : undefined} className={styles.displayContent}>
+            {renderCurrentTimeDisplay(isCurrentTimePrimary)}
+          </span>
         </span>
       </button>
 
@@ -16726,41 +16640,13 @@ export function RunningTimer({
           {isFullscreen ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
         </button>
 
-        <button
-          ref={settingsButtonRef}
-          className={`${styles.control} ${styles.settingsButton} ${styles.tactileButton}`}
-          onClick={() => {
-            triggerHapticFeedback(hapticsEnabled)
-            handleSettingsButtonClick()
-          }}
-          aria-label={isSettingsOpen ? "Close clock settings" : "Open clock settings"}
-          aria-expanded={isSettingsOpen}
-          data-chimer-control="true"
-        >
-          <Settings className="h-5 w-5" />
-        </button>
-
-        {isSettingsOpen && (
-          <div
-            ref={settingsPanelRef}
-            className={styles.settingsPanel}
-            role="dialog"
-            aria-label="Chimer settings"
-            data-chimer-control="true"
-            data-testid="chimer-settings-panel"
-            onPointerDown={handleSettingsPanelActivity}
-            onKeyDown={handleSettingsPanelActivity}
-            onChange={handleSettingsPanelActivity}
-            onInput={handleSettingsPanelActivity}
-          >
-            <Tabs value={settingsTab} onValueChange={handleSettingsTabChange} className={styles.settingsTabs}>
-              <TabsList data-active-tab={settingsTab} className={`${styles.settingsTabList} ml-chimer-tabs`}>
-                <TabsTrigger value="clock" className={`${styles.settingsTabTrigger} ml-chimer-tab`}>Clock</TabsTrigger>
-                <TabsTrigger value="visual" className={`${styles.settingsTabTrigger} ml-chimer-tab`}>Visual</TabsTrigger>
-                <TabsTrigger value="backgrounds" className={`${styles.settingsTabTrigger} ml-chimer-tab`}>Backgrounds</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="clock" className={styles.settingsTabContent}>
+        <ImmersivePanelShell
+          activePanel={activePanel}
+          onActivePanelChange={setActivePanel}
+          protectedDisplayRef={protectedDisplayRef}
+          hapticsEnabled={hapticsEnabled}
+          clockContent={(
+            <div className={styles.settingsTabContent}>
                 <div className={styles.settingsSection}>
                   <div className={styles.settingsSectionHeader}>
                     <span>Clock text</span>
@@ -17134,19 +17020,22 @@ export function RunningTimer({
                   </div>
                 )}
 
-                <div className={styles.switchRow}>
-                  <StyledToggleControl
-                    label="Keep timer screen awake"
-                    checked={keepTimerScreenAwake}
-                    valueLabel={keepTimerScreenAwake ? "On" : "Off"}
-                    hapticsEnabled={hapticsEnabled}
-                    onCheckedChange={(value) => handleSettingsChange({ keepTimerScreenAwake: value })}
-                  />
-                </div>
+            </div>
+          )}
+          visualContent={(
+            <div className={styles.settingsTabContent}>
+                {!isClockMode ? (
+                  <div className={styles.switchRow}>
+                    <StyledToggleControl
+                      label="Keep timer screen awake"
+                      checked={keepTimerScreenAwake}
+                      valueLabel={keepTimerScreenAwake ? "On" : "Off"}
+                      hapticsEnabled={hapticsEnabled}
+                      onCheckedChange={(value) => handleSettingsChange({ keepTimerScreenAwake: value })}
+                    />
+                  </div>
+                ) : null}
 
-              </TabsContent>
-
-              <TabsContent value="visual" className={styles.settingsTabContent}>
                 <StyledToggleControl
                   label="Visual background"
                   checked={movingBackgroundEnabled}
@@ -17256,9 +17145,10 @@ export function RunningTimer({
                     </div>
                   )}
                 </div>
-              </TabsContent>
-
-              <TabsContent value="backgrounds" className={`${styles.settingsTabContent} ${styles.backgroundSettingsTabContent}`}>
+            </div>
+          )}
+          backgroundContent={(
+            <div className={`${styles.settingsTabContent} ${styles.backgroundSettingsTabContent}`}>
                 <div className={styles.backgroundCategoryRow} role="group" aria-label="Background visual filters">
                   {BACKGROUND_VISUAL_CATEGORIES.map((category) => (
                     <button
@@ -17420,10 +17310,9 @@ export function RunningTimer({
                 ) : (
                   <div className={styles.settingsEmptyState}>No backgrounds match this filter.</div>
                 )}
-              </TabsContent>
-            </Tabs>
-          </div>
-        )}
+            </div>
+          )}
+        />
 
         <div className={styles.bottomControls}>
           <div className={styles.bottomButtonRow}>

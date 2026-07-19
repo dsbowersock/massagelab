@@ -1,0 +1,154 @@
+.root {
+  --immersive-global-chrome-z: 10030;
+  --immersive-reserved-top: 0px;
+  --immersive-reserved-bottom: 0px;
+  --immersive-panel-max-height: min(70dvh, 44rem);
+}
+
+.toolbar {
+  position: fixed;
+  top: 50%;
+  right: max(0.75rem, env(safe-area-inset-right, 0px));
+  z-index: 10018;
+  display: grid;
+  gap: 0.5rem;
+  transform: translateY(-50%);
+}
+
+.toolbarButton {
+  min-width: 7.25rem;
+  justify-content: flex-start;
+  gap: 0.5rem;
+}
+
+.toolbarIcon {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex: 0 0 auto;
+}
+
+.dock {
+  position: fixed;
+  right: max(0.75rem, env(safe-area-inset-right, 0px));
+  left: max(0.75rem, env(safe-area-inset-left, 0px));
+  z-index: 10017;
+  display: flex;
+  flex-direction: column;
+  width: min(58rem, calc(100vw - 1.5rem));
+  max-height: max(8rem, var(--immersive-panel-max-height));
+  margin-inline: auto;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 1rem;
+  background: rgba(7, 13, 24, 0.96);
+  box-shadow: 0 1.25rem 4rem rgba(0, 0, 0, 0.45);
+  color: #fff;
+  backdrop-filter: blur(18px);
+}
+
+.dock[data-immersive-dock="bottom"] {
+  bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+}
+
+.dock[data-immersive-dock="top"] {
+  top: max(0.75rem, env(safe-area-inset-top, 0px));
+}
+
+.dockHeader,
+.backgroundHeader {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 3.5rem;
+  padding: 0.625rem 0.75rem 0.625rem 1rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.dockHeader h2,
+.backgroundHeader {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.dockScroller,
+.backgroundScroller {
+  min-height: 0;
+  padding: 0.875rem;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+/* This layer sits above the app bar/player (10015) and the immersive timer (10000). */
+.backgroundOverlay {
+  --immersive-global-chrome-z: 10030;
+
+  position: fixed;
+  inset: 0;
+  z-index: var(--immersive-global-chrome-z);
+  background: rgba(2, 6, 23, 0.86);
+  backdrop-filter: blur(14px);
+}
+
+.backgroundPanel {
+  --immersive-global-chrome-z: 10030;
+
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--immersive-global-chrome-z) + 1);
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: 100dvh;
+  min-height: 100dvh;
+  overflow: hidden;
+  background: rgba(5, 5, 5, 0.98);
+  color: #fff;
+}
+
+.backgroundHeader {
+  padding-top: max(0.625rem, env(safe-area-inset-top, 0px));
+  padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+  padding-left: max(1rem, env(safe-area-inset-left, 0px));
+}
+
+.backgroundScroller {
+  flex: 1 1 auto;
+  padding-bottom: max(0.875rem, env(safe-area-inset-bottom, 0px));
+}
+
+.unavailableMessage {
+  margin: 0.75rem 1rem 0;
+  padding: 0.75rem;
+  border: 1px solid rgba(251, 146, 60, 0.45);
+  border-radius: 0.75rem;
+  background: rgba(124, 45, 18, 0.34);
+}
+
+@media (max-width: 36rem) {
+  .toolbarButton {
+    min-width: 2.75rem;
+    width: 2.75rem;
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .toolbarLabel {
+    display: none;
+  }
+
+  .dock {
+    right: max(0.4rem, env(safe-area-inset-right, 0px));
+    left: max(0.4rem, env(safe-area-inset-left, 0px));
+    width: calc(100vw - 0.8rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dock,
+  .backgroundOverlay,
+  .backgroundPanel {
+    animation: none;
+  }
+}

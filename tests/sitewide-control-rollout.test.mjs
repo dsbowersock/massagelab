@@ -112,3 +112,11 @@ test("review fixes preserve live route controls and interaction cleanup", async 
   assert.match(flashcards, /\{sortedCommunityDecks\.length > 2 \? \(/)
   assert.match(businessPlanner, /<h1 id="business-tools-heading"/)
 })
+
+test("immersive display panels delegate toolbar actions to shared controls", async () => {
+  const shell = await read("app/chimer/immersive-panel-shell.tsx")
+
+  assert.match(shell, /<Button[\s\S]*hapticsEnabled=\{hapticsEnabled\}/)
+  assert.match(shell, /<TooltipProvider/)
+  assert.match(shell, /Clock[\s\S]*Visual[\s\S]*Background/)
+})

@@ -10,6 +10,10 @@ const runningTimerSource = await readFile(
   new URL("../app/chimer/running-timer.tsx", import.meta.url),
   "utf8",
 )
+const immersiveShellSource = await readFile(
+  new URL("../app/chimer/immersive-panel-shell.tsx", import.meta.url),
+  "utf8",
+).catch(() => "")
 const backgroundHostSource = await readFile(
   new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
   "utf8",
@@ -45,10 +49,10 @@ test("global color updates notify the parent outside the React state updater", (
   )
 })
 
-test("Clock settings keep the portaled color picker inside their interaction boundary", () => {
+test("immersive panels keep the portaled color picker inside their interaction boundary", () => {
   assert.match(pickerSource, /data-chimer-control-portal="true"/)
   assert.match(
-    runningTimerSource,
+    immersiveShellSource,
     /target instanceof Element && target\.closest\(CHIMER_CONTROL_PORTAL_SELECTOR\)/,
   )
 })
