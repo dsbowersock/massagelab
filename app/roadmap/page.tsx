@@ -1,229 +1,210 @@
 import Link from "next/link"
-import { CalendarDays, Clock, FileText, HeartHandshake, ShieldCheck, UserRound } from "lucide-react"
+import {
+  BookOpen,
+  BriefcaseBusiness,
+  HeartHandshake,
+  HeartPulse,
+  LockKeyhole,
+  Music2,
+  ShieldCheck,
+} from "lucide-react"
 import { AppInset, AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { createPublicPageMetadata } from "@/lib/seo"
 
 export const metadata = createPublicPageMetadata("/roadmap")
 
-const recentlyShipped = [
+const foundationPrinciples = [
   {
-    title: "Privacy-screened monitoring",
-    description:
-      "Sentry error monitoring and performance traces are live with diagnostic message scrubbing. Replay, User Feedback, and Logs stay off until clinical privacy rules are written.",
-    icon: ShieldCheck,
+    title: "Privacy and user control",
+    description: "People should understand where their information lives and remain in control of how it is used.",
   },
   {
-    title: "Chimer responsive controls",
-    description:
-      "Treatment-room clock and timer controls now handle active sessions, mobile layouts, full-viewport clock centering, position-stable switch animation, display colors, digit glow, hidden-seconds display, font sizing, fullscreen, alerts, and safe preference sync more reliably.",
-    icon: Clock,
+    title: "Accessible by design",
+    description: "Learning, wellness, and practice tools should work across devices and support different ways of interacting.",
   },
   {
-    title: "Cleaner alpha navigation",
-    description:
-      "The sidebar now uses the brand mark as the home link, groups product routes under Tools, Documentation, Games, and About, and keeps support links inside the account menu.",
-    icon: CalendarDays,
+    title: "Consent before sharing",
+    description: "Sensitive context should move between people or products only through clear, informed choices.",
   },
   {
-    title: "Sidebar and brand polish",
-    description:
-      "Collapsed section icons, rail open controls, wordmark reveal, click-away collapse, updated brand assets, and PWA icons are in place.",
-    icon: UserRound,
+    title: "Readiness before hosting",
+    description: "Hosted sensitive-data features require security, compliance, legal, and operational readiness before launch.",
   },
-]
+] as const
 
-const currentFocus = [
+// Keep five equally weighted, unordered tracks with current and long-term outcomes;
+// capabilities are representative examples, not an exhaustive feature inventory.
+const productTracks = [
   {
-    title: "Alpha release readiness",
-    description:
-      "Run the automated gate, walk the alpha QA checklist, and verify desktop/mobile layouts, sidebar states, PWA metadata, and local-first privacy expectations.",
-    icon: FileText,
+    title: "Education & Anatomy",
+    purpose: "Help massage students and professionals build durable anatomy knowledge through active study.",
+    availableNow:
+      "Sourced anatomy flashcards, individual Anatomime practice, shared classroom games, and saved mastery progress.",
+    longTermDirection:
+      "Broader learning pathways, more reviewed anatomical media, stronger instructor tools, and carefully chosen spatial learning experiences.",
+    capabilities: ["Adaptive study", "Anatomy games", "Classroom sessions"],
+    icon: BookOpen,
   },
   {
-    title: "Chimer display regression QA",
-    description:
-      "The timer/current-time animation correction has shipped; remaining alpha work is to verify Chimer layout, reduced motion, controls, settings, completion alerts, and large-font behavior across viewports.",
-    icon: Clock,
+    title: "Wellness Tools",
+    purpose: "Give people approachable tools for relaxation, body awareness, and consistent wellness routines.",
+    availableNow:
+      "Chimer, Clock, guided breathing, Quick Log, body-sensation tracking, range-of-motion activities, and personal reminders.",
+    longTermDirection:
+      "More connected routines, clearer personal patterns, and user-controlled ways to carry useful context between wellness experiences.",
+    capabilities: ["Timed sessions", "Breathing exercises", "Reflection and patterns"],
+    icon: HeartPulse,
   },
   {
-    title: "Calendar creation design",
-    description:
-      "Plan appointment, client request, personal event, class, and reminder creation flows before adding more calendar UI.",
-    icon: CalendarDays,
-  },
-]
-
-const laterProductTracks = [
-  {
-    title: "Access and memberships",
-    description:
-      "Future membership levels will define which tools, education features, practice workflows, and sync capabilities each user can access.",
-    icon: UserRound,
+    title: "Therapist & Practice Tools",
+    purpose: "Reduce the administrative load of running an independent massage practice or small team.",
+    availableNow:
+      "Practice scheduling, public booking, services and providers, calendar workflows, team roles, and business-planning tools.",
+    longTermDirection:
+      "A more connected workspace for practice operations, client relationships, team coordination, and sustainable business growth.",
+    capabilities: ["Scheduling and booking", "Practice planning", "Team coordination"],
+    icon: BriefcaseBusiness,
   },
   {
-    title: "Anatomy-powered education",
-    description:
-      "The anatomy database should support multiple learning and clinical tools, including Anatomime, flashcards, body diagrams, intake workflows, and demonstrations.",
-    icon: FileText,
+    title: "Local-First Records",
+    purpose: "Help therapists manage sensitive professional records while keeping control close to the practitioner.",
+    availableNow:
+      "An encrypted browser vault for intake forms, SOAP notes, journals, and range-of-motion records, including local intake-to-SOAP continuity.",
+    longTermDirection:
+      "Stronger cross-device continuity, optional consent-based sharing, and therapist-reviewed assistance such as transcription or drafting, but only when the required safeguards are ready.",
+    capabilities: ["Encrypted records", "Therapist-reviewed documentation", "User-controlled transfer"],
+    icon: LockKeyhole,
   },
   {
-    title: "Practice and therapist SaaS",
-    description:
-      "Practice owners, therapists, students, and clients need clear account experiences before MassageLab expands beyond alpha scheduling and local-first tools.",
-    icon: CalendarDays,
+    title: "Audio & Ambient Experiences",
+    purpose: "Create calm, focused environments that can accompany sessions, study, rest, or other MassageLab tools.",
+    availableNow:
+      "A generative music catalog, persistent sitewide playback, clocks and timers, and customizable animated backgrounds.",
+    longTermDirection:
+      "More expressive ambient environments, deeper playback and visual customization, and smoother connections between audio, timing, and wellness experiences.",
+    capabilities: ["Generative audio", "Ambient visuals", "Cross-tool playback"],
+    icon: Music2,
   },
-  {
-    title: "Evidence-informed news and content",
-    description:
-      "A future News area can surface reputable massage, bodywork, anatomy, and research content with clear source attribution and editorial boundaries.",
-    icon: FileText,
-  },
-  {
-    title: "Legal, trust, and discoverability",
-    description:
-      "Terms, legal information, an About Me section, SEO, and public messaging should mature alongside wider release planning.",
-    icon: ShieldCheck,
-  },
-]
-
-const upfrontNeeds = [
-  "HIPAA-compliant hosting and storage",
-  "Business Associate Agreements with vendors",
-  "Audit logging, access controls, encryption, and backups",
-  "Security review, incident response planning, and legal/compliance review",
-  "Ongoing operating costs for managed clinical records",
-]
+] as const
 
 export default function RoadmapPage() {
   return (
-    <AppPageShell title="MassageLab Roadmap" contentClassName="gap-8">
-        <AppSurface
-          title="Current alpha direction"
-          description={
-            <>
-                The next phase is alpha stabilization: verify what already shipped, regression-check Chimer polish, and design calendar creation flows before adding larger product bets.
-            </>
-          }
-          contentClassName="flex flex-wrap gap-3"
-        >
-              <Button asChild variant="cta">
-                <Link href="/register">Create an account</Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link href="/">Choose a tool</Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link href="#donate">
-                  <HeartHandshake className="mr-2 h-4 w-4" />
-                  Donate
-                </Link>
-              </Button>
-        </AppSurface>
-
-        <section className="space-y-4">
-          <div>
-            <h2 className="text-xl font-semibold text-foreground">Recently shipped</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Alpha improvements landed from May 8-13, 2026.</p>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            {recentlyShipped.map((feature) => {
-              const Icon = feature.icon
-              return (
-                <AppSurface
-                  key={feature.title}
-                  title={feature.title}
-                  description={feature.description}
-                  icon={<Icon className="h-5 w-5" aria-hidden="true" />}
-                />
-              )
-            })}
-          </div>
-        </section>
-
-        <section className="space-y-4">
-          <div>
-            <h2 className="text-xl font-semibold text-foreground">Current alpha focus</h2>
-            <p className="mt-1 text-sm text-muted-foreground">The next roadmap lane is release readiness before new product surfaces.</p>
-          </div>
-          <div className="grid gap-4 lg:grid-cols-3">
-            {currentFocus.map((feature) => {
-              const Icon = feature.icon
-              return (
-                <AppSurface
-                  key={feature.title}
-                  title={feature.title}
-                  description={feature.description}
-                  icon={<Icon className="h-5 w-5" aria-hidden="true" />}
-                  className={appCalloutClassName}
-                />
-              )
-            })}
-          </div>
-        </section>
-
-        <section className="space-y-4">
-          <div>
-            <h2 className="text-xl font-semibold text-foreground">Later product tracks</h2>
-            <p className="mt-1 text-sm text-muted-foreground">These stay high-level until pricing, platform, source, and access decisions are ready.</p>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {laterProductTracks.map((feature) => {
-              const Icon = feature.icon
-              return (
-                <AppSurface
-                  key={feature.title}
-                  title={feature.title}
-                  description={feature.description}
-                  icon={<Icon className="h-5 w-5" aria-hidden="true" />}
-                />
-              )
-            })}
-          </div>
-        </section>
-
-        <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-          <AppSurface
-            title="Future compliance work"
-            description={
-              <>
-                Managed clinical sync is not the immediate alpha build. It needs funding and operational readiness before it can be offered responsibly.
-              </>
-            }
-          >
-              <div className="grid gap-3">
-                {upfrontNeeds.map((need) => (
-                  <AppInset key={need} className="p-3 text-sm">
-                    {need}
-                  </AppInset>
-                ))}
-              </div>
-          </AppSurface>
-
-          <AppSurface
-            id="donate"
-            title="Donate"
-            description={
-              <>
-                Donations help fund the compliance, infrastructure, and review work needed for future managed clinical sync.
-              </>
-            }
-            className="scroll-mt-20"
-            contentClassName="gap-4"
-          >
-              <p className="text-sm text-muted-foreground">
-                Memberships and donations are separate from the local-first alpha tools. Notes, intake forms, journals, and ROM data remain under user control.
-              </p>
-              <div className="flex flex-wrap gap-3">
-                <Button asChild variant="cta">
-                  <Link href="/pricing#donate">Donate with Stripe</Link>
-                </Button>
-                <Button asChild variant="outline">
-                  <Link href="/pricing">View memberships</Link>
-                </Button>
-              </div>
-          </AppSurface>
+    <AppPageShell width="full" contentClassName="gap-10">
+      <header className="space-y-5 py-2 sm:py-4">
+        <div className="max-w-4xl space-y-3">
+          <p className="text-sm font-semibold uppercase tracking-wide text-primary">Product vision</p>
+          <h1 className="text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
+            Where MassageLab is going
+          </h1>
+          <p className="max-w-3xl text-base leading-7 text-muted-foreground sm:text-lg">
+            MassageLab is growing into a connected home for anatomy learning, personal wellness, therapeutic practice,
+            professional records, and calm ambient experiences.
+          </p>
+          <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+            These tracks form an equal product portfolio. Their position on this page is not a release order, priority
+            ranking, or delivery promise.
+          </p>
         </div>
+        <div className="flex flex-wrap gap-3">
+          <Button asChild variant="cta">
+            <Link href="/tools">Explore tools</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/pricing">View memberships</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/pricing#donate">
+              <HeartHandshake className="mr-2 h-4 w-4" aria-hidden="true" />
+              Donate
+            </Link>
+          </Button>
+        </div>
+      </header>
+
+      <section aria-labelledby="roadmap-foundation-heading">
+        <AppSurface
+          title={<h2 id="roadmap-foundation-heading">Shared foundation</h2>}
+          description="The same responsibilities guide every part of the MassageLab portfolio."
+          icon={<ShieldCheck className="h-5 w-5" aria-hidden="true" />}
+          className={appCalloutClassName}
+        >
+          <p className="text-sm leading-6 text-muted-foreground">
+            Sensitive professional records remain local-first. Any future hosted sensitive-data capability must earn
+            its place through informed consent and the required security, compliance, legal, and operational readiness.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {foundationPrinciples.map((principle) => (
+              <AppInset key={principle.title} className="h-full p-4">
+                <h3 className="text-sm font-semibold text-foreground">{principle.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">{principle.description}</p>
+              </AppInset>
+            ))}
+          </div>
+        </AppSurface>
+      </section>
+
+      <section aria-labelledby="product-portfolio-heading" className="space-y-4">
+        <div className="max-w-3xl">
+          <h2 id="product-portfolio-heading" className="text-2xl font-semibold text-foreground">
+            Product portfolio
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            Each track pairs value available today with a long-term direction. None is ranked above another.
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          {productTracks.map((track) => {
+            const Icon = track.icon
+            return (
+              <AppSurface
+                key={track.title}
+                title={<h3>{track.title}</h3>}
+                description={track.purpose}
+                icon={<Icon className="h-5 w-5" aria-hidden="true" />}
+                className="h-full"
+                contentClassName="gap-4"
+              >
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-primary">Available now</h4>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{track.availableNow}</p>
+                </div>
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-primary">Long-term direction</h4>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{track.longTermDirection}</p>
+                </div>
+                <ul className="mt-auto flex flex-wrap gap-2" aria-label={`${track.title} representative capabilities`}>
+                  {track.capabilities.map((capability) => (
+                    <li key={capability} className="rounded-md border border-border/80 bg-background/75 px-2.5 py-1 text-xs">
+                      {capability}
+                    </li>
+                  ))}
+                </ul>
+              </AppSurface>
+            )
+          })}
+        </div>
+      </section>
+
+      <section aria-labelledby="support-roadmap-heading">
+        <AppSurface
+          title={<h2 id="support-roadmap-heading">Support the mission</h2>}
+          description="Memberships and donations help support the broader MassageLab mission. They do not determine feature order or guarantee delivery of a particular capability."
+          contentClassName="gap-4"
+        >
+          <div className="flex flex-wrap gap-3">
+            <Button asChild variant="cta">
+              <Link href="/pricing#donate">Donate</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/pricing">View memberships</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/tools">Explore tools</Link>
+            </Button>
+          </div>
+        </AppSurface>
+      </section>
     </AppPageShell>
   )
 }

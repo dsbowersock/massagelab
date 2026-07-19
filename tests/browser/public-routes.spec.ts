@@ -484,6 +484,44 @@ test("anonymous homepage presents landing copy and tool discovery rails", async 
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
+test("Roadmap presents an unordered product portfolio", async ({ page }) => {
+  const health = capturePageHealth(page)
+
+  await page.goto("/roadmap", { waitUntil: "domcontentloaded" })
+
+  await expect(page.getByRole("heading", { level: 1, name: "Where MassageLab is going" })).toBeVisible()
+  await expect(page.getByRole("region", { name: "Shared foundation" })).toBeVisible()
+  await expect(page.getByRole("region", { name: "Product portfolio" })).toBeVisible()
+
+  const viewportWidth = page.viewportSize()?.width ?? 0
+  const portfolioBox = await page.locator("[aria-labelledby='product-portfolio-heading']").boundingBox()
+  expect((portfolioBox?.x ?? 0) + (portfolioBox?.width ?? 0)).toBeLessThanOrEqual(viewportWidth + 1)
+
+  for (const name of [
+    "Education & Anatomy",
+    "Wellness Tools",
+    "Therapist & Practice Tools",
+    "Local-First Records",
+    "Audio & Ambient Experiences",
+  ]) {
+    await expect(page.getByRole("heading", { level: 3, name })).toBeVisible()
+  }
+
+  await expect(page.getByText("Available now", { exact: true })).toHaveCount(5)
+  await expect(page.getByText("Long-term direction", { exact: true })).toHaveCount(5)
+  await expect(page.getByText(/not a release order/i)).toBeVisible()
+  await expect(page.getByRole("link", { name: "Explore tools" }).first()).toHaveAttribute("href", "/tools")
+  await expect(page.getByRole("link", { name: "View memberships" }).first()).toHaveAttribute("href", "/pricing")
+  await expect(page.getByRole("link", { name: "Donate" }).first()).toHaveAttribute("href", "/pricing#donate")
+  await expect(page.getByRole("heading", { name: "Recently shipped" })).toHaveCount(0)
+  await expect(page.getByRole("heading", { name: "Current alpha focus" })).toHaveCount(0)
+
+  expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.consoleErrors, "browser console errors").toEqual([])
+  expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
+  expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
+})
+
 test("Atmosphere proof station keeps global player state across client routes", async ({ page }) => {
   const health = capturePageHealth(page)
 
