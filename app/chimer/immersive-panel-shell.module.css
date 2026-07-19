@@ -3,6 +3,18 @@
   --immersive-reserved-top: 0px;
   --immersive-reserved-bottom: 0px;
   --immersive-panel-max-height: min(70dvh, 44rem);
+  --immersive-dock-top-inset: max(0.75rem, env(safe-area-inset-top, 0px));
+  --immersive-dock-bottom-inset: max(0.75rem, env(safe-area-inset-bottom, 0px));
+}
+
+.dockInsetProbe {
+  position: fixed;
+  width: 0;
+  height: 0;
+  padding-top: var(--immersive-dock-top-inset);
+  padding-bottom: var(--immersive-dock-bottom-inset);
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .toolbar {
@@ -78,11 +90,11 @@
 }
 
 .dock[data-immersive-dock="bottom"] {
-  bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+  bottom: var(--immersive-dock-bottom-inset);
 }
 
 .dock[data-immersive-dock="top"] {
-  top: max(0.75rem, env(safe-area-inset-top, 0px));
+  top: var(--immersive-dock-top-inset);
 }
 
 .dockHeader,

@@ -17,7 +17,7 @@ import { CHIMER_CONTROL_PORTAL_SELECTOR } from "@/components/chimer-controls/Glo
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
-import { calculateDockPlacement } from "./immersive-panel-layout.js"
+import { calculateDockPlacement, toVisualViewportBounds } from "./immersive-panel-layout.js"
 import styles from "./immersive-panel-shell.module.css"
 
 export type ImmersivePanelId = "clock" | "visual" | "background" | null
@@ -93,6 +93,7 @@ export function ImmersivePanelShell({
 }: ImmersivePanelShellProps) {
   const visualHintId = useId()
   const dockRef = useRef<HTMLDivElement | null>(null)
+  const dockInsetProbeRef = useRef<HTMLSpanElement | null>(null)
   const toolbarRef = useRef<HTMLDivElement | null>(null)
   const toolbarButtonRefs = useRef<Partial<Record<PanelKey, HTMLButtonElement | null>>>({})
   const [placement, setPlacement] = useState<DockPlacement>(DEFAULT_PLACEMENT)
@@ -114,9 +115,10 @@ export function ImmersivePanelShell({
   useLayoutEffect(() => {
     const protectedDisplay = protectedDisplayRef.current
     const dock = dockRef.current
+    const dockInsetProbe = dockInsetProbeRef.current
     const stage = protectedDisplay?.closest<HTMLElement>("[data-immersive-stage]")
 
-    if (!protectedDisplay || !dock || !stage || !nonmodalPanel) {
+    if (!protectedDisplay || !dock || !dockInsetProbe || !stage || !nonmodalPanel) {
       setPlacement(DEFAULT_PLACEMENT)
       stage?.style.setProperty("--immersive-reserved-top", "0px")
       stage?.style.setProperty("--immersive-reserved-bottom", "0px")
@@ -138,13 +140,27 @@ export function ImmersivePanelShell({
         }
 
         // Layout offsets remain stable when an inner glow or rotation layer transforms visually.
-        const displayBounds = getStableVerticalBounds(currentProtectedDisplay)
-        const viewportHeight = window.visualViewport?.height ?? window.innerHeight
+        const stableDisplayBounds = getStableVerticalBounds(currentProtectedDisplay)
+        const visualViewport = window.visualViewport
+        const displayBounds = toVisualViewportBounds({
+          layoutTop: stableDisplayBounds.top,
+          layoutBottom: stableDisplayBounds.bottom,
+          windowScrollY: window.scrollY,
+          visualViewportOffsetTop: visualViewport?.offsetTop ?? 0,
+        })
+        const insetStyles = window.getComputedStyle(dockInsetProbe)
+        const dockInsets = {
+          top: Number.parseFloat(insetStyles.paddingTop) || 0,
+          bottom: Number.parseFloat(insetStyles.paddingBottom) || 0,
+        }
+        const viewportHeight = visualViewport?.height ?? window.innerHeight
         const nextPlacement = calculateDockPlacement({
           viewportHeight,
           displayTop: displayBounds.top,
           displayBottom: displayBounds.bottom,
           panelHeight: dock.scrollHeight,
+          topInset: dockInsets.top,
+          bottomInset: dockInsets.bottom,
         })
 
         setPlacement((current) => (
@@ -173,6 +189,7 @@ export function ImmersivePanelShell({
     window.addEventListener("resize", measure)
     window.addEventListener("orientationchange", measure)
     window.visualViewport?.addEventListener("resize", measure)
+    window.visualViewport?.addEventListener("scroll", measure)
 
     return () => {
       window.cancelAnimationFrame(animationFrame)
@@ -180,6 +197,7 @@ export function ImmersivePanelShell({
       window.removeEventListener("resize", measure)
       window.removeEventListener("orientationchange", measure)
       window.visualViewport?.removeEventListener("resize", measure)
+      window.visualViewport?.removeEventListener("scroll", measure)
       stage.style.setProperty("--immersive-reserved-top", "0px")
       stage.style.setProperty("--immersive-reserved-bottom", "0px")
       stage.style.removeProperty("--immersive-panel-max-height")
@@ -238,6 +256,12 @@ export function ImmersivePanelShell({
 
   return (
     <div className={styles.root} style={rootStyle} data-chimer-control="true" data-immersive-shell>
+      <span
+        ref={dockInsetProbeRef}
+        className={styles.dockInsetProbe}
+        aria-hidden="true"
+        data-immersive-inset-probe
+      />
       <TooltipProvider delayDuration={180}>
         <div ref={toolbarRef} className={styles.toolbar} role="group" aria-label="Immersive display controls">
           {PANEL_CONTROLS.map(({ id, label, icon: Icon }) => {

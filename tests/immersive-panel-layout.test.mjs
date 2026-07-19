@@ -23,3 +23,49 @@ test("dock placement normalizes non-finite and negative measurement inputs", asy
   const { calculateDockPlacement } = await loadLayout()
   assert.deepEqual(calculateDockPlacement({ viewportHeight: Number.NaN, displayTop: -10, displayBottom: Number.POSITIVE_INFINITY, panelHeight: -20 }), { edge: "bottom", reservedPx: 0, maxPanelPx: 0 })
 })
+
+test("dock placement includes measured edge insets in exact-fit reservations", async () => {
+  const { calculateDockPlacement } = await loadLayout()
+
+  assert.deepEqual(calculateDockPlacement({
+    viewportHeight: 812,
+    displayTop: 200,
+    displayBottom: 640,
+    panelHeight: 144,
+    topInset: 24,
+    bottomInset: 12,
+  }), { edge: "bottom", reservedPx: 172, maxPanelPx: 144 })
+
+  assert.deepEqual(calculateDockPlacement({
+    viewportHeight: 800,
+    displayTop: 184,
+    displayBottom: 641,
+    panelHeight: 144,
+    topInset: 24,
+    bottomInset: 12,
+  }), { edge: "top", reservedPx: 184, maxPanelPx: 144 })
+})
+
+test("dock placement caps against usable edge space after measured insets", async () => {
+  const { calculateDockPlacement } = await loadLayout()
+
+  assert.deepEqual(calculateDockPlacement({
+    viewportHeight: 390,
+    displayTop: 72,
+    displayBottom: 300,
+    panelHeight: 500,
+    topInset: 60,
+    bottomInset: 30,
+  }), { edge: "bottom", reservedPx: 90, maxPanelPx: 44 })
+})
+
+test("stable document bounds convert into visual-viewport coordinates", async () => {
+  const { toVisualViewportBounds } = await loadLayout()
+
+  assert.deepEqual(toVisualViewportBounds({
+    layoutTop: 500,
+    layoutBottom: 620,
+    windowScrollY: 300,
+    visualViewportOffsetTop: 40,
+  }), { top: 160, bottom: 280 })
+})
