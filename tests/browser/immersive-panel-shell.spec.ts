@@ -24,9 +24,20 @@ async function installVisualViewportFixture(page: Page, offsetTop = 40, heightIn
 async function installImmersiveLifecycleInstrumentation(page: Page) {
   await page.addInitScript(() => {
     const lifecycle = {
+      activeListenerId: null as number | null,
+      flushHeldFrame: (_frameId: number) => {},
+      holdNextRafForListenerId: null as number | null,
       observers: [] as Array<{ targets: string[], disconnected: boolean }>,
-      rafCanceled: 0,
-      rafRequested: 0,
+      rafRecords: [] as Array<{
+        callbackCalls: number
+        canceled: boolean
+        callback: FrameRequestCallback | null
+        executed: boolean
+        frameId: number
+        handle: number
+        held: boolean
+        requestedByListenerId: number | null
+      }>,
       viewportListeners: [] as Array<{ type: string, active: boolean, calls: number, listenerId: number }>,
       windowListeners: [] as Array<{ type: string, active: boolean, calls: number, listenerId: number }>,
     }
@@ -61,12 +72,50 @@ async function installImmersiveLifecycleInstrumentation(page: Page) {
 
     const originalRequestAnimationFrame = window.requestAnimationFrame.bind(window)
     const originalCancelAnimationFrame = window.cancelAnimationFrame.bind(window)
+    let nextFrameId = 1
+    let nextHeldHandle = -1
+    lifecycle.flushHeldFrame = (frameId) => {
+      const record = lifecycle.rafRecords.find((entry) => entry.frameId === frameId)
+      if (!record || !record.held || record.canceled || record.executed || !record.callback) return
+      record.callbackCalls += 1
+      record.executed = true
+      record.callback(performance.now())
+    }
     window.requestAnimationFrame = (callback) => {
-      lifecycle.rafRequested += 1
-      return originalRequestAnimationFrame(callback)
+      const held = lifecycle.holdNextRafForListenerId !== null
+        && lifecycle.holdNextRafForListenerId === lifecycle.activeListenerId
+      if (held) lifecycle.holdNextRafForListenerId = null
+      const record = {
+        callbackCalls: 0,
+        canceled: false,
+        callback,
+        executed: false,
+        frameId: nextFrameId,
+        handle: 0,
+        held,
+        requestedByListenerId: lifecycle.activeListenerId,
+      }
+      nextFrameId += 1
+      if (held) {
+        record.handle = nextHeldHandle
+        nextHeldHandle -= 1
+      } else {
+        record.handle = originalRequestAnimationFrame((timestamp) => {
+          record.callbackCalls += 1
+          record.executed = true
+          callback(timestamp)
+        })
+      }
+      lifecycle.rafRecords.push(record)
+      return record.handle
     }
     window.cancelAnimationFrame = (handle) => {
-      lifecycle.rafCanceled += 1
+      const record = lifecycle.rafRecords
+        .findLast((entry) => entry.handle === handle && !entry.canceled && !entry.executed)
+      if (record) {
+        record.canceled = true
+        if (record.held) return
+      }
       originalCancelAnimationFrame(handle)
     }
 
@@ -106,8 +155,14 @@ async function installImmersiveLifecycleInstrumentation(page: Page) {
         const record = { type, active: true, calls: 0, listenerId: getListenerId(listener) }
         const wrapped: EventListener = (event) => {
           record.calls += 1
-          if (typeof listener === "function") listener.call(target, event)
-          else listener.handleEvent(event)
+          const previousListenerId = lifecycle.activeListenerId
+          lifecycle.activeListenerId = record.listenerId
+          try {
+            if (typeof listener === "function") listener.call(target, event)
+            else listener.handleEvent(event)
+          } finally {
+            lifecycle.activeListenerId = previousListenerId
+          }
         }
         records.push(record)
         registrations.push({ capture, listener, record, type, wrapped })
@@ -355,7 +410,7 @@ test("measured edge insets and visual-viewport offsets preserve the protected ga
   })).toBe(true)
 })
 
-test("rendered panel teardown disconnects observers and removes exact viewport listeners", async ({ page }) => {
+test("rendered panel teardown cancels its exact pending frame and removes viewport listeners", async ({ page }) => {
   await installVisualViewportFixture(page)
   await installImmersiveLifecycleInstrumentation(page)
   await openClock(page)
@@ -385,47 +440,102 @@ test("rendered panel teardown disconnects observers and removes exact viewport l
       && lifecycle.viewportListeners.some((entry) => entry.active && entry.type === "scroll")
   })).toBe(true)
 
-  const cancelCountBeforeUnmount = await page.evaluate(() => (
-    (window as typeof window & { __immersiveLifecycle: { rafCanceled: number } }).__immersiveLifecycle.rafCanceled
-  ))
-  await page.getByRole("button", { name: "Close clock", exact: true }).click()
-  await expect(page.locator("body")).not.toHaveClass(/chimer-running/)
-
-  const afterUnmount = await page.evaluate(({ viewportRecords, windowRecords }) => {
+  const shellListenerId = await page.evaluate(({ viewportRecords, windowRecords }) => {
     const lifecycle = (window as typeof window & { __immersiveLifecycle: {
+      viewportListeners: Array<{ listenerId: number, type: string }>
+      windowListeners: Array<{ listenerId: number, type: string }>
+    } }).__immersiveLifecycle
+    return lifecycle.viewportListeners
+      .slice(viewportRecords)
+      .map((entry) => entry.listenerId)
+      .find((listenerId) => {
+        const viewportTypes = lifecycle.viewportListeners
+          .slice(viewportRecords)
+          .filter((entry) => entry.listenerId === listenerId)
+          .map((entry) => entry.type)
+          .sort()
+        const windowTypes = lifecycle.windowListeners
+          .slice(windowRecords)
+          .filter((entry) => entry.listenerId === listenerId)
+          .map((entry) => entry.type)
+          .sort()
+        return JSON.stringify(viewportTypes) === JSON.stringify(["resize", "scroll"])
+          && JSON.stringify(windowTypes) === JSON.stringify(["orientationchange", "resize"])
+      }) ?? null
+  }, baseline)
+  expect(shellListenerId).not.toBeNull()
+  if (shellListenerId === null) throw new Error("Immersive shell listener was not instrumented")
+
+  const pendingFrame = await page.getByRole("button", { name: "Close clock", exact: true }).evaluate(
+    (closeButton, listenerId) => {
+      const lifecycle = (window as typeof window & { __immersiveLifecycle: {
+        rafRecords: Array<{
+          callbackCalls: number
+          canceled: boolean
+          executed: boolean
+          frameId: number
+          held: boolean
+          requestedByListenerId: number | null
+        }>
+        holdNextRafForListenerId: number | null
+      } }).__immersiveLifecycle
+      const priorFrameCount = lifecycle.rafRecords.length
+
+      // Dispatch and unmount in one browser task so the selected frame is
+      // definitely pending when React runs the shell's effect cleanup.
+      lifecycle.holdNextRafForListenerId = listenerId
+      window.visualViewport?.dispatchEvent(new Event("scroll"))
+      const frame = lifecycle.rafRecords
+        .slice(priorFrameCount)
+        .find((entry) => entry.requestedByListenerId === listenerId)
+      closeButton.click()
+
+      return frame
+        ? {
+            callbackCalls: frame.callbackCalls,
+            canceled: frame.canceled,
+            executed: frame.executed,
+            frameId: frame.frameId,
+            held: frame.held,
+          }
+        : null
+    },
+    shellListenerId,
+  )
+  expect(pendingFrame).not.toBeNull()
+  expect(pendingFrame).toMatchObject({
+    callbackCalls: 0,
+    executed: false,
+    held: true,
+  })
+  if (!pendingFrame) throw new Error("Shell listener did not request an animation frame")
+  await expect(page.locator("body")).not.toHaveClass(/chimer-running/)
+  await page.waitForTimeout(50)
+
+  const afterUnmount = await page.evaluate(({ frameId, viewportRecords, windowRecords }) => {
+    const lifecycle = (window as typeof window & { __immersiveLifecycle: {
+      flushHeldFrame: (frameId: number) => void
       observers: Array<{ disconnected: boolean, targets: string[] }>
-      rafCanceled: number
-      rafRequested: number
+      rafRecords: Array<{ callbackCalls: number, canceled: boolean, executed: boolean, frameId: number }>
       viewportListeners: Array<{ active: boolean, calls: number, listenerId: number, type: string }>
       windowListeners: Array<{ active: boolean, calls: number, listenerId: number, type: string }>
     } }).__immersiveLifecycle
     const ownedObserver = lifecycle.observers.find((entry) => entry.targets.includes("protected") && entry.targets.includes("dock"))
+    lifecycle.flushHeldFrame(frameId)
     return {
+      exactFrame: lifecycle.rafRecords.find((entry) => entry.frameId === frameId) ?? null,
       ownedObserverDisconnected: ownedObserver?.disconnected ?? false,
-      rafCanceled: lifecycle.rafCanceled,
-      rafRequested: lifecycle.rafRequested,
       viewportListeners: lifecycle.viewportListeners.slice(viewportRecords),
       windowListeners: lifecycle.windowListeners.slice(windowRecords),
     }
-  }, baseline)
+  }, { ...baseline, frameId: pendingFrame.frameId })
 
   expect(afterUnmount.ownedObserverDisconnected).toBe(true)
-  expect(afterUnmount.rafCanceled).toBeGreaterThan(cancelCountBeforeUnmount)
-  const shellListenerId = afterUnmount.viewportListeners
-    .map((entry) => entry.listenerId)
-    .find((listenerId) => {
-      const viewportTypes = afterUnmount.viewportListeners
-        .filter((entry) => entry.listenerId === listenerId)
-        .map((entry) => entry.type)
-        .sort()
-      const windowTypes = afterUnmount.windowListeners
-        .filter((entry) => entry.listenerId === listenerId)
-        .map((entry) => entry.type)
-        .sort()
-      return JSON.stringify(viewportTypes) === JSON.stringify(["resize", "scroll"])
-        && JSON.stringify(windowTypes) === JSON.stringify(["orientationchange", "resize"])
-    })
-  expect(shellListenerId).toBeDefined()
+  expect(afterUnmount.exactFrame).toMatchObject({
+    callbackCalls: 0,
+    canceled: true,
+    executed: false,
+  })
   const shellViewportListeners = afterUnmount.viewportListeners.filter((entry) => entry.listenerId === shellListenerId)
   const shellWindowListeners = afterUnmount.windowListeners.filter((entry) => entry.listenerId === shellListenerId)
   expect(shellViewportListeners.every((entry) => !entry.active)).toBe(true)
