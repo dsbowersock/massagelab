@@ -137,6 +137,34 @@ describe("Atmosphere local storage helpers", () => {
     )
   })
 
+  it("persists the consumed marker so retained legacy keys are not re-applied", () => {
+    const migrated = parseAtmosphereStorage(null, {
+      legacyRawValue: JSON.stringify({ version: 1, volume: 0.4 }),
+      legacyBackgroundId: "massage-lab-aurora",
+    })
+
+    assert.equal(migrated.status, "ready")
+    const serialized = serializeAtmosphereStorage(migrated.state)
+    assert.deepEqual(
+      parseAtmosphereStorage(serialized, {
+        legacyRawValue: JSON.stringify({ version: 1, volume: 0.9 }),
+        legacyBackgroundId: "different-retained-legacy-value",
+      }),
+      {
+        status: "ready",
+        state: {
+          ...DEFAULT_STATE,
+          volume: 0.4,
+          visualizer: {
+            backgroundId: "massage-lab-aurora",
+            showClock: false,
+          },
+        },
+        shouldPersist: false,
+      },
+    )
+  })
+
   it("uses the legacy Music background only when v2 has no visualizer field or consumed marker", () => {
     const unconsumedRawValue = JSON.stringify({
       version: 2,

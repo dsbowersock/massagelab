@@ -1,18 +1,13 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useRef } from "react"
 import Link from "next/link"
 import { ChevronLeft, ChevronRight, Heart, Play, Radio, Square, Wind } from "lucide-react"
-import { BackgroundHost } from "@/components/backgrounds/BackgroundHost"
-import { BackgroundSelector } from "@/components/backgrounds/BackgroundSelector"
-import { useAccountFeatureKeys } from "@/components/backgrounds/use-account-feature-keys"
 import { AppNotice, AppPageShell, AppSurface, appMediaTileClassName, appRailScrollerClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { useMusic } from "@/components/providers/music-provider"
 import { MusicLoadingProgress } from "@/components/providers/music-loading-progress"
 import { AtmosphereStationArtwork } from "@/components/atmosphere/station-artwork"
-import { BACKGROUND_STORAGE_KEYS, DEFAULT_BACKGROUND_ID, normalizeBackgroundId } from "@/lib/background-options"
-import { canUseBackgroundId, type BackgroundId } from "@/components/backgrounds/backgroundRegistry"
 import { groupAtmosphereStations } from "@/lib/atmosphere/station-groups"
 import { getVisibleAtmosphereStations } from "@/lib/atmosphere/stations"
 import { cn } from "@/lib/utils"
@@ -51,37 +46,10 @@ type AtmosphereWorkspaceLayout = "grid" | "rails"
 export function AtmosphereWorkspace({ layout = "grid" }: { layout?: AtmosphereWorkspaceLayout } = {}) {
   const music = useMusic()
   const { prewarmStation: prewarmMusicStation } = music
-  const { featureKeys, isLoading: featureKeysLoading } = useAccountFeatureKeys()
-  const [backgroundId, setBackgroundId] = useState<BackgroundId>(DEFAULT_BACKGROUND_ID as BackgroundId)
   const isRailLayout = layout === "rails"
-  const auroraBars = useMemo(() => ({
-    visualizerActive: backgroundId === "massage-lab-aurora-bars" && music.playbackState === "playing",
-  }), [backgroundId, music.playbackState])
   const prewarmStation = useCallback((stationId: string, options: { includeSamplePayloads?: boolean } = {}) => {
     void prewarmMusicStation(stationId, options)
   }, [prewarmMusicStation])
-
-  const updateBackgroundId = useCallback((nextBackgroundId: BackgroundId) => {
-    setBackgroundId(nextBackgroundId)
-    window.localStorage.setItem(BACKGROUND_STORAGE_KEYS.music, nextBackgroundId)
-  }, [])
-
-  useEffect(() => {
-    const storedBackgroundId = normalizeBackgroundId(
-      window.localStorage.getItem(BACKGROUND_STORAGE_KEYS.music),
-      DEFAULT_BACKGROUND_ID,
-    ) as BackgroundId
-
-    setBackgroundId(storedBackgroundId)
-  }, [])
-
-  useEffect(() => {
-    if (featureKeysLoading || canUseBackgroundId(backgroundId, featureKeys, "music")) {
-      return
-    }
-
-    setBackgroundId(DEFAULT_BACKGROUND_ID as BackgroundId)
-  }, [backgroundId, featureKeys, featureKeysLoading])
 
   // Keep background work small: warm only likely starter stations after initial
   // paint, then let user intent drive metadata/module warmups for the rest.
@@ -123,14 +91,6 @@ export function AtmosphereWorkspace({ layout = "grid" }: { layout?: AtmosphereWo
 
   return (
     <div className="relative min-h-screen overflow-hidden">
-      <BackgroundHost
-        className="pointer-events-none absolute inset-0 z-0 h-full min-h-screen w-full"
-        selectedId={backgroundId}
-        featureKeys={featureKeys}
-        category="music"
-        auroraBars={auroraBars}
-        testId="music-premium-background"
-      />
       <AppPageShell width="full" className="relative z-10 bg-transparent" contentClassName="pb-28">
       {isRailLayout ? (
         <h1 className="sr-only">Atmosphere audio stations</h1>
@@ -166,15 +126,6 @@ export function AtmosphereWorkspace({ layout = "grid" }: { layout?: AtmosphereWo
           </div>
         </section>
       )}
-
-      <div className="rounded-md border border-border/80 bg-card/90 p-3 shadow-xl shadow-black/20 ring-1 ring-white/[0.03] backdrop-blur">
-        <BackgroundSelector
-          value={backgroundId}
-          onChange={updateBackgroundId}
-          featureKeys={featureKeys}
-          category="music"
-        />
-      </div>
 
       <div className={isRailLayout ? "space-y-9" : "space-y-8"}>
         {stationGroups.map((group) => (

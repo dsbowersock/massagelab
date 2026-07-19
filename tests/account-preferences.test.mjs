@@ -97,6 +97,32 @@ describe("Account preference helpers", () => {
     })
   })
 
+  it("preserves namespaced Music visualizer preferences while stripping forbidden nested keys", () => {
+    const payload = buildUserPreferencePayload({
+      appSettings: {
+        musicVisualizer: {
+          defaultBackgroundId: "aurora",
+          showClock: true,
+          clientName: "Do Not Sync",
+          nested: {
+            safePreference: "keep",
+            soapDraft: "Do Not Sync",
+          },
+        },
+      },
+    })
+
+    assert.deepEqual(payload.app_settings, {
+      musicVisualizer: {
+        defaultBackgroundId: "aurora",
+        showClock: true,
+        nested: {
+          safePreference: "keep",
+        },
+      },
+    })
+  })
+
   it("uses cloud preferences after login when they exist", () => {
     const result = choosePreferenceSource({
       cloudPreferences: { app_settings: { sidebarPosition: "left", sidebarTriggerPosition: "top" } },

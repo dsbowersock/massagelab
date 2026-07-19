@@ -522,7 +522,7 @@ test("Roadmap presents an unordered product portfolio", async ({ page }) => {
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
-test("Atmosphere proof station keeps global player state across client routes", async ({ page }) => {
+test("Atmosphere visualizer action retains selected station across client routes", async ({ page }) => {
   const health = capturePageHealth(page)
 
   await page.goto("/music", { waitUntil: "domcontentloaded" })
@@ -541,6 +541,15 @@ test("Atmosphere proof station keeps global player state across client routes", 
   await expect(page.getByText(/Playing|Preparing audio|Preparing station/i).last()).toBeVisible()
   await expect(page.getByRole("button", { name: /^Previous station$/i }).last()).toBeVisible()
   await expect(page.getByRole("button", { name: /^Next station$/i }).last()).toBeVisible()
+  await expect(page.getByRole("button", { name: /^Background$/i }).last()).toBeVisible()
+  await page.getByRole("button", { name: /^Collapse$/i }).last().click()
+  await expect(page.getByRole("button", { name: /^Background$/i }).last()).toBeVisible()
+  await page.getByRole("button", { name: /^Stop$/i }).last().click()
+  await expect(page.getByText("MassageLab Proof Drone").last()).toBeVisible()
+  await expect(page.getByRole("button", { name: /^Background$/i }).last()).toBeVisible()
+  await page.getByRole("button", { name: /^Expand$/i }).last().click()
+  await expect(page.getByText("Stopped").last()).toBeVisible()
+  await expect(page.getByRole("button", { name: /^Background$/i }).last()).toBeVisible()
 
   const flashcardsLink = page.getByRole("link", { name: /^Flashcards$/i }).first()
   if (!await flashcardsLink.isVisible().catch(() => false)) {
@@ -559,8 +568,7 @@ test("Atmosphere proof station keeps global player state across client routes", 
   await flashcardsLink.click()
   await expect(page).toHaveURL(/\/education\/flashcards/)
   await expect(page.getByText("MassageLab Proof Drone").last()).toBeVisible()
-  await page.getByRole("button", { name: /^Stop$/i }).last().click()
-  await expect(page.getByText("MassageLab Proof Drone").last()).toHaveCount(0)
+  await expect(page.getByRole("button", { name: /^Background$/i }).last()).toBeVisible()
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])

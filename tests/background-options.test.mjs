@@ -506,7 +506,7 @@ describe("premium background registry", () => {
     assert.match(runningSource, /hexGrid=\{\{/)
   })
 
-  it("keeps Aurora Bars dependency-free and reactive only from Music playback", () => {
+  it("keeps Aurora Bars dependency-free and outside the Music discovery page", () => {
     const effectSource = readFileSync(
       new URL("../components/backgrounds/effects/massage-lab-aurora-bars-background.tsx", import.meta.url),
       "utf8",
@@ -522,8 +522,8 @@ describe("premium background registry", () => {
     assert.match(effectSource, /cancelAnimationFrame/)
     assert.match(effectSource, /visualizerActive/)
     assert.match(effectSource, /createMonochromaticPalette/)
-    assert.match(musicWorkspaceSource, /backgroundId === "massage-lab-aurora-bars"/)
-    assert.match(musicWorkspaceSource, /music\.playbackState === "playing"/)
+    assert.doesNotMatch(musicWorkspaceSource, /massage-lab-aurora-bars/)
+    assert.doesNotMatch(musicWorkspaceSource, /visualizerActive/)
     assert.match(chimerRunningSource, /auroraBars=\{\{/)
     assert.doesNotMatch(chimerPageSource, /auroraBars=\{\{/)
     assert.match(setupControlsSource, /Auto monochrome/)
