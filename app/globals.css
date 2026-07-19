@@ -47,7 +47,8 @@
     --button-depth-bottom: 24 36% 22%;
     --button-orange-depth: 25 82% 30%;
     --button-blue-depth: 222 64% 28%;
-    --ml-shell-compact-control-size: 1.9375rem;
+    --ml-shell-compact-control-size: 2rem;
+    --ml-shell-main-bar-control-size: 2.625rem;
     --ml-choice-slide-duration: 420ms;
     --ml-choice-slide-easing: cubic-bezier(0.22, 1, 0.36, 1);
     --ml-switch-thumb-face: 0 0% 98%;
@@ -118,7 +119,8 @@
     --ml-page-edge-gap: clamp(1rem, 3vw, 2rem);
     --ml-scroll-end-buffer: 1.5rem;
     --ml-audio-toolbar-height: 5rem;
-    --ml-main-bar-height: 4.75rem;
+    --ml-main-bar-height: 3.25rem;
+    --ml-desktop-app-bar-height: 3.5rem;
     --ml-bottom-stack-height: var(--ml-safe-bottom);
   }
 
@@ -1859,11 +1861,6 @@
     --ml-page-bottom-safe: calc(var(--ml-safe-bottom) + var(--ml-page-edge-gap) + var(--ml-scroll-end-buffer));
   }
 
-  .ml-app-shell[data-app-bar-position="bottom"][data-main-bar-visible="true"] {
-    --ml-bottom-stack-height: calc(var(--ml-safe-bottom) + var(--ml-main-bar-height));
-    --ml-page-bottom-safe: calc(var(--ml-safe-bottom) + var(--ml-page-edge-gap) + var(--ml-scroll-end-buffer) + var(--ml-main-bar-height));
-  }
-
   .ml-app-shell[data-main-bar-visible="true"] {
     --chimer-bottom-control-offset: calc(var(--ml-bottom-stack-height) + 0.75rem);
     --chimer-panel-bottom-offset: calc(var(--ml-bottom-stack-height) + 0.75rem);
@@ -1873,18 +1870,15 @@
     --ml-page-top-safe: calc(var(--ml-safe-top) + var(--ml-audio-toolbar-height));
   }
 
-  body.ml-music-player-active.ml-music-player-bottom .ml-app-shell[data-main-bar-visible="true"] {
-    --ml-page-bottom-safe: calc(var(--ml-safe-bottom) + var(--ml-page-edge-gap) + var(--ml-scroll-end-buffer) + var(--ml-main-bar-height) + var(--ml-audio-toolbar-height));
+  body.ml-music-player-active.ml-music-player-bottom .ml-app-shell {
+    --ml-page-bottom-safe: calc(var(--ml-bottom-stack-height) + var(--ml-page-edge-gap) + var(--ml-scroll-end-buffer) + var(--ml-audio-toolbar-height));
     --chimer-bottom-control-offset: calc(var(--ml-bottom-stack-height) + var(--ml-audio-toolbar-height) + 0.75rem);
     --chimer-panel-bottom-offset: calc(var(--ml-bottom-stack-height) + var(--ml-audio-toolbar-height) + 0.75rem);
   }
 
-  body.ml-music-player-active.ml-music-player-bottom .ml-app-shell:not([data-main-bar-visible="true"]) {
-    --ml-page-bottom-safe: calc(var(--ml-safe-bottom) + var(--ml-page-edge-gap) + var(--ml-scroll-end-buffer) + var(--ml-audio-toolbar-height));
-  }
-
   body.chimer-running .ml-app-shell,
-  body.chimer-alerting .ml-app-shell {
+  body.chimer-alerting .ml-app-shell,
+  body.chimer-preview-capture .ml-app-shell {
     --ml-bottom-stack-height: var(--ml-safe-bottom);
     --ml-page-top-safe: 0px;
     --ml-page-bottom-safe: 0px;
@@ -1929,41 +1923,142 @@
     padding-bottom: var(--ml-safe-bottom);
   }
 
+  .ml-app-tool-link[data-active="true"],
+  .ml-calendar-drawer-trigger[data-active="true"] {
+    filter:
+      brightness(1.08)
+      saturate(1.08)
+      drop-shadow(0 0 0.15rem hsl(var(--primary) / 0.64))
+      drop-shadow(0 0 0.5rem hsl(var(--primary) / 0.52));
+  }
+
+  .ml-app-tool-link[data-active="true"]:focus-visible,
+  .ml-calendar-drawer-trigger[data-active="true"]:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  .ml-app-bar-brand {
+    display: inline-flex;
+    min-width: 2.25rem;
+    max-width: 9rem;
+    height: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 1;
+    overflow: hidden;
+    border-radius: 9999px;
+  }
+
+  .ml-app-bar-brand-wordmark {
+    display: block;
+    width: 9rem;
+    height: auto;
+    object-fit: contain;
+  }
+
+  .ml-app-bar-brand-mark {
+    display: none;
+    width: 2.25rem;
+    height: 2.25rem;
+    object-fit: contain;
+  }
+
   .ml-main-bar-layout {
-    display: grid;
-    grid-template-columns: minmax(2.5rem, 1fr) auto minmax(2.5rem, 1fr);
-    align-items: center;
-    gap: 0.1rem;
-    min-height: 3.6rem;
-    width: 100%;
-  }
-
-  .ml-main-bar-edge {
     display: flex;
-    height: 100%;
     align-items: center;
+    width: 100%;
+    /* Keep the configured stack height inclusive of the bar's single edge border. */
+    min-height: calc(var(--ml-main-bar-height) - 1px);
+  }
+
+  .ml-main-bar-drawer-brand {
+    container-name: ml-main-bar-brand;
+    container-type: inline-size;
+    display: flex;
     min-width: 0;
+    flex: 0 1 11.875rem;
+    align-items: center;
+    gap: 0.25rem;
   }
 
-  .ml-main-bar-edge-start {
-    justify-content: flex-start;
-  }
-
-  .ml-main-bar-edge-end {
+  .ml-main-bar-drawer-brand[data-drawer-edge="right"] {
     justify-content: flex-end;
   }
 
-  .ml-main-bar-cluster {
+  .ml-main-bar-tools {
     display: flex;
     min-width: 0;
+    flex: 0 0 auto;
     align-items: center;
-    justify-content: center;
-    gap: 0.18rem;
+    gap: 0.25rem;
   }
 
-  .ml-main-bar-cluster > div {
-    display: flex;
-    align-items: center;
+  .ml-main-bar-layout[data-drawer-edge="left"] .ml-main-bar-tools {
+    margin-left: auto;
+    justify-content: flex-end;
+  }
+
+  .ml-main-bar-layout[data-drawer-edge="right"] .ml-main-bar-tools {
+    margin-right: auto;
+    justify-content: flex-start;
+  }
+
+  .ml-wide-mobile-sidebar-backdrop {
+    display: none;
+  }
+
+  @container ml-main-bar-brand (max-width: 11.75rem) {
+    .ml-app-bar-brand-wordmark {
+      display: none;
+    }
+
+    .ml-app-bar-brand-mark {
+      display: block;
+    }
+  }
+
+  @media (min-width: 768px) {
+    html[data-app-bar-position="top"] .ml-app-shell {
+      --ml-page-top-safe: var(--ml-desktop-app-bar-height);
+    }
+
+    html[data-app-bar-position="bottom"] .ml-app-shell {
+      --ml-bottom-stack-height: calc(var(--ml-safe-bottom) + var(--ml-desktop-app-bar-height));
+      --ml-page-bottom-safe: calc(var(--ml-safe-bottom) + var(--ml-page-edge-gap) + var(--ml-scroll-end-buffer) + var(--ml-desktop-app-bar-height));
+    }
+
+    html[data-app-bar-position="top"] [data-sidebar-container="true"] > .ml-app-sidebar-frame {
+      top: var(--ml-desktop-app-bar-height);
+      bottom: auto;
+      height: calc(100svh - var(--ml-desktop-app-bar-height));
+    }
+
+    html[data-app-bar-position="bottom"] [data-sidebar-container="true"] > .ml-app-sidebar-frame {
+      top: auto;
+      bottom: var(--ml-desktop-app-bar-height);
+      height: calc(100svh - var(--ml-desktop-app-bar-height));
+    }
+  }
+
+  @media (max-width: 767px) {
+    html[data-app-bar-position="top"] .ml-app-shell[data-main-bar-visible="true"] {
+      --ml-page-top-safe: calc(var(--ml-safe-top) + var(--ml-main-bar-height));
+      --ml-bottom-stack-height: var(--ml-safe-bottom);
+    }
+
+    html[data-app-bar-position="bottom"] .ml-app-shell[data-main-bar-visible="true"] {
+      --ml-bottom-stack-height: calc(var(--ml-safe-bottom) + var(--ml-main-bar-height));
+    }
+  }
+
+  /* Hidden immersive bars must win over both desktop and mobile app-bar offsets above. */
+  html[data-app-bar-position] body.chimer-running .ml-app-shell,
+  html[data-app-bar-position] body.chimer-alerting .ml-app-shell,
+  html[data-app-bar-position] body.chimer-preview-capture .ml-app-shell {
+    --ml-page-top-safe: 0px;
+    --ml-page-bottom-safe: 0px;
+    --ml-bottom-stack-height: var(--ml-safe-bottom);
   }
 
   .ml-mobile-main-bar .ml-main-bar-button {
@@ -2044,28 +2139,112 @@
   }
 
   .ml-mobile-main-bar .ml-theme-switcher .ml-shell-theme-button {
-    height: 2.625rem;
-    width: 2.625rem;
+    height: var(--ml-shell-compact-control-size);
+    width: var(--ml-shell-compact-control-size);
   }
 
   @media (max-width: 767px) {
     .ml-app-shell[data-main-bar-visible="true"] {
-      --ml-bottom-stack-height: calc(var(--ml-safe-bottom) + var(--ml-main-bar-height));
-      --ml-page-bottom-safe: calc(var(--ml-safe-bottom) + var(--ml-page-edge-gap) + var(--ml-scroll-end-buffer) + var(--ml-main-bar-height));
+      --ml-page-bottom-safe: calc(var(--ml-bottom-stack-height) + var(--ml-page-edge-gap) + var(--ml-scroll-end-buffer));
+    }
+  }
+
+  .ml-mobile-main-bar[data-sidebar-open="true"] {
+    pointer-events: none;
+  }
+
+  .ml-mobile-main-bar[data-sidebar-open="true"] [data-sidebar-control="true"] {
+    pointer-events: auto;
+  }
+
+  @media (max-width: 600px) {
+    html[data-app-bar-position="top"] .ml-mobile-sidebar-overlay {
+      top: calc(var(--ml-safe-top) + var(--ml-main-bar-height));
     }
 
-    body.ml-music-player-active.ml-music-player-bottom .ml-app-shell[data-main-bar-visible="true"] {
-      --ml-page-bottom-safe: calc(var(--ml-safe-bottom) + var(--ml-page-edge-gap) + var(--ml-scroll-end-buffer) + var(--ml-main-bar-height) + var(--ml-audio-toolbar-height));
+    html[data-app-bar-position="bottom"] .ml-mobile-sidebar-overlay {
+      bottom: calc(var(--ml-safe-bottom) + var(--ml-main-bar-height));
+    }
+
+    html[data-app-bar-position="top"] .ml-mobile-sidebar-sheet {
+      top: calc(var(--ml-safe-top) + var(--ml-main-bar-height));
+      bottom: 0;
+      height: auto;
+    }
+
+    html[data-app-bar-position="bottom"] .ml-mobile-sidebar-sheet {
+      top: 0;
+      bottom: calc(var(--ml-safe-bottom) + var(--ml-main-bar-height));
+      height: auto;
+    }
+  }
+
+  .ml-shell-main-bar-control {
+    height: var(--ml-shell-main-bar-control-size);
+    width: var(--ml-shell-main-bar-control-size);
+    min-width: var(--ml-shell-main-bar-control-size);
+  }
+
+  .ml-app-sidebar-spacer {
+    pointer-events: none;
+  }
+
+  .ml-app-topbar .ml-shell-main-bar-control {
+    height: var(--ml-shell-main-bar-control-size);
+    width: var(--ml-shell-main-bar-control-size);
+  }
+
+  @media (min-width: 768px) {
+    /* Center the 42px drawer control in the 52px rail despite the primary row's 16px padding. */
+    .ml-app-topbar .ml-app-bar-drawer-brand[data-drawer-edge="left"] {
+      transform: translateX(-0.6875rem);
+    }
+
+    .ml-app-topbar .ml-app-bar-drawer-brand[data-drawer-edge="right"] {
+      transform: translateX(0.6875rem);
     }
   }
 
   @media (min-width: 601px) and (max-width: 767px) {
-    .ml-mobile-main-bar[data-sidebar-position="left"] {
-      padding-left: calc(var(--sidebar-width-icon, 3.25rem) + 1.25rem);
+    [data-sidebar-container="true"] > .ml-app-sidebar-spacer {
+      width: var(--sidebar-width-icon);
+      pointer-events: none;
     }
 
-    .ml-mobile-main-bar[data-sidebar-position="right"] {
-      padding-right: calc(var(--sidebar-width-icon, 3.25rem) + 1.25rem);
+    .ml-wide-mobile-sidebar-backdrop {
+      display: block;
+      position: fixed;
+      inset-inline: 0;
+      z-index: 10010;
+      background: hsl(var(--background) / 0.48);
+      -webkit-backdrop-filter: blur(7px);
+      backdrop-filter: blur(7px);
+    }
+
+    [data-sidebar-container="true"] > .ml-app-sidebar-frame {
+      z-index: 10015;
+    }
+
+    html[data-app-bar-position="top"] .ml-wide-mobile-sidebar-backdrop {
+      top: calc(var(--ml-safe-top) + var(--ml-main-bar-height));
+      bottom: 0;
+    }
+
+    html[data-app-bar-position="bottom"] .ml-wide-mobile-sidebar-backdrop {
+      top: 0;
+      bottom: calc(var(--ml-safe-bottom) + var(--ml-main-bar-height));
+    }
+
+    html[data-app-bar-position="top"] [data-sidebar-container="true"] > .ml-app-sidebar-frame {
+      top: calc(var(--ml-safe-top) + var(--ml-main-bar-height));
+      bottom: auto;
+      height: calc(100svh - var(--ml-safe-top) - var(--ml-main-bar-height));
+    }
+
+    html[data-app-bar-position="bottom"] [data-sidebar-container="true"] > .ml-app-sidebar-frame {
+      top: auto;
+      bottom: calc(var(--ml-safe-bottom) + var(--ml-main-bar-height));
+      height: calc(100svh - var(--ml-safe-bottom) - var(--ml-main-bar-height));
     }
   }
 

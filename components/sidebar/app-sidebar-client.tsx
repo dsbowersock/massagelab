@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { signOut } from "next-auth/react"
@@ -16,9 +15,13 @@ import {
   CalendarOff,
   ChevronsUpDown,
   ChevronRight,
+  CircleHelp,
   Clock,
   ClipboardList,
+  createLucideIcon,
+  Download,
   FileText,
+  GraduationCap,
   Home,
   Info,
   Images,
@@ -29,7 +32,9 @@ import {
   LogOut,
   LucideIcon,
   Map,
+  MessageSquareText,
   MoreHorizontal,
+  NotebookPen,
   Plus,
   Radio,
   Settings,
@@ -39,9 +44,12 @@ import {
   UserPlus,
   UserRound,
   UsersRound,
+  Waves,
   Wind,
   Wrench,
 } from "lucide-react"
+import { InstallMassageLabDialog } from "@/components/pwa/install-massagelab-dialog"
+import { usePwaInstall } from "@/components/providers/pwa-install-provider"
 import { useSettings } from "@/components/providers/settings-provider"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -62,7 +70,6 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
-  SidebarHeader,
   SidebarMenu,
   SidebarMenuAction,
   SidebarMenuButton,
@@ -95,8 +102,10 @@ const routeIcons = {
   CalendarCog,
   CalendarDays,
   CalendarOff,
+  CircleHelp,
   Clock,
   ClipboardList,
+  Download,
   FileText,
   Home,
   Info,
@@ -105,6 +114,7 @@ const routeIcons = {
   LifeBuoy,
   ListChecks,
   Map,
+  MessageSquareText,
   Plus,
   Radio,
   Settings,
@@ -116,12 +126,22 @@ const routeIcons = {
   Wind,
 } satisfies Record<string, LucideIcon>
 
+// This Lucide release predates ChessKnight, so backport the canonical Lucide
+// node until the app takes a dedicated icon-library upgrade.
+const ChessKnight = createLucideIcon("ChessKnight", [
+  ["path", { d: "M5 20a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v1a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1z", key: "knight-base" }],
+  ["path", { d: "M16.5 18c1-2 2.5-5 2.5-9a7 7 0 0 0-7-7H6.635a1 1 0 0 0-.768 1.64L7 5l-2.32 5.802a2 2 0 0 0 .95 2.526l2.87 1.456", key: "knight-body" }],
+  ["path", { d: "m15 5 1.425-1.425", key: "knight-ear" }],
+  ["path", { d: "m17 8 1.53-1.53", key: "knight-mane" }],
+  ["path", { d: "M9.713 12.185 7 18", key: "knight-neck" }],
+])
+
 const primaryGroupIcons: Record<string, LucideIcon> = {
   tools: Wrench,
-  atmosphere: Radio,
-  documentation: FileText,
-  education: BookOpen,
-  games: Brain,
+  atmosphere: Waves,
+  documentation: NotebookPen,
+  education: GraduationCap,
+  games: ChessKnight,
   about: Info,
 }
 
@@ -542,14 +562,29 @@ function AccountMenu({
   user: SidebarUser
 }) {
   const { isMobile } = useSidebar()
+  const { status, requestInstall } = usePwaInstall()
   const { settings } = useSettings()
   const { closeMobileSidebar, navigateFromSidebar } = useSidebarNavigation()
+  const [installInstructionsOpen, setInstallInstructionsOpen] = React.useState(false)
   const name = user?.name || "Guest"
   const email = user?.email || "Sign in to sync"
   const fallback = initials(name, email)
   const menuSide = isMobile ? "bottom" : settings.sidebarPosition === "right" ? "left" : "right"
   const isAccountRouteActive = accountRoutes.some((route) => isNavigationRouteActive(pathname, route.href))
-  const supportRoute = accountRoutes.find((route) => route.id === "user-support")
+  const installAvailable = status === "prompt" || status === "instructions"
+  const siteSettingsRoute = accountRoutes.find((route) => route.id === "settings")
+  const authRoutes = accountRoutes.filter((route) => ["account", "account-security"].includes(route.id))
+  const publicRoutes = accountRoutes.filter((route) => ["help-faq", "send-feedback", "legal"].includes(route.id))
+
+  async function handleInstall() {
+    const result = await requestInstall()
+    if (result === "instructions") {
+      // Keep this AccountMenu mounted while its nested manual-instructions dialog is open.
+      setInstallInstructionsOpen(true)
+      return
+    }
+    closeMobileSidebar()
+  }
 
   return (
     <SidebarMenu>
@@ -557,6 +592,7 @@ function AccountMenu({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
+              data-testid="account-menu-trigger"
               isActive={isAccountRouteActive}
               size="lg"
               className={cn(
@@ -598,7 +634,7 @@ function AccountMenu({
             {user ? (
               <>
                 <DropdownMenuGroup>
-                  {accountRoutes.map((route) => {
+                  {authRoutes.map((route) => {
                     const Icon = routeIcons[route.icon] ?? UserRound
 
                     return (
@@ -634,67 +670,46 @@ function AccountMenu({
                     Create Account
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/account" onClick={(event) => navigateFromSidebar(event, "/account")}>
-                    <Settings className="mr-2 h-4 w-4" />
-                    Settings
-                  </Link>
-                </DropdownMenuItem>
-                {supportRoute && (
-                  <DropdownMenuItem asChild>
-                    <Link href={supportRoute.href} onClick={(event) => navigateFromSidebar(event, supportRoute.href)}>
-                      <LifeBuoy className="mr-2 h-4 w-4" />
-                      {supportRoute.label}
-                    </Link>
-                  </DropdownMenuItem>
-                )}
               </DropdownMenuGroup>
             )}
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              {siteSettingsRoute ? (
+                <DropdownMenuItem asChild>
+                  <Link
+                    href={siteSettingsRoute.href}
+                    onClick={(event) => navigateFromSidebar(event, siteSettingsRoute.href)}
+                  >
+                    <Settings2 className="mr-2 h-4 w-4" />
+                    Site Settings
+                  </Link>
+                </DropdownMenuItem>
+              ) : null}
+              {installAvailable ? (
+                <DropdownMenuItem onSelect={() => void handleInstall()}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Install MassageLab
+                </DropdownMenuItem>
+              ) : null}
+              {publicRoutes.map((route) => {
+                const Icon = routeIcons[route.icon] ?? CircleHelp
+
+                return (
+                  <DropdownMenuItem key={route.id} asChild>
+                    <Link href={route.href} onClick={(event) => navigateFromSidebar(event, route.href)}>
+                      <Icon className="mr-2 h-4 w-4" />
+                      {route.label}
+                    </Link>
+                  </DropdownMenuItem>
+                )
+              })}
+            </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
-      </SidebarMenuItem>
-    </SidebarMenu>
-  )
-}
-
-function SidebarLogoHomeLink() {
-  const { navigateFromSidebar } = useSidebarNavigation()
-
-  return (
-    <SidebarMenu>
-      <SidebarMenuItem>
-        <Link
-          href="/"
-          aria-label="MassageLab home"
-          onClick={(event) => navigateFromSidebar(event, "/")}
-          className={cn(
-            "ml-sidebar-brand-frame ml-sidebar-brand-collapsed-mark flex h-10 w-full items-center justify-center rounded-full border p-1 text-sidebar-accent-foreground shadow-sm transition-[background-color,box-shadow,filter,transform] hover:brightness-105",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
-            "group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0",
-          )}
-        >
-          <Image
-            src="/brand/massagelab-mark-final-20260622.png"
-            alt=""
-            width={500}
-            height={500}
-            className="hidden size-full scale-150 object-contain group-data-[collapsible=icon]:block"
-            data-testid="sidebar-brand-mark-trigger"
-            sizes="32px"
-            loading="eager"
-          />
-          <Image
-            src="/brand/massagelab-wordmark-final-20260622.png"
-            alt=""
-            width={1518}
-            height={593}
-            className="h-11 w-auto max-w-60 scale-125 object-contain group-data-[collapsible=icon]:hidden"
-            data-testid="sidebar-brand-wordmark-trigger"
-            sizes="220px"
-            loading="eager"
-          />
-          <span className="sr-only">MassageLab home</span>
-        </Link>
+        <InstallMassageLabDialog
+          open={installInstructionsOpen}
+          onOpenChange={setInstallInstructionsOpen}
+        />
       </SidebarMenuItem>
     </SidebarMenu>
   )
@@ -711,7 +726,6 @@ export function AppSidebarClient({
   const { settings } = useSettings()
   const { renderMode, setOpen } = useSidebar()
   const tooltipSide = settings.sidebarPosition === "right" ? "left" : "right"
-  const { navigateFromSidebar } = useSidebarNavigation()
   const isDrawer = renderMode === "drawer"
   const isCompactLandscape = renderMode === "compact-rail"
   const previousPathnameRef = React.useRef(pathname)
@@ -729,45 +743,7 @@ export function AppSidebarClient({
   }, [pathname, renderMode, setOpen])
 
   return (
-    <Sidebar side={settings.sidebarPosition} collapsible="icon">
-      {isDrawer ? (
-        <SidebarHeader>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild size="lg" className="justify-center data-[state=open]:bg-sidebar-accent">
-                <Link href="/" aria-label="MassageLab home" onClick={(event) => navigateFromSidebar(event, "/")}>
-                  <span className="ml-sidebar-brand-frame ml-sidebar-brand-collapsed-mark hidden aspect-square size-8 items-center justify-center rounded-full border text-sidebar-accent-foreground group-data-[collapsible=icon]:flex">
-                    <Image
-                      src="/brand/massagelab-mark-final-20260622.png"
-                      alt=""
-                      width={500}
-                      height={500}
-                      className="size-full scale-150 object-contain"
-                      data-testid="sidebar-brand-mark"
-                      sizes="28px"
-                      loading="eager"
-                    />
-                  </span>
-                  <Image
-                    src="/brand/massagelab-wordmark-final-20260622.png"
-                    alt="MassageLab"
-                    width={1518}
-                    height={593}
-                    className={cn("h-11 w-auto max-w-60 scale-125 object-contain group-data-[collapsible=icon]:hidden")}
-                    data-testid="sidebar-brand-wordmark"
-                    sizes="220px"
-                    loading="eager"
-                  />
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarHeader>
-      ) : (
-        <SidebarHeader>
-          <SidebarLogoHomeLink />
-        </SidebarHeader>
-      )}
+    <Sidebar side={settings.sidebarPosition} collapsible="icon" className="ml-app-sidebar-frame">
       {isCompactLandscape ? (
         <>
           <SidebarContent

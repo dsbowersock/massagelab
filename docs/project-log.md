@@ -4,6 +4,14 @@ This is the canonical chronological planning and progress log for MassageLab. Us
 
 Existing plans, audits, roadmaps, and checklists remain source evidence. Keep them for context, but mirror meaningful progress, plan changes, and priority changes in [project-state.md](project-state.md) and here.
 
+## 2026-07-18 — Full-width app shell, installation, and Help
+
+- Extended the configured top or bottom app bar across the viewport and kept its responsive home brand beside the configured drawer edge.
+- Added semantic active-route glow without changing inactive Music, Clock, or Calendar variants.
+- Focused signed-out quick actions on Log In, Create Account, Quick Log, and Breathing Guide while preserving signed-in role/customization resolution.
+- Added explicit PWA install prompting, iOS/iPadOS Safari instructions, installed/unsupported hiding, public `/help`, and the existing `/support` feedback handoff.
+- Validation: `npm run lint`, `npm run typecheck`, `npm run test`, `npm run build`, focused desktop/mobile Playwright shell tests, the existing public-shell regression selection, and `git diff --check` passed.
+
 ## 2026-07-18
 
 - Reviewed and approved the six-track product design and implementation plans in the requested planning order: app shell/install/help, outcome-focused public Roadmap, shared Clock/Chimer/Music visualizer controls, shared background palette plus DNA and Twisted Cubes, production-faithful carousel review, and permanent background commerce. The plans preserve the public Roadmap boundary, local-first/privacy constraints, feature-key entitlements, staged review gates, and cross-track dependencies; implementation has not started.

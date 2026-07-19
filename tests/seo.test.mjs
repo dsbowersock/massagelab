@@ -35,8 +35,18 @@ describe("SEO route contract", () => {
 
   it("keeps legal documents and starter study routes in the public sitemap contract", () => {
     const publicPaths = PUBLIC_SEO_ROUTES.map((route) => route.path)
+    const helpRoute = PUBLIC_SEO_ROUTES.find((route) => route.path === "/help")
 
     assert.ok(publicPaths.includes("/"))
+    assert.deepEqual(helpRoute && {
+      path: helpRoute.path,
+      title: helpRoute.title,
+      description: helpRoute.description,
+    }, {
+      path: "/help",
+      title: "MassageLab Help & FAQ",
+      description: "Learn how to use MassageLab accounts, installation, Clock, Chimer, Music, backgrounds, subscriptions, privacy, and support.",
+    })
     assert.ok(publicPaths.includes("/education/flashcards/decks/starter-all-body-identification"))
     assert.ok(publicPaths.includes("/education/flashcards/decks/starter-muscle-attachments"))
     assert.ok(publicPaths.includes("/education/flashcards/decks/starter-regions-and-categories"))

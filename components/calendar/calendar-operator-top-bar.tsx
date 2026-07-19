@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
@@ -8,9 +8,8 @@ import {
   CalendarDays,
   Clock,
   ListChecks,
+  Menu,
   Music2,
-  PanelLeft,
-  PanelRight,
   Plus,
   Settings2,
 } from "lucide-react"
@@ -30,8 +29,11 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { QuickActionSpeedDial } from "@/components/shell/quick-action-speed-dial"
+import { AppToolLink } from "@/components/shell/app-tool-link"
+import { AppBarBrandLink } from "@/components/shell/app-bar-brand-link"
 import { useSidebar } from "@/components/ui/sidebar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { resolveMainBarLayout } from "@/lib/app-shell"
 import { isNavigationRouteActive } from "@/lib/navigation"
 import { cn } from "@/lib/utils"
 
@@ -231,7 +233,8 @@ function CalendarDrawerButton({
             type="button"
             variant="ctaBlue"
             size="icon"
-            className="relative h-10 w-10 shrink-0"
+            data-active={isNavigationRouteActive(pathname, "/calendar")}
+            className="ml-calendar-drawer-trigger ml-shell-main-bar-control relative shrink-0"
             aria-label="Open calendar"
             aria-expanded={open}
             aria-haspopup="dialog"
@@ -350,7 +353,7 @@ export function CalendarOperatorTopBar({
   const pathname = usePathname() ?? "/"
   const { settings } = useSettings()
   const resolvedTheme = useResolvedTheme()
-  const { renderMode, state, toggleSidebar } = useSidebar()
+  const { openMobile, renderMode, state, toggleSidebar } = useSidebar()
   const headerRef = useRef<HTMLElement | null>(null)
   const primaryRowRef = useRef<HTMLDivElement | null>(null)
   const leadingControlsRef = useRef<HTMLDivElement | null>(null)
@@ -362,9 +365,10 @@ export function CalendarOperatorTopBar({
   const [quickActionsOpen, setQuickActionsOpen] = useState(false)
   const toolbarSlot = useCalendarOperatorToolbarSlot()
   const hasToolbarSlot = Boolean(toolbarSlot)
-  const sidebarIsRight = settings.sidebarPosition === "right"
+  const layout = resolveMainBarLayout(settings)
+  const sidebarIsRight = layout.drawerEdge === "right"
+  const sidebarOpen = renderMode === "drawer" ? openMobile : state === "expanded"
   const appBarIsBottom = settings.appBarPosition === "bottom"
-  const SidebarToggleIcon = sidebarIsRight ? PanelRight : PanelLeft
   const breadcrumbs = routeBreadcrumbs(pathname)
   const pageLabel = breadcrumbs.map((breadcrumb) => breadcrumb.label).join(" / ")
 
@@ -432,6 +436,31 @@ export function CalendarOperatorTopBar({
     return () => window.cancelAnimationFrame(animationFrame)
   }, [updateToolbarPlacement, pathname, toolbarSlot])
 
+  useEffect(() => {
+    const header = headerRef.current
+    if (!header) return
+
+    const root = document.documentElement
+    // The fixed bar can gain a second toolbar row, so publish its measured height instead of assuming one row.
+    const publishHeight = () => {
+      root.style.setProperty("--ml-desktop-app-bar-height", `${Math.ceil(header.getBoundingClientRect().height)}px`)
+    }
+
+    publishHeight()
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(publishHeight)
+    if (observer) {
+      observer.observe(header)
+    } else {
+      window.addEventListener("resize", publishHeight)
+    }
+
+    return () => {
+      observer?.disconnect()
+      window.removeEventListener("resize", publishHeight)
+      root.style.removeProperty("--ml-desktop-app-bar-height")
+    }
+  }, [])
+
   const sidebarControl = (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -441,13 +470,18 @@ export function CalendarOperatorTopBar({
           size="icon"
           data-sidebar-control="true"
           onClick={toggleSidebar}
-          aria-label={renderMode === "drawer" ? "Open navigation" : state === "expanded" ? "Dock navigation" : "Expand navigation"}
-          className="ml-shell-compact-control shrink-0"
+          aria-label={sidebarOpen ? "Close navigation" : "Open navigation"}
+          aria-expanded={sidebarOpen}
+          className="ml-shell-main-bar-control shrink-0"
         >
-          <SidebarToggleIcon aria-hidden="true" />
+          <Menu aria-hidden="true" data-icon="menu" />
         </Button>
       </TooltipTrigger>
-      <TooltipContent>{renderMode === "drawer" ? "Open navigation" : "Toggle navigation"}</TooltipContent>
+      <TooltipContent>
+        {renderMode === "drawer"
+          ? (sidebarOpen ? "Close navigation" : "Open navigation")
+          : "Toggle navigation"}
+      </TooltipContent>
     </Tooltip>
   )
 
@@ -457,16 +491,7 @@ export function CalendarOperatorTopBar({
   const musicControl = (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button
-          asChild
-          variant="ctaBlue"
-          size="icon"
-          className="h-10 w-10 shrink-0"
-        >
-          <Link href="/music" aria-label="Open music">
-            <Music2 data-icon="inline-start" />
-          </Link>
-        </Button>
+        <AppToolLink href="/music" label="Open music" icon={Music2} className="ml-shell-main-bar-control shrink-0" />
       </TooltipTrigger>
       <TooltipContent>Music</TooltipContent>
     </Tooltip>
@@ -474,16 +499,7 @@ export function CalendarOperatorTopBar({
   const clockControl = (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button
-          asChild
-          variant="ctaBlue"
-          size="icon"
-          className="h-10 w-10 shrink-0"
-        >
-          <Link href="/clock" aria-label="Open clock">
-            <Clock data-icon="inline-start" />
-          </Link>
-        </Button>
+        <AppToolLink href="/clock" label="Open clock" icon={Clock} className="ml-shell-main-bar-control shrink-0" />
       </TooltipTrigger>
       <TooltipContent>Clock</TooltipContent>
     </Tooltip>
@@ -496,7 +512,7 @@ export function CalendarOperatorTopBar({
           type="button"
           variant="default"
           size="icon"
-          className="h-10 w-10 shrink-0"
+          className="ml-shell-main-bar-control shrink-0"
           data-quick-action-trigger="true"
           aria-label="Open quick actions"
           aria-expanded={quickActionsOpen}
@@ -508,19 +524,30 @@ export function CalendarOperatorTopBar({
       <TooltipContent>Quick actions</TooltipContent>
     </Tooltip>
   )
+  const toolControls: Record<string, ReactNode> = {
+    "quick-create": quickActionControl,
+    music: musicControl,
+    clock: clockControl,
+    calendar: calendarControl,
+    theme: <ThemeSwitcherMultiButton />,
+  }
   const oppositeControls = (
-    <div className="flex shrink-0 items-center gap-1 min-[361px]:gap-2">
-      {sidebarIsRight ? <ThemeSwitcherMultiButton /> : null}
-      {quickActionControl}
-      {musicControl}
-      {clockControl}
-      {calendarControl}
-      {!sidebarIsRight ? <ThemeSwitcherMultiButton /> : null}
+    <div className="ml-main-bar-tools flex shrink-0 items-center gap-1 min-[361px]:gap-2">
+      {layout.toolItemIds.map((itemId) => (
+        <Fragment key={itemId}>{toolControls[itemId]}</Fragment>
+      ))}
+    </div>
+  )
+  const drawerBrandCluster = (
+    <div className="ml-app-bar-drawer-brand flex min-w-0 items-center gap-2" data-drawer-edge={sidebarIsRight ? "right" : "left"}>
+      {sidebarIsRight ? <AppBarBrandLink /> : sidebarControl}
+      {sidebarIsRight ? sidebarControl : <AppBarBrandLink />}
     </div>
   )
 
-  const leadingControl = sidebarIsRight ? oppositeControls : sidebarControl
-  const trailingControl = sidebarIsRight ? sidebarControl : oppositeControls
+  // Keep the configured drawer control outermost; the shared brand is immediately medial.
+  const leadingControl = sidebarIsRight ? oppositeControls : drawerBrandCluster
+  const trailingControl = sidebarIsRight ? drawerBrandCluster : oppositeControls
 
   const secondaryToolbar = controlsOverflowing && hasToolbarSlot ? (
     <div
@@ -547,8 +574,8 @@ export function CalendarOperatorTopBar({
       <header
         ref={headerRef}
         className={cn(
-          "ml-app-topbar relative z-30 hidden bg-background/95 shadow-sm backdrop-blur md:block",
-          appBarIsBottom ? "border-t border-border/70" : "border-b border-border/70",
+          "ml-app-topbar fixed inset-x-0 z-[10020] hidden w-screen bg-background/95 shadow-sm backdrop-blur md:block",
+          appBarIsBottom ? "bottom-0 border-t border-border/70" : "top-0 border-b border-border/70",
         )}
       >
         <div ref={primaryRowRef} className="flex min-h-14 items-center gap-2 px-3 sm:px-4">

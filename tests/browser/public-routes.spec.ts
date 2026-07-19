@@ -4,6 +4,7 @@ const publicRoutes = [
   { path: "/", expectedText: /MassageLab/i },
   { path: "/about", expectedText: /Built from inside the massage profession/i },
   { path: "/about/derrick", expectedText: /Therapist, educator, mentor/i },
+  { path: "/help", expectedText: /Help & FAQ/i },
   { path: "/notes", expectedText: /Therapist or Team\/Practice required/i },
   { path: "/notes/soap", expectedText: /Therapist membership required/i },
   { path: "/chimer", expectedText: /Chimer/i },
@@ -131,7 +132,7 @@ async function openQuickActionsAboveTrigger(page: Page, quickCreate: Locator) {
 
   const quickActions = page.getByRole("navigation", { name: /^Quick create actions$/i })
   await expect(quickActions).toBeVisible()
-  const quickActionsBox = await quickActions.boundingBox()
+  const quickActionsBox = await page.getByRole("dialog", { name: /^Quick actions$/i }).boundingBox()
   expect(quickActionsBox, "quick-action menu box").not.toBeNull()
 
   if (triggerBox && quickActionsBox) {
@@ -181,7 +182,7 @@ test("core public tool surfaces keep shell spacing and visible primary content",
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
-test("main bar exposes home music clock quick create theme calendar and more controls", async ({ page }) => {
+test("main bar exposes brand music clock quick create theme calendar and more controls", async ({ page }) => {
   const health = capturePageHealth(page)
 
   await page.setViewportSize({ width: 390, height: 844 })
@@ -199,7 +200,7 @@ test("main bar exposes home music clock quick create theme calendar and more con
   await page.goto("/music", { waitUntil: "domcontentloaded" })
 
   await expect(page.getByRole("navigation", { name: /^MassageLab main navigation$/i })).toBeVisible()
-  await expect(page.getByRole("link", { name: /^Home$/i })).toHaveAttribute("href", "/")
+  await expect(page.getByRole("link", { name: "MassageLab home" })).toHaveAttribute("href", "/")
   await expect(page.getByRole("link", { name: /^Open music$/i })).toHaveAttribute("href", "/music")
   await expect(page.getByRole("link", { name: /^Open clock$/i })).toHaveAttribute("href", "/clock")
   const quickCreate = page.getByRole("button", { name: /^Open quick actions$/i })
@@ -209,16 +210,6 @@ test("main bar exposes home music clock quick create theme calendar and more con
   expect(quickCreateBox?.width ?? 0).toBeLessThanOrEqual(43)
   expect(quickCreateBox?.height ?? 0).toBeGreaterThanOrEqual(42)
   expect(quickCreateBox?.height ?? 0).toBeLessThanOrEqual(43)
-  const homeButtonStyle = await page.getByRole("link", { name: /^Home$/i }).evaluate((element) => {
-    const button = element.closest(".ml-main-bar-button")
-    const styles = button ? window.getComputedStyle(button) : null
-    return {
-      borderTopWidth: styles?.borderTopWidth ?? "",
-      backgroundImage: styles?.backgroundImage ?? "",
-    }
-  })
-  expect(homeButtonStyle.borderTopWidth).toBe("2px")
-  expect(homeButtonStyle.backgroundImage).toContain("gradient")
   const quickCreateStyle = await quickCreate.evaluate((element) => {
     const styles = window.getComputedStyle(element)
     return {
@@ -233,8 +224,8 @@ test("main bar exposes home music clock quick create theme calendar and more con
   await expect(page.getByRole("button", { name: /^Open navigation$/i })).toBeVisible()
 
   const mainBar = page.getByRole("navigation", { name: /^MassageLab main navigation$/i })
-  await expect(mainBar.locator(".ml-main-bar-edge-start .ml-main-bar-button")).toHaveAccessibleName("Open navigation")
-  await expect(mainBar.locator(".ml-main-bar-edge-end").getByRole("group", { name: /^Theme$/i })).toBeVisible()
+  await expect(mainBar.locator(".ml-main-bar-drawer-brand .ml-main-bar-button")).toHaveAccessibleName("Open navigation")
+  await expect(mainBar.locator(".ml-main-bar-tools").getByRole("group", { name: /^Theme$/i })).toBeVisible()
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
@@ -242,7 +233,7 @@ test("main bar exposes home music clock quick create theme calendar and more con
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
-test("main bar edge controls stay clear of the compact sidebar rail", async ({ page }) => {
+test("main bar edge control stays aligned with the compact sidebar rail", async ({ page }) => {
   const health = capturePageHealth(page)
 
   await page.setViewportSize({ width: 686, height: 682 })
@@ -261,8 +252,15 @@ test("main bar edge controls stay clear of the compact sidebar rail", async ({ p
 
   const openNavigation = page.getByRole("button", { name: /^Open navigation$/i })
   await expect(openNavigation).toBeVisible()
-  const openNavigationBox = await openNavigation.boundingBox()
-  expect(openNavigationBox?.x ?? 0).toBeGreaterThan(64)
+  const [openNavigationBox, sidebarFrameBox] = await Promise.all([
+    openNavigation.boundingBox(),
+    page.locator(".ml-app-sidebar-frame").boundingBox(),
+  ])
+  expect(openNavigationBox, "main-bar drawer control box").not.toBeNull()
+  expect(sidebarFrameBox, "compact sidebar rail box").not.toBeNull()
+  const drawerCenter = (openNavigationBox?.x ?? 0) + ((openNavigationBox?.width ?? 0) / 2)
+  const railCenter = (sidebarFrameBox?.x ?? 0) + ((sidebarFrameBox?.width ?? 0) / 2)
+  expect(Math.abs(drawerCenter - railCenter)).toBeLessThanOrEqual(1)
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
@@ -299,7 +297,7 @@ test("top app bar quick actions open inside the viewport below the plus button",
 
   const quickActions = page.getByRole("navigation", { name: /^Quick create actions$/i })
   await expect(quickActions).toBeVisible()
-  const quickActionsBox = await quickActions.boundingBox()
+  const quickActionsBox = await page.getByRole("dialog", { name: /^Quick actions$/i }).boundingBox()
   expect(quickActionsBox, "top-bar quick-action menu box").not.toBeNull()
 
   if (triggerBox && quickActionsBox) {
@@ -322,16 +320,15 @@ test("mobile quick-create button opens a vertical speed dial", async ({ page }) 
   await expect(quickCreate).toBeVisible()
 
   const quickActions = await openQuickActionsAboveTrigger(page, quickCreate)
-  await expect(quickActions.getByRole("link", { name: /^Start Chimer$/i })).toHaveAttribute("href", "/chimer")
-  await expect(quickActions.getByRole("link", { name: /^Start flashcards$/i })).toHaveAttribute("href", "/education/flashcards")
-  await expect(quickActions.getByRole("link", { name: /^Play Anatomime$/i })).toHaveAttribute("href", "/anatomime")
-  await expect(quickActions.getByRole("link", { name: /^Create calendar item$/i })).toHaveAttribute("href", "/login?callbackUrl=%2Fcalendar%2Fnew")
-  await expect(quickActions.getByRole("link", { name: /^Customize quick actions$/i })).toHaveAttribute("href", "/login?callbackUrl=%2Faccount%3Ftab%3Dapp-settings")
+  await expect(quickActions.getByRole("link", { name: /^Log In$/i })).toHaveAttribute("href", "/login")
+  await expect(quickActions.getByRole("link", { name: /^Create Account$/i })).toHaveAttribute("href", "/register")
+  await expect(quickActions.getByRole("link", { name: /^Quick Log$/i })).toHaveAttribute("href", "/wellness#quick-log")
+  await expect(quickActions.getByRole("link", { name: /^Breathing Guide$/i })).toHaveAttribute("href", "/wellness/breathing")
 
-  const quickActionsBox = await quickActions.boundingBox()
+  const quickActionsBox = await page.getByRole("dialog", { name: /^Quick actions$/i }).boundingBox()
   expect(quickActionsBox, "quick-action menu box before outside dismissal").not.toBeNull()
   if (quickActionsBox) {
-    await page.mouse.click(quickActionsBox.x + 8, quickActionsBox.y + (quickActionsBox.height / 2))
+    await page.mouse.click(4, 4)
   }
   await expect(quickActions).toHaveCount(0)
 
@@ -896,6 +893,54 @@ test("homepage flip words advance when motion is allowed", async ({ page }) => {
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
+})
+
+test("homepage audience phrases reserve stable heading layout at 704px", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "Homepage phrase layout is covered once in desktop Chromium.")
+  await page.emulateMedia({ reducedMotion: "no-preference" })
+  await page.setViewportSize({ width: 704, height: 597 })
+  await page.goto("/", { waitUntil: "domcontentloaded" })
+
+  const flipWord = page.getByTestId("home-flip-word")
+  const heading = page.locator("h2").filter({ has: flipWord })
+  const followingParagraph = heading.locator("xpath=following-sibling::p[1]")
+  const metrics: Array<{ word: string; headingHeight: number; lineCount: number; paragraphY: number }> = []
+
+  for (const word of ["therapists", "students", "educators", "clients", "curious people"]) {
+    await expect(flipWord).toHaveText(word, { timeout: 3_000 })
+    metrics.push(await heading.evaluate((element, currentWord) => {
+      const rect = element.getBoundingClientRect()
+      const lineHeight = Number.parseFloat(getComputedStyle(element).lineHeight)
+      const paragraph = element.nextElementSibling
+      return {
+        word: currentWord,
+        headingHeight: rect.height,
+        lineCount: Math.round(rect.height / lineHeight),
+        paragraphY: paragraph?.getBoundingClientRect().y ?? Number.NaN,
+      }
+    }, word))
+  }
+
+  const baseline = metrics[0]
+  for (const metric of metrics) {
+    expect(metric.headingHeight, `${metric.word} heading height`).toBeCloseTo(baseline.headingHeight, 0)
+    expect(metric.lineCount, `${metric.word} heading lines`).toBe(baseline.lineCount)
+    expect(metric.paragraphY, `${metric.word} paragraph y`).toBeCloseTo(baseline.paragraphY, 0)
+  }
+  await expect(followingParagraph).toBeVisible()
+})
+
+test("homepage widest audience phrase does not overflow at 390px", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "Narrow homepage overflow is covered in mobile Chromium.")
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto("/", { waitUntil: "domcontentloaded" })
+
+  const flipWord = page.getByTestId("home-flip-word")
+  const heading = page.locator("h2").filter({ has: flipWord })
+  await expect(heading).toBeVisible()
+  await expect(flipWord).toHaveText("curious people", { timeout: 15_000 })
+  expect(await heading.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 })
 
 test("homepage flip words stay stable when reduced motion is requested", async ({ page }) => {

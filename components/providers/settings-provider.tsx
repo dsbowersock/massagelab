@@ -4,7 +4,7 @@ import { fetchWithTimeout } from "@/lib/client-fetch"
 import { defaultAppSettings, normalizeAppSettings } from "@/lib/app-settings"
 import { createContext, useContext, useEffect, useState } from "react"
 
-type SidebarPosition = "left" | "right"
+export type SidebarPosition = "left" | "right"
 type SidebarTriggerPosition = "top" | "bottom"
 export type AppBarPosition = "top" | "bottom"
 export type ThemeMode = "dark" | "light" | "system"
@@ -56,6 +56,10 @@ export function applySidebarPositionAttribute(sidebarPosition: SidebarPosition) 
   document.documentElement.dataset.sidebarPosition = sidebarPosition
 }
 
+export function applyAppBarPositionAttribute(appBarPosition: AppBarPosition) {
+  document.documentElement.dataset.appBarPosition = appBarPosition
+}
+
 export function SettingsProvider({
   children,
   syncEnabled = false,
@@ -86,6 +90,10 @@ export function SettingsProvider({
   useEffect(() => {
     applySidebarPositionAttribute(settings.sidebarPosition)
   }, [settings.sidebarPosition])
+
+  useEffect(() => {
+    applyAppBarPositionAttribute(settings.appBarPosition)
+  }, [settings.appBarPosition])
 
   useEffect(() => {
     let isMounted = true

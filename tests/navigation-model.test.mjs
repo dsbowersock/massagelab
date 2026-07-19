@@ -54,11 +54,19 @@ describe("Navigation IA model", () => {
       "/account",
       "/account?tab=app-settings",
       "/account?tab=security",
+      "/help",
       "/support",
       "/legal",
     ])
     assert.equal(new Set(accountMenuRoutes.map((route) => route.href)).size, accountMenuRoutes.length)
-    assert.deepEqual(accountMenuRoutes.map((route) => route.label), ["Account", "Settings", "Security", "User Support", "Legal"])
+    assert.deepEqual(accountMenuRoutes.map((route) => route.label), [
+      "Account",
+      "Settings",
+      "Security",
+      "Help & FAQ",
+      "Send Feedback",
+      "Legal",
+    ])
 
     const primaryHrefs = primaryNavigationGroups.flatMap((group) => group.routes.map((route) => route.href))
     assert.equal(primaryHrefs.includes("/support"), false)
@@ -80,6 +88,24 @@ describe("Navigation IA model", () => {
     assert.equal(isNavigationRouteActive("/account/security", "/account"), true)
     assert.equal(isNavigationRouteActive("/notes-and-more", "/notes"), false)
     assert.equal(isNavigationRouteActive("/chimer", "/"), false)
+  })
+
+  it("uses the approved Lucide icons for the canonical learning sections", () => {
+    const sidebarSource = readFileSync(new URL("../components/sidebar/app-sidebar-client.tsx", import.meta.url), "utf8")
+
+    assert.match(sidebarSource, /atmosphere:\s*Waves/)
+    assert.match(sidebarSource, /documentation:\s*NotebookPen/)
+    assert.match(sidebarSource, /education:\s*GraduationCap/)
+    assert.match(sidebarSource, /games:\s*ChessKnight/)
+  })
+
+  it("matches only the approved global tool route families", () => {
+    assert.equal(isNavigationRouteActive("/music", "/music"), true)
+    assert.equal(isNavigationRouteActive("/music/stations", "/music"), true)
+    assert.equal(isNavigationRouteActive("/clock", "/clock"), true)
+    assert.equal(isNavigationRouteActive("/clock/presentation", "/clock"), true)
+    assert.equal(isNavigationRouteActive("/chimer", "/clock"), false)
+    assert.equal(isNavigationRouteActive("/calendar/requests", "/calendar"), true)
   })
 
   it("retains hidden home and news groups as model-only placeholders", () => {
@@ -166,7 +192,12 @@ describe("Navigation IA model", () => {
       "/about",
       "/about/derrick",
     ])
-    assert.deepEqual(navigation.accountMenuRoutes.map((route) => route.href), ["/support", "/legal"])
+    assert.deepEqual(navigation.accountMenuRoutes.map((route) => route.href), [
+      "/account?tab=app-settings",
+      "/help",
+      "/support",
+      "/legal",
+    ])
     assert.deepEqual(navigation.calendarSidebarActions.map((route) => route.href), [])
     assert.deepEqual(navigation.calendarMenuActions.map((route) => route.href), [])
   })
@@ -211,6 +242,7 @@ describe("Navigation IA model", () => {
       "/account",
       "/account?tab=app-settings",
       "/account?tab=security",
+      "/help",
       "/support",
       "/legal",
     ])

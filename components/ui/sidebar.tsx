@@ -141,6 +141,40 @@ const SidebarProvider = React.forwardRef<
     // We add a state so that we can do data-state="expanded" or "collapsed".
     // This makes it easier to style the sidebar with Tailwind classes.
     const state = open ? "expanded" : "collapsed"
+    const floatingEscapeInProgressRef = React.useRef(false)
+
+    React.useEffect(() => {
+      if (state !== "expanded" || renderMode === "drawer") {
+        return
+      }
+
+      const handleEscape = (event: KeyboardEvent) => {
+        if (event.key !== "Escape" || event.defaultPrevented) {
+          return
+        }
+
+        if (floatingEscapeInProgressRef.current) {
+          return
+        }
+
+        // Capture runs before Radix removes its portal, even when focus remains on the trigger.
+        // Radix does not expose `data-state` on every floating content primitive, so the
+        // mounted portal itself is the reliable signal that Escape belongs to that layer.
+        if (document.querySelector("[data-sidebar-floating='true']")) {
+          floatingEscapeInProgressRef.current = true
+          window.setTimeout(() => {
+            floatingEscapeInProgressRef.current = false
+          }, 0)
+          return
+        }
+
+        event.preventDefault()
+        setOpen(false)
+      }
+
+      window.addEventListener("keydown", handleEscape, true)
+      return () => window.removeEventListener("keydown", handleEscape, true)
+    }, [renderMode, setOpen, state])
 
     React.useEffect(() => {
       if (!shouldCollapseSidebarFromOutsidePointer({
@@ -235,7 +269,7 @@ const Sidebar = React.forwardRef<
     },
     ref
   ) => {
-    const { isMobile, state, openMobile, setOpenMobile, renderMode } = useSidebar()
+    const { isMobile, state, openMobile, setOpen, setOpenMobile, renderMode } = useSidebar()
 
     if (collapsible === "none") {
       return (
@@ -258,7 +292,22 @@ const Sidebar = React.forwardRef<
           <SheetContent
             data-sidebar="sidebar"
             data-mobile="true"
-            className="w-[--sidebar-width] overflow-x-hidden bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+            overlayClassName="ml-mobile-sidebar-overlay pointer-events-none backdrop-blur-sm"
+            onPointerDownOutside={(event) => {
+              const target = event.detail.originalEvent.target
+              // The persistent app-bar Menu owns this interaction; its click toggles the controlled Sheet once.
+              if (target instanceof Element && target.closest("[data-sidebar-control='true']")) {
+                event.preventDefault()
+              }
+            }}
+            onCloseAutoFocus={(event) => {
+              event.preventDefault()
+              const visibleControl = Array.from(
+                document.querySelectorAll<HTMLElement>("[data-sidebar-control='true']"),
+              ).find((candidate) => candidate.getClientRects().length > 0)
+              visibleControl?.focus()
+            }}
+            className="ml-mobile-sidebar-sheet w-[--sidebar-width] overflow-x-hidden bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
             style={
               {
                 "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
@@ -287,10 +336,18 @@ const Sidebar = React.forwardRef<
         data-render-mode={renderMode}
         data-side={side}
       >
+        {state === "expanded" ? (
+          <div
+            aria-hidden="true"
+            className="ml-wide-mobile-sidebar-backdrop"
+            data-testid="wide-mobile-sidebar-backdrop"
+            onClick={() => setOpen(false)}
+          />
+        ) : null}
         {/* This is what handles the sidebar gap on desktop */}
         <div
           className={cn(
-            "duration-200 relative h-svh w-[--sidebar-width] bg-transparent transition-[width] ease-linear",
+            "ml-app-sidebar-spacer duration-200 relative h-svh w-[--sidebar-width] bg-transparent transition-[width] ease-linear",
             "group-data-[collapsible=offcanvas]:w-0",
             "group-data-[side=right]:rotate-180",
             variant === "floating" || variant === "inset"

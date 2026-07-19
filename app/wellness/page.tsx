@@ -137,21 +137,23 @@ export default async function WellnessPage() {
         </Button>
       </AppSurface>
 
-      <AppSurface
-        title="Wellness"
-        description="Client-owned self-tracking for quick check-ins, context notes, and range-of-motion measurements."
-        icon={<HeartPulse className="h-5 w-5" aria-hidden="true" />}
-        badge={userId ? "Signed in" : "Practice mode"}
-      >
-        <WellnessHubClient
-          isSignedIn={Boolean(userId)}
-          displayName={session?.user?.name ?? session?.user?.email ?? null}
-          initialEntries={entries.map(serializeWellnessEntry)}
-          initialReportEntries={reportEntries.map(serializeWellnessEntry)}
-          appointments={[...upcomingAppointments, ...pastAppointments].map(serializeWellnessAppointment)}
-          reminderSchedules={reminderSchedulesFromPreference(preference?.settings)}
-        />
-      </AppSurface>
+      <div id="quick-log" className="scroll-mt-24">
+        <AppSurface
+          title="Wellness"
+          description="Client-owned self-tracking for quick check-ins, context notes, and range-of-motion measurements."
+          icon={<HeartPulse className="h-5 w-5" aria-hidden="true" />}
+          badge={userId ? "Signed in" : "Practice mode"}
+        >
+          <WellnessHubClient
+            isSignedIn={Boolean(userId)}
+            displayName={session?.user?.name ?? session?.user?.email ?? null}
+            initialEntries={entries.map(serializeWellnessEntry)}
+            initialReportEntries={reportEntries.map(serializeWellnessEntry)}
+            appointments={[...upcomingAppointments, ...pastAppointments].map(serializeWellnessAppointment)}
+            reminderSchedules={reminderSchedulesFromPreference(preference?.settings)}
+          />
+        </AppSurface>
+      </div>
     </AppPageShell>
   )
 }
