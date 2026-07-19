@@ -10,7 +10,7 @@ test("dock placement prefers an exact-fit bottom reservation", async () => {
 
 test("dock placement uses top when bottom misses the boundary and top fits", async () => {
   const { calculateDockPlacement } = await loadLayout()
-  assert.deepEqual(calculateDockPlacement({ viewportHeight: 800, displayTop: 300, displayBottom: 641, panelHeight: 144 }), { edge: "top", reservedPx: 160, maxPanelPx: 144 })
+  assert.deepEqual(calculateDockPlacement({ viewportHeight: 800, displayTop: 300, displayBottom: 641, panelHeight: 144 }), { edge: "top", reservedPx: 160, maxPanelPx: 284 })
 })
 
 test("dock placement caps to the larger remainder without over-reserving", async () => {
@@ -44,6 +44,18 @@ test("dock placement includes measured edge insets in exact-fit reservations", a
     topInset: 24,
     bottomInset: 12,
   }), { edge: "top", reservedPx: 184, maxPanelPx: 144 })
+})
+
+test("dock placement exposes the full safe edge capacity after reserving its minimum", async () => {
+  const { calculateDockPlacement } = await loadLayout()
+
+  assert.deepEqual(calculateDockPlacement({
+    viewportHeight: 597,
+    displayTop: 120,
+    displayBottom: 280,
+    panelHeight: 144,
+    bottomInset: 12,
+  }), { edge: "bottom", reservedPx: 172, maxPanelPx: 289 })
 })
 
 test("dock placement caps against usable edge space after measured insets", async () => {

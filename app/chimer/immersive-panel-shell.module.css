@@ -5,6 +5,19 @@
   --immersive-panel-max-height: min(70dvh, 44rem);
   --immersive-dock-top-inset: max(0.75rem, env(safe-area-inset-top, 0px));
   --immersive-dock-bottom-inset: max(0.75rem, env(safe-area-inset-bottom, 0px));
+  --immersive-toolbar-control-size: 3.5rem;
+  --immersive-toolbar-leading-space: calc(
+    env(safe-area-inset-left, 0px)
+    + 1rem
+    + var(--immersive-toolbar-control-size)
+    + 0.5rem
+  );
+  --immersive-toolbar-trailing-space: calc(
+    env(safe-area-inset-right, 0px)
+    + 1rem
+    + var(--immersive-toolbar-control-size)
+    + 0.5rem
+  );
 
   transition: opacity 900ms ease;
 }
@@ -42,21 +55,42 @@
 
 .toolbar {
   position: fixed;
-  top: var(--immersive-visual-viewport-center-y, 50%);
-  right: calc(
-    var(--immersive-visual-viewport-right, 0px)
-    + max(0.75rem, env(safe-area-inset-right, 0px))
+  top: calc(
+    var(--immersive-visual-viewport-top, 0px)
+    + var(--chimer-top-control-offset, calc(env(safe-area-inset-top, 0px) + 1rem))
+  );
+  right: auto;
+  left: calc(
+    var(--immersive-visual-viewport-left, 0px)
+    + var(--immersive-toolbar-leading-space)
   );
   z-index: 10018;
-  display: grid;
+  display: flex;
+  align-items: center;
+  width: max-content;
+  max-width: max(
+    var(--immersive-toolbar-control-size),
+    calc(
+      var(--immersive-visual-viewport-width, 100vw)
+      - var(--immersive-toolbar-leading-space)
+      - var(--immersive-toolbar-trailing-space)
+    )
+  );
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
   gap: 0.5rem;
-  transform: translateY(-50%);
+}
+
+.toolbar::-webkit-scrollbar {
+  display: none;
 }
 
 .toolbarButton {
-  min-width: 7.25rem;
-  justify-content: flex-start;
-  gap: 0.5rem;
+  flex: 0 0 auto;
+  min-width: 0;
+  position: relative;
+  inset: auto;
 }
 
 .visualHintActive {
@@ -67,8 +101,9 @@
 
 .visualHint {
   position: absolute;
-  top: 50%;
-  right: calc(100% + 0.75rem);
+  top: calc(100% + 0.75rem);
+  right: auto;
+  left: 0;
   max-width: min(17rem, calc(100vw - 5rem));
   padding: 0.5rem 0.7rem;
   border: 1px solid rgba(96, 165, 250, 0.52);
@@ -80,7 +115,6 @@
   font-weight: 650;
   line-height: 1.25;
   pointer-events: none;
-  transform: translateY(-50%);
 }
 
 @keyframes visualHintPulse {
@@ -94,6 +128,18 @@
   width: 1.1rem;
   height: 1.1rem;
   flex: 0 0 auto;
+}
+
+.toolbarLabel {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .dock {
@@ -111,6 +157,7 @@
   flex-direction: column;
   width: auto;
   max-width: 58rem;
+  height: var(--immersive-panel-max-height);
   max-height: var(--immersive-panel-max-height);
   margin-inline: auto;
   overflow: hidden;
@@ -162,6 +209,10 @@
   overscroll-behavior: contain;
 }
 
+.dockScroller {
+  flex: 1 1 auto;
+}
+
 /* This layer sits above the app bar/player (10015) and the immersive timer (10000). */
 .backgroundOverlay {
   --immersive-global-chrome-z: 10030;
@@ -211,15 +262,8 @@
 }
 
 @media (max-width: 36rem) {
-  .toolbarButton {
-    min-width: 2.75rem;
-    width: 2.75rem;
-    justify-content: center;
-    padding-inline: 0;
-  }
-
-  .toolbarLabel {
-    display: none;
+  .root {
+    --immersive-toolbar-control-size: 3rem;
   }
 
   .dock {

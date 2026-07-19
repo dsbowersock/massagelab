@@ -17,6 +17,7 @@ import {
 import { CHIMER_CONTROL_PORTAL_SELECTOR } from "@/components/chimer-controls/GlobalColorPicker"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { triggerHapticFeedback } from "@/lib/haptics"
 
 import { calculateDockPlacement, toVisualViewportBounds } from "./immersive-panel-layout.js"
 import styles from "./immersive-panel-shell.module.css"
@@ -34,6 +35,8 @@ interface ImmersivePanelShellProps {
   visualHintMessage?: string | null
   hapticsEnabled: boolean
   chromeVisibility: "visible" | "faded" | "hidden"
+  toolbarButtonClassName: string
+  toolbarButtonActiveClassName: string
 }
 
 type DockPlacement = ReturnType<typeof calculateDockPlacement>
@@ -61,8 +64,8 @@ const PANEL_CONTROLS = [
   { id: "background", label: "Background", icon: ImageIcon },
 ] as const
 
-/** Reads layout offsets and dimensions without incorporating ancestor transforms. */
-function getStableVerticalBounds(element: HTMLElement) {
+/** Reads a document-space layout offset without incorporating transforms. */
+function getStableOffsetTop(element: HTMLElement) {
   let top = 0
   let current: HTMLElement | null = element
 
@@ -71,9 +74,23 @@ function getStableVerticalBounds(element: HTMLElement) {
     current = current.offsetParent instanceof HTMLElement ? current.offsetParent : null
   }
 
+  return top
+}
+
+/**
+ * Keeps inner effect rotation out of panel placement while honoring the outer
+ * primary display's intentional visual translation.
+ */
+function getStableVerticalBounds(element: HTMLElement) {
+  const top = getStableOffsetTop(element)
+  const primaryDisplay = element.closest<HTMLElement>("[data-immersive-primary-display]")
+  const primaryTranslationY = primaryDisplay
+    ? primaryDisplay.getBoundingClientRect().top + window.scrollY - getStableOffsetTop(primaryDisplay)
+    : 0
+
   return {
-    top,
-    bottom: top + element.offsetHeight,
+    top: top + primaryTranslationY,
+    bottom: top + primaryTranslationY + element.offsetHeight,
   }
 }
 
@@ -102,6 +119,8 @@ export function ImmersivePanelShell({
   visualHintMessage,
   hapticsEnabled,
   chromeVisibility,
+  toolbarButtonClassName,
+  toolbarButtonActiveClassName,
 }: ImmersivePanelShellProps) {
   const visualHintId = useId()
   const dockRef = useRef<HTMLDivElement | null>(null)
@@ -344,26 +363,31 @@ export function ImmersivePanelShell({
             return (
               <Tooltip key={id}>
                 <TooltipTrigger asChild>
-                  <Button
+                  <button
                     ref={(node) => {
                       toolbarButtonRefs.current[id] = node
                     }}
                     type="button"
-                    variant={isActive ? "ctaBlue" : "secondary"}
-                    size="compact"
-                    className={`${styles.toolbarButton} ${id === "visual" && visualHintMessage ? styles.visualHintActive : ""}`}
-                    hapticsEnabled={hapticsEnabled}
+                    className={[
+                      styles.toolbarButton,
+                      toolbarButtonClassName,
+                      isActive ? toolbarButtonActiveClassName : "",
+                      id === "visual" && visualHintMessage ? styles.visualHintActive : "",
+                    ].filter(Boolean).join(" ")}
                     aria-label={label}
                     aria-expanded={isActive}
                     aria-controls={panelId}
                     aria-describedby={id === "visual" && visualHintMessage ? visualHintId : undefined}
-                    onClick={() => onActivePanelChange(isActive ? null : id)}
+                    onClick={() => {
+                      triggerHapticFeedback(hapticsEnabled)
+                      onActivePanelChange(isActive ? null : id)
+                    }}
                   >
                     <Icon className={styles.toolbarIcon} aria-hidden="true" />
                     <span className={styles.toolbarLabel}>{label}</span>
-                  </Button>
+                  </button>
                 </TooltipTrigger>
-                <TooltipContent side="left">{label}</TooltipContent>
+                <TooltipContent side="bottom">{label}</TooltipContent>
               </Tooltip>
             )
           })}

@@ -178,6 +178,7 @@ async function expectDockAvoidsDisplay(
 ) {
   const control = page.getByRole("button", { name: panelName, exact: true })
   if (useKeyboard) {
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())))
     await control.focus()
     await expect(control).toBeFocused()
     await page.keyboard.press("Enter")
@@ -606,6 +607,99 @@ test("Clock and Visual docks avoid protected digits at required viewport shapes"
   }
 })
 
+test("Clock and Visual docks fill the safe edge with useful first-viewport density", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "single 539x597 rendered density proof")
+  await page.setViewportSize({ width: 539, height: 597 })
+  await openClock(page)
+
+  for (const panelName of ["Clock", "Visual"] as const) {
+    await page.getByRole("button", { name: panelName, exact: true }).click()
+    await expect.poll(() => page.evaluate(() => {
+      const display = document.querySelector<HTMLElement>("[data-protected-display]")
+        ?.getBoundingClientRect()
+      const dockElement = document.querySelector<HTMLElement>("[data-immersive-dock]")
+      const dock = dockElement?.getBoundingClientRect()
+      const scrollerElement = dockElement?.querySelector<HTMLElement>(":scope > div:last-child")
+      const scroller = scrollerElement?.getBoundingClientRect()
+      const edge = dockElement?.dataset.immersiveDock
+      if (!display || !dock || !scrollerElement || !scroller || !edge) return null
+
+      const safeGap = edge === "bottom"
+        ? dock.top - display.bottom
+        : display.top - dock.bottom
+      const availableHeight = edge === "bottom"
+        ? dock.bottom - display.bottom - 16
+        : display.top - dock.top - 16
+      const visibleInteractiveCount = Array.from(scrollerElement.querySelectorAll<HTMLElement>(
+        "button, input, select, [role='switch'], [role='slider']",
+      )).filter((element) => {
+        const box = element.getBoundingClientRect()
+        return box.width > 0
+          && box.height > 0
+          && box.top >= scroller.top - 1
+          && box.bottom <= scroller.bottom + 1
+      }).length
+
+      return {
+        gapPx: Math.round(safeGap),
+        dockHeightPx: Math.round(dock.height),
+        availableHeightPx: Math.round(availableHeight),
+        visibleInteractiveCount,
+        safeGap: safeGap >= 14 && safeGap <= 18,
+        fillsAvailableHeight: Math.abs(dock.height - availableHeight) <= 2,
+        usefulFirstViewport: visibleInteractiveCount >= 2,
+        internallyScrollable: scrollerElement.scrollHeight > scrollerElement.clientHeight,
+      }
+    })).toEqual({
+      gapPx: expect.any(Number),
+      dockHeightPx: expect.any(Number),
+      availableHeightPx: expect.any(Number),
+      visibleInteractiveCount: expect.any(Number),
+      safeGap: true,
+      fillsAvailableHeight: true,
+      usefulFirstViewport: true,
+      internallyScrollable: true,
+    })
+    await page.getByRole("button", { name: `Close ${panelName} panel` }).click()
+  }
+})
+
+test("narrow mobile keeps immersive controls in one circular top row", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "single narrow-mobile geometry proof")
+  await page.setViewportSize({ width: 319, height: 823 })
+  await openClock(page)
+
+  const controls = [
+    page.getByRole("button", { name: "Toggle fullscreen" }),
+    page.getByRole("button", { name: "Clock", exact: true }),
+    page.getByRole("button", { name: "Visual", exact: true }),
+    page.getByRole("button", { name: "Background", exact: true }),
+    page.getByRole("button", { name: "Close clock" }),
+  ]
+  const boxes = await Promise.all(controls.map((control) => control.boundingBox()))
+  expect(boxes.every(Boolean)).toBe(true)
+  if (boxes.some((box) => !box)) return
+
+  const resolvedBoxes = boxes as NonNullable<(typeof boxes)[number]>[]
+  const [fullscreenBox] = resolvedBoxes
+  for (const box of resolvedBoxes) {
+    expect(Math.abs(box.width - 48)).toBeLessThanOrEqual(1)
+    expect(Math.abs(box.height - 48)).toBeLessThanOrEqual(1)
+    expect(Math.abs(box.y - fullscreenBox.y)).toBeLessThanOrEqual(1)
+  }
+  for (let index = 1; index < resolvedBoxes.length; index += 1) {
+    const previous = resolvedBoxes[index - 1]
+    const current = resolvedBoxes[index]
+    expect(previous.x + previous.width).toBeLessThanOrEqual(current.x)
+  }
+  for (const control of controls) {
+    await expect.poll(() => control.evaluate((element) => {
+      const styles = window.getComputedStyle(element)
+      return Number.parseFloat(styles.borderRadius) >= (element.getBoundingClientRect().width / 2) - 1
+    })).toBe(true)
+  }
+})
+
 test("Clock and Visual docks remain safe at 200 percent Chromium page scale", async ({ page }, testInfo) => {
   await page.setViewportSize(testInfo.project.name === "mobile-chromium"
     ? { width: 412, height: 915 }
@@ -657,8 +751,17 @@ test("rotation and forward glow follow the centered display and stop for reduced
       controlRect.left + (controlRect.width / 2),
       controlRect.top + (controlRect.height / 2),
     )
-    return projection.right <= toolbar.left
+    const overlapsToolbar = !(
+      projection.right <= toolbar.left
+      || toolbar.right <= projection.left
+      || projection.bottom <= toolbar.top
+      || toolbar.bottom <= projection.top
+    )
+    return !overlapsToolbar
+      && projection.left >= 0
       && projection.right <= window.innerWidth
+      && projection.top >= 0
+      && projection.bottom <= window.innerHeight
       && (hit === toolbarControl || toolbarControl.contains(hit))
   })).toBe(true)
   await expect.poll(() => protectedDisplay.evaluate((element) => (

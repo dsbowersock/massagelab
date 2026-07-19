@@ -16720,6 +16720,7 @@ export function RunningTimer({
           aria-label={isTimerPrimary ? (isComplete ? "Session complete" : `${primaryActionLabel} from center display`) : "Show timer in center"}
           aria-live={isTimerPrimary ? "polite" : undefined}
           data-testid="running-timer-clock"
+          data-immersive-primary-display={isTimerPrimary ? "true" : undefined}
         >
           <span
             ref={isTimerPrimary ? protectedDisplayRef : undefined}
@@ -16741,6 +16742,7 @@ export function RunningTimer({
         disabled={isCurrentTimePrimary && isComplete}
         ref={isCurrentTimePrimary ? primaryDisplayRef : undefined}
         data-testid="running-current-time"
+        data-immersive-primary-display={isCurrentTimePrimary ? "true" : undefined}
         aria-label={isCurrentTimePrimary ? (isClockMode ? "Reveal clock controls" : isComplete ? "Session complete" : `${primaryActionLabel} from center display`) : "Show current time in center"}
         style={isCurrentTimePrimary ? primaryDisplayStyle : undefined}
       >
@@ -16784,10 +16786,12 @@ export function RunningTimer({
           protectedDisplayRef={protectedDisplayRef}
           hapticsEnabled={hapticsEnabled}
           chromeVisibility={controlState}
+          toolbarButtonClassName={`${styles.control} ${styles.tactileButton} ${styles.immersiveToolbarControl}`}
+          toolbarButtonActiveClassName={styles.immersiveToolbarControlActive}
           visualHintMessage={visualHintMessage}
           backgroundUnavailableMessage={mode.unavailableBackgroundMessage}
           clockContent={(
-            <div className={styles.settingsTabContent}>
+            <div className={`${styles.settingsTabContent} ${styles.immersiveSettingsTabContent}`}>
                 {mode.canToggleClock ? (
                   <div className={styles.switchRow}>
                     <StyledToggleControl
@@ -17205,7 +17209,7 @@ export function RunningTimer({
             </div>
           )}
           visualContent={(
-            <div className={styles.settingsTabContent}>
+            <div className={`${styles.settingsTabContent} ${styles.immersiveSettingsTabContent}`}>
                 {mode.wakeLockMessage ? (
                   <div className={styles.settingsNotice} role="status">{mode.wakeLockMessage}</div>
                 ) : null}

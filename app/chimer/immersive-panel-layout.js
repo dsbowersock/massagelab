@@ -10,6 +10,26 @@ const normalizeCoordinate = (value) => (
 )
 
 /**
+ * Returns the panel height available between a protected display and one
+ * visual-viewport edge after its safe inset and display gap are removed.
+ */
+const getSafePanelCapacity = (space, inset) => (
+  Math.max(0, space - inset - SAFE_STAGE_GAP_PX)
+)
+
+/**
+ * Reserves only the stable minimum used to position the protected display.
+ * The dock can then fill the measured edge capacity without its own expanded
+ * height feeding back into the next display-placement measurement.
+ */
+const getStableReservation = (space, inset, capacity) => (
+  Math.min(
+    space,
+    inset + Math.min(MIN_DOCK_HEIGHT_PX, capacity) + SAFE_STAGE_GAP_PX,
+  )
+)
+
+/**
  * Converts stable document-layout bounds into the visual viewport coordinate
  * system used by VisualViewport.height.
  *
@@ -51,21 +71,23 @@ export function calculateDockPlacement({
   const normalizedTopInset = normalizeMeasurement(topInset)
   const normalizedBottomInset = normalizeMeasurement(bottomInset)
   const bottomSpace = Math.max(0, normalizedViewportHeight - normalizedDisplayBottom)
+  const bottomCapacity = getSafePanelCapacity(bottomSpace, normalizedBottomInset)
 
   if (bottomSpace >= requestedPanelPx + SAFE_STAGE_GAP_PX + normalizedBottomInset) {
     return {
       edge: "bottom",
-      reservedPx: requestedPanelPx + SAFE_STAGE_GAP_PX + normalizedBottomInset,
-      maxPanelPx: requestedPanelPx,
+      reservedPx: getStableReservation(bottomSpace, normalizedBottomInset, bottomCapacity),
+      maxPanelPx: bottomCapacity,
     }
   }
 
   const topSpace = normalizedDisplayTop
+  const topCapacity = getSafePanelCapacity(topSpace, normalizedTopInset)
   if (topSpace >= requestedPanelPx + SAFE_STAGE_GAP_PX + normalizedTopInset) {
     return {
       edge: "top",
-      reservedPx: requestedPanelPx + SAFE_STAGE_GAP_PX + normalizedTopInset,
-      maxPanelPx: requestedPanelPx,
+      reservedPx: getStableReservation(topSpace, normalizedTopInset, topCapacity),
+      maxPanelPx: topCapacity,
     }
   }
 
