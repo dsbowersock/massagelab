@@ -2853,6 +2853,7 @@ export function RunningTimer({
   const isPaused = status === "paused"
   const isComplete = status === "complete"
   const isClockMode = status === "clock"
+  const shouldRenderTimerDisplay = mode.context === "chimer" && !isClockMode
   const canEditActiveTimer = status === "running" || status === "paused"
   const backgroundCategory = mode.backgroundCategory
   const backgroundId = mode.selectedBackgroundId ?? DEFAULT_BACKGROUND_ID
@@ -16658,7 +16659,7 @@ export function RunningTimer({
         />
       )}
 
-      {!isClockMode && (
+      {shouldRenderTimerDisplay && (
         <button
         type="button"
         className={`${styles.displayButton} ${isTimerPrimary ? styles.primaryDisplay : styles.secondaryDisplay} ${isTimerPrimary && !hasTimerSeconds ? styles.timerModeCompactTimer : ""} ${styles.timerDisplay} ${timerSwapClass}`}
@@ -16685,7 +16686,7 @@ export function RunningTimer({
         </button>
       )}
 
-      {(!isClockMode || mode.showClock) ? <button
+      {mode.showClock ? <button
         type="button"
         className={`${styles.displayButton} ${isCurrentTimePrimary ? styles.primaryDisplay : styles.secondaryDisplay} ${isCurrentTimePrimary && !isClockMode ? styles.timerModeClockPrimary : ""} ${styles.currentTimeDisplay} ${currentTimeSwapClass}`}
         onClick={() => {
@@ -16756,7 +16757,7 @@ export function RunningTimer({
                 ) : null}
                 {mode.canToggleClock && !mode.showClock ? (
                   <div className={styles.settingsNotice} role="status">
-                    Clock is hidden. Display rotation and Forward glow remain saved until Show clock is on.
+                    Clock is hidden. The selected background continues without a time display.
                   </div>
                 ) : null}
                 <div className={styles.settingsSection}>

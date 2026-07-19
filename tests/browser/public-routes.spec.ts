@@ -670,6 +670,214 @@ test("Atmosphere registers mobile media notification controls for active station
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
+test("immersive context changes keep only the displays owned by Chimer, Clock, and hidden Music", async ({ page }) => {
+  await page.goto("/chimer", { waitUntil: "domcontentloaded" })
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined)
+  await page.getByRole("button", { name: /^Increase minutes$/i }).click()
+  for (let step = 0; step < 4; step += 1) {
+    await page.getByRole("button", { name: /^Continue$/i }).click()
+  }
+  await page.getByRole("button", { name: /^Start Chimer$/i }).click()
+
+  await expect(page.getByTestId("running-timer-clock")).toBeVisible()
+  await expect(page.getByTestId("running-current-time")).toBeVisible()
+
+  await page.evaluate(() => {
+    window.history.pushState({}, "", "/clock?source=music&returnTo=%2Fmusic")
+  })
+  await expect(page.getByLabel("Music visualizer")).toBeVisible()
+  await expect(page.getByTestId("running-timer-clock")).toHaveCount(0)
+  await expect(page.getByTestId("running-current-time")).toHaveCount(0)
+
+  await page.getByRole("button", { name: "Close Background panel" }).click()
+  await page.getByRole("button", { name: "Clock", exact: true }).click()
+  await expect(page.getByRole("status")).toContainText(
+    "Clock is hidden. The selected background continues without a time display.",
+  )
+
+  await page.evaluate(() => {
+    window.history.pushState({}, "", "/clock")
+  })
+  await expect(page).toHaveURL(/\/clock$/)
+  await expect(page.getByTestId("running-timer-clock")).toHaveCount(0)
+  await expect(page.getByTestId("running-current-time")).toBeVisible()
+})
+
+test("Music visualizer waits for preference hydration before mounting its saved background", async ({ page }) => {
+  let releaseSession!: () => void
+  const sessionGate = new Promise<void>((resolve) => {
+    releaseSession = resolve
+  })
+
+  await page.addInitScript(() => {
+    localStorage.setItem("massagelab-atmosphere-v2", JSON.stringify({
+      version: 2,
+      favorites: ["tone-proof-drone"],
+      recentStations: ["tone-proof-drone"],
+      volume: 0.4,
+      miniPlayerCollapsed: false,
+      visualizer: {
+        backgroundId: "static-gradient",
+        showClock: false,
+      },
+      migrations: {
+        legacyMusicBackground: true,
+      },
+    }))
+
+    const mounts: string[] = []
+    ;(window as typeof window & { __musicVisualizerBackgroundMounts?: string[] })
+      .__musicVisualizerBackgroundMounts = mounts
+    new MutationObserver((records) => {
+      for (const record of records) {
+        for (const node of record.addedNodes) {
+          if (!(node instanceof Element)) continue
+          const candidates = node.matches('[data-testid="chimer-premium-background"]')
+            ? [node]
+            : Array.from(node.querySelectorAll('[data-testid="chimer-premium-background"]'))
+          for (const candidate of candidates) {
+            mounts.push(candidate.getAttribute("data-background-id") ?? "missing")
+          }
+        }
+      }
+    }).observe(document, { childList: true, subtree: true })
+  })
+  await page.route("**/api/auth/session", async (route) => {
+    await sessionGate
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: "{}",
+    })
+  })
+
+  await page.goto("/clock?source=music&returnTo=%2Fmusic", { waitUntil: "domcontentloaded" })
+  await expect(page.getByLabel("Music visualizer")).toBeVisible()
+  await expect(page.getByTestId("chimer-premium-background")).toHaveCount(0)
+  expect(await page.evaluate(() => (
+    (window as typeof window & { __musicVisualizerBackgroundMounts?: string[] })
+      .__musicVisualizerBackgroundMounts ?? []
+  ))).toEqual([])
+
+  releaseSession()
+
+  await expect(page.getByTestId("chimer-premium-background")).toHaveAttribute(
+    "data-background-id",
+    "static-gradient",
+  )
+  await expect.poll(() => page.evaluate(() => (
+    (window as typeof window & { __musicVisualizerBackgroundMounts?: string[] })
+      .__musicVisualizerBackgroundMounts ?? []
+  ))).toEqual(["static-gradient"])
+})
+
+test("Music background selection and account default actions preserve playback and device state", async ({ page }) => {
+  const preferenceWrites: Array<Record<string, unknown>> = []
+  const accountVisualizer = {
+    defaultBackgroundId: null,
+    showClock: false,
+  }
+
+  await page.addInitScript(() => {
+    localStorage.setItem("massagelab-atmosphere-v2", JSON.stringify({
+      version: 2,
+      favorites: ["tone-proof-drone"],
+      recentStations: [],
+      volume: 0.4,
+      miniPlayerCollapsed: false,
+      visualizer: {
+        backgroundId: null,
+        showClock: false,
+      },
+      migrations: {
+        legacyMusicBackground: true,
+      },
+    }))
+  })
+  await page.route("**/api/auth/session", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ user: { id: "music-qa-user", email: "music-qa@example.com" } }),
+    })
+  })
+  await page.route("**/api/account/preferences", async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          features: [],
+          chimerSettings: {},
+          appSettings: { musicVisualizer: accountVisualizer },
+        }),
+      })
+      return
+    }
+
+    const payload = route.request().postDataJSON() as Record<string, unknown>
+    preferenceWrites.push(payload)
+    const appSettings = payload.appSettings as { musicVisualizer?: typeof accountVisualizer } | undefined
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        features: [],
+        chimerSettings: payload.chimerSettings ?? {},
+        appSettings: {
+          musicVisualizer: appSettings?.musicVisualizer ?? accountVisualizer,
+        },
+      }),
+    })
+  })
+
+  await page.goto("/music", { waitUntil: "domcontentloaded" })
+  await page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
+  const playerToolbar = page.getByTestId("music-player-toolbar")
+  await expect(playerToolbar).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByText("MassageLab Proof Drone").last()).toBeVisible()
+  await page.getByRole("button", { name: /^Background$/i }).last().click()
+  await expect(page).toHaveURL(/\/clock\?[^#]*source=music/)
+
+  const deviceStateBeforeSelection = await page.evaluate(() => {
+    const stored = JSON.parse(localStorage.getItem("massagelab-atmosphere-v2") ?? "{}")
+    const deviceState = { ...stored }
+    delete deviceState.visualizer
+    return deviceState
+  })
+
+  await page.getByRole("button", { name: "Preview Static gradient background" }).click()
+  await page.getByRole("button", { name: "Select Static gradient background" }).click()
+  await expect(page.getByTestId("chimer-premium-background")).toHaveAttribute(
+    "data-background-id",
+    "static-gradient",
+  )
+  await expect(page.getByText("MassageLab Proof Drone").last()).toBeVisible()
+
+  await page.getByRole("button", { name: "Visual", exact: true }).click()
+  await page.getByRole("button", { name: "Set as visualizer default", exact: true })
+    .evaluate((button) => (button as HTMLButtonElement).click())
+  await expect.poll(() => preferenceWrites.some((payload) => {
+    const appSettings = payload.appSettings as {
+      musicVisualizer?: { defaultBackgroundId?: string | null }
+    } | undefined
+    return appSettings?.musicVisualizer?.defaultBackgroundId === "static-gradient"
+  })).toBe(true)
+
+  await expect(page.getByText("MassageLab Proof Drone").last()).toBeVisible()
+  await expect(playerToolbar).toContainText(/Playing|Preparing audio|Preparing station/i)
+  expect(await page.evaluate(() => {
+    const stored = JSON.parse(localStorage.getItem("massagelab-atmosphere-v2") ?? "{}")
+    const deviceState = { ...stored }
+    delete deviceState.visualizer
+    return deviceState
+  })).toEqual(deviceStateBeforeSelection)
+  await expect.poll(() => page.evaluate(() => (
+    JSON.parse(localStorage.getItem("massagelab-atmosphere-v2") ?? "{}")
+      .visualizer?.backgroundId
+  ))).toBe("static-gradient")
+})
+
 test("Breathing guide route runs separately from Music stations", async ({ page }) => {
   const health = capturePageHealth(page)
 
