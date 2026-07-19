@@ -7,6 +7,7 @@ import {
   type ReactNode,
   type RefObject,
   useCallback,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
@@ -16,6 +17,7 @@ import { CHIMER_CONTROL_PORTAL_SELECTOR } from "@/components/chimer-controls/Glo
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
+import { calculateDockPlacement } from "./immersive-panel-layout.js"
 import styles from "./immersive-panel-shell.module.css"
 
 export type ImmersivePanelId = "clock" | "visual" | "background" | null
@@ -28,19 +30,14 @@ interface ImmersivePanelShellProps {
   visualContent: ReactNode
   backgroundContent: ReactNode
   backgroundUnavailableMessage?: string | null
+  visualHintMessage?: string | null
   hapticsEnabled: boolean
 }
 
-type DockPlacement = {
-  edge: "bottom" | "top"
-  reservedPx: number
-  maxPanelPx: number
-}
+type DockPlacement = ReturnType<typeof calculateDockPlacement>
 
 type PanelKey = Exclude<ImmersivePanelId, null>
 
-const SAFE_STAGE_GAP_PX = 16
-const MIN_DOCK_HEIGHT_PX = 144
 const DEFAULT_PLACEMENT: DockPlacement = {
   edge: "bottom",
   reservedPx: 0,
@@ -52,51 +49,6 @@ const PANEL_CONTROLS = [
   { id: "visual", label: "Visual", icon: Palette },
   { id: "background", label: "Background", icon: ImageIcon },
 ] as const
-
-/**
- * Chooses a bottom dock whenever the protected display leaves enough room, then
- * falls back to the top. If neither edge fits, the larger remainder becomes a
- * bounded scrolling dock so the protected display is never covered.
- */
-function calculateDockPlacement({
-  viewportHeight,
-  displayTop,
-  displayBottom,
-  panelHeight,
-}: {
-  viewportHeight: number
-  displayTop: number
-  displayBottom: number
-  panelHeight: number
-}): DockPlacement {
-  const requestedPanelPx = Math.max(MIN_DOCK_HEIGHT_PX, panelHeight)
-  const bottomSpace = Math.max(0, viewportHeight - displayBottom)
-  if (bottomSpace >= requestedPanelPx + SAFE_STAGE_GAP_PX) {
-    return {
-      edge: "bottom",
-      reservedPx: requestedPanelPx + SAFE_STAGE_GAP_PX,
-      maxPanelPx: requestedPanelPx,
-    }
-  }
-
-  const topSpace = Math.max(0, displayTop)
-  if (topSpace >= requestedPanelPx + SAFE_STAGE_GAP_PX) {
-    return {
-      edge: "top",
-      reservedPx: requestedPanelPx + SAFE_STAGE_GAP_PX,
-      maxPanelPx: requestedPanelPx,
-    }
-  }
-
-  const edge = bottomSpace >= topSpace ? "bottom" : "top"
-  const remainingSpace = Math.max(bottomSpace, topSpace)
-  const maxPanelPx = Math.max(0, remainingSpace - SAFE_STAGE_GAP_PX)
-  return {
-    edge,
-    reservedPx: maxPanelPx + SAFE_STAGE_GAP_PX,
-    maxPanelPx,
-  }
-}
 
 /** Reads layout offsets and dimensions without incorporating ancestor transforms. */
 function getStableVerticalBounds(element: HTMLElement) {
@@ -123,6 +75,11 @@ const restoreToolbarFocus = (
   })
 }
 
+/** Keeps nested portaled controls in charge of their own Escape dismissal. */
+const shouldIgnoreNonmodalEscape = (target: EventTarget | null) => (
+  target instanceof Element && Boolean(target.closest(CHIMER_CONTROL_PORTAL_SELECTOR))
+)
+
 export function ImmersivePanelShell({
   activePanel,
   onActivePanelChange,
@@ -131,8 +88,10 @@ export function ImmersivePanelShell({
   visualContent,
   backgroundContent,
   backgroundUnavailableMessage,
+  visualHintMessage,
   hapticsEnabled,
 }: ImmersivePanelShellProps) {
+  const visualHintId = useId()
   const dockRef = useRef<HTMLDivElement | null>(null)
   const toolbarRef = useRef<HTMLDivElement | null>(null)
   const toolbarButtonRefs = useRef<Partial<Record<PanelKey, HTMLButtonElement | null>>>({})
@@ -250,10 +209,12 @@ export function ImmersivePanelShell({
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault()
-        closeNonmodalPanel(true)
+      if (event.key !== "Escape" || shouldIgnoreNonmodalEscape(event.target)) {
+        return
       }
+
+      event.preventDefault()
+      closeNonmodalPanel(true)
     }
 
     document.addEventListener("pointerdown", handlePointerDown)
@@ -292,11 +253,12 @@ export function ImmersivePanelShell({
                     type="button"
                     variant={isActive ? "ctaBlue" : "secondary"}
                     size="compact"
-                    className={styles.toolbarButton}
+                    className={`${styles.toolbarButton} ${id === "visual" && visualHintMessage ? styles.visualHintActive : ""}`}
                     hapticsEnabled={hapticsEnabled}
                     aria-label={label}
                     aria-expanded={isActive}
                     aria-controls={panelId}
+                    aria-describedby={id === "visual" && visualHintMessage ? visualHintId : undefined}
                     onClick={() => onActivePanelChange(isActive ? null : id)}
                   >
                     <Icon className={styles.toolbarIcon} aria-hidden="true" />
@@ -307,6 +269,17 @@ export function ImmersivePanelShell({
               </Tooltip>
             )
           })}
+          {visualHintMessage ? (
+            <div
+              id={visualHintId}
+              className={styles.visualHint}
+              role="status"
+              aria-label={visualHintMessage}
+              data-visual-hint
+            >
+              {visualHintMessage}
+            </div>
+          ) : null}
         </div>
       </TooltipProvider>
 
@@ -355,8 +328,6 @@ export function ImmersivePanelShell({
             className={styles.backgroundPanel}
             aria-describedby={undefined}
             data-immersive-panel="background"
-            onPointerDownOutside={(event) => event.preventDefault()}
-            onInteractOutside={(event) => event.preventDefault()}
             onCloseAutoFocus={handleBackgroundCloseAutoFocus}
           >
             <div className={styles.backgroundHeader}>

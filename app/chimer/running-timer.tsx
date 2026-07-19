@@ -204,6 +204,7 @@ import {
 } from "./set-timer"
 import styles from "./running-timer.module.css"
 import { ImmersivePanelShell, type ImmersivePanelId } from "./immersive-panel-shell"
+import { readVisualPanelOpened, writeVisualPanelOpened } from "./immersive-panel-visual-hint.js"
 import { TileGridFadeTimeControl } from "./tile-grid-fade-time-control"
 
 type PrimaryDisplay = "timer" | "currentTime"
@@ -224,6 +225,8 @@ const BACKGROUND_VISUAL_CATEGORIES: ReadonlyArray<{ value: BackgroundVisualCateg
 const CHIMER_SAVED_BACKGROUND_IDS_STORAGE_KEY = "massagelab-chimer-saved-background-ids-v1"
 const CHIMER_GLOBAL_COLOR_STORAGE_KEY = "massagelab-chimer-global-color-v1"
 const CHIMER_GLOBAL_PALETTE_STORAGE_KEY = "massagelab-chimer-global-palettes-v1"
+const VISUAL_CUSTOMIZATION_HINT = "Customize this background in Visual."
+const VISUAL_CUSTOMIZATION_HINT_DURATION_MS = 6500
 const IMAGE_SOURCE_PATTERNS = [
   ".png",
   ".jpg",
@@ -3194,6 +3197,7 @@ export function RunningTimer({
   })
   const [primaryDisplay, setPrimaryDisplay] = useState<PrimaryDisplay>(isClockMode ? "currentTime" : "timer")
   const [activePanel, setActivePanel] = useState<ImmersivePanelId>(null)
+  const [visualHintMessage, setVisualHintMessage] = useState<string | null>(null)
   const [backgroundCategoryFilter, setBackgroundCategoryFilter] =
     useState<BackgroundVisualCategory>("all")
   const [savedBackgroundIds, setSavedBackgroundIds] = useState<BackgroundId[]>([])
@@ -3226,6 +3230,47 @@ export function RunningTimer({
   const primaryContentRef = useRef<HTMLSpanElement | null>(null)
   const backgroundVideoRefMap = useRef<Map<BackgroundId, HTMLVideoElement | null>>(new Map())
   const backgroundCarouselSwipeStartRef = useRef<{ x: number; y: number } | null>(null)
+  const visualPanelOpenedRef = useRef(false)
+  const visualPanelOpenedHydratedRef = useRef(false)
+  const visualHintTimeoutRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    visualPanelOpenedRef.current = readVisualPanelOpened()
+    visualPanelOpenedHydratedRef.current = true
+  }, [])
+
+  useEffect(() => () => {
+    if (visualHintTimeoutRef.current !== null) {
+      window.clearTimeout(visualHintTimeoutRef.current)
+    }
+  }, [])
+
+  const clearVisualHint = useCallback(() => {
+    if (visualHintTimeoutRef.current !== null) {
+      window.clearTimeout(visualHintTimeoutRef.current)
+      visualHintTimeoutRef.current = null
+    }
+    setVisualHintMessage(null)
+  }, [])
+
+  const showVisualHint = useCallback(() => {
+    clearVisualHint()
+    setVisualHintMessage(VISUAL_CUSTOMIZATION_HINT)
+    visualHintTimeoutRef.current = window.setTimeout(() => {
+      setVisualHintMessage(null)
+      visualHintTimeoutRef.current = null
+    }, VISUAL_CUSTOMIZATION_HINT_DURATION_MS)
+  }, [clearVisualHint])
+
+  const handleActivePanelChange = useCallback((nextPanel: ImmersivePanelId) => {
+    if (nextPanel === "visual") {
+      visualPanelOpenedRef.current = true
+      visualPanelOpenedHydratedRef.current = true
+      writeVisualPanelOpened()
+      clearVisualHint()
+    }
+    setActivePanel(nextPanel)
+  }, [clearVisualHint])
   const isTimerPrimary = primaryDisplay === "timer"
   const isCurrentTimePrimary = isClockMode || !isTimerPrimary
   const resolvedShowTimerSeconds = showTimerSeconds !== false
@@ -3717,6 +3762,14 @@ export function RunningTimer({
 
     handleSettingsChange({ movingBackgroundEnabled: true, backgroundId: nextBackgroundId })
     setActivePanel(null)
+
+    if (!visualPanelOpenedHydratedRef.current) {
+      visualPanelOpenedRef.current = readVisualPanelOpened()
+      visualPanelOpenedHydratedRef.current = true
+    }
+    if (!visualPanelOpenedRef.current) {
+      showVisualHint()
+    }
   }
 
   const moveBackgroundCarousel = useCallback(
@@ -16642,9 +16695,10 @@ export function RunningTimer({
 
         <ImmersivePanelShell
           activePanel={activePanel}
-          onActivePanelChange={setActivePanel}
+          onActivePanelChange={handleActivePanelChange}
           protectedDisplayRef={protectedDisplayRef}
           hapticsEnabled={hapticsEnabled}
+          visualHintMessage={visualHintMessage}
           clockContent={(
             <div className={styles.settingsTabContent}>
                 <div className={styles.settingsSection}>

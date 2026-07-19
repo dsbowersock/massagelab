@@ -12,8 +12,12 @@ const read = async (path) => {
 
 const shellSource = await read("app/chimer/immersive-panel-shell.tsx")
 const shellStyles = await read("app/chimer/immersive-panel-shell.module.css")
+const layoutSource = await read("app/chimer/immersive-panel-layout.js")
 const runningTimerSource = await read("app/chimer/running-timer.tsx")
 const runningTimerStyles = await read("app/chimer/running-timer.module.css")
+const planSource = await read("docs/superpowers/plans/2026-07-18-clock-chimer-music-visualizer.md")
+const specSource = await read("docs/superpowers/specs/2026-07-18-clock-chimer-music-visualizer-design.md")
+const taskBriefSource = await read(".superpowers/sdd/task-5-brief.md")
 
 test("exports the reusable controlled immersive panel contract", () => {
   assert.match(shellSource, /export type ImmersivePanelId = "clock" \| "visual" \| "background" \| null/)
@@ -36,18 +40,19 @@ test("renders three accessible grouped panel toggles with responsive tooltips", 
 test("keeps Clock and Visual nonmodal with complete dismissal mechanics", () => {
   assert.match(shellSource, /role="dialog"/)
   assert.match(shellSource, /aria-modal="false"/)
-  assert.match(shellSource, /event\.key === "Escape"/)
+  assert.match(shellSource, /event\.key !== "Escape"/)
   assert.match(shellSource, /document\.addEventListener\("pointerdown"/)
   assert.match(shellSource, /target instanceof Element && target\.closest\(CHIMER_CONTROL_PORTAL_SELECTOR\)/)
+  assert.match(shellSource, /shouldIgnoreNonmodalEscape\(event\.target\)/)
   assert.match(shellSource, /toolbarButtonRefs\.current\[panelToRestore\]\?\.focus\(\)/)
   assert.match(shellSource, /aria-label=\{`Close \$\{activePanelLabel\} panel`\}/)
 })
 
-test("uses a full-screen Radix modal for Background and blocks overlay dismissal", () => {
+test("uses a full-screen Radix modal for Background with default outside dismissal", () => {
   assert.match(shellSource, /@radix-ui\/react-dialog/)
   assert.match(shellSource, /data-immersive-panel="background"/)
-  assert.match(shellSource, /onPointerDownOutside=\{\(event\) => event\.preventDefault\(\)\}/)
-  assert.match(shellSource, /onInteractOutside=\{\(event\) => event\.preventDefault\(\)\}/)
+  assert.doesNotMatch(shellSource, /onPointerDownOutside=\{\(event\) => event\.preventDefault\(\)\}/)
+  assert.doesNotMatch(shellSource, /onInteractOutside=\{\(event\) => event\.preventDefault\(\)\}/)
   assert.match(shellSource, /onCloseAutoFocus=\{handleBackgroundCloseAutoFocus\}/)
   assert.match(shellStyles, /--immersive-global-chrome-z:\s*10030/)
   assert.match(shellStyles, /\.backgroundOverlay[\s\S]*position:\s*fixed[\s\S]*inset:\s*0[\s\S]*z-index:\s*var\(--immersive-global-chrome-z\)/)
@@ -55,32 +60,58 @@ test("uses a full-screen Radix modal for Background and blocks overlay dismissal
 })
 
 test("measures a stable protected display and dock with bottom-first placement", () => {
-  assert.match(shellSource, /type DockPlacement = \{[\s\S]*edge: "bottom" \| "top"[\s\S]*reservedPx: number[\s\S]*maxPanelPx: number/)
-  assert.match(shellSource, /function calculateDockPlacement/)
+  assert.match(shellSource, /import \{ calculateDockPlacement \} from "\.\/immersive-panel-layout\.js"/)
   assert.match(shellSource, /function getStableVerticalBounds/)
   assert.doesNotMatch(shellSource, /currentProtectedDisplay\.getBoundingClientRect\(\)/)
-  assert.match(shellSource, /const bottomSpace =[\s\S]*if \(bottomSpace >= requestedPanelPx \+ SAFE_STAGE_GAP_PX\)/)
-  assert.match(shellSource, /const topSpace =[\s\S]*if \(topSpace >= requestedPanelPx \+ SAFE_STAGE_GAP_PX\)/)
+  assert.match(layoutSource, /const bottomSpace =[\s\S]*if \(bottomSpace >= requestedPanelPx \+ SAFE_STAGE_GAP_PX\)/)
+  assert.match(layoutSource, /const topSpace =[\s\S]*if \(topSpace >= requestedPanelPx \+ SAFE_STAGE_GAP_PX\)/)
   assert.equal((shellSource.match(/new ResizeObserver/g) ?? []).length, 1)
   assert.match(shellSource, /resizeObserver\?\.observe\(protectedDisplay\)/)
   assert.match(shellSource, /resizeObserver\?\.observe\(dock\)/)
   assert.match(shellSource, /window\.addEventListener\("orientationchange", measure\)/)
   assert.match(shellSource, /window\.visualViewport\?\.addEventListener\("resize", measure\)/)
+  assert.match(shellSource, /window\.cancelAnimationFrame\(animationFrame\)/)
+  assert.match(shellSource, /resizeObserver\?\.disconnect\(\)/)
+  assert.match(shellSource, /window\.removeEventListener\("resize", measure\)/)
+  assert.match(shellSource, /window\.removeEventListener\("orientationchange", measure\)/)
+  assert.match(shellSource, /window\.visualViewport\?\.removeEventListener\("resize", measure\)/)
   assert.match(shellSource, /--immersive-reserved-top/)
   assert.match(shellSource, /--immersive-reserved-bottom/)
   assert.match(shellSource, /--immersive-panel-max-height/)
   assert.match(runningTimerSource, /data-immersive-stage/)
   assert.match(runningTimerSource, /data-protected-display/)
   assert.match(shellSource, /data-immersive-dock=\{placement\.edge\}/)
+  assert.doesNotMatch(shellStyles, /max-height:\s*max\(8rem,\s*var\(--immersive-panel-max-height\)\)/)
+  assert.match(shellStyles, /@media \(max-width: 36rem\)[\s\S]*\.dock \{[\s\S]*width:\s*auto/)
 })
 
 test("RunningTimer owns one active panel without legacy settings tabs or auto-close", () => {
   assert.match(runningTimerSource, /useState<ImmersivePanelId>\(null\)/)
-  assert.match(runningTimerSource, /<ImmersivePanelShell[\s\S]*activePanel=\{activePanel\}[\s\S]*onActivePanelChange=\{setActivePanel\}/)
+  assert.match(runningTimerSource, /<ImmersivePanelShell[\s\S]*activePanel=\{activePanel\}[\s\S]*onActivePanelChange=\{handleActivePanelChange\}/)
   assert.doesNotMatch(runningTimerSource, /type SettingsTab/)
   assert.doesNotMatch(runningTimerSource, /<Tabs(?:Content|List|Trigger)?\b/)
   assert.doesNotMatch(runningTimerSource, /settingsButton|SettingsButton|settingsAutoClose|SettingsAutoClose|SETTINGS_AUTO_CLOSE/)
   assert.doesNotMatch(runningTimerStyles, /settingsButton|settingsPanel|settingsTabs|settingsTabList|settingsTabTrigger/)
   assert.match(runningTimerSource, /visualContent=\{\([\s\S]*label="Keep timer screen awake"/)
   assert.doesNotMatch(runningTimerSource, /clockContent=\{\([\s\S]*label="Keep timer screen awake"[\s\S]*visualContent=/)
+})
+
+test("documents clarified Background dismissal, selection, and Visual hint behavior", () => {
+  for (const source of [planSource, specSource, taskBriefSource]) {
+    assert.doesNotMatch(source, /close only through Close or `Escape`/i)
+    assert.doesNotMatch(source, /outside overlay interaction does not close/i)
+    assert.match(source, /Selecting an available background[\s\S]{0,300}closes Background/i)
+    assert.match(source, /Customize this background in Visual\./)
+  }
+})
+
+test("wires a non-blocking device-local Visual hint without changing the active-Chimer wake toggle", () => {
+  assert.match(runningTimerSource, /readVisualPanelOpened/)
+  assert.match(runningTimerSource, /writeVisualPanelOpened/)
+  assert.match(runningTimerSource, /VISUAL_CUSTOMIZATION_HINT = "Customize this background in Visual\."/)
+  assert.match(runningTimerSource, /visualHintMessage=\{visualHintMessage\}/)
+  assert.match(shellSource, /aria-describedby=\{id === "visual" && visualHintMessage \? visualHintId : undefined\}/)
+  assert.match(shellSource, /role="status"/)
+  assert.match(shellStyles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.visualHintActive/)
+  assert.match(runningTimerSource, /visualContent=\{\([\s\S]*!isClockMode[\s\S]*label="Keep timer screen awake"/)
 })

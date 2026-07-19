@@ -506,10 +506,13 @@ Use the existing Radix-backed Dialog primitive if its overlay/content contract c
 - fixed viewport coverage above app bar and Music player;
 - focus trap and inert underlying content;
 - always-visible Close control;
-- close only through Close or `Escape` (disable overlay-click dismissal);
+- Close and `Escape` always dismiss;
+- an outside pointer interaction dismisses when any overlay is actually visible beyond the content; a true full-viewport panel naturally has no outside target;
 - focus restoration to Background.
 
 Give the overlay a documented z-index token above the current global player/navigation layers. Add `data-immersive-panel="background"` for browser geometry tests.
+
+Selecting an available background closes Background immediately and fully reveals the result. If Visual has never been opened on that device, briefly highlight its toolbar control with the accessible hint `Customize this background in Visual.` Do not open Visual, trap focus, cover the toolbar, or sync this visit flag to the account. Mark the non-sensitive device-local flag only when Visual is actually opened; if storage is unavailable, keep the visit state in memory for the current mount. Reduced motion disables hint animation.
 
 ### Step 5: Implement bottom-first safe-stage measurement
 
@@ -870,10 +873,12 @@ For Clock and Visual:
 
 For Background:
 
-- outside overlay interaction does not close;
-- `Escape` and Close do;
+- selection, `Escape`, and Close dismiss immediately;
+- outside interaction dismisses when visible overlay exists; skip that interaction assertion when full-viewport content leaves no outside target;
 - focus remains trapped inside while open;
 - focus returns to Background.
+
+Also cover the first-selection Visual hint, opening Visual recording the device-local seen flag and suppressing later hints, pre-seen hydration, and storage-denial fallback.
 
 ### Step 4: Add safe-stage geometry coverage
 

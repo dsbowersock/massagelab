@@ -185,7 +185,7 @@ Only one panel may be active:
 - selecting the active control closes it;
 - `Escape` closes the active panel and restores focus to its control;
 - Clock and Visual close on an outside pointer interaction;
-- Background closes through its own always-visible Close control or `Escape`. The underlying toolbar is covered and inert while the modal is open.
+- Background always closes through its own always-visible Close control or `Escape`, closes immediately after an available selection, and closes on outside interaction when content leaves visible overlay. A true full-viewport panel naturally has no outside target. The underlying toolbar is covered and inert while the modal is open.
 
 Clock and Visual are nonmodal. Background is modal. Interaction inside the panel or an approved portaled child such as the shared color picker does not count as an outside click.
 
@@ -240,7 +240,7 @@ Background is exempt from the safe-stage contract. It opens as a fixed full-scre
 - Eligibility/locked messaging through the current entitlement contract until Track 1 extends it.
 - Selection only; effect customization remains in Visual.
 
-Selecting an available background immediately updates the appropriate context, closes Background, and reveals the result. Track 3 may replace the picker implementation without changing panel, routing, or preference interfaces.
+Selecting an available background immediately updates the appropriate context, closes Background, and reveals the result. If Visual has not been opened on the device, selection briefly highlights its toolbar control with the accessible hint `Customize this background in Visual.` The hint never opens Visual, traps focus, covers the toolbar, or account-syncs. Opening Visual writes a narrowly named, non-sensitive local visit flag and suppresses future hints; denied storage falls back safely to in-memory visit state. The visual pulse is reduced-motion safe, and the persistent seen state changes only when Visual is actually opened. Track 3 may replace the picker implementation without changing panel, routing, or preference interfaces.
 
 ## Display Rotation and Forward Glow
 
@@ -397,9 +397,10 @@ Workspace returns to station discovery only. Mini player exposes and labels the 
 - Do not create a separate selectable Music page background.
 - Unmount the animation when minimized for resource efficiency.
 - Use one single-active adaptive control group.
-- Close docked panels by active toggle, Close, `Escape`, or outside click; close the full-screen Background modal through its own Close control or `Escape`.
+- Close docked panels by active toggle, Close, `Escape`, or outside click; close Background by selection, Close, `Escape`, or a pointer interaction on any visible outside overlay.
 - Use bottom-first safe-stage docking.
 - Keep background customization in Visual and selection in Background.
+- After the first qualifying selection on a device that has never opened Visual, briefly point to Visual without opening it; record seen only when Visual opens and fall back to in-memory state if local storage is denied.
 - Put Keep screen awake at the top of Visual only for active Chimer; ordinary Clock and Music visualizer expose no toggle and request wake lock automatically while active.
 - Expose Show clock only in Clock contexts, never active Chimer.
 - Use only two new effect toggles, with no speed or intensity controls.
