@@ -179,6 +179,7 @@ async function expectDockAvoidsDisplay(
   const control = page.getByRole("button", { name: panelName, exact: true })
   if (useKeyboard) {
     await control.focus()
+    await expect(control).toBeFocused()
     await page.keyboard.press("Enter")
   } else {
     await control.click()
@@ -238,6 +239,9 @@ async function expectDockAvoidsDisplay(
     insideBottom: true,
     centered: true,
   }))
+  if (useKeyboard) {
+    await expectToolbarInsideVisualViewport(page)
+  }
   const close = page.getByRole("button", { name: "Close " + panelName + " panel" })
   if (!useKeyboard) {
     await expectHitTestable(page, control)
@@ -245,6 +249,7 @@ async function expectDockAvoidsDisplay(
   }
   if (useKeyboard) {
     await close.focus()
+    await expect(close).toBeFocused()
     await page.keyboard.press("Enter")
   } else {
     await close.click()
@@ -254,6 +259,30 @@ async function expectDockAvoidsDisplay(
 
 async function expectHitTestable(page: Page, locator: Locator) {
   await locator.click({ trial: true })
+}
+
+async function expectToolbarInsideVisualViewport(page: Page) {
+  await expect.poll(() => page.evaluate(() => {
+    const toolbar = document.querySelector<HTMLElement>("[aria-label='Immersive display controls']")
+      ?.getBoundingClientRect()
+    if (!toolbar) return null
+    const viewport = window.visualViewport
+    const left = viewport?.offsetLeft ?? 0
+    const top = viewport?.offsetTop ?? 0
+    const right = left + (viewport?.width ?? window.innerWidth)
+    const bottom = top + (viewport?.height ?? window.innerHeight)
+    return {
+      insideLeft: toolbar.left >= left - 1,
+      insideTop: toolbar.top >= top - 1,
+      insideRight: toolbar.right <= right + 1,
+      insideBottom: toolbar.bottom <= bottom + 1,
+    }
+  })).toEqual({
+    insideLeft: true,
+    insideTop: true,
+    insideRight: true,
+    insideBottom: true,
+  })
 }
 
 async function expectFocusInside(page: Page, panel: Locator) {
@@ -584,6 +613,8 @@ test("Clock and Visual docks remain safe at 200 percent Chromium page scale", as
   await openClock(page)
   const session = await page.context().newCDPSession(page)
   await session.send("Emulation.setPageScaleFactor", { pageScaleFactor: 2 })
+  // Chromium CDP page-scale emulation has unstable pointer coordinates/actionability,
+  // so this zoom proof uses explicit focus + Enter while geometry proves reachability.
   for (const panelName of ["Clock", "Visual"] as const) {
     await expectDockAvoidsDisplay(page, panelName, true)
   }
