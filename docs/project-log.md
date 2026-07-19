@@ -4,6 +4,14 @@ This is the canonical chronological planning and progress log for MassageLab. Us
 
 Existing plans, audits, roadmaps, and checklists remain source evidence. Keep them for context, but mirror meaningful progress, plan changes, and priority changes in [project-state.md](project-state.md) and here.
 
+## 2026-07-19 — Immersive Music visualizer acceptance
+
+- Added deterministic desktop and mobile browser acceptance for the shared Clock, Visual, and Background surfaces across anonymous playback continuity, exact-origin Minimize and Back behavior, stopped-station recovery, separate Clock/Music Show clock persistence, active-Chimer-only controls, dismissal/focus/portal rules, one-time hint storage fallback, safe geometry, reduced motion, resource cleanup, and signed-in default/failure/retry behavior.
+- Corrected two acceptance-exposed geometry gaps in the shared nonmodal shell: active top/bottom music-player chrome now contributes to dock insets, hidden Music clocks still receive a bounded internally scrollable dock, and Clock/Visual docks plus their toolbar follow the measured visual viewport at reliable 200% Chromium page scale while retaining bottom-first placement and protected-display separation. Background remains the only full-screen modal surface.
+- Kept Music visualizer device choices in the existing Atmosphere browser storage and signed-in defaults in the existing `UserPreference.appSettings.musicVisualizer` object. This non-PHI preference did not require a Prisma schema change, migration, or new Neon table, and account updates preserve unrelated app settings.
+- Retained the source/license decision for the display effects: the camera-yaw and decorative glow concepts are adapted into native MassageLab React/CSS from wheatup's public MIT-licensed [Neon Clock (CSS)](https://codepen.io/wheatup/pen/JjzdMbK), with attribution preserved and no copied runtime dependency.
+- Focused validation passed for the new desktop suite (11 tests), the applicable mobile suite (8 tests, 3 intentional desktop-only skips), the exact-origin public-route regression, and the production build.
+
 ## 2026-07-19 — Immersive clock display effects
 
 - Added optional display rotation and forward-glow controls to the shared Clock, Chimer, and Music visualizer display. The visual concepts were adapted from the public MIT-licensed [Neon Clock (CSS)](https://codepen.io/wheatup/pen/JjzdMbK) pen by CodePen author wheatup; MassageLab retains this attribution and adapts only the 40-second ±10-degree camera yaw plus decorative transformed, blurred, and masked shadow concepts into native React and CSS, without importing the pen wholesale or adding a CodePen runtime dependency.

@@ -36,6 +36,15 @@ interface ImmersivePanelShellProps {
 
 type DockPlacement = ReturnType<typeof calculateDockPlacement>
 
+type VisualViewportFrame = {
+  top: number
+  left: number
+  right: number
+  bottom: number
+  width: number
+  centerY: number
+}
+
 type PanelKey = Exclude<ImmersivePanelId, null>
 
 const DEFAULT_PLACEMENT: DockPlacement = {
@@ -97,6 +106,7 @@ export function ImmersivePanelShell({
   const toolbarRef = useRef<HTMLDivElement | null>(null)
   const toolbarButtonRefs = useRef<Partial<Record<PanelKey, HTMLButtonElement | null>>>({})
   const [placement, setPlacement] = useState<DockPlacement>(DEFAULT_PLACEMENT)
+  const [visualViewportFrame, setVisualViewportFrame] = useState<VisualViewportFrame | null>(null)
   const nonmodalPanel = activePanel === "clock" || activePanel === "visual" ? activePanel : null
   const activePanelLabel = nonmodalPanel === "clock" ? "Clock" : "Visual"
 
@@ -117,8 +127,9 @@ export function ImmersivePanelShell({
     const dock = dockRef.current
     const dockInsetProbe = dockInsetProbeRef.current
     const stage = protectedDisplay?.closest<HTMLElement>("[data-immersive-stage]")
+      ?? dock?.closest<HTMLElement>("[data-immersive-stage]")
 
-    if (!protectedDisplay || !dock || !dockInsetProbe || !stage || !nonmodalPanel) {
+    if (!dock || !dockInsetProbe || !stage || !nonmodalPanel) {
       setPlacement(DEFAULT_PLACEMENT)
       stage?.style.setProperty("--immersive-reserved-top", "0px")
       stage?.style.setProperty("--immersive-reserved-bottom", "0px")
@@ -132,28 +143,58 @@ export function ImmersivePanelShell({
     const measure = () => {
       window.cancelAnimationFrame(animationFrame)
       animationFrame = window.requestAnimationFrame(() => {
-        const currentProtectedDisplay = protectedDisplayRef.current ?? observedProtectedDisplay
+        const currentProtectedDisplay = protectedDisplayRef.current
         if (currentProtectedDisplay !== observedProtectedDisplay) {
-          resizeObserver?.unobserve(observedProtectedDisplay)
-          resizeObserver?.observe(currentProtectedDisplay)
+          if (observedProtectedDisplay) {
+            resizeObserver?.unobserve(observedProtectedDisplay)
+          }
+          if (currentProtectedDisplay) {
+            resizeObserver?.observe(currentProtectedDisplay)
+          }
           observedProtectedDisplay = currentProtectedDisplay
         }
 
-        // Layout offsets remain stable when an inner glow or rotation layer transforms visually.
-        const stableDisplayBounds = getStableVerticalBounds(currentProtectedDisplay)
-        const visualViewport = window.visualViewport
-        const displayBounds = toVisualViewportBounds({
-          layoutTop: stableDisplayBounds.top,
-          layoutBottom: stableDisplayBounds.bottom,
-          windowScrollY: window.scrollY,
-          visualViewportOffsetTop: visualViewport?.offsetTop ?? 0,
-        })
         const insetStyles = window.getComputedStyle(dockInsetProbe)
         const dockInsets = {
           top: Number.parseFloat(insetStyles.paddingTop) || 0,
           bottom: Number.parseFloat(insetStyles.paddingBottom) || 0,
         }
+        const visualViewport = window.visualViewport
+        const viewportTop = visualViewport?.offsetTop ?? 0
+        const viewportLeft = visualViewport?.offsetLeft ?? 0
+        const viewportWidth = visualViewport?.width ?? window.innerWidth
         const viewportHeight = visualViewport?.height ?? window.innerHeight
+        const nextVisualViewportFrame = {
+          top: viewportTop,
+          left: viewportLeft,
+          right: Math.max(0, window.innerWidth - viewportLeft - viewportWidth),
+          bottom: Math.max(0, window.innerHeight - viewportTop - viewportHeight),
+          width: viewportWidth,
+          centerY: viewportTop + (viewportHeight / 2),
+        }
+        setVisualViewportFrame((current) => (
+          current
+          && Object.entries(nextVisualViewportFrame).every(
+            ([key, value]) => Math.abs(current[key as keyof VisualViewportFrame] - value) < 1,
+          )
+            ? current
+            : nextVisualViewportFrame
+        ))
+        // Without a visible clock, use a zero-height protected region at the
+        // top safe boundary so the same bottom-first placement math still
+        // reserves the full controls dock.
+        const displayBounds = currentProtectedDisplay
+          ? (() => {
+              // Layout offsets remain stable when an inner glow or rotation layer transforms visually.
+              const stableDisplayBounds = getStableVerticalBounds(currentProtectedDisplay)
+              return toVisualViewportBounds({
+                layoutTop: stableDisplayBounds.top,
+                layoutBottom: stableDisplayBounds.bottom,
+                windowScrollY: window.scrollY,
+                visualViewportOffsetTop: visualViewport?.offsetTop ?? 0,
+              })
+            })()
+          : { top: dockInsets.top, bottom: dockInsets.top }
         const nextPlacement = calculateDockPlacement({
           viewportHeight,
           displayTop: displayBounds.top,
@@ -184,7 +225,9 @@ export function ImmersivePanelShell({
 
     measure()
     resizeObserver = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure)
-    resizeObserver?.observe(protectedDisplay)
+    if (protectedDisplay) {
+      resizeObserver?.observe(protectedDisplay)
+    }
     resizeObserver?.observe(dock)
     window.addEventListener("resize", measure)
     window.addEventListener("orientationchange", measure)
@@ -252,6 +295,14 @@ export function ImmersivePanelShell({
     "--immersive-reserved-top": placement.edge === "top" ? `${placement.reservedPx}px` : "0px",
     "--immersive-reserved-bottom": placement.edge === "bottom" ? `${placement.reservedPx}px` : "0px",
     "--immersive-panel-max-height": `${placement.maxPanelPx}px`,
+    ...(visualViewportFrame ? {
+      "--immersive-visual-viewport-top": `${visualViewportFrame.top}px`,
+      "--immersive-visual-viewport-left": `${visualViewportFrame.left}px`,
+      "--immersive-visual-viewport-right": `${visualViewportFrame.right}px`,
+      "--immersive-visual-viewport-bottom": `${visualViewportFrame.bottom}px`,
+      "--immersive-visual-viewport-width": `${visualViewportFrame.width}px`,
+      "--immersive-visual-viewport-center-y": `${visualViewportFrame.centerY}px`,
+    } : {}),
   } as CSSProperties
 
   return (

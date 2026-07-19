@@ -7,6 +7,14 @@
   --immersive-dock-bottom-inset: max(0.75rem, env(safe-area-inset-bottom, 0px));
 }
 
+:global(body.ml-music-player-active.ml-music-player-top) .root {
+  --immersive-dock-top-inset: var(--chimer-top-control-offset);
+}
+
+:global(body.ml-music-player-active.ml-music-player-bottom) .root {
+  --immersive-dock-bottom-inset: var(--chimer-panel-bottom-offset);
+}
+
 .dockInsetProbe {
   position: fixed;
   width: 0;
@@ -19,8 +27,11 @@
 
 .toolbar {
   position: fixed;
-  top: 50%;
-  right: max(0.75rem, env(safe-area-inset-right, 0px));
+  top: var(--immersive-visual-viewport-center-y, 50%);
+  right: calc(
+    var(--immersive-visual-viewport-right, 0px)
+    + max(0.75rem, env(safe-area-inset-right, 0px))
+  );
   z-index: 10018;
   display: grid;
   gap: 0.5rem;
@@ -72,12 +83,15 @@
 
 .dock {
   position: fixed;
-  right: max(0.75rem, env(safe-area-inset-right, 0px));
-  left: max(0.75rem, env(safe-area-inset-left, 0px));
+  right: auto;
+  left: calc(
+    var(--immersive-visual-viewport-left, 0px)
+    + max(0.75rem, env(safe-area-inset-left, 0px))
+  );
   z-index: 10017;
   display: flex;
   flex-direction: column;
-  width: min(58rem, calc(100vw - 1.5rem));
+  width: min(58rem, calc(var(--immersive-visual-viewport-width, 100vw) - 1.5rem));
   max-height: var(--immersive-panel-max-height);
   margin-inline: auto;
   overflow: hidden;
@@ -90,11 +104,17 @@
 }
 
 .dock[data-immersive-dock="bottom"] {
-  bottom: var(--immersive-dock-bottom-inset);
+  bottom: calc(
+    var(--immersive-visual-viewport-bottom, 0px)
+    + var(--immersive-dock-bottom-inset)
+  );
 }
 
 .dock[data-immersive-dock="top"] {
-  top: var(--immersive-dock-top-inset);
+  top: calc(
+    var(--immersive-visual-viewport-top, 0px)
+    + var(--immersive-dock-top-inset)
+  );
 }
 
 .dockHeader,

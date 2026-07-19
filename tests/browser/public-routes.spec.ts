@@ -524,8 +524,9 @@ test("Roadmap presents an unordered product portfolio", async ({ page }) => {
 
 test("Atmosphere visualizer action retains selected station across client routes", async ({ page }) => {
   const health = capturePageHealth(page)
+  const origin = "/music?task8=public-route"
 
-  await page.goto("/music", { waitUntil: "domcontentloaded" })
+  await page.goto(origin, { waitUntil: "domcontentloaded" })
   await expect(page.getByRole("heading", { name: /Atmosphere audio stations/i, includeHidden: true })).toBeAttached()
   await expect(page.getByRole("heading", { name: /Treatment room starters/i })).toBeVisible()
   await expect(page.getByRole("heading", { name: "Breathing guide" })).toHaveCount(0)
@@ -544,10 +545,15 @@ test("Atmosphere visualizer action retains selected station across client routes
   await expect(page.getByRole("button", { name: /^Background$/i }).last()).toBeVisible()
   await page.getByRole("button", { name: /^Background$/i }).last().click()
   await expect(page).toHaveURL(/\/clock\?[^#]*source=music/)
+  const backgroundDialog = page.getByRole("dialog", { name: "Background" })
+  await expect(backgroundDialog).toBeVisible()
+  await backgroundDialog.getByRole("button", { name: "Preview Static gradient background" }).click()
+  await backgroundDialog.getByRole("button", { name: "Select Static gradient background" }).click()
+  await expect(backgroundDialog).toHaveCount(0)
   await page.getByRole("button", { name: /^Minimize visualizer$/i }).last().click()
-  await expect(page).toHaveURL(/\/music$/)
+  await expect(page).toHaveURL(/\/music\?task8=public-route$/)
   await page.goBack()
-  await expect(page).toHaveURL(/\/music$/)
+  await expect(page).toHaveURL(/\/music\?task8=public-route$/)
   await expect(page.getByRole("button", { name: /^Background$/i }).last()).toBeVisible()
   await page.getByRole("button", { name: /^Collapse$/i }).last().click()
   await expect(page.getByRole("button", { name: /^Background$/i }).last()).toBeVisible()
