@@ -4,6 +4,10 @@ This is the canonical chronological planning and progress log for MassageLab. Us
 
 Existing plans, audits, roadmaps, and checklists remain source evidence. Keep them for context, but mirror meaningful progress, plan changes, and priority changes in [project-state.md](project-state.md) and here.
 
+## 2026-07-19 — Public Roadmap portfolio
+
+- Reframed the public Roadmap as a timeless five-track product portfolio for education and anatomy, wellness, therapist and practice tools, local-first records, and audio and ambient experiences. Each track now distinguishes available capabilities from long-term direction without dates or priority order; the page retains membership and donation paths while making privacy, accessibility, informed consent, user control, and hosted-data readiness shared foundations.
+
 ## 2026-07-18 — Full-width app shell, installation, and Help
 
 - Extended the configured top or bottom app bar across the viewport and kept its responsive home brand beside the configured drawer edge.
