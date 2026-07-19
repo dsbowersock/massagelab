@@ -168,13 +168,6 @@ const SidebarProvider = React.forwardRef<
           return
         }
 
-        const targetInsideFloatingLayer = event.composedPath().some(
-          (target) => target instanceof Element && target.matches("[data-sidebar-floating='true']"),
-        )
-        if (targetInsideFloatingLayer) {
-          return
-        }
-
         event.preventDefault()
         setOpen(false)
       }

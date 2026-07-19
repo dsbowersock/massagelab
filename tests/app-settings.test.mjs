@@ -370,8 +370,6 @@ describe("App settings helpers", () => {
     assert.match(globalsSource, /html\[data-app-bar-position="bottom"\] \.ml-mobile-sidebar-sheet \{[\s\S]*bottom:\s*calc\(var\(--ml-safe-bottom\) \+ var\(--ml-main-bar-height\)\)/)
     assert.match(sidebarSource, /event\.key !== "Escape"/)
     assert.match(sidebarSource, /event\.defaultPrevented/)
-    assert.match(sidebarSource, /event\.composedPath\(\)\.some/)
-    assert.match(sidebarSource, /target\.matches\("\[data-sidebar-floating='true'\]"\)/)
     assert.match(sidebarSource, /document\.querySelector\("\[data-sidebar-floating='true'\]"\)/)
     assert.match(sidebarSource, /window\.addEventListener\("keydown", handleEscape, true\)/)
     assert.match(sidebarSource, /state !== "expanded" \|\| renderMode === "drawer"/)
