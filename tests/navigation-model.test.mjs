@@ -192,7 +192,12 @@ describe("Navigation IA model", () => {
       "/about",
       "/about/derrick",
     ])
-    assert.deepEqual(navigation.accountMenuRoutes.map((route) => route.href), ["/help", "/support", "/legal"])
+    assert.deepEqual(navigation.accountMenuRoutes.map((route) => route.href), [
+      "/account?tab=app-settings",
+      "/help",
+      "/support",
+      "/legal",
+    ])
     assert.deepEqual(navigation.calendarSidebarActions.map((route) => route.href), [])
     assert.deepEqual(navigation.calendarMenuActions.map((route) => route.href), [])
   })

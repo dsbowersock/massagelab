@@ -47,22 +47,32 @@ export function FlipWords({
   const word = safeWords[index] ?? safeWords[0]
 
   /**
-   * The outer span keeps the headline width stable while the keyed inner span
-   * remounts for the flip animation. Reduced-motion visitors keep the first
-   * word without a timer so the headline does not keep changing.
+   * Invisible phrases share the active word's grid cell, so the browser
+   * reserves the widest rendered option in the actual headline font. Only the
+   * keyed active phrase reaches the accessibility tree or animates.
    */
   return (
     <span
+      data-testid="home-flip-word-slot"
       className={cn(
-        "inline-grid min-w-[8.5ch] justify-center overflow-hidden align-baseline [perspective:900px] motion-reduce:min-w-0",
+        "inline-grid justify-items-center overflow-hidden align-baseline [perspective:900px]",
         className,
       )}
     >
+      {safeWords.map((candidate) => (
+        <span
+          key={`flip-word-sizer-${candidate}`}
+          aria-hidden="true"
+          className="invisible col-start-1 row-start-1 whitespace-nowrap"
+        >
+          {candidate}
+        </span>
+      ))}
       <span
         key={prefersReducedMotion ? "reduced-motion" : word}
         data-testid="home-flip-word"
         className={cn(
-          "ml-home-flip-word inline-flex justify-center text-primary [backface-visibility:hidden] [transform-style:preserve-3d]",
+          "ml-home-flip-word col-start-1 row-start-1 inline-flex justify-self-center whitespace-nowrap text-primary [backface-visibility:hidden] [transform-style:preserve-3d]",
           !prefersReducedMotion && "animate-[ml-flip-word-in_520ms_cubic-bezier(0.2,0.8,0.2,1)]",
         )}
       >

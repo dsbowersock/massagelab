@@ -121,8 +121,9 @@ export function MobileMainBar({ user }: { user: SidebarUser }) {
         aria-label="MassageLab main navigation"
         data-sidebar-position={settings.sidebarPosition}
         data-app-bar-position={settings.appBarPosition}
+        data-sidebar-open={isMobile && openMobile ? "true" : "false"}
         className={cn(
-          "ml-mobile-main-bar fixed inset-x-0 z-[10025] bg-background/95 px-1.5 shadow-2xl shadow-black/35 backdrop-blur md:hidden",
+          "ml-mobile-main-bar pointer-events-auto fixed inset-x-0 z-[10025] bg-background/95 px-1.5 shadow-2xl shadow-black/35 backdrop-blur md:hidden",
           settings.appBarPosition === "top"
             ? "top-0 border-b border-border/80 pb-0 pt-[var(--ml-safe-top)]"
             : "bottom-0 border-t border-border/80 pb-[var(--ml-safe-bottom)] pt-0",

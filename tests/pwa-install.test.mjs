@@ -53,9 +53,10 @@ describe("PWA install capability", () => {
     )
 
     const commonMenuGroup = sidebar.match(
-      /<DropdownMenuGroup>\s*\{installAvailable[\s\S]*?<\/DropdownMenuGroup>/,
+      /<DropdownMenuGroup>\s*\{siteSettingsRoute[\s\S]*?\{installAvailable[\s\S]*?<\/DropdownMenuGroup>/,
     )?.[0]
     assert.ok(commonMenuGroup)
+    assert.match(commonMenuGroup, /Site Settings/)
     assert.match(commonMenuGroup, /\{publicRoutes\.map\(\(route\) => \{/)
     assert.match(commonMenuGroup, /<DropdownMenuItem key=\{route\.id\} asChild>/)
     assert.match(commonMenuGroup, /\{route\.label\}/)

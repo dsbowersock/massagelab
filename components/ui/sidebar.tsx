@@ -276,7 +276,22 @@ const Sidebar = React.forwardRef<
           <SheetContent
             data-sidebar="sidebar"
             data-mobile="true"
-            className="w-[--sidebar-width] overflow-x-hidden bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+            overlayClassName="ml-mobile-sidebar-overlay pointer-events-none backdrop-blur-sm"
+            onPointerDownOutside={(event) => {
+              const target = event.detail.originalEvent.target
+              // The persistent app-bar Menu owns this interaction; its click toggles the controlled Sheet once.
+              if (target instanceof Element && target.closest("[data-sidebar-control='true']")) {
+                event.preventDefault()
+              }
+            }}
+            onCloseAutoFocus={(event) => {
+              event.preventDefault()
+              const visibleControl = Array.from(
+                document.querySelectorAll<HTMLElement>("[data-sidebar-control='true']"),
+              ).find((candidate) => candidate.getClientRects().length > 0)
+              visibleControl?.focus()
+            }}
+            className="ml-mobile-sidebar-sheet w-[--sidebar-width] overflow-x-hidden bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
             style={
               {
                 "--sidebar-width": SIDEBAR_WIDTH_MOBILE,

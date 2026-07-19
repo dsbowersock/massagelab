@@ -572,7 +572,8 @@ function AccountMenu({
   const menuSide = isMobile ? "bottom" : settings.sidebarPosition === "right" ? "left" : "right"
   const isAccountRouteActive = accountRoutes.some((route) => isNavigationRouteActive(pathname, route.href))
   const installAvailable = status === "prompt" || status === "instructions"
-  const authRoutes = accountRoutes.filter((route) => ["account", "settings", "account-security"].includes(route.id))
+  const siteSettingsRoute = accountRoutes.find((route) => route.id === "settings")
+  const authRoutes = accountRoutes.filter((route) => ["account", "account-security"].includes(route.id))
   const publicRoutes = accountRoutes.filter((route) => ["help-faq", "send-feedback", "legal"].includes(route.id))
 
   async function handleInstall() {
@@ -669,6 +670,17 @@ function AccountMenu({
             )}
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
+              {siteSettingsRoute ? (
+                <DropdownMenuItem asChild>
+                  <Link
+                    href={siteSettingsRoute.href}
+                    onClick={(event) => navigateFromSidebar(event, siteSettingsRoute.href)}
+                  >
+                    <Settings2 className="mr-2 h-4 w-4" />
+                    Site Settings
+                  </Link>
+                </DropdownMenuItem>
+              ) : null}
               {installAvailable ? (
                 <DropdownMenuItem onSelect={() => void handleInstall()}>
                   <Download className="mr-2 h-4 w-4" />

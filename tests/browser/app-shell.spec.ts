@@ -95,14 +95,16 @@ const MAIN_BAR_TOOL_LABELS = [
   "Use light theme",
 ] as const
 
-async function expectStableMainBarControls(page: Page, exerciseDrawer = true) {
+async function expectStableMainBarControls(page: Page) {
   const usesMobileBar = (page.viewportSize()?.width ?? 0) < 768
+  const usesModalDrawer = (page.viewportSize()?.width ?? 0) <= 600
   const bar = usesMobileBar
     ? page.locator(".ml-mobile-main-bar")
     : page.locator(".ml-app-topbar")
   const drawer = drawerControl(bar.locator(usesMobileBar ? ".ml-main-bar-drawer-brand" : ".ml-app-bar-drawer-brand"))
   const tools = bar.locator(".ml-main-bar-tools")
   const controls = tools.locator('a[aria-label], button[aria-label]')
+  const quickCreate = bar.locator('button[data-quick-action-trigger="true"]')
 
   await expect(bar).toBeVisible()
   await expect(drawer.locator('svg[data-icon="menu"]')).toHaveCount(1)
@@ -127,14 +129,24 @@ async function expectStableMainBarControls(page: Page, exerciseDrawer = true) {
     expect(Math.abs((box?.width ?? 0) - (box?.height ?? 0))).toBeLessThanOrEqual(1)
   }
 
-  if (!exerciseDrawer) return
-
   await drawer.click()
   await expect(drawer).toHaveAttribute("aria-label", "Close navigation")
   await expect(drawer).toHaveAttribute("aria-expanded", "true")
+  if (usesModalDrawer) {
+    await expect(page.locator('[data-sidebar="sidebar"][data-mobile="true"]')).toBeVisible()
+    await expect(quickCreate).toHaveCSS("pointer-events", "none")
+    await expect(drawer).toHaveCSS("pointer-events", "auto")
+    const accountTrigger = page.getByTestId("account-menu-trigger")
+    await expect(accountTrigger).toBeVisible()
+    await accountTrigger.click({ trial: true })
+  }
   await drawer.click()
   await expect(drawer).toHaveAttribute("aria-label", "Open navigation")
   await expect(drawer).toHaveAttribute("aria-expanded", "false")
+  if (usesModalDrawer) {
+    await expect(page.locator('[data-sidebar="sidebar"][data-mobile="true"]')).toBeHidden()
+  }
+  await expect(drawer).toBeFocused()
 }
 
 async function expectDrawerAlignedWithCollapsedSidebar(page: Page) {
@@ -393,6 +405,22 @@ test("account menu launches a captured install prompt and keeps help or feedback
   await expect(page.getByRole("menuitem", { name: "Install MassageLab" })).toHaveCount(0)
 })
 
+test("guest account menu opens local Site Settings at 704px", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== desktopProject, "Guest settings navigation is covered once in desktop Chromium.")
+  await page.setViewportSize({ width: 704, height: 597 })
+  await gotoShell(page, "/")
+  await openAccountMenu(page)
+
+  const siteSettings = page.getByRole("menuitem", { name: "Site Settings" })
+  await expect(siteSettings).toBeVisible()
+  await siteSettings.click()
+
+  await expect(page).toHaveURL(/\/account\?tab=app-settings/)
+  await expect(page.getByText("Layout and sidebar", { exact: true })).toBeVisible()
+  await expect(page.getByText("App bar position", { exact: true })).toBeVisible()
+  await expect(page.getByText("Sidebar button position", { exact: true })).toBeVisible()
+})
+
 test("account menu hides install when already installed", async ({ page }) => {
   await page.addInitScript(() => {
     const original = window.matchMedia.bind(window)
@@ -550,7 +578,7 @@ test("narrow mobile keeps every tool and collapses only the wordmark", async ({ 
   const barBox = await bar.boundingBox()
   const drawer = page.locator(".ml-mobile-main-bar .ml-main-bar-drawer-brand button").first()
   expect(barBox?.height).toBeCloseTo(52, 0)
-  await expectStableMainBarControls(page, false)
+  await expectStableMainBarControls(page)
   await expect(bar.locator(".ml-app-bar-brand-mark")).toBeVisible()
   await expect(bar.locator(".ml-app-bar-brand-wordmark")).toBeHidden()
   for (const name of ["Open music", "Open clock", "Open quick actions", "Open calendar"]) {
@@ -565,6 +593,7 @@ test("narrow mobile keeps every tool and collapses only the wordmark", async ({ 
   await page.keyboard.press("Escape")
   await expect(drawer).toHaveAttribute("aria-expanded", "false")
   await expect(page.locator('[data-sidebar="sidebar"][data-mobile="true"]')).toBeHidden()
+  await expect(drawer).toBeFocused()
 })
 
 test("mobile top placement reserves the top edge and leaves the active music player bottom-based", async ({ page }, testInfo) => {

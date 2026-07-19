@@ -362,8 +362,10 @@ describe("App settings helpers", () => {
 
   it("keeps the wide-mobile drawer control and overlay on one sidebar state contract", () => {
     const globalsSource = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
+    const layoutSource = readFileSync(new URL("../components/layout-wrapper.tsx", import.meta.url), "utf8")
     const mainBarSource = readFileSync(new URL("../components/shell/mobile-main-bar.tsx", import.meta.url), "utf8")
     const sidebarSource = readFileSync(new URL("../components/ui/sidebar.tsx", import.meta.url), "utf8")
+    const sheetSource = readFileSync(new URL("../components/ui/sheet.tsx", import.meta.url), "utf8")
 
     assert.match(mainBarSource, /const \{ isMobile, openMobile, state, toggleSidebar \} = useSidebar\(\)/)
     assert.match(mainBarSource, /const sidebarOpen = isMobile \? openMobile : state === "expanded"/)
@@ -374,12 +376,33 @@ describe("App settings helpers", () => {
     assert.match(sidebarSource, /data-testid="wide-mobile-sidebar-backdrop"/)
     assert.match(sidebarSource, /aria-hidden="true"/)
     assert.match(sidebarSource, /onClick=\{\(\) => setOpen\(false\)\}/)
+    assert.match(sidebarSource, /onPointerDownOutside=\{\(event\) =>/)
+    assert.match(sidebarSource, /target\.closest\("\[data-sidebar-control='true'\]"\)/)
+    assert.match(sidebarSource, /event\.preventDefault\(\)/)
+    assert.match(sidebarSource, /onCloseAutoFocus=\{\(event\) =>/)
+    assert.match(sidebarSource, /visibleControl\?\.focus\(\)/)
+    assert.match(mainBarSource, /ml-mobile-main-bar pointer-events-auto/)
+    assert.match(mainBarSource, /data-sidebar-open=\{isMobile && openMobile \? "true" : "false"\}/)
+    assert.match(layoutSource, /<MobileMainBar user=\{user\} \/>\}[\s\S]*<MusicMiniPlayer/)
+    assert.match(sheetSource, /overlayClassName\?: string/)
+    assert.match(sidebarSource, /ml-mobile-sidebar-overlay pointer-events-none backdrop-blur-sm/)
+    assert.match(sidebarSource, /ml-mobile-sidebar-sheet/)
+    assert.match(globalsSource, /\.ml-mobile-main-bar\[data-sidebar-open="true"\] \{[\s\S]*pointer-events:\s*none/)
+    assert.match(globalsSource, /\.ml-mobile-main-bar\[data-sidebar-open="true"\] \[data-sidebar-control="true"\] \{[\s\S]*pointer-events:\s*auto/)
+    assert.match(globalsSource, /html\[data-app-bar-position="bottom"\] \.ml-mobile-sidebar-sheet \{[\s\S]*bottom:\s*calc\(var\(--ml-safe-bottom\) \+ var\(--ml-main-bar-height\)\)/)
     assert.match(sidebarSource, /event\.key !== "Escape"/)
     assert.match(sidebarSource, /state !== "expanded" \|\| renderMode === "drawer"/)
     assert.match(globalsSource, /\.ml-wide-mobile-sidebar-backdrop \{[\s\S]*display:\s*none/)
     assert.match(globalsSource, /@media \(min-width: 601px\) and \(max-width: 767px\) \{[\s\S]*\.ml-wide-mobile-sidebar-backdrop \{[\s\S]*position:\s*fixed/)
     assert.match(globalsSource, /\.ml-wide-mobile-sidebar-backdrop \{[\s\S]*backdrop-filter:\s*blur\(/)
     assert.match(globalsSource, /\.ml-app-sidebar-frame \{[\s\S]*z-index:\s*10015/)
+  })
+
+  it("keeps local Site Settings available from the guest account menu", () => {
+    const sidebarSource = readFileSync(new URL("../components/sidebar/app-sidebar-client.tsx", import.meta.url), "utf8")
+
+    assert.match(sidebarSource, /const siteSettingsRoute = accountRoutes\.find\(\(route\) => route\.id === "settings"\)/)
+    assert.match(sidebarSource, /<DropdownMenuItem[\s\S]*href=\{siteSettingsRoute\.href\}[\s\S]*Site Settings/)
   })
 
   it("keeps the mobile main bar controls styled as physical buttons", () => {
