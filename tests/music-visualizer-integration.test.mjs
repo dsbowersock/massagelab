@@ -6,6 +6,7 @@ const read = async (path) => readFile(new URL(`../${path}`, import.meta.url), "u
 
 const pageSource = await read("app/chimer/page.tsx")
 const runningTimerSource = await read("app/chimer/running-timer.tsx")
+const runningTimerStyles = await read("app/chimer/running-timer.module.css")
 const providerSource = await read("components/providers/music-provider.tsx")
 
 test("RunningTimer accepts one compact immersive mode contract", () => {
@@ -52,4 +53,47 @@ test("the shared renderer owns Music BackgroundHost and hides its clock without 
   assert.match(runningTimerSource, /<BackgroundHost/)
   assert.match(runningTimerSource, /key=\{`\$\{mode\.context\}:\$\{backgroundId\}`\}/)
   assert.doesNotMatch(pageSource, /<BackgroundHost/)
+})
+
+test("shared Clock controls expose optional display effects without duplicated tuning controls", () => {
+  assert.match(pageSource, /clockRotationEnabled=\{settings\.clockRotationEnabled\}/)
+  assert.match(pageSource, /clockForwardGlowEnabled=\{settings\.clockForwardGlowEnabled\}/)
+  assert.equal((runningTimerSource.match(/label="Display rotation"/g) ?? []).length, 1)
+  assert.equal((runningTimerSource.match(/label="Forward glow"/g) ?? []).length, 1)
+  assert.match(
+    runningTimerSource,
+    /label="Display rotation"[\s\S]*checked=\{clockRotationEnabled\}[\s\S]*disabled=\{mode\.canToggleClock && !mode\.showClock\}[\s\S]*handleSettingsChange\(\{ clockRotationEnabled: value \}\)/,
+  )
+  assert.match(
+    runningTimerSource,
+    /label="Forward glow"[\s\S]*checked=\{clockForwardGlowEnabled\}[\s\S]*disabled=\{mode\.canToggleClock && !mode\.showClock\}[\s\S]*handleSettingsChange\(\{ clockForwardGlowEnabled: value \}\)/,
+  )
+  assert.doesNotMatch(runningTimerSource, /Display rotation speed|Forward glow intensity/)
+})
+
+test("center display effects preserve measured bounds and reuse the existing display data", () => {
+  assert.match(
+    runningTimerSource,
+    /className=\{styles\.protectedDisplay\}[\s\S]*data-protected-display=[\s\S]*renderDisplayEffectLayers\("timer", isTimerPrimary\)/,
+  )
+  assert.match(
+    runningTimerSource,
+    /className=\{styles\.protectedDisplay\}[\s\S]*data-protected-display=[\s\S]*renderDisplayEffectLayers\("currentTime", isCurrentTimePrimary\)/,
+  )
+  assert.match(runningTimerSource, /clockRotationEnabled && isCentered/)
+  assert.equal((runningTimerSource.match(/data-display-rotation-layer/g) ?? []).length, 1)
+  assert.match(runningTimerSource, /clockForwardGlowEnabled && isCentered/)
+  assert.equal((runningTimerSource.match(/data-forward-projection/g) ?? []).length, 1)
+  assert.match(runningTimerSource, /aria-hidden="true"/)
+  assert.match(
+    runningTimerSource,
+    /display === "timer"[\s\S]*renderTimerDisplay\(\)[\s\S]*renderCurrentTimeDisplay\(isCentered\)/,
+  )
+  assert.match(
+    runningTimerSource,
+    /display === "timer"[\s\S]*resolvedTimerDisplayColor[\s\S]*resolvedCurrentTimeDisplayColor/,
+  )
+  assert.equal((runningTimerSource.match(/setInterval\(/g) ?? []).length, 0)
+  assert.match(runningTimerStyles, /\.protectedDisplay\s*\{[\s\S]*transform:\s*none/)
+  assert.match(runningTimerStyles, /\.forwardGlowProjection\s*\{[\s\S]*pointer-events:\s*none/)
 })

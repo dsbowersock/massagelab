@@ -15,7 +15,39 @@ import {
   resolveAccessibleBackgroundDefinition,
 } from "../components/backgrounds/backgroundRegistry.ts"
 
+const runningTimerStyles = readFileSync(
+  new URL("../app/chimer/running-timer.module.css", import.meta.url),
+  "utf8",
+)
+const projectLogSource = readFileSync(new URL("../docs/project-log.md", import.meta.url), "utf8")
+
 describe("premium background registry", () => {
+  it("adapts the verified public MIT Neon Clock concepts as bounded native CSS", () => {
+    assert.match(projectLogSource, /https:\/\/codepen\.io\/wheatup\/pen\/JjzdMbK/)
+    assert.match(projectLogSource, /wheatup/)
+    assert.match(projectLogSource, /public[\s\S]*MIT/)
+    assert.match(projectLogSource, /adapt(?:ed|ation)[\s\S]*native React and CSS/i)
+    assert.match(runningTimerStyles, /@keyframes immersiveDisplayYaw/)
+    assert.match(runningTimerStyles, /rotateY\(-10deg\)/)
+    assert.match(runningTimerStyles, /rotateY\(10deg\)/)
+    assert.match(
+      runningTimerStyles,
+      /animation:\s*immersiveDisplayYaw 40s ease-in-out infinite/,
+    )
+    const forwardGlowRule = runningTimerStyles.match(/\.forwardGlowProjection\s*\{([^}]+)\}/)?.[1]
+    assert.ok(forwardGlowRule)
+    assert.match(forwardGlowRule, /rotateX\(/)
+    assert.match(forwardGlowRule, /filter:[^;]*blur\([^;]*drop-shadow\(/)
+    assert.match(forwardGlowRule, /opacity:/)
+    assert.match(forwardGlowRule, /mask-image:\s*linear-gradient/)
+    assert.match(runningTimerStyles, /\.primaryDisplay\s*\{[\s\S]*overflow:\s*hidden/)
+    assert.match(runningTimerStyles, /\.secondaryDisplay\s*\{[\s\S]*overflow:\s*hidden/)
+    assert.match(
+      runningTimerStyles,
+      /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.displayRotationEnabled\s*\{[\s\S]*animation:\s*none/,
+    )
+  })
+
   it("keeps the default background free and the Music key available for legacy reads", () => {
     assert.equal(DEFAULT_BACKGROUND_ID, "massage-lab-moving-gradient")
     assert.equal(backgroundRegistry.find((entry) => entry.id === DEFAULT_BACKGROUND_ID)?.label, "MassageLaba Lamp")

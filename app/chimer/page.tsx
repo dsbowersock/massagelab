@@ -945,16 +945,14 @@ export default function ChimerPage() {
         context: "clock",
         backgroundCategory: "clock",
         selectedBackgroundId: settings.backgroundId,
-        showClock: (settings as ChimerSettings & { showClockDisplay: boolean }).showClockDisplay,
+        showClock: settings.showClockDisplay,
         canToggleClock: true,
         initialPanel: null,
         unavailableBackgroundMessage: null,
         storageStatus: "available",
         storageError: null,
         wakeLockMessage,
-        onShowClockChange: (showClock) => updateSettings(
-          { showClockDisplay: showClock } as Partial<ChimerSettings>,
-        ),
+        onShowClockChange: (showClock) => updateSettings({ showClockDisplay: showClock }),
         onBackgroundChange: (backgroundId) => updateSettings({
           movingBackgroundEnabled: true,
           backgroundId: backgroundId as ChimerSettings["backgroundId"],
@@ -1027,6 +1025,8 @@ export default function ChimerPage() {
               ? true
               : runWithoutAnimatedBackground ? false : settings.movingBackgroundEnabled}
             keepTimerScreenAwake={settings.keepTimerScreenAwake}
+            clockRotationEnabled={settings.clockRotationEnabled}
+            clockForwardGlowEnabled={settings.clockForwardGlowEnabled}
             showTimerSeconds={settings.showTimerSeconds}
             showCurrentTimeSeconds={settings.showCurrentTimeSeconds}
             timeFormat={settings.timeFormat}

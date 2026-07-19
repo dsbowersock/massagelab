@@ -978,6 +978,8 @@ interface RunningTimerProps {
   fontSize: number
   movingBackgroundEnabled: boolean
   keepTimerScreenAwake: boolean
+  clockRotationEnabled: boolean
+  clockForwardGlowEnabled: boolean
   showTimerSeconds: boolean
   showCurrentTimeSeconds: boolean
   timeFormat: ChimerSettings["timeFormat"]
@@ -1920,6 +1922,8 @@ export function RunningTimer({
   fontSize,
   movingBackgroundEnabled,
   keepTimerScreenAwake,
+  clockRotationEnabled,
+  clockForwardGlowEnabled,
   showTimerSeconds,
   showCurrentTimeSeconds,
   timeFormat,
@@ -15700,6 +15704,49 @@ export function RunningTimer({
     )
   }
 
+  /**
+   * Keeps the safe-stage measurement wrapper stable while applying optional
+   * visual effects only to the visible centered display.
+   */
+  const renderDisplayEffectLayers = (display: PrimaryDisplay, isCentered: boolean) => {
+    const displayContent = display === "timer"
+      ? renderTimerDisplay()
+      : renderCurrentTimeDisplay(isCentered)
+    const displayColor = display === "timer"
+      ? resolvedTimerDisplayColor
+      : resolvedCurrentTimeDisplayColor
+    const contentLayers = (
+      <>
+        <span ref={isCentered ? primaryContentRef : undefined} className={styles.displayContent}>
+          {displayContent}
+        </span>
+        {clockForwardGlowEnabled && isCentered ? (
+          <span
+            className={styles.forwardGlowProjection}
+            aria-hidden="true"
+            data-forward-projection="true"
+            style={{ "--immersive-forward-glow-color": displayColor } as CSSProperties}
+          >
+            {displayContent}
+          </span>
+        ) : null}
+      </>
+    )
+
+    return (
+      <span className={styles.displayEffectBounds}>
+        {clockRotationEnabled && isCentered ? (
+          <span
+            className={[styles.displayRotationLayer, styles.displayRotationEnabled].join(" ")}
+            data-display-rotation-layer="true"
+          >
+            {contentLayers}
+          </span>
+        ) : contentLayers}
+      </span>
+    )
+  }
+
   const chromeClassName = [
     styles.chrome,
     controlState === "faded" ? styles.chromeFaded : "",
@@ -16679,9 +16726,7 @@ export function RunningTimer({
             className={styles.protectedDisplay}
             data-protected-display={isTimerPrimary ? "true" : undefined}
           >
-            <span ref={isTimerPrimary ? primaryContentRef : undefined} className={styles.displayContent}>
-              {renderTimerDisplay()}
-            </span>
+            {renderDisplayEffectLayers("timer", isTimerPrimary)}
           </span>
         </button>
       )}
@@ -16704,9 +16749,7 @@ export function RunningTimer({
           className={styles.protectedDisplay}
           data-protected-display={isCurrentTimePrimary ? "true" : undefined}
         >
-          <span ref={isCurrentTimePrimary ? primaryContentRef : undefined} className={styles.displayContent}>
-            {renderCurrentTimeDisplay(isCurrentTimePrimary)}
-          </span>
+          {renderDisplayEffectLayers("currentTime", isCurrentTimePrimary)}
         </span>
       </button> : null}
 
@@ -16760,6 +16803,31 @@ export function RunningTimer({
                     Clock is hidden. The selected background continues without a time display.
                   </div>
                 ) : null}
+                <div className={styles.settingsSection}>
+                  <div className={styles.settingsSectionHeader}>
+                    <span>Display effects</span>
+                    <span className={styles.settingsPill}>Optional</span>
+                  </div>
+
+                  <StyledToggleControl
+                    label="Display rotation"
+                    checked={clockRotationEnabled}
+                    valueLabel={clockRotationEnabled ? "On" : "Off"}
+                    hapticsEnabled={hapticsEnabled}
+                    disabled={mode.canToggleClock && !mode.showClock}
+                    onCheckedChange={(value) => handleSettingsChange({ clockRotationEnabled: value })}
+                  />
+
+                  <StyledToggleControl
+                    label="Forward glow"
+                    checked={clockForwardGlowEnabled}
+                    valueLabel={clockForwardGlowEnabled ? "On" : "Off"}
+                    hapticsEnabled={hapticsEnabled}
+                    disabled={mode.canToggleClock && !mode.showClock}
+                    onCheckedChange={(value) => handleSettingsChange({ clockForwardGlowEnabled: value })}
+                  />
+                </div>
+
                 <div className={styles.settingsSection}>
                   <div className={styles.settingsSectionHeader}>
                     <span>Clock text</span>

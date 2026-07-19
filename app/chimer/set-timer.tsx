@@ -683,6 +683,9 @@ export interface ChimerSettings {
   movingBackgroundEnabled: boolean
   backgroundId: BackgroundId
   keepTimerScreenAwake: boolean
+  showClockDisplay: boolean
+  clockRotationEnabled: boolean
+  clockForwardGlowEnabled: boolean
   showTimerSeconds: boolean
   showCurrentTimeSeconds: boolean
   timeFormat: "12h" | "24h"
