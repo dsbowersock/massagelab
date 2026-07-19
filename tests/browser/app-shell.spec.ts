@@ -101,18 +101,23 @@ async function expectStableMainBarControls(page: Page) {
   const bar = usesMobileBar
     ? page.locator(".ml-mobile-main-bar")
     : page.locator(".ml-app-topbar")
-  const drawer = drawerControl(bar.locator(usesMobileBar ? ".ml-main-bar-drawer-brand" : ".ml-app-bar-drawer-brand"))
+  const drawerCluster = bar.locator(usesMobileBar ? ".ml-main-bar-drawer-brand" : ".ml-app-bar-drawer-brand")
+  const drawer = drawerControl(drawerCluster)
+  const drawerEdge = await drawerCluster.getAttribute("data-drawer-edge")
   const tools = bar.locator(".ml-main-bar-tools")
   const controls = tools.locator('a[aria-label], button[aria-label]')
   const quickCreate = bar.locator('button[data-quick-action-trigger="true"]')
+  const expectedLabels = drawerEdge === "right"
+    ? [...MAIN_BAR_TOOL_LABELS].reverse()
+    : [...MAIN_BAR_TOOL_LABELS]
 
   await expect(bar).toBeVisible()
   await expect(drawer.locator('svg[data-icon="menu"]')).toHaveCount(1)
   await expect(drawer).toHaveAttribute("aria-label", "Open navigation")
   await expect(drawer).toHaveAttribute("aria-expanded", "false")
-  await expect(controls).toHaveCount(MAIN_BAR_TOOL_LABELS.length)
+  await expect(controls).toHaveCount(expectedLabels.length)
   expect(await controls.evaluateAll((elements) => elements.map((element) => element.getAttribute("aria-label"))))
-    .toEqual(MAIN_BAR_TOOL_LABELS)
+    .toEqual(expectedLabels)
 
   const drawerBox = await drawer.boundingBox()
   expect(drawerBox, "drawer control box").not.toBeNull()
@@ -122,7 +127,7 @@ async function expectStableMainBarControls(page: Page) {
 
   for (const [index, control] of (await controls.all()).entries()) {
     const box = await control.boundingBox()
-    const expectedSize = index === MAIN_BAR_TOOL_LABELS.length - 1 ? 32 : 42
+    const expectedSize = expectedLabels[index] === "Use light theme" ? 32 : 42
     expect(box, "main-bar control box").not.toBeNull()
     expect(box?.width).toBeCloseTo(expectedSize, 0)
     expect(box?.height).toBeCloseTo(expectedSize, 0)
@@ -369,6 +374,25 @@ test("desktop bar spans the viewport and keeps the brand beside the left drawer 
   await expect(page.getByRole("link", { name: "Open clock" }).first()).not.toHaveAttribute("aria-current", "page")
 })
 
+test("calendar content reserves the fixed bottom app bar", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== desktopProject, "Desktop calendar bottom clearance is covered in desktop Chromium.")
+  await page.setViewportSize({ width: 1024, height: 720 })
+  await page.addInitScript(() => localStorage.setItem("massage-lab-settings", JSON.stringify({
+    appBarPosition: "bottom", sidebarPosition: "left", sidebarTriggerPosition: "bottom", themeMode: "dark",
+  })))
+  await gotoShell(page, "/calendar")
+
+  const bar = page.locator(".ml-app-topbar")
+  const content = page.locator(".ml-app-content")
+  const [barBox, paddingBottom] = await Promise.all([
+    bar.boundingBox(),
+    content.evaluate((element) => Number.parseFloat(getComputedStyle(element).paddingBottom)),
+  ])
+
+  expect(barBox, "calendar app bar box").not.toBeNull()
+  expect(paddingBottom).toBeGreaterThanOrEqual((barBox?.height ?? 0) - 1)
+})
+
 test("desktop tooltips open from hover and keyboard focus", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== desktopProject, "Desktop tooltips are covered in desktop Chromium.")
   await gotoShell(page, "/music")
@@ -409,16 +433,43 @@ test("guest account menu opens local Site Settings at 704px", async ({ page }, t
   test.skip(testInfo.project.name !== desktopProject, "Guest settings navigation is covered once in desktop Chromium.")
   await page.setViewportSize({ width: 704, height: 597 })
   await gotoShell(page, "/")
+
+  const sidebar = page.locator('[data-sidebar-container="true"]')
+  await page.getByRole("button", { name: "Open navigation" }).click()
+  await expect(sidebar).toHaveAttribute("data-state", "expanded")
   await openAccountMenu(page)
 
   const siteSettings = page.getByRole("menuitem", { name: "Site Settings" })
+  await expect(siteSettings).toBeVisible()
+  await page.keyboard.press("Escape")
+  await expect(siteSettings).toBeHidden()
+  await expect(sidebar).toHaveAttribute("data-state", "expanded")
+  await page.getByTestId("account-menu-trigger").click()
   await expect(siteSettings).toBeVisible()
   await siteSettings.click()
 
   await expect(page).toHaveURL(/\/account\?tab=app-settings/)
   await expect(page.getByText("Layout and sidebar", { exact: true })).toBeVisible()
   await expect(page.getByText("App bar position", { exact: true })).toBeVisible()
-  await expect(page.getByText("Sidebar button position", { exact: true })).toBeVisible()
+  await expect(page.getByText("Sidebar side", { exact: true })).toBeVisible()
+  const leftSide = page.getByRole("radio", { name: /^Left/ })
+  const rightSide = page.getByRole("radio", { name: /^Right/ })
+  await expect(leftSide).toBeVisible()
+  await expect(rightSide).toBeVisible()
+  await expect(page.getByRole("radio", { name: /Upper left|Upper right|Bottom left|Bottom right/ })).toHaveCount(0)
+
+  await rightSide.click()
+  const bar = page.locator(".ml-mobile-main-bar")
+  await expect(bar).toHaveAttribute("data-sidebar-position", "right")
+  expect(await bar.locator(".ml-main-bar-tools").locator('a[aria-label], button[aria-label]').evaluateAll(
+    (elements) => elements.map((element) => element.getAttribute("aria-label")),
+  )).toEqual([...MAIN_BAR_TOOL_LABELS].reverse())
+
+  await leftSide.click()
+  await expect(bar).toHaveAttribute("data-sidebar-position", "left")
+  expect(await bar.locator(".ml-main-bar-tools").locator('a[aria-label], button[aria-label]').evaluateAll(
+    (elements) => elements.map((element) => element.getAttribute("aria-label")),
+  )).toEqual([...MAIN_BAR_TOOL_LABELS])
 })
 
 test("account menu hides install when already installed", async ({ page }) => {
@@ -489,7 +540,10 @@ test("recognized iOS Safari receives manual install instructions", async ({ page
   await gotoShell(page, "/")
   await openAccountMenu(page)
   await page.getByRole("menuitem", { name: "Install MassageLab" }).click()
-  await expect(page.getByRole("dialog", { name: "Install MassageLab" })).toContainText("Add to Home Screen")
+  const instructions = page.getByRole("dialog", { name: "Install MassageLab" })
+  await expect(instructions).toContainText("Add to Home Screen")
+  await page.waitForTimeout(600)
+  await expect(instructions).toBeVisible()
   await expect(page.getByRole("link", { name: "Read installation help" })).toHaveAttribute("href", "/help#installing")
 })
 

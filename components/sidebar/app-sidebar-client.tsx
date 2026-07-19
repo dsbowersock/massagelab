@@ -578,8 +578,12 @@ function AccountMenu({
 
   async function handleInstall() {
     const result = await requestInstall()
+    if (result === "instructions") {
+      // Keep this AccountMenu mounted while its nested manual-instructions dialog is open.
+      setInstallInstructionsOpen(true)
+      return
+    }
     closeMobileSidebar()
-    if (result === "instructions") setInstallInstructionsOpen(true)
   }
 
   return (

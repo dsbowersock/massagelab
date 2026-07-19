@@ -4,9 +4,7 @@ import { describe, it } from "node:test"
 import {
   defaultAppSettings,
   getAudioPlayerToolbarPlacement,
-  getSidebarButtonPosition,
   normalizeAppSettings,
-  resolveSidebarButtonSettings,
 } from "../lib/app-settings.js"
 import {
   getMusicPlayerPlacement,
@@ -161,7 +159,6 @@ describe("App settings helpers", () => {
     assert.equal(defaultAppSettings.sidebarPosition, "left")
     assert.equal(defaultAppSettings.sidebarTriggerPosition, "bottom")
     assert.equal(defaultAppSettings.ambientMotionMode, "system")
-    assert.equal(getSidebarButtonPosition(defaultAppSettings), "bottom-left")
   })
 
   it("preserves valid layout and theme preferences", () => {
@@ -201,33 +198,12 @@ describe("App settings helpers", () => {
     assert.equal(getMusicPlayerPlacement({ appBarPosition: "top" }), "bottom")
   })
 
-  it("maps persisted sidebar settings to a four-corner button position", () => {
-    assert.equal(getSidebarButtonPosition({ sidebarPosition: "left", sidebarTriggerPosition: "top" }), "top-left")
-    assert.equal(getSidebarButtonPosition({ sidebarPosition: "right", sidebarTriggerPosition: "top" }), "top-right")
-    assert.equal(getSidebarButtonPosition({ sidebarPosition: "left", sidebarTriggerPosition: "bottom" }), "bottom-left")
-    assert.equal(getSidebarButtonPosition({ sidebarPosition: "right", sidebarTriggerPosition: "bottom" }), "bottom-right")
+  it("keeps the legacy trigger edge synchronized with the app bar", () => {
+    assert.equal(normalizeAppSettings({ appBarPosition: "top", sidebarTriggerPosition: "bottom" }).sidebarTriggerPosition, "top")
+    assert.equal(normalizeAppSettings({ appBarPosition: "bottom", sidebarTriggerPosition: "top" }).sidebarTriggerPosition, "bottom")
   })
 
-  it("resolves a four-corner sidebar button position back to persisted settings", () => {
-    assert.deepEqual(resolveSidebarButtonSettings("top-left"), {
-      sidebarPosition: "left",
-      sidebarTriggerPosition: "top",
-    })
-    assert.deepEqual(resolveSidebarButtonSettings("top-right"), {
-      sidebarPosition: "right",
-      sidebarTriggerPosition: "top",
-    })
-    assert.deepEqual(resolveSidebarButtonSettings("bottom-left"), {
-      sidebarPosition: "left",
-      sidebarTriggerPosition: "bottom",
-    })
-    assert.deepEqual(resolveSidebarButtonSettings("bottom-right"), {
-      sidebarPosition: "right",
-      sidebarTriggerPosition: "bottom",
-    })
-  })
-
-  it("keeps the drawer and brand at the configured edge without reordering shared tools", () => {
+  it("mirrors the tools when the drawer and brand move to the right edge", () => {
     const appShellSource = readFileSync(new URL("../lib/app-shell.js", import.meta.url), "utf8")
     const topBarSource = readFileSync(new URL("../components/calendar/calendar-operator-top-bar.tsx", import.meta.url), "utf8")
     const leftLayout = resolveMainBarLayout({ sidebarPosition: "left" })
@@ -241,11 +217,12 @@ describe("App settings helpers", () => {
     assert.deepEqual(rightLayout, {
       drawerEdge: "right",
       edgeItemIds: ["brand", "more"],
-      toolItemIds: leftLayout.toolItemIds,
+      toolItemIds: ["theme", "calendar", "clock", "music", "quick-create"],
     })
     assert.match(appShellSource, /export const MAIN_BAR_TOOL_ITEM_IDS/)
-    assert.match(appShellSource, /toolItemIds: \[\.\.\.MAIN_BAR_TOOL_ITEM_IDS\]/)
-    assert.match(topBarSource, /MAIN_BAR_TOOL_ITEM_IDS\.map/)
+    assert.match(appShellSource, /toolItemIds: \[\.\.\.MAIN_BAR_TOOL_ITEM_IDS\]\.reverse\(\)/)
+    assert.match(topBarSource, /resolveMainBarLayout/)
+    assert.match(topBarSource, /layout\.toolItemIds\.map/)
   })
 
   it("renders the mobile main bar and quick-action speed dial from the layout shell", () => {
@@ -366,6 +343,7 @@ describe("App settings helpers", () => {
     const mainBarSource = readFileSync(new URL("../components/shell/mobile-main-bar.tsx", import.meta.url), "utf8")
     const sidebarSource = readFileSync(new URL("../components/ui/sidebar.tsx", import.meta.url), "utf8")
     const sheetSource = readFileSync(new URL("../components/ui/sheet.tsx", import.meta.url), "utf8")
+    const topBarSource = readFileSync(new URL("../components/calendar/calendar-operator-top-bar.tsx", import.meta.url), "utf8")
 
     assert.match(mainBarSource, /const \{ isMobile, openMobile, state, toggleSidebar \} = useSidebar\(\)/)
     assert.match(mainBarSource, /const sidebarOpen = isMobile \? openMobile : state === "expanded"/)
@@ -391,7 +369,15 @@ describe("App settings helpers", () => {
     assert.match(globalsSource, /\.ml-mobile-main-bar\[data-sidebar-open="true"\] \[data-sidebar-control="true"\] \{[\s\S]*pointer-events:\s*auto/)
     assert.match(globalsSource, /html\[data-app-bar-position="bottom"\] \.ml-mobile-sidebar-sheet \{[\s\S]*bottom:\s*calc\(var\(--ml-safe-bottom\) \+ var\(--ml-main-bar-height\)\)/)
     assert.match(sidebarSource, /event\.key !== "Escape"/)
+    assert.match(sidebarSource, /event\.defaultPrevented/)
+    assert.match(sidebarSource, /event\.composedPath\(\)\.some/)
+    assert.match(sidebarSource, /target\.matches\("\[data-sidebar-floating='true'\]"\)/)
+    assert.match(sidebarSource, /document\.querySelector\("\[data-sidebar-floating='true'\]"\)/)
+    assert.match(sidebarSource, /window\.addEventListener\("keydown", handleEscape, true\)/)
     assert.match(sidebarSource, /state !== "expanded" \|\| renderMode === "drawer"/)
+    assert.match(topBarSource, /typeof ResizeObserver === "undefined" \? null : new ResizeObserver\(publishHeight\)/)
+    assert.match(topBarSource, /window\.addEventListener\("resize", publishHeight\)/)
+    assert.match(topBarSource, /renderMode === "drawer"[\s\S]*sidebarOpen \? "Close navigation" : "Open navigation"[\s\S]*"Toggle navigation"/)
     assert.match(globalsSource, /\.ml-wide-mobile-sidebar-backdrop \{[\s\S]*display:\s*none/)
     assert.match(globalsSource, /@media \(min-width: 601px\) and \(max-width: 767px\) \{[\s\S]*\.ml-wide-mobile-sidebar-backdrop \{[\s\S]*position:\s*fixed/)
     assert.match(globalsSource, /\.ml-wide-mobile-sidebar-backdrop \{[\s\S]*backdrop-filter:\s*blur\(/)
@@ -444,7 +430,7 @@ describe("App settings helpers", () => {
     assert.equal((topBarSource.match(/variant="ctaBlue"/g) ?? []).length, 1)
     assert.match(topBarSource, /const quickActionControl = \([\s\S]*?variant="default"[\s\S]*?aria-label="Open quick actions"/)
     assert.match(topBarSource, /className="ml-main-bar-tools flex/)
-    assert.match(topBarSource, /MAIN_BAR_TOOL_ITEM_IDS\.map/)
+    assert.match(topBarSource, /layout\.toolItemIds\.map/)
     assert.match(mainBarSource, /variant=\{resolvedTheme === "dark" \? "glow" : "default"\}/)
     assert.match(topBarSource, /variant=\{resolvedTheme === "dark" \? "glow" : "default"\}/)
     assert.match(settingsProviderSource, /export function useResolvedTheme\(\): ResolvedThemeMode/)

@@ -70,7 +70,7 @@ export function LayoutWrapper({
           className={cn(
             "ml-app-content mx-auto min-w-0 w-full",
             isCalendarOperatorRoute || isPublicBookingRoute ? "max-w-none" : "max-w-screen-2xl",
-            isCalendarWorkspaceRoute && "h-full min-h-0 pb-0",
+            isCalendarWorkspaceRoute && "h-full min-h-0",
           )}
         >
           {children}

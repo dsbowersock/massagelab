@@ -141,6 +141,7 @@ const SidebarProvider = React.forwardRef<
     // We add a state so that we can do data-state="expanded" or "collapsed".
     // This makes it easier to style the sidebar with Tailwind classes.
     const state = open ? "expanded" : "collapsed"
+    const floatingEscapeInProgressRef = React.useRef(false)
 
     React.useEffect(() => {
       if (state !== "expanded" || renderMode === "drawer") {
@@ -148,7 +149,29 @@ const SidebarProvider = React.forwardRef<
       }
 
       const handleEscape = (event: KeyboardEvent) => {
-        if (event.key !== "Escape") {
+        if (event.key !== "Escape" || event.defaultPrevented) {
+          return
+        }
+
+        if (floatingEscapeInProgressRef.current) {
+          return
+        }
+
+        // Capture runs before Radix removes its portal, even when focus remains on the trigger.
+        // Radix does not expose `data-state` on every floating content primitive, so the
+        // mounted portal itself is the reliable signal that Escape belongs to that layer.
+        if (document.querySelector("[data-sidebar-floating='true']")) {
+          floatingEscapeInProgressRef.current = true
+          window.setTimeout(() => {
+            floatingEscapeInProgressRef.current = false
+          }, 0)
+          return
+        }
+
+        const targetInsideFloatingLayer = event.composedPath().some(
+          (target) => target instanceof Element && target.matches("[data-sidebar-floating='true']"),
+        )
+        if (targetInsideFloatingLayer) {
           return
         }
 
@@ -156,8 +179,8 @@ const SidebarProvider = React.forwardRef<
         setOpen(false)
       }
 
-      window.addEventListener("keydown", handleEscape)
-      return () => window.removeEventListener("keydown", handleEscape)
+      window.addEventListener("keydown", handleEscape, true)
+      return () => window.removeEventListener("keydown", handleEscape, true)
     }, [renderMode, setOpen, state])
 
     React.useEffect(() => {

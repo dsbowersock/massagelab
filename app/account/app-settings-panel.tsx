@@ -1,10 +1,9 @@
 "use client"
 
-import { Layout, Monitor, Moon, PanelBottom, PanelLeft, PanelTop, Sun, UserRound, Waves } from "lucide-react"
-import type { AmbientMotionMode, AppBarPosition, ThemeMode } from "@/components/providers/settings-provider"
+import { Layout, Monitor, Moon, PanelBottom, PanelLeft, PanelRight, PanelTop, Sun, UserRound, Waves } from "lucide-react"
+import type { AmbientMotionMode, AppBarPosition, SidebarPosition, ThemeMode } from "@/components/providers/settings-provider"
 import { useSettings } from "@/components/providers/settings-provider"
 import { useTherapistSettings } from "@/components/providers/therapist-settings-provider"
-import { getSidebarButtonPosition, resolveSidebarButtonSettings } from "@/lib/app-settings"
 import { cn } from "@/lib/utils"
 import { SettingsSectionSeparator, SettingsSurface } from "@/components/account/settings-surfaces"
 import { Button } from "@/components/ui/button"
@@ -13,26 +12,18 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { ToggleControl } from "@/components/ui/toggle-control"
 
-const sidebarButtonPositions = [
+const sidebarSides = [
   {
-    value: "top-left",
-    label: "Upper left",
-    description: "Sidebar button starts near the top on the left edge.",
+    value: "left",
+    label: "Left",
+    description: "Keep the drawer button and sidebar on the left edge.",
+    icon: PanelLeft,
   },
   {
-    value: "top-right",
-    label: "Upper right",
-    description: "Sidebar button starts near the top on the right edge.",
-  },
-  {
-    value: "bottom-left",
-    label: "Bottom left",
-    description: "Sidebar button stays near the bottom on the left edge.",
-  },
-  {
-    value: "bottom-right",
-    label: "Bottom right",
-    description: "Sidebar button stays near the bottom on the right edge.",
+    value: "right",
+    label: "Right",
+    description: "Keep the drawer button and sidebar on the right edge.",
+    icon: PanelRight,
   },
 ]
 
@@ -89,7 +80,6 @@ const ambientMotionModes = [
 
 export function AccountAppSettingsPanel() {
   const { settings, updateSettings } = useSettings()
-  const sidebarButtonPosition = getSidebarButtonPosition(settings)
 
   return (
     <div className="flex flex-col gap-5">
@@ -103,7 +93,10 @@ export function AccountAppSettingsPanel() {
           <Label className="text-base">App bar position</Label>
           <RadioGroup
             value={settings.appBarPosition}
-            onValueChange={(value) => updateSettings({ appBarPosition: value as AppBarPosition })}
+            onValueChange={(value) => updateSettings({
+              appBarPosition: value as AppBarPosition,
+              sidebarTriggerPosition: value as AppBarPosition,
+            })}
             className="grid gap-3 sm:grid-cols-2"
           >
             {appBarPositions.map((option) => {
@@ -131,28 +124,33 @@ export function AccountAppSettingsPanel() {
         </div>
 
         <div className="flex flex-col gap-3">
-          <Label className="text-base">Sidebar button position</Label>
+          <Label className="text-base">Sidebar side</Label>
           <RadioGroup
-            value={sidebarButtonPosition}
-            onValueChange={(value) => updateSettings(resolveSidebarButtonSettings(value))}
+            value={settings.sidebarPosition}
+            onValueChange={(value) => updateSettings({ sidebarPosition: value as SidebarPosition })}
             className="grid gap-3 sm:grid-cols-2"
           >
-            {sidebarButtonPositions.map((option) => (
-              <label
-                key={option.value}
-                htmlFor={`sidebar-${option.value}`}
-                className={cn(
-                  "flex cursor-pointer items-start gap-3 rounded-md border border-border/80 bg-background/80 p-3 text-left shadow-sm transition hover:border-primary/60 hover:bg-accent",
-                  sidebarButtonPosition === option.value && "border-primary/70 bg-primary/10 shadow-md shadow-primary/10",
-                )}
-              >
-                <RadioGroupItem id={`sidebar-${option.value}`} value={option.value} className="mt-1" />
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium">{option.label}</span>
-                  <span className="mt-1 block text-xs leading-5 text-muted-foreground">{option.description}</span>
-                </span>
-              </label>
-            ))}
+            {sidebarSides.map((option) => {
+              const Icon = option.icon
+
+              return (
+                <label
+                  key={option.value}
+                  htmlFor={`sidebar-${option.value}`}
+                  className={cn(
+                    "flex cursor-pointer items-start gap-3 rounded-md border border-border/80 bg-background/80 p-3 text-left shadow-sm transition hover:border-primary/60 hover:bg-accent",
+                    settings.sidebarPosition === option.value && "border-primary/70 bg-primary/10 shadow-md shadow-primary/10",
+                  )}
+                >
+                  <RadioGroupItem id={`sidebar-${option.value}`} value={option.value} className="mt-1" />
+                  <Icon data-icon="inline-start" className="mt-0.5 text-primary" aria-hidden="true" />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium">{option.label}</span>
+                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">{option.description}</span>
+                  </span>
+                </label>
+              )
+            })}
           </RadioGroup>
         </div>
 

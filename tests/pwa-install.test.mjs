@@ -10,6 +10,7 @@ describe("PWA install capability", () => {
 
   it("uses a captured native prompt before manual instructions", () => {
     assert.equal(resolvePwaInstallStatus({ hasPrompt: true, isIosSafari: true }), "prompt")
+    assert.equal(resolvePwaInstallStatus({ hasPrompt: true, isIosSafari: false }), "prompt")
   })
 
   it("offers instructions only to recognized iOS Safari", () => {

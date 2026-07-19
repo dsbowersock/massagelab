@@ -1,6 +1,6 @@
 "use client"
 
-import { Fragment, useCallback, useEffect, useRef, useState } from "react"
+import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
@@ -33,7 +33,7 @@ import { AppToolLink } from "@/components/shell/app-tool-link"
 import { AppBarBrandLink } from "@/components/shell/app-bar-brand-link"
 import { useSidebar } from "@/components/ui/sidebar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { MAIN_BAR_TOOL_ITEM_IDS } from "@/lib/app-shell"
+import { resolveMainBarLayout } from "@/lib/app-shell"
 import { isNavigationRouteActive } from "@/lib/navigation"
 import { cn } from "@/lib/utils"
 
@@ -365,7 +365,8 @@ export function CalendarOperatorTopBar({
   const [quickActionsOpen, setQuickActionsOpen] = useState(false)
   const toolbarSlot = useCalendarOperatorToolbarSlot()
   const hasToolbarSlot = Boolean(toolbarSlot)
-  const sidebarIsRight = settings.sidebarPosition === "right"
+  const layout = resolveMainBarLayout(settings)
+  const sidebarIsRight = layout.drawerEdge === "right"
   const sidebarOpen = renderMode === "drawer" ? openMobile : state === "expanded"
   const appBarIsBottom = settings.appBarPosition === "bottom"
   const breadcrumbs = routeBreadcrumbs(pathname)
@@ -446,11 +447,16 @@ export function CalendarOperatorTopBar({
     }
 
     publishHeight()
-    const observer = new ResizeObserver(publishHeight)
-    observer.observe(header)
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(publishHeight)
+    if (observer) {
+      observer.observe(header)
+    } else {
+      window.addEventListener("resize", publishHeight)
+    }
 
     return () => {
-      observer.disconnect()
+      observer?.disconnect()
+      window.removeEventListener("resize", publishHeight)
       root.style.removeProperty("--ml-desktop-app-bar-height")
     }
   }, [])
@@ -471,7 +477,11 @@ export function CalendarOperatorTopBar({
           <Menu aria-hidden="true" data-icon="menu" />
         </Button>
       </TooltipTrigger>
-      <TooltipContent>{renderMode === "drawer" ? "Open navigation" : "Toggle navigation"}</TooltipContent>
+      <TooltipContent>
+        {renderMode === "drawer"
+          ? (sidebarOpen ? "Close navigation" : "Open navigation")
+          : "Toggle navigation"}
+      </TooltipContent>
     </Tooltip>
   )
 
@@ -514,7 +524,7 @@ export function CalendarOperatorTopBar({
       <TooltipContent>Quick actions</TooltipContent>
     </Tooltip>
   )
-  const toolControls = {
+  const toolControls: Record<string, ReactNode> = {
     "quick-create": quickActionControl,
     music: musicControl,
     clock: clockControl,
@@ -523,7 +533,7 @@ export function CalendarOperatorTopBar({
   }
   const oppositeControls = (
     <div className="ml-main-bar-tools flex shrink-0 items-center gap-1 min-[361px]:gap-2">
-      {MAIN_BAR_TOOL_ITEM_IDS.map((itemId) => (
+      {layout.toolItemIds.map((itemId) => (
         <Fragment key={itemId}>{toolControls[itemId]}</Fragment>
       ))}
     </div>

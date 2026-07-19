@@ -935,8 +935,10 @@ test("homepage widest audience phrase does not overflow at 390px", async ({ page
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto("/", { waitUntil: "domcontentloaded" })
 
-  const heading = page.locator("h2").filter({ has: page.getByTestId("home-flip-word") })
+  const flipWord = page.getByTestId("home-flip-word")
+  const heading = page.locator("h2").filter({ has: flipWord })
   await expect(heading).toBeVisible()
+  await expect(flipWord).toHaveText("curious people", { timeout: 15_000 })
   expect(await heading.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 })

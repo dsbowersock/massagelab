@@ -4,7 +4,7 @@ import { fetchWithTimeout } from "@/lib/client-fetch"
 import { defaultAppSettings, normalizeAppSettings } from "@/lib/app-settings"
 import { createContext, useContext, useEffect, useState } from "react"
 
-type SidebarPosition = "left" | "right"
+export type SidebarPosition = "left" | "right"
 type SidebarTriggerPosition = "top" | "bottom"
 export type AppBarPosition = "top" | "bottom"
 export type ThemeMode = "dark" | "light" | "system"
