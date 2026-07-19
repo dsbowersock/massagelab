@@ -250,9 +250,10 @@ Assert:
 - `/clock?source=music` resolves Music visualizer;
 - ordinary `/clock` resolves Clock;
 - active `/chimer` resolves Chimer;
-- all three contexts request wake lock only when `keepScreenAwake === true` and the display is active;
-- idle setup never requests it;
-- ordinary Clock no longer bypasses the preference.
+- active ordinary Clock and Music visualizer request wake lock regardless of `keepScreenAwake`, including when the Music clock is hidden;
+- active Chimer requests wake lock only when `keepScreenAwake === true`;
+- idle setup never requests it in any context; and
+- unrecognized contexts never request it.
 
 ### Step 3: Implement the helpers and setting fields
 
@@ -542,7 +543,7 @@ In `RunningTimer`:
 
 - preserve existing Clock, Visual, and Background controls;
 - remove the Tabs wrapper and auto-close scheduling/effects;
-- move Keep screen awake to the first Visual row;
+- move Keep screen awake to the first Visual row for active Chimer only, and omit it from ordinary Clock and Music visualizer;
 - keep background selection/filtering in Background;
 - keep effect controls/global colors/palettes in Visual;
 - keep timer-only adjustments in Clock;
@@ -660,7 +661,7 @@ Selecting an available background must:
 
 When Clock display is off, keep the background running and disable rotation/forward-glow controls with a short explanation. Do not change or erase their saved values.
 
-### Step 5: Apply the shared wake-lock rule
+### Step 5: Apply the context-aware wake-lock rule
 
 Replace:
 
@@ -669,7 +670,7 @@ timerState.status === "clock" ||
   (timerState.status !== "idle" && settings.keepTimerScreenAwake);
 ```
 
-with `shouldRequestImmersiveWakeLock(...)`. Preserve the current visibility-release/reacquire lifecycle. Surface unsupported/denied status at the top of Visual without changing the saved preference.
+with `shouldRequestImmersiveWakeLock(...)`. Active ordinary Clock and Music visualizer request wake lock automatically, even when Music Show clock is off; active Chimer alone honors the default-on `keepTimerScreenAwake` opt-out. Idle setup never requests it. Preserve the current visibility-release/reacquire lifecycle. Surface unsupported/denied status at the top of Visual in every context without changing the saved Chimer preference.
 
 ### Step 6: Add Music default controls to Visual
 
@@ -853,7 +854,7 @@ Assert:
 - changing Music Show clock does not change ordinary Clock;
 - active Chimer has no Show clock toggle;
 - timer-only remaining/chime controls appear only during active Chimer;
-- Keep screen awake is the first Visual control in all contexts.
+- Keep screen awake is the first Visual control only in active Chimer; ordinary Clock and Music visualizer expose no toggle and request wake lock automatically.
 
 ### Step 3: Add dismissal and focus coverage
 
@@ -982,7 +983,7 @@ Before committing, unstage `playwright.config.ts` if no project change was neede
 - `/music` has no separate user-selected background.
 - Device choice, account default, Restore, and two separate Show clock preferences follow the approved precedence.
 - Minimize unmounts the visualizer renderer while preserving playback/player/preferences.
-- Keep screen awake is first in Visual and governs all three immersive contexts.
+- Keep screen awake is first in Visual only for active Chimer; ordinary Clock and Music visualizer expose no toggle and request wake lock automatically while active, including when Music Show clock is off.
 - Rotation and Forward glow are independent, off by default, centered-display-aware, and reduced-motion safe.
 - Current entitlement/background gating remains intact.
 - Focus, tooltips, modal semantics, outside-click rules, and zoom/phone access meet the accessibility contract.

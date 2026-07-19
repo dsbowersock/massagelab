@@ -33,7 +33,7 @@ The design also adds two independent, off-by-default display effects inspired by
 - Guarantee that docked panels do not cover the protected centered display.
 - Allow only Background to intentionally cover the display.
 - Keep timer-only controls in Clock and expose them only for active Chimer.
-- Put the shared Keep screen awake control at the top of Visual and respect it in all immersive contexts.
+- Put Keep screen awake at the top of Visual only for active Chimer; ordinary Clock and Music visualizer request wake lock automatically while active and expose no toggle.
 - Give ordinary Clock and Music visualizer separate remembered Show clock preferences.
 - Keep active Chimer timer information visible at all times.
 - Make the Music visualizer available from the persistent player after a station is selected, including loading, playing, stopped, and recoverable failure states.
@@ -161,15 +161,13 @@ Music visualizer uses its own `showClock`, default false. Changing either value 
 
 Show clock appears only in `clock` and `musicVisualizer` contexts. Active Chimer never exposes it and never allows the centered timer information to be hidden. When Show clock is off, the display effects remain saved but their controls are disabled with a short explanation.
 
-## Shared Keep Screen Awake Behavior
+## Context-Aware Keep Screen Awake Behavior
 
-The existing `keepTimerScreenAwake` setting remains the single persisted control and defaults on. It moves to the top of Visual and governs:
+The existing `keepTimerScreenAwake` setting remains the default-on persisted Chimer opt-out. It moves to the top of Visual only for active Chimer. Turning it off allows the device to dim or sleep during an active Chimer.
 
-- active Chimer;
-- ordinary `/clock`; and
-- Music visualizer.
+Ordinary `/clock` and Music visualizer expose no Keep screen awake toggle. While active, both request Screen Wake Lock automatically regardless of the Chimer preference; the Music visualizer does so while its background is active even when Show clock is off. Idle Chimer setup never requests Screen Wake Lock.
 
-Standalone Clock no longer bypasses the setting. A supported visible document requests the Screen Wake Lock only when the setting is on. Hidden documents release it, and visible documents reacquire it when still requested. Unsupported or denied wake locks do not crash the display; Visual reports the unavailable state while preserving the user's preference.
+A supported visible document requests Screen Wake Lock according to that context policy. Hidden documents release it, and visible documents reacquire it when still requested. Unsupported or denied wake locks do not crash the display; Visual reports the unavailable state in every context while preserving the Chimer preference.
 
 ## Immersive Control Group
 
@@ -228,7 +226,7 @@ Background is exempt from the safe-stage contract. It opens as a fixed full-scre
 
 ### Visual
 
-- Keep screen awake at the top.
+- Keep screen awake at the top only for active Chimer; omit the toggle from ordinary Clock and Music visualizer while still showing unsupported/denied wake-lock status.
 - Visual background on/off.
 - Selected-background customization.
 - Global color mode, colors, and harmony controls.
@@ -354,7 +352,7 @@ Workspace returns to station discovery only. Mini player exposes and labels the 
 - Account app-settings merge preserves Music visualizer data and unrelated settings.
 - Ordinary Show clock defaults on and remains separate from Music Show clock.
 - Display rotation and Forward glow default off and sanitize non-boolean input.
-- Keep screen awake applies consistently in Chimer, Clock, and Music visualizer.
+- Active Chimer requires literal `keepScreenAwake === true`; active ordinary Clock and Music visualizer request wake lock regardless of that value, including when Music Show clock is off; idle and invalid contexts never request it.
 - Settings auto-close timer code is removed.
 - `/music` no longer contains a BackgroundHost, BackgroundSelector, or separate background state.
 
@@ -402,7 +400,7 @@ Workspace returns to station discovery only. Mini player exposes and labels the 
 - Close docked panels by active toggle, Close, `Escape`, or outside click; close the full-screen Background modal through its own Close control or `Escape`.
 - Use bottom-first safe-stage docking.
 - Keep background customization in Visual and selection in Background.
-- Put Keep screen awake at the top of Visual and use one shared control in all contexts.
+- Put Keep screen awake at the top of Visual only for active Chimer; ordinary Clock and Music visualizer expose no toggle and request wake lock automatically while active.
 - Expose Show clock only in Clock contexts, never active Chimer.
 - Use only two new effect toggles, with no speed or intensity controls.
 - Cover all global chrome when Background is open.

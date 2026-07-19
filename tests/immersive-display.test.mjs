@@ -25,35 +25,59 @@ describe("immersive display rules", () => {
     )
   })
 
-  it("requests wake lock for active displays only when the preference is literally true", () => {
-    const activeDisplays = [
-      { context: IMMERSIVE_DISPLAY_CONTEXTS.chimer, timerStatus: "running" },
-      { context: IMMERSIVE_DISPLAY_CONTEXTS.clock, timerStatus: "clock" },
-      { context: IMMERSIVE_DISPLAY_CONTEXTS.musicVisualizer, timerStatus: "clock" },
-    ]
-
-    for (const display of activeDisplays) {
-      assert.equal(shouldRequestImmersiveWakeLock({ ...display, keepScreenAwake: true }), true)
-      assert.equal(shouldRequestImmersiveWakeLock({ ...display, keepScreenAwake: false }), false)
-      assert.equal(shouldRequestImmersiveWakeLock({ ...display, keepScreenAwake: "true" }), false)
+  it("always requests wake lock for active ordinary Clock", () => {
+    for (const keepScreenAwake of [true, false, "true", undefined]) {
+      assert.equal(shouldRequestImmersiveWakeLock({
+        context: IMMERSIVE_DISPLAY_CONTEXTS.clock,
+        timerStatus: "clock",
+        keepScreenAwake,
+      }), true)
     }
   })
 
-  it("never requests wake lock while the Chimer setup is idle", () => {
-    for (const context of Object.values(IMMERSIVE_DISPLAY_CONTEXTS)) {
+  it("always requests wake lock for an active Music visualizer even when its clock is hidden", () => {
+    for (const keepScreenAwake of [true, false, "true", undefined]) {
       assert.equal(shouldRequestImmersiveWakeLock({
-        context,
-        timerStatus: "idle",
-        keepScreenAwake: true,
+        context: IMMERSIVE_DISPLAY_CONTEXTS.musicVisualizer,
+        timerStatus: "clock",
+        keepScreenAwake,
+      }), true)
+    }
+  })
+
+  it("lets only active Chimer opt out of wake lock", () => {
+    assert.equal(shouldRequestImmersiveWakeLock({
+      context: IMMERSIVE_DISPLAY_CONTEXTS.chimer,
+      timerStatus: "running",
+      keepScreenAwake: true,
+    }), true)
+
+    for (const keepScreenAwake of [false, "true", undefined]) {
+      assert.equal(shouldRequestImmersiveWakeLock({
+        context: IMMERSIVE_DISPLAY_CONTEXTS.chimer,
+        timerStatus: "running",
+        keepScreenAwake,
       }), false)
     }
   })
 
-  it("does not let ordinary Clock bypass the keep-screen-awake preference", () => {
+  it("never requests wake lock while the immersive display is idle", () => {
+    for (const context of Object.values(IMMERSIVE_DISPLAY_CONTEXTS)) {
+      for (const keepScreenAwake of [true, false, "true", undefined]) {
+        assert.equal(shouldRequestImmersiveWakeLock({
+          context,
+          timerStatus: "idle",
+          keepScreenAwake,
+        }), false)
+      }
+    }
+  })
+
+  it("rejects unrecognized contexts", () => {
     assert.equal(shouldRequestImmersiveWakeLock({
-      context: IMMERSIVE_DISPLAY_CONTEXTS.clock,
+      context: "unknown",
       timerStatus: "clock",
-      keepScreenAwake: false,
+      keepScreenAwake: true,
     }), false)
   })
 })
