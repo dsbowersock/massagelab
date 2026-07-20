@@ -7,7 +7,7 @@ This ledger covers the third-party presentation ideas adapted only for MassageLa
 ## Cover Flow
 
 - Source: https://codepen.io/jh3y/pen/ZEqNVxx
-- Source title: CSS Scroll Driven Animation Cover Flow - Infinite Edition
+- Source title: CSS Scroll Driven Animation Cover Flow [Infinite Edition ]
 - Author: jh3y / Jhey
 - License: MIT through CodePen's public-Pen policy
 - Retained ideas: center emphasis, side-card Y rotation, scale falloff, stacking, optional artwork reflection

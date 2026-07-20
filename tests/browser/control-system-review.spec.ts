@@ -63,6 +63,26 @@ test.describe("control-system review lab", () => {
         await expect(page.getByTestId("carousel-lab-stage")).toHaveCount(1)
         await expect(page.getByTestId("carousel-lab-summary")).toContainText(surface)
         await expect(page.getByTestId("carousel-lab-summary")).toContainText(presentation)
+
+        const pairSlides = page.locator('[data-carousel-slide="true"]')
+        expect(await pairSlides.count()).toBeGreaterThan(0)
+        const centeredFullCard = page.locator(
+          '[data-carousel-slide="true"][data-centered="true"][data-detail-level="full"]',
+        )
+        await expect(centeredFullCard).toHaveCount(1)
+        if (surface === "Backgrounds") {
+          await expect(
+            centeredFullCard.getByRole("button", { name: /^Select/ }),
+          ).toBeVisible()
+        } else {
+          await expect(
+            centeredFullCard
+              .getByRole("button", {
+                name: /^(?:Play|Restart|Stop|Favorite|Remove )/,
+              })
+              .first(),
+          ).toBeVisible()
+        }
       }
     }
 
@@ -113,11 +133,30 @@ test.describe("control-system review lab", () => {
       range.dispatchEvent(new Event("change", { bubbles: true }))
     })
     await expect(page.getByTestId("carousel-lab-summary")).toContainText("248px")
+
+    await page.getByRole("radio", { name: "Cover Flow", exact: true }).click()
+    await expect(page.getByTestId("carousel-lab-summary")).toContainText("208px")
+    await width.evaluate((input) => {
+      const range = input as HTMLInputElement
+      const nativeValueSetter = Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value",
+      )?.set
+      nativeValueSetter?.call(range, "232")
+      range.dispatchEvent(new Event("input", { bubbles: true }))
+      range.dispatchEvent(new Event("change", { bubbles: true }))
+    })
+    await expect(page.getByTestId("carousel-lab-summary")).toContainText("232px")
+
+    await page.getByRole("radio", { name: "Existing", exact: true }).click()
+    await expect(page.getByTestId("carousel-lab-summary")).toContainText("248px")
     await page.reload()
     await page.getByRole("tab", { name: "Carousels" }).click()
     await expect(page.getByTestId("carousel-lab-summary")).toContainText("248px")
     await page.getByRole("button", { name: "Reset current pair" }).click()
     await expect(page.getByTestId("carousel-lab-summary")).toContainText("208px")
+    await page.getByRole("radio", { name: "Cover Flow", exact: true }).click()
+    await expect(page.getByTestId("carousel-lab-summary")).toContainText("232px")
 
     await page.getByRole("combobox", { name: "Access state fixture" }).click()
     await page.getByRole("option", { name: "Locked", exact: true }).click()

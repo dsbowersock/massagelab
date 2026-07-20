@@ -18,6 +18,12 @@ describe("Carousel Lab source boundaries", () => {
     assert.match(ledger, /https:\/\/codepen\.io\/jh3y\/pen\/PovoorJ/)
     assert.match(ledger, /https:\/\/blog\.codepen\.io\/documentation\/licensing\//)
     assert.match(ledger, /MIT/)
+    assert.match(
+      ledger,
+      /^- Source title: CSS Scroll Driven Animation Cover Flow \[Infinite Edition \]$/m,
+    )
+    assert.match(ledger, /^- Source title: CSS Scroll-Driven Image Carousel$/m)
+    assert.match(ledger, /^- Author: jh3y \/ Jhey$/m)
     assert.match(ledger, /GSAP/)
     assert.match(ledger, /ScrollTrigger/)
     assert.match(ledger, /Tweakpane/)
