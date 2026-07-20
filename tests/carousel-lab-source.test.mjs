@@ -34,6 +34,28 @@ describe("Carousel Lab source boundaries", () => {
     assert.match(controller, /if \(!effectiveLoop && event\.key === "End"\)/)
   })
 
+  it("starts Embla at the reconciled mount identity before its first select", () => {
+    const controller = read("app/dev/buttons/carousel-lab/use-carousel-lab-controller.ts")
+    const initialReconciliations = controller.match(
+      /reconcileCenteredId\(items, initialItemId, selectedItemId\)/g,
+    ) ?? []
+
+    assert.equal(initialReconciliations.length, 1)
+    assert.match(
+      controller,
+      /const \[initialCenter\] = useState\(\(\) => \{\s+const id = reconcileCenteredId\(items, initialItemId, selectedItemId\)\s+const index = Math\.max\(0, items\.findIndex\(\(item\) => item\.id === id\)\)\s+return \{ id, index \}\s+\}\)/,
+    )
+    assert.match(controller, /startIndex: initialCenter\.index/)
+    assert.match(
+      controller,
+      /const \[centeredId, setCenteredId\] = useState<string \| null>\(initialCenter\.id\)/,
+    )
+
+    const startIndexPosition = controller.indexOf("startIndex: initialCenter.index")
+    const firstSelectPosition = controller.indexOf("\n    select()\n")
+    assert.ok(startIndexPosition >= 0 && startIndexPosition < firstSelectPosition)
+  })
+
   it("cancels stale dependency frames before scheduling current transforms", () => {
     const controller = read("app/dev/buttons/carousel-lab/use-carousel-lab-controller.ts")
     const listenerEffect = controller.match(

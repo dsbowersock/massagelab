@@ -37,6 +37,11 @@ export function useCarouselLabController(options: UseCarouselLabControllerOption
   const effectiveLoop = finiteRail
     ? false
     : resolveEffectiveLoop(items.length, Number(tuning.visibleRadius), Boolean(tuning.loop))
+  const [initialCenter] = useState(() => {
+    const id = reconcileCenteredId(items, initialItemId, selectedItemId)
+    const index = Math.max(0, items.findIndex((item) => item.id === id))
+    return { id, index }
+  })
   const [viewportRef, api] = useEmblaCarousel({
     align: "center",
     containScroll: effectiveLoop ? false : "trimSnaps",
@@ -44,13 +49,12 @@ export function useCarouselLabController(options: UseCarouselLabControllerOption
     loop: effectiveLoop,
     skipSnaps: false,
     duration: finiteRail ? 0 : 24,
+    startIndex: initialCenter.index,
   })
   const itemElements = useRef(new Map<string, HTMLElement>())
   const frameRef = useRef<number | null>(null)
   const onCenteredItemChangeRef = useRef(options.onCenteredItemChange)
-  const [centeredId, setCenteredId] = useState<string | null>(() =>
-    reconcileCenteredId(items, initialItemId, selectedItemId),
-  )
+  const [centeredId, setCenteredId] = useState<string | null>(initialCenter.id)
   const [canGoPrevious, setCanGoPrevious] = useState(false)
   const [canGoNext, setCanGoNext] = useState(false)
 
