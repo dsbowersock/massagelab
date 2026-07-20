@@ -5,6 +5,7 @@ import {
 import {
   createBoundedGenerativeFmWebProvider,
   createGenerativeFmProviderRequestStats,
+  startAbortableGenerativeFmPrewarm,
   waitForAbortableGenerativeFmPrewarm,
 } from "./generative-fm-provider"
 
@@ -257,8 +258,8 @@ export async function prewarmGenerativeFmPiece({
     return
   }
 
-  const prepared = await waitForAbortableGenerativeFmPrewarm(
-    getPreparedGenerativeFmRuntime(station, "prewarm"),
+  const prepared = await startAbortableGenerativeFmPrewarm(
+    () => getPreparedGenerativeFmRuntime(station, "prewarm"),
     signal,
   )
   signal?.throwIfAborted()

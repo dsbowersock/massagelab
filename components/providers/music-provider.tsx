@@ -20,6 +20,7 @@ import {
 import { BACKGROUND_STORAGE_KEYS } from "@/lib/background-options"
 import { canSyncAccountPreferencesFromSession } from "@/lib/account-preferences"
 import { fetchWithTimeout } from "@/lib/client-fetch"
+import { startAbortableGenerativeFmPrewarm } from "@/lib/atmosphere/generative-fm-provider"
 import {
   normalizeMusicVisualizerAccountPreferences,
   normalizeMusicVisualizerDevicePreferences,
@@ -608,7 +609,8 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     options: { includeSamplePayloads?: boolean, signal?: AbortSignal } = {},
   ) => {
     try {
-      const runtime = await getRuntime()
+      const runtime = await startAbortableGenerativeFmPrewarm(getRuntime, options.signal)
+      options.signal?.throwIfAborted()
       const station = runtime.getAtmosphereStationById(stationId)
       if (!station.enabled || station.runtime?.adapterId !== "generative-fm-piece") {
         return

@@ -152,8 +152,10 @@ describe("Carousel Lab source boundaries", () => {
     const runtime = read("lib/atmosphere/generative-fm-runtime.ts")
 
     assert.match(provider, /prewarmStation:[\s\S]*?signal\?: AbortSignal/)
+    assert.match(provider, /startAbortableGenerativeFmPrewarm\(\s*getRuntime,\s*options\.signal/)
     assert.match(provider, /prewarmGenerativeFmPiece\([\s\S]*?signal: options\.signal/)
     assert.match(runtime, /type GenerativeFmPrewarmOptions[\s\S]*?signal\?: AbortSignal/)
+    assert.match(runtime, /startAbortableGenerativeFmPrewarm\(\s*\(\) => getPreparedGenerativeFmRuntime/)
     assert.match(runtime, /prewarmGenerativeFmSamplePayloads\(prepared, signal\)/)
     assert.match(runtime, /warmSamplePayloadUrls\(sampleUrls, signal\)/)
     assert.match(runtime, /signal\?\.throwIfAborted\(\)/)
