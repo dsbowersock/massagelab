@@ -3,9 +3,36 @@ import { describe, it } from "node:test"
 import {
   createBoundedGenerativeFmWebProvider,
   createGenerativeFmProviderRequestStats,
+  waitForAbortableGenerativeFmPrewarm,
 } from "../lib/atmosphere/generative-fm-provider.js"
 
 describe("Generative.fm provider wrapper", () => {
+  it("aborts one prewarm wait without poisoning shared runtime preparation", async () => {
+    let resolvePreparation
+    const preparedRuntime = { pieceId: "shared-piece" }
+    const sharedPreparation = new Promise((resolve) => {
+      resolvePreparation = resolve
+    })
+    const controller = new AbortController()
+    let payloadEscalationCount = 0
+    const labPrewarm = (async () => {
+      await waitForAbortableGenerativeFmPrewarm(sharedPreparation, controller.signal)
+      controller.signal.throwIfAborted()
+      payloadEscalationCount += 1
+    })()
+
+    controller.abort(new DOMException("Category changed", "AbortError"))
+    await assert.rejects(labPrewarm, (error) => error?.name === "AbortError")
+    resolvePreparation(preparedRuntime)
+
+    assert.equal(await sharedPreparation, preparedRuntime)
+    assert.equal(payloadEscalationCount, 0)
+    assert.equal(
+      await waitForAbortableGenerativeFmPrewarm(sharedPreparation),
+      preparedRuntime,
+    )
+  })
+
   it("requests uncached sample URLs in bounded batches and preserves caller order", async () => {
     const requests = []
     const fakeBuffers = new Map()

@@ -53,7 +53,10 @@ interface MusicContextType {
   playStation: (stationId: string) => Promise<void>
   playNextStation: () => Promise<void>
   playPreviousStation: () => Promise<void>
-  prewarmStation: (stationId: string, options?: { includeSamplePayloads?: boolean }) => Promise<void>
+  prewarmStation: (
+    stationId: string,
+    options?: { includeSamplePayloads?: boolean, signal?: AbortSignal },
+  ) => Promise<void>
   stopCurrent: () => Promise<void>
   setVolume: (volume: number) => void
   toggleFavorite: (stationId: string) => void
@@ -154,6 +157,7 @@ type AtmosphereRuntimeModules = {
   prewarmGenerativeFmPiece: (options: {
     station: RuntimeAdapterPayload["station"]
     includeSamplePayloads?: boolean
+    signal?: AbortSignal
   }) => Promise<void>
   setGenerativeFmPieceVolume: (volume: number) => void
   setToneProofDroneVolume: (volume: number) => void
@@ -601,7 +605,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
   const prewarmStation = useCallback(async (
     stationId: string,
-    options: { includeSamplePayloads?: boolean } = {},
+    options: { includeSamplePayloads?: boolean, signal?: AbortSignal } = {},
   ) => {
     try {
       const runtime = await getRuntime()
@@ -613,6 +617,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       await runtime.prewarmGenerativeFmPiece({
         station,
         includeSamplePayloads: options.includeSamplePayloads ?? false,
+        signal: options.signal,
       })
     } catch {
       // Prewarm is opportunistic; playback should surface any real runtime error.

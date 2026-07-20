@@ -99,4 +99,42 @@ describe("Carousel Lab source boundaries", () => {
     assert.match(card, /Unlock all/)
     assert.doesNotMatch(combined, /fetch\(|stripe|checkout|server action/i)
   })
+
+  it("reuses the production Station card and real Music provider in the lab", () => {
+    const workspace = read("app/browse/workspace.tsx")
+    const sharedCard = read("components/atmosphere/station-carousel-card.tsx")
+    const labSurface = read("app/dev/buttons/carousel-lab/station-lab-surface.tsx")
+    assert.match(workspace, /AtmosphereStationCarouselCard/)
+    assert.match(sharedCard, /music\.playStation/)
+    assert.match(sharedCard, /music\.stopCurrent/)
+    assert.match(sharedCard, /music\.toggleFavorite/)
+    assert.match(sharedCard, /MusicLoadingProgress/)
+    assert.match(labSurface, /groupAtmosphereStations/)
+    assert.match(labSurface, /getVisibleAtmosphereStations/)
+    assert.match(labSurface, /useMusic\(\)/)
+  })
+
+  it("preserves Station category positions and cancels lab prewarm on category change and unmount", () => {
+    const surface = read("app/dev/buttons/carousel-lab/station-lab-surface.tsx")
+
+    assert.match(surface, /positionsRef\s*=\s*useRef\(new Map<string, string>\(\)\)/)
+    assert.match(surface, /positionsRef\.current\.set\(group\.id, stationId\)/)
+    assert.match(surface, /const handleGroupChange[\s\S]*?prewarmAbortRef\.current\?\.abort\(\)[\s\S]*?setGroupId\(nextGroupId\)/)
+    assert.match(surface, /useEffect\(\(\) => \(\) => \{\s*prewarmAbortRef\.current\?\.abort\(\)\s*\}, \[\]\)/)
+    assert.match(surface, /onCenteredItemChange=\{handleCenteredItemChange\}/)
+    assert.doesNotMatch(surface, /music\.(playStation|stopCurrent|toggleFavorite)/)
+  })
+
+  it("propagates abort signals only through optional Station payload prewarming", () => {
+    const provider = read("components/providers/music-provider.tsx")
+    const runtime = read("lib/atmosphere/generative-fm-runtime.ts")
+
+    assert.match(provider, /prewarmStation:[\s\S]*?signal\?: AbortSignal/)
+    assert.match(provider, /prewarmGenerativeFmPiece\([\s\S]*?signal: options\.signal/)
+    assert.match(runtime, /type GenerativeFmPrewarmOptions[\s\S]*?signal\?: AbortSignal/)
+    assert.match(runtime, /prewarmGenerativeFmSamplePayloads\(prepared, signal\)/)
+    assert.match(runtime, /warmSamplePayloadUrls\(sampleUrls, signal\)/)
+    assert.match(runtime, /signal\?\.throwIfAborted\(\)/)
+    assert.doesNotMatch(runtime, /getPreparedGenerativeFmRuntime\([^\n]*signal/)
+  })
 })
