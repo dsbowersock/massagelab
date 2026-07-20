@@ -25,7 +25,7 @@ async function installImmersiveLifecycleInstrumentation(page: Page) {
   await page.addInitScript(() => {
     const lifecycle = {
       activeListenerId: null as number | null,
-      flushHeldFrame: (_frameId: number) => {},
+      flushHeldFrame: (frameId: number) => { void frameId },
       holdNextRafForListenerId: null as number | null,
       observers: [] as Array<{ targets: string[], disconnected: boolean }>,
       rafRecords: [] as Array<{
@@ -241,6 +241,20 @@ test("Clock and Visual switch one active panel and honor dismissal focus", async
 })
 
 test("Escape in a portaled color picker closes only the picker", async ({ page }) => {
+  await page.route("**/api/auth/session", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ user: { id: "picker-qa-user", email: "picker-qa@example.com" } }),
+    })
+  })
+  await page.route("**/api/account/preferences", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ features: [], chimerSettings: {}, appSettings: {} }),
+    })
+  })
   await openClock(page)
   await page.getByRole("button", { name: "Visual", exact: true }).click()
   const visual = page.getByRole("dialog", { name: "Visual controls" })

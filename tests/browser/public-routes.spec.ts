@@ -555,12 +555,20 @@ test("Atmosphere visualizer action retains selected station across client routes
   await page.goBack()
   await expect(page).toHaveURL(/\/music\?task8=public-route$/)
   await expect(page.getByRole("button", { name: /^Background$/i }).last()).toBeVisible()
-  await page.getByRole("button", { name: /^Collapse$/i }).last().click()
-  await expect(page.getByRole("button", { name: /^Background$/i }).last()).toBeVisible()
+  const collapseButton = page.getByRole("button", { name: /^Collapse$/i }).last()
+  const canCollapsePlayer = (page.viewportSize()?.width ?? 0) >= 640
+  if (canCollapsePlayer) {
+    await collapseButton.click()
+    await expect(page.getByRole("button", { name: /^Background$/i }).last()).toBeVisible()
+  } else {
+    await expect(collapseButton).toHaveCount(0)
+  }
   await page.getByRole("button", { name: /^Stop$/i }).last().click()
   await expect(page.getByText("MassageLab Proof Drone").last()).toBeVisible()
   await expect(page.getByRole("button", { name: /^Background$/i }).last()).toBeVisible()
-  await page.getByRole("button", { name: /^Expand$/i }).last().click()
+  if (canCollapsePlayer) {
+    await page.getByRole("button", { name: /^Expand$/i }).last().click()
+  }
   await expect(page.getByText("Stopped").last()).toBeVisible()
   await expect(page.getByRole("button", { name: /^Background$/i }).last()).toBeVisible()
 

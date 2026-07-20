@@ -1436,7 +1436,17 @@ test("rotation and forward glow follow the centered display and stop for reduced
     const displayBounds = await protectedDisplay.locator("[data-display-content='true']").boundingBox()
     const panelBounds = await clockPanel.boundingBox()
     if (!displayBounds || !panelBounds) return 0
-    return Math.max(0, panelBounds.y - (displayBounds.y + displayBounds.height))
+    const displayRight = displayBounds.x + displayBounds.width
+    const displayBottom = displayBounds.y + displayBounds.height
+    const panelRight = panelBounds.x + panelBounds.width
+    const panelBottom = panelBounds.y + panelBounds.height
+    return Math.max(
+      0,
+      panelBounds.x - displayRight,
+      displayBounds.x - panelRight,
+      panelBounds.y - displayBottom,
+      displayBounds.y - panelBottom,
+    )
   }).toBeGreaterThanOrEqual(32)
 
   await page.emulateMedia({ reducedMotion: "reduce" })
