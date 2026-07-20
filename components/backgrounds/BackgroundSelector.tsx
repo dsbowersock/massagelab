@@ -2,6 +2,13 @@
 
 import { type CSSProperties, type ReactNode, useEffect, useMemo, useState } from "react"
 import { Lock, Sparkles, Star } from "lucide-react"
+import {
+  BACKGROUND_VISUAL_FILTERS,
+  getBackgroundVisualTags,
+  matchesBackgroundVisualFilter,
+  readSavedBackgroundIds,
+  writeSavedBackgroundIds,
+} from "@/lib/background-catalog"
 import { DEFAULT_BACKGROUND_ID } from "@/lib/background-options"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
@@ -24,119 +31,7 @@ interface BackgroundSelectorProps {
   renderSelectedControls?: (option: BackgroundDefinition) => ReactNode
 }
 
-type BackgroundVisualFilter = "all" | "static" | "animated" | "interactive" | "shader" | "image" | "video" | "premium" | "saved"
-
-const CHIMER_SAVED_BACKGROUND_IDS_STORAGE_KEY = "massagelab-chimer-saved-background-ids-v1"
-const INTERACTIVE_HINT_PATTERNS = ["interactive", "hover", "cursor", "rotate", "orbit", "spin", "mouse", "tap", "drag", "pan"]
-const SHADER_HINT_PATTERNS = ["shader", "canvas", "webgl", "glsl", "fragment", "uniform", "three", "custom"]
-
-const VISUAL_FILTERS: Array<{ value: BackgroundVisualFilter; label: string }> = [
-  { value: "all", label: "All" },
-  { value: "static", label: "Static" },
-  { value: "animated", label: "Animated" },
-  { value: "interactive", label: "Interactive" },
-  { value: "shader", label: "Shader" },
-  { value: "image", label: "Image" },
-  { value: "video", label: "Video" },
-  { value: "premium", label: "Premium" },
-  { value: "saved", label: "Saved" },
-]
-
-// Local favorites are best-effort UI preferences; malformed saved data is
-// ignored so the background picker can always render.
-function readSavedBackgroundIds(): BackgroundId[] {
-  if (typeof window === "undefined") {
-    return []
-  }
-
-  try {
-    const raw = window.localStorage.getItem(CHIMER_SAVED_BACKGROUND_IDS_STORAGE_KEY)
-    if (!raw) {
-      return []
-    }
-
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) {
-      return []
-    }
-
-    return parsed.filter((entry): entry is BackgroundId => typeof entry === "string")
-  } catch {
-    return []
-  }
-}
-
-function writeSavedBackgroundIds(ids: BackgroundId[]) {
-  if (typeof window === "undefined") {
-    return
-  }
-
-  try {
-    window.localStorage.setItem(CHIMER_SAVED_BACKGROUND_IDS_STORAGE_KEY, JSON.stringify(ids))
-  } catch {
-    // Local favorites should never block timer setup.
-  }
-}
-
-// Preview media filters use the structured generated-preview fields instead of
-// external source URLs, which usually point to documentation rather than assets.
-function hasPreviewMediaType(option: BackgroundDefinition, type: "image" | "video") {
-  if (option.previewMediaType === type) {
-    return true
-  }
-
-  return type === "image"
-    ? Boolean(option.previewImageUrl)
-    : Boolean(option.previewVideoUrl || option.previewSquareVideoUrl || option.previewVerticalVideoUrl)
-}
-
-// Interactive backgrounds are identified from user-facing behavior hints until
-// background definitions grow a first-class interaction metadata field.
-function isInteractiveBackground(option: BackgroundDefinition) {
-  const haystack = `${option.id} ${option.label} ${option.recommendedUse} ${option.customizationSummary ?? ""}`.toLowerCase()
-  return INTERACTIVE_HINT_PATTERNS.some((pattern) => haystack.includes(pattern))
-}
-
-// Keep the Shader filter restricted to metadata that actually hints at a shader,
-// canvas, WebGL, GLSL, or Three.js implementation.
-function isShaderBackground(option: BackgroundDefinition) {
-  const haystack = [
-    option.id,
-    option.label,
-    option.provider,
-    option.sourceUrl,
-    option.recommendedUse,
-    option.customizationSummary ?? "",
-  ].join(" ").toLowerCase()
-  return SHADER_HINT_PATTERNS.some((pattern) => haystack.includes(pattern))
-}
-
-// Visual filters are intentionally lightweight client-side classification. The
-// loose text heuristics can miss unusual labels, so registry metadata remains
-// the source of truth for entitlement and actual background rendering.
-function matchesVisualFilter(option: BackgroundDefinition, filter: BackgroundVisualFilter, savedBackgroundIds: BackgroundId[]) {
-  switch (filter) {
-    case "static":
-      return option.motionIntensity === "static"
-    case "animated":
-      return option.motionIntensity !== "static"
-    case "interactive":
-      return isInteractiveBackground(option)
-    case "shader":
-      return isShaderBackground(option)
-    case "image":
-      return hasPreviewMediaType(option, "image")
-    case "video":
-      return hasPreviewMediaType(option, "video")
-    case "premium":
-      return option.requiresSubscription
-    case "saved":
-      return savedBackgroundIds.includes(option.id)
-    case "all":
-    default:
-      return true
-  }
-}
+type BackgroundVisualFilter = (typeof BACKGROUND_VISUAL_FILTERS)[number]["value"]
 
 // Fallback previews keep the picker visual even before generated media loads or
 // when a background does not provide a custom fallback style.
@@ -147,24 +42,6 @@ function getPreviewStyle(option: BackgroundDefinition): CSSProperties {
         ? "linear-gradient(135deg, rgba(249,115,22,0.76), rgba(15,23,42,0.96))"
         : "radial-gradient(circle at 24% 28%, rgba(249,115,22,0.72), transparent 34%), radial-gradient(circle at 78% 70%, rgba(65,105,225,0.56), transparent 42%), linear-gradient(135deg, #050505, #111827)",
   }
-}
-
-// Tags summarize registry metadata and heuristic classifications for compact
-// card labels; they are descriptive only and do not control entitlements.
-function getVisualTags(option: BackgroundDefinition) {
-  const tags = [option.motionIntensity === "static" ? "Static" : "Animated"]
-
-  if (isInteractiveBackground(option)) {
-    tags.push("Interactive")
-  }
-
-  if (isShaderBackground(option)) {
-    tags.push("Shader")
-  }
-
-  tags.push(option.requiresSubscription ? "Premium" : "Free")
-
-  return Array.from(new Set(tags))
 }
 
 export function BackgroundSelector({
@@ -182,13 +59,13 @@ export function BackgroundSelector({
   const [savedBackgroundIds, setSavedBackgroundIds] = useState<BackgroundId[]>([])
   const options = useMemo(() => getBackgroundOptionsForCategory(category), [category])
   const visibleOptions = useMemo(
-    () => options.filter((option) => matchesVisualFilter(option, visualFilter, savedBackgroundIds)),
+    () => options.filter((option) => matchesBackgroundVisualFilter(option, visualFilter, savedBackgroundIds)),
     [options, savedBackgroundIds, visualFilter],
   )
   const selectedOption = options.find((option) => option.id === value) ?? options.find((option) => option.id === DEFAULT_BACKGROUND_ID)
 
   useEffect(() => {
-    setSavedBackgroundIds(readSavedBackgroundIds())
+    setSavedBackgroundIds(readSavedBackgroundIds(window.localStorage) as BackgroundId[])
   }, [])
 
   function toggleSavedBackground(id: BackgroundId) {
@@ -197,7 +74,7 @@ export function BackgroundSelector({
         ? current.filter((entry) => entry !== id)
         : [...current, id]
 
-      writeSavedBackgroundIds(nextIds)
+      writeSavedBackgroundIds(window.localStorage, nextIds)
 
       return nextIds
     })
@@ -222,13 +99,13 @@ export function BackgroundSelector({
           />
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
             <span className="font-semibold text-foreground">{selectedOption.label}</span>
-            <span className="text-muted-foreground">{getVisualTags(selectedOption).slice(0, 3).join(" • ")}</span>
+            <span className="text-muted-foreground">{getBackgroundVisualTags(selectedOption).slice(0, 3).join(" • ")}</span>
           </div>
         </div>
       ) : null}
 
       <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Background visual filters">
-        {VISUAL_FILTERS.map((filter) => (
+        {BACKGROUND_VISUAL_FILTERS.map((filter) => (
           <button
             key={filter.value}
             type="button"
@@ -286,7 +163,7 @@ export function BackgroundSelector({
                   {option.provider} · {option.motionIntensity} motion · {option.performanceCost} cost
                 </span>
                 <span className="text-xs leading-5 text-muted-foreground">
-                  {getVisualTags(option).slice(0, 4).join(" • ")}
+                  {getBackgroundVisualTags(option).slice(0, 4).join(" • ")}
                 </span>
               </div>
               <div className="flex flex-wrap items-center gap-2">

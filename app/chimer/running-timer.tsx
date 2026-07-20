@@ -3,6 +3,14 @@
 import { type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { ChevronLeft, ChevronRight, Maximize2, Minimize2, Minus, Pause, Play, Plus, Star, X } from "lucide-react"
 import Image from "next/image"
+import {
+  BACKGROUND_VISUAL_FILTERS,
+  getBackgroundPreviewMedia,
+  getBackgroundVisualTags,
+  matchesBackgroundVisualFilter,
+  readSavedBackgroundIds,
+  writeSavedBackgroundIds,
+} from "@/lib/background-catalog"
 import { DEFAULT_BACKGROUND_ID } from "@/lib/background-options"
 import { BackgroundHost } from "@/components/backgrounds/BackgroundHost"
 import {
@@ -212,48 +220,10 @@ import { TileGridFadeTimeControl } from "./tile-grid-fade-time-control"
 type PrimaryDisplay = "timer" | "currentTime"
 type BackgroundVisualCategory = "all" | "animated" | "image" | "interactive" | "premium" | "saved" | "static" | "shader" | "video"
 
-const BACKGROUND_VISUAL_CATEGORIES: ReadonlyArray<{ value: BackgroundVisualCategory; label: string }> = [
-  { value: "all", label: "All" },
-  { value: "static", label: "Static" },
-  { value: "animated", label: "Animated" },
-  { value: "interactive", label: "Interactive" },
-  { value: "shader", label: "Shader" },
-  { value: "image", label: "Image" },
-  { value: "video", label: "Video" },
-  { value: "premium", label: "Premium" },
-  { value: "saved", label: "Saved" },
-]
-
-const CHIMER_SAVED_BACKGROUND_IDS_STORAGE_KEY = "massagelab-chimer-saved-background-ids-v1"
 const CHIMER_GLOBAL_COLOR_STORAGE_KEY = "massagelab-chimer-global-color-v1"
 const CHIMER_GLOBAL_PALETTE_STORAGE_KEY = "massagelab-chimer-global-palettes-v1"
 const VISUAL_CUSTOMIZATION_HINT = "Customize this background in Visual."
 const VISUAL_CUSTOMIZATION_HINT_DURATION_MS = 6500
-const IMAGE_SOURCE_PATTERNS = [
-  ".png",
-  ".jpg",
-  ".jpeg",
-  ".gif",
-  ".webp",
-  ".avif",
-  ".heic",
-  ".heif",
-  ".svg",
-]
-const VIDEO_SOURCE_PATTERNS = [".mp4", ".webm", ".mov", ".m4v", ".ogg", ".ogv"]
-const INTERACTIVE_HINT_PATTERNS = [
-  "interactive",
-  "hover",
-  "cursor",
-  "rotate",
-  "orbit",
-  "spin",
-  "mouse",
-  "tap",
-  "drag",
-  "pan",
-]
-const SHADER_HINT_PATTERNS = ["shader", "canvas", "webgl", "glsl", "fragment", "uniform", "three", "custom"]
 
 type CurrentTimeParts = {
   time: string
@@ -316,20 +286,6 @@ type ChimerSavedPalette = {
   generated: string[]
   isDefault: boolean
   createdAt: string
-}
-
-type BackgroundPreviewMedia = {
-  type: "image" | "video"
-  source: string
-}
-
-type BackgroundDefinitionWithPreview = BackgroundDefinition & {
-  previewMediaUrl?: string
-  previewMediaType?: BackgroundPreviewMedia["type"]
-  previewImageUrl?: string
-  previewVideoUrl?: string
-  previewSquareVideoUrl?: string
-  previewVerticalVideoUrl?: string
 }
 
 function clampNumber(value: number, min: number, max: number) {
@@ -752,195 +708,6 @@ function saveGlobalPalettesToStorage(palettes: ChimerSavedPalette[]) {
   } catch {
     // noop
   }
-}
-
-function getBackgroundPreviewMedia(
-  option: BackgroundDefinition,
-  preferredVariant: "landscape" | "square" | "vertical" = "landscape",
-): BackgroundPreviewMedia | null {
-  const optionWithPreview = option as BackgroundDefinitionWithPreview
-  const resolveTypeFromSource = (source: string): BackgroundPreviewMedia["type"] | null => {
-    const normalizedSource = source.toLowerCase()
-
-    if (VIDEO_SOURCE_PATTERNS.some((pattern) => normalizedSource.includes(pattern))) {
-      return "video"
-    }
-
-    if (IMAGE_SOURCE_PATTERNS.some((pattern) => normalizedSource.includes(pattern)) || normalizedSource.includes("/media/")) {
-      return "image"
-    }
-
-    return null
-  }
-
-  const videoCandidates =
-    preferredVariant === "vertical"
-      ? [optionWithPreview.previewVerticalVideoUrl, optionWithPreview.previewSquareVideoUrl, optionWithPreview.previewVideoUrl]
-      : preferredVariant === "square"
-        ? [optionWithPreview.previewSquareVideoUrl, optionWithPreview.previewVideoUrl, optionWithPreview.previewVerticalVideoUrl]
-        : [optionWithPreview.previewVideoUrl, optionWithPreview.previewSquareVideoUrl, optionWithPreview.previewVerticalVideoUrl]
-  const previewCandidates: Array<{ typeHint?: BackgroundPreviewMedia["type"]; source?: string }> = [
-    ...videoCandidates.map((source) => ({ typeHint: "video" as const, source })),
-    { typeHint: optionWithPreview.previewMediaType, source: optionWithPreview.previewMediaUrl },
-    { typeHint: "image", source: optionWithPreview.previewImageUrl },
-  ]
-
-  for (const candidate of previewCandidates) {
-    if (!candidate.source) {
-      continue
-    }
-
-    const candidateType = candidate.typeHint ?? resolveTypeFromSource(candidate.source)
-    if (candidateType) {
-      return { type: candidateType, source: candidate.source }
-    }
-  }
-
-  const source = option.sourceUrl.toLowerCase()
-  const sourceType = resolveTypeFromSource(source)
-  if (sourceType) {
-    return { type: sourceType, source: option.sourceUrl }
-  }
-
-  return null
-}
-
-const getSavedBackgroundIdsFromStorage = (): BackgroundId[] => {
-  if (typeof window === "undefined") {
-    return []
-  }
-
-  try {
-    const raw = window.localStorage.getItem(CHIMER_SAVED_BACKGROUND_IDS_STORAGE_KEY)
-    if (!raw) {
-      return []
-    }
-
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) {
-      return []
-    }
-
-    return parsed.filter((entry): entry is BackgroundId => typeof entry === "string")
-  } catch {
-    return []
-  }
-}
-
-const saveBackgroundIdsToStorage = (ids: BackgroundId[]) => {
-  if (typeof window === "undefined") {
-    return
-  }
-
-  try {
-    window.localStorage.setItem(CHIMER_SAVED_BACKGROUND_IDS_STORAGE_KEY, JSON.stringify(ids))
-  } catch {
-    // noop
-  }
-}
-
-const hasPreviewMediaType = (option: BackgroundDefinition, type: BackgroundPreviewMedia["type"]) => {
-  const optionWithPreview = option as BackgroundDefinitionWithPreview
-  if (optionWithPreview.previewMediaType === type) {
-    return true
-  }
-
-  return type === "image"
-    ? Boolean(optionWithPreview.previewImageUrl)
-    : Boolean(optionWithPreview.previewVideoUrl || optionWithPreview.previewSquareVideoUrl || optionWithPreview.previewVerticalVideoUrl)
-}
-
-// Interactive backgrounds are identified from behavior hints until background
-// definitions grow first-class interaction metadata.
-const isInteractiveBackgroundOption = (option: BackgroundDefinition) => {
-  const haystack = `${option.id} ${option.label} ${option.recommendedUse} ${option.customizationSummary ?? ""}`.toLowerCase()
-  return INTERACTIVE_HINT_PATTERNS.some((pattern) => haystack.includes(pattern))
-}
-
-// Keep the Shader filter restricted to metadata that actually hints at shader,
-// canvas, WebGL, GLSL, or Three.js rendering.
-const isShaderBackgroundOption = (option: BackgroundDefinition) => {
-  const haystack = [
-    option.id,
-    option.label,
-    option.provider,
-    option.sourceUrl,
-    option.recommendedUse,
-    option.customizationSummary ?? "",
-  ].join(" ").toLowerCase()
-  return SHADER_HINT_PATTERNS.some((pattern) => haystack.includes(pattern))
-}
-
-const isBackgroundCategoryMatch = (
-  option: BackgroundDefinition,
-  filter: BackgroundVisualCategory,
-  savedBackgroundIds: string[],
-) => {
-  if (filter === "all") {
-    return true
-  }
-
-  if (filter === "saved") {
-    return savedBackgroundIds.includes(option.id)
-  }
-
-  if (filter === "premium") {
-    return option.requiresSubscription
-  }
-
-  if (filter === "static") {
-    return option.motionIntensity === "static"
-  }
-
-  if (filter === "animated") {
-    return option.motionIntensity !== "static"
-  }
-
-  if (filter === "interactive") {
-    return isInteractiveBackgroundOption(option)
-  }
-
-  if (filter === "shader") {
-    return isShaderBackgroundOption(option)
-  }
-
-  if (filter === "image") {
-    return hasPreviewMediaType(option, "image")
-  }
-
-  return hasPreviewMediaType(option, "video")
-}
-
-const getBackgroundVisualTags = (option: BackgroundDefinition) => {
-  const tags: string[] = []
-
-  if (option.motionIntensity === "static") {
-    tags.push("Static")
-  } else {
-    tags.push("Animated")
-  }
-
-  if (isInteractiveBackgroundOption(option)) {
-    tags.push("Interactive")
-  }
-
-  if (isShaderBackgroundOption(option)) {
-    tags.push("Shader")
-  }
-
-  if (hasPreviewMediaType(option, "image")) {
-    tags.push("Image")
-  } else if (hasPreviewMediaType(option, "video")) {
-    tags.push("Video")
-  }
-
-  if (option.requiresSubscription) {
-    tags.push("Premium")
-  } else {
-    tags.push("Free")
-  }
-
-  return Array.from(new Set(tags))
 }
 
 export interface ImmersiveDisplayMode {
@@ -3481,7 +3248,7 @@ export function RunningTimer({
     backgroundCategory,
   )
   const visibleBackgroundOptions = useMemo(
-    () => getBackgroundOptionsForCategory(backgroundCategory).filter((option) => isBackgroundCategoryMatch(
+    () => getBackgroundOptionsForCategory(backgroundCategory).filter((option) => matchesBackgroundVisualFilter(
       option,
       backgroundCategoryFilter,
       savedBackgroundIds,
@@ -3599,7 +3366,7 @@ export function RunningTimer({
   }, [activePanel, clearControlTimers, scheduleControlHide])
 
   useEffect(() => {
-    const loadedSavedBackgroundIds = getSavedBackgroundIdsFromStorage()
+    const loadedSavedBackgroundIds = readSavedBackgroundIds(window.localStorage) as BackgroundId[]
     setSavedBackgroundIds(loadedSavedBackgroundIds)
   }, [])
 
@@ -3908,7 +3675,7 @@ export function RunningTimer({
         ? current.filter((id) => id !== nextBackgroundId)
         : [...current, nextBackgroundId]
 
-      saveBackgroundIdsToStorage(next)
+      writeSavedBackgroundIds(window.localStorage, next)
       return next
     })
   }
@@ -17544,7 +17311,7 @@ export function RunningTimer({
           backgroundContent={(
             <div className={`${styles.settingsTabContent} ${styles.backgroundSettingsTabContent}`}>
                 <div className={styles.backgroundCategoryRow} role="group" aria-label="Background visual filters">
-                  {BACKGROUND_VISUAL_CATEGORIES.map((category) => (
+                  {BACKGROUND_VISUAL_FILTERS.map((category) => (
                     <button
                       key={category.value}
                       type="button"
