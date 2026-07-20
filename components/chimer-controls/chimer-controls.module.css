@@ -659,6 +659,11 @@
   grid-template-columns: repeat(5, minmax(2.5rem, 1fr));
 }
 
+.globalColorGridCompactRow {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.3rem;
+}
+
 .colorPickerShell {
   position: relative;
   display: inline-flex;
@@ -972,6 +977,10 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .globalColorGrid.globalColorGridCompactRow {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
   .colorPickerPopover {
     width: min(20rem, calc(100vw - 1.25rem));
   }
@@ -988,6 +997,19 @@
 @media (max-width: 420px) {
   .globalColorGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .globalColorGrid.globalColorGridCompactRow {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.2rem;
+  }
+
+  .globalColorGridCompactRow .globalColorLabel {
+    min-height: 2.3em;
+    overflow: visible;
+    font-size: 0.58rem;
+    text-overflow: clip;
+    white-space: normal;
   }
 
   .globalColorField .colorPickerPopover {

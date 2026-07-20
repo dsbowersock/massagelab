@@ -10,6 +10,16 @@
   z-index: 0;
 }
 
+/* Pausing a visual retains its representative frame while halting CSS motion. */
+.host[data-background-motion="paused"],
+.host[data-background-motion="paused"] *,
+.host[data-background-motion="paused"] *::before,
+.host[data-background-motion="paused"] *::after,
+.host[data-background-motion="paused"]::before,
+.host[data-background-motion="paused"]::after {
+  animation-play-state: paused !important;
+}
+
 .fallback,
 .effectLayer {
   position: absolute;

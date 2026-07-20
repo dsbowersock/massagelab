@@ -220,7 +220,12 @@ Add sanitized settings with these defaults:
 ```js
 showClockDisplay: true,
 clockRotationEnabled: false,
+clockRotationRange: 10,
+clockRotationDuration: 40,
 clockForwardGlowEnabled: false,
+clockForwardGlowStrength: 1,
+clockForwardGlowLength: 1,
+clockForwardGlowBlur: 28,
 ```
 
 Assert non-boolean input falls back to the defaults and that account/local sanitization preserves literal booleans. These are non-sensitive UI preferences and require no schema migration.
@@ -250,9 +255,10 @@ Assert:
 - `/clock?source=music` resolves Music visualizer;
 - ordinary `/clock` resolves Clock;
 - active `/chimer` resolves Chimer;
-- all three contexts request wake lock only when `keepScreenAwake === true` and the display is active;
-- idle setup never requests it;
-- ordinary Clock no longer bypasses the preference.
+- active ordinary Clock and Music visualizer request wake lock regardless of `keepScreenAwake`, including when the Music clock is hidden;
+- active Chimer requests wake lock only when `keepScreenAwake === true`;
+- idle setup never requests it in any context; and
+- unrecognized contexts never request it.
 
 ### Step 3: Implement the helpers and setting fields
 
@@ -505,10 +511,13 @@ Use the existing Radix-backed Dialog primitive if its overlay/content contract c
 - fixed viewport coverage above app bar and Music player;
 - focus trap and inert underlying content;
 - always-visible Close control;
-- close only through Close or `Escape` (disable overlay-click dismissal);
+- Close and `Escape` always dismiss;
+- an outside pointer interaction dismisses when any overlay is actually visible beyond the content; a true full-viewport panel naturally has no outside target;
 - focus restoration to Background.
 
 Give the overlay a documented z-index token above the current global player/navigation layers. Add `data-immersive-panel="background"` for browser geometry tests.
+
+Selecting an available background closes Background immediately and fully reveals the result. If Visual has never been opened on that device, briefly highlight its toolbar control with the accessible hint `Customize this background in Visual.` Do not open Visual, trap focus, cover the toolbar, or sync this visit flag to the account. Mark the non-sensitive device-local flag only when Visual is actually opened; if storage is unavailable, keep the visit state in memory for the current mount. Reduced motion disables hint animation.
 
 ### Step 5: Implement bottom-first safe-stage measurement
 
@@ -542,7 +551,7 @@ In `RunningTimer`:
 
 - preserve existing Clock, Visual, and Background controls;
 - remove the Tabs wrapper and auto-close scheduling/effects;
-- move Keep screen awake to the first Visual row;
+- move Keep screen awake to the first Visual row for active Chimer only, and omit it from ordinary Clock and Music visualizer;
 - keep background selection/filtering in Background;
 - keep effect controls/global colors/palettes in Visual;
 - keep timer-only adjustments in Clock;
@@ -660,7 +669,7 @@ Selecting an available background must:
 
 When Clock display is off, keep the background running and disable rotation/forward-glow controls with a short explanation. Do not change or erase their saved values.
 
-### Step 5: Apply the shared wake-lock rule
+### Step 5: Apply the context-aware wake-lock rule
 
 Replace:
 
@@ -669,7 +678,7 @@ timerState.status === "clock" ||
   (timerState.status !== "idle" && settings.keepTimerScreenAwake);
 ```
 
-with `shouldRequestImmersiveWakeLock(...)`. Preserve the current visibility-release/reacquire lifecycle. Surface unsupported/denied status at the top of Visual without changing the saved preference.
+with `shouldRequestImmersiveWakeLock(...)`. Active ordinary Clock and Music visualizer request wake lock automatically, even when Music Show clock is off; active Chimer alone honors the default-on `keepTimerScreenAwake` opt-out. Idle setup never requests it. Preserve the current visibility-release/reacquire lifecycle. Surface unsupported/denied status at the top of Visual in every context without changing the saved Chimer preference.
 
 ### Step 6: Add Music default controls to Visual
 
@@ -749,7 +758,7 @@ Use the shared toggle control with labels:
 - Display rotation
 - Forward glow
 
-Bind directly to `clockRotationEnabled` and `clockForwardGlowEnabled`. Both default off. Show no speed/intensity sliders. Disable both when the current Clock context has Show clock off; active Chimer remains eligible because timer information cannot be hidden.
+Bind directly to `clockRotationEnabled` and `clockForwardGlowEnabled`. Both default off. When rotation is enabled, reveal yaw-range and cycle-duration sliders; when Forward glow is enabled, reveal intensity, projection-length, and blur sliders. Disable the effect groups when the current Clock context has Show clock off; active Chimer remains eligible because timer information cannot be hidden.
 
 ### Step 4: Implement rotation without destabilizing measurement
 
@@ -853,7 +862,7 @@ Assert:
 - changing Music Show clock does not change ordinary Clock;
 - active Chimer has no Show clock toggle;
 - timer-only remaining/chime controls appear only during active Chimer;
-- Keep screen awake is the first Visual control in all contexts.
+- Keep screen awake is the first Visual control only in active Chimer; ordinary Clock and Music visualizer expose no toggle and request wake lock automatically.
 
 ### Step 3: Add dismissal and focus coverage
 
@@ -869,10 +878,12 @@ For Clock and Visual:
 
 For Background:
 
-- outside overlay interaction does not close;
-- `Escape` and Close do;
+- selection, `Escape`, and Close dismiss immediately;
+- outside interaction dismisses when visible overlay exists; skip that interaction assertion when full-viewport content leaves no outside target;
 - focus remains trapped inside while open;
 - focus returns to Background.
+
+Also cover the first-selection Visual hint, opening Visual recording the device-local seen flag and suppressing later hints, pre-seen hydration, and storage-denial fallback.
 
 ### Step 4: Add safe-stage geometry coverage
 
@@ -982,8 +993,8 @@ Before committing, unstage `playwright.config.ts` if no project change was neede
 - `/music` has no separate user-selected background.
 - Device choice, account default, Restore, and two separate Show clock preferences follow the approved precedence.
 - Minimize unmounts the visualizer renderer while preserving playback/player/preferences.
-- Keep screen awake is first in Visual and governs all three immersive contexts.
-- Rotation and Forward glow are independent, off by default, centered-display-aware, and reduced-motion safe.
+- Keep screen awake is first in Visual only for active Chimer; ordinary Clock and Music visualizer expose no toggle and request wake lock automatically while active, including when Music Show clock is off.
+- Rotation and Forward glow are independent, off by default, centered-display-aware, reduced-motion safe, and expose sanitized persisted property controls for yaw range/cycle plus glow intensity/length/blur.
 - Current entitlement/background gating remains intact.
 - Focus, tooltips, modal semantics, outside-click rules, and zoom/phone access meet the accessibility contract.
 - Focused tests, desktop/mobile Playwright, lint, typecheck, full tests, build, and diff check pass.

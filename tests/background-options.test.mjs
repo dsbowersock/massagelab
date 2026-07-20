@@ -4,6 +4,7 @@ import { describe, it } from "node:test"
 import {
   BACKGROUND_STORAGE_KEYS,
   DEFAULT_BACKGROUND_ID,
+  isBackgroundId,
   normalizeBackgroundId,
 } from "../lib/background-options.js"
 import { FEATURE_KEYS } from "../lib/membership.js"
@@ -14,8 +15,78 @@ import {
   resolveAccessibleBackgroundDefinition,
 } from "../components/backgrounds/backgroundRegistry.ts"
 
+const runningTimerStyles = readFileSync(
+  new URL("../app/chimer/running-timer.module.css", import.meta.url),
+  "utf8",
+)
+const runningTimerSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+const projectLogSource = readFileSync(new URL("../docs/project-log.md", import.meta.url), "utf8")
+
 describe("premium background registry", () => {
-  it("keeps the default background free and namespaced storage keys stable", () => {
+  it("records the verified public MIT Neon Clock attribution", () => {
+    assert.match(projectLogSource, /https:\/\/codepen\.io\/wheatup\/pen\/JjzdMbK/)
+    assert.match(projectLogSource, /wheatup/)
+    assert.match(projectLogSource, /public[\s\S]*MIT/)
+    assert.match(projectLogSource, /adapt(?:ed|ation)[\s\S]*native React and CSS/i)
+  })
+
+  it("keeps display rotation bounded and reduced-motion safe", () => {
+    assert.match(runningTimerStyles, /\.displayEffectBounds\s*\{[\s\S]*perspective:\s*45rem/)
+    assert.match(runningTimerStyles, /@keyframes immersiveDisplayYaw/)
+    assert.match(runningTimerStyles, /rotateY\(var\(--immersive-display-yaw-min, -10deg\)\)/)
+    assert.match(runningTimerStyles, /rotateY\(var\(--immersive-display-yaw-max, 10deg\)\)/)
+    assert.match(
+      runningTimerStyles,
+      /animation:\s*immersiveDisplayYaw var\(--immersive-display-yaw-duration, 40s\) ease-in-out infinite/,
+    )
+    assert.match(
+      runningTimerStyles,
+      /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.displayRotationEnabled\s*\{[\s\S]*animation:\s*none/,
+    )
+  })
+
+  it("keeps forward-glow projection layers bounded and visually clipped", () => {
+    const forwardGlowRule = runningTimerStyles.match(/\.forwardGlowProjection\s*\{([^}]+)\}/)?.[1]
+    assert.ok(forwardGlowRule)
+    assert.match(forwardGlowRule, /rotateX\(-90\.1deg\)/)
+    assert.match(forwardGlowRule, /scaleY\(var\(--immersive-forward-glow-length, 1\)\)/)
+    assert.match(forwardGlowRule, /translateY\(calc\(var\(--immersive-forward-glow-gap, 16px\) - 0\.25em\)\)/)
+    assert.match(forwardGlowRule, /translateZ\(2rem\)/)
+    assert.doesNotMatch(runningTimerStyles, /\.forwardGlowProjection::before/)
+    assert.doesNotMatch(
+      runningTimerStyles,
+      /\.forwardGlowLayer\s*\{[^}]*mask-image:/,
+      "the projection must not use a full-layer mask or filled plane that can reveal rectangular bounds",
+    )
+    for (const className of ["forwardGlowBloom", "forwardGlowReflection"]) {
+      const layerRule = runningTimerStyles.match(new RegExp(`\\.${className}\\s*\\{([^}]+)\\}`))?.[1]
+      assert.ok(layerRule)
+      assert.match(layerRule, /filter:[^;]*drop-shadow\([^;]*blur\(/)
+      assert.match(layerRule, /opacity:/)
+      assert.doesNotMatch(layerRule, /mask-image:/)
+    }
+    assert.match(runningTimerStyles, /\.forwardGlowLayer::before\s*\{[^}]*width:\s*400%;[^}]*height:\s*400%;/s)
+    assert.match(runningTimerStyles, /\.forwardGlowBloom\s+\.currentTimeDigit[^}]*mask-image:\s*linear-gradient/s)
+    assert.match(runningTimerStyles, /\.forwardGlowReflection\s+\.currentTimeDigit[^}]*mask-image:\s*linear-gradient/s)
+    assert.match(runningTimerStyles, /\.primaryDisplay\s*\{[\s\S]*overflow:\s*hidden/)
+    assert.match(runningTimerStyles, /\.primaryDisplayForwardGlowEnabled\s*\{[^}]*overflow:\s*visible/s)
+    assert.match(runningTimerStyles, /\.secondaryDisplay\s*\{[\s\S]*overflow:\s*hidden/)
+  })
+
+  it("keeps forward-glow controls and calculations within their persisted bounds", () => {
+    assert.match(runningTimerSource, /label="Projection length"[\s\S]*?max=\{4\}/)
+    assert.match(runningTimerSource, /Math\.round\(\(clockForwardGlowLength \/ 4\) \* 100\)/)
+    assert.match(runningTimerSource, /Math\.round\(\(clockForwardGlowBlur \/ 64\) \* 100\)/)
+    assert.doesNotMatch(runningTimerSource, />Display effects</)
+    assert.match(runningTimerSource, /Math\.sqrt\(clockForwardGlowStrength\)/)
+    assert.match(runningTimerSource, /Math\.max\(1, clockForwardGlowBlur \* 0\.14\)/)
+    assert.match(runningTimerSource, /Math\.max\(3, clockForwardGlowBlur \* 0\.32\)/)
+    assert.match(runningTimerSource, /--immersive-forward-glow-dock-runway/)
+    assert.match(runningTimerSource, /clockForwardGlowLength - 0\.5/)
+    assert.equal((runningTimerSource.match(/styles\.primaryDisplayForwardGlowEnabled/g) ?? []).length, 2)
+  })
+
+  it("keeps the default background free and the Music key available for legacy reads", () => {
     assert.equal(DEFAULT_BACKGROUND_ID, "massage-lab-moving-gradient")
     assert.equal(backgroundRegistry.find((entry) => entry.id === DEFAULT_BACKGROUND_ID)?.label, "MassageLaba Lamp")
     assert.equal(BACKGROUND_STORAGE_KEYS.chimer, "massagelab.chimer.background")
@@ -23,6 +94,13 @@ describe("premium background registry", () => {
     assert.equal(canUseBackgroundId(DEFAULT_BACKGROUND_ID, []), true)
     assert.equal(canUseBackgroundId("static-gradient", []), true)
     assert.equal(resolveAccessibleBackgroundDefinition("unknown", []).id, DEFAULT_BACKGROUND_ID)
+  })
+
+  it("requires explicit known IDs before applying Music category eligibility", () => {
+    assert.equal(isBackgroundId("static-gradient"), true)
+    assert.equal(canUseBackgroundId("static-gradient", [], "music"), true)
+    assert.equal(isBackgroundId("unknown-music-background"), false)
+    assert.equal(canUseBackgroundId("unknown-music-background", [], "music"), true)
   })
 
   it("gates active premium backgrounds behind premium background access", () => {
@@ -506,7 +584,7 @@ describe("premium background registry", () => {
     assert.match(runningSource, /hexGrid=\{\{/)
   })
 
-  it("keeps Aurora Bars dependency-free and reactive only from Music playback", () => {
+  it("keeps Aurora Bars dependency-free and outside the Music discovery page", () => {
     const effectSource = readFileSync(
       new URL("../components/backgrounds/effects/massage-lab-aurora-bars-background.tsx", import.meta.url),
       "utf8",
@@ -522,8 +600,8 @@ describe("premium background registry", () => {
     assert.match(effectSource, /cancelAnimationFrame/)
     assert.match(effectSource, /visualizerActive/)
     assert.match(effectSource, /createMonochromaticPalette/)
-    assert.match(musicWorkspaceSource, /backgroundId === "massage-lab-aurora-bars"/)
-    assert.match(musicWorkspaceSource, /music\.playbackState === "playing"/)
+    assert.doesNotMatch(musicWorkspaceSource, /massage-lab-aurora-bars/)
+    assert.doesNotMatch(musicWorkspaceSource, /visualizerActive/)
     assert.match(chimerRunningSource, /auroraBars=\{\{/)
     assert.doesNotMatch(chimerPageSource, /auroraBars=\{\{/)
     assert.match(setupControlsSource, /Auto monochrome/)

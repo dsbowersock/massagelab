@@ -1,0 +1,390 @@
+.root {
+  --immersive-global-chrome-z: 10030;
+  --immersive-reserved-top: 0px;
+  --immersive-reserved-bottom: 0px;
+  --immersive-panel-max-height: min(70dvh, 44rem);
+  --immersive-dock-top-inset: max(0.75rem, env(safe-area-inset-top, 0px));
+  --immersive-dock-bottom-inset: max(0.75rem, env(safe-area-inset-bottom, 0px));
+  --immersive-toolbar-control-size: 3.5rem;
+  --immersive-toolbar-leading-space: calc(
+    env(safe-area-inset-left, 0px)
+    + 1rem
+    + var(--immersive-toolbar-control-size)
+    + 0.5rem
+  );
+  --immersive-toolbar-trailing-space: calc(
+    env(safe-area-inset-right, 0px)
+    + 1rem
+    + var(--immersive-toolbar-control-size)
+    + 0.5rem
+  );
+
+  position: fixed;
+  inset: 0;
+  z-index: var(--immersive-global-chrome-z);
+  pointer-events: none;
+  transition: opacity 900ms ease;
+}
+
+.toolbar,
+.dock {
+  pointer-events: auto;
+}
+
+.rootFaded {
+  opacity: 0.34;
+}
+
+.rootHidden {
+  opacity: 0;
+}
+
+.rootHidden .toolbar,
+.rootHidden .dock {
+  pointer-events: none;
+}
+
+:global(body.ml-music-player-active.ml-music-player-top) .root {
+  --immersive-dock-top-inset: var(--chimer-top-control-offset);
+}
+
+:global(body.ml-music-player-active.ml-music-player-bottom) .root {
+  --immersive-dock-bottom-inset: var(--chimer-panel-bottom-offset);
+}
+
+.dockInsetProbe {
+  position: fixed;
+  width: 0;
+  height: 0;
+  padding-top: var(--immersive-dock-top-inset);
+  padding-bottom: var(--immersive-dock-bottom-inset);
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.toolbar {
+  --immersive-toolbar-focus-inset: 0.25rem;
+
+  position: fixed;
+  top: calc(
+    var(--immersive-visual-viewport-top, 0px)
+    + var(--chimer-top-control-offset, calc(env(safe-area-inset-top, 0px) + 1rem))
+    - var(--immersive-toolbar-focus-inset)
+  );
+  right: auto;
+  left: calc(
+    var(--immersive-visual-viewport-left, 0px)
+    + var(--immersive-toolbar-leading-space)
+    - var(--immersive-toolbar-focus-inset)
+  );
+  z-index: 10018;
+  display: flex;
+  align-items: center;
+  width: max-content;
+  max-width: max(
+    calc(var(--immersive-toolbar-control-size) + (2 * var(--immersive-toolbar-focus-inset))),
+    calc(
+      var(--immersive-visual-viewport-width, 100vw)
+      - var(--immersive-toolbar-leading-space)
+      - var(--immersive-toolbar-trailing-space)
+      + (2 * var(--immersive-toolbar-focus-inset))
+    )
+  );
+  padding: var(--immersive-toolbar-focus-inset);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  gap: 0.5rem;
+  scroll-padding-inline: var(--immersive-toolbar-focus-inset);
+}
+
+.toolbar::-webkit-scrollbar {
+  display: none;
+}
+
+.toolbarButton {
+  flex: 0 0 auto;
+  min-width: 0;
+  position: relative;
+  inset: auto;
+}
+
+.visualHintActive {
+  outline: 2px solid rgba(96, 165, 250, 0.92);
+  outline-offset: 3px;
+  animation: visualHintPulse 1.2s ease-in-out 3;
+}
+
+.visualHint {
+  position: absolute;
+  top: calc(100% + 0.75rem);
+  right: auto;
+  left: 0;
+  max-width: min(17rem, calc(100vw - 5rem));
+  padding: 0.5rem 0.7rem;
+  border: 1px solid rgba(96, 165, 250, 0.52);
+  border-radius: 0.65rem;
+  background: rgba(7, 13, 24, 0.96);
+  box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 650;
+  line-height: 1.25;
+  pointer-events: none;
+}
+
+@keyframes visualHintPulse {
+  50% {
+    outline-color: rgba(147, 197, 253, 1);
+    box-shadow: 0 0 0.9rem rgba(59, 130, 246, 0.75);
+  }
+}
+
+.toolbarIcon {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex: 0 0 auto;
+}
+
+.toolbarLabel {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.dock {
+  position: fixed;
+  right: calc(
+    var(--immersive-visual-viewport-right, 0px)
+    + max(0.75rem, env(safe-area-inset-right, 0px))
+  );
+  left: calc(
+    var(--immersive-visual-viewport-left, 0px)
+    + max(0.75rem, env(safe-area-inset-left, 0px))
+  );
+  z-index: 10017;
+  display: flex;
+  flex-direction: column;
+  width: auto;
+  max-width: 58rem;
+  height: var(--immersive-panel-max-height);
+  max-height: var(--immersive-panel-max-height);
+  margin-inline: auto;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 1rem;
+  background: rgba(7, 13, 24, 0.96);
+  box-shadow: 0 1.25rem 4rem rgba(0, 0, 0, 0.45);
+  color: #fff;
+  backdrop-filter: blur(18px);
+}
+
+.dock[data-immersive-dock="bottom"] {
+  bottom: calc(
+    var(--immersive-visual-viewport-bottom, 0px)
+    + var(--immersive-dock-bottom-inset)
+  );
+}
+
+.dock[data-immersive-dock="top"] {
+  top: calc(
+    var(--immersive-visual-viewport-top, 0px)
+    + var(--immersive-dock-top-inset)
+  );
+}
+
+.dockHeader,
+.backgroundHeader {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 3.5rem;
+  padding: 0.625rem 0.75rem 0.625rem 1rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.dockHeader h2,
+.backgroundHeader {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.dockHeader {
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+}
+
+.dockHeaderAction {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  min-width: 0;
+}
+
+.dockHeaderCenterAction {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+.dockHeaderClose {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+@media (min-width: 421px) {
+  .dock[data-immersive-panel="clock"] .dockHeader {
+    display: flex;
+    justify-content: flex-start;
+    gap: 0;
+  }
+
+  .dock[data-immersive-panel="clock"] .dockHeader h2 {
+    margin-right: 0.5rem;
+  }
+
+  .dock[data-immersive-panel="clock"] .dockHeaderAction {
+    display: flex;
+  }
+
+  .dock[data-immersive-panel="clock"] .dockHeaderCenterAction {
+    display: flex;
+    flex: 1 1 auto;
+    justify-content: space-evenly;
+  }
+
+  .dock[data-immersive-panel="clock"] .dockHeaderClose {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 420px) {
+  .dock[data-immersive-panel="clock"] .dockHeader {
+    display: grid;
+    grid-template-areas:
+      "title visibility spacer close"
+      "controls controls controls controls";
+    grid-template-columns: auto auto 1fr auto;
+    gap: 0.45rem 0.5rem;
+  }
+
+  .dock[data-immersive-panel="clock"] .dockHeader h2 {
+    grid-area: title;
+  }
+
+  .dock[data-immersive-panel="clock"] .dockHeaderAction {
+    grid-area: visibility;
+  }
+
+  .dock[data-immersive-panel="clock"] .dockHeaderCenterAction {
+    grid-area: controls;
+  }
+
+  .dock[data-immersive-panel="clock"] .dockHeaderClose {
+    grid-area: close;
+    margin-left: 0;
+  }
+}
+
+.dockScroller,
+.backgroundScroller {
+  min-height: 0;
+  padding: 0.875rem;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.dockScroller {
+  flex: 1 1 auto;
+}
+
+/* This layer sits above the app bar/player (10015) and the immersive timer (10000). */
+.backgroundOverlay {
+  --immersive-global-chrome-z: 10030;
+
+  position: fixed;
+  inset: 0;
+  z-index: var(--immersive-global-chrome-z);
+  background: rgba(2, 6, 23, 0.86);
+  backdrop-filter: blur(14px);
+  pointer-events: auto;
+}
+
+.backgroundPanel {
+  --immersive-global-chrome-z: 10030;
+
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--immersive-global-chrome-z) + 1);
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: 100dvh;
+  min-height: 100dvh;
+  overflow: hidden;
+  background: rgba(5, 5, 5, 0.98);
+  color: #fff;
+  pointer-events: auto;
+}
+
+.backgroundHeader {
+  padding-top: max(0.625rem, env(safe-area-inset-top, 0px));
+  padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+  padding-left: max(1rem, env(safe-area-inset-left, 0px));
+}
+
+.backgroundScroller {
+  flex: 1 1 auto;
+  padding-bottom: max(0.875rem, env(safe-area-inset-bottom, 0px));
+}
+
+.unavailableMessage {
+  margin: 0.75rem 1rem 0;
+  padding: 0.75rem;
+  border: 1px solid rgba(251, 146, 60, 0.45);
+  border-radius: 0.75rem;
+  background: rgba(124, 45, 18, 0.34);
+}
+
+@media (max-width: 36rem) {
+  .root {
+    --immersive-toolbar-control-size: 3rem;
+  }
+
+  .dock {
+    right: calc(
+      var(--immersive-visual-viewport-right, 0px)
+      + max(0.4rem, env(safe-area-inset-right, 0px))
+    );
+    left: calc(
+      var(--immersive-visual-viewport-left, 0px)
+      + max(0.4rem, env(safe-area-inset-left, 0px))
+    );
+    width: auto;
+    max-width: 58rem;
+    margin-inline: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dock,
+  .backgroundOverlay,
+  .backgroundPanel {
+    animation: none;
+  }
+
+  .visualHintActive {
+    animation: none;
+  }
+}

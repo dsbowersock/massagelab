@@ -24,6 +24,8 @@ interface BackgroundHostProps extends BackgroundEffectProps {
   /** Applies one resolved palette across every color-capable background effect. */
   palette?: readonly string[]
   style?: CSSProperties
+  /** Renders the static representative while avoiding animated effect work. */
+  motionEnabled?: boolean
   testId?: string
 }
 
@@ -177,6 +179,7 @@ export function BackgroundHost({
   hexGrid,
   auroraBars,
   style,
+  motionEnabled = true,
   testId = "background-host",
 }: BackgroundHostProps) {
   const { settings } = useSettings()
@@ -190,7 +193,10 @@ export function BackgroundHost({
     ambientMotionMode: settings.ambientMotionMode,
   })
   const [BackgroundComponent, setBackgroundComponent] = useState<ComponentType<BackgroundEffectProps> | null>(null)
-  const shouldLoadEffect = Boolean(entry.component && (!reduceMotion || entry.motionIntensity === "static"))
+  const shouldLoadEffect = Boolean(
+    entry.component
+    && (entry.motionIntensity === "static" || (motionEnabled && !reduceMotion)),
+  )
   const effectProps = useMemo(() => applyPaletteToBackgroundEffects({
     mainColor,
     orbColor,
@@ -379,6 +385,7 @@ export function BackgroundHost({
       aria-hidden="true"
       className={cn(styles.host, !className && styles.hostDefault, className)}
       data-background-id={entry.id}
+      data-background-motion={motionEnabled ? "playing" : "paused"}
       data-background-provider={entry.provider}
       data-testid={testId}
       style={style}

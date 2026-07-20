@@ -44,6 +44,8 @@ export interface GlobalColorPickerProps {
   disabled?: boolean
   /** Limits direct editing while still showing the complete resolved palette. */
   editableFields?: readonly GlobalColorFieldName[]
+  /** Keeps all five palette fields on one compact row for constrained immersive panels. */
+  compactPaletteRow?: boolean
 }
 
 export interface ColorPickerSwatchProps {
@@ -555,6 +557,7 @@ export function GlobalColorPicker({
   className,
   disabled,
   editableFields,
+  compactPaletteRow = false,
 }: GlobalColorPickerProps) {
   const componentId = useId()
   const [draftColors, setDraftColors] = useState(value)
@@ -595,7 +598,7 @@ export function GlobalColorPicker({
 
       {harmonyControl ? <div className={styles.globalColorHarmony}>{harmonyControl}</div> : null}
 
-      <div className={styles.globalColorGrid}>
+      <div className={cn(styles.globalColorGrid, compactPaletteRow && styles.globalColorGridCompactRow)}>
         {COLOR_FIELDS.map((field) => (
           <ColorPickerField
             key={field.key}

@@ -1,7 +1,7 @@
 "use client"
 
 import { type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
-import { ChevronLeft, ChevronRight, Maximize2, Minimize2, Minus, Pause, Play, Plus, Settings, Star, X } from "lucide-react"
+import { ChevronLeft, ChevronRight, Maximize2, Minimize2, Minus, Pause, Play, Plus, Star, X } from "lucide-react"
 import Image from "next/image"
 import { DEFAULT_BACKGROUND_ID } from "@/lib/background-options"
 import { BackgroundHost } from "@/components/backgrounds/BackgroundHost"
@@ -18,7 +18,6 @@ import { Loader } from "@/components/chimer-controls/Loader"
 import { MovingBackground } from "@/components/moving-background"
 import { CHIMER_HARMONY_OPTIONS, HarmonyToggleGroup, type ChimerHarmonyValue } from "@/components/chimer-controls/HarmonyToggleGroup"
 import {
-  CHIMER_CONTROL_PORTAL_SELECTOR,
   ColorPickerInput,
   ColorPickerSwatch,
   GlobalColorPicker,
@@ -27,7 +26,8 @@ import {
 import { StyledRangeControl } from "@/components/chimer-controls/StyledRangeControl"
 import { StyledToggleControl } from "@/components/chimer-controls/StyledToggleControl"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Switch } from "@/components/ui/switch"
+import type { MusicVisualizerState } from "@/components/providers/music-provider"
 import { DEFAULT_CHIMER_SETTINGS } from "@/lib/chimer-timer"
 import {
   MASSAGE_LAB_GRADIENT_HARMONY_OPTIONS,
@@ -205,10 +205,11 @@ import {
   type ColorHarmony,
 } from "./set-timer"
 import styles from "./running-timer.module.css"
+import { ImmersivePanelShell, type ImmersivePanelId } from "./immersive-panel-shell"
+import { readVisualPanelOpened, writeVisualPanelOpened } from "./immersive-panel-visual-hint.js"
 import { TileGridFadeTimeControl } from "./tile-grid-fade-time-control"
 
 type PrimaryDisplay = "timer" | "currentTime"
-type SettingsTab = "clock" | "visual" | "backgrounds"
 type BackgroundVisualCategory = "all" | "animated" | "image" | "interactive" | "premium" | "saved" | "static" | "shader" | "video"
 
 const BACKGROUND_VISUAL_CATEGORIES: ReadonlyArray<{ value: BackgroundVisualCategory; label: string }> = [
@@ -226,6 +227,8 @@ const BACKGROUND_VISUAL_CATEGORIES: ReadonlyArray<{ value: BackgroundVisualCateg
 const CHIMER_SAVED_BACKGROUND_IDS_STORAGE_KEY = "massagelab-chimer-saved-background-ids-v1"
 const CHIMER_GLOBAL_COLOR_STORAGE_KEY = "massagelab-chimer-global-color-v1"
 const CHIMER_GLOBAL_PALETTE_STORAGE_KEY = "massagelab-chimer-global-palettes-v1"
+const VISUAL_CUSTOMIZATION_HINT = "Customize this background in Visual."
+const VISUAL_CUSTOMIZATION_HINT_DURATION_MS = 6500
 const IMAGE_SOURCE_PATTERNS = [
   ".png",
   ".jpg",
@@ -262,7 +265,6 @@ const MAX_FONT_SIZE = 70
 const FONT_SIZE_STEP = 3
 const FONT_FIT_EDGE_INSET_PX = 2
 const SWAP_ANIMATION_MS = 360
-const SETTINGS_AUTO_CLOSE_MS = 60_000
 const DEFAULT_PRIMARY_FONT_COLOR = "#FFFFFF"
 const DEFAULT_SECONDARY_FONT_COLOR = "#FF7A1A"
 const DEFAULT_CLOCK_MODE_FONT_COLOR = "#FFFFFF"
@@ -941,7 +943,33 @@ const getBackgroundVisualTags = (option: BackgroundDefinition) => {
   return Array.from(new Set(tags))
 }
 
+export interface ImmersiveDisplayMode {
+  context: "chimer" | "clock" | "musicVisualizer"
+  backgroundCategory: "chimer" | "clock" | "music"
+  selectedBackgroundId: string | null
+  showClock: boolean
+  canToggleClock: boolean
+  initialPanel: ImmersivePanelId
+  unavailableBackgroundMessage: string | null
+  storageStatus: MusicVisualizerState["storageStatus"]
+  storageError: string | null
+  wakeLockMessage: string | null
+  onShowClockChange?: (showClock: boolean) => void
+  onBackgroundChange: (backgroundId: string) => void
+  onClose: () => void
+  musicDefaultActions?: {
+    signedIn: boolean
+    currentIsDefault: boolean
+    accountStatus: MusicVisualizerState["accountStatus"]
+    accountError: string | null
+    onSetDefault: () => Promise<void>
+    onRestoreDefault: () => void
+    onRetry: () => Promise<void>
+  }
+}
+
 interface RunningTimerProps {
+  mode: ImmersiveDisplayMode
   timeDisplay: { hours: string; minutes: string; seconds: string }
   activeTimeDisplay: { hours: string; minutes: string; seconds: string }
   currentTime: CurrentTimeParts
@@ -950,8 +978,14 @@ interface RunningTimerProps {
   isAlerting: boolean
   fontSize: number
   movingBackgroundEnabled: boolean
-  backgroundId: ChimerSettings["backgroundId"]
   keepTimerScreenAwake: boolean
+  clockRotationEnabled: boolean
+  clockRotationRange: number
+  clockRotationDuration: number
+  clockForwardGlowEnabled: boolean
+  clockForwardGlowStrength: number
+  clockForwardGlowLength: number
+  clockForwardGlowBlur: number
   showTimerSeconds: boolean
   showCurrentTimeSeconds: boolean
   timeFormat: ChimerSettings["timeFormat"]
@@ -1873,7 +1907,6 @@ interface RunningTimerProps {
   canUseAccountColorControls: boolean
   featureKeys: string[]
   activeIntervalMinutes: number | null
-  onClose: () => void
   onPause: () => void
   onFullscreen: () => void
   onSettingsChange: (settings: Partial<ChimerSettings>) => void
@@ -1885,6 +1918,7 @@ interface RunningTimerProps {
 }
 
 export function RunningTimer({
+  mode,
   timeDisplay,
   activeTimeDisplay,
   currentTime,
@@ -1893,8 +1927,14 @@ export function RunningTimer({
   isAlerting,
   fontSize,
   movingBackgroundEnabled,
-  backgroundId,
   keepTimerScreenAwake,
+  clockRotationEnabled,
+  clockRotationRange,
+  clockRotationDuration,
+  clockForwardGlowEnabled,
+  clockForwardGlowStrength,
+  clockForwardGlowLength,
+  clockForwardGlowBlur,
   showTimerSeconds,
   showCurrentTimeSeconds,
   timeFormat,
@@ -2816,7 +2856,6 @@ export function RunningTimer({
   canUseAccountColorControls,
   featureKeys,
   activeIntervalMinutes,
-  onClose,
   onPause,
   onFullscreen,
   onSettingsChange,
@@ -2829,13 +2868,17 @@ export function RunningTimer({
   const isPaused = status === "paused"
   const isComplete = status === "complete"
   const isClockMode = status === "clock"
+  const shouldRenderTimerDisplay = mode.context === "chimer" && !isClockMode
   const canEditActiveTimer = status === "running" || status === "paused"
-  const backgroundCategory = isClockMode ? "clock" : "chimer"
+  const backgroundCategory = mode.backgroundCategory
+  const backgroundId = mode.selectedBackgroundId ?? DEFAULT_BACKGROUND_ID
   // Preserve the original Lamp path; BackgroundHost owns static fallbacks for premium alternatives.
   const useOriginalLampBackground = backgroundId === DEFAULT_BACKGROUND_ID
   const isLiveBackgroundSession = status === "running" || status === "paused" || status === "clock"
-  const shouldRenderLiveBackground = movingBackgroundEnabled && isLiveBackgroundSession
+  const shouldRenderLiveBackground = mode.selectedBackgroundId !== null && (
+    isLiveBackgroundSession
     || !canUseBackgroundId(backgroundId, featureKeys, backgroundCategory)
+  )
   const astralFlowDisplaySpeed = getMassageLabAstralFlowDisplaySpeed(massageLabAstralFlowSpeed)
   const astralFlowColors = resolveMassageLabAstralFlowColors({
     massageLabAstralFlowPaletteMode,
@@ -3196,8 +3239,8 @@ export function RunningTimer({
     massageLabSynthesisColorThree,
   })
   const [primaryDisplay, setPrimaryDisplay] = useState<PrimaryDisplay>(isClockMode ? "currentTime" : "timer")
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-  const [settingsTab, setSettingsTab] = useState<SettingsTab>("clock")
+  const [activePanel, setActivePanel] = useState<ImmersivePanelId>(null)
+  const [visualHintMessage, setVisualHintMessage] = useState<string | null>(null)
   const [backgroundCategoryFilter, setBackgroundCategoryFilter] =
     useState<BackgroundVisualCategory>("all")
   const [savedBackgroundIds, setSavedBackgroundIds] = useState<BackgroundId[]>([])
@@ -3225,13 +3268,66 @@ export function RunningTimer({
   const [swapAnimationTarget, setSwapAnimationTarget] = useState<PrimaryDisplay | null>(null)
   const fadeTimerRef = useRef<number | null>(null)
   const hideTimerRef = useRef<number | null>(null)
-  const settingsAutoCloseTimerRef = useRef<number | null>(null)
-  const settingsButtonRef = useRef<HTMLButtonElement | null>(null)
-  const settingsPanelRef = useRef<HTMLDivElement | null>(null)
+  const protectedDisplayRef = useRef<HTMLElement | null>(null)
   const primaryDisplayRef = useRef<HTMLButtonElement | null>(null)
   const primaryContentRef = useRef<HTMLSpanElement | null>(null)
   const backgroundVideoRefMap = useRef<Map<BackgroundId, HTMLVideoElement | null>>(new Map())
   const backgroundCarouselSwipeStartRef = useRef<{ x: number; y: number } | null>(null)
+  const visualPanelOpenedRef = useRef(false)
+  const visualPanelOpenedHydratedRef = useRef(false)
+  const visualHintTimeoutRef = useRef<number | null>(null)
+  const initialPanelAppliedRef = useRef(false)
+
+  useEffect(() => {
+    if (!initialPanelAppliedRef.current && mode.initialPanel) {
+      initialPanelAppliedRef.current = true
+      setActivePanel(mode.initialPanel)
+    }
+  }, [mode.initialPanel])
+
+  useEffect(() => {
+    if (mode.unavailableBackgroundMessage) {
+      setActivePanel("background")
+    }
+  }, [mode.unavailableBackgroundMessage])
+
+  useEffect(() => {
+    visualPanelOpenedRef.current = readVisualPanelOpened()
+    visualPanelOpenedHydratedRef.current = true
+  }, [])
+
+  useEffect(() => () => {
+    if (visualHintTimeoutRef.current !== null) {
+      window.clearTimeout(visualHintTimeoutRef.current)
+    }
+  }, [])
+
+  const clearVisualHint = useCallback(() => {
+    if (visualHintTimeoutRef.current !== null) {
+      window.clearTimeout(visualHintTimeoutRef.current)
+      visualHintTimeoutRef.current = null
+    }
+    setVisualHintMessage(null)
+  }, [])
+
+  const showVisualHint = useCallback(() => {
+    clearVisualHint()
+    setVisualHintMessage(VISUAL_CUSTOMIZATION_HINT)
+    visualHintTimeoutRef.current = window.setTimeout(() => {
+      setVisualHintMessage(null)
+      visualHintTimeoutRef.current = null
+    }, VISUAL_CUSTOMIZATION_HINT_DURATION_MS)
+  }, [clearVisualHint])
+
+  const handleActivePanelChange = useCallback((nextPanel: ImmersivePanelId) => {
+    if (nextPanel === "visual") {
+      visualPanelOpenedRef.current = true
+      visualPanelOpenedHydratedRef.current = true
+      writeVisualPanelOpened()
+      clearVisualHint()
+    }
+    setActivePanel(nextPanel)
+  }, [clearVisualHint])
   const isTimerPrimary = primaryDisplay === "timer"
   const isCurrentTimePrimary = isClockMode || !isTimerPrimary
   const resolvedShowTimerSeconds = showTimerSeconds !== false
@@ -3407,31 +3503,17 @@ export function RunningTimer({
     }
   }, [])
 
-  const clearSettingsAutoCloseTimer = useCallback(() => {
-    if (settingsAutoCloseTimerRef.current) {
-      window.clearTimeout(settingsAutoCloseTimerRef.current)
-      settingsAutoCloseTimerRef.current = null
-    }
-  }, [])
-
-  const scheduleSettingsAutoClose = useCallback(() => {
-    clearSettingsAutoCloseTimer()
-    settingsAutoCloseTimerRef.current = window.setTimeout(() => {
-      setIsSettingsOpen(false)
-    }, SETTINGS_AUTO_CLOSE_MS)
-  }, [clearSettingsAutoCloseTimer])
-
   const scheduleControlHide = useCallback((options: { force?: boolean } = {}) => {
     clearControlTimers()
 
-    if (isSettingsOpen && !options.force) {
+    if (activePanel && !options.force) {
       setControlState("visible")
       return
     }
 
     fadeTimerRef.current = window.setTimeout(() => setControlState("faded"), 3000)
     hideTimerRef.current = window.setTimeout(() => setControlState("hidden"), 6000)
-  }, [clearControlTimers, isSettingsOpen])
+  }, [activePanel, clearControlTimers])
 
   const revealControls = useCallback(() => {
     setControlState("visible")
@@ -3507,61 +3589,14 @@ export function RunningTimer({
   }, [swapAnimationTarget])
 
   useEffect(() => {
-    if (!isSettingsOpen) {
-      return
-    }
-
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target as Node | null
-      if (!target) {
-        return
-      }
-
-      if (settingsPanelRef.current?.contains(target) || settingsButtonRef.current?.contains(target)) {
-        return
-      }
-
-      // The color picker is portaled to document.body so it can escape panel clipping.
-      if (target instanceof Element && target.closest(CHIMER_CONTROL_PORTAL_SELECTOR)) {
-        return
-      }
-
-      setIsSettingsOpen(false)
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsSettingsOpen(false)
-      }
-    }
-
-    document.addEventListener("pointerdown", handlePointerDown)
-    document.addEventListener("keydown", handleKeyDown)
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown)
-      document.removeEventListener("keydown", handleKeyDown)
-    }
-  }, [isSettingsOpen])
-
-  useEffect(() => {
-    if (isSettingsOpen) {
+    if (activePanel) {
       clearControlTimers()
       setControlState("visible")
       return
     }
 
     scheduleControlHide()
-  }, [clearControlTimers, isSettingsOpen, scheduleControlHide])
-
-  useEffect(() => {
-    if (!isSettingsOpen) {
-      clearSettingsAutoCloseTimer()
-      return
-    }
-
-    scheduleSettingsAutoClose()
-    return () => clearSettingsAutoCloseTimer()
-  }, [clearSettingsAutoCloseTimer, isSettingsOpen, scheduleSettingsAutoClose])
+  }, [activePanel, clearControlTimers, scheduleControlHide])
 
   useEffect(() => {
     const loadedSavedBackgroundIds = getSavedBackgroundIdsFromStorage()
@@ -3602,7 +3637,7 @@ export function RunningTimer({
 
   useEffect(() => {
     // The radial carousel renders several absolute cards, so preview loading is based on the active arc instead of scroll observation.
-    if (!isSettingsOpen || settingsTab !== "backgrounds") {
+    if (activePanel !== "background") {
       setVisibleBackgroundPreviewIds(new Set())
       backgroundVideoRefMap.current.forEach((videoRef) => {
         videoRef?.pause()
@@ -3623,9 +3658,8 @@ export function RunningTimer({
     setVisibleBackgroundPreviewIds(nextVisibleIds)
   }, [
     activeBackgroundCarouselIndex,
-    isSettingsOpen,
+    activePanel,
     selectedBackgroundDefinition.id,
-    settingsTab,
     visibleBackgroundOptions,
   ])
 
@@ -3635,13 +3669,13 @@ export function RunningTimer({
         return
       }
 
-      if (visibleBackgroundPreviewIds.has(previewId) && isSettingsOpen && settingsTab === "backgrounds") {
+      if (visibleBackgroundPreviewIds.has(previewId) && activePanel === "background") {
         void videoRef.play().catch(() => undefined)
       } else {
         videoRef.pause()
       }
     })
-  }, [isSettingsOpen, settingsTab, visibleBackgroundPreviewIds])
+  }, [activePanel, visibleBackgroundPreviewIds])
 
   useLayoutEffect(() => {
     const primaryElement = primaryDisplayRef.current
@@ -3774,7 +3808,6 @@ export function RunningTimer({
     }
 
     setBackgroundCategoryFilter(nextFilter)
-    scheduleSettingsAutoClose()
   }
 
   const handleBackgroundSelection = (nextBackgroundId: BackgroundId) => {
@@ -3784,7 +3817,16 @@ export function RunningTimer({
       return
     }
 
-    handleSettingsChange({ movingBackgroundEnabled: true, backgroundId: nextBackgroundId })
+    mode.onBackgroundChange(nextBackgroundId)
+    setActivePanel(null)
+
+    if (!visualPanelOpenedHydratedRef.current) {
+      visualPanelOpenedRef.current = readVisualPanelOpened()
+      visualPanelOpenedHydratedRef.current = true
+    }
+    if (!visualPanelOpenedRef.current) {
+      showVisualHint()
+    }
   }
 
   const moveBackgroundCarousel = useCallback(
@@ -3869,7 +3911,6 @@ export function RunningTimer({
       saveBackgroundIdsToStorage(next)
       return next
     })
-    scheduleSettingsAutoClose()
   }
 
   const handleGlobalColorsChange = (nextColors: GlobalColorValues) => {
@@ -3969,7 +4010,6 @@ export function RunningTimer({
 
     saveGlobalColorState(nextColors, nextHarmony)
     saveGlobalPalettesToStorage(nextPalettes)
-    scheduleSettingsAutoClose()
   }
 
   const handlePauseControl = () => {
@@ -3980,19 +4020,6 @@ export function RunningTimer({
   const handleFullscreenControl = () => {
     onFullscreen()
     scheduleHideAfterControlAction({ force: true })
-  }
-
-  const handleSettingsButtonClick = () => {
-    if (isSettingsOpen) {
-      setIsSettingsOpen(false)
-      scheduleHideAfterControlAction({ force: true })
-      return
-    }
-
-    clearControlTimers()
-    setControlState("visible")
-    setSettingsTab("clock")
-    setIsSettingsOpen(true)
   }
 
   const canUseCoreColorControls = canUseCustomColors || canUseAccountColorControls
@@ -4009,42 +4036,27 @@ export function RunningTimer({
     }
 
     onSettingsChange(nextSettings)
-    scheduleSettingsAutoClose()
     scheduleControlHide()
-  }
-
-  const handleSettingsPanelActivity = () => {
-    scheduleSettingsAutoClose()
-  }
-
-  const handleSettingsTabChange = (nextTab: string) => {
-    if (nextTab === "clock" || nextTab === "visual" || nextTab === "backgrounds") {
-      setSettingsTab(nextTab)
-    }
-    scheduleSettingsAutoClose()
   }
 
   const handleActiveRemainingHoursChange = (value: string) => {
     onSetActiveRemainingDuration(Number(value), activeRemainingMinutes)
-    scheduleSettingsAutoClose()
   }
 
   const handleActiveRemainingMinutesChange = (value: string) => {
     onSetActiveRemainingDuration(activeRemainingHours, Number(value))
-    scheduleSettingsAutoClose()
   }
 
   const handleActiveIntervalChange = (value: string) => {
     onSetActiveIntervalMinutes(Number(value))
-    scheduleSettingsAutoClose()
   }
 
   const handleActiveRemainingStep = (deltaMinutes: number) => {
     onAdjustActiveRemainingMinutes(deltaMinutes)
-    scheduleSettingsAutoClose()
   }
 
   const getCurrentLocationForGlobe = () => {
+    pressHaptic()
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       return
     }
@@ -4126,7 +4138,7 @@ export function RunningTimer({
   }
 
   const renderBackgroundControls = (option: BackgroundDefinition) => (
-    <div className={styles.backgroundCardControls}>
+    <div className={`${styles.backgroundCardControls} ${styles.immersiveSelectedBackgroundControls} ${option.id === "massage-lab-moving-gradient" ? styles.immersiveLampColorControls : ""}`}>
       {!isClockMode && (
         <div className={styles.colorRow} title={customColorDisabledHint}>
           <span>Primary color</span>
@@ -4142,25 +4154,20 @@ export function RunningTimer({
         </div>
       )}
 
-      <div
-        className={styles.colorRow}
-        title={isClockMode ? accountColorDisabledHint : customColorDisabledHint}
-      >
-        <span>{isClockMode ? "Clock color" : "Secondary color"}</span>
-        <ColorPickerSwatch
-          label={isClockMode ? "Clock color" : "Secondary display color"}
-          value={isClockMode ? resolvedClockModeFontColor : resolvedSecondaryFontColor}
-          fallback={isClockMode ? DEFAULT_CLOCK_MODE_FONT_COLOR : DEFAULT_SECONDARY_FONT_COLOR}
-          disabled={isClockMode ? !canUseCoreColorControls : !canUseCustomColors}
-          onChange={(nextColor) => handleSettingsChange(
-            isClockMode
-              ? { clockModeFontColor: nextColor }
-              : { secondaryFontColor: nextColor },
-          )}
-          className={styles.colorSwatchPicker}
-          buttonClassName={styles.colorSwatchButton}
-        />
-      </div>
+      {!isClockMode ? (
+        <div className={styles.colorRow} title={customColorDisabledHint}>
+          <span>Secondary color</span>
+          <ColorPickerSwatch
+            label="Secondary display color"
+            value={resolvedSecondaryFontColor}
+            fallback={DEFAULT_SECONDARY_FONT_COLOR}
+            disabled={!canUseCustomColors}
+            onChange={(nextColor) => handleSettingsChange({ secondaryFontColor: nextColor })}
+            className={styles.colorSwatchPicker}
+            buttonClassName={styles.colorSwatchButton}
+          />
+        </div>
+      ) : null}
 
       {option.id === "massage-lab-moving-gradient" && (
         <>
@@ -5357,10 +5364,7 @@ export function RunningTimer({
               <button
                 type="button"
                 className={`${styles.inlineButton} ${styles.tactileButton}`}
-                onClick={() => {
-                  pressHaptic()
-                  getCurrentLocationForGlobe()
-                }}
+                onClick={getCurrentLocationForGlobe}
               >
                 Use my location
               </button>
@@ -15706,6 +15710,83 @@ export function RunningTimer({
     )
   }
 
+  /**
+   * Keeps the safe-stage measurement wrapper stable while applying optional
+   * effects only to the centered display. The local perspective drives the
+   * yaw, while two inert duplicate layers form the clipped floor projection.
+   */
+  const renderDisplayEffectLayers = (display: PrimaryDisplay, isCentered: boolean) => {
+    const displayContent = display === "timer"
+      ? renderTimerDisplay()
+      : renderCurrentTimeDisplay(isCentered)
+    const displayColor = display === "timer"
+      ? resolvedTimerDisplayColor
+      : resolvedCurrentTimeDisplayColor
+    const rotationStyle = {
+      "--immersive-display-yaw-min": `${-clockRotationRange}deg`,
+      "--immersive-display-yaw-max": `${clockRotationRange}deg`,
+      "--immersive-display-yaw-duration": `${clockRotationDuration}s`,
+    } as CSSProperties
+    /*
+     * Human vision does not perceive opacity linearly. A square-root curve keeps
+     * low slider values useful while still allowing 0% to fully remove the
+     * projection. The small halo floor makes 0px blur crisp rather than invisible.
+     */
+    const perceivedForwardGlowStrength = Math.sqrt(clockForwardGlowStrength)
+    const forwardGlowNearHalo = Math.max(1, clockForwardGlowBlur * 0.14)
+    const forwardGlowFarHalo = Math.max(3, clockForwardGlowBlur * 0.32)
+    const forwardGlowStyle = {
+      "--immersive-forward-glow-color": displayColor,
+      "--immersive-forward-glow-bloom-opacity": 0.55 * perceivedForwardGlowStrength,
+      "--immersive-forward-glow-reflection-opacity": 0.38 * perceivedForwardGlowStrength,
+      "--immersive-forward-glow-length": clockForwardGlowLength,
+      "--immersive-forward-glow-blur": `${clockForwardGlowBlur}px`,
+      "--immersive-forward-glow-reflection-blur": `${clockForwardGlowBlur * 0.08}px`,
+      "--immersive-forward-glow-near-halo": `${forwardGlowNearHalo}px`,
+      "--immersive-forward-glow-far-halo": `${forwardGlowFarHalo}px`,
+    } as CSSProperties
+    const contentLayers = (
+      <>
+        <span
+          ref={isCentered ? primaryContentRef : undefined}
+          className={styles.displayContent}
+          data-display-content={isCentered ? "true" : undefined}
+        >
+          {displayContent}
+        </span>
+        {clockForwardGlowEnabled && isCentered ? (
+          <span
+            className={styles.forwardGlowProjection}
+            aria-hidden="true"
+            data-forward-projection="true"
+            style={forwardGlowStyle}
+          >
+            <span className={`${styles.forwardGlowLayer} ${styles.forwardGlowBloom}`}>
+              {displayContent}
+            </span>
+            <span className={`${styles.forwardGlowLayer} ${styles.forwardGlowReflection}`}>
+              {displayContent}
+            </span>
+          </span>
+        ) : null}
+      </>
+    )
+
+    return (
+      <span className={styles.displayEffectBounds} data-display-effect-bounds="true">
+        {clockRotationEnabled && isCentered ? (
+          <span
+            className={[styles.displayRotationLayer, styles.displayRotationEnabled].join(" ")}
+            data-display-rotation-layer="true"
+            style={rotationStyle}
+          >
+            {contentLayers}
+          </span>
+        ) : contentLayers}
+      </span>
+    )
+  }
+
   const chromeClassName = [
     styles.chrome,
     controlState === "faded" ? styles.chromeFaded : "",
@@ -15725,6 +15806,11 @@ export function RunningTimer({
   const primaryDisplayStyle = {
     "--chimer-primary-font-size": `${fontSize}vw`,
     ...(fitFontSize ? { "--chimer-fit-font-size": `${fitFontSize}px` } : {}),
+    /*
+     * Include the projection runway in the stable display measurement so the
+     * dock leaves room for the glow without translating the digits off-screen.
+     */
+    "--immersive-forward-glow-dock-runway": `${2.5 + Math.max(0, clockForwardGlowLength - 0.5)}rem`,
   } as CSSProperties
   const timerSwapClass = swapAnimationTarget
     ? swapAnimationTarget === "timer" ? styles.swapToPrimary : styles.swapToSecondary
@@ -15756,23 +15842,28 @@ export function RunningTimer({
   return (
     <section
       className={`${styles.container} ${isClockMode ? styles.clockMode : ""} ${isAlerting ? styles.alerting : ""}`}
-      aria-label={isClockMode ? "Chimer clock" : "Running Chimer timer"}
+      aria-label={mode.context === "musicVisualizer" ? "Music visualizer" : isClockMode ? "Chimer clock" : "Running Chimer timer"}
       style={containerStyle}
+      data-immersive-stage
     >
       {shouldRenderLiveBackground && useOriginalLampBackground && (
         <MovingBackground
+          key={`${mode.context}:${backgroundId}`}
           className={styles.runningBackground}
           mainColor={resolvedMovingBackgroundMainColor}
           orbColor={resolvedMovingBackgroundOrbColor}
+          motionEnabled={movingBackgroundEnabled}
           testId="chimer-premium-background"
         />
       )}
 
       {shouldRenderLiveBackground && !useOriginalLampBackground && (
         <BackgroundHost
+          key={`${mode.context}:${backgroundId}`}
           className={premiumBackgroundClassName}
           style={premiumBackgroundStyle}
           selectedId={backgroundId}
+          motionEnabled={movingBackgroundEnabled}
           featureKeys={featureKeys}
           category={backgroundCategory}
           palette={getPaletteColorsFromGlobalValues(globalColors)}
@@ -16662,10 +16753,10 @@ export function RunningTimer({
         />
       )}
 
-      {!isClockMode && (
+      {shouldRenderTimerDisplay && (
         <button
         type="button"
-        className={`${styles.displayButton} ${isTimerPrimary ? styles.primaryDisplay : styles.secondaryDisplay} ${isTimerPrimary && !hasTimerSeconds ? styles.timerModeCompactTimer : ""} ${styles.timerDisplay} ${timerSwapClass}`}
+        className={`${styles.displayButton} ${isTimerPrimary ? styles.primaryDisplay : styles.secondaryDisplay} ${isTimerPrimary && !hasTimerSeconds ? styles.timerModeCompactTimer : ""} ${isTimerPrimary && clockForwardGlowEnabled ? styles.primaryDisplayForwardGlowEnabled : ""} ${isTimerPrimary && clockForwardGlowEnabled && activePanel === "clock" ? styles.primaryDisplayForwardGlowDockOpen : ""} ${styles.timerDisplay} ${timerSwapClass}`}
         onClick={() => {
           triggerHapticFeedback(hapticsEnabled)
           ;(isTimerPrimary ? handlePauseControl : () => handlePrimarySwitch("timer"))()
@@ -16676,16 +16767,21 @@ export function RunningTimer({
           aria-label={isTimerPrimary ? (isComplete ? "Session complete" : `${primaryActionLabel} from center display`) : "Show timer in center"}
           aria-live={isTimerPrimary ? "polite" : undefined}
           data-testid="running-timer-clock"
+          data-immersive-primary-display={isTimerPrimary ? "true" : undefined}
         >
-          <span ref={isTimerPrimary ? primaryContentRef : undefined} className={styles.displayContent}>
-            {renderTimerDisplay()}
+          <span
+            ref={isTimerPrimary ? protectedDisplayRef : undefined}
+            className={styles.protectedDisplay}
+            data-protected-display={isTimerPrimary ? "true" : undefined}
+          >
+            {renderDisplayEffectLayers("timer", isTimerPrimary)}
           </span>
         </button>
       )}
 
-      <button
+      {mode.showClock ? <button
         type="button"
-        className={`${styles.displayButton} ${isCurrentTimePrimary ? styles.primaryDisplay : styles.secondaryDisplay} ${isCurrentTimePrimary && !isClockMode ? styles.timerModeClockPrimary : ""} ${styles.currentTimeDisplay} ${currentTimeSwapClass}`}
+        className={`${styles.displayButton} ${isCurrentTimePrimary ? styles.primaryDisplay : styles.secondaryDisplay} ${isCurrentTimePrimary && !isClockMode ? styles.timerModeClockPrimary : ""} ${isCurrentTimePrimary && clockForwardGlowEnabled ? styles.primaryDisplayForwardGlowEnabled : ""} ${isCurrentTimePrimary && clockForwardGlowEnabled && activePanel === "clock" ? styles.primaryDisplayForwardGlowDockOpen : ""} ${styles.currentTimeDisplay} ${currentTimeSwapClass}`}
         onClick={() => {
           triggerHapticFeedback(hapticsEnabled)
           ;(isCurrentTimePrimary ? (isClockMode ? revealControls : handlePauseControl) : () => handlePrimarySwitch("currentTime"))()
@@ -16693,22 +16789,27 @@ export function RunningTimer({
         disabled={isCurrentTimePrimary && isComplete}
         ref={isCurrentTimePrimary ? primaryDisplayRef : undefined}
         data-testid="running-current-time"
+        data-immersive-primary-display={isCurrentTimePrimary ? "true" : undefined}
         aria-label={isCurrentTimePrimary ? (isClockMode ? "Reveal clock controls" : isComplete ? "Session complete" : `${primaryActionLabel} from center display`) : "Show current time in center"}
         style={isCurrentTimePrimary ? primaryDisplayStyle : undefined}
       >
-        <span ref={isCurrentTimePrimary ? primaryContentRef : undefined} className={styles.displayContent}>
-          {renderCurrentTimeDisplay(isCurrentTimePrimary)}
+        <span
+          ref={isCurrentTimePrimary ? protectedDisplayRef : undefined}
+          className={styles.protectedDisplay}
+          data-protected-display={isCurrentTimePrimary ? "true" : undefined}
+        >
+          {renderDisplayEffectLayers("currentTime", isCurrentTimePrimary)}
         </span>
-      </button>
+      </button> : null}
 
       <div className={chromeClassName}>
         <button
           className={`${styles.control} ${styles.closeButton} ${styles.tactileButton}`}
           onClick={() => {
             triggerHapticFeedback(hapticsEnabled)
-            onClose()
+            mode.onClose()
           }}
-          aria-label={isClockMode ? "Close clock" : "End timer"}
+          aria-label={mode.context === "musicVisualizer" ? "Minimize visualizer" : isClockMode ? "Close clock" : "End timer"}
           data-chimer-control="true"
         >
           <X className="h-5 w-5" />
@@ -16726,41 +16827,139 @@ export function RunningTimer({
           {isFullscreen ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
         </button>
 
-        <button
-          ref={settingsButtonRef}
-          className={`${styles.control} ${styles.settingsButton} ${styles.tactileButton}`}
-          onClick={() => {
-            triggerHapticFeedback(hapticsEnabled)
-            handleSettingsButtonClick()
-          }}
-          aria-label={isSettingsOpen ? "Close clock settings" : "Open clock settings"}
-          aria-expanded={isSettingsOpen}
-          data-chimer-control="true"
-        >
-          <Settings className="h-5 w-5" />
-        </button>
+        <ImmersivePanelShell
+          activePanel={activePanel}
+          onActivePanelChange={handleActivePanelChange}
+          protectedDisplayRef={protectedDisplayRef}
+          hapticsEnabled={hapticsEnabled}
+          chromeVisibility={controlState}
+          toolbarButtonClassName={`${styles.control} ${styles.tactileButton} ${styles.immersiveToolbarControl}`}
+          toolbarButtonActiveClassName={styles.immersiveToolbarControlActive}
+          visualHintMessage={visualHintMessage}
+          backgroundUnavailableMessage={mode.unavailableBackgroundMessage}
+          clockHeaderAction={mode.canToggleClock ? (
+            <Switch
+              className={styles.immersiveHeaderSwitch}
+              checked={mode.showClock}
+              size="compact"
+              aria-label={`Show clock: ${mode.showClock ? "On" : "Off"}`}
+              hapticsEnabled={hapticsEnabled}
+              onCheckedChange={(value) => mode.onShowClockChange?.(value)}
+            />
+          ) : null}
+          clockHeaderCenterAction={(
+            <div className={styles.immersiveClockHeaderControls}>
+              <div className={styles.immersiveHeaderColorControl} title={accountColorDisabledHint}>
+                <span>Color</span>
+                <ColorPickerSwatch
+                  label="Clock color"
+                  value={resolvedClockModeFontColor}
+                  fallback={DEFAULT_CLOCK_MODE_FONT_COLOR}
+                  disabled={!canUseCoreColorControls}
+                  onChange={(nextColor) => handleSettingsChange({ clockModeFontColor: nextColor })}
+                  className={styles.colorSwatchPicker}
+                  buttonClassName={styles.immersiveHeaderColorSwatchButton}
+                />
+              </div>
+              <div className={styles.immersiveClockHeaderToggle}>
+                <span>Show seconds</span>
+                <Switch
+                  checked={showCurrentTimeSeconds}
+                  size="compact"
+                  aria-label={`Show seconds: ${showCurrentTimeSeconds ? "On" : "Off"}`}
+                  hapticsEnabled={hapticsEnabled}
+                  onCheckedChange={(value) => handleSettingsChange({ showCurrentTimeSeconds: value })}
+                />
+              </div>
+            </div>
+          )}
+          visualHeaderTitle="Visual background"
+          visualHeaderAction={(
+            <Switch
+              className={styles.immersiveHeaderSwitch}
+              checked={movingBackgroundEnabled}
+              size="compact"
+              aria-label={`Background animation: ${movingBackgroundEnabled ? "On" : "Off"}`}
+              title={movingBackgroundEnabled ? "Pause background animation" : "Resume background animation"}
+              hapticsEnabled={hapticsEnabled}
+              onCheckedChange={(value) => handleSettingsChange({ movingBackgroundEnabled: value })}
+            />
+          )}
+          visualHeaderCenterAction={isClockMode ? (
+            <div
+              className={`${styles.immersiveHeaderColorControl} ${styles.immersiveVisualHeaderColorControl}`}
+              title={accountColorDisabledHint}
+            >
+              <span>Clock color</span>
+              <ColorPickerSwatch
+                label="Clock color"
+                value={resolvedClockModeFontColor}
+                fallback={DEFAULT_CLOCK_MODE_FONT_COLOR}
+                disabled={!canUseCoreColorControls}
+                onChange={(nextColor) => handleSettingsChange({ clockModeFontColor: nextColor })}
+                className={styles.colorSwatchPicker}
+                buttonClassName={styles.immersiveHeaderColorSwatchButton}
+              />
+            </div>
+          ) : null}
+          clockContent={(
+            <div className={`${styles.settingsTabContent} ${styles.immersiveSettingsTabContent}`}>
+                {mode.canToggleClock && !mode.showClock ? (
+                  <div className={styles.settingsNotice} role="status">
+                    Clock is hidden. The selected background continues without a time display.
+                  </div>
+                ) : null}
+                <div className={styles.clockCompactRow}>
+                  <label className={styles.clockCompactField} title={customColorDisabledHint}>
+                    <span>Font</span>
+                    <select
+                      value={clockFontFamily}
+                      disabled={!canUseCustomColors}
+                      onChange={(event) => handleSettingsChange({
+                        clockFontFamily: event.target.value as ChimerSettings["clockFontFamily"],
+                      })}
+                      aria-label="Font"
+                    >
+                      <option value="digital">Digital</option>
+                      <option value="mono">Mono</option>
+                      <option value="sans">Sans</option>
+                      <option value="serif">Serif</option>
+                    </select>
+                  </label>
 
-        {isSettingsOpen && (
-          <div
-            ref={settingsPanelRef}
-            className={styles.settingsPanel}
-            role="dialog"
-            aria-label="Chimer settings"
-            data-chimer-control="true"
-            data-testid="chimer-settings-panel"
-            onPointerDown={handleSettingsPanelActivity}
-            onKeyDown={handleSettingsPanelActivity}
-            onChange={handleSettingsPanelActivity}
-            onInput={handleSettingsPanelActivity}
-          >
-            <Tabs value={settingsTab} onValueChange={handleSettingsTabChange} className={styles.settingsTabs}>
-              <TabsList data-active-tab={settingsTab} className={`${styles.settingsTabList} ml-chimer-tabs`}>
-                <TabsTrigger value="clock" className={`${styles.settingsTabTrigger} ml-chimer-tab`}>Clock</TabsTrigger>
-                <TabsTrigger value="visual" className={`${styles.settingsTabTrigger} ml-chimer-tab`}>Visual</TabsTrigger>
-                <TabsTrigger value="backgrounds" className={`${styles.settingsTabTrigger} ml-chimer-tab`}>Backgrounds</TabsTrigger>
-              </TabsList>
+                  <div className={styles.clockCompactField}>
+                    <span>Time format</span>
+                    <div
+                      className={`${styles.formatToggle} ml-time-format-choice`}
+                      aria-label="Time format"
+                      data-active-format={timeFormat}
+                    >
+                      <button
+                        type="button"
+                        className={`${styles.formatOption} ${styles.tactileButton} ml-time-format-option ${timeFormat === "12h" ? styles.formatOptionActive : ""}`}
+                        aria-pressed={timeFormat === "12h"}
+                        onClick={() => {
+                          triggerHapticFeedback(hapticsEnabled)
+                          handleSettingsChange({ timeFormat: "12h" })
+                        }}
+                      >
+                        12h
+                      </button>
+                      <button
+                        type="button"
+                        className={`${styles.formatOption} ${styles.tactileButton} ml-time-format-option ${timeFormat === "24h" ? styles.formatOptionActive : ""}`}
+                        aria-pressed={timeFormat === "24h"}
+                        onClick={() => {
+                          triggerHapticFeedback(hapticsEnabled)
+                          handleSettingsChange({ timeFormat: "24h" })
+                        }}
+                      >
+                        24h
+                      </button>
+                    </div>
+                  </div>
+                </div>
 
-              <TabsContent value="clock" className={styles.settingsTabContent}>
                 <div className={styles.settingsSection}>
                   <div className={styles.settingsSectionHeader}>
                     <span>Clock text</span>
@@ -16777,88 +16976,18 @@ export function RunningTimer({
                   />
                   )}
 
-                  <StyledToggleControl
-                    label="Show clock seconds"
-                    checked={showCurrentTimeSeconds}
-                    valueLabel={showCurrentTimeSeconds ? "On" : "Off"}
-                    hapticsEnabled={hapticsEnabled}
-                    onCheckedChange={(value) => handleSettingsChange({ showCurrentTimeSeconds: value })}
-                  />
-
-                  <StyledRangeControl
-                    label="Font size"
-                    value={effectiveFontSize}
-                    min={MIN_FONT_SIZE}
-                    max={effectiveMaxFontSize}
-                    step={FONT_SIZE_STEP}
-                    displayValue={`${Math.round(effectiveFontSize)}vw`}
-                    hapticsEnabled={hapticsEnabled}
-                    onChange={handleFontSizeRangeChange}
-                  />
-
-                  <div className={styles.clockCompactRow}>
-                    <label className={styles.clockCompactField} title={customColorDisabledHint}>
-                      <span>Clock font</span>
-                      <select
-                        value={clockFontFamily}
-                        disabled={!canUseCustomColors}
-                        onChange={(event) => handleSettingsChange({
-                          clockFontFamily: event.target.value as ChimerSettings["clockFontFamily"],
-                        })}
-                        aria-label="Clock font"
-                      >
-                        <option value="digital">Digital</option>
-                        <option value="mono">Mono</option>
-                        <option value="sans">Sans</option>
-                        <option value="serif">Serif</option>
-                      </select>
-                    </label>
-
-                    <div className={styles.clockCompactField} title={accountColorDisabledHint}>
-                      <span>Clock color</span>
-                      <ColorPickerSwatch
-                        label="Clock color"
-                        value={clockModeFontColor}
-                        fallback={DEFAULT_CLOCK_MODE_FONT_COLOR}
-                        disabled={!canUseCoreColorControls}
-                        onChange={(nextColor) => handleSettingsChange({ clockModeFontColor: nextColor })}
-                        className={styles.colorSwatchPicker}
-                        buttonClassName={styles.clockColorSwatchButton}
-                      />
-                    </div>
-
-                    <div className={styles.clockCompactField}>
-                      <span>Time format</span>
-                      <div
-                        className={`${styles.formatToggle} ml-time-format-choice`}
-                        aria-label="Time format"
-                        data-active-format={timeFormat}
-                      >
-                        <button
-                          type="button"
-                          className={`${styles.formatOption} ${styles.tactileButton} ml-time-format-option ${timeFormat === "12h" ? styles.formatOptionActive : ""}`}
-                          aria-pressed={timeFormat === "12h"}
-                          onClick={() => {
-                            triggerHapticFeedback(hapticsEnabled)
-                            handleSettingsChange({ timeFormat: "12h" })
-                          }}
-                        >
-                          12h
-                        </button>
-                        <button
-                          type="button"
-                          className={`${styles.formatOption} ${styles.tactileButton} ml-time-format-option ${timeFormat === "24h" ? styles.formatOptionActive : ""}`}
-                          aria-pressed={timeFormat === "24h"}
-                          onClick={() => {
-                            triggerHapticFeedback(hapticsEnabled)
-                            handleSettingsChange({ timeFormat: "24h" })
-                          }}
-                        >
-                          24h
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                  {!isClockMode ? (
+                    <StyledRangeControl
+                      label="Font size"
+                      value={effectiveFontSize}
+                      min={MIN_FONT_SIZE}
+                      max={effectiveMaxFontSize}
+                      step={FONT_SIZE_STEP}
+                      displayValue={`${Math.round(effectiveFontSize)}vw`}
+                      hapticsEnabled={hapticsEnabled}
+                      onChange={handleFontSizeRangeChange}
+                    />
+                  ) : null}
 
                   {!isClockMode ? (
                     <div className={styles.clockControlGrid}>
@@ -17028,6 +17157,99 @@ export function RunningTimer({
                   </div>
                 </div>
 
+                <div className={styles.settingsSection}>
+                  <div className={styles.controlGroup}>
+                    <StyledToggleControl
+                      label="Display rotation"
+                      checked={clockRotationEnabled}
+                      valueLabel={clockRotationEnabled ? "On" : "Off"}
+                      hapticsEnabled={hapticsEnabled}
+                      className={styles.controlGroupToggle}
+                      disabled={mode.canToggleClock && !mode.showClock}
+                      onCheckedChange={(value) => handleSettingsChange({ clockRotationEnabled: value })}
+                    />
+                    {clockRotationEnabled ? (
+                      <div className={styles.controlGroupBody}>
+                        <div className={styles.clockControlGrid}>
+                          <StyledRangeControl
+                            label="Rotation range"
+                            value={clockRotationRange}
+                            min={2}
+                            max={20}
+                            step={1}
+                            displayValue={`±${Math.round(clockRotationRange)}°`}
+                            disabled={mode.canToggleClock && !mode.showClock}
+                            hapticsEnabled={hapticsEnabled}
+                            onChange={(value) => handleSettingsChange({ clockRotationRange: value })}
+                          />
+                          <StyledRangeControl
+                            label="Rotation cycle"
+                            value={clockRotationDuration}
+                            min={10}
+                            max={120}
+                            step={5}
+                            displayValue={`${Math.round(clockRotationDuration)}s`}
+                            disabled={mode.canToggleClock && !mode.showClock}
+                            hapticsEnabled={hapticsEnabled}
+                            onChange={(value) => handleSettingsChange({ clockRotationDuration: value })}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className={styles.controlGroup}>
+                    <StyledToggleControl
+                      label="Forward glow"
+                      checked={clockForwardGlowEnabled}
+                      valueLabel={clockForwardGlowEnabled ? "On" : "Off"}
+                      hapticsEnabled={hapticsEnabled}
+                      className={styles.controlGroupToggle}
+                      disabled={mode.canToggleClock && !mode.showClock}
+                      onCheckedChange={(value) => handleSettingsChange({ clockForwardGlowEnabled: value })}
+                    />
+                    {clockForwardGlowEnabled ? (
+                      <div className={styles.controlGroupBody}>
+                        <div className={styles.clockControlGrid}>
+                          {/* Keep renderer-scale settings intact while presenting each slider as a normalized percentage. */}
+                          <StyledRangeControl
+                            label="Glow intensity"
+                            value={clockForwardGlowStrength}
+                            min={0}
+                            max={1}
+                            step={0.05}
+                            displayValue={`${Math.round(clockForwardGlowStrength * 100)}%`}
+                            disabled={mode.canToggleClock && !mode.showClock}
+                            hapticsEnabled={hapticsEnabled}
+                            onChange={(value) => handleSettingsChange({ clockForwardGlowStrength: value })}
+                          />
+                          <StyledRangeControl
+                            label="Projection length"
+                            value={clockForwardGlowLength}
+                            min={0.5}
+                            max={4}
+                            step={0.05}
+                            displayValue={`${Math.round((clockForwardGlowLength / 4) * 100)}%`}
+                            disabled={mode.canToggleClock && !mode.showClock}
+                            hapticsEnabled={hapticsEnabled}
+                            onChange={(value) => handleSettingsChange({ clockForwardGlowLength: value })}
+                          />
+                          <StyledRangeControl
+                            label="Glow blur"
+                            value={clockForwardGlowBlur}
+                            min={0}
+                            max={64}
+                            step={2}
+                            displayValue={`${Math.round((clockForwardGlowBlur / 64) * 100)}%`}
+                            disabled={mode.canToggleClock && !mode.showClock}
+                            hapticsEnabled={hapticsEnabled}
+                            onChange={(value) => handleSettingsChange({ clockForwardGlowBlur: value })}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+
                 {!isClockMode && (
                   <div className={styles.settingsSection}>
                     <div className={styles.settingsSectionHeader}>
@@ -17134,43 +17356,100 @@ export function RunningTimer({
                   </div>
                 )}
 
-                <div className={styles.switchRow}>
-                  <StyledToggleControl
-                    label="Keep timer screen awake"
-                    checked={keepTimerScreenAwake}
-                    valueLabel={keepTimerScreenAwake ? "On" : "Off"}
-                    hapticsEnabled={hapticsEnabled}
-                    onCheckedChange={(value) => handleSettingsChange({ keepTimerScreenAwake: value })}
-                  />
-                </div>
+            </div>
+          )}
+          visualContent={(
+            <div className={`${styles.settingsTabContent} ${styles.immersiveSettingsTabContent}`}>
+                {mode.wakeLockMessage ? (
+                  <div className={styles.settingsNotice} role="status">{mode.wakeLockMessage}</div>
+                ) : null}
 
-              </TabsContent>
+                {mode.storageStatus !== "available" ? (
+                  <div className={styles.settingsNotice} role="status">
+                    {mode.storageError
+                      ?? (mode.storageStatus === "loading"
+                        ? "Loading device visualizer preferences…"
+                        : mode.storageStatus === "unsupported-version"
+                          ? "This device has visualizer preferences from a newer app version. Your saved value was left unchanged."
+                          : "Device visualizer preferences are unavailable. Changes remain active for this visit.")}
+                  </div>
+                ) : null}
 
-              <TabsContent value="visual" className={styles.settingsTabContent}>
-                <StyledToggleControl
-                  label="Visual background"
-                  checked={movingBackgroundEnabled}
-                  valueLabel={movingBackgroundEnabled ? "On" : "Off"}
-                  hapticsEnabled={hapticsEnabled}
-                  onCheckedChange={(value) => handleSettingsChange({ movingBackgroundEnabled: value })}
-                />
+                {!isClockMode && mode.context === "chimer" ? (
+                  <div className={styles.switchRow}>
+                    <StyledToggleControl
+                      label="Keep timer screen awake"
+                      checked={keepTimerScreenAwake}
+                      valueLabel={keepTimerScreenAwake ? "On" : "Off"}
+                      hapticsEnabled={hapticsEnabled}
+                      onCheckedChange={(value) => handleSettingsChange({ keepTimerScreenAwake: value })}
+                    />
+                  </div>
+                ) : null}
+
+                {mode.context === "musicVisualizer" && mode.musicDefaultActions?.signedIn ? (
+                  <div className={styles.settingsSection}>
+                    <div className={styles.settingsSectionHeader}>
+                      <span>Visualizer default</span>
+                      <span className={styles.settingsPill}>
+                        {mode.musicDefaultActions.currentIsDefault ? "Current default" : "Device choice"}
+                      </span>
+                    </div>
+                    <div className={styles.musicDefaultActions}>
+                      {!mode.musicDefaultActions.currentIsDefault ? (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => void mode.musicDefaultActions?.onSetDefault()}
+                          disabled={mode.musicDefaultActions.accountStatus === "saving" || mode.selectedBackgroundId === null}
+                        >
+                          Set as visualizer default
+                        </Button>
+                      ) : null}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={mode.musicDefaultActions.onRestoreDefault}
+                        disabled={mode.musicDefaultActions.accountStatus === "saving"}
+                      >
+                        Restore account default
+                      </Button>
+                    </div>
+                    {mode.musicDefaultActions.accountStatus === "saving" ? (
+                      <div className={styles.settingsNotice} role="status">Saving visualizer default…</div>
+                    ) : null}
+                    {mode.musicDefaultActions.accountStatus === "error" ? (
+                      <div className={styles.settingsNotice} role="status">
+                        <span>{mode.musicDefaultActions.accountError ?? "Visualizer account sync failed."}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => void mode.musicDefaultActions?.onRetry()}
+                        >
+                          Retry
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
 
                 <div className={styles.settingsSection}>
                   <div className={styles.settingsSectionHeader}>
                     <span>Selected background controls</span>
                     <span className={styles.settingsPill}>Visual tuning</span>
                   </div>
-                  {movingBackgroundEnabled ? (
-                    renderBackgroundControls(
-                      selectedBackgroundDefinition,
-                    )
-                  ) : (
-                    <div className={styles.settingsEmptyState}>Enable visual background to show visual controls.</div>
-                  )}
+                  {renderBackgroundControls(selectedBackgroundDefinition)}
                 </div>
 
                 <div className={styles.settingsSection}>
+                  {!canUseCoreColorControls ? (
+                    <div className={styles.globalColorAccessHint} role="note">
+                      Sign in to customize and save Global Colors.
+                    </div>
+                  ) : null}
                   <GlobalColorPicker
+                    className={styles.immersiveGlobalColorPicker}
+                    compactPaletteRow
                     value={globalColors}
                     title="Global Colors"
                     description={globalHarmony === "custom"
@@ -17183,15 +17462,17 @@ export function RunningTimer({
                           checked={globalHarmony === "custom"}
                           valueLabel={globalHarmony === "custom" ? "Custom" : "Harmony"}
                           hapticsEnabled={hapticsEnabled}
+                          disabled={!canUseCoreColorControls}
                           onCheckedChange={handleGlobalCustomColorToggle}
                         />
                         <HarmonyToggleGroup
+                          className={styles.immersiveGlobalHarmony}
                           label="Color harmony"
                           value={globalHarmony}
                           onChange={handleGlobalHarmonyChange}
                           options={GLOBAL_HARMONY_OPTIONS}
                           previewColors={harmonyPreviewColors}
-                          disabled={globalHarmony === "custom"}
+                          disabled={!canUseCoreColorControls || globalHarmony === "custom"}
                           hapticsEnabled={hapticsEnabled}
                           description="Generate related palette families from your primary color."
                           embedded
@@ -17199,6 +17480,7 @@ export function RunningTimer({
                       </div>
                     )}
                     editableFields={globalHarmony === "custom" ? undefined : ["primary"]}
+                    disabled={!canUseCoreColorControls}
                     paletteName={globalPaletteName}
                     onPaletteNameChange={handleGlobalPaletteNameChange}
                     onChange={handleGlobalColorsChange}
@@ -17221,6 +17503,7 @@ export function RunningTimer({
                           key={palette.id}
                           type="button"
                           className={`${styles.inlineButton} ${styles.tactileButton}`}
+                          disabled={!canUseCoreColorControls}
                           onClick={() => {
                             triggerHapticFeedback(hapticsEnabled)
                             handleGlobalPaletteLoad(palette)
@@ -17256,9 +17539,10 @@ export function RunningTimer({
                     </div>
                   )}
                 </div>
-              </TabsContent>
-
-              <TabsContent value="backgrounds" className={`${styles.settingsTabContent} ${styles.backgroundSettingsTabContent}`}>
+            </div>
+          )}
+          backgroundContent={(
+            <div className={`${styles.settingsTabContent} ${styles.backgroundSettingsTabContent}`}>
                 <div className={styles.backgroundCategoryRow} role="group" aria-label="Background visual filters">
                   {BACKGROUND_VISUAL_CATEGORIES.map((category) => (
                     <button
@@ -17420,10 +17704,9 @@ export function RunningTimer({
                 ) : (
                   <div className={styles.settingsEmptyState}>No backgrounds match this filter.</div>
                 )}
-              </TabsContent>
-            </Tabs>
-          </div>
-        )}
+            </div>
+          )}
+        />
 
         <div className={styles.bottomControls}>
           <div className={styles.bottomButtonRow}>

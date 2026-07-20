@@ -6,6 +6,8 @@
   --chimer-display-font-family: "Digital", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --chimer-digit-stroke-width: 0px;
   --chimer-digit-stroke-color: #050505;
+  --immersive-reserved-top: 0px;
+  --immersive-reserved-bottom: 0px;
   --chimer-digit-glow:
     0 0 0.035em color-mix(in srgb, currentColor 72%, transparent),
     0 0 0.16em color-mix(in srgb, currentColor 38%, transparent),
@@ -43,18 +45,18 @@
 .clockMode .primaryDisplay {
   --chimer-display-base-transform: translateY(-4dvh);
 
-  top: 0;
-  bottom: 0;
+  top: var(--immersive-reserved-top);
+  bottom: var(--immersive-reserved-bottom);
 }
 
 .primaryDisplay.timerModeClockPrimary {
-  top: 0;
-  bottom: 0;
+  top: var(--immersive-reserved-top);
+  bottom: var(--immersive-reserved-bottom);
 }
 
 .primaryDisplay.timerModeCompactTimer {
-  top: 0;
-  bottom: 0;
+  top: var(--immersive-reserved-top);
+  bottom: var(--immersive-reserved-bottom);
 }
 
 .runningBackground {
@@ -110,9 +112,9 @@
   --chimer-display-base-transform: translateX(0);
 
   position: fixed;
-  top: var(--chimer-top-control-space);
+  top: calc(var(--chimer-top-control-space) + var(--immersive-reserved-top));
   right: 0;
-  bottom: var(--chimer-bottom-control-space);
+  bottom: calc(var(--chimer-bottom-control-space) + var(--immersive-reserved-bottom));
   left: 0;
   z-index: 10001;
   display: flex;
@@ -235,6 +237,8 @@
 }
 
 .displayContent {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
@@ -243,6 +247,154 @@
   width: max-content;
   line-height: 1;
   white-space: nowrap;
+}
+
+/* The measured runway keeps the dock below the projection without clipping the clock at the viewport top. */
+.primaryDisplayForwardGlowDockOpen .protectedDisplay {
+  box-sizing: content-box;
+  padding-bottom: var(--immersive-forward-glow-dock-runway, 3rem);
+}
+
+/* Let the floor projection cross the fitted display stage; the fullscreen root still clips at the viewport. */
+.primaryDisplayForwardGlowEnabled {
+  overflow: visible;
+}
+
+/* Stable, untransformed bounds used by the immersive safe-stage observer. */
+.protectedDisplay {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: max-content;
+  max-width: 100%;
+  line-height: 1;
+  transform: none;
+}
+
+.displayEffectBounds,
+.displayRotationLayer {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: max-content;
+  max-width: 100%;
+  line-height: 1;
+}
+
+.displayEffectBounds {
+  isolation: isolate;
+  perspective: 45rem;
+  transform-style: preserve-3d;
+}
+
+.displayRotationLayer {
+  transform-origin: center center;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+}
+
+@keyframes immersiveDisplayYaw {
+  0%,
+  100% {
+    transform: rotateY(var(--immersive-display-yaw-min, -10deg));
+  }
+
+  50% {
+    transform: rotateY(var(--immersive-display-yaw-max, 10deg));
+  }
+}
+
+.displayRotationEnabled {
+  animation: immersiveDisplayYaw var(--immersive-display-yaw-duration, 40s) ease-in-out infinite;
+  will-change: transform;
+}
+
+.forwardGlowProjection {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: max-content;
+  max-width: none;
+  overflow: visible;
+  color: var(--immersive-forward-glow-color);
+  line-height: 1;
+  /* Keep the floor close to the glyphs while using a fixed camera depth so oversized clocks stay registered. */
+  transform:
+    translateX(-50%)
+    translateY(calc(var(--immersive-forward-glow-gap, 16px) - 0.25em))
+    translateZ(2rem)
+    rotateX(-90.1deg)
+    scaleY(var(--immersive-forward-glow-length, 1));
+  transform-origin: bottom center;
+  transform-style: preserve-3d;
+  pointer-events: none;
+  user-select: none;
+}
+
+.forwardGlowLayer {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: max-content;
+  max-width: none;
+  line-height: 1;
+}
+
+/* Expand the transparent paint surface so filtered light cannot clip at the glyph layer bounds. */
+.forwardGlowLayer::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 400%;
+  height: 400%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.forwardGlowBloom {
+  opacity: var(--immersive-forward-glow-bloom-opacity, 0.5);
+  filter:
+    drop-shadow(0 0 var(--immersive-forward-glow-near-halo, 4px) var(--immersive-forward-glow-color))
+    drop-shadow(0 0 var(--immersive-forward-glow-far-halo, 10px) var(--immersive-forward-glow-color))
+    blur(var(--immersive-forward-glow-blur, 28px));
+}
+
+.forwardGlowReflection {
+  position: absolute;
+  inset: 0;
+  opacity: var(--immersive-forward-glow-reflection-opacity, 0.4);
+  filter:
+    drop-shadow(0 0 var(--immersive-forward-glow-near-halo, 4px) var(--immersive-forward-glow-color))
+    drop-shadow(0 0 var(--immersive-forward-glow-far-halo, 10px) var(--immersive-forward-glow-color))
+    blur(var(--immersive-forward-glow-reflection-blur, 3.36px));
+}
+
+/* Mask each glyph independently; masking the whole layer exposes its rectangular compositor edge. */
+.forwardGlowBloom > .timeUnit,
+.forwardGlowBloom > .colon,
+.forwardGlowBloom > .timerUnitLabel,
+.forwardGlowBloom .currentTimeDigit,
+.forwardGlowBloom .clockColon,
+.forwardGlowBloom .currentTimeMeridiem {
+  -webkit-mask-image: linear-gradient(to bottom, black, rgb(0 0 0 / 45%) 45%, transparent 82%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black, rgb(0 0 0 / 45%) 45%, transparent 82%, transparent 100%);
+}
+
+.forwardGlowReflection > .timeUnit,
+.forwardGlowReflection > .colon,
+.forwardGlowReflection > .timerUnitLabel,
+.forwardGlowReflection .currentTimeDigit,
+.forwardGlowReflection .clockColon,
+.forwardGlowReflection .currentTimeMeridiem {
+  -webkit-mask-image: linear-gradient(to top, black, rgb(0 0 0 / 10%) 60%, transparent);
+  mask-image: linear-gradient(to top, black, rgb(0 0 0 / 10%) 60%, transparent);
 }
 
 .swapToPrimary {
@@ -414,7 +566,6 @@
   transition: box-shadow 150ms ease, filter 150ms ease, opacity 900ms ease, transform 150ms ease;
 }
 
-.settingsPanel,
 .status {
   transition: opacity 900ms ease;
 }
@@ -437,17 +588,6 @@
   transform: scale(0.985);
 }
 
-.settingsButton[aria-expanded="true"] {
-  border-color: hsl(var(--button-orange-start) / 0.42);
-  background:
-    linear-gradient(145deg, hsl(var(--button-orange-start) / 0.34), hsl(var(--button-orange-depth) / 0.16)),
-    hsl(var(--background) / 0.3);
-  box-shadow:
-    inset 0 1px 0 hsl(var(--foreground) / 0.18),
-    inset 0 -1px 0 hsl(var(--button-orange-depth) / 0.18),
-    0 0.85rem 1.8rem hsl(var(--button-orange-depth) / 0.18);
-}
-
 .control:disabled,
 .fontButton:disabled {
   cursor: default;
@@ -460,18 +600,22 @@
 }
 
 .chromeFaded > .control,
+.chromeFaded > [data-immersive-shell],
 .chromeFaded .bottomButtonRow .control,
-.chromeFaded .bottomButtonRow .fontButton,
-.chromeFaded .settingsPanel {
+.chromeFaded .bottomButtonRow .fontButton {
   opacity: 0.34;
 }
 
 .chromeHidden > .control,
+.chromeHidden > [data-immersive-shell],
 .chromeHidden .bottomButtonRow .control,
-.chromeHidden .bottomButtonRow .fontButton,
-.chromeHidden .settingsPanel {
+.chromeHidden .bottomButtonRow .fontButton {
   opacity: 0;
   pointer-events: none;
+}
+
+.chrome > [data-immersive-shell] {
+  transition: opacity 900ms ease;
 }
 
 .chromeFaded > .control:focus-visible,
@@ -494,88 +638,28 @@
   left: calc(env(safe-area-inset-left, 0px) + 1rem);
 }
 
-.settingsButton {
-  top: var(--chimer-top-control-offset, calc(env(safe-area-inset-top, 0px) + 1rem));
-  left: calc(env(safe-area-inset-left, 0px) + 5.25rem);
+.immersiveToolbarControl {
+  position: relative;
+  inset: auto;
+  flex: 0 0 auto;
+  min-width: 0;
 }
 
-.settingsPanel {
-  position: fixed;
-  top: var(--chimer-settings-panel-top-offset, calc(env(safe-area-inset-top, 0px) + 5.25rem));
-  left: calc(env(safe-area-inset-left, 0px) + 1rem);
-  z-index: 10004;
-  display: flex;
-  width: min(44rem, calc(100vw - 2rem));
-  max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 6rem);
-  flex-direction: column;
-  gap: 0.58rem;
-  overflow: hidden;
-  padding: 0.78rem;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 0.75rem;
+.immersiveToolbarControlActive {
+  border-color: hsl(var(--button-blue-start) / 0.68);
   background:
-    radial-gradient(circle at 18% 0%, hsl(var(--brand-orange) / 0.08), transparent 30%),
-    linear-gradient(180deg, rgba(12, 12, 12, 0.94), rgba(0, 0, 0, 0.9));
-  color: white;
-  backdrop-filter: blur(18px);
-  box-shadow: 0 1rem 2.5rem rgba(0, 0, 0, 0.35);
-}
-
-.settingsTabs {
-  display: flex;
-  min-height: 0;
-  flex-direction: column;
-}
-
-.settingsTabList {
-  display: grid;
-  position: relative;
-  isolation: isolate;
-  width: 100%;
-  min-height: 2.75rem;
-  height: auto;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.25rem;
-  padding: 0.28rem;
-  border: 1px solid hsl(var(--foreground) / 0.1);
-  border-radius: 0.5625rem;
-  background: hsl(var(--background) / 0.68);
-  color: hsl(var(--muted-foreground));
+    linear-gradient(145deg, hsl(var(--button-blue-start) / 0.5), hsl(var(--button-sunset-violet) / 0.28)),
+    hsl(var(--background) / 0.38);
   box-shadow:
-    inset 1.5px 1.5px 0 hsl(var(--background) / 0.32),
-    inset -1.5px -1.5px 0 hsl(var(--foreground) / 0.05),
-    inset 0 0 0 1px hsl(var(--background) / 0.12);
-}
-
-.settingsTabTrigger {
-  position: relative;
-  z-index: 1;
-  min-height: 2.2rem;
-  border: 1px solid transparent;
-  border-radius: 0.5625rem;
-  background: transparent;
-  color: hsl(var(--muted-foreground));
-  box-shadow: none;
-  letter-spacing: 0;
-}
-
-.settingsTabTrigger[data-state="active"] {
-  border-color: transparent;
-  background: transparent;
-  color: hsl(32 100% 96%);
-  box-shadow: none;
-  text-shadow:
-    var(--ml-button-inset-shadow-x) -0.72px 0 hsl(var(--button-ink) / 0.54),
-    var(--ml-button-inset-highlight-x) 0.72px 0 hsl(var(--button-orange-start) / 0.22),
-    0 0 1px hsl(var(--button-orange-start) / 0.18);
+    inset 0 1px 0 hsl(var(--foreground) / 0.24),
+    inset 0 -1px 0 hsl(var(--button-blue-depth) / 0.22),
+    0 0 1.2rem hsl(var(--button-blue-start) / 0.32);
 }
 
 .settingsTabContent {
   display: grid;
   min-height: 0;
-  max-height: min(34rem, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 9.5rem));
   gap: 0.62rem;
-  overflow-y: auto;
   padding: 0.05rem 0.15rem 0.12rem 0;
 }
 
@@ -592,6 +676,23 @@
 .globalColorModeControls {
   display: grid;
   gap: 0.65rem;
+}
+
+.globalColorAccessHint {
+  padding: 0.5rem 0.65rem;
+  border: 1px solid hsl(var(--button-orange-edge) / 0.28);
+  border-radius: 0.6rem;
+  background: hsl(var(--button-orange-edge) / 0.08);
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.immersiveGlobalColorPicker button[aria-haspopup="dialog"],
+.immersiveGlobalHarmony button {
+  width: 2.75rem;
+  height: 2.75rem;
+  min-height: 2.75rem;
 }
 
 .settingsSectionHeader {
@@ -1240,6 +1341,142 @@
   padding: 0.85rem;
 }
 
+.immersiveSettingsTabContent {
+  gap: 0.4rem;
+  padding: 0;
+}
+
+.immersiveSettingsTabContent .settingsSection {
+  gap: 0.36rem;
+  padding-top: 0;
+}
+
+.immersiveSettingsTabContent .settingsSectionHeader {
+  gap: 0.5rem;
+  font-size: 0.84rem;
+}
+
+.immersiveSettingsTabContent .settingsPill {
+  padding: 0.28rem 0.42rem;
+}
+
+/* Clock/Visual docks use flat 44px rows; Background keeps its roomier cards. */
+.immersiveSettingsTabContent :global(.ml-toggle-control) {
+  min-height: 2.75rem;
+  gap: 0.55rem;
+  padding: 0.3rem 0.48rem;
+  border-color: transparent;
+  border-radius: 0.45rem;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Extend the compact switch's pointer area without enlarging its visual track. */
+.immersiveSettingsTabContent :global(.ml-switch)::after {
+  content: "";
+  position: absolute;
+  inset: -0.6rem -0.35rem;
+}
+
+.immersiveSettingsTabContent :global(.ml-range-control) {
+  gap: 0.25rem;
+}
+
+.immersiveSettingsTabContent :global(.ml-range-control-shell) {
+  --ml-range-control-thumb-height: 2.75rem;
+  --ml-range-control-track-height: 1.55rem;
+
+  height: 2.75rem;
+  min-height: 2.75rem;
+}
+
+.immersiveSettingsTabContent .clockCompactRow,
+.immersiveSettingsTabContent .clockControlGrid {
+  gap: 0.42rem;
+}
+
+.immersiveSettingsTabContent .clockCompactField {
+  grid-template-columns: max-content minmax(0, 1fr);
+  width: 100%;
+  gap: 1rem;
+  box-sizing: border-box;
+  height: 3.6875rem;
+  min-height: 3.6875rem;
+  padding: 0.4375rem;
+  border-radius: 0.68rem;
+}
+
+.immersiveSettingsTabContent .clockCompactField > span {
+  font-size: 0.84rem;
+  padding-left: 0.625rem;
+}
+
+.immersiveSettingsTabContent .clockCompactField select,
+.immersiveSettingsTabContent .formatOption,
+.immersiveSettingsTabContent .clockColorSwatchButton {
+  min-height: 2.75rem;
+}
+
+.immersiveSettingsTabContent .clockCompactField .formatToggle {
+  height: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+}
+
+.immersiveSettingsTabContent .clockCompactField select,
+.immersiveSettingsTabContent .clockCompactField .formatToggle {
+  width: 100%;
+}
+
+.immersiveSettingsTabContent .clockCompactField .clockColorSwatchButton {
+  width: 2.75rem;
+  height: 2.75rem;
+}
+
+.immersiveSettingsTabContent .colorRow {
+  height: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0 0.5rem;
+  border-radius: 0.68rem;
+  box-shadow: none;
+}
+
+.immersiveSettingsTabContent .colorRow :global(.ml-color-picker-input) {
+  width: 2.25rem;
+  height: 2.25rem;
+  min-height: 2.25rem;
+  border-radius: 0.62rem;
+}
+
+.immersiveSettingsTabContent .controlGroup {
+  border-radius: 0.68rem;
+}
+
+.immersiveSettingsTabContent .controlGroupBody {
+  gap: 0.42rem;
+  padding: 0 0.45rem 0.45rem;
+}
+
+.settingsNotice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  border: 1px solid hsl(var(--border) / 0.65);
+  border-radius: 0.75rem;
+  background: hsl(var(--muted) / 0.5);
+  padding: 0.65rem 0.75rem;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.musicDefaultActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
 .switchRow,
 .colorRow,
 .rangeRow,
@@ -1370,14 +1607,17 @@
 
 .clockCompactRow {
   display: grid;
-  grid-template-columns: minmax(7rem, 1.15fr) minmax(5.8rem, 0.8fr) minmax(7rem, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.55rem;
   align-items: stretch;
 }
 
 .clockCompactField {
   display: grid;
-  gap: 0.4rem;
+  grid-template-columns: max-content minmax(7.5rem, auto);
+  align-items: center;
+  justify-content: start;
+  gap: 1rem;
   min-width: 0;
   padding: 0.58rem 0.62rem 0.62rem;
   border: 1px solid hsl(var(--foreground) / 0.11);
@@ -1391,17 +1631,19 @@
 }
 
 .clockCompactField > span {
+  max-width: 3.5rem;
   overflow: hidden;
   color: rgba(255, 255, 255, 0.72);
   font-size: 0.72rem;
   font-weight: 800;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.15;
+  text-overflow: clip;
+  white-space: normal;
 }
 
 .clockCompactField select {
   appearance: none;
-  width: 100%;
+  width: min(8rem, 100%);
   min-width: 0;
   min-height: 2.48rem;
   border: 1px solid hsl(var(--foreground) / 0.1);
@@ -1420,6 +1662,7 @@
   font-weight: 800;
   padding: 0.34rem 1.55rem 0.34rem 0.74rem;
   text-shadow: 0 1px 1px hsl(var(--background) / 0.55);
+  justify-self: start;
 }
 
 .clockCompactField:focus-within {
@@ -1436,7 +1679,8 @@
 }
 
 .clockCompactField .formatToggle {
-  width: 100%;
+  width: min(8.5rem, 100%);
+  justify-self: start;
 }
 
 .clockCompactField .colorSwatchPicker {
@@ -1656,6 +1900,90 @@
   gap: 0.7rem;
 }
 
+.immersiveSelectedBackgroundControls {
+  gap: 0.25rem;
+}
+
+.immersiveLampColorControls {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.immersiveSelectedBackgroundControls .colorRow {
+  min-height: 2.75rem;
+  height: 2.75rem;
+  padding: 0 0.25rem;
+  border: 0;
+  border-radius: 0.45rem;
+  background: transparent;
+  box-shadow: none;
+}
+
+.immersiveSelectedBackgroundControls .colorRow > span {
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.immersiveSelectedBackgroundControls .colorSwatchPicker .colorSwatchButton,
+.immersiveSelectedBackgroundControls .colorRow button[aria-haspopup="dialog"] {
+  width: 2.75rem;
+  height: 2.75rem;
+}
+
+.immersiveHeaderSwitch {
+  position: relative;
+}
+
+.immersiveHeaderSwitch::after {
+  content: "";
+  position: absolute;
+  inset: -0.65rem -0.45rem;
+}
+
+.immersiveClockHeaderControls,
+.immersiveClockHeaderToggle {
+  display: flex;
+  align-items: center;
+}
+
+.immersiveClockHeaderControls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+  gap: 0.25rem;
+  justify-items: center;
+}
+
+@media (min-width: 421px) {
+  /* Flatten the grouped controls so the panel header can space every action evenly. */
+  .immersiveClockHeaderControls {
+    display: contents;
+  }
+}
+
+.immersiveClockHeaderToggle {
+  gap: 0.45rem;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.immersiveHeaderColorControl {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.colorSwatchPicker .immersiveHeaderColorSwatchButton {
+  width: 2rem;
+  height: 2rem;
+}
+
 .backgroundCardControls .colorRow,
 .backgroundCardControls .rangeRow,
 .backgroundCardControls .durationRow,
@@ -1795,26 +2123,8 @@
     height: 3rem;
   }
 
-  .settingsButton {
-    left: calc(env(safe-area-inset-left, 0px) + 4.75rem);
-  }
-
   .secondaryDisplay {
     max-width: calc(100vw - 8rem);
-  }
-
-  .settingsPanel {
-    top: var(--chimer-settings-panel-top-offset, calc(env(safe-area-inset-top, 0px) + 5rem));
-    right: calc(env(safe-area-inset-right, 0px) + 0.75rem);
-    bottom: var(--chimer-panel-bottom-offset, calc(env(safe-area-inset-bottom, 0px) + 0.75rem));
-    left: calc(env(safe-area-inset-left, 0px) + 0.75rem);
-    width: auto;
-    max-height: none;
-    padding: 0.85rem;
-  }
-
-  .settingsTabContent {
-    max-height: none;
   }
 
   .backgroundSettingsTabContent {
@@ -1839,7 +2149,7 @@
   }
 
   .clockCompactRow {
-    grid-template-columns: minmax(6.4rem, 1.05fr) minmax(5.4rem, 0.8fr) minmax(6.5rem, 1fr);
+    grid-template-columns: minmax(6.4rem, 1.05fr) minmax(6.5rem, 1fr);
     gap: 0.45rem;
   }
 
@@ -1868,6 +2178,36 @@
   }
 }
 
+@media (max-width: 420px) {
+  .clockCompactRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .immersiveClockHeaderToggle {
+    gap: 0.3rem;
+    font-size: 0.72rem;
+  }
+
+  .immersiveClockHeaderToggle > span {
+    max-width: 3rem;
+    line-height: 1.1;
+    text-align: center;
+    white-space: normal;
+  }
+
+  .immersiveVisualHeaderColorControl > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+
 @media (orientation: landscape) and (max-height: 520px) {
   .container {
     --chimer-top-control-space: calc(env(safe-area-inset-top, 0px) + 4.75rem);
@@ -1882,18 +2222,7 @@
     bottom: var(--chimer-bottom-control-offset, calc(env(safe-area-inset-bottom, 0px) + 0.75rem));
   }
 
-  .settingsPanel {
-    top: var(--chimer-settings-panel-top-offset, calc(env(safe-area-inset-top, 0px) + 4.75rem));
-    right: calc(env(safe-area-inset-right, 0px) + 0.75rem);
-    bottom: var(--chimer-panel-bottom-offset, calc(env(safe-area-inset-bottom, 0px) + 0.5rem));
-    left: calc(env(safe-area-inset-left, 0px) + 0.75rem);
-    width: auto;
-    max-height: none;
-    padding: 0.75rem;
-  }
-
   .settingsTabContent {
-    max-height: none;
     gap: 0.65rem;
   }
 
@@ -1906,7 +2235,6 @@
   .chrome,
   .control,
   .fontButton,
-  .settingsPanel,
   .status,
   .bottomButtonRow,
   .primaryDisplay,
@@ -1916,7 +2244,8 @@
   }
 
   .swapToPrimary,
-  .swapToSecondary {
+  .swapToSecondary,
+  .displayRotationEnabled {
     animation: none;
   }
 

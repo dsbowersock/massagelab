@@ -33,7 +33,7 @@ The design also adds two independent, off-by-default display effects inspired by
 - Guarantee that docked panels do not cover the protected centered display.
 - Allow only Background to intentionally cover the display.
 - Keep timer-only controls in Clock and expose them only for active Chimer.
-- Put the shared Keep screen awake control at the top of Visual and respect it in all immersive contexts.
+- Put Keep screen awake at the top of Visual only for active Chimer; ordinary Clock and Music visualizer request wake lock automatically while active and expose no toggle.
 - Give ordinary Clock and Music visualizer separate remembered Show clock preferences.
 - Keep active Chimer timer information visible at all times.
 - Make the Music visualizer available from the persistent player after a station is selected, including loading, playing, stopped, and recoverable failure states.
@@ -161,15 +161,13 @@ Music visualizer uses its own `showClock`, default false. Changing either value 
 
 Show clock appears only in `clock` and `musicVisualizer` contexts. Active Chimer never exposes it and never allows the centered timer information to be hidden. When Show clock is off, the display effects remain saved but their controls are disabled with a short explanation.
 
-## Shared Keep Screen Awake Behavior
+## Context-Aware Keep Screen Awake Behavior
 
-The existing `keepTimerScreenAwake` setting remains the single persisted control and defaults on. It moves to the top of Visual and governs:
+The existing `keepTimerScreenAwake` setting remains the default-on persisted Chimer opt-out. It moves to the top of Visual only for active Chimer. Turning it off allows the device to dim or sleep during an active Chimer.
 
-- active Chimer;
-- ordinary `/clock`; and
-- Music visualizer.
+Ordinary `/clock` and Music visualizer expose no Keep screen awake toggle. While active, both request Screen Wake Lock automatically regardless of the Chimer preference; the Music visualizer does so while its background is active even when Show clock is off. Idle Chimer setup never requests Screen Wake Lock.
 
-Standalone Clock no longer bypasses the setting. A supported visible document requests the Screen Wake Lock only when the setting is on. Hidden documents release it, and visible documents reacquire it when still requested. Unsupported or denied wake locks do not crash the display; Visual reports the unavailable state while preserving the user's preference.
+A supported visible document requests Screen Wake Lock according to that context policy. Hidden documents release it, and visible documents reacquire it when still requested. Unsupported or denied wake locks do not crash the display; Visual reports the unavailable state in every context while preserving the Chimer preference.
 
 ## Immersive Control Group
 
@@ -187,7 +185,7 @@ Only one panel may be active:
 - selecting the active control closes it;
 - `Escape` closes the active panel and restores focus to its control;
 - Clock and Visual close on an outside pointer interaction;
-- Background closes through its own always-visible Close control or `Escape`. The underlying toolbar is covered and inert while the modal is open.
+- Background always closes through its own always-visible Close control or `Escape`, closes immediately after an available selection, and closes on outside interaction when content leaves visible overlay. A true full-viewport panel naturally has no outside target. The underlying toolbar is covered and inert while the modal is open.
 
 Clock and Visual are nonmodal. Background is modal. Interaction inside the panel or an approved portaled child such as the shared color picker does not count as an outside click.
 
@@ -228,7 +226,7 @@ Background is exempt from the safe-stage contract. It opens as a fixed full-scre
 
 ### Visual
 
-- Keep screen awake at the top.
+- Keep screen awake at the top only for active Chimer; omit the toggle from ordinary Clock and Music visualizer while still showing unsupported/denied wake-lock status.
 - Visual background on/off.
 - Selected-background customization.
 - Global color mode, colors, and harmony controls.
@@ -242,7 +240,7 @@ Background is exempt from the safe-stage contract. It opens as a fixed full-scre
 - Eligibility/locked messaging through the current entitlement contract until Track 1 extends it.
 - Selection only; effect customization remains in Visual.
 
-Selecting an available background immediately updates the appropriate context, closes Background, and reveals the result. Track 3 may replace the picker implementation without changing panel, routing, or preference interfaces.
+Selecting an available background immediately updates the appropriate context, closes Background, and reveals the result. If Visual has not been opened on the device, selection briefly highlights its toolbar control with the accessible hint `Customize this background in Visual.` The hint never opens Visual, traps focus, covers the toolbar, or account-syncs. Opening Visual writes a narrowly named, non-sensitive local visit flag and suppresses future hints; denied storage falls back safely to in-memory visit state. The visual pulse is reduced-motion safe, and the persistent seen state changes only when Visual is actually opened. Track 3 may replace the picker implementation without changing panel, routing, or preference interfaces.
 
 ## Display Rotation and Forward Glow
 
@@ -250,7 +248,12 @@ Both toggles are added to sanitized Chimer settings and default off:
 
 ```ts
 clockRotationEnabled: boolean
+clockRotationRange: number
+clockRotationDuration: number
 clockForwardGlowEnabled: boolean
+clockForwardGlowStrength: number
+clockForwardGlowLength: number
+clockForwardGlowBlur: number
 ```
 
 They apply to whichever display is centered: active timer, user-swapped current time, ordinary Clock, or visible Music visualizer Clock.
@@ -258,15 +261,17 @@ They apply to whichever display is centered: active timer, user-swapped current 
 ### Display rotation
 
 - Wrap the existing centered display in a transform layer.
-- Use a slow approximately 40-second ease-in-out yaw from roughly `-10deg` to `10deg` and back.
+- Use a local `45rem` perspective and an ease-in-out yaw that defaults to 40 seconds and `-10deg` to `10deg` and back.
+- Expose a `2–20deg` yaw range and `10–120s` cycle duration while keeping the source-shaped defaults.
 - Keep the measured layout box stable so safe-stage calculations do not oscillate.
 - Suppress continuous rotation under `prefers-reduced-motion`, even if the preference remains enabled.
 
 ### Forward glow
 
-- Render an `aria-hidden`, pointer-free duplicate projection of the centered display.
+- Render two `aria-hidden`, pointer-free duplicate layers of the centered display: a broad bloom and a sharper reflected layer.
 - Derive its color from the active display color.
-- Use a shallow 3D floor transform, blur, opacity falloff, and gradient mask.
+- Use the source-shaped `-90.1deg` 3D floor transform, separate blur/opacity falloff, and opposing gradient masks.
+- Expose `0–100%` intensity, `50–200%` projection length, and `0–64px` blur controls.
 - Update automatically after display swaps, timer changes, time changes, or color changes.
 - Keep the projection inside the visual stage and out of control hit areas.
 
@@ -354,7 +359,7 @@ Workspace returns to station discovery only. Mini player exposes and labels the 
 - Account app-settings merge preserves Music visualizer data and unrelated settings.
 - Ordinary Show clock defaults on and remains separate from Music Show clock.
 - Display rotation and Forward glow default off and sanitize non-boolean input.
-- Keep screen awake applies consistently in Chimer, Clock, and Music visualizer.
+- Active Chimer requires literal `keepScreenAwake === true`; active ordinary Clock and Music visualizer request wake lock regardless of that value, including when Music Show clock is off; idle and invalid contexts never request it.
 - Settings auto-close timer code is removed.
 - `/music` no longer contains a BackgroundHost, BackgroundSelector, or separate background state.
 
@@ -399,10 +404,11 @@ Workspace returns to station discovery only. Mini player exposes and labels the 
 - Do not create a separate selectable Music page background.
 - Unmount the animation when minimized for resource efficiency.
 - Use one single-active adaptive control group.
-- Close docked panels by active toggle, Close, `Escape`, or outside click; close the full-screen Background modal through its own Close control or `Escape`.
+- Close docked panels by active toggle, Close, `Escape`, or outside click; close Background by selection, Close, `Escape`, or a pointer interaction on any visible outside overlay.
 - Use bottom-first safe-stage docking.
 - Keep background customization in Visual and selection in Background.
-- Put Keep screen awake at the top of Visual and use one shared control in all contexts.
+- After the first qualifying selection on a device that has never opened Visual, briefly point to Visual without opening it; record seen only when Visual opens and fall back to in-memory state if local storage is denied.
+- Put Keep screen awake at the top of Visual only for active Chimer; ordinary Clock and Music visualizer expose no toggle and request wake lock automatically while active.
 - Expose Show clock only in Clock contexts, never active Chimer.
 - Use only two new effect toggles, with no speed or intensity controls.
 - Cover all global chrome when Background is open.

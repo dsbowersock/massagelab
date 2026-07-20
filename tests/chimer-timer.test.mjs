@@ -14,6 +14,7 @@ import {
   normalizeHexColor,
   normalizeInteger,
   sanitizeChimerSettings,
+  sanitizeChimerSettingsForEntitlements,
 } from "../lib/chimer-timer.js"
 import {
   combineTileGridFadeParts,
@@ -269,6 +270,64 @@ describe("Chimer timer helpers", () => {
 
   it("preserves a saved timer screen awake preference", () => {
     assert.equal(sanitizeChimerSettings({ keepTimerScreenAwake: false }).keepTimerScreenAwake, false)
+  })
+
+  it("defaults invalid immersive clock preferences to safe booleans", () => {
+    const settings = sanitizeChimerSettings({
+      showClockDisplay: "false",
+      clockRotationEnabled: 1,
+      clockRotationRange: 999,
+      clockRotationDuration: 1,
+      clockForwardGlowEnabled: null,
+      clockForwardGlowStrength: 9,
+      clockForwardGlowLength: 0,
+      clockForwardGlowBlur: -8,
+    })
+
+    assert.equal(DEFAULT_CHIMER_SETTINGS.showClockDisplay, true)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.clockRotationEnabled, false)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.clockRotationRange, 10)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.clockRotationDuration, 40)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.clockForwardGlowEnabled, false)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.clockForwardGlowStrength, 1)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.clockForwardGlowLength, 1)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.clockForwardGlowBlur, 28)
+    assert.equal(settings.showClockDisplay, true)
+    assert.equal(settings.clockRotationEnabled, false)
+    assert.equal(settings.clockRotationRange, 20)
+    assert.equal(settings.clockRotationDuration, 10)
+    assert.equal(settings.clockForwardGlowEnabled, false)
+    assert.equal(settings.clockForwardGlowStrength, 1)
+    assert.equal(settings.clockForwardGlowLength, 0.5)
+    assert.equal(sanitizeChimerSettings({ clockForwardGlowLength: 9 }).clockForwardGlowLength, 4)
+    assert.equal(settings.clockForwardGlowBlur, 0)
+  })
+
+  it("preserves literal immersive clock booleans through local and account sanitization", () => {
+    const input = {
+      showClockDisplay: false,
+      clockRotationEnabled: true,
+      clockRotationRange: 14,
+      clockRotationDuration: 55,
+      clockForwardGlowEnabled: true,
+      clockForwardGlowStrength: 0.65,
+      clockForwardGlowLength: 1.35,
+      clockForwardGlowBlur: 36,
+    }
+
+    for (const settings of [
+      sanitizeChimerSettings(input),
+      sanitizeChimerSettingsForEntitlements(input, []),
+    ]) {
+      assert.equal(settings.showClockDisplay, false)
+      assert.equal(settings.clockRotationEnabled, true)
+      assert.equal(settings.clockRotationRange, 14)
+      assert.equal(settings.clockRotationDuration, 55)
+      assert.equal(settings.clockForwardGlowEnabled, true)
+      assert.equal(settings.clockForwardGlowStrength, 0.65)
+      assert.equal(settings.clockForwardGlowLength, 1.35)
+      assert.equal(settings.clockForwardGlowBlur, 36)
+    }
   })
 
   it("migrates legacy AM/PM settings into explicit time format", () => {
