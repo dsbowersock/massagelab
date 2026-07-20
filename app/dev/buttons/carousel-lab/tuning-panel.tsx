@@ -13,44 +13,43 @@ interface TuningPanelProps {
   onReset: () => void
 }
 
-const sharedFields = [
-  ["cardWidth", "Card width", 160, 320, 4, "px"],
-  ["gap", "Gap", 0, 64, 2, "px"],
-  ["visibleRadius", "Nearby radius", 1, 4, 1, ""],
-] as const
+interface TuningField {
+  key: string
+  label: string
+  min: number
+  max: number
+  step: number
+  unit: string
+  description: string
+}
 
-const existingBackgroundFields = [
-  ["spread", "Angular spread", 15, 50, 1, "deg"],
-  ["radius", "Radius", 160, 420, 5, "px"],
-  ["scaleFalloff", "Scale falloff", 0.04, 0.15, 0.01, ""],
-] as const
+const sharedFields: readonly TuningField[] = [
+  { key: "cardWidth", label: "Card width", min: 160, max: 320, step: 4, unit: "px", description: "Sets each card's visual width." },
+  { key: "gap", label: "Gap", min: 0, max: 64, step: 2, unit: "px", description: "Sets the linear space between neighboring card positions." },
+  { key: "visibleRadius", label: "Nearby radius", min: 1, max: 4, step: 1, unit: "", description: "Keeps this many cards mounted on each side of the centered card." },
+]
 
-const coverFlowFields = [
-  ["rotation", "Side rotation", 0, 55, 1, "deg"],
-  ["centerScale", "Center scale", 1, 1.35, 0.01, "x"],
-  ["edgeScale", "Edge scale", 0.6, 1, 0.01, "x"],
-  ["perspective", "Perspective", 400, 1600, 20, "px"],
-  ["reflectionOpacity", "Reflection opacity", 0, 0.65, 0.05, ""],
-  ["reflectionGap", "Reflection gap", 0, 24, 1, "px"],
-] as const
+const existingBackgroundFields: readonly TuningField[] = [
+  { key: "spread", label: "Angular spread", min: 15, max: 50, step: 1, unit: "deg", description: "Sets the angle between cards on the production-style radial arc." },
+  { key: "radius", label: "Radius", min: 160, max: 420, step: 5, unit: "px", description: "Sets the size of the radial arc around the centered card." },
+  { key: "scaleFalloff", label: "Scale falloff", min: 0.04, max: 0.24, step: 0.01, unit: "", description: "Shrinks each card by this amount for every step away from center." },
+]
 
-const threeDFields = [
-  ["perspective", "Perspective", 240, 1200, 20, "px"],
-  ["arcAngle", "Arc angle", 12, 50, 1, "deg"],
-  ["depth", "Depth", 80, 520, 10, "px"],
-  ["centerScale", "Center scale", 1, 1.3, 0.01, "x"],
-  ["edgeScale", "Edge scale", 0.55, 1, 0.01, "x"],
-  ["nearMask", "Near mask falloff", 0.25, 1.5, 0.05, ""],
-  ["farMask", "Far mask falloff", 1, 3, 0.05, ""],
-] as const
+const coverFlowFields: readonly TuningField[] = [
+  { key: "rotation", label: "Side rotation", min: 0, max: 55, step: 1, unit: "deg", description: "Rotates side cards around their inner edge, matching the reference Cover Flow." },
+  { key: "centerScale", label: "Center scale", min: 1, max: 1.35, step: 0.01, unit: "x", description: "Enlarges the card as it reaches the center snap." },
+  { key: "edgeScale", label: "Edge scale", min: 0.6, max: 1, step: 0.01, unit: "x", description: "Sets the scale of cards as they approach the outer fade." },
+  { key: "perspective", label: "Perspective", min: 320, max: 1600, step: 20, unit: "px", description: "Changes how strongly depth is projected; lower values exaggerate the 3D effect." },
+  { key: "reflectionOpacity", label: "Reflection opacity", min: 0, max: 1, step: 0.05, unit: "", description: "Sets the brightness of the artwork reflection below each card." },
+  { key: "reflectionGap", label: "Reflection gap", min: 0, max: 24, step: 1, unit: "px", description: "Sets the space between artwork and its reflected copy." },
+]
 
-type TuningField = readonly [
-  key: string,
-  label: string,
-  min: number,
-  max: number,
-  step: number,
-  unit: string,
+const threeDFields: readonly TuningField[] = [
+  { key: "perspective", label: "Perspective", min: 50, max: 1500, step: 10, unit: "px", description: "Changes how strongly depth is projected; lower values exaggerate the 3D effect." },
+  { key: "ringItems", label: "Ring slots", min: 10, max: 50, step: 1, unit: "", description: "Sets how many card positions complete one full cylinder; the reference uses 16." },
+  { key: "depth", label: "Ring depth", min: 0.5, max: 1.5, step: 0.05, unit: "x", description: "Scales the source-derived cylinder radius while preserving its shared ring geometry." },
+  { key: "nearMask", label: "Near mask width", min: 0, max: 5, step: 0.1, unit: "x", description: "Keeps this many card widths fully visible around the center." },
+  { key: "farMask", label: "Far mask width", min: 0, max: 5, step: 0.1, unit: "x", description: "Controls where the edge fade begins and becomes fully transparent." },
 ]
 
 function formatTuningValue(value: number, step: number, unit: string) {
@@ -90,13 +89,14 @@ export function TuningPanel({
       </div>
 
       <div className="grid gap-4">
-        {fields.map(([field, label, min, descriptorMax, step, unit]) => {
+        {fields.map(({ key: field, label, min, max: descriptorMax, step, unit, description }) => {
           const max = field === "cardWidth"
             ? surface === "backgrounds" ? 280 : 320
             : descriptorMax
           const numericValue = Number(value[field])
           const inputValue = Number.isFinite(numericValue) ? numericValue : min
           const inputId = `carousel-tuning-${field}`
+          const descriptionId = `${inputId}-description`
 
           return (
             <div key={field} className="grid gap-1.5">
@@ -114,12 +114,16 @@ export function TuningPanel({
                 max={max}
                 step={step}
                 value={inputValue}
+                aria-describedby={descriptionId}
                 onChange={(event) => onChange({
                   ...value,
                   [field]: Number(event.currentTarget.value),
                 })}
                 className="w-full accent-primary"
               />
+              <p id={descriptionId} className="text-xs leading-5 text-muted-foreground">
+                {description}
+              </p>
             </div>
           )
         })}
@@ -127,15 +131,19 @@ export function TuningPanel({
 
       <div className="grid gap-3 border-t border-border pt-4">
         <div className="flex items-center justify-between gap-4">
-          <label htmlFor="carousel-tuning-loop" className="text-sm font-medium">
-            Loop
-          </label>
+          <div>
+            <label htmlFor="carousel-tuning-loop" className="text-sm font-medium">Loop</label>
+            <p id="carousel-tuning-loop-description" className="mt-1 text-xs text-muted-foreground">
+              Wraps navigation when there are enough cards for a stable loop.
+            </p>
+          </div>
           <Switch
             id="carousel-tuning-loop"
             data-testid="carousel-tuning-loop"
             checked={value.loop === true}
             onCheckedChange={(checked) => onChange({ ...value, loop: checked })}
             aria-label="Loop"
+            aria-describedby="carousel-tuning-loop-description"
           />
         </div>
         {value.loop === true && !effectiveLoop ? (
@@ -147,15 +155,19 @@ export function TuningPanel({
         )}
 
         <div className="flex items-center justify-between gap-4">
-          <label htmlFor="carousel-tuning-motion" className="text-sm font-medium">
-            Motion
-          </label>
+          <div>
+            <label htmlFor="carousel-tuning-motion" className="text-sm font-medium">Motion</label>
+            <p id="carousel-tuning-motion-description" className="mt-1 text-xs text-muted-foreground">
+              Animates navigation and presentation geometry; it does not autoplay.
+            </p>
+          </div>
           <Switch
             id="carousel-tuning-motion"
             data-testid="carousel-tuning-motion"
             checked={value.motion !== false}
             onCheckedChange={(checked) => onChange({ ...value, motion: checked })}
             aria-label="Motion"
+            aria-describedby="carousel-tuning-motion-description"
           />
         </div>
         <p className="text-xs text-muted-foreground">
@@ -164,15 +176,19 @@ export function TuningPanel({
 
         {presentation === "cover-flow" ? (
           <div className="flex items-center justify-between gap-4">
-            <label htmlFor="carousel-tuning-reflection" className="text-sm font-medium">
-              Reflection
-            </label>
+            <div>
+              <label htmlFor="carousel-tuning-reflection" className="text-sm font-medium">Reflection</label>
+              <p id="carousel-tuning-reflection-description" className="mt-1 text-xs text-muted-foreground">
+                Reflects artwork only, keeping live text and actions readable.
+              </p>
+            </div>
             <Switch
               id="carousel-tuning-reflection"
               data-testid="carousel-tuning-reflection"
               checked={value.reflection === true}
               onCheckedChange={(checked) => onChange({ ...value, reflection: checked })}
               aria-label="Reflection"
+              aria-describedby="carousel-tuning-reflection-description"
             />
           </div>
         ) : null}

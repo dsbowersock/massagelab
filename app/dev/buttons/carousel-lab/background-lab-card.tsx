@@ -13,6 +13,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import type { BackgroundDefinition } from "@/components/backgrounds/backgroundRegistry"
 import { getBackgroundPreviewMedia, getBackgroundVisualTags } from "@/lib/background-catalog"
@@ -27,7 +28,8 @@ export type LabBackgroundAccessState =
 export interface BackgroundLabCardProps {
   option: BackgroundDefinition
   centered: boolean
-  detailLevel: "full" | "summary"
+  detailLevel: "full" | "summary" | "shell"
+  presentation: "existing" | "cover-flow" | "three-d"
   accessState: LabBackgroundAccessState
   selected: boolean
   saved: boolean
@@ -38,13 +40,13 @@ export interface BackgroundLabCardProps {
 
 /** Renders real catalog media while keeping prototype access decisions local-only. */
 export function BackgroundLabCard(props: BackgroundLabCardProps) {
-  const { option, centered, detailLevel, accessState, selected, saved, reducedMotion } = props
+  const { option, detailLevel, presentation, accessState, selected, saved, reducedMotion } = props
   const videoRef = useRef<HTMLVideoElement | null>(null)
-  const [decisionOpen, setDecisionOpen] = useState(false)
   const [devOutcome, setDevOutcome] = useState("")
   const media = getBackgroundPreviewMedia(option, "landscape")
   const canUse = accessState === "free" || accessState === "owned" || accessState === "subscriber-unlocked"
-  const showVideo = detailLevel === "full" && centered && !reducedMotion && media?.type === "video"
+  const showVideo = detailLevel !== "shell" && !reducedMotion && media?.type === "video"
+  const productionExisting = presentation === "existing"
 
   useEffect(() => {
     const video = videoRef.current
@@ -64,23 +66,20 @@ export function BackgroundLabCard(props: BackgroundLabCardProps) {
     }
   }, [showVideo])
 
-  const requestSelection = () => {
-    if (canUse) {
-      setDevOutcome("")
-      props.onSelect()
-      return
-    }
-    setDecisionOpen(true)
-  }
-
   return (
-    <article
-      className="grid h-full overflow-hidden rounded-xl border border-border bg-background/90"
-      data-background-id={option.id}
-      data-background-selected={selected}
-    >
+    <AlertDialog>
+      <article
+        className={productionExisting
+          ? "relative grid aspect-[5/7] h-full overflow-hidden rounded-2xl border border-white/20 bg-black text-white shadow-2xl"
+          : "grid h-full overflow-hidden rounded-xl border border-border bg-background/90"}
+        data-background-id={option.id}
+        data-background-selected={selected}
+        data-background-access-state={accessState}
+      >
       <div
-        className="relative aspect-[4/3] overflow-hidden rounded-t-xl"
+        className={productionExisting
+          ? "absolute inset-0 overflow-hidden rounded-[inherit]"
+          : "relative aspect-[4/3] overflow-hidden rounded-t-xl"}
         data-carousel-artwork
       >
         {showVideo ? (
@@ -114,13 +113,19 @@ export function BackgroundLabCard(props: BackgroundLabCardProps) {
         )}
       </div>
 
-      <div className="grid gap-2 p-3">
+      <div className={productionExisting
+        ? "relative z-10 mt-auto grid gap-2 self-end bg-gradient-to-t from-black/95 via-black/70 to-transparent p-3 pt-14"
+        : "grid gap-2 p-3"}>
         <div>
           <h3 className="font-semibold">{option.label}</h3>
-          {detailLevel === "full" ? (
+          {detailLevel === "full" || productionExisting ? (
             <>
-              <p className="text-xs text-muted-foreground">{option.provider}</p>
-              <p className="mt-1 text-xs text-muted-foreground">
+              {detailLevel === "full" ? (
+                <p className={productionExisting ? "text-xs text-white/70" : "text-xs text-muted-foreground"}>
+                  {option.provider}
+                </p>
+              ) : null}
+              <p className={productionExisting ? "mt-1 text-xs text-white/70" : "mt-1 text-xs text-muted-foreground"}>
                 {getBackgroundVisualTags(option).slice(0, 4).join(" - ")}
               </p>
             </>
@@ -129,10 +134,24 @@ export function BackgroundLabCard(props: BackgroundLabCardProps) {
 
         {detailLevel === "full" ? (
           <div className="flex flex-wrap gap-2">
-            <Button onClick={requestSelection} size="sm">
-              {!canUse ? <Lock aria-hidden="true" /> : null}
-              {selected ? "Selected" : "Select"}
-            </Button>
+            {canUse ? (
+              <Button
+                onClick={() => {
+                  setDevOutcome("")
+                  props.onSelect()
+                }}
+                size="sm"
+              >
+                {selected ? "Selected" : "Select"}
+              </Button>
+            ) : (
+              <AlertDialogTrigger asChild>
+                <Button size="sm">
+                  <Lock aria-hidden="true" />
+                  {selected ? "Selected" : "Select"}
+                </Button>
+              </AlertDialogTrigger>
+            )}
             <Button
               aria-label={`${saved ? "Unsave" : "Save"} ${option.label}`}
               aria-pressed={saved}
@@ -145,30 +164,29 @@ export function BackgroundLabCard(props: BackgroundLabCardProps) {
           </div>
         ) : null}
         {devOutcome ? <p role="status" className="text-xs text-primary">{devOutcome}</p> : null}
-      </div>
+        </div>
+      </article>
 
-      <AlertDialog open={decisionOpen} onOpenChange={setDecisionOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Unlock {option.label}</AlertDialogTitle>
-            <AlertDialogDescription>
-              Development preview only. These actions do not change credits, purchases, or membership.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="sm:flex-wrap">
-            <AlertDialogAction onClick={() => setDevOutcome("Dev preview: Use free credit")}>
-              Use free credit
-            </AlertDialogAction>
-            <AlertDialogAction onClick={() => setDevOutcome("Dev preview: Buy for $1")}>
-              Buy for $1
-            </AlertDialogAction>
-            <AlertDialogAction onClick={() => setDevOutcome("Dev preview: Unlock all")}>
-              Unlock all
-            </AlertDialogAction>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </article>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Unlock {option.label}</AlertDialogTitle>
+          <AlertDialogDescription>
+            Development preview only. These actions do not change credits, purchases, or membership.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="sm:flex-wrap">
+          <AlertDialogAction onClick={() => setDevOutcome("Dev preview: Use free credit")}>
+            Use free credit
+          </AlertDialogAction>
+          <AlertDialogAction onClick={() => setDevOutcome("Dev preview: Buy for $1")}>
+            Buy for $1
+          </AlertDialogAction>
+          <AlertDialogAction onClick={() => setDevOutcome("Dev preview: Unlock all")}>
+            Unlock all
+          </AlertDialogAction>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   )
 }

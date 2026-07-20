@@ -14,25 +14,39 @@
  * }} CarouselLabTuning
  */
 
-export const CAROUSEL_LAB_STORAGE_KEY = "massagelab-carousel-lab-v1"
+export const CAROUSEL_LAB_STORAGE_KEY = "massagelab-carousel-lab-v2"
 export const CAROUSEL_LAB_PAIRS = Object.freeze([
   "backgrounds:existing", "backgrounds:cover-flow", "backgrounds:three-d",
   "stations:existing", "stations:cover-flow", "stations:three-d",
 ])
 
-const sharedDefaults = {
-  backgrounds: { cardWidth: 208, gap: 16, visibleRadius: 3, loop: false, motion: true },
-  stations: { cardWidth: 208, gap: 20, visibleRadius: 2, loop: false, motion: true },
-}
-const adapterDefaults = {
-  existing: { spread: 35, radius: 285, scaleFalloff: 0.08 },
-  "cover-flow": {
-    rotation: 33, centerScale: 1.2, edgeScale: 0.75, perspective: 900,
-    reflection: true, reflectionOpacity: 0.4, reflectionGap: 8,
+const pairDefaults = {
+  backgrounds: {
+    existing: {
+      cardWidth: 224, gap: 0, visibleRadius: 3, loop: true, motion: true,
+      spread: 35, radius: 285, scaleFalloff: 0.16,
+    },
+    "cover-flow": {
+      cardWidth: 216, gap: 0, visibleRadius: 4, loop: true, motion: true,
+      rotation: 33, centerScale: 1.2, edgeScale: 0.75, perspective: 1000,
+      reflection: true, reflectionOpacity: 0.75, reflectionGap: 8,
+    },
+    "three-d": {
+      cardWidth: 192, gap: 20, visibleRadius: 4, loop: false, motion: true,
+      perspective: 320, ringItems: 16, depth: 1, nearMask: 0.9, farMask: 1.8,
+    },
   },
-  "three-d": {
-    perspective: 320, arcAngle: 22, depth: 280, centerScale: 1.08,
-    edgeScale: 0.78, nearMask: 0.9, farMask: 1.8,
+  stations: {
+    existing: { cardWidth: 208, gap: 20, visibleRadius: 2, loop: false, motion: true },
+    "cover-flow": {
+      cardWidth: 192, gap: 0, visibleRadius: 4, loop: true, motion: true,
+      rotation: 33, centerScale: 1.2, edgeScale: 0.75, perspective: 1000,
+      reflection: true, reflectionOpacity: 0.75, reflectionGap: 8,
+    },
+    "three-d": {
+      cardWidth: 192, gap: 20, visibleRadius: 4, loop: false, motion: true,
+      perspective: 320, ringItems: 16, depth: 1, nearMask: 0.9, farMask: 1.8,
+    },
   },
 }
 
@@ -42,20 +56,18 @@ const ranges = {
   visibleRadius: [1, 4, 1],
   spread: [15, 50, 1],
   radius: [160, 420, 5],
-  scaleFalloff: [0.04, 0.15, 0.01],
+  scaleFalloff: [0.04, 0.24, 0.01],
   rotation: [0, 55, 1],
   centerScaleCover: [1, 1.35, 0.01],
   edgeScaleCover: [0.6, 1, 0.01],
-  perspectiveCover: [400, 1600, 20],
-  reflectionOpacity: [0, 0.65, 0.05],
+  perspectiveCover: [320, 1600, 20],
+  reflectionOpacity: [0, 1, 0.05],
   reflectionGap: [0, 24, 1],
-  perspectiveThreeD: [240, 1200, 20],
-  arcAngle: [12, 50, 1],
-  depth: [80, 520, 10],
-  centerScaleThreeD: [1, 1.3, 0.01],
-  edgeScaleThreeD: [0.55, 1, 0.01],
-  nearMask: [0.25, 1.5, 0.05],
-  farMask: [1, 3, 0.05],
+  perspectiveThreeD: [50, 1500, 10],
+  ringItems: [10, 50, 1],
+  depth: [0.5, 1.5, 0.05],
+  nearMask: [0, 5, 0.1],
+  farMask: [0, 5, 0.1],
 }
 
 // Clamp and snap persisted values to the same increments exposed by Lab controls.
@@ -79,9 +91,10 @@ function numberAt(value, fallback, range) {
  * @returns {CarouselLabTuning}
  */
 export function getDefaultCarouselLabTuning(surface, presentation) {
-  const common = sharedDefaults[surface] ?? sharedDefaults.backgrounds
-  const adapter = adapterDefaults[presentation] ?? adapterDefaults.existing
-  return /** @type {CarouselLabTuning} */ ({ ...common, ...adapter })
+  const surfaceDefaults = pairDefaults[surface] ?? pairDefaults.backgrounds
+  return /** @type {CarouselLabTuning} */ ({
+    ...(surfaceDefaults[presentation] ?? surfaceDefaults.existing),
+  })
 }
 
 /**
@@ -126,10 +139,8 @@ export function sanitizeCarouselLabTuning(surface, presentation, value) {
   return {
     ...output,
     perspective: numberAt(input.perspective, /** @type {number} */ (defaults.perspective), ranges.perspectiveThreeD),
-    arcAngle: numberAt(input.arcAngle, /** @type {number} */ (defaults.arcAngle), ranges.arcAngle),
+    ringItems: numberAt(input.ringItems, /** @type {number} */ (defaults.ringItems), ranges.ringItems),
     depth: numberAt(input.depth, /** @type {number} */ (defaults.depth), ranges.depth),
-    centerScale: numberAt(input.centerScale, /** @type {number} */ (defaults.centerScale), ranges.centerScaleThreeD),
-    edgeScale: numberAt(input.edgeScale, /** @type {number} */ (defaults.edgeScale), ranges.edgeScaleThreeD),
     nearMask: numberAt(input.nearMask, /** @type {number} */ (defaults.nearMask), ranges.nearMask),
     farMask: numberAt(input.farMask, /** @type {number} */ (defaults.farMask), ranges.farMask),
   }
@@ -145,7 +156,7 @@ export function parseCarouselLabStorage(raw) {
   let values = {}
   try {
     const parsed = typeof raw === "string" ? JSON.parse(raw) : null
-    values = parsed?.version === 1 && parsed.values && typeof parsed.values === "object" ? parsed.values : {}
+    values = parsed?.version === 2 && parsed.values && typeof parsed.values === "object" ? parsed.values : {}
   } catch {
     values = {}
   }
@@ -164,7 +175,7 @@ export function serializeCarouselLabStorage(record) {
     const [surface, presentation] = /** @type {[CarouselLabSurface, CarouselLabPresentation]} */ (key.split(":"))
     return [key, sanitizeCarouselLabTuning(surface, presentation, record?.[key])]
   }))
-  return JSON.stringify({ version: 1, values })
+  return JSON.stringify({ version: 2, values })
 }
 
 /**
@@ -235,44 +246,78 @@ export function getMountedItemIds(items, centeredId, visibleRadius, loop) {
  * @param {number} progress
  * @param {Record<string, number | boolean>} tuning
  * @param {boolean} reducedMotion
+ * @param {number} [itemCount]
  * @returns {Record<string, string>}
  */
-export function getPresentationVariables(presentation, surface, progress, tuning, reducedMotion) {
+export function getPresentationVariables(presentation, surface, progress, tuning, reducedMotion, itemCount = 16) {
   if (reducedMotion || tuning.motion === false || (presentation === "existing" && surface === "stations")) {
     return {
       "--lab-x": "0px", "--lab-z": "0px", "--lab-rotate-y": "0deg",
-      "--lab-scale": "1", "--lab-opacity": "1",
+      "--lab-scale": "1", "--lab-opacity": "1", "--lab-origin-x": "50%",
+      "--lab-z-index": "1",
     }
   }
-  const distance = Math.min(1, Math.abs(progress) / Math.max(1, /** @type {number} */ (tuning.visibleRadius)))
+  const absoluteProgress = Math.abs(progress)
+  const visibleRadius = Math.max(1, /** @type {number} */ (tuning.visibleRadius))
+  const distance = Math.min(1, absoluteProgress / visibleRadius)
   if (presentation === "existing") {
     const angle = progress * /** @type {number} */ (tuning.spread)
     const radians = angle * Math.PI / 180
+    const linearOffset = progress * (
+      /** @type {number} */ (tuning.cardWidth) + /** @type {number} */ (tuning.gap)
+    )
     return {
-      "--lab-x": `${(Math.sin(radians) * /** @type {number} */ (tuning.radius)).toFixed(2)}px`,
-      "--lab-z": `${((Math.cos(radians) - 1) * /** @type {number} */ (tuning.radius)).toFixed(2)}px`,
-      "--lab-rotate-y": `${(-angle * 0.45).toFixed(2)}deg`,
+      "--lab-x": `${(Math.sin(radians) * /** @type {number} */ (tuning.radius) - linearOffset).toFixed(2)}px`,
+      "--lab-z": `${(-absoluteProgress * 28).toFixed(2).replace(".00", "")}px`,
+      "--lab-rotate-y": `${(-angle).toFixed(2).replace(".00", "")}deg`,
       "--lab-scale": String(Math.max(0.65, 1 - Math.abs(progress) * /** @type {number} */ (tuning.scaleFalloff))),
-      "--lab-opacity": String(Math.max(0.28, 1 - distance * 0.55)),
+      "--lab-opacity": String(Math.max(0.18, 1 - absoluteProgress * 0.36)),
+      "--lab-origin-x": "50%",
+      "--lab-z-index": String(Math.max(1, 20 - Math.round(absoluteProgress))),
     }
   }
   if (presentation === "cover-flow") {
+    const nearDistance = Math.min(1, absoluteProgress)
+    const edgeDistance = absoluteProgress <= 1
+      ? 0
+      : Math.min(1, (absoluteProgress - 1) / Math.max(1, visibleRadius - 1))
+    const scale = absoluteProgress <= 1
+      ? /** @type {number} */ (tuning.centerScale)
+        + (1 - /** @type {number} */ (tuning.centerScale)) * nearDistance
+      : 1 + (/** @type {number} */ (tuning.edgeScale) - 1) * edgeDistance
+    const centerLift = (1 - nearDistance) * /** @type {number} */ (tuning.cardWidth) * 0.75
+    const nearSweep = Math.sin(nearDistance * Math.PI) * /** @type {number} */ (tuning.cardWidth) * 0.15
+    const edgeSweep = edgeDistance * /** @type {number} */ (tuning.cardWidth) * 0.8
+    const horizontalSweep = Math.sign(progress) * (absoluteProgress <= 1 ? nearSweep : edgeSweep)
     return {
-      "--lab-x": "0px", "--lab-z": `${(-distance * 90).toFixed(2)}px`,
-      "--lab-rotate-y": `${-Math.sign(progress) * /** @type {number} */ (tuning.rotation) * Math.min(1, Math.abs(progress))}deg`,
-      "--lab-scale": String(/** @type {number} */ (tuning.centerScale) + (/** @type {number} */ (tuning.edgeScale) - /** @type {number} */ (tuning.centerScale)) * distance),
-      "--lab-opacity": String(Math.max(0.4, 1 - distance * 0.45)),
+      "--lab-x": absoluteProgress === 0 ? "0px" : `${horizontalSweep.toFixed(2)}px`,
+      "--lab-z": `${centerLift.toFixed(2)}px`,
+      "--lab-rotate-y": `${(-Math.sign(progress) * /** @type {number} */ (tuning.rotation) * nearDistance).toFixed(2).replace(".00", "")}deg`,
+      "--lab-scale": String(scale),
+      "--lab-opacity": String(Math.max(0.25, 1 - edgeDistance * 0.75)),
+      "--lab-origin-x": progress < 0 ? "100%" : progress > 0 ? "0%" : "50%",
+      "--lab-z-index": String(Math.max(1, 100 - Math.round(absoluteProgress * 10))),
     }
   }
-  const nearMask = /** @type {number} */ (tuning.nearMask)
-  const farMask = /** @type {number} */ (tuning.farMask)
-  // Nearby cards favor nearMask; its influence yields to farMask toward the visible edge.
-  const maskFalloff = nearMask + (farMask - nearMask) * distance
+  const safeItemCount = Math.max(3, Math.round(
+    /** @type {number} */ (tuning.ringItems ?? itemCount),
+  ))
+  const innerAngle = 360 / safeItemCount
+  const angle = progress * innerAngle
+  const radians = angle * Math.PI / 180
+  const step = /** @type {number} */ (tuning.cardWidth) + /** @type {number} */ (tuning.gap)
+  const sourceRadius = step / Math.sin(innerAngle * Math.PI / 180)
+  const radius = sourceRadius * /** @type {number} */ (tuning.depth)
+  const layoutOffset = progress * step
+  const x = Math.sin(radians) * radius - layoutOffset
+  const z = (Math.cos(radians) - 1) * radius
   return {
-    "--lab-x": "0px",
-    "--lab-z": `${(-distance * /** @type {number} */ (tuning.depth)).toFixed(2)}px`,
-    "--lab-rotate-y": `${(-progress * /** @type {number} */ (tuning.arcAngle)).toFixed(2)}deg`,
-    "--lab-scale": String(/** @type {number} */ (tuning.centerScale) + (/** @type {number} */ (tuning.edgeScale) - /** @type {number} */ (tuning.centerScale)) * distance),
-    "--lab-opacity": String(Math.max(0.18, 1 - distance * (maskFalloff / 2.5))),
+    "--lab-x": absoluteProgress === 0 ? "0px" : `${x.toFixed(2)}px`,
+    "--lab-z": absoluteProgress === 0 ? "0px" : `${z.toFixed(2)}px`,
+    "--lab-rotate-y": absoluteProgress === 0 ? "0deg" : `${Number(angle.toFixed(2))}deg`,
+    "--lab-scale": "1",
+    "--lab-opacity": "1",
+    "--lab-origin-x": "50%",
+    "--lab-z-index": String(Math.max(1, 100 - Math.round(distance * 50))),
   }
 }

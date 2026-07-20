@@ -17,11 +17,42 @@ const items = ["a", "b", "c", "d", "e"].map((id) => ({ id, label: id }))
 
 describe("Carousel Lab model", () => {
   it("defines exactly six independent surface/presentation pairs", () => {
-    assert.equal(CAROUSEL_LAB_STORAGE_KEY, "massagelab-carousel-lab-v1")
+    assert.equal(CAROUSEL_LAB_STORAGE_KEY, "massagelab-carousel-lab-v2")
     assert.deepEqual(CAROUSEL_LAB_PAIRS, [
       "backgrounds:existing", "backgrounds:cover-flow", "backgrounds:three-d",
       "stations:existing", "stations:cover-flow", "stations:three-d",
     ])
+  })
+
+  it("uses production Existing geometry and source-native reference defaults", () => {
+    assert.deepEqual(getDefaultCarouselLabTuning("backgrounds", "existing"), {
+      cardWidth: 224,
+      gap: 0,
+      visibleRadius: 3,
+      loop: true,
+      motion: true,
+      spread: 35,
+      radius: 285,
+      scaleFalloff: 0.16,
+    })
+
+    const coverFlow = getDefaultCarouselLabTuning("backgrounds", "cover-flow")
+    assert.equal(coverFlow.cardWidth, 216)
+    assert.equal(coverFlow.gap, 0)
+    assert.equal(coverFlow.visibleRadius, 4)
+    assert.equal(coverFlow.rotation, 33)
+    assert.equal(coverFlow.centerScale, 1.2)
+    assert.equal(coverFlow.edgeScale, 0.75)
+    assert.equal(coverFlow.reflectionOpacity, 0.75)
+
+    const threeD = getDefaultCarouselLabTuning("backgrounds", "three-d")
+    assert.equal(threeD.cardWidth, 192)
+    assert.equal(threeD.gap, 20)
+    assert.equal(threeD.perspective, 320)
+    assert.equal(threeD.ringItems, 16)
+    assert.equal(threeD.depth, 1)
+    assert.equal(threeD.nearMask, 0.9)
+    assert.equal(threeD.farMask, 1.8)
   })
 
   it("sanitizes shared and adapter-specific values", () => {
@@ -44,7 +75,7 @@ describe("Carousel Lab model", () => {
         cardWidth: 280,
         gap: 0,
         visibleRadius: 4,
-        loop: false,
+        loop: true,
         motion: false,
         rotation: 34,
         centerScale: 1.2,
@@ -59,7 +90,7 @@ describe("Carousel Lab model", () => {
 
   it("resets malformed storage entries independently", () => {
     const parsed = parseCarouselLabStorage(JSON.stringify({
-      version: 1,
+      version: 2,
       values: {
         "backgrounds:existing": { radius: 400 },
         "stations:three-d": "broken",
@@ -81,46 +112,49 @@ describe("Carousel Lab model", () => {
     assert.deepEqual([...getMountedItemIds(items, "a", 1, true)], ["e", "a", "b"])
   })
 
-  it("disables unstable loops and produces symmetric presentation variables", () => {
+  it("disables unstable loops and produces production-faithful Existing variables", () => {
     assert.equal(resolveEffectiveLoop(5, 2, true), false)
     assert.equal(resolveEffectiveLoop(6, 2, true), true)
     assert.equal(resolveEffectiveLoop(20, 2, false), false)
 
-    const tuning = getDefaultCarouselLabTuning("backgrounds", "cover-flow")
-    const center = getPresentationVariables("cover-flow", "backgrounds", 0, tuning, false)
-    const left = getPresentationVariables("cover-flow", "backgrounds", -1, tuning, false)
-    const right = getPresentationVariables("cover-flow", "backgrounds", 1, tuning, false)
-    assert.equal(center["--lab-scale"], "1.2")
-    assert.equal(left["--lab-rotate-y"], "33deg")
-    assert.equal(right["--lab-rotate-y"], "-33deg")
-    assert.equal(getPresentationVariables("cover-flow", "backgrounds", 1, tuning, true)["--lab-scale"], "1")
+    const tuning = getDefaultCarouselLabTuning("backgrounds", "existing")
+    const center = getPresentationVariables("existing", "backgrounds", 0, tuning, false)
+    const left = getPresentationVariables("existing", "backgrounds", -1, tuning, false)
+    const right = getPresentationVariables("existing", "backgrounds", 1, tuning, false)
+    assert.equal(center["--lab-scale"], "1")
+    assert.equal(left["--lab-rotate-y"], "35deg")
+    assert.equal(right["--lab-rotate-y"], "-35deg")
+    assert.equal(left["--lab-scale"], "0.84")
+    assert.equal(right["--lab-z"], "-28px")
+    assert.equal(getPresentationVariables("existing", "backgrounds", 1, tuning, true)["--lab-scale"], "1")
   })
 
-  it("uses both near and far mask falloff for non-centered 3D cards", () => {
+  it("uses Cover Flow depth, edge origins, and symmetric side rotation", () => {
+    const tuning = getDefaultCarouselLabTuning("backgrounds", "cover-flow")
+    const center = getPresentationVariables("cover-flow", "backgrounds", 0, tuning, false)
+    const movingRight = getPresentationVariables("cover-flow", "backgrounds", 0.5, tuning, false)
+    const left = getPresentationVariables("cover-flow", "backgrounds", -1, tuning, false)
+    const right = getPresentationVariables("cover-flow", "backgrounds", 1, tuning, false)
+
+    assert.equal(center["--lab-scale"], "1.2")
+    assert.notEqual(center["--lab-z"], "0px")
+    assert.notEqual(movingRight["--lab-x"], "0px")
+    assert.equal(left["--lab-rotate-y"], "33deg")
+    assert.equal(right["--lab-rotate-y"], "-33deg")
+    assert.equal(left["--lab-origin-x"], "100%")
+    assert.equal(right["--lab-origin-x"], "0%")
+  })
+
+  it("places 3D cards on one source-style ring instead of fading a flat rail", () => {
     const tuning = getDefaultCarouselLabTuning("backgrounds", "three-d")
-    const progress = 1
+    const center = getPresentationVariables("three-d", "backgrounds", 0, tuning, false, 16)
+    const side = getPresentationVariables("three-d", "backgrounds", 1, tuning, false, 81)
 
-    const lowNear = getPresentationVariables("three-d", "backgrounds", progress, {
-      ...tuning,
-      nearMask: 0.25,
-    }, false)
-    const highNear = getPresentationVariables("three-d", "backgrounds", progress, {
-      ...tuning,
-      nearMask: 1.5,
-    }, false)
-    assert.notEqual(lowNear["--lab-opacity"], highNear["--lab-opacity"])
-
-    const lowFar = getPresentationVariables("three-d", "backgrounds", progress, {
-      ...tuning,
-      farMask: 1,
-    }, false)
-    const highFar = getPresentationVariables("three-d", "backgrounds", progress, {
-      ...tuning,
-      farMask: 3,
-    }, false)
-    assert.notEqual(lowFar["--lab-opacity"], highFar["--lab-opacity"])
-
-    assert.equal(getPresentationVariables("three-d", "backgrounds", 0, tuning, false)["--lab-opacity"], "1")
-    assert.equal(getPresentationVariables("three-d", "backgrounds", progress, tuning, true)["--lab-opacity"], "1")
+    assert.equal(center["--lab-z"], "0px")
+    assert.equal(center["--lab-rotate-y"], "0deg")
+    assert.equal(side["--lab-rotate-y"], "22.5deg")
+    assert.notEqual(side["--lab-z"], "0px")
+    assert.equal(side["--lab-opacity"], "1")
+    assert.equal(getPresentationVariables("three-d", "backgrounds", 1, tuning, true, 16)["--lab-z"], "0px")
   })
 })

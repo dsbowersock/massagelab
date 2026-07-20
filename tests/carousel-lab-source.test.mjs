@@ -44,6 +44,19 @@ describe("Carousel Lab source boundaries", () => {
     assert.match(css, /data-carousel-artwork/)
   })
 
+  it("separates Embla loop positioning from presentation transforms", () => {
+    const stage = read("app/dev/buttons/carousel-lab/carousel-stage.tsx")
+    const css = read("app/dev/buttons/carousel-lab/carousel-stage.module.css")
+    const slideRule = css.match(/\.slide\s*\{([\s\S]*?)\n\}/)?.[1] ?? ""
+    const presentationRule = css.match(/\.presentation\s*\{([\s\S]*?)\n\}/)?.[1] ?? ""
+
+    assert.match(stage, /data-carousel-transform="true"/)
+    assert.doesNotMatch(slideRule, /(?:^|\s)transform\s*:/)
+    assert.match(presentationRule, /transform:\s*[\s\S]*?translate3d/)
+    assert.match(slideRule, /z-index:\s*var\(--lab-z-index, 1\)/)
+    assert.doesNotMatch(css, /\.slide\[data-centered="true"\]\s*\{[^}]*z-index/)
+  })
+
   it("forces a finite keyboard rail when carousel motion is off", () => {
     const controller = read("app/dev/buttons/carousel-lab/use-carousel-lab-controller.ts")
     assert.match(controller, /const finiteRail = reducedMotion \|\| tuning\.motion === false/)
@@ -93,6 +106,18 @@ describe("Carousel Lab source boundaries", () => {
     )
   })
 
+  it("does not turn an in-progress Embla selection into an instant jump", () => {
+    const controller = read("app/dev/buttons/carousel-lab/use-carousel-lab-controller.ts")
+    assert.doesNotMatch(controller, /api\.scrollTo\(nextIndex, true\)/)
+  })
+
+  it("does not let Embla drag capture suppress interactive card controls", () => {
+    const controller = read("app/dev/buttons/carousel-lab/use-carousel-lab-controller.ts")
+    assert.match(controller, /interactiveSlideSelector/)
+    assert.match(controller, /target\.closest\(interactiveSlideSelector\)/)
+    assert.match(controller, /watchDrag:\s*\(_api, event\) => shouldStartCarouselDrag\(event\)/)
+  })
+
   it("normalizes item identity once at the stage boundary", () => {
     const stage = read("app/dev/buttons/carousel-lab/carousel-stage.tsx")
     assert.match(stage, /normalizeCarouselLabItems/)
@@ -125,7 +150,7 @@ describe("Carousel Lab source boundaries", () => {
     assert.equal(reconcileCenteredId(items, "missing", "also-missing"), "first")
   })
 
-  it("uses real Background data with isolated access fixtures and centered-only video", () => {
+  it("uses real Background data with isolated access fixtures and nearby video previews", () => {
     const surface = read("app/dev/buttons/carousel-lab/background-lab-surface.tsx")
     const card = read("app/dev/buttons/carousel-lab/background-lab-card.tsx")
     const combined = `${surface}\n${card}`
@@ -133,11 +158,36 @@ describe("Carousel Lab source boundaries", () => {
     assert.match(surface, /backgroundRegistry/)
     assert.match(surface, /matchesBackgroundVisualFilter/)
     assert.match(surface, /readSavedBackgroundIds/)
-    assert.match(card, /detailLevel === "full" && centered/)
+    assert.match(card, /detailLevel !== "shell"/)
     assert.match(card, /Use free credit/)
     assert.match(card, /Buy for \$1/)
     assert.match(card, /Unlock all/)
     assert.doesNotMatch(combined, /fetch\(|stripe|checkout|server action/i)
+  })
+
+  it("keeps 3D context and wires source-native masks to live tuning variables", () => {
+    const stage = read("app/dev/buttons/carousel-lab/carousel-stage.tsx")
+    const css = read("app/dev/buttons/carousel-lab/carousel-stage.module.css")
+
+    assert.match(css, /\.track\s*\{[\s\S]*?transform-style:\s*preserve-3d/)
+    assert.match(stage, /--lab-mask-lower/)
+    assert.match(stage, /--lab-mask-upper/)
+    assert.match(css, /var\(--lab-mask-lower/)
+    assert.match(css, /var\(--lab-mask-upper/)
+  })
+
+  it("marks Station artwork for Cover Flow reflection without reflecting actions", () => {
+    const sharedCard = read("components/atmosphere/station-carousel-card.tsx")
+    assert.match(sharedCard, /data-carousel-artwork/)
+  })
+
+  it("describes every tuning property in plain language", () => {
+    const panel = read("app/dev/buttons/carousel-lab/tuning-panel.tsx")
+    assert.match(panel, /description:/)
+    assert.match(panel, /aria-describedby=\{descriptionId\}/)
+    assert.match(panel, /Changes how strongly depth is projected/)
+    assert.match(panel, /Sets how many card positions complete one full cylinder/)
+    assert.match(panel, /Controls where the edge fade begins/)
   })
 
   it("reuses the production Station card and real Music provider in the lab", () => {

@@ -9,6 +9,14 @@ import {
   resolveEffectiveLoop,
 } from "./carousel-lab-model"
 
+const interactiveSlideSelector = "button, a, input, select, textarea, [role='button'], [role='option']"
+
+/** Keeps carousel drag capture from suppressing activation of controls inside a card. */
+function shouldStartCarouselDrag(event: MouseEvent | TouchEvent) {
+  const target = event.target
+  return !(target instanceof Element && target.closest(interactiveSlideSelector))
+}
+
 export interface CarouselLabItem {
   id: string
   label: string
@@ -44,12 +52,13 @@ export function useCarouselLabController(options: UseCarouselLabControllerOption
   })
   const [viewportRef, api] = useEmblaCarousel({
     align: "center",
-    containScroll: effectiveLoop ? false : "trimSnaps",
+    containScroll: false,
     dragFree: false,
     loop: effectiveLoop,
     skipSnaps: false,
-    duration: finiteRail ? 0 : 24,
+    duration: finiteRail ? 0 : 45,
     startIndex: initialCenter.index,
+    watchDrag: (_api, event) => shouldStartCarouselDrag(event),
   })
   const itemElements = useRef(new Map<string, HTMLElement>())
   const frameRef = useRef<number | null>(null)
@@ -77,7 +86,14 @@ export function useCarouselLabController(options: UseCarouselLabControllerOption
       if (effectiveLoop && difference > 0.5) difference -= 1
       if (effectiveLoop && difference < -0.5) difference += 1
       const progress = difference * Math.max(1, items.length - 1)
-      const variables = getPresentationVariables(presentation, surface, progress, tuning, reducedMotion)
+      const variables = getPresentationVariables(
+        presentation,
+        surface,
+        progress,
+        tuning,
+        reducedMotion,
+        items.length,
+      )
       const element = itemElements.current.get(item.id)
       if (!element) return
       element.style.setProperty("--lab-progress", String(progress))
@@ -127,10 +143,12 @@ export function useCarouselLabController(options: UseCarouselLabControllerOption
 
   useEffect(() => {
     if (!api) return
-    const nextId = reconcileCenteredId(items, centeredId, selectedItemId)
+    const nextId = reconcileCenteredId(items, selectedItemId, null)
     const nextIndex = items.findIndex(({ id }) => id === nextId)
-    if (nextIndex >= 0) api.scrollTo(nextIndex, true)
-  }, [api, centeredId, items, selectedItemId])
+    if (selectedItemId && nextIndex >= 0 && items[api.selectedScrollSnap()]?.id !== nextId) {
+      api.scrollTo(nextIndex)
+    }
+  }, [api, items, selectedItemId])
 
   const centerItem = useCallback((id: string, jump = false) => {
     const index = items.findIndex((item) => item.id === id)

@@ -32,6 +32,8 @@ type CarouselRootStyle = CSSProperties & {
   "--lab-perspective": string
   "--lab-reflection-opacity": string
   "--lab-reflection-gap": string
+  "--lab-mask-lower": string
+  "--lab-mask-upper": string
 }
 
 function finiteTuningValue(value: number | boolean | undefined, fallback: number) {
@@ -94,6 +96,8 @@ export function CarouselStage<T extends CarouselLabItem>({
     "--lab-perspective": `${finiteTuningValue(tuning.perspective, 900)}px`,
     "--lab-reflection-opacity": String(finiteTuningValue(tuning.reflectionOpacity, 0.4)),
     "--lab-reflection-gap": `${finiteTuningValue(tuning.reflectionGap, 8)}px`,
+    "--lab-mask-lower": String(finiteTuningValue(tuning.nearMask, 0.9)),
+    "--lab-mask-upper": String(finiteTuningValue(tuning.farMask, 1.8)),
   }
 
   return (
@@ -142,17 +146,19 @@ export function CarouselStage<T extends CarouselLabItem>({
                   if (item.id !== centeredId) centerItem(item.id)
                 }}
               >
-                {detailLevel === "shell" ? (
-                  <div className={styles.shell} aria-hidden="true" />
-                ) : centered ? (
-                  <div className={styles.renderer}>
-                    {renderItem(item, { centered, nearby, detailLevel })}
-                  </div>
-                ) : (
-                  <div className={styles.summary} aria-hidden="true" inert>
-                    {renderItem(item, { centered, nearby, detailLevel })}
-                  </div>
-                )}
+                <div className={styles.presentation} data-carousel-transform="true">
+                  {detailLevel === "shell" ? (
+                    <div className={styles.shell} aria-hidden="true" />
+                  ) : centered ? (
+                    <div className={styles.renderer}>
+                      {renderItem(item, { centered, nearby, detailLevel })}
+                    </div>
+                  ) : (
+                    <div className={styles.summary} aria-hidden="true" inert>
+                      {renderItem(item, { centered, nearby, detailLevel })}
+                    </div>
+                  )}
+                </div>
               </div>
             )
           })}

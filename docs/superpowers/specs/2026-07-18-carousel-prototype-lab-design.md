@@ -1,5 +1,16 @@
 # Carousel Prototype Lab Design
 
+## Visual-review correction addendum — 2026-07-20
+
+The first implementation satisfied the original shared-controller constraints but over-adapted the two CodePens. User review rejected that approximation. This addendum supersedes conflicting mechanics below while preserving the Track 3A development-only boundary:
+
+- Existing Background now mirrors the production Clock/Chimer radial geometry and 5:7 card presentation instead of applying a mild radial transform to a linear rail.
+- Cover Flow treats the public Pen as an executable visual specification: source-default rotation/scale/reflection, center depth, inner-edge transform origins, lateral sweep, and stacking remain intact while real MassageLab cards replace demo images.
+- 3D Carousel uses one shared source-derived rotating cylinder with the Pen's 16-slot, 320-pixel-perspective, 0.9/1.8 mask defaults. It is no longer a flat rail with independent per-card yaw/depth.
+- Nearby Background cards may mount and play muted video previews inside the bounded radius, matching the production picker; reduced motion, visibility, and unmount cleanup remain mandatory.
+- Every tuning control includes a plain-language effect description. Corrected defaults use device-local storage key `massagelab-carousel-lab-v2`.
+- GSAP, ScrollTrigger, Tweakpane, global demo styles, demo assets, autoplay, vertical mode, and production rollout remain out of scope. Existing Embla input mechanics and coalesced imperative transforms provide the app integration.
+
 **Date:** 2026-07-18
 
 **Status:** Reviewed and approved for implementation planning

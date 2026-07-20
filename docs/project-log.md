@@ -7,6 +7,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 ## 2026-07-20 — Carousel prototype review lab
 
 - Implemented and validated the development-only Carousel Lab on `/dev/buttons`: six production-faithful combinations compare Existing, Cover Flow, and 3D presentations across real Background and Music Station cards with shared accessible Embla mechanics, bounded media/resource behavior, current-device tuning, reduced-motion fallback, and mutation-free access fixtures. Production carousel rollout remains paused until the user chooses one shared Background winner and one Music Station winner.
+- Corrected the lab after user visual review showed the first adaptations were not faithful enough: stopped truncating Embla motion, centered looped snaps, matched Existing Background to the production 5:7 radial picker, restored Cover Flow depth/sweep/rotation/stacking/reflections, rebuilt 3D around the source-derived 16-slot cylinder and live mask geometry, enabled bounded adjacent Background video previews, added plain-language control descriptions, and reset corrected defaults under `massagelab-carousel-lab-v2`. No production carousel was replaced.
 
 ## 2026-07-19 — Immersive Music visualizer acceptance
 

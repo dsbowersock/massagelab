@@ -133,6 +133,7 @@ export function BackgroundLabSurface(props: BackgroundLabSurfaceProps) {
                 option={option}
                 centered={centered}
                 detailLevel={detailLevel}
+                presentation={props.presentation}
                 accessState={accessState}
                 selected={selectedId === option.id}
                 saved={savedIds.includes(option.id)}

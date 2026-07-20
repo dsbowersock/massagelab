@@ -47,7 +47,7 @@ export function AtmosphereStationCarouselCard({
           isActive && "border-primary/80 shadow-lg shadow-primary/15",
         )}
       >
-        <div className="relative aspect-[4/3] rounded-[9px] bg-background p-1">
+        <div className="relative aspect-[4/3] rounded-[9px] bg-background p-1" data-carousel-artwork>
           <AtmosphereStationArtwork
             description={station.description}
             groupId={groupId}
@@ -78,7 +78,7 @@ export function AtmosphereStationCarouselCard({
         includeSamplePayloads: canPrewarmCompressedSamplePayloads(),
       })}
     >
-      <div className="relative aspect-[4/3] rounded-[9px] bg-background p-1">
+      <div className="relative aspect-[4/3] rounded-[9px] bg-background p-1" data-carousel-artwork>
         <AtmosphereStationArtwork
           description={station.description}
           groupId={groupId}

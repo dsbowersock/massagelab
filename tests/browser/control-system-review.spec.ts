@@ -135,7 +135,7 @@ test.describe("control-system review lab", () => {
     await expect(page.getByTestId("carousel-lab-summary")).toContainText("248px")
 
     await page.getByRole("radio", { name: "Cover Flow", exact: true }).click()
-    await expect(page.getByTestId("carousel-lab-summary")).toContainText("208px")
+    await expect(page.getByTestId("carousel-lab-summary")).toContainText("216px")
     await width.evaluate((input) => {
       const range = input as HTMLInputElement
       const nativeValueSetter = Object.getOwnPropertyDescriptor(
@@ -154,16 +154,28 @@ test.describe("control-system review lab", () => {
     await page.getByRole("tab", { name: "Carousels" }).click()
     await expect(page.getByTestId("carousel-lab-summary")).toContainText("248px")
     await page.getByRole("button", { name: "Reset current pair" }).click()
-    await expect(page.getByTestId("carousel-lab-summary")).toContainText("208px")
+    await expect(page.getByTestId("carousel-lab-summary")).toContainText("224px")
     await page.getByRole("radio", { name: "Cover Flow", exact: true }).click()
     await expect(page.getByTestId("carousel-lab-summary")).toContainText("232px")
 
     await page.getByRole("combobox", { name: "Access state fixture" }).click()
     await page.getByRole("option", { name: "Locked", exact: true }).click()
-    await page
-      .locator('[data-centered="true"]')
-      .getByRole("button", { name: /^Select/ })
-      .click()
+    const centeredBackground = page.locator('[data-centered="true"]')
+    await expect(centeredBackground.locator("article")).toHaveAttribute(
+      "data-background-access-state",
+      "locked",
+    )
+    const lockedAction = centeredBackground.getByRole("button", { name: /^Select/ })
+    await lockedAction.scrollIntoViewIfNeeded()
+    await expect.poll(() => lockedAction.evaluate((element) => {
+      const rect = element.getBoundingClientRect()
+      const hitTarget = document.elementFromPoint(
+        rect.left + rect.width / 2,
+        rect.top + rect.height / 2,
+      )
+      return hitTarget === element || element.contains(hitTarget)
+    })).toBe(true)
+    await lockedAction.click()
     await expect(page.getByRole("button", { name: "Use free credit" })).toBeVisible()
     await expect(page.getByRole("button", { name: "Buy for $1" })).toBeVisible()
     await expect(page.getByRole("button", { name: "Unlock all" })).toBeVisible()
@@ -173,14 +185,111 @@ test.describe("control-system review lab", () => {
 
     expect(
       await page.locator('video[data-testid="carousel-background-video"]').count(),
-    ).toBeLessThanOrEqual(1)
+    ).toBeLessThanOrEqual(9)
     await page
       .getByLabel("Background visual filter")
       .getByRole("radio", { name: "Video" })
       .click()
     expect(
       await page.locator('video[data-testid="carousel-background-video"]').count(),
-    ).toBeLessThanOrEqual(1)
+    ).toBeGreaterThan(1)
+  })
+
+  test("Carousel Lab tuning changes live Cover Flow and 3D geometry", async ({ page }) => {
+    await page.getByRole("tab", { name: "Carousels" }).click()
+    await page.getByRole("radio", { name: "Cover Flow", exact: true }).click()
+
+    const stage = page.getByTestId("carousel-lab-stage")
+    const sideSlide = page.locator('[data-carousel-slide="true"]').nth(1)
+    await expect(sideSlide).toBeAttached()
+    await expect(page.getByText("Changes how strongly depth is projected; lower values exaggerate the 3D effect.")).toBeVisible()
+    const centerOffset = await page.locator('[data-carousel-slide="true"][data-centered="true"]').evaluate(
+      (centered, stageElement) => {
+        const cardRect = centered.getBoundingClientRect()
+        const stageRect = (stageElement as HTMLElement).getBoundingClientRect()
+        return Math.abs(
+          (cardRect.left + cardRect.width / 2) - (stageRect.left + stageRect.width / 2),
+        )
+      },
+      await stage.elementHandle(),
+    )
+    expect(centerOffset).toBeLessThanOrEqual(2)
+    const centeredSlide = page.locator('[data-carousel-slide="true"][data-centered="true"]')
+    const stacking = await Promise.all([
+      centeredSlide.evaluate((element) => Number(getComputedStyle(element).zIndex)),
+      sideSlide.evaluate((element) => Number(getComputedStyle(element).zIndex)),
+    ])
+    expect(stacking[0]).toBeGreaterThan(stacking[1])
+
+    const initialRotation = await sideSlide.evaluate((element) =>
+      element.style.getPropertyValue("--lab-rotate-y"),
+    )
+    const rotation = page.getByTestId("carousel-tuning-rotation")
+    await rotation.evaluate((input) => {
+      const range = input as HTMLInputElement
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set
+      setter?.call(range, "50")
+      range.dispatchEvent(new Event("input", { bubbles: true }))
+      range.dispatchEvent(new Event("change", { bubbles: true }))
+    })
+    await expect.poll(() => sideSlide.evaluate((element) =>
+      element.style.getPropertyValue("--lab-rotate-y"),
+    )).not.toBe(initialRotation)
+
+    const perspective = page.getByTestId("carousel-tuning-perspective")
+    await perspective.evaluate((input) => {
+      const range = input as HTMLInputElement
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set
+      setter?.call(range, "400")
+      range.dispatchEvent(new Event("input", { bubbles: true }))
+      range.dispatchEvent(new Event("change", { bubbles: true }))
+    })
+    await expect.poll(() => stage.evaluate((element) => getComputedStyle(element).perspective)).toBe("400px")
+
+    await page.getByRole("radio", { name: "3D Carousel", exact: true }).click()
+    const threeDSideSlide = page.locator('[data-carousel-slide="true"]').nth(1)
+    const initialDepth = await threeDSideSlide.evaluate((element) =>
+      element.style.getPropertyValue("--lab-z"),
+    )
+    const depth = page.getByTestId("carousel-tuning-depth")
+    await depth.evaluate((input) => {
+      const range = input as HTMLInputElement
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set
+      setter?.call(range, "1.5")
+      range.dispatchEvent(new Event("input", { bubbles: true }))
+      range.dispatchEvent(new Event("change", { bubbles: true }))
+    })
+    await expect.poll(() => threeDSideSlide.evaluate((element) =>
+      element.style.getPropertyValue("--lab-z"),
+    )).not.toBe(initialDepth)
+
+    const initialMask = await stage.evaluate((element) => getComputedStyle(element).maskImage)
+    const nearMask = page.getByTestId("carousel-tuning-nearMask")
+    await nearMask.evaluate((input) => {
+      const range = input as HTMLInputElement
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set
+      setter?.call(range, "1.5")
+      range.dispatchEvent(new Event("input", { bubbles: true }))
+      range.dispatchEvent(new Event("change", { bubbles: true }))
+    })
+    await expect.poll(() => stage.evaluate((element) => getComputedStyle(element).maskImage)).not.toBe(initialMask)
+  })
+
+  test("Carousel Lab preserves presentation transforms across an Embla loop wrap", async ({ page }) => {
+    await page.getByRole("tab", { name: "Carousels" }).click()
+    await page.getByRole("radio", { name: "Cover Flow", exact: true }).click()
+
+    const slides = page.locator('[data-carousel-slide="true"]')
+    await slides.first().click()
+    await expect(slides.first()).toHaveAttribute("data-centered", "true")
+    await page.getByRole("button", { name: "Previous carousel item" }).click()
+    await expect(slides.last()).toHaveAttribute("data-centered", "true")
+
+    const wrappedSlide = slides.first()
+    await expect.poll(() => wrappedSlide.evaluate((element) => element.style.transform)).not.toBe("")
+    const visualTransform = wrappedSlide.locator('[data-carousel-transform="true"]')
+    await expect(visualTransform).toHaveCount(1)
+    await expect.poll(() => visualTransform.evaluate((element) => getComputedStyle(element).transform)).not.toBe("none")
   })
 
   test("Carousel Lab restores a non-first station position across categories", async ({ page }) => {
