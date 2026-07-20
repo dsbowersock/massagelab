@@ -1026,7 +1026,12 @@ export default function ChimerPage() {
               : runWithoutAnimatedBackground ? false : settings.movingBackgroundEnabled}
             keepTimerScreenAwake={settings.keepTimerScreenAwake}
             clockRotationEnabled={settings.clockRotationEnabled}
+            clockRotationRange={settings.clockRotationRange}
+            clockRotationDuration={settings.clockRotationDuration}
             clockForwardGlowEnabled={settings.clockForwardGlowEnabled}
+            clockForwardGlowStrength={settings.clockForwardGlowStrength}
+            clockForwardGlowLength={settings.clockForwardGlowLength}
+            clockForwardGlowBlur={settings.clockForwardGlowBlur}
             showTimerSeconds={settings.showTimerSeconds}
             showCurrentTimeSeconds={settings.showCurrentTimeSeconds}
             timeFormat={settings.timeFormat}

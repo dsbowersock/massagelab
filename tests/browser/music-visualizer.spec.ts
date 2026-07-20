@@ -129,6 +129,23 @@ async function openClock(page: Page) {
   await expect(page.locator("body")).toHaveClass(/chimer-running/)
 }
 
+async function installSignedInFreeAccount(page: Page) {
+  await page.route("**/api/auth/session", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ user: { id: "visualizer-free-user", email: "free@example.com" } }),
+    })
+  })
+  await page.route("**/api/account/preferences", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ features: [], chimerSettings: {}, appSettings: {} }),
+    })
+  })
+}
+
 async function startActiveChimer(page: Page) {
   await page.goto("/chimer", { waitUntil: "domcontentloaded" })
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined)
@@ -292,6 +309,39 @@ async function expectFocusInside(page: Page, panel: Locator) {
   ))).toBe(true)
 }
 
+async function focusedRingBounds(page: Page, control: Locator) {
+  await control.focus()
+  await expect(control).toBeFocused()
+  return control.evaluate((element) => {
+    const toolbar = element.closest<HTMLElement>("[aria-label='Immersive display controls']")
+    if (!toolbar) return null
+    const controlBox = element.getBoundingClientRect()
+    const toolbarBox = toolbar.getBoundingClientRect()
+    const styles = window.getComputedStyle(element)
+    const ringExtent = (Number.parseFloat(styles.outlineWidth) || 0)
+      + (Number.parseFloat(styles.outlineOffset) || 0)
+    return {
+      control: {
+        top: controlBox.top,
+        right: controlBox.right,
+        bottom: controlBox.bottom,
+        left: controlBox.left,
+      },
+      toolbar: {
+        top: toolbarBox.top,
+        right: toolbarBox.right,
+        bottom: toolbarBox.bottom,
+        left: toolbarBox.left,
+      },
+      ringExtent,
+      ringInside: controlBox.left - ringExtent >= toolbarBox.left - 0.5
+        && controlBox.top - ringExtent >= toolbarBox.top - 0.5
+        && controlBox.right + ringExtent <= toolbarBox.right + 0.5
+        && controlBox.bottom + ringExtent <= toolbarBox.bottom + 0.5,
+    }
+  })
+}
+
 test("anonymous visualizer journey preserves playback, exact origin, and stopped station actions", async ({ page }) => {
   await seedDeviceVisualizer(page, { backgroundId: null, showClock: false })
   const origin = "/music?task8=exact-origin"
@@ -316,15 +366,18 @@ test("anonymous visualizer journey preserves playback, exact origin, and stopped
   await expect.poll(() => showClock.evaluate((element) => {
     const rect = element.getBoundingClientRect()
     const dock = element.closest<HTMLElement>("[data-immersive-dock]")?.getBoundingClientRect()
-    if (!dock) return null
+    const toolbar = document.querySelector<HTMLElement>("[aria-label='Immersive display controls']")
+      ?.getBoundingClientRect()
+    if (!dock || !toolbar) return null
     return {
       inside: dock.top <= rect.top && dock.bottom >= rect.bottom,
+      clearsToolbar: dock.top >= toolbar.bottom,
       rect: { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right },
       dock: { top: dock.top, bottom: dock.bottom, left: dock.left, right: dock.right },
       pointerEvents: window.getComputedStyle(element).pointerEvents,
       rootClass: element.closest<HTMLElement>("[data-immersive-shell]")?.className ?? null,
     }
-  })).toEqual(expect.objectContaining({ inside: true }))
+  })).toEqual(expect.objectContaining({ inside: true, clearsToolbar: true }))
   await expectHitTestable(page, showClock)
   await showClock.click()
   await expect(page.getByTestId("running-current-time")).toBeVisible()
@@ -442,9 +495,8 @@ test("Clock, Music, and active Chimer keep wake and timer controls context-speci
   await startActiveChimer(page)
   await page.getByRole("button", { name: "Visual", exact: true }).click()
   const chimerVisual = page.getByRole("dialog", { name: "Visual controls" })
-  await expect(chimerVisual.getByRole("switch").first()).toHaveAccessibleName(
-    /^Keep timer screen awake:/,
-  )
+  await expect(chimerVisual.getByRole("switch", { name: /^Background animation:/ })).toBeVisible()
+  await expect(chimerVisual.getByRole("switch", { name: /^Keep timer screen awake:/ })).toBeVisible()
   await expect(chimerVisual.getByRole("switch", { name: /^Show clock:/ })).toHaveCount(0)
   await page.getByRole("button", { name: "Clock", exact: true }).click()
   const chimerClock = page.getByRole("dialog", { name: "Clock controls" })
@@ -454,6 +506,7 @@ test("Clock, Music, and active Chimer keep wake and timer controls context-speci
 })
 
 test("Clock and Visual panels honor toggle, focus, outside, portal, and no-autoclose rules", async ({ page }) => {
+  await installSignedInFreeAccount(page)
   await openClock(page)
   const clockControl = page.getByRole("button", { name: "Clock", exact: true })
   const visualControl = page.getByRole("button", { name: "Visual", exact: true })
@@ -503,6 +556,7 @@ test("Background traps focus and selection, Escape, and Close restore its contro
 
   await backgroundControl.click()
   await expect(background).toBeVisible()
+  await expect.soft(page.getByRole("button", { name: "Close Background panel" })).toHaveClass(/ml-button-destructive/)
   for (let index = 0; index < 8; index += 1) {
     await page.keyboard.press("Tab")
     await expectFocusInside(page, background)
@@ -664,6 +718,451 @@ test("Clock and Visual docks fill the safe edge with useful first-viewport densi
   }
 })
 
+test("539px dock headers own shared actions and compact visual color controls", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "single 539px rendered control-layout proof")
+  await page.setViewportSize({ width: 539, height: 597 })
+  await openClock(page)
+
+  await page.getByRole("button", { name: "Clock", exact: true }).click()
+  const clockPanel = page.getByRole("dialog", { name: "Clock controls" })
+  const clockHeader = clockPanel.locator(":scope > div").first()
+  const clockScroller = clockPanel.locator(":scope > div").nth(1)
+  const showClock = clockPanel.getByRole("switch", { name: /^Show clock:/ })
+  await expect(showClock).toHaveCount(1)
+  await expect.soft(showClock).toBeEnabled()
+  await expect.soft(showClock).toBeChecked()
+  await expect.soft(clockHeader.getByText("Show clock", { exact: true })).toHaveCount(0)
+  expect.soft(await clockHeader.evaluate((header, switchElement) => header.contains(switchElement), await showClock.elementHandle())).toBe(true)
+  expect.soft(await clockScroller.evaluate((scroller, switchElement) => scroller.contains(switchElement), await showClock.elementHandle())).toBe(false)
+  const showSeconds = clockPanel.getByRole("switch", { name: /^Show seconds:/ })
+  const headerClockColor = clockPanel.getByRole("button", { name: "Clock color picker" })
+  await expect(showSeconds).toHaveCount(1)
+  await expect.soft(clockHeader.getByText("Show seconds", { exact: true })).toHaveCount(1)
+  expect.soft(await clockHeader.evaluate((header, control) => header.contains(control), await showSeconds.elementHandle())).toBe(true)
+  expect.soft(await clockScroller.evaluate((scroller, control) => scroller.contains(control), await showSeconds.elementHandle())).toBe(false)
+  await expect(headerClockColor).toHaveCount(1)
+  await expect.soft(clockHeader.getByText("Color", { exact: true })).toHaveCount(1)
+  expect.soft(await clockHeader.evaluate((header, control) => header.contains(control), await headerClockColor.elementHandle())).toBe(true)
+  expect.soft(await clockScroller.evaluate((scroller, control) => scroller.contains(control), await headerClockColor.elementHandle())).toBe(false)
+  await expect.soft(clockScroller.getByText("Show clock seconds", { exact: true })).toHaveCount(0)
+  await expect.soft(clockScroller.getByText("Clock color", { exact: true })).toHaveCount(0)
+  await expect.soft(clockScroller.getByText("Font size", { exact: true })).toHaveCount(0)
+  const closeClock = clockPanel.getByRole("button", { name: "Close Clock panel" })
+  await expect.soft(closeClock).toHaveClass(/ml-button-destructive/)
+  const clockHeaderOrder = await clockHeader.evaluate((header) => {
+    const title = header.querySelector("h2")?.getBoundingClientRect()
+    const toggle = header.querySelector<HTMLElement>("[role='switch']")?.getBoundingClientRect()
+    const seconds = header.querySelector<HTMLElement>("[aria-label^='Show seconds:']")?.getBoundingClientRect()
+    const color = header.querySelector<HTMLElement>("[aria-label='Clock color picker']")?.getBoundingClientRect()
+    const close = header.querySelector<HTMLElement>("[aria-label='Close Clock panel']")?.getBoundingClientRect()
+    const bounds = header.getBoundingClientRect()
+    const colorControl = header.querySelector<HTMLElement>("[aria-label='Clock color picker']")?.parentElement?.parentElement?.getBoundingClientRect()
+    const secondsControl = header.querySelector<HTMLElement>("[aria-label^='Show seconds:']")?.parentElement?.getBoundingClientRect()
+    if (!title || !toggle || !seconds || !color || !close || !colorControl || !secondsControl) return null
+    return {
+      orderedAfterTitle: toggle.left >= title.right
+        && colorControl.left >= toggle.right
+        && secondsControl.left >= colorControl.right
+        && close.left >= secondsControl.right,
+      toggleNearHeading: toggle.left - title.right <= 16,
+      evenlyDistributed: (() => {
+        const gaps = [
+          colorControl.left - toggle.right,
+          secondsControl.left - colorControl.right,
+          close.left - secondsControl.right,
+        ]
+        return Math.max(...gaps) - Math.min(...gaps) <= 2
+      })(),
+      colorWidth: Math.round(color.width),
+      colorHeight: Math.round(color.height),
+      closePinnedRight: bounds.right - close.right <= 16,
+    }
+  })
+  expect.soft(clockHeaderOrder).toEqual({
+    orderedAfterTitle: true,
+    toggleNearHeading: true,
+    evenlyDistributed: true,
+    colorWidth: 32,
+    colorHeight: 32,
+    closePinnedRight: true,
+  })
+
+  const [clockFontBounds, clockTextBounds, displayRotationBounds] = await Promise.all([
+    clockPanel.getByLabel("Font").boundingBox(),
+    clockPanel.getByText("Clock text", { exact: true }).boundingBox(),
+    clockPanel.getByRole("switch", { name: /^Display rotation:/ }).boundingBox(),
+  ])
+  const clockBodyOrder = clockFontBounds && clockTextBounds && displayRotationBounds
+    ? {
+        compactRowFirst: clockFontBounds.y < clockTextBounds.y,
+        textBeforeEffects: clockTextBounds.y < displayRotationBounds.y,
+      }
+    : null
+  expect.soft(clockBodyOrder).toEqual({ compactRowFirst: true, textBeforeEffects: true })
+  await expect.soft(clockScroller.getByText("Display effects", { exact: true })).toHaveCount(0)
+
+  const compactCardsAt539 = await clockPanel.evaluate((panel) => {
+    const fontControl = panel.querySelector<HTMLSelectElement>("[aria-label='Font']")
+    const formatControl = panel.querySelector<HTMLElement>("[aria-label='Time format']")
+    const fontField = fontControl?.closest<HTMLElement>("label")
+    const formatField = formatControl?.parentElement
+    const fontLabel = fontField?.querySelector<HTMLElement>("span")
+    const formatLabel = formatField?.querySelector<HTMLElement>("span")
+    const formatOptions = Array.from(formatControl?.querySelectorAll<HTMLElement>("button") ?? [])
+    if (!fontControl || !formatControl || !fontField || !formatField || !fontLabel || !formatLabel) return null
+    const font = fontControl.getBoundingClientRect()
+    const format = formatControl.getBoundingClientRect()
+    const fontCard = fontField.getBoundingClientRect()
+    const formatCard = formatField.getBoundingClientRect()
+    const fontText = fontLabel.getBoundingClientRect()
+    const formatText = formatLabel.getBoundingClientRect()
+    const visibleTextBounds = (element: HTMLElement) => {
+      const range = document.createRange()
+      range.selectNodeContents(element)
+      return range.getBoundingClientRect()
+    }
+    const fontVisibleText = visibleTextBounds(fontLabel)
+    const formatVisibleText = visibleTextBounds(formatLabel)
+    return {
+      sideBySide: Math.abs(fontCard.top - formatCard.top) <= 1 && fontCard.right <= formatCard.left,
+      fontInline: font.left >= fontText.right && Math.abs((font.top + font.bottom) / 2 - (fontText.top + fontText.bottom) / 2) <= 8,
+      formatInline: format.left >= formatText.right && Math.abs((format.top + format.bottom) / 2 - (formatText.top + formatText.bottom) / 2) <= 8,
+      controlsFill: fontCard.right - font.right >= 6 && fontCard.right - font.right <= 8
+        && formatCard.right - format.right >= 6 && formatCard.right - format.right <= 8,
+      fixedGaps: Math.abs(font.left - fontText.right - 16) <= 1
+        && Math.abs(format.left - formatText.right - 16) <= 1,
+      seventeenPixelLabelInset: fontVisibleText.left - fontCard.left >= 16
+        && fontVisibleText.left - fontCard.left <= 19
+        && formatVisibleText.left - formatCard.left >= 16
+        && formatVisibleText.left - formatCard.left <= 19,
+      compactHeights: Math.round(fontCard.height) === 59
+        && Math.round(formatCard.height) === 59
+        && Math.round(format.height) === 44,
+      readableLabels: Number.parseFloat(getComputedStyle(fontLabel).fontSize) >= 13
+        && Number.parseFloat(getComputedStyle(formatLabel).fontSize) >= 13,
+      controlsInside: font.right <= fontCard.right && format.right <= formatCard.right,
+      touchTargets: font.height >= 44 && formatOptions.length === 2
+        && formatOptions.every((option) => option.getBoundingClientRect().height >= 44),
+    }
+  })
+  expect.soft(compactCardsAt539).toEqual({
+    sideBySide: true,
+    fontInline: true,
+    formatInline: true,
+    controlsFill: true,
+    fixedGaps: true,
+    seventeenPixelLabelInset: true,
+    compactHeights: true,
+    readableLabels: true,
+    controlsInside: true,
+    touchTargets: true,
+  })
+
+  const shadowDimensions = await clockPanel.evaluate((panel) => {
+    const swatch = panel.querySelector<HTMLElement>("[aria-label='Clock shadow color picker']")
+    const colorRow = swatch?.parentElement?.parentElement
+    const strengthLabel = Array.from(panel.querySelectorAll<HTMLElement>(".ml-range-control-label"))
+      .find((element) => element.textContent?.trim() === "Shadow strength")
+    const rangeShell = strengthLabel?.closest(".ml-range-control-shell")
+    if (!swatch || !colorRow || !rangeShell) return null
+    const swatchRect = swatch.getBoundingClientRect()
+    const rowRect = colorRow.getBoundingClientRect()
+    const rangeRect = rangeShell.getBoundingClientRect()
+    return {
+      rowHeight: Math.round(rowRect.height),
+      swatchWidth: Math.round(swatchRect.width),
+      swatchHeight: Math.round(swatchRect.height),
+      rangeHeight: Math.round(rangeRect.height),
+    }
+  })
+  expect.soft(shadowDimensions).toEqual({
+    rowHeight: 44,
+    swatchWidth: 36,
+    swatchHeight: 36,
+    rangeHeight: 44,
+  })
+
+  await page.setViewportSize({ width: 319, height: 823 })
+  const narrowClockHeader = await clockHeader.evaluate((header) => {
+    const elements = [
+      header.querySelector<HTMLElement>("h2"),
+      header.querySelector<HTMLElement>("[aria-label^='Show clock:']"),
+      header.querySelector<HTMLElement>("[aria-label='Clock color picker']"),
+      header.querySelector<HTMLElement>("[aria-label^='Show seconds:']"),
+      header.querySelector<HTMLElement>("[aria-label='Close Clock panel']"),
+    ].filter((element): element is HTMLElement => Boolean(element))
+    const bounds = header.getBoundingClientRect()
+    const rects = elements.map((element) => element.getBoundingClientRect())
+    const colorControl = header.querySelector<HTMLElement>("[aria-label='Clock color picker']")?.parentElement?.parentElement?.getBoundingClientRect()
+    const secondsControl = header.querySelector<HTMLElement>("[aria-label^='Show seconds:']")?.parentElement?.getBoundingClientRect()
+    const overlaps = (first: DOMRect, second: DOMRect) => !(
+      first.right <= second.left
+      || second.right <= first.left
+      || first.bottom <= second.top
+      || second.bottom <= first.top
+    )
+    return {
+      allPresent: rects.length === 5,
+      allInside: rects.every((rect) => rect.left >= bounds.left && rect.right <= bounds.right
+        && rect.top >= bounds.top && rect.bottom <= bounds.bottom),
+      noOverlap: rects.every((rect, index) => rects.slice(index + 1).every((next) => !overlaps(rect, next))),
+      closePinnedRight: bounds.right - (rects[4]?.right ?? 0) <= 16,
+      closeOnTitleRow: Math.abs(
+        ((rects[0]?.top ?? 0) + (rects[0]?.bottom ?? 0)) / 2
+        - ((rects[4]?.top ?? 0) + (rects[4]?.bottom ?? 0)) / 2,
+      ) <= 1,
+      controlsOrdered: colorControl && secondsControl
+        ? secondsControl.left >= colorControl.right
+        : false,
+    }
+  })
+  expect.soft(narrowClockHeader).toEqual({
+    allPresent: true,
+    allInside: true,
+    noOverlap: true,
+    closePinnedRight: true,
+    closeOnTitleRow: true,
+    controlsOrdered: true,
+  })
+
+  const compactCardsAt319 = await clockPanel.evaluate((panel) => {
+    const fontControl = panel.querySelector<HTMLSelectElement>("[aria-label='Font']")
+    const formatControl = panel.querySelector<HTMLElement>("[aria-label='Time format']")
+    const fontField = fontControl?.closest<HTMLElement>("label")
+    const formatField = formatControl?.parentElement
+    const row = fontField?.parentElement
+    const fontLabel = fontField?.querySelector<HTMLElement>("span")
+    const formatLabel = formatField?.querySelector<HTMLElement>("span")
+    const formatOptions = Array.from(formatControl?.querySelectorAll<HTMLElement>("button") ?? [])
+    if (!fontControl || !formatControl || !fontField || !formatField || !row || !fontLabel || !formatLabel) return null
+    const font = fontControl.getBoundingClientRect()
+    const format = formatControl.getBoundingClientRect()
+    const fontCard = fontField.getBoundingClientRect()
+    const formatCard = formatField.getBoundingClientRect()
+    const fontText = fontLabel.getBoundingClientRect()
+    const formatText = formatLabel.getBoundingClientRect()
+    return {
+      singleColumn: formatCard.top >= fontCard.bottom && Math.abs(formatCard.left - fontCard.left) <= 1,
+      fontInline: font.left >= fontText.right && Math.abs((font.top + font.bottom) / 2 - (fontText.top + fontText.bottom) / 2) <= 8,
+      formatInline: format.left >= formatText.right && Math.abs((format.top + format.bottom) / 2 - (formatText.top + formatText.bottom) / 2) <= 8,
+      fixedGaps: Math.abs(font.left - fontText.right - 16) <= 1
+        && Math.abs(format.left - formatText.right - 16) <= 1,
+      controlsFill: fontCard.right - font.right >= 6 && fontCard.right - font.right <= 8
+        && formatCard.right - format.right >= 6 && formatCard.right - format.right <= 8,
+      readableLabels: Number.parseFloat(getComputedStyle(fontLabel).fontSize) >= 13
+        && Number.parseFloat(getComputedStyle(formatLabel).fontSize) >= 13,
+      noOverflow: row.scrollWidth <= row.clientWidth + 1
+        && font.right <= fontCard.right && format.right <= formatCard.right,
+      touchTargets: font.height >= 44 && formatOptions.length === 2
+        && formatOptions.every((option) => option.getBoundingClientRect().height >= 44),
+    }
+  })
+  expect.soft(compactCardsAt319).toEqual({
+    singleColumn: true,
+    fontInline: true,
+    formatInline: true,
+    fixedGaps: true,
+    controlsFill: true,
+    readableLabels: true,
+    noOverflow: true,
+    touchTargets: true,
+  })
+  await expectHitTestable(page, closeClock)
+  await closeClock.click()
+  await page.setViewportSize({ width: 539, height: 597 })
+  await page.waitForTimeout(500)
+
+  await page.getByRole("button", { name: "Visual", exact: true }).click()
+  const visualPanel = page.getByRole("dialog", { name: "Visual controls" })
+  const visualHeader = visualPanel.locator(":scope > div").first()
+  const visualScroller = visualPanel.locator(":scope > div").nth(1)
+  const visualBackground = visualPanel.getByRole("switch", { name: /^Background animation:/ })
+  await expect(visualHeader.getByRole("heading", { name: "Visual background" })).toBeVisible()
+  await expect(visualBackground).toHaveCount(1)
+  await expect.soft(visualHeader.getByText("Visual background", { exact: true })).toHaveCount(1)
+  expect.soft(await visualHeader.evaluate((header, toggle) => header.contains(toggle), await visualBackground.elementHandle())).toBe(true)
+  expect.soft(await visualScroller.evaluate((scroller, toggle) => scroller.contains(toggle), await visualBackground.elementHandle())).toBe(false)
+  const renderedBackground = page.getByTestId("chimer-premium-background")
+  await expect(renderedBackground).toHaveCount(1)
+  await visualBackground.click()
+  await expect(renderedBackground).toHaveCount(1)
+  await expect(renderedBackground).toHaveAttribute("data-ml-background-motion", "paused")
+  await expect(visualPanel.getByText("Lamp main color", { exact: true })).toBeVisible()
+  await expect(visualPanel.getByText("Lamp orb color", { exact: true })).toBeVisible()
+  await visualBackground.click()
+  await expect(renderedBackground).toHaveAttribute("data-ml-background-motion", "playing")
+  const clockColor = visualPanel.getByRole("button", { name: "Clock color picker" })
+  await expect(clockColor).toHaveCount(1)
+  expect.soft(await visualHeader.evaluate((header, picker) => header.contains(picker), await clockColor.elementHandle())).toBe(true)
+  expect.soft(await visualScroller.evaluate((scroller, picker) => scroller.contains(picker), await clockColor.elementHandle())).toBe(false)
+
+  const closeVisual = visualPanel.getByRole("button", { name: "Close Visual panel" })
+  await expect.soft(closeVisual).toHaveClass(/ml-button-destructive/)
+  const headerGeometry = await visualHeader.evaluate((header) => {
+    const title = header.querySelector("h2")?.getBoundingClientRect()
+    const toggle = header.querySelector<HTMLElement>("[role='switch']")?.getBoundingClientRect()
+    const swatch = header.querySelector<HTMLElement>("[aria-label='Clock color picker']")?.getBoundingClientRect()
+    const colorControl = header.querySelector<HTMLElement>("[aria-label='Clock color picker']")?.parentElement?.parentElement?.getBoundingClientRect()
+    const close = header.querySelector<HTMLElement>("[aria-label='Close Visual panel']")?.getBoundingClientRect()
+    const bounds = header.getBoundingClientRect()
+    if (!title || !toggle || !swatch || !colorControl || !close) return null
+    const availableCenter = (toggle.right + close.left) / 2
+    const colorCenter = (colorControl.left + colorControl.right) / 2
+    return {
+      titleReadable: title.width > 0 && title.height > 0,
+      toggleImmediatelyAfterTitle: toggle.left >= title.right && toggle.left - title.right <= 24,
+      colorBetweenClusters: colorControl.left >= toggle.right && colorControl.right <= close.left,
+      colorCenteredInAvailableSpace: Math.abs(colorCenter - availableCenter) <= 2,
+      swatchWidth: Math.round(swatch.width),
+      swatchHeight: Math.round(swatch.height),
+      closeInside: close.left >= bounds.left && close.right <= bounds.right
+        && close.top >= bounds.top && close.bottom <= bounds.bottom,
+    }
+  })
+  expect.soft(headerGeometry).toEqual({
+    titleReadable: true,
+    toggleImmediatelyAfterTitle: true,
+    colorBetweenClusters: true,
+    colorCenteredInAvailableSpace: true,
+    swatchWidth: 32,
+    swatchHeight: 32,
+    closeInside: true,
+  })
+  await expectHitTestable(page, closeVisual)
+
+  await page.setViewportSize({ width: 319, height: 823 })
+  const narrowHeaderGeometry = await visualHeader.evaluate((header) => {
+    const title = header.querySelector("h2")?.getBoundingClientRect()
+    const toggle = header.querySelector<HTMLElement>("[role='switch']")?.getBoundingClientRect()
+    const action = header.querySelector<HTMLElement>("[aria-label='Clock color picker']")?.getBoundingClientRect()
+    const close = header.querySelector<HTMLElement>("[aria-label='Close Visual panel']")?.getBoundingClientRect()
+    const bounds = header.getBoundingClientRect()
+    if (!title || !toggle || !action || !close) return null
+    const overlaps = (first: DOMRect, second: DOMRect) => !(
+      first.right <= second.left
+      || second.right <= first.left
+      || first.bottom <= second.top
+      || second.bottom <= first.top
+    )
+    return {
+      titleReadable: title.width > 0 && title.height > 0,
+      toggleInside: toggle.left >= bounds.left && toggle.right <= bounds.right,
+      actionInside: action.left >= bounds.left && action.right <= bounds.right,
+      closeInside: close.left >= bounds.left && close.right <= bounds.right,
+      actionClearOfClose: !overlaps(action, close),
+      titleClearOfToggle: !overlaps(title, toggle),
+      toggleClearOfAction: !overlaps(toggle, action),
+    }
+  })
+  expect.soft(narrowHeaderGeometry).toEqual({
+    titleReadable: true,
+    toggleInside: true,
+    actionInside: true,
+    closeInside: true,
+    actionClearOfClose: true,
+    titleClearOfToggle: true,
+    toggleClearOfAction: true,
+  })
+  await expectHitTestable(page, closeVisual)
+
+  const lampRow = visualPanel.getByText("Lamp main color", { exact: true }).locator("..").first()
+  const compactRowGeometry = await lampRow.evaluate((row) => {
+    const label = row.querySelector("span")?.getBoundingClientRect()
+    const swatch = row.querySelector<HTMLElement>("button[aria-haspopup='dialog']")?.getBoundingClientRect()
+    const bounds = row.getBoundingClientRect()
+    if (!label || !swatch) return null
+    return {
+      rowHeight: Math.round(bounds.height * 10) / 10,
+      inline: Math.abs((label.top + label.bottom) / 2 - (swatch.top + swatch.bottom) / 2) <= 1,
+      swatchWidth: Math.round(swatch.width * 10) / 10,
+      swatchHeight: Math.round(swatch.height * 10) / 10,
+    }
+  })
+  expect.soft(compactRowGeometry).toEqual({
+    rowHeight: 44,
+    inline: true,
+    swatchWidth: 44,
+    swatchHeight: 44,
+  })
+})
+
+test("guest Global Colors stay visible, disabled, and use equal 44px controls", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "single 539px rendered guest-permission proof")
+  await page.setViewportSize({ width: 539, height: 597 })
+  await openClock(page)
+  await page.getByRole("button", { name: "Visual", exact: true }).click()
+  const visualPanel = page.getByRole("dialog", { name: "Visual controls" })
+  const globalColors = visualPanel.getByText("Global Colors", { exact: true }).locator("../..")
+  await expect(globalColors).toBeVisible()
+  await expect.soft(visualPanel.getByText(/Sign in to customize and save Global Colors/i)).toBeVisible()
+
+  const modeToggle = globalColors.getByRole("switch", { name: /^Choose each color:/ })
+  const harmonyButtons = globalColors.getByRole("group", { name: "Color harmony options" }).getByRole("button")
+  const paletteSwatches = globalColors.getByRole("button", { name: / picker$/ })
+  await expect.soft(modeToggle).toBeDisabled()
+  await expect.soft(harmonyButtons.first()).toBeDisabled()
+  await expect.soft(paletteSwatches).toHaveCount(5)
+  for (const swatch of await paletteSwatches.all()) {
+    await expect.soft(swatch).toBeDisabled()
+  }
+  await expect.soft(globalColors.getByRole("textbox", { name: "Palette name" })).toBeDisabled()
+  await expect.soft(globalColors.getByRole("button", { name: "Save palette" })).toBeDisabled()
+
+  const sizes = await Promise.all([
+    paletteSwatches.first().boundingBox(),
+    harmonyButtons.first().boundingBox(),
+  ])
+  const [swatchBox, harmonyBox] = sizes
+  expect.soft(swatchBox && harmonyBox ? {
+    swatch: [Math.round(swatchBox.width * 10) / 10, Math.round(swatchBox.height * 10) / 10],
+    harmony: [Math.round(harmonyBox.width * 10) / 10, Math.round(harmonyBox.height * 10) / 10],
+  } : null).toEqual({ swatch: [44, 44], harmony: [44, 44] })
+
+  for (const label of ["Primary color", "Color 2", "Color 3", "Color 4", "Color 5"]) {
+    const labelElement = globalColors.getByText(label, { exact: true })
+    await expect.soft(labelElement).toBeVisible()
+    expect.soft(await labelElement.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+  }
+
+  const paletteRowAt539 = await paletteSwatches.evaluateAll((swatches) => {
+    const fields = swatches.map((swatch) => swatch.closest("div")?.parentElement)
+      .filter((field): field is HTMLElement => Boolean(field))
+    const rects = fields.map((field) => field.getBoundingClientRect())
+    const grid = fields[0]?.parentElement?.getBoundingClientRect()
+    return {
+      sameRow: rects.every((rect) => Math.abs(rect.top - rects[0].top) <= 1),
+      fiveColumns: new Set(rects.map((rect) => Math.round(rect.left))).size === 5,
+      inside: grid ? rects.every((rect) => rect.left >= grid.left && rect.right <= grid.right) : false,
+    }
+  })
+  expect.soft(paletteRowAt539).toEqual({ sameRow: true, fiveColumns: true, inside: true })
+
+  await page.setViewportSize({ width: 319, height: 823 })
+  await globalColors.scrollIntoViewIfNeeded()
+  const paletteRowAt319 = await paletteSwatches.evaluateAll((swatches) => {
+    const fields = swatches.map((swatch) => swatch.closest("div")?.parentElement)
+      .filter((field): field is HTMLElement => Boolean(field))
+    const rects = fields.map((field) => field.getBoundingClientRect())
+    const gridElement = fields[0]?.parentElement
+    const grid = gridElement?.getBoundingClientRect()
+    const labels = fields.map((field) => field.querySelector<HTMLElement>("span")).filter(Boolean) as HTMLElement[]
+    return {
+      sameRow: rects.every((rect) => Math.abs(rect.top - rects[0].top) <= 1),
+      fiveColumns: new Set(rects.map((rect) => Math.round(rect.left))).size === 5,
+      inside: grid ? rects.every((rect) => rect.left >= grid.left && rect.right <= grid.right) : false,
+      noHorizontalClip: gridElement ? gridElement.scrollWidth <= gridElement.clientWidth + 1 : false,
+      labelsReadable: labels.length === 5 && labels.every((label) => label.scrollWidth <= label.clientWidth + 1),
+    }
+  })
+  expect.soft(paletteRowAt319).toEqual({
+    sameRow: true,
+    fiveColumns: true,
+    inside: true,
+    noHorizontalClip: true,
+    labelsReadable: true,
+  })
+})
+
 test("narrow mobile keeps immersive controls in one circular top row", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile-chromium", "single narrow-mobile geometry proof")
   await page.setViewportSize({ width: 319, height: 823 })
@@ -698,6 +1197,13 @@ test("narrow mobile keeps immersive controls in one circular top row", async ({ 
       return Number.parseFloat(styles.borderRadius) >= (element.getBoundingClientRect().width / 2) - 1
     })).toBe(true)
   }
+
+  for (const control of controls.slice(1, 4)) {
+    expect.soft(await focusedRingBounds(page, control)).toEqual(expect.objectContaining({
+      ringExtent: 4,
+      ringInside: true,
+    }))
+  }
 })
 
 test("Clock and Visual docks remain safe at 200 percent Chromium page scale", async ({ page }, testInfo) => {
@@ -710,9 +1216,54 @@ test("Clock and Visual docks remain safe at 200 percent Chromium page scale", as
   // Chromium CDP page-scale emulation has unstable pointer coordinates/actionability,
   // so this zoom proof uses explicit focus + Enter while geometry proves reachability.
   for (const panelName of ["Clock", "Visual"] as const) {
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())))
+    const toolbarControl = page.getByRole("button", { name: panelName, exact: true })
+    expect.soft(await focusedRingBounds(page, toolbarControl)).toEqual(expect.objectContaining({
+      ringExtent: 4,
+      ringInside: true,
+    }))
     await expectDockAvoidsDisplay(page, panelName, true)
   }
   await session.send("Emulation.setPageScaleFactor", { pageScaleFactor: 1 })
+})
+
+test("forward glow remains visible above the open Clock panel", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "single rendered effect proof")
+  await page.setViewportSize({ width: 539, height: 597 })
+  await page.addInitScript((key) => {
+    localStorage.setItem(key, JSON.stringify({
+      clockForwardGlowEnabled: true,
+      clockForwardGlowStrength: 0.05,
+      clockForwardGlowLength: 1.95,
+      clockForwardGlowBlur: 0,
+    }))
+  }, CHIMER_STORAGE_KEY)
+  await openClock(page)
+
+  const protectedDisplay = page.locator("[data-protected-display]")
+  const projection = protectedDisplay.locator("[data-forward-projection]")
+  await expect(projection).toHaveCount(1)
+  const readProjectionStyle = () => projection.evaluate((element) => {
+    const bloom = window.getComputedStyle(element.children[0])
+    const reflection = window.getComputedStyle(element.children[1])
+    return {
+      bloomOpacity: Number.parseFloat(bloom.opacity),
+      reflectionOpacity: Number.parseFloat(reflection.opacity),
+      bloomFilter: bloom.filter,
+    }
+  })
+  await expect.poll(async () => (await readProjectionStyle()).bloomOpacity).toBeGreaterThanOrEqual(0.12)
+  await expect.poll(async () => (await readProjectionStyle()).reflectionOpacity).toBeGreaterThanOrEqual(0.08)
+  await expect.poll(async () => (await readProjectionStyle()).bloomFilter).toMatch(/drop-shadow\([^)]*[1-9]/)
+  await page.getByRole("button", { name: "Clock", exact: true }).click()
+  const clockPanel = page.getByRole("dialog", { name: "Clock controls" })
+  await expect(clockPanel).toBeVisible()
+  await expect.poll(async () => {
+    const projectionBounds = await projection.boundingBox()
+    const panelBounds = await clockPanel.boundingBox()
+    if (!projectionBounds || !panelBounds) return 0
+    return Math.max(0, panelBounds.y - projectionBounds.y)
+  }).toBeGreaterThanOrEqual(8)
 })
 
 test("rotation and forward glow follow the centered display and stop for reduced motion", async ({ page }, testInfo) => {
@@ -720,15 +1271,38 @@ test("rotation and forward glow follow the centered display and stop for reduced
   await page.addInitScript((key) => {
     localStorage.setItem(key, JSON.stringify({
       clockRotationEnabled: true,
+      clockRotationRange: 14,
+      clockRotationDuration: 10,
       clockForwardGlowEnabled: true,
+      clockForwardGlowStrength: 0.8,
+      clockForwardGlowLength: 1.25,
+      clockForwardGlowBlur: 22,
     }))
   }, CHIMER_STORAGE_KEY)
   await page.emulateMedia({ reducedMotion: "no-preference" })
   await startActiveChimer(page)
 
   const protectedDisplay = page.locator("[data-protected-display]")
-  await expect(protectedDisplay.locator("[data-display-rotation-layer]")).toHaveCount(1)
-  await expect(protectedDisplay.locator("[data-forward-projection]")).toHaveCount(1)
+  const rotationLayer = protectedDisplay.locator("[data-display-rotation-layer]")
+  const projection = protectedDisplay.locator("[data-forward-projection]")
+  await expect(rotationLayer).toHaveCount(1)
+  await expect(protectedDisplay.locator("[data-display-effect-bounds]")).toHaveCSS("perspective", "720px")
+  await expect(rotationLayer).toHaveCSS("animation-duration", "10s")
+  await expect.poll(() => rotationLayer.evaluate((element) => ({
+    min: getComputedStyle(element).getPropertyValue("--immersive-display-yaw-min").trim(),
+    max: getComputedStyle(element).getPropertyValue("--immersive-display-yaw-max").trim(),
+  }))).toEqual({ min: "-14deg", max: "14deg" })
+  const initialRotationTransform = await rotationLayer.evaluate((element) => getComputedStyle(element).transform)
+  await expect.poll(() => rotationLayer.evaluate((element) => getComputedStyle(element).transform)).not.toBe(initialRotationTransform)
+  await expect(projection).toHaveCount(1)
+  await expect(projection.locator(":scope > span")).toHaveCount(2)
+  await expect.poll(() => projection.evaluate((element) => ({
+    bloomOpacity: Number.parseFloat(
+      getComputedStyle(element).getPropertyValue("--immersive-forward-glow-bloom-opacity"),
+    ),
+    length: getComputedStyle(element).getPropertyValue("--immersive-forward-glow-length").trim(),
+    blur: getComputedStyle(element).getPropertyValue("--immersive-forward-glow-blur").trim(),
+  }))).toEqual({ bloomOpacity: 0.55 * Math.sqrt(0.8), length: "1.25", blur: "22px" })
   await expect(protectedDisplay.locator("[data-forward-projection]")).toHaveAttribute(
     "aria-hidden",
     "true",
@@ -736,16 +1310,31 @@ test("rotation and forward glow follow the centered display and stop for reduced
   await expect.poll(() => protectedDisplay.locator("[data-forward-projection]").evaluate(
     (element) => getComputedStyle(element).pointerEvents,
   )).toBe("none")
+  const visualToolbarControl = page.getByRole("button", { name: "Visual", exact: true })
+  const visualToolbarBounds = await visualToolbarControl.boundingBox()
+  if (!visualToolbarBounds) throw new Error("Visual toolbar control is not measurable")
+  await page.mouse.move(1, 1)
+  await page.mouse.move(
+    visualToolbarBounds.x + (visualToolbarBounds.width / 2),
+    visualToolbarBounds.y + (visualToolbarBounds.height / 2),
+  )
+  await expect(page.locator("[data-immersive-shell]")).not.toHaveClass(/rootHidden/)
   await expect.poll(() => page.evaluate(() => {
     const projection = document.querySelector<HTMLElement>("[data-forward-projection]")
       ?.getBoundingClientRect()
     const toolbar = document.querySelector<HTMLElement>("[aria-label='Immersive display controls']")
       ?.getBoundingClientRect()
-    if (!projection || !toolbar) return false
+    const shell = document.querySelector<HTMLElement>("[data-immersive-shell]")
+    const primaryClipElement = document.querySelector<HTMLElement>("[data-immersive-primary-display='true']")
+    const viewportClipElement = primaryClipElement?.closest<HTMLElement>("[data-immersive-stage]")
+    const primaryClip = viewportClipElement?.getBoundingClientRect()
+    if (!projection || !toolbar || !primaryClip || !primaryClipElement || !viewportClipElement) {
+      return { safe: false, reason: "missing geometry" }
+    }
     const toolbarControl = document.querySelector<HTMLElement>(
       "[aria-label='Immersive display controls'] [aria-label='Visual']",
     )
-    if (!toolbarControl) return false
+    if (!toolbarControl) return { safe: false, reason: "missing toolbar control" }
     const controlRect = toolbarControl.getBoundingClientRect()
     const hit = document.elementFromPoint(
       controlRect.left + (controlRect.width / 2),
@@ -757,13 +1346,57 @@ test("rotation and forward glow follow the centered display and stop for reduced
       || projection.bottom <= toolbar.top
       || toolbar.bottom <= projection.top
     )
-    return !overlapsToolbar
-      && projection.left >= 0
-      && projection.right <= window.innerWidth
+    const safe = !overlapsToolbar
       && projection.top >= 0
       && projection.bottom <= window.innerHeight
+      && primaryClip.left >= 0
+      && primaryClip.right <= window.innerWidth
+      && primaryClip.top >= 0
+      && primaryClip.bottom <= window.innerHeight
+      && getComputedStyle(viewportClipElement).overflow === "hidden"
       && (hit === toolbarControl || toolbarControl.contains(hit))
-  })).toBe(true)
+    return {
+      safe,
+      projection: {
+        left: projection.left,
+        right: projection.right,
+        top: projection.top,
+        bottom: projection.bottom,
+      },
+      toolbar: {
+        left: toolbar.left,
+        right: toolbar.right,
+        top: toolbar.top,
+        bottom: toolbar.bottom,
+      },
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+      primaryClip: {
+        left: primaryClip.left,
+        right: primaryClip.right,
+        top: primaryClip.top,
+        bottom: primaryClip.bottom,
+        overflow: getComputedStyle(viewportClipElement).overflow,
+      },
+      overlapsToolbar,
+      toolbarHitSafe: hit === toolbarControl || toolbarControl.contains(hit),
+      hit: hit ? {
+        tag: hit.tagName,
+        ariaLabel: hit.getAttribute("aria-label"),
+        className: hit.getAttribute("class"),
+      } : null,
+      projectionStyle: {
+        width: getComputedStyle(document.querySelector<HTMLElement>("[data-forward-projection]")!).width,
+        maxWidth: getComputedStyle(document.querySelector<HTMLElement>("[data-forward-projection]")!).maxWidth,
+        transform: getComputedStyle(document.querySelector<HTMLElement>("[data-forward-projection]")!).transform,
+      },
+      shell: shell ? {
+        className: shell.className,
+        zIndex: getComputedStyle(shell).zIndex,
+        pointerEvents: getComputedStyle(shell).pointerEvents,
+        opacity: getComputedStyle(shell).opacity,
+      } : null,
+    }
+  })).toEqual(expect.objectContaining({ safe: true }))
   await expect.poll(() => protectedDisplay.evaluate((element) => (
     element.closest("button")?.getAttribute("data-testid")
   ))).toBe("running-timer-clock")
@@ -774,6 +1407,24 @@ test("rotation and forward glow follow the centered display and stop for reduced
   ))).toBe("running-current-time")
   await expect(protectedDisplay.locator("[data-display-rotation-layer]")).toHaveCount(1)
   await expect(protectedDisplay.locator("[data-forward-projection]")).toHaveCount(1)
+
+  await page.getByRole("button", { name: "Clock", exact: true }).click()
+  const clockPanel = page.getByRole("dialog", { name: "Clock controls" })
+  for (const label of [
+    "Rotation range",
+    "Rotation cycle",
+    "Glow intensity",
+    "Projection length",
+    "Glow blur",
+  ]) {
+    await expect(clockPanel.getByText(label, { exact: true })).toHaveCount(1)
+  }
+  await expect.poll(async () => {
+    const displayBounds = await protectedDisplay.locator("[data-display-content='true']").boundingBox()
+    const panelBounds = await clockPanel.boundingBox()
+    if (!displayBounds || !panelBounds) return 0
+    return Math.max(0, panelBounds.y - (displayBounds.y + displayBounds.height))
+  }).toBeGreaterThanOrEqual(32)
 
   await page.emulateMedia({ reducedMotion: "reduce" })
   await expect.poll(() => protectedDisplay.locator("[data-display-rotation-layer]").evaluate(
@@ -866,6 +1517,13 @@ test("signed-in defaults, device precedence, failed save, retry, and unrelated s
     "static-gradient",
   )
   await page.getByRole("button", { name: "Visual", exact: true }).click()
+  const signedInVisual = page.getByRole("dialog", { name: "Visual controls" })
+  const signedInGlobalColors = signedInVisual.getByText("Global Colors", { exact: true }).locator("../..")
+  await expect(signedInVisual.getByText(/Sign in to customize and save Global Colors/i)).toHaveCount(0)
+  await expect(signedInGlobalColors.getByRole("switch", { name: /^Choose each color:/ })).toBeEnabled()
+  await expect(signedInGlobalColors.getByRole("button", { name: "Primary color picker" })).toBeEnabled()
+  await expect(signedInGlobalColors.getByRole("textbox", { name: "Palette name" })).toBeEnabled()
+  await expect(signedInGlobalColors.getByRole("button", { name: "Save palette" })).toBeEnabled()
   await page.getByRole("button", { name: "Restore account default", exact: true }).click()
   await expect(page.getByTestId("chimer-premium-background")).toBeVisible()
   await page.getByRole("button", { name: "Close Visual panel" }).click()

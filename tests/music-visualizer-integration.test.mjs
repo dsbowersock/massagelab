@@ -37,7 +37,7 @@ test("Music selection waits for hydration and uses explicit registry eligibility
 
 test("Clock visibility, wake policy, and Music account actions stay context aware", () => {
   assert.match(pageSource, /shouldRequestImmersiveWakeLock/)
-  assert.match(runningTimerSource, /mode\.canToggleClock[\s\S]*label="Show clock"/)
+  assert.match(runningTimerSource, /clockHeaderAction=\{mode\.canToggleClock[\s\S]*aria-label=\{`Show clock:/)
   assert.match(runningTimerSource, /mode\.context === "chimer"[\s\S]*label="Keep timer screen awake"/)
   assert.match(runningTimerSource, /mode\.storageStatus/)
   assert.match(runningTimerSource, /Set as visualizer default/)
@@ -57,7 +57,12 @@ test("the shared renderer owns Music BackgroundHost and hides its clock without 
 
 test("shared Clock controls expose optional display effects without duplicated tuning controls", () => {
   assert.match(pageSource, /clockRotationEnabled=\{settings\.clockRotationEnabled\}/)
+  assert.match(pageSource, /clockRotationRange=\{settings\.clockRotationRange\}/)
+  assert.match(pageSource, /clockRotationDuration=\{settings\.clockRotationDuration\}/)
   assert.match(pageSource, /clockForwardGlowEnabled=\{settings\.clockForwardGlowEnabled\}/)
+  assert.match(pageSource, /clockForwardGlowStrength=\{settings\.clockForwardGlowStrength\}/)
+  assert.match(pageSource, /clockForwardGlowLength=\{settings\.clockForwardGlowLength\}/)
+  assert.match(pageSource, /clockForwardGlowBlur=\{settings\.clockForwardGlowBlur\}/)
   assert.equal((runningTimerSource.match(/label="Display rotation"/g) ?? []).length, 1)
   assert.equal((runningTimerSource.match(/label="Forward glow"/g) ?? []).length, 1)
   assert.match(
@@ -68,7 +73,15 @@ test("shared Clock controls expose optional display effects without duplicated t
     runningTimerSource,
     /label="Forward glow"[\s\S]*checked=\{clockForwardGlowEnabled\}[\s\S]*disabled=\{mode\.canToggleClock && !mode\.showClock\}[\s\S]*handleSettingsChange\(\{ clockForwardGlowEnabled: value \}\)/,
   )
-  assert.doesNotMatch(runningTimerSource, /Display rotation speed|Forward glow intensity/)
+  for (const label of [
+    "Rotation range",
+    "Rotation cycle",
+    "Glow intensity",
+    "Projection length",
+    "Glow blur",
+  ]) {
+    assert.equal((runningTimerSource.match(new RegExp(`label="${label}"`, "g")) ?? []).length, 1)
+  }
 })
 
 test("center display effects preserve measured bounds and reuse the existing display data", () => {
@@ -95,5 +108,17 @@ test("center display effects preserve measured bounds and reuse the existing dis
   )
   assert.equal((runningTimerSource.match(/setInterval\(/g) ?? []).length, 0)
   assert.match(runningTimerStyles, /\.protectedDisplay\s*\{[\s\S]*transform:\s*none/)
+  assert.match(runningTimerStyles, /\.primaryDisplayForwardGlowEnabled\s*\{[^}]*overflow:\s*visible/s)
+  assert.equal((runningTimerSource.match(/styles\.primaryDisplayForwardGlowEnabled/g) ?? []).length, 2)
   assert.match(runningTimerStyles, /\.forwardGlowProjection\s*\{[\s\S]*pointer-events:\s*none/)
+  assert.match(runningTimerStyles, /\.forwardGlowBloom\s+\.currentTimeDigit[^}]*mask-image:/s)
+  assert.match(runningTimerStyles, /\.forwardGlowReflection\s+\.currentTimeDigit[^}]*mask-image:/s)
+})
+
+test("visual pause keeps the selected background mounted and zero glow blur remains unblurred", () => {
+  assert.match(runningTimerSource, /const shouldRenderLiveBackground = mode\.selectedBackgroundId !== null[\s\S]*isLiveBackgroundSession/)
+  assert.match(runningTimerSource, /motionEnabled=\{movingBackgroundEnabled\}/)
+  assert.match(runningTimerSource, /aria-label=\{`Background animation:/)
+  assert.match(runningTimerSource, /--immersive-forward-glow-blur": `\$\{clockForwardGlowBlur\}px`/)
+  assert.match(runningTimerSource, /clockForwardGlowBlur \* 0\.08/)
 })

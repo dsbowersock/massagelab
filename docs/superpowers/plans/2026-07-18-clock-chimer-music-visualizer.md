@@ -220,7 +220,12 @@ Add sanitized settings with these defaults:
 ```js
 showClockDisplay: true,
 clockRotationEnabled: false,
+clockRotationRange: 10,
+clockRotationDuration: 40,
 clockForwardGlowEnabled: false,
+clockForwardGlowStrength: 1,
+clockForwardGlowLength: 1,
+clockForwardGlowBlur: 28,
 ```
 
 Assert non-boolean input falls back to the defaults and that account/local sanitization preserves literal booleans. These are non-sensitive UI preferences and require no schema migration.
@@ -753,7 +758,7 @@ Use the shared toggle control with labels:
 - Display rotation
 - Forward glow
 
-Bind directly to `clockRotationEnabled` and `clockForwardGlowEnabled`. Both default off. Show no speed/intensity sliders. Disable both when the current Clock context has Show clock off; active Chimer remains eligible because timer information cannot be hidden.
+Bind directly to `clockRotationEnabled` and `clockForwardGlowEnabled`. Both default off. When rotation is enabled, reveal yaw-range and cycle-duration sliders; when Forward glow is enabled, reveal intensity, projection-length, and blur sliders. Disable the effect groups when the current Clock context has Show clock off; active Chimer remains eligible because timer information cannot be hidden.
 
 ### Step 4: Implement rotation without destabilizing measurement
 
@@ -989,7 +994,7 @@ Before committing, unstage `playwright.config.ts` if no project change was neede
 - Device choice, account default, Restore, and two separate Show clock preferences follow the approved precedence.
 - Minimize unmounts the visualizer renderer while preserving playback/player/preferences.
 - Keep screen awake is first in Visual only for active Chimer; ordinary Clock and Music visualizer expose no toggle and request wake lock automatically while active, including when Music Show clock is off.
-- Rotation and Forward glow are independent, off by default, centered-display-aware, and reduced-motion safe.
+- Rotation and Forward glow are independent, off by default, centered-display-aware, reduced-motion safe, and expose sanitized persisted property controls for yaw range/cycle plus glow intensity/length/blur.
 - Current entitlement/background gating remains intact.
 - Focus, tooltips, modal semantics, outside-click rules, and zoom/phone access meet the accessibility contract.
 - Focused tests, desktop/mobile Playwright, lint, typecheck, full tests, build, and diff check pass.

@@ -19,7 +19,16 @@
     + 0.5rem
   );
 
+  position: fixed;
+  inset: 0;
+  z-index: var(--immersive-global-chrome-z);
+  pointer-events: none;
   transition: opacity 900ms ease;
+}
+
+.toolbar,
+.dock {
+  pointer-events: auto;
 }
 
 .rootFaded {
@@ -54,32 +63,39 @@
 }
 
 .toolbar {
+  --immersive-toolbar-focus-inset: 0.25rem;
+
   position: fixed;
   top: calc(
     var(--immersive-visual-viewport-top, 0px)
     + var(--chimer-top-control-offset, calc(env(safe-area-inset-top, 0px) + 1rem))
+    - var(--immersive-toolbar-focus-inset)
   );
   right: auto;
   left: calc(
     var(--immersive-visual-viewport-left, 0px)
     + var(--immersive-toolbar-leading-space)
+    - var(--immersive-toolbar-focus-inset)
   );
   z-index: 10018;
   display: flex;
   align-items: center;
   width: max-content;
   max-width: max(
-    var(--immersive-toolbar-control-size),
+    calc(var(--immersive-toolbar-control-size) + (2 * var(--immersive-toolbar-focus-inset))),
     calc(
       var(--immersive-visual-viewport-width, 100vw)
       - var(--immersive-toolbar-leading-space)
       - var(--immersive-toolbar-trailing-space)
+      + (2 * var(--immersive-toolbar-focus-inset))
     )
   );
+  padding: var(--immersive-toolbar-focus-inset);
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scrollbar-width: none;
   gap: 0.5rem;
+  scroll-padding-inline: var(--immersive-toolbar-focus-inset);
 }
 
 .toolbar::-webkit-scrollbar {
@@ -199,6 +215,86 @@
 .backgroundHeader {
   font-size: 1rem;
   font-weight: 700;
+}
+
+.dockHeader {
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+}
+
+.dockHeaderAction {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  min-width: 0;
+}
+
+.dockHeaderCenterAction {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+.dockHeaderClose {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+@media (min-width: 421px) {
+  .dock[data-immersive-panel="clock"] .dockHeader {
+    display: flex;
+    justify-content: flex-start;
+    gap: 0;
+  }
+
+  .dock[data-immersive-panel="clock"] .dockHeader h2 {
+    margin-right: 0.5rem;
+  }
+
+  .dock[data-immersive-panel="clock"] .dockHeaderAction {
+    display: flex;
+  }
+
+  .dock[data-immersive-panel="clock"] .dockHeaderCenterAction {
+    display: flex;
+    flex: 1 1 auto;
+    justify-content: space-evenly;
+  }
+
+  .dock[data-immersive-panel="clock"] .dockHeaderClose {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 420px) {
+  .dock[data-immersive-panel="clock"] .dockHeader {
+    display: grid;
+    grid-template-areas:
+      "title visibility spacer close"
+      "controls controls controls controls";
+    grid-template-columns: auto auto 1fr auto;
+    gap: 0.45rem 0.5rem;
+  }
+
+  .dock[data-immersive-panel="clock"] .dockHeader h2 {
+    grid-area: title;
+  }
+
+  .dock[data-immersive-panel="clock"] .dockHeaderAction {
+    grid-area: visibility;
+  }
+
+  .dock[data-immersive-panel="clock"] .dockHeaderCenterAction {
+    grid-area: controls;
+  }
+
+  .dock[data-immersive-panel="clock"] .dockHeaderClose {
+    grid-area: close;
+    margin-left: 0;
+  }
 }
 
 .dockScroller,

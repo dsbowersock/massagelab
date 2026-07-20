@@ -88,6 +88,7 @@ test("global palette mode locks derived colors and serializes valid hex channels
   assert.match(backgroundHostSource, /<BackgroundComponent[\s\S]*\{\.\.\.effectProps\}/)
   assert.doesNotMatch(pickerSource, /\{ key: "background", label: "Color 6" \}/)
   assert.match(runningTimerSource, /previewColors=\{harmonyPreviewColors\}/)
-  assert.match(runningTimerSource, /disabled=\{globalHarmony === "custom"\}/)
+  assert.match(runningTimerSource, /disabled=\{!canUseCoreColorControls \|\| globalHarmony === "custom"\}/)
+  assert.match(runningTimerSource, /<GlobalColorPicker[\s\S]*disabled=\{!canUseCoreColorControls\}/)
   assert.match(harmonySource, /--ml-harmony-preview/)
 })

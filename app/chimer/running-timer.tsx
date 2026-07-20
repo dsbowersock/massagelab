@@ -26,6 +26,7 @@ import {
 import { StyledRangeControl } from "@/components/chimer-controls/StyledRangeControl"
 import { StyledToggleControl } from "@/components/chimer-controls/StyledToggleControl"
 import { Button } from "@/components/ui/button"
+import { Switch } from "@/components/ui/switch"
 import type { MusicVisualizerState } from "@/components/providers/music-provider"
 import { DEFAULT_CHIMER_SETTINGS } from "@/lib/chimer-timer"
 import {
@@ -979,7 +980,12 @@ interface RunningTimerProps {
   movingBackgroundEnabled: boolean
   keepTimerScreenAwake: boolean
   clockRotationEnabled: boolean
+  clockRotationRange: number
+  clockRotationDuration: number
   clockForwardGlowEnabled: boolean
+  clockForwardGlowStrength: number
+  clockForwardGlowLength: number
+  clockForwardGlowBlur: number
   showTimerSeconds: boolean
   showCurrentTimeSeconds: boolean
   timeFormat: ChimerSettings["timeFormat"]
@@ -1923,7 +1929,12 @@ export function RunningTimer({
   movingBackgroundEnabled,
   keepTimerScreenAwake,
   clockRotationEnabled,
+  clockRotationRange,
+  clockRotationDuration,
   clockForwardGlowEnabled,
+  clockForwardGlowStrength,
+  clockForwardGlowLength,
+  clockForwardGlowBlur,
   showTimerSeconds,
   showCurrentTimeSeconds,
   timeFormat,
@@ -2865,7 +2876,7 @@ export function RunningTimer({
   const useOriginalLampBackground = backgroundId === DEFAULT_BACKGROUND_ID
   const isLiveBackgroundSession = status === "running" || status === "paused" || status === "clock"
   const shouldRenderLiveBackground = mode.selectedBackgroundId !== null && (
-    movingBackgroundEnabled && isLiveBackgroundSession
+    isLiveBackgroundSession
     || !canUseBackgroundId(backgroundId, featureKeys, backgroundCategory)
   )
   const astralFlowDisplaySpeed = getMassageLabAstralFlowDisplaySpeed(massageLabAstralFlowSpeed)
@@ -4127,7 +4138,7 @@ export function RunningTimer({
   }
 
   const renderBackgroundControls = (option: BackgroundDefinition) => (
-    <div className={styles.backgroundCardControls}>
+    <div className={`${styles.backgroundCardControls} ${styles.immersiveSelectedBackgroundControls} ${option.id === "massage-lab-moving-gradient" ? styles.immersiveLampColorControls : ""}`}>
       {!isClockMode && (
         <div className={styles.colorRow} title={customColorDisabledHint}>
           <span>Primary color</span>
@@ -4143,25 +4154,20 @@ export function RunningTimer({
         </div>
       )}
 
-      <div
-        className={styles.colorRow}
-        title={isClockMode ? accountColorDisabledHint : customColorDisabledHint}
-      >
-        <span>{isClockMode ? "Clock color" : "Secondary color"}</span>
-        <ColorPickerSwatch
-          label={isClockMode ? "Clock color" : "Secondary display color"}
-          value={isClockMode ? resolvedClockModeFontColor : resolvedSecondaryFontColor}
-          fallback={isClockMode ? DEFAULT_CLOCK_MODE_FONT_COLOR : DEFAULT_SECONDARY_FONT_COLOR}
-          disabled={isClockMode ? !canUseCoreColorControls : !canUseCustomColors}
-          onChange={(nextColor) => handleSettingsChange(
-            isClockMode
-              ? { clockModeFontColor: nextColor }
-              : { secondaryFontColor: nextColor },
-          )}
-          className={styles.colorSwatchPicker}
-          buttonClassName={styles.colorSwatchButton}
-        />
-      </div>
+      {!isClockMode ? (
+        <div className={styles.colorRow} title={customColorDisabledHint}>
+          <span>Secondary color</span>
+          <ColorPickerSwatch
+            label="Secondary display color"
+            value={resolvedSecondaryFontColor}
+            fallback={DEFAULT_SECONDARY_FONT_COLOR}
+            disabled={!canUseCustomColors}
+            onChange={(nextColor) => handleSettingsChange({ secondaryFontColor: nextColor })}
+            className={styles.colorSwatchPicker}
+            buttonClassName={styles.colorSwatchButton}
+          />
+        </div>
+      ) : null}
 
       {option.id === "massage-lab-moving-gradient" && (
         <>
@@ -15706,7 +15712,8 @@ export function RunningTimer({
 
   /**
    * Keeps the safe-stage measurement wrapper stable while applying optional
-   * visual effects only to the visible centered display.
+   * effects only to the centered display. The local perspective drives the
+   * yaw, while two inert duplicate layers form the clipped floor projection.
    */
   const renderDisplayEffectLayers = (display: PrimaryDisplay, isCentered: boolean) => {
     const displayContent = display === "timer"
@@ -15715,9 +15722,36 @@ export function RunningTimer({
     const displayColor = display === "timer"
       ? resolvedTimerDisplayColor
       : resolvedCurrentTimeDisplayColor
+    const rotationStyle = {
+      "--immersive-display-yaw-min": `${-clockRotationRange}deg`,
+      "--immersive-display-yaw-max": `${clockRotationRange}deg`,
+      "--immersive-display-yaw-duration": `${clockRotationDuration}s`,
+    } as CSSProperties
+    /*
+     * Human vision does not perceive opacity linearly. A square-root curve keeps
+     * low slider values useful while still allowing 0% to fully remove the
+     * projection. The small halo floor makes 0px blur crisp rather than invisible.
+     */
+    const perceivedForwardGlowStrength = Math.sqrt(clockForwardGlowStrength)
+    const forwardGlowNearHalo = Math.max(1, clockForwardGlowBlur * 0.14)
+    const forwardGlowFarHalo = Math.max(3, clockForwardGlowBlur * 0.32)
+    const forwardGlowStyle = {
+      "--immersive-forward-glow-color": displayColor,
+      "--immersive-forward-glow-bloom-opacity": 0.55 * perceivedForwardGlowStrength,
+      "--immersive-forward-glow-reflection-opacity": 0.38 * perceivedForwardGlowStrength,
+      "--immersive-forward-glow-length": clockForwardGlowLength,
+      "--immersive-forward-glow-blur": `${clockForwardGlowBlur}px`,
+      "--immersive-forward-glow-reflection-blur": `${clockForwardGlowBlur * 0.08}px`,
+      "--immersive-forward-glow-near-halo": `${forwardGlowNearHalo}px`,
+      "--immersive-forward-glow-far-halo": `${forwardGlowFarHalo}px`,
+    } as CSSProperties
     const contentLayers = (
       <>
-        <span ref={isCentered ? primaryContentRef : undefined} className={styles.displayContent}>
+        <span
+          ref={isCentered ? primaryContentRef : undefined}
+          className={styles.displayContent}
+          data-display-content={isCentered ? "true" : undefined}
+        >
           {displayContent}
         </span>
         {clockForwardGlowEnabled && isCentered ? (
@@ -15725,20 +15759,26 @@ export function RunningTimer({
             className={styles.forwardGlowProjection}
             aria-hidden="true"
             data-forward-projection="true"
-            style={{ "--immersive-forward-glow-color": displayColor } as CSSProperties}
+            style={forwardGlowStyle}
           >
-            {displayContent}
+            <span className={`${styles.forwardGlowLayer} ${styles.forwardGlowBloom}`}>
+              {displayContent}
+            </span>
+            <span className={`${styles.forwardGlowLayer} ${styles.forwardGlowReflection}`}>
+              {displayContent}
+            </span>
           </span>
         ) : null}
       </>
     )
 
     return (
-      <span className={styles.displayEffectBounds}>
+      <span className={styles.displayEffectBounds} data-display-effect-bounds="true">
         {clockRotationEnabled && isCentered ? (
           <span
             className={[styles.displayRotationLayer, styles.displayRotationEnabled].join(" ")}
             data-display-rotation-layer="true"
+            style={rotationStyle}
           >
             {contentLayers}
           </span>
@@ -15766,6 +15806,11 @@ export function RunningTimer({
   const primaryDisplayStyle = {
     "--chimer-primary-font-size": `${fontSize}vw`,
     ...(fitFontSize ? { "--chimer-fit-font-size": `${fitFontSize}px` } : {}),
+    /*
+     * Include the projection runway in the stable display measurement so the
+     * dock leaves room for the glow without translating the digits off-screen.
+     */
+    "--immersive-forward-glow-dock-runway": `${2.5 + Math.max(0, clockForwardGlowLength - 0.5)}rem`,
   } as CSSProperties
   const timerSwapClass = swapAnimationTarget
     ? swapAnimationTarget === "timer" ? styles.swapToPrimary : styles.swapToSecondary
@@ -15807,6 +15852,7 @@ export function RunningTimer({
           className={styles.runningBackground}
           mainColor={resolvedMovingBackgroundMainColor}
           orbColor={resolvedMovingBackgroundOrbColor}
+          motionEnabled={movingBackgroundEnabled}
           testId="chimer-premium-background"
         />
       )}
@@ -15817,6 +15863,7 @@ export function RunningTimer({
           className={premiumBackgroundClassName}
           style={premiumBackgroundStyle}
           selectedId={backgroundId}
+          motionEnabled={movingBackgroundEnabled}
           featureKeys={featureKeys}
           category={backgroundCategory}
           palette={getPaletteColorsFromGlobalValues(globalColors)}
@@ -16709,7 +16756,7 @@ export function RunningTimer({
       {shouldRenderTimerDisplay && (
         <button
         type="button"
-        className={`${styles.displayButton} ${isTimerPrimary ? styles.primaryDisplay : styles.secondaryDisplay} ${isTimerPrimary && !hasTimerSeconds ? styles.timerModeCompactTimer : ""} ${styles.timerDisplay} ${timerSwapClass}`}
+        className={`${styles.displayButton} ${isTimerPrimary ? styles.primaryDisplay : styles.secondaryDisplay} ${isTimerPrimary && !hasTimerSeconds ? styles.timerModeCompactTimer : ""} ${isTimerPrimary && clockForwardGlowEnabled ? styles.primaryDisplayForwardGlowEnabled : ""} ${isTimerPrimary && clockForwardGlowEnabled && activePanel === "clock" ? styles.primaryDisplayForwardGlowDockOpen : ""} ${styles.timerDisplay} ${timerSwapClass}`}
         onClick={() => {
           triggerHapticFeedback(hapticsEnabled)
           ;(isTimerPrimary ? handlePauseControl : () => handlePrimarySwitch("timer"))()
@@ -16734,7 +16781,7 @@ export function RunningTimer({
 
       {mode.showClock ? <button
         type="button"
-        className={`${styles.displayButton} ${isCurrentTimePrimary ? styles.primaryDisplay : styles.secondaryDisplay} ${isCurrentTimePrimary && !isClockMode ? styles.timerModeClockPrimary : ""} ${styles.currentTimeDisplay} ${currentTimeSwapClass}`}
+        className={`${styles.displayButton} ${isCurrentTimePrimary ? styles.primaryDisplay : styles.secondaryDisplay} ${isCurrentTimePrimary && !isClockMode ? styles.timerModeClockPrimary : ""} ${isCurrentTimePrimary && clockForwardGlowEnabled ? styles.primaryDisplayForwardGlowEnabled : ""} ${isCurrentTimePrimary && clockForwardGlowEnabled && activePanel === "clock" ? styles.primaryDisplayForwardGlowDockOpen : ""} ${styles.currentTimeDisplay} ${currentTimeSwapClass}`}
         onClick={() => {
           triggerHapticFeedback(hapticsEnabled)
           ;(isCurrentTimePrimary ? (isClockMode ? revealControls : handlePauseControl) : () => handlePrimarySwitch("currentTime"))()
@@ -16790,47 +16837,127 @@ export function RunningTimer({
           toolbarButtonActiveClassName={styles.immersiveToolbarControlActive}
           visualHintMessage={visualHintMessage}
           backgroundUnavailableMessage={mode.unavailableBackgroundMessage}
+          clockHeaderAction={mode.canToggleClock ? (
+            <Switch
+              className={styles.immersiveHeaderSwitch}
+              checked={mode.showClock}
+              size="compact"
+              aria-label={`Show clock: ${mode.showClock ? "On" : "Off"}`}
+              hapticsEnabled={hapticsEnabled}
+              onCheckedChange={(value) => mode.onShowClockChange?.(value)}
+            />
+          ) : null}
+          clockHeaderCenterAction={(
+            <div className={styles.immersiveClockHeaderControls}>
+              <div className={styles.immersiveHeaderColorControl} title={accountColorDisabledHint}>
+                <span>Color</span>
+                <ColorPickerSwatch
+                  label="Clock color"
+                  value={resolvedClockModeFontColor}
+                  fallback={DEFAULT_CLOCK_MODE_FONT_COLOR}
+                  disabled={!canUseCoreColorControls}
+                  onChange={(nextColor) => handleSettingsChange({ clockModeFontColor: nextColor })}
+                  className={styles.colorSwatchPicker}
+                  buttonClassName={styles.immersiveHeaderColorSwatchButton}
+                />
+              </div>
+              <div className={styles.immersiveClockHeaderToggle}>
+                <span>Show seconds</span>
+                <Switch
+                  checked={showCurrentTimeSeconds}
+                  size="compact"
+                  aria-label={`Show seconds: ${showCurrentTimeSeconds ? "On" : "Off"}`}
+                  hapticsEnabled={hapticsEnabled}
+                  onCheckedChange={(value) => handleSettingsChange({ showCurrentTimeSeconds: value })}
+                />
+              </div>
+            </div>
+          )}
+          visualHeaderTitle="Visual background"
+          visualHeaderAction={(
+            <Switch
+              className={styles.immersiveHeaderSwitch}
+              checked={movingBackgroundEnabled}
+              size="compact"
+              aria-label={`Background animation: ${movingBackgroundEnabled ? "On" : "Off"}`}
+              title={movingBackgroundEnabled ? "Pause background animation" : "Resume background animation"}
+              hapticsEnabled={hapticsEnabled}
+              onCheckedChange={(value) => handleSettingsChange({ movingBackgroundEnabled: value })}
+            />
+          )}
+          visualHeaderCenterAction={isClockMode ? (
+            <div
+              className={`${styles.immersiveHeaderColorControl} ${styles.immersiveVisualHeaderColorControl}`}
+              title={accountColorDisabledHint}
+            >
+              <span>Clock color</span>
+              <ColorPickerSwatch
+                label="Clock color"
+                value={resolvedClockModeFontColor}
+                fallback={DEFAULT_CLOCK_MODE_FONT_COLOR}
+                disabled={!canUseCoreColorControls}
+                onChange={(nextColor) => handleSettingsChange({ clockModeFontColor: nextColor })}
+                className={styles.colorSwatchPicker}
+                buttonClassName={styles.immersiveHeaderColorSwatchButton}
+              />
+            </div>
+          ) : null}
           clockContent={(
             <div className={`${styles.settingsTabContent} ${styles.immersiveSettingsTabContent}`}>
-                {mode.canToggleClock ? (
-                  <div className={styles.switchRow}>
-                    <StyledToggleControl
-                      label="Show clock"
-                      checked={mode.showClock}
-                      valueLabel={mode.showClock ? "On" : "Off"}
-                      hapticsEnabled={hapticsEnabled}
-                      onCheckedChange={(value) => mode.onShowClockChange?.(value)}
-                    />
-                  </div>
-                ) : null}
                 {mode.canToggleClock && !mode.showClock ? (
                   <div className={styles.settingsNotice} role="status">
                     Clock is hidden. The selected background continues without a time display.
                   </div>
                 ) : null}
-                <div className={styles.settingsSection}>
-                  <div className={styles.settingsSectionHeader}>
-                    <span>Display effects</span>
-                    <span className={styles.settingsPill}>Optional</span>
+                <div className={styles.clockCompactRow}>
+                  <label className={styles.clockCompactField} title={customColorDisabledHint}>
+                    <span>Font</span>
+                    <select
+                      value={clockFontFamily}
+                      disabled={!canUseCustomColors}
+                      onChange={(event) => handleSettingsChange({
+                        clockFontFamily: event.target.value as ChimerSettings["clockFontFamily"],
+                      })}
+                      aria-label="Font"
+                    >
+                      <option value="digital">Digital</option>
+                      <option value="mono">Mono</option>
+                      <option value="sans">Sans</option>
+                      <option value="serif">Serif</option>
+                    </select>
+                  </label>
+
+                  <div className={styles.clockCompactField}>
+                    <span>Time format</span>
+                    <div
+                      className={`${styles.formatToggle} ml-time-format-choice`}
+                      aria-label="Time format"
+                      data-active-format={timeFormat}
+                    >
+                      <button
+                        type="button"
+                        className={`${styles.formatOption} ${styles.tactileButton} ml-time-format-option ${timeFormat === "12h" ? styles.formatOptionActive : ""}`}
+                        aria-pressed={timeFormat === "12h"}
+                        onClick={() => {
+                          triggerHapticFeedback(hapticsEnabled)
+                          handleSettingsChange({ timeFormat: "12h" })
+                        }}
+                      >
+                        12h
+                      </button>
+                      <button
+                        type="button"
+                        className={`${styles.formatOption} ${styles.tactileButton} ml-time-format-option ${timeFormat === "24h" ? styles.formatOptionActive : ""}`}
+                        aria-pressed={timeFormat === "24h"}
+                        onClick={() => {
+                          triggerHapticFeedback(hapticsEnabled)
+                          handleSettingsChange({ timeFormat: "24h" })
+                        }}
+                      >
+                        24h
+                      </button>
+                    </div>
                   </div>
-
-                  <StyledToggleControl
-                    label="Display rotation"
-                    checked={clockRotationEnabled}
-                    valueLabel={clockRotationEnabled ? "On" : "Off"}
-                    hapticsEnabled={hapticsEnabled}
-                    disabled={mode.canToggleClock && !mode.showClock}
-                    onCheckedChange={(value) => handleSettingsChange({ clockRotationEnabled: value })}
-                  />
-
-                  <StyledToggleControl
-                    label="Forward glow"
-                    checked={clockForwardGlowEnabled}
-                    valueLabel={clockForwardGlowEnabled ? "On" : "Off"}
-                    hapticsEnabled={hapticsEnabled}
-                    disabled={mode.canToggleClock && !mode.showClock}
-                    onCheckedChange={(value) => handleSettingsChange({ clockForwardGlowEnabled: value })}
-                  />
                 </div>
 
                 <div className={styles.settingsSection}>
@@ -16849,88 +16976,18 @@ export function RunningTimer({
                   />
                   )}
 
-                  <StyledToggleControl
-                    label="Show clock seconds"
-                    checked={showCurrentTimeSeconds}
-                    valueLabel={showCurrentTimeSeconds ? "On" : "Off"}
-                    hapticsEnabled={hapticsEnabled}
-                    onCheckedChange={(value) => handleSettingsChange({ showCurrentTimeSeconds: value })}
-                  />
-
-                  <StyledRangeControl
-                    label="Font size"
-                    value={effectiveFontSize}
-                    min={MIN_FONT_SIZE}
-                    max={effectiveMaxFontSize}
-                    step={FONT_SIZE_STEP}
-                    displayValue={`${Math.round(effectiveFontSize)}vw`}
-                    hapticsEnabled={hapticsEnabled}
-                    onChange={handleFontSizeRangeChange}
-                  />
-
-                  <div className={styles.clockCompactRow}>
-                    <label className={styles.clockCompactField} title={customColorDisabledHint}>
-                      <span>Clock font</span>
-                      <select
-                        value={clockFontFamily}
-                        disabled={!canUseCustomColors}
-                        onChange={(event) => handleSettingsChange({
-                          clockFontFamily: event.target.value as ChimerSettings["clockFontFamily"],
-                        })}
-                        aria-label="Clock font"
-                      >
-                        <option value="digital">Digital</option>
-                        <option value="mono">Mono</option>
-                        <option value="sans">Sans</option>
-                        <option value="serif">Serif</option>
-                      </select>
-                    </label>
-
-                    <div className={styles.clockCompactField} title={accountColorDisabledHint}>
-                      <span>Clock color</span>
-                      <ColorPickerSwatch
-                        label="Clock color"
-                        value={clockModeFontColor}
-                        fallback={DEFAULT_CLOCK_MODE_FONT_COLOR}
-                        disabled={!canUseCoreColorControls}
-                        onChange={(nextColor) => handleSettingsChange({ clockModeFontColor: nextColor })}
-                        className={styles.colorSwatchPicker}
-                        buttonClassName={styles.clockColorSwatchButton}
-                      />
-                    </div>
-
-                    <div className={styles.clockCompactField}>
-                      <span>Time format</span>
-                      <div
-                        className={`${styles.formatToggle} ml-time-format-choice`}
-                        aria-label="Time format"
-                        data-active-format={timeFormat}
-                      >
-                        <button
-                          type="button"
-                          className={`${styles.formatOption} ${styles.tactileButton} ml-time-format-option ${timeFormat === "12h" ? styles.formatOptionActive : ""}`}
-                          aria-pressed={timeFormat === "12h"}
-                          onClick={() => {
-                            triggerHapticFeedback(hapticsEnabled)
-                            handleSettingsChange({ timeFormat: "12h" })
-                          }}
-                        >
-                          12h
-                        </button>
-                        <button
-                          type="button"
-                          className={`${styles.formatOption} ${styles.tactileButton} ml-time-format-option ${timeFormat === "24h" ? styles.formatOptionActive : ""}`}
-                          aria-pressed={timeFormat === "24h"}
-                          onClick={() => {
-                            triggerHapticFeedback(hapticsEnabled)
-                            handleSettingsChange({ timeFormat: "24h" })
-                          }}
-                        >
-                          24h
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                  {!isClockMode ? (
+                    <StyledRangeControl
+                      label="Font size"
+                      value={effectiveFontSize}
+                      min={MIN_FONT_SIZE}
+                      max={effectiveMaxFontSize}
+                      step={FONT_SIZE_STEP}
+                      displayValue={`${Math.round(effectiveFontSize)}vw`}
+                      hapticsEnabled={hapticsEnabled}
+                      onChange={handleFontSizeRangeChange}
+                    />
+                  ) : null}
 
                   {!isClockMode ? (
                     <div className={styles.clockControlGrid}>
@@ -17100,6 +17157,99 @@ export function RunningTimer({
                   </div>
                 </div>
 
+                <div className={styles.settingsSection}>
+                  <div className={styles.controlGroup}>
+                    <StyledToggleControl
+                      label="Display rotation"
+                      checked={clockRotationEnabled}
+                      valueLabel={clockRotationEnabled ? "On" : "Off"}
+                      hapticsEnabled={hapticsEnabled}
+                      className={styles.controlGroupToggle}
+                      disabled={mode.canToggleClock && !mode.showClock}
+                      onCheckedChange={(value) => handleSettingsChange({ clockRotationEnabled: value })}
+                    />
+                    {clockRotationEnabled ? (
+                      <div className={styles.controlGroupBody}>
+                        <div className={styles.clockControlGrid}>
+                          <StyledRangeControl
+                            label="Rotation range"
+                            value={clockRotationRange}
+                            min={2}
+                            max={20}
+                            step={1}
+                            displayValue={`±${Math.round(clockRotationRange)}°`}
+                            disabled={mode.canToggleClock && !mode.showClock}
+                            hapticsEnabled={hapticsEnabled}
+                            onChange={(value) => handleSettingsChange({ clockRotationRange: value })}
+                          />
+                          <StyledRangeControl
+                            label="Rotation cycle"
+                            value={clockRotationDuration}
+                            min={10}
+                            max={120}
+                            step={5}
+                            displayValue={`${Math.round(clockRotationDuration)}s`}
+                            disabled={mode.canToggleClock && !mode.showClock}
+                            hapticsEnabled={hapticsEnabled}
+                            onChange={(value) => handleSettingsChange({ clockRotationDuration: value })}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className={styles.controlGroup}>
+                    <StyledToggleControl
+                      label="Forward glow"
+                      checked={clockForwardGlowEnabled}
+                      valueLabel={clockForwardGlowEnabled ? "On" : "Off"}
+                      hapticsEnabled={hapticsEnabled}
+                      className={styles.controlGroupToggle}
+                      disabled={mode.canToggleClock && !mode.showClock}
+                      onCheckedChange={(value) => handleSettingsChange({ clockForwardGlowEnabled: value })}
+                    />
+                    {clockForwardGlowEnabled ? (
+                      <div className={styles.controlGroupBody}>
+                        <div className={styles.clockControlGrid}>
+                          {/* Keep renderer-scale settings intact while presenting each slider as a normalized percentage. */}
+                          <StyledRangeControl
+                            label="Glow intensity"
+                            value={clockForwardGlowStrength}
+                            min={0}
+                            max={1}
+                            step={0.05}
+                            displayValue={`${Math.round(clockForwardGlowStrength * 100)}%`}
+                            disabled={mode.canToggleClock && !mode.showClock}
+                            hapticsEnabled={hapticsEnabled}
+                            onChange={(value) => handleSettingsChange({ clockForwardGlowStrength: value })}
+                          />
+                          <StyledRangeControl
+                            label="Projection length"
+                            value={clockForwardGlowLength}
+                            min={0.5}
+                            max={4}
+                            step={0.05}
+                            displayValue={`${Math.round((clockForwardGlowLength / 4) * 100)}%`}
+                            disabled={mode.canToggleClock && !mode.showClock}
+                            hapticsEnabled={hapticsEnabled}
+                            onChange={(value) => handleSettingsChange({ clockForwardGlowLength: value })}
+                          />
+                          <StyledRangeControl
+                            label="Glow blur"
+                            value={clockForwardGlowBlur}
+                            min={0}
+                            max={64}
+                            step={2}
+                            displayValue={`${Math.round((clockForwardGlowBlur / 64) * 100)}%`}
+                            disabled={mode.canToggleClock && !mode.showClock}
+                            hapticsEnabled={hapticsEnabled}
+                            onChange={(value) => handleSettingsChange({ clockForwardGlowBlur: value })}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+
                 {!isClockMode && (
                   <div className={styles.settingsSection}>
                     <div className={styles.settingsSectionHeader}>
@@ -17237,16 +17387,6 @@ export function RunningTimer({
                   </div>
                 ) : null}
 
-                {mode.context !== "musicVisualizer" ? (
-                  <StyledToggleControl
-                    label="Visual background"
-                    checked={movingBackgroundEnabled}
-                    valueLabel={movingBackgroundEnabled ? "On" : "Off"}
-                    hapticsEnabled={hapticsEnabled}
-                    onCheckedChange={(value) => handleSettingsChange({ movingBackgroundEnabled: value })}
-                  />
-                ) : null}
-
                 {mode.context === "musicVisualizer" && mode.musicDefaultActions?.signedIn ? (
                   <div className={styles.settingsSection}>
                     <div className={styles.settingsSectionHeader}>
@@ -17298,17 +17438,18 @@ export function RunningTimer({
                     <span>Selected background controls</span>
                     <span className={styles.settingsPill}>Visual tuning</span>
                   </div>
-                  {movingBackgroundEnabled ? (
-                    renderBackgroundControls(
-                      selectedBackgroundDefinition,
-                    )
-                  ) : (
-                    <div className={styles.settingsEmptyState}>Enable visual background to show visual controls.</div>
-                  )}
+                  {renderBackgroundControls(selectedBackgroundDefinition)}
                 </div>
 
                 <div className={styles.settingsSection}>
+                  {!canUseCoreColorControls ? (
+                    <div className={styles.globalColorAccessHint} role="note">
+                      Sign in to customize and save Global Colors.
+                    </div>
+                  ) : null}
                   <GlobalColorPicker
+                    className={styles.immersiveGlobalColorPicker}
+                    compactPaletteRow
                     value={globalColors}
                     title="Global Colors"
                     description={globalHarmony === "custom"
@@ -17321,15 +17462,17 @@ export function RunningTimer({
                           checked={globalHarmony === "custom"}
                           valueLabel={globalHarmony === "custom" ? "Custom" : "Harmony"}
                           hapticsEnabled={hapticsEnabled}
+                          disabled={!canUseCoreColorControls}
                           onCheckedChange={handleGlobalCustomColorToggle}
                         />
                         <HarmonyToggleGroup
+                          className={styles.immersiveGlobalHarmony}
                           label="Color harmony"
                           value={globalHarmony}
                           onChange={handleGlobalHarmonyChange}
                           options={GLOBAL_HARMONY_OPTIONS}
                           previewColors={harmonyPreviewColors}
-                          disabled={globalHarmony === "custom"}
+                          disabled={!canUseCoreColorControls || globalHarmony === "custom"}
                           hapticsEnabled={hapticsEnabled}
                           description="Generate related palette families from your primary color."
                           embedded
@@ -17337,6 +17480,7 @@ export function RunningTimer({
                       </div>
                     )}
                     editableFields={globalHarmony === "custom" ? undefined : ["primary"]}
+                    disabled={!canUseCoreColorControls}
                     paletteName={globalPaletteName}
                     onPaletteNameChange={handleGlobalPaletteNameChange}
                     onChange={handleGlobalColorsChange}
@@ -17359,6 +17503,7 @@ export function RunningTimer({
                           key={palette.id}
                           type="button"
                           className={`${styles.inlineButton} ${styles.tactileButton}`}
+                          disabled={!canUseCoreColorControls}
                           onClick={() => {
                             triggerHapticFeedback(hapticsEnabled)
                             handleGlobalPaletteLoad(palette)

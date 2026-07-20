@@ -31,6 +31,11 @@ interface ImmersivePanelShellProps {
   clockContent: ReactNode
   visualContent: ReactNode
   backgroundContent: ReactNode
+  clockHeaderAction?: ReactNode
+  clockHeaderCenterAction?: ReactNode
+  visualHeaderAction?: ReactNode
+  visualHeaderCenterAction?: ReactNode
+  visualHeaderTitle?: string
   backgroundUnavailableMessage?: string | null
   visualHintMessage?: string | null
   hapticsEnabled: boolean
@@ -115,6 +120,11 @@ export function ImmersivePanelShell({
   clockContent,
   visualContent,
   backgroundContent,
+  clockHeaderAction,
+  clockHeaderCenterAction,
+  visualHeaderAction,
+  visualHeaderCenterAction,
+  visualHeaderTitle,
   backgroundUnavailableMessage,
   visualHintMessage,
   hapticsEnabled,
@@ -132,6 +142,9 @@ export function ImmersivePanelShell({
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null)
   const nonmodalPanel = activePanel === "clock" || activePanel === "visual" ? activePanel : null
   const activePanelLabel = nonmodalPanel === "clock" ? "Clock" : "Visual"
+  const activeHeaderTitle = nonmodalPanel === "clock" ? "Clock" : (visualHeaderTitle ?? "Visual")
+  const activeHeaderAction = nonmodalPanel === "clock" ? clockHeaderAction : visualHeaderAction
+  const activeHeaderCenterAction = nonmodalPanel === "clock" ? clockHeaderCenterAction : visualHeaderCenterAction
 
   useLayoutEffect(() => {
     setPortalTarget(document.body)
@@ -209,9 +222,12 @@ export function ImmersivePanelShell({
             ? current
             : nextVisualViewportFrame
         ))
-        // Without a visible clock, use a zero-height protected region at the
-        // top safe boundary so the same bottom-first placement math still
-        // reserves the full controls dock.
+        // Without a visible clock, protect the toolbar itself. A zero-height
+        // region lets a full-height bottom dock rise underneath the toolbar,
+        // making header controls visible but impossible to click on phones.
+        const toolbarBottom = toolbarRef.current
+          ? toolbarRef.current.getBoundingClientRect().bottom - viewportTop
+          : dockInsets.top
         const displayBounds = currentProtectedDisplay
           ? (() => {
               // Layout offsets remain stable when an inner glow or rotation layer transforms visually.
@@ -223,7 +239,10 @@ export function ImmersivePanelShell({
                 visualViewportOffsetTop: visualViewport?.offsetTop ?? 0,
               })
             })()
-          : { top: dockInsets.top, bottom: dockInsets.top }
+          : {
+              top: dockInsets.top,
+              bottom: Math.max(dockInsets.top, toolbarBottom),
+            }
         const nextPlacement = calculateDockPlacement({
           viewportHeight,
           displayTop: displayBounds.top,
@@ -378,6 +397,11 @@ export function ImmersivePanelShell({
                     aria-expanded={isActive}
                     aria-controls={panelId}
                     aria-describedby={id === "visual" && visualHintMessage ? visualHintId : undefined}
+                    onFocus={(event) => {
+                      // At high zoom the toolbar is horizontally scrollable; expose the
+                      // complete focus outline instead of leaving a partly clipped button.
+                      event.currentTarget.scrollIntoView({ block: "nearest", inline: "nearest" })
+                    }}
                     onClick={() => {
                       triggerHapticFeedback(hapticsEnabled)
                       onActivePanelChange(isActive ? null : id)
@@ -416,20 +440,28 @@ export function ImmersivePanelShell({
           data-immersive-panel={nonmodalPanel}
           data-immersive-dock={placement.edge}
         >
-          <div className={styles.dockHeader}>
-            <h2>{activePanelLabel}</h2>
-            <Button
-              type="button"
-              variant="secondary"
-              size="icon"
-              hapticsEnabled={hapticsEnabled}
-              aria-label={`Close ${activePanelLabel} panel`}
-              onClick={() => closeNonmodalPanel(true)}
-            >
-              <X className="h-4 w-4" aria-hidden="true" />
-            </Button>
+          <div className={styles.dockHeader} data-immersive-dock-header>
+            <h2>{activeHeaderTitle}</h2>
+            {activeHeaderAction ? (
+              <div className={styles.dockHeaderAction}>{activeHeaderAction}</div>
+            ) : null}
+            {activeHeaderCenterAction ? (
+              <div className={styles.dockHeaderCenterAction}>{activeHeaderCenterAction}</div>
+            ) : null}
+            <div className={styles.dockHeaderClose}>
+              <Button
+                type="button"
+                variant="destructive"
+                size="icon"
+                hapticsEnabled={hapticsEnabled}
+                aria-label={`Close ${activePanelLabel} panel`}
+                onClick={() => closeNonmodalPanel(true)}
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </div>
           </div>
-          <div className={styles.dockScroller}>
+          <div className={styles.dockScroller} data-immersive-dock-scroller>
             {nonmodalPanel === "clock" ? clockContent : visualContent}
           </div>
         </div>
@@ -457,7 +489,7 @@ export function ImmersivePanelShell({
               <DialogPrimitive.Close asChild>
                 <Button
                   type="button"
-                  variant="secondary"
+                  variant="destructive"
                   size="compact"
                   hapticsEnabled={hapticsEnabled}
                   aria-label="Close Background panel"

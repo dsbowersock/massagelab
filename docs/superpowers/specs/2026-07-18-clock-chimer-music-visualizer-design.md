@@ -248,7 +248,12 @@ Both toggles are added to sanitized Chimer settings and default off:
 
 ```ts
 clockRotationEnabled: boolean
+clockRotationRange: number
+clockRotationDuration: number
 clockForwardGlowEnabled: boolean
+clockForwardGlowStrength: number
+clockForwardGlowLength: number
+clockForwardGlowBlur: number
 ```
 
 They apply to whichever display is centered: active timer, user-swapped current time, ordinary Clock, or visible Music visualizer Clock.
@@ -256,15 +261,17 @@ They apply to whichever display is centered: active timer, user-swapped current 
 ### Display rotation
 
 - Wrap the existing centered display in a transform layer.
-- Use a slow approximately 40-second ease-in-out yaw from roughly `-10deg` to `10deg` and back.
+- Use a local `45rem` perspective and an ease-in-out yaw that defaults to 40 seconds and `-10deg` to `10deg` and back.
+- Expose a `2–20deg` yaw range and `10–120s` cycle duration while keeping the source-shaped defaults.
 - Keep the measured layout box stable so safe-stage calculations do not oscillate.
 - Suppress continuous rotation under `prefers-reduced-motion`, even if the preference remains enabled.
 
 ### Forward glow
 
-- Render an `aria-hidden`, pointer-free duplicate projection of the centered display.
+- Render two `aria-hidden`, pointer-free duplicate layers of the centered display: a broad bloom and a sharper reflected layer.
 - Derive its color from the active display color.
-- Use a shallow 3D floor transform, blur, opacity falloff, and gradient mask.
+- Use the source-shaped `-90.1deg` 3D floor transform, separate blur/opacity falloff, and opposing gradient masks.
+- Expose `0–100%` intensity, `50–200%` projection length, and `0–64px` blur controls.
 - Update automatically after display swaps, timer changes, time changes, or color changes.
 - Keep the projection inside the visual stage and out of control hit areas.
 

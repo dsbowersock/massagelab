@@ -18,6 +18,8 @@ interface MovingBackgroundProps {
   className?: string
   mainColor?: string
   orbColor?: string
+  /** Keeps the static palette visible while suspending canvas animation. */
+  motionEnabled?: boolean
   testId?: string
 }
 
@@ -25,6 +27,7 @@ export function MovingBackground({
   className = "pointer-events-none fixed inset-0 z-0 h-screen w-screen",
   mainColor = "#FF8C2A",
   orbColor = "#4169E1",
+  motionEnabled = true,
   testId = "chimer-moving-background",
 }: MovingBackgroundProps) {
   const { settings } = useSettings()
@@ -139,7 +142,7 @@ export function MovingBackground({
     }
 
     const updateAnimationState = () => {
-      const shouldAnimate = shouldAnimateAmbientBackground({
+      const shouldAnimate = motionEnabled && shouldAnimateAmbientBackground({
         prefersReducedMotion: reducedMotionQuery.matches,
         compactViewport: Math.min(viewportWidth, viewportHeight) < 360 || compactViewportQuery.matches,
         allowCompactViewport: true,
@@ -172,13 +175,14 @@ export function MovingBackground({
       compactViewportQuery.removeEventListener("change", updateAnimationState)
       document.removeEventListener("visibilitychange", updateAnimationState)
     }
-  }, [mainColor, orbColor, settings.ambientMotionMode])
+  }, [mainColor, motionEnabled, orbColor, settings.ambientMotionMode])
 
   return (
     <div
       aria-hidden="true"
       className={className}
       data-ml-ambient-motion={settings.ambientMotionMode}
+      data-ml-background-motion={motionEnabled ? "playing" : "paused"}
       data-testid={testId}
     >
       <div className="massagelab-background-fallback" style={fallbackStyle} />
