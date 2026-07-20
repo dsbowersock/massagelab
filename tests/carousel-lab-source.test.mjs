@@ -84,4 +84,19 @@ describe("Carousel Lab source boundaries", () => {
     assert.equal(reconcileCenteredId(items, "missing", "second"), "second")
     assert.equal(reconcileCenteredId(items, "missing", "also-missing"), "first")
   })
+
+  it("uses real Background data with isolated access fixtures and centered-only video", () => {
+    const surface = read("app/dev/buttons/carousel-lab/background-lab-surface.tsx")
+    const card = read("app/dev/buttons/carousel-lab/background-lab-card.tsx")
+    const combined = `${surface}\n${card}`
+
+    assert.match(surface, /backgroundRegistry/)
+    assert.match(surface, /matchesBackgroundVisualFilter/)
+    assert.match(surface, /readSavedBackgroundIds/)
+    assert.match(card, /detailLevel === "full" && centered/)
+    assert.match(card, /Use free credit/)
+    assert.match(card, /Buy for \$1/)
+    assert.match(card, /Unlock all/)
+    assert.doesNotMatch(combined, /fetch\(|stripe|checkout|server action/i)
+  })
 })
