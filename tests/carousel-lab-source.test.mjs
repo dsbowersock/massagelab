@@ -147,6 +147,23 @@ describe("Carousel Lab source boundaries", () => {
     assert.doesNotMatch(surface, /music\.(playStation|stopCurrent|toggleFavorite)/)
   })
 
+  it("mounts one dev-only prototype and never imports the lab from production routes", () => {
+    const page = read("app/dev/buttons/page.tsx")
+    const lab = read("app/dev/buttons/carousel-lab/carousel-lab.tsx")
+    const productionSources = [
+      read("app/chimer/running-timer.tsx"),
+      read("app/browse/workspace.tsx"),
+      read("components/backgrounds/BackgroundSelector.tsx"),
+    ].join("\n")
+
+    assert.match(page, /<CarouselLab/)
+    assert.match(lab, /massagelab-carousel-lab-v1|CAROUSEL_LAB_STORAGE_KEY/)
+    assert.match(lab, /surface === "backgrounds"/)
+    assert.match(lab, /<BackgroundLabSurface/)
+    assert.match(lab, /<StationLabSurface/)
+    assert.doesNotMatch(productionSources, /dev\/buttons\/carousel-lab|CarouselLab/)
+  })
+
   it("propagates abort signals only through optional Station payload prewarming", () => {
     const provider = read("components/providers/music-provider.tsx")
     const runtime = read("lib/atmosphere/generative-fm-runtime.ts")

@@ -5,6 +5,7 @@ import { Notice } from "@/components/ui/notice"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ButtonGallery } from "./button-gallery"
 import { CardStatusGallery } from "./card-status-gallery"
+import { CarouselLab } from "./carousel-lab/carousel-lab"
 import { ChoiceGallery } from "./choice-gallery"
 import { FieldGallery } from "./field-gallery"
 import { ProtectedRouteGallery } from "./protected-route-gallery"
@@ -24,6 +25,7 @@ const reviewSections = [
   { value: "choices", label: "Choices" },
   { value: "fields", label: "Fields & color" },
   { value: "cards-status", label: "Cards & status" },
+  { value: "carousels", label: "Carousels" },
   { value: "surfaces", label: "Navigation & surfaces" },
   { value: "protected", label: "Protected routes" },
 ] as const
@@ -92,6 +94,10 @@ export default function ControlSystemReviewPage() {
 
         <TabsContent value="cards-status" className="mt-0">
           <CardStatusGallery />
+        </TabsContent>
+
+        <TabsContent value="carousels" className="mt-0">
+          <CarouselLab />
         </TabsContent>
 
         <TabsContent value="surfaces" className="mt-0">
