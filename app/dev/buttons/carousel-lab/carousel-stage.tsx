@@ -130,6 +130,7 @@ export function CarouselStage<T extends CarouselLabItem>({
                 aria-roledescription="slide"
                 aria-current={centered ? "true" : undefined}
                 aria-label={accessibleLabel}
+                data-carousel-slide="true"
                 data-centered={centered}
                 data-detail-level={detailLevel}
                 onClick={(event) => {

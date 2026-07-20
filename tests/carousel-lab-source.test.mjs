@@ -11,6 +11,18 @@ function read(path) {
 }
 
 describe("Carousel Lab source boundaries", () => {
+  it("records both adapted CodePens and their public-Pen MIT license boundary", () => {
+    const ledger = read("docs/carousel-sources.md")
+
+    assert.match(ledger, /https:\/\/codepen\.io\/jh3y\/pen\/ZEqNVxx/)
+    assert.match(ledger, /https:\/\/codepen\.io\/jh3y\/pen\/PovoorJ/)
+    assert.match(ledger, /https:\/\/blog\.codepen\.io\/documentation\/licensing\//)
+    assert.match(ledger, /MIT/)
+    assert.match(ledger, /GSAP/)
+    assert.match(ledger, /ScrollTrigger/)
+    assert.match(ledger, /Tweakpane/)
+  })
+
   it("uses the existing Embla runtime and no source-demo dependencies", () => {
     const controller = read("app/dev/buttons/carousel-lab/use-carousel-lab-controller.ts")
     const stage = read("app/dev/buttons/carousel-lab/carousel-stage.tsx")

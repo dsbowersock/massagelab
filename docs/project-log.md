@@ -4,6 +4,10 @@ This is the canonical chronological planning and progress log for MassageLab. Us
 
 Existing plans, audits, roadmaps, and checklists remain source evidence. Keep them for context, but mirror meaningful progress, plan changes, and priority changes in [project-state.md](project-state.md) and here.
 
+## 2026-07-20 — Carousel prototype review lab
+
+- Implemented and validated the development-only Carousel Lab on `/dev/buttons`: six production-faithful combinations compare Existing, Cover Flow, and 3D presentations across real Background and Music Station cards with shared accessible Embla mechanics, bounded media/resource behavior, current-device tuning, reduced-motion fallback, and mutation-free access fixtures. Production carousel rollout remains paused until the user chooses one shared Background winner and one Music Station winner.
+
 ## 2026-07-19 — Immersive Music visualizer acceptance
 
 - Added deterministic desktop and mobile browser acceptance for the shared Clock, Visual, and Background surfaces across anonymous playback continuity, exact-origin Minimize and Back behavior, stopped-station recovery, separate Clock/Music Show clock persistence, active-Chimer-only controls, dismissal/focus/portal rules, one-time hint storage fallback, safe geometry, reduced motion, resource cleanup, and signed-in default/failure/retry behavior.

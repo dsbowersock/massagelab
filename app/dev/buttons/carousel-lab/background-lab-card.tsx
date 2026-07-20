@@ -74,7 +74,11 @@ export function BackgroundLabCard(props: BackgroundLabCardProps) {
   }
 
   return (
-    <article className="grid h-full overflow-hidden rounded-xl border border-border bg-background/90">
+    <article
+      className="grid h-full overflow-hidden rounded-xl border border-border bg-background/90"
+      data-background-id={option.id}
+      data-background-selected={selected}
+    >
       <div
         className="relative aspect-[4/3] overflow-hidden rounded-t-xl"
         data-carousel-artwork
