@@ -1021,9 +1021,7 @@ export default function ChimerPage() {
             isFullscreen={isFullscreen}
             isAlerting={isAlerting}
             fontSize={fontSize}
-            movingBackgroundEnabled={immersiveContext === "musicVisualizer"
-              ? true
-              : runWithoutAnimatedBackground ? false : settings.movingBackgroundEnabled}
+            movingBackgroundEnabled={runWithoutAnimatedBackground ? false : settings.movingBackgroundEnabled}
             keepTimerScreenAwake={settings.keepTimerScreenAwake}
             clockRotationEnabled={settings.clockRotationEnabled}
             clockRotationRange={settings.clockRotationRange}

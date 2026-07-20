@@ -116,6 +116,7 @@ test("center display effects preserve measured bounds and reuse the existing dis
 })
 
 test("visual pause keeps the selected background mounted and zero glow blur remains unblurred", () => {
+  assert.match(pageSource, /movingBackgroundEnabled=\{runWithoutAnimatedBackground \? false : settings\.movingBackgroundEnabled\}/)
   assert.match(runningTimerSource, /const shouldRenderLiveBackground = mode\.selectedBackgroundId !== null[\s\S]*isLiveBackgroundSession/)
   assert.match(runningTimerSource, /motionEnabled=\{movingBackgroundEnabled\}/)
   assert.match(runningTimerSource, /aria-label=\{`Background animation:/)

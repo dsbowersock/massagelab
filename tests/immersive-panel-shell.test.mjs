@@ -17,7 +17,6 @@ const runningTimerSource = await read("app/chimer/running-timer.tsx")
 const runningTimerStyles = await read("app/chimer/running-timer.module.css")
 const planSource = await read("docs/superpowers/plans/2026-07-18-clock-chimer-music-visualizer.md")
 const specSource = await read("docs/superpowers/specs/2026-07-18-clock-chimer-music-visualizer-design.md")
-const taskBriefSource = await read(".superpowers/sdd/task-5-brief.md")
 
 test("exports the reusable controlled immersive panel contract", () => {
   assert.match(shellSource, /export type ImmersivePanelId = "clock" \| "visual" \| "background" \| null/)
@@ -100,8 +99,8 @@ test("RunningTimer owns one active panel without legacy settings tabs or auto-cl
   assert.doesNotMatch(runningTimerSource, /clockContent=\{\([\s\S]*label="Keep timer screen awake"[\s\S]*visualContent=/)
 })
 
-test("documents clarified Background dismissal, selection, and Visual hint behavior", () => {
-  for (const source of [planSource, specSource, taskBriefSource]) {
+test("tracked docs clarify Background dismissal, selection, and Visual hint behavior", () => {
+  for (const source of [planSource, specSource]) {
     assert.doesNotMatch(source, /close only through Close or `Escape`/i)
     assert.doesNotMatch(source, /outside overlay interaction does not close/i)
     assert.match(source, /Selecting an available background[\s\S]{0,300}closes Background/i)
