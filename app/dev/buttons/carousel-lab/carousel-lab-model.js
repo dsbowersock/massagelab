@@ -264,11 +264,15 @@ export function getPresentationVariables(presentation, surface, progress, tuning
       "--lab-opacity": String(Math.max(0.4, 1 - distance * 0.45)),
     }
   }
+  const nearMask = /** @type {number} */ (tuning.nearMask)
+  const farMask = /** @type {number} */ (tuning.farMask)
+  // Nearby cards favor nearMask; its influence yields to farMask toward the visible edge.
+  const maskFalloff = nearMask + (farMask - nearMask) * distance
   return {
     "--lab-x": "0px",
     "--lab-z": `${(-distance * /** @type {number} */ (tuning.depth)).toFixed(2)}px`,
     "--lab-rotate-y": `${(-progress * /** @type {number} */ (tuning.arcAngle)).toFixed(2)}deg`,
     "--lab-scale": String(/** @type {number} */ (tuning.centerScale) + (/** @type {number} */ (tuning.edgeScale) - /** @type {number} */ (tuning.centerScale)) * distance),
-    "--lab-opacity": String(Math.max(0.18, 1 - distance * (/** @type {number} */ (tuning.farMask) / 2.5))),
+    "--lab-opacity": String(Math.max(0.18, 1 - distance * (maskFalloff / 2.5))),
   }
 }

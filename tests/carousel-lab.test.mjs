@@ -95,4 +95,32 @@ describe("Carousel Lab model", () => {
     assert.equal(right["--lab-rotate-y"], "-33deg")
     assert.equal(getPresentationVariables("cover-flow", "backgrounds", 1, tuning, true)["--lab-scale"], "1")
   })
+
+  it("uses both near and far mask falloff for non-centered 3D cards", () => {
+    const tuning = getDefaultCarouselLabTuning("backgrounds", "three-d")
+    const progress = 1
+
+    const lowNear = getPresentationVariables("three-d", "backgrounds", progress, {
+      ...tuning,
+      nearMask: 0.25,
+    }, false)
+    const highNear = getPresentationVariables("three-d", "backgrounds", progress, {
+      ...tuning,
+      nearMask: 1.5,
+    }, false)
+    assert.notEqual(lowNear["--lab-opacity"], highNear["--lab-opacity"])
+
+    const lowFar = getPresentationVariables("three-d", "backgrounds", progress, {
+      ...tuning,
+      farMask: 1,
+    }, false)
+    const highFar = getPresentationVariables("three-d", "backgrounds", progress, {
+      ...tuning,
+      farMask: 3,
+    }, false)
+    assert.notEqual(lowFar["--lab-opacity"], highFar["--lab-opacity"])
+
+    assert.equal(getPresentationVariables("three-d", "backgrounds", 0, tuning, false)["--lab-opacity"], "1")
+    assert.equal(getPresentationVariables("three-d", "backgrounds", progress, tuning, true)["--lab-opacity"], "1")
+  })
 })
