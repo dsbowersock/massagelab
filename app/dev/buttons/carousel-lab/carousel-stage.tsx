@@ -18,7 +18,7 @@ export interface CarouselStageProps<T extends CarouselLabItem> {
   initialItemId?: string | null
   selectedItemId?: string | null
   surface: "backgrounds" | "stations"
-  presentation: "existing" | "cover-flow" | "three-d"
+  presentation: "existing" | "cover-flow" | "three-d" | "background-picker"
   tuning: Record<string, number | boolean>
   reducedMotion: boolean
   renderItem: (item: T, state: CarouselItemRenderState) => ReactNode

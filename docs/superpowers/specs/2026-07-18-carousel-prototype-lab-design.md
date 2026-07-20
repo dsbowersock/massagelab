@@ -1,5 +1,15 @@
 # Carousel Prototype Lab Design
 
+## Second review addendum — 2026-07-20
+
+The next user review expands the development-only comparison from six to seven combinations and supersedes conflicting defaults below:
+
+- Backgrounds retain Existing, Cover Flow, and 3D Carousel. Music Stations add a fourth `Background Picker` sample using the same radial geometry as the production Clock/Chimer Background picker.
+- The supplied screenshot values are the new device defaults under `massagelab-carousel-lab-v3`: Background Existing uses 268/18/4/27/420/0.05; Background Cover Flow uses 192/0/4/16/1.25/0.60/320/0.75/1; Music Cover Flow uses the same values with a 3-pixel reflection gap; Background 3D uses 200/0/4/50/14/1/1/2; and Music 3D uses 192/0/4/50/16/1/0.9/1.8. Loop and motion default on for these samples.
+- All Music Station samples loop when a category has at least three real stations. Nearby radius remains a bounded rendering budget and no longer blocks looping.
+- Background Select and Favorite controls move to the upper-left and upper-right preview corners for all three Background presentations. Side-card Background Cover Flow reflections fade out after 32% of the reflected artwork height.
+- This remains a review-only Track 3A change. It does not select a winner or alter a production carousel.
+
 ## Visual-review correction addendum — 2026-07-20
 
 The first implementation satisfied the original shared-controller constraints but over-adapted the two CodePens. User review rejected that approximation. This addendum supersedes conflicting mechanics below while preserving the Track 3A development-only boundary:

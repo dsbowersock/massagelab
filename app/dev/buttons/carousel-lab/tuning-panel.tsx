@@ -5,7 +5,7 @@ import { Switch } from "@/components/ui/switch"
 
 interface TuningPanelProps {
   surface: "backgrounds" | "stations"
-  presentation: "existing" | "cover-flow" | "three-d"
+  presentation: "existing" | "cover-flow" | "three-d" | "background-picker"
   value: Record<string, number | boolean>
   effectiveLoop: boolean
   reducedMotion: boolean
@@ -71,7 +71,7 @@ export function TuningPanel({
     ? coverFlowFields
     : presentation === "three-d"
       ? threeDFields
-      : surface === "backgrounds"
+      : surface === "backgrounds" || presentation === "background-picker"
         ? existingBackgroundFields
         : []
   const fields: readonly TuningField[] = [...sharedFields, ...adapterFields]

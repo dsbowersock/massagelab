@@ -71,7 +71,7 @@ export function BackgroundLabCard(props: BackgroundLabCardProps) {
       <article
         className={productionExisting
           ? "relative grid aspect-[5/7] h-full overflow-hidden rounded-2xl border border-white/20 bg-black text-white shadow-2xl"
-          : "grid h-full overflow-hidden rounded-xl border border-border bg-background/90"}
+          : "relative grid h-full overflow-hidden rounded-xl border border-border bg-background/90"}
         data-background-id={option.id}
         data-background-selected={selected}
         data-background-access-state={accessState}
@@ -113,6 +113,40 @@ export function BackgroundLabCard(props: BackgroundLabCardProps) {
         )}
       </div>
 
+      {detailLevel === "full" ? (
+        <div className="absolute inset-x-3 top-3 z-20 flex items-start justify-between gap-2">
+          {canUse ? (
+            <Button
+              data-carousel-primary-action
+              onClick={() => {
+                setDevOutcome("")
+                props.onSelect()
+              }}
+              size="sm"
+            >
+              {selected ? "Selected" : "Select"}
+            </Button>
+          ) : (
+            <AlertDialogTrigger asChild>
+              <Button data-carousel-primary-action size="sm">
+                <Lock aria-hidden="true" />
+                {selected ? "Selected" : "Select"}
+              </Button>
+            </AlertDialogTrigger>
+          )}
+          <Button
+            data-carousel-favorite-action
+            aria-label={`${saved ? "Unsave" : "Save"} ${option.label}`}
+            aria-pressed={saved}
+            onClick={props.onToggleSaved}
+            size="icon"
+            variant="outline"
+          >
+            <Star className={saved ? "fill-current" : ""} aria-hidden="true" />
+          </Button>
+        </div>
+      ) : null}
+
       <div className={productionExisting
         ? "relative z-10 mt-auto grid gap-2 self-end bg-gradient-to-t from-black/95 via-black/70 to-transparent p-3 pt-14"
         : "grid gap-2 p-3"}>
@@ -132,37 +166,6 @@ export function BackgroundLabCard(props: BackgroundLabCardProps) {
           ) : null}
         </div>
 
-        {detailLevel === "full" ? (
-          <div className="flex flex-wrap gap-2">
-            {canUse ? (
-              <Button
-                onClick={() => {
-                  setDevOutcome("")
-                  props.onSelect()
-                }}
-                size="sm"
-              >
-                {selected ? "Selected" : "Select"}
-              </Button>
-            ) : (
-              <AlertDialogTrigger asChild>
-                <Button size="sm">
-                  <Lock aria-hidden="true" />
-                  {selected ? "Selected" : "Select"}
-                </Button>
-              </AlertDialogTrigger>
-            )}
-            <Button
-              aria-label={`${saved ? "Unsave" : "Save"} ${option.label}`}
-              aria-pressed={saved}
-              onClick={props.onToggleSaved}
-              size="icon"
-              variant="outline"
-            >
-              <Star className={saved ? "fill-current" : ""} aria-hidden="true" />
-            </Button>
-          </div>
-        ) : null}
         {devOutcome ? <p role="status" className="text-xs text-primary">{devOutcome}</p> : null}
         </div>
       </article>

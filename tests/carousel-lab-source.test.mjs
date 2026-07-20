@@ -181,6 +181,26 @@ describe("Carousel Lab source boundaries", () => {
     assert.match(sharedCard, /data-carousel-artwork/)
   })
 
+  it("keeps Background actions in the requested preview-card corners and shortens side reflections", () => {
+    const card = read("app/dev/buttons/carousel-lab/background-lab-card.tsx")
+    const css = read("app/dev/buttons/carousel-lab/carousel-stage.module.css")
+
+    assert.match(card, /data-carousel-primary-action/)
+    assert.match(card, /data-carousel-favorite-action/)
+    assert.match(card, /absolute inset-x-3 top-3/)
+    assert.match(css, /data-surface="backgrounds"[^\n]*data-presentation="cover-flow"/)
+    assert.match(css, /data-centered="false"[\s\S]*?transparent 32%/)
+  })
+
+  it("adds a Station Background Picker sample without changing Station identities", () => {
+    const lab = read("app/dev/buttons/carousel-lab/carousel-lab.tsx")
+    const surface = read("app/dev/buttons/carousel-lab/station-lab-surface.tsx")
+
+    assert.match(lab, /background-picker/)
+    assert.match(lab, /surface === "stations"/)
+    assert.doesNotMatch(surface, /loop-\d|sourceId/)
+  })
+
   it("describes every tuning property in plain language", () => {
     const panel = read("app/dev/buttons/carousel-lab/tuning-panel.tsx")
     assert.match(panel, /description:/)

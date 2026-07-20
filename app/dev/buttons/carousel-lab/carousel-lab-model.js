@@ -2,7 +2,7 @@
 
 /**
  * @typedef {"backgrounds" | "stations"} CarouselLabSurface
- * @typedef {"existing" | "cover-flow" | "three-d"} CarouselLabPresentation
+ * @typedef {"existing" | "cover-flow" | "three-d" | "background-picker"} CarouselLabPresentation
  * @typedef {{ id: string }} CarouselLabItem
  * @typedef {{
  *   cardWidth: number,
@@ -14,38 +14,43 @@
  * }} CarouselLabTuning
  */
 
-export const CAROUSEL_LAB_STORAGE_KEY = "massagelab-carousel-lab-v2"
+export const CAROUSEL_LAB_STORAGE_KEY = "massagelab-carousel-lab-v3"
 export const CAROUSEL_LAB_PAIRS = Object.freeze([
   "backgrounds:existing", "backgrounds:cover-flow", "backgrounds:three-d",
   "stations:existing", "stations:cover-flow", "stations:three-d",
+  "stations:background-picker",
 ])
 
 const pairDefaults = {
   backgrounds: {
     existing: {
-      cardWidth: 224, gap: 0, visibleRadius: 3, loop: true, motion: true,
-      spread: 35, radius: 285, scaleFalloff: 0.16,
+      cardWidth: 268, gap: 18, visibleRadius: 4, loop: true, motion: true,
+      spread: 27, radius: 420, scaleFalloff: 0.05,
     },
     "cover-flow": {
-      cardWidth: 216, gap: 0, visibleRadius: 4, loop: true, motion: true,
-      rotation: 33, centerScale: 1.2, edgeScale: 0.75, perspective: 1000,
-      reflection: true, reflectionOpacity: 0.75, reflectionGap: 8,
+      cardWidth: 192, gap: 0, visibleRadius: 4, loop: true, motion: true,
+      rotation: 16, centerScale: 1.25, edgeScale: 0.6, perspective: 320,
+      reflection: true, reflectionOpacity: 0.75, reflectionGap: 1,
     },
     "three-d": {
-      cardWidth: 192, gap: 20, visibleRadius: 4, loop: false, motion: true,
-      perspective: 320, ringItems: 16, depth: 1, nearMask: 0.9, farMask: 1.8,
+      cardWidth: 200, gap: 0, visibleRadius: 4, loop: true, motion: true,
+      perspective: 50, ringItems: 14, depth: 1, nearMask: 1, farMask: 2,
     },
   },
   stations: {
-    existing: { cardWidth: 208, gap: 20, visibleRadius: 2, loop: false, motion: true },
+    existing: { cardWidth: 208, gap: 20, visibleRadius: 2, loop: true, motion: true },
     "cover-flow": {
       cardWidth: 192, gap: 0, visibleRadius: 4, loop: true, motion: true,
-      rotation: 33, centerScale: 1.2, edgeScale: 0.75, perspective: 1000,
-      reflection: true, reflectionOpacity: 0.75, reflectionGap: 8,
+      rotation: 16, centerScale: 1.25, edgeScale: 0.6, perspective: 320,
+      reflection: true, reflectionOpacity: 0.75, reflectionGap: 3,
     },
     "three-d": {
-      cardWidth: 192, gap: 20, visibleRadius: 4, loop: false, motion: true,
-      perspective: 320, ringItems: 16, depth: 1, nearMask: 0.9, farMask: 1.8,
+      cardWidth: 192, gap: 0, visibleRadius: 4, loop: true, motion: true,
+      perspective: 50, ringItems: 16, depth: 1, nearMask: 0.9, farMask: 1.8,
+    },
+    "background-picker": {
+      cardWidth: 192, gap: 0, visibleRadius: 4, loop: true, motion: true,
+      spread: 27, radius: 420, scaleFalloff: 0.05,
     },
   },
 }
@@ -91,7 +96,9 @@ function numberAt(value, fallback, range) {
  * @returns {CarouselLabTuning}
  */
 export function getDefaultCarouselLabTuning(surface, presentation) {
-  const surfaceDefaults = pairDefaults[surface] ?? pairDefaults.backgrounds
+  const surfaceDefaults = /** @type {Record<string, CarouselLabTuning>} */ (
+    pairDefaults[surface] ?? pairDefaults.backgrounds
+  )
   return /** @type {CarouselLabTuning} */ ({
     ...(surfaceDefaults[presentation] ?? surfaceDefaults.existing),
   })
@@ -115,8 +122,8 @@ export function sanitizeCarouselLabTuning(surface, presentation, value) {
     loop: typeof input.loop === "boolean" ? input.loop : defaults.loop,
     motion: typeof input.motion === "boolean" ? input.motion : defaults.motion,
   }
-  if (presentation === "existing") {
-    if (surface === "stations") return output
+  if (presentation === "existing" || presentation === "background-picker") {
+    if (presentation === "existing" && surface === "stations") return output
     return {
       ...output,
       spread: numberAt(input.spread, /** @type {number} */ (defaults.spread), ranges.spread),
@@ -156,7 +163,7 @@ export function parseCarouselLabStorage(raw) {
   let values = {}
   try {
     const parsed = typeof raw === "string" ? JSON.parse(raw) : null
-    values = parsed?.version === 2 && parsed.values && typeof parsed.values === "object" ? parsed.values : {}
+    values = parsed?.version === 3 && parsed.values && typeof parsed.values === "object" ? parsed.values : {}
   } catch {
     values = {}
   }
@@ -175,7 +182,7 @@ export function serializeCarouselLabStorage(record) {
     const [surface, presentation] = /** @type {[CarouselLabSurface, CarouselLabPresentation]} */ (key.split(":"))
     return [key, sanitizeCarouselLabTuning(surface, presentation, record?.[key])]
   }))
-  return JSON.stringify({ version: 2, values })
+  return JSON.stringify({ version: 3, values })
 }
 
 /**
@@ -185,7 +192,7 @@ export function serializeCarouselLabStorage(record) {
  * @returns {boolean}
  */
 export function resolveEffectiveLoop(itemCount, visibleRadius, requested) {
-  return Boolean(requested && itemCount > visibleRadius * 2 + 1)
+  return Boolean(requested && itemCount >= 3)
 }
 
 // Stable, unique IDs are the identity contract shared by centering and nearby mounts.
@@ -260,7 +267,7 @@ export function getPresentationVariables(presentation, surface, progress, tuning
   const absoluteProgress = Math.abs(progress)
   const visibleRadius = Math.max(1, /** @type {number} */ (tuning.visibleRadius))
   const distance = Math.min(1, absoluteProgress / visibleRadius)
-  if (presentation === "existing") {
+  if (presentation === "existing" || presentation === "background-picker") {
     const angle = progress * /** @type {number} */ (tuning.spread)
     const radians = angle * Math.PI / 180
     const linearOffset = progress * (

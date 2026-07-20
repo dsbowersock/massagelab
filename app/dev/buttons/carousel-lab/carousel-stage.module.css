@@ -106,7 +106,21 @@
 
 .root[data-presentation="cover-flow"][data-reflection="true"] [data-carousel-artwork] {
   -webkit-box-reflect: below var(--lab-reflection-gap, 8px)
-    linear-gradient(transparent 0 50%, rgb(255 255 255 / var(--lab-reflection-opacity, 0.75)) 100%);
+    linear-gradient(
+      to bottom,
+      rgb(255 255 255 / var(--lab-reflection-opacity, 0.75)) 0%,
+      transparent 48%
+    );
+}
+
+.root[data-surface="backgrounds"][data-presentation="cover-flow"][data-reflection="true"]
+  .slide[data-centered="false"] [data-carousel-artwork] {
+  -webkit-box-reflect: below var(--lab-reflection-gap, 8px)
+    linear-gradient(
+      to bottom,
+      rgb(255 255 255 / var(--lab-reflection-opacity, 0.75)) 0%,
+      transparent 32%
+    );
 }
 
 .root[data-presentation="cover-flow"][data-reflection="true"] .renderer > article,

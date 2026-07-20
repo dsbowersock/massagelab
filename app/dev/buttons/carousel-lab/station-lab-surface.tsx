@@ -17,7 +17,7 @@ import { StationLabCard } from "./station-lab-card"
 const stationGroups = groupAtmosphereStations(getVisibleAtmosphereStations())
 
 export interface StationLabSurfaceProps {
-  presentation: "existing" | "cover-flow" | "three-d"
+  presentation: "existing" | "cover-flow" | "three-d" | "background-picker"
   tuning: Record<string, number | boolean>
   reducedMotion: boolean
   onEffectiveLoopChange: (value: boolean) => void

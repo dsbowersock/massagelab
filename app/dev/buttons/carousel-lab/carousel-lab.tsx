@@ -14,21 +14,26 @@ import { StationLabSurface } from "./station-lab-surface"
 import { TuningPanel } from "./tuning-panel"
 
 type CarouselSurface = "backgrounds" | "stations"
-type CarouselPresentation = "existing" | "cover-flow" | "three-d"
+type CarouselPresentation = "existing" | "cover-flow" | "three-d" | "background-picker"
 
 const SURFACES: readonly { value: CarouselSurface; label: string }[] = [
   { value: "backgrounds", label: "Backgrounds" },
   { value: "stations", label: "Music Stations" },
 ]
 
-const PRESENTATIONS: readonly { value: CarouselPresentation; label: string }[] = [
+const PRESENTATIONS: readonly {
+  value: CarouselPresentation
+  label: string
+  stationsOnly?: boolean
+}[] = [
   { value: "existing", label: "Existing" },
   { value: "cover-flow", label: "Cover Flow" },
   { value: "three-d", label: "3D Carousel" },
+  { value: "background-picker", label: "Background Picker", stationsOnly: true },
 ]
 
 /**
- * Hosts six independent device-local tuning records while mounting only the
+ * Hosts seven independent device-local tuning records while mounting only the
  * currently selected prototype surface.
  */
 export function CarouselLab() {
@@ -39,6 +44,9 @@ export function CarouselLab() {
   const [storageHydrated, setStorageHydrated] = useState(false)
   const [deviceReducedMotion, setDeviceReducedMotion] = useState(false)
   const [effectiveLoop, setEffectiveLoop] = useState(false)
+  const availablePresentations = PRESENTATIONS.filter((option) =>
+    surface === "stations" || !option.stationsOnly,
+  )
 
   useEffect(() => {
     try {
@@ -75,6 +83,9 @@ export function CarouselLab() {
 
   const handleSurfaceChange = (nextSurface: CarouselSurface) => {
     setEffectiveLoop(false)
+    if (nextSurface === "backgrounds" && presentation === "background-picker") {
+      setPresentation("existing")
+    }
     setSurface(nextSurface)
   }
 
@@ -104,7 +115,7 @@ export function CarouselLab() {
           Carousel comparison lab
         </h2>
         <p className="max-w-4xl text-sm leading-6 text-muted-foreground">
-          Compare the existing rail, Cover Flow, and 3D treatments with real Background and Music Station cards.
+          Compare the existing rail, Cover Flow, 3D, and the production Background Picker treatment with real cards.
         </p>
       </header>
 
@@ -131,7 +142,7 @@ export function CarouselLab() {
         <div>
           <p className="mb-2 text-sm font-medium">Presentation</p>
           <div role="radiogroup" aria-label="Presentation" className="flex flex-wrap gap-2">
-            {PRESENTATIONS.map((option) => (
+            {availablePresentations.map((option) => (
               <Button
                 key={option.value}
                 type="button"
@@ -163,7 +174,7 @@ export function CarouselLab() {
           {surface === "backgrounds" ? (
             <BackgroundLabSurface
               key={pairKey}
-              presentation={presentation}
+              presentation={presentation === "background-picker" ? "existing" : presentation}
               tuning={tuning}
               reducedMotion={reducedMotion}
               onEffectiveLoopChange={setEffectiveLoop}

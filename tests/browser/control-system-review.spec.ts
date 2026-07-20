@@ -52,13 +52,16 @@ test.describe("control-system review lab", () => {
     expect(pageOverflows).toBe(false)
   })
 
-  test("Carousel Lab exposes six real combinations with center-before-action", async ({ page }, testInfo) => {
+  test("Carousel Lab exposes seven real combinations with center-before-action", async ({ page }, testInfo) => {
     await page.getByRole("tab", { name: "Carousels" }).click()
     await expect(page.getByTestId("carousel-lab")).toBeVisible()
 
     for (const surface of ["Backgrounds", "Music Stations"]) {
       await page.getByRole("radio", { name: surface, exact: true }).click()
-      for (const presentation of ["Existing", "Cover Flow", "3D Carousel"]) {
+      const presentations = surface === "Music Stations"
+        ? ["Existing", "Cover Flow", "3D Carousel", "Background Picker"]
+        : ["Existing", "Cover Flow", "3D Carousel"]
+      for (const presentation of presentations) {
         await page.getByRole("radio", { name: presentation, exact: true }).click()
         await expect(page.getByTestId("carousel-lab-stage")).toHaveCount(1)
         await expect(page.getByTestId("carousel-lab-summary")).toContainText(surface)
@@ -135,7 +138,7 @@ test.describe("control-system review lab", () => {
     await expect(page.getByTestId("carousel-lab-summary")).toContainText("248px")
 
     await page.getByRole("radio", { name: "Cover Flow", exact: true }).click()
-    await expect(page.getByTestId("carousel-lab-summary")).toContainText("216px")
+    await expect(page.getByTestId("carousel-lab-summary")).toContainText("192px")
     await width.evaluate((input) => {
       const range = input as HTMLInputElement
       const nativeValueSetter = Object.getOwnPropertyDescriptor(
@@ -154,7 +157,7 @@ test.describe("control-system review lab", () => {
     await page.getByRole("tab", { name: "Carousels" }).click()
     await expect(page.getByTestId("carousel-lab-summary")).toContainText("248px")
     await page.getByRole("button", { name: "Reset current pair" }).click()
-    await expect(page.getByTestId("carousel-lab-summary")).toContainText("224px")
+    await expect(page.getByTestId("carousel-lab-summary")).toContainText("268px")
     await page.getByRole("radio", { name: "Cover Flow", exact: true }).click()
     await expect(page.getByTestId("carousel-lab-summary")).toContainText("232px")
 
@@ -290,6 +293,56 @@ test.describe("control-system review lab", () => {
     const visualTransform = wrappedSlide.locator('[data-carousel-transform="true"]')
     await expect(visualTransform).toHaveCount(1)
     await expect.poll(() => visualTransform.evaluate((element) => getComputedStyle(element).transform)).not.toBe("none")
+  })
+
+  test("Carousel Lab places Background actions in preview corners and loops every Station sample", async ({ page }) => {
+    await page.getByRole("tab", { name: "Carousels" }).click()
+
+    await expect(page.getByRole("radio", { name: "Background Picker", exact: true })).toHaveCount(0)
+    for (const presentation of ["Existing", "Cover Flow", "3D Carousel"]) {
+      await page.getByRole("radio", { name: presentation, exact: true }).click()
+      const centered = page.locator('[data-carousel-slide="true"][data-centered="true"]')
+      const card = centered.locator("article")
+      const select = centered.locator("[data-carousel-primary-action]")
+      const favorite = centered.locator("[data-carousel-favorite-action]")
+      const boxes = await Promise.all([
+        card.boundingBox(),
+        select.boundingBox(),
+        favorite.boundingBox(),
+      ])
+      expect(boxes.every(Boolean)).toBe(true)
+      const [cardBox, selectBox, favoriteBox] = boxes
+      expect(selectBox!.x).toBeLessThan(cardBox!.x + cardBox!.width / 2)
+      expect(favoriteBox!.x + favoriteBox!.width).toBeGreaterThan(cardBox!.x + cardBox!.width / 2)
+      expect(selectBox!.y).toBeLessThanOrEqual(cardBox!.y + 24)
+      expect(favoriteBox!.y).toBeLessThanOrEqual(cardBox!.y + 24)
+      if (presentation === "Cover Flow") {
+        const sideReflection = await page
+          .locator('[data-carousel-slide="true"][data-centered="false"] [data-carousel-artwork]')
+          .first()
+          .evaluate((element) => (
+            getComputedStyle(element) as CSSStyleDeclaration & { webkitBoxReflect: string }
+          ).webkitBoxReflect)
+        expect(sideReflection).toContain("32%")
+      }
+    }
+
+    await page.getByRole("radio", { name: "Music Stations", exact: true }).click()
+    await expect(page.getByRole("radio", { name: "Background Picker", exact: true })).toBeVisible()
+    for (const presentation of ["Existing", "Cover Flow", "3D Carousel", "Background Picker"]) {
+      await page.getByRole("radio", { name: presentation, exact: true }).click()
+      await expect(page.getByTestId("carousel-lab-summary")).toContainText("Loop: On")
+      await expect(page.getByText("Loop unavailable for this item count")).toHaveCount(0)
+      const slides = page.locator('[data-carousel-slide="true"]')
+      await slides.first().click()
+      await expect(slides.first()).toHaveAttribute("data-centered", "true")
+      await page.getByRole("button", { name: "Previous carousel item" }).click()
+      await expect(slides.last()).toHaveAttribute("data-centered", "true")
+    }
+
+    await page.getByRole("radio", { name: "Backgrounds", exact: true }).click()
+    await expect(page.getByRole("radio", { name: "Background Picker", exact: true })).toHaveCount(0)
+    await expect(page.getByTestId("carousel-lab-summary")).toContainText("Presentation: Existing")
   })
 
   test("Carousel Lab restores a non-first station position across categories", async ({ page }) => {

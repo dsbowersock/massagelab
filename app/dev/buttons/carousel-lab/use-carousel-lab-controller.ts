@@ -29,7 +29,7 @@ interface UseCarouselLabControllerOptions {
   initialItemId?: string | null
   selectedItemId?: string | null
   surface: "backgrounds" | "stations"
-  presentation: "existing" | "cover-flow" | "three-d"
+  presentation: "existing" | "cover-flow" | "three-d" | "background-picker"
   tuning: Record<string, number | boolean>
   reducedMotion: boolean
   onCenteredItemChange?: (itemId: string) => void
