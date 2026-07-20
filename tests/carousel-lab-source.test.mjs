@@ -26,6 +26,33 @@ describe("Carousel Lab source boundaries", () => {
     assert.match(css, /data-carousel-artwork/)
   })
 
+  it("forces a finite keyboard rail when carousel motion is off", () => {
+    const controller = read("app/dev/buttons/carousel-lab/use-carousel-lab-controller.ts")
+    assert.match(controller, /const finiteRail = reducedMotion \|\| tuning\.motion === false/)
+    assert.match(controller, /const effectiveLoop = finiteRail\s+\? false/)
+    assert.match(controller, /if \(!effectiveLoop && event\.key === "Home"\)/)
+    assert.match(controller, /if \(!effectiveLoop && event\.key === "End"\)/)
+  })
+
+  it("cancels stale dependency frames before scheduling current transforms", () => {
+    const controller = read("app/dev/buttons/carousel-lab/use-carousel-lab-controller.ts")
+    const listenerEffect = controller.match(
+      /useEffect\(\(\) => \{\s+if \(!api\) return\s+const select = \(\) => \{[\s\S]*?\n  \}, \[api, effectiveLoop, items, scheduleTransformWrite\]\)/,
+    )?.[0]
+
+    assert.ok(listenerEffect, "expected the Embla listener effect")
+    assert.match(listenerEffect, /scheduleTransformWrite\(\)/)
+    assert.match(listenerEffect, /select\(\)\s+api\.on\("select", select\)/)
+    assert.match(
+      listenerEffect,
+      /api\.off\("scroll", scheduleTransformWrite\)[\s\S]*?if \(frameRef\.current !== null\) \{[\s\S]*?cancelAnimationFrame\(frameRef\.current\)[\s\S]*?frameRef\.current = null/,
+    )
+    assert.match(
+      controller,
+      /\}, \[api, effectiveLoop, items, presentation, reducedMotion, surface, tuning\]\)[\s\S]*?\}, \[writeTransforms\]\)/,
+    )
+  })
+
   it("normalizes item identity once at the stage boundary", () => {
     const stage = read("app/dev/buttons/carousel-lab/carousel-stage.tsx")
     assert.match(stage, /normalizeCarouselLabItems/)

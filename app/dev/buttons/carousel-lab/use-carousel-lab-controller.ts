@@ -33,7 +33,8 @@ interface UseCarouselLabControllerOptions {
  */
 export function useCarouselLabController(options: UseCarouselLabControllerOptions) {
   const { items, initialItemId, selectedItemId, surface, presentation, tuning, reducedMotion } = options
-  const effectiveLoop = reducedMotion
+  const finiteRail = reducedMotion || tuning.motion === false
+  const effectiveLoop = finiteRail
     ? false
     : resolveEffectiveLoop(items.length, Number(tuning.visibleRadius), Boolean(tuning.loop))
   const [viewportRef, api] = useEmblaCarousel({
@@ -42,7 +43,7 @@ export function useCarouselLabController(options: UseCarouselLabControllerOption
     dragFree: false,
     loop: effectiveLoop,
     skipSnaps: false,
-    duration: reducedMotion || tuning.motion === false ? 0 : 24,
+    duration: finiteRail ? 0 : 24,
   })
   const itemElements = useRef(new Map<string, HTMLElement>())
   const frameRef = useRef<number | null>(null)
@@ -107,6 +108,10 @@ export function useCarouselLabController(options: UseCarouselLabControllerOption
       api.off("select", select)
       api.off("reInit", select)
       api.off("scroll", scheduleTransformWrite)
+      if (frameRef.current !== null) {
+        window.cancelAnimationFrame(frameRef.current)
+        frameRef.current = null
+      }
     }
   }, [api, effectiveLoop, items, scheduleTransformWrite])
 
