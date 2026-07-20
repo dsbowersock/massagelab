@@ -23,11 +23,14 @@ const runningTimerSource = readFileSync(new URL("../app/chimer/running-timer.tsx
 const projectLogSource = readFileSync(new URL("../docs/project-log.md", import.meta.url), "utf8")
 
 describe("premium background registry", () => {
-  it("adapts the verified public MIT Neon Clock concepts as bounded native CSS", () => {
+  it("records the verified public MIT Neon Clock attribution", () => {
     assert.match(projectLogSource, /https:\/\/codepen\.io\/wheatup\/pen\/JjzdMbK/)
     assert.match(projectLogSource, /wheatup/)
     assert.match(projectLogSource, /public[\s\S]*MIT/)
     assert.match(projectLogSource, /adapt(?:ed|ation)[\s\S]*native React and CSS/i)
+  })
+
+  it("keeps display rotation bounded and reduced-motion safe", () => {
     assert.match(runningTimerStyles, /\.displayEffectBounds\s*\{[\s\S]*perspective:\s*45rem/)
     assert.match(runningTimerStyles, /@keyframes immersiveDisplayYaw/)
     assert.match(runningTimerStyles, /rotateY\(var\(--immersive-display-yaw-min, -10deg\)\)/)
@@ -36,6 +39,13 @@ describe("premium background registry", () => {
       runningTimerStyles,
       /animation:\s*immersiveDisplayYaw var\(--immersive-display-yaw-duration, 40s\) ease-in-out infinite/,
     )
+    assert.match(
+      runningTimerStyles,
+      /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.displayRotationEnabled\s*\{[\s\S]*animation:\s*none/,
+    )
+  })
+
+  it("keeps forward-glow projection layers bounded and visually clipped", () => {
     const forwardGlowRule = runningTimerStyles.match(/\.forwardGlowProjection\s*\{([^}]+)\}/)?.[1]
     assert.ok(forwardGlowRule)
     assert.match(forwardGlowRule, /rotateX\(-90\.1deg\)/)
@@ -58,23 +68,22 @@ describe("premium background registry", () => {
     assert.match(runningTimerStyles, /\.forwardGlowLayer::before\s*\{[^}]*width:\s*400%;[^}]*height:\s*400%;/s)
     assert.match(runningTimerStyles, /\.forwardGlowBloom\s+\.currentTimeDigit[^}]*mask-image:\s*linear-gradient/s)
     assert.match(runningTimerStyles, /\.forwardGlowReflection\s+\.currentTimeDigit[^}]*mask-image:\s*linear-gradient/s)
+    assert.match(runningTimerStyles, /\.primaryDisplay\s*\{[\s\S]*overflow:\s*hidden/)
+    assert.match(runningTimerStyles, /\.primaryDisplayForwardGlowEnabled\s*\{[^}]*overflow:\s*visible/s)
+    assert.match(runningTimerStyles, /\.secondaryDisplay\s*\{[\s\S]*overflow:\s*hidden/)
+  })
+
+  it("keeps forward-glow controls and calculations within their persisted bounds", () => {
     assert.match(runningTimerSource, /label="Projection length"[\s\S]*?max=\{4\}/)
     assert.match(runningTimerSource, /Math\.round\(\(clockForwardGlowLength \/ 4\) \* 100\)/)
     assert.match(runningTimerSource, /Math\.round\(\(clockForwardGlowBlur \/ 64\) \* 100\)/)
     assert.doesNotMatch(runningTimerSource, />Display effects</)
-  assert.match(runningTimerSource, /Math\.sqrt\(clockForwardGlowStrength\)/)
-  assert.match(runningTimerSource, /Math\.max\(1, clockForwardGlowBlur \* 0\.14\)/)
-  assert.match(runningTimerSource, /Math\.max\(3, clockForwardGlowBlur \* 0\.32\)/)
+    assert.match(runningTimerSource, /Math\.sqrt\(clockForwardGlowStrength\)/)
+    assert.match(runningTimerSource, /Math\.max\(1, clockForwardGlowBlur \* 0\.14\)/)
+    assert.match(runningTimerSource, /Math\.max\(3, clockForwardGlowBlur \* 0\.32\)/)
     assert.match(runningTimerSource, /--immersive-forward-glow-dock-runway/)
     assert.match(runningTimerSource, /clockForwardGlowLength - 0\.5/)
-    assert.match(runningTimerStyles, /\.primaryDisplay\s*\{[\s\S]*overflow:\s*hidden/)
-    assert.match(runningTimerStyles, /\.primaryDisplayForwardGlowEnabled\s*\{[^}]*overflow:\s*visible/s)
     assert.equal((runningTimerSource.match(/styles\.primaryDisplayForwardGlowEnabled/g) ?? []).length, 2)
-    assert.match(runningTimerStyles, /\.secondaryDisplay\s*\{[\s\S]*overflow:\s*hidden/)
-    assert.match(
-      runningTimerStyles,
-      /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.displayRotationEnabled\s*\{[\s\S]*animation:\s*none/,
-    )
   })
 
   it("keeps the default background free and the Music key available for legacy reads", () => {

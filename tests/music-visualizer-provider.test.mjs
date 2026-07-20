@@ -64,6 +64,14 @@ describe("Music visualizer provider contract", () => {
     )
   })
 
+  it("mirrors committed storage state without side effects in state updaters", () => {
+    assert.match(
+      providerSource,
+      /useEffect\(\(\) => \{\s*storageStateRef\.current = storageState\s*\}, \[storageState\]\)/,
+    )
+    assert.equal((providerSource.match(/storageStateRef\.current =/g) ?? []).length, 2)
+  })
+
   it("retains station identity when stopCurrent stops the runtime", () => {
     const start = providerSource.indexOf("const stopCurrent")
     const end = providerSource.indexOf("// Expose the active station", start)

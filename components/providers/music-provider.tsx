@@ -405,15 +405,13 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       failedAccountPayloadRef.current = null
       setAccountDefaultBackgroundId(accountPreferences.defaultBackgroundId)
       setStorageState((current) => {
-        const nextState = {
+        return {
           ...current,
           visualizer: {
             ...current.visualizer,
             showClock: accountPreferences.showClock,
           },
         }
-        storageStateRef.current = nextState
-        return nextState
       })
       setAccountStatus("synced")
       setAccountError(null)
@@ -460,6 +458,12 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     setStorageError(hydration.storageError)
     setStorageHydrated(true)
   }, [])
+
+  // Mirror committed browser preferences for callbacks that need the latest
+  // state without introducing side effects inside React state updaters.
+  useEffect(() => {
+    storageStateRef.current = storageState
+  }, [storageState])
 
   // Persist only after hydration so the default state cannot overwrite an
   // existing browser preference before it has been read.
@@ -720,24 +724,20 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         ...current.visualizer,
         backgroundId,
       })
-      const nextState = { ...current, visualizer }
-      storageStateRef.current = nextState
-      return nextState
+      return { ...current, visualizer }
     })
   }, [])
 
   const setVisualizerShowClock = useCallback((showClock: boolean) => {
     const normalizedShowClock = showClock === true
     setStorageState((current) => {
-      const nextState = {
+      return {
         ...current,
         visualizer: {
           ...current.visualizer,
           showClock: normalizedShowClock,
         },
       }
-      storageStateRef.current = nextState
-      return nextState
     })
 
     if (accountSyncVerifiedRef.current && accountPreferencesHydratedRef.current) {
@@ -774,15 +774,13 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
   const restoreVisualizerAccountDefault = useCallback(() => {
     setStorageState((current) => {
-      const nextState = {
+      return {
         ...current,
         visualizer: {
           ...current.visualizer,
           backgroundId: null,
         },
       }
-      storageStateRef.current = nextState
-      return nextState
     })
   }, [])
 
