@@ -1,5 +1,19 @@
 // @ts-check
 
+/**
+ * @typedef {"backgrounds" | "stations"} CarouselLabSurface
+ * @typedef {"existing" | "cover-flow" | "three-d"} CarouselLabPresentation
+ * @typedef {{ id: string }} CarouselLabItem
+ * @typedef {{
+ *   cardWidth: number,
+ *   gap: number,
+ *   visibleRadius: number,
+ *   loop: boolean,
+ *   motion: boolean,
+ *   [key: string]: number | boolean,
+ * }} CarouselLabTuning
+ */
+
 export const CAROUSEL_LAB_STORAGE_KEY = "massagelab-carousel-lab-v1"
 export const CAROUSEL_LAB_PAIRS = Object.freeze([
   "backgrounds:existing", "backgrounds:cover-flow", "backgrounds:three-d",
@@ -45,6 +59,12 @@ const ranges = {
 }
 
 // Clamp and snap persisted values to the same increments exposed by Lab controls.
+/**
+ * @param {unknown} value
+ * @param {number} fallback
+ * @param {readonly number[]} range
+ * @returns {number}
+ */
 function numberAt(value, fallback, range) {
   const numeric = Number(value)
   if (!Number.isFinite(numeric)) return fallback
@@ -53,14 +73,27 @@ function numberAt(value, fallback, range) {
   return Number((Math.round(clamped / step) * step).toFixed(4))
 }
 
+/**
+ * @param {CarouselLabSurface} surface
+ * @param {CarouselLabPresentation} presentation
+ * @returns {CarouselLabTuning}
+ */
 export function getDefaultCarouselLabTuning(surface, presentation) {
   const common = sharedDefaults[surface] ?? sharedDefaults.backgrounds
   const adapter = adapterDefaults[presentation] ?? adapterDefaults.existing
-  return { ...common, ...adapter }
+  return /** @type {CarouselLabTuning} */ ({ ...common, ...adapter })
 }
 
+/**
+ * @param {CarouselLabSurface} surface
+ * @param {CarouselLabPresentation} presentation
+ * @param {unknown} value
+ * @returns {CarouselLabTuning}
+ */
 export function sanitizeCarouselLabTuning(surface, presentation, value) {
-  const input = value && typeof value === "object" ? value : {}
+  const input = value && typeof value === "object"
+    ? /** @type {Record<string, unknown>} */ (value)
+    : {}
   const defaults = getDefaultCarouselLabTuning(surface, presentation)
   const output = {
     cardWidth: numberAt(input.cardWidth, defaults.cardWidth, ranges.cardWidth[surface] ?? ranges.cardWidth.backgrounds),
@@ -73,37 +106,42 @@ export function sanitizeCarouselLabTuning(surface, presentation, value) {
     if (surface === "stations") return output
     return {
       ...output,
-      spread: numberAt(input.spread, defaults.spread, ranges.spread),
-      radius: numberAt(input.radius, defaults.radius, ranges.radius),
-      scaleFalloff: numberAt(input.scaleFalloff, defaults.scaleFalloff, ranges.scaleFalloff),
+      spread: numberAt(input.spread, /** @type {number} */ (defaults.spread), ranges.spread),
+      radius: numberAt(input.radius, /** @type {number} */ (defaults.radius), ranges.radius),
+      scaleFalloff: numberAt(input.scaleFalloff, /** @type {number} */ (defaults.scaleFalloff), ranges.scaleFalloff),
     }
   }
   if (presentation === "cover-flow") {
     return {
       ...output,
-      rotation: numberAt(input.rotation, defaults.rotation, ranges.rotation),
-      centerScale: numberAt(input.centerScale, defaults.centerScale, ranges.centerScaleCover),
-      edgeScale: numberAt(input.edgeScale, defaults.edgeScale, ranges.edgeScaleCover),
-      perspective: numberAt(input.perspective, defaults.perspective, ranges.perspectiveCover),
-      reflection: typeof input.reflection === "boolean" ? input.reflection : defaults.reflection,
-      reflectionOpacity: numberAt(input.reflectionOpacity, defaults.reflectionOpacity, ranges.reflectionOpacity),
-      reflectionGap: numberAt(input.reflectionGap, defaults.reflectionGap, ranges.reflectionGap),
+      rotation: numberAt(input.rotation, /** @type {number} */ (defaults.rotation), ranges.rotation),
+      centerScale: numberAt(input.centerScale, /** @type {number} */ (defaults.centerScale), ranges.centerScaleCover),
+      edgeScale: numberAt(input.edgeScale, /** @type {number} */ (defaults.edgeScale), ranges.edgeScaleCover),
+      perspective: numberAt(input.perspective, /** @type {number} */ (defaults.perspective), ranges.perspectiveCover),
+      reflection: typeof input.reflection === "boolean" ? input.reflection : /** @type {boolean} */ (defaults.reflection),
+      reflectionOpacity: numberAt(input.reflectionOpacity, /** @type {number} */ (defaults.reflectionOpacity), ranges.reflectionOpacity),
+      reflectionGap: numberAt(input.reflectionGap, /** @type {number} */ (defaults.reflectionGap), ranges.reflectionGap),
     }
   }
   return {
     ...output,
-    perspective: numberAt(input.perspective, defaults.perspective, ranges.perspectiveThreeD),
-    arcAngle: numberAt(input.arcAngle, defaults.arcAngle, ranges.arcAngle),
-    depth: numberAt(input.depth, defaults.depth, ranges.depth),
-    centerScale: numberAt(input.centerScale, defaults.centerScale, ranges.centerScaleThreeD),
-    edgeScale: numberAt(input.edgeScale, defaults.edgeScale, ranges.edgeScaleThreeD),
-    nearMask: numberAt(input.nearMask, defaults.nearMask, ranges.nearMask),
-    farMask: numberAt(input.farMask, defaults.farMask, ranges.farMask),
+    perspective: numberAt(input.perspective, /** @type {number} */ (defaults.perspective), ranges.perspectiveThreeD),
+    arcAngle: numberAt(input.arcAngle, /** @type {number} */ (defaults.arcAngle), ranges.arcAngle),
+    depth: numberAt(input.depth, /** @type {number} */ (defaults.depth), ranges.depth),
+    centerScale: numberAt(input.centerScale, /** @type {number} */ (defaults.centerScale), ranges.centerScaleThreeD),
+    edgeScale: numberAt(input.edgeScale, /** @type {number} */ (defaults.edgeScale), ranges.edgeScaleThreeD),
+    nearMask: numberAt(input.nearMask, /** @type {number} */ (defaults.nearMask), ranges.nearMask),
+    farMask: numberAt(input.farMask, /** @type {number} */ (defaults.farMask), ranges.farMask),
   }
 }
 
 // Rebuild every pair independently so one malformed saved value cannot reset the others.
+/**
+ * @param {string | null | undefined} raw
+ * @returns {Record<string, CarouselLabTuning>}
+ */
 export function parseCarouselLabStorage(raw) {
+  /** @type {Record<string, unknown>} */
   let values = {}
   try {
     const parsed = typeof raw === "string" ? JSON.parse(raw) : null
@@ -112,24 +150,39 @@ export function parseCarouselLabStorage(raw) {
     values = {}
   }
   return Object.fromEntries(CAROUSEL_LAB_PAIRS.map((key) => {
-    const [surface, presentation] = key.split(":")
+    const [surface, presentation] = /** @type {[CarouselLabSurface, CarouselLabPresentation]} */ (key.split(":"))
     return [key, sanitizeCarouselLabTuning(surface, presentation, values[key])]
   }))
 }
 
+/**
+ * @param {Record<string, unknown> | null | undefined} record
+ * @returns {string}
+ */
 export function serializeCarouselLabStorage(record) {
   const values = Object.fromEntries(CAROUSEL_LAB_PAIRS.map((key) => {
-    const [surface, presentation] = key.split(":")
+    const [surface, presentation] = /** @type {[CarouselLabSurface, CarouselLabPresentation]} */ (key.split(":"))
     return [key, sanitizeCarouselLabTuning(surface, presentation, record?.[key])]
   }))
   return JSON.stringify({ version: 1, values })
 }
 
+/**
+ * @param {number} itemCount
+ * @param {number} visibleRadius
+ * @param {boolean} requested
+ * @returns {boolean}
+ */
 export function resolveEffectiveLoop(itemCount, visibleRadius, requested) {
   return Boolean(requested && itemCount > visibleRadius * 2 + 1)
 }
 
 // Stable, unique IDs are the identity contract shared by centering and nearby mounts.
+/**
+ * @template {CarouselLabItem} T
+ * @param {readonly T[]} items
+ * @returns {T[]}
+ */
 export function normalizeCarouselLabItems(items) {
   const seen = new Set()
   return items.filter((item) => {
@@ -142,6 +195,12 @@ export function normalizeCarouselLabItems(items) {
   })
 }
 
+/**
+ * @param {readonly CarouselLabItem[]} items
+ * @param {string | null | undefined} preferredId
+ * @param {string | null | undefined} selectedId
+ * @returns {string | null}
+ */
 export function reconcileCenteredId(items, preferredId, selectedId) {
   const uniqueItems = normalizeCarouselLabItems(items)
   const ids = new Set(uniqueItems.map(({ id }) => id))
@@ -150,6 +209,13 @@ export function reconcileCenteredId(items, preferredId, selectedId) {
   return uniqueItems[0]?.id ?? null
 }
 
+/**
+ * @param {readonly CarouselLabItem[]} items
+ * @param {string | null | undefined} centeredId
+ * @param {number} visibleRadius
+ * @param {boolean} loop
+ * @returns {Set<string>}
+ */
 export function getMountedItemIds(items, centeredId, visibleRadius, loop) {
   const result = new Set()
   const center = items.findIndex(({ id }) => id === centeredId)
@@ -163,6 +229,14 @@ export function getMountedItemIds(items, centeredId, visibleRadius, loop) {
 }
 
 // Presentation adapters consume plain tuning data and emit serializable CSS variables.
+/**
+ * @param {CarouselLabPresentation} presentation
+ * @param {CarouselLabSurface} surface
+ * @param {number} progress
+ * @param {Record<string, number | boolean>} tuning
+ * @param {boolean} reducedMotion
+ * @returns {Record<string, string>}
+ */
 export function getPresentationVariables(presentation, surface, progress, tuning, reducedMotion) {
   if (reducedMotion || tuning.motion === false || (presentation === "existing" && surface === "stations")) {
     return {
@@ -170,31 +244,31 @@ export function getPresentationVariables(presentation, surface, progress, tuning
       "--lab-scale": "1", "--lab-opacity": "1",
     }
   }
-  const distance = Math.min(1, Math.abs(progress) / Math.max(1, tuning.visibleRadius))
+  const distance = Math.min(1, Math.abs(progress) / Math.max(1, /** @type {number} */ (tuning.visibleRadius)))
   if (presentation === "existing") {
-    const angle = progress * tuning.spread
+    const angle = progress * /** @type {number} */ (tuning.spread)
     const radians = angle * Math.PI / 180
     return {
-      "--lab-x": `${(Math.sin(radians) * tuning.radius).toFixed(2)}px`,
-      "--lab-z": `${((Math.cos(radians) - 1) * tuning.radius).toFixed(2)}px`,
+      "--lab-x": `${(Math.sin(radians) * /** @type {number} */ (tuning.radius)).toFixed(2)}px`,
+      "--lab-z": `${((Math.cos(radians) - 1) * /** @type {number} */ (tuning.radius)).toFixed(2)}px`,
       "--lab-rotate-y": `${(-angle * 0.45).toFixed(2)}deg`,
-      "--lab-scale": String(Math.max(0.65, 1 - Math.abs(progress) * tuning.scaleFalloff)),
+      "--lab-scale": String(Math.max(0.65, 1 - Math.abs(progress) * /** @type {number} */ (tuning.scaleFalloff))),
       "--lab-opacity": String(Math.max(0.28, 1 - distance * 0.55)),
     }
   }
   if (presentation === "cover-flow") {
     return {
       "--lab-x": "0px", "--lab-z": `${(-distance * 90).toFixed(2)}px`,
-      "--lab-rotate-y": `${-Math.sign(progress) * tuning.rotation * Math.min(1, Math.abs(progress))}deg`,
-      "--lab-scale": String(tuning.centerScale + (tuning.edgeScale - tuning.centerScale) * distance),
+      "--lab-rotate-y": `${-Math.sign(progress) * /** @type {number} */ (tuning.rotation) * Math.min(1, Math.abs(progress))}deg`,
+      "--lab-scale": String(/** @type {number} */ (tuning.centerScale) + (/** @type {number} */ (tuning.edgeScale) - /** @type {number} */ (tuning.centerScale)) * distance),
       "--lab-opacity": String(Math.max(0.4, 1 - distance * 0.45)),
     }
   }
   return {
     "--lab-x": "0px",
-    "--lab-z": `${(-distance * tuning.depth).toFixed(2)}px`,
-    "--lab-rotate-y": `${(-progress * tuning.arcAngle).toFixed(2)}deg`,
-    "--lab-scale": String(tuning.centerScale + (tuning.edgeScale - tuning.centerScale) * distance),
-    "--lab-opacity": String(Math.max(0.18, 1 - distance * (tuning.farMask / 2.5))),
+    "--lab-z": `${(-distance * /** @type {number} */ (tuning.depth)).toFixed(2)}px`,
+    "--lab-rotate-y": `${(-progress * /** @type {number} */ (tuning.arcAngle)).toFixed(2)}deg`,
+    "--lab-scale": String(/** @type {number} */ (tuning.centerScale) + (/** @type {number} */ (tuning.edgeScale) - /** @type {number} */ (tuning.centerScale)) * distance),
+    "--lab-opacity": String(Math.max(0.18, 1 - distance * (/** @type {number} */ (tuning.farMask) / 2.5))),
   }
 }
