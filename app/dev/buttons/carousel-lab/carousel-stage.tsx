@@ -60,7 +60,20 @@ export function CarouselStage<T extends CarouselLabItem>({
     () => normalizeCarouselLabItems(sourceItems) as T[],
     [sourceItems],
   )
-  const controller = useCarouselLabController({
+  const {
+    viewportRef,
+    centeredId,
+    mountedIds,
+    effectiveLoop,
+    canGoPrevious,
+    canGoNext,
+    centerItem,
+    goPrevious,
+    goNext,
+    handleKeyDown,
+    registerItemElement,
+    statusText,
+  } = useCarouselLabController({
     items,
     initialItemId,
     selectedItemId,
@@ -72,8 +85,8 @@ export function CarouselStage<T extends CarouselLabItem>({
   })
 
   useEffect(() => {
-    onEffectiveLoopChange?.(controller.effectiveLoop)
-  }, [controller.effectiveLoop, onEffectiveLoopChange])
+    onEffectiveLoopChange?.(effectiveLoop)
+  }, [effectiveLoop, onEffectiveLoopChange])
 
   const rootStyle: CarouselRootStyle = {
     "--lab-card-width": `${finiteTuningValue(tuning.cardWidth, 208)}px`,
@@ -94,16 +107,16 @@ export function CarouselStage<T extends CarouselLabItem>({
       aria-label={`${surface === "backgrounds" ? "Background" : "Station"} carousel`}
     >
       <div
-        ref={controller.viewportRef}
+        ref={viewportRef}
         className={styles.stage}
         data-testid="carousel-lab-stage"
         tabIndex={0}
-        onKeyDown={controller.handleKeyDown}
+        onKeyDown={handleKeyDown}
       >
         <div className={styles.track}>
           {items.map((item, index) => {
-            const nearby = controller.mountedIds.has(item.id)
-            const centered = controller.centeredId === item.id
+            const nearby = mountedIds.has(item.id)
+            const centered = centeredId === item.id
             const detailLevel = centered ? "full" : nearby ? "summary" : "shell"
             const availability = item.statusLabel ?? (item.disabled ? "disabled" : "available")
             const accessibleLabel = `${item.label}, item ${index + 1} of ${items.length}, ${availability}`
@@ -111,7 +124,7 @@ export function CarouselStage<T extends CarouselLabItem>({
             return (
               <div
                 key={item.id}
-                ref={(element) => controller.registerItemElement(item.id, element)}
+                ref={(element) => registerItemElement(item.id, element)}
                 className={styles.slide}
                 role="group"
                 aria-roledescription="slide"
@@ -120,12 +133,12 @@ export function CarouselStage<T extends CarouselLabItem>({
                 data-centered={centered}
                 data-detail-level={detailLevel}
                 onClick={(event) => {
-                  if (item.id === controller.centeredId) return
+                  if (item.id === centeredId) return
                   if ((event.target as HTMLElement).closest("button, a, input, select, textarea")) return
-                  controller.centerItem(item.id)
+                  centerItem(item.id)
                 }}
                 onFocusCapture={() => {
-                  if (item.id !== controller.centeredId) controller.centerItem(item.id)
+                  if (item.id !== centeredId) centerItem(item.id)
                 }}
               >
                 {detailLevel === "shell" ? (
@@ -150,8 +163,8 @@ export function CarouselStage<T extends CarouselLabItem>({
           type="button"
           className={styles.navigationButton}
           aria-label="Previous carousel item"
-          disabled={!controller.canGoPrevious}
-          onClick={controller.goPrevious}
+          disabled={!canGoPrevious}
+          onClick={goPrevious}
         >
           Previous
         </button>
@@ -159,15 +172,15 @@ export function CarouselStage<T extends CarouselLabItem>({
           type="button"
           className={styles.navigationButton}
           aria-label="Next carousel item"
-          disabled={!controller.canGoNext}
-          onClick={controller.goNext}
+          disabled={!canGoNext}
+          onClick={goNext}
         >
           Next
         </button>
       </div>
 
       <p className={styles.status} aria-live="polite" aria-atomic="true">
-        {controller.statusText}
+        {statusText}
       </p>
     </section>
   )
