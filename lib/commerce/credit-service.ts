@@ -6,12 +6,66 @@ export const INITIAL_BACKGROUND_CREDIT_COUNT = 2
 export type PrismaClientOrTransaction = PrismaClient | Prisma.TransactionClient
 
 const INITIAL_GRANT_REASON = "VERIFIED_ACCOUNT_INITIAL_GRANT"
+const INITIAL_PROVISIONING_ATTEMPTS = 2
 
 class BackgroundCreditReconciliationError extends Error {
   constructor() {
     super("Background credit wallet requires reconciliation.")
     this.name = "BackgroundCreditReconciliationError"
   }
+}
+
+class BackgroundCreditProvisioningConflictError extends Error {
+  readonly code = "P2034"
+
+  constructor() {
+    super("Background credit provisioning conflicted with another transaction.")
+    this.name = "BackgroundCreditProvisioningConflictError"
+  }
+}
+
+function collectConstraintTokens(value: unknown, depth = 0): string[] {
+  if (depth > 4) return []
+  if (typeof value === "string") return [value]
+  if (Array.isArray(value)) return value.flatMap((entry) => collectConstraintTokens(entry, depth + 1))
+  if (!value || typeof value !== "object") return []
+
+  return Object.values(value).flatMap((entry) => collectConstraintTokens(entry, depth + 1))
+}
+
+/** Limits P2002 recovery to the two uniqueness constraints that identify the same per-user grant. */
+function isInitialProvisioningUniqueConflict(
+  error: unknown,
+  expectedModel: "BackgroundCreditWallet" | "BackgroundCreditEntry",
+  expectedField: "userId" | "idempotencyKey",
+  expectedConstraint: string,
+) {
+  if (!error || typeof error !== "object" || (error as { code?: unknown }).code !== "P2002") {
+    return false
+  }
+
+  const meta = (error as { meta?: unknown }).meta
+  if (!meta || typeof meta !== "object") return false
+
+  const modelName = (meta as { modelName?: unknown }).modelName
+  if (typeof modelName === "string" && modelName !== expectedModel) return false
+
+  const tokens = collectConstraintTokens(meta)
+  return tokens.includes(expectedField) || tokens.includes(expectedConstraint)
+}
+
+function retryInitialProvisioningConflict(
+  error: unknown,
+  model: "BackgroundCreditWallet" | "BackgroundCreditEntry",
+  field: "userId" | "idempotencyKey",
+  constraint: string,
+): never {
+  if (isInitialProvisioningUniqueConflict(error, model, field, constraint)) {
+    // P2034 is the transaction helper's bounded whole-transaction retry signal.
+    throw new BackgroundCreditProvisioningConflictError()
+  }
+
+  throw error
 }
 
 function initialGrantIdempotencyKey(userId: string) {
@@ -79,7 +133,12 @@ async function provisionVerifiedUserBackgroundCredits(tx: Prisma.TransactionClie
       userId,
       balance: INITIAL_BACKGROUND_CREDIT_COUNT,
     },
-  })
+  }).catch((error) => retryInitialProvisioningConflict(
+    error,
+    "BackgroundCreditWallet",
+    "userId",
+    "BackgroundCreditWallet_userId_key",
+  ))
 
   await tx.backgroundCreditEntry.create({
     data: {
@@ -91,7 +150,12 @@ async function provisionVerifiedUserBackgroundCredits(tx: Prisma.TransactionClie
       idempotencyKey,
       reasonCode: INITIAL_GRANT_REASON,
     },
-  })
+  }).catch((error) => retryInitialProvisioningConflict(
+    error,
+    "BackgroundCreditEntry",
+    "idempotencyKey",
+    "BackgroundCreditEntry_idempotencyKey_key",
+  ))
 
   await tx.commerceEvent.create({
     data: {
@@ -124,6 +188,7 @@ export async function ensureVerifiedUserBackgroundCredits(
     return runCommerceTransaction(
       prismaClient as PrismaClient,
       (tx) => provisionVerifiedUserBackgroundCredits(tx as Prisma.TransactionClient, userId),
+      { maxRetries: INITIAL_PROVISIONING_ATTEMPTS },
     )
   }
 

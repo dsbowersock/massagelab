@@ -6,7 +6,10 @@ import {
   ensureVerifiedUserBackgroundCredits,
 } from "../lib/commerce/credit-service.ts"
 
-function createCreditDatabase(users) {
+function createCreditDatabase(
+  users,
+  { walletCreateConflictOnce = false, entryCreateConflictOnce = false, eventCreateConflictOnce = false } = {},
+) {
   const state = {
     users: new Map(users.map((user) => [user.id, { ...user }])),
     wallets: new Map(),
@@ -15,6 +18,11 @@ function createCreditDatabase(users) {
     nextWalletId: 1,
   }
   let transactionTail = Promise.resolve()
+  let transactionAttempts = 0
+  let shouldConflictOnWalletCreate = walletCreateConflictOnce
+  let shouldConflictOnEntryCreate = entryCreateConflictOnce
+  let shouldConflictOnEventCreate = eventCreateConflictOnce
+  let concurrentWinnerPendingCommit = false
 
   function transactionClient() {
     return {
@@ -29,6 +37,14 @@ function createCreditDatabase(users) {
           return state.wallets.get(where.userId) ?? null
         },
         async create({ data }) {
+          if (shouldConflictOnWalletCreate) {
+            shouldConflictOnWalletCreate = false
+            concurrentWinnerPendingCommit = true
+            throw Object.assign(new Error("concurrent wallet winner"), {
+              code: "P2002",
+              meta: { modelName: "BackgroundCreditWallet", target: ["userId"] },
+            })
+          }
           if (state.wallets.has(data.userId)) {
             throw Object.assign(new Error("unique wallet"), { code: "P2002" })
           }
@@ -47,6 +63,14 @@ function createCreditDatabase(users) {
           return state.entries.get(where.idempotencyKey) ?? null
         },
         async create({ data }) {
+          if (shouldConflictOnEntryCreate) {
+            shouldConflictOnEntryCreate = false
+            concurrentWinnerPendingCommit = true
+            throw Object.assign(new Error("concurrent initial entry winner"), {
+              code: "P2002",
+              meta: { modelName: "BackgroundCreditEntry", target: ["idempotencyKey"] },
+            })
+          }
           if (state.entries.has(data.idempotencyKey)) {
             throw Object.assign(new Error("unique entry"), { code: "P2002" })
           }
@@ -57,6 +81,13 @@ function createCreditDatabase(users) {
       },
       commerceEvent: {
         async create({ data }) {
+          if (shouldConflictOnEventCreate) {
+            shouldConflictOnEventCreate = false
+            throw Object.assign(new Error("unrelated event collision"), {
+              code: "P2002",
+              meta: { modelName: "CommerceEvent", target: ["id"] },
+            })
+          }
           const event = { id: `event-${state.events.length + 1}`, ...data }
           state.events.push(event)
           return { ...event }
@@ -67,6 +98,9 @@ function createCreditDatabase(users) {
 
   return {
     state,
+    get transactionAttempts() {
+      return transactionAttempts
+    },
     async $transaction(callback, options) {
       const previous = transactionTail
       let release
@@ -74,6 +108,7 @@ function createCreditDatabase(users) {
         release = resolve
       })
       await previous
+      transactionAttempts += 1
       const snapshot = structuredClone(state)
       try {
         assert.equal(options?.isolationLevel, "Serializable")
@@ -84,6 +119,27 @@ function createCreditDatabase(users) {
         state.entries = snapshot.entries
         state.events = snapshot.events
         state.nextWalletId = snapshot.nextWalletId
+        if (concurrentWinnerPendingCommit) {
+          concurrentWinnerPendingCommit = false
+          const userId = "p2002-user"
+          const wallet = { id: "winning-wallet", userId, balance: 2, version: 0 }
+          state.wallets.set(userId, wallet)
+          state.entries.set(`background-credit:initial-grant:${userId}`, {
+            id: "winning-entry",
+            walletId: wallet.id,
+            userId,
+            type: "INITIAL_GRANT",
+            delta: 2,
+            balanceAfter: 2,
+            idempotencyKey: `background-credit:initial-grant:${userId}`,
+          })
+          state.events.push({
+            id: "winning-event",
+            userId,
+            eventType: "BACKGROUND_CREDITS_INITIAL_GRANTED",
+            payload: {},
+          })
+        }
         throw error
       } finally {
         release()
@@ -136,6 +192,52 @@ describe("verified-account background credit provisioning", () => {
     assert.equal(database.state.wallets.size, 1)
     assert.equal(database.state.entries.size, 1)
     assert.equal(database.state.events.length, 1)
+  })
+
+  it("restarts after a wallet P2002 race and validates the committed winner", async () => {
+    const database = createCreditDatabase(
+      [{ id: "p2002-user", emailVerified: new Date() }],
+      { walletCreateConflictOnce: true },
+    )
+
+    const result = await ensureVerifiedUserBackgroundCredits(database, "p2002-user")
+
+    assert.deepEqual(result, { balance: 2, granted: false })
+    assert.equal(database.transactionAttempts, 2)
+    assert.equal(database.state.wallets.size, 1)
+    assert.equal(database.state.entries.size, 1)
+    assert.equal(database.state.events.length, 1)
+  })
+
+  it("restarts after an initial-entry P2002 race and validates the committed winner", async () => {
+    const database = createCreditDatabase(
+      [{ id: "p2002-user", emailVerified: new Date() }],
+      { entryCreateConflictOnce: true },
+    )
+
+    const result = await ensureVerifiedUserBackgroundCredits(database, "p2002-user")
+
+    assert.deepEqual(result, { balance: 2, granted: false })
+    assert.equal(database.transactionAttempts, 2)
+    assert.equal(database.state.wallets.size, 1)
+    assert.equal(database.state.entries.size, 1)
+    assert.equal(database.state.events.length, 1)
+  })
+
+  it("does not retry an unrelated P2002", async () => {
+    const database = createCreditDatabase(
+      [{ id: "event-conflict-user", emailVerified: new Date() }],
+      { eventCreateConflictOnce: true },
+    )
+
+    await assert.rejects(
+      () => ensureVerifiedUserBackgroundCredits(database, "event-conflict-user"),
+      (error) => error.code === "P2002" && error.meta?.modelName === "CommerceEvent",
+    )
+    assert.equal(database.transactionAttempts, 1)
+    assert.equal(database.state.wallets.size, 0)
+    assert.equal(database.state.entries.size, 0)
+    assert.equal(database.state.events.length, 0)
   })
 
   it("reloads verification from the database and does not provision an unverified user", async () => {
