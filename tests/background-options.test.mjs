@@ -7,7 +7,7 @@ import {
   isBackgroundId,
   normalizeBackgroundId,
 } from "../lib/background-options.js"
-import { FEATURE_KEYS } from "../lib/membership.js"
+import { FEATURE_KEYS, hasPremiumBackgroundAccess } from "../lib/membership.js"
 import {
   backgroundRegistry,
   canUseBackgroundId,
@@ -197,9 +197,20 @@ describe("premium background registry", () => {
       )
       assert.equal(
         resolveAccessibleBackgroundDefinition(backgroundId, [FEATURE_KEYS.chimerCustomColors]).id,
+        DEFAULT_BACKGROUND_ID,
+      )
+      assert.equal(
+        resolveAccessibleBackgroundDefinition(backgroundId, {
+          ownedBackgroundIds: [backgroundId],
+        }).id,
         backgroundId,
       )
     }
+  })
+
+  it("keeps premium use independent from the custom-color feature", () => {
+    assert.equal(hasPremiumBackgroundAccess([FEATURE_KEYS.chimerCustomColors]), false)
+    assert.equal(hasPremiumBackgroundAccess([FEATURE_KEYS.premiumBackgrounds]), true)
   })
 
   it("keeps paused draft backgrounds unavailable even with premium access", () => {
