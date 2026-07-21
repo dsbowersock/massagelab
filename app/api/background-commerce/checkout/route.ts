@@ -7,6 +7,7 @@ import {
   ensureStripeCustomerForUser,
   expireBackgroundPurchaseCheckoutSession,
   getBackgroundPurchaseCheckoutSessionEvidence,
+  isIndeterminateBackgroundCheckoutError,
   retrieveBackgroundPurchaseCheckoutSession,
 } from "../../../../lib/stripe-billing.js"
 import { prepareBackgroundOrder } from "../../../../lib/commerce/order-service.ts"
@@ -85,6 +86,12 @@ export type BackgroundCheckoutDependencies = {
     orderId: string
     reasonCode: string
   }) => Promise<boolean>
+  markCheckoutIndeterminate: (input: {
+    userId: string
+    orderId: string
+    sessionId?: string | null
+    reasonCode: string
+  }) => Promise<boolean>
   loadOrder: (orderId: string) => Promise<CheckoutOrder | null>
   retrieveCheckoutSession: (sessionId: string) => Promise<CheckoutSessionLike>
   expireCheckoutSession: (sessionId: string) => Promise<CheckoutSessionLike>
@@ -133,7 +140,7 @@ function orderEventData(input: {
   }
 }
 
-/** Associates one processor Session only while the order is still PREPARING. */
+/** Associates one processor Session with a new or indeterminate active order. */
 export async function persistBackgroundCheckoutSession(
   prismaClient: PrismaClient,
   input: {
@@ -144,11 +151,27 @@ export async function persistBackgroundCheckoutSession(
   },
 ): Promise<boolean> {
   return runCommerceTransaction(prismaClient, async (tx) => {
+    const current = await tx.commerceOrder.findUnique({
+      where: { id: input.orderId },
+      select: {
+        userId: true,
+        status: true,
+        stripeCheckoutSessionId: true,
+      },
+    })
+    if (
+      !current
+      || current.userId !== input.userId
+      || (current.status !== "PREPARING" && current.status !== "AWAITING_PAYMENT")
+      || current.stripeCheckoutSessionId !== null
+    ) {
+      return false
+    }
     const transition = await tx.commerceOrder.updateMany({
       where: {
         id: input.orderId,
         userId: input.userId,
-        status: "PREPARING",
+        status: current.status,
         stripeCheckoutSessionId: null,
       },
       data: {
@@ -163,9 +186,76 @@ export async function persistBackgroundCheckoutSession(
       data: orderEventData({
         userId: input.userId,
         orderId: input.orderId,
-        eventType: "CHECKOUT_SESSION_CREATED",
-        fromState: "PREPARING",
+        eventType: current.status === "PREPARING"
+          ? "CHECKOUT_SESSION_CREATED"
+          : "CHECKOUT_SESSION_RECOVERED",
+        fromState: current.status,
         toState: "AWAITING_PAYMENT",
+      }),
+    })
+    return true
+  })
+}
+
+/**
+ * Keeps an inconclusive processor outcome active so webhook/reconciliation can
+ * resolve it. A known Session ID is bound monotonically when available.
+ */
+export async function markBackgroundCheckoutIndeterminate(
+  prismaClient: PrismaClient,
+  input: {
+    userId: string
+    orderId: string
+    sessionId?: string | null
+    reasonCode: string
+  },
+): Promise<boolean> {
+  return runCommerceTransaction(prismaClient, async (tx) => {
+    const current = await tx.commerceOrder.findUnique({
+      where: { id: input.orderId },
+      select: {
+        userId: true,
+        status: true,
+        stripeCheckoutSessionId: true,
+      },
+    })
+    const sessionId = input.sessionId ?? null
+    if (
+      !current
+      || current.userId !== input.userId
+      || (current.status !== "PREPARING" && current.status !== "AWAITING_PAYMENT")
+      || (current.stripeCheckoutSessionId !== null && current.stripeCheckoutSessionId !== sessionId)
+    ) {
+      return false
+    }
+    if (
+      current.status === "AWAITING_PAYMENT"
+      && current.stripeCheckoutSessionId === sessionId
+    ) {
+      return true
+    }
+    const transition = await tx.commerceOrder.updateMany({
+      where: {
+        id: input.orderId,
+        userId: input.userId,
+        status: current.status,
+        stripeCheckoutSessionId: current.stripeCheckoutSessionId,
+      },
+      data: {
+        status: "AWAITING_PAYMENT",
+        stripeCheckoutSessionId: sessionId,
+        failureCode: input.reasonCode,
+      },
+    })
+    if (transition.count !== 1) return false
+    await tx.commerceEvent.create({
+      data: orderEventData({
+        userId: input.userId,
+        orderId: input.orderId,
+        eventType: "CHECKOUT_RECONCILIATION_REQUIRED",
+        fromState: current.status,
+        toState: "AWAITING_PAYMENT",
+        reasonCode: input.reasonCode,
       }),
     })
     return true
@@ -352,6 +442,10 @@ export function defaultBackgroundCheckoutDependencies(): BackgroundCheckoutDepen
     createCheckoutSession: createBackgroundPurchaseCheckoutSession,
     persistCheckoutSession: async (input) => persistBackgroundCheckoutSession(await appPrisma(), input),
     markCheckoutFailure: async (input) => markBackgroundCheckoutFailure(await appPrisma(), input),
+    markCheckoutIndeterminate: async (input) => markBackgroundCheckoutIndeterminate(
+      await appPrisma(),
+      input,
+    ),
     loadOrder: async (orderId) => (await appPrisma()).commerceOrder.findUnique({
       where: { id: orderId },
       select: {
@@ -404,14 +498,28 @@ async function resolveUnassociatedSession(
     userId: string
     orderId: string
     session: CheckoutSessionLike
+    protectIndeterminate?: boolean
   },
 ): Promise<Response> {
   const localOrder = await deps.loadOrder(input.orderId)
+  const protectedAssociation = input.protectIndeterminate === true
+    ? await deps.markCheckoutIndeterminate({
+        userId: input.userId,
+        orderId: input.orderId,
+        sessionId: input.session.id,
+        reasonCode: "CHECKOUT_RESPONSE_INDETERMINATE",
+      })
+    : false
   let processorSession = await deps.retrieveCheckoutSession(input.session.id)
   let evidence = getBackgroundPurchaseCheckoutSessionEvidence(processorSession)
-  const associated = localOrder?.userId === input.userId
-    && localOrder.stripeCheckoutSessionId === input.session.id
-    && processorSession.id === input.session.id
+  const associated = processorSession.id === input.session.id
+    && (
+      protectedAssociation
+      || (
+        localOrder?.userId === input.userId
+        && localOrder.stripeCheckoutSessionId === input.session.id
+      )
+    )
   const associatedUrl = processorSession.url ?? input.session.url
   if (associated && evidence.status === "open" && !evidence.paid && associatedUrl) {
     return Response.json(
@@ -425,7 +533,9 @@ async function resolveUnassociatedSession(
       await deps.markReviewRequired({
         userId: input.userId,
         orderId: input.orderId,
-        expectedSessionId: localOrder?.stripeCheckoutSessionId ?? null,
+        expectedSessionId: associated
+          ? input.session.id
+          : localOrder?.stripeCheckoutSessionId ?? null,
         processorSessionId: input.session.id,
         reasonCode: "PROCESSOR_COUNTRY_REVIEW",
       })
@@ -434,6 +544,12 @@ async function resolveUnassociatedSession(
         { status: 202, headers: { "Cache-Control": "private, no-store" } },
       )
     }
+    await deps.markCheckoutIndeterminate({
+      userId: input.userId,
+      orderId: input.orderId,
+      sessionId: input.session.id,
+      reasonCode: "CHECKOUT_PAYMENT_PENDING",
+    })
     return commerceErrorResponse(new CommerceError({ code: COMMERCE_ERROR_CODES.PAYMENT_PENDING }))
   }
 
@@ -452,7 +568,9 @@ async function resolveUnassociatedSession(
       await deps.markReviewRequired({
         userId: input.userId,
         orderId: input.orderId,
-        expectedSessionId: localOrder?.stripeCheckoutSessionId ?? null,
+        expectedSessionId: associated
+          ? input.session.id
+          : localOrder?.stripeCheckoutSessionId ?? null,
         processorSessionId: input.session.id,
         reasonCode: "PROCESSOR_COUNTRY_REVIEW",
       })
@@ -461,6 +579,12 @@ async function resolveUnassociatedSession(
         { status: 202, headers: { "Cache-Control": "private, no-store" } },
       )
     }
+    await deps.markCheckoutIndeterminate({
+      userId: input.userId,
+      orderId: input.orderId,
+      sessionId: input.session.id,
+      reasonCode: "CHECKOUT_PAYMENT_PENDING",
+    })
     return commerceErrorResponse(new CommerceError({ code: COMMERCE_ERROR_CODES.PAYMENT_PENDING }))
   }
   if (evidence.status === "expired" && !evidence.paid) {
@@ -474,8 +598,15 @@ async function resolveUnassociatedSession(
       terminalStatus: "PAYMENT_FAILED",
       reasonCode: "CHECKOUT_ASSOCIATION_RACE",
     })
+    return commerceErrorResponse(new CommerceError({ code: COMMERCE_ERROR_CODES.STALE_CONCURRENCY }))
   }
-  return commerceErrorResponse(new CommerceError({ code: COMMERCE_ERROR_CODES.STALE_CONCURRENCY }))
+  await deps.markCheckoutIndeterminate({
+    userId: input.userId,
+    orderId: input.orderId,
+    sessionId: input.session.id,
+    reasonCode: "CHECKOUT_PAYMENT_PENDING",
+  })
+  return commerceErrorResponse(new CommerceError({ code: COMMERCE_ERROR_CODES.PAYMENT_PENDING }))
 }
 
 export function createBackgroundCheckoutPostHandler(
@@ -528,11 +659,28 @@ export function createBackgroundCheckoutPostHandler(
       })
 
       let customer
-      let checkoutSession: CheckoutSessionLike
       try {
         customer = await deps.ensureCustomer(user)
-        const siteUrl = deps.siteUrl ?? await deps.getSiteUrl?.()
-        if (!siteUrl) throw new Error("Site URL unavailable.")
+      } catch {
+        await deps.markCheckoutFailure({
+          userId: user.id,
+          orderId: preparedOrder.orderId,
+          reasonCode: "CHECKOUT_CUSTOMER_FAILED",
+        })
+        throw new CommerceError({ code: COMMERCE_ERROR_CODES.UNKNOWN })
+      }
+
+      const siteUrl = deps.siteUrl ?? await deps.getSiteUrl?.()
+      if (!siteUrl) {
+        await deps.markCheckoutFailure({
+          userId: user.id,
+          orderId: preparedOrder.orderId,
+          reasonCode: "CHECKOUT_CONFIGURATION_FAILED",
+        })
+        throw new CommerceError({ code: COMMERCE_ERROR_CODES.UNKNOWN })
+      }
+      let checkoutSession: CheckoutSessionLike
+      try {
         checkoutSession = await deps.createCheckoutSession({
           orderId: preparedOrder.orderId,
           userId: user.id,
@@ -546,7 +694,15 @@ export function createBackgroundCheckoutPostHandler(
           now: deps.now(),
           env: deps.env,
         })
-      } catch {
+      } catch (error) {
+        if (isIndeterminateBackgroundCheckoutError(error)) {
+          await deps.markCheckoutIndeterminate({
+            userId: user.id,
+            orderId: preparedOrder.orderId,
+            reasonCode: "CHECKOUT_OUTCOME_INDETERMINATE",
+          })
+          throw new CommerceError({ code: COMMERCE_ERROR_CODES.PAYMENT_PENDING })
+        }
         await deps.markCheckoutFailure({
           userId: user.id,
           orderId: preparedOrder.orderId,
@@ -555,13 +711,21 @@ export function createBackgroundCheckoutPostHandler(
         throw new CommerceError({ code: COMMERCE_ERROR_CODES.UNKNOWN })
       }
 
-      if (!checkoutSession.id || !checkoutSession.url || !checkoutSession.expires_at) {
+      if (!checkoutSession.id) {
         await deps.markCheckoutFailure({
           userId: user.id,
           orderId: preparedOrder.orderId,
           reasonCode: "CHECKOUT_RESPONSE_INVALID",
         })
         throw new CommerceError({ code: COMMERCE_ERROR_CODES.UNKNOWN })
+      }
+      if (!checkoutSession.url || !checkoutSession.expires_at) {
+        return resolveUnassociatedSession(deps, {
+          userId: user.id,
+          orderId: preparedOrder.orderId,
+          session: checkoutSession,
+          protectIndeterminate: true,
+        })
       }
 
       const persisted = await deps.persistCheckoutSession({

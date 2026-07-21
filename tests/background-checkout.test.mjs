@@ -9,6 +9,8 @@ import { buildDigitalPurchaseConsent } from "../lib/legal-acceptance.js"
 import { requiredLegalDocumentsForEvent } from "../lib/legal-documents.js"
 import {
   createBackgroundCheckoutPostHandler,
+  markBackgroundCheckoutIndeterminate,
+  persistBackgroundCheckoutSession,
   releaseBackgroundCheckoutOrder,
 } from "../app/api/background-commerce/checkout/route.ts"
 import { createBackgroundCheckoutCancelPostHandler } from "../app/api/background-commerce/checkout/cancel/route.ts"
@@ -128,6 +130,10 @@ function checkoutHarness(overrides = {}) {
     },
     markCheckoutFailure: async (input) => {
       calls.push(["failure", input])
+      return true
+    },
+    markCheckoutIndeterminate: async (input) => {
+      calls.push(["indeterminate", input])
       return true
     },
     loadOrder: async () => ({
@@ -301,6 +307,44 @@ describe("background Stripe Checkout adapter", () => {
     assert.equal(capturedPayload.line_items[0].price_data.tax_behavior, "exclusive")
   })
 
+  it("retries a connection failure with the identical payload and idempotency key", async () => {
+    const attempts = []
+    const session = await createBackgroundPurchaseCheckoutSession({
+      orderId: "order_connection_race",
+      userId: "user_123",
+      checkoutAttempt: 1,
+      customerId: "cus_123",
+      items: order({ items: order().items.slice(0, 1) }).items,
+      legalConsent: currentConsent(),
+      purchaseCountry: "US",
+      successUrl: "https://massagelab.test/account?backgroundPurchase=success",
+      cancelUrl: "https://massagelab.test/account?backgroundPurchase=cancelled",
+      now: NOW,
+      env: readyEnv(),
+      stripeClient: {
+        checkout: {
+          sessions: {
+            create: async (payload, options) => {
+              attempts.push({ payload, options })
+              if (attempts.length === 1) {
+                throw Object.assign(new Error("connection lost after send"), {
+                  type: "StripeConnectionError",
+                })
+              }
+              return { id: "cs_connection_race", url: "https://checkout.stripe.com/c/recovered" }
+            },
+          },
+        },
+      },
+    })
+
+    assert.equal(session.id, "cs_connection_race")
+    assert.equal(attempts.length, 2)
+    assert.strictEqual(attempts[1].payload, attempts[0].payload)
+    assert.strictEqual(attempts[1].options, attempts[0].options)
+    assert.equal(attempts[0].options.idempotencyKey, "background-purchase:order_connection_race:attempt:1")
+  })
+
   it("treats only retrieved US processor country evidence as fulfillment-safe", () => {
     assert.deepEqual(getBackgroundPurchaseCheckoutSessionEvidence({
       status: "complete",
@@ -421,6 +465,123 @@ describe("background checkout route", () => {
     assert.equal(harness.calls.some(([name]) => name === "failure"), true)
   })
 
+  it("keeps indeterminate connection and 5xx creation outcomes reserved for reconciliation", async () => {
+    for (const processorError of [
+      Object.assign(new Error("connection outcome unknown"), {
+        type: "StripeConnectionError",
+      }),
+      Object.assign(new Error("server outcome unknown"), {
+        type: "StripeAPIError",
+        statusCode: 500,
+      }),
+    ]) {
+      const checkoutInputs = []
+      const harness = checkoutHarness({
+        createCheckoutSession: async (input) => {
+          checkoutInputs.push(input)
+          throw processorError
+        },
+      })
+      const response = await createBackgroundCheckoutPostHandler(harness.deps)(request(consentInput()))
+
+      assert.equal(response.status, 409)
+      assert.deepEqual(await response.json(), {
+        error: "PAYMENT_PENDING",
+        message: "Your payment is still processing.",
+      })
+      assert.equal(checkoutInputs.length, 1)
+      assert.equal(checkoutInputs[0].orderId, "order_123")
+      assert.equal(checkoutInputs[0].checkoutAttempt, 1)
+      assert.equal(harness.calls.some(([name]) => name === "indeterminate"), true)
+      assert.equal(harness.calls.some(([name]) => name === "failure"), false)
+      assert.equal(harness.calls.some(([name]) => name === "release"), false)
+    }
+  })
+
+  it("releases only definite Stripe request rejections without leaking processor details", async () => {
+    const harness = checkoutHarness({
+      createCheckoutSession: async () => {
+        throw Object.assign(new Error("invalid processor detail"), {
+          type: "StripeInvalidRequestError",
+          statusCode: 400,
+        })
+      },
+    })
+    const response = await createBackgroundCheckoutPostHandler(harness.deps)(request(consentInput()))
+    const body = await response.json()
+
+    assert.equal(response.status, 500)
+    assert.equal(body.error, "UNKNOWN")
+    assert.equal(JSON.stringify(body).includes("invalid processor detail"), false)
+    assert.equal(harness.calls.some(([name]) => name === "failure"), true)
+    assert.equal(harness.calls.some(([name]) => name === "indeterminate"), false)
+  })
+
+  it("retrieves and expires an ID-bearing malformed Session before releasing its reservation", async () => {
+    let retrievalCount = 0
+    const harness = checkoutHarness({
+      createCheckoutSession: async () => ({ id: "cs_malformed" }),
+      loadOrder: async () => ({
+        id: "order_123",
+        userId: "user_123",
+        status: "PREPARING",
+        stripeCheckoutSessionId: null,
+      }),
+      retrieveCheckoutSession: async (sessionId) => {
+        retrievalCount += 1
+        harness.calls.push(["stripe-retrieve", sessionId])
+        return retrievalCount === 1
+          ? { id: sessionId, status: "open", payment_status: "unpaid" }
+          : { id: sessionId, status: "expired", payment_status: "unpaid" }
+      },
+    })
+    const response = await createBackgroundCheckoutPostHandler(harness.deps)(request(consentInput()))
+
+    assert.equal(response.status, 409)
+    assert.deepEqual(harness.calls.filter(([name]) => name.startsWith("stripe")).map(([name, value]) => [name, value]), [
+      ["stripe-retrieve", "cs_malformed"],
+      ["stripe-expire", "cs_malformed"],
+      ["stripe-retrieve", "cs_malformed"],
+    ])
+    assert.equal(harness.calls.some(([name]) => name === "release"), true)
+    assert.equal(harness.calls.some(([name]) => name === "failure"), false)
+  })
+
+  it("keeps malformed paid and async-pending Sessions reserved and monotonic", async () => {
+    for (const processorSession of [
+      {
+        id: "cs_malformed",
+        status: "complete",
+        payment_status: "paid",
+        customer_details: { address: { country: "US" } },
+      },
+      {
+        id: "cs_malformed",
+        status: "complete",
+        payment_status: "unpaid",
+        customer_details: { address: { country: "US" } },
+      },
+    ]) {
+      const harness = checkoutHarness({
+        createCheckoutSession: async () => ({ id: "cs_malformed" }),
+        loadOrder: async () => ({
+          id: "order_123",
+          userId: "user_123",
+          status: "PREPARING",
+          stripeCheckoutSessionId: null,
+        }),
+        retrieveCheckoutSession: async () => processorSession,
+      })
+      const response = await createBackgroundCheckoutPostHandler(harness.deps)(request(consentInput()))
+
+      assert.equal(response.status, 409)
+      assert.equal((await response.json()).error, "PAYMENT_PENDING")
+      assert.equal(harness.calls.some(([name]) => name === "indeterminate"), true)
+      assert.equal(harness.calls.some(([name]) => name === "release"), false)
+      assert.equal(harness.calls.some(([name]) => name === "failure"), false)
+    }
+  })
+
   it("expires an orphaned open Session before releasing a lost-race reservation", async () => {
     let retrievalCount = 0
     const harness = checkoutHarness({
@@ -488,6 +649,81 @@ describe("background checkout route", () => {
 })
 
 describe("background checkout cancellation", () => {
+  it("moves an indeterminate PREPARING order to durable AWAITING_PAYMENT state", async () => {
+    const events = []
+    const updates = []
+    const prismaClient = {
+      $transaction: async (callback) => callback({
+        commerceOrder: {
+          findUnique: async () => ({
+            id: "order_123",
+            userId: "user_123",
+            status: "PREPARING",
+            stripeCheckoutSessionId: null,
+          }),
+          updateMany: async (args) => {
+            updates.push(args)
+            return { count: 1 }
+          },
+        },
+        commerceEvent: {
+          create: async ({ data }) => {
+            events.push(data)
+            return data
+          },
+        },
+      }),
+    }
+
+    assert.equal(await markBackgroundCheckoutIndeterminate(prismaClient, {
+      userId: "user_123",
+      orderId: "order_123",
+      sessionId: "cs_indeterminate",
+      reasonCode: "CHECKOUT_OUTCOME_INDETERMINATE",
+    }), true)
+    assert.equal(updates[0].data.status, "AWAITING_PAYMENT")
+    assert.equal(updates[0].data.stripeCheckoutSessionId, "cs_indeterminate")
+    assert.equal(Object.hasOwn(updates[0].data, "reservationExpiresAt"), false)
+    assert.equal(events[0].eventType, "CHECKOUT_RECONCILIATION_REQUIRED")
+  })
+
+  it("binds a retried Session to the same indeterminate active order", async () => {
+    const events = []
+    const updates = []
+    const prismaClient = {
+      $transaction: async (callback) => callback({
+        commerceOrder: {
+          findUnique: async () => ({
+            id: "order_123",
+            userId: "user_123",
+            status: "AWAITING_PAYMENT",
+            stripeCheckoutSessionId: null,
+          }),
+          updateMany: async (args) => {
+            updates.push(args)
+            return { count: 1 }
+          },
+        },
+        commerceEvent: {
+          create: async ({ data }) => {
+            events.push(data)
+            return data
+          },
+        },
+      }),
+    }
+
+    assert.equal(await persistBackgroundCheckoutSession(prismaClient, {
+      userId: "user_123",
+      orderId: "order_123",
+      sessionId: "cs_recovered",
+      expiresAt: new Date(NOW.getTime() + 30 * 60 * 1000),
+    }), true)
+    assert.equal(updates[0].where.status, "AWAITING_PAYMENT")
+    assert.equal(updates[0].data.stripeCheckoutSessionId, "cs_recovered")
+    assert.equal(events[0].eventType, "CHECKOUT_SESSION_RECOVERED")
+  })
+
   it("records the exact won source state when an unpaid reservation is released", async () => {
     const events = []
     const updates = []
