@@ -72,7 +72,7 @@ export type BackgroundCheckoutDependencies = {
     purchaseCountry: string
     successUrl: string
     cancelUrl: string
-    reservationExpiresAt: Date
+    now: () => Date
     env: NodeJS.ProcessEnv
   }) => Promise<CheckoutSessionLike>
   persistCheckoutSession: (input: {
@@ -710,7 +710,7 @@ export function createBackgroundCheckoutPostHandler(
           purchaseCountry,
           successUrl: checkoutReturnUrl(siteUrl, "success", preparedOrder.orderId),
           cancelUrl: checkoutReturnUrl(siteUrl, "cancelled", preparedOrder.orderId),
-          reservationExpiresAt: new Date(preparedOrder.expiresAt),
+          now: deps.now,
           env: deps.env,
         })
       } catch (error) {

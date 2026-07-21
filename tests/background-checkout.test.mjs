@@ -431,6 +431,71 @@ describe("background checkout route", () => {
     assert.equal(checkoutInput.successUrl.includes("checkout.stripe.com"), false)
   })
 
+  it("starts the processor expiry after delayed customer setup and persists Stripe's exact deadline", async () => {
+    const helperCreateNow = new Date(NOW.getTime() + 2 * 60 * 1000)
+    let currentNow = NOW
+    const stripeAttempts = []
+    const persisted = []
+    const harness = checkoutHarness({
+      now: () => currentNow,
+      ensureCustomer: async () => {
+        harness.calls.push(["customer"])
+        currentNow = helperCreateNow
+        return { stripeCustomerId: "cus_123" }
+      },
+      createCheckoutSession: async (input) => createBackgroundPurchaseCheckoutSession({
+        ...input,
+        stripeClient: {
+          checkout: {
+            sessions: {
+              create: async (payload, options) => {
+                stripeAttempts.push({ payload, options })
+                if (stripeAttempts.length === 1) {
+                  throw Object.assign(new Error("connection lost after send"), {
+                    type: "StripeConnectionError",
+                  })
+                }
+                return {
+                  id: "cs_delayed_setup",
+                  url: "https://checkout.stripe.com/c/delayed",
+                  expires_at: payload.expires_at,
+                  status: "open",
+                  payment_status: "unpaid",
+                }
+              },
+            },
+          },
+        },
+      }),
+      persistCheckoutSession: async (input) => {
+        harness.calls.push(["persist", input])
+        persisted.push(input)
+        return true
+      },
+    })
+
+    const response = await createBackgroundCheckoutPostHandler(harness.deps)(request(consentInput()))
+
+    assert.equal(response.status, 200)
+    assert.equal(stripeAttempts.length, 2)
+    assert.equal(
+      stripeAttempts[0].payload.expires_at,
+      Math.floor(helperCreateNow.getTime() / 1000) + 30 * 60,
+    )
+    assert.notEqual(
+      stripeAttempts[0].payload.expires_at,
+      Math.floor(new Date(harness.preparedOrder.expiresAt).getTime() / 1000),
+    )
+    assert.strictEqual(stripeAttempts[1].payload, stripeAttempts[0].payload)
+    assert.strictEqual(stripeAttempts[1].options, stripeAttempts[0].options)
+    assert.deepEqual(persisted, [{
+      userId: "user_123",
+      orderId: "order_123",
+      sessionId: "cs_delayed_setup",
+      expiresAt: new Date((Math.floor(helperCreateNow.getTime() / 1000) + 30 * 60) * 1000),
+    }])
+  })
+
   it("allows a subscriber to purchase permanent ownership without plan-name branching", async () => {
     const harness = checkoutHarness({
       loadUser: async () => ({
