@@ -1,6 +1,9 @@
+import type { Prisma } from "@prisma/client"
 import Link from "next/link"
 import { hashToken, isTokenUsable } from "@/lib/auth-security"
 import { ensureUserRole } from "@/lib/auth-users"
+import { ensureVerifiedUserBackgroundCredits } from "@/lib/commerce/credit-service"
+import { runCommerceTransaction } from "@/lib/commerce/transactions"
 import { prisma } from "@/lib/prisma"
 import { AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
@@ -22,17 +25,19 @@ export default async function VerifyEmailPage({
     })
 
     if (record && isTokenUsable(record)) {
-      await prisma.$transaction([
-        prisma.user.update({
+      await runCommerceTransaction(prisma, async (txValue) => {
+        const tx = txValue as Prisma.TransactionClient
+        await tx.user.update({
           where: { id: record.userId },
           data: { emailVerified: new Date() },
-        }),
-        prisma.emailVerificationToken.update({
+        })
+        await tx.emailVerificationToken.update({
           where: { id: record.id },
           data: { consumedAt: new Date() },
-        }),
-      ])
-      await ensureUserRole(record.userId, record.email)
+        })
+        await ensureUserRole(record.userId, record.email, tx)
+        await ensureVerifiedUserBackgroundCredits(tx, record.userId)
+      })
       title = "Email verified"
       description = "Your account is ready. You can sign in now."
       verified = true
