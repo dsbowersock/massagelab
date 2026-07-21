@@ -18,7 +18,13 @@ function jitterMs(attempt: number): number {
   return Math.min((attempt + 1) * 50 + Math.floor(Math.random() * FULL_JITTER_MS), 250)
 }
 
-/** Runs a transaction callback with a pooled-Neon-compatible serializable retry policy. */
+/**
+ * Runs a short serializable database transaction with a pooled Neon-compatible retry policy.
+ *
+ * Pooled Neon connections are not session-affine, so session advisory locks cannot protect
+ * commerce writes. Callbacks must perform database-only work: never Stripe/network I/O. Use
+ * unique/check constraints and predicate updates to enforce ownership and state transitions.
+ */
 export async function runCommerceTransaction<T>(
   prismaClient: {
     $transaction: (callback: (tx: unknown) => Promise<T>, options?: { isolationLevel?: string }) => Promise<T>

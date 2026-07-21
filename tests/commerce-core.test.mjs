@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { readFileSync } from "node:fs"
 import { describe, it } from "node:test"
 import { backgroundRegistry } from "../components/backgrounds/backgroundRegistry.ts"
 import {
@@ -40,6 +41,7 @@ describe("Commerce domain contracts", () => {
       assert.equal(product.productType, COMMERCE_PRODUCT_BACKGROUND)
       assert.equal(product.productKey, entry.id)
       assert.equal(product.unitAmount, BACKGROUND_UNIT_AMOUNT)
+      assert.equal(product.unitAmount, 100)
       assert.equal(product.currency, COMMERCE_CURRENCY)
       assert.equal(product.availableForPurchase, true)
       assert.equal(seenIds.has(product.productKey), false)
@@ -102,6 +104,9 @@ describe("Commerce domain contracts", () => {
     assert.equal(normalizeCommerceReturnPath("../admin"), "/admin")
     assert.equal(normalizeCommerceReturnPath(null), "/")
     assert.equal(normalizeCommerceReturnPath("https://example.com/callback"), "/")
+
+    const longRelativePath = "backgrounds/".concat("a".repeat(80))
+    assert.equal(normalizeCommerceReturnPath(longRelativePath).length, 64)
   })
 
   it("detects explicit and disabled tax readiness states", () => {
@@ -117,13 +122,23 @@ describe("Commerce domain contracts", () => {
     assert.equal(missingCode.ready, false)
     assert.equal(missingCode.taxCode, null)
 
-    const withCode = getCommerceTaxReadiness({
+    const onlyTaxCode = getCommerceTaxReadiness({
       BACKGROUND_COMMERCE_TAX_MODE: "stripe",
       BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "txcd_999999",
     })
-    assert.equal(withCode.mode, "stripe")
-    assert.equal(withCode.ready, true)
-    assert.equal(withCode.taxCode, "txcd_999999")
+    assert.equal(onlyTaxCode.mode, "stripe")
+    assert.equal(onlyTaxCode.ready, false)
+    assert.equal(onlyTaxCode.taxCode, "txcd_999999")
+
+    const ready = getCommerceTaxReadiness({
+      BACKGROUND_COMMERCE_TAX_MODE: "stripe",
+      BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "txcd_999999",
+      BACKGROUND_COMMERCE_TAX_PROVIDER_READY: "true",
+      BACKGROUND_COMMERCE_TAX_REGISTRATIONS_READY: "true",
+    })
+    assert.equal(ready.mode, "stripe")
+    assert.equal(ready.ready, true)
+    assert.equal(ready.taxCode, "txcd_999999")
   })
 
   it("returns stable public error codes for non-domain details", () => {
@@ -131,6 +146,34 @@ describe("Commerce domain contracts", () => {
     assert.equal(publicError.code, COMMERCE_ERROR_CODES.UNKNOWN)
     assert.equal(publicError.status, 500)
     assert.equal(publicError.message, "Unexpected commerce processing error.")
+  })
+
+  it("sanitizes existing domain errors before they become public", () => {
+    const internalError = new CommerceError({
+      code: COMMERCE_ERROR_CODES.CATALOG_UNAVAILABLE,
+      message: "Stripe product prod_secret does not exist",
+      status: 502,
+      cause: new Error("database connection password=not-for-clients"),
+    })
+    const publicError = asPublicCommerceError(internalError)
+
+    assert.notEqual(publicError, internalError)
+    assert.equal(publicError.code, COMMERCE_ERROR_CODES.CATALOG_UNAVAILABLE)
+    assert.equal(publicError.status, 404)
+    assert.equal(publicError.message, "This item is not available for purchase.")
+    assert.equal("cause" in publicError, false)
+    assert.doesNotMatch(JSON.stringify(publicError), /prod_secret|password/)
+  })
+
+  it("documents the pooled Neon transaction constraints", () => {
+    const source = readFileSync(new URL("../lib/commerce/transactions.ts", import.meta.url), "utf8")
+
+    assert.match(source, /pooled Neon/i)
+    assert.match(source, /session advisory locks/i)
+    assert.match(source, /database-only/i)
+    assert.match(source, /Stripe\/network I\/O/i)
+    assert.match(source, /unique\/check constraints/i)
+    assert.match(source, /predicate updates/i)
   })
 
   it("retries short transaction work using serializable isolation", async () => {
