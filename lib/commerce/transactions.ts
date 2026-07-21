@@ -1,3 +1,5 @@
+import type { Prisma, PrismaClient } from "@prisma/client"
+
 type CommerceTransactionOptions = {
   /** Maximum total transaction attempts, including the initial attempt; capped at three. */
   maxRetries?: number
@@ -39,10 +41,8 @@ function getCommerceTransactionAttemptLimit(maxRetries: number): number {
  * is capped at three.
  */
 export async function runCommerceTransaction<T>(
-  prismaClient: {
-    $transaction: (callback: (tx: unknown) => Promise<T>, options?: { isolationLevel?: string }) => Promise<T>
-  },
-  callback: (tx: unknown) => Promise<T>,
+  prismaClient: Pick<PrismaClient, "$transaction">,
+  callback: (tx: Prisma.TransactionClient) => Promise<T>,
   { maxRetries = MAX_COMMERCE_TRANSACTION_ATTEMPTS }: CommerceTransactionOptions = {},
 ): Promise<T> {
   let lastError: unknown
