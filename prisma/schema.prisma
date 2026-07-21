@@ -392,6 +392,69 @@ enum StudentAccessStatus {
   REVOKED
 }
 
+enum CommerceOrderStatus {
+  PREPARING
+  AWAITING_PAYMENT
+  PAID
+  PAYMENT_FAILED
+  CANCELED
+  EXPIRED
+  REVIEW_REQUIRED
+  PARTIALLY_REFUNDED
+  REFUNDED
+}
+
+enum CommercePaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  CANCELED
+  PARTIALLY_REFUNDED
+  REFUNDED
+}
+
+enum CommerceFulfillmentStatus {
+  PENDING
+  PROCESSING
+  FULFILLED
+  FAILED
+  REVOKED
+}
+
+enum CommerceRefundStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  CANCELED
+}
+
+enum CommerceDisputeStatus {
+  OPEN
+  WON
+  LOST
+}
+
+enum BackgroundOwnershipSource {
+  PURCHASE
+  CREDIT_REDEMPTION
+}
+
+enum BackgroundOwnershipStatus {
+  ACTIVE
+  REFUND_PENDING
+  DISPUTE_SUSPENDED
+  REFUND_REVOKED
+  DISPUTE_REVOKED
+  RETIRED
+}
+
+enum BackgroundCreditEntryType {
+  INITIAL_GRANT
+  REDEMPTION
+  RETIREMENT_REPLACEMENT
+  ADMIN_CORRECTION
+}
+
 model User {
   id                    String                   @id @default(cuid())
   name                  String?
@@ -463,6 +526,12 @@ model User {
   membershipSubscriptions MembershipSubscription[]
   studentAccess         StudentAccess?
   legalAcceptances      LegalAcceptance[]
+  commerceCart          CommerceCart?
+  commerceOrders        CommerceOrder[]
+  commerceEvents        CommerceEvent[]
+  commerceWebhookReceipts CommerceWebhookReceipt[]
+  backgroundCreditWallet BackgroundCreditWallet?
+  backgroundOwnerships  BackgroundOwnership[]
   clientWellnessEntries ClientWellnessEntry[]
   clientWellnessPreference ClientWellnessPreference?
   clientWellnessVocabularySuggestions ClientWellnessVocabularySuggestion[]
@@ -483,6 +552,251 @@ model LegalAcceptance {
   @@unique([userId, documentKey, documentVersion])
   @@index([userId, acceptedAt])
   @@index([documentKey, documentVersion])
+}
+
+model CommerceCart {
+  id        String             @id @default(cuid())
+  userId    String             @unique
+  currency  String             @default("USD")
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CommerceCartItem[]
+}
+
+model CommerceCartItem {
+  id          String       @id @default(cuid())
+  cartId      String
+  productType String
+  productKey  String
+  quantity    Int          @default(1)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  cart        CommerceCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, productType, productKey])
+}
+
+model CommerceOrder {
+  id                      String                    @id @default(cuid())
+  publicId                String                    @unique @default(cuid())
+  userId                  String
+  status                  CommerceOrderStatus       @default(PREPARING)
+  fulfillmentStatus       CommerceFulfillmentStatus @default(PENDING)
+  currency                String                    @default("USD")
+  subtotalCents           Int
+  taxCents                Int
+  totalCents              Int
+  stripeCheckoutSessionId String?                   @unique
+  reservationExpiresAt    DateTime?
+  legalAcceptance         Json                      @default("{}")
+  purchaseCountry         String?
+  returnPath              String
+  failureCode             String?
+  fulfillmentStartedAt    DateTime?
+  fulfilledAt             DateTime?
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+  user                    User                      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  items                   CommerceOrderItem[]
+  payments                CommercePayment[]
+  refunds                 CommerceRefund[]
+  events                  CommerceEvent[]
+  webhookReceipts         CommerceWebhookReceipt[]
+
+  @@index([userId, createdAt])
+  @@index([status, reservationExpiresAt])
+  @@unique([userId], map: "CommerceOrder_one_active_per_user_key", where: raw("(status = ANY (ARRAY['PREPARING'::\"CommerceOrderStatus\", 'AWAITING_PAYMENT'::\"CommerceOrderStatus\"]))"))
+}
+
+model CommerceOrderItem {
+  id                 String                    @id @default(cuid())
+  orderId            String
+  productType        String
+  productKey         String
+  displayName        String
+  unitPriceCents     Int
+  quantity           Int                       @default(1)
+  allocatedTaxCents  Int
+  lineTotalCents     Int
+  currency           String
+  fulfillmentAdapterVersion String
+  fulfillmentStatus CommerceFulfillmentStatus @default(PENDING)
+  fulfilledAt        DateTime?
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+  order              CommerceOrder             @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  refundItems        CommerceRefundItem[]
+  creditEntries      BackgroundCreditEntry[]
+  ownership          BackgroundOwnership?
+
+  @@unique([orderId, productType, productKey])
+  @@index([productType, productKey])
+}
+
+model CommercePayment {
+  id                    String                @id @default(cuid())
+  orderId               String
+  status                CommercePaymentStatus @default(PENDING)
+  stripePaymentIntentId String                @unique
+  amountCents           Int
+  currency              String
+  failureCode           String?
+  paidAt                DateTime?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  order                 CommerceOrder         @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  refunds               CommerceRefund[]
+  disputes              CommerceDispute[]
+
+  @@index([orderId, status])
+}
+
+model CommerceRefund {
+  id             String               @id @default(cuid())
+  orderId        String
+  paymentId      String
+  stripeRefundId String               @unique
+  status         CommerceRefundStatus @default(PENDING)
+  amountCents    Int
+  currency       String
+  reasonCode     String?
+  failureCode    String?
+  processedAt    DateTime?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  order          CommerceOrder        @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  payment        CommercePayment      @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  items          CommerceRefundItem[]
+
+  @@index([orderId, status])
+  @@index([paymentId, status])
+}
+
+model CommerceRefundItem {
+  id          String            @id @default(cuid())
+  refundId    String
+  orderItemId String
+  quantity    Int               @default(1)
+  amountCents Int
+  createdAt   DateTime          @default(now())
+  refund      CommerceRefund    @relation(fields: [refundId], references: [id], onDelete: Restrict)
+  orderItem   CommerceOrderItem @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
+
+  @@unique([refundId, orderItemId])
+  @@index([orderItemId])
+}
+
+model CommerceDispute {
+  id              String                @id @default(cuid())
+  paymentId       String
+  stripeDisputeId String                @unique
+  status          CommerceDisputeStatus @default(OPEN)
+  amountCents     Int
+  currency        String
+  reasonCode      String?
+  openedAt        DateTime              @default(now())
+  closedAt        DateTime?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  payment         CommercePayment       @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+
+  @@index([paymentId, status])
+}
+
+/// Append-only commerce audit events carry identifiers and transitions only; sensitive processor payloads stay out.
+model CommerceEvent {
+  id            String         @id @default(cuid())
+  userId        String
+  orderId       String?
+  eventType     String
+  source        String
+  actorType     String?
+  actorId       String?
+  reasonCode    String?
+  aggregateType String
+  aggregateId   String
+  fromState     String?
+  toState       String?
+  payload       Json           @default("{}")
+  createdAt     DateTime       @default(now())
+  user          User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  order         CommerceOrder? @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+  @@index([aggregateType, aggregateId, createdAt])
+  @@index([orderId, createdAt])
+}
+
+model CommerceWebhookReceipt {
+  id              String         @id @default(cuid())
+  userId          String?
+  orderId         String?
+  provider        String
+  providerEventId String
+  eventType       String
+  payloadHash     String
+  receivedAt      DateTime       @default(now())
+  processedAt     DateTime?
+  failureCode     String?
+  user            User?          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  order           CommerceOrder? @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@unique([provider, providerEventId])
+  @@index([userId, receivedAt])
+  @@index([orderId, receivedAt])
+}
+
+model BackgroundCreditWallet {
+  id        String                  @id @default(cuid())
+  userId    String                  @unique
+  balance   Int                     @default(0)
+  version   Int                     @default(0)
+  createdAt DateTime                @default(now())
+  updatedAt DateTime                @updatedAt
+  user      User                    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  entries   BackgroundCreditEntry[]
+}
+
+/// The immutable ledger entry records both its delta and the resulting wallet balance for reconciliation.
+model BackgroundCreditEntry {
+  id                String                 @id @default(cuid())
+  walletId          String
+  type              BackgroundCreditEntryType
+  delta             Int
+  balanceAfter      Int
+  idempotencyKey    String                 @unique
+  sourceOrderItemId String?
+  reasonCode        String?
+  createdAt         DateTime               @default(now())
+  wallet            BackgroundCreditWallet @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  sourceOrderItem   CommerceOrderItem?      @relation(fields: [sourceOrderItemId], references: [id], onDelete: Restrict)
+  ownership         BackgroundOwnership?
+
+  @@index([walletId, createdAt])
+  @@index([sourceOrderItemId])
+}
+
+/// Ownership is never deleted; lifecycle status changes preserve the purchase/refund/dispute audit trail.
+model BackgroundOwnership {
+  id                  String                     @id @default(cuid())
+  userId              String
+  backgroundKey       String
+  source              BackgroundOwnershipSource
+  status              BackgroundOwnershipStatus @default(ACTIVE)
+  sourceOrderItemId   String?                    @unique
+  sourceCreditEntryId String?                    @unique
+  acquiredAt          DateTime                   @default(now())
+  statusChangedAt     DateTime                   @default(now())
+  createdAt           DateTime                   @default(now())
+  updatedAt           DateTime                   @updatedAt
+  user                User                       @relation(fields: [userId], references: [id], onDelete: Restrict)
+  sourceOrderItem     CommerceOrderItem?         @relation(fields: [sourceOrderItemId], references: [id], onDelete: Restrict)
+  sourceCreditEntry   BackgroundCreditEntry?     @relation(fields: [sourceCreditEntryId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, backgroundKey])
+  @@index([userId, status])
+  @@index([backgroundKey, status])
 }
 
 model Account {
