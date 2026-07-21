@@ -557,7 +557,7 @@ model LegalAcceptance {
 model CommerceCart {
   id        String             @id @default(cuid())
   userId    String             @unique
-  currency  String             @default("USD")
+  currency  String             @default("usd")
   createdAt DateTime           @default(now())
   updatedAt DateTime           @updatedAt
   user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -583,7 +583,7 @@ model CommerceOrder {
   userId                  String
   status                  CommerceOrderStatus       @default(PREPARING)
   fulfillmentStatus       CommerceFulfillmentStatus @default(PENDING)
-  currency                String                    @default("USD")
+  currency                String                    @default("usd")
   subtotalCents           Int
   taxCents                Int
   totalCents              Int

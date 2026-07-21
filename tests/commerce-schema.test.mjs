@@ -58,6 +58,31 @@ describe("transactional background commerce schema", () => {
     }
   })
 
+  it("stores every commerce currency as a lowercase three-letter ISO code", () => {
+    assert.match(modelBlock("CommerceCart"), /currency\s+String\s+@default\("usd"\)/)
+    assert.match(modelBlock("CommerceOrder"), /currency\s+String\s+@default\("usd"\)/)
+    assert.match(migration, /"CommerceCart"[\s\S]*?"currency" TEXT NOT NULL DEFAULT 'usd'/)
+    assert.match(migration, /"CommerceOrder"[\s\S]*?"currency" TEXT NOT NULL DEFAULT 'usd'/)
+
+    const currencyChecks = [
+      "CommerceCart_currency_lowercase_iso_check",
+      "CommerceOrder_currency_lowercase_iso_check",
+      "CommerceOrderItem_currency_lowercase_iso_check",
+      "CommercePayment_currency_lowercase_iso_check",
+      "CommerceRefund_currency_lowercase_iso_check",
+      "CommerceDispute_currency_lowercase_iso_check",
+    ]
+
+    for (const constraintName of currencyChecks) {
+      assert.ok(
+        migration.includes(
+          `CONSTRAINT "${constraintName}" CHECK ("currency" ~ '^[a-z]{3}$')`,
+        ),
+        `Expected named lowercase ISO currency check ${constraintName}`,
+      )
+    }
+  })
+
   it("enforces commerce idempotency and one-current-record invariants", () => {
     const schemaUniqueContracts = [
       ["CommerceCart", /userId\s+String\s+@unique/],

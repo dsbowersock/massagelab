@@ -10,10 +10,11 @@ CREATE TYPE "BackgroundCreditEntryType" AS ENUM ('INITIAL_GRANT', 'REDEMPTION', 
 CREATE TABLE "CommerceCart" (
   "id" TEXT NOT NULL,
   "userId" TEXT NOT NULL,
-  "currency" TEXT NOT NULL DEFAULT 'USD',
+  "currency" TEXT NOT NULL DEFAULT 'usd',
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" TIMESTAMP(3) NOT NULL,
-  CONSTRAINT "CommerceCart_pkey" PRIMARY KEY ("id")
+  CONSTRAINT "CommerceCart_pkey" PRIMARY KEY ("id"),
+  CONSTRAINT "CommerceCart_currency_lowercase_iso_check" CHECK ("currency" ~ '^[a-z]{3}$')
 );
 
 CREATE TABLE "CommerceCartItem" (
@@ -34,7 +35,7 @@ CREATE TABLE "CommerceOrder" (
   "userId" TEXT NOT NULL,
   "status" "CommerceOrderStatus" NOT NULL DEFAULT 'PREPARING',
   "fulfillmentStatus" "CommerceFulfillmentStatus" NOT NULL DEFAULT 'PENDING',
-  "currency" TEXT NOT NULL DEFAULT 'USD',
+  "currency" TEXT NOT NULL DEFAULT 'usd',
   "subtotalCents" INTEGER NOT NULL,
   "taxCents" INTEGER NOT NULL,
   "totalCents" INTEGER NOT NULL,
@@ -50,6 +51,7 @@ CREATE TABLE "CommerceOrder" (
   "updatedAt" TIMESTAMP(3) NOT NULL,
   CONSTRAINT "CommerceOrder_pkey" PRIMARY KEY ("id"),
   CONSTRAINT "CommerceOrder_totals_nonnegative" CHECK ("subtotalCents" >= 0 AND "taxCents" >= 0 AND "totalCents" >= 0),
+  CONSTRAINT "CommerceOrder_currency_lowercase_iso_check" CHECK ("currency" ~ '^[a-z]{3}$'),
   CONSTRAINT "CommerceOrder_legal_acceptance_shape_version_check" CHECK (
     jsonb_typeof("legalAcceptance") = 'object'
     AND jsonb_typeof("legalAcceptance"->'documentIds') = 'array'
@@ -82,7 +84,8 @@ CREATE TABLE "CommerceOrderItem" (
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" TIMESTAMP(3) NOT NULL,
   CONSTRAINT "CommerceOrderItem_pkey" PRIMARY KEY ("id"),
-  CONSTRAINT "CommerceOrderItem_money_nonnegative" CHECK ("unitPriceCents" >= 0 AND "quantity" > 0 AND "allocatedTaxCents" >= 0 AND "lineTotalCents" >= 0)
+  CONSTRAINT "CommerceOrderItem_money_nonnegative" CHECK ("unitPriceCents" >= 0 AND "quantity" > 0 AND "allocatedTaxCents" >= 0 AND "lineTotalCents" >= 0),
+  CONSTRAINT "CommerceOrderItem_currency_lowercase_iso_check" CHECK ("currency" ~ '^[a-z]{3}$')
 );
 
 CREATE TABLE "CommercePayment" (
@@ -97,7 +100,8 @@ CREATE TABLE "CommercePayment" (
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" TIMESTAMP(3) NOT NULL,
   CONSTRAINT "CommercePayment_pkey" PRIMARY KEY ("id"),
-  CONSTRAINT "CommercePayment_amount_nonnegative" CHECK ("amountCents" >= 0)
+  CONSTRAINT "CommercePayment_amount_nonnegative" CHECK ("amountCents" >= 0),
+  CONSTRAINT "CommercePayment_currency_lowercase_iso_check" CHECK ("currency" ~ '^[a-z]{3}$')
 );
 
 CREATE TABLE "CommerceRefund" (
@@ -114,7 +118,8 @@ CREATE TABLE "CommerceRefund" (
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" TIMESTAMP(3) NOT NULL,
   CONSTRAINT "CommerceRefund_pkey" PRIMARY KEY ("id"),
-  CONSTRAINT "CommerceRefund_amount_nonnegative" CHECK ("amountCents" >= 0)
+  CONSTRAINT "CommerceRefund_amount_nonnegative" CHECK ("amountCents" >= 0),
+  CONSTRAINT "CommerceRefund_currency_lowercase_iso_check" CHECK ("currency" ~ '^[a-z]{3}$')
 );
 
 CREATE TABLE "CommerceRefundItem" (
@@ -142,7 +147,8 @@ CREATE TABLE "CommerceDispute" (
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" TIMESTAMP(3) NOT NULL,
   CONSTRAINT "CommerceDispute_pkey" PRIMARY KEY ("id"),
-  CONSTRAINT "CommerceDispute_amount_nonnegative" CHECK ("amountCents" >= 0)
+  CONSTRAINT "CommerceDispute_amount_nonnegative" CHECK ("amountCents" >= 0),
+  CONSTRAINT "CommerceDispute_currency_lowercase_iso_check" CHECK ("currency" ~ '^[a-z]{3}$')
 );
 
 CREATE TABLE "CommerceEvent" (
