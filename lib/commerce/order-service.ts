@@ -7,6 +7,7 @@ import {
 } from "./constants.js"
 import { normalizeCommerceReturnPath } from "./catalog.ts"
 import {
+  expirePreparingOrdersInTransaction,
   reconcileCommerceCartInTransaction,
   type ReconciledCommerceCart,
 } from "./cart-service.ts"
@@ -96,23 +97,28 @@ function legalAcceptanceSnapshot(value: unknown, now: Date): CommerceLegalAccept
   const documentIds = candidate.documentIds
     .filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0)
     .map((entry) => entry.trim())
+  const rawVersionEntries = Object.entries(candidate.documentVersions)
   const documentVersions = Object.fromEntries(
-    Object.entries(candidate.documentVersions)
+    rawVersionEntries
       .filter(([key, version]) => key.trim() && typeof version === "string" && version.trim())
       .map(([key, version]) => [key.trim(), (version as string).trim()]),
   )
+  const normalizedDocumentIds = new Set(documentIds)
+  const versionedDocumentIds = new Set(
+    Object.entries(documentVersions).map(([key, version]) => key + ":" + version),
+  )
   if (
     documentIds.length !== candidate.documentIds.length
+    || Object.keys(documentVersions).length !== rawVersionEntries.length
     || Object.keys(documentVersions).length === 0
-    || !Object.entries(documentVersions).every(([key, version]) => (
-      documentIds.includes(key + ":" + version)
-    ))
+    || normalizedDocumentIds.size !== versionedDocumentIds.size
+    || ![...normalizedDocumentIds].every((documentId) => versionedDocumentIds.has(documentId))
   ) {
     throw new CommerceError({ code: COMMERCE_ERROR_CODES.LEGAL_CONSENT_REQUIRED })
   }
 
   return {
-    documentIds: [...new Set(documentIds)],
+    documentIds: [...normalizedDocumentIds],
     documentVersions,
     acceptedAt: now.toISOString(),
     combinedConsentAccepted: true,
@@ -418,41 +424,7 @@ export async function expirePreparedOrders(input: {
 }): Promise<{ expiredOrderIds: string[] }> {
   const operation = async (tx: Prisma.TransactionClient) => {
     const now = input.now ?? new Date()
-    const due = await tx.commerceOrder.findMany({
-      where: {
-        status: { in: [...ACTIVE_ORDER_STATUSES] },
-        reservationExpiresAt: { lte: now },
-      },
-      orderBy: [{ reservationExpiresAt: "asc" }, { id: "asc" }],
-      select: { id: true, userId: true, status: true },
-    })
-    const expiredOrderIds: string[] = []
-
-    for (const order of due) {
-      const transition = await tx.commerceOrder.updateMany({
-        where: {
-          id: order.id,
-          status: { in: [...ACTIVE_ORDER_STATUSES] },
-          reservationExpiresAt: { lte: now },
-        },
-        data: {
-          status: "EXPIRED",
-          reservationExpiresAt: null,
-          failureCode: "RESERVATION_EXPIRED",
-        },
-      })
-      if (transition.count !== 1) continue
-      expiredOrderIds.push(order.id)
-      await recordOrderEvent(tx, {
-        userId: order.userId,
-        orderId: order.id,
-        eventType: "ORDER_EXPIRED",
-        fromState: order.status,
-        toState: "EXPIRED",
-        reasonCode: "RESERVATION_EXPIRED",
-      })
-    }
-    return { expiredOrderIds }
+    return expirePreparingOrdersInTransaction(tx, { now })
   }
 
   try {

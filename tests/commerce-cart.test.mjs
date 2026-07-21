@@ -10,6 +10,7 @@ import { COMMERCE_ERROR_CODES, CommerceError } from "../lib/commerce/errors.ts"
 const PREMIUM_A = "massage-lab-aurora"
 const PREMIUM_B = "massage-lab-photon-beam"
 const PREMIUM_C = "massage-lab-vortex"
+const NOW = new Date("2026-07-21T12:00:00.000Z")
 
 function createCartDatabase({ emailVerified = true, subscriptions = [] } = {}) {
   const state = {
@@ -19,6 +20,7 @@ function createCartDatabase({ emailVerified = true, subscriptions = [] } = {}) {
     items: [],
     ownerships: [],
     orders: [],
+    events: [],
     transactionCalls: 0,
     nextCartId: 1,
     nextItemId: 1,
@@ -90,12 +92,25 @@ function createCartDatabase({ emailVerified = true, subscriptions = [] } = {}) {
       },
     },
     commerceOrder: {
+      async findMany({ where }) {
+        return state.orders
+          .filter((order) => (
+            (!where.userId || order.userId === where.userId)
+            && (!where.status || order.status === where.status || where.status.in?.includes(order.status))
+            && (!where.reservationExpiresAt?.lte || order.reservationExpiresAt <= where.reservationExpiresAt.lte)
+          ))
+          .map((order) => ({ ...order }))
+      },
       async updateMany({ where, data }) {
         let count = 0
         for (const order of state.orders) {
-          const active = ["PREPARING", "AWAITING_PAYMENT"].includes(order.status)
+          const statusMatches = typeof where.status === "string"
+            ? order.status === where.status
+            : where.status.in.includes(order.status)
           const expired = order.reservationExpiresAt && order.reservationExpiresAt <= where.reservationExpiresAt.lte
-          if (order.userId === where.userId && active && expired) {
+          const idMatches = !where.id || order.id === where.id
+          const userMatches = !where.userId || order.userId === where.userId
+          if (idMatches && userMatches && statusMatches && expired) {
             Object.assign(order, data)
             count += 1
           }
@@ -105,10 +120,24 @@ function createCartDatabase({ emailVerified = true, subscriptions = [] } = {}) {
       async findFirst({ where }) {
         const active = state.orders.find((order) => (
           order.userId === where.userId
-          && where.status.in.includes(order.status)
-          && order.reservationExpiresAt > where.reservationExpiresAt.gt
+          && (
+            where.OR
+              ? where.OR.some((clause) => (
+                  order.status === clause.status
+                  && (!clause.reservationExpiresAt?.gt || order.reservationExpiresAt > clause.reservationExpiresAt.gt)
+                ))
+              : where.status.in.includes(order.status)
+                && order.reservationExpiresAt > where.reservationExpiresAt.gt
+          )
         ))
         return active ? { ...active, items: active.items.map((item) => ({ ...item })) } : null
+      },
+    },
+    commerceEvent: {
+      async create({ data }) {
+        const event = { id: "event-" + (state.events.length + 1), ...data }
+        state.events.push(event)
+        return event
       },
     },
   }
@@ -260,5 +289,56 @@ describe("persistent commerce cart", () => {
       COMMERCE_ERROR_CODES.RESERVED_CART,
     )
     assert.equal(state.items.length, 1)
+  })
+
+  it("does not release an overdue awaiting-payment reservation during a cart read", async () => {
+    const { database, state, seedCartItem } = createCartDatabase()
+    seedCartItem(PREMIUM_A)
+    const expiresAt = new Date("2026-07-21T11:59:00.000Z")
+    state.orders.push({
+      id: "order-awaiting",
+      userId: "user-1",
+      status: "AWAITING_PAYMENT",
+      reservationExpiresAt: expiresAt,
+      items: [{ productType: "background", productKey: PREMIUM_A }],
+    })
+
+    const snapshot = await getCommerceCartSnapshot(cartInput(database, { now: NOW }))
+
+    assert.equal(state.orders[0].status, "AWAITING_PAYMENT")
+    assert.equal(state.orders[0].reservationExpiresAt, expiresAt)
+    assert.deepEqual(snapshot.reservedOrder, {
+      orderId: "order-awaiting",
+      expiresAt: expiresAt.toISOString(),
+    })
+    assert.equal(state.events.length, 0)
+  })
+
+  it("records one audit event for an idempotent cart-triggered preparing-order expiry", async () => {
+    const { database, state } = createCartDatabase()
+    state.orders.push({
+      id: "order-expired",
+      userId: "user-1",
+      status: "PREPARING",
+      reservationExpiresAt: new Date("2026-07-21T11:59:00.000Z"),
+      items: [],
+    })
+
+    await getCommerceCartSnapshot(cartInput(database, { now: NOW }))
+    await getCommerceCartSnapshot(cartInput(database, { now: NOW }))
+
+    assert.equal(state.orders[0].status, "EXPIRED")
+    assert.equal(state.orders[0].reservationExpiresAt, null)
+    assert.deepEqual(state.events.map((event) => ({
+      eventType: event.eventType,
+      orderId: event.orderId,
+      fromState: event.fromState,
+      toState: event.toState,
+    })), [{
+      eventType: "ORDER_EXPIRED",
+      orderId: "order-expired",
+      fromState: "PREPARING",
+      toState: "EXPIRED",
+    }])
   })
 })

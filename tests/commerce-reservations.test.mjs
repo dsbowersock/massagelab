@@ -66,6 +66,11 @@ function createReservationDatabase({
   function matchesOrder(order, where) {
     if (where.id && order.id !== where.id) return false
     if (where.userId && order.userId !== where.userId) return false
+    if (where.OR && !where.OR.some((clause) => (
+      (!clause.status || order.status === clause.status)
+      && (!clause.reservationExpiresAt?.gt || order.reservationExpiresAt > clause.reservationExpiresAt.gt)
+    ))) return false
+    if (typeof where.status === "string" && order.status !== where.status) return false
     if (where.status?.in && !where.status.in.includes(order.status)) return false
     if (where.reservationExpiresAt?.gt && !(order.reservationExpiresAt > where.reservationExpiresAt.gt)) return false
     if (where.reservationExpiresAt?.lte && !(order.reservationExpiresAt <= where.reservationExpiresAt.lte)) return false
@@ -325,6 +330,12 @@ describe("background order reservations", () => {
       reservationExpiresAt: new Date("2026-07-21T12:10:00.000Z"),
       items: { create: [] },
     })
+    const awaitingPayment = commitOrder({
+      userId: "user-3",
+      status: "AWAITING_PAYMENT",
+      reservationExpiresAt: new Date("2026-07-21T11:58:00.000Z"),
+      items: { create: [] },
+    })
 
     const result = await expirePreparedOrders({ prismaClient: database, now: NOW })
 
@@ -332,7 +343,12 @@ describe("background order reservations", () => {
     assert.equal(state.orders.find((order) => order.id === expired.id).status, "EXPIRED")
     assert.equal(state.orders.find((order) => order.id === expired.id).reservationExpiresAt, null)
     assert.equal(state.orders.find((order) => order.id === later.id).status, "PREPARING")
-    assert.equal(state.orders.length, 2)
+    assert.equal(state.orders.find((order) => order.id === awaitingPayment.id).status, "AWAITING_PAYMENT")
+    assert.equal(
+      state.orders.find((order) => order.id === awaitingPayment.id).reservationExpiresAt.toISOString(),
+      "2026-07-21T11:58:00.000Z",
+    )
+    assert.equal(state.orders.length, 3)
     assert.equal(state.events.at(-1).eventType, "ORDER_EXPIRED")
   })
 
@@ -379,6 +395,41 @@ describe("background order reservations", () => {
       () => prepareBackgroundOrder(prepareInput(unsupported.database, { purchaseCountry: "CA" })),
       COMMERCE_ERROR_CODES.COUNTRY_UNAVAILABLE,
     )
+  })
+
+  it("requires document IDs and version entries to be an exact one-to-one set", async () => {
+    const invalidEvidence = [
+      {
+        ...LEGAL_ACCEPTANCE,
+        documentVersions: {
+          terms: "current",
+          "digital-purchases-refunds": "current",
+        },
+      },
+      {
+        ...LEGAL_ACCEPTANCE,
+        documentVersions: {
+          ...LEGAL_ACCEPTANCE.documentVersions,
+          "membership-billing-refunds": "current",
+        },
+      },
+      {
+        ...LEGAL_ACCEPTANCE,
+        documentIds: [
+          "terms:current",
+          "privacy:stale",
+          "digital-purchases-refunds:current",
+        ],
+      },
+    ]
+
+    for (const legalAcceptance of invalidEvidence) {
+      const { database } = createReservationDatabase()
+      await rejectsWithCode(
+        () => prepareBackgroundOrder(prepareInput(database, { legalAcceptance })),
+        COMMERCE_ERROR_CODES.LEGAL_CONSENT_REQUIRED,
+      )
+    }
   })
 
   it("does not hide unrelated uniqueness failures as successful double submits", async () => {

@@ -6,8 +6,6 @@ import type { PrismaClientOrTransaction } from "./credit-service.ts"
 import { COMMERCE_ERROR_CODES, CommerceError, asPublicCommerceError } from "./errors.ts"
 import { runCommerceTransaction } from "./transactions.ts"
 
-const ACTIVE_ORDER_STATUSES = ["PREPARING", "AWAITING_PAYMENT"] as const
-
 export const COMMERCE_CART_NOTICE_CODES = {
   OWNED_ITEM_REMOVED: "OWNED_ITEM_REMOVED",
   FREE_ITEM_REMOVED: "FREE_ITEM_REMOVED",
@@ -120,6 +118,63 @@ async function assertVerifiedUser(tx: Prisma.TransactionClient, userId: string):
 }
 
 /**
+ * Expires only local PREPARING reservations and records each won transition once.
+ *
+ * AWAITING_PAYMENT belongs to processor-aware orchestration: a database-only path
+ * must not release it before Stripe confirms that its Checkout Session is no longer payable.
+ */
+export async function expirePreparingOrdersInTransaction(
+  tx: Prisma.TransactionClient,
+  input: { now: Date; userId?: string },
+): Promise<{ expiredOrderIds: string[] }> {
+  const due = await tx.commerceOrder.findMany({
+    where: {
+      ...(input.userId ? { userId: input.userId } : {}),
+      status: "PREPARING",
+      reservationExpiresAt: { lte: input.now },
+    },
+    orderBy: [{ reservationExpiresAt: "asc" }, { id: "asc" }],
+    select: { id: true, userId: true },
+  })
+  const expiredOrderIds: string[] = []
+
+  for (const order of due) {
+    const transition = await tx.commerceOrder.updateMany({
+      where: {
+        id: order.id,
+        userId: order.userId,
+        status: "PREPARING",
+        reservationExpiresAt: { lte: input.now },
+      },
+      data: {
+        status: "EXPIRED",
+        reservationExpiresAt: null,
+        failureCode: "RESERVATION_EXPIRED",
+      },
+    })
+    if (transition.count !== 1) continue
+
+    expiredOrderIds.push(order.id)
+    await tx.commerceEvent.create({
+      data: {
+        userId: order.userId,
+        orderId: order.id,
+        eventType: "ORDER_EXPIRED",
+        source: "commerce-order-service",
+        reasonCode: "RESERVATION_EXPIRED",
+        aggregateType: "CommerceOrder",
+        aggregateId: order.id,
+        fromState: "PREPARING",
+        toState: "EXPIRED",
+        payload: {},
+      },
+    })
+  }
+
+  return { expiredOrderIds }
+}
+
+/**
  * Reconciles one persistent account cart from current database and registry state.
  *
  * Reserved rows are deliberately excluded from pruning: the immutable order
@@ -131,17 +186,9 @@ export async function reconcileCommerceCartInTransaction(
 ): Promise<ReconciledCommerceCart> {
   await assertVerifiedUser(tx, input.userId)
 
-  await tx.commerceOrder.updateMany({
-    where: {
-      userId: input.userId,
-      status: { in: [...ACTIVE_ORDER_STATUSES] },
-      reservationExpiresAt: { lte: input.now },
-    },
-    data: {
-      status: "EXPIRED",
-      reservationExpiresAt: null,
-      failureCode: "RESERVATION_EXPIRED",
-    },
+  await expirePreparingOrdersInTransaction(tx, {
+    userId: input.userId,
+    now: input.now,
   })
 
   const cart = await tx.commerceCart.upsert({
@@ -163,8 +210,15 @@ export async function reconcileCommerceCartInTransaction(
     tx.commerceOrder.findFirst({
       where: {
         userId: input.userId,
-        status: { in: [...ACTIVE_ORDER_STATUSES] },
-        reservationExpiresAt: { gt: input.now },
+        OR: [
+          {
+            status: "PREPARING",
+            reservationExpiresAt: { gt: input.now },
+          },
+          {
+            status: "AWAITING_PAYMENT",
+          },
+        ],
       },
       orderBy: { createdAt: "asc" },
       select: {
