@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
+  DIGITAL_PURCHASES_REFUNDS_VERSION,
   LEGAL_DOCUMENT_KEYS,
   LEGAL_DOCUMENT_VERSION,
   LEGAL_DOCUMENTS,
@@ -20,6 +21,7 @@ describe("legal document registry", () => {
       "therapist-agreement",
       "cookies",
       "local-first-health-wellness-data",
+      "digital-purchases-refunds",
     ])
     assert.equal(LEGAL_DOCUMENTS.length, LEGAL_DOCUMENT_KEYS.length)
   })
@@ -45,8 +47,24 @@ describe("legal document registry", () => {
       ["membership-billing-refunds"],
     )
     assert.deepEqual(
+      requiredLegalDocumentsForEvent("digital-purchase").map((document) => document.key),
+      ["terms", "privacy", "digital-purchases-refunds"],
+    )
+    assert.deepEqual(
       requiredLegalDocumentsForEvent("professional-activation").map((document) => document.key),
       ["therapist-agreement"],
+    )
+  })
+
+  it("keeps the digital-purchase policy independently versioned", () => {
+    const policy = getLegalDocumentByKey("digital-purchases-refunds")
+
+    assert.equal(DIGITAL_PURCHASES_REFUNDS_VERSION, "2026-07-digital-purchases-v1")
+    assert.equal(policy.version, DIGITAL_PURCHASES_REFUNDS_VERSION)
+    assert.equal(policy.route, "/legal/digital-purchases-refunds")
+    assert.equal(
+      legalDocumentAcceptanceId(policy),
+      "digital-purchases-refunds:2026-07-digital-purchases-v1",
     )
   })
 

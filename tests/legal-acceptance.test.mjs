@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
   acceptedDocumentIdsFromInput,
+  buildDigitalPurchaseConsent,
   hasAcceptedCurrentDocuments,
   legalRequestMetadata,
   missingRequiredLegalDocuments,
@@ -48,6 +49,44 @@ function createMockDb(initialRows = []) {
 }
 
 describe("legal acceptance helpers", () => {
+  it("captures exact current documents for one explicit per-order digital-purchase consent", () => {
+    const documents = requiredLegalDocumentsForEvent("digital-purchase")
+    const acceptedDocumentIds = documents.map((document) => `${document.key}:${document.version}`)
+    const now = new Date("2026-07-21T16:30:00.000Z")
+
+    assert.deepEqual(buildDigitalPurchaseConsent({
+      acceptedDocumentIds,
+      combinedConsentAccepted: true,
+      now,
+    }), {
+      documentIds: acceptedDocumentIds,
+      documentVersions: Object.fromEntries(documents.map((document) => [document.key, document.version])),
+      combinedConsentAccepted: true,
+      acceptedAt: "2026-07-21T16:30:00.000Z",
+    })
+  })
+
+  it("requires a fresh combined digital-purchase consent even when account acceptances exist", () => {
+    const documents = requiredLegalDocumentsForEvent("digital-purchase")
+    const acceptedDocumentIds = documents.map((document) => `${document.key}:${document.version}`)
+
+    assert.throws(
+      () => buildDigitalPurchaseConsent({ acceptedDocumentIds, combinedConsentAccepted: false }),
+      /digital purchase consent/i,
+    )
+    assert.throws(
+      () => buildDigitalPurchaseConsent({ acceptedDocumentIds: acceptedDocumentIds.slice(0, -1), combinedConsentAccepted: true }),
+      /digital purchase consent/i,
+    )
+    assert.throws(
+      () => buildDigitalPurchaseConsent({
+        acceptedDocumentIds: acceptedDocumentIds.map((id) => id.replace("2026-07-digital-purchases-v1", "stale")),
+        combinedConsentAccepted: true,
+      }),
+      /digital purchase consent/i,
+    )
+  })
+
   it("normalizes accepted document ids from arrays, sets, and records", () => {
     assert.deepEqual(
       acceptedDocumentIdsFromInput(["terms:2026-06-legal-v1", "", "privacy:2026-06-legal-v1"]),
