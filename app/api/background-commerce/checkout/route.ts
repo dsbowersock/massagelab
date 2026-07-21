@@ -658,6 +658,25 @@ export function createBackgroundCheckoutPostHandler(
         now: deps.now(),
       })
 
+      if (preparedOrder.status === "AWAITING_PAYMENT") {
+        const activeOrder = await deps.loadOrder(preparedOrder.orderId)
+        if (
+          !activeOrder
+          || activeOrder.userId !== user.id
+          || activeOrder.status !== "AWAITING_PAYMENT"
+        ) {
+          throw new CommerceError({ code: COMMERCE_ERROR_CODES.STALE_CONCURRENCY })
+        }
+        if (!activeOrder.stripeCheckoutSessionId) {
+          throw new CommerceError({ code: COMMERCE_ERROR_CODES.PAYMENT_PENDING })
+        }
+        return resolveUnassociatedSession(deps, {
+          userId: user.id,
+          orderId: preparedOrder.orderId,
+          session: { id: activeOrder.stripeCheckoutSessionId },
+        })
+      }
+
       let customer
       try {
         customer = await deps.ensureCustomer(user)
