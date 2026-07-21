@@ -1,5 +1,37 @@
 # Carousel Prototype Lab Design
 
+## Final selection addendum — 2026-07-20
+
+The user completed the Track 3A comparison and superseded the larger option matrix:
+
+- Backgrounds retain only the production-style Existing presentation. Responsive sizing selects the approved 164×312/22-degree, 200×240/26-degree, 220×304/29-degree, 256×360/33-degree, or 280×388/36-degree profile from available carousel width, with zero gap, nearby radius two, 420-pixel radius, 0.08 falloff, and loop/motion on.
+- Music Stations retain only the production Clock/Chimer Background Picker presentation, using 192×224 centered cards and 193-pixel surrounding previews on every screen and device, zero gap, nearby radius four, 27-degree spread, 420-pixel radius, 0.05 scale falloff, and loop/motion on.
+- Cover Flow and 3D Carousel are removed from both review surfaces.
+- Background Existing exposes responsive sizing plus manual fallback tuning. Background Select and Station Play/Stop use shared Glow over the artwork's upper-left, while each Favorite uses CTA-purple Glow over the upper-right; a selected favorite fills the glyph purple and animates a reduced-motion-safe chromatic-metal trace around the icon path. Distant layout shells remain visually transparent.
+- Background preview copy omits the exact `MassageLab` provider label and the Shader/Video tags. The centered Station raises its title and clamped summary into a deeper lower-artwork overlay; activating that area opens an accessible dialog with the complete description and source/license information.
+- These are recorded winner decisions only. Track 3B production replacement still requires a separate authorized implementation pass.
+
+## Second review addendum — 2026-07-20
+
+The next user review expands the development-only comparison from six to seven combinations and supersedes conflicting defaults below:
+
+- Backgrounds retain Existing, Cover Flow, and 3D Carousel. Music Stations add a fourth `Background Picker` sample using the same radial geometry as the production Clock/Chimer Background picker.
+- The supplied screenshot values are the new device defaults under `massagelab-carousel-lab-v3`: Background Existing uses 268/18/4/27/420/0.05; Background Cover Flow uses 192/0/4/16/1.25/0.60/320/0.75/1; Music Cover Flow uses the same values with a 3-pixel reflection gap; Background 3D uses 200/0/4/50/14/1/1/2; and Music 3D uses 192/0/4/50/16/1/0.9/1.8. Loop and motion default on for these samples.
+- All Music Station samples loop when a category has at least three real stations. Nearby radius remains a bounded rendering budget and no longer blocks looping.
+- Background Select and Favorite controls move to the upper-left and upper-right preview corners for all three Background presentations. Side-card Background Cover Flow reflections fade out after 32% of the reflected artwork height.
+- This remains a review-only Track 3A change. It does not select a winner or alter a production carousel.
+
+## Visual-review correction addendum — 2026-07-20
+
+The first implementation satisfied the original shared-controller constraints but over-adapted the two CodePens. User review rejected that approximation. This addendum supersedes conflicting mechanics below while preserving the Track 3A development-only boundary:
+
+- Existing Background now mirrors the production Clock/Chimer radial geometry and 5:7 card presentation instead of applying a mild radial transform to a linear rail.
+- Cover Flow treats the public Pen as an executable visual specification: source-default rotation/scale/reflection, center depth, inner-edge transform origins, lateral sweep, and stacking remain intact while real MassageLab cards replace demo images.
+- 3D Carousel uses one shared source-derived rotating cylinder with the Pen's 16-slot, 320-pixel-perspective, 0.9/1.8 mask defaults. It is no longer a flat rail with independent per-card yaw/depth.
+- Nearby Background cards may mount and play muted video previews inside the bounded radius, matching the production picker; reduced motion, visibility, and unmount cleanup remain mandatory.
+- Every tuning control includes a plain-language effect description. Corrected defaults use device-local storage key `massagelab-carousel-lab-v2`.
+- GSAP, ScrollTrigger, Tweakpane, global demo styles, demo assets, autoplay, vertical mode, and production rollout remain out of scope. Existing Embla input mechanics and coalesced imperative transforms provide the app integration.
+
 **Date:** 2026-07-18
 
 **Status:** Reviewed and approved for implementation planning

@@ -5,6 +5,8 @@ import {
 import {
   createBoundedGenerativeFmWebProvider,
   createGenerativeFmProviderRequestStats,
+  startAbortableGenerativeFmPrewarm,
+  waitForAbortableGenerativeFmPrewarm,
 } from "./generative-fm-provider"
 
 type HostedCompressedSampleFormat = "opus" | "aac" | "mp3"
@@ -29,6 +31,7 @@ type GenerativeFmRuntimeOptions = {
 type GenerativeFmPrewarmOptions = {
   station: GenerativeFmRuntimeStation
   includeSamplePayloads?: boolean
+  signal?: AbortSignal
 }
 
 type ToneModule = typeof import("tone")
@@ -249,14 +252,19 @@ export async function startGenerativeFmPiece({
 export async function prewarmGenerativeFmPiece({
   station,
   includeSamplePayloads = false,
+  signal,
 }: GenerativeFmPrewarmOptions) {
   if (typeof window === "undefined") {
     return
   }
 
-  const prepared = await getPreparedGenerativeFmRuntime(station, "prewarm")
+  const prepared = await startAbortableGenerativeFmPrewarm(
+    () => getPreparedGenerativeFmRuntime(station, "prewarm"),
+    signal,
+  )
+  signal?.throwIfAborted()
   if (includeSamplePayloads) {
-    await prewarmGenerativeFmSamplePayloads(prepared)
+    await prewarmGenerativeFmSamplePayloads(prepared, signal)
   }
 }
 
@@ -378,11 +386,14 @@ function preparedRuntimeCacheKey({ pieceId, sampleFormat, sampleGroups, sampleIn
  * preparation, WAV remains lazy because it is the large fallback format, and
  * failed warmups collapse to a counted failure result without blocking playback.
  */
-function prewarmGenerativeFmSamplePayloads(prepared: PreparedGenerativeFmRuntime): Promise<SamplePayloadPrewarmResult> {
+function prewarmGenerativeFmSamplePayloads(
+  prepared: PreparedGenerativeFmRuntime,
+  signal?: AbortSignal,
+): Promise<SamplePayloadPrewarmResult> {
   const cacheKey = preparedRuntimeCacheKey(prepared)
   const existingEntry = samplePayloadPrewarmEntries.get(cacheKey)
   if (existingEntry) {
-    return existingEntry.promise
+    return waitForAbortableGenerativeFmPrewarm(existingEntry.promise, signal)
   }
 
   // WAV payloads can still be large; compressed formats already cover the
@@ -396,11 +407,31 @@ function prewarmGenerativeFmSamplePayloads(prepared: PreparedGenerativeFmRuntime
     sampleGroups: prepared.sampleGroups,
     maxUrls: SAMPLE_PAYLOAD_PREWARM_LIMIT,
   })
+
+  // A signalled lab request owns only its optional payload escalation. Keep it
+  // outside the shared in-flight cache so aborting the lab cannot cancel work
+  // already requested by production hover/idle prewarm or by later playback.
+  if (signal) {
+    return warmSamplePayloadUrls(sampleUrls, signal).then((result) => {
+      signal.throwIfAborted()
+      if (!samplePayloadPrewarmEntries.has(cacheKey)) {
+        const completedPromise = Promise.resolve(result)
+        samplePayloadPrewarmEntries.set(cacheKey, {
+          promise: completedPromise,
+          settled: true,
+          sampleUrlCount: result.sampleUrlCount,
+          failedUrlCount: result.failedUrlCount,
+        })
+      }
+      return result
+    })
+  }
+
   const entry: SamplePayloadPrewarmEntry = {
     settled: false,
     sampleUrlCount: sampleUrls.length,
     failedUrlCount: sampleUrls.length,
-    promise: warmSamplePayloadUrls(sampleUrls).then((result) => {
+    promise: warmSamplePayloadUrls(sampleUrls, signal).then((result) => {
       entry.failedUrlCount = result.failedUrlCount
       entry.settled = true
       return result
@@ -434,35 +465,42 @@ function readSamplePayloadPrewarmState(prepared: PreparedGenerativeFmRuntime) {
  * optimization; the actual playback path remains responsible for surfacing
  * real runtime loading errors.
  */
-async function warmSamplePayloadUrls(sampleUrls: string[]): Promise<SamplePayloadPrewarmResult> {
+async function warmSamplePayloadUrls(
+  sampleUrls: string[],
+  signal?: AbortSignal,
+): Promise<SamplePayloadPrewarmResult> {
+  signal?.throwIfAborted()
   if (sampleUrls.length === 0 || typeof fetch !== "function") {
     return { sampleUrlCount: sampleUrls.length, failedUrlCount: 0 }
   }
 
   let failedUrlCount = 0
-  let nextUrlIndex = 0
-  const workerCount = Math.min(SAMPLE_PAYLOAD_PREWARM_CONCURRENCY, sampleUrls.length)
-  await Promise.all(Array.from({ length: workerCount }, async () => {
-    while (nextUrlIndex < sampleUrls.length) {
-      const sampleUrl = sampleUrls[nextUrlIndex]
-      nextUrlIndex += 1
+  for (let batchStart = 0; batchStart < sampleUrls.length; batchStart += SAMPLE_PAYLOAD_PREWARM_CONCURRENCY) {
+    signal?.throwIfAborted()
+    const batch = sampleUrls.slice(batchStart, batchStart + SAMPLE_PAYLOAD_PREWARM_CONCURRENCY)
+    await Promise.all(batch.map(async (sampleUrl) => {
       try {
         const response = await fetch(sampleUrl, {
           cache: "force-cache",
           credentials: "omit",
           mode: "cors",
+          signal,
         })
         if (!response.ok) {
           failedUrlCount += 1
-          continue
+          return
         }
 
         await response.arrayBuffer()
       } catch {
+        if (signal?.aborted) {
+          signal.throwIfAborted()
+        }
         failedUrlCount += 1
       }
-    }
-  }))
+    }))
+    signal?.throwIfAborted()
+  }
 
   return { sampleUrlCount: sampleUrls.length, failedUrlCount }
 }

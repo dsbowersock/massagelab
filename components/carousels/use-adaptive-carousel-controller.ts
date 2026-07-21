@@ -1,0 +1,222 @@
+"use client"
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import useEmblaCarousel from "embla-carousel-react"
+import {
+  getAdaptiveCarouselPresentationVariables,
+  getMountedAdaptiveCarouselItemIds,
+  reconcileAdaptiveCarouselCenter,
+  resolveEffectiveCarouselLoop,
+} from "./adaptive-carousel-model"
+
+const interactiveSlideSelector =
+  "button, a, input, select, textarea, [role='button'], [role='option']"
+
+/** Keeps carousel drag capture from suppressing controls rendered inside cards. */
+function shouldStartCarouselDrag(event: MouseEvent | TouchEvent) {
+  const target = event.target
+  return !(target instanceof Element && target.closest(interactiveSlideSelector))
+}
+
+export interface AdaptiveCarouselItem {
+  id: string
+  label: string
+  disabled?: boolean
+  statusLabel?: string
+}
+
+interface UseAdaptiveCarouselControllerOptions {
+  items: readonly AdaptiveCarouselItem[]
+  initialItemId?: string | null
+  selectedItemId?: string | null
+  surface: "backgrounds" | "stations"
+  presentation: "existing" | "cover-flow" | "three-d" | "background-picker"
+  tuning: Record<string, number | boolean>
+  reducedMotion: boolean
+  onCenteredItemChange?: (itemId: string) => void
+}
+
+/**
+ * Owns looped Embla navigation and presentation transforms without coupling
+ * the shared stage to Background or Music Station state.
+ */
+export function useAdaptiveCarouselController(
+  options: UseAdaptiveCarouselControllerOptions,
+) {
+  const {
+    items,
+    initialItemId,
+    selectedItemId,
+    surface,
+    presentation,
+    tuning,
+    reducedMotion,
+  } = options
+  const finiteRail = reducedMotion || tuning.motion === false
+  const effectiveLoop = finiteRail
+    ? false
+    : resolveEffectiveCarouselLoop(
+        items.length,
+        Number(tuning.visibleRadius),
+        Boolean(tuning.loop),
+      )
+  const [initialCenter] = useState(() => {
+    const id = reconcileAdaptiveCarouselCenter(items, initialItemId, selectedItemId)
+    const index = Math.max(0, items.findIndex((item) => item.id === id))
+    return { id, index }
+  })
+  const [viewportRef, api] = useEmblaCarousel({
+    align: "center",
+    containScroll: false,
+    dragFree: false,
+    loop: effectiveLoop,
+    skipSnaps: false,
+    duration: finiteRail ? 0 : 45,
+    startIndex: initialCenter.index,
+    watchDrag: (_api, event) => shouldStartCarouselDrag(event),
+  })
+  const itemElements = useRef(new Map<string, HTMLElement>())
+  const frameRef = useRef<number | null>(null)
+  const onCenteredItemChangeRef = useRef(options.onCenteredItemChange)
+  const [centeredId, setCenteredId] = useState<string | null>(initialCenter.id)
+  const [canGoPrevious, setCanGoPrevious] = useState(false)
+  const [canGoNext, setCanGoNext] = useState(false)
+
+  const centeredIndex = Math.max(0, items.findIndex(({ id }) => id === centeredId))
+  const mountedIds = useMemo(
+    () => getMountedAdaptiveCarouselItemIds(
+      items,
+      centeredId,
+      Number(tuning.visibleRadius),
+      effectiveLoop,
+    ),
+    [centeredId, effectiveLoop, items, tuning.visibleRadius],
+  )
+
+  useEffect(() => {
+    onCenteredItemChangeRef.current = options.onCenteredItemChange
+  }, [options.onCenteredItemChange])
+
+  const writeTransforms = useCallback(() => {
+    if (!api) return
+    const snaps = api.scrollSnapList()
+    const current = api.scrollProgress()
+    items.forEach((item, index) => {
+      let difference = (snaps[index] ?? 0) - current
+      if (effectiveLoop && difference > 0.5) difference -= 1
+      if (effectiveLoop && difference < -0.5) difference += 1
+      const progress = difference * Math.max(1, items.length - 1)
+      const variables = getAdaptiveCarouselPresentationVariables(
+        presentation,
+        surface,
+        progress,
+        tuning,
+        reducedMotion,
+        items.length,
+      )
+      const element = itemElements.current.get(item.id)
+      if (!element) return
+      element.style.setProperty("--carousel-progress", String(progress))
+      Object.entries(variables).forEach(([name, value]) => {
+        element.style.setProperty(name, String(value))
+      })
+    })
+  }, [api, effectiveLoop, items, presentation, reducedMotion, surface, tuning])
+
+  const scheduleTransformWrite = useCallback(() => {
+    if (frameRef.current !== null) return
+    frameRef.current = window.requestAnimationFrame(() => {
+      frameRef.current = null
+      writeTransforms()
+    })
+  }, [writeTransforms])
+
+  useEffect(() => {
+    if (!api) return
+    const select = () => {
+      const item = items[api.selectedScrollSnap()]
+      setCenteredId(item?.id ?? null)
+      setCanGoPrevious(effectiveLoop || api.canScrollPrev())
+      setCanGoNext(effectiveLoop || api.canScrollNext())
+      if (item) onCenteredItemChangeRef.current?.(item.id)
+      scheduleTransformWrite()
+    }
+    select()
+    api.on("select", select)
+    api.on("reInit", select)
+    api.on("scroll", scheduleTransformWrite)
+    return () => {
+      api.off("select", select)
+      api.off("reInit", select)
+      api.off("scroll", scheduleTransformWrite)
+      if (frameRef.current !== null) {
+        window.cancelAnimationFrame(frameRef.current)
+        frameRef.current = null
+      }
+    }
+  }, [api, effectiveLoop, items, scheduleTransformWrite])
+
+  useEffect(() => () => {
+    if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current)
+    itemElements.current.forEach((element) => element.removeAttribute("style"))
+    itemElements.current.clear()
+  }, [])
+
+  useEffect(() => {
+    if (!api) return
+    const nextId = reconcileAdaptiveCarouselCenter(items, selectedItemId, null)
+    const nextIndex = items.findIndex(({ id }) => id === nextId)
+    if (
+      selectedItemId
+      && nextIndex >= 0
+      && items[api.selectedScrollSnap()]?.id !== nextId
+    ) {
+      api.scrollTo(nextIndex)
+    }
+  }, [api, items, selectedItemId])
+
+  const centerItem = useCallback((id: string, jump = false) => {
+    const index = items.findIndex((item) => item.id === id)
+    if (index >= 0) api?.scrollTo(index, jump)
+  }, [api, items])
+
+  const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
+    if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      event.preventDefault()
+      api?.scrollPrev()
+    }
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      event.preventDefault()
+      api?.scrollNext()
+    }
+    if (!effectiveLoop && event.key === "Home") {
+      event.preventDefault()
+      api?.scrollTo(0)
+    }
+    if (!effectiveLoop && event.key === "End") {
+      event.preventDefault()
+      api?.scrollTo(items.length - 1)
+    }
+  }, [api, effectiveLoop, items.length])
+
+  return {
+    viewportRef,
+    centeredId,
+    centeredIndex,
+    mountedIds,
+    effectiveLoop,
+    canGoPrevious,
+    canGoNext,
+    centerItem,
+    goPrevious: () => api?.scrollPrev(),
+    goNext: () => api?.scrollNext(),
+    handleKeyDown,
+    registerItemElement(id: string, element: HTMLElement | null) {
+      if (element) itemElements.current.set(id, element)
+      else itemElements.current.delete(id)
+    },
+    statusText: centeredId
+      ? `${items[centeredIndex]?.label ?? "Item"}, item ${centeredIndex + 1} of ${items.length}`
+      : "No carousel items",
+  }
+}

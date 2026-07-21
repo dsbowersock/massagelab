@@ -54,12 +54,16 @@ describe("App settings helpers", () => {
     assert.match(toolLink, /<Link[\s\S]*\{\.\.\.triggerProps\}[\s\S]*ref=\{ref\}/)
   })
 
-  it("adds active tool glow without replacing CTA Blue shadows", () => {
+  it("uses the shared Metal ring for active tool routes without replacing CTA Blue", () => {
     const globalsSource = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
-    const activeRule = globalsSource.match(/\.ml-app-tool-link\[data-active="true"\],[\s\S]*?\n  \}/)?.[0] ?? ""
+    const toolLinkSource = readFileSync(new URL("../components/shell/app-tool-link.tsx", import.meta.url), "utf8")
+    const activeRule = globalsSource.match(/\.ml-app-tool-link\[data-active="true"\]\s*\{[\s\S]*?\n  \}/)?.[0] ?? ""
 
-    assert.match(activeRule, /filter:[\s\S]*drop-shadow\(/)
-    assert.doesNotMatch(activeRule, /box-shadow|--ml-button-shadow/)
+    assert.match(toolLinkSource, /function ActiveToolMetalRing[\s\S]*?ResizeObserver[\s\S]*?<MetalAttentionRing className="ml-app-tool-link-active-ring">/)
+    assert.doesNotMatch(toolLinkSource, /disableMetalGlow|metalMode="always"|metalRingCssPx=|metalStrength=/)
+    assert.match(toolLinkSource, /active \? <ActiveToolMetalRing>\{toolLink\}<\/ActiveToolMetalRing> : toolLink/)
+    assert.match(activeRule, /filter:\s*brightness\(1\.08\) saturate\(1\.08\)/)
+    assert.doesNotMatch(activeRule, /drop-shadow|box-shadow|--ml-button-shadow/)
   })
 
   it("keeps the main-bar drawer and actions at 42px with a compact 32px theme toggle", () => {

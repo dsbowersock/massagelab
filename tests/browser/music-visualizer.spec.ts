@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test"
+import { centerCarouselItem } from "./carousel-test-helpers"
 
 const ATMOSPHERE_STORAGE_KEY = "massagelab-atmosphere-v2"
 const CHIMER_STORAGE_KEY = "massagelab-chimer-settings"
@@ -84,6 +85,7 @@ async function startProofStation(page: Page, origin = "/music") {
   await expect(
     page.getByRole("heading", { name: /Atmosphere audio stations/i, includeHidden: true }),
   ).toBeAttached()
+  await centerCarouselItem(page, "mlab-proof-drone", "Next station")
   await page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
   const player = page.getByTestId("music-player-toolbar")
   await expect(player).toBeVisible({ timeout: 30_000 })
@@ -100,7 +102,7 @@ async function openVisualizerFromPlayer(page: Page) {
 async function selectStaticGradient(page: Page) {
   const dialog = page.getByRole("dialog", { name: "Background" })
   await expect(dialog).toBeVisible()
-  await dialog.getByRole("button", { name: "Preview Static gradient background" }).click()
+  await centerCarouselItem(page, "static-gradient", "Next background")
   await dialog.getByRole("button", { name: "Select Static gradient background" }).click()
   await expect(dialog).toHaveCount(0)
   await expect(page.getByTestId("chimer-premium-background")).toHaveAttribute(
@@ -579,7 +581,7 @@ test("Background traps focus and selection, Escape, and Close restore its contro
   await expect(backgroundControl).toBeFocused()
 
   await backgroundControl.click()
-  await page.getByRole("button", { name: "Close Background panel" }).click()
+  await page.getByRole("button", { name: "Close Background panel" }).press("Enter")
   await expect(background).toHaveCount(0)
   await expect(backgroundControl).toBeFocused()
 
@@ -1553,7 +1555,7 @@ test("signed-in defaults, device precedence, failed save, retry, and unrelated s
 
   await page.getByRole("button", { name: "Background", exact: true }).click()
   await expect(
-    page.getByRole("group", { name: "MassageLaba Lamp background" }),
+    page.locator('[data-carousel-slide="true"][data-carousel-item-id="massage-lab-moving-gradient"]'),
   ).toHaveAttribute("aria-current", "true")
   await selectStaticGradient(page)
   const selectedBackgroundId = await page.getByTestId("chimer-premium-background")

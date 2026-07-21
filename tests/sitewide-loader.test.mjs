@@ -9,6 +9,7 @@ const [
   globalsSource,
   chimerLoaderSource,
   runningTimerSource,
+  backgroundCarouselCardSource,
   gallerySource,
   accountPageSource,
   preferenceSyncSource,
@@ -21,6 +22,7 @@ const [
   readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   readFile(new URL("../components/chimer-controls/Loader.tsx", import.meta.url), "utf8"),
   readFile(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8"),
+  readFile(new URL("../components/backgrounds/background-carousel-card.tsx", import.meta.url), "utf8"),
   readFile(new URL("../app/dev/buttons/loader-gallery.tsx", import.meta.url), "utf8"),
   readFile(new URL("../app/account/page.tsx", import.meta.url), "utf8"),
   readFile(new URL("../app/account/preference-sync.tsx", import.meta.url), "utf8"),
@@ -115,8 +117,9 @@ describe("Sitewide loader", () => {
   it("keeps Chimer preview loading on the shared implementation", () => {
     assert.match(chimerLoaderSource, /export \{ Loader \} from "@\/components\/ui\/loader"/)
     assert.match(chimerLoaderSource, /export type \{ LoaderProps \}/)
-    assert.match(runningTimerSource, /from "@\/components\/chimer-controls\/Loader"/)
-    assert.match(runningTimerSource, /label="Loading preview"/)
+    assert.match(runningTimerSource, /BackgroundCarousel/)
+    assert.match(backgroundCarouselCardSource, /from "@\/components\/chimer-controls\/Loader"/)
+    assert.match(backgroundCarouselCardSource, /label="Loading preview"/)
   })
 
   it("shows the approved loader in the dev gallery and true indeterminate waits", () => {

@@ -1,9 +1,15 @@
 "use client"
 
-import { type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
-import { ChevronLeft, ChevronRight, Maximize2, Minimize2, Minus, Pause, Play, Plus, Star, X } from "lucide-react"
-import Image from "next/image"
+import { type CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
+import { Maximize2, Minimize2, Minus, Pause, Play, Plus, X } from "lucide-react"
+import {
+  BACKGROUND_VISUAL_FILTERS,
+  matchesBackgroundVisualFilter,
+  readSavedBackgroundIds,
+  writeSavedBackgroundIds,
+} from "@/lib/background-catalog"
 import { DEFAULT_BACKGROUND_ID } from "@/lib/background-options"
+import { BackgroundCarousel } from "@/components/backgrounds/background-carousel"
 import { BackgroundHost } from "@/components/backgrounds/BackgroundHost"
 import {
   canUseBackgroundId,
@@ -14,7 +20,6 @@ import {
   userCanUseBackground,
 } from "@/components/backgrounds/backgroundRegistry"
 import { triggerHapticFeedback } from "@/lib/haptics"
-import { Loader } from "@/components/chimer-controls/Loader"
 import { MovingBackground } from "@/components/moving-background"
 import { CHIMER_HARMONY_OPTIONS, HarmonyToggleGroup, type ChimerHarmonyValue } from "@/components/chimer-controls/HarmonyToggleGroup"
 import {
@@ -212,48 +217,10 @@ import { TileGridFadeTimeControl } from "./tile-grid-fade-time-control"
 type PrimaryDisplay = "timer" | "currentTime"
 type BackgroundVisualCategory = "all" | "animated" | "image" | "interactive" | "premium" | "saved" | "static" | "shader" | "video"
 
-const BACKGROUND_VISUAL_CATEGORIES: ReadonlyArray<{ value: BackgroundVisualCategory; label: string }> = [
-  { value: "all", label: "All" },
-  { value: "static", label: "Static" },
-  { value: "animated", label: "Animated" },
-  { value: "interactive", label: "Interactive" },
-  { value: "shader", label: "Shader" },
-  { value: "image", label: "Image" },
-  { value: "video", label: "Video" },
-  { value: "premium", label: "Premium" },
-  { value: "saved", label: "Saved" },
-]
-
-const CHIMER_SAVED_BACKGROUND_IDS_STORAGE_KEY = "massagelab-chimer-saved-background-ids-v1"
 const CHIMER_GLOBAL_COLOR_STORAGE_KEY = "massagelab-chimer-global-color-v1"
 const CHIMER_GLOBAL_PALETTE_STORAGE_KEY = "massagelab-chimer-global-palettes-v1"
 const VISUAL_CUSTOMIZATION_HINT = "Customize this background in Visual."
 const VISUAL_CUSTOMIZATION_HINT_DURATION_MS = 6500
-const IMAGE_SOURCE_PATTERNS = [
-  ".png",
-  ".jpg",
-  ".jpeg",
-  ".gif",
-  ".webp",
-  ".avif",
-  ".heic",
-  ".heif",
-  ".svg",
-]
-const VIDEO_SOURCE_PATTERNS = [".mp4", ".webm", ".mov", ".m4v", ".ogg", ".ogv"]
-const INTERACTIVE_HINT_PATTERNS = [
-  "interactive",
-  "hover",
-  "cursor",
-  "rotate",
-  "orbit",
-  "spin",
-  "mouse",
-  "tap",
-  "drag",
-  "pan",
-]
-const SHADER_HINT_PATTERNS = ["shader", "canvas", "webgl", "glsl", "fragment", "uniform", "three", "custom"]
 
 type CurrentTimeParts = {
   time: string
@@ -268,19 +235,6 @@ const SWAP_ANIMATION_MS = 360
 const DEFAULT_PRIMARY_FONT_COLOR = "#FFFFFF"
 const DEFAULT_SECONDARY_FONT_COLOR = "#FF7A1A"
 const DEFAULT_CLOCK_MODE_FONT_COLOR = "#FFFFFF"
-const BACKGROUND_RADIAL_CARD_SPREAD_DEGREES = 35
-const BACKGROUND_RADIAL_CARD_RADIUS_PX = 285
-const BACKGROUND_RADIAL_VISIBLE_OFFSET = 3
-const BACKGROUND_CAROUSEL_SWIPE_THRESHOLD_PX = 42
-
-const getCircularCarouselOffset = (index: number, activeIndex: number, total: number) => {
-  if (total <= 0) {
-    return 0
-  }
-
-  const rawOffset = (index - activeIndex + total) % total
-  return rawOffset > total / 2 ? rawOffset - total : rawOffset
-}
 const PREMIUM_CUSTOM_COLOR_SETTING_KEYS = new Set([
   "primaryFontColor",
   "secondaryFontColor",
@@ -316,20 +270,6 @@ type ChimerSavedPalette = {
   generated: string[]
   isDefault: boolean
   createdAt: string
-}
-
-type BackgroundPreviewMedia = {
-  type: "image" | "video"
-  source: string
-}
-
-type BackgroundDefinitionWithPreview = BackgroundDefinition & {
-  previewMediaUrl?: string
-  previewMediaType?: BackgroundPreviewMedia["type"]
-  previewImageUrl?: string
-  previewVideoUrl?: string
-  previewSquareVideoUrl?: string
-  previewVerticalVideoUrl?: string
 }
 
 function clampNumber(value: number, min: number, max: number) {
@@ -752,195 +692,6 @@ function saveGlobalPalettesToStorage(palettes: ChimerSavedPalette[]) {
   } catch {
     // noop
   }
-}
-
-function getBackgroundPreviewMedia(
-  option: BackgroundDefinition,
-  preferredVariant: "landscape" | "square" | "vertical" = "landscape",
-): BackgroundPreviewMedia | null {
-  const optionWithPreview = option as BackgroundDefinitionWithPreview
-  const resolveTypeFromSource = (source: string): BackgroundPreviewMedia["type"] | null => {
-    const normalizedSource = source.toLowerCase()
-
-    if (VIDEO_SOURCE_PATTERNS.some((pattern) => normalizedSource.includes(pattern))) {
-      return "video"
-    }
-
-    if (IMAGE_SOURCE_PATTERNS.some((pattern) => normalizedSource.includes(pattern)) || normalizedSource.includes("/media/")) {
-      return "image"
-    }
-
-    return null
-  }
-
-  const videoCandidates =
-    preferredVariant === "vertical"
-      ? [optionWithPreview.previewVerticalVideoUrl, optionWithPreview.previewSquareVideoUrl, optionWithPreview.previewVideoUrl]
-      : preferredVariant === "square"
-        ? [optionWithPreview.previewSquareVideoUrl, optionWithPreview.previewVideoUrl, optionWithPreview.previewVerticalVideoUrl]
-        : [optionWithPreview.previewVideoUrl, optionWithPreview.previewSquareVideoUrl, optionWithPreview.previewVerticalVideoUrl]
-  const previewCandidates: Array<{ typeHint?: BackgroundPreviewMedia["type"]; source?: string }> = [
-    ...videoCandidates.map((source) => ({ typeHint: "video" as const, source })),
-    { typeHint: optionWithPreview.previewMediaType, source: optionWithPreview.previewMediaUrl },
-    { typeHint: "image", source: optionWithPreview.previewImageUrl },
-  ]
-
-  for (const candidate of previewCandidates) {
-    if (!candidate.source) {
-      continue
-    }
-
-    const candidateType = candidate.typeHint ?? resolveTypeFromSource(candidate.source)
-    if (candidateType) {
-      return { type: candidateType, source: candidate.source }
-    }
-  }
-
-  const source = option.sourceUrl.toLowerCase()
-  const sourceType = resolveTypeFromSource(source)
-  if (sourceType) {
-    return { type: sourceType, source: option.sourceUrl }
-  }
-
-  return null
-}
-
-const getSavedBackgroundIdsFromStorage = (): BackgroundId[] => {
-  if (typeof window === "undefined") {
-    return []
-  }
-
-  try {
-    const raw = window.localStorage.getItem(CHIMER_SAVED_BACKGROUND_IDS_STORAGE_KEY)
-    if (!raw) {
-      return []
-    }
-
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) {
-      return []
-    }
-
-    return parsed.filter((entry): entry is BackgroundId => typeof entry === "string")
-  } catch {
-    return []
-  }
-}
-
-const saveBackgroundIdsToStorage = (ids: BackgroundId[]) => {
-  if (typeof window === "undefined") {
-    return
-  }
-
-  try {
-    window.localStorage.setItem(CHIMER_SAVED_BACKGROUND_IDS_STORAGE_KEY, JSON.stringify(ids))
-  } catch {
-    // noop
-  }
-}
-
-const hasPreviewMediaType = (option: BackgroundDefinition, type: BackgroundPreviewMedia["type"]) => {
-  const optionWithPreview = option as BackgroundDefinitionWithPreview
-  if (optionWithPreview.previewMediaType === type) {
-    return true
-  }
-
-  return type === "image"
-    ? Boolean(optionWithPreview.previewImageUrl)
-    : Boolean(optionWithPreview.previewVideoUrl || optionWithPreview.previewSquareVideoUrl || optionWithPreview.previewVerticalVideoUrl)
-}
-
-// Interactive backgrounds are identified from behavior hints until background
-// definitions grow first-class interaction metadata.
-const isInteractiveBackgroundOption = (option: BackgroundDefinition) => {
-  const haystack = `${option.id} ${option.label} ${option.recommendedUse} ${option.customizationSummary ?? ""}`.toLowerCase()
-  return INTERACTIVE_HINT_PATTERNS.some((pattern) => haystack.includes(pattern))
-}
-
-// Keep the Shader filter restricted to metadata that actually hints at shader,
-// canvas, WebGL, GLSL, or Three.js rendering.
-const isShaderBackgroundOption = (option: BackgroundDefinition) => {
-  const haystack = [
-    option.id,
-    option.label,
-    option.provider,
-    option.sourceUrl,
-    option.recommendedUse,
-    option.customizationSummary ?? "",
-  ].join(" ").toLowerCase()
-  return SHADER_HINT_PATTERNS.some((pattern) => haystack.includes(pattern))
-}
-
-const isBackgroundCategoryMatch = (
-  option: BackgroundDefinition,
-  filter: BackgroundVisualCategory,
-  savedBackgroundIds: string[],
-) => {
-  if (filter === "all") {
-    return true
-  }
-
-  if (filter === "saved") {
-    return savedBackgroundIds.includes(option.id)
-  }
-
-  if (filter === "premium") {
-    return option.requiresSubscription
-  }
-
-  if (filter === "static") {
-    return option.motionIntensity === "static"
-  }
-
-  if (filter === "animated") {
-    return option.motionIntensity !== "static"
-  }
-
-  if (filter === "interactive") {
-    return isInteractiveBackgroundOption(option)
-  }
-
-  if (filter === "shader") {
-    return isShaderBackgroundOption(option)
-  }
-
-  if (filter === "image") {
-    return hasPreviewMediaType(option, "image")
-  }
-
-  return hasPreviewMediaType(option, "video")
-}
-
-const getBackgroundVisualTags = (option: BackgroundDefinition) => {
-  const tags: string[] = []
-
-  if (option.motionIntensity === "static") {
-    tags.push("Static")
-  } else {
-    tags.push("Animated")
-  }
-
-  if (isInteractiveBackgroundOption(option)) {
-    tags.push("Interactive")
-  }
-
-  if (isShaderBackgroundOption(option)) {
-    tags.push("Shader")
-  }
-
-  if (hasPreviewMediaType(option, "image")) {
-    tags.push("Image")
-  } else if (hasPreviewMediaType(option, "video")) {
-    tags.push("Video")
-  }
-
-  if (option.requiresSubscription) {
-    tags.push("Premium")
-  } else {
-    tags.push("Free")
-  }
-
-  return Array.from(new Set(tags))
 }
 
 export interface ImmersiveDisplayMode {
@@ -3244,7 +2995,6 @@ export function RunningTimer({
   const [backgroundCategoryFilter, setBackgroundCategoryFilter] =
     useState<BackgroundVisualCategory>("all")
   const [savedBackgroundIds, setSavedBackgroundIds] = useState<BackgroundId[]>([])
-  const [activeBackgroundCarouselIndex, setActiveBackgroundCarouselIndex] = useState(0)
   const [globalColors, setGlobalColors] = useState<GlobalColorValues>(DEFAULT_CHIMER_GLOBAL_COLORS)
   const [globalHarmony, setGlobalHarmony] = useState<ChimerHarmonyValue>(DEFAULT_CHIMER_GLOBAL_HARMONY)
   const [globalPalettes, setGlobalPalettes] = useState<ChimerSavedPalette[]>([])
@@ -3255,7 +3005,6 @@ export function RunningTimer({
       getPaletteColorsFromGlobalValues(getHarmonyColorsFromPrimary(globalColors.primary, option.value)),
     ]),
   ), [globalColors.primary])
-  const [visibleBackgroundPreviewIds, setVisibleBackgroundPreviewIds] = useState<Set<BackgroundId>>(new Set())
   const [controlState, setControlState] = useState<"visible" | "faded" | "hidden">("visible")
   const pressHaptic = useCallback(
     () => {
@@ -3271,8 +3020,6 @@ export function RunningTimer({
   const protectedDisplayRef = useRef<HTMLElement | null>(null)
   const primaryDisplayRef = useRef<HTMLButtonElement | null>(null)
   const primaryContentRef = useRef<HTMLSpanElement | null>(null)
-  const backgroundVideoRefMap = useRef<Map<BackgroundId, HTMLVideoElement | null>>(new Map())
-  const backgroundCarouselSwipeStartRef = useRef<{ x: number; y: number } | null>(null)
   const visualPanelOpenedRef = useRef(false)
   const visualPanelOpenedHydratedRef = useRef(false)
   const visualHintTimeoutRef = useRef<number | null>(null)
@@ -3481,7 +3228,7 @@ export function RunningTimer({
     backgroundCategory,
   )
   const visibleBackgroundOptions = useMemo(
-    () => getBackgroundOptionsForCategory(backgroundCategory).filter((option) => isBackgroundCategoryMatch(
+    () => getBackgroundOptionsForCategory(backgroundCategory).filter((option) => matchesBackgroundVisualFilter(
       option,
       backgroundCategoryFilter,
       savedBackgroundIds,
@@ -3489,7 +3236,6 @@ export function RunningTimer({
     [backgroundCategory, backgroundCategoryFilter, savedBackgroundIds],
   )
   const hasVisibleBackgrounds = visibleBackgroundOptions.length > 0
-  const activeBackgroundOption = visibleBackgroundOptions[activeBackgroundCarouselIndex] ?? visibleBackgroundOptions[0] ?? null
 
   const clearControlTimers = useCallback(() => {
     if (fadeTimerRef.current) {
@@ -3599,24 +3345,9 @@ export function RunningTimer({
   }, [activePanel, clearControlTimers, scheduleControlHide])
 
   useEffect(() => {
-    const loadedSavedBackgroundIds = getSavedBackgroundIdsFromStorage()
+    const loadedSavedBackgroundIds = readSavedBackgroundIds(window.localStorage) as BackgroundId[]
     setSavedBackgroundIds(loadedSavedBackgroundIds)
   }, [])
-
-  useEffect(() => {
-    setActiveBackgroundCarouselIndex((currentIndex) => {
-      if (visibleBackgroundOptions.length === 0) {
-        return 0
-      }
-
-      const selectedIndex = visibleBackgroundOptions.findIndex((option) => option.id === backgroundId)
-      if (selectedIndex >= 0) {
-        return selectedIndex
-      }
-
-      return Math.min(currentIndex, visibleBackgroundOptions.length - 1)
-    })
-  }, [backgroundId, visibleBackgroundOptions])
 
   useEffect(() => {
     const loadedGlobalColors = getGlobalColorsFromStorage()
@@ -3634,48 +3365,6 @@ export function RunningTimer({
     saveGlobalColorState(normalizedColors, loadedHarmony)
     saveGlobalPalettesToStorage(loadedPalettes)
   }, [])
-
-  useEffect(() => {
-    // The radial carousel renders several absolute cards, so preview loading is based on the active arc instead of scroll observation.
-    if (activePanel !== "background") {
-      setVisibleBackgroundPreviewIds(new Set())
-      backgroundVideoRefMap.current.forEach((videoRef) => {
-        videoRef?.pause()
-      })
-      return
-    }
-
-    const nextVisibleIds = new Set<BackgroundId>([selectedBackgroundDefinition.id])
-    const totalOptions = visibleBackgroundOptions.length
-
-    visibleBackgroundOptions.forEach((option, index) => {
-      const offset = getCircularCarouselOffset(index, activeBackgroundCarouselIndex, totalOptions)
-      if (Math.abs(offset) <= 2) {
-        nextVisibleIds.add(option.id)
-      }
-    })
-
-    setVisibleBackgroundPreviewIds(nextVisibleIds)
-  }, [
-    activeBackgroundCarouselIndex,
-    activePanel,
-    selectedBackgroundDefinition.id,
-    visibleBackgroundOptions,
-  ])
-
-  useEffect(() => {
-    backgroundVideoRefMap.current.forEach((videoRef, previewId) => {
-      if (!videoRef) {
-        return
-      }
-
-      if (visibleBackgroundPreviewIds.has(previewId) && activePanel === "background") {
-        void videoRef.play().catch(() => undefined)
-      } else {
-        videoRef.pause()
-      }
-    })
-  }, [activePanel, visibleBackgroundPreviewIds])
 
   useLayoutEffect(() => {
     const primaryElement = primaryDisplayRef.current
@@ -3829,78 +3518,6 @@ export function RunningTimer({
     }
   }
 
-  const moveBackgroundCarousel = useCallback(
-    (direction: 1 | -1, shouldPlayHaptic = true) => {
-      if (visibleBackgroundOptions.length <= 1) {
-        return
-      }
-
-      if (shouldPlayHaptic) {
-        triggerHapticFeedback(hapticsEnabled)
-      }
-      setActiveBackgroundCarouselIndex((currentIndex) => (
-        currentIndex + direction + visibleBackgroundOptions.length
-      ) % visibleBackgroundOptions.length)
-    },
-    [hapticsEnabled, visibleBackgroundOptions.length],
-  )
-
-  const handleBackgroundCarouselKeyDown = useCallback(
-    (event: ReactKeyboardEvent<HTMLDivElement>) => {
-      if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
-        event.preventDefault()
-        moveBackgroundCarousel(-1)
-      }
-
-      if (event.key === "ArrowRight" || event.key === "ArrowDown") {
-        event.preventDefault()
-        moveBackgroundCarousel(1)
-      }
-    },
-    [moveBackgroundCarousel],
-  )
-
-  const handleBackgroundCarouselPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.pointerType === "mouse") {
-      return
-    }
-
-    backgroundCarouselSwipeStartRef.current = {
-      x: event.clientX,
-      y: event.clientY,
-    }
-  }, [])
-
-  const handleBackgroundCarouselPointerUp = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      const swipeStart = backgroundCarouselSwipeStartRef.current
-      backgroundCarouselSwipeStartRef.current = null
-
-      if (!swipeStart) {
-        return
-      }
-
-      const deltaX = event.clientX - swipeStart.x
-      const deltaY = event.clientY - swipeStart.y
-      const isHorizontalSwipe =
-        Math.abs(deltaX) >= BACKGROUND_CAROUSEL_SWIPE_THRESHOLD_PX &&
-        Math.abs(deltaX) > Math.abs(deltaY) * 1.35
-
-      if (!isHorizontalSwipe) {
-        return
-      }
-
-      event.preventDefault()
-      event.stopPropagation()
-      moveBackgroundCarousel(deltaX > 0 ? -1 : 1)
-    },
-    [moveBackgroundCarousel],
-  )
-
-  const handleBackgroundCarouselPointerCancel = useCallback(() => {
-    backgroundCarouselSwipeStartRef.current = null
-  }, [])
-
   const handleBackgroundSavedToggle = (nextBackgroundId: BackgroundId) => {
     setSavedBackgroundIds((current) => {
       const isSaved = current.includes(nextBackgroundId)
@@ -3908,7 +3525,7 @@ export function RunningTimer({
         ? current.filter((id) => id !== nextBackgroundId)
         : [...current, nextBackgroundId]
 
-      saveBackgroundIdsToStorage(next)
+      writeSavedBackgroundIds(window.localStorage, next)
       return next
     })
   }
@@ -4073,70 +3690,6 @@ export function RunningTimer({
   const massageLab3DGlobeScaleDisplayPercent = getMassageLab3DGlobeScaleDisplayPercent(massageLab3DGlobeScale)
   const isGraphicGlobe = massageLab3DGlobeViewStyle === "graphic"
   const followSun = massageLab3DGlobeLightingMode === "sun"
-  /** Render a lightweight preview for catalog cards while keeping live rendering only on selected background activation. */
-  const renderBackgroundPreview = (
-    option: BackgroundDefinition,
-    isLoaded: boolean,
-    fallbackStyle?: CSSProperties,
-  ) => {
-    const media = getBackgroundPreviewMedia(option, "landscape")
-    const fallback = fallbackStyle ?? option.fallbackStyle ?? { background: "#0f172a" }
-
-    if (!media || !isLoaded) {
-      return (
-        <div className={styles.backgroundCardPreview} style={fallback}>
-          {media ? (
-            <Loader
-              shape="sphere"
-              variant="dither"
-              color="#ea580c"
-              size={38}
-              className={styles.backgroundCardLoader}
-              label="Loading preview"
-            />
-          ) : null}
-        </div>
-      )
-    }
-
-    if (media.type === "image") {
-      return (
-        <div className={styles.backgroundCardPreview} style={fallback}>
-          <Image
-            src={media.source}
-            alt=""
-            className={styles.backgroundCardMedia}
-            fill
-            sizes="100vw"
-            unoptimized
-            aria-hidden="true"
-          />
-        </div>
-      )
-    }
-
-    return (
-      <div className={styles.backgroundCardPreview} style={fallback}>
-        <video
-          ref={(element) => {
-            if (element) {
-              backgroundVideoRefMap.current.set(option.id, element)
-            } else {
-              backgroundVideoRefMap.current.delete(option.id)
-            }
-          }}
-          className={styles.backgroundCardMedia}
-          src={media.source}
-          muted
-          loop
-          playsInline
-          preload="none"
-          aria-hidden="true"
-        />
-      </div>
-    )
-  }
-
   const renderBackgroundControls = (option: BackgroundDefinition) => (
     <div className={`${styles.backgroundCardControls} ${styles.immersiveSelectedBackgroundControls} ${option.id === "massage-lab-moving-gradient" ? styles.immersiveLampColorControls : ""}`}>
       {!isClockMode && (
@@ -16837,6 +16390,24 @@ export function RunningTimer({
           toolbarButtonActiveClassName={styles.immersiveToolbarControlActive}
           visualHintMessage={visualHintMessage}
           backgroundUnavailableMessage={mode.unavailableBackgroundMessage}
+          backgroundHeaderContent={(
+            <div className={styles.backgroundCategoryRow} role="group" aria-label="Background visual filters">
+              {BACKGROUND_VISUAL_FILTERS.map((category) => (
+                <button
+                  key={category.value}
+                  type="button"
+                  className={`${styles.backgroundCategoryButton} ${styles.tactileButton} ${backgroundCategoryFilter === category.value ? styles.backgroundCategoryButtonActive : ""}`}
+                  onClick={() => {
+                    triggerHapticFeedback(hapticsEnabled)
+                    handleBackgroundFilterChange(category.value)
+                  }}
+                  aria-pressed={backgroundCategoryFilter === category.value}
+                >
+                  {category.label}
+                </button>
+              ))}
+            </div>
+          )}
           clockHeaderAction={mode.canToggleClock ? (
             <Switch
               className={styles.immersiveHeaderSwitch}
@@ -17543,164 +17114,24 @@ export function RunningTimer({
           )}
           backgroundContent={(
             <div className={`${styles.settingsTabContent} ${styles.backgroundSettingsTabContent}`}>
-                <div className={styles.backgroundCategoryRow} role="group" aria-label="Background visual filters">
-                  {BACKGROUND_VISUAL_CATEGORIES.map((category) => (
-                    <button
-                      key={category.value}
-                      type="button"
-                      className={`${styles.backgroundCategoryButton} ${styles.tactileButton} ${backgroundCategoryFilter === category.value ? styles.backgroundCategoryButtonActive : ""}`}
-                      onClick={() => {
-                        triggerHapticFeedback(hapticsEnabled)
-                        handleBackgroundFilterChange(category.value)
-                      }}
-                      aria-pressed={backgroundCategoryFilter === category.value}
-                    >
-                      {category.label}
-                    </button>
-                  ))}
-                </div>
-
-                {hasVisibleBackgrounds && activeBackgroundOption ? (
-                  <div
-                    className={styles.backgroundRadialCarousel}
-                    role="group"
-                    aria-label="Background visual carousel"
-                    tabIndex={0}
-                    onKeyDown={handleBackgroundCarouselKeyDown}
-                    onPointerDown={handleBackgroundCarouselPointerDown}
-                    onPointerUp={handleBackgroundCarouselPointerUp}
-                    onPointerCancel={handleBackgroundCarouselPointerCancel}
-                  >
-                    <div className={styles.backgroundRadialStage}>
-                      {visibleBackgroundOptions.map((option, optionIndex) => {
-                        const totalOptions = visibleBackgroundOptions.length
-                        const offset = getCircularCarouselOffset(optionIndex, activeBackgroundCarouselIndex, totalOptions)
-                        const absOffset = Math.abs(offset)
-
-                        if (absOffset > BACKGROUND_RADIAL_VISIBLE_OFFSET) {
-                          return null
-                        }
-
-                        const canUse = userCanUseBackground(option, featureKeys)
-                        const isSaved = savedBackgroundIds.includes(option.id)
-                        const isSelected = movingBackgroundEnabled && option.id === backgroundId
-                        const isActive = optionIndex === activeBackgroundCarouselIndex
-                        const isPreviewLoaded =
-                          visibleBackgroundPreviewIds.has(option.id) || option.id === selectedBackgroundDefinition.id || isActive
-                        const angle = offset * BACKGROUND_RADIAL_CARD_SPREAD_DEGREES
-                        const radians = (angle * Math.PI) / 180
-                        const translateX = BACKGROUND_RADIAL_CARD_RADIUS_PX * Math.sin(radians)
-                        const translateY = 0
-                        const rotateY = -angle
-                        const rotateX = 0
-                        const scale = Math.max(0.5, 1 - absOffset * 0.16)
-                        const opacity = Math.min(
-                          canUse ? 1 : 0.58,
-                          absOffset > 2 ? 0.18 : Math.max(0.18, 1 - absOffset * 0.36),
-                        )
-                        const cardStyle = {
-                          opacity,
-                          transform: `translate(-50%, -50%) translate3d(${translateX}px, ${translateY}px, ${-absOffset * 28}px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(${scale})`,
-                          zIndex: 20 - absOffset,
-                        } as CSSProperties
-
-                        return (
-                          <div
-                            key={option.id}
-                            className={`${styles.backgroundRadialCard} ${isActive ? styles.backgroundRadialCardActive : ""} ${isSelected ? styles.backgroundCardSelected : ""} ${!canUse ? styles.backgroundCardLocked : ""}`}
-                            style={cardStyle}
-                            aria-current={isSelected ? "true" : undefined}
-                            data-background-id={option.id}
-                            role="group"
-                            aria-label={`${option.label} background`}
-                          >
-                            <button
-                              type="button"
-                              className={styles.backgroundRadialCardPreviewButton}
-                              onClick={() => {
-                                triggerHapticFeedback(hapticsEnabled)
-                                setActiveBackgroundCarouselIndex(optionIndex)
-                              }}
-                              aria-label={`Preview ${option.label} background`}
-                            >
-                              {renderBackgroundPreview(
-                                option,
-                                isPreviewLoaded,
-                                option.fallbackStyle ?? { background: "#0f172a" },
-                              )}
-                              <div className={styles.backgroundRadialCardVeil}>
-                                <span className={styles.backgroundRadialCardCategory}>
-                                  {getBackgroundVisualTags(option).slice(0, 2).join(" • ")}
-                                </span>
-                                <span className={styles.backgroundRadialCardTitle}>{option.label}</span>
-                                {isActive ? (
-                                  <span className={styles.backgroundRadialCardBadges}>
-                                    <span>{option.requiresSubscription ? "Premium" : "Free"}</span>
-                                    {isSelected ? <span>Selected</span> : null}
-                                    {isSaved ? <span>Saved</span> : null}
-                                  </span>
-                                ) : null}
-                              </div>
-                            </button>
-
-                            {isActive ? (
-                              <div className={styles.backgroundRadialCardActions}>
-                                <button
-                                  type="button"
-                                  className={`${styles.backgroundRadialCardAction} ${isSelected ? styles.backgroundRadialCardActionSelected : ""}`}
-                                  onClick={() => {
-                                    triggerHapticFeedback(hapticsEnabled)
-                                    handleBackgroundSelection(option.id)
-                                  }}
-                                  disabled={!canUse}
-                                  aria-label={`${isSelected ? "Selected" : "Select"} ${option.label} background`}
-                                >
-                                  {isSelected ? "Selected" : "Select"}
-                                </button>
-                                <button
-                                  type="button"
-                                  className={`${styles.backgroundRadialIconAction} ${isSaved ? styles.backgroundRadialIconActionActive : ""}`}
-                                  onClick={() => {
-                                    triggerHapticFeedback(hapticsEnabled)
-                                    handleBackgroundSavedToggle(option.id)
-                                  }}
-                                  aria-label={`${isSaved ? "Unsave" : "Save"} ${option.label}`}
-                                >
-                                  <Star className="h-4 w-4" aria-hidden="true" />
-                                </button>
-                              </div>
-                            ) : null}
-                          </div>
-                        )
-                      })}
-                    </div>
-
-                    <div className={styles.backgroundRadialNavRow}>
-                      <Button
-                        type="button"
-                        variant="ctaBlue"
-                        size="icon"
-                        className={styles.backgroundCarouselNav}
-                        onClick={() => moveBackgroundCarousel(-1, false)}
-                        disabled={visibleBackgroundOptions.length <= 1}
-                        aria-label="Previous background"
-                      >
-                        <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ctaBlue"
-                        size="icon"
-                        className={styles.backgroundCarouselNav}
-                        onClick={() => moveBackgroundCarousel(1, false)}
-                        disabled={visibleBackgroundOptions.length <= 1}
-                        aria-label="Next background"
-                      >
-                        <ChevronRight className="h-5 w-5" aria-hidden="true" />
-                      </Button>
-                    </div>
-
-                  </div>
+                {hasVisibleBackgrounds ? (
+                  <BackgroundCarousel
+                    key={`${mode.context}:${backgroundCategoryFilter}`}
+                    options={visibleBackgroundOptions}
+                    selectedId={movingBackgroundEnabled ? backgroundId : null}
+                    featureKeys={featureKeys}
+                    savedIds={savedBackgroundIds}
+                    active={activePanel === "background"}
+                    onNavigate={() => triggerHapticFeedback(hapticsEnabled)}
+                    onSelect={(nextBackgroundId) => {
+                      triggerHapticFeedback(hapticsEnabled)
+                      handleBackgroundSelection(nextBackgroundId)
+                    }}
+                    onToggleSaved={(nextBackgroundId) => {
+                      triggerHapticFeedback(hapticsEnabled)
+                      handleBackgroundSavedToggle(nextBackgroundId)
+                    }}
+                  />
                 ) : (
                   <div className={styles.settingsEmptyState}>No backgrounds match this filter.</div>
                 )}

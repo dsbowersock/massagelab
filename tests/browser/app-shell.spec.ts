@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test"
+import { centerCarouselItem } from "./carousel-test-helpers"
 
 const desktopProject = "desktop-chromium"
 const mobileProject = "mobile-chromium"
@@ -668,6 +669,7 @@ test("mobile top placement reserves the top edge and leaves the active music pla
   expect(idleSpacing.pageBottom).toBeCloseTo(idleExpected)
   expect(idleSpacing.pageBottom).not.toBeCloseTo(idleExpected + idleSpacing.mainBar)
 
+  await centerCarouselItem(page, "mlab-proof-drone", "Next station")
   await page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
   const player = page.getByTestId("music-player-toolbar")
   await expect(player).toBeVisible()
@@ -705,6 +707,7 @@ test("mobile bottom placement adds the main bar when idle and the audio toolbar 
   expect(idleSpacing.bottomStack).toBeCloseTo(idleExpectedStack)
   expect(idleSpacing.pageBottom).toBeCloseTo(idleExpected)
 
+  await centerCarouselItem(page, "mlab-proof-drone", "Next station")
   await page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
   const player = page.getByTestId("music-player-toolbar")
   await expect(player).toBeVisible()
