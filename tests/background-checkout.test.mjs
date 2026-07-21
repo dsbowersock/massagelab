@@ -498,6 +498,94 @@ describe("background checkout route", () => {
     }
   })
 
+  it("replays the same order with an identical Stripe payload after wall-clock time advances", async () => {
+    const firstRequestAt = new Date(NOW.getTime() + 10 * 1000)
+    let currentNow = firstRequestAt
+    let localOrder = {
+      id: "order_123",
+      userId: "user_123",
+      status: "PREPARING",
+      stripeCheckoutSessionId: null,
+    }
+    const stripeAttempts = []
+    const stripeClient = {
+      checkout: {
+        sessions: {
+          create: async (payload, options) => {
+            stripeAttempts.push({ payload, options })
+            if (stripeAttempts.length <= 2) {
+              throw Object.assign(new Error("connection outcome unknown"), {
+                type: "StripeConnectionError",
+              })
+            }
+            return {
+              id: "cs_replayed",
+              url: "https://checkout.stripe.com/c/replayed",
+              expires_at: payload.expires_at,
+              status: "open",
+              payment_status: "unpaid",
+            }
+          },
+        },
+      },
+    }
+    const harness = checkoutHarness({
+      now: () => currentNow,
+      prepareOrder: async (input) => {
+        harness.calls.push(["prepare", input])
+        return harness.preparedOrder
+      },
+      createCheckoutSession: async (input) => createBackgroundPurchaseCheckoutSession({
+        ...input,
+        stripeClient,
+      }),
+      markCheckoutIndeterminate: async (input) => {
+        harness.calls.push(["indeterminate", input])
+        localOrder = { ...localOrder, status: "AWAITING_PAYMENT" }
+        return true
+      },
+      persistCheckoutSession: async (input) => {
+        harness.calls.push(["persist", input])
+        assert.equal(localOrder.id, input.orderId)
+        assert.equal(localOrder.status, "AWAITING_PAYMENT")
+        assert.equal(localOrder.stripeCheckoutSessionId, null)
+        localOrder = {
+          ...localOrder,
+          stripeCheckoutSessionId: input.sessionId,
+        }
+        return true
+      },
+      loadOrder: async () => localOrder,
+    })
+    const handler = createBackgroundCheckoutPostHandler(harness.deps)
+
+    const firstResponse = await handler(request(consentInput()))
+    assert.equal(firstResponse.status, 409)
+    assert.equal((await firstResponse.json()).error, "PAYMENT_PENDING")
+    assert.equal(localOrder.status, "AWAITING_PAYMENT")
+    assert.equal(localOrder.stripeCheckoutSessionId, null)
+
+    currentNow = new Date(NOW.getTime() + 5 * 60 * 1000)
+    const secondResponse = await handler(request(consentInput()))
+    assert.equal(secondResponse.status, 200)
+    assert.deepEqual(await secondResponse.json(), {
+      url: "https://checkout.stripe.com/c/replayed",
+      orderId: "order_123",
+    })
+
+    assert.equal(stripeAttempts.length, 3)
+    assert.ok(
+      stripeAttempts[0].payload.expires_at
+        >= Math.floor(firstRequestAt.getTime() / 1000) + 30 * 60,
+    )
+    assert.equal(JSON.stringify(stripeAttempts[2].payload), JSON.stringify(stripeAttempts[0].payload))
+    assert.deepEqual(stripeAttempts[2].payload, stripeAttempts[0].payload)
+    assert.deepEqual(stripeAttempts[2].options, stripeAttempts[0].options)
+    assert.equal(stripeAttempts[2].options.idempotencyKey, "background-purchase:order_123:attempt:1")
+    assert.equal(localOrder.stripeCheckoutSessionId, "cs_replayed")
+    assert.equal(harness.calls.filter(([name]) => name === "prepare").length, 2)
+  })
+
   it("releases only definite Stripe request rejections without leaking processor details", async () => {
     const harness = checkoutHarness({
       createCheckoutSession: async () => {
