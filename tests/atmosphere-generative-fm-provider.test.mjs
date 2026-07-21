@@ -75,6 +75,19 @@ describe("Generative.fm provider wrapper", () => {
     assert.equal(preparationStartCount, 0)
   })
 
+  it("returns a rejected promise for an already-aborted shared wait", async () => {
+    const controller = new AbortController()
+    controller.abort(new DOMException("Unmounted", "AbortError"))
+
+    const wait = waitForAbortableGenerativeFmPrewarm(
+      Promise.resolve("unused"),
+      controller.signal,
+    )
+
+    assert.ok(wait instanceof Promise)
+    await assert.rejects(wait, (error) => error?.name === "AbortError")
+  })
+
   it("aborts one prewarm wait without poisoning shared runtime preparation", async () => {
     let resolvePreparation
     const preparedRuntime = { pieceId: "shared-piece" }

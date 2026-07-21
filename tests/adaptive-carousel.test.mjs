@@ -57,6 +57,18 @@ describe("production adaptive carousel", () => {
     )
   })
 
+  it("bounds non-looping renderers at the collection edges", () => {
+    assert.deepEqual(
+      [...getMountedAdaptiveCarouselItemIds(items.slice(0, 3), "a", 2, false)],
+      ["a", "b", "c"],
+    )
+  })
+
+  it("normalizes looped indexes when the radius exceeds the item count", () => {
+    const mountedIds = getMountedAdaptiveCarouselItemIds(items.slice(0, 3), "a", 4, true)
+    assert.deepEqual([...mountedIds].sort(), ["a", "b", "c"])
+  })
+
   it("uses the approved compact vertical padding for short Station and Background stages", () => {
     assert.match(
       stageStyles,

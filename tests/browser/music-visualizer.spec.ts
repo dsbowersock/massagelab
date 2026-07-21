@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test"
+import { centerCarouselItem } from "./carousel-test-helpers"
 
 const ATMOSPHERE_STORAGE_KEY = "massagelab-atmosphere-v2"
 const CHIMER_STORAGE_KEY = "massagelab-chimer-settings"
@@ -8,23 +9,6 @@ const PROOF_STATION_TITLE = "MassageLab Proof Drone"
 type DeviceVisualizerPreferences = {
   backgroundId: string | null
   showClock: boolean
-}
-
-async function centerCarouselItem(
-  page: Page,
-  itemId: string,
-  nextButtonName: "Next background" | "Next station",
-) {
-  const slide = page.locator(`[data-carousel-slide="true"][data-carousel-item-id="${itemId}"]`)
-  const carousel = page.getByRole("region", {
-    name: nextButtonName === "Next station" ? "Station carousel" : "Background carousel",
-  })
-  await expect(slide).toBeAttached()
-  for (let attempt = 0; attempt < 80; attempt += 1) {
-    if ((await slide.getAttribute("data-centered")) === "true") return
-    await carousel.getByRole("button", { name: nextButtonName }).click()
-  }
-  throw new Error(`Carousel item ${itemId} could not be centered`)
 }
 
 function storedAtmosphereState(visualizer: DeviceVisualizerPreferences) {

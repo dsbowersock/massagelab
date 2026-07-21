@@ -4,6 +4,10 @@ This is the canonical chronological planning and progress log for MassageLab. Us
 
 Existing plans, audits, roadmaps, and checklists remain source evidence. Keep them for context, but mirror meaningful progress, plan changes, and priority changes in [project-state.md](project-state.md) and here.
 
+## 2026-07-21 — Carousel PR review
+
+- Addressed verified PR review findings by normalizing deeply wrapped carousel indexes, making already-aborted shared prewarm waits reject asynchronously, covering bounded and oversized-radius mounting directly, and consolidating browser carousel centering into one documented test helper. The active-route Metal ring now waits for stable responsive-copy geometry and unmounts synchronously when that geometry is lost, preventing the upstream one-pixel SVG fallback from emitting invalid negative rectangle dimensions during route transitions.
+
 ## 2026-07-20 — Carousel production rollout
 
 - Completed the post-rollout production review refinements: `/music` now uses a horizontally scrollable Glow-button category row with un-clipped halo paint space, icon-only Glow step navigation, no unused bottom reserve in short landscape workspaces, the accepted 24.85-pixel short-viewport stage padding, and the active station's owning category when the route remounts. Active app routes use the standard shared animated Metal ring, mounted only for the measurable app-bar copy. The full-screen Clock Background panel moves its visual filters into the header between the title and icon-only Close control, uses the accepted compact short-viewport stage spacing, and removes the faint immersive-toolbar backing box. Exact 996×597 layout assertions and screenshots, the focused Music console/playback and active-category remount routes, all ten immersive-panel browser scenarios, and the Background focus/dismissal scenario pass.

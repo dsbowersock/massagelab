@@ -166,7 +166,8 @@ export function getMountedAdaptiveCarouselItemIds(items, centeredId, visibleRadi
   for (let offset = -visibleRadius; offset <= visibleRadius; offset += 1) {
     const raw = center + offset
     if (!loop && (raw < 0 || raw >= items.length)) continue
-    result.add(items[(raw + items.length) % items.length].id)
+    const index = ((raw % items.length) + items.length) % items.length
+    result.add(items[index].id)
   }
   return result
 }

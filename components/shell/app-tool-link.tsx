@@ -8,6 +8,7 @@ import {
   type ComponentPropsWithoutRef,
   type ReactNode,
 } from "react"
+import { flushSync } from "react-dom"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import type { LucideIcon } from "lucide-react"
@@ -40,14 +41,51 @@ function ActiveToolMetalRing({ children }: { children: ReactNode }) {
     const probe = probeRef.current
     if (!probe) return undefined
 
-    const measure = () => {
-      const bounds = probe.getBoundingClientRect()
-      setHasVisibleGeometry(bounds.width >= 3 && bounds.height >= 3)
+    let firstShowFrame = 0
+    let secondShowFrame = 0
+
+    const cancelScheduledShow = () => {
+      cancelAnimationFrame(firstShowFrame)
+      cancelAnimationFrame(secondShowFrame)
+      firstShowFrame = 0
+      secondShowFrame = 0
     }
-    const resizeObserver = new ResizeObserver(measure)
+
+    const showAfterStableGeometry = () => {
+      if (firstShowFrame || secondShowFrame) return
+      firstShowFrame = requestAnimationFrame(() => {
+        firstShowFrame = 0
+        secondShowFrame = requestAnimationFrame(() => {
+          secondShowFrame = 0
+          const bounds = probe.getBoundingClientRect()
+          setHasVisibleGeometry(bounds.width >= 3 && bounds.height >= 3)
+        })
+      })
+    }
+
+    const measure = (flushHiddenState = false) => {
+      const bounds = probe.getBoundingClientRect()
+      const isVisible = bounds.width >= 3 && bounds.height >= 3
+      if (flushHiddenState && !isVisible) {
+        cancelScheduledShow()
+        // Unmount before MetalFx's later ResizeObserver callback can rebuild
+        // its SVG from the upstream one-pixel fallback geometry.
+        flushSync(() => setHasVisibleGeometry(false))
+        return
+      }
+      if (isVisible) {
+        showAfterStableGeometry()
+      } else {
+        setHasVisibleGeometry(false)
+      }
+    }
+    const resizeObserver = new ResizeObserver(() => measure(true))
     resizeObserver.observe(probe)
     measure()
-    return () => resizeObserver.disconnect()
+    return () => {
+      cancelScheduledShow()
+      resizeObserver.disconnect()
+    }
   }, [])
 
   return (
