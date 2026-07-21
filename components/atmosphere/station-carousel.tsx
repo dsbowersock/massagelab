@@ -13,6 +13,13 @@ import { cn } from "@/lib/utils"
 
 const stationGroups = groupAtmosphereStations(getVisibleAtmosphereStations())
 
+/** Returns the active station's category, falling back to the first review category. */
+function getInitialStationGroup(activeStationId: string | null) {
+  return (activeStationId
+    ? stationGroups.find((candidate) => candidate.stations.some(({ id }) => id === activeStationId))
+    : undefined) ?? stationGroups[0]
+}
+
 /**
  * Presents the real Atmosphere catalog through the approved fixed-size Music
  * carousel while retaining one centered station per category. Center changes
@@ -20,13 +27,13 @@ const stationGroups = groupAtmosphereStations(getVisibleAtmosphereStations())
  */
 export function AtmosphereStationCarousel() {
   const music = useMusic()
-  const [groupId, setGroupId] = useState(stationGroups[0]?.id ?? "")
+  const [groupId, setGroupId] = useState(() => getInitialStationGroup(music.activeStationId)?.id ?? "")
   const [initialItemId, setInitialItemId] = useState(() => {
-    const firstGroup = stationGroups[0]
-    if (!firstGroup) return undefined
-    return firstGroup.stations.some(({ id }) => id === music.activeStationId)
+    const initialGroup = getInitialStationGroup(music.activeStationId)
+    if (!initialGroup) return undefined
+    return initialGroup.stations.some(({ id }) => id === music.activeStationId)
       ? music.activeStationId ?? undefined
-      : firstGroup.stations[0]?.id
+      : initialGroup.stations[0]?.id
   })
   const [reducedMotion, setReducedMotion] = useState(false)
   const positionsRef = useRef(new Map<string, string>())

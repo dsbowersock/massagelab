@@ -615,6 +615,38 @@ test("Atmosphere visualizer action retains selected station across client routes
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
+test("Atmosphere restores the active station category after the Music route remounts", async ({ page }) => {
+  const health = capturePageHealth(page)
+
+  await page.goto("/music?active-category=restore", { waitUntil: "domcontentloaded" })
+  const categoryGroup = page.getByRole("group", { name: "Station category" })
+  const waterCategory = categoryGroup.getByRole("button", {
+    name: "Water, nature, and field textures",
+  })
+  await waterCategory.click()
+  await centerCarouselItem(page, "generative-fm-last-transit", "Next station")
+  await page.getByRole("button", { name: /^Play Last Transit$/i }).click()
+  await expect(page.getByRole("button", { name: /^Stop Last Transit$/i })).toBeVisible({ timeout: 45_000 })
+
+  await page.getByRole("button", { name: /^Background$/i }).last().click()
+  await expect(page).toHaveURL(/\/clock\?[^#]*source=music/)
+  const backgroundDialog = page.getByRole("dialog", { name: "Background" })
+  await expect(backgroundDialog).toBeVisible()
+  await backgroundDialog.getByRole("button", { name: "Close Background panel" }).click()
+  await page.getByRole("button", { name: /^Minimize visualizer$/i }).last().click()
+
+  await expect(page).toHaveURL(/\/music\?active-category=restore$/)
+  await expect(waterCategory).toHaveAttribute("aria-pressed", "true")
+  await expect(page.getByRole("heading", { name: /Water, nature, and field textures/i })).toBeVisible()
+  await expect(page.locator('[data-carousel-item-id="generative-fm-last-transit"]')).toHaveAttribute("data-centered", "true")
+  await page.getByRole("button", { name: /^Stop$/i }).last().click()
+
+  expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.consoleErrors, "browser console errors").toEqual([])
+  expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
+  expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
+})
+
 test("Atmosphere registers mobile media notification controls for active stations", async ({ page }) => {
   const health = capturePageHealth(page)
 
