@@ -589,7 +589,7 @@ model CommerceOrder {
   totalCents              Int
   stripeCheckoutSessionId String?                   @unique
   reservationExpiresAt    DateTime?
-  legalAcceptance         Json                      @default("{}")
+  legalAcceptance         Json
   purchaseCountry         String?
   returnPath              String
   failureCode             String?
@@ -606,12 +606,14 @@ model CommerceOrder {
 
   @@index([userId, createdAt])
   @@index([status, reservationExpiresAt])
+  @@unique([id, userId])
   @@unique([userId], map: "CommerceOrder_one_active_per_user_key", where: raw("(status = ANY (ARRAY['PREPARING'::\"CommerceOrderStatus\", 'AWAITING_PAYMENT'::\"CommerceOrderStatus\"]))"))
 }
 
 model CommerceOrderItem {
   id                 String                    @id @default(cuid())
   orderId            String
+  userId             String
   productType        String
   productKey         String
   displayName        String
@@ -625,12 +627,15 @@ model CommerceOrderItem {
   fulfilledAt        DateTime?
   createdAt          DateTime                  @default(now())
   updatedAt          DateTime                  @updatedAt
-  order              CommerceOrder             @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  order              CommerceOrder             @relation(fields: [orderId, userId], references: [id, userId], onDelete: Restrict, map: "CommerceOrderItem_order_user_consistency_fkey")
   refundItems        CommerceRefundItem[]
   creditEntries      BackgroundCreditEntry[]
   ownership          BackgroundOwnership?
 
   @@unique([orderId, productType, productKey])
+  @@unique([id, orderId])
+  @@unique([id, userId])
+  @@unique([id, userId, productType, productKey])
   @@index([productType, productKey])
 }
 
@@ -649,6 +654,7 @@ model CommercePayment {
   refunds               CommerceRefund[]
   disputes              CommerceDispute[]
 
+  @@unique([id, orderId])
   @@index([orderId, status])
 }
 
@@ -666,9 +672,10 @@ model CommerceRefund {
   createdAt      DateTime             @default(now())
   updatedAt      DateTime             @updatedAt
   order          CommerceOrder        @relation(fields: [orderId], references: [id], onDelete: Restrict)
-  payment        CommercePayment      @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  payment        CommercePayment      @relation(fields: [paymentId, orderId], references: [id, orderId], onDelete: Restrict, map: "CommerceRefund_payment_order_consistency_fkey")
   items          CommerceRefundItem[]
 
+  @@unique([id, orderId])
   @@index([orderId, status])
   @@index([paymentId, status])
 }
@@ -677,11 +684,12 @@ model CommerceRefundItem {
   id          String            @id @default(cuid())
   refundId    String
   orderItemId String
+  orderId     String
   quantity    Int               @default(1)
   amountCents Int
   createdAt   DateTime          @default(now())
-  refund      CommerceRefund    @relation(fields: [refundId], references: [id], onDelete: Restrict)
-  orderItem   CommerceOrderItem @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
+  refund      CommerceRefund    @relation(fields: [refundId, orderId], references: [id, orderId], onDelete: Restrict, map: "CommerceRefundItem_refund_order_consistency_fkey")
+  orderItem   CommerceOrderItem @relation(fields: [orderItemId, orderId], references: [id, orderId], onDelete: Restrict, map: "CommerceRefundItem_item_order_consistency_fkey")
 
   @@unique([refundId, orderItemId])
   @@index([orderItemId])
@@ -756,23 +764,28 @@ model BackgroundCreditWallet {
   updatedAt DateTime                @updatedAt
   user      User                    @relation(fields: [userId], references: [id], onDelete: Restrict)
   entries   BackgroundCreditEntry[]
+
+  @@unique([id, userId])
 }
 
 /// The immutable ledger entry records both its delta and the resulting wallet balance for reconciliation.
 model BackgroundCreditEntry {
   id                String                 @id @default(cuid())
   walletId          String
+  userId            String
   type              BackgroundCreditEntryType
   delta             Int
   balanceAfter      Int
   idempotencyKey    String                 @unique
   sourceOrderItemId String?
+  redemptionBackgroundKey String           @default("")
   reasonCode        String?
   createdAt         DateTime               @default(now())
-  wallet            BackgroundCreditWallet @relation(fields: [walletId], references: [id], onDelete: Restrict)
-  sourceOrderItem   CommerceOrderItem?      @relation(fields: [sourceOrderItemId], references: [id], onDelete: Restrict)
+  wallet            BackgroundCreditWallet @relation(fields: [walletId, userId], references: [id, userId], onDelete: Restrict, map: "BackgroundCreditEntry_wallet_user_consistency_fkey")
+  sourceOrderItem   CommerceOrderItem?      @relation(fields: [sourceOrderItemId, userId], references: [id, userId], onDelete: Restrict, map: "BackgroundCreditEntry_order_item_user_consistency_fkey")
   ownership         BackgroundOwnership?
 
+  @@unique([id, userId, redemptionBackgroundKey])
   @@index([walletId, createdAt])
   @@index([sourceOrderItemId])
 }
@@ -783,17 +796,20 @@ model BackgroundOwnership {
   userId              String
   backgroundKey       String
   source              BackgroundOwnershipSource
+  sourceProductType   String                     @default("background")
   status              BackgroundOwnershipStatus @default(ACTIVE)
-  sourceOrderItemId   String?                    @unique
-  sourceCreditEntryId String?                    @unique
+  sourceOrderItemId   String?
+  sourceCreditEntryId String?
   acquiredAt          DateTime                   @default(now())
   statusChangedAt     DateTime                   @default(now())
   createdAt           DateTime                   @default(now())
   updatedAt           DateTime                   @updatedAt
   user                User                       @relation(fields: [userId], references: [id], onDelete: Restrict)
-  sourceOrderItem     CommerceOrderItem?         @relation(fields: [sourceOrderItemId], references: [id], onDelete: Restrict)
-  sourceCreditEntry   BackgroundCreditEntry?     @relation(fields: [sourceCreditEntryId], references: [id], onDelete: Restrict)
+  sourceOrderItem     CommerceOrderItem?         @relation(fields: [sourceOrderItemId, userId, sourceProductType, backgroundKey], references: [id, userId, productType, productKey], onDelete: Restrict, map: "BackgroundOwnership_purchase_source_consistency_fkey")
+  sourceCreditEntry   BackgroundCreditEntry?     @relation(fields: [sourceCreditEntryId, userId, backgroundKey], references: [id, userId, redemptionBackgroundKey], onDelete: Restrict, map: "BackgroundOwnership_credit_source_consistency_fkey")
 
+  @@unique([sourceOrderItemId, userId, sourceProductType, backgroundKey])
+  @@unique([sourceCreditEntryId, userId, backgroundKey])
   @@unique([userId, backgroundKey])
   @@index([userId, status])
   @@index([backgroundKey, status])

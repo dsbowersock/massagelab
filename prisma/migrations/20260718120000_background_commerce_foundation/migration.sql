@@ -40,7 +40,7 @@ CREATE TABLE "CommerceOrder" (
   "totalCents" INTEGER NOT NULL,
   "stripeCheckoutSessionId" TEXT,
   "reservationExpiresAt" TIMESTAMP(3),
-  "legalAcceptance" JSONB NOT NULL DEFAULT '{}',
+  "legalAcceptance" JSONB NOT NULL,
   "purchaseCountry" TEXT,
   "returnPath" TEXT NOT NULL,
   "failureCode" TEXT,
@@ -49,12 +49,25 @@ CREATE TABLE "CommerceOrder" (
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" TIMESTAMP(3) NOT NULL,
   CONSTRAINT "CommerceOrder_pkey" PRIMARY KEY ("id"),
-  CONSTRAINT "CommerceOrder_totals_nonnegative" CHECK ("subtotalCents" >= 0 AND "taxCents" >= 0 AND "totalCents" >= 0)
+  CONSTRAINT "CommerceOrder_totals_nonnegative" CHECK ("subtotalCents" >= 0 AND "taxCents" >= 0 AND "totalCents" >= 0),
+  CONSTRAINT "CommerceOrder_legal_acceptance_shape_version_check" CHECK (
+    jsonb_typeof("legalAcceptance") = 'object'
+    AND jsonb_typeof("legalAcceptance"->'documentIds') = 'array'
+    AND jsonb_array_length("legalAcceptance"->'documentIds') > 0
+    AND NOT jsonb_path_exists("legalAcceptance"->'documentIds', '$[*] ? (@.type() != "string")')
+    AND jsonb_typeof("legalAcceptance"->'documentVersions') = 'object'
+    AND "legalAcceptance"->'documentVersions' <> '{}'::jsonb
+    AND NOT jsonb_path_exists("legalAcceptance"->'documentVersions', '$.* ? (@.type() != "string")')
+    AND "legalAcceptance" @> '{"combinedConsentAccepted": true}'::jsonb
+    AND jsonb_typeof("legalAcceptance"->'acceptedAt') = 'string'
+    AND length("legalAcceptance"->>'acceptedAt') > 0
+  )
 );
 
 CREATE TABLE "CommerceOrderItem" (
   "id" TEXT NOT NULL,
   "orderId" TEXT NOT NULL,
+  "userId" TEXT NOT NULL,
   "productType" TEXT NOT NULL,
   "productKey" TEXT NOT NULL,
   "displayName" TEXT NOT NULL,
@@ -108,6 +121,7 @@ CREATE TABLE "CommerceRefundItem" (
   "id" TEXT NOT NULL,
   "refundId" TEXT NOT NULL,
   "orderItemId" TEXT NOT NULL,
+  "orderId" TEXT NOT NULL,
   "quantity" INTEGER NOT NULL DEFAULT 1,
   "amountCents" INTEGER NOT NULL,
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -178,16 +192,22 @@ CREATE TABLE "BackgroundCreditWallet" (
 CREATE TABLE "BackgroundCreditEntry" (
   "id" TEXT NOT NULL,
   "walletId" TEXT NOT NULL,
+  "userId" TEXT NOT NULL,
   "type" "BackgroundCreditEntryType" NOT NULL,
   "delta" INTEGER NOT NULL,
   "balanceAfter" INTEGER NOT NULL,
   "idempotencyKey" TEXT NOT NULL,
   "sourceOrderItemId" TEXT,
+  "redemptionBackgroundKey" TEXT NOT NULL DEFAULT '',
   "reasonCode" TEXT,
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT "BackgroundCreditEntry_pkey" PRIMARY KEY ("id"),
   CONSTRAINT "BackgroundCreditEntry_balance_after_nonnegative" CHECK ("balanceAfter" >= 0),
-  CONSTRAINT "BackgroundCreditEntry_redemption_delta_negative" CHECK ("type" <> 'REDEMPTION' OR "delta" < 0)
+  CONSTRAINT "BackgroundCreditEntry_redemption_delta_negative" CHECK ("type" <> 'REDEMPTION' OR "delta" < 0),
+  CONSTRAINT "BackgroundCreditEntry_redemption_background_check" CHECK (
+    ("type" = 'REDEMPTION' AND "redemptionBackgroundKey" <> '')
+    OR ("type" <> 'REDEMPTION' AND "redemptionBackgroundKey" = '')
+  )
 );
 
 CREATE TABLE "BackgroundOwnership" (
@@ -195,6 +215,7 @@ CREATE TABLE "BackgroundOwnership" (
   "userId" TEXT NOT NULL,
   "backgroundKey" TEXT NOT NULL,
   "source" "BackgroundOwnershipSource" NOT NULL,
+  "sourceProductType" TEXT NOT NULL DEFAULT 'background',
   "status" "BackgroundOwnershipStatus" NOT NULL DEFAULT 'ACTIVE',
   "sourceOrderItemId" TEXT,
   "sourceCreditEntryId" TEXT,
@@ -203,6 +224,7 @@ CREATE TABLE "BackgroundOwnership" (
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" TIMESTAMP(3) NOT NULL,
   CONSTRAINT "BackgroundOwnership_pkey" PRIMARY KEY ("id"),
+  CONSTRAINT "BackgroundOwnership_source_product_type_check" CHECK ("sourceProductType" = 'background'),
   CONSTRAINT "BackgroundOwnership_exactly_one_source" CHECK (("sourceOrderItemId" IS NOT NULL) <> ("sourceCreditEntryId" IS NOT NULL)),
   CONSTRAINT "BackgroundOwnership_source_matches_reference" CHECK (
     ("source" = 'PURCHASE' AND "sourceOrderItemId" IS NOT NULL AND "sourceCreditEntryId" IS NULL)
@@ -218,16 +240,22 @@ CREATE UNIQUE INDEX "CommerceOrder_stripeCheckoutSessionId_key" ON "CommerceOrde
 CREATE UNIQUE INDEX "CommerceOrder_one_active_per_user_key"
   ON "CommerceOrder"("userId")
   WHERE "status" IN ('PREPARING', 'AWAITING_PAYMENT');
+CREATE UNIQUE INDEX "CommerceOrder_id_user_key" ON "CommerceOrder"("id", "userId");
 CREATE INDEX "CommerceOrder_userId_createdAt_idx" ON "CommerceOrder"("userId", "createdAt");
 CREATE INDEX "CommerceOrder_status_reservationExpiresAt_idx" ON "CommerceOrder"("status", "reservationExpiresAt");
 
 CREATE UNIQUE INDEX "CommerceOrderItem_orderId_productType_productKey_key" ON "CommerceOrderItem"("orderId", "productType", "productKey");
+CREATE UNIQUE INDEX "CommerceOrderItem_id_orderId_key" ON "CommerceOrderItem"("id", "orderId");
+CREATE UNIQUE INDEX "CommerceOrderItem_id_user_key" ON "CommerceOrderItem"("id", "userId");
+CREATE UNIQUE INDEX "CommerceOrderItem_id_user_productType_productKey_key" ON "CommerceOrderItem"("id", "userId", "productType", "productKey");
 CREATE INDEX "CommerceOrderItem_productType_productKey_idx" ON "CommerceOrderItem"("productType", "productKey");
 
 CREATE UNIQUE INDEX "CommercePayment_stripePaymentIntentId_key" ON "CommercePayment"("stripePaymentIntentId");
+CREATE UNIQUE INDEX "CommercePayment_id_orderId_key" ON "CommercePayment"("id", "orderId");
 CREATE INDEX "CommercePayment_orderId_status_idx" ON "CommercePayment"("orderId", "status");
 
 CREATE UNIQUE INDEX "CommerceRefund_stripeRefundId_key" ON "CommerceRefund"("stripeRefundId");
+CREATE UNIQUE INDEX "CommerceRefund_id_orderId_key" ON "CommerceRefund"("id", "orderId");
 CREATE INDEX "CommerceRefund_orderId_status_idx" ON "CommerceRefund"("orderId", "status");
 CREATE INDEX "CommerceRefund_paymentId_status_idx" ON "CommerceRefund"("paymentId", "status");
 CREATE UNIQUE INDEX "CommerceRefundItem_refundId_orderItemId_key" ON "CommerceRefundItem"("refundId", "orderItemId");
@@ -245,12 +273,14 @@ CREATE INDEX "CommerceWebhookReceipt_userId_receivedAt_idx" ON "CommerceWebhookR
 CREATE INDEX "CommerceWebhookReceipt_orderId_receivedAt_idx" ON "CommerceWebhookReceipt"("orderId", "receivedAt");
 
 CREATE UNIQUE INDEX "BackgroundCreditWallet_userId_key" ON "BackgroundCreditWallet"("userId");
+CREATE UNIQUE INDEX "BackgroundCreditWallet_id_userId_key" ON "BackgroundCreditWallet"("id", "userId");
 CREATE UNIQUE INDEX "BackgroundCreditEntry_idempotencyKey_key" ON "BackgroundCreditEntry"("idempotencyKey");
+CREATE UNIQUE INDEX "BackgroundCreditEntry_id_user_redemptionBackgroundKey_key" ON "BackgroundCreditEntry"("id", "userId", "redemptionBackgroundKey");
 CREATE INDEX "BackgroundCreditEntry_walletId_createdAt_idx" ON "BackgroundCreditEntry"("walletId", "createdAt");
 CREATE INDEX "BackgroundCreditEntry_sourceOrderItemId_idx" ON "BackgroundCreditEntry"("sourceOrderItemId");
 
-CREATE UNIQUE INDEX "BackgroundOwnership_sourceOrderItemId_key" ON "BackgroundOwnership"("sourceOrderItemId");
-CREATE UNIQUE INDEX "BackgroundOwnership_sourceCreditEntryId_key" ON "BackgroundOwnership"("sourceCreditEntryId");
+CREATE UNIQUE INDEX "BackgroundOwnership_purchase_source_key" ON "BackgroundOwnership"("sourceOrderItemId", "userId", "sourceProductType", "backgroundKey");
+CREATE UNIQUE INDEX "BackgroundOwnership_credit_source_key" ON "BackgroundOwnership"("sourceCreditEntryId", "userId", "backgroundKey");
 CREATE UNIQUE INDEX "BackgroundOwnership_userId_backgroundKey_key" ON "BackgroundOwnership"("userId", "backgroundKey");
 CREATE INDEX "BackgroundOwnership_userId_status_idx" ON "BackgroundOwnership"("userId", "status");
 CREATE INDEX "BackgroundOwnership_backgroundKey_status_idx" ON "BackgroundOwnership"("backgroundKey", "status");
@@ -259,12 +289,12 @@ ALTER TABLE "CommerceCart" ADD CONSTRAINT "CommerceCart_userId_fkey" FOREIGN KEY
 ALTER TABLE "CommerceCartItem" ADD CONSTRAINT "CommerceCartItem_cartId_fkey" FOREIGN KEY ("cartId") REFERENCES "CommerceCart"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 ALTER TABLE "CommerceOrder" ADD CONSTRAINT "CommerceOrder_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "CommerceOrderItem" ADD CONSTRAINT "CommerceOrderItem_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "CommerceOrder"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "CommerceOrderItem" ADD CONSTRAINT "CommerceOrderItem_order_user_consistency_fkey" FOREIGN KEY ("orderId", "userId") REFERENCES "CommerceOrder"("id", "userId") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "CommercePayment" ADD CONSTRAINT "CommercePayment_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "CommerceOrder"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "CommerceRefund" ADD CONSTRAINT "CommerceRefund_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "CommerceOrder"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "CommerceRefund" ADD CONSTRAINT "CommerceRefund_paymentId_fkey" FOREIGN KEY ("paymentId") REFERENCES "CommercePayment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "CommerceRefundItem" ADD CONSTRAINT "CommerceRefundItem_refundId_fkey" FOREIGN KEY ("refundId") REFERENCES "CommerceRefund"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "CommerceRefundItem" ADD CONSTRAINT "CommerceRefundItem_orderItemId_fkey" FOREIGN KEY ("orderItemId") REFERENCES "CommerceOrderItem"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "CommerceRefund" ADD CONSTRAINT "CommerceRefund_payment_order_consistency_fkey" FOREIGN KEY ("paymentId", "orderId") REFERENCES "CommercePayment"("id", "orderId") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "CommerceRefundItem" ADD CONSTRAINT "CommerceRefundItem_refund_order_consistency_fkey" FOREIGN KEY ("refundId", "orderId") REFERENCES "CommerceRefund"("id", "orderId") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "CommerceRefundItem" ADD CONSTRAINT "CommerceRefundItem_item_order_consistency_fkey" FOREIGN KEY ("orderItemId", "orderId") REFERENCES "CommerceOrderItem"("id", "orderId") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "CommerceDispute" ADD CONSTRAINT "CommerceDispute_paymentId_fkey" FOREIGN KEY ("paymentId") REFERENCES "CommercePayment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 ALTER TABLE "CommerceEvent" ADD CONSTRAINT "CommerceEvent_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -273,9 +303,9 @@ ALTER TABLE "CommerceWebhookReceipt" ADD CONSTRAINT "CommerceWebhookReceipt_user
 ALTER TABLE "CommerceWebhookReceipt" ADD CONSTRAINT "CommerceWebhookReceipt_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "CommerceOrder"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 ALTER TABLE "BackgroundCreditWallet" ADD CONSTRAINT "BackgroundCreditWallet_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "BackgroundCreditEntry" ADD CONSTRAINT "BackgroundCreditEntry_walletId_fkey" FOREIGN KEY ("walletId") REFERENCES "BackgroundCreditWallet"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "BackgroundCreditEntry" ADD CONSTRAINT "BackgroundCreditEntry_sourceOrderItemId_fkey" FOREIGN KEY ("sourceOrderItemId") REFERENCES "CommerceOrderItem"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "BackgroundCreditEntry" ADD CONSTRAINT "BackgroundCreditEntry_wallet_user_consistency_fkey" FOREIGN KEY ("walletId", "userId") REFERENCES "BackgroundCreditWallet"("id", "userId") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "BackgroundCreditEntry" ADD CONSTRAINT "BackgroundCreditEntry_order_item_user_consistency_fkey" FOREIGN KEY ("sourceOrderItemId", "userId") REFERENCES "CommerceOrderItem"("id", "userId") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 ALTER TABLE "BackgroundOwnership" ADD CONSTRAINT "BackgroundOwnership_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "BackgroundOwnership" ADD CONSTRAINT "BackgroundOwnership_sourceOrderItemId_fkey" FOREIGN KEY ("sourceOrderItemId") REFERENCES "CommerceOrderItem"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "BackgroundOwnership" ADD CONSTRAINT "BackgroundOwnership_sourceCreditEntryId_fkey" FOREIGN KEY ("sourceCreditEntryId") REFERENCES "BackgroundCreditEntry"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "BackgroundOwnership" ADD CONSTRAINT "BackgroundOwnership_purchase_source_consistency_fkey" FOREIGN KEY ("sourceOrderItemId", "userId", "sourceProductType", "backgroundKey") REFERENCES "CommerceOrderItem"("id", "userId", "productType", "productKey") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "BackgroundOwnership" ADD CONSTRAINT "BackgroundOwnership_credit_source_consistency_fkey" FOREIGN KEY ("sourceCreditEntryId", "userId", "backgroundKey") REFERENCES "BackgroundCreditEntry"("id", "userId", "redemptionBackgroundKey") ON DELETE RESTRICT ON UPDATE CASCADE;

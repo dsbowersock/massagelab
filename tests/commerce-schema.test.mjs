@@ -27,6 +27,12 @@ const requiredModels = [
   "BackgroundOwnership",
 ]
 
+function modelBlock(modelName) {
+  const match = schema.match(new RegExp(`model ${modelName} \\{[\\s\\S]*?\\r?\\n\\}`))
+  assert.ok(match, `Expected model ${modelName}`)
+  return match[0]
+}
+
 describe("transactional background commerce schema", () => {
   it("defines the approved generic commerce, wallet, and ownership records", () => {
     for (const model of requiredModels) {
@@ -34,9 +40,9 @@ describe("transactional background commerce schema", () => {
       assert.match(migration, new RegExp(`CREATE TABLE "${model}"`))
     }
 
-    assert.match(schema, /model CommerceCartItem \{[\s\S]*?productType\s+String[\s\S]*?productKey\s+String/)
-    assert.match(schema, /model CommerceOrderItem \{[\s\S]*?productType\s+String[\s\S]*?productKey\s+String/)
-    assert.match(schema, /model CommerceOrderItem \{[\s\S]*?displayName\s+String[\s\S]*?unitPriceCents\s+Int[\s\S]*?currency\s+String/)
+    assert.match(modelBlock("CommerceCartItem"), /productType\s+String[\s\S]*?productKey\s+String/)
+    assert.match(modelBlock("CommerceOrderItem"), /productType\s+String[\s\S]*?productKey\s+String/)
+    assert.match(modelBlock("CommerceOrderItem"), /displayName\s+String[\s\S]*?unitPriceCents\s+Int[\s\S]*?currency\s+String/)
   })
 
   it("defines every required lifecycle state explicitly", () => {
@@ -54,19 +60,20 @@ describe("transactional background commerce schema", () => {
 
   it("enforces commerce idempotency and one-current-record invariants", () => {
     const schemaUniqueContracts = [
-      /model CommerceCart \{[\s\S]*?userId\s+String\s+@unique/,
-      /model CommerceCartItem \{[\s\S]*?@@unique\(\[cartId, productType, productKey\]\)/,
-      /model BackgroundCreditWallet \{[\s\S]*?userId\s+String\s+@unique/,
-      /model BackgroundCreditEntry \{[\s\S]*?idempotencyKey\s+String\s+@unique/,
-      /model BackgroundOwnership \{[\s\S]*?@@unique\(\[userId, backgroundKey\]\)/,
-      /model BackgroundOwnership \{[\s\S]*?sourceOrderItemId\s+String\?\s+@unique[\s\S]*?sourceCreditEntryId\s+String\?\s+@unique/,
-      /model CommerceWebhookReceipt \{[\s\S]*?@@unique\(\[provider, providerEventId\]\)/,
-      /model CommerceOrder \{[\s\S]*?stripeCheckoutSessionId\s+String\?\s+@unique/,
-      /model CommercePayment \{[\s\S]*?stripePaymentIntentId\s+String\s+@unique/,
+      ["CommerceCart", /userId\s+String\s+@unique/],
+      ["CommerceCartItem", /@@unique\(\[cartId, productType, productKey\]\)/],
+      ["BackgroundCreditWallet", /userId\s+String\s+@unique/],
+      ["BackgroundCreditEntry", /idempotencyKey\s+String\s+@unique/],
+      ["BackgroundOwnership", /@@unique\(\[userId, backgroundKey\]\)/],
+      ["BackgroundOwnership", /@@unique\(\[sourceOrderItemId, userId, sourceProductType, backgroundKey\]\)/],
+      ["BackgroundOwnership", /@@unique\(\[sourceCreditEntryId, userId, backgroundKey\]\)/],
+      ["CommerceWebhookReceipt", /@@unique\(\[provider, providerEventId\]\)/],
+      ["CommerceOrder", /stripeCheckoutSessionId\s+String\?\s+@unique/],
+      ["CommercePayment", /stripePaymentIntentId\s+String\s+@unique/],
     ]
 
-    for (const contract of schemaUniqueContracts) {
-      assert.match(schema, contract)
+    for (const [model, contract] of schemaUniqueContracts) {
+      assert.match(modelBlock(model), contract)
     }
 
     assert.match(
@@ -74,14 +81,14 @@ describe("transactional background commerce schema", () => {
       /CREATE UNIQUE INDEX "CommerceOrder_one_active_per_user_key"[\s\S]*?ON "CommerceOrder"\("userId"\)[\s\S]*?WHERE "status" IN \('PREPARING', 'AWAITING_PAYMENT'\)/,
     )
     assert.match(
-      schema,
+      modelBlock("CommerceOrder"),
       /@@unique\(\[userId\], map: "CommerceOrder_one_active_per_user_key", where: raw\([\s\S]*?PREPARING[\s\S]*?AWAITING_PAYMENT[\s\S]*?\)\)/,
     )
   })
 
   it("keeps durable commerce history restrictive while carts remain ephemeral", () => {
-    assert.match(schema, /model CommerceCart \{[\s\S]*?user\s+User\s+@relation\(fields: \[userId\], references: \[id\], onDelete: Cascade\)/)
-    assert.match(schema, /model CommerceCartItem \{[\s\S]*?cart\s+CommerceCart\s+@relation\(fields: \[cartId\], references: \[id\], onDelete: Cascade\)/)
+    assert.match(modelBlock("CommerceCart"), /user\s+User\s+@relation\(fields: \[userId\], references: \[id\], onDelete: Cascade\)/)
+    assert.match(modelBlock("CommerceCartItem"), /cart\s+CommerceCart\s+@relation\(fields: \[cartId\], references: \[id\], onDelete: Cascade\)/)
 
     const durableUserRelations = [
       "CommerceOrder",
@@ -91,13 +98,13 @@ describe("transactional background commerce schema", () => {
     ]
     for (const model of durableUserRelations) {
       assert.match(
-        schema,
-        new RegExp(`model ${model} \\{[\\s\\S]*?user\\s+User\\s+@relation\\(fields: \\[userId\\], references: \\[id\\], onDelete: Restrict\\)`),
+        modelBlock(model),
+        /user\s+User\s+@relation\(fields: \[userId\], references: \[id\], onDelete: Restrict\)/,
       )
     }
     assert.match(
-      schema,
-      /model CommerceWebhookReceipt \{[\s\S]*?userId\s+String\?[\s\S]*?user\s+User\?\s+@relation\(fields: \[userId\], references: \[id\], onDelete: Restrict\)/,
+      modelBlock("CommerceWebhookReceipt"),
+      /userId\s+String\?[\s\S]*?user\s+User\?\s+@relation\(fields: \[userId\], references: \[id\], onDelete: Restrict\)/,
     )
 
     assert.doesNotMatch(
@@ -110,12 +117,20 @@ describe("transactional background commerce schema", () => {
     const checkConstraints = [
       /CONSTRAINT "CommerceCartItem_quantity_positive" CHECK \("quantity" > 0\)/,
       /CONSTRAINT "CommerceOrder_totals_nonnegative" CHECK \("subtotalCents" >= 0 AND "taxCents" >= 0 AND "totalCents" >= 0\)/,
+      /CONSTRAINT "CommerceOrder_legal_acceptance_shape_version_check" CHECK \(/,
       /CONSTRAINT "CommerceOrderItem_money_nonnegative" CHECK \("unitPriceCents" >= 0 AND "quantity" > 0 AND "allocatedTaxCents" >= 0 AND "lineTotalCents" >= 0\)/,
       /CONSTRAINT "CommercePayment_amount_nonnegative" CHECK \("amountCents" >= 0\)/,
       /CONSTRAINT "CommerceRefund_amount_nonnegative" CHECK \("amountCents" >= 0\)/,
       /CONSTRAINT "CommerceRefundItem_amount_nonnegative" CHECK \("quantity" > 0 AND "amountCents" >= 0\)/,
+      /CONSTRAINT "CommerceDispute_amount_nonnegative" CHECK \("amountCents" >= 0\)/,
       /CONSTRAINT "BackgroundCreditWallet_balance_nonnegative" CHECK \("balance" >= 0\)/,
+      /CONSTRAINT "BackgroundCreditWallet_version_nonnegative" CHECK \("version" >= 0\)/,
+      /CONSTRAINT "BackgroundCreditEntry_balance_after_nonnegative" CHECK \("balanceAfter" >= 0\)/,
+      /CONSTRAINT "BackgroundCreditEntry_redemption_delta_negative" CHECK \("type" <> 'REDEMPTION' OR "delta" < 0\)/,
+      /CONSTRAINT "BackgroundCreditEntry_redemption_background_check" CHECK \([\s\S]*?REDEMPTION[\s\S]*?redemptionBackgroundKey[\s\S]*?\)/,
       /CONSTRAINT "BackgroundOwnership_exactly_one_source" CHECK \(\("sourceOrderItemId" IS NOT NULL\) <> \("sourceCreditEntryId" IS NOT NULL\)\)/,
+      /CONSTRAINT "BackgroundOwnership_source_matches_reference" CHECK \([\s\S]*?PURCHASE[\s\S]*?CREDIT_REDEMPTION[\s\S]*?\)/,
+      /CONSTRAINT "BackgroundOwnership_source_product_type_check" CHECK \("sourceProductType" = 'background'\)/,
     ]
 
     for (const constraint of checkConstraints) {
@@ -123,23 +138,83 @@ describe("transactional background commerce schema", () => {
     }
   })
 
+  it("requires a versioned per-order legal acceptance snapshot", () => {
+    const order = modelBlock("CommerceOrder")
+
+    assert.match(order, /^\s*legalAcceptance\s+Json\s*$/m)
+    assert.doesNotMatch(order, /legalAcceptance\s+Json[^\r\n]*@default/)
+    assert.match(migration, /"legalAcceptance" JSONB NOT NULL,(?!\s*DEFAULT)/)
+    assert.match(migration, /jsonb_typeof\("legalAcceptance"->'documentIds'\) = 'array'/)
+    assert.match(migration, /jsonb_array_length\("legalAcceptance"->'documentIds'\) > 0/)
+    assert.match(migration, /jsonb_typeof\("legalAcceptance"->'documentVersions'\) = 'object'/)
+    assert.match(migration, /"legalAcceptance"->'documentVersions' <> '\{\}'::jsonb/)
+    assert.match(migration, /"legalAcceptance" @> '\{"combinedConsentAccepted": true\}'::jsonb/)
+    assert.match(migration, /jsonb_typeof\("legalAcceptance"->'acceptedAt'\) = 'string'/)
+  })
+
+  it("uses composite restrictive foreign keys to keep durable acquisition history consistent", () => {
+    const schemaContracts = [
+      ["CommerceOrder", /@@unique\(\[id, userId\]\)/],
+      ["CommercePayment", /@@unique\(\[id, orderId\]\)/],
+      ["CommerceRefund", /payment\s+CommercePayment\s+@relation\(fields: \[paymentId, orderId\], references: \[id, orderId\], onDelete: Restrict/],
+      ["CommerceRefund", /@@unique\(\[id, orderId\]\)/],
+      ["CommerceRefundItem", /orderId\s+String/],
+      ["CommerceRefundItem", /refund\s+CommerceRefund\s+@relation\(fields: \[refundId, orderId\], references: \[id, orderId\], onDelete: Restrict/],
+      ["CommerceRefundItem", /orderItem\s+CommerceOrderItem\s+@relation\(fields: \[orderItemId, orderId\], references: \[id, orderId\], onDelete: Restrict/],
+      ["CommerceOrderItem", /userId\s+String/],
+      ["CommerceOrderItem", /order\s+CommerceOrder\s+@relation\(fields: \[orderId, userId\], references: \[id, userId\], onDelete: Restrict/],
+      ["BackgroundCreditEntry", /userId\s+String[\s\S]*?redemptionBackgroundKey\s+String\s+@default\(""\)/],
+      ["BackgroundCreditEntry", /wallet\s+BackgroundCreditWallet\s+@relation\(fields: \[walletId, userId\], references: \[id, userId\], onDelete: Restrict/],
+      ["BackgroundCreditEntry", /@@unique\(\[id, userId, redemptionBackgroundKey\]\)/],
+      ["BackgroundOwnership", /sourceProductType\s+String\s+@default\("background"\)/],
+      ["BackgroundOwnership", /sourceOrderItem\s+CommerceOrderItem\?\s+@relation\(fields: \[sourceOrderItemId, userId, sourceProductType, backgroundKey\], references: \[id, userId, productType, productKey\], onDelete: Restrict/],
+      ["BackgroundOwnership", /sourceCreditEntry\s+BackgroundCreditEntry\?\s+@relation\(fields: \[sourceCreditEntryId, userId, backgroundKey\], references: \[id, userId, redemptionBackgroundKey\], onDelete: Restrict/],
+      ["BackgroundOwnership", /@@unique\(\[sourceOrderItemId, userId, sourceProductType, backgroundKey\]\)/],
+      ["BackgroundOwnership", /@@unique\(\[sourceCreditEntryId, userId, backgroundKey\]\)/],
+    ]
+    for (const [model, contract] of schemaContracts) {
+      assert.match(modelBlock(model), contract)
+    }
+
+    const migrationContracts = [
+      /CONSTRAINT "CommerceRefund_payment_order_consistency_fkey" FOREIGN KEY \("paymentId", "orderId"\) REFERENCES "CommercePayment"\("id", "orderId"\) ON DELETE RESTRICT/,
+      /CONSTRAINT "CommerceRefundItem_refund_order_consistency_fkey" FOREIGN KEY \("refundId", "orderId"\) REFERENCES "CommerceRefund"\("id", "orderId"\) ON DELETE RESTRICT/,
+      /CONSTRAINT "CommerceRefundItem_item_order_consistency_fkey" FOREIGN KEY \("orderItemId", "orderId"\) REFERENCES "CommerceOrderItem"\("id", "orderId"\) ON DELETE RESTRICT/,
+      /CREATE UNIQUE INDEX "CommerceOrder_id_user_key" ON "CommerceOrder"\("id", "userId"\)/,
+      /CONSTRAINT "CommerceOrderItem_order_user_consistency_fkey" FOREIGN KEY \("orderId", "userId"\) REFERENCES "CommerceOrder"\("id", "userId"\) ON DELETE RESTRICT/,
+      /CREATE UNIQUE INDEX "CommerceOrderItem_id_orderId_key" ON "CommerceOrderItem"\("id", "orderId"\)/,
+      /CREATE UNIQUE INDEX "CommerceOrderItem_id_user_productType_productKey_key" ON "CommerceOrderItem"\("id", "userId", "productType", "productKey"\)/,
+      /CREATE UNIQUE INDEX "CommercePayment_id_orderId_key" ON "CommercePayment"\("id", "orderId"\)/,
+      /CREATE UNIQUE INDEX "CommerceRefund_id_orderId_key" ON "CommerceRefund"\("id", "orderId"\)/,
+      /CREATE UNIQUE INDEX "BackgroundCreditEntry_id_user_redemptionBackgroundKey_key" ON "BackgroundCreditEntry"\("id", "userId", "redemptionBackgroundKey"\)/,
+      /CREATE UNIQUE INDEX "BackgroundOwnership_purchase_source_key" ON "BackgroundOwnership"\("sourceOrderItemId", "userId", "sourceProductType", "backgroundKey"\)/,
+      /CREATE UNIQUE INDEX "BackgroundOwnership_credit_source_key" ON "BackgroundOwnership"\("sourceCreditEntryId", "userId", "backgroundKey"\)/,
+      /CONSTRAINT "BackgroundCreditEntry_wallet_user_consistency_fkey" FOREIGN KEY \("walletId", "userId"\) REFERENCES "BackgroundCreditWallet"\("id", "userId"\) ON DELETE RESTRICT/,
+      /CONSTRAINT "BackgroundOwnership_purchase_source_consistency_fkey" FOREIGN KEY \("sourceOrderItemId", "userId", "sourceProductType", "backgroundKey"\) REFERENCES "CommerceOrderItem"\("id", "userId", "productType", "productKey"\) ON DELETE RESTRICT/,
+      /CONSTRAINT "BackgroundOwnership_credit_source_consistency_fkey" FOREIGN KEY \("sourceCreditEntryId", "userId", "backgroundKey"\) REFERENCES "BackgroundCreditEntry"\("id", "userId", "redemptionBackgroundKey"\) ON DELETE RESTRICT/,
+    ]
+    for (const contract of migrationContracts) {
+      assert.match(migration, contract)
+    }
+  })
+
   it("stores checkout/legal snapshots and limited audit payloads without granting credits", () => {
     const orderContracts = [
-      /model CommerceOrder \{[\s\S]*?reservationExpiresAt\s+DateTime\?/,
-      /model CommerceOrder \{[\s\S]*?legalAcceptance\s+Json/,
-      /model CommerceOrder \{[\s\S]*?publicId\s+String\s+@unique[\s\S]*?taxCents\s+Int/,
-      /model CommerceOrder \{[\s\S]*?purchaseCountry\s+String\?/,
-      /model CommerceOrder \{[\s\S]*?returnPath\s+String/,
-      /model CommerceOrder \{[\s\S]*?failureCode\s+String\?/,
-      /model CommerceOrder \{[\s\S]*?fulfillmentStartedAt\s+DateTime\?[\s\S]*?fulfilledAt\s+DateTime\?/,
-      /model CommerceOrderItem \{[\s\S]*?allocatedTaxCents\s+Int[\s\S]*?fulfillmentAdapterVersion\s+String/,
-      /model CommerceEvent \{[\s\S]*?payload\s+Json/,
-      /model CommerceEvent \{[\s\S]*?source\s+String[\s\S]*?reasonCode\s+String\?/,
-      /model BackgroundCreditWallet \{[\s\S]*?balance\s+Int[\s\S]*?version\s+Int/,
+      ["CommerceOrder", /reservationExpiresAt\s+DateTime\?/],
+      ["CommerceOrder", /legalAcceptance\s+Json/],
+      ["CommerceOrder", /publicId\s+String\s+@unique[\s\S]*?taxCents\s+Int/],
+      ["CommerceOrder", /purchaseCountry\s+String\?/],
+      ["CommerceOrder", /returnPath\s+String/],
+      ["CommerceOrder", /failureCode\s+String\?/],
+      ["CommerceOrder", /fulfillmentStartedAt\s+DateTime\?[\s\S]*?fulfilledAt\s+DateTime\?/],
+      ["CommerceOrderItem", /allocatedTaxCents\s+Int[\s\S]*?fulfillmentAdapterVersion\s+String/],
+      ["CommerceEvent", /payload\s+Json/],
+      ["CommerceEvent", /source\s+String[\s\S]*?reasonCode\s+String\?/],
+      ["BackgroundCreditWallet", /balance\s+Int[\s\S]*?version\s+Int/],
     ]
 
-    for (const contract of orderContracts) {
-      assert.match(schema, contract)
+    for (const [model, contract] of orderContracts) {
+      assert.match(modelBlock(model), contract)
     }
 
     assert.doesNotMatch(migration, /INSERT\s+INTO\s+"BackgroundCredit(?:Wallet|Entry)"/i)
