@@ -202,4 +202,21 @@ describe("Commerce domain contracts", () => {
     assert.equal(result, "ok")
     assert.equal(transactionCalls, 2)
   })
+
+  it("caps caller-supplied transaction retries at three total attempts", async () => {
+    let transactionCalls = 0
+    const conflict = Object.assign(new Error("conflict"), { code: "P2034" })
+    const prisma = {
+      async $transaction() {
+        transactionCalls += 1
+        throw conflict
+      },
+    }
+
+    await assert.rejects(
+      () => runCommerceTransaction(prisma, async () => "unreachable", { maxRetries: 99 }),
+      (error) => error === conflict,
+    )
+    assert.equal(transactionCalls, 3)
+  })
 })
