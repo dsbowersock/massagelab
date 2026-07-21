@@ -1,14 +1,25 @@
 import { NextResponse } from "next/server"
 import {
+  BACKGROUND_PURCHASE_PURPOSE,
+  classifyStripeCheckoutSessionPurpose,
   getStripeWebhookSecret,
   recordCheckoutSessionCompleted,
+  retrieveBackgroundPurchaseCheckoutSessionForFulfillment,
   upsertMembershipSubscriptionFromStripe,
   verifyStripeWebhookSignature,
 } from "@/lib/stripe-billing"
 import { clearAccountSurfaceDataCache } from "@/lib/account-surface-data"
+import { fulfillBackgroundPurchase } from "@/lib/commerce/fulfillment-service"
 import { prisma } from "@/lib/prisma"
 
 export const runtime = "nodejs"
+
+const BACKGROUND_CHECKOUT_EVENT_TYPES = new Set([
+  "checkout.session.completed",
+  "checkout.session.async_payment_succeeded",
+  "checkout.session.async_payment_failed",
+  "checkout.session.expired",
+])
 
 export async function POST(request: Request) {
   const rawBody = await request.text()
@@ -22,9 +33,35 @@ export async function POST(request: Request) {
   const event = JSON.parse(rawBody)
   const object = event?.data?.object
 
-  if (event?.type === "checkout.session.completed") {
-    const result = await recordCheckoutSessionCompleted(prisma, object)
-    clearAccountSurfaceDataCache(result?.customer?.userId ?? result?.subscription?.userId, "membership")
+  if (String(event?.type ?? "").startsWith("checkout.session.")) {
+    const purpose = classifyStripeCheckoutSessionPurpose(object)
+
+    if (
+      purpose === BACKGROUND_PURCHASE_PURPOSE
+      && BACKGROUND_CHECKOUT_EVENT_TYPES.has(event.type)
+    ) {
+      // Retrieval is deliberately complete before the commerce transaction:
+      // the fulfillment service performs database-only work.
+      const session = await retrieveBackgroundPurchaseCheckoutSessionForFulfillment(object?.id)
+      const result = await fulfillBackgroundPurchase({
+        prismaClient: prisma,
+        eventId: String(event.id ?? ""),
+        eventType: event.type,
+        eventCreatedAt: typeof event.created === "number" ? event.created : undefined,
+        session,
+      })
+      if (result.changed) {
+        clearAccountSurfaceDataCache(result.userId, "membership")
+      }
+    } else if (event.type === "checkout.session.completed" && purpose === "membership") {
+      const result = await recordCheckoutSessionCompleted(prisma, object)
+      clearAccountSurfaceDataCache(
+        result?.customer?.userId ?? result?.subscription?.userId,
+        "membership",
+      )
+    }
+    // Donation and unknown explicit purposes are acknowledged without
+    // membership or commerce mutation, preserving the existing donation path.
   }
 
   if (

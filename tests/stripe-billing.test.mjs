@@ -439,4 +439,51 @@ describe("Stripe billing helpers", () => {
     assert.equal(result.subscription.membershipLevel, "THERAPIST")
     assert.equal(writes.some(([kind]) => kind === "subscription"), true)
   })
+
+  it("classifies explicit Checkout purposes without treating unknown flows as memberships", () => {
+    assert.equal(typeof stripeBilling.classifyStripeCheckoutSessionPurpose, "function")
+    assert.equal(stripeBilling.classifyStripeCheckoutSessionPurpose({
+      metadata: { purpose: "background_purchase" },
+    }), "background_purchase")
+    assert.equal(stripeBilling.classifyStripeCheckoutSessionPurpose({
+      metadata: { purpose: "massagelab_project_support" },
+    }), "donation")
+    assert.equal(stripeBilling.classifyStripeCheckoutSessionPurpose({
+      mode: "subscription",
+      metadata: {},
+    }), "membership")
+    assert.equal(stripeBilling.classifyStripeCheckoutSessionPurpose({
+      mode: "payment",
+      metadata: { purpose: "another_product" },
+    }), "unknown")
+  })
+
+  it("retrieves a background Checkout Session with fulfillment evidence expanded", async () => {
+    assert.equal(typeof stripeBilling.retrieveBackgroundPurchaseCheckoutSessionForFulfillment, "function")
+    let capturedId = null
+    let capturedOptions = null
+
+    const session = await stripeBilling.retrieveBackgroundPurchaseCheckoutSessionForFulfillment(
+      "cs_background",
+      {
+        stripeClient: {
+          checkout: {
+            sessions: {
+              retrieve: async (sessionId, options) => {
+                capturedId = sessionId
+                capturedOptions = options
+                return { id: sessionId, line_items: { data: [] } }
+              },
+            },
+          },
+        },
+      },
+    )
+
+    assert.equal(capturedId, "cs_background")
+    assert.deepEqual(capturedOptions, {
+      expand: ["line_items.data.price.product", "payment_intent"],
+    })
+    assert.equal(session.id, "cs_background")
+  })
 })
