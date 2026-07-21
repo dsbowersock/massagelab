@@ -10,6 +10,23 @@ type DeviceVisualizerPreferences = {
   showClock: boolean
 }
 
+async function centerCarouselItem(
+  page: Page,
+  itemId: string,
+  nextButtonName: "Next background" | "Next station",
+) {
+  const slide = page.locator(`[data-carousel-slide="true"][data-carousel-item-id="${itemId}"]`)
+  const carousel = page.getByRole("region", {
+    name: nextButtonName === "Next station" ? "Station carousel" : "Background carousel",
+  })
+  await expect(slide).toBeAttached()
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    if ((await slide.getAttribute("data-centered")) === "true") return
+    await carousel.getByRole("button", { name: nextButtonName }).click()
+  }
+  throw new Error(`Carousel item ${itemId} could not be centered`)
+}
+
 function storedAtmosphereState(visualizer: DeviceVisualizerPreferences) {
   return {
     version: 2,
@@ -84,6 +101,7 @@ async function startProofStation(page: Page, origin = "/music") {
   await expect(
     page.getByRole("heading", { name: /Atmosphere audio stations/i, includeHidden: true }),
   ).toBeAttached()
+  await centerCarouselItem(page, "mlab-proof-drone", "Next station")
   await page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
   const player = page.getByTestId("music-player-toolbar")
   await expect(player).toBeVisible({ timeout: 30_000 })
@@ -100,7 +118,7 @@ async function openVisualizerFromPlayer(page: Page) {
 async function selectStaticGradient(page: Page) {
   const dialog = page.getByRole("dialog", { name: "Background" })
   await expect(dialog).toBeVisible()
-  await dialog.getByRole("button", { name: "Preview Static gradient background" }).click()
+  await centerCarouselItem(page, "static-gradient", "Next background")
   await dialog.getByRole("button", { name: "Select Static gradient background" }).click()
   await expect(dialog).toHaveCount(0)
   await expect(page.getByTestId("chimer-premium-background")).toHaveAttribute(
@@ -579,7 +597,7 @@ test("Background traps focus and selection, Escape, and Close restore its contro
   await expect(backgroundControl).toBeFocused()
 
   await backgroundControl.click()
-  await page.getByRole("button", { name: "Close Background panel" }).click()
+  await page.getByRole("button", { name: "Close Background panel" }).press("Enter")
   await expect(background).toHaveCount(0)
   await expect(backgroundControl).toBeFocused()
 
@@ -1553,7 +1571,7 @@ test("signed-in defaults, device precedence, failed save, retry, and unrelated s
 
   await page.getByRole("button", { name: "Background", exact: true }).click()
   await expect(
-    page.getByRole("group", { name: "MassageLaba Lamp background" }),
+    page.locator('[data-carousel-slide="true"][data-carousel-item-id="massage-lab-moving-gradient"]'),
   ).toHaveAttribute("aria-current", "true")
   await selectStaticGradient(page)
   const selectedBackgroundId = await page.getByTestId("chimer-premium-background")

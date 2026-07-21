@@ -303,7 +303,7 @@ test("Background is modal, restores focus, and uses outside dismissal only when 
   await expect(backgroundControl).toBeFocused()
 
   await backgroundControl.click()
-  await page.getByRole("button", { name: "Close Background panel" }).click()
+  await page.getByRole("button", { name: "Close Background panel" }).press("Enter")
   await expect(background).toHaveCount(0)
   await expect(backgroundControl).toBeFocused()
 })

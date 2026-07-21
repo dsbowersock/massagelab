@@ -1,21 +1,19 @@
 "use client"
 
-import { type CSSProperties, type ReactNode, useEffect, useMemo, useState } from "react"
-import { Lock, Sparkles, Star } from "lucide-react"
+import { type ReactNode, useEffect, useMemo, useState } from "react"
+import { Sparkles } from "lucide-react"
 import {
   BACKGROUND_VISUAL_FILTERS,
-  getBackgroundVisualTags,
   matchesBackgroundVisualFilter,
   readSavedBackgroundIds,
   writeSavedBackgroundIds,
 } from "@/lib/background-catalog"
 import { DEFAULT_BACKGROUND_ID } from "@/lib/background-options"
 import { cn } from "@/lib/utils"
-import { Badge } from "@/components/ui/badge"
+import { BackgroundCarousel } from "@/components/backgrounds/background-carousel"
 import {
   type BackgroundDefinition,
   getBackgroundOptionsForCategory,
-  userCanUseBackground,
   type BackgroundCategory,
   type BackgroundId,
 } from "@/components/backgrounds/backgroundRegistry"
@@ -32,17 +30,6 @@ interface BackgroundSelectorProps {
 }
 
 type BackgroundVisualFilter = (typeof BACKGROUND_VISUAL_FILTERS)[number]["value"]
-
-// Fallback previews keep the picker visual even before generated media loads or
-// when a background does not provide a custom fallback style.
-function getPreviewStyle(option: BackgroundDefinition): CSSProperties {
-  return option.fallbackStyle ?? {
-    background:
-      option.motionIntensity === "static"
-        ? "linear-gradient(135deg, rgba(249,115,22,0.76), rgba(15,23,42,0.96))"
-        : "radial-gradient(circle at 24% 28%, rgba(249,115,22,0.72), transparent 34%), radial-gradient(circle at 78% 70%, rgba(65,105,225,0.56), transparent 42%), linear-gradient(135deg, #050505, #111827)",
-  }
-}
 
 export function BackgroundSelector({
   value,
@@ -90,20 +77,6 @@ export function BackgroundSelector({
         <Sparkles className="size-4 shrink-0 text-primary" aria-hidden="true" />
       </div>
 
-      {selectedOption ? (
-        <div className="grid gap-2 rounded-md border border-border/80 bg-background/70 p-2">
-          <div
-            className="min-h-24 rounded-md border border-white/10"
-            style={getPreviewStyle(selectedOption)}
-            aria-hidden="true"
-          />
-          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-            <span className="font-semibold text-foreground">{selectedOption.label}</span>
-            <span className="text-muted-foreground">{getBackgroundVisualTags(selectedOption).slice(0, 3).join(" • ")}</span>
-          </div>
-        </div>
-      ) : null}
-
       <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Background visual filters">
         {BACKGROUND_VISUAL_FILTERS.map((filter) => (
           <button
@@ -124,91 +97,29 @@ export function BackgroundSelector({
         ))}
       </div>
 
-      <div
-        className={cn(
-          "grid gap-2",
-          compact
-            ? "grid-cols-1"
-            : "auto-cols-[minmax(15rem,1fr)] grid-flow-col overflow-x-auto pb-2 snap-x snap-mandatory",
-        )}
-      >
-        {visibleOptions.map((option) => {
-          const canUse = userCanUseBackground(option, featureKeys)
-          const isSelected = value === option.id || (!canUse && option.id === DEFAULT_BACKGROUND_ID)
-          const isSaved = savedBackgroundIds.includes(option.id)
+      {visibleOptions.length > 0 ? (
+        <BackgroundCarousel
+          key={visualFilter}
+          options={visibleOptions}
+          selectedId={selectedOption?.id ?? value}
+          featureKeys={featureKeys}
+          savedIds={savedBackgroundIds}
+          onSelect={(backgroundId) => {
+            setUpgradeMessage("")
+            onChange(backgroundId)
+          }}
+          onLockedSelect={() => {
+            setUpgradeMessage("Upgrade to a paid membership to use premium visual backgrounds.")
+          }}
+          onToggleSaved={toggleSavedBackground}
+        />
+      ) : null}
 
-          return (
-            <div
-              key={option.id}
-              className={cn(
-                "grid min-h-full gap-2 overflow-hidden rounded-md border border-border/80 bg-background/80 p-2 text-sm transition hover:border-primary/60 hover:bg-accent snap-start",
-                isSelected && "border-primary/70 bg-primary/10 shadow-md shadow-primary/10",
-                !canUse && "cursor-not-allowed opacity-70",
-              )}
-            >
-              <div
-                className="min-h-28 rounded-md border border-white/10"
-                style={getPreviewStyle(option)}
-                aria-hidden="true"
-              />
-              <div className="grid gap-1">
-                <div className="flex items-start justify-between gap-2">
-                  <span className="font-medium text-foreground">{option.label}</span>
-                  <Badge variant={option.requiresSubscription ? (canUse ? "outline" : "secondary") : "outline"} className="shrink-0 gap-1">
-                    {!canUse ? <Lock className="size-3" aria-hidden="true" /> : null}
-                    {option.requiresSubscription ? (canUse ? "Premium" : "Locked") : "Free"}
-                  </Badge>
-                </div>
-                <span className="text-xs leading-5 text-muted-foreground">
-                  {option.provider} · {option.motionIntensity} motion · {option.performanceCost} cost
-                </span>
-                <span className="text-xs leading-5 text-muted-foreground">
-                  {getBackgroundVisualTags(option).slice(0, 4).join(" • ")}
-                </span>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  aria-disabled={!canUse}
-                  aria-pressed={isSelected}
-                  className={cn(
-                    "min-h-9 rounded-md border px-3 text-xs font-bold transition",
-                    isSelected
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border/80 bg-background hover:border-primary/70 hover:bg-primary/10",
-                  )}
-                  onClick={() => {
-                    if (!canUse) {
-                      setUpgradeMessage("Upgrade to a paid membership to use premium visual backgrounds.")
-                      return
-                    }
-
-                    setUpgradeMessage("")
-                    onChange(option.id)
-                  }}
-                >
-                  {isSelected ? "Selected" : "Apply"}
-                </button>
-                <button
-                  type="button"
-                  className="inline-flex min-h-9 items-center gap-1 rounded-md border border-border/80 bg-background px-2.5 text-xs font-bold transition hover:border-primary/70 hover:bg-primary/10"
-                  onClick={() => toggleSavedBackground(option.id)}
-                  aria-pressed={isSaved}
-                  aria-label={`${isSaved ? "Unsave" : "Save"} ${option.label} background`}
-                >
-                  <Star className={cn("size-3.5", isSaved && "fill-current text-primary")} aria-hidden="true" />
-                  {isSaved ? "Saved" : "Save"}
-                </button>
-              </div>
-              {canUse && isSelected && renderSelectedControls ? (
-                <div className="border-t border-border/70 px-3 py-3">
-                  {renderSelectedControls(option)}
-                </div>
-              ) : null}
-            </div>
-          )
-        })}
-      </div>
+      {selectedOption && renderSelectedControls ? (
+        <div className="rounded-md border border-border/70 bg-background/70 px-3 py-3">
+          {renderSelectedControls(selectedOption)}
+        </div>
+      ) : null}
       {visibleOptions.length === 0 ? (
         <p className="text-xs leading-5 text-muted-foreground">No backgrounds match this filter yet.</p>
       ) : null}

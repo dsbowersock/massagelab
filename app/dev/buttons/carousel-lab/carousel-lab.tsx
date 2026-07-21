@@ -1,12 +1,15 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { BackgroundLabSurface } from "./background-lab-surface"
 import {
   CAROUSEL_LAB_STORAGE_KEY,
+  getCarouselLabViewportProfileLabel,
   getDefaultCarouselLabTuning,
+  getResponsiveBackgroundTuning,
   parseCarouselLabStorage,
+  resolveCarouselLabViewportProfile,
   sanitizeCarouselLabTuning,
   serializeCarouselLabStorage,
 } from "./carousel-lab-model"
@@ -15,6 +18,12 @@ import { TuningPanel } from "./tuning-panel"
 
 type CarouselSurface = "backgrounds" | "stations"
 type CarouselPresentation = "existing" | "cover-flow" | "three-d" | "background-picker"
+type CarouselViewportProfile =
+  | "phone-portrait"
+  | "short-landscape"
+  | "tablet"
+  | "compact-desktop"
+  | "wide-landscape"
 
 const SURFACES: readonly { value: CarouselSurface; label: string }[] = [
   { value: "backgrounds", label: "Backgrounds" },
@@ -24,16 +33,13 @@ const SURFACES: readonly { value: CarouselSurface; label: string }[] = [
 const PRESENTATIONS: readonly {
   value: CarouselPresentation
   label: string
-  stationsOnly?: boolean
 }[] = [
   { value: "existing", label: "Existing" },
-  { value: "cover-flow", label: "Cover Flow" },
-  { value: "three-d", label: "3D Carousel" },
-  { value: "background-picker", label: "Background Picker", stationsOnly: true },
+  { value: "background-picker", label: "Background Picker" },
 ]
 
 /**
- * Hosts seven independent device-local tuning records while mounting only the
+ * Hosts the two selected device-local tuning records while mounting only the
  * currently selected prototype surface.
  */
 export function CarouselLab() {
@@ -44,8 +50,13 @@ export function CarouselLab() {
   const [storageHydrated, setStorageHydrated] = useState(false)
   const [deviceReducedMotion, setDeviceReducedMotion] = useState(false)
   const [effectiveLoop, setEffectiveLoop] = useState(false)
+  const [viewportProfile, setViewportProfile] =
+    useState<CarouselViewportProfile>("compact-desktop")
+  const previewColumnRef = useRef<HTMLDivElement>(null)
   const availablePresentations = PRESENTATIONS.filter((option) =>
-    surface === "stations" || !option.stationsOnly,
+    surface === "stations"
+      ? option.value === "background-picker"
+      : option.value !== "background-picker",
   )
 
   useEffect(() => {
@@ -55,6 +66,36 @@ export function CarouselLab() {
       setRecords(parseCarouselLabStorage(null))
     }
     setStorageHydrated(true)
+  }, [])
+
+  useEffect(() => {
+    const previewColumn = previewColumnRef.current
+    if (!previewColumn) return
+
+    let frame: number | null = null
+    const measure = () => {
+      frame = null
+      const nextProfile = resolveCarouselLabViewportProfile({
+        containerWidth: previewColumn.getBoundingClientRect().width,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+      }) as CarouselViewportProfile
+      setViewportProfile((current) => current === nextProfile ? current : nextProfile)
+    }
+    const scheduleMeasure = () => {
+      if (frame !== null) cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(measure)
+    }
+    const observer = new ResizeObserver(scheduleMeasure)
+    observer.observe(previewColumn)
+    window.addEventListener("resize", scheduleMeasure)
+    scheduleMeasure()
+
+    return () => {
+      observer.disconnect()
+      window.removeEventListener("resize", scheduleMeasure)
+      if (frame !== null) cancelAnimationFrame(frame)
+    }
   }, [])
 
   useEffect(() => {
@@ -75,17 +116,24 @@ export function CarouselLab() {
   }, [])
 
   const pairKey = `${surface}:${presentation}`
-  const tuning = records[pairKey]
+  const storedTuning = records[pairKey]
+  const responsiveSizing = surface === "backgrounds"
+    && presentation === "existing"
+    && storedTuning.responsive !== false
+  const tuning = responsiveSizing
+    ? getResponsiveBackgroundTuning(viewportProfile, storedTuning)
+    : storedTuning
   const reducedMotion = deviceReducedMotion || tuning.motion === false
   const surfaceLabel = SURFACES.find((option) => option.value === surface)?.label ?? surface
   const presentationLabel =
     PRESENTATIONS.find((option) => option.value === presentation)?.label ?? presentation
+  const screenFitLabel = responsiveSizing
+    ? getCarouselLabViewportProfileLabel(viewportProfile)
+    : surface === "backgrounds" ? "Manual" : "Fixed on every device"
 
   const handleSurfaceChange = (nextSurface: CarouselSurface) => {
     setEffectiveLoop(false)
-    if (nextSurface === "backgrounds" && presentation === "background-picker") {
-      setPresentation("existing")
-    }
+    setPresentation(nextSurface === "stations" ? "background-picker" : "existing")
     setSurface(nextSurface)
   }
 
@@ -115,7 +163,7 @@ export function CarouselLab() {
           Carousel comparison lab
         </h2>
         <p className="max-w-4xl text-sm leading-6 text-muted-foreground">
-          Compare the existing rail, Cover Flow, 3D, and the production Background Picker treatment with real cards.
+          Review the selected Existing Background and Music Station Background Picker treatments with real cards.
         </p>
       </header>
 
@@ -164,13 +212,19 @@ export function CarouselLab() {
         className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground"
       >
         Surface: {surfaceLabel} · Presentation: {presentationLabel} · Card width:{" "}
-        {Number(tuning.cardWidth)}px · Gap: {Number(tuning.gap)}px · Nearby radius:{" "}
-        {Number(tuning.visibleRadius)} · Loop: {effectiveLoop ? "On" : "Off"} · Motion:{" "}
+        {Number(tuning.cardWidth)}px · Height: {Number(tuning.cardHeight)}px · Gap:{" "}
+        {Number(tuning.gap)}px · Nearby radius:{" "}
+        {Number(tuning.visibleRadius)} · Screen fit: {screenFitLabel} · Loop:{" "}
+        {effectiveLoop ? "On" : "Off"} · Motion:{" "}
         {reducedMotion ? "Reduced-motion rail" : "On"}
       </p>
 
       <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="min-w-0">
+        <div
+          ref={previewColumnRef}
+          className="min-w-0"
+          data-carousel-responsive-profile={responsiveSizing ? viewportProfile : undefined}
+        >
           {surface === "backgrounds" ? (
             <BackgroundLabSurface
               key={pairKey}
@@ -196,6 +250,8 @@ export function CarouselLab() {
           value={tuning}
           effectiveLoop={effectiveLoop}
           reducedMotion={reducedMotion}
+          responsiveSizing={responsiveSizing}
+          responsiveProfileLabel={getCarouselLabViewportProfileLabel(viewportProfile)}
           onChange={updateCurrentTuning}
           onReset={resetCurrentTuning}
         />

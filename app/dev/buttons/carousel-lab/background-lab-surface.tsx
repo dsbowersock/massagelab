@@ -125,6 +125,7 @@ export function BackgroundLabSurface(props: BackgroundLabSurfaceProps) {
           presentation={props.presentation}
           tuning={props.tuning}
           reducedMotion={props.reducedMotion}
+          testId="carousel-lab-stage"
           onEffectiveLoopChange={props.onEffectiveLoopChange}
           renderItem={(option, { centered, detailLevel }) => {
             if (detailLevel === "shell") return null

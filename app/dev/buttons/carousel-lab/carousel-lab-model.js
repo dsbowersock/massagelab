@@ -3,9 +3,11 @@
 /**
  * @typedef {"backgrounds" | "stations"} CarouselLabSurface
  * @typedef {"existing" | "cover-flow" | "three-d" | "background-picker"} CarouselLabPresentation
+ * @typedef {"phone-portrait" | "short-landscape" | "tablet" | "compact-desktop" | "wide-landscape"} CarouselLabViewportProfile
  * @typedef {{ id: string }} CarouselLabItem
  * @typedef {{
  *   cardWidth: number,
+ *   cardHeight: number,
  *   gap: number,
  *   visibleRadius: number,
  *   loop: boolean,
@@ -14,42 +16,60 @@
  * }} CarouselLabTuning
  */
 
-export const CAROUSEL_LAB_STORAGE_KEY = "massagelab-carousel-lab-v3"
+export const CAROUSEL_LAB_STORAGE_KEY = "massagelab-carousel-lab-v4"
 export const CAROUSEL_LAB_PAIRS = Object.freeze([
-  "backgrounds:existing", "backgrounds:cover-flow", "backgrounds:three-d",
-  "stations:existing", "stations:cover-flow", "stations:three-d",
-  "stations:background-picker",
+  "backgrounds:existing", "stations:background-picker",
 ])
+
+export const CAROUSEL_LAB_VIEWPORT_PROFILES = Object.freeze([
+  "phone-portrait", "short-landscape", "tablet", "compact-desktop", "wide-landscape",
+])
+
+const viewportProfileLabels = Object.freeze({
+  "phone-portrait": "Phone portrait",
+  "short-landscape": "Short landscape",
+  tablet: "Tablet portrait",
+  "compact-desktop": "Compact desktop",
+  "wide-landscape": "Wide landscape",
+})
+
+const backgroundExistingProfileDefaults = Object.freeze({
+  "phone-portrait": { cardWidth: 164, cardHeight: 312, spread: 22 },
+  "short-landscape": { cardWidth: 200, cardHeight: 240, spread: 26 },
+  tablet: { cardWidth: 220, cardHeight: 304, spread: 29 },
+  "compact-desktop": { cardWidth: 256, cardHeight: 360, spread: 33 },
+  "wide-landscape": { cardWidth: 280, cardHeight: 388, spread: 36 },
+})
 
 const pairDefaults = {
   backgrounds: {
     existing: {
-      cardWidth: 268, gap: 18, visibleRadius: 4, loop: true, motion: true,
-      spread: 27, radius: 420, scaleFalloff: 0.05,
+      cardWidth: 256, cardHeight: 360, gap: 0, visibleRadius: 2, loop: true, motion: true,
+      responsive: true, spread: 33, radius: 420, scaleFalloff: 0.08,
     },
     "cover-flow": {
-      cardWidth: 192, gap: 0, visibleRadius: 4, loop: true, motion: true,
+      cardWidth: 192, cardHeight: 304, gap: 0, visibleRadius: 4, loop: true, motion: true,
       rotation: 16, centerScale: 1.25, edgeScale: 0.6, perspective: 320,
       reflection: true, reflectionOpacity: 0.75, reflectionGap: 1,
     },
     "three-d": {
-      cardWidth: 200, gap: 0, visibleRadius: 4, loop: true, motion: true,
+      cardWidth: 200, cardHeight: 304, gap: 0, visibleRadius: 4, loop: true, motion: true,
       perspective: 50, ringItems: 14, depth: 1, nearMask: 1, farMask: 2,
     },
   },
   stations: {
-    existing: { cardWidth: 208, gap: 20, visibleRadius: 2, loop: true, motion: true },
+    existing: { cardWidth: 208, cardHeight: 304, gap: 20, visibleRadius: 2, loop: true, motion: true },
     "cover-flow": {
-      cardWidth: 192, gap: 0, visibleRadius: 4, loop: true, motion: true,
+      cardWidth: 192, cardHeight: 304, gap: 0, visibleRadius: 4, loop: true, motion: true,
       rotation: 16, centerScale: 1.25, edgeScale: 0.6, perspective: 320,
       reflection: true, reflectionOpacity: 0.75, reflectionGap: 3,
     },
     "three-d": {
-      cardWidth: 192, gap: 0, visibleRadius: 4, loop: true, motion: true,
+      cardWidth: 192, cardHeight: 304, gap: 0, visibleRadius: 4, loop: true, motion: true,
       perspective: 50, ringItems: 16, depth: 1, nearMask: 0.9, farMask: 1.8,
     },
     "background-picker": {
-      cardWidth: 192, gap: 0, visibleRadius: 4, loop: true, motion: true,
+      cardWidth: 192, cardHeight: 224, gap: 0, visibleRadius: 4, loop: true, motion: true,
       spread: 27, radius: 420, scaleFalloff: 0.05,
     },
   },
@@ -57,6 +77,7 @@ const pairDefaults = {
 
 const ranges = {
   cardWidth: { backgrounds: [160, 280, 4], stations: [168, 320, 4] },
+  cardHeight: { backgrounds: [240, 480, 4], stations: [192, 520, 4] },
   gap: [0, 64, 2],
   visibleRadius: [1, 4, 1],
   spread: [15, 50, 1],
@@ -105,6 +126,47 @@ export function getDefaultCarouselLabTuning(surface, presentation) {
 }
 
 /**
+ * Selects a visual profile from the space actually available to the carousel.
+ * The short-landscape override runs first so a rotated phone does not inherit a
+ * tablet or desktop card simply because its inline width increased.
+ * @param {{ containerWidth: number, viewportWidth: number, viewportHeight: number }} dimensions
+ * @returns {CarouselLabViewportProfile}
+ */
+export function resolveCarouselLabViewportProfile({ containerWidth, viewportWidth, viewportHeight }) {
+  const safeContainerWidth = Number.isFinite(containerWidth) ? containerWidth : 800
+  const safeViewportWidth = Number.isFinite(viewportWidth) ? viewportWidth : 1180
+  const safeViewportHeight = Number.isFinite(viewportHeight) ? viewportHeight : 820
+  if (safeViewportWidth > safeViewportHeight && safeViewportHeight <= 480) return "short-landscape"
+  if (safeContainerWidth < 480) return "phone-portrait"
+  if (safeContainerWidth < 760) return "tablet"
+  if (safeContainerWidth < 960) return "compact-desktop"
+  return "wide-landscape"
+}
+
+/** @param {CarouselLabViewportProfile} profile */
+export function getCarouselLabViewportProfileLabel(profile) {
+  return viewportProfileLabels[profile] ?? viewportProfileLabels["compact-desktop"]
+}
+
+/**
+ * Resolves the approved Background geometry while preserving persisted
+ * behavior switches and any manual fallback values.
+ * @param {CarouselLabViewportProfile} profile
+ * @param {CarouselLabTuning} tuning
+ * @returns {CarouselLabTuning}
+ */
+export function getResponsiveBackgroundTuning(profile, tuning) {
+  return {
+    ...tuning,
+    ...(backgroundExistingProfileDefaults[profile] ?? backgroundExistingProfileDefaults["compact-desktop"]),
+    gap: 0,
+    visibleRadius: 2,
+    radius: 420,
+    scaleFalloff: 0.08,
+  }
+}
+
+/**
  * @param {CarouselLabSurface} surface
  * @param {CarouselLabPresentation} presentation
  * @param {unknown} value
@@ -117,6 +179,7 @@ export function sanitizeCarouselLabTuning(surface, presentation, value) {
   const defaults = getDefaultCarouselLabTuning(surface, presentation)
   const output = {
     cardWidth: numberAt(input.cardWidth, defaults.cardWidth, ranges.cardWidth[surface] ?? ranges.cardWidth.backgrounds),
+    cardHeight: numberAt(input.cardHeight, defaults.cardHeight, ranges.cardHeight[surface] ?? ranges.cardHeight.backgrounds),
     gap: numberAt(input.gap, defaults.gap, ranges.gap),
     visibleRadius: numberAt(input.visibleRadius, defaults.visibleRadius, ranges.visibleRadius),
     loop: typeof input.loop === "boolean" ? input.loop : defaults.loop,
@@ -126,6 +189,9 @@ export function sanitizeCarouselLabTuning(surface, presentation, value) {
     if (presentation === "existing" && surface === "stations") return output
     return {
       ...output,
+      ...(surface === "backgrounds" && presentation === "existing"
+        ? { responsive: typeof input.responsive === "boolean" ? input.responsive : defaults.responsive }
+        : {}),
       spread: numberAt(input.spread, /** @type {number} */ (defaults.spread), ranges.spread),
       radius: numberAt(input.radius, /** @type {number} */ (defaults.radius), ranges.radius),
       scaleFalloff: numberAt(input.scaleFalloff, /** @type {number} */ (defaults.scaleFalloff), ranges.scaleFalloff),
@@ -163,7 +229,7 @@ export function parseCarouselLabStorage(raw) {
   let values = {}
   try {
     const parsed = typeof raw === "string" ? JSON.parse(raw) : null
-    values = parsed?.version === 3 && parsed.values && typeof parsed.values === "object" ? parsed.values : {}
+    values = parsed?.version === 4 && parsed.values && typeof parsed.values === "object" ? parsed.values : {}
   } catch {
     values = {}
   }
@@ -182,7 +248,7 @@ export function serializeCarouselLabStorage(record) {
     const [surface, presentation] = /** @type {[CarouselLabSurface, CarouselLabPresentation]} */ (key.split(":"))
     return [key, sanitizeCarouselLabTuning(surface, presentation, record?.[key])]
   }))
-  return JSON.stringify({ version: 3, values })
+  return JSON.stringify({ version: 4, values })
 }
 
 /**

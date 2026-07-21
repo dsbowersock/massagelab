@@ -5,6 +5,7 @@ import {
   type AtmosphereStation,
 } from "@/components/atmosphere/station-carousel-card"
 import { useMusic } from "@/components/providers/music-provider"
+import { purpleGlowClassName } from "./carousel-lab-button-classes"
 
 interface StationLabCardProps {
   groupId: string
@@ -19,5 +20,12 @@ interface StationLabCardProps {
 /** Binds the production station card to the real shared Music provider. */
 export function StationLabCard(props: StationLabCardProps) {
   const music = useMusic()
-  return <AtmosphereStationCarouselCard {...props} music={music} />
+  return (
+    <AtmosphereStationCarouselCard
+      {...props}
+      displayMode="carousel"
+      favoriteClassName={purpleGlowClassName}
+      music={music}
+    />
+  )
 }

@@ -3,29 +3,30 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import useEmblaCarousel from "embla-carousel-react"
 import {
-  getMountedItemIds,
-  getPresentationVariables,
-  reconcileCenteredId,
-  resolveEffectiveLoop,
-} from "./carousel-lab-model"
+  getAdaptiveCarouselPresentationVariables,
+  getMountedAdaptiveCarouselItemIds,
+  reconcileAdaptiveCarouselCenter,
+  resolveEffectiveCarouselLoop,
+} from "./adaptive-carousel-model"
 
-const interactiveSlideSelector = "button, a, input, select, textarea, [role='button'], [role='option']"
+const interactiveSlideSelector =
+  "button, a, input, select, textarea, [role='button'], [role='option']"
 
-/** Keeps carousel drag capture from suppressing activation of controls inside a card. */
+/** Keeps carousel drag capture from suppressing controls rendered inside cards. */
 function shouldStartCarouselDrag(event: MouseEvent | TouchEvent) {
   const target = event.target
   return !(target instanceof Element && target.closest(interactiveSlideSelector))
 }
 
-export interface CarouselLabItem {
+export interface AdaptiveCarouselItem {
   id: string
   label: string
   disabled?: boolean
   statusLabel?: string
 }
 
-interface UseCarouselLabControllerOptions {
-  items: readonly CarouselLabItem[]
+interface UseAdaptiveCarouselControllerOptions {
+  items: readonly AdaptiveCarouselItem[]
   initialItemId?: string | null
   selectedItemId?: string | null
   surface: "backgrounds" | "stations"
@@ -36,17 +37,31 @@ interface UseCarouselLabControllerOptions {
 }
 
 /**
- * Owns Embla navigation and writes presentation variables without coupling the
- * shared stage to either the background or station card implementations.
+ * Owns looped Embla navigation and presentation transforms without coupling
+ * the shared stage to Background or Music Station state.
  */
-export function useCarouselLabController(options: UseCarouselLabControllerOptions) {
-  const { items, initialItemId, selectedItemId, surface, presentation, tuning, reducedMotion } = options
+export function useAdaptiveCarouselController(
+  options: UseAdaptiveCarouselControllerOptions,
+) {
+  const {
+    items,
+    initialItemId,
+    selectedItemId,
+    surface,
+    presentation,
+    tuning,
+    reducedMotion,
+  } = options
   const finiteRail = reducedMotion || tuning.motion === false
   const effectiveLoop = finiteRail
     ? false
-    : resolveEffectiveLoop(items.length, Number(tuning.visibleRadius), Boolean(tuning.loop))
+    : resolveEffectiveCarouselLoop(
+        items.length,
+        Number(tuning.visibleRadius),
+        Boolean(tuning.loop),
+      )
   const [initialCenter] = useState(() => {
-    const id = reconcileCenteredId(items, initialItemId, selectedItemId)
+    const id = reconcileAdaptiveCarouselCenter(items, initialItemId, selectedItemId)
     const index = Math.max(0, items.findIndex((item) => item.id === id))
     return { id, index }
   })
@@ -69,7 +84,12 @@ export function useCarouselLabController(options: UseCarouselLabControllerOption
 
   const centeredIndex = Math.max(0, items.findIndex(({ id }) => id === centeredId))
   const mountedIds = useMemo(
-    () => getMountedItemIds(items, centeredId, Number(tuning.visibleRadius), effectiveLoop),
+    () => getMountedAdaptiveCarouselItemIds(
+      items,
+      centeredId,
+      Number(tuning.visibleRadius),
+      effectiveLoop,
+    ),
     [centeredId, effectiveLoop, items, tuning.visibleRadius],
   )
 
@@ -86,7 +106,7 @@ export function useCarouselLabController(options: UseCarouselLabControllerOption
       if (effectiveLoop && difference > 0.5) difference -= 1
       if (effectiveLoop && difference < -0.5) difference += 1
       const progress = difference * Math.max(1, items.length - 1)
-      const variables = getPresentationVariables(
+      const variables = getAdaptiveCarouselPresentationVariables(
         presentation,
         surface,
         progress,
@@ -96,12 +116,13 @@ export function useCarouselLabController(options: UseCarouselLabControllerOption
       )
       const element = itemElements.current.get(item.id)
       if (!element) return
-      element.style.setProperty("--lab-progress", String(progress))
-      Object.entries(variables).forEach(([name, value]) => element.style.setProperty(name, String(value)))
+      element.style.setProperty("--carousel-progress", String(progress))
+      Object.entries(variables).forEach(([name, value]) => {
+        element.style.setProperty(name, String(value))
+      })
     })
   }, [api, effectiveLoop, items, presentation, reducedMotion, surface, tuning])
 
-  // Embla can emit several scroll events per frame, so transform writes are coalesced.
   const scheduleTransformWrite = useCallback(() => {
     if (frameRef.current !== null) return
     frameRef.current = window.requestAnimationFrame(() => {
@@ -143,9 +164,13 @@ export function useCarouselLabController(options: UseCarouselLabControllerOption
 
   useEffect(() => {
     if (!api) return
-    const nextId = reconcileCenteredId(items, selectedItemId, null)
+    const nextId = reconcileAdaptiveCarouselCenter(items, selectedItemId, null)
     const nextIndex = items.findIndex(({ id }) => id === nextId)
-    if (selectedItemId && nextIndex >= 0 && items[api.selectedScrollSnap()]?.id !== nextId) {
+    if (
+      selectedItemId
+      && nextIndex >= 0
+      && items[api.selectedScrollSnap()]?.id !== nextId
+    ) {
       api.scrollTo(nextIndex)
     }
   }, [api, items, selectedItemId])
@@ -156,10 +181,22 @@ export function useCarouselLabController(options: UseCarouselLabControllerOption
   }, [api, items])
 
   const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
-    if (event.key === "ArrowLeft") { event.preventDefault(); api?.scrollPrev() }
-    if (event.key === "ArrowRight") { event.preventDefault(); api?.scrollNext() }
-    if (!effectiveLoop && event.key === "Home") { event.preventDefault(); api?.scrollTo(0) }
-    if (!effectiveLoop && event.key === "End") { event.preventDefault(); api?.scrollTo(items.length - 1) }
+    if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      event.preventDefault()
+      api?.scrollPrev()
+    }
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      event.preventDefault()
+      api?.scrollNext()
+    }
+    if (!effectiveLoop && event.key === "Home") {
+      event.preventDefault()
+      api?.scrollTo(0)
+    }
+    if (!effectiveLoop && event.key === "End") {
+      event.preventDefault()
+      api?.scrollTo(items.length - 1)
+    }
   }, [api, effectiveLoop, items.length])
 
   return {

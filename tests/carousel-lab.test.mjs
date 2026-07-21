@@ -6,8 +6,10 @@ import {
   getDefaultCarouselLabTuning,
   getMountedItemIds,
   getPresentationVariables,
+  getResponsiveBackgroundTuning,
   parseCarouselLabStorage,
   reconcileCenteredId,
+  resolveCarouselLabViewportProfile,
   resolveEffectiveLoop,
   sanitizeCarouselLabTuning,
   serializeCarouselLabStorage,
@@ -16,29 +18,30 @@ import {
 const items = ["a", "b", "c", "d", "e"].map((id) => ({ id, label: id }))
 
 describe("Carousel Lab model", () => {
-  it("defines seven independent surface/presentation pairs", () => {
-    assert.equal(CAROUSEL_LAB_STORAGE_KEY, "massagelab-carousel-lab-v3")
+  it("defines the two selected surface/presentation review pairs", () => {
+    assert.equal(CAROUSEL_LAB_STORAGE_KEY, "massagelab-carousel-lab-v4")
     assert.deepEqual(CAROUSEL_LAB_PAIRS, [
-      "backgrounds:existing", "backgrounds:cover-flow", "backgrounds:three-d",
-      "stations:existing", "stations:cover-flow", "stations:three-d",
-      "stations:background-picker",
+      "backgrounds:existing", "stations:background-picker",
     ])
   })
 
-  it("uses production Existing geometry and source-native reference defaults", () => {
+  it("uses the approved compact Background fit and fixed Station dimensions", () => {
     assert.deepEqual(getDefaultCarouselLabTuning("backgrounds", "existing"), {
-      cardWidth: 268,
-      gap: 18,
-      visibleRadius: 4,
+      cardWidth: 256,
+      cardHeight: 360,
+      gap: 0,
+      visibleRadius: 2,
       loop: true,
       motion: true,
-      spread: 27,
+      responsive: true,
+      spread: 33,
       radius: 420,
-      scaleFalloff: 0.05,
+      scaleFalloff: 0.08,
     })
 
     const coverFlow = getDefaultCarouselLabTuning("backgrounds", "cover-flow")
     assert.equal(coverFlow.cardWidth, 192)
+    assert.equal(coverFlow.cardHeight, 304)
     assert.equal(coverFlow.gap, 0)
     assert.equal(coverFlow.visibleRadius, 4)
     assert.equal(coverFlow.rotation, 16)
@@ -50,6 +53,7 @@ describe("Carousel Lab model", () => {
 
     const threeD = getDefaultCarouselLabTuning("backgrounds", "three-d")
     assert.equal(threeD.cardWidth, 200)
+    assert.equal(threeD.cardHeight, 304)
     assert.equal(threeD.gap, 0)
     assert.equal(threeD.loop, true)
     assert.equal(threeD.perspective, 50)
@@ -59,6 +63,7 @@ describe("Carousel Lab model", () => {
     assert.equal(threeD.farMask, 2)
 
     const stationCover = getDefaultCarouselLabTuning("stations", "cover-flow")
+    assert.equal(stationCover.cardHeight, 304)
     assert.equal(stationCover.rotation, 16)
     assert.equal(stationCover.centerScale, 1.25)
     assert.equal(stationCover.edgeScale, 0.6)
@@ -67,6 +72,7 @@ describe("Carousel Lab model", () => {
 
     assert.deepEqual(getDefaultCarouselLabTuning("stations", "background-picker"), {
       cardWidth: 192,
+      cardHeight: 224,
       gap: 0,
       visibleRadius: 4,
       loop: true,
@@ -77,10 +83,51 @@ describe("Carousel Lab model", () => {
     })
   })
 
+  it("maps available space to all five approved responsive Background profiles", () => {
+    const cases = [
+      [{ containerWidth: 479, viewportWidth: 390, viewportHeight: 844 }, "phone-portrait", 164, 312, 22],
+      [{ containerWidth: 1000, viewportWidth: 844, viewportHeight: 480 }, "short-landscape", 200, 240, 26],
+      [{ containerWidth: 759, viewportWidth: 779, viewportHeight: 1121 }, "tablet", 220, 304, 29],
+      [{ containerWidth: 760, viewportWidth: 1365, viewportHeight: 820 }, "compact-desktop", 256, 360, 33],
+      [{ containerWidth: 960, viewportWidth: 1121, viewportHeight: 779 }, "wide-landscape", 280, 388, 36],
+    ]
+    const stored = getDefaultCarouselLabTuning("backgrounds", "existing")
+
+    for (const [dimensions, expectedProfile, cardWidth, cardHeight, spread] of cases) {
+      const profile = resolveCarouselLabViewportProfile(dimensions)
+      assert.equal(profile, expectedProfile)
+      assert.deepEqual(
+        getResponsiveBackgroundTuning(profile, { ...stored, loop: false, motion: false }),
+        {
+          ...stored,
+          cardWidth,
+          cardHeight,
+          gap: 0,
+          visibleRadius: 2,
+          loop: false,
+          motion: false,
+          spread,
+          radius: 420,
+          scaleFalloff: 0.08,
+        },
+      )
+    }
+
+    assert.equal(
+      resolveCarouselLabViewportProfile({ containerWidth: 760, viewportWidth: 844, viewportHeight: 481 }),
+      "compact-desktop",
+    )
+    assert.equal(
+      resolveCarouselLabViewportProfile({ containerWidth: 959, viewportWidth: 1365, viewportHeight: 820 }),
+      "compact-desktop",
+    )
+  })
+
   it("sanitizes shared and adapter-specific values", () => {
     assert.deepEqual(
       sanitizeCarouselLabTuning("backgrounds", "cover-flow", {
         cardWidth: 999,
+        cardHeight: 999,
         gap: -4,
         visibleRadius: 9.5,
         loop: "yes",
@@ -95,6 +142,7 @@ describe("Carousel Lab model", () => {
       }),
       {
         cardWidth: 280,
+        cardHeight: 480,
         gap: 0,
         visibleRadius: 4,
         loop: true,
@@ -112,6 +160,7 @@ describe("Carousel Lab model", () => {
     assert.deepEqual(
       sanitizeCarouselLabTuning("stations", "background-picker", {
         cardWidth: 196,
+        cardHeight: 244,
         gap: 4,
         visibleRadius: 3,
         loop: true,
@@ -122,6 +171,7 @@ describe("Carousel Lab model", () => {
       }),
       {
         cardWidth: 196,
+        cardHeight: 244,
         gap: 4,
         visibleRadius: 3,
         loop: true,
@@ -135,16 +185,24 @@ describe("Carousel Lab model", () => {
 
   it("resets malformed storage entries independently", () => {
     const parsed = parseCarouselLabStorage(JSON.stringify({
-      version: 3,
+      version: 4,
       values: {
         "backgrounds:existing": { radius: 400 },
-        "stations:three-d": "broken",
+        "stations:background-picker": "broken",
       },
     }))
     assert.equal(parsed["backgrounds:existing"].radius, 400)
-    assert.deepEqual(parsed["stations:three-d"], getDefaultCarouselLabTuning("stations", "three-d"))
-    assert.equal(Object.keys(parsed).length, 7)
+    assert.equal(parsed["backgrounds:existing"].cardHeight, 360)
+    assert.deepEqual(
+      parsed["stations:background-picker"],
+      getDefaultCarouselLabTuning("stations", "background-picker"),
+    )
+    assert.equal(Object.keys(parsed).length, 2)
     assert.deepEqual(parseCarouselLabStorage("{bad"), parseCarouselLabStorage(null))
+    assert.deepEqual(
+      parseCarouselLabStorage(JSON.stringify({ version: 3, values: {} })),
+      parseCarouselLabStorage(null),
+    )
     assert.deepEqual(parseCarouselLabStorage(serializeCarouselLabStorage(parsed)), parsed)
   })
 
@@ -168,9 +226,9 @@ describe("Carousel Lab model", () => {
     const left = getPresentationVariables("existing", "backgrounds", -1, tuning, false)
     const right = getPresentationVariables("existing", "backgrounds", 1, tuning, false)
     assert.equal(center["--lab-scale"], "1")
-    assert.equal(left["--lab-rotate-y"], "27deg")
-    assert.equal(right["--lab-rotate-y"], "-27deg")
-    assert.equal(left["--lab-scale"], "0.95")
+    assert.equal(left["--lab-rotate-y"], "33deg")
+    assert.equal(right["--lab-rotate-y"], "-33deg")
+    assert.equal(left["--lab-scale"], "0.92")
     assert.equal(right["--lab-z"], "-28px")
     assert.equal(getPresentationVariables("existing", "backgrounds", 1, tuning, true)["--lab-scale"], "1")
 

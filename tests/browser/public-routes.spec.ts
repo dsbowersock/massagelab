@@ -81,6 +81,23 @@ function capturePageHealth(page: Page) {
   }
 }
 
+async function centerCarouselItem(
+  page: Page,
+  itemId: string,
+  nextButtonName: "Next background" | "Next station",
+) {
+  const slide = page.locator(`[data-carousel-slide="true"][data-carousel-item-id="${itemId}"]`)
+  const carousel = page.getByRole("region", {
+    name: nextButtonName === "Next station" ? "Station carousel" : "Background carousel",
+  })
+  await expect(slide).toBeAttached()
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    if ((await slide.getAttribute("data-centered")) === "true") return slide
+    await carousel.getByRole("button", { name: nextButtonName }).click()
+  }
+  throw new Error(`Carousel item ${itemId} could not be centered`)
+}
+
 async function setPressedButton(page: Page, name: RegExp, selected: boolean) {
   const button = page.getByRole("button", { name }).first()
   await expect(button).toBeVisible()
@@ -530,6 +547,7 @@ test("Atmosphere visualizer action retains selected station across client routes
   await expect(page.getByRole("heading", { name: /Atmosphere audio stations/i, includeHidden: true })).toBeAttached()
   await expect(page.getByRole("heading", { name: /Treatment room starters/i })).toBeVisible()
   await expect(page.getByRole("heading", { name: "Breathing guide" })).toHaveCount(0)
+  await centerCarouselItem(page, "mlab-proof-drone", "Next station")
   await page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
 
   const playerToolbar = page.getByTestId("music-player-toolbar")
@@ -547,7 +565,7 @@ test("Atmosphere visualizer action retains selected station across client routes
   await expect(page).toHaveURL(/\/clock\?[^#]*source=music/)
   const backgroundDialog = page.getByRole("dialog", { name: "Background" })
   await expect(backgroundDialog).toBeVisible()
-  await backgroundDialog.getByRole("button", { name: "Preview Static gradient background" }).click()
+  await centerCarouselItem(page, "static-gradient", "Next background")
   await backgroundDialog.getByRole("button", { name: "Select Static gradient background" }).click()
   await expect(backgroundDialog).toHaveCount(0)
   await page.getByRole("button", { name: /^Minimize visualizer$/i }).last().click()
@@ -640,6 +658,7 @@ test("Atmosphere registers mobile media notification controls for active station
   })
 
   await page.goto("/music", { waitUntil: "domcontentloaded" })
+  await centerCarouselItem(page, "mlab-proof-drone", "Next station")
   await page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
 
   await expect
@@ -846,6 +865,7 @@ test("Music background selection and account default actions preserve playback a
   })
 
   await page.goto("/music", { waitUntil: "domcontentloaded" })
+  await centerCarouselItem(page, "mlab-proof-drone", "Next station")
   await page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
   const playerToolbar = page.getByTestId("music-player-toolbar")
   await expect(playerToolbar).toBeVisible({ timeout: 30_000 })
@@ -860,7 +880,7 @@ test("Music background selection and account default actions preserve playback a
     return deviceState
   })
 
-  await page.getByRole("button", { name: "Preview Static gradient background" }).click()
+  await centerCarouselItem(page, "static-gradient", "Next background")
   await page.getByRole("button", { name: "Select Static gradient background" }).click()
   await expect(page.getByTestId("chimer-premium-background")).toHaveAttribute(
     "data-background-id",
@@ -927,61 +947,38 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
   })
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto("/music", { waitUntil: "domcontentloaded" })
-  const treatmentRoomStartersRail = page.getByTestId("station-rail-treatment-room-starters")
-  const treatmentRoomStartersRailControls = page.getByTestId("station-rail-controls-treatment-room-starters")
-  const treatmentRoomStartersScroller = treatmentRoomStartersRail.locator('[aria-label="Treatment room starters stations"]')
-  await expect(treatmentRoomStartersRail).toBeVisible()
-  await expect(treatmentRoomStartersRailControls).toHaveCSS("opacity", "0")
-  const supportsHoverRailControls = await page.evaluate(() => (
-    window.matchMedia("(hover: hover) and (pointer: fine)").matches
-  ))
-  if (supportsHoverRailControls) {
-    await treatmentRoomStartersRail.hover()
-    await expect(treatmentRoomStartersRailControls).toHaveCSS("opacity", "1")
-    const treatmentRoomStartersScrollLeft = await treatmentRoomStartersScroller.evaluate((element) => element.scrollLeft)
-    await treatmentRoomStartersRail.getByRole("button", { name: /^Next Treatment room starters stations$/i }).click()
-    await expect
-      .poll(async () => treatmentRoomStartersScroller.evaluate((element) => element.scrollLeft))
-      .toBeGreaterThan(treatmentRoomStartersScrollLeft + 40)
-  }
+  const carousel = page.getByRole("region", { name: "Station carousel" })
+  await expect(carousel).toBeVisible()
+  const categoryGroup = page.getByRole("group", { name: "Station category" })
+  const treatmentRoomCategory = categoryGroup.getByRole("button", {
+    name: "Treatment room starters",
+  })
+  await expect(treatmentRoomCategory).toHaveAttribute("aria-pressed", "true")
   await expect(page.getByRole("heading", { name: /Treatment room starters/i })).toBeVisible()
-  await expect(page.getByRole("heading", { name: /Water, nature, and field textures/i })).toBeVisible()
-  await expect(page.getByRole("heading", { name: /Rhythm and experimental texture/i })).toBeVisible()
+
+  await centerCarouselItem(page, "mlab-proof-drone", "Next station")
+  const proofCard = page.locator("#station-mlab-proof-drone")
+  const proofBox = await proofCard.boundingBox()
+  expect(proofBox?.width).toBeCloseTo(192, 0)
+  expect(proofBox?.height).toBeCloseTo(224, 0)
+
+  await centerCarouselItem(page, "observable-streams-probe", "Next station")
   const observableStreamsStation = page.locator("#station-observable-streams-probe")
   await expect(observableStreamsStation.getByText("Observable Streams", { exact: true })).toBeVisible()
   await expect(observableStreamsStation.getByRole("img", { name: /Observable Streams station artwork/i })).toBeVisible()
   await expect(observableStreamsStation.getByText(/Piano, violin, and oboe-like tones/i)).toBeVisible()
-  await expect(observableStreamsStation.getByRole("link", { name: "Alex Bainter · MIT" })).toBeVisible()
-  const representativeHostedGenerativeFmStations = [
-    page.locator("#station-generative-fm-420hz-gamma-waves-for-big-brain"),
-    page.locator("#station-generative-fm-above-the-rain"),
-    page.locator("#station-generative-fm-aisatsana"),
-    page.locator("#station-generative-fm-at-sunrise"),
-    page.locator("#station-generative-fm-buttafingers"),
-    page.locator("#station-generative-fm-day-dream"),
-    page.locator("#station-generative-fm-eno-machine"),
-    page.locator("#station-generative-fm-impact"),
-    page.locator("#station-generative-fm-lemniscate"),
-    page.locator("#station-generative-fm-little-bells"),
-    page.locator("#station-generative-fm-no-refrain"),
-    page.locator("#station-generative-fm-pinwheels"),
-    page.locator("#station-generative-fm-ritual"),
-    page.locator("#station-generative-fm-sevenths"),
-    page.locator("#station-generative-fm-splash"),
-    page.locator("#station-generative-fm-transmission"),
-    page.locator("#station-generative-fm-trees"),
-    page.locator("#station-generative-fm-uun"),
-    page.locator("#station-generative-fm-yesterday"),
-    page.locator("#station-generative-fm-zed"),
-  ]
-  for (const station of representativeHostedGenerativeFmStations) {
-    await expect(station).toBeVisible()
-  }
-  await expect(page.getByText("aisatsana (generative remix)").first()).toBeVisible()
-  await expect(page.getByText("Zed").first()).toBeVisible()
-  await expect(page.locator("#station-generative-fm-little-bells").getByText(/long quiet gaps/i)).toBeVisible()
-  await expect(page.locator("#station-generative-fm-awash").getByText(/voice-like edges/i)).toBeVisible()
-  await expect(page.locator("#station-generative-fm-neuroplasticity").getByText(/voice-like artifacts/i)).toBeVisible()
+  await observableStreamsStation.getByRole("button", { name: /Show full information/i }).click()
+  const detailsDialog = page.getByRole("dialog")
+  await expect(detailsDialog.getByRole("link", { name: "Alex Bainter · MIT" })).toBeVisible()
+  await page.keyboard.press("Escape")
+
+  await categoryGroup.getByRole("button", {
+    name: "Water, nature, and field textures",
+  }).click()
+  await expect(page.getByRole("heading", { name: /Water, nature, and field textures/i })).toBeVisible()
+  await treatmentRoomCategory.click()
+  await expect(page.locator('[data-carousel-item-id="observable-streams-probe"]')).toHaveAttribute("data-centered", "true")
+
   await expect(page.getByText("Playable")).toHaveCount(0)
   await expect(page.getByText("Samples pending")).toHaveCount(0)
   await expect(page.getByText("This station is still being prepared for playback.")).toHaveCount(0)
@@ -989,7 +986,6 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
 
   await observableStreamsStation.getByRole("button", { name: /^Play Observable Streams$/i }).click()
   await expect(observableStreamsStation.getByText(/Preparing station/i)).toBeVisible()
-  await expect(observableStreamsStation.getByRole("button", { name: /^Restart Observable Streams$/i })).toBeVisible({ timeout: 45_000 })
   await expect(observableStreamsStation.getByRole("button", { name: /^Stop Observable Streams$/i })).toBeVisible({ timeout: 45_000 })
   const expectedSampleFormat = await page.evaluate(() => {
     const audio = document.createElement("audio")
@@ -1024,17 +1020,15 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
   await expect(page.getByText(/Playing|Preparing audio|Preparing station/i)).toHaveCount(0)
 
   const smokePlaybackStations = [
-    page.locator("#station-generative-fm-420hz-gamma-waves-for-big-brain"),
-    page.locator("#station-generative-fm-aisatsana"),
-    page.locator("#station-generative-fm-at-sunrise"),
-    page.locator("#station-generative-fm-day-dream"),
-    page.locator("#station-generative-fm-little-bells"),
-    page.locator("#station-generative-fm-no-refrain"),
-  ]
-  for (const station of smokePlaybackStations) {
-    await station.getByRole("button", { name: /^Play\b/i }).click()
-    await expect(station.getByRole("button", { name: /^Restart\b/i })).toBeVisible({ timeout: 45_000 })
-    await station.getByRole("button", { name: /^Stop\b/i }).click()
+    ["generative-fm-peace", "Peace"],
+    ["generative-fm-trees", "Trees"],
+    ["mlab-proof-drone", "MassageLab Proof Drone"],
+  ] as const
+  for (const [stationId, stationTitle] of smokePlaybackStations) {
+    await centerCarouselItem(page, stationId, "Next station")
+    await page.getByRole("button", { name: `Play ${stationTitle}` }).click()
+    await expect(page.getByRole("button", { name: `Stop ${stationTitle}` })).toBeVisible({ timeout: 45_000 })
+    await page.getByRole("button", { name: `Stop ${stationTitle}` }).click()
     await expect(page.getByText(/Playing|Preparing audio|Preparing station/i)).toHaveCount(0)
   }
 

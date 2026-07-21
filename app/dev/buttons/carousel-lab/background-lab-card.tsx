@@ -2,8 +2,9 @@
 
 import Image from "next/image"
 import { useEffect, useRef, useState } from "react"
-import { Lock, Star } from "lucide-react"
+import { Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { MetalFavoriteIcon } from "@/components/ui/metal-favorite-icon"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,6 +18,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import type { BackgroundDefinition } from "@/components/backgrounds/backgroundRegistry"
 import { getBackgroundPreviewMedia, getBackgroundVisualTags } from "@/lib/background-catalog"
+import { purpleGlowClassName } from "./carousel-lab-button-classes"
 
 export type LabBackgroundAccessState =
   | "free"
@@ -47,6 +49,9 @@ export function BackgroundLabCard(props: BackgroundLabCardProps) {
   const canUse = accessState === "free" || accessState === "owned" || accessState === "subscriber-unlocked"
   const showVideo = detailLevel !== "shell" && !reducedMotion && media?.type === "video"
   const productionExisting = presentation === "existing"
+  const previewTags = getBackgroundVisualTags(option)
+    .filter((tag) => !["shader", "video"].includes(tag.toLowerCase()))
+    .slice(0, 4)
 
   useEffect(() => {
     const video = videoRef.current
@@ -123,12 +128,13 @@ export function BackgroundLabCard(props: BackgroundLabCardProps) {
                 props.onSelect()
               }}
               size="sm"
+              variant="glow"
             >
               {selected ? "Selected" : "Select"}
             </Button>
           ) : (
             <AlertDialogTrigger asChild>
-              <Button data-carousel-primary-action size="sm">
+              <Button data-carousel-primary-action size="sm" variant="glow">
                 <Lock aria-hidden="true" />
                 {selected ? "Selected" : "Select"}
               </Button>
@@ -140,9 +146,10 @@ export function BackgroundLabCard(props: BackgroundLabCardProps) {
             aria-pressed={saved}
             onClick={props.onToggleSaved}
             size="icon"
-            variant="outline"
+            variant="glow"
+            className={purpleGlowClassName}
           >
-            <Star className={saved ? "fill-current" : ""} aria-hidden="true" />
+            <MetalFavoriteIcon kind="star" selected={saved} />
           </Button>
         </div>
       ) : null}
@@ -153,16 +160,11 @@ export function BackgroundLabCard(props: BackgroundLabCardProps) {
         <div>
           <h3 className="font-semibold">{option.label}</h3>
           {detailLevel === "full" || productionExisting ? (
-            <>
-              {detailLevel === "full" ? (
-                <p className={productionExisting ? "text-xs text-white/70" : "text-xs text-muted-foreground"}>
-                  {option.provider}
-                </p>
-              ) : null}
+            previewTags.length > 0 ? (
               <p className={productionExisting ? "mt-1 text-xs text-white/70" : "mt-1 text-xs text-muted-foreground"}>
-                {getBackgroundVisualTags(option).slice(0, 4).join(" - ")}
+                {previewTags.join(" - ")}
               </p>
-            </>
+            ) : null
           ) : null}
         </div>
 

@@ -2,9 +2,9 @@ import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { describe, it } from "node:test"
 import {
-  normalizeCarouselLabItems,
-  reconcileCenteredId,
-} from "../app/dev/buttons/carousel-lab/carousel-lab-model.js"
+  normalizeAdaptiveCarouselItems,
+  reconcileAdaptiveCarouselCenter,
+} from "../components/carousels/adaptive-carousel-model.js"
 
 function read(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8")
@@ -30,35 +30,35 @@ describe("Carousel Lab source boundaries", () => {
   })
 
   it("uses the existing Embla runtime and no source-demo dependencies", () => {
-    const controller = read("app/dev/buttons/carousel-lab/use-carousel-lab-controller.ts")
-    const stage = read("app/dev/buttons/carousel-lab/carousel-stage.tsx")
+    const controller = read("components/carousels/use-adaptive-carousel-controller.ts")
+    const stage = read("components/carousels/adaptive-carousel-stage.tsx")
     const combined = `${controller}\n${stage}`
     assert.match(controller, /from "embla-carousel-react"/)
     assert.doesNotMatch(combined, /gsap|ScrollTrigger|Tweakpane|<iframe/i)
   })
 
-  it("keeps presentation styling scoped to the lab", () => {
-    const css = read("app/dev/buttons/carousel-lab/carousel-stage.module.css")
+  it("keeps shared presentation styling locally scoped", () => {
+    const css = read("components/carousels/adaptive-carousel-stage.module.css")
     assert.doesNotMatch(css, /(^|\n)\s*(body|:root|\*)\s*[{,]/)
     assert.match(css, /prefers-reduced-motion/)
-    assert.match(css, /data-carousel-artwork/)
+    assert.match(css, /container-type:\s*inline-size/)
   })
 
   it("separates Embla loop positioning from presentation transforms", () => {
-    const stage = read("app/dev/buttons/carousel-lab/carousel-stage.tsx")
-    const css = read("app/dev/buttons/carousel-lab/carousel-stage.module.css")
+    const stage = read("components/carousels/adaptive-carousel-stage.tsx")
+    const css = read("components/carousels/adaptive-carousel-stage.module.css")
     const slideRule = css.match(/\.slide\s*\{([\s\S]*?)\n\}/)?.[1] ?? ""
     const presentationRule = css.match(/\.presentation\s*\{([\s\S]*?)\n\}/)?.[1] ?? ""
 
     assert.match(stage, /data-carousel-transform="true"/)
     assert.doesNotMatch(slideRule, /(?:^|\s)transform\s*:/)
     assert.match(presentationRule, /transform:\s*[\s\S]*?translate3d/)
-    assert.match(slideRule, /z-index:\s*var\(--lab-z-index, 1\)/)
+    assert.match(slideRule, /z-index:\s*var\(--carousel-z-index, 1\)/)
     assert.doesNotMatch(css, /\.slide\[data-centered="true"\]\s*\{[^}]*z-index/)
   })
 
   it("forces a finite keyboard rail when carousel motion is off", () => {
-    const controller = read("app/dev/buttons/carousel-lab/use-carousel-lab-controller.ts")
+    const controller = read("components/carousels/use-adaptive-carousel-controller.ts")
     assert.match(controller, /const finiteRail = reducedMotion \|\| tuning\.motion === false/)
     assert.match(controller, /const effectiveLoop = finiteRail\s+\? false/)
     assert.match(controller, /if \(!effectiveLoop && event\.key === "Home"\)/)
@@ -66,15 +66,15 @@ describe("Carousel Lab source boundaries", () => {
   })
 
   it("starts Embla at the reconciled mount identity before its first select", () => {
-    const controller = read("app/dev/buttons/carousel-lab/use-carousel-lab-controller.ts")
+    const controller = read("components/carousels/use-adaptive-carousel-controller.ts")
     const initialReconciliations = controller.match(
-      /reconcileCenteredId\(items, initialItemId, selectedItemId\)/g,
+      /reconcileAdaptiveCarouselCenter\(items, initialItemId, selectedItemId\)/g,
     ) ?? []
 
     assert.equal(initialReconciliations.length, 1)
     assert.match(
       controller,
-      /const \[initialCenter\] = useState\(\(\) => \{\s+const id = reconcileCenteredId\(items, initialItemId, selectedItemId\)\s+const index = Math\.max\(0, items\.findIndex\(\(item\) => item\.id === id\)\)\s+return \{ id, index \}\s+\}\)/,
+      /const \[initialCenter\] = useState\(\(\) => \{\s+const id = reconcileAdaptiveCarouselCenter\(items, initialItemId, selectedItemId\)\s+const index = Math\.max\(0, items\.findIndex\(\(item\) => item\.id === id\)\)\s+return \{ id, index \}\s+\}\)/,
     )
     assert.match(controller, /startIndex: initialCenter\.index/)
     assert.match(
@@ -88,7 +88,7 @@ describe("Carousel Lab source boundaries", () => {
   })
 
   it("cancels stale dependency frames before scheduling current transforms", () => {
-    const controller = read("app/dev/buttons/carousel-lab/use-carousel-lab-controller.ts")
+    const controller = read("components/carousels/use-adaptive-carousel-controller.ts")
     const listenerEffect = controller.match(
       /useEffect\(\(\) => \{\s+if \(!api\) return\s+const select = \(\) => \{[\s\S]*?\n  \}, \[api, effectiveLoop, items, scheduleTransformWrite\]\)/,
     )?.[0]
@@ -107,26 +107,26 @@ describe("Carousel Lab source boundaries", () => {
   })
 
   it("does not turn an in-progress Embla selection into an instant jump", () => {
-    const controller = read("app/dev/buttons/carousel-lab/use-carousel-lab-controller.ts")
+    const controller = read("components/carousels/use-adaptive-carousel-controller.ts")
     assert.doesNotMatch(controller, /api\.scrollTo\(nextIndex, true\)/)
   })
 
   it("does not let Embla drag capture suppress interactive card controls", () => {
-    const controller = read("app/dev/buttons/carousel-lab/use-carousel-lab-controller.ts")
+    const controller = read("components/carousels/use-adaptive-carousel-controller.ts")
     assert.match(controller, /interactiveSlideSelector/)
     assert.match(controller, /target\.closest\(interactiveSlideSelector\)/)
     assert.match(controller, /watchDrag:\s*\(_api, event\) => shouldStartCarouselDrag\(event\)/)
   })
 
   it("normalizes item identity once at the stage boundary", () => {
-    const stage = read("app/dev/buttons/carousel-lab/carousel-stage.tsx")
-    assert.match(stage, /normalizeCarouselLabItems/)
+    const stage = read("components/carousels/adaptive-carousel-stage.tsx")
+    assert.match(stage, /normalizeAdaptiveCarouselItems/)
 
     const warnings = []
     const originalWarn = console.warn
     console.warn = (...args) => warnings.push(args)
     try {
-      const normalized = normalizeCarouselLabItems([
+      const normalized = normalizeAdaptiveCarouselItems([
         { id: "", label: "Missing" },
         { id: "first", label: "First" },
         { id: "first", label: "Duplicate" },
@@ -145,9 +145,9 @@ describe("Carousel Lab source boundaries", () => {
       { id: "second", label: "Second" },
       { id: "third", label: "Third" },
     ]
-    assert.equal(reconcileCenteredId(items, "third", "second"), "third")
-    assert.equal(reconcileCenteredId(items, "missing", "second"), "second")
-    assert.equal(reconcileCenteredId(items, "missing", "also-missing"), "first")
+    assert.equal(reconcileAdaptiveCarouselCenter(items, "third", "second"), "third")
+    assert.equal(reconcileAdaptiveCarouselCenter(items, "missing", "second"), "second")
+    assert.equal(reconcileAdaptiveCarouselCenter(items, "missing", "also-missing"), "first")
   })
 
   it("uses real Background data with isolated access fixtures and nearby video previews", () => {
@@ -165,39 +165,83 @@ describe("Carousel Lab source boundaries", () => {
     assert.doesNotMatch(combined, /fetch\(|stripe|checkout|server action/i)
   })
 
-  it("keeps 3D context and wires source-native masks to live tuning variables", () => {
-    const stage = read("app/dev/buttons/carousel-lab/carousel-stage.tsx")
-    const css = read("app/dev/buttons/carousel-lab/carousel-stage.module.css")
+  it("keeps 3D transforms inside the shared approved radial stage", () => {
+    const stage = read("components/carousels/adaptive-carousel-stage.tsx")
+    const css = read("components/carousels/adaptive-carousel-stage.module.css")
 
     assert.match(css, /\.track\s*\{[\s\S]*?transform-style:\s*preserve-3d/)
-    assert.match(stage, /--lab-mask-lower/)
-    assert.match(stage, /--lab-mask-upper/)
-    assert.match(css, /var\(--lab-mask-lower/)
-    assert.match(css, /var\(--lab-mask-upper/)
+    assert.match(stage, /data-presentation=\{presentation\}/)
+    assert.match(css, /rotateY\(var\(--carousel-rotate-y/)
   })
 
-  it("marks Station artwork for Cover Flow reflection without reflecting actions", () => {
+  it("keeps Station artwork separate from actions and exposes lab-only details", () => {
     const sharedCard = read("components/atmosphere/station-carousel-card.tsx")
+    const labCard = read("app/dev/buttons/carousel-lab/station-lab-card.tsx")
+
     assert.match(sharedCard, /data-carousel-artwork/)
+    assert.match(sharedCard, /data-carousel-station-details/)
+    assert.match(sharedCard, /DialogTrigger/)
+    assert.match(sharedCard, /DialogContent/)
+    assert.match(sharedCard, /displayMode === "carousel"/)
+    assert.match(labCard, /displayMode="carousel"/)
+    assert.match(sharedCard, /MetalFavoriteIcon kind="heart" selected=\{isFavorite\}/)
   })
 
-  it("keeps Background actions in the requested preview-card corners and shortens side reflections", () => {
+  it("keeps readable Glow actions in the requested Background preview-card corners", () => {
     const card = read("app/dev/buttons/carousel-lab/background-lab-card.tsx")
-    const css = read("app/dev/buttons/carousel-lab/carousel-stage.module.css")
+    const metalIcon = read("components/ui/metal-favorite-icon.tsx")
 
     assert.match(card, /data-carousel-primary-action/)
     assert.match(card, /data-carousel-favorite-action/)
     assert.match(card, /absolute inset-x-3 top-3/)
-    assert.match(css, /data-surface="backgrounds"[^\n]*data-presentation="cover-flow"/)
-    assert.match(css, /data-centered="false"[\s\S]*?transparent 32%/)
+    assert.match(card, /data-carousel-primary-action[\s\S]*?variant="glow"/)
+    assert.match(card, /data-carousel-favorite-action[\s\S]*?variant="glow"[\s\S]*?purpleGlowClassName/)
+    assert.doesNotMatch(card, /\{option\.provider\}/)
+    assert.match(card, /filter\(\(tag\) => !\["shader", "video"\]/)
+    assert.match(card, /MetalFavoriteIcon kind="star" selected=\{saved\}/)
+    assert.match(metalIcon, /data-metal-icon-trace/)
+    assert.match(metalIcon, /linearGradient/)
+    assert.match(metalIcon, /stroke=\{selected \? `url\(#\$\{gradientId\}\)` : "currentColor"\}/)
+    assert.match(metalIcon, /fill=\{selected \? "hsl\(var\(--button-cta-face\)\)" : "none"\}/)
+    assert.match(metalIcon, /animateTransform/)
+    assert.match(metalIcon, /selected && !reducedMotion/)
   })
 
-  it("adds a Station Background Picker sample without changing Station identities", () => {
+  it("sizes every retained card independently and hides distant shells", () => {
+    const stage = read("components/carousels/adaptive-carousel-stage.tsx")
+    const css = read("components/carousels/adaptive-carousel-stage.module.css")
+    const panel = read("app/dev/buttons/carousel-lab/tuning-panel.tsx")
+
+    assert.match(stage, /--carousel-card-height/)
+    assert.match(stage, /--carousel-summary-card-height/)
+    assert.match(panel, /key:\s*"cardHeight"/)
+    assert.match(panel, /visual height independently of its width/)
+    assert.match(css, /height:\s*var\(--carousel-card-height\)/)
+    assert.match(css, /data-surface="stations"[\s\S]*?data-detail-level="summary"[\s\S]*?--carousel-summary-card-height/)
+    assert.match(css, /\.shell\s*\{[\s\S]*?border:\s*0[\s\S]*?background:\s*transparent/)
+  })
+
+  it("resolves responsive Background sizing from available carousel width only", () => {
+    const lab = read("app/dev/buttons/carousel-lab/carousel-lab.tsx")
+    const panel = read("app/dev/buttons/carousel-lab/tuning-panel.tsx")
+
+    assert.match(lab, /ResizeObserver/)
+    assert.match(lab, /previewColumn\.getBoundingClientRect\(\)\.width/)
+    assert.match(lab, /getResponsiveBackgroundTuning\(viewportProfile, storedTuning\)/)
+    assert.match(lab, /data-carousel-responsive-profile/)
+    assert.match(panel, /Responsive sizing/)
+    assert.match(panel, /disabled=\{responsiveSizing\}/)
+    assert.match(panel, /Music Station card sizes stay fixed on every screen and device/)
+  })
+
+  it("keeps only Background Existing and the selected Station Background Picker", () => {
     const lab = read("app/dev/buttons/carousel-lab/carousel-lab.tsx")
     const surface = read("app/dev/buttons/carousel-lab/station-lab-surface.tsx")
 
-    assert.match(lab, /background-picker/)
-    assert.match(lab, /surface === "stations"/)
+    assert.match(lab, /value:\s*"background-picker",\s*label:\s*"Background Picker"/)
+    assert.doesNotMatch(lab, /label:\s*"Cover Flow"/)
+    assert.doesNotMatch(lab, /label:\s*"3D Carousel"/)
+    assert.match(lab, /surface === "stations"[\s\S]*?option\.value === "background-picker"/)
     assert.doesNotMatch(surface, /loop-\d|sourceId/)
   })
 
@@ -212,9 +256,11 @@ describe("Carousel Lab source boundaries", () => {
 
   it("reuses the production Station card and real Music provider in the lab", () => {
     const workspace = read("app/browse/workspace.tsx")
+    const productionCarousel = read("components/atmosphere/station-carousel.tsx")
     const sharedCard = read("components/atmosphere/station-carousel-card.tsx")
     const labSurface = read("app/dev/buttons/carousel-lab/station-lab-surface.tsx")
-    assert.match(workspace, /AtmosphereStationCarouselCard/)
+    assert.match(workspace, /AtmosphereStationCarousel/)
+    assert.match(productionCarousel, /AtmosphereStationCarouselCard/)
     assert.match(sharedCard, /music\.playStation/)
     assert.match(sharedCard, /music\.stopCurrent/)
     assert.match(sharedCard, /music\.toggleFavorite/)
@@ -249,6 +295,8 @@ describe("Carousel Lab source boundaries", () => {
     assert.match(lab, /surface === "backgrounds"/)
     assert.match(lab, /<BackgroundLabSurface/)
     assert.match(lab, /<StationLabSurface/)
+    assert.match(read("app/dev/buttons/carousel-lab/carousel-stage.tsx"), /AdaptiveCarouselStage as CarouselStage/)
+    assert.match(productionSources, /BackgroundCarousel|AtmosphereStationCarousel/)
     assert.doesNotMatch(productionSources, /dev\/buttons\/carousel-lab|CarouselLab/)
   })
 

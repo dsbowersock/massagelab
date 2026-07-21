@@ -6,6 +6,15 @@ import { MusicLoadingProgress } from "@/components/providers/music-loading-progr
 import type { useMusic } from "@/components/providers/music-provider"
 import { AppNotice, appMediaTileClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
+import { MetalFavoriteIcon } from "@/components/ui/metal-favorite-icon"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import type { getVisibleAtmosphereStations } from "@/lib/atmosphere/stations"
 import { cn } from "@/lib/utils"
 
@@ -20,12 +29,14 @@ export interface AtmosphereStationCarouselCardProps {
   ) => void
   station: AtmosphereStation
   detailLevel?: "full" | "summary"
+  displayMode?: "production" | "carousel"
+  favoriteClassName?: string
 }
 
 /**
- * Renders the production Atmosphere rail card or its inert artwork/title
- * summary. Playback, favorite, loading, attribution, and prewarm behavior stay
- * exclusive to the full card so Carousel Lab centering cannot trigger actions.
+ * Renders either the legacy compact card or the approved centered carousel
+ * card. Playback, favorite, loading, attribution, and prewarm behavior stay
+ * exclusive to the full card so centering cannot trigger an action.
  */
 export function AtmosphereStationCarouselCard({
   groupId,
@@ -33,9 +44,146 @@ export function AtmosphereStationCarouselCard({
   prewarmStation,
   station,
   detailLevel = "full",
+  displayMode = "production",
+  favoriteClassName,
 }: AtmosphereStationCarouselCardProps) {
   const isActive = music.activeStationId === station.id
   const isFavorite = music.favorites.includes(station.id)
+  const attributionText = stationAttributionText(station)
+  const attributionHref = station.attribution.notice ? "" : station.attribution.sourceUrl
+
+  if (displayMode === "carousel" && detailLevel === "summary") {
+    return (
+      <article
+        id={`station-${station.id}`}
+        className={cn(
+          appMediaTileClassName,
+          "relative flex h-full min-w-0 overflow-hidden transition-colors",
+          isActive && "border-primary/80 shadow-lg shadow-primary/15",
+        )}
+      >
+        <div className="absolute inset-x-0 top-0 aspect-square bg-background p-1" data-carousel-artwork>
+          <AtmosphereStationArtwork
+            description={station.description}
+            groupId={groupId}
+            stationId={station.id}
+            title={station.title}
+          />
+          <div className="pointer-events-none absolute inset-x-1 bottom-1 z-10 bg-gradient-to-t from-black/95 via-black/75 to-transparent p-3 pt-10 text-white">
+            <p className="truncate text-sm font-semibold tracking-normal">{station.title}</p>
+          </div>
+        </div>
+      </article>
+    )
+  }
+
+  if (displayMode === "carousel") {
+    return (
+      <Dialog>
+        <article
+          id={`station-${station.id}`}
+          className={cn(
+            appMediaTileClassName,
+            "relative flex h-full min-w-0 overflow-hidden transition-colors",
+            isActive && "border-primary/80 shadow-lg shadow-primary/15",
+          )}
+          onFocus={() => prewarmStation(station.id)}
+          onPointerEnter={() => prewarmStation(station.id, {
+            includeSamplePayloads: canPrewarmCompressedSamplePayloads(),
+          })}
+        >
+          <div className="absolute inset-x-0 top-0 aspect-square bg-background p-1" data-carousel-artwork>
+            <AtmosphereStationArtwork
+              description={station.description}
+              groupId={groupId}
+              stationId={station.id}
+              title={station.title}
+            />
+            {isActive && music.playbackState === "loading" ? (
+              <div className="absolute inset-x-2 bottom-20 rounded-md border border-background/30 bg-background/80 p-2 backdrop-blur">
+                <MusicLoadingProgress compact progress={music.loadingProgress} startedAt={music.loadingStartedAt} />
+              </div>
+            ) : null}
+          </div>
+
+          <div className="absolute inset-x-3 top-3 z-20 flex items-start justify-between gap-2">
+            <Button
+              data-carousel-primary-action
+              aria-label={isActive ? `Stop ${station.title}` : `Play ${station.title}`}
+              disabled={!station.enabled || (!isActive && music.playbackState === "loading")}
+              onClick={() => {
+                if (isActive) {
+                  void music.stopCurrent()
+                  return
+                }
+                void music.playStation(station.id)
+              }}
+              onFocus={() => prewarmStation(station.id)}
+              onPointerDown={() => {
+                if (!isActive) prewarmStation(station.id)
+              }}
+              size="sm"
+              variant="glow"
+            >
+              {isActive ? <Square aria-hidden="true" /> : <Play aria-hidden="true" />}
+              {isActive ? "Stop" : "Play"}
+            </Button>
+            <Button
+              data-carousel-favorite-action
+              aria-label={isFavorite ? `Remove ${station.title} from favorites` : `Favorite ${station.title}`}
+              aria-pressed={isFavorite}
+              className={favoriteClassName}
+              onClick={() => music.toggleFavorite(station.id)}
+              size="icon"
+              title={isFavorite ? "Favorited" : "Favorite"}
+              variant="glow"
+            >
+              <MetalFavoriteIcon kind="heart" selected={isFavorite} />
+            </Button>
+          </div>
+
+          <DialogTrigger asChild>
+            <button
+              type="button"
+              data-carousel-station-details
+              aria-label={`Show full information for ${station.title}`}
+              className="absolute inset-x-0 bottom-0 top-[42%] z-20 grid min-w-0 content-start gap-1 bg-gradient-to-t from-black/95 via-black/85 to-transparent px-3 pb-3 pt-10 text-left text-white transition-colors hover:from-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+            >
+              <span className="truncate text-sm font-semibold tracking-normal">{station.title}</span>
+              <span className="overflow-hidden text-xs leading-5 text-white/75 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
+                {station.description}
+              </span>
+            </button>
+          </DialogTrigger>
+        </article>
+
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{station.title}</DialogTitle>
+            <DialogDescription className="leading-6">{station.description}</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2 text-sm">
+            <p className="font-medium">Source and license</p>
+            {attributionHref ? (
+              <a
+                className="w-fit text-muted-foreground underline underline-offset-4"
+                href={attributionHref}
+                rel={isExternalUrl(attributionHref) ? "noreferrer" : undefined}
+                target={isExternalUrl(attributionHref) ? "_blank" : undefined}
+              >
+                {attributionText || "View station source"}
+              </a>
+            ) : (
+              <p className="text-muted-foreground">{attributionText || "MassageLab original"}</p>
+            )}
+            <p className="text-muted-foreground">
+              {station.enabled ? "Available to play." : station.disabledReason || "Not playable yet."}
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+    )
+  }
 
   if (detailLevel === "summary") {
     return (
@@ -61,9 +209,6 @@ export function AtmosphereStationCarouselCard({
       </article>
     )
   }
-
-  const attributionText = stationAttributionText(station)
-  const attributionHref = station.attribution.notice ? "" : station.attribution.sourceUrl
 
   return (
     <article

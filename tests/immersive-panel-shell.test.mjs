@@ -20,7 +20,7 @@ const specSource = await read("docs/superpowers/specs/2026-07-18-clock-chimer-mu
 
 test("exports the reusable controlled immersive panel contract", () => {
   assert.match(shellSource, /export type ImmersivePanelId = "clock" \| "visual" \| "background" \| null/)
-  assert.match(shellSource, /interface ImmersivePanelShellProps \{[\s\S]*activePanel: ImmersivePanelId[\s\S]*onActivePanelChange: \(panel: ImmersivePanelId\) => void[\s\S]*protectedDisplayRef: RefObject<HTMLElement \| null>[\s\S]*clockContent: ReactNode[\s\S]*visualContent: ReactNode[\s\S]*backgroundContent: ReactNode[\s\S]*backgroundUnavailableMessage\?: string \| null[\s\S]*hapticsEnabled: boolean/)
+  assert.match(shellSource, /interface ImmersivePanelShellProps \{[\s\S]*activePanel: ImmersivePanelId[\s\S]*onActivePanelChange: \(panel: ImmersivePanelId\) => void[\s\S]*protectedDisplayRef: RefObject<HTMLElement \| null>[\s\S]*clockContent: ReactNode[\s\S]*visualContent: ReactNode[\s\S]*backgroundContent: ReactNode[\s\S]*backgroundHeaderContent\?: ReactNode[\s\S]*backgroundUnavailableMessage\?: string \| null[\s\S]*hapticsEnabled: boolean/)
 })
 
 test("renders three accessible grouped panel toggles with responsive tooltips", () => {
@@ -56,6 +56,8 @@ test("uses a full-screen Radix modal for Background with default outside dismiss
   assert.doesNotMatch(shellSource, /onPointerDownOutside=\{\(event\) => event\.preventDefault\(\)\}/)
   assert.doesNotMatch(shellSource, /onInteractOutside=\{\(event\) => event\.preventDefault\(\)\}/)
   assert.match(shellSource, /onCloseAutoFocus=\{handleBackgroundCloseAutoFocus\}/)
+  assert.match(shellSource, /<DialogPrimitive\.Title className=\{styles\.backgroundHeaderTitle\}>Background<\/DialogPrimitive\.Title>[\s\S]*\{backgroundHeaderContent\}[\s\S]*aria-label="Close Background panel"/)
+  assert.doesNotMatch(shellSource, /<span>Close<\/span>/)
   assert.match(shellStyles, /--immersive-global-chrome-z:\s*10030/)
   assert.match(shellStyles, /\.backgroundOverlay[\s\S]*position:\s*fixed[\s\S]*inset:\s*0[\s\S]*z-index:\s*var\(--immersive-global-chrome-z\)/)
   assert.match(shellStyles, /\.backgroundPanel[\s\S]*position:\s*fixed[\s\S]*inset:\s*0/)

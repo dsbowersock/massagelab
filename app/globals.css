@@ -1905,6 +1905,13 @@
     padding-bottom: var(--ml-page-bottom-safe);
   }
 
+  /* Short landscape workspaces already keep their controls above the fixed app bar. */
+  @media (min-width: 36.0625rem) and (max-height: 44rem) {
+    .ml-atmosphere-rail-content {
+      padding-bottom: 0 !important;
+    }
+  }
+
   .ml-music-player-toolbar[data-placement="top"] {
     top: 0;
   }
@@ -1923,7 +1930,17 @@
     padding-bottom: var(--ml-safe-bottom);
   }
 
-  .ml-app-tool-link[data-active="true"],
+  .ml-app-tool-link[data-active="true"] {
+    filter: brightness(1.08) saturate(1.08);
+  }
+
+  .ml-app-tool-link-active-ring-probe {
+    display: inline-flex;
+    flex: 0 0 auto;
+    width: fit-content;
+    height: fit-content;
+  }
+
   .ml-calendar-drawer-trigger[data-active="true"] {
     filter:
       brightness(1.08)

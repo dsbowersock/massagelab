@@ -128,6 +128,7 @@ export function StationLabSurface(props: StationLabSurfaceProps) {
         presentation={props.presentation}
         tuning={props.tuning}
         reducedMotion={props.reducedMotion}
+        testId="carousel-lab-stage"
         onCenteredItemChange={handleCenteredItemChange}
         onEffectiveLoopChange={props.onEffectiveLoopChange}
         renderItem={(station, { detailLevel }) => {

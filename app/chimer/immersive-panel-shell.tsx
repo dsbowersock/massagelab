@@ -31,6 +31,7 @@ interface ImmersivePanelShellProps {
   clockContent: ReactNode
   visualContent: ReactNode
   backgroundContent: ReactNode
+  backgroundHeaderContent?: ReactNode
   clockHeaderAction?: ReactNode
   clockHeaderCenterAction?: ReactNode
   visualHeaderAction?: ReactNode
@@ -120,6 +121,7 @@ export function ImmersivePanelShell({
   clockContent,
   visualContent,
   backgroundContent,
+  backgroundHeaderContent,
   clockHeaderAction,
   clockHeaderCenterAction,
   visualHeaderAction,
@@ -485,17 +487,18 @@ export function ImmersivePanelShell({
             onCloseAutoFocus={handleBackgroundCloseAutoFocus}
           >
             <div className={styles.backgroundHeader}>
-              <DialogPrimitive.Title>Background</DialogPrimitive.Title>
+              <DialogPrimitive.Title className={styles.backgroundHeaderTitle}>Background</DialogPrimitive.Title>
+              <div className={styles.backgroundHeaderFilters}>{backgroundHeaderContent}</div>
               <DialogPrimitive.Close asChild>
                 <Button
                   type="button"
                   variant="destructive"
-                  size="compact"
+                  size="icon"
                   hapticsEnabled={hapticsEnabled}
                   aria-label="Close Background panel"
+                  title="Close Background panel"
                 >
                   <X className="h-4 w-4" aria-hidden="true" />
-                  <span>Close</span>
                 </Button>
               </DialogPrimitive.Close>
             </div>

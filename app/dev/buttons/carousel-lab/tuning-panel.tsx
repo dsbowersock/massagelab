@@ -9,6 +9,8 @@ interface TuningPanelProps {
   value: Record<string, number | boolean>
   effectiveLoop: boolean
   reducedMotion: boolean
+  responsiveSizing: boolean
+  responsiveProfileLabel: string
   onChange: (next: Record<string, number | boolean>) => void
   onReset: () => void
 }
@@ -25,6 +27,7 @@ interface TuningField {
 
 const sharedFields: readonly TuningField[] = [
   { key: "cardWidth", label: "Card width", min: 160, max: 320, step: 4, unit: "px", description: "Sets each card's visual width." },
+  { key: "cardHeight", label: "Card height", min: 240, max: 520, step: 4, unit: "px", description: "Sets each card's visual height independently of its width." },
   { key: "gap", label: "Gap", min: 0, max: 64, step: 2, unit: "px", description: "Sets the linear space between neighboring card positions." },
   { key: "visibleRadius", label: "Nearby radius", min: 1, max: 4, step: 1, unit: "", description: "Keeps this many cards mounted on each side of the centered card." },
 ]
@@ -64,6 +67,8 @@ export function TuningPanel({
   value,
   effectiveLoop,
   reducedMotion,
+  responsiveSizing,
+  responsiveProfileLabel,
   onChange,
   onReset,
 }: TuningPanelProps) {
@@ -84,17 +89,45 @@ export function TuningPanel({
       <div>
         <h2 className="text-base font-semibold">Tuning</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Saved on this device for the active comparison pair.
+          {surface === "backgrounds"
+            ? responsiveSizing
+              ? `Using the approved ${responsiveProfileLabel.toLowerCase()} screen fit.`
+              : "Manual Background geometry is saved on this device."
+            : "Music Station card sizes stay fixed on every screen and device."}
         </p>
       </div>
 
+      {surface === "backgrounds" && presentation === "existing" ? (
+        <div className="flex items-center justify-between gap-4 rounded-lg border border-border/60 bg-muted/30 p-3">
+          <div>
+            <label htmlFor="carousel-tuning-responsive" className="text-sm font-medium">
+              Responsive sizing
+            </label>
+            <p id="carousel-tuning-responsive-description" className="mt-1 text-xs leading-5 text-muted-foreground">
+              {responsiveSizing ? "Uses" : "Turn on to use"} the approved {responsiveProfileLabel.toLowerCase()} card size for the available carousel width.
+            </p>
+          </div>
+          <Switch
+            id="carousel-tuning-responsive"
+            data-testid="carousel-tuning-responsive"
+            checked={responsiveSizing}
+            onCheckedChange={(checked) => onChange({ ...value, responsive: checked })}
+            aria-label="Responsive sizing"
+            aria-describedby="carousel-tuning-responsive-description"
+          />
+        </div>
+      ) : null}
+
       <div className="grid gap-4">
         {fields.map(({ key: field, label, min, max: descriptorMax, step, unit, description }) => {
-          const max = field === "cardWidth"
-            ? surface === "backgrounds" ? 280 : 320
-            : descriptorMax
+          const fieldRange = field === "cardWidth"
+            ? surface === "backgrounds" ? [160, 280] : [168, 320]
+            : field === "cardHeight"
+              ? surface === "backgrounds" ? [240, 480] : [192, 520]
+              : [min, descriptorMax]
+          const [resolvedMin, max] = fieldRange
           const numericValue = Number(value[field])
-          const inputValue = Number.isFinite(numericValue) ? numericValue : min
+          const inputValue = Number.isFinite(numericValue) ? numericValue : resolvedMin
           const inputId = `carousel-tuning-${field}`
           const descriptionId = `${inputId}-description`
 
@@ -110,16 +143,17 @@ export function TuningPanel({
                 id={inputId}
                 data-testid={inputId}
                 type="range"
-                min={min}
+                min={resolvedMin}
                 max={max}
                 step={step}
                 value={inputValue}
+                disabled={responsiveSizing}
                 aria-describedby={descriptionId}
                 onChange={(event) => onChange({
                   ...value,
                   [field]: Number(event.currentTarget.value),
                 })}
-                className="w-full accent-primary"
+                className="w-full accent-primary disabled:cursor-not-allowed disabled:opacity-50"
               />
               <p id={descriptionId} className="text-xs leading-5 text-muted-foreground">
                 {description}

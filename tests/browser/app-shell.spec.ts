@@ -8,6 +8,17 @@ async function gotoShell(page: Page, path: string) {
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined)
 }
 
+async function centerStation(page: Page, stationId: string) {
+  const slide = page.locator(`[data-carousel-slide="true"][data-carousel-item-id="${stationId}"]`)
+  const carousel = page.getByRole("region", { name: "Station carousel" })
+  await expect(slide).toBeAttached()
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    if ((await slide.getAttribute("data-centered")) === "true") return
+    await carousel.getByRole("button", { name: "Next station" }).click()
+  }
+  throw new Error(`Station ${stationId} could not be centered`)
+}
+
 async function openAccountMenu(page: Page) {
   const trigger = page.getByTestId("account-menu-trigger")
 
@@ -668,6 +679,7 @@ test("mobile top placement reserves the top edge and leaves the active music pla
   expect(idleSpacing.pageBottom).toBeCloseTo(idleExpected)
   expect(idleSpacing.pageBottom).not.toBeCloseTo(idleExpected + idleSpacing.mainBar)
 
+  await centerStation(page, "mlab-proof-drone")
   await page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
   const player = page.getByTestId("music-player-toolbar")
   await expect(player).toBeVisible()
@@ -705,6 +717,7 @@ test("mobile bottom placement adds the main bar when idle and the audio toolbar 
   expect(idleSpacing.bottomStack).toBeCloseTo(idleExpectedStack)
   expect(idleSpacing.pageBottom).toBeCloseTo(idleExpected)
 
+  await centerStation(page, "mlab-proof-drone")
   await page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
   const player = page.getByTestId("music-player-toolbar")
   await expect(player).toBeVisible()

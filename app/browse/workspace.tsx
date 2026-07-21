@@ -1,14 +1,14 @@
 "use client"
 
-import { useCallback, useEffect, useRef } from "react"
+import { useCallback, useEffect } from "react"
 import Link from "next/link"
-import { ChevronLeft, ChevronRight, Heart, Play, Radio, Square, Wind } from "lucide-react"
-import { AppNotice, AppPageShell, AppSurface, appRailScrollerClassName } from "@/components/ui/app-surface"
+import { Heart, Play, Radio, Square, Wind } from "lucide-react"
+import { AtmosphereStationCarousel } from "@/components/atmosphere/station-carousel"
+import { AppNotice, AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { useMusic } from "@/components/providers/music-provider"
 import { MusicLoadingProgress } from "@/components/providers/music-loading-progress"
 import {
-  AtmosphereStationCarouselCard,
   canPrewarmCompressedSamplePayloads,
   isExternalUrl,
   stationAttributionText,
@@ -96,7 +96,11 @@ export function AtmosphereWorkspace({ layout = "grid" }: { layout?: AtmosphereWo
 
   return (
     <div className="relative min-h-screen overflow-hidden">
-      <AppPageShell width="full" className="relative z-10 bg-transparent" contentClassName="pb-28">
+      <AppPageShell
+        width="full"
+        className="relative z-10 bg-transparent"
+        contentClassName={cn("pb-28", isRailLayout && "ml-atmosphere-rail-content")}
+      >
       {isRailLayout ? (
         <h1 className="sr-only">Atmosphere audio stations</h1>
       ) : (
@@ -133,23 +137,18 @@ export function AtmosphereWorkspace({ layout = "grid" }: { layout?: AtmosphereWo
       )}
 
       <div className={isRailLayout ? "space-y-9" : "space-y-8"}>
-        {stationGroups.map((group) => (
-          isRailLayout ? (
-            <AtmosphereStationRail
-              key={group.id}
-              group={group}
-              music={music}
-              prewarmStation={prewarmStation}
-            />
-          ) : (
+        {isRailLayout ? (
+          <AtmosphereStationCarousel />
+        ) : (
+          stationGroups.map((group) => (
             <AtmosphereStationGrid
               key={group.id}
               group={group}
               music={music}
               prewarmStation={prewarmStation}
             />
-          )
-        ))}
+          ))
+        )}
       </div>
       </AppPageShell>
     </div>
@@ -269,87 +268,5 @@ function AtmosphereStationGridCard({
         ) : null}
       </AppSurface>
     </div>
-  )
-}
-
-function AtmosphereStationRail({
-  group,
-  music,
-  prewarmStation,
-}: {
-  group: AtmosphereStationGroup
-  music: ReturnType<typeof useMusic>
-  prewarmStation: (stationId: string, options?: { includeSamplePayloads?: boolean }) => void
-}) {
-  const railRef = useRef<HTMLDivElement | null>(null)
-
-  function scrollRail(direction: 1 | -1) {
-    const rail = railRef.current
-    if (!rail) {
-      return
-    }
-
-    rail.scrollBy({
-      behavior: "smooth",
-      left: direction * Math.min(rail.clientWidth * 0.9, 760),
-    })
-  }
-
-  return (
-    <section
-      aria-labelledby={`station-group-${group.id}`}
-      className="group/station-rail space-y-3"
-      data-testid={`station-rail-${group.id}`}
-    >
-      <div className="max-w-3xl">
-        <h2 id={`station-group-${group.id}`} className="text-xl font-semibold tracking-normal">
-          {group.title}
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">{group.description}</p>
-      </div>
-      <div className="relative">
-        <div
-          aria-label={`${group.title} station rail controls`}
-          className="pointer-events-none absolute inset-y-0 left-0 right-0 z-10 hidden items-center justify-between px-2 opacity-0 transition-opacity duration-150 [@media(hover:hover)_and_(pointer:fine)]:flex [@media(hover:hover)_and_(pointer:fine)]:group-focus-within/station-rail:opacity-100 [@media(hover:hover)_and_(pointer:fine)]:group-hover/station-rail:opacity-100 sm:px-4"
-          data-testid={`station-rail-controls-${group.id}`}
-        >
-          <Button
-            aria-label={`Previous ${group.title} stations`}
-            className="pointer-events-auto rounded-full border-background/40 bg-background/85 shadow-lg backdrop-blur hover:bg-background"
-            onClick={() => scrollRail(-1)}
-            size="icon"
-            title={`Previous ${group.title} stations`}
-            variant="outline"
-          >
-            <ChevronLeft aria-hidden="true" />
-          </Button>
-          <Button
-            aria-label={`Next ${group.title} stations`}
-            className="pointer-events-auto rounded-full border-background/40 bg-background/85 shadow-lg backdrop-blur hover:bg-background"
-            onClick={() => scrollRail(1)}
-            size="icon"
-            title={`Next ${group.title} stations`}
-            variant="outline"
-          >
-            <ChevronRight aria-hidden="true" />
-          </Button>
-        </div>
-        <div
-          ref={railRef}
-          aria-label={`${group.title} stations`}
-          className={cn(appRailScrollerClassName, "scroll-smooth")}
-        >
-          {group.stations.map((station) => (
-            <AtmosphereStationCarouselCard
-              groupId={group.id}
-              key={station.id}
-              music={music}
-              prewarmStation={prewarmStation}
-              station={station}
-            />
-          ))}
-        </div>
-      </div>
-    </section>
   )
 }

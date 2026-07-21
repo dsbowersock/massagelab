@@ -1,5 +1,16 @@
 # Carousel Prototype Lab Design
 
+## Final selection addendum — 2026-07-20
+
+The user completed the Track 3A comparison and superseded the larger option matrix:
+
+- Backgrounds retain only the production-style Existing presentation. Responsive sizing selects the approved 164×312/22-degree, 200×240/26-degree, 220×304/29-degree, 256×360/33-degree, or 280×388/36-degree profile from available carousel width, with zero gap, nearby radius two, 420-pixel radius, 0.08 falloff, and loop/motion on.
+- Music Stations retain only the production Clock/Chimer Background Picker presentation, using 192×224 centered cards and 193-pixel surrounding previews on every screen and device, zero gap, nearby radius four, 27-degree spread, 420-pixel radius, 0.05 scale falloff, and loop/motion on.
+- Cover Flow and 3D Carousel are removed from both review surfaces.
+- Background Existing exposes responsive sizing plus manual fallback tuning. Background Select and Station Play/Stop use shared Glow over the artwork's upper-left, while each Favorite uses CTA-purple Glow over the upper-right; a selected favorite fills the glyph purple and animates a reduced-motion-safe chromatic-metal trace around the icon path. Distant layout shells remain visually transparent.
+- Background preview copy omits the exact `MassageLab` provider label and the Shader/Video tags. The centered Station raises its title and clamped summary into a deeper lower-artwork overlay; activating that area opens an accessible dialog with the complete description and source/license information.
+- These are recorded winner decisions only. Track 3B production replacement still requires a separate authorized implementation pass.
+
 ## Second review addendum — 2026-07-20
 
 The next user review expands the development-only comparison from six to seven combinations and supersedes conflicting defaults below:

@@ -96,10 +96,20 @@
   scrollbar-width: none;
   gap: 0.5rem;
   scroll-padding-inline: var(--immersive-toolbar-focus-inset);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
 }
 
 .toolbar::-webkit-scrollbar {
   display: none;
+}
+
+@media (min-width: 36.0625rem) {
+  .toolbar {
+    overflow: visible;
+  }
 }
 
 .toolbarButton {
@@ -339,9 +349,20 @@
 }
 
 .backgroundHeader {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   padding-top: max(0.625rem, env(safe-area-inset-top, 0px));
   padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
   padding-left: max(1rem, env(safe-area-inset-left, 0px));
+}
+
+.backgroundHeaderTitle {
+  white-space: nowrap;
+}
+
+.backgroundHeaderFilters {
+  min-width: 0;
+  overflow: visible;
 }
 
 .backgroundScroller {
