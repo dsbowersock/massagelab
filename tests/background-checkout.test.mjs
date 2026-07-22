@@ -426,9 +426,16 @@ describe("background checkout route", () => {
     const checkoutInput = harness.calls[2][1]
     assert.equal(checkoutInput.customerId, "cus_123")
     assert.equal(checkoutInput.checkoutAttempt, 1)
-    assert.match(checkoutInput.successUrl, /^https:\/\/massagelab\.test\/account\?/)
-    assert.match(checkoutInput.cancelUrl, /^https:\/\/massagelab\.test\/account\?/)
-    assert.equal(checkoutInput.successUrl.includes("checkout.stripe.com"), false)
+    for (const [rawUrl, status] of [
+      [checkoutInput.successUrl, "success"],
+      [checkoutInput.cancelUrl, "cancelled"],
+    ]) {
+      const returnUrl = new URL(rawUrl)
+      assert.equal(returnUrl.origin, "https://massagelab.test")
+      assert.equal(returnUrl.pathname, "/account")
+      assert.equal(returnUrl.searchParams.get("backgroundPurchase"), status)
+      assert.equal(returnUrl.searchParams.get("orderId"), "order_123")
+    }
   })
 
   it("starts the processor expiry after delayed customer setup and persists Stripe's exact deadline", async () => {
