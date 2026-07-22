@@ -16,26 +16,19 @@ import {
   applyStripeRefundEvent,
 } from "@/lib/commerce/reversal-service"
 import { prisma } from "@/lib/prisma"
+import {
+  STRIPE_BACKGROUND_CHECKOUT_WEBHOOK_EVENTS,
+  STRIPE_BACKGROUND_DISPUTE_WEBHOOK_EVENTS,
+  STRIPE_BACKGROUND_REFUND_WEBHOOK_EVENTS,
+  STRIPE_MEMBERSHIP_WEBHOOK_EVENTS,
+} from "@/lib/stripe-webhook-contract"
 
 export const runtime = "nodejs"
 
-const BACKGROUND_CHECKOUT_EVENT_TYPES = new Set([
-  "checkout.session.completed",
-  "checkout.session.async_payment_succeeded",
-  "checkout.session.async_payment_failed",
-  "checkout.session.expired",
-])
-
-const REFUND_EVENT_TYPES = new Set([
-  "refund.created",
-  "refund.updated",
-  "refund.failed",
-])
-const DISPUTE_EVENT_TYPES = new Set([
-  "charge.dispute.created",
-  "charge.dispute.updated",
-  "charge.dispute.closed",
-])
+const BACKGROUND_CHECKOUT_EVENT_TYPES = new Set(STRIPE_BACKGROUND_CHECKOUT_WEBHOOK_EVENTS)
+const REFUND_EVENT_TYPES = new Set(STRIPE_BACKGROUND_REFUND_WEBHOOK_EVENTS)
+const DISPUTE_EVENT_TYPES = new Set(STRIPE_BACKGROUND_DISPUTE_WEBHOOK_EVENTS)
+const MEMBERSHIP_EVENT_TYPES = new Set(STRIPE_MEMBERSHIP_WEBHOOK_EVENTS)
 
 function processorObjectId(value: unknown) {
   if (typeof value === "string") return value
@@ -88,13 +81,7 @@ export async function POST(request: Request) {
     // membership or commerce mutation, preserving the existing donation path.
   }
 
-  if (
-    event?.type === "customer.subscription.created" ||
-    event?.type === "customer.subscription.updated" ||
-    event?.type === "customer.subscription.deleted" ||
-    event?.type === "customer.subscription.paused" ||
-    event?.type === "customer.subscription.resumed"
-  ) {
+  if (MEMBERSHIP_EVENT_TYPES.has(event?.type)) {
     const subscription = await upsertMembershipSubscriptionFromStripe(prisma, object)
     clearAccountSurfaceDataCache(subscription?.userId, "membership")
   }

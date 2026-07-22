@@ -817,18 +817,12 @@ it("a full refund revokes all selected purchase ownerships", async () => {
   assert.deepEqual(state.ownerships.slice(0, 2).map((ownership) => ownership.status), ["REFUND_REVOKED", "REFUND_REVOKED"])
 })
 
-it("routes the pinned Stripe refund and dispute events through reversal services", async () => {
+it("routes the shared Stripe refund and dispute contracts through reversal services", async () => {
   const route = await readFile(new URL("../app/api/billing/webhook/route.ts", import.meta.url), "utf8")
-  for (const eventType of [
-    "refund.created",
-    "refund.updated",
-    "refund.failed",
-    "charge.dispute.created",
-    "charge.dispute.updated",
-    "charge.dispute.closed",
-  ]) {
-    assert.match(route, new RegExp(`['\"]${eventType.replaceAll(".", "\\.")}['\"]`))
-  }
+  assert.match(route, /STRIPE_BACKGROUND_REFUND_WEBHOOK_EVENTS/)
+  assert.match(route, /STRIPE_BACKGROUND_DISPUTE_WEBHOOK_EVENTS/)
+  assert.match(route, /new Set\(STRIPE_BACKGROUND_REFUND_WEBHOOK_EVENTS\)/)
+  assert.match(route, /new Set\(STRIPE_BACKGROUND_DISPUTE_WEBHOOK_EVENTS\)/)
   assert.match(route, /applyStripeRefundEvent/)
   assert.match(route, /applyStripeDisputeEvent/)
   assert.match(route, /charges\.retrieve/)

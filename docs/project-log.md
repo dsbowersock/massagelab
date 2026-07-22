@@ -4,6 +4,31 @@ This is the canonical chronological planning and progress log for MassageLab. Us
 
 Existing plans, audits, roadmaps, and checklists remain source evidence. Keep them for context, but mirror meaningful progress, plan changes, and priority changes in [project-state.md](project-state.md) and here.
 
+## 2026-07-22 — Background commerce readiness and cleanup proof correction
+
+- Corrected Stripe verify mode to validate the one pinned webhook endpoint
+  against the app's shared contract: enabled status, exact
+  `2026-02-25.clover` API version, five membership events plus ten commerce
+  events, and strict event-set equality that rejects wildcard, extra, duplicate,
+  or missing subscriptions. The local `BACKGROUND_COMMERCE_WEBHOOK_EVENTS`
+  signal remains the exact commerce-only subset.
+- Added pure RED/GREEN endpoint-contract coverage and shared the event/version
+  constants with the webhook route and Stripe client so readiness cannot drift
+  from handled events or the app API version.
+- Replaced best-effort Stripe test cleanup with a tested fail-closed helper. It
+  rejects live mode/keys before any API call, expires and re-retrieves the test
+  Checkout Session, deletes and re-retrieves the test Customer, aggregates only
+  safe failure codes, and withholds successful rollout evidence unless every
+  cleanup response and terminal-state check passes.
+- Repeated migration, two-pass verified-user backfill, the full synthetic
+  lifecycle rollout backed by a real Stripe test Customer and two-item Checkout
+  Session, and read-only reconciliation on a freshly reset disposable Neon
+  branch with all database variables pinned to its exact direct host. An initial
+  attempt failed closed before Session creation because explicit nonsecret
+  commerce readiness values were absent; its test Customer was cleaned through
+  the verified Customer-only path before the disposable branch was reset and
+  rerun with rotated synthetic identifiers.
+
 ## 2026-07-21 — Background commerce foundation operationalization
 
 - Completed Track 1A on `codex/background-commerce-foundation`: one-time verified-account credits, permanent credit/purchase ownership, persistent carts and reservations, multi-item Stripe Checkout, replay-safe fulfillment, exact-item refunds, disputes, retirement replacement credits, identifier-only reconciliation, safe user snapshots, and full-account-admin operations are implemented without adding Track 1B purchase UI or changing the public Roadmap.

@@ -11,6 +11,12 @@ import process from "node:process"
 import Stripe from "stripe"
 import { config as loadDotenv } from "dotenv"
 import { DIGITAL_PURCHASES_REFUNDS_VERSION } from "../lib/legal-documents.js"
+import {
+  STRIPE_API_VERSION,
+  STRIPE_BACKGROUND_COMMERCE_WEBHOOK_EVENTS,
+  STRIPE_PINNED_WEBHOOK_URL,
+  validatePinnedStripeWebhookEndpoint,
+} from "../lib/stripe-webhook-contract.js"
 
 const REQUIRED_PRICE_VARS = Object.freeze([
   ["STRIPE_SUPPORTER_MONTHLY_PRICE_ID", "SUPPORTER", "month"],
@@ -20,20 +26,6 @@ const REQUIRED_PRICE_VARS = Object.freeze([
   ["STRIPE_PRACTICE_MONTHLY_PRICE_ID", "PRACTICE", "month"],
   ["STRIPE_PRACTICE_YEARLY_PRICE_ID", "PRACTICE", "year"],
 ])
-
-const BACKGROUND_COMMERCE_WEBHOOK_EVENTS = Object.freeze([
-  "checkout.session.completed",
-  "checkout.session.expired",
-  "checkout.session.async_payment_succeeded",
-  "checkout.session.async_payment_failed",
-  "refund.created",
-  "refund.updated",
-  "refund.failed",
-  "charge.dispute.created",
-  "charge.dispute.updated",
-  "charge.dispute.closed",
-])
-const PINNED_WEBHOOK_URL = "https://www.massagelab.app/api/billing/webhook"
 
 const rawArgs = process.argv.slice(2)
 const args = new Set(rawArgs.filter((arg) => !arg.startsWith("--env-file=")))
@@ -48,6 +40,8 @@ const warnings = []
 const priceIds = new Map()
 let commerceWebhookCoverageComplete = false
 let verifiedWebhookCoverageComplete = !verifyStripe
+let verifiedWebhookEndpointEnabled = !verifyStripe
+let verifiedWebhookApiVersionCurrent = !verifyStripe
 
 if (!noDotenv) {
   loadEnvironment(explicitEnvFile)
@@ -179,8 +173,8 @@ function checkBackgroundCommerceReadiness() {
     .split(",")
     .map((event) => event.trim())
     .filter(Boolean))
-  commerceWebhookCoverageComplete = configuredEvents.size === BACKGROUND_COMMERCE_WEBHOOK_EVENTS.length
-    && BACKGROUND_COMMERCE_WEBHOOK_EVENTS.every((event) => configuredEvents.has(event))
+  commerceWebhookCoverageComplete = configuredEvents.size === STRIPE_BACKGROUND_COMMERCE_WEBHOOK_EVENTS.length
+    && STRIPE_BACKGROUND_COMMERCE_WEBHOOK_EVENTS.every((event) => configuredEvents.has(event))
   const webhookReady = isExplicitTrue(envValue("BACKGROUND_COMMERCE_WEBHOOK_READY"))
   const reconciliationReady = isExplicitTrue(envValue("BACKGROUND_COMMERCE_RECONCILIATION_READY"))
   const taxMode = envValue("BACKGROUND_COMMERCE_TAX_MODE").toLowerCase()
@@ -227,7 +221,7 @@ async function verifyStripePrices() {
   }
 
   const stripe = new Stripe(envValue("STRIPE_SECRET_KEY"), {
-    apiVersion: "2026-06-24.dahlia",
+    apiVersion: STRIPE_API_VERSION,
   })
 
   for (const [priceId, expected] of priceIds) {
@@ -269,17 +263,23 @@ async function verifyStripePrices() {
 
   try {
     const endpoints = await stripe.webhookEndpoints.list({ limit: 100 })
-    const endpoint = endpoints.data.find((candidate) => (
-      candidate.url === PINNED_WEBHOOK_URL && candidate.status !== "disabled"
-    ))
-    const enabledEvents = new Set(endpoint?.enabled_events ?? [])
-    verifiedWebhookCoverageComplete = Boolean(endpoint)
-      && (enabledEvents.has("*") || BACKGROUND_COMMERCE_WEBHOOK_EVENTS.every((event) => enabledEvents.has(event)))
-    if (!verifiedWebhookCoverageComplete) {
-      addFailure("The pinned Stripe webhook endpoint does not cover every required background-commerce event.")
+    const endpoint = endpoints.data.find((candidate) => candidate.url === STRIPE_PINNED_WEBHOOK_URL)
+    const endpointResult = validatePinnedStripeWebhookEndpoint(endpoint)
+    verifiedWebhookCoverageComplete = endpointResult.eventSetExact
+    verifiedWebhookEndpointEnabled = endpointResult.enabled
+    verifiedWebhookApiVersionCurrent = endpointResult.apiVersionCurrent
+    if (!endpointResult.endpointFound) addFailure("The pinned Stripe webhook endpoint was not found.")
+    if (endpointResult.endpointFound && !endpointResult.enabled) addFailure("The pinned Stripe webhook endpoint is not enabled.")
+    if (endpointResult.endpointFound && !endpointResult.apiVersionCurrent) {
+      addFailure("The pinned Stripe webhook endpoint API version does not match the app.")
+    }
+    if (endpointResult.endpointFound && !endpointResult.eventSetExact) {
+      addFailure("The pinned Stripe webhook endpoint event set does not exactly match the app contract.")
     }
   } catch {
     verifiedWebhookCoverageComplete = false
+    verifiedWebhookEndpointEnabled = false
+    verifiedWebhookApiVersionCurrent = false
     addFailure("The pinned Stripe webhook endpoint could not be verified.")
   }
 }
@@ -292,6 +292,8 @@ function printResults(commerce) {
   console.log(`Background commerce digital-purchase document current: ${commerce.digitalPurchaseDocumentCurrent}`)
   console.log(`Background commerce webhook readiness configured: ${commerce.webhookReady}`)
   console.log(`Background commerce webhook event coverage complete: ${commerceWebhookCoverageComplete && verifiedWebhookCoverageComplete}`)
+  console.log(`Pinned Stripe webhook endpoint enabled: ${verifiedWebhookEndpointEnabled}`)
+  console.log(`Pinned Stripe webhook API version current: ${verifiedWebhookApiVersionCurrent}`)
   console.log(`Background commerce reconciliation configured: ${commerce.reconciliationReady}`)
   console.log(`Background commerce tax mode: ${commerce.taxMode}`)
 

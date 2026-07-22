@@ -98,7 +98,9 @@ Pricing and legal copy should also say that MassageLab does not sell user data a
 - Create active Stripe recurring Products and Prices only for Supporter, Therapist, and Practice.
 - Configure monthly and yearly Price IDs in the matching `STRIPE_*_PRICE_ID` environment variables.
 - Enable Stripe Customer Portal for subscription management, payment method updates, invoices, and cancellation.
-- Configure the webhook endpoint at `/api/billing/webhook` and subscribe it to Checkout Session and customer subscription lifecycle events.
+- Configure the pinned `/api/billing/webhook` endpoint as enabled on the
+  app's `2026-02-25.clover` Stripe API version with exactly the combined
+  membership and background-commerce event contract below.
 - Set `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and the configured price IDs in local development and Vercel.
 - Use the Stripe CLI in test mode to forward webhooks during local checkout testing.
 - Before public paid signup, run `npm run stripe:readiness -- --env-file=/secure/path/massagelab-production.env --live --verify-stripe` against the production Stripe environment. The check must pass without printing secret values.
@@ -174,9 +176,21 @@ The pinned `/api/billing/webhook` endpoint must subscribe to:
 - `charge.dispute.updated`
 - `charge.dispute.closed`
 
-Membership subscription events remain required by the existing membership
-contract. Verify mode checks the active production endpoint rather than trusting
-the local readiness signal alone.
+The same endpoint must also subscribe to the membership contract:
+
+- `customer.subscription.created`
+- `customer.subscription.updated`
+- `customer.subscription.deleted`
+- `customer.subscription.paused`
+- `customer.subscription.resumed`
+
+Verify mode checks the pinned production URL rather than trusting the local
+readiness signal alone. It requires `status=enabled`, the exact app API version
+`2026-02-25.clover`, and equality with this combined 15-event set. Missing
+events, extra events, duplicates, and Stripe's `*` wildcard all fail readiness.
+`BACKGROUND_COMMERCE_WEBHOOK_EVENTS` remains the exact ten-event
+background-commerce subset because membership events are not deployment values
+for that commerce-only signal.
 
 ### Refunds, Disputes, Retirement, And Reconciliation
 
