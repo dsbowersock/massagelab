@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma"
 import { AppPageShell, appInsetClassName, appSurfaceClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { getCommerceAdminUser } from "@/lib/commerce/admin-access"
+import { listCommerceAdminOperations } from "@/lib/commerce/admin-service"
 
 type AdminDashboardMetrics = {
   mediaLinksNeedingReview: number
@@ -14,8 +16,12 @@ type AdminDashboardMetrics = {
 }
 
 export default async function AdminDashboardPage() {
-  await requireAnatomyAdminUser()
-  const metrics = await getAdminDashboardMetrics()
+  const anatomyAdmin = await requireAnatomyAdminUser()
+  const commerceAdmin = await getCommerceAdminUser({ sessionUserId: anatomyAdmin.id })
+  const [metrics, commerceQueue] = await Promise.all([
+    getAdminDashboardMetrics(),
+    commerceAdmin ? listCommerceAdminOperations({ prismaClient: prisma }) : Promise.resolve([]),
+  ])
 
   return (
     <AppPageShell title="Admin" className="p-3 sm:p-6 lg:p-8" contentClassName="gap-4">
@@ -35,6 +41,11 @@ export default async function AdminDashboardPage() {
               <Button asChild variant="outline">
                 <Link href="/admin/anatomy">Anatomy browser</Link>
               </Button>
+              {commerceAdmin ? (
+                <Button asChild variant="outline">
+                  <Link href="/admin/commerce">Commerce ({commerceQueue.length})</Link>
+                </Button>
+              ) : null}
             </div>
           </div>
 
@@ -70,6 +81,13 @@ export default async function AdminDashboardPage() {
               title="Maintenance"
               description="Check correction flags, source records, open media requests, and review-oriented admin lists."
             />
+            {commerceAdmin ? (
+              <DashboardAction
+                href="/admin/commerce"
+                title={`Commerce (${commerceQueue.length})`}
+                description="Review payment exceptions, pending refunds, disputes, and reconciliation states."
+              />
+            ) : null}
           </section>
         </CardContent>
       </Card>
