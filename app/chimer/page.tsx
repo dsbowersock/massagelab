@@ -123,9 +123,7 @@ export default function ChimerPage() {
     [returnToParam],
   )
   const requestedInitialPanel = (
-    immersiveContext === "musicVisualizer" && searchParams.get("panel") === "background"
-      ? "background"
-      : null
+    searchParams.get("panel") === "background" ? "background" : null
   )
   const [settings, setSettings] = useState<ChimerSettings>(DEFAULT_CHIMER_SETTINGS as ChimerSettings)
   const [timerState, setTimerState] = useState<TimerState>(() => (
@@ -947,7 +945,7 @@ export default function ChimerPage() {
         selectedBackgroundId: settings.backgroundId,
         showClock: settings.showClockDisplay,
         canToggleClock: true,
-        initialPanel: null,
+        initialPanel: requestedInitialPanel,
         unavailableBackgroundMessage: null,
         storageStatus: "available",
         storageError: null,
@@ -965,7 +963,7 @@ export default function ChimerPage() {
         selectedBackgroundId: settings.backgroundId,
         showClock: true,
         canToggleClock: false,
-        initialPanel: null,
+        initialPanel: requestedInitialPanel,
         unavailableBackgroundMessage: null,
         storageStatus: "available",
         storageError: null,
@@ -1002,6 +1000,7 @@ export default function ChimerPage() {
             isResolvingSync={isResolvingSync}
             featureKeys={featureKeys}
             backgroundCategory={backgroundCategory}
+            initialStep={requestedInitialPanel === "background" ? 3 : 0}
             onTimeClick={openTimeModal}
             onSettingsChange={updateSettings}
             onStartTimer={startTimer}

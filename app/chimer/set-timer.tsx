@@ -4660,6 +4660,7 @@ interface SetTimerProps {
   isResolvingSync: boolean
   featureKeys: string[]
   backgroundCategory: BackgroundCategory
+  initialStep?: number
   onTimeClick: (unit: "hours" | "minutes") => void
   onSettingsChange: (settings: Partial<ChimerSettings>) => void
   onStartTimer: (options?: ChimerSetupStartOptions) => void
@@ -4727,6 +4728,7 @@ export function SetTimer({
   isResolvingSync,
   featureKeys,
   backgroundCategory,
+  initialStep = 0,
   onTimeClick,
   onSettingsChange,
   onStartTimer,
@@ -4736,7 +4738,9 @@ export function SetTimer({
   onUseDeviceSettings,
   onUseSavedSettings,
 }: SetTimerProps) {
-  const [activeStep, setActiveStep] = useState(0)
+  const [activeStep, setActiveStep] = useState(() => (
+    Math.min(CHIMER_SETUP_STEPS.length - 1, Math.max(0, Math.trunc(initialStep)))
+  ))
   const [savedPresets, setSavedPresets] = useState<ChimerSetupPreset[]>([])
   const [lastSetupPreset, setLastSetupPreset] = useState<ChimerSetupPresetState | null>(null)
   const [selectedPresetId, setSelectedPresetId] = useState("")

@@ -42,6 +42,7 @@ function createSnapshotDatabase() {
       totalCents: 220,
       currency: "usd",
       createdAt: ORDER_CREATED_AT,
+      returnPath: "/clock",
       stripeCheckoutSessionId: "cs_secret",
       failureCode: "DECLINE_RAW",
       legalAcceptance: { ipAddress: "203.0.113.7" },
@@ -161,6 +162,7 @@ describe("background commerce safe snapshot", () => {
       totalAmount: 220,
       currency: "usd",
       createdAt: ORDER_CREATED_AT.toISOString(),
+      returnPath: "/clock",
     }])
 
     assert.deepEqual(Object.keys(snapshot.ownerships[0]), [
@@ -178,6 +180,7 @@ describe("background commerce safe snapshot", () => {
       "totalAmount",
       "currency",
       "createdAt",
+      "returnPath",
     ])
     assert.doesNotMatch(
       JSON.stringify(snapshot),

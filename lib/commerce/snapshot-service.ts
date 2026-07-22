@@ -20,6 +20,7 @@ export type BackgroundCommerceSnapshot = {
     totalAmount: number
     currency: "usd"
     createdAt: string
+    returnPath: string
   }>
 }
 
@@ -54,7 +55,7 @@ export function commerceApiErrorResponse(error: unknown): Response {
 type SnapshotPrismaClient = {
   backgroundCreditWallet: { findUnique(input: unknown): Promise<{ balance: number } | null> }
   backgroundOwnership: { findMany(input: unknown): Promise<Array<{ backgroundKey: string; source: string; status: string; acquiredAt: Date }>> }
-  commerceOrder: { findMany(input: unknown): Promise<Array<{ id: string; status: string; subtotalCents: number; taxCents: number; totalCents: number; currency: string; createdAt: Date; _count: { items: number } }>> }
+  commerceOrder: { findMany(input: unknown): Promise<Array<{ id: string; status: string; subtotalCents: number; taxCents: number; totalCents: number; currency: string; createdAt: Date; returnPath: string; _count: { items: number } }>> }
 }
 
 const OWNERSHIP_STATUSES = new Set([
@@ -87,7 +88,7 @@ export async function getBackgroundCommerceSnapshot(input: {
       take: 10,
       select: {
         id: true, status: true, subtotalCents: true, taxCents: true,
-        totalCents: true, currency: true, createdAt: true, _count: { select: { items: true } },
+        totalCents: true, currency: true, createdAt: true, returnPath: true, _count: { select: { items: true } },
       },
     }),
     cartPromise,
@@ -120,6 +121,7 @@ export async function getBackgroundCommerceSnapshot(input: {
       totalAmount: order.totalCents,
       currency: "usd",
       createdAt: order.createdAt.toISOString(),
+      returnPath: order.returnPath,
     })),
   }
 }

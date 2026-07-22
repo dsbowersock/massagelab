@@ -33,7 +33,7 @@ export type PurchaseConsentInput = {
   acceptedLegalDocuments: string[]
   combinedConsentAccepted: boolean
   purchaseCountry: "US"
-  returnPath?: "clock" | "chimer" | "music-visualizer"
+  returnPath?: string
 }
 
 export type BackgroundCommerceContextValue = {

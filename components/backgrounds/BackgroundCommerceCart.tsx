@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { ShoppingCart, Trash2 } from "lucide-react"
 import { usePathname } from "next/navigation"
+import { BackgroundCheckoutReview } from "@/components/backgrounds/BackgroundCheckoutReview"
 import { useBackgroundCommerce } from "@/components/backgrounds/BackgroundCommerceProvider"
 import { Button } from "@/components/ui/button"
 import {
@@ -155,30 +156,44 @@ export function BackgroundCommerceCart({
   onReviewCheckout?: () => void
 }) {
   const { cartOpen, closeCart } = useBackgroundCommerce()
+  const [reviewOpen, setReviewOpen] = useState(false)
   const pathname = usePathname() ?? ""
   const isCalendarRoute = pathname === "/calendar" || pathname.startsWith("/calendar/")
+  const beginReview = () => {
+    onReviewCheckout?.()
+    if (variant === "dialog") closeCart()
+    setReviewOpen(true)
+  }
 
   useEffect(() => {
     if (variant === "dialog" && isCalendarRoute && cartOpen) closeCart()
   }, [cartOpen, closeCart, isCalendarRoute, variant])
 
-  if (variant === "compact") {
-    return <CartContents compact onReviewCheckout={onReviewCheckout} />
-  }
-
   if (isCalendarRoute) return null
 
+  if (variant === "compact") {
+    return (
+      <>
+        <CartContents compact onReviewCheckout={beginReview} />
+        <BackgroundCheckoutReview open={reviewOpen} onOpenChange={setReviewOpen} />
+      </>
+    )
+  }
+
   return (
-    <Dialog open={cartOpen} onOpenChange={(open) => { if (!open) closeCart() }}>
-      <DialogContent className="max-h-[min(80dvh,44rem)] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Account cart</DialogTitle>
-          <DialogDescription>
-            Permanent MassageLab background purchases. Provider services and Calendar sales are separate.
-          </DialogDescription>
-        </DialogHeader>
-        <CartContents compact={false} onReviewCheckout={onReviewCheckout} />
-      </DialogContent>
-    </Dialog>
+    <>
+      <Dialog open={cartOpen} onOpenChange={(open) => { if (!open) closeCart() }}>
+        <DialogContent className="max-h-[min(80dvh,44rem)] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Account cart</DialogTitle>
+            <DialogDescription>
+              Permanent MassageLab background purchases. Provider services and Calendar sales are separate.
+            </DialogDescription>
+          </DialogHeader>
+          <CartContents compact={false} onReviewCheckout={beginReview} />
+        </DialogContent>
+      </Dialog>
+      <BackgroundCheckoutReview open={reviewOpen} onOpenChange={setReviewOpen} />
+    </>
   )
 }
