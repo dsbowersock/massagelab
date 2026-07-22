@@ -263,7 +263,7 @@ function evidenceFailure(
     || (order.stripeCheckoutSessionId !== null
       && order.stripeCheckoutSessionId !== evidence.sessionId)
     || evidence.customerId !== stripeCustomerId
-    || evidence.country !== "US"
+    || (requirePaidEvidence && evidence.country !== "US")
     || evidence.currency !== order.currency
     || evidence.amountSubtotal !== order.subtotalCents
     || evidence.amountTax !== order.taxCents

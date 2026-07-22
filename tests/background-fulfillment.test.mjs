@@ -387,6 +387,32 @@ describe("background purchase fulfillment", () => {
     assert.equal(second.state.order.status, "PAYMENT_FAILED")
   })
 
+  it("expires a trusted unpaid Session without final customer or payment details", async () => {
+    const { prismaClient, state } = createPrismaDouble()
+    const session = paidSession({
+      status: "expired",
+      payment_status: "unpaid",
+      customer_details: null,
+      payment_intent: null,
+    })
+
+    const result = await fulfill(
+      prismaClient,
+      "evt_expired_without_details",
+      session,
+      "checkout.session.expired",
+    )
+
+    assert.equal(result.status, "EXPIRED")
+    assert.equal(result.changed, true)
+    assert.equal(state.order.status, "EXPIRED")
+    assert.equal(state.order.fulfillmentStatus, "PENDING")
+    assert.equal(state.order.stripeCheckoutSessionId, "cs_1")
+    assert.equal(state.order.reservationExpiresAt, null)
+    assert.equal(state.ownerships.length, 0)
+    assert.equal(state.payments.length, 0)
+  })
+
   it("does not let a late completed-pending event revive a failed order", async () => {
     const { prismaClient, state } = createPrismaDouble()
     const unpaid = paidSession({ payment_status: "unpaid" })

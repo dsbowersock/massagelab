@@ -86,13 +86,12 @@ transition atomically.
 ## Validation
 
 - node --test tests/background-fulfillment.test.mjs tests/stripe-billing.test.mjs
-  - PASS, 34/34 tests across 2 suites.
+  - PASS, 35/35 tests across 2 suites after the expired-session review fix.
 - node --test tests/background-checkout.test.mjs tests/background-fulfillment.test.mjs tests/stripe-billing.test.mjs
-  - PASS, 59/59 tests across 6 suites before the final added concurrency case;
-    the final focused command above includes that case.
+  - PASS, 61/61 tests across 6 suites after the expired-session review fix.
 - npm run test
-  - PASS, 1,237/1,237 tests across 135 suites after the final concurrency
-    hardening.
+  - PASS, 1,238/1,238 tests across 135 suites after the expired-session
+    review fix.
 - npm run typecheck
   - PASS.
 - npm run lint
@@ -115,4 +114,39 @@ transition atomically.
 
 ## Commit
 
-- Planned task commit: feat: fulfill background purchases from webhooks
+- e28ac44 feat: fulfill background purchases from webhooks
+- Planned review-fix commit: fix: expire unpaid background checkouts safely
+
+## Important Expired-Session Review Fix
+
+Date: 2026-07-21
+
+### RED Evidence
+
+- Command: node --test tests/background-fulfillment.test.mjs
+- Result: FAIL, 19/20 tests passed.
+- Exact defect: a valid Stripe v22 expired/unpaid Session with trusted Session,
+  order, user, customer, currency, amount, and item binding evidence but
+  customer_details=null and payment_intent=null transitioned to REVIEW_REQUIRED
+  instead of EXPIRED.
+
+### Fix
+
+- Final U.S. billing-country evidence remains mandatory before paid ownership
+  fulfillment.
+- Expired/unpaid handling no longer requires final country evidence that Stripe
+  does not guarantee on an abandoned Session.
+- Stable Session/order/user/customer binding, schema version, currency,
+  subtotal/tax/total, line-item keys, quantities, amounts, and adapter snapshots
+  remain required when present in the retrieved Session.
+- Expiry still grants no ownership, creates no payment without a PaymentIntent,
+  clears the reservation, and preserves the cart.
+
+### Final Validation
+
+- Focused Task 7: PASS, 35/35.
+- Task 6 checkout plus Task 7: PASS, 61/61.
+- Full npm test: PASS, 1,238/1,238 across 135 suites.
+- npm run typecheck: PASS.
+- npm run lint: PASS.
+- git diff --check: PASS; Windows LF/CRLF normalization warnings only.
