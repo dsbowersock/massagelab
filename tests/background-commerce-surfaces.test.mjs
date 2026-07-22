@@ -76,3 +76,57 @@ describe("production background commerce states", () => {
     assert.match(selector, /Loading credits/)
   })
 })
+
+describe("background acquisition and shared account cart", () => {
+  const acquisitionPath = new URL("../components/backgrounds/BackgroundAcquisitionDialog.tsx", import.meta.url)
+  const confirmationPath = new URL("../components/backgrounds/BackgroundCreditConfirmationDialog.tsx", import.meta.url)
+  const cartPath = new URL("../components/backgrounds/BackgroundCommerceCart.tsx", import.meta.url)
+  const triggerPath = new URL("../components/commerce/CommerceCartTrigger.tsx", import.meta.url)
+  const layoutPath = new URL("../components/layout-wrapper.tsx", import.meta.url)
+
+  it("offers exactly the approved locked-card actions and subscriber distinction", async () => {
+    const source = await readFile(acquisitionPath, "utf8")
+    for (const label of ["Use free credit", "Buy for $1", "Unlock all"]) {
+      assert.equal(source.split(label).length - 1, 1)
+    }
+    assert.match(source, /mode === "keep-permanently"/)
+    assert.match(source, /creditBalance === 0/)
+    assert.match(source, /\/account\?tab=membership/)
+  })
+
+  it("requires explicit permanent and non-swappable credit confirmation", async () => {
+    const source = await readFile(confirmationPath, "utf8")
+    assert.match(source, /permanently owned/i)
+    assert.match(source, /cannot be swapped/i)
+    assert.match(source, /type="checkbox"/)
+    assert.match(source, /disabled=\{!confirmed/)
+    assert.match(source, /idempotencyKey/)
+  })
+
+  it("renders persistent cart lines, notices, reservation controls, and tax wording", async () => {
+    const source = await readFile(cartPath, "utf8")
+    for (const label of [
+      "Review checkout",
+      "Estimated tax",
+      "Permanent access after membership ends",
+      "Remove",
+      "Return to checkout",
+      "Cancel reservation",
+    ]) {
+      assert.match(source, new RegExp(label))
+    }
+    assert.match(source, /cart\.notices/)
+    assert.match(source, /reservedOrder/)
+  })
+
+  it("shows one shared conditional trigger outside Calendar provider-sales surfaces", async () => {
+    const trigger = await readFile(triggerPath, "utf8")
+    const layout = await readFile(layoutPath, "utf8")
+    assert.match(trigger, /pathname === "\/calendar"/)
+    assert.match(trigger, /cart\?\.items\.length/)
+    assert.match(trigger, /cart\?\.reservedOrder/)
+    assert.match(trigger, /aria-label/)
+    assert.match(layout, /<BackgroundCommerceCart variant="dialog"/)
+    assert.equal((layout.match(/<BackgroundCommerceCart variant="dialog"/g) ?? []).length, 1)
+  })
+})

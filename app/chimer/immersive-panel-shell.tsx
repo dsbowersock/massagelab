@@ -14,6 +14,7 @@ import {
   useState,
 } from "react"
 
+import { BackgroundCommerceCart } from "@/components/backgrounds/BackgroundCommerceCart"
 import { CHIMER_CONTROL_PORTAL_SELECTOR } from "@/components/chimer-controls/GlobalColorPicker"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -505,6 +506,7 @@ export function ImmersivePanelShell({
             {backgroundUnavailableMessage ? (
               <p className={styles.unavailableMessage} role="status">{backgroundUnavailableMessage}</p>
             ) : null}
+            <BackgroundCommerceCart variant="compact" />
             <div className={styles.backgroundScroller}>{backgroundContent}</div>
           </DialogPrimitive.Content>
         </DialogPrimitive.Portal>

@@ -14,6 +14,7 @@ import {
   Settings2,
 } from "lucide-react"
 import { useCalendarOperatorToolbarSlot } from "@/components/calendar/calendar-operator-toolbar-context"
+import { CommerceCartTrigger } from "@/components/commerce/CommerceCartTrigger"
 import { useResolvedTheme, useSettings } from "@/components/providers/settings-provider"
 import type { SidebarUser } from "@/components/sidebar/app-sidebar-client"
 import { useSidebarCalendarContext } from "@/components/sidebar/sidebar-calendar-provider"
@@ -536,6 +537,10 @@ export function CalendarOperatorTopBar({
       {layout.toolItemIds.map((itemId) => (
         <Fragment key={itemId}>{toolControls[itemId]}</Fragment>
       ))}
+      <CommerceCartTrigger
+        signedIn={Boolean(user)}
+        className="ml-shell-main-bar-control"
+      />
     </div>
   )
   const drawerBrandCluster = (

@@ -2,6 +2,7 @@
 
 import { useEffect, type ReactNode } from "react"
 import { usePathname } from "next/navigation"
+import { BackgroundCommerceCart } from "@/components/backgrounds/BackgroundCommerceCart"
 import { BackgroundCommerceProvider } from "@/components/backgrounds/BackgroundCommerceProvider"
 import { CalendarOperatorTopBar } from "@/components/calendar/calendar-operator-top-bar"
 import { CalendarOperatorToolbarProvider } from "@/components/calendar/calendar-operator-toolbar-context"
@@ -89,6 +90,7 @@ export function LayoutWrapper({
   return (
     <BackgroundCommerceProvider enabled={Boolean(user)}>
       {content}
+      <BackgroundCommerceCart variant="dialog" />
     </BackgroundCommerceProvider>
   )
 }

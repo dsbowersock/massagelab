@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { CalendarDays, Clock, Menu, Music2, Plus } from "lucide-react"
+import { CommerceCartTrigger } from "@/components/commerce/CommerceCartTrigger"
 import { ThemeSwitcherMultiButton } from "@/components/theme-switcher-multi-button"
 import { Button } from "@/components/ui/button"
 import { TooltipProvider } from "@/components/ui/tooltip"
@@ -133,6 +134,10 @@ export function MobileMainBar({ user }: { user: SidebarUser }) {
           {layout.drawerEdge === "left" ? edgeCluster : null}
           <div className="ml-main-bar-tools">
             {layout.toolItemIds.map((id) => <React.Fragment key={id}>{itemById.get(id)?.node}</React.Fragment>)}
+            <CommerceCartTrigger
+              signedIn={Boolean(user)}
+              className="ml-main-bar-button rounded-full"
+            />
           </div>
           {layout.drawerEdge === "right" ? edgeCluster : null}
         </div>

@@ -8,6 +8,7 @@ import {
   useMemo,
   useReducer,
   useRef,
+  useState,
   type ReactNode,
 } from "react"
 import {
@@ -42,6 +43,10 @@ export type BackgroundCommerceContextValue = {
   removeFromCart(backgroundId: string): Promise<void>
   redeemCredit(backgroundId: string, idempotencyKey: string): Promise<void>
   startCheckout(consent: PurchaseConsentInput): Promise<void>
+  cancelReservation(orderId: string): Promise<void>
+  cartOpen: boolean
+  openCart(): void
+  closeCart(): void
 }
 
 const PUBLIC_ERROR_MESSAGES: Record<string, string> = {
@@ -166,6 +171,7 @@ export function BackgroundCommerceProvider({
   const mutationControllersRef = useRef(new Set<AbortController>())
   const mutationQueueRef = useRef<Promise<void>>(Promise.resolve())
   const mutationActiveRef = useRef(false)
+  const [cartOpen, setCartOpen] = useState(false)
 
   const refresh = useCallback(async () => {
     if (!enabled) return
@@ -253,6 +259,17 @@ export function BackgroundCommerceProvider({
     })
   ), [enqueueMutation])
 
+  const cancelReservation = useCallback((orderId: string) => (
+    enqueueMutation("cancel-reservation", async (signal) => {
+      await mutate(
+        "/api/background-commerce/checkout/cancel",
+        "POST",
+        { orderId },
+        signal,
+      )
+    })
+  ), [enqueueMutation])
+
   const startCheckout = useCallback(async (consent: PurchaseConsentInput) => {
     if (!enabled) {
       throw new BackgroundCommerceClientError({
@@ -310,6 +327,9 @@ export function BackgroundCommerceProvider({
     for (const controller of mutationControllersRef.current) controller.abort()
   }, [])
 
+  const openCart = useCallback(() => setCartOpen(true), [])
+  const closeCart = useCallback(() => setCartOpen(false), [])
+
   const value = useMemo<BackgroundCommerceContextValue>(() => ({
     state,
     refresh,
@@ -317,7 +337,22 @@ export function BackgroundCommerceProvider({
     removeFromCart,
     redeemCredit,
     startCheckout,
-  }), [state, refresh, addToCart, removeFromCart, redeemCredit, startCheckout])
+    cancelReservation,
+    cartOpen,
+    openCart,
+    closeCart,
+  }), [
+    state,
+    refresh,
+    addToCart,
+    removeFromCart,
+    redeemCredit,
+    startCheckout,
+    cancelReservation,
+    cartOpen,
+    openCart,
+    closeCart,
+  ])
 
   return (
     <BackgroundCommerceContext.Provider value={value}>
