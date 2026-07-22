@@ -37,6 +37,8 @@ export default async function VerifyEmailPage({
         })
         await ensureUserRole(record.userId, record.email, tx)
       })
+      // Keep verification durable: wallet provisioning is best-effort, and the
+      // idempotent repair/backfill path reconciles any deferred credits.
       await ensureVerifiedUserBackgroundCredits(prisma, record.userId).catch(() => {
         console.error("Background credit provisioning deferred after email verification.")
       })

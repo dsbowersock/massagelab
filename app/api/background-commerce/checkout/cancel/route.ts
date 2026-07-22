@@ -70,6 +70,8 @@ export function createBackgroundCheckoutCancelPostHandler(
 
       if (!order.stripeCheckoutSessionId) {
         const cancellationNow = deps.now()
+        // Do not release a potentially live processor session: explicit
+        // cancellation is safe only after the same reservation-expiry boundary.
         const sessionlessIndeterminateExpired = order.status === "AWAITING_PAYMENT"
           && Boolean(order.reservationExpiresAt)
           && order.reservationExpiresAt!.getTime() <= cancellationNow.getTime()

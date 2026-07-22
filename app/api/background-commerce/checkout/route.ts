@@ -676,6 +676,8 @@ export function createBackgroundCheckoutPostHandler(
         }
         if (!activeOrder.stripeCheckoutSessionId) {
           const recoveryNow = deps.now()
+          // Expiry is the only durable proof that a sessionless indeterminate
+          // checkout can be failed atomically so a new checkout may be prepared.
           if (
             activeOrder.reservationExpiresAt
             && activeOrder.reservationExpiresAt.getTime() <= recoveryNow.getTime()

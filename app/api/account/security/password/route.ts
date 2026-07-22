@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client"
-import { NextResponse } from "next/server"
+import { after, NextResponse } from "next/server"
 import { getCurrentSession } from "@/auth"
 import { clearAccountSurfaceDataCache } from "@/lib/account-surface-data"
 import { hashPassword, verifyPassword } from "@/lib/auth-security"
@@ -63,9 +63,9 @@ export async function POST(request: Request) {
       })
     }
   })
-  await ensureVerifiedUserBackgroundCredits(prisma, user.id).catch(() => {
-    console.error("Background credit provisioning deferred after a password security update.")
-  })
+  after(() => ensureVerifiedUserBackgroundCredits(prisma, user.id).catch((error) => {
+    console.error("Background credit provisioning deferred after a password security update.", error)
+  }))
   clearAccountSurfaceDataCache(user.id, "security")
 
   return NextResponse.json({

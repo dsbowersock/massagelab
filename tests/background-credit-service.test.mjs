@@ -284,6 +284,6 @@ describe("verified-account background credit provisioning", () => {
     assert.doesNotMatch(verifyTransaction, /ensureVerifiedUserBackgroundCredits/)
     assert.doesNotMatch(passwordTransaction, /ensureVerifiedUserBackgroundCredits/)
     assert.match(verifyPage, /ensureVerifiedUserBackgroundCredits\(prisma, record\.userId\)\.catch/)
-    assert.match(passwordRoute, /ensureVerifiedUserBackgroundCredits\(prisma, user\.id\)\.catch/)
+    assert.match(passwordRoute, /after\(\(\) => ensureVerifiedUserBackgroundCredits\(prisma, user\.id\)\.catch/)
   })
 })
