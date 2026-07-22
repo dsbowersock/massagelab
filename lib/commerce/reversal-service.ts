@@ -804,7 +804,8 @@ export async function applyStripeDisputeEvent(input: {
     const equalTerminalUpgrade = existing?.status === "OPEN" && targetStatus !== "OPEN"
     if (
       existing
-      && (older || (equal && !equalTerminalUpgrade) || (existingFinal && targetStatus === "OPEN"))
+      // Terminal processor decisions are immutable; timestamps order only OPEN transitions.
+      && (existingFinal || older || (equal && !equalTerminalUpgrade))
     ) {
       await tx.commerceWebhookReceipt.update({ where: { id: receipt.id }, data: { processedAt: now } })
       return { changed: false, status: existing.status }

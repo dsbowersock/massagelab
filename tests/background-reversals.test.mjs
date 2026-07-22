@@ -474,6 +474,38 @@ it("advances a newer OPEN watermark so an older terminal event cannot win", asyn
   assert.deepEqual(scenario.state.ownerships.slice(0, 2).map((ownership) => ownership.status), ["DISPUTE_SUSPENDED", "DISPUTE_SUSPENDED"])
 })
 
+it("keeps a terminal dispute immutable for a newer duplicate terminal event", async () => {
+  const scenario = createDisputeDouble()
+  await applyStripeDisputeEvent({ prismaClient: scenario.prismaClient, eventId: "evt_terminal_lost", eventType: "charge.dispute.closed", processorCreatedAt: 1_784_646_300, paymentIntentId: "pi_1", dispute: { id: "dp_1", status: "lost", amount: 200, currency: "usd" } })
+  const terminalSnapshot = structuredClone(scenario.state.dispute)
+  const domainEventCount = scenario.state.events.length
+
+  const result = await applyStripeDisputeEvent({ prismaClient: scenario.prismaClient, eventId: "evt_terminal_lost_newer", eventType: "charge.dispute.updated", processorCreatedAt: 1_784_646_400, paymentIntentId: "pi_1", dispute: { id: "dp_1", status: "lost", amount: 200, currency: "usd" } })
+
+  assert.equal(result.changed, false)
+  assert.deepEqual(scenario.state.dispute, terminalSnapshot)
+  assert.equal(scenario.state.events.length, domainEventCount)
+  assert.equal(scenario.state.receipts.length, 2)
+  assert.ok(scenario.state.receipts[1].processedAt instanceof Date)
+})
+
+it("keeps a terminal dispute immutable for a newer contradictory terminal event", async () => {
+  const scenario = createDisputeDouble()
+  await applyStripeDisputeEvent({ prismaClient: scenario.prismaClient, eventId: "evt_terminal_lost_first", eventType: "charge.dispute.closed", processorCreatedAt: 1_784_646_300, paymentIntentId: "pi_1", dispute: { id: "dp_1", status: "lost", amount: 200, currency: "usd" } })
+  const terminalSnapshot = structuredClone(scenario.state.dispute)
+  const ownershipSnapshot = structuredClone(scenario.state.ownerships)
+  const domainEventCount = scenario.state.events.length
+
+  const result = await applyStripeDisputeEvent({ prismaClient: scenario.prismaClient, eventId: "evt_terminal_won_newer", eventType: "charge.dispute.closed", processorCreatedAt: 1_784_646_400, paymentIntentId: "pi_1", dispute: { id: "dp_1", status: "won", amount: 200, currency: "usd" } })
+
+  assert.equal(result.changed, false)
+  assert.deepEqual(scenario.state.dispute, terminalSnapshot)
+  assert.deepEqual(scenario.state.ownerships, ownershipSnapshot)
+  assert.equal(scenario.state.events.length, domainEventCount)
+  assert.equal(scenario.state.receipts.length, 2)
+  assert.ok(scenario.state.receipts[1].processedAt instanceof Date)
+})
+
 for (const reinstatedStatus of ["warning_closed", "prevented"]) {
   it(`treats Stripe ${reinstatedStatus} as funds reinstated`, async () => {
     const scenario = createDisputeDouble()

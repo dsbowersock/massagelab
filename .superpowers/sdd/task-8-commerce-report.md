@@ -51,6 +51,12 @@ unchanged.
       selection, reconciliation repair invoked unrelated projection writers,
       webhook binding mutated a placeholder before validating PaymentIntent,
       and one repair target leaked into later repair calls.
+11. Terminal dispute immutability:
+    - Two newer-event regressions failed because duplicate and contradictory
+      terminal dispute deliveries returned `changed: true` and re-entered the
+      domain transition path.
+    - The minimal guard now processes each new receipt safely while leaving the
+      terminal dispute, ownership projection, and domain-event stream unchanged.
 
 ## Implementation
 
@@ -80,6 +86,8 @@ unchanged.
     remaining active/suspended/refund-pending purchase ownership on loss.
     Terminal-over-OPEN tie-breaking plus separate OPEN/terminal processor
     watermarks make replay and older events monotonic without a schema change.
+    Once `WON` or `LOST`, the dispute is immutable even when a newer duplicate,
+    contradictory terminal, or OPEN event arrives.
   - Treats pinned Stripe v22 `won`, `warning_closed`, and `prevented` as funds
     reinstated; `lost` is the revocation terminal.
   - Retires an active owned background and atomically writes exactly one
@@ -127,10 +135,10 @@ same transaction as its domain transition.
 
 - Focused Task 8 plus Task 7 regression:
   - `node --test tests/background-reversals.test.mjs tests/commerce-reconcile.test.mjs tests/background-fulfillment.test.mjs tests/stripe-billing.test.mjs`
-  - PASS, 69/69 tests.
+  - PASS, 71/71 tests.
 - Full repository tests:
   - `npm run test`
-  - PASS, 1,272/1,272 tests across 136 suites.
+  - PASS, 1,274/1,274 tests across 136 suites.
 - `npm run typecheck`
   - PASS.
 - `npm run lint`
@@ -155,3 +163,4 @@ same transaction as its domain transition.
 
 - `feat: reconcile commerce reversals` (this Task 8 commit)
 - `fix: harden commerce reversal recovery` (review follow-up)
+- `fix: freeze terminal commerce disputes` (terminal-ordering follow-up)
