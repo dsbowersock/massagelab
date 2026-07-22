@@ -11,6 +11,7 @@ import {
 import { DEFAULT_BACKGROUND_ID } from "@/lib/background-options"
 import { cn } from "@/lib/utils"
 import { BackgroundCarousel } from "@/components/backgrounds/background-carousel"
+import { useBackgroundCommerce } from "@/components/backgrounds/BackgroundCommerceProvider"
 import {
   type BackgroundDefinition,
   getBackgroundOptionsForCategory,
@@ -42,6 +43,13 @@ export function BackgroundSelector({
   renderSelectedControls,
 }: BackgroundSelectorProps) {
   const [upgradeMessage, setUpgradeMessage] = useState("")
+  const { state: commerceState } = useBackgroundCommerce()
+  const creditBalance = commerceState.snapshot?.creditBalance
+  const creditStatus = typeof creditBalance === "number"
+    ? `${creditBalance} ${creditBalance === 1 ? "credit" : "credits"}`
+    : commerceState.status === "loading"
+      ? "Loading credits..."
+      : null
   const [visualFilter, setVisualFilter] = useState<BackgroundVisualFilter>("all")
   const [savedBackgroundIds, setSavedBackgroundIds] = useState<BackgroundId[]>([])
   const options = useMemo(() => getBackgroundOptionsForCategory(category), [category])
@@ -74,7 +82,18 @@ export function BackgroundSelector({
           <p className={cn("font-medium", compact ? "text-sm" : "text-base")}>Visual background</p>
           <p className="text-xs leading-5 text-muted-foreground">{description}</p>
         </div>
-        <Sparkles className="size-4 shrink-0 text-primary" aria-hidden="true" />
+        <div className="flex shrink-0 items-center gap-2">
+          {creditStatus ? (
+            <span
+              className="text-xs font-semibold text-muted-foreground"
+              role="status"
+              aria-live="polite"
+            >
+              {creditStatus}
+            </span>
+          ) : null}
+          <Sparkles className="size-4 text-primary" aria-hidden="true" />
+        </div>
       </div>
 
       <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Background visual filters">
@@ -108,8 +127,11 @@ export function BackgroundSelector({
             setUpgradeMessage("")
             onChange(backgroundId)
           }}
-          onLockedSelect={() => {
-            setUpgradeMessage("Upgrade to a paid membership to use premium visual backgrounds.")
+          onLockedSelect={(option) => {
+            setUpgradeMessage(`${option.label} has purchase options available.`)
+          }}
+          onKeepPermanently={(option) => {
+            setUpgradeMessage(`Keep ${option.label} permanently with a credit or purchase.`)
           }}
           onToggleSaved={toggleSavedBackground}
         />
