@@ -175,7 +175,6 @@ export async function initiateBackgroundRefund(input: InitiateRefundInput) {
         reasonCode: input.reasonCode,
         items: {
           create: selection.items.map((item) => ({
-            orderId: order!.id,
             orderItemId: item.id,
             quantity: 1,
             amountCents: item.lineTotalCents,

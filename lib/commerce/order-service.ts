@@ -261,7 +261,6 @@ async function prepareBackgroundOrderInTransaction(
       returnPath: normalizeCommerceReturnPath(input.returnPath),
       items: {
         create: reconciled.snapshot.items.map((product) => ({
-          userId: input.userId,
           productType: product.productType,
           productKey: product.productKey,
           displayName: product.displayName,

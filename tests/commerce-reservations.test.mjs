@@ -226,6 +226,11 @@ describe("background order reservations", () => {
     assert.deepEqual(state.orders[0].legalAcceptance, LEGAL_ACCEPTANCE)
     assert.equal(state.orders[0].purchaseCountry, "US")
     assert.equal(state.orders[0].returnPath, "/account/billing")
+    assert.equal(
+      state.orders[0].items.every((item) => !Object.hasOwn(item, "userId")),
+      true,
+      "Prisma nested item creation derives userId from the parent composite relation",
+    )
     assert.equal(state.events[0].eventType, "ORDER_PREPARED")
   })
 

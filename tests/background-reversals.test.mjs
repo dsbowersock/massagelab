@@ -65,6 +65,11 @@ it("records exact refundable items before the processor call", async () => {
       calls.push("stripe:create")
       assert.equal(state.refund.amountCents, 100)
       assert.deepEqual(state.refund.items.map((item) => item.orderItemId), ["item_1"])
+      assert.equal(
+        state.refund.items.every((item) => !Object.hasOwn(item, "orderId")),
+        true,
+        "Prisma nested refund-item creation derives orderId from its parent relation",
+      )
       assert.equal(state.order.items[0].ownership.status, "REFUND_PENDING")
       assert.equal(request.idempotencyKey, `background-refund:${state.refund.id}`)
       return {
