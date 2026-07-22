@@ -4,6 +4,40 @@ This is the canonical chronological planning and progress log for MassageLab. Us
 
 Existing plans, audits, roadmaps, and checklists remain source evidence. Keep them for context, but mirror meaningful progress, plan changes, and priority changes in [project-state.md](project-state.md) and here.
 
+## 2026-07-22 — Background commerce readiness and cleanup proof correction
+
+- Corrected Stripe verify mode to validate the one pinned webhook endpoint
+  against the app's shared contract: enabled status, exact
+  `2026-02-25.clover` API version, five membership events plus ten commerce
+  events, and strict event-set equality that rejects wildcard, extra, duplicate,
+  or missing subscriptions. The local `BACKGROUND_COMMERCE_WEBHOOK_EVENTS`
+  signal remains the exact commerce-only subset.
+- Added pure RED/GREEN endpoint-contract coverage and shared the event/version
+  constants with the webhook route and Stripe client so readiness cannot drift
+  from handled events or the app API version.
+- Replaced best-effort Stripe test cleanup with a tested fail-closed helper. It
+  rejects live mode/keys before any API call, expires and re-retrieves the test
+  Checkout Session, deletes and re-retrieves the test Customer, aggregates only
+  safe failure codes, and withholds successful rollout evidence unless every
+  cleanup response and terminal-state check passes.
+- Repeated migration, two-pass verified-user backfill, the full synthetic
+  lifecycle rollout backed by a real Stripe test Customer and two-item Checkout
+  Session, and read-only reconciliation on a freshly reset disposable Neon
+  branch with all database variables pinned to its exact direct host. An initial
+  attempt failed closed before Session creation because explicit nonsecret
+  commerce readiness values were absent; its test Customer was cleaned through
+  the verified Customer-only path before the disposable branch was reset and
+  rerun with rotated synthetic identifiers.
+
+## 2026-07-21 — Background commerce foundation operationalization
+
+- Completed Track 1A on `codex/background-commerce-foundation`: one-time verified-account credits, permanent credit/purchase ownership, persistent carts and reservations, multi-item Stripe Checkout, replay-safe fulfillment, exact-item refunds, disputes, retirement replacement credits, identifier-only reconciliation, safe user snapshots, and full-account-admin operations are implemented without adding Track 1B purchase UI or changing the public Roadmap.
+- Extended `npm run stripe:readiness` without changing its membership PASS contract. Background commerce now requires the fixed 100-cent USD price, exact U.S. allowlist, current digital-purchase document version, explicit webhook/reconciliation signals, all Checkout/refund/dispute event subscriptions, and the current disabled-tax posture. International commerce remains unavailable, and automatic tax fails closed until processor tax can be reconciled into immutable order and item snapshots; output contains only booleans and safe identifiers.
+- Validated the forward-only migration and verified-account backfill on a fresh disposable Neon branch after preflighting `DATABASE_URL`, `DIRECT_URL`, and `DATABASE_URL_UNPOOLED` to the same non-pooler branch host and away from production. The migration was already present in the clone; backfill pass one granted four wallets and pass two granted zero.
+- Exercised a synthetic verified subscriber with a real Stripe test-mode customer and two-item Checkout Session. Because API-only Checkout cannot complete payment, completion, exact-item partial refund, and dispute delivery used the repository's in-memory signed/service fixtures against the disposable database. Completion replay changed state once, the exact one-dollar item refund produced a partial refund, an open/won dispute restored the remaining eligible purchase, and read-only reconciliation reported zero issues. No live Stripe request, browser payment, real customer PII, raw processor payload, or production database write was used.
+- The real Prisma rollout exposed two checked nested-write mismatches that test doubles had accepted. Focused RED regressions now require order-item `userId` and refund-item `orderId` to derive from their parent composite relations; removing only those redundant nested scalars made the real disposable rollout pass while preserving database ownership consistency.
+- Documented the migration/backfill order, exact webhook contract, final-sale legal/operator exception, dispute and retirement lifecycle, read-only reconciliation posture, audit privacy boundary, tax/country fail-closed policy, and Track 1B dependency in the billing wiki. `TODO.md` and the public Roadmap remain unchanged.
+
 ## 2026-07-21 — Carousel PR review
 
 - Addressed verified PR review findings by normalizing deeply wrapped carousel indexes, making already-aborted shared prewarm waits reject asynchronously, covering bounded and oversized-radius mounting directly, and consolidating browser carousel centering into one documented test helper. The active-route Metal ring now waits for stable responsive-copy geometry and unmounts synchronously when that geometry is lost, preventing the upstream one-pixel SVG fallback from emitting invalid negative rectangle dimensions during route transitions.

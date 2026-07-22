@@ -45,6 +45,8 @@
     "chimer:preview:r2:check": "node scripts/chimer-preview-generation/upload-r2.mjs check",
     "chimer:preview:r2:upload": "node scripts/chimer-preview-generation/upload-r2.mjs upload",
     "stripe:readiness": "node scripts/stripe-readiness-check.mjs --",
+    "commerce:backfill-credits": "node scripts/background-credit-backfill.mjs",
+    "commerce:reconcile": "node scripts/commerce-reconcile.mjs",
     "stripe:live:setup": "node scripts/stripe-live-membership-setup.mjs --"
   },
   "dependencies": {

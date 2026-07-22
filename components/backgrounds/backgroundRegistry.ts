@@ -4,6 +4,7 @@ import { hasPremiumBackgroundAccess } from "../../lib/membership.js"
 import { backgroundPreviewManifest } from "./backgroundPreviewManifest.ts"
 import type { BackgroundPreviewManifestEntry } from "./backgroundPreviewManifest.ts"
 import type { BackgroundEffectProps } from "./effects/css-backgrounds"
+import type { BackgroundAccessDecision } from "../../lib/commerce/background-access.ts"
 
 export type BackgroundId =
   | "massage-lab-moving-gradient"
@@ -124,6 +125,22 @@ export interface BackgroundDefinition {
   component?: BackgroundComponentLoader
   fallbackClassName?: string
   fallbackStyle?: CSSProperties
+}
+
+export type BackgroundAccessSnapshot = {
+  featureKeys?: readonly string[]
+  ownedBackgroundIds?: readonly string[]
+}
+
+type BackgroundAccessInput =
+  | readonly string[]
+  | BackgroundAccessSnapshot
+  | Pick<BackgroundAccessDecision, "canUse">
+
+function isResolvedAccessDecision(
+  access: BackgroundAccessInput,
+): access is Pick<BackgroundAccessDecision, "canUse"> {
+  return !Array.isArray(access) && "canUse" in access
 }
 
 const cssBackgrounds = () => import("./effects/css-backgrounds")
@@ -1989,22 +2006,33 @@ export function getBackgroundOptionsForCategory(category: BackgroundCategory) {
   return backgroundRegistry.filter((entry) => entry.enabled && entry.category.includes(category))
 }
 
-export function userCanUseBackground(entry: BackgroundDefinition, featureKeys: string[] = []) {
-  return entry.enabled && (!entry.requiresSubscription || hasPremiumBackgroundAccess(featureKeys))
+/**
+ * Adapts a server-resolved decision or owned-ID snapshot for registry filtering.
+ * Feature keys express subscription access only; ownership must stay explicit.
+ */
+export function userCanUseBackground(entry: BackgroundDefinition, access: BackgroundAccessInput = []) {
+  if (!entry.enabled) return false
+  if (!entry.requiresSubscription) return true
+  if (isResolvedAccessDecision(access)) return access.canUse
+
+  const snapshot = access as BackgroundAccessSnapshot
+  const featureKeys = Array.isArray(access) ? access : snapshot.featureKeys ?? []
+  const ownedBackgroundIds = Array.isArray(access) ? [] : snapshot.ownedBackgroundIds ?? []
+  return hasPremiumBackgroundAccess(featureKeys) || ownedBackgroundIds.includes(entry.id)
 }
 
-export function canUseBackgroundId(id: unknown, featureKeys: string[] = [], category?: BackgroundCategory) {
+export function canUseBackgroundId(id: unknown, access: BackgroundAccessInput = [], category?: BackgroundCategory) {
   const entry = getBackgroundDefinition(id)
-  return (!category || entry.category.includes(category)) && userCanUseBackground(entry, featureKeys)
+  return (!category || entry.category.includes(category)) && userCanUseBackground(entry, access)
 }
 
 export function resolveAccessibleBackgroundDefinition(
   id: unknown,
-  featureKeys: string[] = [],
+  access: BackgroundAccessInput = [],
   category?: BackgroundCategory,
 ) {
   const entry = getBackgroundDefinition(id)
-  if ((!category || entry.category.includes(category)) && userCanUseBackground(entry, featureKeys)) {
+  if ((!category || entry.category.includes(category)) && userCanUseBackground(entry, access)) {
     return entry
   }
 

@@ -54,7 +54,7 @@ describe("Membership and entitlement helpers", () => {
     assert.equal(active.level, "THERAPIST")
     assert.equal(active.hasFeature(FEATURE_KEYS.chimerCustomColors), true)
     assert.equal(active.hasFeature(FEATURE_KEYS.premiumBackgrounds), true)
-    assert.equal(membership.hasPremiumBackgroundAccess([FEATURE_KEYS.chimerCustomColors]), true)
+    assert.equal(membership.hasPremiumBackgroundAccess([FEATURE_KEYS.chimerCustomColors]), false)
     assert.equal(active.hasFeature(FEATURE_KEYS.therapistDocumentationTools), true)
     assert.equal(active.hasFeature(FEATURE_KEYS.calendarFullScheduling), true)
     assert.equal(active.hasFeature(FEATURE_KEYS.externalCalendarSync), true)

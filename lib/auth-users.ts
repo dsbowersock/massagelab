@@ -1,9 +1,14 @@
+import type { Prisma } from "@prisma/client"
 import { isAdminEmail } from "@/lib/auth-env"
 import { buildAccountCapabilities } from "@/lib/account-permissions"
+import { ensureVerifiedUserBackgroundCredits } from "@/lib/commerce/credit-service"
+import { runCommerceTransaction } from "@/lib/commerce/transactions"
 import { buildEntitlements } from "@/lib/membership"
 import { isHostedClinicalSyncEnabled } from "@/lib/phi-sync"
 import type { AccountRole, VerificationStatus } from "@/lib/domain-types"
 import { prisma } from "@/lib/prisma"
+
+type AuthDatabase = typeof prisma | Prisma.TransactionClient
 
 export function highestRole(roles: AccountRole[]): AccountRole {
   if (roles.includes("ADMIN")) return "ADMIN"
@@ -15,8 +20,8 @@ export function highestRole(roles: AccountRole[]): AccountRole {
   return "USER"
 }
 
-async function upsertVerifiedRole(userId: string, role: AccountRole, source: string) {
-  await prisma.userRole.upsert({
+async function upsertVerifiedRole(database: AuthDatabase, userId: string, role: AccountRole, source: string) {
+  await database.userRole.upsert({
     where: {
       userId_role: {
         userId,
@@ -39,11 +44,11 @@ async function upsertVerifiedRole(userId: string, role: AccountRole, source: str
   })
 }
 
-export async function ensureUserRole(userId: string, email?: string | null) {
-  await upsertVerifiedRole(userId, "USER", "system")
+export async function ensureUserRole(userId: string, email?: string | null, database: AuthDatabase = prisma) {
+  await upsertVerifiedRole(database, userId, "USER", "system")
 
   if (isAdminEmail(email)) {
-    await upsertVerifiedRole(userId, "ADMIN", "admin-email")
+    await upsertVerifiedRole(database, userId, "ADMIN", "admin-email")
     return "ADMIN"
   }
 
@@ -51,14 +56,18 @@ export async function ensureUserRole(userId: string, email?: string | null) {
 }
 
 export async function ensureGoogleUserState(userId: string, email?: string | null) {
-  const updateResult = await prisma.user.updateMany({
-    where: { id: userId },
-    data: { emailVerified: new Date() },
-  })
+  await runCommerceTransaction(prisma, async (txValue) => {
+    const tx = txValue as Prisma.TransactionClient
+    const updateResult = await tx.user.updateMany({
+      where: { id: userId },
+      data: { emailVerified: new Date() },
+    })
 
-  if (updateResult.count > 0) {
-    await ensureUserRole(userId, email)
-  }
+    if (updateResult.count > 0) {
+      await ensureUserRole(userId, email, tx)
+      await ensureVerifiedUserBackgroundCredits(tx, userId)
+    }
+  })
 }
 
 export async function getUserAuthState(userId: string) {
@@ -95,6 +104,12 @@ export async function getUserAuthState(userId: string) {
     status: role.status,
   })) ?? [{ role: "USER", status: "VERIFIED" }]) as Array<{ role: AccountRole; status: VerificationStatus }>
   const roles = roleAssignments.map((role) => role.role)
+
+  // Safe deployment repair: the service independently reloads verification and
+  // remains idempotent when this account state is loaded repeatedly.
+  if (user?.emailVerified) {
+    await ensureVerifiedUserBackgroundCredits(prisma, userId)
+  }
 
   if (user?.email && isAdminEmail(user.email) && !roles.includes("ADMIN")) {
     await ensureUserRole(userId, user.email)

@@ -10,6 +10,13 @@ import path from "node:path"
 import process from "node:process"
 import Stripe from "stripe"
 import { config as loadDotenv } from "dotenv"
+import { DIGITAL_PURCHASES_REFUNDS_VERSION } from "../lib/legal-documents.js"
+import {
+  STRIPE_API_VERSION,
+  STRIPE_BACKGROUND_COMMERCE_WEBHOOK_EVENTS,
+  STRIPE_PINNED_WEBHOOK_URL,
+  validatePinnedStripeWebhookEndpoint,
+} from "../lib/stripe-webhook-contract.js"
 
 const REQUIRED_PRICE_VARS = Object.freeze([
   ["STRIPE_SUPPORTER_MONTHLY_PRICE_ID", "SUPPORTER", "month"],
@@ -31,6 +38,10 @@ const noDotenv = args.has("--no-dotenv")
 const failures = []
 const warnings = []
 const priceIds = new Map()
+let commerceWebhookCoverageComplete = false
+let verifiedWebhookCoverageComplete = !verifyStripe
+let verifiedWebhookEndpointEnabled = !verifyStripe
+let verifiedWebhookApiVersionCurrent = !verifyStripe
 
 if (!noDotenv) {
   loadEnvironment(explicitEnvFile)
@@ -137,13 +148,72 @@ function checkEarlyAccessFlag() {
   }
 }
 
+function isExplicitTrue(value) {
+  return String(value ?? "").trim().toLowerCase() === "true"
+}
+
+/**
+ * Validates only explicit, deploy-time background-commerce signals. Values are
+ * reported as booleans or non-secret identifiers so the check cannot expose
+ * Stripe credentials or processor payloads.
+ */
+function checkBackgroundCommerceReadiness() {
+  const purchasingEnabled = isExplicitTrue(envValue("BACKGROUND_COMMERCE_PURCHASING_ENABLED"))
+  const fixedUsdPriceConfigured = envValue("BACKGROUND_COMMERCE_PRICE_CENTS") === "100"
+    && envValue("BACKGROUND_COMMERCE_CURRENCY").toLowerCase() === "usd"
+  const purchaseCountries = envValue("BACKGROUND_COMMERCE_PURCHASE_COUNTRIES")
+    .split(",")
+    .map((country) => country.trim().toUpperCase())
+    .filter(Boolean)
+  const purchaseCountryAllowlistConfigured = purchaseCountries.length === 1
+    && purchaseCountries[0] === "US"
+  const digitalPurchaseDocumentCurrent = envValue("BACKGROUND_COMMERCE_DIGITAL_PURCHASE_DOCUMENT_VERSION")
+    === DIGITAL_PURCHASES_REFUNDS_VERSION
+  const configuredEvents = new Set(envValue("BACKGROUND_COMMERCE_WEBHOOK_EVENTS")
+    .split(",")
+    .map((event) => event.trim())
+    .filter(Boolean))
+  commerceWebhookCoverageComplete = configuredEvents.size === STRIPE_BACKGROUND_COMMERCE_WEBHOOK_EVENTS.length
+    && STRIPE_BACKGROUND_COMMERCE_WEBHOOK_EVENTS.every((event) => configuredEvents.has(event))
+  const webhookReady = isExplicitTrue(envValue("BACKGROUND_COMMERCE_WEBHOOK_READY"))
+  const reconciliationReady = isExplicitTrue(envValue("BACKGROUND_COMMERCE_RECONCILIATION_READY"))
+  const taxMode = envValue("BACKGROUND_COMMERCE_TAX_MODE").toLowerCase()
+  const taxModeRecognized = taxMode === "disabled" || taxMode === "stripe"
+  const stripeTaxReady = false
+  const internationalEnabled = purchaseCountries.some((country) => country !== "US")
+
+  if (!purchasingEnabled) addFailure("Background commerce purchasing enablement is not configured.")
+  if (!fixedUsdPriceConfigured) addFailure("Background commerce fixed USD price is not configured.")
+  if (!purchaseCountryAllowlistConfigured) addFailure("Background commerce purchase-country allowlist is not configured.")
+  if (!digitalPurchaseDocumentCurrent) addFailure("Background commerce digital-purchase document version is not current.")
+  if (!webhookReady) addFailure("Background commerce webhook readiness is not configured.")
+  if (!commerceWebhookCoverageComplete) addFailure("Background commerce webhook event coverage is incomplete.")
+  if (!reconciliationReady) addFailure("Background commerce reconciliation readiness is not configured.")
+  if (!taxModeRecognized) addFailure("Background commerce tax mode is not configured.")
+  if (taxMode === "stripe") {
+    addFailure("Background commerce tax mode must remain disabled until processor tax is reconciled into order and item snapshots.")
+  }
+  if (liveMode && internationalEnabled && !stripeTaxReady) {
+    addFailure("Live international background commerce requires Stripe tax mode with explicit registration and product-code readiness.")
+  }
+
+  return {
+    fixedUsdPriceConfigured,
+    purchaseCountryAllowlistConfigured,
+    digitalPurchaseDocumentCurrent,
+    webhookReady,
+    reconciliationReady,
+    taxMode: taxModeRecognized ? taxMode : "missing",
+  }
+}
+
 async function verifyStripePrices() {
   if (!verifyStripe || failures.length > 0) {
     return
   }
 
   const stripe = new Stripe(envValue("STRIPE_SECRET_KEY"), {
-    apiVersion: "2026-02-25.clover",
+    apiVersion: STRIPE_API_VERSION,
   })
 
   for (const [priceId, expected] of priceIds) {
@@ -182,11 +252,42 @@ async function verifyStripePrices() {
       addFailure(`${expected.key} could not be retrieved from Stripe: ${detail}`)
     }
   }
+
+  try {
+    const endpoints = await stripe.webhookEndpoints.list({ limit: 100 })
+    const endpoint = endpoints.data.find((candidate) => candidate.url === STRIPE_PINNED_WEBHOOK_URL)
+    const endpointResult = validatePinnedStripeWebhookEndpoint(endpoint)
+    verifiedWebhookCoverageComplete = endpointResult.eventSetExact
+    verifiedWebhookEndpointEnabled = endpointResult.enabled
+    verifiedWebhookApiVersionCurrent = endpointResult.apiVersionCurrent
+    if (!endpointResult.endpointFound) addFailure("The pinned Stripe webhook endpoint was not found.")
+    if (endpointResult.endpointFound && !endpointResult.enabled) addFailure("The pinned Stripe webhook endpoint is not enabled.")
+    if (endpointResult.endpointFound && !endpointResult.apiVersionCurrent) {
+      addFailure("The pinned Stripe webhook endpoint API version does not match the app.")
+    }
+    if (endpointResult.endpointFound && !endpointResult.eventSetExact) {
+      addFailure("The pinned Stripe webhook endpoint event set does not exactly match the app contract.")
+    }
+  } catch {
+    verifiedWebhookCoverageComplete = false
+    verifiedWebhookEndpointEnabled = false
+    verifiedWebhookApiVersionCurrent = false
+    addFailure("The pinned Stripe webhook endpoint could not be verified.")
+  }
 }
 
-function printResults() {
+function printResults(commerce) {
   console.log(`Stripe readiness mode: ${liveMode ? "live" : "non-live"}`)
   console.log(`Stripe API retrieval: ${verifyStripe ? "enabled" : "skipped"}`)
+  console.log(`Background commerce fixed USD price configured: ${commerce.fixedUsdPriceConfigured}`)
+  console.log(`Background commerce purchase-country allowlist configured: ${commerce.purchaseCountryAllowlistConfigured}`)
+  console.log(`Background commerce digital-purchase document current: ${commerce.digitalPurchaseDocumentCurrent}`)
+  console.log(`Background commerce webhook readiness configured: ${commerce.webhookReady}`)
+  console.log(`Background commerce webhook event coverage complete: ${commerceWebhookCoverageComplete && verifiedWebhookCoverageComplete}`)
+  console.log(`Pinned Stripe webhook endpoint enabled: ${verifiedWebhookEndpointEnabled}`)
+  console.log(`Pinned Stripe webhook API version current: ${verifiedWebhookApiVersionCurrent}`)
+  console.log(`Background commerce reconciliation configured: ${commerce.reconciliationReady}`)
+  console.log(`Background commerce tax mode: ${commerce.taxMode}`)
 
   for (const warning of warnings) {
     console.log(`WARN ${warning}`)
@@ -200,6 +301,7 @@ function printResults() {
     return
   }
 
+  console.log("Background commerce readiness: ready")
   console.log("PASS Stripe membership environment is ready for the selected mode.")
 }
 
@@ -207,5 +309,6 @@ checkSecretKey()
 checkWebhookSecret()
 checkPriceIds()
 checkEarlyAccessFlag()
+const commerce = checkBackgroundCommerceReadiness()
 await verifyStripePrices()
-printResults()
+printResults(commerce)

@@ -3912,7 +3912,7 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(settings.hexGridOpacity, 0.82)
   })
 
-  it("treats the existing paid Chimer color entitlement as premium background access", () => {
+  it("keeps custom Chimer colors independent from premium background access", () => {
     const settings = sanitizeChimerSettingsForEntitlements({
       primaryFontColor: "#000000",
       movingBackgroundMainColor: "#ABCDEF",
@@ -3923,6 +3923,6 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(settings.primaryFontColor, "#000000")
     assert.equal(settings.movingBackgroundMainColor, "#ABCDEF")
     assert.equal(settings.movingBackgroundOrbColor, "#FEDCBA")
-    assert.equal(settings.backgroundId, "massage-lab-aurora")
+    assert.equal(settings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
   })
 })

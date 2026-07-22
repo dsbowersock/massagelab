@@ -83,7 +83,7 @@ describe("Carousel Lab source boundaries", () => {
     )
 
     const startIndexPosition = controller.indexOf("startIndex: initialCenter.index")
-    const firstSelectPosition = controller.indexOf("\n    select()\n")
+    const firstSelectPosition = controller.search(/^    select\(\)$/m)
     assert.ok(startIndexPosition >= 0 && startIndexPosition < firstSelectPosition)
   })
 
