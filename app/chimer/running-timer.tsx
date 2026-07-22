@@ -9,7 +9,9 @@ import {
   writeSavedBackgroundIds,
 } from "@/lib/background-catalog"
 import { DEFAULT_BACKGROUND_ID } from "@/lib/background-options"
+import { BackgroundAcquisitionDialog } from "@/components/backgrounds/BackgroundAcquisitionDialog"
 import { BackgroundCarousel } from "@/components/backgrounds/background-carousel"
+import { useBackgroundCommerce } from "@/components/backgrounds/BackgroundCommerceProvider"
 import { BackgroundHost } from "@/components/backgrounds/BackgroundHost"
 import {
   canUseBackgroundId,
@@ -2991,6 +2993,17 @@ export function RunningTimer({
   })
   const [primaryDisplay, setPrimaryDisplay] = useState<PrimaryDisplay>(isClockMode ? "currentTime" : "timer")
   const [activePanel, setActivePanel] = useState<ImmersivePanelId>(null)
+  const [acquisition, setAcquisition] = useState<{
+    background: BackgroundDefinition
+    mode: "locked" | "keep-permanently"
+  } | null>(null)
+  const { state: commerceState } = useBackgroundCommerce()
+  const creditBalance = commerceState.snapshot?.creditBalance
+  const creditStatus = typeof creditBalance === "number"
+    ? `${creditBalance} ${creditBalance === 1 ? "credit" : "credits"}`
+    : commerceState.status === "loading"
+      ? "Loading credits..."
+      : null
   const [visualHintMessage, setVisualHintMessage] = useState<string | null>(null)
   const [backgroundCategoryFilter, setBackgroundCategoryFilter] =
     useState<BackgroundVisualCategory>("all")
@@ -16392,6 +16405,11 @@ export function RunningTimer({
           backgroundUnavailableMessage={mode.unavailableBackgroundMessage}
           backgroundHeaderContent={(
             <div className={styles.backgroundCategoryRow} role="group" aria-label="Background visual filters">
+              {creditStatus ? (
+                <span className={styles.settingsPill} role="status" aria-live="polite">
+                  {creditStatus}
+                </span>
+              ) : null}
               {BACKGROUND_VISUAL_FILTERS.map((category) => (
                 <button
                   key={category.value}
@@ -17127,6 +17145,12 @@ export function RunningTimer({
                       triggerHapticFeedback(hapticsEnabled)
                       handleBackgroundSelection(nextBackgroundId)
                     }}
+                    onLockedSelect={(background) => {
+                      setAcquisition({ background, mode: "locked" })
+                    }}
+                    onKeepPermanently={(background) => {
+                      setAcquisition({ background, mode: "keep-permanently" })
+                    }}
                     onToggleSaved={(nextBackgroundId) => {
                       triggerHapticFeedback(hapticsEnabled)
                       handleBackgroundSavedToggle(nextBackgroundId)
@@ -17137,6 +17161,18 @@ export function RunningTimer({
                 )}
             </div>
           )}
+        />
+        <BackgroundAcquisitionDialog
+          background={acquisition?.background ?? null}
+          mode={acquisition?.mode ?? "locked"}
+          open={Boolean(acquisition)}
+          onOpenChange={(open) => {
+            if (!open) setAcquisition(null)
+          }}
+          onAcquired={(background) => {
+            setAcquisition(null)
+            handleBackgroundSelection(background.id)
+          }}
         />
 
         <div className={styles.bottomControls}>
