@@ -18,6 +18,7 @@ import { AccountSettingsShell } from "@/app/account/account-settings-shell"
 import { PreferenceSync } from "@/app/account/preference-sync"
 import { SecurityPanel } from "@/app/account/security/security-panel"
 import { SignOutButton } from "@/app/account/sign-out-button"
+import { BackgroundCommercePanel } from "@/components/account/BackgroundCommercePanel"
 import { accountPageGroups, accountPageTabs, formatAccountDate, selectAccountTab } from "@/lib/account-page"
 import { normalizeSessionRoleAssignments } from "@/lib/account-role-assignments"
 import { getAccountSurfaceData } from "@/lib/account-surface-data"
@@ -131,6 +132,11 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
             />
           </TabsContent>
 
+          <TabsContent value="orders-invoices" className="flex flex-col gap-5">
+            <TabPanelIntro tabId="orders-invoices" />
+            <SignedOutAccountPrompt title="Sign in to review orders and purchases" />
+          </TabsContent>
+
           <TabsContent value="tools" className="flex flex-col gap-5">
             <TabPanelIntro tabId="tools" />
             <SignedOutAccountPrompt title="Sign in to use account tools" />
@@ -161,7 +167,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
     "calendar-availability": "Open calendar",
     tools: canManageAnatomy ? "Anatomy browser" : "Feedback",
     membership: canUseChimerCustomColors ? "Paid features active" : "Billing",
-    "orders-invoices": "Coming later",
+    "orders-invoices": "Purchases",
   }
   const accountSummaryLinks = [
     {
@@ -288,6 +294,10 @@ async function ActiveAccountTab({
 
   if (tabId === "membership") {
     return <MembershipTab userId={userId} sessionUser={sessionUser} />
+  }
+
+  if (tabId === "orders-invoices") {
+    return <BackgroundCommerceTab userId={userId} sessionUser={sessionUser} />
   }
 
   if (tabId === "tools") {
@@ -685,6 +695,32 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
   )
 }
 
+async function BackgroundCommerceTab({
+  userId,
+  sessionUser,
+}: {
+  userId: string
+  sessionUser: AccountSessionUser
+}) {
+  const [commerceData, membershipData] = await Promise.all([
+    getAccountSurfaceData("orders-invoices", userId, sessionUser),
+    getAccountSurfaceData("membership", userId, sessionUser),
+  ])
+  const subscriberIncludesPremium = membershipData.membershipSummary.entitlements.features.includes(
+    FEATURE_KEYS.premiumBackgrounds,
+  )
+
+  return (
+    <TabsContent value="orders-invoices" className="space-y-5">
+      <TabPanelIntro tabId="orders-invoices" />
+      <BackgroundCommercePanel
+        data={commerceData.backgroundCommerce}
+        subscriberIncludesPremium={subscriberIncludesPremium}
+      />
+    </TabsContent>
+  )
+}
+
 async function SyncTab({ userId, sessionUser }: { userId: string; sessionUser: AccountSessionUser }) {
   const data = await getAccountSurfaceData("sync", userId, sessionUser)
 
@@ -779,7 +815,7 @@ const signedOutAccountItemStatuses = {
   accessibility: "Coming later",
   notifications: "Coming later",
   membership: "Sign in",
-  "orders-invoices": "Coming later",
+  "orders-invoices": "Sign in",
   "practice-profile": "Coming later",
   people: "Coming later",
   "calendar-availability": "Open calendar",

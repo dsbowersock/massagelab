@@ -118,6 +118,53 @@ export type AccountSyncSurfaceData = {
   clinicalSyncReadiness: { enabled: boolean }
 }
 
+export type AccountBackgroundCommerceSurfaceData = {
+  surface: "orders-invoices"
+  backgroundCommerce: {
+    creditBalance: number
+    ownedBackgroundIds: string[]
+    ownerships: Array<{
+      backgroundId: string
+      source: "credit" | "purchase"
+      status: string
+      acquiredAt: string
+    }>
+    cart: {
+      items: Array<{
+        productType: string
+        productKey: string
+        displayName: string
+        unitAmount: number
+        currency: string
+        availableForPurchase: boolean
+      }>
+      reservedOrder: { orderId: string; expiresAt: string } | null
+      subtotalAmount: number
+      currency: string
+      notices: Array<{ code: string; productKey: string }>
+    }
+    recentOrders: Array<Record<string, unknown>>
+    orders: Array<{
+      reference: string
+      status: string
+      subtotalAmount: number
+      taxAmount: number
+      totalAmount: number
+      currency: string
+      createdAt: string
+      items: Array<{
+        backgroundId: string
+        displayName: string
+        unitAmount: number
+        taxAmount: number
+        totalAmount: number
+        refundedAmount: number
+        refundStatuses: string[]
+      }>
+    }>
+  }
+}
+
 export type AccountLocalSurfaceData = {
   surface: string
   roleLabels: string[]
@@ -130,6 +177,7 @@ export type AccountSurfaceData =
   | AccountSecuritySurfaceData
   | AccountCredentialsSurfaceData
   | AccountMembershipSurfaceData
+  | AccountBackgroundCommerceSurfaceData
   | AccountSyncSurfaceData
   | AccountLocalSurfaceData
 
@@ -139,6 +187,7 @@ export type GetAccountSurfaceData = {
   (surface: "security", userId: string, sessionUser?: AccountSurfaceSessionUser): Promise<AccountSecuritySurfaceData>
   (surface: "credentials", userId: string, sessionUser?: AccountSurfaceSessionUser): Promise<AccountCredentialsSurfaceData>
   (surface: "membership", userId: string, sessionUser?: AccountSurfaceSessionUser): Promise<AccountMembershipSurfaceData>
+  (surface: "orders-invoices", userId: string, sessionUser?: AccountSurfaceSessionUser): Promise<AccountBackgroundCommerceSurfaceData>
   (surface: "sync", userId: string, sessionUser?: AccountSurfaceSessionUser): Promise<AccountSyncSurfaceData>
   (surface: string, userId: string, sessionUser?: AccountSurfaceSessionUser): Promise<AccountSurfaceData>
 }

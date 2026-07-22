@@ -8,6 +8,10 @@ import { normalizeLinkedSentryEventId } from "@/lib/problem-report"
 import { SupportContactForm } from "@/app/support/support-contact-form"
 import { SupportDiagnosticReport } from "@/app/support/support-diagnostic-report"
 import { createPublicPageMetadata } from "@/lib/seo"
+import {
+  PURCHASE_SUPPORT_TOPIC,
+  normalizeSupportOrderReference,
+} from "@/lib/support-contact"
 
 export const metadata = createPublicPageMetadata("/support")
 
@@ -35,6 +39,8 @@ async function getSupportDefaults() {
 type SupportPageProps = {
   searchParams?: Promise<{
     eventId?: string
+    topic?: string
+    orderReference?: string
   }>
 }
 
@@ -42,6 +48,10 @@ export default async function SupportPage({ searchParams }: SupportPageProps) {
   const defaults = await getSupportDefaults()
   const params = await searchParams
   const linkedEventId = normalizeLinkedSentryEventId(params?.eventId) ?? ""
+  const purchaseSupport = params?.topic === "purchase-background-access"
+  const orderReference = purchaseSupport
+    ? normalizeSupportOrderReference(params?.orderReference)
+    : ""
 
   return (
     <AppPageShell title="User Support" width="standard">
@@ -55,7 +65,12 @@ export default async function SupportPage({ searchParams }: SupportPageProps) {
           icon={<Mail className="h-5 w-5" aria-hidden="true" />}
         />
 
-        <SupportContactForm initialName={defaults.name} initialContact={defaults.contact} />
+        <SupportContactForm
+          initialName={defaults.name}
+          initialContact={defaults.contact}
+          initialTopic={purchaseSupport ? PURCHASE_SUPPORT_TOPIC : ""}
+          orderReference={orderReference}
+        />
 
         <SupportDiagnosticReport linkedEventId={linkedEventId} />
 
