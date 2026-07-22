@@ -297,6 +297,21 @@ it("derives deterministic identifier-only reconciliation findings", () => {
   assert.doesNotMatch(JSON.stringify(first), /stripe|payload|metadata|email|pi_|re_|dp_/i)
 })
 
+it("derives admin ownership findings from one aggregate dispute state per payment", () => {
+  const issues = collectCommerceAdminReconciliationIssues([{
+    id: "order-aggregate", status: "PAID",
+    items: [{ id: "item-aggregate", ownership: { id: "ownership-aggregate", source: "PURCHASE", status: "DISPUTE_SUSPENDED" } }],
+    payments: [{ id: "payment-aggregate", status: "SUCCEEDED", disputes: [
+      { id: "dispute-won", status: "WON", closedAt: new Date("2026-07-21T12:00:00.000Z") },
+      { id: "dispute-open", status: "OPEN", closedAt: null },
+    ] }],
+    refunds: [],
+  }])
+
+  assert.equal(issues.some((issue) => issue.code === "WON_DISPUTE_OWNERSHIP_NOT_RESTORED"), false)
+  assert.equal(issues.filter((issue) => issue.ownershipId === "ownership-aggregate").length, 0)
+})
+
 it("filters actionable candidates before applying the 100-order display cap", async () => {
   const normalOrders = Array.from({ length: 101 }, (_, index) => ({
     id: `normal-${index}`,

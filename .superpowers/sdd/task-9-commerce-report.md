@@ -153,3 +153,19 @@ wallet, ownership, order, and cart changes are visible on the next read.
 - `feat: expose secure background commerce operations`
 - `fix: harden commerce admin operations`
 - `fix: return commerce reconciliation result`
+
+## Final Multi-Dispute Admin Follow-up
+
+Date: 2026-07-22
+
+- Admin and CLI reconciliation now derive one ownership finding per payment from
+  the shared LOST > OPEN > all-WON projection instead of emitting contradictory
+  per-dispute findings.
+- Findings use the lexically first internal dispute ID in the winning state, and
+  the operator queue counts aggregate-OPEN payments rather than raw OPEN rows.
+- Stale direct repairs re-read every dispute on the payment inside the repair
+  transaction before applying the aggregate-safe ownership transition.
+- Validation: cross-seam 55/55; focused Task 7-10 regression 132/132; full suite
+  1,314/1,314 across 141 suites; typecheck, lint, production build, and diff
+  check passed.
+- Commit: `fix: aggregate payment dispute ownership`.

@@ -1,6 +1,10 @@
 import type { PrismaClient } from "@prisma/client"
 import type { CommerceAdminUser } from "./admin-access.ts"
-import { initiateBackgroundRefund, repairCommerceReversalIssue } from "./reversal-service.ts"
+import {
+  derivePaymentDisputeProjection,
+  initiateBackgroundRefund,
+  repairCommerceReversalIssue,
+} from "./reversal-service.ts"
 
 type RefundOrderItem = {
   id: string
@@ -95,16 +99,18 @@ export function collectCommerceAdminReconciliationIssues(
         } else if (dispute.status !== "OPEN" && !dispute.closedAt) {
           issues.push({ code: "CLOSED_DISPUTE_MISSING_CLOSED_AT", orderId: order.id, paymentId: payment.id, disputeId: dispute.id })
         }
-        for (const item of order.items ?? []) {
-          const ownership = item.ownership
-          if (!ownership || ownership.source !== "PURCHASE") continue
-          if (dispute.status === "OPEN" && ownership.status === "ACTIVE") {
-            issues.push(ownershipIssue("OPEN_DISPUTE_OWNERSHIP_NOT_SUSPENDED", order.id, payment.id, { disputeId: dispute.id }, ownership.id))
-          } else if (dispute.status === "WON" && ownership.status === "DISPUTE_SUSPENDED") {
-            issues.push(ownershipIssue("WON_DISPUTE_OWNERSHIP_NOT_RESTORED", order.id, payment.id, { disputeId: dispute.id }, ownership.id))
-          } else if (dispute.status === "LOST" && ["ACTIVE", "DISPUTE_SUSPENDED", "REFUND_PENDING"].includes(ownership.status)) {
-            issues.push(ownershipIssue("LOST_DISPUTE_OWNERSHIP_NOT_REVOKED", order.id, payment.id, { disputeId: dispute.id }, ownership.id))
-          }
+      }
+      const disputeProjection = derivePaymentDisputeProjection(payment.disputes ?? [])
+      if (!disputeProjection?.disputeId) continue
+      for (const item of order.items ?? []) {
+        const ownership = item.ownership
+        if (!ownership || ownership.source !== "PURCHASE") continue
+        if (disputeProjection.status === "OPEN" && ownership.status === "ACTIVE") {
+          issues.push(ownershipIssue("OPEN_DISPUTE_OWNERSHIP_NOT_SUSPENDED", order.id, payment.id, { disputeId: disputeProjection.disputeId }, ownership.id))
+        } else if (disputeProjection.status === "WON" && ownership.status === "DISPUTE_SUSPENDED") {
+          issues.push(ownershipIssue("WON_DISPUTE_OWNERSHIP_NOT_RESTORED", order.id, payment.id, { disputeId: disputeProjection.disputeId }, ownership.id))
+        } else if (disputeProjection.status === "LOST" && ["ACTIVE", "DISPUTE_SUSPENDED", "REFUND_PENDING"].includes(ownership.status)) {
+          issues.push(ownershipIssue("LOST_DISPUTE_OWNERSHIP_NOT_REVOKED", order.id, payment.id, { disputeId: disputeProjection.disputeId }, ownership.id))
         }
       }
     }
@@ -255,7 +261,9 @@ export async function listCommerceAdminOperations(input: { prismaClient: PrismaC
   const issues = collectCommerceAdminReconciliationIssues(rows)
   return rows.flatMap((order) => {
     const pendingRefundCount = order.refunds.filter((refund) => refund.status === "PENDING").length
-    const openDisputeCount = order.payments.flatMap((payment) => payment.disputes).filter((dispute) => dispute.status === "OPEN").length
+    const openDisputeCount = order.payments.filter((payment) => (
+      derivePaymentDisputeProjection(payment.disputes)?.status === "OPEN"
+    )).length
     const reconciliationIssueCount = issues.filter((issue) => issue.orderId === order.id).length
     if (order.status !== "REVIEW_REQUIRED" && pendingRefundCount === 0 && openDisputeCount === 0 && reconciliationIssueCount === 0) return []
     return [{

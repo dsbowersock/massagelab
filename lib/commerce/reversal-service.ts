@@ -273,6 +273,34 @@ function processorRefundStatus(status: string | null | undefined) {
   return "PENDING"
 }
 
+export type PaymentDisputeProjection = {
+  status: "OPEN" | "WON" | "LOST"
+  disputeId: string | null
+}
+
+/**
+ * Collapses every dispute on one payment into the ownership projection that
+ * must currently win. The selected internal ID is stable and contains no
+ * processor data.
+ */
+export function derivePaymentDisputeProjection(
+  disputes: ReadonlyArray<{ id?: string; status: string }>,
+): PaymentDisputeProjection | null {
+  const status = disputes.some((dispute) => dispute.status === "LOST")
+    ? "LOST"
+    : disputes.some((dispute) => dispute.status === "OPEN")
+      ? "OPEN"
+      : disputes.length > 0 && disputes.every((dispute) => dispute.status === "WON")
+        ? "WON"
+        : null
+  if (!status) return null
+  const disputeId = disputes
+    .filter((dispute) => dispute.status === status && typeof dispute.id === "string")
+    .map((dispute) => dispute.id as string)
+    .sort((left, right) => left.localeCompare(right))[0] ?? null
+  return { status, disputeId }
+}
+
 /**
  * Resumes one locally pending refund with its original Stripe idempotency key.
  * The processor call is deliberately between two short database transactions.
@@ -392,10 +420,10 @@ export async function resumePendingBackgroundRefund(input: {
     const ownershipIds = current.items
       .map((item) => item.orderItem.ownership?.id)
       .filter((id): id is string => typeof id === "string")
-    const disputes = current.payment.disputes ?? []
-    const failedStatus = disputes.some((dispute) => dispute.status === "LOST")
+    const disputeProjection = derivePaymentDisputeProjection(current.payment.disputes ?? [])
+    const failedStatus = disputeProjection?.status === "LOST"
       ? "DISPUTE_REVOKED"
-      : disputes.some((dispute) => dispute.status === "OPEN")
+      : disputeProjection?.status === "OPEN"
         ? "DISPUTE_SUSPENDED"
         : "ACTIVE"
     await tx.backgroundOwnership.updateMany({
@@ -643,10 +671,10 @@ export async function applyStripeRefundEvent(input: RefundWebhookInput) {
     const ownershipIds = stored.items
       .map((item: { orderItem?: { ownership?: { id?: string } | null } }) => item.orderItem?.ownership?.id)
       .filter((id: unknown): id is string => typeof id === "string")
-    const paymentDisputes = stored.payment.disputes ?? []
-    const failedRestoreStatus = paymentDisputes.some((dispute: { status: string }) => dispute.status === "LOST")
+    const disputeProjection = derivePaymentDisputeProjection(stored.payment.disputes ?? [])
+    const failedRestoreStatus = disputeProjection?.status === "LOST"
       ? "DISPUTE_REVOKED"
-      : paymentDisputes.some((dispute: { status: string }) => dispute.status === "OPEN")
+      : disputeProjection?.status === "OPEN"
         ? "DISPUTE_SUSPENDED"
         : "ACTIVE"
     await tx.backgroundOwnership.updateMany({
@@ -838,8 +866,16 @@ export async function applyStripeDisputeEvent(input: {
           },
         })
 
+    const paymentDisputeProjection = derivePaymentDisputeProjection(
+      await tx.commerceDispute.findMany({
+        where: { paymentId: payment.id },
+        select: { id: true, status: true },
+      }),
+    )
+    if (!paymentDisputeProjection) throw new Error("A payment dispute projection is required.")
+
     const orderItemIds = payment.order.items.map((item: { id: string }) => item.id)
-    if (targetStatus === "OPEN") {
+    if (paymentDisputeProjection.status === "OPEN") {
       await tx.backgroundOwnership.updateMany({
         where: {
           sourceOrderItemId: { in: orderItemIds },
@@ -848,7 +884,7 @@ export async function applyStripeDisputeEvent(input: {
         },
         data: { status: "DISPUTE_SUSPENDED", statusChangedAt: now },
       })
-    } else if (targetStatus === "WON") {
+    } else if (paymentDisputeProjection.status === "WON") {
       await tx.backgroundOwnership.updateMany({
         where: {
           sourceOrderItemId: { in: orderItemIds },
@@ -879,13 +915,17 @@ export async function applyStripeDisputeEvent(input: {
         aggregateId: dispute.id,
         fromState: existing?.status ?? null,
         toState: targetStatus,
-        payload: { processorEventCreatedAt: processorDate.toISOString() },
+        payload: {
+          processorEventCreatedAt: processorDate.toISOString(),
+          paymentDisputeStatus: paymentDisputeProjection.status,
+        },
       },
     })
     await tx.commerceWebhookReceipt.update({ where: { id: receipt.id }, data: { processedAt: now } })
     return {
       changed: true,
       status: targetStatus,
+      paymentDisputeStatus: paymentDisputeProjection.status,
       disputeId: dispute.id,
       userId: payment.order.userId,
     }
@@ -1039,23 +1079,46 @@ export async function repairCommerceReversalIssue(input: {
         return { changed: false, status: "STALE" }
       }
       if (input.issue.code === "FAILED_REFUND_OWNERSHIP_NOT_RESTORED") {
-        const disputes = refund.payment.disputes
-        if (disputes.some((dispute) => dispute.status === "LOST")) {
+        const disputeProjection = derivePaymentDisputeProjection(refund.payment.disputes)
+        if (disputeProjection?.status === "LOST") {
           transition.to = "DISPUTE_REVOKED"
-        } else if (disputes.some((dispute) => dispute.status === "OPEN")) {
+        } else if (disputeProjection?.status === "OPEN") {
           transition.to = "DISPUTE_SUSPENDED"
         }
       }
     }
     if (input.issue.disputeId) {
-      const dispute = await tx.commerceDispute.findUnique({ where: { id: input.issue.disputeId } })
+      const payment = input.issue.paymentId
+        ? await tx.commercePayment.findUnique({
+            where: { id: input.issue.paymentId },
+            include: { disputes: true },
+          })
+        : null
+      const dispute = payment?.disputes.find((candidate) => candidate.id === input.issue.disputeId)
       const expectedStatus = input.issue.code.startsWith("OPEN_")
         ? "OPEN"
         : input.issue.code.startsWith("WON_")
           ? "WON"
           : "LOST"
-      if (!dispute || dispute.paymentId !== input.issue.paymentId || dispute.status !== expectedStatus) {
+      if (
+        !payment
+        || payment.orderId !== input.issue.orderId
+        || !dispute
+        || dispute.status !== expectedStatus
+      ) {
         return { changed: false, status: "STALE" }
+      }
+      const disputeProjection = derivePaymentDisputeProjection(payment.disputes)
+      if (!disputeProjection) return { changed: false, status: "STALE" }
+      if (disputeProjection.status === "LOST") {
+        transition.from = ["ACTIVE", "DISPUTE_SUSPENDED", "REFUND_PENDING"]
+        transition.to = "DISPUTE_REVOKED"
+      } else if (disputeProjection.status === "OPEN") {
+        transition.from = ["ACTIVE"]
+        transition.to = "DISPUTE_SUSPENDED"
+      } else {
+        transition.from = ["DISPUTE_SUSPENDED"]
+        transition.to = "ACTIVE"
       }
     }
 

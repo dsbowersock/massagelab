@@ -347,6 +347,7 @@ function createDisputeDouble() {
       { id: "credit_1", sourceOrderItemId: null, source: "CREDIT_REDEMPTION", status: "ACTIVE" },
     ],
     dispute: null,
+    disputes: [],
     receipts: [],
     events: [],
   }
@@ -370,14 +371,24 @@ function createDisputeDouble() {
       }),
     },
     commerceDispute: {
-      findUnique: async () => state.dispute ? structuredClone(state.dispute) : null,
+      findUnique: async ({ where }) => {
+        const dispute = state.disputes.find((candidate) => (
+          where.stripeDisputeId ? candidate.stripeDisputeId === where.stripeDisputeId : candidate.id === where.id
+        ))
+        return dispute ? structuredClone(dispute) : null
+      },
+      findMany: async ({ where }) => structuredClone(state.disputes.filter((dispute) => dispute.paymentId === where.paymentId)),
       create: async ({ data }) => {
         state.dispute = { id: "dispute_1", ...structuredClone(data) }
+        state.dispute.id = `dispute_${state.disputes.length + 1}`
+        state.disputes.push(state.dispute)
         return structuredClone(state.dispute)
       },
       updateMany: async ({ where, data }) => {
-        if (!state.dispute || state.dispute.id !== where.id || (where.updatedAt && state.dispute.updatedAt !== where.updatedAt)) return { count: 0 }
-        Object.assign(state.dispute, structuredClone(data))
+        const dispute = state.disputes.find((candidate) => candidate.id === where.id)
+        if (!dispute || (where.updatedAt && dispute.updatedAt !== where.updatedAt)) return { count: 0 }
+        Object.assign(dispute, structuredClone(data))
+        state.dispute = dispute
         return { count: 1 }
       },
     },
@@ -424,6 +435,35 @@ it("won and lost disputes restore or revoke only independently eligible ownershi
   const lost = createDisputeDouble()
   await applyStripeDisputeEvent({ prismaClient: lost.prismaClient, eventId: "evt_lost", eventType: "charge.dispute.closed", processorCreatedAt: 1_784_646_300, paymentIntentId: "pi_1", dispute: { id: "dp_1", status: "lost", amount: 200, currency: "usd" } })
   assert.deepEqual(lost.state.ownerships.slice(0, 2).map((ownership) => ownership.status), ["DISPUTE_REVOKED", "DISPUTE_REVOKED"])
+})
+
+it("restores ownership only after every open dispute on the payment is won", async () => {
+  const scenario = createDisputeDouble()
+  await applyStripeDisputeEvent({ prismaClient: scenario.prismaClient, eventId: "evt_open_one", eventType: "charge.dispute.created", processorCreatedAt: 1_784_646_100, paymentIntentId: "pi_1", dispute: { id: "dp_1", status: "needs_response", amount: 100, currency: "usd" } })
+  await applyStripeDisputeEvent({ prismaClient: scenario.prismaClient, eventId: "evt_open_two", eventType: "charge.dispute.created", processorCreatedAt: 1_784_646_200, paymentIntentId: "pi_1", dispute: { id: "dp_2", status: "needs_response", amount: 100, currency: "usd" } })
+  await applyStripeDisputeEvent({ prismaClient: scenario.prismaClient, eventId: "evt_won_one", eventType: "charge.dispute.closed", processorCreatedAt: 1_784_646_300, paymentIntentId: "pi_1", dispute: { id: "dp_1", status: "won", amount: 100, currency: "usd" } })
+
+  assert.deepEqual(scenario.state.ownerships.slice(0, 2).map((ownership) => ownership.status), ["DISPUTE_SUSPENDED", "DISPUTE_SUSPENDED"])
+
+  await applyStripeDisputeEvent({ prismaClient: scenario.prismaClient, eventId: "evt_won_two", eventType: "charge.dispute.closed", processorCreatedAt: 1_784_646_400, paymentIntentId: "pi_1", dispute: { id: "dp_2", status: "won", amount: 100, currency: "usd" } })
+  assert.deepEqual(scenario.state.ownerships.slice(0, 2).map((ownership) => ownership.status), ["ACTIVE", "ACTIVE"])
+})
+
+it("lets any lost dispute dominate open and won disputes without reviving terminal ownership", async () => {
+  const scenario = createDisputeDouble()
+  scenario.state.order.items.push({ id: "item_3" }, { id: "item_4" })
+  scenario.state.ownerships.push(
+    { id: "own_3", sourceOrderItemId: "item_3", source: "PURCHASE", status: "RETIRED" },
+    { id: "own_4", sourceOrderItemId: "item_4", source: "PURCHASE", status: "REFUND_PENDING" },
+  )
+  await applyStripeDisputeEvent({ prismaClient: scenario.prismaClient, eventId: "evt_dominance_open", eventType: "charge.dispute.created", processorCreatedAt: 1_784_646_100, paymentIntentId: "pi_1", dispute: { id: "dp_open", status: "needs_response", amount: 50, currency: "usd" } })
+  scenario.state.ownerships[1].status = "REFUND_REVOKED"
+  await applyStripeDisputeEvent({ prismaClient: scenario.prismaClient, eventId: "evt_dominance_won", eventType: "charge.dispute.closed", processorCreatedAt: 1_784_646_200, paymentIntentId: "pi_1", dispute: { id: "dp_won", status: "won", amount: 50, currency: "usd" } })
+  await applyStripeDisputeEvent({ prismaClient: scenario.prismaClient, eventId: "evt_dominance_lost", eventType: "charge.dispute.closed", processorCreatedAt: 1_784_646_300, paymentIntentId: "pi_1", dispute: { id: "dp_lost", status: "lost", amount: 50, currency: "usd" } })
+
+  assert.deepEqual(scenario.state.ownerships.map((ownership) => ownership.status), [
+    "DISPUTE_REVOKED", "REFUND_REVOKED", "ACTIVE", "RETIRED", "DISPUTE_REVOKED",
+  ])
 })
 
 it("a lost dispute revokes purchase ownership that is awaiting a refund", async () => {

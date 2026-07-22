@@ -114,6 +114,37 @@ describe("commerce reconciliation", () => {
     assert.doesNotMatch(JSON.stringify(issues), /pending:|pi_|re_|stripe/i)
   })
 
+  it("projects reconciliation drift once from aggregate payment dispute precedence", () => {
+    const openDominatesWon = collectCommerceReconciliationIssues([{
+      id: "order_open", status: "PAID",
+      items: [{ id: "item_open", ownership: { id: "ownership_open", source: "PURCHASE", status: "DISPUTE_SUSPENDED" } }],
+      payments: [{ id: "payment_open", status: "SUCCEEDED", disputes: [
+        { id: "dispute_won", status: "WON", closedAt: new Date("2026-07-21T12:00:00.000Z") },
+        { id: "dispute_open", status: "OPEN", closedAt: null },
+      ] }],
+      refunds: [],
+    }])
+    assert.deepEqual(openDominatesWon, [])
+
+    const lostDominates = collectCommerceReconciliationIssues([{
+      id: "order_lost", status: "PAID",
+      items: [{ id: "item_lost", ownership: { id: "ownership_lost", source: "PURCHASE", status: "ACTIVE" } }],
+      payments: [{ id: "payment_lost", status: "SUCCEEDED", disputes: [
+        { id: "dispute_won", status: "WON", closedAt: new Date("2026-07-21T12:00:00.000Z") },
+        { id: "dispute_open", status: "OPEN", closedAt: null },
+        { id: "dispute_lost", status: "LOST", closedAt: new Date("2026-07-21T12:01:00.000Z") },
+      ] }],
+      refunds: [],
+    }])
+    assert.deepEqual(lostDominates, [{
+      code: "LOST_DISPUTE_OWNERSHIP_NOT_REVOKED",
+      orderId: "order_lost",
+      paymentId: "payment_lost",
+      disputeId: "dispute_lost",
+      ownershipId: "ownership_lost",
+    }])
+  })
+
   for (const [disputeStatus, expectedOwnershipStatus] of [
     ["OPEN", "DISPUTE_SUSPENDED"],
     ["LOST", "DISPUTE_REVOKED"],
@@ -180,6 +211,39 @@ describe("commerce reconciliation", () => {
 
     assert.equal(state.ownership.status, "ACTIVE")
   })
+
+  for (const [dominantStatus, expectedStatus, expectedChanged] of [
+    ["OPEN", "DISPUTE_SUSPENDED", false],
+    ["LOST", "DISPUTE_REVOKED", true],
+  ]) {
+    it(`rechecks aggregate ${dominantStatus} precedence before repairing a stale WON issue`, async () => {
+      const state = {
+        ownership: { id: "ownership_1", userId: "user_1", source: "PURCHASE", status: "DISPUTE_SUSPENDED", sourceOrderItemId: "item_1", sourceOrderItem: { id: "item_1", orderId: "order_1" } },
+      }
+      const disputes = [{ id: "dispute_won", paymentId: "payment_1", status: "WON" }, { id: "dispute_other", paymentId: "payment_1", status: dominantStatus }]
+      const tx = {
+        backgroundOwnership: {
+          findUnique: async () => structuredClone(state.ownership),
+          updateMany: async ({ where, data }) => {
+            if (!where.status.in.includes(state.ownership.status)) return { count: 0 }
+            Object.assign(state.ownership, structuredClone(data))
+            return { count: 1 }
+          },
+        },
+        commerceDispute: { findUnique: async () => structuredClone(disputes[0]) },
+        commercePayment: { findUnique: async () => ({ id: "payment_1", orderId: "order_1", disputes: structuredClone(disputes) }) },
+        commerceEvent: { create: async () => ({ id: "event_1" }) },
+      }
+
+      const result = await repairCommerceReversalIssue({
+        prismaClient: { $transaction: async (callback) => callback(tx) },
+        issue: { code: "WON_DISPUTE_OWNERSHIP_NOT_RESTORED", orderId: "order_1", paymentId: "payment_1", disputeId: "dispute_won", ownershipId: "ownership_1" },
+      })
+
+      assert.equal(result.changed, expectedChanged)
+      assert.equal(state.ownership.status, expectedStatus)
+    })
+  }
 
   it("keeps the package command read-only unless --repair is explicit", async () => {
     const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"))

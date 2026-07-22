@@ -1,6 +1,9 @@
 import { fileURLToPath } from "node:url"
 import { resolve } from "node:path"
-import { resumePendingBackgroundRefund } from "../lib/commerce/reversal-service.ts"
+import {
+  derivePaymentDisputeProjection,
+  resumePendingBackgroundRefund,
+} from "../lib/commerce/reversal-service.ts"
 import { getStripeClient } from "../lib/stripe-billing.js"
 
 function issue(code, orderId, paymentId, relatedIdName, relatedId, ownershipId) {
@@ -81,16 +84,18 @@ export function collectCommerceReconciliationIssues(orders) {
             disputeId: dispute.id,
           })
         }
-        for (const item of order.items ?? []) {
-          const ownership = item.ownership
-          if (!ownership || ownership.source !== "PURCHASE") continue
-          if (dispute.status === "OPEN" && ownership.status === "ACTIVE") {
-            issues.push(issue("OPEN_DISPUTE_OWNERSHIP_NOT_SUSPENDED", order.id, payment.id, "disputeId", dispute.id, ownership.id))
-          } else if (dispute.status === "WON" && ownership.status === "DISPUTE_SUSPENDED") {
-            issues.push(issue("WON_DISPUTE_OWNERSHIP_NOT_RESTORED", order.id, payment.id, "disputeId", dispute.id, ownership.id))
-          } else if (dispute.status === "LOST" && ["ACTIVE", "DISPUTE_SUSPENDED", "REFUND_PENDING"].includes(ownership.status)) {
-            issues.push(issue("LOST_DISPUTE_OWNERSHIP_NOT_REVOKED", order.id, payment.id, "disputeId", dispute.id, ownership.id))
-          }
+      }
+      const disputeProjection = derivePaymentDisputeProjection(payment.disputes ?? [])
+      if (!disputeProjection?.disputeId) continue
+      for (const item of order.items ?? []) {
+        const ownership = item.ownership
+        if (!ownership || ownership.source !== "PURCHASE") continue
+        if (disputeProjection.status === "OPEN" && ownership.status === "ACTIVE") {
+          issues.push(issue("OPEN_DISPUTE_OWNERSHIP_NOT_SUSPENDED", order.id, payment.id, "disputeId", disputeProjection.disputeId, ownership.id))
+        } else if (disputeProjection.status === "WON" && ownership.status === "DISPUTE_SUSPENDED") {
+          issues.push(issue("WON_DISPUTE_OWNERSHIP_NOT_RESTORED", order.id, payment.id, "disputeId", disputeProjection.disputeId, ownership.id))
+        } else if (disputeProjection.status === "LOST" && ["ACTIVE", "DISPUTE_SUSPENDED", "REFUND_PENDING"].includes(ownership.status)) {
+          issues.push(issue("LOST_DISPUTE_OWNERSHIP_NOT_REVOKED", order.id, payment.id, "disputeId", disputeProjection.disputeId, ownership.id))
         }
       }
     }

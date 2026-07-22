@@ -164,3 +164,24 @@ same transaction as its domain transition.
 - `feat: reconcile commerce reversals` (this Task 8 commit)
 - `fix: harden commerce reversal recovery` (review follow-up)
 - `fix: freeze terminal commerce disputes` (terminal-ordering follow-up)
+
+## Final Multi-Dispute Aggregation Follow-up
+
+Date: 2026-07-22
+
+- RED proved that closing one of two OPEN disputes as WON restored payment
+  ownership too early, while reconciliation and repair reasoned from individual
+  disputes and could produce contradictory or unsafe transitions.
+- `derivePaymentDisputeProjection` now supplies one payment-level precedence:
+  any LOST, otherwise any OPEN, otherwise WON only when every dispute is WON.
+- The signed webhook applies the individual dispute transition first, then
+  projects purchase ownership once from all current disputes in the same
+  transaction. LOST preserves refunded and retired ownership; WON restores only
+  dispute-suspended ownership. Individual terminal disputes remain immutable.
+- Failed-refund recovery and direct repair use the same aggregate projection,
+  so a stale WON finding cannot activate ownership while another dispute is OPEN
+  or LOST. No Prisma schema or migration change was required.
+- Validation: cross-seam 55/55; focused Task 7-10 regression 132/132; full suite
+  1,314/1,314 across 141 suites; typecheck, lint, production build, and diff
+  check passed.
+- Commit: `fix: aggregate payment dispute ownership`.
