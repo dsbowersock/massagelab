@@ -104,3 +104,101 @@ Pricing and legal copy should also say that MassageLab does not sell user data a
 - Before public paid signup, run `npm run stripe:readiness -- --env-file=/secure/path/massagelab-production.env --live --verify-stripe` against the production Stripe environment. The check must pass without printing secret values.
 
 Current local workspace note from May 15, 2026: `.env.local` did not contain Stripe keys or price IDs during implementation planning, so local Checkout and webhook testing will fail until those values are added.
+
+## Permanent Background Commerce
+
+Track 1A provides the server-owned commerce foundation for one-time permanent
+background access. It is separate from memberships and donations:
+
+- every verified account receives exactly two background credits once, through
+  one idempotent wallet/ledger grant;
+- a credit redemption or paid order creates permanent database ownership;
+- an active subscription can grant subscription access and does not block a
+  separate permanent purchase;
+- `chimer_custom_colors` remains a color-customization feature and is not proof
+  of permanent premium-background ownership; and
+- browser state, JWT claims, Checkout return URLs, and selected UI cards never
+  grant ownership. Track 1B must read the no-store commerce snapshot and wait
+  for webhook-backed database ownership before showing an acquisition as done.
+
+### Deployment And Backfill Order
+
+Keep purchasing disabled while deploying Track 1A:
+
+1. point `DATABASE_URL`, `DIRECT_URL`, and `DATABASE_URL_UNPOOLED` at the exact
+   intended database, with a direct non-pooler URL for migrations;
+2. run `npm run prisma:migrate:deploy`;
+3. set `BACKGROUND_CREDIT_BACKFILL_DATABASE_URL` to the same direct Neon branch
+   and run `npm run commerce:backfill-credits`;
+4. run the backfill again; the second pass must grant zero additional wallets;
+5. run `npm run commerce:reconcile` in its default read-only mode; and
+6. configure and pass Stripe readiness before setting
+   `BACKGROUND_COMMERCE_PURCHASING_ENABLED=true`.
+
+The migration never grants credits. Normal email-verification and account-state
+loading use the same provisioner for accounts verified after the backfill.
+
+### Fail-Closed Readiness Contract
+
+`npm run stripe:readiness` preserves the membership checks and additionally
+requires these explicit background-commerce values without printing secrets:
+
+- `BACKGROUND_COMMERCE_PRICE_CENTS=100` and
+  `BACKGROUND_COMMERCE_CURRENCY=usd`;
+- `BACKGROUND_COMMERCE_PURCHASE_COUNTRIES=US`;
+- `BACKGROUND_COMMERCE_DIGITAL_PURCHASE_DOCUMENT_VERSION=2026-07-digital-purchases-v1`;
+- `BACKGROUND_COMMERCE_WEBHOOK_READY=true` and
+  `BACKGROUND_COMMERCE_RECONCILIATION_READY=true`;
+- `BACKGROUND_COMMERCE_WEBHOOK_EVENTS` covering exactly the implementation's
+  Checkout, refund, and dispute contract below; and
+- `BACKGROUND_COMMERCE_TAX_MODE=disabled` for the current U.S.-only posture, or
+  `stripe` only with an explicit product tax code plus provider and registration
+  readiness signals.
+
+Current checkout is U.S.-only and fixed at one U.S. dollar per background.
+Production readiness fails closed if another purchase country or automatic tax
+is enabled without the reviewed registration and tax-code configuration. An
+active Stripe Tax registration must be confirmed before automatic tax is
+enabled; a tax-mode flag by itself does not collect tax.
+
+The pinned `/api/billing/webhook` endpoint must subscribe to:
+
+- `checkout.session.completed`
+- `checkout.session.expired`
+- `checkout.session.async_payment_succeeded`
+- `checkout.session.async_payment_failed`
+- `refund.created`
+- `refund.updated`
+- `refund.failed`
+- `charge.dispute.created`
+- `charge.dispute.updated`
+- `charge.dispute.closed`
+
+Membership subscription events remain required by the existing membership
+contract. Verify mode checks the active production endpoint rather than trusting
+the local readiness signal alone.
+
+### Refunds, Disputes, Retirement, And Reconciliation
+
+Permanent digital-background sales are final by default, subject to applicable
+law and a narrow operator exception for duplicate charges, non-delivery, or
+another documented correction. Full account admins may initiate only an exact
+selected order-item refund. Anatomy-only administration is not commerce
+authority. Refunds never rewrite credit ownership or silently issue a credit;
+the final-sale exception retains the order, payment, refund, ownership, and
+identifier-only audit history.
+
+Pending refunds suspend only the selected purchase ownership. Successful
+refunds revoke those exact items; failed refunds restore only otherwise-eligible
+items. An open dispute suspends purchase ownership from its payment, a won
+dispute restores eligible access, and a lost dispute revokes remaining purchase
+access. Retiring an actively owned paid background preserves ownership history
+and issues one idempotent replacement credit; unowned, free-conversion, and
+legal-refund cases receive no duplicate replacement.
+
+Run `npm run commerce:reconcile` without `--repair` for identifier-only,
+read-only drift reporting. Repair mode is limited to resuming the stable
+idempotency boundary for an unresolved pending refund; ownership and aggregate
+drift remain operator-review findings rather than heuristic repairs. Audit JSON
+must never contain raw Stripe objects, secrets, email addresses, IP addresses,
+user-agent strings, or card/payment-method data.
