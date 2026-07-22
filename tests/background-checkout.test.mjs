@@ -110,7 +110,7 @@ function checkoutHarness(overrides = {}) {
       calls.push(["prepare", input])
       return preparedOrder
     },
-    ensureCustomer: async (_user) => {
+    ensureCustomer: async () => {
       calls.push(["customer"])
       return { stripeCustomerId: "cus_123" }
     },

@@ -6,7 +6,6 @@ import {
   BACKGROUND_PURCHASE_SCHEMA_VERSION,
 } from "../stripe-billing.js"
 import {
-  COMMERCE_CURRENCY,
   COMMERCE_PRODUCT_BACKGROUND,
 } from "./constants.js"
 import { runCommerceTransaction } from "./transactions.ts"
