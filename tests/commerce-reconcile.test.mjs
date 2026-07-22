@@ -145,6 +145,36 @@ describe("commerce reconciliation", () => {
     }])
   })
 
+  it("lets aggregate LOST exclusively own successful-refund ownership projection", () => {
+    const collect = (ownershipStatus, disputes) => collectCommerceReconciliationIssues([{
+      id: "order_refund_lost", status: "REFUNDED", items: [
+        { id: "item_1", ownership: { id: "ownership_1", source: "PURCHASE", status: ownershipStatus } },
+      ],
+      payments: [{ id: "payment_1", status: "REFUNDED", disputes }],
+      refunds: [{
+        id: "refund_1", paymentId: "payment_1", status: "SUCCEEDED", processedAt: new Date("2026-07-21T12:02:00.000Z"),
+        items: [{ orderItemId: "item_1", orderItem: { ownership: { id: "ownership_1", source: "PURCHASE", status: ownershipStatus } } }],
+      }],
+    }])
+    const lost = [{ id: "dispute_lost", status: "LOST", closedAt: new Date("2026-07-21T12:01:00.000Z") }]
+
+    assert.deepEqual(collect("DISPUTE_REVOKED", lost), [])
+    assert.deepEqual(collect("ACTIVE", lost), [{
+      code: "LOST_DISPUTE_OWNERSHIP_NOT_REVOKED",
+      orderId: "order_refund_lost",
+      paymentId: "payment_1",
+      disputeId: "dispute_lost",
+      ownershipId: "ownership_1",
+    }])
+    assert.deepEqual(collect("DISPUTE_REVOKED", []), [{
+      code: "REFUND_OWNERSHIP_NOT_REVOKED",
+      orderId: "order_refund_lost",
+      paymentId: "payment_1",
+      refundId: "refund_1",
+      ownershipId: "ownership_1",
+    }])
+  })
+
   for (const [disputeStatus, expectedOwnershipStatus] of [
     ["OPEN", "DISPUTE_SUSPENDED"],
     ["LOST", "DISPUTE_REVOKED"],

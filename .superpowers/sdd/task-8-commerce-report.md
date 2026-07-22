@@ -185,3 +185,20 @@ Date: 2026-07-22
   1,314/1,314 across 141 suites; typecheck, lint, production build, and diff
   check passed.
 - Commit: `fix: aggregate payment dispute ownership`.
+
+## Final LOST Refund Reconciliation Follow-up
+
+Date: 2026-07-22
+
+- RED proved that a successful refund followed by an aggregate LOST dispute
+  could leave correct `DISPUTE_REVOKED` ownership with a permanent
+  `REFUND_OWNERSHIP_NOT_REVOKED` false positive.
+- Aggregate LOST now exclusively owns the payment projection: correct
+  `DISPUTE_REVOKED` ownership emits no finding, while drifted `ACTIVE`
+  ownership emits only `LOST_DISPUTE_OWNERSHIP_NOT_REVOKED`.
+- Without aggregate LOST, `DISPUTE_REVOKED` remains invalid for a successful
+  refund and still emits `REFUND_OWNERSHIP_NOT_REVOKED`.
+- Validation: cross-seam 57/57; focused Task 7-10 regression 134/134; full suite
+  1,316/1,316 across 141 suites; typecheck, lint, production build, and diff
+  check passed.
+- Commit: `fix: reconcile lost refunded ownership`.

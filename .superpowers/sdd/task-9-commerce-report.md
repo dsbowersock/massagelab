@@ -169,3 +169,17 @@ Date: 2026-07-22
   1,314/1,314 across 141 suites; typecheck, lint, production build, and diff
   check passed.
 - Commit: `fix: aggregate payment dispute ownership`.
+
+## Final LOST Refund Admin Follow-up
+
+Date: 2026-07-22
+
+- Admin reconciliation now gives aggregate LOST exclusive ownership of the
+  successful-refund projection, matching the CLI collector.
+- Correct `DISPUTE_REVOKED` ownership emits no actionable repair; drifted
+  ownership emits only the LOST-dispute repair target. The non-LOST negative
+  case preserves the successful-refund finding.
+- Validation: cross-seam 57/57; focused Task 7-10 regression 134/134; full suite
+  1,316/1,316 across 141 suites; typecheck, lint, production build, and diff
+  check passed.
+- Commit: `fix: reconcile lost refunded ownership`.

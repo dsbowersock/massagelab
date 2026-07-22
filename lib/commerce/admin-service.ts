@@ -77,13 +77,18 @@ export function collectCommerceAdminReconciliationIssues(
     }
     for (const refund of order.refunds ?? []) {
       const payment = payments.find((candidate) => candidate.id === refund.paymentId) ?? payments[0]
+      const paymentDisputeProjection = derivePaymentDisputeProjection(payment?.disputes ?? [])
       if (refund.status === "PENDING" && refund.processedAt) {
         issues.push({ code: "PENDING_REFUND_ALREADY_PROCESSED", orderId: order.id, paymentId: payment?.id, refundId: refund.id })
       }
       for (const refundItem of refund.items ?? []) {
         const ownership = refundItem.orderItem?.ownership
         if (!ownership || ownership.source !== "PURCHASE") continue
-        if (refund.status === "SUCCEEDED" && ownership.status !== "REFUND_REVOKED") {
+        if (
+          refund.status === "SUCCEEDED"
+          && paymentDisputeProjection?.status !== "LOST"
+          && ownership.status !== "REFUND_REVOKED"
+        ) {
           issues.push(ownershipIssue("REFUND_OWNERSHIP_NOT_REVOKED", order.id, payment?.id, { refundId: refund.id }, ownership.id))
         } else if (refund.status === "FAILED" && ownership.status === "REFUND_PENDING") {
           issues.push(ownershipIssue("FAILED_REFUND_OWNERSHIP_NOT_RESTORED", order.id, payment?.id, { refundId: refund.id }, ownership.id))

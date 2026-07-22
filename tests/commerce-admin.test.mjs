@@ -312,6 +312,23 @@ it("derives admin ownership findings from one aggregate dispute state per paymen
   assert.equal(issues.filter((issue) => issue.ownershipId === "ownership-aggregate").length, 0)
 })
 
+it("lets aggregate LOST exclusively own admin successful-refund findings", () => {
+  const collect = (ownershipStatus, disputes) => collectCommerceAdminReconciliationIssues([{
+    id: "order-refund-lost", status: "REFUNDED",
+    items: [{ id: "item-1", ownership: { id: "ownership-1", source: "PURCHASE", status: ownershipStatus } }],
+    payments: [{ id: "payment-1", status: "REFUNDED", disputes }],
+    refunds: [{
+      id: "refund-1", paymentId: "payment-1", status: "SUCCEEDED", processedAt: new Date("2026-07-21T12:02:00.000Z"),
+      items: [{ orderItemId: "item-1", orderItem: { ownership: { id: "ownership-1", source: "PURCHASE", status: ownershipStatus } } }],
+    }],
+  }])
+  const lost = [{ id: "dispute-lost", status: "LOST", closedAt: new Date("2026-07-21T12:01:00.000Z") }]
+
+  assert.deepEqual(collect("DISPUTE_REVOKED", lost), [])
+  assert.deepEqual(collect("ACTIVE", lost).map((issue) => issue.code), ["LOST_DISPUTE_OWNERSHIP_NOT_REVOKED"])
+  assert.deepEqual(collect("DISPUTE_REVOKED", []).map((issue) => issue.code), ["REFUND_OWNERSHIP_NOT_REVOKED"])
+})
+
 it("filters actionable candidates before applying the 100-order display cap", async () => {
   const normalOrders = Array.from({ length: 101 }, (_, index) => ({
     id: `normal-${index}`,
