@@ -69,11 +69,22 @@ export default async function CommerceAdminOrderPage({ params }: { params: Promi
             <section className="space-y-3">
               <h2 className="text-lg font-semibold">Deterministic reconciliation</h2>
               {detail.reconciliationIssues.map((issue, index) => (
-                <form key={`${issue.code}-${index}`} action={reconcileCommerceOrderIssueAction} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3">
-                  {Object.entries(issue).map(([key, value]) => value ? <input key={key} type="hidden" name={key} value={value} /> : null)}
+                <div key={`${issue.code}-${index}`} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3">
                   <span className="font-mono text-xs">{issue.code}</span>
-                  <Button type="submit" variant="outline">Apply exact repair</Button>
-                </form>
+                  {issue.repairable ? (
+                    <form action={reconcileCommerceOrderIssueAction}>
+                      <input type="hidden" name="code" value={issue.code} />
+                      <input type="hidden" name="orderId" value={issue.orderId} />
+                      {issue.paymentId ? <input type="hidden" name="paymentId" value={issue.paymentId} /> : null}
+                      {issue.refundId ? <input type="hidden" name="refundId" value={issue.refundId} /> : null}
+                      {issue.disputeId ? <input type="hidden" name="disputeId" value={issue.disputeId} /> : null}
+                      {issue.ownershipId ? <input type="hidden" name="ownershipId" value={issue.ownershipId} /> : null}
+                      <Button type="submit" variant="outline">Apply exact repair</Button>
+                    </form>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Manual operator review</span>
+                  )}
+                </div>
               ))}
             </section>
           ) : null}

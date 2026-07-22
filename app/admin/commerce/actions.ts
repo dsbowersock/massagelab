@@ -5,7 +5,7 @@ import { requireCommerceAdminUser } from "../../../lib/commerce/admin-access.ts"
 import {
   prepareCommerceAdminRefund,
   reconcileCommerceAdminIssue,
-  type CommerceAdminReconciliationIssue,
+  type CommerceAdminReconciliationRequest,
 } from "../../../lib/commerce/admin-service.ts"
 import { prisma } from "../../../lib/prisma.ts"
 
@@ -36,7 +36,7 @@ export async function refundCommerceOrderItemsAction(formData: FormData) {
 
 export async function reconcileCommerceOrderIssueAction(formData: FormData) {
   await requireCommerceAdminUser()
-  const issue: CommerceAdminReconciliationIssue = {
+  const issue: CommerceAdminReconciliationRequest = {
     code: formString(formData, "code"),
     orderId: formString(formData, "orderId"),
     ...(formString(formData, "paymentId") ? { paymentId: formString(formData, "paymentId") } : {}),

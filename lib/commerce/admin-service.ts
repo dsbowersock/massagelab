@@ -27,6 +27,22 @@ export type CommerceAdminReconciliationIssue = {
   refundId?: string
   disputeId?: string
   ownershipId?: string
+  repairable: boolean
+}
+
+export type CommerceAdminReconciliationRequest = Omit<CommerceAdminReconciliationIssue, "repairable">
+
+const REPAIRABLE_RECONCILIATION_CODES = new Set([
+  "REFUND_OWNERSHIP_NOT_REVOKED",
+  "FAILED_REFUND_OWNERSHIP_NOT_RESTORED",
+  "PENDING_REFUND_OWNERSHIP_NOT_SUSPENDED",
+  "OPEN_DISPUTE_OWNERSHIP_NOT_SUSPENDED",
+  "WON_DISPUTE_OWNERSHIP_NOT_RESTORED",
+  "LOST_DISPUTE_OWNERSHIP_NOT_REVOKED",
+])
+
+export function isCommerceAdminIssueRepairable(code: string): boolean {
+  return REPAIRABLE_RECONCILIATION_CODES.has(code)
 }
 
 type ReconciliationOrder = {
@@ -37,7 +53,9 @@ type ReconciliationOrder = {
   refunds?: Array<{ id: string; paymentId?: string; status: string; processedAt?: Date | null; items?: Array<{ orderItemId: string; orderItem?: { ownership?: { id: string; source: string; status: string } | null } }> }>
 }
 
-function ownershipIssue(code: string, orderId: string, paymentId: string | undefined, related: object, ownershipId: string): CommerceAdminReconciliationIssue {
+type UnclassifiedReconciliationIssue = Omit<CommerceAdminReconciliationIssue, "repairable">
+
+function ownershipIssue(code: string, orderId: string, paymentId: string | undefined, related: object, ownershipId: string): UnclassifiedReconciliationIssue {
   return { code, orderId, ...(paymentId ? { paymentId } : {}), ...related, ownershipId }
 }
 
@@ -45,7 +63,7 @@ function ownershipIssue(code: string, orderId: string, paymentId: string | undef
 export function collectCommerceAdminReconciliationIssues(
   orders: ReconciliationOrder[],
 ): CommerceAdminReconciliationIssue[] {
-  const issues: CommerceAdminReconciliationIssue[] = []
+  const issues: UnclassifiedReconciliationIssue[] = []
   for (const order of orders) {
     const payments = order.payments ?? []
     for (const payment of payments) {
@@ -91,7 +109,10 @@ export function collectCommerceAdminReconciliationIssues(
       }
     }
   }
-  return issues
+  return issues.map((issue) => ({
+    ...issue,
+    repairable: isCommerceAdminIssueRepairable(issue.code),
+  }))
 }
 
 type RefundResult = {
@@ -189,11 +210,48 @@ const ADMIN_ORDER_INCLUDE = {
 
 /** Loads one stable operator queue and emits only internal IDs plus a minimal account label. */
 export async function listCommerceAdminOperations(input: { prismaClient: PrismaClient }): Promise<CommerceAdminQueueItem[]> {
-  const rows = await input.prismaClient.commerceOrder.findMany({
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+  const queryShape = {
+    orderBy: [{ createdAt: "desc" as const }, { id: "desc" as const }],
     take: 100,
     include: ADMIN_ORDER_INCLUDE,
-  })
+  }
+  const [obviousRows, reconciliationRows] = await Promise.all([
+    input.prismaClient.commerceOrder.findMany({
+      ...queryShape,
+      where: {
+        OR: [
+          { status: "REVIEW_REQUIRED" },
+          { refunds: { some: { status: "PENDING" } } },
+          { payments: { some: { disputes: { some: { status: "OPEN" } } } } },
+        ],
+      },
+    }),
+    input.prismaClient.commerceOrder.findMany({
+      ...queryShape,
+      where: {
+        OR: [
+          { status: { not: "PARTIALLY_REFUNDED" }, payments: { some: { status: "PARTIALLY_REFUNDED" } } },
+          { status: { not: "REFUNDED" }, payments: { some: { status: "REFUNDED" } } },
+          { refunds: { some: { status: "PENDING", processedAt: { not: null } } } },
+          { refunds: { some: { status: "SUCCEEDED", items: { some: { orderItem: { ownership: { is: { source: "PURCHASE", status: { not: "REFUND_REVOKED" } } } } } } } } },
+          { refunds: { some: { status: "FAILED", items: { some: { orderItem: { ownership: { is: { source: "PURCHASE", status: "REFUND_PENDING" } } } } } } } },
+          { refunds: { some: { status: "PENDING", items: { some: { orderItem: { ownership: { is: { source: "PURCHASE", status: "ACTIVE" } } } } } } } },
+          { payments: { some: { disputes: { some: { OR: [
+            { status: "OPEN", closedAt: { not: null } },
+            { status: { not: "OPEN" }, closedAt: null },
+          ] } } } } },
+          { payments: { some: { disputes: { some: { status: "OPEN" } } } }, items: { some: { ownership: { is: { source: "PURCHASE", status: "ACTIVE" } } } } },
+          { payments: { some: { disputes: { some: { status: "WON" } } } }, items: { some: { ownership: { is: { source: "PURCHASE", status: "DISPUTE_SUSPENDED" } } } } },
+          { payments: { some: { disputes: { some: { status: "LOST" } } } }, items: { some: { ownership: { is: { source: "PURCHASE", status: { in: ["ACTIVE", "DISPUTE_SUSPENDED", "REFUND_PENDING"] } } } } } },
+        ],
+      },
+    }),
+  ])
+  const rows = [...new Map(
+    [...obviousRows, ...reconciliationRows].map((order) => [order.id, order]),
+  ).values()].sort((left, right) => (
+    right.createdAt.getTime() - left.createdAt.getTime() || right.id.localeCompare(left.id)
+  ))
   const issues = collectCommerceAdminReconciliationIssues(rows)
   return rows.flatMap((order) => {
     const pendingRefundCount = order.refunds.filter((refund) => refund.status === "PENDING").length
@@ -212,7 +270,7 @@ export async function listCommerceAdminOperations(input: { prismaClient: PrismaC
       openDisputeCount,
       reconciliationIssueCount,
     }]
-  })
+  }).slice(0, 100)
 }
 
 type AdminDetailOrder = {
@@ -330,9 +388,12 @@ export async function getCommerceAdminOrderDetail(input: {
 /** Applies only an explicitly identified deterministic projection repair. */
 export async function reconcileCommerceAdminIssue(input: {
   prismaClient: PrismaClient
-  issue: CommerceAdminReconciliationIssue
+  issue: CommerceAdminReconciliationRequest
   repairIssue?: typeof repairCommerceReversalIssue
 }) {
+  if (!isCommerceAdminIssueRepairable(input.issue.code)) {
+    return { changed: false, status: "MANUAL_REVIEW_REQUIRED" }
+  }
   const repair = input.repairIssue ?? repairCommerceReversalIssue
   return repair({ prismaClient: input.prismaClient, issue: input.issue as never })
 }

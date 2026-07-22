@@ -31,6 +31,12 @@ reconciliation. Anatomy-scoped administration does not grant commerce authority.
    - Expected failures: missing `getCommerceAdminOrderDetail` export, followed by
      `ENOENT` for `app/admin/commerce/actions.ts` before the final page/action
      slice was implemented.
+5. Review follow-up for queue coverage and safe reconciliation:
+   - Command: `node --test tests/commerce-admin.test.mjs`
+   - Expected failures: four assertions proved the queue discarded an older
+     actionable order behind 100 normal orders, reconciliation findings lacked
+     explicit repairability, an unsupported mismatch reached the repair
+     service, and the detail page offered repair for every issue.
 
 ## Authorization Matrix
 
@@ -77,9 +83,11 @@ wallet, ownership, order, and cart changes are visible on the next read.
   existing persistent cart service and expose only background item mutations.
 - Known `CommerceError` values retain stable public code/message/status JSON;
   unknown failures collapse to the established generic commerce error.
-- The admin queue lists `REVIEW_REQUIRED` orders, pending refunds, open disputes,
-  and deterministic reconciliation findings using internal account/order IDs plus
-  one minimum account label.
+- The admin queue runs two parallel, bounded candidate reads: one for explicit
+  review/refund/dispute states and one for reconciliation-shaped records. It
+  deduplicates and deterministically sorts candidates, derives actionable issues,
+  and only then applies the 100-row display cap, so newer normal orders cannot
+  hide an older actionable order.
 - Order detail projects immutable item/amount/status/audit history without raw
   event payloads or processor identifiers.
 - Exact-item refund preparation requires a bounded reason, distinct items from
@@ -88,14 +96,19 @@ wallet, ownership, order, and cart changes are visible on the next read.
   reversal service revalidates the selection transactionally, writes the
   `BACKGROUND_REFUND_INITIATED` audit event, and performs the processor request
   outside the transaction with its stable idempotency key.
-- Reconciliation actions pass only an exact identifier-based issue to the
-  existing evidence-rechecking repair service. No heuristic repair is exposed.
+- Reconciliation findings derive repairability on the server. Only the six
+  ownership-state transitions supported by the existing repair service offer an
+  exact repair; other mismatch codes are labeled for manual operator review.
+  Actions independently enforce that allowlist and return
+  `MANUAL_REVIEW_REQUIRED` without invoking repair for unsupported codes. No
+  heuristic repair is exposed.
 
 ## Visual And Performance Notes
 
 - Both operator pages are React Server Components and add no client bundle.
-- The list uses one relational server read; dashboard anatomy metrics and the
-  full-admin commerce queue run in parallel after authority is known.
+- The list uses two parallel, bounded relational candidate reads; dashboard
+  anatomy metrics and the full-admin commerce queue also run in parallel after
+  authority is known.
 - Only rendered safe fields cross the page boundary; no processor objects are
   serialized.
 - Pages reuse the existing `AppPageShell`, Card, and Button treatments with a
@@ -109,17 +122,15 @@ wallet, ownership, order, and cart changes are visible on the next read.
 
 - Focused Task 9:
   - `node --test tests/background-commerce-api.test.mjs tests/commerce-admin.test.mjs`
-  - PASS, 14/14 tests.
+  - PASS, 17/17 tests.
 - Task 9 plus Task 8/7 regressions:
   - `node --test tests/background-commerce-api.test.mjs tests/commerce-admin.test.mjs tests/background-reversals.test.mjs tests/commerce-reconcile.test.mjs tests/background-fulfillment.test.mjs tests/stripe-billing.test.mjs`
-  - PASS, 85/85 tests.
+  - PASS, 88/88 tests.
 - Full repository tests:
   - `npm run test`
-  - PASS, 1,288/1,288 tests across 138 suites.
+  - PASS, 1,291/1,291 tests across 138 suites.
 - `npm run typecheck`: PASS.
-- `npm run lint`: PASS with zero errors; two pre-existing warnings remain in
-  untouched `lib/commerce/fulfillment-service.ts` and
-  `tests/background-checkout.test.mjs`.
+- `npm run lint`: PASS with no reported errors or warnings.
 - `npm run build`: PASS; route collection includes `/admin/commerce`,
   `/admin/commerce/[orderId]`, and all three new user APIs.
 - `git diff --check`: PASS; only the expected Windows line-ending notice was
@@ -128,3 +139,4 @@ wallet, ownership, order, and cart changes are visible on the next read.
 ## Commit
 
 - `feat: expose secure background commerce operations`
+- `fix: harden commerce admin operations`

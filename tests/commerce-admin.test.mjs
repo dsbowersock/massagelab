@@ -5,7 +5,9 @@ import { requireCommerceAdminUser } from "../lib/commerce/admin-access.ts"
 import {
   collectCommerceAdminReconciliationIssues,
   getCommerceAdminOrderDetail,
+  listCommerceAdminOperations,
   prepareCommerceAdminRefund,
+  reconcileCommerceAdminIssue,
 } from "../lib/commerce/admin-service.ts"
 
 /**
@@ -274,5 +276,67 @@ it("derives deterministic identifier-only reconciliation findings", () => {
     "OPEN_DISPUTE_ALREADY_CLOSED",
     "OPEN_DISPUTE_OWNERSHIP_NOT_SUSPENDED",
   ])
+  assert.deepEqual(first.map((issue) => issue.repairable), [false, true, false, true])
   assert.doesNotMatch(JSON.stringify(first), /stripe|payload|metadata|email|pi_|re_|dp_/i)
+})
+
+it("filters actionable candidates before applying the 100-order display cap", async () => {
+  const normalOrders = Array.from({ length: 101 }, (_, index) => ({
+    id: `normal-${index}`,
+    status: "PAID",
+    totalCents: 100,
+    createdAt: new Date(2026, 6, 21, 12, 0, 0, 101 - index),
+    user: { id: `user-${index}`, name: `Normal ${index}`, email: null },
+    items: [], payments: [], refunds: [],
+  }))
+  const olderActionable = {
+    id: "older-review-required",
+    status: "REVIEW_REQUIRED",
+    totalCents: 100,
+    createdAt: new Date("2026-07-01T12:00:00.000Z"),
+    user: { id: "user-actionable", name: "Actionable", email: null },
+    items: [], payments: [], refunds: [],
+  }
+  const queries = []
+  const prismaClient = {
+    commerceOrder: {
+      async findMany(options) {
+        queries.push(options)
+        if (!options.where) return [...normalOrders, olderActionable].slice(0, options.take)
+        return JSON.stringify(options.where).includes("REVIEW_REQUIRED") ? [olderActionable] : []
+      },
+    },
+  }
+
+  const queue = await listCommerceAdminOperations({ prismaClient })
+
+  assert.deepEqual(queue.map((entry) => entry.orderId), ["older-review-required"])
+  assert.equal(queries.length, 2)
+  assert.equal(queries.every((query) => query.where && query.take === 100), true)
+})
+
+it("refuses manual-review reconciliation codes while preserving supported exact repairs", async () => {
+  let repairCalls = 0
+  const unsupported = await reconcileCommerceAdminIssue({
+    prismaClient: {},
+    issue: { code: "ORDER_PAYMENT_STATUS_MISMATCH", orderId: "order-1", paymentId: "payment-1", repairable: false },
+    repairIssue: async () => { repairCalls += 1; return { changed: true, status: "unexpected" } },
+  })
+  assert.deepEqual(unsupported, { changed: false, status: "MANUAL_REVIEW_REQUIRED" })
+  assert.equal(repairCalls, 0)
+
+  const supported = await reconcileCommerceAdminIssue({
+    prismaClient: {},
+    issue: { code: "REFUND_OWNERSHIP_NOT_REVOKED", orderId: "order-1", paymentId: "payment-1", refundId: "refund-1", ownershipId: "ownership-1", repairable: true },
+    repairIssue: async () => { repairCalls += 1; return { changed: true, status: "REFUND_REVOKED" } },
+  })
+  assert.deepEqual(supported, { changed: true, status: "REFUND_REVOKED" })
+  assert.equal(repairCalls, 1)
+})
+
+it("renders repair controls only for repairable findings", async () => {
+  const source = await readFile(new URL("../app/admin/commerce/[orderId]/page.tsx", import.meta.url), "utf8")
+  assert.match(source, /issue\.repairable\s*\?/)
+  assert.match(source, /Manual operator review/)
+  assert.match(source, /Apply exact repair/)
 })
