@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import {
   BACKGROUND_PURCHASE_PURPOSE,
   classifyStripeCheckoutSessionPurpose,
+  getStripeClient,
   getStripeWebhookSecret,
   recordCheckoutSessionCompleted,
   retrieveBackgroundPurchaseCheckoutSessionForFulfillment,
@@ -10,6 +11,10 @@ import {
 } from "@/lib/stripe-billing"
 import { clearAccountSurfaceDataCache } from "@/lib/account-surface-data"
 import { fulfillBackgroundPurchase } from "@/lib/commerce/fulfillment-service"
+import {
+  applyStripeDisputeEvent,
+  applyStripeRefundEvent,
+} from "@/lib/commerce/reversal-service"
 import { prisma } from "@/lib/prisma"
 
 export const runtime = "nodejs"
@@ -20,6 +25,25 @@ const BACKGROUND_CHECKOUT_EVENT_TYPES = new Set([
   "checkout.session.async_payment_failed",
   "checkout.session.expired",
 ])
+
+const REFUND_EVENT_TYPES = new Set([
+  "refund.created",
+  "refund.updated",
+  "refund.failed",
+])
+const DISPUTE_EVENT_TYPES = new Set([
+  "charge.dispute.created",
+  "charge.dispute.updated",
+  "charge.dispute.closed",
+])
+
+function processorObjectId(value: unknown) {
+  if (typeof value === "string") return value
+  if (value && typeof value === "object" && "id" in value) {
+    return typeof value.id === "string" ? value.id : ""
+  }
+  return ""
+}
 
 export async function POST(request: Request) {
   const rawBody = await request.text()
@@ -73,6 +97,41 @@ export async function POST(request: Request) {
   ) {
     const subscription = await upsertMembershipSubscriptionFromStripe(prisma, object)
     clearAccountSurfaceDataCache(subscription?.userId, "membership")
+  }
+
+  if (REFUND_EVENT_TYPES.has(event?.type)) {
+    const result = await applyStripeRefundEvent({
+      prismaClient: prisma,
+      eventId: String(event.id ?? ""),
+      eventType: event.type,
+      processorCreatedAt: typeof event.created === "number" ? event.created : undefined,
+      refund: object,
+    })
+    if (result.changed && "userId" in result && result.userId) {
+      clearAccountSurfaceDataCache(result.userId, "membership")
+    }
+  }
+
+  if (DISPUTE_EVENT_TYPES.has(event?.type)) {
+    let paymentIntentId = processorObjectId(object?.payment_intent)
+    if (!paymentIntentId) {
+      const embeddedCharge = object?.charge && typeof object.charge === "object" ? object.charge : null
+      const chargeId = processorObjectId(object?.charge)
+      const charge = embeddedCharge ?? (chargeId ? await getStripeClient().charges.retrieve(chargeId) : null)
+      paymentIntentId = processorObjectId(charge?.payment_intent)
+    }
+
+    const result = await applyStripeDisputeEvent({
+      prismaClient: prisma,
+      eventId: String(event.id ?? ""),
+      eventType: event.type,
+      processorCreatedAt: typeof event.created === "number" ? event.created : undefined,
+      paymentIntentId,
+      dispute: object,
+    })
+    if (result.changed && "userId" in result && result.userId) {
+      clearAccountSurfaceDataCache(result.userId, "membership")
+    }
   }
 
   return NextResponse.json({ received: true })

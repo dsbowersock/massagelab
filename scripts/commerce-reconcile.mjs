@@ -1,0 +1,125 @@
+import { fileURLToPath } from "node:url"
+import { resolve } from "node:path"
+import { repairCommerceReversalIssue } from "../lib/commerce/reversal-service.ts"
+
+function issue(code, orderId, paymentId, relatedIdName, relatedId, ownershipId) {
+  return {
+    code,
+    orderId,
+    paymentId,
+    [relatedIdName]: relatedId,
+    ownershipId,
+  }
+}
+
+/** Derives identifier-only drift findings from a commerce snapshot. */
+export function collectCommerceReconciliationIssues(orders) {
+  const issues = []
+  for (const order of orders) {
+    const payments = order.payments ?? []
+    for (const payment of payments) {
+      if (
+        ["PARTIALLY_REFUNDED", "REFUNDED"].includes(payment.status)
+        && order.status !== payment.status
+      ) {
+        issues.push({
+          code: "ORDER_PAYMENT_STATUS_MISMATCH",
+          orderId: order.id,
+          paymentId: payment.id,
+        })
+      }
+    }
+    for (const refund of order.refunds ?? []) {
+      const payment = payments.find((candidate) => candidate.id === refund.paymentId) ?? payments[0]
+      if (refund.status === "PENDING" && refund.processedAt) {
+        issues.push({
+          code: "PENDING_REFUND_ALREADY_PROCESSED",
+          orderId: order.id,
+          paymentId: payment?.id,
+          refundId: refund.id,
+        })
+      }
+      for (const refundItem of refund.items ?? []) {
+        const ownership = refundItem.orderItem?.ownership
+        if (!ownership || ownership.source !== "PURCHASE") continue
+        if (refund.status === "SUCCEEDED" && ownership.status !== "REFUND_REVOKED") {
+          issues.push(issue("REFUND_OWNERSHIP_NOT_REVOKED", order.id, payment?.id, "refundId", refund.id, ownership.id))
+        } else if (refund.status === "FAILED" && ownership.status === "REFUND_PENDING") {
+          issues.push(issue("FAILED_REFUND_OWNERSHIP_NOT_RESTORED", order.id, payment?.id, "refundId", refund.id, ownership.id))
+        } else if (refund.status === "PENDING" && ownership.status === "ACTIVE") {
+          issues.push(issue("PENDING_REFUND_OWNERSHIP_NOT_SUSPENDED", order.id, payment?.id, "refundId", refund.id, ownership.id))
+        }
+      }
+    }
+
+    for (const payment of payments) {
+      for (const dispute of payment.disputes ?? []) {
+        if (dispute.status === "OPEN" && dispute.closedAt) {
+          issues.push({
+            code: "OPEN_DISPUTE_ALREADY_CLOSED",
+            orderId: order.id,
+            paymentId: payment.id,
+            disputeId: dispute.id,
+          })
+        } else if (dispute.status !== "OPEN" && !dispute.closedAt) {
+          issues.push({
+            code: "CLOSED_DISPUTE_MISSING_CLOSED_AT",
+            orderId: order.id,
+            paymentId: payment.id,
+            disputeId: dispute.id,
+          })
+        }
+        for (const item of order.items ?? []) {
+          const ownership = item.ownership
+          if (!ownership || ownership.source !== "PURCHASE") continue
+          if (dispute.status === "OPEN" && ownership.status === "ACTIVE") {
+            issues.push(issue("OPEN_DISPUTE_OWNERSHIP_NOT_SUSPENDED", order.id, payment.id, "disputeId", dispute.id, ownership.id))
+          } else if (dispute.status === "WON" && ownership.status === "DISPUTE_SUSPENDED") {
+            issues.push(issue("WON_DISPUTE_OWNERSHIP_NOT_RESTORED", order.id, payment.id, "disputeId", dispute.id, ownership.id))
+          } else if (dispute.status === "LOST" && ["ACTIVE", "DISPUTE_SUSPENDED"].includes(ownership.status)) {
+            issues.push(issue("LOST_DISPUTE_OWNERSHIP_NOT_REVOKED", order.id, payment.id, "disputeId", dispute.id, ownership.id))
+          }
+        }
+      }
+    }
+  }
+  return issues
+}
+
+/** Reads by default; repair delegates only deterministic transitions to the domain service. */
+export async function runCommerceReconciliation({
+  prismaClient,
+  repair = false,
+  repairIssue = (finding) => repairCommerceReversalIssue({ prismaClient, issue: finding }),
+}) {
+  const orders = await prismaClient.commerceOrder.findMany({
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    include: {
+      items: { include: { ownership: true } },
+      payments: { include: { disputes: true } },
+      refunds: {
+        include: { items: { include: { orderItem: { include: { ownership: true } } } } },
+      },
+    },
+  })
+  const issues = collectCommerceReconciliationIssues(orders)
+  let repaired = 0
+  if (repair) {
+    for (const finding of issues) {
+      const result = await repairIssue(finding)
+      if (result?.changed) repaired += 1
+    }
+  }
+  return { mode: repair ? "repair" : "read-only", issues, repaired }
+}
+
+async function main() {
+  const { prisma } = await import("../lib/prisma.ts")
+  const repair = process.argv.includes("--repair")
+  const report = await runCommerceReconciliation({ prismaClient: prisma, repair })
+  process.stdout.write(`${JSON.stringify(report, null, 2)}\n`)
+}
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+  await main()
+}
