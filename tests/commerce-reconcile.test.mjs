@@ -34,7 +34,7 @@ describe("commerce reconciliation", () => {
     const report = await runCommerceReconciliation({
       prismaClient,
       repair: false,
-      repairIssue: async () => { writes += 1 },
+      resumeRefund: async () => { writes += 1; return { changed: true } },
     })
 
     assert.equal(writes, 0)
@@ -46,6 +46,39 @@ describe("commerce reconciliation", () => {
       ownershipId: "ownership_1",
     }])
     assert.doesNotMatch(JSON.stringify(report), /pi_|re_|dp_|stripe|email|metadata|payload/i)
+  })
+
+  it("scans deeply related orders in stable bounded pages", async () => {
+    const rows = [
+      { id: "order_1", status: "PAID", items: [], payments: [], refunds: [] },
+      { id: "order_2", status: "PAID", items: [], payments: [], refunds: [] },
+      { id: "order_3", status: "PAID", items: [], payments: [], refunds: [] },
+    ]
+    const calls = []
+    const report = await runCommerceReconciliation({
+      prismaClient: {
+        commerceOrder: {
+          findMany: async (args) => {
+            calls.push(args)
+            const start = args.cursor ? rows.findIndex((row) => row.id === args.cursor.id) + args.skip : 0
+            return rows.slice(start, start + args.take)
+          },
+        },
+      },
+      batchSize: 2,
+    })
+
+    assert.deepEqual(report.issues, [])
+    assert.equal(calls.length, 2)
+    assert.deepEqual(calls.map((call) => ({
+      take: call.take,
+      cursor: call.cursor ?? null,
+      skip: call.skip ?? null,
+      orderBy: call.orderBy,
+    })), [
+      { take: 2, cursor: null, skip: null, orderBy: [{ createdAt: "asc" }, { id: "asc" }] },
+      { take: 2, cursor: { id: "order_2" }, skip: 1, orderBy: [{ createdAt: "asc" }, { id: "asc" }] },
+    ])
   })
 
   it("repair mode resumes only unresolved local refund placeholders", async () => {

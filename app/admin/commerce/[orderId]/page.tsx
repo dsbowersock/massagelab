@@ -74,8 +74,8 @@ export default async function CommerceAdminOrderPage({ params }: { params: Promi
           {detail.reconciliationIssues.length ? (
             <section className="space-y-3">
               <h2 className="text-lg font-semibold">Deterministic reconciliation</h2>
-              {detail.reconciliationIssues.map((issue, index) => (
-                <div key={`${issue.code}-${index}`} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3">
+              {detail.reconciliationIssues.map((issue) => (
+                <div key={[issue.code, issue.orderId, issue.paymentId, issue.refundId, issue.disputeId, issue.ownershipId].filter(Boolean).join(":")} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3">
                   <span className="font-mono text-xs">{issue.code}</span>
                   {issue.repairable ? (
                     <form action={reconcileCommerceOrderIssueFormAction}>

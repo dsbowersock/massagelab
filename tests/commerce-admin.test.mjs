@@ -186,7 +186,14 @@ it("keeps every commerce server action independently authorized and Stripe-free"
   ])
   assert.match(actions, /"use server"/)
   for (const actionName of ["refundCommerceOrderItemsAction", "reconcileCommerceOrderIssueAction"]) {
-    assert.match(actions, new RegExp(`export async function ${actionName}\\([\\s\\S]*?requireCommerceAdminUser\\(`))
+    const functionStart = actions.indexOf(`export async function ${actionName}(`)
+    const nextFunctionStart = actions.indexOf("\nexport async function ", functionStart + 1)
+    assert.notEqual(functionStart, -1, `${actionName} must remain exported`)
+    const functionSource = actions.slice(
+      functionStart,
+      nextFunctionStart === -1 ? actions.length : nextFunctionStart,
+    )
+    assert.match(functionSource, /requireCommerceAdminUser\(/)
   }
   assert.doesNotMatch([actions, listPage, detailPage].join("\n"), /from ["'][^"']*stripe|import\(["'][^"']*stripe/i)
   assert.match(listPage, /requireCommerceAdminUser/)

@@ -69,15 +69,25 @@ export function createBackgroundCheckoutCancelPostHandler(
       }
 
       if (!order.stripeCheckoutSessionId) {
+        const cancellationNow = deps.now()
+        const sessionlessIndeterminateExpired = order.status === "AWAITING_PAYMENT"
+          && Boolean(order.reservationExpiresAt)
+          && order.reservationExpiresAt!.getTime() <= cancellationNow.getTime()
+        if (order.status === "AWAITING_PAYMENT" && !sessionlessIndeterminateExpired) {
+          throw new CommerceError({ code: COMMERCE_ERROR_CODES.PAYMENT_PENDING })
+        }
         const released = await deps.releaseUnpaidOrder({
           userId: user.id,
           orderId: order.id,
           expectedSessionId: null,
-          allowedStatuses: ["PREPARING"],
-          processorStatus: "none",
+          allowedStatuses: sessionlessIndeterminateExpired ? ["AWAITING_PAYMENT"] : ["PREPARING"],
+          processorStatus: sessionlessIndeterminateExpired ? "expired" : "none",
           paymentStatus: "unpaid",
           terminalStatus: "CANCELED",
-          reasonCode: "CUSTOMER_CANCELED",
+          reasonCode: sessionlessIndeterminateExpired ? "SESSIONLESS_CHECKOUT_EXPIRED" : "CUSTOMER_CANCELED",
+          ...(sessionlessIndeterminateExpired
+            ? { reservationExpiresAtLte: cancellationNow }
+            : {}),
         })
         if (!released) {
           throw new CommerceError({ code: COMMERCE_ERROR_CODES.STALE_CONCURRENCY })

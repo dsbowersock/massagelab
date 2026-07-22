@@ -24,8 +24,6 @@ type CommerceTaxReadiness = {
 
 const TAX_MODE_ENV = "BACKGROUND_COMMERCE_TAX_MODE"
 const TAX_CODE_ENV = "BACKGROUND_COMMERCE_TAX_PRODUCT_CODE"
-const TAX_PROVIDER_READY_ENV = "BACKGROUND_COMMERCE_TAX_PROVIDER_READY"
-const TAX_REGISTRATIONS_READY_ENV = "BACKGROUND_COMMERCE_TAX_REGISTRATIONS_READY"
 
 const SAFE_RETURN_PATH_MAX_LEN = 64
 
@@ -41,19 +39,12 @@ function normalizePathInput(value: unknown): string {
     .replace(/^\s+|\s+$/g, "")
 }
 
-function hasExplicitReadinessSignal(value: unknown): boolean {
-  return String(value ?? "").trim().toLowerCase() === "true"
-}
-
+/** Stripe Tax remains fail-closed until processor tax can be snapshotted per order item. */
 export function getCommerceTaxReadiness(env: NodeJS.ProcessEnv = process.env): CommerceTaxReadiness {
-  const taxMode = String(env[TAX_MODE_ENV] ?? "").toLowerCase()
+  const taxMode = String(env[TAX_MODE_ENV] ?? "").trim().toLowerCase()
   const mode: CommerceTaxMode = taxMode === "stripe" ? "stripe" : "disabled"
   const taxCode = String(env[TAX_CODE_ENV] ?? "").trim() || null
-  const ready = mode === "disabled" || Boolean(
-    taxCode
-      && hasExplicitReadinessSignal(env[TAX_PROVIDER_READY_ENV])
-      && hasExplicitReadinessSignal(env[TAX_REGISTRATIONS_READY_ENV]),
-  )
+  const ready = taxMode === "" || taxMode === "disabled"
 
   return {
     mode,

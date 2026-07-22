@@ -121,6 +121,20 @@ export function formatBackgroundCreditBackfillSummary(result) {
   return `eligible=${result.eligible} granted=${result.granted} alreadyProvisioned=${result.alreadyProvisioned} dryRun=${result.dryRun}`
 }
 
+/** Returns actionable error text while replacing any URL or secret-bearing token wholesale. */
+export function formatBackgroundCreditBackfillError(error) {
+  const message = error instanceof Error ? error.message : String(error ?? "Unknown error.")
+  return message
+    .split(/\s+/)
+    .map((token) => (
+      token.includes("://") || /\b(?:password|passwd|pwd|token|secret)=/i.test(token)
+        ? "[redacted]"
+        : token
+    ))
+    .join(" ")
+    .slice(0, 500)
+}
+
 function isolatedDirectConnectionString() {
   loadDotenv({ path: ".env.local", override: false, quiet: true })
   loadDotenv({ path: ".env", override: false, quiet: true })
@@ -157,8 +171,8 @@ async function main() {
 
 const invokedPath = process.argv[1] ? pathToFileURL(resolve(process.argv[1])).href : ""
 if (import.meta.url === invokedPath) {
-  main().catch(() => {
-    console.error("Background credit backfill failed.")
+  main().catch((error) => {
+    console.error("Background credit backfill failed.", formatBackgroundCreditBackfillError(error))
     process.exitCode = 1
   })
 }

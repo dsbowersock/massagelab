@@ -153,15 +153,14 @@ requires these explicit background-commerce values without printing secrets:
   `BACKGROUND_COMMERCE_RECONCILIATION_READY=true`;
 - `BACKGROUND_COMMERCE_WEBHOOK_EVENTS` covering exactly the implementation's
   Checkout, refund, and dispute contract below; and
-- `BACKGROUND_COMMERCE_TAX_MODE=disabled` for the current U.S.-only posture, or
-  `stripe` only with an explicit product tax code plus provider and registration
-  readiness signals.
+- `BACKGROUND_COMMERCE_TAX_MODE=disabled` for the current U.S.-only posture.
 
 Current checkout is U.S.-only and fixed at one U.S. dollar per background.
 Production readiness fails closed if another purchase country or automatic tax
-is enabled without the reviewed registration and tax-code configuration. An
-active Stripe Tax registration must be confirmed before automatic tax is
-enabled; a tax-mode flag by itself does not collect tax.
+is enabled. Stripe Tax requires a later reviewed rollout that reconciles
+processor tax into immutable order totals and per-item tax allocations in
+addition to confirming registrations and the product tax code; configuration
+flags alone cannot enable it.
 
 The pinned `/api/billing/webhook` endpoint must subscribe to:
 

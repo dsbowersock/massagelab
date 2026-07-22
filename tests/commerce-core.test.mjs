@@ -109,11 +109,16 @@ describe("Commerce domain contracts", () => {
     assert.equal(normalizeCommerceReturnPath(longRelativePath).length, 64)
   })
 
-  it("detects explicit and disabled tax readiness states", () => {
+  it("keeps Stripe Tax fail-closed while accepting the current disabled posture", () => {
     const disabled = getCommerceTaxReadiness({})
     assert.equal(disabled.mode, "disabled")
     assert.equal(disabled.ready, true)
     assert.equal(disabled.taxCode, null)
+
+    const invalid = getCommerceTaxReadiness({ BACKGROUND_COMMERCE_TAX_MODE: "unknown" })
+    assert.equal(invalid.mode, "disabled")
+    assert.equal(invalid.ready, false)
+    assert.equal(invalid.taxCode, null)
 
     const missingCode = getCommerceTaxReadiness({
       BACKGROUND_COMMERCE_TAX_MODE: "stripe",
@@ -130,15 +135,15 @@ describe("Commerce domain contracts", () => {
     assert.equal(onlyTaxCode.ready, false)
     assert.equal(onlyTaxCode.taxCode, "txcd_999999")
 
-    const ready = getCommerceTaxReadiness({
+    const futureStripeConfiguration = getCommerceTaxReadiness({
       BACKGROUND_COMMERCE_TAX_MODE: "stripe",
       BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "txcd_999999",
       BACKGROUND_COMMERCE_TAX_PROVIDER_READY: "true",
       BACKGROUND_COMMERCE_TAX_REGISTRATIONS_READY: "true",
     })
-    assert.equal(ready.mode, "stripe")
-    assert.equal(ready.ready, true)
-    assert.equal(ready.taxCode, "txcd_999999")
+    assert.equal(futureStripeConfiguration.mode, "stripe")
+    assert.equal(futureStripeConfiguration.ready, false)
+    assert.equal(futureStripeConfiguration.taxCode, "txcd_999999")
   })
 
   it("returns stable public error codes for non-domain details", () => {

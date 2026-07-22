@@ -269,8 +269,8 @@ describe("background Stripe Checkout adapter", () => {
     assert.equal(Object.hasOwn(capturedPayload, "client_reference_id"), false)
   })
 
-  it("enables automatic tax and attaches the configured digital-product tax code only when fully ready", async () => {
-    let capturedPayload
+  it("keeps automatic tax fail-closed until processor tax can reconcile into order snapshots", async () => {
+    let createCalls = 0
     const env = readyEnv({
       BACKGROUND_COMMERCE_TAX_MODE: "stripe",
       BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "txcd_10202003",
@@ -278,33 +278,33 @@ describe("background Stripe Checkout adapter", () => {
       BACKGROUND_COMMERCE_TAX_REGISTRATIONS_READY: "true",
     })
 
-    await createBackgroundPurchaseCheckoutSession({
-      orderId: "order_tax",
-      userId: "user_123",
-      checkoutAttempt: 1,
-      customerId: "cus_123",
-      items: order({ items: order().items.slice(0, 1) }).items,
-      legalConsent: currentConsent(),
-      purchaseCountry: "US",
-      successUrl: "https://massagelab.test/account",
-      cancelUrl: "https://massagelab.test/account",
-      now: NOW,
-      env,
-      stripeClient: {
-        checkout: {
-          sessions: {
-            create: async (payload) => {
-              capturedPayload = payload
-              return { id: "cs_tax", url: "https://checkout.stripe.com/c/tax" }
+    await assert.rejects(
+      () => createBackgroundPurchaseCheckoutSession({
+        orderId: "order_tax",
+        userId: "user_123",
+        checkoutAttempt: 1,
+        customerId: "cus_123",
+        items: order({ items: order().items.slice(0, 1) }).items,
+        legalConsent: currentConsent(),
+        purchaseCountry: "US",
+        successUrl: "https://massagelab.test/account",
+        cancelUrl: "https://massagelab.test/account",
+        now: NOW,
+        env,
+        stripeClient: {
+          checkout: {
+            sessions: {
+              create: async () => {
+                createCalls += 1
+                return { id: "cs_tax", url: "https://checkout.stripe.com/c/tax" }
+              },
             },
           },
         },
-      },
-    })
-
-    assert.deepEqual(capturedPayload.automatic_tax, { enabled: true })
-    assert.equal(capturedPayload.line_items[0].price_data.product_data.tax_code, "txcd_10202003")
-    assert.equal(capturedPayload.line_items[0].price_data.tax_behavior, "exclusive")
+      }),
+      (error) => error?.code === "TAX_NOT_READY",
+    )
+    assert.equal(createCalls, 0)
   })
 
   it("retries a connection failure with the identical payload and idempotency key", async () => {
@@ -570,13 +570,14 @@ describe("background checkout route", () => {
     }
   })
 
-  it("never recreates an unbound indeterminate order on later browser requests", async () => {
+  it("protects an unbound indeterminate order until its original Checkout window expires", async () => {
     let currentNow = NOW
     let localOrder = {
       id: "order_123",
       userId: "user_123",
       status: "PREPARING",
       stripeCheckoutSessionId: null,
+      reservationExpiresAt: new Date(NOW.getTime() + 30 * 60 * 1000),
     }
     const stripeAttempts = []
     const stripeClient = {
@@ -610,6 +611,11 @@ describe("background checkout route", () => {
         return true
       },
       loadOrder: async () => localOrder,
+      releaseUnpaidOrder: async (input) => {
+        harness.calls.push(["release", input])
+        localOrder = { ...localOrder, status: "PAYMENT_FAILED", reservationExpiresAt: null }
+        return true
+      },
     })
     const handler = createBackgroundCheckoutPostHandler(harness.deps)
 
@@ -628,6 +634,16 @@ describe("background checkout route", () => {
       assert.equal(localOrder.stripeCheckoutSessionId, null)
     }
 
+    currentNow = new Date(NOW.getTime() + 31 * 60 * 1000)
+    const expiredResponse = await handler(request(consentInput()))
+    assert.equal(expiredResponse.status, 409)
+    assert.equal((await expiredResponse.json()).error, "STALE_CONCURRENCY")
+    assert.equal(localOrder.status, "PAYMENT_FAILED")
+    const releaseInput = harness.calls.find(([name]) => name === "release")[1]
+    assert.deepEqual(releaseInput.allowedStatuses, ["AWAITING_PAYMENT"])
+    assert.equal(releaseInput.reasonCode, "SESSIONLESS_CHECKOUT_EXPIRED")
+    assert.equal(releaseInput.reservationExpiresAtLte.toISOString(), currentNow.toISOString())
+
     assert.equal(stripeAttempts.length, 2)
     assert.equal(
       stripeAttempts[0].payload.expires_at,
@@ -636,7 +652,7 @@ describe("background checkout route", () => {
     assert.strictEqual(stripeAttempts[1].payload, stripeAttempts[0].payload)
     assert.strictEqual(stripeAttempts[1].options, stripeAttempts[0].options)
     assert.equal(stripeAttempts[0].options.idempotencyKey, "background-purchase:order_123:attempt:1")
-    assert.equal(harness.calls.filter(([name]) => name === "prepare").length, 3)
+    assert.equal(harness.calls.filter(([name]) => name === "prepare").length, 4)
     assert.equal(harness.calls.filter(([name]) => name === "customer").length, 1)
     assert.equal(harness.calls.some(([name]) => name === "persist"), false)
   })
@@ -832,6 +848,35 @@ describe("background checkout route", () => {
 })
 
 describe("background checkout cancellation", () => {
+  it("releases a sessionless indeterminate order only after its local Checkout window expires", async () => {
+    for (const [reservationExpiresAt, expectedStatus] of [
+      [new Date(NOW.getTime() + 1), 409],
+      [new Date(NOW.getTime() - 1), 200],
+    ]) {
+      const harness = checkoutHarness({
+        loadOrder: async () => ({
+          id: "order_123",
+          userId: "user_123",
+          status: "AWAITING_PAYMENT",
+          stripeCheckoutSessionId: null,
+          reservationExpiresAt,
+        }),
+      })
+      const response = await createBackgroundCheckoutCancelPostHandler(harness.deps)(request({
+        orderId: "order_123",
+      }))
+
+      assert.equal(response.status, expectedStatus)
+      assert.equal(harness.calls.some(([name]) => name === "release"), expectedStatus === 200)
+      if (expectedStatus === 200) {
+        const releaseInput = harness.calls.find(([name]) => name === "release")[1]
+        assert.deepEqual(releaseInput.allowedStatuses, ["AWAITING_PAYMENT"])
+        assert.equal(releaseInput.reasonCode, "SESSIONLESS_CHECKOUT_EXPIRED")
+        assert.equal(releaseInput.reservationExpiresAtLte.toISOString(), NOW.toISOString())
+      }
+    }
+  })
+
   it("moves an indeterminate PREPARING order to durable AWAITING_PAYMENT state", async () => {
     const events = []
     const updates = []

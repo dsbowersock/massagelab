@@ -36,7 +36,9 @@ export default async function VerifyEmailPage({
           data: { consumedAt: new Date() },
         })
         await ensureUserRole(record.userId, record.email, tx)
-        await ensureVerifiedUserBackgroundCredits(tx, record.userId)
+      })
+      await ensureVerifiedUserBackgroundCredits(prisma, record.userId).catch(() => {
+        console.error("Background credit provisioning deferred after email verification.")
       })
       title = "Email verified"
       description = "Your account is ready. You can sign in now."

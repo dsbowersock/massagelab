@@ -62,8 +62,9 @@ export async function POST(request: Request) {
         data: { emailVerified: new Date() },
       })
     }
-
-    await ensureVerifiedUserBackgroundCredits(tx, user.id)
+  })
+  await ensureVerifiedUserBackgroundCredits(prisma, user.id).catch(() => {
+    console.error("Background credit provisioning deferred after a password security update.")
   })
   clearAccountSurfaceDataCache(user.id, "security")
 

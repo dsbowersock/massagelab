@@ -94,16 +94,16 @@ describe("Stripe readiness background-commerce contract", () => {
     assert.match(result.stderr, /FAIL Live international background commerce requires Stripe tax mode/)
   })
 
-  it("rejects live automatic tax until provider, registrations, and a Stripe product tax code are explicit", () => {
+  it("rejects live automatic tax even when future configuration signals are present", () => {
     const result = runReadiness({
       STRIPE_SECRET_KEY: "sk_live_readiness",
       BACKGROUND_COMMERCE_TAX_MODE: "stripe",
-      BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "",
-      BACKGROUND_COMMERCE_TAX_PROVIDER_READY: "false",
-      BACKGROUND_COMMERCE_TAX_REGISTRATIONS_READY: "false",
+      BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "txcd_10202003",
+      BACKGROUND_COMMERCE_TAX_PROVIDER_READY: "true",
+      BACKGROUND_COMMERCE_TAX_REGISTRATIONS_READY: "true",
     }, ["--live"])
 
     assert.equal(result.status, 1)
-    assert.match(result.stderr, /FAIL Live Stripe Tax requires an explicit product tax code, provider readiness, and registrations readiness\./)
+    assert.match(result.stderr, /FAIL Background commerce tax mode must remain disabled until processor tax is reconciled into order and item snapshots\./)
   })
 })

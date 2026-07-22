@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import { ensureVerifiedUserBackgroundCredits } from "../lib/commerce/credit-service.ts"
 import {
+  formatBackgroundCreditBackfillError,
   formatBackgroundCreditBackfillSummary,
   parseBackgroundCreditBackfillArgs,
   runBackgroundCreditBackfill,
@@ -101,6 +102,16 @@ function createBackfillDatabase(users) {
 }
 
 describe("verified-account credit backfill", () => {
+  it("reports actionable failures without exposing connection URLs or secret tokens", () => {
+    const formatted = formatBackgroundCreditBackfillError(
+      new Error("connect ECONNREFUSED postgresql://operator:raw-secret@db.example.test/app detail:password=raw-secret"),
+    )
+
+    assert.match(formatted, /connect ECONNREFUSED/)
+    assert.doesNotMatch(formatted, /operator|raw-secret|postgresql|password=/)
+    assert.equal(formatted, "connect ECONNREFUSED [redacted] [redacted]")
+  })
+
   it("grants only missing verified accounts and reports counts without sensitive values", async () => {
     const database = createBackfillDatabase([
       { id: "verified-a", email: "hidden-a@example.com", emailVerified: new Date() },

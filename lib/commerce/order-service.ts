@@ -74,6 +74,10 @@ type StoredOrder = {
   }>
 }
 
+/**
+ * Snapshots literal consent only when every document ID equals its matching
+ * `documentVersions` composite in `key:version` form, with no unmatched entry.
+ */
 function legalAcceptanceSnapshot(value: unknown, now: Date): CommerceLegalAcceptanceSnapshot {
   if (!value || typeof value !== "object") {
     throw new CommerceError({ code: COMMERCE_ERROR_CODES.LEGAL_CONSENT_REQUIRED })

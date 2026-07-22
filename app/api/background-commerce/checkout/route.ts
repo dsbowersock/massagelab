@@ -33,6 +33,7 @@ export type CheckoutOrder = {
   userId: string
   status: string
   stripeCheckoutSessionId: string | null
+  reservationExpiresAt: Date | null
 }
 
 type PreparedOrder = Awaited<ReturnType<typeof prepareBackgroundOrder>>
@@ -104,6 +105,7 @@ export type BackgroundCheckoutDependencies = {
     paymentStatus: string
     terminalStatus: "CANCELED" | "PAYMENT_FAILED"
     reasonCode: string
+    reservationExpiresAtLte?: Date
   }) => Promise<boolean>
   markReviewRequired: (input: {
     userId: string
@@ -312,6 +314,7 @@ export async function releaseBackgroundCheckoutOrder(
     paymentStatus: string
     terminalStatus: "CANCELED" | "PAYMENT_FAILED"
     reasonCode: string
+    reservationExpiresAtLte?: Date
   },
 ): Promise<boolean> {
   if (input.processorStatus === "open" || input.paymentStatus === "paid") {
@@ -341,6 +344,9 @@ export async function releaseBackgroundCheckoutOrder(
         userId: input.userId,
         status: current.status,
         stripeCheckoutSessionId: input.expectedSessionId,
+        ...(input.reservationExpiresAtLte
+          ? { reservationExpiresAt: { lte: input.reservationExpiresAtLte } }
+          : {}),
       },
       data: {
         status: input.terminalStatus,
@@ -453,6 +459,7 @@ export function defaultBackgroundCheckoutDependencies(): BackgroundCheckoutDepen
         userId: true,
         status: true,
         stripeCheckoutSessionId: true,
+        reservationExpiresAt: true,
       },
     }),
     retrieveCheckoutSession: async (sessionId) => retrieveBackgroundPurchaseCheckoutSession(sessionId),
@@ -668,6 +675,26 @@ export function createBackgroundCheckoutPostHandler(
           throw new CommerceError({ code: COMMERCE_ERROR_CODES.STALE_CONCURRENCY })
         }
         if (!activeOrder.stripeCheckoutSessionId) {
+          const recoveryNow = deps.now()
+          if (
+            activeOrder.reservationExpiresAt
+            && activeOrder.reservationExpiresAt.getTime() <= recoveryNow.getTime()
+          ) {
+            const released = await deps.releaseUnpaidOrder({
+              userId: user.id,
+              orderId: activeOrder.id,
+              expectedSessionId: null,
+              allowedStatuses: ["AWAITING_PAYMENT"],
+              processorStatus: "expired",
+              paymentStatus: "unpaid",
+              terminalStatus: "PAYMENT_FAILED",
+              reasonCode: "SESSIONLESS_CHECKOUT_EXPIRED",
+              reservationExpiresAtLte: recoveryNow,
+            })
+            if (released) {
+              throw new CommerceError({ code: COMMERCE_ERROR_CODES.STALE_CONCURRENCY })
+            }
+          }
           throw new CommerceError({ code: COMMERCE_ERROR_CODES.PAYMENT_PENDING })
         }
         return resolveUnassociatedSession(deps, {

@@ -32,6 +32,7 @@ async function jsonBody(request: Request): Promise<Record<string, unknown>> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}
 }
 
+/** Creates a verified-user redemption handler requiring literal consent and an idempotency key. */
 export function createBackgroundCommerceRedeemPostHandler(
   overrides: Partial<RedeemDependencies> = {},
 ): (request: Request) => Promise<Response> {

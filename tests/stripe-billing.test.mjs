@@ -458,10 +458,11 @@ describe("Stripe billing helpers", () => {
     }), "unknown")
   })
 
-  it("retrieves a background Checkout Session with fulfillment evidence expanded", async () => {
+  it("retrieves every background Checkout line-item page with fulfillment evidence expanded", async () => {
     assert.equal(typeof stripeBilling.retrieveBackgroundPurchaseCheckoutSessionForFulfillment, "function")
     let capturedId = null
     let capturedOptions = null
+    const listCalls = []
 
     const session = await stripeBilling.retrieveBackgroundPurchaseCheckoutSessionForFulfillment(
       "cs_background",
@@ -472,7 +473,13 @@ describe("Stripe billing helpers", () => {
               retrieve: async (sessionId, options) => {
                 capturedId = sessionId
                 capturedOptions = options
-                return { id: sessionId, line_items: { data: [] } }
+                return { id: sessionId }
+              },
+              listLineItems: async (sessionId, options) => {
+                listCalls.push({ sessionId, options })
+                return listCalls.length === 1
+                  ? { object: "list", data: [{ id: "li_1" }], has_more: true }
+                  : { object: "list", data: [{ id: "li_2" }], has_more: false }
               },
             },
           },
@@ -482,8 +489,20 @@ describe("Stripe billing helpers", () => {
 
     assert.equal(capturedId, "cs_background")
     assert.deepEqual(capturedOptions, {
-      expand: ["line_items.data.price.product", "payment_intent"],
+      expand: ["payment_intent"],
     })
     assert.equal(session.id, "cs_background")
+    assert.deepEqual(listCalls, [
+      {
+        sessionId: "cs_background",
+        options: { limit: 100, expand: ["data.price.product"] },
+      },
+      {
+        sessionId: "cs_background",
+        options: { limit: 100, expand: ["data.price.product"], starting_after: "li_1" },
+      },
+    ])
+    assert.deepEqual(session.line_items.data.map((item) => item.id), ["li_1", "li_2"])
+    assert.equal(session.line_items.has_more, false)
   })
 })

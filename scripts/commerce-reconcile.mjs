@@ -6,6 +6,8 @@ import {
 } from "../lib/commerce/reversal-service.ts"
 import { getStripeClient } from "../lib/stripe-billing.js"
 
+const DEFAULT_RECONCILIATION_BATCH_SIZE = 100
+
 function issue(code, orderId, paymentId, relatedIdName, relatedId, ownershipId) {
   return {
     code,
@@ -112,6 +114,7 @@ export function collectCommerceReconciliationIssues(orders) {
 export async function runCommerceReconciliation({
   prismaClient,
   repair = false,
+  batchSize = DEFAULT_RECONCILIATION_BATCH_SIZE,
   resumeRefund = (refundId) => resumePendingBackgroundRefund({
     prismaClient,
     refundId,
@@ -122,24 +125,39 @@ export async function runCommerceReconciliation({
     }, { idempotencyKey: request.idempotencyKey }),
   }),
 }) {
-  const orders = await prismaClient.commerceOrder.findMany({
-    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-    include: {
-      items: { include: { ownership: true } },
-      payments: { include: { disputes: true } },
-      refunds: {
-        include: { items: { include: { orderItem: { include: { ownership: true } } } } },
-      },
-    },
-  })
-  const issues = collectCommerceReconciliationIssues(orders)
+  if (!Number.isInteger(batchSize) || batchSize <= 0) {
+    throw new Error("batchSize must be a positive integer.")
+  }
+
+  const issues = []
   let repaired = 0
-  if (repair) {
-    for (const finding of issues) {
-      if (finding.code !== "PENDING_REFUND_PROCESSOR_UNRESOLVED") continue
-      const result = await resumeRefund(finding.refundId)
-      if (result?.changed) repaired += 1
+  let cursor
+  while (true) {
+    const orders = await prismaClient.commerceOrder.findMany({
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      take: batchSize,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      include: {
+        items: { include: { ownership: true } },
+        payments: { include: { disputes: true } },
+        refunds: {
+          include: { items: { include: { orderItem: { include: { ownership: true } } } } },
+        },
+      },
+    })
+    if (orders.length === 0) break
+
+    const pageIssues = collectCommerceReconciliationIssues(orders)
+    issues.push(...pageIssues)
+    if (repair) {
+      for (const finding of pageIssues) {
+        if (finding.code !== "PENDING_REFUND_PROCESSOR_UNRESOLVED") continue
+        const result = await resumeRefund(finding.refundId)
+        if (result?.changed) repaired += 1
+      }
     }
+    if (orders.length < batchSize) break
+    cursor = orders.at(-1).id
   }
   return { mode: repair ? "repair" : "read-only", issues, repaired }
 }

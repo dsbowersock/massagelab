@@ -42,6 +42,7 @@ async function jsonBody(request: Request): Promise<Record<string, unknown>> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}
 }
 
+/** Creates verified-user, no-store cart handlers with overridable dependencies for isolated tests. */
 export function createBackgroundCommerceCartHandlers(overrides: Partial<CartDependencies> = {}) {
   const dependencies = { ...defaultDependencies(), ...overrides }
   const withUser = (operation: (userId: string, request: Request) => Promise<CommerceCartSnapshot>) => (

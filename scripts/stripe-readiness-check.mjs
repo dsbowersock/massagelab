@@ -178,14 +178,8 @@ function checkBackgroundCommerceReadiness() {
   const webhookReady = isExplicitTrue(envValue("BACKGROUND_COMMERCE_WEBHOOK_READY"))
   const reconciliationReady = isExplicitTrue(envValue("BACKGROUND_COMMERCE_RECONCILIATION_READY"))
   const taxMode = envValue("BACKGROUND_COMMERCE_TAX_MODE").toLowerCase()
-  const taxModeConfigured = taxMode === "disabled" || taxMode === "stripe"
-  const taxCodeConfigured = /^txcd_\d+$/.test(envValue("BACKGROUND_COMMERCE_TAX_PRODUCT_CODE"))
-  const taxProviderReady = isExplicitTrue(envValue("BACKGROUND_COMMERCE_TAX_PROVIDER_READY"))
-  const taxRegistrationsReady = isExplicitTrue(envValue("BACKGROUND_COMMERCE_TAX_REGISTRATIONS_READY"))
-  const stripeTaxReady = taxMode === "stripe"
-    && taxCodeConfigured
-    && taxProviderReady
-    && taxRegistrationsReady
+  const taxModeRecognized = taxMode === "disabled" || taxMode === "stripe"
+  const stripeTaxReady = false
   const internationalEnabled = purchaseCountries.some((country) => country !== "US")
 
   if (!purchasingEnabled) addFailure("Background commerce purchasing enablement is not configured.")
@@ -195,11 +189,9 @@ function checkBackgroundCommerceReadiness() {
   if (!webhookReady) addFailure("Background commerce webhook readiness is not configured.")
   if (!commerceWebhookCoverageComplete) addFailure("Background commerce webhook event coverage is incomplete.")
   if (!reconciliationReady) addFailure("Background commerce reconciliation readiness is not configured.")
-  if (!taxModeConfigured) addFailure("Background commerce tax mode is not configured.")
-  if (taxMode === "stripe" && !stripeTaxReady) {
-    addFailure(liveMode
-      ? "Live Stripe Tax requires an explicit product tax code, provider readiness, and registrations readiness."
-      : "Background commerce Stripe Tax configuration is incomplete.")
+  if (!taxModeRecognized) addFailure("Background commerce tax mode is not configured.")
+  if (taxMode === "stripe") {
+    addFailure("Background commerce tax mode must remain disabled until processor tax is reconciled into order and item snapshots.")
   }
   if (liveMode && internationalEnabled && !stripeTaxReady) {
     addFailure("Live international background commerce requires Stripe tax mode with explicit registration and product-code readiness.")
@@ -211,7 +203,7 @@ function checkBackgroundCommerceReadiness() {
     digitalPurchaseDocumentCurrent,
     webhookReady,
     reconciliationReady,
-    taxMode: taxModeConfigured ? taxMode : "missing",
+    taxMode: taxModeRecognized ? taxMode : "missing",
   }
 }
 
