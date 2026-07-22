@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url"
 import { resolve } from "node:path"
-import { repairCommerceReversalIssue } from "../lib/commerce/reversal-service.ts"
+import { resumePendingBackgroundRefund } from "../lib/commerce/reversal-service.ts"
+import { getStripeClient } from "../lib/stripe-billing.js"
 
 function issue(code, orderId, paymentId, relatedIdName, relatedId, ownershipId) {
   return {
@@ -31,6 +32,17 @@ export function collectCommerceReconciliationIssues(orders) {
     }
     for (const refund of order.refunds ?? []) {
       const payment = payments.find((candidate) => candidate.id === refund.paymentId) ?? payments[0]
+      if (
+        refund.status === "PENDING"
+        && refund.stripeRefundId === `pending:${refund.id}`
+      ) {
+        issues.push({
+          code: "PENDING_REFUND_PROCESSOR_UNRESOLVED",
+          orderId: order.id,
+          paymentId: payment?.id,
+          refundId: refund.id,
+        })
+      }
       if (refund.status === "PENDING" && refund.processedAt) {
         issues.push({
           code: "PENDING_REFUND_ALREADY_PROCESSED",
@@ -76,7 +88,7 @@ export function collectCommerceReconciliationIssues(orders) {
             issues.push(issue("OPEN_DISPUTE_OWNERSHIP_NOT_SUSPENDED", order.id, payment.id, "disputeId", dispute.id, ownership.id))
           } else if (dispute.status === "WON" && ownership.status === "DISPUTE_SUSPENDED") {
             issues.push(issue("WON_DISPUTE_OWNERSHIP_NOT_RESTORED", order.id, payment.id, "disputeId", dispute.id, ownership.id))
-          } else if (dispute.status === "LOST" && ["ACTIVE", "DISPUTE_SUSPENDED"].includes(ownership.status)) {
+          } else if (dispute.status === "LOST" && ["ACTIVE", "DISPUTE_SUSPENDED", "REFUND_PENDING"].includes(ownership.status)) {
             issues.push(issue("LOST_DISPUTE_OWNERSHIP_NOT_REVOKED", order.id, payment.id, "disputeId", dispute.id, ownership.id))
           }
         }
@@ -86,11 +98,19 @@ export function collectCommerceReconciliationIssues(orders) {
   return issues
 }
 
-/** Reads by default; repair delegates only deterministic transitions to the domain service. */
+/** Reads by default; repair may only resume an idempotent unresolved refund. */
 export async function runCommerceReconciliation({
   prismaClient,
   repair = false,
-  repairIssue = (finding) => repairCommerceReversalIssue({ prismaClient, issue: finding }),
+  resumeRefund = (refundId) => resumePendingBackgroundRefund({
+    prismaClient,
+    refundId,
+    createProcessorRefund: async (request) => getStripeClient().refunds.create({
+      payment_intent: request.paymentIntentId,
+      amount: request.amountCents,
+      metadata: request.metadata,
+    }, { idempotencyKey: request.idempotencyKey }),
+  }),
 }) {
   const orders = await prismaClient.commerceOrder.findMany({
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
@@ -106,7 +126,8 @@ export async function runCommerceReconciliation({
   let repaired = 0
   if (repair) {
     for (const finding of issues) {
-      const result = await repairIssue(finding)
+      if (finding.code !== "PENDING_REFUND_PROCESSOR_UNRESOLVED") continue
+      const result = await resumeRefund(finding.refundId)
       if (result?.changed) repaired += 1
     }
   }

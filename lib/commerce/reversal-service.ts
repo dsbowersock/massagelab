@@ -10,13 +10,23 @@ type ProcessorRefundRequest = {
   metadata: { orderId: string; refundId: string }
 }
 
+type ProcessorRefundResult = {
+  id: string
+  status?: string | null
+  amount?: number
+  currency?: string
+  payment_intent?: unknown
+  metadata?: Record<string, string> | null
+  failure_reason?: string | null
+}
+
 type InitiateRefundInput = {
   prismaClient: PrismaClient
   orderId: string
   orderItemIds: string[]
   actorId: string
   reasonCode: string
-  createProcessorRefund: (request: ProcessorRefundRequest) => Promise<{ id: string; status?: string }>
+  createProcessorRefund: (request: ProcessorRefundRequest) => Promise<ProcessorRefundResult>
 }
 
 type RefundableItem = {
@@ -24,7 +34,20 @@ type RefundableItem = {
   orderId: string
   lineTotalCents: number
   currency: string
-  refundItems: Array<{ refund?: { status?: string }; amountCents?: number }>
+  refundItems: Array<{
+    refund?: {
+      id?: string
+      orderId?: string
+      paymentId?: string
+      stripeRefundId?: string
+      status?: string
+      amountCents?: number
+      currency?: string
+      reasonCode?: string | null
+      items?: Array<{ orderItemId: string; amountCents: number }>
+    }
+    amountCents?: number
+  }>
   ownership: { id: string; source: string; status: string } | null
 }
 
@@ -85,24 +108,64 @@ function assertRefundSelection(order: RefundOrder | null, orderItemIds: string[]
   return { items, amountCents, payment }
 }
 
+function pendingRefundReplay(order: RefundOrder | null, orderItemIds: string[], reasonCode: string) {
+  if (!order || orderItemIds.length === 0 || new Set(orderItemIds).size !== orderItemIds.length) return null
+  const selected = orderItemIds.map((id) => order.items.find((item) => item.id === id))
+  if (selected.some((item) => !item)) return null
+  const expectedIds = [...orderItemIds].sort()
+  for (const entry of selected[0]!.refundItems) {
+    const refund = entry.refund
+    if (
+      !refund?.id
+      || refund.status !== "PENDING"
+      || refund.orderId !== order.id
+      || refund.reasonCode !== reasonCode
+      || refund.stripeRefundId !== `pending:${refund.id}`
+    ) continue
+    const refundItemIds = (refund.items ?? []).map((item) => item.orderItemId).sort()
+    if (refundItemIds.length !== expectedIds.length || refundItemIds.some((id, index) => id !== expectedIds[index])) continue
+    const payment = order.payments.find((candidate) => candidate.id === refund.paymentId)
+    if (!payment || payment.stripePaymentIntentId.length === 0) continue
+    return {
+      refundId: refund.id,
+      orderId: order.id,
+      userId: order.userId,
+      paymentIntentId: payment.stripePaymentIntentId,
+      amountCents: refund.amountCents!,
+      currency: refund.currency!,
+      replayed: true,
+    }
+  }
+  return null
+}
+
 /**
  * Stages an exact-item refund before making the processor call. The stable local
  * refund ID is the Stripe idempotency boundary; ambiguous network outcomes stay
  * pending so reconciliation can bind the processor object without a second refund.
  */
 export async function initiateBackgroundRefund(input: InitiateRefundInput) {
-  const placeholder = `pending:${randomUUID()}`
+  const localRefundId = randomUUID()
+  const placeholder = `pending:${localRefundId}`
   const prepared = await runCommerceTransaction(input.prismaClient, async (tx) => {
     const order = await tx.commerceOrder.findUnique({
       where: { id: input.orderId },
       include: {
         payments: true,
-        items: { include: { ownership: true, refundItems: { include: { refund: true } } } },
+        items: {
+          include: {
+            ownership: true,
+            refundItems: { include: { refund: { include: { items: true } } } },
+          },
+        },
       },
     }) as RefundOrder | null
+    const replay = pendingRefundReplay(order, input.orderItemIds, input.reasonCode)
+    if (replay) return replay
     const selection = assertRefundSelection(order, input.orderItemIds)
     const refund = await tx.commerceRefund.create({
       data: {
+        id: localRefundId,
         orderId: order!.id,
         paymentId: selection.payment.id,
         stripeRefundId: placeholder,
@@ -152,57 +215,237 @@ export async function initiateBackgroundRefund(input: InitiateRefundInput) {
       paymentIntentId: selection.payment.stripePaymentIntentId,
       amountCents: selection.amountCents,
       currency: order!.currency,
+      replayed: false,
     }
   })
 
-  const idempotencyKey = `background-refund:${prepared.refundId}`
-  let processorRefund: { id: string; status?: string }
+  const resumed = await resumePendingBackgroundRefund({
+    prismaClient: input.prismaClient,
+    refundId: prepared.refundId,
+    createProcessorRefund: input.createProcessorRefund,
+  })
+  return { ...resumed, changed: resumed.changed || !prepared.replayed }
+}
+
+type StoredRefundForResume = {
+  id: string
+  orderId: string
+  paymentId: string
+  stripeRefundId: string
+  status: string
+  amountCents: number
+  currency: string
+  reasonCode: string | null
+  order: { id: string; userId: string }
+  payment: {
+    id: string
+    amountCents: number
+    currency: string
+    stripePaymentIntentId: string
+    refunds?: Array<{ id: string; status: string; amountCents: number }>
+    disputes?: Array<{ status: string }>
+  }
+  items: Array<{
+    orderItemId: string
+    amountCents: number
+    orderItem: { ownership: { id: string; source: string; status: string } | null }
+  }>
+}
+
+function resumableRefundEvidence(refund: StoredRefundForResume | null) {
+  if (!refund || refund.status !== "PENDING") {
+    throw new Error("A pending commerce refund is required.")
+  }
+  const itemTotal = refund.items.reduce((total, item) => total + item.amountCents, 0)
+  if (
+    itemTotal !== refund.amountCents
+    || refund.amountCents <= 0
+    || refund.currency !== refund.payment.currency
+    || refund.amountCents > refund.payment.amountCents
+  ) {
+    throw new Error("Pending refund evidence requires reconciliation.")
+  }
+  return refund
+}
+
+function processorRefundStatus(status: string | null | undefined) {
+  if (status === "succeeded") return "SUCCEEDED"
+  if (status === "failed" || status === "canceled") return "FAILED"
+  return "PENDING"
+}
+
+/**
+ * Resumes one locally pending refund with its original Stripe idempotency key.
+ * The processor call is deliberately between two short database transactions.
+ */
+export async function resumePendingBackgroundRefund(input: {
+  prismaClient: PrismaClient
+  refundId: string
+  createProcessorRefund: (request: ProcessorRefundRequest) => Promise<ProcessorRefundResult>
+}) {
+  const prepared = await runCommerceTransaction(input.prismaClient, async (tx) => {
+    const refund = await tx.commerceRefund.findUnique({
+      where: { id: input.refundId },
+      include: {
+        order: true,
+        payment: { include: { refunds: true, disputes: true } },
+        items: { include: { orderItem: { include: { ownership: true } } } },
+      },
+    }) as StoredRefundForResume | null
+    return resumableRefundEvidence(refund)
+  })
+
+  let processorRefund: ProcessorRefundResult
   try {
     processorRefund = await input.createProcessorRefund({
-      paymentIntentId: prepared.paymentIntentId,
+      paymentIntentId: prepared.payment.stripePaymentIntentId,
       amountCents: prepared.amountCents,
       currency: prepared.currency,
-      idempotencyKey,
-      metadata: { orderId: prepared.orderId, refundId: prepared.refundId },
+      idempotencyKey: `background-refund:${prepared.id}`,
+      metadata: { orderId: prepared.orderId, refundId: prepared.id },
     })
   } catch {
     return {
-      refundId: prepared.refundId,
+      refundId: prepared.id,
       processorRefundId: null,
       amountCents: prepared.amountCents,
       status: "PENDING",
-      changed: true,
+      changed: false,
       reconciliationRequired: true,
     }
   }
 
-  await runCommerceTransaction(input.prismaClient, async (tx) => {
-    await tx.commerceRefund.update({
-      where: { id: prepared.refundId },
-      data: { stripeRefundId: processorRefund.id },
-    })
-    await tx.commerceEvent.create({
+  return runCommerceTransaction(input.prismaClient, async (tx) => {
+    const current = resumableRefundEvidence(await tx.commerceRefund.findUnique({
+      where: { id: prepared.id },
+      include: {
+        order: true,
+        payment: { include: { refunds: true, disputes: true } },
+        items: { include: { orderItem: { include: { ownership: true } } } },
+      },
+    }) as StoredRefundForResume | null)
+    const expectedMetadata = processorRefund.metadata
+    const evidenceMatches = (
+      processorRefund.id
+      && processorRefund.amount === current.amountCents
+      && processorRefund.currency?.toLowerCase() === current.currency
+      && stripeObjectId(processorRefund.payment_intent) === current.payment.stripePaymentIntentId
+      && expectedMetadata?.orderId === current.orderId
+      && expectedMetadata?.refundId === current.id
+    )
+    const isPlaceholder = current.stripeRefundId === `pending:${current.id}`
+    if (!evidenceMatches || (!isPlaceholder && current.stripeRefundId !== processorRefund.id)) {
+      return {
+        refundId: current.id,
+        processorRefundId: null,
+        amountCents: current.amountCents,
+        status: "PENDING",
+        changed: false,
+        reconciliationRequired: true,
+      }
+    }
+
+    const now = new Date()
+    if (isPlaceholder) {
+      await tx.commerceRefund.update({
+        where: { id: current.id },
+        data: { stripeRefundId: processorRefund.id },
+      })
+      await tx.commerceEvent.create({
+        data: {
+          userId: current.order.userId,
+          orderId: current.orderId,
+          eventType: "BACKGROUND_REFUND_PROCESSOR_BOUND",
+          source: "stripe-api",
+          aggregateType: "CommerceRefund",
+          aggregateId: current.id,
+          fromState: "PENDING",
+          toState: "PENDING",
+          payload: { payloadHash: eventPayloadHash({ processorRefundId: processorRefund.id }) },
+        },
+      })
+    }
+
+    const targetStatus = processorRefundStatus(processorRefund.status)
+    if (targetStatus === "PENDING") {
+      return {
+        refundId: current.id,
+        processorRefundId: processorRefund.id,
+        amountCents: current.amountCents,
+        status: "PENDING",
+        changed: isPlaceholder,
+        reconciliationRequired: false,
+      }
+    }
+
+    const statusChanged = await tx.commerceRefund.updateMany({
+      where: { id: current.id, status: "PENDING" },
       data: {
-        userId: prepared.userId,
-        orderId: prepared.orderId,
-        eventType: "BACKGROUND_REFUND_PROCESSOR_BOUND",
-        source: "stripe-api",
-        aggregateType: "CommerceRefund",
-        aggregateId: prepared.refundId,
-        fromState: "PENDING",
-        toState: "PENDING",
-        payload: { payloadHash: eventPayloadHash({ processorRefundId: processorRefund.id }) },
+        status: targetStatus,
+        processedAt: now,
+        failureCode: targetStatus === "FAILED" ? safeFailureCode(processorRefund.failure_reason) : null,
       },
     })
-  })
+    if (statusChanged.count !== 1) {
+      return { changed: false, status: "PENDING", refundId: current.id }
+    }
 
-  return {
-    refundId: prepared.refundId,
-    processorRefundId: processorRefund.id,
-    amountCents: prepared.amountCents,
-    status: "PENDING",
-    changed: true,
-  }
+    const ownershipIds = current.items
+      .map((item) => item.orderItem.ownership?.id)
+      .filter((id): id is string => typeof id === "string")
+    const disputes = current.payment.disputes ?? []
+    const failedStatus = disputes.some((dispute) => dispute.status === "LOST")
+      ? "DISPUTE_REVOKED"
+      : disputes.some((dispute) => dispute.status === "OPEN")
+        ? "DISPUTE_SUSPENDED"
+        : "ACTIVE"
+    await tx.backgroundOwnership.updateMany({
+      where: {
+        id: { in: ownershipIds },
+        source: "PURCHASE",
+        status: targetStatus === "SUCCEEDED"
+          ? { in: ["REFUND_PENDING", "DISPUTE_SUSPENDED"] }
+          : "REFUND_PENDING",
+      },
+      data: {
+        status: targetStatus === "SUCCEEDED" ? "REFUND_REVOKED" : failedStatus,
+        statusChangedAt: now,
+      },
+    })
+
+    if (targetStatus === "SUCCEEDED") {
+      const otherSucceeded = (current.payment.refunds ?? [])
+        .filter((refund) => refund.id !== current.id && refund.status === "SUCCEEDED")
+        .reduce((total, refund) => total + refund.amountCents, 0)
+      const aggregateStatus = otherSucceeded + current.amountCents >= current.payment.amountCents
+        ? "REFUNDED"
+        : "PARTIALLY_REFUNDED"
+      await tx.commercePayment.update({ where: { id: current.paymentId }, data: { status: aggregateStatus } })
+      await tx.commerceOrder.update({ where: { id: current.orderId }, data: { status: aggregateStatus } })
+    }
+    await tx.commerceEvent.create({
+      data: {
+        userId: current.order.userId,
+        orderId: current.orderId,
+        eventType: targetStatus === "SUCCEEDED" ? "BACKGROUND_REFUND_SUCCEEDED" : "BACKGROUND_REFUND_FAILED",
+        source: "stripe-api",
+        reasonCode: targetStatus === "FAILED" ? safeFailureCode(processorRefund.failure_reason) : current.reasonCode,
+        aggregateType: "CommerceRefund",
+        aggregateId: current.id,
+        fromState: "PENDING",
+        toState: targetStatus,
+        payload: {},
+      },
+    })
+    return {
+      refundId: current.id,
+      processorRefundId: processorRefund.id,
+      amountCents: current.amountCents,
+      status: targetStatus,
+      changed: true,
+      reconciliationRequired: false,
+    }
+  })
 }
 
 type StripeRefundLike = {
@@ -234,6 +477,14 @@ function processorTimestamp(value: Date | number | undefined): string | null {
 
 function safeFailureCode(value: unknown): string | null {
   return typeof value === "string" && /^[a-z0-9_]{1,80}$/i.test(value) ? value : null
+}
+
+function stripeObjectId(value: unknown): string {
+  if (typeof value === "string") return value
+  if (value && typeof value === "object" && "id" in value) {
+    return typeof (value as { id?: unknown }).id === "string" ? (value as { id: string }).id : ""
+  }
+  return ""
 }
 
 async function createReceipt(
@@ -312,10 +563,6 @@ export async function applyStripeRefundEvent(input: RefundWebhookInput) {
         && pending.stripeRefundId.startsWith("pending:")
         && input.refund.metadata?.orderId === pending.orderId
       ) {
-        await tx.commerceRefund.update({
-          where: { id: pending.id },
-          data: { stripeRefundId: processorRefundId },
-        })
         stored = { ...pending, stripeRefundId: processorRefundId }
         boundFromPending = true
       }
@@ -347,18 +594,33 @@ export async function applyStripeRefundEvent(input: RefundWebhookInput) {
     })
     const amountMatches = input.refund.amount === stored.amountCents
       && input.refund.currency?.toLowerCase() === stored.currency
+    const paymentMatches = stripeObjectId(input.refund.payment_intent)
+      === stored.payment.stripePaymentIntentId
     const targetStatus = input.refund.status === "succeeded"
       ? "SUCCEEDED"
       : input.refund.status === "failed" || input.refund.status === "canceled"
         ? "FAILED"
         : "PENDING"
 
+    if (!paymentMatches) {
+      await tx.commerceWebhookReceipt.update({
+        where: { id: receipt.id },
+        data: { processedAt: new Date(), failureCode: "REFUND_PAYMENT_MISMATCH" },
+      })
+      return { changed: false, status: stored.status, userId: stored.order.userId }
+    }
     if (!amountMatches) {
       await tx.commerceWebhookReceipt.update({
         where: { id: receipt.id },
         data: { processedAt: new Date(), failureCode: "REFUND_EVIDENCE_MISMATCH" },
       })
       return { changed: false, status: stored.status, userId: stored.order.userId }
+    }
+    if (boundFromPending) {
+      await tx.commerceRefund.update({
+        where: { id: stored.id },
+        data: { stripeRefundId: processorRefundId },
+      })
     }
     if (targetStatus === "PENDING" || stored.status !== "PENDING") {
       await tx.commerceWebhookReceipt.update({ where: { id: receipt.id }, data: { processedAt: new Date() } })
@@ -382,10 +644,12 @@ export async function applyStripeRefundEvent(input: RefundWebhookInput) {
     const ownershipIds = stored.items
       .map((item: { orderItem?: { ownership?: { id?: string } | null } }) => item.orderItem?.ownership?.id)
       .filter((id: unknown): id is string => typeof id === "string")
-    const failedRestoreStatus = targetStatus === "FAILED"
-      && (stored.payment.disputes ?? []).some((dispute: { status: string }) => dispute.status === "OPEN")
-      ? "DISPUTE_SUSPENDED"
-      : "ACTIVE"
+    const paymentDisputes = stored.payment.disputes ?? []
+    const failedRestoreStatus = paymentDisputes.some((dispute: { status: string }) => dispute.status === "LOST")
+      ? "DISPUTE_REVOKED"
+      : paymentDisputes.some((dispute: { status: string }) => dispute.status === "OPEN")
+        ? "DISPUTE_SUSPENDED"
+        : "ACTIVE"
     await tx.backgroundOwnership.updateMany({
       where: {
         id: { in: ownershipIds },
@@ -497,9 +761,12 @@ export async function applyStripeDisputeEvent(input: {
       }),
     })
     const now = new Date()
+    const disputeAmount = input.dispute.amount
     if (
       !processorDisputeId
-      || input.dispute.amount !== payment.amountCents
+      || !Number.isInteger(disputeAmount)
+      || disputeAmount! <= 0
+      || disputeAmount! > payment.amountCents
       || input.dispute.currency?.toLowerCase() !== payment.currency
     ) {
       await tx.commerceWebhookReceipt.update({
@@ -521,12 +788,23 @@ export async function applyStripeDisputeEvent(input: {
     const existing = await tx.commerceDispute.findUnique({
       where: { stripeDisputeId: processorDisputeId },
     })
+    if (existing && existing.amountCents !== disputeAmount) {
+      await tx.commerceWebhookReceipt.update({
+        where: { id: receipt.id },
+        data: { processedAt: now, failureCode: "DISPUTE_EVIDENCE_MISMATCH" },
+      })
+      return { changed: false, status: existing.status }
+    }
     const existingFinal = existing && existing.status !== "OPEN"
     const existingTime = existing?.closedAt ?? existing?.openedAt ?? existing?.createdAt
-    const olderOrEqual = existingTime instanceof Date && existingTime.getTime() >= processorDate.getTime()
+    const existingTimeMs = existingTime instanceof Date ? existingTime.getTime() : Number.NaN
+    const processorTimeMs = processorDate.getTime()
+    const older = Number.isFinite(existingTimeMs) && existingTimeMs > processorTimeMs
+    const equal = Number.isFinite(existingTimeMs) && existingTimeMs === processorTimeMs
+    const equalTerminalUpgrade = existing?.status === "OPEN" && targetStatus !== "OPEN"
     if (
       existing
-      && (existing.status === targetStatus || olderOrEqual || (existingFinal && targetStatus === "OPEN"))
+      && (older || (equal && !equalTerminalUpgrade) || (existingFinal && targetStatus === "OPEN"))
     ) {
       await tx.commerceWebhookReceipt.update({ where: { id: receipt.id }, data: { processedAt: now } })
       return { changed: false, status: existing.status }
@@ -552,7 +830,7 @@ export async function applyStripeDisputeEvent(input: {
             paymentId: payment.id,
             stripeDisputeId: processorDisputeId,
             status: targetStatus,
-            amountCents: input.dispute.amount,
+            amountCents: disputeAmount!,
             currency: input.dispute.currency!.toLowerCase(),
             reasonCode,
             openedAt: processorDate,
@@ -584,7 +862,7 @@ export async function applyStripeDisputeEvent(input: {
         where: {
           sourceOrderItemId: { in: orderItemIds },
           source: "PURCHASE",
-          status: { in: ["ACTIVE", "DISPUTE_SUSPENDED"] },
+          status: { in: ["ACTIVE", "DISPUTE_SUSPENDED", "REFUND_PENDING"] },
         },
         data: { status: "DISPUTE_REVOKED", statusChangedAt: now },
       })
@@ -714,7 +992,7 @@ const REPAIR_TRANSITIONS: Record<string, { from: string[]; to: string }> = {
   OPEN_DISPUTE_OWNERSHIP_NOT_SUSPENDED: { from: ["ACTIVE"], to: "DISPUTE_SUSPENDED" },
   WON_DISPUTE_OWNERSHIP_NOT_RESTORED: { from: ["DISPUTE_SUSPENDED"], to: "ACTIVE" },
   LOST_DISPUTE_OWNERSHIP_NOT_REVOKED: {
-    from: ["ACTIVE", "DISPUTE_SUSPENDED"],
+    from: ["ACTIVE", "DISPUTE_SUSPENDED", "REFUND_PENDING"],
     to: "DISPUTE_REVOKED",
   },
 }
@@ -724,8 +1002,9 @@ export async function repairCommerceReversalIssue(input: {
   prismaClient: PrismaClient
   issue: ReconciliationIssue
 }) {
-  const transition = REPAIR_TRANSITIONS[input.issue.code]
-  if (!transition) return { changed: false, status: "UNSUPPORTED" }
+  const configuredTransition = REPAIR_TRANSITIONS[input.issue.code]
+  if (!configuredTransition) return { changed: false, status: "UNSUPPORTED" }
+  const transition = { ...configuredTransition, from: [...configuredTransition.from] }
 
   return runCommerceTransaction(input.prismaClient, async (tx) => {
     const ownership = await tx.backgroundOwnership.findUnique({
@@ -743,7 +1022,7 @@ export async function repairCommerceReversalIssue(input: {
     if (input.issue.refundId) {
       const refund = await tx.commerceRefund.findUnique({
         where: { id: input.issue.refundId },
-        include: { items: true },
+        include: { items: true, payment: { include: { disputes: true } } },
       })
       const expectedStatus = input.issue.code.startsWith("REFUND_OWNERSHIP")
         ? "SUCCEEDED"
@@ -758,6 +1037,14 @@ export async function repairCommerceReversalIssue(input: {
         || !refund.items.some((item) => item.orderItemId === ownership.sourceOrderItemId)
       ) {
         return { changed: false, status: "STALE" }
+      }
+      if (input.issue.code === "FAILED_REFUND_OWNERSHIP_NOT_RESTORED") {
+        const disputes = refund.payment.disputes
+        if (disputes.some((dispute) => dispute.status === "LOST")) {
+          transition.to = "DISPUTE_REVOKED"
+        } else if (disputes.some((dispute) => dispute.status === "OPEN")) {
+          transition.to = "DISPUTE_SUSPENDED"
+        }
       }
     }
     if (input.issue.disputeId) {

@@ -40,6 +40,17 @@ unchanged.
 8. Aggregate reconciliation and pinned Stripe v22 statuses:
    - Expected failures: aggregate order/payment/refund/dispute drift was not
      reported, and `warning_closed` / `prevented` disputes remained `OPEN`.
+9. Review hardening:
+   - Command: `node --test tests/background-reversals.test.mjs tests/commerce-reconcile.test.mjs`
+   - Eight expected failures covered dispute/refund precedence, positive partial
+     disputes, same-second dispute ordering, newer OPEN watermarks, exact
+     PaymentIntent binding, unresolved local placeholders, and overlap-aware
+     reconciliation.
+10. Resumable ambiguity and repair safety:
+    - Expected failures showed initiation could not replay a `REFUND_PENDING`
+      selection, reconciliation repair invoked unrelated projection writers,
+      webhook binding mutated a placeholder before validating PaymentIntent,
+      and one repair target leaked into later repair calls.
 
 ## Implementation
 
@@ -49,24 +60,34 @@ unchanged.
     invoking Stripe.
   - Uses `background-refund:<local-refund-id>` as the stable processor
     idempotency key. The processor call is outside every database transaction.
-  - Keeps ambiguous processor outcomes pending and reconcilable. A later signed
-    refund event may bind its Stripe refund ID only through the safe local
-    `refundId` and `orderId` metadata written by initiation.
+  - Stores the exact recoverable placeholder `pending:<local-refund-id>` and
+    replays the same local refund for the same exact item selection after an
+    ambiguous processor outcome. The resumable service reuses the original
+    idempotency key, invokes Stripe outside transactions, and validates amount,
+    currency, PaymentIntent, and safe metadata before atomically binding or
+    finalizing.
+  - A later signed refund event may also bind from safe local `refundId` and
+    `orderId` metadata, but only after exact PaymentIntent and amount evidence
+    matches. Mismatches stay pending and reportable without ownership mutation.
   - Finalizes pending refunds from `succeeded`, `failed`, and `canceled`
     processor states without touching credit ownership. Failed refunds restore
     only eligible purchase ownership and preserve an independently open dispute
     suspension.
-  - Suspends all purchase ownerships from a disputed payment, restores only
+  - Accepts positive integer partial disputes up to the payment amount and
+    applies their state payment-wide. Suspends all purchase ownerships from a
+    disputed payment, restores only
     `DISPUTE_SUSPENDED` ownership on funds reinstatement, and revokes only
-    remaining active/suspended purchase ownership on loss. Terminal state plus
-    processor timestamps make replay and older events monotonic.
+    remaining active/suspended/refund-pending purchase ownership on loss.
+    Terminal-over-OPEN tie-breaking plus separate OPEN/terminal processor
+    watermarks make replay and older events monotonic without a schema change.
   - Treats pinned Stripe v22 `won`, `warning_closed`, and `prevented` as funds
     reinstated; `lost` is the revocation terminal.
   - Retires an active owned background and atomically writes exactly one
     ownership-specific `RETIREMENT_REPLACEMENT` credit ledger entry. Unowned,
     legal-refund override, and free-conversion paths issue no replacement.
-  - Exposes deterministic ownership-drift repair through the same transaction
-    and audit-event boundary.
+  - Re-reads refund and dispute state before ownership-drift repair, so a stale
+    failed-refund finding cannot reactivate ownership during an OPEN or LOST
+    dispute. Per-call transition copies prevent state leaking between repairs.
 - `app/api/billing/webhook/route.ts`
   - Adds `refund.created`, `refund.updated`, `refund.failed`,
     `charge.dispute.created`, `charge.dispute.updated`, and
@@ -77,8 +98,9 @@ unchanged.
     reconciliation; no raw Stripe objects or payloads are stored.
 - `scripts/commerce-reconcile.mjs`
   - Defaults strictly to identifier-only read-only reporting.
-  - `--repair` delegates deterministic, idempotent ownership projection fixes to
-    `repairCommerceReversalIssue`; aggregate drift remains report-only.
+  - Reports exact unresolved local placeholders without exposing processor IDs.
+  - `--repair` may invoke only the idempotent pending-refund resume service;
+    ownership and aggregate drift remain report-only from the CLI.
 - `package.json`
   - Adds `commerce:reconcile`.
 
@@ -94,7 +116,7 @@ No Prisma schema or migration change was required.
 | Refund failed/canceled | Eligible selected ownership -> `ACTIVE` or `DISPUTE_SUSPENDED` | `BACKGROUND_REFUND_FAILED` |
 | Dispute opened/under review | Payment's active purchase ownership -> `DISPUTE_SUSPENDED` | `BACKGROUND_DISPUTE_OPEN` |
 | Dispute won/warning closed/prevented | Eligible suspended purchase ownership -> `ACTIVE` | `BACKGROUND_DISPUTE_WON` |
-| Dispute lost | Remaining active/suspended purchase ownership -> `DISPUTE_REVOKED` | `BACKGROUND_DISPUTE_LOST` |
+| Dispute lost | Remaining active/suspended/refund-pending purchase ownership -> `DISPUTE_REVOKED` | `BACKGROUND_DISPUTE_LOST` |
 | Explicit catalog retirement | Active ownership -> `RETIRED`; wallet +1 | `BACKGROUND_OWNERSHIP_RETIRED` plus immutable credit entry |
 | Deterministic repair | Verified stale ownership projection -> expected state | `COMMERCE_REVERSAL_RECONCILED` |
 
@@ -105,17 +127,16 @@ same transaction as its domain transition.
 
 - Focused Task 8 plus Task 7 regression:
   - `node --test tests/background-reversals.test.mjs tests/commerce-reconcile.test.mjs tests/background-fulfillment.test.mjs tests/stripe-billing.test.mjs`
-  - PASS, 55/55 tests.
+  - PASS, 69/69 tests.
 - Full repository tests:
   - `npm run test`
-  - PASS, 1,258/1,258 tests across 136 suites.
+  - PASS, 1,272/1,272 tests across 136 suites.
 - `npm run typecheck`
   - PASS.
 - `npm run lint`
-  - PASS with two pre-existing warnings in Task 7 fulfillment and Task 6 test
-    files; Task 8 adds no warning.
+  - PASS with no errors or warnings.
 - `git diff --check`
-  - Run after staging the complete Task 8 file set.
+  - PASS; only expected Windows line-ending notices were emitted.
 
 ## Risks And Follow-up Boundary
 
@@ -123,9 +144,9 @@ same transaction as its domain transition.
 - Task 9's full-admin service remains responsible for authorization and for
   adapting `createProcessorRefund` to `stripe.refunds.create` with the supplied
   amount, metadata, and idempotency key.
-- Reconciliation intentionally does not guess at ambiguous aggregate repairs;
-  it reports those internal IDs for operator review and repairs only verified
-  ownership projections.
+- Reconciliation intentionally does not guess at ownership or aggregate
+  repairs. Repair mode is limited to the stable-idempotency pending-refund
+  resume path; all other findings remain identifier-only operator reports.
 - Catalog-wide retirement orchestration and cache invalidation belong to the
   future operator surface; this task provides the atomic ownership-specific
   transition.
@@ -133,3 +154,4 @@ same transaction as its domain transition.
 ## Commit
 
 - `feat: reconcile commerce reversals` (this Task 8 commit)
+- `fix: harden commerce reversal recovery` (review follow-up)
