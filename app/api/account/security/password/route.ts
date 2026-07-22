@@ -63,6 +63,8 @@ export async function POST(request: Request) {
       })
     }
   })
+  // Keep password changes durable: credit provisioning is best-effort, and the
+  // idempotent repair/backfill path reconciles any deferred credits.
   after(() => ensureVerifiedUserBackgroundCredits(prisma, user.id).catch((error) => {
     console.error("Background credit provisioning deferred after a password security update.", error)
   }))
