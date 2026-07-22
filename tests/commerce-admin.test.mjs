@@ -196,6 +196,23 @@ it("keeps every commerce server action independently authorized and Stripe-free"
   assert.match(adminPage, /canAdministerAccounts|getCommerceAdminUser/)
 })
 
+it("returns the reconciliation result only after authorization and revalidation", async () => {
+  const actions = await readFile(new URL("../app/admin/commerce/actions.ts", import.meta.url), "utf8")
+  const actionBody = actions.match(
+    /export async function reconcileCommerceOrderIssueAction\(formData: FormData\) \{([\s\S]*?)\n\}/,
+  )?.[1]
+
+  assert.ok(actionBody, "reconciliation action must remain exported")
+  assert.match(actionBody, /await requireCommerceAdminUser\(\)/)
+  assert.match(actionBody, /const result = await reconcileCommerceAdminIssue\(/)
+  assert.match(actionBody, /revalidatePath\("\/admin"\)/)
+  assert.match(actionBody, /revalidatePath\("\/admin\/commerce"\)/)
+  assert.match(actionBody, /revalidatePath\(`\/admin\/commerce\/\$\{issue\.orderId\}`\)/)
+  assert.ok(actionBody.indexOf("requireCommerceAdminUser") < actionBody.indexOf("reconcileCommerceAdminIssue"))
+  assert.ok(actionBody.lastIndexOf("revalidatePath") < actionBody.lastIndexOf("return result"))
+  assert.match(actionBody, /return result\s*$/)
+})
+
 function refundableOrder() {
   return {
     id: "order-1",

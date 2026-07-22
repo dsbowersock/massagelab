@@ -44,8 +44,9 @@ export async function reconcileCommerceOrderIssueAction(formData: FormData) {
     ...(formString(formData, "disputeId") ? { disputeId: formString(formData, "disputeId") } : {}),
     ...(formString(formData, "ownershipId") ? { ownershipId: formString(formData, "ownershipId") } : {}),
   }
-  await reconcileCommerceAdminIssue({ prismaClient: prisma, issue })
+  const result = await reconcileCommerceAdminIssue({ prismaClient: prisma, issue })
   revalidatePath("/admin")
   revalidatePath("/admin/commerce")
   revalidatePath(`/admin/commerce/${issue.orderId}`)
+  return result
 }

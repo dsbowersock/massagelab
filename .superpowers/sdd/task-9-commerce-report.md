@@ -37,6 +37,14 @@ reconciliation. Anatomy-scoped administration does not grant commerce authority.
      actionable order behind 100 normal orders, reconciliation findings lacked
      explicit repairability, an unsupported mismatch reached the repair
      service, and the detail page offered repair for every issue.
+6. Final review follow-up for the reconciliation action result:
+   - Command: `node --test tests/commerce-admin.test.mjs`
+   - Expected failure: 12/13 tests passed; the new action-contract assertion
+     failed because `reconcileCommerceOrderIssueAction` awaited the service but
+     did not capture or return its stable result.
+   - The first GREEN change exposed a TypeScript form-action return mismatch,
+     which was resolved with a server-only `Promise<void>` form adapter while
+     preserving the direct action's returned result.
 
 ## Authorization Matrix
 
@@ -101,7 +109,9 @@ wallet, ownership, order, and cart changes are visible on the next read.
   exact repair; other mismatch codes are labeled for manual operator review.
   Actions independently enforce that allowlist and return
   `MANUAL_REVIEW_REQUIRED` without invoking repair for unsupported codes. No
-  heuristic repair is exposed.
+  heuristic repair is exposed. The direct action returns that service result
+  after all operator paths are revalidated; its page form uses a server-only
+  void adapter to satisfy React's form-action contract.
 
 ## Visual And Performance Notes
 
@@ -122,15 +132,17 @@ wallet, ownership, order, and cart changes are visible on the next read.
 
 - Focused Task 9:
   - `node --test tests/background-commerce-api.test.mjs tests/commerce-admin.test.mjs`
-  - PASS, 17/17 tests.
+  - PASS, 18/18 tests.
 - Task 9 plus Task 8/7 regressions:
   - `node --test tests/background-commerce-api.test.mjs tests/commerce-admin.test.mjs tests/background-reversals.test.mjs tests/commerce-reconcile.test.mjs tests/background-fulfillment.test.mjs tests/stripe-billing.test.mjs`
-  - PASS, 88/88 tests.
+  - PASS, 89/89 tests.
 - Full repository tests:
   - `npm run test`
-  - PASS, 1,291/1,291 tests across 138 suites.
+  - PASS, 1,292/1,292 tests across 138 suites.
 - `npm run typecheck`: PASS.
-- `npm run lint`: PASS with no reported errors or warnings.
+- `npm run lint`: PASS with zero errors; two pre-existing warnings remain in
+  untouched `lib/commerce/fulfillment-service.ts` and
+  `tests/background-checkout.test.mjs`.
 - `npm run build`: PASS; route collection includes `/admin/commerce`,
   `/admin/commerce/[orderId]`, and all three new user APIs.
 - `git diff --check`: PASS; only the expected Windows line-ending notice was
@@ -140,3 +152,4 @@ wallet, ownership, order, and cart changes are visible on the next read.
 
 - `feat: expose secure background commerce operations`
 - `fix: harden commerce admin operations`
+- `fix: return commerce reconciliation result`

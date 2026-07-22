@@ -10,6 +10,12 @@ import { reconcileCommerceOrderIssueAction, refundCommerceOrderItemsAction } fro
 
 const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" })
 
+/** Adapts the returned operator result to React's void form-action contract. */
+async function reconcileCommerceOrderIssueFormAction(formData: FormData): Promise<void> {
+  "use server"
+  await reconcileCommerceOrderIssueAction(formData)
+}
+
 export default async function CommerceAdminOrderPage({ params }: { params: Promise<{ orderId: string }> }) {
   await requireCommerceAdminUser()
   const { orderId } = await params
@@ -72,7 +78,7 @@ export default async function CommerceAdminOrderPage({ params }: { params: Promi
                 <div key={`${issue.code}-${index}`} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3">
                   <span className="font-mono text-xs">{issue.code}</span>
                   {issue.repairable ? (
-                    <form action={reconcileCommerceOrderIssueAction}>
+                    <form action={reconcileCommerceOrderIssueFormAction}>
                       <input type="hidden" name="code" value={issue.code} />
                       <input type="hidden" name="orderId" value={issue.orderId} />
                       {issue.paymentId ? <input type="hidden" name="paymentId" value={issue.paymentId} /> : null}
