@@ -89,7 +89,7 @@ describe("background commerce snapshot normalization", () => {
           expiresAt: "2026-07-22T20:00:00.000Z",
           stripeCheckoutSessionId: "cs_private",
         },
-        subtotalAmount: 200.8,
+        subtotalAmount: 200,
         currency: "CAD",
         notices: [
           { code: "OWNED_ITEM_REMOVED", productKey: "owned", detail: "private" },
@@ -127,8 +127,8 @@ describe("background commerce snapshot normalization", () => {
       },
     ])
     assert.deepEqual(value.cart.items.map(({ productKey }) => productKey), ["alpha", "zeta"])
-    assert.equal(value.cart.items[0].unitAmount, 0)
-    assert.equal(value.cart.subtotalAmount, 0)
+    assert.equal(value.cart.items[0].unitAmount, 100)
+    assert.equal(value.cart.subtotalAmount, 200)
     assert.equal(value.cart.currency, "usd")
     assert.deepEqual(value.cart.reservedOrder, {
       orderId: "order-reserved",
@@ -140,6 +140,47 @@ describe("background commerce snapshot normalization", () => {
       JSON.stringify(value),
       /pi_private|cs_private|private@example|privateRoot|internalId|detail/,
     )
+  })
+
+  it("rejects invalid cart prices instead of presenting them as free", () => {
+    const invalidLine = normalizeBackgroundCommerceSnapshot({
+      cart: {
+        items: [
+          {
+            productType: "background",
+            productKey: "negative",
+            displayName: "Negative",
+            unitAmount: -1,
+            availableForPurchase: true,
+          },
+          {
+            productType: "background",
+            productKey: "valid",
+            displayName: "Valid",
+            unitAmount: 100,
+            availableForPurchase: true,
+          },
+        ],
+        subtotalAmount: 100,
+      },
+    })
+    assert.deepEqual(invalidLine.cart.items.map(({ productKey }) => productKey), ["valid"])
+
+    const invalidSubtotal = normalizeBackgroundCommerceSnapshot({
+      cart: {
+        items: [{
+          productType: "background",
+          productKey: "valid",
+          displayName: "Valid",
+          unitAmount: 100,
+          availableForPurchase: true,
+        }],
+        reservedOrder: { orderId: "order", expiresAt: "2026-07-24T12:00:00.000Z" },
+        subtotalAmount: -1,
+        notices: [{ code: "OWNED_ITEM_REMOVED", productKey: "owned" }],
+      },
+    })
+    assert.deepEqual(invalidSubtotal.cart, EMPTY_SNAPSHOT.cart)
   })
 
   it("accepts only known ownership statuses and nonnegative integer counts", () => {

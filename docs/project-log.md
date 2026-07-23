@@ -34,6 +34,9 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
   reservation guard, reset nested credit confirmation after ownership lands,
   aligned carousel hint references, and restored active-Chimer haptics for
   acquisition actions.
+- Made public cart normalization fail closed for malformed item prices and cart
+  subtotals, documented the client projection invariants, secured HTTPS browser
+  QA session cookies, and pinned nested Calendar/booking cart-trigger coverage.
 
 ## 2026-07-22 — Background purchase surfaces release candidate
 

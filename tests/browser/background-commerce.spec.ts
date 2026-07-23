@@ -104,6 +104,7 @@ async function installSignedInCookie(context: BrowserContext, baseURL: string) {
     url: baseURL,
     httpOnly: true,
     sameSite: "Lax",
+    secure: cookieName.startsWith("__Secure-"),
   }])
 }
 
