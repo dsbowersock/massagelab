@@ -6,6 +6,7 @@ import {
   BACKGROUND_PURCHASE_SCHEMA_VERSION,
 } from "../stripe-billing.js"
 import {
+  BACKGROUND_COMMERCE_TAX_PRODUCT_CODE,
   COMMERCE_PRODUCT_BACKGROUND,
 } from "./constants.js"
 import { runCommerceTransaction } from "./transactions.ts"
@@ -387,7 +388,7 @@ async function reconcilePaidTaxSnapshot(
   if (
     evidence.country !== "US"
     || evidence.taxMode !== "stripe"
-    || !evidence.taxCode.startsWith("txcd_")
+    || evidence.taxCode !== BACKGROUND_COMMERCE_TAX_PRODUCT_CODE
     || evidence.taxBehavior !== "exclusive"
     || !evidence.automaticTaxEnabled
     || evidence.automaticTaxStatus !== "complete"

@@ -6,6 +6,29 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 ## 2026-07-23 — Background purchase surfaces visual review
 
+- Pinned paid background readiness to the reviewed Stripe Tax code
+  `txcd_10000000` (General Electronically Supplied Services) instead of
+  accepting any syntactically valid `txcd_` value. Verified one active Ohio
+  state sales-tax registration in Stripe and kept
+  `BACKGROUND_COMMERCE_PURCHASING_ENABLED=false` pending the taxed test-mode
+  Checkout/fulfillment smoke.
+- Versioned the Digital Purchases and Refund Policy to
+  `2026-07-digital-purchases-v2`. One purchase now expressly permits the
+  purchaser's personal use and purchaser-operated display while serving
+  clients through their own sole proprietorship or practice, without a
+  personal-versus-business checkout question. The non-transferable license
+  prohibits shared logins, staff/team operation through the purchaser account,
+  redistribution, resale, sublicensing, asset extraction/distribution,
+  packaging into another product or service, and unrelated-party access.
+- Approved a separate Supporter Membership restructuring track without
+  mutating live subscription objects in Track 1B: one Supporter product with
+  identical benefits at $1/$2/$5 monthly or $10/$20/$50 annually; Therapist
+  and Practice unavailable until differentiated professional features are
+  ready for beta; roadmap interests separate from amount and entitlements;
+  unused Student-to-Therapist and Early Access coupon paths removed after
+  re-verification; portal switching limited to Supporter amounts; and public
+  donation language replaced by One-time support with a not-charitable,
+  not-tax-deductible, no-benefits disclosure.
 - Replaced disabled-looking locked Select buttons with visibly actionable Unlock
   controls across Chimer, Clock, and the Music visualizer. Signed-out cards now
   explain that the background can be added immediately and that sign-in or

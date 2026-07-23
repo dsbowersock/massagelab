@@ -1,6 +1,14 @@
 import { backgroundRegistry } from "../../components/backgrounds/backgroundRegistry.ts"
-import { COMMERCE_PRODUCT_BACKGROUND, COMMERCE_CURRENCY, BACKGROUND_UNIT_AMOUNT, COMMERCE_MAX_CART_ITEM_QUANTITY } from "./constants.js"
+import {
+  BACKGROUND_COMMERCE_TAX_PRODUCT_CODE,
+  BACKGROUND_UNIT_AMOUNT,
+  COMMERCE_CURRENCY,
+  COMMERCE_MAX_CART_ITEM_QUANTITY,
+  COMMERCE_PRODUCT_BACKGROUND,
+} from "./constants.js"
 import { COMMERCE_ERROR_CODES, CommerceError } from "./errors.ts"
+
+export { BACKGROUND_COMMERCE_TAX_PRODUCT_CODE } from "./constants.js"
 
 type CommerceProductType = typeof COMMERCE_PRODUCT_BACKGROUND
 
@@ -21,9 +29,6 @@ type CommerceTaxReadiness = {
   ready: boolean
   taxCode: string | null
 }
-
-/** The reviewed Stripe Tax classification for permanent background purchases. */
-export const BACKGROUND_COMMERCE_TAX_PRODUCT_CODE = "txcd_10000000"
 
 const TAX_MODE_ENV = "BACKGROUND_COMMERCE_TAX_MODE"
 const TAX_CODE_ENV = "BACKGROUND_COMMERCE_TAX_PRODUCT_CODE"

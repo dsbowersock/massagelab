@@ -24,7 +24,7 @@ function runReadiness(overrides = {}, args = []) {
       BACKGROUND_COMMERCE_PRICE_CENTS: "100",
       BACKGROUND_COMMERCE_CURRENCY: "usd",
       BACKGROUND_COMMERCE_PURCHASE_COUNTRIES: "US",
-      BACKGROUND_COMMERCE_DIGITAL_PURCHASE_DOCUMENT_VERSION: "2026-07-digital-purchases-v1",
+      BACKGROUND_COMMERCE_DIGITAL_PURCHASE_DOCUMENT_VERSION: "2026-07-digital-purchases-v2",
       BACKGROUND_COMMERCE_WEBHOOK_READY: "true",
       BACKGROUND_COMMERCE_WEBHOOK_EVENTS: "checkout.session.completed,checkout.session.expired,checkout.session.async_payment_succeeded,checkout.session.async_payment_failed,refund.created,refund.updated,refund.failed,charge.dispute.created,charge.dispute.updated,charge.dispute.closed",
       BACKGROUND_COMMERCE_RECONCILIATION_READY: "true",
@@ -79,6 +79,7 @@ describe("Stripe readiness background-commerce contract", () => {
       ["reconciliation", { BACKGROUND_COMMERCE_RECONCILIATION_READY: "false" }],
       ["tax", { BACKGROUND_COMMERCE_TAX_MODE: "unknown" }],
       ["tax code", { BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "" }],
+      ["wrong tax code", { BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "txcd_10202003" }],
       ["tax provider", { BACKGROUND_COMMERCE_TAX_PROVIDER_READY: "false" }],
       ["tax registrations", { BACKGROUND_COMMERCE_TAX_REGISTRATIONS_READY: "false" }],
     ]

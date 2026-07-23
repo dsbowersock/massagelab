@@ -351,6 +351,14 @@ describe("background purchase fulfillment", () => {
     ["disabled automatic tax", (session) => { session.automatic_tax.enabled = false }],
     ["incomplete automatic tax", (session) => { session.automatic_tax.status = "requires_location_inputs" }],
     ["changed product tax code", (session) => { session.line_items.data[0].price.product.tax_code = "txcd_other" }],
+    ["legacy but internally consistent tax code", (session) => {
+      session.metadata.taxCode = "txcd_10202003"
+      session.payment_intent.metadata.taxCode = "txcd_10202003"
+      for (const item of session.line_items.data) {
+        item.price.product.tax_code = "txcd_10202003"
+        item.price.product.metadata.taxCode = "txcd_10202003"
+      }
+    }],
     ["unsupported discount", (session) => { session.total_details.amount_discount = 1 }],
   ]) {
     it("requires review without ownership for " + name, async () => {

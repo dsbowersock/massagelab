@@ -10,6 +10,7 @@ import path from "node:path"
 import process from "node:process"
 import Stripe from "stripe"
 import { config as loadDotenv } from "dotenv"
+import { BACKGROUND_COMMERCE_TAX_PRODUCT_CODE } from "../lib/commerce/constants.js"
 import { DIGITAL_PURCHASES_REFUNDS_VERSION } from "../lib/legal-documents.js"
 import {
   STRIPE_API_VERSION,
@@ -179,7 +180,8 @@ function checkBackgroundCommerceReadiness() {
   const reconciliationReady = isExplicitTrue(envValue("BACKGROUND_COMMERCE_RECONCILIATION_READY"))
   const taxMode = envValue("BACKGROUND_COMMERCE_TAX_MODE").toLowerCase()
   const taxModeRecognized = taxMode === "disabled" || taxMode === "stripe"
-  const taxProductCodeConfigured = envValue("BACKGROUND_COMMERCE_TAX_PRODUCT_CODE").startsWith("txcd_")
+  const taxProductCodeConfigured = envValue("BACKGROUND_COMMERCE_TAX_PRODUCT_CODE")
+    === BACKGROUND_COMMERCE_TAX_PRODUCT_CODE
   const taxProviderReady = isExplicitTrue(envValue("BACKGROUND_COMMERCE_TAX_PROVIDER_READY"))
   const taxRegistrationsReady = isExplicitTrue(envValue("BACKGROUND_COMMERCE_TAX_REGISTRATIONS_READY"))
   const stripeTaxReady = taxMode === "stripe"

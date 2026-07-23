@@ -59,13 +59,33 @@ describe("legal document registry", () => {
   it("keeps the digital-purchase policy independently versioned", () => {
     const policy = getLegalDocumentByKey("digital-purchases-refunds")
 
-    assert.equal(DIGITAL_PURCHASES_REFUNDS_VERSION, "2026-07-digital-purchases-v1")
+    assert.equal(DIGITAL_PURCHASES_REFUNDS_VERSION, "2026-07-digital-purchases-v2")
     assert.equal(policy.version, DIGITAL_PURCHASES_REFUNDS_VERSION)
     assert.equal(policy.route, "/legal/digital-purchases-refunds")
     assert.equal(
       legalDocumentAcceptanceId(policy),
-      "digital-purchases-refunds:2026-07-digital-purchases-v1",
+      "digital-purchases-refunds:2026-07-digital-purchases-v2",
     )
+  })
+
+  it("states the purchaser-operated personal and practice license boundary", () => {
+    const policyBody = getLegalDocumentByKey("digital-purchases-refunds")
+      .sections.flatMap((section) => section.body)
+      .join(" ")
+
+    for (const expected of [
+      /personal activities/,
+      /own sole proprietorship or practice/,
+      /Clients and staff may see/,
+      /may not share account access/,
+      /staff or teams to operate/,
+      /redistribute, resell, or sublicense/,
+      /extract or distribute its assets/,
+      /package it into another product or service/,
+      /unrelated third parties/,
+    ]) {
+      assert.match(policyBody, expected)
+    }
   })
 
   it("states the no-ads/data-sale posture and one-time support boundary", () => {
