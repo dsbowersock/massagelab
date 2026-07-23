@@ -7,6 +7,8 @@ import { backgroundCardCommerceState } from "../lib/background-commerce-client.j
 const cardPath = new URL("../components/backgrounds/background-carousel-card.tsx", import.meta.url)
 const carouselPath = new URL("../components/backgrounds/background-carousel.tsx", import.meta.url)
 const selectorPath = new URL("../components/backgrounds/BackgroundSelector.tsx", import.meta.url)
+const setTimerPath = new URL("../app/chimer/set-timer.tsx", import.meta.url)
+const setTimerStylesPath = new URL("../app/chimer/set-timer.module.css", import.meta.url)
 
 function snapshot(overrides = {}) {
   return {
@@ -59,12 +61,16 @@ describe("production background commerce states", () => {
     }
   })
 
-  it("opens acquisition for locked Select and preserves normal owned selection", async () => {
+  it("presents locked backgrounds as actionable Unlock controls", async () => {
     const source = await readFile(cardPath, "utf8")
     assert.match(source, /commerceState\.canSelect/)
     assert.match(source, /onLockedSelect\?\.\(\)/)
     assert.match(source, /onSelect\(\)/)
     assert.match(source, /onKeepPermanently\?\.\(\)/)
+    assert.match(source, /type="button"/)
+    assert.match(source, /locked \? "Unlock"/)
+    assert.match(source, /variant=\{locked \? "default" : "glow"\}/)
+    assert.match(source, /Add now; sign in or create an account at checkout\./)
   })
 
   it("feeds the same provider snapshot through the shared carousel adapter", async () => {
@@ -76,6 +82,17 @@ describe("production background commerce states", () => {
     assert.match(selector, /setAcquisition/)
     assert.match(selector, /<BackgroundAcquisitionDialog/)
     assert.match(selector, /onAcquired/)
+    assert.match(selector, /const selectedControls =/)
+    assert.match(selector, /\{selectedControls \? \(/)
+  })
+
+  it("removes the redundant Chimer background step shell and empty controls card", async () => {
+    const setup = await readFile(setTimerPath, "utf8")
+    const styles = await readFile(setTimerStylesPath, "utf8")
+    const selector = await readFile(selectorPath, "utf8")
+    assert.match(setup, /activeStep === 3 \? styles\.backgroundStepContent/)
+    assert.match(styles, /\.backgroundStepContent\s*\{[\s\S]*?padding: 0;[\s\S]*?border: 0;[\s\S]*?background: transparent;/)
+    assert.doesNotMatch(selector, /\{renderSelectedControls\(selectedOption\)\}/)
   })
 })
 

@@ -1,7 +1,7 @@
 "use client"
 
 import Image from "next/image"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useId, useRef, useState } from "react"
 import { Lock } from "lucide-react"
 import type { AdaptiveCarouselDetailLevel } from "@/components/carousels/adaptive-carousel-stage"
 import type { BackgroundDefinition } from "@/components/backgrounds/backgroundRegistry"
@@ -32,6 +32,7 @@ interface BackgroundCarouselCardProps {
   selected: boolean
   saved: boolean
   active: boolean
+  signedIn: boolean
   reducedMotion: boolean
   onSelect: () => void
   onLockedSelect?: () => void
@@ -70,6 +71,7 @@ export function BackgroundCarouselCard({
   selected,
   saved,
   active,
+  signedIn,
   reducedMotion,
   onSelect,
   onLockedSelect,
@@ -90,6 +92,11 @@ export function BackgroundCarouselCard({
   const statusLabel = accessLabel(commerceState)
   const sourceLabel = ownershipSourceLabel(commerceState.ownershipSource)
   const unavailable = commerceState.state === "unavailable"
+  const locked = !commerceState.canSelect && !unavailable
+  const acquisitionHintId = useId()
+  const acquisitionHint = signedIn
+    ? "Use a credit, buy for $1, or unlock all premium backgrounds."
+    : "Add this background now, then sign in or create an account at checkout."
 
   useEffect(() => {
     setVideoReady(false)
@@ -170,11 +177,14 @@ export function BackgroundCarouselCard({
         <div className="absolute inset-x-3 top-3 z-20 flex items-start justify-between gap-2">
           <div className="flex flex-wrap gap-2">
             <Button
+              type="button"
               data-carousel-primary-action
               disabled={unavailable}
+              aria-describedby={locked ? acquisitionHintId : undefined}
               aria-label={unavailable
                 ? `${option.label} background unavailable`
-                : `${selected ? "Selected" : "Select"} ${option.label} background`}
+                : `${locked ? "Unlock" : selected ? "Selected" : "Select"} ${option.label} background`}
+              title={locked ? acquisitionHint : undefined}
               onClick={() => {
                 if (!commerceState.canSelect) {
                   onLockedSelect?.()
@@ -183,10 +193,10 @@ export function BackgroundCarouselCard({
                 onSelect()
               }}
               size="sm"
-              variant="glow"
+              variant={locked ? "default" : "glow"}
             >
-              {!commerceState.canSelect && !unavailable ? <Lock aria-hidden="true" /> : null}
-              {unavailable ? "Unavailable" : selected ? "Selected" : "Select"}
+              {locked ? <Lock aria-hidden="true" /> : null}
+              {unavailable ? "Unavailable" : locked ? "Unlock" : selected ? "Selected" : "Select"}
             </Button>
             {commerceState.showKeepPermanently ? (
               <Button
@@ -242,6 +252,13 @@ export function BackgroundCarouselCard({
           {previewTags.length > 0 ? (
             <p className="mt-1 text-xs text-white/70">
               {previewTags.join(" - ")}
+            </p>
+          ) : null}
+          {detailLevel === "full" && locked ? (
+            <p id={acquisitionHintId} className="mt-1 text-[11px] leading-4 text-white/80">
+              {signedIn
+                ? "Credit, $1 purchase, or membership."
+                : "Add now; sign in or create an account at checkout."}
             </p>
           ) : null}
         </div>

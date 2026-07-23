@@ -16061,7 +16061,7 @@ export function SetTimer({
           </div>
         </details>
 
-        <div className={styles.stepContent}>
+        <div className={`${styles.stepContent} ${activeStep === 3 ? styles.backgroundStepContent : ""}`}>
           {activeStep === 0 && (
             <div>
               <div className={styles.formGroup}>
@@ -16284,7 +16284,7 @@ export function SetTimer({
           )}
 
           {activeStep === 3 && (
-            <div>
+            <>
               <div className={styles.backgroundSettings}>
                 <StyledToggleControl
                   label="Visual background"
@@ -16305,7 +16305,7 @@ export function SetTimer({
               <p className={styles.formHint}>
                 Backgrounds are fully applied when timer starts. Use this section to set your preferred background and any per-background controls.
               </p>
-            </div>
+            </>
           )}
 
           {activeStep === 4 && (

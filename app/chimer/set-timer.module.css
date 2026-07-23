@@ -772,6 +772,13 @@
   gap: 1rem;
 }
 
+.backgroundStepContent {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
 .stepNavActions {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr));

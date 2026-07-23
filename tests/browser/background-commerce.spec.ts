@@ -295,9 +295,18 @@ test("guest cart persists locally and requires an account only at checkout", asy
   await installGuestFixture(page)
   await openClockBackground(page)
   const backgroundPanel = page.getByRole("dialog", { name: "Background" })
-  await centerPremium(page, AURORA_ID)
+  const guestAurora = await centerPremium(page, AURORA_ID)
 
-  await backgroundPanel.getByRole("button", { name: "Select Aurora field background" }).click()
+  const guestUnlock = backgroundPanel.getByRole("button", { name: "Unlock Aurora field background" })
+  await expect(guestUnlock).toBeEnabled()
+  await expect(guestUnlock).toHaveAttribute(
+    "title",
+    "Add this background now, then sign in or create an account at checkout.",
+  )
+  await expect(accessCard(guestAurora)).toContainText(
+    "Add now; sign in or create an account at checkout.",
+  )
+  await guestUnlock.click()
   const acquisition = page.getByRole("dialog", { name: "Unlock Aurora field" })
   await expect(acquisition.getByRole("button", { name: "Use free credit" })).toBeDisabled()
   await expect(acquisition).toContainText(
@@ -339,7 +348,7 @@ test("Clock redeems one explicit permanent credit and keeps the nested dialog fo
   const aurora = await centerPremium(page, AURORA_ID)
   await expect(accessCard(aurora)).toHaveAttribute("data-background-access-state", "locked-credit-available")
 
-  await backgroundPanel.getByRole("button", { name: "Select Aurora field background" }).click()
+  await backgroundPanel.getByRole("button", { name: "Unlock Aurora field background" }).click()
   const acquisition = page.getByRole("dialog", { name: "Unlock Aurora field" })
   await expect(acquisition.getByRole("button", { name: "Use free credit" })).toBeVisible()
   await expect(acquisition.getByRole("button", { name: "Buy for $1" })).toBeVisible()
@@ -374,7 +383,7 @@ test("zero-credit cart persists across refresh and checkout failure keeps one su
   await openClockBackground(page)
   const panel = page.getByRole("dialog", { name: "Background" })
   await centerPremium(page, DOTTED_GLOW_ID)
-  await panel.getByRole("button", { name: "Select Dotted glow background" }).click()
+  await panel.getByRole("button", { name: "Unlock Dotted glow background" }).click()
   const acquisition = page.getByRole("dialog", { name: "Unlock Dotted glow" })
   await expect(acquisition.getByRole("button", { name: "Use free credit" })).toBeDisabled()
   await expect(acquisition.getByText(/You have 0 credits\./)).toBeVisible()
@@ -510,7 +519,7 @@ test("Music visualizer keeps the shared account cart through minimize and restor
   const panel = page.getByRole("dialog", { name: "Background" })
   await expect(panel).toBeVisible()
   await centerPremium(page, AURORA_ID)
-  await panel.getByRole("button", { name: "Select Aurora field background" }).click()
+  await panel.getByRole("button", { name: "Unlock Aurora field background" }).click()
   await page.getByRole("dialog", { name: "Unlock Aurora field" })
     .getByRole("button", { name: "Buy for $1" })
     .click()

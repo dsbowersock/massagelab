@@ -43,7 +43,7 @@ export function BackgroundSelector({
   category,
   className,
   compact = false,
-  description = "Additional premium visual backgrounds are paused for source-matched review.",
+  description = "Choose a background. Premium options include credits, $1 purchase, or membership.",
   renderSelectedControls,
 }: BackgroundSelectorProps) {
   const [upgradeMessage, setUpgradeMessage] = useState("")
@@ -60,6 +60,11 @@ export function BackgroundSelector({
     [options, savedBackgroundIds, visualFilter],
   )
   const selectedOption = options.find((option) => option.id === value) ?? options.find((option) => option.id === DEFAULT_BACKGROUND_ID)
+  // Locked backgrounds may not expose any per-background controls; do not leave
+  // an empty decorative card beneath the carousel when the renderer returns null.
+  const selectedControls = selectedOption && renderSelectedControls
+    ? renderSelectedControls(selectedOption)
+    : null
 
   useEffect(() => {
     setSavedBackgroundIds(readSavedBackgroundIds(window.localStorage) as BackgroundId[])
@@ -155,9 +160,9 @@ export function BackgroundSelector({
         }}
       />
 
-      {selectedOption && renderSelectedControls ? (
+      {selectedControls ? (
         <div className="rounded-md border border-border/70 bg-background/70 px-3 py-3">
-          {renderSelectedControls(selectedOption)}
+          {selectedControls}
         </div>
       ) : null}
       {visibleOptions.length === 0 ? (

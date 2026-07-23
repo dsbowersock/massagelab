@@ -61,7 +61,7 @@ export function BackgroundCarousel({
   const [profile, setProfile] =
     useState<BackgroundViewportProfile>("compact-desktop")
   const [reducedMotion, setReducedMotion] = useState(false)
-  const { state: commerceClientState } = useBackgroundCommerce()
+  const { state: commerceClientState, signedIn } = useBackgroundCommerce()
   const snapshot = commerceClientState.snapshot
 
   useEffect(() => {
@@ -163,6 +163,7 @@ export function BackgroundCarousel({
             selected={selectedId === option.id}
             saved={savedIds.includes(option.id)}
             active={active}
+            signedIn={signedIn}
             reducedMotion={reducedMotion}
             onSelect={() => onSelect(option.id)}
             onLockedSelect={() => onLockedSelect?.(option)}

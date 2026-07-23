@@ -4,6 +4,17 @@ This is the canonical chronological planning and progress log for MassageLab. Us
 
 Existing plans, audits, roadmaps, and checklists remain source evidence. Keep them for context, but mirror meaningful progress, plan changes, and priority changes in [project-state.md](project-state.md) and here.
 
+## 2026-07-23 — Background purchase surfaces visual review
+
+- Replaced disabled-looking locked Select buttons with visibly actionable Unlock
+  controls across Chimer, Clock, and the Music visualizer. Signed-out cards now
+  explain that the background can be added immediately and that sign-in or
+  account creation happens at checkout; activation still opens the shared
+  credit, one-dollar purchase, and membership dialog.
+- Removed the redundant outer visual shell from Chimer's Choose background step
+  and stopped rendering the selected-controls card when a locked background has
+  no controls, eliminating the empty bordered container from the setup flow.
+
 ## 2026-07-22 — Background purchase surfaces release candidate
 
 - Completed the Track 1B release candidate on
