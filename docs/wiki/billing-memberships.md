@@ -178,14 +178,31 @@ requires these explicit background-commerce values without printing secrets:
   `BACKGROUND_COMMERCE_RECONCILIATION_READY=true`;
 - `BACKGROUND_COMMERCE_WEBHOOK_EVENTS` covering exactly the implementation's
   Checkout, refund, and dispute contract below; and
-- `BACKGROUND_COMMERCE_TAX_MODE=disabled` for the current U.S.-only posture.
+- `BACKGROUND_COMMERCE_TAX_MODE=stripe`;
+- `BACKGROUND_COMMERCE_TAX_PRODUCT_CODE` set to the reviewed Stripe Tax code
+  for permanent digital backgrounds;
+- `BACKGROUND_COMMERCE_TAX_PROVIDER_READY=true` only after Stripe Tax has the
+  business origin/head-office configuration required for calculation; and
+- `BACKGROUND_COMMERCE_TAX_REGISTRATIONS_READY=true` only after the applicable
+  tax registrations, beginning with Ohio, are active in Stripe.
 
 Current checkout is U.S.-only and fixed at one U.S. dollar per background.
-Production readiness fails closed if another purchase country or automatic tax
-is enabled. Stripe Tax requires a later reviewed rollout that reconciles
-processor tax into immutable order totals and per-item tax allocations in
-addition to confirming registrations and the product tax code; configuration
-flags alone cannot enable it.
+Paid readiness fails closed when tax is disabled, the product tax code is
+missing, or provider/registration readiness has not been explicitly confirmed.
+Checkout uses exclusive automatic tax, requires a billing address, and saves
+the entered address to the existing Stripe Customer. A completed paid Session
+must report automatic-tax status `complete`, zero discounts and shipping, the
+configured tax code and exclusive behavior on every line, and internally
+consistent subtotal/tax/total amounts. The webhook transaction freezes
+processor tax into `CommerceOrder.taxCents`, `CommerceOrder.totalCents`,
+`CommerceOrderItem.allocatedTaxCents`, and each item total before payment and
+ownership fulfillment. Any mismatch moves the order to operator review without
+granting ownership.
+
+The readiness booleans are operator attestations, not proof of registration or
+taxability. Keep `BACKGROUND_COMMERCE_PURCHASING_ENABLED=false` until the
+business origin, Ohio registration, and reviewed product tax code are complete
+in Stripe and have passed a test-mode taxed Checkout/fulfillment smoke.
 
 The pinned `/api/billing/webhook` endpoint must subscribe to:
 

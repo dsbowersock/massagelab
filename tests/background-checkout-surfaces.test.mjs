@@ -14,7 +14,7 @@ describe("background checkout review", () => {
     for (const copy of [
       "Review checkout",
       "U.S. only",
-      "No tax is currently charged",
+      "Applicable tax is calculated",
       "Digital Purchases & Refund Policy",
       "immediate digital delivery",
       "final-sale",

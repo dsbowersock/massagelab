@@ -120,7 +120,7 @@ export function BackgroundCheckoutReview({
             <span>{formatCommerceAmount(cart?.subtotalAmount ?? 0, cart?.currency)}</span>
           </div>
           <p className="text-xs text-muted-foreground">
-            No tax is currently charged for this U.S.-only release.
+            Applicable tax is calculated from your billing address at Stripe Checkout.
           </p>
         </div>
 

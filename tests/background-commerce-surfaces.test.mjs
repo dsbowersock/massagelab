@@ -131,7 +131,7 @@ describe("background acquisition and shared account cart", () => {
     const source = await readFile(cartPath, "utf8")
     for (const label of [
       "Review checkout",
-      "No tax is currently charged",
+      "Applicable tax is calculated",
       "Permanent access after membership ends",
       "Remove",
       "Return to checkout",

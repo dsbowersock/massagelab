@@ -18,6 +18,11 @@ const PROTECTED_ORDER_STATUSES = new Set([
   "REFUNDED",
   "REVIEW_REQUIRED",
 ])
+const TAX_RECONCILABLE_ORDER_STATUSES = new Set([
+  "PREPARING",
+  "AWAITING_PAYMENT",
+  "PAYMENT_FAILED",
+])
 const BACKGROUND_SESSION_EVENTS = new Set([
   "checkout.session.completed",
   "checkout.session.async_payment_succeeded",
@@ -74,6 +79,11 @@ type SessionEvidence = {
   sessionId: string
   purpose: string
   schemaVersion: string
+  taxMode: string
+  taxCode: string
+  taxBehavior: string
+  automaticTaxEnabled: boolean
+  automaticTaxStatus: string
   orderId: string
   userId: string
   customerId: string
@@ -82,6 +92,8 @@ type SessionEvidence = {
   amountSubtotal: number | null
   amountTotal: number | null
   amountTax: number | null
+  amountDiscount: number | null
+  amountShipping: number | null
   paymentIntentId: string
   paymentIntentStatus: string
   paymentIntentAmount: number | null
@@ -98,8 +110,11 @@ type SessionEvidence = {
     currency: string
     unitAmount: number | null
     amountSubtotal: number | null
+    amountDiscount: number | null
     amountTax: number | null
     amountTotal: number | null
+    productTaxCode: string
+    taxBehavior: string
   }>
 }
 
@@ -107,6 +122,13 @@ class OwnershipGrantError extends Error {
   constructor() {
     super("Background ownership grant requires operator review.")
     this.name = "OwnershipGrantError"
+  }
+}
+
+class TaxSnapshotConflictError extends Error {
+  constructor() {
+    super("The background order tax snapshot changed during fulfillment.")
+    this.name = "TaxSnapshotConflictError"
   }
 }
 
@@ -154,6 +176,10 @@ function payloadHash(eventId: string, eventType: string, session: Stripe.Checkou
     status: stringValue(session.status),
     paymentStatus: stringValue(session.payment_status),
     paymentIntentId: stripeId(session.payment_intent),
+    automaticTaxEnabled: session.automatic_tax?.enabled === true,
+    automaticTaxStatus: stringValue(session.automatic_tax?.status),
+    amountSubtotal: integerValue(session.amount_subtotal),
+    amountTax: integerValue(session.total_details?.amount_tax),
     amountTotal: integerValue(session.amount_total),
     currency: stringValue(session.currency),
   })).digest("hex")
@@ -170,6 +196,11 @@ function sessionEvidence(session: Stripe.Checkout.Session): SessionEvidence {
     sessionId: stringValue(session.id),
     purpose: metadata.purpose ?? "",
     schemaVersion: metadata.schemaVersion ?? "",
+    taxMode: metadata.taxMode ?? "",
+    taxCode: metadata.taxCode ?? "",
+    taxBehavior: metadata.taxBehavior ?? "",
+    automaticTaxEnabled: session.automatic_tax?.enabled === true,
+    automaticTaxStatus: stringValue(session.automatic_tax?.status),
     orderId: metadata.orderId ?? "",
     userId: metadata.userId ?? "",
     customerId: stripeId(session.customer),
@@ -178,6 +209,8 @@ function sessionEvidence(session: Stripe.Checkout.Session): SessionEvidence {
     amountSubtotal: integerValue(session.amount_subtotal),
     amountTotal: integerValue(session.amount_total),
     amountTax: integerValue(session.total_details?.amount_tax),
+    amountDiscount: integerValue(session.total_details?.amount_discount),
+    amountShipping: integerValue(session.total_details?.amount_shipping),
     paymentIntentId: stripeId(session.payment_intent),
     paymentIntentStatus: stringValue(paymentIntent?.status),
     paymentIntentAmount: integerValue(paymentIntent?.amount),
@@ -200,8 +233,11 @@ function sessionEvidence(session: Stripe.Checkout.Session): SessionEvidence {
         currency: stringValue(line.currency ?? price?.currency).toLowerCase(),
         unitAmount: integerValue(price?.unit_amount),
         amountSubtotal: integerValue(line.amount_subtotal),
+        amountDiscount: integerValue(line.amount_discount),
         amountTax: integerValue(line.amount_tax),
         amountTotal: integerValue(line.amount_total),
+        productTaxCode: stripeId(product?.tax_code) || productMetadata.taxCode || "",
+        taxBehavior: stringValue(price?.tax_behavior),
       }
     }),
   }
@@ -223,7 +259,11 @@ function ignoredResult(evidence: SessionEvidence): BackgroundFulfillmentResult {
   }
 }
 
-function itemMismatchIds(order: StoredOrder, evidence: SessionEvidence): string[] {
+function itemMismatchIds(
+  order: StoredOrder,
+  evidence: SessionEvidence,
+  includeTaxAmounts: boolean,
+): string[] {
   if (evidence.items.length !== order.items.length) {
     return order.items.map((item) => item.id)
   }
@@ -240,8 +280,10 @@ function itemMismatchIds(order: StoredOrder, evidence: SessionEvidence): string[
       || line.currency !== item.currency
       || line.unitAmount !== item.unitPriceCents
       || line.amountSubtotal !== item.unitPriceCents * item.quantity
-      || line.amountTax !== item.allocatedTaxCents
-      || line.amountTotal !== item.lineTotalCents
+      || (includeTaxAmounts && (
+        line.amountTax !== item.allocatedTaxCents
+        || line.amountTotal !== item.lineTotalCents
+      ))
     ) {
       mismatches.push(item.id)
     }
@@ -265,13 +307,15 @@ function evidenceFailure(
     || (requirePaidEvidence && evidence.country !== "US")
     || evidence.currency !== order.currency
     || evidence.amountSubtotal !== order.subtotalCents
-    || evidence.amountTax !== order.taxCents
-    || evidence.amountTotal !== order.totalCents
+    || (requirePaidEvidence && (
+      evidence.amountTax !== order.taxCents
+      || evidence.amountTotal !== order.totalCents
+    ))
   ) {
     return { code: "CHECKOUT_SESSION_MISMATCH", itemIds: [] }
   }
 
-  const mismatchedItems = itemMismatchIds(order, evidence)
+  const mismatchedItems = itemMismatchIds(order, evidence, requirePaidEvidence)
   if (mismatchedItems.length > 0) {
     return { code: "CHECKOUT_ITEM_MISMATCH", itemIds: mismatchedItems }
   }
@@ -300,11 +344,223 @@ function evidenceFailure(
     || paymentMetadata.orderId !== order.id
     || paymentMetadata.userId !== order.userId
     || paymentMetadata.schemaVersion !== BACKGROUND_PURCHASE_SCHEMA_VERSION
+    || paymentMetadata.taxMode !== evidence.taxMode
+    || paymentMetadata.taxCode !== evidence.taxCode
+    || paymentMetadata.taxBehavior !== evidence.taxBehavior
   ) {
     return { code: "PAYMENT_EVIDENCE_MISMATCH", itemIds: [] }
   }
 
   return null
+}
+
+type TaxSnapshotResult = {
+  order: StoredOrder
+  failure: { code: string; itemIds: string[] } | null
+}
+
+/**
+ * Validates and freezes Stripe Tax totals before the paid-order evidence check.
+ *
+ * Initial order amounts remain pre-tax while Checkout is open. Only a signed,
+ * retrieved, fully paid automatic-tax Session may replace that baseline, and
+ * every order/line amount is changed in the same serializable transaction.
+ */
+async function reconcilePaidTaxSnapshot(
+  tx: Prisma.TransactionClient,
+  input: {
+    order: StoredOrder
+    evidence: SessionEvidence
+    stripeCustomerId: string
+    processorEventCreatedAt: string | null
+  },
+): Promise<TaxSnapshotResult> {
+  const staticFailure = evidenceFailure(
+    input.order,
+    input.evidence,
+    input.stripeCustomerId,
+    false,
+  )
+  if (staticFailure) return { order: input.order, failure: staticFailure }
+
+  const evidence = input.evidence
+  if (
+    evidence.country !== "US"
+    || evidence.taxMode !== "stripe"
+    || !evidence.taxCode.startsWith("txcd_")
+    || evidence.taxBehavior !== "exclusive"
+    || !evidence.automaticTaxEnabled
+    || evidence.automaticTaxStatus !== "complete"
+    || evidence.amountSubtotal === null
+    || evidence.amountTax === null
+    || evidence.amountTotal === null
+    || evidence.amountDiscount !== 0
+    || evidence.amountShipping !== 0
+    || evidence.amountSubtotal < 0
+    || evidence.amountTax < 0
+    || evidence.amountTotal !== evidence.amountSubtotal + evidence.amountTax
+  ) {
+    return {
+      order: input.order,
+      failure: { code: "CHECKOUT_TAX_MISMATCH", itemIds: [] },
+    }
+  }
+
+  const evidenceByKey = new Map(evidence.items.map((item) => [item.productKey, item]))
+  if (evidenceByKey.size !== input.order.items.length) {
+    return {
+      order: input.order,
+      failure: {
+        code: "CHECKOUT_TAX_MISMATCH",
+        itemIds: input.order.items.map((item) => item.id),
+      },
+    }
+  }
+
+  let lineSubtotal = 0
+  let lineTax = 0
+  let lineTotal = 0
+  const reconciledItems: StoredOrderItem[] = []
+  const invalidItemIds: string[] = []
+  for (const item of input.order.items) {
+    const line = evidenceByKey.get(item.productKey)
+    if (
+      !line
+      || line.amountSubtotal === null
+      || line.amountTax === null
+      || line.amountTotal === null
+      || line.amountDiscount !== 0
+      || line.amountTax < 0
+      || line.amountTotal !== line.amountSubtotal + line.amountTax
+      || line.productTaxCode !== evidence.taxCode
+      || line.taxBehavior !== "exclusive"
+    ) {
+      invalidItemIds.push(item.id)
+      continue
+    }
+    lineSubtotal += line.amountSubtotal
+    lineTax += line.amountTax
+    lineTotal += line.amountTotal
+    reconciledItems.push({
+      ...item,
+      allocatedTaxCents: line.amountTax,
+      lineTotalCents: line.amountTotal,
+    })
+  }
+  if (
+    invalidItemIds.length > 0
+    || reconciledItems.length !== input.order.items.length
+    || lineSubtotal !== evidence.amountSubtotal
+    || lineTax !== evidence.amountTax
+    || lineTotal !== evidence.amountTotal
+  ) {
+    return {
+      order: input.order,
+      failure: {
+        code: "CHECKOUT_TAX_MISMATCH",
+        itemIds: invalidItemIds.length > 0
+          ? invalidItemIds
+          : input.order.items.map((item) => item.id),
+      },
+    }
+  }
+
+  const orderMatchesEvidence = input.order.taxCents === evidence.amountTax
+    && input.order.totalCents === evidence.amountTotal
+  const itemsMatchEvidence = reconciledItems.every((item, index) => (
+    item.allocatedTaxCents === input.order.items[index].allocatedTaxCents
+    && item.lineTotalCents === input.order.items[index].lineTotalCents
+  ))
+  if (orderMatchesEvidence && itemsMatchEvidence) {
+    return {
+      order: {
+        ...input.order,
+        taxCents: evidence.amountTax,
+        totalCents: evidence.amountTotal,
+        items: reconciledItems,
+      },
+      failure: null,
+    }
+  }
+
+  const orderHasUntaxedBaseline = input.order.taxCents === 0
+    && input.order.totalCents === input.order.subtotalCents
+  const itemsHaveUntaxedBaseline = input.order.items.every((item) => (
+    item.allocatedTaxCents === 0
+    && item.lineTotalCents === item.unitPriceCents * item.quantity
+  ))
+  if (
+    !TAX_RECONCILABLE_ORDER_STATUSES.has(input.order.status)
+    || input.order.fulfillmentStatus !== "PENDING"
+    || !orderHasUntaxedBaseline
+    || !itemsHaveUntaxedBaseline
+  ) {
+    return {
+      order: input.order,
+      failure: {
+        code: "CHECKOUT_TAX_MISMATCH",
+        itemIds: input.order.items.map((item) => item.id),
+      },
+    }
+  }
+
+  for (const item of reconciledItems) {
+    const storedItem = input.order.items.find((candidate) => candidate.id === item.id)
+    if (!storedItem) throw new TaxSnapshotConflictError()
+    if (
+      storedItem.allocatedTaxCents === item.allocatedTaxCents
+      && storedItem.lineTotalCents === item.lineTotalCents
+    ) {
+      continue
+    }
+    const changed = await tx.commerceOrderItem.updateMany({
+      where: {
+        id: storedItem.id,
+        orderId: input.order.id,
+        allocatedTaxCents: storedItem.allocatedTaxCents,
+        lineTotalCents: storedItem.lineTotalCents,
+        fulfillmentStatus: "PENDING",
+      },
+      data: {
+        allocatedTaxCents: item.allocatedTaxCents,
+        lineTotalCents: item.lineTotalCents,
+      },
+    })
+    if (changed.count !== 1) throw new TaxSnapshotConflictError()
+  }
+
+  const changedOrder = await tx.commerceOrder.updateMany({
+    where: {
+      id: input.order.id,
+      userId: input.order.userId,
+      status: input.order.status as never,
+      fulfillmentStatus: "PENDING",
+      stripeCheckoutSessionId: input.order.stripeCheckoutSessionId,
+      subtotalCents: input.order.subtotalCents,
+      taxCents: input.order.taxCents,
+      totalCents: input.order.totalCents,
+    },
+    data: {
+      taxCents: evidence.amountTax,
+      totalCents: evidence.amountTotal,
+    },
+  })
+  if (changedOrder.count !== 1) throw new TaxSnapshotConflictError()
+
+  const reconciledOrder = {
+    ...input.order,
+    taxCents: evidence.amountTax,
+    totalCents: evidence.amountTotal,
+    items: reconciledItems,
+  }
+  await recordCommerceEvent(tx, {
+    order: reconciledOrder,
+    eventType: "BACKGROUND_ORDER_TAX_RECONCILED",
+    fromState: input.order.status,
+    toState: input.order.status,
+    processorEventCreatedAt: input.processorEventCreatedAt,
+  })
+  return { order: reconciledOrder, failure: null }
 }
 
 async function recordCommerceEvent(
@@ -798,12 +1054,29 @@ export async function fulfillBackgroundPurchase(
       eventType === "checkout.session.async_payment_succeeded"
       || (eventType === "checkout.session.completed" && evidence.paymentStatus === "paid")
     )
+    let processingOrder = order
+    let taxFailure: { code: string; itemIds: string[] } | null = null
+    if (storedCustomer && paidEvent) {
+      const taxSnapshot = await reconcilePaidTaxSnapshot(tx, {
+        order,
+        evidence,
+        stripeCustomerId: storedCustomer.stripeCustomerId,
+        processorEventCreatedAt: eventTimestamp,
+      })
+      processingOrder = taxSnapshot.order
+      taxFailure = taxSnapshot.failure
+    }
     const validationFailure = !storedCustomer
       ? { code: "STRIPE_CUSTOMER_NOT_FOUND", itemIds: [] }
-      : evidenceFailure(order, evidence, storedCustomer.stripeCustomerId, paidEvent)
+      : taxFailure ?? evidenceFailure(
+          processingOrder,
+          evidence,
+          storedCustomer.stripeCustomerId,
+          paidEvent,
+        )
     if (validationFailure) {
       return markReviewRequired(tx, {
-        order,
+        order: processingOrder,
         receiptId: receipt.id,
         failureCode: validationFailure.code,
         failedItemIds: validationFailure.itemIds,
@@ -814,7 +1087,7 @@ export async function fulfillBackgroundPurchase(
 
     if (paidEvent) {
       return fulfillPaidOrder(tx, {
-        order,
+        order: processingOrder,
         receiptId: receipt.id,
         evidence,
         processorEventCreatedAt: eventTimestamp,
@@ -835,7 +1108,7 @@ export async function fulfillBackgroundPurchase(
     }
 
     return processUnpaidEvent(tx, {
-      order,
+      order: processingOrder,
       receiptId: receipt.id,
       evidence,
       eventType,

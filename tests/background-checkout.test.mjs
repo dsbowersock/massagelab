@@ -28,7 +28,10 @@ function readyEnv(overrides = {}) {
     BACKGROUND_COMMERCE_DIGITAL_PURCHASE_DOCUMENT_VERSION: "2026-07-digital-purchases-v1",
     BACKGROUND_COMMERCE_WEBHOOK_READY: "true",
     BACKGROUND_COMMERCE_RECONCILIATION_READY: "true",
-    BACKGROUND_COMMERCE_TAX_MODE: "disabled",
+    BACKGROUND_COMMERCE_TAX_MODE: "stripe",
+    BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "txcd_10202003",
+    BACKGROUND_COMMERCE_TAX_PROVIDER_READY: "true",
+    BACKGROUND_COMMERCE_TAX_REGISTRATIONS_READY: "true",
     ...overrides,
   }
 }
@@ -245,12 +248,16 @@ describe("background Stripe Checkout adapter", () => {
     assert.equal(capturedPayload.customer, "cus_123")
     assert.equal(capturedPayload.billing_address_collection, "required")
     assert.equal(capturedPayload.expires_at, Math.floor(NOW.getTime() / 1000) + 1800)
-    assert.deepEqual(capturedPayload.automatic_tax, { enabled: false })
+    assert.deepEqual(capturedPayload.automatic_tax, { enabled: true })
+    assert.deepEqual(capturedPayload.customer_update, { address: "auto" })
     assert.deepEqual(capturedPayload.metadata, {
       purpose: "background_purchase",
       orderId: "order_123",
       userId: "user_123",
-      schemaVersion: "1",
+      schemaVersion: "2",
+      taxMode: "stripe",
+      taxCode: "txcd_10202003",
+      taxBehavior: "exclusive",
     })
     assert.deepEqual(capturedPayload.payment_intent_data.metadata, capturedPayload.metadata)
     assert.equal(capturedPayload.line_items.length, 2)
@@ -259,9 +266,25 @@ describe("background Stripe Checkout adapter", () => {
       amount: item.price_data.unit_amount,
       currency: item.price_data.currency,
       quantity: item.quantity,
+      taxCode: item.price_data.product_data.tax_code,
+      taxBehavior: item.price_data.tax_behavior,
     })), [
-      { name: "Aurora", amount: 100, currency: "usd", quantity: 1 },
-      { name: "Vortex", amount: 100, currency: "usd", quantity: 1 },
+      {
+        name: "Aurora",
+        amount: 100,
+        currency: "usd",
+        quantity: 1,
+        taxCode: "txcd_10202003",
+        taxBehavior: "exclusive",
+      },
+      {
+        name: "Vortex",
+        amount: 100,
+        currency: "usd",
+        quantity: 1,
+        taxCode: "txcd_10202003",
+        taxBehavior: "exclusive",
+      },
     ])
     assert.deepEqual(capturedOptions, {
       idempotencyKey: "background-purchase:order_123:attempt:2",
@@ -269,42 +292,43 @@ describe("background Stripe Checkout adapter", () => {
     assert.equal(Object.hasOwn(capturedPayload, "client_reference_id"), false)
   })
 
-  it("keeps automatic tax fail-closed until processor tax can reconcile into order snapshots", async () => {
-    let createCalls = 0
-    const env = readyEnv({
-      BACKGROUND_COMMERCE_TAX_MODE: "stripe",
-      BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "txcd_10202003",
-      BACKGROUND_COMMERCE_TAX_PROVIDER_READY: "true",
-      BACKGROUND_COMMERCE_TAX_REGISTRATIONS_READY: "true",
-    })
-
-    await assert.rejects(
-      () => createBackgroundPurchaseCheckoutSession({
-        orderId: "order_tax",
-        userId: "user_123",
-        checkoutAttempt: 1,
-        customerId: "cus_123",
-        items: order({ items: order().items.slice(0, 1) }).items,
-        legalConsent: currentConsent(),
-        purchaseCountry: "US",
-        successUrl: "https://massagelab.test/account",
-        cancelUrl: "https://massagelab.test/account",
-        now: NOW,
-        env,
-        stripeClient: {
-          checkout: {
-            sessions: {
-              create: async () => {
-                createCalls += 1
-                return { id: "cs_tax", url: "https://checkout.stripe.com/c/tax" }
+  it("never creates paid checkout when automatic tax or its operator readiness is absent", async () => {
+    for (const env of [
+      readyEnv({ BACKGROUND_COMMERCE_TAX_MODE: "disabled" }),
+      readyEnv({ BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "" }),
+      readyEnv({ BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "digital-background" }),
+      readyEnv({ BACKGROUND_COMMERCE_TAX_PROVIDER_READY: "false" }),
+      readyEnv({ BACKGROUND_COMMERCE_TAX_REGISTRATIONS_READY: "false" }),
+    ]) {
+      let createCalls = 0
+      await assert.rejects(
+        () => createBackgroundPurchaseCheckoutSession({
+          orderId: "order_tax",
+          userId: "user_123",
+          checkoutAttempt: 1,
+          customerId: "cus_123",
+          items: order({ items: order().items.slice(0, 1) }).items,
+          legalConsent: currentConsent(),
+          purchaseCountry: "US",
+          successUrl: "https://massagelab.test/account",
+          cancelUrl: "https://massagelab.test/account",
+          now: NOW,
+          env,
+          stripeClient: {
+            checkout: {
+              sessions: {
+                create: async () => {
+                  createCalls += 1
+                  return { id: "cs_tax", url: "https://checkout.stripe.com/c/tax" }
+                },
               },
             },
           },
-        },
-      }),
-      (error) => error?.code === "TAX_NOT_READY",
-    )
-    assert.equal(createCalls, 0)
+        }),
+        (error) => error?.code === "TAX_NOT_READY",
+      )
+      assert.equal(createCalls, 0)
+    }
   })
 
   it("retries a connection failure with the identical payload and idempotency key", async () => {

@@ -109,10 +109,10 @@ describe("Commerce domain contracts", () => {
     assert.equal(normalizeCommerceReturnPath(longRelativePath).length, 64)
   })
 
-  it("keeps Stripe Tax fail-closed while accepting the current disabled posture", () => {
+  it("authorizes only explicit Stripe Tax provider, registration, and product-code readiness", () => {
     const disabled = getCommerceTaxReadiness({})
     assert.equal(disabled.mode, "disabled")
-    assert.equal(disabled.ready, true)
+    assert.equal(disabled.ready, false)
     assert.equal(disabled.taxCode, null)
 
     const invalid = getCommerceTaxReadiness({ BACKGROUND_COMMERCE_TAX_MODE: "unknown" })
@@ -129,21 +129,29 @@ describe("Commerce domain contracts", () => {
 
     const onlyTaxCode = getCommerceTaxReadiness({
       BACKGROUND_COMMERCE_TAX_MODE: "stripe",
-      BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "txcd_999999",
+      BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "txcd_10202003",
     })
     assert.equal(onlyTaxCode.mode, "stripe")
     assert.equal(onlyTaxCode.ready, false)
-    assert.equal(onlyTaxCode.taxCode, "txcd_999999")
+    assert.equal(onlyTaxCode.taxCode, "txcd_10202003")
 
-    const futureStripeConfiguration = getCommerceTaxReadiness({
+    const malformedTaxCode = getCommerceTaxReadiness({
       BACKGROUND_COMMERCE_TAX_MODE: "stripe",
-      BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "txcd_999999",
+      BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "digital-background",
       BACKGROUND_COMMERCE_TAX_PROVIDER_READY: "true",
       BACKGROUND_COMMERCE_TAX_REGISTRATIONS_READY: "true",
     })
-    assert.equal(futureStripeConfiguration.mode, "stripe")
-    assert.equal(futureStripeConfiguration.ready, false)
-    assert.equal(futureStripeConfiguration.taxCode, "txcd_999999")
+    assert.equal(malformedTaxCode.ready, false)
+
+    const stripeConfiguration = getCommerceTaxReadiness({
+      BACKGROUND_COMMERCE_TAX_MODE: "stripe",
+      BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "txcd_10202003",
+      BACKGROUND_COMMERCE_TAX_PROVIDER_READY: "true",
+      BACKGROUND_COMMERCE_TAX_REGISTRATIONS_READY: "true",
+    })
+    assert.equal(stripeConfiguration.mode, "stripe")
+    assert.equal(stripeConfiguration.ready, true)
+    assert.equal(stripeConfiguration.taxCode, "txcd_10202003")
   })
 
   it("returns stable public error codes for non-domain details", () => {

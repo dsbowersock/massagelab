@@ -37,9 +37,21 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 - Made public cart normalization fail closed for malformed item prices and cart
   subtotals, documented the client projection invariants, secured HTTPS browser
   QA session cookies, and pinned nested Calendar/booking cart-trigger coverage.
-- Aligned Checkout and cart copy with the disabled-tax release contract, made
-  checkout-copy tests literal, added a fail-fast guard for the derived Chimer
-  background step, and documented the explicit purchase-support reference gate.
+- Replaced the provisional disabled-tax release contract before shipping:
+  paid background readiness now requires Stripe Tax mode, a reviewed product
+  tax code, and explicit provider/registration readiness. Checkout always uses
+  exclusive automatic tax and billing-address collection; paid webhook
+  fulfillment atomically freezes processor order/item tax totals before its
+  existing evidence checks and sends incomplete, unsupported, or conflicting
+  tax evidence to review without granting ownership. Cart and Checkout copy now
+  says applicable tax is calculated at Stripe Checkout.
+- Added a fail-fast guard for the derived Chimer background step and documented
+  the explicit purchase-support reference gate.
+- Set the Vercel Production
+  `BACKGROUND_COMMERCE_PURCHASING_ENABLED=false` kill switch and redeployed the
+  existing PR #139 production source (`def0c365`) so paid background checkout is
+  disabled immediately while the tax-aware branch, Ohio registration, and
+  reviewed product classification remain incomplete.
 
 ## 2026-07-22 — Background purchase surfaces release candidate
 

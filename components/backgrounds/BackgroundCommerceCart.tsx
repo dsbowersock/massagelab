@@ -145,7 +145,7 @@ function CartContents({
       ) : null}
 
       <div className="grid gap-1 text-xs text-muted-foreground">
-        <p>No tax is currently charged for this U.S.-only release.</p>
+        <p>Applicable tax is calculated from your billing address at checkout.</p>
         <p>Permanent access after membership ends.</p>
         {!signedIn ? <p>This cart is saved in this browser until you sign in.</p> : null}
       </div>

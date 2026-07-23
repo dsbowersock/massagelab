@@ -10,6 +10,12 @@
 
 **Approved design:** `docs/superpowers/specs/2026-07-18-background-commerce-ownership-design.md`
 
+**2026-07-23 tax amendment:** Paid background checkout must not ship with tax
+disabled. It requires Stripe automatic tax, explicit product-code and
+provider/registration readiness, and webhook-time reconciliation of Stripe's
+order and per-item tax amounts before fulfillment. The purchasing kill switch
+stays off until the Ohio registration and product classification are reviewed.
+
 ## Global constraints
 
 - Start from refreshed `main` on a new branch; suggested name: `codex/background-commerce-foundation`.
@@ -444,7 +450,10 @@ Stripe metadata must include only stable identifiers:
   purpose: "background_purchase",
   orderId,
   userId,
-  schemaVersion: "1",
+  schemaVersion: "2",
+  taxMode: "stripe",
+  taxCode: "<reviewed Stripe Tax code>",
+  taxBehavior: "exclusive",
 }
 ```
 

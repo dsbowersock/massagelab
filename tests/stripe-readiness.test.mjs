@@ -28,7 +28,10 @@ function runReadiness(overrides = {}, args = []) {
       BACKGROUND_COMMERCE_WEBHOOK_READY: "true",
       BACKGROUND_COMMERCE_WEBHOOK_EVENTS: "checkout.session.completed,checkout.session.expired,checkout.session.async_payment_succeeded,checkout.session.async_payment_failed,refund.created,refund.updated,refund.failed,charge.dispute.created,charge.dispute.updated,charge.dispute.closed",
       BACKGROUND_COMMERCE_RECONCILIATION_READY: "true",
-      BACKGROUND_COMMERCE_TAX_MODE: "disabled",
+      BACKGROUND_COMMERCE_TAX_MODE: "stripe",
+      BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "txcd_10202003",
+      BACKGROUND_COMMERCE_TAX_PROVIDER_READY: "true",
+      BACKGROUND_COMMERCE_TAX_REGISTRATIONS_READY: "true",
       ...membershipPrices,
       ...overrides,
     },
@@ -75,6 +78,9 @@ describe("Stripe readiness background-commerce contract", () => {
       ["webhook", { BACKGROUND_COMMERCE_WEBHOOK_READY: "false" }],
       ["reconciliation", { BACKGROUND_COMMERCE_RECONCILIATION_READY: "false" }],
       ["tax", { BACKGROUND_COMMERCE_TAX_MODE: "unknown" }],
+      ["tax code", { BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "" }],
+      ["tax provider", { BACKGROUND_COMMERCE_TAX_PROVIDER_READY: "false" }],
+      ["tax registrations", { BACKGROUND_COMMERCE_TAX_REGISTRATIONS_READY: "false" }],
     ]
 
     for (const [name, overrides] of cases) {
@@ -84,26 +90,22 @@ describe("Stripe readiness background-commerce contract", () => {
     }
   })
 
-  it("rejects live international commerce without explicit tax registration and product-code readiness", () => {
+  it("rejects live international commerce while background purchases remain U.S.-only", () => {
     const result = runReadiness({
       STRIPE_SECRET_KEY: "sk_live_readiness",
       BACKGROUND_COMMERCE_PURCHASE_COUNTRIES: "US,CA",
     }, ["--live"])
 
     assert.equal(result.status, 1)
-    assert.match(result.stderr, /FAIL Live international background commerce requires Stripe tax mode/)
+    assert.match(result.stderr, /FAIL Background commerce purchase-country allowlist is not configured\./)
   })
 
-  it("rejects live automatic tax even when future configuration signals are present", () => {
+  it("accepts live automatic tax only with explicit registration and product-code readiness", () => {
     const result = runReadiness({
       STRIPE_SECRET_KEY: "sk_live_readiness",
-      BACKGROUND_COMMERCE_TAX_MODE: "stripe",
-      BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "txcd_10202003",
-      BACKGROUND_COMMERCE_TAX_PROVIDER_READY: "true",
-      BACKGROUND_COMMERCE_TAX_REGISTRATIONS_READY: "true",
     }, ["--live"])
 
-    assert.equal(result.status, 1)
-    assert.match(result.stderr, /FAIL Background commerce tax mode must remain disabled until processor tax is reconciled into order and item snapshots\./)
+    assert.equal(result.status, 0, result.stderr || result.stdout)
+    assert.match(result.stdout, /Background commerce tax mode: stripe/)
   })
 })
