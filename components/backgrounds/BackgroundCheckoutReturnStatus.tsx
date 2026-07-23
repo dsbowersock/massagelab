@@ -92,8 +92,11 @@ export function BackgroundCheckoutReturnStatus() {
     setChecking(true)
     try {
       await refresh()
-      setChecks((value) => value + 1)
+    } catch {
+      // The provider exposes refresh failures in shared state; retry timing must
+      // still advance so a rejected refresh cannot stall this dialog forever.
     } finally {
+      setChecks((value) => value + 1)
       setChecking(false)
     }
   }, [refresh])

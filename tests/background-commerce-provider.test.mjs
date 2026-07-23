@@ -33,6 +33,7 @@ describe("BackgroundCommerceProvider contract", () => {
     assert.match(value, /for \(const backgroundId of pendingIds\)/)
     assert.match(value, /"\/api\/background-commerce\/cart"/)
     assert.match(value, /enqueueMutation\("merge-guest-cart"/)
+    assert.match(value, /void refresh\(\)/)
     assert.match(value, /remainingIds\.push\(backgroundId\)/)
     assert.match(value, /writeGuestBackgroundCartIds\(window\.localStorage, remainingIds\)/)
     assert.match(value, /ITEM_RESERVED/)
@@ -45,7 +46,15 @@ describe("BackgroundCommerceProvider contract", () => {
     assert.match(value, /mutationQueueRef\.current\.then\(operation, operation\)/)
     assert.match(value, /await enqueueSerializedOperation\(async \(\) => \{[\s\S]*checkout-redirect-begin/)
     assert.match(value, /normalizeBackgroundCommerceSnapshot/)
+    assert.match(value, /if \(controller\.signal\.aborted\) return[\s\S]*dispatch\(\{ type: "mutation-begin"/)
     assert.doesNotMatch(value, /creditBalance\s*[+\-]=|ownedBackgroundIds\.push/)
+  })
+
+  it("keeps guest cart identities unique and removes one matching line", async () => {
+    const value = await source(providerPath)
+    assert.match(value, /current\.includes\(item\.productKey\) \? current/)
+    assert.match(value, /const matchIndex = current\.indexOf\(backgroundId\)/)
+    assert.match(value, /index !== matchIndex/)
   })
 
   it("uses stable public auth errors and validates Stripe redirects", async () => {

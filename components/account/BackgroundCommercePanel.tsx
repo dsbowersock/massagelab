@@ -37,7 +37,7 @@ type AccountOrder = {
 
 type LiveAccountOrder = {
   id: string
-  status: string
+  status: string | null
   itemCount: number
   subtotalAmount: number
   taxAmount: number
@@ -101,17 +101,20 @@ function mergeAccountOrders(
 
   const itemizedByReference = new Map(itemizedOrders.map((order) => [order.reference, order]))
   const liveReferences = new Set(liveOrders.map((order) => order.id))
-  const currentOrders = liveOrders.map((order) => ({
-    reference: order.id,
-    status: order.status,
-    itemCount: order.itemCount,
-    subtotalAmount: order.subtotalAmount,
-    taxAmount: order.taxAmount,
-    totalAmount: order.totalAmount,
-    currency: order.currency,
-    createdAt: order.createdAt,
-    items: itemizedByReference.get(order.id)?.items ?? [],
-  }))
+  const currentOrders = liveOrders.map((order) => {
+    const itemizedOrder = itemizedByReference.get(order.id)
+    return {
+      reference: order.id,
+      status: order.status ?? itemizedOrder?.status ?? "UNKNOWN",
+      itemCount: order.itemCount,
+      subtotalAmount: order.subtotalAmount,
+      taxAmount: order.taxAmount,
+      totalAmount: order.totalAmount,
+      currency: order.currency,
+      createdAt: order.createdAt,
+      items: itemizedOrder?.items ?? [],
+    }
+  })
   const olderItemizedOrders = itemizedOrders
     .filter((order) => !liveReferences.has(order.reference))
     .map((order) => ({ ...order, itemCount: order.items.length }))
@@ -170,9 +173,11 @@ function OwnershipCard({ ownership }: { ownership: Ownership }) {
         {ownership.status === "retired" ? (
           <p className="text-xs text-muted-foreground">Replacement credit status appears in your wallet balance.</p>
         ) : null}
-        <Button asChild size="sm" variant="outline" className="mt-2 w-fit">
-          <Link href="/clock?panel=background">Open in Background picker</Link>
-        </Button>
+        {active ? (
+          <Button asChild size="sm" variant="outline" className="mt-2 w-fit">
+            <Link href="/clock?panel=background">Open in Background picker</Link>
+          </Button>
+        ) : null}
       </div>
     </article>
   )
@@ -332,7 +337,7 @@ export function BackgroundCommercePanel({
                 <Link
                   href={`/support?topic=purchase-background-access&orderReference=${encodeURIComponent(order.reference)}`}
                 >
-                  Purchase or background access
+                  Report a purchase or background access issue
                 </Link>
               </Button>
             </article>

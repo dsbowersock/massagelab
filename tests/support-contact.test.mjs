@@ -6,8 +6,14 @@ import {
   PURCHASE_SUPPORT_TOPIC,
   SUPPORT_CONTACT_EMAIL,
 } from "../lib/support-contact.js"
+import { readFile } from "node:fs/promises"
 
 describe("Support contact mailto helper", () => {
+  it("resynchronizes the route-derived topic during soft navigation", async () => {
+    const source = await readFile(new URL("../app/support/support-contact-form.tsx", import.meta.url), "utf8")
+    assert.match(source, /React\.useEffect\(\(\) => \{[\s\S]*setTopic\(initialTopic\)[\s\S]*\}, \[initialTopic\]\)/)
+  })
+
   it("builds a mailto URL for MassageLab support requests", () => {
     const url = buildSupportMailtoUrl({
       name: "Dana Client",

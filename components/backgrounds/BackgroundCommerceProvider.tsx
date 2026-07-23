@@ -234,8 +234,6 @@ export function BackgroundCommerceProvider({
     externalSignal?: AbortSignal,
   ) => (
     enqueueSerializedOperation(async () => {
-      readControllerRef.current?.abort()
-      mutationActiveRef.current = true
       const controller = new AbortController()
       const abortFromExternal = () => controller.abort()
       if (externalSignal?.aborted) {
@@ -243,11 +241,14 @@ export function BackgroundCommerceProvider({
       } else {
         externalSignal?.addEventListener("abort", abortFromExternal, { once: true })
       }
+      if (controller.signal.aborted) return
+
+      readControllerRef.current?.abort()
+      mutationActiveRef.current = true
       mutationControllersRef.current.add(controller)
       const id = requestId(action)
       dispatch({ type: "mutation-begin", requestId: id, action })
       try {
-        if (controller.signal.aborted) return
         await operation(controller.signal)
         const snapshot = await fetchSnapshot(controller.signal)
         dispatch({ type: "mutation-success", requestId: id, snapshot })
@@ -273,7 +274,9 @@ export function BackgroundCommerceProvider({
           message: PUBLIC_ERROR_MESSAGES.CATALOG_UNAVAILABLE,
         })
       }
-      updateGuestCart((current) => [...current, item.productKey])
+      updateGuestCart((current) => (
+        current.includes(item.productKey) ? current : [...current, item.productKey]
+      ))
       return
     }
     await enqueueMutation("add-to-cart", async (signal) => {
@@ -288,7 +291,11 @@ export function BackgroundCommerceProvider({
 
   const removeFromCart = useCallback(async (backgroundId: string) => {
     if (!enabled) {
-      updateGuestCart((current) => current.filter((candidate) => candidate !== backgroundId))
+      updateGuestCart((current) => {
+        const matchIndex = current.indexOf(backgroundId)
+        if (matchIndex < 0) return current
+        return current.filter((_, index) => index !== matchIndex)
+      })
       return
     }
     await enqueueMutation("remove-from-cart", async (signal) => {
@@ -376,30 +383,35 @@ export function BackgroundCommerceProvider({
       return
     }
     const mergeController = new AbortController()
-    void enqueueMutation("merge-guest-cart", async (signal) => {
-      const pendingIds = readGuestBackgroundCartIds(window.localStorage)
-      const remainingIds: string[] = []
-      for (const backgroundId of pendingIds) {
-        try {
-          await mutate(
-            "/api/background-commerce/cart",
-            "POST",
-            { backgroundId },
-            signal,
-          )
-        } catch (error) {
-          // These terminal outcomes cannot succeed on retry; transient failures stay local.
-          if (
-            !(error instanceof BackgroundCommerceClientError)
-            || !["ALREADY_OWNED", "CATALOG_UNAVAILABLE", "ITEM_RESERVED"].includes(error.code)
-          ) {
-            remainingIds.push(backgroundId)
+    const pendingIds = readGuestBackgroundCartIds(window.localStorage)
+    // Account state must load even when there is no guest intent to merge or a
+    // queued merge is aborted during navigation.
+    void refresh()
+    if (pendingIds.length > 0) {
+      void enqueueMutation("merge-guest-cart", async (signal) => {
+        const remainingIds: string[] = []
+        for (const backgroundId of pendingIds) {
+          try {
+            await mutate(
+              "/api/background-commerce/cart",
+              "POST",
+              { backgroundId },
+              signal,
+            )
+          } catch (error) {
+            // These terminal outcomes cannot succeed on retry; transient failures stay local.
+            if (
+              !(error instanceof BackgroundCommerceClientError)
+              || !["ALREADY_OWNED", "CATALOG_UNAVAILABLE", "ITEM_RESERVED"].includes(error.code)
+            ) {
+              remainingIds.push(backgroundId)
+            }
           }
         }
-      }
-      if (signal.aborted) return
-      setGuestCartIds(writeGuestBackgroundCartIds(window.localStorage, remainingIds))
-    }, mergeController.signal).catch(() => undefined)
+        if (signal.aborted) return
+        setGuestCartIds(writeGuestBackgroundCartIds(window.localStorage, remainingIds))
+      }, mergeController.signal).catch(() => undefined)
+    }
     const handleRefresh = () => { void refresh() }
     window.addEventListener("focus", handleRefresh)
     window.addEventListener("online", handleRefresh)

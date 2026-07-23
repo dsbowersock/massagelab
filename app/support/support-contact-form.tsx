@@ -27,6 +27,12 @@ export function SupportContactForm({
   const [topic, setTopic] = React.useState(initialTopic)
   const [message, setMessage] = React.useState("")
 
+  React.useEffect(() => {
+    // Soft navigation can reuse this client form for a different support
+    // destination; only route-derived topic state should reset.
+    setTopic(initialTopic)
+  }, [initialTopic])
+
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     window.location.href = buildSupportMailtoUrl({

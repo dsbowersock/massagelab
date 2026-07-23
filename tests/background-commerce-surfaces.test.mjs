@@ -90,7 +90,7 @@ describe("production background commerce states", () => {
     const setup = await readFile(setTimerPath, "utf8")
     const styles = await readFile(setTimerStylesPath, "utf8")
     const selector = await readFile(selectorPath, "utf8")
-    assert.match(setup, /activeStep === 3 \? styles\.backgroundStepContent/)
+    assert.match(setup, /activeStep === CHIMER_BACKGROUND_SETUP_STEP_INDEX \? styles\.backgroundStepContent/)
     assert.match(styles, /\.backgroundStepContent\s*\{[\s\S]*?padding: 0;[\s\S]*?border: 0;[\s\S]*?background: transparent;/)
     assert.doesNotMatch(selector, /\{renderSelectedControls\(selectedOption\)\}/)
   })

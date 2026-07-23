@@ -45,6 +45,7 @@ const CHIMER_SETUP_STEPS = [
   "Choose background",
   "Start timer",
 ] as const
+export const CHIMER_BACKGROUND_SETUP_STEP_INDEX = CHIMER_SETUP_STEPS.indexOf("Choose background")
 const CHIMER_SETUP_STEP_SHORT_NAMES = [
   "Time",
   "Interval",
@@ -4863,7 +4864,7 @@ export function SetTimer({
   }, [dismissSyncNotice, hapticsEnabled, onUseSavedSettings])
 
   const isFinalStep = activeStep === CHIMER_SETUP_STEPS.length - 1
-  const canAdvanceStep = activeStep !== 0 || totalDurationMs > 0
+  const canAdvanceStep = isTimerSet
   const shouldShowSyncNotice = syncStatus !== "synced" && !(syncStatus === "conflict" && suppressSyncNotice)
 
   const selectedPreset = savedPresets.find((entry) => entry.id === selectedPresetId) ?? null
@@ -4954,7 +4955,7 @@ export function SetTimer({
   )
 
   const isStepComplete = (stepIndex: number) => (
-    stepIndex < activeStep || (stepIndex === 0 ? isTimerSet : false)
+    stepIndex === 0 ? isTimerSet : stepIndex < activeStep
   )
 
   const renderBackgroundControls = (option: BackgroundDefinition) => {
@@ -16064,7 +16065,7 @@ export function SetTimer({
           </div>
         </details>
 
-        <div className={`${styles.stepContent} ${activeStep === 3 ? styles.backgroundStepContent : ""}`}>
+        <div className={`${styles.stepContent} ${activeStep === CHIMER_BACKGROUND_SETUP_STEP_INDEX ? styles.backgroundStepContent : ""}`}>
           {activeStep === 0 && (
             <div>
               <div className={styles.formGroup}>
@@ -16286,7 +16287,7 @@ export function SetTimer({
             </div>
           )}
 
-          {activeStep === 3 && (
+          {activeStep === CHIMER_BACKGROUND_SETUP_STEP_INDEX && (
             <>
               <div className={styles.backgroundSettings}>
                 <StyledToggleControl

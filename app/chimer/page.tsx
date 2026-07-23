@@ -33,7 +33,12 @@ import {
   resolveImmersiveDisplayContext,
   shouldRequestImmersiveWakeLock,
 } from "@/lib/immersive-display"
-import { SetTimer, type ChimerSettings, type ChimerSetupStartOptions } from "./set-timer"
+import {
+  CHIMER_BACKGROUND_SETUP_STEP_INDEX,
+  SetTimer,
+  type ChimerSettings,
+  type ChimerSetupStartOptions,
+} from "./set-timer"
 import { RunningTimer, type ImmersiveDisplayMode } from "./running-timer"
 
 type TimerStatus = "idle" | "running" | "paused" | "complete" | "clock"
@@ -1000,7 +1005,7 @@ export default function ChimerPage() {
             isResolvingSync={isResolvingSync}
             featureKeys={featureKeys}
             backgroundCategory={backgroundCategory}
-            initialStep={requestedInitialPanel === "background" ? 3 : 0}
+            initialStep={requestedInitialPanel === "background" ? CHIMER_BACKGROUND_SETUP_STEP_INDEX : 0}
             onTimeClick={openTimeModal}
             onSettingsChange={updateSettings}
             onStartTimer={startTimer}

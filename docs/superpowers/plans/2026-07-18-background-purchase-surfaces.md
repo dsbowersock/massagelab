@@ -182,7 +182,7 @@ Run: `node --test tests/background-commerce-surfaces.test.mjs`
 Expected: PASS.
 
 ```powershell
-git add components/backgrounds/BackgroundSelector.tsx tests/background-commerce-surfaces.test.mjs
+git add components/backgrounds/BackgroundSelector.tsx components/backgrounds/background-carousel.tsx components/backgrounds/background-carousel-card.tsx tests/background-commerce-surfaces.test.mjs
 git commit -m "feat: show background ownership in picker"
 ```
 

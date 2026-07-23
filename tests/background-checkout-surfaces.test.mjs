@@ -55,6 +55,7 @@ describe("checkout return recovery", () => {
     const source = await readFile(returnPath, "utf8")
     assert.match(source, /Confirming purchase/)
     assert.match(source, /await refresh\(\)/)
+    assert.match(source, /catch \{[\s\S]*finally \{[\s\S]*setChecks/)
     assert.match(source, /ownedBackgroundIds/)
     assert.match(source, /Check again/)
     assert.doesNotMatch(source, /session_id|ownedBackgroundIds\.push|grantOwnership/)
@@ -74,9 +75,12 @@ describe("checkout return recovery", () => {
     const page = await readFile(chimerPagePath, "utf8")
     const setup = await readFile(setTimerPath, "utf8")
     assert.match(page, /searchParams\.get\("panel"\) === "background"/)
-    assert.match(page, /initialStep=/)
+    assert.match(page, /initialStep=\{requestedInitialPanel === "background" \? CHIMER_BACKGROUND_SETUP_STEP_INDEX : 0\}/)
     assert.match(setup, /initialStep/)
+    assert.match(setup, /CHIMER_BACKGROUND_SETUP_STEP_INDEX = CHIMER_SETUP_STEPS\.indexOf\("Choose background"\)/)
     assert.match(setup, /Number\.isFinite\(initialStep\) \? Math\.trunc\(initialStep\) : 0/)
+    assert.match(setup, /const canAdvanceStep = isTimerSet/)
+    assert.match(setup, /stepIndex === 0 \? isTimerSet : stepIndex < activeStep/)
   })
 
   it("distinguishes delayed review and access exception states without processor ids", async () => {

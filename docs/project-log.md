@@ -21,6 +21,14 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 - Kept checkout-return order ids across restored Clock/Chimer routes, merged
   refreshed recent-order status into itemized Account history without dropping
   older rows, and made non-finite setup-step inputs fall back to the first step.
+- Closed the next review pass by making checkout-return polling advance after
+  refresh failures, loading signed-in account state independently from guest
+  cart merging, ignoring aborted queued mutations before they enter mutating
+  state, and making local guest-cart uniqueness/removal explicit.
+- Preserved the duration gate when Chimer opens directly on Choose background,
+  hid picker invitations for inactive ownership history, clarified the order
+  support action, and synchronized route-derived support topics on soft
+  navigation.
 
 ## 2026-07-22 — Background purchase surfaces release candidate
 

@@ -93,7 +93,7 @@ describe("Account background commerce panel", () => {
       "Replacement credit",
       "Included with membership",
       "Open account cart",
-      "Purchase or background access",
+      "Report a purchase or background access issue",
       "No permanent backgrounds yet",
       "No background orders yet",
     ]) {
@@ -103,9 +103,11 @@ describe("Account background commerce panel", () => {
     assert.match(source, /Unavailable background/)
     assert.match(source, /orderReference/)
     assert.match(source, /mergeAccountOrders\(data\.orders, live\?\.recentOrders\)/)
-    assert.match(source, /itemizedByReference\.get\(order\.id\)\?\.items/)
+    assert.match(source, /status: order\.status \?\? itemizedOrder\?\.status \?\? "UNKNOWN"/)
+    assert.match(source, /items: itemizedOrder\?\.items/)
     assert.match(source, /return \[\.\.\.currentOrders, \.\.\.olderItemizedOrders\]/)
     assert.match(source, /Item details appear after refresh\./)
+    assert.match(source, /\{active \? \([\s\S]*Open in Background picker/)
   })
 
   it("activates the Account Orders and purchases tab", async () => {
