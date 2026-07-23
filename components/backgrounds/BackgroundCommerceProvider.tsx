@@ -221,12 +221,19 @@ export function BackgroundCommerceProvider({
     }
   }, [enabled])
 
+  /** Serializes cart, credit, reservation, and checkout writes through one queue. */
+  const enqueueSerializedOperation = useCallback((operation: () => Promise<void>) => {
+    const queued = mutationQueueRef.current.then(operation, operation)
+    mutationQueueRef.current = queued.catch(() => undefined)
+    return queued
+  }, [])
+
   const enqueueMutation = useCallback((
     action: string,
     operation: (signal: AbortSignal) => Promise<void>,
     externalSignal?: AbortSignal,
-  ) => {
-    const run = async () => {
+  ) => (
+    enqueueSerializedOperation(async () => {
       readControllerRef.current?.abort()
       mutationActiveRef.current = true
       const controller = new AbortController()
@@ -254,11 +261,8 @@ export function BackgroundCommerceProvider({
         externalSignal?.removeEventListener("abort", abortFromExternal)
         mutationControllersRef.current.delete(controller)
       }
-    }
-    const queued = mutationQueueRef.current.then(run, run)
-    mutationQueueRef.current = queued.catch(() => undefined)
-    return queued
-  }, [])
+    })
+  ), [enqueueSerializedOperation])
 
   const addToCart = useCallback(async (backgroundId: string) => {
     if (!enabled) {
@@ -329,37 +333,42 @@ export function BackgroundCommerceProvider({
         message: PUBLIC_ERROR_MESSAGES.AUTH_REQUIRED,
       })
     }
-    const id = requestId("checkout")
-    dispatch({ type: "checkout-redirect-begin", requestId: id })
-    const controller = new AbortController()
-    mutationControllersRef.current.add(controller)
-    try {
-      const response = await mutate(
-        "/api/background-commerce/checkout",
-        "POST",
-        consent,
-        controller.signal,
-      )
-      const record = response && typeof response === "object" && !Array.isArray(response)
-        ? response as Record<string, unknown>
-        : {}
-      const url = validCheckoutUrl(record.url)
-      if (!url) {
-        throw new BackgroundCommerceClientError({
-          code: "INVALID_CHECKOUT_URL",
-          message: PUBLIC_ERROR_MESSAGES.INVALID_CHECKOUT_URL,
-        })
+    await enqueueSerializedOperation(async () => {
+      readControllerRef.current?.abort()
+      mutationActiveRef.current = true
+      const id = requestId("checkout")
+      dispatch({ type: "checkout-redirect-begin", requestId: id })
+      const controller = new AbortController()
+      mutationControllersRef.current.add(controller)
+      try {
+        const response = await mutate(
+          "/api/background-commerce/checkout",
+          "POST",
+          consent,
+          controller.signal,
+        )
+        const record = response && typeof response === "object" && !Array.isArray(response)
+          ? response as Record<string, unknown>
+          : {}
+        const url = validCheckoutUrl(record.url)
+        if (!url) {
+          throw new BackgroundCommerceClientError({
+            code: "INVALID_CHECKOUT_URL",
+            message: PUBLIC_ERROR_MESSAGES.INVALID_CHECKOUT_URL,
+          })
+        }
+        window.location.assign(url)
+      } catch (error) {
+        if (controller.signal.aborted) return
+        const safeError = asClientError(error)
+        dispatch({ type: "checkout-redirect-failure", requestId: id, error: safeError })
+        throw new BackgroundCommerceClientError(safeError)
+      } finally {
+        mutationActiveRef.current = false
+        mutationControllersRef.current.delete(controller)
       }
-      window.location.assign(url)
-    } catch (error) {
-      if (controller.signal.aborted) return
-      const safeError = asClientError(error)
-      dispatch({ type: "checkout-redirect-failure", requestId: id, error: safeError })
-      throw new BackgroundCommerceClientError(safeError)
-    } finally {
-      mutationControllersRef.current.delete(controller)
-    }
-  }, [enabled])
+    })
+  }, [enabled, enqueueSerializedOperation])
 
   useEffect(() => {
     if (!enabled) {

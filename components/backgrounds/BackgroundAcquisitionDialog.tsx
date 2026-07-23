@@ -52,6 +52,10 @@ export function BackgroundAcquisitionDialog({
   )))
 
   useEffect(() => {
+    if (open) setErrorMessage("")
+  }, [background, open])
+
+  useEffect(() => {
     if (!open || !owned || !background) return
     onOpenChange(false)
     onAcquired(background)

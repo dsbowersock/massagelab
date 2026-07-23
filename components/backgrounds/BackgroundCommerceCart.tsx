@@ -44,7 +44,15 @@ function CartContents({
   if (compact && cart.items.length === 0 && !reservedOrder && cart.notices.length === 0) {
     return null
   }
-  const mutationPending = state.status === "mutating"
+  const mutationPending = state.status === "mutating" || state.status === "redirecting"
+  const remove = async (backgroundId: string) => {
+    setLocalError("")
+    try {
+      await removeFromCart(backgroundId)
+    } catch (error) {
+      setLocalError(error instanceof Error ? error.message : "The item could not be removed.")
+    }
+  }
   const cancel = async () => {
     if (!reservedOrder) return
     setLocalError("")
@@ -88,7 +96,7 @@ function CartContents({
                 size="sm"
                 variant="ghost"
                 disabled={Boolean(reservedOrder) || mutationPending}
-                onClick={() => void removeFromCart(item.productKey)}
+                onClick={() => void remove(item.productKey)}
                 aria-label={`Remove ${item.displayName} from ${signedIn ? "account" : "MassageLab"} cart`}
               >
                 <Trash2 className="size-4" aria-hidden="true" />

@@ -41,7 +41,9 @@ describe("BackgroundCommerceProvider contract", () => {
   it("serializes mutations and refreshes the full authoritative snapshot", async () => {
     const value = await source(providerPath)
     assert.match(value, /mutationQueueRef/)
-    assert.match(value, /mutationQueueRef\.current\.then/)
+    assert.match(value, /enqueueSerializedOperation/)
+    assert.match(value, /mutationQueueRef\.current\.then\(operation, operation\)/)
+    assert.match(value, /await enqueueSerializedOperation\(async \(\) => \{[\s\S]*checkout-redirect-begin/)
     assert.match(value, /normalizeBackgroundCommerceSnapshot/)
     assert.doesNotMatch(value, /creditBalance\s*[+\-]=|ownedBackgroundIds\.push/)
   })

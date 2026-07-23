@@ -14,6 +14,10 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 - Removed the redundant outer visual shell from Chimer's Choose background step
   and stopped rendering the selected-controls card when a locked background has
   no controls, eliminating the empty bordered container from the setup flow.
+- Hardened the review follow-up by serializing Checkout with the existing cart
+  mutation queue, disabling cart mutations during redirect, surfacing removal
+  failures, and clearing stale acquisition errors when a dialog is reopened or
+  changes backgrounds.
 
 ## 2026-07-22 — Background purchase surfaces release candidate
 

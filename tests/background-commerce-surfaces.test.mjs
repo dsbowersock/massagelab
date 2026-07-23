@@ -111,6 +111,8 @@ describe("background acquisition and shared account cart", () => {
     assert.match(source, /mode === "keep-permanently"/)
     assert.match(source, /creditBalance === 0/)
     assert.match(source, /\/account\?tab=membership/)
+    assert.match(source, /if \(open\) setErrorMessage\(""\)/)
+    assert.match(source, /\[background, open\]/)
   })
 
   it("requires explicit permanent and non-swappable credit confirmation", async () => {
@@ -136,6 +138,9 @@ describe("background acquisition and shared account cart", () => {
     }
     assert.match(source, /cart\.notices/)
     assert.match(source, /reservedOrder/)
+    assert.match(source, /state\.status === "mutating" \|\| state\.status === "redirecting"/)
+    assert.match(source, /await removeFromCart\(backgroundId\)/)
+    assert.match(source, /The item could not be removed\./)
   })
 
   it("shows one shared conditional trigger outside Calendar provider-sales surfaces", async () => {
