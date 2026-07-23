@@ -231,8 +231,8 @@ function lineItem(productKey, displayName) {
         object: "product",
         active: true,
         name: displayName,
-        tax_code: "txcd_10202003",
-        metadata: { productType: "background", productKey, taxCode: "txcd_10202003" },
+        tax_code: "txcd_10000000",
+        metadata: { productType: "background", productKey, taxCode: "txcd_10000000" },
       },
       tax_behavior: "exclusive",
     },
@@ -246,7 +246,7 @@ function paidSession(overrides = {}) {
     userId: "user_1",
     schemaVersion: "2",
     taxMode: "stripe",
-    taxCode: "txcd_10202003",
+    taxCode: "txcd_10000000",
     taxBehavior: "exclusive",
   }
   return {

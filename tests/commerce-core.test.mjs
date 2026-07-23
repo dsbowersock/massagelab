@@ -129,11 +129,11 @@ describe("Commerce domain contracts", () => {
 
     const onlyTaxCode = getCommerceTaxReadiness({
       BACKGROUND_COMMERCE_TAX_MODE: "stripe",
-      BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "txcd_10202003",
+      BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "txcd_10000000",
     })
     assert.equal(onlyTaxCode.mode, "stripe")
     assert.equal(onlyTaxCode.ready, false)
-    assert.equal(onlyTaxCode.taxCode, "txcd_10202003")
+    assert.equal(onlyTaxCode.taxCode, "txcd_10000000")
 
     const malformedTaxCode = getCommerceTaxReadiness({
       BACKGROUND_COMMERCE_TAX_MODE: "stripe",
@@ -145,13 +145,22 @@ describe("Commerce domain contracts", () => {
 
     const stripeConfiguration = getCommerceTaxReadiness({
       BACKGROUND_COMMERCE_TAX_MODE: "stripe",
-      BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "txcd_10202003",
+      BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "txcd_10000000",
       BACKGROUND_COMMERCE_TAX_PROVIDER_READY: "true",
       BACKGROUND_COMMERCE_TAX_REGISTRATIONS_READY: "true",
     })
-    assert.equal(stripeConfiguration.mode, "stripe")
-    assert.equal(stripeConfiguration.ready, true)
-    assert.equal(stripeConfiguration.taxCode, "txcd_10202003")
+    assert.deepEqual(stripeConfiguration, {
+      mode: "stripe",
+      ready: true,
+      taxCode: "txcd_10000000",
+    })
+
+    assert.equal(getCommerceTaxReadiness({
+      BACKGROUND_COMMERCE_TAX_MODE: "stripe",
+      BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "txcd_10202003",
+      BACKGROUND_COMMERCE_TAX_PROVIDER_READY: "true",
+      BACKGROUND_COMMERCE_TAX_REGISTRATIONS_READY: "true",
+    }).ready, false)
   })
 
   it("returns stable public error codes for non-domain details", () => {

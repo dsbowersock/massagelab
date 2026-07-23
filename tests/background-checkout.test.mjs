@@ -29,7 +29,7 @@ function readyEnv(overrides = {}) {
     BACKGROUND_COMMERCE_WEBHOOK_READY: "true",
     BACKGROUND_COMMERCE_RECONCILIATION_READY: "true",
     BACKGROUND_COMMERCE_TAX_MODE: "stripe",
-    BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "txcd_10202003",
+    BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "txcd_10000000",
     BACKGROUND_COMMERCE_TAX_PROVIDER_READY: "true",
     BACKGROUND_COMMERCE_TAX_REGISTRATIONS_READY: "true",
     ...overrides,
@@ -198,7 +198,7 @@ describe("background purchasing readiness", () => {
       {
         env: readyEnv({
           BACKGROUND_COMMERCE_TAX_MODE: "stripe",
-          BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "txcd_10202003",
+          BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "txcd_10000000",
           BACKGROUND_COMMERCE_TAX_PROVIDER_READY: "true",
           BACKGROUND_COMMERCE_TAX_REGISTRATIONS_READY: "false",
         }),
@@ -256,7 +256,7 @@ describe("background Stripe Checkout adapter", () => {
       userId: "user_123",
       schemaVersion: "2",
       taxMode: "stripe",
-      taxCode: "txcd_10202003",
+      taxCode: "txcd_10000000",
       taxBehavior: "exclusive",
     })
     assert.deepEqual(capturedPayload.payment_intent_data.metadata, capturedPayload.metadata)
@@ -274,7 +274,7 @@ describe("background Stripe Checkout adapter", () => {
         amount: 100,
         currency: "usd",
         quantity: 1,
-        taxCode: "txcd_10202003",
+        taxCode: "txcd_10000000",
         taxBehavior: "exclusive",
       },
       {
@@ -282,7 +282,7 @@ describe("background Stripe Checkout adapter", () => {
         amount: 100,
         currency: "usd",
         quantity: 1,
-        taxCode: "txcd_10202003",
+        taxCode: "txcd_10000000",
         taxBehavior: "exclusive",
       },
     ])

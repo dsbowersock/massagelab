@@ -22,6 +22,9 @@ type CommerceTaxReadiness = {
   taxCode: string | null
 }
 
+/** The reviewed Stripe Tax classification for permanent background purchases. */
+export const BACKGROUND_COMMERCE_TAX_PRODUCT_CODE = "txcd_10000000"
+
 const TAX_MODE_ENV = "BACKGROUND_COMMERCE_TAX_MODE"
 const TAX_CODE_ENV = "BACKGROUND_COMMERCE_TAX_PRODUCT_CODE"
 const TAX_PROVIDER_READY_ENV = "BACKGROUND_COMMERCE_TAX_PROVIDER_READY"
@@ -55,7 +58,7 @@ export function getCommerceTaxReadiness(env: NodeJS.ProcessEnv = process.env): C
   const mode: CommerceTaxMode = taxMode === "stripe" ? "stripe" : "disabled"
   const taxCode = String(env[TAX_CODE_ENV] ?? "").trim() || null
   const ready = taxMode === "stripe"
-    && Boolean(taxCode?.startsWith("txcd_"))
+    && taxCode === BACKGROUND_COMMERCE_TAX_PRODUCT_CODE
     && explicitTrue(env[TAX_PROVIDER_READY_ENV])
     && explicitTrue(env[TAX_REGISTRATIONS_READY_ENV])
 

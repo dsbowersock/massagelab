@@ -29,7 +29,7 @@ function runReadiness(overrides = {}, args = []) {
       BACKGROUND_COMMERCE_WEBHOOK_EVENTS: "checkout.session.completed,checkout.session.expired,checkout.session.async_payment_succeeded,checkout.session.async_payment_failed,refund.created,refund.updated,refund.failed,charge.dispute.created,charge.dispute.updated,charge.dispute.closed",
       BACKGROUND_COMMERCE_RECONCILIATION_READY: "true",
       BACKGROUND_COMMERCE_TAX_MODE: "stripe",
-      BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "txcd_10202003",
+      BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "txcd_10000000",
       BACKGROUND_COMMERCE_TAX_PROVIDER_READY: "true",
       BACKGROUND_COMMERCE_TAX_REGISTRATIONS_READY: "true",
       ...membershipPrices,
