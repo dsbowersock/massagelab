@@ -35,6 +35,19 @@ type AccountOrder = {
   }>
 }
 
+type LiveAccountOrder = {
+  id: string
+  status: string
+  itemCount: number
+  subtotalAmount: number
+  taxAmount: number
+  totalAmount: number
+  currency: string
+  createdAt: string
+}
+
+type DisplayAccountOrder = AccountOrder & { itemCount: number }
+
 export type BackgroundCommerceAccountData = {
   creditBalance: number
   ownedBackgroundIds: string[]
@@ -72,6 +85,38 @@ function orderStatus(status: string) {
   if (status === "PARTIALLY_REFUNDED") return "Partial refund"
   if (status === "REVIEW_REQUIRED") return "Manual review"
   return status.toLowerCase().replaceAll("_", " ").replace(/^./, (letter) => letter.toUpperCase())
+}
+
+/**
+ * Leads with the refreshed public order snapshot while retaining itemized
+ * Account data and older orders that are outside the snapshot's recent window.
+ */
+function mergeAccountOrders(
+  itemizedOrders: AccountOrder[],
+  liveOrders: LiveAccountOrder[] | undefined,
+): DisplayAccountOrder[] {
+  if (!liveOrders) {
+    return itemizedOrders.map((order) => ({ ...order, itemCount: order.items.length }))
+  }
+
+  const itemizedByReference = new Map(itemizedOrders.map((order) => [order.reference, order]))
+  const liveReferences = new Set(liveOrders.map((order) => order.id))
+  const currentOrders = liveOrders.map((order) => ({
+    reference: order.id,
+    status: order.status,
+    itemCount: order.itemCount,
+    subtotalAmount: order.subtotalAmount,
+    taxAmount: order.taxAmount,
+    totalAmount: order.totalAmount,
+    currency: order.currency,
+    createdAt: order.createdAt,
+    items: itemizedByReference.get(order.id)?.items ?? [],
+  }))
+  const olderItemizedOrders = itemizedOrders
+    .filter((order) => !liveReferences.has(order.reference))
+    .map((order) => ({ ...order, itemCount: order.items.length }))
+
+  return [...currentOrders, ...olderItemizedOrders]
 }
 
 function OwnershipCard({ ownership }: { ownership: Ownership }) {
@@ -145,6 +190,7 @@ export function BackgroundCommercePanel({
   const creditBalance = live?.creditBalance ?? data.creditBalance
   const ownerships = live?.ownerships ?? data.ownerships
   const cart = live?.cart ?? data.cart
+  const orders = mergeAccountOrders(data.orders, live?.recentOrders)
   const activeOwnerships = ownerships.filter((ownership) => ownership.status === "active")
   const inactiveOwnerships = ownerships.filter((ownership) => ownership.status !== "active")
   const hasCart = cart.items.length > 0 || Boolean(cart.reservedOrder)
@@ -247,7 +293,7 @@ export function BackgroundCommercePanel({
           <CardDescription>Account references and public order status without payment processor identifiers.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {data.orders.length > 0 ? data.orders.map((order) => (
+          {orders.length > 0 ? orders.map((order) => (
             <article key={order.reference} className="grid gap-3 rounded-lg border border-border/70 p-4">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
@@ -256,21 +302,27 @@ export function BackgroundCommercePanel({
                 </div>
                 <span className="rounded-full border px-2 py-1 text-xs">{orderStatus(order.status)}</span>
               </div>
-              <ul className="grid gap-2 text-sm">
-                {order.items.map((item) => (
-                  <li key={item.backgroundId} className="flex flex-wrap justify-between gap-2">
-                    <span>
-                      {item.displayName}
-                      {item.refundedAmount > 0 ? (
-                        <span className="ml-2 text-xs text-muted-foreground">
-                          Refunded {formatCommerceAmount(item.refundedAmount, order.currency)}
-                        </span>
-                      ) : null}
-                    </span>
-                    <span>{formatCommerceAmount(item.totalAmount, order.currency)}</span>
-                  </li>
-                ))}
-              </ul>
+              {order.items.length > 0 ? (
+                <ul className="grid gap-2 text-sm">
+                  {order.items.map((item) => (
+                    <li key={item.backgroundId} className="flex flex-wrap justify-between gap-2">
+                      <span>
+                        {item.displayName}
+                        {item.refundedAmount > 0 ? (
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            Refunded {formatCommerceAmount(item.refundedAmount, order.currency)}
+                          </span>
+                        ) : null}
+                      </span>
+                      <span>{formatCommerceAmount(item.totalAmount, order.currency)}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {order.itemCount} {order.itemCount === 1 ? "background" : "backgrounds"} · Item details appear after refresh.
+                </p>
+              )}
               <div className="grid gap-1 border-t pt-2 text-sm">
                 <p className="flex justify-between"><span>Subtotal</span><span>{formatCommerceAmount(order.subtotalAmount, order.currency)}</span></p>
                 <p className="flex justify-between"><span>Tax</span><span>{formatCommerceAmount(order.taxAmount, order.currency)}</span></p>

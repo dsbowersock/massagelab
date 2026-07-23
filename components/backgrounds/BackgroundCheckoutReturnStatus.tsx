@@ -50,10 +50,11 @@ function readStoredReturn(): StoredCheckoutReturn | null {
   }
 }
 
-function returnUrl(path: string, status: "success" | "cancelled") {
+function returnUrl(path: string, status: "success" | "cancelled", orderId: string | null) {
   const url = new URL(path, window.location.origin)
   url.searchParams.set("panel", "background")
   url.searchParams.set("backgroundPurchase", status)
+  if (orderId) url.searchParams.set("orderId", orderId)
   return `${url.pathname}${url.search}`
 }
 
@@ -107,14 +108,14 @@ export function BackgroundCheckoutReturnStatus() {
     if (!resolvedReturnPath || pathname !== "/account") return
     if (result === "cancelled") {
       // Restored query contract: backgroundPurchase=cancelled.
-      router.replace(returnUrl(resolvedReturnPath, "cancelled"))
+      router.replace(returnUrl(resolvedReturnPath, "cancelled", orderId))
       return
     }
     if (result === "success" && fulfilled) {
       sessionStorage.removeItem(BACKGROUND_CHECKOUT_RETURN_STORAGE_KEY)
-      router.replace(returnUrl(resolvedReturnPath, "success"))
+      router.replace(returnUrl(resolvedReturnPath, "success", orderId))
     }
-  }, [fulfilled, pathname, resolvedReturnPath, result, router])
+  }, [fulfilled, orderId, pathname, resolvedReturnPath, result, router])
 
   const exceptionMessage = useMemo(() => {
     const statuses = new Set(state.snapshot?.ownerships.map((ownership) => ownership.status) ?? [])

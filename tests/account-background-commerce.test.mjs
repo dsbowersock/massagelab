@@ -102,6 +102,10 @@ describe("Account background commerce panel", () => {
     assert.match(source, /backgroundRegistry\.find/)
     assert.match(source, /Unavailable background/)
     assert.match(source, /orderReference/)
+    assert.match(source, /mergeAccountOrders\(data\.orders, live\?\.recentOrders\)/)
+    assert.match(source, /itemizedByReference\.get\(order\.id\)\?\.items/)
+    assert.match(source, /return \[\.\.\.currentOrders, \.\.\.olderItemizedOrders\]/)
+    assert.match(source, /Item details appear after refresh\./)
   })
 
   it("activates the Account Orders and purchases tab", async () => {

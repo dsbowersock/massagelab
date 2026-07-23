@@ -4738,9 +4738,12 @@ export function SetTimer({
   onUseDeviceSettings,
   onUseSavedSettings,
 }: SetTimerProps) {
-  const [activeStep, setActiveStep] = useState(() => (
-    Math.min(CHIMER_SETUP_STEPS.length - 1, Math.max(0, Math.trunc(initialStep)))
-  ))
+  const [activeStep, setActiveStep] = useState(() => {
+    // Route-derived or future callers may pass non-finite values; setup always
+    // falls back to the first step before applying the normal finite bounds.
+    const normalizedStep = Number.isFinite(initialStep) ? Math.trunc(initialStep) : 0
+    return Math.min(CHIMER_SETUP_STEPS.length - 1, Math.max(0, normalizedStep))
+  })
   const [savedPresets, setSavedPresets] = useState<ChimerSetupPreset[]>([])
   const [lastSetupPreset, setLastSetupPreset] = useState<ChimerSetupPresetState | null>(null)
   const [selectedPresetId, setSelectedPresetId] = useState("")

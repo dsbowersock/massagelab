@@ -18,6 +18,9 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
   mutation queue, disabling cart mutations during redirect, surfacing removal
   failures, and clearing stale acquisition errors when a dialog is reopened or
   changes backgrounds.
+- Kept checkout-return order ids across restored Clock/Chimer routes, merged
+  refreshed recent-order status into itemized Account history without dropping
+  older rows, and made non-finite setup-step inputs fall back to the first step.
 
 ## 2026-07-22 — Background purchase surfaces release candidate
 

@@ -64,6 +64,9 @@ describe("checkout return recovery", () => {
     const source = await readFile(returnPath, "utf8")
     assert.match(source, /backgroundPurchase=cancelled/)
     assert.match(source, /panel.*background/)
+    assert.match(source, /if \(orderId\) url\.searchParams\.set\("orderId", orderId\)/)
+    assert.match(source, /returnUrl\(resolvedReturnPath, "success", orderId\)/)
+    assert.match(source, /\[fulfilled, orderId, pathname/)
     assert.match(source, /\/clock/)
     assert.match(source, /\/chimer/)
     const review = await readFile(reviewPath, "utf8")
@@ -73,6 +76,7 @@ describe("checkout return recovery", () => {
     assert.match(page, /searchParams\.get\("panel"\) === "background"/)
     assert.match(page, /initialStep=/)
     assert.match(setup, /initialStep/)
+    assert.match(setup, /Number\.isFinite\(initialStep\) \? Math\.trunc\(initialStep\) : 0/)
   })
 
   it("distinguishes delayed review and access exception states without processor ids", async () => {
