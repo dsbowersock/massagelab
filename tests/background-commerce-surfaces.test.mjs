@@ -131,7 +131,7 @@ describe("background acquisition and shared account cart", () => {
     const source = await readFile(cartPath, "utf8")
     for (const label of [
       "Review checkout",
-      "Applicable tax is calculated from your billing address at checkout.",
+      "Applicable tax is calculated from your billing address at Stripe Checkout.",
       "Permanent access after membership ends",
       "Remove",
       "Return to checkout",
