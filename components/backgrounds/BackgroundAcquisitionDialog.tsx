@@ -57,6 +57,7 @@ export function BackgroundAcquisitionDialog({
 
   useEffect(() => {
     if (!open || !owned || !background) return
+    setConfirmingCredit(false)
     onOpenChange(false)
     onAcquired(background)
   }, [background, onAcquired, onOpenChange, open, owned])

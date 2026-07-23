@@ -29,6 +29,11 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
   hid picker invitations for inactive ownership history, clarified the order
   support action, and synchronized route-derived support topics on soft
   navigation.
+- Separated successful commerce writes from their follow-up snapshot refresh so
+  a read outage cannot misreport a committed action, added the signed-out
+  reservation guard, reset nested credit confirmation after ownership lands,
+  aligned carousel hint references, and restored active-Chimer haptics for
+  acquisition actions.
 
 ## 2026-07-22 — Background purchase surfaces release candidate
 

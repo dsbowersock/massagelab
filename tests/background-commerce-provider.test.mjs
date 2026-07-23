@@ -47,6 +47,7 @@ describe("BackgroundCommerceProvider contract", () => {
     assert.match(value, /await enqueueSerializedOperation\(async \(\) => \{[\s\S]*checkout-redirect-begin/)
     assert.match(value, /normalizeBackgroundCommerceSnapshot/)
     assert.match(value, /if \(controller\.signal\.aborted\) return[\s\S]*dispatch\(\{ type: "mutation-begin"/)
+    assert.match(value, /type: "mutation-refresh-failure"/)
     assert.doesNotMatch(value, /creditBalance\s*[+\-]=|ownedBackgroundIds\.push/)
   })
 
@@ -63,6 +64,7 @@ describe("BackgroundCommerceProvider contract", () => {
     assert.match(value, /EMAIL_VERIFICATION_REQUIRED/)
     assert.match(value, /checkout\.stripe\.com/)
     assert.match(value, /window\.location\.assign/)
+    assert.match(value, /const cancelReservation[\s\S]*if \(!enabled\)[\s\S]*AUTH_REQUIRED/)
   })
 
   it("exposes the shared API and retains caller-provided redemption idempotency keys", async () => {

@@ -249,14 +249,29 @@ export function BackgroundCommerceProvider({
       const id = requestId(action)
       dispatch({ type: "mutation-begin", requestId: id, action })
       try {
-        await operation(controller.signal)
-        const snapshot = await fetchSnapshot(controller.signal)
-        dispatch({ type: "mutation-success", requestId: id, snapshot })
-      } catch (error) {
+        try {
+          await operation(controller.signal)
+        } catch (error) {
+          if (controller.signal.aborted) return
+          const safeError = asClientError(error)
+          dispatch({ type: "mutation-failure", requestId: id, error: safeError })
+          throw new BackgroundCommerceClientError(safeError)
+        }
+
         if (controller.signal.aborted) return
-        const safeError = asClientError(error)
-        dispatch({ type: "mutation-failure", requestId: id, error: safeError })
-        throw new BackgroundCommerceClientError(safeError)
+        try {
+          const snapshot = await fetchSnapshot(controller.signal)
+          dispatch({ type: "mutation-success", requestId: id, snapshot })
+        } catch (error) {
+          if (controller.signal.aborted) return
+          // The authoritative write succeeded. Preserve caller success and the
+          // last snapshot while exposing only the follow-up refresh problem.
+          dispatch({
+            type: "mutation-refresh-failure",
+            requestId: id,
+            error: asClientError(error),
+          })
+        }
       } finally {
         mutationActiveRef.current = false
         externalSignal?.removeEventListener("abort", abortFromExternal)
@@ -322,8 +337,14 @@ export function BackgroundCommerceProvider({
     })
   }, [enabled, enqueueMutation])
 
-  const cancelReservation = useCallback((orderId: string) => (
-    enqueueMutation("cancel-reservation", async (signal) => {
+  const cancelReservation = useCallback(async (orderId: string) => {
+    if (!enabled) {
+      throw new BackgroundCommerceClientError({
+        code: "AUTH_REQUIRED",
+        message: PUBLIC_ERROR_MESSAGES.AUTH_REQUIRED,
+      })
+    }
+    await enqueueMutation("cancel-reservation", async (signal) => {
       await mutate(
         "/api/background-commerce/checkout/cancel",
         "POST",
@@ -331,7 +352,7 @@ export function BackgroundCommerceProvider({
         signal,
       )
     })
-  ), [enqueueMutation])
+  }, [enabled, enqueueMutation])
 
   const startCheckout = useCallback(async (consent: PurchaseConsentInput) => {
     if (!enabled) {

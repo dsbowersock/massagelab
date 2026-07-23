@@ -243,6 +243,33 @@ describe("background commerce reducer", () => {
     assert.equal(recovered.status, "error")
   })
 
+  it("preserves mutation success when only its follow-up refresh fails", () => {
+    const good = {
+      status: "ready",
+      snapshot: snapshot({ creditBalance: 2 }),
+      pendingAction: null,
+      error: null,
+    }
+    const mutating = backgroundCommerceReducer(good, {
+      type: "mutation-begin",
+      requestId: "mutation-refresh-1",
+      action: "add-to-cart",
+    })
+    const refreshFailed = backgroundCommerceReducer(mutating, {
+      type: "mutation-refresh-failure",
+      requestId: "mutation-refresh-1",
+      error: { code: "NETWORK_ERROR", message: "Current cart could not be refreshed." },
+    })
+
+    assert.equal(refreshFailed.status, "ready")
+    assert.equal(refreshFailed.snapshot.creditBalance, 2)
+    assert.equal(refreshFailed.pendingAction, null)
+    assert.deepEqual(refreshFailed.error, {
+      code: "NETWORK_ERROR",
+      message: "Current cart could not be refreshed.",
+    })
+  })
+
   it("replaces rather than patches the snapshot after a mutation", () => {
     const state = {
       status: "ready",

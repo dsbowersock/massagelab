@@ -93,7 +93,10 @@ export function BackgroundCarouselCard({
   const sourceLabel = ownershipSourceLabel(commerceState.ownershipSource)
   const unavailable = commerceState.state === "unavailable"
   const locked = !commerceState.canSelect && !unavailable
-  const acquisitionHintId = useId()
+  const generatedAcquisitionHintId = useId()
+  const acquisitionHintId = locked && detailLevel === "full"
+    ? generatedAcquisitionHintId
+    : undefined
   const acquisitionHint = signedIn
     ? "Use a credit, buy for $1, or unlock all premium backgrounds."
     : "Add this background now, then sign in or create an account at checkout."
@@ -180,7 +183,7 @@ export function BackgroundCarouselCard({
               type="button"
               data-carousel-primary-action
               disabled={unavailable}
-              aria-describedby={locked ? acquisitionHintId : undefined}
+              aria-describedby={acquisitionHintId}
               aria-label={unavailable
                 ? `${option.label} background unavailable`
                 : `${locked ? "Unlock" : selected ? "Selected" : "Select"} ${option.label} background`}
@@ -254,7 +257,7 @@ export function BackgroundCarouselCard({
               {previewTags.join(" - ")}
             </p>
           ) : null}
-          {detailLevel === "full" && locked ? (
+          {acquisitionHintId ? (
             <p id={acquisitionHintId} className="mt-1 text-[11px] leading-4 text-white/80">
               {signedIn
                 ? "Credit, $1 purchase, or membership."

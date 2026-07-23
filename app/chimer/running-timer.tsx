@@ -17147,9 +17147,11 @@ export function RunningTimer({
                       handleBackgroundSelection(nextBackgroundId)
                     }}
                     onLockedSelect={(background) => {
+                      triggerHapticFeedback(hapticsEnabled)
                       setAcquisition({ background, mode: "locked" })
                     }}
                     onKeepPermanently={(background) => {
+                      triggerHapticFeedback(hapticsEnabled)
                       setAcquisition({ background, mode: "keep-permanently" })
                     }}
                     onToggleSaved={(nextBackgroundId) => {

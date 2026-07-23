@@ -71,6 +71,8 @@ describe("production background commerce states", () => {
     assert.match(source, /locked \? "Unlock"/)
     assert.match(source, /variant=\{locked \? "default" : "glow"\}/)
     assert.match(source, /Add now; sign in or create an account at checkout\./)
+    assert.match(source, /locked && detailLevel === "full"/)
+    assert.match(source, /aria-describedby=\{acquisitionHintId\}/)
   })
 
   it("feeds the same provider snapshot through the shared carousel adapter", async () => {
@@ -113,6 +115,7 @@ describe("background acquisition and shared account cart", () => {
     assert.match(source, /\/account\?tab=membership/)
     assert.match(source, /if \(open\) setErrorMessage\(""\)/)
     assert.match(source, /\[background, open\]/)
+    assert.match(source, /if \(!open \|\| !owned \|\| !background\) return[\s\S]*setConfirmingCredit\(false\)/)
   })
 
   it("requires explicit permanent and non-swappable credit confirmation", async () => {
@@ -156,6 +159,8 @@ describe("background acquisition and shared account cart", () => {
     assert.equal((layout.match(/<BackgroundCommerceCart variant="dialog"/g) ?? []).length, 1)
     assert.match(running, /onLockedSelect=/)
     assert.match(running, /onKeepPermanently=/)
+    assert.match(running, /onLockedSelect=\{\(background\) => \{[\s\S]*triggerHapticFeedback\(hapticsEnabled\)[\s\S]*mode: "locked"/)
+    assert.match(running, /onKeepPermanently=\{\(background\) => \{[\s\S]*triggerHapticFeedback\(hapticsEnabled\)[\s\S]*mode: "keep-permanently"/)
     assert.match(running, /<BackgroundAcquisitionDialog/)
     assert.match(running, /ownedBackgroundIds:\s*commerceState\.snapshot\?\.ownedBackgroundIds/)
   })
