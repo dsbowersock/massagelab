@@ -2,6 +2,12 @@ import { defineConfig, devices } from "@playwright/test"
 
 const defaultBrowserQaPort = 3010
 const defaultBrowserQaBaseUrl = "http://localhost:3010"
+const defaultBrowserQaAuthSecret = "local-browser-qa-auth-secret-not-for-production-use-only"
+
+// Browser QA exercises signed-in shell states without requiring a developer's
+// real secret. CI and explicitly configured environments keep their own value.
+process.env.AUTH_SECRET ||= process.env.NEXTAUTH_SECRET || defaultBrowserQaAuthSecret
+process.env.NEXTAUTH_SECRET ||= process.env.AUTH_SECRET
 
 function parseBrowserQaPort(value: string | undefined) {
   if (!value) {

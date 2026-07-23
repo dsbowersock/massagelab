@@ -120,8 +120,33 @@ background access. It is separate from memberships and donations:
 - `chimer_custom_colors` remains a color-customization feature and is not proof
   of permanent premium-background ownership; and
 - browser state, JWT claims, Checkout return URLs, and selected UI cards never
-  grant ownership. Track 1B must read the no-store commerce snapshot and wait
-  for webhook-backed database ownership before showing an acquisition as done.
+  grant ownership. Signed-in surfaces read the no-store commerce snapshot, and
+  purchase returns wait for webhook-backed database ownership before showing
+  an acquisition as complete.
+
+### Purchase Surfaces And Guest Checkout
+
+Track 1B presents the same commerce state in the Clock, active Chimer, and Music
+visualizer Background picker. Locked cards offer `Use free credit`, `Buy for
+$1`, and `Unlock all`; subscribers select included backgrounds normally and
+can use `Keep permanently` as a separate action. The picker contains a compact
+cart, while Account/Billing contains the wallet, permanent portfolio, orders,
+reversals, and a privacy-safe support entry.
+
+A signed-out user may add current purchasable backgrounds to a guest intent
+cart. That cart stores only validated background product IDs in the current
+browser. It stores no account data, price authority, credit balance,
+reservation, payment, or ownership. The cart offers sign-in and account
+creation at checkout. After authentication, each remaining ID is revalidated
+and merged through the authenticated Track 1A cart API before purchase consent
+or Stripe Checkout can begin. Account carts persist across devices; a guest
+cart remains limited to its originating browser until that merge occurs.
+
+The conditional global site-purchase cart trigger appears only while a guest
+or account cart has items, or while an account Checkout reservation is active.
+It opens the shared cart, stays absent from `/calendar` and nested Calendar
+routes, and remains semantically separate from provider services and sales.
+Only server-confirmed credit redemption or webhook fulfillment grants access.
 
 ### Deployment And Backfill Order
 

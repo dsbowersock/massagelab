@@ -19,7 +19,8 @@
 - Keep one shared background picker/carousel for Clock, Chimer, and Music visualizer contexts. Acquisition state is a presentation adapter, not a forked carousel.
 - The Music page does not choose a Music-page background. It chooses the separate visualizer background through the shared full-screen Background panel.
 - Keep MassageLab purchases visually and semantically separate from provider sales. Never render the site-purchase cart in Calendar's operator toolbar, Calendar drawers/menus, booking/service controls, or another provider-selling surface.
-- For a signed-in user, render a conditional `CommerceCartTrigger` in the global account/commerce shell zone only while the authoritative snapshot has cart items or an active Checkout reservation. Hide it on Calendar routes, and hide it after fulfillment or another server snapshot leaves neither cart items nor a reservation.
+- For a signed-in user, render a conditional `CommerceCartTrigger` in the global account/commerce shell zone only while the authoritative snapshot has cart items or an active Checkout reservation. For a signed-out user, show the same generic trigger only while the browser-local guest intent cart has items. Hide both variants on Calendar routes, and hide the account variant after fulfillment or another server snapshot leaves neither cart items nor a reservation.
+- A guest cart stores only validated background product IDs in the current browser. It does not create an account cart, reservation, payment, credit balance, or ownership. At checkout, offer sign-in and account creation; after authentication, revalidate and merge each remaining ID through Track 1A's authenticated cart API before allowing consent or Checkout.
 - The shell trigger uses a generic commerce name and an accessible item-count/status badge so future physical-store lines can extend it. Track 1B still supports digital-background lines only. It opens the shared cart surface and never owns or duplicates cart state.
 - Keep the compact cart in the full-screen Background panel and the complete wallet, portfolio, and history surface in Account/Billing.
 - Locked-card `Select` opens exactly three actions: `Use free credit`, `Buy for $1`, and `Unlock all`. Do not add shuffle-colors or alternative purchase actions.
@@ -116,7 +117,7 @@ git commit -m "feat: define background commerce client state"
 
 - [ ] **Step 1: Write failing provider contract tests**
 
-Source-inspect or render with the repo's existing harness to cover one initial no-store state fetch, request cancellation on unmount, focus/reconnect refresh, mutation serialization, full-snapshot replacement, 401/403 handling, and no commerce request for signed-out preview-only contexts until a locked action asks the user to sign in.
+Source-inspect or render with the repo's existing harness to cover one initial no-store state fetch, request cancellation on unmount, focus/reconnect refresh, mutation serialization, full-snapshot replacement, 401/403 handling, browser-local signed-out intent, and authenticated API merging after sign-in. Signed-out contexts must not call account commerce APIs.
 
 Expose:
 
@@ -228,7 +229,7 @@ Place it in the full-screen Background panel, collapsed to an item count/subtota
 
 - [ ] **Step 5: Add the conditional account-commerce shell trigger**
 
-Show the generic cart trigger only for a signed-in user whose server snapshot has cart items or an active reservation. Give it an accessible item-count/status badge and open the same `BackgroundCommerceCart` surface used by the picker. It must not appear on `/calendar` or nested Calendar routes, inside `CalendarOperatorToolbarProvider` content, Calendar drawers, quick-create actions, or booking/service controls. Desktop and mobile placements follow the configured top/bottom app bar without displacing the existing tool-priority rules. Do not render a zero-count placeholder while the snapshot is loading.
+Show the generic cart trigger for a signed-in user whose server snapshot has cart items or an active reservation, and for a signed-out user whose browser-local guest intent cart has items. Give it an accessible item-count/status badge and open the same `BackgroundCommerceCart` surface used by the picker. The guest cart offers sign-in and account creation instead of `Review checkout`. It must not appear on `/calendar` or nested Calendar routes, inside `CalendarOperatorToolbarProvider` content, Calendar drawers, quick-create actions, or booking/service controls. Desktop and mobile placements follow the configured top/bottom app bar without displacing the existing tool-priority rules. Do not render a zero-count placeholder while state is loading.
 
 - [ ] **Step 6: Preserve Track 2 panel behavior**
 
@@ -410,10 +411,10 @@ Confirm:
 - zero-credit remains visible and disabled;
 - subscriber normal selection and `Keep permanently` are distinct;
 - credit redemption requires explicit permanent/non-swappable confirmation;
-- cart persists after refresh/sign-out/device change through the account API;
+- signed-in cart persists after refresh/sign-out/device change through the account API, while guest intent persists only in its originating browser until authentication;
 - success return waits for webhook-backed state;
 - Music only selects a visualizer background;
-- the conditional global cart appears only for signed-in cart/reservation state, opens the shared cart, and stays absent from Calendar/provider-selling surfaces;
+- the conditional global cart appears for signed-in cart/reservation state or browser-local guest intent, opens the shared cart, requires authentication before Checkout, and stays absent from Calendar/provider-selling surfaces;
 - Account/Billing shows wallet, portfolio, orders, reversals, and useful support entry;
 - no sensitive processor data reaches markup, URLs, analytics, or logs;
 - `TODO.md` is unchanged and unstaged.
@@ -428,7 +429,7 @@ git commit -m "test: validate background purchase surfaces"
 ## Track 1B completion criteria
 
 - Real production background cards show accurate locked, included, owned, cart, reservation, and reversal state in every immersive context.
-- Verified users can explicitly redeem a credit or build a multi-item $1 cart without accidental selection/acquisition.
+- Guests can build a browser-local background intent cart and are asked to sign in or create an account only at checkout; verified users can explicitly redeem a credit or build a persistent multi-item $1 account cart without accidental selection/acquisition.
 - Subscribers can use included backgrounds and optionally keep selected backgrounds permanently.
 - Checkout consent and return states are clear, accessible, and never substitute for webhook fulfillment.
 - Account/Billing exposes credits, owned portfolio, cart shortcut, orders, refunds/disputes/retirement, and support.

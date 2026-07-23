@@ -40,6 +40,7 @@ describe("Account page tab model", () => {
       "sync",
       "tools",
       "membership",
+      "orders-invoices",
     ])
     assert.equal(accountPageTabs[3].id, "security")
 
@@ -61,6 +62,7 @@ describe("Account page tab model", () => {
       "membership-pricing",
       "subscription-status",
       "billing-portal",
+      "background-commerce",
     ])
   })
 
@@ -79,7 +81,6 @@ describe("Account page tab model", () => {
       "notifications",
       "practice-profile",
       "people",
-      "orders-invoices",
     ])
     assert.equal(accountPageNavigationItems.every((item) => item.status !== "planned" || item.sections.length === 0), true)
     assert.equal(accountPageNavigationItems.every((item) => item.status !== "planned" || !item.href), true)
@@ -95,6 +96,7 @@ describe("Account page tab model", () => {
   })
 
   it("builds stable account tab hrefs for route-backed navigation", () => {
+    assert.equal(getAccountTabHref("orders-invoices"), "/account?tab=orders-invoices")
     assert.equal(getAccountTabHref("profile"), "/account?tab=profile")
     assert.equal(getAccountTabHref("security"), "/account?tab=security")
     assert.equal(getAccountTabHref("membership"), "/account?tab=membership")

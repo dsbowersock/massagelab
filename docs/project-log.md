@@ -4,6 +4,37 @@ This is the canonical chronological planning and progress log for MassageLab. Us
 
 Existing plans, audits, roadmaps, and checklists remain source evidence. Keep them for context, but mirror meaningful progress, plan changes, and priority changes in [project-state.md](project-state.md) and here.
 
+## 2026-07-22 — Background purchase surfaces release candidate
+
+- Completed the Track 1B release candidate on
+  `codex/background-purchase-surfaces`: the shared Clock, active Chimer, and
+  Music visualizer Background picker now shows authoritative credits,
+  subscription inclusion, permanent ownership source, cart/reservation state,
+  and reversals without forking the landed carousel or immersive controls.
+- Added explicit credit confirmation, one-dollar multi-background cart review,
+  U.S.-only consent, Stripe redirect validation, webhook-delayed return
+  recovery, reservation cancellation, and a full Account/Billing wallet,
+  portfolio, order, reversal, and privacy-safe support surface. Nested commerce
+  dialogs sit above the full-screen Background panel and return focus through
+  the acquisition flow.
+- Extended the approved cart placement after review: a generic conditional site
+  cart opens the shared cart from the configured desktop/mobile app bar while
+  staying absent from Calendar and nested provider-selling routes. This keeps
+  site purchases distinct from services a provider sells and leaves a generic
+  shell contract for later physical-store lines.
+- Approved and implemented checkout-first guest acquisition. Signed-out users
+  can store only validated background IDs in a browser-local intent cart, then
+  sign in or create an account at checkout. After authentication, IDs are
+  revalidated and merged through the existing account cart API; credits,
+  reservations, payment, and ownership remain account/server-only authority.
+- Final validation passed: 49 focused commerce/account/support tests, the full
+  1,357-test Node suite, typecheck, lint, the 101-route production build, and
+  all 16 desktop/mobile browser scenarios covering guest intent, credit
+  redemption, zero-credit Checkout failure, cancellation recovery,
+  active-Chimer ownership states, Music visualizer minimize/restore, global
+  cart placement, and webhook-delayed confirmation.
+- Kept the public Roadmap and user-owned `TODO.md` out of scope.
+
 ## 2026-07-22 — Background commerce readiness and cleanup proof correction
 
 - Corrected Stripe verify mode to validate the one pinned webhook endpoint
