@@ -45,7 +45,12 @@ const CHIMER_SETUP_STEPS = [
   "Choose background",
   "Start timer",
 ] as const
+// Resolve from the canonical label so reordering is safe, but fail fast if a
+// later label edit would otherwise turn the background step into index -1.
 export const CHIMER_BACKGROUND_SETUP_STEP_INDEX = CHIMER_SETUP_STEPS.indexOf("Choose background")
+if (CHIMER_BACKGROUND_SETUP_STEP_INDEX === -1) {
+  throw new Error('CHIMER_SETUP_STEPS must include a "Choose background" step')
+}
 const CHIMER_SETUP_STEP_SHORT_NAMES = [
   "Time",
   "Interval",

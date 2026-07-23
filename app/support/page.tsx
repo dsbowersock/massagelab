@@ -48,6 +48,8 @@ export default async function SupportPage({ searchParams }: SupportPageProps) {
   const defaults = await getSupportDefaults()
   const params = await searchParams
   const linkedEventId = normalizeLinkedSentryEventId(params?.eventId) ?? ""
+  // Include an order reference only for explicit background-checkout support
+  // links; general support topics cannot attach purchase context.
   const purchaseSupport = params?.topic === "purchase-background-access"
   const orderReference = purchaseSupport
     ? normalizeSupportOrderReference(params?.orderReference)

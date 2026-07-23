@@ -14,12 +14,12 @@ describe("background checkout review", () => {
     for (const copy of [
       "Review checkout",
       "U.S. only",
-      "Applicable tax is added at Checkout",
+      "No tax is currently charged",
       "Digital Purchases & Refund Policy",
       "immediate digital delivery",
       "final-sale",
     ]) {
-      assert.match(source.toLowerCase(), new RegExp(copy.toLowerCase().replaceAll("$", "\\$")))
+      assert.ok(source.toLowerCase().includes(copy.toLowerCase()), `Missing checkout copy: ${copy}`)
     }
     assert.match(source, /requiredLegalDocumentsForEvent\("digital-purchase"\)/)
     assert.match(source, /legalDocumentAcceptanceId/)
@@ -78,6 +78,7 @@ describe("checkout return recovery", () => {
     assert.match(page, /initialStep=\{requestedInitialPanel === "background" \? CHIMER_BACKGROUND_SETUP_STEP_INDEX : 0\}/)
     assert.match(setup, /initialStep/)
     assert.match(setup, /CHIMER_BACKGROUND_SETUP_STEP_INDEX = CHIMER_SETUP_STEPS\.indexOf\("Choose background"\)/)
+    assert.match(setup, /if \(CHIMER_BACKGROUND_SETUP_STEP_INDEX === -1\)/)
     assert.match(setup, /Number\.isFinite\(initialStep\) \? Math\.trunc\(initialStep\) : 0/)
     assert.match(setup, /const canAdvanceStep = isTimerSet/)
     assert.match(setup, /stepIndex === 0 \? isTimerSet : stepIndex < activeStep/)

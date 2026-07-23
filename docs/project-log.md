@@ -37,6 +37,9 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 - Made public cart normalization fail closed for malformed item prices and cart
   subtotals, documented the client projection invariants, secured HTTPS browser
   QA session cookies, and pinned nested Calendar/booking cart-trigger coverage.
+- Aligned Checkout and cart copy with the disabled-tax release contract, made
+  checkout-copy tests literal, added a fail-fast guard for the derived Chimer
+  background step, and documented the explicit purchase-support reference gate.
 
 ## 2026-07-22 — Background purchase surfaces release candidate
 

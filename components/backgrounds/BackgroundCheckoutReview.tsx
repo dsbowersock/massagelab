@@ -120,7 +120,7 @@ export function BackgroundCheckoutReview({
             <span>{formatCommerceAmount(cart?.subtotalAmount ?? 0, cart?.currency)}</span>
           </div>
           <p className="text-xs text-muted-foreground">
-            Prices are tax-exclusive. Applicable tax is added at Checkout.
+            No tax is currently charged for this U.S.-only release.
           </p>
         </div>
 
