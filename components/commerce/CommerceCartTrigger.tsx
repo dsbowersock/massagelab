@@ -17,12 +17,17 @@ export function CommerceCartTrigger({
 }) {
   const pathname = usePathname() ?? ""
   const { state, openCart } = useBackgroundCommerce()
-  const isCalendarRoute = pathname === "/calendar" || pathname.startsWith("/calendar/")
+  const isProviderCommerceRoute =
+    pathname === "/calendar"
+    || pathname.startsWith("/calendar/")
+    || pathname === "/book"
+    || pathname.startsWith("/book/")
   const cart = state.snapshot?.cart
   const itemCount = cart?.items.length ?? 0
   const reserved = Boolean(cart?.reservedOrder)
 
-  if (isCalendarRoute || !cart || (itemCount === 0 && !reserved)) {
+  // Keep MassageLab purchases out of provider scheduling and public booking commerce.
+  if (isProviderCommerceRoute || !cart || (itemCount === 0 && !reserved)) {
     return null
   }
 

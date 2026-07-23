@@ -11,7 +11,10 @@ import {
 import { DEFAULT_BACKGROUND_ID } from "@/lib/background-options"
 import { BackgroundAcquisitionDialog } from "@/components/backgrounds/BackgroundAcquisitionDialog"
 import { BackgroundCarousel } from "@/components/backgrounds/background-carousel"
-import { useBackgroundCommerce } from "@/components/backgrounds/BackgroundCommerceProvider"
+import {
+  useBackgroundCommerce,
+  useBackgroundCreditStatus,
+} from "@/components/backgrounds/BackgroundCommerceProvider"
 import { BackgroundHost } from "@/components/backgrounds/BackgroundHost"
 import {
   canUseBackgroundId,
@@ -2998,12 +3001,7 @@ export function RunningTimer({
     mode: "locked" | "keep-permanently"
   } | null>(null)
   const { state: commerceState } = useBackgroundCommerce()
-  const creditBalance = commerceState.snapshot?.creditBalance
-  const creditStatus = typeof creditBalance === "number"
-    ? `${creditBalance} ${creditBalance === 1 ? "credit" : "credits"}`
-    : commerceState.status === "loading"
-      ? "Loading credits..."
-      : null
+  const creditStatus = useBackgroundCreditStatus()
   const [visualHintMessage, setVisualHintMessage] = useState<string | null>(null)
   const [backgroundCategoryFilter, setBackgroundCategoryFilter] =
     useState<BackgroundVisualCategory>("all")
@@ -3515,7 +3513,10 @@ export function RunningTimer({
   const handleBackgroundSelection = (nextBackgroundId: BackgroundId) => {
     const nextBackgroundDefinition = visibleBackgroundOptions.find((option) => option.id === nextBackgroundId)
 
-    if (!nextBackgroundDefinition || !userCanUseBackground(nextBackgroundDefinition, featureKeys)) {
+    if (!nextBackgroundDefinition || !userCanUseBackground(nextBackgroundDefinition, {
+      featureKeys,
+      ownedBackgroundIds: commerceState.snapshot?.ownedBackgroundIds ?? [],
+    })) {
       return
     }
 

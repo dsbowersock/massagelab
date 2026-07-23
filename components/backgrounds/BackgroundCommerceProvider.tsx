@@ -224,15 +224,23 @@ export function BackgroundCommerceProvider({
   const enqueueMutation = useCallback((
     action: string,
     operation: (signal: AbortSignal) => Promise<void>,
+    externalSignal?: AbortSignal,
   ) => {
     const run = async () => {
       readControllerRef.current?.abort()
       mutationActiveRef.current = true
       const controller = new AbortController()
+      const abortFromExternal = () => controller.abort()
+      if (externalSignal?.aborted) {
+        controller.abort()
+      } else {
+        externalSignal?.addEventListener("abort", abortFromExternal, { once: true })
+      }
       mutationControllersRef.current.add(controller)
       const id = requestId(action)
       dispatch({ type: "mutation-begin", requestId: id, action })
       try {
+        if (controller.signal.aborted) return
         await operation(controller.signal)
         const snapshot = await fetchSnapshot(controller.signal)
         dispatch({ type: "mutation-success", requestId: id, snapshot })
@@ -243,6 +251,7 @@ export function BackgroundCommerceProvider({
         throw new BackgroundCommerceClientError(safeError)
       } finally {
         mutationActiveRef.current = false
+        externalSignal?.removeEventListener("abort", abortFromExternal)
         mutationControllersRef.current.delete(controller)
       }
     }
@@ -358,8 +367,7 @@ export function BackgroundCommerceProvider({
       return
     }
     const mergeController = new AbortController()
-    mutationControllersRef.current.add(mergeController)
-    void (async () => {
+    void enqueueMutation("merge-guest-cart", async (signal) => {
       const pendingIds = readGuestBackgroundCartIds(window.localStorage)
       const remainingIds: string[] = []
       for (const backgroundId of pendingIds) {
@@ -368,9 +376,10 @@ export function BackgroundCommerceProvider({
             "/api/background-commerce/cart",
             "POST",
             { backgroundId },
-            mergeController.signal,
+            signal,
           )
         } catch (error) {
+          // These terminal outcomes cannot succeed on retry; transient failures stay local.
           if (
             !(error instanceof BackgroundCommerceClientError)
             || !["ALREADY_OWNED", "CATALOG_UNAVAILABLE", "ITEM_RESERVED"].includes(error.code)
@@ -379,10 +388,9 @@ export function BackgroundCommerceProvider({
           }
         }
       }
-      if (mergeController.signal.aborted) return
+      if (signal.aborted) return
       setGuestCartIds(writeGuestBackgroundCartIds(window.localStorage, remainingIds))
-      await refresh()
-    })().finally(() => mutationControllersRef.current.delete(mergeController))
+    }, mergeController.signal).catch(() => undefined)
     const handleRefresh = () => { void refresh() }
     window.addEventListener("focus", handleRefresh)
     window.addEventListener("online", handleRefresh)
@@ -392,7 +400,7 @@ export function BackgroundCommerceProvider({
       mergeController.abort()
       readControllerRef.current?.abort()
     }
-  }, [enabled, refresh])
+  }, [enabled, enqueueMutation, refresh])
 
   useEffect(() => () => {
     readControllerRef.current?.abort()
@@ -441,4 +449,15 @@ export function useBackgroundCommerce() {
     throw new Error("useBackgroundCommerce must be used within BackgroundCommerceProvider")
   }
   return context
+}
+
+/** Derives the shared accessible credit summary used by all background pickers. */
+export function useBackgroundCreditStatus() {
+  const { state } = useBackgroundCommerce()
+  const creditBalance = state.snapshot?.creditBalance
+  if (typeof creditBalance === "number") {
+    return `${creditBalance} ${creditBalance === 1 ? "credit" : "credits"}`
+  }
+  if (state.status === "loading") return "Loading credits..."
+  return null
 }

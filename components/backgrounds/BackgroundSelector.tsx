@@ -10,8 +10,12 @@ import {
 } from "@/lib/background-catalog"
 import { DEFAULT_BACKGROUND_ID } from "@/lib/background-options"
 import { cn } from "@/lib/utils"
+import {
+  BackgroundAcquisitionDialog,
+  type BackgroundAcquisitionMode,
+} from "@/components/backgrounds/BackgroundAcquisitionDialog"
 import { BackgroundCarousel } from "@/components/backgrounds/background-carousel"
-import { useBackgroundCommerce } from "@/components/backgrounds/BackgroundCommerceProvider"
+import { useBackgroundCreditStatus } from "@/components/backgrounds/BackgroundCommerceProvider"
 import {
   type BackgroundDefinition,
   getBackgroundOptionsForCategory,
@@ -43,13 +47,11 @@ export function BackgroundSelector({
   renderSelectedControls,
 }: BackgroundSelectorProps) {
   const [upgradeMessage, setUpgradeMessage] = useState("")
-  const { state: commerceState } = useBackgroundCommerce()
-  const creditBalance = commerceState.snapshot?.creditBalance
-  const creditStatus = typeof creditBalance === "number"
-    ? `${creditBalance} ${creditBalance === 1 ? "credit" : "credits"}`
-    : commerceState.status === "loading"
-      ? "Loading credits..."
-      : null
+  const [acquisition, setAcquisition] = useState<{
+    background: BackgroundDefinition
+    mode: BackgroundAcquisitionMode
+  } | null>(null)
+  const creditStatus = useBackgroundCreditStatus()
   const [visualFilter, setVisualFilter] = useState<BackgroundVisualFilter>("all")
   const [savedBackgroundIds, setSavedBackgroundIds] = useState<BackgroundId[]>([])
   const options = useMemo(() => getBackgroundOptionsForCategory(category), [category])
@@ -129,13 +131,29 @@ export function BackgroundSelector({
           }}
           onLockedSelect={(option) => {
             setUpgradeMessage(`${option.label} has purchase options available.`)
+            setAcquisition({ background: option, mode: "locked" })
           }}
           onKeepPermanently={(option) => {
             setUpgradeMessage(`Keep ${option.label} permanently with a credit or purchase.`)
+            setAcquisition({ background: option, mode: "keep-permanently" })
           }}
           onToggleSaved={toggleSavedBackground}
         />
       ) : null}
+
+      <BackgroundAcquisitionDialog
+        background={acquisition?.background ?? null}
+        mode={acquisition?.mode ?? "locked"}
+        open={Boolean(acquisition)}
+        onOpenChange={(open) => {
+          if (!open) setAcquisition(null)
+        }}
+        onAcquired={(background) => {
+          setAcquisition(null)
+          setUpgradeMessage("")
+          onChange(background.id)
+        }}
+      />
 
       {selectedOption && renderSelectedControls ? (
         <div className="rounded-md border border-border/70 bg-background/70 px-3 py-3">

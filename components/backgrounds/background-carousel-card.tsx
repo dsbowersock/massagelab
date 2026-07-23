@@ -39,6 +39,7 @@ interface BackgroundCarouselCardProps {
   onToggleSaved: () => void
 }
 
+/** Maps the carousel adapter's access and ownership states to user-facing status labels. */
 function accessLabel(commerceState: BackgroundCardCommerceState) {
   if (commerceState.ownershipStatus === "refund_pending") return "Refund pending"
   if (commerceState.ownershipStatus === "dispute_suspended") return "Dispute suspended"
@@ -51,6 +52,7 @@ function accessLabel(commerceState: BackgroundCardCommerceState) {
   return null
 }
 
+/** Maps the authoritative ownership source to the compact provenance label. */
 function ownershipSourceLabel(source: string | null) {
   if (source === "purchase") return "Purchased"
   if (source === "credit") return "Credit"

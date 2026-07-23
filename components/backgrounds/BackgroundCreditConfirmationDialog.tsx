@@ -13,6 +13,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 
+/**
+ * Requires explicit consent before spending a credit because the resulting
+ * background ownership is permanent and cannot be swapped.
+ */
 export function BackgroundCreditConfirmationDialog({
   background,
   open,

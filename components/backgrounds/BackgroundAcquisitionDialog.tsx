@@ -17,12 +17,14 @@ import {
 
 export type BackgroundAcquisitionMode = "locked" | "keep-permanently"
 
+/** Maps only known first-party visualizer routes, preventing user-controlled redirects. */
 function safeReturnPath(pathname: string) {
   if (pathname.startsWith("/clock")) return "/clock?panel=background"
   if (pathname.startsWith("/music")) return "/music?visualizer=background"
   return "/chimer?panel=background"
 }
 
+/** Presents credit, purchase, and membership choices for a locked or temporary background. */
 export function BackgroundAcquisitionDialog({
   background,
   mode,

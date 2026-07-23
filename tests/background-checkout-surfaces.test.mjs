@@ -19,7 +19,7 @@ describe("background checkout review", () => {
       "immediate digital delivery",
       "final-sale",
     ]) {
-      assert.match(source.toLowerCase(), new RegExp(copy.toLowerCase().replace("$", "\\$")))
+      assert.match(source.toLowerCase(), new RegExp(copy.toLowerCase().replaceAll("$", "\\$")))
     }
     assert.match(source, /requiredLegalDocumentsForEvent\("digital-purchase"\)/)
     assert.match(source, /legalDocumentAcceptanceId/)

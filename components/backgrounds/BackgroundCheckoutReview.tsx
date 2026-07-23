@@ -21,6 +21,10 @@ import {
 
 export const BACKGROUND_CHECKOUT_RETURN_STORAGE_KEY = "massagelab-background-checkout-return-v1"
 
+/**
+ * Maps the current visualizer to its checkout return route and accepts Music
+ * return targets only when they are root-relative and cannot be protocol-relative.
+ */
 function currentBackgroundReturnPath(
   pathname: string,
   source: string | null,

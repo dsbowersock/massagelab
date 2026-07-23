@@ -22,6 +22,10 @@ type StoredCheckoutReturn = {
 
 const MAX_AUTOMATIC_CHECKS = 6
 
+/**
+ * Parses checkout return intent and accepts only same-origin Clock or Chimer
+ * paths; malformed or redirect-capable values fail closed.
+ */
 function readStoredReturn(): StoredCheckoutReturn | null {
   try {
     const value = JSON.parse(sessionStorage.getItem(BACKGROUND_CHECKOUT_RETURN_STORAGE_KEY) ?? "null")

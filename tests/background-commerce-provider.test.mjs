@@ -32,6 +32,7 @@ describe("BackgroundCommerceProvider contract", () => {
     assert.match(value, /pendingIds = readGuestBackgroundCartIds/)
     assert.match(value, /for \(const backgroundId of pendingIds\)/)
     assert.match(value, /"\/api\/background-commerce\/cart"/)
+    assert.match(value, /enqueueMutation\("merge-guest-cart"/)
     assert.match(value, /remainingIds\.push\(backgroundId\)/)
     assert.match(value, /writeGuestBackgroundCartIds\(window\.localStorage, remainingIds\)/)
     assert.match(value, /ITEM_RESERVED/)

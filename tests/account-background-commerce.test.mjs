@@ -44,16 +44,21 @@ describe("Account background commerce loader", () => {
               unitPriceCents: 100,
               allocatedTaxCents: 5,
               lineTotalCents: 105,
-              refundItems: [{ amountCents: 105 }],
+              refundItems: [
+                { amountCents: 105, refund: { status: "SUCCEEDED" } },
+                { amountCents: 50, refund: { status: "PENDING" } },
+              ],
             }],
           }]
         },
       },
     }
+    const snapshotInputs = []
     const loader = createAccountSurfaceDataLoader({
       prismaClient,
-      getCommerceSnapshot: async () => {
+      getCommerceSnapshot: async (input) => {
         reads += 1
+        snapshotInputs.push(input)
         return snapshot()
       },
     })
@@ -64,6 +69,8 @@ describe("Account background commerce loader", () => {
     assert.equal(first.backgroundCommerce.creditBalance, 2)
     assert.equal(first.backgroundCommerce.orders[0].reference, "order-safe")
     assert.equal(first.backgroundCommerce.orders[0].items[0].refundedAmount, 105)
+    assert.deepEqual(first.backgroundCommerce.orders[0].items[0].refundStatuses, ["SUCCEEDED", "PENDING"])
+    assert.ok(snapshotInputs.every((input) => input.includeRecentOrders === false))
     assert.deepEqual(second.backgroundCommerce.cart.items.map((item) => item.productKey), ["massage-lab-silk"])
     assert.doesNotMatch(JSON.stringify(first), /stripe|paymentIntent|session|charge|disputeId/i)
   })
@@ -92,7 +99,8 @@ describe("Account background commerce panel", () => {
     ]) {
       assert.match(source, new RegExp(copy, "i"))
     }
-    assert.match(source, /getBackgroundDefinition/)
+    assert.match(source, /backgroundRegistry\.find/)
+    assert.match(source, /Unavailable background/)
     assert.match(source, /orderReference/)
   })
 

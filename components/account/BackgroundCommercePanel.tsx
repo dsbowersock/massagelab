@@ -4,7 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { History, ImageIcon, ShoppingCart, WalletCards } from "lucide-react"
 import { useBackgroundCommerce } from "@/components/backgrounds/BackgroundCommerceProvider"
-import { getBackgroundDefinition } from "@/components/backgrounds/backgroundRegistry"
+import { backgroundRegistry } from "@/components/backgrounds/backgroundRegistry"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatCommerceAmount } from "@/lib/background-commerce-client.js"
@@ -75,8 +75,24 @@ function orderStatus(status: string) {
 }
 
 function OwnershipCard({ ownership }: { ownership: Ownership }) {
-  const background = getBackgroundDefinition(ownership.backgroundId)
+  const background = backgroundRegistry.find((entry) => entry.id === ownership.backgroundId)
   const active = ownership.status === "active"
+  if (!background) {
+    return (
+      <article className="grid gap-1 rounded-xl border border-border/70 bg-card p-3">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="font-semibold">Unavailable background</h3>
+          <span className="rounded-full border px-2 py-0.5 text-xs">{ownershipStatus(ownership.status)}</span>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          This owned background is no longer available in the current catalog.
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {sourceLabel(ownership.source)} on {dateLabel(ownership.acquiredAt)}
+        </p>
+      </article>
+    )
+  }
   return (
     <article className="overflow-hidden rounded-xl border border-border/70 bg-card">
       <div className="relative aspect-video bg-muted">
