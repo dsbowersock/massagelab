@@ -104,6 +104,7 @@ async function installSignedInCookie(context: BrowserContext, baseURL: string) {
     url: baseURL,
     httpOnly: true,
     sameSite: "Lax",
+    // Auth.js __Secure- cookies require Secure so this fixture preserves HTTPS authentication semantics.
     secure: cookieName.startsWith("__Secure-"),
   }])
 }

@@ -127,6 +127,8 @@ export default function ChimerPage() {
     () => sanitizeMusicVisualizerReturnTo(returnToParam),
     [returnToParam],
   )
+  // Checkout return recovery uses panel=background to reopen the originating
+  // Background picker instead of the normal immersive or setup default.
   const requestedInitialPanel = (
     searchParams.get("panel") === "background" ? "background" : null
   )

@@ -88,8 +88,9 @@ function orderStatus(status: string) {
 }
 
 /**
- * Leads with the refreshed public order snapshot while retaining itemized
- * Account data and older orders that are outside the snapshot's recent window.
+ * Merges refreshed order headers with itemized Account history.
+ * Live header fields take precedence, itemized data supplies item details, and
+ * itemized orders absent from the live snapshot are appended as older orders.
  */
 function mergeAccountOrders(
   itemizedOrders: AccountOrder[],

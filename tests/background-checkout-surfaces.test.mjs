@@ -80,6 +80,8 @@ describe("checkout return recovery", () => {
     assert.match(setup, /CHIMER_BACKGROUND_SETUP_STEP_INDEX = CHIMER_SETUP_STEPS\.indexOf\("Choose background"\)/)
     assert.match(setup, /if \(CHIMER_BACKGROUND_SETUP_STEP_INDEX === -1\)/)
     assert.match(setup, /Number\.isFinite\(initialStep\) \? Math\.trunc\(initialStep\) : 0/)
+    assert.match(setup, /setActiveStep\(Math\.min\(CHIMER_SETUP_STEPS\.length - 1, Math\.max\(0, normalizedStep\)\)\)/)
+    assert.match(setup, /\}, \[initialStep\]\)/)
     assert.match(setup, /const canAdvanceStep = isTimerSet/)
     assert.match(setup, /stepIndex === 0 \? isTimerSet : stepIndex < activeStep/)
   })
