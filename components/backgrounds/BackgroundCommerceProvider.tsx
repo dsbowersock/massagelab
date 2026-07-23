@@ -16,6 +16,12 @@ import {
   backgroundCommerceReducer,
   normalizeBackgroundCommerceSnapshot,
 } from "@/lib/background-commerce-client.js"
+import {
+  createGuestBackgroundCommerceSnapshot,
+  readGuestBackgroundCartIds,
+  resolveGuestBackgroundCartItem,
+  writeGuestBackgroundCartIds,
+} from "@/lib/guest-background-cart"
 
 type PublicCommerceError = {
   code: string
@@ -38,6 +44,7 @@ export type PurchaseConsentInput = {
 
 export type BackgroundCommerceContextValue = {
   state: BackgroundCommerceClientState
+  signedIn: boolean
   refresh(): Promise<void>
   addToCart(backgroundId: string): Promise<void>
   removeFromCart(backgroundId: string): Promise<void>
@@ -172,9 +179,27 @@ export function BackgroundCommerceProvider({
   const mutationQueueRef = useRef<Promise<void>>(Promise.resolve())
   const mutationActiveRef = useRef(false)
   const [cartOpen, setCartOpen] = useState(false)
+  const [guestCartIds, setGuestCartIds] = useState<string[]>([])
+  const guestState = useMemo<BackgroundCommerceClientState>(() => ({
+    status: "ready",
+    snapshot: normalizeBackgroundCommerceSnapshot(createGuestBackgroundCommerceSnapshot(guestCartIds)),
+    pendingAction: null,
+    error: null,
+  }), [guestCartIds])
+  const exposedState = enabled ? state : guestState
+
+  const updateGuestCart = useCallback((update: (current: string[]) => string[]) => {
+    setGuestCartIds((current) => {
+      const next = update(current)
+      return writeGuestBackgroundCartIds(window.localStorage, next)
+    })
+  }, [])
 
   const refresh = useCallback(async () => {
-    if (!enabled) return
+    if (!enabled) {
+      setGuestCartIds(readGuestBackgroundCartIds(window.localStorage))
+      return
+    }
     if (mutationActiveRef.current) {
       await mutationQueueRef.current
       return
@@ -226,8 +251,19 @@ export function BackgroundCommerceProvider({
     return queued
   }, [])
 
-  const addToCart = useCallback((backgroundId: string) => (
-    enqueueMutation("add-to-cart", async (signal) => {
+  const addToCart = useCallback(async (backgroundId: string) => {
+    if (!enabled) {
+      const item = resolveGuestBackgroundCartItem(backgroundId)
+      if (!item) {
+        throw new BackgroundCommerceClientError({
+          code: "CATALOG_UNAVAILABLE",
+          message: PUBLIC_ERROR_MESSAGES.CATALOG_UNAVAILABLE,
+        })
+      }
+      updateGuestCart((current) => [...current, item.productKey])
+      return
+    }
+    await enqueueMutation("add-to-cart", async (signal) => {
       await mutate(
         "/api/background-commerce/cart",
         "POST",
@@ -235,10 +271,14 @@ export function BackgroundCommerceProvider({
         signal,
       )
     })
-  ), [enqueueMutation])
+  }, [enabled, enqueueMutation, updateGuestCart])
 
-  const removeFromCart = useCallback((backgroundId: string) => (
-    enqueueMutation("remove-from-cart", async (signal) => {
+  const removeFromCart = useCallback(async (backgroundId: string) => {
+    if (!enabled) {
+      updateGuestCart((current) => current.filter((candidate) => candidate !== backgroundId))
+      return
+    }
+    await enqueueMutation("remove-from-cart", async (signal) => {
       await mutate(
         "/api/background-commerce/cart",
         "DELETE",
@@ -246,10 +286,13 @@ export function BackgroundCommerceProvider({
         signal,
       )
     })
-  ), [enqueueMutation])
+  }, [enabled, enqueueMutation, updateGuestCart])
 
-  const redeemCredit = useCallback((backgroundId: string, idempotencyKey: string) => (
-    enqueueMutation("redeem-credit", async (signal) => {
+  const redeemCredit = useCallback(async (backgroundId: string, idempotencyKey: string) => {
+    if (!enabled) {
+      throw new BackgroundCommerceClientError({ code: "AUTH_REQUIRED", message: PUBLIC_ERROR_MESSAGES.AUTH_REQUIRED })
+    }
+    await enqueueMutation("redeem-credit", async (signal) => {
       await mutate(
         "/api/background-commerce/credits/redeem",
         "POST",
@@ -257,7 +300,7 @@ export function BackgroundCommerceProvider({
         signal,
       )
     })
-  ), [enqueueMutation])
+  }, [enabled, enqueueMutation])
 
   const cancelReservation = useCallback((orderId: string) => (
     enqueueMutation("cancel-reservation", async (signal) => {
@@ -310,14 +353,43 @@ export function BackgroundCommerceProvider({
   }, [enabled])
 
   useEffect(() => {
-    if (!enabled) return
-    void refresh()
+    if (!enabled) {
+      setGuestCartIds(readGuestBackgroundCartIds(window.localStorage))
+      return
+    }
+    const mergeController = new AbortController()
+    mutationControllersRef.current.add(mergeController)
+    void (async () => {
+      const pendingIds = readGuestBackgroundCartIds(window.localStorage)
+      const remainingIds: string[] = []
+      for (const backgroundId of pendingIds) {
+        try {
+          await mutate(
+            "/api/background-commerce/cart",
+            "POST",
+            { backgroundId },
+            mergeController.signal,
+          )
+        } catch (error) {
+          if (
+            !(error instanceof BackgroundCommerceClientError)
+            || !["ALREADY_OWNED", "CATALOG_UNAVAILABLE", "ITEM_RESERVED"].includes(error.code)
+          ) {
+            remainingIds.push(backgroundId)
+          }
+        }
+      }
+      if (mergeController.signal.aborted) return
+      setGuestCartIds(writeGuestBackgroundCartIds(window.localStorage, remainingIds))
+      await refresh()
+    })().finally(() => mutationControllersRef.current.delete(mergeController))
     const handleRefresh = () => { void refresh() }
     window.addEventListener("focus", handleRefresh)
     window.addEventListener("online", handleRefresh)
     return () => {
       window.removeEventListener("focus", handleRefresh)
       window.removeEventListener("online", handleRefresh)
+      mergeController.abort()
       readControllerRef.current?.abort()
     }
   }, [enabled, refresh])
@@ -331,7 +403,8 @@ export function BackgroundCommerceProvider({
   const closeCart = useCallback(() => setCartOpen(false), [])
 
   const value = useMemo<BackgroundCommerceContextValue>(() => ({
-    state,
+    state: exposedState,
+    signedIn: enabled,
     refresh,
     addToCart,
     removeFromCart,
@@ -342,7 +415,8 @@ export function BackgroundCommerceProvider({
     openCart,
     closeCart,
   }), [
-    state,
+    exposedState,
+    enabled,
     refresh,
     addToCart,
     removeFromCart,

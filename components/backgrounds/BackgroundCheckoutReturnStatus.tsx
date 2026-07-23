@@ -131,6 +131,8 @@ export function BackgroundCheckoutReturnStatus() {
       }}
     >
       <DialogContent
+        overlayClassName="z-[10040]"
+        className="z-[10041]"
         onEscapeKeyDown={(event) => {
           if (stillProcessing && checks < MAX_AUTOMATIC_CHECKS) event.preventDefault()
         }}

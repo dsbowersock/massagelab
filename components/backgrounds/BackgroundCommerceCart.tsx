@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { ShoppingCart, Trash2 } from "lucide-react"
 import { usePathname } from "next/navigation"
 import { BackgroundCheckoutReview } from "@/components/backgrounds/BackgroundCheckoutReview"
@@ -26,15 +27,17 @@ const NOTICE_COPY: Record<string, string> = {
 function CartContents({
   compact,
   onReviewCheckout,
+  signedIn,
 }: {
   compact: boolean
   onReviewCheckout?: () => void
+  signedIn: boolean
 }) {
   const { state, removeFromCart, cancelReservation } = useBackgroundCommerce()
   const [localError, setLocalError] = useState("")
   const cart = state.snapshot?.cart
   if (!cart) {
-    return <p role="status" className="text-sm text-muted-foreground">Loading account cart...</p>
+    return <p role="status" className="text-sm text-muted-foreground">Loading cart...</p>
   }
 
   const reservedOrder = cart.reservedOrder
@@ -54,7 +57,7 @@ function CartContents({
 
   return (
     <section
-      aria-label="Account cart"
+      aria-label={signedIn ? "Account cart" : "MassageLab cart"}
       className={cn("grid gap-3", compact && "rounded-xl border border-border/70 bg-background/80 p-3")}
     >
       <div className="flex items-center justify-between gap-3">
@@ -86,7 +89,7 @@ function CartContents({
                 variant="ghost"
                 disabled={Boolean(reservedOrder) || mutationPending}
                 onClick={() => void removeFromCart(item.productKey)}
-                aria-label={`Remove ${item.displayName} from account cart`}
+                aria-label={`Remove ${item.displayName} from ${signedIn ? "account" : "MassageLab"} cart`}
               >
                 <Trash2 className="size-4" aria-hidden="true" />
                 Remove
@@ -95,7 +98,7 @@ function CartContents({
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-muted-foreground">Your account cart is empty.</p>
+        <p className="text-sm text-muted-foreground">Your {signedIn ? "account" : "MassageLab"} cart is empty.</p>
       )}
 
       {cart.notices.length > 0 ? (
@@ -136,12 +139,23 @@ function CartContents({
       <div className="grid gap-1 text-xs text-muted-foreground">
         <p>Estimated tax is calculated and added at Checkout where applicable.</p>
         <p>Permanent access after membership ends.</p>
+        {!signedIn ? <p>This cart is saved in this browser until you sign in.</p> : null}
       </div>
 
-      {!reservedOrder && cart.items.length > 0 ? (
+      {!reservedOrder && cart.items.length > 0 && signedIn ? (
         <Button type="button" onClick={onReviewCheckout}>
           Review checkout
         </Button>
+      ) : null}
+      {!reservedOrder && cart.items.length > 0 && !signedIn ? (
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Button asChild>
+            <Link href="/login?callbackUrl=%2Faccount%3Ftab%3Dorders-invoices">Sign in to checkout</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/register?callbackUrl=%2Faccount%3Ftab%3Dorders-invoices">Create account</Link>
+          </Button>
+        </div>
       ) : null}
       {localError ? <p role="alert" className="text-sm text-destructive">{localError}</p> : null}
     </section>
@@ -155,7 +169,7 @@ export function BackgroundCommerceCart({
   variant: "compact" | "dialog"
   onReviewCheckout?: () => void
 }) {
-  const { cartOpen, closeCart } = useBackgroundCommerce()
+  const { cartOpen, closeCart, signedIn } = useBackgroundCommerce()
   const [reviewOpen, setReviewOpen] = useState(false)
   const pathname = usePathname() ?? ""
   const isCalendarRoute = pathname === "/calendar" || pathname.startsWith("/calendar/")
@@ -174,7 +188,7 @@ export function BackgroundCommerceCart({
   if (variant === "compact") {
     return (
       <>
-        <CartContents compact onReviewCheckout={beginReview} />
+        <CartContents compact onReviewCheckout={beginReview} signedIn={signedIn} />
         <BackgroundCheckoutReview open={reviewOpen} onOpenChange={setReviewOpen} />
       </>
     )
@@ -183,14 +197,17 @@ export function BackgroundCommerceCart({
   return (
     <>
       <Dialog open={cartOpen} onOpenChange={(open) => { if (!open) closeCart() }}>
-        <DialogContent className="max-h-[min(80dvh,44rem)] overflow-y-auto">
+        <DialogContent
+          overlayClassName="z-[10040]"
+          className="z-[10041] max-h-[min(80dvh,44rem)] overflow-y-auto"
+        >
           <DialogHeader>
-            <DialogTitle>Account cart</DialogTitle>
+            <DialogTitle>{signedIn ? "Account cart" : "MassageLab cart"}</DialogTitle>
             <DialogDescription>
               Permanent MassageLab background purchases. Provider services and Calendar sales are separate.
             </DialogDescription>
           </DialogHeader>
-          <CartContents compact={false} onReviewCheckout={beginReview} />
+          <CartContents compact={false} onReviewCheckout={beginReview} signedIn={signedIn} />
         </DialogContent>
       </Dialog>
       <BackgroundCheckoutReview open={reviewOpen} onOpenChange={setReviewOpen} />

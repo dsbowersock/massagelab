@@ -19,11 +19,22 @@ describe("BackgroundCommerceProvider contract", () => {
     assert.match(value, /controller\.abort\(\)/)
   })
 
-  it("refreshes on focus and reconnect without fetching signed-out previews", async () => {
+  it("refreshes account state on focus and reconnect while signed-out state stays local", async () => {
     const value = await source(providerPath)
-    assert.match(value, /if \(!enabled\) return/)
+    assert.match(value, /if \(!enabled\) \{[\s\S]*readGuestBackgroundCartIds/)
+    assert.match(value, /createGuestBackgroundCommerceSnapshot/)
     assert.match(value, /addEventListener\("focus"/)
     assert.match(value, /addEventListener\("online"/)
+  })
+
+  it("merges guest intent through the authenticated cart API and keeps failed IDs local", async () => {
+    const value = await source(providerPath)
+    assert.match(value, /pendingIds = readGuestBackgroundCartIds/)
+    assert.match(value, /for \(const backgroundId of pendingIds\)/)
+    assert.match(value, /"\/api\/background-commerce\/cart"/)
+    assert.match(value, /remainingIds\.push\(backgroundId\)/)
+    assert.match(value, /writeGuestBackgroundCartIds\(window\.localStorage, remainingIds\)/)
+    assert.match(value, /ITEM_RESERVED/)
   })
 
   it("serializes mutations and refreshes the full authoritative snapshot", async () => {

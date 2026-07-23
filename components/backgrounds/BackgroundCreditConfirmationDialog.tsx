@@ -53,7 +53,7 @@ export function BackgroundCreditConfirmationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent overlayClassName="z-[10040]" className="z-[10041]">
         <DialogHeader>
           <DialogTitle>Keep {background.label} permanently</DialogTitle>
           <DialogDescription>

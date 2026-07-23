@@ -91,7 +91,10 @@ export function BackgroundCheckoutReview({
     <Dialog open={open} onOpenChange={(nextOpen) => {
       if (!submitting) onOpenChange(nextOpen)
     }}>
-      <DialogContent className="max-h-[min(88dvh,48rem)] overflow-y-auto">
+      <DialogContent
+        overlayClassName="z-[10040]"
+        className="z-[10041] max-h-[min(88dvh,48rem)] overflow-y-auto"
+      >
         <DialogHeader>
           <DialogTitle>Review checkout</DialogTitle>
           <DialogDescription>

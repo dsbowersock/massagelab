@@ -37,7 +37,7 @@ export function BackgroundAcquisitionDialog({
   onAcquired: (background: BackgroundDefinition) => void
 }) {
   const pathname = usePathname() ?? "/chimer"
-  const { state, addToCart } = useBackgroundCommerce()
+  const { state, addToCart, signedIn } = useBackgroundCommerce()
   const [confirmingCredit, setConfirmingCredit] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
   const snapshot = state.snapshot
@@ -69,12 +69,15 @@ export function BackgroundAcquisitionDialog({
   }
 
   const returnTo = safeReturnPath(pathname)
-  const membershipHref = `/account?tab=membership&returnTo=${encodeURIComponent(returnTo)}`
+  const membershipDestination = `/account?tab=membership&returnTo=${encodeURIComponent(returnTo)}`
+  const membershipHref = signedIn
+    ? membershipDestination
+    : `/login?callbackUrl=${encodeURIComponent(membershipDestination)}`
 
   return (
     <>
       <Dialog open={open && !confirmingCredit} onOpenChange={onOpenChange}>
-        <DialogContent>
+        <DialogContent overlayClassName="z-[10040]" className="z-[10041]">
           <DialogHeader>
             <DialogTitle>{mode === "keep-permanently" ? "Keep" : "Unlock"} {background.label}</DialogTitle>
             <DialogDescription>
@@ -87,12 +90,16 @@ export function BackgroundAcquisitionDialog({
             <Button
               type="button"
               variant="outline"
-              disabled={typeof creditBalance !== "number" || creditBalance === 0}
+              disabled={!signedIn || typeof creditBalance !== "number" || creditBalance === 0}
               onClick={() => setConfirmingCredit(true)}
             >
               Use free credit
             </Button>
-            {typeof creditBalance !== "number" ? (
+            {!signedIn ? (
+              <p className="-mt-2 text-xs text-muted-foreground">
+                Sign in at checkout to use account credits. You can still add this background to your cart now.
+              </p>
+            ) : typeof creditBalance !== "number" ? (
               <p className="-mt-2 text-xs text-muted-foreground" role="status">
                 Checking available credits...
               </p>

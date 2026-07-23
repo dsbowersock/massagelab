@@ -22,13 +22,13 @@ export function CommerceCartTrigger({
   const itemCount = cart?.items.length ?? 0
   const reserved = Boolean(cart?.reservedOrder)
 
-  if (!signedIn || isCalendarRoute || !cart || (itemCount === 0 && !reserved)) {
+  if (isCalendarRoute || !cart || (itemCount === 0 && !reserved)) {
     return null
   }
 
   const status = reserved
     ? `Account cart reserved for checkout with ${itemCount} ${itemCount === 1 ? "item" : "items"}`
-    : `Open account cart with ${itemCount} ${itemCount === 1 ? "item" : "items"}`
+    : `Open ${signedIn ? "account" : "MassageLab"} cart with ${itemCount} ${itemCount === 1 ? "item" : "items"}`
 
   return (
     <Button

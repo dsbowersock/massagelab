@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { CreditCard, History, ImageIcon, ShoppingCart, WalletCards } from "lucide-react"
+import { History, ImageIcon, ShoppingCart, WalletCards } from "lucide-react"
 import { useBackgroundCommerce } from "@/components/backgrounds/BackgroundCommerceProvider"
 import { getBackgroundDefinition } from "@/components/backgrounds/backgroundRegistry"
 import { Button } from "@/components/ui/button"
