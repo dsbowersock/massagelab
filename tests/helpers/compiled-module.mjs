@@ -126,7 +126,10 @@ export function renderFunctionComponents(tree) {
   }
 }
 
-/** Flattens the readable text content from a JSX-like test tree. */
+/**
+ * Flattens readable text from children and explicit text-bearing props without
+ * leaking implementation props such as class names, URLs, or event handlers.
+ */
 export function elementText(tree) {
   if (Array.isArray(tree)) {
     return tree.map(elementText).join("")
@@ -137,7 +140,28 @@ export function elementText(tree) {
   if (!tree || typeof tree !== "object") {
     return ""
   }
-  return elementText(tree.props?.children)
+
+  const props = tree.props ?? {}
+  const textValues = [
+    props.children,
+    props.title,
+    props["aria-label"],
+    props.label,
+    props.placeholder,
+    props.content,
+  ]
+  const hasExplicitText = textValues.some((value) => value != null)
+
+  if (
+    !hasExplicitText
+    && tree.type !== "input"
+    && tree.type !== "textarea"
+    && (typeof props.value === "string" || typeof props.value === "number")
+  ) {
+    textValues.push(props.value)
+  }
+
+  return textValues.map(elementText).join("")
 }
 
 /** Builds a function-component double that preserves its children and props. */

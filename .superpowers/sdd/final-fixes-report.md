@@ -99,6 +99,9 @@ named review batches; none is a claim about the current final PR head.
 - Seventh review batch after `44be825`: `npm run test` passed 1,542/1,542 tests
   across 162 suites; full typecheck, lint, and `git diff --check` also passed
   before the next CodeRabbit pass.
+- Eighth review batch after `0e3936e4`: `npm run test` passed 1,559/1,559 tests
+  across 162 suites; full typecheck, lint, and `git diff --check` also passed
+  before the next CodeRabbit pass.
 - `npm run typecheck`: passed.
 - `npm run lint`: passed.
 - `npm run build`: passed; Prisma generation, production compilation,

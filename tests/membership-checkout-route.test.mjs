@@ -49,6 +49,61 @@ describe("Membership Checkout POST route", () => {
     })
   })
 
+  it("rejects a cross-origin form before validation, legal acceptance, or billing work", async () => {
+    const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
+    const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
+      alreadyAccepted: false,
+      captureSelectionInputs: true,
+    }))(formRequest({
+      membershipLevel: "SUPPORTER",
+      supporterAmountChoiceId: "support-1",
+      interval: "month",
+      acceptedLegalDocuments: "membership-billing-refunds:current",
+      billingTermsAccepted: "true",
+    }, {
+      origin: "https://attacker.example",
+    }))
+
+    assert.deepEqual(response, {
+      url: "https://massagelab.app/account?billing=invalid-request",
+      status: 303,
+    })
+    assert.deepEqual(calls, {
+      ensureCustomer: 0,
+      createCheckout: 0,
+      membershipLookup: 0,
+    })
+  })
+
+  it("accepts a same-origin form and records required legal acceptance", async () => {
+    const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
+    const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
+      alreadyAccepted: false,
+    }))(formRequest({
+      membershipLevel: "SUPPORTER",
+      supporterAmountChoiceId: "support-1",
+      interval: "month",
+      acceptedLegalDocuments: "membership-billing-refunds:current",
+      billingTermsAccepted: "true",
+    }, {
+      origin: "https://massagelab.app",
+    }))
+
+    assert.deepEqual(response, {
+      url: "https://checkout.stripe.com/c/test",
+      status: 303,
+    })
+    assert.equal(calls.membershipLookup, 1)
+    assert.equal(calls.ensureCustomer, 1)
+    assert.equal(calls.createCheckout, 1)
+    assert.deepEqual(calls.recordedLegalAcceptances, {
+      prismaClient: calls.recordedLegalAcceptances.prismaClient,
+      userId: "user_123",
+      documents: [MEMBERSHIP_BILLING_DOCUMENT],
+      metadata: { source: "membership-checkout-test" },
+    })
+  })
+
   for (const membershipLevel of ["THERAPIST", "PRACTICE"]) {
     it(`rejects ${membershipLevel} before creating a Stripe customer or Checkout Session`, async () => {
       const calls = { ensureCustomer: 0, createCheckout: 0 }
@@ -136,6 +191,8 @@ describe("Membership Checkout POST route", () => {
       successUrl: "https://massagelab.app/account?checkout=success&session_id={CHECKOUT_SESSION_ID}",
       cancelUrl: "https://massagelab.app/account?checkout=cancelled",
     })
+    assert.equal(Object.hasOwn(calls.checkoutOptions, "couponId"), false)
+    assert.equal(Object.hasOwn(calls.checkoutOptions, "discounts"), false)
   })
 
   for (const existingSubscription of [
@@ -235,6 +292,7 @@ describe("Membership Checkout POST route", () => {
       membershipLookup: 0,
     }
     const request = {
+      url: "https://massagelab.app/api/billing/checkout",
       headers: new Headers({
         "content-type": "multipart/form-data; boundary=broken",
       }),
@@ -616,10 +674,13 @@ function rawJsonRequest(body) {
   })
 }
 
-function formRequest(body) {
+function formRequest(body, headers = {}) {
   return new Request("https://massagelab.app/api/billing/checkout", {
     method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
+    headers: {
+      "content-type": "application/x-www-form-urlencoded",
+      ...headers,
+    },
     body: new URLSearchParams(body),
   })
 }

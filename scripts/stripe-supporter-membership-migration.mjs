@@ -1260,10 +1260,30 @@ export async function runSupporterMembershipMigration({
   })
   if (mode === "apply") {
     let lastError = null
+    // Never replay a mutation plan built from stale pre-apply inventory. A
+    // failed post-apply read must first prove the current Stripe state.
+    let refreshBeforeApply = false
     for (let attempt = 0; attempt < 3 && inventory.state !== "COMPLETED"; attempt += 1) {
+      if (refreshBeforeApply) {
+        try {
+          inventory = await collectInventory(stripe, config, { allowTransitional: true })
+          refreshBeforeApply = false
+        } catch (error) {
+          const normalizedError = normalizeApplyFailure(error)
+          if (!isRecoverableApplyFailure(error)) {
+            throw normalizedError
+          }
+          lastError = normalizedError
+          if (attempt < APPLY_RETRY_DELAYS_MS.length) {
+            await sleep(APPLY_RETRY_DELAYS_MS[attempt])
+          }
+          continue
+        }
+        if (inventory.state === "COMPLETED") break
+      }
+
       try {
         await applyPlan(stripe, config, inventory)
-        lastError = null
       } catch (error) {
         const normalizedError = normalizeApplyFailure(error)
         if (!isRecoverableApplyFailure(error)) {
@@ -1271,7 +1291,17 @@ export async function runSupporterMembershipMigration({
         }
         lastError = normalizedError
       }
-      inventory = await collectInventory(stripe, config, { allowTransitional: true })
+
+      try {
+        inventory = await collectInventory(stripe, config, { allowTransitional: true })
+      } catch (error) {
+        const normalizedError = normalizeApplyFailure(error)
+        if (!isRecoverableApplyFailure(error)) {
+          throw normalizedError
+        }
+        lastError = normalizedError
+        refreshBeforeApply = true
+      }
       if (inventory.state !== "COMPLETED" && attempt < APPLY_RETRY_DELAYS_MS.length) {
         await sleep(APPLY_RETRY_DELAYS_MS[attempt])
       }

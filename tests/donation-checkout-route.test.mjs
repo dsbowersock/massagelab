@@ -207,6 +207,29 @@ describe("one-time support Checkout route", () => {
     assert.equal(checkoutCalls, 0)
   })
 
+  it("returns the standard sanitized error when Stripe succeeds without a usable URL", async (context) => {
+    const logged = []
+    context.mock.method(console, "error", (...args) => logged.push(args))
+    const POST = donationPost({
+      createCheckoutSession: async () => ({
+        id: "cs_support_without_url",
+        url: null,
+      }),
+    })
+
+    const response = await POST(jsonRequest())
+
+    assert.deepEqual(response, {
+      body: { error: "Unable to start one-time support checkout." },
+      status: 500,
+    })
+    assert.deepEqual(logged, [[
+      "Unable to start one-time support checkout",
+      { code: "unexpected_error" },
+    ]])
+    assert.equal(Object.hasOwn(response, "url"), false)
+  })
+
   for (const [label, code, expectedCode] of [
     ["allowlisted provider code", "provider_timeout", "provider_timeout"],
     ["unsafe provider code", "secret\ncustomer@example.com", "unexpected_error"],

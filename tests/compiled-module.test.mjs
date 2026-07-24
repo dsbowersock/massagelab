@@ -3,6 +3,7 @@ import { describe, it } from "node:test"
 
 import {
   createElement,
+  elementText,
   findElement,
   findElements,
   renderFunctionComponents,
@@ -64,5 +65,42 @@ describe("compiled-module JSX traversal helpers", () => {
     assert.equal(rendered.props.onClick, onClick)
     assert.equal(rendered.props.optional, null)
     assert.equal(rendered.props.style, style)
+  })
+
+  it("reads only explicit text-bearing props", () => {
+    const tree = createElement("div", {
+      children: "Child",
+      title: "Title",
+      "aria-label": "Accessible",
+      label: "Label",
+      placeholder: "Placeholder",
+      content: "Content",
+      className: "do-not-read",
+      href: "/do-not-read",
+      "data-secret": "do-not-read",
+    })
+
+    assert.equal(
+      elementText(tree),
+      "ChildTitleAccessibleLabelPlaceholderContent",
+    )
+  })
+
+  it("uses a scalar value only when it is the node's sole readable text", () => {
+    assert.equal(elementText(createElement("option", { value: "Supporter" })), "Supporter")
+    assert.equal(
+      elementText(createElement("option", {
+        children: "Visible choice",
+        value: "internal-choice-id",
+      })),
+      "Visible choice",
+    )
+    assert.equal(
+      elementText(createElement("input", {
+        type: "hidden",
+        value: "sensitive-internal-value",
+      })),
+      "",
+    )
   })
 })

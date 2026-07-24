@@ -280,10 +280,12 @@ function stripeFixture() {
     prices: {
       async list(payload) {
         record("prices.list", null, payload)
-        const active = payload.active ?? true
         const data = [...prices.values()]
           .filter((entry) => !payload.product || entry.product === payload.product)
-          .filter((entry) => entry.active === active)
+          .filter((entry) => (
+            typeof payload.active !== "boolean"
+            || entry.active === payload.active
+          ))
           .map((entry) => structuredClone(entry))
         return { data, has_more: false }
       },
@@ -446,6 +448,22 @@ describe("Supporter membership Stripe migration", () => {
 
     assert.match(scriptSource, /import\s+\{\s*STRIPE_API_VERSION\s*\}\s+from\s+"..\/lib\/stripe-webhook-contract\.js"/)
     assert.match(scriptSource, /apiVersion:\s*STRIPE_API_VERSION/)
+  })
+
+  it("models Stripe Price listing as unfiltered unless active is explicit", async () => {
+    const fixture = stripeFixture()
+    fixture.prices.get("price_supporter_year").active = false
+
+    const unfiltered = await fixture.stripe.prices.list({ limit: 100 })
+    const active = await fixture.stripe.prices.list({ active: true, limit: 100 })
+    const inactive = await fixture.stripe.prices.list({ active: false, limit: 100 })
+
+    assert.equal(unfiltered.data.length, LEGACY_PRICE_SPECS.length)
+    assert.equal(active.data.some(({ active: isActive }) => !isActive), false)
+    assert.deepEqual(
+      inactive.data.map(({ id }) => id),
+      ["price_supporter_year"],
+    )
   })
 
   it("exposes only the guarded Supporter migration package command", async () => {
@@ -1708,6 +1726,110 @@ describe("Supporter membership Stripe migration", () => {
       assert.equal(result.state, "COMPLETED")
       assert.deepEqual(delays, [250])
     }
+  })
+
+  it("retries a transient post-apply inventory read before replaying mutations", async () => {
+    const fixture = stripeFixture()
+    const listSubscriptions = fixture.stripe.subscriptions.list.bind(
+      fixture.stripe.subscriptions,
+    )
+    const delays = []
+    let listCalls = 0
+    fixture.stripe.subscriptions.list = async (payload) => {
+      listCalls += 1
+      if (listCalls === 2) {
+        throw stripeSdkError("StripeConnectionError")
+      }
+      return listSubscriptions(payload)
+    }
+
+    const result = await runSupporterMembershipMigration({
+      stripe: fixture.stripe,
+      mode: "apply",
+      env: migrationEnv(),
+      sleep: async (milliseconds) => {
+        delays.push(milliseconds)
+      },
+    })
+
+    assert.equal(result.state, "COMPLETED")
+    assert.equal(listCalls, 3)
+    assert.deepEqual(delays, [250])
+    assert.equal(
+      fixture.calls.filter(({ name }) => name === "coupons.del").length,
+      2,
+      "the successful pre-retry refresh must avoid replaying completed deletes",
+    )
+  })
+
+  it("does not retry a deterministic post-apply inventory read failure", async () => {
+    const fixture = stripeFixture()
+    const listSubscriptions = fixture.stripe.subscriptions.list.bind(
+      fixture.stripe.subscriptions,
+    )
+    const failure = stripeSdkError("StripeAuthenticationError", 401)
+    const delays = []
+    let listCalls = 0
+    fixture.stripe.subscriptions.list = async (payload) => {
+      listCalls += 1
+      if (listCalls === 2) throw failure
+      return listSubscriptions(payload)
+    }
+
+    await assert.rejects(
+      runSupporterMembershipMigration({
+        stripe: fixture.stripe,
+        mode: "apply",
+        env: migrationEnv(),
+        sleep: async (milliseconds) => {
+          delays.push(milliseconds)
+        },
+      }),
+      (error) => {
+        assert.deepEqual(error.failureCodes, ["stripe_dependency_read_failed"])
+        assert.equal(error.cause, failure)
+        return true
+      },
+    )
+    assert.equal(listCalls, 2)
+    assert.deepEqual(delays, [])
+  })
+
+  it("preserves the last transient post-apply inventory failure after the retry budget", async () => {
+    const fixture = stripeFixture()
+    const listSubscriptions = fixture.stripe.subscriptions.list.bind(
+      fixture.stripe.subscriptions,
+    )
+    const failures = [
+      stripeSdkError("StripeConnectionError"),
+      stripeSdkError("StripeConnectionError"),
+      stripeSdkError("StripeConnectionError"),
+    ]
+    const delays = []
+    let listCalls = 0
+    fixture.stripe.subscriptions.list = async (payload) => {
+      listCalls += 1
+      if (listCalls > 1) throw failures[listCalls - 2]
+      return listSubscriptions(payload)
+    }
+
+    await assert.rejects(
+      runSupporterMembershipMigration({
+        stripe: fixture.stripe,
+        mode: "apply",
+        env: migrationEnv(),
+        sleep: async (milliseconds) => {
+          delays.push(milliseconds)
+        },
+      }),
+      (error) => {
+        assert.deepEqual(error.failureCodes, ["stripe_dependency_read_failed"])
+        assert.equal(error.cause, failures[2])
+        return true
+      },
+    )
+    assert.equal(listCalls, 4)
+    assert.deepEqual(delays, [250, 500])
   })
 
   it("retains a non-missing dependency-read cause without surfacing its details", async () => {

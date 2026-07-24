@@ -4,22 +4,14 @@ import {
   elementText,
   findElements,
 } from "./helpers/compiled-module.mjs"
-import { renderMembershipPricingCards } from "./helpers/membership-pricing-cards.mjs"
+import {
+  renderMembershipPricingCards,
+  supporterMonthlyPrice,
+} from "./helpers/membership-pricing-cards.mjs"
 
 describe("MembershipPricingCards configured price rendering", () => {
   it("advertises only lookup-verified prices in portal and pre-auth modes", async () => {
-    const configuredPrice = {
-      membershipLevel: "SUPPORTER",
-      interval: "month",
-      priceId: "price_supporter_1_month",
-      unitAmount: 100,
-      currency: "usd",
-      displayPrice: "$1",
-      displayInterval: "/month",
-      isConfigured: true,
-      isLookupAvailable: true,
-      yearlySavings: null,
-    }
+    const configuredPrice = supporterMonthlyPrice()
     const amountChoices = [
       {
         id: "support-1",
@@ -166,18 +158,7 @@ describe("MembershipPricingCards configured price rendering", () => {
   })
 
   it("keeps blocking membership mode fail closed when no Portal action is available", async () => {
-    const price = {
-      membershipLevel: "SUPPORTER",
-      interval: "month",
-      priceId: "price_supporter_1_month",
-      unitAmount: 100,
-      currency: "usd",
-      displayPrice: "$1",
-      displayInterval: "/month",
-      isConfigured: true,
-      isLookupAvailable: true,
-      yearlySavings: null,
-    }
+    const price = supporterMonthlyPrice()
     const tree = await renderMembershipPricingCards({
       mode: "portal",
       portalActionAvailable: false,
@@ -204,5 +185,34 @@ describe("MembershipPricingCards configured price rendering", () => {
       0,
     )
     assert.doesNotMatch(elementText(tree), /Support with|Choose \$1|Manage or change/)
+  })
+
+  it("explains when signed-out membership pricing cannot be verified", async () => {
+    const tree = await renderMembershipPricingCards({
+      mode: "auth",
+      amountChoices: [{
+        id: "support-1",
+        monthAmountCents: 100,
+        yearAmountCents: 1000,
+        prices: {
+          month: supporterMonthlyPrice({
+            priceId: null,
+            unitAmount: null,
+            displayPrice: "Price unavailable",
+            isConfigured: false,
+            isLookupAvailable: false,
+          }),
+        },
+      }],
+    })
+
+    assert.match(elementText(tree), /Membership pricing is temporarily unavailable/)
+    assert.equal(
+      findElements(
+        tree,
+        (element) => element.type === "a" && element.props.href === "/login?callbackUrl=%2Fpricing",
+      ).length,
+      0,
+    )
   })
 })

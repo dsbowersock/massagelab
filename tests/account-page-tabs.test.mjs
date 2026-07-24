@@ -2,6 +2,15 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import {
+  createCompiledModuleLoader,
+  createElement,
+  elementText,
+  findElement,
+  findElements,
+  passThroughElement,
+  renderFunctionComponents,
+} from "./helpers/compiled-module.mjs"
+import {
   accountPageGroups,
   accountPageNavigationItems,
   accountPageSectionIds,
@@ -11,6 +20,9 @@ import {
   getAccountTabHref,
   selectAccountTab,
 } from "../lib/account-page.js"
+import { resolveMembershipPricingMode } from "../lib/membership.js"
+
+const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 
 describe("Account page tab model", () => {
   it("groups existing account sections into stable account navigation without dropping current features", () => {
@@ -111,37 +123,36 @@ describe("Account page tab model", () => {
   })
 
   it("keeps Account pricing and billing Portal actions independently gated", async () => {
-    const source = await readFile(
-      new URL("../app/account/page.tsx", import.meta.url),
-      "utf8",
-    )
+    const terminalWithPortal = await renderMembershipTab({
+      subscriptions: [subscription("canceled")],
+      stripeCustomer: { stripeCustomerId: "cus_123" },
+    })
+    const terminalPricing = membershipPricingProps(terminalWithPortal)
+    assert.equal(terminalPricing.mode, "checkout")
+    assert.equal(terminalPricing.portalActionAvailable, true)
+    assert.equal(billingPortalForms(terminalWithPortal).length, 1)
 
+    const blockingWithPortal = await renderMembershipTab({
+      subscriptions: [subscription("active")],
+      stripeCustomer: { stripeCustomerId: "cus_123" },
+    })
+    const blockingPricing = membershipPricingProps(blockingWithPortal)
+    assert.equal(blockingPricing.mode, "portal")
+    assert.equal(blockingPricing.portalActionAvailable, true)
+    assert.equal(billingPortalForms(blockingWithPortal).length, 1)
+
+    const terminalWithoutPortal = await renderMembershipTab({
+      subscriptions: [subscription("canceled")],
+      stripeCustomer: null,
+    })
+    const unavailablePricing = membershipPricingProps(terminalWithoutPortal)
+    assert.equal(unavailablePricing.mode, "checkout")
+    assert.equal(unavailablePricing.portalActionAvailable, false)
+    assert.equal(billingPortalForms(terminalWithoutPortal).length, 0)
     assert.match(
-      source,
-      /const subscriptionPricingMode = resolveMembershipPricingMode\(\{\s*signedIn: true,\s*subscriptions: membershipSummary\.subscriptions,\s*\}\)/,
+      elementText(terminalWithoutPortal),
+      /Billing management is temporarily unavailable\. Contact support/,
     )
-    assert.match(
-      source,
-      /const canOpenBillingPortal = Boolean\(membershipSummary\.stripeCustomer\)/,
-    )
-    assert.match(
-      source,
-      /const membershipPricingMode = subscriptionPricingMode/,
-    )
-    const pricingCardsTag = source.match(/<MembershipPricingCards\b[^>]*\/>/)?.[0]
-    assert.ok(pricingCardsTag)
-    assert.match(pricingCardsTag, /catalog=\{data\.pricingCatalog\}/)
-    assert.match(
-      pricingCardsTag,
-      /activeMembershipLevel=\{membershipSummary\.entitlements\.paidLevel\}/,
-    )
-    assert.match(pricingCardsTag, /mode=\{membershipPricingMode\}/)
-    assert.match(pricingCardsTag, /portalActionAvailable=\{canOpenBillingPortal\}/)
-    assert.match(
-      source,
-      /!canOpenBillingPortal && membershipSummary\.subscriptions\.length > 0/,
-    )
-    assert.match(source, /Billing management is temporarily unavailable\./)
   })
 
   it("filters account navigation by label, group, and description", () => {
@@ -195,3 +206,131 @@ describe("Account page tab model", () => {
     assert.match(accountShell, /aria-label="Account shortcuts"/)
   })
 })
+
+function subscription(status) {
+  return {
+    id: `sub_${status}`,
+    status,
+    membershipLevel: "SUPPORTER",
+    currentPeriodEnd: null,
+    couponId: null,
+  }
+}
+
+function membershipPricingProps(tree) {
+  const pricingCards = findElement(
+    tree,
+    (element) => element.type === "membership-pricing-cards",
+  )
+  assert.ok(pricingCards)
+  assert.deepEqual(pricingCards.props.catalog, { id: "pricing-catalog" })
+  assert.equal(pricingCards.props.activeMembershipLevel, "SUPPORTER")
+  return pricingCards.props
+}
+
+function billingPortalForms(tree) {
+  return findElements(
+    tree,
+    (element) => (
+      element.type === "form"
+      && element.props.action === "/api/billing/portal"
+      && element.props.method === "post"
+    ),
+  )
+}
+
+/**
+ * Executes the production MembershipTab function while replacing only its I/O
+ * and visual dependencies, so pricing and Portal gating remain behavioral.
+ */
+async function renderMembershipTab({
+  subscriptions,
+  stripeCustomer,
+}) {
+  const accountPageSource = await readFile(
+    new URL("../app/account/page.tsx", import.meta.url),
+    "utf8",
+  )
+  const functionStart = accountPageSource.indexOf("async function MembershipTab")
+  const functionEnd = accountPageSource.indexOf(
+    "\nasync function BackgroundCommerceTab",
+    functionStart,
+  )
+  assert.notEqual(functionStart, -1)
+  assert.notEqual(functionEnd, -1)
+
+  const imports = `
+    import {
+      Button,
+      Card,
+      CardContent,
+      CardDescription,
+      CardHeader,
+      CardTitle,
+      CreditCard,
+      FEATURE_KEYS,
+      MembershipPricingCards,
+      StatusTile,
+      SupporterInterestsPanel,
+      TabPanelIntro,
+      TabsContent,
+      cn,
+      formatAccountDate,
+      formatMembershipLevel,
+      getAccountSurfaceData,
+      resolveMembershipPricingMode,
+      settingsInsetClassName,
+      settingsSurfaceClassName,
+    } from "test-dependencies"
+  `
+  const source = `${imports}\nexport ${accountPageSource.slice(functionStart, functionEnd)}`
+  const Div = passThroughElement("div")
+  const compiledMembershipTab = loadCompiledModule(source, "app/account/membership-tab.test.tsx", {
+    "react/jsx-runtime": {
+      Fragment: Symbol.for("account-membership-tab-test.fragment"),
+      jsx: createElement,
+      jsxs: createElement,
+    },
+    "test-dependencies": {
+      Button: passThroughElement("button"),
+      Card: Div,
+      CardContent: Div,
+      CardDescription: Div,
+      CardHeader: Div,
+      CardTitle: Div,
+      CreditCard: passThroughElement("credit-card"),
+      FEATURE_KEYS: { chimerCustomColors: "chimer_custom_colors" },
+      MembershipPricingCards: passThroughElement("membership-pricing-cards"),
+      StatusTile: passThroughElement("status-tile"),
+      SupporterInterestsPanel: passThroughElement("supporter-interests"),
+      TabPanelIntro: passThroughElement("tab-panel-intro"),
+      TabsContent: passThroughElement("tabs-content"),
+      cn: (...classes) => classes.filter(Boolean).join(" "),
+      formatAccountDate,
+      formatMembershipLevel: (level) => level,
+      getAccountSurfaceData: async () => ({
+        pricingCatalog: { id: "pricing-catalog" },
+        membershipSummary: {
+          entitlements: {
+            features: [],
+            level: "SUPPORTER",
+            paidLevel: "SUPPORTER",
+          },
+          stripeCustomer,
+          subscriptions,
+        },
+      }),
+      resolveMembershipPricingMode,
+      settingsInsetClassName: "settings-inset",
+      settingsSurfaceClassName: "settings-surface",
+    },
+  })
+
+  return renderFunctionComponents(await compiledMembershipTab.MembershipTab({
+    userId: "user_123",
+    sessionUser: {
+      email: "supporter@example.com",
+      name: "Supporter",
+    },
+  }))
+}

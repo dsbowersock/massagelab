@@ -15,24 +15,30 @@ const pricingCardsSource = await readFile(
 
 function TestComponent() {}
 
+/** Builds a complete lookup-verified Supporter monthly price test value. */
+export function supporterMonthlyPrice(overrides = {}) {
+  return {
+    membershipLevel: "SUPPORTER",
+    interval: "month",
+    priceId: "price_supporter_1_month",
+    unitAmount: 100,
+    currency: "usd",
+    displayPrice: "$1",
+    displayInterval: "/month",
+    isConfigured: true,
+    isLookupAvailable: true,
+    yearlySavings: null,
+    ...overrides,
+  }
+}
+
 function defaultAmountChoices() {
   return [{
     id: "support-1",
     monthAmountCents: 100,
     yearAmountCents: 1000,
     prices: {
-      month: {
-        membershipLevel: "SUPPORTER",
-        interval: "month",
-        priceId: "price_supporter_1_month",
-        unitAmount: 100,
-        currency: "usd",
-        displayPrice: "$1",
-        displayInterval: "/month",
-        isConfigured: true,
-        isLookupAvailable: true,
-        yearlySavings: null,
-      },
+      month: supporterMonthlyPrice(),
     },
   }]
 }

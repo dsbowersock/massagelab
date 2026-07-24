@@ -16,7 +16,10 @@ describe("safe operational error codes", () => {
 
   it("falls back without exposing malformed or non-string error fields", () => {
     for (const error of [
+      undefined,
       null,
+      "thrown string",
+      503,
       new Error("private processor message"),
       { code: 42 },
       { code: "" },

@@ -1247,10 +1247,65 @@ describe("Stripe billing helpers", () => {
     assert.equal(createCalls, 0)
   })
 
-  it("fails closed after exhausting the incompatible open-Session expiration budget", async () => {
-    const sessions = Array.from({ length: 26 }, (_, index) => (
+  it("allows one reusable Session plus the full stale-expiration budget", async () => {
+    const reusableSession = membershipCheckoutSession({
+      id: "cs_reusable_with_full_expiration_budget",
+    })
+    const sessions = [
+      reusableSession,
+      ...Array.from({ length: 25 }, (_, index) => (
+        membershipCheckoutSession({ id: `cs_stale_expiration_${index}` })
+      )),
+    ]
+    let lineItemCalls = 0
+    let expireCalls = 0
+    let retrieveCalls = 0
+    let createCalls = 0
+
+    const result = await stripeBilling.createStripeCheckoutSession(
+      membershipCheckoutOptions({
+        stripeClient: {
+          checkout: {
+            sessions: {
+              list: async () => stripeCheckoutSessionList(sessions),
+              listLineItems: async (sessionId) => {
+                lineItemCalls += 1
+                return stripeCheckoutLineItemList({
+                  priceId: sessionId === reusableSession.id
+                    ? DEFAULT_SUPPORTER_PRICE_ID
+                    : SUPPORTER_2_MONTHLY_PRICE_ID,
+                })
+              },
+              expire: async (sessionId) => {
+                expireCalls += 1
+                return { id: sessionId, object: "checkout.session", status: "expired" }
+              },
+              retrieve: async (sessionId) => {
+                retrieveCalls += 1
+                return { id: sessionId, object: "checkout.session", status: "expired" }
+              },
+              create: async () => {
+                createCalls += 1
+                return membershipCheckoutSession({ id: "cs_unexpected_create" })
+              },
+            },
+          },
+        },
+      }),
+    )
+
+    assert.equal(result.id, reusableSession.id)
+    assert.equal(lineItemCalls, 26)
+    assert.equal(expireCalls, 25)
+    assert.equal(retrieveCalls, 25)
+    assert.equal(createCalls, 0)
+  })
+
+  it("fails closed before classifying open Sessions beyond the operation budget", async () => {
+    const sessions = Array.from({ length: 27 }, (_, index) => (
       membershipCheckoutSession({ id: `cs_stale_expiration_${index}` })
     ))
+    let lineItemCalls = 0
     let expireCalls = 0
     let retrieveCalls = 0
     let createCalls = 0
@@ -1261,9 +1316,12 @@ describe("Stripe billing helpers", () => {
           checkout: {
             sessions: {
               list: async () => stripeCheckoutSessionList(sessions),
-              listLineItems: async () => stripeCheckoutLineItemList({
-                priceId: SUPPORTER_2_MONTHLY_PRICE_ID,
-              }),
+              listLineItems: async () => {
+                lineItemCalls += 1
+                return stripeCheckoutLineItemList({
+                  priceId: SUPPORTER_2_MONTHLY_PRICE_ID,
+                })
+              },
               expire: async (sessionId) => {
                 expireCalls += 1
                 return { id: sessionId, object: "checkout.session", status: "expired" }
@@ -1280,11 +1338,12 @@ describe("Stripe billing helpers", () => {
           },
         },
       })),
-      /Session expirations exceeded the safe limit/,
+      /open membership Checkout Session operations exceeded the safe limit/,
     )
 
-    assert.equal(expireCalls, 25)
-    assert.equal(retrieveCalls, 25)
+    assert.equal(lineItemCalls, 0)
+    assert.equal(expireCalls, 0)
+    assert.equal(retrieveCalls, 0)
     assert.equal(createCalls, 0)
   })
 
@@ -1295,7 +1354,7 @@ describe("Stripe billing helpers", () => {
     }
     const sessions = [
       blockingOpenSession,
-      ...Array.from({ length: 25 }, (_, index) => ({
+      ...Array.from({ length: 24 }, (_, index) => ({
         ...membershipCheckoutSession({ id: `cs_stale_after_block_${index}` }),
         created: 1784912400 - index,
       })),
@@ -1954,6 +2013,96 @@ describe("Stripe billing helpers", () => {
     })
   })
 
+  for (const [label, createError] of [
+    [
+      "429 response",
+      Object.assign(new Error("rate limited"), {
+        statusCode: 429,
+        type: "StripeAPIError",
+      }),
+    ],
+    [
+      "Stripe rate-limit type",
+      Object.assign(new Error("rate limited"), {
+        type: "StripeRateLimitError",
+      }),
+    ],
+    [
+      "Stripe connection failure",
+      Object.assign(new Error("connection unavailable"), {
+        type: "StripeConnectionError",
+      }),
+    ],
+  ]) {
+    it(`does not amplify a ${label} with membership reconciliation`, async () => {
+      let listCalls = 0
+      let createCalls = 0
+
+      await assert.rejects(
+        stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+          stripeClient: {
+            checkout: {
+              sessions: {
+                list: async () => {
+                  listCalls += 1
+                  return stripeCheckoutSessionList()
+                },
+                create: async () => {
+                  createCalls += 1
+                  throw createError
+                },
+              },
+            },
+          },
+        })),
+        (error) => error === createError,
+      )
+
+      assert.equal(listCalls, 1)
+      assert.equal(createCalls, 1)
+    })
+  }
+
+  it("retains the original create error as the reconciliation failure cause", async () => {
+    const originalCreateError = Object.assign(
+      new Error("initial create failed"),
+      { statusCode: 500, type: "StripeAPIError" },
+    )
+    const reconciliationError = new Error("reconciliation failed")
+    let listCalls = 0
+    let createCalls = 0
+
+    await assert.rejects(
+      stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+        stripeClient: {
+          checkout: {
+            sessions: {
+              list: async () => {
+                listCalls += 1
+                if (listCalls === 1) {
+                  return stripeCheckoutSessionList()
+                }
+                throw reconciliationError
+              },
+              create: async () => {
+                createCalls += 1
+                throw originalCreateError
+              },
+            },
+          },
+        },
+      })),
+      (error) => {
+        assert.equal(error, reconciliationError)
+        assert.equal(error.cause, originalCreateError)
+        return true
+      },
+    )
+
+    assert.equal(listCalls, 2)
+    assert.equal(createCalls, 1)
+  })
+
   it("rotates the user-scoped key when create recovery finds a newer anchor", async () => {
     const recoveredAnchor = membershipCheckoutSession({
       id: "cs_recovered_anchor",
@@ -1975,8 +2124,8 @@ describe("Stripe billing helpers", () => {
             create: async (_payload, requestOptions) => {
               createAttempts.push(requestOptions.idempotencyKey)
               if (createAttempts.length === 1) {
-                throw Object.assign(new Error("connection closed after create"), {
-                  type: "StripeConnectionError",
+                throw Object.assign(new Error("idempotency collision after create"), {
+                  type: "StripeIdempotencyError",
                 })
               }
               return membershipCheckoutSession({ id: "cs_recovered_create" })
@@ -2001,7 +2150,7 @@ describe("Stripe billing helpers", () => {
   it("retains the original create failure as the recovery retry failure cause", async () => {
     const originalCreateError = Object.assign(
       new Error("initial create failed after Stripe may have committed"),
-      { type: "StripeConnectionError" },
+      { statusCode: 500, type: "StripeAPIError" },
     )
     const retryCreateError = Object.assign(
       new Error("recovery retry failed"),
@@ -2037,6 +2186,53 @@ describe("Stripe billing helpers", () => {
       (error) => {
         assert.equal(error, retryCreateError)
         assert.equal(error.cause, originalCreateError)
+        return true
+      },
+    )
+
+    assert.equal(createCalls, 2)
+  })
+
+  it("does not overwrite an existing recovery retry failure cause", async () => {
+    const originalCreateError = Object.assign(
+      new Error("initial create failed"),
+      { statusCode: 500, type: "StripeAPIError" },
+    )
+    const existingCause = new Error("processor retry cause")
+    const retryCreateError = Object.assign(
+      new Error("recovery retry failed"),
+      { cause: existingCause, type: "StripeAPIError" },
+    )
+    const recoveredAnchor = membershipCheckoutSession({
+      id: "cs_existing_retry_cause_anchor",
+      status: "expired",
+      url: null,
+    })
+    let listCalls = 0
+    let createCalls = 0
+
+    await assert.rejects(
+      stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+        stripeClient: {
+          checkout: {
+            sessions: {
+              list: async () => {
+                listCalls += 1
+                return stripeCheckoutSessionList(
+                  listCalls === 1 ? [] : [recoveredAnchor],
+                )
+              },
+              create: async () => {
+                createCalls += 1
+                throw createCalls === 1 ? originalCreateError : retryCreateError
+              },
+            },
+          },
+        },
+      })),
+      (error) => {
+        assert.equal(error, retryCreateError)
+        assert.equal(error.cause, existingCause)
         return true
       },
     )
@@ -2537,8 +2733,21 @@ function deferred() {
   return { promise, resolve }
 }
 
-/** Bounds manually gated concurrency assertions so a regression fails promptly. */
-async function settlesWithin(promise, label, timeoutMs = 1000) {
+const TEST_SETTLE_TIMEOUT_MS = (() => {
+  const configuredTimeout = Number.parseInt(
+    process.env.MASSAGELAB_TEST_SETTLE_TIMEOUT_MS ?? "",
+    10,
+  )
+  return Number.isInteger(configuredTimeout) && configuredTimeout > 0
+    ? configuredTimeout
+    : 5000
+})()
+
+/**
+ * Bounds manually gated concurrency assertions so regressions still fail
+ * promptly while slower CI can opt into a larger timeout.
+ */
+async function settlesWithin(promise, label, timeoutMs = TEST_SETTLE_TIMEOUT_MS) {
   let timeout
   try {
     return await Promise.race([

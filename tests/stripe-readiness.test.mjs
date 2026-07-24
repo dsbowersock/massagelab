@@ -4,6 +4,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { describe, it } from "node:test"
+import { fileURLToPath } from "node:url"
 import {
   isExplicitTrue,
   REQUIRED_SUPPORTER_PRICE_CONTRACT,
@@ -140,6 +141,25 @@ describe("Stripe readiness background-commerce contract", () => {
       }, expected),
       [
         `${expected.key} must use exclusive tax behavior.`,
+        `${expected.key} Product must use tax code txcd_10000000.`,
+      ],
+    )
+  })
+  it("fails closed with structured Price checks when Stripe retrieval is nullish", () => {
+    const expected = REQUIRED_SUPPORTER_PRICE_CONTRACT[0]
+
+    assert.deepEqual(
+      validateRetrievedMembershipPrice(null, expected),
+      [
+        `${expected.key} points to an inactive Stripe Price.`,
+        `${expected.key} must have unit_amount ${expected.unitAmount}; received missing.`,
+        `${expected.key} must use usd currency; received missing.`,
+        `${expected.key} billing_scheme must be per_unit.`,
+        `${expected.key} must be a ${expected.interval} recurring Price.`,
+        `${expected.key} recurring interval_count must be exactly 1.`,
+        `${expected.key} recurring usage_type must be licensed.`,
+        `${expected.key} must use exclusive tax behavior.`,
+        `${expected.key} must be retrieved with currency_options expanded.`,
         `${expected.key} Product must use tax code txcd_10000000.`,
       ],
     )
@@ -426,9 +446,14 @@ describe("Stripe readiness background-commerce contract", () => {
 
       const result = spawnSync(
         process.execPath,
-        ["scripts/stripe-readiness-check.mjs", `--env-file=${envFile}`],
+        [
+          fileURLToPath(
+            new URL("../scripts/stripe-readiness-check.mjs", import.meta.url),
+          ),
+          `--env-file=${envFile}`,
+        ],
         {
-          cwd: process.cwd(),
+          cwd: directory,
           encoding: "utf8",
           env: environment,
         },

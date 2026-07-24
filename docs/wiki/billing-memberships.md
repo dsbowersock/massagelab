@@ -206,7 +206,17 @@ Automatic Tax.
   membership and background-commerce event contract below.
 - Set `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and the configured price IDs in local development and Vercel.
 - Use the Stripe CLI in test mode to forward webhooks during local checkout testing.
-- Before public paid signup, run `npm run stripe:readiness -- --env-file=/secure/path/massagelab-production.env --live --verify-stripe` against the production Stripe environment. The check must pass without printing secret values, and `npm run stripe:migrate-supporter-membership -- --mode=verify` must pass the reviewed subscriber/catalog/portal inventory before any apply.
+- Before any apply, run `npm run stripe:migrate-supporter-membership -- --mode=verify`
+  against the reviewed production subscriber, catalog, and Customer Portal
+  inventory. This GET-only migration verification is the pre-apply authority.
+- After apply, configure the resulting Supporter Product and six Price IDs in
+  the production environment. Then, before public paid signup, run
+  `npm run stripe:readiness -- --env-file=/secure/path/massagelab-production.env --live --verify-stripe`
+  against production Stripe. For `CREATE_NEW`, this live readiness check is
+  necessarily post-apply because the configured Price IDs do not exist before
+  the migration creates them.
+- Both commands must pass without printing secrets or Stripe identifiers; their
+  operator output is limited to safe readiness messages and checklist codes.
 
 Current local workspace note from May 15, 2026: `.env.local` did not contain Stripe keys or price IDs during implementation planning, so local Checkout and webhook testing will fail until those values are added.
 
