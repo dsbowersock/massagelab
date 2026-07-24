@@ -105,6 +105,9 @@ named review batches; none is a claim about the current final PR head.
 - Ninth review batch after `cd313da4`: `npm run test` passed 1,570/1,570 tests
   across 162 suites; full typecheck, lint, and `git diff --check` also passed
   before the next CodeRabbit pass.
+- Tenth review batch after `e78c1d28`: `npm run test` passed 1,576/1,576 tests
+  across 162 suites; full typecheck, lint, and `git diff --check` also passed
+  before the next CodeRabbit pass.
 - `npm run typecheck`: passed.
 - `npm run lint`: passed.
 - `npm run build`: passed; Prisma generation, production compilation,
@@ -180,13 +183,13 @@ Status: `DONE_WITH_CONCERNS`
 
 Starting HEAD: `11eb2569433c208e5b7ab1a71c7a18a0d72b3a5a`
 
-The compatibility review proved that purpose-less open legacy $9 Supporter,
-Therapist, and Practice Sessions could be reused by the current Supporter
-route. New Sessions now carry the non-secret
-`supporter_membership_v1_checkout_v1` marker. Reuse requires exact customer and
-user ownership, that marker, one of the six current configured Price IDs, the
-expanded `supporter_membership_v1` Product and tax classification, Automatic
-Tax, and required billing-address collection.
+Before this follow-up, purpose-less open legacy $9 Supporter, Therapist, and
+Practice Sessions could be reused by the current Supporter route. New Sessions
+now carry the non-secret `supporter_membership_v1_checkout_v1` marker. Session
+reuse now requires the current Checkout contract and marker, exact customer and
+user ownership, one of the six current configured Price IDs, the expanded
+`supporter_membership_v1` Product and tax classification, Automatic Tax, and
+required billing-address collection.
 
 Every recognized incompatible open membership Session is expired with a
 deterministic idempotency key and then re-retrieved. An ambiguous expiry POST is

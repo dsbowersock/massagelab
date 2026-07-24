@@ -188,6 +188,41 @@ describe("MembershipPricingCards configured price rendering", () => {
     assert.doesNotMatch(elementText(tree), /Support with|Choose \$1|Manage or change/)
   })
 
+  it("omits an empty Portal amount grid while preserving management guidance", async () => {
+    const tree = await renderMembershipPricingCards({
+      mode: "portal",
+      amountChoices: [{
+        id: "support-1",
+        monthAmountCents: 100,
+        yearAmountCents: 1000,
+        prices: {
+          month: supporterMonthlyPrice({
+            unitAmount: null,
+            displayPrice: "Price unavailable",
+            isLookupAvailable: false,
+          }),
+        },
+      }],
+    })
+
+    assert.equal(
+      findElements(
+        tree,
+        (element) => element.type === "div" && element.props.className === "grid gap-3 sm:grid-cols-3",
+      ).length,
+      0,
+    )
+    assert.match(elementText(tree), /Use the Customer Portal to switch among approved Supporter amounts/)
+    assert.match(elementText(tree), /Manage or change support amount/)
+    assert.equal(
+      findElements(
+        tree,
+        (element) => element.type === "form" && element.props.action === "/api/billing/portal",
+      ).length,
+      1,
+    )
+  })
+
   it("explains when signed-out membership pricing cannot be verified", async () => {
     const tree = await renderMembershipPricingCards({
       mode: "auth",

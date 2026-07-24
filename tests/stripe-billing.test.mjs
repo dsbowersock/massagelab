@@ -500,11 +500,14 @@ describe("Stripe billing helpers", () => {
               listCalls.mixed += 1
               return {
                 ...stripeCheckoutSessionList([
-                  membershipCheckoutSession({
-                    id: `cs_expired_page_${listCalls.mixed}`,
-                    status: "expired",
-                    url: null,
-                  }),
+                  {
+                    ...membershipCheckoutSession({
+                      id: `cs_expired_page_${listCalls.mixed}`,
+                      status: "expired",
+                      url: null,
+                    }),
+                    created: 1784912400 + listCalls.mixed,
+                  },
                 ]),
                 has_more: true,
               }
@@ -521,7 +524,7 @@ describe("Stripe billing helpers", () => {
     assert.equal(result.id, "cs_after_expired_history")
     assert.deepEqual(listCalls, { mixed: 10, open: 1, complete: 1 })
     assert.deepEqual(createOptions, {
-      idempotencyKey: "massagelab-membership-checkout:user_123:after:cs_expired_page_1",
+      idempotencyKey: "massagelab-membership-checkout:user_123:after:cs_expired_page_10",
     })
   })
 
@@ -583,27 +586,22 @@ describe("Stripe billing helpers", () => {
     assert.equal(createCalls, 0)
   })
 
-  it("observes membership reconciliation duration without logging identifiers", async () => {
-    const originalInfo = console.info
+  it("observes membership reconciliation duration without logging identifiers", async (context) => {
     const infoCalls = []
-    console.info = (...args) => infoCalls.push(args)
+    context.mock.method(console, "info", (...args) => infoCalls.push(args))
 
-    try {
-      const result = await stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
-        stripeClient: {
-          checkout: {
-            sessions: {
-              list: async () => stripeCheckoutSessionList(),
-              create: async () => membershipCheckoutSession({ id: "cs_observed" }),
-            },
+    const result = await stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+      stripeClient: {
+        checkout: {
+          sessions: {
+            list: async () => stripeCheckoutSessionList(),
+            create: async () => membershipCheckoutSession({ id: "cs_observed" }),
           },
         },
-      }))
+      },
+    }))
 
-      assert.equal(result.id, "cs_observed")
-    } finally {
-      console.info = originalInfo
-    }
+    assert.equal(result.id, "cs_observed")
 
     assert.equal(infoCalls.length, 1)
     assert.equal(infoCalls[0][0], "Stripe membership Checkout reconciliation")
@@ -631,8 +629,7 @@ describe("Stripe billing helpers", () => {
     )
   })
 
-  it("observes Stripe 429 reconciliation failures without logging processor details", async () => {
-    const originalWarn = console.warn
+  it("observes Stripe 429 reconciliation failures without logging processor details", async (context) => {
     const warnCalls = []
     const rateLimitError = Object.assign(
       new Error("sk_live_secret customer cus_123 user user_123"),
@@ -642,26 +639,22 @@ describe("Stripe billing helpers", () => {
         requestId: "req_secret",
       },
     )
-    console.warn = (...args) => warnCalls.push(args)
+    context.mock.method(console, "warn", (...args) => warnCalls.push(args))
 
-    try {
-      await assert.rejects(
-        () => stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
-          stripeClient: {
-            checkout: {
-              sessions: {
-                list: async () => {
-                  throw rateLimitError
-                },
+    await assert.rejects(
+      () => stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+        stripeClient: {
+          checkout: {
+            sessions: {
+              list: async () => {
+                throw rateLimitError
               },
             },
           },
-        })),
-        (error) => error === rateLimitError,
-      )
-    } finally {
-      console.warn = originalWarn
-    }
+        },
+      })),
+      (error) => error === rateLimitError,
+    )
 
     assert.equal(warnCalls.length, 1)
     assert.equal(warnCalls[0][0], "Stripe membership Checkout reconciliation")

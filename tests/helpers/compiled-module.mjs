@@ -78,7 +78,10 @@ export function findElement(tree, predicate) {
     return tree
   }
 
-  for (const value of Object.values(tree.props ?? {})) {
+  const nestedValues = isJsxLikeNode(tree)
+    ? Object.values(tree.props ?? {})
+    : Object.values(tree)
+  for (const value of nestedValues) {
     const match = findElement(value, predicate)
     if (match) {
       return match
@@ -103,7 +106,10 @@ export function findElements(tree, predicate, matches = []) {
   if (isJsxLikeNode(tree) && predicate(tree)) {
     matches.push(tree)
   }
-  for (const value of Object.values(tree.props ?? {})) {
+  const nestedValues = isJsxLikeNode(tree)
+    ? Object.values(tree.props ?? {})
+    : Object.values(tree)
+  for (const value of nestedValues) {
     findElements(value, predicate, matches)
   }
   return matches

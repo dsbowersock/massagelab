@@ -16,6 +16,15 @@ const readinessScriptPath = fileURLToPath(
   new URL("../scripts/stripe-readiness-check.mjs", import.meta.url),
 )
 
+function supporterProduct(overrides = {}) {
+  return {
+    active: true,
+    name: "MassageLab Supporter Membership",
+    tax_code: "txcd_10000000",
+    ...overrides,
+  }
+}
+
 const membershipPrices = {
   STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: "price_supporter_1_monthly",
   STRIPE_SUPPORTER_1_YEARLY_PRICE_ID: "price_supporter_1_yearly",
@@ -70,7 +79,7 @@ function runReadiness(overrides = {}, args = []) {
 }
 
 describe("Stripe readiness background-commerce contract", () => {
-  it("accepts only an explicit true value for readiness attestations", () => {
+  it("accepts boolean true or a trimmed case-insensitive true string and rejects other values", () => {
     assert.deepEqual(
       [true, " TRUE ", false, "1", "yes", undefined].map(isExplicitTrue),
       [true, true, false, false, false, false],
@@ -112,7 +121,7 @@ describe("Stripe readiness background-commerce contract", () => {
         tax_behavior: "exclusive",
         transform_quantity: null,
         currency_options: null,
-        product: { tax_code: "txcd_10000000" },
+        product: supporterProduct(),
       }, expected),
       [`${expected.key} must have unit_amount ${expected.unitAmount}; received 201.`],
     )
@@ -133,7 +142,7 @@ describe("Stripe readiness background-commerce contract", () => {
       tax_behavior: "exclusive",
       transform_quantity: null,
       currency_options: null,
-      product: { tax_code: "txcd_10000000" },
+      product: supporterProduct(),
     }
 
     assert.deepEqual(validateRetrievedMembershipPrice(basePrice, expected), [])
@@ -141,7 +150,7 @@ describe("Stripe readiness background-commerce contract", () => {
       validateRetrievedMembershipPrice({
         ...basePrice,
         tax_behavior: "inclusive",
-        product: { tax_code: "txcd_10202003" },
+        product: supporterProduct({ tax_code: "txcd_10202003" }),
       }, expected),
       [
         `${expected.key} must use exclusive tax behavior.`,
@@ -164,7 +173,7 @@ describe("Stripe readiness background-commerce contract", () => {
         `${expected.key} recurring usage_type must be licensed.`,
         `${expected.key} must use exclusive tax behavior.`,
         `${expected.key} must be retrieved with currency_options expanded.`,
-        `${expected.key} Product must use tax code txcd_10000000.`,
+        `${expected.key} Product must be expanded for validation.`,
       ],
     )
   })
@@ -184,7 +193,7 @@ describe("Stripe readiness background-commerce contract", () => {
       tax_behavior: "exclusive",
       transform_quantity: null,
       currency_options: null,
-      product: { tax_code: "txcd_10000000" },
+      product: supporterProduct(),
     }
     assert.deepEqual(
       validateRetrievedMembershipPrice({
@@ -203,6 +212,14 @@ describe("Stripe readiness background-commerce contract", () => {
       [
         (candidate) => { candidate.active = false },
         `${expected.key} points to an inactive Stripe Price.`,
+      ],
+      [
+        (candidate) => { candidate.product.active = false },
+        `${expected.key} belongs to an inactive Stripe Product.`,
+      ],
+      [
+        (candidate) => { candidate.product.name = "MassageLab Supporter" },
+        `${expected.key} Product name must be MassageLab Supporter Membership.`,
       ],
       [
         (candidate) => { candidate.currency = "cad" },
@@ -462,12 +479,12 @@ describe("Stripe readiness background-commerce contract", () => {
       const dotenvDisabled = spawnSync(
         process.execPath,
         [
-          "scripts/stripe-readiness-check.mjs",
+          readinessScriptPath,
           "--no-dotenv",
           `--env-file=${envFile}`,
         ],
         {
-          cwd: process.cwd(),
+          cwd: directory,
           encoding: "utf8",
           env: environment,
         },

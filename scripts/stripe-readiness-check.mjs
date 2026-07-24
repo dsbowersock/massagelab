@@ -264,22 +264,6 @@ async function verifyStripePrices() {
       for (const failure of validateRetrievedMembershipPrice(price, expected)) {
         addFailure(failure)
       }
-
-      const product = price.product
-      if (!product || typeof product === "string") {
-        addWarning(`${expected.key} could not expand its Product for name/active checks.`)
-      } else {
-        if (!product.active) {
-          addFailure(`${expected.key} belongs to an inactive Stripe Product.`)
-        }
-
-        const productName = String(product.name ?? "").toLowerCase()
-        const expectedLevelName = expected.level.toLowerCase()
-        const productNameMatches = productName.includes(expectedLevelName)
-        if (!productNameMatches) {
-          addWarning(`${expected.key} Product name does not obviously match ${expected.level}.`)
-        }
-      }
     } catch (error) {
       const detail = error instanceof Error ? error.message : "unknown Stripe error"
       addFailure(`${expected.key} could not be retrieved from Stripe: ${detail}`)

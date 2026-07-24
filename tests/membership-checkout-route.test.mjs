@@ -49,7 +49,7 @@ describe("Membership Checkout POST route", () => {
     })
   })
 
-  it("rejects a cross-origin form before validation, legal acceptance, or billing work", async () => {
+  it("rejects a cross-origin form before parsing, validation, legal acceptance, or billing work", async () => {
     const calls = {
       ensureCustomer: 0,
       createCheckout: 0,
@@ -57,24 +57,29 @@ describe("Membership Checkout POST route", () => {
       selectionValidation: 0,
       legalAcceptanceLookup: 0,
     }
+    let formDataCalls = 0
+    const request = {
+      url: "https://massagelab.app/api/billing/checkout",
+      headers: new Headers({
+        "content-type": "application/x-www-form-urlencoded",
+        origin: "https://attacker.example",
+      }),
+      formData: async () => {
+        formDataCalls += 1
+        return new FormData()
+      },
+    }
     const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
       alreadyAccepted: false,
       captureSelectionInputs: true,
       captureGuardCalls: true,
-    }))(formRequest({
-      membershipLevel: "SUPPORTER",
-      supporterAmountChoiceId: "support-1",
-      interval: "month",
-      acceptedLegalDocuments: "membership-billing-refunds:current",
-      billingTermsAccepted: "true",
-    }, {
-      origin: "https://attacker.example",
-    }))
+    }))(request)
 
     assert.deepEqual(response, {
       url: "https://massagelab.app/account?billing=invalid-request",
       status: 303,
     })
+    assert.equal(formDataCalls, 0)
     assert.deepEqual(calls, {
       ensureCustomer: 0,
       createCheckout: 0,
@@ -83,6 +88,40 @@ describe("Membership Checkout POST route", () => {
       legalAcceptanceLookup: 0,
     })
   })
+
+  for (const [label, secFetchSite] of [
+    ["missing Fetch Metadata", null],
+    ["same-site Fetch Metadata", "same-site"],
+  ]) {
+    it(`rejects a form with ${label} when Origin and Referer are absent`, async () => {
+      let formDataCalls = 0
+      const headers = new Headers({
+        "content-type": "application/x-www-form-urlencoded",
+      })
+      if (secFetchSite) {
+        headers.set("sec-fetch-site", secFetchSite)
+      }
+      const request = {
+        url: "https://massagelab.app/api/billing/checkout",
+        headers,
+        formData: async () => {
+          formDataCalls += 1
+          return new FormData()
+        },
+      }
+
+      const response = await createMembershipCheckoutPostHandler(checkoutDependencies({
+        ensureCustomer: 0,
+        createCheckout: 0,
+      }))(request)
+
+      assert.deepEqual(response, {
+        url: "https://massagelab.app/account?billing=invalid-request",
+        status: 303,
+      })
+      assert.equal(formDataCalls, 0)
+    })
+  }
 
   it("accepts a same-origin form and records required legal acceptance", async () => {
     const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
@@ -304,6 +343,7 @@ describe("Membership Checkout POST route", () => {
       url: "https://massagelab.app/api/billing/checkout",
       headers: new Headers({
         "content-type": "multipart/form-data; boundary=broken",
+        "sec-fetch-site": "same-origin",
       }),
       formData: async () => {
         throw new TypeError("Malformed multipart body")
@@ -333,6 +373,7 @@ describe("Membership Checkout POST route", () => {
     const request = {
       headers: new Headers({
         "content-type": "application/x-www-form-urlencoded",
+        "sec-fetch-site": "same-origin",
       }),
       formData: async () => ({
         get: () => {
@@ -688,6 +729,7 @@ function formRequest(body, headers = {}) {
     method: "POST",
     headers: {
       "content-type": "application/x-www-form-urlencoded",
+      "sec-fetch-site": "same-origin",
       ...headers,
     },
     body: new URLSearchParams(body),
@@ -742,7 +784,7 @@ function checkoutDependencies(calls, {
     },
     getSiteUrl: () => "https://massagelab.app",
     isPublicSupporterCheckoutSelection: (input) => {
-      if (captureGuardCalls) calls.selectionValidation += 1
+      if (captureGuardCalls) calls.selectionValidation = (calls.selectionValidation ?? 0) + 1
       if (selectionError) throw selectionError
       if (captureSelectionInputs) {
         calls.validatedSelectionInputs = [
@@ -774,7 +816,7 @@ function checkoutDependencies(calls, {
       return ids
     },
     hasAcceptedCurrentDocuments: async () => {
-      if (captureGuardCalls) calls.legalAcceptanceLookup += 1
+      if (captureGuardCalls) calls.legalAcceptanceLookup = (calls.legalAcceptanceLookup ?? 0) + 1
       if (acceptedDocumentsError) throw acceptedDocumentsError
       return alreadyAccepted
     },
@@ -796,12 +838,12 @@ function checkoutDependencies(calls, {
     hasSubscriptionBlockingNewCheckout,
     prisma,
     ensureStripeCustomerForUser: async () => {
-      calls.ensureCustomer += 1
+      calls.ensureCustomer = (calls.ensureCustomer ?? 0) + 1
       if (ensureCustomerError) throw ensureCustomerError
       return { stripeCustomerId: "cus_123" }
     },
     createStripeCheckoutSession: async (options) => {
-      calls.createCheckout += 1
+      calls.createCheckout = (calls.createCheckout ?? 0) + 1
       calls.checkoutOptions = options
       return checkoutSession
     },

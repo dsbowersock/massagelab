@@ -179,21 +179,23 @@ function PlanCard({
           </p>
         ) : mode === "portal" && portalActionAvailable ? (
           <div className="mt-auto space-y-3">
-            <div className="grid gap-3 sm:grid-cols-3">
-              {availableAmountChoices.map(({ choiceId, price }) => (
-                <div
-                  key={choiceId}
-                  data-membership-portal-amount-choice={choiceId}
-                  className="rounded-md border border-border/80 bg-background/70 p-3 text-center"
-                >
-                  <span className="inline-flex items-baseline justify-center gap-1">
-                    <span className="text-base font-semibold text-foreground">{price.displayPrice}</span>
-                    <span className="text-xs text-muted-foreground">{price.displayInterval}</span>
-                  </span>
-                  <YearlySavings price={price} />
-                </div>
-              ))}
-            </div>
+            {availableAmountChoices.length > 0 ? (
+              <div className="grid gap-3 sm:grid-cols-3">
+                {availableAmountChoices.map(({ choiceId, price }) => (
+                  <div
+                    key={choiceId}
+                    data-membership-portal-amount-choice={choiceId}
+                    className="rounded-md border border-border/80 bg-background/70 p-3 text-center"
+                  >
+                    <span className="inline-flex items-baseline justify-center gap-1">
+                      <span className="text-base font-semibold text-foreground">{price.displayPrice}</span>
+                      <span className="text-xs text-muted-foreground">{price.displayInterval}</span>
+                    </span>
+                    <YearlySavings price={price} />
+                  </div>
+                ))}
+              </div>
+            ) : null}
             <p className="text-sm text-muted-foreground">
               Use the Customer Portal to switch among approved Supporter amounts, update billing details, review invoices, or cancel.
             </p>

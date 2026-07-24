@@ -44,15 +44,15 @@ function createJsonResponse(body, ok = true) {
 
 /**
  * Executes the real panel with a deliberately small hook/JSX model. It
- * supports state, refs, stable callbacks, and the panel's single mount effect;
- * it does not emulate React scheduling, DOM behavior, or changing dependencies.
+ * supports state, refs, stable callbacks, and stable effect dependencies; it
+ * does not emulate React scheduling, DOM behavior, or effect re-execution.
  */
 function createPanelHarness(fetchImpl) {
   const originalFetch = globalThis.fetch
   const state = []
   const refs = []
   const callbacks = []
-  const initializedEffects = new Set()
+  const effects = []
   const pendingEffects = []
   const cleanups = []
   let hookIndex = 0
@@ -120,16 +120,32 @@ function createPanelHarness(fetchImpl) {
   }
 
   /**
-   * Schedules each effect slot once. The callback model above fails loudly if
-   * its dependency arrays change, keeping this narrow effect assumption honest.
+   * Records each effect's dependencies and schedules its slot once. Changed
+   * dependencies fail loudly because this narrow harness does not re-run them.
    */
-  function useEffect(effect) {
+  function useEffect(effect, dependencies) {
     const effectIndex = hookIndex
     hookIndex += 1
 
-    if (!initializedEffects.has(effectIndex)) {
-      initializedEffects.add(effectIndex)
+    if (!Array.isArray(dependencies)) {
+      throw new Error(`SupporterInterestsPanel effect ${effectIndex} must declare dependencies`)
+    }
+
+    if (!(effectIndex in effects)) {
+      effects[effectIndex] = {
+        dependencies: [...dependencies],
+      }
       pendingEffects.push(effect)
+      return
+    }
+
+    const priorDependencies = effects[effectIndex].dependencies
+    const dependenciesChanged = priorDependencies.length !== dependencies.length
+      || dependencies.some((dependency, index) => !Object.is(dependency, priorDependencies[index]))
+    if (dependenciesChanged) {
+      throw new Error(
+        `SupporterInterestsPanel effect ${effectIndex} dependencies changed; extend the harness before emulating effect re-execution`,
+      )
     }
   }
 

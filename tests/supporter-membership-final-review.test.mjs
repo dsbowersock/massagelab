@@ -458,7 +458,12 @@ describe("Supporter membership final-review contracts", () => {
     }
     const readinessCandidate = migrationPrice(
       "price_target_support_1_month",
-      { id: "prod_supporter", tax_code: "txcd_10000000" },
+      {
+        id: "prod_supporter",
+        active: true,
+        name: "MassageLab Supporter Membership",
+        tax_code: "txcd_10000000",
+      },
       expected.unitAmount,
       expected.interval,
       { billing_scheme: "tiered" },

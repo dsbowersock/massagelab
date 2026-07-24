@@ -96,9 +96,14 @@ describe("one-time support Checkout route", () => {
     })
   })
 
-  it("accepts a same-origin form and redirects a successful checkout", async () => {
+  it("charges the catalog amount rather than the submitted form amount", async () => {
     const checkoutInputs = []
+    const lookedUpAmounts = []
     const POST = donationPost({
+      findDonationOption: (amountCents) => {
+        lookedUpAmounts.push(amountCents)
+        return { amountCents: 500 }
+      },
       createCheckoutSession: async (input) => {
         checkoutInputs.push(input)
         return { url: "https://checkout.stripe.com/c/support" }
@@ -110,11 +115,12 @@ describe("one-time support Checkout route", () => {
         "content-type": "application/x-www-form-urlencoded",
         origin: "https://massagelab.app",
       },
-      body: new URLSearchParams({ amountCents: "500" }),
+      body: new URLSearchParams({ amountCents: "999" }),
     })
 
     const response = await POST(request)
 
+    assert.deepEqual(lookedUpAmounts, ["999"])
     assert.deepEqual(checkoutInputs, [{
       amountCents: 500,
       customerEmail: "supporter@example.com",
@@ -235,6 +241,7 @@ describe("one-time support Checkout route", () => {
     const request = {
       headers: new Headers({
         "content-type": "multipart/form-data; boundary=broken",
+        "sec-fetch-site": "same-origin",
       }),
       formData: async () => {
         throw new TypeError("Malformed multipart body")

@@ -196,7 +196,18 @@ function buildConfig(env, requestedMode) {
     therapist: envValue(env, "MASSAGELAB_STRIPE_MIGRATION_THERAPIST_PRODUCT_ID"),
     practice: envValue(env, "MASSAGELAB_STRIPE_MIGRATION_PRACTICE_PRODUCT_ID"),
   }
-  if (!productIds.supporter || !productIds.therapist || !productIds.practice) {
+  const isStripeProductId = (value) => (
+    value.startsWith("prod_")
+    && value.length > "prod_".length
+  )
+  if (
+    !(
+      productIds.supporter === CREATE_NEW_PRODUCT
+      || isStripeProductId(productIds.supporter)
+    )
+    || !isStripeProductId(productIds.therapist)
+    || !isStripeProductId(productIds.practice)
+  ) {
     failureCodes.push("migration_product_ids_required")
   }
 

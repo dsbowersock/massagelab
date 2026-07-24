@@ -2,6 +2,8 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 
 import {
+  compileCommonJsModule,
+  createCompiledModuleLoader,
   createElement,
   elementText,
   findElement,
@@ -10,6 +12,35 @@ import {
 } from "./helpers/compiled-module.mjs"
 
 describe("compiled-module JSX traversal helpers", () => {
+  it("removes an mjs shebang and emits executable CommonJS exports", () => {
+    const compiled = compileCommonJsModule(
+      "#!/usr/bin/env node\nexport const answer: number = 42",
+      "virtual-module.mjs",
+    )
+    const compiledModule = { exports: {} }
+    const executeModule = new Function("require", "exports", "module", compiled)
+
+    executeModule(() => {
+      throw new Error("The shebang export fixture must not require dependencies")
+    }, compiledModule.exports, compiledModule)
+
+    assert.doesNotMatch(compiled, /^#!/)
+    assert.equal(compiledModule.exports.answer, 42)
+  })
+
+  it("loads explicit dependency doubles before attempting a real require", () => {
+    const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
+    const loaded = loadCompiledModule(
+      'import { marker } from "virtual-only-dependency"\nexport const result = marker',
+      "virtual-loader-module.ts",
+      {
+        "virtual-only-dependency": { marker: "dependency-double" },
+      },
+    )
+
+    assert.equal(loaded.result, "dependency-double")
+  })
+
   it("finds the first match across ordered prop values, arrays, and null entries", () => {
     const first = createElement("span", { marker: "first" })
     const second = createElement("span", { marker: "second" })
@@ -48,7 +79,9 @@ describe("compiled-module JSX traversal helpers", () => {
     const tree = createElement("section", {
       leading: {
         marker: "plain-object",
-        props: { nested: target },
+        nested: {
+          deeper: target,
+        },
       },
     })
     const visited = []
@@ -66,9 +99,13 @@ describe("compiled-module JSX traversal helpers", () => {
 
   it("collects JSX matches without passing style or data objects to the predicate", () => {
     const child = createElement("span", { marker: "child" })
+    const nested = createElement("span", { marker: "nested" })
     const tree = createElement("section", {
       style: { color: "orange" },
-      data: { analytics: "plain-object" },
+      data: {
+        analytics: "plain-object",
+        payload: { nested },
+      },
       children: child,
     })
     const visited = []
@@ -80,8 +117,8 @@ describe("compiled-module JSX traversal helpers", () => {
       return element.props.marker != null
     })
 
-    assert.deepEqual(matches, [child])
-    assert.deepEqual(visited, ["section", "span"])
+    assert.deepEqual(matches, [nested, child])
+    assert.deepEqual(visited, ["section", "span", "span"])
   })
 
   it("renders function components in every prop while preserving primitive props", () => {

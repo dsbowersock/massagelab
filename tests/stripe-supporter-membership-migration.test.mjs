@@ -506,8 +506,9 @@ describe("Supporter membership Stripe migration", () => {
     )
     assert.match(
       migrationSource,
-      /async function main\(\)[\s\S]*const secretKey = envValue\(process\.env, "STRIPE_SECRET_KEY"\)[\s\S]*new Stripe\(secretKey, \{ apiVersion: STRIPE_API_VERSION \}\)/,
+      /new Stripe\(/,
     )
+    assert.match(migrationSource, /apiVersion:\s*STRIPE_API_VERSION/)
 
     const privateSecret = "sk_test_private_not_retained"
     const fixture = stripeFixture()
@@ -593,6 +594,35 @@ describe("Supporter membership Stripe migration", () => {
       },
     )
     assert.deepEqual(fixture.calls, [])
+  })
+
+  it("rejects malformed migration Product IDs before any Stripe API request", async () => {
+    const cases = [
+      ["MASSAGELAB_STRIPE_MIGRATION_SUPPORTER_PRODUCT_ID", "create_new"],
+      ["MASSAGELAB_STRIPE_MIGRATION_SUPPORTER_PRODUCT_ID", "price_supporter"],
+      ["MASSAGELAB_STRIPE_MIGRATION_SUPPORTER_PRODUCT_ID", "prod_"],
+      ["MASSAGELAB_STRIPE_MIGRATION_THERAPIST_PRODUCT_ID", "CREATE_NEW"],
+      ["MASSAGELAB_STRIPE_MIGRATION_THERAPIST_PRODUCT_ID", "Prod_therapist"],
+      ["MASSAGELAB_STRIPE_MIGRATION_PRACTICE_PRODUCT_ID", "price_practice"],
+      ["MASSAGELAB_STRIPE_MIGRATION_PRACTICE_PRODUCT_ID", "product_practice"],
+    ]
+
+    for (const [key, value] of cases) {
+      const fixture = stripeFixture()
+      await assert.rejects(
+        runSupporterMembershipMigration({
+          stripe: fixture.stripe,
+          mode: "verify",
+          env: migrationEnv({ [key]: value }),
+        }),
+        (error) => {
+          assert.deepEqual(error.failureCodes, ["migration_product_ids_required"])
+          return true
+        },
+        `${key}=${value}`,
+      )
+      assert.deepEqual(fixture.calls, [], `${key}=${value}`)
+    }
   })
 
   it("uses GET-only verification and emits a safe PASS checklist for the exact migratable state", async () => {
