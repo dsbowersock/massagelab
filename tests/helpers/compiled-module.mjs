@@ -48,6 +48,16 @@ export function createElement(type, props, key) {
   }
 }
 
+/** Identifies the minimal element shape emitted by the test JSX runtime. */
+function isJsxLikeNode(value) {
+  return Boolean(
+    value
+    && typeof value === "object"
+    && Object.hasOwn(value, "type")
+    && Object.hasOwn(value, "props"),
+  )
+}
+
 /** Returns the first matching JSX-like object across every prop value. */
 export function findElement(tree, predicate) {
   if (Array.isArray(tree)) {
@@ -64,7 +74,7 @@ export function findElement(tree, predicate) {
     return null
   }
 
-  if (predicate(tree)) {
+  if (isJsxLikeNode(tree) && predicate(tree)) {
     return tree
   }
 
@@ -90,7 +100,7 @@ export function findElements(tree, predicate, matches = []) {
     return matches
   }
 
-  if (predicate(tree)) {
+  if (isJsxLikeNode(tree) && predicate(tree)) {
     matches.push(tree)
   }
   for (const value of Object.values(tree.props ?? {})) {

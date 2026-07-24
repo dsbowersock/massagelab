@@ -67,8 +67,19 @@ function supporterLookupKeyFor(priceKey) {
   return `massagelab_${priceKey.replaceAll("-", "_")}`
 }
 
-/** Creates a recurring Price with production-equivalent default semantics. */
-function price(id, productId, unitAmount, interval, active = true, metadata = {}) {
+/**
+ * Creates a recurring Price with production-equivalent semantics and optional
+ * populated expanded base-currency evidence.
+ */
+function price(
+  id,
+  productId,
+  unitAmount,
+  interval,
+  active = true,
+  metadata = {},
+  withBaseCurrencyOption = false,
+) {
   const managedPriceKey = metadata.massagelab_supporter_price_key
   return {
     id,
@@ -87,7 +98,14 @@ function price(id, productId, unitAmount, interval, active = true, metadata = {}
     },
     tax_behavior: "exclusive",
     transform_quantity: null,
-    currency_options: null,
+    currency_options: withBaseCurrencyOption
+      ? {
+          usd: {
+            unit_amount: unitAmount,
+            tax_behavior: "exclusive",
+          },
+        }
+      : null,
     lookup_key: managedPriceKey ? supporterLookupKeyFor(managedPriceKey) : null,
     metadata,
   }
@@ -336,7 +354,12 @@ function stripeFixture() {
           billing_scheme: "per_unit",
           tax_behavior: "exclusive",
           transform_quantity: null,
-          currency_options: null,
+          currency_options: {
+            usd: {
+              unit_amount: payload.unit_amount,
+              tax_behavior: payload.tax_behavior,
+            },
+          },
           ...structuredClone(payload),
           recurring: {
             interval_count: 1,
@@ -1218,6 +1241,32 @@ describe("Supporter membership Stripe migration", () => {
     assert.deepEqual(mutationCalls(fixture), [])
   })
 
+  it("fails closed when a Stripe list exceeds the finite page bound", async () => {
+    const fixture = stripeFixture()
+    let pages = 0
+    fixture.stripe.subscriptions.list = async () => {
+      pages += 1
+      return {
+        data: [{ id: `sub_canceled_page_${pages}`, status: "canceled" }],
+        has_more: true,
+      }
+    }
+
+    await assert.rejects(
+      runSupporterMembershipMigration({
+        stripe: fixture.stripe,
+        mode: "verify",
+        env: migrationEnv(),
+      }),
+      (error) => {
+        assert.deepEqual(error.failureCodes, ["stripe_pagination_incomplete"])
+        return true
+      },
+    )
+    assert.equal(pages, 10_000)
+    assert.deepEqual(mutationCalls(fixture), [])
+  })
+
   it("rejects non-boolean Stripe pagination completion flags", async () => {
     for (const hasMore of [undefined, null, 0, "false"]) {
       const fixture = stripeFixture()
@@ -1335,6 +1384,22 @@ describe("Supporter membership Stripe migration", () => {
           eur: { unit_amount: 100 },
         }
       },
+      (candidate) => {
+        candidate.currency_options = {
+          usd: {
+            unit_amount: 101,
+            tax_behavior: "exclusive",
+          },
+        }
+      },
+      (candidate) => {
+        candidate.currency_options = {
+          usd: {
+            unit_amount: 100,
+            tax_behavior: "inclusive",
+          },
+        }
+      },
     ]
 
     for (const mutate of mutations) {
@@ -1418,6 +1483,7 @@ describe("Supporter membership Stripe migration", () => {
         massagelab_catalog: "supporter_membership_v1",
         massagelab_supporter_price_key: "support-1-month",
       },
+      true,
     )
     selected.lookup_key = "massagelab_support_1_month"
     fixture.prices.set(selected.id, selected)

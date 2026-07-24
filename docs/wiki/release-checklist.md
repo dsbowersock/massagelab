@@ -81,8 +81,8 @@ tests and confirm:
   or interval-switch path is verified.
 - The subscription is canceled or refunded as appropriate after the smoke test.
 - The one-time support path starts Stripe Checkout, returns to `/pricing`,
-  states that it is not charitable or tax-deductible, and does not create a
-  membership entitlement.
+  states that it does not purchase goods or services, create a membership, or
+  unlock features, and states that it is not charitable or tax-deductible.
 
 Retain the six legacy runtime Price mappings until subscriber inventory proves none remain and webhook reconciliation is final.
 Those mappings are historical normalization inputs only; they cannot replace

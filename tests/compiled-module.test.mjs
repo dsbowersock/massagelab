@@ -43,6 +43,47 @@ describe("compiled-module JSX traversal helpers", () => {
     assert.deepEqual(findElements(null, () => true), [])
   })
 
+  it("calls the first-match predicate only for JSX-like nodes while traversing object props", () => {
+    const target = createElement("span", { marker: "target" })
+    const tree = createElement("section", {
+      leading: {
+        marker: "plain-object",
+        props: { nested: target },
+      },
+    })
+    const visited = []
+
+    const match = findElement(tree, (element) => {
+      assert.equal(Object.hasOwn(element, "type"), true)
+      assert.equal(Object.hasOwn(element, "props"), true)
+      visited.push(element.type)
+      return element.props.marker === "target"
+    })
+
+    assert.equal(match, target)
+    assert.deepEqual(visited, ["section", "span"])
+  })
+
+  it("collects JSX matches without passing style or data objects to the predicate", () => {
+    const child = createElement("span", { marker: "child" })
+    const tree = createElement("section", {
+      style: { color: "orange" },
+      data: { analytics: "plain-object" },
+      children: child,
+    })
+    const visited = []
+
+    const matches = findElements(tree, (element) => {
+      assert.equal(Object.hasOwn(element, "type"), true)
+      assert.equal(Object.hasOwn(element, "props"), true)
+      visited.push(element.type)
+      return element.props.marker != null
+    })
+
+    assert.deepEqual(matches, [child])
+    assert.deepEqual(visited, ["section", "span"])
+  })
+
   it("renders function components in every prop while preserving primitive props", () => {
     const onClick = () => {}
     const style = { color: "orange" }

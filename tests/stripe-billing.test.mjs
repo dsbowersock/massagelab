@@ -1690,12 +1690,13 @@ describe("Stripe billing helpers", () => {
     assert.equal(createCalls, 0)
   })
 
-  it("fails closed when legacy expiration cannot be confirmed", async () => {
+  it("preserves a failed legacy expiration retrieval as the confirmation cause", async () => {
     const legacySession = membershipCheckoutSession({
-      id: "cs_legacy_still_open",
+      id: "cs_legacy_retrieve_failure",
       purpose: null,
     })
-    let createCalls = 0
+    const retrievalError = new Error("Stripe retrieval unavailable")
+
     await assert.rejects(
       stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
         stripeClient: {
@@ -1707,6 +1708,39 @@ describe("Stripe billing helpers", () => {
                 object: "checkout.session",
                 status: "expired",
               }),
+              retrieve: async () => {
+                throw retrievalError
+              },
+              create: async () => {
+                throw new Error("Checkout creation must not run")
+              },
+            },
+          },
+        },
+      })),
+      (error) => (
+        error.message === "Unable to confirm legacy membership Checkout expiration."
+        && error.cause === retrievalError
+      ),
+    )
+  })
+
+  it("fails closed when legacy expiration cannot be confirmed", async () => {
+    const legacySession = membershipCheckoutSession({
+      id: "cs_legacy_still_open",
+      purpose: null,
+    })
+    const expirationError = new Error("Stripe expiration response was lost")
+    let createCalls = 0
+    await assert.rejects(
+      stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+        stripeClient: {
+          checkout: {
+            sessions: {
+              list: async () => stripeCheckoutSessionList([legacySession]),
+              expire: async () => {
+                throw expirationError
+              },
               retrieve: async (sessionId) => ({
                 id: sessionId,
                 object: "checkout.session",
@@ -1725,7 +1759,10 @@ describe("Stripe billing helpers", () => {
           },
         },
       })),
-      /Unable to confirm legacy membership Checkout expiration/,
+      (error) => (
+        error.message === "Unable to confirm legacy membership Checkout expiration."
+        && error.cause === expirationError
+      ),
     )
     assert.equal(createCalls, 0)
   })
@@ -2416,6 +2453,10 @@ describe("Stripe billing helpers", () => {
       mode: "subscription",
       metadata: { purpose: "membership" },
     }), "membership")
+    assert.equal(stripeBilling.classifyStripeCheckoutSessionPurpose({
+      mode: "payment",
+      metadata: { purpose: "membership" },
+    }), "unknown")
     assert.equal(stripeBilling.classifyStripeCheckoutSessionPurpose({
       mode: "payment",
       metadata: { purpose: "another_product" },

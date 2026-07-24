@@ -7,6 +7,7 @@ import {
 import {
   renderMembershipPricingCards,
   supporterMonthlyPrice,
+  supporterYearlyPrice,
 } from "./helpers/membership-pricing-cards.mjs"
 
 describe("MembershipPricingCards configured price rendering", () => {
@@ -215,4 +216,38 @@ describe("MembershipPricingCards configured price rendering", () => {
       0,
     )
   })
+
+  it("surfaces annual savings in checkout, pre-auth, and Portal modes", async () => {
+    const yearlyPrice = supporterYearlyPrice()
+    const amountChoices = [{
+      id: "support-1",
+      monthAmountCents: 100,
+      yearAmountCents: 1000,
+      prices: { year: yearlyPrice },
+    }]
+    const cardsByMode = await Promise.all(
+      ["checkout", "auth", "portal"].map((mode) => (
+        renderMembershipPricingCards({ mode, interval: "year", amountChoices })
+      )),
+    )
+
+    for (const cards of cardsByMode) {
+      assert.match(elementText(cards), /Save \$2 per year vs monthly/)
+    }
+  })
+
+  for (const mode of ["checkout", "auth", "portal"]) {
+    it(`explains an empty ${mode} pricing catalog`, async () => {
+      const tree = await renderMembershipPricingCards({
+        mode,
+        amountChoices: [],
+      })
+
+      assert.match(elementText(tree), /Membership pricing is temporarily unavailable/)
+      assert.doesNotMatch(
+        elementText(tree),
+        /Manage or change support amount|Support with|Choose \$/,
+      )
+    })
+  }
 })

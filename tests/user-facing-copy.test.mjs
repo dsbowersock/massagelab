@@ -12,6 +12,7 @@ describe("user-facing copy", () => {
       homePage,
       donationRoute,
       billingGuide,
+      releaseChecklist,
       loginForm,
       registerForm,
     ] = await Promise.all([
@@ -22,6 +23,7 @@ describe("user-facing copy", () => {
       readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
       readFile(new URL("../app/api/billing/donation/route.ts", import.meta.url), "utf8"),
       readFile(new URL("../docs/wiki/billing-memberships.md", import.meta.url), "utf8"),
+      readFile(new URL("../docs/wiki/release-checklist.md", import.meta.url), "utf8"),
       readFile(new URL("../app/login/login-form.tsx", import.meta.url), "utf8"),
       readFile(new URL("../app/register/register-form.tsx", import.meta.url), "utf8"),
     ])
@@ -37,7 +39,7 @@ describe("user-facing copy", () => {
     assert.doesNotMatch(pricingCards, /Price not configured/)
 
     assert.match(pricingPage, /one-time support checkout right now/)
-    assert.match(pricingPage, /One-time support does not create a membership or unlock features\. It is not a charitable donation and is not tax-deductible\./)
+    assert.match(pricingPage, /One-time support does not purchase goods or services, create a membership, or unlock features\. It is not a charitable donation and is not tax-deductible\./)
     assert.match(pricingPage, /title="Memberships and one-time support fund the alpha without ads"/)
     assert.doesNotMatch(pricingPage, /Donations are one-time Stripe payments/)
     assert.doesNotMatch(pricingPage, /\bdonations?\s+(?:checkout|payment|amount)\b/i)
@@ -57,6 +59,10 @@ describe("user-facing copy", () => {
     assert.match(
       normalizedBillingGuide,
       /Automatic Tax remains disabled for one-time support until a tax professional confirms its classification\. That decision is separate from `txcd_10000000`, which applies to permanent digital backgrounds\./,
+    )
+    assert.match(
+      releaseChecklist.replace(/\s+/g, " "),
+      /does not purchase goods or services, create a membership, or unlock features, and states that it is not charitable or tax-deductible/,
     )
 
     assert.match(loginForm, /Google sign-in is not available right now/)

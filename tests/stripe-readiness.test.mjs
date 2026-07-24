@@ -12,6 +12,10 @@ import {
 } from "../lib/stripe-readiness.js"
 import { recurringPriceSemanticMismatches } from "../lib/stripe-price-contract.js"
 
+const readinessScriptPath = fileURLToPath(
+  new URL("../scripts/stripe-readiness-check.mjs", import.meta.url),
+)
+
 const membershipPrices = {
   STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: "price_supporter_1_monthly",
   STRIPE_SUPPORTER_1_YEARLY_PRICE_ID: "price_supporter_1_yearly",
@@ -58,7 +62,7 @@ function readinessEnvironment(overrides = {}) {
  * satisfy or alter an individual deployment-contract test.
  */
 function runReadiness(overrides = {}, args = []) {
-  return spawnSync(process.execPath, ["scripts/stripe-readiness-check.mjs", "--no-dotenv", ...args], {
+  return spawnSync(process.execPath, [readinessScriptPath, "--no-dotenv", ...args], {
     cwd: process.cwd(),
     encoding: "utf8",
     env: readinessEnvironment(overrides),
@@ -186,7 +190,10 @@ describe("Stripe readiness background-commerce contract", () => {
       validateRetrievedMembershipPrice({
         ...basePrice,
         currency_options: {
-          usd: { unit_amount: expected.unitAmount },
+          usd: {
+            unit_amount: expected.unitAmount,
+            tax_behavior: "exclusive",
+          },
         },
       }, expected),
       [],
@@ -230,8 +237,36 @@ describe("Stripe readiness background-commerce contract", () => {
       [
         (candidate) => {
           candidate.currency_options = {
-            usd: { unit_amount: expected.unitAmount },
-            eur: { unit_amount: expected.unitAmount },
+            usd: {
+              unit_amount: expected.unitAmount + 1,
+              tax_behavior: "exclusive",
+            },
+          }
+        },
+        `${expected.key} must not define additional currency options.`,
+      ],
+      [
+        (candidate) => {
+          candidate.currency_options = {
+            usd: {
+              unit_amount: expected.unitAmount,
+              tax_behavior: "inclusive",
+            },
+          }
+        },
+        `${expected.key} must not define additional currency options.`,
+      ],
+      [
+        (candidate) => {
+          candidate.currency_options = {
+            usd: {
+              unit_amount: expected.unitAmount,
+              tax_behavior: "exclusive",
+            },
+            eur: {
+              unit_amount: expected.unitAmount,
+              tax_behavior: "exclusive",
+            },
           }
         },
         `${expected.key} must not define additional currency options.`,
@@ -447,9 +482,7 @@ describe("Stripe readiness background-commerce contract", () => {
       const result = spawnSync(
         process.execPath,
         [
-          fileURLToPath(
-            new URL("../scripts/stripe-readiness-check.mjs", import.meta.url),
-          ),
+          readinessScriptPath,
           `--env-file=${envFile}`,
         ],
         {

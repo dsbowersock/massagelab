@@ -11,6 +11,7 @@ import {
   isPublicSupporterCheckoutSelection,
   resolveStripePriceId,
   sortMembershipSubscriptionsForDisplay,
+  supporterPriceEnvironmentKey,
 } from "../lib/membership.js"
 import * as membership from "../lib/membership.js"
 
@@ -137,6 +138,10 @@ describe("Membership and entitlement helpers", () => {
       { id: "support-2", monthAmountCents: 200, yearAmountCents: 2000 },
       { id: "support-5", monthAmountCents: 500, yearAmountCents: 5000 },
     ])
+    assert.equal(
+      supporterPriceEnvironmentKey("support-2", "year"),
+      "STRIPE_SUPPORTER_2_YEARLY_PRICE_ID",
+    )
 
     for (const choice of SUPPORTER_AMOUNT_CHOICES) {
       const suffix = choice.id.replace("support-", "")

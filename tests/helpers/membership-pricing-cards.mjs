@@ -6,6 +6,7 @@ import {
   passThroughElement,
   renderFunctionComponents,
 } from "./compiled-module.mjs"
+import { resolveMembershipPriceForInterval } from "../../lib/membership-pricing.js"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const pricingCardsSource = await readFile(
@@ -32,6 +33,25 @@ export function supporterMonthlyPrice(overrides = {}) {
   }
 }
 
+/** Builds a complete lookup-verified Supporter yearly price test value. */
+export function supporterYearlyPrice(overrides = {}) {
+  return supporterMonthlyPrice({
+    interval: "year",
+    priceId: "price_supporter_1_year",
+    unitAmount: 1000,
+    displayPrice: "$10",
+    displayInterval: "/year",
+    yearlySavings: {
+      amount: 200,
+      currency: "usd",
+      displayAmount: "$2",
+      percent: 17,
+      description: "Save $2 per year vs monthly",
+    },
+    ...overrides,
+  })
+}
+
 function defaultAmountChoices() {
   return [{
     id: "support-1",
@@ -53,6 +73,7 @@ export function renderMembershipPricingCards({
   activeMembershipLevel = mode === "portal" ? "SUPPORTER" : null,
   amountChoices = defaultAmountChoices(),
   portalActionAvailable = true,
+  interval = "month",
 }) {
   const Div = passThroughElement("div")
   const Button = passThroughElement("button")
@@ -107,9 +128,7 @@ export function renderMembershipPricingCards({
         legalDocumentAcceptanceId: () => "membership-billing-refunds:test",
       },
       "@/lib/membership-pricing": {
-        resolveMembershipPriceForInterval: (choice, interval) => (
-          choice.prices?.[interval] ?? null
-        ),
+        resolveMembershipPriceForInterval,
       },
       "@/lib/utils": {
         cn: (...classes) => classes.filter(Boolean).join(" "),
@@ -117,11 +136,11 @@ export function renderMembershipPricingCards({
     },
   )
   const catalog = {
-    defaultInterval: "month",
+    defaultInterval: interval,
     intervals: [{
-      id: "month",
-      label: "Monthly",
-      nudge: "Flexible",
+      id: interval,
+      label: interval === "year" ? "Annual" : "Monthly",
+      nudge: interval === "year" ? "Best value" : "Flexible",
     }],
     plans: [{
       membershipLevel: "SUPPORTER",

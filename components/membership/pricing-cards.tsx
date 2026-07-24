@@ -172,8 +172,12 @@ function PlanCard({
             items={plan.roadmapNotes}
           />
         </div>
-        {/* Blocking subscriptions must change support through Portal, never a new Checkout. */}
-        {mode === "portal" && portalActionAvailable ? (
+        {/* Blocking subscriptions use Portal only; every mode fails closed for an empty catalog. */}
+        {displayedAmountChoices.length === 0 ? (
+          <p className="mt-auto text-sm text-muted-foreground">
+            Membership pricing is temporarily unavailable. Please try again later.
+          </p>
+        ) : mode === "portal" && portalActionAvailable ? (
           <div className="mt-auto space-y-3">
             <div className="grid gap-3 sm:grid-cols-3">
               {availableAmountChoices.map(({ choiceId, price }) => (
@@ -186,6 +190,7 @@ function PlanCard({
                     <span className="text-base font-semibold text-foreground">{price.displayPrice}</span>
                     <span className="text-xs text-muted-foreground">{price.displayInterval}</span>
                   </span>
+                  <YearlySavings price={price} />
                 </div>
               ))}
             </div>
@@ -207,10 +212,6 @@ function PlanCard({
           <p className="mt-auto text-sm text-muted-foreground">
             Billing management is temporarily unavailable. Contact support if you need help with an existing membership.
           </p>
-        ) : mode === "auth" && displayedAmountChoices.length === 0 ? (
-          <p className="mt-auto text-sm text-muted-foreground">
-            Membership pricing is temporarily unavailable. Please try again later.
-          </p>
         ) : (
           <div className="mt-auto grid gap-3 sm:grid-cols-3">
             {displayedAmountChoices.map(({ choiceId, price }) => (
@@ -227,6 +228,15 @@ function PlanCard({
       </CardContent>
     </Card>
   )
+}
+
+/** Displays the catalog-authored annual comparison wherever a yearly price appears. */
+function YearlySavings({ price }: { price: MembershipPrice }) {
+  return price.yearlySavings ? (
+    <span className="block text-xs text-muted-foreground">
+      {price.yearlySavings.description}
+    </span>
+  ) : null
 }
 
 function FeatureGroup({
@@ -272,7 +282,12 @@ function SupporterAmountChoice({
   if (mode === "auth") {
     return (
       <MetalAttentionButton asChild variant="attention" className="w-full" metalFullWidth>
-        <Link href="/login?callbackUrl=%2Fpricing">Choose {price.displayPrice}</Link>
+        <Link href="/login?callbackUrl=%2Fpricing">
+          <span>
+            Choose {price.displayPrice}
+            <YearlySavings price={price} />
+          </span>
+        </Link>
       </MetalAttentionButton>
     )
   }
@@ -320,7 +335,10 @@ function SupporterAmountChoice({
         metalFullWidth
         disabled={!price.isLookupAvailable}
       >
-        Support with {price.displayPrice}
+        <span>
+          Support with {price.displayPrice}
+          <YearlySavings price={price} />
+        </span>
       </MetalAttentionButton>
     </form>
   )

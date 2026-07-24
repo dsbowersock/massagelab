@@ -19,6 +19,7 @@ const CREATE_NEW_PRODUCT = "CREATE_NEW"
 const NO_ALLOWED_SUBSCRIPTION = "none"
 const SUPPORTER_PRODUCT_IDEMPOTENCY_KEY = "massagelab-supporter-membership-v1-product"
 const TERMINAL_SUBSCRIPTION_STATUSES = new Set(["canceled", "incomplete_expired"])
+const MAX_STRIPE_LIST_PAGES = 10_000
 const APPLY_RETRY_DELAYS_MS = Object.freeze([250, 500])
 const RECOVERABLE_APPLY_VERIFICATION_FAILURES = new Set([
   "supporter_product_mutation_unverified",
@@ -262,7 +263,7 @@ async function listAll(listPage, params) {
   const seenCursors = new Set()
   let startingAfter = null
 
-  while (true) {
+  for (let pageNumber = 0; pageNumber < MAX_STRIPE_LIST_PAGES; pageNumber += 1) {
     const page = await listPage({
       ...params,
       ...(startingAfter ? { starting_after: startingAfter } : {}),
@@ -285,6 +286,8 @@ async function listAll(listPage, params) {
     seenCursors.add(nextCursor)
     startingAfter = nextCursor
   }
+
+  throw new MigrationError(["stripe_pagination_incomplete"])
 }
 
 async function retrieveOrMissing(retrieve, id) {

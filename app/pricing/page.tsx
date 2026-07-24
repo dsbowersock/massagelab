@@ -101,7 +101,7 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
           contentClassName="gap-4"
         >
           <p className="text-sm text-muted-foreground">
-            One-time support does not create a membership or unlock features. It is not a charitable donation and is not tax-deductible.
+            One-time support does not purchase goods or services, create a membership, or unlock features. It is not a charitable donation and is not tax-deductible.
           </p>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {DONATION_OPTIONS.map((option, index) => (

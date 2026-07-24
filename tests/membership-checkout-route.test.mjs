@@ -50,10 +50,17 @@ describe("Membership Checkout POST route", () => {
   })
 
   it("rejects a cross-origin form before validation, legal acceptance, or billing work", async () => {
-    const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
+    const calls = {
+      ensureCustomer: 0,
+      createCheckout: 0,
+      membershipLookup: 0,
+      selectionValidation: 0,
+      legalAcceptanceLookup: 0,
+    }
     const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
       alreadyAccepted: false,
       captureSelectionInputs: true,
+      captureGuardCalls: true,
     }))(formRequest({
       membershipLevel: "SUPPORTER",
       supporterAmountChoiceId: "support-1",
@@ -72,6 +79,8 @@ describe("Membership Checkout POST route", () => {
       ensureCustomer: 0,
       createCheckout: 0,
       membershipLookup: 0,
+      selectionValidation: 0,
+      legalAcceptanceLookup: 0,
     })
   })
 
@@ -575,7 +584,7 @@ describe("Membership Checkout POST route", () => {
     })
     assert.deepEqual(logged, [[
       "Unable to start membership checkout",
-      { code: "customer_lookup_failed" },
+      { code: "unexpected_error" },
     ]])
   })
 
@@ -611,7 +620,7 @@ describe("Membership Checkout POST route", () => {
       })
       assert.deepEqual(logged, [[
         "Unable to start membership checkout",
-        { code: `${errorOption}_failed` },
+        { code: "unexpected_error" },
       ]])
     })
   }
@@ -645,7 +654,7 @@ describe("Membership Checkout POST route", () => {
       assert.equal(calls.createCheckout, 0)
       assert.deepEqual(logged, [[
         "Unable to start membership checkout",
-        { code: `${errorOption}_failed` },
+        { code: "unexpected_error" },
       ]])
     })
   }
@@ -704,6 +713,7 @@ function checkoutDependencies(calls, {
   alreadyAccepted = true,
   missingLegalDocuments = [],
   captureSelectionInputs = false,
+  captureGuardCalls = false,
 } = {}) {
   const prisma = {
     user: {
@@ -732,6 +742,7 @@ function checkoutDependencies(calls, {
     },
     getSiteUrl: () => "https://massagelab.app",
     isPublicSupporterCheckoutSelection: (input) => {
+      if (captureGuardCalls) calls.selectionValidation += 1
       if (selectionError) throw selectionError
       if (captureSelectionInputs) {
         calls.validatedSelectionInputs = [
@@ -763,6 +774,7 @@ function checkoutDependencies(calls, {
       return ids
     },
     hasAcceptedCurrentDocuments: async () => {
+      if (captureGuardCalls) calls.legalAcceptanceLookup += 1
       if (acceptedDocumentsError) throw acceptedDocumentsError
       return alreadyAccepted
     },

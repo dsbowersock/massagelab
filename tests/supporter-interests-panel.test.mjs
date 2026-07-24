@@ -216,27 +216,38 @@ function findInterestCheckbox(tree, interestId) {
   )
 }
 
-function findLiveRegion(tree) {
+function findLiveRegion(tree, politeness) {
   return findElement(
     tree,
-    (element) => element.props?.["aria-live"] != null,
+    (element) => element.props?.["aria-live"] === politeness,
   )
 }
 
-function liveRegionMessage(tree) {
+function liveRegionMessageElement(tree, politeness) {
   const message = findElement(
-    findLiveRegion(tree),
+    findLiveRegion(tree, politeness),
     (element) => element.type === "p",
   )
-  return message?.props.children ?? ""
+  return message ?? null
+}
+
+function liveRegionMessage(tree, politeness) {
+  return liveRegionMessageElement(tree, politeness)?.props.children ?? ""
 }
 
 function assertLiveRegion(tree, politeness) {
-  const region = findLiveRegion(tree)
+  const region = findLiveRegion(tree, politeness)
   assert.ok(region)
   assert.equal(region.props.role, undefined)
   assert.equal(region.props["aria-live"], politeness)
   assert.equal(region.props["aria-atomic"], "true")
+}
+
+function findInterestGrid(tree) {
+  return findElement(
+    tree,
+    (element) => Object.hasOwn(element.props ?? {}, "aria-busy"),
+  )
 }
 
 function findRetryButton(tree) {
@@ -275,19 +286,23 @@ describe("SupporterInterestsPanel", () => {
     try {
       harness.mount()
       assertLiveRegion(harness.getTree(), "polite")
-      assert.equal(liveRegionMessage(harness.getTree()), "")
+      assertLiveRegion(harness.getTree(), "assertive")
+      assert.equal(liveRegionMessage(harness.getTree(), "polite"), "")
+      assert.equal(liveRegionMessage(harness.getTree(), "assertive"), "")
       await settleAsyncWork()
       harness.render()
 
       assert.equal(findInterestCheckbox(harness.getTree(), initialInterest).props.checked, true)
       assert.equal(findInterestCheckbox(harness.getTree(), addedInterest).props.checked, false)
       assert.equal(findInterestCheckbox(harness.getTree(), addedInterest).props.disabled, false)
+      assert.equal(findInterestGrid(harness.getTree()).props["aria-busy"], false)
 
       findInterestCheckbox(harness.getTree(), addedInterest).props.onCheckedChange(true)
       harness.render()
 
       assert.equal(findInterestCheckbox(harness.getTree(), addedInterest).props.checked, true)
-      assert.equal(findInterestCheckbox(harness.getTree(), addedInterest).props.disabled, true)
+      assert.equal(findInterestCheckbox(harness.getTree(), addedInterest).props.disabled, false)
+      assert.equal(findInterestGrid(harness.getTree()).props["aria-busy"], true)
 
       await settleAsyncWork()
       harness.render()
@@ -300,8 +315,14 @@ describe("SupporterInterestsPanel", () => {
       assert.equal(findInterestCheckbox(harness.getTree(), initialInterest).props.checked, true)
       assert.equal(findInterestCheckbox(harness.getTree(), addedInterest).props.checked, true)
       assert.equal(findInterestCheckbox(harness.getTree(), addedInterest).props.disabled, false)
+      assert.equal(findInterestGrid(harness.getTree()).props["aria-busy"], false)
       assertLiveRegion(harness.getTree(), "polite")
-      assert.equal(liveRegionMessage(harness.getTree()), "Roadmap interests saved.")
+      assertLiveRegion(harness.getTree(), "assertive")
+      assert.equal(
+        liveRegionMessage(harness.getTree(), "polite"),
+        "Roadmap interests saved.",
+      )
+      assert.equal(liveRegionMessage(harness.getTree(), "assertive"), "")
     } finally {
       harness.dispose()
     }
@@ -338,7 +359,10 @@ describe("SupporterInterestsPanel", () => {
 
       assert.equal(findInterestCheckbox(harness.getTree(), initialInterest).props.checked, true)
       assert.equal(findInterestCheckbox(harness.getTree(), addedInterest).props.checked, true)
-      assert.equal(liveRegionMessage(harness.getTree()), "Roadmap interests saved.")
+      assert.equal(
+        liveRegionMessage(harness.getTree(), "polite"),
+        "Roadmap interests saved.",
+      )
     } finally {
       harness.dispose()
     }
@@ -387,7 +411,10 @@ describe("SupporterInterestsPanel", () => {
 
       assert.equal(findInterestCheckbox(harness.getTree(), firstAddedInterest).props.checked, true)
       assert.equal(findInterestCheckbox(harness.getTree(), latestAddedInterest).props.checked, true)
-      assert.equal(liveRegionMessage(harness.getTree()), "Roadmap interests saved.")
+      assert.equal(
+        liveRegionMessage(harness.getTree(), "polite"),
+        "Roadmap interests saved.",
+      )
 
       firstSave.resolve(createJsonResponse({
         appSettings: {
@@ -399,7 +426,10 @@ describe("SupporterInterestsPanel", () => {
 
       assert.equal(findInterestCheckbox(harness.getTree(), firstAddedInterest).props.checked, true)
       assert.equal(findInterestCheckbox(harness.getTree(), latestAddedInterest).props.checked, true)
-      assert.equal(liveRegionMessage(harness.getTree()), "Roadmap interests saved.")
+      assert.equal(
+        liveRegionMessage(harness.getTree(), "polite"),
+        "Roadmap interests saved.",
+      )
     } finally {
       harness.dispose()
     }
@@ -454,7 +484,10 @@ describe("SupporterInterestsPanel", () => {
 
       assert.equal(findInterestCheckbox(harness.getTree(), firstAddedInterest).props.checked, true)
       assert.equal(findInterestCheckbox(harness.getTree(), latestAddedInterest).props.checked, true)
-      assert.equal(liveRegionMessage(harness.getTree()), "Roadmap interests saved.")
+      assert.equal(
+        liveRegionMessage(harness.getTree(), "polite"),
+        "Roadmap interests saved.",
+      )
       assert.deepEqual(logged, [])
     } finally {
       harness.dispose()
@@ -498,10 +531,16 @@ describe("SupporterInterestsPanel", () => {
         assert.equal(findInterestCheckbox(harness.getTree(), persistedInterest).props.checked, true)
         assert.equal(findInterestCheckbox(harness.getTree(), failedInterest).props.checked, false)
         assertLiveRegion(harness.getTree(), "assertive")
+        assertLiveRegion(harness.getTree(), "polite")
         assert.equal(
-          liveRegionMessage(harness.getTree()),
+          liveRegionMessage(harness.getTree(), "assertive"),
           "Could not save roadmap interests. Please try again.",
         )
+        assert.match(
+          liveRegionMessageElement(harness.getTree(), "assertive").props.className,
+          /\btext-destructive\b/,
+        )
+        assert.equal(liveRegionMessage(harness.getTree(), "polite"), "")
         assert.equal(logged.length, 1)
         assert.equal(logged[0][0], "SupporterInterestsPanel failed to save roadmap interests")
         if (failureMode === "network rejection") {
@@ -544,10 +583,16 @@ describe("SupporterInterestsPanel", () => {
         harness.render()
 
         assertLiveRegion(harness.getTree(), "assertive")
+        assertLiveRegion(harness.getTree(), "polite")
         assert.equal(
-          liveRegionMessage(harness.getTree()),
+          liveRegionMessage(harness.getTree(), "assertive"),
           "Could not load roadmap interests. Please try again.",
         )
+        assert.match(
+          liveRegionMessageElement(harness.getTree(), "assertive").props.className,
+          /\btext-destructive\b/,
+        )
+        assert.equal(liveRegionMessage(harness.getTree(), "polite"), "")
         assert.equal(
           findInterestCheckbox(harness.getTree(), loadedInterest).props.disabled,
           true,
@@ -573,7 +618,8 @@ describe("SupporterInterestsPanel", () => {
         assert.equal(loadAttempts, 2)
         assert.equal(findInterestCheckbox(harness.getTree(), loadedInterest).props.checked, true)
         assert.equal(findInterestCheckbox(harness.getTree(), loadedInterest).props.disabled, false)
-        assert.equal(liveRegionMessage(harness.getTree()), "")
+        assert.equal(liveRegionMessage(harness.getTree(), "polite"), "")
+        assert.equal(liveRegionMessage(harness.getTree(), "assertive"), "")
       } finally {
         harness.dispose()
       }

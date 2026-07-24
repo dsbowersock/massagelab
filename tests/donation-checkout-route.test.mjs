@@ -4,6 +4,7 @@ import { describe, it } from "node:test"
 
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 import { safeErrorCode } from "../lib/safe-error-code.js"
+import { isTrustedCheckoutFormOrigin } from "../lib/trusted-form-origin.js"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const donationRouteSource = await readFile(
@@ -49,6 +50,9 @@ function donationPost({
       "@/lib/safe-error-code": {
         safeErrorCode,
       },
+      "@/lib/trusted-form-origin": {
+        isTrustedCheckoutFormOrigin,
+      },
       "@/lib/stripe-billing": {
         createStripeDonationCheckoutSession: createCheckoutSession,
       },
@@ -92,7 +96,7 @@ describe("one-time support Checkout route", () => {
     })
   })
 
-  it("forwards the selected support option and redirects a successful form checkout", async () => {
+  it("accepts a same-origin form and redirects a successful checkout", async () => {
     const checkoutInputs = []
     const POST = donationPost({
       createCheckoutSession: async (input) => {
@@ -102,7 +106,10 @@ describe("one-time support Checkout route", () => {
     })
     const request = new Request("https://massagelab.app/api/billing/donation", {
       method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        origin: "https://massagelab.app",
+      },
       body: new URLSearchParams({ amountCents: "500" }),
     })
 
@@ -119,6 +126,43 @@ describe("one-time support Checkout route", () => {
       url: "https://checkout.stripe.com/c/support",
       status: 303,
     })
+  })
+
+  it("rejects a cross-origin form before parsing, selection, or Stripe work", async () => {
+    let formDataCalls = 0
+    let selectionCalls = 0
+    let checkoutCalls = 0
+    const POST = donationPost({
+      findDonationOption: () => {
+        selectionCalls += 1
+        return { amountCents: 500 }
+      },
+      createCheckoutSession: async () => {
+        checkoutCalls += 1
+        return { url: "https://checkout.stripe.com/c/should-not-run" }
+      },
+    })
+    const request = {
+      url: "https://massagelab.app/api/billing/donation",
+      headers: new Headers({
+        "content-type": "application/x-www-form-urlencoded",
+        origin: "https://attacker.example",
+      }),
+      formData: async () => {
+        formDataCalls += 1
+        return new FormData()
+      },
+    }
+
+    const response = await POST(request)
+
+    assert.deepEqual(response, {
+      url: "https://massagelab.app/pricing?donation=invalid-request",
+      status: 303,
+    })
+    assert.equal(formDataCalls, 0)
+    assert.equal(selectionCalls, 0)
+    assert.equal(checkoutCalls, 0)
   })
 
   it("returns the controlled JSON error for an unsupported amount before Stripe", async () => {
@@ -231,7 +275,8 @@ describe("one-time support Checkout route", () => {
   })
 
   for (const [label, code, expectedCode] of [
-    ["allowlisted provider code", "provider_timeout", "provider_timeout"],
+    ["allowlisted provider code", "resource_missing", "resource_missing"],
+    ["identifier-like provider code", "provider_timeout", "unexpected_error"],
     ["unsafe provider code", "secret\ncustomer@example.com", "unexpected_error"],
   ]) {
     it(`logs only a safe code for an ${label}`, async (context) => {

@@ -31,6 +31,10 @@ export function SupporterInterestsPanel() {
   const loadRequestRef = useRef(0)
   const saveRequestRef = useRef(0)
 
+  /**
+   * Gives each load an ID so only the latest mounted request may replace state
+   * or clear the loading indicator.
+   */
   const loadInterests = useCallback(async () => {
     const requestId = loadRequestRef.current + 1
     loadRequestRef.current = requestId
@@ -81,6 +85,10 @@ export function SupporterInterestsPanel() {
     }
   }, [loadInterests])
 
+  /**
+   * Applies selections optimistically, lets the newest save win, and rolls the
+   * latest failed request back to the interests visible before that request.
+   */
   async function saveInterests(nextInterests: string[]) {
     const requestId = saveRequestRef.current + 1
     saveRequestRef.current = requestId
@@ -159,7 +167,10 @@ export function SupporterInterestsPanel() {
         <p className="text-sm text-muted-foreground">
           Select categories only. Do not include personal, client, or clinical details.
         </p>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div
+          className="grid gap-3 sm:grid-cols-2"
+          aria-busy={isSaving}
+        >
           {supporterRoadmapInterestOptions.map((option) => {
             const checked = interests.includes(option.id)
 
@@ -172,7 +183,7 @@ export function SupporterInterestsPanel() {
                 <Checkbox
                   id={`supporter-roadmap-interest-${option.id}`}
                   checked={checked}
-                  disabled={isLoading || !hasLoadedInterests || isSaving}
+                  disabled={isLoading || !hasLoadedInterests}
                   onCheckedChange={(value) => toggleInterest(option.id, value === true)}
                 />
                 {option.label}
@@ -181,18 +192,21 @@ export function SupporterInterestsPanel() {
           })}
         </div>
         {isLoading ? <Loader label="Loading roadmap interests" size={18} color="currentColor" /> : null}
-        <div
-          className="flex flex-wrap items-center gap-3"
-          aria-live={message?.variant === "error" ? "assertive" : "polite"}
-          aria-atomic="true"
-        >
-          {message ? (
-            <p
-              className="text-sm text-muted-foreground"
-            >
-              {message.text}
-            </p>
-          ) : null}
+        <div className="flex flex-wrap items-center gap-3">
+          <div aria-live="polite" aria-atomic="true">
+            {message?.variant === "success" ? (
+              <p className="text-sm text-muted-foreground">
+                {message.text}
+              </p>
+            ) : null}
+          </div>
+          <div aria-live="assertive" aria-atomic="true">
+            {message?.variant === "error" ? (
+              <p className="text-sm text-destructive">
+                {message.text}
+              </p>
+            ) : null}
+          </div>
           {message?.variant === "error" && !hasLoadedInterests ? (
             <Button
               type="button"
