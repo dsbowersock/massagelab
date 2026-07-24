@@ -22,6 +22,14 @@ import { prisma } from "@/lib/prisma"
 
 export const runtime = "nodejs"
 
+/**
+ * Pins membership Checkout to the deployment's fail-closed recurring-tax
+ * attestations instead of allowing request input to influence tax posture.
+ */
+const createConfiguredStripeCheckoutSession = (
+  options: Parameters<typeof createStripeCheckoutSession>[0],
+) => createStripeCheckoutSession({ ...options, env: process.env })
+
 /** Uses production dependencies for the testable public membership Checkout handler. */
 export const POST = createMembershipCheckoutPostHandler({
   NextResponse,
@@ -29,7 +37,7 @@ export const POST = createMembershipCheckoutPostHandler({
   getSiteUrl,
   isPublicSupporterCheckoutSelection,
   resolveStripePriceId,
-  createStripeCheckoutSession,
+  createStripeCheckoutSession: createConfiguredStripeCheckoutSession,
   ensureStripeCustomerForUser,
   acceptedDocumentIdsFromInput,
   hasAcceptedCurrentDocuments,

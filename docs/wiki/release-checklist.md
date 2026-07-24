@@ -31,13 +31,43 @@ npm run stripe:readiness -- --env-file=/secure/path/massagelab-production.env --
 
 The command must pass without printing secret values. Then complete one real low-dollar live checkout and confirm:
 
-- The Checkout session completes and returns to MassageLab.
+- The only public membership is MassageLab Supporter Membership, at exactly
+  $1/$2/$5 monthly or $10/$20/$50 annually.
+- The recurring-tax enablement, `txcd_10000000` classification, provider,
+  registrations, and final professional-confirmation gates are all explicit.
+- Stripe retrieval confirms every Supporter Price is exclusive and belongs to
+  the classified Supporter Product.
+- The Checkout session uses Automatic Tax, requires a billing address, updates
+  the Stripe Customer address, completes, and returns to MassageLab.
 - Membership status updates from the signed webhook.
-- The Stripe Customer Portal opens for the customer and returns to MassageLab.
+- The Stripe Customer Portal opens, permits switching only among the six
+  Supporter Prices, and preserves cancellation, payment-method updates,
+  billing-detail updates, invoice history, and return to MassageLab.
 - The subscription is canceled or refunded as appropriate after the smoke test.
-- The one-time donation path starts Stripe Checkout, returns to `/pricing`, and does not create a membership entitlement.
+- The one-time support path starts Stripe Checkout, returns to `/pricing`,
+  states that it is not charitable or tax-deductible, and does not create a
+  membership entitlement.
 
-Latest status, 2026-06-24: the live Supporter subscription smoke passed with a new email/password account, Chimer custom-color entitlement access, Stripe Customer Portal access, and subscription cancellation. The one-time donation checkout smoke remains pending.
+Before changing the live catalog:
+
+1. complete the database and Stripe subscriber inventory without exposing
+   customer identifiers;
+2. record a subscriber-specific grandfathering/tax decision for every active,
+   trialing, past-due, unpaid, paused, or canceling subscription;
+3. run `npm run stripe:migrate-supporter-membership -- --mode=verify` and stop
+   unless every safe check passes;
+4. deploy the supporter-only application and recurring-tax contract together;
+5. run apply and verify only after the explicit operator gate; and
+6. complete the $1 monthly, $2/$5 portal-switch, payment/address, invoice,
+   period-end cancellation, and webhook-backed entitlement smoke.
+
+Latest status, 2026-07-24: the deployable Supporter-only application,
+fail-closed migration command, and recurring Automatic Tax application/readiness
+contracts are implemented locally. Live database/Stripe inventory, final
+professional classification confirmation, deployment, migration apply,
+Customer Portal mutation, and the new live smoke remain pending. The earlier
+June 24 legacy Supporter smoke remains historical evidence only. The one-time
+support Checkout smoke also remains pending.
 
 ## Manual Focus Areas
 
@@ -56,7 +86,9 @@ Latest status, 2026-06-24: the live Supporter subscription smoke passed with a n
 - Auth flows, account/admin surfaces, APIs, public booking links, shared room-code URLs, and local professional-record subroutes stay out of the sitemap and crawler allowlist.
 - Sentry remains limited to sanitized errors/traces and the approved user-initiated diagnostic report. Do not enable Session Replay, screenshots, attachments, logs, or standard feedback widgets before route-by-route privacy review.
 - Monitor Neon transfer, Sentry issues, Stripe events, Vercel deployment health, and support email during the first invite window.
-- Keep early-access discount enabled for the current invite window, and confirm it remains intentional before each broader share.
+- Keep the retired Early Access and Student-to-Therapist discount paths absent
+  from application Checkout. Delete their live coupons only through the
+  controlled migration after zero-redemption verification.
 
 ## External Confirmations
 

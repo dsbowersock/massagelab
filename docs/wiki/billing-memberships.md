@@ -23,10 +23,12 @@ if (features.includes("chimer_custom_colors")) {
 - Free access is the default when a user has no active paid subscription.
 - Free is not a Stripe product.
 - Student access is internal to MassageLab and is not a Stripe subscription.
-- The current implementation still recognizes legacy Supporter, Therapist, and
-  Practice Stripe Price mappings while the approved Supporter-only migration
-  is prepared. Therapist and Practice must not be offered to new subscribers
-  before their differentiated professional features are ready for beta.
+- Public enrollment now accepts only the six approved Supporter amount/interval
+  choices. Webhook reconciliation still recognizes configured legacy
+  Supporter, Therapist, and Practice Price mappings so an existing subscription
+  cannot silently lose access before the controlled catalog migration.
+  Therapist and Practice must not be offered to new subscribers before their
+  differentiated professional features are ready for beta.
 - The first paid feature key is `chimer_custom_colors`.
 - Therapist note-taking tools use the `therapist_documentation_tools` feature key and are unlocked only by active Therapist or Practice memberships.
 - External provider calendar sync uses the `external_calendar_sync` feature key and is unlocked only by active Therapist or Practice memberships.
@@ -122,25 +124,61 @@ multi-select preference. The Customer Portal should continue to allow payment
 method and billing-address updates, invoices, cancellation, and switching among
 the approved Supporter amounts.
 
+The deployable migration command creates or verifies this one Product and six
+exclusive recurring Prices, removes only the two independently verified
+zero-redemption legacy coupons, retires legacy public catalog objects, and
+limits Customer Portal switching to those six Prices while preserving billing
+details, payment methods, invoices, and cancellation. It inventories all
+relevant subscriptions before mutation and permits at most the one explicitly
+reviewed subscription identifier (or an explicit `none` decision).
+
 Do not mutate live Products, Prices, coupons, subscriptions, portal settings,
-or entitlements as part of Track 1B. Follow the reviewed
+or entitlements outside that controlled operation. Follow the reviewed
 [Supporter Membership restructuring plan](../superpowers/plans/2026-07-23-supporter-membership-restructure.md)
 as its own migration track.
 
+### Supporter Recurring Tax Gate
+
+The deployable Checkout adapter now fails closed unless all of these
+non-secret deployment values are explicit:
+
+- `STRIPE_SUPPORTER_AUTOMATIC_TAX_ENABLED=true`;
+- `STRIPE_SUPPORTER_TAX_PRODUCT_CODE=txcd_10000000`;
+- `STRIPE_SUPPORTER_TAX_PROVIDER_READY=true`;
+- `STRIPE_SUPPORTER_TAX_REGISTRATIONS_READY=true`; and
+- `STRIPE_SUPPORTER_TAX_CLASSIFICATION_CONFIRMED=true`.
+
+When ready, a new Supporter Checkout Session enables Stripe Automatic Tax,
+requires a billing address, and saves the entered address to the existing
+Stripe Customer. `--verify-stripe` also requires every configured Supporter
+Price to use exclusive tax behavior and its expanded Product to use
+`txcd_10000000`.
+
+The current `txcd_10000000` confirmation is sufficient to implement and test
+this contract, but it is not recorded as final professional authorization to
+deploy or mutate the live catalog. Keep the runtime gates false until that
+authorization, provider setup, registrations, full subscriber inventory, and
+read-only migration verification are complete. Automatic Tax on a new Checkout
+Session does not update an existing subscription; any existing recurring
+subscription needs a separate subscriber-specific tax review and update plan.
+One-time support remains outside this classification and continues to omit
+Automatic Tax.
+
 ## Stripe Setup Checklist
 
-- Until the Supporter migration lands, preserve the current mapped Price IDs and
-  keep new Therapist and Practice enrollment unavailable.
-- The later migration creates or selects the approved Supporter amounts and
-  updates the matching environment variables only after existing-subscriber,
-  webhook, entitlement, portal, and rollback checks pass.
+- Until the Supporter migration is applied, preserve the current mapped Price
+  IDs for webhook reconciliation and keep new Therapist and Practice enrollment
+  unavailable.
+- Apply the migration only after existing-subscriber, recurring-tax, webhook,
+  entitlement, portal, and rollback checks pass. Then retain only the six
+  approved runtime Supporter Price IDs.
 - Enable Stripe Customer Portal for subscription management, payment method updates, invoices, and cancellation.
 - Configure the pinned `/api/billing/webhook` endpoint as enabled on the
   app's `2026-02-25.clover` Stripe API version with exactly the combined
   membership and background-commerce event contract below.
 - Set `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and the configured price IDs in local development and Vercel.
 - Use the Stripe CLI in test mode to forward webhooks during local checkout testing.
-- Before public paid signup, run `npm run stripe:readiness -- --env-file=/secure/path/massagelab-production.env --live --verify-stripe` against the production Stripe environment. The check must pass without printing secret values.
+- Before public paid signup, run `npm run stripe:readiness -- --env-file=/secure/path/massagelab-production.env --live --verify-stripe` against the production Stripe environment. The check must pass without printing secret values, and `npm run stripe:migrate-supporter-membership -- --mode=verify` must pass the reviewed subscriber/catalog/portal inventory before any apply.
 
 Current local workspace note from May 15, 2026: `.env.local` did not contain Stripe keys or price IDs during implementation planning, so local Checkout and webhook testing will fail until those values are added.
 

@@ -327,6 +327,7 @@ describe("Stripe billing helpers", () => {
       successUrl: "https://massagelab.app/account?checkout=success",
       cancelUrl: "https://massagelab.app/account?checkout=cancelled",
       couponId: "kfRFWYmC",
+      env: supporterTaxEnv(),
       stripeClient: {
         checkout: {
           sessions: {
@@ -341,6 +342,74 @@ describe("Stripe billing helpers", () => {
 
     assert.deepEqual(capturedPayload.discounts, [{ coupon: "kfRFWYmC" }])
     assert.equal(Object.hasOwn(capturedPayload, "allow_promotion_codes"), false)
+  })
+
+  it("creates Supporter Checkout with exclusive automatic tax and address collection", async () => {
+    let capturedPayload = null
+
+    await stripeBilling.createStripeCheckoutSession({
+      customerId: "cus_123",
+      priceId: "price_supporter",
+      userId: "user_123",
+      membershipLevel: "SUPPORTER",
+      successUrl: "https://massagelab.app/account?checkout=success",
+      cancelUrl: "https://massagelab.app/account?checkout=cancelled",
+      env: supporterTaxEnv(),
+      stripeClient: {
+        checkout: {
+          sessions: {
+            create: async (payload) => {
+              capturedPayload = payload
+              return { id: "cs_123", url: "https://checkout.stripe.com/c/test" }
+            },
+          },
+        },
+      },
+    })
+
+    assert.deepEqual(capturedPayload.automatic_tax, { enabled: true })
+    assert.equal(capturedPayload.billing_address_collection, "required")
+    assert.deepEqual(capturedPayload.customer_update, { address: "auto" })
+    assert.deepEqual(capturedPayload.line_items, [{
+      price: "price_supporter",
+      quantity: 1,
+    }])
+  })
+
+  it("fails closed before creating Supporter Checkout when any recurring-tax gate is absent", async () => {
+    for (const key of [
+      "STRIPE_SUPPORTER_AUTOMATIC_TAX_ENABLED",
+      "STRIPE_SUPPORTER_TAX_PRODUCT_CODE",
+      "STRIPE_SUPPORTER_TAX_PROVIDER_READY",
+      "STRIPE_SUPPORTER_TAX_REGISTRATIONS_READY",
+      "STRIPE_SUPPORTER_TAX_CLASSIFICATION_CONFIRMED",
+    ]) {
+      let createCalls = 0
+      await assert.rejects(
+        stripeBilling.createStripeCheckoutSession({
+          customerId: "cus_123",
+          priceId: "price_supporter",
+          userId: "user_123",
+          membershipLevel: "SUPPORTER",
+          successUrl: "https://massagelab.app/account?checkout=success",
+          cancelUrl: "https://massagelab.app/account?checkout=cancelled",
+          env: { ...supporterTaxEnv(), [key]: "" },
+          stripeClient: {
+            checkout: {
+              sessions: {
+                create: async () => {
+                  createCalls += 1
+                  return { id: "cs_123" }
+                },
+              },
+            },
+          },
+        }),
+        /Supporter recurring tax readiness is not configured/,
+        key,
+      )
+      assert.equal(createCalls, 0, key)
+    }
   })
 
   it("creates one-time support Checkout Sessions without membership entitlement metadata", async () => {
@@ -511,3 +580,13 @@ describe("Stripe billing helpers", () => {
     assert.equal(session.line_items.has_more, false)
   })
 })
+
+function supporterTaxEnv() {
+  return {
+    STRIPE_SUPPORTER_AUTOMATIC_TAX_ENABLED: "true",
+    STRIPE_SUPPORTER_TAX_PRODUCT_CODE: "txcd_10000000",
+    STRIPE_SUPPORTER_TAX_PROVIDER_READY: "true",
+    STRIPE_SUPPORTER_TAX_REGISTRATIONS_READY: "true",
+    STRIPE_SUPPORTER_TAX_CLASSIFICATION_CONFIRMED: "true",
+  }
+}

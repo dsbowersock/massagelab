@@ -13,6 +13,7 @@ import { config as loadDotenv } from "dotenv"
 import { BACKGROUND_COMMERCE_TAX_PRODUCT_CODE } from "../lib/commerce/constants.js"
 import { DIGITAL_PURCHASES_REFUNDS_VERSION } from "../lib/legal-documents.js"
 import {
+  getSupporterRecurringTaxReadiness,
   REQUIRED_SUPPORTER_PRICE_CONTRACT,
   validateRetrievedMembershipPrice,
 } from "../lib/stripe-readiness.js"
@@ -130,6 +131,33 @@ function checkPriceIds() {
 
 function isExplicitTrue(value) {
   return String(value ?? "").trim().toLowerCase() === "true"
+}
+
+/**
+ * Validates the non-secret deployment attestations required for recurring
+ * Supporter Automatic Tax. Stripe retrieval separately proves Product/Price
+ * classification when --verify-stripe is enabled.
+ */
+function checkSupporterRecurringTaxReadiness() {
+  const recurringTax = getSupporterRecurringTaxReadiness(process.env)
+
+  if (!recurringTax.automaticTaxEnabled) {
+    addFailure("Supporter recurring tax automatic-tax enablement is not configured.")
+  }
+  if (!recurringTax.taxProductCodeConfigured) {
+    addFailure("Supporter recurring tax product classification is not configured.")
+  }
+  if (!recurringTax.taxProviderReady) {
+    addFailure("Supporter recurring tax provider readiness is not configured.")
+  }
+  if (!recurringTax.taxRegistrationsReady) {
+    addFailure("Supporter recurring tax registrations are not confirmed.")
+  }
+  if (!recurringTax.taxClassificationConfirmed) {
+    addFailure("Supporter recurring tax classification is not professionally confirmed.")
+  }
+
+  return recurringTax
 }
 
 /**
@@ -265,9 +293,14 @@ async function verifyStripePrices() {
   }
 }
 
-function printResults(commerce) {
+function printResults(supporterTax, commerce) {
   console.log(`Stripe readiness mode: ${liveMode ? "live" : "non-live"}`)
   console.log(`Stripe API retrieval: ${verifyStripe ? "enabled" : "skipped"}`)
+  console.log(`Supporter recurring automatic tax enabled: ${supporterTax.automaticTaxEnabled}`)
+  console.log(`Supporter recurring tax product code configured: ${supporterTax.taxProductCodeConfigured}`)
+  console.log(`Supporter recurring tax provider ready: ${supporterTax.taxProviderReady}`)
+  console.log(`Supporter recurring tax registrations confirmed: ${supporterTax.taxRegistrationsReady}`)
+  console.log(`Supporter recurring tax classification confirmed: ${supporterTax.taxClassificationConfirmed}`)
   console.log(`Background commerce fixed USD price configured: ${commerce.fixedUsdPriceConfigured}`)
   console.log(`Background commerce purchase-country allowlist configured: ${commerce.purchaseCountryAllowlistConfigured}`)
   console.log(`Background commerce digital-purchase document current: ${commerce.digitalPurchaseDocumentCurrent}`)
@@ -300,6 +333,7 @@ function printResults(commerce) {
 checkSecretKey()
 checkWebhookSecret()
 checkPriceIds()
+const supporterTax = checkSupporterRecurringTaxReadiness()
 const commerce = checkBackgroundCommerceReadiness()
 await verifyStripePrices()
-printResults(commerce)
+printResults(supporterTax, commerce)

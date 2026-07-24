@@ -35,6 +35,11 @@ function runReadiness(overrides = {}, args = []) {
       BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "txcd_10000000",
       BACKGROUND_COMMERCE_TAX_PROVIDER_READY: "true",
       BACKGROUND_COMMERCE_TAX_REGISTRATIONS_READY: "true",
+      STRIPE_SUPPORTER_AUTOMATIC_TAX_ENABLED: "true",
+      STRIPE_SUPPORTER_TAX_PRODUCT_CODE: "txcd_10000000",
+      STRIPE_SUPPORTER_TAX_PROVIDER_READY: "true",
+      STRIPE_SUPPORTER_TAX_REGISTRATIONS_READY: "true",
+      STRIPE_SUPPORTER_TAX_CLASSIFICATION_CONFIRMED: "true",
       ...membershipPrices,
       ...overrides,
     },
@@ -68,8 +73,34 @@ describe("Stripe readiness background-commerce contract", () => {
         recurring: { interval: expected.interval },
         currency: "usd",
         unit_amount: 201,
+        tax_behavior: "exclusive",
+        product: { tax_code: "txcd_10000000" },
       }, expected),
       [`${expected.key} must have unit_amount ${expected.unitAmount}; received 201.`],
+    )
+  })
+  it("requires exclusive recurring tax Prices on the confirmed Supporter classification", () => {
+    const expected = REQUIRED_SUPPORTER_PRICE_CONTRACT[0]
+    const basePrice = {
+      active: true,
+      recurring: { interval: expected.interval },
+      currency: "usd",
+      unit_amount: expected.unitAmount,
+      tax_behavior: "exclusive",
+      product: { tax_code: "txcd_10000000" },
+    }
+
+    assert.deepEqual(validateRetrievedMembershipPrice(basePrice, expected), [])
+    assert.deepEqual(
+      validateRetrievedMembershipPrice({
+        ...basePrice,
+        tax_behavior: "inclusive",
+        product: { tax_code: "txcd_10202003" },
+      }, expected),
+      [
+        `${expected.key} must use exclusive tax behavior.`,
+        `${expected.key} Product must use tax code txcd_10000000.`,
+      ],
     )
   })
   it("requires six unique Supporter amount Prices and ignores legacy catalog variables", () => {
@@ -96,6 +127,8 @@ describe("Stripe readiness background-commerce contract", () => {
 
     assert.equal(result.status, 0, result.stderr || result.stdout)
     assert.match(result.stdout, /PASS Stripe membership environment is ready for the selected mode\./)
+    assert.match(result.stdout, /Supporter recurring automatic tax enabled: true/)
+    assert.match(result.stdout, /Supporter recurring tax classification confirmed: true/)
     assert.match(result.stdout, /Background commerce readiness: ready/)
     assert.match(result.stdout, /Background commerce fixed USD price configured: true/)
     assert.match(result.stdout, /Background commerce webhook event coverage complete: true/)
@@ -140,6 +173,24 @@ describe("Stripe readiness background-commerce contract", () => {
       const result = runReadiness(overrides)
       assert.equal(result.status, 1, `${name}: ${result.stdout}${result.stderr}`)
       assert.match(result.stderr, /FAIL Background commerce/, name)
+    }
+  })
+
+  it("fails closed on every Supporter recurring-tax deployment gate", () => {
+    const cases = [
+      ["enablement", { STRIPE_SUPPORTER_AUTOMATIC_TAX_ENABLED: "false" }],
+      ["tax code", { STRIPE_SUPPORTER_TAX_PRODUCT_CODE: "" }],
+      ["wrong tax code", { STRIPE_SUPPORTER_TAX_PRODUCT_CODE: "txcd_10202003" }],
+      ["provider", { STRIPE_SUPPORTER_TAX_PROVIDER_READY: "false" }],
+      ["registrations", { STRIPE_SUPPORTER_TAX_REGISTRATIONS_READY: "false" }],
+      ["classification", { STRIPE_SUPPORTER_TAX_CLASSIFICATION_CONFIRMED: "false" }],
+    ]
+
+    for (const [name, overrides] of cases) {
+      const result = runReadiness(overrides)
+      assert.equal(result.status, 1, `${name}: ${result.stdout}${result.stderr}`)
+      assert.match(result.stderr, /FAIL Supporter recurring tax/, name)
+      assert.doesNotMatch(`${result.stdout}${result.stderr}`, /sk_test_readiness|whsec_readiness/)
     }
   })
 
