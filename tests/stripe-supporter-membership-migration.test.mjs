@@ -253,8 +253,10 @@ function stripeFixture() {
     prices: {
       async list(payload) {
         record("prices.list", null, payload)
+        const active = payload.active ?? true
         const data = [...prices.values()]
           .filter((entry) => !payload.product || entry.product === payload.product)
+          .filter((entry) => entry.active === active)
           .map((entry) => structuredClone(entry))
         return { data, has_more: false }
       },
@@ -472,6 +474,14 @@ describe("Supporter membership Stripe migration", () => {
 
     assert.equal(result.ok, true)
     assert.equal(result.state, "COMPLETED")
+    assert.deepEqual(
+      [...new Set(
+        fixture.calls
+          .filter(({ name }) => name === "prices.list")
+          .map(({ payload }) => payload.active),
+      )].sort(),
+      [false, true],
+    )
     const supporter = fixture.products.get("prod_supporter")
     assert.equal(supporter.name, "MassageLab Supporter Membership")
     assert.equal(supporter.tax_code, "txcd_10000000")

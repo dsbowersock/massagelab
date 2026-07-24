@@ -480,10 +480,15 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
   let balance
   let subscriptions
   let allProducts
+  let activePrices
+  let inactivePrices
   let allPrices
   let portal
   try {
-    [balance, subscriptions, allProducts, allPrices, portal] = await Promise.all([
+    // Stripe omits inactive Prices from its default list. Read both states so
+    // post-apply verification can still prove archived legacy dependencies
+    // and reject any unexpected inactive Price owned by a managed Product.
+    [balance, subscriptions, allProducts, activePrices, inactivePrices, portal] = await Promise.all([
       stripe.balance.retrieve(),
       listAll(stripe.subscriptions.list.bind(stripe.subscriptions), {
         status: "all",
@@ -491,11 +496,18 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
       }),
       listAll(stripe.products.list.bind(stripe.products), { limit: 100 }),
       listAll(stripe.prices.list.bind(stripe.prices), {
+        active: true,
+        limit: 100,
+        expand: ["data.currency_options"],
+      }),
+      listAll(stripe.prices.list.bind(stripe.prices), {
+        active: false,
         limit: 100,
         expand: ["data.currency_options"],
       }),
       stripe.billingPortal.configurations.retrieve(config.portalConfigurationId),
     ])
+    allPrices = [...activePrices, ...inactivePrices]
   } catch (error) {
     if (error instanceof MigrationError) throw error
     throw new MigrationError(["stripe_dependency_read_failed"])
