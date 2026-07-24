@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { readFileSync } from "node:fs"
 import { describe, it } from "node:test"
 import {
   USER_PREFERENCES_VERSION,
@@ -127,6 +128,19 @@ describe("Account preference helpers", () => {
         "professional_documentation",
       ],
     })
+  })
+
+  it("restores the persisted roadmap interests when an optimistic save fails", () => {
+    const source = readFileSync(
+      new URL("../app/account/supporter-interests-panel.tsx", import.meta.url),
+      "utf8",
+    )
+
+    assert.match(source, /const previousInterests = interests/)
+    assert.match(
+      source,
+      /catch\s*\{[\s\S]*setInterests\(previousInterests\)[\s\S]*Could not save roadmap interests/,
+    )
   })
 
   it("preserves namespaced Music visualizer preferences while stripping forbidden nested keys", () => {

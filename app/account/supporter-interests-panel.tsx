@@ -52,6 +52,7 @@ export function SupporterInterestsPanel() {
   }, [])
 
   async function saveInterests(nextInterests: string[]) {
+    const previousInterests = interests
     setInterests(nextInterests)
     setIsSaving(true)
     setStatus("")
@@ -75,6 +76,7 @@ export function SupporterInterestsPanel() {
       setInterests(normalizeSupporterRoadmapInterests(preferences.appSettings?.supporterRoadmapInterests))
       setStatus("Roadmap interests saved.")
     } catch {
+      setInterests(previousInterests)
       setStatus("Could not save roadmap interests. Please try again.")
     } finally {
       setIsSaving(false)
