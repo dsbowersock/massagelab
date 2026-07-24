@@ -67,8 +67,15 @@ function price(id, productId, unitAmount, interval, active = true, metadata = {}
     product: productId,
     unit_amount: unitAmount,
     currency: "usd",
-    recurring: { interval, interval_count: 1 },
+    billing_scheme: "per_unit",
+    recurring: {
+      interval,
+      interval_count: 1,
+      usage_type: "licensed",
+    },
     tax_behavior: "exclusive",
+    transform_quantity: null,
+    currency_options: null,
     lookup_key: metadata.massagelab_supporter_price_key ?? null,
     metadata,
   }
@@ -90,14 +97,37 @@ function portalConfiguration() {
       subscription_cancel: {
         enabled: true,
         mode: "at_period_end",
+        proration_behavior: "none",
+        cancellation_reason: {
+          enabled: true,
+          options: ["other"],
+        },
       },
       subscription_update: {
         enabled: true,
         default_allowed_updates: ["price"],
+        billing_cycle_anchor: "unchanged",
+        proration_behavior: "none",
+        schedule_at_period_end: {
+          conditions: [{ type: "decreasing_item_amount" }],
+        },
+        trial_update_behavior: "continue_trial",
         products: [
-          { product: "prod_supporter", prices: ["price_supporter_month", "price_supporter_year"] },
-          { product: "prod_therapist", prices: ["price_therapist_month", "price_therapist_year"] },
-          { product: "prod_practice", prices: ["price_practice_month", "price_practice_year"] },
+          {
+            product: "prod_supporter",
+            prices: ["price_supporter_month", "price_supporter_year"],
+            adjustable_quantity: { enabled: false, minimum: 1, maximum: 99 },
+          },
+          {
+            product: "prod_therapist",
+            prices: ["price_therapist_month", "price_therapist_year"],
+            adjustable_quantity: { enabled: false, minimum: 1, maximum: 99 },
+          },
+          {
+            product: "prod_practice",
+            prices: ["price_practice_month", "price_practice_year"],
+            adjustable_quantity: { enabled: false, minimum: 1, maximum: 99 },
+          },
         ],
       },
     },
@@ -237,10 +267,14 @@ function stripeFixture() {
           object: "price",
           active: true,
           livemode: false,
+          billing_scheme: "per_unit",
           tax_behavior: "exclusive",
+          transform_quantity: null,
+          currency_options: null,
           ...structuredClone(payload),
           recurring: {
             interval_count: 1,
+            usage_type: "licensed",
             ...structuredClone(payload.recurring),
           },
         }
@@ -272,10 +306,21 @@ function stripeFixture() {
         async update(id, payload) {
           record("portal.update", id, payload)
           if (portal.id !== id) throw missing("portal configuration")
+          const features = structuredClone(payload.features)
+          features.subscription_update.products = features.subscription_update.products.map(
+            (entry) => ({
+              ...entry,
+              adjustable_quantity: {
+                enabled: entry.adjustable_quantity?.enabled ?? false,
+                minimum: 1,
+                maximum: 99,
+              },
+            }),
+          )
           portal = {
             ...portal,
             ...structuredClone(payload),
-            features: structuredClone(payload.features),
+            features,
           }
           return structuredClone(portal)
         },
@@ -369,12 +414,16 @@ describe("Supporter membership Stripe migration", () => {
     const output = formatMigrationChecklist(result)
 
     assert.equal(result.ok, true)
+    assert.equal(result.state, "PRE_MIGRATION")
     assert.equal(mutationCalls(fixture).length, 0)
     assert.match(output, /PASS mode_and_account/)
     assert.match(output, /PASS subscriber_inventory/)
     assert.match(output, /PASS catalog_dependencies/)
     assert.match(output, /PASS coupon_dependencies/)
     assert.match(output, /PASS portal_dependencies/)
+    assert.match(output, /PASS migration_state_pre_migration/)
+    const priceList = fixture.calls.find(({ name }) => name === "prices.list")
+    assert.deepEqual(priceList.payload.expand, ["data.currency_options"])
     assert.doesNotMatch(
       output,
       /cus_private_test_account|sub_documented_test|sk_test_do_not_print|price_supporter|prod_supporter|coupon_student|bpc_membership/,
@@ -390,6 +439,7 @@ describe("Supporter membership Stripe migration", () => {
     })
 
     assert.equal(result.ok, true)
+    assert.equal(result.state, "COMPLETED")
     const supporter = fixture.products.get("prod_supporter")
     assert.equal(supporter.name, "MassageLab Supporter Membership")
     assert.equal(supporter.tax_code, "txcd_10000000")
@@ -430,15 +480,36 @@ describe("Supporter membership Stripe migration", () => {
     assert.deepEqual(features.subscription_cancel, {
       enabled: true,
       mode: "at_period_end",
+      proration_behavior: "none",
+      cancellation_reason: {
+        enabled: true,
+        options: ["other"],
+      },
     })
     assert.deepEqual(features.subscription_update, {
       enabled: true,
       default_allowed_updates: ["price"],
+      billing_cycle_anchor: "unchanged",
+      proration_behavior: "none",
+      schedule_at_period_end: {
+        conditions: [{ type: "decreasing_item_amount" }],
+      },
+      trial_update_behavior: "continue_trial",
       products: [{
         product: supporter.id,
         prices: approved.map((entry) => entry.id),
+        adjustable_quantity: {
+          enabled: false,
+          minimum: 1,
+          maximum: 99,
+        },
       }],
     })
+    const portalUpdate = fixture.calls.find(({ name }) => name === "portal.update")
+    assert.deepEqual(
+      portalUpdate.payload.features.subscription_update.products[0].adjustable_quantity,
+      { enabled: false },
+    )
 
     const names = fixture.calls.map(({ name }) => name)
     assert.ok(names.indexOf("portal.update") > names.lastIndexOf("prices.create"))
@@ -490,9 +561,58 @@ describe("Supporter membership Stripe migration", () => {
     })
 
     assert.equal(rerun.ok, true)
+    assert.equal(rerun.state, "COMPLETED")
     assert.equal(fixture.products.size, productCount)
     assert.equal(fixture.prices.size, priceCount)
     assert.deepEqual(mutationCalls(fixture), [])
+  })
+
+  it("rejects mixed migration states instead of treating known subsets as safe", async () => {
+    const corruptions = [
+      (fixture) => {
+        fixture.prices.get("price_supporter_month").active = false
+      },
+      (fixture) => {
+        fixture.products.get("prod_therapist").active = false
+      },
+      (fixture) => {
+        fixture.coupons.delete("coupon_student")
+      },
+      (fixture) => {
+        fixture.portal.features.subscription_update.products = []
+      },
+    ]
+
+    for (const corrupt of corruptions) {
+      const fixture = stripeFixture()
+      corrupt(fixture)
+
+      await assert.rejects(
+        runSupporterMembershipMigration({
+          stripe: fixture.stripe,
+          mode: "verify",
+          env: migrationEnv(),
+        }),
+        (error) => {
+          assert.equal(error.failureCodes.includes("migration_state_mixed"), true)
+          return true
+        },
+      )
+      assert.deepEqual(mutationCalls(fixture), [])
+
+      await assert.rejects(
+        runSupporterMembershipMigration({
+          stripe: fixture.stripe,
+          mode: "apply",
+          env: migrationEnv(),
+        }),
+        (error) => {
+          assert.equal(error.failureCodes.includes("migration_state_mixed"), true)
+          return true
+        },
+      )
+      assert.deepEqual(mutationCalls(fixture), [])
+    }
   })
 
   it("creates one managed Supporter Product only when CREATE_NEW is explicit, then reuses it", async () => {
@@ -555,9 +675,18 @@ describe("Supporter membership Stripe migration", () => {
     assert.deepEqual(mutationCalls(fixture), [])
   })
 
-  it("uses Stripe auto-pagination so a later-page subscriber cannot be hidden", async () => {
+  it("manually proves pagination completeness beyond 10,000 rows", async () => {
     const fixture = stripeFixture()
-    const firstPage = fixture.subscriptions.map((entry) => structuredClone(entry))
+    const rows = [
+      ...fixture.subscriptions.map((entry) => structuredClone(entry)),
+      ...Array.from({ length: 9_999 }, (_, index) => ({
+        id: `sub_canceled_${index}`,
+        object: "subscription",
+        livemode: false,
+        status: "canceled",
+        customer: `cus_canceled_${index}`,
+      })),
+    ]
     const unexpected = {
       id: "sub_later_page_private",
       object: "subscription",
@@ -565,10 +694,16 @@ describe("Supporter membership Stripe migration", () => {
       status: "active",
       customer: "cus_later_page_private",
     }
-    fixture.stripe.subscriptions.list = () => {
-      const listPromise = Promise.resolve({ data: firstPage, has_more: true })
-      listPromise.autoPagingToArray = async () => [...firstPage, unexpected]
-      return listPromise
+    rows.push(unexpected)
+    fixture.stripe.subscriptions.list = async ({ starting_after: cursor } = {}) => {
+      const start = cursor
+        ? rows.findIndex((entry) => entry.id === cursor) + 1
+        : 0
+      const data = rows.slice(start, start + 5_000)
+      return {
+        data,
+        has_more: start + data.length < rows.length,
+      }
     }
 
     await assert.rejects(
@@ -579,6 +714,24 @@ describe("Supporter membership Stripe migration", () => {
       }),
       (error) => {
         assert.equal(error.failureCodes.includes("unexpected_subscription_inventory"), true)
+        return true
+      },
+    )
+    assert.deepEqual(mutationCalls(fixture), [])
+  })
+
+  it("fails closed when a Stripe list claims more data but provides no cursor", async () => {
+    const fixture = stripeFixture()
+    fixture.stripe.prices.list = async () => ({ data: [], has_more: true })
+
+    await assert.rejects(
+      runSupporterMembershipMigration({
+        stripe: fixture.stripe,
+        mode: "verify",
+        env: migrationEnv(),
+      }),
+      (error) => {
+        assert.deepEqual(error.failureCodes, ["stripe_pagination_incomplete"])
         return true
       },
     )
@@ -632,6 +785,135 @@ describe("Supporter membership Stripe migration", () => {
         }),
         (error) => {
           assert.equal(error.failureCodes.includes("approved_price_dependency_mismatch"), true)
+          return true
+        },
+      )
+      assert.deepEqual(mutationCalls(fixture), [])
+    }
+  })
+
+  it("requires exact per-unit licensed untransformed USD Price semantics", async () => {
+    const mutations = [
+      (candidate) => { candidate.billing_scheme = "tiered" },
+      (candidate) => { candidate.recurring.usage_type = "metered" },
+      (candidate) => { candidate.transform_quantity = { divide_by: 10, round: "up" } },
+      (candidate) => {
+        candidate.currency_options = {
+          eur: { unit_amount: 100 },
+        }
+      },
+    ]
+
+    for (const mutate of mutations) {
+      const fixture = stripeFixture()
+      const candidate = price(
+        "price_semantics",
+        "prod_supporter",
+        100,
+        "month",
+        true,
+        {
+          massagelab_catalog: "supporter_membership_v1",
+          massagelab_supporter_price_key: "support-1-month",
+        },
+      )
+      mutate(candidate)
+      fixture.prices.set(candidate.id, candidate)
+
+      await assert.rejects(
+        runSupporterMembershipMigration({
+          stripe: fixture.stripe,
+          mode: "verify",
+          env: migrationEnv({
+            STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: candidate.id,
+          }),
+        }),
+        (error) => {
+          assert.equal(error.failureCodes.includes("approved_price_dependency_mismatch"), true)
+          return true
+        },
+      )
+      assert.deepEqual(mutationCalls(fixture), [])
+    }
+  })
+
+  it("retires verified legacy and approved duplicates and leaves exactly six active Supporter Prices", async () => {
+    const fixture = stripeFixture()
+    fixture.prices.set(
+      "price_therapist_month_duplicate",
+      price("price_therapist_month_duplicate", "prod_therapist", 2900, "month"),
+    )
+    const selected = price(
+      "price_approved_selected",
+      "prod_supporter",
+      100,
+      "month",
+      true,
+      {
+        massagelab_catalog: "supporter_membership_v1",
+        massagelab_supporter_price_key: "support-1-month",
+      },
+    )
+    selected.lookup_key = "massagelab_support_1_month"
+    fixture.prices.set(selected.id, selected)
+    fixture.prices.set(
+      "price_approved_duplicate",
+      price("price_approved_duplicate", "prod_supporter", 100, "month"),
+    )
+
+    const result = await runSupporterMembershipMigration({
+      stripe: fixture.stripe,
+      mode: "apply",
+      env: migrationEnv({
+        STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: selected.id,
+      }),
+    })
+
+    assert.equal(result.state, "COMPLETED")
+    assert.equal(fixture.prices.get("price_therapist_month_duplicate").active, false)
+    assert.equal(fixture.prices.get("price_approved_duplicate").active, false)
+    const activeSupporter = [...fixture.prices.values()].filter(
+      (candidate) => candidate.product === "prod_supporter" && candidate.active,
+    )
+    assert.equal(activeSupporter.length, 6)
+    assert.deepEqual(
+      activeSupporter.map((candidate) => [candidate.unit_amount, candidate.recurring.interval]),
+      [
+        [100, "month"],
+        [1000, "year"],
+        [200, "month"],
+        [2000, "year"],
+        [500, "month"],
+        [5000, "year"],
+      ],
+    )
+    assert.equal(
+      [...fixture.prices.values()].some(
+        (candidate) => (
+          ["prod_therapist", "prod_practice"].includes(candidate.product)
+          && candidate.active
+        ),
+      ),
+      false,
+    )
+  })
+
+  it("rejects every unrecognized Price owned by a managed Product, even when inactive", async () => {
+    for (const active of [true, false]) {
+      const fixture = stripeFixture()
+      fixture.prices.set(
+        "price_unrecognized",
+        price("price_unrecognized", "prod_practice", 12345, "month", active),
+      )
+
+      await assert.rejects(
+        runSupporterMembershipMigration({
+          stripe: fixture.stripe,
+          mode: "apply",
+          env: migrationEnv(),
+        }),
+        (error) => {
+          assert.equal(error.failureCodes.includes("unexpected_managed_price"), true)
           return true
         },
       )
@@ -699,5 +981,37 @@ describe("Supporter membership Stripe migration", () => {
         return true
       },
     )
+  })
+
+  it("recovers forward from a verified partial portal mutation and still becomes idempotent", async () => {
+    const fixture = stripeFixture()
+    const updatePortal = fixture.stripe.billingPortal.configurations.update.bind(
+      fixture.stripe.billingPortal.configurations,
+    )
+    let failAfterFirstMutation = true
+    fixture.stripe.billingPortal.configurations.update = async (id, payload) => {
+      const result = await updatePortal(id, payload)
+      if (failAfterFirstMutation) {
+        failAfterFirstMutation = false
+        throw new Error("connection ended after Stripe accepted the update")
+      }
+      return result
+    }
+
+    const result = await runSupporterMembershipMigration({
+      stripe: fixture.stripe,
+      mode: "apply",
+      env: migrationEnv(),
+    })
+    assert.equal(result.state, "COMPLETED")
+
+    fixture.calls.length = 0
+    const rerun = await runSupporterMembershipMigration({
+      stripe: fixture.stripe,
+      mode: "apply",
+      env: migrationEnv(),
+    })
+    assert.equal(rerun.state, "COMPLETED")
+    assert.deepEqual(mutationCalls(fixture), [])
   })
 })

@@ -104,10 +104,11 @@ npm run stripe:migrate-supporter-membership -- --mode=verify
 
 Verify mode performs Stripe GET/list requests only. It checks the exact
 subscriber inventory, live/test mode, Product tax classification, legacy and
-approved Price ownership/amounts, zero-redemption coupon contracts, and portal
-preservation settings. It accepts either the exact safe pre-migration
-dependencies or the already-correct post-migration state. Any unexpected object
-or dependency is a blocker.
+approved Price ownership/amounts/recurring semantics, every Price listed under
+the managed Products, zero-redemption coupon contracts, and portal preservation
+settings. It reports either `PRE_MIGRATION` or `COMPLETED`; mixed states,
+unrecognized Prices, incomplete pagination, and unknown portal subsets are
+blockers.
 
 Only after reviewing the safe PASS checklist, run:
 
@@ -120,7 +121,11 @@ Apply creates or reuses the one managed Supporter Product and six Prices,
 restricts the portal to those Prices, retires the legacy $9/$90, $29/$279, and
 $79/$759 Prices, retires the Therapist and Practice Products, and deletes the
 two verified zero-redemption coupons. It re-retrieves every mutation and a
-second apply is a read-only no-op. Do not run apply until the deployed
+second apply is a read-only no-op. Portal quantity adjustment is explicitly
+disabled, while cancellation and billing-management behavior is preserved
+through semantic response validation. Apply can resume only an ordered,
+individually verified forward transition caused by an accepted Stripe mutation;
+arbitrary mixed states still fail closed. Do not run apply until the deployed
 Supporter-only application, subscriber decision, recurring-tax classification,
 and migration inputs have all been independently reviewed. Remove the
 migration-only variables after the operation; keep the six approved runtime

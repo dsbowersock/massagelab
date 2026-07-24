@@ -225,15 +225,31 @@ function buildConfig(env, requestedMode) {
   }
 }
 
-async function listAll(listResultPromise) {
-  if (typeof listResultPromise?.autoPagingToArray === "function") {
-    return listResultPromise.autoPagingToArray({ limit: 10_000 })
+async function listAll(listPage, params) {
+  const rows = []
+  const seenCursors = new Set()
+  let startingAfter = null
+
+  while (true) {
+    const page = await listPage({
+      ...params,
+      ...(startingAfter ? { starting_after: startingAfter } : {}),
+    })
+    if (!Array.isArray(page?.data)) {
+      throw new MigrationError(["stripe_pagination_incomplete"])
+    }
+    rows.push(...page.data)
+    if (page.has_more !== true) {
+      return rows
+    }
+
+    const nextCursor = page.data.at(-1)?.id
+    if (!nextCursor || seenCursors.has(nextCursor)) {
+      throw new MigrationError(["stripe_pagination_incomplete"])
+    }
+    seenCursors.add(nextCursor)
+    startingAfter = nextCursor
   }
-  const result = await listResultPromise
-  if (typeof result?.autoPagingToArray === "function") {
-    return result.autoPagingToArray({ limit: 10_000 })
-  }
-  return Array.isArray(result?.data) ? result.data : []
 }
 
 async function retrieveOrMissing(retrieve, id) {
@@ -256,21 +272,43 @@ function priceProductId(candidate) {
 }
 
 function priceMatches(candidate, spec, productId) {
+  const currencyOptions = candidate?.currency_options
   return Boolean(candidate)
     && candidate.unit_amount === spec.unitAmount
     && candidate.currency === "usd"
+    && candidate.billing_scheme === "per_unit"
     && candidate.recurring?.interval === spec.interval
     && (candidate.recurring?.interval_count ?? 1) === 1
+    && candidate.recurring?.usage_type === "licensed"
     && candidate.tax_behavior === "exclusive"
+    && candidate.transform_quantity == null
+    && (
+      currencyOptions == null
+      || (
+        typeof currencyOptions === "object"
+        && Object.keys(currencyOptions).length === 0
+      )
+    )
     && priceProductId(candidate) === productId
 }
 
 function legacyPriceMatches(candidate, spec, productId) {
+  const currencyOptions = candidate?.currency_options
   return Boolean(candidate)
     && candidate.unit_amount === spec.unitAmount
     && candidate.currency === "usd"
+    && candidate.billing_scheme === "per_unit"
     && candidate.recurring?.interval === spec.interval
     && (candidate.recurring?.interval_count ?? 1) === 1
+    && candidate.recurring?.usage_type === "licensed"
+    && candidate.transform_quantity == null
+    && (
+      currencyOptions == null
+      || (
+        typeof currencyOptions === "object"
+        && Object.keys(currencyOptions).length === 0
+      )
+    )
     && priceProductId(candidate) === productId
 }
 
@@ -289,24 +327,86 @@ function hasExactly(values, expected) {
     && expected.every((value) => values.includes(value))
 }
 
-function portalPreservationEnabled(features) {
-  return features?.customer_update?.enabled === true
-    && hasExactly(features.customer_update.allowed_updates, ["address", "email", "name"])
-    && features?.invoice_history?.enabled === true
-    && features?.payment_method_update?.enabled === true
-    && features?.subscription_cancel?.enabled === true
-    && features?.subscription_update?.enabled === true
-    && hasExactly(features.subscription_update.default_allowed_updates, ["price"])
+function stripeObjectId(value) {
+  return typeof value === "string" ? value : value?.id
 }
 
-function portalProductsAreKnown(features, allowedProductIds, allowedPriceIds) {
-  const products = features?.subscription_update?.products
-  return Array.isArray(products)
-    && products.every((entry) => (
-      allowedProductIds.has(entry.product)
-      && Array.isArray(entry.prices)
-      && entry.prices.every((id) => allowedPriceIds.has(id))
-    ))
+function normalizePortalProducts(products) {
+  if (!Array.isArray(products)) return []
+  return products
+    .map((entry) => ({
+      product: stripeObjectId(entry.product) ?? "",
+      prices: Array.isArray(entry.prices)
+        ? entry.prices.map(stripeObjectId).filter(Boolean).sort()
+        : [],
+      adjustableQuantityEnabled: entry.adjustable_quantity?.enabled === true,
+    }))
+    .sort((left, right) => left.product.localeCompare(right.product))
+}
+
+function normalizePortalFeatures(features) {
+  return {
+    customerUpdate: {
+      enabled: features?.customer_update?.enabled === true,
+      allowedUpdates: [...(features?.customer_update?.allowed_updates ?? [])].sort(),
+    },
+    invoiceHistoryEnabled: features?.invoice_history?.enabled === true,
+    paymentMethodUpdateEnabled: features?.payment_method_update?.enabled === true,
+    subscriptionCancel: {
+      enabled: features?.subscription_cancel?.enabled === true,
+      mode: features?.subscription_cancel?.mode ?? null,
+      prorationBehavior: features?.subscription_cancel?.proration_behavior ?? null,
+      cancellationReason: {
+        enabled: features?.subscription_cancel?.cancellation_reason?.enabled === true,
+        options: [
+          ...(features?.subscription_cancel?.cancellation_reason?.options ?? []),
+        ].sort(),
+      },
+    },
+    subscriptionUpdate: {
+      enabled: features?.subscription_update?.enabled === true,
+      defaultAllowedUpdates: [
+        ...(features?.subscription_update?.default_allowed_updates ?? []),
+      ].sort(),
+      billingCycleAnchor: features?.subscription_update?.billing_cycle_anchor ?? null,
+      prorationBehavior: features?.subscription_update?.proration_behavior ?? null,
+      scheduleAtPeriodEndConditions: [
+        ...(features?.subscription_update?.schedule_at_period_end?.conditions ?? []),
+      ]
+        .map((condition) => condition.type)
+        .sort(),
+      trialUpdateBehavior: features?.subscription_update?.trial_update_behavior ?? null,
+      products: normalizePortalProducts(features?.subscription_update?.products),
+    },
+  }
+}
+
+function portalPreservationEnabled(features) {
+  const normalized = normalizePortalFeatures(features)
+  return normalized.customerUpdate.enabled
+    && hasExactly(normalized.customerUpdate.allowedUpdates, ["address", "email", "name"])
+    && normalized.invoiceHistoryEnabled
+    && normalized.paymentMethodUpdateEnabled
+    && normalized.subscriptionCancel.enabled
+    && normalized.subscriptionUpdate.enabled
+    && hasExactly(normalized.subscriptionUpdate.defaultAllowedUpdates, ["price"])
+}
+
+function expectedPortalProducts(entries) {
+  return entries
+    .map(({ product, prices }) => ({
+      product,
+      prices: [...prices].sort(),
+      adjustableQuantityEnabled: false,
+    }))
+    .sort((left, right) => left.product.localeCompare(right.product))
+}
+
+function portalTopologyMatches(features, expectedProducts) {
+  return jsonEqual(
+    normalizePortalFeatures(features).subscriptionUpdate.products,
+    expectedPortalProducts(expectedProducts),
+  )
 }
 
 function managedPriceKey(candidate) {
@@ -347,7 +447,7 @@ function check(code, ok) {
  * Stripe object. The returned plan contains IDs for execution but checklist
  * formatting deliberately exposes codes only.
  */
-async function collectInventory(stripe, config) {
+async function collectInventory(stripe, config, { allowTransitional = false } = {}) {
   const failureCodes = []
 
   let balance
@@ -358,9 +458,15 @@ async function collectInventory(stripe, config) {
   try {
     [balance, subscriptions, allProducts, allPrices, portal] = await Promise.all([
       stripe.balance.retrieve(),
-      listAll(stripe.subscriptions.list({ status: "all", limit: 100 })),
-      listAll(stripe.products.list({ limit: 100 })),
-      listAll(stripe.prices.list({ limit: 100 })),
+      listAll(stripe.subscriptions.list.bind(stripe.subscriptions), {
+        status: "all",
+        limit: 100,
+      }),
+      listAll(stripe.products.list.bind(stripe.products), { limit: 100 }),
+      listAll(stripe.prices.list.bind(stripe.prices), {
+        limit: 100,
+        expand: ["data.currency_options"],
+      }),
       stripe.billingPortal.configurations.retrieve(config.portalConfigurationId),
     ])
   } catch (error) {
@@ -490,6 +596,63 @@ async function collectInventory(stripe, config) {
     failureCodes.push("approved_price_dependency_mismatch")
   }
 
+  const managedProductIds = new Set([
+    targetProductId,
+    legacySupporterProductId,
+    config.productIds.therapist,
+    config.productIds.practice,
+  ].filter(Boolean))
+  const retirementPricesById = new Map(
+    [...legacyPrices.values()].map((candidate) => [candidate.id, candidate]),
+  )
+  const targetPriceIds = new Set(
+    [...targetPrices.values()].map((candidate) => candidate.id),
+  )
+  const expectedProductId = (spec) => (
+    spec.productKey === "supporter"
+      ? legacySupporterProductId
+      : config.productIds[spec.productKey]
+  )
+
+  for (const candidate of allPrices) {
+    const ownerId = priceProductId(candidate)
+    if (!managedProductIds.has(ownerId)) continue
+    if (!modeMatches(candidate, config.livemode)) {
+      failureCodes.push("unexpected_managed_price")
+      continue
+    }
+    if (retirementPricesById.has(candidate.id) || targetPriceIds.has(candidate.id)) {
+      continue
+    }
+
+    const duplicateLegacy = config.legacyPrices.some((spec) => (
+      legacyPriceMatches(candidate, spec, expectedProductId(spec))
+    ))
+    if (duplicateLegacy) {
+      retirementPricesById.set(candidate.id, candidate)
+      continue
+    }
+
+    const duplicateTargetSpec = targetProductId
+      ? config.targetPrices.find((spec) => priceMatches(candidate, spec, targetProductId))
+      : null
+    const selectedTarget = duplicateTargetSpec
+      ? targetPrices.get(duplicateTargetSpec.key)
+      : null
+    if (
+      duplicateTargetSpec
+      && selectedTarget
+      && duplicateTargetSpec.configuredId
+      && selectedTarget.id !== candidate.id
+    ) {
+      retirementPricesById.set(candidate.id, candidate)
+      continue
+    }
+
+    failureCodes.push("unexpected_managed_price")
+  }
+  const retirementPrices = [...retirementPricesById.values()]
+
   const coupons = new Map()
   for (const spec of config.coupons) {
     const result = await retrieveOrMissing(stripe.coupons.retrieve.bind(stripe.coupons), spec.id)
@@ -502,23 +665,107 @@ async function collectInventory(stripe, config) {
     }
   }
 
-  const knownProductIds = new Set([
-    ...Object.values(config.productIds).filter((id) => id !== CREATE_NEW_PRODUCT),
-    legacySupporterProductId,
-    targetProductId,
-  ].filter(Boolean))
-  const knownPriceIds = new Set([
-    ...config.legacyPrices.map((spec) => spec.id),
-    ...[...targetPrices.values()].map((candidate) => candidate.id),
-  ])
+  const retirementProducts = [
+    products.therapist,
+    products.practice,
+    ...(legacySupporterProduct?.id !== targetProductId ? [legacySupporterProduct] : []),
+  ].filter(Boolean)
+  const prePortalProducts = [
+    {
+      product: legacySupporterProductId,
+      prices: config.legacyPrices
+        .filter((spec) => spec.productKey === "supporter")
+        .map((spec) => spec.id),
+    },
+    {
+      product: config.productIds.therapist,
+      prices: config.legacyPrices
+        .filter((spec) => spec.productKey === "therapist")
+        .map((spec) => spec.id),
+    },
+    {
+      product: config.productIds.practice,
+      prices: config.legacyPrices
+        .filter((spec) => spec.productKey === "practice")
+        .map((spec) => spec.id),
+    },
+  ]
+  const completedPortalProducts = targetProductId && targetPrices.size === config.targetPrices.length
+    ? [{
+        product: targetProductId,
+        prices: config.targetPrices.map((spec) => targetPrices.get(spec.key).id),
+      }]
+    : []
+  const portalBaseValid = Boolean(portal)
+    && modeMatches(portal, config.livemode)
+    && portal.active === true
+    && portalPreservationEnabled(portal.features)
+  const portalIsPreMigration = portalBaseValid
+    && portalTopologyMatches(portal.features, prePortalProducts)
+  const portalIsCompleted = portalBaseValid
+    && completedPortalProducts.length === 1
+    && portalTopologyMatches(portal.features, completedPortalProducts)
   if (
     !portal
-    || !modeMatches(portal, config.livemode)
-    || portal.active !== true
-    || !portalPreservationEnabled(portal.features)
-    || !portalProductsAreKnown(portal.features, knownProductIds, knownPriceIds)
+    || !portalBaseValid
+    || (!portalIsPreMigration && !portalIsCompleted)
   ) {
     failureCodes.push("portal_dependency_mismatch")
+  }
+
+  const targetPricesAreActive = [...targetPrices.values()].every(
+    (candidate) => candidate.active === true,
+  )
+  const couponsPresent = [...coupons.values()].every(Boolean)
+  const couponsMissing = [...coupons.values()].every((candidate) => candidate === null)
+  const retirementPricesActive = retirementPrices.every(
+    (candidate) => candidate.active === true,
+  )
+  const retirementPricesInactive = retirementPrices.every(
+    (candidate) => candidate.active === false,
+  )
+  const retirementProductsActive = retirementProducts.every(
+    (candidate) => candidate.active === true,
+  )
+  const retirementProductsInactive = retirementProducts.every(
+    (candidate) => candidate.active === false,
+  )
+  const targetProductCompleted = Boolean(products.supporter)
+    && products.supporter.name === SUPPORTER_PRODUCT_NAME
+    && products.supporter.active === true
+    && products.supporter.tax_code === EXPECTED_TAX_CODE
+    && products.supporter.metadata?.massagelab_catalog === SUPPORTER_CATALOG
+  const isPreMigration = portalIsPreMigration
+    && retirementPricesActive
+    && retirementProductsActive
+    && couponsPresent
+    && targetPricesAreActive
+  const isCompleted = portalIsCompleted
+    && targetProductCompleted
+    && targetPrices.size === config.targetPrices.length
+    && targetPricesAreActive
+    && retirementPricesInactive
+    && retirementProductsInactive
+    && couponsMissing
+  const state = isPreMigration
+    ? "PRE_MIGRATION"
+    : isCompleted ? "COMPLETED" : "TRANSITIONAL"
+  const recoverableTransition = portalIsCompleted
+    && targetProductCompleted
+    && targetPrices.size === config.targetPrices.length
+    && targetPricesAreActive
+    && (
+      !retirementPricesInactive
+        ? retirementProductsActive && couponsPresent
+        : !retirementProductsInactive
+          ? couponsPresent
+          : true
+    )
+  if (
+    state === "TRANSITIONAL"
+    && (!allowTransitional || !recoverableTransition)
+  ) {
+    failureCodes.push("migration_state_mixed")
   }
 
   const checks = [
@@ -545,6 +792,14 @@ async function collectInventory(stripe, config) {
       "portal_dependencies",
       !failureCodes.includes("portal_dependency_mismatch"),
     ),
+    check(
+      state === "PRE_MIGRATION"
+        ? "migration_state_pre_migration"
+        : state === "COMPLETED"
+          ? "migration_state_completed"
+          : "migration_state_transitional",
+      state !== "TRANSITIONAL" || allowTransitional,
+    ),
   ]
 
   if (failureCodes.length > 0) {
@@ -556,8 +811,11 @@ async function collectInventory(stripe, config) {
     products,
     legacyPrices,
     targetPrices,
+    retirementPrices,
+    retirementProducts,
     coupons,
     portal,
+    state,
   }
 }
 
@@ -590,7 +848,12 @@ function targetPricePayload(productId, spec) {
     product: productId,
     unit_amount: spec.unitAmount,
     currency: "usd",
-    recurring: { interval: spec.interval, interval_count: 1 },
+    billing_scheme: "per_unit",
+    recurring: {
+      interval: spec.interval,
+      interval_count: 1,
+      usage_type: "licensed",
+    },
     tax_behavior: "exclusive",
     lookup_key: lookupKeyFor(spec),
     metadata: targetPriceMetadata(spec),
@@ -615,29 +878,65 @@ function needsPriceUpdate(current, spec) {
 }
 
 function desiredPortalFeatures(currentFeatures, productId, priceIds) {
+  const cancellationReason = currentFeatures.subscription_cancel?.cancellation_reason
+  const subscriptionCancel = {
+    enabled: true,
+    mode: currentFeatures.subscription_cancel?.mode ?? "at_period_end",
+    ...(currentFeatures.subscription_cancel?.proration_behavior
+      ? {
+          proration_behavior: currentFeatures.subscription_cancel.proration_behavior,
+        }
+      : {}),
+    ...(cancellationReason
+      ? {
+          cancellation_reason: {
+            enabled: cancellationReason.enabled === true,
+            ...(Array.isArray(cancellationReason.options)
+              ? { options: [...cancellationReason.options] }
+              : {}),
+          },
+        }
+      : {}),
+  }
+  const currentSubscriptionUpdate = currentFeatures.subscription_update ?? {}
   return {
     customer_update: {
-      ...currentFeatures.customer_update,
       enabled: true,
       allowed_updates: ["address", "email", "name"],
     },
     invoice_history: {
-      ...currentFeatures.invoice_history,
       enabled: true,
     },
     payment_method_update: {
-      ...currentFeatures.payment_method_update,
       enabled: true,
     },
-    subscription_cancel: {
-      ...currentFeatures.subscription_cancel,
-      enabled: true,
-    },
+    subscription_cancel: subscriptionCancel,
     subscription_update: {
-      ...currentFeatures.subscription_update,
       enabled: true,
       default_allowed_updates: ["price"],
-      products: [{ product: productId, prices: priceIds }],
+      ...(currentSubscriptionUpdate.billing_cycle_anchor
+        ? { billing_cycle_anchor: currentSubscriptionUpdate.billing_cycle_anchor }
+        : {}),
+      ...(currentSubscriptionUpdate.proration_behavior
+        ? { proration_behavior: currentSubscriptionUpdate.proration_behavior }
+        : {}),
+      ...(currentSubscriptionUpdate.schedule_at_period_end
+        ? {
+            schedule_at_period_end: {
+              conditions: [
+                ...(currentSubscriptionUpdate.schedule_at_period_end.conditions ?? []),
+              ],
+            },
+          }
+        : {}),
+      ...(currentSubscriptionUpdate.trial_update_behavior
+        ? { trial_update_behavior: currentSubscriptionUpdate.trial_update_behavior }
+        : {}),
+      products: [{
+        product: productId,
+        prices: priceIds,
+        adjustable_quantity: { enabled: false },
+      }],
     },
   }
 }
@@ -657,6 +956,10 @@ async function retrieveAfterMutation(retrieve, id, validate, failureCode) {
     throw new MigrationError([failureCode])
   }
   return retrieved
+}
+
+function retrievePriceWithCurrencyOptions(stripe, id) {
+  return stripe.prices.retrieve(id, { expand: ["currency_options"] })
 }
 
 /**
@@ -697,7 +1000,7 @@ async function applyPlan(stripe, config, inventory) {
     if (!candidate) {
       const created = await stripe.prices.create(targetPricePayload(supporter.id, spec))
       candidate = await retrieveAfterMutation(
-        stripe.prices.retrieve.bind(stripe.prices),
+        retrievePriceWithCurrencyOptions.bind(null, stripe),
         created.id,
         (retrieved) => priceMatches(retrieved, spec, supporter.id)
           && retrieved.active === true
@@ -711,7 +1014,7 @@ async function applyPlan(stripe, config, inventory) {
         metadata: targetPriceMetadata(spec, candidate),
       })
       candidate = await retrieveAfterMutation(
-        stripe.prices.retrieve.bind(stripe.prices),
+        retrievePriceWithCurrencyOptions.bind(null, stripe),
         candidate.id,
         (retrieved) => priceMatches(retrieved, spec, supporter.id)
           && retrieved.active === true
@@ -728,7 +1031,12 @@ async function applyPlan(stripe, config, inventory) {
     supporter.id,
     targetPrices.map((candidate) => candidate.id),
   )
-  if (!jsonEqual(inventory.portal.features, desiredFeatures)) {
+  if (
+    !jsonEqual(
+      normalizePortalFeatures(inventory.portal.features),
+      normalizePortalFeatures(desiredFeatures),
+    )
+  ) {
     await stripe.billingPortal.configurations.update(config.portalConfigurationId, {
       features: desiredFeatures,
     })
@@ -737,25 +1045,26 @@ async function applyPlan(stripe, config, inventory) {
         stripe.billingPortal.configurations,
       ),
       config.portalConfigurationId,
-      (candidate) => jsonEqual(candidate.features, desiredFeatures),
+      (candidate) => jsonEqual(
+        normalizePortalFeatures(candidate.features),
+        normalizePortalFeatures(desiredFeatures),
+      ),
       "portal_mutation_unverified",
     )
   }
 
-  for (const spec of config.legacyPrices) {
-    const candidate = inventory.legacyPrices.get(spec.key)
+  for (const candidate of inventory.retirementPrices) {
     if (candidate.active === false) continue
     await stripe.prices.update(candidate.id, { active: false })
     await retrieveAfterMutation(
-      stripe.prices.retrieve.bind(stripe.prices),
+      retrievePriceWithCurrencyOptions.bind(null, stripe),
       candidate.id,
       (retrieved) => retrieved.active === false,
       "legacy_price_mutation_unverified",
     )
   }
 
-  for (const key of ["therapist", "practice"]) {
-    const candidate = inventory.products[key]
+  for (const candidate of inventory.retirementProducts) {
     if (candidate.active === false) continue
     await stripe.products.update(candidate.id, { active: false })
     await retrieveAfterMutation(
@@ -792,20 +1101,30 @@ export async function runSupporterMembershipMigration({
   env = process.env,
 } = {}) {
   const config = buildConfig(env, mode)
-  const inventory = await collectInventory(stripe, config)
+  let inventory = await collectInventory(stripe, config, {
+    allowTransitional: mode === "apply",
+  })
   if (mode === "apply") {
-    try {
-      await applyPlan(stripe, config, inventory)
-    } catch (error) {
-      if (error instanceof MigrationError) throw error
+    let lastError = null
+    for (let attempt = 0; attempt < 3 && inventory.state !== "COMPLETED"; attempt += 1) {
+      try {
+        await applyPlan(stripe, config, inventory)
+        lastError = null
+      } catch (error) {
+        lastError = error
+      }
+      inventory = await collectInventory(stripe, config, { allowTransitional: true })
+    }
+    if (inventory.state !== "COMPLETED") {
+      if (lastError instanceof MigrationError) throw lastError
       throw new MigrationError(["stripe_mutation_failed"])
     }
-    await collectInventory(stripe, config)
   }
 
   return {
     ok: true,
     mode,
+    state: inventory.state,
     checks: [
       ...inventory.checks,
       check(mode === "apply" ? "apply_retrievals" : "verify_get_only", true),
