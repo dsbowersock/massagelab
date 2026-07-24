@@ -966,6 +966,8 @@ describe("Stripe billing helpers", () => {
     const openSession = membershipCheckoutSession({ id: "cs_open" })
     let createCalls = 0
     const result = await stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+      reconciliationBudgetMs: 10,
+      reconciliationNowMs: monotonicNowMsSequence(100),
       stripeClient: {
         checkout: {
           sessions: {
@@ -996,6 +998,8 @@ describe("Stripe billing helpers", () => {
     })
     const calls = []
     const result = await stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+      reconciliationBudgetMs: 10,
+      reconciliationNowMs: monotonicNowMsSequence(100, 109),
       stripeClient: {
         checkout: {
           sessions: {
@@ -1022,6 +1026,95 @@ describe("Stripe billing helpers", () => {
       ["expire", "cs_open_past_expiry"],
       ["retrieve", "cs_open_past_expiry"],
     ])
+  })
+
+  it("fails closed before expiration when reconciliation exhausts its wall-clock budget", async () => {
+    const expiredOpenSession = membershipCheckoutSession({
+      id: "cs_open_expiration_budget",
+      expiresAt: 1784912400,
+    })
+    let expireCalls = 0
+    let createCalls = 0
+
+    await assert.rejects(
+      stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+        reconciliationBudgetMs: 10,
+        reconciliationNowMs: monotonicNowMsSequence(100, 110),
+        stripeClient: {
+          checkout: {
+            sessions: {
+              list: async () => stripeCheckoutSessionList([expiredOpenSession]),
+              expire: async () => {
+                expireCalls += 1
+                return { status: "expired" }
+              },
+              create: async () => {
+                createCalls += 1
+                return membershipCheckoutSession({ id: "cs_unexpected_create" })
+              },
+            },
+          },
+        },
+      })),
+      /membership Checkout Session expirations exceeded the safe limit/,
+    )
+
+    assert.equal(expireCalls, 0)
+    assert.equal(createCalls, 0)
+  })
+
+  it("rechecks the wall-clock budget before authority lookup after an expiration race", async () => {
+    const expiredOpenSession = membershipCheckoutSession({
+      id: "cs_open_completion_budget",
+      expiresAt: 1784912400,
+    })
+    let expireCalls = 0
+    let retrieveSessionCalls = 0
+    let retrieveSubscriptionCalls = 0
+    let createCalls = 0
+
+    await assert.rejects(
+      stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+        reconciliationBudgetMs: 10,
+        reconciliationNowMs: monotonicNowMsSequence(100, 109, 110),
+        stripeClient: {
+          checkout: {
+            sessions: {
+              list: async () => stripeCheckoutSessionList([expiredOpenSession]),
+              expire: async () => {
+                expireCalls += 1
+                return { status: "expired" }
+              },
+              retrieve: async () => {
+                retrieveSessionCalls += 1
+                return membershipCheckoutSession({
+                  id: "cs_open_completion_budget",
+                  status: "complete",
+                  subscription: "sub_completion_budget",
+                  url: null,
+                })
+              },
+              create: async () => {
+                createCalls += 1
+                return membershipCheckoutSession({ id: "cs_unexpected_create" })
+              },
+            },
+          },
+          subscriptions: {
+            retrieve: async () => {
+              retrieveSubscriptionCalls += 1
+              return membershipStripeSubscription()
+            },
+          },
+        },
+      })),
+      /subscription authority lookups exceeded the safe limit/,
+    )
+
+    assert.equal(expireCalls, 1)
+    assert.equal(retrieveSessionCalls, 1)
+    assert.equal(retrieveSubscriptionCalls, 0)
+    assert.equal(createCalls, 0)
   })
 
   it("fails closed instead of reusing a compatible open membership Checkout without a URL", async () => {
@@ -1355,6 +1448,8 @@ describe("Stripe billing helpers", () => {
     let expireCalls = 0
     let createCalls = 0
     const result = await stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+      reconciliationBudgetMs: 10,
+      reconciliationNowMs: monotonicNowMsSequence(100, 109, 109),
       stripeClient: {
         checkout: {
           sessions: {
@@ -1389,6 +1484,45 @@ describe("Stripe billing helpers", () => {
     assert.equal(result.id, blockingOpenSession.id)
     assert.equal(result.status, "complete")
     assert.equal(expireCalls, 1)
+    assert.equal(createCalls, 0)
+  })
+
+  it("fails closed before completed-subscription authority lookup when the wall-clock budget expires", async () => {
+    const completedSession = membershipCheckoutSession({
+      id: "cs_complete_authority_budget",
+      status: "complete",
+      subscription: "sub_authority_budget",
+      url: null,
+    })
+    let retrieveCalls = 0
+    let createCalls = 0
+
+    await assert.rejects(
+      stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+        reconciliationBudgetMs: 10,
+        reconciliationNowMs: monotonicNowMsSequence(100, 110),
+        stripeClient: {
+          checkout: {
+            sessions: {
+              list: async () => stripeCheckoutSessionList([completedSession]),
+              create: async () => {
+                createCalls += 1
+                return membershipCheckoutSession({ id: "cs_unexpected_create" })
+              },
+            },
+          },
+          subscriptions: {
+            retrieve: async () => {
+              retrieveCalls += 1
+              return membershipStripeSubscription()
+            },
+          },
+        },
+      })),
+      /subscription authority lookups exceeded the safe limit/,
+    )
+
+    assert.equal(retrieveCalls, 0)
     assert.equal(createCalls, 0)
   })
 
@@ -2598,6 +2732,20 @@ function supporterTaxEnv() {
     STRIPE_SUPPORTER_TAX_PROVIDER_READY: "true",
     STRIPE_SUPPORTER_TAX_REGISTRATIONS_READY: "true",
     STRIPE_SUPPORTER_TAX_CLASSIFICATION_CONFIRMED: "true",
+  }
+}
+
+/**
+ * Returns each injected monotonic timestamp exactly once so tests fail if the
+ * reconciliation code performs an unexpected deadline check.
+ */
+function monotonicNowMsSequence(...timestamps) {
+  let index = 0
+  return () => {
+    assert.ok(index < timestamps.length, "Unexpected reconciliation clock read")
+    const timestamp = timestamps[index]
+    index += 1
+    return timestamp
   }
 }
 

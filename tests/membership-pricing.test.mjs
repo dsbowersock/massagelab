@@ -124,6 +124,28 @@ describe("Membership pricing catalog", () => {
     })
   })
 
+  it("preserves configured yearly Price identity when Stripe lookup fails", async () => {
+    const catalog = await getMembershipPricingCatalog({
+      env: {
+        STRIPE_SUPPORTER_1_YEARLY_PRICE_ID: "price_supporter_1_year",
+      },
+      stripeClient: {
+        prices: {
+          retrieve: async () => {
+            throw new Error("Stripe lookup unavailable")
+          },
+        },
+      },
+    })
+    const yearlyPrice = catalog.plans[0].amountChoices[0].prices.year
+
+    assert.equal(yearlyPrice.priceId, "price_supporter_1_year")
+    assert.equal(yearlyPrice.isConfigured, true)
+    assert.equal(yearlyPrice.isLookupAvailable, false)
+    assert.equal(yearlyPrice.unitAmount, null)
+    assert.equal(yearlyPrice.displayPrice, "Price unavailable")
+  })
+
   it("keeps compliance-heavy documentation goals in the single Supporter offering roadmap notes", async () => {
     const catalog = await getMembershipPricingCatalog({ env: {} })
     const [supporter] = catalog.plans

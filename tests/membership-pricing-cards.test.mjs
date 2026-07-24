@@ -208,7 +208,7 @@ describe("MembershipPricingCards configured price rendering", () => {
     assert.equal(
       findElements(
         tree,
-        (element) => element.type === "div" && element.props.className === "grid gap-3 sm:grid-cols-3",
+        (element) => element.props["data-membership-portal-amount-choice"] != null,
       ).length,
       0,
     )

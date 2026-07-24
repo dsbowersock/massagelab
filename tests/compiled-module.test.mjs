@@ -145,6 +145,20 @@ describe("compiled-module JSX traversal helpers", () => {
     assert.equal(rendered.props.style, style)
   })
 
+  it("fails clearly when a function component returns an unawaited thenable", () => {
+    const AsyncComponent = () => ({
+      then() {},
+    })
+
+    assert.throws(
+      () => renderFunctionComponents(createElement(AsyncComponent, {})),
+      {
+        name: "TypeError",
+        message: "renderFunctionComponents received an async function-component result; await it before rendering.",
+      },
+    )
+  })
+
   it("reads only explicit text-bearing props", () => {
     const tree = createElement("div", {
       children: "Child",

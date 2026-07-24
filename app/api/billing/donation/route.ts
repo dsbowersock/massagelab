@@ -4,25 +4,18 @@ import { getSiteUrl } from "@/lib/auth-env"
 import { findDonationOption } from "@/lib/donations"
 import { safeErrorCode } from "@/lib/safe-error-code"
 import { createStripeDonationCheckoutSession } from "@/lib/stripe-billing"
-import { isTrustedCheckoutFormOrigin } from "@/lib/trusted-form-origin"
+import {
+  isBrowserFormRequest,
+  isTrustedCheckoutFormOrigin,
+} from "@/lib/trusted-form-origin"
 
 export const runtime = "nodejs"
-
-/**
- * Detects browser form payloads without consuming the request body so the
- * origin guard can reject cross-site posts before parsing or billing work.
- */
-function isDonationFormRequest(request: Request) {
-  const contentType = request.headers.get("content-type") ?? ""
-  return contentType.includes("application/x-www-form-urlencoded")
-    || contentType.includes("multipart/form-data")
-}
 
 /**
  * Parses one-time support payloads from either HTML form submissions or JSON clients.
  * The returned `isForm` flag controls whether failures redirect or return JSON.
  */
-async function donationRequest(request: Request, isForm = isDonationFormRequest(request)) {
+async function donationRequest(request: Request, isForm = isBrowserFormRequest(request)) {
   if (isForm) {
     let formData
     try {
@@ -60,9 +53,11 @@ function pricingRedirect(code: string) {
 }
 
 export async function POST(request: Request) {
-  const isForm = isDonationFormRequest(request)
-  if (isForm && !isTrustedCheckoutFormOrigin(request)) {
-    return pricingRedirect("invalid-request")
+  const isForm = isBrowserFormRequest(request)
+  if (!isTrustedCheckoutFormOrigin(request)) {
+    return isForm
+      ? pricingRedirect("invalid-request")
+      : NextResponse.json({ error: "Invalid request origin" }, { status: 403 })
   }
 
   const input = await donationRequest(request, isForm)

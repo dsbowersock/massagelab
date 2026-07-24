@@ -110,18 +110,96 @@ describe("Membership Checkout POST route", () => {
         },
       }
 
-      const response = await createMembershipCheckoutPostHandler(checkoutDependencies({
+      const calls = {
         ensureCustomer: 0,
         createCheckout: 0,
-      }))(request)
+        membershipLookup: 0,
+      }
+      const response = await createMembershipCheckoutPostHandler(
+        checkoutDependencies(calls),
+      )(request)
 
       assert.deepEqual(response, {
         url: "https://massagelab.app/account?billing=invalid-request",
         status: 303,
       })
       assert.equal(formDataCalls, 0)
+      assert.deepEqual(calls, {
+        ensureCustomer: 0,
+        createCheckout: 0,
+        membershipLookup: 0,
+      })
     })
   }
+
+  for (const fetchSite of ["cross-site", "same-site"]) {
+    it(`rejects ${fetchSite} browser JSON before parsing or billing work`, async () => {
+      let jsonCalls = 0
+      const calls = {
+        ensureCustomer: 0,
+        createCheckout: 0,
+        membershipLookup: 0,
+      }
+      const request = {
+        url: "https://massagelab.app/api/billing/checkout",
+        headers: new Headers({
+          "content-type": "application/json",
+          "sec-fetch-site": fetchSite,
+        }),
+        json: async () => {
+          jsonCalls += 1
+          return {
+            membershipLevel: "SUPPORTER",
+            supporterAmountChoiceId: "support-1",
+          }
+        },
+      }
+
+      const response = await createMembershipCheckoutPostHandler(
+        checkoutDependencies(calls),
+      )(request)
+
+      assert.deepEqual(response, {
+        body: { error: "Invalid request origin" },
+        status: 403,
+      })
+      assert.equal(jsonCalls, 0)
+      assert.deepEqual(calls, {
+        ensureCustomer: 0,
+        createCheckout: 0,
+        membershipLookup: 0,
+      })
+    })
+  }
+
+  it("accepts same-origin browser JSON", async () => {
+    const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
+    const request = new Request("https://massagelab.app/api/billing/checkout", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "sec-fetch-site": "same-origin",
+      },
+      body: JSON.stringify({
+        membershipLevel: "SUPPORTER",
+        supporterAmountChoiceId: "support-1",
+      }),
+    })
+
+    const response = await createMembershipCheckoutPostHandler(
+      checkoutDependencies(calls, { session: null }),
+    )(request)
+
+    assert.deepEqual(response, {
+      body: { error: "Unauthorized" },
+      status: 401,
+    })
+    assert.deepEqual(calls, {
+      ensureCustomer: 0,
+      createCheckout: 0,
+      membershipLookup: 0,
+    })
+  })
 
   it("accepts a same-origin form and records required legal acceptance", async () => {
     const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { spawnSync } from "node:child_process"
-import { mkdtemp, rm, writeFile } from "node:fs/promises"
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { describe, it } from "node:test"
@@ -547,6 +547,37 @@ describe("Stripe readiness background-commerce contract", () => {
     }, ["--live", "--verify-stripe"])
 
     assert.equal(result.status, 1)
+    assert.match(result.stdout, /Stripe API retrieval requested: true/)
+    assert.match(result.stdout, /Stripe API retrieval performed: false/)
+  })
+
+  it("checks the complete Price ID inventory before retrieval and reporting", async () => {
+    const source = await readFile(readinessScriptPath, "utf8")
+    const checkPriceIdsIndex = source.lastIndexOf("\ncheckPriceIds()")
+    const verifyPricesIndex = source.lastIndexOf("\nawait verifyStripePrices()")
+    const printResultsIndex = source.lastIndexOf("\nprintResults(")
+    const validateRetrievedPriceIndex = source.indexOf(
+      "validateRetrievedMembershipPrice(price, expected)",
+    )
+    const retrievalPerformedIndex = source.indexOf(
+      "stripeRetrievalPerformed = true",
+    )
+
+    assert.ok(checkPriceIdsIndex >= 0)
+    assert.ok(checkPriceIdsIndex < verifyPricesIndex)
+    assert.ok(verifyPricesIndex < printResultsIndex)
+    assert.ok(validateRetrievedPriceIndex >= 0)
+    assert.ok(validateRetrievedPriceIndex < retrievalPerformedIndex)
+    assert.equal(
+      source.match(/stripeRetrievalPerformed = true/g)?.length,
+      1,
+    )
+
+    const result = runReadiness({
+      ...Object.fromEntries(Object.keys(membershipPrices).map((key) => [key, ""])),
+    }, ["--verify-stripe"])
+    assert.equal(result.status, 1)
+    assert.match(result.stderr, /STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID is missing/)
     assert.match(result.stdout, /Stripe API retrieval requested: true/)
     assert.match(result.stdout, /Stripe API retrieval performed: false/)
   })

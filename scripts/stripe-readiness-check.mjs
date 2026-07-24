@@ -253,7 +253,6 @@ async function verifyStripePrices() {
     return
   }
 
-  stripeRetrievalPerformed = true
   const stripe = new Stripe(envValue("STRIPE_SECRET_KEY"), {
     apiVersion: STRIPE_API_VERSION,
   })
@@ -264,6 +263,7 @@ async function verifyStripePrices() {
       for (const failure of validateRetrievedMembershipPrice(price, expected)) {
         addFailure(failure)
       }
+      stripeRetrievalPerformed = true
     } catch (error) {
       const detail = error instanceof Error ? error.message : "unknown Stripe error"
       addFailure(`${expected.key} could not be retrieved from Stripe: ${detail}`)

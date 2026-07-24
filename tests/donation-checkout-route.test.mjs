@@ -4,7 +4,10 @@ import { describe, it } from "node:test"
 
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 import { safeErrorCode } from "../lib/safe-error-code.js"
-import { isTrustedCheckoutFormOrigin } from "../lib/trusted-form-origin.js"
+import {
+  isBrowserFormRequest,
+  isTrustedCheckoutFormOrigin,
+} from "../lib/trusted-form-origin.js"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const donationRouteSource = await readFile(
@@ -51,6 +54,7 @@ function donationPost({
         safeErrorCode,
       },
       "@/lib/trusted-form-origin": {
+        isBrowserFormRequest,
         isTrustedCheckoutFormOrigin,
       },
       "@/lib/stripe-billing": {
@@ -170,6 +174,45 @@ describe("one-time support Checkout route", () => {
     assert.equal(selectionCalls, 0)
     assert.equal(checkoutCalls, 0)
   })
+
+  for (const fetchSite of ["cross-site", "same-site"]) {
+    it(`rejects ${fetchSite} browser JSON before parsing, selection, or Stripe work`, async () => {
+      let jsonCalls = 0
+      let selectionCalls = 0
+      let checkoutCalls = 0
+      const POST = donationPost({
+        findDonationOption: () => {
+          selectionCalls += 1
+          return { amountCents: 500 }
+        },
+        createCheckoutSession: async () => {
+          checkoutCalls += 1
+          return { url: "https://checkout.stripe.com/c/should-not-run" }
+        },
+      })
+      const request = {
+        url: "https://massagelab.app/api/billing/donation",
+        headers: new Headers({
+          "content-type": "application/json",
+          "sec-fetch-site": fetchSite,
+        }),
+        json: async () => {
+          jsonCalls += 1
+          return { amountCents: 500 }
+        },
+      }
+
+      const response = await POST(request)
+
+      assert.deepEqual(response, {
+        body: { error: "Invalid request origin" },
+        status: 403,
+      })
+      assert.equal(jsonCalls, 0)
+      assert.equal(selectionCalls, 0)
+      assert.equal(checkoutCalls, 0)
+    })
+  }
 
   it("returns the controlled JSON error for an unsupported amount before Stripe", async () => {
     const lookedUpAmounts = []

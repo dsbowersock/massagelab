@@ -256,8 +256,16 @@ async function renderMembershipTab({
     "\nasync function BackgroundCommerceTab",
     functionStart,
   )
-  assert.notEqual(functionStart, -1)
-  assert.notEqual(functionEnd, -1)
+  assert.notEqual(
+    functionStart,
+    -1,
+    "Account page source must contain the MembershipTab function",
+  )
+  assert.notEqual(
+    functionEnd,
+    -1,
+    "MembershipTab extraction must end at BackgroundCommerceTab",
+  )
 
   const imports = `
     import {

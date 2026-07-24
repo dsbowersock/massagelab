@@ -484,8 +484,8 @@ function lookupKeyFor(spec) {
   return `massagelab_${spec.key.replaceAll("-", "_")}`
 }
 
-function targetPriceIdempotencyKey(spec) {
-  return `massagelab-supporter-membership-v1-price-${spec.key}`
+function targetPriceIdempotencyKey(spec, supporterProductId) {
+  return `massagelab-supporter-membership-v1-price-${supporterProductId}-${spec.key}`
 }
 
 function findTargetCandidate({ allPrices, configuredId, spec, productId }) {
@@ -1115,7 +1115,7 @@ async function applyPlan(stripe, config, inventory) {
     if (!candidate) {
       const created = await stripe.prices.create(
         targetPricePayload(supporter.id, spec),
-        { idempotencyKey: targetPriceIdempotencyKey(spec) },
+        { idempotencyKey: targetPriceIdempotencyKey(spec, supporter.id) },
       )
       candidate = await retrieveAfterMutation(
         retrievePriceWithCurrencyOptions.bind(null, stripe),

@@ -127,7 +127,17 @@ export function renderFunctionComponents(tree) {
     return tree
   }
   if (typeof tree.type === "function") {
-    return renderFunctionComponents(tree.type(tree.props))
+    const rendered = tree.type(tree.props)
+    if (
+      rendered
+      && (typeof rendered === "object" || typeof rendered === "function")
+      && typeof rendered.then === "function"
+    ) {
+      throw new TypeError(
+        "renderFunctionComponents received an async function-component result; await it before rendering.",
+      )
+    }
+    return renderFunctionComponents(rendered)
   }
 
   const renderedProps = Object.fromEntries(

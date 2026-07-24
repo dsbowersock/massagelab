@@ -494,9 +494,21 @@ describe("Supporter membership Stripe migration", () => {
       new URL("../package.json", import.meta.url),
       "utf8",
     )
+    const deploymentGuide = await readFile(
+      new URL("../docs/wiki/deployment.md", import.meta.url),
+      "utf8",
+    )
+    const packageJson = JSON.parse(packageSource)
 
     assert.doesNotMatch(packageSource, /stripe:live:setup|stripe-live-membership-setup/)
-    assert.match(packageSource, /stripe:migrate-supporter-membership/)
+    assert.equal(
+      packageJson.scripts["stripe:migrate-supporter-membership"],
+      "node scripts/stripe-supporter-membership-migration.mjs",
+    )
+    assert.match(
+      deploymentGuide,
+      /npm run stripe:migrate-supporter-membership -- --mode=verify/,
+    )
   })
 
   it("does not expose the Stripe secret in reports or recorded dependencies", async () => {
@@ -760,6 +772,19 @@ describe("Supporter membership Stripe migration", () => {
       && entry.currency === "usd"
       && entry.tax_behavior === "exclusive"
     )), true)
+    assert.deepEqual(
+      fixture.calls
+        .filter(({ name }) => name === "prices.create")
+        .map(({ options }) => options.idempotencyKey),
+      [
+        "massagelab-supporter-membership-v1-price-prod_supporter-support-1-month",
+        "massagelab-supporter-membership-v1-price-prod_supporter-support-1-year",
+        "massagelab-supporter-membership-v1-price-prod_supporter-support-2-month",
+        "massagelab-supporter-membership-v1-price-prod_supporter-support-2-year",
+        "massagelab-supporter-membership-v1-price-prod_supporter-support-5-month",
+        "massagelab-supporter-membership-v1-price-prod_supporter-support-5-year",
+      ],
+    )
     assert.equal(LEGACY_PRICE_SPECS.every(([id]) => fixture.prices.get(id).active === false), true)
     assert.equal(fixture.products.get("prod_therapist").active, false)
     assert.equal(fixture.products.get("prod_practice").active, false)
@@ -1730,7 +1755,13 @@ describe("Supporter membership Stripe migration", () => {
       "StripeIdempotencyError",
     ]) {
       const fixture = stripeFixture()
-      const failure = stripeSdkError(type, type === "StripeInvalidRequestError" ? 400 : 401)
+      const statusCode = [
+        "StripeInvalidRequestError",
+        "StripeIdempotencyError",
+      ].includes(type)
+        ? 400
+        : 401
+      const failure = stripeSdkError(type, statusCode)
       const delays = []
       let attempts = 0
       fixture.stripe.products.update = async () => {
@@ -2114,8 +2145,8 @@ describe("Supporter membership Stripe migration", () => {
     assert.deepEqual(
       creates.map(({ options }) => options?.idempotencyKey),
       [
-        "massagelab-supporter-membership-v1-price-support-1-month",
-        "massagelab-supporter-membership-v1-price-support-1-month",
+        "massagelab-supporter-membership-v1-price-prod_supporter-support-1-month",
+        "massagelab-supporter-membership-v1-price-prod_supporter-support-1-month",
       ],
     )
     assert.equal(

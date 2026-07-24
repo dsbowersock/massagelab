@@ -34,10 +34,12 @@ describe("public Roadmap page", () => {
 
   it("keeps the approved public actions and removes tactical roadmap copy", () => {
     const source = readProjectFile("app/roadmap/page.tsx")
+    const pricingSource = readProjectFile("app/pricing/page.tsx")
 
     assert.match(source, /href="\/tools"/)
     assert.match(source, /href="\/pricing"/)
     assert.match(source, /href="\/pricing#one-time-support"/)
+    assert.match(pricingSource, /id="one-time-support"/)
     assert.match(source, /One-time support/)
     assert.doesNotMatch(source, /recentlyShipped|currentFocus|laterProductTracks|upfrontNeeds/)
     assert.doesNotMatch(source, /Current alpha direction|Recently shipped|Current alpha focus/)
