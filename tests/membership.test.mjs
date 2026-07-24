@@ -179,6 +179,7 @@ describe("Membership and entitlement helpers", () => {
       { status: "past_due", membershipLevel: "SUPPORTER" },
       { status: "unpaid", membershipLevel: "SUPPORTER" },
       { status: "paused", membershipLevel: "SUPPORTER" },
+      { status: "incomplete", membershipLevel: "SUPPORTER" },
       { status: "canceled", cancelAtPeriodEnd: true, membershipLevel: "SUPPORTER" },
     ]) {
       assert.equal(membership.hasSubscriptionBlockingNewCheckout([subscription]), true)

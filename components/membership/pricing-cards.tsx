@@ -35,7 +35,7 @@ type MembershipPlan = {
     id: string
     month: number
     year: number
-    prices: Record<string, MembershipPrice>
+    prices: Partial<Record<string, MembershipPrice>>
   }>
 }
 
@@ -162,7 +162,8 @@ function PlanCard({
           <div className="mt-auto space-y-3">
             <div className="grid gap-3 sm:grid-cols-3">
               {plan.amountChoices.map((choice) => {
-                const price = choice.prices[interval] ?? choice.prices.year ?? choice.prices.month
+                const price = resolveChoicePrice(choice, interval)
+                if (!price) return null
 
                 return (
                   <div key={choice.id} className="rounded-md border border-border/80 bg-background/70 p-3 text-center">
@@ -188,20 +189,32 @@ function PlanCard({
           </div>
         ) : (
           <div className="mt-auto grid gap-3 sm:grid-cols-3">
-            {plan.amountChoices.map((choice) => (
-              <SupporterAmountChoice
-                key={choice.id}
-                plan={plan}
-                choiceId={choice.id}
-                price={choice.prices[interval] ?? choice.prices.year ?? choice.prices.month}
-                mode={mode}
-              />
-            ))}
+            {plan.amountChoices.map((choice) => {
+              const price = resolveChoicePrice(choice, interval)
+              if (!price) return null
+
+              return (
+                <SupporterAmountChoice
+                  key={choice.id}
+                  plan={plan}
+                  choiceId={choice.id}
+                  price={price}
+                  mode={mode}
+                />
+              )
+            })}
           </div>
         )}
       </CardContent>
     </Card>
   )
+}
+
+function resolveChoicePrice(
+  choice: MembershipPlan["amountChoices"][number],
+  interval: string,
+) {
+  return choice.prices[interval] ?? choice.prices.year ?? choice.prices.month
 }
 
 function FeatureGroup({

@@ -41,6 +41,7 @@ describe("Membership Checkout POST route", () => {
     { status: "past_due", membershipLevel: "SUPPORTER" },
     { status: "unpaid", membershipLevel: "SUPPORTER" },
     { status: "paused", membershipLevel: "SUPPORTER" },
+    { status: "incomplete", membershipLevel: "SUPPORTER" },
     {
       status: "canceled",
       cancelAtPeriodEnd: true,
@@ -135,6 +136,34 @@ describe("Membership Checkout POST route", () => {
     assert.equal(calls.ensureCustomer, 1)
     assert.equal(calls.createCheckout, 1)
   })
+
+  it("logs the root cause when membership Checkout setup fails", async () => {
+    const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
+    const failure = new Error("customer lookup failed")
+    const logged = []
+    const originalConsoleError = console.error
+    console.error = (...args) => logged.push(args)
+
+    try {
+      const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
+        ensureCustomerError: failure,
+      }))(jsonRequest({
+        membershipLevel: "SUPPORTER",
+        supporterAmountChoiceId: "support-1",
+        interval: "month",
+        acceptedLegalDocuments: ["membership-billing-refunds:current"],
+        billingTermsAccepted: true,
+      }))
+
+      assert.deepEqual(response, {
+        body: { error: "Unable to start checkout." },
+        status: 500,
+      })
+      assert.deepEqual(logged, [["Unable to start membership checkout", failure]])
+    } finally {
+      console.error = originalConsoleError
+    }
+  })
 })
 
 function jsonRequest(body) {
@@ -156,6 +185,7 @@ function formRequest(body) {
 function checkoutDependencies(calls, {
   subscriptions = [],
   checkoutSession = { url: "https://checkout.stripe.com/c/test" },
+  ensureCustomerError = null,
 } = {}) {
   return {
     NextResponse: {
@@ -174,7 +204,7 @@ function checkoutDependencies(calls, {
     requiredLegalDocumentsForEvent: () => [],
     hasSubscriptionBlockingNewCheckout: (candidates) => candidates.some(
       (subscription) => (
-        ["active", "trialing", "past_due", "unpaid", "paused"].includes(subscription.status)
+        ["active", "trialing", "past_due", "unpaid", "paused", "incomplete"].includes(subscription.status)
         || subscription.cancelAtPeriodEnd === true
       ),
     ),
@@ -191,6 +221,7 @@ function checkoutDependencies(calls, {
     },
     ensureStripeCustomerForUser: async () => {
       calls.ensureCustomer += 1
+      if (ensureCustomerError) throw ensureCustomerError
       return { stripeCustomerId: "cus_123" }
     },
     createStripeCheckoutSession: async (options) => {
