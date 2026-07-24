@@ -116,7 +116,7 @@ mode. Use the exact existing Supporter Product ID when it should be renamed and
 reused. `CREATE_NEW` is an explicit exceptional authorization and is rejected if
 a managed target Product already exists. Use `none` for the allowed subscription
 only after a complete inventory proves no active, trialing, past-due, unpaid,
-paused, or canceling subscription exists.
+paused, incomplete, or canceling subscription exists.
 
 Run verification first:
 
