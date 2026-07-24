@@ -275,7 +275,11 @@ function SupporterAmountChoice({
 
   if (!price.isConfigured) {
     return (
-      <Button disabled className="w-full">
+      <Button
+        disabled
+        data-membership-checkout-amount-choice={choiceId}
+        className="w-full"
+      >
         Pricing temporarily unavailable
       </Button>
     )
@@ -285,7 +289,12 @@ function SupporterAmountChoice({
   const billingTermsId = legalDocumentAcceptanceId(billingTerms)
 
   return (
-    <form action="/api/billing/checkout" method="post" className="space-y-3">
+    <form
+      action="/api/billing/checkout"
+      method="post"
+      data-membership-checkout-amount-choice={choiceId}
+      className="space-y-3"
+    >
       <input type="hidden" name="membershipLevel" value={plan.membershipLevel} />
       <input type="hidden" name="supporterAmountChoiceId" value={choiceId} />
       <input type="hidden" name="interval" value={price.interval} />

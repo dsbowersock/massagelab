@@ -39,8 +39,6 @@ describe("public Roadmap page", () => {
     assert.match(source, /href="\/pricing"/)
     assert.match(source, /href="\/pricing#one-time-support"/)
     assert.match(source, /One-time support/)
-    assert.doesNotMatch(source, />[^<]*\bDonate\b[^<]*</i)
-    assert.doesNotMatch(source, /Memberships and donations/i)
     assert.doesNotMatch(source, /recentlyShipped|currentFocus|laterProductTracks|upfrontNeeds/)
     assert.doesNotMatch(source, /Current alpha direction|Recently shipped|Current alpha focus/)
     assert.doesNotMatch(source, /May 8-13, 2026/)

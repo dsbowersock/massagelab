@@ -243,7 +243,7 @@ describe("Stripe readiness background-commerce contract", () => {
     delete withoutExpandedCurrencyOptions.currency_options
     assert.deepEqual(
       validateRetrievedMembershipPrice(withoutExpandedCurrencyOptions, expected),
-      [`${expected.key} must not define additional currency options.`],
+      [`${expected.key} must be retrieved with currency_options expanded.`],
       "missing currency_options cannot prove the expanded Price has no alternatives",
     )
   })
@@ -398,6 +398,26 @@ describe("Stripe readiness background-commerce contract", () => {
         "STRIPE_SUPPORTER_TAX_REGISTRATIONS_READY=true",
         "STRIPE_SUPPORTER_TAX_CLASSIFICATION_CONFIRMED=true",
       ].join("\n"))
+
+      const dotenvDisabled = spawnSync(
+        process.execPath,
+        [
+          "scripts/stripe-readiness-check.mjs",
+          "--no-dotenv",
+          `--env-file=${envFile}`,
+        ],
+        {
+          cwd: process.cwd(),
+          encoding: "utf8",
+          env: environment,
+        },
+      )
+      assert.equal(dotenvDisabled.error, undefined, dotenvDisabled.error?.message)
+      assert.equal(dotenvDisabled.status, 1)
+      assert.match(
+        dotenvDisabled.stderr,
+        /FAIL Supporter recurring tax automatic-tax enablement is not configured\./,
+      )
 
       const result = spawnSync(
         process.execPath,

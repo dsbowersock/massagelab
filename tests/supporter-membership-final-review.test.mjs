@@ -20,9 +20,8 @@ import {
   elementText,
   findElement,
   findElements,
-  passThroughElement,
-  renderFunctionComponents,
 } from "./helpers/compiled-module.mjs"
+import { renderMembershipPricingCards } from "./helpers/membership-pricing-cards.mjs"
 
 const LEGACY_RUNTIME_PRICE_KEYS = Object.freeze([
   "STRIPE_SUPPORTER_MONTHLY_PRICE_ID",
@@ -39,6 +38,7 @@ function TestComponent() {}
 
 async function renderPublicPricing({
   session,
+  stripeCustomer = null,
   subscriptions,
   membershipStatusError = null,
   renderedPricingModes = [],
@@ -48,6 +48,7 @@ async function renderPublicPricing({
     "utf8",
   )
   let subscriptionQueries = 0
+  let stripeCustomerQueries = 0
   function MembershipPricingCards() {}
   const createPricingElement = (type, props, key) => {
     if (type === MembershipPricingCards) {
@@ -90,6 +91,12 @@ async function renderPublicPricing({
       },
       "@/lib/prisma": {
         prisma: {
+          stripeCustomer: {
+            async findUnique() {
+              stripeCustomerQueries += 1
+              return stripeCustomer
+            },
+          },
           membershipSubscription: {
             async findMany() {
               subscriptionQueries += 1
@@ -134,117 +141,10 @@ async function renderPublicPricing({
   return {
     activeMembershipLevel: pricingCards.props.activeMembershipLevel ?? null,
     mode: pricingCards.props.mode,
+    portalActionAvailable: pricingCards.props.portalActionAvailable,
+    stripeCustomerQueries,
     subscriptionQueries,
   }
-}
-
-async function renderMembershipPricingCards({ mode, activeMembershipLevel }) {
-  const pricingCardsSource = await readFile(
-    new URL("../components/membership/pricing-cards.tsx", import.meta.url),
-    "utf8",
-  )
-  const Div = passThroughElement("div")
-  const Button = passThroughElement("button")
-  const Link = passThroughElement("a")
-  const price = {
-    membershipLevel: "SUPPORTER",
-    interval: "month",
-    priceId: "price_supporter_1_month",
-    unitAmount: 100,
-    currency: "usd",
-    displayPrice: "$1",
-    displayInterval: "/month",
-    isConfigured: true,
-    isLookupAvailable: true,
-    yearlySavings: null,
-  }
-  const catalog = {
-    defaultInterval: "month",
-    intervals: [{
-      id: "month",
-      label: "Monthly",
-      nudge: "Flexible",
-    }],
-    plans: [{
-      membershipLevel: "SUPPORTER",
-      name: "MassageLab Supporter Membership",
-      eyebrow: "Alpha support",
-      description: "Support current features and careful future development.",
-      currentFeatures: ["Access to all backgrounds"],
-      roadmapNotes: ["Funds privacy-preserving product work."],
-      amountChoices: [{
-        id: "support-1",
-        monthAmountCents: 100,
-        yearAmountCents: 1000,
-        prices: { month: price },
-      }],
-    }],
-  }
-  const pricingCards = loadCompiledModule(
-    pricingCardsSource,
-    "components/membership/pricing-cards.tsx",
-    {
-      "react/jsx-runtime": {
-        Fragment: Symbol.for("supporter-final-review.fragment"),
-        jsx: createElement,
-        jsxs: createElement,
-      },
-      "next/link": Link,
-      "lucide-react": {
-        BadgeDollarSign: TestComponent,
-        CheckCircle2: TestComponent,
-        Palette: TestComponent,
-        ShieldCheck: TestComponent,
-      },
-      "@/components/ui/app-surface": {
-        appCalloutClassName: "test-callout",
-        appSurfaceClassName: "test-surface",
-      },
-      "@/components/ui/badge": {
-        Badge: Div,
-      },
-      "@/components/ui/button": {
-        Button,
-      },
-      "@/components/ui/card": {
-        Card: Div,
-        CardContent: Div,
-        CardDescription: Div,
-        CardHeader: Div,
-        CardTitle: Div,
-      },
-      "@/components/ui/metal-attention-button": {
-        MetalAttentionButton: Button,
-      },
-      "@/components/ui/tabs": {
-        Tabs: Div,
-        TabsContent: Div,
-        TabsList: Div,
-        TabsTrigger: Div,
-      },
-      "@/lib/legal-documents": {
-        getLegalDocumentByKey: () => ({
-          label: "Membership Billing and Refund Terms",
-          route: "/legal/membership-billing-refunds",
-        }),
-        legalDocumentAcceptanceId: () => "membership-billing-refunds:test",
-      },
-      "@/lib/membership-pricing": {
-        resolveMembershipPriceForInterval: (choice, interval) => (
-          choice.prices?.[interval] ?? null
-        ),
-      },
-      "@/lib/utils": {
-        cn: (...classes) => classes.filter(Boolean).join(" "),
-      },
-    },
-  )
-
-  return renderFunctionComponents(pricingCards.MembershipPricingCards({
-    activeMembershipLevel,
-    catalog,
-    mode,
-  }))
 }
 
 /** Supplies the complete non-secret migration configuration for the fixture. */
@@ -360,6 +260,7 @@ describe("Supporter membership final-review contracts", () => {
   it("routes members to Portal mode and non-members to the appropriate pricing action", async () => {
     const member = await renderPublicPricing({
       session: { user: { id: "user_member" } },
+      stripeCustomer: { userId: "user_member", stripeCustomerId: "cus_member" },
       subscriptions: [{
         status: "active",
         membershipLevel: "SUPPORTER",
@@ -379,23 +280,41 @@ describe("Supporter membership final-review contracts", () => {
     assert.deepEqual(member, {
       activeMembershipLevel: "SUPPORTER",
       mode: "portal",
+      portalActionAvailable: true,
+      stripeCustomerQueries: 1,
       subscriptionQueries: 1,
     })
     assert.deepEqual(signedInNonMember, {
       activeMembershipLevel: null,
       mode: "checkout",
+      portalActionAvailable: false,
+      stripeCustomerQueries: 1,
       subscriptionQueries: 1,
     })
     assert.deepEqual(guest, {
       activeMembershipLevel: null,
       mode: "auth",
+      portalActionAvailable: false,
+      stripeCustomerQueries: 0,
       subscriptionQueries: 0,
     })
 
     const [memberCards, signedInNonMemberCards, guestCards] = await Promise.all([
-      renderMembershipPricingCards(member),
-      renderMembershipPricingCards(signedInNonMember),
-      renderMembershipPricingCards(guest),
+      renderMembershipPricingCards({
+        mode: member.mode,
+        activeMembershipLevel: member.activeMembershipLevel,
+        portalActionAvailable: member.portalActionAvailable,
+      }),
+      renderMembershipPricingCards({
+        mode: signedInNonMember.mode,
+        activeMembershipLevel: signedInNonMember.activeMembershipLevel,
+        portalActionAvailable: signedInNonMember.portalActionAvailable,
+      }),
+      renderMembershipPricingCards({
+        mode: guest.mode,
+        activeMembershipLevel: guest.activeMembershipLevel,
+        portalActionAvailable: guest.portalActionAvailable,
+      }),
     ])
     const formActions = (tree) => findElements(
       tree,
@@ -424,6 +343,26 @@ describe("Supporter membership final-review contracts", () => {
     )
   })
 
+  it("keeps Portal mode unavailable after a successful lookup without a Stripe Customer", async () => {
+    const result = await renderPublicPricing({
+      session: { user: { id: "user_member_without_customer" } },
+      subscriptions: [{
+        status: "active",
+        membershipLevel: "SUPPORTER",
+        currentPeriodEnd: new Date("2099-01-01T00:00:00.000Z"),
+        cancelAtPeriodEnd: false,
+      }],
+    })
+
+    assert.deepEqual(result, {
+      activeMembershipLevel: "SUPPORTER",
+      mode: "portal",
+      portalActionAvailable: false,
+      stripeCustomerQueries: 1,
+      subscriptionQueries: 1,
+    })
+  })
+
   it("fails closed to Portal mode with sanitized logging when membership lookup rejects", async (context) => {
     const membershipStatusError = new Error("membership database unavailable for user@example.com")
     membershipStatusError.code = "unsafe\nuser@example.com"
@@ -441,6 +380,8 @@ describe("Supporter membership final-review contracts", () => {
     assert.deepEqual(result, {
       activeMembershipLevel: null,
       mode: "portal",
+      portalActionAvailable: false,
+      stripeCustomerQueries: 1,
       subscriptionQueries: 1,
     })
     assert.deepEqual(renderedPricingModes, ["portal"])
@@ -481,12 +422,11 @@ describe("Supporter membership final-review contracts", () => {
     )
   })
 
-  it("executes one strict recurring Price-semantics contract in readiness and migration", async () => {
-    const [readinessSource, readinessCommand, migrationSource] = await Promise.all([
-      readFile(new URL("../lib/stripe-readiness.js", import.meta.url), "utf8"),
-      readFile(new URL("../scripts/stripe-readiness-check.mjs", import.meta.url), "utf8"),
-      readFile(new URL("../scripts/stripe-supporter-membership-migration.mjs", import.meta.url), "utf8"),
-    ])
+  it("uses the shared recurring Price-semantics contract in readiness", async () => {
+    const readinessSource = await readFile(
+      new URL("../lib/stripe-readiness.js", import.meta.url),
+      "utf8",
+    )
     const expected = {
       key: "STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID",
       interval: "month",
@@ -528,7 +468,17 @@ describe("Supporter membership final-review contracts", () => {
       unitAmount: 100,
     })
     assert.deepEqual(readinessCalls[0].mismatches, ["billing_scheme"])
+  })
 
+  it("uses the shared recurring Price-semantics contract in migration verification", async () => {
+    const migrationSource = await readFile(
+      new URL("../scripts/stripe-supporter-membership-migration.mjs", import.meta.url),
+      "utf8",
+    )
+    const expected = {
+      interval: "month",
+      unitAmount: 100,
+    }
     const targetPrice = migrationPrice(
       "price_target_support_1_month",
       "prod_supporter",
@@ -546,7 +496,7 @@ describe("Supporter membership final-review contracts", () => {
           "import.meta.url",
           JSON.stringify("test://supporter-membership-migration"),
         )
-        .replace(/\bawait main\(\)/, "void main()"),
+        .replace(/\bawait main\(\)/, "void 0"),
       "scripts/stripe-supporter-membership-migration.mjs",
       {
         stripe: class TestStripe {},
@@ -585,7 +535,13 @@ describe("Supporter membership final-review contracts", () => {
       unitAmount: 100,
     })
     assert.equal(migrationCalls[0].matches, false)
+  })
 
+  it("retrieves readiness Prices with the expansion required by semantic validation", async () => {
+    const readinessCommand = await readFile(
+      new URL("../scripts/stripe-readiness-check.mjs", import.meta.url),
+      "utf8",
+    )
     assert.match(
       readinessCommand,
       /stripe\.prices\.retrieve\(priceId,\s*\{\s*expand:\s*\["product",\s*"currency_options"\]\s*\}\)/,

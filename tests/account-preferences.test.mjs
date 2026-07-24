@@ -144,6 +144,13 @@ describe("Account preference helpers", () => {
       responseInterests: ["practice_management", "unknown_interest"],
       saveSucceeded: true,
     }), ["practice_management"])
+
+    assert.deepEqual(resolveSupporterRoadmapInterestsAfterSave({
+      previousInterests,
+      responseInterests: "invalid-response-shape",
+      submittedInterests: ["personal_wellness", "practice_management"],
+      saveSucceeded: true,
+    }), ["personal_wellness", "practice_management"])
   })
 
   it("preserves namespaced Music visualizer preferences while stripping forbidden nested keys", () => {

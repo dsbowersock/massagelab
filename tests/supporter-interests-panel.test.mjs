@@ -94,19 +94,34 @@ function createPanelHarness(fetchImpl) {
     return refs[refIndex]
   }
 
-  function useCallback(callback) {
+  function useCallback(callback, dependencies) {
     const callbackIndex = hookIndex
     hookIndex += 1
 
-    if (!(callbackIndex in callbacks)) {
-      callbacks[callbackIndex] = callback
+    if (!Array.isArray(dependencies)) {
+      throw new Error(`SupporterInterestsPanel callback ${callbackIndex} must declare dependencies`)
     }
-    return callbacks[callbackIndex]
+    if (!(callbackIndex in callbacks)) {
+      callbacks[callbackIndex] = {
+        callback,
+        dependencies: [...dependencies],
+      }
+    } else {
+      const priorDependencies = callbacks[callbackIndex].dependencies
+      const dependenciesChanged = priorDependencies.length !== dependencies.length
+        || dependencies.some((dependency, index) => !Object.is(dependency, priorDependencies[index]))
+      if (dependenciesChanged) {
+        throw new Error(
+          `SupporterInterestsPanel callback ${callbackIndex} dependencies changed; extend the harness before relying on memoization`,
+        )
+      }
+    }
+    return callbacks[callbackIndex].callback
   }
 
   /**
-   * Schedules each effect slot once. Dependency diffing is intentionally out
-   * of scope because the panel effect depends only on the stable callback.
+   * Schedules each effect slot once. The callback model above fails loudly if
+   * its dependency arrays change, keeping this narrow effect assumption honest.
    */
   function useEffect(effect) {
     const effectIndex = hookIndex
@@ -280,6 +295,43 @@ describe("SupporterInterestsPanel", () => {
       assert.equal(findInterestCheckbox(harness.getTree(), addedInterest).props.disabled, false)
       assert.equal(findLiveRegion(harness.getTree()).props.role, "status")
       assert.equal(findLiveRegion(harness.getTree()).props["aria-live"], "polite")
+      assert.equal(liveRegionMessage(harness.getTree()), "Roadmap interests saved.")
+    } finally {
+      harness.dispose()
+    }
+  })
+
+  it("keeps the submitted interests when a successful save response is not an array", async () => {
+    const initialInterest = supporterRoadmapInterestOptions[0].id
+    const addedInterest = supporterRoadmapInterestOptions[1].id
+    const harness = createPanelHarness(async (_url, init = {}) => {
+      if (init.method !== "PUT") {
+        return createJsonResponse({
+          appSettings: {
+            supporterRoadmapInterests: [initialInterest],
+          },
+        })
+      }
+
+      return createJsonResponse({
+        appSettings: {
+          supporterRoadmapInterests: "invalid-response-shape",
+        },
+      })
+    })
+
+    try {
+      harness.mount()
+      await settleAsyncWork()
+      harness.render()
+
+      findInterestCheckbox(harness.getTree(), addedInterest).props.onCheckedChange(true)
+      harness.render()
+      await settleAsyncWork()
+      harness.render()
+
+      assert.equal(findInterestCheckbox(harness.getTree(), initialInterest).props.checked, true)
+      assert.equal(findInterestCheckbox(harness.getTree(), addedInterest).props.checked, true)
       assert.equal(liveRegionMessage(harness.getTree()), "Roadmap interests saved.")
     } finally {
       harness.dispose()

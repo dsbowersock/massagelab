@@ -155,7 +155,7 @@ describe("Membership pricing catalog", () => {
     ])
 
     assert.doesNotMatch(environmentExample, /MASSAGELAB_EARLY_ACCESS_DISCOUNT_ENABLED/)
-    assert.doesNotMatch(readinessCheck, /MASSAGELAB_EARLY_ACCESS_DISCOUNT_ENABLED|Early Access|early access/)
+    assert.doesNotMatch(readinessCheck, /MASSAGELAB_EARLY_ACCESS_DISCOUNT_ENABLED|early access/i)
     await assert.rejects(
       readFile(new URL("../scripts/stripe-live-membership-setup.mjs", import.meta.url), "utf8"),
       (error) => error?.code === "ENOENT",

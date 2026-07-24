@@ -1,119 +1,10 @@
 import assert from "node:assert/strict"
-import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import {
-  createCompiledModuleLoader,
-  createElement,
   elementText,
   findElements,
-  passThroughElement,
-  renderFunctionComponents,
 } from "./helpers/compiled-module.mjs"
-
-const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
-
-function TestComponent() {}
-
-/**
- * Renders the production pricing cards against a compact single-plan catalog
- * so each mode's configured/unavailable Price behavior stays deterministic.
- */
-async function renderMembershipPricingCards({
-  mode,
-  amountChoices,
-  portalActionAvailable = true,
-}) {
-  const pricingCardsSource = await readFile(
-    new URL("../components/membership/pricing-cards.tsx", import.meta.url),
-    "utf8",
-  )
-  const Div = passThroughElement("div")
-  const Button = passThroughElement("button")
-  const Link = passThroughElement("a")
-  const pricingCards = loadCompiledModule(
-    pricingCardsSource,
-    "components/membership/pricing-cards.tsx",
-    {
-      "react/jsx-runtime": {
-        Fragment: Symbol.for("membership-pricing-cards-test.fragment"),
-        jsx: createElement,
-        jsxs: createElement,
-      },
-      "next/link": Link,
-      "lucide-react": {
-        BadgeDollarSign: TestComponent,
-        CheckCircle2: TestComponent,
-        Palette: TestComponent,
-        ShieldCheck: TestComponent,
-      },
-      "@/components/ui/app-surface": {
-        appCalloutClassName: "test-callout",
-        appSurfaceClassName: "test-surface",
-      },
-      "@/components/ui/badge": {
-        Badge: Div,
-      },
-      "@/components/ui/button": {
-        Button,
-      },
-      "@/components/ui/card": {
-        Card: Div,
-        CardContent: Div,
-        CardDescription: Div,
-        CardHeader: Div,
-        CardTitle: Div,
-      },
-      "@/components/ui/metal-attention-button": {
-        MetalAttentionButton: Button,
-      },
-      "@/components/ui/tabs": {
-        Tabs: Div,
-        TabsContent: Div,
-        TabsList: Div,
-        TabsTrigger: Div,
-      },
-      "@/lib/legal-documents": {
-        getLegalDocumentByKey: () => ({
-          label: "Membership Billing and Refund Terms",
-          route: "/legal/membership-billing-refunds",
-        }),
-        legalDocumentAcceptanceId: () => "membership-billing-refunds:test",
-      },
-      "@/lib/membership-pricing": {
-        resolveMembershipPriceForInterval: (choice, interval) => (
-          choice.prices?.[interval] ?? null
-        ),
-      },
-      "@/lib/utils": {
-        cn: (...classes) => classes.filter(Boolean).join(" "),
-      },
-    },
-  )
-  const catalog = {
-    defaultInterval: "month",
-    intervals: [{
-      id: "month",
-      label: "Monthly",
-      nudge: "Flexible",
-    }],
-    plans: [{
-      membershipLevel: "SUPPORTER",
-      name: "MassageLab Supporter Membership",
-      eyebrow: "Alpha support",
-      description: "Support current features and careful future development.",
-      currentFeatures: ["Access to all backgrounds"],
-      roadmapNotes: ["Funds privacy-preserving product work."],
-      amountChoices,
-    }],
-  }
-
-  return renderFunctionComponents(pricingCards.MembershipPricingCards({
-    activeMembershipLevel: mode === "portal" ? "SUPPORTER" : null,
-    catalog,
-    mode,
-    portalActionAvailable,
-  }))
-}
+import { renderMembershipPricingCards } from "./helpers/membership-pricing-cards.mjs"
 
 describe("MembershipPricingCards configured price rendering", () => {
   it("advertises only lookup-verified prices in portal and pre-auth modes", async () => {
@@ -192,17 +83,7 @@ describe("MembershipPricingCards configured price rendering", () => {
     assert.match(elementText(portalCards), /\$1/)
     assert.doesNotMatch(elementText(portalCards), /Price unavailable/)
     assert.doesNotMatch(elementText(portalCards), /\$2/)
-    assert.equal(
-      findElements(
-        portalCards,
-        (element) => (
-          element.type === "span"
-          && element.props.className?.includes("items-baseline")
-          && element.props.className?.includes("gap-1")
-        ),
-      ).length,
-      1,
-    )
+    assert.match(elementText(portalPriceTiles[0]), /\$1.*\/month/)
     assert.match(elementText(portalCards), /Manage or change support amount/)
     assert.match(elementText(portalCards), /Customer Portal/)
     assert.equal(
@@ -231,36 +112,43 @@ describe("MembershipPricingCards configured price rendering", () => {
       0,
     )
 
+    const checkoutChoiceNodes = findElements(
+      checkoutCards,
+      (element) => element.props["data-membership-checkout-amount-choice"] != null,
+    )
+    const checkoutChoices = new Map(
+      checkoutChoiceNodes.map((element) => [
+        element.props["data-membership-checkout-amount-choice"],
+        element,
+      ]),
+    )
+    assert.deepEqual([...checkoutChoices.keys()], ["support-1", "support-2", "support-5"])
+
+    const support1Checkout = checkoutChoices.get("support-1")
+    assert.equal(support1Checkout.type, "form")
     assert.equal(
       findElements(
-        checkoutCards,
-        (element) => element.type === "form" && element.props.action === "/api/billing/checkout",
-      ).length,
-      2,
-    )
-    assert.deepEqual(
-      findElements(
-        checkoutCards,
-        (element) => element.type === "input" && element.props.name === "supporterAmountChoiceId",
-      ).map((element) => element.props.value),
-      ["support-1", "support-5"],
-    )
-    assert.deepEqual(
-      findElements(
-        checkoutCards,
+        support1Checkout,
         (element) => element.type === "button" && /Support with/.test(elementText(element)),
-      ).map((element) => element.props.disabled),
-      [false, true],
+      )[0].props.disabled,
+      false,
     )
-    const unavailableCheckoutChoices = findElements(
-      checkoutCards,
-      (element) => (
-        element.type === "button"
-        && element.props.disabled === true
-        && elementText(element) === "Pricing temporarily unavailable"
-      ),
+
+    const support2Checkout = checkoutChoices.get("support-2")
+    assert.equal(support2Checkout.type, "button")
+    assert.equal(support2Checkout.props.disabled, true)
+    assert.equal(elementText(support2Checkout), "Pricing temporarily unavailable")
+
+    const support5Checkout = checkoutChoices.get("support-5")
+    assert.equal(support5Checkout.type, "form")
+    assert.equal(
+      findElements(
+        support5Checkout,
+        (element) => element.type === "button" && /Support with/.test(elementText(element)),
+      )[0].props.disabled,
+      true,
     )
-    assert.equal(unavailableCheckoutChoices.length, 1)
+    assert.equal(checkoutChoices.has("support-missing"), false)
     assert.doesNotMatch(elementText(checkoutCards), /\$2/)
 
     const authChoices = findElements(

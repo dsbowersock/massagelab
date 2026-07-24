@@ -744,7 +744,7 @@ describe("Stripe billing helpers", () => {
             STRIPE_SUPPORTER_2_MONTHLY_PRICE_ID: DEFAULT_SUPPORTER_PRICE_ID,
           },
         },
-        expected: /not in the current configured catalog/,
+        expected: /configured in multiple current catalog slots/,
       },
       {
         label: "caller-supplied level contradicts the configured Price",
@@ -988,6 +988,41 @@ describe("Stripe billing helpers", () => {
     assert.equal(createCalls, 0)
   })
 
+  it("expires an otherwise compatible open Session once its reuse window ends", async () => {
+    const expiredOpenSession = membershipCheckoutSession({
+      id: "cs_open_past_expiry",
+      expiresAt: 1784912400,
+    })
+    const calls = []
+    const result = await stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+      stripeClient: {
+        checkout: {
+          sessions: {
+            list: async () => stripeCheckoutSessionList([expiredOpenSession]),
+            listLineItems: async () => {
+              throw new Error("an expired open Session must not read line items")
+            },
+            expire: async (sessionId) => {
+              calls.push(["expire", sessionId])
+              return { id: sessionId, object: "checkout.session", status: "expired" }
+            },
+            retrieve: async (sessionId) => {
+              calls.push(["retrieve", sessionId])
+              return { id: sessionId, object: "checkout.session", status: "expired" }
+            },
+            create: async () => membershipCheckoutSession({ id: "cs_after_open_expiry" }),
+          },
+        },
+      },
+    }))
+
+    assert.equal(result.id, "cs_after_open_expiry")
+    assert.deepEqual(calls, [
+      ["expire", "cs_open_past_expiry"],
+      ["retrieve", "cs_open_past_expiry"],
+    ])
+  })
+
   it("fails closed instead of reusing a compatible open membership Checkout without a URL", async () => {
     const openSession = membershipCheckoutSession({ id: "cs_open_no_url", url: null })
     let createCalls = 0
@@ -1161,7 +1196,7 @@ describe("Stripe billing helpers", () => {
       },
     }))
 
-    await initialWorkersStarted.promise
+    await settlesWithin(initialWorkersStarted.promise, "initial compatibility workers")
     assert.deepEqual(
       events.filter((event) => event.startsWith("classify:start:")),
       [
@@ -1173,12 +1208,12 @@ describe("Stripe billing helpers", () => {
     assert.equal(activeCompatibilityReads, 3)
 
     classificationGates.get("cs_reuse_duplicate").resolve()
-    await fourthWorkerStarted.promise
+    await settlesWithin(fourthWorkerStarted.promise, "fourth compatibility worker")
     classificationGates.get("cs_stale_first").resolve()
     classificationGates.get("cs_stale_second").resolve()
     classificationGates.get("cs_reuse_first").resolve()
 
-    const result = await resultPromise
+    const result = await settlesWithin(resultPromise, "compatibility classification")
     assert.equal(result.id, "cs_reuse_first")
     assert.equal(maximumCompatibilityReads, 3)
     assert.ok(
@@ -1567,6 +1602,143 @@ describe("Stripe billing helpers", () => {
     assert.equal(createCalls, 0)
   })
 
+  it("deduplicates completed subscription authorities while preserving blocking precedence", async () => {
+    const sessions = [
+      {
+        ...membershipCheckoutSession({
+          id: "cs_complete_terminal_newest",
+          status: "complete",
+          subscription: "sub_terminal",
+          url: null,
+        }),
+        created: 1784912403,
+      },
+      {
+        ...membershipCheckoutSession({
+          id: "cs_complete_terminal_duplicate",
+          status: "complete",
+          subscription: { id: "sub_terminal" },
+          url: null,
+        }),
+        created: 1784912402,
+      },
+      {
+        ...membershipCheckoutSession({
+          id: "cs_complete_blocking",
+          status: "complete",
+          subscription: "sub_blocking",
+          url: null,
+        }),
+        created: 1784912401,
+      },
+    ]
+    const retrievedSubscriptionIds = []
+    let createCalls = 0
+    const result = await stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+      stripeClient: {
+        checkout: {
+          sessions: {
+            list: async () => stripeCheckoutSessionList(sessions),
+            create: async () => {
+              createCalls += 1
+              return membershipCheckoutSession({ id: "cs_unexpected_create" })
+            },
+          },
+        },
+        subscriptions: {
+          retrieve: async (subscriptionId) => {
+            retrievedSubscriptionIds.push(subscriptionId)
+            return membershipStripeSubscription({
+              id: subscriptionId,
+              status: subscriptionId === "sub_terminal" ? "canceled" : "active",
+            })
+          },
+        },
+      },
+    }))
+
+    assert.equal(result.id, "cs_complete_blocking")
+    assert.deepEqual(retrievedSubscriptionIds, ["sub_terminal", "sub_blocking"])
+    assert.equal(createCalls, 0)
+  })
+
+  it("fails closed before authority lookups for completed Sessions without subscription IDs", async () => {
+    let retrieveCalls = 0
+    let createCalls = 0
+
+    await assert.rejects(
+      stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+        stripeClient: {
+          checkout: {
+            sessions: {
+              list: async () => stripeCheckoutSessionList([
+                membershipCheckoutSession({
+                  id: "cs_complete_missing_subscription",
+                  status: "complete",
+                  subscription: null,
+                  url: null,
+                }),
+              ]),
+              create: async () => {
+                createCalls += 1
+                return membershipCheckoutSession({ id: "cs_unexpected_create" })
+              },
+            },
+          },
+          subscriptions: {
+            retrieve: async () => {
+              retrieveCalls += 1
+              return membershipStripeSubscription()
+            },
+          },
+        },
+      })),
+      /completed membership Checkout without a subscription/,
+    )
+
+    assert.equal(retrieveCalls, 0)
+    assert.equal(createCalls, 0)
+  })
+
+  it("fails closed after exhausting the completed-subscription authority lookup budget", async () => {
+    const completedSessions = Array.from({ length: 26 }, (_, index) => (
+      membershipCheckoutSession({
+        id: `cs_complete_authority_${index}`,
+        status: "complete",
+        subscription: `sub_authority_${index}`,
+        url: null,
+      })
+    ))
+    let retrieveCalls = 0
+    let createCalls = 0
+
+    await assert.rejects(
+      stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+        stripeClient: {
+          checkout: {
+            sessions: {
+              list: async () => stripeCheckoutSessionList(completedSessions),
+              create: async () => {
+                createCalls += 1
+                return membershipCheckoutSession({ id: "cs_unexpected_create" })
+              },
+            },
+          },
+          subscriptions: {
+            retrieve: async () => {
+              retrieveCalls += 1
+              return membershipStripeSubscription({ status: "canceled" })
+            },
+          },
+        },
+      })),
+      /subscription authority lookups exceeded the safe limit/,
+    )
+
+    assert.equal(retrieveCalls, 25)
+    assert.equal(createCalls, 0)
+  })
+
   it("does not block a new Checkout for a terminal subscription with a stale cancellation flag", async () => {
     const completedSession = membershipCheckoutSession({
       id: "cs_complete_canceled",
@@ -1829,12 +2001,12 @@ describe("Stripe billing helpers", () => {
 
   it("reconciles every current Supporter Price through Checkout completion", async () => {
     const currentPrices = {
-      STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: "price_supporter_1_monthly",
-      STRIPE_SUPPORTER_1_YEARLY_PRICE_ID: "price_supporter_1_yearly",
-      STRIPE_SUPPORTER_2_MONTHLY_PRICE_ID: "price_supporter_2_monthly",
-      STRIPE_SUPPORTER_2_YEARLY_PRICE_ID: "price_supporter_2_yearly",
-      STRIPE_SUPPORTER_5_MONTHLY_PRICE_ID: "price_supporter_5_monthly",
-      STRIPE_SUPPORTER_5_YEARLY_PRICE_ID: "price_supporter_5_yearly",
+      STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: DEFAULT_SUPPORTER_PRICE_ID,
+      STRIPE_SUPPORTER_1_YEARLY_PRICE_ID: SUPPORTER_1_YEARLY_PRICE_ID,
+      STRIPE_SUPPORTER_2_MONTHLY_PRICE_ID: SUPPORTER_2_MONTHLY_PRICE_ID,
+      STRIPE_SUPPORTER_2_YEARLY_PRICE_ID: SUPPORTER_2_YEARLY_PRICE_ID,
+      STRIPE_SUPPORTER_5_MONTHLY_PRICE_ID: SUPPORTER_5_MONTHLY_PRICE_ID,
+      STRIPE_SUPPORTER_5_YEARLY_PRICE_ID: SUPPORTER_5_YEARLY_PRICE_ID,
     }
 
     for (const [index, priceId] of Object.values(currentPrices).entries()) {
@@ -2062,6 +2234,7 @@ function membershipCheckoutOptions(overrides = {}) {
     successUrl: "https://massagelab.app/account?checkout=success",
     cancelUrl: "https://massagelab.app/account?checkout=cancelled",
     env: supporterTaxEnv(),
+    nowSeconds: 1784912400,
     ...overrides,
   }
 }
@@ -2101,6 +2274,7 @@ function membershipCheckoutSession({
   checkoutContractVersion = "supporter_membership_v1_checkout_v1",
   automaticTaxEnabled = true,
   billingAddressCollection = "required",
+  expiresAt = 1784916000,
 } = {}) {
   const metadata = {
     userId: "user_123",
@@ -2124,6 +2298,7 @@ function membershipCheckoutSession({
     },
     billing_address_collection: billingAddressCollection,
     created: 1784912400,
+    expires_at: expiresAt,
     customer: "cus_123",
     client_reference_id: "user_123",
     livemode: false,
@@ -2213,4 +2388,22 @@ function deferred() {
     resolve = resolvePromise
   })
   return { promise, resolve }
+}
+
+/** Bounds manually gated concurrency assertions so a regression fails promptly. */
+async function settlesWithin(promise, label, timeoutMs = 1000) {
+  let timeout
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timeout = setTimeout(
+          () => reject(new Error(`Timed out waiting for ${label}.`)),
+          timeoutMs,
+        )
+      }),
+    ])
+  } finally {
+    clearTimeout(timeout)
+  }
 }

@@ -264,7 +264,7 @@ describe("Membership and entitlement helpers", () => {
     }
   })
 
-  it("loads pricing membership status with one lightweight subscription query", async () => {
+  it("loads pricing membership status with narrow Customer and subscription queries", async () => {
     const queries = []
     const subscriptions = [
       {
@@ -281,6 +281,12 @@ describe("Membership and entitlement helpers", () => {
       },
     ]
     const prismaClient = {
+      stripeCustomer: {
+        findUnique: async (args) => {
+          queries.push(args)
+          return { id: "stripe_customer_123" }
+        },
+      },
       membershipSubscription: {
         findMany: async (args) => {
           queries.push(args)
@@ -295,16 +301,23 @@ describe("Membership and entitlement helpers", () => {
       new Date("2026-07-24T00:00:00.000Z"),
     )
 
-    assert.deepEqual(queries, [{
-      where: { userId: "user_123" },
-      select: {
-        status: true,
-        membershipLevel: true,
-        currentPeriodEnd: true,
-        cancelAtPeriodEnd: true,
+    assert.deepEqual(queries, [
+      {
+        where: { userId: "user_123" },
+        select: { id: true },
       },
-    }])
+      {
+        where: { userId: "user_123" },
+        select: {
+          status: true,
+          membershipLevel: true,
+          currentPeriodEnd: true,
+          cancelAtPeriodEnd: true,
+        },
+      },
+    ])
     assert.deepEqual(result, {
+      stripeCustomer: { id: "stripe_customer_123" },
       subscriptions,
       activeMembershipLevel: "SUPPORTER",
     })

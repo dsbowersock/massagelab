@@ -16,6 +16,7 @@ import { STRIPE_API_VERSION } from "../lib/stripe-webhook-contract.js"
 // billing and the verified webhook endpoint rather than the SDK's moving default.
 const SUPPORTER_PRODUCT_NAME = "MassageLab Supporter Membership"
 const CREATE_NEW_PRODUCT = "CREATE_NEW"
+const NO_ALLOWED_SUBSCRIPTION = "none"
 const SUPPORTER_PRODUCT_IDEMPOTENCY_KEY = "massagelab-supporter-membership-v1-product"
 const TERMINAL_SUBSCRIPTION_STATUSES = new Set(["canceled", "incomplete_expired"])
 const APPLY_RETRY_DELAYS_MS = Object.freeze([250, 500])
@@ -154,9 +155,24 @@ function keyMode(secretKey) {
   return null
 }
 
+/** Recognizes the documented no-subscription sentinel without case coupling. */
+function expectsNoAllowedSubscription(value) {
+  return String(value ?? "").toLowerCase() === NO_ALLOWED_SUBSCRIPTION
+}
+
 /**
- * Parses only explicit migration inputs. Existing Stripe object identifiers
- * stay operator-supplied so the command never guesses a production dependency.
+ * Parses and validates explicit operator-supplied migration dependencies.
+ *
+ * @param {NodeJS.ProcessEnv|Record<string, string|undefined>} env Non-secret
+ * configuration plus the Stripe secret used only to prove test/live mode.
+ * @param {"verify"|"apply"} requestedMode Whether to inspect or mutate.
+ * @returns {object} Normalized migration dependencies and target Price slots.
+ *
+ * The Supporter Product accepts either a concrete `prod_...` identifier or the
+ * exact `CREATE_NEW` sentinel. Allowed subscription inventory accepts one
+ * concrete `sub_...` identifier or case-insensitive `none`. Therapist,
+ * Practice, legacy Price, coupon, and Portal dependencies remain explicit.
+ * @throws {MigrationError} With non-secret configuration failure codes.
  */
 function buildConfig(env, requestedMode) {
   const failureCodes = []
@@ -211,7 +227,11 @@ function buildConfig(env, requestedMode) {
     env,
     "MASSAGELAB_STRIPE_MIGRATION_ALLOWED_SUBSCRIPTION_ID",
   )
-  if (!allowedSubscriptionId) {
+  const expectsNoSubscriptions = expectsNoAllowedSubscription(allowedSubscriptionId)
+  if (
+    !allowedSubscriptionId
+    || (!expectsNoSubscriptions && !allowedSubscriptionId.startsWith("sub_"))
+  ) {
     failureCodes.push("migration_subscription_inventory_required")
   }
 
@@ -534,8 +554,7 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
     const status = String(subscription.status ?? "").toLowerCase()
     return !TERMINAL_SUBSCRIPTION_STATUSES.has(status)
   })
-  const expectedNoSubscriptions = config.allowedSubscriptionId.toLowerCase() === "none"
-  const subscriptionsMatch = expectedNoSubscriptions
+  const subscriptionsMatch = expectsNoAllowedSubscription(config.allowedSubscriptionId)
     ? relevantSubscriptions.length === 0
     : relevantSubscriptions.length === 1
       && relevantSubscriptions[0].id === config.allowedSubscriptionId
@@ -650,7 +669,16 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
         spec,
         productId: targetProductId,
       })
-      if (candidate?.duplicate || (candidate && !priceMatches(candidate, spec, targetProductId))) {
+      if (
+        candidate?.duplicate
+        || (
+          candidate
+          && (
+            candidate.active !== true
+            || !priceMatches(candidate, spec, targetProductId)
+          )
+        )
+      ) {
         failureCodes.push("approved_price_dependency_mismatch")
       } else if (candidate) {
         if (!modeMatches(candidate, config.livemode)) {
@@ -789,6 +817,7 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
   const couponsPresent = [...coupons.values()].every(Boolean)
   const couponsMissing = [...coupons.values()].every((candidate) => candidate === null)
   const couponsConsistent = couponsPresent || couponsMissing
+  const couponsRetirementRecoverable = coupons.size === config.coupons.length
   const retirementPricesActive = retirementPrices.every(
     (candidate) => candidate.active === true,
   )
@@ -824,15 +853,16 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
     state = "COMPLETED"
   }
   // Once the Portal points only at the new catalog, recovery may move forward
-  // through Prices, Products, then coupons. A partial coupon set is never safe,
-  // and Products cannot precede Price retirement.
+  // through Prices, Products, then coupons. A partially deleted coupon set is
+  // recoverable only here because every survivor already matched its exact,
+  // unused dependency contract. Products cannot precede Price retirement.
   const retirementOrderRecoverable = retirementPricesInactive
     || retirementProductsActive
   const recoverableTransition = portalIsCompleted
     && targetProductCompleted
     && targetPrices.size === config.targetPrices.length
     && targetPricesAreActive
-    && couponsConsistent
+    && couponsRetirementRecoverable
     && retirementOrderRecoverable
   if (
     state === "TRANSITIONAL"
@@ -1270,6 +1300,17 @@ export function formatMigrationChecklist(result) {
     .join("\n")
 }
 
+/**
+ * Formats only fixed check/failure codes from a failed migration. The retained
+ * cause remains available to trusted diagnostics but is never printed by CLI.
+ */
+export function formatMigrationFailureChecklist(error) {
+  return [
+    ...error.checks.map(({ status, code }) => `${status} ${code}`),
+    ...error.failureCodes.map((code) => `FAIL ${code}`),
+  ].join("\n")
+}
+
 function argumentValue(name) {
   const prefix = `${name}=`
   return process.argv.slice(2).find((argument) => argument.startsWith(prefix))?.slice(prefix.length) ?? ""
@@ -1291,8 +1332,9 @@ async function main() {
     const migrationError = error instanceof MigrationError
       ? error
       : new MigrationError(["unexpected_migration_failure"], [], { cause: error })
-    for (const code of migrationError.failureCodes) {
-      console.error(`FAIL ${code}`)
+    const checklist = formatMigrationFailureChecklist(migrationError)
+    if (checklist) {
+      console.error(checklist)
     }
     process.exitCode = 1
   }

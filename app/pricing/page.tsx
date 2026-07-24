@@ -85,6 +85,7 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
           catalog={catalog}
           activeMembershipLevel={membershipStatus?.activeMembershipLevel}
           mode={pricingMode}
+          portalActionAvailable={Boolean(membershipStatus?.stripeCustomer)}
         />
 
         <AppSurface

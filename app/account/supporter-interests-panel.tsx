@@ -111,7 +111,10 @@ export function SupporterInterestsPanel() {
       }
       setInterests(resolveSupporterRoadmapInterestsAfterSave({
         previousInterests,
-        responseInterests: preferences.appSettings?.supporterRoadmapInterests,
+        responseInterests: preferences?.appSettings?.supporterRoadmapInterests,
+        // A successful write is authoritative even if a proxy or older API
+        // response omits the saved array; retain the submitted selection.
+        submittedInterests: nextInterests,
         saveSucceeded: true,
       }))
       setMessage({

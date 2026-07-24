@@ -12,15 +12,14 @@ const donationRouteSource = await readFile(
 
 /**
  * Loads the production route with deterministic amount lookup and billing
- * doubles so invalid inputs can prove they stop before Stripe.
+ * doubles so both success and rejection paths can assert the Stripe boundary.
  */
-function donationPostForFailure(
-  failure,
-  {
-    findDonationOption = () => ({ amountCents: 500 }),
-    onCheckout = () => {},
-  } = {},
-) {
+function donationPost({
+  createCheckoutSession = async () => {
+    throw new Error("Stripe Checkout double was not configured.")
+  },
+  findDonationOption = () => ({ amountCents: 500 }),
+} = {}) {
   const route = loadCompiledModule(
     donationRouteSource,
     "app/api/billing/donation/route.ts",
@@ -46,10 +45,7 @@ function donationPostForFailure(
         findDonationOption,
       },
       "@/lib/stripe-billing": {
-        createStripeDonationCheckoutSession: async () => {
-          onCheckout()
-          throw failure
-        },
+        createStripeDonationCheckoutSession: createCheckoutSession,
       },
     },
   )
@@ -66,16 +62,46 @@ function jsonRequest() {
 }
 
 describe("one-time support Checkout route", () => {
+  it("forwards the selected support option and redirects a successful form checkout", async () => {
+    const checkoutInputs = []
+    const POST = donationPost({
+      createCheckoutSession: async (input) => {
+        checkoutInputs.push(input)
+        return { url: "https://checkout.stripe.com/c/support" }
+      },
+    })
+    const request = new Request("https://massagelab.app/api/billing/donation", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ amountCents: "500" }),
+    })
+
+    const response = await POST(request)
+
+    assert.deepEqual(checkoutInputs, [{
+      amountCents: 500,
+      customerEmail: "supporter@example.com",
+      userId: "user_supporter",
+      successUrl: "https://massagelab.app/pricing?donation=thanks&session_id={CHECKOUT_SESSION_ID}",
+      cancelUrl: "https://massagelab.app/pricing?donation=cancelled",
+    }])
+    assert.deepEqual(response, {
+      url: "https://checkout.stripe.com/c/support",
+      status: 303,
+    })
+  })
+
   it("returns the controlled JSON error for an unsupported amount before Stripe", async () => {
     const lookedUpAmounts = []
     let checkoutCalls = 0
-    const POST = donationPostForFailure(new Error("Stripe must not run"), {
+    const POST = donationPost({
       findDonationOption: (amountCents) => {
         lookedUpAmounts.push(amountCents)
         return null
       },
-      onCheckout: () => {
+      createCheckoutSession: async () => {
         checkoutCalls += 1
+        throw new Error("Stripe must not run")
       },
     })
 
@@ -92,13 +118,14 @@ describe("one-time support Checkout route", () => {
   it("redirects malformed form data through the existing invalid-amount response", async () => {
     const lookedUpAmounts = []
     let checkoutCalls = 0
-    const POST = donationPostForFailure(new Error("Stripe must not run"), {
+    const POST = donationPost({
       findDonationOption: (amountCents) => {
         lookedUpAmounts.push(amountCents)
         return null
       },
-      onCheckout: () => {
+      createCheckoutSession: async () => {
         checkoutCalls += 1
+        throw new Error("Stripe must not run")
       },
     })
     const request = {
@@ -130,7 +157,11 @@ describe("one-time support Checkout route", () => {
       const logged = []
       context.mock.method(console, "error", (...args) => logged.push(args))
 
-      const response = await donationPostForFailure(failure)(jsonRequest())
+      const response = await donationPost({
+        createCheckoutSession: async () => {
+          throw failure
+        },
+      })(jsonRequest())
 
       assert.deepEqual(response, {
         body: { error: "Unable to start one-time support checkout." },

@@ -105,7 +105,9 @@ describe("Membership Checkout POST route", () => {
 
   it("does not send an early-access discount with public Supporter Checkout", async () => {
     const calls = { ensureCustomer: 0, createCheckout: 0, checkoutOptions: null }
-    const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls))(jsonRequest({
+    const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
+      captureSelectionInputs: true,
+    }))(jsonRequest({
       membershipLevel: "SUPPORTER",
       supporterAmountChoiceId: "support-1",
       interval: "month",
@@ -116,6 +118,16 @@ describe("Membership Checkout POST route", () => {
     assert.deepEqual(response, { body: { url: "https://checkout.stripe.com/c/test" }, status: 200 })
     assert.equal(calls.ensureCustomer, 1)
     assert.equal(calls.createCheckout, 1)
+    assert.deepEqual(calls.validatedSelectionInputs, [{
+      membershipLevel: "SUPPORTER",
+      supporterAmountChoiceId: "support-1",
+      interval: "month",
+    }])
+    assert.deepEqual(calls.priceResolutionInputs, [{
+      membershipLevel: "SUPPORTER",
+      supporterAmountChoiceId: "support-1",
+      interval: "month",
+    }])
     assert.deepEqual(calls.checkoutOptions, {
       customerId: "cus_123",
       priceId: "price_supporter_1_month",
@@ -612,6 +624,7 @@ function checkoutDependencies(calls, {
   session = { user: { id: "user_123" } },
   alreadyAccepted = true,
   missingLegalDocuments = [],
+  captureSelectionInputs = false,
 } = {}) {
   const prisma = {
     user: {
@@ -641,10 +654,26 @@ function checkoutDependencies(calls, {
     getSiteUrl: () => "https://massagelab.app",
     isPublicSupporterCheckoutSelection: (input) => {
       if (selectionError) throw selectionError
+      if (captureSelectionInputs) {
+        calls.validatedSelectionInputs = [
+          ...(calls.validatedSelectionInputs ?? []),
+          {
+            membershipLevel: input.membershipLevel,
+            supporterAmountChoiceId: input.supporterAmountChoiceId,
+            interval: input.interval,
+          },
+        ]
+      }
       return input.membershipLevel === "SUPPORTER" && input.supporterAmountChoiceId === "support-1"
     },
-    resolveStripePriceId: () => {
+    resolveStripePriceId: (input) => {
       if (priceResolutionError) throw priceResolutionError
+      if (captureSelectionInputs) {
+        calls.priceResolutionInputs = [
+          ...(calls.priceResolutionInputs ?? []),
+          input,
+        ]
+      }
       return "price_supporter_1_month"
     },
     acceptedDocumentIdsFromInput: (ids) => {

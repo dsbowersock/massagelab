@@ -5,6 +5,7 @@ import { describe, it } from "node:test"
 import { fileURLToPath } from "node:url"
 import {
   MigrationError,
+  formatMigrationFailureChecklist,
   formatMigrationChecklist,
   runSupporterMembershipMigration as runMigrationWithProductionRetry,
 } from "../scripts/stripe-supporter-membership-migration.mjs"
@@ -560,6 +561,30 @@ describe("Supporter membership Stripe migration", () => {
     )
   })
 
+  it("formats failed checks and failure codes without printing retained causes", () => {
+    const privateCause = new Error("cus_private price_private@example.com")
+    const error = new MigrationError(
+      ["portal_dependency_mismatch"],
+      [
+        { status: "PASS", code: "mode_and_account" },
+        { status: "FAIL", code: "portal_dependencies" },
+      ],
+      { cause: privateCause },
+    )
+
+    const output = formatMigrationFailureChecklist(error)
+    assert.equal(
+      output,
+      [
+        "PASS mode_and_account",
+        "FAIL portal_dependencies",
+        "FAIL portal_dependency_mismatch",
+      ].join("\n"),
+    )
+    assert.doesNotMatch(output, /cus_private|price_private|example\.com/)
+    assert.equal(error.cause, privateCause)
+  })
+
   it("ignores terminal subscriptions whose stale cancellation flag remains true", async () => {
     const fixture = stripeFixture()
     fixture.subscriptions.splice(
@@ -844,6 +869,57 @@ describe("Supporter membership Stripe migration", () => {
     )
   })
 
+  it("recovers an interrupted coupon retirement and remains idempotent", async () => {
+    const fixture = stripeFixture()
+    const survivingCoupon = structuredClone(fixture.coupons.get("coupon_early"))
+    const initial = await runSupporterMembershipMigration({
+      stripe: fixture.stripe,
+      mode: "apply",
+      env: migrationEnv(),
+    })
+    assert.equal(initial.state, "COMPLETED")
+
+    // Reconstruct the observable state after one coupon deletion committed and
+    // the command stopped before deleting the other verified dependency.
+    fixture.coupons.set(survivingCoupon.id, survivingCoupon)
+    fixture.calls.length = 0
+
+    await assert.rejects(
+      runSupporterMembershipMigration({
+        stripe: fixture.stripe,
+        mode: "verify",
+        env: migrationEnv(),
+      }),
+      (error) => {
+        assert.equal(error.failureCodes.includes("migration_state_mixed"), true)
+        return true
+      },
+    )
+    assert.deepEqual(mutationCalls(fixture), [])
+
+    const recovered = await runSupporterMembershipMigration({
+      stripe: fixture.stripe,
+      mode: "apply",
+      env: migrationEnv(),
+    })
+    assert.equal(recovered.state, "COMPLETED")
+    assert.deepEqual(
+      fixture.calls
+        .filter(({ name }) => name === "coupons.del")
+        .map(({ id }) => id),
+      ["coupon_early"],
+    )
+
+    fixture.calls.length = 0
+    const rerun = await runSupporterMembershipMigration({
+      stripe: fixture.stripe,
+      mode: "apply",
+      env: migrationEnv(),
+    })
+    assert.equal(rerun.state, "COMPLETED")
+    assert.deepEqual(mutationCalls(fixture), [])
+  })
+
   it("rejects mixed migration states instead of treating known subsets as safe", async () => {
     const corruptions = [
       (fixture) => {
@@ -1000,6 +1076,22 @@ describe("Supporter membership Stripe migration", () => {
       stripe: fixture.stripe,
       mode: "verify",
       env: migrationEnv(),
+    })
+
+    assert.equal(result.state, "PRE_MIGRATION")
+    assert.deepEqual(mutationCalls(fixture), [])
+  })
+
+  it("accepts the no-subscription sentinel case-insensitively", async () => {
+    const fixture = stripeFixture()
+    fixture.subscriptions.length = 0
+
+    const result = await runSupporterMembershipMigration({
+      stripe: fixture.stripe,
+      mode: "verify",
+      env: migrationEnv({
+        MASSAGELAB_STRIPE_MIGRATION_ALLOWED_SUBSCRIPTION_ID: " NoNe ",
+      }),
     })
 
     assert.equal(result.state, "PRE_MIGRATION")
@@ -1174,6 +1266,10 @@ describe("Supporter membership Stripe migration", () => {
 
   it("requires exact per-unit licensed untransformed USD Price semantics", async () => {
     const mutations = [
+      (candidate) => { candidate.active = false },
+      (candidate) => { candidate.currency = "cad" },
+      (candidate) => { candidate.recurring.interval = "year" },
+      (candidate) => { candidate.recurring.interval_count = 2 },
       (candidate) => { candidate.billing_scheme = "tiered" },
       (candidate) => { candidate.recurring.usage_type = "metered" },
       (candidate) => { candidate.transform_quantity = { divide_by: 10, round: "up" } },
