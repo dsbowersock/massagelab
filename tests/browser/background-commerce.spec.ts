@@ -266,11 +266,15 @@ async function installGuestFixture(page: Page) {
   })
 }
 
-async function openClockBackground(page: Page) {
-  await page.goto("/clock", { waitUntil: "domcontentloaded" })
-  await expect(page.getByLabel("Chimer clock")).toBeVisible()
-  await page.getByRole("button", { name: "Background", exact: true }).click()
-  await expect(page.getByRole("dialog", { name: "Background" })).toBeVisible()
+async function openClockBackground(page: Page, href = "/clock") {
+  await page.goto(href, { waitUntil: "domcontentloaded" })
+  const backgroundPanel = page.getByRole("dialog", { name: "Background" })
+  const panelRequested = new URL(href, "http://massagelab.local").searchParams.get("panel") === "background"
+  if (!panelRequested) {
+    await expect(page.getByLabel("Chimer clock")).toBeVisible()
+    await page.getByRole("button", { name: "Background", exact: true }).click()
+  }
+  await expect(backgroundPanel).toBeVisible()
 }
 
 async function centerPremium(page: Page, backgroundId: string) {
@@ -295,7 +299,7 @@ async function startActiveChimer(page: Page) {
 
 test("guest cart persists locally and requires an account only at checkout", async ({ page }) => {
   await installGuestFixture(page)
-  await openClockBackground(page)
+  await openClockBackground(page, "/clock?source=music&returnTo=%2Fmusic&panel=background")
   const backgroundPanel = page.getByRole("dialog", { name: "Background" })
   const guestAurora = await centerPremium(page, AURORA_ID)
 
@@ -319,13 +323,15 @@ test("guest cart persists locally and requires an account only at checkout", asy
   const compactCart = backgroundPanel.getByRole("region", { name: "MassageLab cart" })
   await expect(compactCart).toContainText("Aurora field")
   await expect(compactCart.getByRole("button", { name: "Review checkout" })).toHaveCount(0)
-  await expect(compactCart.getByRole("link", { name: "Sign in to checkout" })).toHaveAttribute(
+  const signInLink = compactCart.getByRole("link", { name: "Sign in to checkout" })
+  const registerLink = compactCart.getByRole("link", { name: "Create account" })
+  await expect(signInLink).toHaveAttribute(
     "href",
-    "/login?callbackUrl=%2Faccount%3Ftab%3Dorders-invoices",
+    "/login?callbackUrl=%2Fclock%3Fsource%3Dmusic%26returnTo%3D%252Fmusic%26panel%3Dbackground%26commerceCart%3Dopen",
   )
-  await expect(compactCart.getByRole("link", { name: "Create account" })).toHaveAttribute(
+  await expect(registerLink).toHaveAttribute(
     "href",
-    "/register?callbackUrl=%2Faccount%3Ftab%3Dorders-invoices",
+    "/register?callbackUrl=%2Fclock%3Fsource%3Dmusic%26returnTo%3D%252Fmusic%26panel%3Dbackground%26commerceCart%3Dopen",
   )
 
   await page.reload({ waitUntil: "domcontentloaded" })

@@ -145,6 +145,8 @@ describe("background acquisition and shared account cart", () => {
     assert.match(source, /await removeFromCart\(backgroundId\)/)
     assert.match(source, /The item could not be removed\./)
     assert.match(source, /buildBackgroundCartAuthReturnPath/)
+    assert.match(source, /useSearchParams/)
+    assert.match(source, /searchParams\.toString\(\)/)
     assert.match(source, /encodeURIComponent\(authReturnPath\)/)
     assert.match(source, /BACKGROUND_CART_AUTH_RETURN_PARAM/)
     assert.match(source, /openCart\(\)/)

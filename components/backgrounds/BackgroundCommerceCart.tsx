@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { ShoppingCart, Trash2 } from "lucide-react"
-import { usePathname } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation"
 import { BackgroundCheckoutReview } from "@/components/backgrounds/BackgroundCheckoutReview"
 import { useBackgroundCommerce } from "@/components/backgrounds/BackgroundCommerceProvider"
 import { Button } from "@/components/ui/button"
@@ -39,15 +39,11 @@ function CartContents({
 }) {
   const { state, removeFromCart, cancelReservation } = useBackgroundCommerce()
   const [localError, setLocalError] = useState("")
-  const [currentSearch, setCurrentSearch] = useState("")
   const pathname = usePathname() ?? "/"
+  const searchParams = useSearchParams()
   const cart = state.snapshot?.cart
 
-  useEffect(() => {
-    if (!signedIn) setCurrentSearch(window.location.search)
-  }, [pathname, signedIn])
-
-  const authReturnPath = buildBackgroundCartAuthReturnPath(pathname, currentSearch)
+  const authReturnPath = buildBackgroundCartAuthReturnPath(pathname, searchParams.toString())
   if (!cart) {
     return <p role="status" className="text-sm text-muted-foreground">Loading cart...</p>
   }
@@ -204,6 +200,9 @@ export function BackgroundCommerceCart({
   }, [cartOpen, closeCart, isCalendarRoute, variant])
 
   useEffect(() => {
+    // Authentication writes commerceCart=open into the return URL; only the
+    // dialog cart consumes it, then removes it so later navigation cannot
+    // repeatedly reopen a cart the user already dismissed.
     if (variant !== "dialog" || !signedIn) return
     const params = new URLSearchParams(window.location.search)
     if (params.get(BACKGROUND_CART_AUTH_RETURN_PARAM) !== "open") return
