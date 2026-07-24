@@ -20,9 +20,9 @@ catalog mutation, or live smoke was performed.
 ## Findings Closed
 
 1. Parallel subscription prevention: persisted active, trialing, past-due,
-   unpaid, paused, or period-end-canceling subscriptions now block Checkout
-   before Stripe Customer or Checkout Session creation. Pricing and Account use
-   the same decision helper and send existing Supporter or legacy
+   unpaid, paused, incomplete, or period-end-canceling subscriptions now block
+   Checkout before Stripe Customer or Checkout Session creation. Pricing and
+   Account use the same decision helper and send existing Supporter or legacy
    Therapist/Practice subscribers to Customer Portal.
 2. Obsolete live setup removal: the old command and script that could recreate
    retired $9/$90, Therapist/Practice, and coupon catalog objects are deleted.
@@ -89,7 +89,7 @@ expanded Product. After expanding `currency_options`, the same command passed
 
 - Initial focused membership/Stripe command shown above: 40/64 passed as RED
   evidence; the retrieval-expansion regression later passed 3/3.
-- `npm run test`: 1,451/1,451 passed across 158 suites at the final PR head.
+- `npm run test`: 1,454/1,454 passed across 158 suites at the final PR head.
 - `npm run typecheck`: passed.
 - `npm run lint`: passed.
 - `npm run build`: passed; Prisma generation, production compilation,

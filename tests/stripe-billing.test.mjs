@@ -392,6 +392,102 @@ describe("Stripe billing helpers", () => {
     )
   })
 
+  it("observes membership reconciliation duration without logging identifiers", async () => {
+    const originalInfo = console.info
+    const infoCalls = []
+    console.info = (...args) => infoCalls.push(args)
+
+    try {
+      const result = await stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+        stripeClient: {
+          checkout: {
+            sessions: {
+              list: async () => stripeCheckoutSessionList(),
+              create: async () => membershipCheckoutSession({ id: "cs_observed" }),
+            },
+          },
+        },
+      }))
+
+      assert.equal(result.id, "cs_observed")
+    } finally {
+      console.info = originalInfo
+    }
+
+    assert.equal(infoCalls.length, 1)
+    assert.equal(infoCalls[0][0], "Stripe membership Checkout reconciliation")
+    assert.equal(Number.isInteger(infoCalls[0][1].durationMs), true)
+    assert.equal(infoCalls[0][1].durationMs >= 0, true)
+    assert.deepEqual(
+      Object.keys(infoCalls[0][1]).sort(),
+      ["durationMs", "outcome", "stripeRateLimited"],
+    )
+    assert.deepEqual(
+      {
+        outcome: infoCalls[0][1].outcome,
+        stripeRateLimited: infoCalls[0][1].stripeRateLimited,
+      },
+      { outcome: "success", stripeRateLimited: false },
+    )
+    assert.doesNotMatch(
+      JSON.stringify(infoCalls),
+      /cus_123|user_123|price_supporter|cs_observed|sk_live|secret/i,
+    )
+  })
+
+  it("observes Stripe 429 reconciliation failures without logging processor details", async () => {
+    const originalWarn = console.warn
+    const warnCalls = []
+    const rateLimitError = Object.assign(
+      new Error("sk_live_secret customer cus_123 user user_123"),
+      {
+        statusCode: 429,
+        type: "StripeAPIError",
+        requestId: "req_secret",
+      },
+    )
+    console.warn = (...args) => warnCalls.push(args)
+
+    try {
+      await assert.rejects(
+        () => stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+          stripeClient: {
+            checkout: {
+              sessions: {
+                list: async () => {
+                  throw rateLimitError
+                },
+              },
+            },
+          },
+        })),
+        (error) => error === rateLimitError,
+      )
+    } finally {
+      console.warn = originalWarn
+    }
+
+    assert.equal(warnCalls.length, 1)
+    assert.equal(warnCalls[0][0], "Stripe membership Checkout reconciliation")
+    assert.equal(Number.isInteger(warnCalls[0][1].durationMs), true)
+    assert.equal(warnCalls[0][1].durationMs >= 0, true)
+    assert.deepEqual(
+      Object.keys(warnCalls[0][1]).sort(),
+      ["durationMs", "outcome", "stripeRateLimited"],
+    )
+    assert.deepEqual(
+      {
+        outcome: warnCalls[0][1].outcome,
+        stripeRateLimited: warnCalls[0][1].stripeRateLimited,
+      },
+      { outcome: "error", stripeRateLimited: true },
+    )
+    assert.doesNotMatch(
+      JSON.stringify(warnCalls),
+      /cus_123|user_123|price_supporter|sk_live|req_secret|secret/i,
+    )
+  })
+
   it("fails closed before creating Supporter Checkout when any recurring-tax gate is absent", async () => {
     for (const key of [
       "STRIPE_SUPPORTER_AUTOMATIC_TAX_ENABLED",

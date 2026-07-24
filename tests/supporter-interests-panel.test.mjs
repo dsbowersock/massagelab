@@ -211,8 +211,11 @@ function findInterestCheckbox(tree, interestId) {
   )
 }
 
-function findStatus(tree) {
-  return findElement(tree, (element) => element.props?.role === "status")
+function findLiveRegion(tree) {
+  return findElement(
+    tree,
+    (element) => element.props?.role === "status" || element.props?.role === "alert",
+  )
 }
 
 async function settleAsyncWork() {
@@ -263,7 +266,8 @@ describe("SupporterInterestsPanel", () => {
       assert.equal(findInterestCheckbox(harness.getTree(), initialInterest).props.checked, true)
       assert.equal(findInterestCheckbox(harness.getTree(), addedInterest).props.checked, true)
       assert.equal(findInterestCheckbox(harness.getTree(), addedInterest).props.disabled, false)
-      assert.equal(findStatus(harness.getTree()).props.children, "Roadmap interests saved.")
+      assert.equal(findLiveRegion(harness.getTree()).props.role, "status")
+      assert.equal(findLiveRegion(harness.getTree()).props.children, "Roadmap interests saved.")
     } finally {
       harness.dispose()
     }
@@ -298,9 +302,32 @@ describe("SupporterInterestsPanel", () => {
 
       assert.equal(findInterestCheckbox(harness.getTree(), persistedInterest).props.checked, true)
       assert.equal(findInterestCheckbox(harness.getTree(), failedInterest).props.checked, false)
+      assert.equal(findLiveRegion(harness.getTree()).props.role, "alert")
       assert.equal(
-        findStatus(harness.getTree()).props.children,
+        findLiveRegion(harness.getTree()).props.children,
         "Could not save roadmap interests. Please try again.",
+      )
+    } finally {
+      harness.dispose()
+    }
+  })
+
+  it("announces an initial load failure as an alert", async () => {
+    const harness = createPanelHarness(async () => createJsonResponse({}, false))
+
+    try {
+      harness.mount()
+      await settleAsyncWork()
+      harness.render()
+
+      assert.equal(findLiveRegion(harness.getTree()).props.role, "alert")
+      assert.equal(
+        findLiveRegion(harness.getTree()).props.children,
+        "Could not load roadmap interests. Please try again.",
+      )
+      assert.equal(
+        findInterestCheckbox(harness.getTree(), supporterRoadmapInterestOptions[0].id).props.disabled,
+        false,
       )
     } finally {
       harness.dispose()

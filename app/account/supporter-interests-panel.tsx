@@ -11,6 +11,11 @@ import { SettingsSurface } from "@/components/account/settings-surfaces"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Loader } from "@/components/ui/loader"
 
+type PanelMessage = {
+  text: string
+  variant: "success" | "error"
+}
+
 /**
  * Collects optional, broad roadmap categories separately from membership
  * amount and features. The account-preferences API sanitizes this narrow
@@ -20,7 +25,7 @@ export function SupporterInterestsPanel() {
   const [interests, setInterests] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const [status, setStatus] = useState("")
+  const [message, setMessage] = useState<PanelMessage | null>(null)
 
   useEffect(() => {
     // Prevent a completed load from updating state after this panel unmounts.
@@ -31,7 +36,10 @@ export function SupporterInterestsPanel() {
         const response = await fetch("/api/account/preferences")
         if (!response.ok) {
           if (active) {
-            setStatus("Could not load roadmap interests. Please try again.")
+            setMessage({
+              text: "Could not load roadmap interests. Please try again.",
+              variant: "error",
+            })
           }
           return
         }
@@ -45,7 +53,10 @@ export function SupporterInterestsPanel() {
         }
       } catch {
         if (active) {
-          setStatus("Could not load roadmap interests. Please try again.")
+          setMessage({
+            text: "Could not load roadmap interests. Please try again.",
+            variant: "error",
+          })
         }
       } finally {
         if (active) {
@@ -64,7 +75,7 @@ export function SupporterInterestsPanel() {
     const previousInterests = interests
     setInterests(nextInterests)
     setIsSaving(true)
-    setStatus("")
+    setMessage(null)
 
     try {
       const response = await fetch("/api/account/preferences", {
@@ -87,12 +98,18 @@ export function SupporterInterestsPanel() {
         responseInterests: preferences.appSettings?.supporterRoadmapInterests,
         saveSucceeded: true,
       }))
-      setStatus("Roadmap interests saved.")
+      setMessage({
+        text: "Roadmap interests saved.",
+        variant: "success",
+      })
     } catch {
       setInterests(resolveSupporterRoadmapInterestsAfterSave({
         previousInterests,
       }))
-      setStatus("Could not save roadmap interests. Please try again.")
+      setMessage({
+        text: "Could not save roadmap interests. Please try again.",
+        variant: "error",
+      })
     } finally {
       setIsSaving(false)
     }
@@ -139,7 +156,14 @@ export function SupporterInterestsPanel() {
           })}
         </div>
         {isLoading ? <Loader label="Loading roadmap interests" size={18} color="currentColor" /> : null}
-        {status ? <p className="text-sm text-muted-foreground" role="status">{status}</p> : null}
+        {message ? (
+          <p
+            className="text-sm text-muted-foreground"
+            role={message.variant === "error" ? "alert" : "status"}
+          >
+            {message.text}
+          </p>
+        ) : null}
       </div>
     </SettingsSurface>
   )
