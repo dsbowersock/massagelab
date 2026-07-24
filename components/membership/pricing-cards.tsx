@@ -120,6 +120,8 @@ function PlanCard({
       ? [{ choiceId: choice.id, price }]
       : []
   })
+  // Resolved choices include fail-soft unavailable placeholders. Configured
+  // choices have real Price mappings and are the only Portal switching targets.
   const configuredAmountChoices = resolvedAmountChoices.filter(
     ({ price }) => price.isConfigured,
   )
@@ -166,7 +168,11 @@ function PlanCard({
           <div className="mt-auto space-y-3">
             <div className="grid gap-3 sm:grid-cols-3">
               {configuredAmountChoices.map(({ choiceId, price }) => (
-                <div key={choiceId} className="rounded-md border border-border/80 bg-background/70 p-3 text-center">
+                <div
+                  key={choiceId}
+                  data-membership-portal-amount-choice={choiceId}
+                  className="rounded-md border border-border/80 bg-background/70 p-3 text-center"
+                >
                   <span className="text-base font-semibold text-foreground">{price.displayPrice}</span>
                   <span className="text-xs text-muted-foreground">{price.displayInterval}</span>
                 </div>

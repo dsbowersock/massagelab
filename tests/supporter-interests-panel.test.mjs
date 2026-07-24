@@ -73,9 +73,16 @@ function findElement(tree, predicate) {
   return findElement(tree.props?.children, predicate)
 }
 
+/**
+ * Executes the real panel with a deliberately small hook/JSX model. It
+ * supports state, refs, stable callbacks, and the panel's single mount effect;
+ * it does not emulate React scheduling, DOM behavior, or changing dependencies.
+ */
 function createPanelHarness(fetchImpl) {
   const originalFetch = globalThis.fetch
   const state = []
+  const refs = []
+  const callbacks = []
   const initializedEffects = new Set()
   const pendingEffects = []
   const cleanups = []
@@ -108,6 +115,30 @@ function createPanelHarness(fetchImpl) {
     return [state[stateIndex], setState]
   }
 
+  function useRef(initialValue) {
+    const refIndex = hookIndex
+    hookIndex += 1
+
+    if (!(refIndex in refs)) {
+      refs[refIndex] = { current: initialValue }
+    }
+    return refs[refIndex]
+  }
+
+  function useCallback(callback) {
+    const callbackIndex = hookIndex
+    hookIndex += 1
+
+    if (!(callbackIndex in callbacks)) {
+      callbacks[callbackIndex] = callback
+    }
+    return callbacks[callbackIndex]
+  }
+
+  /**
+   * Schedules each effect slot once. Dependency diffing is intentionally out
+   * of scope because the panel effect depends only on the stable callback.
+   */
   function useEffect(effect) {
     const effectIndex = hookIndex
     hookIndex += 1
@@ -119,6 +150,7 @@ function createPanelHarness(fetchImpl) {
   }
 
   function SettingsSurface() {}
+  function Button() {}
   function Checkbox() {}
   function Loader() {}
   function HeartHandshake() {}
@@ -128,7 +160,7 @@ function createPanelHarness(fetchImpl) {
   loadPanel((specifier) => {
     switch (specifier) {
       case "react":
-        return { useEffect, useState }
+        return { useCallback, useEffect, useRef, useState }
       case "react/jsx-runtime":
         return {
           Fragment: Symbol.for("supporter-interests-panel.fragment"),
@@ -146,6 +178,8 @@ function createPanelHarness(fetchImpl) {
         return { resolveSupporterRoadmapInterestsAfterSave }
       case "@/components/account/settings-surfaces":
         return { SettingsSurface }
+      case "@/components/ui/button":
+        return { Button }
       case "@/components/ui/checkbox":
         return { Checkbox }
       case "@/components/ui/loader":
@@ -215,6 +249,16 @@ function findLiveRegion(tree) {
   return findElement(
     tree,
     (element) => element.props?.role === "status" || element.props?.role === "alert",
+  )
+}
+
+function findRetryButton(tree) {
+  return findElement(
+    tree,
+    (element) => (
+      element.props?.children === "Retry"
+      && typeof element.props?.onClick === "function"
+    ),
   )
 }
 
@@ -325,13 +369,23 @@ describe("SupporterInterestsPanel", () => {
     }
   })
 
-  it("announces an initial load failure as an alert and keeps interests disabled", async () => {
+  it("retries a failed initial load and keeps interests disabled until retry succeeds", async () => {
     const loadError = new Error("load request failed")
+    const loadedInterest = supporterRoadmapInterestOptions[0].id
+    let loadAttempts = 0
     const logged = []
     const originalConsoleError = console.error
     console.error = (...args) => logged.push(args)
     const harness = createPanelHarness(async () => {
-      throw loadError
+      loadAttempts += 1
+      if (loadAttempts === 1) {
+        throw loadError
+      }
+      return createJsonResponse({
+        appSettings: {
+          supporterRoadmapInterests: [loadedInterest],
+        },
+      })
     })
 
     try {
@@ -345,13 +399,27 @@ describe("SupporterInterestsPanel", () => {
         "Could not load roadmap interests. Please try again.",
       )
       assert.equal(
-        findInterestCheckbox(harness.getTree(), supporterRoadmapInterestOptions[0].id).props.disabled,
+        findInterestCheckbox(harness.getTree(), loadedInterest).props.disabled,
         true,
       )
+      assert.equal(findRetryButton(harness.getTree()).props.disabled, false)
       assert.deepEqual(logged, [[
         "SupporterInterestsPanel failed to load roadmap interests",
         loadError,
       ]])
+
+      findRetryButton(harness.getTree()).props.onClick()
+      harness.render()
+      assert.equal(findInterestCheckbox(harness.getTree(), loadedInterest).props.disabled, true)
+      assert.equal(findRetryButton(harness.getTree()), null)
+
+      await settleAsyncWork()
+      harness.render()
+
+      assert.equal(loadAttempts, 2)
+      assert.equal(findInterestCheckbox(harness.getTree(), loadedInterest).props.checked, true)
+      assert.equal(findInterestCheckbox(harness.getTree(), loadedInterest).props.disabled, false)
+      assert.equal(findLiveRegion(harness.getTree()), null)
     } finally {
       try {
         harness.dispose()

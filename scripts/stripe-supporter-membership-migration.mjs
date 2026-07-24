@@ -3,14 +3,17 @@
 import process from "node:process"
 import { pathToFileURL } from "node:url"
 import Stripe from "stripe"
-import { recurringPriceSemanticsMatch } from "../lib/stripe-price-contract.js"
+import {
+  recurringPriceSemanticsMatch,
+  SUPPORTER_MEMBERSHIP_CATALOG_VERSION as SUPPORTER_CATALOG,
+  SUPPORTER_RECURRING_TAX_BEHAVIOR,
+  SUPPORTER_RECURRING_TAX_CODE as EXPECTED_TAX_CODE,
+} from "../lib/stripe-price-contract.js"
 import { STRIPE_API_VERSION } from "../lib/stripe-webhook-contract.js"
 
 // Keep catalog mutation on the same explicitly pinned version as runtime
 // billing and the verified webhook endpoint rather than the SDK's moving default.
-const EXPECTED_TAX_CODE = "txcd_10000000"
 const SUPPORTER_PRODUCT_NAME = "MassageLab Supporter Membership"
-const SUPPORTER_CATALOG = "supporter_membership_v1"
 const CREATE_NEW_PRODUCT = "CREATE_NEW"
 const SUPPORTER_PRODUCT_IDEMPOTENCY_KEY = "massagelab-supporter-membership-v1-product"
 const RELEVANT_SUBSCRIPTION_STATUSES = new Set([
@@ -275,7 +278,7 @@ async function retrieveOrMissing(retrieve, id) {
     if (error?.code === "resource_missing") {
       return { object: null, missing: true }
     }
-    throw new MigrationError(["stripe_dependency_read_failed"])
+    throw new MigrationError(["stripe_dependency_read_failed"], [], { cause: error })
   }
 }
 
@@ -292,7 +295,7 @@ function priceMatches(candidate, spec, productId) {
     && recurringPriceSemanticsMatch(candidate, {
       unitAmount: spec.unitAmount,
       interval: spec.interval,
-      taxBehavior: "exclusive",
+      taxBehavior: SUPPORTER_RECURRING_TAX_BEHAVIOR,
     })
     && priceProductId(candidate) === productId
 }
@@ -521,7 +524,7 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
     allPrices = [...activePrices, ...inactivePrices]
   } catch (error) {
     if (error instanceof MigrationError) throw error
-    throw new MigrationError(["stripe_dependency_read_failed"])
+    throw new MigrationError(["stripe_dependency_read_failed"], [], { cause: error })
   }
 
   if (!modeMatches(balance, config.livemode)) {
@@ -925,7 +928,7 @@ function targetPricePayload(productId, spec) {
       interval_count: 1,
       usage_type: "licensed",
     },
-    tax_behavior: "exclusive",
+    tax_behavior: SUPPORTER_RECURRING_TAX_BEHAVIOR,
     lookup_key: lookupKeyFor(spec),
     metadata: targetPriceMetadata(spec),
   }
@@ -1020,8 +1023,8 @@ async function retrieveAfterMutation(retrieve, id, validate, failureCode) {
   let retrieved
   try {
     retrieved = await retrieve(id)
-  } catch {
-    throw new MigrationError([failureCode])
+  } catch (error) {
+    throw new MigrationError([failureCode], [], { cause: error })
   }
   if (!validate(retrieved)) {
     throw new MigrationError([failureCode])
@@ -1088,6 +1091,7 @@ async function applyPlan(stripe, config, inventory) {
         active: true,
         lookup_key: lookupKeyFor(spec),
         metadata: targetPriceMetadata(spec, candidate),
+        transfer_lookup_key: true,
       })
       candidate = await retrieveAfterMutation(
         retrievePriceWithCurrencyOptions.bind(null, stripe),

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import { createMembershipCheckoutPostHandler } from "../lib/membership-checkout.js"
+import { hasSubscriptionBlockingNewCheckout } from "../lib/membership.js"
 
 describe("Membership Checkout POST route", () => {
   for (const membershipLevel of ["THERAPIST", "PRACTICE"]) {
@@ -42,17 +43,8 @@ describe("Membership Checkout POST route", () => {
     { status: "unpaid", membershipLevel: "SUPPORTER" },
     { status: "paused", membershipLevel: "SUPPORTER" },
     { status: "incomplete", membershipLevel: "SUPPORTER" },
-    {
-      status: "canceled",
-      cancelAtPeriodEnd: true,
-      membershipLevel: "SUPPORTER",
-    },
   ]) {
-    const label = existingSubscription.cancelAtPeriodEnd
-      ? "canceling"
-      : existingSubscription.status
-
-    it(`rejects an existing ${label} subscription before Customer or Checkout Session creation`, async () => {
+    it(`rejects an existing ${existingSubscription.status} subscription before Customer or Checkout Session creation`, async () => {
       const calls = {
         ensureCustomer: 0,
         createCheckout: 0,
@@ -79,6 +71,35 @@ describe("Membership Checkout POST route", () => {
       assert.equal(calls.createCheckout, 0)
     })
   }
+
+  it("allows Checkout after a canceled subscription even when its stale cancel-at-period-end flag remains set", async () => {
+    const calls = {
+      ensureCustomer: 0,
+      createCheckout: 0,
+      membershipLookup: 0,
+    }
+    const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
+      subscriptions: [{
+        status: "canceled",
+        cancelAtPeriodEnd: true,
+        membershipLevel: "SUPPORTER",
+      }],
+    }))(jsonRequest({
+      membershipLevel: "SUPPORTER",
+      supporterAmountChoiceId: "support-1",
+      interval: "month",
+      acceptedLegalDocuments: ["membership-billing-refunds:current"],
+      billingTermsAccepted: true,
+    }))
+
+    assert.deepEqual(response, {
+      body: { url: "https://checkout.stripe.com/c/test" },
+      status: 200,
+    })
+    assert.equal(calls.membershipLookup, 1)
+    assert.equal(calls.ensureCustomer, 1)
+    assert.equal(calls.createCheckout, 1)
+  })
 
   it("routes a historical subscriber form submission to existing billing management", async () => {
     const calls = {
@@ -132,6 +153,127 @@ describe("Membership Checkout POST route", () => {
       createCheckout: 0,
       membershipLookup: 0,
     })
+  })
+
+  it("routes unexpected form field normalization failures through the form-safe Checkout error response", async () => {
+    const calls = {
+      ensureCustomer: 0,
+      createCheckout: 0,
+      membershipLookup: 0,
+    }
+    const request = {
+      headers: new Headers({
+        "content-type": "application/x-www-form-urlencoded",
+      }),
+      formData: async () => ({
+        get: () => {
+          throw new TypeError("Unable to read form field")
+        },
+        getAll: () => [],
+      }),
+    }
+    const logged = []
+    const originalConsoleError = console.error
+    console.error = (...args) => logged.push(args)
+
+    try {
+      const response = await createMembershipCheckoutPostHandler(
+        checkoutDependencies(calls),
+      )(request)
+
+      assert.deepEqual(response, {
+        url: "https://massagelab.app/account?billing=checkout-error",
+        status: 303,
+      })
+      assert.deepEqual(calls, {
+        ensureCustomer: 0,
+        createCheckout: 0,
+        membershipLookup: 0,
+      })
+      assert.deepEqual(logged, [[
+        "Unable to start membership checkout",
+        { code: "unexpected_error" },
+      ]])
+    } finally {
+      console.error = originalConsoleError
+    }
+  })
+
+  for (const [label, body] of [
+    ["literal null", "null"],
+    ["an array", "[]"],
+    ["malformed JSON", "{"],
+  ]) {
+    it(`rejects ${label} JSON through the controlled unsupported-plan response`, async () => {
+      const calls = {
+        ensureCustomer: 0,
+        createCheckout: 0,
+        membershipLookup: 0,
+      }
+      const response = await createMembershipCheckoutPostHandler(
+        checkoutDependencies(calls),
+      )(rawJsonRequest(body))
+
+      assert.deepEqual(response, {
+        body: { error: "Unsupported membership level" },
+        status: 400,
+      })
+      assert.deepEqual(calls, {
+        ensureCustomer: 0,
+        createCheckout: 0,
+        membershipLookup: 0,
+      })
+    })
+  }
+
+  it("returns JSON 400 when the current membership legal document is missing", async () => {
+    const calls = {
+      ensureCustomer: 0,
+      createCheckout: 0,
+      membershipLookup: 0,
+    }
+    const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
+      alreadyAccepted: false,
+      missingLegalDocuments: [{ key: "membership-billing-refunds" }],
+    }))(jsonRequest({
+      membershipLevel: "SUPPORTER",
+      supporterAmountChoiceId: "support-1",
+      interval: "month",
+    }))
+
+    assert.deepEqual(response, {
+      body: {
+        error: "Accept the membership billing and refund terms before checkout.",
+      },
+      status: 400,
+    })
+    assert.equal(calls.membershipLookup, 1)
+    assert.equal(calls.ensureCustomer, 0)
+    assert.equal(calls.createCheckout, 0)
+  })
+
+  it("redirects a form submission when the current membership legal document is missing", async () => {
+    const calls = {
+      ensureCustomer: 0,
+      createCheckout: 0,
+      membershipLookup: 0,
+    }
+    const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
+      alreadyAccepted: false,
+      missingLegalDocuments: [{ key: "membership-billing-refunds" }],
+    }))(formRequest({
+      membershipLevel: "SUPPORTER",
+      supporterAmountChoiceId: "support-1",
+      interval: "month",
+    }))
+
+    assert.deepEqual(response, {
+      url: "https://massagelab.app/account?billing=billing-terms-required",
+      status: 303,
+    })
+    assert.equal(calls.membershipLookup, 1)
+    assert.equal(calls.ensureCustomer, 0)
+    assert.equal(calls.createCheckout, 0)
   })
 
   it("returns the existing-subscription contract when Stripe finds a completed relevant Checkout before the webhook", async () => {
@@ -290,6 +432,14 @@ function jsonRequest(body) {
   })
 }
 
+function rawJsonRequest(body) {
+  return new Request("https://massagelab.app/api/billing/checkout", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body,
+  })
+}
+
 function formRequest(body) {
   return new Request("https://massagelab.app/api/billing/checkout", {
     method: "POST",
@@ -308,6 +458,8 @@ function checkoutDependencies(calls, {
   sessionError = null,
   selectionError = null,
   priceResolutionError = null,
+  alreadyAccepted = true,
+  missingLegalDocuments = [],
 } = {}) {
   return {
     NextResponse: {
@@ -330,18 +482,13 @@ function checkoutDependencies(calls, {
     acceptedDocumentIdsFromInput: (ids) => ids,
     hasAcceptedCurrentDocuments: async () => {
       if (acceptedDocumentsError) throw acceptedDocumentsError
-      return true
+      return alreadyAccepted
     },
     legalRequestMetadata: () => ({}),
-    missingRequiredLegalDocuments: () => [],
+    missingRequiredLegalDocuments: () => missingLegalDocuments,
     recordLegalAcceptances: async () => {},
     requiredLegalDocumentsForEvent: () => [],
-    hasSubscriptionBlockingNewCheckout: (candidates) => candidates.some(
-      (subscription) => (
-        ["active", "trialing", "past_due", "unpaid", "paused", "incomplete"].includes(subscription.status)
-        || subscription.cancelAtPeriodEnd === true
-      ),
-    ),
+    hasSubscriptionBlockingNewCheckout,
     prisma: {
       user: {
         findUnique: async () => {

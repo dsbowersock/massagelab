@@ -212,6 +212,8 @@ describe("Membership and entitlement helpers", () => {
     assert.equal(
       membership.hasSubscriptionBlockingNewCheckout([
         { status: "canceled", cancelAtPeriodEnd: true, membershipLevel: "SUPPORTER" },
+        // Raw Stripe snake_case is intentional: terminal status makes this
+        // stale cancellation flag non-blocking without normalizing the field.
         { status: "incomplete_expired", cancel_at_period_end: true, membershipLevel: "SUPPORTER" },
       ]),
       false,

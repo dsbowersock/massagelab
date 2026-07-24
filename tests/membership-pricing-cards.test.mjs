@@ -254,10 +254,13 @@ describe("MembershipPricingCards configured price rendering", () => {
       portalCards,
       (element) => (
         element.type === "div"
-        && element.props.className === "rounded-md border border-border/80 bg-background/70 p-3 text-center"
+        && element.props["data-membership-portal-amount-choice"] != null
       ),
     )
-    assert.deepEqual(portalPriceTiles.map((element) => element.key), ["support-1", "support-5"])
+    assert.deepEqual(
+      portalPriceTiles.map((element) => element.props["data-membership-portal-amount-choice"]),
+      ["support-1", "support-5"],
+    )
     assert.match(elementText(portalCards), /\$1/)
     assert.match(elementText(portalCards), /Price unavailable/)
     assert.doesNotMatch(elementText(portalCards), /\$2/)

@@ -11,6 +11,9 @@ import {
 import {
   recurringPriceSemanticMismatches,
   recurringPriceSemanticsMatch,
+  SUPPORTER_MEMBERSHIP_CATALOG_VERSION,
+  SUPPORTER_RECURRING_TAX_BEHAVIOR,
+  SUPPORTER_RECURRING_TAX_CODE,
 } from "../lib/stripe-price-contract.js"
 
 const LEGACY_RUNTIME_PRICE_KEYS = Object.freeze([
@@ -593,6 +596,8 @@ describe("Supporter membership final-review contracts", () => {
       "lib/stripe-readiness.js",
       {
         "./stripe-price-contract.js": {
+          SUPPORTER_RECURRING_TAX_BEHAVIOR,
+          SUPPORTER_RECURRING_TAX_CODE,
           recurringPriceSemanticMismatches(candidate, contract) {
             const mismatches = recurringPriceSemanticMismatches(candidate, contract)
             readinessCalls.push({ candidate, contract, mismatches })
@@ -634,9 +639,12 @@ describe("Supporter membership final-review contracts", () => {
       {
         stripe: class TestStripe {},
         "../lib/stripe-price-contract.js": {
+          SUPPORTER_MEMBERSHIP_CATALOG_VERSION,
+          SUPPORTER_RECURRING_TAX_BEHAVIOR,
+          SUPPORTER_RECURRING_TAX_CODE,
           recurringPriceSemanticsMatch(candidate, contract) {
             const matches = recurringPriceSemanticsMatch(candidate, contract)
-            if (contract.taxBehavior === "exclusive") {
+            if (contract.taxBehavior === SUPPORTER_RECURRING_TAX_BEHAVIOR) {
               migrationCalls.push({ candidate, contract, matches })
               throw helperObserved
             }

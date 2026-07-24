@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { HeartHandshake } from "lucide-react"
 import {
   normalizeSupporterRoadmapInterests,
@@ -8,6 +8,7 @@ import {
 } from "@/lib/onboarding-preferences"
 import { resolveSupporterRoadmapInterestsAfterSave } from "@/lib/account-preferences"
 import { SettingsSurface } from "@/components/account/settings-surfaces"
+import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Loader } from "@/components/ui/loader"
 
@@ -27,49 +28,56 @@ export function SupporterInterestsPanel() {
   const [hasLoadedInterests, setHasLoadedInterests] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [message, setMessage] = useState<PanelMessage | null>(null)
+  const loadRequestRef = useRef(0)
 
-  useEffect(() => {
-    // Prevent a completed load from updating state after this panel unmounts.
-    let active = true
+  const loadInterests = useCallback(async () => {
+    const requestId = loadRequestRef.current + 1
+    loadRequestRef.current = requestId
+    const isCurrentRequest = () => loadRequestRef.current === requestId
 
-    async function loadInterests() {
-      try {
-        const response = await fetch("/api/account/preferences")
-        if (!response.ok) {
-          throw new Error("Unable to load supporter roadmap interests")
-        }
-        if (!active) {
-          return
-        }
+    setIsLoading(true)
+    setMessage(null)
 
-        const preferences = await response.json()
-        const normalizedInterests = normalizeSupporterRoadmapInterests(
-          preferences.appSettings?.supporterRoadmapInterests,
-        )
-        if (active) {
-          setInterests(normalizedInterests)
-          setHasLoadedInterests(true)
-        }
-      } catch (error) {
-        console.error("SupporterInterestsPanel failed to load roadmap interests", error)
-        if (active) {
-          setMessage({
-            text: "Could not load roadmap interests. Please try again.",
-            variant: "error",
-          })
-        }
-      } finally {
-        if (active) {
-          setIsLoading(false)
-        }
+    try {
+      const response = await fetch("/api/account/preferences")
+      if (!response.ok) {
+        throw new Error("Unable to load supporter roadmap interests")
+      }
+      if (!isCurrentRequest()) {
+        return
+      }
+
+      const preferences = await response.json()
+      if (!isCurrentRequest()) {
+        return
+      }
+
+      setInterests(normalizeSupporterRoadmapInterests(
+        preferences.appSettings?.supporterRoadmapInterests,
+      ))
+      setHasLoadedInterests(true)
+    } catch (error) {
+      if (!isCurrentRequest()) {
+        return
+      }
+      console.error("SupporterInterestsPanel failed to load roadmap interests", error)
+      setMessage({
+        text: "Could not load roadmap interests. Please try again.",
+        variant: "error",
+      })
+    } finally {
+      if (isCurrentRequest()) {
+        setIsLoading(false)
       }
     }
+  }, [])
 
+  useEffect(() => {
     void loadInterests()
     return () => {
-      active = false
+      loadRequestRef.current += 1
     }
-  }, [])
+  }, [loadInterests])
 
   async function saveInterests(nextInterests: string[]) {
     const previousInterests = interests
@@ -158,12 +166,25 @@ export function SupporterInterestsPanel() {
         </div>
         {isLoading ? <Loader label="Loading roadmap interests" size={18} color="currentColor" /> : null}
         {message ? (
-          <p
-            className="text-sm text-muted-foreground"
-            role={message.variant === "error" ? "alert" : "status"}
-          >
-            {message.text}
-          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <p
+              className="text-sm text-muted-foreground"
+              role={message.variant === "error" ? "alert" : "status"}
+            >
+              {message.text}
+            </p>
+            {message.variant === "error" && !hasLoadedInterests ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isLoading}
+                onClick={() => void loadInterests()}
+              >
+                Retry
+              </Button>
+            ) : null}
+          </div>
         ) : null}
       </div>
     </SettingsSurface>

@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { spawnSync } from "node:child_process"
 import { describe, it } from "node:test"
 import {
+  isExplicitTrue,
   REQUIRED_SUPPORTER_PRICE_CONTRACT,
   validateRetrievedMembershipPrice,
 } from "../lib/stripe-readiness.js"
@@ -47,6 +48,13 @@ function runReadiness(overrides = {}, args = []) {
 }
 
 describe("Stripe readiness background-commerce contract", () => {
+  it("accepts only an explicit true value for readiness attestations", () => {
+    assert.deepEqual(
+      [true, " TRUE ", false, "1", "yes", undefined].map(isExplicitTrue),
+      [true, true, false, false, false, false],
+    )
+  })
+
   it("ignores the retired Early Access environment flag", () => {
     const result = runReadiness({ MASSAGELAB_EARLY_ACCESS_DISCOUNT_ENABLED: "not-a-boolean" })
 

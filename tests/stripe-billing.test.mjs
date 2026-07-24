@@ -10,6 +10,18 @@ import {
   verifyStripeWebhookSignature,
 } from "../lib/stripe-billing.js"
 import * as stripeBilling from "../lib/stripe-billing.js"
+import {
+  SUPPORTER_MEMBERSHIP_CATALOG_VERSION,
+  SUPPORTER_RECURRING_TAX_BEHAVIOR,
+  SUPPORTER_RECURRING_TAX_CODE,
+} from "../lib/stripe-price-contract.js"
+
+const DEFAULT_SUPPORTER_PRICE_ID = "price_supporter_1_monthly"
+const SUPPORTER_1_YEARLY_PRICE_ID = "price_supporter_1_yearly"
+const SUPPORTER_2_MONTHLY_PRICE_ID = "price_supporter_2_monthly"
+const SUPPORTER_2_YEARLY_PRICE_ID = "price_supporter_2_yearly"
+const SUPPORTER_5_MONTHLY_PRICE_ID = "price_supporter_5_monthly"
+const SUPPORTER_5_YEARLY_PRICE_ID = "price_supporter_5_yearly"
 
 describe("Stripe billing helpers", () => {
   it("verifies Stripe webhook signatures with the raw request body", () => {
@@ -321,7 +333,7 @@ describe("Stripe billing helpers", () => {
 
     await stripeBilling.createStripeCheckoutSession({
       customerId: "cus_123",
-      priceId: "price_supporter",
+      priceId: DEFAULT_SUPPORTER_PRICE_ID,
       userId: "user_123",
       membershipLevel: "SUPPORTER",
       successUrl: "https://massagelab.app/account?checkout=success",
@@ -350,7 +362,7 @@ describe("Stripe billing helpers", () => {
 
     await stripeBilling.createStripeCheckoutSession({
       customerId: "cus_123",
-      priceId: "price_supporter",
+      priceId: DEFAULT_SUPPORTER_PRICE_ID,
       userId: "user_123",
       membershipLevel: "SUPPORTER",
       successUrl: "https://massagelab.app/account?checkout=success",
@@ -373,7 +385,7 @@ describe("Stripe billing helpers", () => {
     assert.equal(capturedPayload.billing_address_collection, "required")
     assert.deepEqual(capturedPayload.customer_update, { address: "auto" })
     assert.deepEqual(capturedPayload.line_items, [{
-      price: "price_supporter",
+      price: DEFAULT_SUPPORTER_PRICE_ID,
       quantity: 1,
     }])
     assert.equal(
@@ -515,7 +527,7 @@ describe("Stripe billing helpers", () => {
       await assert.rejects(
         stripeBilling.createStripeCheckoutSession({
           customerId: "cus_123",
-          priceId: "price_supporter",
+          priceId: DEFAULT_SUPPORTER_PRICE_ID,
           userId: "user_123",
           membershipLevel: "SUPPORTER",
           successUrl: "https://massagelab.app/account?checkout=success",
@@ -547,7 +559,7 @@ describe("Stripe billing helpers", () => {
         sessions: {
           list: async () => stripeCheckoutSessionList(createdSessions),
           listLineItems: async () => stripeCheckoutLineItemList({
-            priceId: "price_supporter_monthly",
+            priceId: SUPPORTER_2_MONTHLY_PRICE_ID,
           }),
           create: async (payload, requestOptions) => {
             const idempotencyKey = requestOptions?.idempotencyKey
@@ -586,20 +598,20 @@ describe("Stripe billing helpers", () => {
       },
     }
 
-    const [monthly, yearly] = await Promise.all([
+    const [monthly, duplicateMonthly] = await Promise.all([
       stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
-        priceId: "price_supporter_monthly",
+        priceId: SUPPORTER_2_MONTHLY_PRICE_ID,
         stripeClient,
       })),
       stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
-        priceId: "price_supporter_monthly",
+        priceId: SUPPORTER_2_MONTHLY_PRICE_ID,
         stripeClient,
       })),
     ])
 
     assert.equal(createdSessions.length, 1)
     assert.equal(monthly.id, "cs_serialized")
-    assert.equal(yearly.id, "cs_serialized")
+    assert.equal(duplicateMonthly.id, "cs_serialized")
     assert.deepEqual([...idempotentRequests.keys()], [
       "massagelab-membership-checkout:user_123:after:initial",
     ])
@@ -615,7 +627,7 @@ describe("Stripe billing helpers", () => {
         sessions: {
           list: async () => stripeCheckoutSessionList(createdSessions),
           listLineItems: async () => stripeCheckoutLineItemList({
-            priceId: "price_supporter_monthly",
+            priceId: SUPPORTER_2_MONTHLY_PRICE_ID,
           }),
           expire: async (sessionId) => {
             expiredSessions.push(sessionId)
@@ -642,7 +654,7 @@ describe("Stripe billing helpers", () => {
             }
 
             const session = membershipCheckoutSession({
-              id: priceId === "price_supporter_monthly"
+              id: priceId === SUPPORTER_2_MONTHLY_PRICE_ID
                 ? "cs_concurrent_monthly"
                 : "cs_concurrent_yearly",
             })
@@ -661,11 +673,11 @@ describe("Stripe billing helpers", () => {
 
     const [monthly, yearly] = await Promise.all([
       stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
-        priceId: "price_supporter_monthly",
+        priceId: SUPPORTER_2_MONTHLY_PRICE_ID,
         stripeClient,
       })),
       stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
-        priceId: "price_supporter_yearly",
+        priceId: SUPPORTER_1_YEARLY_PRICE_ID,
         stripeClient,
       })),
     ])
@@ -676,15 +688,15 @@ describe("Stripe billing helpers", () => {
     assert.deepEqual(createAttempts, [
       {
         idempotencyKey: "massagelab-membership-checkout:user_123:after:initial",
-        priceId: "price_supporter_monthly",
+        priceId: SUPPORTER_2_MONTHLY_PRICE_ID,
       },
       {
         idempotencyKey: "massagelab-membership-checkout:user_123:after:initial",
-        priceId: "price_supporter_yearly",
+        priceId: SUPPORTER_1_YEARLY_PRICE_ID,
       },
       {
         idempotencyKey: "massagelab-membership-checkout:user_123:after:cs_concurrent_monthly",
-        priceId: "price_supporter_yearly",
+        priceId: SUPPORTER_1_YEARLY_PRICE_ID,
       },
     ])
     assert.deepEqual([...idempotentRequests.keys()], [
@@ -720,18 +732,122 @@ describe("Stripe billing helpers", () => {
     assert.equal(createCalls, 0)
   })
 
+  it("bounds compatibility reads while preserving ordered reuse and stale expiry", async () => {
+    const sessions = [
+      {
+        ...membershipCheckoutSession({ id: "cs_reuse_first" }),
+        created: 1784912404,
+      },
+      {
+        ...membershipCheckoutSession({ id: "cs_stale_first" }),
+        created: 1784912403,
+      },
+      {
+        ...membershipCheckoutSession({ id: "cs_reuse_duplicate" }),
+        created: 1784912402,
+      },
+      {
+        ...membershipCheckoutSession({ id: "cs_stale_second" }),
+        created: 1784912401,
+      },
+    ]
+    const compatibleSessionIds = new Set([
+      "cs_reuse_first",
+      "cs_reuse_duplicate",
+    ])
+    const delayBySessionId = new Map([
+      ["cs_reuse_first", 30],
+      ["cs_stale_first", 5],
+      ["cs_reuse_duplicate", 1],
+      ["cs_stale_second", 2],
+    ])
+    const events = []
+    let activeCompatibilityReads = 0
+    let maximumCompatibilityReads = 0
+    let createCalls = 0
+
+    const result = await stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+      stripeClient: {
+        checkout: {
+          sessions: {
+            list: async () => stripeCheckoutSessionList(sessions),
+            listLineItems: async (sessionId) => {
+              events.push(`classify:start:${sessionId}`)
+              activeCompatibilityReads += 1
+              maximumCompatibilityReads = Math.max(
+                maximumCompatibilityReads,
+                activeCompatibilityReads,
+              )
+              await new Promise((resolve) => {
+                setTimeout(resolve, delayBySessionId.get(sessionId))
+              })
+              activeCompatibilityReads -= 1
+              events.push(`classify:end:${sessionId}`)
+              return stripeCheckoutLineItemList({
+                priceId: compatibleSessionIds.has(sessionId)
+                  ? DEFAULT_SUPPORTER_PRICE_ID
+                  : SUPPORTER_2_MONTHLY_PRICE_ID,
+              })
+            },
+            expire: async (sessionId) => {
+              events.push(`expire:${sessionId}`)
+              return { id: sessionId, object: "checkout.session", status: "expired" }
+            },
+            retrieve: async (sessionId) => {
+              events.push(`retrieve:${sessionId}`)
+              return { id: sessionId, object: "checkout.session", status: "expired" }
+            },
+            create: async () => {
+              createCalls += 1
+              return membershipCheckoutSession({ id: "cs_unexpected_create" })
+            },
+          },
+        },
+        subscriptions: {
+          retrieve: async () => {
+            throw new Error("an open Checkout Session must not retrieve a subscription")
+          },
+        },
+      },
+    }))
+
+    assert.equal(result.id, "cs_reuse_first")
+    assert.equal(maximumCompatibilityReads, 3)
+    assert.ok(
+      events.indexOf("classify:end:cs_reuse_duplicate")
+        < events.indexOf("classify:end:cs_reuse_first"),
+    )
+    assert.deepEqual(
+      events.filter((event) => event.startsWith("expire:")),
+      [
+        "expire:cs_stale_first",
+        "expire:cs_reuse_duplicate",
+        "expire:cs_stale_second",
+      ],
+    )
+    const firstExpiryIndex = events.findIndex((event) => event.startsWith("expire:"))
+    const lastClassificationIndex = events.reduce(
+      (latest, event, index) => (
+        event.startsWith("classify:end:") ? index : latest
+      ),
+      -1,
+    )
+    assert.ok(firstExpiryIndex > lastClassificationIndex)
+    assert.equal(createCalls, 0)
+  })
+
   it("expires an open membership Checkout Session when the requested amount changes", async () => {
     const openSession = membershipCheckoutSession({ id: "cs_open_monthly" })
     const calls = []
     let createdPayload = null
     const result = await stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
-      priceId: "price_supporter_yearly",
+      priceId: SUPPORTER_1_YEARLY_PRICE_ID,
       stripeClient: {
         checkout: {
           sessions: {
             list: async () => stripeCheckoutSessionList([openSession]),
             listLineItems: async () => stripeCheckoutLineItemList({
-              priceId: "price_supporter_monthly",
+              priceId: SUPPORTER_2_MONTHLY_PRICE_ID,
             }),
             expire: async (sessionId) => {
               calls.push(["expire", sessionId])
@@ -760,7 +876,7 @@ describe("Stripe billing helpers", () => {
       ["expire", "cs_open_monthly"],
       ["retrieve", "cs_open_monthly"],
     ])
-    assert.equal(createdPayload.line_items[0].price, "price_supporter_yearly")
+    assert.equal(createdPayload.line_items[0].price, SUPPORTER_1_YEARLY_PRICE_ID)
   })
 
   it("expires purpose-less legacy Supporter, Therapist, and Practice Sessions before creating current Checkout", async () => {
@@ -960,6 +1076,58 @@ describe("Stripe billing helpers", () => {
     assert.equal(createCalls, 1)
   })
 
+  it("blocks Checkout when legacy expiration confirmation races with completion", async () => {
+    const legacySession = membershipCheckoutSession({
+      id: "cs_legacy_completion_race",
+      purpose: null,
+    })
+    const completedSession = membershipCheckoutSession({
+      id: legacySession.id,
+      purpose: null,
+      status: "complete",
+      subscription: "sub_legacy_completion_race",
+      url: null,
+    })
+    const calls = []
+    let createCalls = 0
+    const result = await stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+      stripeClient: {
+        checkout: {
+          sessions: {
+            list: async () => stripeCheckoutSessionList([legacySession]),
+            expire: async (sessionId) => {
+              calls.push(["expire", sessionId])
+              return { id: sessionId, object: "checkout.session", status: "expired" }
+            },
+            retrieve: async (sessionId) => {
+              calls.push(["retrieve", sessionId])
+              return completedSession
+            },
+            create: async () => {
+              createCalls += 1
+              return membershipCheckoutSession({ id: "cs_duplicate" })
+            },
+          },
+        },
+        subscriptions: {
+          retrieve: async (subscriptionId) => {
+            calls.push(["subscription", subscriptionId])
+            return membershipStripeSubscription({ id: subscriptionId })
+          },
+        },
+      },
+    }))
+
+    assert.equal(result.id, completedSession.id)
+    assert.equal(result.status, "complete")
+    assert.deepEqual(calls, [
+      ["expire", legacySession.id],
+      ["retrieve", legacySession.id],
+      ["subscription", "sub_legacy_completion_race"],
+    ])
+    assert.equal(createCalls, 0)
+  })
+
   it("fails closed when legacy expiration cannot be confirmed", async () => {
     const legacySession = membershipCheckoutSession({
       id: "cs_legacy_still_open",
@@ -1144,6 +1312,50 @@ describe("Stripe billing helpers", () => {
     assert.deepEqual(capturedOptions, {
       idempotencyKey: "massagelab-membership-checkout:user_123:after:cs_expired",
     })
+  })
+
+  it("rotates the user-scoped key when create recovery finds a newer anchor", async () => {
+    const recoveredAnchor = membershipCheckoutSession({
+      id: "cs_recovered_anchor",
+      status: "expired",
+      url: null,
+    })
+    const createAttempts = []
+    let listCalls = 0
+    const result = await stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+      stripeClient: {
+        checkout: {
+          sessions: {
+            list: async () => {
+              listCalls += 1
+              return stripeCheckoutSessionList(
+                listCalls === 1 ? [] : [recoveredAnchor],
+              )
+            },
+            create: async (_payload, requestOptions) => {
+              createAttempts.push(requestOptions.idempotencyKey)
+              if (createAttempts.length === 1) {
+                throw Object.assign(new Error("connection closed after create"), {
+                  type: "StripeConnectionError",
+                })
+              }
+              return membershipCheckoutSession({ id: "cs_recovered_create" })
+            },
+          },
+        },
+        subscriptions: {
+          retrieve: async () => {
+            throw new Error("an expired Checkout Session must not retrieve a subscription")
+          },
+        },
+      },
+    }))
+
+    assert.equal(result.id, "cs_recovered_create")
+    assert.deepEqual(createAttempts, [
+      "massagelab-membership-checkout:user_123:after:initial",
+      "massagelab-membership-checkout:user_123:after:cs_recovered_anchor",
+    ])
   })
 
   it("creates one-time support Checkout Sessions without membership entitlement metadata", async () => {
@@ -1379,14 +1591,14 @@ describe("Stripe billing helpers", () => {
 
 function supporterTaxEnv() {
   return {
-    STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: "price_supporter",
-    STRIPE_SUPPORTER_1_YEARLY_PRICE_ID: "price_supporter_yearly",
-    STRIPE_SUPPORTER_2_MONTHLY_PRICE_ID: "price_supporter_monthly",
-    STRIPE_SUPPORTER_2_YEARLY_PRICE_ID: "price_supporter_2_yearly",
-    STRIPE_SUPPORTER_5_MONTHLY_PRICE_ID: "price_supporter_5_monthly",
-    STRIPE_SUPPORTER_5_YEARLY_PRICE_ID: "price_supporter_5_yearly",
+    STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: DEFAULT_SUPPORTER_PRICE_ID,
+    STRIPE_SUPPORTER_1_YEARLY_PRICE_ID: SUPPORTER_1_YEARLY_PRICE_ID,
+    STRIPE_SUPPORTER_2_MONTHLY_PRICE_ID: SUPPORTER_2_MONTHLY_PRICE_ID,
+    STRIPE_SUPPORTER_2_YEARLY_PRICE_ID: SUPPORTER_2_YEARLY_PRICE_ID,
+    STRIPE_SUPPORTER_5_MONTHLY_PRICE_ID: SUPPORTER_5_MONTHLY_PRICE_ID,
+    STRIPE_SUPPORTER_5_YEARLY_PRICE_ID: SUPPORTER_5_YEARLY_PRICE_ID,
     STRIPE_SUPPORTER_AUTOMATIC_TAX_ENABLED: "true",
-    STRIPE_SUPPORTER_TAX_PRODUCT_CODE: "txcd_10000000",
+    STRIPE_SUPPORTER_TAX_PRODUCT_CODE: SUPPORTER_RECURRING_TAX_CODE,
     STRIPE_SUPPORTER_TAX_PROVIDER_READY: "true",
     STRIPE_SUPPORTER_TAX_REGISTRATIONS_READY: "true",
     STRIPE_SUPPORTER_TAX_CLASSIFICATION_CONFIRMED: "true",
@@ -1396,7 +1608,7 @@ function supporterTaxEnv() {
 function membershipCheckoutOptions(overrides = {}) {
   return {
     customerId: "cus_123",
-    priceId: "price_supporter",
+    priceId: DEFAULT_SUPPORTER_PRICE_ID,
     userId: "user_123",
     membershipLevel: "SUPPORTER",
     successUrl: "https://massagelab.app/account?checkout=success",
@@ -1421,7 +1633,7 @@ function membershipStripeSubscription({
     items: {
       data: [{
         price: {
-          id: "price_supporter",
+          id: DEFAULT_SUPPORTER_PRICE_ID,
           product: "prod_supporter",
         },
       }],
@@ -1483,8 +1695,8 @@ function stripeCheckoutSessionList(data = []) {
 }
 
 function stripeCheckoutLineItemList({
-  priceId = "price_supporter",
-  productCatalog = "supporter_membership_v1",
+  priceId = DEFAULT_SUPPORTER_PRICE_ID,
+  productCatalog = SUPPORTER_MEMBERSHIP_CATALOG_VERSION,
 } = {}) {
   return {
     object: "list",
@@ -1514,7 +1726,7 @@ function stripeCheckoutLineItemList({
             ? { massagelab_catalog: productCatalog }
             : {},
           name: "MassageLab Supporter Membership",
-          tax_code: "txcd_10000000",
+          tax_code: SUPPORTER_RECURRING_TAX_CODE,
         },
         recurring: {
           interval: "month",
@@ -1522,7 +1734,7 @@ function stripeCheckoutLineItemList({
           trial_period_days: null,
           usage_type: "licensed",
         },
-        tax_behavior: "exclusive",
+        tax_behavior: SUPPORTER_RECURRING_TAX_BEHAVIOR,
         transform_quantity: null,
         type: "recurring",
         unit_amount: 100,

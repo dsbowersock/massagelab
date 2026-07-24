@@ -113,10 +113,14 @@ ID through the `MASSAGELAB_STRIPE_MIGRATION_*` variables documented in
 `.env.example`. Set `MASSAGELAB_STRIPE_MIGRATION_MODE` to `test` or `live`; the
 command refuses a mismatch with both the secret-key prefix and Stripe account
 mode. Use the exact existing Supporter Product ID when it should be renamed and
-reused. `CREATE_NEW` is an explicit exceptional authorization and is rejected if
-a managed target Product already exists. Use `none` for the allowed subscription
-only after a complete inventory proves no active, trialing, past-due, unpaid,
-paused, incomplete, or canceling subscription exists.
+reused. `CREATE_NEW` is an explicit exceptional authorization: zero managed
+Supporter target candidates creates one, while exactly one candidate is reused
+only when it is already the complete managed Product. Multiple candidates or
+one partially managed or misidentified candidate are rejected; normal legacy
+Product reuse still requires its exact Product ID instead. Use `none` for the
+allowed subscription only after a complete inventory proves no active,
+trialing, past-due, unpaid, paused, incomplete, or canceling subscription
+exists.
 
 Run verification first:
 

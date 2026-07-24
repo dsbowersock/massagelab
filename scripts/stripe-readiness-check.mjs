@@ -14,6 +14,7 @@ import { BACKGROUND_COMMERCE_TAX_PRODUCT_CODE } from "../lib/commerce/constants.
 import { DIGITAL_PURCHASES_REFUNDS_VERSION } from "../lib/legal-documents.js"
 import {
   getSupporterRecurringTaxReadiness,
+  isExplicitTrue,
   REQUIRED_SUPPORTER_PRICE_CONTRACT,
   validateRetrievedMembershipPrice,
 } from "../lib/stripe-readiness.js"
@@ -129,10 +130,6 @@ function checkPriceIds() {
 
     priceIds.set(priceId, expected)
   }
-}
-
-function isExplicitTrue(value) {
-  return String(value ?? "").trim().toLowerCase() === "true"
 }
 
 /**

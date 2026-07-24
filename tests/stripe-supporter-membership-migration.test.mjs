@@ -135,6 +135,12 @@ function portalConfiguration() {
   }
 }
 
+/**
+ * Builds a Stripe double with an ordered call log, live resource maps, and a
+ * live portal getter. Writes are recorded, creates replay by idempotency key,
+ * missing reads use `resource_missing`, and API values are cloned so callers
+ * cannot mutate the simulated Stripe state by alias.
+ */
 function stripeFixture() {
   const calls = []
   const products = new Map([
@@ -270,7 +276,22 @@ function stripeFixture() {
         record("prices.update", id, payload)
         const current = prices.get(id)
         if (!current) throw missing("price")
-        const updated = { ...current, ...structuredClone(payload) }
+        const {
+          transfer_lookup_key: transferLookupKey,
+          ...storedPayload
+        } = structuredClone(payload)
+        if (storedPayload.lookup_key) {
+          const conflicting = [...prices.values()].find(
+            (entry) => entry.id !== id && entry.lookup_key === storedPayload.lookup_key,
+          )
+          if (conflicting && transferLookupKey !== true) {
+            throw new Error("Lookup key is already assigned to another Price")
+          }
+          if (conflicting) {
+            prices.set(conflicting.id, { ...conflicting, lookup_key: null })
+          }
+        }
+        const updated = { ...current, ...storedPayload }
         prices.set(id, updated)
         return structuredClone(updated)
       },
@@ -367,6 +388,7 @@ function stripeFixture() {
   }
 }
 
+/** Returns only writes from the fixture's complete ordered Stripe call trace. */
 function mutationCalls(fixture) {
   return fixture.calls.filter(({ name }) => (
     name.endsWith(".create")
@@ -375,6 +397,7 @@ function mutationCalls(fixture) {
   ))
 }
 
+/** Proves a recorded write was followed by a fresh read of the same resource. */
 function assertMutationWasReretrieved(calls, mutationIndex, retrieveName, id) {
   assert.equal(
     calls.slice(mutationIndex + 1).some(({ name, id: candidate }) => name === retrieveName && candidate === id),
@@ -387,12 +410,31 @@ describe("Supporter membership Stripe migration", () => {
     const scriptPath = fileURLToPath(
       new URL("../scripts/stripe-supporter-membership-migration.mjs", import.meta.url),
     )
-    const execution = spawnSync(process.execPath, [scriptPath, "--mode=verify"], {
+    const execution = spawnSync(process.execPath, [scriptPath, "--no-dotenv", "--mode=verify"], {
       encoding: "utf8",
       env: {
-        ...process.env,
+        PATH: process.env.PATH,
         STRIPE_SECRET_KEY: "",
         MASSAGELAB_STRIPE_MIGRATION_MODE: "",
+        MASSAGELAB_STRIPE_MIGRATION_ALLOWED_SUBSCRIPTION_ID: "",
+        MASSAGELAB_STRIPE_MIGRATION_SUPPORTER_PRODUCT_ID: "",
+        MASSAGELAB_STRIPE_MIGRATION_LEGACY_SUPPORTER_MONTHLY_PRICE_ID: "",
+        MASSAGELAB_STRIPE_MIGRATION_LEGACY_SUPPORTER_YEARLY_PRICE_ID: "",
+        MASSAGELAB_STRIPE_MIGRATION_THERAPIST_PRODUCT_ID: "",
+        MASSAGELAB_STRIPE_MIGRATION_THERAPIST_MONTHLY_PRICE_ID: "",
+        MASSAGELAB_STRIPE_MIGRATION_THERAPIST_YEARLY_PRICE_ID: "",
+        MASSAGELAB_STRIPE_MIGRATION_PRACTICE_PRODUCT_ID: "",
+        MASSAGELAB_STRIPE_MIGRATION_PRACTICE_MONTHLY_PRICE_ID: "",
+        MASSAGELAB_STRIPE_MIGRATION_PRACTICE_YEARLY_PRICE_ID: "",
+        MASSAGELAB_STRIPE_MIGRATION_STUDENT_COUPON_ID: "",
+        MASSAGELAB_STRIPE_MIGRATION_EARLY_ACCESS_COUPON_ID: "",
+        MASSAGELAB_STRIPE_MIGRATION_PORTAL_CONFIGURATION_ID: "",
+        STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: "",
+        STRIPE_SUPPORTER_1_YEARLY_PRICE_ID: "",
+        STRIPE_SUPPORTER_2_MONTHLY_PRICE_ID: "",
+        STRIPE_SUPPORTER_2_YEARLY_PRICE_ID: "",
+        STRIPE_SUPPORTER_5_MONTHLY_PRICE_ID: "",
+        STRIPE_SUPPORTER_5_YEARLY_PRICE_ID: "",
       },
     })
 
@@ -1110,6 +1152,51 @@ describe("Supporter membership Stripe migration", () => {
     )
   })
 
+  it("transfers a managed lookup key from a retiring duplicate Price", async () => {
+    const fixture = stripeFixture()
+    const selected = price(
+      "price_approved_selected",
+      "prod_supporter",
+      100,
+      "month",
+      true,
+      {
+        massagelab_catalog: "supporter_membership_v1",
+        massagelab_supporter_price_key: "support-1-month",
+      },
+    )
+    selected.lookup_key = null
+    const retiring = price(
+      "price_approved_duplicate",
+      "prod_supporter",
+      100,
+      "month",
+    )
+    retiring.lookup_key = "massagelab_support_1_month"
+    fixture.prices.set(selected.id, selected)
+    fixture.prices.set(retiring.id, retiring)
+
+    const result = await runSupporterMembershipMigration({
+      stripe: fixture.stripe,
+      mode: "apply",
+      env: migrationEnv({
+        STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: selected.id,
+      }),
+    })
+
+    assert.equal(result.state, "COMPLETED")
+    assert.equal(
+      fixture.prices.get(selected.id).lookup_key,
+      "massagelab_support_1_month",
+    )
+    assert.equal(fixture.prices.get(retiring.id).lookup_key, null)
+    assert.equal(fixture.prices.get(retiring.id).active, false)
+    const selectedUpdate = fixture.calls.find(
+      ({ name, id }) => name === "prices.update" && id === selected.id,
+    )
+    assert.equal(selectedUpdate.payload.transfer_lookup_key, true)
+  })
+
   it("rejects every unrecognized Price owned by a managed Product, even when inactive", async () => {
     for (const active of [true, false]) {
       const fixture = stripeFixture()
@@ -1204,8 +1291,9 @@ describe("Supporter membership Stripe migration", () => {
 
   it("reduces Stripe mutation failures to safe codes", async () => {
     const fixture = stripeFixture()
+    const processorFailure = new Error("processor secret cus_private_test_account")
     fixture.stripe.products.update = async () => {
-      throw new Error("processor secret cus_private_test_account")
+      throw processorFailure
     }
 
     await assert.rejects(
@@ -1217,11 +1305,68 @@ describe("Supporter membership Stripe migration", () => {
       (error) => {
         assert.equal(error instanceof MigrationError, true)
         assert.deepEqual(error.failureCodes, ["stripe_mutation_failed"])
-        assert.equal(error.cause instanceof Error, true)
-        assert.equal(error.cause.message, "processor secret cus_private_test_account")
+        assert.equal(error.cause, processorFailure)
         assert.doesNotMatch(
           `${error.message} ${JSON.stringify(error.checks)}`,
           /processor secret|cus_private_test_account/,
+        )
+        return true
+      },
+    )
+  })
+
+  it("retains a non-missing dependency-read cause without surfacing its details", async () => {
+    const fixture = stripeFixture()
+    const readFailure = new Error("processor secret coupon_private_reference")
+    fixture.stripe.coupons.retrieve = async () => {
+      throw readFailure
+    }
+
+    await assert.rejects(
+      runSupporterMembershipMigration({
+        stripe: fixture.stripe,
+        mode: "verify",
+        env: migrationEnv(),
+      }),
+      (error) => {
+        assert.equal(error instanceof MigrationError, true)
+        assert.deepEqual(error.failureCodes, ["stripe_dependency_read_failed"])
+        assert.equal(error.cause, readFailure)
+        assert.doesNotMatch(
+          `${error.message} ${JSON.stringify(error.checks)}`,
+          /processor secret|coupon_private_reference/,
+        )
+        return true
+      },
+    )
+  })
+
+  it("retains a post-mutation retrieval cause without surfacing its details", async () => {
+    const fixture = stripeFixture()
+    const retrieveFailure = new Error("processor secret product_private_reference")
+    fixture.stripe.products.update = async () => (
+      structuredClone(fixture.products.get("prod_supporter"))
+    )
+    fixture.stripe.products.retrieve = async () => {
+      throw retrieveFailure
+    }
+
+    await assert.rejects(
+      runSupporterMembershipMigration({
+        stripe: fixture.stripe,
+        mode: "apply",
+        env: migrationEnv(),
+      }),
+      (error) => {
+        assert.equal(error instanceof MigrationError, true)
+        assert.deepEqual(
+          error.failureCodes,
+          ["supporter_product_mutation_unverified"],
+        )
+        assert.equal(error.cause, retrieveFailure)
+        assert.doesNotMatch(
+          `${error.message} ${JSON.stringify(error.checks)}`,
+          /processor secret|product_private_reference/,
         )
         return true
       },
