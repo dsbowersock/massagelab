@@ -1,5 +1,4 @@
 import assert from "node:assert/strict"
-import { readFileSync } from "node:fs"
 import { describe, it } from "node:test"
 import {
   USER_PREFERENCES_VERSION,
@@ -9,6 +8,7 @@ import {
   canSyncAccountPreferences,
   choosePreferenceSource,
   removeForbiddenPreferenceFields,
+  resolveSupporterRoadmapInterestsAfterSave,
 } from "../lib/account-preferences.js"
 
 describe("Account preference helpers", () => {
@@ -131,17 +131,19 @@ describe("Account preference helpers", () => {
   })
 
   it("restores the persisted roadmap interests when an optimistic save fails", () => {
-    const source = readFileSync(
-      new URL("../app/account/supporter-interests-panel.tsx", import.meta.url),
-      "utf8",
-    )
+    const previousInterests = ["personal_wellness", "therapist_tools"]
 
-    assert.match(source, /const previousInterests = interests/)
-    const savePath = source.slice(source.indexOf("const previousInterests = interests"))
-    const catchBlock = savePath.match(/catch\s*\{(?<body>[\s\S]*?)\}\s*finally\s*\{/)
-    assert.ok(catchBlock?.groups?.body, "save failure catch block should remain explicit")
-    assert.match(catchBlock.groups.body, /setInterests\(previousInterests\)/)
-    assert.match(catchBlock.groups.body, /Could not save roadmap interests/)
+    assert.deepEqual(resolveSupporterRoadmapInterestsAfterSave({
+      previousInterests,
+      responseInterests: ["practice_management"],
+      saveSucceeded: false,
+    }), previousInterests)
+
+    assert.deepEqual(resolveSupporterRoadmapInterestsAfterSave({
+      previousInterests,
+      responseInterests: ["practice_management", "unknown_interest"],
+      saveSucceeded: true,
+    }), ["practice_management"])
   })
 
   it("preserves namespaced Music visualizer preferences while stripping forbidden nested keys", () => {

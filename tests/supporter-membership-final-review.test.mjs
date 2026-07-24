@@ -19,7 +19,7 @@ describe("Supporter membership final-review contracts", () => {
       readFile(new URL("../app/account/page.tsx", import.meta.url), "utf8"),
     ])
 
-    assert.match(pricingPage, /getUserMembershipSummary/)
+    assert.match(pricingPage, /getUserMembershipPricingStatus/)
     assert.match(pricingPage, /resolveMembershipPricingMode/)
     assert.match(pricingCards, /mode:\s*"checkout"\s*\|\s*"auth"\s*\|\s*"portal"/)
     assert.match(pricingCards, /mode === "portal"/)

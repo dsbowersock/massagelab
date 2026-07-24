@@ -125,6 +125,11 @@ multi-select preference. The Customer Portal should continue to allow payment
 method and billing-address updates, invoices, cancellation, and switching among
 the approved Supporter amounts.
 
+All six current Supporter Price IDs grant the same `SUPPORTER` membership and
+feature set. The legacy Supporter, Therapist, and Practice Price mappings remain
+runtime inputs only for historical webhook reconciliation; they are not public
+catalog choices and must not authorize new Checkout.
+
 New enrollment is serialized at Stripe, not only hidden in the UI. The server
 fully paginates a bounded customer Session inventory, recognizes only
 MassageLab-owned paid-membership Sessions, and reuses an open Session only when

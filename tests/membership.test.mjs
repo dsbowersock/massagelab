@@ -1,7 +1,6 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
-  COUPON_IDS,
   FEATURE_KEYS,
   SUPPORTER_AMOUNT_CHOICES,
   STUDENT_ACCESS_MONTHS,
@@ -129,6 +128,8 @@ describe("Membership and entitlement helpers", () => {
       STRIPE_SUPPORTER_2_YEARLY_PRICE_ID: "price_supporter_2_yearly",
       STRIPE_SUPPORTER_5_MONTHLY_PRICE_ID: "price_supporter_5_monthly",
       STRIPE_SUPPORTER_5_YEARLY_PRICE_ID: "price_supporter_5_yearly",
+      STRIPE_THERAPIST_YEARLY_PRICE_ID: "price_therapist_yearly",
+      STRIPE_PRACTICE_MONTHLY_PRICE_ID: "price_practice_monthly",
     }
 
     assert.deepEqual(SUPPORTER_AMOUNT_CHOICES, [
@@ -165,13 +166,6 @@ describe("Membership and entitlement helpers", () => {
   it("blocks new Checkout for every relevant or canceling persisted subscription", () => {
     assert.equal(typeof membership.hasSubscriptionBlockingNewCheckout, "function")
     assert.equal(typeof membership.resolveMembershipPricingMode, "function")
-
-    if (
-      typeof membership.hasSubscriptionBlockingNewCheckout !== "function"
-      || typeof membership.resolveMembershipPricingMode !== "function"
-    ) {
-      return
-    }
 
     for (const subscription of [
       { status: "active", membershipLevel: "SUPPORTER" },
@@ -213,9 +207,6 @@ describe("Membership and entitlement helpers", () => {
 
   it("routes historical Therapist and Practice subscribers to billing management", () => {
     assert.equal(typeof membership.resolveMembershipPricingMode, "function")
-    if (typeof membership.resolveMembershipPricingMode !== "function") {
-      return
-    }
 
     for (const membershipLevel of ["THERAPIST", "PRACTICE"]) {
       assert.equal(
@@ -226,6 +217,52 @@ describe("Membership and entitlement helpers", () => {
         "portal",
       )
     }
+  })
+
+  it("loads pricing membership status with one lightweight subscription query", async () => {
+    const queries = []
+    const subscriptions = [
+      {
+        status: "active",
+        membershipLevel: "SUPPORTER",
+        currentPeriodEnd: new Date("2026-08-24T00:00:00.000Z"),
+        cancelAtPeriodEnd: false,
+      },
+      {
+        status: "canceled",
+        membershipLevel: "PRACTICE",
+        currentPeriodEnd: new Date("2026-08-24T00:00:00.000Z"),
+        cancelAtPeriodEnd: true,
+      },
+    ]
+    const prismaClient = {
+      membershipSubscription: {
+        findMany: async (args) => {
+          queries.push(args)
+          return subscriptions
+        },
+      },
+    }
+
+    const result = await membership.getUserMembershipPricingStatus(
+      prismaClient,
+      "user_123",
+      new Date("2026-07-24T00:00:00.000Z"),
+    )
+
+    assert.deepEqual(queries, [{
+      where: { userId: "user_123" },
+      select: {
+        status: true,
+        membershipLevel: true,
+        currentPeriodEnd: true,
+        cancelAtPeriodEnd: true,
+      },
+    }])
+    assert.deepEqual(result, {
+      subscriptions,
+      activeMembershipLevel: "SUPPORTER",
+    })
   })
 
   it("keeps historical Therapist and Practice Price normalization readable outside the public catalog", () => {
@@ -254,7 +291,7 @@ describe("Membership and entitlement helpers", () => {
       membershipLevel: "THERAPIST",
       successUrl: "https://massagelab.app/account?checkout=success",
       cancelUrl: "https://massagelab.app/account?checkout=cancelled",
-      couponId: COUPON_IDS.studentToTherapist,
+      couponId: "coupon_generic_test",
     })
 
     assert.deepEqual(payload, {
@@ -269,7 +306,7 @@ describe("Membership and entitlement helpers", () => {
       "metadata[membershipLevel]": "THERAPIST",
       "subscription_data[metadata][userId]": "user_123",
       "subscription_data[metadata][membershipLevel]": "THERAPIST",
-      "discounts[0][coupon]": COUPON_IDS.studentToTherapist,
+      "discounts[0][coupon]": "coupon_generic_test",
     })
   })
 

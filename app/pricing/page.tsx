@@ -4,7 +4,7 @@ import { HeartHandshake, ShieldCheck, Sparkles } from "lucide-react"
 import { getCurrentSession } from "@/auth"
 import { DONATION_OPTIONS } from "@/lib/donations"
 import {
-  getUserMembershipSummary,
+  getUserMembershipPricingStatus,
   resolveMembershipPricingMode,
 } from "@/lib/membership"
 import { getMembershipPricingCatalog } from "@/lib/membership-pricing"
@@ -31,12 +31,12 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
   const params = await searchParams
   const oneTimeSupportNotice = pricingOneTimeSupportNotice(params?.donation)
   const signedIn = Boolean(session?.user?.id)
-  const membershipSummary = session?.user?.id
-    ? await getUserMembershipSummary(prisma, session.user.id)
+  const membershipStatus = session?.user?.id
+    ? await getUserMembershipPricingStatus(prisma, session.user.id)
     : null
   const pricingMode = resolveMembershipPricingMode({
     signedIn,
-    subscriptions: membershipSummary?.subscriptions ?? [],
+    subscriptions: membershipStatus?.subscriptions ?? [],
   })
 
   return (
@@ -71,7 +71,7 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
 
         <MembershipPricingCards
           catalog={catalog}
-          activeMembershipLevel={membershipSummary?.entitlements.paidLevel}
+          activeMembershipLevel={membershipStatus?.activeMembershipLevel}
           mode={pricingMode}
         />
 

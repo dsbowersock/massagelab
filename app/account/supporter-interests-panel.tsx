@@ -6,6 +6,7 @@ import {
   normalizeSupporterRoadmapInterests,
   supporterRoadmapInterestOptions,
 } from "@/lib/onboarding-preferences"
+import { resolveSupporterRoadmapInterestsAfterSave } from "@/lib/account-preferences"
 import { SettingsSurface } from "@/components/account/settings-surfaces"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Loader } from "@/components/ui/loader"
@@ -74,11 +75,16 @@ export function SupporterInterestsPanel() {
       }
 
       const preferences = await response.json()
-      setInterests(normalizeSupporterRoadmapInterests(preferences.appSettings?.supporterRoadmapInterests))
+      setInterests(resolveSupporterRoadmapInterestsAfterSave({
+        previousInterests,
+        responseInterests: preferences.appSettings?.supporterRoadmapInterests,
+        saveSucceeded: true,
+      }))
       setStatus("Roadmap interests saved.")
     } catch {
-      // Roll back the optimistic selection to the last persisted state.
-      setInterests(previousInterests)
+      setInterests(resolveSupporterRoadmapInterestsAfterSave({
+        previousInterests,
+      }))
       setStatus("Could not save roadmap interests. Please try again.")
     } finally {
       setIsSaving(false)

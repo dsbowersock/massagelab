@@ -494,6 +494,94 @@ describe("Stripe billing helpers", () => {
     ])
   })
 
+  it("rotates once after concurrent membership Checkout attempts choose different prices", async () => {
+    const createdSessions = []
+    const createAttempts = []
+    const expiredSessions = []
+    const idempotentRequests = new Map()
+    const stripeClient = {
+      checkout: {
+        sessions: {
+          list: async () => stripeCheckoutSessionList(createdSessions),
+          listLineItems: async () => stripeCheckoutLineItemList({
+            priceId: "price_supporter_monthly",
+          }),
+          expire: async (sessionId) => {
+            expiredSessions.push(sessionId)
+            return { id: sessionId, object: "checkout.session", status: "expired" }
+          },
+          retrieve: async (sessionId) => ({
+            id: sessionId,
+            object: "checkout.session",
+            status: "expired",
+          }),
+          create: async (payload, requestOptions) => {
+            const priceId = payload.line_items[0].price
+            const idempotencyKey = requestOptions?.idempotencyKey
+            createAttempts.push({ idempotencyKey, priceId })
+
+            const prior = idempotentRequests.get(idempotencyKey)
+            if (prior) {
+              if (prior.priceId !== priceId) {
+                throw Object.assign(new Error("Parameters differ for the same idempotency key."), {
+                  type: "StripeIdempotencyError",
+                })
+              }
+              return prior.session
+            }
+
+            const session = membershipCheckoutSession({
+              id: priceId === "price_supporter_monthly"
+                ? "cs_concurrent_monthly"
+                : "cs_concurrent_yearly",
+            })
+            idempotentRequests.set(idempotencyKey, { priceId, session })
+            createdSessions.push(session)
+            return session
+          },
+        },
+      },
+      subscriptions: {
+        retrieve: async () => {
+          throw new Error("an open Checkout Session must not retrieve a subscription")
+        },
+      },
+    }
+
+    const [monthly, yearly] = await Promise.all([
+      stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+        priceId: "price_supporter_monthly",
+        stripeClient,
+      })),
+      stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+        priceId: "price_supporter_yearly",
+        stripeClient,
+      })),
+    ])
+
+    assert.equal(monthly.id, "cs_concurrent_monthly")
+    assert.equal(yearly.id, "cs_concurrent_yearly")
+    assert.deepEqual(expiredSessions, ["cs_concurrent_monthly"])
+    assert.deepEqual(createAttempts, [
+      {
+        idempotencyKey: "massagelab-membership-checkout:user_123:after:initial",
+        priceId: "price_supporter_monthly",
+      },
+      {
+        idempotencyKey: "massagelab-membership-checkout:user_123:after:initial",
+        priceId: "price_supporter_yearly",
+      },
+      {
+        idempotencyKey: "massagelab-membership-checkout:user_123:after:cs_concurrent_monthly",
+        priceId: "price_supporter_yearly",
+      },
+    ])
+    assert.deepEqual([...idempotentRequests.keys()], [
+      "massagelab-membership-checkout:user_123:after:initial",
+      "massagelab-membership-checkout:user_123:after:cs_concurrent_monthly",
+    ])
+  })
+
   it("reuses an open membership Checkout Session before webhook persistence", async () => {
     const openSession = membershipCheckoutSession({ id: "cs_open" })
     let createCalls = 0
@@ -1026,6 +1114,64 @@ describe("Stripe billing helpers", () => {
     assert.equal(result.customer.stripeCustomerId, "cus_123")
     assert.equal(result.subscription.membershipLevel, "THERAPIST")
     assert.equal(writes.some(([kind]) => kind === "subscription"), true)
+  })
+
+  it("reconciles every current Supporter Price through Checkout completion", async () => {
+    const currentPrices = {
+      STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: "price_supporter_1_monthly",
+      STRIPE_SUPPORTER_1_YEARLY_PRICE_ID: "price_supporter_1_yearly",
+      STRIPE_SUPPORTER_2_MONTHLY_PRICE_ID: "price_supporter_2_monthly",
+      STRIPE_SUPPORTER_2_YEARLY_PRICE_ID: "price_supporter_2_yearly",
+      STRIPE_SUPPORTER_5_MONTHLY_PRICE_ID: "price_supporter_5_monthly",
+      STRIPE_SUPPORTER_5_YEARLY_PRICE_ID: "price_supporter_5_yearly",
+    }
+
+    for (const [index, priceId] of Object.values(currentPrices).entries()) {
+      const writes = []
+      const result = await stripeBilling.recordCheckoutSessionCompleted({
+        stripeCustomer: {
+          upsert: async (args) => {
+            writes.push(["customer", args])
+            return args.create
+          },
+        },
+        membershipSubscription: {
+          upsert: async (args) => {
+            writes.push(["subscription", args])
+            return args.create
+          },
+        },
+      }, {
+        client_reference_id: "user_123",
+        customer: "cus_123",
+        subscription: `sub_supporter_${index}`,
+      }, {
+        env: currentPrices,
+        retrieveSubscription: async (subscriptionId) => ({
+          id: subscriptionId,
+          customer: "cus_123",
+          status: "active",
+          current_period_start: 1778791200,
+          current_period_end: 1781383200,
+          metadata: { userId: "user_123", membershipLevel: "SUPPORTER" },
+          items: {
+            data: [{
+              price: {
+                id: priceId,
+                product: "prod_supporter",
+              },
+            }],
+          },
+        }),
+      })
+
+      assert.equal(result.subscription.membershipLevel, "SUPPORTER", priceId)
+      assert.equal(
+        writes.some(([kind]) => kind === "subscription"),
+        true,
+        priceId,
+      )
+    }
   })
 
   it("classifies explicit Checkout purposes without treating unknown flows as memberships", () => {

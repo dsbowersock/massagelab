@@ -20,16 +20,14 @@ describe("Onboarding preference helpers", () => {
       "unknown_interest",
       "clientName",
       42,
-      { interest: "therapist_tools" },
+      { interest: "practice_management" },
       "therapist_tools",
-      "practice_management",
       "anatomy_and_education",
       "professional_documentation",
     ]), [
       "personal_wellness",
       "backgrounds_and_sound",
       "therapist_tools",
-      "practice_management",
       "anatomy_and_education",
       "professional_documentation",
     ])

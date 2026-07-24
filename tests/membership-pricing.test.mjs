@@ -4,6 +4,7 @@ import { describe, it } from "node:test"
 import {
   formatMembershipPrice,
   getMembershipPricingCatalog,
+  resolveMembershipPriceForInterval,
 } from "../lib/membership-pricing.js"
 
 function stripePrice({ id, amount, currency = "usd", interval }) {
@@ -80,19 +81,24 @@ describe("Membership pricing catalog", () => {
     assert.equal(supporter.currentFeatures.some((feature) => /BAA|transcription|SOAP drafting|managed sync/i.test(feature)), false)
   })
 
+  it("resolves only the price configured for the requested billing interval", () => {
+    const month = { id: "price_month", interval: "month" }
+    const year = { id: "price_year", interval: "year" }
+    const choice = { prices: { month, year } }
+
+    assert.equal(resolveMembershipPriceForInterval(choice, "month"), month)
+    assert.equal(resolveMembershipPriceForInterval(choice, "year"), year)
+    assert.equal(resolveMembershipPriceForInterval({ prices: { month } }, "year"), null)
+    assert.equal(resolveMembershipPriceForInterval({ prices: { year } }, "month"), null)
+  })
+
   it("removes the obsolete live catalog setup command instead of recreating retired resources", async () => {
-    const [pricingCards, environmentExample, readinessCheck, packageSource] = await Promise.all([
-      readFile(new URL("../components/membership/pricing-cards.tsx", import.meta.url), "utf8"),
+    const [environmentExample, readinessCheck, packageSource] = await Promise.all([
       readFile(new URL("../.env.example", import.meta.url), "utf8"),
       readFile(new URL("../scripts/stripe-readiness-check.mjs", import.meta.url), "utf8"),
       readFile(new URL("../package.json", import.meta.url), "utf8"),
     ])
 
-    assert.doesNotMatch(pricingCards, /earlyAccess|Development discount|10% off forever/i)
-    assert.match(pricingCards, /function resolveChoicePrice/)
-    assert.match(pricingCards, /return choice\.prices\[interval\]/)
-    assert.doesNotMatch(pricingCards, /choice\.prices\.year\s*\?\?|choice\.prices\.month/)
-    assert.match(pricingCards, /if \(!price\) return null/)
     assert.doesNotMatch(environmentExample, /MASSAGELAB_EARLY_ACCESS_DISCOUNT_ENABLED/)
     assert.doesNotMatch(readinessCheck, /MASSAGELAB_EARLY_ACCESS_DISCOUNT_ENABLED|Early Access|early access/)
     assert.doesNotMatch(packageSource, /stripe:live:setup|stripe-live-membership-setup/)

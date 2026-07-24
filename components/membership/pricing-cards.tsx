@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { MetalAttentionButton } from "@/components/ui/metal-attention-button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getLegalDocumentByKey, legalDocumentAcceptanceId } from "@/lib/legal-documents"
+import { resolveMembershipPriceForInterval } from "@/lib/membership-pricing"
 import { cn } from "@/lib/utils"
 
 type MembershipPrice = {
@@ -164,7 +165,7 @@ function PlanCard({
           <div className="mt-auto space-y-3">
             <div className="grid gap-3 sm:grid-cols-3">
               {plan.amountChoices.map((choice) => {
-                const price = resolveChoicePrice(choice, interval)
+                const price = resolveMembershipPriceForInterval(choice, interval)
                 if (!price) return null
 
                 return (
@@ -192,7 +193,7 @@ function PlanCard({
         ) : (
           <div className="mt-auto grid gap-3 sm:grid-cols-3">
             {plan.amountChoices.map((choice) => {
-              const price = resolveChoicePrice(choice, interval)
+              const price = resolveMembershipPriceForInterval(choice, interval)
               if (!price) return null
 
               return (
@@ -210,14 +211,6 @@ function PlanCard({
       </CardContent>
     </Card>
   )
-}
-
-// A billing-cycle tab must never display or submit a Price from another interval.
-function resolveChoicePrice(
-  choice: MembershipPlan["amountChoices"][number],
-  interval: string,
-) {
-  return choice.prices[interval]
 }
 
 function FeatureGroup({
