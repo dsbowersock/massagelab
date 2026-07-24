@@ -52,6 +52,8 @@ export default async function VerifyEmailPage({
     }
   }
 
+  // Preserve the normalized app-local destination while the shared builder
+  // applies the verification-state fallback for unsuccessful verification.
   const loginHref = buildVerificationLoginPath(verified, callbackUrl)
 
   return (
