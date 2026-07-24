@@ -63,7 +63,16 @@ export async function POST(request: Request) {
       ? NextResponse.redirect(checkoutSession.url, 303)
       : NextResponse.json({ url: checkoutSession.url })
   } catch (error) {
-    console.error("Unable to start one-time support checkout", error)
+    const code = (
+      error
+      && typeof error === "object"
+      && "code" in error
+      && typeof error.code === "string"
+      && /^[a-z0-9_.-]{1,80}$/i.test(error.code)
+    )
+      ? error.code
+      : "unexpected_error"
+    console.error("Unable to start one-time support checkout", { code })
     return input.isForm
       ? pricingRedirect("checkout-error")
       : NextResponse.json({ error: "Unable to start one-time support checkout." }, { status: 500 })

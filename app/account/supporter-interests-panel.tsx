@@ -29,6 +29,7 @@ export function SupporterInterestsPanel() {
   const [isSaving, setIsSaving] = useState(false)
   const [message, setMessage] = useState<PanelMessage | null>(null)
   const loadRequestRef = useRef(0)
+  const saveRequestRef = useRef(0)
 
   const loadInterests = useCallback(async () => {
     const requestId = loadRequestRef.current + 1
@@ -76,10 +77,14 @@ export function SupporterInterestsPanel() {
     void loadInterests()
     return () => {
       loadRequestRef.current += 1
+      saveRequestRef.current += 1
     }
   }, [loadInterests])
 
   async function saveInterests(nextInterests: string[]) {
+    const requestId = saveRequestRef.current + 1
+    saveRequestRef.current = requestId
+    const isCurrentRequest = () => saveRequestRef.current === requestId
     const previousInterests = interests
     setInterests(nextInterests)
     setIsSaving(true)
@@ -101,6 +106,9 @@ export function SupporterInterestsPanel() {
       }
 
       const preferences = await response.json()
+      if (!isCurrentRequest()) {
+        return
+      }
       setInterests(resolveSupporterRoadmapInterestsAfterSave({
         previousInterests,
         responseInterests: preferences.appSettings?.supporterRoadmapInterests,
@@ -111,6 +119,9 @@ export function SupporterInterestsPanel() {
         variant: "success",
       })
     } catch (error) {
+      if (!isCurrentRequest()) {
+        return
+      }
       console.error("SupporterInterestsPanel failed to save roadmap interests", error)
       setInterests(resolveSupporterRoadmapInterestsAfterSave({
         previousInterests,
@@ -120,7 +131,9 @@ export function SupporterInterestsPanel() {
         variant: "error",
       })
     } finally {
-      setIsSaving(false)
+      if (isCurrentRequest()) {
+        setIsSaving(false)
+      }
     }
   }
 

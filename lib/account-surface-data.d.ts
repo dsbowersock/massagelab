@@ -96,8 +96,8 @@ export type MembershipPricingCatalog = {
     roadmapNotes: string[]
     amountChoices: Array<{
       id: string
-      month: number
-      year: number
+      monthAmountCents: number
+      yearAmountCents: number
       prices: MembershipPriceCatalog
     }>
   }>

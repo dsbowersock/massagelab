@@ -54,6 +54,20 @@ describe("Membership pricing catalog", () => {
     assert.equal(catalog.plans.length, 1)
     assert.equal(supporter.name, "MassageLab Supporter Membership")
     assert.deepEqual(supporter.amountChoices.map((choice) => choice.id), ["support-1", "support-2", "support-5"])
+    assert.deepEqual(
+      supporter.amountChoices.map(({
+        id,
+        monthAmountCents,
+        yearAmountCents,
+      }) => ({ id, monthAmountCents, yearAmountCents })),
+      [
+        { id: "support-1", monthAmountCents: 100, yearAmountCents: 1000 },
+        { id: "support-2", monthAmountCents: 200, yearAmountCents: 2000 },
+        { id: "support-5", monthAmountCents: 500, yearAmountCents: 5000 },
+      ],
+    )
+    assert.equal(Object.hasOwn(supporter.amountChoices[0], "month"), false)
+    assert.equal(Object.hasOwn(supporter.amountChoices[0], "year"), false)
     assert.deepEqual(supporter.amountChoices.map((choice) => choice.prices.month.displayPrice), ["$1", "$2", "$5"])
     assert.deepEqual(supporter.amountChoices.map((choice) => choice.prices.year.displayPrice), ["$10", "$20", "$50"])
     assert.deepEqual(supporter.amountChoices[0].prices.month, {

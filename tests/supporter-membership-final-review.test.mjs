@@ -1,8 +1,6 @@
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
-import { createRequire } from "node:module"
 import { describe, it } from "node:test"
-import ts from "typescript"
 
 import {
   getUserMembershipPricingStatus,
@@ -15,6 +13,15 @@ import {
   SUPPORTER_RECURRING_TAX_BEHAVIOR,
   SUPPORTER_RECURRING_TAX_CODE,
 } from "../lib/stripe-price-contract.js"
+import {
+  createCompiledModuleLoader,
+  createElement,
+  elementText,
+  findElement,
+  findElements,
+  passThroughElement,
+  renderFunctionComponents,
+} from "./helpers/compiled-module.mjs"
 
 const LEGACY_RUNTIME_PRICE_KEYS = Object.freeze([
   "STRIPE_SUPPORTER_MONTHLY_PRICE_ID",
@@ -25,124 +32,7 @@ const LEGACY_RUNTIME_PRICE_KEYS = Object.freeze([
   "STRIPE_PRACTICE_YEARLY_PRICE_ID",
 ])
 
-const requireFromTest = createRequire(import.meta.url)
-
-/**
- * Compiles a production module only inside this test so its dependencies can
- * be observed without adding test-only exports or changing runtime behavior.
- */
-function loadCompiledModule(source, fileName, dependencies = {}) {
-  const compiledSource = ts.transpileModule(source.replace(/^#!.*\r?\n/, ""), {
-    compilerOptions: {
-      esModuleInterop: true,
-      jsx: ts.JsxEmit.ReactJSX,
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2022,
-    },
-    fileName: fileName.replace(/\.mjs$/, ".js"),
-  }).outputText
-  const compiledModule = { exports: {} }
-  const executeModule = new Function("require", "exports", "module", compiledSource)
-
-  executeModule((specifier) => (
-    Object.hasOwn(dependencies, specifier)
-      ? dependencies[specifier]
-      : requireFromTest(specifier)
-  ), compiledModule.exports, compiledModule)
-
-  return compiledModule.exports
-}
-
-function createElement(type, props, key) {
-  return {
-    type,
-    key: key ?? null,
-    props: props ?? {},
-  }
-}
-
-/** Returns the first matching JSX-like object in a nested child/array tree. */
-function findElement(tree, predicate) {
-  if (Array.isArray(tree)) {
-    for (const child of tree) {
-      const match = findElement(child, predicate)
-      if (match) {
-        return match
-      }
-    }
-    return null
-  }
-
-  if (!tree || typeof tree !== "object") {
-    return null
-  }
-
-  if (predicate(tree)) {
-    return tree
-  }
-
-  return findElement(tree.props?.children, predicate)
-}
-
-/** Collects every matching JSX-like object from a nested child/array tree. */
-function findElements(tree, predicate, matches = []) {
-  if (Array.isArray(tree)) {
-    for (const child of tree) {
-      findElements(child, predicate, matches)
-    }
-    return matches
-  }
-
-  if (!tree || typeof tree !== "object") {
-    return matches
-  }
-
-  if (predicate(tree)) {
-    matches.push(tree)
-  }
-  findElements(tree.props?.children, predicate, matches)
-  return matches
-}
-
-/** Recursively evaluates function-component nodes in the test JSX tree. */
-function renderFunctionComponents(tree) {
-  if (Array.isArray(tree)) {
-    return tree.map(renderFunctionComponents)
-  }
-  if (!tree || typeof tree !== "object") {
-    return tree ?? null
-  }
-  if (typeof tree.type === "function") {
-    return renderFunctionComponents(tree.type(tree.props))
-  }
-
-  return {
-    ...tree,
-    props: {
-      ...tree.props,
-      children: renderFunctionComponents(tree.props?.children),
-    },
-  }
-}
-
-function elementText(tree) {
-  if (Array.isArray(tree)) {
-    return tree.map(elementText).join("")
-  }
-  if (typeof tree === "string" || typeof tree === "number") {
-    return String(tree)
-  }
-  if (!tree || typeof tree !== "object") {
-    return ""
-  }
-  return elementText(tree.props?.children)
-}
-
-function passThroughElement(type) {
-  return function PassThroughElement(props) {
-    return createElement(type, props)
-  }
-}
+const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 
 function TestComponent() {}
 
@@ -283,8 +173,8 @@ async function renderMembershipPricingCards({ mode, activeMembershipLevel }) {
       roadmapNotes: ["Funds privacy-preserving product work."],
       amountChoices: [{
         id: "support-1",
-        month: 100,
-        year: 1000,
+        monthAmountCents: 100,
+        yearAmountCents: 1000,
         prices: { month: price },
       }],
     }],
@@ -634,6 +524,8 @@ describe("Supporter membership final-review contracts", () => {
     )
     const migrationCalls = []
     const helperObserved = new Error("shared recurring Price helper observed")
+    assert.match(migrationSource, /import\.meta\.url/)
+    assert.match(migrationSource, /\bawait main\(\)/)
     const migration = loadCompiledModule(
       migrationSource
         .replaceAll(

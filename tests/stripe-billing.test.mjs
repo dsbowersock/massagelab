@@ -22,6 +22,14 @@ const SUPPORTER_2_MONTHLY_PRICE_ID = "price_supporter_2_monthly"
 const SUPPORTER_2_YEARLY_PRICE_ID = "price_supporter_2_yearly"
 const SUPPORTER_5_MONTHLY_PRICE_ID = "price_supporter_5_monthly"
 const SUPPORTER_5_YEARLY_PRICE_ID = "price_supporter_5_yearly"
+const SUPPORTER_PRICE_FIXTURES = Object.freeze({
+  [DEFAULT_SUPPORTER_PRICE_ID]: Object.freeze({ interval: "month", unitAmount: 100 }),
+  [SUPPORTER_1_YEARLY_PRICE_ID]: Object.freeze({ interval: "year", unitAmount: 1000 }),
+  [SUPPORTER_2_MONTHLY_PRICE_ID]: Object.freeze({ interval: "month", unitAmount: 200 }),
+  [SUPPORTER_2_YEARLY_PRICE_ID]: Object.freeze({ interval: "year", unitAmount: 2000 }),
+  [SUPPORTER_5_MONTHLY_PRICE_ID]: Object.freeze({ interval: "month", unitAmount: 500 }),
+  [SUPPORTER_5_YEARLY_PRICE_ID]: Object.freeze({ interval: "year", unitAmount: 5000 }),
+})
 
 describe("Stripe billing helpers", () => {
   it("verifies Stripe webhook signatures with the raw request body", () => {
@@ -328,33 +336,33 @@ describe("Stripe billing helpers", () => {
     assert.deepEqual(result, { userId: "user_123", stripeCustomerId: "cus_live_new" })
   })
 
-  it("does not combine a configured checkout coupon with promotion code entry", async () => {
-    let capturedPayload = null
+  it("rejects retired membership coupons before reconciliation or Checkout creation", async () => {
+    let listCalls = 0
+    let createCalls = 0
 
-    await stripeBilling.createStripeCheckoutSession({
-      customerId: "cus_123",
-      priceId: DEFAULT_SUPPORTER_PRICE_ID,
-      userId: "user_123",
-      membershipLevel: "SUPPORTER",
-      successUrl: "https://massagelab.app/account?checkout=success",
-      cancelUrl: "https://massagelab.app/account?checkout=cancelled",
-      couponId: "kfRFWYmC",
-      env: supporterTaxEnv(),
-      stripeClient: {
-        checkout: {
-          sessions: {
-            list: async () => stripeCheckoutSessionList(),
-            create: async (payload) => {
-              capturedPayload = payload
-              return { id: "cs_123", url: "https://checkout.stripe.com/c/test" }
+    await assert.rejects(
+      stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+        couponId: "coupon_retired",
+        stripeClient: {
+          checkout: {
+            sessions: {
+              list: async () => {
+                listCalls += 1
+                return stripeCheckoutSessionList()
+              },
+              create: async () => {
+                createCalls += 1
+                return membershipCheckoutSession()
+              },
             },
           },
         },
-      },
-    })
+      })),
+      /Membership coupons are not supported/,
+    )
 
-    assert.deepEqual(capturedPayload.discounts, [{ coupon: "kfRFWYmC" }])
-    assert.equal(Object.hasOwn(capturedPayload, "allow_promotion_codes"), false)
+    assert.equal(listCalls, 0)
+    assert.equal(createCalls, 0)
   })
 
   it("creates Supporter Checkout with exclusive automatic tax and address collection", async () => {
@@ -531,6 +539,11 @@ describe("Stripe billing helpers", () => {
       },
       { outcome: "success", stripeRateLimited: false },
     )
+    assert.equal(
+      infoCalls.flat().some((value) => value instanceof Error),
+      false,
+      "observability must never pass a raw Error to the logger",
+    )
     assert.doesNotMatch(
       JSON.stringify(infoCalls),
       /cus_123|user_123|price_supporter|cs_observed|sk_live|secret/i,
@@ -583,6 +596,12 @@ describe("Stripe billing helpers", () => {
         stripeRateLimited: warnCalls[0][1].stripeRateLimited,
       },
       { outcome: "error", stripeRateLimited: true },
+    )
+    assert.equal(warnCalls.flat().includes(rateLimitError), false)
+    assert.equal(
+      warnCalls.flat().some((value) => value instanceof Error),
+      false,
+      "observability must reduce processor errors to safe aggregate fields",
     )
     assert.doesNotMatch(
       JSON.stringify(warnCalls),
@@ -1012,32 +1031,33 @@ describe("Stripe billing helpers", () => {
       "cs_reuse_first",
       "cs_reuse_duplicate",
     ])
-    const delayBySessionId = new Map([
-      ["cs_reuse_first", 30],
-      ["cs_stale_first", 5],
-      ["cs_reuse_duplicate", 1],
-      ["cs_stale_second", 2],
-    ])
+    const classificationGates = new Map(
+      sessions.map(({ id }) => [id, deferred()]),
+    )
+    const initialWorkersStarted = deferred()
+    const fourthWorkerStarted = deferred()
     const events = []
+    let classificationStarts = 0
     let activeCompatibilityReads = 0
     let maximumCompatibilityReads = 0
     let createCalls = 0
 
-    const result = await stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+    const resultPromise = stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
       stripeClient: {
         checkout: {
           sessions: {
             list: async () => stripeCheckoutSessionList(sessions),
             listLineItems: async (sessionId) => {
               events.push(`classify:start:${sessionId}`)
+              classificationStarts += 1
               activeCompatibilityReads += 1
               maximumCompatibilityReads = Math.max(
                 maximumCompatibilityReads,
                 activeCompatibilityReads,
               )
-              await new Promise((resolve) => {
-                setTimeout(resolve, delayBySessionId.get(sessionId))
-              })
+              if (classificationStarts === 3) initialWorkersStarted.resolve()
+              if (sessionId === "cs_stale_second") fourthWorkerStarted.resolve()
+              await classificationGates.get(sessionId).promise
               activeCompatibilityReads -= 1
               events.push(`classify:end:${sessionId}`)
               return stripeCheckoutLineItemList({
@@ -1068,6 +1088,24 @@ describe("Stripe billing helpers", () => {
       },
     }))
 
+    await initialWorkersStarted.promise
+    assert.deepEqual(
+      events.filter((event) => event.startsWith("classify:start:")),
+      [
+        "classify:start:cs_reuse_first",
+        "classify:start:cs_stale_first",
+        "classify:start:cs_reuse_duplicate",
+      ],
+    )
+    assert.equal(activeCompatibilityReads, 3)
+
+    classificationGates.get("cs_reuse_duplicate").resolve()
+    await fourthWorkerStarted.promise
+    classificationGates.get("cs_stale_first").resolve()
+    classificationGates.get("cs_stale_second").resolve()
+    classificationGates.get("cs_reuse_first").resolve()
+
+    const result = await resultPromise
     assert.equal(result.id, "cs_reuse_first")
     assert.equal(maximumCompatibilityReads, 3)
     assert.ok(
@@ -1677,7 +1715,7 @@ describe("Stripe billing helpers", () => {
     assert.deepEqual(writes, [])
   })
 
-  it("reconciles a Checkout Session subscription immediately after checkout completion", async () => {
+  it("reconciles membership level from the Price mapping instead of subscription metadata", async () => {
     const writes = []
     const prismaClient = {
       stripeCustomer: {
@@ -1706,7 +1744,7 @@ describe("Stripe billing helpers", () => {
         status: "active",
         current_period_start: 1778791200,
         current_period_end: 1781383200,
-        metadata: { userId: "user_123", membershipLevel: "THERAPIST" },
+        metadata: { userId: "user_123", membershipLevel: "SUPPORTER" },
         items: { data: [{ price: { id: "price_therapist", product: "prod_therapist" } }] },
       }),
     })
@@ -1924,6 +1962,7 @@ describe("Stripe billing helpers", () => {
   })
 })
 
+/** Returns the complete test-only environment for the current Supporter catalog. */
 function supporterTaxEnv() {
   return {
     STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: DEFAULT_SUPPORTER_PRICE_ID,
@@ -1940,6 +1979,7 @@ function supporterTaxEnv() {
   }
 }
 
+/** Builds one valid membership Checkout request with narrow per-test overrides. */
 function membershipCheckoutOptions(overrides = {}) {
   return {
     customerId: "cus_123",
@@ -1953,6 +1993,7 @@ function membershipCheckoutOptions(overrides = {}) {
   }
 }
 
+/** Builds a Stripe subscription whose configured Price is normalization authority. */
 function membershipStripeSubscription({
   id = "sub_supporter",
   status = "active",
@@ -1976,6 +2017,7 @@ function membershipStripeSubscription({
   }
 }
 
+/** Builds a MassageLab-owned membership Checkout Session response. */
 function membershipCheckoutSession({
   id = "cs_membership",
   status = "open",
@@ -2020,6 +2062,7 @@ function membershipCheckoutSession({
   }
 }
 
+/** Wraps Checkout Sessions in Stripe's paginated list envelope. */
 function stripeCheckoutSessionList(data = []) {
   return {
     object: "list",
@@ -2029,19 +2072,27 @@ function stripeCheckoutSessionList(data = []) {
   }
 }
 
+/**
+ * Builds one expanded line item whose billing evidence derives from its
+ * configured Price ID, preventing contradictory amount/interval fixtures.
+ */
 function stripeCheckoutLineItemList({
   priceId = DEFAULT_SUPPORTER_PRICE_ID,
   productCatalog = SUPPORTER_MEMBERSHIP_CATALOG_VERSION,
 } = {}) {
+  const priceFixture = SUPPORTER_PRICE_FIXTURES[priceId]
+  assert.ok(priceFixture, `Missing Supporter Price fixture for ${priceId}`)
+  const { interval, unitAmount } = priceFixture
+
   return {
     object: "list",
     data: [{
       id: "li_membership",
       object: "item",
       amount_discount: 0,
-      amount_subtotal: 100,
+      amount_subtotal: unitAmount,
       amount_tax: 0,
-      amount_total: 100,
+      amount_total: unitAmount,
       currency: "usd",
       description: "MassageLab Supporter Membership",
       discounts: [],
@@ -2064,7 +2115,7 @@ function stripeCheckoutLineItemList({
           tax_code: SUPPORTER_RECURRING_TAX_CODE,
         },
         recurring: {
-          interval: "month",
+          interval,
           interval_count: 1,
           trial_period_days: null,
           usage_type: "licensed",
@@ -2072,12 +2123,21 @@ function stripeCheckoutLineItemList({
         tax_behavior: SUPPORTER_RECURRING_TAX_BEHAVIOR,
         transform_quantity: null,
         type: "recurring",
-        unit_amount: 100,
-        unit_amount_decimal: "100",
+        unit_amount: unitAmount,
+        unit_amount_decimal: String(unitAmount),
       },
       quantity: 1,
     }],
     has_more: false,
     url: "/v1/checkout/sessions/cs_membership/line_items",
   }
+}
+
+/** Creates a manually released Promise for deterministic concurrency tests. */
+function deferred() {
+  let resolve
+  const promise = new Promise((resolvePromise) => {
+    resolve = resolvePromise
+  })
+  return { promise, resolve }
 }

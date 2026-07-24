@@ -146,6 +146,14 @@ function portalConfiguration() {
   }
 }
 
+/** Creates an SDK-shaped Stripe failure without exposing processor payloads. */
+function stripeSdkError(type, statusCode) {
+  return Object.assign(new Error(type), {
+    type,
+    ...(statusCode == null ? {} : { statusCode }),
+  })
+}
+
 /**
  * Builds a Stripe double with an ordered call log, live resource maps, and a
  * live portal getter. Writes are recorded, creates replay by idempotency key,
@@ -193,6 +201,7 @@ function stripeFixture() {
     customer: "cus_private_test_account",
   }]
   let portal = portalConfiguration()
+  let nextProduct = 1
   let nextPrice = 1
   const productCreatesByIdempotencyKey = new Map()
   const priceCreatesByIdempotencyKey = new Map()
@@ -252,7 +261,7 @@ function stripeFixture() {
         if (existingId) {
           return structuredClone(products.get(existingId))
         }
-        const id = "prod_created_supporter"
+        const id = `prod_created_supporter_${nextProduct++}`
         const created = {
           id,
           object: "product",
@@ -428,6 +437,16 @@ function assertMutationWasReretrieved(calls, mutationIndex, retrieveName, id) {
 }
 
 describe("Supporter membership Stripe migration", () => {
+  it("uses the webhook/runtime source of truth for its pinned Stripe API version", async () => {
+    const scriptSource = await readFile(
+      new URL("../scripts/stripe-supporter-membership-migration.mjs", import.meta.url),
+      "utf8",
+    )
+
+    assert.match(scriptSource, /import\s+\{\s*STRIPE_API_VERSION\s*\}\s+from\s+"..\/lib\/stripe-webhook-contract\.js"/)
+    assert.match(scriptSource, /apiVersion:\s*STRIPE_API_VERSION/)
+  })
+
   it("exposes only the guarded Supporter migration package command", async () => {
     const packageSource = await readFile(
       new URL("../package.json", import.meta.url),
@@ -798,6 +817,30 @@ describe("Supporter membership Stripe migration", () => {
       )
       assert.deepEqual(mutationCalls(fixture), [], testCase.label)
     }
+  })
+
+  it("accepts a fully absent legacy coupon set and keeps deletion guarded", async () => {
+    const fixture = stripeFixture()
+    fixture.coupons.clear()
+
+    const verification = await runSupporterMembershipMigration({
+      stripe: fixture.stripe,
+      mode: "verify",
+      env: migrationEnv(),
+    })
+    assert.equal(verification.state, "PRE_MIGRATION")
+    assert.deepEqual(mutationCalls(fixture), [])
+
+    const applied = await runSupporterMembershipMigration({
+      stripe: fixture.stripe,
+      mode: "apply",
+      env: migrationEnv(),
+    })
+    assert.equal(applied.state, "COMPLETED")
+    assert.equal(
+      fixture.calls.filter(({ name }) => name === "coupons.del").length,
+      0,
+    )
   })
 
   it("rejects mixed migration states instead of treating known subsets as safe", async () => {
@@ -1429,6 +1472,108 @@ describe("Supporter membership Stripe migration", () => {
     )
   })
 
+  it("does not retry deterministic Stripe request, authentication, or permission failures", async () => {
+    for (const type of [
+      "StripeInvalidRequestError",
+      "StripeAuthenticationError",
+      "StripePermissionError",
+      "StripeIdempotencyError",
+    ]) {
+      const fixture = stripeFixture()
+      const failure = stripeSdkError(type, type === "StripeInvalidRequestError" ? 400 : 401)
+      const delays = []
+      let attempts = 0
+      fixture.stripe.products.update = async () => {
+        attempts += 1
+        throw failure
+      }
+
+      await assert.rejects(
+        runSupporterMembershipMigration({
+          stripe: fixture.stripe,
+          mode: "apply",
+          env: migrationEnv(),
+          sleep: async (milliseconds) => {
+            delays.push(milliseconds)
+          },
+        }),
+        (error) => {
+          assert.deepEqual(error.failureCodes, ["stripe_mutation_failed"])
+          assert.equal(error.cause, failure)
+          return true
+        },
+        type,
+      )
+      assert.equal(attempts, 1, type)
+      assert.deepEqual(delays, [], type)
+    }
+  })
+
+  it("does not retry a verification error whose retained cause is deterministic", async () => {
+    const fixture = stripeFixture()
+    const updateProduct = fixture.stripe.products.update.bind(fixture.stripe.products)
+    const authenticationFailure = stripeSdkError("StripeAuthenticationError", 401)
+    const delays = []
+    let retrievals = 0
+    fixture.stripe.products.update = async (id, payload) => updateProduct(id, payload)
+    fixture.stripe.products.retrieve = async () => {
+      retrievals += 1
+      throw authenticationFailure
+    }
+
+    await assert.rejects(
+      runSupporterMembershipMigration({
+        stripe: fixture.stripe,
+        mode: "apply",
+        env: migrationEnv(),
+        sleep: async (milliseconds) => {
+          delays.push(milliseconds)
+        },
+      }),
+      (error) => {
+        assert.deepEqual(
+          error.failureCodes,
+          ["supporter_product_mutation_unverified"],
+        )
+        assert.equal(error.cause, authenticationFailure)
+        return true
+      },
+    )
+    assert.equal(retrievals, 1)
+    assert.deepEqual(delays, [])
+  })
+
+  it("retries pinned Stripe rate-limit and server-error shapes", async () => {
+    for (const failure of [
+      stripeSdkError("StripeRateLimitError", 429),
+      stripeSdkError("StripeAPIError", 503),
+    ]) {
+      const fixture = stripeFixture()
+      const updateProduct = fixture.stripe.products.update.bind(fixture.stripe.products)
+      const delays = []
+      let failOnce = true
+      fixture.stripe.products.update = async (id, payload) => {
+        if (failOnce) {
+          failOnce = false
+          throw failure
+        }
+        return updateProduct(id, payload)
+      }
+
+      const result = await runSupporterMembershipMigration({
+        stripe: fixture.stripe,
+        mode: "apply",
+        env: migrationEnv(),
+        sleep: async (milliseconds) => {
+          delays.push(milliseconds)
+        },
+      })
+
+      assert.equal(result.state, "COMPLETED")
+      assert.deepEqual(delays, [250])
+    }
+  })
+
   it("retains a non-missing dependency-read cause without surfacing its details", async () => {
     const fixture = stripeFixture()
     const readFailure = new Error("processor secret coupon_private_reference")
@@ -1497,7 +1642,7 @@ describe("Supporter membership Stripe migration", () => {
       const result = await updatePortal(id, payload)
       if (failAfterFirstMutation) {
         failAfterFirstMutation = false
-        throw new Error("connection ended after Stripe accepted the update")
+        throw stripeSdkError("StripeConnectionError")
       }
       return result
     }
@@ -1524,13 +1669,15 @@ describe("Supporter membership Stripe migration", () => {
     const createProduct = fixture.stripe.products.create.bind(fixture.stripe.products)
     const listProducts = fixture.stripe.products.list.bind(fixture.stripe.products)
     let failAfterCommit = true
+    let hiddenProductId = null
     let hideCommittedProductLists = 0
     fixture.stripe.products.create = async (payload, options) => {
       const result = await createProduct(payload, options)
       if (failAfterCommit) {
         failAfterCommit = false
+        hiddenProductId = result.id
         hideCommittedProductLists = 1
-        throw new Error("connection ended after Product commit")
+        throw stripeSdkError("StripeConnectionError")
       }
       return result
     }
@@ -1540,7 +1687,7 @@ describe("Supporter membership Stripe migration", () => {
         hideCommittedProductLists -= 1
         return {
           ...result,
-          data: result.data.filter((entry) => entry.id !== "prod_created_supporter"),
+          data: result.data.filter((entry) => entry.id !== hiddenProductId),
         }
       }
       return result
@@ -1584,7 +1731,7 @@ describe("Supporter membership Stripe migration", () => {
         failAfterCommit = false
         hiddenPriceId = result.id
         hideCommittedPriceLists = 1
-        throw new Error("connection ended after Price commit")
+        throw stripeSdkError("StripeConnectionError")
       }
       return result
     }
@@ -1633,7 +1780,7 @@ describe("Supporter membership Stripe migration", () => {
     fixture.stripe.products.update = async (id, payload) => {
       if (transientFailures > 0) {
         transientFailures -= 1
-        throw new Error("temporary Stripe write failure")
+        throw stripeSdkError("StripeConnectionError")
       }
       return updateProduct(id, payload)
     }

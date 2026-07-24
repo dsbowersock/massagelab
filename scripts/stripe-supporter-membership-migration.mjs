@@ -18,6 +18,26 @@ const CREATE_NEW_PRODUCT = "CREATE_NEW"
 const SUPPORTER_PRODUCT_IDEMPOTENCY_KEY = "massagelab-supporter-membership-v1-product"
 const TERMINAL_SUBSCRIPTION_STATUSES = new Set(["canceled", "incomplete_expired"])
 const APPLY_RETRY_DELAYS_MS = Object.freeze([250, 500])
+const RECOVERABLE_APPLY_VERIFICATION_FAILURES = new Set([
+  "supporter_product_mutation_unverified",
+  "supporter_price_mutation_unverified",
+  "portal_mutation_unverified",
+  "legacy_price_mutation_unverified",
+  "legacy_product_mutation_unverified",
+  "coupon_mutation_unverified",
+])
+// These exact `error.type` values come from the pinned Stripe SDK's Error
+// classes and keep retry policy independent from message text.
+const TRANSIENT_STRIPE_ERROR_TYPES = new Set([
+  "StripeConnectionError",
+  "StripeRateLimitError",
+])
+const DETERMINISTIC_STRIPE_ERROR_TYPES = new Set([
+  "StripeInvalidRequestError",
+  "StripeAuthenticationError",
+  "StripePermissionError",
+  "StripeIdempotencyError",
+])
 
 const TARGET_PRICE_SPECS = Object.freeze([
   Object.freeze({
@@ -784,6 +804,7 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
   )
   const couponsPresent = [...coupons.values()].every(Boolean)
   const couponsMissing = [...coupons.values()].every((candidate) => candidate === null)
+  const couponsConsistent = couponsPresent || couponsMissing
   const retirementPricesActive = retirementPrices.every(
     (candidate) => candidate.active === true,
   )
@@ -803,7 +824,7 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
     && supporterProductAllowsPreMigration
     && retirementPricesActive
     && retirementProductsActive
-    && couponsPresent
+    && couponsConsistent
     && targetPricesAreActive
   const isCompleted = portalIsCompleted
     && targetProductCompleted
@@ -812,20 +833,23 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
     && retirementPricesInactive
     && retirementProductsInactive
     && couponsMissing
-  const state = isPreMigration
-    ? "PRE_MIGRATION"
-    : isCompleted ? "COMPLETED" : "TRANSITIONAL"
+  let state = "TRANSITIONAL"
+  if (isPreMigration) {
+    state = "PRE_MIGRATION"
+  } else if (isCompleted) {
+    state = "COMPLETED"
+  }
+  // Once the Portal points only at the new catalog, recovery may move forward
+  // through Prices, Products, then coupons. A partial coupon set is never safe,
+  // and Products cannot precede Price retirement.
+  const retirementOrderRecoverable = retirementPricesInactive
+    || retirementProductsActive
   const recoverableTransition = portalIsCompleted
     && targetProductCompleted
     && targetPrices.size === config.targetPrices.length
     && targetPricesAreActive
-    && (
-      !retirementPricesInactive
-        ? retirementProductsActive && couponsPresent
-        : !retirementProductsInactive
-          ? couponsPresent
-          : true
-    )
+    && couponsConsistent
+    && retirementOrderRecoverable
   if (
     state === "TRANSITIONAL"
     && (!allowTransitional || !recoverableTransition)
@@ -1164,6 +1188,44 @@ async function applyPlan(stripe, config, inventory) {
   }
 }
 
+/**
+ * Returns true only for Stripe transport/rate-limit failures, server-side 5xx
+ * responses, or a step-specific post-mutation verification failure.
+ */
+function isRecoverableApplyFailure(error) {
+  const stripeError = error instanceof MigrationError ? error.cause : error
+  if (DETERMINISTIC_STRIPE_ERROR_TYPES.has(stripeError?.type)) {
+    return false
+  }
+
+  if (TRANSIENT_STRIPE_ERROR_TYPES.has(stripeError?.type)) {
+    return true
+  }
+
+  const statusCode = Number(stripeError?.statusCode)
+  if (Number.isInteger(statusCode) && statusCode >= 500 && statusCode <= 599) {
+    return true
+  }
+
+  if (
+    error instanceof MigrationError
+    && error.failureCodes.length > 0
+    && error.failureCodes.every((code) => (
+      RECOVERABLE_APPLY_VERIFICATION_FAILURES.has(code)
+    ))
+  ) {
+    return true
+  }
+  return false
+}
+
+/** Retains safe step-specific errors and otherwise wraps the original cause. */
+function normalizeApplyFailure(error) {
+  return error instanceof MigrationError
+    ? error
+    : new MigrationError(["stripe_mutation_failed"], [], { cause: error })
+}
+
 /** Waits between apply retries so Stripe's eventually consistent lists settle. */
 function waitForApplyRetry(milliseconds) {
   return new Promise((resolve) => {
@@ -1193,7 +1255,11 @@ export async function runSupporterMembershipMigration({
         await applyPlan(stripe, config, inventory)
         lastError = null
       } catch (error) {
-        lastError = error
+        const normalizedError = normalizeApplyFailure(error)
+        if (!isRecoverableApplyFailure(error)) {
+          throw normalizedError
+        }
+        lastError = normalizedError
       }
       inventory = await collectInventory(stripe, config, { allowTransitional: true })
       if (inventory.state !== "COMPLETED" && attempt < APPLY_RETRY_DELAYS_MS.length) {
@@ -1201,8 +1267,8 @@ export async function runSupporterMembershipMigration({
       }
     }
     if (inventory.state !== "COMPLETED") {
-      if (lastError instanceof MigrationError) throw lastError
-      throw new MigrationError(["stripe_mutation_failed"], [], { cause: lastError })
+      if (lastError) throw lastError
+      throw new MigrationError(["stripe_mutation_failed"])
     }
   }
 

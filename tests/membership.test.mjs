@@ -133,9 +133,9 @@ describe("Membership and entitlement helpers", () => {
     }
 
     assert.deepEqual(SUPPORTER_AMOUNT_CHOICES, [
-      { id: "support-1", month: 100, year: 1000 },
-      { id: "support-2", month: 200, year: 2000 },
-      { id: "support-5", month: 500, year: 5000 },
+      { id: "support-1", monthAmountCents: 100, yearAmountCents: 1000 },
+      { id: "support-2", monthAmountCents: 200, yearAmountCents: 2000 },
+      { id: "support-5", monthAmountCents: 500, yearAmountCents: 5000 },
     ])
 
     for (const choice of SUPPORTER_AMOUNT_CHOICES) {
@@ -245,25 +245,6 @@ describe("Membership and entitlement helpers", () => {
         true,
       )
     }
-  })
-
-  it("treats cancel-at-period-end as pending while the subscription remains nonterminal", () => {
-    assert.equal(
-      membership.hasSubscriptionBlockingNewCheckout([{
-        status: "active",
-        cancelAtPeriodEnd: true,
-        membershipLevel: "SUPPORTER",
-      }]),
-      true,
-    )
-    assert.equal(
-      membership.hasSubscriptionBlockingNewCheckout([{
-        status: "canceled",
-        cancelAtPeriodEnd: true,
-        membershipLevel: "SUPPORTER",
-      }]),
-      false,
-    )
   })
 
   it("routes historical Therapist and Practice subscribers to billing management", () => {

@@ -1,104 +1,23 @@
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
-import { createRequire } from "node:module"
 import { describe, it } from "node:test"
-import ts from "typescript"
+import {
+  createCompiledModuleLoader,
+  createElement,
+  elementText,
+  findElements,
+  passThroughElement,
+  renderFunctionComponents,
+} from "./helpers/compiled-module.mjs"
 
-const requireFromTest = createRequire(import.meta.url)
-
-/**
- * Compiles the production component only for this render contract so its
- * private price filtering can be exercised without test-only exports.
- */
-function loadCompiledModule(source, dependencies) {
-  const compiledSource = ts.transpileModule(source, {
-    compilerOptions: {
-      esModuleInterop: true,
-      jsx: ts.JsxEmit.ReactJSX,
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2022,
-    },
-    fileName: "components/membership/pricing-cards.tsx",
-  }).outputText
-  const compiledModule = { exports: {} }
-  const executeModule = new Function("require", "exports", "module", compiledSource)
-
-  executeModule((specifier) => (
-    Object.hasOwn(dependencies, specifier)
-      ? dependencies[specifier]
-      : requireFromTest(specifier)
-  ), compiledModule.exports, compiledModule)
-
-  return compiledModule.exports
-}
-
-function createElement(type, props, key) {
-  return {
-    type,
-    key: key ?? null,
-    props: props ?? {},
-  }
-}
-
-function findElements(tree, predicate, matches = []) {
-  if (Array.isArray(tree)) {
-    for (const child of tree) {
-      findElements(child, predicate, matches)
-    }
-    return matches
-  }
-  if (!tree || typeof tree !== "object") {
-    return matches
-  }
-
-  if (predicate(tree)) {
-    matches.push(tree)
-  }
-  findElements(tree.props?.children, predicate, matches)
-  return matches
-}
-
-function renderFunctionComponents(tree) {
-  if (Array.isArray(tree)) {
-    return tree.map(renderFunctionComponents)
-  }
-  if (!tree || typeof tree !== "object") {
-    return tree ?? null
-  }
-  if (typeof tree.type === "function") {
-    return renderFunctionComponents(tree.type(tree.props))
-  }
-
-  return {
-    ...tree,
-    props: {
-      ...tree.props,
-      children: renderFunctionComponents(tree.props?.children),
-    },
-  }
-}
-
-function elementText(tree) {
-  if (Array.isArray(tree)) {
-    return tree.map(elementText).join("")
-  }
-  if (typeof tree === "string" || typeof tree === "number") {
-    return String(tree)
-  }
-  if (!tree || typeof tree !== "object") {
-    return ""
-  }
-  return elementText(tree.props?.children)
-}
-
-function passThroughElement(type) {
-  return function PassThroughElement(props) {
-    return createElement(type, props)
-  }
-}
+const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 
 function TestComponent() {}
 
+/**
+ * Renders the production pricing cards against a compact single-plan catalog
+ * so each mode's configured/unavailable Price behavior stays deterministic.
+ */
 async function renderMembershipPricingCards({ mode, amountChoices }) {
   const pricingCardsSource = await readFile(
     new URL("../components/membership/pricing-cards.tsx", import.meta.url),
@@ -107,61 +26,65 @@ async function renderMembershipPricingCards({ mode, amountChoices }) {
   const Div = passThroughElement("div")
   const Button = passThroughElement("button")
   const Link = passThroughElement("a")
-  const pricingCards = loadCompiledModule(pricingCardsSource, {
-    "react/jsx-runtime": {
-      Fragment: Symbol.for("membership-pricing-cards-test.fragment"),
-      jsx: createElement,
-      jsxs: createElement,
+  const pricingCards = loadCompiledModule(
+    pricingCardsSource,
+    "components/membership/pricing-cards.tsx",
+    {
+      "react/jsx-runtime": {
+        Fragment: Symbol.for("membership-pricing-cards-test.fragment"),
+        jsx: createElement,
+        jsxs: createElement,
+      },
+      "next/link": Link,
+      "lucide-react": {
+        BadgeDollarSign: TestComponent,
+        CheckCircle2: TestComponent,
+        Palette: TestComponent,
+        ShieldCheck: TestComponent,
+      },
+      "@/components/ui/app-surface": {
+        appCalloutClassName: "test-callout",
+        appSurfaceClassName: "test-surface",
+      },
+      "@/components/ui/badge": {
+        Badge: Div,
+      },
+      "@/components/ui/button": {
+        Button,
+      },
+      "@/components/ui/card": {
+        Card: Div,
+        CardContent: Div,
+        CardDescription: Div,
+        CardHeader: Div,
+        CardTitle: Div,
+      },
+      "@/components/ui/metal-attention-button": {
+        MetalAttentionButton: Button,
+      },
+      "@/components/ui/tabs": {
+        Tabs: Div,
+        TabsContent: Div,
+        TabsList: Div,
+        TabsTrigger: Div,
+      },
+      "@/lib/legal-documents": {
+        getLegalDocumentByKey: () => ({
+          label: "Membership Billing and Refund Terms",
+          route: "/legal/membership-billing-refunds",
+        }),
+        legalDocumentAcceptanceId: () => "membership-billing-refunds:test",
+      },
+      "@/lib/membership-pricing": {
+        resolveMembershipPriceForInterval: (choice, interval) => (
+          choice.prices?.[interval] ?? null
+        ),
+      },
+      "@/lib/utils": {
+        cn: (...classes) => classes.filter(Boolean).join(" "),
+      },
     },
-    "next/link": Link,
-    "lucide-react": {
-      BadgeDollarSign: TestComponent,
-      CheckCircle2: TestComponent,
-      Palette: TestComponent,
-      ShieldCheck: TestComponent,
-    },
-    "@/components/ui/app-surface": {
-      appCalloutClassName: "test-callout",
-      appSurfaceClassName: "test-surface",
-    },
-    "@/components/ui/badge": {
-      Badge: Div,
-    },
-    "@/components/ui/button": {
-      Button,
-    },
-    "@/components/ui/card": {
-      Card: Div,
-      CardContent: Div,
-      CardDescription: Div,
-      CardHeader: Div,
-      CardTitle: Div,
-    },
-    "@/components/ui/metal-attention-button": {
-      MetalAttentionButton: Button,
-    },
-    "@/components/ui/tabs": {
-      Tabs: Div,
-      TabsContent: Div,
-      TabsList: Div,
-      TabsTrigger: Div,
-    },
-    "@/lib/legal-documents": {
-      getLegalDocumentByKey: () => ({
-        label: "Membership Billing and Refund Terms",
-        route: "/legal/membership-billing-refunds",
-      }),
-      legalDocumentAcceptanceId: () => "membership-billing-refunds:test",
-    },
-    "@/lib/membership-pricing": {
-      resolveMembershipPriceForInterval: (choice, interval) => (
-        choice.prices?.[interval] ?? null
-      ),
-    },
-    "@/lib/utils": {
-      cn: (...classes) => classes.filter(Boolean).join(" "),
-    },
-  })
+  )
   const catalog = {
     defaultInterval: "month",
     intervals: [{
@@ -204,14 +127,14 @@ describe("MembershipPricingCards configured price rendering", () => {
     const amountChoices = [
       {
         id: "support-1",
-        month: 100,
-        year: 1000,
+        monthAmountCents: 100,
+        yearAmountCents: 1000,
         prices: { month: configuredPrice },
       },
       {
         id: "support-2",
-        month: 200,
-        year: 2000,
+        monthAmountCents: 200,
+        yearAmountCents: 2000,
         prices: {
           month: {
             ...configuredPrice,
@@ -225,8 +148,8 @@ describe("MembershipPricingCards configured price rendering", () => {
       },
       {
         id: "support-5",
-        month: 500,
-        year: 5000,
+        monthAmountCents: 500,
+        yearAmountCents: 5000,
         prices: {
           month: {
             ...configuredPrice,
@@ -239,8 +162,8 @@ describe("MembershipPricingCards configured price rendering", () => {
       },
       {
         id: "support-missing",
-        month: 900,
-        year: 9000,
+        monthAmountCents: 900,
+        yearAmountCents: 9000,
         prices: {},
       },
     ]
@@ -264,6 +187,17 @@ describe("MembershipPricingCards configured price rendering", () => {
     assert.match(elementText(portalCards), /\$1/)
     assert.match(elementText(portalCards), /Price unavailable/)
     assert.doesNotMatch(elementText(portalCards), /\$2/)
+    assert.equal(
+      findElements(
+        portalCards,
+        (element) => (
+          element.type === "span"
+          && element.props.className?.includes("items-baseline")
+          && element.props.className?.includes("gap-1")
+        ),
+      ).length,
+      2,
+    )
     assert.match(elementText(portalCards), /Manage or change support amount/)
     assert.match(elementText(portalCards), /Customer Portal/)
     assert.equal(

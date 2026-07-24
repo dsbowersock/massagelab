@@ -78,7 +78,14 @@ describe("Membership Checkout POST route", () => {
     assert.deepEqual(response, { body: { url: "https://checkout.stripe.com/c/test" }, status: 200 })
     assert.equal(calls.ensureCustomer, 1)
     assert.equal(calls.createCheckout, 1)
-    assert.equal(Object.hasOwn(calls.checkoutOptions, "couponId"), false)
+    assert.deepEqual(calls.checkoutOptions, {
+      customerId: "cus_123",
+      priceId: "price_supporter_1_month",
+      userId: "user_123",
+      membershipLevel: "SUPPORTER",
+      successUrl: "https://massagelab.app/account?checkout=success&session_id={CHECKOUT_SESSION_ID}",
+      cancelUrl: "https://massagelab.app/account?checkout=cancelled",
+    })
   })
 
   for (const existingSubscription of [
@@ -549,6 +556,11 @@ function formRequest(body) {
   })
 }
 
+/**
+ * Builds production-shaped Checkout dependencies while recording database,
+ * Customer, legal-acceptance, and Session effects on the supplied call log.
+ * Optional errors let each test fail one boundary without invoking real I/O.
+ */
 function checkoutDependencies(calls, {
   subscriptions = [],
   checkoutSession = { url: "https://checkout.stripe.com/c/test" },

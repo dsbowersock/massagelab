@@ -1,13 +1,17 @@
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
-import ts from "typescript"
 
 import { resolveSupporterRoadmapInterestsAfterSave } from "../lib/account-preferences.js"
 import {
   normalizeSupporterRoadmapInterests,
   supporterRoadmapInterestOptions,
 } from "../lib/onboarding-preferences.js"
+import {
+  compileCommonJsModule,
+  createElement,
+  findElement,
+} from "./helpers/compiled-module.mjs"
 
 const panelSource = await readFile(
   new URL("../app/account/supporter-interests-panel.tsx", import.meta.url),
@@ -16,22 +20,20 @@ const panelSource = await readFile(
 // The repository uses Node's test runner without a DOM test library. Transpile
 // the real client component and provide only the hook/JSX boundary it needs so
 // these tests exercise its async state transitions without duplicating them.
-const compiledPanelSource = ts.transpileModule(panelSource, {
-  compilerOptions: {
-    jsx: ts.JsxEmit.ReactJSX,
-    module: ts.ModuleKind.CommonJS,
-    target: ts.ScriptTarget.ES2022,
-  },
-  fileName: "supporter-interests-panel.tsx",
-}).outputText
+const compiledPanelSource = compileCommonJsModule(
+  panelSource,
+  "supporter-interests-panel.tsx",
+)
 
 function createDeferred() {
   let resolve
-  const promise = new Promise((resolvePromise) => {
+  let reject
+  const promise = new Promise((resolvePromise, rejectPromise) => {
     resolve = resolvePromise
+    reject = rejectPromise
   })
 
-  return { promise, resolve }
+  return { promise, reject, resolve }
 }
 
 function createJsonResponse(body, ok = true) {
@@ -41,36 +43,6 @@ function createJsonResponse(body, ok = true) {
       return body
     },
   }
-}
-
-function createElement(type, props, key) {
-  return {
-    type,
-    key: key ?? null,
-    props: props ?? {},
-  }
-}
-
-function findElement(tree, predicate) {
-  if (Array.isArray(tree)) {
-    for (const child of tree) {
-      const match = findElement(child, predicate)
-      if (match) {
-        return match
-      }
-    }
-    return null
-  }
-
-  if (!tree || typeof tree !== "object") {
-    return null
-  }
-
-  if (predicate(tree)) {
-    return tree
-  }
-
-  return findElement(tree.props?.children, predicate)
 }
 
 /**
@@ -325,6 +297,123 @@ describe("SupporterInterestsPanel", () => {
       assert.equal(findLiveRegion(harness.getTree()).props.role, "status")
       assert.equal(findLiveRegion(harness.getTree()).props["aria-live"], "polite")
       assert.equal(liveRegionMessage(harness.getTree()), "Roadmap interests saved.")
+    } finally {
+      harness.dispose()
+    }
+  })
+
+  it("ignores an older save response that resolves after the latest selection", async () => {
+    const initialInterest = supporterRoadmapInterestOptions[0].id
+    const firstAddedInterest = supporterRoadmapInterestOptions[1].id
+    const latestAddedInterest = supporterRoadmapInterestOptions[2].id
+    const firstSave = createDeferred()
+    const latestSave = createDeferred()
+    const pendingSaves = [firstSave, latestSave]
+    const harness = createPanelHarness(async (_url, init = {}) => {
+      if (init.method !== "PUT") {
+        return createJsonResponse({
+          appSettings: {
+            supporterRoadmapInterests: [initialInterest],
+          },
+        })
+      }
+
+      return pendingSaves.shift().promise
+    })
+
+    try {
+      harness.mount()
+      await settleAsyncWork()
+      harness.render()
+
+      findInterestCheckbox(harness.getTree(), firstAddedInterest).props.onCheckedChange(true)
+      harness.render()
+      findInterestCheckbox(harness.getTree(), latestAddedInterest).props.onCheckedChange(true)
+      harness.render()
+
+      latestSave.resolve(createJsonResponse({
+        appSettings: {
+          supporterRoadmapInterests: [
+            initialInterest,
+            firstAddedInterest,
+            latestAddedInterest,
+          ],
+        },
+      }))
+      await settleAsyncWork()
+      harness.render()
+
+      assert.equal(findInterestCheckbox(harness.getTree(), firstAddedInterest).props.checked, true)
+      assert.equal(findInterestCheckbox(harness.getTree(), latestAddedInterest).props.checked, true)
+      assert.equal(liveRegionMessage(harness.getTree()), "Roadmap interests saved.")
+
+      firstSave.resolve(createJsonResponse({
+        appSettings: {
+          supporterRoadmapInterests: [initialInterest, firstAddedInterest],
+        },
+      }))
+      await settleAsyncWork()
+      harness.render()
+
+      assert.equal(findInterestCheckbox(harness.getTree(), firstAddedInterest).props.checked, true)
+      assert.equal(findInterestCheckbox(harness.getTree(), latestAddedInterest).props.checked, true)
+      assert.equal(liveRegionMessage(harness.getTree()), "Roadmap interests saved.")
+    } finally {
+      harness.dispose()
+    }
+  })
+
+  it("ignores an older save failure after a newer save succeeds", async (context) => {
+    const initialInterest = supporterRoadmapInterestOptions[0].id
+    const firstAddedInterest = supporterRoadmapInterestOptions[1].id
+    const latestAddedInterest = supporterRoadmapInterestOptions[2].id
+    const staleFailure = new Error("older save failed")
+    const logged = []
+    context.mock.method(console, "error", (...args) => logged.push(args))
+    const firstSave = createDeferred()
+    const latestSave = createDeferred()
+    const pendingSaves = [firstSave, latestSave]
+    const harness = createPanelHarness(async (_url, init = {}) => {
+      if (init.method !== "PUT") {
+        return createJsonResponse({
+          appSettings: {
+            supporterRoadmapInterests: [initialInterest],
+          },
+        })
+      }
+
+      return pendingSaves.shift().promise
+    })
+
+    try {
+      harness.mount()
+      await settleAsyncWork()
+      harness.render()
+
+      findInterestCheckbox(harness.getTree(), firstAddedInterest).props.onCheckedChange(true)
+      harness.render()
+      findInterestCheckbox(harness.getTree(), latestAddedInterest).props.onCheckedChange(true)
+      harness.render()
+
+      latestSave.resolve(createJsonResponse({
+        appSettings: {
+          supporterRoadmapInterests: [
+            initialInterest,
+            firstAddedInterest,
+            latestAddedInterest,
+          ],
+        },
+      }))
+      await settleAsyncWork()
+      harness.render()
+      firstSave.reject(staleFailure)
+      await settleAsyncWork()
+      harness.render()
+
+      assert.equal(findInterestCheckbox(harness.getTree(), firstAddedInterest).props.checked, true)
+      assert.equal(findInterestCheckbox(harness.getTree(), latestAddedInterest).props.checked, true)
+      assert.equal(liveRegionMessage(harness.getTree()), "Roadmap interests saved.")
+      assert.deepEqual(logged, [])
     } finally {
       harness.dispose()
     }

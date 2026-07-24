@@ -23,8 +23,8 @@ type MembershipPlan = {
   roadmapNotes: string[]
   amountChoices: Array<{
     id: string
-    month: number
-    year: number
+    monthAmountCents: number
+    yearAmountCents: number
     prices: MembershipPriceCatalog
   }>
 }
@@ -173,8 +173,10 @@ function PlanCard({
                   data-membership-portal-amount-choice={choiceId}
                   className="rounded-md border border-border/80 bg-background/70 p-3 text-center"
                 >
-                  <span className="text-base font-semibold text-foreground">{price.displayPrice}</span>
-                  <span className="text-xs text-muted-foreground">{price.displayInterval}</span>
+                  <span className="inline-flex items-baseline justify-center gap-1">
+                    <span className="text-base font-semibold text-foreground">{price.displayPrice}</span>
+                    <span className="text-xs text-muted-foreground">{price.displayInterval}</span>
+                  </span>
                 </div>
               ))}
             </div>
