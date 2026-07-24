@@ -333,6 +333,9 @@ function printResults(supporterTax, commerce) {
 checkSecretKey()
 checkWebhookSecret()
 checkPriceIds()
+if (liveMode && !verifyStripe) {
+  addFailure("Live Stripe readiness requires --verify-stripe.")
+}
 const supporterTax = checkSupporterRecurringTaxReadiness()
 const commerce = checkBackgroundCommerceReadiness()
 await verifyStripePrices()

@@ -204,12 +204,14 @@ describe("Stripe readiness background-commerce contract", () => {
     assert.match(result.stderr, /FAIL Background commerce purchase-country allowlist is not configured\./)
   })
 
-  it("accepts live automatic tax only with explicit registration and product-code readiness", () => {
+  it("requires Stripe retrieval before live readiness can pass", () => {
     const result = runReadiness({
       STRIPE_SECRET_KEY: "sk_live_readiness",
     }, ["--live"])
 
-    assert.equal(result.status, 0, result.stderr || result.stdout)
-    assert.match(result.stdout, /Background commerce tax mode: stripe/)
+    assert.equal(result.status, 1)
+    assert.match(result.stderr, /FAIL Live Stripe readiness requires --verify-stripe\./)
+    assert.match(result.stdout, /Stripe API retrieval: skipped/)
+    assert.doesNotMatch(result.stdout, /PASS Stripe membership environment is ready/)
   })
 })
