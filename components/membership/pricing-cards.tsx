@@ -134,8 +134,10 @@ function PlanCard({
           <Badge variant="outline" className="border-border/80 text-muted-foreground">
             {plan.eyebrow}
           </Badge>
-          {mode === "portal" ? (
+          {mode === "portal" && active ? (
             <Badge className="bg-primary text-primary-foreground">Current member</Badge>
+          ) : mode === "portal" ? (
+            <Badge variant="outline">Manage in portal</Badge>
           ) : active ? (
             <Badge className="bg-primary text-primary-foreground">Current plan</Badge>
           ) : null}
@@ -210,6 +212,7 @@ function PlanCard({
   )
 }
 
+// Prefer the requested interval, then fall back to annual and monthly pricing.
 function resolveChoicePrice(
   choice: MembershipPlan["amountChoices"][number],
   interval: string,

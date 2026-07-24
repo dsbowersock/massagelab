@@ -23,6 +23,8 @@ describe("Supporter membership final-review contracts", () => {
     assert.match(pricingPage, /resolveMembershipPricingMode/)
     assert.match(pricingCards, /mode:\s*"checkout"\s*\|\s*"auth"\s*\|\s*"portal"/)
     assert.match(pricingCards, /mode === "portal"/)
+    assert.match(pricingCards, /mode === "portal" && active/)
+    assert.match(pricingCards, /Manage in portal/)
     assert.match(pricingCards, /action="\/api\/billing\/portal"/)
     assert.match(pricingCards, /Manage or change support amount/)
     assert.match(accountPage, /resolveMembershipPricingMode/)
