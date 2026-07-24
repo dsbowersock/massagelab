@@ -12,6 +12,7 @@ import {
 import * as stripeBilling from "../lib/stripe-billing.js"
 import {
   SUPPORTER_MEMBERSHIP_CATALOG_VERSION,
+  SUPPORTER_MEMBERSHIP_PRICE_CONTRACT,
   SUPPORTER_RECURRING_TAX_BEHAVIOR,
   SUPPORTER_RECURRING_TAX_CODE,
 } from "../lib/stripe-price-contract.js"
@@ -22,14 +23,21 @@ const SUPPORTER_2_MONTHLY_PRICE_ID = "price_supporter_2_monthly"
 const SUPPORTER_2_YEARLY_PRICE_ID = "price_supporter_2_yearly"
 const SUPPORTER_5_MONTHLY_PRICE_ID = "price_supporter_5_monthly"
 const SUPPORTER_5_YEARLY_PRICE_ID = "price_supporter_5_yearly"
-const SUPPORTER_PRICE_FIXTURES = Object.freeze({
-  [DEFAULT_SUPPORTER_PRICE_ID]: Object.freeze({ interval: "month", unitAmount: 100 }),
-  [SUPPORTER_1_YEARLY_PRICE_ID]: Object.freeze({ interval: "year", unitAmount: 1000 }),
-  [SUPPORTER_2_MONTHLY_PRICE_ID]: Object.freeze({ interval: "month", unitAmount: 200 }),
-  [SUPPORTER_2_YEARLY_PRICE_ID]: Object.freeze({ interval: "year", unitAmount: 2000 }),
-  [SUPPORTER_5_MONTHLY_PRICE_ID]: Object.freeze({ interval: "month", unitAmount: 500 }),
-  [SUPPORTER_5_YEARLY_PRICE_ID]: Object.freeze({ interval: "year", unitAmount: 5000 }),
+const SUPPORTER_PRICE_ID_BY_ENV_KEY = Object.freeze({
+  STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: DEFAULT_SUPPORTER_PRICE_ID,
+  STRIPE_SUPPORTER_1_YEARLY_PRICE_ID: SUPPORTER_1_YEARLY_PRICE_ID,
+  STRIPE_SUPPORTER_2_MONTHLY_PRICE_ID: SUPPORTER_2_MONTHLY_PRICE_ID,
+  STRIPE_SUPPORTER_2_YEARLY_PRICE_ID: SUPPORTER_2_YEARLY_PRICE_ID,
+  STRIPE_SUPPORTER_5_MONTHLY_PRICE_ID: SUPPORTER_5_MONTHLY_PRICE_ID,
+  STRIPE_SUPPORTER_5_YEARLY_PRICE_ID: SUPPORTER_5_YEARLY_PRICE_ID,
 })
+const SUPPORTER_PRICE_FIXTURES = Object.freeze(Object.fromEntries(
+  SUPPORTER_MEMBERSHIP_PRICE_CONTRACT.map(({ envKey, interval, unitAmount }) => {
+    const priceId = SUPPORTER_PRICE_ID_BY_ENV_KEY[envKey]
+    assert.ok(priceId, `Missing test Price ID mapping for ${envKey}`)
+    return [priceId, Object.freeze({ interval, unitAmount })]
+  }),
+))
 
 describe("Stripe billing helpers", () => {
   it("verifies Stripe webhook signatures with the raw request body", () => {

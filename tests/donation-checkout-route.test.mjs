@@ -58,11 +58,11 @@ function donationPost({
   return route.POST
 }
 
-function jsonRequest() {
+function jsonRequest(body = JSON.stringify({ amountCents: 500 })) {
   return new Request("https://massagelab.app/api/billing/donation", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ amountCents: 500 }),
+    body,
   })
 }
 
@@ -144,6 +144,36 @@ describe("one-time support Checkout route", () => {
     assert.deepEqual(lookedUpAmounts, [500])
     assert.equal(checkoutCalls, 0)
   })
+
+  for (const [label, body] of [
+    ["literal null", "null"],
+    ["an array", "[]"],
+    ["malformed JSON", "{"],
+  ]) {
+    it(`returns the controlled unsupported-amount response for ${label}`, async () => {
+      const lookedUpAmounts = []
+      let checkoutCalls = 0
+      const POST = donationPost({
+        findDonationOption: (amountCents) => {
+          lookedUpAmounts.push(amountCents)
+          return null
+        },
+        createCheckoutSession: async () => {
+          checkoutCalls += 1
+          throw new Error("Stripe must not run")
+        },
+      })
+
+      const response = await POST(jsonRequest(body))
+
+      assert.deepEqual(response, {
+        body: { error: "Unsupported one-time support amount" },
+        status: 400,
+      })
+      assert.deepEqual(lookedUpAmounts, [undefined])
+      assert.equal(checkoutCalls, 0)
+    })
+  }
 
   it("redirects malformed form data through the existing invalid-amount response", async () => {
     const lookedUpAmounts = []

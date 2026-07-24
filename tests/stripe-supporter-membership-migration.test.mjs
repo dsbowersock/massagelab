@@ -458,37 +458,31 @@ describe("Supporter membership Stripe migration", () => {
     assert.match(packageSource, /stripe:migrate-supporter-membership/)
   })
 
-  it("uses the Stripe secret only for mode validation and client construction", async () => {
+  it("does not expose the Stripe secret in reports or recorded dependencies", async () => {
     const migrationSource = await readFile(
       new URL("../scripts/stripe-supporter-membership-migration.mjs", import.meta.url),
       "utf8",
     )
-    const buildConfigSource = migrationSource.slice(
-      migrationSource.indexOf("function buildConfig"),
-      migrationSource.indexOf("async function listAll"),
-    )
-
-    assert.match(
-      buildConfigSource,
-      /const secretKey = envValue\(env, "STRIPE_SECRET_KEY"\)/,
-    )
-    assert.doesNotMatch(buildConfigSource, /^\s+secretKey,\s*$/m)
     assert.match(
       migrationSource,
-      /const secretKey = envValue\(process\.env, "STRIPE_SECRET_KEY"\)/,
-    )
-    assert.match(
-      migrationSource,
-      /new Stripe\(secretKey, \{ apiVersion: STRIPE_API_VERSION \}\)/,
+      /async function main\(\)[\s\S]*const secretKey = envValue\(process\.env, "STRIPE_SECRET_KEY"\)[\s\S]*new Stripe\(secretKey, \{ apiVersion: STRIPE_API_VERSION \}\)/,
     )
 
     const privateSecret = "sk_test_private_not_retained"
+    const fixture = stripeFixture()
     const result = await runSupporterMembershipMigration({
-      stripe: stripeFixture().stripe,
+      stripe: fixture.stripe,
       mode: "verify",
       env: migrationEnv({ STRIPE_SECRET_KEY: privateSecret }),
     })
-    assert.doesNotMatch(JSON.stringify(result), new RegExp(privateSecret))
+    assert.doesNotMatch(
+      JSON.stringify({
+        calls: fixture.calls,
+        output: formatMigrationChecklist(result),
+        result,
+      }),
+      new RegExp(privateSecret),
+    )
   })
 
   it("reports safe local configuration codes before constructing a Stripe client", () => {
@@ -981,6 +975,12 @@ describe("Supporter membership Stripe migration", () => {
         }),
         (error) => {
           assert.equal(error.failureCodes.includes("migration_state_mixed"), true)
+          assert.equal(
+            error.checks.find(({ code }) => (
+              code === "migration_state_transitional"
+            ))?.status,
+            "FAIL",
+          )
           return true
         },
       )
@@ -994,6 +994,12 @@ describe("Supporter membership Stripe migration", () => {
         }),
         (error) => {
           assert.equal(error.failureCodes.includes("migration_state_mixed"), true)
+          assert.equal(
+            error.checks.find(({ code }) => (
+              code === "migration_state_transitional"
+            ))?.status,
+            "FAIL",
+          )
           return true
         },
       )

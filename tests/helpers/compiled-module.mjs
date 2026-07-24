@@ -99,7 +99,7 @@ export function findElements(tree, predicate, matches = []) {
   return matches
 }
 
-/** Recursively evaluates function-component nodes in the test JSX tree. */
+/** Recursively evaluates function-component nodes across every prop value. */
 export function renderFunctionComponents(tree) {
   if (Array.isArray(tree)) {
     return tree.map(renderFunctionComponents)
@@ -107,16 +107,22 @@ export function renderFunctionComponents(tree) {
   if (!tree || typeof tree !== "object") {
     return tree ?? null
   }
+  if (!Object.hasOwn(tree, "type") || !Object.hasOwn(tree, "props")) {
+    return tree
+  }
   if (typeof tree.type === "function") {
     return renderFunctionComponents(tree.type(tree.props))
   }
 
+  const renderedProps = Object.fromEntries(
+    Object.entries(tree.props ?? {}).map(([name, value]) => [
+      name,
+      renderFunctionComponents(value),
+    ]),
+  )
   return {
     ...tree,
-    props: {
-      ...tree.props,
-      children: renderFunctionComponents(tree.props?.children),
-    },
+    props: renderedProps,
   }
 }
 

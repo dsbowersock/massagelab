@@ -110,7 +110,7 @@ describe("Account page tab model", () => {
     assert.equal(formatAccountDate(new Date(2026, 4, 18, 23, 30)), "2026-05-18")
   })
 
-  it("keeps Account pricing and billing Portal actions on one gated mode", async () => {
+  it("keeps Account pricing and billing Portal actions independently gated", async () => {
     const source = await readFile(
       new URL("../app/account/page.tsx", import.meta.url),
       "utf8",
@@ -122,16 +122,26 @@ describe("Account page tab model", () => {
     )
     assert.match(
       source,
-      /const canOpenBillingPortal = Boolean\(\s*membershipSummary\.stripeCustomer\s*&& subscriptionPricingMode === "portal",?\s*\)/,
+      /const canOpenBillingPortal = Boolean\(membershipSummary\.stripeCustomer\)/,
     )
     assert.match(
       source,
       /const membershipPricingMode = subscriptionPricingMode/,
     )
+    const pricingCardsTag = source.match(/<MembershipPricingCards\b[^>]*\/>/)?.[0]
+    assert.ok(pricingCardsTag)
+    assert.match(pricingCardsTag, /catalog=\{data\.pricingCatalog\}/)
+    assert.match(
+      pricingCardsTag,
+      /activeMembershipLevel=\{membershipSummary\.entitlements\.paidLevel\}/,
+    )
+    assert.match(pricingCardsTag, /mode=\{membershipPricingMode\}/)
+    assert.match(pricingCardsTag, /portalActionAvailable=\{canOpenBillingPortal\}/)
     assert.match(
       source,
-      /<MembershipPricingCards\s+catalog=\{data\.pricingCatalog\}\s+activeMembershipLevel=\{membershipSummary\.entitlements\.paidLevel\}\s+mode=\{membershipPricingMode\}\s+portalActionAvailable=\{canOpenBillingPortal\}\s*\/>/,
+      /!canOpenBillingPortal && membershipSummary\.subscriptions\.length > 0/,
     )
+    assert.match(source, /Billing management is temporarily unavailable\./)
   })
 
   it("filters account navigation by label, group, and description", () => {

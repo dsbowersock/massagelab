@@ -460,6 +460,41 @@ describe("Membership Checkout POST route", () => {
     assert.equal(calls.createCheckout, 1)
   })
 
+  it("returns a sanitized error when Stripe succeeds with a non-complete Session that has no URL", async (context) => {
+    const calls = {
+      ensureCustomer: 0,
+      createCheckout: 0,
+      membershipLookup: 0,
+    }
+    const logged = captureConsoleErrors(context)
+    const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
+      checkoutSession: {
+        id: "cs_open_without_url",
+        status: "open",
+        subscription: null,
+        url: null,
+      },
+    }))(jsonRequest({
+      membershipLevel: "SUPPORTER",
+      supporterAmountChoiceId: "support-1",
+      interval: "month",
+      acceptedLegalDocuments: ["membership-billing-refunds:current"],
+      billingTermsAccepted: true,
+    }))
+
+    assert.deepEqual(response, {
+      body: { error: "Unable to start checkout." },
+      status: 500,
+    })
+    assert.deepEqual(logged, [[
+      "Unable to start membership checkout",
+      { code: "unexpected_error" },
+    ]])
+    assert.equal(calls.membershipLookup, 1)
+    assert.equal(calls.ensureCustomer, 1)
+    assert.equal(calls.createCheckout, 1)
+  })
+
   it("logs only the sanitized code when membership Checkout setup fails", async (context) => {
     const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
     const failure = new Error("customer lookup failed")

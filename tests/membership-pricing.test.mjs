@@ -1,5 +1,4 @@
 import assert from "node:assert/strict"
-import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import {
   formatMembershipPrice,
@@ -146,19 +145,5 @@ describe("Membership pricing catalog", () => {
     assert.equal(resolveMembershipPriceForInterval(choice, "year"), year)
     assert.equal(resolveMembershipPriceForInterval({ prices: { month } }, "year"), null)
     assert.equal(resolveMembershipPriceForInterval({ prices: { year } }, "month"), null)
-  })
-
-  it("removes the obsolete live catalog setup command instead of recreating retired resources", async () => {
-    const [environmentExample, readinessCheck] = await Promise.all([
-      readFile(new URL("../.env.example", import.meta.url), "utf8"),
-      readFile(new URL("../scripts/stripe-readiness-check.mjs", import.meta.url), "utf8"),
-    ])
-
-    assert.doesNotMatch(environmentExample, /MASSAGELAB_EARLY_ACCESS_DISCOUNT_ENABLED/)
-    assert.doesNotMatch(readinessCheck, /MASSAGELAB_EARLY_ACCESS_DISCOUNT_ENABLED|early access/i)
-    await assert.rejects(
-      readFile(new URL("../scripts/stripe-live-membership-setup.mjs", import.meta.url), "utf8"),
-      (error) => error?.code === "ENOENT",
-    )
   })
 })

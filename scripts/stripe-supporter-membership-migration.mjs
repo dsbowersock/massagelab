@@ -897,7 +897,7 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
         : state === "COMPLETED"
           ? "migration_state_completed"
           : "migration_state_transitional",
-      state !== "TRANSITIONAL" || allowTransitional,
+      !failureCodes.includes("migration_state_mixed"),
     ),
   ]
 

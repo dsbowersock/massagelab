@@ -188,7 +188,6 @@ describe("Membership and entitlement helpers", () => {
 
   it("blocks new Checkout for every relevant or canceling persisted subscription", () => {
     assert.equal(typeof membership.hasSubscriptionBlockingNewCheckout, "function")
-    assert.equal(typeof membership.resolveMembershipPricingMode, "function")
 
     for (const subscription of [
       { status: "active", membershipLevel: "SUPPORTER" },
@@ -251,8 +250,6 @@ describe("Membership and entitlement helpers", () => {
   })
 
   it("routes historical Therapist and Practice subscribers to billing management", () => {
-    assert.equal(typeof membership.resolveMembershipPricingMode, "function")
-
     for (const membershipLevel of ["THERAPIST", "PRACTICE"]) {
       assert.equal(
         membership.resolveMembershipPricingMode({

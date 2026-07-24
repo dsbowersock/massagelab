@@ -29,7 +29,14 @@ async function donationRequest(request: Request) {
     }
   }
 
-  const body = await request.json().catch(() => ({}))
+  const parsedBody = await request.json().catch(() => null)
+  const body = (
+    parsedBody
+    && typeof parsedBody === "object"
+    && !Array.isArray(parsedBody)
+  )
+    ? parsedBody
+    : {}
   return {
     isForm: false,
     amountCents: body.amountCents,

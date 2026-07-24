@@ -617,12 +617,9 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
     signedIn: true,
     subscriptions: membershipSummary.subscriptions,
   })
-  // A Portal action requires both a billing profile and a blocking subscription.
-  // Terminal history remains visible but returns pricing to Checkout mode.
-  const canOpenBillingPortal = Boolean(
-    membershipSummary.stripeCustomer
-    && subscriptionPricingMode === "portal",
-  )
+  // A stored billing profile keeps invoices and payment management reachable
+  // even when terminal subscription history returns pricing to Checkout mode.
+  const canOpenBillingPortal = Boolean(membershipSummary.stripeCustomer)
   // Missing billing-profile state must not turn a blocking subscription into
   // new Checkout choices; it only suppresses the unavailable Portal action.
   const membershipPricingMode = subscriptionPricingMode
@@ -702,6 +699,11 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
             {!canOpenBillingPortal && membershipSummary.subscriptions.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 You do not have a paid subscription yet.
+              </p>
+            ) : null}
+            {!canOpenBillingPortal && membershipSummary.subscriptions.length > 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Billing management is temporarily unavailable. Contact support if you need help with an existing membership.
               </p>
             ) : null}
           </div>

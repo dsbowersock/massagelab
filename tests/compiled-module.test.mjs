@@ -5,6 +5,7 @@ import {
   createElement,
   findElement,
   findElements,
+  renderFunctionComponents,
 } from "./helpers/compiled-module.mjs"
 
 describe("compiled-module JSX traversal helpers", () => {
@@ -39,5 +40,29 @@ describe("compiled-module JSX traversal helpers", () => {
       ["leading", "child", "trailing"],
     )
     assert.deepEqual(findElements(null, () => true), [])
+  })
+
+  it("renders function components in every prop while preserving primitive props", () => {
+    const onClick = () => {}
+    const style = { color: "orange" }
+    const Marker = ({ marker }) => createElement("span", { marker })
+    const tree = createElement("section", {
+      icon: createElement(Marker, { marker: "icon" }),
+      children: [createElement(Marker, { marker: "child" }), null],
+      onClick,
+      optional: null,
+      style,
+    })
+
+    const rendered = renderFunctionComponents(tree)
+
+    assert.equal(rendered.props.icon.type, "span")
+    assert.equal(rendered.props.icon.props.marker, "icon")
+    assert.equal(rendered.props.children[0].type, "span")
+    assert.equal(rendered.props.children[0].props.marker, "child")
+    assert.equal(rendered.props.children[1], null)
+    assert.equal(rendered.props.onClick, onClick)
+    assert.equal(rendered.props.optional, null)
+    assert.equal(rendered.props.style, style)
   })
 })
