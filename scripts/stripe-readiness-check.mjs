@@ -107,6 +107,8 @@ function checkWebhookSecret() {
 }
 
 function checkPriceIds() {
+  // Validate every required membership-interval Price ID and reject either a
+  // non-Stripe prefix or reuse of the same ID across contract entries.
   for (const expected of REQUIRED_SUPPORTER_PRICE_CONTRACT) {
     const priceId = envValue(expected.key)
     if (!priceId) {

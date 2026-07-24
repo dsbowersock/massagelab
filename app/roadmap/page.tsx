@@ -189,7 +189,7 @@ export default function RoadmapPage() {
       <section aria-labelledby="support-roadmap-heading">
         <AppSurface
           title={<h2 id="support-roadmap-heading">Support the mission</h2>}
-          description="Memberships and one-time support help support the broader MassageLab mission. They do not determine feature order or guarantee delivery of a particular capability."
+          description="Memberships and one-time support help advance the broader MassageLab mission. They do not determine feature order or guarantee delivery of a particular capability."
           contentClassName="gap-4"
         >
           <div className="flex flex-wrap gap-3">

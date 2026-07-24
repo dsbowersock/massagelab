@@ -31,6 +31,8 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
   const params = await searchParams
   const oneTimeSupportNotice = pricingOneTimeSupportNotice(params?.donation)
   const signedIn = Boolean(session?.user?.id)
+  // Authenticated pricing uses server-side subscription state to select checkout
+  // or portal mode; guests have no subscriptions and remain in the public mode.
   const membershipStatus = session?.user?.id
     ? await getUserMembershipPricingStatus(prisma, session.user.id)
     : null
