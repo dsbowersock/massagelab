@@ -1,6 +1,6 @@
 import nodemailer from "nodemailer"
 import { getSiteUrl } from "@/lib/auth-env"
-import { safePostLegalAcceptanceCallback } from "@/lib/legal-acceptance-gate"
+import { buildVerificationEmailUrl } from "@/lib/auth-registration"
 
 type MailResult = {
   delivered: boolean
@@ -44,15 +44,15 @@ async function sendMail(to: string, subject: string, text: string): Promise<Mail
 }
 
 /**
- * Builds a verification link that can resume an app-local registration flow
- * after the user verifies their email and signs in.
+ * Builds the verification URL for a token and optional post-login callback.
+ *
+ * @param token Opaque email-verification token placed in the verification URL.
+ * @param callbackUrl Optional app-local destination to resume after sign-in.
+ * @returns An absolute MassageLab verification URL. Unsafe callback values are
+ * replaced by the account flow's safe fallback destination.
  */
 export function buildVerificationEmailLink(token: string, callbackUrl?: string) {
-  const params = new URLSearchParams({ token })
-  if (callbackUrl) {
-    params.set("callbackUrl", safePostLegalAcceptanceCallback(callbackUrl))
-  }
-  return `${getSiteUrl()}/verify-email?${params.toString()}`
+  return buildVerificationEmailUrl(getSiteUrl(), token, callbackUrl)
 }
 
 export async function sendVerificationEmail(email: string, token: string, callbackUrl?: string) {

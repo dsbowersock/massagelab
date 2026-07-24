@@ -242,6 +242,23 @@ describe("background cart authentication return paths", () => {
       "/?panel=background&commerceCart=open",
     )
   })
+
+  it("rejects alternate unsafe paths and replaces stale cart markers", () => {
+    for (const unsafePath of ["//example.com", "/\\example.com", "/\n//example.com"]) {
+      assert.equal(
+        buildBackgroundCartAuthReturnPath(unsafePath, "panel=background"),
+        "/?panel=background&commerceCart=open",
+      )
+    }
+
+    assert.equal(
+      buildBackgroundCartAuthReturnPath(
+        "/clock",
+        "commerceCart=closed&panel=background",
+      ),
+      "/clock?commerceCart=open&panel=background",
+    )
+  })
 })
 
 describe("background commerce reducer", () => {

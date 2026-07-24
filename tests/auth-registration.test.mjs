@@ -2,6 +2,8 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import {
+  buildVerificationEmailUrl,
+  buildVerificationLoginPath,
   REGISTRATION_VERIFICATION_FAILED_MESSAGE,
   REGISTRATION_VERIFICATION_SENT_MESSAGE,
   registrationVerificationResponse,
@@ -73,14 +75,32 @@ describe("registration email delivery policy", () => {
   it("preserves an app-local callback through email verification and sign-in", async () => {
     const authMail = await readFile(new URL("../lib/auth-mail.ts", import.meta.url), "utf8")
     const verifyPage = await readFile(new URL("../app/verify-email/page.tsx", import.meta.url), "utf8")
+    const callbackUrl = "/clock?source=music&panel=background&commerceCart=open"
+    const verificationUrl = new URL(
+      buildVerificationEmailUrl("https://www.massagelab.app", "token-safe", callbackUrl),
+    )
 
-    assert.match(authMail, /buildVerificationEmailLink/)
-    assert.match(authMail, /safePostLegalAcceptanceCallback\(callbackUrl\)/)
-    assert.match(authMail, /params\.set\("callbackUrl"/)
+    assert.equal(verificationUrl.searchParams.get("token"), "token-safe")
+    assert.equal(verificationUrl.searchParams.get("callbackUrl"), callbackUrl)
+    assert.equal(
+      buildVerificationLoginPath(true, verificationUrl.searchParams.get("callbackUrl")),
+      "/login?callbackUrl=%2Fclock%3Fsource%3Dmusic%26panel%3Dbackground%26commerceCart%3Dopen&verified=1",
+    )
+    assert.equal(
+      new URL(
+        buildVerificationEmailUrl("https://www.massagelab.app", "token-safe", "https://example.com"),
+      ).searchParams.get("callbackUrl"),
+      "/onboarding",
+    )
+    assert.equal(
+      buildVerificationLoginPath(false, "https://example.com"),
+      "/login?callbackUrl=%2Fonboarding",
+    )
+    assert.match(authMail, /buildVerificationEmailUrl\(getSiteUrl\(\), token, callbackUrl\)/)
     assert.match(verifyPage, /token\?: string \| string\[\]/)
     assert.match(verifyPage, /callbackUrl\?: string \| string\[\]/)
     assert.match(verifyPage, /typeof params\.token === "string" \? params\.token : ""/)
     assert.match(verifyPage, /typeof params\.callbackUrl === "string" \? params\.callbackUrl : undefined/)
-    assert.match(verifyPage, /encodeURIComponent\(callbackUrl\)/)
+    assert.match(verifyPage, /buildVerificationLoginPath\(verified, callbackUrl\)/)
   })
 })

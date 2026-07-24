@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client"
 import Link from "next/link"
 import { hashToken, isTokenUsable } from "@/lib/auth-security"
+import { buildVerificationLoginPath } from "@/lib/auth-registration"
 import { ensureUserRole } from "@/lib/auth-users"
 import { ensureVerifiedUserBackgroundCredits } from "@/lib/commerce/credit-service"
 import { runCommerceTransaction } from "@/lib/commerce/transactions"
@@ -56,7 +57,7 @@ export default async function VerifyEmailPage({
     }
   }
 
-  const loginHref = `/login?${verified ? "verified=1&" : ""}callbackUrl=${encodeURIComponent(callbackUrl)}`
+  const loginHref = buildVerificationLoginPath(verified, callbackUrl)
 
   return (
     <AppPageShell title="Email Verification" width="narrow">

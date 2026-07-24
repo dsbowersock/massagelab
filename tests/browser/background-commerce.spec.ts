@@ -348,6 +348,36 @@ test("guest cart persists locally and requires an account only at checkout", asy
   await expect(trigger).toHaveCount(0)
 })
 
+test("signed-in cart return marker opens once and is consumed", async ({ context, page }, testInfo) => {
+  const baseURL = String(testInfo.project.use.baseURL)
+  await installCommerceFixture({
+    context,
+    page,
+    baseURL,
+    initialSnapshot: emptySnapshot({
+      cart: {
+        items: [PRODUCTS[AURORA_ID]],
+        reservedOrder: null,
+        subtotalAmount: 100,
+        currency: "usd",
+        notices: [],
+      },
+    }),
+  })
+
+  await page.goto("/clock?commerceCart=open", { waitUntil: "domcontentloaded" })
+  const accountCart = page.getByRole("dialog", { name: "Account cart" })
+  await expect(accountCart).toBeVisible()
+  await expect(page).toHaveURL(/\/clock$/)
+  await page.keyboard.press("Escape")
+  await expect(accountCart).toHaveCount(0)
+
+  await page.goto("/music", { waitUntil: "domcontentloaded" })
+  await page.goBack({ waitUntil: "domcontentloaded" })
+  await expect(page).toHaveURL(/\/clock$/)
+  await expect(accountCart).toHaveCount(0)
+})
+
 test("Clock redeems one explicit permanent credit and keeps the nested dialog focus order", async ({ context, page }, testInfo) => {
   const baseURL = String(testInfo.project.use.baseURL)
   await installCommerceFixture({ context, page, baseURL })
