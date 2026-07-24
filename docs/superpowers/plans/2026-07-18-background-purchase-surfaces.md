@@ -4,7 +4,7 @@
 
 **Goal:** Let verified users understand credits/ownership, redeem a credit, build a persistent multi-background cart, complete purchase consent/Checkout, and review permanent holdings and order states from the production background picker and Account/Billing.
 
-**Architecture:** Consume Track 1A's no-store commerce snapshot/mutation APIs through one client provider. Extend the Track 2 full-screen Background panel and the Track 3 selected production carousel/card adapter with mode-aware acquisition state. Keep locked-card decisions, credit confirmation, compact cart, and status recovery as focused accessible surfaces; Account/Billing receives the full portfolio and history view.
+**Architecture:** Consume Track 1A's no-store commerce snapshot/mutation APIs through one client provider mounted at the shared signed-in app shell. Extend the Track 2 full-screen Background panel and the Track 3 selected production carousel/card adapter with mode-aware acquisition state. Keep locked-card decisions, credit confirmation, compact cart, and status recovery as focused accessible surfaces; expose the same cart through a conditional account-commerce shell trigger, while Account/Billing receives the full portfolio and history view.
 
 **Tech Stack:** Next.js App Router, React 19, TypeScript/JavaScript with focused JSDoc, existing Radix-backed controls/dialogs, CSS Modules, Track 2 immersive panel shell, Track 3 production carousel, Node test runner, Playwright.
 
@@ -18,7 +18,11 @@
 - Never infer ownership from the selected card, local storage, session, feature-key response alone, checkout success query, or optimistic UI. Track 1A's current snapshot is authoritative.
 - Keep one shared background picker/carousel for Clock, Chimer, and Music visualizer contexts. Acquisition state is a presentation adapter, not a forked carousel.
 - The Music page does not choose a Music-page background. It chooses the separate visualizer background through the shared full-screen Background panel.
-- The cart is visible only in the full-screen Background panel and Account/Billing. Do not add a global app-bar cart.
+- Keep MassageLab purchases visually and semantically separate from provider sales. Never render the site-purchase cart in Calendar's operator toolbar, Calendar drawers/menus, booking/service controls, or another provider-selling surface.
+- For a signed-in user, render a conditional `CommerceCartTrigger` in the global account/commerce shell zone only while the authoritative snapshot has cart items or an active Checkout reservation. For a signed-out user, show the same generic trigger only while the browser-local guest intent cart has items. Hide both variants on Calendar routes, and hide the account variant after fulfillment or another server snapshot leaves neither cart items nor a reservation.
+- A guest cart stores only validated background product IDs in the current browser. It does not create an account cart, reservation, payment, credit balance, or ownership. At checkout, offer sign-in and account creation; after authentication, revalidate and merge each remaining ID through Track 1A's authenticated cart API before allowing consent or Checkout.
+- The shell trigger uses a generic commerce name and an accessible item-count/status badge so future physical-store lines can extend it. Track 1B still supports digital-background lines only. It opens the shared cart surface and never owns or duplicates cart state.
+- Keep the compact cart in the full-screen Background panel and the complete wallet, portfolio, and history surface in Account/Billing.
 - Locked-card `Select` opens exactly three actions: `Use free credit`, `Buy for $1`, and `Unlock all`. Do not add shuffle-colors or alternative purchase actions.
 - Credit redemption is permanent and non-swappable; require explicit confirmation before mutation.
 - Subscribers normally select included premium backgrounds. A separate `Keep permanently` route offers credit or $1 purchase while subscribed.
@@ -30,9 +34,11 @@
 
 - Create `lib/background-commerce-client.js` and `tests/background-commerce-client.test.mjs`.
 - Create `components/backgrounds/BackgroundCommerceProvider.tsx`, `components/backgrounds/BackgroundAcquisitionDialog.tsx`, `components/backgrounds/BackgroundCreditConfirmationDialog.tsx`, and `components/backgrounds/BackgroundCommerceCart.tsx`.
+- Create `components/commerce/CommerceCartTrigger.tsx`.
 - Create `components/account/BackgroundCommercePanel.tsx`.
-- Modify the landed Track 3 production background-card adapter and carousel integration; current fallback path is `components/backgrounds/BackgroundSelector.tsx`.
+- Modify the landed Track 3 production files `components/backgrounds/background-carousel.tsx`, `components/backgrounds/background-carousel-card.tsx`, and their `components/backgrounds/BackgroundSelector.tsx` integration boundary.
 - Modify the landed Track 2 `app/chimer/immersive-panel-shell.tsx` and the shared Clock/Chimer/Music visualizer entry points that render it.
+- Modify `components/layout-wrapper.tsx`, `components/calendar/calendar-operator-top-bar.tsx`, and `components/shell/mobile-main-bar.tsx` for the shared provider and conditional account-commerce trigger. The trigger must remain outside Calendar's toolbar slot and be absent on Calendar routes.
 - Modify `lib/account-surface-data.js`, `lib/account-surface-data.d.ts`, and `app/account/page.tsx`.
 - Modify `lib/support-contact.js` and `tests/support-contact.test.mjs` only for a privacy-safe order reference/topic.
 - Create `tests/background-commerce-surfaces.test.mjs` and `tests/browser/background-commerce.spec.ts`; update applicable Track 2/3 and account browser tests.
@@ -111,7 +117,7 @@ git commit -m "feat: define background commerce client state"
 
 - [ ] **Step 1: Write failing provider contract tests**
 
-Source-inspect or render with the repo's existing harness to cover one initial no-store state fetch, request cancellation on unmount, focus/reconnect refresh, mutation serialization, full-snapshot replacement, 401/403 handling, and no commerce request for signed-out preview-only contexts until a locked action asks the user to sign in.
+Source-inspect or render with the repo's existing harness to cover one initial no-store state fetch, request cancellation on unmount, focus/reconnect refresh, mutation serialization, full-snapshot replacement, 401/403 handling, browser-local signed-out intent, and authenticated API merging after sign-in. Signed-out contexts must not call account commerce APIs.
 
 Expose:
 
@@ -132,7 +138,7 @@ Use same-origin credentials and `cache: "no-store"`. Parse stable public error c
 
 - [ ] **Step 3: Place the provider above shared immersive contexts**
 
-Mount once at the smallest common boundary that survives switching Clock/Visual/Background panels and Music visualizer minimize/restore. Do not mount a provider per card or duplicate polling for Clock, Chimer, and Music visualizer.
+Mount once in `components/layout-wrapper.tsx`, the smallest landed boundary shared by the signed-in shell, Clock/Visual/Background panels, and Music visualizer minimize/restore. Do not mount a provider per card or duplicate polling for Clock, Chimer, and Music visualizer. Signed-out shells retain the provider boundary without issuing commerce requests until an acquisition action asks the user to sign in.
 
 - [ ] **Step 4: Pass focused tests and commit**
 
@@ -141,7 +147,7 @@ Run: `node --test tests/background-commerce-provider.test.mjs`
 Expected: PASS.
 
 ```powershell
-git add components/backgrounds/BackgroundCommerceProvider.tsx tests/background-commerce-provider.test.mjs
+git add components/backgrounds/BackgroundCommerceProvider.tsx components/layout-wrapper.tsx tests/background-commerce-provider.test.mjs
 git commit -m "feat: share background commerce client state"
 ```
 
@@ -151,8 +157,9 @@ git commit -m "feat: share background commerce client state"
 
 **Files:**
 
-- Modify: landed Track 3 production background card/carousel files
-- Modify: `components/backgrounds/BackgroundSelector.tsx` if it remains the integration boundary
+- Modify: `components/backgrounds/background-carousel.tsx`
+- Modify: `components/backgrounds/background-carousel-card.tsx`
+- Modify: `components/backgrounds/BackgroundSelector.tsx`
 - Create: `tests/background-commerce-surfaces.test.mjs`
 - Modify: applicable Track 3 carousel tests
 
@@ -175,7 +182,7 @@ Run: `node --test tests/background-commerce-surfaces.test.mjs`
 Expected: PASS.
 
 ```powershell
-git add components/backgrounds/BackgroundSelector.tsx tests/background-commerce-surfaces.test.mjs
+git add components/backgrounds/BackgroundSelector.tsx components/backgrounds/background-carousel.tsx components/backgrounds/background-carousel-card.tsx tests/background-commerce-surfaces.test.mjs
 git commit -m "feat: show background ownership in picker"
 ```
 
@@ -190,6 +197,10 @@ Before committing, stage the exact landed Track 3 card/carousel files identified
 - Create: `components/backgrounds/BackgroundAcquisitionDialog.tsx`
 - Create: `components/backgrounds/BackgroundCreditConfirmationDialog.tsx`
 - Create: `components/backgrounds/BackgroundCommerceCart.tsx`
+- Create: `components/commerce/CommerceCartTrigger.tsx`
+- Modify: `components/layout-wrapper.tsx`
+- Modify: `components/calendar/calendar-operator-top-bar.tsx`
+- Modify: `components/shell/mobile-main-bar.tsx`
 - Modify: landed Track 2 `app/chimer/immersive-panel-shell.tsx`
 - Modify: `tests/background-commerce-surfaces.test.mjs`
 - Modify: applicable Track 2 immersive-panel tests
@@ -216,18 +227,22 @@ Use direct language: the named background becomes permanently owned, one credit 
 
 Place it in the full-screen Background panel, collapsed to an item count/subtotal when space is tight. Expanded content shows thumbnail/name, `$1.00` line amount, remove control, automatic-removal notices, reservation expiry/status, subtotal, estimated tax wording, and `Review checkout`. A reserved cart disables edits and offers return/cancel actions. Subscribers retain cart items and see `Permanent access after membership ends`.
 
-- [ ] **Step 5: Preserve Track 2 panel behavior**
+- [ ] **Step 5: Add the conditional account-commerce shell trigger**
+
+Show the generic cart trigger for a signed-in user whose server snapshot has cart items or an active reservation, and for a signed-out user whose browser-local guest intent cart has items. Give it an accessible item-count/status badge and open the same `BackgroundCommerceCart` surface used by the picker. The guest cart offers sign-in and account creation instead of `Review checkout`. It must not appear on `/calendar` or nested Calendar routes, inside `CalendarOperatorToolbarProvider` content, Calendar drawers, quick-create actions, or booking/service controls. Desktop and mobile placements follow the configured top/bottom app bar without displacing the existing tool-priority rules. Do not render a zero-count placeholder while state is loading.
+
+- [ ] **Step 6: Preserve Track 2 panel behavior**
 
 Only the full-screen Background panel may hide the clock. Dialogs are nested modal surfaces with focus trapping; closing them returns to the initiating card without closing the Background panel. The underlying panel remains manually closable and does not regain the old auto-close timer.
 
-- [ ] **Step 6: Pass focused tests and commit**
+- [ ] **Step 7: Pass focused tests and commit**
 
 Run: `node --test tests/background-commerce-surfaces.test.mjs`
 
 Expected: PASS.
 
 ```powershell
-git add components/backgrounds/BackgroundAcquisitionDialog.tsx components/backgrounds/BackgroundCreditConfirmationDialog.tsx components/backgrounds/BackgroundCommerceCart.tsx app/chimer/immersive-panel-shell.tsx tests/background-commerce-surfaces.test.mjs
+git add components/backgrounds/BackgroundAcquisitionDialog.tsx components/backgrounds/BackgroundCreditConfirmationDialog.tsx components/backgrounds/BackgroundCommerceCart.tsx components/commerce/CommerceCartTrigger.tsx components/layout-wrapper.tsx components/calendar/calendar-operator-top-bar.tsx components/shell/mobile-main-bar.tsx app/chimer/immersive-panel-shell.tsx tests/background-commerce-surfaces.test.mjs
 git commit -m "feat: add background acquisition and cart dialogs"
 ```
 
@@ -365,6 +380,7 @@ At desktop and narrow-phone widths verify:
 - status changes use an appropriate live region without repeated announcements;
 - badges and active states do not depend on color alone;
 - tool controls retain priority when branding collapses;
+- the conditional site-purchase cart follows the configured app-bar position, is absent on Calendar routes/provider-selling controls, and exposes its count/status without color alone;
 - reduced motion preserves clarity and resource use remains comparable to the selected Track 3 carousel baseline.
 
 - [ ] **Step 6: Run complete validation**
@@ -395,10 +411,10 @@ Confirm:
 - zero-credit remains visible and disabled;
 - subscriber normal selection and `Keep permanently` are distinct;
 - credit redemption requires explicit permanent/non-swappable confirmation;
-- cart persists after refresh/sign-out/device change through the account API;
+- signed-in cart persists after refresh/sign-out/device change through the account API, while guest intent persists only in its originating browser until authentication;
 - success return waits for webhook-backed state;
 - Music only selects a visualizer background;
-- cart is absent from the global app bar;
+- the conditional global cart appears for signed-in cart/reservation state or browser-local guest intent, opens the shared cart, requires authentication before Checkout, and stays absent from Calendar/provider-selling surfaces;
 - Account/Billing shows wallet, portfolio, orders, reversals, and useful support entry;
 - no sensitive processor data reaches markup, URLs, analytics, or logs;
 - `TODO.md` is unchanged and unstaged.
@@ -413,10 +429,11 @@ git commit -m "test: validate background purchase surfaces"
 ## Track 1B completion criteria
 
 - Real production background cards show accurate locked, included, owned, cart, reservation, and reversal state in every immersive context.
-- Verified users can explicitly redeem a credit or build a multi-item $1 cart without accidental selection/acquisition.
+- Guests can build a browser-local background intent cart and are asked to sign in or create an account only at checkout; verified users can explicitly redeem a credit or build a persistent multi-item $1 account cart without accidental selection/acquisition.
 - Subscribers can use included backgrounds and optionally keep selected backgrounds permanently.
 - Checkout consent and return states are clear, accessible, and never substitute for webhook fulfillment.
 - Account/Billing exposes credits, owned portfolio, cart shortcut, orders, refunds/disputes/retirement, and support.
+- A conditional account-commerce cart indicator makes pending site purchases discoverable outside the picker without conflating them with Calendar/provider sales, and its generic shell contract can accept future physical-store lines.
 - Clock, Chimer, and Music visualizer share one mode-aware picker/controller.
 - Browser, accessibility, responsive, resource, lint, test, typecheck, build, and diff validation pass.
 - The public Roadmap and user-owned `TODO.md` remain untouched.

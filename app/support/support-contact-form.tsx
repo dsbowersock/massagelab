@@ -12,17 +12,36 @@ import { Textarea } from "@/components/ui/textarea"
 type SupportContactFormProps = {
   initialName: string
   initialContact: string
+  initialTopic?: string
+  orderReference?: string
 }
 
-export function SupportContactForm({ initialName, initialContact }: SupportContactFormProps) {
+export function SupportContactForm({
+  initialName,
+  initialContact,
+  initialTopic = "",
+  orderReference = "",
+}: SupportContactFormProps) {
   const [name, setName] = React.useState(initialName)
   const [contact, setContact] = React.useState(initialContact)
-  const [topic, setTopic] = React.useState("")
+  const [topic, setTopic] = React.useState(initialTopic)
   const [message, setMessage] = React.useState("")
+
+  React.useEffect(() => {
+    // Soft navigation can reuse this client form for a different support
+    // destination; only route-derived topic state should reset.
+    setTopic(initialTopic)
+  }, [initialTopic])
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    window.location.href = buildSupportMailtoUrl({ name, contact, topic, message })
+    window.location.href = buildSupportMailtoUrl({
+      name,
+      contact,
+      topic,
+      message,
+      orderReference,
+    })
   }
 
   return (
@@ -66,6 +85,12 @@ export function SupportContactForm({ initialName, initialContact }: SupportConta
               onChange={(event) => setTopic(event.target.value)}
             />
           </div>
+
+          {orderReference ? (
+            <p className="rounded-md border border-border/70 bg-muted/40 p-3 text-sm text-muted-foreground">
+              Order reference: <span className="font-mono text-foreground">{orderReference}</span>
+            </p>
+          ) : null}
 
           <div className="grid gap-2">
             <Label htmlFor="support-message">Message</Label>

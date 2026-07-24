@@ -10,6 +10,12 @@
 
 **Approved design:** `docs/superpowers/specs/2026-07-18-background-commerce-ownership-design.md`
 
+**2026-07-23 tax amendment:** Paid background checkout must not ship with tax
+disabled. It requires Stripe automatic tax, explicit product-code and
+provider/registration readiness, and webhook-time reconciliation of Stripe's
+order and per-item tax amounts before fulfillment. The purchasing kill switch
+stays off until the Ohio registration and product classification are reviewed.
+
 ## Global constraints
 
 - Start from refreshed `main` on a new branch; suggested name: `codex/background-commerce-foundation`.
@@ -444,13 +450,16 @@ Stripe metadata must include only stable identifiers:
   purpose: "background_purchase",
   orderId,
   userId,
-  schemaVersion: "1",
+  schemaVersion: "2",
+  taxMode: "stripe",
+  taxCode: "<reviewed Stripe Tax code>",
+  taxBehavior: "exclusive",
 }
 ```
 
 - [ ] **Step 3: Add a dedicated background Checkout helper**
 
-Do not overload subscription or donation helpers with ambiguous behavior. Add `createBackgroundPurchaseCheckoutSession` using `mode: "payment"`, `customer`, `billing_address_collection: "required"`, one line item per order item, `expires_at` 30 minutes from creation, metadata on both session and payment intent, and an idempotency key derived from order ID plus checkout attempt. Use inline price data at the fixed amount until a catalog-price migration is deliberately planned. Set `automatic_tax.enabled` only when `BACKGROUND_COMMERCE_TAX_MODE=stripe` and a configured digital-product tax code passes readiness; otherwise keep it false.
+Do not overload subscription or donation helpers with ambiguous behavior. Add `createBackgroundPurchaseCheckoutSession` using `mode: "payment"`, `customer`, `billing_address_collection: "required"`, one line item per order item, `expires_at` 30 minutes from creation, metadata on both session and payment intent, and an idempotency key derived from order ID plus checkout attempt. Use inline price data at the fixed amount until a catalog-price migration is deliberately planned. Paid Checkout must abort before creating a Stripe Session unless Stripe automatic-tax readiness passes; every paid Session uses `automatic_tax.enabled=true`. `automatic_tax.enabled=false` is allowed only for an explicitly non-purchasing operational probe that cannot collect payment or grant ownership.
 
 Add a separate `BACKGROUND_COMMERCE_PURCHASING_ENABLED=true` production kill switch. Both the route and Stripe helper call one `assertBackgroundCommercePurchasingReady` guard that requires the switch plus legal, catalog, U.S.-country, tax, webhook, and reconciliation readiness. A valid disabled-tax posture alone is never sufficient to enable purchasing.
 

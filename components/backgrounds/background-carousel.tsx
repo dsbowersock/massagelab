@@ -6,12 +6,14 @@ import {
   getResponsiveBackgroundCarouselTuning,
   resolveAdaptiveCarouselViewportProfile,
 } from "@/components/carousels/adaptive-carousel-model"
+import { BackgroundCarouselCard } from "@/components/backgrounds/background-carousel-card"
+import { useBackgroundCommerce } from "@/components/backgrounds/BackgroundCommerceProvider"
 import {
   type BackgroundDefinition,
   type BackgroundId,
   userCanUseBackground,
 } from "@/components/backgrounds/backgroundRegistry"
-import { BackgroundCarouselCard } from "@/components/backgrounds/background-carousel-card"
+import { backgroundCardCommerceState } from "@/lib/background-commerce-client.js"
 
 type BackgroundViewportProfile =
   | "phone-portrait"
@@ -28,6 +30,7 @@ interface BackgroundCarouselProps {
   active?: boolean
   onSelect: (backgroundId: BackgroundId) => void
   onLockedSelect?: (option: BackgroundDefinition) => void
+  onKeepPermanently?: (option: BackgroundDefinition) => void
   onToggleSaved: (backgroundId: BackgroundId) => void
   onCenteredItemChange?: (backgroundId: BackgroundId) => void
   onEffectiveLoopChange?: (value: boolean) => void
@@ -35,7 +38,10 @@ interface BackgroundCarouselProps {
   testId?: string
 }
 
-/** Promotes the approved responsive Background carousel to production data. */
+/**
+ * Promotes the approved responsive Background carousel to production data while
+ * adapting the one authoritative commerce snapshot into card presentation.
+ */
 export function BackgroundCarousel({
   options,
   selectedId = null,
@@ -44,6 +50,7 @@ export function BackgroundCarousel({
   active = true,
   onSelect,
   onLockedSelect,
+  onKeepPermanently,
   onToggleSaved,
   onCenteredItemChange,
   onEffectiveLoopChange,
@@ -54,6 +61,8 @@ export function BackgroundCarousel({
   const [profile, setProfile] =
     useState<BackgroundViewportProfile>("compact-desktop")
   const [reducedMotion, setReducedMotion] = useState(false)
+  const { state: commerceClientState, signedIn } = useBackgroundCommerce()
+  const snapshot = commerceClientState.snapshot
 
   useEffect(() => {
     const query = window.matchMedia("(prefers-reduced-motion: reduce)")
@@ -95,16 +104,30 @@ export function BackgroundCarousel({
 
   const items = useMemo(
     () => options.map((option) => {
-      const canUse = userCanUseBackground(option, featureKeys)
+      const canUse = userCanUseBackground(option, {
+        featureKeys,
+        ownedBackgroundIds: snapshot?.ownedBackgroundIds ?? [],
+      })
+      const commerceState = backgroundCardCommerceState({
+        background: option,
+        access: {
+          canUse,
+          accessSource: option.requiresSubscription && canUse
+            ? "subscription"
+            : canUse
+              ? "free"
+              : "locked",
+        },
+        snapshot,
+      })
       return {
         ...option,
-        disabled: !canUse,
-        statusLabel: canUse
-          ? option.requiresSubscription ? "premium available" : "free"
-          : "locked",
+        commerceState,
+        disabled: commerceState.state === "unavailable",
+        statusLabel: commerceState.state,
       }
     }),
-    [featureKeys, options],
+    [featureKeys, options, snapshot],
   )
   const initialItemId = items.some((option) => option.id === selectedId)
     ? selectedId
@@ -136,13 +159,15 @@ export function BackgroundCarousel({
           <BackgroundCarouselCard
             option={option}
             detailLevel={detailLevel}
-            canUse={userCanUseBackground(option, featureKeys)}
+            commerceState={option.commerceState}
             selected={selectedId === option.id}
             saved={savedIds.includes(option.id)}
             active={active}
+            signedIn={signedIn}
             reducedMotion={reducedMotion}
             onSelect={() => onSelect(option.id)}
             onLockedSelect={() => onLockedSelect?.(option)}
+            onKeepPermanently={() => onKeepPermanently?.(option)}
             onToggleSaved={() => onToggleSaved(option.id)}
           />
         )}

@@ -2,6 +2,9 @@
 
 import { useEffect, type ReactNode } from "react"
 import { usePathname } from "next/navigation"
+import { BackgroundCheckoutReturnStatus } from "@/components/backgrounds/BackgroundCheckoutReturnStatus"
+import { BackgroundCommerceCart } from "@/components/backgrounds/BackgroundCommerceCart"
+import { BackgroundCommerceProvider } from "@/components/backgrounds/BackgroundCommerceProvider"
 import { CalendarOperatorTopBar } from "@/components/calendar/calendar-operator-top-bar"
 import { CalendarOperatorToolbarProvider } from "@/components/calendar/calendar-operator-toolbar-context"
 import { MovingBackground } from "@/components/moving-background"
@@ -81,7 +84,15 @@ export function LayoutWrapper({
     </div>
   )
 
-  return isCalendarOperatorRoute ? (
+  const content = isCalendarOperatorRoute ? (
     <CalendarOperatorToolbarProvider>{shell}</CalendarOperatorToolbarProvider>
   ) : shell
+
+  return (
+    <BackgroundCommerceProvider enabled={Boolean(user)}>
+      {content}
+      <BackgroundCommerceCart variant="dialog" />
+      <BackgroundCheckoutReturnStatus />
+    </BackgroundCommerceProvider>
+  )
 }

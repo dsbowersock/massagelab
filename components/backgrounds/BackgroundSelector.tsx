@@ -10,7 +10,12 @@ import {
 } from "@/lib/background-catalog"
 import { DEFAULT_BACKGROUND_ID } from "@/lib/background-options"
 import { cn } from "@/lib/utils"
+import {
+  BackgroundAcquisitionDialog,
+  type BackgroundAcquisitionMode,
+} from "@/components/backgrounds/BackgroundAcquisitionDialog"
 import { BackgroundCarousel } from "@/components/backgrounds/background-carousel"
+import { useBackgroundCreditStatus } from "@/components/backgrounds/BackgroundCommerceProvider"
 import {
   type BackgroundDefinition,
   getBackgroundOptionsForCategory,
@@ -38,10 +43,15 @@ export function BackgroundSelector({
   category,
   className,
   compact = false,
-  description = "Additional premium visual backgrounds are paused for source-matched review.",
+  description = "Choose a background. Premium options include credits, $1 purchase, or membership.",
   renderSelectedControls,
 }: BackgroundSelectorProps) {
   const [upgradeMessage, setUpgradeMessage] = useState("")
+  const [acquisition, setAcquisition] = useState<{
+    background: BackgroundDefinition
+    mode: BackgroundAcquisitionMode
+  } | null>(null)
+  const creditStatus = useBackgroundCreditStatus()
   const [visualFilter, setVisualFilter] = useState<BackgroundVisualFilter>("all")
   const [savedBackgroundIds, setSavedBackgroundIds] = useState<BackgroundId[]>([])
   const options = useMemo(() => getBackgroundOptionsForCategory(category), [category])
@@ -50,6 +60,11 @@ export function BackgroundSelector({
     [options, savedBackgroundIds, visualFilter],
   )
   const selectedOption = options.find((option) => option.id === value) ?? options.find((option) => option.id === DEFAULT_BACKGROUND_ID)
+  // Locked backgrounds may not expose any per-background controls; do not leave
+  // an empty decorative card beneath the carousel when the renderer returns null.
+  const selectedControls = selectedOption && renderSelectedControls
+    ? renderSelectedControls(selectedOption)
+    : null
 
   useEffect(() => {
     setSavedBackgroundIds(readSavedBackgroundIds(window.localStorage) as BackgroundId[])
@@ -74,7 +89,18 @@ export function BackgroundSelector({
           <p className={cn("font-medium", compact ? "text-sm" : "text-base")}>Visual background</p>
           <p className="text-xs leading-5 text-muted-foreground">{description}</p>
         </div>
-        <Sparkles className="size-4 shrink-0 text-primary" aria-hidden="true" />
+        <div className="flex shrink-0 items-center gap-2">
+          {creditStatus ? (
+            <span
+              className="text-xs font-semibold text-muted-foreground"
+              role="status"
+              aria-live="polite"
+            >
+              {creditStatus}
+            </span>
+          ) : null}
+          <Sparkles className="size-4 text-primary" aria-hidden="true" />
+        </div>
       </div>
 
       <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Background visual filters">
@@ -108,16 +134,35 @@ export function BackgroundSelector({
             setUpgradeMessage("")
             onChange(backgroundId)
           }}
-          onLockedSelect={() => {
-            setUpgradeMessage("Upgrade to a paid membership to use premium visual backgrounds.")
+          onLockedSelect={(option) => {
+            setUpgradeMessage(`${option.label} has purchase options available.`)
+            setAcquisition({ background: option, mode: "locked" })
+          }}
+          onKeepPermanently={(option) => {
+            setUpgradeMessage(`Keep ${option.label} permanently with a credit or purchase.`)
+            setAcquisition({ background: option, mode: "keep-permanently" })
           }}
           onToggleSaved={toggleSavedBackground}
         />
       ) : null}
 
-      {selectedOption && renderSelectedControls ? (
+      <BackgroundAcquisitionDialog
+        background={acquisition?.background ?? null}
+        mode={acquisition?.mode ?? "locked"}
+        open={Boolean(acquisition)}
+        onOpenChange={(open) => {
+          if (!open) setAcquisition(null)
+        }}
+        onAcquired={(background) => {
+          setAcquisition(null)
+          setUpgradeMessage("")
+          onChange(background.id)
+        }}
+      />
+
+      {selectedControls ? (
         <div className="rounded-md border border-border/70 bg-background/70 px-3 py-3">
-          {renderSelectedControls(selectedOption)}
+          {selectedControls}
         </div>
       ) : null}
       {visibleOptions.length === 0 ? (

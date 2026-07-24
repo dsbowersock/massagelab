@@ -195,7 +195,7 @@ test.describe("control-system review lab", () => {
       "data-background-access-state",
       "locked",
     )
-    const lockedAction = centeredBackground.getByRole("button", { name: /^Select/ })
+    const lockedAction = centeredBackground.getByRole("button", { name: /^Unlock/ })
     await lockedAction.scrollIntoViewIfNeeded()
     await expect.poll(() => lockedAction.evaluate((element) => {
       const rect = element.getBoundingClientRect()

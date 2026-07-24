@@ -80,7 +80,7 @@ describe("legal acceptance helpers", () => {
     )
     assert.throws(
       () => buildDigitalPurchaseConsent({
-        acceptedDocumentIds: acceptedDocumentIds.map((id) => id.replace("2026-07-digital-purchases-v1", "stale")),
+        acceptedDocumentIds: acceptedDocumentIds.map((id) => id.replace("2026-07-digital-purchases-v2", "stale")),
         combinedConsentAccepted: true,
       }),
       /digital purchase consent/i,

@@ -1,11 +1,11 @@
 "use client"
 
 import Image from "next/image"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useId, useRef, useState } from "react"
 import { Lock } from "lucide-react"
-import { Loader } from "@/components/chimer-controls/Loader"
 import type { AdaptiveCarouselDetailLevel } from "@/components/carousels/adaptive-carousel-stage"
 import type { BackgroundDefinition } from "@/components/backgrounds/backgroundRegistry"
+import { Loader } from "@/components/chimer-controls/Loader"
 import { Button } from "@/components/ui/button"
 import { purpleGlowClassName } from "@/components/ui/carousel-button-classes"
 import { MetalFavoriteIcon } from "@/components/ui/metal-favorite-icon"
@@ -13,34 +13,69 @@ import {
   getBackgroundPreviewMedia,
   getBackgroundVisualTags,
 } from "@/lib/background-catalog"
+import { cn } from "@/lib/utils"
+
+type BackgroundCardCommerceState = {
+  state: string
+  canSelect: boolean
+  showKeepPermanently: boolean
+  isInCart: boolean
+  isReserved: boolean
+  ownershipStatus: string | null
+  ownershipSource: string | null
+}
 
 interface BackgroundCarouselCardProps {
   option: BackgroundDefinition
   detailLevel: AdaptiveCarouselDetailLevel
-  canUse: boolean
+  commerceState: BackgroundCardCommerceState
   selected: boolean
   saved: boolean
   active: boolean
+  signedIn: boolean
   reducedMotion: boolean
   onSelect: () => void
   onLockedSelect?: () => void
+  onKeepPermanently?: () => void
   onToggleSaved: () => void
 }
 
+/** Maps the carousel adapter's access and ownership states to user-facing status labels. */
+function accessLabel(commerceState: BackgroundCardCommerceState) {
+  if (commerceState.ownershipStatus === "refund_pending") return "Refund pending"
+  if (commerceState.ownershipStatus === "dispute_suspended") return "Dispute suspended"
+  if (commerceState.ownershipStatus === "refund_revoked") return "Refund revoked"
+  if (commerceState.ownershipStatus === "dispute_revoked") return "Dispute revoked"
+  if (commerceState.ownershipStatus === "retired") return "Retired"
+  if (commerceState.state === "owned-credit" || commerceState.state === "owned-purchase") return "Owned"
+  if (commerceState.state === "included-subscription") return "Included"
+  if (commerceState.state === "unavailable") return "Unavailable"
+  return null
+}
+
+/** Maps the authoritative ownership source to the compact provenance label. */
+function ownershipSourceLabel(source: string | null) {
+  if (source === "purchase") return "Purchased"
+  if (source === "credit") return "Credit"
+  return null
+}
+
 /**
- * Renders the approved production Background card while keeping entitlement
- * decisions and persisted selection in its owning surface.
+ * Renders authoritative acquisition metadata without changing carousel focus,
+ * preview playback, favorite, or persisted-selection ownership.
  */
 export function BackgroundCarouselCard({
   option,
   detailLevel,
-  canUse,
+  commerceState,
   selected,
   saved,
   active,
+  signedIn,
   reducedMotion,
   onSelect,
   onLockedSelect,
+  onKeepPermanently,
   onToggleSaved,
 }: BackgroundCarouselCardProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -54,6 +89,17 @@ export function BackgroundCarouselCard({
   const previewTags = getBackgroundVisualTags(option)
     .filter((tag) => !["shader", "video"].includes(tag.toLowerCase()))
     .slice(0, 4)
+  const statusLabel = accessLabel(commerceState)
+  const sourceLabel = ownershipSourceLabel(commerceState.ownershipSource)
+  const unavailable = commerceState.state === "unavailable"
+  const locked = !commerceState.canSelect && !unavailable
+  const generatedAcquisitionHintId = useId()
+  const acquisitionHintId = locked && detailLevel === "full"
+    ? generatedAcquisitionHintId
+    : undefined
+  const acquisitionHint = signedIn
+    ? "Use a credit, buy for $1, or unlock all premium backgrounds."
+    : "Add this background now, then sign in or create an account at checkout."
 
   useEffect(() => {
     setVideoReady(false)
@@ -82,7 +128,7 @@ export function BackgroundCarouselCard({
       className="relative grid aspect-[5/7] h-full overflow-hidden rounded-2xl border border-white/20 bg-black text-white shadow-2xl"
       data-background-id={option.id}
       data-background-selected={selected}
-      data-background-access-state={canUse ? "available" : "locked"}
+      data-background-access-state={commerceState.state}
     >
       <div
         className="absolute inset-0 overflow-hidden rounded-[inherit]"
@@ -132,23 +178,41 @@ export function BackgroundCarouselCard({
 
       {detailLevel === "full" ? (
         <div className="absolute inset-x-3 top-3 z-20 flex items-start justify-between gap-2">
-          <Button
-            data-carousel-primary-action
-            aria-disabled={!canUse}
-            aria-label={`${selected ? "Selected" : "Select"} ${option.label} background`}
-            onClick={() => {
-              if (!canUse) {
-                onLockedSelect?.()
-                return
-              }
-              onSelect()
-            }}
-            size="sm"
-            variant="glow"
-          >
-            {!canUse ? <Lock aria-hidden="true" /> : null}
-            {selected ? "Selected" : "Select"}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              data-carousel-primary-action
+              disabled={unavailable}
+              aria-describedby={acquisitionHintId}
+              aria-label={unavailable
+                ? `${option.label} background unavailable`
+                : `${locked ? "Unlock" : selected ? "Selected" : "Select"} ${option.label} background`}
+              title={locked ? acquisitionHint : undefined}
+              onClick={() => {
+                if (!commerceState.canSelect) {
+                  onLockedSelect?.()
+                  return
+                }
+                onSelect()
+              }}
+              size="sm"
+              variant={locked ? "default" : "glow"}
+            >
+              {locked ? <Lock aria-hidden="true" /> : null}
+              {unavailable ? "Unavailable" : locked ? "Unlock" : selected ? "Selected" : "Select"}
+            </Button>
+            {commerceState.showKeepPermanently ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="glow"
+                onClick={() => onKeepPermanently?.()}
+                aria-label={`Keep ${option.label} permanently`}
+              >
+                Keep permanently
+              </Button>
+            ) : null}
+          </div>
           <Button
             data-carousel-favorite-action
             aria-label={`${saved ? "Unsave" : "Save"} ${option.label}`}
@@ -164,11 +228,40 @@ export function BackgroundCarouselCard({
       ) : null}
 
       <div className="relative z-10 mt-auto grid gap-2 self-end bg-gradient-to-t from-black/95 via-black/70 to-transparent p-3 pt-14">
+        <div className="flex flex-wrap gap-1.5 text-[11px] font-semibold">
+          {statusLabel ? (
+            <span className={cn(
+              "rounded-full border border-white/30 bg-black/55 px-2 py-1",
+              unavailable && "text-white/75",
+            )}>
+              {statusLabel}
+              {statusLabel === "Owned" && sourceLabel ? (
+                <span className="sr-only"> - {sourceLabel}</span>
+              ) : null}
+            </span>
+          ) : null}
+          {commerceState.isReserved ? (
+            <span className="rounded-full border border-amber-200/50 bg-amber-950/70 px-2 py-1">
+              Reserved
+            </span>
+          ) : commerceState.isInCart ? (
+            <span className="rounded-full border border-white/30 bg-black/55 px-2 py-1">
+              In cart
+            </span>
+          ) : null}
+        </div>
         <div>
           <h3 className="font-semibold">{option.label}</h3>
           {previewTags.length > 0 ? (
             <p className="mt-1 text-xs text-white/70">
               {previewTags.join(" - ")}
+            </p>
+          ) : null}
+          {acquisitionHintId ? (
+            <p id={acquisitionHintId} className="mt-1 text-[11px] leading-4 text-white/80">
+              {signedIn
+                ? "Credit, $1 purchase, or membership."
+                : "Add now; sign in or create an account at checkout."}
             </p>
           ) : null}
         </div>

@@ -10,6 +10,7 @@ import path from "node:path"
 import process from "node:process"
 import Stripe from "stripe"
 import { config as loadDotenv } from "dotenv"
+import { BACKGROUND_COMMERCE_TAX_PRODUCT_CODE } from "../lib/commerce/constants.js"
 import { DIGITAL_PURCHASES_REFUNDS_VERSION } from "../lib/legal-documents.js"
 import {
   STRIPE_API_VERSION,
@@ -179,7 +180,14 @@ function checkBackgroundCommerceReadiness() {
   const reconciliationReady = isExplicitTrue(envValue("BACKGROUND_COMMERCE_RECONCILIATION_READY"))
   const taxMode = envValue("BACKGROUND_COMMERCE_TAX_MODE").toLowerCase()
   const taxModeRecognized = taxMode === "disabled" || taxMode === "stripe"
-  const stripeTaxReady = false
+  const taxProductCodeConfigured = envValue("BACKGROUND_COMMERCE_TAX_PRODUCT_CODE")
+    === BACKGROUND_COMMERCE_TAX_PRODUCT_CODE
+  const taxProviderReady = isExplicitTrue(envValue("BACKGROUND_COMMERCE_TAX_PROVIDER_READY"))
+  const taxRegistrationsReady = isExplicitTrue(envValue("BACKGROUND_COMMERCE_TAX_REGISTRATIONS_READY"))
+  const stripeTaxReady = taxMode === "stripe"
+    && taxProductCodeConfigured
+    && taxProviderReady
+    && taxRegistrationsReady
   const internationalEnabled = purchaseCountries.some((country) => country !== "US")
 
   if (!purchasingEnabled) addFailure("Background commerce purchasing enablement is not configured.")
@@ -190,8 +198,15 @@ function checkBackgroundCommerceReadiness() {
   if (!commerceWebhookCoverageComplete) addFailure("Background commerce webhook event coverage is incomplete.")
   if (!reconciliationReady) addFailure("Background commerce reconciliation readiness is not configured.")
   if (!taxModeRecognized) addFailure("Background commerce tax mode is not configured.")
-  if (taxMode === "stripe") {
-    addFailure("Background commerce tax mode must remain disabled until processor tax is reconciled into order and item snapshots.")
+  if (taxMode === "disabled") addFailure("Paid background commerce requires Stripe automatic tax.")
+  if (taxMode === "stripe" && !taxProductCodeConfigured) {
+    addFailure("Background commerce Stripe Tax product code is not configured.")
+  }
+  if (taxMode === "stripe" && !taxProviderReady) {
+    addFailure("Background commerce Stripe Tax provider readiness is not configured.")
+  }
+  if (taxMode === "stripe" && !taxRegistrationsReady) {
+    addFailure("Background commerce Stripe Tax registrations are not confirmed.")
   }
   if (liveMode && internationalEnabled && !stripeTaxReady) {
     addFailure("Live international background commerce requires Stripe tax mode with explicit registration and product-code readiness.")
@@ -204,6 +219,9 @@ function checkBackgroundCommerceReadiness() {
     webhookReady,
     reconciliationReady,
     taxMode: taxModeRecognized ? taxMode : "missing",
+    taxProductCodeConfigured,
+    taxProviderReady,
+    taxRegistrationsReady,
   }
 }
 
@@ -288,6 +306,9 @@ function printResults(commerce) {
   console.log(`Pinned Stripe webhook API version current: ${verifiedWebhookApiVersionCurrent}`)
   console.log(`Background commerce reconciliation configured: ${commerce.reconciliationReady}`)
   console.log(`Background commerce tax mode: ${commerce.taxMode}`)
+  console.log(`Background commerce tax product code configured: ${commerce.taxProductCodeConfigured}`)
+  console.log(`Background commerce tax provider ready: ${commerce.taxProviderReady}`)
+  console.log(`Background commerce tax registrations confirmed: ${commerce.taxRegistrationsReady}`)
 
   for (const warning of warnings) {
     console.log(`WARN ${warning}`)

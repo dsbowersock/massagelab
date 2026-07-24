@@ -33,7 +33,12 @@ import {
   resolveImmersiveDisplayContext,
   shouldRequestImmersiveWakeLock,
 } from "@/lib/immersive-display"
-import { SetTimer, type ChimerSettings, type ChimerSetupStartOptions } from "./set-timer"
+import {
+  CHIMER_BACKGROUND_SETUP_STEP_INDEX,
+  SetTimer,
+  type ChimerSettings,
+  type ChimerSetupStartOptions,
+} from "./set-timer"
 import { RunningTimer, type ImmersiveDisplayMode } from "./running-timer"
 
 type TimerStatus = "idle" | "running" | "paused" | "complete" | "clock"
@@ -122,10 +127,10 @@ export default function ChimerPage() {
     () => sanitizeMusicVisualizerReturnTo(returnToParam),
     [returnToParam],
   )
+  // Checkout return recovery uses panel=background to reopen the originating
+  // Background picker instead of the normal immersive or setup default.
   const requestedInitialPanel = (
-    immersiveContext === "musicVisualizer" && searchParams.get("panel") === "background"
-      ? "background"
-      : null
+    searchParams.get("panel") === "background" ? "background" : null
   )
   const [settings, setSettings] = useState<ChimerSettings>(DEFAULT_CHIMER_SETTINGS as ChimerSettings)
   const [timerState, setTimerState] = useState<TimerState>(() => (
@@ -947,7 +952,7 @@ export default function ChimerPage() {
         selectedBackgroundId: settings.backgroundId,
         showClock: settings.showClockDisplay,
         canToggleClock: true,
-        initialPanel: null,
+        initialPanel: requestedInitialPanel,
         unavailableBackgroundMessage: null,
         storageStatus: "available",
         storageError: null,
@@ -965,7 +970,7 @@ export default function ChimerPage() {
         selectedBackgroundId: settings.backgroundId,
         showClock: true,
         canToggleClock: false,
-        initialPanel: null,
+        initialPanel: requestedInitialPanel,
         unavailableBackgroundMessage: null,
         storageStatus: "available",
         storageError: null,
@@ -1002,6 +1007,7 @@ export default function ChimerPage() {
             isResolvingSync={isResolvingSync}
             featureKeys={featureKeys}
             backgroundCategory={backgroundCategory}
+            initialStep={requestedInitialPanel === "background" ? CHIMER_BACKGROUND_SETUP_STEP_INDEX : 0}
             onTimeClick={openTimeModal}
             onSettingsChange={updateSettings}
             onStartTimer={startTimer}

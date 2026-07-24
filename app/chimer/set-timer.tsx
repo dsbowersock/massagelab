@@ -45,6 +45,12 @@ const CHIMER_SETUP_STEPS = [
   "Choose background",
   "Start timer",
 ] as const
+// Resolve from the canonical label so reordering is safe, but fail fast if a
+// later label edit would otherwise turn the background step into index -1.
+export const CHIMER_BACKGROUND_SETUP_STEP_INDEX = CHIMER_SETUP_STEPS.indexOf("Choose background")
+if (CHIMER_BACKGROUND_SETUP_STEP_INDEX === -1) {
+  throw new Error('CHIMER_SETUP_STEPS must include a "Choose background" step')
+}
 const CHIMER_SETUP_STEP_SHORT_NAMES = [
   "Time",
   "Interval",
@@ -4660,6 +4666,7 @@ interface SetTimerProps {
   isResolvingSync: boolean
   featureKeys: string[]
   backgroundCategory: BackgroundCategory
+  initialStep?: number
   onTimeClick: (unit: "hours" | "minutes") => void
   onSettingsChange: (settings: Partial<ChimerSettings>) => void
   onStartTimer: (options?: ChimerSetupStartOptions) => void
@@ -4727,6 +4734,7 @@ export function SetTimer({
   isResolvingSync,
   featureKeys,
   backgroundCategory,
+  initialStep = 0,
   onTimeClick,
   onSettingsChange,
   onStartTimer,
@@ -4736,7 +4744,16 @@ export function SetTimer({
   onUseDeviceSettings,
   onUseSavedSettings,
 }: SetTimerProps) {
-  const [activeStep, setActiveStep] = useState(0)
+  const [activeStep, setActiveStep] = useState(() => {
+    // Route-derived or future callers may pass non-finite values; setup always
+    // falls back to the first step before applying the normal finite bounds.
+    const normalizedStep = Number.isFinite(initialStep) ? Math.trunc(initialStep) : 0
+    return Math.min(CHIMER_SETUP_STEPS.length - 1, Math.max(0, normalizedStep))
+  })
+  useEffect(() => {
+    const normalizedStep = Number.isFinite(initialStep) ? Math.trunc(initialStep) : 0
+    setActiveStep(Math.min(CHIMER_SETUP_STEPS.length - 1, Math.max(0, normalizedStep)))
+  }, [initialStep])
   const [savedPresets, setSavedPresets] = useState<ChimerSetupPreset[]>([])
   const [lastSetupPreset, setLastSetupPreset] = useState<ChimerSetupPresetState | null>(null)
   const [selectedPresetId, setSelectedPresetId] = useState("")
@@ -4856,7 +4873,7 @@ export function SetTimer({
   }, [dismissSyncNotice, hapticsEnabled, onUseSavedSettings])
 
   const isFinalStep = activeStep === CHIMER_SETUP_STEPS.length - 1
-  const canAdvanceStep = activeStep !== 0 || totalDurationMs > 0
+  const canAdvanceStep = isTimerSet
   const shouldShowSyncNotice = syncStatus !== "synced" && !(syncStatus === "conflict" && suppressSyncNotice)
 
   const selectedPreset = savedPresets.find((entry) => entry.id === selectedPresetId) ?? null
@@ -4947,7 +4964,7 @@ export function SetTimer({
   )
 
   const isStepComplete = (stepIndex: number) => (
-    stepIndex < activeStep || (stepIndex === 0 ? isTimerSet : false)
+    stepIndex === 0 ? isTimerSet : stepIndex < activeStep
   )
 
   const renderBackgroundControls = (option: BackgroundDefinition) => {
@@ -16057,7 +16074,7 @@ export function SetTimer({
           </div>
         </details>
 
-        <div className={styles.stepContent}>
+        <div className={`${styles.stepContent} ${activeStep === CHIMER_BACKGROUND_SETUP_STEP_INDEX ? styles.backgroundStepContent : ""}`}>
           {activeStep === 0 && (
             <div>
               <div className={styles.formGroup}>
@@ -16279,8 +16296,8 @@ export function SetTimer({
             </div>
           )}
 
-          {activeStep === 3 && (
-            <div>
+          {activeStep === CHIMER_BACKGROUND_SETUP_STEP_INDEX && (
+            <>
               <div className={styles.backgroundSettings}>
                 <StyledToggleControl
                   label="Visual background"
@@ -16301,7 +16318,7 @@ export function SetTimer({
               <p className={styles.formHint}>
                 Backgrounds are fully applied when timer starts. Use this section to set your preferred background and any per-background controls.
               </p>
-            </div>
+            </>
           )}
 
           {activeStep === 4 && (

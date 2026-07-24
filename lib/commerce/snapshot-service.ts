@@ -20,6 +20,7 @@ export type BackgroundCommerceSnapshot = {
     totalAmount: number
     currency: "usd"
     createdAt: string
+    returnPath: string
   }>
 }
 
@@ -51,10 +52,22 @@ export function commerceApiErrorResponse(error: unknown): Response {
   return privateCommerceJson({ error: safe.code, message: safe.message }, { status: safe.status })
 }
 
+type SnapshotOrderRow = {
+  id: string
+  status: string
+  subtotalCents: number
+  taxCents: number
+  totalCents: number
+  currency: string
+  createdAt: Date
+  returnPath: string
+  _count: { items: number }
+}
+
 type SnapshotPrismaClient = {
   backgroundCreditWallet: { findUnique(input: unknown): Promise<{ balance: number } | null> }
   backgroundOwnership: { findMany(input: unknown): Promise<Array<{ backgroundKey: string; source: string; status: string; acquiredAt: Date }>> }
-  commerceOrder: { findMany(input: unknown): Promise<Array<{ id: string; status: string; subtotalCents: number; taxCents: number; totalCents: number; currency: string; createdAt: Date; _count: { items: number } }>> }
+  commerceOrder: { findMany(input: unknown): Promise<SnapshotOrderRow[]> }
 }
 
 const OWNERSHIP_STATUSES = new Set([
@@ -66,6 +79,7 @@ export async function getBackgroundCommerceSnapshot(input: {
   prismaClient: object
   userId: string
   getCartSnapshot?: () => Promise<CommerceCartSnapshot>
+  includeRecentOrders?: boolean
 }): Promise<BackgroundCommerceSnapshot> {
   const prismaClient = input.prismaClient as SnapshotPrismaClient
   const cartPromise = input.getCartSnapshot
@@ -74,6 +88,18 @@ export async function getBackgroundCommerceSnapshot(input: {
         prismaClient: input.prismaClient as never,
         userId: input.userId,
       }))
+  // Account purchase history loads richer itemized rows and can skip this summary query.
+  const orderRowsPromise = input.includeRecentOrders === false
+    ? Promise.resolve([] as SnapshotOrderRow[])
+    : prismaClient.commerceOrder.findMany({
+        where: { userId: input.userId },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: 10,
+        select: {
+          id: true, status: true, subtotalCents: true, taxCents: true,
+          totalCents: true, currency: true, createdAt: true, returnPath: true, _count: { select: { items: true } },
+        },
+      })
   const [wallet, ownershipRows, orderRows, cart] = await Promise.all([
     prismaClient.backgroundCreditWallet.findUnique({ where: { userId: input.userId }, select: { balance: true } }),
     prismaClient.backgroundOwnership.findMany({
@@ -81,15 +107,7 @@ export async function getBackgroundCommerceSnapshot(input: {
       orderBy: [{ acquiredAt: "asc" }, { id: "asc" }],
       select: { backgroundKey: true, source: true, status: true, acquiredAt: true },
     }),
-    prismaClient.commerceOrder.findMany({
-      where: { userId: input.userId },
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      take: 10,
-      select: {
-        id: true, status: true, subtotalCents: true, taxCents: true,
-        totalCents: true, currency: true, createdAt: true, _count: { select: { items: true } },
-      },
-    }),
+    orderRowsPromise,
     cartPromise,
   ])
 
@@ -120,6 +138,7 @@ export async function getBackgroundCommerceSnapshot(input: {
       totalAmount: order.totalCents,
       currency: "usd",
       createdAt: order.createdAt.toISOString(),
+      returnPath: order.returnPath,
     })),
   }
 }

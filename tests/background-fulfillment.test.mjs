@@ -149,8 +149,17 @@ function createPrismaDouble(seed = initialState()) {
         let count = 0
         for (const item of state.order?.items ?? []) {
           if (where.orderId && item.orderId !== where.orderId) continue
+          if (typeof where.id === "string" && item.id !== where.id) continue
           if (where.id?.in && !where.id.in.includes(item.id)) continue
           if (where.fulfillmentStatus && !matchesValue(item.fulfillmentStatus, where.fulfillmentStatus)) continue
+          if (
+            where.allocatedTaxCents !== undefined
+            && !matchesValue(item.allocatedTaxCents, where.allocatedTaxCents)
+          ) continue
+          if (
+            where.lineTotalCents !== undefined
+            && !matchesValue(item.lineTotalCents, where.lineTotalCents)
+          ) continue
           Object.assign(item, clone(data))
           count += 1
         }
@@ -222,8 +231,10 @@ function lineItem(productKey, displayName) {
         object: "product",
         active: true,
         name: displayName,
-        metadata: { productType: "background", productKey },
+        tax_code: "txcd_10000000",
+        metadata: { productType: "background", productKey, taxCode: "txcd_10000000" },
       },
+      tax_behavior: "exclusive",
     },
   }
 }
@@ -233,7 +244,10 @@ function paidSession(overrides = {}) {
     purpose: "background_purchase",
     orderId: "order_1",
     userId: "user_1",
-    schemaVersion: "1",
+    schemaVersion: "2",
+    taxMode: "stripe",
+    taxCode: "txcd_10000000",
+    taxBehavior: "exclusive",
   }
   return {
     id: "cs_1",
@@ -242,6 +256,7 @@ function paidSession(overrides = {}) {
     mode: "payment",
     status: "complete",
     payment_status: "paid",
+    automatic_tax: { enabled: true, status: "complete" },
     customer: "cus_1",
     customer_details: {
       address: { country: "US" },
@@ -303,6 +318,62 @@ describe("background purchase fulfillment", () => {
     assert.equal(state.receipts[0].processedAt instanceof Date, true)
     assert.deepEqual(state.cartItems, [])
   })
+
+  it("atomically snapshots nonzero Stripe Tax totals before paid fulfillment", async () => {
+    const { prismaClient, state } = createPrismaDouble()
+    const session = paidSession()
+    session.line_items.data[0].amount_tax = 8
+    session.line_items.data[0].amount_total = 108
+    session.line_items.data[1].amount_tax = 7
+    session.line_items.data[1].amount_total = 107
+    session.total_details.amount_tax = 15
+    session.amount_total = 215
+    session.payment_intent.amount = 215
+    session.payment_intent.amount_received = 215
+
+    const result = await fulfill(prismaClient, "evt_taxed", session)
+
+    assert.equal(result.status, "FULFILLED")
+    assert.equal(state.order.taxCents, 15)
+    assert.equal(state.order.totalCents, 215)
+    assert.deepEqual(
+      state.order.items.map((item) => [item.allocatedTaxCents, item.lineTotalCents]),
+      [[8, 108], [7, 107]],
+    )
+    assert.equal(state.payments[0].amountCents, 215)
+    assert.equal(
+      state.events.filter((event) => event.eventType === "BACKGROUND_ORDER_TAX_RECONCILED").length,
+      1,
+    )
+  })
+
+  for (const [name, change] of [
+    ["disabled automatic tax", (session) => { session.automatic_tax.enabled = false }],
+    ["incomplete automatic tax", (session) => { session.automatic_tax.status = "requires_location_inputs" }],
+    ["changed product tax code", (session) => { session.line_items.data[0].price.product.tax_code = "txcd_other" }],
+    ["legacy but internally consistent tax code", (session) => {
+      session.metadata.taxCode = "txcd_10202003"
+      session.payment_intent.metadata.taxCode = "txcd_10202003"
+      for (const item of session.line_items.data) {
+        item.price.product.tax_code = "txcd_10202003"
+        item.price.product.metadata.taxCode = "txcd_10202003"
+      }
+    }],
+    ["unsupported discount", (session) => { session.total_details.amount_discount = 1 }],
+  ]) {
+    it("requires review without ownership for " + name, async () => {
+      const { prismaClient, state } = createPrismaDouble()
+      const session = paidSession()
+      change(session)
+
+      const result = await fulfill(prismaClient, "evt_tax_" + name.replaceAll(" ", "_"), session)
+
+      assert.equal(result.status, "REVIEW_REQUIRED")
+      assert.equal(state.order.status, "REVIEW_REQUIRED")
+      assert.equal(state.order.taxCents, 0)
+      assert.equal(state.ownerships.length, 0)
+    })
+  }
 
   it("returns the committed result for repeated event delivery", async () => {
     const { prismaClient, state } = createPrismaDouble()
@@ -451,7 +522,7 @@ describe("background purchase fulfillment", () => {
   it("acknowledges an unknown explicit purpose without domain mutation", async () => {
     const { prismaClient, state } = createPrismaDouble()
     const result = await fulfill(prismaClient, "evt_unknown", paidSession({
-      metadata: { purpose: "unexpected_flow", orderId: "order_1", userId: "user_1", schemaVersion: "1" },
+      metadata: { purpose: "unexpected_flow", orderId: "order_1", userId: "user_1", schemaVersion: "2" },
     }))
 
     assert.equal(result.status, "IGNORED")
@@ -462,7 +533,7 @@ describe("background purchase fulfillment", () => {
   it("acknowledges an unknown order without mutating another order", async () => {
     const { prismaClient, state } = createPrismaDouble()
     const result = await fulfill(prismaClient, "evt_unknown_order", paidSession({
-      metadata: { purpose: "background_purchase", orderId: "order_other", userId: "user_1", schemaVersion: "1" },
+      metadata: { purpose: "background_purchase", orderId: "order_other", userId: "user_1", schemaVersion: "2" },
     }))
 
     assert.equal(result.status, "IGNORED")

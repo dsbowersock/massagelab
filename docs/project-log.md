@@ -4,6 +4,109 @@ This is the canonical chronological planning and progress log for MassageLab. Us
 
 Existing plans, audits, roadmaps, and checklists remain source evidence. Keep them for context, but mirror meaningful progress, plan changes, and priority changes in [project-state.md](project-state.md) and here.
 
+## 2026-07-23 — Background purchase surfaces visual review
+
+- Pinned paid background readiness to the reviewed Stripe Tax code
+  `txcd_10000000` (General Electronically Supplied Services) instead of
+  accepting any syntactically valid `txcd_` value. Verified one active Ohio
+  state sales-tax registration in Stripe and kept
+  `BACKGROUND_COMMERCE_PURCHASING_ENABLED=false` pending the taxed test-mode
+  Checkout/fulfillment smoke.
+- Versioned the Digital Purchases and Refund Policy to
+  `2026-07-digital-purchases-v2`. One purchase now expressly permits the
+  purchaser's personal use and purchaser-operated display while serving
+  clients through their own sole proprietorship or practice, without a
+  personal-versus-business checkout question. The non-transferable license
+  prohibits shared logins, staff/team operation through the purchaser account,
+  redistribution, resale, sublicensing, asset extraction/distribution,
+  packaging into another product or service, and unrelated-party access.
+- Approved a separate Supporter Membership restructuring track without
+  mutating live subscription objects in Track 1B: one Supporter product with
+  identical benefits at $1/$2/$5 monthly or $10/$20/$50 annually; Therapist
+  and Practice unavailable until differentiated professional features are
+  ready for beta; roadmap interests separate from amount and entitlements;
+  unused Student-to-Therapist and Early Access coupon paths removed after
+  re-verification; portal switching limited to Supporter amounts; and public
+  donation language replaced by One-time support with a not-charitable,
+  not-tax-deductible, no-benefits disclosure.
+- Replaced disabled-looking locked Select buttons with visibly actionable Unlock
+  controls across Chimer, Clock, and the Music visualizer. Signed-out cards now
+  explain that the background can be added immediately and that sign-in or
+  account creation happens at checkout; activation still opens the shared
+  credit, one-dollar purchase, and membership dialog.
+- Removed the redundant outer visual shell from Chimer's Choose background step
+  and stopped rendering the selected-controls card when a locked background has
+  no controls, eliminating the empty bordered container from the setup flow.
+- Hardened the review follow-up by serializing Checkout with the existing cart
+  mutation queue, disabling cart mutations during redirect, surfacing removal
+  failures, and clearing stale acquisition errors when a dialog is reopened or
+  changes backgrounds.
+- Kept checkout-return order ids across restored Clock/Chimer routes, merged
+  refreshed recent-order status into itemized Account history without dropping
+  older rows, and made non-finite setup-step inputs fall back to the first step.
+- Closed the next review pass by making checkout-return polling advance after
+  refresh failures, loading signed-in account state independently from guest
+  cart merging, ignoring aborted queued mutations before they enter mutating
+  state, and making local guest-cart uniqueness/removal explicit.
+- Preserved the duration gate when Chimer opens directly on Choose background,
+  hid picker invitations for inactive ownership history, clarified the order
+  support action, and synchronized route-derived support topics on soft
+  navigation.
+- Separated successful commerce writes from their follow-up snapshot refresh so
+  a read outage cannot misreport a committed action, added the signed-out
+  reservation guard, reset nested credit confirmation after ownership lands,
+  aligned carousel hint references, and restored active-Chimer haptics for
+  acquisition actions.
+- Made public cart normalization fail closed for malformed item prices and cart
+  subtotals, documented the client projection invariants, secured HTTPS browser
+  QA session cookies, and pinned nested Calendar/booking cart-trigger coverage.
+- Replaced the provisional disabled-tax release contract before shipping:
+  paid background readiness now requires Stripe Tax mode, a reviewed product
+  tax code, and explicit provider/registration readiness. Checkout always uses
+  exclusive automatic tax and billing-address collection; paid webhook
+  fulfillment atomically freezes processor order/item tax totals before its
+  existing evidence checks and sends incomplete, unsupported, or conflicting
+  tax evidence to review without granting ownership. Cart and Checkout copy now
+  says applicable tax is calculated at Stripe Checkout.
+- Added a fail-fast guard for the derived Chimer background step and documented
+  the explicit purchase-support reference gate.
+- Set the Vercel Production
+  `BACKGROUND_COMMERCE_PURCHASING_ENABLED=false` kill switch and redeployed the
+  existing PR #139 production source (`def0c365`) so paid background checkout is
+  disabled immediately while the tax-aware branch, Ohio registration, and
+  reviewed product classification remain incomplete.
+
+## 2026-07-22 — Background purchase surfaces release candidate
+
+- Completed the Track 1B release candidate on
+  `codex/background-purchase-surfaces`: the shared Clock, active Chimer, and
+  Music visualizer Background picker now shows authoritative credits,
+  subscription inclusion, permanent ownership source, cart/reservation state,
+  and reversals without forking the landed carousel or immersive controls.
+- Added explicit credit confirmation, one-dollar multi-background cart review,
+  U.S.-only consent, Stripe redirect validation, webhook-delayed return
+  recovery, reservation cancellation, and a full Account/Billing wallet,
+  portfolio, order, reversal, and privacy-safe support surface. Nested commerce
+  dialogs sit above the full-screen Background panel and return focus through
+  the acquisition flow.
+- Extended the approved cart placement after review: a generic conditional site
+  cart opens the shared cart from the configured desktop/mobile app bar while
+  staying absent from Calendar and nested provider-selling routes. This keeps
+  site purchases distinct from services a provider sells and leaves a generic
+  shell contract for later physical-store lines.
+- Approved and implemented checkout-first guest acquisition. Signed-out users
+  can store only validated background IDs in a browser-local intent cart, then
+  sign in or create an account at checkout. After authentication, IDs are
+  revalidated and merged through the existing account cart API; credits,
+  reservations, payment, and ownership remain account/server-only authority.
+- Final validation passed: 49 focused commerce/account/support tests, the full
+  1,357-test Node suite, typecheck, lint, the 101-route production build, and
+  all 16 desktop/mobile browser scenarios covering guest intent, credit
+  redemption, zero-credit Checkout failure, cancellation recovery,
+  active-Chimer ownership states, Music visualizer minimize/restore, global
+  cart placement, and webhook-delayed confirmation.
+- Kept the public Roadmap and user-owned `TODO.md` out of scope.
+
 ## 2026-07-22 — Background commerce readiness and cleanup proof correction
 
 - Corrected Stripe verify mode to validate the one pinned webhook endpoint
