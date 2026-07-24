@@ -113,6 +113,17 @@ function PlanCard({
   active: boolean
   mode: "checkout" | "auth" | "portal"
 }) {
+  const resolvedAmountChoices = plan.amountChoices.flatMap((choice) => {
+    const price = resolveMembershipPriceForInterval(choice, interval)
+
+    return price
+      ? [{ choiceId: choice.id, price }]
+      : []
+  })
+  const configuredAmountChoices = resolvedAmountChoices.filter(
+    ({ price }) => price.isConfigured,
+  )
+
   return (
     <Card className={cn(
       appSurfaceClassName,
@@ -154,17 +165,12 @@ function PlanCard({
         {mode === "portal" ? (
           <div className="mt-auto space-y-3">
             <div className="grid gap-3 sm:grid-cols-3">
-              {plan.amountChoices.map((choice) => {
-                const price = resolveMembershipPriceForInterval(choice, interval)
-                if (!price) return null
-
-                return (
-                  <div key={choice.id} className="rounded-md border border-border/80 bg-background/70 p-3 text-center">
-                    <span className="text-base font-semibold text-foreground">{price.displayPrice}</span>
-                    <span className="text-xs text-muted-foreground">{price.displayInterval}</span>
-                  </div>
-                )
-              })}
+              {configuredAmountChoices.map(({ choiceId, price }) => (
+                <div key={choiceId} className="rounded-md border border-border/80 bg-background/70 p-3 text-center">
+                  <span className="text-base font-semibold text-foreground">{price.displayPrice}</span>
+                  <span className="text-xs text-muted-foreground">{price.displayInterval}</span>
+                </div>
+              ))}
             </div>
             <p className="text-sm text-muted-foreground">
               Use the Customer Portal to switch among approved Supporter amounts, update billing details, review invoices, or cancel.
@@ -182,20 +188,15 @@ function PlanCard({
           </div>
         ) : (
           <div className="mt-auto grid gap-3 sm:grid-cols-3">
-            {plan.amountChoices.map((choice) => {
-              const price = resolveMembershipPriceForInterval(choice, interval)
-              if (!price) return null
-
-              return (
-                <SupporterAmountChoice
-                  key={choice.id}
-                  plan={plan}
-                  choiceId={choice.id}
-                  price={price}
-                  mode={mode}
-                />
-              )
-            })}
+            {resolvedAmountChoices.map(({ choiceId, price }) => (
+              <SupporterAmountChoice
+                key={choiceId}
+                plan={plan}
+                choiceId={choiceId}
+                price={price}
+                mode={mode}
+              />
+            ))}
           </div>
         )}
       </CardContent>

@@ -60,11 +60,15 @@ export type MembershipPriceValue = {
   membershipLevel: string
   interval: "month" | "year"
   priceId: string | null
+  unitAmount: number | null
+  currency: string
   displayPrice: string
   displayInterval: string
   isConfigured: boolean
   isLookupAvailable: boolean
   yearlySavings: {
+    amount: number
+    currency: string
     displayAmount: string
     description: string
     percent: number

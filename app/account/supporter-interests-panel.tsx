@@ -36,13 +36,7 @@ export function SupporterInterestsPanel() {
       try {
         const response = await fetch("/api/account/preferences")
         if (!response.ok) {
-          if (active) {
-            setMessage({
-              text: "Could not load roadmap interests. Please try again.",
-              variant: "error",
-            })
-          }
-          return
+          throw new Error("Unable to load supporter roadmap interests")
         }
         if (!active) {
           return
@@ -56,7 +50,8 @@ export function SupporterInterestsPanel() {
           setInterests(normalizedInterests)
           setHasLoadedInterests(true)
         }
-      } catch {
+      } catch (error) {
+        console.error("SupporterInterestsPanel failed to load roadmap interests", error)
         if (active) {
           setMessage({
             text: "Could not load roadmap interests. Please try again.",
@@ -94,7 +89,7 @@ export function SupporterInterestsPanel() {
       })
 
       if (!response.ok) {
-        throw new Error("Unable to save supporter interests")
+        throw new Error("Unable to save supporter roadmap interests")
       }
 
       const preferences = await response.json()
@@ -107,7 +102,8 @@ export function SupporterInterestsPanel() {
         text: "Roadmap interests saved.",
         variant: "success",
       })
-    } catch {
+    } catch (error) {
+      console.error("SupporterInterestsPanel failed to save roadmap interests", error)
       setInterests(resolveSupporterRoadmapInterestsAfterSave({
         previousInterests,
       }))

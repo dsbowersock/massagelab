@@ -105,6 +105,35 @@ describe("Membership Checkout POST route", () => {
     assert.equal(calls.createCheckout, 0)
   })
 
+  it("routes malformed multipart input through the form-safe unsupported-plan response", async () => {
+    const calls = {
+      ensureCustomer: 0,
+      createCheckout: 0,
+      membershipLookup: 0,
+    }
+    const request = {
+      headers: new Headers({
+        "content-type": "multipart/form-data; boundary=broken",
+      }),
+      formData: async () => {
+        throw new TypeError("Malformed multipart body")
+      },
+    }
+    const response = await createMembershipCheckoutPostHandler(
+      checkoutDependencies(calls),
+    )(request)
+
+    assert.deepEqual(response, {
+      url: "https://massagelab.app/account?billing=unsupported-plan",
+      status: 303,
+    })
+    assert.deepEqual(calls, {
+      ensureCustomer: 0,
+      createCheckout: 0,
+      membershipLookup: 0,
+    })
+  })
+
   it("returns the existing-subscription contract when Stripe finds a completed relevant Checkout before the webhook", async () => {
     const calls = {
       ensureCustomer: 0,

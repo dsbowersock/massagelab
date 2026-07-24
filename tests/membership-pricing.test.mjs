@@ -56,6 +56,36 @@ describe("Membership pricing catalog", () => {
     assert.deepEqual(supporter.amountChoices.map((choice) => choice.id), ["support-1", "support-2", "support-5"])
     assert.deepEqual(supporter.amountChoices.map((choice) => choice.prices.month.displayPrice), ["$1", "$2", "$5"])
     assert.deepEqual(supporter.amountChoices.map((choice) => choice.prices.year.displayPrice), ["$10", "$20", "$50"])
+    assert.deepEqual(supporter.amountChoices[0].prices.month, {
+      membershipLevel: "SUPPORTER",
+      interval: "month",
+      priceId: "price_supporter_1_month",
+      unitAmount: 100,
+      currency: "usd",
+      displayPrice: "$1",
+      displayInterval: "/month",
+      isConfigured: true,
+      isLookupAvailable: true,
+      yearlySavings: null,
+    })
+    assert.deepEqual(supporter.amountChoices[0].prices.year, {
+      membershipLevel: "SUPPORTER",
+      interval: "year",
+      priceId: "price_supporter_1_year",
+      unitAmount: 1000,
+      currency: "usd",
+      displayPrice: "$10",
+      displayInterval: "/year",
+      isConfigured: true,
+      isLookupAvailable: true,
+      yearlySavings: {
+        amount: 200,
+        currency: "usd",
+        displayAmount: "$2",
+        percent: 17,
+        description: "Save $2 per year vs monthly",
+      },
+    })
   })
 
   it("falls back safely when Stripe is not configured", async () => {
@@ -67,6 +97,18 @@ describe("Membership pricing catalog", () => {
     assert.equal(catalog.plans[0].amountChoices[0].prices.year.isConfigured, false)
     assert.equal(catalog.plans[0].amountChoices[0].prices.year.isLookupAvailable, false)
     assert.equal(catalog.plans[0].amountChoices[0].prices.year.displayPrice, "Price unavailable")
+    assert.deepEqual(catalog.plans[0].amountChoices[0].prices.year, {
+      membershipLevel: "SUPPORTER",
+      interval: "year",
+      priceId: null,
+      unitAmount: null,
+      currency: "usd",
+      displayPrice: "Price unavailable",
+      displayInterval: "/year",
+      isConfigured: false,
+      isLookupAvailable: false,
+      yearlySavings: null,
+    })
   })
 
   it("keeps compliance-heavy documentation goals in the single Supporter offering roadmap notes", async () => {

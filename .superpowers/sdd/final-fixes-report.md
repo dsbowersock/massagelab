@@ -89,7 +89,7 @@ expanded Product. After expanding `currency_options`, the same command passed
 
 - Initial focused membership/Stripe command shown above: 40/64 passed as RED
   evidence; the retrieval-expansion regression later passed 3/3.
-- `npm run test`: 1,458/1,458 passed across 158 suites at the final PR head.
+- `npm run test`: 1,462/1,462 passed across 159 suites at the final PR head.
 - `npm run typecheck`: passed.
 - `npm run lint`: passed.
 - `npm run build`: passed; Prisma generation, production compilation,

@@ -157,10 +157,33 @@ describe("Membership and entitlement helpers", () => {
     assert.equal(resolveStripePriceId({ membershipLevel: "SUPPORTER", supporterAmountChoiceId: "support-9", interval: "month", env }), null)
   })
 
-  it("accepts only Supporter amount choices for public Checkout", () => {
-    assert.equal(isPublicSupporterCheckoutSelection({ membershipLevel: "SUPPORTER", supporterAmountChoiceId: "support-1" }), true)
-    assert.equal(isPublicSupporterCheckoutSelection({ membershipLevel: "THERAPIST", supporterAmountChoiceId: "support-1" }), false)
-    assert.equal(isPublicSupporterCheckoutSelection({ membershipLevel: "PRACTICE", supporterAmountChoiceId: "support-5" }), false)
+  it("accepts only Supporter amount choices with a supported Checkout interval", () => {
+    for (const interval of ["month", "year"]) {
+      assert.equal(isPublicSupporterCheckoutSelection({
+        membershipLevel: "SUPPORTER",
+        supporterAmountChoiceId: "support-1",
+        interval,
+      }), true)
+    }
+
+    for (const interval of [undefined, "", "week", "monthly"]) {
+      assert.equal(isPublicSupporterCheckoutSelection({
+        membershipLevel: "SUPPORTER",
+        supporterAmountChoiceId: "support-1",
+        interval,
+      }), false)
+    }
+
+    assert.equal(isPublicSupporterCheckoutSelection({
+      membershipLevel: "THERAPIST",
+      supporterAmountChoiceId: "support-1",
+      interval: "month",
+    }), false)
+    assert.equal(isPublicSupporterCheckoutSelection({
+      membershipLevel: "PRACTICE",
+      supporterAmountChoiceId: "support-5",
+      interval: "year",
+    }), false)
   })
 
   it("blocks new Checkout for every relevant or canceling persisted subscription", () => {

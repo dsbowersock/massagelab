@@ -140,13 +140,24 @@ function passThroughElement(type) {
 
 function TestComponent() {}
 
-async function renderPublicPricing({ session, subscriptions }) {
+async function renderPublicPricing({
+  session,
+  subscriptions,
+  membershipStatusError = null,
+  renderedPricingModes = [],
+}) {
   const pricingPageSource = await readFile(
     new URL("../app/pricing/page.tsx", import.meta.url),
     "utf8",
   )
   let subscriptionQueries = 0
   function MembershipPricingCards() {}
+  const createPricingElement = (type, props, key) => {
+    if (type === MembershipPricingCards) {
+      renderedPricingModes.push(props.mode)
+    }
+    return createElement(type, props, key)
+  }
 
   const pricingPage = loadCompiledModule(
     pricingPageSource,
@@ -154,8 +165,8 @@ async function renderPublicPricing({ session, subscriptions }) {
     {
       "react/jsx-runtime": {
         Fragment: Symbol.for("supporter-final-review.fragment"),
-        jsx: createElement,
-        jsxs: createElement,
+        jsx: createPricingElement,
+        jsxs: createPricingElement,
       },
       "next/link": TestComponent,
       "lucide-react": {
@@ -185,6 +196,9 @@ async function renderPublicPricing({ session, subscriptions }) {
           membershipSubscription: {
             async findMany() {
               subscriptionQueries += 1
+              if (membershipStatusError) {
+                throw membershipStatusError
+              }
               return subscriptions
             },
           },
@@ -508,6 +522,22 @@ describe("Supporter membership final-review contracts", () => {
       ).length,
       1,
     )
+  })
+
+  it("fails closed without rendering Checkout when authenticated membership lookup rejects", async () => {
+    const membershipStatusError = new Error("membership database unavailable")
+    const renderedPricingModes = []
+
+    await assert.rejects(
+      () => renderPublicPricing({
+        session: { user: { id: "user_unknown_membership" } },
+        subscriptions: [],
+        membershipStatusError,
+        renderedPricingModes,
+      }),
+      (error) => error === membershipStatusError,
+    )
+    assert.deepEqual(renderedPricingModes, [])
   })
 
   it("keeps legacy runtime Price mappings until inventory and webhook reconciliation are final", async () => {

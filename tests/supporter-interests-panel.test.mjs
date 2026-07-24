@@ -277,9 +277,13 @@ describe("SupporterInterestsPanel", () => {
   it("rolls a failed save back to the previously persisted interests", async () => {
     const persistedInterest = supporterRoadmapInterestOptions[0].id
     const failedInterest = supporterRoadmapInterestOptions[1].id
+    const saveError = new Error("save request failed")
+    const logged = []
+    const originalConsoleError = console.error
+    console.error = (...args) => logged.push(args)
     const harness = createPanelHarness(async (_url, init = {}) => {
       if (init.method === "PUT") {
-        return createJsonResponse({}, false)
+        throw saveError
       }
 
       return createJsonResponse({
@@ -308,13 +312,27 @@ describe("SupporterInterestsPanel", () => {
         findLiveRegion(harness.getTree()).props.children,
         "Could not save roadmap interests. Please try again.",
       )
+      assert.deepEqual(logged, [[
+        "SupporterInterestsPanel failed to save roadmap interests",
+        saveError,
+      ]])
     } finally {
-      harness.dispose()
+      try {
+        harness.dispose()
+      } finally {
+        console.error = originalConsoleError
+      }
     }
   })
 
   it("announces an initial load failure as an alert and keeps interests disabled", async () => {
-    const harness = createPanelHarness(async () => createJsonResponse({}, false))
+    const loadError = new Error("load request failed")
+    const logged = []
+    const originalConsoleError = console.error
+    console.error = (...args) => logged.push(args)
+    const harness = createPanelHarness(async () => {
+      throw loadError
+    })
 
     try {
       harness.mount()
@@ -330,8 +348,16 @@ describe("SupporterInterestsPanel", () => {
         findInterestCheckbox(harness.getTree(), supporterRoadmapInterestOptions[0].id).props.disabled,
         true,
       )
+      assert.deepEqual(logged, [[
+        "SupporterInterestsPanel failed to load roadmap interests",
+        loadError,
+      ]])
     } finally {
-      harness.dispose()
+      try {
+        harness.dispose()
+      } finally {
+        console.error = originalConsoleError
+      }
     }
   })
 

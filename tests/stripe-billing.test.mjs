@@ -347,7 +347,6 @@ describe("Stripe billing helpers", () => {
 
   it("creates Supporter Checkout with exclusive automatic tax and address collection", async () => {
     let capturedPayload = null
-    let capturedListPayload = null
 
     await stripeBilling.createStripeCheckoutSession({
       customerId: "cus_123",
@@ -357,14 +356,10 @@ describe("Stripe billing helpers", () => {
       successUrl: "https://massagelab.app/account?checkout=success",
       cancelUrl: "https://massagelab.app/account?checkout=cancelled",
       env: supporterTaxEnv(),
-      nowSeconds: 1784912400,
       stripeClient: {
         checkout: {
           sessions: {
-            list: async (payload) => {
-              capturedListPayload = payload
-              return stripeCheckoutSessionList()
-            },
+            list: async () => stripeCheckoutSessionList(),
             create: async (payload) => {
               capturedPayload = payload
               return { id: "cs_123", url: "https://checkout.stripe.com/c/test" }
@@ -374,11 +369,6 @@ describe("Stripe billing helpers", () => {
       },
     })
 
-    assert.deepEqual(capturedListPayload, {
-      customer: "cus_123",
-      created: { gte: 1784307600 },
-      limit: 100,
-    })
     assert.deepEqual(capturedPayload.automatic_tax, { enabled: true })
     assert.equal(capturedPayload.billing_address_collection, "required")
     assert.deepEqual(capturedPayload.customer_update, { address: "auto" })
@@ -390,6 +380,31 @@ describe("Stripe billing helpers", () => {
       capturedPayload.metadata.checkoutContractVersion,
       "supporter_membership_v1_checkout_v1",
     )
+  })
+
+  it("uses Stripe's supported created.gte filter to bound Session reconciliation", async () => {
+    let capturedListPayload = null
+
+    await stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+      nowSeconds: 1784912400,
+      stripeClient: {
+        checkout: {
+          sessions: {
+            list: async (payload) => {
+              capturedListPayload = payload
+              return stripeCheckoutSessionList()
+            },
+            create: async () => membershipCheckoutSession({ id: "cs_created_filter" }),
+          },
+        },
+      },
+    }))
+
+    assert.deepEqual(capturedListPayload, {
+      customer: "cus_123",
+      created: { gte: 1784307600 },
+      limit: 100,
+    })
   })
 
   it("observes membership reconciliation duration without logging identifiers", async () => {
