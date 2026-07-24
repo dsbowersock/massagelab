@@ -161,6 +161,7 @@ function PlanCard({
             items={plan.roadmapNotes}
           />
         </div>
+        {/* Blocking subscriptions must change support through Portal, never a new Checkout. */}
         {mode === "portal" ? (
           <div className="mt-auto space-y-3">
             <div className="grid gap-3 sm:grid-cols-3">

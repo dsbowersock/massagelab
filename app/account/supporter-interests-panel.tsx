@@ -29,7 +29,13 @@ export function SupporterInterestsPanel() {
     async function loadInterests() {
       try {
         const response = await fetch("/api/account/preferences")
-        if (!response.ok || !active) {
+        if (!response.ok) {
+          if (active) {
+            setStatus("Could not load roadmap interests. Please try again.")
+          }
+          return
+        }
+        if (!active) {
           return
         }
 
@@ -38,8 +44,9 @@ export function SupporterInterestsPanel() {
           setInterests(normalizeSupporterRoadmapInterests(preferences.appSettings?.supporterRoadmapInterests))
         }
       } catch {
-        // The control remains usable: a later selection can retry the normal
-        // sanitized account-preferences save path.
+        if (active) {
+          setStatus("Could not load roadmap interests. Please try again.")
+        }
       } finally {
         if (active) {
           setIsLoading(false)
