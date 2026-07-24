@@ -13,20 +13,15 @@ import { config as loadDotenv } from "dotenv"
 import { BACKGROUND_COMMERCE_TAX_PRODUCT_CODE } from "../lib/commerce/constants.js"
 import { DIGITAL_PURCHASES_REFUNDS_VERSION } from "../lib/legal-documents.js"
 import {
+  REQUIRED_SUPPORTER_PRICE_CONTRACT,
+  validateRetrievedMembershipPrice,
+} from "../lib/stripe-readiness.js"
+import {
   STRIPE_API_VERSION,
   STRIPE_BACKGROUND_COMMERCE_WEBHOOK_EVENTS,
   STRIPE_PINNED_WEBHOOK_URL,
   validatePinnedStripeWebhookEndpoint,
 } from "../lib/stripe-webhook-contract.js"
-
-const REQUIRED_PRICE_VARS = Object.freeze([
-  ["STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID", "SUPPORTER", "month"],
-  ["STRIPE_SUPPORTER_1_YEARLY_PRICE_ID", "SUPPORTER", "year"],
-  ["STRIPE_SUPPORTER_2_MONTHLY_PRICE_ID", "SUPPORTER", "month"],
-  ["STRIPE_SUPPORTER_2_YEARLY_PRICE_ID", "SUPPORTER", "year"],
-  ["STRIPE_SUPPORTER_5_MONTHLY_PRICE_ID", "SUPPORTER", "month"],
-  ["STRIPE_SUPPORTER_5_YEARLY_PRICE_ID", "SUPPORTER", "year"],
-])
 
 const rawArgs = process.argv.slice(2)
 const args = new Set(rawArgs.filter((arg) => !arg.startsWith("--env-file=")))
@@ -111,25 +106,25 @@ function checkWebhookSecret() {
 }
 
 function checkPriceIds() {
-  for (const [key, level, interval] of REQUIRED_PRICE_VARS) {
-    const priceId = envValue(key)
+  for (const expected of REQUIRED_SUPPORTER_PRICE_CONTRACT) {
+    const priceId = envValue(expected.key)
     if (!priceId) {
-      addFailure(`${key} is missing.`)
+      addFailure(`${expected.key} is missing.`)
       continue
     }
 
     if (!priceId.startsWith("price_")) {
-      addFailure(`${key} must be a Stripe Price ID.`)
+      addFailure(`${expected.key} must be a Stripe Price ID.`)
       continue
     }
 
     if (priceIds.has(priceId)) {
       const duplicate = priceIds.get(priceId)
-      addFailure(`${key} duplicates ${duplicate.key}; each membership interval needs its own Price ID.`)
+      addFailure(`${expected.key} duplicates ${duplicate.key}; each membership interval needs its own Price ID.`)
       continue
     }
 
-    priceIds.set(priceId, { key, level, interval })
+    priceIds.set(priceId, expected)
   }
 }
 
@@ -237,16 +232,8 @@ async function verifyStripePrices() {
   for (const [priceId, expected] of priceIds) {
     try {
       const price = await stripe.prices.retrieve(priceId, { expand: ["product"] })
-      if (!price.active) {
-        addFailure(`${expected.key} points to an inactive Stripe Price.`)
-      }
-
-      if (price.recurring?.interval !== expected.interval) {
-        addFailure(`${expected.key} must be a ${expected.interval} recurring Price.`)
-      }
-
-      if (price.currency !== "usd") {
-        addWarning(`${expected.key} currency is ${price.currency}; expected usd for current MassageLab pricing.`)
+      for (const failure of validateRetrievedMembershipPrice(price, expected)) {
+        addFailure(failure)
       }
 
       const product = price.product

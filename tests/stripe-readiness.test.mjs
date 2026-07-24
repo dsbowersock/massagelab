@@ -1,6 +1,10 @@
 import assert from "node:assert/strict"
 import { spawnSync } from "node:child_process"
 import { describe, it } from "node:test"
+import {
+  REQUIRED_SUPPORTER_PRICE_CONTRACT,
+  validateRetrievedMembershipPrice,
+} from "../lib/stripe-readiness.js"
 
 const membershipPrices = {
   STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: "price_supporter_1_monthly",
@@ -39,6 +43,30 @@ function runReadiness(overrides = {}, args = []) {
 }
 
 describe("Stripe readiness background-commerce contract", () => {
+  it("requires the approved Supporter amounts during Stripe Price verification", () => {
+    assert.deepEqual(
+      REQUIRED_SUPPORTER_PRICE_CONTRACT.map(({ key, unitAmount }) => [key, unitAmount]),
+      [
+        ["STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID", 100],
+        ["STRIPE_SUPPORTER_1_YEARLY_PRICE_ID", 1000],
+        ["STRIPE_SUPPORTER_2_MONTHLY_PRICE_ID", 200],
+        ["STRIPE_SUPPORTER_2_YEARLY_PRICE_ID", 2000],
+        ["STRIPE_SUPPORTER_5_MONTHLY_PRICE_ID", 500],
+        ["STRIPE_SUPPORTER_5_YEARLY_PRICE_ID", 5000],
+      ],
+    )
+
+    const expected = REQUIRED_SUPPORTER_PRICE_CONTRACT[2]
+    assert.deepEqual(
+      validateRetrievedMembershipPrice({
+        active: true,
+        recurring: { interval: expected.interval },
+        currency: "usd",
+        unit_amount: 201,
+      }, expected),
+      [`${expected.key} must have unit_amount ${expected.unitAmount}; received 201.`],
+    )
+  })
   it("requires six unique Supporter amount Prices and ignores legacy catalog variables", () => {
     const missing = runReadiness({ STRIPE_SUPPORTER_2_YEARLY_PRICE_ID: "" })
     assert.equal(missing.status, 1)
