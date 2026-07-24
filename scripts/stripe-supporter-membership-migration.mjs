@@ -4,8 +4,10 @@ import process from "node:process"
 import { pathToFileURL } from "node:url"
 import Stripe from "stripe"
 import { recurringPriceSemanticsMatch } from "../lib/stripe-price-contract.js"
+import { STRIPE_API_VERSION } from "../lib/stripe-webhook-contract.js"
 
-const STRIPE_API_VERSION = "2026-02-25.clover"
+// Keep catalog mutation on the same explicitly pinned version as runtime
+// billing and the verified webhook endpoint rather than the SDK's moving default.
 const EXPECTED_TAX_CODE = "txcd_10000000"
 const SUPPORTER_PRODUCT_NAME = "MassageLab Supporter Membership"
 const SUPPORTER_CATALOG = "supporter_membership_v1"

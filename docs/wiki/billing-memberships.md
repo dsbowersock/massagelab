@@ -34,8 +34,9 @@ if (features.includes("chimer_custom_colors")) {
 - External provider calendar sync uses the `external_calendar_sync` feature key and is unlocked only by active Therapist or Practice memberships.
 - Stripe subscription records currently grant membership only when their Price
   ID matches one of the configured legacy Supporter, Therapist, or Practice
-  price environment variables. The migration must narrow public enrollment to
-  Supporter without branching feature access on displayed plan names.
+  price environment variables. Public enrollment is already limited to
+  Supporter; the controlled migration preserves historical reconciliation
+  without branching feature access on displayed plan names.
 - Student, donation, unknown, archived, or otherwise unmapped Stripe products and prices must not grant a paid membership.
 
 ## One-Time Support

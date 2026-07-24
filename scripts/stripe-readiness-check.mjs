@@ -259,7 +259,6 @@ async function verifyStripePrices() {
         const productName = String(product.name ?? "").toLowerCase()
         const expectedLevelName = expected.level.toLowerCase()
         const productNameMatches = productName.includes(expectedLevelName)
-          || (expected.level === "PRACTICE" && productName.includes("practice"))
         if (!productNameMatches) {
           addWarning(`${expected.key} Product name does not obviously match ${expected.level}.`)
         }

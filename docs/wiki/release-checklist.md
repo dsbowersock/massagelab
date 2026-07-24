@@ -23,13 +23,31 @@ Then walk [../alpha-qa.md](../alpha-qa.md) with anonymous test data where it sti
 
 ## Production Billing Gate
 
-Before public paid signup, run the production Stripe readiness check from an explicit production env file:
+Before changing the live catalog or running any live paid smoke:
+
+1. complete the database and Stripe subscriber inventory without exposing
+   customer identifiers;
+2. record a subscriber-specific grandfathering/tax decision for every active,
+   trialing, past-due, unpaid, paused, or canceling subscription;
+3. confirm the exact Therapist and Practice Product names and that any present
+   app or membership-level metadata matches the expected MassageLab retirement
+   identity;
+4. run `npm run stripe:migrate-supporter-membership -- --mode=verify` and stop
+   unless every safe check passes;
+5. deploy the supporter-only application, environment, and recurring-tax
+   contract together;
+6. run migration apply only after the explicit operator gate, then rerun verify
+   against the completed catalog; and
+7. run the production Stripe readiness check from an explicit production env
+   file:
 
 ```bash
 npm run stripe:readiness -- --env-file=/secure/path/massagelab-production.env --live --verify-stripe
 ```
 
-The command must pass without printing secret values. Then complete one real low-dollar live checkout and confirm:
+The migration verification and readiness command must pass without printing
+secret values. Only then complete the live Supporter and one-time-support smoke
+tests and confirm:
 
 - The only public membership is MassageLab Supporter Membership, at exactly
   $1/$2/$5 monthly or $10/$20/$50 annually.
@@ -50,26 +68,12 @@ The command must pass without printing secret values. Then complete one real low
 - The Stripe Customer Portal opens, permits switching only among the six
   Supporter Prices, and preserves cancellation, payment-method updates,
   billing-detail updates, invoice history, and return to MassageLab.
+- The $1 monthly enrollment, $2/$5 portal switch, payment/address update,
+  invoice, period-end cancellation, and webhook-backed entitlement paths pass.
 - The subscription is canceled or refunded as appropriate after the smoke test.
 - The one-time support path starts Stripe Checkout, returns to `/pricing`,
   states that it is not charitable or tax-deductible, and does not create a
   membership entitlement.
-
-Before changing the live catalog:
-
-1. complete the database and Stripe subscriber inventory without exposing
-   customer identifiers;
-2. record a subscriber-specific grandfathering/tax decision for every active,
-   trialing, past-due, unpaid, paused, or canceling subscription;
-3. confirm the exact Therapist and Practice Product names and that any present
-   app or membership-level metadata matches the expected MassageLab retirement
-   identity;
-4. run `npm run stripe:migrate-supporter-membership -- --mode=verify` and stop
-   unless every safe check passes;
-5. deploy the supporter-only application and recurring-tax contract together;
-6. run apply and verify only after the explicit operator gate; and
-7. complete the $1 monthly, $2/$5 portal-switch, payment/address, invoice,
-   period-end cancellation, and webhook-backed entitlement smoke.
 
 Retain the six legacy runtime Price mappings until subscriber inventory proves none remain and webhook reconciliation is final.
 Those mappings are historical normalization inputs only; they cannot replace

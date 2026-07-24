@@ -428,14 +428,16 @@ describe("Stripe billing helpers", () => {
     }
   })
 
-  it("serializes concurrent membership Checkout attempts across different amount selections", async () => {
+  it("serializes concurrent membership Checkout attempts for the same amount selection", async () => {
     const createdSessions = []
     const idempotentRequests = new Map()
     const stripeClient = {
       checkout: {
         sessions: {
           list: async () => stripeCheckoutSessionList(createdSessions),
-          listLineItems: async () => stripeCheckoutLineItemList(),
+          listLineItems: async () => stripeCheckoutLineItemList({
+            priceId: "price_supporter_monthly",
+          }),
           create: async (payload, requestOptions) => {
             const idempotencyKey = requestOptions?.idempotencyKey
             if (!idempotencyKey) {
@@ -479,7 +481,7 @@ describe("Stripe billing helpers", () => {
         stripeClient,
       })),
       stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
-        priceId: "price_supporter_yearly",
+        priceId: "price_supporter_monthly",
         stripeClient,
       })),
     ])
@@ -517,6 +519,49 @@ describe("Stripe billing helpers", () => {
 
     assert.equal(result.id, "cs_open")
     assert.equal(createCalls, 0)
+  })
+
+  it("expires an open membership Checkout Session when the requested amount changes", async () => {
+    const openSession = membershipCheckoutSession({ id: "cs_open_monthly" })
+    const calls = []
+    let createdPayload = null
+    const result = await stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+      priceId: "price_supporter_yearly",
+      stripeClient: {
+        checkout: {
+          sessions: {
+            list: async () => stripeCheckoutSessionList([openSession]),
+            listLineItems: async () => stripeCheckoutLineItemList({
+              priceId: "price_supporter_monthly",
+            }),
+            expire: async (sessionId) => {
+              calls.push(["expire", sessionId])
+              return { id: sessionId, object: "checkout.session", status: "expired" }
+            },
+            retrieve: async (sessionId) => {
+              calls.push(["retrieve", sessionId])
+              return { id: sessionId, object: "checkout.session", status: "expired" }
+            },
+            create: async (payload) => {
+              createdPayload = payload
+              return membershipCheckoutSession({ id: "cs_open_yearly" })
+            },
+          },
+        },
+        subscriptions: {
+          retrieve: async () => {
+            throw new Error("an open Checkout Session must not retrieve a subscription")
+          },
+        },
+      },
+    }))
+
+    assert.equal(result.id, "cs_open_yearly")
+    assert.deepEqual(calls, [
+      ["expire", "cs_open_monthly"],
+      ["retrieve", "cs_open_monthly"],
+    ])
+    assert.equal(createdPayload.line_items[0].price, "price_supporter_yearly")
   })
 
   it("expires purpose-less legacy Supporter, Therapist, and Practice Sessions before creating current Checkout", async () => {
