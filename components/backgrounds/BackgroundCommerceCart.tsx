@@ -31,21 +31,23 @@ const NOTICE_COPY: Record<string, string> = {
 function CartContents({
   compact,
   onReviewCheckout,
+  pathname,
+  search,
   signedIn,
 }: {
   compact: boolean
   onReviewCheckout?: () => void
+  pathname: string
+  search: string
   signedIn: boolean
 }) {
   const { state, removeFromCart, cancelReservation } = useBackgroundCommerce()
   const [localError, setLocalError] = useState("")
-  const pathname = usePathname() ?? "/"
-  const searchParams = useSearchParams()
   const cart = state.snapshot?.cart
 
   // Preserve the picker route and query through authentication. The compact
   // cart is already visible there; only dialog mode needs the one-shot reopen marker.
-  const authReturnPath = buildBackgroundCartAuthReturnPath(pathname, searchParams.toString(), !compact)
+  const authReturnPath = buildBackgroundCartAuthReturnPath(pathname, search, !compact)
   if (!cart) {
     return <p role="status" className="text-sm text-muted-foreground">Loading cart...</p>
   }
@@ -189,7 +191,7 @@ export function BackgroundCommerceCart({
 }) {
   const { cartOpen, closeCart, openCart, signedIn } = useBackgroundCommerce()
   const [reviewOpen, setReviewOpen] = useState(false)
-  const pathname = usePathname() ?? ""
+  const pathname = usePathname() ?? "/"
   const searchParams = useSearchParams()
   const search = searchParams.toString()
   const isCalendarRoute = pathname === "/calendar" || pathname.startsWith("/calendar/")
@@ -223,7 +225,13 @@ export function BackgroundCommerceCart({
   if (variant === "compact") {
     return (
       <>
-        <CartContents compact onReviewCheckout={beginReview} signedIn={signedIn} />
+        <CartContents
+          compact
+          onReviewCheckout={beginReview}
+          pathname={pathname}
+          search={search}
+          signedIn={signedIn}
+        />
         <BackgroundCheckoutReview open={reviewOpen} onOpenChange={setReviewOpen} />
       </>
     )
@@ -242,7 +250,13 @@ export function BackgroundCommerceCart({
               Permanent MassageLab background purchases. Provider services and Calendar sales are separate.
             </DialogDescription>
           </DialogHeader>
-          <CartContents compact={false} onReviewCheckout={beginReview} signedIn={signedIn} />
+          <CartContents
+            compact={false}
+            onReviewCheckout={beginReview}
+            pathname={pathname}
+            search={search}
+            signedIn={signedIn}
+          />
         </DialogContent>
       </Dialog>
       <BackgroundCheckoutReview open={reviewOpen} onOpenChange={setReviewOpen} />

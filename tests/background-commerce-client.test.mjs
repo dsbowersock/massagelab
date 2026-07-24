@@ -241,6 +241,9 @@ describe("background cart authentication return paths", () => {
       buildBackgroundCartAuthReturnPath("https://example.com", "panel=background"),
       "/?panel=background&commerceCart=open",
     )
+  })
+
+  it("allows colons as ordinary app-local path characters", () => {
     assert.equal(
       buildBackgroundCartAuthReturnPath("/reports/2026:07", "panel=background"),
       "/reports/2026:07?panel=background&commerceCart=open",
