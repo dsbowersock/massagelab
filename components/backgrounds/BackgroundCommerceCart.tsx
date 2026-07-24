@@ -190,6 +190,8 @@ export function BackgroundCommerceCart({
   const { cartOpen, closeCart, openCart, signedIn } = useBackgroundCommerce()
   const [reviewOpen, setReviewOpen] = useState(false)
   const pathname = usePathname() ?? ""
+  const searchParams = useSearchParams()
+  const search = searchParams.toString()
   const isCalendarRoute = pathname === "/calendar" || pathname.startsWith("/calendar/")
   const beginReview = () => {
     onReviewCheckout?.()
@@ -206,7 +208,7 @@ export function BackgroundCommerceCart({
     // dialog cart consumes it, then removes it so later navigation cannot
     // repeatedly reopen a cart the user already dismissed.
     if (variant !== "dialog" || !signedIn) return
-    const params = new URLSearchParams(window.location.search)
+    const params = new URLSearchParams(search)
     if (params.get(BACKGROUND_CART_AUTH_RETURN_PARAM) !== "open") return
 
     openCart()
@@ -214,7 +216,7 @@ export function BackgroundCommerceCart({
     const nextSearch = params.toString()
     const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash}`
     window.history.replaceState(window.history.state, "", nextUrl)
-  }, [openCart, pathname, signedIn, variant])
+  }, [openCart, pathname, search, signedIn, variant])
 
   if (isCalendarRoute) return null
 

@@ -267,6 +267,27 @@ describe("background cart authentication return paths", () => {
       ),
       "/clock?panel=background",
     )
+
+    const duplicateMarkerPath = buildBackgroundCartAuthReturnPath(
+      "/clock#stale-cart",
+      "panel=background&commerceCart=closed&commerceCart=open",
+    )
+    const duplicateMarkerUrl = new URL(duplicateMarkerPath, "https://massagelab.local")
+    assert.equal(duplicateMarkerUrl.pathname, "/clock")
+    assert.equal(duplicateMarkerUrl.hash, "")
+    assert.equal(duplicateMarkerUrl.searchParams.get("panel"), "background")
+    assert.deepEqual(duplicateMarkerUrl.searchParams.getAll("commerceCart"), ["open"])
+
+    const markerRemovedPath = buildBackgroundCartAuthReturnPath(
+      "/clock#stale-cart",
+      "panel=background&commerceCart=closed&commerceCart=open",
+      false,
+    )
+    const markerRemovedUrl = new URL(markerRemovedPath, "https://massagelab.local")
+    assert.equal(markerRemovedUrl.pathname, "/clock")
+    assert.equal(markerRemovedUrl.hash, "")
+    assert.equal(markerRemovedUrl.searchParams.get("panel"), "background")
+    assert.deepEqual(markerRemovedUrl.searchParams.getAll("commerceCart"), [])
   })
 })
 
