@@ -61,13 +61,12 @@ The app generates public SEO metadata, `robots.txt`, and `sitemap.xml` from `lib
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
 NEXT_PUBLIC_STRIPE_DONATION_URL=
-MASSAGELAB_EARLY_ACCESS_DISCOUNT_ENABLED=true
-STRIPE_SUPPORTER_MONTHLY_PRICE_ID=
-STRIPE_SUPPORTER_YEARLY_PRICE_ID=
-STRIPE_THERAPIST_MONTHLY_PRICE_ID=
-STRIPE_THERAPIST_YEARLY_PRICE_ID=
-STRIPE_PRACTICE_MONTHLY_PRICE_ID=
-STRIPE_PRACTICE_YEARLY_PRICE_ID=
+STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID=
+STRIPE_SUPPORTER_1_YEARLY_PRICE_ID=
+STRIPE_SUPPORTER_2_MONTHLY_PRICE_ID=
+STRIPE_SUPPORTER_2_YEARLY_PRICE_ID=
+STRIPE_SUPPORTER_5_MONTHLY_PRICE_ID=
+STRIPE_SUPPORTER_5_YEARLY_PRICE_ID=
 ```
 
 Free and Student are internal access states. Do not create a Stripe Free product.
@@ -75,12 +74,57 @@ Student is not a Stripe-backed subscription tier. If a Student product or price 
 
 Before enabling subscription checkout, confirm:
 
-- Supporter, Therapist, and Practice each have the intended monthly and yearly recurring Price IDs.
-- The Stripe Customer Portal is enabled and configured for subscription management.
+- `MassageLab Supporter Membership` is the only public membership Product and has tax code `txcd_10000000`.
+- Its six exclusive USD recurring Prices are exactly $1, $2, or $5 monthly and $10, $20, or $50 yearly.
+- The Stripe Customer Portal permits subscription Price changes only among those six Prices while preserving cancellation, payment-method updates, billing address/name/email updates, and invoice history.
 - `/api/billing/webhook` is registered with the Stripe webhook signing secret.
 - Local and Vercel environments contain the same required Stripe keys and Price IDs for their respective test or live mode.
 - Production uses a live `STRIPE_SECRET_KEY`, a live webhook signing secret, and live recurring Price IDs. Test-mode keys or empty production Price IDs are launch blockers.
 - Run `npm run stripe:readiness -- --env-file=/secure/path/massagelab-production.env --live --verify-stripe` with production env values before public paid signup.
+
+### Supporter catalog migration
+
+The catalog migration is a separately controlled operation. It does not read a
+database or print customer, subscriber, secret, or payment details. Supply every
+legacy Product, Price, coupon, portal-configuration, and allowed test-subscription
+ID through the `MASSAGELAB_STRIPE_MIGRATION_*` variables documented in
+`.env.example`. Set `MASSAGELAB_STRIPE_MIGRATION_MODE` to `test` or `live`; the
+command refuses a mismatch with both the secret-key prefix and Stripe account
+mode. Use the exact existing Supporter Product ID when it should be renamed and
+reused. `CREATE_NEW` is an explicit exceptional authorization and is rejected if
+a managed target Product already exists. Use `none` for the allowed subscription
+only after a complete inventory proves no active, trialing, past-due, unpaid,
+paused, or canceling subscription exists.
+
+Run verification first:
+
+```bash
+npm run stripe:migrate-supporter-membership -- --mode=verify
+```
+
+Verify mode performs Stripe GET/list requests only. It checks the exact
+subscriber inventory, live/test mode, Product tax classification, legacy and
+approved Price ownership/amounts, zero-redemption coupon contracts, and portal
+preservation settings. It accepts either the exact safe pre-migration
+dependencies or the already-correct post-migration state. Any unexpected object
+or dependency is a blocker.
+
+Only after reviewing the safe PASS checklist, run:
+
+```bash
+npm run stripe:migrate-supporter-membership -- --mode=apply
+npm run stripe:migrate-supporter-membership -- --mode=verify
+```
+
+Apply creates or reuses the one managed Supporter Product and six Prices,
+restricts the portal to those Prices, retires the legacy $9/$90, $29/$279, and
+$79/$759 Prices, retires the Therapist and Practice Products, and deletes the
+two verified zero-redemption coupons. It re-retrieves every mutation and a
+second apply is a read-only no-op. Do not run apply until the deployed
+Supporter-only application, subscriber decision, recurring-tax classification,
+and migration inputs have all been independently reviewed. Remove the
+migration-only variables after the operation; keep the six approved runtime
+Price IDs.
 
 ## Sentry
 
