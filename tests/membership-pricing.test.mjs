@@ -90,6 +90,8 @@ describe("Membership pricing catalog", () => {
 
     assert.doesNotMatch(pricingCards, /earlyAccess|Development discount|10% off forever/i)
     assert.match(pricingCards, /function resolveChoicePrice/)
+    assert.match(pricingCards, /return choice\.prices\[interval\]/)
+    assert.doesNotMatch(pricingCards, /choice\.prices\.year\s*\?\?|choice\.prices\.month/)
     assert.match(pricingCards, /if \(!price\) return null/)
     assert.doesNotMatch(environmentExample, /MASSAGELAB_EARLY_ACCESS_DISCOUNT_ENABLED/)
     assert.doesNotMatch(readinessCheck, /MASSAGELAB_EARLY_ACCESS_DISCOUNT_ENABLED|Early Access|early access/)

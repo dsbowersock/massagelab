@@ -137,10 +137,11 @@ describe("Account preference helpers", () => {
     )
 
     assert.match(source, /const previousInterests = interests/)
-    assert.match(
-      source,
-      /catch\s*\{[\s\S]*setInterests\(previousInterests\)[\s\S]*Could not save roadmap interests/,
-    )
+    const savePath = source.slice(source.indexOf("const previousInterests = interests"))
+    const catchBlock = savePath.match(/catch\s*\{(?<body>[\s\S]*?)\}\s*finally\s*\{/)
+    assert.ok(catchBlock?.groups?.body, "save failure catch block should remain explicit")
+    assert.match(catchBlock.groups.body, /setInterests\(previousInterests\)/)
+    assert.match(catchBlock.groups.body, /Could not save roadmap interests/)
   })
 
   it("preserves namespaced Music visualizer preferences while stripping forbidden nested keys", () => {

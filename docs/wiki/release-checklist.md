@@ -41,6 +41,12 @@ Before changing the live catalog or running any live paid smoke:
 7. run the production Stripe readiness check from an explicit production env
    file:
 
+The GET-only migration verify is the pre-apply safety authority. Do not require
+the completed-catalog readiness command to pass before apply: in `CREATE_NEW`
+mode, the classified Product and six Prices do not exist until the gated apply
+creates them. After apply, both migration verify and production readiness must
+pass before any live paid smoke or public enrollment.
+
 ```bash
 npm run stripe:readiness -- --env-file=/secure/path/massagelab-production.env --live --verify-stripe
 ```

@@ -212,12 +212,12 @@ function PlanCard({
   )
 }
 
-// Prefer the requested interval, then fall back to annual and monthly pricing.
+// A billing-cycle tab must never display or submit a Price from another interval.
 function resolveChoicePrice(
   choice: MembershipPlan["amountChoices"][number],
   interval: string,
 ) {
-  return choice.prices[interval] ?? choice.prices.year ?? choice.prices.month
+  return choice.prices[interval]
 }
 
 function FeatureGroup({

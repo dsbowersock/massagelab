@@ -137,6 +137,16 @@ describe("Stripe readiness background-commerce contract", () => {
       currency_options: null,
       product: { tax_code: "txcd_10000000" },
     }
+    assert.deepEqual(
+      validateRetrievedMembershipPrice({
+        ...basePrice,
+        currency_options: {
+          usd: { unit_amount: expected.unitAmount },
+        },
+      }, expected),
+      [],
+      "Stripe may expand currency_options with only the base currency",
+    )
     const cases = [
       [
         (candidate) => { candidate.recurring.interval_count = 2 },
@@ -162,7 +172,22 @@ describe("Stripe readiness background-commerce contract", () => {
       ],
       [
         (candidate) => {
-          candidate.currency_options = { eur: { unit_amount: expected.unitAmount } }
+          candidate.currency_options = {
+            usd: { unit_amount: expected.unitAmount },
+            eur: { unit_amount: expected.unitAmount },
+          }
+        },
+        `${expected.key} must not define additional currency options.`,
+      ],
+      [
+        (candidate) => {
+          candidate.currency_options = { usd: null }
+        },
+        `${expected.key} must not define additional currency options.`,
+      ],
+      [
+        (candidate) => {
+          candidate.currency_options = "usd"
         },
         `${expected.key} must not define additional currency options.`,
       ],
