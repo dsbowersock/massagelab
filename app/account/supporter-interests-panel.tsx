@@ -24,6 +24,7 @@ type PanelMessage = {
 export function SupporterInterestsPanel() {
   const [interests, setInterests] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [hasLoadedInterests, setHasLoadedInterests] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [message, setMessage] = useState<PanelMessage | null>(null)
 
@@ -48,8 +49,12 @@ export function SupporterInterestsPanel() {
         }
 
         const preferences = await response.json()
+        const normalizedInterests = normalizeSupporterRoadmapInterests(
+          preferences.appSettings?.supporterRoadmapInterests,
+        )
         if (active) {
-          setInterests(normalizeSupporterRoadmapInterests(preferences.appSettings?.supporterRoadmapInterests))
+          setInterests(normalizedInterests)
+          setHasLoadedInterests(true)
         }
       } catch {
         if (active) {
@@ -147,7 +152,7 @@ export function SupporterInterestsPanel() {
                 <Checkbox
                   id={`supporter-roadmap-interest-${option.id}`}
                   checked={checked}
-                  disabled={isLoading || isSaving}
+                  disabled={isLoading || !hasLoadedInterests || isSaving}
                   onCheckedChange={(value) => toggleInterest(option.id, value === true)}
                 />
                 {option.label}

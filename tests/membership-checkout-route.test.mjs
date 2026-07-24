@@ -170,6 +170,49 @@ describe("Membership Checkout POST route", () => {
   })
 
   for (const [label, errorOption] of [
+    ["session lookup", "sessionError"],
+    ["public selection validation", "selectionError"],
+    ["Stripe price resolution", "priceResolutionError"],
+  ]) {
+    it(`routes a rejected ${label} through the form-safe Checkout error response`, async () => {
+      const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
+      const failure = new Error(`${label} failed`)
+      failure.code = `${errorOption}_failed`
+      const logged = []
+      const originalConsoleError = console.error
+      console.error = (...args) => logged.push(args)
+
+      try {
+        const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
+          [errorOption]: failure,
+        }))(formRequest({
+          membershipLevel: "SUPPORTER",
+          supporterAmountChoiceId: "support-1",
+          interval: "month",
+          acceptedLegalDocuments: "membership-billing-refunds:current",
+          billingTermsAccepted: "true",
+        }))
+
+        assert.deepEqual(response, {
+          url: "https://massagelab.app/account?billing=checkout-error",
+          status: 303,
+        })
+        assert.deepEqual(calls, {
+          ensureCustomer: 0,
+          createCheckout: 0,
+          membershipLookup: 0,
+        })
+        assert.deepEqual(logged, [[
+          "Unable to start membership checkout",
+          { code: `${errorOption}_failed` },
+        ]])
+      } finally {
+        console.error = originalConsoleError
+      }
+    })
+  }
+
+  for (const [label, errorOption] of [
     ["membership subscription lookup", "membershipLookupError"],
     ["legal acceptance lookup", "acceptedDocumentsError"],
     ["user lookup", "userLookupError"],
@@ -233,16 +276,28 @@ function checkoutDependencies(calls, {
   membershipLookupError = null,
   acceptedDocumentsError = null,
   userLookupError = null,
+  sessionError = null,
+  selectionError = null,
+  priceResolutionError = null,
 } = {}) {
   return {
     NextResponse: {
       json: (body, init = {}) => ({ body, status: init.status ?? 200 }),
       redirect: (url, status) => ({ url, status }),
     },
-    getCurrentSession: async () => ({ user: { id: "user_123" } }),
+    getCurrentSession: async () => {
+      if (sessionError) throw sessionError
+      return { user: { id: "user_123" } }
+    },
     getSiteUrl: () => "https://massagelab.app",
-    isPublicSupporterCheckoutSelection: (input) => input.membershipLevel === "SUPPORTER" && input.supporterAmountChoiceId === "support-1",
-    resolveStripePriceId: () => "price_supporter_1_month",
+    isPublicSupporterCheckoutSelection: (input) => {
+      if (selectionError) throw selectionError
+      return input.membershipLevel === "SUPPORTER" && input.supporterAmountChoiceId === "support-1"
+    },
+    resolveStripePriceId: () => {
+      if (priceResolutionError) throw priceResolutionError
+      return "price_supporter_1_month"
+    },
     acceptedDocumentIdsFromInput: (ids) => ids,
     hasAcceptedCurrentDocuments: async () => {
       if (acceptedDocumentsError) throw acceptedDocumentsError

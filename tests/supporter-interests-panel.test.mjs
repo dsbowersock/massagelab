@@ -248,6 +248,7 @@ describe("SupporterInterestsPanel", () => {
 
       assert.equal(findInterestCheckbox(harness.getTree(), initialInterest).props.checked, true)
       assert.equal(findInterestCheckbox(harness.getTree(), addedInterest).props.checked, false)
+      assert.equal(findInterestCheckbox(harness.getTree(), addedInterest).props.disabled, false)
 
       findInterestCheckbox(harness.getTree(), addedInterest).props.onCheckedChange(true)
       harness.render()
@@ -312,7 +313,7 @@ describe("SupporterInterestsPanel", () => {
     }
   })
 
-  it("announces an initial load failure as an alert", async () => {
+  it("announces an initial load failure as an alert and keeps interests disabled", async () => {
     const harness = createPanelHarness(async () => createJsonResponse({}, false))
 
     try {
@@ -327,7 +328,7 @@ describe("SupporterInterestsPanel", () => {
       )
       assert.equal(
         findInterestCheckbox(harness.getTree(), supporterRoadmapInterestOptions[0].id).props.disabled,
-        false,
+        true,
       )
     } finally {
       harness.dispose()
