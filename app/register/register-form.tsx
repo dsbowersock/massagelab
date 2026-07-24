@@ -53,7 +53,15 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
       const response = await fetch("/api/account/register", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name, email, password, acceptedLegalDocuments }),
+        // Carry the app-local destination through verification; the API
+        // revalidates it before sending the link.
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+          acceptedLegalDocuments,
+          callbackUrl: initialCallbackUrl,
+        }),
       })
       const result = (await response.json().catch(() => ({}))) as { message?: string; devLink?: string }
 

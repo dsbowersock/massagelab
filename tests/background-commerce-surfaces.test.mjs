@@ -132,7 +132,7 @@ describe("background acquisition and shared account cart", () => {
     for (const label of [
       "Review checkout",
       "Applicable tax is calculated from your billing address at Stripe Checkout.",
-      "Permanent access after membership ends",
+      "Purchased backgrounds stay available to your account permanently.",
       "Remove",
       "Return to checkout",
       "Cancel reservation",
@@ -144,6 +144,13 @@ describe("background acquisition and shared account cart", () => {
     assert.match(source, /state\.status === "mutating" \|\| state\.status === "redirecting"/)
     assert.match(source, /await removeFromCart\(backgroundId\)/)
     assert.match(source, /The item could not be removed\./)
+    assert.match(source, /buildBackgroundCartAuthReturnPath/)
+    assert.match(source, /useSearchParams/)
+    assert.match(source, /searchParams\.toString\(\)/)
+    assert.match(source, /encodeURIComponent\(authReturnPath\)/)
+    assert.match(source, /BACKGROUND_CART_AUTH_RETURN_PARAM/)
+    assert.match(source, /openCart\(\)/)
+    assert.match(source, /window\.history\.replaceState/)
   })
 
   it("shows one shared conditional trigger outside Calendar provider-sales surfaces", async () => {

@@ -6,12 +6,30 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 ## 2026-07-23 — Background purchase surfaces visual review
 
+- Merged Track 1B in PR #141, deployed the merged source to Production, and
+  enabled paid background purchasing only after all operational gates passed:
+  36 current migrations, two zero-grant idempotent credit-backfill passes,
+  clean reconciliation, active Ohio Stripe Tax configuration, exact
+  `txcd_10000000` classification, and the enabled pinned 15-event webhook
+  contract at the app API version.
+- Completed the taxed sandbox smoke with a one-dollar subtotal, eight cents of
+  Ohio tax, webhook-backed fulfillment, replay-safe idempotency, and clean
+  reconciliation. The controlled live Silk purchase then recorded a one-dollar
+  subtotal, seven cents of Stripe-calculated Ohio tax, a successful $1.07
+  payment, processed completion webhook, fulfilled order, active purchase
+  ownership, and clean post-fulfillment reconciliation.
+- Corrected two issues found during the controlled live flow: cart copy now
+  says purchased backgrounds stay available to the purchasing account
+  permanently instead of assuming a membership, and guest cart authentication
+  now preserves the originating Background route and query, then reopens the
+  cart after existing login, Google registration, or email verification.
 - Pinned paid background readiness to the reviewed Stripe Tax code
   `txcd_10000000` (General Electronically Supplied Services) instead of
-  accepting any syntactically valid `txcd_` value. Verified one active Ohio
-  state sales-tax registration in Stripe and kept
+  accepting any syntactically valid `txcd_` value. Earlier in the rollout,
+  verified one active Ohio state sales-tax registration in Stripe and kept
   `BACKGROUND_COMMERCE_PURCHASING_ENABLED=false` pending the taxed test-mode
-  Checkout/fulfillment smoke.
+  Checkout/fulfillment smoke; that temporary hold was superseded by the
+  successful sandbox and live smokes recorded above.
 - Versioned the Digital Purchases and Refund Policy to
   `2026-07-digital-purchases-v2`. One purchase now expressly permits the
   purchaser's personal use and purchaser-operated display while serving
@@ -70,11 +88,12 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
   says applicable tax is calculated at Stripe Checkout.
 - Added a fail-fast guard for the derived Chimer background step and documented
   the explicit purchase-support reference gate.
-- Set the Vercel Production
+- Earlier in the rollout, set the Vercel Production
   `BACKGROUND_COMMERCE_PURCHASING_ENABLED=false` kill switch and redeployed the
-  existing PR #139 production source (`def0c365`) so paid background checkout is
-  disabled immediately while the tax-aware branch, Ohio registration, and
-  reviewed product classification remain incomplete.
+  existing PR #139 production source (`def0c365`) while the tax-aware branch,
+  Ohio registration, and reviewed product classification remained incomplete.
+  That temporary safeguard was later lifted only after the gates and smokes
+  recorded at the start of this section passed.
 
 ## 2026-07-22 — Background purchase surfaces release candidate
 

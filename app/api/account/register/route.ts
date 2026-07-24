@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { hashPassword, generateRandomToken, hashToken, normalizeEmail, tokenExpiresIn, verifyPassword } from "@/lib/auth-security"
-import { registrationVerificationResponse } from "@/lib/auth-registration"
+import { registrationVerificationResponse, sendRegistrationVerification } from "@/lib/auth-registration"
 import { sendVerificationEmail } from "@/lib/auth-mail"
 import { ensureUserRole } from "@/lib/auth-users"
 import { assertRateLimit, rateLimitKey, recordFailedAttempt } from "@/lib/auth-rate-limit"
@@ -11,6 +11,7 @@ import {
   recordLegalAcceptances,
 } from "@/lib/legal-acceptance"
 import { requiredLegalDocumentsForEvent } from "@/lib/legal-documents"
+import { safePostLegalAcceptanceCallback } from "@/lib/legal-acceptance-gate"
 import { prisma } from "@/lib/prisma"
 
 export async function POST(request: Request) {
@@ -18,6 +19,8 @@ export async function POST(request: Request) {
   const email = normalizeEmail(body.email)
   const password = typeof body.password === "string" ? body.password : ""
   const name = typeof body.name === "string" ? body.name.trim() : ""
+  // Gate the app-local destination before it reaches verification-link generation.
+  const callbackUrl = safePostLegalAcceptanceCallback(body.callbackUrl)
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? request.headers.get("x-real-ip") ?? "unknown"
   const key = rateLimitKey(email, ip)
   const requiredDocuments = requiredLegalDocumentsForEvent("registration")
@@ -65,7 +68,9 @@ export async function POST(request: Request) {
           documents: requiredDocuments,
           metadata: legalRequestMetadata(request),
         })
-        const resendResult = registrationVerificationResponse(await sendVerificationEmail(email, verificationToken))
+        const resendResult = registrationVerificationResponse(
+          await sendRegistrationVerification(sendVerificationEmail, email, verificationToken, callbackUrl),
+        )
 
         // Preserve usable links from overlapping resend requests; a successful resend only clears expired tokens.
         if (resendResult.status === 200) {
@@ -130,7 +135,7 @@ export async function POST(request: Request) {
     documents: requiredDocuments,
     metadata: legalRequestMetadata(request),
   })
-  const mailResult = await sendVerificationEmail(email, verificationToken)
+  const mailResult = await sendRegistrationVerification(sendVerificationEmail, email, verificationToken, callbackUrl)
   const response = registrationVerificationResponse(mailResult)
 
   return NextResponse.json(response.body, { status: response.status })

@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client"
 import Link from "next/link"
 import { hashToken, isTokenUsable } from "@/lib/auth-security"
+import { buildVerificationLoginPath, normalizeEmailVerificationParams } from "@/lib/auth-registration"
 import { ensureUserRole } from "@/lib/auth-users"
 import { ensureVerifiedUserBackgroundCredits } from "@/lib/commerce/credit-service"
 import { runCommerceTransaction } from "@/lib/commerce/transactions"
@@ -11,9 +12,9 @@ import { Button } from "@/components/ui/button"
 export default async function VerifyEmailPage({
   searchParams,
 }: {
-  searchParams: Promise<{ token?: string }>
+  searchParams: Promise<{ token?: string | string[]; callbackUrl?: string | string[] }>
 }) {
-  const token = (await searchParams).token ?? ""
+  const { token, callbackUrl } = normalizeEmailVerificationParams(await searchParams)
   let title = "Verification link required"
   let description = "Open the verification link from your email to activate your account."
   let verified = false
@@ -51,11 +52,15 @@ export default async function VerifyEmailPage({
     }
   }
 
+  // Preserve the normalized app-local destination while the shared builder
+  // applies the verification-state fallback for unsuccessful verification.
+  const loginHref = buildVerificationLoginPath(verified, callbackUrl)
+
   return (
     <AppPageShell title="Email Verification" width="narrow">
         <AppSurface title={title} description={description}>
             <Button asChild>
-              <Link href={verified ? "/login?verified=1&callbackUrl=%2Fonboarding" : "/login"}>Go to login</Link>
+              <Link href={loginHref}>Go to login</Link>
             </Button>
         </AppSurface>
     </AppPageShell>

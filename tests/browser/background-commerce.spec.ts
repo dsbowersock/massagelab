@@ -266,11 +266,17 @@ async function installGuestFixture(page: Page) {
   })
 }
 
-async function openClockBackground(page: Page) {
-  await page.goto("/clock", { waitUntil: "domcontentloaded" })
-  await expect(page.getByLabel("Chimer clock")).toBeVisible()
-  await page.getByRole("button", { name: "Background", exact: true }).click()
-  await expect(page.getByRole("dialog", { name: "Background" })).toBeVisible()
+async function openClockBackground(page: Page, href = "/clock") {
+  await page.goto(href, { waitUntil: "domcontentloaded" })
+  const backgroundPanel = page.getByRole("dialog", { name: "Background" })
+  const panelRequested = new URL(href, "http://massagelab.local").searchParams.get("panel") === "background"
+  // The router opens a URL-requested panel; clicking its toggle again would
+  // close or otherwise change the state the caller is trying to exercise.
+  if (!panelRequested) {
+    await expect(page.getByLabel("Chimer clock")).toBeVisible()
+    await page.getByRole("button", { name: "Background", exact: true }).click()
+  }
+  await expect(backgroundPanel).toBeVisible()
 }
 
 async function centerPremium(page: Page, backgroundId: string) {
@@ -295,7 +301,7 @@ async function startActiveChimer(page: Page) {
 
 test("guest cart persists locally and requires an account only at checkout", async ({ page }) => {
   await installGuestFixture(page)
-  await openClockBackground(page)
+  await openClockBackground(page, "/clock?source=music&returnTo=%2Fmusic&panel=background")
   const backgroundPanel = page.getByRole("dialog", { name: "Background" })
   const guestAurora = await centerPremium(page, AURORA_ID)
 
@@ -319,13 +325,15 @@ test("guest cart persists locally and requires an account only at checkout", asy
   const compactCart = backgroundPanel.getByRole("region", { name: "MassageLab cart" })
   await expect(compactCart).toContainText("Aurora field")
   await expect(compactCart.getByRole("button", { name: "Review checkout" })).toHaveCount(0)
-  await expect(compactCart.getByRole("link", { name: "Sign in to checkout" })).toHaveAttribute(
+  const signInLink = compactCart.getByRole("link", { name: "Sign in to checkout" })
+  const registerLink = compactCart.getByRole("link", { name: "Create account" })
+  await expect(signInLink).toHaveAttribute(
     "href",
-    "/login?callbackUrl=%2Faccount%3Ftab%3Dorders-invoices",
+    "/login?callbackUrl=%2Fclock%3Fsource%3Dmusic%26returnTo%3D%252Fmusic%26panel%3Dbackground",
   )
-  await expect(compactCart.getByRole("link", { name: "Create account" })).toHaveAttribute(
+  await expect(registerLink).toHaveAttribute(
     "href",
-    "/register?callbackUrl=%2Faccount%3Ftab%3Dorders-invoices",
+    "/register?callbackUrl=%2Fclock%3Fsource%3Dmusic%26returnTo%3D%252Fmusic%26panel%3Dbackground",
   )
 
   await page.reload({ waitUntil: "domcontentloaded" })
@@ -336,10 +344,50 @@ test("guest cart persists locally and requires an account only at checkout", asy
   const cartDialog = page.getByRole("dialog", { name: "MassageLab cart" })
   await expect(cartDialog).toContainText("This cart is saved in this browser until you sign in.")
   await expect(cartDialog).toContainText("Aurora field")
+  await expect(cartDialog.getByRole("link", { name: "Sign in to checkout" })).toHaveAttribute(
+    "href",
+    "/login?callbackUrl=%2Fmusic%3FcommerceCart%3Dopen",
+  )
   await page.keyboard.press("Escape")
 
   await page.evaluate(() => window.history.pushState({}, "", "/calendar"))
   await expect(trigger).toHaveCount(0)
+})
+
+test("signed-in cart return marker opens once and is consumed", async ({ context, page }, testInfo) => {
+  const baseURL = String(testInfo.project.use.baseURL)
+  await installCommerceFixture({
+    context,
+    page,
+    baseURL,
+    initialSnapshot: emptySnapshot({
+      cart: {
+        items: [PRODUCTS[AURORA_ID]],
+        reservedOrder: null,
+        subtotalAmount: 100,
+        currency: "usd",
+        notices: [],
+      },
+    }),
+  })
+
+  await page.goto("/clock?commerceCart=open", { waitUntil: "domcontentloaded" })
+  const accountCart = page.getByRole("dialog", { name: "Account cart" })
+  await expect(accountCart).toBeVisible()
+  await expect(page).toHaveURL(/\/clock$/)
+  await page.keyboard.press("Escape")
+  await expect(accountCart).toHaveCount(0)
+
+  await page.goto("/music", { waitUntil: "domcontentloaded" })
+  await page.goBack({ waitUntil: "domcontentloaded" })
+  await expect(page).toHaveURL(/\/clock$/)
+  await expect(accountCart).toHaveCount(0)
+
+  await page.goto("/calendar?commerceCart=open", { waitUntil: "domcontentloaded" })
+  await expect(page).toHaveURL(/\/calendar$/)
+  await expect(accountCart).toHaveCount(0)
+  await page.goto("/music", { waitUntil: "domcontentloaded" })
+  await expect(accountCart).toHaveCount(0)
 })
 
 test("Clock redeems one explicit permanent credit and keeps the nested dialog focus order", async ({ context, page }, testInfo) => {

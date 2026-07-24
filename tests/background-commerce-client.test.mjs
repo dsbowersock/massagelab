@@ -4,6 +4,7 @@ import {
   EMPTY_BACKGROUND_COMMERCE_STATE,
   backgroundCardCommerceState,
   backgroundCommerceReducer,
+  buildBackgroundCartAuthReturnPath,
   formatCommerceAmount,
   normalizeBackgroundCommerceSnapshot,
 } from "../lib/background-commerce-client.js"
@@ -217,6 +218,83 @@ describe("commerce amount formatting", () => {
     assert.equal(formatCommerceAmount(-1), "$0.00")
     assert.equal(formatCommerceAmount(1.5), "$0.00")
     assert.equal(formatCommerceAmount(100, "cad"), "$1.00")
+  })
+})
+
+describe("background cart authentication return paths", () => {
+  it("preserves the originating route and picker query while requesting the cart to reopen", () => {
+    assert.equal(
+      buildBackgroundCartAuthReturnPath(
+        "/clock",
+        "source=music&returnTo=%2Fmusic&panel=background",
+      ),
+      "/clock?source=music&returnTo=%2Fmusic&panel=background&commerceCart=open",
+    )
+    assert.equal(
+      buildBackgroundCartAuthReturnPath("/chimer", ""),
+      "/chimer?commerceCart=open",
+    )
+  })
+
+  it("falls back to an app-local route for unsafe paths", () => {
+    assert.equal(
+      buildBackgroundCartAuthReturnPath("https://example.com", "panel=background"),
+      "/?panel=background&commerceCart=open",
+    )
+  })
+
+  it("allows colons as ordinary app-local path characters", () => {
+    assert.equal(
+      buildBackgroundCartAuthReturnPath("/reports/2026:07", "panel=background"),
+      "/reports/2026:07?panel=background&commerceCart=open",
+    )
+  })
+
+  it("rejects alternate unsafe paths and replaces stale cart markers", () => {
+    for (const unsafePath of ["//example.com", "/\\example.com", "/\n//example.com"]) {
+      assert.equal(
+        buildBackgroundCartAuthReturnPath(unsafePath, "panel=background"),
+        "/?panel=background&commerceCart=open",
+      )
+    }
+
+    assert.equal(
+      buildBackgroundCartAuthReturnPath(
+        "/clock",
+        "commerceCart=closed&panel=background",
+      ),
+      "/clock?commerceCart=open&panel=background",
+    )
+
+    assert.equal(
+      buildBackgroundCartAuthReturnPath(
+        "/clock",
+        "commerceCart=open&panel=background",
+        false,
+      ),
+      "/clock?panel=background",
+    )
+
+    const duplicateMarkerPath = buildBackgroundCartAuthReturnPath(
+      "/clock#stale-cart",
+      "panel=background&commerceCart=closed&commerceCart=open",
+    )
+    const duplicateMarkerUrl = new URL(duplicateMarkerPath, "https://massagelab.local")
+    assert.equal(duplicateMarkerUrl.pathname, "/clock")
+    assert.equal(duplicateMarkerUrl.hash, "")
+    assert.equal(duplicateMarkerUrl.searchParams.get("panel"), "background")
+    assert.deepEqual(duplicateMarkerUrl.searchParams.getAll("commerceCart"), ["open"])
+
+    const markerRemovedPath = buildBackgroundCartAuthReturnPath(
+      "/clock#stale-cart",
+      "panel=background&commerceCart=closed&commerceCart=open",
+      false,
+    )
+    const markerRemovedUrl = new URL(markerRemovedPath, "https://massagelab.local")
+    assert.equal(markerRemovedUrl.pathname, "/clock")
+    assert.equal(markerRemovedUrl.hash, "")
+    assert.equal(markerRemovedUrl.searchParams.get("panel"), "background")
+    assert.deepEqual(markerRemovedUrl.searchParams.getAll("commerceCart"), [])
   })
 })
 

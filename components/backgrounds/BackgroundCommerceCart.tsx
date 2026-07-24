@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { ShoppingCart, Trash2 } from "lucide-react"
-import { usePathname } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation"
 import { BackgroundCheckoutReview } from "@/components/backgrounds/BackgroundCheckoutReview"
 import { useBackgroundCommerce } from "@/components/backgrounds/BackgroundCommerceProvider"
 import { Button } from "@/components/ui/button"
@@ -14,7 +14,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { formatCommerceAmount } from "@/lib/background-commerce-client.js"
+import {
+  BACKGROUND_CART_AUTH_RETURN_PARAM,
+  buildBackgroundCartAuthReturnPath,
+  formatCommerceAmount,
+} from "@/lib/background-commerce-client.js"
 import { cn } from "@/lib/utils"
 
 const NOTICE_COPY: Record<string, string> = {
@@ -27,15 +31,23 @@ const NOTICE_COPY: Record<string, string> = {
 function CartContents({
   compact,
   onReviewCheckout,
+  pathname,
+  search,
   signedIn,
 }: {
   compact: boolean
   onReviewCheckout?: () => void
+  pathname: string
+  search: string
   signedIn: boolean
 }) {
   const { state, removeFromCart, cancelReservation } = useBackgroundCommerce()
   const [localError, setLocalError] = useState("")
   const cart = state.snapshot?.cart
+
+  // Preserve the picker route and query through authentication. The compact
+  // cart is already visible there; only dialog mode needs the one-shot reopen marker.
+  const authReturnPath = buildBackgroundCartAuthReturnPath(pathname, search, !compact)
   if (!cart) {
     return <p role="status" className="text-sm text-muted-foreground">Loading cart...</p>
   }
@@ -146,7 +158,7 @@ function CartContents({
 
       <div className="grid gap-1 text-xs text-muted-foreground">
         <p>Applicable tax is calculated from your billing address at Stripe Checkout.</p>
-        <p>Permanent access after membership ends.</p>
+        <p>Purchased backgrounds stay available to your account permanently.</p>
         {!signedIn ? <p>This cart is saved in this browser until you sign in.</p> : null}
       </div>
 
@@ -158,10 +170,10 @@ function CartContents({
       {!reservedOrder && cart.items.length > 0 && !signedIn ? (
         <div className="grid gap-2 sm:grid-cols-2">
           <Button asChild>
-            <Link href="/login?callbackUrl=%2Faccount%3Ftab%3Dorders-invoices">Sign in to checkout</Link>
+            <Link href={`/login?callbackUrl=${encodeURIComponent(authReturnPath)}`}>Sign in to checkout</Link>
           </Button>
           <Button asChild variant="outline">
-            <Link href="/register?callbackUrl=%2Faccount%3Ftab%3Dorders-invoices">Create account</Link>
+            <Link href={`/register?callbackUrl=${encodeURIComponent(authReturnPath)}`}>Create account</Link>
           </Button>
         </div>
       ) : null}
@@ -177,9 +189,11 @@ export function BackgroundCommerceCart({
   variant: "compact" | "dialog"
   onReviewCheckout?: () => void
 }) {
-  const { cartOpen, closeCart, signedIn } = useBackgroundCommerce()
+  const { cartOpen, closeCart, openCart, signedIn } = useBackgroundCommerce()
   const [reviewOpen, setReviewOpen] = useState(false)
-  const pathname = usePathname() ?? ""
+  const pathname = usePathname() ?? "/"
+  const searchParams = useSearchParams()
+  const search = searchParams.toString()
   const isCalendarRoute = pathname === "/calendar" || pathname.startsWith("/calendar/")
   const beginReview = () => {
     onReviewCheckout?.()
@@ -191,12 +205,33 @@ export function BackgroundCommerceCart({
     if (variant === "dialog" && isCalendarRoute && cartOpen) closeCart()
   }, [cartOpen, closeCart, isCalendarRoute, variant])
 
+  useEffect(() => {
+    // Authentication writes commerceCart=open into the return URL; only the
+    // dialog cart consumes it, then removes it so later navigation cannot
+    // repeatedly reopen a cart the user already dismissed.
+    if (variant !== "dialog" || !signedIn) return
+    const params = new URLSearchParams(search)
+    if (params.get(BACKGROUND_CART_AUTH_RETURN_PARAM) !== "open") return
+
+    if (!isCalendarRoute) openCart()
+    params.delete(BACKGROUND_CART_AUTH_RETURN_PARAM)
+    const nextSearch = params.toString()
+    const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash}`
+    window.history.replaceState(window.history.state, "", nextUrl)
+  }, [isCalendarRoute, openCart, pathname, search, signedIn, variant])
+
   if (isCalendarRoute) return null
 
   if (variant === "compact") {
     return (
       <>
-        <CartContents compact onReviewCheckout={beginReview} signedIn={signedIn} />
+        <CartContents
+          compact
+          onReviewCheckout={beginReview}
+          pathname={pathname}
+          search={search}
+          signedIn={signedIn}
+        />
         <BackgroundCheckoutReview open={reviewOpen} onOpenChange={setReviewOpen} />
       </>
     )
@@ -215,7 +250,13 @@ export function BackgroundCommerceCart({
               Permanent MassageLab background purchases. Provider services and Calendar sales are separate.
             </DialogDescription>
           </DialogHeader>
-          <CartContents compact={false} onReviewCheckout={beginReview} signedIn={signedIn} />
+          <CartContents
+            compact={false}
+            onReviewCheckout={beginReview}
+            pathname={pathname}
+            search={search}
+            signedIn={signedIn}
+          />
         </DialogContent>
       </Dialog>
       <BackgroundCheckoutReview open={reviewOpen} onOpenChange={setReviewOpen} />
