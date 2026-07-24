@@ -90,10 +90,12 @@ Before enabling subscription checkout, confirm:
 - Its six exclusive USD recurring Prices are exactly $1, $2, or $5 monthly and
   $10, $20, or $50 yearly, with `interval_count=1`, no trial, licensed usage,
   per-unit billing, no quantity transform, and no additional currencies.
-- Repeated or concurrent enrollment requests reuse the one open
-  MassageLab-owned membership Checkout Session; a completed relevant
-  subscription blocks with billing-management guidance until webhook
-  persistence catches up.
+- Repeated or concurrent enrollment requests reuse only an exact
+  `supporter_membership_v1_checkout_v1` Session whose current configured Price,
+  classified Product, Automatic Tax, and billing-address contract verify.
+  Recognized incompatible historical open Sessions must be confirmed expired;
+  completed historical Sessions with a relevant subscription still block with
+  billing-management guidance until webhook persistence catches up.
 - The Stripe Customer Portal permits subscription Price changes only among those six Prices while preserving cancellation, payment-method updates, billing address/name/email updates, and invoice history.
 - `/api/billing/webhook` is registered with the Stripe webhook signing secret.
 - Local and Vercel environments contain the same required Stripe keys and Price IDs for their respective test or live mode.

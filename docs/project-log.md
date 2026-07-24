@@ -45,9 +45,11 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
   all-background access in public Current benefits.
 - Whole-branch review follow-up closes the pre-webhook concurrency window:
   membership Checkout now paginates only MassageLab-owned customer Sessions,
-  reuses an open Session, treats a completed relevant Stripe subscription as
-  authoritative, serializes competing creates with one terminal-attempt-scoped
-  idempotency key, and safely relists after ambiguous or conflicting creates.
+  reuses only an exact current contract-versioned open Session after verifying
+  its six-Price catalog, Product, tax, and address fields; expires and confirms
+  every recognized incompatible historical open Session; treats completed
+  historical Sessions with relevant Stripe subscriptions as authoritative; and
+  safely serializes or recovers competing creates and expirations.
   Migration preflight now also requires exact Therapist/Practice Product names
   and rejects contradictory optional MassageLab metadata before any mutation.
 - RED-first focused billing/readiness/route coverage passed after

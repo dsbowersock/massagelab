@@ -376,6 +376,10 @@ describe("Stripe billing helpers", () => {
       price: "price_supporter",
       quantity: 1,
     }])
+    assert.equal(
+      capturedPayload.metadata.checkoutContractVersion,
+      "supporter_membership_v1_checkout_v1",
+    )
   })
 
   it("fails closed before creating Supporter Checkout when any recurring-tax gate is absent", async () => {
@@ -421,6 +425,7 @@ describe("Stripe billing helpers", () => {
       checkout: {
         sessions: {
           list: async () => stripeCheckoutSessionList(createdSessions),
+          listLineItems: async () => stripeCheckoutLineItemList(),
           create: async (payload, requestOptions) => {
             const idempotencyKey = requestOptions?.idempotencyKey
             if (!idempotencyKey) {
@@ -485,6 +490,7 @@ describe("Stripe billing helpers", () => {
         checkout: {
           sessions: {
             list: async () => stripeCheckoutSessionList([openSession]),
+            listLineItems: async () => stripeCheckoutLineItemList(),
             create: async () => {
               createCalls += 1
               return membershipCheckoutSession({ id: "cs_duplicate" })
@@ -500,6 +506,247 @@ describe("Stripe billing helpers", () => {
     }))
 
     assert.equal(result.id, "cs_open")
+    assert.equal(createCalls, 0)
+  })
+
+  it("expires purpose-less legacy Supporter, Therapist, and Practice Sessions before creating current Checkout", async () => {
+    const sessions = [
+      membershipCheckoutSession({
+        id: "cs_legacy_supporter_9",
+        membershipLevel: "SUPPORTER",
+        purpose: null,
+      }),
+      membershipCheckoutSession({
+        id: "cs_legacy_therapist",
+        membershipLevel: "THERAPIST",
+        purpose: null,
+      }),
+      membershipCheckoutSession({
+        id: "cs_legacy_practice",
+        membershipLevel: "PRACTICE",
+        purpose: null,
+      }),
+    ]
+    const calls = []
+    const result = await stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+      stripeClient: {
+        checkout: {
+          sessions: {
+            list: async ({ starting_after: startingAfter } = {}) => {
+              calls.push(["list", startingAfter ?? null])
+              return startingAfter
+                ? stripeCheckoutSessionList(sessions.slice(1))
+                : { ...stripeCheckoutSessionList(sessions.slice(0, 1)), has_more: true }
+            },
+            expire: async (sessionId) => {
+              calls.push(["expire", sessionId])
+              return { id: sessionId, object: "checkout.session", status: "expired" }
+            },
+            retrieve: async (sessionId) => {
+              calls.push(["retrieve", sessionId])
+              return { id: sessionId, object: "checkout.session", status: "expired" }
+            },
+            create: async () => {
+              calls.push(["create"])
+              return membershipCheckoutSession({ id: "cs_current" })
+            },
+          },
+        },
+        subscriptions: {
+          retrieve: async () => {
+            throw new Error("open legacy Sessions must not retrieve subscriptions")
+          },
+        },
+      },
+    }))
+
+    assert.equal(result.id, "cs_current")
+    assert.deepEqual(
+      calls.filter(([operation]) => operation === "expire").map(([, id]) => id).sort(),
+      sessions.map(({ id }) => id).sort(),
+    )
+    assert.deepEqual(
+      calls.filter(([operation]) => operation === "retrieve").map(([, id]) => id).sort(),
+      sessions.map(({ id }) => id).sort(),
+    )
+    assert.equal(calls.at(-1)[0], "create")
+  })
+
+  it("preserves purpose-less completed membership Sessions for active-subscription blocking", async () => {
+    const completedSession = membershipCheckoutSession({
+      id: "cs_legacy_complete",
+      purpose: null,
+      status: "complete",
+      subscription: "sub_legacy_complete",
+      url: null,
+    })
+    let createCalls = 0
+    let expireCalls = 0
+    const result = await stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+      stripeClient: {
+        checkout: {
+          sessions: {
+            list: async () => stripeCheckoutSessionList([completedSession]),
+            expire: async () => {
+              expireCalls += 1
+              throw new Error("completed Sessions must not be expired")
+            },
+            create: async () => {
+              createCalls += 1
+              return membershipCheckoutSession({ id: "cs_duplicate" })
+            },
+          },
+        },
+        subscriptions: {
+          retrieve: async (subscriptionId) => ({
+            id: subscriptionId,
+            object: "subscription",
+            customer: "cus_123",
+            status: "active",
+            cancel_at_period_end: false,
+          }),
+        },
+      },
+    }))
+
+    assert.equal(result.id, "cs_legacy_complete")
+    assert.equal(expireCalls, 0)
+    assert.equal(createCalls, 0)
+  })
+
+  it("expires open Sessions with missing or contradictory current Checkout contracts", async () => {
+    const sessions = [
+      membershipCheckoutSession({
+        id: "cs_wrong_marker",
+        checkoutContractVersion: "supporter_membership_v0_checkout_v1",
+      }),
+      membershipCheckoutSession({
+        id: "cs_wrong_tax",
+        automaticTaxEnabled: false,
+      }),
+      membershipCheckoutSession({
+        id: "cs_wrong_address",
+        billingAddressCollection: "auto",
+      }),
+      membershipCheckoutSession({ id: "cs_wrong_catalog" }),
+    ]
+    const expired = []
+    let createCalls = 0
+    const result = await stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+      stripeClient: {
+        checkout: {
+          sessions: {
+            list: async () => stripeCheckoutSessionList(sessions),
+            listLineItems: async (sessionId) => (
+              sessionId === "cs_wrong_catalog"
+                ? stripeCheckoutLineItemList({
+                    priceId: "price_legacy_supporter_9",
+                    productCatalog: null,
+                  })
+                : stripeCheckoutLineItemList()
+            ),
+            expire: async (sessionId) => {
+              expired.push(sessionId)
+              return { id: sessionId, object: "checkout.session", status: "expired" }
+            },
+            retrieve: async (sessionId) => ({
+              id: sessionId,
+              object: "checkout.session",
+              status: "expired",
+            }),
+            create: async () => {
+              createCalls += 1
+              return membershipCheckoutSession({ id: "cs_current" })
+            },
+          },
+        },
+        subscriptions: {
+          retrieve: async () => {
+            throw new Error("open incompatible Sessions must not retrieve subscriptions")
+          },
+        },
+      },
+    }))
+
+    assert.equal(result.id, "cs_current")
+    assert.deepEqual(expired.sort(), sessions.map(({ id }) => id).sort())
+    assert.equal(createCalls, 1)
+  })
+
+  it("recovers an ambiguously committed legacy expiration only after retrieval confirms it", async () => {
+    const legacySession = membershipCheckoutSession({
+      id: "cs_legacy_ambiguous",
+      purpose: null,
+    })
+    let createCalls = 0
+    const result = await stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+      stripeClient: {
+        checkout: {
+          sessions: {
+            list: async () => stripeCheckoutSessionList([legacySession]),
+            expire: async () => {
+              throw new Error("connection closed after Stripe committed expiration")
+            },
+            retrieve: async (sessionId) => ({
+              id: sessionId,
+              object: "checkout.session",
+              status: "expired",
+            }),
+            create: async () => {
+              createCalls += 1
+              return membershipCheckoutSession({ id: "cs_current" })
+            },
+          },
+        },
+        subscriptions: {
+          retrieve: async () => {
+            throw new Error("open legacy Sessions must not retrieve subscriptions")
+          },
+        },
+      },
+    }))
+
+    assert.equal(result.id, "cs_current")
+    assert.equal(createCalls, 1)
+  })
+
+  it("fails closed when legacy expiration cannot be confirmed", async () => {
+    const legacySession = membershipCheckoutSession({
+      id: "cs_legacy_still_open",
+      purpose: null,
+    })
+    let createCalls = 0
+    await assert.rejects(
+      stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+        stripeClient: {
+          checkout: {
+            sessions: {
+              list: async () => stripeCheckoutSessionList([legacySession]),
+              expire: async (sessionId) => ({
+                id: sessionId,
+                object: "checkout.session",
+                status: "expired",
+              }),
+              retrieve: async (sessionId) => ({
+                id: sessionId,
+                object: "checkout.session",
+                status: "open",
+              }),
+              create: async () => {
+                createCalls += 1
+                return membershipCheckoutSession({ id: "cs_duplicate" })
+              },
+            },
+          },
+          subscriptions: {
+            retrieve: async () => {
+              throw new Error("open legacy Sessions must not retrieve subscriptions")
+            },
+          },
+        },
+      })),
+      /Unable to confirm legacy membership Checkout expiration/,
+    )
     assert.equal(createCalls, 0)
   })
 
@@ -799,6 +1046,12 @@ describe("Stripe billing helpers", () => {
 
 function supporterTaxEnv() {
   return {
+    STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: "price_supporter",
+    STRIPE_SUPPORTER_1_YEARLY_PRICE_ID: "price_supporter_yearly",
+    STRIPE_SUPPORTER_2_MONTHLY_PRICE_ID: "price_supporter_monthly",
+    STRIPE_SUPPORTER_2_YEARLY_PRICE_ID: "price_supporter_2_yearly",
+    STRIPE_SUPPORTER_5_MONTHLY_PRICE_ID: "price_supporter_5_monthly",
+    STRIPE_SUPPORTER_5_YEARLY_PRICE_ID: "price_supporter_5_yearly",
     STRIPE_SUPPORTER_AUTOMATIC_TAX_ENABLED: "true",
     STRIPE_SUPPORTER_TAX_PRODUCT_CODE: "txcd_10000000",
     STRIPE_SUPPORTER_TAX_PROVIDER_READY: "true",
@@ -825,19 +1078,38 @@ function membershipCheckoutSession({
   status = "open",
   subscription = null,
   url = "https://checkout.stripe.com/c/membership",
+  membershipLevel = "SUPPORTER",
+  purpose = "membership",
+  checkoutContractVersion = "supporter_membership_v1_checkout_v1",
+  automaticTaxEnabled = true,
+  billingAddressCollection = "required",
 } = {}) {
+  const metadata = {
+    userId: "user_123",
+    membershipLevel,
+  }
+  if (purpose !== null) {
+    metadata.purpose = purpose
+  }
+  if (checkoutContractVersion !== null) {
+    metadata.checkoutContractVersion = checkoutContractVersion
+  }
+
   return {
     id,
     object: "checkout.session",
+    automatic_tax: {
+      enabled: automaticTaxEnabled,
+      liability: null,
+      provider: null,
+      status: null,
+    },
+    billing_address_collection: billingAddressCollection,
     created: 1784912400,
     customer: "cus_123",
     client_reference_id: "user_123",
     livemode: false,
-    metadata: {
-      purpose: "membership",
-      userId: "user_123",
-      membershipLevel: "SUPPORTER",
-    },
+    metadata,
     mode: "subscription",
     status,
     subscription,
@@ -851,5 +1123,58 @@ function stripeCheckoutSessionList(data = []) {
     data,
     has_more: false,
     url: "/v1/checkout/sessions",
+  }
+}
+
+function stripeCheckoutLineItemList({
+  priceId = "price_supporter",
+  productCatalog = "supporter_membership_v1",
+} = {}) {
+  return {
+    object: "list",
+    data: [{
+      id: "li_membership",
+      object: "item",
+      amount_discount: 0,
+      amount_subtotal: 100,
+      amount_tax: 0,
+      amount_total: 100,
+      currency: "usd",
+      description: "MassageLab Supporter Membership",
+      discounts: [],
+      price: {
+        id: priceId,
+        object: "price",
+        active: true,
+        billing_scheme: "per_unit",
+        currency: "usd",
+        currency_options: {},
+        metadata: {},
+        product: {
+          id: "prod_supporter_current",
+          object: "product",
+          active: true,
+          metadata: productCatalog
+            ? { massagelab_catalog: productCatalog }
+            : {},
+          name: "MassageLab Supporter Membership",
+          tax_code: "txcd_10000000",
+        },
+        recurring: {
+          interval: "month",
+          interval_count: 1,
+          trial_period_days: null,
+          usage_type: "licensed",
+        },
+        tax_behavior: "exclusive",
+        transform_quantity: null,
+        type: "recurring",
+        unit_amount: 100,
+        unit_amount_decimal: "100",
+      },
+      quantity: 1,
+    }],
+    has_more: false,
+    url: "/v1/checkout/sessions/cs_membership/line_items",
   }
 }

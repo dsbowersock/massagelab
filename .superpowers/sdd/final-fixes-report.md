@@ -156,3 +156,56 @@ Final validation:
 No schema migration, external network call, live Stripe/database inventory,
 catalog mutation, deployment, or live smoke was performed. The operational
 gates listed above remain required.
+
+## Legacy Open Session Compatibility Follow-Up
+
+Status: `DONE_WITH_CONCERNS`
+
+Starting HEAD: `11eb2569433c208e5b7ab1a71c7a18a0d72b3a5a`
+
+The compatibility review proved that purpose-less open legacy $9 Supporter,
+Therapist, and Practice Sessions could be reused by the current Supporter
+route. New Sessions now carry the non-secret
+`supporter_membership_v1_checkout_v1` marker. Reuse requires exact customer and
+user ownership, that marker, one of the six current configured Price IDs, the
+expanded `supporter_membership_v1` Product and tax classification, Automatic
+Tax, and required billing-address collection.
+
+Every recognized incompatible open membership Session is expired with a
+deterministic idempotency key and then re-retrieved. An ambiguous expiry POST is
+accepted only when retrieval confirms `expired`; otherwise Checkout fails
+closed. Purpose-less completed Sessions remain eligible for relevant active
+subscription blocking before webhook persistence.
+
+Focused RED:
+
+```text
+node --test tests/stripe-billing.test.mjs
+```
+
+Result: 27 tests, 22 passed, 5 failed for the missing version marker, legacy or
+contradictory open Session reuse, missing ambiguous-expiry recovery, and missing
+unconfirmed-expiry rejection. The completed historical blocking regression
+passed as the compatibility behavior to preserve.
+
+Focused GREEN:
+
+```text
+node --test tests/stripe-billing.test.mjs tests/membership-checkout-route.test.mjs tests/stripe-supporter-membership-migration.test.mjs
+```
+
+Result: 62/62 passed. Full validation is recorded below after the final gates.
+
+Final validation:
+
+- `npm run test`: 1,434/1,434 passed across 157 suites.
+- `npm run typecheck`: passed.
+- `npm run lint`: passed, with only the existing large-file Babel
+  deoptimization notes.
+- `npm run build`: passed; Prisma generation, production compilation,
+  TypeScript, and 101/101 static pages completed.
+- `git diff --check`: passed, with only Git line-ending conversion warnings.
+
+No schema migration, external network call, live Stripe/database inventory,
+catalog mutation, deployment, or live smoke was performed. The existing
+operational rollout gates remain required.

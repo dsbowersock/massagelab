@@ -126,9 +126,13 @@ the approved Supporter amounts.
 
 New enrollment is serialized at Stripe, not only hidden in the UI. The server
 fully paginates a bounded customer Session inventory, recognizes only
-MassageLab-owned paid-membership Sessions, reuses an open Session, blocks a
-completed relevant subscription while webhook persistence catches up, and
-rotates the deterministic attempt key only after the prior Session is terminal.
+MassageLab-owned paid-membership Sessions, and reuses an open Session only when
+its explicit checkout-contract version, one configured current Price, expanded
+classified Product, Automatic Tax, and required billing-address fields all
+match. Purpose-less and contradictory open historical Sessions are expired with
+deterministic idempotency and re-retrieved as expired before current Checkout
+creation. Purpose-less completed Sessions still block when their subscription
+is relevant while webhook persistence catches up.
 
 The deployable migration command creates or verifies this one Product and six
 exclusive recurring Prices, removes only the two independently verified

@@ -39,9 +39,11 @@ The command must pass without printing secret values. Then complete one real low
   interval count one with no trial, licensed per-unit usage, no quantity
   transform or additional currencies, and belongs to the classified Supporter
   Product.
-- Concurrent or repeated enrollment returns one open Checkout Session, and a
-  completed relevant Session blocks another Checkout while signed webhook
-  persistence catches up.
+- Concurrent or repeated enrollment returns one exact current
+  contract-versioned Checkout Session; purpose-less or contradictory
+  historical open membership Sessions are confirmed expired, while a completed
+  historical Session with a relevant subscription blocks another Checkout
+  during signed-webhook persistence.
 - The Checkout session uses Automatic Tax, requires a billing address, updates
   the Stripe Customer address, completes, and returns to MassageLab.
 - Membership status updates from the signed webhook.
