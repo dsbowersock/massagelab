@@ -8,7 +8,6 @@ import {
   buildCheckoutSessionPayload,
   buildEntitlements,
   buildStudentAccessState,
-  getCheckoutDiscountCouponId,
   isActiveSubscriptionStatus,
   isPublicSupporterCheckoutSelection,
   resolveStripePriceId,
@@ -122,21 +121,6 @@ describe("Membership and entitlement helpers", () => {
     assert.equal(expired.eligibleForTherapistDiscount, true)
   })
 
-  it("uses student upgrade discount before early access discount", () => {
-    assert.equal(
-      getCheckoutDiscountCouponId({ membershipLevel: "THERAPIST", isStudentTherapistUpgrade: true, earlyAccessEnabled: true }),
-      COUPON_IDS.studentToTherapist,
-    )
-    assert.equal(
-      getCheckoutDiscountCouponId({ membershipLevel: "SUPPORTER", isStudentTherapistUpgrade: false, earlyAccessEnabled: true }),
-      COUPON_IDS.earlyAccess,
-    )
-    assert.equal(
-      getCheckoutDiscountCouponId({ membershipLevel: "PRACTICE", isStudentTherapistUpgrade: false, earlyAccessEnabled: false }),
-      null,
-    )
-  })
-
   it("resolves each public Supporter amount choice to its interval-specific Stripe Price", () => {
     const env = {
       STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: "price_supporter_1_monthly",
@@ -204,7 +188,7 @@ describe("Membership and entitlement helpers", () => {
       membershipLevel: "THERAPIST",
       successUrl: "https://massagelab.app/account?checkout=success",
       cancelUrl: "https://massagelab.app/account?checkout=cancelled",
-      couponId: COUPON_IDS.earlyAccess,
+      couponId: COUPON_IDS.studentToTherapist,
     })
 
     assert.deepEqual(payload, {
@@ -219,7 +203,7 @@ describe("Membership and entitlement helpers", () => {
       "metadata[membershipLevel]": "THERAPIST",
       "subscription_data[metadata][userId]": "user_123",
       "subscription_data[metadata][membershipLevel]": "THERAPIST",
-      "discounts[0][coupon]": COUPON_IDS.earlyAccess,
+      "discounts[0][coupon]": COUPON_IDS.studentToTherapist,
     })
   })
 

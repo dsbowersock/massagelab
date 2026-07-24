@@ -58,11 +58,6 @@ export type AccountCredentialsSurfaceData = {
 
 export type MembershipPricingCatalog = {
   defaultInterval: string
-  earlyAccess: {
-    enabled: boolean
-    label: string
-    description: string
-  }
   intervals: ReadonlyArray<{
     id: string
     label: string

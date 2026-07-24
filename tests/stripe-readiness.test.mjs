@@ -23,7 +23,6 @@ function runReadiness(overrides = {}, args = []) {
       PATH: process.env.PATH,
       STRIPE_SECRET_KEY: "sk_test_readiness",
       STRIPE_WEBHOOK_SECRET: "whsec_readiness",
-      MASSAGELAB_EARLY_ACCESS_DISCOUNT_ENABLED: "false",
       BACKGROUND_COMMERCE_PURCHASING_ENABLED: "true",
       BACKGROUND_COMMERCE_PRICE_CENTS: "100",
       BACKGROUND_COMMERCE_CURRENCY: "usd",
@@ -43,6 +42,12 @@ function runReadiness(overrides = {}, args = []) {
 }
 
 describe("Stripe readiness background-commerce contract", () => {
+  it("ignores the retired Early Access environment flag", () => {
+    const result = runReadiness({ MASSAGELAB_EARLY_ACCESS_DISCOUNT_ENABLED: "not-a-boolean" })
+
+    assert.equal(result.status, 0, result.stderr || result.stdout)
+    assert.doesNotMatch(`${result.stdout}${result.stderr}`, /EARLY_ACCESS|Early Access|early access/)
+  })
   it("requires the approved Supporter amounts during Stripe Price verification", () => {
     assert.deepEqual(
       REQUIRED_SUPPORTER_PRICE_CONTRACT.map(({ key, unitAmount }) => [key, unitAmount]),

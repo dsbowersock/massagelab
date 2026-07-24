@@ -66,12 +66,6 @@ const COUPONS = Object.freeze([
     percent_off: 20,
     duration: "forever",
   },
-  {
-    id: "E6lYinBx",
-    name: "Early Access 10% Discount",
-    percent_off: 10,
-    duration: "forever",
-  },
 ])
 
 const rawArgs = process.argv.slice(2)
@@ -112,7 +106,6 @@ for (const couponSpec of COUPONS) {
 
 const webhookSecret = await ensureWebhookSecret()
 output.set("STRIPE_WEBHOOK_SECRET", webhookSecret)
-output.set("MASSAGELAB_EARLY_ACCESS_DISCOUNT_ENABLED", "false")
 writeOutputFile(outputFile, output)
 
 for (const note of notes) {

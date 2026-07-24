@@ -36,7 +36,7 @@ describe("Stripe billing helpers", () => {
       current_period_end: 1781383200,
       cancel_at_period_end: false,
       canceled_at: null,
-      discount: { coupon: { id: "E6lYinBx" } },
+      discount: { coupon: { id: "kfRFWYmC" } },
       metadata: { userId: "user_123", membershipLevel: "SUPPORTER" },
       items: {
         data: [
@@ -61,7 +61,7 @@ describe("Stripe billing helpers", () => {
       currentPeriodEnd: new Date("2026-06-13T20:40:00.000Z"),
       cancelAtPeriodEnd: false,
       canceledAt: null,
-      couponId: "E6lYinBx",
+      couponId: "kfRFWYmC",
       metadata: { userId: "user_123", membershipLevel: "SUPPORTER" },
     })
     assert.equal(stripeTimestampToDate(null), null)
@@ -326,7 +326,7 @@ describe("Stripe billing helpers", () => {
       membershipLevel: "SUPPORTER",
       successUrl: "https://massagelab.app/account?checkout=success",
       cancelUrl: "https://massagelab.app/account?checkout=cancelled",
-      couponId: "E6lYinBx",
+      couponId: "kfRFWYmC",
       stripeClient: {
         checkout: {
           sessions: {
@@ -339,7 +339,7 @@ describe("Stripe billing helpers", () => {
       },
     })
 
-    assert.deepEqual(capturedPayload.discounts, [{ coupon: "E6lYinBx" }])
+    assert.deepEqual(capturedPayload.discounts, [{ coupon: "kfRFWYmC" }])
     assert.equal(Object.hasOwn(capturedPayload, "allow_promotion_codes"), false)
   })
 

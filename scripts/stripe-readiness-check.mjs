@@ -128,22 +128,6 @@ function checkPriceIds() {
   }
 }
 
-function checkEarlyAccessFlag() {
-  const value = envValue("MASSAGELAB_EARLY_ACCESS_DISCOUNT_ENABLED")
-  if (!value) {
-    addWarning("MASSAGELAB_EARLY_ACCESS_DISCOUNT_ENABLED is not set; checkout will treat early access as disabled.")
-    return
-  }
-
-  if (!["true", "false"].includes(value.toLowerCase())) {
-    addFailure("MASSAGELAB_EARLY_ACCESS_DISCOUNT_ENABLED must be true or false.")
-  }
-
-  if (liveMode && value.toLowerCase() === "true") {
-    addWarning("Early-access discount is enabled in live mode. Confirm this is intentional before public signups.")
-  }
-}
-
 function isExplicitTrue(value) {
   return String(value ?? "").trim().toLowerCase() === "true"
 }
@@ -316,7 +300,6 @@ function printResults(commerce) {
 checkSecretKey()
 checkWebhookSecret()
 checkPriceIds()
-checkEarlyAccessFlag()
 const commerce = checkBackgroundCommerceReadiness()
 await verifyStripePrices()
 printResults(commerce)

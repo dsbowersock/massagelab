@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import {
   formatMembershipPrice,
@@ -22,7 +23,6 @@ describe("Membership pricing catalog", () => {
 
   it("groups six configured Stripe Prices under one Supporter offering with three amount choices", async () => {
     const env = {
-      MASSAGELAB_EARLY_ACCESS_DISCOUNT_ENABLED: "true",
       STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: "price_supporter_1_month",
       STRIPE_SUPPORTER_1_YEARLY_PRICE_ID: "price_supporter_1_year",
       STRIPE_SUPPORTER_2_MONTHLY_PRICE_ID: "price_supporter_2_month",
@@ -48,8 +48,7 @@ describe("Membership pricing catalog", () => {
     const supporter = catalog.plans[0]
 
     assert.equal(catalog.defaultInterval, "year")
-    assert.equal(catalog.earlyAccess.enabled, true)
-    assert.equal(catalog.earlyAccess.couponId, "E6lYinBx")
+    assert.equal(Object.hasOwn(catalog, "earlyAccess"), false)
     assert.deepEqual(catalog.intervals.map((interval) => interval.id), ["year", "month"])
     assert.equal(catalog.plans.length, 1)
     assert.equal(supporter.name, "MassageLab Supporter Membership")
@@ -62,7 +61,7 @@ describe("Membership pricing catalog", () => {
     const catalog = await getMembershipPricingCatalog({ env: {} })
 
     assert.equal(catalog.defaultInterval, "year")
-    assert.equal(catalog.earlyAccess.enabled, false)
+    assert.equal(Object.hasOwn(catalog, "earlyAccess"), false)
     assert.equal(catalog.plans.length, 1)
     assert.equal(catalog.plans[0].amountChoices[0].prices.year.isConfigured, false)
     assert.equal(catalog.plans[0].amountChoices[0].prices.year.isLookupAvailable, false)
@@ -75,5 +74,19 @@ describe("Membership pricing catalog", () => {
 
     assert.ok(supporter.roadmapNotes.some((note) => note.includes("compliance review")))
     assert.equal(supporter.currentFeatures.some((feature) => /BAA|transcription|SOAP drafting|managed sync/i.test(feature)), false)
+  })
+
+  it("does not render obsolete Early Access discount copy", async () => {
+    const [pricingCards, environmentExample, readinessCheck, liveSetup] = await Promise.all([
+      readFile(new URL("../components/membership/pricing-cards.tsx", import.meta.url), "utf8"),
+      readFile(new URL("../.env.example", import.meta.url), "utf8"),
+      readFile(new URL("../scripts/stripe-readiness-check.mjs", import.meta.url), "utf8"),
+      readFile(new URL("../scripts/stripe-live-membership-setup.mjs", import.meta.url), "utf8"),
+    ])
+
+    assert.doesNotMatch(pricingCards, /earlyAccess|Development discount|10% off forever/i)
+    assert.doesNotMatch(environmentExample, /MASSAGELAB_EARLY_ACCESS_DISCOUNT_ENABLED/)
+    assert.doesNotMatch(readinessCheck, /MASSAGELAB_EARLY_ACCESS_DISCOUNT_ENABLED|Early Access|early access/)
+    assert.doesNotMatch(liveSetup, /MASSAGELAB_EARLY_ACCESS_DISCOUNT_ENABLED|Early Access|early access/)
   })
 })

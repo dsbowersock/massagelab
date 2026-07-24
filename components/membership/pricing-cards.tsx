@@ -41,11 +41,6 @@ type MembershipPlan = {
 
 type MembershipPricingCatalog = {
   defaultInterval: string
-  earlyAccess: {
-    enabled: boolean
-    label: string
-    description: string
-  }
   intervals: ReadonlyArray<{
     id: string
     label: string
@@ -74,17 +69,11 @@ export function MembershipPricingCards({
           <BadgeDollarSign className="h-5 w-5 text-brand-orange" aria-hidden="true" />
         </div>
         <div className="min-w-0 space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 id="membership-pricing-heading" className="text-base font-semibold text-foreground">
-              Membership pricing
-            </h2>
-            <Badge variant="outline" className="border-brand-orange/40 text-brand-orange">
-              {catalog.earlyAccess.label}
-            </Badge>
-          </div>
+          <h2 id="membership-pricing-heading" className="text-base font-semibold text-foreground">
+            Membership pricing
+          </h2>
           <p className="text-sm text-muted-foreground">
-            Current benefits are available now. Roadmap items are funding goals and are not active subscription features yet.{" "}
-            {catalog.earlyAccess.description}
+            Current benefits are available now. Roadmap items are funding goals and are not active subscription features yet.
           </p>
         </div>
       </div>
