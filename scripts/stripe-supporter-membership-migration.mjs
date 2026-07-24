@@ -9,6 +9,7 @@ const EXPECTED_TAX_CODE = "txcd_10000000"
 const SUPPORTER_PRODUCT_NAME = "MassageLab Supporter Membership"
 const SUPPORTER_CATALOG = "supporter_membership_v1"
 const CREATE_NEW_PRODUCT = "CREATE_NEW"
+const SUPPORTER_PRODUCT_IDEMPOTENCY_KEY = "massagelab-supporter-membership-v1-product"
 const RELEVANT_SUBSCRIPTION_STATUSES = new Set([
   "active",
   "trialing",
@@ -239,8 +240,11 @@ async function listAll(listPage, params) {
       throw new MigrationError(["stripe_pagination_incomplete"])
     }
     rows.push(...page.data)
-    if (page.has_more !== true) {
+    if (page.has_more === false) {
       return rows
+    }
+    if (page.has_more !== true) {
+      throw new MigrationError(["stripe_pagination_incomplete"])
     }
 
     const nextCursor = page.data.at(-1)?.id
@@ -279,6 +283,7 @@ function priceMatches(candidate, spec, productId) {
     && candidate.billing_scheme === "per_unit"
     && candidate.recurring?.interval === spec.interval
     && (candidate.recurring?.interval_count ?? 1) === 1
+    && candidate.recurring?.trial_period_days == null
     && candidate.recurring?.usage_type === "licensed"
     && candidate.tax_behavior === "exclusive"
     && candidate.transform_quantity == null
@@ -300,6 +305,7 @@ function legacyPriceMatches(candidate, spec, productId) {
     && candidate.billing_scheme === "per_unit"
     && candidate.recurring?.interval === spec.interval
     && (candidate.recurring?.interval_count ?? 1) === 1
+    && candidate.recurring?.trial_period_days == null
     && candidate.recurring?.usage_type === "licensed"
     && candidate.transform_quantity == null
     && (
@@ -415,6 +421,10 @@ function managedPriceKey(candidate) {
 
 function lookupKeyFor(spec) {
   return `massagelab_${spec.key.replaceAll("-", "_")}`
+}
+
+function targetPriceIdempotencyKey(spec) {
+  return `massagelab-supporter-membership-v1-price-${spec.key}`
 }
 
 function findTargetCandidate({ allPrices, configuredId, spec, productId }) {
@@ -971,7 +981,9 @@ async function applyPlan(stripe, config, inventory) {
   const productPayload = targetProductPayload(supporter)
 
   if (!supporter) {
-    const created = await stripe.products.create(productPayload)
+    const created = await stripe.products.create(productPayload, {
+      idempotencyKey: SUPPORTER_PRODUCT_IDEMPOTENCY_KEY,
+    })
     supporter = await retrieveAfterMutation(
       stripe.products.retrieve.bind(stripe.products),
       created.id,
@@ -998,7 +1010,10 @@ async function applyPlan(stripe, config, inventory) {
   for (const spec of config.targetPrices) {
     let candidate = inventory.targetPrices.get(spec.key)
     if (!candidate) {
-      const created = await stripe.prices.create(targetPricePayload(supporter.id, spec))
+      const created = await stripe.prices.create(
+        targetPricePayload(supporter.id, spec),
+        { idempotencyKey: targetPriceIdempotencyKey(spec) },
+      )
       candidate = await retrieveAfterMutation(
         retrievePriceWithCurrencyOptions.bind(null, stripe),
         created.id,

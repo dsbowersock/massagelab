@@ -71,6 +71,7 @@ function price(id, productId, unitAmount, interval, active = true, metadata = {}
     recurring: {
       interval,
       interval_count: 1,
+      trial_period_days: null,
       usage_type: "licensed",
     },
     tax_behavior: "exclusive",
@@ -176,9 +177,11 @@ function stripeFixture() {
   }]
   let portal = portalConfiguration()
   let nextPrice = 1
+  const productCreatesByIdempotencyKey = new Map()
+  const priceCreatesByIdempotencyKey = new Map()
 
-  function record(name, id = null, payload = null) {
-    calls.push({ name, id, payload })
+  function record(name, id = null, payload = null, options = null) {
+    calls.push({ name, id, payload, options })
   }
 
   function missing(resource) {
@@ -223,8 +226,15 @@ function stripeFixture() {
         products.set(id, updated)
         return structuredClone(updated)
       },
-      async create(payload) {
-        record("products.create", null, payload)
+      async create(payload, options) {
+        record("products.create", null, payload, options)
+        const idempotencyKey = options?.idempotencyKey
+        const existingId = idempotencyKey
+          ? productCreatesByIdempotencyKey.get(idempotencyKey)
+          : null
+        if (existingId) {
+          return structuredClone(products.get(existingId))
+        }
         const id = "prod_created_supporter"
         const created = {
           id,
@@ -234,6 +244,9 @@ function stripeFixture() {
           ...structuredClone(payload),
         }
         products.set(id, created)
+        if (idempotencyKey) {
+          productCreatesByIdempotencyKey.set(idempotencyKey, id)
+        }
         return structuredClone(created)
       },
     },
@@ -259,8 +272,15 @@ function stripeFixture() {
         prices.set(id, updated)
         return structuredClone(updated)
       },
-      async create(payload) {
-        record("prices.create", null, payload)
+      async create(payload, options) {
+        record("prices.create", null, payload, options)
+        const idempotencyKey = options?.idempotencyKey
+        const existingId = idempotencyKey
+          ? priceCreatesByIdempotencyKey.get(idempotencyKey)
+          : null
+        if (existingId) {
+          return structuredClone(prices.get(existingId))
+        }
         const id = `price_created_${nextPrice++}`
         const created = {
           id,
@@ -274,11 +294,15 @@ function stripeFixture() {
           ...structuredClone(payload),
           recurring: {
             interval_count: 1,
+            trial_period_days: null,
             usage_type: "licensed",
             ...structuredClone(payload.recurring),
           },
         }
         prices.set(id, created)
+        if (idempotencyKey) {
+          priceCreatesByIdempotencyKey.set(idempotencyKey, id)
+        }
         return structuredClone(created)
       },
     },
@@ -738,6 +762,30 @@ describe("Supporter membership Stripe migration", () => {
     assert.deepEqual(mutationCalls(fixture), [])
   })
 
+  it("rejects non-boolean Stripe pagination completion flags", async () => {
+    for (const hasMore of [undefined, null, 0, "false"]) {
+      const fixture = stripeFixture()
+      const listProducts = fixture.stripe.products.list.bind(fixture.stripe.products)
+      fixture.stripe.products.list = async (params) => ({
+        ...await listProducts(params),
+        has_more: hasMore,
+      })
+
+      await assert.rejects(
+        runSupporterMembershipMigration({
+          stripe: fixture.stripe,
+          mode: "verify",
+          env: migrationEnv(),
+        }),
+        (error) => {
+          assert.deepEqual(error.failureCodes, ["stripe_pagination_incomplete"])
+          return true
+        },
+      )
+      assert.deepEqual(mutationCalls(fixture), [])
+    }
+  })
+
   it("fails closed before mutation on coupon redemption or a mismatched coupon contract", async () => {
     for (const corrupt of [
       (fixture) => { fixture.coupons.get("coupon_student").times_redeemed = 1 },
@@ -835,6 +883,38 @@ describe("Supporter membership Stripe migration", () => {
       )
       assert.deepEqual(mutationCalls(fixture), [])
     }
+  })
+
+  it("rejects reuse of a recurring Price with a default free-trial period", async () => {
+    const fixture = stripeFixture()
+    const candidate = price(
+      "price_with_trial",
+      "prod_supporter",
+      100,
+      "month",
+      true,
+      {
+        massagelab_catalog: "supporter_membership_v1",
+        massagelab_supporter_price_key: "support-1-month",
+      },
+    )
+    candidate.recurring.trial_period_days = 14
+    fixture.prices.set(candidate.id, candidate)
+
+    await assert.rejects(
+      runSupporterMembershipMigration({
+        stripe: fixture.stripe,
+        mode: "verify",
+        env: migrationEnv({
+          STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: candidate.id,
+        }),
+      }),
+      (error) => {
+        assert.equal(error.failureCodes.includes("approved_price_dependency_mismatch"), true)
+        return true
+      },
+    )
+    assert.deepEqual(mutationCalls(fixture), [])
   })
 
   it("retires verified legacy and approved duplicates and leaves exactly six active Supporter Prices", async () => {
@@ -1013,5 +1093,112 @@ describe("Supporter membership Stripe migration", () => {
     })
     assert.equal(rerun.state, "COMPLETED")
     assert.deepEqual(mutationCalls(fixture), [])
+  })
+
+  it("retries an ambiguous committed Product create with one stable idempotency key", async () => {
+    const fixture = stripeFixture()
+    fixture.products.get("prod_supporter").metadata = { app: "massagelab" }
+    const createProduct = fixture.stripe.products.create.bind(fixture.stripe.products)
+    const listProducts = fixture.stripe.products.list.bind(fixture.stripe.products)
+    let failAfterCommit = true
+    let hideCommittedProductLists = 0
+    fixture.stripe.products.create = async (payload, options) => {
+      const result = await createProduct(payload, options)
+      if (failAfterCommit) {
+        failAfterCommit = false
+        hideCommittedProductLists = 1
+        throw new Error("connection ended after Product commit")
+      }
+      return result
+    }
+    fixture.stripe.products.list = async (params) => {
+      const result = await listProducts(params)
+      if (hideCommittedProductLists > 0) {
+        hideCommittedProductLists -= 1
+        return {
+          ...result,
+          data: result.data.filter((entry) => entry.id !== "prod_created_supporter"),
+        }
+      }
+      return result
+    }
+
+    const result = await runSupporterMembershipMigration({
+      stripe: fixture.stripe,
+      mode: "apply",
+      env: migrationEnv({
+        MASSAGELAB_STRIPE_MIGRATION_SUPPORTER_PRODUCT_ID: "CREATE_NEW",
+      }),
+    })
+    assert.equal(result.state, "COMPLETED")
+    const creates = fixture.calls.filter(({ name }) => name === "products.create")
+    assert.equal(creates.length, 2)
+    assert.deepEqual(
+      creates.map(({ options }) => options?.idempotencyKey),
+      [
+        "massagelab-supporter-membership-v1-product",
+        "massagelab-supporter-membership-v1-product",
+      ],
+    )
+    assert.equal(
+      [...fixture.products.values()].filter(
+        (entry) => entry.metadata?.massagelab_catalog === "supporter_membership_v1",
+      ).length,
+      1,
+    )
+  })
+
+  it("retries an ambiguous committed Price create with one stable idempotency key", async () => {
+    const fixture = stripeFixture()
+    const createPrice = fixture.stripe.prices.create.bind(fixture.stripe.prices)
+    const listPrices = fixture.stripe.prices.list.bind(fixture.stripe.prices)
+    let failAfterCommit = true
+    let hiddenPriceId = null
+    let hideCommittedPriceLists = 0
+    fixture.stripe.prices.create = async (payload, options) => {
+      const result = await createPrice(payload, options)
+      if (failAfterCommit && payload.unit_amount === 100) {
+        failAfterCommit = false
+        hiddenPriceId = result.id
+        hideCommittedPriceLists = 1
+        throw new Error("connection ended after Price commit")
+      }
+      return result
+    }
+    fixture.stripe.prices.list = async (params) => {
+      const result = await listPrices(params)
+      if (hideCommittedPriceLists > 0) {
+        hideCommittedPriceLists -= 1
+        return {
+          ...result,
+          data: result.data.filter((entry) => entry.id !== hiddenPriceId),
+        }
+      }
+      return result
+    }
+
+    const result = await runSupporterMembershipMigration({
+      stripe: fixture.stripe,
+      mode: "apply",
+      env: migrationEnv(),
+    })
+    assert.equal(result.state, "COMPLETED")
+    const creates = fixture.calls.filter(({ name, payload }) => (
+      name === "prices.create" && payload.unit_amount === 100
+    ))
+    assert.equal(creates.length, 2)
+    assert.deepEqual(
+      creates.map(({ options }) => options?.idempotencyKey),
+      [
+        "massagelab-supporter-membership-v1-price-support-1-month",
+        "massagelab-supporter-membership-v1-price-support-1-month",
+      ],
+    )
+    assert.equal(
+      [...fixture.prices.values()].filter(
+        (entry) => entry.metadata?.massagelab_catalog === "supporter_membership_v1",
+      ).length,
+      6,
+    )
   })
 })

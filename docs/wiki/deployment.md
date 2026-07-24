@@ -106,9 +106,9 @@ Verify mode performs Stripe GET/list requests only. It checks the exact
 subscriber inventory, live/test mode, Product tax classification, legacy and
 approved Price ownership/amounts/recurring semantics, every Price listed under
 the managed Products, zero-redemption coupon contracts, and portal preservation
-settings. It reports either `PRE_MIGRATION` or `COMPLETED`; mixed states,
-unrecognized Prices, incomplete pagination, and unknown portal subsets are
-blockers.
+settings. Approved Prices must have no default trial period. It reports either
+`PRE_MIGRATION` or `COMPLETED`; mixed states, unrecognized Prices, incomplete or
+malformed pagination, and unknown portal subsets are blockers.
 
 Only after reviewing the safe PASS checklist, run:
 
@@ -125,7 +125,9 @@ second apply is a read-only no-op. Portal quantity adjustment is explicitly
 disabled, while cancellation and billing-management behavior is preserved
 through semantic response validation. Apply can resume only an ordered,
 individually verified forward transition caused by an accepted Stripe mutation;
-arbitrary mixed states still fail closed. Do not run apply until the deployed
+Product and Price creates use deterministic Stripe idempotency keys so an
+ambiguous accepted request can be retried without creating a duplicate.
+Arbitrary mixed states still fail closed. Do not run apply until the deployed
 Supporter-only application, subscriber decision, recurring-tax classification,
 and migration inputs have all been independently reviewed. Remove the
 migration-only variables after the operation; keep the six approved runtime
