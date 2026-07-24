@@ -241,6 +241,10 @@ describe("background cart authentication return paths", () => {
       buildBackgroundCartAuthReturnPath("https://example.com", "panel=background"),
       "/?panel=background&commerceCart=open",
     )
+    assert.equal(
+      buildBackgroundCartAuthReturnPath("/reports/2026:07", "panel=background"),
+      "/reports/2026:07?panel=background&commerceCart=open",
+    )
   })
 
   it("rejects alternate unsafe paths and replaces stale cart markers", () => {

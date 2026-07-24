@@ -132,10 +132,17 @@ describe("registration email delivery policy", () => {
       }),
       { token: "", callbackUrl: "/onboarding" },
     )
+    assert.deepEqual(
+      normalizeEmailVerificationParams({
+        token: "token-safe",
+        callbackUrl: [callbackUrl, "/other"],
+      }),
+      { token: "token-safe", callbackUrl: "/onboarding" },
+    )
 
     let delivered
-    const deliveryResult = sendRegistrationVerification(
-      (email, token, safeCallbackUrl) => {
+    const deliveryResult = await sendRegistrationVerification(
+      async (email, token, safeCallbackUrl) => {
         delivered = { email, token, callbackUrl: safeCallbackUrl }
         return { delivered: true }
       },
