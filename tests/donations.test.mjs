@@ -7,13 +7,15 @@ import {
   normalizeDonationAmountCents,
 } from "../lib/donations.js"
 
-describe("donation options", () => {
+describe("one-time support options", () => {
   it("offers fixed one-time support amounts", () => {
     assert.deepEqual(
       DONATION_OPTIONS.map((option) => option.amountCents),
       [500, 1500, 3000, 7500],
     )
     assert.equal(DONATION_PURPOSE, "massagelab_project_support")
+    assert.equal(DONATION_OPTIONS.every((option) => /support/i.test(option.description)), true)
+    assert.equal(DONATION_OPTIONS.some((option) => /donation|donate/i.test(option.description)), false)
   })
 
   it("rejects arbitrary client-provided amounts", () => {

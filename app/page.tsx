@@ -398,7 +398,7 @@ export default async function Home() {
           title="Help build the next tools"
           description={
             <>
-              Memberships and donations help build more education tools, practice workflows, and secure foundations for future features.
+              Memberships and one-time support help build more education tools, practice workflows, and secure foundations for future features.
             </>
           }
           icon={<HeartHandshake className="h-5 w-5" aria-hidden="true" />}

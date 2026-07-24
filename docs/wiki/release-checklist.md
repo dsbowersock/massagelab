@@ -23,21 +23,78 @@ Then walk [../alpha-qa.md](../alpha-qa.md) with anonymous test data where it sti
 
 ## Production Billing Gate
 
-Before public paid signup, run the production Stripe readiness check from an explicit production env file:
+Before changing the live catalog or running any live paid smoke:
+
+1. complete the database and Stripe subscriber inventory without exposing
+   customer identifiers;
+2. record a subscriber-specific grandfathering/tax decision for every active,
+   trialing, past-due, unpaid, paused, incomplete, or canceling subscription;
+3. confirm the exact Therapist and Practice Product names and that any present
+   app or membership-level metadata matches the expected MassageLab retirement
+   identity;
+4. run `npm run stripe:migrate-supporter-membership -- --mode=verify` and stop
+   unless every safe check passes;
+5. deploy the supporter-only application, environment, and recurring-tax
+   contract together;
+6. run migration apply only after the explicit operator gate, then rerun verify
+   against the completed catalog; and
+7. run the production Stripe readiness check from an explicit production env
+   file:
+
+The GET-only migration verify is the pre-apply safety authority. Do not require
+the completed-catalog readiness command to pass before apply: in `CREATE_NEW`
+mode, the classified Product and six Prices do not exist until the gated apply
+creates them. After apply, both migration verify and production readiness must
+pass before any live paid smoke or public enrollment.
 
 ```bash
 npm run stripe:readiness -- --env-file=/secure/path/massagelab-production.env --live --verify-stripe
 ```
 
-The command must pass without printing secret values. Then complete one real low-dollar live checkout and confirm:
+The migration verification and readiness command must pass without printing
+secret values. Only then complete the live Supporter and one-time-support smoke
+tests and confirm:
 
-- The Checkout session completes and returns to MassageLab.
+- The only public membership is MassageLab Supporter Membership, at exactly
+  $1/$2/$5 monthly or $10/$20/$50 annually.
+- The recurring-tax enablement, `txcd_10000000` classification, provider,
+  registrations, and final professional-confirmation gates are all explicit.
+- Stripe retrieval confirms every Supporter Price is exclusive, uses exact
+  interval count one with no trial, licensed per-unit usage, no quantity
+  transform or additional currencies, and belongs to the classified Supporter
+  Product.
+- Concurrent or repeated enrollment returns one exact current
+  contract-versioned Checkout Session; purpose-less or contradictory
+  historical open membership Sessions are confirmed expired, while a completed
+  historical Session with a relevant subscription blocks another Checkout
+  during signed-webhook persistence.
+- The Checkout session uses Automatic Tax, requires a billing address, updates
+  the Stripe Customer address, completes, and returns to MassageLab.
 - Membership status updates from the signed webhook.
-- The Stripe Customer Portal opens for the customer and returns to MassageLab.
+- The Stripe Customer Portal opens, permits switching only among the six
+  Supporter Prices, and preserves cancellation, payment-method updates,
+  billing-detail updates, invoice history, and return to MassageLab.
+- The $1 monthly enrollment, $2/$5 portal switch, payment/address update,
+  invoice, period-end cancellation, and webhook-backed entitlement paths pass.
+- At least one public $10/$20/$50 annual Price completes annual Checkout, its
+  signed webhook grants the Supporter entitlement, and its portal cancellation
+  or interval-switch path is verified.
 - The subscription is canceled or refunded as appropriate after the smoke test.
-- The one-time donation path starts Stripe Checkout, returns to `/pricing`, and does not create a membership entitlement.
+- The one-time support path starts Stripe Checkout, returns to `/pricing`,
+  states that it is not charitable or tax-deductible, and does not create a
+  membership entitlement.
 
-Latest status, 2026-06-24: the live Supporter subscription smoke passed with a new email/password account, Chimer custom-color entitlement access, Stripe Customer Portal access, and subscription cancellation. The one-time donation checkout smoke remains pending.
+Retain the six legacy runtime Price mappings until subscriber inventory proves none remain and webhook reconciliation is final.
+Those mappings are historical normalization inputs only; they cannot replace
+any of the six amount-specific Supporter Price IDs in readiness.
+
+Latest status, 2026-07-24: the deployable Supporter-only application,
+fail-closed migration command, and recurring Automatic Tax application/readiness
+contracts are implemented locally. Live database/Stripe inventory, final
+professional classification confirmation, deployment, migration apply,
+Customer Portal mutation, and the new live smoke remain pending. The earlier
+June 24 legacy Supporter smoke remains historical evidence only. The one-time
+support Checkout smoke also remains pending.
 
 ## Manual Focus Areas
 
@@ -56,7 +113,9 @@ Latest status, 2026-06-24: the live Supporter subscription smoke passed with a n
 - Auth flows, account/admin surfaces, APIs, public booking links, shared room-code URLs, and local professional-record subroutes stay out of the sitemap and crawler allowlist.
 - Sentry remains limited to sanitized errors/traces and the approved user-initiated diagnostic report. Do not enable Session Replay, screenshots, attachments, logs, or standard feedback widgets before route-by-route privacy review.
 - Monitor Neon transfer, Sentry issues, Stripe events, Vercel deployment health, and support email during the first invite window.
-- Keep early-access discount enabled for the current invite window, and confirm it remains intentional before each broader share.
+- Keep the retired Early Access and Student-to-Therapist discount paths absent
+  from application Checkout. Delete their live coupons only through the
+  controlled migration after zero-redemption verification.
 
 ## External Confirmations
 

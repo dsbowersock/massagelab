@@ -13,20 +13,16 @@ import { config as loadDotenv } from "dotenv"
 import { BACKGROUND_COMMERCE_TAX_PRODUCT_CODE } from "../lib/commerce/constants.js"
 import { DIGITAL_PURCHASES_REFUNDS_VERSION } from "../lib/legal-documents.js"
 import {
+  getSupporterRecurringTaxReadiness,
+  REQUIRED_SUPPORTER_PRICE_CONTRACT,
+  validateRetrievedMembershipPrice,
+} from "../lib/stripe-readiness.js"
+import {
   STRIPE_API_VERSION,
   STRIPE_BACKGROUND_COMMERCE_WEBHOOK_EVENTS,
   STRIPE_PINNED_WEBHOOK_URL,
   validatePinnedStripeWebhookEndpoint,
 } from "../lib/stripe-webhook-contract.js"
-
-const REQUIRED_PRICE_VARS = Object.freeze([
-  ["STRIPE_SUPPORTER_MONTHLY_PRICE_ID", "SUPPORTER", "month"],
-  ["STRIPE_SUPPORTER_YEARLY_PRICE_ID", "SUPPORTER", "year"],
-  ["STRIPE_THERAPIST_MONTHLY_PRICE_ID", "THERAPIST", "month"],
-  ["STRIPE_THERAPIST_YEARLY_PRICE_ID", "THERAPIST", "year"],
-  ["STRIPE_PRACTICE_MONTHLY_PRICE_ID", "PRACTICE", "month"],
-  ["STRIPE_PRACTICE_YEARLY_PRICE_ID", "PRACTICE", "year"],
-])
 
 const rawArgs = process.argv.slice(2)
 const args = new Set(rawArgs.filter((arg) => !arg.startsWith("--env-file=")))
@@ -111,46 +107,59 @@ function checkWebhookSecret() {
 }
 
 function checkPriceIds() {
-  for (const [key, level, interval] of REQUIRED_PRICE_VARS) {
-    const priceId = envValue(key)
+  // Validate every required membership-interval Price ID and reject either a
+  // non-Stripe prefix or reuse of the same ID across contract entries.
+  for (const expected of REQUIRED_SUPPORTER_PRICE_CONTRACT) {
+    const priceId = envValue(expected.key)
     if (!priceId) {
-      addFailure(`${key} is missing.`)
+      addFailure(`${expected.key} is missing.`)
       continue
     }
 
     if (!priceId.startsWith("price_")) {
-      addFailure(`${key} must be a Stripe Price ID.`)
+      addFailure(`${expected.key} must be a Stripe Price ID.`)
       continue
     }
 
     if (priceIds.has(priceId)) {
       const duplicate = priceIds.get(priceId)
-      addFailure(`${key} duplicates ${duplicate.key}; each membership interval needs its own Price ID.`)
+      addFailure(`${expected.key} duplicates ${duplicate.key}; each membership interval needs its own Price ID.`)
       continue
     }
 
-    priceIds.set(priceId, { key, level, interval })
-  }
-}
-
-function checkEarlyAccessFlag() {
-  const value = envValue("MASSAGELAB_EARLY_ACCESS_DISCOUNT_ENABLED")
-  if (!value) {
-    addWarning("MASSAGELAB_EARLY_ACCESS_DISCOUNT_ENABLED is not set; checkout will treat early access as disabled.")
-    return
-  }
-
-  if (!["true", "false"].includes(value.toLowerCase())) {
-    addFailure("MASSAGELAB_EARLY_ACCESS_DISCOUNT_ENABLED must be true or false.")
-  }
-
-  if (liveMode && value.toLowerCase() === "true") {
-    addWarning("Early-access discount is enabled in live mode. Confirm this is intentional before public signups.")
+    priceIds.set(priceId, expected)
   }
 }
 
 function isExplicitTrue(value) {
   return String(value ?? "").trim().toLowerCase() === "true"
+}
+
+/**
+ * Validates the non-secret deployment attestations required for recurring
+ * Supporter Automatic Tax. Stripe retrieval separately proves Product/Price
+ * classification when --verify-stripe is enabled.
+ */
+function checkSupporterRecurringTaxReadiness() {
+  const recurringTax = getSupporterRecurringTaxReadiness(process.env)
+
+  if (!recurringTax.automaticTaxEnabled) {
+    addFailure("Supporter recurring tax automatic-tax enablement is not configured.")
+  }
+  if (!recurringTax.taxProductCodeConfigured) {
+    addFailure("Supporter recurring tax product classification is not configured.")
+  }
+  if (!recurringTax.taxProviderReady) {
+    addFailure("Supporter recurring tax provider readiness is not configured.")
+  }
+  if (!recurringTax.taxRegistrationsReady) {
+    addFailure("Supporter recurring tax registrations are not confirmed.")
+  }
+  if (!recurringTax.taxClassificationConfirmed) {
+    addFailure("Supporter recurring tax classification is not professionally confirmed.")
+  }
+
+  return recurringTax
 }
 
 /**
@@ -236,17 +245,9 @@ async function verifyStripePrices() {
 
   for (const [priceId, expected] of priceIds) {
     try {
-      const price = await stripe.prices.retrieve(priceId, { expand: ["product"] })
-      if (!price.active) {
-        addFailure(`${expected.key} points to an inactive Stripe Price.`)
-      }
-
-      if (price.recurring?.interval !== expected.interval) {
-        addFailure(`${expected.key} must be a ${expected.interval} recurring Price.`)
-      }
-
-      if (price.currency !== "usd") {
-        addWarning(`${expected.key} currency is ${price.currency}; expected usd for current MassageLab pricing.`)
+      const price = await stripe.prices.retrieve(priceId, { expand: ["product", "currency_options"] })
+      for (const failure of validateRetrievedMembershipPrice(price, expected)) {
+        addFailure(failure)
       }
 
       const product = price.product
@@ -260,7 +261,6 @@ async function verifyStripePrices() {
         const productName = String(product.name ?? "").toLowerCase()
         const expectedLevelName = expected.level.toLowerCase()
         const productNameMatches = productName.includes(expectedLevelName)
-          || (expected.level === "PRACTICE" && productName.includes("practice"))
         if (!productNameMatches) {
           addWarning(`${expected.key} Product name does not obviously match ${expected.level}.`)
         }
@@ -294,9 +294,14 @@ async function verifyStripePrices() {
   }
 }
 
-function printResults(commerce) {
+function printResults(supporterTax, commerce) {
   console.log(`Stripe readiness mode: ${liveMode ? "live" : "non-live"}`)
   console.log(`Stripe API retrieval: ${verifyStripe ? "enabled" : "skipped"}`)
+  console.log(`Supporter recurring automatic tax enabled: ${supporterTax.automaticTaxEnabled}`)
+  console.log(`Supporter recurring tax product code configured: ${supporterTax.taxProductCodeConfigured}`)
+  console.log(`Supporter recurring tax provider ready: ${supporterTax.taxProviderReady}`)
+  console.log(`Supporter recurring tax registrations confirmed: ${supporterTax.taxRegistrationsReady}`)
+  console.log(`Supporter recurring tax classification confirmed: ${supporterTax.taxClassificationConfirmed}`)
   console.log(`Background commerce fixed USD price configured: ${commerce.fixedUsdPriceConfigured}`)
   console.log(`Background commerce purchase-country allowlist configured: ${commerce.purchaseCountryAllowlistConfigured}`)
   console.log(`Background commerce digital-purchase document current: ${commerce.digitalPurchaseDocumentCurrent}`)
@@ -329,7 +334,10 @@ function printResults(commerce) {
 checkSecretKey()
 checkWebhookSecret()
 checkPriceIds()
-checkEarlyAccessFlag()
+if (liveMode && !verifyStripe) {
+  addFailure("Live Stripe readiness requires --verify-stripe.")
+}
+const supporterTax = checkSupporterRecurringTaxReadiness()
 const commerce = checkBackgroundCommerceReadiness()
 await verifyStripePrices()
-printResults(commerce)
+printResults(supporterTax, commerce)

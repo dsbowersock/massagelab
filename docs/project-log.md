@@ -4,6 +4,58 @@ This is the canonical chronological planning and progress log for MassageLab. Us
 
 Existing plans, audits, roadmaps, and checklists remain source evidence. Keep them for context, but mirror meaningful progress, plan changes, and priority changes in [project-state.md](project-state.md) and here.
 
+## 2026-07-24 — Supporter membership deployable migration candidate
+
+- Replaced public Supporter/Therapist/Practice enrollment with one Supporter
+  Membership at $1/$2/$5 monthly or $10/$20/$50 yearly while preserving legacy
+  Price recognition for webhook reconciliation until the controlled migration.
+  Every approved amount maps to identical Supporter entitlements, including all
+  backgrounds; Therapist and Practice Checkout fail before Customer or Session
+  creation.
+- Removed the Early Access and Student-to-Therapist application discount paths,
+  changed public/Checkout language to One-time support with the not-charitable,
+  not-tax-deductible, no-membership disclosure, and added independent editable
+  roadmap-interest preferences that never enter Stripe metadata, entitlement
+  resolution, or tax classification.
+- Added the independently reviewed fail-closed Supporter catalog command. Its
+  read-only verify mode inventories all relevant subscriptions and validates
+  account mode, exact Product/Price topology, zero-redemption coupons, preserved
+  Customer Portal behavior, and pre/completed migration states. Apply uses
+  deterministic create idempotency, ordered re-retrieval, safe retry/resume, and
+  identifier-free output.
+- Implemented the deployable recurring-tax contract after preliminary
+  `txcd_10000000` confirmation: new Supporter Checkout fails closed unless
+  Automatic Tax, provider, registrations, exact classification, and final
+  professional-confirmation gates are explicit; ready Sessions require billing
+  addresses, update Customer addresses, and enable Automatic Tax. Stripe
+  readiness also requires exclusive tax behavior on every approved Price and
+  the exact tax code on the expanded Supporter Product.
+- The isolated worktree had no database URL, Stripe key, migration inputs, or
+  local environment file, so database/Stripe subscriber inventory and live
+  migration verify were not attempted. No deployment, migration apply, live
+  Product/Price/coupon/portal/subscription mutation, or live smoke occurred.
+  Final professional confirmation and those operational gates remain required.
+- Final-review hardening prevents a second membership Checkout for every
+  persisted relevant/canceling subscription before Stripe Customer or Session
+  creation, routes current and historical members to Customer Portal, removes
+  the obsolete live catalog setup command, accepts and upgrades only the
+  validated normal legacy Supporter Product pre-state, shares exact recurring
+  Price semantics between migration and ongoing readiness, retains legacy
+  runtime Price mappings strictly for webhook reconciliation, and lists
+  all-background access in public Current benefits.
+- Whole-branch review follow-up closes the pre-webhook concurrency window:
+  membership Checkout now paginates only MassageLab-owned customer Sessions,
+  reuses only an exact current contract-versioned open Session after verifying
+  its six-Price catalog, Product, tax, and address fields; expires and confirms
+  every recognized incompatible historical open Session; treats completed
+  historical Sessions with relevant Stripe subscriptions as authoritative; and
+  safely serializes or recovers competing creates and expirations.
+  Migration preflight now also requires exact Therapist/Practice Product names
+  and rejects contradictory optional MassageLab metadata before any mutation.
+- RED-first focused billing/readiness/route coverage passed after
+  implementation. Full lint, test, typecheck, build, and diff validation are
+  recorded in the Task 5 handoff report.
+
 ## 2026-07-23 — Background purchase surfaces visual review
 
 - Merged Track 1B in PR #141, deployed the merged source to Production, and

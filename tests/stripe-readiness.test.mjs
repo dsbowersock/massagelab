@@ -1,14 +1,18 @@
 import assert from "node:assert/strict"
 import { spawnSync } from "node:child_process"
 import { describe, it } from "node:test"
+import {
+  REQUIRED_SUPPORTER_PRICE_CONTRACT,
+  validateRetrievedMembershipPrice,
+} from "../lib/stripe-readiness.js"
 
 const membershipPrices = {
-  STRIPE_SUPPORTER_MONTHLY_PRICE_ID: "price_supporter_monthly",
-  STRIPE_SUPPORTER_YEARLY_PRICE_ID: "price_supporter_yearly",
-  STRIPE_THERAPIST_MONTHLY_PRICE_ID: "price_therapist_monthly",
-  STRIPE_THERAPIST_YEARLY_PRICE_ID: "price_therapist_yearly",
-  STRIPE_PRACTICE_MONTHLY_PRICE_ID: "price_practice_monthly",
-  STRIPE_PRACTICE_YEARLY_PRICE_ID: "price_practice_yearly",
+  STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: "price_supporter_1_monthly",
+  STRIPE_SUPPORTER_1_YEARLY_PRICE_ID: "price_supporter_1_yearly",
+  STRIPE_SUPPORTER_2_MONTHLY_PRICE_ID: "price_supporter_2_monthly",
+  STRIPE_SUPPORTER_2_YEARLY_PRICE_ID: "price_supporter_2_yearly",
+  STRIPE_SUPPORTER_5_MONTHLY_PRICE_ID: "price_supporter_5_monthly",
+  STRIPE_SUPPORTER_5_YEARLY_PRICE_ID: "price_supporter_5_yearly",
 }
 
 function runReadiness(overrides = {}, args = []) {
@@ -19,7 +23,6 @@ function runReadiness(overrides = {}, args = []) {
       PATH: process.env.PATH,
       STRIPE_SECRET_KEY: "sk_test_readiness",
       STRIPE_WEBHOOK_SECRET: "whsec_readiness",
-      MASSAGELAB_EARLY_ACCESS_DISCOUNT_ENABLED: "false",
       BACKGROUND_COMMERCE_PURCHASING_ENABLED: "true",
       BACKGROUND_COMMERCE_PRICE_CENTS: "100",
       BACKGROUND_COMMERCE_CURRENCY: "usd",
@@ -32,6 +35,11 @@ function runReadiness(overrides = {}, args = []) {
       BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "txcd_10000000",
       BACKGROUND_COMMERCE_TAX_PROVIDER_READY: "true",
       BACKGROUND_COMMERCE_TAX_REGISTRATIONS_READY: "true",
+      STRIPE_SUPPORTER_AUTOMATIC_TAX_ENABLED: "true",
+      STRIPE_SUPPORTER_TAX_PRODUCT_CODE: "txcd_10000000",
+      STRIPE_SUPPORTER_TAX_PROVIDER_READY: "true",
+      STRIPE_SUPPORTER_TAX_REGISTRATIONS_READY: "true",
+      STRIPE_SUPPORTER_TAX_CLASSIFICATION_CONFIRMED: "true",
       ...membershipPrices,
       ...overrides,
     },
@@ -39,11 +47,189 @@ function runReadiness(overrides = {}, args = []) {
 }
 
 describe("Stripe readiness background-commerce contract", () => {
+  it("ignores the retired Early Access environment flag", () => {
+    const result = runReadiness({ MASSAGELAB_EARLY_ACCESS_DISCOUNT_ENABLED: "not-a-boolean" })
+
+    assert.equal(result.status, 0, result.stderr || result.stdout)
+    assert.doesNotMatch(`${result.stdout}${result.stderr}`, /EARLY_ACCESS|Early Access|early access/)
+  })
+  it("requires the approved Supporter amounts during Stripe Price verification", () => {
+    assert.deepEqual(
+      REQUIRED_SUPPORTER_PRICE_CONTRACT.map(({ key, unitAmount }) => [key, unitAmount]),
+      [
+        ["STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID", 100],
+        ["STRIPE_SUPPORTER_1_YEARLY_PRICE_ID", 1000],
+        ["STRIPE_SUPPORTER_2_MONTHLY_PRICE_ID", 200],
+        ["STRIPE_SUPPORTER_2_YEARLY_PRICE_ID", 2000],
+        ["STRIPE_SUPPORTER_5_MONTHLY_PRICE_ID", 500],
+        ["STRIPE_SUPPORTER_5_YEARLY_PRICE_ID", 5000],
+      ],
+    )
+
+    const expected = REQUIRED_SUPPORTER_PRICE_CONTRACT[2]
+    assert.deepEqual(
+      validateRetrievedMembershipPrice({
+        active: true,
+        billing_scheme: "per_unit",
+        recurring: {
+          interval: expected.interval,
+          interval_count: 1,
+          trial_period_days: null,
+          usage_type: "licensed",
+        },
+        currency: "usd",
+        unit_amount: 201,
+        tax_behavior: "exclusive",
+        transform_quantity: null,
+        currency_options: null,
+        product: { tax_code: "txcd_10000000" },
+      }, expected),
+      [`${expected.key} must have unit_amount ${expected.unitAmount}; received 201.`],
+    )
+  })
+  it("requires exclusive recurring tax Prices on the confirmed Supporter classification", () => {
+    const expected = REQUIRED_SUPPORTER_PRICE_CONTRACT[0]
+    const basePrice = {
+      active: true,
+      billing_scheme: "per_unit",
+      recurring: {
+        interval: expected.interval,
+        interval_count: 1,
+        trial_period_days: null,
+        usage_type: "licensed",
+      },
+      currency: "usd",
+      unit_amount: expected.unitAmount,
+      tax_behavior: "exclusive",
+      transform_quantity: null,
+      currency_options: null,
+      product: { tax_code: "txcd_10000000" },
+    }
+
+    assert.deepEqual(validateRetrievedMembershipPrice(basePrice, expected), [])
+    assert.deepEqual(
+      validateRetrievedMembershipPrice({
+        ...basePrice,
+        tax_behavior: "inclusive",
+        product: { tax_code: "txcd_10202003" },
+      }, expected),
+      [
+        `${expected.key} must use exclusive tax behavior.`,
+        `${expected.key} Product must use tax code txcd_10000000.`,
+      ],
+    )
+  })
+  it("requires the same strict recurring Price semantics as the migration", () => {
+    const expected = REQUIRED_SUPPORTER_PRICE_CONTRACT[0]
+    const basePrice = {
+      active: true,
+      billing_scheme: "per_unit",
+      recurring: {
+        interval: expected.interval,
+        interval_count: 1,
+        trial_period_days: null,
+        usage_type: "licensed",
+      },
+      currency: "usd",
+      unit_amount: expected.unitAmount,
+      tax_behavior: "exclusive",
+      transform_quantity: null,
+      currency_options: null,
+      product: { tax_code: "txcd_10000000" },
+    }
+    assert.deepEqual(
+      validateRetrievedMembershipPrice({
+        ...basePrice,
+        currency_options: {
+          usd: { unit_amount: expected.unitAmount },
+        },
+      }, expected),
+      [],
+      "Stripe may expand currency_options with only the base currency",
+    )
+    const cases = [
+      [
+        (candidate) => { candidate.recurring.interval_count = 2 },
+        `${expected.key} recurring interval_count must be exactly 1.`,
+      ],
+      [
+        (candidate) => { candidate.recurring.trial_period_days = 14 },
+        `${expected.key} must not define a recurring trial period.`,
+      ],
+      [
+        (candidate) => { candidate.recurring.usage_type = "metered" },
+        `${expected.key} recurring usage_type must be licensed.`,
+      ],
+      [
+        (candidate) => { candidate.billing_scheme = "tiered" },
+        `${expected.key} billing_scheme must be per_unit.`,
+      ],
+      [
+        (candidate) => {
+          candidate.transform_quantity = { divide_by: 10, round: "up" }
+        },
+        `${expected.key} must not transform quantity.`,
+      ],
+      [
+        (candidate) => {
+          candidate.currency_options = {
+            usd: { unit_amount: expected.unitAmount },
+            eur: { unit_amount: expected.unitAmount },
+          }
+        },
+        `${expected.key} must not define additional currency options.`,
+      ],
+      [
+        (candidate) => {
+          candidate.currency_options = { usd: null }
+        },
+        `${expected.key} must not define additional currency options.`,
+      ],
+      [
+        (candidate) => {
+          candidate.currency_options = "usd"
+        },
+        `${expected.key} must not define additional currency options.`,
+      ],
+    ]
+
+    for (const [mutate, expectedFailure] of cases) {
+      const candidate = structuredClone(basePrice)
+      mutate(candidate)
+      assert.deepEqual(
+        validateRetrievedMembershipPrice(candidate, expected),
+        [expectedFailure],
+      )
+    }
+  })
+  it("requires six unique Supporter amount Prices and ignores legacy catalog variables", () => {
+    const missing = runReadiness({ STRIPE_SUPPORTER_2_YEARLY_PRICE_ID: "" })
+    assert.equal(missing.status, 1)
+    assert.match(missing.stderr, /STRIPE_SUPPORTER_2_YEARLY_PRICE_ID is missing/)
+
+    const duplicate = runReadiness({ STRIPE_SUPPORTER_5_YEARLY_PRICE_ID: membershipPrices.STRIPE_SUPPORTER_5_MONTHLY_PRICE_ID })
+    assert.equal(duplicate.status, 1)
+    assert.match(duplicate.stderr, /STRIPE_SUPPORTER_5_YEARLY_PRICE_ID duplicates STRIPE_SUPPORTER_5_MONTHLY_PRICE_ID/)
+
+    const legacyOnly = runReadiness({
+      ...Object.fromEntries(Object.keys(membershipPrices).map((key) => [key, ""])),
+      STRIPE_SUPPORTER_MONTHLY_PRICE_ID: "price_supporter_legacy_monthly",
+      STRIPE_SUPPORTER_YEARLY_PRICE_ID: "price_supporter_legacy_yearly",
+      STRIPE_THERAPIST_MONTHLY_PRICE_ID: "price_therapist_monthly",
+      STRIPE_THERAPIST_YEARLY_PRICE_ID: "price_therapist_yearly",
+      STRIPE_PRACTICE_MONTHLY_PRICE_ID: "price_practice_monthly",
+      STRIPE_PRACTICE_YEARLY_PRICE_ID: "price_practice_yearly",
+    })
+    assert.equal(legacyOnly.status, 1)
+    assert.match(legacyOnly.stderr, /STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID is missing/)
+  })
   it("reports the complete fail-closed commerce configuration without changing membership readiness output", () => {
     const result = runReadiness()
 
     assert.equal(result.status, 0, result.stderr || result.stdout)
     assert.match(result.stdout, /PASS Stripe membership environment is ready for the selected mode\./)
+    assert.match(result.stdout, /Supporter recurring automatic tax enabled: true/)
+    assert.match(result.stdout, /Supporter recurring tax classification confirmed: true/)
     assert.match(result.stdout, /Background commerce readiness: ready/)
     assert.match(result.stdout, /Background commerce fixed USD price configured: true/)
     assert.match(result.stdout, /Background commerce webhook event coverage complete: true/)
@@ -91,6 +277,24 @@ describe("Stripe readiness background-commerce contract", () => {
     }
   })
 
+  it("fails closed on every Supporter recurring-tax deployment gate", () => {
+    const cases = [
+      ["enablement", { STRIPE_SUPPORTER_AUTOMATIC_TAX_ENABLED: "false" }],
+      ["tax code", { STRIPE_SUPPORTER_TAX_PRODUCT_CODE: "" }],
+      ["wrong tax code", { STRIPE_SUPPORTER_TAX_PRODUCT_CODE: "txcd_10202003" }],
+      ["provider", { STRIPE_SUPPORTER_TAX_PROVIDER_READY: "false" }],
+      ["registrations", { STRIPE_SUPPORTER_TAX_REGISTRATIONS_READY: "false" }],
+      ["classification", { STRIPE_SUPPORTER_TAX_CLASSIFICATION_CONFIRMED: "false" }],
+    ]
+
+    for (const [name, overrides] of cases) {
+      const result = runReadiness(overrides)
+      assert.equal(result.status, 1, `${name}: ${result.stdout}${result.stderr}`)
+      assert.match(result.stderr, /FAIL Supporter recurring tax/, name)
+      assert.doesNotMatch(`${result.stdout}${result.stderr}`, /sk_test_readiness|whsec_readiness/)
+    }
+  })
+
   it("rejects live international commerce while background purchases remain U.S.-only", () => {
     const result = runReadiness({
       STRIPE_SECRET_KEY: "sk_live_readiness",
@@ -101,12 +305,14 @@ describe("Stripe readiness background-commerce contract", () => {
     assert.match(result.stderr, /FAIL Background commerce purchase-country allowlist is not configured\./)
   })
 
-  it("accepts live automatic tax only with explicit registration and product-code readiness", () => {
+  it("requires Stripe retrieval before live readiness can pass", () => {
     const result = runReadiness({
       STRIPE_SECRET_KEY: "sk_live_readiness",
     }, ["--live"])
 
-    assert.equal(result.status, 0, result.stderr || result.stdout)
-    assert.match(result.stdout, /Background commerce tax mode: stripe/)
+    assert.equal(result.status, 1)
+    assert.match(result.stderr, /FAIL Live Stripe readiness requires --verify-stripe\./)
+    assert.match(result.stdout, /Stripe API retrieval: skipped/)
+    assert.doesNotMatch(result.stdout, /PASS Stripe membership environment is ready/)
   })
 })
