@@ -43,6 +43,7 @@ type MembershipPricingCardsProps = {
   catalog: MembershipPricingCatalog
   activeMembershipLevel?: string | null
   mode: "checkout" | "auth" | "portal"
+  portalActionAvailable?: boolean
   className?: string
 }
 
@@ -50,6 +51,7 @@ export function MembershipPricingCards({
   catalog,
   activeMembershipLevel = null,
   mode,
+  portalActionAvailable = true,
   className,
 }: MembershipPricingCardsProps) {
   return (
@@ -92,6 +94,7 @@ export function MembershipPricingCards({
                   interval={interval.id}
                   active={activeMembershipLevel === plan.membershipLevel}
                   mode={mode}
+                  portalActionAvailable={portalActionAvailable}
                 />
               ))}
             </div>
@@ -107,11 +110,13 @@ function PlanCard({
   interval,
   active,
   mode,
+  portalActionAvailable,
 }: {
   plan: MembershipPlan
   interval: string
   active: boolean
   mode: "checkout" | "auth" | "portal"
+  portalActionAvailable: boolean
 }) {
   const resolvedAmountChoices = plan.amountChoices.flatMap((choice) => {
     const price = resolveMembershipPriceForInterval(choice, interval)
@@ -120,11 +125,15 @@ function PlanCard({
       ? [{ choiceId: choice.id, price }]
       : []
   })
-  // Resolved choices include fail-soft unavailable placeholders. Configured
-  // choices have real Price mappings and are the only Portal switching targets.
-  const configuredAmountChoices = resolvedAmountChoices.filter(
-    ({ price }) => price.isConfigured,
+  // Resolved choices include fail-soft unavailable placeholders. Only prices
+  // with verified lookup evidence may be advertised before authentication or
+  // as Customer Portal switching targets.
+  const availableAmountChoices = resolvedAmountChoices.filter(
+    ({ price }) => price.isLookupAvailable,
   )
+  const displayedAmountChoices = mode === "auth"
+    ? availableAmountChoices
+    : resolvedAmountChoices
 
   return (
     <Card className={cn(
@@ -164,10 +173,10 @@ function PlanCard({
           />
         </div>
         {/* Blocking subscriptions must change support through Portal, never a new Checkout. */}
-        {mode === "portal" ? (
+        {mode === "portal" && portalActionAvailable ? (
           <div className="mt-auto space-y-3">
             <div className="grid gap-3 sm:grid-cols-3">
-              {configuredAmountChoices.map(({ choiceId, price }) => (
+              {availableAmountChoices.map(({ choiceId, price }) => (
                 <div
                   key={choiceId}
                   data-membership-portal-amount-choice={choiceId}
@@ -194,9 +203,13 @@ function PlanCard({
               </MetalAttentionButton>
             </form>
           </div>
+        ) : mode === "portal" ? (
+          <p className="mt-auto text-sm text-muted-foreground">
+            Billing management is temporarily unavailable. Contact support if you need help with an existing membership.
+          </p>
         ) : (
           <div className="mt-auto grid gap-3 sm:grid-cols-3">
-            {resolvedAmountChoices.map(({ choiceId, price }) => (
+            {displayedAmountChoices.map(({ choiceId, price }) => (
               <SupporterAmountChoice
                 key={choiceId}
                 plan={plan}

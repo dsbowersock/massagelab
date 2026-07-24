@@ -110,6 +110,30 @@ describe("Account page tab model", () => {
     assert.equal(formatAccountDate(new Date(2026, 4, 18, 23, 30)), "2026-05-18")
   })
 
+  it("keeps Account pricing and billing Portal actions on one gated mode", async () => {
+    const source = await readFile(
+      new URL("../app/account/page.tsx", import.meta.url),
+      "utf8",
+    )
+
+    assert.match(
+      source,
+      /const subscriptionPricingMode = resolveMembershipPricingMode\(\{[\s\S]*subscriptions: membershipSummary\.subscriptions,[\s\S]*\}\)/,
+    )
+    assert.match(
+      source,
+      /const canOpenBillingPortal = Boolean\([\s\S]*membershipSummary\.stripeCustomer[\s\S]*subscriptionPricingMode === "portal"[\s\S]*\)/,
+    )
+    assert.match(
+      source,
+      /const membershipPricingMode = subscriptionPricingMode/,
+    )
+    assert.match(
+      source,
+      /<MembershipPricingCards[\s\S]*mode=\{membershipPricingMode\}[\s\S]*portalActionAvailable=\{canOpenBillingPortal\}/,
+    )
+  })
+
   it("filters account navigation by label, group, and description", () => {
     assert.deepEqual(
       filterAccountPageGroups("billing").flatMap((group) => group.items.map((item) => item.id)),

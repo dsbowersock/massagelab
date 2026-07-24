@@ -139,7 +139,23 @@ function checkPriceIds() {
  * classification when --verify-stripe is enabled.
  */
 function checkSupporterRecurringTaxReadiness() {
-  const recurringTax = getSupporterRecurringTaxReadiness(process.env)
+  const recurringTax = getSupporterRecurringTaxReadiness({
+    STRIPE_SUPPORTER_AUTOMATIC_TAX_ENABLED: envValue(
+      "STRIPE_SUPPORTER_AUTOMATIC_TAX_ENABLED",
+    ),
+    STRIPE_SUPPORTER_TAX_PRODUCT_CODE: envValue(
+      "STRIPE_SUPPORTER_TAX_PRODUCT_CODE",
+    ),
+    STRIPE_SUPPORTER_TAX_PROVIDER_READY: envValue(
+      "STRIPE_SUPPORTER_TAX_PROVIDER_READY",
+    ),
+    STRIPE_SUPPORTER_TAX_REGISTRATIONS_READY: envValue(
+      "STRIPE_SUPPORTER_TAX_REGISTRATIONS_READY",
+    ),
+    STRIPE_SUPPORTER_TAX_CLASSIFICATION_CONFIRMED: envValue(
+      "STRIPE_SUPPORTER_TAX_CLASSIFICATION_CONFIRMED",
+    ),
+  })
 
   if (!recurringTax.automaticTaxEnabled) {
     addFailure("Supporter recurring tax automatic-tax enablement is not configured.")

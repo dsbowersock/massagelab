@@ -40,25 +40,45 @@ describe("Onboarding preference helpers", () => {
     assert.equal(supporterRoadmapInterestOptions[0].id, expectedIds[0])
   })
 
-  it("keeps only approved supporter roadmap interests", () => {
+  it("keeps only approved supporter roadmap interests in first-seen order", () => {
     assert.deepEqual(normalizeSupporterRoadmapInterests([
-      "personal_wellness",
-      "backgrounds_and_sound",
-      "personal_wellness",
+      "professional_documentation",
+      "therapist_tools",
+      "professional_documentation",
       "unknown_interest",
       "clientName",
       42,
       { interest: "practice_management" },
-      "therapist_tools",
-      "anatomy_and_education",
-      "professional_documentation",
-    ]), [
       "personal_wellness",
-      "backgrounds_and_sound",
-      "therapist_tools",
       "anatomy_and_education",
+      "backgrounds_and_sound",
+    ]), [
       "professional_documentation",
+      "therapist_tools",
+      "personal_wellness",
+      "anatomy_and_education",
+      "backgrounds_and_sound",
     ])
+  })
+
+  it("preserves append-then-normalize toggle order without duplicates", () => {
+    const selected = normalizeSupporterRoadmapInterests([
+      "therapist_tools",
+      "personal_wellness",
+    ])
+
+    assert.deepEqual(
+      normalizeSupporterRoadmapInterests([
+        ...selected,
+        "backgrounds_and_sound",
+        "therapist_tools",
+      ]),
+      [
+        "therapist_tools",
+        "personal_wellness",
+        "backgrounds_and_sound",
+      ],
+    )
   })
 
   it("builds a constrained therapist onboarding payload", () => {

@@ -14,7 +14,14 @@ async function donationRequest(request: Request) {
   const contentType = request.headers.get("content-type") ?? ""
 
   if (contentType.includes("application/x-www-form-urlencoded") || contentType.includes("multipart/form-data")) {
-    const formData = await request.formData()
+    let formData
+    try {
+      formData = await request.formData()
+    } catch {
+      // Preserve form-response semantics while the empty amount flows through
+      // the existing invalid-amount redirect without reaching Stripe.
+      return { isForm: true, amountCents: null }
+    }
     return {
       isForm: true,
       amountCents: formData.get("amountCents"),

@@ -1,5 +1,8 @@
 import assert from "node:assert/strict"
 import { spawnSync } from "node:child_process"
+import { mkdtemp, rm, writeFile } from "node:fs/promises"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { describe, it } from "node:test"
 import {
   isExplicitTrue,
@@ -18,6 +21,38 @@ const membershipPrices = {
 }
 
 /**
+ * Returns the complete hermetic child environment for readiness checks.
+ */
+function readinessEnvironment(overrides = {}) {
+  return {
+    PATH: process.env.PATH,
+    ...(process.env.SystemRoot ? { SystemRoot: process.env.SystemRoot } : {}),
+    ...(process.env.COMSPEC ? { COMSPEC: process.env.COMSPEC } : {}),
+    STRIPE_SECRET_KEY: "sk_test_readiness",
+    STRIPE_WEBHOOK_SECRET: "whsec_readiness",
+    BACKGROUND_COMMERCE_PURCHASING_ENABLED: "true",
+    BACKGROUND_COMMERCE_PRICE_CENTS: "100",
+    BACKGROUND_COMMERCE_CURRENCY: "usd",
+    BACKGROUND_COMMERCE_PURCHASE_COUNTRIES: "US",
+    BACKGROUND_COMMERCE_DIGITAL_PURCHASE_DOCUMENT_VERSION: "2026-07-digital-purchases-v2",
+    BACKGROUND_COMMERCE_WEBHOOK_READY: "true",
+    BACKGROUND_COMMERCE_WEBHOOK_EVENTS: "checkout.session.completed,checkout.session.expired,checkout.session.async_payment_succeeded,checkout.session.async_payment_failed,refund.created,refund.updated,refund.failed,charge.dispute.created,charge.dispute.updated,charge.dispute.closed",
+    BACKGROUND_COMMERCE_RECONCILIATION_READY: "true",
+    BACKGROUND_COMMERCE_TAX_MODE: "stripe",
+    BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "txcd_10000000",
+    BACKGROUND_COMMERCE_TAX_PROVIDER_READY: "true",
+    BACKGROUND_COMMERCE_TAX_REGISTRATIONS_READY: "true",
+    STRIPE_SUPPORTER_AUTOMATIC_TAX_ENABLED: "true",
+    STRIPE_SUPPORTER_TAX_PRODUCT_CODE: "txcd_10000000",
+    STRIPE_SUPPORTER_TAX_PROVIDER_READY: "true",
+    STRIPE_SUPPORTER_TAX_REGISTRATIONS_READY: "true",
+    STRIPE_SUPPORTER_TAX_CLASSIFICATION_CONFIRMED: "true",
+    ...membershipPrices,
+    ...overrides,
+  }
+}
+
+/**
  * Runs readiness in a hermetic child process so repository dotenv files cannot
  * satisfy or alter an individual deployment-contract test.
  */
@@ -25,30 +60,7 @@ function runReadiness(overrides = {}, args = []) {
   return spawnSync(process.execPath, ["scripts/stripe-readiness-check.mjs", "--no-dotenv", ...args], {
     cwd: process.cwd(),
     encoding: "utf8",
-    env: {
-      PATH: process.env.PATH,
-      STRIPE_SECRET_KEY: "sk_test_readiness",
-      STRIPE_WEBHOOK_SECRET: "whsec_readiness",
-      BACKGROUND_COMMERCE_PURCHASING_ENABLED: "true",
-      BACKGROUND_COMMERCE_PRICE_CENTS: "100",
-      BACKGROUND_COMMERCE_CURRENCY: "usd",
-      BACKGROUND_COMMERCE_PURCHASE_COUNTRIES: "US",
-      BACKGROUND_COMMERCE_DIGITAL_PURCHASE_DOCUMENT_VERSION: "2026-07-digital-purchases-v2",
-      BACKGROUND_COMMERCE_WEBHOOK_READY: "true",
-      BACKGROUND_COMMERCE_WEBHOOK_EVENTS: "checkout.session.completed,checkout.session.expired,checkout.session.async_payment_succeeded,checkout.session.async_payment_failed,refund.created,refund.updated,refund.failed,charge.dispute.created,charge.dispute.updated,charge.dispute.closed",
-      BACKGROUND_COMMERCE_RECONCILIATION_READY: "true",
-      BACKGROUND_COMMERCE_TAX_MODE: "stripe",
-      BACKGROUND_COMMERCE_TAX_PRODUCT_CODE: "txcd_10000000",
-      BACKGROUND_COMMERCE_TAX_PROVIDER_READY: "true",
-      BACKGROUND_COMMERCE_TAX_REGISTRATIONS_READY: "true",
-      STRIPE_SUPPORTER_AUTOMATIC_TAX_ENABLED: "true",
-      STRIPE_SUPPORTER_TAX_PRODUCT_CODE: "txcd_10000000",
-      STRIPE_SUPPORTER_TAX_PROVIDER_READY: "true",
-      STRIPE_SUPPORTER_TAX_REGISTRATIONS_READY: "true",
-      STRIPE_SUPPORTER_TAX_CLASSIFICATION_CONFIRMED: "true",
-      ...membershipPrices,
-      ...overrides,
-    },
+    env: readinessEnvironment(overrides),
   })
 }
 
@@ -360,6 +372,49 @@ describe("Stripe readiness background-commerce contract", () => {
       assert.equal(result.status, 1, `${name}: ${result.stdout}${result.stderr}`)
       assert.match(result.stderr, /FAIL Supporter recurring tax/, name)
       assert.doesNotMatch(`${result.stdout}${result.stderr}`, /sk_test_readiness|whsec_readiness/)
+    }
+  })
+
+  it("loads every Supporter recurring-tax gate from an explicit env file", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "massagelab-readiness-"))
+    const envFile = join(directory, "supporter-tax.env")
+    const supporterTaxKeys = [
+      "STRIPE_SUPPORTER_AUTOMATIC_TAX_ENABLED",
+      "STRIPE_SUPPORTER_TAX_PRODUCT_CODE",
+      "STRIPE_SUPPORTER_TAX_PROVIDER_READY",
+      "STRIPE_SUPPORTER_TAX_REGISTRATIONS_READY",
+      "STRIPE_SUPPORTER_TAX_CLASSIFICATION_CONFIRMED",
+    ]
+    const environment = readinessEnvironment()
+    for (const key of supporterTaxKeys) {
+      delete environment[key]
+    }
+
+    try {
+      await writeFile(envFile, [
+        "STRIPE_SUPPORTER_AUTOMATIC_TAX_ENABLED=true",
+        "STRIPE_SUPPORTER_TAX_PRODUCT_CODE=txcd_10000000",
+        "STRIPE_SUPPORTER_TAX_PROVIDER_READY=true",
+        "STRIPE_SUPPORTER_TAX_REGISTRATIONS_READY=true",
+        "STRIPE_SUPPORTER_TAX_CLASSIFICATION_CONFIRMED=true",
+      ].join("\n"))
+
+      const result = spawnSync(
+        process.execPath,
+        ["scripts/stripe-readiness-check.mjs", `--env-file=${envFile}`],
+        {
+          cwd: process.cwd(),
+          encoding: "utf8",
+          env: environment,
+        },
+      )
+
+      assert.equal(result.error, undefined, result.error?.message)
+      assert.equal(result.status, 0, result.stderr || result.stdout)
+      assert.match(result.stdout, /Supporter recurring automatic tax enabled: true/)
+      assert.match(result.stdout, /Supporter recurring tax classification confirmed: true/)
+    } finally {
+      await rm(directory, { recursive: true, force: true })
     }
   })
 

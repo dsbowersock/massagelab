@@ -10,8 +10,17 @@ const donationRouteSource = await readFile(
   "utf8",
 )
 
-/** Loads the production route with deterministic billing and response doubles. */
-function donationPostForFailure(failure) {
+/**
+ * Loads the production route with deterministic amount lookup and billing
+ * doubles so invalid inputs can prove they stop before Stripe.
+ */
+function donationPostForFailure(
+  failure,
+  {
+    findDonationOption = () => ({ amountCents: 500 }),
+    onCheckout = () => {},
+  } = {},
+) {
   const route = loadCompiledModule(
     donationRouteSource,
     "app/api/billing/donation/route.ts",
@@ -34,10 +43,11 @@ function donationPostForFailure(failure) {
         getSiteUrl: () => "https://massagelab.app",
       },
       "@/lib/donations": {
-        findDonationOption: () => ({ amountCents: 500 }),
+        findDonationOption,
       },
       "@/lib/stripe-billing": {
         createStripeDonationCheckoutSession: async () => {
+          onCheckout()
           throw failure
         },
       },
@@ -56,6 +66,60 @@ function jsonRequest() {
 }
 
 describe("one-time support Checkout route", () => {
+  it("returns the controlled JSON error for an unsupported amount before Stripe", async () => {
+    const lookedUpAmounts = []
+    let checkoutCalls = 0
+    const POST = donationPostForFailure(new Error("Stripe must not run"), {
+      findDonationOption: (amountCents) => {
+        lookedUpAmounts.push(amountCents)
+        return null
+      },
+      onCheckout: () => {
+        checkoutCalls += 1
+      },
+    })
+
+    const response = await POST(jsonRequest())
+
+    assert.deepEqual(response, {
+      body: { error: "Unsupported one-time support amount" },
+      status: 400,
+    })
+    assert.deepEqual(lookedUpAmounts, [500])
+    assert.equal(checkoutCalls, 0)
+  })
+
+  it("redirects malformed form data through the existing invalid-amount response", async () => {
+    const lookedUpAmounts = []
+    let checkoutCalls = 0
+    const POST = donationPostForFailure(new Error("Stripe must not run"), {
+      findDonationOption: (amountCents) => {
+        lookedUpAmounts.push(amountCents)
+        return null
+      },
+      onCheckout: () => {
+        checkoutCalls += 1
+      },
+    })
+    const request = {
+      headers: new Headers({
+        "content-type": "multipart/form-data; boundary=broken",
+      }),
+      formData: async () => {
+        throw new TypeError("Malformed multipart body")
+      },
+    }
+
+    const response = await POST(request)
+
+    assert.deepEqual(response, {
+      url: "https://massagelab.app/pricing?donation=invalid-amount",
+      status: 303,
+    })
+    assert.deepEqual(lookedUpAmounts, [null])
+    assert.equal(checkoutCalls, 0)
+  })
+
   for (const [label, code, expectedCode] of [
     ["allowlisted provider code", "provider_timeout", "provider_timeout"],
     ["unsafe provider code", "secret\ncustomer@example.com", "unexpected_error"],

@@ -18,7 +18,11 @@ function TestComponent() {}
  * Renders the production pricing cards against a compact single-plan catalog
  * so each mode's configured/unavailable Price behavior stays deterministic.
  */
-async function renderMembershipPricingCards({ mode, amountChoices }) {
+async function renderMembershipPricingCards({
+  mode,
+  amountChoices,
+  portalActionAvailable = true,
+}) {
   const pricingCardsSource = await readFile(
     new URL("../components/membership/pricing-cards.tsx", import.meta.url),
     "utf8",
@@ -107,11 +111,12 @@ async function renderMembershipPricingCards({ mode, amountChoices }) {
     activeMembershipLevel: mode === "portal" ? "SUPPORTER" : null,
     catalog,
     mode,
+    portalActionAvailable,
   }))
 }
 
 describe("MembershipPricingCards configured price rendering", () => {
-  it("hides unconfigured portal prices while preserving non-portal fallbacks", async () => {
+  it("advertises only lookup-verified prices in portal and pre-auth modes", async () => {
     const configuredPrice = {
       membershipLevel: "SUPPORTER",
       interval: "month",
@@ -182,10 +187,10 @@ describe("MembershipPricingCards configured price rendering", () => {
     )
     assert.deepEqual(
       portalPriceTiles.map((element) => element.props["data-membership-portal-amount-choice"]),
-      ["support-1", "support-5"],
+      ["support-1"],
     )
     assert.match(elementText(portalCards), /\$1/)
-    assert.match(elementText(portalCards), /Price unavailable/)
+    assert.doesNotMatch(elementText(portalCards), /Price unavailable/)
     assert.doesNotMatch(elementText(portalCards), /\$2/)
     assert.equal(
       findElements(
@@ -196,7 +201,7 @@ describe("MembershipPricingCards configured price rendering", () => {
           && element.props.className?.includes("gap-1")
         ),
       ).length,
-      2,
+      1,
     )
     assert.match(elementText(portalCards), /Manage or change support amount/)
     assert.match(elementText(portalCards), /Customer Portal/)
@@ -267,7 +272,49 @@ describe("MembershipPricingCards configured price rendering", () => {
     )
     assert.deepEqual(
       authChoices.map((element) => elementText(element)),
-      ["Choose $1", "Choose $2", "Choose Price unavailable"],
+      ["Choose $1"],
     )
+    assert.doesNotMatch(elementText(authCards), /\$2|Price unavailable/)
+  })
+
+  it("keeps blocking membership mode fail closed when no Portal action is available", async () => {
+    const price = {
+      membershipLevel: "SUPPORTER",
+      interval: "month",
+      priceId: "price_supporter_1_month",
+      unitAmount: 100,
+      currency: "usd",
+      displayPrice: "$1",
+      displayInterval: "/month",
+      isConfigured: true,
+      isLookupAvailable: true,
+      yearlySavings: null,
+    }
+    const tree = await renderMembershipPricingCards({
+      mode: "portal",
+      portalActionAvailable: false,
+      amountChoices: [{
+        id: "support-1",
+        monthAmountCents: 100,
+        yearAmountCents: 1000,
+        prices: { month: price },
+      }],
+    })
+
+    assert.match(elementText(tree), /Billing management is temporarily unavailable/)
+    assert.equal(
+      findElements(
+        tree,
+        (element) => (
+          element.type === "form"
+          && (
+            element.props.action === "/api/billing/portal"
+            || element.props.action === "/api/billing/checkout"
+          )
+        ),
+      ).length,
+      0,
+    )
+    assert.doesNotMatch(elementText(tree), /Support with|Choose \$1|Manage or change/)
   })
 })

@@ -8,7 +8,7 @@ import {
   supporterRoadmapInterestOptions,
 } from "../lib/onboarding-preferences.js"
 import {
-  compileCommonJsModule,
+  createCompiledModuleLoader,
   createElement,
   findElement,
 } from "./helpers/compiled-module.mjs"
@@ -17,13 +17,10 @@ const panelSource = await readFile(
   new URL("../app/account/supporter-interests-panel.tsx", import.meta.url),
   "utf8",
 )
-// The repository uses Node's test runner without a DOM test library. Transpile
-// the real client component and provide only the hook/JSX boundary it needs so
-// these tests exercise its async state transitions without duplicating them.
-const compiledPanelSource = compileCommonJsModule(
-  panelSource,
-  "supporter-interests-panel.tsx",
-)
+// The repository uses Node's test runner without a DOM test library. Load the
+// real client component with only the hook/JSX boundary it needs so these tests
+// exercise its async state transitions without duplicating them.
+const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 
 function createDeferred() {
   let resolve
@@ -127,41 +124,28 @@ function createPanelHarness(fetchImpl) {
   function Loader() {}
   function HeartHandshake() {}
 
-  const compiledModule = { exports: {} }
-  const loadPanel = new Function("require", "exports", "module", compiledPanelSource)
-  loadPanel((specifier) => {
-    switch (specifier) {
-      case "react":
-        return { useCallback, useEffect, useRef, useState }
-      case "react/jsx-runtime":
-        return {
-          Fragment: Symbol.for("supporter-interests-panel.fragment"),
-          jsx: createElement,
-          jsxs: createElement,
-        }
-      case "lucide-react":
-        return { HeartHandshake }
-      case "@/lib/onboarding-preferences":
-        return {
-          normalizeSupporterRoadmapInterests,
-          supporterRoadmapInterestOptions,
-        }
-      case "@/lib/account-preferences":
-        return { resolveSupporterRoadmapInterestsAfterSave }
-      case "@/components/account/settings-surfaces":
-        return { SettingsSurface }
-      case "@/components/ui/button":
-        return { Button }
-      case "@/components/ui/checkbox":
-        return { Checkbox }
-      case "@/components/ui/loader":
-        return { Loader }
-      default:
-        throw new Error(`Unexpected SupporterInterestsPanel import: ${specifier}`)
-    }
-  }, compiledModule.exports, compiledModule)
-
-  const { SupporterInterestsPanel } = compiledModule.exports
+  const { SupporterInterestsPanel } = loadCompiledModule(
+    panelSource,
+    "supporter-interests-panel.tsx",
+    {
+      react: { useCallback, useEffect, useRef, useState },
+      "react/jsx-runtime": {
+        Fragment: Symbol.for("supporter-interests-panel.fragment"),
+        jsx: createElement,
+        jsxs: createElement,
+      },
+      "lucide-react": { HeartHandshake },
+      "@/lib/onboarding-preferences": {
+        normalizeSupporterRoadmapInterests,
+        supporterRoadmapInterestOptions,
+      },
+      "@/lib/account-preferences": { resolveSupporterRoadmapInterestsAfterSave },
+      "@/components/account/settings-surfaces": { SettingsSurface },
+      "@/components/ui/button": { Button },
+      "@/components/ui/checkbox": { Checkbox },
+      "@/components/ui/loader": { Loader },
+    },
+  )
 
   function render() {
     hookIndex = 0
@@ -419,110 +403,128 @@ describe("SupporterInterestsPanel", () => {
     }
   })
 
-  it("rolls a failed save back to the previously persisted interests", async (context) => {
-    const persistedInterest = supporterRoadmapInterestOptions[0].id
-    const failedInterest = supporterRoadmapInterestOptions[1].id
-    const saveError = new Error("save request failed")
-    const logged = []
-    context.mock.method(console, "error", (...args) => logged.push(args))
-    const harness = createPanelHarness(async (_url, init = {}) => {
-      if (init.method === "PUT") {
-        throw saveError
-      }
+  for (const failureMode of ["network rejection", "HTTP non-OK response"]) {
+    it(`rolls a ${failureMode} save back to the previously persisted interests`, async (context) => {
+      const persistedInterest = supporterRoadmapInterestOptions[0].id
+      const failedInterest = supporterRoadmapInterestOptions[1].id
+      const requestError = new Error("save request failed")
+      const logged = []
+      context.mock.method(console, "error", (...args) => logged.push(args))
+      const harness = createPanelHarness(async (_url, init = {}) => {
+        if (init.method === "PUT") {
+          if (failureMode === "network rejection") {
+            throw requestError
+          }
+          return createJsonResponse({}, false)
+        }
 
-      return createJsonResponse({
-        appSettings: {
-          supporterRoadmapInterests: [persistedInterest],
-        },
+        return createJsonResponse({
+          appSettings: {
+            supporterRoadmapInterests: [persistedInterest],
+          },
+        })
       })
-    })
 
-    try {
-      harness.mount()
-      await settleAsyncWork()
-      harness.render()
+      try {
+        harness.mount()
+        await settleAsyncWork()
+        harness.render()
 
-      findInterestCheckbox(harness.getTree(), failedInterest).props.onCheckedChange(true)
-      harness.render()
-      assert.equal(findInterestCheckbox(harness.getTree(), failedInterest).props.checked, true)
+        findInterestCheckbox(harness.getTree(), failedInterest).props.onCheckedChange(true)
+        harness.render()
+        assert.equal(findInterestCheckbox(harness.getTree(), failedInterest).props.checked, true)
 
-      await settleAsyncWork()
-      harness.render()
+        await settleAsyncWork()
+        harness.render()
 
-      assert.equal(findInterestCheckbox(harness.getTree(), persistedInterest).props.checked, true)
-      assert.equal(findInterestCheckbox(harness.getTree(), failedInterest).props.checked, false)
-      assert.equal(findLiveRegion(harness.getTree()).props.role, "status")
-      assert.equal(findLiveRegion(harness.getTree()).props["aria-live"], "assertive")
-      assert.equal(findLiveRegion(harness.getTree()).props["aria-atomic"], "true")
-      assert.equal(
-        liveRegionMessage(harness.getTree()),
-        "Could not save roadmap interests. Please try again.",
-      )
-      assert.deepEqual(logged, [[
-        "SupporterInterestsPanel failed to save roadmap interests",
-        saveError,
-      ]])
-    } finally {
-      harness.dispose()
-    }
-  })
-
-  it("retries a failed initial load and keeps interests disabled until retry succeeds", async (context) => {
-    const loadError = new Error("load request failed")
-    const loadedInterest = supporterRoadmapInterestOptions[0].id
-    let loadAttempts = 0
-    const logged = []
-    context.mock.method(console, "error", (...args) => logged.push(args))
-    const harness = createPanelHarness(async () => {
-      loadAttempts += 1
-      if (loadAttempts === 1) {
-        throw loadError
+        assert.equal(findInterestCheckbox(harness.getTree(), persistedInterest).props.checked, true)
+        assert.equal(findInterestCheckbox(harness.getTree(), failedInterest).props.checked, false)
+        assert.equal(findLiveRegion(harness.getTree()).props.role, "status")
+        assert.equal(findLiveRegion(harness.getTree()).props["aria-live"], "assertive")
+        assert.equal(findLiveRegion(harness.getTree()).props["aria-atomic"], "true")
+        assert.equal(
+          liveRegionMessage(harness.getTree()),
+          "Could not save roadmap interests. Please try again.",
+        )
+        assert.equal(logged.length, 1)
+        assert.equal(logged[0][0], "SupporterInterestsPanel failed to save roadmap interests")
+        if (failureMode === "network rejection") {
+          assert.equal(logged[0][1], requestError)
+        } else {
+          assert.equal(logged[0][1] instanceof Error, true)
+          assert.equal(logged[0][1].message, "Unable to save supporter roadmap interests")
+        }
+      } finally {
+        harness.dispose()
       }
-      return createJsonResponse({
-        appSettings: {
-          supporterRoadmapInterests: [loadedInterest],
-        },
-      })
     })
+  }
 
-    try {
-      harness.mount()
-      await settleAsyncWork()
-      harness.render()
+  for (const failureMode of ["network rejection", "HTTP non-OK response"]) {
+    it(`retries a ${failureMode} initial load and keeps interests disabled until retry succeeds`, async (context) => {
+      const requestError = new Error("load request failed")
+      const loadedInterest = supporterRoadmapInterestOptions[0].id
+      let loadAttempts = 0
+      const logged = []
+      context.mock.method(console, "error", (...args) => logged.push(args))
+      const harness = createPanelHarness(async () => {
+        loadAttempts += 1
+        if (loadAttempts === 1) {
+          if (failureMode === "network rejection") {
+            throw requestError
+          }
+          return createJsonResponse({}, false)
+        }
+        return createJsonResponse({
+          appSettings: {
+            supporterRoadmapInterests: [loadedInterest],
+          },
+        })
+      })
 
-      assert.equal(findLiveRegion(harness.getTree()).props.role, "status")
-      assert.equal(findLiveRegion(harness.getTree()).props["aria-live"], "assertive")
-      assert.equal(findLiveRegion(harness.getTree()).props["aria-atomic"], "true")
-      assert.equal(
-        liveRegionMessage(harness.getTree()),
-        "Could not load roadmap interests. Please try again.",
-      )
-      assert.equal(
-        findInterestCheckbox(harness.getTree(), loadedInterest).props.disabled,
-        true,
-      )
-      assert.equal(findRetryButton(harness.getTree()).props.disabled, false)
-      assert.deepEqual(logged, [[
-        "SupporterInterestsPanel failed to load roadmap interests",
-        loadError,
-      ]])
+      try {
+        harness.mount()
+        await settleAsyncWork()
+        harness.render()
 
-      findRetryButton(harness.getTree()).props.onClick()
-      harness.render()
-      assert.equal(findInterestCheckbox(harness.getTree(), loadedInterest).props.disabled, true)
-      assert.equal(findRetryButton(harness.getTree()), null)
+        assert.equal(findLiveRegion(harness.getTree()).props.role, "status")
+        assert.equal(findLiveRegion(harness.getTree()).props["aria-live"], "assertive")
+        assert.equal(findLiveRegion(harness.getTree()).props["aria-atomic"], "true")
+        assert.equal(
+          liveRegionMessage(harness.getTree()),
+          "Could not load roadmap interests. Please try again.",
+        )
+        assert.equal(
+          findInterestCheckbox(harness.getTree(), loadedInterest).props.disabled,
+          true,
+        )
+        assert.equal(findRetryButton(harness.getTree()).props.disabled, false)
+        assert.equal(logged.length, 1)
+        assert.equal(logged[0][0], "SupporterInterestsPanel failed to load roadmap interests")
+        if (failureMode === "network rejection") {
+          assert.equal(logged[0][1], requestError)
+        } else {
+          assert.equal(logged[0][1] instanceof Error, true)
+          assert.equal(logged[0][1].message, "Unable to load supporter roadmap interests")
+        }
 
-      await settleAsyncWork()
-      harness.render()
+        findRetryButton(harness.getTree()).props.onClick()
+        harness.render()
+        assert.equal(findInterestCheckbox(harness.getTree(), loadedInterest).props.disabled, true)
+        assert.equal(findRetryButton(harness.getTree()), null)
 
-      assert.equal(loadAttempts, 2)
-      assert.equal(findInterestCheckbox(harness.getTree(), loadedInterest).props.checked, true)
-      assert.equal(findInterestCheckbox(harness.getTree(), loadedInterest).props.disabled, false)
-      assert.equal(liveRegionMessage(harness.getTree()), "")
-    } finally {
-      harness.dispose()
-    }
-  })
+        await settleAsyncWork()
+        harness.render()
+
+        assert.equal(loadAttempts, 2)
+        assert.equal(findInterestCheckbox(harness.getTree(), loadedInterest).props.checked, true)
+        assert.equal(findInterestCheckbox(harness.getTree(), loadedInterest).props.disabled, false)
+        assert.equal(liveRegionMessage(harness.getTree()), "")
+      } finally {
+        harness.dispose()
+      }
+    })
+  }
 
   it("does not update state when the initial preferences finish after unmount", async () => {
     const preferences = createDeferred()

@@ -65,6 +65,44 @@ describe("Membership Checkout POST route", () => {
     })
   }
 
+  it("rejects an invalid JSON Supporter amount choice before billing work", async () => {
+    const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
+    const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls))(jsonRequest({
+      membershipLevel: "SUPPORTER",
+      supporterAmountChoiceId: "support-9",
+      interval: "month",
+    }))
+
+    assert.deepEqual(response, {
+      body: { error: "Unsupported membership level" },
+      status: 400,
+    })
+    assert.deepEqual(calls, {
+      ensureCustomer: 0,
+      createCheckout: 0,
+      membershipLookup: 0,
+    })
+  })
+
+  it("redirects a stale form Supporter amount choice before billing work", async () => {
+    const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
+    const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls))(formRequest({
+      membershipLevel: "SUPPORTER",
+      supporterAmountChoiceId: "supporter",
+      interval: "month",
+    }))
+
+    assert.deepEqual(response, {
+      url: "https://massagelab.app/account?billing=unsupported-plan",
+      status: 303,
+    })
+    assert.deepEqual(calls, {
+      ensureCustomer: 0,
+      createCheckout: 0,
+      membershipLookup: 0,
+    })
+  })
+
   it("does not send an early-access discount with public Supporter Checkout", async () => {
     const calls = { ensureCustomer: 0, createCheckout: 0, checkoutOptions: null }
     const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls))(jsonRequest({

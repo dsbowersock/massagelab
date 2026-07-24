@@ -6,6 +6,7 @@ import Stripe from "stripe"
 import {
   recurringPriceSemanticsMatch,
   SUPPORTER_MEMBERSHIP_CATALOG_VERSION as SUPPORTER_CATALOG,
+  SUPPORTER_MEMBERSHIP_PRICE_CONTRACT,
   SUPPORTER_RECURRING_TAX_BEHAVIOR,
   SUPPORTER_RECURRING_TAX_CODE as EXPECTED_TAX_CODE,
 } from "../lib/stripe-price-contract.js"
@@ -38,45 +39,28 @@ const DETERMINISTIC_STRIPE_ERROR_TYPES = new Set([
   "StripePermissionError",
   "StripeIdempotencyError",
 ])
-
-const TARGET_PRICE_SPECS = Object.freeze([
-  Object.freeze({
-    key: "support-1-month",
-    envKey: "STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID",
-    unitAmount: 100,
-    interval: "month",
-  }),
-  Object.freeze({
-    key: "support-1-year",
-    envKey: "STRIPE_SUPPORTER_1_YEARLY_PRICE_ID",
-    unitAmount: 1000,
-    interval: "year",
-  }),
-  Object.freeze({
-    key: "support-2-month",
-    envKey: "STRIPE_SUPPORTER_2_MONTHLY_PRICE_ID",
-    unitAmount: 200,
-    interval: "month",
-  }),
-  Object.freeze({
-    key: "support-2-year",
-    envKey: "STRIPE_SUPPORTER_2_YEARLY_PRICE_ID",
-    unitAmount: 2000,
-    interval: "year",
-  }),
-  Object.freeze({
-    key: "support-5-month",
-    envKey: "STRIPE_SUPPORTER_5_MONTHLY_PRICE_ID",
-    unitAmount: 500,
-    interval: "month",
-  }),
-  Object.freeze({
-    key: "support-5-year",
-    envKey: "STRIPE_SUPPORTER_5_YEARLY_PRICE_ID",
-    unitAmount: 5000,
-    interval: "year",
-  }),
+const CATALOG_DEPENDENCY_FAILURE_CODES = new Set([
+  "product_dependency_mismatch",
+  "supporter_product_duplicate",
+  "supporter_product_dependency_mismatch",
+  "legacy_price_dependency_mismatch",
+  "approved_price_dependency_mismatch",
+  "unexpected_managed_price",
 ])
+
+const TARGET_PRICE_SPECS = Object.freeze(
+  SUPPORTER_MEMBERSHIP_PRICE_CONTRACT.map(({
+    key,
+    envKey,
+    unitAmount,
+    interval,
+  }) => Object.freeze({
+    key,
+    envKey,
+    unitAmount,
+    interval,
+  })),
+)
 
 const LEGACY_PRICE_CONFIG = Object.freeze([
   Object.freeze({
@@ -868,10 +852,7 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
     ),
     check(
       "catalog_dependencies",
-      !failureCodes.some((code) => (
-        code.includes("product")
-        || code.includes("price")
-      )),
+      !failureCodes.some((code) => CATALOG_DEPENDENCY_FAILURE_CODES.has(code)),
     ),
     check(
       "coupon_dependencies",
@@ -1309,7 +1290,7 @@ async function main() {
   } catch (error) {
     const migrationError = error instanceof MigrationError
       ? error
-      : new MigrationError(["unexpected_migration_failure"])
+      : new MigrationError(["unexpected_migration_failure"], [], { cause: error })
     for (const code of migrationError.failureCodes) {
       console.error(`FAIL ${code}`)
     }

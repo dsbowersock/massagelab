@@ -491,6 +491,7 @@ describe("Supporter membership Stripe migration", () => {
       },
     })
 
+    assert.equal(execution.error, undefined, execution.error?.message)
     assert.equal(execution.status, 1)
     assert.match(execution.stderr, /FAIL expected_stripe_mode_required/)
     assert.match(execution.stderr, /FAIL secret_key_mode_mismatch/)

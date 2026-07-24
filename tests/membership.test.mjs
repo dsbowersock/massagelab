@@ -218,13 +218,16 @@ describe("Membership and entitlement helpers", () => {
       ]),
       false,
     )
-    assert.equal(
-      membership.resolveMembershipPricingMode({
-        signedIn: true,
-        subscriptions: [{ status: "canceled", membershipLevel: "SUPPORTER" }],
-      }),
-      "checkout",
-    )
+    for (const status of ["canceled", "incomplete_expired"]) {
+      assert.equal(
+        membership.resolveMembershipPricingMode({
+          signedIn: true,
+          subscriptions: [{ status, membershipLevel: "SUPPORTER" }],
+        }),
+        "checkout",
+        status,
+      )
+    }
     assert.equal(
       membership.resolveMembershipPricingMode({ signedIn: false, subscriptions: [] }),
       "auth",

@@ -10,6 +10,7 @@ import {
   recurringPriceSemanticMismatches,
   recurringPriceSemanticsMatch,
   SUPPORTER_MEMBERSHIP_CATALOG_VERSION,
+  SUPPORTER_MEMBERSHIP_PRICE_CONTRACT,
   SUPPORTER_RECURRING_TAX_BEHAVIOR,
   SUPPORTER_RECURRING_TAX_CODE,
 } from "../lib/stripe-price-contract.js"
@@ -423,20 +424,32 @@ describe("Supporter membership final-review contracts", () => {
     )
   })
 
-  it("fails closed without rendering Checkout when authenticated membership lookup rejects", async () => {
-    const membershipStatusError = new Error("membership database unavailable")
+  it("fails closed to Portal mode with sanitized logging when membership lookup rejects", async (context) => {
+    const membershipStatusError = new Error("membership database unavailable for user@example.com")
+    membershipStatusError.code = "unsafe\nuser@example.com"
     const renderedPricingModes = []
+    const logged = []
+    context.mock.method(console, "error", (...args) => logged.push(args))
 
-    await assert.rejects(
-      () => renderPublicPricing({
-        session: { user: { id: "user_unknown_membership" } },
-        subscriptions: [],
-        membershipStatusError,
-        renderedPricingModes,
-      }),
-      (error) => error === membershipStatusError,
-    )
-    assert.deepEqual(renderedPricingModes, [])
+    const result = await renderPublicPricing({
+      session: { user: { id: "user_unknown_membership" } },
+      subscriptions: [],
+      membershipStatusError,
+      renderedPricingModes,
+    })
+
+    assert.deepEqual(result, {
+      activeMembershipLevel: null,
+      mode: "portal",
+      subscriptionQueries: 1,
+    })
+    assert.deepEqual(renderedPricingModes, ["portal"])
+    assert.deepEqual(logged, [[
+      "Unable to load membership pricing status",
+      { code: "unexpected_error" },
+    ]])
+    assert.equal(logged.flat().includes(membershipStatusError), false)
+    assert.doesNotMatch(JSON.stringify(logged), /user@example\.com|database unavailable/)
   })
 
   it("keeps legacy runtime Price mappings until inventory and webhook reconciliation are final", async () => {
@@ -492,6 +505,7 @@ describe("Supporter membership final-review contracts", () => {
       "lib/stripe-readiness.js",
       {
         "./stripe-price-contract.js": {
+          SUPPORTER_MEMBERSHIP_PRICE_CONTRACT,
           SUPPORTER_RECURRING_TAX_BEHAVIOR,
           SUPPORTER_RECURRING_TAX_CODE,
           recurringPriceSemanticMismatches(candidate, contract) {
@@ -538,6 +552,7 @@ describe("Supporter membership final-review contracts", () => {
         stripe: class TestStripe {},
         "../lib/stripe-price-contract.js": {
           SUPPORTER_MEMBERSHIP_CATALOG_VERSION,
+          SUPPORTER_MEMBERSHIP_PRICE_CONTRACT,
           SUPPORTER_RECURRING_TAX_BEHAVIOR,
           SUPPORTER_RECURRING_TAX_CODE,
           recurringPriceSemanticsMatch(candidate, contract) {

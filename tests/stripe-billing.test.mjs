@@ -448,7 +448,7 @@ describe("Stripe billing helpers", () => {
     }
   })
 
-  it("fails closed when membership Checkout Session pagination repeats or exceeds ten pages", async () => {
+  it("fails closed when membership Checkout Session pagination repeats a cursor", async () => {
     let repeatedCalls = 0
     await assert.rejects(
       stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
@@ -474,32 +474,105 @@ describe("Stripe billing helpers", () => {
       /pagination did not advance/,
     )
     assert.equal(repeatedCalls, 2)
+  })
 
-    let cappedCalls = 0
+  it("falls back to actionable statuses when expired history fills the mixed-session scan", async () => {
+    const listCalls = { mixed: 0, open: 0, complete: 0 }
+    let createOptions = null
+    const result = await stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+      stripeClient: {
+        checkout: {
+          sessions: {
+            list: async (payload) => {
+              if (payload.status === "open" || payload.status === "complete") {
+                listCalls[payload.status] += 1
+                return stripeCheckoutSessionList()
+              }
+
+              listCalls.mixed += 1
+              return {
+                ...stripeCheckoutSessionList([
+                  membershipCheckoutSession({
+                    id: `cs_expired_page_${listCalls.mixed}`,
+                    status: "expired",
+                    url: null,
+                  }),
+                ]),
+                has_more: true,
+              }
+            },
+            create: async (_payload, requestOptions) => {
+              createOptions = requestOptions
+              return membershipCheckoutSession({ id: "cs_after_expired_history" })
+            },
+          },
+        },
+      },
+    }))
+
+    assert.equal(result.id, "cs_after_expired_history")
+    assert.deepEqual(listCalls, { mixed: 10, open: 1, complete: 1 })
+    assert.deepEqual(createOptions, {
+      idempotencyKey: "massagelab-membership-checkout:user_123:after:cs_expired_page_1",
+    })
+  })
+
+  it("fails closed with a distinct error when one actionable status exceeds ten pages", async () => {
+    const listCalls = { mixed: 0, open: 0, complete: 0 }
+    let createCalls = 0
+
     await assert.rejects(
       stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
         stripeClient: {
           checkout: {
             sessions: {
-              list: async () => {
-                cappedCalls += 1
+              list: async (payload) => {
+                if (payload.status === "complete") {
+                  listCalls.complete += 1
+                  return stripeCheckoutSessionList()
+                }
+                if (payload.status === "open") {
+                  listCalls.open += 1
+                  return {
+                    ...stripeCheckoutSessionList([
+                      membershipCheckoutSession({
+                        id: `cs_open_page_${listCalls.open}`,
+                      }),
+                    ]),
+                    has_more: true,
+                  }
+                }
+
+                listCalls.mixed += 1
                 return {
                   ...stripeCheckoutSessionList([
                     membershipCheckoutSession({
-                      id: `cs_page_${cappedCalls}`,
+                      id: `cs_expired_page_${listCalls.mixed}`,
                       status: "expired",
+                      url: null,
                     }),
                   ]),
                   has_more: true,
                 }
               },
+              create: async () => {
+                createCalls += 1
+                return membershipCheckoutSession({ id: "cs_unexpected_create" })
+              },
             },
           },
         },
       })),
-      /pagination exceeded the safe limit/,
+      (error) => {
+        assert.equal(error.name, "MembershipCheckoutSessionHistoryCapError")
+        assert.equal(error.code, "membership_checkout_history_cap_exceeded")
+        assert.match(error.message, /Stripe open membership Checkout Session history exceeded/)
+        return true
+      },
     )
-    assert.equal(cappedCalls, 10)
+
+    assert.deepEqual(listCalls, { mixed: 10, open: 10, complete: 1 })
+    assert.equal(createCalls, 0)
   })
 
   it("observes membership reconciliation duration without logging identifiers", async () => {

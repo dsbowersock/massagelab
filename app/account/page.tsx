@@ -613,7 +613,19 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
   const data = await getAccountSurfaceData("membership", userId, sessionUser)
   const membershipSummary = data.membershipSummary
   const canUseChimerCustomColors = membershipSummary.entitlements.features.includes(FEATURE_KEYS.chimerCustomColors)
-  const canOpenBillingPortal = Boolean(membershipSummary.stripeCustomer && membershipSummary.subscriptions.length > 0)
+  const subscriptionPricingMode = resolveMembershipPricingMode({
+    signedIn: true,
+    subscriptions: membershipSummary.subscriptions,
+  })
+  // A Portal action requires both a billing profile and a blocking subscription.
+  // Terminal history remains visible but returns pricing to Checkout mode.
+  const canOpenBillingPortal = Boolean(
+    membershipSummary.stripeCustomer
+    && subscriptionPricingMode === "portal",
+  )
+  // Missing billing-profile state must not turn a blocking subscription into
+  // new Checkout choices; it only suppresses the unavailable Portal action.
+  const membershipPricingMode = subscriptionPricingMode
 
   return (
     <TabsContent value="membership" className="space-y-5">
@@ -649,10 +661,8 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
         <MembershipPricingCards
           catalog={data.pricingCatalog}
           activeMembershipLevel={membershipSummary.entitlements.paidLevel}
-          mode={resolveMembershipPricingMode({
-            signedIn: true,
-            subscriptions: membershipSummary.subscriptions,
-          })}
+          mode={membershipPricingMode}
+          portalActionAvailable={canOpenBillingPortal}
         />
       </div>
 

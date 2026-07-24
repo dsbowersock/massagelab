@@ -31,15 +31,25 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
   const params = await searchParams
   const oneTimeSupportNotice = pricingOneTimeSupportNotice(params?.donation)
   const signedIn = Boolean(session?.user?.id)
-  // Authenticated pricing deliberately rejects if subscription state cannot be
-  // loaded; falling back to Checkout could permit parallel enrollment.
-  const membershipStatus = session?.user?.id
-    ? await getUserMembershipPricingStatus(prisma, session.user.id)
-    : null
-  const pricingMode = resolveMembershipPricingMode({
-    signedIn,
-    subscriptions: membershipStatus?.subscriptions ?? [],
-  })
+  let membershipStatus: Awaited<ReturnType<typeof getUserMembershipPricingStatus>> | null = null
+  let membershipStatusUnavailable = false
+  if (session?.user?.id) {
+    try {
+      membershipStatus = await getUserMembershipPricingStatus(prisma, session.user.id)
+    } catch (error) {
+      membershipStatusUnavailable = true
+      console.error("Unable to load membership pricing status", {
+        code: safePricingErrorCode(error),
+      })
+    }
+  }
+  // Unknown authenticated subscription state must never expose new Checkout.
+  const pricingMode = membershipStatusUnavailable
+    ? "portal"
+    : resolveMembershipPricingMode({
+        signedIn,
+        subscriptions: membershipStatus?.subscriptions ?? [],
+      })
 
   return (
     <AppPageShell title="Pricing">
@@ -136,6 +146,19 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
         />
     </AppPageShell>
   )
+}
+
+/** Reduces pricing lookup failures to a non-sensitive diagnostic code. */
+function safePricingErrorCode(error: unknown) {
+  return (
+    error
+    && typeof error === "object"
+    && "code" in error
+    && typeof error.code === "string"
+    && /^[a-z0-9_.-]{1,80}$/i.test(error.code)
+  )
+    ? error.code
+    : "unexpected_error"
 }
 
 /**
