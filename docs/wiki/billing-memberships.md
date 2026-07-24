@@ -151,8 +151,9 @@ non-secret deployment values are explicit:
 When ready, a new Supporter Checkout Session enables Stripe Automatic Tax,
 requires a billing address, and saves the entered address to the existing
 Stripe Customer. `--verify-stripe` also requires every configured Supporter
-Price to use exclusive tax behavior and its expanded Product to use
-`txcd_10000000`.
+Price to use exclusive tax behavior, exact interval and `interval_count=1`, no
+trial, licensed usage, per-unit billing, no quantity transform, and no
+additional currencies, while its expanded Product must use `txcd_10000000`.
 
 The current `txcd_10000000` confirmation is sufficient to implement and test
 this contract, but it is not recorded as final professional authorization to
@@ -169,9 +170,11 @@ Automatic Tax.
 - Until the Supporter migration is applied, preserve the current mapped Price
   IDs for webhook reconciliation and keep new Therapist and Practice enrollment
   unavailable.
+- Do not remove the six legacy runtime Price mappings until subscriber inventory proves none remain and webhook reconciliation is final.
 - Apply the migration only after existing-subscriber, recurring-tax, webhook,
-  entitlement, portal, and rollback checks pass. Then retain only the six
-  approved runtime Supporter Price IDs.
+  entitlement, portal, and rollback checks pass. The six approved Supporter
+  Price IDs alone control new public enrollment; legacy IDs remain
+  reconciliation-only compatibility inputs until the explicit removal gate.
 - Enable Stripe Customer Portal for subscription management, payment method updates, invoices, and cancellation.
 - Configure the pinned `/api/billing/webhook` endpoint as enabled on the
   app's `2026-02-25.clover` Stripe API version with exactly the combined

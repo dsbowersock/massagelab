@@ -3,7 +3,12 @@ import Link from "next/link"
 import { HeartHandshake, ShieldCheck, Sparkles } from "lucide-react"
 import { getCurrentSession } from "@/auth"
 import { DONATION_OPTIONS } from "@/lib/donations"
+import {
+  getUserMembershipSummary,
+  resolveMembershipPricingMode,
+} from "@/lib/membership"
 import { getMembershipPricingCatalog } from "@/lib/membership-pricing"
+import { prisma } from "@/lib/prisma"
 import { MembershipPricingCards } from "@/components/membership/pricing-cards"
 import { AppNotice, AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
@@ -26,6 +31,13 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
   const params = await searchParams
   const oneTimeSupportNotice = pricingOneTimeSupportNotice(params?.donation)
   const signedIn = Boolean(session?.user?.id)
+  const membershipSummary = session?.user?.id
+    ? await getUserMembershipSummary(prisma, session.user.id)
+    : null
+  const pricingMode = resolveMembershipPricingMode({
+    signedIn,
+    subscriptions: membershipSummary?.subscriptions ?? [],
+  })
 
   return (
     <AppPageShell title="Pricing">
@@ -57,7 +69,11 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
               </Button>
         </AppSurface>
 
-        <MembershipPricingCards catalog={catalog} mode={signedIn ? "checkout" : "auth"} />
+        <MembershipPricingCards
+          catalog={catalog}
+          activeMembershipLevel={membershipSummary?.entitlements.paidLevel}
+          mode={pricingMode}
+        />
 
         <AppSurface
           id="one-time-support"

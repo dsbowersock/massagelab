@@ -35,6 +35,14 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
   migration verify were not attempted. No deployment, migration apply, live
   Product/Price/coupon/portal/subscription mutation, or live smoke occurred.
   Final professional confirmation and those operational gates remain required.
+- Final-review hardening prevents a second membership Checkout for every
+  persisted relevant/canceling subscription before Stripe Customer or Session
+  creation, routes current and historical members to Customer Portal, removes
+  the obsolete live catalog setup command, accepts and upgrades only the
+  validated normal legacy Supporter Product pre-state, shares exact recurring
+  Price semantics between migration and ongoing readiness, retains legacy
+  runtime Price mappings strictly for webhook reconciliation, and lists
+  all-background access in public Current benefits.
 - RED-first focused billing/readiness/route coverage passed after
   implementation. Full lint, test, typecheck, build, and diff validation are
   recorded in the Task 5 handoff report.

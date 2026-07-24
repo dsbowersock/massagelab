@@ -67,15 +67,29 @@ STRIPE_SUPPORTER_2_MONTHLY_PRICE_ID=
 STRIPE_SUPPORTER_2_YEARLY_PRICE_ID=
 STRIPE_SUPPORTER_5_MONTHLY_PRICE_ID=
 STRIPE_SUPPORTER_5_YEARLY_PRICE_ID=
+STRIPE_SUPPORTER_MONTHLY_PRICE_ID=
+STRIPE_SUPPORTER_YEARLY_PRICE_ID=
+STRIPE_THERAPIST_MONTHLY_PRICE_ID=
+STRIPE_THERAPIST_YEARLY_PRICE_ID=
+STRIPE_PRACTICE_MONTHLY_PRICE_ID=
+STRIPE_PRACTICE_YEARLY_PRICE_ID=
 ```
 
 Free and Student are internal access states. Do not create a Stripe Free product.
 Student is not a Stripe-backed subscription tier. If a Student product or price exists in Stripe, archive or disable it and do not place its Price ID in application configuration.
 
+Legacy runtime Price mappings remain webhook-only compatibility inputs and cannot satisfy public catalog readiness.
+Keep them configured until the database and Stripe subscriber inventories prove
+no historical subscription remains and signed webhook reconciliation is final.
+`stripe:readiness` validates only the six amount-specific Supporter IDs for new
+public enrollment.
+
 Before enabling subscription checkout, confirm:
 
 - `MassageLab Supporter Membership` is the only public membership Product and has tax code `txcd_10000000`.
-- Its six exclusive USD recurring Prices are exactly $1, $2, or $5 monthly and $10, $20, or $50 yearly.
+- Its six exclusive USD recurring Prices are exactly $1, $2, or $5 monthly and
+  $10, $20, or $50 yearly, with `interval_count=1`, no trial, licensed usage,
+  per-unit billing, no quantity transform, and no additional currencies.
 - The Stripe Customer Portal permits subscription Price changes only among those six Prices while preserving cancellation, payment-method updates, billing address/name/email updates, and invoice history.
 - `/api/billing/webhook` is registered with the Stripe webhook signing secret.
 - Local and Vercel environments contain the same required Stripe keys and Price IDs for their respective test or live mode.
@@ -103,12 +117,16 @@ npm run stripe:migrate-supporter-membership -- --mode=verify
 ```
 
 Verify mode performs Stripe GET/list requests only. It checks the exact
-subscriber inventory, live/test mode, Product tax classification, legacy and
-approved Price ownership/amounts/recurring semantics, every Price listed under
-the managed Products, zero-redemption coupon contracts, and portal preservation
-settings. Approved Prices must have no default trial period. It reports either
-`PRE_MIGRATION` or `COMPLETED`; mixed states, unrecognized Prices, incomplete or
-malformed pagination, and unknown portal subsets are blockers.
+subscriber inventory, live/test mode, legacy and approved Price
+ownership/amounts/recurring semantics, every Price listed under the managed
+Products, zero-redemption coupon contracts, and portal preservation settings.
+Reuse mode accepts only the validated normal legacy `MassageLab Supporter`
+Product before migration even though it has not yet received
+`txcd_10000000` or target catalog metadata; apply writes both and re-retrieves
+the Product. Completed-state verification requires the exact classification
+and metadata. Approved Prices must have no default trial period. Verify reports
+either `PRE_MIGRATION` or `COMPLETED`; mixed states, unrecognized Prices,
+incomplete or malformed pagination, and unknown portal subsets are blockers.
 
 Only after reviewing the safe PASS checklist, run:
 
@@ -130,8 +148,9 @@ ambiguous accepted request can be retried without creating a duplicate.
 Arbitrary mixed states still fail closed. Do not run apply until the deployed
 Supporter-only application, subscriber decision, recurring-tax classification,
 and migration inputs have all been independently reviewed. Remove the
-migration-only variables after the operation; keep the six approved runtime
-Price IDs.
+migration-only variables after the operation. Keep the six approved runtime
+Price IDs for public enrollment and retain the six legacy runtime Price
+mappings under the separate subscriber-inventory/webhook-reconciliation gate.
 
 ## Sentry
 

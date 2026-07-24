@@ -162,6 +162,71 @@ describe("Membership and entitlement helpers", () => {
     assert.equal(isPublicSupporterCheckoutSelection({ membershipLevel: "PRACTICE", supporterAmountChoiceId: "support-5" }), false)
   })
 
+  it("blocks new Checkout for every relevant or canceling persisted subscription", () => {
+    assert.equal(typeof membership.hasSubscriptionBlockingNewCheckout, "function")
+    assert.equal(typeof membership.resolveMembershipPricingMode, "function")
+
+    if (
+      typeof membership.hasSubscriptionBlockingNewCheckout !== "function"
+      || typeof membership.resolveMembershipPricingMode !== "function"
+    ) {
+      return
+    }
+
+    for (const subscription of [
+      { status: "active", membershipLevel: "SUPPORTER" },
+      { status: "trialing", membershipLevel: "SUPPORTER" },
+      { status: "past_due", membershipLevel: "SUPPORTER" },
+      { status: "unpaid", membershipLevel: "SUPPORTER" },
+      { status: "paused", membershipLevel: "SUPPORTER" },
+      { status: "canceled", cancelAtPeriodEnd: true, membershipLevel: "SUPPORTER" },
+    ]) {
+      assert.equal(membership.hasSubscriptionBlockingNewCheckout([subscription]), true)
+      assert.equal(
+        membership.resolveMembershipPricingMode({
+          signedIn: true,
+          subscriptions: [subscription],
+        }),
+        "portal",
+      )
+    }
+
+    assert.equal(
+      membership.hasSubscriptionBlockingNewCheckout([
+        { status: "canceled", cancelAtPeriodEnd: false, membershipLevel: "SUPPORTER" },
+      ]),
+      false,
+    )
+    assert.equal(
+      membership.resolveMembershipPricingMode({
+        signedIn: true,
+        subscriptions: [{ status: "canceled", membershipLevel: "SUPPORTER" }],
+      }),
+      "checkout",
+    )
+    assert.equal(
+      membership.resolveMembershipPricingMode({ signedIn: false, subscriptions: [] }),
+      "auth",
+    )
+  })
+
+  it("routes historical Therapist and Practice subscribers to billing management", () => {
+    assert.equal(typeof membership.resolveMembershipPricingMode, "function")
+    if (typeof membership.resolveMembershipPricingMode !== "function") {
+      return
+    }
+
+    for (const membershipLevel of ["THERAPIST", "PRACTICE"]) {
+      assert.equal(
+        membership.resolveMembershipPricingMode({
+          signedIn: true,
+          subscriptions: [{ status: "active", membershipLevel }],
+        }),
+        "portal",
+      )
+    }
+  })
+
   it("keeps historical Therapist and Practice Price normalization readable outside the public catalog", () => {
     const env = {
       STRIPE_THERAPIST_YEARLY_PRICE_ID: "price_therapist_yearly",

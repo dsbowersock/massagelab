@@ -3,6 +3,7 @@
 import process from "node:process"
 import { pathToFileURL } from "node:url"
 import Stripe from "stripe"
+import { recurringPriceSemanticsMatch } from "../lib/stripe-price-contract.js"
 
 const STRIPE_API_VERSION = "2026-02-25.clover"
 const EXPECTED_TAX_CODE = "txcd_10000000"
@@ -276,46 +277,46 @@ function priceProductId(candidate) {
 }
 
 function priceMatches(candidate, spec, productId) {
-  const currencyOptions = candidate?.currency_options
   return Boolean(candidate)
-    && candidate.unit_amount === spec.unitAmount
-    && candidate.currency === "usd"
-    && candidate.billing_scheme === "per_unit"
-    && candidate.recurring?.interval === spec.interval
-    && (candidate.recurring?.interval_count ?? 1) === 1
-    && candidate.recurring?.trial_period_days == null
-    && candidate.recurring?.usage_type === "licensed"
-    && candidate.tax_behavior === "exclusive"
-    && candidate.transform_quantity == null
-    && (
-      currencyOptions == null
-      || (
-        typeof currencyOptions === "object"
-        && Object.keys(currencyOptions).length === 0
-      )
-    )
+    && recurringPriceSemanticsMatch(candidate, {
+      unitAmount: spec.unitAmount,
+      interval: spec.interval,
+      taxBehavior: "exclusive",
+    })
     && priceProductId(candidate) === productId
 }
 
 function legacyPriceMatches(candidate, spec, productId) {
-  const currencyOptions = candidate?.currency_options
   return Boolean(candidate)
-    && candidate.unit_amount === spec.unitAmount
-    && candidate.currency === "usd"
-    && candidate.billing_scheme === "per_unit"
-    && candidate.recurring?.interval === spec.interval
-    && (candidate.recurring?.interval_count ?? 1) === 1
-    && candidate.recurring?.trial_period_days == null
-    && candidate.recurring?.usage_type === "licensed"
-    && candidate.transform_quantity == null
-    && (
-      currencyOptions == null
-      || (
-        typeof currencyOptions === "object"
-        && Object.keys(currencyOptions).length === 0
-      )
-    )
+    && recurringPriceSemanticsMatch(candidate, {
+      unitAmount: spec.unitAmount,
+      interval: spec.interval,
+    })
     && priceProductId(candidate) === productId
+}
+
+function targetSupporterProductMatches(candidate) {
+  return Boolean(candidate)
+    && candidate.name === SUPPORTER_PRODUCT_NAME
+    && candidate.active === true
+    && candidate.tax_code === EXPECTED_TAX_CODE
+    && candidate.metadata?.app === "massagelab"
+    && candidate.metadata?.massagelab_catalog === SUPPORTER_CATALOG
+    && candidate.metadata?.massagelab_membership_level === "SUPPORTER"
+}
+
+/**
+ * Identifies the normal Product made by the retired live setup command. Reuse
+ * mode may classify this exact object, but does not accept an arbitrary
+ * partially managed Product as a safe dependency.
+ */
+function legacySupporterProductMatches(candidate) {
+  return Boolean(candidate)
+    && candidate.name === "MassageLab Supporter"
+    && candidate.tax_code == null
+    && candidate.metadata?.app === "massagelab"
+    && candidate.metadata?.massagelab_membership_level === "SUPPORTER"
+    && candidate.metadata?.massagelab_catalog == null
 }
 
 function couponMatches(candidate, spec, livemode) {
@@ -530,14 +531,10 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
     failureCodes.push("supporter_product_duplicate")
   }
 
-  if (
-    products.supporter
-    && (
-      products.supporter.tax_code !== EXPECTED_TAX_CODE
-      || products.supporter.active !== true
-      || !["MassageLab Supporter", SUPPORTER_PRODUCT_NAME].includes(products.supporter.name)
-    )
-  ) {
+  const targetProductCompleted = targetSupporterProductMatches(products.supporter)
+  const reusableLegacyProduct = legacySupporterProductMatches(products.supporter)
+    && products.supporter.active === true
+  if (products.supporter && !targetProductCompleted && !reusableLegacyProduct) {
     failureCodes.push("supporter_product_dependency_mismatch")
   }
 
@@ -577,6 +574,10 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
     || !modeMatches(legacySupporterProduct, config.livemode)
     || legacySupporterProductId === config.productIds.therapist
     || legacySupporterProductId === config.productIds.practice
+    || (
+      legacySupporterProductId !== targetProductId
+      && !legacySupporterProductMatches(legacySupporterProduct)
+    )
   ) {
     failureCodes.push("product_dependency_mismatch")
   }
@@ -740,12 +741,11 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
   const retirementProductsInactive = retirementProducts.every(
     (candidate) => candidate.active === false,
   )
-  const targetProductCompleted = Boolean(products.supporter)
-    && products.supporter.name === SUPPORTER_PRODUCT_NAME
-    && products.supporter.active === true
-    && products.supporter.tax_code === EXPECTED_TAX_CODE
-    && products.supporter.metadata?.massagelab_catalog === SUPPORTER_CATALOG
+  const supporterProductAllowsPreMigration = config.productIds.supporter === CREATE_NEW_PRODUCT
+    ? !products.supporter || targetProductCompleted
+    : reusableLegacyProduct || targetProductCompleted
   const isPreMigration = portalIsPreMigration
+    && supporterProductAllowsPreMigration
     && retirementPricesActive
     && retirementProductsActive
     && couponsPresent

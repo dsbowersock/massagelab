@@ -70,10 +70,18 @@ describe("Stripe readiness background-commerce contract", () => {
     assert.deepEqual(
       validateRetrievedMembershipPrice({
         active: true,
-        recurring: { interval: expected.interval },
+        billing_scheme: "per_unit",
+        recurring: {
+          interval: expected.interval,
+          interval_count: 1,
+          trial_period_days: null,
+          usage_type: "licensed",
+        },
         currency: "usd",
         unit_amount: 201,
         tax_behavior: "exclusive",
+        transform_quantity: null,
+        currency_options: null,
         product: { tax_code: "txcd_10000000" },
       }, expected),
       [`${expected.key} must have unit_amount ${expected.unitAmount}; received 201.`],
@@ -83,10 +91,18 @@ describe("Stripe readiness background-commerce contract", () => {
     const expected = REQUIRED_SUPPORTER_PRICE_CONTRACT[0]
     const basePrice = {
       active: true,
-      recurring: { interval: expected.interval },
+      billing_scheme: "per_unit",
+      recurring: {
+        interval: expected.interval,
+        interval_count: 1,
+        trial_period_days: null,
+        usage_type: "licensed",
+      },
       currency: "usd",
       unit_amount: expected.unitAmount,
       tax_behavior: "exclusive",
+      transform_quantity: null,
+      currency_options: null,
       product: { tax_code: "txcd_10000000" },
     }
 
@@ -103,6 +119,64 @@ describe("Stripe readiness background-commerce contract", () => {
       ],
     )
   })
+  it("requires the same strict recurring Price semantics as the migration", () => {
+    const expected = REQUIRED_SUPPORTER_PRICE_CONTRACT[0]
+    const basePrice = {
+      active: true,
+      billing_scheme: "per_unit",
+      recurring: {
+        interval: expected.interval,
+        interval_count: 1,
+        trial_period_days: null,
+        usage_type: "licensed",
+      },
+      currency: "usd",
+      unit_amount: expected.unitAmount,
+      tax_behavior: "exclusive",
+      transform_quantity: null,
+      currency_options: null,
+      product: { tax_code: "txcd_10000000" },
+    }
+    const cases = [
+      [
+        (candidate) => { candidate.recurring.interval_count = 2 },
+        `${expected.key} recurring interval_count must be exactly 1.`,
+      ],
+      [
+        (candidate) => { candidate.recurring.trial_period_days = 14 },
+        `${expected.key} must not define a recurring trial period.`,
+      ],
+      [
+        (candidate) => { candidate.recurring.usage_type = "metered" },
+        `${expected.key} recurring usage_type must be licensed.`,
+      ],
+      [
+        (candidate) => { candidate.billing_scheme = "tiered" },
+        `${expected.key} billing_scheme must be per_unit.`,
+      ],
+      [
+        (candidate) => {
+          candidate.transform_quantity = { divide_by: 10, round: "up" }
+        },
+        `${expected.key} must not transform quantity.`,
+      ],
+      [
+        (candidate) => {
+          candidate.currency_options = { eur: { unit_amount: expected.unitAmount } }
+        },
+        `${expected.key} must not define additional currency options.`,
+      ],
+    ]
+
+    for (const [mutate, expectedFailure] of cases) {
+      const candidate = structuredClone(basePrice)
+      mutate(candidate)
+      assert.deepEqual(
+        validateRetrievedMembershipPrice(candidate, expected),
+        [expectedFailure],
+      )
+    }
+  })
   it("requires six unique Supporter amount Prices and ignores legacy catalog variables", () => {
     const missing = runReadiness({ STRIPE_SUPPORTER_2_YEARLY_PRICE_ID: "" })
     assert.equal(missing.status, 1)
@@ -114,6 +188,8 @@ describe("Stripe readiness background-commerce contract", () => {
 
     const legacyOnly = runReadiness({
       ...Object.fromEntries(Object.keys(membershipPrices).map((key) => [key, ""])),
+      STRIPE_SUPPORTER_MONTHLY_PRICE_ID: "price_supporter_legacy_monthly",
+      STRIPE_SUPPORTER_YEARLY_PRICE_ID: "price_supporter_legacy_yearly",
       STRIPE_THERAPIST_MONTHLY_PRICE_ID: "price_therapist_monthly",
       STRIPE_THERAPIST_YEARLY_PRICE_ID: "price_therapist_yearly",
       STRIPE_PRACTICE_MONTHLY_PRICE_ID: "price_practice_monthly",

@@ -51,9 +51,9 @@ function product(id, name, active = true) {
     active,
     livemode: false,
     name,
-    tax_code: id === "prod_supporter" ? "txcd_10000000" : null,
+    tax_code: null,
     metadata: id === "prod_supporter"
-      ? { app: "massagelab", massagelab_catalog: "supporter_membership_v1" }
+      ? { app: "massagelab", massagelab_membership_level: "SUPPORTER" }
       : { app: "massagelab" },
   }
 }
@@ -439,6 +439,14 @@ describe("Supporter membership Stripe migration", () => {
 
     assert.equal(result.ok, true)
     assert.equal(result.state, "PRE_MIGRATION")
+    assert.equal(fixture.products.get("prod_supporter").tax_code, null)
+    assert.equal(
+      Object.hasOwn(
+        fixture.products.get("prod_supporter").metadata,
+        "massagelab_catalog",
+      ),
+      false,
+    )
     assert.equal(mutationCalls(fixture).length, 0)
     assert.match(output, /PASS mode_and_account/)
     assert.match(output, /PASS subscriber_inventory/)
@@ -591,6 +599,38 @@ describe("Supporter membership Stripe migration", () => {
     assert.deepEqual(mutationCalls(fixture), [])
   })
 
+  it("keeps completed-state Product classification and metadata strict", async () => {
+    for (const corrupt of [
+      (candidate) => { candidate.tax_code = null },
+      (candidate) => { delete candidate.metadata.massagelab_catalog },
+    ]) {
+      const fixture = stripeFixture()
+      await runSupporterMembershipMigration({
+        stripe: fixture.stripe,
+        mode: "apply",
+        env: migrationEnv(),
+      })
+      fixture.calls.length = 0
+      corrupt(fixture.products.get("prod_supporter"))
+
+      await assert.rejects(
+        runSupporterMembershipMigration({
+          stripe: fixture.stripe,
+          mode: "verify",
+          env: migrationEnv(),
+        }),
+        (error) => {
+          assert.equal(
+            error.failureCodes.includes("supporter_product_dependency_mismatch"),
+            true,
+          )
+          return true
+        },
+      )
+      assert.deepEqual(mutationCalls(fixture), [])
+    }
+  })
+
   it("rejects mixed migration states instead of treating known subsets as safe", async () => {
     const corruptions = [
       (fixture) => {
@@ -641,7 +681,6 @@ describe("Supporter membership Stripe migration", () => {
 
   it("creates one managed Supporter Product only when CREATE_NEW is explicit, then reuses it", async () => {
     const fixture = stripeFixture()
-    fixture.products.get("prod_supporter").metadata = { app: "massagelab" }
     const env = migrationEnv({
       MASSAGELAB_STRIPE_MIGRATION_SUPPORTER_PRODUCT_ID: "CREATE_NEW",
     })
@@ -1097,7 +1136,6 @@ describe("Supporter membership Stripe migration", () => {
 
   it("retries an ambiguous committed Product create with one stable idempotency key", async () => {
     const fixture = stripeFixture()
-    fixture.products.get("prod_supporter").metadata = { app: "massagelab" }
     const createProduct = fixture.stripe.products.create.bind(fixture.stripe.products)
     const listProducts = fixture.stripe.products.list.bind(fixture.stripe.products)
     let failAfterCommit = true

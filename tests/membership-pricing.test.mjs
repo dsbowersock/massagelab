@@ -72,21 +72,30 @@ describe("Membership pricing catalog", () => {
     const catalog = await getMembershipPricingCatalog({ env: {} })
     const [supporter] = catalog.plans
 
+    assert.ok(
+      supporter.currentFeatures.some((feature) => /all backgrounds/i.test(feature)),
+      "public Current benefits should include all-background access",
+    )
     assert.ok(supporter.roadmapNotes.some((note) => note.includes("compliance review")))
     assert.equal(supporter.currentFeatures.some((feature) => /BAA|transcription|SOAP drafting|managed sync/i.test(feature)), false)
   })
 
-  it("does not render obsolete Early Access discount copy", async () => {
-    const [pricingCards, environmentExample, readinessCheck, liveSetup] = await Promise.all([
+  it("removes the obsolete live catalog setup command instead of recreating retired resources", async () => {
+    const [pricingCards, environmentExample, readinessCheck, packageSource] = await Promise.all([
       readFile(new URL("../components/membership/pricing-cards.tsx", import.meta.url), "utf8"),
       readFile(new URL("../.env.example", import.meta.url), "utf8"),
       readFile(new URL("../scripts/stripe-readiness-check.mjs", import.meta.url), "utf8"),
-      readFile(new URL("../scripts/stripe-live-membership-setup.mjs", import.meta.url), "utf8"),
+      readFile(new URL("../package.json", import.meta.url), "utf8"),
     ])
 
     assert.doesNotMatch(pricingCards, /earlyAccess|Development discount|10% off forever/i)
     assert.doesNotMatch(environmentExample, /MASSAGELAB_EARLY_ACCESS_DISCOUNT_ENABLED/)
     assert.doesNotMatch(readinessCheck, /MASSAGELAB_EARLY_ACCESS_DISCOUNT_ENABLED|Early Access|early access/)
-    assert.doesNotMatch(liveSetup, /MASSAGELAB_EARLY_ACCESS_DISCOUNT_ENABLED|Early Access|early access/)
+    assert.doesNotMatch(packageSource, /stripe:live:setup|stripe-live-membership-setup/)
+    assert.match(packageSource, /stripe:migrate-supporter-membership/)
+    await assert.rejects(
+      readFile(new URL("../scripts/stripe-live-membership-setup.mjs", import.meta.url), "utf8"),
+      (error) => error?.code === "ENOENT",
+    )
   })
 })

@@ -35,8 +35,10 @@ The command must pass without printing secret values. Then complete one real low
   $1/$2/$5 monthly or $10/$20/$50 annually.
 - The recurring-tax enablement, `txcd_10000000` classification, provider,
   registrations, and final professional-confirmation gates are all explicit.
-- Stripe retrieval confirms every Supporter Price is exclusive and belongs to
-  the classified Supporter Product.
+- Stripe retrieval confirms every Supporter Price is exclusive, uses exact
+  interval count one with no trial, licensed per-unit usage, no quantity
+  transform or additional currencies, and belongs to the classified Supporter
+  Product.
 - The Checkout session uses Automatic Tax, requires a billing address, updates
   the Stripe Customer address, completes, and returns to MassageLab.
 - Membership status updates from the signed webhook.
@@ -60,6 +62,10 @@ Before changing the live catalog:
 5. run apply and verify only after the explicit operator gate; and
 6. complete the $1 monthly, $2/$5 portal-switch, payment/address, invoice,
    period-end cancellation, and webhook-backed entitlement smoke.
+
+Retain the six legacy runtime Price mappings until subscriber inventory proves none remain and webhook reconciliation is final.
+Those mappings are historical normalization inputs only; they cannot replace
+any of the six amount-specific Supporter Price IDs in readiness.
 
 Latest status, 2026-07-24: the deployable Supporter-only application,
 fail-closed migration command, and recurring Automatic Tax application/readiness

@@ -34,6 +34,75 @@ describe("Membership Checkout POST route", () => {
     assert.equal(calls.createCheckout, 1)
     assert.equal(Object.hasOwn(calls.checkoutOptions, "couponId"), false)
   })
+
+  for (const existingSubscription of [
+    { status: "active", membershipLevel: "SUPPORTER" },
+    { status: "trialing", membershipLevel: "SUPPORTER" },
+    { status: "past_due", membershipLevel: "SUPPORTER" },
+    { status: "unpaid", membershipLevel: "SUPPORTER" },
+    { status: "paused", membershipLevel: "SUPPORTER" },
+    {
+      status: "canceled",
+      cancelAtPeriodEnd: true,
+      membershipLevel: "SUPPORTER",
+    },
+  ]) {
+    const label = existingSubscription.cancelAtPeriodEnd
+      ? "canceling"
+      : existingSubscription.status
+
+    it(`rejects an existing ${label} subscription before Customer or Checkout Session creation`, async () => {
+      const calls = {
+        ensureCustomer: 0,
+        createCheckout: 0,
+        membershipLookup: 0,
+      }
+      const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
+        subscriptions: [existingSubscription],
+      }))(jsonRequest({
+        membershipLevel: "SUPPORTER",
+        supporterAmountChoiceId: "support-1",
+        interval: "month",
+        acceptedLegalDocuments: ["membership-billing-refunds:current"],
+        billingTermsAccepted: true,
+      }))
+
+      assert.deepEqual(response, {
+        body: {
+          error: "Manage your existing subscription in the Customer Portal.",
+        },
+        status: 409,
+      })
+      assert.equal(calls.membershipLookup, 1)
+      assert.equal(calls.ensureCustomer, 0)
+      assert.equal(calls.createCheckout, 0)
+    })
+  }
+
+  it("routes a historical subscriber form submission to existing billing management", async () => {
+    const calls = {
+      ensureCustomer: 0,
+      createCheckout: 0,
+      membershipLookup: 0,
+    }
+    const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
+      subscriptions: [{ status: "active", membershipLevel: "THERAPIST" }],
+    }))(formRequest({
+      membershipLevel: "SUPPORTER",
+      supporterAmountChoiceId: "support-1",
+      interval: "month",
+      acceptedLegalDocuments: "membership-billing-refunds:current",
+      billingTermsAccepted: "true",
+    }))
+
+    assert.deepEqual(response, {
+      url: "https://massagelab.app/account?billing=existing-subscription",
+      status: 303,
+    })
+    assert.equal(calls.membershipLookup, 1)
+    assert.equal(calls.ensureCustomer, 0)
+    assert.equal(calls.createCheckout, 0)
+  })
 })
 
 function jsonRequest(body) {
@@ -44,7 +113,15 @@ function jsonRequest(body) {
   })
 }
 
-function checkoutDependencies(calls) {
+function formRequest(body) {
+  return new Request("https://massagelab.app/api/billing/checkout", {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams(body),
+  })
+}
+
+function checkoutDependencies(calls, { subscriptions = [] } = {}) {
   return {
     NextResponse: {
       json: (body, init = {}) => ({ body, status: init.status ?? 200 }),
@@ -60,9 +137,21 @@ function checkoutDependencies(calls) {
     missingRequiredLegalDocuments: () => [],
     recordLegalAcceptances: async () => {},
     requiredLegalDocumentsForEvent: () => [],
+    hasSubscriptionBlockingNewCheckout: (candidates) => candidates.some(
+      (subscription) => (
+        ["active", "trialing", "past_due", "unpaid", "paused"].includes(subscription.status)
+        || subscription.cancelAtPeriodEnd === true
+      ),
+    ),
     prisma: {
       user: {
         findUnique: async () => ({ id: "user_123", email: "supporter@example.com", name: "Supporter" }),
+      },
+      membershipSubscription: {
+        findMany: async () => {
+          calls.membershipLookup = (calls.membershipLookup ?? 0) + 1
+          return subscriptions
+        },
       },
     },
     ensureStripeCustomerForUser: async () => {

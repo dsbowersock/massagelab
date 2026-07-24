@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getCurrentSession } from "@/auth"
 import { getSiteUrl } from "@/lib/auth-env"
 import {
+  hasSubscriptionBlockingNewCheckout,
   isPublicSupporterCheckoutSelection,
   resolveStripePriceId,
 } from "@/lib/membership"
@@ -45,5 +46,6 @@ export const POST = createMembershipCheckoutPostHandler({
   missingRequiredLegalDocuments,
   recordLegalAcceptances,
   requiredLegalDocumentsForEvent,
+  hasSubscriptionBlockingNewCheckout,
   prisma,
 })

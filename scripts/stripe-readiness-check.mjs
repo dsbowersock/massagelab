@@ -243,7 +243,7 @@ async function verifyStripePrices() {
 
   for (const [priceId, expected] of priceIds) {
     try {
-      const price = await stripe.prices.retrieve(priceId, { expand: ["product"] })
+      const price = await stripe.prices.retrieve(priceId, { expand: ["product", "currency_options"] })
       for (const failure of validateRetrievedMembershipPrice(price, expected)) {
         addFailure(failure)
       }

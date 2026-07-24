@@ -52,7 +52,7 @@ type MembershipPricingCatalog = {
 type MembershipPricingCardsProps = {
   catalog: MembershipPricingCatalog
   activeMembershipLevel?: string | null
-  mode: "checkout" | "auth"
+  mode: "checkout" | "auth" | "portal"
   className?: string
 }
 
@@ -121,7 +121,7 @@ function PlanCard({
   plan: MembershipPlan
   interval: string
   active: boolean
-  mode: "checkout" | "auth"
+  mode: "checkout" | "auth" | "portal"
 }) {
   return (
     <Card className={cn(
@@ -134,7 +134,9 @@ function PlanCard({
           <Badge variant="outline" className="border-border/80 text-muted-foreground">
             {plan.eyebrow}
           </Badge>
-          {active ? (
+          {mode === "portal" ? (
+            <Badge className="bg-primary text-primary-foreground">Current member</Badge>
+          ) : active ? (
             <Badge className="bg-primary text-primary-foreground">Current plan</Badge>
           ) : null}
         </div>
@@ -156,17 +158,47 @@ function PlanCard({
             items={plan.roadmapNotes}
           />
         </div>
-        <div className="mt-auto grid gap-3 sm:grid-cols-3">
-          {plan.amountChoices.map((choice) => (
-            <SupporterAmountChoice
-              key={choice.id}
-              plan={plan}
-              choiceId={choice.id}
-              price={choice.prices[interval] ?? choice.prices.year ?? choice.prices.month}
-              mode={mode}
-            />
-          ))}
-        </div>
+        {mode === "portal" ? (
+          <div className="mt-auto space-y-3">
+            <div className="grid gap-3 sm:grid-cols-3">
+              {plan.amountChoices.map((choice) => {
+                const price = choice.prices[interval] ?? choice.prices.year ?? choice.prices.month
+
+                return (
+                  <div key={choice.id} className="rounded-md border border-border/80 bg-background/70 p-3 text-center">
+                    <span className="text-base font-semibold text-foreground">{price.displayPrice}</span>
+                    <span className="text-xs text-muted-foreground">{price.displayInterval}</span>
+                  </div>
+                )
+              })}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Use the Customer Portal to switch among approved Supporter amounts, update billing details, review invoices, or cancel.
+            </p>
+            <form action="/api/billing/portal" method="post">
+              <MetalAttentionButton
+                type="submit"
+                variant="attention"
+                className="w-full"
+                metalFullWidth
+              >
+                Manage or change support amount
+              </MetalAttentionButton>
+            </form>
+          </div>
+        ) : (
+          <div className="mt-auto grid gap-3 sm:grid-cols-3">
+            {plan.amountChoices.map((choice) => (
+              <SupporterAmountChoice
+                key={choice.id}
+                plan={plan}
+                choiceId={choice.id}
+                price={choice.prices[interval] ?? choice.prices.year ?? choice.prices.month}
+                mode={mode}
+              />
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   )
