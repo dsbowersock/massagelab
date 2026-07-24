@@ -1183,6 +1183,8 @@ describe("Supporter membership Stripe migration", () => {
       (error) => {
         assert.equal(error instanceof MigrationError, true)
         assert.deepEqual(error.failureCodes, ["stripe_mutation_failed"])
+        assert.equal(error.cause instanceof Error, true)
+        assert.equal(error.cause.message, "processor secret cus_private_test_account")
         assert.doesNotMatch(
           `${error.message} ${JSON.stringify(error.checks)}`,
           /processor secret|cus_private_test_account/,

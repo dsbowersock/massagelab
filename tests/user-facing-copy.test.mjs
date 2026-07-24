@@ -44,7 +44,7 @@ describe("user-facing copy", () => {
     assert.doesNotMatch(pricingPage, /Stripe could not start/)
 
     assert.match(roadmapPage, /One-time support/)
-    assert.doesNotMatch(roadmapPage, />\s*Donate\s*</)
+    assert.doesNotMatch(roadmapPage, /\bDonate\b/i)
     assert.doesNotMatch(roadmapPage, /Memberships and donations/i)
     assert.match(homePage, /Memberships and one-time support help build/i)
 
@@ -53,8 +53,10 @@ describe("user-facing copy", () => {
     assert.doesNotMatch(donationRoute, /Unsupported donation amount/)
     assert.doesNotMatch(donationRoute, /Unable to start donation checkout/)
 
-    assert.match(billingGuide, /Automatic Tax remains disabled for one-time support until a tax professional\s+confirms its classification/)
-    assert.match(billingGuide, /separate from `txcd_10000000`/)
+    assert.match(
+      billingGuide,
+      /Automatic Tax remains disabled for one-time support until a tax professional\s+confirms its classification\. That decision is separate from `txcd_10000000`,\s+which applies to permanent digital backgrounds\./,
+    )
 
     assert.match(loginForm, /Google sign-in is not available right now/)
     assert.match(registerForm, /Google registration is not available right now/)

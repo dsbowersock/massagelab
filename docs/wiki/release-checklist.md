@@ -76,6 +76,9 @@ tests and confirm:
   billing-detail updates, invoice history, and return to MassageLab.
 - The $1 monthly enrollment, $2/$5 portal switch, payment/address update,
   invoice, period-end cancellation, and webhook-backed entitlement paths pass.
+- At least one public $10/$20/$50 annual Price completes annual Checkout, its
+  signed webhook grants the Supporter entitlement, and its portal cancellation
+  or interval-switch path is verified.
 - The subscription is canceled or refunded as appropriate after the smoke test.
 - The one-time support path starts Stripe Checkout, returns to `/pricing`,
   states that it is not charitable or tax-deductible, and does not create a

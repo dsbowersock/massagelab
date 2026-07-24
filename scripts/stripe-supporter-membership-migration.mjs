@@ -122,9 +122,16 @@ const COUPON_SPECS = Object.freeze([
   }),
 ])
 
+/**
+ * Carries safe operator-facing failure codes while retaining an optional
+ * internal cause for diagnostics that the CLI checklist never prints.
+ */
 export class MigrationError extends Error {
-  constructor(failureCodes, checks = []) {
-    super(`Stripe Supporter membership migration failed (${failureCodes.length} checks).`)
+  constructor(failureCodes, checks = [], options = {}) {
+    super(
+      `Stripe Supporter membership migration failed (${failureCodes.length} checks).`,
+      options,
+    )
     this.name = "MigrationError"
     this.failureCodes = [...new Set(failureCodes)]
     this.checks = checks
@@ -1180,7 +1187,7 @@ export async function runSupporterMembershipMigration({
     }
     if (inventory.state !== "COMPLETED") {
       if (lastError instanceof MigrationError) throw lastError
-      throw new MigrationError(["stripe_mutation_failed"])
+      throw new MigrationError(["stripe_mutation_failed"], [], { cause: lastError })
     }
   }
 
