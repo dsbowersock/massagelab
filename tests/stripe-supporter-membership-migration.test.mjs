@@ -464,6 +464,40 @@ describe("Supporter membership Stripe migration", () => {
     )
   })
 
+  it("ignores terminal subscriptions whose stale cancellation flag remains true", async () => {
+    const fixture = stripeFixture()
+    fixture.subscriptions.splice(
+      0,
+      fixture.subscriptions.length,
+      {
+        id: "sub_canceled",
+        object: "subscription",
+        livemode: false,
+        status: "canceled",
+        cancel_at_period_end: true,
+      },
+      {
+        id: "sub_incomplete_expired",
+        object: "subscription",
+        livemode: false,
+        status: "incomplete_expired",
+        cancel_at_period_end: true,
+      },
+    )
+
+    const result = await runSupporterMembershipMigration({
+      stripe: fixture.stripe,
+      mode: "verify",
+      env: migrationEnv({
+        MASSAGELAB_STRIPE_MIGRATION_ALLOWED_SUBSCRIPTION_ID: "NONE",
+      }),
+    })
+
+    assert.equal(result.ok, true)
+    assert.equal(result.state, "PRE_MIGRATION")
+    assert.match(formatMigrationChecklist(result), /PASS subscriber_inventory/)
+  })
+
   it("applies in dependency order, re-retrieves every mutation, and reaches the exact target state", async () => {
     const fixture = stripeFixture()
     const result = await runSupporterMembershipMigration({

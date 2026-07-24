@@ -19,7 +19,9 @@ const RELEVANT_SUBSCRIPTION_STATUSES = new Set([
   "past_due",
   "unpaid",
   "paused",
+  "incomplete",
 ])
+const TERMINAL_SUBSCRIPTION_STATUSES = new Set(["canceled", "incomplete_expired"])
 
 const TARGET_PRICE_SPECS = Object.freeze([
   Object.freeze({
@@ -526,10 +528,14 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
     failureCodes.push("stripe_account_mode_mismatch")
   }
 
-  const relevantSubscriptions = subscriptions.filter((subscription) => (
-    RELEVANT_SUBSCRIPTION_STATUSES.has(String(subscription.status ?? "").toLowerCase())
-    || subscription.cancel_at_period_end === true
-  ))
+  const relevantSubscriptions = subscriptions.filter((subscription) => {
+    const status = String(subscription.status ?? "").toLowerCase()
+    return RELEVANT_SUBSCRIPTION_STATUSES.has(status)
+      || (
+        subscription.cancel_at_period_end === true
+        && !TERMINAL_SUBSCRIPTION_STATUSES.has(status)
+      )
+  })
   const expectedNoSubscriptions = config.allowedSubscriptionId.toLowerCase() === "none"
   const subscriptionsMatch = expectedNoSubscriptions
     ? relevantSubscriptions.length === 0

@@ -741,12 +741,8 @@ describe("Stripe billing helpers", () => {
           },
         },
         subscriptions: {
-          retrieve: async (subscriptionId) => ({
+          retrieve: async (subscriptionId) => membershipStripeSubscription({
             id: subscriptionId,
-            object: "subscription",
-            customer: "cus_123",
-            status: "active",
-            cancel_at_period_end: false,
           }),
         },
       },
@@ -913,12 +909,8 @@ describe("Stripe billing helpers", () => {
           },
         },
         subscriptions: {
-          retrieve: async (subscriptionId) => ({
+          retrieve: async (subscriptionId) => membershipStripeSubscription({
             id: subscriptionId,
-            object: "subscription",
-            customer: "cus_123",
-            status: "active",
-            cancel_at_period_end: false,
           }),
         },
       },
@@ -927,6 +919,39 @@ describe("Stripe billing helpers", () => {
     assert.equal(result.id, "cs_complete")
     assert.equal(result.status, "complete")
     assert.equal(createCalls, 0)
+  })
+
+  it("does not block a new Checkout for a terminal subscription with a stale cancellation flag", async () => {
+    const completedSession = membershipCheckoutSession({
+      id: "cs_complete_canceled",
+      status: "complete",
+      subscription: "sub_canceled",
+      url: null,
+    })
+    let createCalls = 0
+    const result = await stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+      stripeClient: {
+        checkout: {
+          sessions: {
+            list: async () => stripeCheckoutSessionList([completedSession]),
+            create: async () => {
+              createCalls += 1
+              return membershipCheckoutSession({ id: "cs_new_after_canceled" })
+            },
+          },
+        },
+        subscriptions: {
+          retrieve: async (subscriptionId) => membershipStripeSubscription({
+            id: subscriptionId,
+            status: "canceled",
+            cancelAtPeriodEnd: true,
+          }),
+        },
+      },
+    }))
+
+    assert.equal(result.id, "cs_new_after_canceled")
+    assert.equal(createCalls, 1)
   })
 
   it("prioritizes a completed relevant subscription over stale open or expired Sessions", async () => {
@@ -966,12 +991,8 @@ describe("Stripe billing helpers", () => {
           },
         },
         subscriptions: {
-          retrieve: async (subscriptionId) => ({
+          retrieve: async (subscriptionId) => membershipStripeSubscription({
             id: subscriptionId,
-            object: "subscription",
-            customer: "cus_123",
-            status: "active",
-            cancel_at_period_end: false,
           }),
         },
       },
@@ -1271,6 +1292,29 @@ function membershipCheckoutOptions(overrides = {}) {
     cancelUrl: "https://massagelab.app/account?checkout=cancelled",
     env: supporterTaxEnv(),
     ...overrides,
+  }
+}
+
+function membershipStripeSubscription({
+  id = "sub_supporter",
+  status = "active",
+  cancelAtPeriodEnd = false,
+} = {}) {
+  return {
+    id,
+    object: "subscription",
+    customer: "cus_123",
+    status,
+    cancel_at_period_end: cancelAtPeriodEnd,
+    metadata: { userId: "user_123", membershipLevel: "SUPPORTER" },
+    items: {
+      data: [{
+        price: {
+          id: "price_supporter",
+          product: "prod_supporter",
+        },
+      }],
+    },
   }
 }
 

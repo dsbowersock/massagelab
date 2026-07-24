@@ -28,7 +28,7 @@ Before changing the live catalog or running any live paid smoke:
 1. complete the database and Stripe subscriber inventory without exposing
    customer identifiers;
 2. record a subscriber-specific grandfathering/tax decision for every active,
-   trialing, past-due, unpaid, paused, or canceling subscription;
+   trialing, past-due, unpaid, paused, incomplete, or canceling subscription;
 3. confirm the exact Therapist and Practice Product names and that any present
    app or membership-level metadata matches the expected MassageLab retirement
    identity;
