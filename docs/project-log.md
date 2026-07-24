@@ -6,6 +6,23 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 ## 2026-07-23 — Background purchase surfaces visual review
 
+- Merged Track 1B in PR #141, deployed the merged source to Production, and
+  enabled paid background purchasing only after all operational gates passed:
+  36 current migrations, two zero-grant idempotent credit-backfill passes,
+  clean reconciliation, active Ohio Stripe Tax configuration, exact
+  `txcd_10000000` classification, and the enabled pinned 15-event webhook
+  contract at the app API version.
+- Completed the taxed sandbox smoke with a one-dollar subtotal, eight cents of
+  Ohio tax, webhook-backed fulfillment, replay-safe idempotency, and clean
+  reconciliation. The controlled live Silk purchase then recorded a one-dollar
+  subtotal, seven cents of Stripe-calculated Ohio tax, a successful $1.07
+  payment, processed completion webhook, fulfilled order, active purchase
+  ownership, and clean post-fulfillment reconciliation.
+- Corrected two issues found during the controlled live flow: cart copy now
+  says purchased backgrounds stay available to the purchasing account
+  permanently instead of assuming a membership, and guest cart authentication
+  now preserves the originating Background route and query, then reopens the
+  cart after existing login, Google registration, or email verification.
 - Pinned paid background readiness to the reviewed Stripe Tax code
   `txcd_10000000` (General Electronically Supplied Services) instead of
   accepting any syntactically valid `txcd_` value. Verified one active Ohio

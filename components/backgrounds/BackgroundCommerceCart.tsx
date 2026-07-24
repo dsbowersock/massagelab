@@ -14,7 +14,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { formatCommerceAmount } from "@/lib/background-commerce-client.js"
+import {
+  BACKGROUND_CART_AUTH_RETURN_PARAM,
+  buildBackgroundCartAuthReturnPath,
+  formatCommerceAmount,
+} from "@/lib/background-commerce-client.js"
 import { cn } from "@/lib/utils"
 
 const NOTICE_COPY: Record<string, string> = {
@@ -35,7 +39,15 @@ function CartContents({
 }) {
   const { state, removeFromCart, cancelReservation } = useBackgroundCommerce()
   const [localError, setLocalError] = useState("")
+  const [currentSearch, setCurrentSearch] = useState("")
+  const pathname = usePathname() ?? "/"
   const cart = state.snapshot?.cart
+
+  useEffect(() => {
+    if (!signedIn) setCurrentSearch(window.location.search)
+  }, [pathname, signedIn])
+
+  const authReturnPath = buildBackgroundCartAuthReturnPath(pathname, currentSearch)
   if (!cart) {
     return <p role="status" className="text-sm text-muted-foreground">Loading cart...</p>
   }
@@ -146,7 +158,7 @@ function CartContents({
 
       <div className="grid gap-1 text-xs text-muted-foreground">
         <p>Applicable tax is calculated from your billing address at Stripe Checkout.</p>
-        <p>Permanent access after membership ends.</p>
+        <p>Purchased backgrounds stay available to your account permanently.</p>
         {!signedIn ? <p>This cart is saved in this browser until you sign in.</p> : null}
       </div>
 
@@ -158,10 +170,10 @@ function CartContents({
       {!reservedOrder && cart.items.length > 0 && !signedIn ? (
         <div className="grid gap-2 sm:grid-cols-2">
           <Button asChild>
-            <Link href="/login?callbackUrl=%2Faccount%3Ftab%3Dorders-invoices">Sign in to checkout</Link>
+            <Link href={`/login?callbackUrl=${encodeURIComponent(authReturnPath)}`}>Sign in to checkout</Link>
           </Button>
           <Button asChild variant="outline">
-            <Link href="/register?callbackUrl=%2Faccount%3Ftab%3Dorders-invoices">Create account</Link>
+            <Link href={`/register?callbackUrl=${encodeURIComponent(authReturnPath)}`}>Create account</Link>
           </Button>
         </div>
       ) : null}
@@ -177,7 +189,7 @@ export function BackgroundCommerceCart({
   variant: "compact" | "dialog"
   onReviewCheckout?: () => void
 }) {
-  const { cartOpen, closeCart, signedIn } = useBackgroundCommerce()
+  const { cartOpen, closeCart, openCart, signedIn } = useBackgroundCommerce()
   const [reviewOpen, setReviewOpen] = useState(false)
   const pathname = usePathname() ?? ""
   const isCalendarRoute = pathname === "/calendar" || pathname.startsWith("/calendar/")
@@ -190,6 +202,18 @@ export function BackgroundCommerceCart({
   useEffect(() => {
     if (variant === "dialog" && isCalendarRoute && cartOpen) closeCart()
   }, [cartOpen, closeCart, isCalendarRoute, variant])
+
+  useEffect(() => {
+    if (variant !== "dialog" || !signedIn) return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get(BACKGROUND_CART_AUTH_RETURN_PARAM) !== "open") return
+
+    openCart()
+    params.delete(BACKGROUND_CART_AUTH_RETURN_PARAM)
+    const nextSearch = params.toString()
+    const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash}`
+    window.history.replaceState(window.history.state, "", nextUrl)
+  }, [openCart, pathname, signedIn, variant])
 
   if (isCalendarRoute) return null
 

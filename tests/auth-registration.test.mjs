@@ -37,7 +37,11 @@ describe("registration email delivery policy", () => {
     assert.match(registerRoute, /const emailVerificationToken = await prisma\.emailVerificationToken\.create/)
     assert.match(registerRoute, /userId: existingUser\.id/)
     assert.match(registerRoute, /metadata: legalRequestMetadata\(request\)/)
-    assert.match(registerRoute, /registrationVerificationResponse\(await sendVerificationEmail\(email, verificationToken\)\)/)
+    assert.match(registerRoute, /safePostLegalAcceptanceCallback\(body\.callbackUrl\)/)
+    assert.match(
+      registerRoute,
+      /registrationVerificationResponse\(\s*await sendVerificationEmail\(email, verificationToken, callbackUrl\),\s*\)/,
+    )
     assert.match(registerRoute, /Preserve usable links from overlapping resend requests/)
     assert.match(registerRoute, /if \(resendResult\.status === 200\)/)
     assert.match(registerRoute, /id: \{ not: emailVerificationToken\.id \}/)
@@ -57,11 +61,24 @@ describe("registration email delivery policy", () => {
     assert.match(registerForm, /Continue with Google/)
     assert.match(registerForm, /signIn\("google", \{ redirectTo: googleRedirectTo \}\)/)
     assert.match(registerForm, /Create account with email/)
+    assert.match(registerForm, /callbackUrl: initialCallbackUrl/)
     assert.match(registerForm, /buildRegistrationLegalProviderRedirectPath/)
     assert.match(registerForm, /REGISTRATION_REQUEST_FAILED_MESSAGE/)
     assert.match(registerForm, /if \(isSubmitting\) return/)
     assert.match(registerForm, /finally \{\s*setIsSubmitting\(false\)/)
     assert.match(registerForm, /role=\{statusIsError \? "alert" : "status"\}/)
     assert.match(registerForm, /aria-live=\{statusIsError \? "assertive" : "polite"\}/)
+  })
+
+  it("preserves an app-local callback through email verification and sign-in", async () => {
+    const authMail = await readFile(new URL("../lib/auth-mail.ts", import.meta.url), "utf8")
+    const verifyPage = await readFile(new URL("../app/verify-email/page.tsx", import.meta.url), "utf8")
+
+    assert.match(authMail, /buildVerificationEmailLink/)
+    assert.match(authMail, /safePostLegalAcceptanceCallback\(callbackUrl\)/)
+    assert.match(authMail, /params\.set\("callbackUrl"/)
+    assert.match(verifyPage, /callbackUrl\?: string/)
+    assert.match(verifyPage, /safePostLegalAcceptanceCallback\(params\.callbackUrl\)/)
+    assert.match(verifyPage, /encodeURIComponent\(callbackUrl\)/)
   })
 })

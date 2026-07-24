@@ -4,6 +4,7 @@ import { hashToken, isTokenUsable } from "@/lib/auth-security"
 import { ensureUserRole } from "@/lib/auth-users"
 import { ensureVerifiedUserBackgroundCredits } from "@/lib/commerce/credit-service"
 import { runCommerceTransaction } from "@/lib/commerce/transactions"
+import { safePostLegalAcceptanceCallback } from "@/lib/legal-acceptance-gate"
 import { prisma } from "@/lib/prisma"
 import { AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
@@ -11,9 +12,11 @@ import { Button } from "@/components/ui/button"
 export default async function VerifyEmailPage({
   searchParams,
 }: {
-  searchParams: Promise<{ token?: string }>
+  searchParams: Promise<{ token?: string; callbackUrl?: string }>
 }) {
-  const token = (await searchParams).token ?? ""
+  const params = await searchParams
+  const token = params.token ?? ""
+  const callbackUrl = safePostLegalAcceptanceCallback(params.callbackUrl)
   let title = "Verification link required"
   let description = "Open the verification link from your email to activate your account."
   let verified = false
@@ -51,11 +54,13 @@ export default async function VerifyEmailPage({
     }
   }
 
+  const loginHref = `/login?${verified ? "verified=1&" : ""}callbackUrl=${encodeURIComponent(callbackUrl)}`
+
   return (
     <AppPageShell title="Email Verification" width="narrow">
         <AppSurface title={title} description={description}>
             <Button asChild>
-              <Link href={verified ? "/login?verified=1&callbackUrl=%2Fonboarding" : "/login"}>Go to login</Link>
+              <Link href={loginHref}>Go to login</Link>
             </Button>
         </AppSurface>
     </AppPageShell>

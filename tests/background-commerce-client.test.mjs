@@ -4,6 +4,7 @@ import {
   EMPTY_BACKGROUND_COMMERCE_STATE,
   backgroundCardCommerceState,
   backgroundCommerceReducer,
+  buildBackgroundCartAuthReturnPath,
   formatCommerceAmount,
   normalizeBackgroundCommerceSnapshot,
 } from "../lib/background-commerce-client.js"
@@ -217,6 +218,29 @@ describe("commerce amount formatting", () => {
     assert.equal(formatCommerceAmount(-1), "$0.00")
     assert.equal(formatCommerceAmount(1.5), "$0.00")
     assert.equal(formatCommerceAmount(100, "cad"), "$1.00")
+  })
+})
+
+describe("background cart authentication return paths", () => {
+  it("preserves the originating route and picker query while requesting the cart to reopen", () => {
+    assert.equal(
+      buildBackgroundCartAuthReturnPath(
+        "/clock",
+        "source=music&returnTo=%2Fmusic&panel=background",
+      ),
+      "/clock?source=music&returnTo=%2Fmusic&panel=background&commerceCart=open",
+    )
+    assert.equal(
+      buildBackgroundCartAuthReturnPath("/chimer", ""),
+      "/chimer?commerceCart=open",
+    )
+  })
+
+  it("falls back to an app-local route for unsafe paths", () => {
+    assert.equal(
+      buildBackgroundCartAuthReturnPath("https://example.com", "panel=background"),
+      "/?panel=background&commerceCart=open",
+    )
   })
 })
 

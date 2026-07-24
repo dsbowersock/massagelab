@@ -246,11 +246,14 @@ granting ownership.
 
 The readiness booleans are operator attestations, not proof of registration or
 taxability. One active Ohio state sales-tax registration was verified in Stripe
-on July 23, 2026, and the app now pins `txcd_10000000`; these facts do not
-replace a taxed test-mode Checkout/fulfillment smoke. Keep
-`BACKGROUND_COMMERCE_PURCHASING_ENABLED=false` until the Stripe origin,
-registration, product classification, environment, and reconciled tax evidence
-have passed that smoke.
+on July 23, 2026, and the app pins `txcd_10000000`. Production purchasing was
+enabled only after the Stripe origin, registration, product classification,
+environment, exact webhook contract, migrations, idempotent credit backfill,
+and clean reconciliation passed, followed by taxed sandbox and controlled live
+Checkout/fulfillment smokes. The controlled live Silk purchase recorded a
+$1.00 subtotal, $0.07 of Stripe-calculated Ohio tax, a successful $1.07
+payment, processed completion webhook, active purchase ownership, and clean
+post-fulfillment reconciliation.
 
 The pinned `/api/billing/webhook` endpoint must subscribe to:
 
