@@ -7,7 +7,7 @@ import { createStripeDonationCheckoutSession } from "@/lib/stripe-billing"
 export const runtime = "nodejs"
 
 /**
- * Parses donation payloads from either HTML form submissions or JSON clients.
+ * Parses one-time support payloads from either HTML form submissions or JSON clients.
  * The returned `isForm` flag controls whether failures redirect or return JSON.
  */
 async function donationRequest(request: Request) {
@@ -29,7 +29,7 @@ async function donationRequest(request: Request) {
 }
 
 /**
- * Sends form submissions back to pricing with a donation status code for UI notices.
+ * Sends form submissions back to pricing with a compatibility status code for UI notices.
  */
 function pricingRedirect(code: string) {
   return NextResponse.redirect(`${getSiteUrl()}/pricing?donation=${encodeURIComponent(code)}`, 303)
@@ -37,18 +37,18 @@ function pricingRedirect(code: string) {
 
 export async function POST(request: Request) {
   const input = await donationRequest(request)
-  const donation = findDonationOption(input.amountCents)
+  const oneTimeSupport = findDonationOption(input.amountCents)
 
-  if (!donation) {
+  if (!oneTimeSupport) {
     return input.isForm
       ? pricingRedirect("invalid-amount")
-      : NextResponse.json({ error: "Unsupported donation amount" }, { status: 400 })
+      : NextResponse.json({ error: "Unsupported one-time support amount" }, { status: 400 })
   }
 
   try {
     const session = await getCurrentSession()
     const checkoutSession = await createStripeDonationCheckoutSession({
-      amountCents: donation.amountCents,
+      amountCents: oneTimeSupport.amountCents,
       customerEmail: session?.user?.email ?? "",
       userId: session?.user?.id ?? "",
       successUrl: `${getSiteUrl()}/pricing?donation=thanks&session_id={CHECKOUT_SESSION_ID}`,
@@ -56,16 +56,16 @@ export async function POST(request: Request) {
     })
 
     if (!checkoutSession.url) {
-      throw new Error("Stripe did not return a donation Checkout URL.")
+      throw new Error("Stripe did not return a one-time support Checkout URL.")
     }
 
     return input.isForm
       ? NextResponse.redirect(checkoutSession.url, 303)
       : NextResponse.json({ url: checkoutSession.url })
   } catch (error) {
-    console.error("Unable to start donation checkout", error)
+    console.error("Unable to start one-time support checkout", error)
     return input.isForm
       ? pricingRedirect("checkout-error")
-      : NextResponse.json({ error: "Unable to start donation checkout." }, { status: 500 })
+      : NextResponse.json({ error: "Unable to start one-time support checkout." }, { status: 500 })
   }
 }

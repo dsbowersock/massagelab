@@ -8,12 +8,20 @@ describe("user-facing copy", () => {
       accountPage,
       pricingCards,
       pricingPage,
+      roadmapPage,
+      homePage,
+      donationRoute,
+      billingGuide,
       loginForm,
       registerForm,
     ] = await Promise.all([
       readFile(new URL("../app/account/page.tsx", import.meta.url), "utf8"),
       readFile(new URL("../components/membership/pricing-cards.tsx", import.meta.url), "utf8"),
       readFile(new URL("../app/pricing/page.tsx", import.meta.url), "utf8"),
+      readFile(new URL("../app/roadmap/page.tsx", import.meta.url), "utf8"),
+      readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+      readFile(new URL("../app/api/billing/donation/route.ts", import.meta.url), "utf8"),
+      readFile(new URL("../docs/wiki/billing-memberships.md", import.meta.url), "utf8"),
       readFile(new URL("../app/login/login-form.tsx", import.meta.url), "utf8"),
       readFile(new URL("../app/register/register-form.tsx", import.meta.url), "utf8"),
     ])
@@ -29,7 +37,24 @@ describe("user-facing copy", () => {
     assert.doesNotMatch(pricingCards, /Price not configured/)
 
     assert.match(pricingPage, /one-time support checkout right now/)
+    assert.match(pricingPage, /One-time support does not create a membership or unlock features\. It is not a charitable donation and is not tax-deductible\./)
+    assert.match(pricingPage, /title="Memberships and one-time support fund the alpha without ads"/)
+    assert.doesNotMatch(pricingPage, /Donations are one-time Stripe payments/)
+    assert.doesNotMatch(pricingPage, /Donation checkout|donation payment|Donation amount/)
     assert.doesNotMatch(pricingPage, /Stripe could not start/)
+
+    assert.match(roadmapPage, /One-time support/)
+    assert.doesNotMatch(roadmapPage, />\s*Donate\s*</)
+    assert.doesNotMatch(roadmapPage, /Memberships and donations/i)
+    assert.match(homePage, /Memberships and one-time support help build/i)
+
+    assert.match(donationRoute, /Unsupported one-time support amount/)
+    assert.match(donationRoute, /Unable to start one-time support checkout/)
+    assert.doesNotMatch(donationRoute, /Unsupported donation amount/)
+    assert.doesNotMatch(donationRoute, /Unable to start donation checkout/)
+
+    assert.match(billingGuide, /Automatic Tax remains disabled for one-time support until a tax professional\s+confirms its classification/)
+    assert.match(billingGuide, /separate from `txcd_10000000`/)
 
     assert.match(loginForm, /Google sign-in is not available right now/)
     assert.match(registerForm, /Google registration is not available right now/)

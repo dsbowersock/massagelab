@@ -343,7 +343,7 @@ describe("Stripe billing helpers", () => {
     assert.equal(Object.hasOwn(capturedPayload, "allow_promotion_codes"), false)
   })
 
-  it("creates one-time donation Checkout Sessions without subscription entitlement metadata", async () => {
+  it("creates one-time support Checkout Sessions without membership entitlement metadata", async () => {
     let capturedPayload = null
 
     const session = await createStripeDonationCheckoutSession({
@@ -366,9 +366,14 @@ describe("Stripe billing helpers", () => {
 
     assert.equal(session.url, "https://checkout.stripe.com/c/donation")
     assert.equal(capturedPayload.mode, "payment")
-    assert.equal(capturedPayload.submit_type, "donate")
+    assert.equal(Object.hasOwn(capturedPayload, "submit_type"), false)
     assert.equal(capturedPayload.customer_email, "supporter@example.com")
     assert.equal(capturedPayload.line_items[0].price_data.unit_amount, 1500)
+    assert.deepEqual(capturedPayload.line_items[0].price_data.product_data, {
+      name: "MassageLab One-time support",
+      description: "One-time support does not create a membership or unlock features. It is not a charitable donation and is not tax-deductible.",
+    })
+    assert.equal(Object.hasOwn(capturedPayload, "automatic_tax"), false)
     assert.equal(capturedPayload.metadata.purpose, "massagelab_project_support")
     assert.equal(capturedPayload.payment_intent_data.metadata.purpose, "massagelab_project_support")
     assert.equal(Object.hasOwn(capturedPayload, "subscription_data"), false)

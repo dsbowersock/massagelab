@@ -49,6 +49,9 @@ route `/api/billing/donation`.
   tax-deductible, and provides no goods, services, or membership benefits.
 - Checkout metadata uses `massagelab_project_support` so webhook reconciliation
   can ignore it for membership grants.
+- Automatic Tax remains disabled for one-time support until a tax professional
+  confirms its classification. That decision is separate from `txcd_10000000`,
+  which applies to permanent digital backgrounds.
 
 ## Student Access
 
