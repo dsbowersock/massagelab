@@ -14,6 +14,7 @@ import {
   SUPPORTER_RECURRING_TAX_BEHAVIOR,
   SUPPORTER_RECURRING_TAX_CODE,
 } from "../lib/stripe-price-contract.js"
+import { safeErrorCode } from "../lib/safe-error-code.js"
 import {
   createCompiledModuleLoader,
   createElement,
@@ -36,6 +37,12 @@ const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 
 function TestComponent() {}
 
+/**
+ * Renders the real public Pricing page with controlled session, Customer,
+ * subscription, and lookup-failure inputs. The component double records the
+ * mode passed to MembershipPricingCards without rendering its internals.
+ * Returns the card's action props plus Customer/subscription query counters.
+ */
 async function renderPublicPricing({
   session,
   stripeCustomer = null,
@@ -125,6 +132,9 @@ async function renderPublicPricing({
       },
       "@/lib/seo": {
         createPublicPageMetadata: () => ({}),
+      },
+      "@/lib/safe-error-code": {
+        safeErrorCode,
       },
     },
   )

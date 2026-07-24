@@ -458,6 +458,39 @@ describe("Supporter membership Stripe migration", () => {
     assert.match(packageSource, /stripe:migrate-supporter-membership/)
   })
 
+  it("uses the Stripe secret only for mode validation and client construction", async () => {
+    const migrationSource = await readFile(
+      new URL("../scripts/stripe-supporter-membership-migration.mjs", import.meta.url),
+      "utf8",
+    )
+    const buildConfigSource = migrationSource.slice(
+      migrationSource.indexOf("function buildConfig"),
+      migrationSource.indexOf("async function listAll"),
+    )
+
+    assert.match(
+      buildConfigSource,
+      /const secretKey = envValue\(env, "STRIPE_SECRET_KEY"\)/,
+    )
+    assert.doesNotMatch(buildConfigSource, /^\s+secretKey,\s*$/m)
+    assert.match(
+      migrationSource,
+      /const secretKey = envValue\(process\.env, "STRIPE_SECRET_KEY"\)/,
+    )
+    assert.match(
+      migrationSource,
+      /new Stripe\(secretKey, \{ apiVersion: STRIPE_API_VERSION \}\)/,
+    )
+
+    const privateSecret = "sk_test_private_not_retained"
+    const result = await runSupporterMembershipMigration({
+      stripe: stripeFixture().stripe,
+      mode: "verify",
+      env: migrationEnv({ STRIPE_SECRET_KEY: privateSecret }),
+    })
+    assert.doesNotMatch(JSON.stringify(result), new RegExp(privateSecret))
+  })
+
   it("reports safe local configuration codes before constructing a Stripe client", () => {
     const scriptPath = fileURLToPath(
       new URL("../scripts/stripe-supporter-membership-migration.mjs", import.meta.url),

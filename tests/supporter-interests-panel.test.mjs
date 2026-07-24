@@ -219,7 +219,7 @@ function findInterestCheckbox(tree, interestId) {
 function findLiveRegion(tree) {
   return findElement(
     tree,
-    (element) => element.props?.role === "status" && element.props?.["aria-live"] != null,
+    (element) => element.props?.["aria-live"] != null,
   )
 }
 
@@ -229,6 +229,14 @@ function liveRegionMessage(tree) {
     (element) => element.type === "p",
   )
   return message?.props.children ?? ""
+}
+
+function assertLiveRegion(tree, politeness) {
+  const region = findLiveRegion(tree)
+  assert.ok(region)
+  assert.equal(region.props.role, undefined)
+  assert.equal(region.props["aria-live"], politeness)
+  assert.equal(region.props["aria-atomic"], "true")
 }
 
 function findRetryButton(tree) {
@@ -266,8 +274,7 @@ describe("SupporterInterestsPanel", () => {
 
     try {
       harness.mount()
-      assert.equal(findLiveRegion(harness.getTree()).props.role, "status")
-      assert.equal(findLiveRegion(harness.getTree()).props["aria-live"], "polite")
+      assertLiveRegion(harness.getTree(), "polite")
       assert.equal(liveRegionMessage(harness.getTree()), "")
       await settleAsyncWork()
       harness.render()
@@ -293,8 +300,7 @@ describe("SupporterInterestsPanel", () => {
       assert.equal(findInterestCheckbox(harness.getTree(), initialInterest).props.checked, true)
       assert.equal(findInterestCheckbox(harness.getTree(), addedInterest).props.checked, true)
       assert.equal(findInterestCheckbox(harness.getTree(), addedInterest).props.disabled, false)
-      assert.equal(findLiveRegion(harness.getTree()).props.role, "status")
-      assert.equal(findLiveRegion(harness.getTree()).props["aria-live"], "polite")
+      assertLiveRegion(harness.getTree(), "polite")
       assert.equal(liveRegionMessage(harness.getTree()), "Roadmap interests saved.")
     } finally {
       harness.dispose()
@@ -491,9 +497,7 @@ describe("SupporterInterestsPanel", () => {
 
         assert.equal(findInterestCheckbox(harness.getTree(), persistedInterest).props.checked, true)
         assert.equal(findInterestCheckbox(harness.getTree(), failedInterest).props.checked, false)
-        assert.equal(findLiveRegion(harness.getTree()).props.role, "status")
-        assert.equal(findLiveRegion(harness.getTree()).props["aria-live"], "assertive")
-        assert.equal(findLiveRegion(harness.getTree()).props["aria-atomic"], "true")
+        assertLiveRegion(harness.getTree(), "assertive")
         assert.equal(
           liveRegionMessage(harness.getTree()),
           "Could not save roadmap interests. Please try again.",
@@ -539,9 +543,7 @@ describe("SupporterInterestsPanel", () => {
         await settleAsyncWork()
         harness.render()
 
-        assert.equal(findLiveRegion(harness.getTree()).props.role, "status")
-        assert.equal(findLiveRegion(harness.getTree()).props["aria-live"], "assertive")
-        assert.equal(findLiveRegion(harness.getTree()).props["aria-atomic"], "true")
+        assertLiveRegion(harness.getTree(), "assertive")
         assert.equal(
           liveRegionMessage(harness.getTree()),
           "Could not load roadmap interests. Please try again.",

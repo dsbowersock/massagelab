@@ -248,7 +248,6 @@ function buildConfig(env, requestedMode) {
     requestedMode,
     stripeMode,
     livemode: expectedLivemode(stripeMode),
-    secretKey,
     allowedSubscriptionId,
     productIds,
     legacyPrices,
@@ -447,13 +446,13 @@ function portalPreservationEnabled(features) {
 }
 
 function expectedPortalProducts(entries) {
-  return entries
-    .map(({ product, prices }) => ({
+  return normalizePortalProducts(
+    entries.map(({ product, prices }) => ({
       product: product ?? "",
-      prices: [...prices].sort(),
-      adjustableQuantityEnabled: false,
-    }))
-    .sort((left, right) => left.product.localeCompare(right.product))
+      prices,
+      adjustable_quantity: { enabled: false },
+    })),
+  )
 }
 
 function portalTopologyMatches(features, expectedProducts) {
@@ -631,13 +630,13 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
     ) {
       legacySupporterProductId = priceProductId(candidate)
     }
-    const expectedProductId = spec.productKey === "supporter"
+    const legacyExpectedProductId = spec.productKey === "supporter"
       ? legacySupporterProductId
       : config.productIds[spec.productKey]
     if (
       !candidate
       || !modeMatches(candidate, config.livemode)
-      || !legacyPriceMatches(candidate, spec, expectedProductId)
+      || !legacyPriceMatches(candidate, spec, legacyExpectedProductId)
     ) {
       failureCodes.push("legacy_price_dependency_mismatch")
     } else {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getCurrentSession } from "@/auth"
 import { getSiteUrl } from "@/lib/auth-env"
 import { findDonationOption } from "@/lib/donations"
+import { safeErrorCode } from "@/lib/safe-error-code"
 import { createStripeDonationCheckoutSession } from "@/lib/stripe-billing"
 
 export const runtime = "nodejs"
@@ -70,16 +71,9 @@ export async function POST(request: Request) {
       ? NextResponse.redirect(checkoutSession.url, 303)
       : NextResponse.json({ url: checkoutSession.url })
   } catch (error) {
-    const code = (
-      error
-      && typeof error === "object"
-      && "code" in error
-      && typeof error.code === "string"
-      && /^[a-z0-9_.-]{1,80}$/i.test(error.code)
-    )
-      ? error.code
-      : "unexpected_error"
-    console.error("Unable to start one-time support checkout", { code })
+    console.error("Unable to start one-time support checkout", {
+      code: safeErrorCode(error),
+    })
     return input.isForm
       ? pricingRedirect("checkout-error")
       : NextResponse.json({ error: "Unable to start one-time support checkout." }, { status: 500 })

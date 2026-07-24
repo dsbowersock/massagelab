@@ -389,11 +389,16 @@ describe("Stripe readiness background-commerce contract", () => {
     for (const key of supporterTaxKeys) {
       delete environment[key]
     }
+    assert.equal(
+      Object.hasOwn(environment, "STRIPE_SUPPORTER_TAX_PRODUCT_CODE"),
+      false,
+      "the valid tax code must exist only in the temporary env file",
+    )
 
     try {
       await writeFile(envFile, [
         "STRIPE_SUPPORTER_AUTOMATIC_TAX_ENABLED=true",
-        "STRIPE_SUPPORTER_TAX_PRODUCT_CODE=txcd_10000000",
+        "STRIPE_SUPPORTER_TAX_PRODUCT_CODE=\" txcd_10000000 \"",
         "STRIPE_SUPPORTER_TAX_PROVIDER_READY=true",
         "STRIPE_SUPPORTER_TAX_REGISTRATIONS_READY=true",
         "STRIPE_SUPPORTER_TAX_CLASSIFICATION_CONFIRMED=true",

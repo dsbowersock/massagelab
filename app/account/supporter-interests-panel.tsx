@@ -183,7 +183,6 @@ export function SupporterInterestsPanel() {
         {isLoading ? <Loader label="Loading roadmap interests" size={18} color="currentColor" /> : null}
         <div
           className="flex flex-wrap items-center gap-3"
-          role="status"
           aria-live={message?.variant === "error" ? "assertive" : "polite"}
           aria-atomic="true"
         >

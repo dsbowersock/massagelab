@@ -48,7 +48,7 @@ export function createElement(type, props, key) {
   }
 }
 
-/** Returns the first matching JSX-like object in a nested child/array tree. */
+/** Returns the first matching JSX-like object across every prop value. */
 export function findElement(tree, predicate) {
   if (Array.isArray(tree)) {
     for (const child of tree) {
@@ -68,10 +68,16 @@ export function findElement(tree, predicate) {
     return tree
   }
 
-  return findElement(tree.props?.children, predicate)
+  for (const value of Object.values(tree.props ?? {})) {
+    const match = findElement(value, predicate)
+    if (match) {
+      return match
+    }
+  }
+  return null
 }
 
-/** Collects every matching JSX-like object from a nested child/array tree. */
+/** Collects every matching JSX-like object across every prop value. */
 export function findElements(tree, predicate, matches = []) {
   if (Array.isArray(tree)) {
     for (const child of tree) {
@@ -87,7 +93,9 @@ export function findElements(tree, predicate, matches = []) {
   if (predicate(tree)) {
     matches.push(tree)
   }
-  findElements(tree.props?.children, predicate, matches)
+  for (const value of Object.values(tree.props ?? {})) {
+    findElements(value, predicate, matches)
+  }
   return matches
 }
 

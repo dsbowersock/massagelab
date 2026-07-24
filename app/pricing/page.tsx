@@ -14,6 +14,7 @@ import { AppNotice, AppPageShell, AppSurface, appCalloutClassName } from "@/comp
 import { Button } from "@/components/ui/button"
 import { MetalAttentionButton } from "@/components/ui/metal-attention-button"
 import { createPublicPageMetadata } from "@/lib/seo"
+import { safeErrorCode } from "@/lib/safe-error-code"
 
 export const metadata = createPublicPageMetadata("/pricing")
 
@@ -39,7 +40,7 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
     } catch (error) {
       membershipStatusUnavailable = true
       console.error("Unable to load membership pricing status", {
-        code: safePricingErrorCode(error),
+        code: safeErrorCode(error),
       })
     }
   }
@@ -147,19 +148,6 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
         />
     </AppPageShell>
   )
-}
-
-/** Reduces pricing lookup failures to a non-sensitive diagnostic code. */
-function safePricingErrorCode(error: unknown) {
-  return (
-    error
-    && typeof error === "object"
-    && "code" in error
-    && typeof error.code === "string"
-    && /^[a-z0-9_.-]{1,80}$/i.test(error.code)
-  )
-    ? error.code
-    : "unexpected_error"
 }
 
 /**

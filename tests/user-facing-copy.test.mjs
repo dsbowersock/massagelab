@@ -53,9 +53,10 @@ describe("user-facing copy", () => {
     assert.doesNotMatch(donationRoute, /Unsupported donation amount/)
     assert.doesNotMatch(donationRoute, /Unable to start donation checkout/)
 
+    const normalizedBillingGuide = billingGuide.replace(/\s+/g, " ")
     assert.match(
-      billingGuide,
-      /Automatic Tax remains disabled for one-time support until a tax professional\s+confirms its classification\. That decision is separate from `txcd_10000000`,\s+which applies to permanent digital backgrounds\./,
+      normalizedBillingGuide,
+      /Automatic Tax remains disabled for one-time support until a tax professional confirms its classification\. That decision is separate from `txcd_10000000`, which applies to permanent digital backgrounds\./,
     )
 
     assert.match(loginForm, /Google sign-in is not available right now/)

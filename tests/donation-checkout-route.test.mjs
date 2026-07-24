@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
+import { safeErrorCode } from "../lib/safe-error-code.js"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const donationRouteSource = await readFile(
@@ -19,6 +20,12 @@ function donationPost({
     throw new Error("Stripe Checkout double was not configured.")
   },
   findDonationOption = () => ({ amountCents: 500 }),
+  session = {
+    user: {
+      id: "user_supporter",
+      email: "supporter@example.com",
+    },
+  },
 } = {}) {
   const route = loadCompiledModule(
     donationRouteSource,
@@ -31,18 +38,16 @@ function donationPost({
         },
       },
       "@/auth": {
-        getCurrentSession: async () => ({
-          user: {
-            id: "user_supporter",
-            email: "supporter@example.com",
-          },
-        }),
+        getCurrentSession: async () => session,
       },
       "@/lib/auth-env": {
         getSiteUrl: () => "https://massagelab.app",
       },
       "@/lib/donations": {
         findDonationOption,
+      },
+      "@/lib/safe-error-code": {
+        safeErrorCode,
       },
       "@/lib/stripe-billing": {
         createStripeDonationCheckoutSession: createCheckoutSession,
@@ -62,6 +67,31 @@ function jsonRequest() {
 }
 
 describe("one-time support Checkout route", () => {
+  it("allows guest one-time support without attaching account identity", async () => {
+    const checkoutInputs = []
+    const POST = donationPost({
+      session: null,
+      createCheckoutSession: async (input) => {
+        checkoutInputs.push(input)
+        return { url: "https://checkout.stripe.com/c/guest-support" }
+      },
+    })
+
+    const response = await POST(jsonRequest())
+
+    assert.deepEqual(checkoutInputs, [{
+      amountCents: 500,
+      customerEmail: "",
+      userId: "",
+      successUrl: "https://massagelab.app/pricing?donation=thanks&session_id={CHECKOUT_SESSION_ID}",
+      cancelUrl: "https://massagelab.app/pricing?donation=cancelled",
+    }])
+    assert.deepEqual(response, {
+      body: { url: "https://checkout.stripe.com/c/guest-support" },
+      status: 200,
+    })
+  })
+
   it("forwards the selected support option and redirects a successful form checkout", async () => {
     const checkoutInputs = []
     const POST = donationPost({

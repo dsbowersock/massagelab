@@ -118,11 +118,11 @@ describe("Account page tab model", () => {
 
     assert.match(
       source,
-      /const subscriptionPricingMode = resolveMembershipPricingMode\(\{[\s\S]*subscriptions: membershipSummary\.subscriptions,[\s\S]*\}\)/,
+      /const subscriptionPricingMode = resolveMembershipPricingMode\(\{\s*signedIn: true,\s*subscriptions: membershipSummary\.subscriptions,\s*\}\)/,
     )
     assert.match(
       source,
-      /const canOpenBillingPortal = Boolean\([\s\S]*membershipSummary\.stripeCustomer[\s\S]*subscriptionPricingMode === "portal"[\s\S]*\)/,
+      /const canOpenBillingPortal = Boolean\(\s*membershipSummary\.stripeCustomer\s*&& subscriptionPricingMode === "portal",?\s*\)/,
     )
     assert.match(
       source,
@@ -130,7 +130,7 @@ describe("Account page tab model", () => {
     )
     assert.match(
       source,
-      /<MembershipPricingCards[\s\S]*mode=\{membershipPricingMode\}[\s\S]*portalActionAvailable=\{canOpenBillingPortal\}/,
+      /<MembershipPricingCards\s+catalog=\{data\.pricingCatalog\}\s+activeMembershipLevel=\{membershipSummary\.entitlements\.paidLevel\}\s+mode=\{membershipPricingMode\}\s+portalActionAvailable=\{canOpenBillingPortal\}\s*\/>/,
     )
   })
 

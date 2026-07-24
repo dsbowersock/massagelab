@@ -147,6 +147,13 @@ describe("Account preference helpers", () => {
 
     assert.deepEqual(resolveSupporterRoadmapInterestsAfterSave({
       previousInterests,
+      responseInterests: [],
+      submittedInterests: ["practice_management"],
+      saveSucceeded: true,
+    }), [])
+
+    assert.deepEqual(resolveSupporterRoadmapInterestsAfterSave({
+      previousInterests,
       responseInterests: "invalid-response-shape",
       submittedInterests: ["personal_wellness", "practice_management"],
       saveSucceeded: true,

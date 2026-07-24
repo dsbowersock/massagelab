@@ -87,9 +87,15 @@ expanded Product. After expanding `currency_options`, the same command passed
 
 ## Validation
 
+The full-suite counts in this report are historical snapshots tied to the
+named review batches; none is a claim about the current final PR head.
+
 - Initial focused membership/Stripe command shown above: 40/64 passed as RED
   evidence; the retrieval-expansion regression later passed 3/3.
-- `npm run test`: 1,528/1,528 passed across 160 suites at the final PR head.
+- Review-batch HEAD `ed5ddbb`: `npm run test` passed 1,528/1,528 tests across
+  160 suites.
+- Sixth review batch after `ed5ddbb`: `npm run test` passed 1,537/1,537 tests
+  across 162 suites before the next CodeRabbit pass.
 - `npm run typecheck`: passed.
 - `npm run lint`: passed.
 - `npm run build`: passed; Prisma generation, production compilation,
@@ -146,7 +152,8 @@ Two audit regressions were then added:
 Final validation:
 
 - Focused billing, route, and migration command: 57/57 passed.
-- `npm run test`: 1,429/1,429 passed across 157 suites.
+- Historical Whole-Branch Follow-Up batch: `npm run test` passed
+  1,429/1,429 tests across 157 suites.
 - `npm run typecheck`: passed.
 - `npm run lint`: passed, with only the existing large-file Babel
   deoptimization notes.
@@ -199,7 +206,8 @@ Result: 62/62 passed. Full validation is recorded below after the final gates.
 
 Final validation:
 
-- `npm run test`: 1,434/1,434 passed across 157 suites.
+- Historical Legacy Open Session Compatibility Follow-Up batch:
+  `npm run test` passed 1,434/1,434 tests across 157 suites.
 - `npm run typecheck`: passed.
 - `npm run lint`: passed, with only the existing large-file Babel
   deoptimization notes.

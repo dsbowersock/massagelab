@@ -1239,6 +1239,99 @@ describe("Stripe billing helpers", () => {
     assert.equal(createCalls, 0)
   })
 
+  it("fails closed after exhausting the incompatible open-Session expiration budget", async () => {
+    const sessions = Array.from({ length: 26 }, (_, index) => (
+      membershipCheckoutSession({ id: `cs_stale_expiration_${index}` })
+    ))
+    let expireCalls = 0
+    let retrieveCalls = 0
+    let createCalls = 0
+
+    await assert.rejects(
+      stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+        stripeClient: {
+          checkout: {
+            sessions: {
+              list: async () => stripeCheckoutSessionList(sessions),
+              listLineItems: async () => stripeCheckoutLineItemList({
+                priceId: SUPPORTER_2_MONTHLY_PRICE_ID,
+              }),
+              expire: async (sessionId) => {
+                expireCalls += 1
+                return { id: sessionId, object: "checkout.session", status: "expired" }
+              },
+              retrieve: async (sessionId) => {
+                retrieveCalls += 1
+                return { id: sessionId, object: "checkout.session", status: "expired" }
+              },
+              create: async () => {
+                createCalls += 1
+                return membershipCheckoutSession({ id: "cs_unexpected_create" })
+              },
+            },
+          },
+        },
+      })),
+      /Session expirations exceeded the safe limit/,
+    )
+
+    assert.equal(expireCalls, 25)
+    assert.equal(retrieveCalls, 25)
+    assert.equal(createCalls, 0)
+  })
+
+  it("returns an earlier blocking completion before the expiration budget is exhausted", async () => {
+    const blockingOpenSession = {
+      ...membershipCheckoutSession({ id: "cs_stale_blocks_first" }),
+      created: 1784912500,
+    }
+    const sessions = [
+      blockingOpenSession,
+      ...Array.from({ length: 25 }, (_, index) => ({
+        ...membershipCheckoutSession({ id: `cs_stale_after_block_${index}` }),
+        created: 1784912400 - index,
+      })),
+    ]
+    let expireCalls = 0
+    let createCalls = 0
+    const result = await stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+      stripeClient: {
+        checkout: {
+          sessions: {
+            list: async () => stripeCheckoutSessionList(sessions),
+            listLineItems: async () => stripeCheckoutLineItemList({
+              priceId: SUPPORTER_2_MONTHLY_PRICE_ID,
+            }),
+            expire: async (sessionId) => {
+              expireCalls += 1
+              return { id: sessionId, object: "checkout.session", status: "expired" }
+            },
+            retrieve: async (sessionId) => membershipCheckoutSession({
+              id: sessionId,
+              status: "complete",
+              subscription: "sub_completion_during_expiry",
+              url: null,
+            }),
+            create: async () => {
+              createCalls += 1
+              return membershipCheckoutSession({ id: "cs_unexpected_create" })
+            },
+          },
+        },
+        subscriptions: {
+          retrieve: async (subscriptionId) => membershipStripeSubscription({
+            id: subscriptionId,
+          }),
+        },
+      },
+    }))
+
+    assert.equal(result.id, blockingOpenSession.id)
+    assert.equal(result.status, "complete")
+    assert.equal(expireCalls, 1)
+    assert.equal(createCalls, 0)
+  })
+
   it("expires an open membership Checkout Session when the requested amount changes", async () => {
     const openSession = membershipCheckoutSession({ id: "cs_open_monthly" })
     const calls = []
@@ -1895,6 +1988,52 @@ describe("Stripe billing helpers", () => {
       "massagelab-membership-checkout:user_123:after:initial",
       "massagelab-membership-checkout:user_123:after:cs_recovered_anchor",
     ])
+  })
+
+  it("retains the original create failure as the recovery retry failure cause", async () => {
+    const originalCreateError = Object.assign(
+      new Error("initial create failed after Stripe may have committed"),
+      { type: "StripeConnectionError" },
+    )
+    const retryCreateError = Object.assign(
+      new Error("recovery retry failed"),
+      { type: "StripeAPIError" },
+    )
+    const recoveredAnchor = membershipCheckoutSession({
+      id: "cs_retry_failure_anchor",
+      status: "expired",
+      url: null,
+    })
+    let listCalls = 0
+    let createCalls = 0
+
+    await assert.rejects(
+      stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+        stripeClient: {
+          checkout: {
+            sessions: {
+              list: async () => {
+                listCalls += 1
+                return stripeCheckoutSessionList(
+                  listCalls === 1 ? [] : [recoveredAnchor],
+                )
+              },
+              create: async () => {
+                createCalls += 1
+                throw createCalls === 1 ? originalCreateError : retryCreateError
+              },
+            },
+          },
+        },
+      })),
+      (error) => {
+        assert.equal(error, retryCreateError)
+        assert.equal(error.cause, originalCreateError)
+        return true
+      },
+    )
+
+    assert.equal(createCalls, 2)
   })
 
   it("creates one-time support Checkout Sessions without membership entitlement metadata", async () => {

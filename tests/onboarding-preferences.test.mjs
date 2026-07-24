@@ -48,6 +48,8 @@ describe("Onboarding preference helpers", () => {
       "unknown_interest",
       "clientName",
       42,
+      // Only plain string IDs are accepted; an object containing a valid ID
+      // must not become an alternate input shape for this privacy-safe signal.
       { interest: "practice_management" },
       "personal_wellness",
       "anatomy_and_education",

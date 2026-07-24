@@ -257,7 +257,7 @@ describe("Membership Checkout POST route", () => {
     })
   })
 
-  it("routes unexpected form field normalization failures through the form-safe Checkout error response", async () => {
+  it("routes unexpected form field normalization failures through the form-safe Checkout error response", async (context) => {
     const calls = {
       ensureCustomer: 0,
       createCheckout: 0,
@@ -274,31 +274,25 @@ describe("Membership Checkout POST route", () => {
         getAll: () => [],
       }),
     }
-    const logged = []
-    const originalConsoleError = console.error
-    console.error = (...args) => logged.push(args)
+    const logged = captureConsoleErrors(context)
 
-    try {
-      const response = await createMembershipCheckoutPostHandler(
-        checkoutDependencies(calls),
-      )(request)
+    const response = await createMembershipCheckoutPostHandler(
+      checkoutDependencies(calls),
+    )(request)
 
-      assert.deepEqual(response, {
-        url: "https://massagelab.app/account?billing=checkout-error",
-        status: 303,
-      })
-      assert.deepEqual(calls, {
-        ensureCustomer: 0,
-        createCheckout: 0,
-        membershipLookup: 0,
-      })
-      assert.deepEqual(logged, [[
-        "Unable to start membership checkout",
-        { code: "unexpected_error" },
-      ]])
-    } finally {
-      console.error = originalConsoleError
-    }
+    assert.deepEqual(response, {
+      url: "https://massagelab.app/account?billing=checkout-error",
+      status: 303,
+    })
+    assert.deepEqual(calls, {
+      ensureCustomer: 0,
+      createCheckout: 0,
+      membershipLookup: 0,
+    })
+    assert.deepEqual(logged, [[
+      "Unable to start membership checkout",
+      { code: "unexpected_error" },
+    ]])
   })
 
   for (const [label, body] of [
@@ -466,36 +460,30 @@ describe("Membership Checkout POST route", () => {
     assert.equal(calls.createCheckout, 1)
   })
 
-  it("logs the root cause when membership Checkout setup fails", async () => {
+  it("logs only the sanitized code when membership Checkout setup fails", async (context) => {
     const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
     const failure = new Error("customer lookup failed")
     failure.code = "customer_lookup_failed"
-    const logged = []
-    const originalConsoleError = console.error
-    console.error = (...args) => logged.push(args)
+    const logged = captureConsoleErrors(context)
 
-    try {
-      const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
-        ensureCustomerError: failure,
-      }))(jsonRequest({
-        membershipLevel: "SUPPORTER",
-        supporterAmountChoiceId: "support-1",
-        interval: "month",
-        acceptedLegalDocuments: ["membership-billing-refunds:current"],
-        billingTermsAccepted: true,
-      }))
+    const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
+      ensureCustomerError: failure,
+    }))(jsonRequest({
+      membershipLevel: "SUPPORTER",
+      supporterAmountChoiceId: "support-1",
+      interval: "month",
+      acceptedLegalDocuments: ["membership-billing-refunds:current"],
+      billingTermsAccepted: true,
+    }))
 
-      assert.deepEqual(response, {
-        body: { error: "Unable to start checkout." },
-        status: 500,
-      })
-      assert.deepEqual(logged, [[
-        "Unable to start membership checkout",
-        { code: "customer_lookup_failed" },
-      ]])
-    } finally {
-      console.error = originalConsoleError
-    }
+    assert.deepEqual(response, {
+      body: { error: "Unable to start checkout." },
+      status: 500,
+    })
+    assert.deepEqual(logged, [[
+      "Unable to start membership checkout",
+      { code: "customer_lookup_failed" },
+    ]])
   })
 
   for (const [label, errorOption] of [
@@ -503,41 +491,35 @@ describe("Membership Checkout POST route", () => {
     ["public selection validation", "selectionError"],
     ["Stripe price resolution", "priceResolutionError"],
   ]) {
-    it(`routes a rejected ${label} through the form-safe Checkout error response`, async () => {
+    it(`routes a rejected ${label} through the form-safe Checkout error response`, async (context) => {
       const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
       const failure = new Error(`${label} failed`)
       failure.code = `${errorOption}_failed`
-      const logged = []
-      const originalConsoleError = console.error
-      console.error = (...args) => logged.push(args)
+      const logged = captureConsoleErrors(context)
 
-      try {
-        const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
-          [errorOption]: failure,
-        }))(formRequest({
-          membershipLevel: "SUPPORTER",
-          supporterAmountChoiceId: "support-1",
-          interval: "month",
-          acceptedLegalDocuments: "membership-billing-refunds:current",
-          billingTermsAccepted: "true",
-        }))
+      const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
+        [errorOption]: failure,
+      }))(formRequest({
+        membershipLevel: "SUPPORTER",
+        supporterAmountChoiceId: "support-1",
+        interval: "month",
+        acceptedLegalDocuments: "membership-billing-refunds:current",
+        billingTermsAccepted: "true",
+      }))
 
-        assert.deepEqual(response, {
-          url: "https://massagelab.app/account?billing=checkout-error",
-          status: 303,
-        })
-        assert.deepEqual(calls, {
-          ensureCustomer: 0,
-          createCheckout: 0,
-          membershipLookup: 0,
-        })
-        assert.deepEqual(logged, [[
-          "Unable to start membership checkout",
-          { code: `${errorOption}_failed` },
-        ]])
-      } finally {
-        console.error = originalConsoleError
-      }
+      assert.deepEqual(response, {
+        url: "https://massagelab.app/account?billing=checkout-error",
+        status: 303,
+      })
+      assert.deepEqual(calls, {
+        ensureCustomer: 0,
+        createCheckout: 0,
+        membershipLookup: 0,
+      })
+      assert.deepEqual(logged, [[
+        "Unable to start membership checkout",
+        { code: `${errorOption}_failed` },
+      ]])
     })
   }
 
@@ -546,41 +528,42 @@ describe("Membership Checkout POST route", () => {
     ["legal acceptance lookup", "acceptedDocumentsError"],
     ["user lookup", "userLookupError"],
   ]) {
-    it(`routes a rejected ${label} through the form-safe Checkout error response`, async () => {
+    it(`routes a rejected ${label} through the form-safe Checkout error response`, async (context) => {
       const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
       const failure = new Error(`${label} failed`)
       failure.code = `${errorOption}_failed`
-      const logged = []
-      const originalConsoleError = console.error
-      console.error = (...args) => logged.push(args)
+      const logged = captureConsoleErrors(context)
 
-      try {
-        const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
-          [errorOption]: failure,
-        }))(formRequest({
-          membershipLevel: "SUPPORTER",
-          supporterAmountChoiceId: "support-1",
-          interval: "month",
-          acceptedLegalDocuments: "membership-billing-refunds:current",
-          billingTermsAccepted: "true",
-        }))
+      const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
+        [errorOption]: failure,
+      }))(formRequest({
+        membershipLevel: "SUPPORTER",
+        supporterAmountChoiceId: "support-1",
+        interval: "month",
+        acceptedLegalDocuments: "membership-billing-refunds:current",
+        billingTermsAccepted: "true",
+      }))
 
-        assert.deepEqual(response, {
-          url: "https://massagelab.app/account?billing=checkout-error",
-          status: 303,
-        })
-        assert.equal(calls.ensureCustomer, 0)
-        assert.equal(calls.createCheckout, 0)
-        assert.deepEqual(logged, [[
-          "Unable to start membership checkout",
-          { code: `${errorOption}_failed` },
-        ]])
-      } finally {
-        console.error = originalConsoleError
-      }
+      assert.deepEqual(response, {
+        url: "https://massagelab.app/account?billing=checkout-error",
+        status: 303,
+      })
+      assert.equal(calls.ensureCustomer, 0)
+      assert.equal(calls.createCheckout, 0)
+      assert.deepEqual(logged, [[
+        "Unable to start membership checkout",
+        { code: `${errorOption}_failed` },
+      ]])
     })
   }
 })
+
+/** Uses node:test lifecycle-managed mocks so console restoration is automatic. */
+function captureConsoleErrors(context) {
+  const logged = []
+  context.mock.method(console, "error", (...args) => logged.push(args))
+  return logged
+}
 
 function jsonRequest(body) {
   return new Request("https://massagelab.app/api/billing/checkout", {
