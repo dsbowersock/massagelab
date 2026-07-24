@@ -270,6 +270,8 @@ async function openClockBackground(page: Page, href = "/clock") {
   await page.goto(href, { waitUntil: "domcontentloaded" })
   const backgroundPanel = page.getByRole("dialog", { name: "Background" })
   const panelRequested = new URL(href, "http://massagelab.local").searchParams.get("panel") === "background"
+  // The router opens a URL-requested panel; clicking its toggle again would
+  // close or otherwise change the state the caller is trying to exercise.
   if (!panelRequested) {
     await expect(page.getByLabel("Chimer clock")).toBeVisible()
     await page.getByRole("button", { name: "Background", exact: true }).click()
