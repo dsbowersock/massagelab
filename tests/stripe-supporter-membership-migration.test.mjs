@@ -631,6 +631,55 @@ describe("Supporter membership Stripe migration", () => {
     }
   })
 
+  it("rejects misidentified Therapist and Practice Products before any mutation", async () => {
+    const cases = [
+      {
+        label: "Therapist name",
+        productId: "prod_therapist",
+        corrupt: (candidate) => {
+          candidate.name = "Unrelated Scheduling Product"
+        },
+      },
+      {
+        label: "Therapist membership metadata",
+        productId: "prod_therapist",
+        corrupt: (candidate) => {
+          candidate.metadata.massagelab_membership_level = "PRACTICE"
+        },
+      },
+      {
+        label: "Practice app metadata",
+        productId: "prod_practice",
+        corrupt: (candidate) => {
+          candidate.metadata.app = "another_app"
+        },
+      },
+    ]
+
+    for (const testCase of cases) {
+      const fixture = stripeFixture()
+      testCase.corrupt(fixture.products.get(testCase.productId))
+
+      await assert.rejects(
+        runSupporterMembershipMigration({
+          stripe: fixture.stripe,
+          mode: "apply",
+          env: migrationEnv(),
+        }),
+        (error) => {
+          assert.equal(
+            error.failureCodes.includes("product_dependency_mismatch"),
+            true,
+            testCase.label,
+          )
+          return true
+        },
+        testCase.label,
+      )
+      assert.deepEqual(mutationCalls(fixture), [], testCase.label)
+    }
+  })
+
   it("rejects mixed migration states instead of treating known subsets as safe", async () => {
     const corruptions = [
       (fixture) => {

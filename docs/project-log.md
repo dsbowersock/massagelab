@@ -43,6 +43,13 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
   Price semantics between migration and ongoing readiness, retains legacy
   runtime Price mappings strictly for webhook reconciliation, and lists
   all-background access in public Current benefits.
+- Whole-branch review follow-up closes the pre-webhook concurrency window:
+  membership Checkout now paginates only MassageLab-owned customer Sessions,
+  reuses an open Session, treats a completed relevant Stripe subscription as
+  authoritative, serializes competing creates with one terminal-attempt-scoped
+  idempotency key, and safely relists after ambiguous or conflicting creates.
+  Migration preflight now also requires exact Therapist/Practice Product names
+  and rejects contradictory optional MassageLab metadata before any mutation.
 - RED-first focused billing/readiness/route coverage passed after
   implementation. Full lint, test, typecheck, build, and diff validation are
   recorded in the Task 5 handoff report.

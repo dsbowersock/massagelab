@@ -39,6 +39,9 @@ The command must pass without printing secret values. Then complete one real low
   interval count one with no trial, licensed per-unit usage, no quantity
   transform or additional currencies, and belongs to the classified Supporter
   Product.
+- Concurrent or repeated enrollment returns one open Checkout Session, and a
+  completed relevant Session blocks another Checkout while signed webhook
+  persistence catches up.
 - The Checkout session uses Automatic Tax, requires a billing address, updates
   the Stripe Customer address, completes, and returns to MassageLab.
 - Membership status updates from the signed webhook.
@@ -56,11 +59,14 @@ Before changing the live catalog:
    customer identifiers;
 2. record a subscriber-specific grandfathering/tax decision for every active,
    trialing, past-due, unpaid, paused, or canceling subscription;
-3. run `npm run stripe:migrate-supporter-membership -- --mode=verify` and stop
+3. confirm the exact Therapist and Practice Product names and that any present
+   app or membership-level metadata matches the expected MassageLab retirement
+   identity;
+4. run `npm run stripe:migrate-supporter-membership -- --mode=verify` and stop
    unless every safe check passes;
-4. deploy the supporter-only application and recurring-tax contract together;
-5. run apply and verify only after the explicit operator gate; and
-6. complete the $1 monthly, $2/$5 portal-switch, payment/address, invoice,
+5. deploy the supporter-only application and recurring-tax contract together;
+6. run apply and verify only after the explicit operator gate; and
+7. complete the $1 monthly, $2/$5 portal-switch, payment/address, invoice,
    period-end cancellation, and webhook-backed entitlement smoke.
 
 Retain the six legacy runtime Price mappings until subscriber inventory proves none remain and webhook reconciliation is final.

@@ -124,13 +124,22 @@ multi-select preference. The Customer Portal should continue to allow payment
 method and billing-address updates, invoices, cancellation, and switching among
 the approved Supporter amounts.
 
+New enrollment is serialized at Stripe, not only hidden in the UI. The server
+fully paginates a bounded customer Session inventory, recognizes only
+MassageLab-owned paid-membership Sessions, reuses an open Session, blocks a
+completed relevant subscription while webhook persistence catches up, and
+rotates the deterministic attempt key only after the prior Session is terminal.
+
 The deployable migration command creates or verifies this one Product and six
 exclusive recurring Prices, removes only the two independently verified
 zero-redemption legacy coupons, retires legacy public catalog objects, and
 limits Customer Portal switching to those six Prices while preserving billing
 details, payment methods, invoices, and cancellation. It inventories all
 relevant subscriptions before mutation and permits at most the one explicitly
-reviewed subscription identifier (or an explicit `none` decision).
+reviewed subscription identifier (or an explicit `none` decision). Therapist
+and Practice retirement dependencies must retain their exact expected Product
+names; optional `app` and membership-level metadata may be absent but must not
+contradict the expected MassageLab identity.
 
 Do not mutate live Products, Prices, coupons, subscriptions, portal settings,
 or entitlements outside that controlled operation. Follow the reviewed

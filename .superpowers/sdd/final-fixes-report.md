@@ -104,3 +104,55 @@ migration verification, reviewed migration apply, environment/deployment
 configuration, webhook reconciliation, Portal configuration verification, and
 the controlled live subscription smoke. Preserve the legacy runtime Price
 mappings until their explicit inventory-and-reconciliation removal gate passes.
+
+## Whole-Branch Follow-Up
+
+Status: `DONE_WITH_CONCERNS`
+
+Starting HEAD: `fd50f08fbc9143aff2e1f89b4d08cc7d93403c39`
+
+The follow-up review closed two additional findings:
+
+1. Membership enrollment now uses a user-and-terminal-attempt-scoped Stripe
+   idempotency key, reuses a bounded and fully paginated open Session, blocks
+   when any completed owned Session still has a relevant subscription, rotates
+   only after terminal non-blocking state, and safely relists after an ambiguous
+   or parameter-conflicting create. Completed relevant subscriptions take
+   precedence over stale open or expired Sessions left by the pre-fix flow.
+2. Therapist and Practice retirement dependencies now require their exact
+   expected Product names. Optional application and membership-level metadata
+   may be absent for legacy Products, but contradictory metadata fails
+   preflight before any mutation.
+
+Initial focused RED command:
+
+```text
+node --test tests/stripe-billing.test.mjs tests/membership-checkout-route.test.mjs tests/stripe-supporter-membership-migration.test.mjs
+```
+
+Initial RED result: 56 tests, 50 passed, 6 failed. The failures proved
+unserialized competing creates, missing open/completed Session reuse, missing
+terminal-attempt key rotation, generic route handling before webhook
+persistence, and missing legacy Product identity checks.
+
+Two audit regressions were then added:
+
+- Explicit `purpose=membership` metadata initially classified as unknown:
+  21 tests, 20 passed, 1 failed before the classifier fix.
+- A stale open Session initially outranked an older completed active
+  subscription: 22 tests, 21 passed, 1 failed before the precedence fix.
+
+Final validation:
+
+- Focused billing, route, and migration command: 57/57 passed.
+- `npm run test`: 1,429/1,429 passed across 157 suites.
+- `npm run typecheck`: passed.
+- `npm run lint`: passed, with only the existing large-file Babel
+  deoptimization notes.
+- `npm run build`: passed; Prisma generation, production compilation,
+  TypeScript, and 101/101 static pages completed.
+- `git diff --check`: passed, with only Git line-ending conversion warnings.
+
+No schema migration, external network call, live Stripe/database inventory,
+catalog mutation, deployment, or live smoke was performed. The operational
+gates listed above remain required.

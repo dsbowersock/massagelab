@@ -90,6 +90,10 @@ Before enabling subscription checkout, confirm:
 - Its six exclusive USD recurring Prices are exactly $1, $2, or $5 monthly and
   $10, $20, or $50 yearly, with `interval_count=1`, no trial, licensed usage,
   per-unit billing, no quantity transform, and no additional currencies.
+- Repeated or concurrent enrollment requests reuse the one open
+  MassageLab-owned membership Checkout Session; a completed relevant
+  subscription blocks with billing-management guidance until webhook
+  persistence catches up.
 - The Stripe Customer Portal permits subscription Price changes only among those six Prices while preserving cancellation, payment-method updates, billing address/name/email updates, and invoice history.
 - `/api/billing/webhook` is registered with the Stripe webhook signing secret.
 - Local and Vercel environments contain the same required Stripe keys and Price IDs for their respective test or live mode.
@@ -123,8 +127,10 @@ Products, zero-redemption coupon contracts, and portal preservation settings.
 Reuse mode accepts only the validated normal legacy `MassageLab Supporter`
 Product before migration even though it has not yet received
 `txcd_10000000` or target catalog metadata; apply writes both and re-retrieves
-the Product. Completed-state verification requires the exact classification
-and metadata. Approved Prices must have no default trial period. Verify reports
+the Product. Therapist and Practice retirement also requires the exact legacy
+Product names, and any optional app or membership-level metadata must not
+contradict the expected MassageLab identity. Completed-state verification
+requires the exact classification and metadata. Approved Prices must have no default trial period. Verify reports
 either `PRE_MIGRATION` or `COMPLETED`; mixed states, unrecognized Prices,
 incomplete or malformed pagination, and unknown portal subsets are blockers.
 

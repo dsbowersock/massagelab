@@ -319,6 +319,22 @@ function legacySupporterProductMatches(candidate) {
     && candidate.metadata?.massagelab_catalog == null
 }
 
+/**
+ * Validates retirement dependencies without requiring metadata that the
+ * retired setup command only added opportunistically to pre-existing Products.
+ * Any metadata that is present must still identify the expected MassageLab
+ * application and legacy membership level.
+ */
+function legacyRetirementProductMatches(candidate, { name, membershipLevel }) {
+  const app = candidate?.metadata?.app
+  const recordedLevel = candidate?.metadata?.massagelab_membership_level
+
+  return Boolean(candidate)
+    && candidate.name === name
+    && (!app || app === "massagelab")
+    && (!recordedLevel || recordedLevel === membershipLevel)
+}
+
 function couponMatches(candidate, spec, livemode) {
   return Boolean(candidate)
     && modeMatches(candidate, livemode)
@@ -514,6 +530,24 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
     } else {
       products[key] = candidate
     }
+  }
+  if (
+    products.therapist
+    && !legacyRetirementProductMatches(products.therapist, {
+      name: "MassageLab Therapist",
+      membershipLevel: "THERAPIST",
+    })
+  ) {
+    failureCodes.push("product_dependency_mismatch")
+  }
+  if (
+    products.practice
+    && !legacyRetirementProductMatches(products.practice, {
+      name: "MassageLab Practice",
+      membershipLevel: "PRACTICE",
+    })
+  ) {
+    failureCodes.push("product_dependency_mismatch")
   }
 
   const targetProductCandidates = allProducts.filter((candidate) => (

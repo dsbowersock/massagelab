@@ -103,6 +103,38 @@ describe("Membership Checkout POST route", () => {
     assert.equal(calls.ensureCustomer, 0)
     assert.equal(calls.createCheckout, 0)
   })
+
+  it("returns the existing-subscription contract when Stripe finds a completed relevant Checkout before the webhook", async () => {
+    const calls = {
+      ensureCustomer: 0,
+      createCheckout: 0,
+      membershipLookup: 0,
+    }
+    const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
+      checkoutSession: {
+        id: "cs_completed",
+        status: "complete",
+        subscription: "sub_completed",
+        url: null,
+      },
+    }))(jsonRequest({
+      membershipLevel: "SUPPORTER",
+      supporterAmountChoiceId: "support-1",
+      interval: "month",
+      acceptedLegalDocuments: ["membership-billing-refunds:current"],
+      billingTermsAccepted: true,
+    }))
+
+    assert.deepEqual(response, {
+      body: {
+        error: "Manage your existing subscription in the Customer Portal.",
+      },
+      status: 409,
+    })
+    assert.equal(calls.membershipLookup, 1)
+    assert.equal(calls.ensureCustomer, 1)
+    assert.equal(calls.createCheckout, 1)
+  })
 })
 
 function jsonRequest(body) {
@@ -121,7 +153,10 @@ function formRequest(body) {
   })
 }
 
-function checkoutDependencies(calls, { subscriptions = [] } = {}) {
+function checkoutDependencies(calls, {
+  subscriptions = [],
+  checkoutSession = { url: "https://checkout.stripe.com/c/test" },
+} = {}) {
   return {
     NextResponse: {
       json: (body, init = {}) => ({ body, status: init.status ?? 200 }),
@@ -161,7 +196,7 @@ function checkoutDependencies(calls, { subscriptions = [] } = {}) {
     createStripeCheckoutSession: async (options) => {
       calls.createCheckout += 1
       calls.checkoutOptions = options
-      return { url: "https://checkout.stripe.com/c/test" }
+      return checkoutSession
     },
   }
 }
