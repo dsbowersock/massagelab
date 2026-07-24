@@ -22,6 +22,7 @@ export function SupporterInterestsPanel() {
   const [status, setStatus] = useState("")
 
   useEffect(() => {
+    // Prevent a completed load from updating state after this panel unmounts.
     let active = true
 
     async function loadInterests() {
@@ -76,6 +77,7 @@ export function SupporterInterestsPanel() {
       setInterests(normalizeSupporterRoadmapInterests(preferences.appSettings?.supporterRoadmapInterests))
       setStatus("Roadmap interests saved.")
     } catch {
+      // Roll back the optimistic selection to the last persisted state.
       setInterests(previousInterests)
       setStatus("Could not save roadmap interests. Please try again.")
     } finally {

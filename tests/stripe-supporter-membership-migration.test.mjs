@@ -1137,6 +1137,37 @@ describe("Supporter membership Stripe migration", () => {
     }
   })
 
+  it("reports unresolved legacy Portal products as dependency mismatches instead of throwing", async () => {
+    const fixture = stripeFixture()
+    fixture.prices.delete("price_supporter_month")
+    fixture.prices.delete("price_supporter_year")
+
+    await assert.rejects(
+      runSupporterMembershipMigration({
+        stripe: fixture.stripe,
+        mode: "verify",
+        env: migrationEnv({
+          MASSAGELAB_STRIPE_MIGRATION_SUPPORTER_PRODUCT_ID: "CREATE_NEW",
+        }),
+      }),
+      (error) => {
+        assert.equal(
+          error instanceof MigrationError,
+          true,
+          `${error?.constructor?.name}: ${error?.message}`,
+        )
+        assert.equal(error.failureCodes.includes("legacy_price_dependency_mismatch"), true)
+        assert.equal(
+          error.failureCodes.includes("product_dependency_mismatch"),
+          true,
+          JSON.stringify(error.failureCodes),
+        )
+        return true
+      },
+    )
+    assert.deepEqual(mutationCalls(fixture), [])
+  })
+
   it("reduces Stripe mutation failures to safe codes", async () => {
     const fixture = stripeFixture()
     fixture.stripe.products.update = async () => {

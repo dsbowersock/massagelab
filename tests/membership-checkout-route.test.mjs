@@ -140,6 +140,7 @@ describe("Membership Checkout POST route", () => {
   it("logs the root cause when membership Checkout setup fails", async () => {
     const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
     const failure = new Error("customer lookup failed")
+    failure.code = "customer_lookup_failed"
     const logged = []
     const originalConsoleError = console.error
     console.error = (...args) => logged.push(args)
@@ -159,7 +160,10 @@ describe("Membership Checkout POST route", () => {
         body: { error: "Unable to start checkout." },
         status: 500,
       })
-      assert.deepEqual(logged, [["Unable to start membership checkout", failure]])
+      assert.deepEqual(logged, [[
+        "Unable to start membership checkout",
+        { code: "customer_lookup_failed" },
+      ]])
     } finally {
       console.error = originalConsoleError
     }

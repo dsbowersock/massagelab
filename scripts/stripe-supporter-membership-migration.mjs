@@ -418,7 +418,7 @@ function portalPreservationEnabled(features) {
 function expectedPortalProducts(entries) {
   return entries
     .map(({ product, prices }) => ({
-      product,
+      product: product ?? "",
       prices: [...prices].sort(),
       adjustableQuantityEnabled: false,
     }))

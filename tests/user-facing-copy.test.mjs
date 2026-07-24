@@ -40,7 +40,7 @@ describe("user-facing copy", () => {
     assert.match(pricingPage, /One-time support does not create a membership or unlock features\. It is not a charitable donation and is not tax-deductible\./)
     assert.match(pricingPage, /title="Memberships and one-time support fund the alpha without ads"/)
     assert.doesNotMatch(pricingPage, /Donations are one-time Stripe payments/)
-    assert.doesNotMatch(pricingPage, /Donation checkout|donation payment|Donation amount/)
+    assert.doesNotMatch(pricingPage, /\bdonations?\s+(?:checkout|payment|amount)\b/i)
     assert.doesNotMatch(pricingPage, /Stripe could not start/)
 
     assert.match(roadmapPage, /One-time support/)
