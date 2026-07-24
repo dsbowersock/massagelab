@@ -211,12 +211,12 @@ export function BackgroundCommerceCart({
     const params = new URLSearchParams(search)
     if (params.get(BACKGROUND_CART_AUTH_RETURN_PARAM) !== "open") return
 
-    openCart()
+    if (!isCalendarRoute) openCart()
     params.delete(BACKGROUND_CART_AUTH_RETURN_PARAM)
     const nextSearch = params.toString()
     const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash}`
     window.history.replaceState(window.history.state, "", nextUrl)
-  }, [openCart, pathname, search, signedIn, variant])
+  }, [isCalendarRoute, openCart, pathname, search, signedIn, variant])
 
   if (isCalendarRoute) return null
 

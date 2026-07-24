@@ -116,6 +116,10 @@ describe("registration email delivery policy", () => {
         buildVerificationLoginPath(false, unsafeCallback),
         "/login?callbackUrl=%2Fonboarding",
       )
+      assert.equal(
+        buildVerificationLoginPath(true, unsafeCallback),
+        "/login?callbackUrl=%2Fonboarding&verified=1",
+      )
     }
 
     assert.deepEqual(

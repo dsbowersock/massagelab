@@ -55,6 +55,14 @@ export function buildVerificationEmailLink(token: string, callbackUrl?: string) 
   return buildVerificationEmailUrl(getSiteUrl(), token, callbackUrl)
 }
 
+/**
+ * Sends an account-verification email with an optional post-login destination.
+ *
+ * @param email Recipient email address.
+ * @param token Opaque verification token.
+ * @param callbackUrl Optional app-local destination; verification-link
+ * generation sanitizes unsafe values to the account flow's fallback.
+ */
 export async function sendVerificationEmail(email: string, token: string, callbackUrl?: string) {
   const link = buildVerificationEmailLink(token, callbackUrl)
   const result = await sendMail(

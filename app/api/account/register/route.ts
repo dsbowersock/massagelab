@@ -19,6 +19,7 @@ export async function POST(request: Request) {
   const email = normalizeEmail(body.email)
   const password = typeof body.password === "string" ? body.password : ""
   const name = typeof body.name === "string" ? body.name.trim() : ""
+  // Gate the app-local destination before it reaches verification-link generation.
   const callbackUrl = safePostLegalAcceptanceCallback(body.callbackUrl)
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? request.headers.get("x-real-ip") ?? "unknown"
   const key = rateLimitKey(email, ip)

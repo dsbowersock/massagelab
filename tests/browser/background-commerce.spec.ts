@@ -382,6 +382,12 @@ test("signed-in cart return marker opens once and is consumed", async ({ context
   await page.goBack({ waitUntil: "domcontentloaded" })
   await expect(page).toHaveURL(/\/clock$/)
   await expect(accountCart).toHaveCount(0)
+
+  await page.goto("/calendar?commerceCart=open", { waitUntil: "domcontentloaded" })
+  await expect(page).toHaveURL(/\/calendar$/)
+  await expect(accountCart).toHaveCount(0)
+  await page.goto("/music", { waitUntil: "domcontentloaded" })
+  await expect(accountCart).toHaveCount(0)
 })
 
 test("Clock redeems one explicit permanent credit and keeps the nested dialog focus order", async ({ context, page }, testInfo) => {
