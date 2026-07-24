@@ -18,6 +18,7 @@ import { AccountSettingsShell } from "@/app/account/account-settings-shell"
 import { PreferenceSync } from "@/app/account/preference-sync"
 import { SecurityPanel } from "@/app/account/security/security-panel"
 import { SignOutButton } from "@/app/account/sign-out-button"
+import { SupporterInterestsPanel } from "@/app/account/supporter-interests-panel"
 import { BackgroundCommercePanel } from "@/components/account/BackgroundCommercePanel"
 import { accountPageGroups, accountPageTabs, formatAccountDate, selectAccountTab } from "@/lib/account-page"
 import { normalizeSessionRoleAssignments } from "@/lib/account-role-assignments"
@@ -641,6 +642,8 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
           </div>
         </CardContent>
       </Card>
+
+      <SupporterInterestsPanel />
 
       <div id="membership-pricing">
         <MembershipPricingCards

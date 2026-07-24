@@ -97,6 +97,38 @@ describe("Account preference helpers", () => {
     })
   })
 
+  it("sanitizes supporter roadmap interests without replacing onboarding or other app settings", () => {
+    const payload = buildUserPreferencePayload({
+      appSettings: {
+        onboarding: {
+          useCases: ["learn_anatomy", "track_progress"],
+        },
+        musicVisualizer: { showClock: true },
+        supporterRoadmapInterests: [
+          "personal_wellness",
+          "therapist_tools",
+          "personal_wellness",
+          "unknown_interest",
+          "clientName",
+          null,
+          "professional_documentation",
+        ],
+      },
+    })
+
+    assert.deepEqual(payload.app_settings, {
+      onboarding: {
+        useCases: ["learn_anatomy", "track_progress"],
+      },
+      musicVisualizer: { showClock: true },
+      supporterRoadmapInterests: [
+        "personal_wellness",
+        "therapist_tools",
+        "professional_documentation",
+      ],
+    })
+  })
+
   it("preserves namespaced Music visualizer preferences while stripping forbidden nested keys", () => {
     const payload = buildUserPreferencePayload({
       appSettings: {

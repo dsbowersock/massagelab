@@ -3,6 +3,7 @@ import { describe, it } from "node:test"
 import {
   ONBOARDING_VERSION,
   buildOnboardingPreference,
+  normalizeSupporterRoadmapInterests,
   resolveExplicitOnboardingHomeToolKeys,
   resolveExplicitOnboardingQuickActionKeys,
   resolveOnboardingHomeToolKeys,
@@ -11,6 +12,29 @@ import {
 } from "../lib/onboarding-preferences.js"
 
 describe("Onboarding preference helpers", () => {
+  it("keeps only approved supporter roadmap interests", () => {
+    assert.deepEqual(normalizeSupporterRoadmapInterests([
+      "personal_wellness",
+      "backgrounds_and_sound",
+      "personal_wellness",
+      "unknown_interest",
+      "clientName",
+      42,
+      { interest: "therapist_tools" },
+      "therapist_tools",
+      "practice_management",
+      "anatomy_and_education",
+      "professional_documentation",
+    ]), [
+      "personal_wellness",
+      "backgrounds_and_sound",
+      "therapist_tools",
+      "practice_management",
+      "anatomy_and_education",
+      "professional_documentation",
+    ])
+  })
+
   it("builds a constrained therapist onboarding payload", () => {
     const payload = buildOnboardingPreference({
       primaryRole: "therapist",
