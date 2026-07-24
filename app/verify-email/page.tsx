@@ -12,11 +12,13 @@ import { Button } from "@/components/ui/button"
 export default async function VerifyEmailPage({
   searchParams,
 }: {
-  searchParams: Promise<{ token?: string; callbackUrl?: string }>
+  searchParams: Promise<{ token?: string | string[]; callbackUrl?: string | string[] }>
 }) {
   const params = await searchParams
-  const token = params.token ?? ""
-  const callbackUrl = safePostLegalAcceptanceCallback(params.callbackUrl)
+  const token = typeof params.token === "string" ? params.token : ""
+  const callbackUrl = safePostLegalAcceptanceCallback(
+    typeof params.callbackUrl === "string" ? params.callbackUrl : undefined,
+  )
   let title = "Verification link required"
   let description = "Open the verification link from your email to activate your account."
   let verified = false
