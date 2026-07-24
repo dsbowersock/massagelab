@@ -4,9 +4,11 @@ import { describe, it } from "node:test"
 import {
   buildVerificationEmailUrl,
   buildVerificationLoginPath,
+  normalizeEmailVerificationParams,
   REGISTRATION_VERIFICATION_FAILED_MESSAGE,
   REGISTRATION_VERIFICATION_SENT_MESSAGE,
   registrationVerificationResponse,
+  sendRegistrationVerification,
 } from "../lib/auth-registration.js"
 
 describe("registration email delivery policy", () => {
@@ -42,7 +44,7 @@ describe("registration email delivery policy", () => {
     assert.match(registerRoute, /safePostLegalAcceptanceCallback\(body\.callbackUrl\)/)
     assert.match(
       registerRoute,
-      /registrationVerificationResponse\(\s*await sendVerificationEmail\(email, verificationToken, callbackUrl\),\s*\)/,
+      /registrationVerificationResponse\(\s*await sendRegistrationVerification\(sendVerificationEmail, email, verificationToken, callbackUrl\),\s*\)/,
     )
     assert.match(registerRoute, /Preserve usable links from overlapping resend requests/)
     assert.match(registerRoute, /if \(resendResult\.status === 200\)/)
@@ -96,11 +98,60 @@ describe("registration email delivery policy", () => {
       buildVerificationLoginPath(false, "https://example.com"),
       "/login?callbackUrl=%2Fonboarding",
     )
+
+    const unsafeCallbacks = [
+      "//example.com/clock",
+      "https://massagelab.app.example.com/clock",
+      "/\\example.com/clock",
+      "\\example.com/clock",
+      { path: "/clock" },
+      42,
+    ]
+    for (const unsafeCallback of unsafeCallbacks) {
+      const unsafeVerificationUrl = new URL(
+        buildVerificationEmailUrl("https://www.massagelab.app", "token-safe", unsafeCallback),
+      )
+      assert.equal(unsafeVerificationUrl.searchParams.get("callbackUrl"), "/onboarding")
+      assert.equal(
+        buildVerificationLoginPath(false, unsafeCallback),
+        "/login?callbackUrl=%2Fonboarding",
+      )
+    }
+
+    assert.deepEqual(
+      normalizeEmailVerificationParams({
+        token: "token-safe",
+        callbackUrl,
+      }),
+      { token: "token-safe", callbackUrl },
+    )
+    assert.deepEqual(
+      normalizeEmailVerificationParams({
+        token: ["token-safe", "token-repeated"],
+        callbackUrl: ["//example.com", callbackUrl],
+      }),
+      { token: "", callbackUrl: "/onboarding" },
+    )
+
+    let delivered
+    const deliveryResult = sendRegistrationVerification(
+      (email, token, safeCallbackUrl) => {
+        delivered = { email, token, callbackUrl: safeCallbackUrl }
+        return { delivered: true }
+      },
+      "person@example.com",
+      "token-safe",
+      "https://example.com/checkout",
+    )
+    assert.deepEqual(deliveryResult, { delivered: true })
+    assert.deepEqual(delivered, {
+      email: "person@example.com",
+      token: "token-safe",
+      callbackUrl: "/onboarding",
+    })
+
     assert.match(authMail, /buildVerificationEmailUrl\(getSiteUrl\(\), token, callbackUrl\)/)
-    assert.match(verifyPage, /token\?: string \| string\[\]/)
-    assert.match(verifyPage, /callbackUrl\?: string \| string\[\]/)
-    assert.match(verifyPage, /typeof params\.token === "string" \? params\.token : ""/)
-    assert.match(verifyPage, /typeof params\.callbackUrl === "string" \? params\.callbackUrl : undefined/)
+    assert.match(verifyPage, /normalizeEmailVerificationParams\(await searchParams\)/)
     assert.match(verifyPage, /buildVerificationLoginPath\(verified, callbackUrl\)/)
   })
 })

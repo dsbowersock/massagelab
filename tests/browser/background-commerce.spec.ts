@@ -329,11 +329,11 @@ test("guest cart persists locally and requires an account only at checkout", asy
   const registerLink = compactCart.getByRole("link", { name: "Create account" })
   await expect(signInLink).toHaveAttribute(
     "href",
-    "/login?callbackUrl=%2Fclock%3Fsource%3Dmusic%26returnTo%3D%252Fmusic%26panel%3Dbackground%26commerceCart%3Dopen",
+    "/login?callbackUrl=%2Fclock%3Fsource%3Dmusic%26returnTo%3D%252Fmusic%26panel%3Dbackground",
   )
   await expect(registerLink).toHaveAttribute(
     "href",
-    "/register?callbackUrl=%2Fclock%3Fsource%3Dmusic%26returnTo%3D%252Fmusic%26panel%3Dbackground%26commerceCart%3Dopen",
+    "/register?callbackUrl=%2Fclock%3Fsource%3Dmusic%26returnTo%3D%252Fmusic%26panel%3Dbackground",
   )
 
   await page.reload({ waitUntil: "domcontentloaded" })
@@ -344,6 +344,10 @@ test("guest cart persists locally and requires an account only at checkout", asy
   const cartDialog = page.getByRole("dialog", { name: "MassageLab cart" })
   await expect(cartDialog).toContainText("This cart is saved in this browser until you sign in.")
   await expect(cartDialog).toContainText("Aurora field")
+  await expect(cartDialog.getByRole("link", { name: "Sign in to checkout" })).toHaveAttribute(
+    "href",
+    "/login?callbackUrl=%2Fmusic%3FcommerceCart%3Dopen",
+  )
   await page.keyboard.press("Escape")
 
   await page.evaluate(() => window.history.pushState({}, "", "/calendar"))

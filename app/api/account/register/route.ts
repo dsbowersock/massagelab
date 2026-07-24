@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { hashPassword, generateRandomToken, hashToken, normalizeEmail, tokenExpiresIn, verifyPassword } from "@/lib/auth-security"
-import { registrationVerificationResponse } from "@/lib/auth-registration"
+import { registrationVerificationResponse, sendRegistrationVerification } from "@/lib/auth-registration"
 import { sendVerificationEmail } from "@/lib/auth-mail"
 import { ensureUserRole } from "@/lib/auth-users"
 import { assertRateLimit, rateLimitKey, recordFailedAttempt } from "@/lib/auth-rate-limit"
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
           metadata: legalRequestMetadata(request),
         })
         const resendResult = registrationVerificationResponse(
-          await sendVerificationEmail(email, verificationToken, callbackUrl),
+          await sendRegistrationVerification(sendVerificationEmail, email, verificationToken, callbackUrl),
         )
 
         // Preserve usable links from overlapping resend requests; a successful resend only clears expired tokens.
@@ -134,7 +134,7 @@ export async function POST(request: Request) {
     documents: requiredDocuments,
     metadata: legalRequestMetadata(request),
   })
-  const mailResult = await sendVerificationEmail(email, verificationToken, callbackUrl)
+  const mailResult = await sendRegistrationVerification(sendVerificationEmail, email, verificationToken, callbackUrl)
   const response = registrationVerificationResponse(mailResult)
 
   return NextResponse.json(response.body, { status: response.status })

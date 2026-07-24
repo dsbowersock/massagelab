@@ -43,7 +43,9 @@ function CartContents({
   const searchParams = useSearchParams()
   const cart = state.snapshot?.cart
 
-  const authReturnPath = buildBackgroundCartAuthReturnPath(pathname, searchParams.toString())
+  // Preserve the picker route and query through authentication. The compact
+  // cart is already visible there; only dialog mode needs the one-shot reopen marker.
+  const authReturnPath = buildBackgroundCartAuthReturnPath(pathname, searchParams.toString(), !compact)
   if (!cart) {
     return <p role="status" className="text-sm text-muted-foreground">Loading cart...</p>
   }

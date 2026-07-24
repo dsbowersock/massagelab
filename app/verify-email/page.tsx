@@ -1,11 +1,10 @@
 import type { Prisma } from "@prisma/client"
 import Link from "next/link"
 import { hashToken, isTokenUsable } from "@/lib/auth-security"
-import { buildVerificationLoginPath } from "@/lib/auth-registration"
+import { buildVerificationLoginPath, normalizeEmailVerificationParams } from "@/lib/auth-registration"
 import { ensureUserRole } from "@/lib/auth-users"
 import { ensureVerifiedUserBackgroundCredits } from "@/lib/commerce/credit-service"
 import { runCommerceTransaction } from "@/lib/commerce/transactions"
-import { safePostLegalAcceptanceCallback } from "@/lib/legal-acceptance-gate"
 import { prisma } from "@/lib/prisma"
 import { AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
@@ -15,11 +14,7 @@ export default async function VerifyEmailPage({
 }: {
   searchParams: Promise<{ token?: string | string[]; callbackUrl?: string | string[] }>
 }) {
-  const params = await searchParams
-  const token = typeof params.token === "string" ? params.token : ""
-  const callbackUrl = safePostLegalAcceptanceCallback(
-    typeof params.callbackUrl === "string" ? params.callbackUrl : undefined,
-  )
+  const { token, callbackUrl } = normalizeEmailVerificationParams(await searchParams)
   let title = "Verification link required"
   let description = "Open the verification link from your email to activate your account."
   let verified = false

@@ -258,6 +258,15 @@ describe("background cart authentication return paths", () => {
       ),
       "/clock?commerceCart=open&panel=background",
     )
+
+    assert.equal(
+      buildBackgroundCartAuthReturnPath(
+        "/clock",
+        "commerceCart=open&panel=background",
+        false,
+      ),
+      "/clock?panel=background",
+    )
   })
 })
 
