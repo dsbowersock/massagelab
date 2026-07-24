@@ -3,12 +3,12 @@ import { spawnSync } from "node:child_process"
 import { describe, it } from "node:test"
 
 const membershipPrices = {
-  STRIPE_SUPPORTER_MONTHLY_PRICE_ID: "price_supporter_monthly",
-  STRIPE_SUPPORTER_YEARLY_PRICE_ID: "price_supporter_yearly",
-  STRIPE_THERAPIST_MONTHLY_PRICE_ID: "price_therapist_monthly",
-  STRIPE_THERAPIST_YEARLY_PRICE_ID: "price_therapist_yearly",
-  STRIPE_PRACTICE_MONTHLY_PRICE_ID: "price_practice_monthly",
-  STRIPE_PRACTICE_YEARLY_PRICE_ID: "price_practice_yearly",
+  STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: "price_supporter_1_monthly",
+  STRIPE_SUPPORTER_1_YEARLY_PRICE_ID: "price_supporter_1_yearly",
+  STRIPE_SUPPORTER_2_MONTHLY_PRICE_ID: "price_supporter_2_monthly",
+  STRIPE_SUPPORTER_2_YEARLY_PRICE_ID: "price_supporter_2_yearly",
+  STRIPE_SUPPORTER_5_MONTHLY_PRICE_ID: "price_supporter_5_monthly",
+  STRIPE_SUPPORTER_5_YEARLY_PRICE_ID: "price_supporter_5_yearly",
 }
 
 function runReadiness(overrides = {}, args = []) {
@@ -39,6 +39,25 @@ function runReadiness(overrides = {}, args = []) {
 }
 
 describe("Stripe readiness background-commerce contract", () => {
+  it("requires six unique Supporter amount Prices and ignores legacy catalog variables", () => {
+    const missing = runReadiness({ STRIPE_SUPPORTER_2_YEARLY_PRICE_ID: "" })
+    assert.equal(missing.status, 1)
+    assert.match(missing.stderr, /STRIPE_SUPPORTER_2_YEARLY_PRICE_ID is missing/)
+
+    const duplicate = runReadiness({ STRIPE_SUPPORTER_5_YEARLY_PRICE_ID: membershipPrices.STRIPE_SUPPORTER_5_MONTHLY_PRICE_ID })
+    assert.equal(duplicate.status, 1)
+    assert.match(duplicate.stderr, /STRIPE_SUPPORTER_5_YEARLY_PRICE_ID duplicates STRIPE_SUPPORTER_5_MONTHLY_PRICE_ID/)
+
+    const legacyOnly = runReadiness({
+      ...Object.fromEntries(Object.keys(membershipPrices).map((key) => [key, ""])),
+      STRIPE_THERAPIST_MONTHLY_PRICE_ID: "price_therapist_monthly",
+      STRIPE_THERAPIST_YEARLY_PRICE_ID: "price_therapist_yearly",
+      STRIPE_PRACTICE_MONTHLY_PRICE_ID: "price_practice_monthly",
+      STRIPE_PRACTICE_YEARLY_PRICE_ID: "price_practice_yearly",
+    })
+    assert.equal(legacyOnly.status, 1)
+    assert.match(legacyOnly.stderr, /STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID is missing/)
+  })
   it("reports the complete fail-closed commerce configuration without changing membership readiness output", () => {
     const result = runReadiness()
 

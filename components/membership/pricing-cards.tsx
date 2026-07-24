@@ -31,7 +31,12 @@ type MembershipPlan = {
   description: string
   currentFeatures: string[]
   roadmapNotes: string[]
-  prices: Record<string, MembershipPrice>
+  amountChoices: Array<{
+    id: string
+    month: number
+    year: number
+    prices: Record<string, MembershipPrice>
+  }>
 }
 
 type MembershipPricingCatalog = {
@@ -100,12 +105,12 @@ export function MembershipPricingCards({
 
         {catalog.intervals.map((interval) => (
           <TabsContent key={interval.id} value={interval.id} className="mt-0">
-            <div className="grid gap-4 lg:grid-cols-3">
+            <div className="grid gap-4">
               {catalog.plans.map((plan) => (
                 <PlanCard
                   key={`${plan.membershipLevel}-${interval.id}`}
                   plan={plan}
-                  price={plan.prices[interval.id] ?? plan.prices.year ?? plan.prices.month}
+                  interval={interval.id}
                   active={activeMembershipLevel === plan.membershipLevel}
                   mode={mode}
                 />
@@ -120,17 +125,15 @@ export function MembershipPricingCards({
 
 function PlanCard({
   plan,
-  price,
+  interval,
   active,
   mode,
 }: {
   plan: MembershipPlan
-  price: MembershipPrice
+  interval: string
   active: boolean
   mode: "checkout" | "auth"
 }) {
-  const priceReady = price.isConfigured && price.isLookupAvailable
-
   return (
     <Card className={cn(
       appSurfaceClassName,
@@ -145,31 +148,10 @@ function PlanCard({
           {active ? (
             <Badge className="bg-primary text-primary-foreground">Current plan</Badge>
           ) : null}
-          {price.yearlySavings ? (
-            <Badge variant="outline" className="border-brand-orange/50 text-brand-orange">
-              Save {price.yearlySavings.displayAmount}
-            </Badge>
-          ) : null}
         </div>
         <div className="space-y-1">
           <CardTitle className="text-xl">{plan.name}</CardTitle>
           <CardDescription>{plan.description}</CardDescription>
-        </div>
-        <div className="space-y-1">
-          <div className="flex items-end gap-1">
-            <span className={cn("text-3xl font-semibold tracking-normal", !priceReady && "text-lg")}>
-              {price.displayPrice}
-            </span>
-            {priceReady ? (
-              <span className="pb-1 text-sm text-muted-foreground">{price.displayInterval}</span>
-            ) : null}
-          </div>
-          {price.yearlySavings ? (
-            <p className="text-xs text-brand-orange">{price.yearlySavings.description}</p>
-          ) : null}
-          {price.isConfigured && !price.isLookupAvailable ? (
-            <p className="text-xs text-muted-foreground">This price is temporarily unavailable.</p>
-          ) : null}
         </div>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-4">
@@ -185,8 +167,16 @@ function PlanCard({
             items={plan.roadmapNotes}
           />
         </div>
-        <div className="mt-auto">
-          <PlanAction plan={plan} price={price} mode={mode} />
+        <div className="mt-auto grid gap-3 sm:grid-cols-3">
+          {plan.amountChoices.map((choice) => (
+            <SupporterAmountChoice
+              key={choice.id}
+              plan={plan}
+              choiceId={choice.id}
+              price={choice.prices[interval] ?? choice.prices.year ?? choice.prices.month}
+              mode={mode}
+            />
+          ))}
         </div>
       </CardContent>
     </Card>
@@ -222,19 +212,21 @@ function FeatureGroup({
   )
 }
 
-function PlanAction({
+function SupporterAmountChoice({
   plan,
+  choiceId,
   price,
   mode,
 }: {
   plan: MembershipPlan
+  choiceId: string
   price: MembershipPrice
   mode: "checkout" | "auth"
 }) {
   if (mode === "auth") {
     return (
       <MetalAttentionButton asChild variant="attention" className="w-full" metalFullWidth>
-        <Link href="/login?callbackUrl=%2Fpricing">Get Started</Link>
+        <Link href="/login?callbackUrl=%2Fpricing">Choose {price.displayPrice}</Link>
       </MetalAttentionButton>
     )
   }
@@ -253,6 +245,7 @@ function PlanAction({
   return (
     <form action="/api/billing/checkout" method="post" className="space-y-3">
       <input type="hidden" name="membershipLevel" value={plan.membershipLevel} />
+      <input type="hidden" name="supporterAmountChoiceId" value={choiceId} />
       <input type="hidden" name="interval" value={price.interval} />
       <input type="hidden" name="acceptedLegalDocuments" value={billingTermsId} />
       <label className="flex gap-3 rounded-md border border-border/80 bg-background/70 p-3 text-xs text-muted-foreground">
@@ -272,7 +265,7 @@ function PlanAction({
         metalFullWidth
         disabled={!price.isLookupAvailable}
       >
-        Choose {plan.name}
+        Support with {price.displayPrice}
       </MetalAttentionButton>
     </form>
   )

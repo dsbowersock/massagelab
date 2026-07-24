@@ -3,12 +3,14 @@ import { describe, it } from "node:test"
 import {
   COUPON_IDS,
   FEATURE_KEYS,
+  SUPPORTER_AMOUNT_CHOICES,
   STUDENT_ACCESS_MONTHS,
   buildCheckoutSessionPayload,
   buildEntitlements,
   buildStudentAccessState,
   getCheckoutDiscountCouponId,
   isActiveSubscriptionStatus,
+  isPublicSupporterCheckoutSelection,
   resolveStripePriceId,
   sortMembershipSubscriptionsForDisplay,
 } from "../lib/membership.js"
@@ -74,7 +76,7 @@ describe("Membership and entitlement helpers", () => {
     assert.equal(isActiveSubscriptionStatus("incomplete"), false)
   })
 
-  it("does not unlock therapist documentation tools for supporter or student access", () => {
+  it("does not unlock professional features for an active supporter subscription or student access", () => {
     const supporter = buildEntitlements({
       subscriptions: [{ status: "active", membershipLevel: "SUPPORTER" }],
       now: new Date("2026-05-15T00:00:00.000Z"),
@@ -89,8 +91,14 @@ describe("Membership and entitlement helpers", () => {
 
     assert.equal(supporter.hasFeature(FEATURE_KEYS.chimerCustomColors), true)
     assert.equal(supporter.hasFeature(FEATURE_KEYS.premiumBackgrounds), true)
-    assert.equal(supporter.hasFeature(FEATURE_KEYS.therapistDocumentationTools), false)
-    assert.equal(supporter.hasFeature(FEATURE_KEYS.externalCalendarSync), false)
+    for (const featureKey of [
+      FEATURE_KEYS.therapistDocumentationTools,
+      FEATURE_KEYS.calendarFullScheduling,
+      FEATURE_KEYS.externalCalendarSync,
+      FEATURE_KEYS.calendarTeamScheduling,
+    ]) {
+      assert.equal(supporter.hasFeature(featureKey), false)
+    }
     assert.equal(student.level, "STUDENT")
     assert.equal(student.hasFeature(FEATURE_KEYS.therapistDocumentationTools), false)
     assert.equal(student.hasFeature(FEATURE_KEYS.externalCalendarSync), false)
@@ -129,30 +137,54 @@ describe("Membership and entitlement helpers", () => {
     )
   })
 
-  it("resolves Stripe prices from explicit membership and billing interval env vars", () => {
+  it("resolves each public Supporter amount choice to its interval-specific Stripe Price", () => {
     const env = {
-      STRIPE_SUPPORTER_MONTHLY_PRICE_ID: "price_supporter_monthly",
-      STRIPE_THERAPIST_YEARLY_PRICE_ID: "price_therapist_yearly",
+      STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: "price_supporter_1_monthly",
+      STRIPE_SUPPORTER_1_YEARLY_PRICE_ID: "price_supporter_1_yearly",
+      STRIPE_SUPPORTER_2_MONTHLY_PRICE_ID: "price_supporter_2_monthly",
+      STRIPE_SUPPORTER_2_YEARLY_PRICE_ID: "price_supporter_2_yearly",
+      STRIPE_SUPPORTER_5_MONTHLY_PRICE_ID: "price_supporter_5_monthly",
+      STRIPE_SUPPORTER_5_YEARLY_PRICE_ID: "price_supporter_5_yearly",
     }
 
-    assert.equal(resolveStripePriceId({ membershipLevel: "SUPPORTER", interval: "month", env }), "price_supporter_monthly")
-    assert.equal(resolveStripePriceId({ membershipLevel: "THERAPIST", interval: "year", env }), "price_therapist_yearly")
-    assert.equal(resolveStripePriceId({ membershipLevel: "STUDENT", interval: "month", env }), null)
+    assert.deepEqual(SUPPORTER_AMOUNT_CHOICES, [
+      { id: "support-1", month: 100, year: 1000 },
+      { id: "support-2", month: 200, year: 2000 },
+      { id: "support-5", month: 500, year: 5000 },
+    ])
+
+    for (const choice of SUPPORTER_AMOUNT_CHOICES) {
+      const suffix = choice.id.replace("support-", "")
+      for (const interval of ["month", "year"]) {
+        const priceId = `price_supporter_${suffix}_${interval === "month" ? "monthly" : "yearly"}`
+        assert.equal(resolveStripePriceId({
+          membershipLevel: "SUPPORTER",
+          supporterAmountChoiceId: choice.id,
+          interval,
+          env,
+        }), priceId)
+        assert.equal(membership.resolveStripePriceMembershipLevel({ priceId, env }), "SUPPORTER")
+      }
+    }
+
+    assert.equal(resolveStripePriceId({ membershipLevel: "THERAPIST", interval: "year", env }), null)
+    assert.equal(resolveStripePriceId({ membershipLevel: "PRACTICE", interval: "month", env }), null)
+    assert.equal(resolveStripePriceId({ membershipLevel: "SUPPORTER", supporterAmountChoiceId: "support-9", interval: "month", env }), null)
   })
 
-  it("maps configured Stripe prices only to paid membership levels", () => {
+  it("accepts only Supporter amount choices for public Checkout", () => {
+    assert.equal(isPublicSupporterCheckoutSelection({ membershipLevel: "SUPPORTER", supporterAmountChoiceId: "support-1" }), true)
+    assert.equal(isPublicSupporterCheckoutSelection({ membershipLevel: "THERAPIST", supporterAmountChoiceId: "support-1" }), false)
+    assert.equal(isPublicSupporterCheckoutSelection({ membershipLevel: "PRACTICE", supporterAmountChoiceId: "support-5" }), false)
+  })
+
+  it("keeps historical Therapist and Practice Price normalization readable outside the public catalog", () => {
     const env = {
-      STRIPE_SUPPORTER_MONTHLY_PRICE_ID: "price_supporter_monthly",
       STRIPE_THERAPIST_YEARLY_PRICE_ID: "price_therapist_yearly",
       STRIPE_PRACTICE_MONTHLY_PRICE_ID: "price_practice_monthly",
-      STRIPE_STUDENT_MONTHLY_PRICE_ID: "price_student_monthly",
     }
 
     assert.equal(typeof membership.resolveStripePriceMembershipLevel, "function")
-    assert.equal(
-      membership.resolveStripePriceMembershipLevel({ priceId: "price_supporter_monthly", env }),
-      "SUPPORTER",
-    )
     assert.equal(
       membership.resolveStripePriceMembershipLevel({ priceId: "price_therapist_yearly", env }),
       "THERAPIST",
@@ -161,7 +193,6 @@ describe("Membership and entitlement helpers", () => {
       membership.resolveStripePriceMembershipLevel({ priceId: "price_practice_monthly", env }),
       "PRACTICE",
     )
-    assert.equal(membership.resolveStripePriceMembershipLevel({ priceId: "price_student_monthly", env }), null)
     assert.equal(membership.resolveStripePriceMembershipLevel({ priceId: "price_unknown", env }), null)
   })
 

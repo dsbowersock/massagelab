@@ -41,7 +41,7 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
           title="Memberships and donations fund the alpha without ads"
           description={
             <>
-                Basic Chimer and the local-first alpha tools remain available. Paid memberships currently unlock the features listed below and help fund careful work toward account-backed, compliance-ready features.
+              Basic Chimer and the local-first alpha tools remain available. The Supporter membership unlocks the listed features and helps fund careful work toward account-backed, compliance-ready features.
             </>
           }
           icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}

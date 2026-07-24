@@ -75,19 +75,24 @@ export type MembershipPricingCatalog = {
     description: string
     currentFeatures: string[]
     roadmapNotes: string[]
-    prices: Record<string, {
-      membershipLevel: string
-      interval: string
-      priceId: string | null
-      displayPrice: string
-      displayInterval: string
-      isConfigured: boolean
-      isLookupAvailable: boolean
-      yearlySavings: {
-        displayAmount: string
-        description: string
-        percent: number
-      } | null
+    amountChoices: Array<{
+      id: string
+      month: number
+      year: number
+      prices: Record<string, {
+        membershipLevel: string
+        interval: string
+        priceId: string | null
+        displayPrice: string
+        displayInterval: string
+        isConfigured: boolean
+        isLookupAvailable: boolean
+        yearlySavings: {
+          displayAmount: string
+          description: string
+          percent: number
+        } | null
+      }>
     }>
   }>
 }

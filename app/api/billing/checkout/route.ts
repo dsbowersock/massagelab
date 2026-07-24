@@ -4,8 +4,7 @@ import { getSiteUrl } from "@/lib/auth-env"
 import {
   getCheckoutDiscountCouponId,
   isEarlyAccessDiscountEnabled,
-  isPaidMembershipLevel,
-  isStudentTherapistUpgradeEligible,
+  isPublicSupporterCheckoutSelection,
   resolveStripePriceId,
 } from "@/lib/membership"
 import {
@@ -32,6 +31,7 @@ async function checkoutRequest(request: Request) {
     return {
       isForm: true,
       membershipLevel: String(formData.get("membershipLevel") ?? "").toUpperCase(),
+      supporterAmountChoiceId: String(formData.get("supporterAmountChoiceId") ?? ""),
       interval: String(formData.get("interval") ?? "month"),
       acceptedLegalDocuments: formData.getAll("acceptedLegalDocuments"),
       billingTermsAccepted: formData.get("billingTermsAccepted") === "true",
@@ -42,6 +42,7 @@ async function checkoutRequest(request: Request) {
   return {
     isForm: false,
     membershipLevel: String(body.membershipLevel ?? "").toUpperCase(),
+    supporterAmountChoiceId: String(body.supporterAmountChoiceId ?? ""),
     interval: String(body.interval ?? "month"),
     acceptedLegalDocuments: body.acceptedLegalDocuments,
     billingTermsAccepted: body.billingTermsAccepted === true,
@@ -62,7 +63,7 @@ export async function POST(request: Request) {
       : NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  if (!isPaidMembershipLevel(input.membershipLevel)) {
+  if (!isPublicSupporterCheckoutSelection(input)) {
     return input.isForm
       ? accountRedirect("unsupported-plan")
       : NextResponse.json({ error: "Unsupported membership level" }, { status: 400 })
@@ -70,6 +71,7 @@ export async function POST(request: Request) {
 
   const priceId = resolveStripePriceId({
     membershipLevel: input.membershipLevel,
+    supporterAmountChoiceId: input.supporterAmountChoiceId,
     interval: input.interval,
   })
 
@@ -120,14 +122,9 @@ export async function POST(request: Request) {
       })
     }
 
-    const [customer, studentAccess] = await Promise.all([
-      ensureStripeCustomerForUser(prisma, user),
-      prisma.studentAccess.findUnique({ where: { userId: user.id } }),
-    ])
+    const customer = await ensureStripeCustomerForUser(prisma, user)
     const couponId = getCheckoutDiscountCouponId({
       membershipLevel: input.membershipLevel,
-      isStudentTherapistUpgrade:
-        input.membershipLevel === "THERAPIST" && isStudentTherapistUpgradeEligible(studentAccess),
       earlyAccessEnabled: isEarlyAccessDiscountEnabled(),
     })
     const checkoutSession = await createStripeCheckoutSession({

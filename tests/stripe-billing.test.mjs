@@ -24,9 +24,9 @@ describe("Stripe billing helpers", () => {
     assert.equal(verifyStripeWebhookSignature(payload, `t=${timestamp},v1=${signature}`, secret, { nowSeconds: 1778793001 }), false)
   })
 
-  it("normalizes Stripe subscriptions into MassageLab subscription records", () => {
+  it("normalizes current Supporter Stripe subscriptions into MassageLab subscription records", () => {
     const env = {
-      STRIPE_THERAPIST_MONTHLY_PRICE_ID: "price_therapist",
+      STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: "price_supporter_1",
     }
     const normalized = normalizeStripeSubscription({
       id: "sub_123",
@@ -37,13 +37,13 @@ describe("Stripe billing helpers", () => {
       cancel_at_period_end: false,
       canceled_at: null,
       discount: { coupon: { id: "E6lYinBx" } },
-      metadata: { userId: "user_123", membershipLevel: "THERAPIST" },
+      metadata: { userId: "user_123", membershipLevel: "SUPPORTER" },
       items: {
         data: [
           {
             price: {
-              id: "price_therapist",
-              product: "prod_therapist",
+              id: "price_supporter_1",
+              product: "prod_supporter",
             },
           },
         ],
@@ -54,15 +54,15 @@ describe("Stripe billing helpers", () => {
       stripeSubscriptionId: "sub_123",
       stripeCustomerId: "cus_123",
       status: "active",
-      membershipLevel: "THERAPIST",
-      stripePriceId: "price_therapist",
-      stripeProductId: "prod_therapist",
+      membershipLevel: "SUPPORTER",
+      stripePriceId: "price_supporter_1",
+      stripeProductId: "prod_supporter",
       currentPeriodStart: new Date("2026-05-14T20:40:00.000Z"),
       currentPeriodEnd: new Date("2026-06-13T20:40:00.000Z"),
       cancelAtPeriodEnd: false,
       canceledAt: null,
       couponId: "E6lYinBx",
-      metadata: { userId: "user_123", membershipLevel: "THERAPIST" },
+      metadata: { userId: "user_123", membershipLevel: "SUPPORTER" },
     })
     assert.equal(stripeTimestampToDate(null), null)
   })
