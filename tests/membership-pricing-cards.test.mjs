@@ -264,6 +264,33 @@ describe("MembershipPricingCards configured price rendering", () => {
     assert.match(elementText(portalCards), /\$1/)
     assert.match(elementText(portalCards), /Price unavailable/)
     assert.doesNotMatch(elementText(portalCards), /\$2/)
+    assert.match(elementText(portalCards), /Manage or change support amount/)
+    assert.match(elementText(portalCards), /Customer Portal/)
+    assert.equal(
+      findElements(
+        portalCards,
+        (element) => (
+          element.type === "form"
+          && element.props.action === "/api/billing/portal"
+          && element.props.method === "post"
+        ),
+      ).length,
+      1,
+    )
+    assert.equal(
+      findElements(
+        portalCards,
+        (element) => elementText(element) === "Current member",
+      ).length,
+      1,
+    )
+    assert.equal(
+      findElements(
+        portalCards,
+        (element) => element.type === "form" && element.props.action === "/api/billing/checkout",
+      ).length,
+      0,
+    )
 
     assert.equal(
       findElements(

@@ -6,6 +6,7 @@ import {
   REQUIRED_SUPPORTER_PRICE_CONTRACT,
   validateRetrievedMembershipPrice,
 } from "../lib/stripe-readiness.js"
+import { recurringPriceSemanticMismatches } from "../lib/stripe-price-contract.js"
 
 const membershipPrices = {
   STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: "price_supporter_1_monthly",
@@ -16,6 +17,10 @@ const membershipPrices = {
   STRIPE_SUPPORTER_5_YEARLY_PRICE_ID: "price_supporter_5_yearly",
 }
 
+/**
+ * Runs readiness in a hermetic child process so repository dotenv files cannot
+ * satisfy or alter an individual deployment-contract test.
+ */
 function runReadiness(overrides = {}, args = []) {
   return spawnSync(process.execPath, ["scripts/stripe-readiness-check.mjs", "--no-dotenv", ...args], {
     cwd: process.cwd(),
@@ -157,6 +162,18 @@ describe("Stripe readiness background-commerce contract", () => {
     )
     const cases = [
       [
+        (candidate) => { candidate.active = false },
+        `${expected.key} points to an inactive Stripe Price.`,
+      ],
+      [
+        (candidate) => { candidate.currency = "cad" },
+        `${expected.key} must use usd currency; received cad.`,
+      ],
+      [
+        (candidate) => { candidate.recurring.interval = "year" },
+        `${expected.key} must be a month recurring Price.`,
+      ],
+      [
         (candidate) => { candidate.recurring.interval_count = 2 },
         `${expected.key} recurring interval_count must be exactly 1.`,
       ],
@@ -209,6 +226,49 @@ describe("Stripe readiness background-commerce contract", () => {
         [expectedFailure],
       )
     }
+
+    const withoutExpandedCurrencyOptions = structuredClone(basePrice)
+    delete withoutExpandedCurrencyOptions.currency_options
+    assert.deepEqual(
+      validateRetrievedMembershipPrice(withoutExpandedCurrencyOptions, expected),
+      [`${expected.key} must not define additional currency options.`],
+      "missing currency_options cannot prove the expanded Price has no alternatives",
+    )
+  })
+
+  it("checks tax behavior only when it belongs to the caller's Price contract", () => {
+    const legacyPrice = {
+      billing_scheme: "per_unit",
+      recurring: {
+        interval: "month",
+        interval_count: 1,
+        trial_period_days: null,
+        usage_type: "licensed",
+      },
+      currency: "usd",
+      unit_amount: 900,
+      tax_behavior: "unspecified",
+      transform_quantity: null,
+      currency_options: null,
+    }
+
+    assert.deepEqual(
+      recurringPriceSemanticMismatches(legacyPrice, {
+        interval: "month",
+        unitAmount: 900,
+      }),
+      [],
+      "legacy retirement identity deliberately does not classify historical tax behavior",
+    )
+    assert.deepEqual(
+      recurringPriceSemanticMismatches(legacyPrice, {
+        interval: "month",
+        unitAmount: 900,
+        taxBehavior: "exclusive",
+      }),
+      ["tax_behavior"],
+      "the current Supporter catalog must require its explicit tax behavior",
+    )
   })
   it("requires six unique Supporter amount Prices and ignores legacy catalog variables", () => {
     const missing = runReadiness({ STRIPE_SUPPORTER_2_YEARLY_PRICE_ID: "" })
@@ -320,7 +380,19 @@ describe("Stripe readiness background-commerce contract", () => {
 
     assert.equal(result.status, 1)
     assert.match(result.stderr, /FAIL Live Stripe readiness requires --verify-stripe\./)
-    assert.match(result.stdout, /Stripe API retrieval: skipped/)
+    assert.match(result.stdout, /Stripe API retrieval requested: false/)
+    assert.match(result.stdout, /Stripe API retrieval performed: false/)
     assert.doesNotMatch(result.stdout, /PASS Stripe membership environment is ready/)
+  })
+
+  it("reports requested Stripe verification as not performed when local gates fail first", () => {
+    const result = runReadiness({
+      STRIPE_SECRET_KEY: "sk_live_readiness",
+      STRIPE_WEBHOOK_SECRET: "",
+    }, ["--live", "--verify-stripe"])
+
+    assert.equal(result.status, 1)
+    assert.match(result.stdout, /Stripe API retrieval requested: true/)
+    assert.match(result.stdout, /Stripe API retrieval performed: false/)
   })
 })

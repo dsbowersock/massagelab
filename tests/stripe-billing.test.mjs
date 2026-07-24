@@ -419,6 +419,81 @@ describe("Stripe billing helpers", () => {
     })
   })
 
+  it("fails closed on malformed membership Checkout Session pages", async () => {
+    for (const [label, page] of [
+      ["data", { object: "list", data: null, has_more: false }],
+      ["has_more", { object: "list", data: [], has_more: "false" }],
+    ]) {
+      await assert.rejects(
+        stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+          stripeClient: {
+            checkout: {
+              sessions: {
+                list: async () => page,
+              },
+            },
+          },
+        })),
+        /invalid Checkout Session page/,
+        label,
+      )
+    }
+  })
+
+  it("fails closed when membership Checkout Session pagination repeats or exceeds ten pages", async () => {
+    let repeatedCalls = 0
+    await assert.rejects(
+      stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+        stripeClient: {
+          checkout: {
+            sessions: {
+              list: async () => {
+                repeatedCalls += 1
+                return {
+                  ...stripeCheckoutSessionList([
+                    membershipCheckoutSession({
+                      id: "cs_repeated_cursor",
+                      status: "expired",
+                    }),
+                  ]),
+                  has_more: true,
+                }
+              },
+            },
+          },
+        },
+      })),
+      /pagination did not advance/,
+    )
+    assert.equal(repeatedCalls, 2)
+
+    let cappedCalls = 0
+    await assert.rejects(
+      stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+        stripeClient: {
+          checkout: {
+            sessions: {
+              list: async () => {
+                cappedCalls += 1
+                return {
+                  ...stripeCheckoutSessionList([
+                    membershipCheckoutSession({
+                      id: `cs_page_${cappedCalls}`,
+                      status: "expired",
+                    }),
+                  ]),
+                  has_more: true,
+                }
+              },
+            },
+          },
+        },
+      })),
+      /pagination exceeded the safe limit/,
+    )
+    assert.equal(cappedCalls, 10)
+  })
+
   it("observes membership reconciliation duration without logging identifiers", async () => {
     const originalInfo = console.info
     const infoCalls = []
@@ -549,6 +624,95 @@ describe("Stripe billing helpers", () => {
       )
       assert.equal(createCalls, 0, key)
     }
+  })
+
+  it("authorizes new Checkout only from one exact current configured Price slot", async () => {
+    const invalidSelections = [
+      {
+        label: "unmapped Price",
+        overrides: { priceId: "price_unmapped" },
+        expected: /not in the current configured catalog/,
+      },
+      {
+        label: "historical Supporter Price",
+        overrides: {
+          priceId: "price_supporter_historical",
+          env: {
+            ...supporterTaxEnv(),
+            STRIPE_SUPPORTER_MONTHLY_PRICE_ID: "price_supporter_historical",
+          },
+        },
+        expected: /not in the current configured catalog/,
+      },
+      {
+        label: "duplicate current catalog Price",
+        overrides: {
+          env: {
+            ...supporterTaxEnv(),
+            STRIPE_SUPPORTER_2_MONTHLY_PRICE_ID: DEFAULT_SUPPORTER_PRICE_ID,
+          },
+        },
+        expected: /not in the current configured catalog/,
+      },
+      {
+        label: "caller-supplied level contradicts the configured Price",
+        overrides: { membershipLevel: "THERAPIST" },
+        expected: /does not match the requested membership level/,
+      },
+    ]
+
+    for (const { label, overrides, expected } of invalidSelections) {
+      let listCalls = 0
+      let createCalls = 0
+      await assert.rejects(
+        stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+          ...overrides,
+          stripeClient: {
+            checkout: {
+              sessions: {
+                list: async () => {
+                  listCalls += 1
+                  return stripeCheckoutSessionList()
+                },
+                create: async () => {
+                  createCalls += 1
+                  return membershipCheckoutSession()
+                },
+              },
+            },
+          },
+        })),
+        expected,
+        label,
+      )
+      assert.equal(listCalls, 0, label)
+      assert.equal(createCalls, 0, label)
+    }
+  })
+
+  it("normalizes the authoritative configured Price before Checkout metadata and line items", async () => {
+    let capturedPayload
+    const result = await stripeBilling.createStripeCheckoutSession(
+      membershipCheckoutOptions({
+        priceId: ` ${DEFAULT_SUPPORTER_PRICE_ID} `,
+        stripeClient: {
+          checkout: {
+            sessions: {
+              list: async () => stripeCheckoutSessionList(),
+              create: async (payload) => {
+                capturedPayload = payload
+                return membershipCheckoutSession({ id: "cs_normalized_price" })
+              },
+            },
+          },
+        },
+      }),
+    )
+
+    assert.equal(result.id, "cs_normalized_price")
+    assert.equal(capturedPayload.line_items[0].price, DEFAULT_SUPPORTER_PRICE_ID)
+    assert.equal(capturedPayload.metadata.membershipLevel, "SUPPORTER")
+    assert.equal(capturedPayload.subscription_data.metadata.membershipLevel, "SUPPORTER")
   })
 
   it("serializes concurrent membership Checkout attempts for the same amount selection", async () => {
@@ -730,6 +894,99 @@ describe("Stripe billing helpers", () => {
 
     assert.equal(result.id, "cs_open")
     assert.equal(createCalls, 0)
+  })
+
+  it("fails closed instead of reusing a compatible open membership Checkout without a URL", async () => {
+    const openSession = membershipCheckoutSession({ id: "cs_open_no_url", url: null })
+    let createCalls = 0
+
+    await assert.rejects(
+      stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+        stripeClient: {
+          checkout: {
+            sessions: {
+              list: async () => stripeCheckoutSessionList([openSession]),
+              listLineItems: async () => stripeCheckoutLineItemList(),
+              create: async () => {
+                createCalls += 1
+                return membershipCheckoutSession({ id: "cs_unexpected" })
+              },
+            },
+          },
+        },
+      })),
+      /open Checkout Session without a URL/,
+    )
+    assert.equal(createCalls, 0)
+  })
+
+  it("fails closed on malformed membership Checkout line-item pages", async () => {
+    const openSession = membershipCheckoutSession({ id: "cs_open_malformed_items" })
+    for (const [label, page] of [
+      ["data", { object: "list", data: null, has_more: false }],
+      ["has_more", { object: "list", data: [], has_more: "false" }],
+    ]) {
+      await assert.rejects(
+        stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+          stripeClient: {
+            checkout: {
+              sessions: {
+                list: async () => stripeCheckoutSessionList([openSession]),
+                listLineItems: async () => page,
+              },
+            },
+          },
+        })),
+        /invalid membership Checkout line-item page/,
+        label,
+      )
+    }
+  })
+
+  it("fails closed when membership Checkout line-item pagination repeats or exceeds ten pages", async () => {
+    const openSession = membershipCheckoutSession({ id: "cs_open_item_pages" })
+    let repeatedCalls = 0
+    await assert.rejects(
+      stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+        stripeClient: {
+          checkout: {
+            sessions: {
+              list: async () => stripeCheckoutSessionList([openSession]),
+              listLineItems: async () => {
+                repeatedCalls += 1
+                return {
+                  ...stripeCheckoutLineItemList(),
+                  has_more: true,
+                }
+              },
+            },
+          },
+        },
+      })),
+      /line-item pagination did not advance/,
+    )
+    assert.equal(repeatedCalls, 2)
+
+    let cappedCalls = 0
+    await assert.rejects(
+      stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+        stripeClient: {
+          checkout: {
+            sessions: {
+              list: async () => stripeCheckoutSessionList([openSession]),
+              listLineItems: async () => {
+                cappedCalls += 1
+                const page = stripeCheckoutLineItemList()
+                page.data[0].id = `li_page_${cappedCalls}`
+                return { ...page, has_more: true }
+              },
+            },
+          },
+        },
+      })),
+      /line-item pagination exceeded the safe limit/,
+    )
+    assert.equal(cappedCalls, 10)
   })
 
   it("bounds compatibility reads while preserving ordered reuse and stale expiry", async () => {
@@ -1006,7 +1263,6 @@ describe("Stripe billing helpers", () => {
             listLineItems: async (sessionId) => (
               sessionId === "cs_wrong_catalog"
                 ? stripeCheckoutLineItemList({
-                    priceId: "price_legacy_supporter_9",
                     productCatalog: null,
                   })
                 : stripeCheckoutLineItemList()
@@ -1586,6 +1842,85 @@ describe("Stripe billing helpers", () => {
     ])
     assert.deepEqual(session.line_items.data.map((item) => item.id), ["li_1", "li_2"])
     assert.equal(session.line_items.has_more, false)
+  })
+
+  it("fails closed on malformed background fulfillment line-item pages", async () => {
+    for (const [label, page] of [
+      ["data", { object: "list", data: null, has_more: false }],
+      ["has_more", { object: "list", data: [], has_more: "false" }],
+    ]) {
+      await assert.rejects(
+        stripeBilling.retrieveBackgroundPurchaseCheckoutSessionForFulfillment(
+          "cs_background",
+          {
+            stripeClient: {
+              checkout: {
+                sessions: {
+                  retrieve: async (sessionId) => ({ id: sessionId }),
+                  listLineItems: async () => page,
+                },
+              },
+            },
+          },
+        ),
+        /invalid Checkout line-item page/,
+        label,
+      )
+    }
+  })
+
+  it("fails closed when background fulfillment pagination repeats or exceeds ten pages", async () => {
+    let repeatedCalls = 0
+    await assert.rejects(
+      stripeBilling.retrieveBackgroundPurchaseCheckoutSessionForFulfillment(
+        "cs_background",
+        {
+          stripeClient: {
+            checkout: {
+              sessions: {
+                retrieve: async (sessionId) => ({ id: sessionId }),
+                listLineItems: async () => {
+                  repeatedCalls += 1
+                  return {
+                    object: "list",
+                    data: [{ id: "li_repeated_cursor" }],
+                    has_more: true,
+                  }
+                },
+              },
+            },
+          },
+        },
+      ),
+      /pagination did not advance/,
+    )
+    assert.equal(repeatedCalls, 2)
+
+    let cappedCalls = 0
+    await assert.rejects(
+      stripeBilling.retrieveBackgroundPurchaseCheckoutSessionForFulfillment(
+        "cs_background",
+        {
+          stripeClient: {
+            checkout: {
+              sessions: {
+                retrieve: async (sessionId) => ({ id: sessionId }),
+                listLineItems: async () => {
+                  cappedCalls += 1
+                  return {
+                    object: "list",
+                    data: [{ id: `li_page_${cappedCalls}` }],
+                    has_more: true,
+                  }
+                },
+              },
+            },
+          },
+        },
+      ),
+      /pagination exceeded the safe limit/,
+    )
+    assert.equal(cappedCalls, 10)
   })
 })
 

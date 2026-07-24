@@ -40,6 +40,7 @@ let commerceWebhookCoverageComplete = false
 let verifiedWebhookCoverageComplete = !verifyStripe
 let verifiedWebhookEndpointEnabled = !verifyStripe
 let verifiedWebhookApiVersionCurrent = !verifyStripe
+let stripeRetrievalPerformed = false
 
 if (!noDotenv) {
   loadEnvironment(explicitEnvFile)
@@ -236,6 +237,7 @@ async function verifyStripePrices() {
     return
   }
 
+  stripeRetrievalPerformed = true
   const stripe = new Stripe(envValue("STRIPE_SECRET_KEY"), {
     apiVersion: STRIPE_API_VERSION,
   })
@@ -293,7 +295,8 @@ async function verifyStripePrices() {
 
 function printResults(supporterTax, commerce) {
   console.log(`Stripe readiness mode: ${liveMode ? "live" : "non-live"}`)
-  console.log(`Stripe API retrieval: ${verifyStripe ? "enabled" : "skipped"}`)
+  console.log(`Stripe API retrieval requested: ${verifyStripe}`)
+  console.log(`Stripe API retrieval performed: ${stripeRetrievalPerformed}`)
   console.log(`Supporter recurring automatic tax enabled: ${supporterTax.automaticTaxEnabled}`)
   console.log(`Supporter recurring tax product code configured: ${supporterTax.taxProductCodeConfigured}`)
   console.log(`Supporter recurring tax provider ready: ${supporterTax.taxProviderReady}`)

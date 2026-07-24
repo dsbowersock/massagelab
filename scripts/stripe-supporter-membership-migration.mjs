@@ -16,15 +16,8 @@ import { STRIPE_API_VERSION } from "../lib/stripe-webhook-contract.js"
 const SUPPORTER_PRODUCT_NAME = "MassageLab Supporter Membership"
 const CREATE_NEW_PRODUCT = "CREATE_NEW"
 const SUPPORTER_PRODUCT_IDEMPOTENCY_KEY = "massagelab-supporter-membership-v1-product"
-const RELEVANT_SUBSCRIPTION_STATUSES = new Set([
-  "active",
-  "trialing",
-  "past_due",
-  "unpaid",
-  "paused",
-  "incomplete",
-])
 const TERMINAL_SUBSCRIPTION_STATUSES = new Set(["canceled", "incomplete_expired"])
+const APPLY_RETRY_DELAYS_MS = Object.freeze([250, 500])
 
 const TARGET_PRICE_SPECS = Object.freeze([
   Object.freeze({
@@ -531,13 +524,11 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
     failureCodes.push("stripe_account_mode_mismatch")
   }
 
+  // Fail closed for unknown or future Stripe statuses. Only statuses Stripe
+  // explicitly defines as terminal are safe to omit from migration inventory.
   const relevantSubscriptions = subscriptions.filter((subscription) => {
     const status = String(subscription.status ?? "").toLowerCase()
-    return RELEVANT_SUBSCRIPTION_STATUSES.has(status)
-      || (
-        subscription.cancel_at_period_end === true
-        && !TERMINAL_SUBSCRIPTION_STATUSES.has(status)
-      )
+    return !TERMINAL_SUBSCRIPTION_STATUSES.has(status)
   })
   const expectedNoSubscriptions = config.allowedSubscriptionId.toLowerCase() === "none"
   const subscriptionsMatch = expectedNoSubscriptions
@@ -1133,6 +1124,8 @@ async function applyPlan(stripe, config, inventory) {
     )
   }
 
+  // Stripe Products with active Prices cannot be archived. Retire every
+  // verified legacy Price first, then archive only their now-price-free owners.
   for (const candidate of inventory.retirementPrices) {
     if (candidate.active === false) continue
     await stripe.prices.update(candidate.id, { active: false })
@@ -1171,14 +1164,23 @@ async function applyPlan(stripe, config, inventory) {
   }
 }
 
+/** Waits between apply retries so Stripe's eventually consistent lists settle. */
+function waitForApplyRetry(milliseconds) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, milliseconds)
+  })
+}
+
 /**
  * Verifies or applies the Supporter catalog migration without exposing object
- * identifiers in its reader-facing checklist.
+ * identifiers in its reader-facing checklist. Callers may inject `sleep` for
+ * deterministic tests; production uses short escalating retry delays.
  */
 export async function runSupporterMembershipMigration({
   stripe,
   mode,
   env = process.env,
+  sleep = waitForApplyRetry,
 } = {}) {
   const config = buildConfig(env, mode)
   let inventory = await collectInventory(stripe, config, {
@@ -1194,6 +1196,9 @@ export async function runSupporterMembershipMigration({
         lastError = error
       }
       inventory = await collectInventory(stripe, config, { allowTransitional: true })
+      if (inventory.state !== "COMPLETED" && attempt < APPLY_RETRY_DELAYS_MS.length) {
+        await sleep(APPLY_RETRY_DELAYS_MS[attempt])
+      }
     }
     if (inventory.state !== "COMPLETED") {
       if (lastError instanceof MigrationError) throw lastError

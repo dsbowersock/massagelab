@@ -61,6 +61,7 @@ function createElement(type, props, key) {
   }
 }
 
+/** Returns the first matching JSX-like object in a nested child/array tree. */
 function findElement(tree, predicate) {
   if (Array.isArray(tree)) {
     for (const child of tree) {
@@ -83,6 +84,7 @@ function findElement(tree, predicate) {
   return findElement(tree.props?.children, predicate)
 }
 
+/** Collects every matching JSX-like object from a nested child/array tree. */
 function findElements(tree, predicate, matches = []) {
   if (Array.isArray(tree)) {
     for (const child of tree) {
@@ -102,6 +104,7 @@ function findElements(tree, predicate, matches = []) {
   return matches
 }
 
+/** Recursively evaluates function-component nodes in the test JSX tree. */
 function renderFunctionComponents(tree) {
   if (Array.isArray(tree)) {
     return tree.map(renderFunctionComponents)
@@ -353,6 +356,7 @@ async function renderMembershipPricingCards({ mode, activeMembershipLevel }) {
   }))
 }
 
+/** Supplies the complete non-secret migration configuration for the fixture. */
 function migrationEnvironment() {
   return {
     STRIPE_SECRET_KEY: "sk_test_do_not_print",
@@ -374,6 +378,7 @@ function migrationEnvironment() {
   }
 }
 
+/** Creates a retrieved recurring Stripe Price with expanded currency options. */
 function migrationPrice(id, product, unitAmount, interval, overrides = {}) {
   return {
     id,
@@ -397,6 +402,7 @@ function migrationPrice(id, product, unitAmount, interval, overrides = {}) {
   }
 }
 
+/** Builds the read-only Stripe catalog/Portal fixture used by verify mode. */
 function migrationStripeFixture(targetPrice) {
   const products = [
     {

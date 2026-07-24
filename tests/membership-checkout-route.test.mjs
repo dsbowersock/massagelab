@@ -3,7 +3,52 @@ import { describe, it } from "node:test"
 import { createMembershipCheckoutPostHandler } from "../lib/membership-checkout.js"
 import { hasSubscriptionBlockingNewCheckout } from "../lib/membership.js"
 
+const MEMBERSHIP_BILLING_DOCUMENT = Object.freeze({
+  key: "membership-billing-refunds",
+  version: "current",
+})
+
 describe("Membership Checkout POST route", () => {
+  it("returns JSON 401 for an anonymous API request before billing work", async () => {
+    const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
+    const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
+      session: null,
+    }))(jsonRequest({
+      membershipLevel: "SUPPORTER",
+      supporterAmountChoiceId: "support-1",
+    }))
+
+    assert.deepEqual(response, {
+      body: { error: "Unauthorized" },
+      status: 401,
+    })
+    assert.deepEqual(calls, {
+      ensureCustomer: 0,
+      createCheckout: 0,
+      membershipLookup: 0,
+    })
+  })
+
+  it("redirects an anonymous form request to sign in before billing work", async () => {
+    const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
+    const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
+      session: null,
+    }))(formRequest({
+      membershipLevel: "SUPPORTER",
+      supporterAmountChoiceId: "support-1",
+    }))
+
+    assert.deepEqual(response, {
+      url: "https://massagelab.app/login",
+      status: 303,
+    })
+    assert.deepEqual(calls, {
+      ensureCustomer: 0,
+      createCheckout: 0,
+      membershipLookup: 0,
+    })
+  })
+
   for (const membershipLevel of ["THERAPIST", "PRACTICE"]) {
     it(`rejects ${membershipLevel} before creating a Stripe customer or Checkout Session`, async () => {
       const calls = { ensureCustomer: 0, createCheckout: 0 }
@@ -250,6 +295,55 @@ describe("Membership Checkout POST route", () => {
     assert.equal(calls.membershipLookup, 1)
     assert.equal(calls.ensureCustomer, 0)
     assert.equal(calls.createCheckout, 0)
+    assert.deepEqual(calls.requiredLegalEvents, ["checkout"])
+    assert.deepEqual(calls.acceptedLegalDocumentInputs, [[]])
+    assert.deepEqual(calls.missingLegalInputs, [{
+      acceptedDocumentIds: [],
+      documents: [MEMBERSHIP_BILLING_DOCUMENT],
+    }])
+    assert.equal(Object.hasOwn(calls, "recordedLegalAcceptances"), false)
+  })
+
+  it("records the exact current membership billing document before creating Checkout", async () => {
+    const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
+    const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
+      alreadyAccepted: false,
+    }))(jsonRequest({
+      membershipLevel: "SUPPORTER",
+      supporterAmountChoiceId: "support-1",
+      interval: "month",
+      acceptedLegalDocuments: ["membership-billing-refunds:current"],
+      billingTermsAccepted: true,
+    }))
+
+    assert.deepEqual(response, {
+      body: { url: "https://checkout.stripe.com/c/test" },
+      status: 200,
+    })
+    assert.deepEqual(calls.requiredLegalEvents, ["checkout"])
+    assert.deepEqual(calls.acceptedLegalDocumentInputs, [[
+      "membership-billing-refunds:current",
+    ]])
+    assert.deepEqual(calls.missingLegalInputs, [{
+      acceptedDocumentIds: ["membership-billing-refunds:current"],
+      documents: [MEMBERSHIP_BILLING_DOCUMENT],
+    }])
+    assert.equal(
+      typeof calls.recordedLegalAcceptances.prismaClient
+        .membershipSubscription.findMany,
+      "function",
+    )
+    assert.deepEqual({
+      ...calls.recordedLegalAcceptances,
+      prismaClient: undefined,
+    }, {
+      prismaClient: undefined,
+      userId: "user_123",
+      documents: [MEMBERSHIP_BILLING_DOCUMENT],
+      metadata: { source: "membership-checkout-test" },
+    })
+    assert.equal(calls.ensureCustomer, 1)
+    assert.equal(calls.createCheckout, 1)
   })
 
   it("redirects a form submission when the current membership legal document is missing", async () => {
@@ -274,6 +368,13 @@ describe("Membership Checkout POST route", () => {
     assert.equal(calls.membershipLookup, 1)
     assert.equal(calls.ensureCustomer, 0)
     assert.equal(calls.createCheckout, 0)
+    assert.deepEqual(calls.requiredLegalEvents, ["checkout"])
+    assert.deepEqual(calls.acceptedLegalDocumentInputs, [[]])
+    assert.deepEqual(calls.missingLegalInputs, [{
+      acceptedDocumentIds: [],
+      documents: [MEMBERSHIP_BILLING_DOCUMENT],
+    }])
+    assert.equal(Object.hasOwn(calls, "recordedLegalAcceptances"), false)
   })
 
   it("returns the existing-subscription contract when Stripe finds a completed relevant Checkout before the webhook", async () => {
@@ -458,9 +559,26 @@ function checkoutDependencies(calls, {
   sessionError = null,
   selectionError = null,
   priceResolutionError = null,
+  session = { user: { id: "user_123" } },
   alreadyAccepted = true,
   missingLegalDocuments = [],
 } = {}) {
+  const prisma = {
+    user: {
+      findUnique: async () => {
+        if (userLookupError) throw userLookupError
+        return { id: "user_123", email: "supporter@example.com", name: "Supporter" }
+      },
+    },
+    membershipSubscription: {
+      findMany: async () => {
+        calls.membershipLookup = (calls.membershipLookup ?? 0) + 1
+        if (membershipLookupError) throw membershipLookupError
+        return subscriptions
+      },
+    },
+  }
+
   return {
     NextResponse: {
       json: (body, init = {}) => ({ body, status: init.status ?? 200 }),
@@ -468,7 +586,7 @@ function checkoutDependencies(calls, {
     },
     getCurrentSession: async () => {
       if (sessionError) throw sessionError
-      return { user: { id: "user_123" } }
+      return session
     },
     getSiteUrl: () => "https://massagelab.app",
     isPublicSupporterCheckoutSelection: (input) => {
@@ -479,31 +597,34 @@ function checkoutDependencies(calls, {
       if (priceResolutionError) throw priceResolutionError
       return "price_supporter_1_month"
     },
-    acceptedDocumentIdsFromInput: (ids) => ids,
+    acceptedDocumentIdsFromInput: (ids) => {
+      calls.acceptedLegalDocumentInputs = [
+        ...(calls.acceptedLegalDocumentInputs ?? []),
+        ids,
+      ]
+      return ids
+    },
     hasAcceptedCurrentDocuments: async () => {
       if (acceptedDocumentsError) throw acceptedDocumentsError
       return alreadyAccepted
     },
-    legalRequestMetadata: () => ({}),
-    missingRequiredLegalDocuments: () => missingLegalDocuments,
-    recordLegalAcceptances: async () => {},
-    requiredLegalDocumentsForEvent: () => [],
-    hasSubscriptionBlockingNewCheckout,
-    prisma: {
-      user: {
-        findUnique: async () => {
-          if (userLookupError) throw userLookupError
-          return { id: "user_123", email: "supporter@example.com", name: "Supporter" }
-        },
-      },
-      membershipSubscription: {
-        findMany: async () => {
-          calls.membershipLookup = (calls.membershipLookup ?? 0) + 1
-          if (membershipLookupError) throw membershipLookupError
-          return subscriptions
-        },
-      },
+    legalRequestMetadata: () => ({ source: "membership-checkout-test" }),
+    missingRequiredLegalDocuments: (input) => {
+      calls.missingLegalInputs = [
+        ...(calls.missingLegalInputs ?? []),
+        input,
+      ]
+      return missingLegalDocuments
     },
+    recordLegalAcceptances: async (input) => {
+      calls.recordedLegalAcceptances = input
+    },
+    requiredLegalDocumentsForEvent: (event) => {
+      calls.requiredLegalEvents = [...(calls.requiredLegalEvents ?? []), event]
+      return [MEMBERSHIP_BILLING_DOCUMENT]
+    },
+    hasSubscriptionBlockingNewCheckout,
+    prisma,
     ensureStripeCustomerForUser: async () => {
       calls.ensureCustomer += 1
       if (ensureCustomerError) throw ensureCustomerError

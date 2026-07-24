@@ -1,11 +1,12 @@
 import assert from "node:assert/strict"
 import { spawnSync } from "node:child_process"
+import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import { fileURLToPath } from "node:url"
 import {
   MigrationError,
   formatMigrationChecklist,
-  runSupporterMembershipMigration,
+  runSupporterMembershipMigration as runMigrationWithProductionRetry,
 } from "../scripts/stripe-supporter-membership-migration.mjs"
 
 const LEGACY_PRICE_SPECS = Object.freeze([
@@ -17,6 +18,7 @@ const LEGACY_PRICE_SPECS = Object.freeze([
   ["price_practice_year", "prod_practice", 75900, "year"],
 ])
 
+/** Builds the complete non-secret migration contract used by focused tests. */
 function migrationEnv(overrides = {}) {
   return {
     STRIPE_SECRET_KEY: "sk_test_do_not_print",
@@ -44,6 +46,7 @@ function migrationEnv(overrides = {}) {
   }
 }
 
+/** Creates a minimal Product that preserves the fields inspected by preflight. */
 function product(id, name, active = true) {
   return {
     id,
@@ -58,7 +61,14 @@ function product(id, name, active = true) {
   }
 }
 
+/** Mirrors the production lookup-key derivation for a managed target Price. */
+function supporterLookupKeyFor(priceKey) {
+  return `massagelab_${priceKey.replaceAll("-", "_")}`
+}
+
+/** Creates a recurring Price with production-equivalent default semantics. */
 function price(id, productId, unitAmount, interval, active = true, metadata = {}) {
+  const managedPriceKey = metadata.massagelab_supporter_price_key
   return {
     id,
     object: "price",
@@ -77,11 +87,12 @@ function price(id, productId, unitAmount, interval, active = true, metadata = {}
     tax_behavior: "exclusive",
     transform_quantity: null,
     currency_options: null,
-    lookup_key: metadata.massagelab_supporter_price_key ?? null,
+    lookup_key: managedPriceKey ? supporterLookupKeyFor(managedPriceKey) : null,
     metadata,
   }
 }
 
+/** Creates the pre-migration Portal topology and preservation features. */
 function portalConfiguration() {
   return {
     id: "bpc_membership",
@@ -388,6 +399,17 @@ function stripeFixture() {
   }
 }
 
+/**
+ * Runs exported migration logic without real timers. Tests can still inject a
+ * sleep spy to prove the production retry schedule deterministically.
+ */
+function runSupporterMembershipMigration(options) {
+  return runMigrationWithProductionRetry({
+    ...options,
+    sleep: options.sleep ?? (async () => {}),
+  })
+}
+
 /** Returns only writes from the fixture's complete ordered Stripe call trace. */
 function mutationCalls(fixture) {
   return fixture.calls.filter(({ name }) => (
@@ -406,14 +428,26 @@ function assertMutationWasReretrieved(calls, mutationIndex, retrieveName, id) {
 }
 
 describe("Supporter membership Stripe migration", () => {
+  it("exposes only the guarded Supporter migration package command", async () => {
+    const packageSource = await readFile(
+      new URL("../package.json", import.meta.url),
+      "utf8",
+    )
+
+    assert.doesNotMatch(packageSource, /stripe:live:setup|stripe-live-membership-setup/)
+    assert.match(packageSource, /stripe:migrate-supporter-membership/)
+  })
+
   it("reports safe local configuration codes before constructing a Stripe client", () => {
     const scriptPath = fileURLToPath(
       new URL("../scripts/stripe-supporter-membership-migration.mjs", import.meta.url),
     )
-    const execution = spawnSync(process.execPath, [scriptPath, "--no-dotenv", "--mode=verify"], {
+    const execution = spawnSync(process.execPath, [scriptPath, "--mode=verify"], {
       encoding: "utf8",
       env: {
         PATH: process.env.PATH,
+        ...(process.env.SystemRoot ? { SystemRoot: process.env.SystemRoot } : {}),
+        ...(process.env.COMSPEC ? { COMSPEC: process.env.COMSPEC } : {}),
         STRIPE_SECRET_KEY: "",
         MASSAGELAB_STRIPE_MIGRATION_MODE: "",
         MASSAGELAB_STRIPE_MIGRATION_ALLOWED_SUBSCRIPTION_ID: "",
@@ -873,6 +907,61 @@ describe("Supporter membership Stripe migration", () => {
     assert.deepEqual(mutationCalls(fixture), [])
   })
 
+  it("retains unknown future subscription statuses in fail-closed inventory", async () => {
+    const fixture = stripeFixture()
+    fixture.subscriptions.push({
+      id: "sub_future_private",
+      object: "subscription",
+      livemode: false,
+      status: "future_nonterminal_status",
+      customer: "cus_future_private",
+    })
+
+    await assert.rejects(
+      runSupporterMembershipMigration({
+        stripe: fixture.stripe,
+        mode: "apply",
+        env: migrationEnv(),
+      }),
+      (error) => {
+        assert.deepEqual(error.failureCodes, ["unexpected_subscription_inventory"])
+        assert.doesNotMatch(
+          `${error.message} ${JSON.stringify(error.checks)}`,
+          /sub_future_private|cus_future_private/,
+        )
+        return true
+      },
+    )
+    assert.deepEqual(mutationCalls(fixture), [])
+  })
+
+  it("excludes only explicit terminal Stripe statuses from subscriber inventory", async () => {
+    const fixture = stripeFixture()
+    fixture.subscriptions.push(
+      {
+        id: "sub_canceled",
+        object: "subscription",
+        livemode: false,
+        status: "canceled",
+      },
+      {
+        id: "sub_incomplete_expired",
+        object: "subscription",
+        livemode: false,
+        status: "incomplete_expired",
+      },
+    )
+
+    const result = await runSupporterMembershipMigration({
+      stripe: fixture.stripe,
+      mode: "verify",
+      env: migrationEnv(),
+    })
+
+    assert.equal(result.state, "PRE_MIGRATION")
+    assert.deepEqual(mutationCalls(fixture), [])
+  })
+
   it("manually proves pagination completeness beyond 10,000 rows", async () => {
     const fixture = stripeFixture()
     const rows = [
@@ -1012,6 +1101,31 @@ describe("Supporter membership Stripe migration", () => {
       )
       assert.deepEqual(mutationCalls(fixture), [])
     }
+  })
+
+  it("rejects ambiguous exact target Prices when no approved ID selects one", async () => {
+    const fixture = stripeFixture()
+    fixture.prices.set(
+      "price_exact_target_a",
+      price("price_exact_target_a", "prod_supporter", 100, "month"),
+    )
+    fixture.prices.set(
+      "price_exact_target_b",
+      price("price_exact_target_b", "prod_supporter", 100, "month"),
+    )
+
+    await assert.rejects(
+      runSupporterMembershipMigration({
+        stripe: fixture.stripe,
+        mode: "apply",
+        env: migrationEnv(),
+      }),
+      (error) => {
+        assert.equal(error.failureCodes.includes("approved_price_dependency_mismatch"), true)
+        return true
+      },
+    )
+    assert.deepEqual(mutationCalls(fixture), [])
   })
 
   it("requires exact per-unit licensed untransformed USD Price semantics", async () => {
@@ -1476,7 +1590,7 @@ describe("Supporter membership Stripe migration", () => {
     }
     fixture.stripe.prices.list = async (params) => {
       const result = await listPrices(params)
-      if (hideCommittedPriceLists > 0) {
+      if (hideCommittedPriceLists > 0 && params.active === true) {
         hideCommittedPriceLists -= 1
         return {
           ...result,
@@ -1508,6 +1622,38 @@ describe("Supporter membership Stripe migration", () => {
         (entry) => entry.metadata?.massagelab_catalog === "supporter_membership_v1",
       ).length,
       6,
+    )
+  })
+
+  it("uses escalating delays between the three bounded apply attempts", async () => {
+    const fixture = stripeFixture()
+    const updateProduct = fixture.stripe.products.update.bind(fixture.stripe.products)
+    const delays = []
+    let transientFailures = 2
+    fixture.stripe.products.update = async (id, payload) => {
+      if (transientFailures > 0) {
+        transientFailures -= 1
+        throw new Error("temporary Stripe write failure")
+      }
+      return updateProduct(id, payload)
+    }
+
+    const result = await runSupporterMembershipMigration({
+      stripe: fixture.stripe,
+      mode: "apply",
+      env: migrationEnv(),
+      sleep: async (milliseconds) => {
+        delays.push(milliseconds)
+      },
+    })
+
+    assert.equal(result.state, "COMPLETED")
+    assert.deepEqual(delays, [250, 500])
+    assert.equal(
+      fixture.calls.filter(
+        ({ name, id }) => name === "products.update" && id === "prod_supporter",
+      ).length,
+      1,
     )
   })
 })

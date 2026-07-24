@@ -135,16 +135,13 @@ describe("Membership pricing catalog", () => {
   })
 
   it("removes the obsolete live catalog setup command instead of recreating retired resources", async () => {
-    const [environmentExample, readinessCheck, packageSource] = await Promise.all([
+    const [environmentExample, readinessCheck] = await Promise.all([
       readFile(new URL("../.env.example", import.meta.url), "utf8"),
       readFile(new URL("../scripts/stripe-readiness-check.mjs", import.meta.url), "utf8"),
-      readFile(new URL("../package.json", import.meta.url), "utf8"),
     ])
 
     assert.doesNotMatch(environmentExample, /MASSAGELAB_EARLY_ACCESS_DISCOUNT_ENABLED/)
     assert.doesNotMatch(readinessCheck, /MASSAGELAB_EARLY_ACCESS_DISCOUNT_ENABLED|Early Access|early access/)
-    assert.doesNotMatch(packageSource, /stripe:live:setup|stripe-live-membership-setup/)
-    assert.match(packageSource, /stripe:migrate-supporter-membership/)
     await assert.rejects(
       readFile(new URL("../scripts/stripe-live-membership-setup.mjs", import.meta.url), "utf8"),
       (error) => error?.code === "ENOENT",

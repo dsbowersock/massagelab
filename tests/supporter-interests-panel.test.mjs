@@ -248,8 +248,16 @@ function findInterestCheckbox(tree, interestId) {
 function findLiveRegion(tree) {
   return findElement(
     tree,
-    (element) => element.props?.role === "status" || element.props?.role === "alert",
+    (element) => element.props?.role === "status" && element.props?.["aria-live"] != null,
   )
+}
+
+function liveRegionMessage(tree) {
+  const message = findElement(
+    findLiveRegion(tree),
+    (element) => element.type === "p",
+  )
+  return message?.props.children ?? ""
 }
 
 function findRetryButton(tree) {
@@ -287,6 +295,9 @@ describe("SupporterInterestsPanel", () => {
 
     try {
       harness.mount()
+      assert.equal(findLiveRegion(harness.getTree()).props.role, "status")
+      assert.equal(findLiveRegion(harness.getTree()).props["aria-live"], "polite")
+      assert.equal(liveRegionMessage(harness.getTree()), "")
       await settleAsyncWork()
       harness.render()
 
@@ -312,19 +323,19 @@ describe("SupporterInterestsPanel", () => {
       assert.equal(findInterestCheckbox(harness.getTree(), addedInterest).props.checked, true)
       assert.equal(findInterestCheckbox(harness.getTree(), addedInterest).props.disabled, false)
       assert.equal(findLiveRegion(harness.getTree()).props.role, "status")
-      assert.equal(findLiveRegion(harness.getTree()).props.children, "Roadmap interests saved.")
+      assert.equal(findLiveRegion(harness.getTree()).props["aria-live"], "polite")
+      assert.equal(liveRegionMessage(harness.getTree()), "Roadmap interests saved.")
     } finally {
       harness.dispose()
     }
   })
 
-  it("rolls a failed save back to the previously persisted interests", async () => {
+  it("rolls a failed save back to the previously persisted interests", async (context) => {
     const persistedInterest = supporterRoadmapInterestOptions[0].id
     const failedInterest = supporterRoadmapInterestOptions[1].id
     const saveError = new Error("save request failed")
     const logged = []
-    const originalConsoleError = console.error
-    console.error = (...args) => logged.push(args)
+    context.mock.method(console, "error", (...args) => logged.push(args))
     const harness = createPanelHarness(async (_url, init = {}) => {
       if (init.method === "PUT") {
         throw saveError
@@ -351,9 +362,11 @@ describe("SupporterInterestsPanel", () => {
 
       assert.equal(findInterestCheckbox(harness.getTree(), persistedInterest).props.checked, true)
       assert.equal(findInterestCheckbox(harness.getTree(), failedInterest).props.checked, false)
-      assert.equal(findLiveRegion(harness.getTree()).props.role, "alert")
+      assert.equal(findLiveRegion(harness.getTree()).props.role, "status")
+      assert.equal(findLiveRegion(harness.getTree()).props["aria-live"], "assertive")
+      assert.equal(findLiveRegion(harness.getTree()).props["aria-atomic"], "true")
       assert.equal(
-        findLiveRegion(harness.getTree()).props.children,
+        liveRegionMessage(harness.getTree()),
         "Could not save roadmap interests. Please try again.",
       )
       assert.deepEqual(logged, [[
@@ -361,21 +374,16 @@ describe("SupporterInterestsPanel", () => {
         saveError,
       ]])
     } finally {
-      try {
-        harness.dispose()
-      } finally {
-        console.error = originalConsoleError
-      }
+      harness.dispose()
     }
   })
 
-  it("retries a failed initial load and keeps interests disabled until retry succeeds", async () => {
+  it("retries a failed initial load and keeps interests disabled until retry succeeds", async (context) => {
     const loadError = new Error("load request failed")
     const loadedInterest = supporterRoadmapInterestOptions[0].id
     let loadAttempts = 0
     const logged = []
-    const originalConsoleError = console.error
-    console.error = (...args) => logged.push(args)
+    context.mock.method(console, "error", (...args) => logged.push(args))
     const harness = createPanelHarness(async () => {
       loadAttempts += 1
       if (loadAttempts === 1) {
@@ -393,9 +401,11 @@ describe("SupporterInterestsPanel", () => {
       await settleAsyncWork()
       harness.render()
 
-      assert.equal(findLiveRegion(harness.getTree()).props.role, "alert")
+      assert.equal(findLiveRegion(harness.getTree()).props.role, "status")
+      assert.equal(findLiveRegion(harness.getTree()).props["aria-live"], "assertive")
+      assert.equal(findLiveRegion(harness.getTree()).props["aria-atomic"], "true")
       assert.equal(
-        findLiveRegion(harness.getTree()).props.children,
+        liveRegionMessage(harness.getTree()),
         "Could not load roadmap interests. Please try again.",
       )
       assert.equal(
@@ -419,13 +429,9 @@ describe("SupporterInterestsPanel", () => {
       assert.equal(loadAttempts, 2)
       assert.equal(findInterestCheckbox(harness.getTree(), loadedInterest).props.checked, true)
       assert.equal(findInterestCheckbox(harness.getTree(), loadedInterest).props.disabled, false)
-      assert.equal(findLiveRegion(harness.getTree()), null)
+      assert.equal(liveRegionMessage(harness.getTree()), "")
     } finally {
-      try {
-        harness.dispose()
-      } finally {
-        console.error = originalConsoleError
-      }
+      harness.dispose()
     }
   })
 

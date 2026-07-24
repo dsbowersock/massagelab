@@ -165,27 +165,31 @@ export function SupporterInterestsPanel() {
           })}
         </div>
         {isLoading ? <Loader label="Loading roadmap interests" size={18} color="currentColor" /> : null}
-        {message ? (
-          <div className="flex flex-wrap items-center gap-3">
+        <div
+          className="flex flex-wrap items-center gap-3"
+          role="status"
+          aria-live={message?.variant === "error" ? "assertive" : "polite"}
+          aria-atomic="true"
+        >
+          {message ? (
             <p
               className="text-sm text-muted-foreground"
-              role={message.variant === "error" ? "alert" : "status"}
             >
               {message.text}
             </p>
-            {message.variant === "error" && !hasLoadedInterests ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={isLoading}
-                onClick={() => void loadInterests()}
-              >
-                Retry
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
+          ) : null}
+          {message?.variant === "error" && !hasLoadedInterests ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isLoading}
+              onClick={() => void loadInterests()}
+            >
+              Retry
+            </Button>
+          ) : null}
+        </div>
       </div>
     </SettingsSurface>
   )

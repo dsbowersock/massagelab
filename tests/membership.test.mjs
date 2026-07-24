@@ -231,6 +231,41 @@ describe("Membership and entitlement helpers", () => {
     )
   })
 
+  it("normalizes a null subscription collection and fails closed for unrecognized persisted states", () => {
+    assert.equal(membership.hasSubscriptionBlockingNewCheckout(null), false)
+
+    for (const subscription of [
+      {},
+      { status: "" },
+      { status: "future_stripe_status" },
+      { status: "future_stripe_status", cancelAtPeriodEnd: true },
+    ]) {
+      assert.equal(
+        membership.hasSubscriptionBlockingNewCheckout([subscription]),
+        true,
+      )
+    }
+  })
+
+  it("treats cancel-at-period-end as pending while the subscription remains nonterminal", () => {
+    assert.equal(
+      membership.hasSubscriptionBlockingNewCheckout([{
+        status: "active",
+        cancelAtPeriodEnd: true,
+        membershipLevel: "SUPPORTER",
+      }]),
+      true,
+    )
+    assert.equal(
+      membership.hasSubscriptionBlockingNewCheckout([{
+        status: "canceled",
+        cancelAtPeriodEnd: true,
+        membershipLevel: "SUPPORTER",
+      }]),
+      false,
+    )
+  })
+
   it("routes historical Therapist and Practice subscribers to billing management", () => {
     assert.equal(typeof membership.resolveMembershipPricingMode, "function")
 
