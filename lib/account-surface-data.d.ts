@@ -56,6 +56,26 @@ export type AccountCredentialsSurfaceData = {
   }>
 }
 
+export type MembershipPriceValue = {
+  membershipLevel: string
+  interval: "month" | "year"
+  priceId: string | null
+  displayPrice: string
+  displayInterval: string
+  isConfigured: boolean
+  isLookupAvailable: boolean
+  yearlySavings: {
+    displayAmount: string
+    description: string
+    percent: number
+  } | null
+}
+
+export type MembershipPriceCatalog = {
+  month: MembershipPriceValue
+  year: MembershipPriceValue
+}
+
 export type MembershipPricingCatalog = {
   defaultInterval: string
   intervals: ReadonlyArray<{
@@ -74,20 +94,7 @@ export type MembershipPricingCatalog = {
       id: string
       month: number
       year: number
-      prices: Record<string, {
-        membershipLevel: string
-        interval: string
-        priceId: string | null
-        displayPrice: string
-        displayInterval: string
-        isConfigured: boolean
-        isLookupAvailable: boolean
-        yearlySavings: {
-          displayAmount: string
-          description: string
-          percent: number
-        } | null
-      }>
+      prices: MembershipPriceCatalog
     }>
   }>
 }

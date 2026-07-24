@@ -6,24 +6,13 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { MetalAttentionButton } from "@/components/ui/metal-attention-button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import type {
+  MembershipPriceCatalog,
+  MembershipPriceValue as MembershipPrice,
+} from "@/lib/account-surface-data"
 import { getLegalDocumentByKey, legalDocumentAcceptanceId } from "@/lib/legal-documents"
 import { resolveMembershipPriceForInterval } from "@/lib/membership-pricing"
 import { cn } from "@/lib/utils"
-
-type MembershipPrice = {
-  membershipLevel: string
-  interval: string
-  priceId: string | null
-  displayPrice: string
-  displayInterval: string
-  isConfigured: boolean
-  isLookupAvailable: boolean
-  yearlySavings: {
-    displayAmount: string
-    description: string
-    percent: number
-  } | null
-}
 
 type MembershipPlan = {
   membershipLevel: string
@@ -36,7 +25,7 @@ type MembershipPlan = {
     id: string
     month: number
     year: number
-    prices: Partial<Record<string, MembershipPrice>>
+    prices: MembershipPriceCatalog
   }>
 }
 

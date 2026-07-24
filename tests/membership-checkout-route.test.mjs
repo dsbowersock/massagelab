@@ -168,6 +168,46 @@ describe("Membership Checkout POST route", () => {
       console.error = originalConsoleError
     }
   })
+
+  for (const [label, errorOption] of [
+    ["membership subscription lookup", "membershipLookupError"],
+    ["legal acceptance lookup", "acceptedDocumentsError"],
+    ["user lookup", "userLookupError"],
+  ]) {
+    it(`routes a rejected ${label} through the form-safe Checkout error response`, async () => {
+      const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
+      const failure = new Error(`${label} failed`)
+      failure.code = `${errorOption}_failed`
+      const logged = []
+      const originalConsoleError = console.error
+      console.error = (...args) => logged.push(args)
+
+      try {
+        const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
+          [errorOption]: failure,
+        }))(formRequest({
+          membershipLevel: "SUPPORTER",
+          supporterAmountChoiceId: "support-1",
+          interval: "month",
+          acceptedLegalDocuments: "membership-billing-refunds:current",
+          billingTermsAccepted: "true",
+        }))
+
+        assert.deepEqual(response, {
+          url: "https://massagelab.app/account?billing=checkout-error",
+          status: 303,
+        })
+        assert.equal(calls.ensureCustomer, 0)
+        assert.equal(calls.createCheckout, 0)
+        assert.deepEqual(logged, [[
+          "Unable to start membership checkout",
+          { code: `${errorOption}_failed` },
+        ]])
+      } finally {
+        console.error = originalConsoleError
+      }
+    })
+  }
 })
 
 function jsonRequest(body) {
@@ -190,6 +230,9 @@ function checkoutDependencies(calls, {
   subscriptions = [],
   checkoutSession = { url: "https://checkout.stripe.com/c/test" },
   ensureCustomerError = null,
+  membershipLookupError = null,
+  acceptedDocumentsError = null,
+  userLookupError = null,
 } = {}) {
   return {
     NextResponse: {
@@ -201,7 +244,10 @@ function checkoutDependencies(calls, {
     isPublicSupporterCheckoutSelection: (input) => input.membershipLevel === "SUPPORTER" && input.supporterAmountChoiceId === "support-1",
     resolveStripePriceId: () => "price_supporter_1_month",
     acceptedDocumentIdsFromInput: (ids) => ids,
-    hasAcceptedCurrentDocuments: async () => true,
+    hasAcceptedCurrentDocuments: async () => {
+      if (acceptedDocumentsError) throw acceptedDocumentsError
+      return true
+    },
     legalRequestMetadata: () => ({}),
     missingRequiredLegalDocuments: () => [],
     recordLegalAcceptances: async () => {},
@@ -214,11 +260,15 @@ function checkoutDependencies(calls, {
     ),
     prisma: {
       user: {
-        findUnique: async () => ({ id: "user_123", email: "supporter@example.com", name: "Supporter" }),
+        findUnique: async () => {
+          if (userLookupError) throw userLookupError
+          return { id: "user_123", email: "supporter@example.com", name: "Supporter" }
+        },
       },
       membershipSubscription: {
         findMany: async () => {
           calls.membershipLookup = (calls.membershipLookup ?? 0) + 1
+          if (membershipLookupError) throw membershipLookupError
           return subscriptions
         },
       },

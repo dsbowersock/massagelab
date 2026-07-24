@@ -23,20 +23,24 @@ if (features.includes("chimer_custom_colors")) {
 - Free access is the default when a user has no active paid subscription.
 - Free is not a Stripe product.
 - Student access is internal to MassageLab and is not a Stripe subscription.
-- Public enrollment now accepts only the six approved Supporter amount/interval
-  choices. Webhook reconciliation still recognizes configured legacy
-  Supporter, Therapist, and Practice Price mappings so an existing subscription
-  cannot silently lose access before the controlled catalog migration.
-  Therapist and Practice must not be offered to new subscribers before their
-  differentiated professional features are ready for beta.
+- Public enrollment accepts only the six approved amount-specific Supporter
+  Prices: $1, $2, and $5 monthly, plus $10, $20, and $50 annually. Every one of
+  those Price IDs grants the same `SUPPORTER` membership and feature set.
+- The legacy Supporter monthly and yearly Price mappings are retained only to
+  reconcile pre-migration Supporter subscriptions and webhooks. They are
+  historical compatibility inputs, not public catalog choices, and must not
+  authorize new Checkout.
+- Legacy Therapist and Practice Price mappings are reconciled separately for
+  existing professional subscriptions so those subscribers do not silently
+  lose their respective memberships. Therapist and Practice must not be
+  offered to new subscribers before their differentiated professional features
+  are ready for beta.
 - The first paid feature key is `chimer_custom_colors`.
 - Therapist note-taking tools use the `therapist_documentation_tools` feature key and are unlocked only by active Therapist or Practice memberships.
 - External provider calendar sync uses the `external_calendar_sync` feature key and is unlocked only by active Therapist or Practice memberships.
-- Stripe subscription records currently grant membership only when their Price
-  ID matches one of the configured legacy Supporter, Therapist, or Practice
-  price environment variables. Public enrollment is already limited to
-  Supporter; the controlled migration preserves historical reconciliation
-  without branching feature access on displayed plan names.
+- Stripe subscription records grant membership only when their Price ID matches
+  one of the six current Supporter mappings or an explicitly retained legacy
+  reconciliation mapping.
 - Student, donation, unknown, archived, or otherwise unmapped Stripe products and prices must not grant a paid membership.
 
 ## One-Time Support
@@ -125,10 +129,12 @@ multi-select preference. The Customer Portal should continue to allow payment
 method and billing-address updates, invoices, cancellation, and switching among
 the approved Supporter amounts.
 
-All six current Supporter Price IDs grant the same `SUPPORTER` membership and
-feature set. The legacy Supporter, Therapist, and Practice Price mappings remain
-runtime inputs only for historical webhook reconciliation; they are not public
-catalog choices and must not authorize new Checkout.
+All six current amount-specific Supporter Price IDs grant the same `SUPPORTER`
+membership and feature set. The legacy Supporter mapping remains a runtime
+input only for pre-migration Supporter reconciliation; it is not a public
+catalog choice and must not authorize new Checkout. Legacy Therapist and
+Practice mappings separately reconcile existing professional subscriptions
+until their controlled retirement gates pass.
 
 New enrollment is serialized at Stripe, not only hidden in the UI. The server
 fully paginates a bounded customer Session inventory, recognizes only
