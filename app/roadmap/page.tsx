@@ -114,9 +114,9 @@ export default function RoadmapPage() {
             <Link href="/pricing">View memberships</Link>
           </Button>
           <Button asChild variant="outline">
-            <Link href="/pricing#donate">
+            <Link href="/pricing#one-time-support">
               <HeartHandshake className="mr-2 h-4 w-4" aria-hidden="true" />
-              Donate
+              One-time support
             </Link>
           </Button>
         </div>
@@ -189,12 +189,12 @@ export default function RoadmapPage() {
       <section aria-labelledby="support-roadmap-heading">
         <AppSurface
           title={<h2 id="support-roadmap-heading">Support the mission</h2>}
-          description="Memberships and donations help support the broader MassageLab mission. They do not determine feature order or guarantee delivery of a particular capability."
+          description="Memberships and one-time support help advance the broader MassageLab mission. They do not determine feature order or guarantee delivery of a particular capability."
           contentClassName="gap-4"
         >
           <div className="flex flex-wrap gap-3">
             <Button asChild variant="cta">
-              <Link href="/pricing#donate">Donate</Link>
+              <Link href="/pricing#one-time-support">One-time support</Link>
             </Button>
             <Button asChild variant="outline">
               <Link href="/pricing">View memberships</Link>

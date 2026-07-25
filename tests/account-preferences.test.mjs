@@ -8,6 +8,7 @@ import {
   canSyncAccountPreferences,
   choosePreferenceSource,
   removeForbiddenPreferenceFields,
+  resolveSupporterRoadmapInterestsAfterSave,
 } from "../lib/account-preferences.js"
 
 describe("Account preference helpers", () => {
@@ -95,6 +96,68 @@ describe("Account preference helpers", () => {
         quickActions: ["wellness_quick_log", "start_public_music"],
       },
     })
+  })
+
+  it("sanitizes supporter roadmap interests without replacing onboarding or other app settings", () => {
+    const payload = buildUserPreferencePayload({
+      appSettings: {
+        onboarding: {
+          useCases: ["learn_anatomy", "track_progress"],
+        },
+        musicVisualizer: { showClock: true },
+        supporterRoadmapInterests: [
+          "personal_wellness",
+          "therapist_tools",
+          "personal_wellness",
+          "unknown_interest",
+          "clientName",
+          null,
+          "professional_documentation",
+        ],
+      },
+    })
+
+    assert.deepEqual(payload.app_settings, {
+      onboarding: {
+        useCases: ["learn_anatomy", "track_progress"],
+      },
+      musicVisualizer: { showClock: true },
+      supporterRoadmapInterests: [
+        "personal_wellness",
+        "therapist_tools",
+        "professional_documentation",
+      ],
+    })
+  })
+
+  it("restores the persisted roadmap interests when an optimistic save fails", () => {
+    const previousInterests = ["personal_wellness", "therapist_tools"]
+
+    assert.deepEqual(resolveSupporterRoadmapInterestsAfterSave({
+      previousInterests,
+      responseInterests: ["practice_management"],
+      saveSucceeded: false,
+    }), previousInterests)
+
+    assert.deepEqual(resolveSupporterRoadmapInterestsAfterSave({
+      previousInterests,
+      responseInterests: ["practice_management", "unknown_interest"],
+      saveSucceeded: true,
+    }), ["practice_management"])
+
+    assert.deepEqual(resolveSupporterRoadmapInterestsAfterSave({
+      previousInterests,
+      responseInterests: [],
+      submittedInterests: ["practice_management"],
+      saveSucceeded: true,
+    }), [])
+
+    assert.deepEqual(resolveSupporterRoadmapInterestsAfterSave({
+      previousInterests,
+      responseInterests: "invalid-response-shape",
+      submittedInterests: ["personal_wellness", "practice_management"],
+      saveSucceeded: true,
+    }), ["personal_wellness", "practice_management"])
   })
 
   it("preserves namespaced Music visualizer preferences while stripping forbidden nested keys", () => {

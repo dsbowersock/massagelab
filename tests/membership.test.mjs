@@ -1,16 +1,17 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
-  COUPON_IDS,
   FEATURE_KEYS,
+  SUPPORTER_AMOUNT_CHOICES,
   STUDENT_ACCESS_MONTHS,
   buildCheckoutSessionPayload,
   buildEntitlements,
   buildStudentAccessState,
-  getCheckoutDiscountCouponId,
   isActiveSubscriptionStatus,
+  isPublicSupporterCheckoutSelection,
   resolveStripePriceId,
   sortMembershipSubscriptionsForDisplay,
+  supporterPriceEnvironmentKey,
 } from "../lib/membership.js"
 import * as membership from "../lib/membership.js"
 
@@ -74,7 +75,7 @@ describe("Membership and entitlement helpers", () => {
     assert.equal(isActiveSubscriptionStatus("incomplete"), false)
   })
 
-  it("does not unlock therapist documentation tools for supporter or student access", () => {
+  it("does not unlock professional features for an active supporter subscription or student access", () => {
     const supporter = buildEntitlements({
       subscriptions: [{ status: "active", membershipLevel: "SUPPORTER" }],
       now: new Date("2026-05-15T00:00:00.000Z"),
@@ -89,8 +90,14 @@ describe("Membership and entitlement helpers", () => {
 
     assert.equal(supporter.hasFeature(FEATURE_KEYS.chimerCustomColors), true)
     assert.equal(supporter.hasFeature(FEATURE_KEYS.premiumBackgrounds), true)
-    assert.equal(supporter.hasFeature(FEATURE_KEYS.therapistDocumentationTools), false)
-    assert.equal(supporter.hasFeature(FEATURE_KEYS.externalCalendarSync), false)
+    for (const featureKey of [
+      FEATURE_KEYS.therapistDocumentationTools,
+      FEATURE_KEYS.calendarFullScheduling,
+      FEATURE_KEYS.externalCalendarSync,
+      FEATURE_KEYS.calendarTeamScheduling,
+    ]) {
+      assert.equal(supporter.hasFeature(featureKey), false)
+    }
     assert.equal(student.level, "STUDENT")
     assert.equal(student.hasFeature(FEATURE_KEYS.therapistDocumentationTools), false)
     assert.equal(student.hasFeature(FEATURE_KEYS.externalCalendarSync), false)
@@ -114,45 +121,241 @@ describe("Membership and entitlement helpers", () => {
     assert.equal(expired.eligibleForTherapistDiscount, true)
   })
 
-  it("uses student upgrade discount before early access discount", () => {
-    assert.equal(
-      getCheckoutDiscountCouponId({ membershipLevel: "THERAPIST", isStudentTherapistUpgrade: true, earlyAccessEnabled: true }),
-      COUPON_IDS.studentToTherapist,
-    )
-    assert.equal(
-      getCheckoutDiscountCouponId({ membershipLevel: "SUPPORTER", isStudentTherapistUpgrade: false, earlyAccessEnabled: true }),
-      COUPON_IDS.earlyAccess,
-    )
-    assert.equal(
-      getCheckoutDiscountCouponId({ membershipLevel: "PRACTICE", isStudentTherapistUpgrade: false, earlyAccessEnabled: false }),
-      null,
-    )
-  })
-
-  it("resolves Stripe prices from explicit membership and billing interval env vars", () => {
+  it("resolves each public Supporter amount choice to its interval-specific Stripe Price", () => {
     const env = {
-      STRIPE_SUPPORTER_MONTHLY_PRICE_ID: "price_supporter_monthly",
-      STRIPE_THERAPIST_YEARLY_PRICE_ID: "price_therapist_yearly",
-    }
-
-    assert.equal(resolveStripePriceId({ membershipLevel: "SUPPORTER", interval: "month", env }), "price_supporter_monthly")
-    assert.equal(resolveStripePriceId({ membershipLevel: "THERAPIST", interval: "year", env }), "price_therapist_yearly")
-    assert.equal(resolveStripePriceId({ membershipLevel: "STUDENT", interval: "month", env }), null)
-  })
-
-  it("maps configured Stripe prices only to paid membership levels", () => {
-    const env = {
-      STRIPE_SUPPORTER_MONTHLY_PRICE_ID: "price_supporter_monthly",
+      STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: "price_supporter_1_monthly",
+      STRIPE_SUPPORTER_1_YEARLY_PRICE_ID: "price_supporter_1_yearly",
+      STRIPE_SUPPORTER_2_MONTHLY_PRICE_ID: "price_supporter_2_monthly",
+      STRIPE_SUPPORTER_2_YEARLY_PRICE_ID: "price_supporter_2_yearly",
+      STRIPE_SUPPORTER_5_MONTHLY_PRICE_ID: "price_supporter_5_monthly",
+      STRIPE_SUPPORTER_5_YEARLY_PRICE_ID: "price_supporter_5_yearly",
       STRIPE_THERAPIST_YEARLY_PRICE_ID: "price_therapist_yearly",
       STRIPE_PRACTICE_MONTHLY_PRICE_ID: "price_practice_monthly",
-      STRIPE_STUDENT_MONTHLY_PRICE_ID: "price_student_monthly",
+    }
+
+    assert.deepEqual(SUPPORTER_AMOUNT_CHOICES, [
+      { id: "support-1", monthAmountCents: 100, yearAmountCents: 1000 },
+      { id: "support-2", monthAmountCents: 200, yearAmountCents: 2000 },
+      { id: "support-5", monthAmountCents: 500, yearAmountCents: 5000 },
+    ])
+    assert.equal(
+      supporterPriceEnvironmentKey("support-2", "year"),
+      "STRIPE_SUPPORTER_2_YEARLY_PRICE_ID",
+    )
+
+    for (const choice of SUPPORTER_AMOUNT_CHOICES) {
+      const suffix = choice.id.replace("support-", "")
+      for (const interval of ["month", "year"]) {
+        const priceId = `price_supporter_${suffix}_${interval === "month" ? "monthly" : "yearly"}`
+        assert.equal(resolveStripePriceId({
+          membershipLevel: "SUPPORTER",
+          supporterAmountChoiceId: choice.id,
+          interval,
+          env,
+        }), priceId)
+        assert.equal(membership.resolveStripePriceMembershipLevel({ priceId, env }), "SUPPORTER")
+      }
+    }
+
+    assert.equal(resolveStripePriceId({ membershipLevel: "THERAPIST", interval: "year", env }), null)
+    assert.equal(resolveStripePriceId({ membershipLevel: "PRACTICE", interval: "month", env }), null)
+    assert.equal(resolveStripePriceId({ membershipLevel: "SUPPORTER", supporterAmountChoiceId: "support-9", interval: "month", env }), null)
+  })
+
+  it("accepts only Supporter amount choices with a supported Checkout interval", () => {
+    for (const interval of ["month", "year"]) {
+      assert.equal(isPublicSupporterCheckoutSelection({
+        membershipLevel: "SUPPORTER",
+        supporterAmountChoiceId: "support-1",
+        interval,
+      }), true)
+    }
+
+    for (const interval of [undefined, "", "week", "monthly"]) {
+      assert.equal(isPublicSupporterCheckoutSelection({
+        membershipLevel: "SUPPORTER",
+        supporterAmountChoiceId: "support-1",
+        interval,
+      }), false)
+    }
+
+    assert.equal(isPublicSupporterCheckoutSelection({
+      membershipLevel: "THERAPIST",
+      supporterAmountChoiceId: "support-1",
+      interval: "month",
+    }), false)
+    assert.equal(isPublicSupporterCheckoutSelection({
+      membershipLevel: "PRACTICE",
+      supporterAmountChoiceId: "support-5",
+      interval: "year",
+    }), false)
+  })
+
+  it("blocks new Checkout for every relevant or canceling persisted subscription", () => {
+    assert.equal(typeof membership.hasSubscriptionBlockingNewCheckout, "function")
+
+    for (const subscription of [
+      { status: "active", membershipLevel: "SUPPORTER" },
+      { status: "trialing", membershipLevel: "SUPPORTER" },
+      { status: "past_due", membershipLevel: "SUPPORTER" },
+      { status: "unpaid", membershipLevel: "SUPPORTER" },
+      { status: "paused", membershipLevel: "SUPPORTER" },
+      { status: "incomplete", membershipLevel: "SUPPORTER" },
+      { status: "active", cancelAtPeriodEnd: true, membershipLevel: "SUPPORTER" },
+    ]) {
+      assert.equal(membership.hasSubscriptionBlockingNewCheckout([subscription]), true)
+      assert.equal(
+        membership.resolveMembershipPricingMode({
+          signedIn: true,
+          subscriptions: [subscription],
+        }),
+        "portal",
+      )
+    }
+
+    assert.equal(
+      membership.hasSubscriptionBlockingNewCheckout([
+        { status: "canceled", cancelAtPeriodEnd: true, membershipLevel: "SUPPORTER" },
+        // Raw Stripe snake_case is intentional: terminal status makes this
+        // stale cancellation flag non-blocking without normalizing the field.
+        { status: "incomplete_expired", cancel_at_period_end: true, membershipLevel: "SUPPORTER" },
+      ]),
+      false,
+    )
+    for (const status of ["canceled", "incomplete_expired"]) {
+      assert.equal(
+        membership.resolveMembershipPricingMode({
+          signedIn: true,
+          subscriptions: [{ status, membershipLevel: "SUPPORTER" }],
+        }),
+        "checkout",
+        status,
+      )
+    }
+    assert.equal(
+      membership.resolveMembershipPricingMode({ signedIn: false, subscriptions: [] }),
+      "auth",
+    )
+  })
+
+  it("normalizes a null subscription collection and fails closed for unrecognized persisted states", () => {
+    assert.equal(membership.hasSubscriptionBlockingNewCheckout(null), false)
+
+    for (const subscription of [
+      {},
+      { status: "" },
+      { status: "future_stripe_status" },
+      { status: "future_stripe_status", cancelAtPeriodEnd: true },
+    ]) {
+      assert.equal(
+        membership.hasSubscriptionBlockingNewCheckout([subscription]),
+        true,
+      )
+    }
+  })
+
+  it("routes historical Therapist and Practice subscribers to billing management", () => {
+    for (const membershipLevel of ["THERAPIST", "PRACTICE"]) {
+      assert.equal(
+        membership.resolveMembershipPricingMode({
+          signedIn: true,
+          subscriptions: [{ status: "active", membershipLevel }],
+        }),
+        "portal",
+      )
+    }
+  })
+
+  it("loads pricing membership status with narrow Customer and subscription queries", async () => {
+    const queries = []
+    const subscriptions = [
+      {
+        status: "active",
+        membershipLevel: "SUPPORTER",
+        currentPeriodEnd: new Date("2026-08-24T00:00:00.000Z"),
+        cancelAtPeriodEnd: false,
+      },
+      {
+        status: "canceled",
+        membershipLevel: "PRACTICE",
+        currentPeriodEnd: new Date("2026-08-24T00:00:00.000Z"),
+        cancelAtPeriodEnd: true,
+      },
+    ]
+    const prismaClient = {
+      stripeCustomer: {
+        findUnique: async (args) => {
+          queries.push(args)
+          return { id: "stripe_customer_123" }
+        },
+      },
+      membershipSubscription: {
+        findMany: async (args) => {
+          queries.push(args)
+          return subscriptions
+        },
+      },
+    }
+
+    const result = await membership.getUserMembershipPricingStatus(
+      prismaClient,
+      "user_123",
+      new Date("2026-07-24T00:00:00.000Z"),
+    )
+
+    assert.deepEqual(queries, [
+      {
+        where: { userId: "user_123" },
+        select: { id: true },
+      },
+      {
+        where: { userId: "user_123" },
+        select: {
+          status: true,
+          membershipLevel: true,
+          currentPeriodEnd: true,
+          cancelAtPeriodEnd: true,
+        },
+      },
+    ])
+    assert.deepEqual(result, {
+      stripeCustomer: { id: "stripe_customer_123" },
+      subscriptions,
+      activeMembershipLevel: "SUPPORTER",
+    })
+  })
+
+  it("does not treat an ended active subscription as the current pricing level", async () => {
+    const now = new Date("2026-07-24T00:00:00.000Z")
+    const subscriptions = [{
+      status: "active",
+      membershipLevel: "SUPPORTER",
+      currentPeriodEnd: now,
+      cancelAtPeriodEnd: false,
+    }]
+    const result = await membership.getUserMembershipPricingStatus({
+      stripeCustomer: {
+        findUnique: async () => ({ id: "stripe_customer_123" }),
+      },
+      membershipSubscription: {
+        findMany: async () => subscriptions,
+      },
+    }, "user_123", now)
+
+    assert.deepEqual(result, {
+      stripeCustomer: { id: "stripe_customer_123" },
+      subscriptions,
+      activeMembershipLevel: null,
+    })
+  })
+
+  it("keeps historical Therapist and Practice Price normalization readable outside the public catalog", () => {
+    const env = {
+      STRIPE_THERAPIST_YEARLY_PRICE_ID: "price_therapist_yearly",
+      STRIPE_PRACTICE_MONTHLY_PRICE_ID: "price_practice_monthly",
     }
 
     assert.equal(typeof membership.resolveStripePriceMembershipLevel, "function")
-    assert.equal(
-      membership.resolveStripePriceMembershipLevel({ priceId: "price_supporter_monthly", env }),
-      "SUPPORTER",
-    )
     assert.equal(
       membership.resolveStripePriceMembershipLevel({ priceId: "price_therapist_yearly", env }),
       "THERAPIST",
@@ -161,7 +364,6 @@ describe("Membership and entitlement helpers", () => {
       membership.resolveStripePriceMembershipLevel({ priceId: "price_practice_monthly", env }),
       "PRACTICE",
     )
-    assert.equal(membership.resolveStripePriceMembershipLevel({ priceId: "price_student_monthly", env }), null)
     assert.equal(membership.resolveStripePriceMembershipLevel({ priceId: "price_unknown", env }), null)
   })
 
@@ -173,7 +375,7 @@ describe("Membership and entitlement helpers", () => {
       membershipLevel: "THERAPIST",
       successUrl: "https://massagelab.app/account?checkout=success",
       cancelUrl: "https://massagelab.app/account?checkout=cancelled",
-      couponId: COUPON_IDS.earlyAccess,
+      couponId: "coupon_generic_test",
     })
 
     assert.deepEqual(payload, {
@@ -188,7 +390,7 @@ describe("Membership and entitlement helpers", () => {
       "metadata[membershipLevel]": "THERAPIST",
       "subscription_data[metadata][userId]": "user_123",
       "subscription_data[metadata][membershipLevel]": "THERAPIST",
-      "discounts[0][coupon]": COUPON_IDS.earlyAccess,
+      "discounts[0][coupon]": "coupon_generic_test",
     })
   })
 

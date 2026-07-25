@@ -3,6 +3,8 @@ import { describe, it } from "node:test"
 import {
   ONBOARDING_VERSION,
   buildOnboardingPreference,
+  normalizeSupporterRoadmapInterests,
+  supporterRoadmapInterestOptions,
   resolveExplicitOnboardingHomeToolKeys,
   resolveExplicitOnboardingQuickActionKeys,
   resolveOnboardingHomeToolKeys,
@@ -11,6 +13,76 @@ import {
 } from "../lib/onboarding-preferences.js"
 
 describe("Onboarding preference helpers", () => {
+  it("deep-freezes supporter roadmap options and keeps their IDs aligned with normalization", () => {
+    const expectedIds = [
+      "personal_wellness",
+      "backgrounds_and_sound",
+      "therapist_tools",
+      "practice_management",
+      "anatomy_and_education",
+      "professional_documentation",
+    ]
+
+    assert.equal(Object.isFrozen(supporterRoadmapInterestOptions), true)
+    assert.equal(
+      supporterRoadmapInterestOptions.every((option) => Object.isFrozen(option)),
+      true,
+    )
+    assert.deepEqual(
+      supporterRoadmapInterestOptions.map((option) => option.id),
+      expectedIds,
+    )
+    assert.deepEqual(normalizeSupporterRoadmapInterests(expectedIds), expectedIds)
+
+    assert.throws(() => {
+      supporterRoadmapInterestOptions[0].id = "mutated_interest"
+    }, TypeError)
+    assert.equal(supporterRoadmapInterestOptions[0].id, expectedIds[0])
+  })
+
+  it("keeps only approved supporter roadmap interests in first-seen order", () => {
+    assert.deepEqual(normalizeSupporterRoadmapInterests([
+      "professional_documentation",
+      "therapist_tools",
+      "professional_documentation",
+      "unknown_interest",
+      "clientName",
+      42,
+      // Only plain string IDs are accepted; an object containing a valid ID
+      // must not become an alternate input shape for this privacy-safe signal.
+      { interest: "practice_management" },
+      "personal_wellness",
+      "anatomy_and_education",
+      "backgrounds_and_sound",
+    ]), [
+      "professional_documentation",
+      "therapist_tools",
+      "personal_wellness",
+      "anatomy_and_education",
+      "backgrounds_and_sound",
+    ])
+  })
+
+  it("preserves append-then-normalize toggle order without duplicates", () => {
+    const selected = normalizeSupporterRoadmapInterests([
+      "therapist_tools",
+      "personal_wellness",
+    ])
+
+    assert.deepEqual(
+      normalizeSupporterRoadmapInterests([
+        ...selected,
+        "backgrounds_and_sound",
+        "therapist_tools",
+      ]),
+      [
+        "therapist_tools",
+        "personal_wellness",
+        "backgrounds_and_sound",
+      ],
+    )
+  })
+
   it("builds a constrained therapist onboarding payload", () => {
     const payload = buildOnboardingPreference({
       primaryRole: "therapist",

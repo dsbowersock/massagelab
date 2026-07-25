@@ -18,13 +18,14 @@ import { AccountSettingsShell } from "@/app/account/account-settings-shell"
 import { PreferenceSync } from "@/app/account/preference-sync"
 import { SecurityPanel } from "@/app/account/security/security-panel"
 import { SignOutButton } from "@/app/account/sign-out-button"
+import { SupporterInterestsPanel } from "@/app/account/supporter-interests-panel"
 import { BackgroundCommercePanel } from "@/components/account/BackgroundCommercePanel"
 import { accountPageGroups, accountPageTabs, formatAccountDate, selectAccountTab } from "@/lib/account-page"
 import { normalizeSessionRoleAssignments } from "@/lib/account-role-assignments"
 import { getAccountSurfaceData } from "@/lib/account-surface-data"
 import { getLegalDocumentByKey, legalDocumentAcceptanceId } from "@/lib/legal-documents"
 import { US_MASSAGE_JURISDICTIONS } from "@/lib/license-verification"
-import { FEATURE_KEYS } from "@/lib/membership"
+import { FEATURE_KEYS, resolveMembershipPricingMode } from "@/lib/membership"
 import type { AccountRole, VerificationStatus } from "@/lib/domain-types"
 import { cn } from "@/lib/utils"
 import {
@@ -612,7 +613,13 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
   const data = await getAccountSurfaceData("membership", userId, sessionUser)
   const membershipSummary = data.membershipSummary
   const canUseChimerCustomColors = membershipSummary.entitlements.features.includes(FEATURE_KEYS.chimerCustomColors)
-  const canOpenBillingPortal = Boolean(membershipSummary.stripeCustomer && membershipSummary.subscriptions.length > 0)
+  const subscriptionPricingMode = resolveMembershipPricingMode({
+    signedIn: true,
+    subscriptions: membershipSummary.subscriptions,
+  })
+  // A stored billing profile keeps invoices and payment management reachable
+  // even when terminal subscription history returns pricing to Checkout mode.
+  const canOpenBillingPortal = Boolean(membershipSummary.stripeCustomer)
 
   return (
     <TabsContent value="membership" className="space-y-5">
@@ -642,11 +649,14 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
         </CardContent>
       </Card>
 
+      <SupporterInterestsPanel />
+
       <div id="membership-pricing">
         <MembershipPricingCards
           catalog={data.pricingCatalog}
           activeMembershipLevel={membershipSummary.entitlements.paidLevel}
-          mode="checkout"
+          mode={subscriptionPricingMode}
+          portalActionAvailable={canOpenBillingPortal}
         />
       </div>
 
@@ -686,6 +696,11 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
             {!canOpenBillingPortal && membershipSummary.subscriptions.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 You do not have a paid subscription yet.
+              </p>
+            ) : null}
+            {!canOpenBillingPortal && membershipSummary.subscriptions.length > 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Billing management is temporarily unavailable. Contact support if you need help with an existing membership.
               </p>
             ) : null}
           </div>
@@ -986,6 +1001,7 @@ function accountNotice({
 function billingMessage(code: string) {
   if (code === "unsupported-plan") return "That membership option is not available yet."
   if (code === "price-not-configured") return "That membership option is not available yet."
+  if (code === "existing-subscription") return "Use Manage subscription to change your current membership in the Customer Portal."
   if (code === "billing-terms-required") return "Accept the membership billing and refund terms before starting checkout."
   if (code === "account-not-found") return "The signed-in account could not be found."
   if (code === "checkout-error") return "We could not open checkout right now. Please try again or contact support if this continues."

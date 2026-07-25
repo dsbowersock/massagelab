@@ -3,12 +3,18 @@ import Link from "next/link"
 import { HeartHandshake, ShieldCheck, Sparkles } from "lucide-react"
 import { getCurrentSession } from "@/auth"
 import { DONATION_OPTIONS } from "@/lib/donations"
+import {
+  getUserMembershipPricingStatus,
+  resolveMembershipPricingMode,
+} from "@/lib/membership"
 import { getMembershipPricingCatalog } from "@/lib/membership-pricing"
+import { prisma } from "@/lib/prisma"
 import { MembershipPricingCards } from "@/components/membership/pricing-cards"
 import { AppNotice, AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { MetalAttentionButton } from "@/components/ui/metal-attention-button"
 import { createPublicPageMetadata } from "@/lib/seo"
+import { safeErrorCode } from "@/lib/safe-error-code"
 
 export const metadata = createPublicPageMetadata("/pricing")
 
@@ -24,24 +30,43 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
     getCurrentSession(),
   ])
   const params = await searchParams
-  const donationNotice = pricingDonationNotice(params?.donation)
+  const oneTimeSupportNotice = pricingOneTimeSupportNotice(params?.donation)
   const signedIn = Boolean(session?.user?.id)
+  let membershipStatus: Awaited<ReturnType<typeof getUserMembershipPricingStatus>> | null = null
+  let membershipStatusUnavailable = false
+  if (session?.user?.id) {
+    try {
+      membershipStatus = await getUserMembershipPricingStatus(prisma, session.user.id)
+    } catch (error) {
+      membershipStatusUnavailable = true
+      console.error("Unable to load membership pricing status", {
+        code: safeErrorCode(error),
+      })
+    }
+  }
+  // Unknown authenticated subscription state must never expose new Checkout.
+  const pricingMode = membershipStatusUnavailable
+    ? "portal"
+    : resolveMembershipPricingMode({
+        signedIn,
+        subscriptions: membershipStatus?.subscriptions ?? [],
+      })
 
   return (
     <AppPageShell title="Pricing">
-        {donationNotice ? (
+        {oneTimeSupportNotice ? (
           <AppNotice
-            title={donationNotice.title}
-            description={donationNotice.description}
-            tone={donationNotice.tone}
+            title={oneTimeSupportNotice.title}
+            description={oneTimeSupportNotice.description}
+            tone={oneTimeSupportNotice.tone}
           />
         ) : null}
 
         <AppSurface
-          title="Memberships and donations fund the alpha without ads"
+          title="Memberships and one-time support fund the alpha without ads"
           description={
             <>
-                Basic Chimer and the local-first alpha tools remain available. Paid memberships currently unlock the features listed below and help fund careful work toward account-backed, compliance-ready features.
+              Basic Chimer and the local-first alpha tools remain available. The Supporter membership unlocks the listed features and helps fund careful work toward account-backed, compliance-ready features.
             </>
           }
           icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}
@@ -57,11 +82,16 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
               </Button>
         </AppSurface>
 
-        <MembershipPricingCards catalog={catalog} mode={signedIn ? "checkout" : "auth"} />
+        <MembershipPricingCards
+          catalog={catalog}
+          activeMembershipLevel={membershipStatus?.activeMembershipLevel}
+          mode={pricingMode}
+          portalActionAvailable={Boolean(membershipStatus?.stripeCustomer)}
+        />
 
         <AppSurface
-          id="donate"
-          title="One-time project support"
+          id="one-time-support"
+          title="One-time support"
           description={
             <>
               Use this path if you want to support MassageLab without starting a subscription.
@@ -71,7 +101,7 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
           contentClassName="gap-4"
         >
           <p className="text-sm text-muted-foreground">
-            Donations are one-time Stripe payments. They do not create a membership, unlock paid features, or replace the subscription options above.
+            One-time support does not purchase goods or services, create a membership, or unlock features. It is not a charitable donation and is not tax-deductible.
           </p>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {DONATION_OPTIONS.map((option, index) => (
@@ -100,7 +130,7 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
           title="How MassageLab is funded"
           description={
             <>
-              MassageLab does not sell user data and does not use advertising to fund the project. Memberships and donations support product development, secure infrastructure, compliance review, BAA/vendor work, audit controls, and the operating costs needed before hosted PHI storage can responsibly exist.
+              MassageLab does not sell user data and does not use advertising to fund the project. Memberships and one-time support fund product development, secure infrastructure, compliance review, BAA/vendor work, audit controls, and the operating costs needed before hosted PHI storage can responsibly exist.
             </>
           }
           className={appCalloutClassName}
@@ -121,14 +151,15 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
 }
 
 /**
- * Maps donation Checkout return codes from `/api/billing/donation` to pricing-page notices.
+ * Maps one-time support Checkout return codes from the compatibility route to
+ * pricing-page notices.
  * Supported codes are `thanks`, `cancelled`, `invalid-amount`, and `checkout-error`.
  */
-function pricingDonationNotice(code?: string) {
+function pricingOneTimeSupportNotice(code?: string) {
   if (code === "thanks") {
     return {
       tone: "accent" as const,
-      title: "Donation checkout completed",
+      title: "One-time support checkout completed",
       description: "Thank you for supporting MassageLab. Stripe will send the payment receipt when available.",
     }
   }
@@ -136,15 +167,15 @@ function pricingDonationNotice(code?: string) {
   if (code === "cancelled") {
     return {
       tone: "default" as const,
-      title: "Donation checkout cancelled",
-      description: "No donation payment was completed.",
+      title: "One-time support checkout cancelled",
+      description: "No one-time support payment was completed.",
     }
   }
 
   if (code === "invalid-amount") {
     return {
       tone: "destructive" as const,
-      title: "Donation amount unavailable",
+      title: "One-time support amount unavailable",
       description: "Choose one of the listed one-time support amounts.",
     }
   }
@@ -152,7 +183,7 @@ function pricingDonationNotice(code?: string) {
   if (code === "checkout-error") {
     return {
       tone: "destructive" as const,
-      title: "Donation checkout unavailable",
+      title: "One-time support checkout unavailable",
       description: "We could not open one-time support checkout right now. Please try again or contact support if this continues.",
     }
   }

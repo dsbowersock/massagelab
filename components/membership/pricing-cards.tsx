@@ -6,23 +6,13 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { MetalAttentionButton } from "@/components/ui/metal-attention-button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import type {
+  MembershipPriceCatalog,
+  MembershipPriceValue as MembershipPrice,
+} from "@/lib/account-surface-data"
 import { getLegalDocumentByKey, legalDocumentAcceptanceId } from "@/lib/legal-documents"
+import { resolveMembershipPriceForInterval } from "@/lib/membership-pricing"
 import { cn } from "@/lib/utils"
-
-type MembershipPrice = {
-  membershipLevel: string
-  interval: string
-  priceId: string | null
-  displayPrice: string
-  displayInterval: string
-  isConfigured: boolean
-  isLookupAvailable: boolean
-  yearlySavings: {
-    displayAmount: string
-    description: string
-    percent: number
-  } | null
-}
 
 type MembershipPlan = {
   membershipLevel: string
@@ -31,16 +21,16 @@ type MembershipPlan = {
   description: string
   currentFeatures: string[]
   roadmapNotes: string[]
-  prices: Record<string, MembershipPrice>
+  amountChoices: Array<{
+    id: string
+    monthAmountCents: number
+    yearAmountCents: number
+    prices: MembershipPriceCatalog
+  }>
 }
 
 type MembershipPricingCatalog = {
   defaultInterval: string
-  earlyAccess: {
-    enabled: boolean
-    label: string
-    description: string
-  }
   intervals: ReadonlyArray<{
     id: string
     label: string
@@ -52,7 +42,8 @@ type MembershipPricingCatalog = {
 type MembershipPricingCardsProps = {
   catalog: MembershipPricingCatalog
   activeMembershipLevel?: string | null
-  mode: "checkout" | "auth"
+  mode: "checkout" | "auth" | "portal"
+  portalActionAvailable?: boolean
   className?: string
 }
 
@@ -60,6 +51,7 @@ export function MembershipPricingCards({
   catalog,
   activeMembershipLevel = null,
   mode,
+  portalActionAvailable = true,
   className,
 }: MembershipPricingCardsProps) {
   return (
@@ -69,17 +61,11 @@ export function MembershipPricingCards({
           <BadgeDollarSign className="h-5 w-5 text-brand-orange" aria-hidden="true" />
         </div>
         <div className="min-w-0 space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 id="membership-pricing-heading" className="text-base font-semibold text-foreground">
-              Membership pricing
-            </h2>
-            <Badge variant="outline" className="border-brand-orange/40 text-brand-orange">
-              {catalog.earlyAccess.label}
-            </Badge>
-          </div>
+          <h2 id="membership-pricing-heading" className="text-base font-semibold text-foreground">
+            Membership pricing
+          </h2>
           <p className="text-sm text-muted-foreground">
-            Current benefits are available now. Roadmap items are funding goals and are not active subscription features yet.{" "}
-            {catalog.earlyAccess.description}
+            Current benefits are available now. Roadmap items are funding goals and are not active subscription features yet.
           </p>
         </div>
       </div>
@@ -100,14 +86,15 @@ export function MembershipPricingCards({
 
         {catalog.intervals.map((interval) => (
           <TabsContent key={interval.id} value={interval.id} className="mt-0">
-            <div className="grid gap-4 lg:grid-cols-3">
+            <div className="grid gap-4">
               {catalog.plans.map((plan) => (
                 <PlanCard
                   key={`${plan.membershipLevel}-${interval.id}`}
                   plan={plan}
-                  price={plan.prices[interval.id] ?? plan.prices.year ?? plan.prices.month}
+                  interval={interval.id}
                   active={activeMembershipLevel === plan.membershipLevel}
                   mode={mode}
+                  portalActionAvailable={portalActionAvailable}
                 />
               ))}
             </div>
@@ -120,16 +107,35 @@ export function MembershipPricingCards({
 
 function PlanCard({
   plan,
-  price,
+  interval,
   active,
   mode,
+  portalActionAvailable,
 }: {
   plan: MembershipPlan
-  price: MembershipPrice
+  interval: string
   active: boolean
-  mode: "checkout" | "auth"
+  mode: "checkout" | "auth" | "portal"
+  portalActionAvailable: boolean
 }) {
-  const priceReady = price.isConfigured && price.isLookupAvailable
+  const resolvedAmountChoices = plan.amountChoices.flatMap((choice) => {
+    const price = resolveMembershipPriceForInterval(choice, interval)
+
+    return price
+      ? [{ choiceId: choice.id, price }]
+      : []
+  })
+  // isConfigured means an environment catalog slot contains a Price ID;
+  // isLookupAvailable means Stripe retrieval also verified its amount. Only
+  // lookup-available choices may be advertised before authentication or as
+  // Portal switching targets. Checkout still renders configured lookup
+  // failures so the user sees the choice disabled instead of silently missing.
+  const availableAmountChoices = resolvedAmountChoices.filter(
+    ({ price }) => price.isLookupAvailable,
+  )
+  const displayedAmountChoices = mode === "auth"
+    ? availableAmountChoices
+    : resolvedAmountChoices
 
   return (
     <Card className={cn(
@@ -142,34 +148,17 @@ function PlanCard({
           <Badge variant="outline" className="border-border/80 text-muted-foreground">
             {plan.eyebrow}
           </Badge>
-          {active ? (
+          {mode === "portal" && active ? (
+            <Badge className="bg-primary text-primary-foreground">Current member</Badge>
+          ) : mode === "portal" ? (
+            <Badge variant="outline">Manage in portal</Badge>
+          ) : active ? (
             <Badge className="bg-primary text-primary-foreground">Current plan</Badge>
-          ) : null}
-          {price.yearlySavings ? (
-            <Badge variant="outline" className="border-brand-orange/50 text-brand-orange">
-              Save {price.yearlySavings.displayAmount}
-            </Badge>
           ) : null}
         </div>
         <div className="space-y-1">
           <CardTitle className="text-xl">{plan.name}</CardTitle>
           <CardDescription>{plan.description}</CardDescription>
-        </div>
-        <div className="space-y-1">
-          <div className="flex items-end gap-1">
-            <span className={cn("text-3xl font-semibold tracking-normal", !priceReady && "text-lg")}>
-              {price.displayPrice}
-            </span>
-            {priceReady ? (
-              <span className="pb-1 text-sm text-muted-foreground">{price.displayInterval}</span>
-            ) : null}
-          </div>
-          {price.yearlySavings ? (
-            <p className="text-xs text-brand-orange">{price.yearlySavings.description}</p>
-          ) : null}
-          {price.isConfigured && !price.isLookupAvailable ? (
-            <p className="text-xs text-muted-foreground">This price is temporarily unavailable.</p>
-          ) : null}
         </div>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-4">
@@ -185,12 +174,73 @@ function PlanCard({
             items={plan.roadmapNotes}
           />
         </div>
-        <div className="mt-auto">
-          <PlanAction plan={plan} price={price} mode={mode} />
-        </div>
+        {/* Existing members keep Portal access even when public pricing is unavailable. */}
+        {mode === "portal" && portalActionAvailable ? (
+          <div className="mt-auto space-y-3">
+            {availableAmountChoices.length > 0 ? (
+              <div className="grid gap-3 sm:grid-cols-3">
+                {availableAmountChoices.map(({ choiceId, price }) => (
+                  <div
+                    key={choiceId}
+                    data-membership-portal-amount-choice={choiceId}
+                    className="rounded-md border border-border/80 bg-background/70 p-3 text-center"
+                  >
+                    <span className="inline-flex items-baseline justify-center gap-1">
+                      <span className="text-base font-semibold text-foreground">{price.displayPrice}</span>
+                      <span className="text-xs text-muted-foreground">{price.displayInterval}</span>
+                    </span>
+                    <YearlySavings price={price} />
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            <p className="text-sm text-muted-foreground">
+              Use the Customer Portal to switch among approved Supporter amounts, update billing details, review invoices, or cancel.
+            </p>
+            <form action="/api/billing/portal" method="post">
+              <MetalAttentionButton
+                type="submit"
+                variant="attention"
+                className="w-full"
+                metalFullWidth
+              >
+                Manage or change support amount
+              </MetalAttentionButton>
+            </form>
+          </div>
+        ) : mode === "portal" ? (
+          <p className="mt-auto text-sm text-muted-foreground">
+            Billing management is temporarily unavailable. Contact support if you need help with an existing membership.
+          </p>
+        ) : displayedAmountChoices.length === 0 ? (
+          <p className="mt-auto text-sm text-muted-foreground">
+            Membership pricing is temporarily unavailable. Please try again later.
+          </p>
+        ) : (
+          <div className="mt-auto grid gap-3 sm:grid-cols-3">
+            {displayedAmountChoices.map(({ choiceId, price }) => (
+              <SupporterAmountChoice
+                key={choiceId}
+                plan={plan}
+                choiceId={choiceId}
+                price={price}
+                mode={mode}
+              />
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   )
+}
+
+/** Displays the catalog-authored annual comparison wherever a yearly price appears. */
+function YearlySavings({ price }: { price: MembershipPrice }) {
+  return price.yearlySavings ? (
+    <span className="block text-xs text-muted-foreground">
+      {price.yearlySavings.description}
+    </span>
+  ) : null
 }
 
 function FeatureGroup({
@@ -222,26 +272,54 @@ function FeatureGroup({
   )
 }
 
-function PlanAction({
+/**
+ * Renders one public Supporter amount action. Auth mode receives only
+ * lookup-available Prices and links to sign-in. Checkout distinguishes missing
+ * catalog configuration from a configured Price whose Stripe lookup failed,
+ * rendering the latter choice but disabling its submission. Portal mode is
+ * handled by PlanCard and never reaches this component.
+ */
+function SupporterAmountChoice({
   plan,
+  choiceId,
   price,
   mode,
 }: {
   plan: MembershipPlan
+  choiceId: string
   price: MembershipPrice
   mode: "checkout" | "auth"
 }) {
   if (mode === "auth") {
+    const callbackParams = new URLSearchParams({
+      supporterAmountChoiceId: choiceId,
+      interval: price.interval,
+    })
+    const callbackUrl = `/pricing?${callbackParams.toString()}`
+
     return (
       <MetalAttentionButton asChild variant="attention" className="w-full" metalFullWidth>
-        <Link href="/login?callbackUrl=%2Fpricing">Get Started</Link>
+        <Link
+          href={`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`}
+          data-membership-auth-amount-choice={choiceId}
+        >
+          <span>
+            Choose {price.displayPrice}
+            <YearlySavings price={price} />
+          </span>
+        </Link>
       </MetalAttentionButton>
     )
   }
 
+  // No configured Price ID means there is no safe Checkout payload to render.
   if (!price.isConfigured) {
     return (
-      <Button disabled className="w-full">
+      <Button
+        disabled
+        data-membership-checkout-amount-choice={choiceId}
+        className="w-full"
+      >
         Pricing temporarily unavailable
       </Button>
     )
@@ -251,8 +329,14 @@ function PlanAction({
   const billingTermsId = legalDocumentAcceptanceId(billingTerms)
 
   return (
-    <form action="/api/billing/checkout" method="post" className="space-y-3">
+    <form
+      action="/api/billing/checkout"
+      method="post"
+      data-membership-checkout-amount-choice={choiceId}
+      className="space-y-3"
+    >
       <input type="hidden" name="membershipLevel" value={plan.membershipLevel} />
+      <input type="hidden" name="supporterAmountChoiceId" value={choiceId} />
       <input type="hidden" name="interval" value={price.interval} />
       <input type="hidden" name="acceptedLegalDocuments" value={billingTermsId} />
       <label className="flex gap-3 rounded-md border border-border/80 bg-background/70 p-3 text-xs text-muted-foreground">
@@ -270,9 +354,13 @@ function PlanAction({
         variant="attention"
         className="w-full"
         metalFullWidth
+        // A configured ID remains non-actionable until Stripe verifies its amount.
         disabled={!price.isLookupAvailable}
       >
-        Choose {plan.name}
+        <span>
+          Support with {price.displayPrice}
+          <YearlySavings price={price} />
+        </span>
       </MetalAttentionButton>
     </form>
   )

@@ -68,7 +68,7 @@ function createLoader(calls) {
     },
     async getPricingCatalog() {
       calls.push("getPricingCatalog")
-      return { plans: [], intervals: [], defaultInterval: "month", earlyAccess: { enabled: false } }
+      return { plans: [], intervals: [], defaultInterval: "month" }
     },
     getClinicalSyncReadiness() {
       calls.push("getClinicalSyncReadiness")

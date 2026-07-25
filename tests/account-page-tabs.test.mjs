@@ -2,6 +2,15 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import {
+  createCompiledModuleLoader,
+  createElement,
+  elementText,
+  findElement,
+  findElements,
+  passThroughElement,
+  renderFunctionComponents,
+} from "./helpers/compiled-module.mjs"
+import {
   accountPageGroups,
   accountPageNavigationItems,
   accountPageSectionIds,
@@ -11,6 +20,13 @@ import {
   getAccountTabHref,
   selectAccountTab,
 } from "../lib/account-page.js"
+import { resolveMembershipPricingMode } from "../lib/membership.js"
+
+const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
+const accountPageSource = await readFile(
+  new URL("../app/account/page.tsx", import.meta.url),
+  "utf8",
+)
 
 describe("Account page tab model", () => {
   it("groups existing account sections into stable account navigation without dropping current features", () => {
@@ -110,6 +126,39 @@ describe("Account page tab model", () => {
     assert.equal(formatAccountDate(new Date(2026, 4, 18, 23, 30)), "2026-05-18")
   })
 
+  it("keeps Account pricing and billing Portal actions independently gated", async () => {
+    const terminalWithPortal = await renderMembershipTab({
+      subscriptions: [subscription("canceled")],
+      stripeCustomer: { stripeCustomerId: "cus_123" },
+    })
+    const terminalPricing = membershipPricingProps(terminalWithPortal)
+    assert.equal(terminalPricing.mode, "checkout")
+    assert.equal(terminalPricing.portalActionAvailable, true)
+    assert.equal(billingPortalForms(terminalWithPortal).length, 1)
+
+    const blockingWithPortal = await renderMembershipTab({
+      subscriptions: [subscription("active")],
+      stripeCustomer: { stripeCustomerId: "cus_123" },
+    })
+    const blockingPricing = membershipPricingProps(blockingWithPortal)
+    assert.equal(blockingPricing.mode, "portal")
+    assert.equal(blockingPricing.portalActionAvailable, true)
+    assert.equal(billingPortalForms(blockingWithPortal).length, 1)
+
+    const terminalWithoutPortal = await renderMembershipTab({
+      subscriptions: [subscription("canceled")],
+      stripeCustomer: null,
+    })
+    const unavailablePricing = membershipPricingProps(terminalWithoutPortal)
+    assert.equal(unavailablePricing.mode, "checkout")
+    assert.equal(unavailablePricing.portalActionAvailable, false)
+    assert.equal(billingPortalForms(terminalWithoutPortal).length, 0)
+    assert.match(
+      elementText(terminalWithoutPortal),
+      /Billing management is temporarily unavailable\. Contact support/,
+    )
+  })
+
   it("filters account navigation by label, group, and description", () => {
     assert.deepEqual(
       filterAccountPageGroups("billing").flatMap((group) => group.items.map((item) => item.id)),
@@ -161,3 +210,145 @@ describe("Account page tab model", () => {
     assert.match(accountShell, /aria-label="Account shortcuts"/)
   })
 })
+
+/** Builds a minimal Supporter subscription fixture for one Stripe status. */
+function subscription(status) {
+  return {
+    id: `sub_${status}`,
+    status,
+    membershipLevel: "SUPPORTER",
+    currentPeriodEnd: null,
+    couponId: null,
+  }
+}
+
+/**
+ * Finds the pricing-card node, asserts its shared fixture props, and returns
+ * the complete props used for mode and Portal gating checks.
+ */
+function membershipPricingProps(tree) {
+  const pricingCards = findElement(
+    tree,
+    (element) => element.type === "membership-pricing-cards",
+  )
+  assert.ok(pricingCards)
+  assert.deepEqual(pricingCards.props.catalog, { id: "pricing-catalog" })
+  assert.equal(pricingCards.props.activeMembershipLevel, "SUPPORTER")
+  return pricingCards.props
+}
+
+/** Collects rendered POST forms that open the Stripe Billing Portal. */
+function billingPortalForms(tree) {
+  return findElements(
+    tree,
+    (element) => (
+      element.type === "form"
+      && element.props.action === "/api/billing/portal"
+      && element.props.method === "post"
+    ),
+  )
+}
+
+/**
+ * Executes the production MembershipTab function while replacing only its I/O
+ * and visual dependencies, so pricing and Portal gating remain behavioral.
+ */
+async function renderMembershipTab({
+  subscriptions,
+  stripeCustomer,
+}) {
+  const functionStart = accountPageSource.indexOf("async function MembershipTab")
+  assert.notEqual(
+    functionStart,
+    -1,
+    "Account page source must contain the MembershipTab function",
+  )
+  const functionEnd = accountPageSource.indexOf(
+    "\nasync function BackgroundCommerceTab",
+    functionStart,
+  )
+  assert.notEqual(
+    functionEnd,
+    -1,
+    "MembershipTab extraction must end at BackgroundCommerceTab",
+  )
+  assert.ok(
+    functionEnd > functionStart,
+    "MembershipTab extraction must end after its start marker",
+  )
+
+  const imports = `
+    import {
+      Button,
+      Card,
+      CardContent,
+      CardDescription,
+      CardHeader,
+      CardTitle,
+      CreditCard,
+      FEATURE_KEYS,
+      MembershipPricingCards,
+      StatusTile,
+      SupporterInterestsPanel,
+      TabPanelIntro,
+      TabsContent,
+      cn,
+      formatAccountDate,
+      formatMembershipLevel,
+      getAccountSurfaceData,
+      resolveMembershipPricingMode,
+      settingsInsetClassName,
+      settingsSurfaceClassName,
+    } from "test-dependencies"
+  `
+  const source = `${imports}\nexport ${accountPageSource.slice(functionStart, functionEnd)}`
+  const Div = passThroughElement("div")
+  const compiledMembershipTab = loadCompiledModule(source, "app/account/membership-tab.test.tsx", {
+    "react/jsx-runtime": {
+      Fragment: Symbol.for("account-membership-tab-test.fragment"),
+      jsx: createElement,
+      jsxs: createElement,
+    },
+    "test-dependencies": {
+      Button: passThroughElement("button"),
+      Card: Div,
+      CardContent: Div,
+      CardDescription: Div,
+      CardHeader: Div,
+      CardTitle: Div,
+      CreditCard: passThroughElement("credit-card"),
+      FEATURE_KEYS: { chimerCustomColors: "chimer_custom_colors" },
+      MembershipPricingCards: passThroughElement("membership-pricing-cards"),
+      StatusTile: passThroughElement("status-tile"),
+      SupporterInterestsPanel: passThroughElement("supporter-interests"),
+      TabPanelIntro: passThroughElement("tab-panel-intro"),
+      TabsContent: passThroughElement("tabs-content"),
+      cn: (...classes) => classes.filter(Boolean).join(" "),
+      formatAccountDate,
+      formatMembershipLevel: (level) => level,
+      getAccountSurfaceData: async () => ({
+        pricingCatalog: { id: "pricing-catalog" },
+        membershipSummary: {
+          entitlements: {
+            features: [],
+            level: "SUPPORTER",
+            paidLevel: "SUPPORTER",
+          },
+          stripeCustomer,
+          subscriptions,
+        },
+      }),
+      resolveMembershipPricingMode,
+      settingsInsetClassName: "settings-inset",
+      settingsSurfaceClassName: "settings-surface",
+    },
+  })
+
+  return renderFunctionComponents(await compiledMembershipTab.MembershipTab({
+    userId: "user_123",
+    sessionUser: {
+      email: "supporter@example.com",
+      name: "Supporter",
+    },
+  }))
+}
