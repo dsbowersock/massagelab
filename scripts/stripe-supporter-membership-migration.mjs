@@ -22,6 +22,11 @@ const TERMINAL_SUBSCRIPTION_STATUSES = new Set(["canceled", "incomplete_expired"
 // All inventory callers request 100 objects per page, so this last-resort cap
 // bounds any one complete scan to approximately 1,000,000 visited objects.
 const MAX_STRIPE_LIST_PAGES = 10_000
+// A managed catalog normally has six approved and six legacy Prices. Retain
+// up to 1,000 total configured/managed Prices so unusually duplicated
+// catalogs remain recoverable while a polluted Stripe account fails closed
+// before exhausting the migration process heap.
+export const MAX_MANAGED_PRICE_INVENTORY = 1_000
 const APPLY_RETRY_DELAYS_MS = Object.freeze([250, 500])
 const RECOVERABLE_APPLY_VERIFICATION_FAILURES = new Set([
   "supporter_product_mutation_unverified",
@@ -647,6 +652,14 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
     const pricesById = new Map(
       configuredPrices.map((candidate) => [candidate.id, candidate]),
     )
+    /** Retains a managed Price only while the bounded migration plan is safe. */
+    const retainManagedPrice = (candidate, productId) => {
+      if (priceProductId(candidate) !== productId) return
+      if (!pricesById.has(candidate.id) && pricesById.size >= MAX_MANAGED_PRICE_INVENTORY) {
+        throw new MigrationError(["managed_price_inventory_overflow"])
+      }
+      pricesById.set(candidate.id, candidate)
+    }
     // Stripe omits inactive Prices by default. Scan both states per managed
     // Product so duplicates and unexpected archived Prices still fail closed
     // without materializing unrelated account inventory.
@@ -660,9 +673,7 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
           expand: ["data.currency_options"],
         },
         (price) => {
-          if (priceProductId(price) === productId) {
-            pricesById.set(price.id, price)
-          }
+          retainManagedPrice(price, productId)
         },
       ))
     )))

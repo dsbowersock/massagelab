@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import { fileURLToPath } from "node:url"
 import {
+  MAX_MANAGED_PRICE_INVENTORY,
   MigrationError,
   formatMigrationFailureChecklist,
   formatMigrationChecklist,
@@ -1673,6 +1674,36 @@ describe("Supporter membership Stripe migration", () => {
       )
       assert.deepEqual(mutationCalls(fixture), [])
     }
+  })
+
+  it("fails closed before mutation when managed Price retention exceeds its documented ceiling", async () => {
+    const fixture = stripeFixture()
+    const overflowPriceId = "price_managed_inventory_overflow"
+    const additionalPrices = MAX_MANAGED_PRICE_INVENTORY - fixture.prices.size + 1
+    for (let index = 0; index < additionalPrices; index += 1) {
+      fixture.prices.set(
+        `${overflowPriceId}_${index}`,
+        price(`${overflowPriceId}_${index}`, "prod_supporter", 900, "month"),
+      )
+    }
+
+    await assert.rejects(
+      runSupporterMembershipMigration({
+        stripe: fixture.stripe,
+        mode: "apply",
+        env: migrationEnv(),
+      }),
+      (error) => {
+        assert.deepEqual(error.failureCodes, ["managed_price_inventory_overflow"])
+        assert.equal(
+          formatMigrationFailureChecklist(error),
+          "FAIL managed_price_inventory_overflow",
+        )
+        assert.doesNotMatch(formatMigrationFailureChecklist(error), new RegExp(overflowPriceId))
+        return true
+      },
+    )
+    assert.deepEqual(mutationCalls(fixture), [])
   })
 
   it("fails closed when portal preservation dependencies are disabled or account livemode differs", async () => {

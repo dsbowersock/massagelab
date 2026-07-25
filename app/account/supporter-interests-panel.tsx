@@ -32,6 +32,8 @@ export function SupporterInterestsPanel() {
   const persistedInterestsRef = useRef<string[]>([])
   const loadRequestRef = useRef(0)
   const saveRequestRef = useRef(0)
+  const queuedInterestsRef = useRef<string[] | null>(null)
+  const saveInFlightRef = useRef(false)
 
   /** Keeps state and the event-safe selection snapshot synchronized. */
   const replaceInterests = useCallback((nextInterests: string[]) => {
@@ -96,68 +98,92 @@ export function SupporterInterestsPanel() {
   }, [loadInterests])
 
   /**
-   * Applies selections optimistically, lets the newest save win, and rolls the
-   * latest failed request back to the last selection confirmed by the server.
+   * Serializes preference writes. Rapid toggles replace the queued snapshot,
+   * so a completed write may trigger at most one follow-up for the latest
+   * optimistic selection instead of allowing concurrent PUTs to race.
    */
-  async function saveInterests(nextInterests: string[]) {
-    const requestId = saveRequestRef.current + 1
-    saveRequestRef.current = requestId
+  async function flushQueuedInterests() {
+    const requestId = saveRequestRef.current
     const isCurrentRequest = () => saveRequestRef.current === requestId
-    const previousInterests = persistedInterestsRef.current
-    replaceInterests(nextInterests)
-    setIsSaving(true)
-    setMessage(null)
 
     try {
-      const response = await fetch("/api/account/preferences", {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          appSettings: {
-            supporterRoadmapInterests: nextInterests,
-          },
-        }),
-      })
+      while (queuedInterestsRef.current) {
+        const submittedInterests = queuedInterestsRef.current
+        queuedInterestsRef.current = null
+        const previousInterests = persistedInterestsRef.current
 
-      if (!response.ok) {
-        throw new Error("Unable to save supporter roadmap interests")
-      }
+        try {
+          const response = await fetch("/api/account/preferences", {
+            method: "PUT",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              appSettings: {
+                supporterRoadmapInterests: submittedInterests,
+              },
+            }),
+          })
 
-      const preferences = await response.json()
-      if (!isCurrentRequest()) {
-        return
+          if (!response.ok) {
+            throw new Error("Unable to save supporter roadmap interests")
+          }
+
+          const preferences = await response.json()
+          if (!isCurrentRequest()) return
+
+          const savedInterests = resolveSupporterRoadmapInterestsAfterSave({
+            previousInterests,
+            responseInterests: preferences?.appSettings?.supporterRoadmapInterests,
+            // A successful write is authoritative even if a proxy omits the
+            // saved array; the serialized final write owns the snapshot.
+            submittedInterests,
+            saveSucceeded: true,
+          })
+          persistedInterestsRef.current = savedInterests
+          if (queuedInterestsRef.current) continue
+
+          replaceInterests(savedInterests)
+          setMessage({
+            text: "Roadmap interests saved.",
+            variant: "success",
+          })
+        } catch (error) {
+          if (!isCurrentRequest()) return
+          console.error("SupporterInterestsPanel failed to save roadmap interests", error)
+          // A newer desired snapshot still has a chance to persist. Only the
+          // final failed write rolls visible state back to confirmed storage.
+          if (queuedInterestsRef.current) continue
+
+          replaceInterests(resolveSupporterRoadmapInterestsAfterSave({
+            previousInterests,
+          }))
+          setMessage({
+            text: "Could not save roadmap interests. Please try again.",
+            variant: "error",
+          })
+        }
       }
-      const savedInterests = resolveSupporterRoadmapInterestsAfterSave({
-        previousInterests,
-        responseInterests: preferences?.appSettings?.supporterRoadmapInterests,
-        // A successful write is authoritative even if a proxy or older API
-        // response omits the saved array; retain the submitted selection.
-        submittedInterests: nextInterests,
-        saveSucceeded: true,
-      })
-      persistedInterestsRef.current = savedInterests
-      replaceInterests(savedInterests)
-      setMessage({
-        text: "Roadmap interests saved.",
-        variant: "success",
-      })
-    } catch (error) {
-      if (!isCurrentRequest()) {
-        return
-      }
-      console.error("SupporterInterestsPanel failed to save roadmap interests", error)
-      replaceInterests(resolveSupporterRoadmapInterestsAfterSave({
-        previousInterests,
-      }))
-      setMessage({
-        text: "Could not save roadmap interests. Please try again.",
-        variant: "error",
-      })
     } finally {
-      if (isCurrentRequest()) {
+      saveInFlightRef.current = false
+      if (!isCurrentRequest()) return
+      if (queuedInterestsRef.current) {
+        saveInFlightRef.current = true
+        void flushQueuedInterests()
+      } else {
         setIsSaving(false)
       }
     }
+  }
+
+  /** Queues the latest optimistic selection while preserving one in-flight write. */
+  function saveInterests(nextInterests: string[]) {
+    replaceInterests(nextInterests)
+    queuedInterestsRef.current = nextInterests
+    setIsSaving(true)
+    setMessage(null)
+    if (saveInFlightRef.current) return
+
+    saveInFlightRef.current = true
+    void flushQueuedInterests()
   }
 
   function toggleInterest(interestId: string, checked: boolean) {
