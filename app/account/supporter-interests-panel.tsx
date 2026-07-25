@@ -7,6 +7,7 @@ import {
   supporterRoadmapInterestOptions,
 } from "@/lib/onboarding-preferences"
 import { resolveSupporterRoadmapInterestsAfterSave } from "@/lib/account-preferences"
+import { safeErrorCode } from "@/lib/safe-error-code"
 import { SettingsSurface } from "@/components/account/settings-surfaces"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -77,7 +78,10 @@ export function SupporterInterestsPanel() {
       if (!isCurrentRequest()) {
         return
       }
-      console.error("SupporterInterestsPanel failed to load roadmap interests", error)
+      console.error(
+        "SupporterInterestsPanel failed to load roadmap interests",
+        { code: safeErrorCode(error) },
+      )
       setMessage({
         text: "Could not load roadmap interests. Please try again.",
         variant: "error",
@@ -148,7 +152,10 @@ export function SupporterInterestsPanel() {
           })
         } catch (error) {
           if (!isCurrentRequest()) return
-          console.error("SupporterInterestsPanel failed to save roadmap interests", error)
+          console.error(
+            "SupporterInterestsPanel failed to save roadmap interests",
+            { code: safeErrorCode(error) },
+          )
           // A newer desired snapshot still has a chance to persist. Only the
           // final failed write rolls visible state back to confirmed storage.
           if (queuedInterestsRef.current) continue

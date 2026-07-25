@@ -112,6 +112,9 @@ export function supporterYearlyPrice(overrides = {}) {
   })
 }
 
+/**
+ * Returns a minimal lookup-verified render fixture, not the production catalog.
+ */
 function defaultAmountChoices() {
   return [{
     id: "support-1",

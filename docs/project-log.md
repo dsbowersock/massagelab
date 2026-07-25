@@ -17,6 +17,8 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
   not-tax-deductible, no-membership disclosure, and added independent editable
   roadmap-interest preferences that never enter Stripe metadata, entitlement
   resolution, or tax classification.
+- The recurring Supporter Membership and one-time support are separate payment
+  models: one-time support is not a membership price and grants no entitlement.
 - Added the independently reviewed fail-closed Supporter catalog command. Its
   read-only verify mode inventories all relevant subscriptions and validates
   account mode, exact Product/Price topology, zero-redemption coupons, preserved
@@ -53,8 +55,10 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
   Migration preflight now also requires exact Therapist/Practice Product names
   and rejects contradictory optional MassageLab metadata before any mutation.
 - RED-first focused billing/readiness/route coverage passed after
-  implementation. Full lint, test, typecheck, build, and diff validation are
-  recorded in the Task 5 handoff report.
+  implementation. The historical full lint, test, typecheck, build, and diff
+  batch is recorded in the
+  [Task 5 final fixes report](../.superpowers/sdd/final-fixes-report.md);
+  subsequent review-fix gates are separate evidence.
 
 ## 2026-07-23 — Background purchase surfaces visual review
 

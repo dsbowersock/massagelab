@@ -12,9 +12,9 @@ import {
 } from "./helpers/compiled-module.mjs"
 
 describe("compiled-module JSX traversal helpers", () => {
-  it("removes an mjs shebang and emits executable CommonJS exports", () => {
+  it("removes an mjs shebang and transpiles the module as TypeScript", () => {
     const compiled = compileCommonJsModule(
-      "#!/usr/bin/env node\nexport const answer: number = 42",
+      "#!/usr/bin/env node\nexport const answer = <number>42",
       "virtual-module.mjs",
     )
     const compiledModule = { exports: {} }
@@ -28,6 +28,21 @@ describe("compiled-module JSX traversal helpers", () => {
     assert.equal(compiledModule.exports.answer, 42)
   })
 
+  it("preserves TSX parsing for tsx fixtures", () => {
+    const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
+    const loaded = loadCompiledModule(
+      'export const result = <span data-marker="tsx">Rendered</span>',
+      "virtual-loader-module.tsx",
+      {
+        "react/jsx-runtime": { jsx: createElement },
+      },
+    )
+
+    assert.equal(loaded.result.type, "span")
+    assert.equal(loaded.result.props["data-marker"], "tsx")
+    assert.equal(loaded.result.props.children, "Rendered")
+  })
+
   it("loads explicit dependency doubles before attempting a real require", () => {
     const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
     const loaded = loadCompiledModule(
@@ -39,6 +54,51 @@ describe("compiled-module JSX traversal helpers", () => {
     )
 
     assert.equal(loaded.result, "dependency-double")
+  })
+
+  it("loads a resolved fallback dependency from the calling test", () => {
+    const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
+    const loaded = loadCompiledModule(
+      'import { basename } from "node:path"\nexport const result = basename("/tmp/example.txt")',
+      "virtual-loader-module.ts",
+    )
+
+    assert.equal(loaded.result, "example.txt")
+  })
+
+  it("contextualizes only an unresolved requested dependency", () => {
+    const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
+
+    assert.throws(
+      () => loadCompiledModule(
+        'import "compiled-module-direct-missing-specifier"',
+        "virtual-loader-module.ts",
+      ),
+      (error) => {
+        assert.equal(error.code, "MODULE_NOT_FOUND")
+        assert.match(error.message, /compiled-module-direct-missing-specifier/)
+        assert.match(error.message, /dependency double/)
+        assert.equal(error.cause?.code, "MODULE_NOT_FOUND")
+        return true
+      },
+    )
+  })
+
+  it("preserves native errors thrown while loading a resolved dependency", () => {
+    const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
+
+    assert.throws(
+      () => loadCompiledModule(
+        'import "./fixtures/compiled-module-transitive-missing.cjs"',
+        "virtual-loader-module.ts",
+      ),
+      (error) => {
+        assert.equal(error.code, "MODULE_NOT_FOUND")
+        assert.match(error.message, /compiled-module-missing-transitive-dependency/)
+        assert.doesNotMatch(error.message, /dependency double/)
+        return true
+      },
+    )
   })
 
   it("finds the first match across ordered prop values, arrays, and null entries", () => {

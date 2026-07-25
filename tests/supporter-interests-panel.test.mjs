@@ -7,6 +7,7 @@ import {
   normalizeSupporterRoadmapInterests,
   supporterRoadmapInterestOptions,
 } from "../lib/onboarding-preferences.js"
+import { safeErrorCode } from "../lib/safe-error-code.js"
 import {
   createCompiledModuleLoader,
   createElement,
@@ -39,6 +40,18 @@ function createJsonResponse(body, ok = true) {
     async json() {
       return body
     },
+  }
+}
+
+function assertLogExcludesErrorDetails(logged, ...messages) {
+  const logValues = logged.flat()
+  const renderedLog = logValues
+    .map((value) => typeof value === "string" ? value : JSON.stringify(value))
+    .join("\n")
+
+  assert.equal(logValues.some((value) => value instanceof Error), false)
+  for (const message of messages) {
+    assert.equal(renderedLog.includes(message), false)
   }
 }
 
@@ -172,6 +185,7 @@ function createPanelHarness(fetchImpl) {
         supporterRoadmapInterestOptions,
       },
       "@/lib/account-preferences": { resolveSupporterRoadmapInterestsAfterSave },
+      "@/lib/safe-error-code": { safeErrorCode },
       "@/components/account/settings-surfaces": { SettingsSurface },
       "@/components/ui/button": { Button },
       "@/components/ui/checkbox": { Checkbox },
@@ -706,7 +720,8 @@ describe("SupporterInterestsPanel", () => {
       )
       assert.equal(logged.length, 1)
       assert.equal(logged[0][0], "SupporterInterestsPanel failed to save roadmap interests")
-      assert.equal(logged[0][1], staleFailure)
+      assert.deepEqual(logged[0][1], { code: "unexpected_error" })
+      assertLogExcludesErrorDetails(logged, staleFailure.message)
     } finally {
       harness.dispose()
     }
@@ -716,7 +731,9 @@ describe("SupporterInterestsPanel", () => {
     it(`rolls a ${failureMode} save back to the previously persisted interests`, async (context) => {
       const persistedInterest = supporterRoadmapInterestOptions[0].id
       const failedInterest = supporterRoadmapInterestOptions[1].id
-      const requestError = new Error("save request failed")
+      const requestError = Object.assign(new Error("private save details"), {
+        code: "P1001",
+      })
       const logged = []
       context.mock.method(console, "error", (...args) => logged.push(args))
       const harness = createPanelHarness(async (_url, init = {}) => {
@@ -761,12 +778,16 @@ describe("SupporterInterestsPanel", () => {
         assert.equal(liveRegionMessage(harness.getTree(), "polite"), "")
         assert.equal(logged.length, 1)
         assert.equal(logged[0][0], "SupporterInterestsPanel failed to save roadmap interests")
-        if (failureMode === "network rejection") {
-          assert.equal(logged[0][1], requestError)
-        } else {
-          assert.equal(logged[0][1] instanceof Error, true)
-          assert.equal(logged[0][1].message, "Unable to save supporter roadmap interests")
-        }
+        assert.deepEqual(logged[0][1], {
+          code: failureMode === "network rejection"
+            ? "P1001"
+            : "unexpected_error",
+        })
+        assertLogExcludesErrorDetails(
+          logged,
+          requestError.message,
+          "Unable to save supporter roadmap interests",
+        )
       } finally {
         harness.dispose()
       }
@@ -775,7 +796,9 @@ describe("SupporterInterestsPanel", () => {
 
   for (const failureMode of ["network rejection", "HTTP non-OK response"]) {
     it(`retries a ${failureMode} initial load and keeps interests disabled until retry succeeds`, async (context) => {
-      const requestError = new Error("load request failed")
+      const requestError = Object.assign(new Error("private load details"), {
+        code: "P1002",
+      })
       const loadedInterest = supporterRoadmapInterestOptions[0].id
       let loadAttempts = 0
       const logged = []
@@ -818,12 +841,16 @@ describe("SupporterInterestsPanel", () => {
         assert.equal(findRetryButton(harness.getTree()).props.disabled, false)
         assert.equal(logged.length, 1)
         assert.equal(logged[0][0], "SupporterInterestsPanel failed to load roadmap interests")
-        if (failureMode === "network rejection") {
-          assert.equal(logged[0][1], requestError)
-        } else {
-          assert.equal(logged[0][1] instanceof Error, true)
-          assert.equal(logged[0][1].message, "Unable to load supporter roadmap interests")
-        }
+        assert.deepEqual(logged[0][1], {
+          code: failureMode === "network rejection"
+            ? "P1002"
+            : "unexpected_error",
+        })
+        assertLogExcludesErrorDetails(
+          logged,
+          requestError.message,
+          "Unable to load supporter roadmap interests",
+        )
 
         findRetryButton(harness.getTree()).props.onClick()
         harness.render()

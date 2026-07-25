@@ -13,7 +13,7 @@ export function compileCommonJsModule(source, fileName) {
       module: ts.ModuleKind.CommonJS,
       target: ts.ScriptTarget.ES2022,
     },
-    fileName: fileName.replace(/\.mjs$/, ".js"),
+    fileName: fileName.replace(/\.mjs$/, ".ts"),
   }).outputText
 }
 
@@ -29,11 +29,31 @@ export function createCompiledModuleLoader(parentUrl) {
     const compiledModule = { exports: {} }
     const executeModule = new Function("require", "exports", "module", compiledSource)
 
-    executeModule((specifier) => (
-      Object.hasOwn(dependencies, specifier)
-        ? dependencies[specifier]
-        : requireFromTest(specifier)
-    ), compiledModule.exports, compiledModule)
+    function requireDependency(specifier) {
+      if (Object.hasOwn(dependencies, specifier)) {
+        return dependencies[specifier]
+      }
+
+      let resolvedSpecifier
+      try {
+        resolvedSpecifier = requireFromTest.resolve(specifier)
+      } catch (error) {
+        if (error?.code !== "MODULE_NOT_FOUND") {
+          throw error
+        }
+
+        const contextualError = new Error(
+          `Compiled module dependency "${specifier}" is unresolved; provide a dependency double or install the module.`,
+          { cause: error },
+        )
+        contextualError.code = "MODULE_NOT_FOUND"
+        throw contextualError
+      }
+
+      return requireFromTest(resolvedSpecifier)
+    }
+
+    executeModule(requireDependency, compiledModule.exports, compiledModule)
 
     return compiledModule.exports
   }

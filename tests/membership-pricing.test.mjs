@@ -1,10 +1,18 @@
 import assert from "node:assert/strict"
+import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
+import { SUPPORTER_AMOUNT_CHOICES } from "../lib/membership.js"
 import {
   formatMembershipPrice,
   getMembershipPricingCatalog,
   resolveMembershipPriceForInterval,
 } from "../lib/membership-pricing.js"
+import { SUPPORTER_MEMBERSHIP_PRICE_CONTRACT } from "../lib/stripe-price-contract.js"
+
+const supporterMigrationSource = await readFile(
+  new URL("../scripts/stripe-supporter-membership-migration.mjs", import.meta.url),
+  "utf8",
+)
 
 function stripePrice({ id, amount, currency = "usd", interval }) {
   return {
@@ -16,6 +24,35 @@ function stripePrice({ id, amount, currency = "usd", interval }) {
 }
 
 describe("Membership pricing catalog", () => {
+  it("keeps published migration cents derived from runtime Supporter choices", () => {
+    assert.match(
+      supporterMigrationSource,
+      /const TARGET_PRICE_SPECS = Object\.freeze\(\s*SUPPORTER_MEMBERSHIP_PRICE_CONTRACT\.map\(/,
+    )
+
+    const runtimeAmountContract = SUPPORTER_AMOUNT_CHOICES.flatMap((choice) => [
+      {
+        key: `${choice.id}-month`,
+        interval: "month",
+        unitAmount: choice.monthAmountCents,
+      },
+      {
+        key: `${choice.id}-year`,
+        interval: "year",
+        unitAmount: choice.yearAmountCents,
+      },
+    ])
+
+    assert.deepEqual(
+      SUPPORTER_MEMBERSHIP_PRICE_CONTRACT.map(({
+        key,
+        interval,
+        unitAmount,
+      }) => ({ key, interval, unitAmount })),
+      runtimeAmountContract,
+    )
+  })
+
   it("formats Stripe unit amounts as readable currency prices", () => {
     assert.equal(formatMembershipPrice({ unitAmount: 900, currency: "usd" }), "$9")
     assert.equal(formatMembershipPrice({ unitAmount: 1250, currency: "usd" }), "$12.50")

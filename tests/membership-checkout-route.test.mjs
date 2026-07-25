@@ -813,6 +813,9 @@ function captureConsoleErrors(context) {
   return logged
 }
 
+/**
+ * Builds a JSON API request by serializing the supplied value exactly once.
+ */
 function jsonRequest(body) {
   return new Request("https://massagelab.app/api/billing/checkout", {
     method: "POST",
@@ -821,6 +824,9 @@ function jsonRequest(body) {
   })
 }
 
+/**
+ * Builds a JSON-labeled request with an untouched body for malformed JSON tests.
+ */
 function rawJsonRequest(body) {
   return new Request("https://massagelab.app/api/billing/checkout", {
     method: "POST",
@@ -829,6 +835,10 @@ function rawJsonRequest(body) {
   })
 }
 
+/**
+ * Builds a form request with same-origin Fetch Metadata by default. The URL may
+ * represent a proxy-internal target while headers carry public-origin evidence.
+ */
 function formRequest(
   body,
   headers = {},
