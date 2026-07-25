@@ -4,6 +4,7 @@ import { describe, it } from "node:test"
 import {
   createStripeDonationCheckoutSession,
   isDonationCheckoutSession,
+  MEMBERSHIP_CHECKOUT_SUBSCRIPTION_AUTHORITY_CONCURRENCY,
   MEMBERSHIP_CHECKOUT_SUBSCRIPTION_AUTHORITY_READ_BUDGET,
   normalizeStripeSubscription,
   stripeTimestampToDate,
@@ -24,6 +25,7 @@ const SUPPORTER_2_MONTHLY_PRICE_ID = "price_supporter_2_monthly"
 const SUPPORTER_2_YEARLY_PRICE_ID = "price_supporter_2_yearly"
 const SUPPORTER_5_MONTHLY_PRICE_ID = "price_supporter_5_monthly"
 const SUPPORTER_5_YEARLY_PRICE_ID = "price_supporter_5_yearly"
+const AUTHORITY_HANGING_READ_RECONCILIATION_BUDGET_MS = 2_000
 const SUPPORTER_PRICE_ID_BY_ENV_KEY = Object.freeze({
   STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: DEFAULT_SUPPORTER_PRICE_ID,
   STRIPE_SUPPORTER_1_YEARLY_PRICE_ID: SUPPORTER_1_YEARLY_PRICE_ID,
@@ -2306,7 +2308,10 @@ describe("Stripe billing helpers", () => {
               startedSubscriptionIds.push(subscriptionId)
               activeLookups += 1
               maxActiveLookups = Math.max(maxActiveLookups, activeLookups)
-              if (startedSubscriptionIds.length === 3) {
+              if (
+                startedSubscriptionIds.length
+                === MEMBERSHIP_CHECKOUT_SUBSCRIPTION_AUTHORITY_CONCURRENCY
+              ) {
                 firstWaveStarted.resolve()
               }
               if (startedSubscriptionIds.length === completedSessions.length) {
@@ -2329,7 +2334,10 @@ describe("Stripe billing helpers", () => {
     await settlesWithin(firstWaveStarted.promise, "first authority worker wave")
     assert.deepEqual(
       startedSubscriptionIds,
-      expectedSubscriptionIds.slice(0, 3),
+      expectedSubscriptionIds.slice(
+        0,
+        MEMBERSHIP_CHECKOUT_SUBSCRIPTION_AUTHORITY_CONCURRENCY,
+      ),
     )
     startedSubscriptionIds.forEach((subscriptionId) => {
       const gate = gates.get(subscriptionId)
@@ -2337,15 +2345,20 @@ describe("Stripe billing helpers", () => {
       gate.resolve()
     })
     await settlesWithin(allLookupsStarted.promise, "second authority worker wave")
-    expectedSubscriptionIds.slice(3).forEach((subscriptionId) => {
-      const gate = gates.get(subscriptionId)
-      assert.ok(gate, `Missing authority gate for ${subscriptionId}`)
-      gate.resolve()
-    })
+    expectedSubscriptionIds
+      .slice(MEMBERSHIP_CHECKOUT_SUBSCRIPTION_AUTHORITY_CONCURRENCY)
+      .forEach((subscriptionId) => {
+        const gate = gates.get(subscriptionId)
+        assert.ok(gate, `Missing authority gate for ${subscriptionId}`)
+        gate.resolve()
+      })
 
     const result = await settlesWithin(checkoutPromise, "bounded authority reconciliation")
     assert.equal(result.id, "cs_after_authority_pool")
-    assert.equal(maxActiveLookups, 3)
+    assert.equal(
+      maxActiveLookups,
+      MEMBERSHIP_CHECKOUT_SUBSCRIPTION_AUTHORITY_CONCURRENCY,
+    )
     assert.deepEqual(
       startedSubscriptionIds,
       expectedSubscriptionIds,
@@ -2367,39 +2380,60 @@ describe("Stripe billing helpers", () => {
     })
     const startedSubscriptionIds = []
     let createCalls = 0
+    let authorityDeadlineTimer
+    const originalSetTimeout = globalThis.setTimeout
+    globalThis.setTimeout = (callback, delay, ...args) => {
+      const timer = originalSetTimeout(callback, delay, ...args)
+      if (
+        typeof delay === "number"
+        && delay > 500
+        && delay <= AUTHORITY_HANGING_READ_RECONCILIATION_BUDGET_MS
+      ) {
+        authorityDeadlineTimer = timer
+      }
+      return timer
+    }
 
-    const result = await settlesWithin(
-      stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
-        reconciliationBudgetMs: 2_000,
-        stripeClient: {
-          checkout: {
-            sessions: {
-              list: async () => stripeCheckoutSessionList([
-                speculativeSession,
-                blockingSession,
-              ]),
-              create: async () => {
-                createCalls += 1
-                return membershipCheckoutSession({ id: "cs_unexpected_create" })
+    let result
+    try {
+      result = await settlesWithin(
+        stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+          reconciliationBudgetMs:
+            AUTHORITY_HANGING_READ_RECONCILIATION_BUDGET_MS,
+          stripeClient: {
+            checkout: {
+              sessions: {
+                list: async () => stripeCheckoutSessionList([
+                  speculativeSession,
+                  blockingSession,
+                ]),
+                create: async () => {
+                  createCalls += 1
+                  return membershipCheckoutSession({ id: "cs_unexpected_create" })
+                },
+              },
+            },
+            subscriptions: {
+              retrieve: async (subscriptionId) => {
+                startedSubscriptionIds.push(subscriptionId)
+                if (subscriptionId === blockingSession.subscription) {
+                  return membershipStripeSubscription({ id: subscriptionId })
+                }
+                return new Promise(() => {})
               },
             },
           },
-          subscriptions: {
-            retrieve: async (subscriptionId) => {
-              startedSubscriptionIds.push(subscriptionId)
-              if (subscriptionId === blockingSession.subscription) {
-                return membershipStripeSubscription({ id: subscriptionId })
-              }
-              return new Promise(() => {})
-            },
-          },
-        },
-      })),
-      "earlier completed-subscription blocker",
-      500,
-    )
+        })),
+        "earlier completed-subscription blocker",
+        500,
+      )
+    } finally {
+      globalThis.setTimeout = originalSetTimeout
+    }
 
     assert.equal(result.id, blockingSession.id)
+    assert.ok(authorityDeadlineTimer, "Expected an authority deadline timer")
+    assert.equal(authorityDeadlineTimer.hasRef(), false)
     assert.deepEqual(startedSubscriptionIds, [
       blockingSession.subscription,
       speculativeSession.subscription,
@@ -2426,7 +2460,8 @@ describe("Stripe billing helpers", () => {
     await assert.rejects(
       settlesWithin(
         stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
-          reconciliationBudgetMs: 30,
+          reconciliationBudgetMs:
+            AUTHORITY_HANGING_READ_RECONCILIATION_BUDGET_MS,
           stripeClient: {
             checkout: {
               sessions: {
@@ -2452,7 +2487,7 @@ describe("Stripe billing helpers", () => {
           },
         })),
         "completed-subscription authority deadline",
-        500,
+        5_000,
       ),
       /subscription authority lookups exceeded the safe limit/,
     )

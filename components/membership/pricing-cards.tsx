@@ -198,6 +198,8 @@ function PlanActions({
   availableAmountChoices: Array<{ choiceId: string, price: MembershipPrice }>
 }) {
   if (mode === "portal") {
+    // Existing-member Portal access stays actionable without lookup-based amount choices;
+    // portalActionAvailable still gates the entire action when Portal is unavailable.
     return portalActionAvailable ? (
       <div className="mt-auto space-y-3">
         {availableAmountChoices.length > 0 ? (
