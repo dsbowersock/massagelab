@@ -133,9 +133,6 @@ function PlanCard({
   const availableAmountChoices = resolvedAmountChoices.filter(
     ({ price }) => price.isLookupAvailable,
   )
-  const displayedAmountChoices = mode === "auth"
-    ? availableAmountChoices
-    : resolvedAmountChoices
 
   return (
     <Card className={cn(
@@ -175,62 +172,95 @@ function PlanCard({
           />
         </div>
         {/* Existing members keep Portal access even when public pricing is unavailable. */}
-        {mode === "portal" && portalActionAvailable ? (
-          <div className="mt-auto space-y-3">
-            {availableAmountChoices.length > 0 ? (
-              <div className="grid gap-3 sm:grid-cols-3">
-                {availableAmountChoices.map(({ choiceId, price }) => (
-                  <div
-                    key={choiceId}
-                    data-membership-portal-amount-choice={choiceId}
-                    className="rounded-md border border-border/80 bg-background/70 p-3 text-center"
-                  >
-                    <span className="inline-flex items-baseline justify-center gap-1">
-                      <span className="text-base font-semibold text-foreground">{price.displayPrice}</span>
-                      <span className="text-xs text-muted-foreground">{price.displayInterval}</span>
-                    </span>
-                    <YearlySavings price={price} />
-                  </div>
-                ))}
-              </div>
-            ) : null}
-            <p className="text-sm text-muted-foreground">
-              Use the Customer Portal to switch among approved Supporter amounts, update billing details, review invoices, or cancel.
-            </p>
-            <form action="/api/billing/portal" method="post">
-              <MetalAttentionButton
-                type="submit"
-                variant="attention"
-                className="w-full"
-                metalFullWidth
-              >
-                Manage or change support amount
-              </MetalAttentionButton>
-            </form>
-          </div>
-        ) : mode === "portal" ? (
-          <p className="mt-auto text-sm text-muted-foreground">
-            Billing management is temporarily unavailable. Contact support if you need help with an existing membership.
-          </p>
-        ) : displayedAmountChoices.length === 0 ? (
-          <p className="mt-auto text-sm text-muted-foreground">
-            Membership pricing is temporarily unavailable. Please try again later.
-          </p>
-        ) : (
-          <div className="mt-auto grid gap-3 sm:grid-cols-3">
-            {displayedAmountChoices.map(({ choiceId, price }) => (
-              <SupporterAmountChoice
-                key={choiceId}
-                plan={plan}
-                choiceId={choiceId}
-                price={price}
-                mode={mode}
-              />
-            ))}
-          </div>
-        )}
+        <PlanActions
+          plan={plan}
+          mode={mode}
+          portalActionAvailable={portalActionAvailable}
+          resolvedAmountChoices={resolvedAmountChoices}
+          availableAmountChoices={availableAmountChoices}
+        />
       </CardContent>
     </Card>
+  )
+}
+
+function PlanActions({
+  plan,
+  mode,
+  portalActionAvailable,
+  resolvedAmountChoices,
+  availableAmountChoices,
+}: {
+  plan: MembershipPlan
+  mode: "checkout" | "auth" | "portal"
+  portalActionAvailable: boolean
+  resolvedAmountChoices: Array<{ choiceId: string, price: MembershipPrice }>
+  availableAmountChoices: Array<{ choiceId: string, price: MembershipPrice }>
+}) {
+  if (mode === "portal") {
+    return portalActionAvailable ? (
+      <div className="mt-auto space-y-3">
+        {availableAmountChoices.length > 0 ? (
+          <div className="grid gap-3 sm:grid-cols-3">
+            {availableAmountChoices.map(({ choiceId, price }) => (
+              <div
+                key={choiceId}
+                data-membership-portal-amount-choice={choiceId}
+                className="rounded-md border border-border/80 bg-background/70 p-3 text-center"
+              >
+                <span className="inline-flex items-baseline justify-center gap-1">
+                  <span className="text-base font-semibold text-foreground">{price.displayPrice}</span>
+                  <span className="text-xs text-muted-foreground">{price.displayInterval}</span>
+                </span>
+                <YearlySavings price={price} />
+              </div>
+            ))}
+          </div>
+        ) : null}
+        <p className="text-sm text-muted-foreground">
+          Use the Customer Portal to switch among approved Supporter amounts, update billing details, review invoices, or cancel.
+        </p>
+        <form action="/api/billing/portal" method="post">
+          <MetalAttentionButton
+            type="submit"
+            variant="attention"
+            className="w-full"
+            metalFullWidth
+          >
+            Manage or change support amount
+          </MetalAttentionButton>
+        </form>
+      </div>
+    ) : (
+      <p className="mt-auto text-sm text-muted-foreground">
+        Billing management is temporarily unavailable. Contact support if you need help with an existing membership.
+      </p>
+    )
+  }
+
+  // The Portal branch exits above, so child actions receive only their narrow
+  // public action contract at both the filtering and rendering boundaries.
+  const actionMode: "checkout" | "auth" = mode
+  const displayedAmountChoices = actionMode === "auth"
+    ? availableAmountChoices
+    : resolvedAmountChoices
+
+  return displayedAmountChoices.length === 0 ? (
+    <p className="mt-auto text-sm text-muted-foreground">
+      Membership pricing is temporarily unavailable. Please try again later.
+    </p>
+  ) : (
+    <div className="mt-auto grid gap-3 sm:grid-cols-3">
+      {displayedAmountChoices.map(({ choiceId, price }) => (
+        <SupporterAmountChoice
+          key={choiceId}
+          plan={plan}
+          choiceId={choiceId}
+          price={price}
+          mode={actionMode}
+        />
+      ))}
+    </div>
   )
 }
 

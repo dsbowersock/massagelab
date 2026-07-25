@@ -263,15 +263,15 @@ async function renderMembershipTab({
     -1,
     "Account page source must contain the MembershipTab function",
   )
-  const functionEnd = accountPageSource.indexOf(
-    "\nasync function BackgroundCommerceTab",
-    functionStart,
+  const subsequentFunction = /\n(?:async\s+)?function\s+[A-Za-z_$][\w$]*\s*\(/.exec(
+    accountPageSource.slice(functionStart + 1),
   )
   assert.notEqual(
-    functionEnd,
-    -1,
-    "MembershipTab extraction must end at BackgroundCommerceTab",
+    subsequentFunction,
+    null,
+    "MembershipTab extraction must end at the next top-level function",
   )
+  const functionEnd = functionStart + 1 + subsequentFunction.index
   assert.ok(
     functionEnd > functionStart,
     "MembershipTab extraction must end after its start marker",

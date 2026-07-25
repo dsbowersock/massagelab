@@ -2123,12 +2123,12 @@ describe("Stripe billing helpers", () => {
     assert.equal(createCalls, 0)
   })
 
-  it("fails closed before authority lookups for completed Sessions without subscription IDs", async () => {
+  it("returns a safe blocking result for completed Sessions without subscription IDs", async () => {
     let retrieveCalls = 0
     let createCalls = 0
 
-    await assert.rejects(
-      stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+    const result = await stripeBilling.createStripeCheckoutSession(
+      membershipCheckoutOptions({
         stripeClient: {
           checkout: {
             sessions: {
@@ -2153,12 +2153,144 @@ describe("Stripe billing helpers", () => {
             },
           },
         },
-      })),
-      /completed membership Checkout without a subscription/,
+      }),
     )
 
+    assert.deepEqual(result, {
+      id: "cs_complete_missing_subscription",
+      status: "complete",
+      subscription: null,
+      url: null,
+    })
     assert.equal(retrieveCalls, 0)
     assert.equal(createCalls, 0)
+  })
+
+  it("returns a missing-subscription block after the full authority-read budget", async () => {
+    const missingSubscriptionSession = membershipCheckoutSession({
+      id: "cs_000_missing_subscription",
+      status: "complete",
+      subscription: null,
+      url: null,
+    })
+    const completedSessions = [
+      missingSubscriptionSession,
+      ...Array.from({ length: 25 }, (_, index) => membershipCheckoutSession({
+        id: `cs_100_terminal_${String(index).padStart(2, "0")}`,
+        status: "complete",
+        subscription: `sub_terminal_${index}`,
+        url: null,
+      })),
+    ]
+    let retrieveCalls = 0
+    let createCalls = 0
+
+    const result = await stripeBilling.createStripeCheckoutSession(
+      membershipCheckoutOptions({
+        stripeClient: {
+          checkout: {
+            sessions: {
+              list: async () => stripeCheckoutSessionList(completedSessions),
+              create: async () => {
+                createCalls += 1
+                return membershipCheckoutSession({ id: "cs_unexpected_create" })
+              },
+            },
+          },
+          subscriptions: {
+            retrieve: async (subscriptionId) => {
+              retrieveCalls += 1
+              return membershipStripeSubscription({
+                id: subscriptionId,
+                status: "canceled",
+              })
+            },
+          },
+        },
+      }),
+    )
+
+    assert.equal(result.id, missingSubscriptionSession.id)
+    assert.equal(result.subscription, null)
+    assert.equal(retrieveCalls, 25)
+    assert.equal(createCalls, 0)
+  })
+
+  it("bounds completed-subscription authority lookups while preserving input order", async () => {
+    const completedSessions = Array.from({ length: 6 }, (_, index) => (
+      membershipCheckoutSession({
+        id: `cs_authority_pool_${index}`,
+        status: "complete",
+        subscription: `sub_authority_pool_${index}`,
+        url: null,
+      })
+    ))
+    const gates = new Map(
+      completedSessions.map(({ subscription }) => [subscription, deferred()]),
+    )
+    const expectedSubscriptionIds = completedSessions
+      .map(({ subscription }) => subscription)
+      .toSorted((left, right) => right.localeCompare(left))
+    const firstWaveStarted = deferred()
+    const allLookupsStarted = deferred()
+    const startedSubscriptionIds = []
+    let activeLookups = 0
+    let maxActiveLookups = 0
+
+    const checkoutPromise = stripeBilling.createStripeCheckoutSession(
+      membershipCheckoutOptions({
+        stripeClient: {
+          checkout: {
+            sessions: {
+              list: async () => stripeCheckoutSessionList(completedSessions),
+              create: async () => membershipCheckoutSession({
+                id: "cs_after_authority_pool",
+              }),
+            },
+          },
+          subscriptions: {
+            retrieve: async (subscriptionId) => {
+              startedSubscriptionIds.push(subscriptionId)
+              activeLookups += 1
+              maxActiveLookups = Math.max(maxActiveLookups, activeLookups)
+              if (startedSubscriptionIds.length === 3) {
+                firstWaveStarted.resolve()
+              }
+              if (startedSubscriptionIds.length === completedSessions.length) {
+                allLookupsStarted.resolve()
+              }
+              await gates.get(subscriptionId).promise
+              activeLookups -= 1
+              return membershipStripeSubscription({
+                id: subscriptionId,
+                status: "canceled",
+              })
+            },
+          },
+        },
+      }),
+    )
+
+    await settlesWithin(firstWaveStarted.promise, "first authority worker wave")
+    assert.deepEqual(
+      startedSubscriptionIds,
+      expectedSubscriptionIds.slice(0, 3),
+    )
+    startedSubscriptionIds.forEach((subscriptionId) => {
+      gates.get(subscriptionId).resolve()
+    })
+    await settlesWithin(allLookupsStarted.promise, "second authority worker wave")
+    expectedSubscriptionIds.slice(3).forEach((subscriptionId) => {
+      gates.get(subscriptionId).resolve()
+    })
+
+    const result = await settlesWithin(checkoutPromise, "bounded authority reconciliation")
+    assert.equal(result.id, "cs_after_authority_pool")
+    assert.equal(maxActiveLookups, 3)
+    assert.deepEqual(
+      startedSubscriptionIds,
+      expectedSubscriptionIds,
+    )
   })
 
   it("fails closed after exhausting the completed-subscription authority lookup budget", async () => {

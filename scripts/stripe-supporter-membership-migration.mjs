@@ -57,7 +57,7 @@ const CATALOG_DEPENDENCY_FAILURE_CODES = new Set([
   "unexpected_managed_price",
 ])
 
-const TARGET_PRICE_SPECS = Object.freeze(
+export const TARGET_PRICE_SPECS = Object.freeze(
   SUPPORTER_MEMBERSHIP_PRICE_CONTRACT.map(({
     key,
     envKey,
