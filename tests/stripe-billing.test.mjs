@@ -2370,7 +2370,7 @@ describe("Stripe billing helpers", () => {
 
     const result = await settlesWithin(
       stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
-        reconciliationBudgetMs: 50,
+        reconciliationBudgetMs: 2_000,
         stripeClient: {
           checkout: {
             sessions: {
