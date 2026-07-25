@@ -2405,6 +2405,47 @@ describe("Stripe billing helpers", () => {
     assert.equal(createCalls, 0)
   })
 
+  it("rejects an authority read that fulfills after the monotonic deadline", async () => {
+    const completedSession = membershipCheckoutSession({
+      id: "cs_completed_after_authority_deadline",
+      status: "complete",
+      subscription: "sub_completed_after_authority_deadline",
+      url: null,
+    })
+    let currentNowMs = 100
+    let retrieveCalls = 0
+    let createCalls = 0
+
+    await assert.rejects(
+      stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+        reconciliationBudgetMs: 10,
+        reconciliationNowMs: () => currentNowMs,
+        stripeClient: {
+          checkout: {
+            sessions: {
+              list: async () => stripeCheckoutSessionList([completedSession]),
+              create: async () => {
+                createCalls += 1
+                return membershipCheckoutSession({ id: "cs_unexpected_create" })
+              },
+            },
+          },
+          subscriptions: {
+            retrieve: async () => {
+              retrieveCalls += 1
+              currentNowMs = 110
+              return membershipStripeSubscription()
+            },
+          },
+        },
+      })),
+      /subscription authority lookups exceeded the safe limit/,
+    )
+
+    assert.equal(retrieveCalls, 1)
+    assert.equal(createCalls, 0)
+  })
+
   it("fails closed after exhausting the completed-subscription authority lookup budget", async () => {
     const completedSessions = Array.from({ length: 26 }, (_, index) => (
       membershipCheckoutSession({
