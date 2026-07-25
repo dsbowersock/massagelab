@@ -967,7 +967,7 @@ describe("Stripe billing helpers", () => {
     let createCalls = 0
     const result = await stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
       reconciliationBudgetMs: 10,
-      reconciliationNowMs: monotonicNowMsSequence(100),
+      reconciliationNowMs: monotonicNowMsSequence(...Array(8).fill(100)),
       stripeClient: {
         checkout: {
           sessions: {
@@ -991,6 +991,80 @@ describe("Stripe billing helpers", () => {
     assert.equal(createCalls, 0)
   })
 
+  it("stops paginated Session listing when a Stripe page exhausts the wall-clock budget", async () => {
+    let currentNowMs = 100
+    let listCalls = 0
+    let createCalls = 0
+
+    await assert.rejects(
+      stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+        reconciliationBudgetMs: 10,
+        reconciliationNowMs: () => currentNowMs,
+        stripeClient: {
+          checkout: {
+            sessions: {
+              list: async () => {
+                listCalls += 1
+                currentNowMs = 110
+                return {
+                  ...stripeCheckoutSessionList([
+                    membershipCheckoutSession({
+                      id: "cs_listing_budget",
+                      status: "expired",
+                    }),
+                  ]),
+                  has_more: true,
+                }
+              },
+              create: async () => {
+                createCalls += 1
+                return membershipCheckoutSession({ id: "cs_unexpected_create" })
+              },
+            },
+          },
+        },
+      })),
+      /membership Checkout reconciliation exceeded the safe time limit/,
+    )
+
+    assert.equal(listCalls, 1)
+    assert.equal(createCalls, 0)
+  })
+
+  it("fails closed when open-Session classification exhausts the wall-clock budget", async () => {
+    const openSession = membershipCheckoutSession({ id: "cs_classification_budget" })
+    let currentNowMs = 100
+    let lineItemCalls = 0
+    let createCalls = 0
+
+    await assert.rejects(
+      stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+        reconciliationBudgetMs: 10,
+        reconciliationNowMs: () => currentNowMs,
+        stripeClient: {
+          checkout: {
+            sessions: {
+              list: async () => stripeCheckoutSessionList([openSession]),
+              listLineItems: async () => {
+                lineItemCalls += 1
+                currentNowMs = 110
+                return stripeCheckoutLineItemList()
+              },
+              create: async () => {
+                createCalls += 1
+                return membershipCheckoutSession({ id: "cs_unexpected_create" })
+              },
+            },
+          },
+        },
+      })),
+      /membership Checkout reconciliation exceeded the safe time limit/,
+    )
+
+    assert.equal(lineItemCalls, 1)
+    assert.equal(createCalls, 0)
+  })
+
   it("expires an otherwise compatible open Session once its reuse window ends", async () => {
     const expiredOpenSession = membershipCheckoutSession({
       id: "cs_open_past_expiry",
@@ -999,7 +1073,11 @@ describe("Stripe billing helpers", () => {
     const calls = []
     const result = await stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
       reconciliationBudgetMs: 10,
-      reconciliationNowMs: monotonicNowMsSequence(100, 109),
+      reconciliationNowMs: monotonicNowMsSequence(
+        ...Array(6).fill(100),
+        109,
+        109,
+      ),
       stripeClient: {
         checkout: {
           sessions: {
@@ -1039,7 +1117,10 @@ describe("Stripe billing helpers", () => {
     await assert.rejects(
       stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
         reconciliationBudgetMs: 10,
-        reconciliationNowMs: monotonicNowMsSequence(100, 110),
+        reconciliationNowMs: monotonicNowMsSequence(
+          ...Array(6).fill(100),
+          110,
+        ),
         stripeClient: {
           checkout: {
             sessions: {
@@ -1063,6 +1144,49 @@ describe("Stripe billing helpers", () => {
     assert.equal(createCalls, 0)
   })
 
+  it("fails closed when expiration confirmation exhausts the wall-clock budget", async () => {
+    const expiredOpenSession = membershipCheckoutSession({
+      id: "cs_open_confirmation_budget",
+      expiresAt: 1784912400,
+    })
+    let currentNowMs = 100
+    let expireCalls = 0
+    let retrieveCalls = 0
+    let createCalls = 0
+
+    await assert.rejects(
+      stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+        reconciliationBudgetMs: 10,
+        reconciliationNowMs: () => currentNowMs,
+        stripeClient: {
+          checkout: {
+            sessions: {
+              list: async () => stripeCheckoutSessionList([expiredOpenSession]),
+              expire: async () => {
+                expireCalls += 1
+                return { status: "expired" }
+              },
+              retrieve: async (sessionId) => {
+                retrieveCalls += 1
+                currentNowMs = 110
+                return { id: sessionId, object: "checkout.session", status: "expired" }
+              },
+              create: async () => {
+                createCalls += 1
+                return membershipCheckoutSession({ id: "cs_unexpected_create" })
+              },
+            },
+          },
+        },
+      })),
+      /membership Checkout Session expirations exceeded the safe limit/,
+    )
+
+    assert.equal(expireCalls, 1)
+    assert.equal(retrieveCalls, 1)
+    assert.equal(createCalls, 0)
+  })
+
   it("rechecks the wall-clock budget before authority lookup after an expiration race", async () => {
     const expiredOpenSession = membershipCheckoutSession({
       id: "cs_open_completion_budget",
@@ -1076,7 +1200,11 @@ describe("Stripe billing helpers", () => {
     await assert.rejects(
       stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
         reconciliationBudgetMs: 10,
-        reconciliationNowMs: monotonicNowMsSequence(100, 109, 110),
+        reconciliationNowMs: monotonicNowMsSequence(
+          ...Array(6).fill(100),
+          109,
+          110,
+        ),
         stripeClient: {
           checkout: {
             sessions: {
@@ -1449,7 +1577,12 @@ describe("Stripe billing helpers", () => {
     let createCalls = 0
     const result = await stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
       reconciliationBudgetMs: 10,
-      reconciliationNowMs: monotonicNowMsSequence(100, 109, 109),
+      reconciliationNowMs: monotonicNowMsSequence(
+        ...Array(80).fill(100),
+        109,
+        109,
+        109,
+      ),
       stripeClient: {
         checkout: {
           sessions: {
@@ -1500,7 +1633,10 @@ describe("Stripe billing helpers", () => {
     await assert.rejects(
       stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
         reconciliationBudgetMs: 10,
-        reconciliationNowMs: monotonicNowMsSequence(100, 110),
+        reconciliationNowMs: monotonicNowMsSequence(
+          ...Array(4).fill(100),
+          110,
+        ),
         stripeClient: {
           checkout: {
             sessions: {

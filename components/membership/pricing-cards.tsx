@@ -206,13 +206,13 @@ function PlanCard({
               </MetalAttentionButton>
             </form>
           </div>
-        ) : displayedAmountChoices.length === 0 ? (
-          <p className="mt-auto text-sm text-muted-foreground">
-            Membership pricing is temporarily unavailable. Please try again later.
-          </p>
         ) : mode === "portal" ? (
           <p className="mt-auto text-sm text-muted-foreground">
             Billing management is temporarily unavailable. Contact support if you need help with an existing membership.
+          </p>
+        ) : displayedAmountChoices.length === 0 ? (
+          <p className="mt-auto text-sm text-muted-foreground">
+            Membership pricing is temporarily unavailable. Please try again later.
           </p>
         ) : (
           <div className="mt-auto grid gap-3 sm:grid-cols-3">

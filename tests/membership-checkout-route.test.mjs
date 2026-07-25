@@ -305,6 +305,48 @@ describe("Membership Checkout POST route", () => {
     })
   })
 
+  it("rejects an unconfigured JSON Supporter price before billing work", async () => {
+    const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
+    const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
+      priceId: null,
+    }))(jsonRequest({
+      membershipLevel: "SUPPORTER",
+      supporterAmountChoiceId: "support-1",
+      interval: "month",
+    }))
+
+    assert.deepEqual(response, {
+      body: { error: "Stripe price is not configured" },
+      status: 400,
+    })
+    assert.deepEqual(calls, {
+      ensureCustomer: 0,
+      createCheckout: 0,
+      membershipLookup: 0,
+    })
+  })
+
+  it("redirects an unconfigured form Supporter price before billing work", async () => {
+    const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
+    const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
+      priceId: null,
+    }))(formRequest({
+      membershipLevel: "SUPPORTER",
+      supporterAmountChoiceId: "support-1",
+      interval: "month",
+    }))
+
+    assert.deepEqual(response, {
+      url: "https://massagelab.app/account?billing=price-not-configured",
+      status: 303,
+    })
+    assert.deepEqual(calls, {
+      ensureCustomer: 0,
+      createCheckout: 0,
+      membershipLookup: 0,
+    })
+  })
+
   it("does not send an early-access discount with public Supporter Checkout", async () => {
     const calls = { ensureCustomer: 0, createCheckout: 0, checkoutOptions: null }
     const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
@@ -854,6 +896,7 @@ function checkoutDependencies(calls, {
   sessionError = null,
   selectionError = null,
   priceResolutionError = null,
+  priceId = "price_supporter_1_month",
   session = { user: { id: "user_123" } },
   alreadyAccepted = true,
   missingLegalDocuments = [],
@@ -909,7 +952,7 @@ function checkoutDependencies(calls, {
           input,
         ]
       }
-      return "price_supporter_1_month"
+      return priceId
     },
     acceptedDocumentIdsFromInput: (ids) => {
       calls.acceptedLegalDocumentInputs = [

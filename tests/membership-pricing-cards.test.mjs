@@ -158,35 +158,40 @@ describe("MembershipPricingCards configured price rendering", () => {
     assert.doesNotMatch(elementText(authCards), /\$2|Price unavailable/)
   })
 
-  it("keeps blocking membership mode fail closed when no Portal action is available", async () => {
-    const price = supporterMonthlyPrice()
-    const tree = await renderMembershipPricingCards({
-      mode: "portal",
-      portalActionAvailable: false,
-      amountChoices: [{
-        id: "support-1",
-        monthAmountCents: 100,
-        yearAmountCents: 1000,
-        prices: { month: price },
-      }],
-    })
+  for (const amountChoices of [
+    [{
+      id: "support-1",
+      monthAmountCents: 100,
+      yearAmountCents: 1000,
+      prices: { month: supporterMonthlyPrice() },
+    }],
+    [],
+  ]) {
+    it(`keeps blocking membership mode fail closed when no Portal action is available and the catalog is ${amountChoices.length ? "configured" : "empty"}`, async () => {
+      const tree = await renderMembershipPricingCards({
+        mode: "portal",
+        portalActionAvailable: false,
+        amountChoices,
+      })
 
-    assert.match(elementText(tree), /Billing management is temporarily unavailable/)
-    assert.equal(
-      findElements(
-        tree,
-        (element) => (
-          element.type === "form"
-          && (
-            element.props.action === "/api/billing/portal"
-            || element.props.action === "/api/billing/checkout"
-          )
-        ),
-      ).length,
-      0,
-    )
-    assert.doesNotMatch(elementText(tree), /Support with|Choose \$1|Manage or change/)
-  })
+      assert.match(elementText(tree), /Billing management is temporarily unavailable/)
+      assert.equal(
+        findElements(
+          tree,
+          (element) => (
+            element.type === "form"
+            && (
+              element.props.action === "/api/billing/portal"
+              || element.props.action === "/api/billing/checkout"
+            )
+          ),
+        ).length,
+        0,
+      )
+      assert.doesNotMatch(elementText(tree), /Support with|Choose \$1|Manage or change/)
+      assert.doesNotMatch(elementText(tree), /Membership pricing is temporarily unavailable/)
+    })
+  }
 
   it("omits an empty Portal amount grid while preserving management guidance", async () => {
     const tree = await renderMembershipPricingCards({

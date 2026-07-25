@@ -75,6 +75,50 @@ function jsonRequest(body = JSON.stringify({ amountCents: 500 })) {
 }
 
 describe("one-time support Checkout route", () => {
+  it("does not trust request.url when a canonical checkout origin is omitted", () => {
+    const request = new Request("https://massagelab.app/api/billing/donation", {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        origin: "https://massagelab.app",
+      },
+      body: new URLSearchParams({ amountCents: "500" }),
+    })
+
+    assert.equal(isTrustedCheckoutFormOrigin(request), false)
+    assert.equal(
+      isTrustedCheckoutFormOrigin(request, "https://massagelab.app"),
+      true,
+    )
+  })
+
+  it("fails closed without a valid canonical origin for metadata-only requests", () => {
+    const jsonRequest = new Request("https://massagelab.app/api/billing/donation", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ amountCents: 500 }),
+    })
+    const sameOriginRequest = new Request(
+      "https://massagelab.app/api/billing/donation",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+          "sec-fetch-site": "same-origin",
+        },
+        body: new URLSearchParams({ amountCents: "500" }),
+      },
+    )
+
+    assert.equal(isTrustedCheckoutFormOrigin(jsonRequest), false)
+    assert.equal(isTrustedCheckoutFormOrigin(jsonRequest, "not a URL"), false)
+    assert.equal(isTrustedCheckoutFormOrigin(sameOriginRequest), false)
+    assert.equal(
+      isTrustedCheckoutFormOrigin(sameOriginRequest, "https://massagelab.app"),
+      true,
+    )
+  })
+
   it("allows guest one-time support without attaching account identity", async () => {
     const checkoutInputs = []
     const POST = donationPost({
