@@ -513,7 +513,10 @@ test("Roadmap presents an unordered product portfolio", async ({ page }) => {
   await expect(page.getByText(/not a release order/i)).toBeVisible()
   await expect(page.getByRole("link", { name: "Explore tools" }).first()).toHaveAttribute("href", "/tools")
   await expect(page.getByRole("link", { name: "View memberships" }).first()).toHaveAttribute("href", "/pricing")
-  await expect(page.getByRole("link", { name: "Donate" }).first()).toHaveAttribute("href", "/pricing#donate")
+  await expect(page.getByRole("link", { name: "One-time support" }).first()).toHaveAttribute(
+    "href",
+    "/pricing#one-time-support",
+  )
   await expect(page.getByRole("heading", { name: "Recently shipped" })).toHaveCount(0)
   await expect(page.getByRole("heading", { name: "Current alpha focus" })).toHaveCount(0)
 
