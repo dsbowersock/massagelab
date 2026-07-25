@@ -2293,6 +2293,118 @@ describe("Stripe billing helpers", () => {
     )
   })
 
+  it("returns an earlier blocker without awaiting a never-settling speculative lookup", async () => {
+    const blockingSession = membershipCheckoutSession({
+      id: "cs_z_authority_blocker",
+      status: "complete",
+      subscription: "sub_authority_blocker",
+      url: null,
+    })
+    const speculativeSession = membershipCheckoutSession({
+      id: "cs_y_authority_never_settles",
+      status: "complete",
+      subscription: "sub_authority_never_settles",
+      url: null,
+    })
+    const startedSubscriptionIds = []
+    let createCalls = 0
+
+    const result = await settlesWithin(
+      stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+        reconciliationBudgetMs: 50,
+        stripeClient: {
+          checkout: {
+            sessions: {
+              list: async () => stripeCheckoutSessionList([
+                speculativeSession,
+                blockingSession,
+              ]),
+              create: async () => {
+                createCalls += 1
+                return membershipCheckoutSession({ id: "cs_unexpected_create" })
+              },
+            },
+          },
+          subscriptions: {
+            retrieve: async (subscriptionId) => {
+              startedSubscriptionIds.push(subscriptionId)
+              if (subscriptionId === blockingSession.subscription) {
+                return membershipStripeSubscription({ id: subscriptionId })
+              }
+              return new Promise(() => {})
+            },
+          },
+        },
+      })),
+      "earlier completed-subscription blocker",
+      500,
+    )
+
+    assert.equal(result.id, blockingSession.id)
+    assert.deepEqual(startedSubscriptionIds, [
+      blockingSession.subscription,
+      speculativeSession.subscription,
+    ])
+    assert.equal(createCalls, 0)
+  })
+
+  it("fails at the hard deadline when the earliest authority lookup never settles", async () => {
+    const hangingSession = membershipCheckoutSession({
+      id: "cs_z_earliest_authority_hangs",
+      status: "complete",
+      subscription: "sub_earliest_authority_hangs",
+      url: null,
+    })
+    const laterBlockingSession = membershipCheckoutSession({
+      id: "cs_y_later_authority_blocks",
+      status: "complete",
+      subscription: "sub_later_authority_blocks",
+      url: null,
+    })
+    const startedSubscriptionIds = []
+    let createCalls = 0
+
+    await assert.rejects(
+      settlesWithin(
+        stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+          reconciliationBudgetMs: 30,
+          stripeClient: {
+            checkout: {
+              sessions: {
+                list: async () => stripeCheckoutSessionList([
+                  laterBlockingSession,
+                  hangingSession,
+                ]),
+                create: async () => {
+                  createCalls += 1
+                  return membershipCheckoutSession({ id: "cs_unexpected_create" })
+                },
+              },
+            },
+            subscriptions: {
+              retrieve: async (subscriptionId) => {
+                startedSubscriptionIds.push(subscriptionId)
+                if (subscriptionId === hangingSession.subscription) {
+                  return new Promise(() => {})
+                }
+                return membershipStripeSubscription({ id: subscriptionId })
+              },
+            },
+          },
+        })),
+        "completed-subscription authority deadline",
+        500,
+      ),
+      /subscription authority lookups exceeded the safe limit/,
+    )
+
+    assert.deepEqual(startedSubscriptionIds, [
+      hangingSession.subscription,
+      laterBlockingSession.subscription,
+    ])
+    assert.equal(createCalls, 0)
+  })
+
   it("fails closed after exhausting the completed-subscription authority lookup budget", async () => {
     const completedSessions = Array.from({ length: 26 }, (_, index) => (
       membershipCheckoutSession({
