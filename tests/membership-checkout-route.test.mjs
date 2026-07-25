@@ -230,6 +230,27 @@ describe("Membership Checkout POST route", () => {
     })
   })
 
+  it("accepts the configured public origin when a proxy supplies an internal request URL", async () => {
+    const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
+    const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls))(
+      formRequest({
+        membershipLevel: "SUPPORTER",
+        supporterAmountChoiceId: "support-1",
+        interval: "month",
+      }, {
+        origin: "https://massagelab.app",
+      }, "http://internal-proxy:3000/api/billing/checkout"),
+    )
+
+    assert.deepEqual(response, {
+      url: "https://checkout.stripe.com/c/test",
+      status: 303,
+    })
+    assert.equal(calls.membershipLookup, 1)
+    assert.equal(calls.ensureCustomer, 1)
+    assert.equal(calls.createCheckout, 1)
+  })
+
   for (const membershipLevel of ["THERAPIST", "PRACTICE"]) {
     it(`rejects ${membershipLevel} before creating a Stripe customer or Checkout Session`, async () => {
       const calls = { ensureCustomer: 0, createCheckout: 0 }
@@ -802,8 +823,12 @@ function rawJsonRequest(body) {
   })
 }
 
-function formRequest(body, headers = {}) {
-  return new Request("https://massagelab.app/api/billing/checkout", {
+function formRequest(
+  body,
+  headers = {},
+  url = "https://massagelab.app/api/billing/checkout",
+) {
+  return new Request(url, {
     method: "POST",
     headers: {
       "content-type": "application/x-www-form-urlencoded",

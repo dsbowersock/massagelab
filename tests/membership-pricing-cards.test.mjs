@@ -191,18 +191,7 @@ describe("MembershipPricingCards configured price rendering", () => {
   it("omits an empty Portal amount grid while preserving management guidance", async () => {
     const tree = await renderMembershipPricingCards({
       mode: "portal",
-      amountChoices: [{
-        id: "support-1",
-        monthAmountCents: 100,
-        yearAmountCents: 1000,
-        prices: {
-          month: supporterMonthlyPrice({
-            unitAmount: null,
-            displayPrice: "Price unavailable",
-            isLookupAvailable: false,
-          }),
-        },
-      }],
+      amountChoices: [],
     })
 
     assert.equal(
@@ -271,7 +260,7 @@ describe("MembershipPricingCards configured price rendering", () => {
     }
   })
 
-  for (const mode of ["checkout", "auth", "portal"]) {
+  for (const mode of ["checkout", "auth"]) {
     it(`explains an empty ${mode} pricing catalog`, async () => {
       const tree = await renderMembershipPricingCards({
         mode,

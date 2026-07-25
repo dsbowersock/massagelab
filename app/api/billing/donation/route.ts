@@ -54,7 +54,7 @@ function pricingRedirect(code: string) {
 
 export async function POST(request: Request) {
   const isForm = isBrowserFormRequest(request)
-  if (!isTrustedCheckoutFormOrigin(request)) {
+  if (!isTrustedCheckoutFormOrigin(request, getSiteUrl())) {
     return isForm
       ? pricingRedirect("invalid-request")
       : NextResponse.json({ error: "Invalid request origin" }, { status: 403 })

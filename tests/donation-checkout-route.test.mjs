@@ -138,6 +138,32 @@ describe("one-time support Checkout route", () => {
     })
   })
 
+  it("accepts the configured public origin when a proxy supplies an internal request URL", async () => {
+    let checkoutCalls = 0
+    const POST = donationPost({
+      createCheckoutSession: async () => {
+        checkoutCalls += 1
+        return { url: "https://checkout.stripe.com/c/proxied-support" }
+      },
+    })
+    const request = new Request("http://internal-proxy:3000/api/billing/donation", {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        origin: "https://massagelab.app",
+      },
+      body: new URLSearchParams({ amountCents: "500" }),
+    })
+
+    const response = await POST(request)
+
+    assert.deepEqual(response, {
+      url: "https://checkout.stripe.com/c/proxied-support",
+      status: 303,
+    })
+    assert.equal(checkoutCalls, 1)
+  })
+
   it("rejects a cross-origin form before parsing, selection, or Stripe work", async () => {
     let formDataCalls = 0
     let selectionCalls = 0
