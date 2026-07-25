@@ -270,6 +270,11 @@ function FeatureGroup({
   )
 }
 
+/**
+ * Renders one public Supporter amount action. Auth mode links to sign-in;
+ * Checkout mode posts configured Prices and disables unavailable ones. Portal
+ * mode is handled by PlanCard and never reaches this component.
+ */
 function SupporterAmountChoice({
   plan,
   choiceId,

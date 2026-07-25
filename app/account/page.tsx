@@ -620,9 +620,6 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
   // A stored billing profile keeps invoices and payment management reachable
   // even when terminal subscription history returns pricing to Checkout mode.
   const canOpenBillingPortal = Boolean(membershipSummary.stripeCustomer)
-  // Missing billing-profile state must not turn a blocking subscription into
-  // new Checkout choices; it only suppresses the unavailable Portal action.
-  const membershipPricingMode = subscriptionPricingMode
 
   return (
     <TabsContent value="membership" className="space-y-5">
@@ -658,7 +655,7 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
         <MembershipPricingCards
           catalog={data.pricingCatalog}
           activeMembershipLevel={membershipSummary.entitlements.paidLevel}
-          mode={membershipPricingMode}
+          mode={subscriptionPricingMode}
           portalActionAvailable={canOpenBillingPortal}
         />
       </div>

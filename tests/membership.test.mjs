@@ -325,6 +325,30 @@ describe("Membership and entitlement helpers", () => {
     })
   })
 
+  it("does not treat an ended active subscription as the current pricing level", async () => {
+    const now = new Date("2026-07-24T00:00:00.000Z")
+    const subscriptions = [{
+      status: "active",
+      membershipLevel: "SUPPORTER",
+      currentPeriodEnd: now,
+      cancelAtPeriodEnd: false,
+    }]
+    const result = await membership.getUserMembershipPricingStatus({
+      stripeCustomer: {
+        findUnique: async () => ({ id: "stripe_customer_123" }),
+      },
+      membershipSubscription: {
+        findMany: async () => subscriptions,
+      },
+    }, "user_123", now)
+
+    assert.deepEqual(result, {
+      stripeCustomer: { id: "stripe_customer_123" },
+      subscriptions,
+      activeMembershipLevel: null,
+    })
+  })
+
   it("keeps historical Therapist and Practice Price normalization readable outside the public catalog", () => {
     const env = {
       STRIPE_THERAPIST_YEARLY_PRICE_ID: "price_therapist_yearly",

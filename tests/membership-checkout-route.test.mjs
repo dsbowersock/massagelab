@@ -222,6 +222,7 @@ describe("Membership Checkout POST route", () => {
     assert.equal(calls.membershipLookup, 1)
     assert.equal(calls.ensureCustomer, 1)
     assert.equal(calls.createCheckout, 1)
+    assert.ok(calls.recordedLegalAcceptances)
     assert.deepEqual(calls.recordedLegalAcceptances, {
       prismaClient: calls.recordedLegalAcceptances.prismaClient,
       userId: "user_123",

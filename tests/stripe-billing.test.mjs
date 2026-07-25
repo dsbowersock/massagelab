@@ -1077,6 +1077,7 @@ describe("Stripe billing helpers", () => {
         ...Array(6).fill(100),
         109,
         109,
+        109,
       ),
       stripeClient: {
         checkout: {
@@ -2403,6 +2404,95 @@ describe("Stripe billing helpers", () => {
     assert.equal(createCalls, 1)
   })
 
+  it("does not restart the reconciliation deadline after the initial create fails", async () => {
+    const originalCreateError = Object.assign(
+      new Error("initial create reached the deadline"),
+      { statusCode: 500, type: "StripeAPIError" },
+    )
+    let currentNowMs = 100
+    let listCalls = 0
+    let createCalls = 0
+
+    await assert.rejects(
+      stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+        reconciliationBudgetMs: 10,
+        reconciliationNowMs: () => currentNowMs,
+        stripeClient: {
+          checkout: {
+            sessions: {
+              list: async () => {
+                listCalls += 1
+                return stripeCheckoutSessionList()
+              },
+              create: async () => {
+                createCalls += 1
+                currentNowMs = 110
+                throw originalCreateError
+              },
+            },
+          },
+        },
+      })),
+      (error) => {
+        assert.match(
+          error.message,
+          /membership Checkout reconciliation exceeded the safe time limit/,
+        )
+        assert.equal(error.cause, originalCreateError)
+        return true
+      },
+    )
+
+    assert.equal(listCalls, 1)
+    assert.equal(createCalls, 1)
+  })
+
+  it("does not restart the deadline for create recovery reconciliation", async () => {
+    const originalCreateError = Object.assign(
+      new Error("initial create failed partway through the deadline"),
+      { statusCode: 500, type: "StripeAPIError" },
+    )
+    let currentNowMs = 100
+    let listCalls = 0
+    let createCalls = 0
+
+    await assert.rejects(
+      stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+        reconciliationBudgetMs: 10,
+        reconciliationNowMs: () => currentNowMs,
+        stripeClient: {
+          checkout: {
+            sessions: {
+              list: async () => {
+                listCalls += 1
+                if (listCalls === 2) {
+                  currentNowMs = 110
+                }
+                return stripeCheckoutSessionList()
+              },
+              create: async () => {
+                createCalls += 1
+                currentNowMs = 105
+                throw originalCreateError
+              },
+            },
+          },
+        },
+      })),
+      (error) => {
+        assert.match(
+          error.message,
+          /membership Checkout reconciliation exceeded the safe time limit/,
+        )
+        assert.equal(error.cause, originalCreateError)
+        return true
+      },
+    )
+
+    assert.equal(listCalls, 2)
+    assert.equal(createCalls, 1)
+  })
+
   it("rotates the user-scoped key when create recovery finds a newer anchor", async () => {
     const recoveredAnchor = membershipCheckoutSession({
       id: "cs_recovered_anchor",
@@ -2412,6 +2502,8 @@ describe("Stripe billing helpers", () => {
     const createAttempts = []
     let listCalls = 0
     const result = await stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+      reconciliationBudgetMs: 10,
+      reconciliationNowMs: monotonicNowMsSequence(...Array(11).fill(100)),
       stripeClient: {
         checkout: {
           sessions: {

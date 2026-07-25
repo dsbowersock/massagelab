@@ -28,8 +28,16 @@ export function SupporterInterestsPanel() {
   const [hasLoadedInterests, setHasLoadedInterests] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [message, setMessage] = useState<PanelMessage | null>(null)
+  const interestsRef = useRef<string[]>([])
+  const persistedInterestsRef = useRef<string[]>([])
   const loadRequestRef = useRef(0)
   const saveRequestRef = useRef(0)
+
+  /** Keeps state and the event-safe selection snapshot synchronized. */
+  const replaceInterests = useCallback((nextInterests: string[]) => {
+    interestsRef.current = nextInterests
+    setInterests(nextInterests)
+  }, [])
 
   /**
    * Gives each load an ID so only the latest mounted request may replace state
@@ -57,9 +65,11 @@ export function SupporterInterestsPanel() {
         return
       }
 
-      setInterests(normalizeSupporterRoadmapInterests(
+      const loadedInterests = normalizeSupporterRoadmapInterests(
         preferences.appSettings?.supporterRoadmapInterests,
-      ))
+      )
+      persistedInterestsRef.current = loadedInterests
+      replaceInterests(loadedInterests)
       setHasLoadedInterests(true)
     } catch (error) {
       if (!isCurrentRequest()) {
@@ -75,7 +85,7 @@ export function SupporterInterestsPanel() {
         setIsLoading(false)
       }
     }
-  }, [])
+  }, [replaceInterests])
 
   useEffect(() => {
     void loadInterests()
@@ -87,14 +97,14 @@ export function SupporterInterestsPanel() {
 
   /**
    * Applies selections optimistically, lets the newest save win, and rolls the
-   * latest failed request back to the interests visible before that request.
+   * latest failed request back to the last selection confirmed by the server.
    */
   async function saveInterests(nextInterests: string[]) {
     const requestId = saveRequestRef.current + 1
     saveRequestRef.current = requestId
     const isCurrentRequest = () => saveRequestRef.current === requestId
-    const previousInterests = interests
-    setInterests(nextInterests)
+    const previousInterests = persistedInterestsRef.current
+    replaceInterests(nextInterests)
     setIsSaving(true)
     setMessage(null)
 
@@ -117,14 +127,16 @@ export function SupporterInterestsPanel() {
       if (!isCurrentRequest()) {
         return
       }
-      setInterests(resolveSupporterRoadmapInterestsAfterSave({
+      const savedInterests = resolveSupporterRoadmapInterestsAfterSave({
         previousInterests,
         responseInterests: preferences?.appSettings?.supporterRoadmapInterests,
         // A successful write is authoritative even if a proxy or older API
         // response omits the saved array; retain the submitted selection.
         submittedInterests: nextInterests,
         saveSucceeded: true,
-      }))
+      })
+      persistedInterestsRef.current = savedInterests
+      replaceInterests(savedInterests)
       setMessage({
         text: "Roadmap interests saved.",
         variant: "success",
@@ -134,7 +146,7 @@ export function SupporterInterestsPanel() {
         return
       }
       console.error("SupporterInterestsPanel failed to save roadmap interests", error)
-      setInterests(resolveSupporterRoadmapInterestsAfterSave({
+      replaceInterests(resolveSupporterRoadmapInterestsAfterSave({
         previousInterests,
       }))
       setMessage({
@@ -149,9 +161,10 @@ export function SupporterInterestsPanel() {
   }
 
   function toggleInterest(interestId: string, checked: boolean) {
+    const currentInterests = interestsRef.current
     const nextInterests = checked
-      ? normalizeSupporterRoadmapInterests([...interests, interestId])
-      : interests.filter((interest) => interest !== interestId)
+      ? normalizeSupporterRoadmapInterests([...currentInterests, interestId])
+      : currentInterests.filter((interest) => interest !== interestId)
 
     void saveInterests(nextInterests)
   }

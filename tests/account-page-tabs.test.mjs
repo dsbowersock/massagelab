@@ -207,6 +207,7 @@ describe("Account page tab model", () => {
   })
 })
 
+/** Builds a minimal Supporter subscription fixture for one Stripe status. */
 function subscription(status) {
   return {
     id: `sub_${status}`,
@@ -217,6 +218,10 @@ function subscription(status) {
   }
 }
 
+/**
+ * Finds the pricing-card node, asserts its shared fixture props, and returns
+ * the complete props used for mode and Portal gating checks.
+ */
 function membershipPricingProps(tree) {
   const pricingCards = findElement(
     tree,
@@ -228,6 +233,7 @@ function membershipPricingProps(tree) {
   return pricingCards.props
 }
 
+/** Collects rendered POST forms that open the Stripe Billing Portal. */
 function billingPortalForms(tree) {
   return findElements(
     tree,

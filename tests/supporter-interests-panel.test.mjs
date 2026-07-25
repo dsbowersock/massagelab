@@ -56,6 +56,7 @@ function createPanelHarness(fetchImpl) {
   const pendingEffects = []
   const cleanups = []
   let hookIndex = 0
+  let hasMounted = false
   let mounted = false
   let tree = null
   let updatesAfterUnmount = 0
@@ -185,6 +186,10 @@ function createPanelHarness(fetchImpl) {
   }
 
   function mount() {
+    if (hasMounted) {
+      throw new Error("SupporterInterestsPanel harness cannot mount more than once")
+    }
+    hasMounted = true
     globalThis.fetch = fetchImpl
     mounted = true
     render()
@@ -240,8 +245,12 @@ function findLiveRegion(tree, politeness) {
 }
 
 function liveRegionMessageElement(tree, politeness) {
+  const region = findLiveRegion(tree, politeness)
+  if (!region) {
+    return null
+  }
   const message = findElement(
-    findLiveRegion(tree, politeness),
+    region,
     (element) => element.type === "p",
   )
   return message ?? null
@@ -281,6 +290,28 @@ async function settleAsyncWork() {
 }
 
 describe("SupporterInterestsPanel", () => {
+  it("rejects repeated harness mounts before changing mounted state", async () => {
+    const harness = createPanelHarness(async () => createJsonResponse({
+      appSettings: { supporterRoadmapInterests: [] },
+    }))
+
+    try {
+      harness.mount()
+      assert.throws(
+        () => harness.mount(),
+        /cannot mount more than once/,
+      )
+      await settleAsyncWork()
+      harness.unmount()
+      assert.throws(
+        () => harness.mount(),
+        /cannot mount more than once/,
+      )
+    } finally {
+      harness.dispose()
+    }
+  })
+
   it("persists a successful interest toggle and keeps the saved selection", async () => {
     const initialInterest = supporterRoadmapInterestOptions[0].id
     const addedInterest = supporterRoadmapInterestOptions[1].id
@@ -339,6 +370,145 @@ describe("SupporterInterestsPanel", () => {
         "Roadmap interests saved.",
       )
       assert.equal(liveRegionMessage(harness.getTree(), "assertive"), "")
+    } finally {
+      harness.dispose()
+    }
+  })
+
+  it("builds rapid toggles from the latest optimistic selection before rerender", async () => {
+    const initialInterest = supporterRoadmapInterestOptions[0].id
+    const firstAddedInterest = supporterRoadmapInterestOptions[1].id
+    const secondAddedInterest = supporterRoadmapInterestOptions[2].id
+    const putBodies = []
+    const harness = createPanelHarness(async (_url, init = {}) => {
+      if (init.method !== "PUT") {
+        return createJsonResponse({
+          appSettings: {
+            supporterRoadmapInterests: [initialInterest],
+          },
+        })
+      }
+
+      const body = JSON.parse(init.body)
+      putBodies.push(body)
+      return createJsonResponse(body)
+    })
+
+    try {
+      harness.mount()
+      await settleAsyncWork()
+      harness.render()
+
+      findInterestCheckbox(harness.getTree(), firstAddedInterest)
+        .props.onCheckedChange(true)
+      findInterestCheckbox(harness.getTree(), secondAddedInterest)
+        .props.onCheckedChange(true)
+
+      await settleAsyncWork()
+      harness.render()
+
+      assert.deepEqual(putBodies, [
+        {
+          appSettings: {
+            supporterRoadmapInterests: [
+              initialInterest,
+              firstAddedInterest,
+            ],
+          },
+        },
+        {
+          appSettings: {
+            supporterRoadmapInterests: [
+              initialInterest,
+              firstAddedInterest,
+              secondAddedInterest,
+            ],
+          },
+        },
+      ])
+      assert.equal(
+        findInterestCheckbox(harness.getTree(), firstAddedInterest).props.checked,
+        true,
+      )
+      assert.equal(
+        findInterestCheckbox(harness.getTree(), secondAddedInterest).props.checked,
+        true,
+      )
+    } finally {
+      harness.dispose()
+    }
+  })
+
+  it("rolls two rapid failed saves back to the last persisted selection", async (context) => {
+    const persistedInterest = supporterRoadmapInterestOptions[0].id
+    const firstFailedInterest = supporterRoadmapInterestOptions[1].id
+    const secondFailedInterest = supporterRoadmapInterestOptions[2].id
+    const firstSave = createDeferred()
+    const latestSave = createDeferred()
+    const pendingSaves = [firstSave, latestSave]
+    const logged = []
+    context.mock.method(console, "error", (...args) => logged.push(args))
+    const harness = createPanelHarness(async (_url, init = {}) => {
+      if (init.method !== "PUT") {
+        return createJsonResponse({
+          appSettings: {
+            supporterRoadmapInterests: [persistedInterest],
+          },
+        })
+      }
+
+      return pendingSaves.shift().promise
+    })
+
+    try {
+      harness.mount()
+      await settleAsyncWork()
+      harness.render()
+
+      findInterestCheckbox(harness.getTree(), firstFailedInterest)
+        .props.onCheckedChange(true)
+      findInterestCheckbox(harness.getTree(), secondFailedInterest)
+        .props.onCheckedChange(true)
+      harness.render()
+
+      latestSave.reject(new Error("latest save failed"))
+      await settleAsyncWork()
+      harness.render()
+
+      assert.equal(
+        findInterestCheckbox(harness.getTree(), persistedInterest).props.checked,
+        true,
+      )
+      assert.equal(
+        findInterestCheckbox(harness.getTree(), firstFailedInterest).props.checked,
+        false,
+      )
+      assert.equal(
+        findInterestCheckbox(harness.getTree(), secondFailedInterest).props.checked,
+        false,
+      )
+
+      firstSave.reject(new Error("older save failed"))
+      await settleAsyncWork()
+      harness.render()
+
+      assert.equal(
+        findInterestCheckbox(harness.getTree(), persistedInterest).props.checked,
+        true,
+      )
+      assert.equal(
+        findInterestCheckbox(harness.getTree(), firstFailedInterest).props.checked,
+        false,
+      )
+      assert.equal(
+        findInterestCheckbox(harness.getTree(), secondFailedInterest).props.checked,
+        false,
+      )
+      assert.equal(logged.length, 1)
+      assert.equal(
+        liveRegionMessage(harness.getTree(), "assertive"),
+        "Could not save roadmap interests. Please try again.",
+      )
     } finally {
       harness.dispose()
     }
