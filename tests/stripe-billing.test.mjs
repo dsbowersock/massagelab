@@ -4,6 +4,7 @@ import { describe, it } from "node:test"
 import {
   createStripeDonationCheckoutSession,
   isDonationCheckoutSession,
+  MEMBERSHIP_CHECKOUT_SUBSCRIPTION_AUTHORITY_READ_BUDGET,
   normalizeStripeSubscription,
   stripeTimestampToDate,
   upsertMembershipSubscriptionFromStripe,
@@ -2058,9 +2059,55 @@ describe("Stripe billing helpers", () => {
       },
     }))
 
-    assert.equal(result.id, "cs_complete")
-    assert.equal(result.status, "complete")
+    assert.deepEqual(result, {
+      id: "cs_complete",
+      status: "complete",
+      subscription: "sub_complete",
+      url: null,
+    })
     assert.equal(createCalls, 0)
+  })
+
+  it("anchors Checkout creation after terminal authority to the source Session ID", async () => {
+    const completedSession = membershipCheckoutSession({
+      id: "cs_terminal_authority_anchor",
+      status: "complete",
+      subscription: "sub_terminal_authority_anchor",
+      url: null,
+    })
+    const createIdempotencyKeys = []
+
+    const result = await stripeBilling.createStripeCheckoutSession(
+      membershipCheckoutOptions({
+        stripeClient: {
+          checkout: {
+            sessions: {
+              list: async () => stripeCheckoutSessionList([completedSession]),
+              create: async (_payload, requestOptions) => {
+                createIdempotencyKeys.push(requestOptions.idempotencyKey)
+                return membershipCheckoutSession({ id: "cs_after_terminal_authority" })
+              },
+            },
+          },
+          subscriptions: {
+            retrieve: async (subscriptionId) => membershipStripeSubscription({
+              id: subscriptionId,
+              status: "canceled",
+            }),
+          },
+        },
+      }),
+    )
+
+    assert.deepEqual(result, {
+      id: "cs_after_terminal_authority",
+      status: "open",
+      subscription: null,
+      url: "https://checkout.stripe.com/c/membership",
+    })
+    assert.deepEqual(createIdempotencyKeys, [
+      "massagelab-membership-checkout:user_123:after:cs_terminal_authority_anchor",
+    ])
   })
 
   it("deduplicates completed subscription authorities while preserving blocking precedence", async () => {
@@ -2175,7 +2222,9 @@ describe("Stripe billing helpers", () => {
     })
     const completedSessions = [
       missingSubscriptionSession,
-      ...Array.from({ length: 25 }, (_, index) => membershipCheckoutSession({
+      ...Array.from({
+        length: MEMBERSHIP_CHECKOUT_SUBSCRIPTION_AUTHORITY_READ_BUDGET,
+      }, (_, index) => membershipCheckoutSession({
         id: `cs_100_terminal_${String(index).padStart(2, "0")}`,
         status: "complete",
         subscription: `sub_terminal_${index}`,
@@ -2212,11 +2261,14 @@ describe("Stripe billing helpers", () => {
 
     assert.equal(result.id, missingSubscriptionSession.id)
     assert.equal(result.subscription, null)
-    assert.equal(retrieveCalls, 25)
+    assert.equal(
+      retrieveCalls,
+      MEMBERSHIP_CHECKOUT_SUBSCRIPTION_AUTHORITY_READ_BUDGET,
+    )
     assert.equal(createCalls, 0)
   })
 
-  it("bounds completed-subscription authority lookups while preserving input order", async () => {
+  it("bounds newest-first authority lookups in descending subscription-ID order", async () => {
     const completedSessions = Array.from({ length: 6 }, (_, index) => (
       membershipCheckoutSession({
         id: `cs_authority_pool_${index}`,
@@ -2228,6 +2280,7 @@ describe("Stripe billing helpers", () => {
     const gates = new Map(
       completedSessions.map(({ subscription }) => [subscription, deferred()]),
     )
+    // Descending subscription IDs model newest-first processing, not fixture input order.
     const expectedSubscriptionIds = completedSessions
       .map(({ subscription }) => subscription)
       .toSorted((left, right) => right.localeCompare(left))
@@ -2259,7 +2312,9 @@ describe("Stripe billing helpers", () => {
               if (startedSubscriptionIds.length === completedSessions.length) {
                 allLookupsStarted.resolve()
               }
-              await gates.get(subscriptionId).promise
+              const gate = gates.get(subscriptionId)
+              assert.ok(gate, `Missing authority gate for ${subscriptionId}`)
+              await gate.promise
               activeLookups -= 1
               return membershipStripeSubscription({
                 id: subscriptionId,
@@ -2277,11 +2332,15 @@ describe("Stripe billing helpers", () => {
       expectedSubscriptionIds.slice(0, 3),
     )
     startedSubscriptionIds.forEach((subscriptionId) => {
-      gates.get(subscriptionId).resolve()
+      const gate = gates.get(subscriptionId)
+      assert.ok(gate, `Missing authority gate for ${subscriptionId}`)
+      gate.resolve()
     })
     await settlesWithin(allLookupsStarted.promise, "second authority worker wave")
     expectedSubscriptionIds.slice(3).forEach((subscriptionId) => {
-      gates.get(subscriptionId).resolve()
+      const gate = gates.get(subscriptionId)
+      assert.ok(gate, `Missing authority gate for ${subscriptionId}`)
+      gate.resolve()
     })
 
     const result = await settlesWithin(checkoutPromise, "bounded authority reconciliation")

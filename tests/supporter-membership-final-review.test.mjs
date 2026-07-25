@@ -539,6 +539,7 @@ describe("Supporter membership final-review contracts", () => {
       1,
       "the migration source must expose exactly one CLI entrypoint call",
     )
+    // Test-only: replace import.meta.url for a stable URL and the single await main() to suppress CLI startup before loading.
     const migration = loadCompiledModule(
       migrationSource
         .replaceAll(
