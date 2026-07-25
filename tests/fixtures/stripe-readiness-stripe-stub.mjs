@@ -1,4 +1,5 @@
 import {
+  STRIPE_API_VERSION,
   STRIPE_PINNED_WEBHOOK_EVENTS,
   STRIPE_PINNED_WEBHOOK_URL,
 } from "../../lib/stripe-webhook-contract.js"
@@ -47,7 +48,11 @@ function supporterPrice(priceId) {
 /** Hermetic Stripe client used only by readiness CLI child-process tests. */
 export default class StripeReadinessStub {
   constructor(_apiKey, config = {}) {
-    this.config = config
+    // Match the app's pinned Stripe client while preserving explicit test overrides.
+    this.config = {
+      ...config,
+      apiVersion: config.apiVersion ?? STRIPE_API_VERSION,
+    }
     this.prices = {
       retrieve: async (priceId) => supporterPrice(priceId),
     }

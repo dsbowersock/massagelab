@@ -2222,6 +2222,7 @@ describe("Stripe billing helpers", () => {
       subscription: null,
       url: null,
     })
+    // The missing-subscription Session sorts last so the full read budget is consumed first.
     const completedSessions = [
       missingSubscriptionSession,
       ...Array.from({

@@ -10,8 +10,10 @@ import {
   REQUIRED_SUPPORTER_PRICE_CONTRACT,
   validateRetrievedMembershipPrice,
 } from "../lib/stripe-readiness.js"
+import { STRIPE_API_VERSION } from "../lib/stripe-webhook-contract.js"
 import { SUPPORTER_AMOUNT_CHOICES } from "../lib/membership.js"
 import { recurringPriceSemanticMismatches } from "../lib/stripe-price-contract.js"
+import StripeReadinessStub from "./fixtures/stripe-readiness-stripe-stub.mjs"
 
 const readinessScriptPath = fileURLToPath(
   new URL("../scripts/stripe-readiness-check.mjs", import.meta.url),
@@ -101,6 +103,17 @@ function runReadinessWithStripeStub(overrides = {}, args = []) {
 }
 
 describe("Stripe readiness background-commerce contract", () => {
+  it("uses the pinned API version by default while preserving explicit stub overrides", async () => {
+    const defaultEndpoint = await new StripeReadinessStub("sk_test_default")
+      .webhookEndpoints.list()
+    const overrideEndpoint = await new StripeReadinessStub("sk_test_override", {
+      apiVersion: "2026-06-24.dahlia",
+    }).webhookEndpoints.list()
+
+    assert.equal(defaultEndpoint.data[0].api_version, STRIPE_API_VERSION)
+    assert.equal(overrideEndpoint.data[0].api_version, "2026-06-24.dahlia")
+  })
+
   it("accepts boolean true or a trimmed case-insensitive true string and rejects other values", () => {
     assert.deepEqual(
       [true, " TRUE ", false, "1", "yes", undefined].map(isExplicitTrue),

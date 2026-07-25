@@ -184,6 +184,13 @@ function PlanCard({
   )
 }
 
+/**
+ * Renders the mode-specific membership actions. Portal is wholly gated by
+ * `portalActionAvailable` and pairs lookup-verified amount tiles with the
+ * Portal form; auth shows only lookup-verified choices; checkout shows every
+ * resolved choice and lets the downstream amount action disable unavailable
+ * choices.
+ */
 function PlanActions({
   plan,
   mode,
@@ -198,8 +205,6 @@ function PlanActions({
   availableAmountChoices: Array<{ choiceId: string, price: MembershipPrice }>
 }) {
   if (mode === "portal") {
-    // Existing-member Portal access stays actionable without lookup-based amount choices;
-    // portalActionAvailable still gates the entire action when Portal is unavailable.
     return portalActionAvailable ? (
       <div className="mt-auto space-y-3">
         {availableAmountChoices.length > 0 ? (
