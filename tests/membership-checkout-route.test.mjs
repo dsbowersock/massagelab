@@ -203,9 +203,10 @@ describe("Membership Checkout POST route", () => {
 
   it("accepts a same-origin form and records required legal acceptance", async () => {
     const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
-    const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
+    const dependencies = checkoutDependencies(calls, {
       alreadyAccepted: false,
-    }))(formRequest({
+    })
+    const response = await createMembershipCheckoutPostHandler(dependencies)(formRequest({
       membershipLevel: "SUPPORTER",
       supporterAmountChoiceId: "support-1",
       interval: "month",
@@ -224,7 +225,7 @@ describe("Membership Checkout POST route", () => {
     assert.equal(calls.createCheckout, 1)
     assert.ok(calls.recordedLegalAcceptances)
     assert.deepEqual(calls.recordedLegalAcceptances, {
-      prismaClient: calls.recordedLegalAcceptances.prismaClient,
+      prismaClient: dependencies.prisma,
       userId: "user_123",
       documents: [MEMBERSHIP_BILLING_DOCUMENT],
       metadata: { source: "membership-checkout-test" },

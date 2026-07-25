@@ -125,9 +125,11 @@ function PlanCard({
       ? [{ choiceId: choice.id, price }]
       : []
   })
-  // Resolved choices include fail-soft unavailable placeholders. Only prices
-  // with verified lookup evidence may be advertised before authentication or
-  // as Customer Portal switching targets.
+  // isConfigured means an environment catalog slot contains a Price ID;
+  // isLookupAvailable means Stripe retrieval also verified its amount. Only
+  // lookup-available choices may be advertised before authentication or as
+  // Portal switching targets. Checkout still renders configured lookup
+  // failures so the user sees the choice disabled instead of silently missing.
   const availableAmountChoices = resolvedAmountChoices.filter(
     ({ price }) => price.isLookupAvailable,
   )
@@ -271,9 +273,11 @@ function FeatureGroup({
 }
 
 /**
- * Renders one public Supporter amount action. Auth mode links to sign-in;
- * Checkout mode posts configured Prices and disables unavailable ones. Portal
- * mode is handled by PlanCard and never reaches this component.
+ * Renders one public Supporter amount action. Auth mode receives only
+ * lookup-available Prices and links to sign-in. Checkout distinguishes missing
+ * catalog configuration from a configured Price whose Stripe lookup failed,
+ * rendering the latter choice but disabling its submission. Portal mode is
+ * handled by PlanCard and never reaches this component.
  */
 function SupporterAmountChoice({
   plan,
@@ -299,6 +303,7 @@ function SupporterAmountChoice({
     )
   }
 
+  // No configured Price ID means there is no safe Checkout payload to render.
   if (!price.isConfigured) {
     return (
       <Button
@@ -340,6 +345,7 @@ function SupporterAmountChoice({
         variant="attention"
         className="w-full"
         metalFullWidth
+        // A configured ID remains non-actionable until Stripe verifies its amount.
         disabled={!price.isLookupAvailable}
       >
         <span>

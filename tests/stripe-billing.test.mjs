@@ -2660,7 +2660,7 @@ describe("Stripe billing helpers", () => {
     assert.equal(capturedPayload.line_items[0].price_data.unit_amount, 1500)
     assert.deepEqual(capturedPayload.line_items[0].price_data.product_data, {
       name: "MassageLab One-time support",
-      description: "One-time support does not create a membership or unlock features. It is not a charitable donation and is not tax-deductible.",
+      description: "One-time support does not purchase goods or services, create a membership, or unlock features. It is not a charitable donation and is not tax-deductible.",
     })
     assert.equal(Object.hasOwn(capturedPayload, "automatic_tax"), false)
     assert.equal(capturedPayload.metadata.purpose, "massagelab_project_support")

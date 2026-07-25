@@ -60,96 +60,144 @@ function isJsxLikeNode(value) {
 
 /** Returns the first matching JSX-like object across every prop value. */
 export function findElement(tree, predicate) {
-  if (Array.isArray(tree)) {
-    for (const child of tree) {
-      const match = findElement(child, predicate)
-      if (match) {
-        return match
+  const ancestors = new Set()
+
+  function visit(value) {
+    if (!value || typeof value !== "object") {
+      return null
+    }
+    if (ancestors.has(value)) {
+      return null
+    }
+    ancestors.add(value)
+
+    try {
+      if (Array.isArray(value)) {
+        for (const child of value) {
+          const match = visit(child)
+          if (match) {
+            return match
+          }
+        }
+        return null
       }
-    }
-    return null
-  }
 
-  if (!tree || typeof tree !== "object") {
-    return null
-  }
+      if (isJsxLikeNode(value) && predicate(value)) {
+        return value
+      }
 
-  if (isJsxLikeNode(tree) && predicate(tree)) {
-    return tree
-  }
-
-  const nestedValues = isJsxLikeNode(tree)
-    ? Object.values(tree.props ?? {})
-    : Object.values(tree)
-  for (const value of nestedValues) {
-    const match = findElement(value, predicate)
-    if (match) {
-      return match
+      const nestedValues = isJsxLikeNode(value)
+        ? Object.values(value.props ?? {})
+        : Object.values(value)
+      for (const nestedValue of nestedValues) {
+        const match = visit(nestedValue)
+        if (match) {
+          return match
+        }
+      }
+      return null
+    } finally {
+      ancestors.delete(value)
     }
   }
-  return null
+
+  return visit(tree)
 }
 
 /** Collects every matching JSX-like object across every prop value. */
 export function findElements(tree, predicate, matches = []) {
-  if (Array.isArray(tree)) {
-    for (const child of tree) {
-      findElements(child, predicate, matches)
+  const ancestors = new Set()
+
+  function visit(value) {
+    if (!value || typeof value !== "object" || ancestors.has(value)) {
+      return
     }
-    return matches
+    ancestors.add(value)
+
+    try {
+      if (Array.isArray(value)) {
+        for (const child of value) {
+          visit(child)
+        }
+        return
+      }
+
+      if (isJsxLikeNode(value) && predicate(value)) {
+        matches.push(value)
+      }
+      const nestedValues = isJsxLikeNode(value)
+        ? Object.values(value.props ?? {})
+        : Object.values(value)
+      for (const nestedValue of nestedValues) {
+        visit(nestedValue)
+      }
+    } finally {
+      ancestors.delete(value)
+    }
   }
 
-  if (!tree || typeof tree !== "object") {
-    return matches
-  }
-
-  if (isJsxLikeNode(tree) && predicate(tree)) {
-    matches.push(tree)
-  }
-  const nestedValues = isJsxLikeNode(tree)
-    ? Object.values(tree.props ?? {})
-    : Object.values(tree)
-  for (const value of nestedValues) {
-    findElements(value, predicate, matches)
-  }
+  visit(tree)
   return matches
 }
 
 /** Recursively evaluates function-component nodes across every prop value. */
 export function renderFunctionComponents(tree) {
-  if (Array.isArray(tree)) {
-    return tree.map(renderFunctionComponents)
-  }
-  if (!tree || typeof tree !== "object") {
-    return tree ?? null
-  }
-  if (!Object.hasOwn(tree, "type") || !Object.hasOwn(tree, "props")) {
-    return tree
-  }
-  if (typeof tree.type === "function") {
-    const rendered = tree.type(tree.props)
-    if (
-      rendered
-      && (typeof rendered === "object" || typeof rendered === "function")
-      && typeof rendered.then === "function"
-    ) {
-      throw new TypeError(
-        "renderFunctionComponents received an async function-component result; await it before rendering.",
-      )
+  const ancestors = new Set()
+
+  function render(value) {
+    if (Array.isArray(value)) {
+      if (ancestors.has(value)) {
+        return value
+      }
+      ancestors.add(value)
+      try {
+        return value.map(render)
+      } finally {
+        ancestors.delete(value)
+      }
     }
-    return renderFunctionComponents(rendered)
+    if (!value || typeof value !== "object") {
+      return value ?? null
+    }
+    if (!Object.hasOwn(value, "type") || !Object.hasOwn(value, "props")) {
+      return value
+    }
+    if (ancestors.has(value)) {
+      return value
+    }
+    ancestors.add(value)
+
+    try {
+      if (typeof value.type === "function") {
+        const rendered = value.type(value.props)
+        if (
+          rendered
+          && (typeof rendered === "object" || typeof rendered === "function")
+          && typeof rendered.then === "function"
+        ) {
+          throw new TypeError(
+            "renderFunctionComponents received an async function-component result; await it before rendering.",
+          )
+        }
+        return render(rendered)
+      }
+
+      const renderedProps = Object.fromEntries(
+        Object.entries(value.props ?? {}).map(([name, propValue]) => [
+          name,
+          render(propValue),
+        ]),
+      )
+      return {
+        ...value,
+        props: renderedProps,
+      }
+    } finally {
+      ancestors.delete(value)
+    }
   }
 
-  const renderedProps = Object.fromEntries(
-    Object.entries(tree.props ?? {}).map(([name, value]) => [
-      name,
-      renderFunctionComponents(value),
-    ]),
-  )
-  return {
-    ...tree,
-    props: renderedProps,
-  }
+  return render(tree)
 }
 
 /**
@@ -157,37 +205,56 @@ export function renderFunctionComponents(tree) {
  * leaking implementation props such as class names, URLs, or event handlers.
  */
 export function elementText(tree) {
-  if (Array.isArray(tree)) {
-    return tree.map(elementText).join("")
-  }
-  if (typeof tree === "string" || typeof tree === "number") {
-    return String(tree)
-  }
-  if (!tree || typeof tree !== "object") {
-    return ""
+  const ancestors = new Set()
+
+  function read(value) {
+    if (Array.isArray(value)) {
+      if (ancestors.has(value)) {
+        return ""
+      }
+      ancestors.add(value)
+      try {
+        return value.map(read).join("")
+      } finally {
+        ancestors.delete(value)
+      }
+    }
+    if (typeof value === "string" || typeof value === "number") {
+      return String(value)
+    }
+    if (!value || typeof value !== "object" || ancestors.has(value)) {
+      return ""
+    }
+    ancestors.add(value)
+
+    try {
+      const props = value.props ?? {}
+      const textValues = [
+        props.children,
+        props.title,
+        props["aria-label"],
+        props.label,
+        props.placeholder,
+        props.content,
+      ]
+      const hasExplicitText = textValues.some((textValue) => textValue != null)
+
+      if (
+        !hasExplicitText
+        && value.type !== "input"
+        && value.type !== "textarea"
+        && (typeof props.value === "string" || typeof props.value === "number")
+      ) {
+        textValues.push(props.value)
+      }
+
+      return textValues.map(read).join("")
+    } finally {
+      ancestors.delete(value)
+    }
   }
 
-  const props = tree.props ?? {}
-  const textValues = [
-    props.children,
-    props.title,
-    props["aria-label"],
-    props.label,
-    props.placeholder,
-    props.content,
-  ]
-  const hasExplicitText = textValues.some((value) => value != null)
-
-  if (
-    !hasExplicitText
-    && tree.type !== "input"
-    && tree.type !== "textarea"
-    && (typeof props.value === "string" || typeof props.value === "number")
-  ) {
-    textValues.push(props.value)
-  }
-
-  return textValues.map(elementText).join("")
+  return read(tree)
 }
 
 /** Builds a function-component double that preserves its children and props. */

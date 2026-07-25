@@ -15,6 +15,66 @@ const pricingCardsSource = await readFile(
 )
 
 function TestComponent() {}
+const Div = passThroughElement("div")
+const Button = passThroughElement("button")
+const Link = passThroughElement("a")
+const pricingCards = loadCompiledModule(
+  pricingCardsSource,
+  "components/membership/pricing-cards.tsx",
+  {
+    "react/jsx-runtime": {
+      Fragment: Symbol.for("membership-pricing-cards-test.fragment"),
+      jsx: createElement,
+      jsxs: createElement,
+    },
+    "next/link": Link,
+    "lucide-react": {
+      BadgeDollarSign: TestComponent,
+      CheckCircle2: TestComponent,
+      Palette: TestComponent,
+      ShieldCheck: TestComponent,
+    },
+    "@/components/ui/app-surface": {
+      appCalloutClassName: "test-callout",
+      appSurfaceClassName: "test-surface",
+    },
+    "@/components/ui/badge": {
+      Badge: Div,
+    },
+    "@/components/ui/button": {
+      Button,
+    },
+    "@/components/ui/card": {
+      Card: Div,
+      CardContent: Div,
+      CardDescription: Div,
+      CardHeader: Div,
+      CardTitle: Div,
+    },
+    "@/components/ui/metal-attention-button": {
+      MetalAttentionButton: Button,
+    },
+    "@/components/ui/tabs": {
+      Tabs: Div,
+      TabsContent: Div,
+      TabsList: Div,
+      TabsTrigger: Div,
+    },
+    "@/lib/legal-documents": {
+      getLegalDocumentByKey: () => ({
+        label: "Membership Billing and Refund Terms",
+        route: "/legal/membership-billing-refunds",
+      }),
+      legalDocumentAcceptanceId: () => "membership-billing-refunds:test",
+    },
+    "@/lib/membership-pricing": {
+      resolveMembershipPriceForInterval,
+    },
+    "@/lib/utils": {
+      cn: (...classes) => classes.filter(Boolean).join(" "),
+    },
+  },
+)
 
 /** Builds a complete lookup-verified Supporter monthly price test value. */
 export function supporterMonthlyPrice(overrides = {}) {
@@ -75,66 +135,6 @@ export function renderMembershipPricingCards({
   portalActionAvailable = true,
   interval = "month",
 }) {
-  const Div = passThroughElement("div")
-  const Button = passThroughElement("button")
-  const Link = passThroughElement("a")
-  const pricingCards = loadCompiledModule(
-    pricingCardsSource,
-    "components/membership/pricing-cards.tsx",
-    {
-      "react/jsx-runtime": {
-        Fragment: Symbol.for("membership-pricing-cards-test.fragment"),
-        jsx: createElement,
-        jsxs: createElement,
-      },
-      "next/link": Link,
-      "lucide-react": {
-        BadgeDollarSign: TestComponent,
-        CheckCircle2: TestComponent,
-        Palette: TestComponent,
-        ShieldCheck: TestComponent,
-      },
-      "@/components/ui/app-surface": {
-        appCalloutClassName: "test-callout",
-        appSurfaceClassName: "test-surface",
-      },
-      "@/components/ui/badge": {
-        Badge: Div,
-      },
-      "@/components/ui/button": {
-        Button,
-      },
-      "@/components/ui/card": {
-        Card: Div,
-        CardContent: Div,
-        CardDescription: Div,
-        CardHeader: Div,
-        CardTitle: Div,
-      },
-      "@/components/ui/metal-attention-button": {
-        MetalAttentionButton: Button,
-      },
-      "@/components/ui/tabs": {
-        Tabs: Div,
-        TabsContent: Div,
-        TabsList: Div,
-        TabsTrigger: Div,
-      },
-      "@/lib/legal-documents": {
-        getLegalDocumentByKey: () => ({
-          label: "Membership Billing and Refund Terms",
-          route: "/legal/membership-billing-refunds",
-        }),
-        legalDocumentAcceptanceId: () => "membership-billing-refunds:test",
-      },
-      "@/lib/membership-pricing": {
-        resolveMembershipPriceForInterval,
-      },
-      "@/lib/utils": {
-        cn: (...classes) => classes.filter(Boolean).join(" "),
-      },
-    },
-  )
   const catalog = {
     defaultInterval: interval,
     intervals: [{

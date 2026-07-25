@@ -11,6 +11,7 @@ describe("user-facing copy", () => {
       roadmapPage,
       homePage,
       donationRoute,
+      stripeBilling,
       billingGuide,
       releaseChecklist,
       loginForm,
@@ -22,6 +23,7 @@ describe("user-facing copy", () => {
       readFile(new URL("../app/roadmap/page.tsx", import.meta.url), "utf8"),
       readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
       readFile(new URL("../app/api/billing/donation/route.ts", import.meta.url), "utf8"),
+      readFile(new URL("../lib/stripe-billing.js", import.meta.url), "utf8"),
       readFile(new URL("../docs/wiki/billing-memberships.md", import.meta.url), "utf8"),
       readFile(new URL("../docs/wiki/release-checklist.md", import.meta.url), "utf8"),
       readFile(new URL("../app/login/login-form.tsx", import.meta.url), "utf8"),
@@ -54,6 +56,7 @@ describe("user-facing copy", () => {
     assert.match(donationRoute, /Unable to start one-time support checkout/)
     assert.doesNotMatch(donationRoute, /Unsupported donation amount/)
     assert.doesNotMatch(donationRoute, /Unable to start donation checkout/)
+    assert.match(stripeBilling, /One-time support does not purchase goods or services, create a membership, or unlock features\. It is not a charitable donation and is not tax-deductible\./)
 
     const normalizedBillingGuide = billingGuide.replace(/\s+/g, " ")
     assert.match(

@@ -121,6 +121,38 @@ describe("compiled-module JSX traversal helpers", () => {
     assert.deepEqual(visited, ["section", "span", "span"])
   })
 
+  it("terminates cyclic JSX trees without changing repeated-reference traversal", () => {
+    const target = createElement("span", {
+      marker: "target",
+      children: "Target",
+    })
+    const cyclicTree = createElement("section", {})
+    cyclicTree.props.children = [target, cyclicTree]
+    const repeatedTree = createElement("section", {
+      children: [target, target],
+    })
+
+    assert.equal(
+      findElement(cyclicTree, (element) => element.props?.marker === "target"),
+      target,
+    )
+    assert.deepEqual(
+      findElements(cyclicTree, (element) => element.props?.marker === "target"),
+      [target],
+    )
+    assert.deepEqual(
+      findElements(repeatedTree, (element) => element.props?.marker === "target"),
+      [target, target],
+    )
+    assert.equal(elementText(cyclicTree), "Target")
+    assert.equal(elementText(repeatedTree), "TargetTarget")
+
+    const rendered = renderFunctionComponents(cyclicTree)
+    assert.equal(rendered.props.children[0].type, "span")
+    assert.equal(rendered.props.children[0].props.marker, "target")
+    assert.equal(rendered.props.children[1], cyclicTree)
+  })
+
   it("renders function components in every prop while preserving primitive props", () => {
     const onClick = () => {}
     const style = { color: "orange" }

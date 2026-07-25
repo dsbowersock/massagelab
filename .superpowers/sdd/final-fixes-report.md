@@ -4,8 +4,10 @@
 
 `DONE_WITH_CONCERNS`
 
-All six final-review findings are fixed, covered by focused regressions, validated
-by the full repository gates, and committed. The remaining concerns are
+The original six final-review findings were fixed, covered by focused
+regressions, validated by the full repository gates, and committed in
+`80bb9df2`. The evidence below records that historical fix batch; it is not a
+claim about validation at the current PR head. The remaining concerns are
 operational gates that were intentionally outside this review: no external
 network calls, live Stripe/database inventory, migration apply, deployment,
 catalog mutation, or live smoke was performed.

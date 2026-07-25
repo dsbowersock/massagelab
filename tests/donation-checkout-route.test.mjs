@@ -93,7 +93,7 @@ describe("one-time support Checkout route", () => {
   })
 
   it("fails closed without a valid canonical origin for metadata-only requests", () => {
-    const jsonRequest = new Request("https://massagelab.app/api/billing/donation", {
+    const metadataOnlyJsonRequest = new Request("https://massagelab.app/api/billing/donation", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ amountCents: 500 }),
@@ -110,8 +110,8 @@ describe("one-time support Checkout route", () => {
       },
     )
 
-    assert.equal(isTrustedCheckoutFormOrigin(jsonRequest), false)
-    assert.equal(isTrustedCheckoutFormOrigin(jsonRequest, "not a URL"), false)
+    assert.equal(isTrustedCheckoutFormOrigin(metadataOnlyJsonRequest), false)
+    assert.equal(isTrustedCheckoutFormOrigin(metadataOnlyJsonRequest, "not a URL"), false)
     assert.equal(isTrustedCheckoutFormOrigin(sameOriginRequest), false)
     assert.equal(
       isTrustedCheckoutFormOrigin(sameOriginRequest, "https://massagelab.app"),

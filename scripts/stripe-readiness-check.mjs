@@ -41,6 +41,8 @@ let verifiedWebhookCoverageComplete = !verifyStripe
 let verifiedWebhookEndpointEnabled = !verifyStripe
 let verifiedWebhookApiVersionCurrent = !verifyStripe
 let stripeRetrievalPerformed = false
+let stripeSecretReady = false
+let priceIdInventoryComplete = false
 
 if (!noDotenv) {
   loadEnvironment(explicitEnvFile)
@@ -94,6 +96,7 @@ function checkSecretKey() {
   if (!liveMode && !key.startsWith("sk_test_") && !key.startsWith("sk_live_")) {
     addWarning("STRIPE_SECRET_KEY is configured but does not use the expected sk_test_ or sk_live_ prefix.")
   }
+  stripeSecretReady = true
 }
 
 function checkWebhookSecret() {
@@ -131,6 +134,8 @@ function checkPriceIds() {
 
     priceIds.set(priceId, expected)
   }
+  priceIdInventoryComplete =
+    priceIds.size === REQUIRED_SUPPORTER_PRICE_CONTRACT.length
 }
 
 /**
@@ -249,7 +254,7 @@ function checkBackgroundCommerceReadiness() {
 }
 
 async function verifyStripePrices() {
-  if (!verifyStripe || failures.length > 0) {
+  if (!verifyStripe || !stripeSecretReady || !priceIdInventoryComplete) {
     return
   }
 
@@ -257,18 +262,24 @@ async function verifyStripePrices() {
     apiVersion: STRIPE_API_VERSION,
   })
 
+  let allPricesRetrievedAndValidated = true
   for (const [priceId, expected] of priceIds) {
     try {
       const price = await stripe.prices.retrieve(priceId, { expand: ["product", "currency_options"] })
-      for (const failure of validateRetrievedMembershipPrice(price, expected)) {
+      const validationFailures = validateRetrievedMembershipPrice(price, expected)
+      if (validationFailures.length > 0) {
+        allPricesRetrievedAndValidated = false
+      }
+      for (const failure of validationFailures) {
         addFailure(failure)
       }
-      stripeRetrievalPerformed = true
     } catch (error) {
+      allPricesRetrievedAndValidated = false
       const detail = error instanceof Error ? error.message : "unknown Stripe error"
       addFailure(`${expected.key} could not be retrieved from Stripe: ${detail}`)
     }
   }
+  stripeRetrievalPerformed = allPricesRetrievedAndValidated
 
   try {
     const endpoints = await stripe.webhookEndpoints.list({ limit: 100 })
@@ -340,4 +351,7 @@ if (liveMode && !verifyStripe) {
 const supporterTax = checkSupporterRecurringTaxReadiness()
 const commerce = checkBackgroundCommerceReadiness()
 await verifyStripePrices()
+if (verifyStripe && !stripeRetrievalPerformed) {
+  addFailure("Stripe Price retrieval did not complete for every required Supporter contract slot.")
+}
 printResults(supporterTax, commerce)

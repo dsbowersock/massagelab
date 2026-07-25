@@ -19,6 +19,8 @@ const CREATE_NEW_PRODUCT = "CREATE_NEW"
 const NO_ALLOWED_SUBSCRIPTION = "none"
 const SUPPORTER_PRODUCT_IDEMPOTENCY_KEY = "massagelab-supporter-membership-v1-product"
 const TERMINAL_SUBSCRIPTION_STATUSES = new Set(["canceled", "incomplete_expired"])
+// All inventory callers request 100 objects per page, so this last-resort cap
+// bounds each complete in-memory listing to approximately 1,000,000 objects.
 const MAX_STRIPE_LIST_PAGES = 10_000
 const APPLY_RETRY_DELAYS_MS = Object.freeze([250, 500])
 const RECOVERABLE_APPLY_VERIFICATION_FAILURES = new Set([
@@ -269,6 +271,17 @@ function buildConfig(env, requestedMode) {
   }
 }
 
+/**
+ * Retrieves a complete Stripe list into memory.
+ *
+ * @param {(params: Record<string, unknown>) => Promise<{ data: unknown[], has_more: boolean }>} listPage
+ * @param {Record<string, unknown>} params Stripe list parameters, normally including `limit: 100`.
+ * @returns {Promise<unknown[]>} Every row from every page; partial inventory is never returned.
+ *
+ * Malformed data or `has_more`, missing or repeated cursors, and exhaustion of
+ * the 10,000-page safety cap fail closed with
+ * `MigrationError(["stripe_pagination_incomplete"])`.
+ */
 async function listAll(listPage, params) {
   const rows = []
   const seenCursors = new Set()

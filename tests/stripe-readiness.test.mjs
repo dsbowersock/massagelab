@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { spawnSync } from "node:child_process"
-import { mkdtemp, rm, writeFile } from "node:fs/promises"
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { describe, it } from "node:test"
@@ -540,15 +540,31 @@ describe("Stripe readiness background-commerce contract", () => {
     assert.doesNotMatch(result.stdout, /PASS Stripe membership environment is ready/)
   })
 
-  it("reports requested Stripe verification as not performed when local gates fail first", () => {
+  it("reports requested Stripe verification as not performed when its prerequisites fail", () => {
     const result = runReadiness({
-      STRIPE_SECRET_KEY: "sk_live_readiness",
-      STRIPE_WEBHOOK_SECRET: "",
+      STRIPE_SECRET_KEY: "",
     }, ["--live", "--verify-stripe"])
 
     assert.equal(result.status, 1)
     assert.match(result.stdout, /Stripe API retrieval requested: true/)
     assert.match(result.stdout, /Stripe API retrieval performed: false/)
+  })
+
+  it("does not use unrelated readiness failures to suppress Stripe verification", async () => {
+    const readinessSource = await readFile(readinessScriptPath, "utf8")
+
+    assert.doesNotMatch(
+      readinessSource,
+      /if\s*\(\s*!verifyStripe\s*\|\|\s*failures\.length\s*>\s*0\s*\)/,
+    )
+    assert.match(
+      readinessSource,
+      /if\s*\(\s*!verifyStripe\s*\|\|\s*!stripeSecretReady\s*\|\|\s*!priceIdInventoryComplete\s*\)/,
+    )
+    assert.match(
+      readinessSource,
+      /stripeRetrievalPerformed\s*=\s*allPricesRetrievedAndValidated/,
+    )
   })
 
   it("checks the complete Price ID inventory before Stripe retrieval", () => {
