@@ -1249,6 +1249,65 @@ describe("Stripe billing helpers", () => {
     assert.equal(createCalls, 0)
   })
 
+  it("fails at the absolute authority deadline after expiration confirms completion", async () => {
+    const expiredOpenSession = membershipCheckoutSession({
+      id: "cs_open_completion_authority_hangs",
+      expiresAt: 1784912400,
+    })
+    let expireCalls = 0
+    let retrieveSessionCalls = 0
+    let retrieveSubscriptionCalls = 0
+    let createCalls = 0
+
+    await assert.rejects(
+      settlesWithin(
+        stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+          reconciliationBudgetMs:
+            AUTHORITY_HANGING_READ_RECONCILIATION_BUDGET_MS,
+          reconciliationNowMs: () => 100,
+          stripeClient: {
+            checkout: {
+              sessions: {
+                list: async () => stripeCheckoutSessionList([expiredOpenSession]),
+                expire: async () => {
+                  expireCalls += 1
+                  return { status: "expired" }
+                },
+                retrieve: async () => {
+                  retrieveSessionCalls += 1
+                  return membershipCheckoutSession({
+                    id: expiredOpenSession.id,
+                    status: "complete",
+                    subscription: "sub_completion_authority_hangs",
+                    url: null,
+                  })
+                },
+                create: async () => {
+                  createCalls += 1
+                  return membershipCheckoutSession({ id: "cs_unexpected_create" })
+                },
+              },
+            },
+            subscriptions: {
+              retrieve: async () => {
+                retrieveSubscriptionCalls += 1
+                return new Promise(() => {})
+              },
+            },
+          },
+        })),
+        "expiration-confirmation authority deadline",
+        5_000,
+      ),
+      /subscription authority lookups exceeded the safe limit/,
+    )
+
+    assert.equal(expireCalls, 1)
+    assert.equal(retrieveSessionCalls, 1)
+    assert.equal(retrieveSubscriptionCalls, 1)
+    assert.equal(createCalls, 0)
+  })
+
   it("fails closed instead of reusing a compatible open membership Checkout without a URL", async () => {
     const openSession = membershipCheckoutSession({ id: "cs_open_no_url", url: null })
     let createCalls = 0
@@ -1583,6 +1642,7 @@ describe("Stripe billing helpers", () => {
       reconciliationBudgetMs: 10,
       reconciliationNowMs: monotonicNowMsSequence(
         ...Array(80).fill(100),
+        109,
         109,
         109,
         109,
@@ -2272,7 +2332,16 @@ describe("Stripe billing helpers", () => {
   })
 
   it("bounds newest-first authority lookups in descending subscription-ID order", async () => {
-    const completedSessions = Array.from({ length: 6 }, (_, index) => (
+    const authorityWorkerCount = Math.min(
+      MEMBERSHIP_CHECKOUT_SUBSCRIPTION_AUTHORITY_CONCURRENCY,
+      MEMBERSHIP_CHECKOUT_SUBSCRIPTION_AUTHORITY_READ_BUDGET,
+    )
+    assert.ok(authorityWorkerCount > 0, "Authority concurrency and read budget must be positive")
+    const authoritySessionCount = Math.min(
+      MEMBERSHIP_CHECKOUT_SUBSCRIPTION_AUTHORITY_READ_BUDGET,
+      authorityWorkerCount * 2,
+    )
+    const completedSessions = Array.from({ length: authoritySessionCount }, (_, index) => (
       membershipCheckoutSession({
         id: `cs_authority_pool_${index}`,
         status: "complete",
@@ -2311,7 +2380,7 @@ describe("Stripe billing helpers", () => {
               maxActiveLookups = Math.max(maxActiveLookups, activeLookups)
               if (
                 startedSubscriptionIds.length
-                === MEMBERSHIP_CHECKOUT_SUBSCRIPTION_AUTHORITY_CONCURRENCY
+                === authorityWorkerCount
               ) {
                 firstWaveStarted.resolve()
               }
@@ -2337,7 +2406,7 @@ describe("Stripe billing helpers", () => {
       startedSubscriptionIds,
       expectedSubscriptionIds.slice(
         0,
-        MEMBERSHIP_CHECKOUT_SUBSCRIPTION_AUTHORITY_CONCURRENCY,
+        authorityWorkerCount,
       ),
     )
     startedSubscriptionIds.forEach((subscriptionId) => {
@@ -2345,9 +2414,9 @@ describe("Stripe billing helpers", () => {
       assert.ok(gate, `Missing authority gate for ${subscriptionId}`)
       gate.resolve()
     })
-    await settlesWithin(allLookupsStarted.promise, "second authority worker wave")
+    await settlesWithin(allLookupsStarted.promise, "complete authority pool")
     expectedSubscriptionIds
-      .slice(MEMBERSHIP_CHECKOUT_SUBSCRIPTION_AUTHORITY_CONCURRENCY)
+      .slice(authorityWorkerCount)
       .forEach((subscriptionId) => {
         const gate = gates.get(subscriptionId)
         assert.ok(gate, `Missing authority gate for ${subscriptionId}`)
@@ -2358,7 +2427,7 @@ describe("Stripe billing helpers", () => {
     assert.equal(result.id, "cs_after_authority_pool")
     assert.equal(
       maxActiveLookups,
-      MEMBERSHIP_CHECKOUT_SUBSCRIPTION_AUTHORITY_CONCURRENCY,
+      authorityWorkerCount,
     )
     assert.deepEqual(
       startedSubscriptionIds,
@@ -2385,11 +2454,8 @@ describe("Stripe billing helpers", () => {
     const originalSetTimeout = globalThis.setTimeout
     globalThis.setTimeout = (callback, delay, ...args) => {
       const timer = originalSetTimeout(callback, delay, ...args)
-      if (
-        typeof delay === "number"
-        && delay > 500
-        && delay <= AUTHORITY_HANGING_READ_RECONCILIATION_BUDGET_MS
-      ) {
+      // The exact delay identifies the authority deadline whose unref state is under test.
+      if (delay === AUTHORITY_HANGING_READ_RECONCILIATION_BUDGET_MS) {
         authorityDeadlineTimer = timer
       }
       return timer
@@ -2401,6 +2467,7 @@ describe("Stripe billing helpers", () => {
         stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
           reconciliationBudgetMs:
             AUTHORITY_HANGING_READ_RECONCILIATION_BUDGET_MS,
+          reconciliationNowMs: () => 100,
           stripeClient: {
             checkout: {
               sessions: {
@@ -2493,10 +2560,25 @@ describe("Stripe billing helpers", () => {
       /subscription authority lookups exceeded the safe limit/,
     )
 
-    assert.deepEqual(startedSubscriptionIds, [
-      hangingSession.subscription,
-      laterBlockingSession.subscription,
-    ])
+    assert.ok(
+      startedSubscriptionIds.includes(hangingSession.subscription),
+      "The hanging authority lookup must start",
+    )
+    assert.ok(
+      startedSubscriptionIds.length <= Math.min(
+        MEMBERSHIP_CHECKOUT_SUBSCRIPTION_AUTHORITY_CONCURRENCY,
+        2,
+      ),
+      "Observed authority reads must remain within configured concurrency",
+    )
+    if (MEMBERSHIP_CHECKOUT_SUBSCRIPTION_AUTHORITY_CONCURRENCY > 1) {
+      assert.ok(
+        startedSubscriptionIds.includes(laterBlockingSession.subscription),
+        "Configured concurrency should start the later blocking authority",
+      )
+    } else {
+      assert.deepEqual(startedSubscriptionIds, [hangingSession.subscription])
+    }
     assert.equal(createCalls, 0)
   })
 

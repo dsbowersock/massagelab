@@ -15,6 +15,7 @@ import {
   SUPPORTER_RECURRING_TAX_BEHAVIOR,
   SUPPORTER_RECURRING_TAX_CODE,
 } from "../lib/stripe-price-contract.js"
+import { TARGET_PRICE_SPECS } from "../lib/stripe-supporter-membership-migration-contract.js"
 import { safeErrorCode } from "../lib/safe-error-code.js"
 import {
   createCompiledModuleLoader,
@@ -566,6 +567,9 @@ describe("Supporter membership final-review contracts", () => {
         },
         "../lib/stripe-webhook-contract.js": {
           STRIPE_API_VERSION: "test-api-version",
+        },
+        "../lib/stripe-supporter-membership-migration-contract.js": {
+          TARGET_PRICE_SPECS,
         },
       },
     )

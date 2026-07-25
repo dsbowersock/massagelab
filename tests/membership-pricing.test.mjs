@@ -6,7 +6,7 @@ import {
   getMembershipPricingCatalog,
   resolveMembershipPriceForInterval,
 } from "../lib/membership-pricing.js"
-import { TARGET_PRICE_SPECS } from "../scripts/stripe-supporter-membership-migration.mjs"
+import { TARGET_PRICE_SPECS } from "../lib/stripe-supporter-membership-migration-contract.js"
 
 function stripePrice({ id, amount, currency = "usd", interval }) {
   return {
