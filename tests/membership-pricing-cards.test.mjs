@@ -119,11 +119,13 @@ describe("MembershipPricingCards configured price rendering", () => {
 
     const support1Checkout = checkoutChoices.get("support-1")
     assert.equal(support1Checkout.type, "form")
+    const [support1Button] = findElements(
+      support1Checkout,
+      (element) => element.type === "button" && /Support with/.test(elementText(element)),
+    )
+    assert.ok(support1Button, "support-1 must render a Support button")
     assert.equal(
-      findElements(
-        support1Checkout,
-        (element) => element.type === "button" && /Support with/.test(elementText(element)),
-      )[0].props.disabled,
+      support1Button.props.disabled,
       false,
     )
 
@@ -134,11 +136,13 @@ describe("MembershipPricingCards configured price rendering", () => {
 
     const support5Checkout = checkoutChoices.get("support-5")
     assert.equal(support5Checkout.type, "form")
+    const [support5Button] = findElements(
+      support5Checkout,
+      (element) => element.type === "button" && /Support with/.test(elementText(element)),
+    )
+    assert.ok(support5Button, "support-5 must render a Support button")
     assert.equal(
-      findElements(
-        support5Checkout,
-        (element) => element.type === "button" && /Support with/.test(elementText(element)),
-      )[0].props.disabled,
+      support5Button.props.disabled,
       true,
     )
     assert.equal(checkoutChoices.has("support-missing"), false)
@@ -148,8 +152,18 @@ describe("MembershipPricingCards configured price rendering", () => {
       authCards,
       (element) => (
         element.type === "a"
-        && element.props.href === "/login?callbackUrl=%2Fpricing"
+        && element.props["data-membership-auth-amount-choice"] != null
       ),
+    )
+    assert.deepEqual(
+      authChoices.map((element) => ({
+        choiceId: element.props["data-membership-auth-amount-choice"],
+        href: element.props.href,
+      })),
+      [{
+        choiceId: "support-1",
+        href: "/login?callbackUrl=%2Fpricing%3FsupporterAmountChoiceId%3Dsupport-1%26interval%3Dmonth",
+      }],
     )
     assert.deepEqual(
       authChoices.map((element) => elementText(element)),
@@ -240,7 +254,7 @@ describe("MembershipPricingCards configured price rendering", () => {
     assert.equal(
       findElements(
         tree,
-        (element) => element.type === "a" && element.props.href === "/login?callbackUrl=%2Fpricing",
+        (element) => element.props["data-membership-auth-amount-choice"] != null,
       ).length,
       0,
     )

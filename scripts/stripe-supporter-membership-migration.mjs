@@ -20,7 +20,7 @@ const NO_ALLOWED_SUBSCRIPTION = "none"
 const SUPPORTER_PRODUCT_IDEMPOTENCY_KEY = "massagelab-supporter-membership-v1-product"
 const TERMINAL_SUBSCRIPTION_STATUSES = new Set(["canceled", "incomplete_expired"])
 // All inventory callers request 100 objects per page, so this last-resort cap
-// bounds each complete in-memory listing to approximately 1,000,000 objects.
+// bounds any one complete scan to approximately 1,000,000 visited objects.
 const MAX_STRIPE_LIST_PAGES = 10_000
 const APPLY_RETRY_DELAYS_MS = Object.freeze([250, 500])
 const RECOVERABLE_APPLY_VERIFICATION_FAILURES = new Set([
@@ -272,18 +272,18 @@ function buildConfig(env, requestedMode) {
 }
 
 /**
- * Retrieves a complete Stripe list into memory.
+ * Visits a complete Stripe list without materializing the account-wide result.
  *
  * @param {(params: Record<string, unknown>) => Promise<{ data: unknown[], has_more: boolean }>} listPage
  * @param {Record<string, unknown>} params Stripe list parameters, normally including `limit: 100`.
- * @returns {Promise<unknown[]>} Every row from every page; partial inventory is never returned.
+ * @param {(row: unknown) => void} visit Called once per object in page order.
+ * @returns {Promise<void>} Resolves only after every page has been visited.
  *
  * Malformed data or `has_more`, missing or repeated cursors, and exhaustion of
  * the 10,000-page safety cap fail closed with
  * `MigrationError(["stripe_pagination_incomplete"])`.
  */
-async function listAll(listPage, params) {
-  const rows = []
+async function scanAll(listPage, params, visit) {
   const seenCursors = new Set()
   let startingAfter = null
 
@@ -295,9 +295,11 @@ async function listAll(listPage, params) {
     if (!Array.isArray(page?.data)) {
       throw new MigrationError(["stripe_pagination_incomplete"])
     }
-    rows.push(...page.data)
+    for (const row of page.data) {
+      visit(row)
+    }
     if (page.has_more === false) {
-      return rows
+      return
     }
     if (page.has_more !== true) {
       throw new MigrationError(["stripe_pagination_incomplete"])
@@ -535,36 +537,136 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
   const failureCodes = []
 
   let balance
-  let subscriptions
+  const subscriptions = []
+  let relevantSubscriptionOverflow = false
+  const productsById = new Map()
+  let targetProductCandidateOverflow = false
   let allProducts
-  let activePrices
-  let inactivePrices
   let allPrices
   let portal
   try {
-    // Stripe omits inactive Prices from its default list. Read both states so
-    // post-apply verification can still prove archived legacy dependencies
-    // and reject any unexpected inactive Price owned by a managed Product.
-    [balance, subscriptions, allProducts, activePrices, inactivePrices, portal] = await Promise.all([
+    const configuredProductIds = new Set(
+      Object.values(config.productIds).filter(
+        (id) => id && id !== CREATE_NEW_PRODUCT,
+      ),
+    )
+    const retainProduct = (candidate) => {
+      const candidateId = candidate?.id
+      const isTargetCandidate = candidate?.name === SUPPORTER_PRODUCT_NAME
+        || candidate?.metadata?.massagelab_catalog === SUPPORTER_CATALOG
+      if (configuredProductIds.has(candidateId)) {
+        productsById.set(candidateId, candidate)
+      }
+      // Two candidates are sufficient to prove a duplicate; retaining more
+      // cannot change this migration's fail-closed outcome.
+      if (isTargetCandidate && !productsById.has(candidateId)) {
+        if (targetProductCandidateOverflow) return
+        const retainedTargetCount = [...productsById.values()].filter((product) => (
+          product?.name === SUPPORTER_PRODUCT_NAME
+          || product?.metadata?.massagelab_catalog === SUPPORTER_CATALOG
+        )).length
+        if (retainedTargetCount >= 2) {
+          targetProductCandidateOverflow = true
+        } else {
+          productsById.set(candidateId, candidate)
+        }
+      }
+    }
+
+    const [retrievedBalance, retrievedPortal] = await Promise.all([
       stripe.balance.retrieve(),
-      listAll(stripe.subscriptions.list.bind(stripe.subscriptions), {
-        status: "all",
-        limit: 100,
-      }),
-      listAll(stripe.products.list.bind(stripe.products), { limit: 100 }),
-      listAll(stripe.prices.list.bind(stripe.prices), {
-        active: true,
-        limit: 100,
-        expand: ["data.currency_options"],
-      }),
-      listAll(stripe.prices.list.bind(stripe.prices), {
-        active: false,
-        limit: 100,
-        expand: ["data.currency_options"],
-      }),
       stripe.billingPortal.configurations.retrieve(config.portalConfigurationId),
+      scanAll(
+        stripe.subscriptions.list.bind(stripe.subscriptions),
+        { status: "all", limit: 100 },
+        (subscription) => {
+          const status = String(subscription?.status ?? "").toLowerCase()
+          if (!TERMINAL_SUBSCRIPTION_STATUSES.has(status)) {
+            if (subscriptions.length < 2) subscriptions.push(subscription)
+            else relevantSubscriptionOverflow = true
+          }
+        },
+      ),
+      scanAll(
+        stripe.products.list.bind(stripe.products),
+        { limit: 100 },
+        (product) => {
+          retainProduct(product)
+        },
+      ),
     ])
-    allPrices = [...activePrices, ...inactivePrices]
+    balance = retrievedBalance
+    portal = retrievedPortal
+
+    // Retrieve explicitly named dependencies first. This catches configured
+    // Prices attached to the wrong Product without retaining unrelated Prices.
+    const configuredPriceIds = new Set([
+      ...config.legacyPrices.map((spec) => spec.id),
+      ...config.targetPrices.map((spec) => spec.configuredId).filter(Boolean),
+    ])
+    const configuredPrices = []
+    await Promise.all([...configuredPriceIds].map(async (priceId) => {
+      const result = await retrieveOrMissing(
+        stripe.prices.retrieve.bind(stripe.prices),
+        priceId,
+      )
+      if (!result.missing) configuredPrices.push(result.object)
+    }))
+
+    const discoveredLegacySupporterProductId =
+      config.productIds.supporter === CREATE_NEW_PRODUCT
+        ? priceProductId(configuredPrices.find((candidate) => (
+            config.legacyPrices.some((spec) => (
+              spec.productKey === "supporter" && spec.id === candidate?.id
+            ))
+          )))
+        : config.productIds.supporter
+    if (
+      discoveredLegacySupporterProductId
+      && !productsById.has(discoveredLegacySupporterProductId)
+    ) {
+      const result = await retrieveOrMissing(
+        stripe.products.retrieve.bind(stripe.products),
+        discoveredLegacySupporterProductId,
+      )
+      if (!result.missing) productsById.set(result.object.id, result.object)
+    }
+
+    allProducts = [...productsById.values()]
+
+    const managedProductIds = new Set([
+      ...configuredProductIds,
+      discoveredLegacySupporterProductId,
+      ...allProducts
+        .filter((candidate) => (
+          candidate?.name === SUPPORTER_PRODUCT_NAME
+          || candidate?.metadata?.massagelab_catalog === SUPPORTER_CATALOG
+        ))
+        .map(({ id }) => id),
+    ].filter(Boolean))
+    const pricesById = new Map(
+      configuredPrices.map((candidate) => [candidate.id, candidate]),
+    )
+    // Stripe omits inactive Prices by default. Scan both states per managed
+    // Product so duplicates and unexpected archived Prices still fail closed
+    // without materializing unrelated account inventory.
+    await Promise.all([...managedProductIds].flatMap((productId) => (
+      [true, false].map((active) => scanAll(
+        stripe.prices.list.bind(stripe.prices),
+        {
+          product: productId,
+          active,
+          limit: 100,
+          expand: ["data.currency_options"],
+        },
+        (price) => {
+          if (priceProductId(price) === productId) {
+            pricesById.set(price.id, price)
+          }
+        },
+      ))
+    )))
+    allPrices = [...pricesById.values()]
   } catch (error) {
     if (error instanceof MigrationError) throw error
     throw new MigrationError(["stripe_dependency_read_failed"], [], { cause: error })
@@ -580,10 +682,11 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
     const status = String(subscription.status ?? "").toLowerCase()
     return !TERMINAL_SUBSCRIPTION_STATUSES.has(status)
   })
-  const subscriptionsMatch = expectsNoAllowedSubscription(config.allowedSubscriptionId)
+  const subscriptionsMatch = !relevantSubscriptionOverflow
+    && (expectsNoAllowedSubscription(config.allowedSubscriptionId)
     ? relevantSubscriptions.length === 0
     : relevantSubscriptions.length === 1
-      && relevantSubscriptions[0].id === config.allowedSubscriptionId
+      && relevantSubscriptions[0].id === config.allowedSubscriptionId)
   if (
     !subscriptionsMatch
     || relevantSubscriptions.some((subscription) => !modeMatches(subscription, config.livemode))
@@ -624,7 +727,7 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
     candidate.name === SUPPORTER_PRODUCT_NAME
     || candidate.metadata?.massagelab_catalog === SUPPORTER_CATALOG
   ))
-  if (targetProductCandidates.length > 1) {
+  if (targetProductCandidateOverflow || targetProductCandidates.length > 1) {
     failureCodes.push("supporter_product_duplicate")
   } else if (config.productIds.supporter === CREATE_NEW_PRODUCT) {
     products.supporter = targetProductCandidates[0] ?? null
@@ -1376,6 +1479,9 @@ async function main() {
   const mode = argumentValue("--mode")
   const secretKey = envValue(process.env, "STRIPE_SECRET_KEY")
   try {
+    // Validate the CLI boundary before constructing Stripe. The exported
+    // runner deliberately rebuilds the same pure config so programmatic
+    // callers cannot bypass validation by supplying a prevalidated object.
     buildConfig(process.env, mode)
     const stripe = new Stripe(secretKey, { apiVersion: STRIPE_API_VERSION })
     const result = await runSupporterMembershipMigration({

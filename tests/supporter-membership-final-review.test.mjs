@@ -253,10 +253,17 @@ function migrationStripeFixture(targetPrice) {
       list: async () => ({ data: products, has_more: false }),
     },
     prices: {
-      list: async ({ active }) => ({
-        data: active ? prices : [],
+      list: async ({ active, product }) => ({
+        data: active ? prices.filter((candidate) => candidate.product === product) : [],
         has_more: false,
       }),
+      retrieve: async (id) => {
+        const candidate = prices.find((price) => price.id === id)
+        if (!candidate) {
+          throw Object.assign(new Error("No such price"), { code: "resource_missing" })
+        }
+        return candidate
+      },
     },
     billingPortal: {
       configurations: {
@@ -341,15 +348,22 @@ describe("Supporter membership final-review contracts", () => {
 
     assert.deepEqual(formActions(guestCards), [])
     assert.match(elementText(guestCards), /Choose \$1/)
-    assert.equal(
-      findElements(
-        guestCards,
-        (element) => (
-          element.type === "a"
-          && element.props.href === "/login?callbackUrl=%2Fpricing"
-        ),
-      ).length,
-      1,
+    const guestAuthChoices = findElements(
+      guestCards,
+      (element) => (
+        element.type === "a"
+        && element.props["data-membership-auth-amount-choice"] != null
+      ),
+    )
+    assert.deepEqual(
+      guestAuthChoices.map((element) => ({
+        choiceId: element.props["data-membership-auth-amount-choice"],
+        href: element.props.href,
+      })),
+      [{
+        choiceId: "support-1",
+        href: "/login?callbackUrl=%2Fpricing%3FsupporterAmountChoiceId%3Dsupport-1%26interval%3Dmonth",
+      }],
     )
   })
 

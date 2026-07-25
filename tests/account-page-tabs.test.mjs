@@ -23,6 +23,10 @@ import {
 import { resolveMembershipPricingMode } from "../lib/membership.js"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
+const accountPageSource = await readFile(
+  new URL("../app/account/page.tsx", import.meta.url),
+  "utf8",
+)
 
 describe("Account page tab model", () => {
   it("groups existing account sections into stable account navigation without dropping current features", () => {
@@ -253,24 +257,24 @@ async function renderMembershipTab({
   subscriptions,
   stripeCustomer,
 }) {
-  const accountPageSource = await readFile(
-    new URL("../app/account/page.tsx", import.meta.url),
-    "utf8",
-  )
   const functionStart = accountPageSource.indexOf("async function MembershipTab")
-  const functionEnd = accountPageSource.indexOf(
-    "\nasync function BackgroundCommerceTab",
-    functionStart,
-  )
   assert.notEqual(
     functionStart,
     -1,
     "Account page source must contain the MembershipTab function",
   )
+  const functionEnd = accountPageSource.indexOf(
+    "\nasync function BackgroundCommerceTab",
+    functionStart,
+  )
   assert.notEqual(
     functionEnd,
     -1,
     "MembershipTab extraction must end at BackgroundCommerceTab",
+  )
+  assert.ok(
+    functionEnd > functionStart,
+    "MembershipTab extraction must end after its start marker",
   )
 
   const imports = `

@@ -663,8 +663,31 @@ describe("Supporter membership Stripe migration", () => {
     assert.match(output, /PASS coupon_dependencies/)
     assert.match(output, /PASS portal_dependencies/)
     assert.match(output, /PASS migration_state_pre_migration/)
-    const priceList = fixture.calls.find(({ name }) => name === "prices.list")
-    assert.deepEqual(priceList.payload.expand, ["data.currency_options"])
+    const priceListCalls = fixture.calls.filter(({ name }) => name === "prices.list")
+    assert.equal(priceListCalls.length, 6)
+    assert.equal(
+      priceListCalls.every(({ payload }) => payload.product && [true, false].includes(payload.active)),
+      true,
+      "every Price scan must be constrained to a managed Product and explicit active state",
+    )
+    assert.equal(
+      priceListCalls.every(({ payload }) => (
+        JSON.stringify(payload.expand) === JSON.stringify(["data.currency_options"])
+      )),
+      true,
+    )
+    assert.deepEqual(
+      new Set(priceListCalls.map(({ payload }) => payload.product)),
+      new Set(["prod_supporter", "prod_therapist", "prod_practice"]),
+    )
+    assert.deepEqual(
+      fixture.calls
+        .filter(({ name }) => name === "prices.retrieve")
+        .map(({ id }) => id)
+        .sort(),
+      LEGACY_PRICE_SPECS.map(([id]) => id).sort(),
+      "explicit legacy Price dependencies must be retrieved even before product-filtered scans",
+    )
     assert.doesNotMatch(
       output,
       /cus_private_test_account|sub_documented_test|sk_test_do_not_print|price_supporter|prod_supporter|coupon_student|bpc_membership/,

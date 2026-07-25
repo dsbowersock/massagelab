@@ -30,6 +30,7 @@ function donationPost({
       email: "supporter@example.com",
     },
   },
+  siteUrl = "https://massagelab.app",
 } = {}) {
   const route = loadCompiledModule(
     donationRouteSource,
@@ -45,7 +46,7 @@ function donationPost({
         getCurrentSession: async () => session,
       },
       "@/lib/auth-env": {
-        getSiteUrl: () => "https://massagelab.app",
+        getSiteUrl: () => siteUrl,
       },
       "@/lib/donations": {
         findDonationOption,
@@ -75,48 +76,60 @@ function jsonRequest(body = JSON.stringify({ amountCents: 500 })) {
 }
 
 describe("one-time support Checkout route", () => {
-  it("does not trust request.url when a canonical checkout origin is omitted", () => {
+  for (const [label, siteUrl] of [
+    ["omitted", ""],
+    ["invalid", "not a URL"],
+  ]) {
+    it(`fails closed at the route when the canonical checkout origin is ${label}`, async () => {
+      let checkoutCalls = 0
+      const POST = donationPost({
+        siteUrl,
+        createCheckoutSession: async () => {
+          checkoutCalls += 1
+          throw new Error("Stripe must not run")
+        },
+      })
+      const request = new Request("https://massagelab.app/api/billing/donation", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ amountCents: 500 }),
+      })
+
+      const response = await POST(request)
+
+      assert.deepEqual(response, {
+        body: { error: "Invalid request origin" },
+        status: 403,
+      })
+      assert.equal(checkoutCalls, 0)
+    })
+  }
+
+  it("fails closed without a canonical origin for same-origin metadata alone", async () => {
+    let checkoutCalls = 0
+    const POST = donationPost({
+      siteUrl: "",
+      createCheckoutSession: async () => {
+        checkoutCalls += 1
+        throw new Error("Stripe must not run")
+      },
+    })
     const request = new Request("https://massagelab.app/api/billing/donation", {
       method: "POST",
       headers: {
         "content-type": "application/x-www-form-urlencoded",
-        origin: "https://massagelab.app",
+        "sec-fetch-site": "same-origin",
       },
       body: new URLSearchParams({ amountCents: "500" }),
     })
 
-    assert.equal(isTrustedCheckoutFormOrigin(request), false)
-    assert.equal(
-      isTrustedCheckoutFormOrigin(request, "https://massagelab.app"),
-      true,
-    )
-  })
+    const response = await POST(request)
 
-  it("fails closed without a valid canonical origin for metadata-only requests", () => {
-    const metadataOnlyJsonRequest = new Request("https://massagelab.app/api/billing/donation", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ amountCents: 500 }),
+    assert.deepEqual(response, {
+      url: "/pricing?donation=invalid-request",
+      status: 303,
     })
-    const sameOriginRequest = new Request(
-      "https://massagelab.app/api/billing/donation",
-      {
-        method: "POST",
-        headers: {
-          "content-type": "application/x-www-form-urlencoded",
-          "sec-fetch-site": "same-origin",
-        },
-        body: new URLSearchParams({ amountCents: "500" }),
-      },
-    )
-
-    assert.equal(isTrustedCheckoutFormOrigin(metadataOnlyJsonRequest), false)
-    assert.equal(isTrustedCheckoutFormOrigin(metadataOnlyJsonRequest, "not a URL"), false)
-    assert.equal(isTrustedCheckoutFormOrigin(sameOriginRequest), false)
-    assert.equal(
-      isTrustedCheckoutFormOrigin(sameOriginRequest, "https://massagelab.app"),
-      true,
-    )
+    assert.equal(checkoutCalls, 0)
   })
 
   it("allows guest one-time support without attaching account identity", async () => {
@@ -369,6 +382,36 @@ describe("one-time support Checkout route", () => {
     })
     assert.deepEqual(lookedUpAmounts, [null])
     assert.equal(checkoutCalls, 0)
+  })
+
+  it("redirects form selection failures through the sanitized checkout error", async (context) => {
+    const failure = new Error("catalog lookup failed")
+    const logged = []
+    context.mock.method(console, "error", (...args) => logged.push(args))
+    const POST = donationPost({
+      findDonationOption: () => {
+        throw failure
+      },
+    })
+    const request = new Request("https://massagelab.app/api/billing/donation", {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        origin: "https://massagelab.app",
+      },
+      body: new URLSearchParams({ amountCents: "500" }),
+    })
+
+    const response = await POST(request)
+
+    assert.deepEqual(response, {
+      url: "https://massagelab.app/pricing?donation=checkout-error",
+      status: 303,
+    })
+    assert.deepEqual(logged, [[
+      "Unable to start one-time support checkout",
+      { code: "unexpected_error" },
+    ]])
   })
 
   it("returns the standard sanitized error when Stripe succeeds without a usable URL", async (context) => {

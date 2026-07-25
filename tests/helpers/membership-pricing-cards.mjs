@@ -119,6 +119,7 @@ function defaultAmountChoices() {
     yearAmountCents: 1000,
     prices: {
       month: supporterMonthlyPrice(),
+      year: supporterYearlyPrice(),
     },
   }]
 }

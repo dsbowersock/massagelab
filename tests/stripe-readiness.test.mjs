@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { spawnSync } from "node:child_process"
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
+import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { describe, it } from "node:test"
@@ -10,11 +10,14 @@ import {
   REQUIRED_SUPPORTER_PRICE_CONTRACT,
   validateRetrievedMembershipPrice,
 } from "../lib/stripe-readiness.js"
+import { SUPPORTER_AMOUNT_CHOICES } from "../lib/membership.js"
 import { recurringPriceSemanticMismatches } from "../lib/stripe-price-contract.js"
 
 const readinessScriptPath = fileURLToPath(
   new URL("../scripts/stripe-readiness-check.mjs", import.meta.url),
 )
+const readinessHookUrl =
+  new URL("./fixtures/stripe-readiness-hook.mjs", import.meta.url).href
 
 function supporterProduct(overrides = {}) {
   return {
@@ -78,6 +81,25 @@ function runReadiness(overrides = {}, args = []) {
   })
 }
 
+/** Runs the real readiness CLI with only the Stripe SDK replaced by a test client. */
+function runReadinessWithStripeStub(overrides = {}, args = []) {
+  return spawnSync(
+    process.execPath,
+    [
+      "--import",
+      readinessHookUrl,
+      readinessScriptPath,
+      "--no-dotenv",
+      ...args,
+    ],
+    {
+      cwd: process.cwd(),
+      encoding: "utf8",
+      env: readinessEnvironment(overrides),
+    },
+  )
+}
+
 describe("Stripe readiness background-commerce contract", () => {
   it("accepts boolean true or a trimmed case-insensitive true string and rejects other values", () => {
     assert.deepEqual(
@@ -93,6 +115,19 @@ describe("Stripe readiness background-commerce contract", () => {
     assert.doesNotMatch(`${result.stdout}${result.stderr}`, /EARLY_ACCESS|Early Access|early access/)
   })
   it("requires the approved Supporter amounts during Stripe Price verification", () => {
+    const runtimeAmounts = SUPPORTER_AMOUNT_CHOICES.flatMap((choice) => [
+      [choice.monthAmountCents, "month"],
+      [choice.yearAmountCents, "year"],
+    ])
+
+    assert.deepEqual(
+      REQUIRED_SUPPORTER_PRICE_CONTRACT.map(({ unitAmount, interval }) => [
+        unitAmount,
+        interval,
+      ]),
+      runtimeAmounts,
+      "readiness and migration provisioning must use the public runtime catalog amounts",
+    )
     assert.deepEqual(
       REQUIRED_SUPPORTER_PRICE_CONTRACT.map(({ key, unitAmount }) => [key, unitAmount]),
       [
@@ -550,20 +585,33 @@ describe("Stripe readiness background-commerce contract", () => {
     assert.match(result.stdout, /Stripe API retrieval performed: false/)
   })
 
-  it("does not use unrelated readiness failures to suppress Stripe verification", async () => {
-    const readinessSource = await readFile(readinessScriptPath, "utf8")
+  it("does not use unrelated readiness failures to suppress Stripe verification", () => {
+    const result = runReadinessWithStripeStub({
+      BACKGROUND_COMMERCE_RECONCILIATION_READY: "false",
+    }, ["--verify-stripe"])
 
-    assert.doesNotMatch(
-      readinessSource,
-      /if\s*\(\s*!verifyStripe\s*\|\|\s*failures\.length\s*>\s*0\s*\)/,
+    assert.equal(result.status, 1, result.stderr || result.stdout)
+    assert.match(result.stderr, /FAIL Background commerce reconciliation readiness is not configured\./)
+    assert.match(result.stdout, /Stripe API retrieval performed: true/)
+    assert.match(result.stdout, /Pinned Stripe webhook endpoint enabled: true/)
+    assert.match(result.stdout, /Pinned Stripe webhook API version current: true/)
+  })
+
+  it("reports partial Stripe Price verification as incomplete", () => {
+    const result = runReadinessWithStripeStub({
+      STRIPE_READINESS_STUB_FAIL_PRICE_ID:
+        membershipPrices.STRIPE_SUPPORTER_2_MONTHLY_PRICE_ID,
+    }, ["--verify-stripe"])
+
+    assert.equal(result.status, 1, result.stderr || result.stdout)
+    assert.match(result.stdout, /Stripe API retrieval performed: false/)
+    assert.match(
+      result.stderr,
+      /STRIPE_SUPPORTER_2_MONTHLY_PRICE_ID could not be retrieved from Stripe/,
     )
     assert.match(
-      readinessSource,
-      /if\s*\(\s*!verifyStripe\s*\|\|\s*!stripeSecretReady\s*\|\|\s*!priceIdInventoryComplete\s*\)/,
-    )
-    assert.match(
-      readinessSource,
-      /stripeRetrievalPerformed\s*=\s*allPricesRetrievedAndValidated/,
+      result.stderr,
+      /Stripe Price retrieval did not complete for every required Supporter contract slot/,
     )
   })
 

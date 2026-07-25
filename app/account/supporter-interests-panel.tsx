@@ -190,7 +190,6 @@ export function SupporterInterestsPanel() {
             return (
               <label
                 key={option.id}
-                htmlFor={`supporter-roadmap-interest-${option.id}`}
                 className="flex cursor-pointer items-center gap-3 rounded-md border border-border/80 bg-background/80 p-3 text-sm font-medium shadow-sm transition hover:border-primary/60 hover:bg-accent"
               >
                 <Checkbox

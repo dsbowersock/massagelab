@@ -10,7 +10,7 @@ const MEMBERSHIP_BILLING_DOCUMENT = Object.freeze({
 
 describe("Membership Checkout POST route", () => {
   it("returns JSON 401 for an anonymous API request before billing work", async () => {
-    const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
+    const calls = checkoutCallCounts()
     const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
       session: null,
     }))(jsonRequest({
@@ -30,7 +30,7 @@ describe("Membership Checkout POST route", () => {
   })
 
   it("redirects an anonymous form request to sign in before billing work", async () => {
-    const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
+    const calls = checkoutCallCounts()
     const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
       session: null,
     }))(formRequest({
@@ -110,11 +110,7 @@ describe("Membership Checkout POST route", () => {
         },
       }
 
-      const calls = {
-        ensureCustomer: 0,
-        createCheckout: 0,
-        membershipLookup: 0,
-      }
+      const calls = checkoutCallCounts()
       const response = await createMembershipCheckoutPostHandler(
         checkoutDependencies(calls),
       )(request)
@@ -135,11 +131,7 @@ describe("Membership Checkout POST route", () => {
   for (const fetchSite of ["cross-site", "same-site"]) {
     it(`rejects ${fetchSite} browser JSON before parsing or billing work`, async () => {
       let jsonCalls = 0
-      const calls = {
-        ensureCustomer: 0,
-        createCheckout: 0,
-        membershipLookup: 0,
-      }
+      const calls = checkoutCallCounts()
       const request = {
         url: "https://massagelab.app/api/billing/checkout",
         headers: new Headers({
@@ -173,7 +165,7 @@ describe("Membership Checkout POST route", () => {
   }
 
   it("accepts same-origin browser JSON", async () => {
-    const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
+    const calls = checkoutCallCounts()
     const request = new Request("https://massagelab.app/api/billing/checkout", {
       method: "POST",
       headers: {
@@ -202,7 +194,7 @@ describe("Membership Checkout POST route", () => {
   })
 
   it("accepts a same-origin form and records required legal acceptance", async () => {
-    const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
+    const calls = checkoutCallCounts()
     const dependencies = checkoutDependencies(calls, {
       alreadyAccepted: false,
     })
@@ -233,7 +225,7 @@ describe("Membership Checkout POST route", () => {
   })
 
   it("accepts the configured public origin when a proxy supplies an internal request URL", async () => {
-    const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
+    const calls = checkoutCallCounts()
     const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls))(
       formRequest({
         membershipLevel: "SUPPORTER",
@@ -270,7 +262,7 @@ describe("Membership Checkout POST route", () => {
   }
 
   it("rejects an invalid JSON Supporter amount choice before billing work", async () => {
-    const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
+    const calls = checkoutCallCounts()
     const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls))(jsonRequest({
       membershipLevel: "SUPPORTER",
       supporterAmountChoiceId: "support-9",
@@ -289,7 +281,7 @@ describe("Membership Checkout POST route", () => {
   })
 
   it("redirects a stale form Supporter amount choice before billing work", async () => {
-    const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
+    const calls = checkoutCallCounts()
     const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls))(formRequest({
       membershipLevel: "SUPPORTER",
       supporterAmountChoiceId: "supporter",
@@ -308,7 +300,7 @@ describe("Membership Checkout POST route", () => {
   })
 
   it("rejects an unconfigured JSON Supporter price before billing work", async () => {
-    const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
+    const calls = checkoutCallCounts()
     const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
       priceId: null,
     }))(jsonRequest({
@@ -329,7 +321,7 @@ describe("Membership Checkout POST route", () => {
   })
 
   it("redirects an unconfigured form Supporter price before billing work", async () => {
-    const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
+    const calls = checkoutCallCounts()
     const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
       priceId: null,
     }))(formRequest({
@@ -395,11 +387,7 @@ describe("Membership Checkout POST route", () => {
     { status: "incomplete", membershipLevel: "SUPPORTER" },
   ]) {
     it(`rejects an existing ${existingSubscription.status} subscription before Customer or Checkout Session creation`, async () => {
-      const calls = {
-        ensureCustomer: 0,
-        createCheckout: 0,
-        membershipLookup: 0,
-      }
+      const calls = checkoutCallCounts()
       const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
         subscriptions: [existingSubscription],
       }))(jsonRequest({
@@ -423,11 +411,7 @@ describe("Membership Checkout POST route", () => {
   }
 
   it("allows Checkout after a canceled subscription even when its stale cancel-at-period-end flag remains set", async () => {
-    const calls = {
-      ensureCustomer: 0,
-      createCheckout: 0,
-      membershipLookup: 0,
-    }
+    const calls = checkoutCallCounts()
     const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
       subscriptions: [{
         status: "canceled",
@@ -452,11 +436,7 @@ describe("Membership Checkout POST route", () => {
   })
 
   it("routes a historical subscriber form submission to existing billing management", async () => {
-    const calls = {
-      ensureCustomer: 0,
-      createCheckout: 0,
-      membershipLookup: 0,
-    }
+    const calls = checkoutCallCounts()
     const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
       subscriptions: [{ status: "active", membershipLevel: "THERAPIST" }],
     }))(formRequest({
@@ -477,11 +457,7 @@ describe("Membership Checkout POST route", () => {
   })
 
   it("routes malformed multipart input through the form-safe unsupported-plan response", async () => {
-    const calls = {
-      ensureCustomer: 0,
-      createCheckout: 0,
-      membershipLookup: 0,
-    }
+    const calls = checkoutCallCounts()
     const request = {
       url: "https://massagelab.app/api/billing/checkout",
       headers: new Headers({
@@ -508,11 +484,7 @@ describe("Membership Checkout POST route", () => {
   })
 
   it("routes unexpected form field normalization failures through the form-safe Checkout error response", async (context) => {
-    const calls = {
-      ensureCustomer: 0,
-      createCheckout: 0,
-      membershipLookup: 0,
-    }
+    const calls = checkoutCallCounts()
     const request = {
       headers: new Headers({
         "content-type": "application/x-www-form-urlencoded",
@@ -552,11 +524,7 @@ describe("Membership Checkout POST route", () => {
     ["malformed JSON", "{"],
   ]) {
     it(`rejects ${label} JSON through the controlled unsupported-plan response`, async () => {
-      const calls = {
-        ensureCustomer: 0,
-        createCheckout: 0,
-        membershipLookup: 0,
-      }
+      const calls = checkoutCallCounts()
       const response = await createMembershipCheckoutPostHandler(
         checkoutDependencies(calls),
       )(rawJsonRequest(body))
@@ -574,11 +542,7 @@ describe("Membership Checkout POST route", () => {
   }
 
   it("returns JSON 400 when the current membership legal document is missing", async () => {
-    const calls = {
-      ensureCustomer: 0,
-      createCheckout: 0,
-      membershipLookup: 0,
-    }
+    const calls = checkoutCallCounts()
     const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
       alreadyAccepted: false,
       missingLegalDocuments: [{ key: "membership-billing-refunds" }],
@@ -607,7 +571,7 @@ describe("Membership Checkout POST route", () => {
   })
 
   it("records the exact current membership billing document before creating Checkout", async () => {
-    const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
+    const calls = checkoutCallCounts()
     const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
       alreadyAccepted: false,
     }))(jsonRequest({
@@ -649,11 +613,7 @@ describe("Membership Checkout POST route", () => {
   })
 
   it("redirects a form submission when the current membership legal document is missing", async () => {
-    const calls = {
-      ensureCustomer: 0,
-      createCheckout: 0,
-      membershipLookup: 0,
-    }
+    const calls = checkoutCallCounts()
     const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
       alreadyAccepted: false,
       missingLegalDocuments: [{ key: "membership-billing-refunds" }],
@@ -680,11 +640,7 @@ describe("Membership Checkout POST route", () => {
   })
 
   it("returns the existing-subscription contract when Stripe finds a completed relevant Checkout before the webhook", async () => {
-    const calls = {
-      ensureCustomer: 0,
-      createCheckout: 0,
-      membershipLookup: 0,
-    }
+    const calls = checkoutCallCounts()
     const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
       checkoutSession: {
         id: "cs_completed",
@@ -712,11 +668,7 @@ describe("Membership Checkout POST route", () => {
   })
 
   it("returns a sanitized error when Stripe succeeds with a non-complete Session that has no URL", async (context) => {
-    const calls = {
-      ensureCustomer: 0,
-      createCheckout: 0,
-      membershipLookup: 0,
-    }
+    const calls = checkoutCallCounts()
     const logged = captureConsoleErrors(context)
     const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
       checkoutSession: {
@@ -747,7 +699,7 @@ describe("Membership Checkout POST route", () => {
   })
 
   it("logs only the sanitized code when membership Checkout setup fails", async (context) => {
-    const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
+    const calls = checkoutCallCounts()
     const failure = new Error("customer lookup failed")
     failure.code = "customer_lookup_failed"
     const logged = captureConsoleErrors(context)
@@ -778,7 +730,7 @@ describe("Membership Checkout POST route", () => {
     ["Stripe price resolution", "priceResolutionError"],
   ]) {
     it(`routes a rejected ${label} through the form-safe Checkout error response`, async (context) => {
-      const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
+      const calls = checkoutCallCounts()
       const failure = new Error(`${label} failed`)
       failure.code = `${errorOption}_failed`
       const logged = captureConsoleErrors(context)
@@ -815,7 +767,7 @@ describe("Membership Checkout POST route", () => {
     ["user lookup", "userLookupError"],
   ]) {
     it(`routes a rejected ${label} through the form-safe Checkout error response`, async (context) => {
-      const calls = { ensureCustomer: 0, createCheckout: 0, membershipLookup: 0 }
+      const calls = checkoutCallCounts()
       const failure = new Error(`${label} failed`)
       failure.code = `${errorOption}_failed`
       const logged = captureConsoleErrors(context)
@@ -843,6 +795,16 @@ describe("Membership Checkout POST route", () => {
     })
   }
 })
+
+/** Creates the baseline effect counters shared by Checkout route tests. */
+function checkoutCallCounts(overrides = {}) {
+  return {
+    ensureCustomer: 0,
+    createCheckout: 0,
+    membershipLookup: 0,
+    ...overrides,
+  }
+}
 
 /** Uses node:test lifecycle-managed mocks so console restoration is automatic. */
 function captureConsoleErrors(context) {

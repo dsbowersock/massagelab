@@ -60,16 +60,18 @@ export async function POST(request: Request) {
       : NextResponse.json({ error: "Invalid request origin" }, { status: 403 })
   }
 
-  const input = await donationRequest(request, isForm)
-  const oneTimeSupport = findDonationOption(input.amountCents)
-
-  if (!oneTimeSupport) {
-    return input.isForm
-      ? pricingRedirect("invalid-amount")
-      : NextResponse.json({ error: "Unsupported one-time support amount" }, { status: 400 })
-  }
+  let input = { isForm, amountCents: null as unknown }
 
   try {
+    input = await donationRequest(request, isForm)
+    const oneTimeSupport = findDonationOption(input.amountCents)
+
+    if (!oneTimeSupport) {
+      return input.isForm
+        ? pricingRedirect("invalid-amount")
+        : NextResponse.json({ error: "Unsupported one-time support amount" }, { status: 400 })
+    }
+
     const session = await getCurrentSession()
     const checkoutSession = await createStripeDonationCheckoutSession({
       amountCents: oneTimeSupport.amountCents,

@@ -50,7 +50,9 @@ describe("user-facing copy", () => {
     assert.match(roadmapPage, /One-time support/)
     assert.doesNotMatch(roadmapPage, /\bDonate\b/i)
     assert.doesNotMatch(roadmapPage, /Memberships and donations/i)
+    assert.doesNotMatch(roadmapPage, /\bdonations?\b/i)
     assert.match(homePage, /Memberships and one-time support help build/i)
+    assert.doesNotMatch(homePage, /\bdonations?\b/i)
 
     assert.match(donationRoute, /Unsupported one-time support amount/)
     assert.match(donationRoute, /Unable to start one-time support checkout/)

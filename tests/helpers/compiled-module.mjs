@@ -105,7 +105,8 @@ export function findElement(tree, predicate) {
 }
 
 /** Collects every matching JSX-like object across every prop value. */
-export function findElements(tree, predicate, matches = []) {
+export function findElements(tree, predicate) {
+  const matches = []
   const ancestors = new Set()
 
   function visit(value) {
@@ -159,7 +160,7 @@ export function renderFunctionComponents(tree) {
     if (!value || typeof value !== "object") {
       return value ?? null
     }
-    if (!Object.hasOwn(value, "type") || !Object.hasOwn(value, "props")) {
+    if (!isJsxLikeNode(value)) {
       return value
     }
     if (ancestors.has(value)) {

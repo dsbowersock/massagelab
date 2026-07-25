@@ -291,9 +291,18 @@ function SupporterAmountChoice({
   mode: "checkout" | "auth"
 }) {
   if (mode === "auth") {
+    const callbackParams = new URLSearchParams({
+      supporterAmountChoiceId: choiceId,
+      interval: price.interval,
+    })
+    const callbackUrl = `/pricing?${callbackParams.toString()}`
+
     return (
       <MetalAttentionButton asChild variant="attention" className="w-full" metalFullWidth>
-        <Link href="/login?callbackUrl=%2Fpricing">
+        <Link
+          href={`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`}
+          data-membership-auth-amount-choice={choiceId}
+        >
           <span>
             Choose {price.displayPrice}
             <YearlySavings price={price} />

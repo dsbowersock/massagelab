@@ -520,6 +520,9 @@ test("Roadmap presents an unordered product portfolio", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Recently shipped" })).toHaveCount(0)
   await expect(page.getByRole("heading", { name: "Current alpha focus" })).toHaveCount(0)
 
+  await page.goto("/pricing#one-time-support", { waitUntil: "domcontentloaded" })
+  await expect(page.locator("#one-time-support")).toBeVisible()
+
   expect(health.pageErrors, "uncaught page errors").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
