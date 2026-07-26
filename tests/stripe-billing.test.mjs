@@ -1288,55 +1288,76 @@ describe("Stripe billing helpers", () => {
     let retrieveSubscriptionCalls = 0
     let createCalls = 0
     let subscriptionRetrieveRequest
+    const matchingAuthorityDeadlineTimers = []
+    const originalSetTimeout = globalThis.setTimeout
+    globalThis.setTimeout = (callback, delay, ...args) => {
+      const timer = originalSetTimeout(callback, delay, ...args)
+      if (delay === AUTHORITY_HANGING_READ_RECONCILIATION_BUDGET_MS) {
+        matchingAuthorityDeadlineTimers.push(timer)
+      }
+      return timer
+    }
 
-    await assert.rejects(
-      settlesWithin(
-        stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
-          reconciliationBudgetMs:
-            AUTHORITY_HANGING_READ_RECONCILIATION_BUDGET_MS,
-          reconciliationNowMs: () => 100,
-          stripeClient: {
-            checkout: {
-              sessions: {
-                list: async () => stripeCheckoutSessionList([expiredOpenSession]),
-                expire: async () => {
-                  expireCalls += 1
-                  return { status: "expired" }
+    try {
+      await assert.rejects(
+        settlesWithin(
+          stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+            reconciliationBudgetMs:
+              AUTHORITY_HANGING_READ_RECONCILIATION_BUDGET_MS,
+            reconciliationNowMs: () => 100,
+            stripeClient: {
+              checkout: {
+                sessions: {
+                  list: async () => stripeCheckoutSessionList([expiredOpenSession]),
+                  expire: async () => {
+                    expireCalls += 1
+                    return { status: "expired" }
+                  },
+                  retrieve: async () => {
+                    retrieveSessionCalls += 1
+                    return membershipCheckoutSession({
+                      id: expiredOpenSession.id,
+                      status: "complete",
+                      subscription: "sub_completion_authority_hangs",
+                      url: null,
+                    })
+                  },
+                  create: async () => {
+                    createCalls += 1
+                    return membershipCheckoutSession({ id: "cs_unexpected_create" })
+                  },
                 },
-                retrieve: async () => {
-                  retrieveSessionCalls += 1
-                  return membershipCheckoutSession({
-                    id: expiredOpenSession.id,
-                    status: "complete",
-                    subscription: "sub_completion_authority_hangs",
-                    url: null,
-                  })
-                },
-                create: async () => {
-                  createCalls += 1
-                  return membershipCheckoutSession({ id: "cs_unexpected_create" })
+              },
+              subscriptions: {
+                retrieve: async (_subscriptionId, params, requestOptions) => {
+                  retrieveSubscriptionCalls += 1
+                  subscriptionRetrieveRequest = { params, requestOptions }
+                  return new Promise(() => {})
                 },
               },
             },
-            subscriptions: {
-              retrieve: async (_subscriptionId, params, requestOptions) => {
-                retrieveSubscriptionCalls += 1
-                subscriptionRetrieveRequest = { params, requestOptions }
-                return new Promise(() => {})
-              },
-            },
-          },
-        })),
-        "expiration-confirmation authority deadline",
-        5_000,
-      ),
-      /subscription authority lookups exceeded the safe deadline/,
-    )
+          })),
+          "expiration-confirmation authority deadline",
+          5_000,
+        ),
+        /subscription authority lookups exceeded the safe deadline/,
+      )
+    } finally {
+      globalThis.setTimeout = originalSetTimeout
+    }
 
     assert.equal(expireCalls, 1)
     assert.equal(retrieveSessionCalls, 1)
     assert.equal(retrieveSubscriptionCalls, 1)
     assert.equal(createCalls, 0)
+    assert.ok(
+      matchingAuthorityDeadlineTimers.length > 0,
+      "Expected at least one expiration-confirmation authority deadline timer",
+    )
+    assert.equal(
+      matchingAuthorityDeadlineTimers.every((timer) => timer.hasRef() === false),
+      true,
+    )
     assert.deepEqual(subscriptionRetrieveRequest, {
       params: {},
       requestOptions: {
@@ -2600,41 +2621,54 @@ describe("Stripe billing helpers", () => {
     })
     const startedSubscriptionIds = []
     let createCalls = 0
+    const matchingAuthorityDeadlineTimers = []
+    const originalSetTimeout = globalThis.setTimeout
+    globalThis.setTimeout = (callback, delay, ...args) => {
+      const timer = originalSetTimeout(callback, delay, ...args)
+      if (delay === AUTHORITY_HANGING_READ_RECONCILIATION_BUDGET_MS) {
+        matchingAuthorityDeadlineTimers.push(timer)
+      }
+      return timer
+    }
 
-    await assert.rejects(
-      settlesWithin(
-        stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
-          reconciliationBudgetMs:
-            AUTHORITY_HANGING_READ_RECONCILIATION_BUDGET_MS,
-          stripeClient: {
-            checkout: {
-              sessions: {
-                list: async () => stripeCheckoutSessionList([
-                  laterBlockingSession,
-                  hangingSession,
-                ]),
-                create: async () => {
-                  createCalls += 1
-                  return membershipCheckoutSession({ id: "cs_unexpected_create" })
+    try {
+      await assert.rejects(
+        settlesWithin(
+          stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
+            reconciliationBudgetMs:
+              AUTHORITY_HANGING_READ_RECONCILIATION_BUDGET_MS,
+            stripeClient: {
+              checkout: {
+                sessions: {
+                  list: async () => stripeCheckoutSessionList([
+                    laterBlockingSession,
+                    hangingSession,
+                  ]),
+                  create: async () => {
+                    createCalls += 1
+                    return membershipCheckoutSession({ id: "cs_unexpected_create" })
+                  },
+                },
+              },
+              subscriptions: {
+                retrieve: async (subscriptionId) => {
+                  startedSubscriptionIds.push(subscriptionId)
+                  if (subscriptionId === hangingSession.subscription) {
+                    return new Promise(() => {})
+                  }
+                  return membershipStripeSubscription({ id: subscriptionId })
                 },
               },
             },
-            subscriptions: {
-              retrieve: async (subscriptionId) => {
-                startedSubscriptionIds.push(subscriptionId)
-                if (subscriptionId === hangingSession.subscription) {
-                  return new Promise(() => {})
-                }
-                return membershipStripeSubscription({ id: subscriptionId })
-              },
-            },
-          },
-        })),
-        "completed-subscription authority deadline",
-        5_000,
-      ),
-      /subscription authority lookups exceeded the safe deadline/,
-    )
+          })),
+          "completed-subscription authority deadline",
+          5_000,
+        ),
+        /subscription authority lookups exceeded the safe deadline/,
+      )
+    } finally {
+      globalThis.setTimeout = originalSetTimeout
+    }
 
     assert.ok(
       startedSubscriptionIds.includes(hangingSession.subscription),
@@ -2656,6 +2690,14 @@ describe("Stripe billing helpers", () => {
       assert.deepEqual(startedSubscriptionIds, [hangingSession.subscription])
     }
     assert.equal(createCalls, 0)
+    assert.ok(
+      matchingAuthorityDeadlineTimers.length > 0,
+      "Expected at least one completed-subscription authority deadline timer",
+    )
+    assert.equal(
+      matchingAuthorityDeadlineTimers.every((timer) => timer.hasRef() === false),
+      true,
+    )
   })
 
   it("rejects an authority read that fulfills after the monotonic deadline", async () => {
