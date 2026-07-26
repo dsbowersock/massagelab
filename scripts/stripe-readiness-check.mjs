@@ -263,6 +263,9 @@ async function verifyStripePrices() {
     apiVersion: STRIPE_API_VERSION,
   })
 
+  // Retrieval completion is separate from catalog validity: topology uses
+  // every successfully fetched Price, while API failures alone make
+  // `stripeRetrievalPerformed` false.
   let allPricesRetrieved = true
   const retrievedMembershipPrices = []
   for (const [priceId, expected] of priceIds) {

@@ -38,6 +38,8 @@ function supporterPrice(priceId) {
     transform_quantity: null,
     currency_options: null,
     product: {
+      // Model the retired one-Product topology without hiding per-Price
+      // amount-choice metadata failures behind the aggregate topology check.
       id: process.env.STRIPE_READINESS_STUB_SINGLE_SUPPORTER_PRODUCT === "true"
         ? "prod_support_1"
         : `prod_${amountChoiceId.replace("-", "_")}`,

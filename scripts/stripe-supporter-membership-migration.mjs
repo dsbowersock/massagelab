@@ -56,6 +56,8 @@ const duplicateTargetPriceKeys = mappedTargetPriceKeys.filter(
   (key, index) => mappedTargetPriceKeys.indexOf(key) !== index,
 )
 if (
+  TARGET_PRODUCT_SPECS[0]?.key !== "support-1"
+  ||
   missingTargetPriceKeys.length > 0
   || unexpectedTargetPriceKeys.length > 0
   || duplicateTargetPriceKeys.length > 0
@@ -930,13 +932,18 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
   for (const spec of TARGET_PRODUCT_SPECS) {
     const candidate = products[spec.configKey]
     const completed = targetSupporterProductMatches(candidate, spec)
-    const reusable = spec.configKey === "supporter"
-      && candidate?.active === true
+    const reusable = candidate?.active === true
       && (
-        legacySupporterProductMatches(candidate)
+        (spec.configKey === "supporter" && legacySupporterProductMatches(candidate))
         || (
           targetSupporterProductCoreMatches(candidate)
-          && candidate.metadata?.massagelab_supporter_amount_choice == null
+          && (
+            candidate.metadata?.massagelab_supporter_amount_choice === spec.key
+            || (
+              spec.configKey === "supporter"
+              && candidate.metadata?.massagelab_supporter_amount_choice == null
+            )
+          )
         )
       )
     targetProductCompleted.set(spec.key, completed)
@@ -1148,8 +1155,11 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
   const allTargetProductsCompleted = TARGET_PRODUCT_SPECS.every(
     (spec) => targetProductCompleted.get(spec.key),
   )
+  const allTargetProductsRepairable = TARGET_PRODUCT_SPECS.every((spec) => (
+    targetProductCompleted.get(spec.key) || targetProductReusable.get(spec.key)
+  ))
   const completedPortalProducts = (
-    allTargetProductsCompleted
+    allTargetProductsRepairable
     && targetPrices.size === config.targetPrices.length
   )
     ? TARGET_PRODUCT_SPECS.map((productSpec) => ({
@@ -1236,7 +1246,7 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
   const retirementOrderRecoverable = retirementPricesInactive
     || retirementProductsActive
   const recoverableTransition = portalIsCompleted
-    && allTargetProductsCompleted
+    && allTargetProductsRepairable
     && targetPrices.size === config.targetPrices.length
     && targetPricesAreActive
     && couponsRetirementRecoverable

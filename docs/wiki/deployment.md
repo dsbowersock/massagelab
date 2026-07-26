@@ -172,7 +172,10 @@ identified. Those older
 objects are accepted only when their Product ownership and recurring semantics
 match the reviewed catalog. Apply then retires the Therapist and Practice
 Products and deletes the two verified zero-redemption coupons. It re-retrieves
-every mutation and a
+every mutation. The successfully reread three-Product Portal configuration is
+an explicit gate before any legacy or wrong-owner Price, Product, or coupon
+cleanup; a failed Portal reread stops apply immediately and leaves all cleanup
+objects intact. After that gate succeeds, a
 second apply is a read-only no-op. Portal quantity adjustment is explicitly
 disabled, while cancellation and billing-management behavior is preserved
 through semantic response validation. Amount changes preserve the current

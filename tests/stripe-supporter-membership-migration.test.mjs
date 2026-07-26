@@ -243,7 +243,13 @@ function stripeSdkError(type, statusCode) {
   })
 }
 
-/** Claims a fixture lookup key with Stripe-equivalent transfer semantics. */
+/**
+ * Reserves `lookupKey` in the mutable fixture Price map.
+ *
+ * A conflicting owner is rejected unless transfer is exactly true; an allowed
+ * transfer clears that owner's key. `currentPriceId` excludes the Price being
+ * updated from conflict detection.
+ */
 function claimLookupKey(prices, lookupKey, transferLookupKey, currentPriceId = null) {
   if (!lookupKey) return
   const conflicting = [...prices.values()].find(
@@ -1213,6 +1219,38 @@ describe("Supporter membership Stripe migration", () => {
       )
       assert.deepEqual(mutationCalls(fixture), [])
     }
+  })
+
+  it("repairs display-only drift on an identified amount Product", async () => {
+    const fixture = stripeFixture()
+    await runSupporterMembershipMigration({
+      stripe: fixture.stripe,
+      mode: "apply",
+      env: migrationEnv(),
+    })
+    const support2 = [...fixture.products.values()].find(
+      (candidate) => (
+        candidate.metadata?.massagelab_supporter_amount_choice === "support-2"
+      ),
+    )
+    support2.description = "Outdated support amount description"
+    fixture.calls.length = 0
+
+    const result = await runSupporterMembershipMigration({
+      stripe: fixture.stripe,
+      mode: "apply",
+      env: migrationEnv(),
+    })
+
+    assert.equal(result.state, "COMPLETED")
+    assert.match(
+      fixture.products.get(support2.id).description,
+      /^\$2 monthly or \$20 annually\./,
+    )
+    assert.equal(
+      fixture.calls.filter(({ name }) => name === "products.update").length,
+      1,
+    )
   })
 
   it("rejects misidentified Therapist and Practice Products before any mutation", async () => {

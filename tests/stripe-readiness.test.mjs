@@ -22,6 +22,10 @@ const readinessScriptPath = fileURLToPath(
 const readinessHookUrl =
   new URL("./fixtures/stripe-readiness-hook.mjs", import.meta.url).href
 
+/**
+ * Creates a valid expanded Product for one Supporter amount choice.
+ * Top-level overrides intentionally model isolated invalid Product states.
+ */
 function supporterProduct(amountChoiceId = "support-1", overrides = {}) {
   return {
     id: `prod_${amountChoiceId.replace("-", "_")}`,
