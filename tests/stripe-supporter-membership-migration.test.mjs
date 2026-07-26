@@ -443,7 +443,7 @@ function stripeFixture() {
           currency_options: {
             usd: {
               unit_amount: storedPayload.unit_amount,
-              tax_behavior: storedPayload.tax_behavior,
+              tax_behavior: storedPayload.tax_behavior ?? "exclusive",
             },
           },
           ...storedPayload,
@@ -599,12 +599,11 @@ describe("Supporter membership Stripe migration", () => {
         massagelab_supporter_amount_choice: "support-2",
       },
     }
+    const unstampedMetadata = { ...classifiedProduct.metadata }
+    delete unstampedMetadata.massagelab_supporter_amount_choice
     const unstampedSupporter = {
       ...classifiedProduct,
-      metadata: {
-        ...classifiedProduct.metadata,
-        massagelab_supporter_amount_choice: undefined,
-      },
+      metadata: unstampedMetadata,
     }
     const support5Product = {
       ...classifiedProduct,
@@ -980,7 +979,9 @@ describe("Supporter membership Stripe migration", () => {
     assert.equal(supporter.active, true)
 
     const approved = [...fixture.prices.values()].filter(
-      (entry) => entry.metadata?.massagelab_catalog === "supporter_membership_v1",
+      (entry) => (
+        entry.metadata?.massagelab_catalog === SUPPORTER_MEMBERSHIP_CATALOG_VERSION
+      ),
     )
     assert.deepEqual(
       approved.map((entry) => [entry.unit_amount, entry.recurring.interval]),
@@ -1171,7 +1172,7 @@ describe("Supporter membership Stripe migration", () => {
     ]) {
       fixture.prices.set(id, price(id, productId, unitAmount, interval, true, {
         app: "massagelab",
-        massagelab_catalog: "supporter_membership_v1",
+        massagelab_catalog: SUPPORTER_MEMBERSHIP_CATALOG_VERSION,
         massagelab_membership_level: "SUPPORTER",
         massagelab_supporter_price_key: key,
       }))
@@ -1181,7 +1182,7 @@ describe("Supporter membership Stripe migration", () => {
       tax_code: "txcd_10000000",
       metadata: {
         app: "massagelab",
-        massagelab_catalog: "supporter_membership_v1",
+        massagelab_catalog: SUPPORTER_MEMBERSHIP_CATALOG_VERSION,
         massagelab_membership_level: "SUPPORTER",
       },
     })
@@ -1247,7 +1248,7 @@ describe("Supporter membership Stripe migration", () => {
         true,
         {
           app: "massagelab",
-          massagelab_catalog: "supporter_membership_v1",
+          massagelab_catalog: SUPPORTER_MEMBERSHIP_CATALOG_VERSION,
           massagelab_membership_level: "SUPPORTER",
           massagelab_supporter_price_key: "support-2-month",
         },
@@ -1281,7 +1282,7 @@ describe("Supporter membership Stripe migration", () => {
         true,
         {
           app: "massagelab",
-          massagelab_catalog: "supporter_membership_v1",
+          massagelab_catalog: SUPPORTER_MEMBERSHIP_CATALOG_VERSION,
           massagelab_membership_level: "SUPPORTER",
           massagelab_supporter_price_key: "support-5-month",
         },
@@ -1642,7 +1643,9 @@ describe("Supporter membership Stripe migration", () => {
     })
     assert.equal(
       [...fixture.products.values()].filter(
-        (entry) => entry.metadata?.massagelab_catalog === "supporter_membership_v1",
+        (entry) => (
+          entry.metadata?.massagelab_catalog === SUPPORTER_MEMBERSHIP_CATALOG_VERSION
+        ),
       ).length,
       3,
     )
@@ -1664,7 +1667,7 @@ describe("Supporter membership Stripe migration", () => {
     const fixture = stripeFixture()
     const sharedMetadata = {
       app: "massagelab",
-      massagelab_catalog: "supporter_membership_v1",
+      massagelab_catalog: SUPPORTER_MEMBERSHIP_CATALOG_VERSION,
       massagelab_membership_level: "SUPPORTER",
     }
     Object.assign(fixture.products.get("prod_supporter"), {
@@ -1949,11 +1952,11 @@ describe("Supporter membership Stripe migration", () => {
   it("never reuses an approved Price with a wrong amount or Therapist/Practice owner", async () => {
     for (const candidate of [
       price("price_wrong_amount", "prod_supporter", 150, "month", true, {
-        massagelab_catalog: "supporter_membership_v1",
+        massagelab_catalog: SUPPORTER_MEMBERSHIP_CATALOG_VERSION,
         massagelab_supporter_price_key: "support-1-month",
       }),
       price("price_wrong_owner", "prod_therapist", 100, "month", true, {
-        massagelab_catalog: "supporter_membership_v1",
+        massagelab_catalog: SUPPORTER_MEMBERSHIP_CATALOG_VERSION,
         massagelab_supporter_price_key: "support-1-month",
       }),
     ]) {
@@ -2043,7 +2046,7 @@ describe("Supporter membership Stripe migration", () => {
         "month",
         true,
         {
-          massagelab_catalog: "supporter_membership_v1",
+          massagelab_catalog: SUPPORTER_MEMBERSHIP_CATALOG_VERSION,
           massagelab_supporter_price_key: "support-1-month",
         },
       )
@@ -2076,7 +2079,7 @@ describe("Supporter membership Stripe migration", () => {
       "month",
       true,
       {
-        massagelab_catalog: "supporter_membership_v1",
+        massagelab_catalog: SUPPORTER_MEMBERSHIP_CATALOG_VERSION,
         massagelab_supporter_price_key: "support-1-month",
       },
     )
@@ -2112,7 +2115,7 @@ describe("Supporter membership Stripe migration", () => {
       "month",
       true,
       {
-        massagelab_catalog: "supporter_membership_v1",
+        massagelab_catalog: SUPPORTER_MEMBERSHIP_CATALOG_VERSION,
         massagelab_supporter_price_key: "support-1-month",
       },
       true,
@@ -2138,7 +2141,7 @@ describe("Supporter membership Stripe migration", () => {
     const activeSupporter = [...fixture.prices.values()].filter((candidate) => (
       candidate.active
       && fixture.products.get(candidate.product)?.metadata
-        ?.massagelab_catalog === "supporter_membership_v1"
+        ?.massagelab_catalog === SUPPORTER_MEMBERSHIP_CATALOG_VERSION
     ))
     assert.equal(activeSupporter.length, 6)
     assert.deepEqual(
@@ -2175,7 +2178,7 @@ describe("Supporter membership Stripe migration", () => {
       "month",
       true,
       {
-        massagelab_catalog: "supporter_membership_v1",
+        massagelab_catalog: SUPPORTER_MEMBERSHIP_CATALOG_VERSION,
         massagelab_supporter_price_key: "support-1-month",
       },
     )
@@ -2763,7 +2766,9 @@ describe("Supporter membership Stripe migration", () => {
     )
     assert.equal(
       [...fixture.products.values()].filter(
-        (entry) => entry.metadata?.massagelab_catalog === "supporter_membership_v1",
+        (entry) => (
+          entry.metadata?.massagelab_catalog === SUPPORTER_MEMBERSHIP_CATALOG_VERSION
+        ),
       ).length,
       3,
     )
@@ -2916,7 +2921,9 @@ describe("Supporter membership Stripe migration", () => {
     )
     assert.equal(
       [...fixture.prices.values()].filter(
-        (entry) => entry.metadata?.massagelab_catalog === "supporter_membership_v1",
+        (entry) => (
+          entry.metadata?.massagelab_catalog === SUPPORTER_MEMBERSHIP_CATALOG_VERSION
+        ),
       ).length,
       6,
     )
