@@ -2353,6 +2353,14 @@ describe("Stripe billing helpers", () => {
         url: null,
       })),
     ]
+    assert.equal(
+      completedSessions.filter(
+        ({ subscription }) => (
+          typeof subscription === "string" && subscription.length > 0
+        ),
+      ).length,
+      MEMBERSHIP_CHECKOUT_SUBSCRIPTION_AUTHORITY_READ_BUDGET,
+    )
     let retrieveCalls = 0
     let createCalls = 0
 
@@ -2421,11 +2429,13 @@ describe("Stripe billing helpers", () => {
         || right.id.localeCompare(left.id)
       ))
       .map(({ subscription }) => subscription)
-    assert.notDeepEqual(
-      expectedSubscriptionIds,
-      expectedSubscriptionIds.toSorted((left, right) => right.localeCompare(left)),
-      "Checkout Session order must differ from descending subscription-ID order",
-    )
+    if (expectedSubscriptionIds.length > 1) {
+      assert.notDeepEqual(
+        expectedSubscriptionIds,
+        expectedSubscriptionIds.toSorted((left, right) => right.localeCompare(left)),
+        "Checkout Session order must differ from descending subscription-ID order",
+      )
+    }
     const firstWaveStarted = deferred()
     const allLookupsStarted = deferred()
     const startedSubscriptionIds = []
@@ -2637,6 +2647,7 @@ describe("Stripe billing helpers", () => {
           stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
             reconciliationBudgetMs:
               AUTHORITY_HANGING_READ_RECONCILIATION_BUDGET_MS,
+            reconciliationNowMs: () => 100,
             stripeClient: {
               checkout: {
                 sessions: {
