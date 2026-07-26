@@ -46,32 +46,24 @@ function topLevelFunctionDeclarations(source, fileName = "fixture.tsx") {
   return sourceFile.statements
     .filter((statement) => ts.isFunctionDeclaration(statement) && statement.name)
     .map((statement) => ({
+      end: statement.getEnd(),
       name: statement.name.text,
       start: statement.getStart(sourceFile),
     }))
 }
 
-/** Extracts one top-level function through the next top-level declaration. */
+/** Extracts one top-level function at its parser-defined lexical boundaries. */
 function topLevelFunctionSource(source, functionName, fileName) {
   const declarations = topLevelFunctionDeclarations(source, fileName)
-  const functionIndex = declarations.findIndex(
+  const declaration = declarations.find(
     (declaration) => declaration.name === functionName,
   )
-  assert.notEqual(
-    functionIndex,
-    -1,
+  assert.ok(
+    declaration,
     `${fileName} must contain the ${functionName} function`,
   )
-  const subsequentFunction = declarations[functionIndex + 1]
-  assert.ok(
-    subsequentFunction,
-    `${functionName} extraction must end at the next top-level function`,
-  )
 
-  return source.slice(
-    declarations[functionIndex].start,
-    subsequentFunction.start,
-  )
+  return source.slice(declaration.start, declaration.end)
 }
 
 describe("Account page tab model", () => {
@@ -96,6 +88,10 @@ describe("Account page tab model", () => {
     const targetSource = topLevelFunctionSource(fixture, "Target", "fixture.tsx")
     assert.match(targetSource, /function Nested/)
     assert.doesNotMatch(targetSource, /export function Next/)
+    assert.equal(
+      topLevelFunctionSource(fixture, "Final", "fixture.tsx"),
+      "export default async function Final() {}",
+    )
   })
 
   it("groups existing account sections into stable account navigation without dropping current features", () => {
