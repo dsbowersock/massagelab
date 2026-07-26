@@ -10,8 +10,9 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
   isolated rollout worktree; Prisma generation plus all 1,625 repository tests
   passed before production inventory began.
 - Completed identifier-free read-only Stripe inventory. The live account has
-  no non-terminal subscription; its one live subscription is canceled. The
-  Student-to-Therapist and Early Access coupons both have zero redemptions, and
+  no non-terminal subscription; its one production Stripe subscription record is
+  currently canceled. The Student-to-Therapist and Early Access coupons both
+  have zero redemptions, and
   the single default Customer Portal configuration preserves customer details,
   payment methods, invoices, and cancellation while subscription switching is
   currently disabled.
