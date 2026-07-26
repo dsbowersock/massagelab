@@ -2707,13 +2707,19 @@ describe("Stripe billing helpers", () => {
       subscription: "sub_completed_after_authority_deadline",
       url: null,
     })
-    let currentNowMs = 100
+    const reconciliationStartedAtMs = 100
+    const reconciliationBudgetMs = 60_000
+    const authorityDeadlineAtMs =
+      reconciliationStartedAtMs + reconciliationBudgetMs
+    let currentNowMs = reconciliationStartedAtMs
     let retrieveCalls = 0
     let createCalls = 0
 
     await assert.rejects(
       stripeBilling.createStripeCheckoutSession(membershipCheckoutOptions({
-        reconciliationBudgetMs: 10,
+        // Keep the real timer well outside normal test execution so only the
+        // injected post-read monotonic deadline check can reject this request.
+        reconciliationBudgetMs,
         reconciliationNowMs: () => currentNowMs,
         stripeClient: {
           checkout: {
@@ -2728,8 +2734,7 @@ describe("Stripe billing helpers", () => {
           subscriptions: {
             retrieve: async () => {
               retrieveCalls += 1
-              // Advance strictly past the 110 ms absolute authority deadline.
-              currentNowMs = 111
+              currentNowMs = authorityDeadlineAtMs + 1
               return membershipStripeSubscription()
             },
           },
