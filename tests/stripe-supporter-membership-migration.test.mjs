@@ -158,7 +158,7 @@ function portalConfiguration() {
         schedule_at_period_end: {
           conditions: [{ type: "decreasing_item_amount" }],
         },
-        trial_update_behavior: "continue_trial",
+        trial_update_behavior: "end_trial",
         products: [
           {
             product: "prod_supporter",
@@ -179,6 +179,38 @@ function portalConfiguration() {
       },
     },
   }
+}
+
+/** Returns the reviewed dormant Portal policy before support-amount switching is enabled. */
+function disabledPortalSubscriptionUpdate() {
+  return {
+    enabled: false,
+    default_allowed_updates: [],
+    billing_cycle_anchor: "unchanged",
+    proration_behavior: "none",
+    schedule_at_period_end: {
+      conditions: [{ type: "decreasing_item_amount" }],
+    },
+    trial_update_behavior: "end_trial",
+  }
+}
+
+/** Enumerates customer-impacting switching-policy drift for fail-closed tests. */
+function portalSwitchingPolicyDrifts() {
+  return [
+    ["billing cycle anchor", (features) => {
+      features.subscription_update.billing_cycle_anchor = "now"
+    }],
+    ["proration behavior", (features) => {
+      features.subscription_update.proration_behavior = "create_prorations"
+    }],
+    ["period-end schedule", (features) => {
+      features.subscription_update.schedule_at_period_end.conditions = []
+    }],
+    ["trial behavior", (features) => {
+      features.subscription_update.trial_update_behavior = "continue_trial"
+    }],
+  ]
 }
 
 /** Creates an SDK-shaped Stripe failure without exposing processor payloads. */
@@ -859,7 +891,7 @@ describe("Supporter membership Stripe migration", () => {
       schedule_at_period_end: {
         conditions: [{ type: "decreasing_item_amount" }],
       },
-      trial_update_behavior: "continue_trial",
+      trial_update_behavior: "end_trial",
       products: [{
         product: supporter.id,
         prices: approved.map((entry) => entry.id),
@@ -967,16 +999,7 @@ describe("Supporter membership Stripe migration", () => {
 
   it("accepts the exact disabled pre-migration Portal update state and enables Supporter switching", async () => {
     const fixture = stripeFixture()
-    fixture.portal.features.subscription_update = {
-      enabled: false,
-      default_allowed_updates: [],
-      billing_cycle_anchor: "unchanged",
-      proration_behavior: "none",
-      schedule_at_period_end: {
-        conditions: [{ type: "decreasing_item_amount" }],
-      },
-      trial_update_behavior: "end_trial",
-    }
+    fixture.portal.features.subscription_update = disabledPortalSubscriptionUpdate()
 
     const result = await runSupporterMembershipMigration({
       stripe: fixture.stripe,
@@ -1006,6 +1029,61 @@ describe("Supporter membership Stripe migration", () => {
       }),
       true,
     )
+  })
+
+  it("rejects a disabled pre-migration Portal whose dormant switching policy drifted", async () => {
+    for (const [label, corruptPolicy] of portalSwitchingPolicyDrifts()) {
+      const fixture = stripeFixture()
+      fixture.portal.features.subscription_update = disabledPortalSubscriptionUpdate()
+      corruptPolicy(fixture.portal.features)
+
+      await assert.rejects(
+        runSupporterMembershipMigration({
+          stripe: fixture.stripe,
+          mode: "apply",
+          env: migrationEnv(),
+        }),
+        (error) => {
+          assert.equal(
+            error.failureCodes.includes("portal_dependency_mismatch"),
+            true,
+            label,
+          )
+          return true
+        },
+      )
+      assert.deepEqual(mutationCalls(fixture), [], label)
+    }
+  })
+
+  it("rejects completed Portal switching-policy drift instead of treating it as idempotent", async () => {
+    for (const [label, corruptPolicy] of portalSwitchingPolicyDrifts()) {
+      const fixture = stripeFixture()
+      await runSupporterMembershipMigration({
+        stripe: fixture.stripe,
+        mode: "apply",
+        env: migrationEnv(),
+      })
+      fixture.calls.splice(0)
+      corruptPolicy(fixture.portal.features)
+
+      await assert.rejects(
+        runSupporterMembershipMigration({
+          stripe: fixture.stripe,
+          mode: "verify",
+          env: migrationEnv(),
+        }),
+        (error) => {
+          assert.equal(
+            error.failureCodes.includes("portal_dependency_mismatch"),
+            true,
+            label,
+          )
+          return true
+        },
+      )
+      assert.deepEqual(mutationCalls(fixture), [], label)
+    }
   })
 
   it("is idempotent and creates no duplicate Product or Price on a rerun", async () => {

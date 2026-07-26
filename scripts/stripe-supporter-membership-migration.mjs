@@ -524,6 +524,22 @@ function portalSubscriptionSwitchingEnabled(features) {
   const normalized = normalizePortalFeatures(features)
   return normalized.subscriptionUpdate.enabled
     && hasExactly(normalized.subscriptionUpdate.defaultAllowedUpdates, ["price"])
+    && portalSubscriptionSwitchingPolicyMatches(normalized.subscriptionUpdate)
+}
+
+/**
+ * Pins the customer-impacting behavior used when a member changes support
+ * amount. Disabled Portal settings are validated too because apply enables
+ * switching and must never carry an unsafe dormant policy forward.
+ */
+function portalSubscriptionSwitchingPolicyMatches(subscriptionUpdate) {
+  return subscriptionUpdate.billingCycleAnchor === "unchanged"
+    && subscriptionUpdate.prorationBehavior === "none"
+    && hasExactly(
+      subscriptionUpdate.scheduleAtPeriodEndConditions,
+      ["decreasing_item_amount"],
+    )
+    && subscriptionUpdate.trialUpdateBehavior === "end_trial"
 }
 
 /**
@@ -535,6 +551,7 @@ function portalSubscriptionSwitchingDisabled(features) {
   return !normalized.subscriptionUpdate.enabled
     && normalized.subscriptionUpdate.defaultAllowedUpdates.length === 0
     && normalized.subscriptionUpdate.products.length === 0
+    && portalSubscriptionSwitchingPolicyMatches(normalized.subscriptionUpdate)
 }
 
 function expectedPortalProducts(entries) {
@@ -1214,7 +1231,6 @@ function desiredPortalFeatures(currentFeatures, productId, priceIds) {
         }
       : {}),
   }
-  const currentSubscriptionUpdate = currentFeatures.subscription_update ?? {}
   return {
     customer_update: {
       enabled: true,
@@ -1230,24 +1246,12 @@ function desiredPortalFeatures(currentFeatures, productId, priceIds) {
     subscription_update: {
       enabled: true,
       default_allowed_updates: ["price"],
-      ...(currentSubscriptionUpdate.billing_cycle_anchor
-        ? { billing_cycle_anchor: currentSubscriptionUpdate.billing_cycle_anchor }
-        : {}),
-      ...(currentSubscriptionUpdate.proration_behavior
-        ? { proration_behavior: currentSubscriptionUpdate.proration_behavior }
-        : {}),
-      ...(currentSubscriptionUpdate.schedule_at_period_end
-        ? {
-            schedule_at_period_end: {
-              conditions: [
-                ...(currentSubscriptionUpdate.schedule_at_period_end.conditions ?? []),
-              ],
-            },
-          }
-        : {}),
-      ...(currentSubscriptionUpdate.trial_update_behavior
-        ? { trial_update_behavior: currentSubscriptionUpdate.trial_update_behavior }
-        : {}),
+      billing_cycle_anchor: "unchanged",
+      proration_behavior: "none",
+      schedule_at_period_end: {
+        conditions: [{ type: "decreasing_item_amount" }],
+      },
+      trial_update_behavior: "end_trial",
       products: [{
         product: productId,
         prices: priceIds,
