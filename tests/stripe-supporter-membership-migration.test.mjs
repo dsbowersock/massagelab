@@ -583,6 +583,10 @@ describe("Supporter membership Stripe migration", () => {
       true,
     )
     assert.equal(
+      targetSupporterProductReusable(classifiedProduct, support1Spec),
+      false,
+    )
+    assert.equal(
       targetSupporterProductReusable(unstampedSupporter, support1Spec),
       true,
     )
