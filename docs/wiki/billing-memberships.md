@@ -161,10 +161,12 @@ limits Customer Portal switching to those six Prices while preserving billing
 details, payment methods, invoices, and cancellation. Cross-Product amount
 changes keep the existing billing-cycle anchor, create no prorations, and are
 not scheduled for period end. It inventories all
-relevant subscriptions before mutation. Test mode permits only the one exact,
-explicitly reviewed test-subscription identifier or an explicit `none`
-decision. Live mode rejects every concrete subscription ID and requires an
-explicit `none` decision before catalog mutation. Therapist and Practice Prices
+relevant subscriptions before mutation. Test mode permits a concrete, reviewed
+test-subscription identifier only when it is the sole retained relevant
+subscription; `none` is permitted only after inventory proves zero relevant
+subscriptions. Live mode rejects every concrete subscription ID and requires
+an explicit `none` decision after the same empty-inventory proof before catalog
+mutation. Therapist and Practice Prices
 and Products are retired only after dependency verification.
 Their Product dependencies must retain their exact expected names; optional
 `app` and membership-level metadata may be absent but must not contradict the

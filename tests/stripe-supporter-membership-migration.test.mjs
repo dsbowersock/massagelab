@@ -2924,6 +2924,14 @@ describe("Supporter membership Stripe migration", () => {
     })
 
     assert.equal(result.state, "COMPLETED")
+    assert.ok(productListCalls >= 2, "expected a pre-create Product inventory pass")
+    assert.equal(
+      fixture.calls.some(
+        ({ name, id }) => name === "products.update" && id === "prod_stale_support_2",
+      ),
+      true,
+      "the discovered stale Product should be reused as the support-2 target",
+    )
     assert.equal(
       fixture.products.get("prod_stale_support_2").description,
       "$2 monthly or $20 annually. Same Supporter Membership benefits; only the support amount differs.",

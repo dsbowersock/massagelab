@@ -125,11 +125,12 @@ separately. `CREATE_NEW` is explicit authorization for that amount slot; a
 managed Product is reused only when its amount-choice metadata and complete
 Product contract match. Duplicate, unassigned, partially managed, or
 misidentified candidates are rejected; normal legacy $1/$10 Product reuse
-still requires its exact Product ID instead. Test mode accepts only the exact
-reviewed test-subscription ID or `none`. Live mode rejects every concrete
-subscription ID and requires `none`, which may be selected only after a
-complete inventory proves no active, trialing, past-due, unpaid, paused,
-incomplete, or canceling subscription exists.
+still requires its exact Product ID instead. Test mode accepts the exact
+reviewed test-subscription ID only when it is the sole retained relevant
+subscription; `none` is allowed only after a complete inventory proves no
+active, trialing, past-due, unpaid, paused, incomplete, or canceling
+subscription exists. Live mode rejects every concrete subscription ID and
+requires `none` after the same empty-inventory proof.
 
 Run verification first:
 
