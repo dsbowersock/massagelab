@@ -440,6 +440,7 @@ function stripeFixture() {
           billing_scheme: "per_unit",
           tax_behavior: "exclusive",
           transform_quantity: null,
+          ...storedPayload,
           ...(storedPayload.currency_options == null
             && storedPayload.unit_amount != null
             ? {
@@ -451,7 +452,6 @@ function stripeFixture() {
                 },
               }
             : {}),
-          ...storedPayload,
           ...(storedPayload.recurring
             ? {
                 recurring: {
