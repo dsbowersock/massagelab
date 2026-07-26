@@ -245,9 +245,11 @@ Automatic Tax.
   against the reviewed production subscriber, catalog, and Customer Portal
   inventory. This GET-only migration verification is the pre-apply authority.
 - After apply, confirm the resulting three Supporter Products exist in Stripe,
-  but configure only their six approved Price IDs in the production runtime
-  environment. Product IDs remain migration-only operator inputs. Then, before
-  public paid signup, run
+  then configure their six approved Price IDs for new public enrollment in the
+  production runtime. These IDs are additive: retain all six legacy
+  webhook-reconciliation Price mappings until subscriber inventory and
+  reconciliation are complete and the explicit removal gate passes. Product IDs
+  remain migration-only operator inputs. Then, before public paid signup, run
   `npm run stripe:readiness -- --env-file=/secure/path/massagelab-production.env --live --verify-stripe`
   against production Stripe. For `CREATE_NEW`, this live readiness check is
   necessarily post-apply because the configured Price IDs do not exist before

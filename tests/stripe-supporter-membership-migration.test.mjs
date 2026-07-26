@@ -551,6 +551,7 @@ describe("Supporter membership Stripe migration", () => {
   it("accepts only the three audited target Product reuse paths", () => {
     const support1Spec = { key: "support-1", configKey: "supporter" }
     const support2Spec = { key: "support-2", configKey: "support2" }
+    const support5Spec = { key: "support-5", configKey: "support5" }
     const classifiedProduct = {
       id: "prod_classified",
       active: true,
@@ -570,6 +571,14 @@ describe("Supporter membership Stripe migration", () => {
         massagelab_supporter_amount_choice: undefined,
       },
     }
+    const support5Product = {
+      ...classifiedProduct,
+      id: "prod_support_5",
+      metadata: {
+        ...classifiedProduct.metadata,
+        massagelab_supporter_amount_choice: "support-5",
+      },
+    }
 
     assert.equal(
       targetSupporterProductReusable(
@@ -587,11 +596,27 @@ describe("Supporter membership Stripe migration", () => {
       false,
     )
     assert.equal(
+      targetSupporterProductReusable(support5Product, support5Spec),
+      true,
+    )
+    assert.equal(
+      targetSupporterProductReusable(support5Product, support2Spec),
+      false,
+    )
+    assert.equal(
+      targetSupporterProductReusable(classifiedProduct, support5Spec),
+      false,
+    )
+    assert.equal(
       targetSupporterProductReusable(unstampedSupporter, support1Spec),
       true,
     )
     assert.equal(
       targetSupporterProductReusable(unstampedSupporter, support2Spec),
+      false,
+    )
+    assert.equal(
+      targetSupporterProductReusable(unstampedSupporter, support5Spec),
       false,
     )
     assert.equal(
