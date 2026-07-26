@@ -173,8 +173,10 @@ operator-approved states and fails closed on mixed catalog state.
 single legacy Supporter Product may already have the approved classification,
 all six approved-amount Prices may already carry managed metadata on that
 Product, and Portal switching may still be disabled. Legacy cleanup must remain
-untouched. Apply safely fans those Prices out to the three amount Products and
-installs the exact Portal topology.
+untouched. Apply creates replacement Prices under the $2/$20 and $5/$50
+Products, transfers the managed lookup keys according to the verified protocol,
+and installs the exact Portal topology. Wrong-owner Prices are retired only
+after the Portal reread gate succeeds.
 
 Apply has one additional, tightly fingerprinted internal recovery path: a
 `TRANSITIONAL` state is resumable only when the Portal already rereads as the
