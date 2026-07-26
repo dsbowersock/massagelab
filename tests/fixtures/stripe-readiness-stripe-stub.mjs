@@ -22,6 +22,9 @@ function supporterPrice(priceId) {
   }
 
   const [, unitAmount, interval, amountChoiceId] = configuredPrice
+  const singleSupporterProduct =
+    process.env.STRIPE_READINESS_STUB_SINGLE_SUPPORTER_PRODUCT === "true"
+  const productAmountChoiceId = singleSupporterProduct ? "support-1" : amountChoiceId
   return {
     id: priceId,
     active: true,
@@ -38,9 +41,9 @@ function supporterPrice(priceId) {
     transform_quantity: null,
     currency_options: null,
     product: {
-      // Model the retired one-Product topology without hiding per-Price
-      // amount-choice metadata failures behind the aggregate topology check.
-      id: process.env.STRIPE_READINESS_STUB_SINGLE_SUPPORTER_PRODUCT === "true"
+      // Model the retired topology as one internally consistent Product so
+      // per-slot metadata checks and aggregate topology checks both run.
+      id: singleSupporterProduct
         ? "prod_support_1"
         : `prod_${amountChoiceId.replace("-", "_")}`,
       active: true,
@@ -50,7 +53,7 @@ function supporterPrice(priceId) {
         app: "massagelab",
         massagelab_catalog: "supporter_membership_v1",
         massagelab_membership_level: "SUPPORTER",
-        massagelab_supporter_amount_choice: amountChoiceId,
+        massagelab_supporter_amount_choice: productAmountChoiceId,
       },
     },
   }

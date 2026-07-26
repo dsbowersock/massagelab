@@ -171,11 +171,12 @@ coupon untouched.
 
 Only after the Portal gate succeeds does apply perform cleanup in this order:
 it retires the legacy $9/$90, $29/$279, and $79/$759 Prices; the older $1/$10,
-$2/$20, and $5/$50 Price objects that Stripe cannot move from their legacy tier
-Products; and any partially created $2/$20 or $5/$50 Prices placed on the
+$2/$20, and $5/$50 Price objects only when they remain on the wrong legacy tier
+Products; and any partially created $2/$20 or $5/$50 Prices misplaced on the
 $1/$10 Product before Stripe's duplicate-interval Portal constraint was
-identified. Those objects are accepted only when their Product ownership and
-recurring semantics match the reviewed catalog. Apply then retires the
+identified. The valid $1/$10 Prices on the classified support-1 Product remain
+active. Retirement candidates are accepted only when their Product ownership
+and recurring semantics match the reviewed catalog. Apply then retires the
 Therapist and Practice Products and deletes the two verified zero-redemption
 coupons. It re-retrieves every mutation.
 

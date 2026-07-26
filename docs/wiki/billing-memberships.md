@@ -167,6 +167,15 @@ and Practice retirement dependencies must retain their exact expected Product
 names; optional `app` and membership-level metadata may be absent but must not
 contradict the expected MassageLab identity.
 
+Read-only verification recognizes only `PRE_MIGRATION` and `COMPLETED` as
+operator-approved states and fails closed on mixed catalog state. Apply has one
+additional, tightly fingerprinted internal recovery path: a `TRANSITIONAL`
+state is resumable only when the Portal already rereads as the exact completed
+three-Product topology, every target Product and Price is complete or safely
+repairable, coupon dependencies remain verified, and Price-before-Product
+cleanup order has not been violated. This recovery path does not make
+`TRANSITIONAL` a third state accepted by read-only verification.
+
 The reviewed pre-migration Customer Portal may have subscription switching
 disabled and no Product allowlist. That state is not a reason to enable
 switching manually before the migration: apply installs the exact
