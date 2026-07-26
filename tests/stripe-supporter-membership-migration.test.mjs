@@ -440,7 +440,8 @@ function stripeFixture() {
           billing_scheme: "per_unit",
           tax_behavior: "exclusive",
           transform_quantity: null,
-          ...(storedPayload.unit_amount != null
+          ...(storedPayload.currency_options == null
+            && storedPayload.unit_amount != null
             ? {
                 currency_options: {
                   usd: {
@@ -1104,11 +1105,12 @@ describe("Supporter membership Stripe migration", () => {
             === call.payload.metadata?.massagelab_supporter_amount_choice
           ),
         )
+        assert.ok(createdProduct, "created amount Product should exist in the fixture")
         assertMutationWasReretrieved(
           fixture.calls,
           index,
           "products.retrieve",
-          createdProduct?.id,
+          createdProduct.id,
         )
       }
       if (call.name === "prices.update") {
@@ -1452,6 +1454,7 @@ describe("Supporter membership Stripe migration", () => {
         candidate.metadata?.massagelab_supporter_amount_choice === "support-2"
       ),
     )
+    const support2Id = support2.id
     support2.description = "Outdated support amount description"
     fixture.calls.length = 0
 
@@ -1463,7 +1466,7 @@ describe("Supporter membership Stripe migration", () => {
 
     assert.equal(result.state, "COMPLETED")
     assert.match(
-      fixture.products.get(support2.id).description,
+      fixture.products.get(support2Id).description,
       /^\$2 monthly or \$20 annually\./,
     )
     assert.equal(
@@ -1472,7 +1475,7 @@ describe("Supporter membership Stripe migration", () => {
     )
     assert.equal(
       fixture.calls.find(({ name }) => name === "products.update")?.id,
-      support2.id,
+      support2Id,
     )
   })
 
@@ -2248,41 +2251,44 @@ describe("Supporter membership Stripe migration", () => {
     fixture.stripe.billingPortal.configurations.update = async () => {
       throw stripeSdkError("StripeInvalidRequestError", 400)
     }
-    await assert.rejects(
-      runSupporterMembershipMigration({
-        stripe: fixture.stripe,
-        mode: "apply",
-        env: migrationEnv({
-          STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: selected.id,
+    try {
+      await assert.rejects(
+        runSupporterMembershipMigration({
+          stripe: fixture.stripe,
+          mode: "apply",
+          env: migrationEnv({
+            STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: selected.id,
+          }),
         }),
-      }),
-      (error) => {
-        assert.deepEqual(error.failureCodes, ["stripe_mutation_failed"])
-        return true
-      },
-    )
-    assert.equal(
-      fixture.prices.get(selected.id).lookup_key,
-      "massagelab_support_1_month",
-    )
-    assert.equal(fixture.prices.get(retiring.id).lookup_key, null)
-    assert.equal(
-      fixture.prices.get(retiring.id).active,
-      true,
-      "the Portal gate must precede destructive Price cleanup",
-    )
-    assert.equal(
-      fixture.calls.some(({ name, payload }) => (
-        name === "prices.update" && payload?.active === false
-      )),
-      false,
-    )
-    const selectedUpdate = fixture.calls.find(
-      ({ name, id }) => name === "prices.update" && id === selected.id,
-    )
-    assert.equal(selectedUpdate.payload.transfer_lookup_key, true)
+        (error) => {
+          assert.deepEqual(error.failureCodes, ["stripe_mutation_failed"])
+          return true
+        },
+      )
+      assert.equal(
+        fixture.prices.get(selected.id).lookup_key,
+        "massagelab_support_1_month",
+      )
+      assert.equal(fixture.prices.get(retiring.id).lookup_key, null)
+      assert.equal(
+        fixture.prices.get(retiring.id).active,
+        true,
+        "the Portal gate must precede destructive Price cleanup",
+      )
+      assert.equal(
+        fixture.calls.some(({ name, payload }) => (
+          name === "prices.update" && payload?.active === false
+        )),
+        false,
+      )
+      const selectedUpdate = fixture.calls.find(
+        ({ name, id }) => name === "prices.update" && id === selected.id,
+      )
+      assert.equal(selectedUpdate.payload.transfer_lookup_key, true)
+    } finally {
+      fixture.stripe.billingPortal.configurations.update = updatePortal
+    }
 
-    fixture.stripe.billingPortal.configurations.update = updatePortal
     fixture.calls.length = 0
     const result = await runSupporterMembershipMigration({
       stripe: fixture.stripe,
