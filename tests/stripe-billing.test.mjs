@@ -65,7 +65,10 @@ describe("Stripe billing helpers", () => {
     assert.equal(new Set(failures.map(({ message }) => message)).size, failures.length)
     for (const error of failures) {
       assert.equal(safeErrorCode(error), "unexpected_error")
-      assert.doesNotMatch(error.message, /cs_private|sub_private|cus_private/)
+      assert.doesNotMatch(
+        error.message,
+        /\b(?:cs|sub|cus|pi|price|prod)_[A-Za-z0-9_]+\b/i,
+      )
     }
   })
 
@@ -2556,10 +2559,11 @@ describe("Stripe billing helpers", () => {
     assert.equal(result.id, blockingSession.id)
     assert.ok(authorityDeadlineTimer, "Expected an authority deadline timer")
     assert.equal(authorityDeadlineTimer.hasRef(), false)
-    assert.deepEqual(startedSubscriptionIds, [
-      blockingSession.subscription,
-      speculativeSession.subscription,
-    ])
+    const expectedStartedSubscriptionIds =
+      MEMBERSHIP_CHECKOUT_SUBSCRIPTION_AUTHORITY_CONCURRENCY > 1
+        ? [blockingSession.subscription, speculativeSession.subscription]
+        : [blockingSession.subscription]
+    assert.deepEqual(startedSubscriptionIds, expectedStartedSubscriptionIds)
     assert.equal(createCalls, 0)
   })
 
@@ -2664,7 +2668,8 @@ describe("Stripe billing helpers", () => {
           subscriptions: {
             retrieve: async () => {
               retrieveCalls += 1
-              currentNowMs = 110
+              // Advance strictly past the 110 ms absolute authority deadline.
+              currentNowMs = 111
               return membershipStripeSubscription()
             },
           },
