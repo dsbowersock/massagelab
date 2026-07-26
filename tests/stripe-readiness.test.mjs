@@ -249,6 +249,24 @@ describe("Stripe readiness background-commerce contract", () => {
     }
 
     assert.deepEqual(validateRetrievedMembershipPrice(basePrice, expected), [])
+
+    const expectedWithoutAmountChoice = { ...expected }
+    delete expectedWithoutAmountChoice.amountChoiceId
+    const metadataWithoutAmountChoice = { ...basePrice.product.metadata }
+    delete metadataWithoutAmountChoice.massagelab_supporter_amount_choice
+    assert.deepEqual(
+      validateRetrievedMembershipPrice({
+        ...basePrice,
+        product: {
+          ...basePrice.product,
+          metadata: metadataWithoutAmountChoice,
+        },
+      }, expectedWithoutAmountChoice),
+      [
+        `${expected.key} Price contract must identify a string amount choice.`,
+      ],
+    )
+
     assert.deepEqual(
       validateRetrievedMembershipPrice({
         ...basePrice,
