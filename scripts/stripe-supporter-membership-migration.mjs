@@ -59,8 +59,8 @@ if (
   // support-1 must stay first: inventory recovery and apply both resolve its
   // reusable legacy Product before support-2 and support-5 may be created.
   TARGET_PRODUCT_SPECS[0]?.key !== "support-1"
-  ||
-  missingTargetPriceKeys.length > 0
+  || TARGET_PRODUCT_SPECS[0]?.configKey !== "supporter"
+  || missingTargetPriceKeys.length > 0
   || unexpectedTargetPriceKeys.length > 0
   || duplicateTargetPriceKeys.length > 0
 ) {
@@ -594,7 +594,12 @@ function portalBillingManagementEnabled(features) {
     )
 }
 
-/** Verifies the Price-only switching contract required after migration. */
+/**
+ * Verifies the Price-only switching contract required after migration.
+ * `scheduleAtPeriodEndConditions` is the exact completed-state policy; its
+ * default empty list intentionally validates immediate changes instead of
+ * skipping schedule-at-period-end validation.
+ */
 function portalSubscriptionSwitchingEnabled(
   features,
   { scheduleAtPeriodEndConditions = [] } = {},
@@ -611,7 +616,9 @@ function portalSubscriptionSwitchingEnabled(
 /**
  * Pins the customer-impacting behavior used when a member changes support
  * amount. Disabled Portal settings are validated too because apply enables
- * switching and must never carry an unsafe dormant policy forward.
+ * switching and must never carry an unsafe dormant policy forward. The
+ * expected conditions describe the post-migration schedule-at-period-end
+ * policy and are matched exactly, including the completed empty-list policy.
  */
 function portalSubscriptionSwitchingPolicyMatches(
   subscriptionUpdate,
@@ -1122,9 +1129,7 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
             ))
             .map((spec) => expectedProductId(spec)),
         ])
-        const ownerIsRecoverable = hasWrongOwner
-          ? historicalOwnerIds.has(ownerId)
-          : ownerId === expectedTargetProductId
+        const ownerIsRecoverable = !hasWrongOwner || historicalOwnerIds.has(ownerId)
         // A valid managed or lookup key does not make an arbitrary Price safe
         // to delete. Only an exact target-semantic Price on the expected or a
         // documented historical Product may be retired during partial recovery.

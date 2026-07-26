@@ -162,24 +162,27 @@ npm run stripe:migrate-supporter-membership -- --mode=apply
 npm run stripe:migrate-supporter-membership -- --mode=verify
 ```
 
-Apply creates or reuses three managed amount-specific Supporter Products and
-six Prices, restricts the portal to those Prices, retires the legacy $9/$90,
-$29/$279, and $79/$759 Prices, and also retires the older $1/$10, $2/$20, and
-$5/$50 Price objects that Stripe cannot move from their legacy tier Products.
-It also retires any partially created $2/$20 or $5/$50 Prices that were placed
-on the $1/$10 Product before Stripe's duplicate-interval Portal constraint was
-identified. Those older
-objects are accepted only when their Product ownership and recurring semantics
-match the reviewed catalog. Apply then retires the Therapist and Practice
-Products and deletes the two verified zero-redemption coupons. It re-retrieves
-every mutation. The successfully reread three-Product Portal configuration is
-an explicit gate before any legacy or wrong-owner Price, Product, or coupon
-cleanup; a failed Portal reread stops apply immediately and leaves all cleanup
-objects intact. After that gate succeeds, the current apply continues the
-ordered cleanup. If apply is interrupted after the Portal gate, a subsequent
-apply rereads Stripe and resumes any unfinished legacy Price, Product, or
-coupon cleanup. Apply is a read-only no-op only after final cleanup and
-post-apply verification both complete. Portal quantity adjustment is
+Apply first creates or reuses three managed amount-specific Supporter Products
+and six Prices. It then updates the Portal to expose only those Prices and
+successfully re-retrieves the exact three-Product configuration. That Portal
+reread is the gate before every cleanup action: a failed reread stops apply
+immediately and leaves every legacy Price, Therapist or Practice Product, and
+coupon untouched.
+
+Only after the Portal gate succeeds does apply perform cleanup in this order:
+it retires the legacy $9/$90, $29/$279, and $79/$759 Prices; the older $1/$10,
+$2/$20, and $5/$50 Price objects that Stripe cannot move from their legacy tier
+Products; and any partially created $2/$20 or $5/$50 Prices placed on the
+$1/$10 Product before Stripe's duplicate-interval Portal constraint was
+identified. Those objects are accepted only when their Product ownership and
+recurring semantics match the reviewed catalog. Apply then retires the
+Therapist and Practice Products and deletes the two verified zero-redemption
+coupons. It re-retrieves every mutation.
+
+If apply is interrupted after the Portal gate, a subsequent apply rereads
+Stripe and resumes that same ordered Price, Product, then coupon cleanup. Apply
+is a read-only no-op only after final cleanup and post-apply verification both
+complete. Portal quantity adjustment is
 explicitly disabled, while cancellation and billing-management behavior is
 preserved through semantic response validation. Amount changes preserve the
 current billing-cycle anchor, use no proration, and are not scheduled for
