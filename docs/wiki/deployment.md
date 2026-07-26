@@ -175,13 +175,16 @@ Products and deletes the two verified zero-redemption coupons. It re-retrieves
 every mutation. The successfully reread three-Product Portal configuration is
 an explicit gate before any legacy or wrong-owner Price, Product, or coupon
 cleanup; a failed Portal reread stops apply immediately and leaves all cleanup
-objects intact. After that gate succeeds, a
-second apply is a read-only no-op. Portal quantity adjustment is explicitly
-disabled, while cancellation and billing-management behavior is preserved
-through semantic response validation. Amount changes preserve the current
-billing-cycle anchor, use no proration, and are not scheduled for period end.
-Apply can resume only an ordered,
-individually verified forward transition caused by an accepted Stripe mutation;
+objects intact. After that gate succeeds, the current apply continues the
+ordered cleanup. If apply is interrupted after the Portal gate, a subsequent
+apply rereads Stripe and resumes any unfinished legacy Price, Product, or
+coupon cleanup. Apply is a read-only no-op only after final cleanup and
+post-apply verification both complete. Portal quantity adjustment is
+explicitly disabled, while cancellation and billing-management behavior is
+preserved through semantic response validation. Amount changes preserve the
+current billing-cycle anchor, use no proration, and are not scheduled for
+period end. Apply can resume only an ordered, individually verified forward
+transition caused by an accepted Stripe mutation;
 Product and Price creates use deterministic Stripe idempotency keys so an
 ambiguous accepted request can be retried without creating a duplicate.
 Arbitrary mixed states still fail closed. Do not run apply until the deployed
