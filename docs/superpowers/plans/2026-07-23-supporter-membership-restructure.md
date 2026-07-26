@@ -248,7 +248,10 @@ The command must:
 
 - refuse test/live mode mismatch;
 - print no customer identifiers, secrets, or payment details;
-- verify the only active subscription is the documented test subscription before any catalog mutation;
+- complete the subscription inventory and, before any catalog mutation,
+  verify either the documented test subscription as the only retained
+  subscription or an explicit reviewed `none` decision when no relevant
+  subscriptions exist;
 - create or reuse three amount-specific Products named `MassageLab Supporter Membership`, each with tax code `txcd_10000000` and identical Supporter entitlements;
 - create or reuse the six exact approved Prices;
 - never reuse a Therapist/Practice-owned Price as a Supporter Price because Stripe Prices cannot be reassigned to another Product;
