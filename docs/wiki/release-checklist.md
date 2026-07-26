@@ -32,13 +32,18 @@ Before changing the live catalog or running any live paid smoke:
 3. confirm the exact Therapist and Practice Product names and that any present
    app or membership-level metadata matches the expected MassageLab retirement
    identity;
-4. run `npm run stripe:migrate-supporter-membership -- --mode=verify` and stop
+4. confirm the older $1/$10, $2/$20, and $5/$50 Price objects remain attached
+   to their expected legacy tier Products so the migration can retire them
+   before creating the same amounts under one Supporter Product;
+5. confirm the pre-migration Portal either has switching disabled with no
+   Product allowlist or exposes only the exact legacy topology;
+6. run `npm run stripe:migrate-supporter-membership -- --mode=verify` and stop
    unless every safe check passes;
-5. deploy the supporter-only application, environment, and recurring-tax
+7. deploy the supporter-only application, environment, and recurring-tax
    contract together;
-6. run migration apply only after the explicit operator gate, then rerun verify
+8. run migration apply only after the explicit operator gate, then rerun verify
    against the completed catalog; and
-7. run the production Stripe readiness check from an explicit production env
+9. run the production Stripe readiness check from an explicit production env
    file:
 
 The GET-only migration verify is the pre-apply safety authority. Do not require
@@ -88,13 +93,18 @@ Retain the six legacy runtime Price mappings until subscriber inventory proves n
 Those mappings are historical normalization inputs only; they cannot replace
 any of the six amount-specific Supporter Price IDs in readiness.
 
-Latest status, 2026-07-24: the deployable Supporter-only application,
+Latest status, 2026-07-26: the deployable Supporter-only application,
 fail-closed migration command, and recurring Automatic Tax application/readiness
-contracts are implemented locally. Live database/Stripe inventory, final
-professional classification confirmation, deployment, migration apply,
-Customer Portal mutation, and the new live smoke remain pending. The earlier
-June 24 legacy Supporter smoke remains historical evidence only. The one-time
-support Checkout smoke also remains pending.
+contracts are implemented. Read-only live inventory found no non-terminal live
+subscriber requiring a grandfathering decision.
+The production catalog also confirmed the older support-amount Prices are split
+across the three legacy tier Products and the default Portal currently has
+subscription switching disabled. The migration now verifies those exact states
+and retires/enables them in its controlled apply sequence. Final professional
+classification confirmation, live-key migration verify/apply, production
+environment configuration, Customer Portal mutation, and the new live smoke
+remain pending. The earlier June 24 legacy Supporter smoke remains historical
+evidence only. The one-time support Checkout smoke also remains pending.
 
 ## Manual Focus Areas
 

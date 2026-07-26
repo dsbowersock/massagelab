@@ -148,7 +148,9 @@ is relevant while webhook persistence catches up.
 
 The deployable migration command creates or verifies this one Product and six
 exclusive recurring Prices, removes only the two independently verified
-zero-redemption legacy coupons, retires legacy public catalog objects, and
+zero-redemption legacy coupons, retires both the unapproved higher Prices and
+the older approved-amount Price objects that cannot be reassigned from their
+legacy tier Products, and
 limits Customer Portal switching to those six Prices while preserving billing
 details, payment methods, invoices, and cancellation. It inventories all
 relevant subscriptions before mutation and permits at most the one explicitly
@@ -156,6 +158,11 @@ reviewed subscription identifier (or an explicit `none` decision). Therapist
 and Practice retirement dependencies must retain their exact expected Product
 names; optional `app` and membership-level metadata may be absent but must not
 contradict the expected MassageLab identity.
+
+The reviewed pre-migration Customer Portal may have subscription switching
+disabled and no Product allowlist. That state is not a reason to enable
+switching manually before the migration: apply installs the exact six-Price
+Supporter allowlist while preserving the existing billing-management features.
 
 Do not mutate live Products, Prices, coupons, subscriptions, portal settings,
 or entitlements outside that controlled operation. Follow the reviewed

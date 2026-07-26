@@ -104,6 +104,51 @@ const LEGACY_PRICE_CONFIG = Object.freeze([
   }),
 ])
 
+/**
+ * Older approved support amounts were created under the three legacy tier
+ * Products. Stripe Prices cannot move between Products, so the migration must
+ * retire these exact semantic slots before creating the same amounts under the
+ * single classified Supporter Product.
+ */
+const SUPERSEDED_AMOUNT_PRICE_CONFIG = Object.freeze([
+  Object.freeze({
+    key: "support_1_month",
+    productKey: "supporter",
+    unitAmount: 100,
+    interval: "month",
+  }),
+  Object.freeze({
+    key: "support_1_year",
+    productKey: "supporter",
+    unitAmount: 1000,
+    interval: "year",
+  }),
+  Object.freeze({
+    key: "support_2_month",
+    productKey: "therapist",
+    unitAmount: 200,
+    interval: "month",
+  }),
+  Object.freeze({
+    key: "support_2_year",
+    productKey: "therapist",
+    unitAmount: 2000,
+    interval: "year",
+  }),
+  Object.freeze({
+    key: "support_5_month",
+    productKey: "practice",
+    unitAmount: 500,
+    interval: "month",
+  }),
+  Object.freeze({
+    key: "support_5_year",
+    productKey: "practice",
+    unitAmount: 5000,
+    interval: "year",
+  }),
+])
+
 const COUPON_SPECS = Object.freeze([
   Object.freeze({
     key: "student",
@@ -363,10 +408,11 @@ function targetSupporterProductMatches(candidate) {
  * partially managed Product as a safe dependency.
  */
 function legacySupporterProductMatches(candidate) {
+  const app = candidate?.metadata?.app
   return Boolean(candidate)
     && candidate.name === "MassageLab Supporter"
     && candidate.tax_code == null
-    && candidate.metadata?.app === "massagelab"
+    && (app === undefined || app === "massagelab")
     && candidate.metadata?.massagelab_membership_level === "SUPPORTER"
     && candidate.metadata?.massagelab_catalog == null
 }
@@ -456,15 +502,56 @@ function normalizePortalFeatures(features) {
   }
 }
 
-function portalPreservationEnabled(features) {
+/** Verifies the self-service features that must survive either Portal state. */
+function portalBillingManagementEnabled(features) {
   const normalized = normalizePortalFeatures(features)
   return normalized.customerUpdate.enabled
     && hasExactly(normalized.customerUpdate.allowedUpdates, ["address", "email", "name"])
     && normalized.invoiceHistoryEnabled
     && normalized.paymentMethodUpdateEnabled
     && normalized.subscriptionCancel.enabled
-    && normalized.subscriptionUpdate.enabled
+    && normalized.subscriptionCancel.mode === "at_period_end"
+    && normalized.subscriptionCancel.prorationBehavior === "none"
+    && normalized.subscriptionCancel.cancellationReason.enabled
+    && hasExactly(
+      normalized.subscriptionCancel.cancellationReason.options,
+      ["missing_features", "other", "switched_service", "too_expensive", "unused"],
+    )
+}
+
+/** Verifies the Price-only switching contract required after migration. */
+function portalSubscriptionSwitchingEnabled(features) {
+  const normalized = normalizePortalFeatures(features)
+  return normalized.subscriptionUpdate.enabled
     && hasExactly(normalized.subscriptionUpdate.defaultAllowedUpdates, ["price"])
+    && portalSubscriptionSwitchingPolicyMatches(normalized.subscriptionUpdate)
+}
+
+/**
+ * Pins the customer-impacting behavior used when a member changes support
+ * amount. Disabled Portal settings are validated too because apply enables
+ * switching and must never carry an unsafe dormant policy forward.
+ */
+function portalSubscriptionSwitchingPolicyMatches(subscriptionUpdate) {
+  return subscriptionUpdate.billingCycleAnchor === "unchanged"
+    && subscriptionUpdate.prorationBehavior === "none"
+    && hasExactly(
+      subscriptionUpdate.scheduleAtPeriodEndConditions,
+      ["decreasing_item_amount"],
+    )
+    && subscriptionUpdate.trialUpdateBehavior === "end_trial"
+}
+
+/**
+ * Accepts the reviewed pre-migration state where plan switching is disabled
+ * and no Product allowlist exists.
+ */
+function portalSubscriptionSwitchingDisabled(features) {
+  const normalized = normalizePortalFeatures(features)
+  return !normalized.subscriptionUpdate.enabled
+    && normalized.subscriptionUpdate.defaultAllowedUpdates.length === 0
+    && normalized.subscriptionUpdate.products.length === 0
+    && portalSubscriptionSwitchingPolicyMatches(normalized.subscriptionUpdate)
 }
 
 function expectedPortalProducts(entries) {
@@ -859,6 +946,14 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
       continue
     }
 
+    const supersededAmount = SUPERSEDED_AMOUNT_PRICE_CONFIG.some((spec) => (
+      legacyPriceMatches(candidate, spec, expectedProductId(spec))
+    ))
+    if (supersededAmount) {
+      retirementPricesById.set(candidate.id, candidate)
+      continue
+    }
+
     const duplicateTargetSpec = targetProductId
       ? config.targetPrices.find((spec) => priceMatches(candidate, spec, targetProductId))
       : null
@@ -925,10 +1020,20 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
   const portalBaseValid = Boolean(portal)
     && modeMatches(portal, config.livemode)
     && portal.active === true
-    && portalPreservationEnabled(portal.features)
+    && portalBillingManagementEnabled(portal.features)
   const portalIsPreMigration = portalBaseValid
-    && portalTopologyMatches(portal.features, prePortalProducts)
+    && (
+      portalSubscriptionSwitchingDisabled(portal.features)
+      // The retired setup command may already expose only the exact three
+      // reviewed legacy Products. Preserve that complete state long enough for
+      // apply to replace it atomically with the six-Price Supporter allowlist.
+      || (
+        portalSubscriptionSwitchingEnabled(portal.features)
+        && portalTopologyMatches(portal.features, prePortalProducts)
+      )
+    )
   const portalIsCompleted = portalBaseValid
+    && portalSubscriptionSwitchingEnabled(portal.features)
     && completedPortalProducts.length === 1
     && portalTopologyMatches(portal.features, completedPortalProducts)
   if (
@@ -1126,7 +1231,6 @@ function desiredPortalFeatures(currentFeatures, productId, priceIds) {
         }
       : {}),
   }
-  const currentSubscriptionUpdate = currentFeatures.subscription_update ?? {}
   return {
     customer_update: {
       enabled: true,
@@ -1142,24 +1246,12 @@ function desiredPortalFeatures(currentFeatures, productId, priceIds) {
     subscription_update: {
       enabled: true,
       default_allowed_updates: ["price"],
-      ...(currentSubscriptionUpdate.billing_cycle_anchor
-        ? { billing_cycle_anchor: currentSubscriptionUpdate.billing_cycle_anchor }
-        : {}),
-      ...(currentSubscriptionUpdate.proration_behavior
-        ? { proration_behavior: currentSubscriptionUpdate.proration_behavior }
-        : {}),
-      ...(currentSubscriptionUpdate.schedule_at_period_end
-        ? {
-            schedule_at_period_end: {
-              conditions: [
-                ...(currentSubscriptionUpdate.schedule_at_period_end.conditions ?? []),
-              ],
-            },
-          }
-        : {}),
-      ...(currentSubscriptionUpdate.trial_update_behavior
-        ? { trial_update_behavior: currentSubscriptionUpdate.trial_update_behavior }
-        : {}),
+      billing_cycle_anchor: "unchanged",
+      proration_behavior: "none",
+      schedule_at_period_end: {
+        conditions: [{ type: "decreasing_item_amount" }],
+      },
+      trial_update_behavior: "end_trial",
       products: [{
         product: productId,
         prices: priceIds,
