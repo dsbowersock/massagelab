@@ -876,9 +876,10 @@ describe("Supporter membership Stripe migration", () => {
       entry.active
       && entry.currency === "usd"
       && entry.tax_behavior === "exclusive"
+      && Boolean(entry.metadata?.massagelab_supporter_price_key)
       && fixture.products.get(entry.product)?.metadata
         ?.massagelab_supporter_amount_choice === entry.metadata
-          ?.massagelab_supporter_price_key?.replace(/-(month|year)$/, "")
+          .massagelab_supporter_price_key.replace(/-(month|year)$/, "")
     )), true)
     assert.deepEqual(
       fixture.calls

@@ -654,7 +654,7 @@ describe("Stripe readiness background-commerce contract", () => {
       result.stderr,
       /FAIL The Supporter catalog must use three distinct amount-specific Stripe Products\./,
     )
-    assert.match(result.stdout, /Stripe API retrieval performed: false/)
+    assert.match(result.stdout, /Stripe API retrieval performed: true/)
   })
 
   it("reports partial Stripe Price verification as incomplete", () => {
