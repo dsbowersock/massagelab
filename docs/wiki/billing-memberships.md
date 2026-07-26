@@ -225,8 +225,10 @@ Automatic Tax.
 - Before any apply, run `npm run stripe:migrate-supporter-membership -- --mode=verify`
   against the reviewed production subscriber, catalog, and Customer Portal
   inventory. This GET-only migration verification is the pre-apply authority.
-- After apply, configure the resulting three Supporter Products and six Price IDs in
-  the production environment. Then, before public paid signup, run
+- After apply, confirm the resulting three Supporter Products exist in Stripe,
+  but configure only their six approved Price IDs in the production runtime
+  environment. Product IDs remain migration-only operator inputs. Then, before
+  public paid signup, run
   `npm run stripe:readiness -- --env-file=/secure/path/massagelab-production.env --live --verify-stripe`
   against production Stripe. For `CREATE_NEW`, this live readiness check is
   necessarily post-apply because the configured Price IDs do not exist before
