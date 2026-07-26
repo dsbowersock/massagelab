@@ -9,7 +9,11 @@ import {
   formatMigrationFailureChecklist,
   formatMigrationChecklist,
   runSupporterMembershipMigration as runMigrationWithProductionRetry,
+  targetSupporterProductReusable,
 } from "../scripts/stripe-supporter-membership-migration.mjs"
+import {
+  SUPPORTER_MEMBERSHIP_CATALOG_VERSION,
+} from "../lib/stripe-price-contract.js"
 
 const LEGACY_PRICE_SPECS = Object.freeze([
   ["price_supporter_month", "prod_supporter", 900, "month"],
@@ -544,6 +548,57 @@ function assertMutationWasReretrieved(calls, mutationIndex, retrieveName, id) {
 }
 
 describe("Supporter membership Stripe migration", () => {
+  it("accepts only the three audited target Product reuse paths", () => {
+    const support1Spec = { key: "support-1", configKey: "supporter" }
+    const support2Spec = { key: "support-2", configKey: "support2" }
+    const classifiedProduct = {
+      id: "prod_classified",
+      active: true,
+      name: "MassageLab Supporter Membership",
+      tax_code: "txcd_10000000",
+      metadata: {
+        app: "massagelab",
+        massagelab_catalog: SUPPORTER_MEMBERSHIP_CATALOG_VERSION,
+        massagelab_membership_level: "SUPPORTER",
+        massagelab_supporter_amount_choice: "support-2",
+      },
+    }
+    const unstampedSupporter = {
+      ...classifiedProduct,
+      metadata: {
+        ...classifiedProduct.metadata,
+        massagelab_supporter_amount_choice: undefined,
+      },
+    }
+
+    assert.equal(
+      targetSupporterProductReusable(
+        product("prod_supporter", "MassageLab Supporter"),
+        support1Spec,
+      ),
+      true,
+    )
+    assert.equal(
+      targetSupporterProductReusable(classifiedProduct, support2Spec),
+      true,
+    )
+    assert.equal(
+      targetSupporterProductReusable(unstampedSupporter, support1Spec),
+      true,
+    )
+    assert.equal(
+      targetSupporterProductReusable(unstampedSupporter, support2Spec),
+      false,
+    )
+    assert.equal(
+      targetSupporterProductReusable(
+        { ...classifiedProduct, active: false },
+        support2Spec,
+      ),
+      false,
+    )
+  })
+
   it("uses the webhook/runtime source of truth for its pinned Stripe API version", async () => {
     const scriptSource = await readFile(
       new URL("../scripts/stripe-supporter-membership-migration.mjs", import.meta.url),

@@ -65,7 +65,12 @@ if (
   || duplicateTargetPriceKeys.length > 0
 ) {
   throw new Error(
-    "Supporter migration Product/Price contract is incomplete or ambiguous.",
+    [
+      "Supporter migration Product/Price contract is incomplete or ambiguous.",
+      `missing=[${missingTargetPriceKeys.join(",")}]`,
+      `unexpected=[${unexpectedTargetPriceKeys.join(",")}]`,
+      `duplicate=[${duplicateTargetPriceKeys.join(",")}]`,
+    ].join(" "),
   )
 }
 const TERMINAL_SUBSCRIPTION_STATUSES = new Set(["canceled", "incomplete_expired"])
@@ -490,6 +495,24 @@ function legacySupporterProductMatches(candidate) {
     && (app === undefined || app === "massagelab")
     && candidate.metadata?.massagelab_membership_level === "SUPPORTER"
     && candidate.metadata?.massagelab_catalog == null
+}
+
+/**
+ * Accepts only the three audited target-Product reuse paths: the exact legacy
+ * Supporter Product, a classified Product already stamped for this amount, or
+ * the classified but unstamped support-1 Product from a pre-Portal interruption.
+ */
+export function targetSupporterProductReusable(candidate, spec) {
+  if (candidate?.active !== true) return false
+  if (spec.configKey === "supporter" && legacySupporterProductMatches(candidate)) {
+    return true
+  }
+  if (!targetSupporterProductCoreMatches(candidate)) return false
+
+  const amountChoiceId =
+    candidate.metadata?.massagelab_supporter_amount_choice
+  return amountChoiceId === spec.key
+    || (spec.configKey === "supporter" && amountChoiceId == null)
 }
 
 /**
@@ -975,20 +998,7 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
   for (const spec of TARGET_PRODUCT_SPECS) {
     const candidate = products[spec.configKey]
     const completed = targetSupporterProductMatches(candidate, spec)
-    const reusable = candidate?.active === true
-      && (
-        (spec.configKey === "supporter" && legacySupporterProductMatches(candidate))
-        || (
-          targetSupporterProductCoreMatches(candidate)
-          && (
-            candidate.metadata?.massagelab_supporter_amount_choice === spec.key
-            || (
-              spec.configKey === "supporter"
-              && candidate.metadata?.massagelab_supporter_amount_choice == null
-            )
-          )
-        )
-      )
+    const reusable = targetSupporterProductReusable(candidate, spec)
     targetProductCompleted.set(spec.key, completed)
     targetProductReusable.set(spec.key, reusable)
     if (candidate && !completed && !reusable) {

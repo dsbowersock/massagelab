@@ -13,7 +13,10 @@ import {
 } from "../lib/stripe-readiness.js"
 import { STRIPE_API_VERSION } from "../lib/stripe-webhook-contract.js"
 import { SUPPORTER_AMOUNT_CHOICES } from "../lib/membership.js"
-import { recurringPriceSemanticMismatches } from "../lib/stripe-price-contract.js"
+import {
+  recurringPriceSemanticMismatches,
+  SUPPORTER_MEMBERSHIP_CATALOG_VERSION,
+} from "../lib/stripe-price-contract.js"
 import StripeReadinessStub from "./fixtures/stripe-readiness-stripe-stub.mjs"
 
 const readinessScriptPath = fileURLToPath(
@@ -34,7 +37,7 @@ function supporterProduct(amountChoiceId = "support-1", overrides = {}) {
     tax_code: "txcd_10000000",
     metadata: {
       app: "massagelab",
-      massagelab_catalog: "supporter_membership_v1",
+      massagelab_catalog: SUPPORTER_MEMBERSHIP_CATALOG_VERSION,
       massagelab_membership_level: "SUPPORTER",
       massagelab_supporter_amount_choice: amountChoiceId,
     },
