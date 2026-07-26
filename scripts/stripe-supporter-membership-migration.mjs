@@ -907,6 +907,10 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
     failureCodes.push("product_dependency_mismatch")
   }
 
+  // Accept legacy Supporter ownership only when the discovered configured
+  // Prices agree on one Product; separate dependency validation rejects a
+  // missing or malformed Price. Multiple owners resolve to null so recovery
+  // fails closed instead of adopting an arbitrary Product.
   const discoveredLegacySupporterOwnerIds = new Set(
     config.legacyPrices
       .filter(({ productKey }) => productKey === "supporter")

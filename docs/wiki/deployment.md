@@ -165,7 +165,7 @@ npm run stripe:migrate-supporter-membership -- --mode=verify
 Apply first creates or reuses three managed amount-specific Supporter Products
 and six Prices. It then updates the Portal to expose only those Prices and
 successfully re-retrieves the exact three-Product configuration. That Portal
-reread is the gate before every cleanup action: a failed reread stops apply
+reread is the gate before cleanup begins: a failed reread stops apply
 immediately and leaves every legacy Price, Therapist or Practice Product, and
 coupon untouched.
 
