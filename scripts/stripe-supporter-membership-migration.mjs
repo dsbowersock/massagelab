@@ -422,6 +422,7 @@ function priceProductId(candidate) {
   return typeof candidate?.product === "string" ? candidate.product : candidate?.product?.id
 }
 
+/** Verifies every immutable recurring semantic required of a target Price. */
 function targetPriceSemanticsMatch(candidate, spec) {
   return Boolean(candidate)
     && recurringPriceSemanticsMatch(candidate, {
@@ -431,6 +432,7 @@ function targetPriceSemanticsMatch(candidate, spec) {
     })
 }
 
+/** Adds the immutable Product-owner requirement to the target Price contract. */
 function priceMatches(candidate, spec, productId) {
   return targetPriceSemanticsMatch(candidate, spec)
     && priceProductId(candidate) === productId
@@ -445,6 +447,7 @@ function legacyPriceMatches(candidate, spec, productId) {
     && priceProductId(candidate) === productId
 }
 
+/** Verifies fields and metadata shared by all three amount Products. */
 function targetSupporterProductCoreMatches(candidate) {
   return Boolean(candidate)
     && candidate.name === SUPPORTER_PRODUCT_NAME
@@ -455,16 +458,19 @@ function targetSupporterProductCoreMatches(candidate) {
     && candidate.metadata?.massagelab_membership_level === "SUPPORTER"
 }
 
+/** Verifies the complete contract for one amount-specific Supporter Product. */
 function targetSupporterProductMatches(candidate, spec) {
   return targetSupporterProductCoreMatches(candidate)
     && candidate.description === spec.description
     && candidate.metadata?.massagelab_supporter_amount_choice === spec.key
 }
 
+/** Resolves the single amount Product contract that owns a target Price slot. */
 function targetProductSpecForPrice(spec) {
   return TARGET_PRODUCT_SPECS.find((candidate) => candidate.priceKeys.includes(spec.key))
 }
 
+/** Keeps Product creation replay-safe and unique to one amount choice. */
 function targetProductIdempotencyKey(spec) {
   return `massagelab-supporter-membership-v1-product-${spec.key}`
 }
@@ -1331,6 +1337,10 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
   }
 }
 
+/**
+ * Builds the complete create/update payload for one amount Product while
+ * preserving Stripe metadata unrelated to MassageLab's managed contract.
+ */
 function targetProductPayload(current, spec) {
   return {
     name: SUPPORTER_PRODUCT_NAME,
