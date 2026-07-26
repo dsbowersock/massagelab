@@ -225,7 +225,13 @@ function portalSwitchingPolicyDrifts() {
  * period-end expectation for the completed immediate-switching state.
  */
 function completedPortalSwitchingPolicyDrifts() {
-  return portalSwitchingPolicyDrifts().map(([label, corrupt]) => (
+  const drifts = portalSwitchingPolicyDrifts()
+  assert.equal(
+    drifts.some(([label]) => label === "period-end schedule"),
+    true,
+    "expected the base Portal drift matrix to include period-end scheduling",
+  )
+  return drifts.map(([label, corrupt]) => (
     label === "period-end schedule"
       ? [label, (features) => {
           features.subscription_update.schedule_at_period_end.conditions = [

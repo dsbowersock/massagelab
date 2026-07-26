@@ -246,16 +246,23 @@ Automatic Tax.
 - Before any apply, run `npm run stripe:migrate-supporter-membership -- --mode=verify`
   against the reviewed production subscriber, catalog, and Customer Portal
   inventory. This GET-only migration verification is the pre-apply authority.
-- After apply, confirm the resulting three Supporter Products exist in Stripe,
-  then configure their six approved Price IDs for new public enrollment in the
-  production runtime. These IDs are additive: retain all six legacy
+- After apply, rerun
+  `npm run stripe:migrate-supporter-membership -- --mode=verify` and require a
+  complete PASS. That post-apply verification must re-read the Customer Portal,
+  prove legacy cleanup occurred in dependency order, and report the final
+  migration state as completed before any runtime Price ID is changed.
+- After that verification passes, confirm the resulting three Supporter
+  Products exist in Stripe, then configure their six approved Price IDs for new
+  public enrollment in the production runtime. These IDs are additive: retain all six legacy
   webhook-reconciliation Price mappings until subscriber inventory and
   reconciliation are complete and the explicit removal gate passes. Product IDs
   remain migration-only operator inputs. Then, before public paid signup, run
   `npm run stripe:readiness -- --env-file=/secure/path/massagelab-production.env --live --verify-stripe`
   against production Stripe. For `CREATE_NEW`, this live readiness check is
   necessarily post-apply because the configured Price IDs do not exist before
-  the migration creates them.
+  the migration creates them. The required sequence is apply, post-apply
+  migration verification PASS, runtime Price configuration, then live readiness
+  PASS.
 - Both commands must pass without printing secrets or Stripe identifiers; their
   operator output is limited to safe readiness messages and checklist codes.
 
