@@ -43,12 +43,39 @@ const SUPPORTER_PRICE_FIXTURES = Object.freeze(Object.fromEntries(
   }),
 ))
 
+/**
+ * Captures every timer created with one exact delay until the caller restores
+ * the original global timer function in a `finally` block.
+ */
+function captureTimersWithDelay(delayMs) {
+  const capturedTimers = []
+  const originalSetTimeout = globalThis.setTimeout
+  globalThis.setTimeout = (callback, delay, ...args) => {
+    const timer = originalSetTimeout(callback, delay, ...args)
+    if (delay === delayMs) {
+      capturedTimers.push(timer)
+    }
+    return timer
+  }
+  return {
+    capturedTimers,
+    restore() {
+      globalThis.setTimeout = originalSetTimeout
+    },
+  }
+}
+
 describe("Stripe billing helpers", () => {
   it("keeps authority failures catchable, distinct, and private", () => {
+    const {
+      deadline,
+      invariant,
+      readBudget,
+    } = stripeBilling.MembershipCheckoutAuthorityError
     const failures = [
-      stripeBilling.MembershipCheckoutAuthorityError.deadline(),
-      stripeBilling.MembershipCheckoutAuthorityError.invariant(),
-      stripeBilling.MembershipCheckoutAuthorityError.readBudget(),
+      deadline(),
+      invariant(),
+      readBudget(),
     ]
 
     assert.equal(
@@ -1288,15 +1315,12 @@ describe("Stripe billing helpers", () => {
     let retrieveSubscriptionCalls = 0
     let createCalls = 0
     let subscriptionRetrieveRequest
-    const matchingAuthorityDeadlineTimers = []
-    const originalSetTimeout = globalThis.setTimeout
-    globalThis.setTimeout = (callback, delay, ...args) => {
-      const timer = originalSetTimeout(callback, delay, ...args)
-      if (delay === AUTHORITY_HANGING_READ_RECONCILIATION_BUDGET_MS) {
-        matchingAuthorityDeadlineTimers.push(timer)
-      }
-      return timer
-    }
+    const {
+      capturedTimers: matchingAuthorityDeadlineTimers,
+      restore: restoreSetTimeout,
+    } = captureTimersWithDelay(
+      AUTHORITY_HANGING_READ_RECONCILIATION_BUDGET_MS,
+    )
 
     try {
       await assert.rejects(
@@ -1343,7 +1367,7 @@ describe("Stripe billing helpers", () => {
         /subscription authority lookups exceeded the safe deadline/,
       )
     } finally {
-      globalThis.setTimeout = originalSetTimeout
+      restoreSetTimeout()
     }
 
     assert.equal(expireCalls, 1)
@@ -2464,6 +2488,7 @@ describe("Stripe billing helpers", () => {
   })
 
   it("bounds authority lookups in newest-first Checkout Session order", async () => {
+    const authorityReconciliationBudgetMs = 60_000
     const authorityWorkerCount = Math.min(
       MEMBERSHIP_CHECKOUT_SUBSCRIPTION_AUTHORITY_CONCURRENCY,
       MEMBERSHIP_CHECKOUT_SUBSCRIPTION_AUTHORITY_READ_BUDGET,
@@ -2510,8 +2535,7 @@ describe("Stripe billing helpers", () => {
 
     const checkoutPromise = stripeBilling.createStripeCheckoutSession(
       membershipCheckoutOptions({
-        reconciliationBudgetMs:
-          AUTHORITY_HANGING_READ_RECONCILIATION_BUDGET_MS,
+        reconciliationBudgetMs: authorityReconciliationBudgetMs,
         reconciliationNowMs: () => 100,
         stripeClient: {
           checkout: {
@@ -2592,7 +2616,7 @@ describe("Stripe billing helpers", () => {
       expectedSubscriptionIds.map((subscriptionId) => ({
         params: {},
         requestOptions: {
-          timeout: AUTHORITY_HANGING_READ_RECONCILIATION_BUDGET_MS,
+          timeout: authorityReconciliationBudgetMs,
         },
         subscriptionId,
       })),
@@ -2614,17 +2638,12 @@ describe("Stripe billing helpers", () => {
     })
     const startedSubscriptionIds = []
     let createCalls = 0
-    const matchingAuthorityDeadlineTimers = []
-    const originalSetTimeout = globalThis.setTimeout
-    globalThis.setTimeout = (callback, delay, ...args) => {
-      const timer = originalSetTimeout(callback, delay, ...args)
-      // Capture every matching timer so duplicate deadline delays cannot hide a
-      // referenced authority timer behind a later assignment.
-      if (delay === AUTHORITY_HANGING_READ_RECONCILIATION_BUDGET_MS) {
-        matchingAuthorityDeadlineTimers.push(timer)
-      }
-      return timer
-    }
+    const {
+      capturedTimers: matchingAuthorityDeadlineTimers,
+      restore: restoreSetTimeout,
+    } = captureTimersWithDelay(
+      AUTHORITY_HANGING_READ_RECONCILIATION_BUDGET_MS,
+    )
 
     let result
     try {
@@ -2661,7 +2680,7 @@ describe("Stripe billing helpers", () => {
         500,
       )
     } finally {
-      globalThis.setTimeout = originalSetTimeout
+      restoreSetTimeout()
     }
 
     assert.equal(result.id, blockingSession.id)
@@ -2696,15 +2715,12 @@ describe("Stripe billing helpers", () => {
     })
     const startedSubscriptionIds = []
     let createCalls = 0
-    const matchingAuthorityDeadlineTimers = []
-    const originalSetTimeout = globalThis.setTimeout
-    globalThis.setTimeout = (callback, delay, ...args) => {
-      const timer = originalSetTimeout(callback, delay, ...args)
-      if (delay === AUTHORITY_HANGING_READ_RECONCILIATION_BUDGET_MS) {
-        matchingAuthorityDeadlineTimers.push(timer)
-      }
-      return timer
-    }
+    const {
+      capturedTimers: matchingAuthorityDeadlineTimers,
+      restore: restoreSetTimeout,
+    } = captureTimersWithDelay(
+      AUTHORITY_HANGING_READ_RECONCILIATION_BUDGET_MS,
+    )
 
     try {
       await assert.rejects(
@@ -2743,7 +2759,7 @@ describe("Stripe billing helpers", () => {
         /subscription authority lookups exceeded the safe deadline/,
       )
     } finally {
-      globalThis.setTimeout = originalSetTimeout
+      restoreSetTimeout()
     }
 
     assert.ok(
