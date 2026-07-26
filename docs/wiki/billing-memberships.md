@@ -154,9 +154,9 @@ metadata. This is an operational representation, not three feature tiers.
 
 The deployable migration command creates or verifies these three Products and
 six exclusive recurring Prices, removes only the two independently verified
-zero-redemption legacy coupons, retires both the unapproved higher Prices and
-the older approved-amount Price objects that cannot be reassigned from their
-legacy tier Products, and
+zero-redemption legacy coupons, retires all six unapproved higher Prices
+($9/$90, $29/$279, and $79/$759) and the older approved-amount Price objects
+that cannot be reassigned from their legacy tier Products, and
 limits Customer Portal switching to those six Prices while preserving billing
 details, payment methods, invoices, and cancellation. Cross-Product amount
 changes keep the existing billing-cycle anchor, create no prorations, and are

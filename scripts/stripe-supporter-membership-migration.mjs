@@ -900,6 +900,20 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
     failureCodes.push("product_dependency_mismatch")
   }
 
+  const discoveredLegacySupporterOwnerIds = new Set(
+    config.legacyPrices
+      .filter(({ productKey }) => productKey === "supporter")
+      .map(({ id }) => allPrices.find((candidate) => candidate.id === id))
+      .map(priceProductId)
+      .filter(Boolean),
+  )
+  const legacySupporterProductId = config.productIds.supporter === CREATE_NEW_PRODUCT
+    ? (
+        discoveredLegacySupporterOwnerIds.size === 1
+          ? [...discoveredLegacySupporterOwnerIds][0]
+          : null
+      )
+    : config.productIds.supporter
   const targetProductCandidates = allProducts.filter((candidate) => (
     candidate.name === SUPPORTER_PRODUCT_NAME
     || candidate.metadata?.massagelab_catalog === SUPPORTER_CATALOG
@@ -917,14 +931,18 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
   }
   // Reuse the exact legacy Supporter Product only before an amount-specific
   // Product exists. applyPlan stamps support-1 before it creates support-2 and
-  // support-5, preserving this single-candidate safety condition on retries.
+  // support-5. Legacy Price ownership identifies this Product even when other
+  // amount Products already exist after an interrupted apply.
+  const discoveredLegacyTargetCandidate = targetProductCandidates.find(
+    ({ id }) => id === legacySupporterProductId,
+  )
   if (
     config.productIds.supporter === CREATE_NEW_PRODUCT
     && !products.supporter
-    && targetProductCandidates.length === 1
-    && targetProductCandidates[0].metadata?.massagelab_supporter_amount_choice == null
+    && discoveredLegacyTargetCandidate
+    && discoveredLegacyTargetCandidate.metadata?.massagelab_supporter_amount_choice == null
   ) {
-    products.supporter = targetProductCandidates[0]
+    products.supporter = discoveredLegacyTargetCandidate
   }
 
   const assignedTargetProductIdList = TARGET_PRODUCT_SPECS
@@ -934,7 +952,9 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
   if (
     targetProductCandidateOverflow
     || assignedTargetProductIds.size !== assignedTargetProductIdList.length
-    || targetProductCandidates.some(({ id }) => !assignedTargetProductIds.has(id))
+    || targetProductCandidates.some(({ id }) => (
+      id !== legacySupporterProductId && !assignedTargetProductIds.has(id)
+    ))
   ) {
     failureCodes.push("supporter_product_duplicate")
   }
@@ -967,19 +987,8 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
 
   const targetProductId = products.supporter?.id ?? null
   const legacyPrices = new Map()
-  let legacySupporterProductId = config.productIds.supporter === CREATE_NEW_PRODUCT
-    ? null
-    : config.productIds.supporter
   for (const spec of config.legacyPrices) {
     const candidate = allPrices.find((entry) => entry.id === spec.id)
-    if (
-      spec.productKey === "supporter"
-      && config.productIds.supporter === CREATE_NEW_PRODUCT
-      && candidate
-      && !legacySupporterProductId
-    ) {
-      legacySupporterProductId = priceProductId(candidate)
-    }
     const legacyExpectedProductId = spec.productKey === "supporter"
       ? legacySupporterProductId
       : config.productIds[spec.productKey]

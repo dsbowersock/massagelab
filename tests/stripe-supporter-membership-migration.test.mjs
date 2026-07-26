@@ -1532,6 +1532,57 @@ describe("Supporter membership Stripe migration", () => {
     assert.deepEqual(mutationCalls(fixture), [])
   })
 
+  it("recovers a discovered legacy support-1 Product after other amount Products exist", async () => {
+    const fixture = stripeFixture()
+    const sharedMetadata = {
+      app: "massagelab",
+      massagelab_catalog: "supporter_membership_v1",
+      massagelab_membership_level: "SUPPORTER",
+    }
+    Object.assign(fixture.products.get("prod_supporter"), {
+      name: "MassageLab Supporter Membership",
+      description: "$1 monthly or $10 annually. Same Supporter Membership benefits; only the support amount differs.",
+      tax_code: "txcd_10000000",
+      metadata: { ...sharedMetadata },
+    })
+    fixture.products.set("prod_support_2", {
+      ...product("prod_support_2", "MassageLab Supporter Membership"),
+      description: "$2 monthly or $20 annually. Same Supporter Membership benefits; only the support amount differs.",
+      tax_code: "txcd_10000000",
+      metadata: {
+        ...sharedMetadata,
+        massagelab_supporter_amount_choice: "support-2",
+      },
+    })
+    fixture.products.set("prod_support_5", {
+      ...product("prod_support_5", "MassageLab Supporter Membership"),
+      description: "$5 monthly or $50 annually. Same Supporter Membership benefits; only the support amount differs.",
+      tax_code: "txcd_10000000",
+      metadata: {
+        ...sharedMetadata,
+        massagelab_supporter_amount_choice: "support-5",
+      },
+    })
+
+    const result = await runSupporterMembershipMigration({
+      stripe: fixture.stripe,
+      mode: "apply",
+      env: migrationEnv({
+        MASSAGELAB_STRIPE_MIGRATION_SUPPORTER_PRODUCT_ID: "CREATE_NEW",
+      }),
+    })
+
+    assert.equal(result.state, "COMPLETED")
+    assert.equal(
+      fixture.products.get("prod_supporter").metadata.massagelab_supporter_amount_choice,
+      "support-1",
+    )
+    assert.equal(
+      fixture.calls.filter(({ name }) => name === "products.create").length,
+      0,
+    )
+  })
+
   it("fails closed on an unexpected subscriber without leaking identifiers or mutating catalog state", async () => {
     const fixture = stripeFixture()
     fixture.subscriptions.push({
