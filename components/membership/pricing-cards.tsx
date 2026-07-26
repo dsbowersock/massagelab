@@ -29,6 +29,11 @@ type MembershipPlan = {
   }>
 }
 
+type ResolvedAmountChoice = {
+  choiceId: string
+  price: MembershipPrice
+}
+
 type MembershipPricingCatalog = {
   defaultInterval: string
   intervals: ReadonlyArray<{
@@ -201,8 +206,8 @@ function PlanActions({
   plan: MembershipPlan
   mode: "checkout" | "auth" | "portal"
   portalActionAvailable: boolean
-  resolvedAmountChoices: Array<{ choiceId: string, price: MembershipPrice }>
-  availableAmountChoices: Array<{ choiceId: string, price: MembershipPrice }>
+  resolvedAmountChoices: ResolvedAmountChoice[]
+  availableAmountChoices: ResolvedAmountChoice[]
 }) {
   if (mode === "portal") {
     return portalActionAvailable ? (
