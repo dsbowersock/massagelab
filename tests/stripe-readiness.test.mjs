@@ -9,6 +9,7 @@ import {
   isExplicitTrue,
   REQUIRED_SUPPORTER_PRICE_CONTRACT,
   validateRetrievedMembershipPrice,
+  validateSupporterProductTopology,
 } from "../lib/stripe-readiness.js"
 import { STRIPE_API_VERSION } from "../lib/stripe-webhook-contract.js"
 import { SUPPORTER_AMOUNT_CHOICES } from "../lib/membership.js"
@@ -21,11 +22,18 @@ const readinessScriptPath = fileURLToPath(
 const readinessHookUrl =
   new URL("./fixtures/stripe-readiness-hook.mjs", import.meta.url).href
 
-function supporterProduct(overrides = {}) {
+function supporterProduct(amountChoiceId = "support-1", overrides = {}) {
   return {
+    id: `prod_${amountChoiceId.replace("-", "_")}`,
     active: true,
     name: "MassageLab Supporter Membership",
     tax_code: "txcd_10000000",
+    metadata: {
+      app: "massagelab",
+      massagelab_catalog: "supporter_membership_v1",
+      massagelab_membership_level: "SUPPORTER",
+      massagelab_supporter_amount_choice: amountChoiceId,
+    },
     ...overrides,
   }
 }
@@ -169,9 +177,33 @@ describe("Stripe readiness background-commerce contract", () => {
         tax_behavior: "exclusive",
         transform_quantity: null,
         currency_options: null,
-        product: supporterProduct(),
+        product: supporterProduct(expected.amountChoiceId),
       }, expected),
       [`${expected.key} must have unit_amount ${expected.unitAmount}; received 201.`],
+    )
+  })
+  it("requires exactly three amount-specific Products across the six Prices", () => {
+    const entries = REQUIRED_SUPPORTER_PRICE_CONTRACT.map((expected) => ({
+      expected,
+      price: {
+        product: supporterProduct(expected.amountChoiceId),
+      },
+    }))
+
+    assert.deepEqual(validateSupporterProductTopology(entries), [])
+
+    const oneProduct = entries.map(({ expected, price }) => ({
+      expected,
+      price: {
+        ...price,
+        product: supporterProduct("support-1"),
+      },
+    }))
+    assert.deepEqual(
+      validateSupporterProductTopology(oneProduct),
+      [
+        "The Supporter catalog must use three distinct amount-specific Stripe Products.",
+      ],
     )
   })
   it("requires exclusive recurring tax Prices on the confirmed Supporter classification", () => {
@@ -198,7 +230,9 @@ describe("Stripe readiness background-commerce contract", () => {
       validateRetrievedMembershipPrice({
         ...basePrice,
         tax_behavior: "inclusive",
-        product: supporterProduct({ tax_code: "txcd_10202003" }),
+        product: supporterProduct(expected.amountChoiceId, {
+          tax_code: "txcd_10202003",
+        }),
       }, expected),
       [
         `${expected.key} must use exclusive tax behavior.`,
@@ -608,6 +642,19 @@ describe("Stripe readiness background-commerce contract", () => {
     assert.match(result.stdout, /Stripe API retrieval performed: true/)
     assert.match(result.stdout, /Pinned Stripe webhook endpoint enabled: true/)
     assert.match(result.stdout, /Pinned Stripe webhook API version current: true/)
+  })
+
+  it("rejects the retired six-Prices-on-one-Product topology", () => {
+    const result = runReadinessWithStripeStub({
+      STRIPE_READINESS_STUB_SINGLE_SUPPORTER_PRODUCT: "true",
+    }, ["--verify-stripe"])
+
+    assert.equal(result.status, 1, result.stderr || result.stdout)
+    assert.match(
+      result.stderr,
+      /FAIL The Supporter catalog must use three distinct amount-specific Stripe Products\./,
+    )
+    assert.match(result.stdout, /Stripe API retrieval performed: false/)
   })
 
   it("reports partial Stripe Price verification as incomplete", () => {

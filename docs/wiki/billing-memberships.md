@@ -146,13 +146,21 @@ deterministic idempotency and re-retrieved as expired before current Checkout
 creation. Purpose-less completed Sessions still block when their subscription
 is relevant while webhook persistence catches up.
 
-The deployable migration command creates or verifies this one Product and six
-exclusive recurring Prices, removes only the two independently verified
+Stripe represents the one user-facing membership as three Products, one per
+support amount, because Customer Portal permits only one Price per recurring
+interval on a Product. Each Product has one monthly and one annual Price, the
+same name, tax code, Supporter entitlement metadata, and amount-choice
+metadata. This is an operational representation, not three feature tiers.
+
+The deployable migration command creates or verifies these three Products and
+six exclusive recurring Prices, removes only the two independently verified
 zero-redemption legacy coupons, retires both the unapproved higher Prices and
 the older approved-amount Price objects that cannot be reassigned from their
 legacy tier Products, and
 limits Customer Portal switching to those six Prices while preserving billing
-details, payment methods, invoices, and cancellation. It inventories all
+details, payment methods, invoices, and cancellation. Cross-Product amount
+changes keep the existing billing-cycle anchor, create no prorations, and are
+not scheduled for period end. It inventories all
 relevant subscriptions before mutation and permits at most the one explicitly
 reviewed subscription identifier (or an explicit `none` decision). Therapist
 and Practice retirement dependencies must retain their exact expected Product
@@ -161,8 +169,9 @@ contradict the expected MassageLab identity.
 
 The reviewed pre-migration Customer Portal may have subscription switching
 disabled and no Product allowlist. That state is not a reason to enable
-switching manually before the migration: apply installs the exact six-Price
-Supporter allowlist while preserving the existing billing-management features.
+switching manually before the migration: apply installs the exact
+three-Product/six-Price Supporter allowlist while preserving the existing
+billing-management features.
 
 Do not mutate live Products, Prices, coupons, subscriptions, portal settings,
 or entitlements outside that controlled operation. Follow the reviewed
@@ -216,7 +225,7 @@ Automatic Tax.
 - Before any apply, run `npm run stripe:migrate-supporter-membership -- --mode=verify`
   against the reviewed production subscriber, catalog, and Customer Portal
   inventory. This GET-only migration verification is the pre-apply authority.
-- After apply, configure the resulting Supporter Product and six Price IDs in
+- After apply, configure the resulting three Supporter Products and six Price IDs in
   the production environment. Then, before public paid signup, run
   `npm run stripe:readiness -- --env-file=/secure/path/massagelab-production.env --live --verify-stripe`
   against production Stripe. For `CREATE_NEW`, this live readiness check is

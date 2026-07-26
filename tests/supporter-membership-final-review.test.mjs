@@ -166,6 +166,8 @@ function migrationEnvironment() {
     MASSAGELAB_STRIPE_MIGRATION_MODE: "test",
     MASSAGELAB_STRIPE_MIGRATION_ALLOWED_SUBSCRIPTION_ID: "none",
     MASSAGELAB_STRIPE_MIGRATION_SUPPORTER_PRODUCT_ID: "prod_supporter",
+    MASSAGELAB_STRIPE_MIGRATION_SUPPORT_2_PRODUCT_ID: "CREATE_NEW",
+    MASSAGELAB_STRIPE_MIGRATION_SUPPORT_5_PRODUCT_ID: "CREATE_NEW",
     MASSAGELAB_STRIPE_MIGRATION_LEGACY_SUPPORTER_MONTHLY_PRICE_ID: "price_supporter_month",
     MASSAGELAB_STRIPE_MIGRATION_LEGACY_SUPPORTER_YEARLY_PRICE_ID: "price_supporter_year",
     MASSAGELAB_STRIPE_MIGRATION_THERAPIST_PRODUCT_ID: "prod_therapist",
@@ -469,6 +471,7 @@ describe("Supporter membership final-review contracts", () => {
     )
     const expected = {
       key: "STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID",
+      amountChoiceId: "support-1",
       interval: "month",
       unitAmount: 100,
     }
@@ -479,6 +482,12 @@ describe("Supporter membership final-review contracts", () => {
         active: true,
         name: "MassageLab Supporter Membership",
         tax_code: "txcd_10000000",
+        metadata: {
+          app: "massagelab",
+          massagelab_catalog: SUPPORTER_MEMBERSHIP_CATALOG_VERSION,
+          massagelab_membership_level: "SUPPORTER",
+          massagelab_supporter_amount_choice: "support-1",
+        },
       },
       expected.unitAmount,
       expected.interval,
@@ -491,6 +500,7 @@ describe("Supporter membership final-review contracts", () => {
       {
         "./stripe-price-contract.js": {
           SUPPORTER_MEMBERSHIP_PRODUCT_NAME,
+          SUPPORTER_MEMBERSHIP_CATALOG_VERSION,
           SUPPORTER_MEMBERSHIP_PRICE_CONTRACT,
           SUPPORTER_RECURRING_TAX_BEHAVIOR,
           SUPPORTER_RECURRING_TAX_CODE,

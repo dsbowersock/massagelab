@@ -19,7 +19,29 @@ export { TARGET_PRICE_SPECS }
 const SUPPORTER_PRODUCT_NAME = "MassageLab Supporter Membership"
 const CREATE_NEW_PRODUCT = "CREATE_NEW"
 const NO_ALLOWED_SUBSCRIPTION = "none"
-const SUPPORTER_PRODUCT_IDEMPOTENCY_KEY = "massagelab-supporter-membership-v1-product"
+const TARGET_PRODUCT_SPECS = Object.freeze([
+  Object.freeze({
+    key: "support-1",
+    configKey: "supporter",
+    envKey: "MASSAGELAB_STRIPE_MIGRATION_SUPPORTER_PRODUCT_ID",
+    description: "$1 monthly or $10 annually. Same Supporter Membership benefits; only the support amount differs.",
+    priceKeys: Object.freeze(["support-1-month", "support-1-year"]),
+  }),
+  Object.freeze({
+    key: "support-2",
+    configKey: "support2",
+    envKey: "MASSAGELAB_STRIPE_MIGRATION_SUPPORT_2_PRODUCT_ID",
+    description: "$2 monthly or $20 annually. Same Supporter Membership benefits; only the support amount differs.",
+    priceKeys: Object.freeze(["support-2-month", "support-2-year"]),
+  }),
+  Object.freeze({
+    key: "support-5",
+    configKey: "support5",
+    envKey: "MASSAGELAB_STRIPE_MIGRATION_SUPPORT_5_PRODUCT_ID",
+    description: "$5 monthly or $50 annually. Same Supporter Membership benefits; only the support amount differs.",
+    priceKeys: Object.freeze(["support-5-month", "support-5-year"]),
+  }),
+])
 const TERMINAL_SUBSCRIPTION_STATUSES = new Set(["canceled", "incomplete_expired"])
 // All inventory callers request 100 objects per page, so this last-resort cap
 // bounds any one complete scan to approximately 1,000,000 visited objects.
@@ -108,7 +130,7 @@ const LEGACY_PRICE_CONFIG = Object.freeze([
  * Older approved support amounts were created under the three legacy tier
  * Products. Stripe Prices cannot move between Products, so the migration must
  * retire these exact semantic slots before creating the same amounts under the
- * single classified Supporter Product.
+ * matching amount-specific Supporter Products.
  */
 const SUPERSEDED_AMOUNT_PRICE_CONFIG = Object.freeze([
   Object.freeze({
@@ -209,9 +231,9 @@ function expectsNoAllowedSubscription(value) {
  * @param {"verify"|"apply"} requestedMode Whether to inspect or mutate.
  * @returns {object} Normalized migration dependencies and target Price slots.
  *
- * The Supporter Product accepts either a concrete `prod_...` identifier or the
- * exact `CREATE_NEW` sentinel. Allowed subscription inventory accepts one
- * concrete `sub_...` identifier or case-insensitive `none`. Therapist,
+ * Each support-amount Product accepts either a concrete `prod_...` identifier
+ * or the exact `CREATE_NEW` sentinel. Allowed subscription inventory accepts
+ * one concrete `sub_...` identifier or case-insensitive `none`. Therapist,
  * Practice, legacy Price, coupon, and Portal dependencies remain explicit.
  * @throws {MigrationError} With non-secret configuration failure codes.
  */
@@ -232,7 +254,10 @@ function buildConfig(env, requestedMode) {
   }
 
   const productIds = {
-    supporter: envValue(env, "MASSAGELAB_STRIPE_MIGRATION_SUPPORTER_PRODUCT_ID"),
+    ...Object.fromEntries(TARGET_PRODUCT_SPECS.map((spec) => [
+      spec.configKey,
+      envValue(env, spec.envKey),
+    ])),
     therapist: envValue(env, "MASSAGELAB_STRIPE_MIGRATION_THERAPIST_PRODUCT_ID"),
     practice: envValue(env, "MASSAGELAB_STRIPE_MIGRATION_PRACTICE_PRODUCT_ID"),
   }
@@ -241,10 +266,10 @@ function buildConfig(env, requestedMode) {
     && value.length > "prod_".length
   )
   if (
-    !(
-      productIds.supporter === CREATE_NEW_PRODUCT
-      || isStripeProductId(productIds.supporter)
-    )
+    !TARGET_PRODUCT_SPECS.every(({ configKey }) => (
+      productIds[configKey] === CREATE_NEW_PRODUCT
+      || isStripeProductId(productIds[configKey])
+    ))
     || !isStripeProductId(productIds.therapist)
     || !isStripeProductId(productIds.practice)
   ) {
@@ -392,7 +417,7 @@ function legacyPriceMatches(candidate, spec, productId) {
     && priceProductId(candidate) === productId
 }
 
-function targetSupporterProductMatches(candidate) {
+function targetSupporterProductCoreMatches(candidate) {
   return Boolean(candidate)
     && candidate.name === SUPPORTER_PRODUCT_NAME
     && candidate.active === true
@@ -400,6 +425,20 @@ function targetSupporterProductMatches(candidate) {
     && candidate.metadata?.app === "massagelab"
     && candidate.metadata?.massagelab_catalog === SUPPORTER_CATALOG
     && candidate.metadata?.massagelab_membership_level === "SUPPORTER"
+}
+
+function targetSupporterProductMatches(candidate, spec) {
+  return targetSupporterProductCoreMatches(candidate)
+    && candidate.description === spec.description
+    && candidate.metadata?.massagelab_supporter_amount_choice === spec.key
+}
+
+function targetProductSpecForPrice(spec) {
+  return TARGET_PRODUCT_SPECS.find((candidate) => candidate.priceKeys.includes(spec.key))
+}
+
+function targetProductIdempotencyKey(spec) {
+  return `massagelab-supporter-membership-v1-product-${spec.key}`
 }
 
 /**
@@ -520,11 +559,17 @@ function portalBillingManagementEnabled(features) {
 }
 
 /** Verifies the Price-only switching contract required after migration. */
-function portalSubscriptionSwitchingEnabled(features) {
+function portalSubscriptionSwitchingEnabled(
+  features,
+  { scheduleAtPeriodEndConditions = [] } = {},
+) {
   const normalized = normalizePortalFeatures(features)
   return normalized.subscriptionUpdate.enabled
     && hasExactly(normalized.subscriptionUpdate.defaultAllowedUpdates, ["price"])
-    && portalSubscriptionSwitchingPolicyMatches(normalized.subscriptionUpdate)
+    && portalSubscriptionSwitchingPolicyMatches(
+      normalized.subscriptionUpdate,
+      scheduleAtPeriodEndConditions,
+    )
 }
 
 /**
@@ -532,12 +577,15 @@ function portalSubscriptionSwitchingEnabled(features) {
  * amount. Disabled Portal settings are validated too because apply enables
  * switching and must never carry an unsafe dormant policy forward.
  */
-function portalSubscriptionSwitchingPolicyMatches(subscriptionUpdate) {
+function portalSubscriptionSwitchingPolicyMatches(
+  subscriptionUpdate,
+  scheduleAtPeriodEndConditions,
+) {
   return subscriptionUpdate.billingCycleAnchor === "unchanged"
     && subscriptionUpdate.prorationBehavior === "none"
     && hasExactly(
       subscriptionUpdate.scheduleAtPeriodEndConditions,
-      ["decreasing_item_amount"],
+      scheduleAtPeriodEndConditions,
     )
     && subscriptionUpdate.trialUpdateBehavior === "end_trial"
 }
@@ -551,7 +599,10 @@ function portalSubscriptionSwitchingDisabled(features) {
   return !normalized.subscriptionUpdate.enabled
     && normalized.subscriptionUpdate.defaultAllowedUpdates.length === 0
     && normalized.subscriptionUpdate.products.length === 0
-    && portalSubscriptionSwitchingPolicyMatches(normalized.subscriptionUpdate)
+    && portalSubscriptionSwitchingPolicyMatches(
+      normalized.subscriptionUpdate,
+      ["decreasing_item_amount"],
+    )
 }
 
 function expectedPortalProducts(entries) {
@@ -589,7 +640,8 @@ function findTargetCandidate({ allPrices, configuredId, spec, productId }) {
   }
 
   const managed = allPrices.filter((candidate) => (
-    candidate.metadata?.massagelab_catalog === SUPPORTER_CATALOG
+    priceProductId(candidate) === productId
+    && candidate.metadata?.massagelab_catalog === SUPPORTER_CATALOG
     && (
       managedPriceKey(candidate) === spec.key
       || candidate.lookup_key === lookupKeyFor(spec)
@@ -637,15 +689,15 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
       if (configuredProductIds.has(candidateId)) {
         productsById.set(candidateId, candidate)
       }
-      // Two candidates are sufficient to prove a duplicate; retaining more
-      // cannot change this migration's fail-closed outcome.
+      // The completed catalog has three managed Products. One additional
+      // candidate is sufficient to prove an ambiguous or polluted topology.
       if (isTargetCandidate && !productsById.has(candidateId)) {
         if (targetProductCandidateOverflow) return
         const retainedTargetCount = [...productsById.values()].filter((product) => (
           product?.name === SUPPORTER_PRODUCT_NAME
           || product?.metadata?.massagelab_catalog === SUPPORTER_CATALOG
         )).length
-        if (retainedTargetCount >= 2) {
+        if (retainedTargetCount >= TARGET_PRODUCT_SPECS.length) {
           targetProductCandidateOverflow = true
         } else {
           productsById.set(candidateId, candidate)
@@ -782,7 +834,10 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
 
   const products = {}
   for (const [key, id] of Object.entries(config.productIds)) {
-    if (key === "supporter" && id === CREATE_NEW_PRODUCT) continue
+    if (
+      TARGET_PRODUCT_SPECS.some(({ configKey }) => configKey === key)
+      && id === CREATE_NEW_PRODUCT
+    ) continue
     const candidate = allProducts.find((entry) => entry.id === id)
     if (!candidate || !modeMatches(candidate, config.livemode)) {
       failureCodes.push("product_dependency_mismatch")
@@ -813,22 +868,60 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
     candidate.name === SUPPORTER_PRODUCT_NAME
     || candidate.metadata?.massagelab_catalog === SUPPORTER_CATALOG
   ))
-  if (targetProductCandidateOverflow || targetProductCandidates.length > 1) {
-    failureCodes.push("supporter_product_duplicate")
-  } else if (config.productIds.supporter === CREATE_NEW_PRODUCT) {
-    products.supporter = targetProductCandidates[0] ?? null
-  } else if (
-    targetProductCandidates.length === 1
-    && targetProductCandidates[0].id !== products.supporter?.id
+  for (const spec of TARGET_PRODUCT_SPECS) {
+    if (config.productIds[spec.configKey] !== CREATE_NEW_PRODUCT) continue
+    const matches = targetProductCandidates.filter((candidate) => (
+      candidate.metadata?.massagelab_supporter_amount_choice === spec.key
+    ))
+    if (matches.length > 1) {
+      failureCodes.push("supporter_product_duplicate")
+    } else if (matches.length === 1) {
+      products[spec.configKey] = matches[0]
+    }
+  }
+  if (
+    config.productIds.supporter === CREATE_NEW_PRODUCT
+    && !products.supporter
+    && targetProductCandidates.length === 1
+    && targetProductCandidates[0].metadata?.massagelab_supporter_amount_choice == null
+  ) {
+    products.supporter = targetProductCandidates[0]
+  }
+
+  const assignedTargetProductIds = new Set(
+    TARGET_PRODUCT_SPECS
+      .map(({ configKey }) => products[configKey]?.id)
+      .filter(Boolean),
+  )
+  if (
+    targetProductCandidateOverflow
+    || assignedTargetProductIds.size !== TARGET_PRODUCT_SPECS
+      .map(({ configKey }) => products[configKey]?.id)
+      .filter(Boolean).length
+    || targetProductCandidates.some(({ id }) => !assignedTargetProductIds.has(id))
   ) {
     failureCodes.push("supporter_product_duplicate")
   }
 
-  const targetProductCompleted = targetSupporterProductMatches(products.supporter)
-  const reusableLegacyProduct = legacySupporterProductMatches(products.supporter)
-    && products.supporter.active === true
-  if (products.supporter && !targetProductCompleted && !reusableLegacyProduct) {
-    failureCodes.push("supporter_product_dependency_mismatch")
+  const targetProductCompleted = new Map()
+  const targetProductReusable = new Map()
+  for (const spec of TARGET_PRODUCT_SPECS) {
+    const candidate = products[spec.configKey]
+    const completed = targetSupporterProductMatches(candidate, spec)
+    const reusable = spec.configKey === "supporter"
+      && candidate?.active === true
+      && (
+        legacySupporterProductMatches(candidate)
+        || (
+          targetSupporterProductCoreMatches(candidate)
+          && candidate.metadata?.massagelab_supporter_amount_choice == null
+        )
+      )
+    targetProductCompleted.set(spec.key, completed)
+    targetProductReusable.set(spec.key, reusable)
+    if (candidate && !completed && !reusable) {
+      failureCodes.push("supporter_product_dependency_mismatch")
+    }
   }
 
   const targetProductId = products.supporter?.id ?? null
@@ -876,13 +969,15 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
   }
 
   const targetPrices = new Map()
-  if (targetProductId) {
-    for (const spec of config.targetPrices) {
+  for (const spec of config.targetPrices) {
+    const productSpec = targetProductSpecForPrice(spec)
+    const expectedTargetProductId = products[productSpec.configKey]?.id
+    if (expectedTargetProductId) {
       const candidate = findTargetCandidate({
         allPrices,
         configuredId: spec.configuredId,
         spec,
-        productId: targetProductId,
+        productId: expectedTargetProductId,
       })
       if (
         candidate?.duplicate
@@ -890,7 +985,7 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
           candidate
           && (
             candidate.active !== true
-            || !priceMatches(candidate, spec, targetProductId)
+            || !priceMatches(candidate, spec, expectedTargetProductId)
           )
         )
       ) {
@@ -904,13 +999,13 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
       } else if (spec.configuredId) {
         failureCodes.push("approved_price_dependency_mismatch")
       }
+    } else if (spec.configuredId) {
+      failureCodes.push("approved_price_dependency_mismatch")
     }
-  } else if (config.targetPrices.some((spec) => spec.configuredId)) {
-    failureCodes.push("approved_price_dependency_mismatch")
   }
 
   const managedProductIds = new Set([
-    targetProductId,
+    ...TARGET_PRODUCT_SPECS.map(({ configKey }) => products[configKey]?.id),
     legacySupporterProductId,
     config.productIds.therapist,
     config.productIds.practice,
@@ -954,20 +1049,37 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
       continue
     }
 
-    const duplicateTargetSpec = targetProductId
-      ? config.targetPrices.find((spec) => priceMatches(candidate, spec, targetProductId))
-      : null
-    const selectedTarget = duplicateTargetSpec
-      ? targetPrices.get(duplicateTargetSpec.key)
-      : null
-    if (
-      duplicateTargetSpec
-      && selectedTarget
-      && duplicateTargetSpec.configuredId
-      && selectedTarget.id !== candidate.id
-    ) {
-      retirementPricesById.set(candidate.id, candidate)
-      continue
+    const managedTargetSpec = config.targetPrices.find((spec) => (
+      managedPriceKey(candidate) === spec.key
+      || candidate.lookup_key === lookupKeyFor(spec)
+    ))
+    if (managedTargetSpec) {
+      const productSpec = targetProductSpecForPrice(managedTargetSpec)
+      const expectedTargetProductId = products[productSpec.configKey]?.id
+      const selectedTarget = targetPrices.get(managedTargetSpec.key)
+      if (
+        ownerId !== expectedTargetProductId
+        || (selectedTarget && selectedTarget.id !== candidate.id)
+      ) {
+        retirementPricesById.set(candidate.id, candidate)
+        continue
+      }
+    }
+
+    const duplicateTargetSpec = config.targetPrices.find((spec) => {
+      const productSpec = targetProductSpecForPrice(spec)
+      return priceMatches(candidate, spec, products[productSpec.configKey]?.id)
+    })
+    if (duplicateTargetSpec) {
+      const selectedTarget = targetPrices.get(duplicateTargetSpec.key)
+      if (
+        selectedTarget
+        && duplicateTargetSpec.configuredId
+        && selectedTarget.id !== candidate.id
+      ) {
+        retirementPricesById.set(candidate.id, candidate)
+        continue
+      }
     }
 
     failureCodes.push("unexpected_managed_price")
@@ -1011,11 +1123,17 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
         .map((spec) => spec.id),
     },
   ]
-  const completedPortalProducts = targetProductId && targetPrices.size === config.targetPrices.length
-    ? [{
-        product: targetProductId,
-        prices: config.targetPrices.map((spec) => targetPrices.get(spec.key).id),
-      }]
+  const allTargetProductsCompleted = TARGET_PRODUCT_SPECS.every(
+    (spec) => targetProductCompleted.get(spec.key),
+  )
+  const completedPortalProducts = (
+    allTargetProductsCompleted
+    && targetPrices.size === config.targetPrices.length
+  )
+    ? TARGET_PRODUCT_SPECS.map((productSpec) => ({
+        product: products[productSpec.configKey].id,
+        prices: productSpec.priceKeys.map((key) => targetPrices.get(key).id),
+      }))
     : []
   const portalBaseValid = Boolean(portal)
     && modeMatches(portal, config.livemode)
@@ -1026,15 +1144,17 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
       portalSubscriptionSwitchingDisabled(portal.features)
       // The retired setup command may already expose only the exact three
       // reviewed legacy Products. Preserve that complete state long enough for
-      // apply to replace it atomically with the six-Price Supporter allowlist.
+      // apply to replace it atomically with the three-Product Supporter allowlist.
       || (
-        portalSubscriptionSwitchingEnabled(portal.features)
+        portalSubscriptionSwitchingEnabled(portal.features, {
+          scheduleAtPeriodEndConditions: ["decreasing_item_amount"],
+        })
         && portalTopologyMatches(portal.features, prePortalProducts)
       )
     )
   const portalIsCompleted = portalBaseValid
     && portalSubscriptionSwitchingEnabled(portal.features)
-    && completedPortalProducts.length === 1
+    && completedPortalProducts.length === TARGET_PRODUCT_SPECS.length
     && portalTopologyMatches(portal.features, completedPortalProducts)
   if (
     !portal
@@ -1063,17 +1183,19 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
   const retirementProductsInactive = retirementProducts.every(
     (candidate) => candidate.active === false,
   )
-  const supporterProductAllowsPreMigration = config.productIds.supporter === CREATE_NEW_PRODUCT
-    ? !products.supporter || targetProductCompleted
-    : reusableLegacyProduct || targetProductCompleted
+  const supporterProductsAllowPreMigration = TARGET_PRODUCT_SPECS.every((spec) => (
+    !products[spec.configKey]
+    || targetProductCompleted.get(spec.key)
+    || targetProductReusable.get(spec.key)
+  ))
   const isPreMigration = portalIsPreMigration
-    && supporterProductAllowsPreMigration
+    && supporterProductsAllowPreMigration
     && retirementPricesActive
     && retirementProductsActive
     && couponsConsistent
     && targetPricesAreActive
   const isCompleted = portalIsCompleted
-    && targetProductCompleted
+    && allTargetProductsCompleted
     && targetPrices.size === config.targetPrices.length
     && targetPricesAreActive
     && retirementPricesInactive
@@ -1092,7 +1214,7 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
   const retirementOrderRecoverable = retirementPricesInactive
     || retirementProductsActive
   const recoverableTransition = portalIsCompleted
-    && targetProductCompleted
+    && allTargetProductsCompleted
     && targetPrices.size === config.targetPrices.length
     && targetPricesAreActive
     && couponsRetirementRecoverable
@@ -1152,9 +1274,10 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
   }
 }
 
-function targetProductPayload(current) {
+function targetProductPayload(current, spec) {
   return {
     name: SUPPORTER_PRODUCT_NAME,
+    description: spec.description,
     active: true,
     tax_code: EXPECTED_TAX_CODE,
     metadata: {
@@ -1162,6 +1285,7 @@ function targetProductPayload(current) {
       app: "massagelab",
       massagelab_catalog: SUPPORTER_CATALOG,
       massagelab_membership_level: "SUPPORTER",
+      massagelab_supporter_amount_choice: spec.key,
     },
   }
 }
@@ -1189,6 +1313,7 @@ function targetPricePayload(productId, spec) {
     },
     tax_behavior: SUPPORTER_RECURRING_TAX_BEHAVIOR,
     lookup_key: lookupKeyFor(spec),
+    transfer_lookup_key: true,
     metadata: targetPriceMetadata(spec),
   }
 }
@@ -1199,6 +1324,7 @@ function sameMetadata(actual, expected) {
 
 function needsProductUpdate(current, payload) {
   return current.name !== payload.name
+    || current.description !== payload.description
     || current.active !== payload.active
     || current.tax_code !== payload.tax_code
     || !sameMetadata(current.metadata, payload.metadata)
@@ -1210,7 +1336,7 @@ function needsPriceUpdate(current, spec) {
     || !sameMetadata(current.metadata, targetPriceMetadata(spec, current))
 }
 
-function desiredPortalFeatures(currentFeatures, productId, priceIds) {
+function desiredPortalFeatures(currentFeatures, products) {
   const cancellationReason = currentFeatures.subscription_cancel?.cancellation_reason
   const subscriptionCancel = {
     enabled: true,
@@ -1249,14 +1375,14 @@ function desiredPortalFeatures(currentFeatures, productId, priceIds) {
       billing_cycle_anchor: "unchanged",
       proration_behavior: "none",
       schedule_at_period_end: {
-        conditions: [{ type: "decreasing_item_amount" }],
+        conditions: [],
       },
       trial_update_behavior: "end_trial",
-      products: [{
-        product: productId,
-        prices: priceIds,
+      products: products.map(({ product, prices }) => ({
+        product,
+        prices,
         adjustable_quantity: { enabled: false },
-      }],
+      })),
     },
   }
 }
@@ -1287,47 +1413,46 @@ function retrievePriceWithCurrencyOptions(stripe, id) {
  * second, then legacy retirement; each write is immediately re-read.
  */
 async function applyPlan(stripe, config, inventory) {
-  let supporter = inventory.products.supporter
-  const productPayload = targetProductPayload(supporter)
-
-  if (!supporter) {
-    const created = await stripe.products.create(productPayload, {
-      idempotencyKey: SUPPORTER_PRODUCT_IDEMPOTENCY_KEY,
-    })
-    supporter = await retrieveAfterMutation(
-      stripe.products.retrieve.bind(stripe.products),
-      created.id,
-      (candidate) => candidate.name === SUPPORTER_PRODUCT_NAME
-        && candidate.active === true
-        && candidate.tax_code === EXPECTED_TAX_CODE
-        && sameMetadata(candidate.metadata, productPayload.metadata),
-      "supporter_product_mutation_unverified",
-    )
-  } else if (needsProductUpdate(supporter, productPayload)) {
-    await stripe.products.update(supporter.id, productPayload)
-    supporter = await retrieveAfterMutation(
-      stripe.products.retrieve.bind(stripe.products),
-      supporter.id,
-      (candidate) => candidate.name === SUPPORTER_PRODUCT_NAME
-        && candidate.active === true
-        && candidate.tax_code === EXPECTED_TAX_CODE
-        && sameMetadata(candidate.metadata, productPayload.metadata),
-      "supporter_product_mutation_unverified",
-    )
+  const targetProducts = new Map()
+  for (const spec of TARGET_PRODUCT_SPECS) {
+    let candidate = inventory.products[spec.configKey]
+    const productPayload = targetProductPayload(candidate, spec)
+    if (!candidate) {
+      const created = await stripe.products.create(productPayload, {
+        idempotencyKey: targetProductIdempotencyKey(spec),
+      })
+      candidate = await retrieveAfterMutation(
+        stripe.products.retrieve.bind(stripe.products),
+        created.id,
+        (retrieved) => targetSupporterProductMatches(retrieved, spec),
+        "supporter_product_mutation_unverified",
+      )
+    } else if (needsProductUpdate(candidate, productPayload)) {
+      await stripe.products.update(candidate.id, productPayload)
+      candidate = await retrieveAfterMutation(
+        stripe.products.retrieve.bind(stripe.products),
+        candidate.id,
+        (retrieved) => targetSupporterProductMatches(retrieved, spec),
+        "supporter_product_mutation_unverified",
+      )
+    }
+    targetProducts.set(spec.key, candidate)
   }
 
   const targetPrices = []
   for (const spec of config.targetPrices) {
+    const productSpec = targetProductSpecForPrice(spec)
+    const targetProduct = targetProducts.get(productSpec.key)
     let candidate = inventory.targetPrices.get(spec.key)
     if (!candidate) {
       const created = await stripe.prices.create(
-        targetPricePayload(supporter.id, spec),
-        { idempotencyKey: targetPriceIdempotencyKey(spec, supporter.id) },
+        targetPricePayload(targetProduct.id, spec),
+        { idempotencyKey: targetPriceIdempotencyKey(spec, targetProduct.id) },
       )
       candidate = await retrieveAfterMutation(
         retrievePriceWithCurrencyOptions.bind(null, stripe),
         created.id,
-        (retrieved) => priceMatches(retrieved, spec, supporter.id)
+        (retrieved) => priceMatches(retrieved, spec, targetProduct.id)
           && retrieved.active === true
           && sameMetadata(retrieved.metadata, targetPriceMetadata(spec)),
         "supporter_price_mutation_unverified",
@@ -1342,7 +1467,7 @@ async function applyPlan(stripe, config, inventory) {
       candidate = await retrieveAfterMutation(
         retrievePriceWithCurrencyOptions.bind(null, stripe),
         candidate.id,
-        (retrieved) => priceMatches(retrieved, spec, supporter.id)
+        (retrieved) => priceMatches(retrieved, spec, targetProduct.id)
           && retrieved.active === true
           && retrieved.lookup_key === lookupKeyFor(spec)
           && sameMetadata(retrieved.metadata, targetPriceMetadata(spec)),
@@ -1354,8 +1479,12 @@ async function applyPlan(stripe, config, inventory) {
 
   const desiredFeatures = desiredPortalFeatures(
     inventory.portal.features,
-    supporter.id,
-    targetPrices.map((candidate) => candidate.id),
+    TARGET_PRODUCT_SPECS.map((productSpec) => ({
+      product: targetProducts.get(productSpec.key).id,
+      prices: productSpec.priceKeys.map(
+        (key) => targetPrices.find((candidate) => managedPriceKey(candidate) === key).id,
+      ),
+    })),
   )
   if (
     !jsonEqual(

@@ -17,6 +17,7 @@ import {
   isExplicitTrue,
   REQUIRED_SUPPORTER_PRICE_CONTRACT,
   validateRetrievedMembershipPrice,
+  validateSupporterProductTopology,
 } from "../lib/stripe-readiness.js"
 import {
   STRIPE_API_VERSION,
@@ -263,10 +264,12 @@ async function verifyStripePrices() {
   })
 
   let allPricesRetrievedAndValidated = true
+  const retrievedMembershipPrices = []
   for (const [priceId, expected] of priceIds) {
     try {
       const price = await stripe.prices.retrieve(priceId, { expand: ["product", "currency_options"] })
       const validationFailures = validateRetrievedMembershipPrice(price, expected)
+      retrievedMembershipPrices.push({ expected, price })
       if (validationFailures.length > 0) {
         allPricesRetrievedAndValidated = false
       }
@@ -278,6 +281,11 @@ async function verifyStripePrices() {
       const detail = error instanceof Error ? error.message : "unknown Stripe error"
       addFailure(`${expected.key} could not be retrieved from Stripe: ${detail}`)
     }
+  }
+  const topologyFailures = validateSupporterProductTopology(retrievedMembershipPrices)
+  if (topologyFailures.length > 0) {
+    allPricesRetrievedAndValidated = false
+    for (const failure of topologyFailures) addFailure(failure)
   }
   stripeRetrievalPerformed = allPricesRetrievedAndValidated
 
