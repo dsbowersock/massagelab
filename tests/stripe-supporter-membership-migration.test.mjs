@@ -8,6 +8,7 @@ import {
   MigrationError,
   formatMigrationFailureChecklist,
   formatMigrationChecklist,
+  legacySupporterProductOwnership,
   runSupporterMembershipMigration as runMigrationWithProductionRetry,
   targetSupporterProductReusable,
 } from "../scripts/stripe-supporter-membership-migration.mjs"
@@ -548,6 +549,40 @@ function assertMutationWasReretrieved(calls, mutationIndex, retrieveName, id) {
 }
 
 describe("Supporter membership Stripe migration", () => {
+  it("derives one legacy Supporter owner while preserving split-owner evidence", () => {
+    const config = {
+      productIds: { supporter: "CREATE_NEW" },
+      legacyPrices: [
+        { id: "price_supporter_month", productKey: "supporter" },
+        { id: "price_supporter_year", productKey: "supporter" },
+      ],
+    }
+    const oneOwner = [
+      { id: "price_supporter_month", product: "prod_supporter" },
+      { id: "price_supporter_year", product: "prod_supporter" },
+    ]
+    const splitOwners = [
+      oneOwner[0],
+      { id: "price_supporter_year", product: "prod_other" },
+    ]
+
+    assert.deepEqual(
+      legacySupporterProductOwnership(config, oneOwner),
+      { productId: "prod_supporter", ambiguous: false },
+    )
+    assert.deepEqual(
+      legacySupporterProductOwnership(config, splitOwners),
+      { productId: "prod_supporter", ambiguous: true },
+    )
+    assert.deepEqual(
+      legacySupporterProductOwnership({
+        ...config,
+        productIds: { supporter: "prod_configured" },
+      }, splitOwners),
+      { productId: "prod_configured", ambiguous: false },
+    )
+  })
+
   it("accepts only the three audited target Product reuse paths", () => {
     const support1Spec = { key: "support-1", configKey: "supporter" }
     const support2Spec = { key: "support-2", configKey: "support2" }
@@ -2731,6 +2766,59 @@ describe("Supporter membership Stripe migration", () => {
         (entry) => entry.metadata?.massagelab_catalog === "supporter_membership_v1",
       ).length,
       3,
+    )
+  })
+
+  it("rejects an archived stamped Product discovered immediately before create", async () => {
+    const fixture = stripeFixture()
+    const listProducts = fixture.stripe.products.list.bind(fixture.stripe.products)
+    let productListCalls = 0
+    fixture.stripe.products.list = async (params) => {
+      productListCalls += 1
+      if (productListCalls === 2) {
+        fixture.products.set("prod_archived_support_2", {
+          id: "prod_archived_support_2",
+          object: "product",
+          active: false,
+          livemode: false,
+          name: "MassageLab Supporter Membership",
+          tax_code: "txcd_10000000",
+          metadata: {
+            app: "massagelab",
+            massagelab_catalog: SUPPORTER_MEMBERSHIP_CATALOG_VERSION,
+            massagelab_membership_level: "SUPPORTER",
+            massagelab_supporter_amount_choice: "support-2",
+          },
+        })
+      }
+      return listProducts(params)
+    }
+
+    await assert.rejects(
+      runSupporterMembershipMigration({
+        stripe: fixture.stripe,
+        mode: "apply",
+        env: migrationEnv(),
+      }),
+      (error) => {
+        assert.deepEqual(error.failureCodes, ["supporter_product_duplicate"])
+        return true
+      },
+    )
+    assert.equal(
+      Object.hasOwn(
+        fixture.calls.filter(({ name }) => name === "products.list")[1].payload,
+        "active",
+      ),
+      false,
+    )
+    assert.deepEqual(
+      mutationCalls(fixture).map(({ name, id }) => ({ name, id })),
+      [{ name: "products.update", id: "prod_supporter" }],
+    )
+    assert.equal(
+      fixture.calls.some(({ name }) => name === "products.create"),
+      false,
     )
   })
 

@@ -381,7 +381,10 @@ npm run build
 git diff --check
 ```
 
-Update canonical docs with the one-product model, approved amounts, disabled professional products, portal behavior, coupon removal, one-time-support language, interest preference, tax posture, and smoke evidence.
+Update canonical docs with the three amount-specific Stripe Products that
+represent one user-facing Supporter Membership, approved amounts, disabled
+professional products, portal behavior, coupon removal, one-time-support
+language, interest preference, tax posture, and smoke evidence.
 
 Commit the reviewed recurring-tax application/readiness changes before the live
 catalog migration and smoke. Do not configure the portal or catalog around code

@@ -722,6 +722,36 @@ function findTargetCandidate({ allPrices, configuredId, spec, productId }) {
   return null
 }
 
+/**
+ * Derives the legacy Supporter Product owner from configured Prices once and
+ * reports split ownership separately. The first owner preserves discovery
+ * order for dependency retrieval; callers must reject `ambiguous` before reuse
+ * or retirement.
+ */
+export function legacySupporterProductOwnership(config, prices) {
+  if (config.productIds.supporter !== CREATE_NEW_PRODUCT) {
+    return {
+      productId: config.productIds.supporter,
+      ambiguous: false,
+    }
+  }
+
+  const legacySupporterPriceIds = new Set(
+    config.legacyPrices
+      .filter(({ productKey }) => productKey === "supporter")
+      .map(({ id }) => id),
+  )
+  const ownerIds = prices
+    .filter((candidate) => legacySupporterPriceIds.has(candidate?.id))
+    .map(priceProductId)
+    .filter(Boolean)
+
+  return {
+    productId: ownerIds[0] ?? null,
+    ambiguous: new Set(ownerIds).size > 1,
+  }
+}
+
 function check(code, ok) {
   return Object.freeze({ code, status: ok ? "PASS" : "FAIL" })
 }
@@ -811,14 +841,9 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
       if (!result.missing) configuredPrices.push(result.object)
     }))
 
-    const discoveredLegacySupporterProductId =
-      config.productIds.supporter === CREATE_NEW_PRODUCT
-        ? priceProductId(configuredPrices.find((candidate) => (
-            config.legacyPrices.some((spec) => (
-              spec.productKey === "supporter" && spec.id === candidate?.id
-            ))
-          )))
-        : config.productIds.supporter
+    const {
+      productId: discoveredLegacySupporterProductId,
+    } = legacySupporterProductOwnership(config, configuredPrices)
     if (
       discoveredLegacySupporterProductId
       && !productsById.has(discoveredLegacySupporterProductId)
@@ -930,24 +955,13 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
     failureCodes.push("product_dependency_mismatch")
   }
 
-  // Accept legacy Supporter ownership only when the discovered configured
-  // Prices agree on one Product; separate dependency validation rejects a
-  // missing or malformed Price. Multiple owners resolve to null so recovery
-  // fails closed instead of adopting an arbitrary Product.
-  const discoveredLegacySupporterOwnerIds = new Set(
-    config.legacyPrices
-      .filter(({ productKey }) => productKey === "supporter")
-      .map(({ id }) => allPrices.find((candidate) => candidate.id === id))
-      .map(priceProductId)
-      .filter(Boolean),
-  )
-  const legacySupporterProductId = config.productIds.supporter === CREATE_NEW_PRODUCT
-    ? (
-        discoveredLegacySupporterOwnerIds.size === 1
-          ? [...discoveredLegacySupporterOwnerIds][0]
-          : null
-      )
-    : config.productIds.supporter
+  // Reuse or retirement is authorized only when every discovered configured
+  // legacy Price agrees with the shared first-owner derivation.
+  const legacySupporterOwnership =
+    legacySupporterProductOwnership(config, allPrices)
+  const legacySupporterProductId = legacySupporterOwnership.ambiguous
+    ? null
+    : legacySupporterOwnership.productId
   const targetProductCandidates = allProducts.filter((candidate) => (
     candidate.name === SUPPORTER_PRODUCT_NAME
     || candidate.metadata?.massagelab_catalog === SUPPORTER_CATALOG
@@ -1521,16 +1535,23 @@ function retrievePriceWithCurrencyOptions(stripe, id) {
  */
 async function discoverTargetProductBeforeCreate(stripe, spec, livemode) {
   const matches = []
+  const archivedMatches = []
   try {
     await scanAll(
       stripe.products.list.bind(stripe.products),
-      { active: true, limit: 100 },
+      { limit: 100 },
       (candidate) => {
-        if (
-          modeMatches(candidate, livemode)
-          && targetSupporterProductMatches(candidate, spec)
-        ) {
+        if (!modeMatches(candidate, livemode)) return
+        if (targetSupporterProductMatches(candidate, spec)) {
           matches.push(candidate)
+        } else if (
+          candidate.active === false
+          && candidate.metadata?.app === "massagelab"
+          && candidate.metadata?.massagelab_catalog === SUPPORTER_CATALOG
+          && candidate.metadata?.massagelab_membership_level === "SUPPORTER"
+          && candidate.metadata?.massagelab_supporter_amount_choice === spec.key
+        ) {
+          archivedMatches.push(candidate)
         }
       },
     )
@@ -1538,7 +1559,7 @@ async function discoverTargetProductBeforeCreate(stripe, spec, livemode) {
     if (error instanceof MigrationError) throw error
     throw new MigrationError(["stripe_dependency_read_failed"], [], { cause: error })
   }
-  if (matches.length > 1) {
+  if (matches.length > 1 || archivedMatches.length > 0) {
     throw new MigrationError(["supporter_product_duplicate"])
   }
   return matches[0] ?? null
