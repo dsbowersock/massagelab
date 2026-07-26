@@ -47,7 +47,12 @@ function supporterPrice(priceId) {
 
 /** Hermetic Stripe client used only by readiness CLI child-process tests. */
 export default class StripeReadinessStub {
-  constructor() {
+  constructor(_apiKey, config = {}) {
+    // Match the app's pinned Stripe client while preserving explicit test overrides.
+    this.config = {
+      ...config,
+      apiVersion: config.apiVersion ?? STRIPE_API_VERSION,
+    }
     this.prices = {
       retrieve: async (priceId) => supporterPrice(priceId),
     }
@@ -56,7 +61,7 @@ export default class StripeReadinessStub {
         data: [{
           url: STRIPE_PINNED_WEBHOOK_URL,
           status: "enabled",
-          api_version: STRIPE_API_VERSION,
+          api_version: this.config.apiVersion,
           enabled_events: [...STRIPE_PINNED_WEBHOOK_EVENTS],
         }],
       }),

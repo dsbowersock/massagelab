@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
+import ts from "typescript"
 import {
   createCompiledModuleLoader,
   createElement,
@@ -28,7 +29,71 @@ const accountPageSource = await readFile(
   "utf8",
 )
 
+/**
+ * Uses the installed TypeScript parser to locate only lexical top-level
+ * function declarations. Parser nodes make comments, strings, regular
+ * expressions, template literals, and nested declarations non-boundaries.
+ */
+function topLevelFunctionDeclarations(source, fileName = "fixture.tsx") {
+  const sourceFile = ts.createSourceFile(
+    fileName,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  )
+
+  return sourceFile.statements
+    .filter((statement) => ts.isFunctionDeclaration(statement) && statement.name)
+    .map((statement) => ({
+      end: statement.getEnd(),
+      name: statement.name.text,
+      start: statement.getStart(sourceFile),
+    }))
+}
+
+/** Extracts one top-level function at its parser-defined lexical boundaries. */
+function topLevelFunctionSource(source, functionName, fileName) {
+  const declarations = topLevelFunctionDeclarations(source, fileName)
+  const declaration = declarations.find(
+    (declaration) => declaration.name === functionName,
+  )
+  assert.ok(
+    declaration,
+    `${fileName} must contain the ${functionName} function`,
+  )
+
+  return source.slice(declaration.start, declaration.end)
+}
+
 describe("Account page tab model", () => {
+  it("extracts only lexical top-level function declarations", () => {
+    const fixture = [
+      "async function Target() {",
+      "  function Nested() {}",
+      '  const stringValue = "function StringValue() {}"',
+      "  const expression = /function RegexValue\\(\\) \\{\\}/",
+      "  const template = `function TemplateValue() {}`",
+      "  // function LineComment() {}",
+      "  /* export function BlockComment() {} */",
+      "}",
+      "export function Next() {}",
+      "export default async function Final() {}",
+    ].join("\n")
+
+    assert.deepEqual(
+      topLevelFunctionDeclarations(fixture).map(({ name }) => name),
+      ["Target", "Next", "Final"],
+    )
+    const targetSource = topLevelFunctionSource(fixture, "Target", "fixture.tsx")
+    assert.match(targetSource, /function Nested/)
+    assert.doesNotMatch(targetSource, /export function Next/)
+    assert.equal(
+      topLevelFunctionSource(fixture, "Final", "fixture.tsx"),
+      "export default async function Final() {}",
+    )
+  })
+
   it("groups existing account sections into stable account navigation without dropping current features", () => {
     assert.deepEqual(accountPageGroups.map((group) => group.id), [
       "general",
@@ -257,24 +322,10 @@ async function renderMembershipTab({
   subscriptions,
   stripeCustomer,
 }) {
-  const functionStart = accountPageSource.indexOf("async function MembershipTab")
-  assert.notEqual(
-    functionStart,
-    -1,
-    "Account page source must contain the MembershipTab function",
-  )
-  const functionEnd = accountPageSource.indexOf(
-    "\nasync function BackgroundCommerceTab",
-    functionStart,
-  )
-  assert.notEqual(
-    functionEnd,
-    -1,
-    "MembershipTab extraction must end at BackgroundCommerceTab",
-  )
-  assert.ok(
-    functionEnd > functionStart,
-    "MembershipTab extraction must end after its start marker",
+  const membershipTabSource = topLevelFunctionSource(
+    accountPageSource,
+    "MembershipTab",
+    "app/account/page.tsx",
   )
 
   const imports = `
@@ -301,7 +352,7 @@ async function renderMembershipTab({
       settingsSurfaceClassName,
     } from "test-dependencies"
   `
-  const source = `${imports}\nexport ${accountPageSource.slice(functionStart, functionEnd)}`
+  const source = `${imports}\nexport ${membershipTabSource}`
   const Div = passThroughElement("div")
   const compiledMembershipTab = loadCompiledModule(source, "app/account/membership-tab.test.tsx", {
     "react/jsx-runtime": {

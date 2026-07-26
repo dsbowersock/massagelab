@@ -76,6 +76,20 @@ function jsonRequest(body = JSON.stringify({ amountCents: 500 })) {
 }
 
 describe("one-time support Checkout route", () => {
+  it("recognizes mixed-case browser form content types", () => {
+    for (const contentType of [
+      "Application/X-WWW-Form-Urlencoded; Charset=UTF-8",
+      "Multipart/Form-Data; Boundary=Example",
+    ]) {
+      assert.equal(
+        isBrowserFormRequest({
+          headers: new Headers({ "content-type": contentType }),
+        }),
+        true,
+      )
+    }
+  })
+
   for (const [label, siteUrl] of [
     ["omitted", ""],
     ["invalid", "not a URL"],
@@ -89,13 +103,7 @@ describe("one-time support Checkout route", () => {
           throw new Error("Stripe must not run")
         },
       })
-      const request = new Request("https://massagelab.app/api/billing/donation", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ amountCents: 500 }),
-      })
-
-      const response = await POST(request)
+      const response = await POST(jsonRequest())
 
       assert.deepEqual(response, {
         body: { error: "Invalid request origin" },

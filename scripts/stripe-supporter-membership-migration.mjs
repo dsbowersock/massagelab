@@ -6,11 +6,13 @@ import Stripe from "stripe"
 import {
   recurringPriceSemanticsMatch,
   SUPPORTER_MEMBERSHIP_CATALOG_VERSION as SUPPORTER_CATALOG,
-  SUPPORTER_MEMBERSHIP_PRICE_CONTRACT,
   SUPPORTER_RECURRING_TAX_BEHAVIOR,
   SUPPORTER_RECURRING_TAX_CODE as EXPECTED_TAX_CODE,
 } from "../lib/stripe-price-contract.js"
+import { TARGET_PRICE_SPECS } from "../lib/stripe-supporter-membership-migration-contract.js"
 import { STRIPE_API_VERSION } from "../lib/stripe-webhook-contract.js"
+
+export { TARGET_PRICE_SPECS }
 
 // Keep catalog mutation on the same explicitly pinned version as runtime
 // billing and the verified webhook endpoint rather than the SDK's moving default.
@@ -56,20 +58,6 @@ const CATALOG_DEPENDENCY_FAILURE_CODES = new Set([
   "approved_price_dependency_mismatch",
   "unexpected_managed_price",
 ])
-
-const TARGET_PRICE_SPECS = Object.freeze(
-  SUPPORTER_MEMBERSHIP_PRICE_CONTRACT.map(({
-    key,
-    envKey,
-    unitAmount,
-    interval,
-  }) => Object.freeze({
-    key,
-    envKey,
-    unitAmount,
-    interval,
-  })),
-)
 
 const LEGACY_PRICE_CONFIG = Object.freeze([
   Object.freeze({

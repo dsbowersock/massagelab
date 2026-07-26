@@ -11,6 +11,10 @@ describe("safe operational error codes", () => {
       "P2002",
       "P2024",
       "P2037",
+      "api_connection_error",
+      "idempotency_key_in_use",
+      "lock_timeout",
+      "rate_limit",
       "resource_missing",
     ]) {
       assert.equal(safeErrorCode({ code }), code)

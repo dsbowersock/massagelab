@@ -10,10 +10,12 @@ import {
   recurringPriceSemanticMismatches,
   recurringPriceSemanticsMatch,
   SUPPORTER_MEMBERSHIP_CATALOG_VERSION,
+  SUPPORTER_MEMBERSHIP_PRODUCT_NAME,
   SUPPORTER_MEMBERSHIP_PRICE_CONTRACT,
   SUPPORTER_RECURRING_TAX_BEHAVIOR,
   SUPPORTER_RECURRING_TAX_CODE,
 } from "../lib/stripe-price-contract.js"
+import { TARGET_PRICE_SPECS } from "../lib/stripe-supporter-membership-migration-contract.js"
 import { safeErrorCode } from "../lib/safe-error-code.js"
 import {
   createCompiledModuleLoader,
@@ -340,14 +342,14 @@ describe("Supporter membership final-review contracts", () => {
 
     assert.deepEqual(formActions(memberCards), ["/api/billing/portal"])
     assert.match(elementText(memberCards), /Manage or change support amount/)
-    assert.doesNotMatch(elementText(memberCards), /Support with \$1|Choose \$1/)
+    assert.doesNotMatch(elementText(memberCards), /Support with \$1(?!\d)|Choose \$1(?!\d)/)
 
     assert.deepEqual(formActions(signedInNonMemberCards), ["/api/billing/checkout"])
-    assert.match(elementText(signedInNonMemberCards), /Support with \$1/)
+    assert.match(elementText(signedInNonMemberCards), /Support with \$1(?!\d)/)
     assert.doesNotMatch(elementText(signedInNonMemberCards), /Manage or change support amount/)
 
     assert.deepEqual(formActions(guestCards), [])
-    assert.match(elementText(guestCards), /Choose \$1/)
+    assert.match(elementText(guestCards), /Choose \$1(?!\d)/)
     const guestAuthChoices = findElements(
       guestCards,
       (element) => (
@@ -488,6 +490,7 @@ describe("Supporter membership final-review contracts", () => {
       "lib/stripe-readiness.js",
       {
         "./stripe-price-contract.js": {
+          SUPPORTER_MEMBERSHIP_PRODUCT_NAME,
           SUPPORTER_MEMBERSHIP_PRICE_CONTRACT,
           SUPPORTER_RECURRING_TAX_BEHAVIOR,
           SUPPORTER_RECURRING_TAX_CODE,
@@ -532,14 +535,19 @@ describe("Supporter membership final-review contracts", () => {
     const migrationCalls = []
     const helperObserved = new Error("shared recurring Price helper observed")
     assert.match(migrationSource, /import\.meta\.url/)
-    assert.match(migrationSource, /\bawait main\(\)/)
+    assert.equal(
+      [...migrationSource.matchAll(/\bawait main\(\)/g)].length,
+      1,
+      "the migration source must expose exactly one CLI entrypoint call",
+    )
+    // Test-only: replace import.meta.url for a stable URL and the single await main() to suppress CLI startup before loading.
     const migration = loadCompiledModule(
       migrationSource
         .replaceAll(
           "import.meta.url",
           JSON.stringify("test://supporter-membership-migration"),
         )
-        .replace(/\bawait main\(\)/, "void 0"),
+        .replaceAll(/\bawait main\(\)/g, "void 0"),
       "scripts/stripe-supporter-membership-migration.mjs",
       {
         stripe: class TestStripe {},
@@ -559,6 +567,9 @@ describe("Supporter membership final-review contracts", () => {
         },
         "../lib/stripe-webhook-contract.js": {
           STRIPE_API_VERSION: "test-api-version",
+        },
+        "../lib/stripe-supporter-membership-migration-contract.js": {
+          TARGET_PRICE_SPECS,
         },
       },
     )
