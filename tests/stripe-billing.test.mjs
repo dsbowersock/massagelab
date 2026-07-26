@@ -2076,6 +2076,71 @@ describe("Stripe billing helpers", () => {
     assert.equal(createCalls, 0)
   })
 
+  it("blocks without an authority read when expiration confirms a missing subscription", async () => {
+    const legacySession = membershipCheckoutSession({
+      id: "cs_legacy_completion_missing_subscription",
+      purpose: null,
+    })
+    const confirmedSession = {
+      ...membershipCheckoutSession({
+        id: legacySession.id,
+        purpose: null,
+        status: "complete",
+        subscription: null,
+        url: null,
+      }),
+      customer_details: {
+        email: "must-not-leave-the-billing-boundary@example.com",
+      },
+    }
+    const calls = []
+    let subscriptionRetrieveCalls = 0
+    let createCalls = 0
+
+    const result = await stripeBilling.createStripeCheckoutSession(
+      membershipCheckoutOptions({
+        stripeClient: {
+          checkout: {
+            sessions: {
+              list: async () => stripeCheckoutSessionList([legacySession]),
+              expire: async (sessionId) => {
+                calls.push(["expire", sessionId])
+                return { id: sessionId, object: "checkout.session", status: "expired" }
+              },
+              retrieve: async (sessionId) => {
+                calls.push(["retrieve", sessionId])
+                return confirmedSession
+              },
+              create: async () => {
+                createCalls += 1
+                return membershipCheckoutSession({ id: "cs_unexpected_create" })
+              },
+            },
+          },
+          subscriptions: {
+            retrieve: async () => {
+              subscriptionRetrieveCalls += 1
+              return membershipStripeSubscription()
+            },
+          },
+        },
+      }),
+    )
+
+    assert.deepEqual(result, {
+      id: confirmedSession.id,
+      status: "complete",
+      subscription: null,
+      url: null,
+    })
+    assert.deepEqual(calls, [
+      ["expire", legacySession.id],
+      ["retrieve", legacySession.id],
+    ])
+    assert.equal(subscriptionRetrieveCalls, 0)
+    assert.equal(createCalls, 0)
+  })
+
   it("preserves a failed legacy expiration retrieval as the confirmation cause", async () => {
     const legacySession = membershipCheckoutSession({
       id: "cs_legacy_retrieve_failure",
