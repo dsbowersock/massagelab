@@ -440,19 +440,27 @@ function stripeFixture() {
           billing_scheme: "per_unit",
           tax_behavior: "exclusive",
           transform_quantity: null,
-          currency_options: {
-            usd: {
-              unit_amount: storedPayload.unit_amount,
-              tax_behavior: storedPayload.tax_behavior ?? "exclusive",
-            },
-          },
+          ...(storedPayload.unit_amount != null
+            ? {
+                currency_options: {
+                  usd: {
+                    unit_amount: storedPayload.unit_amount,
+                    tax_behavior: storedPayload.tax_behavior ?? "exclusive",
+                  },
+                },
+              }
+            : {}),
           ...storedPayload,
-          recurring: {
-            interval_count: 1,
-            trial_period_days: null,
-            usage_type: "licensed",
-            ...structuredClone(storedPayload.recurring),
-          },
+          ...(storedPayload.recurring
+            ? {
+                recurring: {
+                  interval_count: 1,
+                  trial_period_days: null,
+                  usage_type: "licensed",
+                  ...structuredClone(storedPayload.recurring),
+                },
+              }
+            : {}),
         }
         prices.set(id, created)
         if (idempotencyKey) {
@@ -794,6 +802,7 @@ describe("Supporter membership Stripe migration", () => {
         env: migrationEnv({
           STRIPE_SECRET_KEY: "sk_test_secret_customer_cus_leak",
           MASSAGELAB_STRIPE_MIGRATION_MODE: "live",
+          MASSAGELAB_STRIPE_MIGRATION_ALLOWED_SUBSCRIPTION_ID: "none",
         }),
       }),
       (error) => {
@@ -1003,17 +1012,23 @@ describe("Supporter membership Stripe migration", () => {
         ?.massagelab_supporter_amount_choice === entry.metadata
           .massagelab_supporter_price_key.replace(/-(month|year)$/, "")
     )), true)
+    const targetProductIdFor = (amountChoice) => (
+      [...fixture.products.values()].find(
+        (entry) => (
+          entry.metadata?.massagelab_supporter_amount_choice === amountChoice
+        ),
+      )?.id
+    )
     assert.deepEqual(
       fixture.calls
         .filter(({ name }) => name === "prices.create")
         .map(({ options }) => options.idempotencyKey),
       [
-        "massagelab-supporter-membership-v1-price-prod_supporter-support-1-month",
-        "massagelab-supporter-membership-v1-price-prod_supporter-support-1-year",
-        "massagelab-supporter-membership-v1-price-prod_created_supporter_1-support-2-month",
-        "massagelab-supporter-membership-v1-price-prod_created_supporter_1-support-2-year",
-        "massagelab-supporter-membership-v1-price-prod_created_supporter_2-support-5-month",
-        "massagelab-supporter-membership-v1-price-prod_created_supporter_2-support-5-year",
+        ...["support-1", "support-2", "support-5"].flatMap((amountChoice) => (
+          ["month", "year"].map((interval) => (
+            `massagelab-supporter-membership-v1-price-${targetProductIdFor(amountChoice)}-${amountChoice}-${interval}`
+          ))
+        )),
       ],
     )
     assert.equal(LEGACY_PRICE_SPECS.every(([id]) => fixture.prices.get(id).active === false), true)
@@ -1083,7 +1098,18 @@ describe("Supporter membership Stripe migration", () => {
         assertMutationWasReretrieved(fixture.calls, index, "products.retrieve", call.id)
       }
       if (call.name === "products.create") {
-        assert.equal(fixture.calls[index + 1].name, "products.retrieve")
+        const createdProduct = [...fixture.products.values()].find(
+          (candidate) => (
+            candidate.metadata?.massagelab_supporter_amount_choice
+            === call.payload.metadata?.massagelab_supporter_amount_choice
+          ),
+        )
+        assertMutationWasReretrieved(
+          fixture.calls,
+          index,
+          "products.retrieve",
+          createdProduct?.id,
+        )
       }
       if (call.name === "prices.update") {
         assertMutationWasReretrieved(fixture.calls, index, "prices.retrieve", call.id)
@@ -1443,6 +1469,10 @@ describe("Supporter membership Stripe migration", () => {
     assert.equal(
       fixture.calls.filter(({ name }) => name === "products.update").length,
       1,
+    )
+    assert.equal(
+      fixture.calls.find(({ name }) => name === "products.update")?.id,
+      support2.id,
     )
   })
 
@@ -1811,6 +1841,28 @@ describe("Supporter membership Stripe migration", () => {
 
     assert.equal(result.state, "PRE_MIGRATION")
     assert.deepEqual(mutationCalls(fixture), [])
+  })
+
+  it("rejects a concrete subscription allowlist in live mode before Stripe access", async () => {
+    const fixture = stripeFixture()
+
+    await assert.rejects(
+      runSupporterMembershipMigration({
+        stripe: fixture.stripe,
+        mode: "verify",
+        env: migrationEnv({
+          STRIPE_SECRET_KEY: "sk_live_do_not_print",
+          MASSAGELAB_STRIPE_MIGRATION_MODE: "live",
+          MASSAGELAB_STRIPE_MIGRATION_ALLOWED_SUBSCRIPTION_ID:
+            "sub_documented_live",
+        }),
+      }),
+      (error) => {
+        assert.deepEqual(error.failureCodes, ["live_subscription_inventory_forbidden"])
+        return true
+      },
+    )
+    assert.deepEqual(fixture.calls, [])
   })
 
   it("manually proves pagination completeness beyond 10,000 rows", async () => {

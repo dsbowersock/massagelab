@@ -263,9 +263,11 @@ function expectsNoAllowedSubscription(value) {
  * @returns {object} Normalized migration dependencies and target Price slots.
  *
  * Each support-amount Product accepts either a concrete `prod_...` identifier
- * or the exact `CREATE_NEW` sentinel. Allowed subscription inventory accepts
- * one concrete `sub_...` identifier or case-insensitive `none`. Therapist,
- * Practice, legacy Price, coupon, and Portal dependencies remain explicit.
+ * or the exact `CREATE_NEW` sentinel. Test-mode subscription inventory accepts
+ * one concrete `sub_...` identifier or case-insensitive `none`; live mode
+ * requires `none` so a live subscriber can never be allowlisted for mutation.
+ * Therapist, Practice, legacy Price, coupon, and Portal dependencies remain
+ * explicit.
  * @throws {MigrationError} With non-secret configuration failure codes.
  */
 function buildConfig(env, requestedMode) {
@@ -341,6 +343,9 @@ function buildConfig(env, requestedMode) {
     || (!expectsNoSubscriptions && !allowedSubscriptionId.startsWith("sub_"))
   ) {
     failureCodes.push("migration_subscription_inventory_required")
+  }
+  if (stripeMode === "live" && !expectsNoSubscriptions) {
+    failureCodes.push("live_subscription_inventory_forbidden")
   }
 
   const targetPrices = TARGET_PRICE_SPECS.map((spec) => ({
