@@ -2369,7 +2369,7 @@ describe("Stripe billing helpers", () => {
     assert.equal(createCalls, 0)
   })
 
-  it("bounds newest-first authority lookups in descending subscription-ID order", async () => {
+  it("bounds authority lookups in newest-first Checkout Session order", async () => {
     const authorityWorkerCount = Math.min(
       MEMBERSHIP_CHECKOUT_SUBSCRIPTION_AUTHORITY_CONCURRENCY,
       MEMBERSHIP_CHECKOUT_SUBSCRIPTION_AUTHORITY_READ_BUDGET,
@@ -2381,19 +2381,30 @@ describe("Stripe billing helpers", () => {
     )
     const completedSessions = Array.from({ length: authoritySessionCount }, (_, index) => (
       membershipCheckoutSession({
-        id: `cs_authority_pool_${index}`,
+        id: `cs_authority_pool_${
+          String(authoritySessionCount - index).padStart(2, "0")
+        }`,
         status: "complete",
-        subscription: `sub_authority_pool_${index}`,
+        subscription: `sub_authority_pool_${String(index).padStart(2, "0")}`,
         url: null,
       })
     ))
     const gates = new Map(
       completedSessions.map(({ subscription }) => [subscription, deferred()]),
     )
-    // Descending subscription IDs model newest-first processing, not fixture input order.
+    // Equal timestamps force the production Session-ID tie-breaker. Session
+    // IDs descend while subscription IDs intentionally ascend in that order.
     const expectedSubscriptionIds = completedSessions
+      .toSorted((left, right) => (
+        Number(right.created ?? 0) - Number(left.created ?? 0)
+        || right.id.localeCompare(left.id)
+      ))
       .map(({ subscription }) => subscription)
-      .toSorted((left, right) => right.localeCompare(left))
+    assert.notDeepEqual(
+      expectedSubscriptionIds,
+      expectedSubscriptionIds.toSorted((left, right) => right.localeCompare(left)),
+      "Checkout Session order must differ from descending subscription-ID order",
+    )
     const firstWaveStarted = deferred()
     const allLookupsStarted = deferred()
     const startedSubscriptionIds = []
@@ -2507,13 +2518,14 @@ describe("Stripe billing helpers", () => {
     })
     const startedSubscriptionIds = []
     let createCalls = 0
-    let authorityDeadlineTimer
+    const matchingAuthorityDeadlineTimers = []
     const originalSetTimeout = globalThis.setTimeout
     globalThis.setTimeout = (callback, delay, ...args) => {
       const timer = originalSetTimeout(callback, delay, ...args)
-      // The exact delay identifies the authority deadline whose unref state is under test.
+      // Capture every matching timer so duplicate deadline delays cannot hide a
+      // referenced authority timer behind a later assignment.
       if (delay === AUTHORITY_HANGING_READ_RECONCILIATION_BUDGET_MS) {
-        authorityDeadlineTimer = timer
+        matchingAuthorityDeadlineTimers.push(timer)
       }
       return timer
     }
@@ -2557,8 +2569,14 @@ describe("Stripe billing helpers", () => {
     }
 
     assert.equal(result.id, blockingSession.id)
-    assert.ok(authorityDeadlineTimer, "Expected an authority deadline timer")
-    assert.equal(authorityDeadlineTimer.hasRef(), false)
+    assert.ok(
+      matchingAuthorityDeadlineTimers.length > 0,
+      "Expected at least one authority deadline timer",
+    )
+    assert.equal(
+      matchingAuthorityDeadlineTimers.every((timer) => timer.hasRef() === false),
+      true,
+    )
     const expectedStartedSubscriptionIds =
       MEMBERSHIP_CHECKOUT_SUBSCRIPTION_AUTHORITY_CONCURRENCY > 1
         ? [blockingSession.subscription, speculativeSession.subscription]
@@ -2682,7 +2700,7 @@ describe("Stripe billing helpers", () => {
     assert.equal(createCalls, 0)
   })
 
-  it("fails closed after exhausting the completed-subscription authority lookup budget", async () => {
+  it("fails before reads when completed-subscription authority exceeds the budget", async () => {
     const completedSessions = Array.from({ length: 26 }, (_, index) => (
       membershipCheckoutSession({
         id: `cs_complete_authority_${index}`,
@@ -2714,10 +2732,17 @@ describe("Stripe billing helpers", () => {
           },
         },
       })),
-      /subscription authority read budget was exceeded/,
+      (error) => {
+        assert.ok(error instanceof stripeBilling.MembershipCheckoutAuthorityError)
+        assert.equal(
+          error.code,
+          "membership_checkout_authority_read_budget_exceeded",
+        )
+        return true
+      },
     )
 
-    assert.equal(retrieveCalls, 25)
+    assert.equal(retrieveCalls, 0)
     assert.equal(createCalls, 0)
   })
 
