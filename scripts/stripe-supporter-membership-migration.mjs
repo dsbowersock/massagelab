@@ -19,6 +19,9 @@ export { TARGET_PRICE_SPECS }
 const SUPPORTER_PRODUCT_NAME = "MassageLab Supporter Membership"
 const CREATE_NEW_PRODUCT = "CREATE_NEW"
 const NO_ALLOWED_SUBSCRIPTION = "none"
+// Descriptions are the operator-visible Stripe display contract for the three
+// same-benefit amounts. priceKeys must partition TARGET_PRICE_SPECS exactly so
+// targetProductSpecForPrice can resolve every approved Price without fallback.
 const TARGET_PRODUCT_SPECS = Object.freeze([
   Object.freeze({
     key: "support-1",
@@ -42,6 +45,25 @@ const TARGET_PRODUCT_SPECS = Object.freeze([
     priceKeys: Object.freeze(["support-5-month", "support-5-year"]),
   }),
 ])
+const mappedTargetPriceKeys = TARGET_PRODUCT_SPECS.flatMap(({ priceKeys }) => priceKeys)
+const missingTargetPriceKeys = TARGET_PRICE_SPECS
+  .map(({ key }) => key)
+  .filter((key) => !mappedTargetPriceKeys.includes(key))
+const unexpectedTargetPriceKeys = mappedTargetPriceKeys.filter(
+  (key) => !TARGET_PRICE_SPECS.some((spec) => spec.key === key),
+)
+const duplicateTargetPriceKeys = mappedTargetPriceKeys.filter(
+  (key, index) => mappedTargetPriceKeys.indexOf(key) !== index,
+)
+if (
+  missingTargetPriceKeys.length > 0
+  || unexpectedTargetPriceKeys.length > 0
+  || duplicateTargetPriceKeys.length > 0
+) {
+  throw new Error(
+    "Supporter migration Product/Price contract is incomplete or ambiguous.",
+  )
+}
 const TERMINAL_SUBSCRIPTION_STATUSES = new Set(["canceled", "incomplete_expired"])
 // All inventory callers request 100 objects per page, so this last-resort cap
 // bounds any one complete scan to approximately 1,000,000 visited objects.
@@ -879,6 +901,9 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
       products[spec.configKey] = matches[0]
     }
   }
+  // Reuse the exact legacy Supporter Product only before an amount-specific
+  // Product exists. applyPlan stamps support-1 before it creates support-2 and
+  // support-5, preserving this single-candidate safety condition on retries.
   if (
     config.productIds.supporter === CREATE_NEW_PRODUCT
     && !products.supporter
@@ -888,16 +913,13 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
     products.supporter = targetProductCandidates[0]
   }
 
-  const assignedTargetProductIds = new Set(
-    TARGET_PRODUCT_SPECS
-      .map(({ configKey }) => products[configKey]?.id)
-      .filter(Boolean),
-  )
+  const assignedTargetProductIdList = TARGET_PRODUCT_SPECS
+    .map(({ configKey }) => products[configKey]?.id)
+    .filter(Boolean)
+  const assignedTargetProductIds = new Set(assignedTargetProductIdList)
   if (
     targetProductCandidateOverflow
-    || assignedTargetProductIds.size !== TARGET_PRODUCT_SPECS
-      .map(({ configKey }) => products[configKey]?.id)
-      .filter(Boolean).length
+    || assignedTargetProductIds.size !== assignedTargetProductIdList.length
     || targetProductCandidates.some(({ id }) => !assignedTargetProductIds.has(id))
   ) {
     failureCodes.push("supporter_product_duplicate")
@@ -1336,6 +1358,15 @@ function needsPriceUpdate(current, spec) {
     || !sameMetadata(current.metadata, targetPriceMetadata(spec, current))
 }
 
+/**
+ * Builds the exact Customer Portal feature payload.
+ *
+ * `products` is the order-significant array of `{ product, prices }` entries
+ * later compared by portalTopologyMatches after normalization. Empty
+ * schedule-at-period-end conditions intentionally make same-benefit amount
+ * changes immediate while retaining the billing-cycle anchor and no-proration
+ * policy.
+ */
 function desiredPortalFeatures(currentFeatures, products) {
   const cancellationReason = currentFeatures.subscription_cancel?.cancellation_reason
   const subscriptionCancel = {
@@ -1439,7 +1470,7 @@ async function applyPlan(stripe, config, inventory) {
     targetProducts.set(spec.key, candidate)
   }
 
-  const targetPrices = []
+  const targetPrices = new Map()
   for (const spec of config.targetPrices) {
     const productSpec = targetProductSpecForPrice(spec)
     const targetProduct = targetProducts.get(productSpec.key)
@@ -1474,16 +1505,14 @@ async function applyPlan(stripe, config, inventory) {
         "supporter_price_mutation_unverified",
       )
     }
-    targetPrices.push(candidate)
+    targetPrices.set(spec.key, candidate)
   }
 
   const desiredFeatures = desiredPortalFeatures(
     inventory.portal.features,
     TARGET_PRODUCT_SPECS.map((productSpec) => ({
       product: targetProducts.get(productSpec.key).id,
-      prices: productSpec.priceKeys.map(
-        (key) => targetPrices.find((candidate) => managedPriceKey(candidate) === key).id,
-      ),
+      prices: productSpec.priceKeys.map((key) => targetPrices.get(key).id),
     })),
   )
   if (

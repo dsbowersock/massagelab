@@ -243,6 +243,20 @@ function stripeSdkError(type, statusCode) {
   })
 }
 
+/** Claims a fixture lookup key with Stripe-equivalent transfer semantics. */
+function claimLookupKey(prices, lookupKey, transferLookupKey, currentPriceId = null) {
+  if (!lookupKey) return
+  const conflicting = [...prices.values()].find(
+    (entry) => entry.id !== currentPriceId && entry.lookup_key === lookupKey,
+  )
+  if (conflicting && transferLookupKey !== true) {
+    throw new Error("Lookup key is already assigned to another Price")
+  }
+  if (conflicting) {
+    prices.set(conflicting.id, { ...conflicting, lookup_key: null })
+  }
+}
+
 /**
  * Builds a Stripe double with an ordered call log, live resource maps, and a
  * live portal getter. Writes are recorded, creates replay by idempotency key,
@@ -391,17 +405,7 @@ function stripeFixture() {
           transfer_lookup_key: transferLookupKey,
           ...storedPayload
         } = structuredClone(payload)
-        if (storedPayload.lookup_key) {
-          const conflicting = [...prices.values()].find(
-            (entry) => entry.id !== id && entry.lookup_key === storedPayload.lookup_key,
-          )
-          if (conflicting && transferLookupKey !== true) {
-            throw new Error("Lookup key is already assigned to another Price")
-          }
-          if (conflicting) {
-            prices.set(conflicting.id, { ...conflicting, lookup_key: null })
-          }
-        }
+        claimLookupKey(prices, storedPayload.lookup_key, transferLookupKey, id)
         const updated = { ...current, ...storedPayload }
         prices.set(id, updated)
         return structuredClone(updated)
@@ -419,17 +423,7 @@ function stripeFixture() {
           transfer_lookup_key: transferLookupKey,
           ...storedPayload
         } = structuredClone(payload)
-        if (storedPayload.lookup_key) {
-          const conflicting = [...prices.values()].find(
-            (entry) => entry.lookup_key === storedPayload.lookup_key,
-          )
-          if (conflicting && transferLookupKey !== true) {
-            throw new Error("Lookup key is already assigned to another Price")
-          }
-          if (conflicting) {
-            prices.set(conflicting.id, { ...conflicting, lookup_key: null })
-          }
-        }
+        claimLookupKey(prices, storedPayload.lookup_key, transferLookupKey)
         const id = `price_created_${nextPrice++}`
         const created = {
           id,
