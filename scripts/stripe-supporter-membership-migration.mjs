@@ -56,6 +56,8 @@ const duplicateTargetPriceKeys = mappedTargetPriceKeys.filter(
   (key, index) => mappedTargetPriceKeys.indexOf(key) !== index,
 )
 if (
+  // support-1 must stay first: inventory recovery and apply both resolve its
+  // reusable legacy Product before support-2 and support-5 may be created.
   TARGET_PRODUCT_SPECS[0]?.key !== "support-1"
   ||
   missingTargetPriceKeys.length > 0
