@@ -18,6 +18,7 @@ import {
   SUPPORTER_RECURRING_TAX_BEHAVIOR,
   SUPPORTER_RECURRING_TAX_CODE,
 } from "../lib/stripe-price-contract.js"
+import { safeErrorCode } from "../lib/safe-error-code.js"
 
 const DEFAULT_SUPPORTER_PRICE_ID = "price_supporter_1_monthly"
 const SUPPORTER_1_YEARLY_PRICE_ID = "price_supporter_1_yearly"
@@ -43,6 +44,31 @@ const SUPPORTER_PRICE_FIXTURES = Object.freeze(Object.fromEntries(
 ))
 
 describe("Stripe billing helpers", () => {
+  it("keeps authority failures catchable, distinct, and private", () => {
+    const failures = [
+      stripeBilling.MembershipCheckoutAuthorityError.deadline(),
+      stripeBilling.MembershipCheckoutAuthorityError.invariant(),
+      stripeBilling.MembershipCheckoutAuthorityError.readBudget(),
+    ]
+
+    assert.equal(
+      failures.every(
+        (error) => error instanceof stripeBilling.MembershipCheckoutAuthorityError,
+      ),
+      true,
+    )
+    assert.deepEqual(failures.map(({ code }) => code), [
+      "membership_checkout_authority_deadline_exceeded",
+      "membership_checkout_authority_invariant_failed",
+      "membership_checkout_authority_read_budget_exceeded",
+    ])
+    assert.equal(new Set(failures.map(({ message }) => message)).size, failures.length)
+    for (const error of failures) {
+      assert.equal(safeErrorCode(error), "unexpected_error")
+      assert.doesNotMatch(error.message, /cs_private|sub_private|cus_private/)
+    }
+  })
+
   it("verifies Stripe webhook signatures with the raw request body", () => {
     const payload = JSON.stringify({ id: "evt_123", type: "customer.subscription.updated" })
     const timestamp = "1778791200"
@@ -1240,7 +1266,7 @@ describe("Stripe billing helpers", () => {
           },
         },
       })),
-      /subscription authority lookups exceeded the safe limit/,
+      /subscription authority lookups exceeded the safe deadline/,
     )
 
     assert.equal(expireCalls, 1)
@@ -1258,6 +1284,7 @@ describe("Stripe billing helpers", () => {
     let retrieveSessionCalls = 0
     let retrieveSubscriptionCalls = 0
     let createCalls = 0
+    let subscriptionRetrieveRequest
 
     await assert.rejects(
       settlesWithin(
@@ -1289,8 +1316,9 @@ describe("Stripe billing helpers", () => {
               },
             },
             subscriptions: {
-              retrieve: async () => {
+              retrieve: async (_subscriptionId, params, requestOptions) => {
                 retrieveSubscriptionCalls += 1
+                subscriptionRetrieveRequest = { params, requestOptions }
                 return new Promise(() => {})
               },
             },
@@ -1299,13 +1327,19 @@ describe("Stripe billing helpers", () => {
         "expiration-confirmation authority deadline",
         5_000,
       ),
-      /subscription authority lookups exceeded the safe limit/,
+      /subscription authority lookups exceeded the safe deadline/,
     )
 
     assert.equal(expireCalls, 1)
     assert.equal(retrieveSessionCalls, 1)
     assert.equal(retrieveSubscriptionCalls, 1)
     assert.equal(createCalls, 0)
+    assert.deepEqual(subscriptionRetrieveRequest, {
+      params: {},
+      requestOptions: {
+        timeout: AUTHORITY_HANGING_READ_RECONCILIATION_BUDGET_MS,
+      },
+    })
   })
 
   it("fails closed instead of reusing a compatible open membership Checkout without a URL", async () => {
@@ -1646,6 +1680,7 @@ describe("Stripe billing helpers", () => {
         109,
         109,
         109,
+        109,
       ),
       stripeClient: {
         checkout: {
@@ -1719,7 +1754,7 @@ describe("Stripe billing helpers", () => {
           },
         },
       })),
-      /subscription authority lookups exceeded the safe limit/,
+      /subscription authority lookups exceeded the safe deadline/,
     )
 
     assert.equal(retrieveCalls, 0)
@@ -2359,11 +2394,15 @@ describe("Stripe billing helpers", () => {
     const firstWaveStarted = deferred()
     const allLookupsStarted = deferred()
     const startedSubscriptionIds = []
+    const subscriptionRetrieveRequests = []
     let activeLookups = 0
     let maxActiveLookups = 0
 
     const checkoutPromise = stripeBilling.createStripeCheckoutSession(
       membershipCheckoutOptions({
+        reconciliationBudgetMs:
+          AUTHORITY_HANGING_READ_RECONCILIATION_BUDGET_MS,
+        reconciliationNowMs: () => 100,
         stripeClient: {
           checkout: {
             sessions: {
@@ -2374,8 +2413,13 @@ describe("Stripe billing helpers", () => {
             },
           },
           subscriptions: {
-            retrieve: async (subscriptionId) => {
+            retrieve: async (subscriptionId, params, requestOptions) => {
               startedSubscriptionIds.push(subscriptionId)
+              subscriptionRetrieveRequests.push({
+                params,
+                requestOptions,
+                subscriptionId,
+              })
               activeLookups += 1
               maxActiveLookups = Math.max(maxActiveLookups, activeLookups)
               if (
@@ -2432,6 +2476,16 @@ describe("Stripe billing helpers", () => {
     assert.deepEqual(
       startedSubscriptionIds,
       expectedSubscriptionIds,
+    )
+    assert.deepEqual(
+      subscriptionRetrieveRequests,
+      expectedSubscriptionIds.map((subscriptionId) => ({
+        params: {},
+        requestOptions: {
+          timeout: AUTHORITY_HANGING_READ_RECONCILIATION_BUDGET_MS,
+        },
+        subscriptionId,
+      })),
     )
   })
 
@@ -2557,7 +2611,7 @@ describe("Stripe billing helpers", () => {
         "completed-subscription authority deadline",
         5_000,
       ),
-      /subscription authority lookups exceeded the safe limit/,
+      /subscription authority lookups exceeded the safe deadline/,
     )
 
     assert.ok(
@@ -2616,7 +2670,7 @@ describe("Stripe billing helpers", () => {
           },
         },
       })),
-      /subscription authority lookups exceeded the safe limit/,
+      /subscription authority lookups exceeded the safe deadline/,
     )
 
     assert.equal(retrieveCalls, 1)
@@ -2655,7 +2709,7 @@ describe("Stripe billing helpers", () => {
           },
         },
       })),
-      /subscription authority lookups exceeded the safe limit/,
+      /subscription authority read budget was exceeded/,
     )
 
     assert.equal(retrieveCalls, 25)
