@@ -133,12 +133,17 @@ subscriber inventory, live/test mode, legacy and approved Price
 ownership/amounts/recurring semantics, every Price listed under the managed
 Products, zero-redemption coupon contracts, and portal preservation settings.
 Reuse mode accepts only the validated normal legacy `MassageLab Supporter`
-Product before migration even though it has not yet received
+Product before migration even though an older installation may omit the
+optional `app` metadata and the Product has not yet received
 `txcd_10000000` or target catalog metadata; apply writes both and re-retrieves
 the Product. Therapist and Practice retirement also requires the exact legacy
 Product names, and any optional app or membership-level metadata must not
 contradict the expected MassageLab identity. Completed-state verification
-requires the exact classification and metadata. Approved Prices must have no default trial period. Verify reports
+requires the exact classification and metadata. The reviewed pre-migration
+Customer Portal may either expose the exact legacy Product topology or have
+subscription switching disabled with no Product allowlist; apply enables
+Price-only switching among the six new Supporter Prices. Approved Prices must
+have no default trial period. Verify reports
 either `PRE_MIGRATION` or `COMPLETED`; mixed states, unrecognized Prices,
 incomplete or malformed pagination, and unknown portal subsets are blockers.
 
@@ -151,8 +156,12 @@ npm run stripe:migrate-supporter-membership -- --mode=verify
 
 Apply creates or reuses the one managed Supporter Product and six Prices,
 restricts the portal to those Prices, retires the legacy $9/$90, $29/$279, and
-$79/$759 Prices, retires the Therapist and Practice Products, and deletes the
-two verified zero-redemption coupons. It re-retrieves every mutation and a
+$79/$759 Prices, and also retires the older $1/$10, $2/$20, and $5/$50 Price
+objects that Stripe cannot move from their legacy tier Products. Those older
+objects are accepted only when their Product ownership and recurring semantics
+match the reviewed catalog. Apply then retires the Therapist and Practice
+Products and deletes the two verified zero-redemption coupons. It re-retrieves
+every mutation and a
 second apply is a read-only no-op. Portal quantity adjustment is explicitly
 disabled, while cancellation and billing-management behavior is preserved
 through semantic response validation. Apply can resume only an ordered,

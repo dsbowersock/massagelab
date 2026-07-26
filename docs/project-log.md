@@ -4,6 +4,36 @@ This is the canonical chronological planning and progress log for MassageLab. Us
 
 Existing plans, audits, roadmaps, and checklists remain source evidence. Keep them for context, but mirror meaningful progress, plan changes, and priority changes in [project-state.md](project-state.md) and here.
 
+## 2026-07-26 — Supporter production inventory and migration topology hardening
+
+- Confirmed the merged Supporter-only application baseline from PR #144 in an
+  isolated rollout worktree; Prisma generation plus all 1,625 repository tests
+  passed before production inventory began.
+- Completed identifier-free read-only Stripe inventory. The live account has
+  no non-terminal subscription; its one live subscription is canceled. The
+  Student-to-Therapist and Early Access coupons both have zero redemptions, and
+  the single default Customer Portal configuration preserves customer details,
+  payment methods, invoices, and cancellation while subscription switching is
+  currently disabled.
+- Reconciled the production database and Stripe subscription inventories
+  without exposing account identifiers. No non-terminal live subscriber needs
+  a grandfathering decision before catalog migration.
+- The live catalog contains both the unapproved $9/$90, $29/$279, and
+  $79/$759 Prices and the older $1/$10, $2/$20, and $5/$50 Prices. The older
+  amount objects are split across Supporter, Therapist, and Practice Products,
+  and Stripe Prices cannot be reassigned to the one approved Supporter Product.
+- Hardened the migration against that exact production topology. It now
+  verifies and retires the six older amount objects under their expected legacy
+  owners before recreating those amounts under the classified Supporter
+  Product, permits the exact legacy Supporter Product when optional `app`
+  metadata is absent but its name and membership metadata remain correct, and
+  accepts the reviewed disabled pre-migration Portal state before enabling the
+  exact six-Price switching allowlist. Focused regression coverage passes.
+- No Stripe Product, Price, coupon, subscription, Portal, Vercel production
+  environment, or database row was mutated. Live-key migration verify/apply,
+  final recurring-tax confirmation, production environment changes, and the
+  controlled subscription smoke remain gated follow-up work.
+
 ## 2026-07-24 — Supporter membership deployable migration candidate
 
 - Replaced public Supporter/Therapist/Practice enrollment with one Supporter

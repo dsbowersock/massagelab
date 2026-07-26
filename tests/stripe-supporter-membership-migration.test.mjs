@@ -20,6 +20,15 @@ const LEGACY_PRICE_SPECS = Object.freeze([
   ["price_practice_year", "prod_practice", 75900, "year"],
 ])
 
+const SUPERSEDED_AMOUNT_PRICE_SPECS = Object.freeze([
+  ["price_support_1_month", "prod_supporter", 100, "month"],
+  ["price_support_1_year", "prod_supporter", 1000, "year"],
+  ["price_support_2_month", "prod_therapist", 200, "month"],
+  ["price_support_2_year", "prod_therapist", 2000, "year"],
+  ["price_support_5_month", "prod_practice", 500, "month"],
+  ["price_support_5_year", "prod_practice", 5000, "year"],
+])
+
 /** Builds the complete non-secret migration contract used by focused tests. */
 function migrationEnv(overrides = {}) {
   return {
@@ -132,7 +141,13 @@ function portalConfiguration() {
         proration_behavior: "none",
         cancellation_reason: {
           enabled: true,
-          options: ["other"],
+          options: [
+            "too_expensive",
+            "missing_features",
+            "switched_service",
+            "unused",
+            "other",
+          ],
         },
       },
       subscription_update: {
@@ -827,7 +842,13 @@ describe("Supporter membership Stripe migration", () => {
       proration_behavior: "none",
       cancellation_reason: {
         enabled: true,
-        options: ["other"],
+        options: [
+          "too_expensive",
+          "missing_features",
+          "switched_service",
+          "unused",
+          "other",
+        ],
       },
     })
     assert.deepEqual(features.subscription_update, {
@@ -885,6 +906,106 @@ describe("Supporter membership Stripe migration", () => {
         assertMutationWasReretrieved(fixture.calls, index, "coupons.retrieve", call.id)
       }
     })
+  })
+
+  it("reuses the exact legacy Supporter Product and retires older amount Prices split across legacy tiers", async () => {
+    const fixture = stripeFixture()
+    delete fixture.products.get("prod_supporter").metadata.app
+    for (const [id, productId, unitAmount, interval] of SUPERSEDED_AMOUNT_PRICE_SPECS) {
+      const candidate = price(id, productId, unitAmount, interval)
+      candidate.tax_behavior = "unspecified"
+      fixture.prices.set(id, candidate)
+    }
+
+    const result = await runSupporterMembershipMigration({
+      stripe: fixture.stripe,
+      mode: "apply",
+      env: migrationEnv(),
+    })
+
+    assert.equal(result.state, "COMPLETED")
+    assert.equal(
+      SUPERSEDED_AMOUNT_PRICE_SPECS.every(([id]) => fixture.prices.get(id).active === false),
+      true,
+    )
+    assert.equal(
+      fixture.calls.some(({ name }) => name === "products.create"),
+      false,
+      "the reviewed legacy Supporter Product should be classified in place",
+    )
+    const supporter = fixture.products.get("prod_supporter")
+    assert.equal(supporter.name, "MassageLab Supporter Membership")
+    assert.equal(supporter.tax_code, "txcd_10000000")
+    assert.equal(
+      [...fixture.prices.values()].filter(
+        (candidate) => candidate.product === supporter.id && candidate.active,
+      ).length,
+      6,
+    )
+  })
+
+  it("rejects present but empty legacy Supporter app metadata", async () => {
+    const fixture = stripeFixture()
+    fixture.products.get("prod_supporter").metadata.app = ""
+
+    await assert.rejects(
+      runSupporterMembershipMigration({
+        stripe: fixture.stripe,
+        mode: "verify",
+        env: migrationEnv(),
+      }),
+      (error) => {
+        assert.equal(
+          error.failureCodes.includes("supporter_product_dependency_mismatch"),
+          true,
+        )
+        return true
+      },
+    )
+    assert.deepEqual(mutationCalls(fixture), [])
+  })
+
+  it("accepts the exact disabled pre-migration Portal update state and enables Supporter switching", async () => {
+    const fixture = stripeFixture()
+    fixture.portal.features.subscription_update = {
+      enabled: false,
+      default_allowed_updates: [],
+      billing_cycle_anchor: "unchanged",
+      proration_behavior: "none",
+      schedule_at_period_end: {
+        conditions: [{ type: "decreasing_item_amount" }],
+      },
+      trial_update_behavior: "end_trial",
+    }
+
+    const result = await runSupporterMembershipMigration({
+      stripe: fixture.stripe,
+      mode: "apply",
+      env: migrationEnv(),
+    })
+
+    assert.equal(result.state, "COMPLETED")
+    assert.equal(fixture.portal.features.subscription_update.enabled, true)
+    assert.deepEqual(
+      fixture.portal.features.subscription_update.default_allowed_updates,
+      ["price"],
+    )
+    assert.equal(fixture.portal.features.subscription_update.products.length, 1)
+    assert.equal(
+      fixture.portal.features.subscription_update.products[0].product,
+      "prod_supporter",
+    )
+    assert.equal(
+      fixture.portal.features.subscription_update.products[0].prices.length,
+      6,
+    )
+    assert.equal(
+      fixture.portal.features.subscription_update.products[0].prices.every((id) => {
+        const configuredPrice = fixture.prices.get(id)
+        return configuredPrice?.active && configuredPrice.product === "prod_supporter"
+      }),
+      true,
+    )
   })
 
   it("is idempotent and creates no duplicate Product or Price on a rerun", async () => {
@@ -1706,10 +1827,28 @@ describe("Supporter membership Stripe migration", () => {
     assert.deepEqual(mutationCalls(fixture), [])
   })
 
-  it("fails closed when portal preservation dependencies are disabled or account livemode differs", async () => {
-    {
+  it("fails closed when Portal billing-management dependencies drift or account livemode differs", async () => {
+    const portalCorruptions = [
+      (fixture) => {
+        fixture.portal.features.invoice_history.enabled = false
+      },
+      (fixture) => {
+        fixture.portal.features.subscription_cancel.mode = "immediately"
+      },
+      (fixture) => {
+        fixture.portal.features.subscription_cancel.proration_behavior = "create_prorations"
+      },
+      (fixture) => {
+        fixture.portal.features.subscription_cancel.cancellation_reason.enabled = false
+      },
+      (fixture) => {
+        fixture.portal.features.subscription_cancel.cancellation_reason.options = ["other"]
+      },
+    ]
+
+    for (const corruptPortal of portalCorruptions) {
       const fixture = stripeFixture()
-      fixture.portal.features.invoice_history.enabled = false
+      corruptPortal(fixture)
 
       await assert.rejects(
         runSupporterMembershipMigration({
