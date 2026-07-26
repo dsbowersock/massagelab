@@ -215,24 +215,20 @@ function portalSwitchingPolicyDrifts() {
   ]
 }
 
-/** Enumerates drift from the completed immediate-switching policy. */
+/**
+ * Reuses the pre-migration switching-policy matrix while reversing only the
+ * period-end expectation for the completed immediate-switching state.
+ */
 function completedPortalSwitchingPolicyDrifts() {
-  return [
-    ["billing cycle anchor", (features) => {
-      features.subscription_update.billing_cycle_anchor = "now"
-    }],
-    ["proration behavior", (features) => {
-      features.subscription_update.proration_behavior = "create_prorations"
-    }],
-    ["period-end schedule", (features) => {
-      features.subscription_update.schedule_at_period_end.conditions = [
-        { type: "decreasing_item_amount" },
-      ]
-    }],
-    ["trial behavior", (features) => {
-      features.subscription_update.trial_update_behavior = "continue_trial"
-    }],
-  ]
+  return portalSwitchingPolicyDrifts().map(([label, corrupt]) => (
+    label === "period-end schedule"
+      ? [label, (features) => {
+          features.subscription_update.schedule_at_period_end.conditions = [
+            { type: "decreasing_item_amount" },
+          ]
+        }]
+      : [label, corrupt]
+  ))
 }
 
 /** Creates an SDK-shaped Stripe failure without exposing processor payloads. */
@@ -1108,6 +1104,74 @@ describe("Supporter membership Stripe migration", () => {
     assert.equal(fixture.prices.get("price_partial_support_2_year").active, false)
     assert.equal(fixture.prices.get("price_partial_support_5_month").active, false)
     assert.equal(fixture.prices.get("price_partial_support_5_year").active, false)
+  })
+
+  it("rejects a managed wrong-owner Price whose target semantics do not match", async () => {
+    const fixture = stripeFixture()
+    fixture.portal.features.subscription_update = disabledPortalSubscriptionUpdate()
+    fixture.prices.set(
+      "price_corrupt_partial_support_2_month",
+      price(
+        "price_corrupt_partial_support_2_month",
+        "prod_supporter",
+        201,
+        "month",
+        true,
+        {
+          app: "massagelab",
+          massagelab_catalog: "supporter_membership_v1",
+          massagelab_membership_level: "SUPPORTER",
+          massagelab_supporter_price_key: "support-2-month",
+        },
+      ),
+    )
+
+    await assert.rejects(
+      runSupporterMembershipMigration({
+        stripe: fixture.stripe,
+        mode: "apply",
+        env: migrationEnv(),
+      }),
+      (error) => {
+        assert.equal(error.failureCodes.includes("unexpected_managed_price"), true)
+        return true
+      },
+    )
+    assert.deepEqual(mutationCalls(fixture), [])
+  })
+
+  it("rejects a managed target Price on an undocumented historical Product", async () => {
+    const fixture = stripeFixture()
+    fixture.portal.features.subscription_update = disabledPortalSubscriptionUpdate()
+    fixture.prices.set(
+      "price_wrong_historical_owner",
+      price(
+        "price_wrong_historical_owner",
+        "prod_therapist",
+        500,
+        "month",
+        true,
+        {
+          app: "massagelab",
+          massagelab_catalog: "supporter_membership_v1",
+          massagelab_membership_level: "SUPPORTER",
+          massagelab_supporter_price_key: "support-5-month",
+        },
+      ),
+    )
+
+    await assert.rejects(
+      runSupporterMembershipMigration({
+        stripe: fixture.stripe,
+        mode: "apply",
+        env: migrationEnv(),
+      }),
+      (error) => {
+        assert.equal(error.failureCodes.includes("unexpected_managed_price"), true)
+        return true
+      },
+    )
+    assert.deepEqual(mutationCalls(fixture), [])
   })
 
   it("rejects a disabled pre-migration Portal whose dormant switching policy drifted", async () => {

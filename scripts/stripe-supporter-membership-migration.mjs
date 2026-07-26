@@ -422,13 +422,17 @@ function priceProductId(candidate) {
   return typeof candidate?.product === "string" ? candidate.product : candidate?.product?.id
 }
 
-function priceMatches(candidate, spec, productId) {
+function targetPriceSemanticsMatch(candidate, spec) {
   return Boolean(candidate)
     && recurringPriceSemanticsMatch(candidate, {
       unitAmount: spec.unitAmount,
       interval: spec.interval,
       taxBehavior: SUPPORTER_RECURRING_TAX_BEHAVIOR,
     })
+}
+
+function priceMatches(candidate, spec, productId) {
+  return targetPriceSemanticsMatch(candidate, spec)
     && priceProductId(candidate) === productId
 }
 
@@ -1086,11 +1090,32 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
       const productSpec = targetProductSpecForPrice(managedTargetSpec)
       const expectedTargetProductId = products[productSpec.configKey]?.id
       const selectedTarget = targetPrices.get(managedTargetSpec.key)
+      const hasWrongOwner = ownerId !== expectedTargetProductId
+      const conflictsWithSelectedTarget = selectedTarget && selectedTarget.id !== candidate.id
       if (
-        ownerId !== expectedTargetProductId
-        || (selectedTarget && selectedTarget.id !== candidate.id)
+        hasWrongOwner
+        || conflictsWithSelectedTarget
       ) {
-        retirementPricesById.set(candidate.id, candidate)
+        const historicalOwnerIds = new Set([
+          legacySupporterProductId,
+          ...SUPERSEDED_AMOUNT_PRICE_CONFIG
+            .filter((spec) => (
+              spec.unitAmount === managedTargetSpec.unitAmount
+              && spec.interval === managedTargetSpec.interval
+            ))
+            .map((spec) => expectedProductId(spec)),
+        ])
+        const ownerIsRecoverable = hasWrongOwner
+          ? historicalOwnerIds.has(ownerId)
+          : ownerId === expectedTargetProductId
+        // A valid managed or lookup key does not make an arbitrary Price safe
+        // to delete. Only an exact target-semantic Price on the expected or a
+        // documented historical Product may be retired during partial recovery.
+        if (ownerIsRecoverable && targetPriceSemanticsMatch(candidate, managedTargetSpec)) {
+          retirementPricesById.set(candidate.id, candidate)
+        } else {
+          failureCodes.push("unexpected_managed_price")
+        }
         continue
       }
     }
