@@ -1025,7 +1025,6 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
     }
   }
 
-  const targetProductId = products.supporter?.id ?? null
   const legacyPrices = new Map()
   for (const spec of config.legacyPrices) {
     const candidate = allPrices.find((entry) => entry.id === spec.id)
@@ -1051,7 +1050,7 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
     || legacySupporterProductId === config.productIds.therapist
     || legacySupporterProductId === config.productIds.practice
     || (
-      legacySupporterProductId !== targetProductId
+      !assignedTargetProductIds.has(legacySupporterProductId)
       && !legacySupporterProductMatches(legacySupporterProduct)
     )
   ) {
@@ -1207,11 +1206,16 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
     }
   }
 
+  // Destructive cleanup independently excludes every Product assigned to a
+  // target amount. Earlier topology checks should already reject an overlap,
+  // but retirement safety must not depend on those checks staying unchanged.
   const retirementProducts = [
     products.therapist,
     products.practice,
-    ...(legacySupporterProduct?.id !== targetProductId ? [legacySupporterProduct] : []),
-  ].filter(Boolean)
+    legacySupporterProduct,
+  ].filter((candidate) => (
+    candidate && !assignedTargetProductIds.has(candidate.id)
+  ))
   const prePortalProducts = [
     {
       product: legacySupporterProductId,

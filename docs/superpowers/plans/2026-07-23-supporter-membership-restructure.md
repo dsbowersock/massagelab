@@ -253,8 +253,11 @@ The command must:
   subscription or an explicit reviewed `none` decision when no relevant
   subscriptions exist;
 - create or reuse three amount-specific Products named `MassageLab Supporter Membership`, each with tax code `txcd_10000000` and identical Supporter entitlements;
-- create or reuse the six exact approved Prices;
-- never reuse a Therapist/Practice-owned Price as a Supporter Price because Stripe Prices cannot be reassigned to another Product;
+- create or reuse the six exact approved Prices, reusing an existing Price only
+  when it already belongs to the matching amount-specific Product;
+- treat otherwise matching Prices owned by another Supporter amount Product or
+  by a Therapist/Practice Product as replacement-and-retirement candidates
+  because Stripe Prices cannot be reassigned to another Product;
 - make the unapproved $9/$90, $29/$279, and $79/$759 Prices inactive;
 - make Therapist and Practice Products/Prices inactive after dependency verification;
 - delete the zero-redemption Student-to-Therapist and Early Access coupons only after verifying their names, percentages, duration, and redemption counts;
