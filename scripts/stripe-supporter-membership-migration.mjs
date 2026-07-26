@@ -790,8 +790,9 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
       if (configuredProductIds.has(candidateId)) {
         productsById.set(candidateId, candidate)
       }
-      // The completed catalog has three managed Products. One additional
-      // candidate is sufficient to prove an ambiguous or polluted topology.
+      // Retain at most the three target Product slots. Seeing any additional
+      // candidate sets the overflow flag and proves a polluted or ambiguous
+      // topology without retaining that extra Product.
       if (isTargetCandidate && !productsById.has(candidateId)) {
         if (targetProductCandidateOverflow) return
         const retainedTargetCount = [...productsById.values()].filter((product) => (

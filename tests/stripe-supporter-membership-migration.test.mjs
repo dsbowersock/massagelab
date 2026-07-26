@@ -369,12 +369,12 @@ function stripeFixture() {
         return structuredClone(updated)
       },
       async create(payload, options) {
-        record("products.create", null, payload, options)
         const idempotencyKey = options?.idempotencyKey
         const existingId = idempotencyKey
           ? productCreatesByIdempotencyKey.get(idempotencyKey)
           : null
         if (existingId) {
+          record("products.create", existingId, payload, options)
           return structuredClone(products.get(existingId))
         }
         const id = `prod_created_supporter_${nextProduct++}`
@@ -389,6 +389,7 @@ function stripeFixture() {
         if (idempotencyKey) {
           productCreatesByIdempotencyKey.set(idempotencyKey, id)
         }
+        record("products.create", id, payload, options)
         return structuredClone(created)
       },
     },
@@ -1019,12 +1020,16 @@ describe("Supporter membership Stripe migration", () => {
         ?.massagelab_supporter_amount_choice === entry.metadata
           .massagelab_supporter_price_key.replace(/-(month|year)$/, "")
     )), true)
-    const targetProductIdFor = (amountChoice) => (
-      [...fixture.products.values()].find(
-        (entry) => (
-          entry.metadata?.massagelab_supporter_amount_choice === amountChoice
-        ),
-      )?.id
+    const targetProductIds = new Map(
+      ["support-1", "support-2", "support-5"].map((amountChoice) => {
+        const productId = [...fixture.products.values()].find(
+          (entry) => (
+            entry.metadata?.massagelab_supporter_amount_choice === amountChoice
+          ),
+        )?.id
+        assert.ok(productId, `expected a target Product for ${amountChoice}`)
+        return [amountChoice, productId]
+      }),
     )
     assert.deepEqual(
       fixture.calls
@@ -1033,7 +1038,7 @@ describe("Supporter membership Stripe migration", () => {
       [
         ...["support-1", "support-2", "support-5"].flatMap((amountChoice) => (
           ["month", "year"].map((interval) => (
-            `massagelab-supporter-membership-v1-price-${targetProductIdFor(amountChoice)}-${amountChoice}-${interval}`
+            `massagelab-supporter-membership-v1-price-${targetProductIds.get(amountChoice)}-${amountChoice}-${interval}`
           ))
         )),
       ],
@@ -1080,6 +1085,11 @@ describe("Supporter membership Stripe migration", () => {
         ).id,
         prices: approved
           .filter((entry) => entry.metadata.massagelab_supporter_price_key.startsWith(amountChoice))
+          .sort((left, right) => (
+            left.metadata.massagelab_supporter_price_key.localeCompare(
+              right.metadata.massagelab_supporter_price_key,
+            )
+          ))
           .map((entry) => entry.id),
         adjustable_quantity: {
           enabled: false,
@@ -1105,18 +1115,12 @@ describe("Supporter membership Stripe migration", () => {
         assertMutationWasReretrieved(fixture.calls, index, "products.retrieve", call.id)
       }
       if (call.name === "products.create") {
-        const createdProduct = [...fixture.products.values()].find(
-          (candidate) => (
-            candidate.metadata?.massagelab_supporter_amount_choice
-            === call.payload.metadata?.massagelab_supporter_amount_choice
-          ),
-        )
-        assert.ok(createdProduct, "created amount Product should exist in the fixture")
+        assert.ok(call.id, "the Product create trace should retain its response ID")
         assertMutationWasReretrieved(
           fixture.calls,
           index,
           "products.retrieve",
-          createdProduct.id,
+          call.id,
         )
       }
       if (call.name === "prices.update") {
@@ -2874,13 +2878,9 @@ describe("Supporter membership Stripe migration", () => {
         return true
       },
     )
-    assert.equal(
-      Object.hasOwn(
-        fixture.calls.filter(({ name }) => name === "products.list")[1].payload,
-        "active",
-      ),
-      false,
-    )
+    const productLists = fixture.calls.filter(({ name }) => name === "products.list")
+    assert.ok(productLists.length >= 2, "expected a second Product inventory pass")
+    assert.equal(Object.hasOwn(productLists[1].payload, "active"), false)
     assert.deepEqual(
       mutationCalls(fixture).map(({ name, id }) => ({ name, id })),
       [{ name: "products.update", id: "prod_supporter" }],
