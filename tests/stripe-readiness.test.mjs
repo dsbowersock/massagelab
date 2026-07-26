@@ -209,7 +209,7 @@ describe("Stripe readiness background-commerce contract", () => {
     assert.deepEqual(
       validateSupporterProductTopology(oneProduct),
       [
-        "The Supporter catalog must use 3 distinct amount-specific Stripe Products.",
+        "The Supporter catalog must use 3 distinct amount-specific Stripe Products; found 1 (prod_support_1).",
       ],
     )
 
@@ -227,8 +227,8 @@ describe("Stripe readiness background-commerce contract", () => {
     assert.deepEqual(
       validateSupporterProductTopology(splitChoice),
       [
-        "Supporter amount choice support-1 must use exactly one Stripe Product.",
-        "The Supporter catalog must use 3 distinct amount-specific Stripe Products.",
+        "Supporter amount choice support-1 must use exactly one Stripe Product; found 2 (prod_support_1, prod_support_1_alt).",
+        "The Supporter catalog must use 3 distinct amount-specific Stripe Products; found 4 (prod_support_1, prod_support_1_alt, prod_support_2, prod_support_5).",
       ],
     )
   })
@@ -696,7 +696,7 @@ describe("Stripe readiness background-commerce contract", () => {
     assert.equal(result.status, 1, result.stderr || result.stdout)
     assert.match(
       result.stderr,
-      /FAIL The Supporter catalog must use 3 distinct amount-specific Stripe Products\./,
+      /FAIL The Supporter catalog must use 3 distinct amount-specific Stripe Products; found 1 \(prod_support_1\)\./,
     )
     assert.match(result.stdout, /Stripe API retrieval performed: true/)
   })

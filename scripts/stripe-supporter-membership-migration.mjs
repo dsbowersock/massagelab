@@ -1542,7 +1542,10 @@ async function discoverTargetProductBeforeCreate(stripe, spec, livemode) {
       { limit: 100 },
       (candidate) => {
         if (!modeMatches(candidate, livemode)) return
-        if (targetSupporterProductMatches(candidate, spec)) {
+        if (
+          targetSupporterProductReusable(candidate, spec)
+          && candidate.metadata?.massagelab_supporter_amount_choice === spec.key
+        ) {
           matches.push(candidate)
         } else if (
           candidate.active === false

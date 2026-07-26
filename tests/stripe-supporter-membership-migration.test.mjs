@@ -2822,6 +2822,52 @@ describe("Supporter membership Stripe migration", () => {
     )
   })
 
+  it("reuses a classified Product with stale display copy discovered before create", async () => {
+    const fixture = stripeFixture()
+    const listProducts = fixture.stripe.products.list.bind(fixture.stripe.products)
+    let productListCalls = 0
+    fixture.stripe.products.list = async (params) => {
+      productListCalls += 1
+      if (productListCalls === 2) {
+        fixture.products.set("prod_stale_support_2", {
+          id: "prod_stale_support_2",
+          object: "product",
+          active: true,
+          livemode: false,
+          name: "MassageLab Supporter Membership",
+          description: "Stale support amount copy",
+          tax_code: "txcd_10000000",
+          metadata: {
+            app: "massagelab",
+            massagelab_catalog: SUPPORTER_MEMBERSHIP_CATALOG_VERSION,
+            massagelab_membership_level: "SUPPORTER",
+            massagelab_supporter_amount_choice: "support-2",
+          },
+        })
+      }
+      return listProducts(params)
+    }
+
+    const result = await runSupporterMembershipMigration({
+      stripe: fixture.stripe,
+      mode: "apply",
+      env: migrationEnv(),
+    })
+
+    assert.equal(result.state, "COMPLETED")
+    assert.equal(
+      fixture.products.get("prod_stale_support_2").description,
+      "$2 monthly or $20 annually. Same Supporter Membership benefits; only the support amount differs.",
+    )
+    assert.equal(
+      fixture.calls.some(
+        ({ name, payload }) => name === "products.create"
+          && payload.metadata?.massagelab_supporter_amount_choice === "support-2",
+      ),
+      false,
+    )
+  })
+
   it("retries an ambiguous committed Price create with one stable idempotency key", async () => {
     const fixture = stripeFixture()
     const createPrice = fixture.stripe.prices.create.bind(fixture.stripe.prices)
