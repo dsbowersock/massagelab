@@ -163,9 +163,10 @@ changes keep the existing billing-cycle anchor, create no prorations, and are
 not scheduled for period end. It inventories all
 relevant subscriptions before mutation and permits at most the one explicitly
 reviewed subscription identifier (or an explicit `none` decision). Therapist
-and Practice retirement dependencies must retain their exact expected Product
-names; optional `app` and membership-level metadata may be absent but must not
-contradict the expected MassageLab identity.
+and Practice Prices and Products are retired only after dependency verification.
+Their Product dependencies must retain their exact expected names; optional
+`app` and membership-level metadata may be absent but must not contradict the
+expected MassageLab identity.
 
 Read-only verification recognizes only `PRE_MIGRATION` and `COMPLETED` as
 operator-approved states and fails closed on mixed catalog state.

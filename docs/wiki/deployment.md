@@ -180,8 +180,9 @@ Products; and any partially created $2/$20 or $5/$50 Prices misplaced on the
 $1/$10 Product before Stripe's duplicate-interval Portal constraint was
 identified. The valid $1/$10 Prices on the classified support-1 Product remain
 active. Retirement candidates are accepted only when their Product ownership
-and recurring semantics match the reviewed catalog. Apply then retires the
-Therapist and Practice Products and deletes the two verified zero-redemption
+and recurring semantics match the reviewed catalog. After dependency
+verification, that Price phase retires the Therapist and Practice Prices before
+apply retires their Products and deletes the two verified zero-redemption
 coupons. It re-retrieves every mutation.
 
 If apply is interrupted after the Portal gate, a subsequent apply rereads
