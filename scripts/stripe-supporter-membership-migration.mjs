@@ -1505,6 +1505,36 @@ function retrievePriceWithCurrencyOptions(stripe, id) {
 }
 
 /**
+ * Rechecks Stripe immediately before Product creation and reuses one exact
+ * amount Product that appeared after preflight. Multiple matches fail closed;
+ * transport and pagination failures retain their safe dependency-read shape.
+ */
+async function discoverTargetProductBeforeCreate(stripe, spec, livemode) {
+  const matches = []
+  try {
+    await scanAll(
+      stripe.products.list.bind(stripe.products),
+      { active: true, limit: 100 },
+      (candidate) => {
+        if (
+          modeMatches(candidate, livemode)
+          && targetSupporterProductMatches(candidate, spec)
+        ) {
+          matches.push(candidate)
+        }
+      },
+    )
+  } catch (error) {
+    if (error instanceof MigrationError) throw error
+    throw new MigrationError(["stripe_dependency_read_failed"], [], { cause: error })
+  }
+  if (matches.length > 1) {
+    throw new MigrationError(["supporter_product_duplicate"])
+  }
+  return matches[0] ?? null
+}
+
+/**
  * Applies a fully preflighted plan. Mutations are ordered target-first, portal
  * second, then legacy retirement; each write is immediately re-read.
  */
@@ -1512,6 +1542,13 @@ async function applyPlan(stripe, config, inventory) {
   const targetProducts = new Map()
   for (const spec of TARGET_PRODUCT_SPECS) {
     let candidate = inventory.products[spec.configKey]
+    if (!candidate) {
+      candidate = await discoverTargetProductBeforeCreate(
+        stripe,
+        spec,
+        config.livemode,
+      )
+    }
     const productPayload = targetProductPayload(candidate, spec)
     if (!candidate) {
       const created = await stripe.products.create(productPayload, {

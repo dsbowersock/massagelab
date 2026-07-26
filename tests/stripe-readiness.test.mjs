@@ -212,6 +212,8 @@ describe("Stripe readiness background-commerce contract", () => {
 
     const splitChoice = entries.map(({ expected, price: candidate }) => ({
       expected,
+      // Replace only the yearly support-1 owner to model one amount choice
+      // incorrectly spanning two Products while every other slot stays valid.
       price: expected.key === "STRIPE_SUPPORTER_1_YEARLY_PRICE_ID"
         ? {
             ...candidate,

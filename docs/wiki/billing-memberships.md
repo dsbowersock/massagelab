@@ -168,13 +168,20 @@ names; optional `app` and membership-level metadata may be absent but must not
 contradict the expected MassageLab identity.
 
 Read-only verification recognizes only `PRE_MIGRATION` and `COMPLETED` as
-operator-approved states and fails closed on mixed catalog state. Apply has one
-additional, tightly fingerprinted internal recovery path: a `TRANSITIONAL`
-state is resumable only when the Portal already rereads as the exact completed
-three-Product topology, every target Product and Price is complete or safely
-repairable, coupon dependencies remain verified, and Price-before-Product
-cleanup order has not been violated. This recovery path does not make
-`TRANSITIONAL` a third state accepted by read-only verification.
+operator-approved states and fails closed on mixed catalog state.
+`PRE_MIGRATION` includes one narrowly recoverable pre-Portal interruption: the
+single legacy Supporter Product may already have the approved classification,
+all six approved-amount Prices may already carry managed metadata on that
+Product, and Portal switching may still be disabled. Legacy cleanup must remain
+untouched. Apply safely fans those Prices out to the three amount Products and
+installs the exact Portal topology.
+
+Apply has one additional, tightly fingerprinted internal recovery path: a
+`TRANSITIONAL` state is resumable only when the Portal already rereads as the
+exact completed three-Product topology, every target Product and Price is
+complete or safely repairable, coupon dependencies remain verified, and
+Price-before-Product cleanup order has not been violated. This recovery path
+does not make `TRANSITIONAL` a third state accepted by read-only verification.
 
 The reviewed pre-migration Customer Portal may have subscription switching
 disabled and no Product allowlist. That state is not a reason to enable

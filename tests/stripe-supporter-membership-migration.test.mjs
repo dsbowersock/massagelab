@@ -1067,6 +1067,15 @@ describe("Supporter membership Stripe migration", () => {
       },
     })
 
+    const verification = await runSupporterMembershipMigration({
+      stripe: fixture.stripe,
+      mode: "verify",
+      env: migrationEnv(),
+    })
+    assert.equal(verification.state, "PRE_MIGRATION")
+    assert.deepEqual(mutationCalls(fixture), [])
+
+    fixture.calls.length = 0
     const result = await runSupporterMembershipMigration({
       stripe: fixture.stripe,
       mode: "apply",
@@ -2037,6 +2046,9 @@ describe("Supporter membership Stripe migration", () => {
 
   it("transfers a managed lookup key from a retiring duplicate Price", async () => {
     const fixture = stripeFixture()
+    const updatePortal = fixture.stripe.billingPortal.configurations.update.bind(
+      fixture.stripe.billingPortal.configurations,
+    )
     const selected = price(
       "price_approved_selected",
       "prod_supporter",
@@ -2059,6 +2071,45 @@ describe("Supporter membership Stripe migration", () => {
     fixture.prices.set(selected.id, selected)
     fixture.prices.set(retiring.id, retiring)
 
+    fixture.stripe.billingPortal.configurations.update = async () => {
+      throw stripeSdkError("StripeInvalidRequestError", 400)
+    }
+    await assert.rejects(
+      runSupporterMembershipMigration({
+        stripe: fixture.stripe,
+        mode: "apply",
+        env: migrationEnv({
+          STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: selected.id,
+        }),
+      }),
+      (error) => {
+        assert.deepEqual(error.failureCodes, ["stripe_mutation_failed"])
+        return true
+      },
+    )
+    assert.equal(
+      fixture.prices.get(selected.id).lookup_key,
+      "massagelab_support_1_month",
+    )
+    assert.equal(fixture.prices.get(retiring.id).lookup_key, null)
+    assert.equal(
+      fixture.prices.get(retiring.id).active,
+      true,
+      "the Portal gate must precede destructive Price cleanup",
+    )
+    assert.equal(
+      fixture.calls.some(({ name, payload }) => (
+        name === "prices.update" && payload?.active === false
+      )),
+      false,
+    )
+    const selectedUpdate = fixture.calls.find(
+      ({ name, id }) => name === "prices.update" && id === selected.id,
+    )
+    assert.equal(selectedUpdate.payload.transfer_lookup_key, true)
+
+    fixture.stripe.billingPortal.configurations.update = updatePortal
+    fixture.calls.length = 0
     const result = await runSupporterMembershipMigration({
       stripe: fixture.stripe,
       mode: "apply",
@@ -2074,10 +2125,6 @@ describe("Supporter membership Stripe migration", () => {
     )
     assert.equal(fixture.prices.get(retiring.id).lookup_key, null)
     assert.equal(fixture.prices.get(retiring.id).active, false)
-    const selectedUpdate = fixture.calls.find(
-      ({ name, id }) => name === "prices.update" && id === selected.id,
-    )
-    assert.equal(selectedUpdate.payload.transfer_lookup_key, true)
   })
 
   it("rejects every unrecognized Price owned by a managed Product, even when inactive", async () => {
@@ -2548,7 +2595,7 @@ describe("Supporter membership Stripe migration", () => {
     assert.deepEqual(mutationCalls(fixture), [])
   })
 
-  it("retries an ambiguous committed Product create with one stable idempotency key", async () => {
+  it("discovers an ambiguous committed Product before replaying its create", async () => {
     const fixture = stripeFixture()
     const createProduct = fixture.stripe.products.create.bind(fixture.stripe.products)
     const listProducts = fixture.stripe.products.list.bind(fixture.stripe.products)
@@ -2586,11 +2633,10 @@ describe("Supporter membership Stripe migration", () => {
     })
     assert.equal(result.state, "COMPLETED")
     const creates = fixture.calls.filter(({ name }) => name === "products.create")
-    assert.equal(creates.length, 4)
+    assert.equal(creates.length, 3)
     assert.deepEqual(
       creates.map(({ options }) => options?.idempotencyKey),
       [
-        "massagelab-supporter-membership-v1-product-support-1",
         "massagelab-supporter-membership-v1-product-support-1",
         "massagelab-supporter-membership-v1-product-support-2",
         "massagelab-supporter-membership-v1-product-support-5",
