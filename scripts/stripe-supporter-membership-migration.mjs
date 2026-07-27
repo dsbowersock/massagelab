@@ -1289,10 +1289,23 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
     && portalSubscriptionSwitchingEnabled(portal.features)
     && completedPortalProducts.length === TARGET_PRODUCT_SPECS.length
     && portalTopologyMatches(portal.features, completedPortalProducts)
+  // An interrupted apply may have committed the exact target Product allowlist
+  // while Stripe retained the old downgrade schedule. Apply may repair only
+  // that exact Portal intermediate; verify still rejects it.
+  const portalNeedsScheduleRecovery = portalBaseValid
+    && portalSubscriptionSwitchingEnabled(portal.features, {
+      scheduleAtPeriodEndConditions: ["decreasing_item_amount"],
+    })
+    && completedPortalProducts.length === TARGET_PRODUCT_SPECS.length
+    && portalTopologyMatches(portal.features, completedPortalProducts)
   if (
     !portal
     || !portalBaseValid
-    || (!portalIsPreMigration && !portalIsCompleted)
+    || (
+      !portalIsPreMigration
+      && !portalIsCompleted
+      && !(allowTransitional && portalNeedsScheduleRecovery)
+    )
   ) {
     failureCodes.push("portal_dependency_mismatch")
   }
@@ -1346,12 +1359,20 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
   // unused dependency contract. Products cannot precede Price retirement.
   const retirementOrderRecoverable = retirementPricesInactive
     || retirementProductsActive
-  const recoverableTransition = portalIsCompleted
+  const portalTransitionRecoverable = (
+    portalIsCompleted
+    && retirementOrderRecoverable
+  ) || (
+    portalNeedsScheduleRecovery
+    && retirementPricesActive
+    && retirementProductsActive
+    && couponsPresent
+  )
+  const recoverableTransition = portalTransitionRecoverable
     && allTargetProductsRepairable
     && targetPrices.size === config.targetPrices.length
     && targetPricesAreActive
     && couponsRetirementRecoverable
-    && retirementOrderRecoverable
   if (
     state === "TRANSITIONAL"
     && (!allowTransitional || !recoverableTransition)

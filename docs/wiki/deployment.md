@@ -217,6 +217,15 @@ the prior condition unchanged. Cleanup remains blocked until an expanded reread
 shows the exact three-Product/six-Price allowlist and canonical empty schedule
 conditions.
 
+An interrupted pre-recovery apply may therefore expose the exact target
+three-Product/six-Price allowlist while the dormant
+`decreasing_item_amount` condition remains. Verify mode continues to reject
+that intermediate. Apply mode may resume it only when every target dependency
+matches, every cleanup Price and Product is still active, and both verified
+zero-redemption coupons are still present. Any partial cleanup remains an
+arbitrary mixed state. The resumed apply must update and canonically reread the
+Portal before the first destructive cleanup mutation.
+
 ## Sentry
 
 Sentry captures sanitized errors, traces, and privacy-safe diagnostic reports only.

@@ -89,3 +89,19 @@ fix, open the PR, and do not merge it. After the user merges and continues,
 rerun apply with the same reviewed live dependencies, verify `COMPLETED`,
 configure the six production Price IDs, run live readiness, and perform the
 controlled Supporter smoke.
+
+## Second live recovery checkpoint
+
+PR #147 merged and its production deployment became ready. Identifier-safe
+live inventory still showed the exact target three-Product/six-Price Portal
+topology with the dormant `decreasing_item_amount` schedule condition, while
+all legacy cleanup candidates and both coupons remained untouched.
+
+The post-merge apply stopped before mutation because preflight classified that
+exact new-topology plus old-schedule state as an arbitrary mixed state. The
+second recovery must remain apply-only and accept no broader subset: all target
+Products and Prices must match, every cleanup Price and Product must still be
+active, and both verified zero-redemption coupons must still exist. Apply then
+updates and canonically rereads the Portal before it can retire a Price,
+Product, or coupon. Verify continues to reject the intermediate until the
+entire migration reaches `COMPLETED`.

@@ -46,6 +46,18 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
   switching uses Stripe's verified empty-value encoding, and the fixture
   models Stripe's canonical response. The apply remains stopped before legacy
   Price/Product retirement and coupon deletion until this recovery is merged.
+- Merged PR #147 and confirmed its production deployment was ready. The
+  identifier-safe live inventory still matched the paused checkpoint, with no
+  subscriber, legacy cleanup, coupon deletion, or runtime Price change.
+- The post-merge verify and apply both stopped before mutation because the
+  state classifier did not recognize the exact intermediate where the target
+  three-Product allowlist is installed but the dormant schedule condition
+  remains. This was a second fail-closed code gap, not Stripe drift.
+- Added a second narrow recovery state. Verify continues to reject the
+  intermediate, while apply may repair it only when the target topology and
+  dormant condition are exact, every cleanup Price and Product remains active,
+  and both zero-redemption coupons remain present. The Portal update and
+  canonical reread still precede every destructive cleanup mutation.
 
 ## 2026-07-26 — Supporter production inventory and migration topology hardening
 
