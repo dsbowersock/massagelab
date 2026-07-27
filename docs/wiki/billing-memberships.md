@@ -128,6 +128,14 @@ multi-select preference. The Customer Portal remains configured to allow payment
 method and billing-address updates, invoices, cancellation, and switching among
 the approved Supporter amounts.
 
+MassageLab creates Portal sessions on demand through two explicit actions.
+**Change support amount or billing period** uses Stripe's focused
+`subscription_update` flow for the account's persisted non-terminal
+subscription. **Manage billing account** opens the general Portal homepage for
+payment methods, billing address, invoices, and cancellation. Both return to
+the Account membership surface; neither changes the configured Product/Price
+allowlist.
+
 All six current amount-specific Supporter Price IDs grant the same `SUPPORTER`
 membership and feature set. The legacy Supporter mapping remains a runtime
 input only for pre-migration Supporter reconciliation; it is not a public

@@ -230,18 +230,27 @@ function PlanActions({
           </div>
         ) : null}
         <p className="text-sm text-muted-foreground">
-          Use the Customer Portal to switch among approved Supporter amounts, update billing details, review invoices, or cancel.
+          Change your support amount or billing period directly. Use your billing account for payment methods, billing address, invoices, or cancellation.
         </p>
-        <form action="/api/billing/portal" method="post">
-          <MetalAttentionButton
-            type="submit"
-            variant="attention"
-            className="w-full"
-            metalFullWidth
-          >
-            Manage or change support amount
-          </MetalAttentionButton>
-        </form>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <form action="/api/billing/portal" method="post">
+            <input type="hidden" name="destination" value="subscription-update" />
+            <MetalAttentionButton
+              type="submit"
+              variant="attention"
+              className="w-full"
+              metalFullWidth
+            >
+              Change support amount or billing period
+            </MetalAttentionButton>
+          </form>
+          <form action="/api/billing/portal" method="post">
+            <input type="hidden" name="destination" value="manage" />
+            <Button type="submit" variant="outline" className="w-full">
+              Manage billing account
+            </Button>
+          </form>
+        </div>
       </div>
     ) : (
       <p className="mt-auto text-sm text-muted-foreground">

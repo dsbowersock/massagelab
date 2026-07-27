@@ -77,8 +77,8 @@ describe("MembershipPricingCards configured price rendering", () => {
     assert.doesNotMatch(elementText(portalCards), /Price unavailable/)
     assert.doesNotMatch(elementText(portalCards), /\$2/)
     assert.match(elementText(portalPriceTiles[0]), /\$1.*\/month/)
-    assert.match(elementText(portalCards), /Manage or change support amount/)
-    assert.match(elementText(portalCards), /Customer Portal/)
+    assert.match(elementText(portalCards), /Change support amount or billing period/)
+    assert.match(elementText(portalCards), /Manage billing account/)
     assert.equal(
       findElements(
         portalCards,
@@ -88,7 +88,17 @@ describe("MembershipPricingCards configured price rendering", () => {
           && element.props.method === "post"
         ),
       ).length,
-      1,
+      2,
+    )
+    assert.deepEqual(
+      findElements(
+        portalCards,
+        (element) => (
+          element.type === "input"
+          && element.props.name === "destination"
+        ),
+      ).map((element) => element.props.value),
+      ["subscription-update", "manage"],
     )
     assert.equal(
       findElements(
@@ -220,14 +230,15 @@ describe("MembershipPricingCards configured price rendering", () => {
       ).length,
       0,
     )
-    assert.match(elementText(tree), /Use the Customer Portal to switch among approved Supporter amounts/)
-    assert.match(elementText(tree), /Manage or change support amount/)
+    assert.match(elementText(tree), /Change your support amount or billing period directly/)
+    assert.match(elementText(tree), /Change support amount or billing period/)
+    assert.match(elementText(tree), /Manage billing account/)
     assert.equal(
       findElements(
         tree,
         (element) => element.type === "form" && element.props.action === "/api/billing/portal",
       ).length,
-      1,
+      2,
     )
   })
 

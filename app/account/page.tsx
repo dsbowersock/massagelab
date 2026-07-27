@@ -688,8 +688,9 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
           <div id="billing-portal" className="flex flex-col gap-3">
             {canOpenBillingPortal ? (
               <form action="/api/billing/portal" method="post">
+                <input type="hidden" name="destination" value="manage" />
                 <Button type="submit" variant="outline">
-                  Manage subscription
+                  Manage billing account
                 </Button>
               </form>
             ) : null}
@@ -967,6 +968,14 @@ function accountNotice({
     return {
       title: "Billing portal unavailable",
       description: "This account does not have a paid subscription to manage yet.",
+      tone: "default" as const,
+    }
+  }
+
+  if (portal === "subscription-not-found") {
+    return {
+      title: "Subscription change unavailable",
+      description: "We could not find a current subscription to change. Open your billing account or contact support if you still need help.",
       tone: "default" as const,
     }
   }
