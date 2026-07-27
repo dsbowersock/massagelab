@@ -132,9 +132,10 @@ MassageLab creates Portal sessions on demand through two explicit actions.
 **Change support amount or billing period** uses Stripe's focused
 `subscription_update` flow for the account's persisted non-terminal
 subscription. **Manage billing account** opens the general Portal homepage for
-payment methods, billing address, invoices, and cancellation. Both return to
-the Account membership surface; neither changes the configured Product/Price
-allowlist.
+payment methods, billing address, invoices, and cancellation. After a focused
+change, Stripe returns the customer to the Portal homepage; both session types
+retain the Account membership surface as their app-return destination. Neither
+changes the configured Product/Price allowlist.
 
 All six current amount-specific Supporter Price IDs grant the same `SUPPORTER`
 membership and feature set. The legacy Supporter mapping remains a runtime
