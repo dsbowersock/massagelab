@@ -540,6 +540,8 @@ test("subscriber and purchased ownership stay distinct in active Chimer", async 
   expect(cardBox).not.toBeNull()
   expect(favoriteBox).not.toBeNull()
   expect(keepBox).not.toBeNull()
+  // At 360px, the ownership action must remain left of the favorite while both stay inside the card.
+  expect(keepBox!.x + keepBox!.width).toBeLessThanOrEqual(favoriteBox!.x)
   for (const controlBox of [favoriteBox!, keepBox!]) {
     expect(controlBox.x).toBeGreaterThanOrEqual(cardBox!.x)
     expect(controlBox.x + controlBox.width).toBeLessThanOrEqual(cardBox!.x + cardBox!.width + 1)
