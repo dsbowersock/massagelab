@@ -43,6 +43,8 @@ export async function POST(request: Request) {
 
   try {
     const destination = await requestedPortalDestination(request)
+    // Focused changes admit only active/trialing subscriptions, preferring the
+    // latest current period and using the most recent persisted update as a tie-breaker.
     const subscription = destination === BILLING_PORTAL_DESTINATIONS.SUBSCRIPTION_UPDATE
       ? await prisma.membershipSubscription.findFirst({
           where: {

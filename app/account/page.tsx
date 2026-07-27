@@ -977,6 +977,7 @@ function accountNotice({
     }
   }
 
+  // Focused subscription updates can fail independently of customer-wide billing management.
   if (portal === "subscription-not-found") {
     return {
       title: "Subscription change unavailable",
