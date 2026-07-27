@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getCurrentSession } from "@/auth"
 import { getSiteUrl } from "@/lib/auth-env"
+import { BILLING_PORTAL_DESTINATIONS } from "@/lib/billing-portal-destinations"
 import { createStripeCustomerPortalSession } from "@/lib/stripe-billing"
 import { prisma } from "@/lib/prisma"
 
@@ -17,11 +18,11 @@ function accountRedirect(code: string) {
 async function requestedPortalDestination(request: Request) {
   try {
     const formData = await request.formData()
-    return formData.get("destination") === "subscription-update"
-      ? "subscription-update"
-      : "manage"
+    return formData.get("destination") === BILLING_PORTAL_DESTINATIONS.SUBSCRIPTION_UPDATE
+      ? BILLING_PORTAL_DESTINATIONS.SUBSCRIPTION_UPDATE
+      : BILLING_PORTAL_DESTINATIONS.MANAGE
   } catch {
-    return "manage"
+    return BILLING_PORTAL_DESTINATIONS.MANAGE
   }
 }
 
@@ -42,7 +43,7 @@ export async function POST(request: Request) {
 
   try {
     const destination = await requestedPortalDestination(request)
-    const subscription = destination === "subscription-update"
+    const subscription = destination === BILLING_PORTAL_DESTINATIONS.SUBSCRIPTION_UPDATE
       ? await prisma.membershipSubscription.findFirst({
           where: {
             userId: session.user.id,
@@ -61,7 +62,10 @@ export async function POST(request: Request) {
         })
       : null
 
-    if (destination === "subscription-update" && !subscription) {
+    if (
+      destination === BILLING_PORTAL_DESTINATIONS.SUBSCRIPTION_UPDATE
+      && !subscription
+    ) {
       return accountRedirect("subscription-not-found")
     }
 

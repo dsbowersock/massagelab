@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 
+import { BILLING_PORTAL_DESTINATIONS } from "../lib/billing-portal-destinations.js"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
@@ -63,6 +64,9 @@ function portalPost({
       },
       "@/lib/auth-env": {
         getSiteUrl: () => "https://massagelab.app",
+      },
+      "@/lib/billing-portal-destinations": {
+        BILLING_PORTAL_DESTINATIONS,
       },
       "@/lib/prisma": {
         prisma: {

@@ -21,6 +21,7 @@ import {
   getAccountTabHref,
   selectAccountTab,
 } from "../lib/account-page.js"
+import { BILLING_PORTAL_DESTINATIONS } from "../lib/billing-portal-destinations.js"
 import { resolveMembershipPricingMode } from "../lib/membership.js"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
@@ -331,6 +332,7 @@ async function renderMembershipTab({
   const imports = `
     import {
       Button,
+      BILLING_PORTAL_DESTINATIONS,
       Card,
       CardContent,
       CardDescription,
@@ -362,6 +364,7 @@ async function renderMembershipTab({
     },
     "test-dependencies": {
       Button: passThroughElement("button"),
+      BILLING_PORTAL_DESTINATIONS,
       Card: Div,
       CardContent: Div,
       CardDescription: Div,

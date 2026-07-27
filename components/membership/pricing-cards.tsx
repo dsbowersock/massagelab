@@ -10,6 +10,7 @@ import type {
   MembershipPriceCatalog,
   MembershipPriceValue as MembershipPrice,
 } from "@/lib/account-surface-data"
+import { BILLING_PORTAL_DESTINATIONS } from "@/lib/billing-portal-destinations"
 import { getLegalDocumentByKey, legalDocumentAcceptanceId } from "@/lib/legal-documents"
 import { resolveMembershipPriceForInterval } from "@/lib/membership-pricing"
 import { cn } from "@/lib/utils"
@@ -234,7 +235,11 @@ function PlanActions({
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
           <form action="/api/billing/portal" method="post">
-            <input type="hidden" name="destination" value="subscription-update" />
+            <input
+              type="hidden"
+              name="destination"
+              value={BILLING_PORTAL_DESTINATIONS.SUBSCRIPTION_UPDATE}
+            />
             <MetalAttentionButton
               type="submit"
               variant="attention"
@@ -245,7 +250,11 @@ function PlanActions({
             </MetalAttentionButton>
           </form>
           <form action="/api/billing/portal" method="post">
-            <input type="hidden" name="destination" value="manage" />
+            <input
+              type="hidden"
+              name="destination"
+              value={BILLING_PORTAL_DESTINATIONS.MANAGE}
+            />
             <Button type="submit" variant="outline" className="w-full">
               Manage billing account
             </Button>

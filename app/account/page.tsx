@@ -23,6 +23,7 @@ import { BackgroundCommercePanel } from "@/components/account/BackgroundCommerce
 import { accountPageGroups, accountPageTabs, formatAccountDate, selectAccountTab } from "@/lib/account-page"
 import { normalizeSessionRoleAssignments } from "@/lib/account-role-assignments"
 import { getAccountSurfaceData } from "@/lib/account-surface-data"
+import { BILLING_PORTAL_DESTINATIONS } from "@/lib/billing-portal-destinations"
 import { getLegalDocumentByKey, legalDocumentAcceptanceId } from "@/lib/legal-documents"
 import { US_MASSAGE_JURISDICTIONS } from "@/lib/license-verification"
 import { FEATURE_KEYS, resolveMembershipPricingMode } from "@/lib/membership"
@@ -688,7 +689,11 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
           <div id="billing-portal" className="flex flex-col gap-3">
             {canOpenBillingPortal ? (
               <form action="/api/billing/portal" method="post">
-                <input type="hidden" name="destination" value="manage" />
+                <input
+                  type="hidden"
+                  name="destination"
+                  value={BILLING_PORTAL_DESTINATIONS.MANAGE}
+                />
                 <Button type="submit" variant="outline">
                   Manage billing account
                 </Button>
