@@ -1147,6 +1147,10 @@ describe("Supporter membership Stripe migration", () => {
       "",
     )
     assert.deepEqual(
+      fixture.portal.features.subscription_update.schedule_at_period_end.conditions,
+      [],
+    )
+    assert.deepEqual(
       portalUpdate.payload.expand,
       ["features.subscription_update.products"],
     )
