@@ -209,7 +209,7 @@ Current operations are verify-only. Do not mutate live Products, Prices,
 coupons, subscriptions, Portal settings, or entitlements. If verification does
 not return `COMPLETED`, stop and create a separately reviewed conditional
 recovery plan before any apply. The reviewed
-[Supporter Membership restructuring plan](../superpowers/plans/2026-07-23-supporter-membership-restructure.md)
+[three-Product Portal follow-up](../superpowers/plans/2026-07-26-supporter-membership-three-product-portal-followup.md)
 is historical evidence, not a current runbook.
 
 ### Supporter Recurring Tax Gate
@@ -255,7 +255,9 @@ Tax.
 - Configure the pinned `/api/billing/webhook` endpoint as enabled on the
   app's `2026-02-25.clover` Stripe API version with exactly the combined
   membership and background-commerce event contract below.
-- Set `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and the configured price IDs in local development and Vercel.
+- Supply Stripe credentials through the approved local and Vercel
+  secret-management/deployment process, and keep the exact six non-secret
+  Supporter Price ID mappings configured in both environments.
 - Use the Stripe CLI in test mode to forward webhooks during local checkout testing.
 - Treat `npm run stripe:migrate-supporter-membership -- --mode=verify` as the
   GET-only current authority and require `COMPLETED`. Do not run `apply`; any

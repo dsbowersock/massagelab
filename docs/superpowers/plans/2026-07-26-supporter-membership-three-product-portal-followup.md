@@ -125,7 +125,7 @@ The second recovery merged and the guarded live apply/verify reached
 catalog, immediate no-proration Portal switching, recurring Automatic Tax, and
 the pinned webhook contract.
 
-The first controlled Supporter smoke on July 27 did not reach Stripe. A form
+The first controlled Supporter smoke on July 27, 2026 did not reach Stripe. A form
 submitted from the valid `www.massagelab.app` alias was rejected because the
 origin guard compared it only with the configured apex origin. Identifier-safe
 database, Vercel, and Stripe checks confirmed that the attempt created no legal
