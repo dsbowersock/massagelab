@@ -21,7 +21,9 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
   authoritative and derives only the matching apex/`www` MassageLab alias.
   Browser-confirmed `same-origin` requests may select one of those explicit
   hosts; unconfigured, mismatched, forged, and contradictory Origin/Referer
-  evidence still fails before request parsing or billing.
+  evidence still fails before request parsing or billing. Explicit evidence
+  now returns directly from that allowlist decision instead of retaining an
+  unreachable request-URL fallback.
 - Added explicit account guidance for a genuinely invalid checkout request.
   Reconciled the billing runbook with the completed recurring-tax
   authorization, Ohio registration, catalog migration, and live readiness.
