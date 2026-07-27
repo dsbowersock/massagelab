@@ -21,14 +21,14 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
   authoritative and derives only the matching apex/`www` MassageLab alias.
   Browser-confirmed `same-origin` requests may select one of those explicit
   hosts; unconfigured, mismatched, forged, and contradictory Origin/Referer
-  evidence still fails before request parsing or billing. Explicit evidence
-  now returns directly from that allowlist decision instead of retaining an
-  unreachable request-URL fallback.
+  or Fetch Metadata evidence still fails before request parsing or billing.
+  Explicit evidence now returns directly from that allowlist decision instead
+  of retaining an unreachable request-URL fallback.
 - Added explicit account guidance for a genuinely invalid checkout request.
   Reconciled the billing runbook with the completed recurring-tax
   authorization, Ohio registration, catalog migration, and live readiness.
-  Focused security/Checkout coverage passes all 72 tests; repository lint,
-  typecheck, all 1,653 tests, and the production build pass. The candidate must
+  Focused security/Checkout coverage passes all 78 tests; repository lint,
+  typecheck, all 1,659 tests, and the production build pass. The candidate must
   merge and deploy before the controlled Supporter smoke is retried.
 
 ## 2026-07-26 — Three-Product Supporter Portal recovery
