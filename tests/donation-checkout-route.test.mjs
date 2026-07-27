@@ -124,6 +124,24 @@ describe("one-time support Checkout route", () => {
     )
   })
 
+  it("rejects contradictory Origin and Referer evidence", () => {
+    const request = new Request("https://www.massagelab.app/api/billing/checkout", {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        origin: "https://www.massagelab.app",
+        referer: "https://attacker.example/checkout",
+        "sec-fetch-site": "same-origin",
+      },
+      body: new URLSearchParams(),
+    })
+
+    assert.equal(
+      isTrustedCheckoutFormOrigin(request, "https://massagelab.app"),
+      false,
+    )
+  })
+
   it("rejects an unconfigured host despite internally consistent same-origin evidence", () => {
     const request = new Request("https://attacker.example/api/billing/checkout", {
       method: "POST",
