@@ -1015,7 +1015,7 @@ function accountNotice({
 function billingMessage(code: string) {
   if (code === "unsupported-plan") return "That membership option is not available yet."
   if (code === "price-not-configured") return "That membership option is not available yet."
-  if (code === "existing-subscription") return "Use Manage subscription to change your current membership in the Customer Portal."
+  if (code === "existing-subscription") return "Use Change support amount or billing period to update your current membership."
   if (code === "billing-terms-required") return "Accept the membership billing and refund terms before starting checkout."
   if (code === "account-not-found") return "The signed-in account could not be found."
   // Origin validation rejected the form, so retry only after reloading a trusted MassageLab page.

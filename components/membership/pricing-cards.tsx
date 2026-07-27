@@ -233,6 +233,7 @@ function PlanActions({
         <p className="text-sm text-muted-foreground">
           Change your support amount or billing period directly. Use your billing account for payment methods, billing address, invoices, or cancellation.
         </p>
+        {/* Focused updates require an eligible subscription; billing management remains customer-wide. */}
         <div className="grid gap-3 sm:grid-cols-2">
           <form action="/api/billing/portal" method="post">
             <input
