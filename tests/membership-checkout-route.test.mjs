@@ -128,6 +128,41 @@ describe("Membership Checkout POST route", () => {
     })
   }
 
+  for (const contentType of ["text/plain", "application/octet-stream", ""]) {
+    it(`rejects metadata-free ${contentType || "missing content type"} before parsing or billing`, async () => {
+      let jsonCalls = 0
+      const calls = checkoutCallCounts()
+      const headers = new Headers()
+      if (contentType) headers.set("content-type", contentType)
+      const request = {
+        url: "https://massagelab.app/api/billing/checkout",
+        headers,
+        json: async () => {
+          jsonCalls += 1
+          return {
+            membershipLevel: "SUPPORTER",
+            supporterAmountChoiceId: "support-1",
+          }
+        },
+      }
+
+      const response = await createMembershipCheckoutPostHandler(
+        checkoutDependencies(calls),
+      )(request)
+
+      assert.deepEqual(response, {
+        body: { error: "Invalid request origin" },
+        status: 403,
+      })
+      assert.equal(jsonCalls, 0)
+      assert.deepEqual(calls, {
+        ensureCustomer: 0,
+        createCheckout: 0,
+        membershipLookup: 0,
+      })
+    })
+  }
+
   for (const fetchSite of ["cross-site", "same-site"]) {
     it(`rejects ${fetchSite} browser JSON before parsing or billing work`, async () => {
       let jsonCalls = 0

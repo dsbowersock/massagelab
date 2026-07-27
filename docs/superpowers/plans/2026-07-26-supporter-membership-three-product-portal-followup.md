@@ -137,4 +137,6 @@ state. If verification returns any other state, stop and create a separately
 reviewed, incident-specific conditional recovery plan before mutation. After
 the checkout-origin repair merges and deploys, retry only the controlled
 Supporter smoke and verify taxed Checkout, webhook persistence, Supporter
-entitlements, Portal switching and cancellation, and any approved cleanup.
+entitlements, and Portal switching and cancellation. This validation does not
+authorize catalog or Portal-configuration cleanup. Any such mutation requires
+a separately reviewed, incident-specific recovery plan and explicit approval.
