@@ -65,3 +65,26 @@ objects by metadata and idempotency contract and converge without duplicates.
 Open and shepherd the follow-up PR, but do not merge it. Do not resume live
 Stripe apply or production environment changes until the user merges the PR
 and explicitly continues the rollout.
+
+## Live recovery checkpoint
+
+After PR #146 merged, the official live verify passed and apply safely reached
+the Portal reread gate. Stripe now contains the three classified amount
+Products and the six correct active Prices, and the Portal's expanded
+subscription-update Product list contains exactly those six Prices. No legacy
+cleanup or runtime environment change occurred.
+
+The ordinary Portal retrieve response omits
+`features.subscription_update.products` because that field is expandable.
+Migration inventory and post-write verification must request
+`features.subscription_update.products` explicitly. Stripe's form encoder also
+omits a nested JavaScript `conditions: []`, which leaves the dormant
+`decreasing_item_amount` period-end rule unchanged. Use Stripe's empty-value
+encoding for that condition list, then require Stripe's canonical reread to
+report an empty list before cleanup resumes.
+
+The next stop boundary is the recovery PR: validate and review this API-shape
+fix, open the PR, and do not merge it. After the user merges and continues,
+rerun apply with the same reviewed live dependencies, verify `COMPLETED`,
+configure the six production Price IDs, run live readiness, and perform the
+controlled Supporter smoke.

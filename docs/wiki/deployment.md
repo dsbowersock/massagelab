@@ -205,6 +205,16 @@ migration-only variables after the operation. Keep the six approved runtime
 Price IDs for public enrollment and retain the six legacy runtime Price
 mappings under the separate subscriber-inventory/webhook-reconciliation gate.
 
+Portal verification must retrieve
+`features.subscription_update.products` with an explicit expansion; Stripe
+omits that expandable allowlist from an ordinary configuration response.
+Clearing the dormant downgrade schedule also requires Stripe's empty-value
+encoding for `schedule_at_period_end.conditions`. A JavaScript empty array is
+not sufficient because the Stripe SDK omits it from the form request and leaves
+the prior condition unchanged. Cleanup remains blocked until an expanded reread
+shows the exact three-Product/six-Price allowlist and canonical empty schedule
+conditions.
+
 ## Sentry
 
 Sentry captures sanitized errors, traces, and privacy-safe diagnostic reports only.

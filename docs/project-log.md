@@ -26,6 +26,26 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
   classified $1/$10 Product, creates the other two Products, replaces and then
   retires the four wrong-owner Prices, installs the exact three-Product Portal
   allowlist, and remains idempotent after interruption.
+- Merged PR #146 and deployed its production source. The official live
+  preflight passed every dependency and classified the catalog as
+  `PRE_MIGRATION`.
+- The resumed live apply created and reread the $2/$20 and $5/$50 Products and
+  their four correct Prices, classified the reused $1/$10 Product, transferred
+  the managed lookup keys, and installed the exact three-Product/six-Price
+  Portal allowlist. Its post-write gate then stopped before cleanup because
+  Stripe omits the expandable Portal Product list on an ordinary retrieve and
+  preserves a nested schedule condition when the SDK serializes
+  `conditions: []`.
+- Live inspection with the documented Product expansion confirmed the exact
+  allowlist was installed. A reversible inactive test-mode Portal experiment
+  proved that an empty array leaves `decreasing_item_amount` in place while
+  Stripe's empty-value encoding clears it and returns canonical
+  `conditions: []`.
+- Added the focused recovery fix: every Portal verification read expands the
+  Product allowlist, the update requests expanded Products, immediate amount
+  switching uses Stripe's verified empty-value encoding, and the fixture
+  models Stripe's canonical response. The apply remains stopped before legacy
+  Price/Product retirement and coupon deletion until this recovery is merged.
 
 ## 2026-07-26 — Supporter production inventory and migration topology hardening
 
