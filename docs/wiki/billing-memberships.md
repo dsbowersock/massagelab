@@ -219,15 +219,17 @@ Price to use exclusive tax behavior, exact interval and `interval_count=1`, no
 trial, licensed usage, per-unit billing, no quantity transform, and no
 additional currencies, while its expanded Product must use `txcd_10000000`.
 
-The current `txcd_10000000` confirmation is sufficient to implement and test
-this contract, but it is not recorded as final professional authorization to
-deploy or mutate the live catalog. Keep the runtime gates false until that
-authorization, provider setup, registrations, full subscriber inventory, and
-read-only migration verification are complete. Automatic Tax on a new Checkout
-Session does not update an existing subscription; any existing recurring
-subscription needs a separate subscriber-specific tax review and update plan.
-One-time support remains outside this classification and continues to omit
-Automatic Tax.
+The current `txcd_10000000` classification is confirmed for MassageLab's
+present electronically supplied Supporter access. Production authorization,
+Stripe Tax provider setup, the applicable Ohio registration, complete
+subscriber inventory, and read-only migration verification are complete. The
+three-Product catalog migration is `COMPLETED`, all recurring-tax runtime gates
+are enabled, and live readiness passes against Stripe and the pinned webhook
+endpoint. The remaining rollout gate is a controlled subscription smoke after
+the checkout-origin repair is merged and deployed. Any future material change
+to the paid app offering requires a new classification review. One-time
+support remains outside this classification and continues to omit Automatic
+Tax.
 
 ## Stripe Setup Checklist
 

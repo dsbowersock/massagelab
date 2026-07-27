@@ -23,8 +23,10 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
   hosts; unconfigured, mismatched, and forged Origins still fail before request
   parsing or billing.
 - Added explicit account guidance for a genuinely invalid checkout request.
-  Focused security/Checkout coverage passes all 66 tests; repository lint,
-  typecheck, all 1,647 tests, and the production build pass. The candidate must
+  Reconciled the billing runbook with the completed recurring-tax
+  authorization, Ohio registration, catalog migration, and live readiness.
+  Focused security/Checkout coverage passes all 67 tests; repository lint,
+  typecheck, all 1,648 tests, and the production build pass. The candidate must
   merge and deploy before the controlled Supporter smoke is retried.
 
 ## 2026-07-26 — Three-Product Supporter Portal recovery
