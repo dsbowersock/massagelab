@@ -564,6 +564,31 @@ function assertMutationWasReretrieved(calls, mutationIndex, retrieveName, id) {
   )
 }
 
+/**
+ * Injects a Product into the second inventory pass used immediately before
+ * create, then returns an assertion that proves the replay path was exercised.
+ */
+function injectProductOnSecondInventoryPass(fixture, candidate) {
+  const listProducts = fixture.stripe.products.list.bind(fixture.stripe.products)
+  let productListCalls = 0
+  let injected = false
+  fixture.stripe.products.list = async (params) => {
+    productListCalls += 1
+    if (productListCalls === 2) {
+      fixture.products.set(candidate.id, structuredClone(candidate))
+      injected = true
+    }
+    return listProducts(params)
+  }
+
+  return () => {
+    const productLists = fixture.calls.filter(({ name }) => name === "products.list")
+    assert.equal(injected, true, "expected Product injection before create")
+    assert.ok(productLists.length >= 2, "expected a second Product inventory pass")
+    assert.equal(Object.hasOwn(productLists[1].payload, "active"), false)
+  }
+}
+
 describe("Supporter membership Stripe migration", () => {
   it("derives one legacy Supporter owner while preserving split-owner evidence", () => {
     const config = {
@@ -675,6 +700,14 @@ describe("Supporter membership Stripe migration", () => {
         support2Spec,
       ),
       false,
+    )
+    assert.equal(
+      targetSupporterProductReusable(
+        product("prod_therapist", "MassageLab Therapist"),
+        support1Spec,
+      ),
+      false,
+      "a non-Supporter Product must never be reused as an amount target",
     )
   })
 
@@ -1271,6 +1304,8 @@ describe("Supporter membership Stripe migration", () => {
     assert.equal(fixture.prices.get("price_partial_support_2_year").active, false)
     assert.equal(fixture.prices.get("price_partial_support_5_month").active, false)
     assert.equal(fixture.prices.get("price_partial_support_5_year").active, false)
+    assert.equal(fixture.prices.get("price_partial_support_1_month").active, true)
+    assert.equal(fixture.prices.get("price_partial_support_1_year").active, true)
   })
 
   it("rejects a managed wrong-owner Price whose target semantics do not match", async () => {
@@ -2844,28 +2879,20 @@ describe("Supporter membership Stripe migration", () => {
 
   it("rejects an archived stamped Product discovered immediately before create", async () => {
     const fixture = stripeFixture()
-    const listProducts = fixture.stripe.products.list.bind(fixture.stripe.products)
-    let productListCalls = 0
-    fixture.stripe.products.list = async (params) => {
-      productListCalls += 1
-      if (productListCalls === 2) {
-        fixture.products.set("prod_archived_support_2", {
-          id: "prod_archived_support_2",
-          object: "product",
-          active: false,
-          livemode: false,
-          name: "MassageLab Supporter Membership",
-          tax_code: "txcd_10000000",
-          metadata: {
-            app: "massagelab",
-            massagelab_catalog: SUPPORTER_MEMBERSHIP_CATALOG_VERSION,
-            massagelab_membership_level: "SUPPORTER",
-            massagelab_supporter_amount_choice: "support-2",
-          },
-        })
-      }
-      return listProducts(params)
-    }
+    const assertInjected = injectProductOnSecondInventoryPass(fixture, {
+      id: "prod_archived_support_2",
+      object: "product",
+      active: false,
+      livemode: false,
+      name: "MassageLab Supporter Membership",
+      tax_code: "txcd_10000000",
+      metadata: {
+        app: "massagelab",
+        massagelab_catalog: SUPPORTER_MEMBERSHIP_CATALOG_VERSION,
+        massagelab_membership_level: "SUPPORTER",
+        massagelab_supporter_amount_choice: "support-2",
+      },
+    })
 
     await assert.rejects(
       runSupporterMembershipMigration({
@@ -2878,9 +2905,7 @@ describe("Supporter membership Stripe migration", () => {
         return true
       },
     )
-    const productLists = fixture.calls.filter(({ name }) => name === "products.list")
-    assert.ok(productLists.length >= 2, "expected a second Product inventory pass")
-    assert.equal(Object.hasOwn(productLists[1].payload, "active"), false)
+    assertInjected()
     assert.deepEqual(
       mutationCalls(fixture).map(({ name, id }) => ({ name, id })),
       [{ name: "products.update", id: "prod_supporter" }],
@@ -2893,29 +2918,21 @@ describe("Supporter membership Stripe migration", () => {
 
   it("reuses a classified Product with stale display copy discovered before create", async () => {
     const fixture = stripeFixture()
-    const listProducts = fixture.stripe.products.list.bind(fixture.stripe.products)
-    let productListCalls = 0
-    fixture.stripe.products.list = async (params) => {
-      productListCalls += 1
-      if (productListCalls === 2) {
-        fixture.products.set("prod_stale_support_2", {
-          id: "prod_stale_support_2",
-          object: "product",
-          active: true,
-          livemode: false,
-          name: "MassageLab Supporter Membership",
-          description: "Stale support amount copy",
-          tax_code: "txcd_10000000",
-          metadata: {
-            app: "massagelab",
-            massagelab_catalog: SUPPORTER_MEMBERSHIP_CATALOG_VERSION,
-            massagelab_membership_level: "SUPPORTER",
-            massagelab_supporter_amount_choice: "support-2",
-          },
-        })
-      }
-      return listProducts(params)
-    }
+    const assertInjected = injectProductOnSecondInventoryPass(fixture, {
+      id: "prod_stale_support_2",
+      object: "product",
+      active: true,
+      livemode: false,
+      name: "MassageLab Supporter Membership",
+      description: "Stale support amount copy",
+      tax_code: "txcd_10000000",
+      metadata: {
+        app: "massagelab",
+        massagelab_catalog: SUPPORTER_MEMBERSHIP_CATALOG_VERSION,
+        massagelab_membership_level: "SUPPORTER",
+        massagelab_supporter_amount_choice: "support-2",
+      },
+    })
 
     const result = await runSupporterMembershipMigration({
       stripe: fixture.stripe,
@@ -2924,7 +2941,7 @@ describe("Supporter membership Stripe migration", () => {
     })
 
     assert.equal(result.state, "COMPLETED")
-    assert.ok(productListCalls >= 2, "expected a pre-create Product inventory pass")
+    assertInjected()
     assert.equal(
       fixture.calls.some(
         ({ name, id }) => name === "products.update" && id === "prod_stale_support_2",
