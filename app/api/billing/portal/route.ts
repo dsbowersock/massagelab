@@ -64,7 +64,7 @@ export async function POST(request: Request) {
 
     if (
       destination === BILLING_PORTAL_DESTINATIONS.SUBSCRIPTION_UPDATE
-      && !subscription
+      && !subscription?.stripeSubscriptionId
     ) {
       return accountRedirect("subscription-not-found")
     }

@@ -160,16 +160,24 @@ describe("Customer Portal POST route", () => {
   })
 
   it("fails closed before Stripe when no current subscription can be changed", async () => {
-    const { calls, POST } = portalPost({ subscription: null })
+    for (const subscription of [
+      null,
+      {
+        stripeSubscriptionId: "",
+        status: "active",
+      },
+    ]) {
+      const { calls, POST } = portalPost({ subscription })
 
-    const response = await POST(portalRequest("subscription-update"))
+      const response = await POST(portalRequest("subscription-update"))
 
-    assert.deepEqual(response, {
-      status: 303,
-      url: "https://massagelab.app/account?portal=subscription-not-found",
-    })
-    assert.equal(calls.subscriptionQueries.length, 1)
-    assert.deepEqual(calls.portalInputs, [])
+      assert.deepEqual(response, {
+        status: 303,
+        url: "https://massagelab.app/account?portal=subscription-not-found",
+      })
+      assert.equal(calls.subscriptionQueries.length, 1)
+      assert.deepEqual(calls.portalInputs, [])
+    }
   })
 
   it("rejects incomplete and paused subscriptions from the focused change flow", async () => {
