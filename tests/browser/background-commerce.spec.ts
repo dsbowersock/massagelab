@@ -532,14 +532,20 @@ test("subscriber and purchased ownership stay distinct in active Chimer", async 
   })
   await expect(favorite).toBeVisible()
   await expect(keepAfterMembership).toBeVisible()
-  const [cardBox, favoriteBox] = await Promise.all([
+  const [cardBox, favoriteBox, keepBox] = await Promise.all([
     responsiveCard.boundingBox(),
     favorite.boundingBox(),
+    keepAfterMembership.boundingBox(),
   ])
   expect(cardBox).not.toBeNull()
   expect(favoriteBox).not.toBeNull()
-  expect(favoriteBox!.x).toBeGreaterThanOrEqual(cardBox!.x)
-  expect(favoriteBox!.x + favoriteBox!.width).toBeLessThanOrEqual(cardBox!.x + cardBox!.width + 1)
+  expect(keepBox).not.toBeNull()
+  for (const controlBox of [favoriteBox!, keepBox!]) {
+    expect(controlBox.x).toBeGreaterThanOrEqual(cardBox!.x)
+    expect(controlBox.x + controlBox.width).toBeLessThanOrEqual(cardBox!.x + cardBox!.width + 1)
+    expect(controlBox.y).toBeGreaterThanOrEqual(cardBox!.y)
+    expect(controlBox.y + controlBox.height).toBeLessThanOrEqual(cardBox!.y + cardBox!.height + 1)
+  }
 
   await keepAfterMembership.click()
   const keep = page.getByRole("dialog", { name: "Keep Aurora field" })
