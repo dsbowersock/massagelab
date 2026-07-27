@@ -496,7 +496,11 @@ function stripeFixture() {
         async retrieve(id, params = {}) {
           record("portal.retrieve", id, params)
           if (portal.id !== id) throw missing("portal configuration")
-          return structuredClone(portal)
+          const result = structuredClone(portal)
+          if (!params.expand?.includes("features.subscription_update.products")) {
+            delete result.features.subscription_update.products
+          }
+          return result
         },
         async update(id, payload) {
           record("portal.update", id, payload)
