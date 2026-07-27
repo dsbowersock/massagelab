@@ -79,26 +79,24 @@ describe("MembershipPricingCards configured price rendering", () => {
     assert.match(elementText(portalPriceTiles[0]), /\$1.*\/month/)
     assert.match(elementText(portalCards), /Change support amount or billing period/)
     assert.match(elementText(portalCards), /Manage billing account/)
-    assert.equal(
-      findElements(
-        portalCards,
-        (element) => (
-          element.type === "form"
-          && element.props.action === "/api/billing/portal"
-          && element.props.method === "post"
-        ),
-      ).length,
-      2,
+    const portalForms = findElements(
+      portalCards,
+      (element) => (
+        element.type === "form"
+        && element.props.action === "/api/billing/portal"
+        && element.props.method === "post"
+      ),
     )
+    assert.equal(portalForms.length, 2)
     assert.deepEqual(
-      findElements(
-        portalCards,
+      portalForms.map((form) => findElements(
+        form,
         (element) => (
           element.type === "input"
           && element.props.name === "destination"
         ),
-      ).map((element) => element.props.value),
-      ["subscription-update", "manage"],
+      ).map((element) => element.props.value)),
+      [["subscription-update"], ["manage"]],
     )
     assert.equal(
       findElements(
