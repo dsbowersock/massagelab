@@ -493,15 +493,26 @@ function stripeFixture() {
     },
     billingPortal: {
       configurations: {
-        async retrieve(id) {
-          record("portal.retrieve", id)
+        async retrieve(id, params = {}) {
+          record("portal.retrieve", id, params)
           if (portal.id !== id) throw missing("portal configuration")
-          return structuredClone(portal)
+          const result = structuredClone(portal)
+          if (!params.expand?.includes("features.subscription_update.products")) {
+            delete result.features.subscription_update.products
+          }
+          return result
         },
         async update(id, payload) {
           record("portal.update", id, payload)
           if (portal.id !== id) throw missing("portal configuration")
           const features = structuredClone(payload.features)
+          if (
+            features.subscription_update.schedule_at_period_end?.conditions === ""
+          ) {
+            features.subscription_update.schedule_at_period_end = {
+              conditions: [],
+            }
+          }
           features.subscription_update.products = features.subscription_update.products.map(
             (entry) => ({
               ...entry,
@@ -514,7 +525,6 @@ function stripeFixture() {
           )
           portal = {
             ...portal,
-            ...structuredClone(payload),
             features,
           }
           return structuredClone(portal)
@@ -1135,6 +1145,28 @@ describe("Supporter membership Stripe migration", () => {
     assert.deepEqual(
       portalUpdate.payload.features.subscription_update.products[0].adjustable_quantity,
       { enabled: false },
+    )
+    assert.equal(
+      portalUpdate.payload.features.subscription_update.schedule_at_period_end.conditions,
+      "",
+    )
+    assert.deepEqual(
+      fixture.portal.features.subscription_update.schedule_at_period_end.conditions,
+      [],
+    )
+    assert.deepEqual(
+      portalUpdate.payload.expand,
+      ["features.subscription_update.products"],
+    )
+    const portalRetrieves = fixture.calls.filter(
+      ({ name }) => name === "portal.retrieve",
+    )
+    assert.ok(portalRetrieves.length > 0)
+    assert.equal(
+      portalRetrieves.every(({ payload }) => (
+        payload?.expand?.includes("features.subscription_update.products")
+      )),
+      true,
     )
 
     const names = fixture.calls.map(({ name }) => name)

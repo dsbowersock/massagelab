@@ -169,11 +169,13 @@ and six Prices. Target Price preparation may transfer a managed lookup key from
 a verified retiring Price to its selected replacement before the Portal update;
 the source Price remains active, and this narrowly fingerprinted intermediate
 state is recoverable on rerun. Apply then updates the Portal to expose only the
-selected Prices and successfully re-retrieves the exact three-Product
-configuration. That Portal reread is the gate before destructive cleanup
-begins: a failed reread stops apply without deactivating a legacy Price,
-archiving a Therapist or Practice Product, or deleting a coupon. A managed
-lookup-key transfer that already succeeded remains safely resumable.
+selected Prices and successfully rereads the explicitly expanded
+`features.subscription_update.products` allowlist as the exact
+three-Product/six-Price configuration. That successful expanded reread is the
+gate before destructive cleanup begins: a failed reread stops apply without
+deactivating a legacy Price, archiving a Therapist or Practice Product, or
+deleting a coupon. A managed lookup-key transfer that already succeeded remains
+safely resumable.
 
 Only after the Portal gate succeeds does apply perform cleanup in this order:
 it retires the legacy $9/$90, $29/$279, and $79/$759 Prices; the older $1/$10,
@@ -204,6 +206,16 @@ and migration inputs have all been independently reviewed. Remove the
 migration-only variables after the operation. Keep the six approved runtime
 Price IDs for public enrollment and retain the six legacy runtime Price
 mappings under the separate subscriber-inventory/webhook-reconciliation gate.
+
+Portal verification must retrieve
+`features.subscription_update.products` with an explicit expansion; Stripe
+omits that expandable allowlist from an ordinary configuration response.
+Clearing the dormant downgrade schedule also requires Stripe's empty-value
+encoding for `schedule_at_period_end.conditions`. A JavaScript empty array is
+not sufficient because the Stripe SDK omits it from the form request and leaves
+the prior condition unchanged. Cleanup remains blocked until an expanded reread
+shows the exact three-Product/six-Price allowlist and canonical empty schedule
+conditions.
 
 ## Sentry
 

@@ -19,6 +19,9 @@ export { TARGET_PRICE_SPECS }
 const SUPPORTER_PRODUCT_NAME = "MassageLab Supporter Membership"
 const CREATE_NEW_PRODUCT = "CREATE_NEW"
 const NO_ALLOWED_SUBSCRIPTION = "none"
+const PORTAL_PRODUCT_EXPANSIONS = Object.freeze([
+  "features.subscription_update.products",
+])
 // Descriptions are the operator-visible Stripe display contract for the three
 // same-benefit amounts. priceKeys must partition TARGET_PRICE_SPECS exactly so
 // targetProductSpecForPrice can resolve every approved Price without fallback.
@@ -623,6 +626,19 @@ function portalBillingManagementEnabled(features) {
 }
 
 /**
+ * Retrieves the Portal configuration with its expandable Product allowlist.
+ *
+ * Stripe omits `features.subscription_update.products` unless callers request
+ * this expansion. Migration verification must compare the real allowlist, not
+ * mistake an unexpanded response for an empty configuration.
+ */
+function retrievePortalConfiguration(stripe, id) {
+  return stripe.billingPortal.configurations.retrieve(id, {
+    expand: [...PORTAL_PRODUCT_EXPANSIONS],
+  })
+}
+
+/**
  * Verifies the Price-only switching contract required after migration.
  * `scheduleAtPeriodEndConditions` is the exact completed-state policy; its
  * default empty list intentionally validates immediate changes instead of
@@ -809,7 +825,7 @@ async function collectInventory(stripe, config, { allowTransitional = false } = 
 
     const [retrievedBalance, retrievedPortal] = await Promise.all([
       stripe.balance.retrieve(),
-      stripe.billingPortal.configurations.retrieve(config.portalConfigurationId),
+      retrievePortalConfiguration(stripe, config.portalConfigurationId),
       scanAll(
         stripe.subscriptions.list.bind(stripe.subscriptions),
         { status: "all", limit: 100 },
@@ -1461,10 +1477,11 @@ function needsPriceUpdate(current, spec) {
  * Builds the exact Customer Portal feature payload.
  *
  * `products` is the order-significant array of `{ product, prices }` entries
- * later compared by portalTopologyMatches after normalization. Empty
- * schedule-at-period-end conditions intentionally make same-benefit amount
- * changes immediate while retaining the billing-cycle anchor and no-proration
- * policy.
+ * later compared by portalTopologyMatches after normalization. Stripe's form
+ * API ignores a JavaScript empty array for nested condition lists, so the
+ * documented empty-value encoding is required to clear the dormant downgrade
+ * condition and make amount changes immediate. Normalization treats Stripe's
+ * canonical empty response and this mutation payload as the same policy.
  */
 function desiredPortalFeatures(currentFeatures, products) {
   const cancellationReason = currentFeatures.subscription_cancel?.cancellation_reason
@@ -1505,7 +1522,7 @@ function desiredPortalFeatures(currentFeatures, products) {
       billing_cycle_anchor: "unchanged",
       proration_behavior: "none",
       schedule_at_period_end: {
-        conditions: [],
+        conditions: "",
       },
       trial_update_behavior: "end_trial",
       products: products.map(({ product, prices }) => ({
@@ -1669,11 +1686,10 @@ async function applyPlan(stripe, config, inventory) {
   ) {
     await stripe.billingPortal.configurations.update(config.portalConfigurationId, {
       features: desiredFeatures,
+      expand: [...PORTAL_PRODUCT_EXPANSIONS],
     })
     await retrieveAfterMutation(
-      stripe.billingPortal.configurations.retrieve.bind(
-        stripe.billingPortal.configurations,
-      ),
+      retrievePortalConfiguration.bind(null, stripe),
       config.portalConfigurationId,
       (candidate) => jsonEqual(
         normalizePortalFeatures(candidate.features),
