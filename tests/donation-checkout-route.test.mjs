@@ -132,6 +132,14 @@ describe("one-time support Checkout route", () => {
       expected: false,
     },
     {
+      label: "rejects an Origin header containing a path",
+      request: formRequest({
+        origin: "https://massagelab.app/checkout",
+        fetchSite: "same-origin",
+      }),
+      expected: false,
+    },
+    {
       label: "rejects an unconfigured Referer without Origin despite same-origin metadata",
       request: formRequest({
         referer: "https://attacker.example/checkout",
