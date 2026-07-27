@@ -522,8 +522,26 @@ test("subscriber and purchased ownership stay distinct in active Chimer", async 
 
   const aurora = await centerPremium(page, AURORA_ID)
   await expect(accessCard(aurora)).toHaveAttribute("data-background-access-state", "included-subscription")
-  await expect(accessCard(aurora).getByRole("button", { name: "Keep Aurora field permanently" })).toBeVisible()
-  await accessCard(aurora).getByRole("button", { name: "Keep Aurora field permanently" }).click()
+  await expect(accessCard(aurora)).toContainText("Included with membership")
+  await page.setViewportSize({ width: 360, height: 780 })
+  const responsiveAurora = await centerPremium(page, AURORA_ID)
+  const responsiveCard = accessCard(responsiveAurora)
+  const favorite = responsiveCard.locator("[data-carousel-favorite-action]")
+  const keepAfterMembership = responsiveCard.getByRole("button", {
+    name: "Keep after membership: Aurora field",
+  })
+  await expect(favorite).toBeVisible()
+  await expect(keepAfterMembership).toBeVisible()
+  const [cardBox, favoriteBox] = await Promise.all([
+    responsiveCard.boundingBox(),
+    favorite.boundingBox(),
+  ])
+  expect(cardBox).not.toBeNull()
+  expect(favoriteBox).not.toBeNull()
+  expect(favoriteBox!.x).toBeGreaterThanOrEqual(cardBox!.x)
+  expect(favoriteBox!.x + favoriteBox!.width).toBeLessThanOrEqual(cardBox!.x + cardBox!.width + 1)
+
+  await keepAfterMembership.click()
   const keep = page.getByRole("dialog", { name: "Keep Aurora field" })
   await expect(keep.getByRole("link", { name: "Unlock all" })).toHaveCount(0)
   await page.keyboard.press("Escape")
