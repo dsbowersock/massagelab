@@ -177,6 +177,7 @@ export function BackgroundCarouselCard({
       </div>
 
       {detailLevel === "full" ? (
+        /* Keep favorite in its own column so the ownership action can wrap on narrow cards. */
         <div className="absolute inset-x-3 top-3 z-20 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
           <div className="flex min-w-0 flex-wrap gap-2">
             <Button
