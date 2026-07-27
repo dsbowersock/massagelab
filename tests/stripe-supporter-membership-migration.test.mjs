@@ -566,6 +566,76 @@ function mutationCalls(fixture) {
   ))
 }
 
+/**
+ * Recreates the exact live checkpoint where the target Portal topology was
+ * committed but its dormant schedule remained and cleanup never started.
+ */
+async function seedDormantTargetPortalTransition(fixture) {
+  const retainedProducts = new Map(
+    [...fixture.products.entries()].map(([id, entry]) => [
+      id,
+      structuredClone(entry),
+    ]),
+  )
+  const retainedPrices = new Map(
+    [...fixture.prices.entries()].map(([id, entry]) => [
+      id,
+      structuredClone(entry),
+    ]),
+  )
+  const retainedCoupons = new Map(
+    [...fixture.coupons.entries()].map(([id, entry]) => [
+      id,
+      structuredClone(entry),
+    ]),
+  )
+
+  await runSupporterMembershipMigration({
+    stripe: fixture.stripe,
+    mode: "apply",
+    env: migrationEnv(),
+  })
+  for (const productId of ["prod_therapist", "prod_practice"]) {
+    fixture.products.set(productId, retainedProducts.get(productId))
+  }
+  for (const [priceId, entry] of retainedPrices) {
+    fixture.prices.set(priceId, entry)
+  }
+  for (const [couponId, entry] of retainedCoupons) {
+    fixture.coupons.set(couponId, entry)
+  }
+  fixture.portal.features.subscription_update.schedule_at_period_end.conditions = [
+    { type: "decreasing_item_amount" },
+  ]
+  fixture.calls.length = 0
+
+  const productIdFor = (amountChoice) => (
+    [...fixture.products.values()].find(
+      (entry) => (
+        entry.metadata?.massagelab_supporter_amount_choice === amountChoice
+      ),
+    )?.id
+  )
+  const priceIdFor = (priceKey) => (
+    [...fixture.prices.values()].find(
+      (entry) => (
+        entry.metadata?.massagelab_supporter_price_key === priceKey
+      ),
+    )?.id
+  )
+  return migrationEnv({
+    MASSAGELAB_STRIPE_MIGRATION_SUPPORTER_PRODUCT_ID: productIdFor("support-1"),
+    MASSAGELAB_STRIPE_MIGRATION_SUPPORT_2_PRODUCT_ID: productIdFor("support-2"),
+    MASSAGELAB_STRIPE_MIGRATION_SUPPORT_5_PRODUCT_ID: productIdFor("support-5"),
+    STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: priceIdFor("support-1-month"),
+    STRIPE_SUPPORTER_1_YEARLY_PRICE_ID: priceIdFor("support-1-year"),
+    STRIPE_SUPPORTER_2_MONTHLY_PRICE_ID: priceIdFor("support-2-month"),
+    STRIPE_SUPPORTER_2_YEARLY_PRICE_ID: priceIdFor("support-2-year"),
+    STRIPE_SUPPORTER_5_MONTHLY_PRICE_ID: priceIdFor("support-5-month"),
+    STRIPE_SUPPORTER_5_YEARLY_PRICE_ID: priceIdFor("support-5-year"),
+  })
+}
+
 /** Proves a recorded write was followed by a fresh read of the same resource. */
 function assertMutationWasReretrieved(calls, mutationIndex, retrieveName, id) {
   assert.equal(
@@ -2850,6 +2920,83 @@ describe("Supporter membership Stripe migration", () => {
     })
     assert.equal(rerun.state, "COMPLETED")
     assert.deepEqual(mutationCalls(fixture), [])
+  })
+
+  it("resumes the exact target Portal topology with its dormant schedule before cleanup", async () => {
+    const fixture = stripeFixture()
+    const env = await seedDormantTargetPortalTransition(fixture)
+
+    await assert.rejects(
+      runSupporterMembershipMigration({
+        stripe: fixture.stripe,
+        mode: "verify",
+        env,
+      }),
+      (error) => {
+        assert.equal(error.failureCodes.includes("migration_state_mixed"), true)
+        return true
+      },
+    )
+    assert.deepEqual(mutationCalls(fixture), [])
+
+    fixture.calls.length = 0
+    const result = await runSupporterMembershipMigration({
+      stripe: fixture.stripe,
+      mode: "apply",
+      env,
+    })
+
+    assert.equal(result.state, "COMPLETED")
+    const mutations = mutationCalls(fixture)
+    assert.equal(mutations[0]?.name, "portal.update")
+    assert.deepEqual(
+      fixture.portal.features.subscription_update.schedule_at_period_end.conditions,
+      [],
+    )
+    assert.equal(
+      LEGACY_PRICE_SPECS.every(([id]) => fixture.prices.get(id).active === false),
+      true,
+    )
+    assert.equal(fixture.products.get("prod_therapist").active, false)
+    assert.equal(fixture.products.get("prod_practice").active, false)
+    assert.equal(fixture.coupons.size, 0)
+  })
+
+  it("rejects dormant-schedule recovery after any cleanup dependency changed", async () => {
+    const corruptions = [
+      ["legacy Price retired", (fixture) => {
+        fixture.prices.get("price_supporter_month").active = false
+      }],
+      ["legacy Product retired", (fixture) => {
+        fixture.products.get("prod_therapist").active = false
+      }],
+      ["coupon deleted", (fixture) => {
+        fixture.coupons.delete("coupon_student")
+      }],
+    ]
+
+    for (const [label, corrupt] of corruptions) {
+      const fixture = stripeFixture()
+      const env = await seedDormantTargetPortalTransition(fixture)
+      corrupt(fixture)
+
+      await assert.rejects(
+        runSupporterMembershipMigration({
+          stripe: fixture.stripe,
+          mode: "apply",
+          env,
+        }),
+        (error) => {
+          assert.equal(
+            error.failureCodes.includes("migration_state_mixed"),
+            true,
+            label,
+          )
+          return true
+        },
+      )
+      assert.deepEqual(mutationCalls(fixture), [], label)
+    }
   })
 
   it("discovers an ambiguous committed Product before replaying its create", async () => {

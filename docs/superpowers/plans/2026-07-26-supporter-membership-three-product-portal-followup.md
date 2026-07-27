@@ -81,11 +81,30 @@ Migration inventory and post-write verification must request
 `features.subscription_update.products` explicitly. The JavaScript SDK's form
 serialization also omits a nested `conditions: []` before the request is sent,
 which leaves the dormant `decreasing_item_amount` period-end rule unchanged.
-Use Stripe's empty-value encoding for that condition list, then require
-Stripe's canonical reread to report an empty list before cleanup resumes.
+Send `features.subscription_update.schedule_at_period_end.conditions` as the
+empty string (`conditions: ""`), matching the migration payload and its
+request-shape test. Then require Stripe's canonical reread to report an empty
+list before cleanup resumes.
 
-The next stop boundary is the recovery PR: validate and review this API-shape
-fix, open the PR, and do not merge it. After the user merges and continues,
+The next stop boundary is the second apply-only recovery PR: validate and
+review the dormant-schedule repair, and do not resume live apply until it is
+merged and the user explicitly continues. After the user merges and continues,
 rerun apply with the same reviewed live dependencies, verify `COMPLETED`,
 configure the six production Price IDs, run live readiness, and perform the
 controlled Supporter smoke.
+
+## Second live recovery checkpoint
+
+PR #147 merged and its production deployment became ready. Identifier-safe
+live inventory still showed the exact target three-Product/six-Price Portal
+topology with the dormant `decreasing_item_amount` schedule condition, while
+all legacy cleanup candidates and both coupons remained untouched.
+
+The post-merge apply stopped before mutation because preflight classified that
+exact new-topology plus old-schedule state as an arbitrary mixed state. The
+second recovery must remain apply-only and accept no broader subset: all target
+Products and Prices must match, every cleanup Price and Product must still be
+active, and both verified zero-redemption coupons must still exist. Apply then
+updates and canonically rereads the Portal before it can retire a Price,
+Product, or coupon. Verify continues to reject the intermediate until the
+entire migration reaches `COMPLETED`.
