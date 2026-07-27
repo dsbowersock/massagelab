@@ -124,6 +124,39 @@ describe("one-time support Checkout route", () => {
     )
   })
 
+  it("rejects an unconfigured host despite internally consistent same-origin evidence", () => {
+    const request = new Request("https://attacker.example/api/billing/checkout", {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        origin: "https://attacker.example",
+        "sec-fetch-site": "same-origin",
+      },
+      body: new URLSearchParams(),
+    })
+
+    assert.equal(
+      isTrustedCheckoutFormOrigin(request, "https://massagelab.app"),
+      false,
+    )
+  })
+
+  it("rejects same-origin metadata without Origin or Referer on an unconfigured host", () => {
+    const request = new Request("https://attacker.example/api/billing/checkout", {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        "sec-fetch-site": "same-origin",
+      },
+      body: new URLSearchParams(),
+    })
+
+    assert.equal(
+      isTrustedCheckoutFormOrigin(request, "https://massagelab.app"),
+      false,
+    )
+  })
+
   for (const [label, siteUrl] of [
     ["omitted", ""],
     ["invalid", "not a URL"],
@@ -407,6 +440,7 @@ describe("one-time support Checkout route", () => {
       },
     })
     const request = {
+      url: "https://massagelab.app/api/billing/donation",
       headers: new Headers({
         "content-type": "multipart/form-data; boundary=broken",
         "sec-fetch-site": "same-origin",

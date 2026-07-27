@@ -18,12 +18,13 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
   absent Stripe Customer search result, and configured-origin policy localized
   the failure to the form-origin guard rather than Stripe or tax.
 - Added alias-safe origin validation: the canonical configured origin remains
-  authoritative, while browser-confirmed `same-origin` requests may use the
-  actual request URL origin so the apex and `www` public aliases both work.
-  Mismatched and forged Origins still fail before request parsing or billing.
+  authoritative and derives only the matching apex/`www` MassageLab alias.
+  Browser-confirmed `same-origin` requests may select one of those explicit
+  hosts; unconfigured, mismatched, and forged Origins still fail before request
+  parsing or billing.
 - Added explicit account guidance for a genuinely invalid checkout request.
-  Focused security/Checkout coverage passes 64 tests; repository lint,
-  typecheck, all 1,645 tests, and the production build pass. The candidate must
+  Focused security/Checkout coverage passes all 66 tests; repository lint,
+  typecheck, all 1,647 tests, and the production build pass. The candidate must
   merge and deploy before the controlled Supporter smoke is retried.
 
 ## 2026-07-26 — Three-Product Supporter Portal recovery

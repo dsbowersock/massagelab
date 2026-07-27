@@ -134,6 +134,8 @@ catalog choice and must not authorize new Checkout. Legacy Therapist and
 Practice mappings separately reconcile existing professional subscriptions
 until their controlled retirement gates pass.
 
+Do not remove the six legacy runtime Price mappings until subscriber inventory proves none remain and webhook reconciliation is final.
+
 New enrollment is serialized at Stripe, not only hidden in the UI. The server
 fully paginates a bounded customer Session inventory, recognizes only
 MassageLab-owned paid-membership Sessions, and reuses an open Session only when

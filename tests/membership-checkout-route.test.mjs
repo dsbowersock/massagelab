@@ -486,6 +486,7 @@ describe("Membership Checkout POST route", () => {
   it("routes unexpected form field normalization failures through the form-safe Checkout error response", async (context) => {
     const calls = checkoutCallCounts()
     const request = {
+      url: "https://massagelab.app/api/billing/checkout",
       headers: new Headers({
         "content-type": "application/x-www-form-urlencoded",
         "sec-fetch-site": "same-origin",
