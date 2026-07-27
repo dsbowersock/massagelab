@@ -1004,6 +1004,7 @@ function billingMessage(code: string) {
   if (code === "existing-subscription") return "Use Manage subscription to change your current membership in the Customer Portal."
   if (code === "billing-terms-required") return "Accept the membership billing and refund terms before starting checkout."
   if (code === "account-not-found") return "The signed-in account could not be found."
+  if (code === "invalid-request") return "Reload this page from MassageLab and try checkout again."
   if (code === "checkout-error") return "We could not open checkout right now. Please try again or contact support if this continues."
   return "We could not open checkout right now."
 }

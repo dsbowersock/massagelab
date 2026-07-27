@@ -73,15 +73,13 @@ MassageLab stores:
 - `studentStatus`
 - `eligibleForTherapistDiscount`
 
-Do not offer a Student-to-Therapist upgrade or coupon. That option is approved
-for removal as part of the separate Supporter migration.
+Do not offer a Student-to-Therapist upgrade or coupon.
 
 ## Coupons
 
-The legacy Student-to-Therapist and Early Access coupons are not approved for
-new use. The separate Supporter migration must re-verify that neither coupon
-has redemptions before removing or archiving it, turn off the early-access
-application path, and preserve any unexpectedly discovered subscriber terms.
+The legacy Student-to-Therapist and Early Access coupons were verified at zero
+redemptions and removed by the completed Supporter migration. They are not
+approved for recreation or new use.
 
 ## Feature Keys
 
@@ -152,15 +150,15 @@ interval on a Product. Each Product has one monthly and one annual Price, the
 same name, tax code, Supporter entitlement metadata, and amount-choice
 metadata. This is an operational representation, not three feature tiers.
 
-The deployable migration command creates or verifies these three Products and
-six exclusive recurring Prices, removes only the two independently verified
-zero-redemption legacy coupons, retires all six unapproved higher Prices
+The completed migration created or verified these three Products and six
+exclusive recurring Prices, removed only the two independently verified
+zero-redemption legacy coupons, retired all six unapproved higher Prices
 ($9/$90, $29/$279, and $79/$759) and the older approved-amount Price objects
 that cannot be reassigned from their legacy tier Products, and
-limits Customer Portal switching to those six Prices while preserving billing
+limited Customer Portal switching to those six Prices while preserving billing
 details, payment methods, invoices, and cancellation. Cross-Product amount
 changes keep the existing billing-cycle anchor, create no prorations, and are
-not scheduled for period end. It inventories all
+not scheduled for period end. The command inventories all
 relevant subscriptions before mutation. Test mode permits a concrete, reviewed
 test-subscription identifier only when it is the sole retained relevant
 subscription; `none` is permitted only after inventory proves zero relevant
@@ -231,44 +229,28 @@ Automatic Tax.
 
 ## Stripe Setup Checklist
 
-- Until the Supporter migration is applied, preserve the current mapped Price
-  IDs for webhook reconciliation and keep new Therapist and Practice enrollment
-  unavailable.
-- Do not remove the six legacy runtime Price mappings until subscriber inventory proves none remain and webhook reconciliation is final.
-- Apply the migration only after existing-subscriber, recurring-tax, webhook,
-  entitlement, portal, and rollback checks pass. The six approved Supporter
-  Price IDs alone control new public enrollment; legacy IDs remain
-  reconciliation-only compatibility inputs until the explicit removal gate.
-- Enable Stripe Customer Portal for subscription management, payment method updates, invoices, and cancellation.
+- Preserve the completed three-Product/six-Price catalog and keep new Therapist
+  and Practice enrollment unavailable.
+- Keep the exact six current Supporter Price mappings in Production. Legacy
+  mappings remain reconciliation-only inputs until the documented removal gate
+  is explicitly completed.
+- Keep Stripe Customer Portal enabled for switching only among the six current
+  Supporter Prices, subscription management, payment method and billing-address
+  updates, invoices, and cancellation.
 - Configure the pinned `/api/billing/webhook` endpoint as enabled on the
   app's `2026-02-25.clover` Stripe API version with exactly the combined
   membership and background-commerce event contract below.
 - Set `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and the configured price IDs in local development and Vercel.
 - Use the Stripe CLI in test mode to forward webhooks during local checkout testing.
-- Before any apply, run `npm run stripe:migrate-supporter-membership -- --mode=verify`
-  against the reviewed production subscriber, catalog, and Customer Portal
-  inventory. This GET-only migration verification is the pre-apply authority.
-- After apply, rerun
-  `npm run stripe:migrate-supporter-membership -- --mode=verify` and require a
-  complete PASS. That post-apply verification must re-read the Customer Portal,
-  prove legacy cleanup occurred in dependency order, and report the final
-  migration state as completed before any runtime Price ID is changed.
-- After that verification passes, confirm the resulting three Supporter
-  Products exist in Stripe, then configure their six approved Price IDs for new
-  public enrollment in the production runtime. These IDs are additive: retain all six legacy
-  webhook-reconciliation Price mappings until subscriber inventory and
-  reconciliation are complete and the explicit removal gate passes. Product IDs
-  remain migration-only operator inputs. Then, before public paid signup, run
+- Treat `npm run stripe:migrate-supporter-membership -- --mode=verify` as the
+  GET-only migration authority. Production currently reports `COMPLETED`; do
+  not rerun apply unless a separately reviewed recovery plan requires it.
+- Before public paid signup or after relevant billing configuration changes,
+  run
   `npm run stripe:readiness -- --env-file=/secure/path/massagelab-production.env --live --verify-stripe`
-  against production Stripe. For `CREATE_NEW`, this live readiness check is
-  necessarily post-apply because the configured Price IDs do not exist before
-  the migration creates them. The required sequence is apply, post-apply
-  migration verification PASS, runtime Price configuration, then live readiness
-  PASS.
+  and require complete Stripe, tax, and webhook readiness.
 - Both commands must pass without printing secrets or Stripe identifiers; their
   operator output is limited to safe readiness messages and checklist codes.
-
-Current local workspace note from May 15, 2026: `.env.local` did not contain Stripe keys or price IDs during implementation planning, so local Checkout and webhook testing will fail until those values are added.
 
 ## Permanent Background Commerce
 

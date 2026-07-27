@@ -90,6 +90,40 @@ describe("one-time support Checkout route", () => {
     }
   })
 
+  it("accepts a browser-confirmed same-origin public alias", () => {
+    const request = new Request("https://www.massagelab.app/api/billing/checkout", {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        origin: "https://www.massagelab.app",
+        "sec-fetch-site": "same-origin",
+      },
+      body: new URLSearchParams(),
+    })
+
+    assert.equal(
+      isTrustedCheckoutFormOrigin(request, "https://massagelab.app"),
+      true,
+    )
+  })
+
+  it("rejects a mismatched origin despite claimed same-origin metadata", () => {
+    const request = new Request("https://massagelab.app/api/billing/checkout", {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        origin: "https://attacker.example",
+        "sec-fetch-site": "same-origin",
+      },
+      body: new URLSearchParams(),
+    })
+
+    assert.equal(
+      isTrustedCheckoutFormOrigin(request, "https://massagelab.app"),
+      false,
+    )
+  })
+
   for (const [label, siteUrl] of [
     ["omitted", ""],
     ["invalid", "not a URL"],

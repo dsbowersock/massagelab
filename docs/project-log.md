@@ -4,6 +4,28 @@ This is the canonical chronological planning and progress log for MassageLab. Us
 
 Existing plans, audits, roadmaps, and checklists remain source evidence. Keep them for context, but mirror meaningful progress, plan changes, and priority changes in [project-state.md](project-state.md) and here.
 
+## 2026-07-27 — Supporter production rollout and checkout-origin repair
+
+- Completed the guarded live three-Product Supporter migration and its
+  identifier-safe verification. The catalog is `COMPLETED`, legacy cleanup and
+  coupon removal are complete, Production holds the exact six current Price
+  mappings and recurring-tax gates, live Stripe readiness passes, and the
+  pinned webhook endpoint remains current.
+- A controlled Supporter subscription attempt from `www.massagelab.app`
+  returned `billing=invalid-request` before legal acceptance, Customer,
+  Checkout Session, subscription, or charge creation. The exact user-facing
+  fallback wording, two immediate 303 responses, empty account billing records,
+  absent Stripe Customer search result, and configured-origin policy localized
+  the failure to the form-origin guard rather than Stripe or tax.
+- Added alias-safe origin validation: the canonical configured origin remains
+  authoritative, while browser-confirmed `same-origin` requests may use the
+  actual request URL origin so the apex and `www` public aliases both work.
+  Mismatched and forged Origins still fail before request parsing or billing.
+- Added explicit account guidance for a genuinely invalid checkout request.
+  Focused security/Checkout coverage passes 64 tests; repository lint,
+  typecheck, all 1,645 tests, and the production build pass. The candidate must
+  merge and deploy before the controlled Supporter smoke is retried.
+
 ## 2026-07-26 — Three-Product Supporter Portal recovery
 
 - Confirmed `txcd_10000000` as the intended current classification for the

@@ -108,3 +108,22 @@ active, and both verified zero-redemption coupons must still exist. Apply then
 updates and canonically rereads the Portal before it can retire a Price,
 Product, or coupon. Verify continues to reject the intermediate until the
 entire migration reaches `COMPLETED`.
+
+## Completed migration and smoke blocker
+
+The second recovery merged and the guarded live apply/verify reached
+`COMPLETED`. Production now uses the exact three-Product/six-Price Supporter
+catalog, immediate no-proration Portal switching, recurring Automatic Tax, and
+the pinned webhook contract.
+
+The first controlled Supporter smoke on July 27 did not reach Stripe. A form
+submitted from the valid `www.massagelab.app` alias was rejected because the
+origin guard compared it only with the configured apex origin. Identifier-safe
+database, Vercel, and Stripe checks confirmed that the attempt created no legal
+acceptance, Stripe Customer, Checkout Session, subscription, or charge.
+
+The next stop boundary is the checkout-origin repair PR. After it merges and
+deploys, retry the controlled Supporter smoke from the public alias and verify
+taxed Checkout, webhook persistence, Supporter entitlements, Customer Portal
+amount changes and cancellation, and any approved test cleanup. Do not treat
+the migration as incomplete and do not rerun catalog mutation.
