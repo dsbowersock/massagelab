@@ -88,8 +88,11 @@ public enrollment.
 
 Before enabling subscription checkout, confirm:
 
-- `MassageLab Supporter Membership` is the only public membership Product and has tax code `txcd_10000000`.
-- Its six exclusive USD recurring Prices are exactly $1, $2, or $5 monthly and
+- `MassageLab Supporter Membership` is the only user-facing membership. Stripe
+  represents it as three amount-specific Products, each with tax code
+  `txcd_10000000`, identical Supporter entitlement metadata, and one monthly
+  plus one annual Price.
+- The six exclusive USD recurring Prices are exactly $1, $2, or $5 monthly and
   $10, $20, or $50 yearly, with `interval_count=1`, no trial, licensed usage,
   per-unit billing, no quantity transform, and no additional currencies.
 - Repeated or concurrent enrollment requests reuse only an exact
@@ -98,7 +101,11 @@ Before enabling subscription checkout, confirm:
   Recognized incompatible historical open Sessions must be confirmed expired;
   completed historical Sessions with a relevant subscription still block with
   billing-management guidance until webhook persistence catches up.
-- The Stripe Customer Portal permits subscription Price changes only among those six Prices while preserving cancellation, payment-method updates, billing address/name/email updates, and invoice history.
+- The Stripe Customer Portal permits subscription Price changes only among
+  those six Prices while preserving cancellation, payment-method updates,
+  billing address/name/email updates, and invoice history. Cross-Product amount
+  changes keep the billing-cycle anchor unchanged, create no proration, and are
+  not scheduled for period end.
 - `/api/billing/webhook` is registered with the Stripe webhook signing secret.
 - Local and Vercel environments contain the same required Stripe keys and Price IDs for their respective test or live mode.
 - Production uses a live `STRIPE_SECRET_KEY`, a live webhook signing secret, and live recurring Price IDs. Test-mode keys or empty production Price IDs are launch blockers.
@@ -112,15 +119,18 @@ legacy Product, Price, coupon, portal-configuration, and allowed test-subscripti
 ID through the `MASSAGELAB_STRIPE_MIGRATION_*` variables documented in
 `.env.example`. Set `MASSAGELAB_STRIPE_MIGRATION_MODE` to `test` or `live`; the
 command refuses a mismatch with both the secret-key prefix and Stripe account
-mode. Use the exact existing Supporter Product ID when it should be renamed and
-reused. `CREATE_NEW` is an explicit exceptional authorization: zero managed
-Supporter target candidates creates one, while exactly one candidate is reused
-only when it is already the complete managed Product. Multiple candidates or
-one partially managed or misidentified candidate are rejected; normal legacy
-Product reuse still requires its exact Product ID instead. Use `none` for the
-allowed subscription only after a complete inventory proves no active,
-trialing, past-due, unpaid, paused, incomplete, or canceling subscription
-exists.
+mode. Use the exact existing Supporter Product ID for the $1/$10 amount when it
+should be renamed and reused. Configure the $2/$20 and $5/$50 Product slots
+separately. `CREATE_NEW` is explicit authorization for that amount slot; a
+managed Product is reused only when its amount-choice metadata and complete
+Product contract match. Duplicate, unassigned, partially managed, or
+misidentified candidates are rejected; normal legacy $1/$10 Product reuse
+still requires its exact Product ID instead. Test mode accepts the exact
+reviewed test-subscription ID only when it is the sole retained relevant
+subscription; `none` is allowed only after a complete inventory proves no
+active, trialing, past-due, unpaid, paused, incomplete, or canceling
+subscription exists. Live mode rejects every concrete subscription ID and
+requires `none` after the same empty-inventory proof.
 
 Run verification first:
 
@@ -133,7 +143,7 @@ subscriber inventory, live/test mode, legacy and approved Price
 ownership/amounts/recurring semantics, every Price listed under the managed
 Products, zero-redemption coupon contracts, and portal preservation settings.
 Reuse mode accepts only the validated normal legacy `MassageLab Supporter`
-Product before migration even though an older installation may omit the
+Product for the $1/$10 amount before migration even though an older installation may omit the
 optional `app` metadata and the Product has not yet received
 `txcd_10000000` or target catalog metadata; apply writes both and re-retrieves
 the Product. Therapist and Practice retirement also requires the exact legacy
@@ -142,8 +152,8 @@ contradict the expected MassageLab identity. Completed-state verification
 requires the exact classification and metadata. The reviewed pre-migration
 Customer Portal may either expose the exact legacy Product topology or have
 subscription switching disabled with no Product allowlist; apply enables
-Price-only switching among the six new Supporter Prices. Approved Prices must
-have no default trial period. Verify reports
+Price-only switching among the six new Supporter Prices across three Products.
+Approved Prices must have no default trial period. Verify reports
 either `PRE_MIGRATION` or `COMPLETED`; mixed states, unrecognized Prices,
 incomplete or malformed pagination, and unknown portal subsets are blockers.
 
@@ -154,18 +164,38 @@ npm run stripe:migrate-supporter-membership -- --mode=apply
 npm run stripe:migrate-supporter-membership -- --mode=verify
 ```
 
-Apply creates or reuses the one managed Supporter Product and six Prices,
-restricts the portal to those Prices, retires the legacy $9/$90, $29/$279, and
-$79/$759 Prices, and also retires the older $1/$10, $2/$20, and $5/$50 Price
-objects that Stripe cannot move from their legacy tier Products. Those older
-objects are accepted only when their Product ownership and recurring semantics
-match the reviewed catalog. Apply then retires the Therapist and Practice
-Products and deletes the two verified zero-redemption coupons. It re-retrieves
-every mutation and a
-second apply is a read-only no-op. Portal quantity adjustment is explicitly
-disabled, while cancellation and billing-management behavior is preserved
-through semantic response validation. Apply can resume only an ordered,
-individually verified forward transition caused by an accepted Stripe mutation;
+Apply first creates or reuses three managed amount-specific Supporter Products
+and six Prices. Target Price preparation may transfer a managed lookup key from
+a verified retiring Price to its selected replacement before the Portal update;
+the source Price remains active, and this narrowly fingerprinted intermediate
+state is recoverable on rerun. Apply then updates the Portal to expose only the
+selected Prices and successfully re-retrieves the exact three-Product
+configuration. That Portal reread is the gate before destructive cleanup
+begins: a failed reread stops apply without deactivating a legacy Price,
+archiving a Therapist or Practice Product, or deleting a coupon. A managed
+lookup-key transfer that already succeeded remains safely resumable.
+
+Only after the Portal gate succeeds does apply perform cleanup in this order:
+it retires the legacy $9/$90, $29/$279, and $79/$759 Prices; the older $1/$10,
+$2/$20, and $5/$50 Price objects only when they remain on the wrong legacy tier
+Products; and any partially created $2/$20 or $5/$50 Prices misplaced on the
+$1/$10 Product before Stripe's duplicate-interval Portal constraint was
+identified. The valid $1/$10 Prices on the classified support-1 Product remain
+active. Retirement candidates are accepted only when their Product ownership
+and recurring semantics match the reviewed catalog. After dependency
+verification, that Price phase retires the Therapist and Practice Prices before
+apply retires their Products and deletes the two verified zero-redemption
+coupons. It re-retrieves every mutation.
+
+If apply is interrupted after the Portal gate, a subsequent apply rereads
+Stripe and resumes that same ordered Price, Product, then coupon cleanup. Apply
+is a read-only no-op only after final cleanup and post-apply verification both
+complete. Portal quantity adjustment is
+explicitly disabled, while cancellation and billing-management behavior is
+preserved through semantic response validation. Amount changes preserve the
+current billing-cycle anchor, use no proration, and are not scheduled for
+period end. Apply can resume only an ordered, individually verified forward
+transition caused by an accepted Stripe mutation;
 Product and Price creates use deterministic Stripe idempotency keys so an
 ambiguous accepted request can be retried without creating a duplicate.
 Arbitrary mixed states still fail closed. Do not run apply until the deployed

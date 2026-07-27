@@ -146,23 +146,55 @@ deterministic idempotency and re-retrieved as expired before current Checkout
 creation. Purpose-less completed Sessions still block when their subscription
 is relevant while webhook persistence catches up.
 
-The deployable migration command creates or verifies this one Product and six
-exclusive recurring Prices, removes only the two independently verified
-zero-redemption legacy coupons, retires both the unapproved higher Prices and
-the older approved-amount Price objects that cannot be reassigned from their
-legacy tier Products, and
+Stripe represents the one user-facing membership as three Products, one per
+support amount, because Customer Portal permits only one Price per recurring
+interval on a Product. Each Product has one monthly and one annual Price, the
+same name, tax code, Supporter entitlement metadata, and amount-choice
+metadata. This is an operational representation, not three feature tiers.
+
+The deployable migration command creates or verifies these three Products and
+six exclusive recurring Prices, removes only the two independently verified
+zero-redemption legacy coupons, retires all six unapproved higher Prices
+($9/$90, $29/$279, and $79/$759) and the older approved-amount Price objects
+that cannot be reassigned from their legacy tier Products, and
 limits Customer Portal switching to those six Prices while preserving billing
-details, payment methods, invoices, and cancellation. It inventories all
-relevant subscriptions before mutation and permits at most the one explicitly
-reviewed subscription identifier (or an explicit `none` decision). Therapist
-and Practice retirement dependencies must retain their exact expected Product
-names; optional `app` and membership-level metadata may be absent but must not
-contradict the expected MassageLab identity.
+details, payment methods, invoices, and cancellation. Cross-Product amount
+changes keep the existing billing-cycle anchor, create no prorations, and are
+not scheduled for period end. It inventories all
+relevant subscriptions before mutation. Test mode permits a concrete, reviewed
+test-subscription identifier only when it is the sole retained relevant
+subscription; `none` is permitted only after inventory proves zero relevant
+subscriptions. Live mode rejects every concrete subscription ID and requires
+an explicit `none` decision after the same empty-inventory proof before catalog
+mutation. Therapist and Practice Prices
+and Products are retired only after dependency verification.
+Their Product dependencies must retain their exact expected names; optional
+`app` and membership-level metadata may be absent but must not contradict the
+expected MassageLab identity.
+
+Read-only verification recognizes only `PRE_MIGRATION` and `COMPLETED` as
+operator-approved states and fails closed on mixed catalog state.
+`PRE_MIGRATION` includes one narrowly recoverable pre-Portal interruption: the
+single legacy Supporter Product may already have the approved classification,
+all six approved-amount Prices may already carry managed metadata on that
+Product, and Portal switching may still be disabled. Legacy cleanup must remain
+untouched. Apply creates replacement Prices under the $2/$20 and $5/$50
+Products, transfers the managed lookup keys according to the verified protocol,
+and installs the exact Portal topology. Wrong-owner Prices are retired only
+after the Portal reread gate succeeds.
+
+Apply has one additional, tightly fingerprinted internal recovery path: a
+`TRANSITIONAL` state is resumable only when the Portal already rereads as the
+exact completed three-Product topology, every target Product and Price is
+complete or safely repairable, coupon dependencies remain verified, and
+Price-before-Product cleanup order has not been violated. This recovery path
+does not make `TRANSITIONAL` a third state accepted by read-only verification.
 
 The reviewed pre-migration Customer Portal may have subscription switching
 disabled and no Product allowlist. That state is not a reason to enable
-switching manually before the migration: apply installs the exact six-Price
-Supporter allowlist while preserving the existing billing-management features.
+switching manually before the migration: apply installs the exact
+three-Product/six-Price Supporter allowlist while preserving the existing
+billing-management features.
 
 Do not mutate live Products, Prices, coupons, subscriptions, portal settings,
 or entitlements outside that controlled operation. Follow the reviewed
@@ -216,12 +248,23 @@ Automatic Tax.
 - Before any apply, run `npm run stripe:migrate-supporter-membership -- --mode=verify`
   against the reviewed production subscriber, catalog, and Customer Portal
   inventory. This GET-only migration verification is the pre-apply authority.
-- After apply, configure the resulting Supporter Product and six Price IDs in
-  the production environment. Then, before public paid signup, run
+- After apply, rerun
+  `npm run stripe:migrate-supporter-membership -- --mode=verify` and require a
+  complete PASS. That post-apply verification must re-read the Customer Portal,
+  prove legacy cleanup occurred in dependency order, and report the final
+  migration state as completed before any runtime Price ID is changed.
+- After that verification passes, confirm the resulting three Supporter
+  Products exist in Stripe, then configure their six approved Price IDs for new
+  public enrollment in the production runtime. These IDs are additive: retain all six legacy
+  webhook-reconciliation Price mappings until subscriber inventory and
+  reconciliation are complete and the explicit removal gate passes. Product IDs
+  remain migration-only operator inputs. Then, before public paid signup, run
   `npm run stripe:readiness -- --env-file=/secure/path/massagelab-production.env --live --verify-stripe`
   against production Stripe. For `CREATE_NEW`, this live readiness check is
   necessarily post-apply because the configured Price IDs do not exist before
-  the migration creates them.
+  the migration creates them. The required sequence is apply, post-apply
+  migration verification PASS, runtime Price configuration, then live readiness
+  PASS.
 - Both commands must pass without printing secrets or Stripe identifiers; their
   operator output is limited to safe readiness messages and checklist codes.
 

@@ -17,6 +17,7 @@ import {
   isExplicitTrue,
   REQUIRED_SUPPORTER_PRICE_CONTRACT,
   validateRetrievedMembershipPrice,
+  validateSupporterProductTopology,
 } from "../lib/stripe-readiness.js"
 import {
   STRIPE_API_VERSION,
@@ -262,24 +263,30 @@ async function verifyStripePrices() {
     apiVersion: STRIPE_API_VERSION,
   })
 
-  let allPricesRetrievedAndValidated = true
+  // Retrieval completion is separate from catalog validity: topology uses
+  // every successfully fetched Price, while API failures alone make
+  // `stripeRetrievalPerformed` false.
+  let allPricesRetrieved = true
+  const retrievedMembershipPrices = []
   for (const [priceId, expected] of priceIds) {
     try {
       const price = await stripe.prices.retrieve(priceId, { expand: ["product", "currency_options"] })
       const validationFailures = validateRetrievedMembershipPrice(price, expected)
-      if (validationFailures.length > 0) {
-        allPricesRetrievedAndValidated = false
-      }
+      retrievedMembershipPrices.push({ expected, price })
       for (const failure of validationFailures) {
         addFailure(failure)
       }
     } catch (error) {
-      allPricesRetrievedAndValidated = false
+      allPricesRetrieved = false
       const detail = error instanceof Error ? error.message : "unknown Stripe error"
       addFailure(`${expected.key} could not be retrieved from Stripe: ${detail}`)
     }
   }
-  stripeRetrievalPerformed = allPricesRetrievedAndValidated
+  const topologyFailures = validateSupporterProductTopology(retrievedMembershipPrices)
+  if (topologyFailures.length > 0) {
+    for (const failure of topologyFailures) addFailure(failure)
+  }
+  stripeRetrievalPerformed = allPricesRetrieved
 
   try {
     const endpoints = await stripe.webhookEndpoints.list({ limit: 100 })

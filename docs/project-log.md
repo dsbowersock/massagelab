@@ -4,6 +4,29 @@ This is the canonical chronological planning and progress log for MassageLab. Us
 
 Existing plans, audits, roadmaps, and checklists remain source evidence. Keep them for context, but mirror meaningful progress, plan changes, and priority changes in [project-state.md](project-state.md) and here.
 
+## 2026-07-26 — Three-Product Supporter Portal recovery
+
+- Confirmed `txcd_10000000` as the intended current classification for the
+  app's present electronically supplied Supporter access.
+- The guarded live migration verify passed after the dormant, still-disabled
+  Portal policy was aligned with the reviewed pre-migration contract.
+- The first live apply safely stopped when Stripe rejected multiple monthly
+  and annual Prices on one Customer Portal Product. Before stopping, it
+  classified the reusable Supporter Product and created the six approved
+  Prices. It did not enable Portal switching, retire any legacy Product or
+  Price, delete either coupon, change a subscriber, or replace production
+  runtime Price IDs.
+- Approved a three-Product Stripe representation for the one user-facing
+  MassageLab Supporter Membership: $1/$10, $2/$20, and $5/$50 each use one
+  amount-specific Product with identical benefits, entitlement metadata, and
+  tax classification. This is not three feature tiers.
+- Approved easy cross-Product amount changes in Customer Portal with the
+  billing-cycle anchor unchanged, no proration, and no period-end scheduling.
+- Added a fail-closed recovery plan and migration coverage that reuses the
+  classified $1/$10 Product, creates the other two Products, replaces and then
+  retires the four wrong-owner Prices, installs the exact three-Product Portal
+  allowlist, and remains idempotent after interruption.
+
 ## 2026-07-26 — Supporter production inventory and migration topology hardening
 
 - Confirmed the merged Supporter-only application baseline from PR #144 in an

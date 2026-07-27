@@ -4,7 +4,7 @@
 
 **Goal:** Replace the currently advertised Supporter/Therapist/Practice subscription tiers with one MassageLab Supporter Membership offering three approved support amounts with identical benefits, while preserving future Therapist and Practice product names for later beta products.
 
-**Architecture:** Keep the internal membership enum and historical webhook normalization stable, but expose and sell only Supporter memberships. Introduce amount-choice metadata independent of feature entitlements, map every approved Supporter Price ID to the same `SUPPORTER` entitlement, and use Stripe Customer Portal to switch only among the approved Supporter Prices. Treat the live Stripe catalog migration as an idempotent, separately verified operation after the application change is deployed.
+**Architecture:** Keep the internal membership enum and historical webhook normalization stable, but expose and sell only Supporter memberships. Introduce amount-choice metadata independent of feature entitlements, map every approved Supporter Price ID to the same `SUPPORTER` entitlement, and use Stripe Customer Portal to switch only among the approved Supporter Prices. Stripe represents the one user-facing membership as three amount-specific Products so each Portal Product has one monthly and one annual Price. Treat the live Stripe catalog migration as an idempotent, separately verified operation after the application change is deployed. The production-recovery details are superseded by the [three-Product Portal follow-up](2026-07-26-supporter-membership-three-product-portal-followup.md).
 
 **Tech Stack:** Next.js App Router, Stripe Billing and Checkout Sessions, Stripe Customer Portal, Prisma membership records, Node test runner, Vercel production environment.
 
@@ -248,14 +248,20 @@ The command must:
 
 - refuse test/live mode mismatch;
 - print no customer identifiers, secrets, or payment details;
-- verify the only active subscription is the documented test subscription before any catalog mutation;
-- create or reuse one `MassageLab Supporter Membership` Product with tax code `txcd_10000000`;
-- create or reuse the six exact approved Prices;
-- never reuse a Therapist/Practice-owned Price as a Supporter Price because Stripe Prices cannot be reassigned to another Product;
+- complete the subscription inventory and, before any catalog mutation,
+  verify either the documented test subscription as the only retained
+  subscription or an explicit reviewed `none` decision when no relevant
+  subscriptions exist;
+- create or reuse three amount-specific Products named `MassageLab Supporter Membership`, each with tax code `txcd_10000000` and identical Supporter entitlements;
+- create or reuse the six exact approved Prices, reusing an existing Price only
+  when it already belongs to the matching amount-specific Product;
+- treat otherwise matching Prices owned by another Supporter amount Product or
+  by a Therapist/Practice Product as replacement-and-retirement candidates
+  because Stripe Prices cannot be reassigned to another Product;
 - make the unapproved $9/$90, $29/$279, and $79/$759 Prices inactive;
 - make Therapist and Practice Products/Prices inactive after dependency verification;
 - delete the zero-redemption Student-to-Therapist and Early Access coupons only after verifying their names, percentages, duration, and redemption counts;
-- enable Customer Portal subscription updates only among the six Supporter Prices; and
+- enable Customer Portal subscription updates only among the six Supporter Prices, with unchanged billing anchors, no proration, and no period-end scheduling; and
 - preserve cancellation, payment method, billing address/name/email updates, and invoice history.
 
 - [ ] **Step 2: Run the command tests and verify RED**
@@ -378,7 +384,10 @@ npm run build
 git diff --check
 ```
 
-Update canonical docs with the one-product model, approved amounts, disabled professional products, portal behavior, coupon removal, one-time-support language, interest preference, tax posture, and smoke evidence.
+Update canonical docs with the three amount-specific Stripe Products that
+represent one user-facing Supporter Membership, approved amounts, disabled
+professional products, portal behavior, coupon removal, one-time-support
+language, interest preference, tax posture, and smoke evidence.
 
 Commit the reviewed recurring-tax application/readiness changes before the live
 catalog migration and smoke. Do not configure the portal or catalog around code
