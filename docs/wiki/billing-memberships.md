@@ -244,11 +244,11 @@ Stripe Tax provider setup, the applicable Ohio registration, complete
 subscriber inventory, and read-only migration verification are complete. The
 three-Product catalog migration is `COMPLETED`, all recurring-tax runtime gates
 are enabled, and live readiness passes against Stripe and the pinned webhook
-endpoint. The remaining rollout gate is a controlled subscription smoke after
-the checkout-origin repair is merged and deployed. Any future material change
-to the paid app offering requires a new classification review. One-time
-support remains outside this classification and continues to omit Automatic
-Tax.
+endpoint. The controlled taxed subscription retry is complete. The remaining
+rollout gate is one real amount or interval switch after the focused
+subscription-update action deploys. Any future material change to the paid app
+offering requires a new classification review. One-time support remains
+outside this classification and continues to omit Automatic Tax.
 
 ## Stripe Setup Checklist
 

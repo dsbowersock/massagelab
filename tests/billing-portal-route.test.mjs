@@ -41,6 +41,7 @@ function portalPost({
   },
   subscription = {
     stripeSubscriptionId: "sub_supporter",
+    status: "active",
   },
 } = {}) {
   const calls = {
@@ -68,6 +69,13 @@ function portalPost({
           membershipSubscription: {
             findFirst: async (query) => {
               calls.subscriptionQueries.push(query)
+              if (
+                subscription
+                && Array.isArray(query?.where?.status?.in)
+                && !query.where.status.in.includes(subscription.status)
+              ) {
+                return null
+              }
               return subscription
             },
           },
@@ -129,7 +137,7 @@ describe("Customer Portal POST route", () => {
         userId: "user_supporter",
         stripeCustomerId: "cus_supporter",
         status: {
-          notIn: ["canceled", "incomplete_expired"],
+          in: ["active", "trialing"],
         },
       },
       orderBy: [
@@ -158,6 +166,26 @@ describe("Customer Portal POST route", () => {
     })
     assert.equal(calls.subscriptionQueries.length, 1)
     assert.deepEqual(calls.portalInputs, [])
+  })
+
+  it("rejects incomplete and paused subscriptions from the focused change flow", async () => {
+    for (const status of ["incomplete", "paused"]) {
+      const { calls, POST } = portalPost({
+        subscription: {
+          stripeSubscriptionId: `sub_${status}`,
+          status,
+        },
+      })
+
+      const response = await POST(portalRequest("subscription-update"))
+
+      assert.deepEqual(response, {
+        status: 303,
+        url: "https://massagelab.app/account?portal=subscription-not-found",
+      })
+      assert.equal(calls.subscriptionQueries.length, 1)
+      assert.deepEqual(calls.portalInputs, [])
+    }
   })
 
   it("defaults malformed or unknown form destinations to general management", async () => {

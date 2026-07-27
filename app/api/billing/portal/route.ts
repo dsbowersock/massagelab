@@ -48,7 +48,7 @@ export async function POST(request: Request) {
             userId: session.user.id,
             stripeCustomerId: stripeCustomer.stripeCustomerId,
             status: {
-              notIn: ["canceled", "incomplete_expired"],
+              in: ["active", "trialing"],
             },
           },
           orderBy: [
