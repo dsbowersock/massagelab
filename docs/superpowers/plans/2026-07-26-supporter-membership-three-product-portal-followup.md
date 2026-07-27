@@ -71,17 +71,18 @@ and explicitly continues the rollout.
 After PR #146 merged, the official live verify passed and apply safely reached
 the Portal reread gate. Stripe now contains the three classified amount
 Products and the six correct active Prices, and the Portal's expanded
-subscription-update Product list contains exactly those six Prices. No legacy
-cleanup or runtime environment change occurred.
+subscription-update Product list contains exactly those three Products with
+their six nested Prices. No legacy cleanup or runtime environment change
+occurred.
 
 The ordinary Portal retrieve response omits
 `features.subscription_update.products` because that field is expandable.
 Migration inventory and post-write verification must request
-`features.subscription_update.products` explicitly. Stripe's form encoder also
-omits a nested JavaScript `conditions: []`, which leaves the dormant
-`decreasing_item_amount` period-end rule unchanged. Use Stripe's empty-value
-encoding for that condition list, then require Stripe's canonical reread to
-report an empty list before cleanup resumes.
+`features.subscription_update.products` explicitly. The JavaScript SDK's form
+serialization also omits a nested `conditions: []` before the request is sent,
+which leaves the dormant `decreasing_item_amount` period-end rule unchanged.
+Use Stripe's empty-value encoding for that condition list, then require
+Stripe's canonical reread to report an empty list before cleanup resumes.
 
 The next stop boundary is the recovery PR: validate and review this API-shape
 fix, open the PR, and do not merge it. After the user merges and continues,
