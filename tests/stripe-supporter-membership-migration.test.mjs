@@ -1150,12 +1150,14 @@ describe("Supporter membership Stripe migration", () => {
       portalUpdate.payload.expand,
       ["features.subscription_update.products"],
     )
+    const portalRetrieves = fixture.calls.filter(
+      ({ name }) => name === "portal.retrieve",
+    )
+    assert.ok(portalRetrieves.length > 0)
     assert.equal(
-      fixture.calls
-        .filter(({ name }) => name === "portal.retrieve")
-        .every(({ payload }) => (
-          payload?.expand?.includes("features.subscription_update.products")
-        )),
+      portalRetrieves.every(({ payload }) => (
+        payload?.expand?.includes("features.subscription_update.products")
+      )),
       true,
     )
 
