@@ -173,6 +173,22 @@ describe("one-time support Checkout route", () => {
     )
   })
 
+  it("accepts same-origin metadata without Origin or Referer on a configured public alias", () => {
+    const request = new Request("https://www.massagelab.app/api/billing/checkout", {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        "sec-fetch-site": "same-origin",
+      },
+      body: new URLSearchParams(),
+    })
+
+    assert.equal(
+      isTrustedCheckoutFormOrigin(request, "https://massagelab.app"),
+      true,
+    )
+  })
+
   for (const [label, siteUrl] of [
     ["omitted", ""],
     ["invalid", "not a URL"],
