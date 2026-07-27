@@ -1,6 +1,13 @@
 # Supporter Membership Three-Product Portal Follow-up
 
-## Goal
+> **Status: completed; historical record.** The migration and both recovery
+> checkpoints below are complete and superseded as operator instructions.
+> Current Production catalog operations are verify-only: require
+> `npm run stripe:migrate-supporter-membership -- --mode=verify` to report
+> `COMPLETED`, and do not run `apply`. Any other result must stop and receive a
+> separately reviewed, incident-specific recovery plan before mutation.
+
+## Completed topology
 
 Preserve one user-facing MassageLab Supporter Membership with identical
 entitlements while representing the three approved support amounts as three
@@ -13,7 +20,7 @@ Stripe Products:
 This topology allows Stripe Customer Portal to offer all six choices without
 placing duplicate recurring intervals on one Product.
 
-## Executive behavior
+## Current topology contract
 
 - Amount changes stay self-service in Customer Portal.
 - Cross-Product changes use `billing_cycle_anchor=unchanged`.
@@ -25,12 +32,13 @@ placing duplicate recurring intervals on one Product.
 - Therapist and Practice Products remain unavailable and are not repurposed.
 - One-time support remains separate and grants no membership benefit.
 
-## Recovery constraint
+## Historical recovery constraint (completed)
 
 The previous live apply stopped after classifying the reusable Supporter
 Product and creating all six approved Prices on it. It did not enable Portal
 switching, retire legacy catalog objects, remove coupons, or change any
-subscriber. Because Stripe Prices cannot move between Products, recovery must:
+subscriber. Because Stripe Prices cannot move between Products, the completed
+recovery required:
 
 1. Reuse the classified Product and its $1 monthly/$10 annual Prices.
 2. Create dedicated Products for the $2/$20 and $5/$50 choices.
@@ -41,10 +49,14 @@ subscriber. Because Stripe Prices cannot move between Products, recovery must:
 5. Only after the Portal reread succeeds, retire the four wrong-owner Prices,
    the reviewed legacy Prices and Products, and the unused coupons.
 
-Every write is reread before the next phase. A rerun must discover the managed
-objects by metadata and idempotency contract and converge without duplicates.
+The completed recovery reread every write before the next phase and discovered
+managed objects by metadata and idempotency contract so interrupted runs could
+converge without duplicates.
 
-## Implementation tasks
+## Historical implementation tasks (completed)
+
+The completed follow-up performed these tasks; this list is not an active
+operator checklist:
 
 1. Extend migration configuration with explicit Product slots for the $2/$20
    and $5/$50 choices. Each accepts a concrete Stripe Product ID or the exact
@@ -60,13 +72,13 @@ objects by metadata and idempotency contract and converge without duplicates.
    Stripe representation without presenting three feature tiers to users.
 7. Run focused migration tests, full repository validation, and PR review.
 
-## Stop boundary
+## Historical stop boundary (superseded)
 
-Open and shepherd the follow-up PR, but do not merge it. Do not resume live
-Stripe apply or production environment changes until the user merges the PR
-and explicitly continues the rollout.
+This was the pre-migration review boundary. The follow-up PRs were merged and
+the migration completed. It no longer authorizes `apply` or any Production
+catalog mutation.
 
-## Live recovery checkpoint
+## Historical first live recovery checkpoint (superseded)
 
 After PR #146 merged, the official live verify passed and apply safely reached
 the Portal reread gate. Stripe now contains the three classified amount
@@ -77,23 +89,20 @@ occurred.
 
 The ordinary Portal retrieve response omits
 `features.subscription_update.products` because that field is expandable.
-Migration inventory and post-write verification must request
+Migration inventory and post-write verification requested
 `features.subscription_update.products` explicitly. The JavaScript SDK's form
 serialization also omits a nested `conditions: []` before the request is sent,
 which leaves the dormant `decreasing_item_amount` period-end rule unchanged.
-Send `features.subscription_update.schedule_at_period_end.conditions` as the
-empty string (`conditions: ""`), matching the migration payload and its
-request-shape test. Then require Stripe's canonical reread to report an empty
-list before cleanup resumes.
+The completed recovery sent
+`features.subscription_update.schedule_at_period_end.conditions` as the empty
+string (`conditions: ""`), matching the migration payload and its request-shape
+test, and required Stripe's canonical reread to report an empty list before
+cleanup resumed.
 
-The next stop boundary is the second apply-only recovery PR: validate and
-review the dormant-schedule repair, and do not resume live apply until it is
-merged and the user explicitly continues. After the user merges and continues,
-rerun apply with the same reviewed live dependencies, verify `COMPLETED`,
-configure the six production Price IDs, run live readiness, and perform the
-controlled Supporter smoke.
+This was the historical stop boundary before the second recovery merged. It is
+superseded by the completed state below and does not authorize a new apply.
 
-## Second live recovery checkpoint
+## Historical second live recovery checkpoint (superseded)
 
 PR #147 merged and its production deployment became ready. Identifier-safe
 live inventory still showed the exact target three-Product/six-Price Portal
@@ -102,9 +111,32 @@ all legacy cleanup candidates and both coupons remained untouched.
 
 The post-merge apply stopped before mutation because preflight classified that
 exact new-topology plus old-schedule state as an arbitrary mixed state. The
-second recovery must remain apply-only and accept no broader subset: all target
-Products and Prices must match, every cleanup Price and Product must still be
-active, and both verified zero-redemption coupons must still exist. Apply then
-updates and canonically rereads the Portal before it can retire a Price,
-Product, or coupon. Verify continues to reject the intermediate until the
-entire migration reaches `COMPLETED`.
+reviewed second recovery was apply-only and accepted no broader subset: all
+target Products and Prices had to match, every cleanup Price and Product had to
+remain active, and both verified zero-redemption coupons had to exist. It
+updated and canonically reread the Portal before retiring a Price, Product, or
+coupon. Verify rejected the intermediate until the entire migration reached
+`COMPLETED`.
+
+## Current completed state and remaining smoke
+
+The second recovery merged and the guarded live apply/verify reached
+`COMPLETED`. Production now uses the exact three-Product/six-Price Supporter
+catalog, immediate no-proration Portal switching, recurring Automatic Tax, and
+the pinned webhook contract.
+
+The first controlled Supporter smoke on July 27, 2026 did not reach Stripe. A form
+submitted from the valid `www.massagelab.app` alias was rejected because the
+origin guard compared it only with the configured apex origin. Identifier-safe
+database, Vercel, and Stripe checks confirmed that the attempt created no legal
+acceptance, Stripe Customer, Checkout Session, subscription, or charge.
+
+Current catalog operation is verify-only: run the migration command in verify
+mode, require `COMPLETED`, and do not run `apply` or mutate catalog or Portal
+state. If verification returns any other state, stop and create a separately
+reviewed, incident-specific conditional recovery plan before mutation. After
+the checkout-origin repair merges and deploys, retry only the controlled
+Supporter smoke and verify taxed Checkout, webhook persistence, Supporter
+entitlements, and Portal switching and cancellation. This validation does not
+authorize catalog or Portal-configuration cleanup. Any such mutation requires
+a separately reviewed, incident-specific recovery plan and explicit approval.

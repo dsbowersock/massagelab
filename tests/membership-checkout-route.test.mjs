@@ -128,6 +128,41 @@ describe("Membership Checkout POST route", () => {
     })
   }
 
+  for (const contentType of ["text/plain", "application/octet-stream", ""]) {
+    it(`rejects metadata-free ${contentType || "missing content type"} before parsing or billing`, async () => {
+      let jsonCalls = 0
+      const calls = checkoutCallCounts()
+      const headers = new Headers()
+      if (contentType) headers.set("content-type", contentType)
+      const request = {
+        url: "https://massagelab.app/api/billing/checkout",
+        headers,
+        json: async () => {
+          jsonCalls += 1
+          return {
+            membershipLevel: "SUPPORTER",
+            supporterAmountChoiceId: "support-1",
+          }
+        },
+      }
+
+      const response = await createMembershipCheckoutPostHandler(
+        checkoutDependencies(calls),
+      )(request)
+
+      assert.deepEqual(response, {
+        body: { error: "Invalid request origin" },
+        status: 403,
+      })
+      assert.equal(jsonCalls, 0)
+      assert.deepEqual(calls, {
+        ensureCustomer: 0,
+        createCheckout: 0,
+        membershipLookup: 0,
+      })
+    })
+  }
+
   for (const fetchSite of ["cross-site", "same-site"]) {
     it(`rejects ${fetchSite} browser JSON before parsing or billing work`, async () => {
       let jsonCalls = 0
@@ -223,6 +258,114 @@ describe("Membership Checkout POST route", () => {
       metadata: { source: "membership-checkout-test" },
     })
   })
+
+  it("accepts the public www alias through the membership route when apex is configured", async () => {
+    const calls = checkoutCallCounts()
+    const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls))(
+      formRequest({
+        membershipLevel: "SUPPORTER",
+        supporterAmountChoiceId: "support-1",
+        interval: "month",
+      }, {
+        origin: "https://www.massagelab.app",
+      }, "https://www.massagelab.app/api/billing/checkout"),
+    )
+
+    assert.deepEqual(response, {
+      url: "https://checkout.stripe.com/c/test",
+      status: 303,
+    })
+    assert.equal(calls.membershipLookup, 1)
+    assert.equal(calls.ensureCustomer, 1)
+    assert.equal(calls.createCheckout, 1)
+    assert.equal(
+      calls.checkoutOptions.successUrl,
+      "https://massagelab.app/account?checkout=success&session_id={CHECKOUT_SESSION_ID}",
+    )
+    assert.equal(
+      calls.checkoutOptions.cancelUrl,
+      "https://massagelab.app/account?checkout=cancelled",
+    )
+  })
+
+  it("accepts the public apex alias through the membership route when www is configured", async () => {
+    const calls = checkoutCallCounts()
+    const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
+      siteUrl: "https://www.massagelab.app",
+    }))(formRequest({
+      membershipLevel: "SUPPORTER",
+      supporterAmountChoiceId: "support-1",
+      interval: "month",
+    }, {
+      origin: "https://massagelab.app",
+    }))
+
+    assert.deepEqual(response, {
+      url: "https://checkout.stripe.com/c/test",
+      status: 303,
+    })
+    assert.equal(calls.membershipLookup, 1)
+    assert.equal(calls.ensureCustomer, 1)
+    assert.equal(calls.createCheckout, 1)
+    assert.equal(
+      calls.checkoutOptions.successUrl,
+      "https://www.massagelab.app/account?checkout=success&session_id={CHECKOUT_SESSION_ID}",
+    )
+    assert.equal(
+      calls.checkoutOptions.cancelUrl,
+      "https://www.massagelab.app/account?checkout=cancelled",
+    )
+  })
+
+  for (const [label, evidenceHeaders] of [
+    ["Origin and cross-site Fetch Metadata", {
+      origin: "https://massagelab.app",
+      "sec-fetch-site": "cross-site",
+    }],
+    ["Origin and same-site Fetch Metadata", {
+      origin: "https://massagelab.app",
+      "sec-fetch-site": "same-site",
+    }],
+    ["Referer and cross-site Fetch Metadata", {
+      referer: "https://massagelab.app/pricing",
+      "sec-fetch-site": "cross-site",
+    }],
+    ["Referer and same-site Fetch Metadata", {
+      referer: "https://massagelab.app/pricing",
+      "sec-fetch-site": "same-site",
+    }],
+  ]) {
+    it(`rejects contradictory trusted ${label} before membership billing`, async () => {
+      let formDataCalls = 0
+      const calls = checkoutCallCounts()
+      const request = {
+        url: "https://massagelab.app/api/billing/checkout",
+        headers: new Headers({
+          "content-type": "application/x-www-form-urlencoded",
+          ...evidenceHeaders,
+        }),
+        formData: async () => {
+          formDataCalls += 1
+          return new FormData()
+        },
+      }
+
+      const response = await createMembershipCheckoutPostHandler(
+        checkoutDependencies(calls),
+      )(request)
+
+      assert.deepEqual(response, {
+        url: "https://massagelab.app/account?billing=invalid-request",
+        status: 303,
+      })
+      assert.equal(formDataCalls, 0)
+      assert.deepEqual(calls, {
+        ensureCustomer: 0,
+        createCheckout: 0,
+        membershipLookup: 0,
+      })
+    })
+  }
 
   it("accepts the configured public origin when a proxy supplies an internal request URL", async () => {
     const calls = checkoutCallCounts()
@@ -486,6 +629,7 @@ describe("Membership Checkout POST route", () => {
   it("routes unexpected form field normalization failures through the form-safe Checkout error response", async (context) => {
     const calls = checkoutCallCounts()
     const request = {
+      url: "https://massagelab.app/api/billing/checkout",
       headers: new Headers({
         "content-type": "application/x-www-form-urlencoded",
         "sec-fetch-site": "same-origin",
@@ -876,6 +1020,7 @@ function checkoutDependencies(calls, {
   missingLegalDocuments = [],
   captureSelectionInputs = false,
   captureGuardCalls = false,
+  siteUrl = "https://massagelab.app",
 } = {}) {
   const prisma = {
     user: {
@@ -902,7 +1047,7 @@ function checkoutDependencies(calls, {
       if (sessionError) throw sessionError
       return session
     },
-    getSiteUrl: () => "https://massagelab.app",
+    getSiteUrl: () => siteUrl,
     isPublicSupporterCheckoutSelection: (input) => {
       if (captureGuardCalls) calls.selectionValidation = (calls.selectionValidation ?? 0) + 1
       if (selectionError) throw selectionError

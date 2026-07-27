@@ -75,6 +75,29 @@ function jsonRequest(body = JSON.stringify({ amountCents: 500 })) {
   })
 }
 
+/**
+ * Builds browser-form requests for the origin-policy scenario table.
+ */
+function formRequest({
+  fetchSite,
+  origin,
+  referer,
+  url = "https://massagelab.app/api/billing/checkout",
+} = {}) {
+  const headers = new Headers({
+    "content-type": "application/x-www-form-urlencoded",
+  })
+  if (fetchSite) headers.set("sec-fetch-site", fetchSite)
+  if (origin) headers.set("origin", origin)
+  if (referer) headers.set("referer", referer)
+
+  return new Request(url, {
+    method: "POST",
+    headers,
+    body: new URLSearchParams(),
+  })
+}
+
 describe("one-time support Checkout route", () => {
   it("recognizes mixed-case browser form content types", () => {
     for (const contentType of [
@@ -90,9 +113,127 @@ describe("one-time support Checkout route", () => {
     }
   })
 
+  for (const { expected, label, request } of [
+    {
+      label: "accepts a browser-confirmed same-origin public alias",
+      request: formRequest({
+        url: "https://www.massagelab.app/api/billing/checkout",
+        origin: "https://www.massagelab.app",
+        fetchSite: "same-origin",
+      }),
+      expected: true,
+    },
+    {
+      label: "rejects a mismatched origin despite claimed same-origin metadata",
+      request: formRequest({
+        origin: "https://attacker.example",
+        fetchSite: "same-origin",
+      }),
+      expected: false,
+    },
+    {
+      label: "rejects an Origin header containing a path",
+      request: formRequest({
+        origin: "https://massagelab.app/checkout",
+        fetchSite: "same-origin",
+      }),
+      expected: false,
+    },
+    {
+      label: "rejects an unconfigured Referer without Origin despite same-origin metadata",
+      request: formRequest({
+        referer: "https://attacker.example/checkout",
+        fetchSite: "same-origin",
+      }),
+      expected: false,
+    },
+    {
+      label: "rejects contradictory Origin and Referer evidence",
+      request: formRequest({
+        url: "https://www.massagelab.app/api/billing/checkout",
+        origin: "https://www.massagelab.app",
+        referer: "https://attacker.example/checkout",
+        fetchSite: "same-origin",
+      }),
+      expected: false,
+    },
+    {
+      label: "rejects an unconfigured host despite internally consistent same-origin evidence",
+      request: formRequest({
+        url: "https://attacker.example/api/billing/checkout",
+        origin: "https://attacker.example",
+        fetchSite: "same-origin",
+      }),
+      expected: false,
+    },
+    {
+      label: "rejects same-origin metadata without Origin or Referer on an unconfigured host",
+      request: formRequest({
+        url: "https://attacker.example/api/billing/checkout",
+        fetchSite: "same-origin",
+      }),
+      expected: false,
+    },
+    {
+      label: "accepts same-origin metadata without Origin or Referer on the configured host",
+      request: formRequest({ fetchSite: "same-origin" }),
+      expected: true,
+    },
+    {
+      label: "accepts same-origin metadata without Origin or Referer on a configured public alias",
+      request: formRequest({
+        url: "https://www.massagelab.app/api/billing/checkout",
+        fetchSite: "same-origin",
+      }),
+      expected: true,
+    },
+  ]) {
+    it(label, () => {
+      assert.equal(
+        isTrustedCheckoutFormOrigin(request, "https://massagelab.app"),
+        expected,
+      )
+    })
+  }
+
+  it("fails closed when the configured checkout origin is unparseable", () => {
+    const request = new Request("https://massagelab.app/api/billing/checkout", {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        origin: "https://massagelab.app",
+        "sec-fetch-site": "same-origin",
+      },
+      body: new URLSearchParams(),
+    })
+
+    assert.equal(
+      isTrustedCheckoutFormOrigin(request, "not a URL"),
+      false,
+    )
+  })
+
+  it("fails closed for malformed request URLs in the metadata-only form path", () => {
+    const request = {
+      url: "not a URL",
+      headers: new Headers({
+        "content-type": "application/x-www-form-urlencoded",
+        "sec-fetch-site": "same-origin",
+      }),
+    }
+
+    assert.equal(
+      isTrustedCheckoutFormOrigin(request, "https://massagelab.app"),
+      false,
+    )
+  })
+
   for (const [label, siteUrl] of [
     ["omitted", ""],
     ["invalid", "not a URL"],
+    ["a file URL", "file:///tmp/massagelab"],
+    ["a mail URL", "mailto:billing@massagelab.app"],
+    ["a non-web network URL", "ftp://massagelab.app"],
   ]) {
     it(`fails closed at the route when the canonical checkout origin is ${label}`, async () => {
       let checkoutCalls = 0
@@ -373,6 +514,7 @@ describe("one-time support Checkout route", () => {
       },
     })
     const request = {
+      url: "https://massagelab.app/api/billing/donation",
       headers: new Headers({
         "content-type": "multipart/form-data; boundary=broken",
         "sec-fetch-site": "same-origin",

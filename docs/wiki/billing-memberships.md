@@ -73,15 +73,13 @@ MassageLab stores:
 - `studentStatus`
 - `eligibleForTherapistDiscount`
 
-Do not offer a Student-to-Therapist upgrade or coupon. That option is approved
-for removal as part of the separate Supporter migration.
+Do not offer a Student-to-Therapist upgrade or coupon.
 
 ## Coupons
 
-The legacy Student-to-Therapist and Early Access coupons are not approved for
-new use. The separate Supporter migration must re-verify that neither coupon
-has redemptions before removing or archiving it, turn off the early-access
-application path, and preserve any unexpectedly discovered subscriber terms.
+The legacy Student-to-Therapist and Early Access coupons were verified at zero
+redemptions and removed by the completed Supporter migration. They are not
+approved for recreation or new use.
 
 ## Feature Keys
 
@@ -113,10 +111,11 @@ Membership messaging can explain that paid support helps fund future compliance-
 
 Pricing and legal copy should also say that MassageLab does not sell user data and does not use advertising to fund the project. The current funding posture is memberships, optional one-time support, and product revenue.
 
-## Approved Supporter Migration Direction
+## Completed Supporter Catalog State
 
-The approved follow-up is one **MassageLab Supporter Membership** with identical
-current benefits, including access to all backgrounds, at fixed support amounts:
+Production now uses one **MassageLab Supporter Membership** with identical
+current benefits, including access to all backgrounds, at fixed support
+amounts:
 
 - monthly: $1, $2, or $5;
 - annual: $10, $20, or $50.
@@ -125,7 +124,7 @@ The amount expresses how much the member wants to support development; it does
 not select a feature tier, tax treatment, or roadmap interest. Therapist and
 Practice enrollment remains unavailable until differentiated professional SaaS
 features are ready for beta. Roadmap interests are a separate editable
-multi-select preference. The Customer Portal should continue to allow payment
+multi-select preference. The Customer Portal remains configured to allow payment
 method and billing-address updates, invoices, cancellation, and switching among
 the approved Supporter amounts.
 
@@ -135,6 +134,8 @@ input only for pre-migration Supporter reconciliation; it is not a public
 catalog choice and must not authorize new Checkout. Legacy Therapist and
 Practice mappings separately reconcile existing professional subscriptions
 until their controlled retirement gates pass.
+
+Do not remove the six legacy runtime Price mappings until subscriber inventory proves none remain and webhook reconciliation is final.
 
 New enrollment is serialized at Stripe, not only hidden in the UI. The server
 fully paginates a bounded customer Session inventory, recognizes only
@@ -152,15 +153,15 @@ interval on a Product. Each Product has one monthly and one annual Price, the
 same name, tax code, Supporter entitlement metadata, and amount-choice
 metadata. This is an operational representation, not three feature tiers.
 
-The deployable migration command creates or verifies these three Products and
-six exclusive recurring Prices, removes only the two independently verified
-zero-redemption legacy coupons, retires all six unapproved higher Prices
+The completed migration created or verified these three Products and six
+exclusive recurring Prices, removed only the two independently verified
+zero-redemption legacy coupons, retired all six unapproved higher Prices
 ($9/$90, $29/$279, and $79/$759) and the older approved-amount Price objects
 that cannot be reassigned from their legacy tier Products, and
-limits Customer Portal switching to those six Prices while preserving billing
+limited Customer Portal switching to those six Prices while preserving billing
 details, payment methods, invoices, and cancellation. Cross-Product amount
 changes keep the existing billing-cycle anchor, create no prorations, and are
-not scheduled for period end. It inventories all
+not scheduled for period end. The command inventories all
 relevant subscriptions before mutation. Test mode permits a concrete, reviewed
 test-subscription identifier only when it is the sole retained relevant
 subscription; `none` is permitted only after inventory proves zero relevant
@@ -172,34 +173,44 @@ Their Product dependencies must retain their exact expected names; optional
 `app` and membership-level metadata may be absent but must not contradict the
 expected MassageLab identity.
 
-Read-only verification recognizes only `PRE_MIGRATION` and `COMPLETED` as
-operator-approved states and fails closed on mixed catalog state.
-`PRE_MIGRATION` includes one narrowly recoverable pre-Portal interruption: the
-single legacy Supporter Product may already have the approved classification,
-all six approved-amount Prices may already carry managed metadata on that
-Product, and Portal switching may still be disabled. Legacy cleanup must remain
-untouched. Apply creates replacement Prices under the $2/$20 and $5/$50
-Products, transfers the managed lookup keys according to the verified protocol,
-and installs the exact Portal topology. Wrong-owner Prices are retired only
-after the Portal reread gate succeeds.
+### Historical recovery mechanics (conditional reference only)
 
-Apply has one additional, tightly fingerprinted internal recovery path: a
-`TRANSITIONAL` state is resumable only when the Portal already rereads as the
-exact completed three-Product topology, every target Product and Price is
-complete or safely repairable, coupon dependencies remain verified, and
-Price-before-Product cleanup order has not been violated. This recovery path
-does not make `TRANSITIONAL` a third state accepted by read-only verification.
+Current Production verification must return `COMPLETED`. `PRE_MIGRATION`,
+`TRANSITIONAL`, and mixed states are fail-closed and do not authorize `apply`.
+The recovery fingerprints below are retained only as historical implementation
+reference. They may be used only under a separately reviewed,
+incident-specific conditional recovery plan with explicit authorization before
+mutation.
 
-The reviewed pre-migration Customer Portal may have subscription switching
-disabled and no Product allowlist. That state is not a reason to enable
-switching manually before the migration: apply installs the exact
+The historical pre-Portal recovery fingerprint covered one narrowly
+recoverable interruption: the single legacy Supporter Product could already
+have the approved classification, all six approved-amount Prices could already
+carry managed metadata on that Product, and Portal switching could still be
+disabled. Legacy cleanup had to remain untouched. The recovery created
+replacement Prices under the $2/$20 and $5/$50 Products, transferred managed
+lookup keys according to the verified protocol, and installed the exact Portal
+topology. Wrong-owner Prices were retired only after the Portal reread gate
+succeeded.
+
+The migration implementation also retains one tightly fingerprinted apply-only
+recovery path: a `TRANSITIONAL` state is resumable only when the Portal already
+rereads as the exact completed three-Product topology, every target Product and
+Price is complete or safely repairable, coupon dependencies remain verified,
+and Price-before-Product cleanup order has not been violated. This historical
+fingerprint does not make `TRANSITIONAL` an accepted current verification
+state.
+
+The reviewed pre-migration Customer Portal could have subscription switching
+disabled and no Product allowlist. The completed recovery installed the exact
 three-Product/six-Price Supporter allowlist while preserving the existing
 billing-management features.
 
-Do not mutate live Products, Prices, coupons, subscriptions, portal settings,
-or entitlements outside that controlled operation. Follow the reviewed
-[Supporter Membership restructuring plan](../superpowers/plans/2026-07-23-supporter-membership-restructure.md)
-as its own migration track.
+Current operations are verify-only. Do not mutate live Products, Prices,
+coupons, subscriptions, Portal settings, or entitlements. If verification does
+not return `COMPLETED`, stop and create a separately reviewed conditional
+recovery plan before any apply. The reviewed
+[three-Product Portal follow-up](../superpowers/plans/2026-07-26-supporter-membership-three-product-portal-followup.md)
+is historical evidence, not a current runbook.
 
 ### Supporter Recurring Tax Gate
 
@@ -212,63 +223,52 @@ non-secret deployment values are explicit:
 - `STRIPE_SUPPORTER_TAX_REGISTRATIONS_READY=true`; and
 - `STRIPE_SUPPORTER_TAX_CLASSIFICATION_CONFIRMED=true`.
 
-When ready, a new Supporter Checkout Session enables Stripe Automatic Tax,
-requires a billing address, and saves the entered address to the existing
-Stripe Customer. `--verify-stripe` also requires every configured Supporter
+In current Production, a new Supporter Checkout Session enables Stripe
+Automatic Tax, requires a billing address, and saves the entered address to the
+existing Stripe Customer. `--verify-stripe` requires every configured Supporter
 Price to use exclusive tax behavior, exact interval and `interval_count=1`, no
 trial, licensed usage, per-unit billing, no quantity transform, and no
 additional currencies, while its expanded Product must use `txcd_10000000`.
 
-The current `txcd_10000000` confirmation is sufficient to implement and test
-this contract, but it is not recorded as final professional authorization to
-deploy or mutate the live catalog. Keep the runtime gates false until that
-authorization, provider setup, registrations, full subscriber inventory, and
-read-only migration verification are complete. Automatic Tax on a new Checkout
-Session does not update an existing subscription; any existing recurring
-subscription needs a separate subscriber-specific tax review and update plan.
-One-time support remains outside this classification and continues to omit
-Automatic Tax.
+The current `txcd_10000000` classification is confirmed for MassageLab's
+present electronically supplied Supporter access. Production authorization,
+Stripe Tax provider setup, the applicable Ohio registration, complete
+subscriber inventory, and read-only migration verification are complete. The
+three-Product catalog migration is `COMPLETED`, all recurring-tax runtime gates
+are enabled, and live readiness passes against Stripe and the pinned webhook
+endpoint. The remaining rollout gate is a controlled subscription smoke after
+the checkout-origin repair is merged and deployed. Any future material change
+to the paid app offering requires a new classification review. One-time
+support remains outside this classification and continues to omit Automatic
+Tax.
 
 ## Stripe Setup Checklist
 
-- Until the Supporter migration is applied, preserve the current mapped Price
-  IDs for webhook reconciliation and keep new Therapist and Practice enrollment
-  unavailable.
-- Do not remove the six legacy runtime Price mappings until subscriber inventory proves none remain and webhook reconciliation is final.
-- Apply the migration only after existing-subscriber, recurring-tax, webhook,
-  entitlement, portal, and rollback checks pass. The six approved Supporter
-  Price IDs alone control new public enrollment; legacy IDs remain
-  reconciliation-only compatibility inputs until the explicit removal gate.
-- Enable Stripe Customer Portal for subscription management, payment method updates, invoices, and cancellation.
+- Preserve the completed three-Product/six-Price catalog and keep new Therapist
+  and Practice enrollment unavailable.
+- Keep the exact six current Supporter Price mappings in Production. Legacy
+  mappings remain reconciliation-only inputs until the documented removal gate
+  is explicitly completed.
+- Keep Stripe Customer Portal enabled for switching only among the six current
+  Supporter Prices, subscription management, payment method and billing-address
+  updates, invoices, and cancellation.
 - Configure the pinned `/api/billing/webhook` endpoint as enabled on the
   app's `2026-02-25.clover` Stripe API version with exactly the combined
   membership and background-commerce event contract below.
-- Set `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and the configured price IDs in local development and Vercel.
+- Supply Stripe credentials through the approved local and Vercel
+  secret-management/deployment process, and keep the exact six non-secret
+  Supporter Price ID mappings configured in both environments.
 - Use the Stripe CLI in test mode to forward webhooks during local checkout testing.
-- Before any apply, run `npm run stripe:migrate-supporter-membership -- --mode=verify`
-  against the reviewed production subscriber, catalog, and Customer Portal
-  inventory. This GET-only migration verification is the pre-apply authority.
-- After apply, rerun
-  `npm run stripe:migrate-supporter-membership -- --mode=verify` and require a
-  complete PASS. That post-apply verification must re-read the Customer Portal,
-  prove legacy cleanup occurred in dependency order, and report the final
-  migration state as completed before any runtime Price ID is changed.
-- After that verification passes, confirm the resulting three Supporter
-  Products exist in Stripe, then configure their six approved Price IDs for new
-  public enrollment in the production runtime. These IDs are additive: retain all six legacy
-  webhook-reconciliation Price mappings until subscriber inventory and
-  reconciliation are complete and the explicit removal gate passes. Product IDs
-  remain migration-only operator inputs. Then, before public paid signup, run
+- Treat `npm run stripe:migrate-supporter-membership -- --mode=verify` as the
+  GET-only current authority and require `COMPLETED`. Do not run `apply`; any
+  other state requires a separately reviewed, incident-specific recovery plan
+  and explicit authorization.
+- Before public paid signup or after relevant billing configuration changes,
+  run
   `npm run stripe:readiness -- --env-file=/secure/path/massagelab-production.env --live --verify-stripe`
-  against production Stripe. For `CREATE_NEW`, this live readiness check is
-  necessarily post-apply because the configured Price IDs do not exist before
-  the migration creates them. The required sequence is apply, post-apply
-  migration verification PASS, runtime Price configuration, then live readiness
-  PASS.
+  and require complete Stripe, tax, and webhook readiness.
 - Both commands must pass without printing secrets or Stripe identifiers; their
   operator output is limited to safe readiness messages and checklist codes.
-
-Current local workspace note from May 15, 2026: `.env.local` did not contain Stripe keys or price IDs during implementation planning, so local Checkout and webhook testing will fail until those values are added.
 
 ## Permanent Background Commerce
 
