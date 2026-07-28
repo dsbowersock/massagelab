@@ -342,13 +342,14 @@ describe("Supporter membership final-review contracts", () => {
       (element) => element.type === "form",
     ).map((element) => element.props.action)
 
-    assert.deepEqual(formActions(memberCards), ["/api/billing/portal"])
-    assert.match(elementText(memberCards), /Manage or change support amount/)
+    assert.deepEqual(formActions(memberCards), ["/api/billing/portal", "/api/billing/portal"])
+    assert.match(elementText(memberCards), /Change support amount or billing period/)
+    assert.match(elementText(memberCards), /Manage billing account/)
     assert.doesNotMatch(elementText(memberCards), /Support with \$1(?!\d)|Choose \$1(?!\d)/)
 
     assert.deepEqual(formActions(signedInNonMemberCards), ["/api/billing/checkout"])
     assert.match(elementText(signedInNonMemberCards), /Support with \$1(?!\d)/)
-    assert.doesNotMatch(elementText(signedInNonMemberCards), /Manage or change support amount/)
+    assert.doesNotMatch(elementText(signedInNonMemberCards), /Change support amount or billing period/)
 
     assert.deepEqual(formActions(guestCards), [])
     assert.match(elementText(guestCards), /Choose \$1(?!\d)/)

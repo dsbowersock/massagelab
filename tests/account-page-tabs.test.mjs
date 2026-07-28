@@ -21,6 +21,7 @@ import {
   getAccountTabHref,
   selectAccountTab,
 } from "../lib/account-page.js"
+import { BILLING_PORTAL_DESTINATIONS } from "../lib/billing-portal-destinations.js"
 import { resolveMembershipPricingMode } from "../lib/membership.js"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
@@ -191,6 +192,23 @@ describe("Account page tab model", () => {
     assert.equal(formatAccountDate(new Date(2026, 4, 18, 23, 30)), "2026-05-18")
   })
 
+  it("points existing subscribers to the focused membership-change action", () => {
+    const source = `export ${topLevelFunctionSource(
+      accountPageSource,
+      "billingMessage",
+      "app/account/page.tsx",
+    )}`
+    const { billingMessage } = loadCompiledModule(
+      source,
+      "app/account/billing-message.test.ts",
+    )
+
+    assert.equal(
+      billingMessage("existing-subscription"),
+      "Use Change support amount or billing period to update your current membership.",
+    )
+  })
+
   it("keeps Account pricing and billing Portal actions independently gated", async () => {
     const terminalWithPortal = await renderMembershipTab({
       subscriptions: [subscription("canceled")],
@@ -331,6 +349,7 @@ async function renderMembershipTab({
   const imports = `
     import {
       Button,
+      BILLING_PORTAL_DESTINATIONS,
       Card,
       CardContent,
       CardDescription,
@@ -362,6 +381,7 @@ async function renderMembershipTab({
     },
     "test-dependencies": {
       Button: passThroughElement("button"),
+      BILLING_PORTAL_DESTINATIONS,
       Card: Div,
       CardContent: Div,
       CardDescription: Div,

@@ -128,6 +128,15 @@ multi-select preference. The Customer Portal remains configured to allow payment
 method and billing-address updates, invoices, cancellation, and switching among
 the approved Supporter amounts.
 
+MassageLab creates Portal sessions on demand through two explicit actions.
+**Change support amount or billing period** uses Stripe's focused
+`subscription_update` flow for the account's persisted non-terminal
+subscription. **Manage billing account** opens the general Portal homepage for
+payment methods, billing address, invoices, and cancellation. After a focused
+change, Stripe returns the customer to the Portal homepage; both session types
+retain the Account membership surface as their app-return destination. Neither
+changes the configured Product/Price allowlist.
+
 All six current amount-specific Supporter Price IDs grant the same `SUPPORTER`
 membership and feature set. The legacy Supporter mapping remains a runtime
 input only for pre-migration Supporter reconciliation; it is not a public
@@ -236,11 +245,11 @@ Stripe Tax provider setup, the applicable Ohio registration, complete
 subscriber inventory, and read-only migration verification are complete. The
 three-Product catalog migration is `COMPLETED`, all recurring-tax runtime gates
 are enabled, and live readiness passes against Stripe and the pinned webhook
-endpoint. The remaining rollout gate is a controlled subscription smoke after
-the checkout-origin repair is merged and deployed. Any future material change
-to the paid app offering requires a new classification review. One-time
-support remains outside this classification and continues to omit Automatic
-Tax.
+endpoint. The controlled taxed subscription retry is complete. The remaining
+rollout gate is one real amount or interval switch after the focused
+subscription-update action deploys. Any future material change to the paid app
+offering requires a new classification review. One-time support remains
+outside this classification and continues to omit Automatic Tax.
 
 ## Stripe Setup Checklist
 

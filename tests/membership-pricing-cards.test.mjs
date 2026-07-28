@@ -77,18 +77,26 @@ describe("MembershipPricingCards configured price rendering", () => {
     assert.doesNotMatch(elementText(portalCards), /Price unavailable/)
     assert.doesNotMatch(elementText(portalCards), /\$2/)
     assert.match(elementText(portalPriceTiles[0]), /\$1.*\/month/)
-    assert.match(elementText(portalCards), /Manage or change support amount/)
-    assert.match(elementText(portalCards), /Customer Portal/)
-    assert.equal(
-      findElements(
-        portalCards,
+    assert.match(elementText(portalCards), /Change support amount or billing period/)
+    assert.match(elementText(portalCards), /Manage billing account/)
+    const portalForms = findElements(
+      portalCards,
+      (element) => (
+        element.type === "form"
+        && element.props.action === "/api/billing/portal"
+        && element.props.method === "post"
+      ),
+    )
+    assert.equal(portalForms.length, 2)
+    assert.deepEqual(
+      portalForms.map((form) => findElements(
+        form,
         (element) => (
-          element.type === "form"
-          && element.props.action === "/api/billing/portal"
-          && element.props.method === "post"
+          element.type === "input"
+          && element.props.name === "destination"
         ),
-      ).length,
-      1,
+      ).map((element) => element.props.value)),
+      [["subscription-update"], ["manage"]],
     )
     assert.equal(
       findElements(
@@ -220,14 +228,15 @@ describe("MembershipPricingCards configured price rendering", () => {
       ).length,
       0,
     )
-    assert.match(elementText(tree), /Use the Customer Portal to switch among approved Supporter amounts/)
-    assert.match(elementText(tree), /Manage or change support amount/)
+    assert.match(elementText(tree), /Change your support amount or billing period directly/)
+    assert.match(elementText(tree), /Change support amount or billing period/)
+    assert.match(elementText(tree), /Manage billing account/)
     assert.equal(
       findElements(
         tree,
         (element) => element.type === "form" && element.props.action === "/api/billing/portal",
       ).length,
-      1,
+      2,
     )
   })
 

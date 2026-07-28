@@ -23,6 +23,7 @@ import { BackgroundCommercePanel } from "@/components/account/BackgroundCommerce
 import { accountPageGroups, accountPageTabs, formatAccountDate, selectAccountTab } from "@/lib/account-page"
 import { normalizeSessionRoleAssignments } from "@/lib/account-role-assignments"
 import { getAccountSurfaceData } from "@/lib/account-surface-data"
+import { BILLING_PORTAL_DESTINATIONS } from "@/lib/billing-portal-destinations"
 import { getLegalDocumentByKey, legalDocumentAcceptanceId } from "@/lib/legal-documents"
 import { US_MASSAGE_JURISDICTIONS } from "@/lib/license-verification"
 import { FEATURE_KEYS, resolveMembershipPricingMode } from "@/lib/membership"
@@ -688,8 +689,13 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
           <div id="billing-portal" className="flex flex-col gap-3">
             {canOpenBillingPortal ? (
               <form action="/api/billing/portal" method="post">
+                <input
+                  type="hidden"
+                  name="destination"
+                  value={BILLING_PORTAL_DESTINATIONS.MANAGE}
+                />
                 <Button type="submit" variant="outline">
-                  Manage subscription
+                  Manage billing account
                 </Button>
               </form>
             ) : null}
@@ -971,6 +977,15 @@ function accountNotice({
     }
   }
 
+  // Focused subscription updates can fail independently of customer-wide billing management.
+  if (portal === "subscription-not-found") {
+    return {
+      title: "Subscription change unavailable",
+      description: "We could not find a current subscription to change. Open your billing account or contact support if you still need help.",
+      tone: "default" as const,
+    }
+  }
+
   if (portal === "error") {
     return {
       title: "Billing portal unavailable",
@@ -1001,7 +1016,7 @@ function accountNotice({
 function billingMessage(code: string) {
   if (code === "unsupported-plan") return "That membership option is not available yet."
   if (code === "price-not-configured") return "That membership option is not available yet."
-  if (code === "existing-subscription") return "Use Manage subscription to change your current membership in the Customer Portal."
+  if (code === "existing-subscription") return "Use Change support amount or billing period to update your current membership."
   if (code === "billing-terms-required") return "Accept the membership billing and refund terms before starting checkout."
   if (code === "account-not-found") return "The signed-in account could not be found."
   // Origin validation rejected the form, so retry only after reloading a trusted MassageLab page.
