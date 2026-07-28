@@ -206,6 +206,8 @@ export function BackgroundCarouselCard({
               {locked ? <Lock aria-hidden="true" /> : null}
               {unavailable ? "Unavailable" : locked ? "Unlock" : selected ? "Selected" : "Select"}
             </Button>
+            {/* Temporary membership access offers conversion only with its handler;
+                the crown is reserved for authoritative permanent ownership. */}
             {commerceState.showKeepPermanently && onKeepPermanently ? (
               <Button
                 type="button"

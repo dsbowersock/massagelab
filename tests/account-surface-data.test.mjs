@@ -110,14 +110,24 @@ describe("account surface data loader", () => {
       "noteTemplate.count",
     ])
 
-    const activeData = await loader.getAccountSurfaceData("overview", "user_2", {
+    const activeSessionUser = {
       ...sessionUser,
       capabilities: {
         ...sessionUser.capabilities,
         hasActiveMembershipBenefits: true,
       },
-    })
+    }
+    const [cachedData, activeData] = await Promise.all([
+      loader.getAccountSurfaceData("overview", "user_1", sessionUser),
+      loader.getAccountSurfaceData("overview", "user_1", activeSessionUser),
+    ])
+    assert.equal(cachedData.hasActiveMembershipBenefits, false)
     assert.equal(activeData.hasActiveMembershipBenefits, true)
+    assert.deepEqual(calls, [
+      "learningProgress.count",
+      "achievement.count",
+      "noteTemplate.count",
+    ])
   })
 
   it("loads only profile data for the profile surface", async () => {

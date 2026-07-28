@@ -155,6 +155,46 @@ export function ImmersivePanelShell({
   }, [])
 
   useLayoutEffect(() => {
+    // The toolbar remains active after a nonmodal panel closes, so visual
+    // viewport tracking must not share the panel-placement effect's lifecycle.
+    const measureVisualViewportFrame = () => {
+      const visualViewport = window.visualViewport
+      const viewportTop = visualViewport?.offsetTop ?? 0
+      const viewportLeft = visualViewport?.offsetLeft ?? 0
+      const viewportWidth = visualViewport?.width ?? window.innerWidth
+      const viewportHeight = visualViewport?.height ?? window.innerHeight
+      const nextVisualViewportFrame = {
+        top: viewportTop,
+        left: viewportLeft,
+        right: Math.max(0, window.innerWidth - viewportLeft - viewportWidth),
+        bottom: Math.max(0, window.innerHeight - viewportTop - viewportHeight),
+        width: viewportWidth,
+        centerY: viewportTop + (viewportHeight / 2),
+      }
+      setVisualViewportFrame((current) => (
+        current
+        && Object.entries(nextVisualViewportFrame).every(
+          ([key, value]) => Math.abs(current[key as keyof VisualViewportFrame] - value) < 1,
+        )
+          ? current
+          : nextVisualViewportFrame
+      ))
+    }
+
+    measureVisualViewportFrame()
+    window.addEventListener("resize", measureVisualViewportFrame)
+    window.addEventListener("orientationchange", measureVisualViewportFrame)
+    window.visualViewport?.addEventListener("resize", measureVisualViewportFrame)
+    window.visualViewport?.addEventListener("scroll", measureVisualViewportFrame)
+    return () => {
+      window.removeEventListener("resize", measureVisualViewportFrame)
+      window.removeEventListener("orientationchange", measureVisualViewportFrame)
+      window.visualViewport?.removeEventListener("resize", measureVisualViewportFrame)
+      window.visualViewport?.removeEventListener("scroll", measureVisualViewportFrame)
+    }
+  }, [])
+
+  useLayoutEffect(() => {
     const toolbar = toolbarRef.current
     if (!toolbar) return
 
@@ -225,25 +265,7 @@ export function ImmersivePanelShell({
         }
         const visualViewport = window.visualViewport
         const viewportTop = visualViewport?.offsetTop ?? 0
-        const viewportLeft = visualViewport?.offsetLeft ?? 0
-        const viewportWidth = visualViewport?.width ?? window.innerWidth
         const viewportHeight = visualViewport?.height ?? window.innerHeight
-        const nextVisualViewportFrame = {
-          top: viewportTop,
-          left: viewportLeft,
-          right: Math.max(0, window.innerWidth - viewportLeft - viewportWidth),
-          bottom: Math.max(0, window.innerHeight - viewportTop - viewportHeight),
-          width: viewportWidth,
-          centerY: viewportTop + (viewportHeight / 2),
-        }
-        setVisualViewportFrame((current) => (
-          current
-          && Object.entries(nextVisualViewportFrame).every(
-            ([key, value]) => Math.abs(current[key as keyof VisualViewportFrame] - value) < 1,
-          )
-            ? current
-            : nextVisualViewportFrame
-        ))
         // Without a visible clock, protect the toolbar itself. A zero-height
         // region lets a full-height bottom dock rise underneath the toolbar,
         // making header controls visible but impossible to click on phones.

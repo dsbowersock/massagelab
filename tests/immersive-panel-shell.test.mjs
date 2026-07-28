@@ -46,7 +46,12 @@ test("keeps ordinary phone toolbars from clipping controls into a shared box", (
   )
   assert.match(shellSource, /toolbar\.scrollWidth <= toolbar\.clientWidth \+ 1/)
   assert.match(shellSource, /data-toolbar-fits-visual-viewport=\{toolbarFitsVisualViewport\}/)
-  assert.doesNotMatch(shellStyles, /@media[\s\S]{0,200}\.toolbar[\s\S]{0,100}overflow:\s*visible/)
+  assert.doesNotMatch(
+    shellStyles,
+    /@media \(min-width:\s*36\.0625rem\)\s*\{\s*\.toolbar\s*\{\s*overflow:\s*visible;/,
+  )
+  assert.match(shellSource, /const measureVisualViewportFrame = \(\) =>/)
+  assert.match(shellSource, /window\.visualViewport\?\.addEventListener\("resize", measureVisualViewportFrame\)/)
 })
 
 test("keeps Clock and Visual nonmodal with complete dismissal mechanics", () => {

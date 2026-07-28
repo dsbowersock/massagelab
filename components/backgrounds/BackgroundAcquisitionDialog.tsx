@@ -81,6 +81,8 @@ export function BackgroundAcquisitionDialog({
     ? membershipDestination
     : `/login?callbackUrl=${encodeURIComponent(membershipDestination)}`
 
+  // Keep-permanently converts active membership access through a non-swappable
+  // credit or fixed $1 purchase; locked mode presents the initial access choices.
   return (
     <>
       <Dialog open={open && !confirmingCredit} onOpenChange={onOpenChange}>

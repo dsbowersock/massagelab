@@ -1269,6 +1269,8 @@ test("Clock and Visual docks remain safe at 200 percent Chromium page scale", as
     await expectDockAvoidsDisplay(page, panelName, true)
   }
   if (testInfo.project.name === "mobile-chromium") {
+    // At 200% scale the phone toolbar must scroll instead of clipping the
+    // Background action or its four-pixel focus ring.
     await expect.poll(() => page.locator("[aria-label='Immersive display controls']").evaluate(
       (toolbar) => window.getComputedStyle(toolbar).overflowX,
     )).toBe("auto")
@@ -1278,6 +1280,12 @@ test("Clock and Visual docks remain safe at 200 percent Chromium page scale", as
       ringExtent: 4,
       ringInside: true,
     }))
+    const visualControl = page.getByRole("button", { name: "Visual", exact: true })
+    await page.keyboard.press("Escape")
+    await expect(visualControl).toHaveAttribute("aria-expanded", "false")
+    await expect.poll(() => page.locator("[aria-label='Immersive display controls']").evaluate(
+      (toolbar) => window.getComputedStyle(toolbar).overflowX,
+    )).toBe("auto")
   }
   await session.send("Emulation.setPageScaleFactor", { pageScaleFactor: 1 })
 })
