@@ -107,8 +107,14 @@ change deployment are complete. PR #153's exact merge commit is READY in
 Production. The controlled user has changed the membership
 to $2 monthly and supplied screenshots showing the Account return, continuing
 Supporter status, and membership-included backgrounds. Bounded read-only
-verification of the Stripe amount/tax/anchor/proration fields and
-webhook-persisted database Price mapping remains open. The independent
+verification confirms an active $2 monthly Supporter Price with exclusive tax
+behavior and Automatic Tax enabled, the original billing anchor, and no
+immediate proration invoice or charge. The latest paid invoice remains the
+non-prorated initial $1 subtotal plus $0.07 Ohio tax; the first $2 renewal has
+not occurred, so no completed $2 tax invoice is claimed. Production persistence
+matches the active Supporter subscription and current Price, and the feature-key
+resolver continues to grant `premium_backgrounds` and
+`chimer_custom_colors`. The independent
 `txcd_90000001` one-time-support Automatic Tax contract is implemented. The
 user reverified live Stripe Tax readiness and the collecting Ohio registration,
 all five Production gates are configured, and the exact PR #153 merge commit

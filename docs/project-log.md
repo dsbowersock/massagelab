@@ -17,6 +17,21 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
   `5f96bc029759d04e5b79aeb548508cef77a312d1`. Vercel reports the new
   Production deployment READY on every canonical alias, `/pricing` returns
   200, and the post-deploy runtime error scan found no errors.
+- Completed the bounded read-only backend verification for the controlled
+  Supporter change. Stripe reports one active $2 monthly Supporter
+  subscription with exclusive tax behavior and Automatic Tax enabled. Its
+  billing anchor and current-period start remain the original subscription
+  start, and its latest invoice remains the paid, non-prorated initial $1
+  subtotal plus $0.07 Ohio tax; the switch therefore created no immediate
+  proration invoice or charge. The next $2 renewal has not occurred, so no
+  completed $2 tax invoice is claimed.
+- The Production database has exactly one matching active Supporter
+  subscription with the current Stripe Price, an unexpired period, and no
+  pending cancellation. The app's existing feature-key resolver therefore
+  continues to grant `premium_backgrounds` and `chimer_custom_colors`.
+  Supplied Production screenshots separately confirm the Account return and
+  membership-included background presentation. No customer, subscription,
+  invoice, Price, or database identifiers are recorded here.
 - The protected Production secret could not be exported, so the required
   `stripe:readiness --live --verify-stripe` command was not rerun against the
   deployed values. Keep one-time-support Production readiness pending until
