@@ -1246,7 +1246,20 @@ test("ordinary phone landscape keeps immersive button effects out of a shared to
   })
 
   for (const name of ["Clock", "Visual", "Background"]) {
-    await expect(page.getByRole("button", { name, exact: true })).toBeVisible()
+    const control = page.getByRole("button", { name, exact: true })
+    await expect(control).toBeVisible()
+    await expect.poll(() => control.evaluate((element) => {
+      const rect = element.getBoundingClientRect()
+      const viewport = window.visualViewport
+      const left = viewport?.offsetLeft ?? 0
+      const top = viewport?.offsetTop ?? 0
+      const right = left + (viewport?.width ?? window.innerWidth)
+      const bottom = top + (viewport?.height ?? window.innerHeight)
+      return rect.left >= left - 0.5
+        && rect.top >= top - 0.5
+        && rect.right <= right + 0.5
+        && rect.bottom <= bottom + 0.5
+    })).toBe(true)
   }
 })
 

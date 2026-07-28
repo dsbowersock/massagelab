@@ -198,6 +198,8 @@ export function ImmersivePanelShell({
     const toolbar = toolbarRef.current
     if (!toolbar) return
 
+    // CSS exposes control glows only when every item fits. The one-pixel
+    // tolerance absorbs rounding, while ResizeObserver follows size changes.
     const measureToolbarFit = () => {
       setToolbarFitsVisualViewport(toolbar.scrollWidth <= toolbar.clientWidth + 1)
     }

@@ -117,12 +117,30 @@ describe("account surface data loader", () => {
         hasActiveMembershipBenefits: true,
       },
     }
-    const [cachedData, activeData] = await Promise.all([
+    const legacySessionUser = {
+      ...sessionUser,
+      capabilities: {
+        canUseChimerCustomColors: false,
+        canUsePremiumBackgrounds: true,
+      },
+    }
+    const explicitInactiveSessionUser = {
+      ...legacySessionUser,
+      capabilities: {
+        ...legacySessionUser.capabilities,
+        hasActiveMembershipBenefits: false,
+      },
+    }
+    const [cachedData, activeData, legacyData, explicitInactiveData] = await Promise.all([
       loader.getAccountSurfaceData("overview", "user_1", sessionUser),
       loader.getAccountSurfaceData("overview", "user_1", activeSessionUser),
+      loader.getAccountSurfaceData("overview", "user_1", legacySessionUser),
+      loader.getAccountSurfaceData("overview", "user_1", explicitInactiveSessionUser),
     ])
     assert.equal(cachedData.hasActiveMembershipBenefits, false)
     assert.equal(activeData.hasActiveMembershipBenefits, true)
+    assert.equal(legacyData.hasActiveMembershipBenefits, true)
+    assert.equal(explicitInactiveData.hasActiveMembershipBenefits, false)
     assert.deepEqual(calls, [
       "learningProgress.count",
       "achievement.count",

@@ -151,6 +151,8 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
   const roleRows = normalizeSessionRoleAssignments(session.user as AccountSessionUser) as Array<{ role: AccountRole; status: VerificationStatus }>
   const roleLabels = roleRows.map((roleRow) => roleRow.role).sort()
   const canManageAnatomy = Boolean(session.user.capabilities?.canManageAnatomyContent)
+  // Account status uses the aggregate feature-key claim; a permanently owned
+  // background does not imply that membership benefits are currently active.
   const hasActiveMembershipBenefits = Boolean(session.user.capabilities?.hasActiveMembershipBenefits)
   const accountDisplayName = session.user.name || session.user.email || "MassageLab account"
   const roleSummary = roleLabels.length > 0 ? roleLabels.map(formatRole).join(", ") : "User"
@@ -615,6 +617,8 @@ async function CredentialsTab({ userId, sessionUser }: { userId: string; session
 async function MembershipTab({ userId, sessionUser }: { userId: string; sessionUser: AccountSessionUser }) {
   const data = await getAccountSurfaceData("membership", userId, sessionUser)
   const membershipSummary = data.membershipSummary
+  // Benefit tiles use individual entitlement keys, never displayed plan names
+  // or permanent background ownership, which remains a separate access source.
   const canUseChimerCustomColors = membershipSummary.entitlements.features.includes(FEATURE_KEYS.chimerCustomColors)
   const canUsePremiumBackgrounds = membershipSummary.entitlements.features.includes(FEATURE_KEYS.premiumBackgrounds)
   const subscriptionPricingMode = resolveMembershipPricingMode({
