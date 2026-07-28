@@ -67,7 +67,7 @@ describe("user-facing copy", () => {
     )
     assert.match(
       releaseChecklist.replace(/\s+/g, " "),
-      /does not purchase goods or services, create a membership, or unlock features, states that it is not charitable or tax-deductible/,
+      /does not purchase goods or services, create a membership, or unlock features, states that it is not charitable or tax-deductible, and grants no membership, credit, or background ownership after the signed completion webhook/,
     )
 
     assert.match(loginForm, /Google sign-in is not available right now/)

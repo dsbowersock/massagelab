@@ -531,7 +531,7 @@ test("subscriber and purchased ownership stay distinct in active Chimer", async 
   const responsiveCard = accessCard(responsiveAurora)
   const favorite = responsiveCard.locator("[data-carousel-favorite-action]")
   const permanentPurchase = responsiveCard.getByRole("button", {
-    name: "Purchase Aurora field to keep after membership",
+    name: "Open permanent ownership options for Aurora field",
   })
   await expect(favorite).toBeVisible()
   await expect(permanentPurchase).toBeVisible()
@@ -571,7 +571,7 @@ test("subscriber and purchased ownership stay distinct in active Chimer", async 
     name: "Dotted glow is permanently owned",
   })).toBeVisible()
   await expect(accessCard(purchased).getByRole("button", {
-    name: "Purchase Dotted glow to keep after membership",
+    name: "Open permanent ownership options for Dotted glow",
   })).toHaveCount(0)
   await accessCard(purchased).getByRole("button", { name: "Select Dotted glow background" }).click()
   await expect(panel).toHaveCount(0)

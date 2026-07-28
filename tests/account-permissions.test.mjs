@@ -86,12 +86,12 @@ describe("Account permission helpers", () => {
       }).canUseChimerCustomColors,
       true,
     )
-    assert.equal(
-      buildAccountCapabilities([{ role: "USER", status: "VERIFIED" }], {
-        features: [FEATURE_KEYS.premiumBackgrounds],
-      }).hasActiveMembershipBenefits,
-      true,
+    const premiumBackgroundCapabilities = buildAccountCapabilities(
+      [{ role: "USER", status: "VERIFIED" }],
+      { features: [FEATURE_KEYS.premiumBackgrounds] },
     )
+    assert.equal(premiumBackgroundCapabilities.canUsePremiumBackgrounds, true)
+    assert.equal(premiumBackgroundCapabilities.hasActiveMembershipBenefits, true)
     assert.equal(
       buildAccountCapabilities([{ role: "LICENSED_THERAPIST", status: "VERIFIED" }], {
         features: [FEATURE_KEYS.therapistDocumentationTools],

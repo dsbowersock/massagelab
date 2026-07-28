@@ -60,7 +60,8 @@ describe("production background commerce states", () => {
     ]) {
       assert.match(source, new RegExp(label))
     }
-    assert.match(source, /Purchase \$\{option\.label\} to keep after membership/)
+    assert.match(source, /Open permanent ownership options for \$\{option\.label\}/)
+    assert.match(source, /commerceState\.showKeepPermanently && onKeepPermanently/)
     assert.match(source, /\$\{option\.label\} is permanently owned/)
     assert.match(source, /grid-cols-\[minmax\(0,1fr\)_auto\]/)
     assert.match(source, /className=\{cn\("shrink-0", purpleGlowClassName\)\}/)
@@ -71,7 +72,7 @@ describe("production background commerce states", () => {
     assert.match(source, /commerceState\.canSelect/)
     assert.match(source, /onLockedSelect\?\.\(\)/)
     assert.match(source, /onSelect\(\)/)
-    assert.match(source, /onKeepPermanently\?\.\(\)/)
+    assert.match(source, /onClick=\{onKeepPermanently\}/)
     assert.match(source, /commerceState\.state === "owned-credit"/)
     assert.match(source, /commerceState\.state === "owned-purchase"/)
     assert.match(source, /type="button"/)

@@ -206,13 +206,13 @@ export function BackgroundCarouselCard({
               {locked ? <Lock aria-hidden="true" /> : null}
               {unavailable ? "Unavailable" : locked ? "Unlock" : selected ? "Selected" : "Select"}
             </Button>
-            {commerceState.showKeepPermanently ? (
+            {commerceState.showKeepPermanently && onKeepPermanently ? (
               <Button
                 type="button"
                 size="icon"
                 variant="glow"
-                onClick={() => onKeepPermanently?.()}
-                aria-label={`Purchase ${option.label} to keep after membership`}
+                onClick={onKeepPermanently}
+                aria-label={`Open permanent ownership options for ${option.label}`}
                 title="Keep permanently"
               >
                 <DollarSign aria-hidden="true" />

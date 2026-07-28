@@ -357,8 +357,9 @@ function billingPortalForms(tree) {
 /**
  * Renders the production MembershipTab with feature-key values injected into
  * the mocked account-surface entitlement response. It returns the rendered
- * pricing-card props while replacing only I/O and visual dependencies, so
- * pricing and Portal gating remain behavioral.
+ * MembershipTab tree while replacing only I/O and visual dependencies, so
+ * pricing and Portal gating remain behavioral; membershipPricingProps extracts
+ * pricing-card props separately.
  */
 async function renderMembershipTab({
   features = [],

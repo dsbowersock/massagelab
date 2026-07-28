@@ -67,6 +67,8 @@ route `/api/billing/donation`.
   `STRIPE_ONE_TIME_SUPPORT_TAX_PROVIDER_READY=true`,
   `STRIPE_ONE_TIME_SUPPORT_TAX_REGISTRATIONS_READY=true`, and
   `STRIPE_ONE_TIME_SUPPORT_TAX_CLASSIFICATION_CONFIRMED=true`.
+- Checkout creation is rejected unless every one of those five values is
+  present and exactly valid.
 - The live smoke must retrieve the resulting Session and line-item tax evidence
   after deployment; the inline Checkout Product does not exist beforehand.
 

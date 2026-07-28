@@ -3405,22 +3405,32 @@ describe("Stripe billing helpers", () => {
       STRIPE_ONE_TIME_SUPPORT_TAX_REGISTRATIONS_READY: "true",
       STRIPE_ONE_TIME_SUPPORT_TAX_CLASSIFICATION_CONFIRMED: "true",
     }
-    const cases = [
+    const invalidCases = [
       ["STRIPE_ONE_TIME_SUPPORT_AUTOMATIC_TAX_ENABLED", "false"],
       ["STRIPE_ONE_TIME_SUPPORT_TAX_PRODUCT_CODE", ""],
       ["STRIPE_ONE_TIME_SUPPORT_TAX_PROVIDER_READY", "false"],
       ["STRIPE_ONE_TIME_SUPPORT_TAX_REGISTRATIONS_READY", "false"],
       ["STRIPE_ONE_TIME_SUPPORT_TAX_CLASSIFICATION_CONFIRMED", "false"],
     ]
+    const cases = [
+      ...invalidCases,
+      ...Object.keys(readyEnv).map((key) => [key, undefined]),
+    ]
 
     for (const [key, value] of cases) {
       let createCalls = 0
+      const env = { ...readyEnv }
+      if (value === undefined) {
+        delete env[key]
+      } else {
+        env[key] = value
+      }
       await assert.rejects(
         createStripeDonationCheckoutSession({
           amountCents: 500,
           successUrl: "https://massagelab.app/pricing?donation=thanks",
           cancelUrl: "https://massagelab.app/pricing?donation=cancelled",
-          env: { ...readyEnv, [key]: value },
+          env,
           stripeClient: {
             checkout: {
               sessions: {
