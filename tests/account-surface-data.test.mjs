@@ -171,6 +171,27 @@ describe("account surface data loader", () => {
     assert.deepEqual(calls, ["passwordCredential.findUnique", "account.findFirst"])
   })
 
+  it("does not cache session-derived credential roles", async () => {
+    const calls = []
+    const loader = createLoader(calls)
+    const adminSessionUser = {
+      ...sessionUser,
+      role: "ADMIN",
+      roles: ["ADMIN"],
+      roleAssignments: [{ role: "ADMIN", status: "VERIFIED" }],
+    }
+
+    const first = await loader.getAccountSurfaceData("credentials", "user_1", sessionUser)
+    const second = await loader.getAccountSurfaceData("credentials", "user_1", adminSessionUser)
+
+    assert.deepEqual(first.roleAssignments.map(({ role }) => role), ["USER"])
+    assert.deepEqual(second.roleAssignments.map(({ role }) => role), ["ADMIN"])
+    assert.deepEqual(calls, [
+      "credentialVerification.findMany",
+      "credentialVerification.findMany",
+    ])
+  })
+
   it("loads billing data only for the membership surface and reuses the short-lived cache", async () => {
     const calls = []
     const loader = createLoader(calls)
@@ -186,10 +207,19 @@ describe("account surface data loader", () => {
   it("loads no database data for local-only app settings surfaces", async () => {
     const calls = []
     const loader = createLoader(calls)
+    const adminSessionUser = {
+      ...sessionUser,
+      role: "ADMIN",
+      roles: ["ADMIN"],
+      roleAssignments: [{ role: "ADMIN", status: "VERIFIED" }],
+    }
 
     const data = await loader.getAccountSurfaceData("app-settings", "user_1", sessionUser)
+    const refreshedData = await loader.getAccountSurfaceData("app-settings", "user_1", adminSessionUser)
 
     assert.equal(data.surface, "app-settings")
+    assert.equal(data.canManageAnatomy, false)
+    assert.equal(refreshedData.canManageAnatomy, true)
     assert.deepEqual(calls, [])
   })
 })

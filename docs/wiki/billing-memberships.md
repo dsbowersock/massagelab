@@ -97,6 +97,7 @@ approved for recreation or new use.
 
 Current:
 
+- `premium_backgrounds`
 - `chimer_custom_colors`
 - `calendar_basic_scheduling`
 - `calendar_full_scheduling`

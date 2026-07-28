@@ -212,7 +212,7 @@ export function ImmersivePanelShell({
     return () => {
       resizeObserver?.disconnect()
     }
-  }, [portalTarget, visualViewportFrame?.width])
+  }, [portalTarget, visualHintMessage, visualViewportFrame?.width])
 
   const closeNonmodalPanel = useCallback((restoreFocus: boolean) => {
     if (!nonmodalPanel) {
