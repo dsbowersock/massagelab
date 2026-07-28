@@ -103,8 +103,7 @@ any of the six amount-specific Supporter Price IDs in readiness.
 
 Latest status, 2026-07-28: the Supporter catalog migration, recurring Automatic
 Tax readiness, controlled taxed $1 monthly Checkout, and focused membership
-change deployment are complete. PR #153's exact merge commit is READY in
-Production. The controlled user has changed the membership
+change deployment are complete. The controlled user has changed the membership
 to $2 monthly and supplied screenshots showing the Account return, continuing
 Supporter status, and membership-included backgrounds. Bounded read-only
 verification confirms an active $2 monthly Supporter Price with exclusive tax
@@ -118,12 +117,17 @@ persistence verification confirms continued Supporter access through the
 user reverified live Stripe Tax readiness and the collecting Ohio registration,
 all five Production gates are configured, and the exact PR #153 merge commit
 was redeployed READY on the canonical aliases. No Checkout Session or payment
-was created during configuration. The protected Production secret could not be
-exported, so the required GET-only
-`stripe:readiness --live --verify-stripe` command has not been rerun against the
-deployed values. Keep Production readiness pending until it passes from an
-explicit Production environment; only then run the explicitly authorized live
-payment smoke and verify the completed Session and line-item tax evidence.
+was created during configuration. PR #155 then merged as
+`6e5d65106d8a16f1c2723311dc41c884f7c522c2`, and Vercel built that exact commit
+READY in Production. Its temporary Production-only hook ran the GET-only
+`stripe:readiness --live --verify-stripe --no-dotenv` command before the
+application build: live Stripe retrieval was performed, all five independent
+one-time-support tax gates were true, and recurring Supporter, one-time-support,
+and background-commerce readiness all passed without printing secret values.
+The hook was removed after this single intended verification. No Checkout
+Session or payment was created. The remaining Track 1 rollout gate is the
+explicitly authorized live one-time-support payment smoke and verification of
+the completed Session and line-item tax evidence.
 
 ## Manual Focus Areas
 

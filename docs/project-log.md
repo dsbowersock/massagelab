@@ -4,6 +4,25 @@ This is the canonical chronological planning and progress log for MassageLab. Us
 
 Existing plans, audits, roadmaps, and checklists remain source evidence. Keep them for context, but mirror meaningful progress, plan changes, and priority changes in [project-state.md](project-state.md) and here.
 
+## 2026-07-28 — One-time-support live readiness verification
+
+- PR #155 merged as `6e5d65106d8a16f1c2723311dc41c884f7c522c2`.
+  Vercel built that exact `main` commit as a READY Production deployment.
+- The Production build ran the exact GET-only
+  `stripe:readiness --live --verify-stripe --no-dotenv` path before the
+  application build. Stripe API retrieval was requested and performed, all
+  five one-time-support tax gates were true, and the command reported
+  one-time-support, recurring Supporter, and background-commerce readiness as
+  ready without printing secret values.
+- The subsequent application build passed, and a post-deploy Production
+  runtime scan found no error or fatal logs.
+- Removed the temporary Production build entrypoint after its single intended
+  verification run. The ordinary Vercel application build remains unchanged.
+- Did not invoke `/api/billing/donation`, create a Checkout Session, or charge
+  a payment. Track 1 rollout closure now requires only an explicitly authorized
+  live one-time-support smoke with completed Session and line-item tax
+  verification.
+
 ## 2026-07-28 — One-time-support Production Tax gates
 
 - The user reverified that live Stripe Tax is ready and that the applicable
