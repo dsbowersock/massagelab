@@ -768,6 +768,10 @@ describe("Stripe readiness background-commerce contract", () => {
       result.stderr,
       /STRIPE_SUPPORTER_2_MONTHLY_PRICE_ID could not be retrieved from Stripe/,
     )
+    assert.doesNotMatch(
+      result.stderr,
+      /Simulated Stripe Price retrieval failure/,
+    )
     assert.match(
       result.stderr,
       /Stripe Price retrieval did not complete for every required Supporter contract slot/,

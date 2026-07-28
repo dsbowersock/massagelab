@@ -327,10 +327,9 @@ async function verifyStripePrices() {
       for (const failure of validationFailures) {
         addFailure(failure)
       }
-    } catch (error) {
+    } catch {
       allPricesRetrieved = false
-      const detail = error instanceof Error ? error.message : "unknown Stripe error"
-      addFailure(`${expected.key} could not be retrieved from Stripe: ${detail}`)
+      addFailure(`${expected.key} could not be retrieved from Stripe.`)
     }
   }
   const topologyFailures = validateSupporterProductTopology(retrievedMembershipPrices)
