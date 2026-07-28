@@ -1245,8 +1245,9 @@ test("ordinary phone landscape keeps immersive button effects out of a shared to
     backdropFilter: "none",
   })
 
+  const toolbar = page.locator("[aria-label='Immersive display controls']")
   for (const name of ["Clock", "Visual", "Background"]) {
-    const control = page.getByRole("button", { name, exact: true })
+    const control = toolbar.getByRole("button", { name, exact: true })
     await expect(control).toBeVisible()
     await expect.poll(() => control.evaluate((element) => {
       const rect = element.getBoundingClientRect()
@@ -1270,11 +1271,12 @@ test("Clock and Visual docks remain safe at 200 percent Chromium page scale", as
   await openClock(page)
   const session = await page.context().newCDPSession(page)
   await session.send("Emulation.setPageScaleFactor", { pageScaleFactor: 2 })
+  const toolbar = page.locator("[aria-label='Immersive display controls']")
   // Chromium CDP page-scale emulation has unstable pointer coordinates/actionability,
   // so this zoom proof uses explicit focus + Enter while geometry proves reachability.
   for (const panelName of ["Clock", "Visual"] as const) {
     await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())))
-    const toolbarControl = page.getByRole("button", { name: panelName, exact: true })
+    const toolbarControl = toolbar.getByRole("button", { name: panelName, exact: true })
     expect.soft(await focusedRingBounds(page, toolbarControl)).toEqual(expect.objectContaining({
       ringExtent: 4,
       ringInside: true,
@@ -1284,23 +1286,23 @@ test("Clock and Visual docks remain safe at 200 percent Chromium page scale", as
   if (testInfo.project.name === "mobile-chromium") {
     // At 200% scale the phone toolbar must scroll instead of clipping the
     // Background action or its four-pixel focus ring.
-    await expect.poll(() => page.locator("[aria-label='Immersive display controls']").evaluate(
+    await expect.poll(() => toolbar.evaluate(
       (toolbar) => window.getComputedStyle(toolbar).overflowX,
     )).toBe("auto")
     expect.soft(
-      await focusedRingBounds(page, page.getByRole("button", { name: "Background", exact: true })),
+      await focusedRingBounds(page, toolbar.getByRole("button", { name: "Background", exact: true })),
     ).toEqual(expect.objectContaining({
       ringExtent: 4,
       ringInside: true,
     }))
-    const visualControl = page.getByRole("button", { name: "Visual", exact: true })
+    const visualControl = toolbar.getByRole("button", { name: "Visual", exact: true })
     await visualControl.focus()
     await expect(visualControl).toBeFocused()
     await page.keyboard.press("Enter")
     await expect(visualControl).toHaveAttribute("aria-expanded", "true")
     await page.keyboard.press("Escape")
     await expect(visualControl).toHaveAttribute("aria-expanded", "false")
-    await expect.poll(() => page.locator("[aria-label='Immersive display controls']").evaluate(
+    await expect.poll(() => toolbar.evaluate(
       (toolbar) => window.getComputedStyle(toolbar).overflowX,
     )).toBe("auto")
   }
