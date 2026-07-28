@@ -4,6 +4,41 @@ This is the canonical chronological planning and progress log for MassageLab. Us
 
 Existing plans, audits, roadmaps, and checklists remain source evidence. Keep them for context, but mirror meaningful progress, plan changes, and priority changes in [project-state.md](project-state.md) and here.
 
+## 2026-07-28 — One-time-support Production Tax gates
+
+- The user reverified that live Stripe Tax is ready and that the applicable
+  Ohio registration is registered and collecting. This confirmation remains
+  separate from the reviewed one-time-support classification
+  `txcd_90000001`.
+- Added all five one-time-support Production gates as sensitive Vercel
+  variables: Automatic Tax enablement, exact Product tax code, provider
+  readiness, registrations readiness, and classification confirmation.
+- Redeployed the exact PR #153 merge commit
+  `5f96bc029759d04e5b79aeb548508cef77a312d1`. Vercel reports the new
+  Production deployment READY on every canonical alias, `/pricing` returns
+  200, and the post-deploy runtime error scan found no errors.
+- Completed the bounded read-only backend verification for the controlled
+  Supporter change. Stripe reports one active $2 monthly Supporter
+  subscription with exclusive tax behavior and Automatic Tax enabled. Its
+  billing anchor and current-period start remain the original subscription
+  start, and its latest invoice remains the paid, non-prorated initial $1
+  subtotal plus $0.07 Ohio tax; the switch therefore created no immediate
+  proration invoice or charge. The next $2 renewal has not occurred, so no
+  completed $2 tax invoice is claimed.
+- Read-only Production persistence verification confirms that the app resolves
+  the current subscription as active Supporter access and continues to grant
+  `premium_backgrounds` and `chimer_custom_colors`. Supplied Production
+  screenshots separately confirm the Account return and membership-included
+  background presentation.
+- The protected Production secret could not be exported, so the required
+  `stripe:readiness --live --verify-stripe` command was not rerun against the
+  deployed values. Keep one-time-support Production readiness pending until
+  that GET-only check passes from an explicit Production environment.
+- Did not invoke `/api/billing/donation`, create a Checkout Session, or charge
+  a payment. Only after readiness passes should the controlled live
+  one-time-support smoke and completed Session/line-item tax verification move
+  through the explicit payment authorization gate.
+
 ## 2026-07-28 — Track 1 rollout deployment verification
 
 - Verified PR #152 merged as commit
