@@ -113,8 +113,12 @@ webhook-persisted database Price mapping remains open. The independent
 user reverified live Stripe Tax readiness and the collecting Ohio registration,
 all five Production gates are configured, and the exact PR #153 merge commit
 was redeployed READY on the canonical aliases. No Checkout Session or payment
-was created during configuration. The explicitly authorized live payment smoke
-and completed Session/line-item tax verification remain pending.
+was created during configuration. The protected Production secret could not be
+exported, so the required GET-only
+`stripe:readiness --live --verify-stripe` command has not been rerun against the
+deployed values. Keep Production readiness pending until it passes from an
+explicit Production environment; only then run the explicitly authorized live
+payment smoke and verify the completed Session and line-item tax evidence.
 
 ## Manual Focus Areas
 

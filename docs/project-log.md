@@ -17,10 +17,14 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
   `5f96bc029759d04e5b79aeb548508cef77a312d1`. Vercel reports the new
   Production deployment READY on every canonical alias, `/pricing` returns
   200, and the post-deploy runtime error scan found no errors.
+- The protected Production secret could not be exported, so the required
+  `stripe:readiness --live --verify-stripe` command was not rerun against the
+  deployed values. Keep one-time-support Production readiness pending until
+  that GET-only check passes from an explicit Production environment.
 - Did not invoke `/api/billing/donation`, create a Checkout Session, or charge
-  a payment. The controlled live one-time-support smoke and completed
-  Session/line-item tax verification remain an explicit payment authorization
-  gate.
+  a payment. Only after readiness passes should the controlled live
+  one-time-support smoke and completed Session/line-item tax verification move
+  through the explicit payment authorization gate.
 
 ## 2026-07-28 — Track 1 rollout deployment verification
 
