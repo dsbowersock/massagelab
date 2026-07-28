@@ -4,6 +4,25 @@ This is the canonical chronological planning and progress log for MassageLab. Us
 
 Existing plans, audits, roadmaps, and checklists remain source evidence. Keep them for context, but mirror meaningful progress, plan changes, and priority changes in [project-state.md](project-state.md) and here.
 
+## 2026-07-28 — Track 1 rollout deployment verification
+
+- Verified PR #152 merged as commit
+  `45d5a247f1a133fe9f8eaa291c87fe928bba1a4a` and that Vercel reports that
+  exact commit READY in Production on the `main` branch.
+- Read the Production Vercel environment inventory without exposing values.
+  None of the five independent one-time-support tax gates is present, so the
+  deployed Checkout correctly remains fail-closed.
+- Track 1 rollout closure still requires a separately reviewed Production
+  configuration for Automatic Tax, exact `txcd_90000001` classification,
+  provider readiness, registrations readiness, and classification
+  confirmation; the readiness command must then pass before an explicitly
+  authorized live one-time-support payment.
+- Bounded read-only verification of the completed Supporter switch's backend
+  amount, tax, billing anchor/no-proration behavior, and webhook-persisted Price
+  mapping also remains open. Attorney review and first-cohort Production
+  monitoring remain external invite-readiness gates rather than unfinished
+  Track 1 implementation.
+
 ## 2026-07-27 — Track 1 rollout follow-up candidate
 
 - Verified that PRs #150 and #151 are merged and that their exact merged commit
