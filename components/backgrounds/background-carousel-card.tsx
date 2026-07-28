@@ -48,7 +48,7 @@ function accessLabel(commerceState: BackgroundCardCommerceState) {
   if (commerceState.ownershipStatus === "dispute_revoked") return "Dispute revoked"
   if (commerceState.ownershipStatus === "retired") return "Retired"
   if (commerceState.state === "owned-credit" || commerceState.state === "owned-purchase") return "Owned"
-  if (commerceState.state === "included-subscription") return "Included"
+  if (commerceState.state === "included-subscription") return "Included with membership"
   if (commerceState.state === "unavailable") return "Unavailable"
   return null
 }
@@ -177,8 +177,9 @@ export function BackgroundCarouselCard({
       </div>
 
       {detailLevel === "full" ? (
-        <div className="absolute inset-x-3 top-3 z-20 flex items-start justify-between gap-2">
-          <div className="flex flex-wrap gap-2">
+        /* Keep favorite in its own column so the ownership action can wrap on narrow cards. */
+        <div className="absolute inset-x-3 top-3 z-20 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
+          <div className="flex min-w-0 flex-wrap gap-2">
             <Button
               type="button"
               data-carousel-primary-action
@@ -207,9 +208,10 @@ export function BackgroundCarouselCard({
                 size="sm"
                 variant="glow"
                 onClick={() => onKeepPermanently?.()}
-                aria-label={`Keep ${option.label} permanently`}
+                aria-label={`Keep after membership: ${option.label}`}
+                className="h-auto min-h-9 max-w-full whitespace-normal px-2 py-2 leading-tight"
               >
-                Keep permanently
+                Keep after membership
               </Button>
             ) : null}
           </div>
@@ -220,7 +222,7 @@ export function BackgroundCarouselCard({
             onClick={onToggleSaved}
             size="icon"
             variant="glow"
-            className={purpleGlowClassName}
+            className={cn("shrink-0", purpleGlowClassName)}
           >
             <MetalFavoriteIcon kind="star" selected={saved} />
           </Button>

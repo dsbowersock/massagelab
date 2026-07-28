@@ -48,17 +48,19 @@ describe("production background commerce states", () => {
       "Owned",
       "Purchased",
       "Credit",
-      "Included",
+      "Included with membership",
       "In cart",
       "Reserved",
       "Refund pending",
       "Dispute suspended",
       "Retired",
       "Unavailable",
-      "Keep permanently",
+      "Keep after membership",
     ]) {
       assert.match(source, new RegExp(label))
     }
+    assert.match(source, /grid-cols-\[minmax\(0,1fr\)_auto\]/)
+    assert.match(source, /className=\{cn\("shrink-0", purpleGlowClassName\)\}/)
   })
 
   it("presents locked backgrounds as actionable Unlock controls", async () => {

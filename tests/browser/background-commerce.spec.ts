@@ -522,8 +522,34 @@ test("subscriber and purchased ownership stay distinct in active Chimer", async 
 
   const aurora = await centerPremium(page, AURORA_ID)
   await expect(accessCard(aurora)).toHaveAttribute("data-background-access-state", "included-subscription")
-  await expect(accessCard(aurora).getByRole("button", { name: "Keep Aurora field permanently" })).toBeVisible()
-  await accessCard(aurora).getByRole("button", { name: "Keep Aurora field permanently" }).click()
+  await expect(accessCard(aurora)).toContainText("Included with membership")
+  await page.setViewportSize({ width: 360, height: 780 })
+  const responsiveAurora = await centerPremium(page, AURORA_ID)
+  const responsiveCard = accessCard(responsiveAurora)
+  const favorite = responsiveCard.locator("[data-carousel-favorite-action]")
+  const keepAfterMembership = responsiveCard.getByRole("button", {
+    name: "Keep after membership: Aurora field",
+  })
+  await expect(favorite).toBeVisible()
+  await expect(keepAfterMembership).toBeVisible()
+  const [cardBox, favoriteBox, keepBox] = await Promise.all([
+    responsiveCard.boundingBox(),
+    favorite.boundingBox(),
+    keepAfterMembership.boundingBox(),
+  ])
+  expect(cardBox).not.toBeNull()
+  expect(favoriteBox).not.toBeNull()
+  expect(keepBox).not.toBeNull()
+  // At 360px, the ownership action must remain left of the favorite while both stay inside the card.
+  expect(keepBox!.x + keepBox!.width).toBeLessThanOrEqual(favoriteBox!.x)
+  for (const controlBox of [favoriteBox!, keepBox!]) {
+    expect(controlBox.x).toBeGreaterThanOrEqual(cardBox!.x)
+    expect(controlBox.x + controlBox.width).toBeLessThanOrEqual(cardBox!.x + cardBox!.width + 1)
+    expect(controlBox.y).toBeGreaterThanOrEqual(cardBox!.y)
+    expect(controlBox.y + controlBox.height).toBeLessThanOrEqual(cardBox!.y + cardBox!.height + 1)
+  }
+
+  await keepAfterMembership.click()
   const keep = page.getByRole("dialog", { name: "Keep Aurora field" })
   await expect(keep.getByRole("link", { name: "Unlock all" })).toHaveCount(0)
   await page.keyboard.press("Escape")
