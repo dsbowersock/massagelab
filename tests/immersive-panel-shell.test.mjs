@@ -46,6 +46,9 @@ test("keeps ordinary phone toolbars from clipping controls into a shared box", (
   )
   assert.match(shellSource, /toolbar\.scrollWidth <= toolbar\.clientWidth \+ 1/)
   assert.match(shellSource, /data-toolbar-fits-visual-viewport=\{toolbarFitsVisualViewport\}/)
+  assert.match(shellSource, /new MutationObserver\(measureToolbarFit\)/)
+  assert.match(shellSource, /mutationObserver\?\.observe\(toolbar, \{ childList: true, characterData: true, subtree: true \}\)/)
+  assert.match(shellSource, /mutationObserver\?\.disconnect\(\)/)
   assert.doesNotMatch(
     shellStyles,
     /@media \(min-width:\s*36\.0625rem\)\s*\{\s*\.toolbar\s*\{\s*overflow:\s*visible;/,

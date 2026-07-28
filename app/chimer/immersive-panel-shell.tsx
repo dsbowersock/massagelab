@@ -199,7 +199,7 @@ export function ImmersivePanelShell({
     if (!toolbar) return
 
     // CSS exposes control glows only when every item fits. The one-pixel
-    // tolerance absorbs rounding, while ResizeObserver follows size changes.
+    // tolerance absorbs rounding; observers follow size and content changes.
     const measureToolbarFit = () => {
       setToolbarFitsVisualViewport(toolbar.scrollWidth <= toolbar.clientWidth + 1)
     }
@@ -208,9 +208,14 @@ export function ImmersivePanelShell({
     const resizeObserver = typeof ResizeObserver === "undefined"
       ? null
       : new ResizeObserver(measureToolbarFit)
+    const mutationObserver = typeof MutationObserver === "undefined"
+      ? null
+      : new MutationObserver(measureToolbarFit)
     resizeObserver?.observe(toolbar)
+    mutationObserver?.observe(toolbar, { childList: true, characterData: true, subtree: true })
     return () => {
       resizeObserver?.disconnect()
+      mutationObserver?.disconnect()
     }
   }, [portalTarget, visualHintMessage, visualViewportFrame?.width])
 
