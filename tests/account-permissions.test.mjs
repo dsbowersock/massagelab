@@ -85,12 +85,14 @@ describe("Account permission helpers", () => {
       { features: [FEATURE_KEYS.chimerCustomColors] },
     )
     assert.equal(customColorCapabilities.canUseChimerCustomColors, true)
+    assert.equal(customColorCapabilities.canUsePremiumBackgrounds, false)
     assert.equal(customColorCapabilities.hasActiveMembershipBenefits, true)
     const premiumBackgroundCapabilities = buildAccountCapabilities(
       [{ role: "USER", status: "VERIFIED" }],
       { features: [FEATURE_KEYS.premiumBackgrounds] },
     )
     assert.equal(premiumBackgroundCapabilities.canUsePremiumBackgrounds, true)
+    assert.equal(premiumBackgroundCapabilities.canUseChimerCustomColors, false)
     assert.equal(premiumBackgroundCapabilities.hasActiveMembershipBenefits, true)
     assert.equal(
       buildAccountCapabilities([{ role: "LICENSED_THERAPIST", status: "VERIFIED" }], {

@@ -90,6 +90,7 @@ function readinessEnvironment(overrides = {}) {
     ...membershipPrices,
     ...overrides,
   }
+  // Delete undefined overrides so spawned tests receive an unset environment key.
   for (const [key, value] of Object.entries(overrides)) {
     if (value === undefined) delete environment[key]
   }
