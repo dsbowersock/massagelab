@@ -59,7 +59,7 @@ const membershipPrices = {
  * Returns the complete hermetic child environment for readiness checks.
  */
 function readinessEnvironment(overrides = {}) {
-  return {
+  const environment = {
     PATH: process.env.PATH,
     ...(process.env.SystemRoot ? { SystemRoot: process.env.SystemRoot } : {}),
     ...(process.env.COMSPEC ? { COMSPEC: process.env.COMSPEC } : {}),
@@ -90,6 +90,10 @@ function readinessEnvironment(overrides = {}) {
     ...membershipPrices,
     ...overrides,
   }
+  for (const [key, value] of Object.entries(overrides)) {
+    if (value === undefined) delete environment[key]
+  }
+  return environment
 }
 
 /**
@@ -590,11 +594,16 @@ describe("Stripe readiness background-commerce contract", () => {
 
   it("fails closed on every one-time support tax deployment gate", () => {
     const cases = [
+      ["missing enablement", { STRIPE_ONE_TIME_SUPPORT_AUTOMATIC_TAX_ENABLED: undefined }],
       ["enablement", { STRIPE_ONE_TIME_SUPPORT_AUTOMATIC_TAX_ENABLED: "false" }],
+      ["missing tax code", { STRIPE_ONE_TIME_SUPPORT_TAX_PRODUCT_CODE: undefined }],
       ["tax code", { STRIPE_ONE_TIME_SUPPORT_TAX_PRODUCT_CODE: "" }],
       ["wrong tax code", { STRIPE_ONE_TIME_SUPPORT_TAX_PRODUCT_CODE: "txcd_10000000" }],
+      ["missing provider", { STRIPE_ONE_TIME_SUPPORT_TAX_PROVIDER_READY: undefined }],
       ["provider", { STRIPE_ONE_TIME_SUPPORT_TAX_PROVIDER_READY: "false" }],
+      ["missing registrations", { STRIPE_ONE_TIME_SUPPORT_TAX_REGISTRATIONS_READY: undefined }],
       ["registrations", { STRIPE_ONE_TIME_SUPPORT_TAX_REGISTRATIONS_READY: "false" }],
+      ["missing classification", { STRIPE_ONE_TIME_SUPPORT_TAX_CLASSIFICATION_CONFIRMED: undefined }],
       ["classification", { STRIPE_ONE_TIME_SUPPORT_TAX_CLASSIFICATION_CONFIRMED: "false" }],
     ]
 
