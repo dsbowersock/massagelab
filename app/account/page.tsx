@@ -22,7 +22,7 @@ import { SupporterInterestsPanel } from "@/app/account/supporter-interests-panel
 import { BackgroundCommercePanel } from "@/components/account/BackgroundCommercePanel"
 import { accountPageGroups, accountPageTabs, formatAccountDate, selectAccountTab } from "@/lib/account-page"
 import { normalizeSessionRoleAssignments } from "@/lib/account-role-assignments"
-import { getAccountSurfaceData } from "@/lib/account-surface-data"
+import { getAccountSurfaceData, sessionHasActiveMembershipBenefits } from "@/lib/account-surface-data"
 import { BILLING_PORTAL_DESTINATIONS } from "@/lib/billing-portal-destinations"
 import { getLegalDocumentByKey, legalDocumentAcceptanceId } from "@/lib/legal-documents"
 import { US_MASSAGE_JURISDICTIONS } from "@/lib/license-verification"
@@ -153,7 +153,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
   const canManageAnatomy = Boolean(session.user.capabilities?.canManageAnatomyContent)
   // Account status uses the aggregate feature-key claim; a permanently owned
   // background does not imply that membership benefits are currently active.
-  const hasActiveMembershipBenefits = Boolean(session.user.capabilities?.hasActiveMembershipBenefits)
+  const hasActiveMembershipBenefits = sessionHasActiveMembershipBenefits(session.user as AccountSessionUser)
   const accountDisplayName = session.user.name || session.user.email || "MassageLab account"
   const roleSummary = roleLabels.length > 0 ? roleLabels.map(formatRole).join(", ") : "User"
   const accountItemStatuses = {

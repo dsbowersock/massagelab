@@ -1294,6 +1294,10 @@ test("Clock and Visual docks remain safe at 200 percent Chromium page scale", as
       ringInside: true,
     }))
     const visualControl = page.getByRole("button", { name: "Visual", exact: true })
+    await visualControl.focus()
+    await expect(visualControl).toBeFocused()
+    await page.keyboard.press("Enter")
+    await expect(visualControl).toHaveAttribute("aria-expanded", "true")
     await page.keyboard.press("Escape")
     await expect(visualControl).toHaveAttribute("aria-expanded", "false")
     await expect.poll(() => page.locator("[aria-label='Immersive display controls']").evaluate(

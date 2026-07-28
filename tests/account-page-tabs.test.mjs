@@ -229,6 +229,10 @@ describe("Account page tab model", () => {
     assert.doesNotMatch(text, /Basic Chimer remains free/)
     assert.doesNotMatch(accountPageSource, /Custom colors unlocked/)
     assert.doesNotMatch(accountPageSource, /label="Chimer colors"/)
+    assert.match(
+      accountPageSource,
+      /sessionHasActiveMembershipBenefits\(session\.user as AccountSessionUser\)/,
+    )
   })
 
   it("keeps Account pricing and billing Portal actions independently gated", async () => {

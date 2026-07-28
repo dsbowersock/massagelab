@@ -215,5 +215,6 @@ export type AccountSurfaceDataLoader = {
 }
 
 export declare function createAccountSurfaceDataLoader(options?: AccountSurfaceDataLoaderOptions): AccountSurfaceDataLoader
+export declare function sessionHasActiveMembershipBenefits(sessionUser?: AccountSurfaceSessionUser): boolean
 export declare const getAccountSurfaceData: GetAccountSurfaceData
 export declare function clearAccountSurfaceDataCache(userId?: string, surface?: string): void

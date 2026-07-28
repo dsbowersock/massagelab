@@ -1,6 +1,9 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
-import { createAccountSurfaceDataLoader } from "../lib/account-surface-data.js"
+import {
+  createAccountSurfaceDataLoader,
+  sessionHasActiveMembershipBenefits,
+} from "../lib/account-surface-data.js"
 
 function createMockPrisma(calls) {
   return {
@@ -91,6 +94,18 @@ const sessionUser = {
 }
 
 describe("account surface data loader", () => {
+  it("uses legacy feature claims only when the aggregate membership claim is absent", () => {
+    assert.equal(sessionHasActiveMembershipBenefits({
+      capabilities: { canUsePremiumBackgrounds: true },
+    }), true)
+    assert.equal(sessionHasActiveMembershipBenefits({
+      capabilities: {
+        canUsePremiumBackgrounds: true,
+        hasActiveMembershipBenefits: false,
+      },
+    }), false)
+  })
+
   it("loads only lightweight counts for the overview surface", async () => {
     const calls = []
     const loader = createLoader(calls)
