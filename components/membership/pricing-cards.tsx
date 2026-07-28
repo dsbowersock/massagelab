@@ -10,6 +10,7 @@ import type {
   MembershipPriceCatalog,
   MembershipPriceValue as MembershipPrice,
 } from "@/lib/account-surface-data"
+import { BILLING_PORTAL_DESTINATIONS } from "@/lib/billing-portal-destinations"
 import { getLegalDocumentByKey, legalDocumentAcceptanceId } from "@/lib/legal-documents"
 import { resolveMembershipPriceForInterval } from "@/lib/membership-pricing"
 import { cn } from "@/lib/utils"
@@ -230,18 +231,36 @@ function PlanActions({
           </div>
         ) : null}
         <p className="text-sm text-muted-foreground">
-          Use the Customer Portal to switch among approved Supporter amounts, update billing details, review invoices, or cancel.
+          Change your support amount or billing period directly. Use your billing account for payment methods, billing address, invoices, or cancellation.
         </p>
-        <form action="/api/billing/portal" method="post">
-          <MetalAttentionButton
-            type="submit"
-            variant="attention"
-            className="w-full"
-            metalFullWidth
-          >
-            Manage or change support amount
-          </MetalAttentionButton>
-        </form>
+        {/* Focused updates require an eligible subscription; billing management remains customer-wide. */}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <form action="/api/billing/portal" method="post">
+            <input
+              type="hidden"
+              name="destination"
+              value={BILLING_PORTAL_DESTINATIONS.SUBSCRIPTION_UPDATE}
+            />
+            <MetalAttentionButton
+              type="submit"
+              variant="attention"
+              className="w-full"
+              metalFullWidth
+            >
+              Change support amount or billing period
+            </MetalAttentionButton>
+          </form>
+          <form action="/api/billing/portal" method="post">
+            <input
+              type="hidden"
+              name="destination"
+              value={BILLING_PORTAL_DESTINATIONS.MANAGE}
+            />
+            <Button type="submit" variant="outline" className="w-full">
+              Manage billing account
+            </Button>
+          </form>
+        </div>
       </div>
     ) : (
       <p className="mt-auto text-sm text-muted-foreground">

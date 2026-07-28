@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getCurrentSession } from "@/auth"
 import { getSiteUrl } from "@/lib/auth-env"
+import { BILLING_PORTAL_DESTINATIONS } from "@/lib/billing-portal-destinations"
 import { createStripeCustomerPortalSession } from "@/lib/stripe-billing"
 import { prisma } from "@/lib/prisma"
 
@@ -10,7 +11,22 @@ function accountRedirect(code: string) {
   return NextResponse.redirect(`${getSiteUrl()}/account?portal=${encodeURIComponent(code)}`, 303)
 }
 
-export async function POST() {
+/**
+ * Defaults malformed or unknown submissions to the non-destructive Portal
+ * homepage. Only the exact first-party action requests Stripe's update flow.
+ */
+async function requestedPortalDestination(request: Request) {
+  try {
+    const formData = await request.formData()
+    return formData.get("destination") === BILLING_PORTAL_DESTINATIONS.SUBSCRIPTION_UPDATE
+      ? BILLING_PORTAL_DESTINATIONS.SUBSCRIPTION_UPDATE
+      : BILLING_PORTAL_DESTINATIONS.MANAGE
+  } catch {
+    return BILLING_PORTAL_DESTINATIONS.MANAGE
+  }
+}
+
+export async function POST(request: Request) {
   const session = await getCurrentSession()
 
   if (!session?.user?.id) {
@@ -26,9 +42,39 @@ export async function POST() {
   }
 
   try {
+    const destination = await requestedPortalDestination(request)
+    // Focused changes admit only active/trialing subscriptions, preferring the
+    // latest current period and using the most recent persisted update as a tie-breaker.
+    const subscription = destination === BILLING_PORTAL_DESTINATIONS.SUBSCRIPTION_UPDATE
+      ? await prisma.membershipSubscription.findFirst({
+          where: {
+            userId: session.user.id,
+            stripeCustomerId: stripeCustomer.stripeCustomerId,
+            status: {
+              in: ["active", "trialing"],
+            },
+          },
+          orderBy: [
+            { currentPeriodEnd: "desc" },
+            { updatedAt: "desc" },
+          ],
+          select: {
+            stripeSubscriptionId: true,
+          },
+        })
+      : null
+
+    if (
+      destination === BILLING_PORTAL_DESTINATIONS.SUBSCRIPTION_UPDATE
+      && !subscription?.stripeSubscriptionId
+    ) {
+      return accountRedirect("subscription-not-found")
+    }
+
     const portalSession = await createStripeCustomerPortalSession({
       customerId: stripeCustomer.stripeCustomerId,
       returnUrl: `${getSiteUrl()}/account?portal=returned`,
+      subscriptionId: subscription?.stripeSubscriptionId,
     })
 
     if (!portalSession.url) {

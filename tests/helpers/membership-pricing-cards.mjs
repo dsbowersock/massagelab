@@ -6,6 +6,7 @@ import {
   passThroughElement,
   renderFunctionComponents,
 } from "./compiled-module.mjs"
+import { BILLING_PORTAL_DESTINATIONS } from "../../lib/billing-portal-destinations.js"
 import { resolveMembershipPriceForInterval } from "../../lib/membership-pricing.js"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
@@ -66,6 +67,9 @@ const pricingCards = loadCompiledModule(
         route: "/legal/membership-billing-refunds",
       }),
       legalDocumentAcceptanceId: () => "membership-billing-refunds:test",
+    },
+    "@/lib/billing-portal-destinations": {
+      BILLING_PORTAL_DESTINATIONS,
     },
     "@/lib/membership-pricing": {
       resolveMembershipPriceForInterval,

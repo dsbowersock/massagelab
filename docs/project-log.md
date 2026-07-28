@@ -4,6 +4,23 @@ This is the canonical chronological planning and progress log for MassageLab. Us
 
 Existing plans, audits, roadmaps, and checklists remain source evidence. Keep them for context, but mirror meaningful progress, plan changes, and priority changes in [project-state.md](project-state.md) and here.
 
+## 2026-07-27 — Supporter Portal action clarity
+
+- Completed the post-repair controlled Supporter subscription retry. Production
+  created the selected $1 monthly subscription with Stripe-calculated Ohio tax,
+  and Account displayed current Supporter access.
+- Confirmed that the general Customer Portal and its approved subscription
+  options work, but the intermediate Stripe label `Update subscription` was not
+  sufficiently clear after MassageLab's combined Manage or change action.
+- Split the member action into Change support amount or billing period, which
+  requests Stripe's focused `subscription_update` flow for the persisted
+  current subscription, and Manage billing account, which preserves the
+  general Portal homepage for payment methods, billing address, invoices, and
+  cancellation.
+- Kept the completed three-Product/six-Price catalog and Portal configuration
+  unchanged. The remaining smoke is one real amount or interval switch after
+  this focused action branch merges and deploys.
+
 ## 2026-07-27 — Supporter production rollout and checkout-origin repair
 
 - Completed the guarded live three-Product Supporter migration and its

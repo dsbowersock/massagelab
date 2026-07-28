@@ -266,6 +266,40 @@ describe("Stripe billing helpers", () => {
     assert.equal(session.url, "https://billing.stripe.com/p/session/test")
   })
 
+  it("opens Stripe's focused subscription-update flow for a stored subscription", async () => {
+    let capturedPayload = null
+    const session = await stripeBilling.createStripeCustomerPortalSession({
+      customerId: "cus_123",
+      returnUrl: "https://massagelab.app/account?portal=returned",
+      subscriptionId: "sub_123",
+      stripeClient: {
+        billingPortal: {
+          sessions: {
+            create: async (payload) => {
+              capturedPayload = payload
+              return { id: "bps_update", url: "https://billing.stripe.com/p/session/update" }
+            },
+          },
+        },
+      },
+    })
+
+    assert.deepEqual(capturedPayload, {
+      customer: "cus_123",
+      return_url: "https://massagelab.app/account?portal=returned",
+      flow_data: {
+        type: "subscription_update",
+        subscription_update: {
+          subscription: "sub_123",
+        },
+        after_completion: {
+          type: "portal_homepage",
+        },
+      },
+    })
+    assert.equal(session.url, "https://billing.stripe.com/p/session/update")
+  })
+
   it("reuses stored Stripe customers that exist in the active Stripe account", async () => {
     const existingCustomer = { userId: "user_123", stripeCustomerId: "cus_live_existing" }
     const writes = []
