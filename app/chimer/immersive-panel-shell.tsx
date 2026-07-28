@@ -227,9 +227,11 @@ export function ImmersivePanelShell({
       characterData: true,
       subtree: true,
     })
+    document.fonts?.addEventListener("loadingdone", measureToolbarFit)
     return () => {
       resizeObserver?.disconnect()
       mutationObserver?.disconnect()
+      document.fonts?.removeEventListener("loadingdone", measureToolbarFit)
     }
   }, [portalTarget, visualHintMessage, visualViewportFrame?.width])
 
