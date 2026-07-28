@@ -4,6 +4,16 @@ This is the canonical chronological planning and progress log for MassageLab. Us
 
 Existing plans, audits, roadmaps, and checklists remain source evidence. Keep them for context, but mirror meaningful progress, plan changes, and priority changes in [project-state.md](project-state.md) and here.
 
+## 2026-07-28 — Track 1 rollout closure and July 18 reconciliation
+
+- PR #156 merged as `4b9bb291820edd67f184e51f0ad9d7cbe9bea881`, and Vercel reports that exact `main` commit READY in Production.
+- The user explicitly authorized and completed one $5 Production one-time-support smoke. The Pricing return reported completion; no payment details or customer/processor identifiers were recorded.
+- Sanitized GET-only Stripe retrieval found the newest matching live payment-mode Session paid and complete. Stripe-powered Automatic Tax was enabled and complete with self liability, billing-address collection was required, and the single exclusive line used exact product tax code `txcd_90000001`. The $5.00 subtotal produced $0.00 calculated tax and a $5.00 total; the PaymentIntent succeeded and received exactly $5.00.
+- Stripe's live tax-code lookup names `txcd_90000001` `Cash Donation` and describes a nothing-in-return monetary payment. The zero-tax result is therefore recorded as the successful applied tax outcome for the reviewed one-time-support classification, not as disabled or failed Automatic Tax.
+- The completed Session attached no Customer, client reference, Subscription, or Invoice. The existing source and test contract ignores one-time-support completion for membership reconciliation, so the payment granted no membership, feature, background credit, or ownership.
+- Track 1A, Track 1B, and their rollout gates are complete. Attorney review of legal/trust language and first-cohort Production monitoring remain external invite-readiness gates rather than Track 1 implementation.
+- Reconciled the July 18 numbered plans against landed source and canonical state: Track 2 and Track 3A/3B are landed; the complete Track 4A palette/draft/preset/adapter contract and Track 4B DNA/Twisted Cubes are not. The next numbered work is Track 4A Task 1, defining the pure shared-palette, preset, migration, and access contract.
+
 ## 2026-07-28 — One-time-support live readiness verification
 
 - PR #155 merged as `6e5d65106d8a16f1c2723311dc41c884f7c522c2`.

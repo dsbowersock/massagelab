@@ -124,10 +124,20 @@ READY in Production. Its temporary Production-only hook ran the GET-only
 application build: live Stripe retrieval was performed, all five independent
 one-time-support tax gates were true, and recurring Supporter, one-time-support,
 and background-commerce readiness all passed without printing secret values.
-The hook was removed after this single intended verification. No Checkout
-Session or payment was created. The remaining Track 1 rollout gate is the
-explicitly authorized live one-time-support payment smoke and verification of
-the completed Session and line-item tax evidence.
+The hook was removed after this single intended verification. PR #156 merged as
+`4b9bb291820edd67f184e51f0ad9d7cbe9bea881`, and that exact commit is READY in
+Production. The explicitly authorized $5 one-time-support smoke then completed
+and returned to Pricing. Sanitized GET-only Stripe retrieval confirms a live,
+paid/completed payment-mode Session with required billing-address collection,
+Stripe-powered Automatic Tax enabled and complete, and one exclusive line using
+exact `txcd_90000001`. Stripe calculated $0.00 tax on the $5.00 subtotal and the
+succeeded PaymentIntent received exactly $5.00. Stripe names that code `Cash
+Donation`; the zero-tax amount is the applied result for the reviewed
+nothing-in-return classification, not evidence that Automatic Tax was disabled.
+The Session attached no Customer, client reference, Subscription, or Invoice,
+and the existing purpose/webhook contract remains non-entitling. Track 1
+implementation and rollout readiness is complete. Attorney review and
+first-cohort Production monitoring remain external invite-readiness gates.
 
 ## Manual Focus Areas
 
