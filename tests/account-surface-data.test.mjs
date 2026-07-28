@@ -109,6 +109,15 @@ describe("account surface data loader", () => {
       "achievement.count",
       "noteTemplate.count",
     ])
+
+    const activeData = await loader.getAccountSurfaceData("overview", "user_2", {
+      ...sessionUser,
+      capabilities: {
+        ...sessionUser.capabilities,
+        hasActiveMembershipBenefits: true,
+      },
+    })
+    assert.equal(activeData.hasActiveMembershipBenefits, true)
   })
 
   it("loads only profile data for the profile surface", async () => {

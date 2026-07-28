@@ -80,12 +80,12 @@ describe("Account permission helpers", () => {
   })
 
   it("adds feature-based capabilities without checking plan names in UI code", () => {
-    assert.equal(
-      buildAccountCapabilities([{ role: "USER", status: "VERIFIED" }], {
-        features: [FEATURE_KEYS.chimerCustomColors],
-      }).canUseChimerCustomColors,
-      true,
+    const customColorCapabilities = buildAccountCapabilities(
+      [{ role: "USER", status: "VERIFIED" }],
+      { features: [FEATURE_KEYS.chimerCustomColors] },
     )
+    assert.equal(customColorCapabilities.canUseChimerCustomColors, true)
+    assert.equal(customColorCapabilities.hasActiveMembershipBenefits, true)
     const premiumBackgroundCapabilities = buildAccountCapabilities(
       [{ role: "USER", status: "VERIFIED" }],
       { features: [FEATURE_KEYS.premiumBackgrounds] },

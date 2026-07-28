@@ -3395,6 +3395,16 @@ describe("Stripe billing helpers", () => {
     assert.equal(capturedPayload.metadata.purpose, "massagelab_project_support")
     assert.equal(capturedPayload.payment_intent_data.metadata.purpose, "massagelab_project_support")
     assert.equal(Object.hasOwn(capturedPayload, "subscription_data"), false)
+    await assert.rejects(
+      createStripeDonationCheckoutSession({
+        amountCents: 500,
+        currency: "eur",
+        successUrl: "https://massagelab.app/pricing?donation=thanks",
+        cancelUrl: "https://massagelab.app/pricing?donation=cancelled",
+        stripeClient: {},
+      }),
+      /One-time support is available in USD only\./,
+    )
   })
 
   it("fails closed before Stripe when any one-time support tax gate is absent", async () => {

@@ -90,6 +90,8 @@ tests and confirm:
 - The subscription is canceled or refunded as appropriate after the smoke test.
 - The one-time support path starts Stripe Checkout, returns to `/pricing`,
   uses exclusive Automatic Tax with required billing-address collection,
+  retrieves the completed Session and line items, and verifies the applied tax
+  evidence before the smoke is treated as passed;
   states that it does not purchase goods or services, create a membership, or
   unlock features, states that it is not charitable or tax-deductible, and
   grants no membership, credit, or background ownership after the signed
