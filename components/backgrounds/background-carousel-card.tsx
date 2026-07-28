@@ -25,6 +25,15 @@ type BackgroundCardCommerceState = {
   ownershipSource: string | null
 }
 
+/** Requires both an active ownership row and its permanent acquisition source. */
+function hasActivePermanentOwnership(commerceState: BackgroundCardCommerceState) {
+  return commerceState.ownershipStatus === "active"
+    && (
+      commerceState.state === "owned-credit"
+      || commerceState.state === "owned-purchase"
+    )
+}
+
 interface BackgroundCarouselCardProps {
   option: BackgroundDefinition
   detailLevel: AdaptiveCarouselDetailLevel
@@ -47,7 +56,7 @@ function accessLabel(commerceState: BackgroundCardCommerceState) {
   if (commerceState.ownershipStatus === "refund_revoked") return "Refund revoked"
   if (commerceState.ownershipStatus === "dispute_revoked") return "Dispute revoked"
   if (commerceState.ownershipStatus === "retired") return "Retired"
-  if (commerceState.state === "owned-credit" || commerceState.state === "owned-purchase") return "Owned"
+  if (hasActivePermanentOwnership(commerceState)) return "Owned"
   if (commerceState.state === "included-subscription") return "Included with membership"
   if (commerceState.state === "unavailable") return "Unavailable"
   return null
@@ -93,8 +102,7 @@ export function BackgroundCarouselCard({
   const sourceLabel = ownershipSourceLabel(commerceState.ownershipSource)
   // Only authoritative active credit or purchase states represent permanent
   // ownership that survives membership cancellation.
-  const permanentlyOwned = commerceState.state === "owned-credit"
-    || commerceState.state === "owned-purchase"
+  const permanentlyOwned = hasActivePermanentOwnership(commerceState)
   const unavailable = commerceState.state === "unavailable"
   const locked = !commerceState.canSelect && !unavailable
   const generatedAcquisitionHintId = useId()

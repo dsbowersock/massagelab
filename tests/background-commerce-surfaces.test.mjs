@@ -73,6 +73,7 @@ describe("production background commerce states", () => {
     assert.match(source, /onLockedSelect\?\.\(\)/)
     assert.match(source, /onSelect\(\)/)
     assert.match(source, /onClick=\{onKeepPermanently\}/)
+    assert.match(source, /commerceState\.ownershipStatus === "active"/)
     assert.match(source, /commerceState\.state === "owned-credit"/)
     assert.match(source, /commerceState\.state === "owned-purchase"/)
     assert.match(source, /type="button"/)

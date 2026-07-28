@@ -99,6 +99,9 @@ describe("account surface data loader", () => {
       capabilities: { canUsePremiumBackgrounds: true },
     }), true)
     assert.equal(sessionHasActiveMembershipBenefits({
+      capabilities: { canUseChimerCustomColors: true },
+    }), true)
+    assert.equal(sessionHasActiveMembershipBenefits({
       capabilities: {
         canUsePremiumBackgrounds: true,
         hasActiveMembershipBenefits: false,
