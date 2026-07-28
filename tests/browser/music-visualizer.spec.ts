@@ -1268,6 +1268,17 @@ test("Clock and Visual docks remain safe at 200 percent Chromium page scale", as
     }))
     await expectDockAvoidsDisplay(page, panelName, true)
   }
+  if (testInfo.project.name === "mobile-chromium") {
+    await expect.poll(() => page.locator("[aria-label='Immersive display controls']").evaluate(
+      (toolbar) => window.getComputedStyle(toolbar).overflowX,
+    )).toBe("auto")
+    expect.soft(
+      await focusedRingBounds(page, page.getByRole("button", { name: "Background", exact: true })),
+    ).toEqual(expect.objectContaining({
+      ringExtent: 4,
+      ringInside: true,
+    }))
+  }
   await session.send("Emulation.setPageScaleFactor", { pageScaleFactor: 1 })
 })
 

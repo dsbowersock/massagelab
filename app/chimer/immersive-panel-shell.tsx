@@ -142,6 +142,7 @@ export function ImmersivePanelShell({
   const toolbarButtonRefs = useRef<Partial<Record<PanelKey, HTMLButtonElement | null>>>({})
   const [placement, setPlacement] = useState<DockPlacement>(DEFAULT_PLACEMENT)
   const [visualViewportFrame, setVisualViewportFrame] = useState<VisualViewportFrame | null>(null)
+  const [toolbarFitsVisualViewport, setToolbarFitsVisualViewport] = useState(false)
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null)
   const nonmodalPanel = activePanel === "clock" || activePanel === "visual" ? activePanel : null
   const activePanelLabel = nonmodalPanel === "clock" ? "Clock" : "Visual"
@@ -152,6 +153,24 @@ export function ImmersivePanelShell({
   useLayoutEffect(() => {
     setPortalTarget(document.body)
   }, [])
+
+  useLayoutEffect(() => {
+    const toolbar = toolbarRef.current
+    if (!toolbar) return
+
+    const measureToolbarFit = () => {
+      setToolbarFitsVisualViewport(toolbar.scrollWidth <= toolbar.clientWidth + 1)
+    }
+    measureToolbarFit()
+
+    const resizeObserver = typeof ResizeObserver === "undefined"
+      ? null
+      : new ResizeObserver(measureToolbarFit)
+    resizeObserver?.observe(toolbar)
+    return () => {
+      resizeObserver?.disconnect()
+    }
+  }, [portalTarget, visualViewportFrame?.width])
 
   const closeNonmodalPanel = useCallback((restoreFocus: boolean) => {
     if (!nonmodalPanel) {
@@ -378,7 +397,13 @@ export function ImmersivePanelShell({
         data-immersive-inset-probe
       />
       <TooltipProvider delayDuration={180}>
-        <div ref={toolbarRef} className={styles.toolbar} role="group" aria-label="Immersive display controls">
+        <div
+          ref={toolbarRef}
+          className={styles.toolbar}
+          role="group"
+          aria-label="Immersive display controls"
+          data-toolbar-fits-visual-viewport={toolbarFitsVisualViewport}
+        >
           {PANEL_CONTROLS.map(({ id, label, icon: Icon }) => {
             const isActive = activePanel === id
             const panelId = `immersive-${id}-panel`

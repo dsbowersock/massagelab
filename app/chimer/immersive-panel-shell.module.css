@@ -106,13 +106,10 @@
   display: none;
 }
 
-/* Ordinary phone widths need visible overflow so three control glows are not
-   clipped into one box; 20rem replaces the former 36.0625rem threshold while
-   preserving horizontal scrolling on exceptionally narrow layouts. */
-@media (min-width: 20rem) {
-  .toolbar {
-    overflow: visible;
-  }
+/* Show individual control glows only when measured content fits the current
+   visual viewport; high zoom and exceptionally narrow layouts retain scroll. */
+.toolbar[data-toolbar-fits-visual-viewport="true"] {
+  overflow: visible;
 }
 
 .toolbarButton {

@@ -42,9 +42,11 @@ test("renders three accessible grouped panel toggles with responsive tooltips", 
 test("keeps ordinary phone toolbars from clipping controls into a shared box", () => {
   assert.match(
     shellStyles,
-    /@media \(min-width: 20rem\)\s*\{\s*\.toolbar\s*\{\s*overflow:\s*visible;/,
+    /\.toolbar\[data-toolbar-fits-visual-viewport="true"\]\s*\{\s*overflow:\s*visible;/,
   )
-  assert.doesNotMatch(shellStyles, /@media \(min-width: 36\.0625rem\)[\s\S]*overflow:\s*visible/)
+  assert.match(shellSource, /toolbar\.scrollWidth <= toolbar\.clientWidth \+ 1/)
+  assert.match(shellSource, /data-toolbar-fits-visual-viewport=\{toolbarFitsVisualViewport\}/)
+  assert.doesNotMatch(shellStyles, /@media[\s\S]{0,200}\.toolbar[\s\S]{0,100}overflow:\s*visible/)
 })
 
 test("keeps Clock and Visual nonmodal with complete dismissal mechanics", () => {
@@ -77,7 +79,8 @@ test("measures a stable protected display and dock with bottom-first placement",
   assert.doesNotMatch(shellSource, /currentProtectedDisplay\.getBoundingClientRect\(\)/)
   assert.match(layoutSource, /const bottomSpace =[\s\S]*if \(bottomSpace >= requestedPanelPx \+ SAFE_STAGE_GAP_PX \+ normalizedBottomInset\)/)
   assert.match(layoutSource, /const topSpace =[\s\S]*if \(topSpace >= requestedPanelPx \+ SAFE_STAGE_GAP_PX \+ normalizedTopInset\)/)
-  assert.equal((shellSource.match(/new ResizeObserver/g) ?? []).length, 1)
+  assert.equal((shellSource.match(/new ResizeObserver/g) ?? []).length, 2)
+  assert.match(shellSource, /resizeObserver\?\.observe\(toolbar\)/)
   assert.match(shellSource, /resizeObserver\?\.observe\(protectedDisplay\)/)
   assert.match(shellSource, /resizeObserver\?\.observe\(dock\)/)
   assert.match(shellSource, /window\.addEventListener\("orientationchange", measure\)/)
