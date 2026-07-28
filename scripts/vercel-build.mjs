@@ -51,16 +51,22 @@ export function getVercelBuildSteps(env) {
  * into the command line or logs.
  *
  * @param {ReadonlyArray<string>} args npm arguments for the step.
+ * @param {{
+ *   env: NodeJS.ProcessEnv,
+ *   execPath: string,
+ *   spawnImpl: typeof spawn,
+ * }} options Process-local execution dependencies.
  * @returns {Promise<number>} Child exit code, defaulting to failure when absent.
  */
-function runNpm(args) {
-  const npmCliPath = process.env.npm_execpath?.trim()
+function runNpm(args, { env, execPath, spawnImpl }) {
+  const npmCliPath = env.npm_execpath?.trim()
   if (!npmCliPath) {
     throw new Error("npm_execpath is required for the Vercel build entrypoint.")
   }
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [npmCliPath, ...args], {
-      env: process.env,
+    const child = spawnImpl(execPath, [npmCliPath, ...args], {
+      env,
+      shell: false,
       stdio: "inherit",
       windowsHide: true,
     })
@@ -72,12 +78,27 @@ function runNpm(args) {
 /**
  * Runs the build steps sequentially and stops immediately when any step fails.
  *
+ * @param {{
+ *   env?: NodeJS.ProcessEnv,
+ *   execPath?: string,
+ *   spawnImpl?: typeof spawn,
+ *   log?: (message: string) => void,
+ * }} [options] Injectable process boundaries for focused execution tests.
  * @returns {Promise<number>} Zero only when every required step succeeds.
  */
-export async function runVercelBuild() {
-  for (const step of getVercelBuildSteps(process.env)) {
-    console.log(`Running ${step.label}.`)
-    const exitCode = await runNpm(step.args)
+export async function runVercelBuild({
+  env = process.env,
+  execPath = process.execPath,
+  spawnImpl = spawn,
+  log = console.log,
+} = {}) {
+  for (const step of getVercelBuildSteps(env)) {
+    log(`Running ${step.label}.`)
+    const exitCode = await runNpm(step.args, {
+      env,
+      execPath,
+      spawnImpl,
+    })
     if (exitCode !== 0) {
       return exitCode
     }
