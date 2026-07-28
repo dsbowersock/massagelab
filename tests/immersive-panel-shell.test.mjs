@@ -54,7 +54,9 @@ test("keeps ordinary phone toolbars from clipping controls into a shared box", (
     /@media \(min-width:\s*36\.0625rem\)\s*\{\s*\.toolbar\s*\{\s*overflow:\s*visible;/,
   )
   assert.match(shellSource, /const measureVisualViewportFrame = \(\) =>/)
-  assert.match(shellSource, /window\.visualViewport\?\.addEventListener\("resize", measureVisualViewportFrame\)/)
+  assert.match(shellSource, /return subscribeToViewportChanges\(measureVisualViewportFrame\)/)
+  assert.match(shellSource, /visualViewport\?\.addEventListener\("resize", listener\)/)
+  assert.match(shellSource, /visualViewport\?\.addEventListener\("scroll", listener\)/)
 })
 
 test("keeps Clock and Visual nonmodal with complete dismissal mechanics", () => {
@@ -91,9 +93,8 @@ test("measures a stable protected display and dock with bottom-first placement",
   assert.match(shellSource, /resizeObserver\?\.observe\(toolbar\)/)
   assert.match(shellSource, /resizeObserver\?\.observe\(protectedDisplay\)/)
   assert.match(shellSource, /resizeObserver\?\.observe\(dock\)/)
-  assert.match(shellSource, /window\.addEventListener\("orientationchange", measure\)/)
-  assert.match(shellSource, /window\.visualViewport\?\.addEventListener\("resize", measure\)/)
-  assert.match(shellSource, /window\.visualViewport\?\.addEventListener\("scroll", measure\)/)
+  assert.match(shellSource, /const unsubscribeFromViewportChanges = subscribeToViewportChanges\(measure\)/)
+  assert.match(shellSource, /unsubscribeFromViewportChanges\(\)/)
   assert.match(shellSource, /toVisualViewportBounds/)
   assert.match(shellSource, /visualViewportOffsetTop:\s*visualViewport\?\.offsetTop/)
   assert.match(shellSource, /topInset:\s*dockInsets\.top/)

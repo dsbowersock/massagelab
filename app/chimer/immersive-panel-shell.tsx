@@ -115,6 +115,23 @@ const shouldIgnoreNonmodalEscape = (target: EventTarget | null) => (
   target instanceof Element && Boolean(target.closest(CHIMER_CONTROL_PORTAL_SELECTOR))
 )
 
+/** Keeps layout measurements synchronized with both layout and visual viewport changes. */
+function subscribeToViewportChanges(listener: () => void) {
+  const visualViewport = window.visualViewport
+
+  window.addEventListener("resize", listener)
+  window.addEventListener("orientationchange", listener)
+  visualViewport?.addEventListener("resize", listener)
+  visualViewport?.addEventListener("scroll", listener)
+
+  return () => {
+    window.removeEventListener("resize", listener)
+    window.removeEventListener("orientationchange", listener)
+    visualViewport?.removeEventListener("resize", listener)
+    visualViewport?.removeEventListener("scroll", listener)
+  }
+}
+
 export function ImmersivePanelShell({
   activePanel,
   onActivePanelChange,
@@ -182,16 +199,7 @@ export function ImmersivePanelShell({
     }
 
     measureVisualViewportFrame()
-    window.addEventListener("resize", measureVisualViewportFrame)
-    window.addEventListener("orientationchange", measureVisualViewportFrame)
-    window.visualViewport?.addEventListener("resize", measureVisualViewportFrame)
-    window.visualViewport?.addEventListener("scroll", measureVisualViewportFrame)
-    return () => {
-      window.removeEventListener("resize", measureVisualViewportFrame)
-      window.removeEventListener("orientationchange", measureVisualViewportFrame)
-      window.visualViewport?.removeEventListener("resize", measureVisualViewportFrame)
-      window.visualViewport?.removeEventListener("scroll", measureVisualViewportFrame)
-    }
+    return subscribeToViewportChanges(measureVisualViewportFrame)
   }, [])
 
   useLayoutEffect(() => {
@@ -334,18 +342,12 @@ export function ImmersivePanelShell({
       resizeObserver?.observe(protectedDisplay)
     }
     resizeObserver?.observe(dock)
-    window.addEventListener("resize", measure)
-    window.addEventListener("orientationchange", measure)
-    window.visualViewport?.addEventListener("resize", measure)
-    window.visualViewport?.addEventListener("scroll", measure)
+    const unsubscribeFromViewportChanges = subscribeToViewportChanges(measure)
 
     return () => {
       window.cancelAnimationFrame(animationFrame)
       resizeObserver?.disconnect()
-      window.removeEventListener("resize", measure)
-      window.removeEventListener("orientationchange", measure)
-      window.visualViewport?.removeEventListener("resize", measure)
-      window.visualViewport?.removeEventListener("scroll", measure)
+      unsubscribeFromViewportChanges()
       stage.style.setProperty("--immersive-reserved-top", "0px")
       stage.style.setProperty("--immersive-reserved-bottom", "0px")
       stage.style.removeProperty("--immersive-panel-max-height")

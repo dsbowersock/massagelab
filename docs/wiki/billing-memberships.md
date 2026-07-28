@@ -127,7 +127,7 @@ Pricing and legal copy should also say that MassageLab does not sell user data a
 ## Completed Supporter Catalog State
 
 Production now uses one **MassageLab Supporter Membership** with identical
-current benefits, including access to all backgrounds, at fixed support
+current benefits, including access to all premium backgrounds, at fixed support
 amounts:
 
 - monthly: $1, $2, or $5;
