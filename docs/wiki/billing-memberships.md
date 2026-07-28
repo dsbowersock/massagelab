@@ -35,7 +35,9 @@ if (features.includes("chimer_custom_colors")) {
   lose their respective memberships. Therapist and Practice must not be
   offered to new subscribers before their differentiated professional features
   are ready for beta.
-- The first paid feature key is `chimer_custom_colors`.
+- Current Supporter benefits are feature-key driven: `premium_backgrounds`
+  grants premium-background access while membership is active, and
+  `chimer_custom_colors` grants saved custom Chimer colors.
 - Therapist note-taking tools use the `therapist_documentation_tools` feature key and are unlocked only by active Therapist or Practice memberships.
 - External provider calendar sync uses the `external_calendar_sync` feature key and is unlocked only by active Therapist or Practice memberships.
 - Stripe subscription records grant membership only when their Price ID matches
@@ -56,9 +58,19 @@ route `/api/billing/donation`.
   tax-deductible, and provides no goods, services, or membership benefits.
 - Checkout metadata uses `massagelab_project_support` so webhook reconciliation
   can ignore it for membership grants.
-- Automatic Tax remains disabled for one-time support until a tax professional
-  confirms its classification. That decision is separate from `txcd_10000000`,
-  which applies to permanent digital backgrounds.
+- The reviewed one-time-support tax code is `txcd_90000001`. Do not infer or
+  reuse the separate `txcd_10000000` Supporter/background classification.
+- Checkout enables exclusive Stripe Automatic Tax and requires a billing
+  address only when all five deployment gates are explicit:
+  `STRIPE_ONE_TIME_SUPPORT_AUTOMATIC_TAX_ENABLED=true`,
+  `STRIPE_ONE_TIME_SUPPORT_TAX_PRODUCT_CODE=txcd_90000001`,
+  `STRIPE_ONE_TIME_SUPPORT_TAX_PROVIDER_READY=true`,
+  `STRIPE_ONE_TIME_SUPPORT_TAX_REGISTRATIONS_READY=true`, and
+  `STRIPE_ONE_TIME_SUPPORT_TAX_CLASSIFICATION_CONFIRMED=true`.
+- Checkout creation is rejected unless every one of those five values is
+  present and exactly valid.
+- The live smoke must retrieve the resulting Session and line-item tax evidence
+  after deployment; the inline Checkout Product does not exist beforehand.
 
 ## Student Access
 
@@ -85,6 +97,7 @@ approved for recreation or new use.
 
 Current:
 
+- `premium_backgrounds`
 - `chimer_custom_colors`
 - `calendar_basic_scheduling`
 - `calendar_full_scheduling`
@@ -114,7 +127,7 @@ Pricing and legal copy should also say that MassageLab does not sell user data a
 ## Completed Supporter Catalog State
 
 Production now uses one **MassageLab Supporter Membership** with identical
-current benefits, including access to all backgrounds, at fixed support
+current benefits, including access to all premium backgrounds, at fixed support
 amounts:
 
 - monthly: $1, $2, or $5;
@@ -246,10 +259,13 @@ subscriber inventory, and read-only migration verification are complete. The
 three-Product catalog migration is `COMPLETED`, all recurring-tax runtime gates
 are enabled, and live readiness passes against Stripe and the pinned webhook
 endpoint. The controlled taxed subscription retry is complete. The remaining
-rollout gate is one real amount or interval switch after the focused
-subscription-update action deploys. Any future material change to the paid app
-offering requires a new classification review. One-time support remains
-outside this classification and continues to omit Automatic Tax.
+focused action is deployed and the controlled account has completed a
+user-reported $1-to-$2 monthly change with visible Account return and continuing
+Supporter access. Subscriber-specific amount, tax, anchor/proration, and
+webhook-persisted Price evidence still require bounded read-only verification.
+Any future material change to the paid app offering requires a new
+classification review. One-time support remains outside this classification
+and uses its own `txcd_90000001` fail-closed Automatic Tax contract.
 
 ## Stripe Setup Checklist
 

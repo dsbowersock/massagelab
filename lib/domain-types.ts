@@ -11,6 +11,8 @@ export type AccountCapabilities = {
   canRequestCredentials: boolean
   canUseLocalClinicalTools: boolean
   canUseChimerCustomColors: boolean
+  canUsePremiumBackgrounds: boolean
+  hasActiveMembershipBenefits: boolean
   hostedClinicalSyncEnabled: boolean
 }
 

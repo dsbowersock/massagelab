@@ -72,18 +72,28 @@ describe("Account permission helpers", () => {
         canRequestCredentials: true,
         canUseLocalClinicalTools: false,
         canUseChimerCustomColors: false,
+        canUsePremiumBackgrounds: false,
+        hasActiveMembershipBenefits: false,
         hostedClinicalSyncEnabled: false,
       },
     )
   })
 
   it("adds feature-based capabilities without checking plan names in UI code", () => {
-    assert.equal(
-      buildAccountCapabilities([{ role: "USER", status: "VERIFIED" }], {
-        features: [FEATURE_KEYS.chimerCustomColors],
-      }).canUseChimerCustomColors,
-      true,
+    const customColorCapabilities = buildAccountCapabilities(
+      [{ role: "USER", status: "VERIFIED" }],
+      { features: [FEATURE_KEYS.chimerCustomColors] },
     )
+    assert.equal(customColorCapabilities.canUseChimerCustomColors, true)
+    assert.equal(customColorCapabilities.canUsePremiumBackgrounds, false)
+    assert.equal(customColorCapabilities.hasActiveMembershipBenefits, true)
+    const premiumBackgroundCapabilities = buildAccountCapabilities(
+      [{ role: "USER", status: "VERIFIED" }],
+      { features: [FEATURE_KEYS.premiumBackgrounds] },
+    )
+    assert.equal(premiumBackgroundCapabilities.canUsePremiumBackgrounds, true)
+    assert.equal(premiumBackgroundCapabilities.canUseChimerCustomColors, false)
+    assert.equal(premiumBackgroundCapabilities.hasActiveMembershipBenefits, true)
     assert.equal(
       buildAccountCapabilities([{ role: "LICENSED_THERAPIST", status: "VERIFIED" }], {
         features: [FEATURE_KEYS.therapistDocumentationTools],

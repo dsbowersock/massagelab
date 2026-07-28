@@ -64,6 +64,9 @@ tests and confirm:
   $1/$2/$5 monthly or $10/$20/$50 annually.
 - The recurring-tax enablement, `txcd_10000000` classification, provider,
   registrations, and final professional-confirmation gates are all explicit.
+- The independent one-time-support enablement, exact `txcd_90000001`
+  classification, provider, registrations, and final-confirmation gates are
+  all explicit.
 - Stripe retrieval confirms every Supporter Price is exclusive, uses exact
   interval count one with no trial, licensed per-unit usage, no quantity
   transform or additional currencies, and belongs to the classified Supporter
@@ -86,25 +89,28 @@ tests and confirm:
   or interval-switch path is verified.
 - The subscription is canceled or refunded as appropriate after the smoke test.
 - The one-time support path starts Stripe Checkout, returns to `/pricing`,
+  uses exclusive Automatic Tax with required billing-address collection,
+  retrieves the completed Session and line items, and verifies the applied tax
+  evidence before the smoke is treated as passed;
   states that it does not purchase goods or services, create a membership, or
-  unlock features, and states that it is not charitable or tax-deductible.
+  unlock features, states that it is not charitable or tax-deductible, and
+  grants no membership, credit, or background ownership after the signed
+  completion webhook.
 
 Retain the six legacy runtime Price mappings until subscriber inventory proves none remain and webhook reconciliation is final.
 Those mappings are historical normalization inputs only; they cannot replace
 any of the six amount-specific Supporter Price IDs in readiness.
 
-Latest status, 2026-07-26: the deployable Supporter-only application,
-fail-closed migration command, and recurring Automatic Tax application/readiness
-contracts are implemented. Read-only live inventory found no non-terminal live
-subscriber requiring a grandfathering decision.
-The production catalog also confirmed the older support-amount Prices are split
-across the three legacy tier Products and the default Portal currently has
-subscription switching disabled. The migration now verifies those exact states
-and retires/enables them in its controlled apply sequence. Final professional
-classification confirmation, live-key migration verify/apply, production
-environment configuration, Customer Portal mutation, and the new live smoke
-remain pending. The earlier June 24 legacy Supporter smoke remains historical
-evidence only. The one-time support Checkout smoke also remains pending.
+Latest status, 2026-07-27: the Supporter catalog migration, recurring Automatic
+Tax readiness, controlled taxed $1 monthly Checkout, and focused membership
+change deployment are complete. The controlled user has changed the membership
+to $2 monthly and supplied screenshots showing the Account return, continuing
+Supporter status, and membership-included backgrounds. Bounded read-only
+verification of the Stripe amount/tax/anchor/proration fields and
+webhook-persisted database Price mapping remains open. The independent
+`txcd_90000001` one-time-support Automatic Tax candidate is implemented but
+still needs Production gates, deployment, and an explicitly authorized live
+payment smoke.
 
 ## Manual Focus Areas
 

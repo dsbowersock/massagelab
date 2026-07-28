@@ -2,7 +2,7 @@
 
 import Image from "next/image"
 import { useEffect, useId, useRef, useState } from "react"
-import { Lock } from "lucide-react"
+import { Crown, DollarSign, Lock } from "lucide-react"
 import type { AdaptiveCarouselDetailLevel } from "@/components/carousels/adaptive-carousel-stage"
 import type { BackgroundDefinition } from "@/components/backgrounds/backgroundRegistry"
 import { Loader } from "@/components/chimer-controls/Loader"
@@ -23,6 +23,15 @@ type BackgroundCardCommerceState = {
   isReserved: boolean
   ownershipStatus: string | null
   ownershipSource: string | null
+}
+
+/** Requires both an active ownership row and its permanent acquisition source. */
+function hasActivePermanentOwnership(commerceState: BackgroundCardCommerceState) {
+  return commerceState.ownershipStatus === "active"
+    && (
+      commerceState.state === "owned-credit"
+      || commerceState.state === "owned-purchase"
+    )
 }
 
 interface BackgroundCarouselCardProps {
@@ -47,7 +56,7 @@ function accessLabel(commerceState: BackgroundCardCommerceState) {
   if (commerceState.ownershipStatus === "refund_revoked") return "Refund revoked"
   if (commerceState.ownershipStatus === "dispute_revoked") return "Dispute revoked"
   if (commerceState.ownershipStatus === "retired") return "Retired"
-  if (commerceState.state === "owned-credit" || commerceState.state === "owned-purchase") return "Owned"
+  if (hasActivePermanentOwnership(commerceState)) return "Owned"
   if (commerceState.state === "included-subscription") return "Included with membership"
   if (commerceState.state === "unavailable") return "Unavailable"
   return null
@@ -91,6 +100,9 @@ export function BackgroundCarouselCard({
     .slice(0, 4)
   const statusLabel = accessLabel(commerceState)
   const sourceLabel = ownershipSourceLabel(commerceState.ownershipSource)
+  // Only authoritative active credit or purchase states represent permanent
+  // ownership that survives membership cancellation.
+  const permanentlyOwned = hasActivePermanentOwnership(commerceState)
   const unavailable = commerceState.state === "unavailable"
   const locked = !commerceState.canSelect && !unavailable
   const generatedAcquisitionHintId = useId()
@@ -202,17 +214,29 @@ export function BackgroundCarouselCard({
               {locked ? <Lock aria-hidden="true" /> : null}
               {unavailable ? "Unavailable" : locked ? "Unlock" : selected ? "Selected" : "Select"}
             </Button>
-            {commerceState.showKeepPermanently ? (
+            {/* Temporary membership access offers conversion only with its handler;
+                the crown is reserved for authoritative permanent ownership. */}
+            {commerceState.showKeepPermanently && onKeepPermanently ? (
               <Button
                 type="button"
-                size="sm"
+                size="icon"
                 variant="glow"
-                onClick={() => onKeepPermanently?.()}
-                aria-label={`Keep after membership: ${option.label}`}
-                className="h-auto min-h-9 max-w-full whitespace-normal px-2 py-2 leading-tight"
+                onClick={onKeepPermanently}
+                aria-label={`Open permanent ownership options for ${option.label}`}
+                title="Keep permanently"
               >
-                Keep after membership
+                <DollarSign aria-hidden="true" />
               </Button>
+            ) : null}
+            {permanentlyOwned ? (
+              <span
+                className="inline-flex size-9 shrink-0 items-center justify-center rounded-md border border-amber-300/55 bg-amber-950/70 text-amber-200 shadow-sm shadow-amber-300/25"
+                role="img"
+                aria-label={`${option.label} is permanently owned`}
+                title="Permanently owned"
+              >
+                <Crown className="size-4" aria-hidden="true" />
+              </span>
             ) : null}
           </div>
           <Button

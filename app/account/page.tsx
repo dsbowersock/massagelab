@@ -22,7 +22,7 @@ import { SupporterInterestsPanel } from "@/app/account/supporter-interests-panel
 import { BackgroundCommercePanel } from "@/components/account/BackgroundCommercePanel"
 import { accountPageGroups, accountPageTabs, formatAccountDate, selectAccountTab } from "@/lib/account-page"
 import { normalizeSessionRoleAssignments } from "@/lib/account-role-assignments"
-import { getAccountSurfaceData } from "@/lib/account-surface-data"
+import { getAccountSurfaceData, sessionHasActiveMembershipBenefits } from "@/lib/account-surface-data"
 import { BILLING_PORTAL_DESTINATIONS } from "@/lib/billing-portal-destinations"
 import { getLegalDocumentByKey, legalDocumentAcceptanceId } from "@/lib/legal-documents"
 import { US_MASSAGE_JURISDICTIONS } from "@/lib/license-verification"
@@ -151,7 +151,9 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
   const roleRows = normalizeSessionRoleAssignments(session.user as AccountSessionUser) as Array<{ role: AccountRole; status: VerificationStatus }>
   const roleLabels = roleRows.map((roleRow) => roleRow.role).sort()
   const canManageAnatomy = Boolean(session.user.capabilities?.canManageAnatomyContent)
-  const canUseChimerCustomColors = Boolean(session.user.capabilities?.canUseChimerCustomColors)
+  // Account status uses the aggregate feature-key claim; a permanently owned
+  // background does not imply that membership benefits are currently active.
+  const hasActiveMembershipBenefits = sessionHasActiveMembershipBenefits(session.user as AccountSessionUser)
   const accountDisplayName = session.user.name || session.user.email || "MassageLab account"
   const roleSummary = roleLabels.length > 0 ? roleLabels.map(formatRole).join(", ") : "User"
   const accountItemStatuses = {
@@ -168,7 +170,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
     people: "Coming later",
     "calendar-availability": "Open calendar",
     tools: canManageAnatomy ? "Anatomy browser" : "Feedback",
-    membership: canUseChimerCustomColors ? "Paid features active" : "Billing",
+    membership: hasActiveMembershipBenefits ? "Paid features active" : "Billing",
     "orders-invoices": "Purchases",
   }
   const accountSummaryLinks = [
@@ -180,7 +182,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
     {
       id: "membership",
       label: "Membership",
-      value: canUseChimerCustomColors ? "Custom colors unlocked" : "Review plans",
+      value: hasActiveMembershipBenefits ? "Benefits active" : "Review plans",
     },
     {
       id: "credentials",
@@ -234,6 +236,8 @@ type AccountSessionUser = {
   capabilities?: {
     canManageAnatomyContent?: boolean
     canUseChimerCustomColors?: boolean
+    canUsePremiumBackgrounds?: boolean
+    hasActiveMembershipBenefits?: boolean
   }
   twoFactorEnabled?: boolean
 }
@@ -331,7 +335,7 @@ async function OverviewTab({ userId, sessionUser }: { userId: string; sessionUse
             <StatusTile label="Templates" value={String(data.counts.templateCount)} />
             <StatusTile label="Security" value={sessionUser.twoFactorEnabled ? "2FA enabled" : "2FA available"} />
             <StatusTile label="Clinical sync" value="Local-first only" />
-            <StatusTile label="Chimer colors" value={data.canUseChimerCustomColors ? "Unlocked" : "Free defaults"} />
+            <StatusTile label="Membership benefits" value={data.hasActiveMembershipBenefits ? "Active" : "Free access"} />
           </div>
         </CardContent>
       </Card>
@@ -613,7 +617,10 @@ async function CredentialsTab({ userId, sessionUser }: { userId: string; session
 async function MembershipTab({ userId, sessionUser }: { userId: string; sessionUser: AccountSessionUser }) {
   const data = await getAccountSurfaceData("membership", userId, sessionUser)
   const membershipSummary = data.membershipSummary
+  // Benefit tiles use individual entitlement keys, never displayed plan names
+  // or permanent background ownership, which remains a separate access source.
   const canUseChimerCustomColors = membershipSummary.entitlements.features.includes(FEATURE_KEYS.chimerCustomColors)
+  const canUsePremiumBackgrounds = membershipSummary.entitlements.features.includes(FEATURE_KEYS.premiumBackgrounds)
   const subscriptionPricingMode = resolveMembershipPricingMode({
     signedIn: true,
     subscriptions: membershipSummary.subscriptions,
@@ -632,19 +639,20 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
             Membership
           </CardTitle>
           <CardDescription>
-            Free access remains available by default. Paid memberships currently unlock Chimer custom colors and membership status.
+            Free access remains available by default. Active Supporter membership includes every premium background, saved custom Chimer colors, and Supporter account status.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-2">
             <StatusTile label="Current level" value={formatMembershipLevel(membershipSummary.entitlements.level)} />
             <StatusTile label="Billing profile" value={membershipSummary.stripeCustomer ? "Connected" : "Not started"} />
-            <StatusTile label="Custom colors" value={canUseChimerCustomColors ? "Available" : "Membership required"} />
+            <StatusTile label="Premium backgrounds" value={canUsePremiumBackgrounds ? "Included" : "Membership required"} />
+            <StatusTile label="Saved Chimer colors" value={canUseChimerCustomColors ? "Included" : "Membership required"} />
           </div>
 
           <div className="rounded-md border border-primary/50 bg-primary/10 p-3 shadow-sm shadow-primary/10">
             <p className="text-sm text-muted-foreground">
-              Basic Chimer remains free. Paid memberships unlock saved custom display and background colors. Yearly billing is highlighted when Stripe pricing shows an annual savings.
+              Every Supporter amount includes the same current benefits. Premium backgrounds remain available while membership is active; backgrounds bought for $1 or claimed with a credit remain permanently available to the account.
             </p>
           </div>
         </CardContent>

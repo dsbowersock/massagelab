@@ -13,6 +13,7 @@ import { config as loadDotenv } from "dotenv"
 import { BACKGROUND_COMMERCE_TAX_PRODUCT_CODE } from "../lib/commerce/constants.js"
 import { DIGITAL_PURCHASES_REFUNDS_VERSION } from "../lib/legal-documents.js"
 import {
+  getOneTimeSupportTaxReadiness,
   getSupporterRecurringTaxReadiness,
   isExplicitTrue,
   REQUIRED_SUPPORTER_PRICE_CONTRACT,
@@ -183,6 +184,56 @@ function checkSupporterRecurringTaxReadiness() {
 }
 
 /**
+ * Validates the deployment attestations for one-time support independently
+ * from recurring memberships and permanent background purchases.
+ *
+ * Reads the Automatic Tax enablement, exact tax Product code, provider
+ * readiness, registrations readiness, and classification-confirmation
+ * environment attestations. Missing or invalid values fail closed through
+ * `addFailure`.
+ *
+ * @returns {ReturnType<typeof getOneTimeSupportTaxReadiness>} The five
+ * normalized attestation booleans and their all-required `ready` aggregate.
+ */
+function checkOneTimeSupportTaxReadiness() {
+  const oneTimeTax = getOneTimeSupportTaxReadiness({
+    STRIPE_ONE_TIME_SUPPORT_AUTOMATIC_TAX_ENABLED: envValue(
+      "STRIPE_ONE_TIME_SUPPORT_AUTOMATIC_TAX_ENABLED",
+    ),
+    STRIPE_ONE_TIME_SUPPORT_TAX_PRODUCT_CODE: envValue(
+      "STRIPE_ONE_TIME_SUPPORT_TAX_PRODUCT_CODE",
+    ),
+    STRIPE_ONE_TIME_SUPPORT_TAX_PROVIDER_READY: envValue(
+      "STRIPE_ONE_TIME_SUPPORT_TAX_PROVIDER_READY",
+    ),
+    STRIPE_ONE_TIME_SUPPORT_TAX_REGISTRATIONS_READY: envValue(
+      "STRIPE_ONE_TIME_SUPPORT_TAX_REGISTRATIONS_READY",
+    ),
+    STRIPE_ONE_TIME_SUPPORT_TAX_CLASSIFICATION_CONFIRMED: envValue(
+      "STRIPE_ONE_TIME_SUPPORT_TAX_CLASSIFICATION_CONFIRMED",
+    ),
+  })
+
+  if (!oneTimeTax.automaticTaxEnabled) {
+    addFailure("One-time support tax automatic-tax enablement is not configured.")
+  }
+  if (!oneTimeTax.taxProductCodeConfigured) {
+    addFailure("One-time support tax product classification is not configured.")
+  }
+  if (!oneTimeTax.taxProviderReady) {
+    addFailure("One-time support tax provider readiness is not configured.")
+  }
+  if (!oneTimeTax.taxRegistrationsReady) {
+    addFailure("One-time support tax registrations are not confirmed.")
+  }
+  if (!oneTimeTax.taxClassificationConfirmed) {
+    addFailure("One-time support tax classification is not professionally confirmed.")
+  }
+
+  return oneTimeTax
+}
+
+/**
  * Validates only explicit, deploy-time background-commerce signals. Values are
  * reported as booleans or non-secret identifiers so the check cannot expose
  * Stripe credentials or processor payloads.
@@ -311,7 +362,7 @@ async function verifyStripePrices() {
   }
 }
 
-function printResults(supporterTax, commerce) {
+function printResults(supporterTax, oneTimeTax, commerce) {
   console.log(`Stripe readiness mode: ${liveMode ? "live" : "non-live"}`)
   console.log(`Stripe API retrieval requested: ${verifyStripe}`)
   console.log(`Stripe API retrieval performed: ${stripeRetrievalPerformed}`)
@@ -320,6 +371,11 @@ function printResults(supporterTax, commerce) {
   console.log(`Supporter recurring tax provider ready: ${supporterTax.taxProviderReady}`)
   console.log(`Supporter recurring tax registrations confirmed: ${supporterTax.taxRegistrationsReady}`)
   console.log(`Supporter recurring tax classification confirmed: ${supporterTax.taxClassificationConfirmed}`)
+  console.log(`One-time support automatic tax enabled: ${oneTimeTax.automaticTaxEnabled}`)
+  console.log(`One-time support tax product code configured: ${oneTimeTax.taxProductCodeConfigured}`)
+  console.log(`One-time support tax provider ready: ${oneTimeTax.taxProviderReady}`)
+  console.log(`One-time support tax registrations confirmed: ${oneTimeTax.taxRegistrationsReady}`)
+  console.log(`One-time support tax classification confirmed: ${oneTimeTax.taxClassificationConfirmed}`)
   console.log(`Background commerce fixed USD price configured: ${commerce.fixedUsdPriceConfigured}`)
   console.log(`Background commerce purchase-country allowlist configured: ${commerce.purchaseCountryAllowlistConfigured}`)
   console.log(`Background commerce digital-purchase document current: ${commerce.digitalPurchaseDocumentCurrent}`)
@@ -345,6 +401,7 @@ function printResults(supporterTax, commerce) {
     return
   }
 
+  console.log("One-time support tax readiness: ready")
   console.log("Background commerce readiness: ready")
   console.log("PASS Stripe membership environment is ready for the selected mode.")
 }
@@ -356,9 +413,10 @@ if (liveMode && !verifyStripe) {
   addFailure("Live Stripe readiness requires --verify-stripe.")
 }
 const supporterTax = checkSupporterRecurringTaxReadiness()
+const oneTimeTax = checkOneTimeSupportTaxReadiness()
 const commerce = checkBackgroundCommerceReadiness()
 await verifyStripePrices()
 if (verifyStripe && !stripeRetrievalPerformed) {
   addFailure("Stripe Price retrieval did not complete for every required Supporter contract slot.")
 }
-printResults(supporterTax, commerce)
+printResults(supporterTax, oneTimeTax, commerce)

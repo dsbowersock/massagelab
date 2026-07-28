@@ -39,6 +39,28 @@ test("renders three accessible grouped panel toggles with responsive tooltips", 
   )
 })
 
+test("keeps ordinary phone toolbars from clipping controls into a shared box", () => {
+  assert.match(
+    shellStyles,
+    /\.toolbar\[data-toolbar-fits-visual-viewport="true"\]\s*\{\s*overflow:\s*visible;/,
+  )
+  assert.match(shellSource, /toolbar\.scrollWidth <= toolbar\.clientWidth \+ 1/)
+  assert.match(shellSource, /data-toolbar-fits-visual-viewport=\{toolbarFitsVisualViewport\}/)
+  assert.match(shellSource, /new MutationObserver\(measureToolbarFit\)/)
+  assert.match(shellSource, /mutationObserver\?\.observe\(toolbar, \{[\s\S]{0,200}attributes: true,[\s\S]{0,200}attributeFilter: \["class", "style"\],[\s\S]{0,200}childList: true,[\s\S]{0,200}characterData: true,[\s\S]{0,200}subtree: true/)
+  assert.match(shellSource, /mutationObserver\?\.disconnect\(\)/)
+  assert.match(shellSource, /document\.fonts\?\.addEventListener\("loadingdone", measureToolbarFit\)/)
+  assert.match(shellSource, /document\.fonts\?\.removeEventListener\("loadingdone", measureToolbarFit\)/)
+  assert.doesNotMatch(
+    shellStyles,
+    /@media \(min-width:\s*36\.0625rem\)\s*\{\s*\.toolbar\s*\{\s*overflow:\s*visible;/,
+  )
+  assert.match(shellSource, /const measureVisualViewportFrame = \(\) =>/)
+  assert.match(shellSource, /return subscribeToViewportChanges\(measureVisualViewportFrame\)/)
+  assert.match(shellSource, /visualViewport\?\.addEventListener\("resize", listener\)/)
+  assert.match(shellSource, /visualViewport\?\.addEventListener\("scroll", listener\)/)
+})
+
 test("keeps Clock and Visual nonmodal with complete dismissal mechanics", () => {
   assert.match(shellSource, /role="dialog"/)
   assert.match(shellSource, /aria-modal="false"/)
@@ -69,12 +91,12 @@ test("measures a stable protected display and dock with bottom-first placement",
   assert.doesNotMatch(shellSource, /currentProtectedDisplay\.getBoundingClientRect\(\)/)
   assert.match(layoutSource, /const bottomSpace =[\s\S]*if \(bottomSpace >= requestedPanelPx \+ SAFE_STAGE_GAP_PX \+ normalizedBottomInset\)/)
   assert.match(layoutSource, /const topSpace =[\s\S]*if \(topSpace >= requestedPanelPx \+ SAFE_STAGE_GAP_PX \+ normalizedTopInset\)/)
-  assert.equal((shellSource.match(/new ResizeObserver/g) ?? []).length, 1)
+  assert.equal((shellSource.match(/new ResizeObserver/g) ?? []).length, 2)
+  assert.match(shellSource, /resizeObserver\?\.observe\(toolbar\)/)
   assert.match(shellSource, /resizeObserver\?\.observe\(protectedDisplay\)/)
   assert.match(shellSource, /resizeObserver\?\.observe\(dock\)/)
-  assert.match(shellSource, /window\.addEventListener\("orientationchange", measure\)/)
-  assert.match(shellSource, /window\.visualViewport\?\.addEventListener\("resize", measure\)/)
-  assert.match(shellSource, /window\.visualViewport\?\.addEventListener\("scroll", measure\)/)
+  assert.match(shellSource, /const unsubscribeFromViewportChanges = subscribeToViewportChanges\(measure\)/)
+  assert.match(shellSource, /unsubscribeFromViewportChanges\(\)/)
   assert.match(shellSource, /toVisualViewportBounds/)
   assert.match(shellSource, /visualViewportOffsetTop:\s*visualViewport\?\.offsetTop/)
   assert.match(shellSource, /topInset:\s*dockInsets\.top/)

@@ -75,6 +75,12 @@ STRIPE_THERAPIST_MONTHLY_PRICE_ID=
 STRIPE_THERAPIST_YEARLY_PRICE_ID=
 STRIPE_PRACTICE_MONTHLY_PRICE_ID=
 STRIPE_PRACTICE_YEARLY_PRICE_ID=
+# Independent one-time-support Automatic Tax gates:
+STRIPE_ONE_TIME_SUPPORT_AUTOMATIC_TAX_ENABLED=false
+STRIPE_ONE_TIME_SUPPORT_TAX_PRODUCT_CODE=
+STRIPE_ONE_TIME_SUPPORT_TAX_PROVIDER_READY=false
+STRIPE_ONE_TIME_SUPPORT_TAX_REGISTRATIONS_READY=false
+STRIPE_ONE_TIME_SUPPORT_TAX_CLASSIFICATION_CONFIRMED=false
 ```
 
 Free and Student are internal access states. Do not create a Stripe Free product.
@@ -110,6 +116,11 @@ Before enabling subscription checkout, confirm:
 - Local and Vercel environments contain the same required Stripe keys and Price IDs for their respective test or live mode.
 - Production uses a live `STRIPE_SECRET_KEY`, a live webhook signing secret, and live recurring Price IDs. Test-mode keys or empty production Price IDs are launch blockers.
 - Run `npm run stripe:readiness -- --env-file=/secure/path/massagelab-production.env --live --verify-stripe` with production env values before public paid signup.
+- Keep one-time support fail-closed until its five independent gates are
+  explicit, including exact code `txcd_90000001`. After deployment, complete a
+  separately authorized live Checkout and verify its Session/line-item tax
+  evidence, `/pricing` return, and absence of any membership or background
+  entitlement.
 
 ### Supporter catalog migration
 

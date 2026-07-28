@@ -63,11 +63,11 @@ describe("user-facing copy", () => {
     const normalizedBillingGuide = billingGuide.replace(/\s+/g, " ")
     assert.match(
       normalizedBillingGuide,
-      /Automatic Tax remains disabled for one-time support until a tax professional confirms its classification\. That decision is separate from `txcd_10000000`, which applies to permanent digital backgrounds\./,
+      /The reviewed one-time-support tax code is `txcd_90000001`\. Do not infer or reuse the separate `txcd_10000000` Supporter\/background classification\./,
     )
     assert.match(
       releaseChecklist.replace(/\s+/g, " "),
-      /does not purchase goods or services, create a membership, or unlock features, and states that it is not charitable or tax-deductible/,
+      /does not purchase goods or services, create a membership, or unlock features, states that it is not charitable or tax-deductible, and grants no membership, credit, or background ownership after the signed completion webhook/,
     )
 
     assert.match(loginForm, /Google sign-in is not available right now/)

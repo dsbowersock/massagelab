@@ -6,6 +6,7 @@ import { join } from "node:path"
 import { describe, it } from "node:test"
 import { fileURLToPath } from "node:url"
 import {
+  getOneTimeSupportTaxReadiness,
   isExplicitTrue,
   REQUIRED_SUPPORTER_PRICE_CONTRACT,
   validateRetrievedMembershipPrice,
@@ -58,7 +59,7 @@ const membershipPrices = {
  * Returns the complete hermetic child environment for readiness checks.
  */
 function readinessEnvironment(overrides = {}) {
-  return {
+  const environment = {
     PATH: process.env.PATH,
     ...(process.env.SystemRoot ? { SystemRoot: process.env.SystemRoot } : {}),
     ...(process.env.COMSPEC ? { COMSPEC: process.env.COMSPEC } : {}),
@@ -81,9 +82,19 @@ function readinessEnvironment(overrides = {}) {
     STRIPE_SUPPORTER_TAX_PROVIDER_READY: "true",
     STRIPE_SUPPORTER_TAX_REGISTRATIONS_READY: "true",
     STRIPE_SUPPORTER_TAX_CLASSIFICATION_CONFIRMED: "true",
+    STRIPE_ONE_TIME_SUPPORT_AUTOMATIC_TAX_ENABLED: "true",
+    STRIPE_ONE_TIME_SUPPORT_TAX_PRODUCT_CODE: "txcd_90000001",
+    STRIPE_ONE_TIME_SUPPORT_TAX_PROVIDER_READY: "true",
+    STRIPE_ONE_TIME_SUPPORT_TAX_REGISTRATIONS_READY: "true",
+    STRIPE_ONE_TIME_SUPPORT_TAX_CLASSIFICATION_CONFIRMED: "true",
     ...membershipPrices,
     ...overrides,
   }
+  // Delete undefined overrides so spawned tests receive an unset environment key.
+  for (const [key, value] of Object.entries(overrides)) {
+    if (value === undefined) delete environment[key]
+  }
+  return environment
 }
 
 /**
@@ -134,6 +145,13 @@ describe("Stripe readiness background-commerce contract", () => {
       [true, " TRUE ", false, "1", "yes", undefined].map(isExplicitTrue),
       [true, true, false, false, false, false],
     )
+  })
+
+  it("requires the exact reviewed one-time support tax classification", () => {
+    assert.equal(getOneTimeSupportTaxReadiness(readinessEnvironment()).ready, true)
+    assert.equal(getOneTimeSupportTaxReadiness(readinessEnvironment({
+      STRIPE_ONE_TIME_SUPPORT_TAX_PRODUCT_CODE: "txcd_10000000",
+    })).ready, false)
   })
 
   it("ignores the retired Early Access environment flag", () => {
@@ -508,6 +526,8 @@ describe("Stripe readiness background-commerce contract", () => {
     assert.match(result.stdout, /PASS Stripe membership environment is ready for the selected mode\./)
     assert.match(result.stdout, /Supporter recurring automatic tax enabled: true/)
     assert.match(result.stdout, /Supporter recurring tax classification confirmed: true/)
+    assert.match(result.stdout, /One-time support tax readiness: ready/)
+    assert.match(result.stdout, /One-time support tax product code configured: true/)
     assert.match(result.stdout, /Background commerce readiness: ready/)
     assert.match(result.stdout, /Background commerce fixed USD price configured: true/)
     assert.match(result.stdout, /Background commerce webhook event coverage complete: true/)
@@ -573,6 +593,29 @@ describe("Stripe readiness background-commerce contract", () => {
     }
   })
 
+  it("fails closed on every one-time support tax deployment gate", () => {
+    const cases = [
+      ["missing enablement", { STRIPE_ONE_TIME_SUPPORT_AUTOMATIC_TAX_ENABLED: undefined }],
+      ["enablement", { STRIPE_ONE_TIME_SUPPORT_AUTOMATIC_TAX_ENABLED: "false" }],
+      ["missing tax code", { STRIPE_ONE_TIME_SUPPORT_TAX_PRODUCT_CODE: undefined }],
+      ["tax code", { STRIPE_ONE_TIME_SUPPORT_TAX_PRODUCT_CODE: "" }],
+      ["wrong tax code", { STRIPE_ONE_TIME_SUPPORT_TAX_PRODUCT_CODE: "txcd_10000000" }],
+      ["missing provider", { STRIPE_ONE_TIME_SUPPORT_TAX_PROVIDER_READY: undefined }],
+      ["provider", { STRIPE_ONE_TIME_SUPPORT_TAX_PROVIDER_READY: "false" }],
+      ["missing registrations", { STRIPE_ONE_TIME_SUPPORT_TAX_REGISTRATIONS_READY: undefined }],
+      ["registrations", { STRIPE_ONE_TIME_SUPPORT_TAX_REGISTRATIONS_READY: "false" }],
+      ["missing classification", { STRIPE_ONE_TIME_SUPPORT_TAX_CLASSIFICATION_CONFIRMED: undefined }],
+      ["classification", { STRIPE_ONE_TIME_SUPPORT_TAX_CLASSIFICATION_CONFIRMED: "false" }],
+    ]
+
+    for (const [name, overrides] of cases) {
+      const result = runReadiness(overrides)
+      assert.equal(result.status, 1, `${name}: ${result.stdout}${result.stderr}`)
+      assert.match(result.stderr, /FAIL One-time support tax/, name)
+      assert.doesNotMatch(`${result.stdout}${result.stderr}`, /sk_test_readiness|whsec_readiness/)
+    }
+  })
+
   it("loads every Supporter recurring-tax gate from an explicit env file", async () => {
     const directory = await mkdtemp(join(tmpdir(), "massagelab-readiness-"))
     const envFile = join(directory, "supporter-tax.env")
@@ -582,6 +625,11 @@ describe("Stripe readiness background-commerce contract", () => {
       "STRIPE_SUPPORTER_TAX_PROVIDER_READY",
       "STRIPE_SUPPORTER_TAX_REGISTRATIONS_READY",
       "STRIPE_SUPPORTER_TAX_CLASSIFICATION_CONFIRMED",
+      "STRIPE_ONE_TIME_SUPPORT_AUTOMATIC_TAX_ENABLED",
+      "STRIPE_ONE_TIME_SUPPORT_TAX_PRODUCT_CODE",
+      "STRIPE_ONE_TIME_SUPPORT_TAX_PROVIDER_READY",
+      "STRIPE_ONE_TIME_SUPPORT_TAX_REGISTRATIONS_READY",
+      "STRIPE_ONE_TIME_SUPPORT_TAX_CLASSIFICATION_CONFIRMED",
     ]
     const environment = readinessEnvironment()
     for (const key of supporterTaxKeys) {
@@ -600,6 +648,11 @@ describe("Stripe readiness background-commerce contract", () => {
         "STRIPE_SUPPORTER_TAX_PROVIDER_READY=true",
         "STRIPE_SUPPORTER_TAX_REGISTRATIONS_READY=true",
         "STRIPE_SUPPORTER_TAX_CLASSIFICATION_CONFIRMED=true",
+        "STRIPE_ONE_TIME_SUPPORT_AUTOMATIC_TAX_ENABLED=true",
+        "STRIPE_ONE_TIME_SUPPORT_TAX_PRODUCT_CODE=\" txcd_90000001 \"",
+        "STRIPE_ONE_TIME_SUPPORT_TAX_PROVIDER_READY=true",
+        "STRIPE_ONE_TIME_SUPPORT_TAX_REGISTRATIONS_READY=true",
+        "STRIPE_ONE_TIME_SUPPORT_TAX_CLASSIFICATION_CONFIRMED=true",
       ].join("\n"))
 
       const dotenvDisabled = spawnSync(
@@ -639,6 +692,8 @@ describe("Stripe readiness background-commerce contract", () => {
       assert.equal(result.status, 0, result.stderr || result.stdout)
       assert.match(result.stdout, /Supporter recurring automatic tax enabled: true/)
       assert.match(result.stdout, /Supporter recurring tax classification confirmed: true/)
+      assert.match(result.stdout, /One-time support automatic tax enabled: true/)
+      assert.match(result.stdout, /One-time support tax classification confirmed: true/)
     } finally {
       await rm(directory, { recursive: true, force: true })
     }

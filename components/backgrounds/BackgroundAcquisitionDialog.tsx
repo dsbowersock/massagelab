@@ -81,15 +81,17 @@ export function BackgroundAcquisitionDialog({
     ? membershipDestination
     : `/login?callbackUrl=${encodeURIComponent(membershipDestination)}`
 
+  // Keep-permanently converts active membership access through a non-swappable
+  // credit or fixed $1 purchase; locked mode presents the initial access choices.
   return (
     <>
       <Dialog open={open && !confirmingCredit} onOpenChange={onOpenChange}>
         <DialogContent overlayClassName="z-[10040]" className="z-[10041]">
           <DialogHeader>
-            <DialogTitle>{mode === "keep-permanently" ? "Keep" : "Unlock"} {background.label}</DialogTitle>
+            <DialogTitle>{mode === "keep-permanently" ? `Keep ${background.label} permanently` : `Unlock ${background.label}`}</DialogTitle>
             <DialogDescription>
               {mode === "keep-permanently"
-                ? "Your membership already includes this background. Choose permanent access if you want to keep it after membership ends."
+                ? "Your membership includes this background while it is active. Buy it for $1 or use a background credit to keep it on your account even if you later cancel."
                 : "Choose how you want to access this premium background."}
             </DialogDescription>
           </DialogHeader>
@@ -112,7 +114,9 @@ export function BackgroundAcquisitionDialog({
               </p>
             ) : creditBalance === 0 ? (
               <p className="-mt-2 text-xs text-muted-foreground">
-                You have 0 credits. Purchase this background or unlock the premium collection.
+                {mode === "keep-permanently"
+                  ? "You have 0 credits. Buy this background for $1 to keep it permanently."
+                  : "You have 0 credits. Purchase this background or unlock the premium collection."}
               </p>
             ) : (
               <p className="-mt-2 text-xs text-muted-foreground">
@@ -120,7 +124,7 @@ export function BackgroundAcquisitionDialog({
               </p>
             )}
             <Button type="button" disabled={adding || inCart} onClick={() => void buy()}>
-              Buy for $1
+              {mode === "keep-permanently" ? "Buy permanently for $1" : "Buy for $1"}
             </Button>
             {mode === "locked" ? (
               <Button asChild variant="secondary">

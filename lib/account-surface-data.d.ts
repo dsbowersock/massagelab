@@ -4,7 +4,11 @@ export type AccountSurfaceSessionUser = {
   role?: AccountRole | string | null
   roles?: Array<AccountRole | string> | null
   roleAssignments?: Array<{ role: AccountRole | string; status: VerificationStatus | string }> | null
-  capabilities?: { canUseChimerCustomColors?: boolean }
+  capabilities?: {
+    canUseChimerCustomColors?: boolean
+    canUsePremiumBackgrounds?: boolean
+    hasActiveMembershipBenefits?: boolean
+  }
 }
 
 export type AccountRoleAssignment = {
@@ -21,7 +25,7 @@ export type AccountOverviewSurfaceData = {
   }
   roleLabels: string[]
   canManageAnatomy: boolean
-  canUseChimerCustomColors: boolean
+  hasActiveMembershipBenefits: boolean
 }
 
 export type AccountProfileSurfaceData = {
@@ -211,5 +215,6 @@ export type AccountSurfaceDataLoader = {
 }
 
 export declare function createAccountSurfaceDataLoader(options?: AccountSurfaceDataLoaderOptions): AccountSurfaceDataLoader
+export declare function sessionHasActiveMembershipBenefits(sessionUser?: AccountSurfaceSessionUser): boolean
 export declare const getAccountSurfaceData: GetAccountSurfaceData
 export declare function clearAccountSurfaceDataCache(userId?: string, surface?: string): void

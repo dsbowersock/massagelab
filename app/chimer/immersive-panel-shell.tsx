@@ -115,6 +115,23 @@ const shouldIgnoreNonmodalEscape = (target: EventTarget | null) => (
   target instanceof Element && Boolean(target.closest(CHIMER_CONTROL_PORTAL_SELECTOR))
 )
 
+/** Keeps layout measurements synchronized with both layout and visual viewport changes. */
+function subscribeToViewportChanges(listener: () => void) {
+  const visualViewport = window.visualViewport
+
+  window.addEventListener("resize", listener)
+  window.addEventListener("orientationchange", listener)
+  visualViewport?.addEventListener("resize", listener)
+  visualViewport?.addEventListener("scroll", listener)
+
+  return () => {
+    window.removeEventListener("resize", listener)
+    window.removeEventListener("orientationchange", listener)
+    visualViewport?.removeEventListener("resize", listener)
+    visualViewport?.removeEventListener("scroll", listener)
+  }
+}
+
 export function ImmersivePanelShell({
   activePanel,
   onActivePanelChange,
@@ -142,6 +159,7 @@ export function ImmersivePanelShell({
   const toolbarButtonRefs = useRef<Partial<Record<PanelKey, HTMLButtonElement | null>>>({})
   const [placement, setPlacement] = useState<DockPlacement>(DEFAULT_PLACEMENT)
   const [visualViewportFrame, setVisualViewportFrame] = useState<VisualViewportFrame | null>(null)
+  const [toolbarFitsVisualViewport, setToolbarFitsVisualViewport] = useState(false)
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null)
   const nonmodalPanel = activePanel === "clock" || activePanel === "visual" ? activePanel : null
   const activePanelLabel = nonmodalPanel === "clock" ? "Clock" : "Visual"
@@ -152,6 +170,70 @@ export function ImmersivePanelShell({
   useLayoutEffect(() => {
     setPortalTarget(document.body)
   }, [])
+
+  useLayoutEffect(() => {
+    // The toolbar remains active after a nonmodal panel closes, so visual
+    // viewport tracking must not share the panel-placement effect's lifecycle.
+    const measureVisualViewportFrame = () => {
+      const visualViewport = window.visualViewport
+      const viewportTop = visualViewport?.offsetTop ?? 0
+      const viewportLeft = visualViewport?.offsetLeft ?? 0
+      const viewportWidth = visualViewport?.width ?? window.innerWidth
+      const viewportHeight = visualViewport?.height ?? window.innerHeight
+      const nextVisualViewportFrame = {
+        top: viewportTop,
+        left: viewportLeft,
+        right: Math.max(0, window.innerWidth - viewportLeft - viewportWidth),
+        bottom: Math.max(0, window.innerHeight - viewportTop - viewportHeight),
+        width: viewportWidth,
+        centerY: viewportTop + (viewportHeight / 2),
+      }
+      setVisualViewportFrame((current) => (
+        current
+        && Object.entries(nextVisualViewportFrame).every(
+          ([key, value]) => Math.abs(current[key as keyof VisualViewportFrame] - value) < 1,
+        )
+          ? current
+          : nextVisualViewportFrame
+      ))
+    }
+
+    measureVisualViewportFrame()
+    return subscribeToViewportChanges(measureVisualViewportFrame)
+  }, [])
+
+  useLayoutEffect(() => {
+    const toolbar = toolbarRef.current
+    if (!toolbar) return
+
+    // CSS exposes control glows only when every item fits. The one-pixel
+    // tolerance absorbs rounding; observers follow size and content changes.
+    const measureToolbarFit = () => {
+      setToolbarFitsVisualViewport(toolbar.scrollWidth <= toolbar.clientWidth + 1)
+    }
+    measureToolbarFit()
+
+    const resizeObserver = typeof ResizeObserver === "undefined"
+      ? null
+      : new ResizeObserver(measureToolbarFit)
+    const mutationObserver = typeof MutationObserver === "undefined"
+      ? null
+      : new MutationObserver(measureToolbarFit)
+    resizeObserver?.observe(toolbar)
+    mutationObserver?.observe(toolbar, {
+      attributes: true,
+      attributeFilter: ["class", "style"],
+      childList: true,
+      characterData: true,
+      subtree: true,
+    })
+    document.fonts?.addEventListener("loadingdone", measureToolbarFit)
+    return () => {
+      resizeObserver?.disconnect()
+      mutationObserver?.disconnect()
+      document.fonts?.removeEventListener("loadingdone", measureToolbarFit)
+    }
+  }, [portalTarget, visualHintMessage, visualViewportFrame?.width])
 
   const closeNonmodalPanel = useCallback((restoreFocus: boolean) => {
     if (!nonmodalPanel) {
@@ -206,25 +288,7 @@ export function ImmersivePanelShell({
         }
         const visualViewport = window.visualViewport
         const viewportTop = visualViewport?.offsetTop ?? 0
-        const viewportLeft = visualViewport?.offsetLeft ?? 0
-        const viewportWidth = visualViewport?.width ?? window.innerWidth
         const viewportHeight = visualViewport?.height ?? window.innerHeight
-        const nextVisualViewportFrame = {
-          top: viewportTop,
-          left: viewportLeft,
-          right: Math.max(0, window.innerWidth - viewportLeft - viewportWidth),
-          bottom: Math.max(0, window.innerHeight - viewportTop - viewportHeight),
-          width: viewportWidth,
-          centerY: viewportTop + (viewportHeight / 2),
-        }
-        setVisualViewportFrame((current) => (
-          current
-          && Object.entries(nextVisualViewportFrame).every(
-            ([key, value]) => Math.abs(current[key as keyof VisualViewportFrame] - value) < 1,
-          )
-            ? current
-            : nextVisualViewportFrame
-        ))
         // Without a visible clock, protect the toolbar itself. A zero-height
         // region lets a full-height bottom dock rise underneath the toolbar,
         // making header controls visible but impossible to click on phones.
@@ -280,18 +344,12 @@ export function ImmersivePanelShell({
       resizeObserver?.observe(protectedDisplay)
     }
     resizeObserver?.observe(dock)
-    window.addEventListener("resize", measure)
-    window.addEventListener("orientationchange", measure)
-    window.visualViewport?.addEventListener("resize", measure)
-    window.visualViewport?.addEventListener("scroll", measure)
+    const unsubscribeFromViewportChanges = subscribeToViewportChanges(measure)
 
     return () => {
       window.cancelAnimationFrame(animationFrame)
       resizeObserver?.disconnect()
-      window.removeEventListener("resize", measure)
-      window.removeEventListener("orientationchange", measure)
-      window.visualViewport?.removeEventListener("resize", measure)
-      window.visualViewport?.removeEventListener("scroll", measure)
+      unsubscribeFromViewportChanges()
       stage.style.setProperty("--immersive-reserved-top", "0px")
       stage.style.setProperty("--immersive-reserved-bottom", "0px")
       stage.style.removeProperty("--immersive-panel-max-height")
@@ -378,7 +436,13 @@ export function ImmersivePanelShell({
         data-immersive-inset-probe
       />
       <TooltipProvider delayDuration={180}>
-        <div ref={toolbarRef} className={styles.toolbar} role="group" aria-label="Immersive display controls">
+        <div
+          ref={toolbarRef}
+          className={styles.toolbar}
+          role="group"
+          aria-label="Immersive display controls"
+          data-toolbar-fits-visual-viewport={toolbarFitsVisualViewport}
+        >
           {PANEL_CONTROLS.map(({ id, label, icon: Icon }) => {
             const isActive = activePanel === id
             const panelId = `immersive-${id}-panel`

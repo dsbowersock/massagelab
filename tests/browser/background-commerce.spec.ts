@@ -420,6 +420,9 @@ test("Clock redeems one explicit permanent credit and keeps the nested dialog fo
   const ownedAurora = await centerPremium(page, AURORA_ID)
   await expect(accessCard(ownedAurora)).toHaveAttribute("data-background-access-state", "owned-credit")
   await expect(accessCard(ownedAurora).getByText("Owned")).toBeVisible()
+  await expect(accessCard(ownedAurora).getByRole("img", {
+    name: "Aurora field is permanently owned",
+  })).toBeVisible()
 })
 
 test("zero-credit cart persists across refresh and checkout failure keeps one submission", async ({ context, page }, testInfo) => {
@@ -527,30 +530,36 @@ test("subscriber and purchased ownership stay distinct in active Chimer", async 
   const responsiveAurora = await centerPremium(page, AURORA_ID)
   const responsiveCard = accessCard(responsiveAurora)
   const favorite = responsiveCard.locator("[data-carousel-favorite-action]")
-  const keepAfterMembership = responsiveCard.getByRole("button", {
-    name: "Keep after membership: Aurora field",
+  const permanentPurchase = responsiveCard.getByRole("button", {
+    name: "Open permanent ownership options for Aurora field",
   })
   await expect(favorite).toBeVisible()
-  await expect(keepAfterMembership).toBeVisible()
+  await expect(permanentPurchase).toBeVisible()
   const [cardBox, favoriteBox, keepBox] = await Promise.all([
     responsiveCard.boundingBox(),
     favorite.boundingBox(),
-    keepAfterMembership.boundingBox(),
+    permanentPurchase.boundingBox(),
   ])
   expect(cardBox).not.toBeNull()
   expect(favoriteBox).not.toBeNull()
   expect(keepBox).not.toBeNull()
-  // At 360px, the ownership action must remain left of the favorite while both stay inside the card.
-  expect(keepBox!.x + keepBox!.width).toBeLessThanOrEqual(favoriteBox!.x)
+  // At 360px, the compact ownership action and favorite must not overlap.
+  expect(
+    keepBox!.x + keepBox!.width <= favoriteBox!.x
+    || favoriteBox!.x + favoriteBox!.width <= keepBox!.x
+    || keepBox!.y + keepBox!.height <= favoriteBox!.y
+    || favoriteBox!.y + favoriteBox!.height <= keepBox!.y,
+  ).toBe(true)
   for (const controlBox of [favoriteBox!, keepBox!]) {
     expect(controlBox.x).toBeGreaterThanOrEqual(cardBox!.x)
     expect(controlBox.x + controlBox.width).toBeLessThanOrEqual(cardBox!.x + cardBox!.width + 1)
     expect(controlBox.y).toBeGreaterThanOrEqual(cardBox!.y)
     expect(controlBox.y + controlBox.height).toBeLessThanOrEqual(cardBox!.y + cardBox!.height + 1)
   }
-
-  await keepAfterMembership.click()
-  const keep = page.getByRole("dialog", { name: "Keep Aurora field" })
+  await permanentPurchase.click()
+  const keep = page.getByRole("dialog", { name: "Keep Aurora field permanently" })
+  await expect(keep).toContainText("even if you later cancel")
+  await expect(keep.getByRole("button", { name: "Buy permanently for $1" })).toBeVisible()
   await expect(keep.getByRole("link", { name: "Unlock all" })).toHaveCount(0)
   await page.keyboard.press("Escape")
   await expect(panel).toBeVisible()
@@ -558,6 +567,12 @@ test("subscriber and purchased ownership stay distinct in active Chimer", async 
   const purchased = await centerPremium(page, DOTTED_GLOW_ID)
   await expect(accessCard(purchased)).toHaveAttribute("data-background-access-state", "owned-purchase")
   await expect(accessCard(purchased)).toContainText("Purchased")
+  await expect(accessCard(purchased).getByRole("img", {
+    name: "Dotted glow is permanently owned",
+  })).toBeVisible()
+  await expect(accessCard(purchased).getByRole("button", {
+    name: "Open permanent ownership options for Dotted glow",
+  })).toHaveCount(0)
   await accessCard(purchased).getByRole("button", { name: "Select Dotted glow background" }).click()
   await expect(panel).toHaveCount(0)
   await expect(page.getByLabel("Running Chimer timer")).toBeVisible()

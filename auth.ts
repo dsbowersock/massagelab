@@ -253,6 +253,8 @@ function defaultAccountCapabilities(role: AccountRole): AccountCapabilities {
     canRequestCredentials: true,
     canUseLocalClinicalTools: false,
     canUseChimerCustomColors: false,
+    canUsePremiumBackgrounds: false,
+    hasActiveMembershipBenefits: false,
     hostedClinicalSyncEnabled: false,
   }
 }

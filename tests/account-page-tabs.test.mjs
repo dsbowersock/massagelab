@@ -209,6 +209,32 @@ describe("Account page tab model", () => {
     )
   })
 
+  it("describes current membership benefits instead of leading with Chimer colors", async () => {
+    const active = await renderMembershipTab({
+      features: ["chimer_custom_colors", "premium_backgrounds"],
+      subscriptions: [subscription("active")],
+      stripeCustomer: { stripeCustomerId: "cus_123" },
+    })
+    const text = elementText(active)
+    const statusTiles = findElements(
+      active,
+      (element) => element.type === "status-tile",
+    ).map((element) => element.props)
+
+    assert.match(text, /every premium background/i)
+    assert.ok(statusTiles.some(({ label, value }) => label === "Premium backgrounds" && value === "Included"))
+    assert.ok(statusTiles.some(({ label, value }) => label === "Saved Chimer colors" && value === "Included"))
+    assert.match(text, /backgrounds bought for \$1 or claimed with a credit remain permanently available/i)
+    assert.doesNotMatch(text, /Paid memberships currently unlock Chimer custom colors/)
+    assert.doesNotMatch(text, /Basic Chimer remains free/)
+    assert.doesNotMatch(accountPageSource, /Custom colors unlocked/)
+    assert.doesNotMatch(accountPageSource, /label="Chimer colors"/)
+    assert.match(
+      accountPageSource,
+      /sessionHasActiveMembershipBenefits\(session\.user as AccountSessionUser\)/,
+    )
+  })
+
   it("keeps Account pricing and billing Portal actions independently gated", async () => {
     const terminalWithPortal = await renderMembershipTab({
       subscriptions: [subscription("canceled")],
@@ -333,10 +359,14 @@ function billingPortalForms(tree) {
 }
 
 /**
- * Executes the production MembershipTab function while replacing only its I/O
- * and visual dependencies, so pricing and Portal gating remain behavioral.
+ * Renders the production MembershipTab with feature-key values injected into
+ * the mocked account-surface entitlement response. It returns the rendered
+ * MembershipTab tree while replacing only I/O and visual dependencies, so
+ * pricing and Portal gating remain behavioral; membershipPricingProps extracts
+ * pricing-card props separately.
  */
 async function renderMembershipTab({
+  features = [],
   subscriptions,
   stripeCustomer,
 }) {
@@ -388,7 +418,10 @@ async function renderMembershipTab({
       CardHeader: Div,
       CardTitle: Div,
       CreditCard: passThroughElement("credit-card"),
-      FEATURE_KEYS: { chimerCustomColors: "chimer_custom_colors" },
+      FEATURE_KEYS: {
+        chimerCustomColors: "chimer_custom_colors",
+        premiumBackgrounds: "premium_backgrounds",
+      },
       MembershipPricingCards: passThroughElement("membership-pricing-cards"),
       StatusTile: passThroughElement("status-tile"),
       SupporterInterestsPanel: passThroughElement("supporter-interests"),
@@ -401,7 +434,7 @@ async function renderMembershipTab({
         pricingCatalog: { id: "pricing-catalog" },
         membershipSummary: {
           entitlements: {
-            features: [],
+            features,
             level: "SUPPORTER",
             paidLevel: "SUPPORTER",
           },

@@ -106,10 +106,10 @@
   display: none;
 }
 
-@media (min-width: 36.0625rem) {
-  .toolbar {
-    overflow: visible;
-  }
+/* Show individual control glows only when measured content fits the current
+   visual viewport; high zoom and exceptionally narrow layouts retain scroll. */
+.toolbar[data-toolbar-fits-visual-viewport="true"] {
+  overflow: visible;
 }
 
 .toolbarButton {

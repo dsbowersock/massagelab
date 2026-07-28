@@ -1221,6 +1221,49 @@ test("narrow mobile keeps immersive controls in one circular top row", async ({ 
   }
 })
 
+test("ordinary phone landscape keeps immersive button effects out of a shared toolbar box", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "single phone-landscape toolbar proof")
+  await page.setViewportSize({ width: 412, height: 300 })
+  await openClock(page)
+
+  await expect.poll(() => page.evaluate(() => {
+    const toolbar = document.querySelector<HTMLElement>("[aria-label='Immersive display controls']")
+    if (!toolbar) return null
+    const styles = window.getComputedStyle(toolbar)
+    return {
+      overflowX: styles.overflowX,
+      overflowY: styles.overflowY,
+      backgroundColor: styles.backgroundColor,
+      boxShadow: styles.boxShadow,
+      backdropFilter: styles.backdropFilter,
+    }
+  })).toEqual({
+    overflowX: "visible",
+    overflowY: "visible",
+    backgroundColor: "rgba(0, 0, 0, 0)",
+    boxShadow: "none",
+    backdropFilter: "none",
+  })
+
+  const toolbar = page.locator("[aria-label='Immersive display controls']")
+  for (const name of ["Clock", "Visual", "Background"]) {
+    const control = toolbar.getByRole("button", { name, exact: true })
+    await expect(control).toBeVisible()
+    await expect.poll(() => control.evaluate((element) => {
+      const rect = element.getBoundingClientRect()
+      const viewport = window.visualViewport
+      const left = viewport?.offsetLeft ?? 0
+      const top = viewport?.offsetTop ?? 0
+      const right = left + (viewport?.width ?? window.innerWidth)
+      const bottom = top + (viewport?.height ?? window.innerHeight)
+      return rect.left >= left - 0.5
+        && rect.top >= top - 0.5
+        && rect.right <= right + 0.5
+        && rect.bottom <= bottom + 0.5
+    })).toBe(true)
+  }
+})
+
 test("Clock and Visual docks remain safe at 200 percent Chromium page scale", async ({ page }, testInfo) => {
   await page.setViewportSize(testInfo.project.name === "mobile-chromium"
     ? { width: 412, height: 915 }
@@ -1228,16 +1271,40 @@ test("Clock and Visual docks remain safe at 200 percent Chromium page scale", as
   await openClock(page)
   const session = await page.context().newCDPSession(page)
   await session.send("Emulation.setPageScaleFactor", { pageScaleFactor: 2 })
+  const toolbar = page.locator("[aria-label='Immersive display controls']")
   // Chromium CDP page-scale emulation has unstable pointer coordinates/actionability,
   // so this zoom proof uses explicit focus + Enter while geometry proves reachability.
   for (const panelName of ["Clock", "Visual"] as const) {
     await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())))
-    const toolbarControl = page.getByRole("button", { name: panelName, exact: true })
+    const toolbarControl = toolbar.getByRole("button", { name: panelName, exact: true })
     expect.soft(await focusedRingBounds(page, toolbarControl)).toEqual(expect.objectContaining({
       ringExtent: 4,
       ringInside: true,
     }))
     await expectDockAvoidsDisplay(page, panelName, true)
+  }
+  if (testInfo.project.name === "mobile-chromium") {
+    // At 200% scale the phone toolbar must scroll instead of clipping the
+    // Background action or its four-pixel focus ring.
+    await expect.poll(() => toolbar.evaluate(
+      (toolbar) => window.getComputedStyle(toolbar).overflowX,
+    )).toBe("auto")
+    expect.soft(
+      await focusedRingBounds(page, toolbar.getByRole("button", { name: "Background", exact: true })),
+    ).toEqual(expect.objectContaining({
+      ringExtent: 4,
+      ringInside: true,
+    }))
+    const visualControl = toolbar.getByRole("button", { name: "Visual", exact: true })
+    await visualControl.focus()
+    await expect(visualControl).toBeFocused()
+    await page.keyboard.press("Enter")
+    await expect(visualControl).toHaveAttribute("aria-expanded", "true")
+    await page.keyboard.press("Escape")
+    await expect(visualControl).toHaveAttribute("aria-expanded", "false")
+    await expect.poll(() => toolbar.evaluate(
+      (toolbar) => window.getComputedStyle(toolbar).overflowX,
+    )).toBe("auto")
   }
   await session.send("Emulation.setPageScaleFactor", { pageScaleFactor: 1 })
 })
@@ -1434,6 +1501,8 @@ test("rotation and forward glow follow the centered display and stop for reduced
   ]) {
     await expect(clockPanel.getByText(label, { exact: true })).toHaveCount(1)
   }
+  // The rotation cycle lasts 10 seconds, so sample through a complete cycle
+  // before deciding whether the transformed display clears the open panel.
   await expect.poll(async () => {
     const displayBounds = await protectedDisplay.locator("[data-display-content='true']").boundingBox()
     const panelBounds = await clockPanel.boundingBox()
@@ -1449,7 +1518,7 @@ test("rotation and forward glow follow the centered display and stop for reduced
       panelBounds.y - displayBottom,
       displayBounds.y - panelBottom,
     )
-  }).toBeGreaterThanOrEqual(32)
+  }, { timeout: 12_000 }).toBeGreaterThanOrEqual(32)
 
   await page.emulateMedia({ reducedMotion: "reduce" })
   await expect.poll(() => protectedDisplay.locator("[data-display-rotation-layer]").evaluate(
