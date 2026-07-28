@@ -151,7 +151,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
   const roleRows = normalizeSessionRoleAssignments(session.user as AccountSessionUser) as Array<{ role: AccountRole; status: VerificationStatus }>
   const roleLabels = roleRows.map((roleRow) => roleRow.role).sort()
   const canManageAnatomy = Boolean(session.user.capabilities?.canManageAnatomyContent)
-  const canUseChimerCustomColors = Boolean(session.user.capabilities?.canUseChimerCustomColors)
+  const hasActiveMembershipBenefits = Boolean(session.user.capabilities?.hasActiveMembershipBenefits)
   const accountDisplayName = session.user.name || session.user.email || "MassageLab account"
   const roleSummary = roleLabels.length > 0 ? roleLabels.map(formatRole).join(", ") : "User"
   const accountItemStatuses = {
@@ -168,7 +168,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
     people: "Coming later",
     "calendar-availability": "Open calendar",
     tools: canManageAnatomy ? "Anatomy browser" : "Feedback",
-    membership: canUseChimerCustomColors ? "Paid features active" : "Billing",
+    membership: hasActiveMembershipBenefits ? "Paid features active" : "Billing",
     "orders-invoices": "Purchases",
   }
   const accountSummaryLinks = [
@@ -180,7 +180,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
     {
       id: "membership",
       label: "Membership",
-      value: canUseChimerCustomColors ? "Benefits active" : "Review plans",
+      value: hasActiveMembershipBenefits ? "Benefits active" : "Review plans",
     },
     {
       id: "credentials",
@@ -234,6 +234,8 @@ type AccountSessionUser = {
   capabilities?: {
     canManageAnatomyContent?: boolean
     canUseChimerCustomColors?: boolean
+    canUsePremiumBackgrounds?: boolean
+    hasActiveMembershipBenefits?: boolean
   }
   twoFactorEnabled?: boolean
 }
@@ -331,7 +333,7 @@ async function OverviewTab({ userId, sessionUser }: { userId: string; sessionUse
             <StatusTile label="Templates" value={String(data.counts.templateCount)} />
             <StatusTile label="Security" value={sessionUser.twoFactorEnabled ? "2FA enabled" : "2FA available"} />
             <StatusTile label="Clinical sync" value="Local-first only" />
-            <StatusTile label="Membership benefits" value={data.canUseChimerCustomColors ? "Active" : "Free access"} />
+            <StatusTile label="Membership benefits" value={data.hasActiveMembershipBenefits ? "Active" : "Free access"} />
           </div>
         </CardContent>
       </Card>

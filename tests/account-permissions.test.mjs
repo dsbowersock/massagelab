@@ -72,6 +72,8 @@ describe("Account permission helpers", () => {
         canRequestCredentials: true,
         canUseLocalClinicalTools: false,
         canUseChimerCustomColors: false,
+        canUsePremiumBackgrounds: false,
+        hasActiveMembershipBenefits: false,
         hostedClinicalSyncEnabled: false,
       },
     )
@@ -82,6 +84,12 @@ describe("Account permission helpers", () => {
       buildAccountCapabilities([{ role: "USER", status: "VERIFIED" }], {
         features: [FEATURE_KEYS.chimerCustomColors],
       }).canUseChimerCustomColors,
+      true,
+    )
+    assert.equal(
+      buildAccountCapabilities([{ role: "USER", status: "VERIFIED" }], {
+        features: [FEATURE_KEYS.premiumBackgrounds],
+      }).hasActiveMembershipBenefits,
       true,
     )
     assert.equal(

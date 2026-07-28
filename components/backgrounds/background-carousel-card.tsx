@@ -91,6 +91,8 @@ export function BackgroundCarouselCard({
     .slice(0, 4)
   const statusLabel = accessLabel(commerceState)
   const sourceLabel = ownershipSourceLabel(commerceState.ownershipSource)
+  // Only authoritative active credit or purchase states represent permanent
+  // ownership that survives membership cancellation.
   const permanentlyOwned = commerceState.state === "owned-credit"
     || commerceState.state === "owned-purchase"
   const unavailable = commerceState.state === "unavailable"

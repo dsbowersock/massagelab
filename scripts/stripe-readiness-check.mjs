@@ -186,6 +186,14 @@ function checkSupporterRecurringTaxReadiness() {
 /**
  * Validates the deployment attestations for one-time support independently
  * from recurring memberships and permanent background purchases.
+ *
+ * Reads the Automatic Tax enablement, exact tax Product code, provider
+ * readiness, registrations readiness, and classification-confirmation
+ * environment attestations. Missing or invalid values fail closed through
+ * `addFailure`.
+ *
+ * @returns {ReturnType<typeof getOneTimeSupportTaxReadiness>} The five
+ * normalized attestation booleans and their all-required `ready` aggregate.
  */
 function checkOneTimeSupportTaxReadiness() {
   const oneTimeTax = getOneTimeSupportTaxReadiness({

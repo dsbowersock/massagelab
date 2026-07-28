@@ -82,7 +82,11 @@ const sessionUser = {
   role: "USER",
   roles: ["USER"],
   roleAssignments: [{ role: "USER", status: "VERIFIED" }],
-  capabilities: { canUseChimerCustomColors: false },
+  capabilities: {
+    canUseChimerCustomColors: false,
+    canUsePremiumBackgrounds: false,
+    hasActiveMembershipBenefits: false,
+  },
   twoFactorEnabled: false,
 }
 
@@ -99,6 +103,7 @@ describe("account surface data loader", () => {
       achievementCount: 3,
       templateCount: 4,
     })
+    assert.equal(data.hasActiveMembershipBenefits, false)
     assert.deepEqual(calls, [
       "learningProgress.count",
       "achievement.count",
