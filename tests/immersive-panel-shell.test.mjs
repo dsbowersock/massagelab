@@ -39,6 +39,14 @@ test("renders three accessible grouped panel toggles with responsive tooltips", 
   )
 })
 
+test("keeps ordinary phone toolbars from clipping controls into a shared box", () => {
+  assert.match(
+    shellStyles,
+    /@media \(min-width: 20rem\)\s*\{\s*\.toolbar\s*\{\s*overflow:\s*visible;/,
+  )
+  assert.doesNotMatch(shellStyles, /@media \(min-width: 36\.0625rem\)[\s\S]*overflow:\s*visible/)
+})
+
 test("keeps Clock and Visual nonmodal with complete dismissal mechanics", () => {
   assert.match(shellSource, /role="dialog"/)
   assert.match(shellSource, /aria-modal="false"/)

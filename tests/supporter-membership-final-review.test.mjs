@@ -499,6 +499,9 @@ describe("Supporter membership final-review contracts", () => {
       readinessSource,
       "lib/stripe-readiness.js",
       {
+        "./donations.js": {
+          ONE_TIME_SUPPORT_TAX_CODE: "txcd_90000001",
+        },
         "./stripe-price-contract.js": {
           SUPPORTER_MEMBERSHIP_PRODUCT_NAME,
           SUPPORTER_MEMBERSHIP_CATALOG_VERSION,

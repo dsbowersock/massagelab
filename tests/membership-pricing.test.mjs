@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import { SUPPORTER_AMOUNT_CHOICES } from "../lib/membership.js"
 import {
+  MEMBERSHIP_PLAN_DETAILS,
   formatMembershipPrice,
   getMembershipPricingCatalog,
   resolveMembershipPriceForInterval,
@@ -18,6 +19,14 @@ function stripePrice({ id, amount, currency = "usd", interval }) {
 }
 
 describe("Membership pricing catalog", () => {
+  it("leads with premium backgrounds while retaining every current Supporter benefit", () => {
+    assert.deepEqual(MEMBERSHIP_PLAN_DETAILS.SUPPORTER.currentFeatures, [
+      "Access to all premium backgrounds while membership is active",
+      "Saved custom Chimer display and background colors",
+      "Supporter status on your account",
+    ])
+  })
+
   it("keeps published migration cents derived from runtime Supporter choices", () => {
     const runtimeAmountContract = SUPPORTER_AMOUNT_CHOICES.flatMap((choice) => [
       {
@@ -177,7 +186,7 @@ describe("Membership pricing catalog", () => {
     const [supporter] = catalog.plans
 
     assert.ok(
-      supporter.currentFeatures.some((feature) => /all backgrounds/i.test(feature)),
+      supporter.currentFeatures.some((feature) => /all premium backgrounds/i.test(feature)),
       "public Current benefits should include all-background access",
     )
     assert.ok(supporter.roadmapNotes.some((note) => note.includes("compliance review")))

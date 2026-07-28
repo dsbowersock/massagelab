@@ -1221,6 +1221,35 @@ test("narrow mobile keeps immersive controls in one circular top row", async ({ 
   }
 })
 
+test("ordinary phone landscape keeps immersive button effects out of a shared toolbar box", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "single phone-landscape toolbar proof")
+  await page.setViewportSize({ width: 412, height: 300 })
+  await openClock(page)
+
+  await expect.poll(() => page.evaluate(() => {
+    const toolbar = document.querySelector<HTMLElement>("[aria-label='Immersive display controls']")
+    if (!toolbar) return null
+    const styles = window.getComputedStyle(toolbar)
+    return {
+      overflowX: styles.overflowX,
+      overflowY: styles.overflowY,
+      backgroundColor: styles.backgroundColor,
+      boxShadow: styles.boxShadow,
+      backdropFilter: styles.backdropFilter,
+    }
+  })).toEqual({
+    overflowX: "visible",
+    overflowY: "visible",
+    backgroundColor: "rgba(0, 0, 0, 0)",
+    boxShadow: "none",
+    backdropFilter: "none",
+  })
+
+  for (const name of ["Clock", "Visual", "Background"]) {
+    await expect(page.getByRole("button", { name, exact: true })).toBeVisible()
+  }
+})
+
 test("Clock and Visual docks remain safe at 200 percent Chromium page scale", async ({ page }, testInfo) => {
   await page.setViewportSize(testInfo.project.name === "mobile-chromium"
     ? { width: 412, height: 915 }

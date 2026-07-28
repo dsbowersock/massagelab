@@ -2,7 +2,7 @@
 
 import Image from "next/image"
 import { useEffect, useId, useRef, useState } from "react"
-import { Lock } from "lucide-react"
+import { Crown, DollarSign, Lock } from "lucide-react"
 import type { AdaptiveCarouselDetailLevel } from "@/components/carousels/adaptive-carousel-stage"
 import type { BackgroundDefinition } from "@/components/backgrounds/backgroundRegistry"
 import { Loader } from "@/components/chimer-controls/Loader"
@@ -91,6 +91,8 @@ export function BackgroundCarouselCard({
     .slice(0, 4)
   const statusLabel = accessLabel(commerceState)
   const sourceLabel = ownershipSourceLabel(commerceState.ownershipSource)
+  const permanentlyOwned = commerceState.state === "owned-credit"
+    || commerceState.state === "owned-purchase"
   const unavailable = commerceState.state === "unavailable"
   const locked = !commerceState.canSelect && !unavailable
   const generatedAcquisitionHintId = useId()
@@ -205,14 +207,24 @@ export function BackgroundCarouselCard({
             {commerceState.showKeepPermanently ? (
               <Button
                 type="button"
-                size="sm"
+                size="icon"
                 variant="glow"
                 onClick={() => onKeepPermanently?.()}
-                aria-label={`Keep after membership: ${option.label}`}
-                className="h-auto min-h-9 max-w-full whitespace-normal px-2 py-2 leading-tight"
+                aria-label={`Purchase ${option.label} to keep after membership`}
+                title="Keep permanently"
               >
-                Keep after membership
+                <DollarSign aria-hidden="true" />
               </Button>
+            ) : null}
+            {permanentlyOwned ? (
+              <span
+                className="inline-flex size-9 shrink-0 items-center justify-center rounded-md border border-amber-300/55 bg-amber-950/70 text-amber-200 shadow-sm shadow-amber-300/25"
+                role="img"
+                aria-label={`${option.label} is permanently owned`}
+                title="Permanently owned"
+              >
+                <Crown className="size-4" aria-hidden="true" />
+              </span>
             ) : null}
           </div>
           <Button

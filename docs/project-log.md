@@ -4,6 +4,36 @@ This is the canonical chronological planning and progress log for MassageLab. Us
 
 Existing plans, audits, roadmaps, and checklists remain source evidence. Keep them for context, but mirror meaningful progress, plan changes, and priority changes in [project-state.md](project-state.md) and here.
 
+## 2026-07-27 — Track 1 rollout follow-up candidate
+
+- Verified that PRs #150 and #151 are merged and that their exact merged commit
+  has a READY Production deployment serving the canonical hosts.
+- The controlled user completed the focused Supporter change from $1 monthly to
+  $2 monthly. Supplied Production screenshots confirm return to Account,
+  continuing Supporter status, and membership-included premium backgrounds.
+  Subscriber-specific Stripe amount/tax/anchor/proration evidence and the
+  webhook-persisted database Price mapping remain a bounded read-only
+  verification gate; the available Production env export was redacted and
+  enterprise browser policy blocked the authenticated dashboards, so those
+  backend facts were not inferred from screenshots.
+- Recorded the separately reviewed one-time-support classification
+  `txcd_90000001`. The rollout candidate enables exclusive Automatic Tax,
+  requires a billing address, and fails closed unless enablement, exact code,
+  provider readiness, registrations, and classification confirmation are all
+  explicit. Purpose metadata and webhook handling remain non-entitling.
+- Updated Account membership copy to lead with all premium backgrounds, saved
+  Chimer colors, and Supporter status. Subscriber cards use a dollar icon to
+  explain optional permanent purchase/credit ownership and an authoritative
+  crown for active purchase or credit ownership.
+- Lowered the immersive toolbar's visible-overflow threshold so ordinary phone
+  landscape layouts do not clip the three individual control glows into a
+  faint shared rectangle. Truly narrow layouts retain horizontal scrolling.
+- Focused Node coverage for billing, readiness, Account, background commerce,
+  and the immersive toolbar passes all 181 tests. Repository typecheck, lint,
+  all 1,680 Node tests, the production build, and focused desktop/mobile
+  Playwright checks also pass. Production configuration, deployment, and an
+  explicitly authorized live one-time-support payment remain pending.
+
 ## 2026-07-27 — Background membership ownership-card clarity
 
 - Clarified the subscriber card state across Clock, active Chimer, and Music:

@@ -3360,6 +3360,13 @@ describe("Stripe billing helpers", () => {
       userId: "user_123",
       successUrl: "https://massagelab.app/pricing?donation=thanks",
       cancelUrl: "https://massagelab.app/pricing?donation=cancelled",
+      env: {
+        STRIPE_ONE_TIME_SUPPORT_AUTOMATIC_TAX_ENABLED: "true",
+        STRIPE_ONE_TIME_SUPPORT_TAX_PRODUCT_CODE: "txcd_90000001",
+        STRIPE_ONE_TIME_SUPPORT_TAX_PROVIDER_READY: "true",
+        STRIPE_ONE_TIME_SUPPORT_TAX_REGISTRATIONS_READY: "true",
+        STRIPE_ONE_TIME_SUPPORT_TAX_CLASSIFICATION_CONFIRMED: "true",
+      },
       stripeClient: {
         checkout: {
           sessions: {
@@ -3380,11 +3387,56 @@ describe("Stripe billing helpers", () => {
     assert.deepEqual(capturedPayload.line_items[0].price_data.product_data, {
       name: "MassageLab One-time support",
       description: "One-time support does not purchase goods or services, create a membership, or unlock features. It is not a charitable donation and is not tax-deductible.",
+      tax_code: "txcd_90000001",
     })
-    assert.equal(Object.hasOwn(capturedPayload, "automatic_tax"), false)
+    assert.deepEqual(capturedPayload.automatic_tax, { enabled: true })
+    assert.equal(capturedPayload.billing_address_collection, "required")
+    assert.equal(capturedPayload.line_items[0].price_data.tax_behavior, "exclusive")
     assert.equal(capturedPayload.metadata.purpose, "massagelab_project_support")
     assert.equal(capturedPayload.payment_intent_data.metadata.purpose, "massagelab_project_support")
     assert.equal(Object.hasOwn(capturedPayload, "subscription_data"), false)
+  })
+
+  it("fails closed before Stripe when any one-time support tax gate is absent", async () => {
+    const readyEnv = {
+      STRIPE_ONE_TIME_SUPPORT_AUTOMATIC_TAX_ENABLED: "true",
+      STRIPE_ONE_TIME_SUPPORT_TAX_PRODUCT_CODE: "txcd_90000001",
+      STRIPE_ONE_TIME_SUPPORT_TAX_PROVIDER_READY: "true",
+      STRIPE_ONE_TIME_SUPPORT_TAX_REGISTRATIONS_READY: "true",
+      STRIPE_ONE_TIME_SUPPORT_TAX_CLASSIFICATION_CONFIRMED: "true",
+    }
+    const cases = [
+      ["STRIPE_ONE_TIME_SUPPORT_AUTOMATIC_TAX_ENABLED", "false"],
+      ["STRIPE_ONE_TIME_SUPPORT_TAX_PRODUCT_CODE", ""],
+      ["STRIPE_ONE_TIME_SUPPORT_TAX_PROVIDER_READY", "false"],
+      ["STRIPE_ONE_TIME_SUPPORT_TAX_REGISTRATIONS_READY", "false"],
+      ["STRIPE_ONE_TIME_SUPPORT_TAX_CLASSIFICATION_CONFIRMED", "false"],
+    ]
+
+    for (const [key, value] of cases) {
+      let createCalls = 0
+      await assert.rejects(
+        createStripeDonationCheckoutSession({
+          amountCents: 500,
+          successUrl: "https://massagelab.app/pricing?donation=thanks",
+          cancelUrl: "https://massagelab.app/pricing?donation=cancelled",
+          env: { ...readyEnv, [key]: value },
+          stripeClient: {
+            checkout: {
+              sessions: {
+                create: async () => {
+                  createCalls += 1
+                  return { url: "https://checkout.stripe.com/c/unexpected" }
+                },
+              },
+            },
+          },
+        }),
+        /One-time support tax readiness is not configured\./,
+        key,
+      )
+      assert.equal(createCalls, 0, key)
+    }
   })
 
   it("ignores donation Checkout Sessions during membership reconciliation", async () => {

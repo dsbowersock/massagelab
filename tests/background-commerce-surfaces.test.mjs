@@ -55,10 +55,13 @@ describe("production background commerce states", () => {
       "Dispute suspended",
       "Retired",
       "Unavailable",
-      "Keep after membership",
+      "DollarSign",
+      "Crown",
     ]) {
       assert.match(source, new RegExp(label))
     }
+    assert.match(source, /Purchase \$\{option\.label\} to keep after membership/)
+    assert.match(source, /\$\{option\.label\} is permanently owned/)
     assert.match(source, /grid-cols-\[minmax\(0,1fr\)_auto\]/)
     assert.match(source, /className=\{cn\("shrink-0", purpleGlowClassName\)\}/)
   })
@@ -69,6 +72,7 @@ describe("production background commerce states", () => {
     assert.match(source, /onLockedSelect\?\.\(\)/)
     assert.match(source, /onSelect\(\)/)
     assert.match(source, /onKeepPermanently\?\.\(\)/)
+    assert.match(source, /commerceState\.state === "owned-credit"[\s\S]*commerceState\.state === "owned-purchase"/)
     assert.match(source, /type="button"/)
     assert.match(source, /locked \? "Unlock"/)
     assert.match(source, /variant=\{locked \? "default" : "glow"\}/)
@@ -113,6 +117,9 @@ describe("background acquisition and shared account cart", () => {
       assert.equal(source.split(label).length - 1, 1)
     }
     assert.match(source, /mode === "keep-permanently"/)
+    assert.match(source, /Keep \$\{background\.label\} permanently/)
+    assert.match(source, /even if you later cancel/)
+    assert.match(source, /Buy permanently for \$1/)
     assert.match(source, /creditBalance === 0/)
     assert.match(source, /\/account\?tab=membership/)
     assert.match(source, /if \(open\) setErrorMessage\(""\)/)
