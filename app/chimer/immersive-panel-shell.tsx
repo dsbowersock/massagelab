@@ -212,7 +212,13 @@ export function ImmersivePanelShell({
       ? null
       : new MutationObserver(measureToolbarFit)
     resizeObserver?.observe(toolbar)
-    mutationObserver?.observe(toolbar, { childList: true, characterData: true, subtree: true })
+    mutationObserver?.observe(toolbar, {
+      attributes: true,
+      attributeFilter: ["class", "style"],
+      childList: true,
+      characterData: true,
+      subtree: true,
+    })
     return () => {
       resizeObserver?.disconnect()
       mutationObserver?.disconnect()
