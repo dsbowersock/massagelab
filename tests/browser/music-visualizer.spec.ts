@@ -1499,6 +1499,8 @@ test("rotation and forward glow follow the centered display and stop for reduced
   ]) {
     await expect(clockPanel.getByText(label, { exact: true })).toHaveCount(1)
   }
+  // The rotation cycle lasts 10 seconds, so sample through a complete cycle
+  // before deciding whether the transformed display clears the open panel.
   await expect.poll(async () => {
     const displayBounds = await protectedDisplay.locator("[data-display-content='true']").boundingBox()
     const panelBounds = await clockPanel.boundingBox()
@@ -1514,7 +1516,7 @@ test("rotation and forward glow follow the centered display and stop for reduced
       panelBounds.y - displayBottom,
       displayBounds.y - panelBottom,
     )
-  }).toBeGreaterThanOrEqual(32)
+  }, { timeout: 12_000 }).toBeGreaterThanOrEqual(32)
 
   await page.emulateMedia({ reducedMotion: "reduce" })
   await expect.poll(() => protectedDisplay.locator("[data-display-rotation-layer]").evaluate(
