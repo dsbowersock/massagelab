@@ -24,6 +24,16 @@ import {
   TILE_GRID_FADE_SECONDS_MAX,
 } from "../lib/tile-grid-background.js"
 
+const novatrixPreferenceOptions = {
+  isKnownBackgroundId: (backgroundId) => backgroundId === "massage-lab-novatrix",
+  getVisualPropertyKeys: (backgroundId) => (
+    backgroundId === "massage-lab-novatrix" ? ["massageLabNovatrixSpeed"] : null
+  ),
+  getColorRoleIds: (backgroundId) => (
+    backgroundId === "massage-lab-novatrix" ? ["field"] : null
+  ),
+}
+
 describe("Chimer timer helpers", () => {
   it("normalizes nested shared background preferences without changing non-color settings", () => {
     const settings = sanitizeChimerSettings({
@@ -48,7 +58,7 @@ describe("Chimer timer helpers", () => {
           }],
         },
       },
-    })
+    }, { backgroundPreferenceOptions: novatrixPreferenceOptions })
 
     assert.equal(DEFAULT_CHIMER_SETTINGS.backgroundVisualPreferences.version, 1)
     assert.equal(settings.minutes, 45)
@@ -66,7 +76,10 @@ describe("Chimer timer helpers", () => {
       false,
     )
     assert.deepEqual(
-      normalizeChimerBackgroundVisualPreferences(settings.backgroundVisualPreferences),
+      normalizeChimerBackgroundVisualPreferences(
+        settings.backgroundVisualPreferences,
+        novatrixPreferenceOptions,
+      ),
       settings.backgroundVisualPreferences,
     )
   })

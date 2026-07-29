@@ -602,3 +602,24 @@ export const backgroundPaletteRegistry: Readonly<Record<string, BackgroundPalett
     ...SUPPORTED_SPECS.map((spec) => [spec.id, supported(spec)] as const),
     ...UNSUPPORTED_SPECS.map((spec) => [spec.id, unsupported(spec)] as const),
   ]))
+
+/**
+ * Dependency-injected persistence authority used by Chimer/account JSON
+ * sanitizers. Keeping these lookups beside the adapter ledger prevents
+ * component code and plain-JavaScript persistence helpers from guessing which
+ * visual keys or color-role IDs belong to a background.
+ */
+export const backgroundPreferenceNormalizationOptions = Object.freeze({
+  isKnownBackgroundId: (backgroundId: string) => (
+    Object.hasOwn(backgroundPaletteRegistry, backgroundId)
+  ),
+  getVisualPropertyKeys: (backgroundId: string) => (
+    backgroundPaletteRegistry[backgroundId]?.visualPropertyKeys ?? null
+  ),
+  getColorRoleIds: (backgroundId: string) => {
+    const adapter = backgroundPaletteRegistry[backgroundId]
+    return adapter?.status === "supported"
+      ? adapter.roles.map((roleDefinition) => roleDefinition.id)
+      : []
+  },
+})

@@ -6,6 +6,7 @@ import {
   buildUserPreferencePayload,
 } from "@/lib/account-preferences"
 import { clearAccountSurfaceDataCache } from "@/lib/account-surface-data"
+import { backgroundPreferenceNormalizationOptions } from "@/components/backgrounds/backgroundPaletteRegistry"
 import { objectRecord } from "@/lib/onboarding-preferences"
 import { sanitizeChimerSettingsForEntitlements } from "@/lib/chimer-timer"
 import { getUserEntitlementState } from "@/lib/membership"
@@ -35,10 +36,21 @@ export async function GET() {
     }),
   ])
 
+  const chimerSettings = preferences?.chimerSettings
+    ? sanitizeChimerSettingsForEntitlements(
+      preferences.chimerSettings,
+      entitlements.features,
+      {
+        canUseAccountColorControls: true,
+        backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
+      },
+    )
+    : {}
+
   return NextResponse.json({
     version: preferences?.version ?? USER_PREFERENCES_VERSION,
     appSettings: preferences?.appSettings ?? {},
-    chimerSettings: preferences?.chimerSettings ?? {},
+    chimerSettings,
     anatomimeSettings: preferences?.anatomimeSettings ?? {},
     notePreferences: preferences?.notePreferences ?? {},
     calendarPreferences: preferences?.calendarPreferences ?? {},
@@ -57,7 +69,9 @@ export async function PUT(request: Request) {
   }
 
   const body = await request.json().catch(() => ({}))
-  const payload = buildUserPreferencePayload(body)
+  const payload = buildUserPreferencePayload(body, {
+    backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
+  })
   const entitlements = await getUserEntitlementState(prisma, session.user.id)
   const existing = await prisma.userPreference.findUnique({
     where: { userId: session.user.id },
@@ -72,6 +86,7 @@ export async function PUT(request: Request) {
   const chimerSettings = "chimerSettings" in body
     ? jsonObject(sanitizeChimerSettingsForEntitlements(payload.chimer_settings, entitlements.features, {
       canUseAccountColorControls: true,
+      backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
     }))
     : (existing?.chimerSettings as Prisma.InputJsonValue | undefined) ?? {}
 

@@ -9,10 +9,14 @@ import {
   canSyncAccountPreferences,
   choosePreferenceSource,
   createChimerPreferenceSyncRequest,
+  createChimerPreferenceSyncRetry,
   removeForbiddenPreferenceFields,
   resolveChimerPreferenceSyncRequest,
   resolveSupporterRoadmapInterestsAfterSave,
 } from "../lib/account-preferences.js"
+import {
+  backgroundPreferenceNormalizationOptions,
+} from "../components/backgrounds/backgroundPaletteRegistry.ts"
 
 describe("Account preference helpers", () => {
   it("builds a versioned sync payload from safe local settings", () => {
@@ -56,7 +60,7 @@ describe("Account preference helpers", () => {
           },
         },
       },
-    })
+    }, { backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions })
 
     assert.equal(payload.chimer_settings.minutes, 30)
     assert.equal(payload.chimer_settings.backgroundVisualPreferences.version, 1)
@@ -76,10 +80,14 @@ describe("Account preference helpers", () => {
         version: 1,
         palette: { mode: "custom", primaryColor: "#abc" },
       },
+    }, {
+      backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
+      requestId: 1,
     })
-    const stale = resolveChimerPreferenceSyncRequest(pending, false)
+    const stale = resolveChimerPreferenceSyncRequest(pending, pending, false)
 
     assert.equal(pending.status, "pending")
+    assert.equal(pending.requestId, 1)
     assert.equal(stale.status, "stale")
     assert.equal(stale.requestBody, pending.requestBody)
     assert.equal(JSON.parse(stale.requestBody).chimerSettings.hours, 16)
@@ -88,9 +96,31 @@ describe("Account preference helpers", () => {
       JSON.parse(stale.requestBody).chimerSettings.backgroundVisualPreferences.palette.primaryColor,
       "#aabbcc",
     )
-    assert.deepEqual(resolveChimerPreferenceSyncRequest(stale, true), {
+    assert.deepEqual(resolveChimerPreferenceSyncRequest(stale, stale, true), {
       status: "synced",
       requestBody: null,
+      requestId: 1,
+    })
+  })
+
+  it("ignores out-of-order completions and retries only the latest failed body", () => {
+    const first = createChimerPreferenceSyncRequest({ minutes: 10 }, { requestId: 1 })
+    const second = createChimerPreferenceSyncRequest({ minutes: 20 }, { requestId: 2 })
+
+    assert.deepEqual(resolveChimerPreferenceSyncRequest(second, first, false), second)
+    const secondStale = resolveChimerPreferenceSyncRequest(second, second, false)
+    assert.equal(secondStale.status, "stale")
+    assert.equal(secondStale.requestBody, second.requestBody)
+
+    const retry = createChimerPreferenceSyncRetry(secondStale, 3)
+    assert.equal(retry.status, "pending")
+    assert.equal(retry.requestBody, second.requestBody)
+    assert.equal(retry.requestId, 3)
+    assert.deepEqual(resolveChimerPreferenceSyncRequest(retry, second, true), retry)
+    assert.deepEqual(resolveChimerPreferenceSyncRequest(retry, retry, false), {
+      status: "stale",
+      requestBody: second.requestBody,
+      requestId: 3,
     })
   })
 
@@ -98,6 +128,7 @@ describe("Account preference helpers", () => {
     const source = await readFile(new URL("../app/api/account/preferences/route.ts", import.meta.url), "utf8")
 
     assert.match(source, /getBackgroundCommerceSnapshot/)
+    assert.match(source, /backgroundPreferenceNormalizationOptions/)
     assert.match(source, /ownedBackgroundIds:\s*commerceSnapshot\.ownedBackgroundIds/)
     assert.doesNotMatch(source, /ownedBackgroundIds:\s*\[\]/)
     assert.doesNotMatch(source, /paymentIntent|customerId|stripeCustomer|checkoutSession/)
