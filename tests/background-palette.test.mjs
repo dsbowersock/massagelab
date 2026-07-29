@@ -168,6 +168,24 @@ test("preferences bound color and visual presets through injected registry callb
   )
   assert.deepEqual(visualApplied.properties, { speed: 2, density: 3 })
   assert.deepEqual(visualApplied.mapping, { main: 5 })
+
+  const missingPreferences = normalizeSharedBackgroundVisualPreferences({
+    ...immutablePreferences,
+    mappingsByBackground: { waves: { main: 4 } },
+  }, options)
+  const missingBefore = structuredClone(missingPreferences)
+  const missingProperties = { speed: 1, density: 3 }
+  const missingApplied = applyBackgroundVisualPreset(
+    missingPreferences,
+    "waves",
+    "deleted-visual",
+    missingProperties,
+    options,
+  )
+  assert.deepEqual(missingApplied.properties, missingProperties)
+  assert.deepEqual(missingApplied.mapping, { main: 4 })
+  assert.deepEqual(missingPreferences, missingBefore)
+  assert.deepEqual(missingProperties, { speed: 1, density: 3 })
 })
 
 test("legacy migration preserves non-color settings and access falls back without deleting saved state", () => {

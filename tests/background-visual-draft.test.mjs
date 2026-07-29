@@ -10,7 +10,7 @@ import {
 
 const openingSnapshot = {
   palette: { mode: "custom", primaryColor: "#123456", harmony: "triadic", swatches: ["#123456", "#234567", "#345678", "#456789", "#56789a", "#6789ab", "#789abc"] },
-  colorPresets: [{ id: "warm", name: "Warm", timestamp: 1, palette: { mode: "custom", primaryColor: "#aa0000", swatches: ["#aa0000", "#bb0000", "#cc0000", "#dd0000", "#ee0000", "#ff0000", "#110000"] }, mappingsByBackground: { waves: { main: 2 } } }],
+  colorPresets: [{ id: "warm", name: "Warm", timestamp: 1, palette: { mode: "custom", primaryColor: "#aa0000", harmony: "analogous", swatches: ["#aa0000", "#bb0000", "#cc0000", "#dd0000", "#ee0000", "#ff0000", "#110000"] } }],
   properties: { speed: 1, density: 2 },
   mapping: { main: 0, accent: 1 },
   visualPresets: [{ id: "calm", name: "Calm", timestamp: 1, properties: { speed: 0.5 }, mapping: { main: 3 } }],
@@ -18,6 +18,73 @@ const openingSnapshot = {
 }
 
 function reduce(state, action) { return reduceBackgroundVisualDraft(state, action) }
+
+test("draft snapshots canonically project legacy Color presets without changing active mapping", () => {
+  const legacyColorPreset = {
+    ...openingSnapshot.colorPresets[0],
+    mappingsByBackground: { waves: { main: 6 } },
+    backgroundId: "waves",
+    legacyColorSlots: ["#ffffff"],
+  }
+  const legacyOpening = {
+    ...openingSnapshot,
+    colorPresets: [legacyColorPreset],
+    mapping: { main: 4, accent: 1 },
+  }
+  const before = structuredClone(legacyOpening)
+  let state = createBackgroundVisualDraft(legacyOpening)
+
+  assert.deepEqual(Object.keys(state.openingSnapshot.colorPresets[0]), [
+    "id",
+    "name",
+    "timestamp",
+    "palette",
+  ])
+  assert.equal(
+    Object.hasOwn(state.openingSnapshot.colorPresets[0], "mappingsByBackground"),
+    false,
+  )
+  assert.deepEqual(state.currentSnapshot.mapping, { main: 4, accent: 1 })
+
+  state = reduce(state, {
+    type: "replace",
+    snapshot: {
+      ...legacyOpening,
+      properties: { speed: 4 },
+      colorPresets: [{ ...legacyColorPreset, timestamp: 2, unknown: true }],
+    },
+  })
+  assert.equal(
+    Object.hasOwn(state.currentSnapshot.colorPresets[0], "mappingsByBackground"),
+    false,
+  )
+  assert.equal(
+    Object.hasOwn(state.undoStack[0].colorPresets[0], "mappingsByBackground"),
+    false,
+  )
+  assert.deepEqual(state.currentSnapshot.mapping, { main: 4, accent: 1 })
+
+  state = reduce(state, {
+    type: "save-color-preset",
+    preset: { ...legacyColorPreset, id: "legacy-save", unknown: true },
+  })
+  state = reduce(state, { type: "apply" })
+  assert.equal(
+    Object.hasOwn(state.openingSnapshot.colorPresets[0], "mappingsByBackground"),
+    false,
+  )
+  assert.equal(state.dirty, false)
+  const committed = getCommittedBackgroundVisualSnapshot(state)
+  assert.deepEqual(Object.keys(committed.colorPresets[0]), [
+    "id",
+    "name",
+    "timestamp",
+    "palette",
+  ])
+  assert.equal(Object.hasOwn(committed.colorPresets[0], "mappingsByBackground"), false)
+  assert.deepEqual(committed.mapping, { main: 4, accent: 1 })
+  assert.deepEqual(legacyOpening, before)
+})
 
 test("draft snapshots keep all six editor value families and apply/cancel have complete snapshot semantics", () => {
   let state = createBackgroundVisualDraft(openingSnapshot)
