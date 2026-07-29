@@ -77,17 +77,18 @@ test("new edits invalidate redo, normalized no-ops are deduplicated, and history
 
 test("reset and preset actions change only their documented draft families", () => {
   let state = createBackgroundVisualDraft(openingSnapshot)
-  state = reduce(state, { type: "reset-colors" })
-  assert.equal(getCommittedBackgroundVisualSnapshot(state).palette.mode, "source")
+  const sourcePalette = { mode: "source", primaryColor: "#010203", harmony: "shades", swatches: ["#010203", "#111213", "#212223", "#313233", "#414243", "#515253", "#616263"] }
+  state = reduce(state, { type: "reset-colors", palette: sourcePalette })
+  assert.deepEqual(getCommittedBackgroundVisualSnapshot(state).palette, sourcePalette)
   assert.deepEqual(getCommittedBackgroundVisualSnapshot(state).properties, openingSnapshot.properties)
-  state = reduce(state, { type: "reset-properties", properties: { speed: 0 }, mapping: { main: 1, accent: 2 } })
-  assert.deepEqual(getCommittedBackgroundVisualSnapshot(state).properties, { speed: 0 })
+  state = reduce(state, { type: "reset-properties", properties: { speed: 0, density: 12 }, mapping: { main: 1, accent: 2 } })
+  assert.deepEqual(getCommittedBackgroundVisualSnapshot(state).properties, { speed: 0, density: 12 })
   assert.deepEqual(getCommittedBackgroundVisualSnapshot(state).mapping, { main: 1, accent: 2 })
   state = reduce(state, { type: "apply-color-preset", id: "warm" })
   assert.equal(getCommittedBackgroundVisualSnapshot(state).palette.primaryColor, "#aa0000")
   assert.deepEqual(getCommittedBackgroundVisualSnapshot(state).mapping, { main: 2 })
   state = reduce(state, { type: "apply-visual-preset", id: "calm" })
-  assert.deepEqual(getCommittedBackgroundVisualSnapshot(state).properties, { speed: 0.5 })
+  assert.deepEqual(getCommittedBackgroundVisualSnapshot(state).properties, { speed: 0.5, density: 12 })
   assert.deepEqual(getCommittedBackgroundVisualSnapshot(state).mapping, { main: 3 })
   state = reduce(state, { type: "rename-color-preset", id: "warm", name: "Renamed" })
   state = reduce(state, { type: "delete-color-preset", id: "warm" })
