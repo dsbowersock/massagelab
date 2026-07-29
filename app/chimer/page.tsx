@@ -30,6 +30,7 @@ import {
   createChimerPreferenceSyncRetry,
   resolveChimerPreferenceSyncRequest,
 } from "@/lib/account-preferences"
+import { resolveBackgroundVisualCommitScope } from "@/lib/background-visual-draft"
 import {
   LEGACY_CHIMER_GLOBAL_COLOR_STORAGE_KEY,
   LEGACY_CHIMER_GLOBAL_PALETTE_STORAGE_KEY,
@@ -732,7 +733,9 @@ export default function ChimerPage() {
    */
   const applyBackgroundVisualPreferences = (
     input: ChimerSettings["backgroundVisualPreferences"] | {
-      backgroundId: string
+      visualBackgroundId: string
+      sourceVisualBackgroundId?: string
+      backgroundId?: string
       backgroundVisualPreferences: ChimerSettings["backgroundVisualPreferences"]
       properties: Partial<ChimerSettings>
     },
@@ -740,15 +743,22 @@ export default function ChimerPage() {
     const backgroundVisualPreferences = "backgroundVisualPreferences" in input
       ? input.backgroundVisualPreferences
       : input
-    const selectedBackgroundId = "backgroundId" in input
-      ? input.backgroundId
+    const visualBackgroundId = "visualBackgroundId" in input
+      ? input.visualBackgroundId
       : settingsRef.current.backgroundId
-    const selectedAdapter = backgroundPaletteRegistry[selectedBackgroundId]
-    const previousAdapter = backgroundPaletteRegistry[settingsRef.current.backgroundId]
-    const allowedPropertyKeys = new Set([
-      ...(previousAdapter?.visualPropertyKeys ?? []),
-      ...(selectedAdapter?.visualPropertyKeys ?? []),
-    ])
+    const scope = resolveBackgroundVisualCommitScope({
+      canonicalBackgroundId: settingsRef.current.backgroundId,
+      visualBackgroundId,
+      sourceVisualBackgroundId: "sourceVisualBackgroundId" in input
+        ? input.sourceVisualBackgroundId
+        : visualBackgroundId,
+      committedBackgroundId: "backgroundId" in input
+        ? input.backgroundId
+        : null,
+    })
+    const allowedPropertyKeys = new Set(scope.visualBackgroundIds.flatMap(
+      (backgroundId) => backgroundPaletteRegistry[backgroundId]?.visualPropertyKeys ?? [],
+    ))
     const properties = "properties" in input
       ? Object.fromEntries(
         Object.entries(input.properties).filter(([key]) => allowedPropertyKeys.has(key)),
@@ -757,7 +767,7 @@ export default function ChimerPage() {
     const nextSettings = sanitizeChimerSettingsForEntitlements({
       ...settingsRef.current,
       ...properties,
-      backgroundId: selectedBackgroundId,
+      backgroundId: scope.canonicalBackgroundId,
       backgroundVisualPreferences,
     }, featureKeysRef.current, {
       canUseAccountColorControls,

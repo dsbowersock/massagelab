@@ -11,6 +11,7 @@ import {
   getCommittedBackgroundVisualSnapshot,
   partitionBackgroundVisualSettingChange,
   resolveBackgroundSelectionVisualSnapshot,
+  resolveBackgroundVisualCommitScope,
   resolveBackgroundVisualPendingOutcome,
   reduceBackgroundVisualDraft,
   shouldUseDraftAwareBackgroundHost,
@@ -21,6 +22,9 @@ import {
   getVisualDraftHistoryTransition,
   installVisualDraftNavigationListeners,
 } from "../lib/visual-draft-navigation.js"
+import {
+  BACKGROUND_PALETTE_METADATA_SUFFIXES,
+} from "../components/backgrounds/backgroundPaletteRegistry.ts"
 
 const read = async (path) => {
   try {
@@ -307,7 +311,53 @@ test("legacy color settings cannot escape an open draft while approved propertie
   )
 })
 
-test("Apply plus background selection builds one newest complete commit without mutating history", () => {
+test("legacy palette metadata and role colors cannot escape an open draft", () => {
+  const nextSettings = {
+    massageLabShapeGridPaletteMode: "harmony",
+    massageLabShapeGridPrimaryColor: "#112233",
+    massageLabShapeGridHarmony: "triadic",
+    massageLabShapeGridBorderColor: "#223344",
+    massageLabPhotonBeamPaletteMode: "custom",
+    massageLabPhotonBeamPrimaryColor: "#334455",
+    massageLabPhotonBeamHarmony: "complementary",
+    massageLabPhotonBeamColorLine: "#445566",
+    massageLabPhotonBeamSpeed: 1.75,
+  }
+  assert.deepEqual(
+    partitionBackgroundVisualSettingChange({
+      nextSettings,
+      draftOpen: true,
+      visualPropertyKeys: ["massageLabPhotonBeamSpeed"],
+      legacyColorPropertyKeys: [
+        "massageLabShapeGridBorderColor",
+        "massageLabPhotonBeamColorLine",
+      ],
+      legacyPaletteMetadataSuffixes: BACKGROUND_PALETTE_METADATA_SUFFIXES,
+    }),
+    {
+      draftProperties: { massageLabPhotonBeamSpeed: 1.75 },
+      committedSettings: {},
+    },
+  )
+  assert.deepEqual(
+    partitionBackgroundVisualSettingChange({
+      nextSettings,
+      draftOpen: false,
+      visualPropertyKeys: ["massageLabPhotonBeamSpeed"],
+      legacyColorPropertyKeys: [
+        "massageLabShapeGridBorderColor",
+        "massageLabPhotonBeamColorLine",
+      ],
+      legacyPaletteMetadataSuffixes: BACKGROUND_PALETTE_METADATA_SUFFIXES,
+    }),
+    {
+      draftProperties: {},
+      committedSettings: nextSettings,
+    },
+  )
+})
+
+test("Music Apply and switch keep canonical Chimer selection while Chimer switch updates it", () => {
   const targetAdapter = {
     status: "supported",
     visualPropertyKeys: ["targetSpeed", "targetDensity"],
@@ -350,7 +400,27 @@ test("Apply plus background selection builds one newest complete commit without 
     },
   })
   const before = structuredClone(draft)
-  const commit = buildBackgroundVisualPendingCommit({
+  const musicDirectCommit = buildBackgroundVisualPendingCommit({
+    preferences,
+    currentBackgroundId: "current",
+    currentSnapshot: getCommittedBackgroundVisualSnapshot(draft),
+  })
+  assert.equal(musicDirectCommit.visualBackgroundId, "current")
+  assert.equal(Object.hasOwn(musicDirectCommit, "backgroundId"), false)
+  assert.deepEqual(
+    resolveBackgroundVisualCommitScope({
+      canonicalBackgroundId: "massage-lab-moving-gradient",
+      visualBackgroundId: musicDirectCommit.visualBackgroundId,
+      sourceVisualBackgroundId: musicDirectCommit.sourceVisualBackgroundId,
+      committedBackgroundId: musicDirectCommit.backgroundId,
+    }),
+    {
+      canonicalBackgroundId: "massage-lab-moving-gradient",
+      visualBackgroundIds: ["current"],
+    },
+  )
+
+  const musicSwitchCommit = buildBackgroundVisualPendingCommit({
     preferences,
     currentBackgroundId: "current",
     currentSnapshot: getCommittedBackgroundVisualSnapshot(draft),
@@ -358,41 +428,79 @@ test("Apply plus background selection builds one newest complete commit without 
     targetAdapter,
   })
 
-  assert.equal(commit.backgroundId, "target")
-  assert.equal(commit.backgroundVisualPreferences.palette.primaryColor, "#abcdef")
-  assert.equal(commit.backgroundVisualPreferences.colorPresets[0].name, "Newest")
-  assert.deepEqual(commit.backgroundVisualPreferences.mappingsByBackground.current, {
+  assert.equal(musicSwitchCommit.visualBackgroundId, "target")
+  assert.equal(musicSwitchCommit.sourceVisualBackgroundId, "current")
+  assert.equal(Object.hasOwn(musicSwitchCommit, "backgroundId"), false)
+  assert.equal(musicSwitchCommit.backgroundVisualPreferences.palette.primaryColor, "#abcdef")
+  assert.equal(musicSwitchCommit.backgroundVisualPreferences.colorPresets[0].name, "Newest")
+  assert.deepEqual(musicSwitchCommit.backgroundVisualPreferences.mappingsByBackground.current, {
     main: 5,
     accent: 3,
   })
-  assert.deepEqual(commit.backgroundVisualPreferences.mappingsByBackground.target, {
+  assert.deepEqual(musicSwitchCommit.backgroundVisualPreferences.mappingsByBackground.target, {
     main: 6,
   })
-  assert.deepEqual(commit.properties, {
+  assert.deepEqual(musicSwitchCommit.properties, {
     speed: 7,
     density: 5,
     targetSpeed: 9,
     targetDensity: 12,
   })
+  assert.deepEqual(
+    resolveBackgroundVisualCommitScope({
+      canonicalBackgroundId: "massage-lab-moving-gradient",
+      visualBackgroundId: musicSwitchCommit.visualBackgroundId,
+      sourceVisualBackgroundId: musicSwitchCommit.sourceVisualBackgroundId,
+      committedBackgroundId: musicSwitchCommit.backgroundId,
+    }),
+    {
+      canonicalBackgroundId: "massage-lab-moving-gradient",
+      visualBackgroundIds: ["current", "target"],
+    },
+  )
+
+  const chimerSwitchCommit = buildBackgroundVisualPendingCommit({
+    preferences,
+    currentBackgroundId: "current",
+    currentSnapshot: getCommittedBackgroundVisualSnapshot(draft),
+    targetBackgroundId: "target",
+    targetAdapter,
+    commitCanonicalBackgroundSelection: true,
+  })
+  assert.equal(chimerSwitchCommit.backgroundId, "target")
+  assert.deepEqual(
+    resolveBackgroundVisualCommitScope({
+      canonicalBackgroundId: "massage-lab-moving-gradient",
+      visualBackgroundId: chimerSwitchCommit.visualBackgroundId,
+      sourceVisualBackgroundId: chimerSwitchCommit.sourceVisualBackgroundId,
+      committedBackgroundId: chimerSwitchCommit.backgroundId,
+    }),
+    {
+      canonicalBackgroundId: "target",
+      visualBackgroundIds: ["current", "target"],
+    },
+  )
   assert.deepEqual(draft, before)
   assert.equal(draft.undoStack.length, 1)
 
-  assert.deepEqual(
-    resolveBackgroundVisualPendingOutcome({
-      outcome: "apply",
-      intent: { type: "select-background", backgroundId: "target" },
-      commit,
-    }),
-    {
-      commit,
-      resumeIntent: { type: "select-background", backgroundId: "target" },
-    },
-  )
+  const accountBodies = []
+  const selectedBackgrounds = []
+  const applied = resolveBackgroundVisualPendingOutcome({
+    outcome: "apply",
+    intent: { type: "select-background", backgroundId: "target" },
+    commit: musicSwitchCommit,
+  })
+  if (applied.commit) accountBodies.push(applied.commit)
+  if (applied.resumeIntent?.type === "select-background") {
+    selectedBackgrounds.push(applied.resumeIntent.backgroundId)
+  }
+  assert.deepEqual(accountBodies, [musicSwitchCommit])
+  assert.deepEqual(selectedBackgrounds, ["target"])
   assert.deepEqual(
     resolveBackgroundVisualPendingOutcome({
       outcome: "discard",
       intent: { type: "select-background", backgroundId: "target" },
-      commit,
+      commit: musicSwitchCommit,
     }),
     {
       commit: null,
@@ -403,7 +511,7 @@ test("Apply plus background selection builds one newest complete commit without 
     resolveBackgroundVisualPendingOutcome({
       outcome: "keep",
       intent: { type: "select-background", backgroundId: "target" },
-      commit,
+      commit: musicSwitchCommit,
     }),
     { commit: null, resumeIntent: null },
   )
@@ -585,16 +693,19 @@ test("live Visual integration owns draft preview, one Apply, and reachable actio
   assert.match(runningTimerSource, /draftPalettePreview=/)
   assert.match(runningTimerSource, /shouldUseDraftAwareBackgroundHost/)
   assert.match(runningTimerSource, /hideLegacyColorControls/)
+  assert.match(runningTimerSource, /hideLegacyPaletteMetadataControls/)
   assert.match(runningTimerSource, /type:\s*"reset-colors"/)
   assert.match(runningTimerSource, /type:\s*"reset-properties"/)
   assert.match(runningTimerSource, /type:\s*"undo"/)
   assert.match(runningTimerSource, /type:\s*"redo"/)
   assert.match(runningTimerSource, /onApplyBackgroundVisualPreferences/)
   assert.match(pageSource, /visualDraftPropertyOverrides/)
-  assert.match(pageSource, /backgroundId:\s*selectedBackgroundId/)
+  assert.match(pageSource, /visualBackgroundId/)
+  assert.match(pageSource, /resolveBackgroundVisualCommitScope/)
   assert.match(pageSource, /window\.localStorage\.setItem\(CHIMER_STORAGE_KEY[\s\S]*syncBackgroundVisualPreferenceRequest/)
   assert.doesNotMatch(navigationGuardSource, /localStorage|sessionStorage|fetch\(/)
   assert.match(runningTimerStyles, /\.hideLegacyColorControls[\s\S]*\.colorRow/)
+  assert.match(runningTimerStyles, /\.hideLegacyPaletteMetadataControls[\s\S]*color mode/)
 })
 
 test("dirty navigation guard covers eligible app links, history, and native unload only", () => {

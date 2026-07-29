@@ -77,13 +77,13 @@ type UnsupportedSpec = {
 }
 
 const SANITIZED_SOURCE_SETTINGS = sanitizeChimerSettings(DEFAULT_CHIMER_SETTINGS)
-const PALETTE_METADATA_SUFFIXES = [
+export const BACKGROUND_PALETTE_METADATA_SUFFIXES = Object.freeze([
   "PaletteMode",
   "PrimaryColor",
   "Harmony",
   "ControlVersion",
   "WarpSpeedVersion",
-]
+])
 const FIXED_RENDERER_REASON =
   "This renderer has no meaningful color input, so the shared palette leaves its source rendering unchanged."
 
@@ -123,7 +123,7 @@ function visualInventory(
       key.slice(0, prefix.length) === prefix
     ))
     && !colorKeys.has(key)
-    && !PALETTE_METADATA_SUFFIXES.some((suffix) => key.endsWith(suffix))
+    && !BACKGROUND_PALETTE_METADATA_SUFFIXES.some((suffix) => key.endsWith(suffix))
   ))
   return {
     visualPropertyKeys,

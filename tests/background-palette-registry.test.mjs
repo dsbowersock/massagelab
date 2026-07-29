@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import { DEFAULT_CHIMER_SETTINGS, sanitizeChimerSettings } from "../lib/chimer-timer.js"
 import {
+  BACKGROUND_PALETTE_METADATA_SUFFIXES,
   backgroundPaletteRegistry,
 } from "../components/backgrounds/backgroundPaletteRegistry.ts"
 import {
@@ -224,6 +225,30 @@ function fixtureForAdapter(adapter) {
 }
 
 describe("background palette adapter registry", () => {
+  it("owns the complete legacy palette metadata suffix inventory", () => {
+    assert.deepEqual(BACKGROUND_PALETTE_METADATA_SUFFIXES, [
+      "PaletteMode",
+      "PrimaryColor",
+      "Harmony",
+      "ControlVersion",
+      "WarpSpeedVersion",
+    ])
+    for (const key of [
+      "massageLabShapeGridPaletteMode",
+      "massageLabShapeGridPrimaryColor",
+      "massageLabShapeGridHarmony",
+      "massageLabPhotonBeamPaletteMode",
+      "massageLabPhotonBeamPrimaryColor",
+      "massageLabPhotonBeamHarmony",
+    ]) {
+      assert.equal(
+        BACKGROUND_PALETTE_METADATA_SUFFIXES.some((suffix) => key.endsWith(suffix)),
+        true,
+        key,
+      )
+    }
+  })
+
   it("covers every enabled background exactly once and attaches the authoritative adapter", () => {
     const enabled = backgroundRegistry.filter((entry) => entry.enabled)
     assert.deepEqual(

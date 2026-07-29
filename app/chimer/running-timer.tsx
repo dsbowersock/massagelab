@@ -17,7 +17,10 @@ import {
   useBackgroundCreditStatus,
 } from "@/components/backgrounds/BackgroundCommerceProvider"
 import { BackgroundHost } from "@/components/backgrounds/BackgroundHost"
-import { backgroundPaletteRegistry } from "@/components/backgrounds/backgroundPaletteRegistry"
+import {
+  BACKGROUND_PALETTE_METADATA_SUFFIXES,
+  backgroundPaletteRegistry,
+} from "@/components/backgrounds/backgroundPaletteRegistry"
 import {
   canUseBackgroundId,
   getBackgroundOptionsForCategory,
@@ -55,7 +58,6 @@ import {
   partitionBackgroundVisualSettingChange,
   reduceBackgroundVisualDraft,
   resolveBackgroundVisualPendingOutcome,
-  resolveBackgroundSelectionVisualSnapshot,
   shouldUseDraftAwareBackgroundHost,
 } from "@/lib/background-visual-draft"
 import { getConnectedVisualFocusTarget } from "@/lib/visual-draft-navigation"
@@ -1710,7 +1712,9 @@ interface RunningTimerProps {
   onSetActiveIntervalMinutes: (minutes: number) => void
   onVisualDraftPreviewChange: (properties: Partial<ChimerSettings> | null) => void
   onApplyBackgroundVisualPreferences: (commit: {
-    backgroundId: BackgroundId
+    visualBackgroundId: BackgroundId
+    sourceVisualBackgroundId?: BackgroundId
+    backgroundId?: BackgroundId
     backgroundVisualPreferences: ChimerSettings["backgroundVisualPreferences"]
     properties: Partial<ChimerSettings>
   }) => void
@@ -3646,25 +3650,31 @@ export function RunningTimer({
       return
     }
 
-    if (mode.context === "chimer") {
-      const nextAdapter = backgroundPaletteRegistry[nextBackgroundId]
-      const selection = resolveBackgroundSelectionVisualSnapshot({
+    const currentBackgroundId = selectedBackgroundDefinition.id
+    const commit = buildBackgroundVisualPendingCommit({
+      preferences: backgroundVisualPreferences,
+      currentBackgroundId,
+      currentSnapshot: buildBackgroundVisualOpeningSnapshot({
         preferences: backgroundVisualPreferences,
-        backgroundId: nextBackgroundId,
-        adapter: nextAdapter,
-      })
-      onApplyBackgroundVisualPreferences({
-        backgroundId: nextBackgroundId,
-        backgroundVisualPreferences: {
-          ...backgroundVisualPreferences,
-          mappingsByBackground: {
-            ...backgroundVisualPreferences.mappingsByBackground,
-            [nextBackgroundId]: selection.mapping,
-          },
-        },
-        properties: selection.properties as Partial<ChimerSettings>,
-      })
-    } else {
+        backgroundId: currentBackgroundId,
+        committedSettings,
+        adapter: backgroundPaletteRegistry[currentBackgroundId],
+      }),
+      targetBackgroundId: nextBackgroundId,
+      targetAdapter: backgroundPaletteRegistry[nextBackgroundId],
+      commitCanonicalBackgroundSelection: mode.context === "chimer",
+    })
+    onApplyBackgroundVisualPreferences({
+      visualBackgroundId: commit.visualBackgroundId as BackgroundId,
+      sourceVisualBackgroundId: commit.sourceVisualBackgroundId as BackgroundId,
+      ...("backgroundId" in commit
+        ? { backgroundId: commit.backgroundId as BackgroundId }
+        : {}),
+      backgroundVisualPreferences:
+        commit.backgroundVisualPreferences as ChimerSettings["backgroundVisualPreferences"],
+      properties: commit.properties as Partial<ChimerSettings>,
+    })
+    if (mode.context !== "chimer") {
       mode.onBackgroundChange(nextBackgroundId)
     }
     finishBackgroundSelection()
@@ -3691,7 +3701,7 @@ export function RunningTimer({
     if (!visualDraft) {
       return null
     }
-    const targetBackgroundId = mode.context === "chimer" && intent?.type === "select-background"
+    const targetBackgroundId = intent?.type === "select-background"
       ? intent.backgroundId
       : null
     return buildBackgroundVisualPendingCommit({
@@ -3702,6 +3712,8 @@ export function RunningTimer({
       targetAdapter: targetBackgroundId
         ? backgroundPaletteRegistry[targetBackgroundId]
         : null,
+      commitCanonicalBackgroundSelection:
+        Boolean(targetBackgroundId) && mode.context === "chimer",
     })
   }, [
     backgroundVisualPreferences,
@@ -3716,7 +3728,11 @@ export function RunningTimer({
       return
     }
     onApplyBackgroundVisualPreferences({
-      backgroundId: commit.backgroundId as BackgroundId,
+      visualBackgroundId: commit.visualBackgroundId as BackgroundId,
+      sourceVisualBackgroundId: commit.sourceVisualBackgroundId as BackgroundId,
+      ...("backgroundId" in commit
+        ? { backgroundId: commit.backgroundId as BackgroundId }
+        : {}),
       backgroundVisualPreferences: commit.backgroundVisualPreferences as ChimerSettings["backgroundVisualPreferences"],
       properties: commit.properties as Partial<ChimerSettings>,
     })
@@ -3741,7 +3757,10 @@ export function RunningTimer({
       return
     }
     if (intent.type === "select-background") {
-      if (selectionCommitted && mode.context === "chimer") {
+      if (selectionCommitted) {
+        if (mode.context !== "chimer") {
+          mode.onBackgroundChange(intent.backgroundId)
+        }
         finishBackgroundSelection()
       } else {
         performBackgroundSelection(intent.backgroundId)
@@ -3805,7 +3824,12 @@ export function RunningTimer({
     })
     if (resolution.commit) {
       onApplyBackgroundVisualPreferences({
-        backgroundId: resolution.commit.backgroundId,
+        visualBackgroundId: resolution.commit.visualBackgroundId as BackgroundId,
+        sourceVisualBackgroundId:
+          resolution.commit.sourceVisualBackgroundId as BackgroundId,
+        ...("backgroundId" in resolution.commit
+          ? { backgroundId: resolution.commit.backgroundId as BackgroundId }
+          : {}),
         backgroundVisualPreferences:
           resolution.commit.backgroundVisualPreferences as ChimerSettings["backgroundVisualPreferences"],
         properties: resolution.commit.properties as Partial<ChimerSettings>,
@@ -3819,8 +3843,7 @@ export function RunningTimer({
       continuePendingVisualIntent(
         resolution.resumeIntent,
         outcome === "apply"
-          && resolution.resumeIntent.type === "select-background"
-          && mode.context === "chimer",
+          && resolution.resumeIntent.type === "select-background",
       )
     }
   }
@@ -3967,6 +3990,7 @@ export function RunningTimer({
       legacyColorPropertyKeys: adapter?.status === "supported"
         ? adapter.roles.map((role) => role.sourceSettingKey)
         : [],
+      legacyPaletteMetadataSuffixes: BACKGROUND_PALETTE_METADATA_SUFFIXES,
     })
     if (visualDraft && Object.keys(partitioned.draftProperties).length > 0) {
       const current = getCommittedBackgroundVisualSnapshot(visualDraft)
@@ -4023,7 +4047,7 @@ export function RunningTimer({
   const isGraphicGlobe = massageLab3DGlobeViewStyle === "graphic"
   const followSun = massageLab3DGlobeLightingMode === "sun"
   const renderBackgroundControls = (option: BackgroundDefinition) => (
-    <div className={`${styles.backgroundCardControls} ${styles.immersiveSelectedBackgroundControls} ${visualDraft ? styles.hideLegacyColorControls : ""} ${option.id === "massage-lab-moving-gradient" ? styles.immersiveLampColorControls : ""}`}>
+    <div className={`${styles.backgroundCardControls} ${styles.immersiveSelectedBackgroundControls} ${visualDraft ? `${styles.hideLegacyColorControls} ${styles.hideLegacyPaletteMetadataControls}` : ""} ${option.id === "massage-lab-moving-gradient" ? styles.immersiveLampColorControls : ""}`}>
       {!isClockMode && (
         <div className={styles.colorRow} title={customColorDisabledHint}>
           <span>Primary color</span>
