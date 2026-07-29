@@ -7,11 +7,148 @@ import {
 import {
   backgroundRegistry,
 } from "../components/backgrounds/backgroundRegistry.ts"
+import {
+  generateBackgroundHarmonySwatches,
+  resolveBackgroundRoleColors,
+} from "../lib/background-palette.js"
 
 const HEX_COLOR = /^#[0-9a-f]{6}$/i
 const VALID_STATUSES = new Set(["pending", "supported", "unsupported"])
 const VALID_RENDERER_FAMILIES = new Set(["css-dom", "canvas", "webgl"])
 const sanitizedDefaults = sanitizeChimerSettings(DEFAULT_CHIMER_SETTINGS)
+const CUSTOM_SWATCHES = [
+  "#110011",
+  "#220022",
+  "#330033",
+  "#440044",
+  "#550055",
+  "#660066",
+  "#770077",
+]
+const HARMONY_PRIMARY = "#2A6F97"
+
+const cssDomFixtures = {
+  "massage-lab-moving-gradient": {
+    className: "moving-gradient-fixture",
+    mainColor: "#010101",
+    orbColor: "#020202",
+  },
+  "massage-lab-aerial-rays": {
+    massageLabAerialRays: {
+      backgroundColor: "#010101",
+      color: "#020202",
+      count: 11,
+      blur: 27,
+      speed: 9,
+      length: 83,
+      opacity: 0.42,
+    },
+  },
+  "massage-lab-grid-motion": {
+    massageLabGridMotion: {
+      gradientColor: "#010101",
+      tileColor: "#020202",
+      textColor: "#030303",
+      maxMoveAmount: 211,
+      baseDuration: 1.3,
+      cursorInteraction: false,
+    },
+  },
+  "massage-lab-gradient-animation": {
+    gradientAnimation: {
+      backgroundStartColor: "#010101",
+      backgroundEndColor: "#020202",
+      firstColor: "#030303",
+      secondColor: "#040404",
+      thirdColor: "#050505",
+      fourthColor: "#060606",
+      fifthColor: "#070707",
+      speed: 1.7,
+      size: 63,
+    },
+  },
+  "massage-lab-shooting-stars": {
+    shootingStars: {
+      starColor: "#010101",
+      trailColor: "#020202",
+      shootingStarColor: "#030303",
+      starDensity: 0.00023,
+      twinkle: false,
+      twinkleSpeed: 1.4,
+      shootingStarSpeed: 1.6,
+      shootingStarFrequency: 0.8,
+    },
+  },
+  "massage-lab-spotlight": {
+    spotlight: {
+      color: "#010101",
+      opacity: 0.54,
+      width: 711,
+      height: 1203,
+      smallWidth: 331,
+      translateY: -217,
+      duration: 5.4,
+      xOffset: 43,
+    },
+  },
+  "massage-lab-lamp-effect": {
+    lamp: {
+      backgroundColor: "#010101",
+      color: "#020202",
+      glowOpacity: 0.33,
+      beamWidth: 241,
+      glowWidth: 397,
+      verticalOffset: 37,
+      pulseSpeed: 4.2,
+    },
+  },
+  "massage-lab-aurora-bars": {
+    auroraBars: {
+      paletteMode: "auto",
+      primaryColor: "#ABCDEF",
+      colors: ["#010101", "#020202", "#030303", "#040404", "#050505"],
+      barCount: 31,
+      maxHeightRatio: 0.84,
+      minHeightRatio: 0.22,
+      speed: 0.73,
+      gap: 5,
+      blur: 4,
+      background: "#060606",
+      visualizerActive: true,
+      audioLevel: 0.61,
+    },
+  },
+  "massage-lab-gradient": {
+    massageLabGradient: {
+      primaryColor: "#010101",
+      harmony: "compound",
+      opacity: 0.57,
+    },
+  },
+  "massage-lab-stars": {
+    massageLabStars: {
+      starColor: "#010101",
+      speed: 37,
+      density: 0.72,
+      factor: 0.014,
+    },
+  },
+}
+
+function roleColorsForMode(adapter, mode) {
+  const palette = {
+    mode,
+    primaryColor: mode === "custom" ? CUSTOM_SWATCHES[0] : HARMONY_PRIMARY,
+    harmony: "triadic",
+    swatches: CUSTOM_SWATCHES,
+  }
+  return resolveBackgroundRoleColors({
+    palette,
+    adapter,
+    mapping: {},
+    canCustomize: true,
+  })
+}
 
 function changedLeafPaths(before, after, prefix = "") {
   const paths = new Set()
@@ -249,5 +386,170 @@ describe("background palette adapter registry", () => {
       backgroundPaletteRegistry["massage-lab-tile-grid"].sourceBehavior,
       "automatic",
     )
+  })
+
+  it("completes every CSS/DOM adapter and changes only named renderer targets in every palette mode", () => {
+    const cssDomEntries = Object.entries(backgroundPaletteRegistry).filter(([, adapter]) => (
+      adapter.status !== "unsupported" && adapter.rendererFamily === "css-dom"
+    ))
+    assert.deepEqual(
+      cssDomEntries.map(([backgroundId]) => backgroundId).sort(),
+      Object.keys(cssDomFixtures).sort(),
+    )
+
+    for (const [backgroundId, adapter] of cssDomEntries) {
+      assert.equal(adapter.status, "supported", backgroundId)
+      const fixture = cssDomFixtures[backgroundId]
+      const sourceBehavior = adapter.sourceBehavior
+
+      for (const mode of ["source", "custom", "harmony"]) {
+        const after = adapter.applyRoleColors(fixture, roleColorsForMode(adapter, mode))
+        assert.deepEqual(
+          [...changedLeafPaths(fixture, after)].sort(),
+          adapter.roles.map((role) => role.rendererTarget).sort(),
+          `${backgroundId}:${mode}`,
+        )
+        assert.deepEqual(fixture, cssDomFixtures[backgroundId], `${backgroundId}:${mode}:mutation`)
+        assert.equal(adapter.sourceBehavior, sourceBehavior, `${backgroundId}:${mode}:source-behavior`)
+      }
+    }
+  })
+
+  it("maps Moving Gradient and all seven Gradient Animation roles exactly", () => {
+    const movingAdapter = backgroundPaletteRegistry["massage-lab-moving-gradient"]
+    const moving = movingAdapter.applyRoleColors(
+      cssDomFixtures["massage-lab-moving-gradient"],
+      roleColorsForMode(movingAdapter, "custom"),
+    )
+    assert.deepEqual(moving, {
+      className: "moving-gradient-fixture",
+      mainColor: CUSTOM_SWATCHES[0],
+      orbColor: CUSTOM_SWATCHES[1],
+    })
+
+    const gradientAdapter = backgroundPaletteRegistry["massage-lab-gradient-animation"]
+    const gradient = gradientAdapter.applyRoleColors(
+      cssDomFixtures["massage-lab-gradient-animation"],
+      roleColorsForMode(gradientAdapter, "custom"),
+    )
+    assert.deepEqual(gradient.gradientAnimation, {
+      backgroundStartColor: CUSTOM_SWATCHES[0],
+      backgroundEndColor: CUSTOM_SWATCHES[1],
+      firstColor: CUSTOM_SWATCHES[2],
+      secondColor: CUSTOM_SWATCHES[3],
+      thirdColor: CUSTOM_SWATCHES[4],
+      fourthColor: CUSTOM_SWATCHES[5],
+      fifthColor: CUSTOM_SWATCHES[6],
+      speed: 1.7,
+      size: 63,
+    })
+  })
+
+  it("preserves Ripple Grid rainbow and Aurora Bars/Tile Grid automatic Source controls", () => {
+    const rippleAdapter = backgroundPaletteRegistry["massage-lab-ripple-grid"]
+    const rippleFixture = {
+      massageLabRippleGrid: {
+        gridColor: "#010101",
+        rainbow: true,
+        rippleIntensity: 0.17,
+        gridSize: 17,
+        opacity: 0.63,
+        mouseInteraction: false,
+      },
+    }
+    const rippleSource = rippleAdapter.applyRoleColors(
+      rippleFixture,
+      roleColorsForMode(rippleAdapter, "source"),
+    )
+    const rippleCustom = rippleAdapter.applyRoleColors(
+      rippleFixture,
+      roleColorsForMode(rippleAdapter, "custom"),
+    )
+    const rippleHarmony = rippleAdapter.applyRoleColors(
+      rippleFixture,
+      roleColorsForMode(rippleAdapter, "harmony"),
+    )
+    assert.equal(rippleAdapter.sourceBehavior, "rainbow")
+    assert.equal(
+      rippleSource.massageLabRippleGrid.gridColor,
+      roleColorsForMode(rippleAdapter, "source").grid,
+    )
+    assert.equal(rippleSource.massageLabRippleGrid.rainbow, true)
+    assert.equal(rippleSource.massageLabRippleGrid.rippleIntensity, 0.17)
+    assert.equal(rippleSource.massageLabRippleGrid.gridSize, 17)
+    assert.equal(rippleSource.massageLabRippleGrid.opacity, 0.63)
+    assert.equal(rippleSource.massageLabRippleGrid.mouseInteraction, false)
+    assert.equal(rippleCustom.massageLabRippleGrid.gridColor, CUSTOM_SWATCHES[0])
+    assert.equal(
+      rippleHarmony.massageLabRippleGrid.gridColor,
+      generateBackgroundHarmonySwatches(HARMONY_PRIMARY, "triadic")[0],
+    )
+
+    const auroraAdapter = backgroundPaletteRegistry["massage-lab-aurora-bars"]
+    const auroraFixture = cssDomFixtures["massage-lab-aurora-bars"]
+    const auroraSource = auroraAdapter.applyRoleColors(
+      auroraFixture,
+      roleColorsForMode(auroraAdapter, "source"),
+    )
+    const auroraCustom = auroraAdapter.applyRoleColors(
+      auroraFixture,
+      roleColorsForMode(auroraAdapter, "custom"),
+    )
+    assert.equal(auroraAdapter.sourceBehavior, "automatic")
+    assert.equal(auroraSource.auroraBars.paletteMode, "auto")
+    assert.equal(auroraSource.auroraBars.primaryColor, "#ABCDEF")
+    assert.equal(
+      auroraSource.auroraBars.background,
+      roleColorsForMode(auroraAdapter, "source").background,
+    )
+    assert.deepEqual(
+      auroraSource.auroraBars.colors,
+      auroraAdapter.roles.slice(1).map((role) => (
+        roleColorsForMode(auroraAdapter, "source")[role.id]
+      )),
+    )
+    assert.equal(auroraCustom.auroraBars.paletteMode, "auto")
+    assert.equal(auroraCustom.auroraBars.background, CUSTOM_SWATCHES[0])
+    assert.deepEqual(auroraCustom.auroraBars.colors, CUSTOM_SWATCHES.slice(1, 6))
+
+    const tileAdapter = backgroundPaletteRegistry["massage-lab-tile-grid"]
+    const tileFixture = {
+      tileGrid: {
+        paletteMode: "auto",
+        primaryColor: "#ABCDEF",
+        colors: ["#010101", "#020202", "#030303", "#040404", "#050505"],
+        tileSize: 43,
+        jointSize: 3,
+        changeFrequency: 0.42,
+        activePercent: 0.31,
+        opacity: 0.77,
+      },
+    }
+    const tileSource = tileAdapter.applyRoleColors(
+      tileFixture,
+      roleColorsForMode(tileAdapter, "source"),
+    )
+    const tileCustom = tileAdapter.applyRoleColors(
+      tileFixture,
+      roleColorsForMode(tileAdapter, "custom"),
+    )
+    const harmonyColors = generateBackgroundHarmonySwatches(HARMONY_PRIMARY, "triadic")
+    const tileHarmony = tileAdapter.applyRoleColors(
+      tileFixture,
+      roleColorsForMode(tileAdapter, "harmony"),
+    )
+    assert.equal(tileAdapter.sourceBehavior, "automatic")
+    assert.equal(tileSource.tileGrid.paletteMode, "auto")
+    assert.equal(tileSource.tileGrid.primaryColor, "#ABCDEF")
+    assert.deepEqual(
+      tileSource.tileGrid.colors,
+      tileAdapter.roles.map((role) => roleColorsForMode(tileAdapter, "source")[role.id]),
+    )
+    assert.deepEqual(tileCustom.tileGrid.colors, CUSTOM_SWATCHES.slice(0, 5))
+    assert.equal(tileHarmony.tileGrid.paletteMode, "auto")
+    assert.deepEqual(tileHarmony.tileGrid.colors, harmonyColors.slice(0, 5))
+    assert.equal(tileHarmony.tileGrid.tileSize, 43)
+    assert.equal(tileHarmony.tileGrid.changeFrequency, 0.42)
+    assert.equal(tileHarmony.tileGrid.opacity, 0.77)
   })
 })

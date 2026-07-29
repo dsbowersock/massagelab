@@ -2,7 +2,11 @@ import {
   DEFAULT_CHIMER_SETTINGS,
   sanitizeChimerSettings,
 } from "../../lib/chimer-timer.js"
-import type { BackgroundEffectProps } from "./effects/css-backgrounds"
+import type {
+  BackgroundEffectProps,
+  CssDomPaletteBackgroundId,
+  CssDomPaletteEffectPropsById,
+} from "./effects/css-backgrounds"
 
 export type BackgroundRendererFamily = "css-dom" | "canvas" | "webgl"
 
@@ -166,6 +170,167 @@ function setRendererTarget(
   return result as BackgroundEffectProps
 }
 
+function roleColor(
+  colors: Readonly<Record<string, string>>,
+  roleId: string,
+  current: string | undefined,
+) {
+  return typeof colors[roleId] === "string" ? colors[roleId] : current
+}
+
+function roleColorArray(
+  current: string[] | undefined,
+  roleIds: readonly string[],
+  colors: Readonly<Record<string, string>>,
+) {
+  const result = [...(current ?? [])]
+  roleIds.forEach((roleId, index) => {
+    const nextColor = colors[roleId]
+    if (typeof nextColor === "string") {
+      result[index] = nextColor
+    }
+  })
+  return result
+}
+
+/**
+ * Applies CSS/DOM colors through the concrete prop names consumed by each
+ * effect. The explicit background and role cases are intentionally verbose:
+ * they make palette changes auditable and prevent declaration order or target
+ * string parsing from deciding which renderer property receives a color.
+ */
+export function applyCssDomPaletteRoleColors<
+  BackgroundId extends CssDomPaletteBackgroundId,
+>(
+  backgroundId: BackgroundId,
+  props: BackgroundEffectProps & CssDomPaletteEffectPropsById[BackgroundId],
+  colors: Readonly<Record<string, string>>,
+): BackgroundEffectProps {
+  switch (backgroundId) {
+    case "massage-lab-moving-gradient":
+      return {
+        ...props,
+        mainColor: roleColor(colors, "main", props.mainColor),
+        orbColor: roleColor(colors, "orb", props.orbColor),
+      }
+    case "massage-lab-aerial-rays":
+      return {
+        ...props,
+        massageLabAerialRays: {
+          ...props.massageLabAerialRays,
+          backgroundColor: roleColor(
+            colors,
+            "background",
+            props.massageLabAerialRays?.backgroundColor,
+          ),
+          color: roleColor(colors, "rays", props.massageLabAerialRays?.color),
+        },
+      }
+    case "massage-lab-grid-motion":
+      return {
+        ...props,
+        massageLabGridMotion: {
+          ...props.massageLabGridMotion,
+          gradientColor: roleColor(
+            colors,
+            "gradient",
+            props.massageLabGridMotion?.gradientColor,
+          ),
+          tileColor: roleColor(colors, "tile", props.massageLabGridMotion?.tileColor),
+          textColor: roleColor(colors, "text", props.massageLabGridMotion?.textColor),
+        },
+      }
+    case "massage-lab-gradient-animation":
+      return {
+        ...props,
+        gradientAnimation: {
+          ...props.gradientAnimation,
+          backgroundStartColor: roleColor(
+            colors,
+            "backdrop-start",
+            props.gradientAnimation?.backgroundStartColor,
+          ),
+          backgroundEndColor: roleColor(
+            colors,
+            "backdrop-end",
+            props.gradientAnimation?.backgroundEndColor,
+          ),
+          firstColor: roleColor(colors, "gradient-1", props.gradientAnimation?.firstColor),
+          secondColor: roleColor(colors, "gradient-2", props.gradientAnimation?.secondColor),
+          thirdColor: roleColor(colors, "gradient-3", props.gradientAnimation?.thirdColor),
+          fourthColor: roleColor(colors, "gradient-4", props.gradientAnimation?.fourthColor),
+          fifthColor: roleColor(colors, "gradient-5", props.gradientAnimation?.fifthColor),
+        },
+      }
+    case "massage-lab-shooting-stars":
+      return {
+        ...props,
+        shootingStars: {
+          ...props.shootingStars,
+          starColor: roleColor(colors, "stars", props.shootingStars?.starColor),
+          trailColor: roleColor(colors, "trails", props.shootingStars?.trailColor),
+          shootingStarColor: roleColor(
+            colors,
+            "shooting-stars",
+            props.shootingStars?.shootingStarColor,
+          ),
+        },
+      }
+    case "massage-lab-spotlight":
+      return {
+        ...props,
+        spotlight: {
+          ...props.spotlight,
+          color: roleColor(colors, "spotlight", props.spotlight?.color),
+        },
+      }
+    case "massage-lab-lamp-effect":
+      return {
+        ...props,
+        lamp: {
+          ...props.lamp,
+          backgroundColor: roleColor(colors, "background", props.lamp?.backgroundColor),
+          color: roleColor(colors, "lamp", props.lamp?.color),
+        },
+      }
+    case "massage-lab-aurora-bars":
+      return {
+        ...props,
+        auroraBars: {
+          ...props.auroraBars,
+          background: roleColor(colors, "background", props.auroraBars?.background),
+          colors: roleColorArray(
+            props.auroraBars?.colors,
+            ["bar-1", "bar-2", "bar-3", "bar-4", "bar-5"],
+            colors,
+          ),
+        },
+      }
+    case "massage-lab-gradient":
+      return {
+        ...props,
+        massageLabGradient: {
+          ...props.massageLabGradient,
+          primaryColor: roleColor(
+            colors,
+            "primary",
+            props.massageLabGradient?.primaryColor,
+          ),
+        },
+      }
+    case "massage-lab-stars":
+      return {
+        ...props,
+        massageLabStars: {
+          ...props.massageLabStars,
+          starColor: roleColor(colors, "stars", props.massageLabStars?.starColor),
+        },
+      }
+  }
+
+  return props
+}
+
 function supported(spec: SupportedSpec): SupportedBackgroundPaletteAdapter {
   const colorKeys = new Set(spec.roles.map((entry) => entry[2]))
   const inventory = visualInventory(spec.id, spec.prefixes, colorKeys)
@@ -185,7 +350,7 @@ function supported(spec: SupportedSpec): SupportedBackgroundPaletteAdapter {
     rendererTarget,
   }))
   return Object.freeze({
-    status: "pending",
+    status: spec.family === "css-dom" ? "supported" : "pending",
     rendererFamily: spec.family,
     roles: Object.freeze(roles),
     ...(spec.sourceBehavior ? { sourceBehavior: spec.sourceBehavior } : {}),
@@ -194,6 +359,13 @@ function supported(spec: SupportedSpec): SupportedBackgroundPaletteAdapter {
       props: BackgroundEffectProps,
       colors: Readonly<Record<string, string>>,
     ) {
+      if (spec.family === "css-dom") {
+        return applyCssDomPaletteRoleColors(
+          spec.id as CssDomPaletteBackgroundId,
+          props,
+          colors,
+        )
+      }
       return spec.roles.reduce((next, [id, , , target, transform]) => (
         typeof colors[id] === "string"
           ? setRendererTarget(next, target, colors[id], transform)

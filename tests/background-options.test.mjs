@@ -22,8 +22,40 @@ const runningTimerStyles = readFileSync(
 )
 const runningTimerSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
 const projectLogSource = readFileSync(new URL("../docs/project-log.md", import.meta.url), "utf8")
+const paletteRegistrySource = readFileSync(
+  new URL("../components/backgrounds/backgroundPaletteRegistry.ts", import.meta.url),
+  "utf8",
+)
+const cssBackgroundsSource = readFileSync(
+  new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+  "utf8",
+)
 
 describe("premium background registry", () => {
+  it("uses explicit named CSS/DOM palette assignments instead of heuristic target matching", () => {
+    assert.match(cssBackgroundsSource, /export interface CssDomPaletteEffectPropsById/)
+    assert.match(paletteRegistrySource, /export function applyCssDomPaletteRoleColors/)
+    for (const backgroundId of [
+      "massage-lab-moving-gradient",
+      "massage-lab-aerial-rays",
+      "massage-lab-grid-motion",
+      "massage-lab-gradient-animation",
+      "massage-lab-shooting-stars",
+      "massage-lab-spotlight",
+      "massage-lab-lamp-effect",
+      "massage-lab-aurora-bars",
+      "massage-lab-gradient",
+      "massage-lab-stars",
+    ]) {
+      assert.match(paletteRegistrySource, new RegExp(`case "${backgroundId}"`))
+    }
+    assert.match(paletteRegistrySource, /spec\.family === "css-dom"/)
+    assert.doesNotMatch(
+      paletteRegistrySource.match(/export function applyCssDomPaletteRoleColors[\s\S]*?\n\}/)?.[0] ?? "",
+      /matchAll|RegExp|Object\.values/,
+    )
+  })
+
   it("keeps the enabled registry synchronized with the authoritative active-ID inventory", () => {
     assert.deepEqual(
       backgroundRegistry.filter((entry) => entry.enabled).map((entry) => entry.id).sort(),
