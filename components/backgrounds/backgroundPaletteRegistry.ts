@@ -9,6 +9,7 @@ import type {
 } from "./effects/css-backgrounds"
 
 export type BackgroundRendererFamily = "css-dom" | "canvas" | "webgl"
+export type EffectiveBackgroundPaletteMode = "source" | "custom" | "harmony"
 
 export interface BackgroundPaletteRole {
   id: string
@@ -25,9 +26,11 @@ export interface SupportedBackgroundPaletteAdapter {
   sourceBehavior?: "fixed" | "rainbow" | "automatic"
   visualPropertyKeys: readonly string[]
   sourceVisualProperties: Readonly<Record<string, unknown>>
+  modeOverrides?: readonly BackgroundPaletteModeOverride[]
   applyRoleColors: (
     props: BackgroundEffectProps,
     colors: Readonly<Record<string, string>>,
+    mode?: EffectiveBackgroundPaletteMode,
   ) => BackgroundEffectProps
 }
 
@@ -42,7 +45,13 @@ export type BackgroundPaletteAdapter =
   | SupportedBackgroundPaletteAdapter
   | UnsupportedBackgroundPaletteAdapter
 
-type RoleTransform = "hex-hue"
+export interface BackgroundPaletteModeOverride {
+  rendererTarget: string
+  sourceValue?: unknown
+  customValue?: unknown
+}
+
+type RoleTransform = "hex-hue" | "preserve-alpha"
 type RoleSpec = readonly [
   id: string,
   label: string,
@@ -57,6 +66,7 @@ type SupportedSpec = {
   prefixes: readonly string[]
   roles: readonly RoleSpec[]
   sourceBehavior?: SupportedBackgroundPaletteAdapter["sourceBehavior"]
+  modeOverrides?: readonly BackgroundPaletteModeOverride[]
 }
 type UnsupportedSpec = {
   id: string
@@ -143,15 +153,21 @@ function hexHue(value: string) {
   return Math.round((sector * 60 + 360) % 360)
 }
 
-/**
- * Applies one declared role without mutating caller-owned props. Paths are
- * adapter-owned renderer contracts, including indexed color-array uniforms.
- */
-function setRendererTarget(
+function preserveAlpha(color: string, current: unknown) {
+  const match = typeof current === "string"
+    ? current.match(/^rgba\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+\s*,\s*(0(?:\.\d+)?|1(?:\.0+)?)\s*\)$/i)
+    : null
+  const alpha = match ? Number(match[1]) : 1
+  const red = Number.parseInt(color.slice(1, 3), 16)
+  const green = Number.parseInt(color.slice(3, 5), 16)
+  const blue = Number.parseInt(color.slice(5, 7), 16)
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`
+}
+
+function setRendererValue(
   props: BackgroundEffectProps,
   target: string,
-  color: string,
-  transform?: RoleTransform,
+  value: unknown,
 ) {
   const result = structuredClone(props) as Record<string, unknown>
   const segments = pathSegments(target)
@@ -166,8 +182,33 @@ function setRendererTarget(
     cursor[segment] = next
     cursor = next as Record<string | number, unknown>
   }
-  cursor[segments.at(-1)!] = transform === "hex-hue" ? hexHue(color) : color
+  cursor[segments.at(-1)!] = structuredClone(value)
   return result as BackgroundEffectProps
+}
+
+/**
+ * Applies one declared role without mutating caller-owned props. Paths are
+ * adapter-owned renderer contracts, including indexed color-array uniforms.
+ */
+function setRendererTarget(
+  props: BackgroundEffectProps,
+  target: string,
+  color: string,
+  transform?: RoleTransform,
+) {
+  const segments = pathSegments(target)
+  let current: unknown = props
+  for (const segment of segments) {
+    current = current && typeof current === "object"
+      ? (current as Record<string | number, unknown>)[segment]
+      : undefined
+  }
+  const value = transform === "hex-hue"
+    ? hexHue(color)
+    : transform === "preserve-alpha"
+      ? preserveAlpha(color, current)
+      : color
+  return setRendererValue(props, target, value)
 }
 
 function roleColor(
@@ -354,23 +395,37 @@ function supported(spec: SupportedSpec): SupportedBackgroundPaletteAdapter {
     rendererFamily: spec.family,
     roles: Object.freeze(roles),
     ...(spec.sourceBehavior ? { sourceBehavior: spec.sourceBehavior } : {}),
+    ...(spec.modeOverrides
+      ? { modeOverrides: Object.freeze(spec.modeOverrides.map((override) => Object.freeze(override))) }
+      : {}),
     ...inventory,
     applyRoleColors(
       props: BackgroundEffectProps,
       colors: Readonly<Record<string, string>>,
+      mode?: EffectiveBackgroundPaletteMode,
     ) {
-      if (spec.family === "css-dom") {
-        return applyCssDomPaletteRoleColors(
+      const withColors = spec.family === "css-dom"
+        ? applyCssDomPaletteRoleColors(
           spec.id as CssDomPaletteBackgroundId,
           props,
           colors,
         )
+        : spec.roles.reduce((next, [id, , , target, transform]) => (
+          typeof colors[id] === "string"
+            ? setRendererTarget(next, target, colors[id], transform)
+            : next
+        ), props)
+
+      if (!mode || !spec.modeOverrides) {
+        return withColors
       }
-      return spec.roles.reduce((next, [id, , , target, transform]) => (
-        typeof colors[id] === "string"
-          ? setRendererTarget(next, target, colors[id], transform)
+
+      return spec.modeOverrides.reduce((next, override) => {
+        const valueKey = mode === "source" ? "sourceValue" : "customValue"
+        return Object.hasOwn(override, valueKey)
+          ? setRendererValue(next, override.rendererTarget, override[valueKey])
           : next
-      ), props)
+      }, withColors)
     },
   })
 }
@@ -418,18 +473,54 @@ const SUPPORTED_SPECS: readonly SupportedSpec[] = [
   { id: "massage-lab-beams", family: "webgl", prefixes: ["massageLabBeams"], roles: [role("light", "Beam light", "massageLabBeamsLightColor", "massageLabBeams.lightColor")] },
   { id: "massage-lab-pixel-snow", family: "webgl", prefixes: ["massageLabPixelSnow"], roles: [role("snow", "Snow", "massageLabPixelSnowColor", "massageLabPixelSnow.color")] },
   { id: "massage-lab-lightning", family: "webgl", prefixes: ["massageLabLightning"], roles: [role("lightning", "Lightning", "massageLabLightningColor", "massageLabLightning.hue", "hex-hue")] },
-  { id: "massage-lab-prismatic-burst", family: "webgl", prefixes: ["massageLabPrismaticBurst"], roles: [role("ray-1", "Ray 1", "massageLabPrismaticBurstColorOne", "massageLabPrismaticBurst.colors[0]"), role("ray-2", "Ray 2", "massageLabPrismaticBurstColorTwo", "massageLabPrismaticBurst.colors[1]"), role("ray-3", "Ray 3", "massageLabPrismaticBurstColorThree", "massageLabPrismaticBurst.colors[2]"), role("ray-4", "Ray 4", "massageLabPrismaticBurstColorFour", "massageLabPrismaticBurst.colors[3]")] },
-  { id: "massage-lab-galaxy", family: "webgl", prefixes: ["massageLabGalaxy"], roles: [role("stars", "Stars", "massageLabGalaxyColor", "massageLabGalaxy.hueShift", "hex-hue")] },
+  {
+    id: "massage-lab-prismatic-burst",
+    family: "webgl",
+    prefixes: ["massageLabPrismaticBurst"],
+    roles: [role("ray-1", "Ray 1", "massageLabPrismaticBurstColorOne", "massageLabPrismaticBurst.colors[0]"), role("ray-2", "Ray 2", "massageLabPrismaticBurstColorTwo", "massageLabPrismaticBurst.colors[1]"), role("ray-3", "Ray 3", "massageLabPrismaticBurstColorThree", "massageLabPrismaticBurst.colors[2]"), role("ray-4", "Ray 4", "massageLabPrismaticBurstColorFour", "massageLabPrismaticBurst.colors[3]")],
+    // An empty color array is the shader's spectral Source sentinel.
+    modeOverrides: [{ rendererTarget: "massageLabPrismaticBurst.colors", sourceValue: [] }],
+  },
+  {
+    id: "massage-lab-galaxy",
+    family: "webgl",
+    prefixes: ["massageLabGalaxy"],
+    // The renderer's source hue is 140; #00FF55 round-trips to that exact uniform.
+    roles: [role("stars", "Stars", "massageLabGalaxyColor", "massageLabGalaxy.hueShift", "hex-hue", "#00FF55")],
+  },
   { id: "massage-lab-dither", family: "webgl", prefixes: ["massageLabDither"], roles: [role("wave", "Wave", "massageLabDitherColor", "massageLabDither.color")] },
   { id: "massage-lab-faulty-terminal", family: "webgl", prefixes: ["massageLabFaultyTerminal"], roles: [role("tint", "Terminal tint", "massageLabFaultyTerminalTint", "massageLabFaultyTerminal.tint")] },
-  { id: "massage-lab-ripple-grid", family: "webgl", prefixes: ["massageLabRippleGrid"], sourceBehavior: "rainbow", roles: [role("grid", "Grid", "massageLabRippleGridColor", "massageLabRippleGrid.gridColor")] },
-  { id: "massage-lab-dot-field", family: "canvas", prefixes: ["massageLabDotField"], roles: [role("gradient-start", "Gradient start", "massageLabDotFieldGradientFromColor", "massageLabDotField.gradientFrom"), role("gradient-end", "Gradient end", "massageLabDotFieldGradientToColor", "massageLabDotField.gradientTo"), role("glow", "Glow", "massageLabDotFieldGlowColor", "massageLabDotField.glowColor")] },
+  {
+    id: "massage-lab-ripple-grid",
+    family: "webgl",
+    prefixes: ["massageLabRippleGrid"],
+    sourceBehavior: "rainbow",
+    roles: [role("grid", "Grid", "massageLabRippleGridColor", "massageLabRippleGrid.gridColor")],
+    // Source preserves the existing/default rainbow choice; mapped colors must disable it.
+    modeOverrides: [{ rendererTarget: "massageLabRippleGrid.enableRainbow", customValue: false }],
+  },
+  {
+    id: "massage-lab-dot-field",
+    family: "canvas",
+    prefixes: ["massageLabDotField"],
+    roles: [
+      role("gradient-start", "Gradient start", "massageLabDotFieldGradientFromColor", "massageLabDotField.gradientFrom", "preserve-alpha"),
+      role("gradient-end", "Gradient end", "massageLabDotFieldGradientToColor", "massageLabDotField.gradientTo", "preserve-alpha"),
+      role("glow", "Glow", "massageLabDotFieldGlowColor", "massageLabDotField.glowColor"),
+    ],
+  },
   { id: "massage-lab-dot-grid", family: "canvas", prefixes: ["massageLabDotGrid"], roles: [role("base", "Base dots", "massageLabDotGridBaseColor", "massageLabDotGrid.baseColor"), role("active", "Active dots", "massageLabDotGridActiveColor", "massageLabDotGrid.activeColor")] },
   { id: "massage-lab-threads", family: "webgl", prefixes: ["massageLabThreads"], roles: [role("threads", "Threads", "massageLabThreadsColor", "massageLabThreads.color")] },
   { id: "massage-lab-iridescence", family: "webgl", prefixes: ["massageLabIridescence"], roles: [role("tint", "Iridescent tint", "massageLabIridescenceColor", "massageLabIridescence.color")] },
   { id: "massage-lab-waves", family: "canvas", prefixes: ["massageLabWaves"], roles: [role("lines", "Wave lines", "massageLabWavesLineColor", "massageLabWaves.lineColor"), role("background", "Background", "massageLabWavesBackgroundColor", "massageLabWaves.backgroundColor")] },
   { id: "massage-lab-grid-distortion", family: "webgl", prefixes: ["massageLabGridDistortion"], roles: [role("texture-1", "Texture 1", "massageLabGridDistortionColorOne", "massageLabGridDistortion.colorOne"), role("texture-2", "Texture 2", "massageLabGridDistortionColorTwo", "massageLabGridDistortion.colorTwo"), role("texture-3", "Texture 3", "massageLabGridDistortionColorThree", "massageLabGridDistortion.colorThree")] },
-  { id: "massage-lab-orb", family: "webgl", prefixes: ["massageLabOrb"], roles: [role("orb", "Orb", "massageLabOrbColor", "massageLabOrb.hue", "hex-hue"), role("background", "Background", "massageLabOrbBackgroundColor", "massageLabOrb.backgroundColor")] },
+  {
+    id: "massage-lab-orb",
+    family: "webgl",
+    prefixes: ["massageLabOrb"],
+    // The renderer's source hue is 0; #FF0000 round-trips to that exact uniform.
+    roles: [role("orb", "Orb", "massageLabOrbColor", "massageLabOrb.hue", "hex-hue", "#FF0000"), role("background", "Background", "massageLabOrbBackgroundColor", "massageLabOrb.backgroundColor")],
+  },
   { id: "massage-lab-letter-glitch", family: "canvas", prefixes: ["massageLabLetterGlitch"], roles: [role("glyph-1", "Glyph 1", "massageLabLetterGlitchColorOne", "massageLabLetterGlitch.colorOne"), role("glyph-2", "Glyph 2", "massageLabLetterGlitchColorTwo", "massageLabLetterGlitch.colorTwo"), role("glyph-3", "Glyph 3", "massageLabLetterGlitchColorThree", "massageLabLetterGlitch.colorThree")] },
   { id: "massage-lab-grid-motion", family: "css-dom", prefixes: ["massageLabGridMotion"], roles: [role("gradient", "Gradient", "massageLabGridMotionGradientColor", "massageLabGridMotion.gradientColor"), role("tile", "Tile", "massageLabGridMotionTileColor", "massageLabGridMotion.tileColor"), role("text", "Text", "massageLabGridMotionTextColor", "massageLabGridMotion.textColor")] },
   { id: "massage-lab-shape-grid", family: "canvas", prefixes: ["massageLabShapeGrid"], roles: [role("border", "Shape border", "massageLabShapeGridBorderColor", "massageLabShapeGrid.borderColor"), role("hover", "Hover fill", "massageLabShapeGridHoverFillColor", "massageLabShapeGrid.hoverFillColor")] },
@@ -457,9 +548,23 @@ const SUPPORTED_SPECS: readonly SupportedSpec[] = [
     ],
   },
   { id: "massage-lab-pixel-liquid", family: "canvas", prefixes: ["pixelLiquid"], roles: [role("background", "Background", "pixelLiquidBackgroundColor", "pixelLiquid.backgroundColor"), role("base", "Base", "pixelLiquidBaseColor", "pixelLiquid.baseColor"), role("accent", "Accent", "pixelLiquidAccentColor", "pixelLiquid.accentColor"), role("highlight", "Highlight", "pixelLiquidHighlightColor", "pixelLiquid.highlightColor")] },
-  { id: "massage-lab-tile-grid", family: "canvas", prefixes: ["tileGrid"], sourceBehavior: "automatic", roles: [role("tile-1", "Tile 1", "tileGridColorOne", "tileGrid.colors[0]"), role("tile-2", "Tile 2", "tileGridColorTwo", "tileGrid.colors[1]"), role("tile-3", "Tile 3", "tileGridColorThree", "tileGrid.colors[2]"), role("tile-4", "Tile 4", "tileGridColorFour", "tileGrid.colors[3]"), role("tile-5", "Tile 5", "tileGridColorFive", "tileGrid.colors[4]")] },
+  {
+    id: "massage-lab-tile-grid",
+    family: "canvas",
+    prefixes: ["tileGrid"],
+    sourceBehavior: "automatic",
+    roles: [role("tile-1", "Tile 1", "tileGridColorOne", "tileGrid.colors[0]"), role("tile-2", "Tile 2", "tileGridColorTwo", "tileGrid.colors[1]"), role("tile-3", "Tile 3", "tileGridColorThree", "tileGrid.colors[2]"), role("tile-4", "Tile 4", "tileGridColorFour", "tileGrid.colors[3]"), role("tile-5", "Tile 5", "tileGridColorFive", "tileGrid.colors[4]")],
+    modeOverrides: [{ rendererTarget: "tileGrid.paletteMode", sourceValue: "auto", customValue: "custom" }],
+  },
   { id: "massage-lab-hex-grid", family: "canvas", prefixes: ["hexGrid"], roles: [role("hexes", "Hexes", "hexGridPrimaryColor", "hexGrid.primaryColor")] },
-  { id: "massage-lab-aurora-bars", family: "css-dom", prefixes: ["auroraBars"], sourceBehavior: "automatic", roles: [role("background", "Background", "auroraBarsBackgroundColor", "auroraBars.background"), role("bar-1", "Bar 1", "auroraBarsColorOne", "auroraBars.colors[0]"), role("bar-2", "Bar 2", "auroraBarsColorTwo", "auroraBars.colors[1]"), role("bar-3", "Bar 3", "auroraBarsColorThree", "auroraBars.colors[2]"), role("bar-4", "Bar 4", "auroraBarsColorFour", "auroraBars.colors[3]"), role("bar-5", "Bar 5", "auroraBarsColorFive", "auroraBars.colors[4]")] },
+  {
+    id: "massage-lab-aurora-bars",
+    family: "css-dom",
+    prefixes: ["auroraBars"],
+    sourceBehavior: "automatic",
+    roles: [role("background", "Background", "auroraBarsBackgroundColor", "auroraBars.background"), role("bar-1", "Bar 1", "auroraBarsColorOne", "auroraBars.colors[0]"), role("bar-2", "Bar 2", "auroraBarsColorTwo", "auroraBars.colors[1]"), role("bar-3", "Bar 3", "auroraBarsColorThree", "auroraBars.colors[2]"), role("bar-4", "Bar 4", "auroraBarsColorFour", "auroraBars.colors[3]"), role("bar-5", "Bar 5", "auroraBarsColorFive", "auroraBars.colors[4]")],
+    modeOverrides: [{ rendererTarget: "auroraBars.paletteMode", sourceValue: "auto", customValue: "custom" }],
+  },
   { id: "massage-lab-gradient", family: "css-dom", prefixes: ["massageLabGradient"], roles: [role("primary", "Gradient primary", "massageLabGradientPrimaryColor", "massageLabGradient.primaryColor")] },
   { id: "massage-lab-stars", family: "css-dom", prefixes: ["massageLabStars"], roles: [role("stars", "Stars", "massageLabStarsColor", "massageLabStars.starColor")] },
   { id: "massage-lab-hole", family: "canvas", prefixes: ["massageLabHole"], roles: [role("strokes", "Strokes", "massageLabHoleStrokeColor", "massageLabHole.strokeColor"), role("particles", "Particles", "massageLabHoleParticleColor", "massageLabHole.particleColor")] },

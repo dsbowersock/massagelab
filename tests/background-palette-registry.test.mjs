@@ -139,18 +139,22 @@ const cssDomFixtures = {
 }
 
 function roleColorsForMode(adapter, mode) {
-  const palette = {
-    mode,
-    primaryColor: mode === "custom" ? CUSTOM_SWATCHES[0] : HARMONY_PRIMARY,
-    harmony: "triadic",
-    swatches: CUSTOM_SWATCHES,
-  }
+  const palette = paletteForMode(mode)
   return resolveBackgroundRoleColors({
     palette,
     adapter,
     mapping: {},
     canCustomize: true,
   })
+}
+
+function paletteForMode(mode) {
+  return {
+    mode,
+    primaryColor: mode === "custom" ? CUSTOM_SWATCHES[0] : HARMONY_PRIMARY,
+    harmony: "triadic",
+    swatches: CUSTOM_SWATCHES,
+  }
 }
 
 function changedLeafPaths(before, after, prefix = "") {
@@ -598,6 +602,378 @@ describe("background palette adapter registry", () => {
         opacity: 0.8,
       },
     })
+  })
+
+  it("preserves renderer-grounded spectral, hue, and alpha Source contracts", () => {
+    const sourcePalette = paletteForMode("source")
+
+    const prismaticProps = {
+      massageLabPrismaticBurst: {
+        colors: ["#8A5CF6", "#EC4899", "#22D3EE", "#FFFFFF"],
+        intensity: 2.4,
+        rayCount: 19,
+      },
+    }
+    const prismatic = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-prismatic-burst",
+      effectProps: prismaticProps,
+      palette: sourcePalette,
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.deepEqual(prismatic, {
+      massageLabPrismaticBurst: {
+        colors: [],
+        intensity: 2.4,
+        rayCount: 19,
+      },
+    })
+    assert.deepEqual(prismaticProps.massageLabPrismaticBurst.colors, [
+      "#8A5CF6",
+      "#EC4899",
+      "#22D3EE",
+      "#FFFFFF",
+    ])
+
+    const galaxyProps = {
+      massageLabGalaxy: {
+        hueShift: 12,
+        density: 1.4,
+        transparent: true,
+      },
+    }
+    const galaxy = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-galaxy",
+      effectProps: galaxyProps,
+      palette: sourcePalette,
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.equal(galaxy.massageLabGalaxy.hueShift, 140)
+    assert.equal(galaxy.massageLabGalaxy.density, 1.4)
+    assert.equal(galaxy.massageLabGalaxy.transparent, true)
+    assert.equal(
+      backgroundPaletteRegistry["massage-lab-galaxy"].roles[0].sourceColor,
+      "#00FF55",
+    )
+    assert.deepEqual(galaxyProps.massageLabGalaxy, {
+      hueShift: 12,
+      density: 1.4,
+      transparent: true,
+    })
+
+    const orbProps = {
+      massageLabOrb: {
+        hue: 271,
+        hoverIntensity: 0.44,
+        backgroundColor: "#010203",
+      },
+    }
+    const orb = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-orb",
+      effectProps: orbProps,
+      palette: sourcePalette,
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.equal(orb.massageLabOrb.hue, 0)
+    assert.equal(orb.massageLabOrb.hoverIntensity, 0.44)
+    assert.equal(orb.massageLabOrb.backgroundColor, "#000000")
+    assert.equal(
+      backgroundPaletteRegistry["massage-lab-orb"].roles[0].sourceColor,
+      "#FF0000",
+    )
+    assert.deepEqual(orbProps.massageLabOrb, {
+      hue: 271,
+      hoverIntensity: 0.44,
+      backgroundColor: "#010203",
+    })
+
+    const dotFieldProps = {
+      massageLabDotField: {
+        gradientFrom: "rgba(1, 2, 3, 0.35)",
+        gradientTo: "rgba(4, 5, 6, 0.25)",
+        glowColor: "#010101",
+        dotRadius: 2.1,
+        cursorInteraction: false,
+      },
+    }
+    const dotFieldSource = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-dot-field",
+      effectProps: dotFieldProps,
+      palette: sourcePalette,
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.deepEqual(dotFieldSource.massageLabDotField, {
+      gradientFrom: "rgba(168, 85, 247, 0.35)",
+      gradientTo: "rgba(180, 151, 207, 0.25)",
+      glowColor: "#120f17",
+      dotRadius: 2.1,
+      cursorInteraction: false,
+    })
+
+    const dotFieldCustomProps = {
+      massageLabDotField: {
+        ...dotFieldProps.massageLabDotField,
+        gradientFrom: "rgba(1, 2, 3, 0.61)",
+        gradientTo: "rgba(4, 5, 6, 0.17)",
+      },
+    }
+    const dotFieldCustom = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-dot-field",
+      effectProps: dotFieldCustomProps,
+      palette: paletteForMode("custom"),
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.deepEqual(dotFieldCustom.massageLabDotField, {
+      gradientFrom: "rgba(17, 0, 17, 0.61)",
+      gradientTo: "rgba(34, 0, 34, 0.17)",
+      glowColor: "#330033",
+      dotRadius: 2.1,
+      cursorInteraction: false,
+    })
+    assert.deepEqual(dotFieldProps.massageLabDotField, {
+      gradientFrom: "rgba(1, 2, 3, 0.35)",
+      gradientTo: "rgba(4, 5, 6, 0.25)",
+      glowColor: "#010101",
+      dotRadius: 2.1,
+      cursorInteraction: false,
+    })
+  })
+
+  it("restores every special Source contract when customization access is unavailable", () => {
+    const effectProps = {
+      massageLabPrismaticBurst: {
+        colors: ["#111111", "#222222", "#333333", "#444444"],
+        intensity: 1.8,
+      },
+      massageLabGalaxy: {
+        hueShift: 12,
+        density: 1.4,
+      },
+      massageLabOrb: {
+        hue: 271,
+        hoverIntensity: 0.44,
+        backgroundColor: "#010203",
+      },
+      massageLabDotField: {
+        gradientFrom: "rgba(1, 2, 3, 0.35)",
+        gradientTo: "rgba(4, 5, 6, 0.25)",
+        glowColor: "#010101",
+        dotRadius: 2.1,
+      },
+      tileGrid: {
+        paletteMode: "custom",
+        colors: ["#111111", "#222222", "#333333", "#444444", "#555555"],
+        tileSize: 43,
+      },
+      auroraBars: {
+        paletteMode: "custom",
+        colors: ["#111111", "#222222", "#333333", "#444444", "#555555"],
+        background: "#010101",
+        barCount: 31,
+      },
+      massageLabRippleGrid: {
+        enableRainbow: true,
+        gridColor: "#010101",
+        rippleIntensity: 0.17,
+      },
+    }
+    const original = structuredClone(effectProps)
+    const resolveFallback = (selectedId) => resolveBackgroundEffectProps({
+      selectedId,
+      effectProps,
+      palette: paletteForMode("custom"),
+      mapping: {},
+      canCustomize: false,
+    })
+
+    assert.deepEqual(
+      resolveFallback("massage-lab-prismatic-burst").massageLabPrismaticBurst.colors,
+      [],
+    )
+    assert.equal(
+      resolveFallback("massage-lab-galaxy").massageLabGalaxy.hueShift,
+      140,
+    )
+    assert.equal(resolveFallback("massage-lab-orb").massageLabOrb.hue, 0)
+    assert.deepEqual(
+      resolveFallback("massage-lab-dot-field").massageLabDotField,
+      {
+        gradientFrom: "rgba(168, 85, 247, 0.35)",
+        gradientTo: "rgba(180, 151, 207, 0.25)",
+        glowColor: "#120f17",
+        dotRadius: 2.1,
+      },
+    )
+    assert.equal(resolveFallback("massage-lab-tile-grid").tileGrid.paletteMode, "auto")
+    assert.equal(resolveFallback("massage-lab-aurora-bars").auroraBars.paletteMode, "auto")
+    assert.equal(
+      resolveFallback("massage-lab-ripple-grid").massageLabRippleGrid.enableRainbow,
+      true,
+    )
+    assert.deepEqual(effectProps, original)
+  })
+
+  it("switches renderer-owned palette controls with the effective mode", () => {
+    const customPalette = paletteForMode("custom")
+    const harmonyPalette = paletteForMode("harmony")
+    const sourcePalette = paletteForMode("source")
+    const harmonyColors = generateBackgroundHarmonySwatches(
+      HARMONY_PRIMARY,
+      "triadic",
+    )
+
+    const tileProps = {
+      tileGrid: {
+        paletteMode: "auto",
+        primaryColor: "#ABCDEF",
+        colors: ["#010101", "#020202", "#030303", "#040404", "#050505"],
+        tileSize: 43,
+        opacity: 0.77,
+      },
+    }
+    const tileCustom = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-tile-grid",
+      effectProps: tileProps,
+      palette: customPalette,
+      mapping: {},
+      canCustomize: true,
+    })
+    const tileHarmony = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-tile-grid",
+      effectProps: tileProps,
+      palette: harmonyPalette,
+      mapping: {},
+      canCustomize: true,
+    })
+    const tileSource = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-tile-grid",
+      effectProps: {
+        tileGrid: {
+          ...tileProps.tileGrid,
+          paletteMode: "custom",
+        },
+      },
+      palette: sourcePalette,
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.equal(tileCustom.tileGrid.paletteMode, "custom")
+    assert.deepEqual(tileCustom.tileGrid.colors, CUSTOM_SWATCHES.slice(0, 5))
+    assert.equal(tileHarmony.tileGrid.paletteMode, "custom")
+    assert.deepEqual(tileHarmony.tileGrid.colors, harmonyColors.slice(0, 5))
+    assert.equal(tileSource.tileGrid.paletteMode, "auto")
+    assert.equal(tileSource.tileGrid.tileSize, 43)
+    assert.equal(tileSource.tileGrid.opacity, 0.77)
+
+    const auroraProps = {
+      auroraBars: {
+        paletteMode: "auto",
+        primaryColor: "#ABCDEF",
+        colors: ["#010101", "#020202", "#030303", "#040404", "#050505"],
+        background: "#060606",
+        barCount: 31,
+        audioLevel: 0.61,
+      },
+    }
+    const auroraCustom = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-aurora-bars",
+      effectProps: auroraProps,
+      palette: customPalette,
+      mapping: {},
+      canCustomize: true,
+    })
+    const auroraHarmony = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-aurora-bars",
+      effectProps: auroraProps,
+      palette: harmonyPalette,
+      mapping: {},
+      canCustomize: true,
+    })
+    const auroraSource = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-aurora-bars",
+      effectProps: {
+        auroraBars: {
+          ...auroraProps.auroraBars,
+          paletteMode: "custom",
+        },
+      },
+      palette: sourcePalette,
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.equal(auroraCustom.auroraBars.paletteMode, "custom")
+    assert.deepEqual(auroraCustom.auroraBars.colors, CUSTOM_SWATCHES.slice(1, 6))
+    assert.equal(auroraHarmony.auroraBars.paletteMode, "custom")
+    assert.deepEqual(auroraHarmony.auroraBars.colors, harmonyColors.slice(1, 6))
+    assert.equal(auroraSource.auroraBars.paletteMode, "auto")
+    assert.equal(auroraSource.auroraBars.barCount, 31)
+    assert.equal(auroraSource.auroraBars.audioLevel, 0.61)
+
+    const rippleProps = {
+      massageLabRippleGrid: {
+        enableRainbow: true,
+        gridColor: "#FFFFFF",
+        rippleIntensity: 0.17,
+        mouseInteraction: false,
+      },
+    }
+    const rippleCustom = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-ripple-grid",
+      effectProps: rippleProps,
+      palette: customPalette,
+      mapping: {},
+      canCustomize: true,
+    })
+    const rippleHarmony = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-ripple-grid",
+      effectProps: rippleProps,
+      palette: harmonyPalette,
+      mapping: {},
+      canCustomize: true,
+    })
+    const rippleSource = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-ripple-grid",
+      effectProps: rippleProps,
+      palette: sourcePalette,
+      mapping: {},
+      canCustomize: true,
+    })
+    const rippleAccessFallback = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-ripple-grid",
+      effectProps: rippleProps,
+      palette: customPalette,
+      mapping: {},
+      canCustomize: false,
+    })
+    assert.equal(rippleCustom.massageLabRippleGrid.enableRainbow, false)
+    assert.equal(rippleCustom.massageLabRippleGrid.gridColor, CUSTOM_SWATCHES[0])
+    assert.equal(rippleHarmony.massageLabRippleGrid.enableRainbow, false)
+    assert.equal(rippleHarmony.massageLabRippleGrid.gridColor, harmonyColors[0])
+    assert.equal(rippleSource.massageLabRippleGrid.enableRainbow, true)
+    assert.equal(rippleAccessFallback.massageLabRippleGrid.enableRainbow, true)
+    assert.equal(rippleAccessFallback.massageLabRippleGrid.gridColor, "#ffffff")
+    assert.equal(rippleAccessFallback.massageLabRippleGrid.rippleIntensity, 0.17)
+    assert.equal(rippleAccessFallback.massageLabRippleGrid.mouseInteraction, false)
+
+    assert.deepEqual(
+      backgroundPaletteRegistry["massage-lab-tile-grid"].modeOverrides,
+      [{ rendererTarget: "tileGrid.paletteMode", sourceValue: "auto", customValue: "custom" }],
+    )
+    assert.deepEqual(
+      backgroundPaletteRegistry["massage-lab-aurora-bars"].modeOverrides,
+      [{ rendererTarget: "auroraBars.paletteMode", sourceValue: "auto", customValue: "custom" }],
+    )
+    assert.deepEqual(
+      backgroundPaletteRegistry["massage-lab-ripple-grid"].modeOverrides,
+      [{ rendererTarget: "massageLabRippleGrid.enableRainbow", customValue: false }],
+    )
+    assert.deepEqual(tileProps.tileGrid.paletteMode, "auto")
+    assert.deepEqual(auroraProps.auroraBars.paletteMode, "auto")
+    assert.deepEqual(rippleProps.massageLabRippleGrid.enableRainbow, true)
   })
 
   it("maps Moving Gradient and all seven Gradient Animation roles exactly", () => {

@@ -1,4 +1,8 @@
-import { resolveBackgroundRoleColors } from "../../lib/background-palette.js"
+import {
+  normalizeBackgroundPaletteState,
+  resolveBackgroundRoleColors,
+  resolveEffectiveBackgroundPaletteMode,
+} from "../../lib/background-palette.js"
 import {
   backgroundPaletteRegistry,
 } from "./backgroundPaletteRegistry.ts"
@@ -31,11 +35,16 @@ export function resolveBackgroundEffectProps({
     return effectProps
   }
 
+  const normalizedPalette = normalizeBackgroundPaletteState(palette)
+  const mode = resolveEffectiveBackgroundPaletteMode({
+    savedMode: normalizedPalette.mode,
+    canCustomize,
+  })
   const roleColors = resolveBackgroundRoleColors({
-    palette,
+    palette: normalizedPalette,
     adapter,
     mapping,
     canCustomize,
   })
-  return adapter.applyRoleColors(effectProps, roleColors)
+  return adapter.applyRoleColors(effectProps, roleColors, mode)
 }
