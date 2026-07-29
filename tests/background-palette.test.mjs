@@ -71,14 +71,38 @@ test("mapping invalid values fall back to curated adapter defaults and Source do
 })
 
 test("preferences bound color and visual presets through injected registry callbacks", () => {
-  const options = { isKnownBackgroundId: (id) => id === "waves", getVisualPropertyKeys: () => ["speed", "density"] }
+  const options = {
+    isKnownBackgroundId: (id) => id === "waves",
+    getVisualPropertyKeys: () => ["speed", "density"],
+    getColorRoleIds: () => ["main", "accent"],
+  }
   let preferences = normalizeSharedBackgroundVisualPreferences({
-    colorPresets: [{ id: "source", name: "Source", palette: { mode: "source" } }],
-    visualPresetsByBackground: { missing: [{ id: "old" }], waves: [{ id: "v1", name: "Old", properties: { speed: 1, bad: true } }] },
+    colorPresets: [
+      { id: "source", name: "Source", palette: { mode: "source" } },
+      {
+        id: "palette-only",
+        name: "Palette only",
+        palette: { mode: "custom" },
+        mappingsByBackground: { waves: { main: 6 } },
+      },
+    ],
+    mappingsByBackground: { waves: { main: 4, accent: 2 } },
+    visualPresetsByBackground: {
+      missing: [{ id: "old" }],
+      waves: [{
+        id: "v1",
+        name: "Old",
+        properties: { speed: 1, bad: true },
+        mapping: { main: 5, accent: 1, stale: 3 },
+      }],
+    },
     defaultVisualPresetByBackground: { waves: "stale", missing: "old" },
   }, options)
-  assert.deepEqual(preferences.colorPresets, [])
+  assert.equal(preferences.colorPresets.length, 1)
+  assert.equal(Object.hasOwn(preferences.colorPresets[0], "mappingsByBackground"), false)
+  assert.deepEqual(preferences.mappingsByBackground, { waves: { main: 4, accent: 2 } })
   assert.deepEqual(preferences.visualPresetsByBackground.waves[0].properties, { speed: 1 })
+  assert.deepEqual(preferences.visualPresetsByBackground.waves[0].mapping, { main: 5, accent: 1 })
   assert.deepEqual(preferences.defaultVisualPresetByBackground, {})
   assert.deepEqual(normalizeSharedBackgroundVisualPreferences({
     visualPresetsByBackground: { waves: [{ id: "v1", properties: { speed: 1 } }] },
@@ -94,14 +118,23 @@ test("preferences bound color and visual presets through injected registry callb
   preferences = saveBackgroundColorPreset(preferences, { id: "x".repeat(200), name: "Bounded", timestamp: 9000000000000000, palette: { mode: "custom" } }, options)
   assert.equal(preferences.colorPresets[0].id.length, 128)
   assert.equal(preferences.colorPresets[0].timestamp, 8640000000000000)
-  for (let index = 0; index < BACKGROUND_VISUAL_PRESET_LIMIT + 1; index += 1) preferences = saveBackgroundVisualPreset(preferences, "waves", { id: `v${index}`, name: "Preset", timestamp: index, properties: { speed: index, bad: true } }, options)
+  for (let index = 0; index < BACKGROUND_VISUAL_PRESET_LIMIT + 1; index += 1) preferences = saveBackgroundVisualPreset(preferences, "waves", { id: `v${index}`, name: "Preset", timestamp: index, properties: { speed: index, bad: true }, mapping: { main: index % 7, stale: 2 } }, options)
   assert.equal(preferences.visualPresetsByBackground.waves.length, BACKGROUND_VISUAL_PRESET_LIMIT)
+  assert.deepEqual(preferences.visualPresetsByBackground.waves[0].mapping, { main: 3 })
   const immutablePreferences = normalizeSharedBackgroundVisualPreferences({
     palette: { mode: "custom" },
-    colorPresets: [{ id: "color", name: "Color", timestamp: 1, palette: { mode: "custom", primaryColor: "#123456" } }],
-    visualPresetsByBackground: { waves: [{ id: "visual", name: "Visual", timestamp: 1, properties: { speed: 2 } }] },
+    colorPresets: [{
+      id: "color",
+      name: "Color",
+      timestamp: 1,
+      palette: { mode: "custom", primaryColor: "#123456" },
+      mappingsByBackground: { waves: { main: 6 } },
+    }],
+    mappingsByBackground: { waves: { main: 2, accent: 1 } },
+    visualPresetsByBackground: { waves: [{ id: "visual", name: "Visual", timestamp: 1, properties: { speed: 2 }, mapping: { main: 5 } }] },
     defaultVisualPresetByBackground: { waves: "visual" },
   }, options)
+  assert.equal(Object.hasOwn(immutablePreferences.colorPresets[0], "mappingsByBackground"), false)
   const before = structuredClone(immutablePreferences)
   const properties = { speed: 1, density: 3 }
   const helpers = [
@@ -109,7 +142,7 @@ test("preferences bound color and visual presets through injected registry callb
     () => renameBackgroundColorPreset(immutablePreferences, "color", "Renamed", options),
     () => deleteBackgroundColorPreset(immutablePreferences, "color", options),
     () => applyBackgroundColorPreset(immutablePreferences, "color", options),
-    () => saveBackgroundVisualPreset(immutablePreferences, "waves", { id: "new-visual", name: "New", timestamp: 2, properties: { speed: 1 } }, options),
+    () => saveBackgroundVisualPreset(immutablePreferences, "waves", { id: "new-visual", name: "New", timestamp: 2, properties: { speed: 1 }, mapping: { main: 4 } }, options),
     () => renameBackgroundVisualPreset(immutablePreferences, "waves", "visual", "Renamed", options),
     () => deleteBackgroundVisualPreset(immutablePreferences, "waves", "visual", options),
     () => applyBackgroundVisualPreset(immutablePreferences, "waves", "visual", properties, options),
@@ -120,6 +153,21 @@ test("preferences bound color and visual presets through injected registry callb
     assert.deepEqual(immutablePreferences, before)
   }
   assert.deepEqual(properties, { speed: 1, density: 3 })
+
+  const colorApplied = applyBackgroundColorPreset(immutablePreferences, "color", options)
+  assert.equal(colorApplied.palette.primaryColor, "#123456")
+  assert.deepEqual(colorApplied.mappingsByBackground, { waves: { main: 2, accent: 1 } })
+  assert.equal(Object.hasOwn(colorApplied.colorPresets[0], "mappingsByBackground"), false)
+
+  const visualApplied = applyBackgroundVisualPreset(
+    immutablePreferences,
+    "waves",
+    "visual",
+    properties,
+    options,
+  )
+  assert.deepEqual(visualApplied.properties, { speed: 2, density: 3 })
+  assert.deepEqual(visualApplied.mapping, { main: 5 })
 })
 
 test("legacy migration preserves non-color settings and access falls back without deleting saved state", () => {

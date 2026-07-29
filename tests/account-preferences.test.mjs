@@ -56,6 +56,7 @@ describe("Account preference helpers", () => {
                 soapDraft: "never sync",
                 clientName: "never sync",
               },
+              mapping: { field: 5, staleRole: 2 },
             }],
           },
         },
@@ -70,7 +71,12 @@ describe("Account preference helpers", () => {
         .visualPresetsByBackground["massage-lab-novatrix"][0].properties,
       { massageLabNovatrixSpeed: 3 },
     )
-    assert.doesNotMatch(JSON.stringify(payload.chimer_settings), /soapDraft|clientName|never sync/)
+    assert.deepEqual(
+      payload.chimer_settings.backgroundVisualPreferences
+        .visualPresetsByBackground["massage-lab-novatrix"][0].mapping,
+      { field: 5 },
+    )
+    assert.doesNotMatch(JSON.stringify(payload.chimer_settings), /soapDraft|clientName|never sync|staleRole/)
   })
 
   it("serializes Account sync with the authoritative background inventory", async () => {
@@ -101,6 +107,7 @@ describe("Account preference helpers", () => {
                 hours: 4,
                 clientName: "Never sync",
               },
+              mapping: { field: 6, staleVisualRole: 1 },
             }],
             "unknown-background": [{
               id: "unknown",
@@ -144,9 +151,14 @@ describe("Account preference helpers", () => {
         .visualPresetsByBackground["massage-lab-novatrix"][0].properties,
       { massageLabNovatrixSpeed: 3 },
     )
+    assert.deepEqual(
+      requestBody.chimerSettings.backgroundVisualPreferences
+        .visualPresetsByBackground["massage-lab-novatrix"][0].mapping,
+      { field: 6 },
+    )
     assert.doesNotMatch(
       JSON.stringify(requestBody),
-      /unknown-background|staleRole|hours|clientName|soapDraft|Never sync/,
+      /unknown-background|staleRole|staleVisualRole|hours|clientName|soapDraft|Never sync/,
     )
 
     const withoutInventory = buildUserPreferencePayload(localPreferences)

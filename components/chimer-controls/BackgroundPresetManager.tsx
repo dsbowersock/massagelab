@@ -24,9 +24,17 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import {
-  BACKGROUND_COLOR_PRESET_LIMIT,
-  BACKGROUND_VISUAL_PRESET_LIMIT,
-} from "../../lib/background-palette.js"
+  buildColorPresetDraftAction,
+  buildPresetApplyDraftAction,
+  buildPresetDeleteDraftAction,
+  buildPresetRenameDraftAction,
+  buildVisualPresetDefaultDraftAction,
+  buildVisualPresetDraftAction,
+  getBackgroundPresetLimit,
+  type BackgroundColorPresetValue,
+  type BackgroundPresetDraftAction,
+  type BackgroundVisualPresetValue,
+} from "./background-palette-controls"
 import styles from "./chimer-controls.module.css"
 
 const PRESET_NAME_LIMIT = 80
@@ -45,34 +53,15 @@ export interface BackgroundPresetBase {
   timestamp?: number
 }
 
-export interface BackgroundColorPreset extends BackgroundPresetBase {
-  palette: {
-    mode: "custom" | "harmony"
-    primaryColor: string
-    harmony: string
-    swatches: readonly string[]
-  }
-  mappingsByBackground?: Readonly<Record<string, Readonly<Record<string, number>>>>
-}
+export type BackgroundColorPreset = BackgroundColorPresetValue
 
-export interface BackgroundVisualPreset extends BackgroundPresetBase {
-  properties: Readonly<Record<string, unknown>>
-  mapping?: Readonly<Record<string, number>>
-}
+export type BackgroundVisualPreset = BackgroundVisualPresetValue
 
-export type BackgroundPresetDraftAction =
-  | { type: "save-color-preset" | "update-color-preset"; preset: BackgroundColorPreset }
-  | { type: "apply-color-preset" | "delete-color-preset"; id: string; backgroundId?: string }
-  | { type: "rename-color-preset"; id: string; name: string }
-  | { type: "save-visual-preset" | "update-visual-preset"; preset: BackgroundVisualPreset }
-  | { type: "apply-visual-preset" | "delete-visual-preset" | "set-default-visual-preset"; id: string }
-  | { type: "rename-visual-preset"; id: string; name: string }
+export type { BackgroundPresetDraftAction } from "./background-palette-controls"
 
 export interface BackgroundColorPresetManagerProps {
   presets: readonly BackgroundColorPreset[]
   currentPalette: BackgroundColorPreset["palette"]
-  currentMapping?: Readonly<Record<string, number>>
-  backgroundId?: string
   onDraftAction: (action: BackgroundPresetDraftAction) => void
   disabled?: boolean
   className?: string
@@ -190,7 +179,7 @@ export function BackgroundPresetManager(props: BackgroundPresetManagerProps) {
   const [deleteTarget, setDeleteTarget] = useState<BackgroundPresetBase | null>(null)
   const [status, setStatus] = useState("")
   const isVisual = kind === "visual"
-  const limit = isVisual ? BACKGROUND_VISUAL_PRESET_LIMIT : BACKGROUND_COLOR_PRESET_LIMIT
+  const limit = getBackgroundPresetLimit(kind)
   const atLimit = presets.length >= limit
   const collectionLabel = isVisual ? "Visual presets" : "Color presets"
   const itemLabel = isVisual ? "visual preset" : "color preset"
@@ -199,28 +188,6 @@ export function BackgroundPresetManager(props: BackgroundPresetManagerProps) {
 
   function announce(message: string) {
     setStatus(message)
-  }
-
-  function buildPreset(id: string, name: string): BackgroundColorPreset | BackgroundVisualPreset {
-    const timestamp = now()
-    if (kind === "color") {
-      return {
-        id,
-        name,
-        timestamp,
-        palette: structuredClone(props.currentPalette),
-        mappingsByBackground: props.backgroundId && props.currentMapping
-          ? { [props.backgroundId]: structuredClone(props.currentMapping) }
-          : {},
-      }
-    }
-    return {
-      id,
-      name,
-      timestamp,
-      properties: structuredClone(props.currentProperties),
-      mapping: structuredClone(props.currentMapping),
-    }
   }
 
   function saveAsNew() {
@@ -233,31 +200,50 @@ export function BackgroundPresetManager(props: BackgroundPresetManagerProps) {
       announce(`${collectionLabel} limit reached. Delete one before saving another.`)
       return
     }
-    const preset = buildPreset(idFactory(), name)
-    onDraftAction({
-      type: kind === "visual" ? "save-visual-preset" : "save-color-preset",
-      preset,
-    } as BackgroundPresetDraftAction)
+    const common = {
+      operation: "save" as const,
+      id: idFactory(),
+      name,
+      timestamp: now(),
+    }
+    onDraftAction(kind === "color"
+      ? buildColorPresetDraftAction({
+        ...common,
+        palette: props.currentPalette,
+      })
+      : buildVisualPresetDraftAction({
+        ...common,
+        properties: props.currentProperties,
+        mapping: props.currentMapping,
+      }))
     setNewName("")
     announce(`${name} added to the draft ${collectionLabel.toLowerCase()}.`)
   }
 
   function applyPreset(preset: BackgroundPresetBase) {
     const name = presetDisplayName(preset.name)
-    onDraftAction({
-      type: kind === "visual" ? "apply-visual-preset" : "apply-color-preset",
-      id: preset.id,
-      ...(kind === "color" && props.backgroundId ? { backgroundId: props.backgroundId } : {}),
-    } as BackgroundPresetDraftAction)
+    onDraftAction(buildPresetApplyDraftAction(kind, preset.id))
     announce(`${name} applied to the draft.`)
   }
 
   function updatePreset(preset: BackgroundPresetBase) {
     const name = presetDisplayName(preset.name)
-    onDraftAction({
-      type: kind === "visual" ? "update-visual-preset" : "update-color-preset",
-      preset: buildPreset(preset.id, name),
-    } as BackgroundPresetDraftAction)
+    const common = {
+      operation: "update" as const,
+      id: preset.id,
+      name,
+      timestamp: now(),
+    }
+    onDraftAction(kind === "color"
+      ? buildColorPresetDraftAction({
+        ...common,
+        palette: props.currentPalette,
+      })
+      : buildVisualPresetDraftAction({
+        ...common,
+        properties: props.currentProperties,
+        mapping: props.currentMapping,
+      }))
     announce(`${name} updated in the draft.`)
   }
 
@@ -274,11 +260,7 @@ export function BackgroundPresetManager(props: BackgroundPresetManagerProps) {
       announce(`${collectionLabel} names cannot be empty.`)
       return
     }
-    onDraftAction({
-      type: kind === "visual" ? "rename-visual-preset" : "rename-color-preset",
-      id: preset.id,
-      name,
-    })
+    onDraftAction(buildPresetRenameDraftAction(kind, preset.id, name))
     setRenamingId(null)
     setRenameValue("")
     announce(`${presetDisplayName(preset.name)} renamed to ${name} in the draft.`)
@@ -288,10 +270,7 @@ export function BackgroundPresetManager(props: BackgroundPresetManagerProps) {
     if (!deleteTarget) {
       return
     }
-    onDraftAction({
-      type: kind === "visual" ? "delete-visual-preset" : "delete-color-preset",
-      id: deleteTarget.id,
-    })
+    onDraftAction(buildPresetDeleteDraftAction(kind, deleteTarget.id))
     announce(`${presetDisplayName(deleteTarget.name)} deleted from the draft.`)
     setDeleteTarget(null)
   }
@@ -432,7 +411,7 @@ export function BackgroundPresetManager(props: BackgroundPresetManagerProps) {
                             <DropdownMenuItem
                               disabled={isDefault}
                               onSelect={() => {
-                                onDraftAction({ type: "set-default-visual-preset", id: preset.id })
+                                onDraftAction(buildVisualPresetDefaultDraftAction(preset.id))
                                 announce(`${boundedPresetName} set as the draft default for ${props.backgroundName}.`)
                               }}
                             >

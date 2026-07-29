@@ -55,6 +55,10 @@ describe("Chimer timer helpers", () => {
               massageLabNovatrixSpeed: 999,
               unknownRendererProperty: true,
             },
+            mapping: {
+              field: 5,
+              staleRole: 2,
+            },
           }],
         },
       },
@@ -74,6 +78,11 @@ describe("Chimer timer helpers", () => {
       "unknownRendererProperty" in settings.backgroundVisualPreferences
         .visualPresetsByBackground["massage-lab-novatrix"][0].properties,
       false,
+    )
+    assert.deepEqual(
+      settings.backgroundVisualPreferences
+        .visualPresetsByBackground["massage-lab-novatrix"][0].mapping,
+      { field: 5 },
     )
     assert.deepEqual(
       normalizeChimerBackgroundVisualPreferences(

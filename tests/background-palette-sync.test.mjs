@@ -62,6 +62,13 @@ describe("Shared background preference migration", () => {
       ["#111111", "#222222", "#333333", "#444444", "#555555", "#666666", "#777777"],
     )
     assert.equal(prepared.settings.backgroundVisualPreferences.colorPresets[0].id, "legacy-preset")
+    assert.equal(
+      Object.hasOwn(
+        prepared.settings.backgroundVisualPreferences.colorPresets[0],
+        "mappingsByBackground",
+      ),
+      false,
+    )
     assert.deepEqual(prepared.legacyKeysToRemove, [
       LEGACY_CHIMER_GLOBAL_COLOR_STORAGE_KEY,
       LEGACY_CHIMER_GLOBAL_PALETTE_STORAGE_KEY,
@@ -76,13 +83,14 @@ describe("Shared background preference migration", () => {
           mappingsByBackground: {
             "massage-lab-novatrix": { field: 2, stale: 6 },
           },
-          visualPresetsByBackground: {
-            "massage-lab-novatrix": [{
-              id: "migration-bounded",
-              name: "Migration bounded",
-              properties: { massageLabNovatrixSpeed: 999, hours: 12 },
-            }],
-          },
+            visualPresetsByBackground: {
+              "massage-lab-novatrix": [{
+                id: "migration-bounded",
+                name: "Migration bounded",
+                properties: { massageLabNovatrixSpeed: 999, hours: 12 },
+                mapping: { field: 5, stale: 6 },
+              }],
+            },
         },
       }),
       rawLegacyGlobalColors: JSON.stringify(legacyColors),
@@ -98,6 +106,11 @@ describe("Shared background preference migration", () => {
       existing.settings.backgroundVisualPreferences
         .visualPresetsByBackground["massage-lab-novatrix"][0].properties,
       { massageLabNovatrixSpeed: 3 },
+    )
+    assert.deepEqual(
+      existing.settings.backgroundVisualPreferences
+        .visualPresetsByBackground["massage-lab-novatrix"][0].mapping,
+      { field: 5 },
     )
   })
 
@@ -144,6 +157,7 @@ describe("Shared background preference access and retry wiring", () => {
             alertType: "all",
             primaryFontColor: "#123456",
           },
+          mapping: { field: 6, "stale-visual-role": 2 },
         }],
       },
     }
@@ -160,6 +174,10 @@ describe("Shared background preference access and retry wiring", () => {
       normalized.visualPresetsByBackground["massage-lab-novatrix"][0].properties,
       { massageLabNovatrixSpeed: 3 },
     )
+    assert.deepEqual(
+      normalized.visualPresetsByBackground["massage-lab-novatrix"][0].mapping,
+      { field: 6 },
+    )
     assert.deepEqual(normalized.mappingsByBackground, {
       "massage-lab-novatrix": { field: 4 },
     })
@@ -171,7 +189,12 @@ describe("Shared background preference access and retry wiring", () => {
       accountPayload.chimer_settings.backgroundVisualPreferences.mappingsByBackground,
       { "massage-lab-novatrix": { field: 4 } },
     )
-    assert.doesNotMatch(JSON.stringify(accountPayload), /stale-role|unknown-background|spectral/)
+    assert.deepEqual(
+      accountPayload.chimer_settings.backgroundVisualPreferences
+        .visualPresetsByBackground["massage-lab-novatrix"][0].mapping,
+      { field: 6 },
+    )
+    assert.doesNotMatch(JSON.stringify(accountPayload), /stale-role|stale-visual-role|unknown-background|spectral/)
     assert.ok(JSON.stringify(accountPayload).length < 12_000)
 
     const withoutInventory = normalizeSharedBackgroundVisualPreferences(raw)
