@@ -5,6 +5,10 @@ import { backgroundPreviewManifest } from "./backgroundPreviewManifest.ts"
 import type { BackgroundPreviewManifestEntry } from "./backgroundPreviewManifest.ts"
 import type { BackgroundEffectProps } from "./effects/css-backgrounds"
 import type { BackgroundAccessDecision } from "../../lib/commerce/background-access.ts"
+import {
+  backgroundPaletteRegistry,
+  type BackgroundPaletteAdapter,
+} from "./backgroundPaletteRegistry.ts"
 
 export type BackgroundId =
   | "massage-lab-moving-gradient"
@@ -125,6 +129,8 @@ export interface BackgroundDefinition {
   component?: BackgroundComponentLoader
   fallbackClassName?: string
   fallbackStyle?: CSSProperties
+  /** Authoritative shared-palette migration contract for enabled renderers. */
+  paletteAdapter?: BackgroundPaletteAdapter
 }
 
 export type BackgroundAccessSnapshot = {
@@ -1996,7 +2002,14 @@ function withGeneratedPreview(entry: BackgroundDefinition): BackgroundDefinition
   }
 }
 
-export const backgroundRegistry: readonly BackgroundDefinition[] = rawBackgroundRegistry.map(withGeneratedPreview)
+export const backgroundRegistry: readonly BackgroundDefinition[] = rawBackgroundRegistry
+  .map(withGeneratedPreview)
+  .map((entry) => ({
+    ...entry,
+    ...(entry.enabled
+      ? { paletteAdapter: backgroundPaletteRegistry[entry.id] }
+      : {}),
+  }))
 
 export function getBackgroundDefinition(id: unknown) {
   return backgroundRegistry.find((entry) => entry.id === id) ?? backgroundRegistry[0]

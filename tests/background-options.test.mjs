@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { describe, it } from "node:test"
 import {
+  ACTIVE_BACKGROUND_IDS,
   BACKGROUND_STORAGE_KEYS,
   DEFAULT_BACKGROUND_ID,
   isBackgroundId,
@@ -23,6 +24,15 @@ const runningTimerSource = readFileSync(new URL("../app/chimer/running-timer.tsx
 const projectLogSource = readFileSync(new URL("../docs/project-log.md", import.meta.url), "utf8")
 
 describe("premium background registry", () => {
+  it("keeps the enabled registry synchronized with the authoritative active-ID inventory", () => {
+    assert.deepEqual(
+      backgroundRegistry.filter((entry) => entry.enabled).map((entry) => entry.id).sort(),
+      ACTIVE_BACKGROUND_IDS.filter((id) => (
+        backgroundRegistry.some((entry) => entry.id === id && entry.enabled)
+      )).sort(),
+    )
+  })
+
   it("records the verified public MIT Neon Clock attribution", () => {
     assert.match(projectLogSource, /https:\/\/codepen\.io\/wheatup\/pen\/JjzdMbK/)
     assert.match(projectLogSource, /wheatup/)
