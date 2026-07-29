@@ -450,7 +450,7 @@ describe("background palette adapter registry", () => {
     const rippleFixture = {
       massageLabRippleGrid: {
         gridColor: "#010101",
-        rainbow: true,
+        enableRainbow: true,
         rippleIntensity: 0.17,
         gridSize: 17,
         opacity: 0.63,
@@ -470,11 +470,15 @@ describe("background palette adapter registry", () => {
       roleColorsForMode(rippleAdapter, "harmony"),
     )
     assert.equal(rippleAdapter.sourceBehavior, "rainbow")
+    assert.deepEqual(
+      [...changedLeafPaths(rippleFixture, rippleSource)],
+      ["massageLabRippleGrid.gridColor"],
+    )
     assert.equal(
       rippleSource.massageLabRippleGrid.gridColor,
       roleColorsForMode(rippleAdapter, "source").grid,
     )
-    assert.equal(rippleSource.massageLabRippleGrid.rainbow, true)
+    assert.equal(rippleSource.massageLabRippleGrid.enableRainbow, true)
     assert.equal(rippleSource.massageLabRippleGrid.rippleIntensity, 0.17)
     assert.equal(rippleSource.massageLabRippleGrid.gridSize, 17)
     assert.equal(rippleSource.massageLabRippleGrid.opacity, 0.63)
