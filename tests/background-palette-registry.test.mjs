@@ -8,6 +8,9 @@ import {
   backgroundRegistry,
 } from "../components/backgrounds/backgroundRegistry.ts"
 import {
+  resolveBackgroundEffectProps,
+} from "../components/backgrounds/resolveBackgroundEffectProps.ts"
+import {
   generateBackgroundHarmonySwatches,
   resolveBackgroundRoleColors,
 } from "../lib/background-palette.js"
@@ -190,6 +193,30 @@ function changedLeafPaths(before, after, prefix = "") {
   }
 
   return paths
+}
+
+function fixtureForAdapter(adapter) {
+  const fixture = {
+    rendererLifecycle: {
+      frame: 42,
+      mounted: true,
+    },
+  }
+
+  for (const role of adapter.roles) {
+    const segments = [...role.rendererTarget.matchAll(/([^[.\]]+)|\[(\d+)\]/g)]
+      .map((match) => match[2] === undefined ? match[1] : Number(match[2]))
+    let cursor = fixture
+    for (let index = 0; index < segments.length - 1; index += 1) {
+      const segment = segments[index]
+      const nextSegment = segments[index + 1]
+      cursor[segment] ??= typeof nextSegment === "number" ? [] : {}
+      cursor = cursor[segment]
+    }
+    cursor[segments.at(-1)] = "fixture-color"
+  }
+
+  return fixture
 }
 
 describe("background palette adapter registry", () => {
@@ -413,6 +440,164 @@ describe("background palette adapter registry", () => {
         assert.equal(adapter.sourceBehavior, sourceBehavior, `${backgroundId}:${mode}:source-behavior`)
       }
     }
+  })
+
+  it("completes every Canvas/WebGL adapter immutably in every palette mode", () => {
+    const entries = Object.entries(backgroundPaletteRegistry).filter(([, adapter]) => (
+      adapter.status !== "unsupported"
+      && (adapter.rendererFamily === "canvas" || adapter.rendererFamily === "webgl")
+    ))
+    assert.ok(entries.length > 0)
+
+    for (const [backgroundId, adapter] of entries) {
+      assert.equal(adapter.status, "supported", backgroundId)
+      const fixture = fixtureForAdapter(adapter)
+      const original = structuredClone(fixture)
+
+      for (const mode of ["source", "custom", "harmony"]) {
+        const roleColors = roleColorsForMode(adapter, mode)
+        assert.deepEqual(Object.keys(roleColors).sort(), adapter.roles.map((role) => role.id).sort())
+        for (const color of Object.values(roleColors)) {
+          assert.match(color, HEX_COLOR, `${backgroundId}:${mode}`)
+        }
+
+        const resolved = adapter.applyRoleColors(fixture, roleColors)
+        assert.notEqual(resolved, fixture, `${backgroundId}:${mode}:identity`)
+        assert.deepEqual(
+          [...changedLeafPaths(fixture, resolved)].sort(),
+          adapter.roles.map((role) => role.rendererTarget).sort(),
+          `${backgroundId}:${mode}:targets`,
+        )
+        assert.deepEqual(
+          resolved.rendererLifecycle,
+          fixture.rendererLifecycle,
+          `${backgroundId}:${mode}:lifecycle`,
+        )
+        assert.deepEqual(fixture, original, `${backgroundId}:${mode}:mutation`)
+      }
+    }
+  })
+
+  it("leaves no enabled adapter pending", () => {
+    for (const definition of backgroundRegistry.filter((entry) => entry.enabled)) {
+      assert.notEqual(
+        backgroundPaletteRegistry[definition.id].status,
+        "pending",
+        definition.id,
+      )
+    }
+  })
+
+  it("resolves staged effect props through the selected adapter and saved mapping", () => {
+    const effectProps = {
+      massageLabRetroGrid: {
+        backgroundColor: "#010101",
+        lightLineColor: "#020202",
+        darkLineColor: "#030303",
+        opacity: 0.63,
+        speed: 1.7,
+      },
+    }
+    const palette = {
+      mode: "custom",
+      primaryColor: CUSTOM_SWATCHES[0],
+      harmony: "triadic",
+      swatches: CUSTOM_SWATCHES,
+    }
+    const mapping = {
+      background: 6,
+      "light-lines": 5,
+      "dark-lines": 4,
+    }
+    const resolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-retro-grid",
+      effectProps,
+      palette,
+      mapping,
+      canCustomize: true,
+    })
+
+    assert.deepEqual(resolved, {
+      massageLabRetroGrid: {
+        backgroundColor: CUSTOM_SWATCHES[6],
+        lightLineColor: CUSTOM_SWATCHES[5],
+        darkLineColor: CUSTOM_SWATCHES[4],
+        opacity: 0.63,
+        speed: 1.7,
+      },
+    })
+    assert.deepEqual(effectProps.massageLabRetroGrid, {
+      backgroundColor: "#010101",
+      lightLineColor: "#020202",
+      darkLineColor: "#030303",
+      opacity: 0.63,
+      speed: 1.7,
+    })
+  })
+
+  it("falls back to source colors when customization access is unavailable", () => {
+    const adapter = backgroundPaletteRegistry["massage-lab-retro-grid"]
+    const effectProps = fixtureForAdapter(adapter)
+    const resolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-retro-grid",
+      effectProps,
+      palette: {
+        mode: "custom",
+        primaryColor: CUSTOM_SWATCHES[0],
+        harmony: "triadic",
+        swatches: CUSTOM_SWATCHES,
+      },
+      mapping: {
+        background: 6,
+        "light-lines": 5,
+        "dark-lines": 4,
+      },
+      canCustomize: false,
+    })
+    const expected = adapter.applyRoleColors(
+      effectProps,
+      Object.fromEntries(adapter.roles.map((role) => [role.id, role.sourceColor])),
+    )
+
+    assert.deepEqual(resolved, expected)
+    assert.deepEqual(effectProps, fixtureForAdapter(adapter))
+  })
+
+  it("returns original props for unsupported or unknown backgrounds without tinting", () => {
+    const effectProps = {
+      className: "fixed-media",
+      media: {
+        src: "/backgrounds/source.mp4",
+        opacity: 0.8,
+      },
+    }
+    const input = {
+      effectProps,
+      palette: {
+        mode: "custom",
+        primaryColor: CUSTOM_SWATCHES[0],
+        harmony: "triadic",
+        swatches: CUSTOM_SWATCHES,
+      },
+      mapping: {},
+      canCustomize: true,
+    }
+
+    assert.equal(
+      resolveBackgroundEffectProps({ ...input, selectedId: "static-gradient" }),
+      effectProps,
+    )
+    assert.equal(
+      resolveBackgroundEffectProps({ ...input, selectedId: "not-a-background" }),
+      effectProps,
+    )
+    assert.deepEqual(effectProps, {
+      className: "fixed-media",
+      media: {
+        src: "/backgrounds/source.mp4",
+        opacity: 0.8,
+      },
+    })
   })
 
   it("maps Moving Gradient and all seven Gradient Animation roles exactly", () => {

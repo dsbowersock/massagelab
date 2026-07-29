@@ -19,7 +19,7 @@ export interface BackgroundPaletteRole {
 }
 
 export interface SupportedBackgroundPaletteAdapter {
-  status: "pending" | "supported"
+  status: "supported"
   rendererFamily: BackgroundRendererFamily
   roles: readonly BackgroundPaletteRole[]
   sourceBehavior?: "fixed" | "rainbow" | "automatic"
@@ -350,7 +350,7 @@ function supported(spec: SupportedSpec): SupportedBackgroundPaletteAdapter {
     rendererTarget,
   }))
   return Object.freeze({
-    status: spec.family === "css-dom" ? "supported" : "pending",
+    status: "supported",
     rendererFamily: spec.family,
     roles: Object.freeze(roles),
     ...(spec.sourceBehavior ? { sourceBehavior: spec.sourceBehavior } : {}),
@@ -488,9 +488,9 @@ const SETTING_NAMESPACE_OWNERS = Object.freeze([
 }))))
 
 /**
- * Migration-time source ledger. All color-capable renderers remain `pending`
- * until their family-specific cutover task routes these adapters into
- * BackgroundHost; attaching this metadata does not alter current rendering.
+ * Complete migration-time source ledger. Every color-capable renderer exposes
+ * an immutable adapter, while unsupported renderers explicitly retain their
+ * original output. Production routing remains deferred to the atomic cutover.
  */
 export const backgroundPaletteRegistry: Readonly<Record<string, BackgroundPaletteAdapter>> =
   Object.freeze(Object.fromEntries([
