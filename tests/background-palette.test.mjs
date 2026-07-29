@@ -26,6 +26,12 @@ const adapter = {
 }
 
 test("palette state starts in Source and always has seven sanitized swatches", () => {
+  assert.deepEqual(normalizeBackgroundPaletteState(), {
+    mode: "source",
+    primaryColor: "#f97316",
+    harmony: "analogous",
+    swatches: ["#f97316", "#fb923c", "#fb7185", "#0f172a", "#f8fafc", "#db2777", "#ea580c"],
+  })
   const palette = normalizeBackgroundPaletteState({ mode: "custom", primaryColor: "#ABC", swatches: ["#123", "nope"] })
   assert.equal(DEFAULT_BACKGROUND_PALETTE_STATE.mode, "source")
   assert.equal(BACKGROUND_PALETTE_SWATCH_COUNT, 7)
@@ -36,17 +42,21 @@ test("palette state starts in Source and always has seven sanitized swatches", (
 })
 
 test("every harmony creates seven valid colors and role resolution retains unused swatches", () => {
-  for (const harmony of ["analogous", "complementary", "split-complementary", "triad", "square", "compound", "shades", "monochromatic"]) {
+  for (const harmony of ["analogous", "complementary", "split-complementary", "triad", "square", "compound", "shades", "monochromatic", "triadic", "tetradic"]) {
     assert.equal(generateBackgroundHarmonySwatches("#f97316", harmony).length, 7)
     assert.ok(generateBackgroundHarmonySwatches("#f97316", harmony).every((color) => /^#[0-9a-f]{6}$/.test(color)))
   }
   const palette = normalizeBackgroundPaletteState({ mode: "custom", swatches: ["#111111", "#222222", "#333333", "#444444", "#555555", "#666666", "#777777"] })
   assert.deepEqual(resolveBackgroundRoleColors({ palette, adapter, mapping: { main: 2, accent: 2 }, canCustomize: true }), { main: "#333333", accent: "#333333" })
+  const harmonyPalette = normalizeBackgroundPaletteState({ mode: "harmony", primaryColor: "#123456", harmony: "triadic" })
+  const harmonySwatches = generateBackgroundHarmonySwatches("#123456", "triadic")
+  assert.deepEqual(resolveBackgroundRoleColors({ palette: harmonyPalette, adapter, mapping: { main: 0, accent: 2 }, canCustomize: true }), { main: harmonySwatches[0], accent: harmonySwatches[2] })
   assert.deepEqual(resolveBackgroundRoleColors({ palette, adapter, mapping: {}, canCustomize: false }), { main: "#112233", accent: "#445566" })
 })
 
 test("mapping invalid values fall back to curated adapter defaults and Source does not mutate dormant state", () => {
   assert.deepEqual(normalizeBackgroundColorMapping({ main: 99, accent: "no" }, adapter), { main: 0, accent: 1 })
+  assert.deepEqual(normalizeBackgroundColorMapping({}, { roles: [{ id: "main", defaultSwatch: 99 }] }), { main: 0 })
   const palette = normalizeBackgroundPaletteState({ mode: "source", primaryColor: "#123456" })
   const before = structuredClone(palette)
   assert.deepEqual(resolveBackgroundRoleColors({ palette, adapter, mapping: { main: 6 }, canCustomize: true }), { main: "#112233", accent: "#445566" })
@@ -63,10 +73,22 @@ test("preferences bound color and visual presets through injected registry callb
   assert.deepEqual(preferences.colorPresets, [])
   assert.deepEqual(preferences.visualPresetsByBackground.waves[0].properties, { speed: 1 })
   assert.deepEqual(preferences.defaultVisualPresetByBackground, {})
+  assert.deepEqual(normalizeSharedBackgroundVisualPreferences({
+    visualPresetsByBackground: { waves: [{ id: "v1", properties: { speed: 1 } }] },
+  }, { isKnownBackgroundId: (id) => id === "waves" }).visualPresetsByBackground, {})
+  assert.deepEqual(normalizeSharedBackgroundVisualPreferences({
+    visualPresetsByBackground: { waves: [{ id: "v1", properties: { speed: 1 } }] },
+  }).visualPresetsByBackground, {})
   for (let index = 0; index < BACKGROUND_COLOR_PRESET_LIMIT + 2; index += 1) preferences = saveBackgroundColorPreset(preferences, { id: `c${index}`, name: "  A very long palette name that must be bounded  ", timestamp: index, palette: { mode: "custom" } }, options)
   assert.equal(preferences.colorPresets.length, BACKGROUND_COLOR_PRESET_LIMIT)
+  preferences = saveBackgroundColorPreset(preferences, { id: "x".repeat(200), name: "Bounded", timestamp: 9000000000000000, palette: { mode: "custom" } }, options)
+  assert.equal(preferences.colorPresets[0].id.length, 128)
+  assert.equal(preferences.colorPresets[0].timestamp, 8640000000000000)
   for (let index = 0; index < BACKGROUND_VISUAL_PRESET_LIMIT + 1; index += 1) preferences = saveBackgroundVisualPreset(preferences, "waves", { id: `v${index}`, name: "Preset", timestamp: index, properties: { speed: index, bad: true } }, options)
   assert.equal(preferences.visualPresetsByBackground.waves.length, BACKGROUND_VISUAL_PRESET_LIMIT)
+  const before = structuredClone(preferences)
+  saveBackgroundVisualPreset(preferences, "waves", { id: "immutable", name: "Immutable", timestamp: 1, properties: { speed: 1 } }, options)
+  assert.deepEqual(preferences, before)
 })
 
 test("legacy migration preserves non-color settings and access falls back without deleting saved state", () => {
@@ -75,8 +97,13 @@ test("legacy migration preserves non-color settings and access falls back withou
   assert.equal(migrated.backgroundVisualPreferences.palette.mode, "custom")
   assert.deepEqual(migrated.backgroundVisualPreferences.palette.swatches, ["#111111", "#222222", "#333333", "#444444", "#555555", "#666666", "#777777"])
   assert.equal(migrateLegacyChimerGlobalColors({}, "invalid").backgroundVisualPreferences.palette.mode, "harmony")
-  assert.equal(migrateLegacyChimerGlobalColors({}, JSON.stringify({ harmony: "square" })).backgroundVisualPreferences.palette.harmony, "square")
+  for (const harmony of ["analogous", "complementary", "split-complementary", "triad", "square", "compound", "shades", "monochromatic", "triadic", "tetradic"]) {
+    const legacy = migrateLegacyChimerGlobalColors({}, JSON.stringify({ harmony }))
+    assert.equal(legacy.backgroundVisualPreferences.palette.mode, "harmony")
+    assert.equal(legacy.backgroundVisualPreferences.palette.harmony, harmony)
+  }
   assert.equal(canCustomizeBackgroundColors({ hasCustomColorFeature: true, selectedBackgroundId: "x", permanentlyOwnedBackgroundIds: [] }), true)
   assert.equal(canCustomizeBackgroundColors({ hasCustomColorFeature: false, selectedBackgroundId: "x", permanentlyOwnedBackgroundIds: ["x"] }), true)
+  assert.equal(canCustomizeBackgroundColors({ hasCustomColorFeature: false, selectedBackgroundId: "x", permanentlyOwnedBackgroundIds: ["not-x"] }), false)
   assert.equal(resolveEffectiveBackgroundPaletteMode({ savedMode: "custom", canCustomize: false }), "source")
 })
