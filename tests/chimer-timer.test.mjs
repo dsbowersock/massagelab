@@ -13,6 +13,7 @@ import {
   MAX_CHIMER_DURATION_MS,
   normalizeHexColor,
   normalizeInteger,
+  normalizeChimerBackgroundVisualPreferences,
   sanitizeChimerSettings,
   sanitizeChimerSettingsForEntitlements,
 } from "../lib/chimer-timer.js"
@@ -24,6 +25,52 @@ import {
 } from "../lib/tile-grid-background.js"
 
 describe("Chimer timer helpers", () => {
+  it("normalizes nested shared background preferences without changing non-color settings", () => {
+    const settings = sanitizeChimerSettings({
+      minutes: 45,
+      keepTimerScreenAwake: false,
+      massageLabNovatrixSpeed: 1.75,
+      backgroundVisualPreferences: {
+        version: 1,
+        palette: {
+          mode: "custom",
+          primaryColor: "#123456",
+          swatches: ["#123456", "#234567", "#345678", "#456789", "#56789a", "#6789ab", "#789abc"],
+        },
+        visualPresetsByBackground: {
+          "massage-lab-novatrix": [{
+            id: "novatrix-fast",
+            name: "Fast",
+            properties: {
+              massageLabNovatrixSpeed: 999,
+              unknownRendererProperty: true,
+            },
+          }],
+        },
+      },
+    })
+
+    assert.equal(DEFAULT_CHIMER_SETTINGS.backgroundVisualPreferences.version, 1)
+    assert.equal(settings.minutes, 45)
+    assert.equal(settings.keepTimerScreenAwake, false)
+    assert.equal(settings.massageLabNovatrixSpeed, 1.75)
+    assert.equal(settings.backgroundVisualPreferences.palette.mode, "custom")
+    assert.equal(
+      settings.backgroundVisualPreferences.visualPresetsByBackground["massage-lab-novatrix"][0]
+        .properties.massageLabNovatrixSpeed,
+      3,
+    )
+    assert.equal(
+      "unknownRendererProperty" in settings.backgroundVisualPreferences
+        .visualPresetsByBackground["massage-lab-novatrix"][0].properties,
+      false,
+    )
+    assert.deepEqual(
+      normalizeChimerBackgroundVisualPreferences(settings.backgroundVisualPreferences),
+      settings.backgroundVisualPreferences,
+    )
+  })
+
   it("converts selected hours and minutes into milliseconds", () => {
     assert.equal(getTotalTimerMs(1, 30), 90 * 60 * 1000)
     assert.equal(getTotalTimerMs("0", "45"), 45 * 60 * 1000)

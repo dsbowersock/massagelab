@@ -9,6 +9,7 @@ import { clearAccountSurfaceDataCache } from "@/lib/account-surface-data"
 import { objectRecord } from "@/lib/onboarding-preferences"
 import { sanitizeChimerSettingsForEntitlements } from "@/lib/chimer-timer"
 import { getUserEntitlementState } from "@/lib/membership"
+import { getBackgroundCommerceSnapshot } from "@/lib/commerce/snapshot-service"
 import { prisma } from "@/lib/prisma"
 
 function jsonObject(value: Record<string, unknown>) {
@@ -22,10 +23,17 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const preferences = await prisma.userPreference.findUnique({
-    where: { userId: session.user.id },
-  })
-  const entitlements = await getUserEntitlementState(prisma, session.user.id)
+  const [preferences, entitlements, commerceSnapshot] = await Promise.all([
+    prisma.userPreference.findUnique({
+      where: { userId: session.user.id },
+    }),
+    getUserEntitlementState(prisma, session.user.id),
+    getBackgroundCommerceSnapshot({
+      prismaClient: prisma,
+      userId: session.user.id,
+      includeRecentOrders: false,
+    }),
+  ])
 
   return NextResponse.json({
     version: preferences?.version ?? USER_PREFERENCES_VERSION,
@@ -36,6 +44,7 @@ export async function GET() {
     calendarPreferences: preferences?.calendarPreferences ?? {},
     membershipLevel: entitlements.level,
     features: entitlements.features,
+    ownedBackgroundIds: commerceSnapshot.ownedBackgroundIds,
     updatedAt: preferences?.updatedAt ?? null,
   })
 }

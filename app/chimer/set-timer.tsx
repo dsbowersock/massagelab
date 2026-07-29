@@ -27,6 +27,7 @@ import {
   getMassageLab3DGlobeScaleFromDisplayPercent,
   sanitizeChimerSettings,
 } from "@/lib/chimer-timer"
+import { normalizeSharedBackgroundVisualPreferences } from "@/lib/background-palette"
 import styles from "./set-timer.module.css"
 import { TileGridFadeTimeControl } from "./tile-grid-fade-time-control"
 
@@ -688,6 +689,7 @@ export interface ChimerSettings {
   hapticIntensityMs: number
   movingBackgroundEnabled: boolean
   backgroundId: BackgroundId
+  backgroundVisualPreferences: ReturnType<typeof normalizeSharedBackgroundVisualPreferences>
   keepTimerScreenAwake: boolean
   showClockDisplay: boolean
   clockRotationEnabled: boolean
@@ -4665,6 +4667,9 @@ interface SetTimerProps {
   suppressSyncNotice?: boolean
   isResolvingSync: boolean
   featureKeys: string[]
+  backgroundVisualPreferences: ChimerSettings["backgroundVisualPreferences"]
+  canCustomizeSelectedBackground: boolean
+  backgroundPreferenceSyncStatus: "local" | "pending" | "stale" | "synced"
   backgroundCategory: BackgroundCategory
   initialStep?: number
   onTimeClick: (unit: "hours" | "minutes") => void
@@ -4675,6 +4680,10 @@ interface SetTimerProps {
   onTestAlert: () => void
   onUseDeviceSettings: () => void
   onUseSavedSettings: () => void
+  onApplyBackgroundVisualPreferences: (
+    preferences: ChimerSettings["backgroundVisualPreferences"],
+  ) => void
+  onRetryBackgroundVisualPreferences: () => void
 }
 
 const ALERT_TYPE_OPTIONS: Array<{ value: ChimerSettings["alertType"]; label: string }> = [

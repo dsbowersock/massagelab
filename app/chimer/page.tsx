@@ -20,7 +20,17 @@ import {
   sanitizeChimerSettings,
   sanitizeChimerSettingsForEntitlements,
 } from "@/lib/chimer-timer"
-import { canSyncAccountPreferencesFromSession } from "@/lib/account-preferences"
+import {
+  canSyncAccountPreferencesFromSession,
+  createChimerPreferenceSyncRequest,
+  resolveChimerPreferenceSyncRequest,
+} from "@/lib/account-preferences"
+import {
+  LEGACY_CHIMER_GLOBAL_COLOR_STORAGE_KEY,
+  LEGACY_CHIMER_GLOBAL_PALETTE_STORAGE_KEY,
+  canCustomizeBackgroundColors,
+  prepareChimerBackgroundPreferenceMigration,
+} from "@/lib/background-palette"
 import { fetchWithTimeout } from "@/lib/client-fetch"
 import { FEATURE_KEYS } from "@/lib/membership"
 import { triggerHapticFeedback } from "@/lib/haptics"
@@ -43,6 +53,10 @@ import { RunningTimer, type ImmersiveDisplayMode } from "./running-timer"
 
 type TimerStatus = "idle" | "running" | "paused" | "complete" | "clock"
 type AccountSyncStatus = "checking" | "local" | "synced" | "conflict"
+type BackgroundPreferenceSyncState = {
+  status: "local" | "pending" | "stale" | "synced"
+  requestBody: string | null
+}
 const SOUND_ALERT_TYPES = new Set<ChimerSettings["alertType"]>(["chime", "both", "chime-haptic", "all"])
 const FLASH_ALERT_TYPES = new Set<ChimerSettings["alertType"]>(["flash", "both", "flash-haptic", "all"])
 const HAPTIC_ALERT_TYPES = new Set<ChimerSettings["alertType"]>(["haptic", "chime-haptic", "flash-haptic", "all"])
@@ -151,6 +165,11 @@ export default function ChimerPage() {
   const [hasEditedLocalConflictSettings, setHasEditedLocalConflictSettings] = useState(false)
   const [isResolvingSync, setIsResolvingSync] = useState(false)
   const [featureKeys, setFeatureKeys] = useState<string[]>([])
+  const [permanentlyOwnedBackgroundIds, setPermanentlyOwnedBackgroundIds] = useState<string[]>([])
+  const [backgroundPreferenceSync, setBackgroundPreferenceSync] = useState<BackgroundPreferenceSyncState>({
+    status: "local",
+    requestBody: null,
+  })
   const [wakeLockMessage, setWakeLockMessage] = useState<string | null>(null)
   const canUseCustomColors = featureKeys.includes(FEATURE_KEYS.chimerCustomColors)
   const hasAccountPreferenceAccess = accountSyncStatus === "synced" || accountSyncStatus === "conflict"
@@ -165,6 +184,7 @@ export default function ChimerPage() {
   const wakeLockRef = useRef<ChimerWakeLockSentinel | null>(null)
   const wakeLockRequestRef = useRef<Promise<void> | null>(null)
   const shouldKeepWakeLockRef = useRef(false)
+  const skipNextAutomaticAccountSyncBodyRef = useRef<string | null>(null)
 
   const totalDurationMs = useMemo(
     () => getTotalTimerMs(settings.hours, settings.minutes),
@@ -192,19 +212,23 @@ export default function ChimerPage() {
     let isMounted = true
 
     const loadLocalSettings = () => {
-      let nextSettings = DEFAULT_CHIMER_SETTINGS as ChimerSettings
-      const savedSettings = window.localStorage.getItem(CHIMER_STORAGE_KEY)
-
-      if (savedSettings) {
-        try {
-          nextSettings = sanitizeChimerSettings(JSON.parse(savedSettings)) as ChimerSettings
-        } catch {
-          window.localStorage.removeItem(CHIMER_STORAGE_KEY)
-        }
-      }
-
+      const prepared = prepareChimerBackgroundPreferenceMigration({
+        rawChimerSettings: window.localStorage.getItem(CHIMER_STORAGE_KEY),
+        rawLegacyGlobalColors: window.localStorage.getItem(LEGACY_CHIMER_GLOBAL_COLOR_STORAGE_KEY),
+        rawLegacySavedPalettes: window.localStorage.getItem(LEGACY_CHIMER_GLOBAL_PALETTE_STORAGE_KEY),
+        sanitizeSettings: sanitizeChimerSettings,
+      })
+      const nextSettings = prepared.settings as ChimerSettings
       setSettings(nextSettings)
-      window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(nextSettings))
+      try {
+        window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(nextSettings))
+        // Legacy keys are deleted only after the nested v1 record commits.
+        for (const legacyKey of prepared.legacyKeysToRemove) {
+          window.localStorage.removeItem(legacyKey)
+        }
+      } catch {
+        // Keep the legacy records intact so a later successful load can retry.
+      }
       setHasLoadedSettings(true)
       return nextSettings
     }
@@ -228,6 +252,7 @@ export default function ChimerPage() {
           setSettings(localFreeSettings)
           window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(localFreeSettings))
           setFeatureKeys([])
+          setPermanentlyOwnedBackgroundIds([])
           setCanSync(false)
           setAccountSyncStatus("local")
           return
@@ -243,6 +268,7 @@ export default function ChimerPage() {
           const localFreeSettings = sanitizeChimerSettingsForEntitlements(localSettings, []) as ChimerSettings
           setSettings(localFreeSettings)
           window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(localFreeSettings))
+          setPermanentlyOwnedBackgroundIds([])
           setCanSync(false)
           setAccountSyncStatus("local")
           return
@@ -252,7 +278,13 @@ export default function ChimerPage() {
         const nextFeatureKeys = Array.isArray(preferences.features)
           ? preferences.features.filter((feature: unknown) => typeof feature === "string")
           : []
+        const nextOwnedBackgroundIds = Array.isArray(preferences.ownedBackgroundIds)
+          ? [...new Set(preferences.ownedBackgroundIds.filter(
+              (backgroundId: unknown): backgroundId is string => typeof backgroundId === "string",
+            ) as string[])]
+          : []
         setFeatureKeys(nextFeatureKeys)
+        setPermanentlyOwnedBackgroundIds(nextOwnedBackgroundIds)
 
         if (!isMounted) {
           return
@@ -304,6 +336,7 @@ export default function ChimerPage() {
         const localFreeSettings = sanitizeChimerSettingsForEntitlements(localSettings, []) as ChimerSettings
         setSettings(localFreeSettings)
         window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(localFreeSettings))
+        setPermanentlyOwnedBackgroundIds([])
         setCanSync(false)
         setAccountSyncStatus("local")
       }
@@ -322,10 +355,15 @@ export default function ChimerPage() {
       window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(settings))
 
       if (canSync && accountSyncStatus === "synced") {
+        const requestBody = JSON.stringify({ chimerSettings: settings })
+        if (skipNextAutomaticAccountSyncBodyRef.current === requestBody) {
+          skipNextAutomaticAccountSyncBodyRef.current = null
+          return
+        }
         void fetchWithTimeout("/api/account/preferences", {
           method: "PUT",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ chimerSettings: settings }),
+          body: requestBody,
         }).catch(() => undefined)
       }
     }
@@ -622,6 +660,67 @@ export default function ChimerPage() {
       setHasEditedLocalConflictSettings(!areChimerSettingsEqual(nextSanitizedSettings, accountSettings))
     }
   }
+
+  /**
+   * Sends an already-frozen request body and retains that exact body if the
+   * cloud write fails, while the local committed palette remains active.
+   */
+  const syncBackgroundVisualPreferenceRequest = useCallback(async (
+    request: BackgroundPreferenceSyncState,
+  ) => {
+    if (!request.requestBody) {
+      return
+    }
+    try {
+      const response = await fetchWithTimeout("/api/account/preferences", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: request.requestBody,
+      })
+      setBackgroundPreferenceSync(resolveChimerPreferenceSyncRequest(request, response.ok) as BackgroundPreferenceSyncState)
+    } catch {
+      setBackgroundPreferenceSync(resolveChimerPreferenceSyncRequest(request, false) as BackgroundPreferenceSyncState)
+    }
+  }, [])
+
+  /** Commits one sanitized nested draft locally before starting account sync. */
+  const applyBackgroundVisualPreferences = (
+    backgroundVisualPreferences: ChimerSettings["backgroundVisualPreferences"],
+  ) => {
+    const nextSettings = sanitizeChimerSettingsForEntitlements({
+      ...settingsRef.current,
+      backgroundVisualPreferences,
+    }, featureKeysRef.current, {
+      canUseAccountColorControls,
+    }) as ChimerSettings
+    const request = createChimerPreferenceSyncRequest(nextSettings) as BackgroundPreferenceSyncState
+    const committedSettings = JSON.parse(request.requestBody ?? "{}").chimerSettings as ChimerSettings
+
+    setSettings(committedSettings)
+    window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(committedSettings))
+
+    if (!canSync || accountSyncStatus !== "synced") {
+      setBackgroundPreferenceSync({ status: "local", requestBody: null })
+      return
+    }
+
+    skipNextAutomaticAccountSyncBodyRef.current = request.requestBody
+    setBackgroundPreferenceSync(request)
+    void syncBackgroundVisualPreferenceRequest(request)
+  }
+
+  /** Retries the exact last locally applied payload after a stale cloud write. */
+  const retryBackgroundVisualPreferenceSync = useCallback(() => {
+    if (backgroundPreferenceSync.status !== "stale" || !backgroundPreferenceSync.requestBody) {
+      return
+    }
+    const pending = {
+      status: "pending" as const,
+      requestBody: backgroundPreferenceSync.requestBody,
+    }
+    setBackgroundPreferenceSync(pending)
+    void syncBackgroundVisualPreferenceRequest(pending)
+  }, [backgroundPreferenceSync, syncBackgroundVisualPreferenceRequest])
 
   const openTimeModal = (unit: "hours" | "minutes") => {
     setSelectedTimeUnit(unit)
@@ -981,6 +1080,14 @@ export default function ChimerPage() {
         }),
         onClose: endTimer,
       }
+  const selectedBackgroundId = immersiveContext === "musicVisualizer"
+    ? selectedMusicBackgroundId
+    : settings.backgroundId
+  const canCustomizeSelectedBackground = canCustomizeBackgroundColors({
+    hasCustomColorFeature: featureKeys.includes(FEATURE_KEYS.chimerCustomColors),
+    selectedBackgroundId,
+    permanentlyOwnedBackgroundIds,
+  })
 
   return (
     <div className="relative min-h-full px-4 py-[7px]">
@@ -1006,6 +1113,9 @@ export default function ChimerPage() {
             suppressSyncNotice={hasEditedLocalConflictSettings}
             isResolvingSync={isResolvingSync}
             featureKeys={featureKeys}
+            backgroundVisualPreferences={settings.backgroundVisualPreferences}
+            canCustomizeSelectedBackground={canCustomizeSelectedBackground}
+            backgroundPreferenceSyncStatus={backgroundPreferenceSync.status}
             backgroundCategory={backgroundCategory}
             initialStep={requestedInitialPanel === "background" ? CHIMER_BACKGROUND_SETUP_STEP_INDEX : 0}
             onTimeClick={openTimeModal}
@@ -1016,6 +1126,8 @@ export default function ChimerPage() {
             onTestAlert={testAlert}
             onUseDeviceSettings={useDeviceSettingsForAccount}
             onUseSavedSettings={useSavedAccountSettings}
+            onApplyBackgroundVisualPreferences={applyBackgroundVisualPreferences}
+            onRetryBackgroundVisualPreferences={retryBackgroundVisualPreferenceSync}
           />
         ) : (
           <RunningTimer

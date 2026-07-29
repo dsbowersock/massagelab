@@ -5,8 +5,47 @@ import {
   DEFAULT_CHIMER_SETTINGS,
   sanitizeChimerSettingsForEntitlements,
 } from "../lib/chimer-timer.js"
+import {
+  canCustomizeBackgroundColors,
+  resolveEffectiveBackgroundPaletteMode,
+} from "../lib/background-palette.js"
 
 describe("Chimer entitlement-aware settings", () => {
+  it("retains saved shared palettes across access loss while resolving denied access to Source", () => {
+    const saved = {
+      version: 1,
+      palette: {
+        mode: "custom",
+        primaryColor: "#123456",
+        swatches: ["#123456", "#234567", "#345678", "#456789", "#56789a", "#6789ab", "#789abc"],
+      },
+      colorPresets: [{
+        id: "retained",
+        name: "Retained",
+        palette: {
+          mode: "custom",
+          primaryColor: "#abcdef",
+          swatches: ["#abcdef", "#234567", "#345678", "#456789", "#56789a", "#6789ab", "#789abc"],
+        },
+      }],
+    }
+    const settings = sanitizeChimerSettingsForEntitlements({
+      backgroundId: "massage-lab-novatrix",
+      backgroundVisualPreferences: saved,
+    }, [])
+
+    assert.equal(settings.backgroundVisualPreferences.palette.mode, "custom")
+    assert.equal(settings.backgroundVisualPreferences.colorPresets[0].id, "retained")
+    assert.equal(resolveEffectiveBackgroundPaletteMode({
+      savedMode: settings.backgroundVisualPreferences.palette.mode,
+      canCustomize: canCustomizeBackgroundColors({
+        hasCustomColorFeature: false,
+        selectedBackgroundId: "massage-lab-novatrix",
+        permanentlyOwnedBackgroundIds: [],
+      }),
+    }), "source")
+  })
+
   it("resets MassageLab Novatrix controls without premium background access", () => {
     const input = {
       backgroundId: "massage-lab-novatrix",

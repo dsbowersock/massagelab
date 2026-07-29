@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import {
   USER_PREFERENCES_VERSION,
@@ -7,7 +8,9 @@ import {
   buildUserPreferencePayload,
   canSyncAccountPreferences,
   choosePreferenceSource,
+  createChimerPreferenceSyncRequest,
   removeForbiddenPreferenceFields,
+  resolveChimerPreferenceSyncRequest,
   resolveSupporterRoadmapInterestsAfterSave,
 } from "../lib/account-preferences.js"
 
@@ -27,6 +30,77 @@ describe("Account preference helpers", () => {
     assert.deepEqual(payload.anatomime_settings, { roundLimit: 8 })
     assert.deepEqual(payload.note_preferences, { defaultNoteType: "soap" })
     assert.deepEqual(payload.calendar_preferences, { defaultRange: "week", providerViewMode: "combined" })
+  })
+
+  it("round-trips sanitized nested background preferences without PHI-shaped fields", () => {
+    const payload = buildUserPreferencePayload({
+      chimerSettings: {
+        minutes: 30,
+        backgroundVisualPreferences: {
+          version: 1,
+          palette: {
+            mode: "harmony",
+            primaryColor: "#123456",
+            harmony: "triadic",
+          },
+          visualPresetsByBackground: {
+            "massage-lab-novatrix": [{
+              id: "bounded",
+              name: "Bounded",
+              properties: {
+                massageLabNovatrixSpeed: 999,
+                soapDraft: "never sync",
+                clientName: "never sync",
+              },
+            }],
+          },
+        },
+      },
+    })
+
+    assert.equal(payload.chimer_settings.minutes, 30)
+    assert.equal(payload.chimer_settings.backgroundVisualPreferences.version, 1)
+    assert.equal(payload.chimer_settings.backgroundVisualPreferences.palette.mode, "harmony")
+    assert.deepEqual(
+      payload.chimer_settings.backgroundVisualPreferences
+        .visualPresetsByBackground["massage-lab-novatrix"][0].properties,
+      { massageLabNovatrixSpeed: 3 },
+    )
+    assert.doesNotMatch(JSON.stringify(payload.chimer_settings), /soapDraft|clientName|never sync/)
+  })
+
+  it("retains the exact sanitized request body after a failed cloud write for retry", () => {
+    const pending = createChimerPreferenceSyncRequest({
+      minutes: 999,
+      backgroundVisualPreferences: {
+        version: 1,
+        palette: { mode: "custom", primaryColor: "#abc" },
+      },
+    })
+    const stale = resolveChimerPreferenceSyncRequest(pending, false)
+
+    assert.equal(pending.status, "pending")
+    assert.equal(stale.status, "stale")
+    assert.equal(stale.requestBody, pending.requestBody)
+    assert.equal(JSON.parse(stale.requestBody).chimerSettings.hours, 16)
+    assert.equal(JSON.parse(stale.requestBody).chimerSettings.minutes, 39)
+    assert.equal(
+      JSON.parse(stale.requestBody).chimerSettings.backgroundVisualPreferences.palette.primaryColor,
+      "#aabbcc",
+    )
+    assert.deepEqual(resolveChimerPreferenceSyncRequest(stale, true), {
+      status: "synced",
+      requestBody: null,
+    })
+  })
+
+  it("uses the canonical Track 1 snapshot for account preference ownership IDs", async () => {
+    const source = await readFile(new URL("../app/api/account/preferences/route.ts", import.meta.url), "utf8")
+
+    assert.match(source, /getBackgroundCommerceSnapshot/)
+    assert.match(source, /ownedBackgroundIds:\s*commerceSnapshot\.ownedBackgroundIds/)
+    assert.doesNotMatch(source, /ownedBackgroundIds:\s*\[\]/)
+    assert.doesNotMatch(source, /paymentIntent|customerId|stripeCustomer|checkoutSession/)
   })
 
   it("removes known PHI fields before account sync", () => {
