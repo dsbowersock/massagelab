@@ -4,6 +4,7 @@ import { AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import { Notice } from "@/components/ui/notice"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ButtonGallery } from "./button-gallery"
+import { BackgroundPaletteGallery } from "./background-palette-gallery"
 import { CardStatusGallery } from "./card-status-gallery"
 import { CarouselLab } from "./carousel-lab/carousel-lab"
 import { ChoiceGallery } from "./choice-gallery"
@@ -28,6 +29,7 @@ const reviewSections = [
   { value: "carousels", label: "Carousels" },
   { value: "surfaces", label: "Navigation & surfaces" },
   { value: "protected", label: "Protected routes" },
+  { value: "background-palettes", label: "Background palettes" },
 ] as const
 
 export default function ControlSystemReviewPage() {
@@ -106,6 +108,10 @@ export default function ControlSystemReviewPage() {
 
         <TabsContent value="protected" className="mt-0">
           <ProtectedRouteGallery />
+        </TabsContent>
+
+        <TabsContent value="background-palettes" className="mt-0">
+          <BackgroundPaletteGallery />
         </TabsContent>
       </Tabs>
       </ReviewLabInteractive>

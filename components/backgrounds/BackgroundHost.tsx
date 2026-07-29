@@ -421,6 +421,10 @@ export function BackgroundHost({
       aria-hidden="true"
       className={cn(styles.host, !className && styles.hostDefault, className)}
       data-background-id={entry.id}
+      data-background-effect-mounted={BackgroundComponent ? "true" : "false"}
+      data-background-fallback-only={
+        shouldLoadEffect && !BackgroundComponent ? "true" : "false"
+      }
       data-background-motion={motionEnabled ? "playing" : "paused"}
       data-background-provider={entry.provider}
       data-testid={testId}
