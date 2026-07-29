@@ -18,6 +18,13 @@ const runningTimerStyles = await read("app/chimer/running-timer.module.css")
 const planSource = await read("docs/superpowers/plans/2026-07-18-clock-chimer-music-visualizer.md")
 const specSource = await read("docs/superpowers/specs/2026-07-18-clock-chimer-music-visualizer-design.md")
 
+function getPanelContentSource(startProp, endProp) {
+  const start = runningTimerSource.indexOf(`${startProp}={`)
+  const end = runningTimerSource.indexOf(`${endProp}={`)
+  assert.ok(start >= 0 && end > start)
+  return runningTimerSource.slice(start, end)
+}
+
 test("exports the reusable controlled immersive panel contract", () => {
   assert.match(shellSource, /export type ImmersivePanelId = "clock" \| "visual" \| "background" \| null/)
   assert.match(shellSource, /interface ImmersivePanelShellProps \{[\s\S]*activePanel: ImmersivePanelId[\s\S]*onActivePanelChange: \(panel: ImmersivePanelId\) => void[\s\S]*protectedDisplayRef: RefObject<HTMLElement \| null>[\s\S]*clockContent: ReactNode[\s\S]*visualContent: ReactNode[\s\S]*backgroundContent: ReactNode[\s\S]*backgroundHeaderContent\?: ReactNode[\s\S]*backgroundUnavailableMessage\?: string \| null[\s\S]*hapticsEnabled: boolean/)
@@ -133,8 +140,14 @@ test("RunningTimer owns one active panel without legacy settings tabs or auto-cl
   assert.doesNotMatch(runningTimerSource, /<Tabs(?:Content|List|Trigger)?\b/)
   assert.doesNotMatch(runningTimerSource, /settingsButton|SettingsButton|settingsAutoClose|SettingsAutoClose|SETTINGS_AUTO_CLOSE/)
   assert.doesNotMatch(runningTimerStyles, /settingsButton|settingsPanel|settingsTabs|settingsTabList|settingsTabTrigger/)
-  assert.match(runningTimerSource, /visualContent=\{\([\s\S]*label="Keep timer screen awake"/)
-  assert.doesNotMatch(runningTimerSource, /clockContent=\{\([\s\S]*label="Keep timer screen awake"[\s\S]*visualContent=/)
+  assert.match(
+    getPanelContentSource("visualContent", "backgroundContent"),
+    /label="Keep timer screen awake"/,
+  )
+  assert.doesNotMatch(
+    getPanelContentSource("clockContent", "visualContent"),
+    /label="Keep timer screen awake"/,
+  )
 })
 
 test("tracked docs clarify Background dismissal, selection, and Visual hint behavior", () => {
@@ -154,5 +167,8 @@ test("wires a non-blocking device-local Visual hint without changing the active-
   assert.match(shellSource, /aria-describedby=\{id === "visual" && visualHintMessage \? visualHintId : undefined\}/)
   assert.match(shellSource, /role="status"/)
   assert.match(shellStyles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.visualHintActive/)
-  assert.match(runningTimerSource, /visualContent=\{\([\s\S]*!isClockMode[\s\S]*label="Keep timer screen awake"/)
+  assert.match(
+    getPanelContentSource("visualContent", "backgroundContent"),
+    /!isClockMode[\s\S]*label="Keep timer screen awake"/,
+  )
 })

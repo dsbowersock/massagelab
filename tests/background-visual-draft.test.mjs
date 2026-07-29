@@ -725,5 +725,9 @@ test("dirty navigation guard covers eligible app links, history, and native unlo
   assert.doesNotMatch(unsavedDialogSource, /document\.activeElement/)
   assert.match(unsavedDialogSource, /restoreFocusTarget/)
   assert.match(runningTimerSource, /className=\{styles\.visualDraftStatus\}[\s\S]*role="status"[\s\S]*aria-live="polite"/)
-  assert.doesNotMatch(runningTimerSource, /className=\{styles\.visualDraftActions\}[\s\S]{0,120}role="status"/)
+  const actionRowOpeningTag = runningTimerSource.match(
+    /<div\s+className=\{styles\.visualDraftActions\}[^>]*>/,
+  )?.[0]
+  assert.ok(actionRowOpeningTag)
+  assert.doesNotMatch(actionRowOpeningTag, /\brole=/)
 })

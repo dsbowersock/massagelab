@@ -198,8 +198,16 @@ test("shared background access and palette resolver inputs stay authoritative an
   assert.match(runningSource, /backgroundAccess: BackgroundAccessSnapshot/)
   assert.match(runningSource, /<BackgroundHost[\s\S]*access=\{backgroundAccess\}/)
   assert.match(runningSource, /const effectiveBackgroundPalette = useMemo/)
+  assert.match(
+    runningSource,
+    /const ACCOUNT_COLOR_SETTING_KEYS = new Set\(\["clockModeFontColor"\]\)/,
+  )
   assert.match(hostSource, /access: BackgroundAccessSnapshot/)
   assert.match(hostSource, /resolveAccessibleBackgroundDefinition\(selectedId, access, category\)/)
+  assert.match(hostSource, /const effectPropsInputSignature = JSON\.stringify/)
+  assert.match(hostSource, /const stableEffectPropsInput = useMemo/)
+  assert.match(hostSource, /\[effectPropsInputSignature\]/)
+  assert.match(hostSource, /resolveBackgroundEffectProps\(\{[\s\S]*effectProps: baseEffectProps/)
   assert.doesNotMatch(runningSource, /resolvePaletteDrivenColor|globalColors|globalPalette/)
   assert.doesNotMatch(pickerSource, /export function GlobalColorPicker|GlobalColorValues/)
   assert.doesNotMatch(indexSource, /\bGlobalColorPicker\b(?=\s*[},])/)

@@ -3388,6 +3388,12 @@ describe("Chimer entitlement-aware settings", () => {
     const ownedBackgroundId = "massage-lab-stars"
     const settings = sanitizeChimerSettingsForEntitlements({
       backgroundId: ownedBackgroundId,
+      primaryFontColor: "#010203",
+      clockFontFamily: "serif",
+      clockShadowEnabled: true,
+      clockShadowColor: "#112233",
+      clockGlowEnabled: true,
+      clockGlowColor: "#445566",
       massageLabStarsSpeed: 72,
       backgroundVisualPreferences: {
         palette: {
@@ -3413,6 +3419,12 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(settings.backgroundId, ownedBackgroundId)
     assert.equal(settings.massageLabStarsSpeed, 72)
     assert.equal(settings.backgroundVisualPreferences.palette.mode, "custom")
+    assert.equal(settings.primaryFontColor, DEFAULT_CHIMER_SETTINGS.primaryFontColor)
+    assert.equal(settings.clockFontFamily, DEFAULT_CHIMER_SETTINGS.clockFontFamily)
+    assert.equal(settings.clockShadowEnabled, DEFAULT_CHIMER_SETTINGS.clockShadowEnabled)
+    assert.equal(settings.clockShadowColor, DEFAULT_CHIMER_SETTINGS.clockShadowColor)
+    assert.equal(settings.clockGlowEnabled, DEFAULT_CHIMER_SETTINGS.clockGlowEnabled)
+    assert.equal(settings.clockGlowColor, DEFAULT_CHIMER_SETTINGS.clockGlowColor)
     assert.equal(
       sanitizeChimerSettingsForEntitlements({
         backgroundId: "massage-lab-hole",

@@ -57,7 +57,7 @@ const DEFAULT_PRIMARY_FONT_COLOR = "#FFFFFF"
 const DEFAULT_SECONDARY_FONT_COLOR = "#FF7A1A"
 const DEFAULT_CLOCK_MODE_FONT_COLOR = "#FFFFFF"
 const PREMIUM_CUSTOM_COLOR_SETTING_KEYS = new Set(["primaryFontColor", "secondaryFontColor"])
-const ACCOUNT_COLOR_SETTING_KEYS = new Set(["clockModeFontColor", "movingBackgroundMainColor", "movingBackgroundOrbColor"])
+const ACCOUNT_COLOR_SETTING_KEYS = new Set(["clockModeFontColor"])
 
 const HEX_COLOR_PATTERN = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i
 
