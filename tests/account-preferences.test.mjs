@@ -73,6 +73,103 @@ describe("Account preference helpers", () => {
     assert.doesNotMatch(JSON.stringify(payload.chimer_settings), /soapDraft|clientName|never sync/)
   })
 
+  it("serializes Account sync with the authoritative background inventory", async () => {
+    const localPreferences = {
+      appSettings: {
+        themeMode: "system",
+        clientName: "Never sync",
+      },
+      chimerSettings: {
+        minutes: 30,
+        backgroundVisualPreferences: {
+          version: 1,
+          mappingsByBackground: {
+            "massage-lab-novatrix": {
+              field: 2,
+              staleRole: 6,
+            },
+            "unknown-background": {
+              field: 4,
+            },
+          },
+          visualPresetsByBackground: {
+            "massage-lab-novatrix": [{
+              id: "account-local",
+              name: "Account local",
+              properties: {
+                massageLabNovatrixSpeed: 999,
+                hours: 4,
+                clientName: "Never sync",
+              },
+            }],
+            "unknown-background": [{
+              id: "unknown",
+              name: "Unknown",
+              properties: {
+                unknownSpeed: 2,
+              },
+            }],
+          },
+        },
+      },
+      anatomimeSettings: {
+        roundLimit: 8,
+      },
+      notePreferences: {
+        defaultNoteType: "soap",
+        soapDraft: "Never sync",
+      },
+      calendarPreferences: {
+        defaultRange: "week",
+      },
+    }
+
+    const payload = buildUserPreferencePayload(localPreferences, {
+      backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
+    })
+    const requestBody = JSON.parse(JSON.stringify({
+      appSettings: payload.app_settings,
+      chimerSettings: payload.chimer_settings,
+      anatomimeSettings: payload.anatomime_settings,
+      notePreferences: payload.note_preferences,
+      calendarPreferences: payload.calendar_preferences,
+    }))
+
+    assert.deepEqual(
+      requestBody.chimerSettings.backgroundVisualPreferences.mappingsByBackground,
+      { "massage-lab-novatrix": { field: 2 } },
+    )
+    assert.deepEqual(
+      requestBody.chimerSettings.backgroundVisualPreferences
+        .visualPresetsByBackground["massage-lab-novatrix"][0].properties,
+      { massageLabNovatrixSpeed: 3 },
+    )
+    assert.doesNotMatch(
+      JSON.stringify(requestBody),
+      /unknown-background|staleRole|hours|clientName|soapDraft|Never sync/,
+    )
+
+    const withoutInventory = buildUserPreferencePayload(localPreferences)
+    assert.deepEqual(
+      withoutInventory.chimer_settings.backgroundVisualPreferences.mappingsByBackground,
+      {},
+    )
+    assert.deepEqual(
+      withoutInventory.chimer_settings.backgroundVisualPreferences.visualPresetsByBackground,
+      {},
+    )
+
+    const source = await readFile(new URL("../app/account/preference-sync.tsx", import.meta.url), "utf8")
+    assert.match(
+      source,
+      /import\s+\{\s*backgroundPreferenceNormalizationOptions\s*\}\s+from\s+"@\/components\/backgrounds\/backgroundPaletteRegistry"/,
+    )
+    assert.match(
+      source,
+      /buildUserPreferencePayload\(\{[\s\S]*?calendarPreferences:[\s\S]*?\},\s*\{\s*backgroundPreferenceOptions:\s*backgroundPreferenceNormalizationOptions,\s*\}\)/,
+    )
+  })
+
   it("retains the exact sanitized request body after a failed cloud write for retry", () => {
     const pending = createChimerPreferenceSyncRequest({
       minutes: 999,

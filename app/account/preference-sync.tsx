@@ -6,6 +6,7 @@ import {
   LOCAL_PREFERENCE_KEYS,
   buildUserPreferencePayload,
 } from "@/lib/account-preferences"
+import { backgroundPreferenceNormalizationOptions } from "@/components/backgrounds/backgroundPaletteRegistry"
 import { Button } from "@/components/ui/button"
 import { Loader } from "@/components/ui/loader"
 
@@ -42,6 +43,8 @@ export function PreferenceSync({ hasCloudPreferences }: PreferenceSyncProps) {
       anatomimeSettings: readJsonPreference(LOCAL_PREFERENCE_KEYS.anatomimeSettings),
       notePreferences: readJsonPreference(LOCAL_PREFERENCE_KEYS.notePreferences),
       calendarPreferences: readJsonPreference(LOCAL_PREFERENCE_KEYS.calendarPreferences),
+    }, {
+      backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
     })
 
     const [preferencesResponse, profileResponse] = await Promise.all([
