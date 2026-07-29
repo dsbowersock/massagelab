@@ -82,12 +82,17 @@ tests and confirm:
 - The Stripe Customer Portal opens, permits switching only among the six
   Supporter Prices, and preserves cancellation, payment-method updates,
   billing-detail updates, invoice history, and return to MassageLab.
-- The $1 monthly enrollment, $2/$5 portal switch, payment/address update,
-  invoice, period-end cancellation, and webhook-backed entitlement paths pass.
-- At least one public $10/$20/$50 annual Price completes annual Checkout, its
-  signed webhook grants the Supporter entitlement, and its portal cancellation
-  or interval-switch path is verified.
-- The subscription is canceled or refunded as appropriate after the smoke test.
+- The Track 1 controlled smoke covers a taxed low-dollar monthly enrollment,
+  signed-webhook entitlement persistence, one focused amount or billing-period
+  change with the documented anchor/no-proration contract, and return to
+  MassageLab.
+- The remaining expanded billing matrix -- a $5 change, payment/address update,
+  period-end cancellation, and a public annual Checkout plus cancellation or
+  interval switch -- is first-cohort Production monitoring or a separately
+  authorized follow-up smoke. Those observations are explicit external
+  invite-readiness work, not Track 1 implementation or rollout blockers.
+- Cancel or refund a smoke subscription only when the controlled-account owner
+  requests it or the separately authorized smoke requires cleanup.
 - The one-time support path starts Stripe Checkout, returns to `/pricing`,
   uses exclusive Automatic Tax with required billing-address collection,
   retrieves the completed Session and line items, and verifies the applied tax
