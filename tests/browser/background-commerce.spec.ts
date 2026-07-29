@@ -416,12 +416,18 @@ test("Clock redeems one explicit permanent credit and keeps the nested dialog fo
   await page.getByRole("checkbox", { name: /permanent, non-swappable/i }).check()
   await page.getByRole("button", { name: "Use credit", exact: true }).click()
 
+  await expect(backgroundPanel).toHaveCount(0)
+  await page.getByRole("button", { name: "Background", exact: true }).click()
+  await expect(backgroundPanel).toBeVisible()
   await expect(backgroundPanel.getByRole("status").filter({ hasText: "1 credit" })).toBeVisible()
   const ownedAurora = await centerPremium(page, AURORA_ID)
   await expect(accessCard(ownedAurora)).toHaveAttribute("data-background-access-state", "owned-credit")
   await expect(accessCard(ownedAurora).getByText("Owned")).toBeVisible()
   await expect(accessCard(ownedAurora).getByRole("img", {
     name: "Aurora field is permanently owned",
+  })).toBeVisible()
+  await expect(accessCard(ownedAurora).getByRole("button", {
+    name: "Selected Aurora field background",
   })).toBeVisible()
 })
 

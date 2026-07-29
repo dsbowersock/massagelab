@@ -25,6 +25,10 @@ import {
 import {
   BACKGROUND_PALETTE_METADATA_SUFFIXES,
 } from "../components/backgrounds/backgroundPaletteRegistry.ts"
+import {
+  DEFAULT_CHIMER_SETTINGS,
+  sanitizeChimerVisualCommitForEntitlements,
+} from "../lib/chimer-timer.js"
 
 const read = async (path) => {
   try {
@@ -515,6 +519,50 @@ test("Music Apply and switch keep canonical Chimer selection while Chimer switch
     }),
     { commit: null, resumeIntent: null },
   )
+})
+
+test("owned-only Music Apply retains visual properties without changing canonical Chimer access", () => {
+  const visualBackgroundId = "massage-lab-stars"
+  const committed = sanitizeChimerVisualCommitForEntitlements({
+    currentSettings: {
+      ...DEFAULT_CHIMER_SETTINGS,
+      backgroundId: DEFAULT_CHIMER_SETTINGS.backgroundId,
+      primaryFontColor: "#010203",
+    },
+    candidateProperties: {
+      massageLabStarsSpeed: 72,
+      primaryFontColor: "#040506",
+    },
+    canonicalBackgroundId: DEFAULT_CHIMER_SETTINGS.backgroundId,
+    visualBackgroundIds: [visualBackgroundId],
+    visualPropertyKeysByBackground: {
+      [visualBackgroundId]: ["massageLabStarsSpeed"],
+    },
+    backgroundVisualPreferences: {
+      palette: {
+        mode: "custom",
+        primaryColor: "#112233",
+        harmony: "analogous",
+        swatches: [
+          "#112233",
+          "#223344",
+          "#334455",
+          "#445566",
+          "#556677",
+          "#667788",
+          "#778899",
+        ],
+      },
+    },
+  }, {
+    featureKeys: [],
+    ownedBackgroundIds: [visualBackgroundId],
+  })
+
+  assert.equal(committed.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+  assert.equal(committed.massageLabStarsSpeed, 72)
+  assert.equal(committed.backgroundVisualPreferences.palette.mode, "custom")
+  assert.equal(committed.primaryFontColor, DEFAULT_CHIMER_SETTINGS.primaryFontColor)
 })
 
 test("legacy host selection helper remains deterministic during the shared-host cutover", () => {

@@ -26,6 +26,7 @@ import {
   normalizeInteger,
   sanitizeChimerSettings,
   sanitizeChimerSettingsForEntitlements,
+  sanitizeChimerVisualCommitForEntitlements,
 } from "@/lib/chimer-timer"
 import {
   canSyncAccountPreferencesFromSession,
@@ -717,11 +718,14 @@ export default function ChimerPage() {
     window.setTimeout(tick, 0)
   }, [clearTimerInterval, tick])
 
-  const updateSettings = (nextSettings: Partial<ChimerSettings>) => {
+  const updateSettings = (
+    nextSettings: Partial<ChimerSettings>,
+    accessOverride?: BackgroundAccessSnapshot,
+  ) => {
     setError(null)
     const nextSanitizedSettings = sanitizeChimerSettingsForEntitlements(
       { ...settingsRef.current, ...nextSettings },
-      backgroundAccessRef.current,
+      accessOverride ?? backgroundAccessRef.current,
       {
         canUseAccountColorControls,
         backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
@@ -765,18 +769,26 @@ export default function ChimerPage() {
         ? input.backgroundId
         : null,
     })
-    const allowedPropertyKeys = new Set(scope.visualBackgroundIds.flatMap(
-      (backgroundId) => backgroundPaletteRegistry[backgroundId]?.visualPropertyKeys ?? [],
-    ))
+    const visualPropertyKeysByBackground = Object.fromEntries(
+      scope.visualBackgroundIds.map((backgroundId) => [
+        backgroundId,
+        backgroundPaletteRegistry[backgroundId]?.visualPropertyKeys ?? [],
+      ]),
+    )
+    const allowedPropertyKeys = new Set(
+      Object.values(visualPropertyKeysByBackground).flat(),
+    )
     const properties = "properties" in input
       ? Object.fromEntries(
         Object.entries(input.properties).filter(([key]) => allowedPropertyKeys.has(key)),
       )
       : {}
-    const nextSettings = sanitizeChimerSettingsForEntitlements({
-      ...settingsRef.current,
-      ...properties,
-      backgroundId: scope.canonicalBackgroundId,
+    const nextSettings = sanitizeChimerVisualCommitForEntitlements({
+      currentSettings: settingsRef.current,
+      candidateProperties: properties,
+      canonicalBackgroundId: scope.canonicalBackgroundId,
+      visualBackgroundIds: scope.visualBackgroundIds,
+      visualPropertyKeysByBackground,
       backgroundVisualPreferences,
     }, backgroundAccessRef.current, {
       canUseAccountColorControls,
@@ -1154,10 +1166,10 @@ export default function ChimerPage() {
         storageError: null,
         wakeLockMessage,
         onShowClockChange: (showClock) => updateSettings({ showClockDisplay: showClock }),
-        onBackgroundChange: (backgroundId) => updateSettings({
+        onBackgroundChange: (backgroundId, accessOverride) => updateSettings({
           movingBackgroundEnabled: true,
           backgroundId: backgroundId as ChimerSettings["backgroundId"],
-        }),
+        }, accessOverride),
         onClose: endTimer,
       }
       : {

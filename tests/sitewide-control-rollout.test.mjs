@@ -196,7 +196,7 @@ test("shared background access and palette resolver inputs stay authoritative an
   assert.match(pageSource, /const backgroundAccess = useMemo/)
   assert.match(pageSource, /featureKeys,\s+ownedBackgroundIds: permanentlyOwnedBackgroundIds/)
   assert.match(runningSource, /backgroundAccess: BackgroundAccessSnapshot/)
-  assert.match(runningSource, /<BackgroundHost[\s\S]*access=\{backgroundAccess\}/)
+  assert.match(runningSource, /<BackgroundHost[\s\S]*access=\{effectiveBackgroundAccess\}/)
   assert.match(runningSource, /const effectiveBackgroundPalette = useMemo/)
   assert.match(
     runningSource,

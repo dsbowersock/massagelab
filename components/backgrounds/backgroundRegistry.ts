@@ -138,6 +138,23 @@ export type BackgroundAccessSnapshot = {
   ownedBackgroundIds: readonly string[]
 }
 
+/**
+ * Adds freshly refreshed commerce ownership to account-loaded access without
+ * allowing commerce state to invent subscription feature entitlements.
+ */
+export function mergeBackgroundAccessOwnership(
+  access: BackgroundAccessSnapshot,
+  liveOwnedBackgroundIds: readonly string[] = [],
+): BackgroundAccessSnapshot {
+  return {
+    featureKeys: access.featureKeys,
+    ownedBackgroundIds: [...new Set([
+      ...access.ownedBackgroundIds,
+      ...liveOwnedBackgroundIds,
+    ])],
+  }
+}
+
 type BackgroundAccessInput =
   | readonly string[]
   | Partial<BackgroundAccessSnapshot>

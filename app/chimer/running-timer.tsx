@@ -7,10 +7,10 @@ import { BACKGROUND_VISUAL_FILTERS, matchesBackgroundVisualFilter, readSavedBack
 import { DEFAULT_BACKGROUND_ID } from "@/lib/background-options"
 import { BackgroundAcquisitionDialog } from "@/components/backgrounds/BackgroundAcquisitionDialog"
 import { BackgroundCarousel } from "@/components/backgrounds/background-carousel"
-import { useBackgroundCreditStatus } from "@/components/backgrounds/BackgroundCommerceProvider"
+import { useBackgroundCommerce, useBackgroundCreditStatus } from "@/components/backgrounds/BackgroundCommerceProvider"
 import { BackgroundHost } from "@/components/backgrounds/BackgroundHost"
 import { BACKGROUND_PALETTE_METADATA_SUFFIXES, backgroundPaletteRegistry } from "@/components/backgrounds/backgroundPaletteRegistry"
-import { canUseBackgroundId, getBackgroundOptionsForCategory, resolveAccessibleBackgroundDefinition, type BackgroundAccessSnapshot, type BackgroundId, type BackgroundDefinition, userCanUseBackground } from "@/components/backgrounds/backgroundRegistry"
+import { canUseBackgroundId, getBackgroundOptionsForCategory, mergeBackgroundAccessOwnership, resolveAccessibleBackgroundDefinition, type BackgroundAccessSnapshot, type BackgroundId, type BackgroundDefinition, userCanUseBackground } from "@/components/backgrounds/backgroundRegistry"
 import { triggerHapticFeedback } from "@/lib/haptics"
 import { ColorPickerInput, ColorPickerSwatch } from "@/components/chimer-controls/GlobalColorPicker"
 import { StyledRangeControl } from "@/components/chimer-controls/StyledRangeControl"
@@ -190,7 +190,10 @@ export interface ImmersiveDisplayMode {
   storageError: string | null
   wakeLockMessage: string | null
   onShowClockChange?: (showClock: boolean) => void
-  onBackgroundChange: (backgroundId: string) => void
+  onBackgroundChange: (
+    backgroundId: string,
+    accessOverride?: BackgroundAccessSnapshot,
+  ) => void
   onClose: () => void
   musicDefaultActions?: {
     signedIn: boolean
@@ -1467,6 +1470,16 @@ export function RunningTimer({
   hapticsEnabled,
 }: RunningTimerProps) {
   const router = useRouter()
+  const { state: backgroundCommerceState } = useBackgroundCommerce()
+  const creditStatus = useBackgroundCreditStatus()
+  const commerceOwnedBackgroundIds = backgroundCommerceState.snapshot?.ownedBackgroundIds
+  const effectiveBackgroundAccess = useMemo(
+    () => mergeBackgroundAccessOwnership(
+      backgroundAccess,
+      commerceOwnedBackgroundIds ?? [],
+    ),
+    [backgroundAccess, commerceOwnedBackgroundIds],
+  )
   const isPaused = status === "paused"
   const isComplete = status === "complete"
   const isClockMode = status === "clock"
@@ -1475,12 +1488,12 @@ export function RunningTimer({
   const backgroundCategory = mode.backgroundCategory
   const backgroundId = mode.selectedBackgroundId ?? DEFAULT_BACKGROUND_ID
   const canCustomizeSelectedBackground = canCustomizeBackgroundColors({
-    hasCustomColorFeature: backgroundAccess.featureKeys.includes(FEATURE_KEYS.chimerCustomColors),
+    hasCustomColorFeature: effectiveBackgroundAccess.featureKeys.includes(FEATURE_KEYS.chimerCustomColors),
     selectedBackgroundId: backgroundId,
-    permanentlyOwnedBackgroundIds: backgroundAccess.ownedBackgroundIds,
+    permanentlyOwnedBackgroundIds: effectiveBackgroundAccess.ownedBackgroundIds,
   })
   const isLiveBackgroundSession = status === "running" || status === "paused" || status === "clock"
-  const shouldRenderLiveBackground = mode.selectedBackgroundId !== null && (isLiveBackgroundSession || !canUseBackgroundId(backgroundId, backgroundAccess, backgroundCategory))
+  const shouldRenderLiveBackground = mode.selectedBackgroundId !== null && (isLiveBackgroundSession || !canUseBackgroundId(backgroundId, effectiveBackgroundAccess, backgroundCategory))
   const astralFlowDisplaySpeed = getMassageLabAstralFlowDisplaySpeed(massageLabAstralFlowSpeed)
   const deepSpaceNebulaDisplaySpeed = getMassageLabDeepSpaceNebulaDisplaySpeed(massageLabDeepSpaceNebulaSpeed)
   const gridBloomDisplaySpeed = getMassageLabGridBloomDisplaySpeed(massageLabGridBloomSpeed)
@@ -1501,7 +1514,6 @@ export function RunningTimer({
     background: BackgroundDefinition
     mode: "locked" | "keep-permanently"
   } | null>(null)
-  const creditStatus = useBackgroundCreditStatus()
   const [visualHintMessage, setVisualHintMessage] = useState<string | null>(null)
   const [backgroundCategoryFilter, setBackgroundCategoryFilter] = useState<BackgroundVisualCategory>("all")
   const [savedBackgroundIds, setSavedBackgroundIds] = useState<BackgroundId[]>([])
@@ -1657,7 +1669,7 @@ export function RunningTimer({
   const canDecreaseFontSize = effectiveFontSize > MIN_FONT_SIZE + 0.05
   const activeRemainingHours = Number(activeTimeDisplay.hours)
   const activeRemainingMinutes = Number(activeTimeDisplay.minutes)
-  const selectedBackgroundDefinition = resolveAccessibleBackgroundDefinition(backgroundId, backgroundAccess, backgroundCategory)
+  const selectedBackgroundDefinition = resolveAccessibleBackgroundDefinition(backgroundId, effectiveBackgroundAccess, backgroundCategory)
   const visibleBackgroundOptions = useMemo(() => getBackgroundOptionsForCategory(backgroundCategory).filter((option) => matchesBackgroundVisualFilter(option, backgroundCategoryFilter, savedBackgroundIds)), [backgroundCategory, backgroundCategoryFilter, savedBackgroundIds])
   const hasVisibleBackgrounds = visibleBackgroundOptions.length > 0
 
@@ -1891,10 +1903,17 @@ export function RunningTimer({
     setBackgroundCategoryFilter(nextFilter)
   }
 
-  const getSelectableBackground = (nextBackgroundId: BackgroundId) => {
+  const getSelectableBackground = (
+    nextBackgroundId: BackgroundId,
+    newlyOwnedBackgroundIds: readonly string[] = [],
+  ) => {
     const nextBackgroundDefinition = visibleBackgroundOptions.find((option) => option.id === nextBackgroundId)
+    const selectionAccess = mergeBackgroundAccessOwnership(
+      effectiveBackgroundAccess,
+      newlyOwnedBackgroundIds,
+    )
 
-    if (!nextBackgroundDefinition || !userCanUseBackground(nextBackgroundDefinition, backgroundAccess)) {
+    if (!nextBackgroundDefinition || !userCanUseBackground(nextBackgroundDefinition, selectionAccess)) {
       return null
     }
     return nextBackgroundDefinition
@@ -1913,8 +1932,15 @@ export function RunningTimer({
     }
   }
 
-  const performBackgroundSelection = (nextBackgroundId: BackgroundId) => {
-    if (!getSelectableBackground(nextBackgroundId)) {
+  const performBackgroundSelection = (
+    nextBackgroundId: BackgroundId,
+    newlyOwnedBackgroundIds: readonly string[] = [],
+  ) => {
+    const selectionAccess = mergeBackgroundAccessOwnership(
+      effectiveBackgroundAccess,
+      newlyOwnedBackgroundIds,
+    )
+    if (!getSelectableBackground(nextBackgroundId, newlyOwnedBackgroundIds)) {
       return
     }
 
@@ -1940,13 +1966,16 @@ export function RunningTimer({
       properties: commit.properties as Partial<ChimerSettings>,
     })
     if (mode.context !== "chimer") {
-      mode.onBackgroundChange(nextBackgroundId)
+      mode.onBackgroundChange(nextBackgroundId, selectionAccess)
     }
     finishBackgroundSelection()
   }
 
-  const handleBackgroundSelection = (nextBackgroundId: BackgroundId) => {
-    if (!getSelectableBackground(nextBackgroundId)) {
+  const handleBackgroundSelection = (
+    nextBackgroundId: BackgroundId,
+    newlyOwnedBackgroundIds: readonly string[] = [],
+  ) => {
+    if (!getSelectableBackground(nextBackgroundId, newlyOwnedBackgroundIds)) {
       return
     }
     if (visualDraft?.dirty) {
@@ -1957,7 +1986,7 @@ export function RunningTimer({
       })
       return
     }
-    performBackgroundSelection(nextBackgroundId)
+    performBackgroundSelection(nextBackgroundId, newlyOwnedBackgroundIds)
   }
 
   const buildVisualDraftCommit = useCallback(
@@ -12131,7 +12160,7 @@ export function RunningTimer({
           style={premiumBackgroundStyle}
           selectedId={backgroundId}
           motionEnabled={movingBackgroundEnabled}
-          access={backgroundAccess}
+          access={effectiveBackgroundAccess}
           category={backgroundCategory}
           backgroundPalette={effectiveBackgroundPalette}
           sparkles={{
@@ -13487,7 +13516,7 @@ export function RunningTimer({
                   key={`${mode.context}:${backgroundCategoryFilter}`}
                   options={visibleBackgroundOptions}
                   selectedId={movingBackgroundEnabled ? backgroundId : null}
-                  access={backgroundAccess}
+                  access={effectiveBackgroundAccess}
                   savedIds={savedBackgroundIds}
                   active={activePanel === "background"}
                   onNavigate={() => triggerHapticFeedback(hapticsEnabled)}
@@ -13523,7 +13552,7 @@ export function RunningTimer({
           }}
           onAcquired={(background) => {
             setAcquisition(null)
-            handleBackgroundSelection(background.id)
+            handleBackgroundSelection(background.id, [background.id])
           }}
         />
         <VisualDraftNavigationGuard dirty={Boolean(visualDraft?.dirty)} blocked={pendingVisualIntent?.type === "navigate"} onNavigateAttempt={handleVisualNavigationAttempt} />

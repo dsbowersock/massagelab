@@ -13,6 +13,7 @@ import {
   backgroundRegistry,
   canUseBackgroundId,
   getBackgroundOptionsForCategory,
+  mergeBackgroundAccessOwnership,
   resolveAccessibleBackgroundDefinition,
 } from "../components/backgrounds/backgroundRegistry.ts"
 
@@ -270,6 +271,32 @@ describe("premium background registry", () => {
         category,
       )
     }
+  })
+
+  it("uses refreshed commerce ownership for immediate in-session redemption access", () => {
+    const redeemedBackgroundId = "massage-lab-aurora"
+    const staleAccountAccess = {
+      featureKeys: [],
+      ownedBackgroundIds: [],
+    }
+    const refreshedAccess = mergeBackgroundAccessOwnership(
+      staleAccountAccess,
+      [redeemedBackgroundId],
+    )
+
+    assert.equal(canUseBackgroundId(redeemedBackgroundId, staleAccountAccess, "clock"), false)
+    assert.equal(canUseBackgroundId(redeemedBackgroundId, refreshedAccess, "clock"), true)
+    assert.equal(canUseBackgroundId("massage-lab-stars", refreshedAccess, "clock"), false)
+    assert.deepEqual(refreshedAccess.featureKeys, [])
+    assert.match(runningTimerSource, /const effectiveBackgroundAccess = useMemo/)
+    assert.match(
+      runningTimerSource,
+      /userCanUseBackground\(nextBackgroundDefinition, selectionAccess\)/,
+    )
+    assert.match(
+      runningTimerSource,
+      /handleBackgroundSelection\(background\.id, \[background\.id\]\)/,
+    )
   })
 
   it("keeps paused draft backgrounds unavailable even with premium access", () => {
