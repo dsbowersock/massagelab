@@ -10,9 +10,14 @@ import {
   type BackgroundCategory,
   type BackgroundId,
 } from "@/components/backgrounds/backgroundRegistry"
+import { backgroundPaletteRegistry } from "@/components/backgrounds/backgroundPaletteRegistry"
 import type {
   BackgroundEffectProps,
 } from "@/components/backgrounds/effects/css-backgrounds"
+import {
+  resolveBackgroundRoleColors,
+  resolveEffectiveBackgroundPaletteMode,
+} from "@/lib/background-palette"
 import styles from "@/components/backgrounds/BackgroundHost.module.css"
 
 const EMPTY_FEATURE_KEYS: string[] = []
@@ -23,6 +28,17 @@ interface BackgroundHostProps extends BackgroundEffectProps {
   category?: BackgroundCategory
   /** Applies one resolved palette across every color-capable background effect. */
   palette?: readonly string[]
+  /** Applies registry colors only while the Visual editor owns a live draft. */
+  draftPalettePreview?: {
+    palette: {
+      mode: string
+      primaryColor: string
+      harmony: string
+      swatches: readonly string[]
+    }
+    mapping: Readonly<Record<string, number>>
+    canCustomize: boolean
+  } | null
   style?: CSSProperties
   /** Renders the static representative while avoiding animated effect work. */
   motionEnabled?: boolean
@@ -103,6 +119,7 @@ export function BackgroundHost({
   featureKeys = EMPTY_FEATURE_KEYS,
   category,
   palette,
+  draftPalettePreview,
   className,
   mainColor,
   orbColor,
@@ -197,7 +214,99 @@ export function BackgroundHost({
     entry.component
     && (entry.motionIntensity === "static" || (motionEnabled && !reduceMotion)),
   )
-  const effectProps = useMemo(() => applyPaletteToBackgroundEffects({
+  const effectProps = useMemo(() => {
+    const baseEffectProps = {
+    mainColor,
+    orbColor,
+    sparkles,
+    gradientAnimation,
+    massageLabGradient,
+    massageLabHole,
+    massageLabStars,
+    massageLabLightSpeed,
+    massageLabElectricMist,
+    massageLabAstralFlow,
+    massageLabDeepSpaceNebula,
+    massageLabGridBloom,
+    massageLabChromeFlow,
+    massageLabWaveCurrent,
+    massageLabSynthesis,
+    massageLabFerrofluid,
+    massageLabLightfall,
+    massageLabLiquidEther,
+    massageLabPrism,
+    massageLabDarkVeil,
+    massageLabLightPillar,
+    massageLabSilk,
+    massageLabFloatingLines,
+    massageLabSideRays,
+    massageLabLightRays,
+    massageLabPixelBlast,
+    massageLabColorBends,
+    massageLabEvilEye,
+    massageLabLineWaves,
+    massageLabRadar,
+    massageLabSoftAurora,
+    massageLabPlasma,
+    massageLabPlasmaWave,
+    massageLabParticles,
+    massageLabGradientBlinds,
+    massageLabGrainient,
+    massageLabGridScan,
+    massageLabBeams,
+    massageLabPixelSnow,
+    massageLabLightning,
+    massageLabPrismaticBurst,
+    massageLabGalaxy,
+    massageLabDither,
+    massageLabFaultyTerminal,
+    massageLabRippleGrid,
+    massageLabDotField,
+    massageLabDotGrid,
+    massageLabThreads,
+    massageLabIridescence,
+    massageLabWaves,
+    massageLabGridDistortion,
+    massageLabOrb,
+    massageLabLetterGlitch,
+    massageLabGridMotion,
+    massageLabShapeGrid,
+    massageLabLiquidChrome,
+    massageLabBalatro,
+    massageLabNovatrix,
+    massageLabMatrixRain,
+    massageLabPhotonBeam,
+    massageLab3DGlobe,
+    massageLabRetroGrid,
+    massageLabAerialRays,
+    backgroundLines,
+    shootingStars,
+    canvasRevealDots,
+    spotlight,
+    lamp,
+    vortex,
+    wavy,
+    pixelLiquid,
+    tileGrid,
+    hexGrid,
+      auroraBars,
+    }
+    const adapter = backgroundPaletteRegistry[entry.id]
+    if (draftPalettePreview && adapter?.status === "supported") {
+      const effectiveMode = resolveEffectiveBackgroundPaletteMode({
+        savedMode: draftPalettePreview.palette.mode,
+        canCustomize: draftPalettePreview.canCustomize,
+      })
+      const colors = resolveBackgroundRoleColors({
+        palette: draftPalettePreview.palette,
+        adapter,
+        mapping: draftPalettePreview.mapping,
+        canCustomize: draftPalettePreview.canCustomize,
+      })
+      return adapter.applyRoleColors(baseEffectProps, colors, effectiveMode)
+    }
+    return applyPaletteToBackgroundEffects(baseEffectProps, palette)
+  }, [
     mainColor,
     orbColor,
     sparkles,
@@ -272,81 +381,8 @@ export function BackgroundHost({
     tileGrid,
     hexGrid,
     auroraBars,
-  }, palette), [
-    mainColor,
-    orbColor,
-    sparkles,
-    gradientAnimation,
-    massageLabGradient,
-    massageLabHole,
-    massageLabStars,
-    massageLabLightSpeed,
-    massageLabElectricMist,
-    massageLabAstralFlow,
-    massageLabDeepSpaceNebula,
-    massageLabGridBloom,
-    massageLabChromeFlow,
-    massageLabWaveCurrent,
-    massageLabSynthesis,
-    massageLabFerrofluid,
-    massageLabLightfall,
-    massageLabLiquidEther,
-    massageLabPrism,
-    massageLabDarkVeil,
-    massageLabLightPillar,
-    massageLabSilk,
-    massageLabFloatingLines,
-    massageLabSideRays,
-    massageLabLightRays,
-    massageLabPixelBlast,
-    massageLabColorBends,
-    massageLabEvilEye,
-    massageLabLineWaves,
-    massageLabRadar,
-    massageLabSoftAurora,
-    massageLabPlasma,
-    massageLabPlasmaWave,
-    massageLabParticles,
-    massageLabGradientBlinds,
-    massageLabGrainient,
-    massageLabGridScan,
-    massageLabBeams,
-    massageLabPixelSnow,
-    massageLabLightning,
-    massageLabPrismaticBurst,
-    massageLabGalaxy,
-    massageLabDither,
-    massageLabFaultyTerminal,
-    massageLabRippleGrid,
-    massageLabDotField,
-    massageLabDotGrid,
-    massageLabThreads,
-    massageLabIridescence,
-    massageLabWaves,
-    massageLabGridDistortion,
-    massageLabOrb,
-    massageLabLetterGlitch,
-    massageLabGridMotion,
-    massageLabShapeGrid,
-    massageLabLiquidChrome,
-    massageLabBalatro,
-    massageLabNovatrix,
-    massageLabMatrixRain,
-    massageLabPhotonBeam,
-    massageLab3DGlobe,
-    massageLabRetroGrid,
-    massageLabAerialRays,
-    backgroundLines,
-    shootingStars,
-    canvasRevealDots,
-    spotlight,
-    lamp,
-    vortex,
-    wavy,
-    pixelLiquid,
-    tileGrid,
-    hexGrid,
-    auroraBars,
+    draftPalettePreview,
+    entry.id,
     palette,
   ])
   const paletteFallbackStyle = palette?.length

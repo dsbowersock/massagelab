@@ -28,6 +28,7 @@ export type ImmersivePanelId = "clock" | "visual" | "background" | null
 interface ImmersivePanelShellProps {
   activePanel: ImmersivePanelId
   onActivePanelChange: (panel: ImmersivePanelId) => void
+  onRequestActivePanelChange?: (panel: ImmersivePanelId) => boolean
   protectedDisplayRef: RefObject<HTMLElement | null>
   clockContent: ReactNode
   visualContent: ReactNode
@@ -135,6 +136,7 @@ function subscribeToViewportChanges(listener: () => void) {
 export function ImmersivePanelShell({
   activePanel,
   onActivePanelChange,
+  onRequestActivePanelChange,
   protectedDisplayRef,
   clockContent,
   visualContent,
@@ -235,17 +237,28 @@ export function ImmersivePanelShell({
     }
   }, [portalTarget, visualHintMessage, visualViewportFrame?.width])
 
+  const requestActivePanelChange = useCallback((nextPanel: ImmersivePanelId) => {
+    if (
+      activePanel === "visual"
+      && nextPanel !== "visual"
+      && onRequestActivePanelChange?.(nextPanel) === false
+    ) {
+      return false
+    }
+    onActivePanelChange(nextPanel)
+    return true
+  }, [activePanel, onActivePanelChange, onRequestActivePanelChange])
+
   const closeNonmodalPanel = useCallback((restoreFocus: boolean) => {
     if (!nonmodalPanel) {
       return
     }
 
     const panelToRestore = nonmodalPanel
-    onActivePanelChange(null)
-    if (restoreFocus) {
+    if (requestActivePanelChange(null) && restoreFocus) {
       restoreToolbarFocus(toolbarButtonRefs, panelToRestore)
     }
-  }, [nonmodalPanel, onActivePanelChange])
+  }, [nonmodalPanel, requestActivePanelChange])
 
   useLayoutEffect(() => {
     const protectedDisplay = protectedDisplayRef.current
@@ -471,7 +484,7 @@ export function ImmersivePanelShell({
                     }}
                     onClick={() => {
                       triggerHapticFeedback(hapticsEnabled)
-                      onActivePanelChange(isActive ? null : id)
+                      requestActivePanelChange(isActive ? null : id)
                     }}
                   >
                     <Icon className={styles.toolbarIcon} aria-hidden="true" />

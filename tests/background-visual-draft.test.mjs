@@ -1,12 +1,29 @@
 import assert from "node:assert/strict"
+import { readFile } from "node:fs/promises"
 import test from "node:test"
 
 import {
   BACKGROUND_VISUAL_HISTORY_LIMIT,
+  buildBackgroundVisualOpeningSnapshot,
+  buildCommittedBackgroundVisualPreferences,
   createBackgroundVisualDraft,
   getCommittedBackgroundVisualSnapshot,
+  resolveBackgroundSelectionVisualSnapshot,
   reduceBackgroundVisualDraft,
 } from "../lib/background-visual-draft.js"
+
+const read = async (path) => {
+  try {
+    return await readFile(new URL(`../${path}`, import.meta.url), "utf8")
+  } catch {
+    return ""
+  }
+}
+
+const runningTimerSource = await read("app/chimer/running-timer.tsx")
+const navigationGuardSource = await read("app/chimer/visual-draft-navigation-guard.tsx")
+const unsavedDialogSource = await read("app/chimer/unsaved-visual-changes-dialog.tsx")
+const pageSource = await read("app/chimer/page.tsx")
 
 const openingSnapshot = {
   palette: { mode: "custom", primaryColor: "#123456", harmony: "triadic", swatches: ["#123456", "#234567", "#345678", "#456789", "#56789a", "#6789ab", "#789abc"] },
@@ -165,4 +182,109 @@ test("reset and preset actions change only their documented draft families", () 
   state = reduce(state, { type: "save-visual-preset", preset: openingSnapshot.visualPresets[0] })
   state = reduce(state, { type: "set-default-visual-preset", id: "calm" })
   assert.equal(getCommittedBackgroundVisualSnapshot(state).defaultVisualPresetId, "calm")
+})
+
+test("opening and commit adapters cover one selected background without persisting", () => {
+  const adapter = {
+    status: "supported",
+    visualPropertyKeys: ["speed", "density"],
+    sourceVisualProperties: { speed: 0.5, density: 12 },
+    roles: [
+      { id: "main", defaultSwatch: 2 },
+      { id: "accent", defaultSwatch: 4 },
+    ],
+  }
+  const preferences = {
+    palette: openingSnapshot.palette,
+    colorPresets: openingSnapshot.colorPresets,
+    mappingsByBackground: { waves: { main: 6, accent: 1 } },
+    visualPresetsByBackground: { waves: openingSnapshot.visualPresets },
+    defaultVisualPresetByBackground: { waves: "calm" },
+  }
+  const opening = buildBackgroundVisualOpeningSnapshot({
+    preferences,
+    backgroundId: "waves",
+    committedSettings: { speed: 3, density: 8, unrelated: "drop" },
+    adapter,
+  })
+  assert.deepEqual(opening.properties, { speed: 3, density: 8 })
+  assert.deepEqual(opening.mapping, { main: 6, accent: 1 })
+  assert.equal(opening.defaultVisualPresetId, "calm")
+
+  const committed = buildCommittedBackgroundVisualPreferences({
+    preferences,
+    backgroundId: "waves",
+    snapshot: { ...opening, properties: { speed: 9, density: 4 }, mapping: { main: 5 } },
+  })
+  assert.deepEqual(committed.preferences.palette, opening.palette)
+  assert.deepEqual(committed.preferences.mappingsByBackground.waves, { main: 5 })
+  assert.deepEqual(committed.properties, { speed: 9, density: 4 })
+  assert.equal(Object.hasOwn(committed.properties, "unrelated"), false)
+})
+
+test("background selection uses its default Visual preset or registry source values", () => {
+  const adapter = {
+    status: "supported",
+    visualPropertyKeys: ["speed", "density"],
+    sourceVisualProperties: { speed: 0.5, density: 12 },
+    roles: [
+      { id: "main", defaultSwatch: 2 },
+      { id: "accent", defaultSwatch: 4 },
+    ],
+  }
+  const preferences = {
+    palette: openingSnapshot.palette,
+    colorPresets: openingSnapshot.colorPresets,
+    mappingsByBackground: {},
+    visualPresetsByBackground: {
+      waves: [{
+        id: "default",
+        properties: { speed: 2 },
+        mapping: { main: 6 },
+      }],
+    },
+    defaultVisualPresetByBackground: { waves: "default" },
+  }
+  assert.deepEqual(
+    resolveBackgroundSelectionVisualSnapshot({ preferences, backgroundId: "waves", adapter }),
+    { properties: { speed: 2, density: 12 }, mapping: { main: 6 } },
+  )
+  assert.deepEqual(
+    resolveBackgroundSelectionVisualSnapshot({
+      preferences: { ...preferences, defaultVisualPresetByBackground: {} },
+      backgroundId: "waves",
+      adapter,
+    }),
+    { properties: { speed: 0.5, density: 12 }, mapping: { main: 2, accent: 4 } },
+  )
+})
+
+test("live Visual integration owns draft preview, one Apply, and reachable actions", () => {
+  assert.match(runningTimerSource, /createBackgroundVisualDraft/)
+  assert.match(runningTimerSource, /BackgroundPaletteEditor/)
+  assert.match(runningTimerSource, /BackgroundColorPresetManager/)
+  assert.match(runningTimerSource, /BackgroundVisualPresetManager/)
+  assert.match(runningTimerSource, /draftPalettePreview=/)
+  assert.match(runningTimerSource, /type:\s*"reset-colors"/)
+  assert.match(runningTimerSource, /type:\s*"reset-properties"/)
+  assert.match(runningTimerSource, /type:\s*"undo"/)
+  assert.match(runningTimerSource, /type:\s*"redo"/)
+  assert.match(runningTimerSource, /onApplyBackgroundVisualPreferences/)
+  assert.match(pageSource, /visualDraftPropertyOverrides/)
+  assert.match(pageSource, /window\.localStorage\.setItem\(CHIMER_STORAGE_KEY[\s\S]*syncBackgroundVisualPreferenceRequest/)
+  assert.doesNotMatch(navigationGuardSource, /localStorage|sessionStorage|fetch\(/)
+})
+
+test("dirty navigation guard covers eligible app links, history, and native unload only", () => {
+  assert.match(navigationGuardSource, /beforeunload/)
+  assert.match(navigationGuardSource, /popstate/)
+  assert.match(navigationGuardSource, /event\.metaKey|event\.ctrlKey/)
+  assert.match(navigationGuardSource, /anchor\.download/)
+  assert.match(navigationGuardSource, /anchorTarget !== "_self"/)
+  assert.match(navigationGuardSource, /url\.origin !== window\.location\.origin/)
+  assert.match(navigationGuardSource, /url\.hash/)
+  assert.match(unsavedDialogSource, /Apply changes/)
+  assert.match(unsavedDialogSource, /Discard changes/)
+  assert.match(unsavedDialogSource, /Keep editing/)
+  assert.match(unsavedDialogSource, /onCloseAutoFocus/)
 })

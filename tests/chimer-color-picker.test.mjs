@@ -81,19 +81,18 @@ test("calendar forms submit the shared picker value without restoring a native c
   assert.doesNotMatch(serviceFormSource, /type="color"/)
 })
 
-test("global palette mode locks derived colors and serializes valid hex channels", () => {
+test("Visual uses the shared draft palette while retaining the legacy renderer fallback", () => {
   assert.match(pickerSource, /editableFields\?: readonly GlobalColorFieldName\[\]/)
-  assert.match(runningTimerSource, /onCheckedChange=\{handleGlobalCustomColorToggle\}/)
-  assert.match(runningTimerSource, /editableFields=\{globalHarmony === "custom" \? undefined : \["primary"\]\}/)
+  assert.match(runningTimerSource, /<BackgroundPaletteEditor/)
+  assert.match(runningTimerSource, /palette=\{currentVisualSnapshot\.palette\}/)
+  assert.match(runningTimerSource, /canCustomize=\{canCustomizeSelectedBackground\}/)
   assert.match(runningTimerSource, /toString\(16\)\.padStart\(2, "0"\)/)
   assert.doesNotMatch(runningTimerSource, /toString\(16\)\.slice\(-2\)/)
   assert.match(runningTimerSource, /palette=\{getPaletteColorsFromGlobalValues\(globalColors\)\}/)
+  assert.match(runningTimerSource, /draftPalettePreview=\{currentVisualSnapshot/)
   assert.match(backgroundHostSource, /function applyPaletteToBackgroundEffects/)
   assert.match(backgroundHostSource, /<BackgroundComponent[\s\S]*\{\.\.\.effectProps\}/)
   assert.doesNotMatch(pickerSource, /\{ key: "background", label: "Color 6" \}/)
-  assert.match(runningTimerSource, /previewColors=\{harmonyPreviewColors\}/)
-  assert.match(runningTimerSource, /disabled=\{!canUseCoreColorControls \|\| globalHarmony === "custom"\}/)
-  assert.match(runningTimerSource, /<GlobalColorPicker[\s\S]*disabled=\{!canUseCoreColorControls\}/)
   assert.match(harmonySource, /--ml-harmony-preview/)
 })
 

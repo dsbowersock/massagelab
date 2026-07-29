@@ -96,7 +96,8 @@ test("review fixes preserve live route controls and interaction cleanup", async 
 
   assert.match(runningTimer, /resolvedMovingBackgroundMainColor = resolvePaletteDrivenColor/)
   assert.match(runningTimer, /value: movingBackgroundOrbColor,[\s\S]*globalValue: globalPaletteSecondary/)
-  assert.match(backgroundHost, /const effectProps = useMemo\(\(\) => applyPaletteToBackgroundEffects/)
+  assert.match(backgroundHost, /return applyPaletteToBackgroundEffects\(baseEffectProps, palette\)/)
+  assert.match(backgroundHost, /draftPalettePreview[\s\S]*adapter\.applyRoleColors/)
   assert.match(backgroundHost, /<BackgroundComponent \{\.\.\.effectProps\} \/>/)
   assert.doesNotMatch(backgroundHost, /<BackgroundComponent\s+mainColor=/)
   assert.equal((controlCss.match(/^\.harmonyList \{/gm) ?? []).length, 1)
@@ -119,4 +120,12 @@ test("immersive display panels delegate toolbar actions to shared controls", asy
   assert.match(shell, /<Button[\s\S]*hapticsEnabled=\{hapticsEnabled\}/)
   assert.match(shell, /<TooltipProvider/)
   assert.match(shell, /Clock[\s\S]*Visual[\s\S]*Background/)
+})
+
+test("Visual draft actions stay sticky and usable at compact viewport sizes", async () => {
+  const styles = await read("app/chimer/running-timer.module.css")
+
+  assert.match(styles, /\.visualDraftActions[\s\S]*position:\s*sticky/)
+  assert.match(styles, /@media \(max-width:\s*36rem\)[\s\S]*\.visualDraftActions/)
+  assert.match(styles, /@media \(max-height:\s*32rem\)[\s\S]*\.visualDraftActions/)
 })

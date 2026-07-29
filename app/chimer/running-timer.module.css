@@ -1457,6 +1457,63 @@
   padding: 0 0.45rem 0.45rem;
 }
 
+.visualDraftSecondaryAction {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.visualDraftActions {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.65rem;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 0.9rem;
+  background: rgb(8 10 14 / 96%);
+  box-shadow: 0 -0.8rem 1.6rem rgb(0 0 0 / 28%);
+  backdrop-filter: blur(16px);
+}
+
+.visualDraftStatus {
+  min-width: 0;
+  color: rgb(255 255 255 / 78%);
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+.visualDraftActionButtons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
+@media (max-width: 36rem) {
+  .visualDraftActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .visualDraftActionButtons {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-height: 32rem) {
+  .visualDraftActions {
+    padding: 0.45rem;
+  }
+
+  .visualDraftActionButtons {
+    gap: 0.25rem;
+  }
+}
+
 .settingsNotice {
   display: flex;
   align-items: center;

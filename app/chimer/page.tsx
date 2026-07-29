@@ -6,7 +6,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { MovingBackground } from "@/components/moving-background"
 import { useSettings } from "@/components/providers/settings-provider"
 import { useMusic } from "@/components/providers/music-provider"
-import { backgroundPreferenceNormalizationOptions } from "@/components/backgrounds/backgroundPaletteRegistry"
+import {
+  backgroundPaletteRegistry,
+  backgroundPreferenceNormalizationOptions,
+} from "@/components/backgrounds/backgroundPaletteRegistry"
 import { canUseBackgroundId } from "@/components/backgrounds/backgroundRegistry"
 import {
   clampActiveTimerMs,
@@ -178,6 +181,8 @@ export default function ChimerPage() {
     requestBody: null,
     requestId: 0,
   })
+  const [visualDraftPropertyOverrides, setVisualDraftPropertyOverrides] =
+    useState<Partial<ChimerSettings> | null>(null)
   const [wakeLockMessage, setWakeLockMessage] = useState<string | null>(null)
   const canUseCustomColors = featureKeys.includes(FEATURE_KEYS.chimerCustomColors)
   const hasAccountPreferenceAccess = accountSyncStatus === "synced" || accountSyncStatus === "conflict"
@@ -721,12 +726,33 @@ export default function ChimerPage() {
     }
   }, [])
 
-  /** Commits one sanitized nested draft locally before starting account sync. */
+  /**
+   * Commits one complete sanitized Visual snapshot locally before starting
+   * account sync. Setup callers may still supply only the nested preference.
+   */
   const applyBackgroundVisualPreferences = (
-    backgroundVisualPreferences: ChimerSettings["backgroundVisualPreferences"],
+    input: ChimerSettings["backgroundVisualPreferences"] | {
+      backgroundId: string
+      backgroundVisualPreferences: ChimerSettings["backgroundVisualPreferences"]
+      properties: Partial<ChimerSettings>
+    },
   ) => {
+    const backgroundVisualPreferences = "backgroundVisualPreferences" in input
+      ? input.backgroundVisualPreferences
+      : input
+    const selectedBackgroundId = "backgroundId" in input
+      ? input.backgroundId
+      : settingsRef.current.backgroundId
+    const selectedAdapter = backgroundPaletteRegistry[selectedBackgroundId]
+    const allowedPropertyKeys = new Set(selectedAdapter?.visualPropertyKeys ?? [])
+    const properties = "properties" in input
+      ? Object.fromEntries(
+        Object.entries(input.properties).filter(([key]) => allowedPropertyKeys.has(key)),
+      )
+      : {}
     const nextSettings = sanitizeChimerSettingsForEntitlements({
       ...settingsRef.current,
+      ...properties,
       backgroundVisualPreferences,
     }, featureKeysRef.current, {
       canUseAccountColorControls,
@@ -741,6 +767,7 @@ export default function ChimerPage() {
     const committedSettings = JSON.parse(request.requestBody ?? "{}").chimerSettings as ChimerSettings
 
     setSettings(committedSettings)
+    setVisualDraftPropertyOverrides(null)
     window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(committedSettings))
 
     if (!canSync || accountSyncStatus !== "synced") {
@@ -2111,8 +2138,13 @@ export default function ChimerPage() {
             hexGridChangeFrequency={settings.hexGridChangeFrequency}
             hexGridActivePercent={settings.hexGridActivePercent}
             hexGridOpacity={settings.hexGridOpacity}
+            {...(visualDraftPropertyOverrides ?? {})}
             canUseCustomColors={canUseCustomColors}
             canUseAccountColorControls={canUseAccountColorControls}
+            committedSettings={settings}
+            backgroundVisualPreferences={settings.backgroundVisualPreferences}
+            canCustomizeSelectedBackground={canCustomizeSelectedBackground}
+            backgroundPreferenceSyncStatus={backgroundPreferenceSync.status}
             featureKeys={featureKeys}
             activeIntervalMinutes={timerState.intervalMs ? Math.max(1, Math.round(timerState.intervalMs / 60_000)) : null}
             onPause={togglePause}
@@ -2122,6 +2154,9 @@ export default function ChimerPage() {
             onAdjustActiveRemainingMinutes={adjustActiveRemainingMinutes}
             onSetActiveRemainingDuration={setActiveRemainingDuration}
             onSetActiveIntervalMinutes={setActiveIntervalMinutes}
+            onVisualDraftPreviewChange={setVisualDraftPropertyOverrides}
+            onApplyBackgroundVisualPreferences={applyBackgroundVisualPreferences}
+            onRetryBackgroundVisualPreferences={retryBackgroundVisualPreferenceSync}
             hapticsEnabled={appSettings.hapticFeedbackEnabled}
           />
         )}

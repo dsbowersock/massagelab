@@ -2,6 +2,7 @@
 
 import { type CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { Maximize2, Minimize2, Minus, Pause, Play, Plus, X } from "lucide-react"
+import { useRouter } from "next/navigation"
 import {
   BACKGROUND_VISUAL_FILTERS,
   matchesBackgroundVisualFilter,
@@ -16,6 +17,7 @@ import {
   useBackgroundCreditStatus,
 } from "@/components/backgrounds/BackgroundCommerceProvider"
 import { BackgroundHost } from "@/components/backgrounds/BackgroundHost"
+import { backgroundPaletteRegistry } from "@/components/backgrounds/backgroundPaletteRegistry"
 import {
   canUseBackgroundId,
   getBackgroundOptionsForCategory,
@@ -35,10 +37,25 @@ import {
 } from "@/components/chimer-controls/GlobalColorPicker"
 import { StyledRangeControl } from "@/components/chimer-controls/StyledRangeControl"
 import { StyledToggleControl } from "@/components/chimer-controls/StyledToggleControl"
+import { BackgroundPaletteEditor } from "@/components/chimer-controls/BackgroundPaletteEditor"
+import {
+  BackgroundColorPresetManager,
+  BackgroundVisualPresetManager,
+  type BackgroundPresetDraftAction,
+} from "@/components/chimer-controls/BackgroundPresetManager"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import type { MusicVisualizerState } from "@/components/providers/music-provider"
 import { DEFAULT_CHIMER_SETTINGS } from "@/lib/chimer-timer"
+import {
+  buildBackgroundVisualOpeningSnapshot,
+  buildCommittedBackgroundVisualPreferences,
+  createBackgroundVisualDraft,
+  getCommittedBackgroundVisualSnapshot,
+  reduceBackgroundVisualDraft,
+  resolveBackgroundSelectionVisualSnapshot,
+} from "@/lib/background-visual-draft"
+import { normalizeBackgroundColorMapping } from "@/lib/background-palette"
 import {
   MASSAGE_LAB_GRADIENT_HARMONY_OPTIONS,
   MASSAGE_LAB_ASTRAL_FLOW_DISPLAY_SPEED_MAX,
@@ -218,9 +235,16 @@ import styles from "./running-timer.module.css"
 import { ImmersivePanelShell, type ImmersivePanelId } from "./immersive-panel-shell"
 import { readVisualPanelOpened, writeVisualPanelOpened } from "./immersive-panel-visual-hint.js"
 import { TileGridFadeTimeControl } from "./tile-grid-fade-time-control"
+import { UnsavedVisualChangesDialog } from "./unsaved-visual-changes-dialog"
+import { VisualDraftNavigationGuard } from "./visual-draft-navigation-guard"
 
 type PrimaryDisplay = "timer" | "currentTime"
 type BackgroundVisualCategory = "all" | "animated" | "image" | "interactive" | "premium" | "saved" | "static" | "shader" | "video"
+type PendingVisualIntent =
+  | { type: "close-panel" }
+  | { type: "change-panel"; panel: Exclude<ImmersivePanelId, null> }
+  | { type: "select-background"; backgroundId: BackgroundId }
+  | { type: "navigate"; href: string | null }
 
 const CHIMER_GLOBAL_COLOR_STORAGE_KEY = "massagelab-chimer-global-color-v1"
 const CHIMER_GLOBAL_PALETTE_STORAGE_KEY = "massagelab-chimer-global-palettes-v1"
@@ -1661,6 +1685,10 @@ interface RunningTimerProps {
   hexGridOpacity: number
   canUseCustomColors: boolean
   canUseAccountColorControls: boolean
+  committedSettings: ChimerSettings
+  backgroundVisualPreferences: ChimerSettings["backgroundVisualPreferences"]
+  canCustomizeSelectedBackground: boolean
+  backgroundPreferenceSyncStatus: "local" | "pending" | "stale" | "synced"
   featureKeys: string[]
   activeIntervalMinutes: number | null
   onPause: () => void
@@ -1670,6 +1698,13 @@ interface RunningTimerProps {
   onAdjustActiveRemainingMinutes: (deltaMinutes: number) => void
   onSetActiveRemainingDuration: (hours: number, minutes: number) => void
   onSetActiveIntervalMinutes: (minutes: number) => void
+  onVisualDraftPreviewChange: (properties: Partial<ChimerSettings> | null) => void
+  onApplyBackgroundVisualPreferences: (commit: {
+    backgroundId: BackgroundId
+    backgroundVisualPreferences: ChimerSettings["backgroundVisualPreferences"]
+    properties: Partial<ChimerSettings>
+  }) => void
+  onRetryBackgroundVisualPreferences: () => void
   hapticsEnabled: boolean
 }
 
@@ -2610,6 +2645,10 @@ export function RunningTimer({
   hexGridOpacity,
   canUseCustomColors,
   canUseAccountColorControls,
+  committedSettings,
+  backgroundVisualPreferences,
+  canCustomizeSelectedBackground,
+  backgroundPreferenceSyncStatus,
   featureKeys,
   activeIntervalMinutes,
   onPause,
@@ -2619,8 +2658,12 @@ export function RunningTimer({
   onAdjustActiveRemainingMinutes,
   onSetActiveRemainingDuration,
   onSetActiveIntervalMinutes,
+  onVisualDraftPreviewChange,
+  onApplyBackgroundVisualPreferences,
+  onRetryBackgroundVisualPreferences,
   hapticsEnabled,
 }: RunningTimerProps) {
+  const router = useRouter()
   const isPaused = status === "paused"
   const isComplete = status === "complete"
   const isClockMode = status === "clock"
@@ -2996,6 +3039,8 @@ export function RunningTimer({
   })
   const [primaryDisplay, setPrimaryDisplay] = useState<PrimaryDisplay>(isClockMode ? "currentTime" : "timer")
   const [activePanel, setActivePanel] = useState<ImmersivePanelId>(null)
+  const [visualDraft, setVisualDraft] = useState<ReturnType<typeof createBackgroundVisualDraft> | null>(null)
+  const [pendingVisualIntent, setPendingVisualIntent] = useState<PendingVisualIntent | null>(null)
   const [acquisition, setAcquisition] = useState<{
     background: BackgroundDefinition
     mode: "locked" | "keep-permanently"
@@ -3083,9 +3128,60 @@ export function RunningTimer({
       visualPanelOpenedHydratedRef.current = true
       writeVisualPanelOpened()
       clearVisualHint()
+      const adapter = backgroundPaletteRegistry[backgroundId]
+      setVisualDraft(createBackgroundVisualDraft(
+        buildBackgroundVisualOpeningSnapshot({
+          preferences: backgroundVisualPreferences,
+          backgroundId,
+          committedSettings,
+          adapter,
+        }),
+      ))
+    } else {
+      setVisualDraft(null)
     }
     setActivePanel(nextPanel)
-  }, [clearVisualHint])
+  }, [
+    backgroundId,
+    backgroundVisualPreferences,
+    clearVisualHint,
+    committedSettings,
+    setVisualDraft,
+  ])
+
+  useEffect(() => {
+    if (activePanel !== "visual" || visualDraft) {
+      return
+    }
+    setVisualDraft(createBackgroundVisualDraft(
+      buildBackgroundVisualOpeningSnapshot({
+        preferences: backgroundVisualPreferences,
+        backgroundId,
+        committedSettings,
+        adapter: backgroundPaletteRegistry[backgroundId],
+      }),
+    ))
+  }, [
+    activePanel,
+    backgroundId,
+    backgroundVisualPreferences,
+    committedSettings,
+    visualDraft,
+  ])
+
+  useEffect(() => {
+    onVisualDraftPreviewChange(
+      visualDraft
+        ? getCommittedBackgroundVisualSnapshot(visualDraft).properties as Partial<ChimerSettings>
+        : null,
+    )
+  }, [onVisualDraftPreviewChange, visualDraft])
+
+  const dispatchVisualDraft = useCallback((action: Record<string, unknown>) => {
+    setVisualDraft((current) => (
+      current ? reduceBackgroundVisualDraft(current, action) : current
+    ))
+  }, [setVisualDraft])
   const isTimerPrimary = primaryDisplay === "timer"
   const isCurrentTimePrimary = isClockMode || !isTimerPrimary
   const resolvedShowTimerSeconds = showTimerSeconds !== false
@@ -3510,7 +3606,7 @@ export function RunningTimer({
     setBackgroundCategoryFilter(nextFilter)
   }
 
-  const handleBackgroundSelection = (nextBackgroundId: BackgroundId) => {
+  const performBackgroundSelection = (nextBackgroundId: BackgroundId) => {
     const nextBackgroundDefinition = visibleBackgroundOptions.find((option) => option.id === nextBackgroundId)
 
     if (!nextBackgroundDefinition || !userCanUseBackground(nextBackgroundDefinition, {
@@ -3520,8 +3616,29 @@ export function RunningTimer({
       return
     }
 
-    mode.onBackgroundChange(nextBackgroundId)
+    const nextAdapter = backgroundPaletteRegistry[nextBackgroundId]
+    const selection = resolveBackgroundSelectionVisualSnapshot({
+      preferences: backgroundVisualPreferences,
+      backgroundId: nextBackgroundId,
+      adapter: nextAdapter,
+    })
+    const selectionPreferences = {
+      ...backgroundVisualPreferences,
+      mappingsByBackground: {
+        ...backgroundVisualPreferences.mappingsByBackground,
+        [nextBackgroundId]: selection.mapping,
+      },
+    }
+    onApplyBackgroundVisualPreferences({
+      backgroundId: nextBackgroundId,
+      backgroundVisualPreferences: selectionPreferences,
+      properties: selection.properties as Partial<ChimerSettings>,
+    })
+    // Let the atomic preference commit render before the route-specific
+    // background selector reads the page's committed settings reference.
+    window.setTimeout(() => mode.onBackgroundChange(nextBackgroundId), 0)
     setActivePanel(null)
+    setVisualDraft(null)
 
     if (!visualPanelOpenedHydratedRef.current) {
       visualPanelOpenedRef.current = readVisualPanelOpened()
@@ -3531,6 +3648,70 @@ export function RunningTimer({
       showVisualHint()
     }
   }
+
+  const handleBackgroundSelection = (nextBackgroundId: BackgroundId) => {
+    if (visualDraft?.dirty) {
+      setPendingVisualIntent({ type: "select-background", backgroundId: nextBackgroundId })
+      return
+    }
+    performBackgroundSelection(nextBackgroundId)
+  }
+
+  const commitVisualDraft = useCallback(() => {
+    if (!visualDraft) {
+      return
+    }
+    const snapshot = getCommittedBackgroundVisualSnapshot(visualDraft)
+    const commit = buildCommittedBackgroundVisualPreferences({
+      preferences: backgroundVisualPreferences,
+      backgroundId: selectedBackgroundDefinition.id,
+      snapshot,
+    })
+    onApplyBackgroundVisualPreferences({
+      backgroundId: selectedBackgroundDefinition.id,
+      backgroundVisualPreferences: commit.preferences as ChimerSettings["backgroundVisualPreferences"],
+      properties: commit.properties as Partial<ChimerSettings>,
+    })
+    setVisualDraft(reduceBackgroundVisualDraft(visualDraft, { type: "apply" }))
+  }, [
+    backgroundVisualPreferences,
+    onApplyBackgroundVisualPreferences,
+    selectedBackgroundDefinition.id,
+    setVisualDraft,
+    visualDraft,
+  ])
+
+  const continuePendingVisualIntent = useCallback((intent: PendingVisualIntent) => {
+    if (intent.type === "close-panel") {
+      setActivePanel(null)
+      return
+    }
+    if (intent.type === "change-panel") {
+      handleActivePanelChange(intent.panel)
+      return
+    }
+    if (intent.type === "select-background") {
+      performBackgroundSelection(intent.backgroundId)
+      return
+    }
+    if (intent.href) {
+      router.push(intent.href)
+    } else {
+      mode.onClose()
+    }
+  }, [handleActivePanelChange, mode, performBackgroundSelection, router])
+
+  const handlePanelChangeRequest = useCallback((nextPanel: ImmersivePanelId) => {
+    if (!visualDraft?.dirty) {
+      return true
+    }
+    setPendingVisualIntent(
+      nextPanel
+        ? { type: "change-panel", panel: nextPanel }
+        : { type: "close-panel" },
+    )
+    return false
+  }, [setPendingVisualIntent, visualDraft?.dirty])
 
   const handleBackgroundSavedToggle = (nextBackgroundId: BackgroundId) => {
     setSavedBackgroundIds((current) => {
@@ -3666,7 +3847,30 @@ export function RunningTimer({
       return
     }
 
-    onSettingsChange(nextSettings)
+    const adapter = backgroundPaletteRegistry[backgroundId]
+    const visualPropertyKeys = new Set(adapter?.visualPropertyKeys ?? [])
+    const draftPropertyEntries = visualDraft
+      ? Object.entries(nextSettings).filter(([key]) => visualPropertyKeys.has(key))
+      : []
+    if (visualDraft && draftPropertyEntries.length > 0) {
+      const current = getCommittedBackgroundVisualSnapshot(visualDraft)
+      dispatchVisualDraft({
+        type: "replace",
+        snapshot: {
+          ...current,
+          properties: {
+            ...current.properties,
+            ...Object.fromEntries(draftPropertyEntries),
+          },
+        },
+      })
+    }
+
+    const committedEntries = Object.entries(nextSettings)
+      .filter(([key]) => !visualPropertyKeys.has(key) || !visualDraft)
+    if (committedEntries.length > 0) {
+      onSettingsChange(Object.fromEntries(committedEntries) as Partial<ChimerSettings>)
+    }
     scheduleControlHide()
   }
 
@@ -15405,6 +15609,13 @@ export function RunningTimer({
       "--ml-lamp-min-core-glow-width": `${fullscreenLampCoreGlowWidth}vw`,
     } as CSSProperties
     : undefined
+  const selectedPaletteAdapter = backgroundPaletteRegistry[backgroundId]
+  const currentVisualSnapshot = visualDraft
+    ? getCommittedBackgroundVisualSnapshot(visualDraft)
+    : null
+  const selectedRoleLabels = selectedPaletteAdapter?.status === "supported"
+    ? Object.fromEntries(selectedPaletteAdapter.roles.map((role) => [role.id, role.label]))
+    : {}
 
   return (
     <section
@@ -15434,6 +15645,11 @@ export function RunningTimer({
           featureKeys={featureKeys}
           category={backgroundCategory}
           palette={getPaletteColorsFromGlobalValues(globalColors)}
+          draftPalettePreview={currentVisualSnapshot ? {
+            palette: currentVisualSnapshot.palette,
+            mapping: currentVisualSnapshot.mapping,
+            canCustomize: canCustomizeSelectedBackground,
+          } : null}
           mainColor={resolvedMovingBackgroundMainColor}
           orbColor={resolvedMovingBackgroundOrbColor}
           sparkles={{
@@ -16374,7 +16590,11 @@ export function RunningTimer({
           className={`${styles.control} ${styles.closeButton} ${styles.tactileButton}`}
           onClick={() => {
             triggerHapticFeedback(hapticsEnabled)
-            mode.onClose()
+            if (visualDraft?.dirty) {
+              setPendingVisualIntent({ type: "navigate", href: null })
+            } else {
+              mode.onClose()
+            }
           }}
           aria-label={mode.context === "musicVisualizer" ? "Minimize visualizer" : isClockMode ? "Close clock" : "End timer"}
           data-chimer-control="true"
@@ -16397,6 +16617,7 @@ export function RunningTimer({
         <ImmersivePanelShell
           activePanel={activePanel}
           onActivePanelChange={handleActivePanelChange}
+          onRequestActivePanelChange={handlePanelChangeRequest}
           protectedDisplayRef={protectedDisplayRef}
           hapticsEnabled={hapticsEnabled}
           chromeVisibility={controlState}
@@ -17023,112 +17244,143 @@ export function RunningTimer({
                   </div>
                 ) : null}
 
-                <div className={styles.settingsSection}>
-                  <div className={styles.settingsSectionHeader}>
-                    <span>Selected background controls</span>
-                    <span className={styles.settingsPill}>Visual tuning</span>
-                  </div>
-                  {renderBackgroundControls(selectedBackgroundDefinition)}
-                </div>
-
-                <div className={styles.settingsSection}>
-                  {!canUseCoreColorControls ? (
-                    <div className={styles.globalColorAccessHint} role="note">
-                      Sign in to customize and save Global Colors.
+                {currentVisualSnapshot && selectedPaletteAdapter ? (
+                  <>
+                    <BackgroundPaletteEditor
+                      palette={currentVisualSnapshot.palette}
+                      adapter={selectedPaletteAdapter}
+                      mapping={currentVisualSnapshot.mapping}
+                      canCustomize={canCustomizeSelectedBackground}
+                      backgroundName={selectedBackgroundDefinition.label}
+                      onPaletteChange={(palette) => dispatchVisualDraft({
+                        type: "replace",
+                        snapshot: { ...currentVisualSnapshot, palette },
+                      })}
+                      onMappingChange={(mapping) => dispatchVisualDraft({
+                        type: "replace",
+                        snapshot: { ...currentVisualSnapshot, mapping },
+                      })}
+                    />
+                    <div className={styles.visualDraftSecondaryAction}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        disabled={currentVisualSnapshot.palette.mode === "source"}
+                        onClick={() => dispatchVisualDraft({
+                          type: "reset-colors",
+                          palette: {
+                            ...currentVisualSnapshot.palette,
+                            mode: "source",
+                          },
+                        })}
+                      >
+                        Use source colors
+                      </Button>
                     </div>
-                  ) : null}
-                  <GlobalColorPicker
-                    className={styles.immersiveGlobalColorPicker}
-                    compactPaletteRow
-                    value={globalColors}
-                    title="Global Colors"
-                    description={globalHarmony === "custom"
-                      ? "Choose each palette color used by compatible backgrounds."
-                      : "Choose a primary color and harmony; the remaining background colors update automatically."}
-                    harmonyControl={(
-                      <div className={styles.globalColorModeControls}>
-                        <StyledToggleControl
-                          label="Choose each color"
-                          checked={globalHarmony === "custom"}
-                          valueLabel={globalHarmony === "custom" ? "Custom" : "Harmony"}
-                          hapticsEnabled={hapticsEnabled}
-                          disabled={!canUseCoreColorControls}
-                          onCheckedChange={handleGlobalCustomColorToggle}
-                        />
-                        <HarmonyToggleGroup
-                          className={styles.immersiveGlobalHarmony}
-                          label="Color harmony"
-                          value={globalHarmony}
-                          onChange={handleGlobalHarmonyChange}
-                          options={GLOBAL_HARMONY_OPTIONS}
-                          previewColors={harmonyPreviewColors}
-                          disabled={!canUseCoreColorControls || globalHarmony === "custom"}
-                          hapticsEnabled={hapticsEnabled}
-                          description="Generate related palette families from your primary color."
-                          embedded
-                        />
+                    <BackgroundColorPresetManager
+                      presets={currentVisualSnapshot.colorPresets}
+                      currentPalette={currentVisualSnapshot.palette as never}
+                      disabled={
+                        !canCustomizeSelectedBackground
+                        || currentVisualSnapshot.palette.mode === "source"
+                      }
+                      onDraftAction={(action: BackgroundPresetDraftAction) => (
+                        dispatchVisualDraft(action)
+                      )}
+                    />
+
+                    <div className={styles.settingsSection}>
+                      <div className={styles.settingsSectionHeader}>
+                        <span>Selected Background Properties</span>
+                        <span className={styles.settingsPill}>Visual tuning</span>
                       </div>
-                    )}
-                    editableFields={globalHarmony === "custom" ? undefined : ["primary"]}
-                    disabled={!canUseCoreColorControls}
-                    paletteName={globalPaletteName}
-                    onPaletteNameChange={handleGlobalPaletteNameChange}
-                    onChange={handleGlobalColorsChange}
-                    onSave={handleGlobalPaletteSave}
-                    saveButtonLabel="Save palette"
-                  />
-                </div>
-
-                <div className={styles.settingsSection}>
-                  <div className={styles.settingsSectionHeader}>
-                    <span>Saved palettes</span>
-                    <span className={styles.settingsPill}>Reusable</span>
-                  </div>
-                  {globalPalettes.length === 0 ? (
-                    <div className={styles.settingsEmptyState}>Save a palette to reuse it on future sessions.</div>
-                  ) : (
-                    <div style={{ display: "grid", gap: "0.45rem" }}>
-                      {globalPalettes.map((palette) => (
-                        <button
-                          key={palette.id}
+                      {renderBackgroundControls(selectedBackgroundDefinition)}
+                      <div className={styles.visualDraftSecondaryAction}>
+                        <Button
                           type="button"
-                          className={`${styles.inlineButton} ${styles.tactileButton}`}
-                          disabled={!canUseCoreColorControls}
-                          onClick={() => {
-                            triggerHapticFeedback(hapticsEnabled)
-                            handleGlobalPaletteLoad(palette)
-                          }}
-                          aria-label={`Apply ${palette.name} palette`}
+                          variant="ghost"
+                          onClick={() => dispatchVisualDraft({
+                            type: "reset-properties",
+                            properties: selectedPaletteAdapter.sourceVisualProperties,
+                            mapping: normalizeBackgroundColorMapping({}, selectedPaletteAdapter),
+                          })}
                         >
-                          <div style={{ display: "grid", gap: "0.35rem", textAlign: "left" }}>
-                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
-                              <span style={{ fontWeight: 700 }}>{palette.name}</span>
-                              {palette.isDefault ? <span className={styles.settingsPill}>Default</span> : null}
-                            </div>
-                            <span style={{ color: "rgba(255, 255, 255, 0.72)", fontSize: "0.76rem" }}>
-                              {palette.harmony}
-                            </span>
-                            <div style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
-                              {palette.generated.slice(0, 6).map((color) => (
-                                <span
-                                  key={`${palette.id}-${color}`}
-                                  aria-hidden="true"
-                                  style={{
-                                    width: "1rem",
-                                    height: "1rem",
-                                    borderRadius: "999px",
-                                    border: "1px solid rgba(255, 255, 255, 0.24)",
-                                    background: color,
-                                  }}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                        </button>
-                      ))}
+                          Reset visual properties
+                        </Button>
+                      </div>
                     </div>
-                  )}
-                </div>
+                    <BackgroundVisualPresetManager
+                      presets={currentVisualSnapshot.visualPresets as never}
+                      currentProperties={currentVisualSnapshot.properties}
+                      currentMapping={currentVisualSnapshot.mapping}
+                      backgroundName={selectedBackgroundDefinition.label}
+                      defaultPresetId={currentVisualSnapshot.defaultVisualPresetId}
+                      roleLabels={selectedRoleLabels}
+                      onDraftAction={(action: BackgroundPresetDraftAction) => (
+                        dispatchVisualDraft(action)
+                      )}
+                    />
+
+                    <div
+                      className={styles.visualDraftActions}
+                      role="status"
+                      aria-live="polite"
+                      aria-atomic="true"
+                    >
+                      <span className={styles.visualDraftStatus}>
+                        {backgroundPreferenceSyncStatus === "stale"
+                          ? "Saved on this device. Account sync failed."
+                          : backgroundPreferenceSyncStatus === "pending"
+                            ? "Applied on this device. Syncing account…"
+                            : visualDraft?.dirty
+                              ? "Unsaved changes"
+                              : "Saved"}
+                      </span>
+                      <div className={styles.visualDraftActionButtons}>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          disabled={!visualDraft?.undoStack.length}
+                          onClick={() => dispatchVisualDraft({ type: "undo" })}
+                        >
+                          Undo
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          disabled={!visualDraft?.redoStack.length}
+                          onClick={() => dispatchVisualDraft({ type: "redo" })}
+                        >
+                          Redo
+                        </Button>
+                        {backgroundPreferenceSyncStatus === "stale" ? (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={onRetryBackgroundVisualPreferences}
+                          >
+                            Retry sync
+                          </Button>
+                        ) : null}
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          disabled={!visualDraft?.dirty}
+                          onClick={() => dispatchVisualDraft({ type: "cancel" })}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="button"
+                          disabled={!visualDraft?.dirty}
+                          onClick={commitVisualDraft}
+                        >
+                          Apply
+                        </Button>
+                      </div>
+                    </div>
+                  </>
+                ) : null}
             </div>
           )}
           backgroundContent={(
@@ -17176,6 +17428,37 @@ export function RunningTimer({
             setAcquisition(null)
             handleBackgroundSelection(background.id)
           }}
+        />
+        <VisualDraftNavigationGuard
+          dirty={Boolean(visualDraft?.dirty)}
+          onNavigateAttempt={(href) => {
+            setPendingVisualIntent({ type: "navigate", href })
+          }}
+        />
+        <UnsavedVisualChangesDialog
+          open={Boolean(pendingVisualIntent)}
+          backgroundName={selectedBackgroundDefinition.label}
+          onApply={() => {
+            const intent = pendingVisualIntent
+            commitVisualDraft()
+            setPendingVisualIntent(null)
+            setVisualDraft(null)
+            if (intent) {
+              continuePendingVisualIntent(intent)
+            }
+          }}
+          onDiscard={() => {
+            const intent = pendingVisualIntent
+            if (visualDraft) {
+              setVisualDraft(reduceBackgroundVisualDraft(visualDraft, { type: "cancel" }))
+            }
+            setPendingVisualIntent(null)
+            setVisualDraft(null)
+            if (intent) {
+              continuePendingVisualIntent(intent)
+            }
+          }}
+          onKeepEditing={() => setPendingVisualIntent(null)}
         />
 
         <div className={styles.bottomControls}>

@@ -32,7 +32,7 @@ test("renders three accessible grouped panel toggles with responsive tooltips", 
   assert.match(shellSource, /aria-controls=\{panelId\}/)
   assert.match(shellSource, /aria-label=\{label\}/)
   assert.match(shellSource, /<TooltipProvider[\s\S]*<Tooltip[\s\S]*<TooltipContent/)
-  assert.match(shellSource, /onActivePanelChange\(isActive \? null : id\)/)
+  assert.match(shellSource, /requestActivePanelChange\(isActive \? null : id\)/)
   assert.match(
     shellStyles,
     /\.toolbarLabel\s*\{[\s\S]{0,300}position:\s*absolute[\s\S]{0,300}clip:\s*rect\(0, 0, 0, 0\)/,
@@ -70,6 +70,20 @@ test("keeps Clock and Visual nonmodal with complete dismissal mechanics", () => 
   assert.match(shellSource, /shouldIgnoreNonmodalEscape\(event\.target\)/)
   assert.match(shellSource, /toolbarButtonRefs\.current\[panelToRestore\]\?\.focus\(\)/)
   assert.match(shellSource, /aria-label=\{`Close \$\{activePanelLabel\} panel`\}/)
+})
+
+test("asks the owner before closing or changing Visual only", () => {
+  assert.match(
+    shellSource,
+    /onRequestActivePanelChange\?: \(panel: ImmersivePanelId\) => boolean/,
+  )
+  assert.match(
+    shellSource,
+    /activePanel === "visual"[\s\S]*onRequestActivePanelChange\?\.\(nextPanel\) === false/,
+  )
+  assert.match(shellSource, /requestActivePanelChange\(null/)
+  assert.match(shellSource, /requestActivePanelChange\(isActive \? null : id/)
+  assert.match(runningTimerSource, /onRequestActivePanelChange=\{handlePanelChangeRequest\}/)
 })
 
 test("uses a full-screen Radix modal for Background with default outside dismissal", () => {
