@@ -6,14 +6,21 @@ import {
   BACKGROUND_PALETTE_SWATCH_COUNT,
   BACKGROUND_VISUAL_PRESET_LIMIT,
   DEFAULT_BACKGROUND_PALETTE_STATE,
+  applyBackgroundColorPreset,
+  applyBackgroundVisualPreset,
   canCustomizeBackgroundColors,
+  deleteBackgroundColorPreset,
+  deleteBackgroundVisualPreset,
   generateBackgroundHarmonySwatches,
   migrateLegacyChimerGlobalColors,
   normalizeBackgroundColorMapping,
   normalizeBackgroundPaletteState,
   normalizeSharedBackgroundVisualPreferences,
   resolveBackgroundRoleColors,
+  resolveDefaultBackgroundVisualPreset,
   resolveEffectiveBackgroundPaletteMode,
+  renameBackgroundColorPreset,
+  renameBackgroundVisualPreset,
   saveBackgroundColorPreset,
   saveBackgroundVisualPreset,
 } from "../lib/background-palette.js"
@@ -78,6 +85,9 @@ test("preferences bound color and visual presets through injected registry callb
   }, { isKnownBackgroundId: (id) => id === "waves" }).visualPresetsByBackground, {})
   assert.deepEqual(normalizeSharedBackgroundVisualPreferences({
     visualPresetsByBackground: { waves: [{ id: "v1", properties: { speed: 1 } }] },
+  }, { getVisualPropertyKeys: () => ["speed"] }).visualPresetsByBackground, {})
+  assert.deepEqual(normalizeSharedBackgroundVisualPreferences({
+    visualPresetsByBackground: { waves: [{ id: "v1", properties: { speed: 1 } }] },
   }).visualPresetsByBackground, {})
   for (let index = 0; index < BACKGROUND_COLOR_PRESET_LIMIT + 2; index += 1) preferences = saveBackgroundColorPreset(preferences, { id: `c${index}`, name: "  A very long palette name that must be bounded  ", timestamp: index, palette: { mode: "custom" } }, options)
   assert.equal(preferences.colorPresets.length, BACKGROUND_COLOR_PRESET_LIMIT)
@@ -86,9 +96,30 @@ test("preferences bound color and visual presets through injected registry callb
   assert.equal(preferences.colorPresets[0].timestamp, 8640000000000000)
   for (let index = 0; index < BACKGROUND_VISUAL_PRESET_LIMIT + 1; index += 1) preferences = saveBackgroundVisualPreset(preferences, "waves", { id: `v${index}`, name: "Preset", timestamp: index, properties: { speed: index, bad: true } }, options)
   assert.equal(preferences.visualPresetsByBackground.waves.length, BACKGROUND_VISUAL_PRESET_LIMIT)
-  const before = structuredClone(preferences)
-  saveBackgroundVisualPreset(preferences, "waves", { id: "immutable", name: "Immutable", timestamp: 1, properties: { speed: 1 } }, options)
-  assert.deepEqual(preferences, before)
+  const immutablePreferences = normalizeSharedBackgroundVisualPreferences({
+    palette: { mode: "custom" },
+    colorPresets: [{ id: "color", name: "Color", timestamp: 1, palette: { mode: "custom", primaryColor: "#123456" } }],
+    visualPresetsByBackground: { waves: [{ id: "visual", name: "Visual", timestamp: 1, properties: { speed: 2 } }] },
+    defaultVisualPresetByBackground: { waves: "visual" },
+  }, options)
+  const before = structuredClone(immutablePreferences)
+  const properties = { speed: 1, density: 3 }
+  const helpers = [
+    () => saveBackgroundColorPreset(immutablePreferences, { id: "new-color", name: "New", timestamp: 2, palette: { mode: "custom" } }, options),
+    () => renameBackgroundColorPreset(immutablePreferences, "color", "Renamed", options),
+    () => deleteBackgroundColorPreset(immutablePreferences, "color", options),
+    () => applyBackgroundColorPreset(immutablePreferences, "color", options),
+    () => saveBackgroundVisualPreset(immutablePreferences, "waves", { id: "new-visual", name: "New", timestamp: 2, properties: { speed: 1 } }, options),
+    () => renameBackgroundVisualPreset(immutablePreferences, "waves", "visual", "Renamed", options),
+    () => deleteBackgroundVisualPreset(immutablePreferences, "waves", "visual", options),
+    () => applyBackgroundVisualPreset(immutablePreferences, "waves", "visual", properties, options),
+    () => resolveDefaultBackgroundVisualPreset(immutablePreferences, "waves", options),
+  ]
+  for (const helper of helpers) {
+    helper()
+    assert.deepEqual(immutablePreferences, before)
+  }
+  assert.deepEqual(properties, { speed: 1, density: 3 })
 })
 
 test("legacy migration preserves non-color settings and access falls back without deleting saved state", () => {
