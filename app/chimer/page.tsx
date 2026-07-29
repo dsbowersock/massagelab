@@ -29,6 +29,7 @@ import {
 } from "@/lib/chimer-timer"
 import {
   canSyncAccountPreferencesFromSession,
+  createSerializedChimerPreferenceWriter,
   createChimerPreferenceSyncRequest,
   createChimerPreferenceSyncRetry,
   resolveChimerPreferenceSyncRequest,
@@ -210,6 +211,30 @@ export default function ChimerPage() {
   const shouldKeepWakeLockRef = useRef(false)
   const skipNextAutomaticAccountSyncBodyRef = useRef<string | null>(null)
   const backgroundPreferenceRequestIdRef = useRef(0)
+  const accountPreferenceWriterRef = useRef<ReturnType<
+    typeof createSerializedChimerPreferenceWriter
+  > | null>(null)
+  if (accountPreferenceWriterRef.current == null) {
+    accountPreferenceWriterRef.current = createSerializedChimerPreferenceWriter({
+      send: async (request) => {
+        const response = await fetchWithTimeout("/api/account/preferences", {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: request.requestBody,
+        })
+        return response.ok
+      },
+      onComplete: (request, succeeded) => {
+        setBackgroundPreferenceSync((currentRequest) => (
+          resolveChimerPreferenceSyncRequest(
+            currentRequest,
+            request,
+            succeeded,
+          ) as BackgroundPreferenceSyncState
+        ))
+      },
+    })
+  }
 
   const totalDurationMs = useMemo(
     () => getTotalTimerMs(settings.hours, settings.minutes),
@@ -400,16 +425,18 @@ export default function ChimerPage() {
       window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(settings))
 
       if (canSync && accountSyncStatus === "synced") {
-        const requestBody = JSON.stringify({ chimerSettings: settings })
-        if (skipNextAutomaticAccountSyncBodyRef.current === requestBody) {
+        const requestId = backgroundPreferenceRequestIdRef.current + 1
+        const request = createChimerPreferenceSyncRequest(settings, {
+          backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
+          requestId,
+        }) as BackgroundPreferenceSyncState
+        if (skipNextAutomaticAccountSyncBodyRef.current === request.requestBody) {
           skipNextAutomaticAccountSyncBodyRef.current = null
           return
         }
-        void fetchWithTimeout("/api/account/preferences", {
-          method: "PUT",
-          headers: { "content-type": "application/json" },
-          body: requestBody,
-        }).catch(() => undefined)
+        backgroundPreferenceRequestIdRef.current = requestId
+        setBackgroundPreferenceSync(request)
+        accountPreferenceWriterRef.current?.enqueue(request)
       }
     }
   }, [accountSyncStatus, canSync, hasLoadedSettings, settings])
@@ -710,40 +737,6 @@ export default function ChimerPage() {
   }
 
   /**
-   * Sends an already-frozen request body and retains that exact body if the
-   * cloud write fails, while the local committed palette remains active.
-   */
-  const syncBackgroundVisualPreferenceRequest = useCallback(async (
-    request: BackgroundPreferenceSyncState,
-  ) => {
-    if (!request.requestBody) {
-      return
-    }
-    try {
-      const response = await fetchWithTimeout("/api/account/preferences", {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: request.requestBody,
-      })
-      setBackgroundPreferenceSync((currentRequest) => (
-        resolveChimerPreferenceSyncRequest(
-          currentRequest,
-          request,
-          response.ok,
-        ) as BackgroundPreferenceSyncState
-      ))
-    } catch {
-      setBackgroundPreferenceSync((currentRequest) => (
-        resolveChimerPreferenceSyncRequest(
-          currentRequest,
-          request,
-          false,
-        ) as BackgroundPreferenceSyncState
-      ))
-    }
-  }, [])
-
-  /**
    * Commits one complete sanitized Visual snapshot locally before starting
    * account sync. Setup callers may still supply only the nested preference.
    */
@@ -808,7 +801,7 @@ export default function ChimerPage() {
 
     skipNextAutomaticAccountSyncBodyRef.current = request.requestBody
     setBackgroundPreferenceSync(request)
-    void syncBackgroundVisualPreferenceRequest(request)
+    accountPreferenceWriterRef.current?.enqueue(request)
   }
 
   /** Retries the exact last locally applied payload after a stale cloud write. */
@@ -823,8 +816,8 @@ export default function ChimerPage() {
       requestId,
     ) as BackgroundPreferenceSyncState
     setBackgroundPreferenceSync(pending)
-    void syncBackgroundVisualPreferenceRequest(pending)
-  }, [backgroundPreferenceSync, syncBackgroundVisualPreferenceRequest])
+    accountPreferenceWriterRef.current?.enqueue(pending)
+  }, [backgroundPreferenceSync])
 
   const openTimeModal = (unit: "hours" | "minutes") => {
     setSelectedTimeUnit(unit)

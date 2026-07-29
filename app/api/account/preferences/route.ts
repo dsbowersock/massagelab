@@ -39,7 +39,10 @@ export async function GET() {
   const chimerSettings = preferences?.chimerSettings
     ? sanitizeChimerSettingsForEntitlements(
       preferences.chimerSettings,
-      entitlements.features,
+      {
+        featureKeys: entitlements.features,
+        ownedBackgroundIds: commerceSnapshot.ownedBackgroundIds,
+      },
       {
         canUseAccountColorControls: true,
         backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
@@ -72,10 +75,17 @@ export async function PUT(request: Request) {
   const payload = buildUserPreferencePayload(body, {
     backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
   })
-  const entitlements = await getUserEntitlementState(prisma, session.user.id)
-  const existing = await prisma.userPreference.findUnique({
-    where: { userId: session.user.id },
-  })
+  const [entitlements, commerceSnapshot, existing] = await Promise.all([
+    getUserEntitlementState(prisma, session.user.id),
+    getBackgroundCommerceSnapshot({
+      prismaClient: prisma,
+      userId: session.user.id,
+      includeRecentOrders: false,
+    }),
+    prisma.userPreference.findUnique({
+      where: { userId: session.user.id },
+    }),
+  ])
   // Merge existing app settings with incoming values only when callers provide
   // appSettings. This preserves previously saved flags for omitted keys and
   // applies replacements only for explicitly submitted entries.
@@ -84,7 +94,10 @@ export async function PUT(request: Request) {
     ...payload.app_settings,
   }
   const chimerSettings = "chimerSettings" in body
-    ? jsonObject(sanitizeChimerSettingsForEntitlements(payload.chimer_settings, entitlements.features, {
+    ? jsonObject(sanitizeChimerSettingsForEntitlements(payload.chimer_settings, {
+      featureKeys: entitlements.features,
+      ownedBackgroundIds: commerceSnapshot.ownedBackgroundIds,
+    }, {
       canUseAccountColorControls: true,
       backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
     }))

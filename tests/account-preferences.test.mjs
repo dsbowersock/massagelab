@@ -8,6 +8,7 @@ import {
   buildUserPreferencePayload,
   canSyncAccountPreferences,
   choosePreferenceSource,
+  createSerializedChimerPreferenceWriter,
   createChimerPreferenceSyncRequest,
   createChimerPreferenceSyncRetry,
   removeForbiddenPreferenceFields,
@@ -231,6 +232,91 @@ describe("Account preference helpers", () => {
       requestBody: second.requestBody,
       requestId: 3,
     })
+  })
+
+  it("serializes writes, supersedes queued bodies, and commits the newest payload last", async () => {
+    const deferred = []
+    const sentBodies = []
+    const completions = []
+    const writer = createSerializedChimerPreferenceWriter({
+      send: (request) => {
+        sentBodies.push(request.requestBody)
+        return new Promise((resolve) => deferred.push(resolve))
+      },
+      onComplete: (request, succeeded) => {
+        completions.push({ requestBody: request.requestBody, succeeded })
+      },
+    })
+    const first = createChimerPreferenceSyncRequest({ minutes: 10 }, { requestId: 1 })
+    const superseded = createChimerPreferenceSyncRequest({ minutes: 20 }, { requestId: 2 })
+    const latest = createChimerPreferenceSyncRequest({ minutes: 30 }, { requestId: 3 })
+
+    writer.enqueue(first)
+    writer.enqueue(superseded)
+    writer.enqueue(latest)
+    assert.deepEqual(sentBodies, [first.requestBody])
+
+    deferred.shift()(true)
+    await Promise.resolve()
+    await Promise.resolve()
+    assert.deepEqual(sentBodies, [first.requestBody, latest.requestBody])
+
+    deferred.shift()(true)
+    await writer.whenIdle()
+    assert.deepEqual(completions, [
+      { requestBody: first.requestBody, succeeded: true },
+      { requestBody: latest.requestBody, succeeded: true },
+    ])
+    assert.equal(
+      JSON.parse(completions.at(-1).requestBody).chimerSettings.minutes,
+      30,
+    )
+  })
+
+  it("lets a newer successful write invalidate an in-flight stale retry body", async () => {
+    const deferred = []
+    let state = {
+      status: "stale",
+      requestBody: createChimerPreferenceSyncRequest({ minutes: 20 }).requestBody,
+      requestId: 2,
+    }
+    const writer = createSerializedChimerPreferenceWriter({
+      send: () => new Promise((resolve) => deferred.push(resolve)),
+      onComplete: (request, succeeded) => {
+        state = resolveChimerPreferenceSyncRequest(state, request, succeeded)
+      },
+    })
+    const retry = createChimerPreferenceSyncRetry(state, 3)
+    const latest = createChimerPreferenceSyncRequest({ minutes: 40 }, { requestId: 4 })
+
+    state = retry
+    writer.enqueue(retry)
+    state = latest
+    writer.enqueue(latest)
+
+    deferred.shift()(false)
+    await Promise.resolve()
+    await Promise.resolve()
+    assert.deepEqual(state, latest)
+
+    deferred.shift()(true)
+    await writer.whenIdle()
+    assert.deepEqual(state, {
+      status: "synced",
+      requestBody: null,
+      requestId: 4,
+    })
+  })
+
+  it("routes automatic, Visual Apply, and Visual Retry through one writer", async () => {
+    const source = await readFile(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+
+    assert.match(source, /createSerializedChimerPreferenceWriter/)
+    assert.equal(
+      [...source.matchAll(/accountPreferenceWriterRef\.current\?\.enqueue\(/g)].length,
+      3,
+    )
+    assert.doesNotMatch(source, /syncBackgroundVisualPreferenceRequest/)
   })
 
   it("uses the canonical Track 1 snapshot for account preference ownership IDs", async () => {
