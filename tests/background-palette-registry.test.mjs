@@ -127,6 +127,98 @@ describe("background palette adapter registry", () => {
     }
   })
 
+  it("keeps collision-prone renderer visual inventories independently exact", () => {
+    const expectedKeysByBackground = {
+      "massage-lab-plasma": [
+        "massageLabPlasmaSpeed",
+        "massageLabPlasmaDirection",
+        "massageLabPlasmaScale",
+        "massageLabPlasmaOpacity",
+        "massageLabPlasmaMouseInteractive",
+      ],
+      "massage-lab-gradient": [
+        "massageLabGradientOpacity",
+      ],
+      "massage-lab-prism": [
+        "massageLabPrismHeight",
+        "massageLabPrismBaseWidth",
+        "massageLabPrismAnimationType",
+        "massageLabPrismGlow",
+        "massageLabPrismOffsetX",
+        "massageLabPrismOffsetY",
+        "massageLabPrismNoise",
+        "massageLabPrismTransparent",
+        "massageLabPrismScale",
+        "massageLabPrismHueShift",
+        "massageLabPrismColorFrequency",
+        "massageLabPrismHoverStrength",
+        "massageLabPrismInertia",
+        "massageLabPrismBloom",
+        "massageLabPrismTimeScale",
+      ],
+    }
+
+    for (const [backgroundId, expectedKeys] of Object.entries(expectedKeysByBackground)) {
+      const adapter = backgroundPaletteRegistry[backgroundId]
+      assert.deepEqual(adapter.visualPropertyKeys, expectedKeys, backgroundId)
+      assert.deepEqual(
+        adapter.sourceVisualProperties,
+        Object.fromEntries(expectedKeys.map((key) => [key, sanitizedDefaults[key]])),
+        backgroundId,
+      )
+    }
+  })
+
+  it("models Vortex background and hue-driven particle colors as exact roles", () => {
+    const adapter = backgroundPaletteRegistry["massage-lab-vortex"]
+    assert.notEqual(adapter.status, "unsupported")
+    assert.deepEqual(
+      adapter.roles.map(({ id, label, sourceColor, defaultSwatch, rendererTarget }) => ({
+        id,
+        label,
+        sourceColor,
+        defaultSwatch,
+        rendererTarget,
+      })),
+      [
+        {
+          id: "background",
+          label: "Background",
+          sourceColor: "#000000",
+          defaultSwatch: 0,
+          rendererTarget: "vortex.backgroundColor",
+        },
+        {
+          id: "particles",
+          label: "Particles",
+          sourceColor: "#3366FF",
+          defaultSwatch: 1,
+          rendererTarget: "vortex.baseHue",
+        },
+      ],
+    )
+    assert.equal(adapter.visualPropertyKeys.includes("vortexBaseHue"), false)
+
+    const before = {
+      vortex: {
+        backgroundColor: "#000000",
+        baseHue: 220,
+        particleCount: sanitizedDefaults.vortexParticleCount,
+      },
+    }
+    const after = adapter.applyRoleColors(before, {
+      background: "#112233",
+      particles: "#336699",
+    })
+    assert.equal(after.vortex.backgroundColor, "#112233")
+    assert.equal(after.vortex.baseHue, 210)
+    assert.equal(after.vortex.particleCount, before.vortex.particleCount)
+    assert.deepEqual(
+      [...changedLeafPaths(before, after)].sort(),
+      ["vortex.backgroundColor", "vortex.baseHue"],
+    )
+  })
+
   it("records the approved exhaustive and special Source behaviors", () => {
     assert.equal(
       backgroundPaletteRegistry["massage-lab-gradient-animation"].roles.length,

@@ -45,6 +45,7 @@ type RoleSpec = readonly [
   sourceSettingKey: string,
   rendererTarget: string,
   transform?: RoleTransform,
+  sourceColorOverride?: string,
 ]
 type SupportedSpec = {
   id: string
@@ -76,16 +77,35 @@ const role = (
   sourceSettingKey: string,
   rendererTarget: string,
   transform?: RoleTransform,
-): RoleSpec => [id, label, sourceSettingKey, rendererTarget, transform]
+  sourceColorOverride?: string,
+): RoleSpec => [
+  id,
+  label,
+  sourceSettingKey,
+  rendererTarget,
+  transform,
+  sourceColorOverride,
+]
 
 /**
- * The ledger uses persisted Chimer setting prefixes only to collect visual
- * property defaults. Color settings are explicit role records, so source color
- * parity and renderer destinations cannot silently drift together.
+ * Assigns each persisted setting to exactly one renderer namespace. The most
+ * specific implementation namespace wins, preventing sibling names such as
+ * Plasma/Plasma Wave, Gradient/Gradient Blinds, and Prism/Prismatic Burst from
+ * leaking properties into one another.
  */
-function visualInventory(prefixes: readonly string[], colorKeys: ReadonlySet<string>) {
+function visualInventory(
+  backgroundId: string,
+  prefixes: readonly string[],
+  colorKeys: ReadonlySet<string>,
+) {
   const visualPropertyKeys = Object.keys(SANITIZED_SOURCE_SETTINGS).filter((key) => (
-    prefixes.some((prefix) => key.startsWith(prefix))
+    SETTING_NAMESPACE_OWNERS
+      .filter(({ namespace }) => key.slice(0, namespace.length) === namespace)
+      .sort((left, right) => right.namespace.length - left.namespace.length)
+      .at(0)?.backgroundId === backgroundId
+    && prefixes.some((prefix) => (
+      key.slice(0, prefix.length) === prefix
+    ))
     && !colorKeys.has(key)
     && !PALETTE_METADATA_SUFFIXES.some((suffix) => key.endsWith(suffix))
   ))
@@ -148,11 +168,19 @@ function setRendererTarget(
 
 function supported(spec: SupportedSpec): SupportedBackgroundPaletteAdapter {
   const colorKeys = new Set(spec.roles.map((entry) => entry[2]))
-  const inventory = visualInventory(spec.prefixes, colorKeys)
-  const roles = spec.roles.map(([id, label, sourceSettingKey, rendererTarget], index) => ({
+  const inventory = visualInventory(spec.id, spec.prefixes, colorKeys)
+  const roles = spec.roles.map(([
     id,
     label,
-    sourceColor: String(SANITIZED_SOURCE_SETTINGS[sourceSettingKey]),
+    sourceSettingKey,
+    rendererTarget,
+    ,
+    sourceColorOverride,
+  ], index) => ({
+    id,
+    label,
+    sourceColor: sourceColorOverride
+      ?? String(SANITIZED_SOURCE_SETTINGS[sourceSettingKey]),
     defaultSwatch: (index % 7) as BackgroundPaletteRole["defaultSwatch"],
     rendererTarget,
   }))
@@ -179,7 +207,7 @@ function unsupported(spec: UnsupportedSpec): UnsupportedBackgroundPaletteAdapter
   return Object.freeze({
     status: "unsupported",
     unsupportedReason: spec.reason ?? FIXED_RENDERER_REASON,
-    ...visualInventory(spec.prefixes ?? [], new Set()),
+    ...visualInventory(spec.id, spec.prefixes ?? [], new Set()),
   })
 }
 
@@ -246,7 +274,16 @@ const SUPPORTED_SPECS: readonly SupportedSpec[] = [
   { id: "massage-lab-spotlight", family: "css-dom", prefixes: ["spotlight"], roles: [role("spotlight", "Spotlight", "spotlightColor", "spotlight.color")] },
   { id: "massage-lab-lamp-effect", family: "css-dom", prefixes: ["lamp"], roles: [role("background", "Background", "lampBackgroundColor", "lamp.backgroundColor"), role("lamp", "Lamp", "lampColor", "lamp.color")] },
   { id: "massage-lab-wavy-background", family: "canvas", prefixes: ["wavy"], roles: [role("background", "Background", "wavyBackgroundFill", "wavy.backgroundFill"), role("wave-1", "Wave 1", "wavyColorOne", "wavy.colors[0]"), role("wave-2", "Wave 2", "wavyColorTwo", "wavy.colors[1]"), role("wave-3", "Wave 3", "wavyColorThree", "wavy.colors[2]"), role("wave-4", "Wave 4", "wavyColorFour", "wavy.colors[3]"), role("wave-5", "Wave 5", "wavyColorFive", "wavy.colors[4]")] },
-  { id: "massage-lab-vortex", family: "canvas", prefixes: ["vortex"], roles: [role("background", "Background", "vortexBackgroundColor", "vortex.backgroundColor")] },
+  {
+    id: "massage-lab-vortex",
+    family: "canvas",
+    prefixes: ["vortex"],
+    roles: [
+      role("background", "Background", "vortexBackgroundColor", "vortex.backgroundColor"),
+      // Source strokes are hsla(220, 100%, 60%); #3366FF is that exact opaque HSL color.
+      role("particles", "Particles", "vortexBaseHue", "vortex.baseHue", "hex-hue", "#3366FF"),
+    ],
+  },
   { id: "massage-lab-pixel-liquid", family: "canvas", prefixes: ["pixelLiquid"], roles: [role("background", "Background", "pixelLiquidBackgroundColor", "pixelLiquid.backgroundColor"), role("base", "Base", "pixelLiquidBaseColor", "pixelLiquid.baseColor"), role("accent", "Accent", "pixelLiquidAccentColor", "pixelLiquid.accentColor"), role("highlight", "Highlight", "pixelLiquidHighlightColor", "pixelLiquid.highlightColor")] },
   { id: "massage-lab-tile-grid", family: "canvas", prefixes: ["tileGrid"], sourceBehavior: "automatic", roles: [role("tile-1", "Tile 1", "tileGridColorOne", "tileGrid.colors[0]"), role("tile-2", "Tile 2", "tileGridColorTwo", "tileGrid.colors[1]"), role("tile-3", "Tile 3", "tileGridColorThree", "tileGrid.colors[2]"), role("tile-4", "Tile 4", "tileGridColorFour", "tileGrid.colors[3]"), role("tile-5", "Tile 5", "tileGridColorFive", "tileGrid.colors[4]")] },
   { id: "massage-lab-hex-grid", family: "canvas", prefixes: ["hexGrid"], roles: [role("hexes", "Hexes", "hexGridPrimaryColor", "hexGrid.primaryColor")] },
@@ -269,6 +306,14 @@ const UNSUPPORTED_SPECS: readonly UnsupportedSpec[] = [
   { id: "massage-lab-meteors" },
   { id: "massage-lab-bubble" },
 ]
+
+const SETTING_NAMESPACE_OWNERS = Object.freeze([
+  ...SUPPORTED_SPECS,
+  ...UNSUPPORTED_SPECS,
+].flatMap((spec) => (spec.prefixes ?? []).map((namespace) => ({
+  backgroundId: spec.id,
+  namespace,
+}))))
 
 /**
  * Migration-time source ledger. All color-capable renderers remain `pending`
