@@ -581,7 +581,7 @@ const UNSUPPORTED_SPECS: readonly UnsupportedSpec[] = [
   { id: "massage-lab-prism", family: "webgl", prefixes: ["massageLabPrism"], reason: "Prism exposes spectral and hue controls rather than a concrete color target, so its source rendering remains unchanged during adapter migration." },
   { id: "massage-lab-dark-veil", family: "webgl", prefixes: ["massageLabDarkVeil"], reason: "Dark Veil exposes a hue shift rather than a concrete color target, so its source rendering remains unchanged during adapter migration." },
   { id: "massage-lab-aurora", family: "css-dom" },
-  { id: "massage-lab-dotted-glow", family: "css-dom" },
+  { id: "massage-lab-dotted-glow", family: "canvas" },
   { id: "massage-lab-background-beams", family: "css-dom" },
   { id: "massage-lab-collision-beams", family: "css-dom" },
   { id: "massage-lab-background-lines", family: "css-dom", prefixes: ["backgroundLines"] },

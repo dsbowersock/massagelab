@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import { DEFAULT_CHIMER_SETTINGS, sanitizeChimerSettings } from "../lib/chimer-timer.js"
 import {
@@ -313,6 +314,36 @@ describe("background palette adapter registry", () => {
         backgroundId,
       )
     }
+  })
+
+  it("grounds unsupported renderer families in their actual implementations", async () => {
+    const cssBackgroundSource = await readFile(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const dottedGlowStart = cssBackgroundSource.indexOf(
+      "export function MassageLabDottedGlowBackground",
+    )
+    const dottedGlowEnd = cssBackgroundSource.indexOf(
+      "\nexport function ",
+      dottedGlowStart + 1,
+    )
+    const dottedGlowImplementation = cssBackgroundSource.slice(
+      dottedGlowStart,
+      dottedGlowEnd > dottedGlowStart ? dottedGlowEnd : undefined,
+    )
+
+    assert.notEqual(dottedGlowStart, -1)
+    assert.match(dottedGlowImplementation, /getContext\("2d"\)/)
+    assert.match(dottedGlowImplementation, /<canvas/)
+    assert.equal(
+      backgroundPaletteRegistry["massage-lab-dotted-glow"].rendererFamily,
+      "canvas",
+    )
+    assert.equal(backgroundPaletteRegistry["static-gradient"].rendererFamily, "css-dom")
+    assert.equal(backgroundPaletteRegistry["massage-lab-aurora"].rendererFamily, "css-dom")
+    assert.equal(backgroundPaletteRegistry["massage-lab-prism"].rendererFamily, "webgl")
+    assert.equal(backgroundPaletteRegistry["massage-lab-dark-veil"].rendererFamily, "webgl")
   })
 
   it("copies every declared source visual property from sanitized Chimer defaults", () => {

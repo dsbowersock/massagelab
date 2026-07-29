@@ -125,6 +125,10 @@ async function expectLoadedPaletteMode(
     "data-background-diagnostic-status",
     status === "supported" ? "loaded" : "unsupported",
   )
+  await expect(host).toHaveAttribute(
+    "data-background-diagnostic-family",
+    backgroundPaletteRegistry[id].rendererFamily,
+  )
   await expect(host).toHaveAttribute("data-background-diagnostic-fallback", "false")
   await expect(host).not.toHaveAttribute("data-background-diagnostic-error", /.+/)
   await expect(host).toHaveAttribute("data-background-effect-mounted", "true")
@@ -278,6 +282,18 @@ test.describe("shared background palette review matrix", () => {
       await expect(representative).toHaveAttribute("data-background-effect-mounted", "true")
     }
     await expect(page.getByTestId("background-palette-live-host")).toHaveCount(1)
+  })
+
+  test("reports Canvas-backed Dotted Glow truthfully in every palette mode", async ({ page }) => {
+    await openPaletteGallery(page)
+    const dottedGlowRow = page.locator(
+      '[data-palette-adapter-row][data-background-id="massage-lab-dotted-glow"]',
+    )
+    await expect(dottedGlowRow).toHaveAttribute("data-renderer-family", "canvas")
+    await selectBackground(page, "massage-lab-dotted-glow")
+    for (const mode of MODES) {
+      await expectLoadedPaletteMode(page, "massage-lab-dotted-glow", "unsupported", mode)
+    }
   })
 
   test("preserves swatches, changes real labels, and isolates selected mappings", async ({ page }) => {
