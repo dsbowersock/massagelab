@@ -10,8 +10,10 @@ import {
   backgroundPaletteRegistry,
   backgroundPreferenceNormalizationOptions,
 } from "@/components/backgrounds/backgroundPaletteRegistry"
+import { useBackgroundCommerce } from "@/components/backgrounds/BackgroundCommerceProvider"
 import {
   canUseBackgroundId,
+  mergeBackgroundAccessOwnership,
   type BackgroundAccessSnapshot,
 } from "@/components/backgrounds/backgroundRegistry"
 import {
@@ -142,6 +144,7 @@ export default function ChimerPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { settings: appSettings } = useSettings()
+  const { state: backgroundCommerceState } = useBackgroundCommerce()
   const {
     visualizer,
     selectVisualizerBackground,
@@ -193,10 +196,14 @@ export default function ChimerPage() {
   const [visualDraftPropertyOverrides, setVisualDraftPropertyOverrides] =
     useState<Partial<ChimerSettings> | null>(null)
   const [wakeLockMessage, setWakeLockMessage] = useState<string | null>(null)
-  const backgroundAccess = useMemo<BackgroundAccessSnapshot>(() => ({
-    featureKeys,
-    ownedBackgroundIds: permanentlyOwnedBackgroundIds,
-  }), [featureKeys, permanentlyOwnedBackgroundIds])
+  const commerceOwnedBackgroundIds = backgroundCommerceState.snapshot?.ownedBackgroundIds
+  const backgroundAccess = useMemo<BackgroundAccessSnapshot>(
+    () => mergeBackgroundAccessOwnership({
+      featureKeys,
+      ownedBackgroundIds: permanentlyOwnedBackgroundIds,
+    }, commerceOwnedBackgroundIds ?? []),
+    [commerceOwnedBackgroundIds, featureKeys, permanentlyOwnedBackgroundIds],
+  )
   const canUseCustomColors = featureKeys.includes(FEATURE_KEYS.chimerCustomColors)
   const hasAccountPreferenceAccess = accountSyncStatus === "synced" || accountSyncStatus === "conflict"
   const canUseAccountColorControls = canUseCustomColors || hasAccountPreferenceAccess
@@ -751,6 +758,7 @@ export default function ChimerPage() {
       backgroundId?: string
       backgroundVisualPreferences: ChimerSettings["backgroundVisualPreferences"]
       properties: Partial<ChimerSettings>
+      accessOverride?: BackgroundAccessSnapshot
     },
   ) => {
     const backgroundVisualPreferences = "backgroundVisualPreferences" in input
@@ -783,6 +791,7 @@ export default function ChimerPage() {
         Object.entries(input.properties).filter(([key]) => allowedPropertyKeys.has(key)),
       )
       : {}
+    const accessOverride = "accessOverride" in input ? input.accessOverride : undefined
     const nextSettings = sanitizeChimerVisualCommitForEntitlements({
       currentSettings: settingsRef.current,
       candidateProperties: properties,
@@ -790,7 +799,7 @@ export default function ChimerPage() {
       visualBackgroundIds: scope.visualBackgroundIds,
       visualPropertyKeysByBackground,
       backgroundVisualPreferences,
-    }, backgroundAccessRef.current, {
+    }, accessOverride ?? backgroundAccessRef.current, {
       canUseAccountColorControls,
       backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
     }) as ChimerSettings

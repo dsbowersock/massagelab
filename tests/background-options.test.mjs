@@ -22,6 +22,7 @@ const runningTimerStyles = readFileSync(
   "utf8",
 )
 const runningTimerSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+const chimerPageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
 const projectLogSource = readFileSync(new URL("../docs/project-log.md", import.meta.url), "utf8")
 const paletteRegistrySource = readFileSync(
   new URL("../components/backgrounds/backgroundPaletteRegistry.ts", import.meta.url),
@@ -288,7 +289,9 @@ describe("premium background registry", () => {
     assert.equal(canUseBackgroundId(redeemedBackgroundId, refreshedAccess, "clock"), true)
     assert.equal(canUseBackgroundId("massage-lab-stars", refreshedAccess, "clock"), false)
     assert.deepEqual(refreshedAccess.featureKeys, [])
-    assert.match(runningTimerSource, /const effectiveBackgroundAccess = useMemo/)
+    assert.match(chimerPageSource, /const commerceOwnedBackgroundIds = backgroundCommerceState\.snapshot\?\.ownedBackgroundIds/)
+    assert.match(chimerPageSource, /mergeBackgroundAccessOwnership\([\s\S]*featureKeys,[\s\S]*ownedBackgroundIds: permanentlyOwnedBackgroundIds/)
+    assert.match(chimerPageSource, /canUseBackgroundId\(id, backgroundAccess, "music"\)/)
     assert.match(
       runningTimerSource,
       /userCanUseBackground\(nextBackgroundDefinition, selectionAccess\)/,
@@ -296,6 +299,10 @@ describe("premium background registry", () => {
     assert.match(
       runningTimerSource,
       /handleBackgroundSelection\(background\.id, \[background\.id\]\)/,
+    )
+    assert.match(
+      runningTimerSource,
+      /onApplyBackgroundVisualPreferences\(\{[\s\S]*accessOverride: selectionAccess/,
     )
   })
 

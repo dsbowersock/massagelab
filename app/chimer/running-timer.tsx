@@ -7,7 +7,7 @@ import { BACKGROUND_VISUAL_FILTERS, matchesBackgroundVisualFilter, readSavedBack
 import { DEFAULT_BACKGROUND_ID } from "@/lib/background-options"
 import { BackgroundAcquisitionDialog } from "@/components/backgrounds/BackgroundAcquisitionDialog"
 import { BackgroundCarousel } from "@/components/backgrounds/background-carousel"
-import { useBackgroundCommerce, useBackgroundCreditStatus } from "@/components/backgrounds/BackgroundCommerceProvider"
+import { useBackgroundCreditStatus } from "@/components/backgrounds/BackgroundCommerceProvider"
 import { BackgroundHost } from "@/components/backgrounds/BackgroundHost"
 import { BACKGROUND_PALETTE_METADATA_SUFFIXES, backgroundPaletteRegistry } from "@/components/backgrounds/backgroundPaletteRegistry"
 import { canUseBackgroundId, getBackgroundOptionsForCategory, mergeBackgroundAccessOwnership, resolveAccessibleBackgroundDefinition, type BackgroundAccessSnapshot, type BackgroundId, type BackgroundDefinition, userCanUseBackground } from "@/components/backgrounds/backgroundRegistry"
@@ -833,7 +833,7 @@ interface RunningTimerProps {
   onSetActiveRemainingDuration: (hours: number, minutes: number) => void
   onSetActiveIntervalMinutes: (minutes: number) => void
   onVisualDraftPreviewChange: (properties: Partial<ChimerSettings> | null) => void
-  onApplyBackgroundVisualPreferences: (commit: { visualBackgroundId: BackgroundId; sourceVisualBackgroundId?: BackgroundId; backgroundId?: BackgroundId; backgroundVisualPreferences: ChimerSettings["backgroundVisualPreferences"]; properties: Partial<ChimerSettings> }) => void
+  onApplyBackgroundVisualPreferences: (commit: { visualBackgroundId: BackgroundId; sourceVisualBackgroundId?: BackgroundId; backgroundId?: BackgroundId; backgroundVisualPreferences: ChimerSettings["backgroundVisualPreferences"]; properties: Partial<ChimerSettings>; accessOverride?: BackgroundAccessSnapshot }) => void
   onRetryBackgroundVisualPreferences: () => void
   hapticsEnabled: boolean
 }
@@ -1470,16 +1470,8 @@ export function RunningTimer({
   hapticsEnabled,
 }: RunningTimerProps) {
   const router = useRouter()
-  const { state: backgroundCommerceState } = useBackgroundCommerce()
   const creditStatus = useBackgroundCreditStatus()
-  const commerceOwnedBackgroundIds = backgroundCommerceState.snapshot?.ownedBackgroundIds
-  const effectiveBackgroundAccess = useMemo(
-    () => mergeBackgroundAccessOwnership(
-      backgroundAccess,
-      commerceOwnedBackgroundIds ?? [],
-    ),
-    [backgroundAccess, commerceOwnedBackgroundIds],
-  )
+  const effectiveBackgroundAccess = backgroundAccess
   const isPaused = status === "paused"
   const isComplete = status === "complete"
   const isClockMode = status === "clock"
@@ -1964,6 +1956,7 @@ export function RunningTimer({
       ...("backgroundId" in commit ? { backgroundId: commit.backgroundId as BackgroundId } : {}),
       backgroundVisualPreferences: commit.backgroundVisualPreferences as ChimerSettings["backgroundVisualPreferences"],
       properties: commit.properties as Partial<ChimerSettings>,
+      accessOverride: selectionAccess,
     })
     if (mode.context !== "chimer") {
       mode.onBackgroundChange(nextBackgroundId, selectionAccess)
