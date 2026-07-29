@@ -54,6 +54,8 @@ export interface ColorPickerSwatchProps {
   value: string
   fallback?: string
   disabled?: boolean
+  /** Presents the resolved color as context without opening the HSV editor. */
+  readOnly?: boolean
   onChange: (value: string) => void
   className?: string
   buttonClassName?: string
@@ -213,6 +215,7 @@ export function ColorPickerSwatch({
   value,
   fallback,
   disabled,
+  readOnly,
   onChange,
   className,
   buttonClassName,
@@ -278,6 +281,12 @@ export function ColorPickerSwatch({
   useEffect(() => {
     setDraftHex(normalizedColor)
   }, [normalizedColor])
+
+  useEffect(() => {
+    if (readOnly) {
+      setIsOpen(false)
+    }
+  }, [readOnly])
 
   useEffect(() => {
     if (!isOpen) {
@@ -370,30 +379,45 @@ export function ColorPickerSwatch({
 
   return (
     <div ref={containerRef} className={cn(styles.colorPickerShell, className)}>
-      <button
-        id={fieldId}
-        type="button"
-        className={cn(styles.globalColorSwatchButton, buttonClassName)}
-        onClick={() => {
-          if (!isOpen) {
-            updatePopoverPosition()
-          }
-          setIsOpen((current) => !current)
-        }}
-        disabled={disabled}
-        aria-label={`${label} picker`}
-        aria-expanded={isOpen}
-        aria-haspopup="dialog"
-      >
-        <span
-          className={styles.globalColorSwatchFace}
-          style={{ backgroundColor: normalizedColor } as CSSProperties}
-          aria-hidden="true"
-        />
-        <span className={styles.globalColorSwatchValue}>{normalizedColor}</span>
-      </button>
+      {readOnly ? (
+        <output
+          id={fieldId}
+          className={cn(styles.globalColorSwatchButton, styles.globalColorSwatchReadOnly, buttonClassName)}
+          aria-label={`${label}: ${normalizedColor}`}
+        >
+          <span
+            className={styles.globalColorSwatchFace}
+            style={{ backgroundColor: normalizedColor } as CSSProperties}
+            aria-hidden="true"
+          />
+          <span className={styles.globalColorSwatchValue}>{normalizedColor}</span>
+        </output>
+      ) : (
+        <button
+          id={fieldId}
+          type="button"
+          className={cn(styles.globalColorSwatchButton, buttonClassName)}
+          onClick={() => {
+            if (!isOpen) {
+              updatePopoverPosition()
+            }
+            setIsOpen((current) => !current)
+          }}
+          disabled={disabled}
+          aria-label={`${label} picker`}
+          aria-expanded={isOpen}
+          aria-haspopup="dialog"
+        >
+          <span
+            className={styles.globalColorSwatchFace}
+            style={{ backgroundColor: normalizedColor } as CSSProperties}
+            aria-hidden="true"
+          />
+          <span className={styles.globalColorSwatchValue}>{normalizedColor}</span>
+        </button>
+      )}
 
-      {isOpen && hasMounted && typeof document !== "undefined" ? createPortal(
+      {!readOnly && isOpen && hasMounted && typeof document !== "undefined" ? createPortal(
         <div
           ref={popoverRef}
           className={styles.colorPickerPopover}

@@ -22,6 +22,10 @@ const harmonySource = await readFile(
   new URL("../components/chimer-controls/HarmonyToggleGroup.tsx", import.meta.url),
   "utf8",
 )
+const paletteEditorSource = await readFile(
+  new URL("../components/chimer-controls/BackgroundPaletteEditor.tsx", import.meta.url),
+  "utf8",
+)
 const setTimerSource = await readFile(
   new URL("../app/chimer/set-timer.tsx", import.meta.url),
   "utf8",
@@ -91,4 +95,12 @@ test("global palette mode locks derived colors and serializes valid hex channels
   assert.match(runningTimerSource, /disabled=\{!canUseCoreColorControls \|\| globalHarmony === "custom"\}/)
   assert.match(runningTimerSource, /<GlobalColorPicker[\s\S]*disabled=\{!canUseCoreColorControls\}/)
   assert.match(harmonySource, /--ml-harmony-preview/)
+})
+
+test("the shared palette editor reuses the approved picker instead of duplicating HSV or eyedropper behavior", () => {
+  assert.match(paletteEditorSource, /import \{ ColorPickerSwatch \} from/)
+  assert.match(paletteEditorSource, /<ColorPickerSwatch/)
+  assert.doesNotMatch(paletteEditorSource, /EyeDropper|rgbToHsv|hsvToRgb|colorPickerArea/)
+  assert.match(pickerSource, /readOnly\?: boolean/)
+  assert.match(pickerSource, /\{readOnly \? \(/)
 })
