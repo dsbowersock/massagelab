@@ -1,7 +1,5 @@
 "use client"
 
-import { useEffect, useRef } from "react"
-
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,10 +11,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
+import { getConnectedVisualFocusTarget } from "@/lib/visual-draft-navigation"
 
 interface UnsavedVisualChangesDialogProps {
   open: boolean
   backgroundName: string
+  restoreFocusTarget: HTMLElement | null
   onApply: () => void
   onDiscard: () => void
   onKeepEditing: () => void
@@ -30,18 +30,11 @@ interface UnsavedVisualChangesDialogProps {
 export function UnsavedVisualChangesDialog({
   open,
   backgroundName,
+  restoreFocusTarget,
   onApply,
   onDiscard,
   onKeepEditing,
 }: UnsavedVisualChangesDialogProps) {
-  const restoreFocusRef = useRef<HTMLElement | null>(null)
-
-  useEffect(() => {
-    if (open && document.activeElement instanceof HTMLElement) {
-      restoreFocusRef.current = document.activeElement
-    }
-  }, [open])
-
   return (
     <AlertDialog
       open={open}
@@ -54,7 +47,9 @@ export function UnsavedVisualChangesDialog({
       <AlertDialogContent
         onCloseAutoFocus={(event) => {
           event.preventDefault()
-          window.requestAnimationFrame(() => restoreFocusRef.current?.focus())
+          window.requestAnimationFrame(() => {
+            getConnectedVisualFocusTarget(restoreFocusTarget)?.focus()
+          })
         }}
       >
         <AlertDialogHeader>

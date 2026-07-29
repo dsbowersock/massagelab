@@ -4,13 +4,23 @@ import test from "node:test"
 
 import {
   BACKGROUND_VISUAL_HISTORY_LIMIT,
+  buildBackgroundVisualPendingCommit,
   buildBackgroundVisualOpeningSnapshot,
   buildCommittedBackgroundVisualPreferences,
   createBackgroundVisualDraft,
   getCommittedBackgroundVisualSnapshot,
+  partitionBackgroundVisualSettingChange,
   resolveBackgroundSelectionVisualSnapshot,
+  resolveBackgroundVisualPendingOutcome,
   reduceBackgroundVisualDraft,
+  shouldUseDraftAwareBackgroundHost,
 } from "../lib/background-visual-draft.js"
+import {
+  classifyVisualDraftAnchorNavigation,
+  getConnectedVisualFocusTarget,
+  getVisualDraftHistoryTransition,
+  installVisualDraftNavigationListeners,
+} from "../lib/visual-draft-navigation.js"
 
 const read = async (path) => {
   try {
@@ -24,6 +34,7 @@ const runningTimerSource = await read("app/chimer/running-timer.tsx")
 const navigationGuardSource = await read("app/chimer/visual-draft-navigation-guard.tsx")
 const unsavedDialogSource = await read("app/chimer/unsaved-visual-changes-dialog.tsx")
 const pageSource = await read("app/chimer/page.tsx")
+const runningTimerStyles = await read("app/chimer/running-timer.module.css")
 
 const openingSnapshot = {
   palette: { mode: "custom", primaryColor: "#123456", harmony: "triadic", swatches: ["#123456", "#234567", "#345678", "#456789", "#56789a", "#6789ab", "#789abc"] },
@@ -259,32 +270,348 @@ test("background selection uses its default Visual preset or registry source val
   )
 })
 
+test("legacy color settings cannot escape an open draft while approved properties stay undoable", () => {
+  assert.deepEqual(
+    partitionBackgroundVisualSettingChange({
+      nextSettings: {
+        movingBackgroundMainColor: "#ff0000",
+        movingBackgroundOrbColor: "#00ff00",
+        movingBackgroundEnabled: false,
+      },
+      draftOpen: true,
+      visualPropertyKeys: ["movingBackgroundEnabled"],
+      legacyColorPropertyKeys: ["movingBackgroundMainColor", "movingBackgroundOrbColor"],
+    }),
+    {
+      draftProperties: { movingBackgroundEnabled: false },
+      committedSettings: {},
+    },
+  )
+  assert.deepEqual(
+    partitionBackgroundVisualSettingChange({
+      nextSettings: {
+        movingBackgroundMainColor: "#ff0000",
+        movingBackgroundEnabled: false,
+      },
+      draftOpen: false,
+      visualPropertyKeys: ["movingBackgroundEnabled"],
+      legacyColorPropertyKeys: ["movingBackgroundMainColor"],
+    }),
+    {
+      draftProperties: {},
+      committedSettings: {
+        movingBackgroundMainColor: "#ff0000",
+        movingBackgroundEnabled: false,
+      },
+    },
+  )
+})
+
+test("Apply plus background selection builds one newest complete commit without mutating history", () => {
+  const targetAdapter = {
+    status: "supported",
+    visualPropertyKeys: ["targetSpeed", "targetDensity"],
+    sourceVisualProperties: { targetSpeed: 0.5, targetDensity: 12 },
+    roles: [
+      { id: "main", defaultSwatch: 2 },
+      { id: "accent", defaultSwatch: 4 },
+    ],
+  }
+  const preferences = {
+    palette: openingSnapshot.palette,
+    colorPresets: openingSnapshot.colorPresets,
+    mappingsByBackground: { current: { main: 1 } },
+    visualPresetsByBackground: {
+      current: openingSnapshot.visualPresets,
+      target: [{
+        id: "target-default",
+        properties: { targetSpeed: 9 },
+        mapping: { main: 6 },
+      }],
+    },
+    defaultVisualPresetByBackground: {
+      current: "calm",
+      target: "target-default",
+    },
+  }
+  let draft = createBackgroundVisualDraft(openingSnapshot)
+  draft = reduce(draft, {
+    type: "replace",
+    snapshot: {
+      ...openingSnapshot,
+      palette: {
+        ...openingSnapshot.palette,
+        primaryColor: "#abcdef",
+        swatches: ["#abcdef", ...openingSnapshot.palette.swatches.slice(1)],
+      },
+      properties: { speed: 7, density: 5 },
+      mapping: { main: 5, accent: 3 },
+      colorPresets: [{ ...openingSnapshot.colorPresets[0], name: "Newest" }],
+    },
+  })
+  const before = structuredClone(draft)
+  const commit = buildBackgroundVisualPendingCommit({
+    preferences,
+    currentBackgroundId: "current",
+    currentSnapshot: getCommittedBackgroundVisualSnapshot(draft),
+    targetBackgroundId: "target",
+    targetAdapter,
+  })
+
+  assert.equal(commit.backgroundId, "target")
+  assert.equal(commit.backgroundVisualPreferences.palette.primaryColor, "#abcdef")
+  assert.equal(commit.backgroundVisualPreferences.colorPresets[0].name, "Newest")
+  assert.deepEqual(commit.backgroundVisualPreferences.mappingsByBackground.current, {
+    main: 5,
+    accent: 3,
+  })
+  assert.deepEqual(commit.backgroundVisualPreferences.mappingsByBackground.target, {
+    main: 6,
+  })
+  assert.deepEqual(commit.properties, {
+    speed: 7,
+    density: 5,
+    targetSpeed: 9,
+    targetDensity: 12,
+  })
+  assert.deepEqual(draft, before)
+  assert.equal(draft.undoStack.length, 1)
+
+  assert.deepEqual(
+    resolveBackgroundVisualPendingOutcome({
+      outcome: "apply",
+      intent: { type: "select-background", backgroundId: "target" },
+      commit,
+    }),
+    {
+      commit,
+      resumeIntent: { type: "select-background", backgroundId: "target" },
+    },
+  )
+  assert.deepEqual(
+    resolveBackgroundVisualPendingOutcome({
+      outcome: "discard",
+      intent: { type: "select-background", backgroundId: "target" },
+      commit,
+    }),
+    {
+      commit: null,
+      resumeIntent: { type: "select-background", backgroundId: "target" },
+    },
+  )
+  assert.deepEqual(
+    resolveBackgroundVisualPendingOutcome({
+      outcome: "keep",
+      intent: { type: "select-background", backgroundId: "target" },
+      commit,
+    }),
+    { commit: null, resumeIntent: null },
+  )
+})
+
+test("default moving gradient uses BackgroundHost only for an active draft preview", () => {
+  assert.equal(shouldUseDraftAwareBackgroundHost({
+    isOriginalBackground: true,
+    hasVisualDraft: false,
+  }), false)
+  assert.equal(shouldUseDraftAwareBackgroundHost({
+    isOriginalBackground: true,
+    hasVisualDraft: true,
+  }), true)
+  assert.equal(shouldUseDraftAwareBackgroundHost({
+    isOriginalBackground: false,
+    hasVisualDraft: false,
+  }), true)
+})
+
+test("eligible-link classification rejects bare downloads and non-app navigation", () => {
+  const base = {
+    currentHref: "https://massagelab.app/chimer?panel=visual",
+    button: 0,
+    metaKey: false,
+    ctrlKey: false,
+    altKey: false,
+    shiftKey: false,
+    defaultPrevented: false,
+    target: "_self",
+    download: false,
+  }
+  assert.deepEqual(
+    classifyVisualDraftAnchorNavigation({
+      ...base,
+      href: "https://massagelab.app/account?tab=settings#visual",
+    }),
+    { href: "/account?tab=settings#visual" },
+  )
+  assert.equal(classifyVisualDraftAnchorNavigation({
+    ...base,
+    href: "https://massagelab.app/account",
+    download: true,
+  }), null)
+  assert.equal(classifyVisualDraftAnchorNavigation({
+    ...base,
+    href: "https://other.example/account",
+  }), null)
+  assert.equal(classifyVisualDraftAnchorNavigation({
+    ...base,
+    href: "https://massagelab.app/chimer?panel=visual#colors",
+  }), null)
+  assert.equal(classifyVisualDraftAnchorNavigation({
+    ...base,
+    href: "https://massagelab.app/account",
+    ctrlKey: true,
+  }), null)
+})
+
+test("focus target capture happens before dialog autofocus and rejects disconnected elements", () => {
+  const target = { isConnected: true, focus() {} }
+  assert.equal(getConnectedVisualFocusTarget(target), target)
+  assert.equal(getConnectedVisualFocusTarget({ isConnected: false, focus() {} }), null)
+  assert.equal(getConnectedVisualFocusTarget({ isConnected: true }), null)
+  assert.equal(getConnectedVisualFocusTarget(null), null)
+})
+
+test("observable history back and forward restore without duplicate dialog transitions", () => {
+  assert.deepEqual(
+    getVisualDraftHistoryTransition({
+      currentIndex: 5,
+      targetIndex: 4,
+      restoring: false,
+      blocked: false,
+    }),
+    {
+      restoring: true,
+      restoreDelta: 1,
+      historyDelta: -1,
+      notify: true,
+    },
+  )
+  assert.deepEqual(
+    getVisualDraftHistoryTransition({
+      currentIndex: 5,
+      targetIndex: 5,
+      restoring: true,
+      blocked: true,
+    }),
+    {
+      restoring: false,
+      restoreDelta: 0,
+      historyDelta: null,
+      notify: false,
+    },
+  )
+  assert.deepEqual(
+    getVisualDraftHistoryTransition({
+      currentIndex: 5,
+      targetIndex: 4,
+      restoring: false,
+      blocked: true,
+    }),
+    {
+      restoring: true,
+      restoreDelta: 1,
+      historyDelta: null,
+      notify: false,
+    },
+  )
+  assert.deepEqual(
+    getVisualDraftHistoryTransition({
+      currentIndex: 5,
+      targetIndex: 6,
+      restoring: false,
+      blocked: false,
+    }),
+    {
+      restoring: true,
+      restoreDelta: -1,
+      historyDelta: 1,
+      notify: true,
+    },
+  )
+  assert.deepEqual(
+    getVisualDraftHistoryTransition({
+      currentIndex: null,
+      targetIndex: null,
+      restoring: false,
+      blocked: false,
+    }),
+    {
+      restoring: false,
+      restoreDelta: 0,
+      historyDelta: null,
+      notify: false,
+    },
+  )
+})
+
+test("dirty navigation listeners install and clean up exactly once", () => {
+  const calls = []
+  const target = (owner) => ({
+    addEventListener(type, listener, capture) {
+      calls.push(["add", owner, type, listener, capture])
+    },
+    removeEventListener(type, listener, capture) {
+      calls.push(["remove", owner, type, listener, capture])
+    },
+  })
+  const onClick = () => {}
+  const onBeforeUnload = () => {}
+  const onPopState = () => {}
+  const cleanup = installVisualDraftNavigationListeners({
+    documentTarget: target("document"),
+    windowTarget: target("window"),
+    onClick,
+    onBeforeUnload,
+    onPopState,
+  })
+  cleanup()
+  cleanup()
+
+  assert.deepEqual(calls, [
+    ["add", "document", "click", onClick, true],
+    ["add", "window", "beforeunload", onBeforeUnload, undefined],
+    ["add", "window", "popstate", onPopState, undefined],
+    ["remove", "document", "click", onClick, true],
+    ["remove", "window", "beforeunload", onBeforeUnload, undefined],
+    ["remove", "window", "popstate", onPopState, undefined],
+  ])
+})
+
 test("live Visual integration owns draft preview, one Apply, and reachable actions", () => {
   assert.match(runningTimerSource, /createBackgroundVisualDraft/)
   assert.match(runningTimerSource, /BackgroundPaletteEditor/)
   assert.match(runningTimerSource, /BackgroundColorPresetManager/)
   assert.match(runningTimerSource, /BackgroundVisualPresetManager/)
   assert.match(runningTimerSource, /draftPalettePreview=/)
+  assert.match(runningTimerSource, /shouldUseDraftAwareBackgroundHost/)
+  assert.match(runningTimerSource, /hideLegacyColorControls/)
   assert.match(runningTimerSource, /type:\s*"reset-colors"/)
   assert.match(runningTimerSource, /type:\s*"reset-properties"/)
   assert.match(runningTimerSource, /type:\s*"undo"/)
   assert.match(runningTimerSource, /type:\s*"redo"/)
   assert.match(runningTimerSource, /onApplyBackgroundVisualPreferences/)
   assert.match(pageSource, /visualDraftPropertyOverrides/)
+  assert.match(pageSource, /backgroundId:\s*selectedBackgroundId/)
   assert.match(pageSource, /window\.localStorage\.setItem\(CHIMER_STORAGE_KEY[\s\S]*syncBackgroundVisualPreferenceRequest/)
   assert.doesNotMatch(navigationGuardSource, /localStorage|sessionStorage|fetch\(/)
+  assert.match(runningTimerStyles, /\.hideLegacyColorControls[\s\S]*\.colorRow/)
 })
 
 test("dirty navigation guard covers eligible app links, history, and native unload only", () => {
-  assert.match(navigationGuardSource, /beforeunload/)
-  assert.match(navigationGuardSource, /popstate/)
-  assert.match(navigationGuardSource, /event\.metaKey|event\.ctrlKey/)
-  assert.match(navigationGuardSource, /anchor\.download/)
-  assert.match(navigationGuardSource, /anchorTarget !== "_self"/)
-  assert.match(navigationGuardSource, /url\.origin !== window\.location\.origin/)
-  assert.match(navigationGuardSource, /url\.hash/)
+  assert.match(navigationGuardSource, /handleBeforeUnload/)
+  assert.match(navigationGuardSource, /handlePopState/)
+  assert.match(navigationGuardSource, /metaKey: event\.metaKey/)
+  assert.match(navigationGuardSource, /anchor\.hasAttribute\("download"\)/)
+  assert.match(navigationGuardSource, /target: anchor\.target \|\| "_self"/)
+  assert.doesNotMatch(navigationGuardSource, /history\.pushState/)
+  assert.match(navigationGuardSource, /history\.go/)
+  assert.match(navigationGuardSource, /installVisualDraftNavigationListeners/)
   assert.match(unsavedDialogSource, /Apply changes/)
   assert.match(unsavedDialogSource, /Discard changes/)
   assert.match(unsavedDialogSource, /Keep editing/)
   assert.match(unsavedDialogSource, /onCloseAutoFocus/)
+  assert.doesNotMatch(unsavedDialogSource, /document\.activeElement/)
+  assert.match(unsavedDialogSource, /restoreFocusTarget/)
+  assert.match(runningTimerSource, /className=\{styles\.visualDraftStatus\}[\s\S]*role="status"[\s\S]*aria-live="polite"/)
+  assert.doesNotMatch(runningTimerSource, /className=\{styles\.visualDraftActions\}[\s\S]{0,120}role="status"/)
 })

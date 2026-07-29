@@ -1462,6 +1462,10 @@
   justify-content: flex-end;
 }
 
+.hideLegacyColorControls .colorRow {
+  display: none;
+}
+
 .visualDraftActions {
   position: sticky;
   bottom: 0;

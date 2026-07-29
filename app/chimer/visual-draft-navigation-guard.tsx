@@ -2,68 +2,96 @@
 
 import { useEffect, useRef } from "react"
 
-interface VisualDraftNavigationGuardProps {
-  dirty: boolean
-  onNavigateAttempt: (href: string) => void
+import {
+  classifyVisualDraftAnchorNavigation,
+  getConnectedVisualFocusTarget,
+  getObservableVisualHistoryIndex,
+  getVisualDraftHistoryTransition,
+  installVisualDraftNavigationListeners,
+} from "@/lib/visual-draft-navigation"
+
+export interface VisualDraftNavigationIntent {
+  href: string
+  historyDelta: number | null
+  restoreFocusTarget: HTMLElement | null
 }
 
-function isModifiedPrimaryClick(event: MouseEvent) {
-  return event.button !== 0
-    || event.metaKey
-    || event.ctrlKey
-    || event.altKey
-    || event.shiftKey
+interface VisualDraftNavigationGuardProps {
+  dirty: boolean
+  blocked: boolean
+  onNavigateAttempt: (intent: VisualDraftNavigationIntent) => void
+}
+
+type NavigationWindow = Window & {
+  navigation?: {
+    currentEntry?: {
+      index?: number
+    }
+  }
+}
+
+function observableHistoryIndex() {
+  const navigationIndex = (window as NavigationWindow).navigation?.currentEntry?.index
+  const historyStateIndex = typeof window.history.state?.idx === "number"
+    ? window.history.state.idx
+    : null
+  return getObservableVisualHistoryIndex({ navigationIndex, historyStateIndex })
 }
 
 /**
  * Guards document-level app navigation without taking ownership of draft
- * resolution. Downloads, external destinations, modified clicks, hash-only
- * moves, and non-self targets retain their native browser behavior.
+ * resolution. History interception is enabled only when the browser or router
+ * already exposes stable entry indexes; it never stamps or replaces Next state.
  */
 export function VisualDraftNavigationGuard({
   dirty,
+  blocked,
   onNavigateAttempt,
 }: VisualDraftNavigationGuardProps) {
-  const currentUrlRef = useRef("")
+  const blockedRef = useRef(blocked)
+  const restoringHistoryRef = useRef(false)
+
+  useEffect(() => {
+    blockedRef.current = blocked
+  }, [blocked])
 
   useEffect(() => {
     if (!dirty) {
-      currentUrlRef.current = window.location.href
+      restoringHistoryRef.current = false
       return
     }
 
-    currentUrlRef.current ||= window.location.href
-
+    const guardedHistoryIndex = observableHistoryIndex()
     const handleClick = (event: MouseEvent) => {
-      if (event.defaultPrevented || isModifiedPrimaryClick(event)) {
-        return
-      }
       const target = event.target
       const anchor = target instanceof Element
         ? target.closest<HTMLAnchorElement>("a[href]")
         : null
-      if (!anchor || anchor.download) {
+      if (!anchor) {
         return
       }
-      const anchorTarget = anchor.target || "_self"
-      if (anchorTarget !== "_self") {
-        return
-      }
-
-      const url = new URL(anchor.href, window.location.href)
-      if (url.origin !== window.location.origin) {
-        return
-      }
-      const current = new URL(window.location.href)
-      const hashOnly = url.pathname === current.pathname
-        && url.search === current.search
-        && url.hash !== current.hash
-      if (hashOnly || url.href === current.href) {
+      const navigation = classifyVisualDraftAnchorNavigation({
+        href: anchor.href,
+        currentHref: window.location.href,
+        button: event.button,
+        metaKey: event.metaKey,
+        ctrlKey: event.ctrlKey,
+        altKey: event.altKey,
+        shiftKey: event.shiftKey,
+        defaultPrevented: event.defaultPrevented,
+        target: anchor.target || "_self",
+        download: anchor.hasAttribute("download"),
+      })
+      if (!navigation) {
         return
       }
 
       event.preventDefault()
-      onNavigateAttempt(`${url.pathname}${url.search}${url.hash}`)
+      onNavigateAttempt({
+        href: navigation.href,
+        historyDelta: null,
+        restoreFocusTarget: getConnectedVisualFocusTarget(anchor),
+      })
     }
 
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -72,24 +100,37 @@ export function VisualDraftNavigationGuard({
     }
 
     const handlePopState = () => {
-      const targetHref = window.location.href
-      const previousHref = currentUrlRef.current
-      if (targetHref === previousHref) {
+      const targetIndex = observableHistoryIndex()
+      const transition = getVisualDraftHistoryTransition({
+        currentIndex: guardedHistoryIndex,
+        targetIndex,
+        restoring: restoringHistoryRef.current,
+        blocked: blockedRef.current,
+      })
+      restoringHistoryRef.current = transition.restoring
+      if (transition.restoreDelta !== 0) {
+        window.history.go(transition.restoreDelta)
+      }
+      if (!transition.notify || transition.historyDelta === null) {
         return
       }
-      window.history.pushState(window.history.state, "", previousHref)
-      const target = new URL(targetHref)
-      onNavigateAttempt(`${target.pathname}${target.search}${target.hash}`)
+      const target = new URL(window.location.href)
+      onNavigateAttempt({
+        href: `${target.pathname}${target.search}${target.hash}`,
+        historyDelta: transition.historyDelta,
+        restoreFocusTarget: getConnectedVisualFocusTarget(document.activeElement),
+      })
     }
 
-    document.addEventListener("click", handleClick, true)
-    window.addEventListener("beforeunload", handleBeforeUnload)
-    window.addEventListener("popstate", handlePopState)
-    return () => {
-      document.removeEventListener("click", handleClick, true)
-      window.removeEventListener("beforeunload", handleBeforeUnload)
-      window.removeEventListener("popstate", handlePopState)
-    }
+    return installVisualDraftNavigationListeners({
+      documentTarget: document,
+      windowTarget: window,
+      onClick: handleClick as EventListener,
+      onBeforeUnload: handleBeforeUnload as EventListener,
+      onPopState: guardedHistoryIndex !== null
+        ? handlePopState as EventListener
+        : null,
+    })
   }, [dirty, onNavigateAttempt])
 
   return null

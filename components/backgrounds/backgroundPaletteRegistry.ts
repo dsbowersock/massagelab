@@ -14,6 +14,8 @@ export type EffectiveBackgroundPaletteMode = "source" | "custom" | "harmony"
 export interface BackgroundPaletteRole {
   id: string
   label: string
+  /** Persisted legacy color key suppressed while the shared draft is active. */
+  sourceSettingKey: string
   sourceColor: string
   defaultSwatch: 0 | 1 | 2 | 3 | 4 | 5 | 6
   rendererTarget: string
@@ -385,6 +387,7 @@ function supported(spec: SupportedSpec): SupportedBackgroundPaletteAdapter {
   ], index) => ({
     id,
     label,
+    sourceSettingKey,
     sourceColor: sourceColorOverride
       ?? String(SANITIZED_SOURCE_SETTINGS[sourceSettingKey]),
     defaultSwatch: (index % 7) as BackgroundPaletteRole["defaultSwatch"],

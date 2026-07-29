@@ -49,12 +49,16 @@ import type { MusicVisualizerState } from "@/components/providers/music-provider
 import { DEFAULT_CHIMER_SETTINGS } from "@/lib/chimer-timer"
 import {
   buildBackgroundVisualOpeningSnapshot,
-  buildCommittedBackgroundVisualPreferences,
+  buildBackgroundVisualPendingCommit,
   createBackgroundVisualDraft,
   getCommittedBackgroundVisualSnapshot,
+  partitionBackgroundVisualSettingChange,
   reduceBackgroundVisualDraft,
+  resolveBackgroundVisualPendingOutcome,
   resolveBackgroundSelectionVisualSnapshot,
+  shouldUseDraftAwareBackgroundHost,
 } from "@/lib/background-visual-draft"
+import { getConnectedVisualFocusTarget } from "@/lib/visual-draft-navigation"
 import { normalizeBackgroundColorMapping } from "@/lib/background-palette"
 import {
   MASSAGE_LAB_GRADIENT_HARMONY_OPTIONS,
@@ -236,15 +240,21 @@ import { ImmersivePanelShell, type ImmersivePanelId } from "./immersive-panel-sh
 import { readVisualPanelOpened, writeVisualPanelOpened } from "./immersive-panel-visual-hint.js"
 import { TileGridFadeTimeControl } from "./tile-grid-fade-time-control"
 import { UnsavedVisualChangesDialog } from "./unsaved-visual-changes-dialog"
-import { VisualDraftNavigationGuard } from "./visual-draft-navigation-guard"
+import {
+  VisualDraftNavigationGuard,
+  type VisualDraftNavigationIntent,
+} from "./visual-draft-navigation-guard"
 
 type PrimaryDisplay = "timer" | "currentTime"
 type BackgroundVisualCategory = "all" | "animated" | "image" | "interactive" | "premium" | "saved" | "static" | "shader" | "video"
-type PendingVisualIntent =
+type PendingVisualIntent = (
   | { type: "close-panel" }
   | { type: "change-panel"; panel: Exclude<ImmersivePanelId, null> }
   | { type: "select-background"; backgroundId: BackgroundId }
-  | { type: "navigate"; href: string | null }
+  | { type: "navigate"; href: string | null; historyDelta: number | null }
+) & {
+  restoreFocusTarget: HTMLElement | null
+}
 
 const CHIMER_GLOBAL_COLOR_STORAGE_KEY = "massagelab-chimer-global-color-v1"
 const CHIMER_GLOBAL_PALETTE_STORAGE_KEY = "massagelab-chimer-global-palettes-v1"
@@ -3606,37 +3616,19 @@ export function RunningTimer({
     setBackgroundCategoryFilter(nextFilter)
   }
 
-  const performBackgroundSelection = (nextBackgroundId: BackgroundId) => {
+  const getSelectableBackground = (nextBackgroundId: BackgroundId) => {
     const nextBackgroundDefinition = visibleBackgroundOptions.find((option) => option.id === nextBackgroundId)
 
     if (!nextBackgroundDefinition || !userCanUseBackground(nextBackgroundDefinition, {
       featureKeys,
       ownedBackgroundIds: commerceState.snapshot?.ownedBackgroundIds ?? [],
     })) {
-      return
+      return null
     }
+    return nextBackgroundDefinition
+  }
 
-    const nextAdapter = backgroundPaletteRegistry[nextBackgroundId]
-    const selection = resolveBackgroundSelectionVisualSnapshot({
-      preferences: backgroundVisualPreferences,
-      backgroundId: nextBackgroundId,
-      adapter: nextAdapter,
-    })
-    const selectionPreferences = {
-      ...backgroundVisualPreferences,
-      mappingsByBackground: {
-        ...backgroundVisualPreferences.mappingsByBackground,
-        [nextBackgroundId]: selection.mapping,
-      },
-    }
-    onApplyBackgroundVisualPreferences({
-      backgroundId: nextBackgroundId,
-      backgroundVisualPreferences: selectionPreferences,
-      properties: selection.properties as Partial<ChimerSettings>,
-    })
-    // Let the atomic preference commit render before the route-specific
-    // background selector reads the page's committed settings reference.
-    window.setTimeout(() => mode.onBackgroundChange(nextBackgroundId), 0)
+  const finishBackgroundSelection = () => {
     setActivePanel(null)
     setVisualDraft(null)
 
@@ -3649,39 +3641,97 @@ export function RunningTimer({
     }
   }
 
+  const performBackgroundSelection = (nextBackgroundId: BackgroundId) => {
+    if (!getSelectableBackground(nextBackgroundId)) {
+      return
+    }
+
+    if (mode.context === "chimer") {
+      const nextAdapter = backgroundPaletteRegistry[nextBackgroundId]
+      const selection = resolveBackgroundSelectionVisualSnapshot({
+        preferences: backgroundVisualPreferences,
+        backgroundId: nextBackgroundId,
+        adapter: nextAdapter,
+      })
+      onApplyBackgroundVisualPreferences({
+        backgroundId: nextBackgroundId,
+        backgroundVisualPreferences: {
+          ...backgroundVisualPreferences,
+          mappingsByBackground: {
+            ...backgroundVisualPreferences.mappingsByBackground,
+            [nextBackgroundId]: selection.mapping,
+          },
+        },
+        properties: selection.properties as Partial<ChimerSettings>,
+      })
+    } else {
+      mode.onBackgroundChange(nextBackgroundId)
+    }
+    finishBackgroundSelection()
+  }
+
   const handleBackgroundSelection = (nextBackgroundId: BackgroundId) => {
+    if (!getSelectableBackground(nextBackgroundId)) {
+      return
+    }
     if (visualDraft?.dirty) {
-      setPendingVisualIntent({ type: "select-background", backgroundId: nextBackgroundId })
+      setPendingVisualIntent({
+        type: "select-background",
+        backgroundId: nextBackgroundId,
+        restoreFocusTarget: getConnectedVisualFocusTarget(
+          document.activeElement,
+        ) as HTMLElement | null,
+      })
       return
     }
     performBackgroundSelection(nextBackgroundId)
   }
 
-  const commitVisualDraft = useCallback(() => {
+  const buildVisualDraftCommit = useCallback((intent: PendingVisualIntent | null = null) => {
     if (!visualDraft) {
+      return null
+    }
+    const targetBackgroundId = mode.context === "chimer" && intent?.type === "select-background"
+      ? intent.backgroundId
+      : null
+    return buildBackgroundVisualPendingCommit({
+      preferences: backgroundVisualPreferences,
+      currentBackgroundId: selectedBackgroundDefinition.id,
+      currentSnapshot: getCommittedBackgroundVisualSnapshot(visualDraft),
+      targetBackgroundId,
+      targetAdapter: targetBackgroundId
+        ? backgroundPaletteRegistry[targetBackgroundId]
+        : null,
+    })
+  }, [
+    backgroundVisualPreferences,
+    mode.context,
+    selectedBackgroundDefinition.id,
+    visualDraft,
+  ])
+
+  const commitVisualDraft = useCallback(() => {
+    const commit = buildVisualDraftCommit()
+    if (!visualDraft || !commit) {
       return
     }
-    const snapshot = getCommittedBackgroundVisualSnapshot(visualDraft)
-    const commit = buildCommittedBackgroundVisualPreferences({
-      preferences: backgroundVisualPreferences,
-      backgroundId: selectedBackgroundDefinition.id,
-      snapshot,
-    })
     onApplyBackgroundVisualPreferences({
-      backgroundId: selectedBackgroundDefinition.id,
-      backgroundVisualPreferences: commit.preferences as ChimerSettings["backgroundVisualPreferences"],
+      backgroundId: commit.backgroundId as BackgroundId,
+      backgroundVisualPreferences: commit.backgroundVisualPreferences as ChimerSettings["backgroundVisualPreferences"],
       properties: commit.properties as Partial<ChimerSettings>,
     })
     setVisualDraft(reduceBackgroundVisualDraft(visualDraft, { type: "apply" }))
   }, [
-    backgroundVisualPreferences,
+    buildVisualDraftCommit,
     onApplyBackgroundVisualPreferences,
-    selectedBackgroundDefinition.id,
     setVisualDraft,
     visualDraft,
   ])
 
-  const continuePendingVisualIntent = useCallback((intent: PendingVisualIntent) => {
+  const continuePendingVisualIntent = (
+    intent: PendingVisualIntent,
+    selectionCommitted = false,
+  ) => {
     if (intent.type === "close-panel") {
       setActivePanel(null)
       return
@@ -3691,7 +3741,15 @@ export function RunningTimer({
       return
     }
     if (intent.type === "select-background") {
-      performBackgroundSelection(intent.backgroundId)
+      if (selectionCommitted && mode.context === "chimer") {
+        finishBackgroundSelection()
+      } else {
+        performBackgroundSelection(intent.backgroundId)
+      }
+      return
+    }
+    if (intent.historyDelta !== null) {
+      window.setTimeout(() => window.history.go(intent.historyDelta ?? 0), 0)
       return
     }
     if (intent.href) {
@@ -3699,7 +3757,7 @@ export function RunningTimer({
     } else {
       mode.onClose()
     }
-  }, [handleActivePanelChange, mode, performBackgroundSelection, router])
+  }
 
   const handlePanelChangeRequest = useCallback((nextPanel: ImmersivePanelId) => {
     if (!visualDraft?.dirty) {
@@ -3707,11 +3765,65 @@ export function RunningTimer({
     }
     setPendingVisualIntent(
       nextPanel
-        ? { type: "change-panel", panel: nextPanel }
-        : { type: "close-panel" },
+        ? {
+          type: "change-panel",
+          panel: nextPanel,
+          restoreFocusTarget: getConnectedVisualFocusTarget(
+            document.activeElement,
+          ) as HTMLElement | null,
+        }
+        : {
+          type: "close-panel",
+          restoreFocusTarget: getConnectedVisualFocusTarget(
+            document.activeElement,
+          ) as HTMLElement | null,
+        },
     )
     return false
   }, [setPendingVisualIntent, visualDraft?.dirty])
+
+  const handleVisualNavigationAttempt = useCallback((
+    navigation: VisualDraftNavigationIntent,
+  ) => {
+    setPendingVisualIntent({
+      type: "navigate",
+      href: navigation.href,
+      historyDelta: navigation.historyDelta,
+      restoreFocusTarget: navigation.restoreFocusTarget,
+    })
+  }, [setPendingVisualIntent])
+
+  const resolvePendingVisualIntent = (outcome: "apply" | "discard" | "keep") => {
+    const intent = pendingVisualIntent
+    const commit = outcome === "apply"
+      ? buildVisualDraftCommit(intent)
+      : null
+    const resolution = resolveBackgroundVisualPendingOutcome({
+      outcome,
+      intent,
+      commit,
+    })
+    if (resolution.commit) {
+      onApplyBackgroundVisualPreferences({
+        backgroundId: resolution.commit.backgroundId,
+        backgroundVisualPreferences:
+          resolution.commit.backgroundVisualPreferences as ChimerSettings["backgroundVisualPreferences"],
+        properties: resolution.commit.properties as Partial<ChimerSettings>,
+      })
+    }
+    setPendingVisualIntent(null)
+    if (outcome !== "keep") {
+      setVisualDraft(null)
+    }
+    if (resolution.resumeIntent) {
+      continuePendingVisualIntent(
+        resolution.resumeIntent,
+        outcome === "apply"
+          && resolution.resumeIntent.type === "select-background"
+          && mode.context === "chimer",
+      )
+    }
+  }
 
   const handleBackgroundSavedToggle = (nextBackgroundId: BackgroundId) => {
     setSavedBackgroundIds((current) => {
@@ -3848,11 +3960,15 @@ export function RunningTimer({
     }
 
     const adapter = backgroundPaletteRegistry[backgroundId]
-    const visualPropertyKeys = new Set(adapter?.visualPropertyKeys ?? [])
-    const draftPropertyEntries = visualDraft
-      ? Object.entries(nextSettings).filter(([key]) => visualPropertyKeys.has(key))
-      : []
-    if (visualDraft && draftPropertyEntries.length > 0) {
+    const partitioned = partitionBackgroundVisualSettingChange({
+      nextSettings,
+      draftOpen: Boolean(visualDraft),
+      visualPropertyKeys: adapter?.visualPropertyKeys ?? [],
+      legacyColorPropertyKeys: adapter?.status === "supported"
+        ? adapter.roles.map((role) => role.sourceSettingKey)
+        : [],
+    })
+    if (visualDraft && Object.keys(partitioned.draftProperties).length > 0) {
       const current = getCommittedBackgroundVisualSnapshot(visualDraft)
       dispatchVisualDraft({
         type: "replace",
@@ -3860,16 +3976,14 @@ export function RunningTimer({
           ...current,
           properties: {
             ...current.properties,
-            ...Object.fromEntries(draftPropertyEntries),
+            ...partitioned.draftProperties,
           },
         },
       })
     }
 
-    const committedEntries = Object.entries(nextSettings)
-      .filter(([key]) => !visualPropertyKeys.has(key) || !visualDraft)
-    if (committedEntries.length > 0) {
-      onSettingsChange(Object.fromEntries(committedEntries) as Partial<ChimerSettings>)
+    if (Object.keys(partitioned.committedSettings).length > 0) {
+      onSettingsChange(partitioned.committedSettings as Partial<ChimerSettings>)
     }
     scheduleControlHide()
   }
@@ -3909,7 +4023,7 @@ export function RunningTimer({
   const isGraphicGlobe = massageLab3DGlobeViewStyle === "graphic"
   const followSun = massageLab3DGlobeLightingMode === "sun"
   const renderBackgroundControls = (option: BackgroundDefinition) => (
-    <div className={`${styles.backgroundCardControls} ${styles.immersiveSelectedBackgroundControls} ${option.id === "massage-lab-moving-gradient" ? styles.immersiveLampColorControls : ""}`}>
+    <div className={`${styles.backgroundCardControls} ${styles.immersiveSelectedBackgroundControls} ${visualDraft ? styles.hideLegacyColorControls : ""} ${option.id === "massage-lab-moving-gradient" ? styles.immersiveLampColorControls : ""}`}>
       {!isClockMode && (
         <div className={styles.colorRow} title={customColorDisabledHint}>
           <span>Primary color</span>
@@ -15613,6 +15727,10 @@ export function RunningTimer({
   const currentVisualSnapshot = visualDraft
     ? getCommittedBackgroundVisualSnapshot(visualDraft)
     : null
+  const useDraftAwareBackgroundHost = shouldUseDraftAwareBackgroundHost({
+    isOriginalBackground: useOriginalLampBackground,
+    hasVisualDraft: Boolean(currentVisualSnapshot),
+  })
   const selectedRoleLabels = selectedPaletteAdapter?.status === "supported"
     ? Object.fromEntries(selectedPaletteAdapter.roles.map((role) => [role.id, role.label]))
     : {}
@@ -15624,7 +15742,7 @@ export function RunningTimer({
       style={containerStyle}
       data-immersive-stage
     >
-      {shouldRenderLiveBackground && useOriginalLampBackground && (
+      {shouldRenderLiveBackground && useOriginalLampBackground && !useDraftAwareBackgroundHost && (
         <MovingBackground
           key={`${mode.context}:${backgroundId}`}
           className={styles.runningBackground}
@@ -15635,7 +15753,7 @@ export function RunningTimer({
         />
       )}
 
-      {shouldRenderLiveBackground && !useOriginalLampBackground && (
+      {shouldRenderLiveBackground && useDraftAwareBackgroundHost && (
         <BackgroundHost
           key={`${mode.context}:${backgroundId}`}
           className={premiumBackgroundClassName}
@@ -16591,7 +16709,14 @@ export function RunningTimer({
           onClick={() => {
             triggerHapticFeedback(hapticsEnabled)
             if (visualDraft?.dirty) {
-              setPendingVisualIntent({ type: "navigate", href: null })
+              setPendingVisualIntent({
+                type: "navigate",
+                href: null,
+                historyDelta: null,
+                restoreFocusTarget: getConnectedVisualFocusTarget(
+                  document.activeElement,
+                ) as HTMLElement | null,
+              })
             } else {
               mode.onClose()
             }
@@ -17323,11 +17448,13 @@ export function RunningTimer({
 
                     <div
                       className={styles.visualDraftActions}
-                      role="status"
-                      aria-live="polite"
-                      aria-atomic="true"
                     >
-                      <span className={styles.visualDraftStatus}>
+                      <span
+                        className={styles.visualDraftStatus}
+                        role="status"
+                        aria-live="polite"
+                        aria-atomic="true"
+                      >
                         {backgroundPreferenceSyncStatus === "stale"
                           ? "Saved on this device. Account sync failed."
                           : backgroundPreferenceSyncStatus === "pending"
@@ -17431,34 +17558,16 @@ export function RunningTimer({
         />
         <VisualDraftNavigationGuard
           dirty={Boolean(visualDraft?.dirty)}
-          onNavigateAttempt={(href) => {
-            setPendingVisualIntent({ type: "navigate", href })
-          }}
+          blocked={pendingVisualIntent?.type === "navigate"}
+          onNavigateAttempt={handleVisualNavigationAttempt}
         />
         <UnsavedVisualChangesDialog
           open={Boolean(pendingVisualIntent)}
           backgroundName={selectedBackgroundDefinition.label}
-          onApply={() => {
-            const intent = pendingVisualIntent
-            commitVisualDraft()
-            setPendingVisualIntent(null)
-            setVisualDraft(null)
-            if (intent) {
-              continuePendingVisualIntent(intent)
-            }
-          }}
-          onDiscard={() => {
-            const intent = pendingVisualIntent
-            if (visualDraft) {
-              setVisualDraft(reduceBackgroundVisualDraft(visualDraft, { type: "cancel" }))
-            }
-            setPendingVisualIntent(null)
-            setVisualDraft(null)
-            if (intent) {
-              continuePendingVisualIntent(intent)
-            }
-          }}
-          onKeepEditing={() => setPendingVisualIntent(null)}
+          restoreFocusTarget={pendingVisualIntent?.restoreFocusTarget ?? null}
+          onApply={() => resolvePendingVisualIntent("apply")}
+          onDiscard={() => resolvePendingVisualIntent("discard")}
+          onKeepEditing={() => resolvePendingVisualIntent("keep")}
         />
 
         <div className={styles.bottomControls}>

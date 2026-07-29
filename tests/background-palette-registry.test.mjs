@@ -266,6 +266,12 @@ describe("background palette adapter registry", () => {
       for (const [index, role] of adapter.roles.entries()) {
         assert.ok(role.id.trim().length > 0, backgroundId)
         assert.ok(role.label.trim().length > 0, backgroundId)
+        assert.ok(role.sourceSettingKey.trim().length > 0, backgroundId)
+        assert.equal(
+          adapter.visualPropertyKeys.includes(role.sourceSettingKey),
+          false,
+          `${backgroundId}:${role.sourceSettingKey}`,
+        )
         assert.match(role.sourceColor, HEX_COLOR, `${backgroundId}:${role.id}`)
         assert.ok(Number.isInteger(role.defaultSwatch) && role.defaultSwatch >= 0 && role.defaultSwatch <= 6)
         assert.ok(role.rendererTarget.trim().length > 0, backgroundId)

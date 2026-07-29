@@ -744,7 +744,11 @@ export default function ChimerPage() {
       ? input.backgroundId
       : settingsRef.current.backgroundId
     const selectedAdapter = backgroundPaletteRegistry[selectedBackgroundId]
-    const allowedPropertyKeys = new Set(selectedAdapter?.visualPropertyKeys ?? [])
+    const previousAdapter = backgroundPaletteRegistry[settingsRef.current.backgroundId]
+    const allowedPropertyKeys = new Set([
+      ...(previousAdapter?.visualPropertyKeys ?? []),
+      ...(selectedAdapter?.visualPropertyKeys ?? []),
+    ])
     const properties = "properties" in input
       ? Object.fromEntries(
         Object.entries(input.properties).filter(([key]) => allowedPropertyKeys.has(key)),
@@ -753,6 +757,7 @@ export default function ChimerPage() {
     const nextSettings = sanitizeChimerSettingsForEntitlements({
       ...settingsRef.current,
       ...properties,
+      backgroundId: selectedBackgroundId,
       backgroundVisualPreferences,
     }, featureKeysRef.current, {
       canUseAccountColorControls,
