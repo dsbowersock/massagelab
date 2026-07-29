@@ -4,6 +4,7 @@ import test from "node:test"
 
 import {
   buildBackgroundPaletteEditorViewModel,
+  buildBackgroundPaletteHarmonyChange,
   buildBackgroundPaletteMappingChange,
   buildBackgroundPaletteModeChange,
   buildBackgroundPaletteSwatchChange,
@@ -252,6 +253,29 @@ test("palette editor view models and changes are pure, indexed, and mapping-awar
     canCustomize: true,
     disabled: false,
   }, "harmony"), { ...palette, mode: "harmony" })
+  const harmonyPalette = { ...palette, mode: "harmony" }
+  assert.deepEqual(buildBackgroundPaletteHarmonyChange({
+    palette: harmonyPalette,
+    adapter,
+    canCustomize: true,
+    disabled: false,
+  }, "complementary"), { ...harmonyPalette, harmony: "complementary" })
+  assert.equal(buildBackgroundPaletteHarmonyChange({
+    palette: harmonyPalette,
+    adapter,
+    canCustomize: false,
+  }, "complementary"), null)
+  assert.equal(buildBackgroundPaletteHarmonyChange({
+    palette: harmonyPalette,
+    adapter: { status: "unsupported", unsupportedReason: "Static source" },
+    canCustomize: true,
+  }, "complementary"), null)
+  assert.equal(buildBackgroundPaletteHarmonyChange({
+    palette: harmonyPalette,
+    adapter,
+    canCustomize: true,
+    disabled: true,
+  }, "complementary"), null)
   assert.deepEqual(buildBackgroundPaletteSwatchChange({
     palette,
     adapter,

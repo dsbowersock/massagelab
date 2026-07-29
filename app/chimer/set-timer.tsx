@@ -13,7 +13,7 @@ import { MetalAttentionRing } from "@/components/ui/metal-attention-button"
 import { NumberField } from "@/components/chimer-controls/NumberField"
 import { StyledRangeControl } from "@/components/chimer-controls/StyledRangeControl"
 import { StyledToggleControl } from "@/components/chimer-controls/StyledToggleControl"
-import { getMassageLab3DGlobeScaleDisplayPercent, getMassageLab3DGlobeScaleFromDisplayPercent, sanitizeChimerSettings } from "@/lib/chimer-timer"
+import { getMassageLab3DGlobeScaleDisplayPercent, getMassageLab3DGlobeScaleFromDisplayPercent, parseGlobeCoordinateDraft, sanitizeChimerSettings } from "@/lib/chimer-timer"
 import { normalizeSharedBackgroundVisualPreferences } from "@/lib/background-palette"
 import styles from "./set-timer.module.css"
 import { TileGridFadeTimeControl } from "./tile-grid-fade-time-control"
@@ -1101,6 +1101,10 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
   const [selectedPresetId, setSelectedPresetId] = useState("")
   const [newPresetName, setNewPresetName] = useState("")
   const [skipIntervalCues, setSkipIntervalCues] = useState(false)
+  const [globeMarkerDraft, setGlobeMarkerDraft] = useState(() => ({
+    latitude: String(settings.massageLab3DGlobeMarkerLat),
+    longitude: String(settings.massageLab3DGlobeMarkerLng),
+  }))
   const { settings: appShellSettings } = useSettings()
   const [syncNoticeDismissed, setSyncNoticeDismissed] = useState(false)
   const [isSyncNoticeExiting, setIsSyncNoticeExiting] = useState(false)
@@ -1111,6 +1115,36 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
   const isTimerSet = totalDurationMs > 0
   const withPress = (handler: () => void) => withChimerPress(handler, { hapticsEnabled })
   const setupPresetState = useMemo(() => createChimerSetupPresetState(settings, skipIntervalCues), [settings, skipIntervalCues])
+
+  useEffect(() => {
+    setGlobeMarkerDraft({
+      latitude: String(settings.massageLab3DGlobeMarkerLat),
+      longitude: String(settings.massageLab3DGlobeMarkerLng),
+    })
+  }, [settings.massageLab3DGlobeMarkerLat, settings.massageLab3DGlobeMarkerLng])
+
+  const commitGlobeCoordinate = (axis: "latitude" | "longitude") => {
+    const isLatitude = axis === "latitude"
+    const value = parseGlobeCoordinateDraft(
+      globeMarkerDraft[axis],
+      isLatitude ? -90 : -180,
+      isLatitude ? 90 : 180,
+    )
+    if (value === null) {
+      setGlobeMarkerDraft((current) => ({
+        ...current,
+        [axis]: String(
+          isLatitude
+            ? settings.massageLab3DGlobeMarkerLat
+            : settings.massageLab3DGlobeMarkerLng,
+        ),
+      }))
+      return
+    }
+    onSettingsChange(isLatitude
+      ? { massageLab3DGlobeMarkerLat: value }
+      : { massageLab3DGlobeMarkerLng: value })
+  }
 
   const syncMessage = {
     checking: "Checking account sync. Changes stay on this device until sync is available.",
@@ -1125,6 +1159,10 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
     }
 
     navigator.geolocation.getCurrentPosition(({ coords }) => {
+      setGlobeMarkerDraft({
+        latitude: coords.latitude.toFixed(4),
+        longitude: coords.longitude.toFixed(4),
+      })
       onSettingsChange({
         massageLab3DGlobeMarkerEnabled: true,
         massageLab3DGlobeMarkerLat: Number(coords.latitude.toFixed(4)),
@@ -2700,12 +2738,15 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
                     min="-90"
                     max="90"
                     step="0.0001"
-                    value={settings.massageLab3DGlobeMarkerLat}
-                    onChange={(event) =>
-                      onSettingsChange({
-                        massageLab3DGlobeMarkerLat: Number(event.target.value),
-                      })
-                    }
+                    value={globeMarkerDraft.latitude}
+                    onChange={(event) => setGlobeMarkerDraft((current) => ({
+                      ...current,
+                      latitude: event.target.value,
+                    }))}
+                    onBlur={() => commitGlobeCoordinate("latitude")}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") event.currentTarget.blur()
+                    }}
                     aria-label="3D Globe marker latitude"
                   />
                 </label>
@@ -2716,12 +2757,15 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
                     min="-180"
                     max="180"
                     step="0.0001"
-                    value={settings.massageLab3DGlobeMarkerLng}
-                    onChange={(event) =>
-                      onSettingsChange({
-                        massageLab3DGlobeMarkerLng: Number(event.target.value),
-                      })
-                    }
+                    value={globeMarkerDraft.longitude}
+                    onChange={(event) => setGlobeMarkerDraft((current) => ({
+                      ...current,
+                      longitude: event.target.value,
+                    }))}
+                    onBlur={() => commitGlobeCoordinate("longitude")}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") event.currentTarget.blur()
+                    }}
                     aria-label="3D Globe marker longitude"
                   />
                 </label>

@@ -24,24 +24,34 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const [preferences, entitlements, commerceSnapshot] = await Promise.all([
+  const [preferences, access] = await Promise.all([
     prisma.userPreference.findUnique({
       where: { userId: session.user.id },
     }),
-    getUserEntitlementState(prisma, session.user.id),
-    getBackgroundCommerceSnapshot({
-      prismaClient: prisma,
-      userId: session.user.id,
-      includeRecentOrders: false,
-    }),
+    Promise.all([
+      getUserEntitlementState(prisma, session.user.id),
+      getBackgroundCommerceSnapshot({
+        prismaClient: prisma,
+        userId: session.user.id,
+        includeRecentOrders: false,
+      }),
+    ]).then(([entitlements, commerceSnapshot]) => ({
+      authoritative: true as const,
+      entitlements,
+      commerceSnapshot,
+    })).catch(() => ({
+      authoritative: false as const,
+      entitlements: null,
+      commerceSnapshot: null,
+    })),
   ])
 
-  const chimerSettings = preferences?.chimerSettings
+  const chimerSettings = preferences?.chimerSettings && access.authoritative
     ? sanitizeChimerSettingsForEntitlements(
       preferences.chimerSettings,
       {
-        featureKeys: entitlements.features,
-        ownedBackgroundIds: commerceSnapshot.ownedBackgroundIds,
+        featureKeys: access.entitlements.features,
+        ownedBackgroundIds: access.commerceSnapshot.ownedBackgroundIds,
       },
       {
         canUseAccountColorControls: true,
@@ -57,9 +67,10 @@ export async function GET() {
     anatomimeSettings: preferences?.anatomimeSettings ?? {},
     notePreferences: preferences?.notePreferences ?? {},
     calendarPreferences: preferences?.calendarPreferences ?? {},
-    membershipLevel: entitlements.level,
-    features: entitlements.features,
-    ownedBackgroundIds: commerceSnapshot.ownedBackgroundIds,
+    accessAuthoritative: access.authoritative,
+    membershipLevel: access.authoritative ? access.entitlements.level : null,
+    features: access.authoritative ? access.entitlements.features : [],
+    ownedBackgroundIds: access.authoritative ? access.commerceSnapshot.ownedBackgroundIds : [],
     updatedAt: preferences?.updatedAt ?? null,
   })
 }

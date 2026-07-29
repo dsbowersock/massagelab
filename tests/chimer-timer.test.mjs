@@ -14,6 +14,7 @@ import {
   normalizeHexColor,
   normalizeInteger,
   normalizeChimerBackgroundVisualPreferences,
+  parseGlobeCoordinateDraft,
   sanitizeChimerSettings,
   sanitizeChimerSettingsForEntitlements,
 } from "../lib/chimer-timer.js"
@@ -35,6 +36,16 @@ const novatrixPreferenceOptions = {
 }
 
 describe("Chimer timer helpers", () => {
+  it("commits globe coordinate drafts only when finite and in range", () => {
+    assert.equal(parseGlobeCoordinateDraft("40.1234", -90, 90), 40.1234)
+    assert.equal(parseGlobeCoordinateDraft("-180", -180, 180), -180)
+    assert.equal(parseGlobeCoordinateDraft("", -90, 90), null)
+    assert.equal(parseGlobeCoordinateDraft("-", -90, 90), null)
+    assert.equal(parseGlobeCoordinateDraft("Infinity", -90, 90), null)
+    assert.equal(parseGlobeCoordinateDraft("90.1", -90, 90), null)
+    assert.equal(parseGlobeCoordinateDraft("-180.1", -180, 180), null)
+  })
+
   it("normalizes nested shared background preferences without changing non-color settings", () => {
     const settings = sanitizeChimerSettings({
       minutes: 45,

@@ -44,7 +44,7 @@ function ownedOnlySettings() {
   }
 }
 
-function loadRoute({ savedSettings = ownedOnlySettings() } = {}) {
+function loadRoute({ savedSettings = ownedOnlySettings(), failAccess = false } = {}) {
   const calls = {
     snapshots: [],
     upserts: [],
@@ -99,10 +99,15 @@ function loadRoute({ savedSettings = ownedOnlySettings() } = {}) {
         sanitizeChimerSettingsForEntitlements,
       },
       "@/lib/membership": {
-        getUserEntitlementState: async () => ({
-          level: "free",
-          features: [],
-        }),
+        getUserEntitlementState: async () => {
+          if (failAccess) {
+            throw new Error("temporary membership lookup failure")
+          }
+          return {
+            level: "free",
+            features: [],
+          }
+        },
       },
       "@/lib/commerce/snapshot-service": {
         getBackgroundCommerceSnapshot: async (input) => {
@@ -133,9 +138,23 @@ describe("account preference route ownership boundary", () => {
     const response = await GET()
 
     assert.equal(response.status, 200)
+    assert.equal(response.body.accessAuthoritative, true)
     assertOwnedOnlySnapshot(response.body.chimerSettings)
     assert.deepEqual(response.body.ownedBackgroundIds, [ownedBackgroundId])
     assert.equal(calls.snapshots.length, 1)
+  })
+
+  it("marks access failures non-authoritative without returning a downgraded Chimer snapshot", async () => {
+    const { GET } = loadRoute({ failAccess: true })
+
+    const response = await GET()
+
+    assert.equal(response.status, 200)
+    assert.equal(response.body.accessAuthoritative, false)
+    assert.equal(response.body.membershipLevel, null)
+    assert.deepEqual(response.body.features, [])
+    assert.deepEqual(response.body.ownedBackgroundIds, [])
+    assert.deepEqual(response.body.chimerSettings, {})
   })
 
   it("PUT sanitizes with the same owned-only snapshot before persistence", async () => {

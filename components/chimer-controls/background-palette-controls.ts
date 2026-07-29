@@ -270,6 +270,32 @@ export function buildBackgroundPaletteSwatchChange(
   }
 }
 
+/** Returns one Harmony selection through the same access and adapter guard as other palette edits. */
+export function buildBackgroundPaletteHarmonyChange(
+  input: {
+    palette: BackgroundPaletteEditorValue
+    adapter: BackgroundPaletteAdapter
+    canCustomize: boolean
+    disabled?: boolean
+  },
+  harmony: string,
+): BackgroundPaletteEditorValue | null {
+  const normalized = normalizeBackgroundPaletteState(input.palette) as BackgroundPaletteEditorValue
+  if (
+    input.disabled
+    || input.adapter.status === "unsupported"
+    || !input.canCustomize
+    || normalized.mode !== "harmony"
+    || !harmony
+  ) {
+    return null
+  }
+  return {
+    ...normalized,
+    harmony,
+  }
+}
+
 /** Returns one background-specific role remap without touching shared colors. */
 export function buildBackgroundPaletteMappingChange(
   mapping: BackgroundColorMapping,

@@ -198,6 +198,7 @@ describe("Account preference helpers", () => {
 
     assert.equal(pending.status, "pending")
     assert.equal(pending.requestId, 1)
+    assert.deepEqual(pending.sanitizedSettings, JSON.parse(pending.requestBody).chimerSettings)
     assert.equal(stale.status, "stale")
     assert.equal(stale.requestBody, pending.requestBody)
     assert.equal(JSON.parse(stale.requestBody).chimerSettings.hours, 16)
@@ -308,6 +309,30 @@ describe("Account preference helpers", () => {
     })
   })
 
+  it("continues draining and resolves idle when a completion observer throws", async () => {
+    const sentRequestIds = []
+    const completedRequestIds = []
+    const writer = createSerializedChimerPreferenceWriter({
+      send: async (request) => {
+        sentRequestIds.push(request.requestId)
+        return true
+      },
+      onComplete: (request) => {
+        completedRequestIds.push(request.requestId)
+        if (request.requestId === 1) {
+          throw new Error("observer failed")
+        }
+      },
+    })
+
+    writer.enqueue(createChimerPreferenceSyncRequest({ minutes: 10 }, { requestId: 1 }))
+    writer.enqueue(createChimerPreferenceSyncRequest({ minutes: 20 }, { requestId: 2 }))
+    await writer.whenIdle()
+
+    assert.deepEqual(sentRequestIds, [1, 2])
+    assert.deepEqual(completedRequestIds, [1, 2])
+  })
+
   it("routes automatic, Visual Apply, and Visual Retry through one writer", async () => {
     const source = await readFile(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
 
@@ -321,11 +346,14 @@ describe("Account preference helpers", () => {
 
   it("uses the canonical Track 1 snapshot for account preference ownership IDs", async () => {
     const source = await readFile(new URL("../app/api/account/preferences/route.ts", import.meta.url), "utf8")
+    const pageSource = await readFile(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
 
     assert.match(source, /getBackgroundCommerceSnapshot/)
     assert.match(source, /backgroundPreferenceNormalizationOptions/)
-    assert.match(source, /ownedBackgroundIds:\s*commerceSnapshot\.ownedBackgroundIds/)
-    assert.doesNotMatch(source, /ownedBackgroundIds:\s*\[\]/)
+    assert.match(source, /accessAuthoritative:\s*access\.authoritative/)
+    assert.match(source, /ownedBackgroundIds:\s*access\.authoritative\s*\?\s*access\.commerceSnapshot\.ownedBackgroundIds\s*:\s*\[\]/)
+    assert.match(pageSource, /preferences\.accessAuthoritative !== true/)
+    assert.match(pageSource, /Keep the last local[\s\S]*empty access keeps rendering fail-closed/)
     assert.doesNotMatch(source, /paymentIntent|customerId|stripeCustomer|checkoutSession/)
   })
 

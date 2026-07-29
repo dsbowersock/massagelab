@@ -327,11 +327,7 @@ export default function ChimerPage() {
         }
 
         if (!response.ok) {
-          const localFreeSettings = sanitizeChimerSettingsForEntitlements(localSettings, EMPTY_BACKGROUND_ACCESS, {
-            backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
-          }) as ChimerSettings
-          setSettings(localFreeSettings)
-          window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(localFreeSettings))
+          setFeatureKeys([])
           setPermanentlyOwnedBackgroundIds([])
           setCanSync(false)
           setAccountSyncStatus("local")
@@ -339,6 +335,15 @@ export default function ChimerPage() {
         }
 
         const preferences = await response.json()
+        if (preferences.accessAuthoritative !== true) {
+          // Access lookup failures are non-authoritative. Keep the last local
+          // snapshot intact while empty access keeps rendering fail-closed.
+          setFeatureKeys([])
+          setPermanentlyOwnedBackgroundIds([])
+          setCanSync(false)
+          setAccountSyncStatus("local")
+          return
+        }
         const nextFeatureKeys = Array.isArray(preferences.features)
           ? preferences.features.filter((feature: unknown) => typeof feature === "string")
           : []
@@ -409,11 +414,7 @@ export default function ChimerPage() {
         if (!isMounted) {
           return
         }
-        const localFreeSettings = sanitizeChimerSettingsForEntitlements(localSettings, EMPTY_BACKGROUND_ACCESS, {
-          backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
-        }) as ChimerSettings
-        setSettings(localFreeSettings)
-        window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(localFreeSettings))
+        setFeatureKeys([])
         setPermanentlyOwnedBackgroundIds([])
         setCanSync(false)
         setAccountSyncStatus("local")
@@ -808,8 +809,8 @@ export default function ChimerPage() {
     const request = createChimerPreferenceSyncRequest(nextSettings, {
       backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
       requestId,
-    }) as BackgroundPreferenceSyncState
-    const committedSettings = JSON.parse(request.requestBody ?? "{}").chimerSettings as ChimerSettings
+    }) as BackgroundPreferenceSyncState & { sanitizedSettings: ChimerSettings }
+    const committedSettings = request.sanitizedSettings
 
     setSettings(committedSettings)
     setVisualDraftPropertyOverrides(null)

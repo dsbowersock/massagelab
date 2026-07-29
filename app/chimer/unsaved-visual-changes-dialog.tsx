@@ -1,5 +1,7 @@
 "use client"
 
+import { useRef } from "react"
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,12 +37,23 @@ export function UnsavedVisualChangesDialog({
   onDiscard,
   onKeepEditing,
 }: UnsavedVisualChangesDialogProps) {
+  const explicitOutcomeRef = useRef(false)
+
+  const resolveExplicitOutcome = (outcome: () => void) => {
+    explicitOutcomeRef.current = true
+    outcome()
+  }
+
   return (
     <AlertDialog
       open={open}
       onOpenChange={(nextOpen) => {
         if (!nextOpen && open) {
-          onKeepEditing()
+          if (explicitOutcomeRef.current) {
+            explicitOutcomeRef.current = false
+          } else {
+            onKeepEditing()
+          }
         }
       }}
     >
@@ -60,11 +73,15 @@ export function UnsavedVisualChangesDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={onKeepEditing}>Keep editing</AlertDialogCancel>
-          <Button type="button" variant="ghost" onClick={onDiscard}>
+          <AlertDialogCancel onClick={() => resolveExplicitOutcome(onKeepEditing)}>
+            Keep editing
+          </AlertDialogCancel>
+          <Button type="button" variant="ghost" onClick={() => resolveExplicitOutcome(onDiscard)}>
             Discard changes
           </Button>
-          <AlertDialogAction onClick={onApply}>Apply changes</AlertDialogAction>
+          <AlertDialogAction onClick={() => resolveExplicitOutcome(onApply)}>
+            Apply changes
+          </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

@@ -13,6 +13,7 @@ import { SegmentedToggleGroup } from "@/components/ui/segmented-toggle-group"
 import { cn } from "@/lib/utils"
 import {
   buildBackgroundPaletteEditorViewModel,
+  buildBackgroundPaletteHarmonyChange,
   buildBackgroundPaletteMappingChange,
   buildBackgroundPaletteModeChange,
   buildBackgroundPaletteSwatchChange,
@@ -102,6 +103,16 @@ export function BackgroundPaletteEditor({
     }
   }
 
+  function changeHarmony(harmony: string) {
+    const nextPalette = buildBackgroundPaletteHarmonyChange(
+      { palette: normalizedPalette, adapter, canCustomize, disabled },
+      harmony,
+    )
+    if (nextPalette) {
+      onPaletteChange(nextPalette)
+    }
+  }
+
   return (
     <section
       className={cn(styles.controlCard, styles.backgroundPaletteEditor, className)}
@@ -149,10 +160,7 @@ export function BackgroundPaletteEditor({
           label="Harmony choice"
           value={displayedHarmony as ChimerHarmonyValue}
           options={HARMONY_OPTIONS}
-          onChange={(harmony) => onPaletteChange({
-            ...normalizedPalette,
-            harmony,
-          })}
+          onChange={changeHarmony}
           disabled={disabled}
           embedded
         />

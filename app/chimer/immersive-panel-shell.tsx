@@ -237,6 +237,8 @@ export function ImmersivePanelShell({
     }
   }, [portalTarget, visualHintMessage, visualViewportFrame?.width])
 
+  // Consult the veto only when leaving the active Visual panel. False blocks
+  // both the transition and the caller's subsequent focus restoration.
   const requestActivePanelChange = useCallback((nextPanel: ImmersivePanelId) => {
     if (
       activePanel === "visual"

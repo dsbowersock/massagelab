@@ -39,6 +39,7 @@ const read = async (path) => {
 }
 
 const runningTimerSource = await read("app/chimer/running-timer.tsx")
+const setTimerSource = await read("app/chimer/set-timer.tsx")
 const navigationGuardSource = await read("app/chimer/visual-draft-navigation-guard.tsx")
 const unsavedDialogSource = await read("app/chimer/unsaved-visual-changes-dialog.tsx")
 const pageSource = await read("app/chimer/page.tsx")
@@ -176,6 +177,44 @@ test("new edits invalidate redo, normalized no-ops are deduplicated, and history
   for (let index = 0; index < BACKGROUND_VISUAL_HISTORY_LIMIT + 5; index += 1) state = reduce(state, { type: "replace", snapshot: { ...openingSnapshot, properties: { speed: index } } })
   assert.equal(BACKGROUND_VISUAL_HISTORY_LIMIT, 50)
   assert.equal(state.undoStack.length, BACKGROUND_VISUAL_HISTORY_LIMIT)
+})
+
+test("trusted reducer history remains normalized by identity instead of being rebuilt on every action", () => {
+  let state = createBackgroundVisualDraft(openingSnapshot)
+  for (let index = 0; index < BACKGROUND_VISUAL_HISTORY_LIMIT; index += 1) {
+    state = reduce(state, {
+      type: "replace",
+      snapshot: { ...openingSnapshot, properties: { speed: index + 1 } },
+    })
+  }
+  const retainedHistoryEntry = state.undoStack[1]
+
+  state = reduce(state, {
+    type: "replace",
+    snapshot: { ...openingSnapshot, properties: { speed: 100 } },
+  })
+
+  assert.equal(state.undoStack[0], retainedHistoryEntry)
+})
+
+test("an empty default id never selects an id-less visual preset", () => {
+  const adapter = {
+    sourceVisualProperties: { speed: 1 },
+    roles: [{ id: "main", defaultSwatch: 0 }],
+  }
+  const resolved = resolveBackgroundSelectionVisualSnapshot({
+    preferences: {
+      visualPresetsByBackground: {
+        waves: [{ name: "Malformed", properties: { speed: 99 }, mapping: { main: 6 } }],
+      },
+      defaultVisualPresetByBackground: { waves: "" },
+    },
+    backgroundId: "waves",
+    adapter,
+  })
+
+  assert.deepEqual(resolved.properties, { speed: 1 })
+  assert.deepEqual(resolved.mapping, { main: 0 })
 })
 
 test("reset and preset actions change only their documented draft families", () => {
@@ -774,10 +813,31 @@ test("dirty navigation guard covers eligible app links, history, and native unlo
   assert.match(unsavedDialogSource, /onCloseAutoFocus/)
   assert.doesNotMatch(unsavedDialogSource, /document\.activeElement/)
   assert.match(unsavedDialogSource, /restoreFocusTarget/)
+  assert.match(unsavedDialogSource, /explicitOutcomeRef/)
+  assert.match(unsavedDialogSource, /resolveExplicitOutcome\(onApply\)/)
+  assert.match(unsavedDialogSource, /resolveExplicitOutcome\(onDiscard\)/)
+  assert.match(unsavedDialogSource, /resolveExplicitOutcome\(onKeepEditing\)/)
   assert.match(runningTimerSource, /className=\{styles\.visualDraftStatus\}[\s\S]*role="status"[\s\S]*aria-live="polite"/)
   const actionRowOpeningTag = runningTimerSource.match(
     /<div\s+className=\{styles\.visualDraftActions\}[^>]*>/,
   )?.[0]
   assert.ok(actionRowOpeningTag)
   assert.doesNotMatch(actionRowOpeningTag, /\brole=/)
+})
+
+test("globe coordinate inputs keep string drafts and clock font changes remeasure", () => {
+  for (const source of [setTimerSource, runningTimerSource]) {
+    assert.match(source, /globeMarkerDraft/)
+    assert.match(source, /parseGlobeCoordinateDraft/)
+    assert.match(source, /onBlur=\{\(\) => commitGlobeCoordinate\("latitude"\)\}/)
+    assert.match(source, /onBlur=\{\(\) => commitGlobeCoordinate\("longitude"\)\}/)
+    assert.doesNotMatch(
+      source,
+      /massageLab3DGlobeMarker(?:Lat|Lng): Number\(event\.target\.value\)/,
+    )
+  }
+  assert.match(
+    runningTimerSource,
+    /\}, \[clockFontFamily, fontSize, isClockMode, isCurrentTimePrimary,/,
+  )
 })

@@ -20,7 +20,7 @@ import { BackgroundColorPresetManager, BackgroundVisualPresetManager, type Backg
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import type { MusicVisualizerState } from "@/components/providers/music-provider"
-import { DEFAULT_CHIMER_SETTINGS } from "@/lib/chimer-timer"
+import { DEFAULT_CHIMER_SETTINGS, parseGlobeCoordinateDraft } from "@/lib/chimer-timer"
 import { canCustomizeBackgroundColors } from "@/lib/background-palette"
 import { FEATURE_KEYS } from "@/lib/membership"
 import { buildBackgroundVisualOpeningSnapshot, buildBackgroundVisualPendingCommit, createBackgroundVisualDraft, getCommittedBackgroundVisualSnapshot, partitionBackgroundVisualSettingChange, reduceBackgroundVisualDraft, resolveBackgroundVisualPendingOutcome } from "@/lib/background-visual-draft"
@@ -1509,6 +1509,10 @@ export function RunningTimer({
   const [visualHintMessage, setVisualHintMessage] = useState<string | null>(null)
   const [backgroundCategoryFilter, setBackgroundCategoryFilter] = useState<BackgroundVisualCategory>("all")
   const [savedBackgroundIds, setSavedBackgroundIds] = useState<BackgroundId[]>([])
+  const [globeMarkerDraft, setGlobeMarkerDraft] = useState(() => ({
+    latitude: String(massageLab3DGlobeMarkerLat),
+    longitude: String(massageLab3DGlobeMarkerLng),
+  }))
   const currentVisualSnapshot = useMemo(() => (visualDraft ? getCommittedBackgroundVisualSnapshot(visualDraft) : null), [visualDraft])
   const effectivePaletteState = currentVisualSnapshot?.palette ?? backgroundVisualPreferences.palette
   const [controlState, setControlState] = useState<"visible" | "faded" | "hidden">("visible")
@@ -1540,6 +1544,13 @@ export function RunningTimer({
       setActivePanel("background")
     }
   }, [mode.unavailableBackgroundMessage])
+
+  useEffect(() => {
+    setGlobeMarkerDraft({
+      latitude: String(massageLab3DGlobeMarkerLat),
+      longitude: String(massageLab3DGlobeMarkerLng),
+    })
+  }, [massageLab3DGlobeMarkerLat, massageLab3DGlobeMarkerLng])
 
   useEffect(() => {
     visualPanelOpenedRef.current = readVisualPanelOpened()
@@ -1850,7 +1861,7 @@ export function RunningTimer({
       resizeObserver?.disconnect()
       window.removeEventListener("resize", fitPrimaryDisplay)
     }
-  }, [fontSize, isClockMode, isCurrentTimePrimary, primaryDisplay, primaryDisplayContentKey, primaryDisplayFitUnits, showCurrentTimeSeconds])
+  }, [clockFontFamily, fontSize, isClockMode, isCurrentTimePrimary, primaryDisplay, primaryDisplayContentKey, primaryDisplayFitUnits, showCurrentTimeSeconds])
 
   const handlePrimarySwitch = (nextDisplay: PrimaryDisplay) => {
     if (nextDisplay === primaryDisplay) {
@@ -2183,6 +2194,25 @@ export function RunningTimer({
     onAdjustActiveRemainingMinutes(deltaMinutes)
   }
 
+  const commitGlobeCoordinate = (axis: "latitude" | "longitude") => {
+    const isLatitude = axis === "latitude"
+    const value = parseGlobeCoordinateDraft(
+      globeMarkerDraft[axis],
+      isLatitude ? -90 : -180,
+      isLatitude ? 90 : 180,
+    )
+    if (value === null) {
+      setGlobeMarkerDraft((current) => ({
+        ...current,
+        [axis]: String(isLatitude ? massageLab3DGlobeMarkerLat : massageLab3DGlobeMarkerLng),
+      }))
+      return
+    }
+    handleSettingsChange(isLatitude
+      ? { massageLab3DGlobeMarkerLat: value }
+      : { massageLab3DGlobeMarkerLng: value })
+  }
+
   const getCurrentLocationForGlobe = () => {
     pressHaptic()
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -2190,6 +2220,10 @@ export function RunningTimer({
     }
 
     navigator.geolocation.getCurrentPosition(({ coords }) => {
+      setGlobeMarkerDraft({
+        latitude: coords.latitude.toFixed(4),
+        longitude: coords.longitude.toFixed(4),
+      })
       handleSettingsChange({
         massageLab3DGlobeMarkerEnabled: true,
         massageLab3DGlobeMarkerLat: Number(coords.latitude.toFixed(4)),
@@ -3124,12 +3158,15 @@ export function RunningTimer({
                     min="-90"
                     max="90"
                     step="0.0001"
-                    value={massageLab3DGlobeMarkerLat}
-                    onChange={(event) =>
-                      handleSettingsChange({
-                        massageLab3DGlobeMarkerLat: Number(event.target.value),
-                      })
-                    }
+                    value={globeMarkerDraft.latitude}
+                    onChange={(event) => setGlobeMarkerDraft((current) => ({
+                      ...current,
+                      latitude: event.target.value,
+                    }))}
+                    onBlur={() => commitGlobeCoordinate("latitude")}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") event.currentTarget.blur()
+                    }}
                     aria-label="3D Globe marker latitude"
                   />
                 </label>
@@ -3140,12 +3177,15 @@ export function RunningTimer({
                     min="-180"
                     max="180"
                     step="0.0001"
-                    value={massageLab3DGlobeMarkerLng}
-                    onChange={(event) =>
-                      handleSettingsChange({
-                        massageLab3DGlobeMarkerLng: Number(event.target.value),
-                      })
-                    }
+                    value={globeMarkerDraft.longitude}
+                    onChange={(event) => setGlobeMarkerDraft((current) => ({
+                      ...current,
+                      longitude: event.target.value,
+                    }))}
+                    onBlur={() => commitGlobeCoordinate("longitude")}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") event.currentTarget.blur()
+                    }}
                     aria-label="3D Globe marker longitude"
                   />
                 </label>
