@@ -191,7 +191,7 @@ describe("background palette adapter registry", () => {
         {
           id: "particles",
           label: "Particles",
-          sourceColor: "#3366FF",
+          sourceColor: "#3377FF",
           defaultSwatch: 1,
           rendererTarget: "vortex.baseHue",
         },
@@ -217,6 +217,19 @@ describe("background palette adapter registry", () => {
       [...changedLeafPaths(before, after)].sort(),
       ["vortex.backgroundColor", "vortex.baseHue"],
     )
+  })
+
+  it("round-trips Vortex's declared particle source color to its sanitized source hue", () => {
+    const adapter = backgroundPaletteRegistry["massage-lab-vortex"]
+    assert.notEqual(adapter.status, "unsupported")
+    const particleRole = adapter.roles.find((role) => role.id === "particles")
+    assert.ok(particleRole)
+
+    const applied = adapter.applyRoleColors(
+      { vortex: { baseHue: 0 } },
+      { particles: particleRole.sourceColor },
+    )
+    assert.equal(applied.vortex.baseHue, sanitizedDefaults.vortexBaseHue)
   })
 
   it("records the approved exhaustive and special Source behaviors", () => {

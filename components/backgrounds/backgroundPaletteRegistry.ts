@@ -280,8 +280,8 @@ const SUPPORTED_SPECS: readonly SupportedSpec[] = [
     prefixes: ["vortex"],
     roles: [
       role("background", "Background", "vortexBackgroundColor", "vortex.backgroundColor"),
-      // Source strokes are hsla(220, 100%, 60%); #3366FF is that exact opaque HSL color.
-      role("particles", "Particles", "vortexBaseHue", "vortex.baseHue", "hex-hue", "#3366FF"),
+      // Source strokes are hsla(220, 100%, 60%); #3377FF is that exact opaque HSL color.
+      role("particles", "Particles", "vortexBaseHue", "vortex.baseHue", "hex-hue", "#3377FF"),
     ],
   },
   { id: "massage-lab-pixel-liquid", family: "canvas", prefixes: ["pixelLiquid"], roles: [role("background", "Background", "pixelLiquidBackgroundColor", "pixelLiquid.backgroundColor"), role("base", "Base", "pixelLiquidBaseColor", "pixelLiquid.baseColor"), role("accent", "Accent", "pixelLiquidAccentColor", "pixelLiquid.accentColor"), role("highlight", "Highlight", "pixelLiquidHighlightColor", "pixelLiquid.highlightColor")] },
