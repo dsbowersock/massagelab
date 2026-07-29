@@ -19,6 +19,10 @@ import {
   resolveBackgroundEffectProps,
 } from "../components/backgrounds/resolveBackgroundEffectProps.ts"
 import {
+  parseBackgroundRendererPath,
+  readBackgroundRendererTarget,
+} from "../components/backgrounds/backgroundRendererPaths.ts"
+import {
   generateBackgroundHarmonySwatches,
   resolveBackgroundRoleColors,
 } from "../lib/background-palette.js"
@@ -232,6 +236,27 @@ function fixtureForAdapter(adapter) {
 }
 
 describe("background palette adapter registry", () => {
+  it("shares one parser and reader for dotted and indexed renderer paths", () => {
+    const props = {
+      renderer: {
+        colors: ["#111111", "#222222"],
+      },
+    }
+
+    assert.deepEqual(
+      parseBackgroundRendererPath("renderer.colors[1]"),
+      ["renderer", "colors", 1],
+    )
+    assert.equal(
+      readBackgroundRendererTarget(props, "renderer.colors[1]"),
+      "#222222",
+    )
+    assert.equal(
+      readBackgroundRendererTarget(props, "renderer.missing.value"),
+      undefined,
+    )
+  })
+
   it("publishes only final adapters and keeps legacy renderer colors out of persisted settings", () => {
     const legacyColorKeys = new Set(
       Object.values(backgroundPaletteRegistry).flatMap((adapter) => (
@@ -582,6 +607,45 @@ describe("background palette adapter registry", () => {
         assert.deepEqual(fixture, original, `${backgroundId}:${mode}:mutation`)
       }
     }
+  })
+
+  it("copies only modified renderer paths and preserves unrelated identities", () => {
+    const adapter = backgroundPaletteRegistry["massage-lab-lightfall"]
+    const colors = {
+      "streak-1": "#110011",
+      "streak-2": "#220022",
+      "streak-3": "#330033",
+      background: "#440044",
+    }
+    const unchangedMetadata = { frame: 42 }
+    const unchangedNested = { intensity: 0.75 }
+    const originalColors = ["#111111", "#222222", "#333333"]
+    const props = {
+      rendererLifecycle: unchangedMetadata,
+      massageLabLightfall: {
+        colors: originalColors,
+        backgroundColor: "#000000",
+        tuning: unchangedNested,
+      },
+    }
+
+    const resolved = adapter.applyRoleColors(props, colors)
+
+    assert.notEqual(resolved, props)
+    assert.equal(resolved.rendererLifecycle, unchangedMetadata)
+    assert.notEqual(resolved.massageLabLightfall, props.massageLabLightfall)
+    assert.notEqual(resolved.massageLabLightfall.colors, originalColors)
+    assert.equal(resolved.massageLabLightfall.tuning, unchangedNested)
+    assert.deepEqual(resolved.massageLabLightfall.colors, [
+      "#110011",
+      "#220022",
+      "#330033",
+    ])
+    assert.deepEqual(props.massageLabLightfall.colors, [
+      "#111111",
+      "#222222",
+      "#333333",
+    ])
   })
 
   it("leaves no enabled adapter pending", () => {

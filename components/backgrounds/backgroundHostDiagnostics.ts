@@ -3,13 +3,16 @@ import type {
   BackgroundRendererFamily,
 } from "./backgroundPaletteRegistry.ts"
 import type { BackgroundEffectProps } from "./effects/css-backgrounds"
+import { readBackgroundRendererTarget } from "./backgroundRendererPaths.ts"
 
-export type BackgroundHostLoadStatus = "loading" | "loaded" | "error"
+export { readBackgroundRendererTarget } from "./backgroundRendererPaths.ts"
+
+export type BackgroundHostLoadStatus = "idle" | "loading" | "loaded" | "error"
 
 export interface BackgroundHostDiagnosticSnapshot {
   requestedId: string
   loadedId: string | null
-  status: "loading" | "loaded" | "unsupported" | "error"
+  status: "idle" | "loading" | "loaded" | "unsupported" | "error"
   rendererFamily: BackgroundRendererFamily
   resolvedRendererTargets: Readonly<Record<string, unknown>>
   applicationChanged: boolean
@@ -27,30 +30,6 @@ interface BackgroundHostDiagnosticInput {
   appliedEffectProps: BackgroundEffectProps
   reducedMotion: boolean
   error: string | null
-}
-
-function rendererPathSegments(path: string) {
-  return [...path.matchAll(/([^[.\]]+)|\[(\d+)\]/g)].map((match) => (
-    match[2] === undefined ? match[1] : Number(match[2])
-  ))
-}
-
-/**
- * Reads the exact nested prop path named by an adapter. Diagnostics consume
- * the post-adapter object passed to the renderer, never gallery metadata.
- */
-export function readBackgroundRendererTarget(
-  props: BackgroundEffectProps,
-  target: string,
-) {
-  let value: unknown = props
-  for (const segment of rendererPathSegments(target)) {
-    if (!value || typeof value !== "object") {
-      return undefined
-    }
-    value = (value as Record<string | number, unknown>)[segment]
-  }
-  return value
 }
 
 /**
@@ -90,6 +69,8 @@ export function createBackgroundHostDiagnosticSnapshot({
     : error
   const status = staleLoad || loadStatus === "error"
     ? "error"
+    : loadStatus === "idle"
+      ? "idle"
     : loadStatus === "loading"
       ? "loading"
       : adapter.status === "unsupported"

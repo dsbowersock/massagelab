@@ -180,7 +180,7 @@ export function BackgroundHost(props: BackgroundHostProps) {
     id: string
     component: ComponentType<BackgroundEffectProps>
   } | null>(null)
-  const [loadStatus, setLoadStatus] = useState<BackgroundHostLoadStatus>("loading")
+  const [loadStatus, setLoadStatus] = useState<BackgroundHostLoadStatus>("idle")
   const [loadError, setLoadError] = useState<string | null>(null)
   const shouldLoadEffect = Boolean(
     entry.component
@@ -359,14 +359,15 @@ export function BackgroundHost(props: BackgroundHostProps) {
     let mounted = true
     setLoadedEffect(null)
     setLoadError(null)
-    setLoadStatus("loading")
 
     if (!shouldLoadEffect || !entry.component) {
+      setLoadStatus("idle")
       return () => {
         mounted = false
       }
     }
 
+    setLoadStatus("loading")
     entry.component()
       .then((module) => {
         if (mounted) {

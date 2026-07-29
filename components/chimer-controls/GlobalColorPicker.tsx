@@ -307,10 +307,10 @@ export function ColorPickerSwatch({ id, label, value, fallback, disabled, readOn
   return (
     <div ref={containerRef} className={cn(styles.colorPickerShell, className)}>
       {readOnly ? (
-        <output id={fieldId} className={cn(styles.globalColorSwatchButton, styles.globalColorSwatchReadOnly, buttonClassName)} aria-label={`${label}: ${normalizedColor}`}>
+        <span id={fieldId} className={cn(styles.globalColorSwatchButton, styles.globalColorSwatchReadOnly, buttonClassName)} aria-label={`${label}: ${normalizedColor}`}>
           <span className={styles.globalColorSwatchFace} style={{ backgroundColor: normalizedColor } as CSSProperties} aria-hidden="true" />
           <span className={styles.globalColorSwatchValue}>{normalizedColor}</span>
-        </output>
+        </span>
       ) : (
         <button
           id={fieldId}

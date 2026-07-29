@@ -157,8 +157,8 @@ export function SliderGallery() {
           </div>
         </AppSurface>
 
-        <AppSurface title="Color control examples" description="Live examples of the shared color slider wrapper and reusable picker used by route-specific visual workflows.">
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,0.85fr)_minmax(18rem,1.15fr)]">
+        <AppSurface title="Color control examples" description="Live examples of the shared color slider wrapper and compact swatch used by route-specific visual workflows.">
+          <div className="grid gap-5">
             <div className="grid gap-4">
               <div className="grid gap-2">
                 <div className="flex items-center gap-2 text-sm font-semibold text-foreground">

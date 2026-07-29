@@ -101,6 +101,8 @@ test("the shared palette editor reuses the approved picker instead of duplicatin
   assert.doesNotMatch(paletteEditorSource, /EyeDropper|rgbToHsv|hsvToRgb|colorPickerArea/)
   assert.match(pickerSource, /readOnly\?: boolean/)
   assert.match(pickerSource, /\{readOnly \? \(/)
+  assert.match(pickerSource, /readOnly \? \(\s*<span/)
+  assert.doesNotMatch(pickerSource, /readOnly \? \(\s*<output/)
 })
 
 test("legacy renderer colors no longer form part of Chimer runtime props or settings", () => {

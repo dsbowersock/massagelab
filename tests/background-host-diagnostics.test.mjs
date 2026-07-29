@@ -114,4 +114,24 @@ describe("BackgroundHost diagnostics", () => {
     assert.equal(reduced.fallback, true)
     assert.equal(reduced.reducedMotion, true)
   })
+
+  it("reports intentionally skipped renderer loads as idle instead of loading", () => {
+    const adapter = backgroundPaletteRegistry["massage-lab-retro-grid"]
+    const baseEffectProps = { massageLabRetroGrid: { backgroundColor: "#000000" } }
+
+    const skipped = createBackgroundHostDiagnosticSnapshot({
+      requestedId: "massage-lab-retro-grid",
+      loadedId: null,
+      loadStatus: "idle",
+      adapter,
+      baseEffectProps,
+      appliedEffectProps: baseEffectProps,
+      reducedMotion: true,
+      error: null,
+    })
+
+    assert.equal(skipped.status, "idle")
+    assert.equal(skipped.fallback, true)
+    assert.equal(skipped.error, null)
+  })
 })

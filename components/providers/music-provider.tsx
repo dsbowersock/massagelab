@@ -25,6 +25,7 @@ import {
   normalizeMusicVisualizerAccountPreferences,
   normalizeMusicVisualizerDevicePreferences,
 } from "@/lib/music-visualizer"
+import type { ToneProofDroneDiagnostics } from "@/lib/atmosphere/tone-proof-runtime"
 
 type PlaybackState = "stopped" | "loading" | "playing" | "failed"
 
@@ -68,13 +69,7 @@ interface MusicContextType {
   restoreVisualizerAccountDefault: () => void
   retryVisualizerAccountSync: () => Promise<void>
   /** Reads the active production Tone graph for guarded continuity QA. */
-  getPlaybackDiagnostics: () => {
-    sessionId: number
-    audioContextState: string
-    startedAt: number
-    currentTime: number
-    elapsed: number
-  } | null
+  getPlaybackDiagnostics: () => ToneProofDroneDiagnostics | null
 }
 
 interface AtmosphereStorageState {
@@ -170,13 +165,7 @@ type AtmosphereRuntimeModules = {
   }) => Promise<void>
   setGenerativeFmPieceVolume: (volume: number) => void
   setToneProofDroneVolume: (volume: number) => void
-  getToneProofDroneDiagnostics: () => {
-    sessionId: number
-    audioContextState: string
-    startedAt: number
-    currentTime: number
-    elapsed: number
-  } | null
+  getToneProofDroneDiagnostics: () => ToneProofDroneDiagnostics | null
   startGenerativeFmPiece: (options: {
     onLoadProgress?: (progress: number) => void
     station: RuntimeAdapterPayload["station"]

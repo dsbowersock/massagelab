@@ -73,6 +73,15 @@ const HARMONY_PALETTE: BackgroundPaletteEditorValue = {
 }
 
 const enabledBackgrounds = backgroundRegistry.filter((entry) => entry.enabled)
+const movingGradientAdapter = backgroundPaletteRegistry["massage-lab-moving-gradient"]
+const sharedRoleMapping: BackgroundColorMapping = movingGradientAdapter
+  ? { main: 0, orb: 0 }
+  : {}
+const unsupportedAdapter = backgroundPaletteRegistry["massage-lab-aurora"]
+  ?? Object.values(backgroundPaletteRegistry).find((entry) => entry.status === "unsupported")
+const representativeEntries = (["css-dom", "canvas", "webgl"] as const)
+  .map(representativeByFamily)
+  .filter((entry): entry is BackgroundDefinition => Boolean(entry))
 
 const presetPalette = {
   mode: "custom" as const,
@@ -166,17 +175,17 @@ const StaticEditorSpecimen = memo(function StaticEditorSpecimen({
  */
 function ProductionMusicContinuityProbe() {
   const music = useMusic()
+  const getPlaybackDiagnostics = music.getPlaybackDiagnostics
   const [diagnostics, setDiagnostics] = useState(() => music.getPlaybackDiagnostics())
 
   useEffect(() => {
-    let frame = 0
     const update = () => {
-      setDiagnostics(music.getPlaybackDiagnostics())
-      frame = window.requestAnimationFrame(update)
+      setDiagnostics(getPlaybackDiagnostics())
     }
-    frame = window.requestAnimationFrame(update)
-    return () => window.cancelAnimationFrame(frame)
-  }, [music])
+    update()
+    const interval = window.setInterval(update, 500)
+    return () => window.clearInterval(interval)
+  }, [getPlaybackDiagnostics])
 
   return (
     <div
@@ -243,16 +252,6 @@ export function BackgroundPaletteGallery() {
       canCustomize: true,
     })
     : {}
-  const movingGradientAdapter = backgroundPaletteRegistry["massage-lab-moving-gradient"]
-  const sharedRoleMapping: BackgroundColorMapping = movingGradientAdapter
-    ? { main: 0, orb: 0 }
-    : {}
-  const unsupportedAdapter = backgroundPaletteRegistry["massage-lab-aurora"]
-    ?? Object.values(backgroundPaletteRegistry).find((entry) => entry.status === "unsupported")
-  const representativeEntries = (["css-dom", "canvas", "webgl"] as const)
-    .map(representativeByFamily)
-    .filter((entry): entry is BackgroundDefinition => Boolean(entry))
-
   if (process.env.NODE_ENV === "production") {
     return null
   }

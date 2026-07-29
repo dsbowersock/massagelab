@@ -167,7 +167,18 @@ test("development review exposes the complete shared background palette matrix",
   assert.match(gallery, /useMusic/)
   assert.match(gallery, /data-music-session-id/)
   assert.match(gallery, /data-music-audio-elapsed/)
+  assert.match(gallery, /window\.setInterval\(update,\s*500\)/)
+  assert.doesNotMatch(gallery, /requestAnimationFrame\(update\)/)
   assert.match(gallery, /process\.env\.NODE_ENV/)
+})
+
+test("slider gallery copy and layout match the remaining color controls", async () => {
+  const gallery = await read("app/dev/buttons/slider-gallery.tsx")
+  const colorExamples = gallery.slice(gallery.indexOf('title="Color control examples"'))
+
+  assert.match(colorExamples, /shared color slider wrapper and compact swatch/)
+  assert.doesNotMatch(colorExamples, /reusable picker/)
+  assert.doesNotMatch(colorExamples, /lg:grid-cols-\[/)
 })
 
 test("background palette browser review fails closed and reads real Host diagnostics", async () => {

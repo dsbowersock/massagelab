@@ -10,6 +10,10 @@ import type {
   CssDomPaletteBackgroundId,
   CssDomPaletteEffectPropsById,
 } from "./effects/css-backgrounds"
+import {
+  parseBackgroundRendererPath,
+  readBackgroundRendererTarget,
+} from "./backgroundRendererPaths.ts"
 
 export type BackgroundRendererFamily = "css-dom" | "canvas" | "webgl"
 export type EffectiveBackgroundPaletteMode = "source" | "custom" | "harmony"
@@ -119,9 +123,8 @@ function visualInventory(
 ) {
   const visualPropertyKeys = Object.keys(SANITIZED_SOURCE_SETTINGS).filter((key) => (
     SETTING_NAMESPACE_OWNERS
-      .filter(({ namespace }) => key.slice(0, namespace.length) === namespace)
-      .sort((left, right) => right.namespace.length - left.namespace.length)
-      .at(0)?.backgroundId === backgroundId
+      .find(({ namespace }) => key.slice(0, namespace.length) === namespace)
+      ?.backgroundId === backgroundId
     && prefixes.some((prefix) => (
       key.slice(0, prefix.length) === prefix
     ))
@@ -136,10 +139,27 @@ function visualInventory(
   }
 }
 
-function pathSegments(path: string) {
-  return [...path.matchAll(/([^[.\]]+)|\[(\d+)\]/g)].map((match) => (
-    match[2] === undefined ? match[1] : Number(match[2])
-  ))
+function copyRendererContainer(
+  value: unknown,
+  nextSegment: string | number,
+): Record<string | number, unknown> {
+  if (Array.isArray(value)) {
+    return [...value] as unknown as Record<string | number, unknown>
+  }
+  if (value && typeof value === "object") {
+    return { ...value }
+  }
+  return (typeof nextSegment === "number" ? [] : {}) as Record<string | number, unknown>
+}
+
+function copyRendererValue(value: unknown) {
+  if (Array.isArray(value)) {
+    return [...value]
+  }
+  if (value && typeof value === "object") {
+    return { ...value }
+  }
+  return value
 }
 
 function hexHue(value: string) {
@@ -174,20 +194,26 @@ function setRendererValue(
   target: string,
   value: unknown,
 ) {
-  const result = structuredClone(props) as Record<string, unknown>
-  const segments = pathSegments(target)
-  let cursor: Record<string | number, unknown> = result
+  const segments = parseBackgroundRendererPath(target)
+  if (segments.length === 0) {
+    return props
+  }
+
+  const result = { ...props } as Record<string | number, unknown>
+  let sourceCursor: unknown = props
+  let resultCursor = result
   for (let index = 0; index < segments.length - 1; index += 1) {
     const segment = segments[index]
     const nextSegment = segments[index + 1]
-    const existing = cursor[segment]
-    const next = existing && typeof existing === "object"
-      ? structuredClone(existing)
-      : typeof nextSegment === "number" ? [] : {}
-    cursor[segment] = next
-    cursor = next as Record<string | number, unknown>
+    const sourceValue = sourceCursor && typeof sourceCursor === "object"
+      ? (sourceCursor as Record<string | number, unknown>)[segment]
+      : undefined
+    const next = copyRendererContainer(sourceValue, nextSegment)
+    resultCursor[segment] = next
+    resultCursor = next
+    sourceCursor = sourceValue
   }
-  cursor[segments.at(-1)!] = structuredClone(value)
+  resultCursor[segments.at(-1)!] = copyRendererValue(value)
   return result as BackgroundEffectProps
 }
 
@@ -201,13 +227,7 @@ function setRendererTarget(
   color: string,
   transform?: RoleTransform,
 ) {
-  const segments = pathSegments(target)
-  let current: unknown = props
-  for (const segment of segments) {
-    current = current && typeof current === "object"
-      ? (current as Record<string | number, unknown>)[segment]
-      : undefined
-  }
+  const current = readBackgroundRendererTarget(props, target)
   const value = transform === "hex-hue"
     ? hexHue(color)
     : transform === "preserve-alpha"
@@ -597,7 +617,7 @@ const SETTING_NAMESPACE_OWNERS = Object.freeze([
 ].flatMap((spec) => (spec.prefixes ?? []).map((namespace) => ({
   backgroundId: spec.id,
   namespace,
-}))))
+}))).sort((left, right) => right.namespace.length - left.namespace.length))
 
 /**
  * Complete migration-time source ledger. Every color-capable renderer exposes
