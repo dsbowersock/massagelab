@@ -96,8 +96,9 @@ test("review fixes preserve live route controls and interaction cleanup", async 
 
   assert.match(runningTimer, /resolvedMovingBackgroundMainColor = resolvePaletteDrivenColor/)
   assert.match(runningTimer, /value: movingBackgroundOrbColor,[\s\S]*globalValue: globalPaletteSecondary/)
-  assert.match(backgroundHost, /effectProps:\s*applyPaletteToBackgroundEffects\(baseEffectProps, palette\)/)
-  assert.match(backgroundHost, /draftPalettePreview[\s\S]*adapter\.applyRoleColors/)
+  assert.match(backgroundHost, /resolveBackgroundEffectProps/)
+  assert.match(backgroundHost, /backgroundPalette/)
+  assert.doesNotMatch(backgroundHost, /applyPaletteToBackgroundEffects/)
   assert.match(backgroundHost, /<BackgroundComponent \{\.\.\.effectProps\} \/>/)
   assert.doesNotMatch(backgroundHost, /<BackgroundComponent\s+mainColor=/)
   assert.equal((controlCss.match(/^\.harmonyList \{/gm) ?? []).length, 1)

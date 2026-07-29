@@ -612,7 +612,7 @@ describe("premium background registry", () => {
     assert.doesNotMatch(runningSource, /Change interval/)
   })
 
-  it("keeps the MassageLab hex grid deterministic and harmony/fade-time driven", () => {
+  it("keeps the MassageLab hex grid deterministic and shared-palette/fade-time driven", () => {
     const source = readFileSync(
       new URL("../components/backgrounds/effects/massage-lab-hex-grid-background.tsx", import.meta.url),
       "utf8",
@@ -628,11 +628,7 @@ describe("premium background registry", () => {
     assert.match(source, /hexGrid\?\.harmony/)
     assert.match(source, /return changeFrequency \* 1000/)
     assert.match(source, /const cycleDuration = fadeDuration \/ activeFraction/)
-    assert.match(setupSource, /massage-lab-hex-grid/)
-    assert.match(setupSource, /COLOR_HARMONY_OPTIONS/)
     assert.match(setupSource, /hexGridChangeFrequency/)
-    assert.match(runningSource, /massage-lab-hex-grid/)
-    assert.match(runningSource, /COLOR_HARMONY_OPTIONS/)
     assert.match(runningSource, /hexGridChangeFrequency/)
     assert.match(runningSource, /hexGrid=\{\{/)
   })
@@ -657,17 +653,7 @@ describe("premium background registry", () => {
     assert.doesNotMatch(musicWorkspaceSource, /visualizerActive/)
     assert.match(chimerRunningSource, /auroraBars=\{\{/)
     assert.doesNotMatch(chimerPageSource, /auroraBars=\{\{/)
-    assert.match(setupControlsSource, /Auto monochrome/)
-    assert.match(chimerRunningSource, /Auto monochrome/)
     for (const settingKey of [
-      "auroraBarsBackgroundColor",
-      "auroraBarsPaletteMode",
-      "auroraBarsPrimaryColor",
-      "auroraBarsColorOne",
-      "auroraBarsColorTwo",
-      "auroraBarsColorThree",
-      "auroraBarsColorFour",
-      "auroraBarsColorFive",
       "auroraBarsBarCount",
       "auroraBarsSpeed",
       "auroraBarsBlur",
@@ -5323,8 +5309,6 @@ describe("premium background registry", () => {
     assert.doesNotMatch(runningSource, /Reverse spin/)
     assert.doesNotMatch(setupSource, /Show Earth tilt/)
     assert.doesNotMatch(runningSource, /Show Earth tilt/)
-    assert.match(setupSource, /Outer Glow/)
-    assert.match(runningSource, /Outer Glow/)
     assert.match(setupSource, /Pan X Left\/Right/)
     assert.match(setupSource, /Pan Y Up\/Down/)
     assert.match(runningSource, /Pan X Left\/Right/)
@@ -5359,11 +5343,6 @@ describe("premium background registry", () => {
 
     for (const settingKey of [
       "massageLab3DGlobeViewStyle",
-      "massageLab3DGlobeBackgroundColor",
-      "massageLab3DGlobeGlobeColor",
-      "massageLab3DGlobeGraphicMapColor",
-      "massageLab3DGlobeGraphicGlowColor",
-      "massageLab3DGlobeGraphicMarkerColor",
       "massageLab3DGlobeGraphicMapSamples",
       "massageLab3DGlobeAutoRotateSpeed",
       "massageLab3DGlobeScale",
@@ -5375,11 +5354,9 @@ describe("premium background registry", () => {
       "massageLab3DGlobePanX",
       "massageLab3DGlobePanY",
       "massageLab3DGlobeShowAtmosphere",
-      "massageLab3DGlobeAtmosphereColor",
       "massageLab3DGlobeAtmosphereIntensity",
       "massageLab3DGlobeAtmosphereBlur",
       "massageLab3DGlobeShowWireframe",
-      "massageLab3DGlobeWireframeColor",
       "massageLab3DGlobeMarkerEnabled",
       "massageLab3DGlobeMarkerLat",
       "massageLab3DGlobeMarkerLng",
@@ -5627,7 +5604,8 @@ describe("premium background registry", () => {
     assert.match(pageSource, /!isTimerActive[\s\S]*<MovingBackground[\s\S]*chimer-setup-moving-background/)
     assert.doesNotMatch(pageSource, /chimer-setup-background/)
     assert.match(runningSource, /<BackgroundHost/)
-    assert.match(runningSource, /<MovingBackground/)
+    assert.match(runningSource, /backgroundPalette=\{effectiveBackgroundPalette\}/)
+    assert.doesNotMatch(runningSource, /<MovingBackground/)
   })
 
   it("keeps MassageLab Bubble non-interactive and dependency-free", () => {

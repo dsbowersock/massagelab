@@ -427,7 +427,7 @@ export function BackgroundPaletteGallery() {
                       warpSpeed: 0.1,
                       intensity: 0.25,
                     }}
-                    draftPalettePreview={{
+                    backgroundPalette={{
                       palette: CUSTOM_PALETTE,
                       mapping: entryAdapter?.status === "supported"
                         ? defaultMapping(entryAdapter)
@@ -575,7 +575,7 @@ export function BackgroundPaletteGallery() {
                     speed: 1.7,
                     size: 63,
                   }}
-                  draftPalettePreview={{
+                  backgroundPalette={{
                     palette,
                     mapping: selectedMapping,
                     canCustomize: true,

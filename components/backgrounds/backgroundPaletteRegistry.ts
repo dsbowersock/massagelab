@@ -1,4 +1,5 @@
 import {
+  CHIMER_BACKGROUND_SOURCE_COLOR_DEFAULTS,
   DEFAULT_CHIMER_SETTINGS,
   sanitizeChimerSettings,
 } from "../../lib/chimer-timer.js"
@@ -391,7 +392,7 @@ function supported(spec: SupportedSpec): SupportedBackgroundPaletteAdapter {
     label,
     sourceSettingKey,
     sourceColor: sourceColorOverride
-      ?? String(SANITIZED_SOURCE_SETTINGS[sourceSettingKey]),
+      ?? String(CHIMER_BACKGROUND_SOURCE_COLOR_DEFAULTS[sourceSettingKey]),
     defaultSwatch: (index % 7) as BackgroundPaletteRole["defaultSwatch"],
     rendererTarget,
   }))

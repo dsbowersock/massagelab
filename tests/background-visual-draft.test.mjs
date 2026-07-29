@@ -517,7 +517,7 @@ test("Music Apply and switch keep canonical Chimer selection while Chimer switch
   )
 })
 
-test("default moving gradient uses BackgroundHost only for an active draft preview", () => {
+test("legacy host selection helper remains deterministic during the shared-host cutover", () => {
   assert.equal(shouldUseDraftAwareBackgroundHost({
     isOriginalBackground: true,
     hasVisualDraft: false,
@@ -690,8 +690,9 @@ test("live Visual integration owns draft preview, one Apply, and reachable actio
   assert.match(runningTimerSource, /BackgroundPaletteEditor/)
   assert.match(runningTimerSource, /BackgroundColorPresetManager/)
   assert.match(runningTimerSource, /BackgroundVisualPresetManager/)
-  assert.match(runningTimerSource, /draftPalettePreview=/)
-  assert.match(runningTimerSource, /shouldUseDraftAwareBackgroundHost/)
+  assert.match(runningTimerSource, /backgroundPalette=\{effectiveBackgroundPalette\}/)
+  assert.match(runningTimerSource, /currentVisualSnapshot\?\.palette \?\? backgroundVisualPreferences\.palette/)
+  assert.doesNotMatch(runningTimerSource, /draftPalettePreview=/)
   assert.match(runningTimerSource, /hideLegacyColorControls/)
   assert.match(runningTimerSource, /hideLegacyPaletteMetadataControls/)
   assert.match(runningTimerSource, /type:\s*"reset-colors"/)

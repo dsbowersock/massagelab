@@ -1,7 +1,11 @@
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
-import { DEFAULT_CHIMER_SETTINGS, sanitizeChimerSettings } from "../lib/chimer-timer.js"
+import {
+  CHIMER_BACKGROUND_SOURCE_COLOR_DEFAULTS,
+  DEFAULT_CHIMER_SETTINGS,
+  sanitizeChimerSettings,
+} from "../lib/chimer-timer.js"
 import {
   BACKGROUND_PALETTE_METADATA_SUFFIXES,
   backgroundPaletteRegistry,
@@ -18,7 +22,7 @@ import {
 } from "../lib/background-palette.js"
 
 const HEX_COLOR = /^#[0-9a-f]{6}$/i
-const VALID_STATUSES = new Set(["pending", "supported", "unsupported"])
+const VALID_STATUSES = new Set(["supported", "unsupported"])
 const VALID_RENDERER_FAMILIES = new Set(["css-dom", "canvas", "webgl"])
 const sanitizedDefaults = sanitizeChimerSettings(DEFAULT_CHIMER_SETTINGS)
 const CUSTOM_SWATCHES = [
@@ -226,6 +230,36 @@ function fixtureForAdapter(adapter) {
 }
 
 describe("background palette adapter registry", () => {
+  it("publishes only final adapters and keeps legacy renderer colors out of persisted settings", () => {
+    const legacyColorKeys = new Set(
+      Object.values(backgroundPaletteRegistry).flatMap((adapter) => (
+        adapter.status === "supported"
+          ? adapter.roles.map((role) => role.sourceSettingKey)
+          : []
+      )),
+    )
+
+    for (const [backgroundId, adapter] of Object.entries(backgroundPaletteRegistry)) {
+      assert.equal(
+        VALID_STATUSES.has(adapter.status),
+        true,
+        `${backgroundId} has non-final status ${adapter.status}`,
+      )
+    }
+
+    for (const key of legacyColorKeys) {
+      assert.equal(key in DEFAULT_CHIMER_SETTINGS, false, `${key} remains in defaults`)
+      assert.equal(key in sanitizedDefaults, false, `${key} remains in sanitized settings`)
+    }
+    for (const key of Object.keys(DEFAULT_CHIMER_SETTINGS)) {
+      assert.equal(
+        BACKGROUND_PALETTE_METADATA_SUFFIXES.some((suffix) => key.endsWith(suffix)),
+        false,
+        `${key} remains as per-background palette metadata`,
+      )
+    }
+  })
+
   it("owns the complete legacy palette metadata suffix inventory", () => {
     assert.deepEqual(BACKGROUND_PALETTE_METADATA_SUFFIXES, [
       "PaletteMode",
@@ -460,7 +494,10 @@ describe("background palette adapter registry", () => {
       { vortex: { baseHue: 0 } },
       { particles: particleRole.sourceColor },
     )
-    assert.equal(applied.vortex.baseHue, sanitizedDefaults.vortexBaseHue)
+    assert.equal(
+      applied.vortex.baseHue,
+      CHIMER_BACKGROUND_SOURCE_COLOR_DEFAULTS.vortexBaseHue,
+    )
   })
 
   it("records the approved exhaustive and special Source behaviors", () => {

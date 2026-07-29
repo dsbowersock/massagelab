@@ -4,6 +4,16 @@ This is the canonical chronological planning and progress log for MassageLab. Us
 
 Existing plans, audits, roadmaps, and checklists remain source evidence. Keep them for context, but mirror meaningful progress, plan changes, and priority changes in [project-state.md](project-state.md) and here.
 
+## 2026-07-29 — Track 4A shared background palette atomic cutover
+
+- Completed the Track 4A Task 10 implementation cutover from the old Global Colors and per-renderer color-control state to the nested seven-swatch Source/Custom/Harmony preference contract established by Tasks 1-9. Sanitized Chimer and entitlement payloads now omit renderer color fallbacks plus obsolete palette mode, Primary, harmony, and renderer metadata fields while retaining non-color settings.
+- Finalized every enabled background adapter as typed `supported` or explicitly `unsupported`. Source colors live in the adapter-owned source inventory, and `BackgroundHost` delegates the selected background to `resolveBackgroundEffectProps` without heuristic property-name matching or generated tint for unsupported media.
+- Active Chimer, ordinary Clock, and the Music visualizer now pass the same committed-or-draft palette, selected-background mapping, and feature/ownership access contract through `BackgroundHost`. The original Moving Gradient also uses that shared host path, while setup keeps its existing site backdrop and does not mount the selected live effect.
+- Removed legacy Global Colors local-storage hydration/writes and its independent saved-palette state from the immersive runtime. The one-time migration in `lib/background-palette.js` remains the only reader for the two old storage keys when nested v1 preferences are absent. Clock digit/stroke/shadow/glow colors and every specialized non-color background control, including 3D Globe location/lighting behavior, remain separate and intact.
+- Replaced brittle source-count assertions with final-adapter, persisted-state, staged-resolver, access fallback, and real-renderer behavior checks. The focused contract gate passed 280 tests; typecheck passed; lint passed with no errors; and `git diff --check` passed.
+- The Playwright palette sweep passed all 16 desktop/mobile scenarios. It exercised every enabled background through Source, Custom, and Harmony, truthful CSS/DOM/Canvas/WebGL diagnostics, special Source and unsupported behavior, swatch/mapping isolation, Music Tone continuity, real Chimer timer identity/progress, and short-landscape reduced motion. The first run exposed an omitted legacy Lightning source-color dereference before adapter resolution; the source-input fallback was hardened and the complete rerun passed 16/16.
+- Manual acceptance remains open for `/dev/buttons`, Clock, active Chimer, and Music at desktop, phone portrait, short landscape, 200% zoom, and reduced motion, including draft/Undo/Redo/Apply/Cancel, unsaved-change guards, local/account persistence and retry, preset limits/defaults, and timer/music continuity. Track 4B remains dependent on that user review.
+
 ## 2026-07-28 — Track 1 rollout closure and July 18 reconciliation
 
 - PR #156 merged as `4b9bb291820edd67f184e51f0ad9d7cbe9bea881`, and Vercel reports that exact `main` commit READY in Production.

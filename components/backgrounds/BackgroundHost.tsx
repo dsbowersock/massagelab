@@ -18,10 +18,7 @@ import {
 import type {
   BackgroundEffectProps,
 } from "@/components/backgrounds/effects/css-backgrounds"
-import {
-  resolveBackgroundRoleColors,
-  resolveEffectiveBackgroundPaletteMode,
-} from "@/lib/background-palette"
+import { resolveBackgroundEffectProps } from "@/components/backgrounds/resolveBackgroundEffectProps"
 import styles from "@/components/backgrounds/BackgroundHost.module.css"
 
 const EMPTY_FEATURE_KEYS: string[] = []
@@ -30,10 +27,11 @@ interface BackgroundHostProps extends BackgroundEffectProps {
   selectedId?: BackgroundId | string | null
   featureKeys?: string[]
   category?: BackgroundCategory
-  /** Applies one resolved palette across every color-capable background effect. */
-  palette?: readonly string[]
-  /** Applies registry colors only while the Visual editor owns a live draft. */
-  draftPalettePreview?: {
+  /**
+   * Supplies the one committed-or-draft palette contract shared by Chimer,
+   * Clock, and Music. Unsupported media intentionally ignores this input.
+   */
+  backgroundPalette?: {
     palette: {
       mode: string
       primaryColor: string
@@ -49,60 +47,6 @@ interface BackgroundHostProps extends BackgroundEffectProps {
   testId?: string
   /** Exposes actual lazy-load and post-adapter props on data attributes for guarded QA surfaces. */
   diagnostics?: boolean
-}
-
-const COLOR_OPTION_PATTERN = /(color|gradient|tint)/i
-const NON_COLOR_OPTION_PATTERN = /(balance|frequency|number|speed)/i
-
-/**
- * Recolors heterogeneous background option objects without coupling the global
- * picker to every individual effect implementation. Non-color settings retain
- * their route-owned values, while color strings and color arrays consume the
- * resolved palette in declaration order.
- */
-export function applyPaletteToBackgroundEffects(
-  effectProps: BackgroundEffectProps,
-  palette: readonly string[] | undefined,
-): BackgroundEffectProps {
-  const resolvedPalette = palette?.filter((value) => value.trim().length > 0) ?? []
-  if (resolvedPalette.length === 0) {
-    return effectProps
-  }
-
-  let paletteIndex = 0
-  const nextColor = () => {
-    const color = resolvedPalette[paletteIndex % resolvedPalette.length]
-    paletteIndex += 1
-    return color
-  }
-
-  const applyPalette = (value: unknown, key: string): unknown => {
-    if (Array.isArray(value)) {
-      if (!COLOR_OPTION_PATTERN.test(key) || NON_COLOR_OPTION_PATTERN.test(key)) {
-        return value
-      }
-      return value.map((entry) => (typeof entry === "string" ? nextColor() : entry))
-    }
-
-    if (typeof value === "string") {
-      return COLOR_OPTION_PATTERN.test(key) && !NON_COLOR_OPTION_PATTERN.test(key)
-        ? nextColor()
-        : value
-    }
-
-    if (value && typeof value === "object") {
-      return Object.fromEntries(
-        Object.entries(value).map(([entryKey, entryValue]) => [
-          entryKey,
-          applyPalette(entryValue, entryKey),
-        ]),
-      )
-    }
-
-    return value
-  }
-
-  return applyPalette(effectProps, "") as BackgroundEffectProps
 }
 
 function usePrefersReducedMotion() {
@@ -124,8 +68,7 @@ export function BackgroundHost({
   selectedId,
   featureKeys = EMPTY_FEATURE_KEYS,
   category,
-  palette,
-  draftPalettePreview,
+  backgroundPalette,
   className,
   mainColor,
   orbColor,
@@ -303,26 +246,17 @@ export function BackgroundHost({
     hexGrid,
       auroraBars,
     }
-    const adapter = backgroundPaletteRegistry[entry.id]
-    if (draftPalettePreview && adapter?.status === "supported") {
-      const effectiveMode = resolveEffectiveBackgroundPaletteMode({
-        savedMode: draftPalettePreview.palette.mode,
-        canCustomize: draftPalettePreview.canCustomize,
-      })
-      const colors = resolveBackgroundRoleColors({
-        palette: draftPalettePreview.palette,
-        adapter,
-        mapping: draftPalettePreview.mapping,
-        canCustomize: draftPalettePreview.canCustomize,
-      })
-      return {
-        baseEffectProps,
-        effectProps: adapter.applyRoleColors(baseEffectProps, colors, effectiveMode),
-      }
-    }
     return {
       baseEffectProps,
-      effectProps: applyPaletteToBackgroundEffects(baseEffectProps, palette),
+      effectProps: backgroundPalette
+        ? resolveBackgroundEffectProps({
+            selectedId: entry.id,
+            effectProps: baseEffectProps,
+            palette: backgroundPalette.palette,
+            mapping: backgroundPalette.mapping,
+            canCustomize: backgroundPalette.canCustomize,
+          })
+        : baseEffectProps,
     }
   }, [
     mainColor,
@@ -399,13 +333,9 @@ export function BackgroundHost({
     tileGrid,
     hexGrid,
     auroraBars,
-    draftPalettePreview,
+    backgroundPalette,
     entry.id,
-    palette,
   ])
-  const paletteFallbackStyle = palette?.length
-    ? { background: `linear-gradient(135deg, ${palette.join(", ")})` }
-    : undefined
 
   useEffect(() => {
     let mounted = true
@@ -484,7 +414,7 @@ export function BackgroundHost({
       }
       data-background-diagnostic-applied={
         diagnosticSnapshot
-          ? String(Boolean(draftPalettePreview && adapter?.status === "supported"))
+          ? String(Boolean(backgroundPalette && adapter?.status === "supported"))
           : undefined
       }
       data-background-diagnostic-fallback={
@@ -499,7 +429,7 @@ export function BackgroundHost({
     >
       <div
         className={cn(styles.fallback, entry.fallbackClassName)}
-        style={{ ...entry.fallbackStyle, ...paletteFallbackStyle }}
+        style={entry.fallbackStyle}
       />
       {BackgroundComponent ? (
         <BackgroundComponent {...effectProps} />

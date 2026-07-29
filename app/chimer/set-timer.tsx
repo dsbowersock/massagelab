@@ -21,7 +21,6 @@ import { MetalAttentionRing } from "@/components/ui/metal-attention-button"
 import { NumberField } from "@/components/chimer-controls/NumberField"
 import { StyledRangeControl } from "@/components/chimer-controls/StyledRangeControl"
 import { StyledToggleControl } from "@/components/chimer-controls/StyledToggleControl"
-import { ColorPickerInput } from "@/components/chimer-controls/GlobalColorPicker"
 import {
   getMassageLab3DGlobeScaleDisplayPercent,
   getMassageLab3DGlobeScaleFromDisplayPercent,
@@ -4563,8 +4562,10 @@ export function createMassageLabChromeFlowHarmonyPalette(
   }
 }
 
-function parseHexColorToRgb(color: string): [number, number, number] {
-  const normalized = color.trim().replace("#", "")
+function parseHexColorToRgb(color: string | undefined): [number, number, number] {
+  const normalized = typeof color === "string"
+    ? color.trim().replace("#", "")
+    : ""
   const match = /^[0-9A-Fa-f]{6}$/.test(normalized) ? normalized : "0EA5E9"
   return [
     Number.parseInt(match.slice(0, 2), 16),
@@ -4578,7 +4579,7 @@ function hexToRgba(color: string, alpha: number): string {
   return `rgba(${red}, ${green}, ${blue}, ${Math.min(1, Math.max(0, alpha)).toFixed(2)})`
 }
 
-function getHueFromHexColor(color: string): number {
+function getHueFromHexColor(color: string | undefined): number {
   const [hue] = rgbToHsl(parseHexColorToRgb(color))
   return normalizeHue(hue)
 }
@@ -4715,23 +4716,6 @@ function syncNativeRangeFill(rangeInput: HTMLInputElement) {
   const clampedPercentage = Math.min(100, Math.max(0, percentage))
 
   rangeInput.style.setProperty(NATIVE_RANGE_FILL_STYLE_PROPERTY, `${clampedPercentage}%`)
-}
-
-type ColorFieldProps = {
-  label: string
-  value: string
-  onValueChange: (nextColor: string) => void
-  pickerLabel: string
-}
-
-/** Keeps Chimer background color controls on the shared picker contract. */
-function ColorField({ label, value, onValueChange, pickerLabel }: ColorFieldProps) {
-  return (
-    <div className={styles.colorRow}>
-      <span>{label}</span>
-      <ColorPickerInput value={value} onValueChange={onValueChange} label={pickerLabel} />
-    </div>
-  )
 }
 
 export function SetTimer({
@@ -4980,48 +4964,13 @@ export function SetTimer({
     if (option.id === "massage-lab-gradient-animation") {
       return (
         <div className={styles.backgroundCardControls}>
-          <ColorField
-            label="Base start"
-            value={settings.gradientAnimationBackgroundStartColor}
-            onValueChange={(nextColor) => onSettingsChange({ gradientAnimationBackgroundStartColor: nextColor })}
-            pickerLabel="Animated gradient background start color"
-          />
-          <ColorField
-            label="Base end"
-            value={settings.gradientAnimationBackgroundEndColor}
-            onValueChange={(nextColor) => onSettingsChange({ gradientAnimationBackgroundEndColor: nextColor })}
-            pickerLabel="Animated gradient background end color"
-          />
-          <ColorField
-            label="Glow 1"
-            value={settings.gradientAnimationFirstColor}
-            onValueChange={(nextColor) => onSettingsChange({ gradientAnimationFirstColor: nextColor })}
-            pickerLabel="Animated gradient first glow color"
-          />
-          <ColorField
-            label="Glow 2"
-            value={settings.gradientAnimationSecondColor}
-            onValueChange={(nextColor) => onSettingsChange({ gradientAnimationSecondColor: nextColor })}
-            pickerLabel="Animated gradient second glow color"
-          />
-          <ColorField
-            label="Glow 3"
-            value={settings.gradientAnimationThirdColor}
-            onValueChange={(nextColor) => onSettingsChange({ gradientAnimationThirdColor: nextColor })}
-            pickerLabel="Animated gradient third glow color"
-          />
-          <ColorField
-            label="Glow 4"
-            value={settings.gradientAnimationFourthColor}
-            onValueChange={(nextColor) => onSettingsChange({ gradientAnimationFourthColor: nextColor })}
-            pickerLabel="Animated gradient fourth glow color"
-          />
-          <ColorField
-            label="Glow 5"
-            value={settings.gradientAnimationFifthColor}
-            onValueChange={(nextColor) => onSettingsChange({ gradientAnimationFifthColor: nextColor })}
-            pickerLabel="Animated gradient fifth glow color"
-          />
+          <></>
+          <></>
+          <></>
+          <></>
+          <></>
+          <></>
+          <></>
           <label className={styles.rangeRow}>
             <span>Speed</span>
             <input
@@ -5053,28 +5002,8 @@ export function SetTimer({
     if (option.id === "massage-lab-gradient") {
       return (
         <div className={styles.backgroundCardControls}>
-          <ColorField
-            label="Primary color"
-            value={settings.massageLabGradientPrimaryColor}
-            onValueChange={(nextColor) => onSettingsChange({ massageLabGradientPrimaryColor: nextColor })}
-            pickerLabel="MassageLab gradient primary color"
-          />
-          <label className={styles.selectRow}>
-            <span>Color harmony</span>
-            <select
-              value={settings.massageLabGradientHarmony}
-              onChange={(event) => onSettingsChange({
-                massageLabGradientHarmony: event.target.value as MassageLabGradientHarmony,
-              })}
-              aria-label="MassageLab gradient color harmony"
-            >
-              {MASSAGE_LAB_GRADIENT_HARMONY_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <></>
+          <></>
           <label className={styles.rangeRow}>
             <span>Opacity ({Math.round(settings.massageLabGradientOpacity * 100)}%)</span>
             <input
@@ -5094,18 +5023,8 @@ export function SetTimer({
     if (option.id === "massage-lab-hole") {
       return (
         <div className={styles.backgroundCardControls}>
-          <ColorField
-            label="Grid line color"
-            value={settings.massageLabHoleStrokeColor}
-            onValueChange={(nextColor) => onSettingsChange({ massageLabHoleStrokeColor: nextColor })}
-            pickerLabel="MassageLab Hole grid line color"
-          />
-          <ColorField
-            label="Particle color"
-            value={settings.massageLabHoleParticleColor}
-            onValueChange={(nextColor) => onSettingsChange({ massageLabHoleParticleColor: nextColor })}
-            pickerLabel="MassageLab Hole particle color"
-          />
+          <></>
+          <></>
           <label className={styles.rangeRow}>
             <span>Line count ({settings.massageLabHoleLineCount})</span>
             <input
@@ -5137,12 +5056,7 @@ export function SetTimer({
     if (option.id === "massage-lab-stars") {
       return (
         <div className={styles.backgroundCardControls}>
-          <ColorField
-            label="Star color"
-            value={settings.massageLabStarsColor}
-            onValueChange={(nextColor) => onSettingsChange({ massageLabStarsColor: nextColor })}
-            pickerLabel="MassageLab Stars star color"
-          />
+          <></>
           <label className={styles.rangeRow}>
             <span>Speed ({settings.massageLabStarsSpeed}s)</span>
             <input
@@ -5186,12 +5100,7 @@ export function SetTimer({
     if (option.id === "massage-lab-sparkles") {
       return (
         <div className={styles.backgroundCardControls}>
-          <ColorField
-            label="Sparkle color"
-            value={settings.sparklesParticleColor}
-            onValueChange={(nextColor) => onSettingsChange({ sparklesParticleColor: nextColor })}
-            pickerLabel="Sparkles particle color"
-          />
+          <></>
           <label className={styles.rangeRow}>
             <span>Density</span>
             <input
@@ -5254,24 +5163,9 @@ export function SetTimer({
     if (option.id === "massage-lab-shooting-stars") {
       return (
         <div className={styles.backgroundCardControls}>
-          <ColorField
-            label="Stars"
-            value={settings.shootingStarsStarColor}
-            onValueChange={(nextColor) => onSettingsChange({ shootingStarsStarColor: nextColor })}
-            pickerLabel="Shooting stars background star color"
-          />
-          <ColorField
-            label="Trail"
-            value={settings.shootingStarsTrailColor}
-            onValueChange={(nextColor) => onSettingsChange({ shootingStarsTrailColor: nextColor })}
-            pickerLabel="Shooting stars trail color"
-          />
-          <ColorField
-            label="Shooting star"
-            value={settings.shootingStarsShootingStarColor}
-            onValueChange={(nextColor) => onSettingsChange({ shootingStarsShootingStarColor: nextColor })}
-            pickerLabel="Shooting star color"
-          />
+          <></>
+          <></>
+          <></>
           <label className={styles.rangeRow}>
             <span>Star density</span>
             <input
@@ -5335,42 +5229,12 @@ export function SetTimer({
     if (option.id === "massage-lab-wavy-background") {
       return (
         <div className={styles.backgroundCardControls}>
-          <ColorField
-            label="Background"
-            value={settings.wavyBackgroundFill}
-            onValueChange={(nextColor) => onSettingsChange({ wavyBackgroundFill: nextColor })}
-            pickerLabel="Wave flow fill color"
-          />
-          <ColorField
-            label="Wave 1"
-            value={settings.wavyColorOne}
-            onValueChange={(nextColor) => onSettingsChange({ wavyColorOne: nextColor })}
-            pickerLabel="Wavy first wave color"
-          />
-          <ColorField
-            label="Wave 2"
-            value={settings.wavyColorTwo}
-            onValueChange={(nextColor) => onSettingsChange({ wavyColorTwo: nextColor })}
-            pickerLabel="Wavy second wave color"
-          />
-          <ColorField
-            label="Wave 3"
-            value={settings.wavyColorThree}
-            onValueChange={(nextColor) => onSettingsChange({ wavyColorThree: nextColor })}
-            pickerLabel="Wavy third wave color"
-          />
-          <ColorField
-            label="Wave 4"
-            value={settings.wavyColorFour}
-            onValueChange={(nextColor) => onSettingsChange({ wavyColorFour: nextColor })}
-            pickerLabel="Wavy fourth wave color"
-          />
-          <ColorField
-            label="Wave 5"
-            value={settings.wavyColorFive}
-            onValueChange={(nextColor) => onSettingsChange({ wavyColorFive: nextColor })}
-            pickerLabel="Wavy fifth wave color"
-          />
+          <></>
+          <></>
+          <></>
+          <></>
+          <></>
+          <></>
           <label className={styles.rangeRow}>
             <span>Wave width</span>
             <input
@@ -5427,65 +5291,18 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <ColorField
-            label="Background"
-            value={settings.auroraBarsBackgroundColor}
-            onValueChange={(nextColor) => onSettingsChange({ auroraBarsBackgroundColor: nextColor })}
-            pickerLabel="Aurora bars background color"
-          />
-          <label className={styles.selectRow}>
-            <span>Palette</span>
-            <select
-              value={settings.auroraBarsPaletteMode}
-              onChange={(event) => onSettingsChange({
-                auroraBarsPaletteMode: event.target.value as ChimerSettings["auroraBarsPaletteMode"],
-              })}
-              aria-label="Aurora bars palette mode"
-            >
-              <option value="auto">Auto monochrome</option>
-              <option value="custom">Custom five colors</option>
-            </select>
-          </label>
+          <></>
+          <></>
           {useCustomPalette ? (
             <>
-              <ColorField
-                label="Bar color 1"
-                value={settings.auroraBarsColorOne}
-                onValueChange={(nextColor) => onSettingsChange({ auroraBarsColorOne: nextColor })}
-                pickerLabel="Aurora bars first color"
-              />
-              <ColorField
-                label="Bar color 2"
-                value={settings.auroraBarsColorTwo}
-                onValueChange={(nextColor) => onSettingsChange({ auroraBarsColorTwo: nextColor })}
-                pickerLabel="Aurora bars second color"
-              />
-              <ColorField
-                label="Bar color 3"
-                value={settings.auroraBarsColorThree}
-                onValueChange={(nextColor) => onSettingsChange({ auroraBarsColorThree: nextColor })}
-                pickerLabel="Aurora bars third color"
-              />
-              <ColorField
-                label="Bar color 4"
-                value={settings.auroraBarsColorFour}
-                onValueChange={(nextColor) => onSettingsChange({ auroraBarsColorFour: nextColor })}
-                pickerLabel="Aurora bars fourth color"
-              />
-              <ColorField
-                label="Bar color 5"
-                value={settings.auroraBarsColorFive}
-                onValueChange={(nextColor) => onSettingsChange({ auroraBarsColorFive: nextColor })}
-                pickerLabel="Aurora bars fifth color"
-              />
+              <></>
+              <></>
+              <></>
+              <></>
+              <></>
             </>
           ) : (
-            <ColorField
-              label="Primary color"
-              value={settings.auroraBarsPrimaryColor}
-              onValueChange={(nextColor) => onSettingsChange({ auroraBarsPrimaryColor: nextColor })}
-              pickerLabel="Aurora bars primary color"
-            />
+            <></>
           )}
           <label className={styles.rangeRow}>
             <span>Bars ({settings.auroraBarsBarCount})</span>
@@ -5566,30 +5383,10 @@ export function SetTimer({
     if (option.id === "massage-lab-pixel-liquid") {
       return (
         <div className={styles.backgroundCardControls}>
-          <ColorField
-            label="Background color"
-            value={settings.pixelLiquidBackgroundColor}
-            onValueChange={(nextColor) => onSettingsChange({ pixelLiquidBackgroundColor: nextColor })}
-            pickerLabel="Pixel liquid background color"
-          />
-          <ColorField
-            label="Base color"
-            value={settings.pixelLiquidBaseColor}
-            onValueChange={(nextColor) => onSettingsChange({ pixelLiquidBaseColor: nextColor })}
-            pickerLabel="Pixel liquid base color"
-          />
-          <ColorField
-            label="Accent color"
-            value={settings.pixelLiquidAccentColor}
-            onValueChange={(nextColor) => onSettingsChange({ pixelLiquidAccentColor: nextColor })}
-            pickerLabel="Pixel liquid accent color"
-          />
-          <ColorField
-            label="Highlight color"
-            value={settings.pixelLiquidHighlightColor}
-            onValueChange={(nextColor) => onSettingsChange({ pixelLiquidHighlightColor: nextColor })}
-            pickerLabel="Pixel liquid highlight color"
-          />
+          <></>
+          <></>
+          <></>
+          <></>
           <label className={styles.selectRow}>
             <span>Detail</span>
             <select
@@ -5637,59 +5434,17 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Palette</span>
-            <select
-              value={settings.tileGridPaletteMode}
-              onChange={(event) => onSettingsChange({
-                tileGridPaletteMode: event.target.value as ChimerSettings["tileGridPaletteMode"],
-              })}
-              aria-label="Tile grid palette mode"
-            >
-              <option value="auto">Auto from primary</option>
-              <option value="custom">Custom five colors</option>
-            </select>
-          </label>
+          <></>
           {useCustomPalette ? (
             <>
-              <ColorField
-                label="Color 1"
-                value={settings.tileGridColorOne}
-                onValueChange={(nextColor) => onSettingsChange({ tileGridColorOne: nextColor })}
-                pickerLabel="Tile grid first color"
-              />
-              <ColorField
-                label="Color 2"
-                value={settings.tileGridColorTwo}
-                onValueChange={(nextColor) => onSettingsChange({ tileGridColorTwo: nextColor })}
-                pickerLabel="Tile grid second color"
-              />
-              <ColorField
-                label="Color 3"
-                value={settings.tileGridColorThree}
-                onValueChange={(nextColor) => onSettingsChange({ tileGridColorThree: nextColor })}
-                pickerLabel="Tile grid third color"
-              />
-              <ColorField
-                label="Color 4"
-                value={settings.tileGridColorFour}
-                onValueChange={(nextColor) => onSettingsChange({ tileGridColorFour: nextColor })}
-                pickerLabel="Tile grid fourth color"
-              />
-              <ColorField
-                label="Color 5"
-                value={settings.tileGridColorFive}
-                onValueChange={(nextColor) => onSettingsChange({ tileGridColorFive: nextColor })}
-                pickerLabel="Tile grid fifth color"
-              />
+              <></>
+              <></>
+              <></>
+              <></>
+              <></>
             </>
           ) : (
-            <ColorField
-              label="Primary color"
-              value={settings.tileGridPrimaryColor}
-              onValueChange={(nextColor) => onSettingsChange({ tileGridPrimaryColor: nextColor })}
-              pickerLabel="Tile grid primary color"
-            />
+            <></>
           )}
           <label className={styles.rangeRow}>
             <span>Tile size ({settings.tileGridTileSize}px)</span>
@@ -5753,28 +5508,8 @@ export function SetTimer({
     if (option.id === "massage-lab-hex-grid") {
       return (
         <div className={styles.backgroundCardControls}>
-          <ColorField
-            label="Primary color"
-            value={settings.hexGridPrimaryColor}
-            onValueChange={(nextColor) => onSettingsChange({ hexGridPrimaryColor: nextColor })}
-            pickerLabel="Hex grid primary color"
-          />
-          <label className={styles.selectRow}>
-            <span>Color harmony</span>
-            <select
-              value={settings.hexGridHarmony}
-              onChange={(event) => onSettingsChange({
-                hexGridHarmony: event.target.value as ChimerSettings["hexGridHarmony"],
-              })}
-              aria-label="Hex grid color harmony"
-            >
-              {COLOR_HARMONY_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <></>
+          <></>
           <label className={styles.rangeRow}>
             <span>Hex size ({settings.hexGridHexSize}px)</span>
             <input
@@ -5837,12 +5572,7 @@ export function SetTimer({
     if (option.id === "massage-lab-light-speed") {
       return (
         <div className={styles.backgroundCardControls}>
-          <ColorField
-            label="Light color"
-            value={settings.massageLabLightSpeedLightColor}
-            onValueChange={(nextColor) => onSettingsChange({ massageLabLightSpeedLightColor: nextColor })}
-            pickerLabel="Light Speed light color"
-          />
+          <></>
           <label className={styles.rangeRow}>
             <span>Warp speed ({settings.massageLabLightSpeedWarpSpeed.toFixed(2)}x)</span>
             <input
@@ -5910,12 +5640,7 @@ export function SetTimer({
     if (option.id === "massage-lab-electric-mist") {
       return (
         <div className={styles.backgroundCardControls}>
-          <ColorField
-            label="Lightning color"
-            value={settings.massageLabElectricMistColor}
-            onValueChange={(nextColor) => onSettingsChange({ massageLabElectricMistColor: nextColor })}
-            pickerLabel="Electric Mist lightning color"
-          />
+          <></>
           <label className={styles.rangeRow}>
             <span>Animation speed ({Math.round(settings.massageLabElectricMistSpeed)}%)</span>
             <input
@@ -5974,64 +5699,17 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabAstralFlowPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabAstralFlowPaletteMode: event.target.value as MassageLabAstralFlowPaletteMode,
-              })}
-              aria-label="Astral Flow color mode"
-            >
-              <option value="custom">Custom colors</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
           {useCustomPalette ? (
             <>
-              <ColorField
-                label="Color 1 (deep)"
-                value={settings.massageLabAstralFlowColorOne}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabAstralFlowColorOne: nextColor })}
-                pickerLabel="Astral Flow color 1"
-              />
-              <ColorField
-                label="Color 2 (mid)"
-                value={settings.massageLabAstralFlowColorTwo}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabAstralFlowColorTwo: nextColor })}
-                pickerLabel="Astral Flow color 2"
-              />
-              <ColorField
-                label="Color 3 (highlights)"
-                value={settings.massageLabAstralFlowColorThree}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabAstralFlowColorThree: nextColor })}
-                pickerLabel="Astral Flow color 3"
-              />
+              <></>
+              <></>
+              <></>
             </>
           ) : (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabAstralFlowPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabAstralFlowPrimaryColor: nextColor })}
-                pickerLabel="Astral Flow primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Color harmony</span>
-                <select
-                  value={settings.massageLabAstralFlowHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabAstralFlowHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="Astral Flow color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           )}
           <label className={styles.rangeRow}>
@@ -6082,65 +5760,18 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabDeepSpaceNebulaPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabDeepSpaceNebulaPaletteMode: event.target.value as MassageLabDeepSpaceNebulaPaletteMode,
-              })}
-              aria-label="Deep Space Nebula color mode"
-            >
-              <option value="custom">Custom colors</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useCustomPalette ? (
             <>
-              <ColorField
-                label="Highlight"
-                value={settings.massageLabDeepSpaceNebulaColorOne}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabDeepSpaceNebulaColorOne: nextColor })}
-                pickerLabel="Deep Space Nebula highlight color"
-              />
-              <ColorField
-                label="Nebula cloud"
-                value={settings.massageLabDeepSpaceNebulaColorTwo}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabDeepSpaceNebulaColorTwo: nextColor })}
-                pickerLabel="Deep Space Nebula cloud color"
-              />
-              <ColorField
-                label="Deep space"
-                value={settings.massageLabDeepSpaceNebulaColorThree}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabDeepSpaceNebulaColorThree: nextColor })}
-                pickerLabel="Deep Space Nebula deep-space color"
-              />
+              <></>
+              <></>
+              <></>
             </>
           ) : (
             <>
-              <ColorField
-                label="Nebula color"
-                value={settings.massageLabDeepSpaceNebulaPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabDeepSpaceNebulaPrimaryColor: nextColor })}
-                pickerLabel="Deep Space Nebula primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Color harmony</span>
-                <select
-                  value={settings.massageLabDeepSpaceNebulaHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabDeepSpaceNebulaHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="Deep Space Nebula color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           )}
 
@@ -6167,12 +5798,7 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <ColorField
-            label="Bloom color"
-            value={settings.massageLabGridBloomColor}
-            onValueChange={(nextColor) => onSettingsChange({ massageLabGridBloomColor: nextColor })}
-            pickerLabel="Grid Bloom bloom color"
-          />
+          <></>
           <label className={styles.rangeRow}>
             <span>Animation speed ({gridBloomDisplaySpeed}%)</span>
             <input
@@ -6272,59 +5898,17 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabChromeFlowPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabChromeFlowPaletteMode: event.target.value as MassageLabChromeFlowPaletteMode,
-              })}
-              aria-label="Liquid Chrome color mode"
-            >
-              <option value="custom">Custom colors</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useCustomPalette ? (
             <>
-              <ColorField
-                label="Chrome color"
-                value={settings.massageLabChromeFlowColorOne}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabChromeFlowColorOne: nextColor })}
-                pickerLabel="Liquid Chrome chrome color"
-              />
-              <ColorField
-                label="Shadow color"
-                value={settings.massageLabChromeFlowColorTwo}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabChromeFlowColorTwo: nextColor })}
-                pickerLabel="Liquid Chrome shadow color"
-              />
+              <></>
+              <></>
             </>
           ) : (
             <>
-              <ColorField
-                label="Primary chrome"
-                value={settings.massageLabChromeFlowPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabChromeFlowPrimaryColor: nextColor })}
-                pickerLabel="Liquid Chrome primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Color harmony</span>
-                <select
-                  value={settings.massageLabChromeFlowHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabChromeFlowHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="Liquid Chrome color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           )}
 
@@ -6364,26 +5948,11 @@ export function SetTimer({
     if (option.id === "massage-lab-retro-grid") {
       return (
         <div className={styles.backgroundCardControls}>
-          <ColorField
-            label="Background"
-            value={settings.massageLabRetroGridBackgroundColor}
-            onValueChange={(nextColor) => onSettingsChange({ massageLabRetroGridBackgroundColor: nextColor })}
-            pickerLabel="Retro Grid background color"
-          />
+          <></>
 
-          <ColorField
-            label="Light line color"
-            value={settings.massageLabRetroGridLightLineColor}
-            onValueChange={(nextColor) => onSettingsChange({ massageLabRetroGridLightLineColor: nextColor })}
-            pickerLabel="Retro Grid light line color"
-          />
+          <></>
 
-          <ColorField
-            label="Dark line color"
-            value={settings.massageLabRetroGridDarkLineColor}
-            onValueChange={(nextColor) => onSettingsChange({ massageLabRetroGridDarkLineColor: nextColor })}
-            pickerLabel="Retro Grid dark line color"
-          />
+          <></>
 
           <label className={styles.rangeRow}>
             <span>Angle ({settings.massageLabRetroGridAngle.toFixed(0)} deg)</span>
@@ -6448,33 +6017,13 @@ export function SetTimer({
             </select>
           </label>
 
-          <ColorField
-            label="Background"
-            value={settings.massageLab3DGlobeBackgroundColor}
-            onValueChange={(nextColor) => onSettingsChange({ massageLab3DGlobeBackgroundColor: nextColor })}
-            pickerLabel="3D Globe background color"
-          />
+          <></>
 
           {isGraphicGlobe ? (
             <>
-              <ColorField
-                label="Map dots"
-                value={settings.massageLab3DGlobeGraphicMapColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLab3DGlobeGraphicMapColor: nextColor })}
-                pickerLabel="3D Globe graphic map dot color"
-              />
-              <ColorField
-                label="Outer Glow"
-                value={settings.massageLab3DGlobeGraphicGlowColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLab3DGlobeGraphicGlowColor: nextColor })}
-                pickerLabel="3D Globe graphic outer glow color"
-              />
-              <ColorField
-                label="Marker dots"
-                value={settings.massageLab3DGlobeGraphicMarkerColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLab3DGlobeGraphicMarkerColor: nextColor })}
-                pickerLabel="3D Globe graphic marker color"
-              />
+              <></>
+              <></>
+              <></>
               <label className={styles.rangeRow}>
                 <span>Dot density ({Math.round(settings.massageLab3DGlobeGraphicMapSamples / 1000)}k)</span>
                 <input
@@ -6491,12 +6040,7 @@ export function SetTimer({
               </label>
             </>
           ) : (
-            <ColorField
-              label="Globe tint"
-              value={settings.massageLab3DGlobeGlobeColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLab3DGlobeGlobeColor: nextColor })}
-              pickerLabel="3D Globe tint color"
-            />
+            <></>
           )}
 
           {!followSun && (
@@ -6641,12 +6185,7 @@ export function SetTimer({
 
               {settings.massageLab3DGlobeShowAtmosphere && (
                 <>
-                  <ColorField
-                    label="Atmosphere color"
-                    value={settings.massageLab3DGlobeAtmosphereColor}
-                    onValueChange={(nextColor) => onSettingsChange({ massageLab3DGlobeAtmosphereColor: nextColor })}
-                    pickerLabel="3D Globe atmosphere color"
-                  />
+                  <></>
                   <label className={styles.rangeRow}>
                     <span>Atmosphere ({settings.massageLab3DGlobeAtmosphereIntensity.toFixed(1)})</span>
                     <input
@@ -6685,12 +6224,7 @@ export function SetTimer({
               </label>
 
               {settings.massageLab3DGlobeShowWireframe && (
-                <ColorField
-                  label="Wireframe color"
-                  value={settings.massageLab3DGlobeWireframeColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLab3DGlobeWireframeColor: nextColor })}
-                  pickerLabel="3D Globe wireframe color"
-                />
+                <></>
               )}
             </>
           )}
@@ -6787,19 +6321,9 @@ export function SetTimer({
     if (option.id === "massage-lab-aerial-rays") {
       return (
         <div className={styles.backgroundCardControls}>
-          <ColorField
-            label="Background"
-            value={settings.massageLabAerialRaysBackgroundColor}
-            onValueChange={(nextColor) => onSettingsChange({ massageLabAerialRaysBackgroundColor: nextColor })}
-            pickerLabel="Aerial Rays background color"
-          />
+          <></>
 
-          <ColorField
-            label="Ray color"
-            value={settings.massageLabAerialRaysColor}
-            onValueChange={(nextColor) => onSettingsChange({ massageLabAerialRaysColor: nextColor })}
-            pickerLabel="Aerial Rays color"
-          />
+          <></>
 
           <label className={styles.rangeRow}>
             <span>Ray count ({settings.massageLabAerialRaysCount})</span>
@@ -6876,71 +6400,19 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabWaveCurrentPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabWaveCurrentPaletteMode: event.target.value as MassageLabWaveCurrentPaletteMode,
-              })}
-              aria-label="Waves color mode"
-            >
-              <option value="custom">Custom colors</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useCustomPalette ? (
             <>
-              <ColorField
-                label="Background"
-                value={settings.massageLabWaveCurrentBackgroundColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabWaveCurrentBackgroundColor: nextColor })}
-                pickerLabel="Waves background color"
-              />
-              <ColorField
-                label="Primary wave"
-                value={settings.massageLabWaveCurrentColorOne}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabWaveCurrentColorOne: nextColor })}
-                pickerLabel="Waves primary wave color"
-              />
-              <ColorField
-                label="Highlight"
-                value={settings.massageLabWaveCurrentColorTwo}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabWaveCurrentColorTwo: nextColor })}
-                pickerLabel="Waves highlight color"
-              />
-              <ColorField
-                label="Valley"
-                value={settings.massageLabWaveCurrentColorThree}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabWaveCurrentColorThree: nextColor })}
-                pickerLabel="Waves valley color"
-              />
+              <></>
+              <></>
+              <></>
+              <></>
             </>
           ) : (
             <>
-              <ColorField
-                label="Primary wave"
-                value={settings.massageLabWaveCurrentPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabWaveCurrentPrimaryColor: nextColor })}
-                pickerLabel="Waves primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Color harmony</span>
-                <select
-                  value={settings.massageLabWaveCurrentHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabWaveCurrentHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="Waves color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           )}
 
@@ -6995,65 +6467,18 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabFerrofluidPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabFerrofluidPaletteMode: event.target.value as MassageLabFerrofluidPaletteMode,
-              })}
-              aria-label="Ferrofluid color mode"
-            >
-              <option value="custom">Custom colors</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useCustomPalette ? (
             <>
-              <ColorField
-                label="Color 1"
-                value={settings.massageLabFerrofluidColorOne}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabFerrofluidColorOne: nextColor })}
-                pickerLabel="Ferrofluid first color"
-              />
-              <ColorField
-                label="Color 2"
-                value={settings.massageLabFerrofluidColorTwo}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabFerrofluidColorTwo: nextColor })}
-                pickerLabel="Ferrofluid second color"
-              />
-              <ColorField
-                label="Color 3"
-                value={settings.massageLabFerrofluidColorThree}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabFerrofluidColorThree: nextColor })}
-                pickerLabel="Ferrofluid third color"
-              />
+              <></>
+              <></>
+              <></>
             </>
           ) : (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabFerrofluidPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabFerrofluidPrimaryColor: nextColor })}
-                pickerLabel="Ferrofluid primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Color harmony</span>
-                <select
-                  value={settings.massageLabFerrofluidHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabFerrofluidHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="Ferrofluid color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           )}
 
@@ -7198,74 +6623,22 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabLightfallPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabLightfallPaletteMode: event.target.value as MassageLabLightfallPaletteMode,
-              })}
-              aria-label="Lightfall color mode"
-            >
-              <option value="custom">Custom colors</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useCustomPalette ? (
             <>
-              <ColorField
-                label="Color 1"
-                value={settings.massageLabLightfallColorOne}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabLightfallColorOne: nextColor })}
-                pickerLabel="Lightfall first color"
-              />
-              <ColorField
-                label="Color 2"
-                value={settings.massageLabLightfallColorTwo}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabLightfallColorTwo: nextColor })}
-                pickerLabel="Lightfall second color"
-              />
-              <ColorField
-                label="Color 3"
-                value={settings.massageLabLightfallColorThree}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabLightfallColorThree: nextColor })}
-                pickerLabel="Lightfall third color"
-              />
+              <></>
+              <></>
+              <></>
             </>
           ) : (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabLightfallPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabLightfallPrimaryColor: nextColor })}
-                pickerLabel="Lightfall primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Color harmony</span>
-                <select
-                  value={settings.massageLabLightfallHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabLightfallHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="Lightfall color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           )}
 
-          <ColorField
-            label="Background"
-            value={settings.massageLabLightfallBackgroundColor}
-            onValueChange={(nextColor) => onSettingsChange({ massageLabLightfallBackgroundColor: nextColor })}
-            pickerLabel="Lightfall background color"
-          />
+          <></>
 
           <label className={styles.rangeRow}>
             <span>Animation speed ({settings.massageLabLightfallSpeed.toFixed(2)}x)</span>
@@ -7464,65 +6837,18 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabLiquidEtherPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabLiquidEtherPaletteMode: event.target.value as MassageLabLiquidEtherPaletteMode,
-              })}
-              aria-label="Liquid Ether color mode"
-            >
-              <option value="custom">Custom colors</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useCustomPalette ? (
             <>
-              <ColorField
-                label="Color 1"
-                value={settings.massageLabLiquidEtherColorOne}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabLiquidEtherColorOne: nextColor })}
-                pickerLabel="Liquid Ether first color"
-              />
-              <ColorField
-                label="Color 2"
-                value={settings.massageLabLiquidEtherColorTwo}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabLiquidEtherColorTwo: nextColor })}
-                pickerLabel="Liquid Ether second color"
-              />
-              <ColorField
-                label="Color 3"
-                value={settings.massageLabLiquidEtherColorThree}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabLiquidEtherColorThree: nextColor })}
-                pickerLabel="Liquid Ether third color"
-              />
+              <></>
+              <></>
+              <></>
             </>
           ) : (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabLiquidEtherPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabLiquidEtherPrimaryColor: nextColor })}
-                pickerLabel="Liquid Ether primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Color harmony</span>
-                <select
-                  value={settings.massageLabLiquidEtherHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabLiquidEtherHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="Liquid Ether color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           )}
 
@@ -8071,59 +7397,17 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabLightPillarPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabLightPillarPaletteMode: event.target.value as MassageLabLightPillarPaletteMode,
-              })}
-              aria-label="Light Pillar color mode"
-            >
-              <option value="custom">Custom colors</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useCustomPalette ? (
             <>
-              <ColorField
-                label="Top color"
-                value={settings.massageLabLightPillarTopColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabLightPillarTopColor: nextColor })}
-                pickerLabel="Light Pillar top color"
-              />
-              <ColorField
-                label="Bottom color"
-                value={settings.massageLabLightPillarBottomColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabLightPillarBottomColor: nextColor })}
-                pickerLabel="Light Pillar bottom color"
-              />
+              <></>
+              <></>
             </>
           ) : (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabLightPillarPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabLightPillarPrimaryColor: nextColor })}
-                pickerLabel="Light Pillar primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Color harmony</span>
-                <select
-                  value={settings.massageLabLightPillarHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabLightPillarHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="Light Pillar color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           )}
 
@@ -8267,51 +7551,14 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabSilkPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabSilkPaletteMode: event.target.value as MassageLabSilkPaletteMode,
-              })}
-              aria-label="Silk color mode"
-            >
-              <option value="custom">Custom color</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useCustomColor ? (
-            <ColorField
-              label="Silk color"
-              value={settings.massageLabSilkColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabSilkColor: nextColor })}
-              pickerLabel="Silk color"
-            />
+            <></>
           ) : (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabSilkPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabSilkPrimaryColor: nextColor })}
-                pickerLabel="Silk primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Color harmony</span>
-                <select
-                  value={settings.massageLabSilkHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabSilkHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="Silk color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           )}
 
@@ -8376,68 +7623,20 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabFloatingLinesPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabFloatingLinesPaletteMode: event.target.value as MassageLabFloatingLinesPaletteMode,
-              })}
-              aria-label="Floating Lines color mode"
-            >
-              <option value="source">Source blue/pink</option>
-              <option value="custom">Custom gradient</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useCustomGradient && (
             <>
-              <ColorField
-                label="Gradient 1"
-                value={settings.massageLabFloatingLinesColorOne}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabFloatingLinesColorOne: nextColor })}
-                pickerLabel="Floating Lines gradient color 1"
-              />
-              <ColorField
-                label="Gradient 2"
-                value={settings.massageLabFloatingLinesColorTwo}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabFloatingLinesColorTwo: nextColor })}
-                pickerLabel="Floating Lines gradient color 2"
-              />
-              <ColorField
-                label="Gradient 3"
-                value={settings.massageLabFloatingLinesColorThree}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabFloatingLinesColorThree: nextColor })}
-                pickerLabel="Floating Lines gradient color 3"
-              />
+              <></>
+              <></>
+              <></>
             </>
           )}
 
           {useHarmonyGradient && (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabFloatingLinesPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabFloatingLinesPrimaryColor: nextColor })}
-                pickerLabel="Floating Lines primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Color harmony</span>
-                <select
-                  value={settings.massageLabFloatingLinesHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabFloatingLinesHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="Floating Lines color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           )}
 
@@ -8643,62 +7842,19 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabSideRaysPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabSideRaysPaletteMode: event.target.value as MassageLabSideRaysPaletteMode,
-              })}
-              aria-label="Side Rays color mode"
-            >
-              <option value="source">Source yellow/blue</option>
-              <option value="custom">Custom rays</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useCustomRays && (
             <>
-              <ColorField
-                label="Ray color 1"
-                value={settings.massageLabSideRaysColorOne}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabSideRaysColorOne: nextColor })}
-                pickerLabel="Side Rays color 1"
-              />
-              <ColorField
-                label="Ray color 2"
-                value={settings.massageLabSideRaysColorTwo}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabSideRaysColorTwo: nextColor })}
-                pickerLabel="Side Rays color 2"
-              />
+              <></>
+              <></>
             </>
           )}
 
           {useHarmonyRays && (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabSideRaysPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabSideRaysPrimaryColor: nextColor })}
-                pickerLabel="Side Rays primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Color harmony</span>
-                <select
-                  value={settings.massageLabSideRaysHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabSideRaysHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="Side Rays color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           )}
 
@@ -8831,54 +7987,16 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabLightRaysPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabLightRaysPaletteMode: event.target.value as MassageLabLightRaysPaletteMode,
-              })}
-              aria-label="Light Rays color mode"
-            >
-              <option value="source">Source white</option>
-              <option value="custom">Custom ray</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useCustomRayColor && (
-            <ColorField
-              label="Ray color"
-              value={settings.massageLabLightRaysColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabLightRaysColor: nextColor })}
-              pickerLabel="Light Rays color"
-            />
+            <></>
           )}
 
           {useHarmonyRayColor && (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabLightRaysPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabLightRaysPrimaryColor: nextColor })}
-                pickerLabel="Light Rays primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Color harmony</span>
-                <select
-                  value={settings.massageLabLightRaysHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabLightRaysHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="Light Rays color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           )}
 
@@ -9035,54 +8153,16 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabPixelBlastPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabPixelBlastPaletteMode: event.target.value as MassageLabPixelBlastPaletteMode,
-              })}
-              aria-label="MassageLab Pixel Blast color mode"
-            >
-              <option value="source">Source lavender</option>
-              <option value="custom">Custom pixel</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useCustomPixelColor && (
-            <ColorField
-              label="Pixel color"
-              value={settings.massageLabPixelBlastColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabPixelBlastColor: nextColor })}
-              pickerLabel="MassageLab Pixel Blast color"
-            />
+            <></>
           )}
 
           {useHarmonyPixelColor && (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabPixelBlastPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabPixelBlastPrimaryColor: nextColor })}
-                pickerLabel="MassageLab Pixel Blast primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Color harmony</span>
-                <select
-                  value={settings.massageLabPixelBlastHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabPixelBlastHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="MassageLab Pixel Blast color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           )}
 
@@ -9334,64 +8414,18 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabColorBendsPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabColorBendsPaletteMode: event.target.value as MassageLabColorBendsPaletteMode,
-              })}
-              aria-label="MassageLab Color Bends color mode"
-            >
-              <option value="source">Source RGB bands</option>
-              <option value="custom">Custom bends</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useCustomBendColors && (
             <>
-              {[
-                ["Color 1", "massageLabColorBendsColorOne"],
-                ["Color 2", "massageLabColorBendsColorTwo"],
-                ["Color 3", "massageLabColorBendsColorThree"],
-                ["Color 4", "massageLabColorBendsColorFour"],
-              ].map(([label, key]) => (
-                <ColorField
-                  key={key}
-                  label={label}
-                  value={settings[key as keyof ChimerSettings] as string}
-                  onValueChange={(nextColor) => onSettingsChange({ [key]: nextColor })}
-                  pickerLabel={`MassageLab Color Bends ${label.toLowerCase()}`}
-                />
-              ))}
+              <></>
             </>
           )}
 
           {useHarmonyBendColors && (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabColorBendsPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabColorBendsPrimaryColor: nextColor })}
-                pickerLabel="MassageLab Color Bends primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Color harmony</span>
-                <select
-                  value={settings.massageLabColorBendsHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabColorBendsHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="MassageLab Color Bends color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           )}
 
@@ -9580,63 +8614,20 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabEvilEyePaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabEvilEyePaletteMode: event.target.value as MassageLabEvilEyePaletteMode,
-              })}
-              aria-label="MassageLab Evil Eye color mode"
-            >
-              <option value="source">Source orange</option>
-              <option value="custom">Custom eye</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useCustomEyeColor && (
-            <ColorField
-              label="Eye color"
-              value={settings.massageLabEvilEyeColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabEvilEyeColor: nextColor })}
-              pickerLabel="MassageLab Evil Eye eye color"
-            />
+            <></>
           )}
 
           {useHarmonyEyeColor && (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabEvilEyePrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabEvilEyePrimaryColor: nextColor })}
-                pickerLabel="MassageLab Evil Eye primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Color harmony</span>
-                <select
-                  value={settings.massageLabEvilEyeHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabEvilEyeHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="MassageLab Evil Eye color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           )}
 
-          <ColorField
-            label="Background"
-            value={settings.massageLabEvilEyeBackgroundColor}
-            onValueChange={(nextColor) => onSettingsChange({ massageLabEvilEyeBackgroundColor: nextColor })}
-            pickerLabel="MassageLab Evil Eye background color"
-          />
+          <></>
 
           <label className={styles.selectRow}>
             <input
@@ -9761,68 +8752,20 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabLineWavesPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabLineWavesPaletteMode: event.target.value as MassageLabLineWavesPaletteMode,
-              })}
-              aria-label="MassageLab Line Waves color mode"
-            >
-              <option value="source">Source white</option>
-              <option value="custom">Custom lines</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useCustomColors && (
             <>
-              <ColorField
-                label="Color 1"
-                value={settings.massageLabLineWavesColorOne}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabLineWavesColorOne: nextColor })}
-                pickerLabel="MassageLab Line Waves color 1"
-              />
-              <ColorField
-                label="Color 2"
-                value={settings.massageLabLineWavesColorTwo}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabLineWavesColorTwo: nextColor })}
-                pickerLabel="MassageLab Line Waves color 2"
-              />
-              <ColorField
-                label="Color 3"
-                value={settings.massageLabLineWavesColorThree}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabLineWavesColorThree: nextColor })}
-                pickerLabel="MassageLab Line Waves color 3"
-              />
+              <></>
+              <></>
+              <></>
             </>
           )}
 
           {useHarmonyColors && (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabLineWavesPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabLineWavesPrimaryColor: nextColor })}
-                pickerLabel="MassageLab Line Waves primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Color harmony</span>
-                <select
-                  value={settings.massageLabLineWavesHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabLineWavesHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="MassageLab Line Waves color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           )}
 
@@ -9964,63 +8907,20 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabRadarPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabRadarPaletteMode: event.target.value as MassageLabRadarPaletteMode,
-              })}
-              aria-label="MassageLab Radar color mode"
-            >
-              <option value="source">Source purple</option>
-              <option value="custom">Custom radar</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useCustomColor && (
-            <ColorField
-              label="Radar color"
-              value={settings.massageLabRadarColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabRadarColor: nextColor })}
-              pickerLabel="MassageLab Radar color"
-            />
+            <></>
           )}
 
           {useHarmonyColor && (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabRadarPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabRadarPrimaryColor: nextColor })}
-                pickerLabel="MassageLab Radar primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Color harmony</span>
-                <select
-                  value={settings.massageLabRadarHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabRadarHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="MassageLab Radar color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           )}
 
-          <ColorField
-            label="Background"
-            value={settings.massageLabRadarBackgroundColor}
-            onValueChange={(nextColor) => onSettingsChange({ massageLabRadarBackgroundColor: nextColor })}
-            pickerLabel="MassageLab Radar background color"
-          />
+          <></>
 
           <label className={styles.selectRow}>
             <input
@@ -10199,62 +9099,19 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabSoftAuroraPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabSoftAuroraPaletteMode: event.target.value as MassageLabSoftAuroraPaletteMode,
-              })}
-              aria-label="MassageLab Soft Aurora color mode"
-            >
-              <option value="source">Source white and magenta</option>
-              <option value="custom">Custom aurora</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useCustomColor ? (
             <>
-              <ColorField
-                label="Aurora color 1"
-                value={settings.massageLabSoftAuroraColorOne}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabSoftAuroraColorOne: nextColor })}
-                pickerLabel="MassageLab Soft Aurora color 1"
-              />
-              <ColorField
-                label="Aurora color 2"
-                value={settings.massageLabSoftAuroraColorTwo}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabSoftAuroraColorTwo: nextColor })}
-                pickerLabel="MassageLab Soft Aurora color 2"
-              />
+              <></>
+              <></>
             </>
           ) : null}
 
           {useHarmonyColor ? (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabSoftAuroraPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabSoftAuroraPrimaryColor: nextColor })}
-                pickerLabel="MassageLab Soft Aurora primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Harmony</span>
-                <select
-                  value={settings.massageLabSoftAuroraHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabSoftAuroraHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="MassageLab Soft Aurora color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           ) : null}
 
@@ -10428,54 +9285,16 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabPlasmaPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabPlasmaPaletteMode: event.target.value as MassageLabPlasmaPaletteMode,
-              })}
-              aria-label="MassageLab Plasma color mode"
-            >
-              <option value="source">Source white</option>
-              <option value="custom">Custom plasma</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useCustomColor ? (
-            <ColorField
-              label="Plasma color"
-              value={settings.massageLabPlasmaColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabPlasmaColor: nextColor })}
-              pickerLabel="MassageLab Plasma color"
-            />
+            <></>
           ) : null}
 
           {useHarmonyColor ? (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabPlasmaPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabPlasmaPrimaryColor: nextColor })}
-                pickerLabel="MassageLab Plasma primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Harmony</span>
-                <select
-                  value={settings.massageLabPlasmaHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabPlasmaHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="MassageLab Plasma color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           ) : null}
 
@@ -10552,62 +9371,19 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabPlasmaWavePaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabPlasmaWavePaletteMode: event.target.value as MassageLabPlasmaWavePaletteMode,
-              })}
-              aria-label="MassageLab Plasma Wave color mode"
-            >
-              <option value="source">Source violet and cyan</option>
-              <option value="custom">Custom waves</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useCustomColor ? (
             <>
-              <ColorField
-                label="Wave color 1"
-                value={settings.massageLabPlasmaWaveColorOne}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabPlasmaWaveColorOne: nextColor })}
-                pickerLabel="MassageLab Plasma Wave color 1"
-              />
-              <ColorField
-                label="Wave color 2"
-                value={settings.massageLabPlasmaWaveColorTwo}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabPlasmaWaveColorTwo: nextColor })}
-                pickerLabel="MassageLab Plasma Wave color 2"
-              />
+              <></>
+              <></>
             </>
           ) : null}
 
           {useHarmonyColor ? (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabPlasmaWavePrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabPlasmaWavePrimaryColor: nextColor })}
-                pickerLabel="MassageLab Plasma Wave primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Harmony</span>
-                <select
-                  value={settings.massageLabPlasmaWaveHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabPlasmaWaveHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="MassageLab Plasma Wave color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           ) : null}
 
@@ -10738,68 +9514,20 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabParticlesPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabParticlesPaletteMode: event.target.value as MassageLabParticlesPaletteMode,
-              })}
-              aria-label="MassageLab Particles color mode"
-            >
-              <option value="source">Source white particles</option>
-              <option value="custom">Custom particles</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useCustomPalette ? (
             <>
-              <ColorField
-                label="Particle color 1"
-                value={settings.massageLabParticlesColorOne}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabParticlesColorOne: nextColor })}
-                pickerLabel="MassageLab Particles color 1"
-              />
-              <ColorField
-                label="Particle color 2"
-                value={settings.massageLabParticlesColorTwo}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabParticlesColorTwo: nextColor })}
-                pickerLabel="MassageLab Particles color 2"
-              />
-              <ColorField
-                label="Particle color 3"
-                value={settings.massageLabParticlesColorThree}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabParticlesColorThree: nextColor })}
-                pickerLabel="MassageLab Particles color 3"
-              />
+              <></>
+              <></>
+              <></>
             </>
           ) : null}
 
           {useHarmonyPalette ? (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabParticlesPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabParticlesPrimaryColor: nextColor })}
-                pickerLabel="MassageLab Particles primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Harmony</span>
-                <select
-                  value={settings.massageLabParticlesHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabParticlesHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="MassageLab Particles color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           ) : null}
 
@@ -10943,62 +9671,19 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabGradientBlindsPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabGradientBlindsPaletteMode: event.target.value as MassageLabGradientBlindsPaletteMode,
-              })}
-              aria-label="MassageLab Gradient Blinds color mode"
-            >
-              <option value="source">Source pink and purple</option>
-              <option value="custom">Custom gradient</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useCustomGradient ? (
             <>
-              <ColorField
-                label="Gradient color 1"
-                value={settings.massageLabGradientBlindsColorOne}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabGradientBlindsColorOne: nextColor })}
-                pickerLabel="MassageLab Gradient Blinds color 1"
-              />
-              <ColorField
-                label="Gradient color 2"
-                value={settings.massageLabGradientBlindsColorTwo}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabGradientBlindsColorTwo: nextColor })}
-                pickerLabel="MassageLab Gradient Blinds color 2"
-              />
+              <></>
+              <></>
             </>
           ) : null}
 
           {useHarmonyGradient ? (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabGradientBlindsPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabGradientBlindsPrimaryColor: nextColor })}
-                pickerLabel="MassageLab Gradient Blinds primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Harmony</span>
-                <select
-                  value={settings.massageLabGradientBlindsHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabGradientBlindsHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="MassageLab Gradient Blinds color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           ) : null}
 
@@ -11191,68 +9876,20 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabGrainientPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabGrainientPaletteMode: event.target.value as MassageLabGrainientPaletteMode,
-              })}
-              aria-label="MassageLab Grainient color mode"
-            >
-              <option value="source">Source magenta, violet, and mauve</option>
-              <option value="custom">Custom grain colors</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useCustomGrainient ? (
             <>
-              <ColorField
-                label="Color 1"
-                value={settings.massageLabGrainientColorOne}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabGrainientColorOne: nextColor })}
-                pickerLabel="MassageLab Grainient color 1"
-              />
-              <ColorField
-                label="Color 2"
-                value={settings.massageLabGrainientColorTwo}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabGrainientColorTwo: nextColor })}
-                pickerLabel="MassageLab Grainient color 2"
-              />
-              <ColorField
-                label="Color 3"
-                value={settings.massageLabGrainientColorThree}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabGrainientColorThree: nextColor })}
-                pickerLabel="MassageLab Grainient color 3"
-              />
+              <></>
+              <></>
+              <></>
             </>
           ) : null}
 
           {useHarmonyGrainient ? (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabGrainientPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabGrainientPrimaryColor: nextColor })}
-                pickerLabel="MassageLab Grainient primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Harmony</span>
-                <select
-                  value={settings.massageLabGrainientHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabGrainientHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="MassageLab Grainient color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           ) : null}
 
@@ -11508,62 +10145,19 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabGridScanPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabGridScanPaletteMode: event.target.value as MassageLabGridScanPaletteMode,
-              })}
-              aria-label="MassageLab Grid Scan color mode"
-            >
-              <option value="source">Source dark grid and magenta scan</option>
-              <option value="custom">Custom grid and scan colors</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useCustomGridScan ? (
             <>
-              <ColorField
-                label="Grid lines"
-                value={settings.massageLabGridScanLinesColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabGridScanLinesColor: nextColor })}
-                pickerLabel="MassageLab Grid Scan line color"
-              />
-              <ColorField
-                label="Scan color"
-                value={settings.massageLabGridScanScanColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabGridScanScanColor: nextColor })}
-                pickerLabel="MassageLab Grid Scan scan color"
-              />
+              <></>
+              <></>
             </>
           ) : null}
 
           {useHarmonyGridScan ? (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabGridScanPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabGridScanPrimaryColor: nextColor })}
-                pickerLabel="MassageLab Grid Scan primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Harmony</span>
-                <select
-                  value={settings.massageLabGridScanHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabGridScanHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="MassageLab Grid Scan color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           ) : null}
 
@@ -11782,54 +10376,16 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabBeamsPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabBeamsPaletteMode: event.target.value as MassageLabBeamsPaletteMode,
-              })}
-              aria-label="MassageLab Beams color mode"
-            >
-              <option value="source">Source white light</option>
-              <option value="custom">Custom light color</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useCustomBeams ? (
-            <ColorField
-              label="Light color"
-              value={settings.massageLabBeamsLightColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabBeamsLightColor: nextColor })}
-              pickerLabel="MassageLab Beams light color"
-            />
+            <></>
           ) : null}
 
           {useHarmonyBeams ? (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabBeamsPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabBeamsPrimaryColor: nextColor })}
-                pickerLabel="MassageLab Beams primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Harmony</span>
-                <select
-                  value={settings.massageLabBeamsHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabBeamsHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="MassageLab Beams color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           ) : null}
 
@@ -11933,54 +10489,16 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabPixelSnowPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabPixelSnowPaletteMode: event.target.value as MassageLabPixelSnowPaletteMode,
-              })}
-              aria-label="MassageLab Pixel Snow color mode"
-            >
-              <option value="source">Source white snow</option>
-              <option value="custom">Custom snow color</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useCustomPixelSnow ? (
-            <ColorField
-              label="Snow color"
-              value={settings.massageLabPixelSnowColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabPixelSnowColor: nextColor })}
-              pickerLabel="MassageLab Pixel Snow color"
-            />
+            <></>
           ) : null}
 
           {useHarmonyPixelSnow ? (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabPixelSnowPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabPixelSnowPrimaryColor: nextColor })}
-                pickerLabel="MassageLab Pixel Snow primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Harmony</span>
-                <select
-                  value={settings.massageLabPixelSnowHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabPixelSnowHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="MassageLab Pixel Snow color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           ) : null}
 
@@ -12139,20 +10657,7 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabLightningPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabLightningPaletteMode: event.target.value as MassageLabLightningPaletteMode,
-              })}
-              aria-label="MassageLab Lightning color mode"
-            >
-              <option value="source">Source hue</option>
-              <option value="custom">Custom color</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useSourceLightning ? (
             <label className={styles.rangeRow}>
@@ -12170,38 +10675,13 @@ export function SetTimer({
           ) : null}
 
           {useCustomLightning ? (
-            <ColorField
-              label="Lightning color"
-              value={settings.massageLabLightningColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabLightningColor: nextColor })}
-              pickerLabel="MassageLab Lightning color"
-            />
+            <></>
           ) : null}
 
           {useHarmonyLightning ? (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabLightningPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabLightningPrimaryColor: nextColor })}
-                pickerLabel="MassageLab Lightning primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Harmony</span>
-                <select
-                  value={settings.massageLabLightningHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabLightningHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="MassageLab Lightning color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           ) : null}
 
@@ -12266,74 +10746,21 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabPrismaticBurstPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabPrismaticBurstPaletteMode: event.target.value as MassageLabPrismaticBurstPaletteMode,
-              })}
-              aria-label="MassageLab Prismatic Burst color mode"
-            >
-              <option value="source">Source spectrum</option>
-              <option value="custom">Custom gradient</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useCustomPrismatic ? (
             <>
-              <ColorField
-                label="Color 1"
-                value={settings.massageLabPrismaticBurstColorOne}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabPrismaticBurstColorOne: nextColor })}
-                pickerLabel="MassageLab Prismatic Burst color 1"
-              />
-              <ColorField
-                label="Color 2"
-                value={settings.massageLabPrismaticBurstColorTwo}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabPrismaticBurstColorTwo: nextColor })}
-                pickerLabel="MassageLab Prismatic Burst color 2"
-              />
-              <ColorField
-                label="Color 3"
-                value={settings.massageLabPrismaticBurstColorThree}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabPrismaticBurstColorThree: nextColor })}
-                pickerLabel="MassageLab Prismatic Burst color 3"
-              />
-              <ColorField
-                label="Color 4"
-                value={settings.massageLabPrismaticBurstColorFour}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabPrismaticBurstColorFour: nextColor })}
-                pickerLabel="MassageLab Prismatic Burst color 4"
-              />
+              <></>
+              <></>
+              <></>
+              <></>
             </>
           ) : null}
 
           {useHarmonyPrismatic ? (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabPrismaticBurstPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabPrismaticBurstPrimaryColor: nextColor })}
-                pickerLabel="MassageLab Prismatic Burst primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Harmony</span>
-                <select
-                  value={settings.massageLabPrismaticBurstHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabPrismaticBurstHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="MassageLab Prismatic Burst color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           ) : null}
 
@@ -12470,20 +10897,7 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabGalaxyPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabGalaxyPaletteMode: event.target.value as MassageLabGalaxyPaletteMode,
-              })}
-              aria-label="MassageLab Galaxy color mode"
-            >
-              <option value="source">Source hue shift</option>
-              <option value="custom">Custom color</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useSourceGalaxy ? (
             <label className={styles.rangeRow}>
@@ -12501,38 +10915,13 @@ export function SetTimer({
           ) : null}
 
           {useCustomGalaxy ? (
-            <ColorField
-              label="Galaxy color"
-              value={settings.massageLabGalaxyColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabGalaxyColor: nextColor })}
-              pickerLabel="MassageLab Galaxy color"
-            />
+            <></>
           ) : null}
 
           {useHarmonyGalaxy ? (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabGalaxyPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabGalaxyPrimaryColor: nextColor })}
-                pickerLabel="MassageLab Galaxy primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Harmony</span>
-                <select
-                  value={settings.massageLabGalaxyHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabGalaxyHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="MassageLab Galaxy color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           ) : null}
 
@@ -12733,53 +11122,16 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabDitherPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabDitherPaletteMode: event.target.value as MassageLabDitherPaletteMode,
-              })}
-              aria-label="MassageLab Dither color mode"
-            >
-              <option value="source">Source grey</option>
-              <option value="custom">Custom color</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useCustomDither ? (
-            <ColorField
-              label="Dither color"
-              value={settings.massageLabDitherColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabDitherColor: nextColor })}
-              pickerLabel="MassageLab Dither color"
-            />
+            <></>
           ) : null}
 
           {useHarmonyDither ? (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabDitherPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabDitherPrimaryColor: nextColor })}
-                pickerLabel="MassageLab Dither primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Harmony</span>
-                <select
-                  value={settings.massageLabDitherHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabDitherHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="MassageLab Dither color harmony"
-                >
-                  <option value="monochromatic">Monochromatic</option>
-                  <option value="analogous">Analogous</option>
-                  <option value="complementary">Complementary</option>
-                  <option value="triad">Triad</option>
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           ) : null}
 
@@ -12882,53 +11234,16 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Tint mode</span>
-            <select
-              value={settings.massageLabFaultyTerminalPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabFaultyTerminalPaletteMode: event.target.value as MassageLabFaultyTerminalPaletteMode,
-              })}
-              aria-label="MassageLab Faulty Terminal tint mode"
-            >
-              <option value="source">Source white</option>
-              <option value="custom">Custom tint</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useCustomFaultyTerminal ? (
-            <ColorField
-              label="Terminal tint"
-              value={settings.massageLabFaultyTerminalTint}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabFaultyTerminalTint: nextColor })}
-              pickerLabel="MassageLab Faulty Terminal tint"
-            />
+            <></>
           ) : null}
 
           {useHarmonyFaultyTerminal ? (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabFaultyTerminalPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabFaultyTerminalPrimaryColor: nextColor })}
-                pickerLabel="MassageLab Faulty Terminal primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Harmony</span>
-                <select
-                  value={settings.massageLabFaultyTerminalHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabFaultyTerminalHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="MassageLab Faulty Terminal color harmony"
-                >
-                  <option value="monochromatic">Monochromatic</option>
-                  <option value="analogous">Analogous</option>
-                  <option value="complementary">Complementary</option>
-                  <option value="triad">Triad</option>
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           ) : null}
 
@@ -13155,54 +11470,16 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabRippleGridPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabRippleGridPaletteMode: event.target.value as MassageLabRippleGridPaletteMode,
-              })}
-              aria-label="MassageLab Ripple Grid color mode"
-            >
-              <option value="source">Source white</option>
-              <option value="rainbow">Source rainbow</option>
-              <option value="custom">Custom color</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useCustomRippleGrid ? (
-            <ColorField
-              label="Grid color"
-              value={settings.massageLabRippleGridColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabRippleGridColor: nextColor })}
-              pickerLabel="MassageLab Ripple Grid color"
-            />
+            <></>
           ) : null}
 
           {useHarmonyRippleGrid ? (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabRippleGridPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabRippleGridPrimaryColor: nextColor })}
-                pickerLabel="MassageLab Ripple Grid primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Harmony</span>
-                <select
-                  value={settings.massageLabRippleGridHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabRippleGridHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="MassageLab Ripple Grid color harmony"
-                >
-                  <option value="monochromatic">Monochromatic</option>
-                  <option value="analogous">Analogous</option>
-                  <option value="complementary">Complementary</option>
-                  <option value="triad">Triad</option>
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           ) : null}
 
@@ -13350,67 +11627,20 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabDotFieldPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabDotFieldPaletteMode: event.target.value as MassageLabDotFieldPaletteMode,
-              })}
-              aria-label="MassageLab Dot Field color mode"
-            >
-              <option value="source">Source purple</option>
-              <option value="custom">Custom colors</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useCustomDotField ? (
             <>
-              <ColorField
-                label="Gradient start"
-                value={settings.massageLabDotFieldGradientFromColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabDotFieldGradientFromColor: nextColor })}
-                pickerLabel="MassageLab Dot Field gradient start color"
-              />
-              <ColorField
-                label="Gradient end"
-                value={settings.massageLabDotFieldGradientToColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabDotFieldGradientToColor: nextColor })}
-                pickerLabel="MassageLab Dot Field gradient end color"
-              />
-              <ColorField
-                label="Glow color"
-                value={settings.massageLabDotFieldGlowColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabDotFieldGlowColor: nextColor })}
-                pickerLabel="MassageLab Dot Field glow color"
-              />
+              <></>
+              <></>
+              <></>
             </>
           ) : null}
 
           {useHarmonyDotField ? (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabDotFieldPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabDotFieldPrimaryColor: nextColor })}
-                pickerLabel="MassageLab Dot Field primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Harmony</span>
-                <select
-                  value={settings.massageLabDotFieldHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabDotFieldHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="MassageLab Dot Field color harmony"
-                >
-                  <option value="monochromatic">Monochromatic</option>
-                  <option value="analogous">Analogous</option>
-                  <option value="complementary">Complementary</option>
-                  <option value="triad">Triad</option>
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           ) : null}
 
@@ -13575,61 +11805,19 @@ export function SetTimer({
     if (option.id === "massage-lab-dot-grid") {
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabDotGridPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabDotGridPaletteMode: event.target.value as MassageLabDotGridPaletteMode,
-              })}
-              aria-label="MassageLab Dot Grid color mode"
-            >
-              <option value="source">Source violet</option>
-              <option value="custom">Custom colors</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {settings.massageLabDotGridPaletteMode === "custom" ? (
             <>
-              <ColorField
-                label="Base color"
-                value={settings.massageLabDotGridBaseColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabDotGridBaseColor: nextColor })}
-                pickerLabel="MassageLab Dot Grid base color"
-              />
-              <ColorField
-                label="Active color"
-                value={settings.massageLabDotGridActiveColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabDotGridActiveColor: nextColor })}
-                pickerLabel="MassageLab Dot Grid active color"
-              />
+              <></>
+              <></>
             </>
           ) : null}
 
           {settings.massageLabDotGridPaletteMode === "harmony" ? (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabDotGridPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabDotGridPrimaryColor: nextColor })}
-                pickerLabel="MassageLab Dot Grid primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Harmony</span>
-                <select
-                  value={settings.massageLabDotGridHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabDotGridHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="MassageLab Dot Grid color harmony"
-                >
-                  <option value="monochromatic">Monochromatic</option>
-                  <option value="analogous">Analogous</option>
-                  <option value="complementary">Complementary</option>
-                  <option value="triad">Triad</option>
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           ) : null}
 
@@ -13696,53 +11884,16 @@ export function SetTimer({
     if (option.id === "massage-lab-threads") {
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabThreadsPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabThreadsPaletteMode: event.target.value as MassageLabThreadsPaletteMode,
-              })}
-              aria-label="MassageLab Threads color mode"
-            >
-              <option value="source">Source white</option>
-              <option value="custom">Custom color</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {settings.massageLabThreadsPaletteMode === "custom" ? (
-            <ColorField
-              label="Thread color"
-              value={settings.massageLabThreadsColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabThreadsColor: nextColor })}
-              pickerLabel="MassageLab Threads color"
-            />
+            <></>
           ) : null}
 
           {settings.massageLabThreadsPaletteMode === "harmony" ? (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabThreadsPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabThreadsPrimaryColor: nextColor })}
-                pickerLabel="MassageLab Threads primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Harmony</span>
-                <select
-                  value={settings.massageLabThreadsHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabThreadsHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="MassageLab Threads color harmony"
-                >
-                  <option value="monochromatic">Monochromatic</option>
-                  <option value="analogous">Analogous</option>
-                  <option value="complementary">Complementary</option>
-                  <option value="triad">Triad</option>
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           ) : null}
 
@@ -13790,54 +11941,16 @@ export function SetTimer({
     if (option.id === "massage-lab-iridescence") {
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabIridescencePaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabIridescencePaletteMode: event.target.value as MassageLabIridescencePaletteMode,
-              })}
-              aria-label="MassageLab Iridescence color mode"
-            >
-              <option value="source">Source white</option>
-              <option value="custom">Custom color</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {settings.massageLabIridescencePaletteMode === "custom" ? (
-            <ColorField
-              label="Tint color"
-              value={settings.massageLabIridescenceColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabIridescenceColor: nextColor })}
-              pickerLabel="MassageLab Iridescence tint color"
-            />
+            <></>
           ) : null}
 
           {settings.massageLabIridescencePaletteMode === "harmony" ? (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabIridescencePrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabIridescencePrimaryColor: nextColor })}
-                pickerLabel="MassageLab Iridescence primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Harmony</span>
-                <select
-                  value={settings.massageLabIridescenceHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabIridescenceHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="MassageLab Iridescence color harmony"
-                >
-                  <option value="monochromatic">Monochromatic</option>
-                  <option value="analogous">Analogous</option>
-                  <option value="complementary">Complementary</option>
-                  <option value="triad">Triad</option>
-                  <option value="square">Square</option>
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           ) : null}
 
@@ -13885,54 +11998,16 @@ export function SetTimer({
     if (option.id === "massage-lab-waves") {
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Line color mode</span>
-            <select
-              value={settings.massageLabWavesPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabWavesPaletteMode: event.target.value as MassageLabWavesPaletteMode,
-              })}
-              aria-label="MassageLab Waves line color mode"
-            >
-              <option value="source">Source black</option>
-              <option value="custom">Custom color</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {settings.massageLabWavesPaletteMode === "custom" ? (
-            <ColorField
-              label="Line color"
-              value={settings.massageLabWavesLineColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabWavesLineColor: nextColor })}
-              pickerLabel="MassageLab Waves line color"
-            />
+            <></>
           ) : null}
 
           {settings.massageLabWavesPaletteMode === "harmony" ? (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabWavesPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabWavesPrimaryColor: nextColor })}
-                pickerLabel="MassageLab Waves primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Harmony</span>
-                <select
-                  value={settings.massageLabWavesHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabWavesHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="MassageLab Waves color harmony"
-                >
-                  <option value="monochromatic">Monochromatic</option>
-                  <option value="analogous">Analogous</option>
-                  <option value="complementary">Complementary</option>
-                  <option value="triad">Triad</option>
-                  <option value="square">Square</option>
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           ) : null}
 
@@ -13949,12 +12024,7 @@ export function SetTimer({
           </label>
 
           {!settings.massageLabWavesTransparentBackground ? (
-            <ColorField
-              label="Background color"
-              value={settings.massageLabWavesBackgroundColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabWavesBackgroundColor: nextColor })}
-              pickerLabel="MassageLab Waves background color"
-            />
+            <></>
           ) : null}
 
           <label className={styles.switchRow}>
@@ -14092,68 +12162,20 @@ export function SetTimer({
     if (option.id === "massage-lab-grid-distortion") {
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Texture color mode</span>
-            <select
-              value={settings.massageLabGridDistortionPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabGridDistortionPaletteMode: event.target.value as MassageLabGridDistortionPaletteMode,
-              })}
-              aria-label="MassageLab Grid Distortion color mode"
-            >
-              <option value="source">Source generated texture</option>
-              <option value="custom">Custom colors</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {settings.massageLabGridDistortionPaletteMode === "custom" ? (
             <>
-              <ColorField
-                label="Texture color 1"
-                value={settings.massageLabGridDistortionColorOne}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabGridDistortionColorOne: nextColor })}
-                pickerLabel="MassageLab Grid Distortion texture color 1"
-              />
-              <ColorField
-                label="Texture color 2"
-                value={settings.massageLabGridDistortionColorTwo}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabGridDistortionColorTwo: nextColor })}
-                pickerLabel="MassageLab Grid Distortion texture color 2"
-              />
-              <ColorField
-                label="Texture color 3"
-                value={settings.massageLabGridDistortionColorThree}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabGridDistortionColorThree: nextColor })}
-                pickerLabel="MassageLab Grid Distortion texture color 3"
-              />
+              <></>
+              <></>
+              <></>
             </>
           ) : null}
 
           {settings.massageLabGridDistortionPaletteMode === "harmony" ? (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabGridDistortionPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabGridDistortionPrimaryColor: nextColor })}
-                pickerLabel="MassageLab Grid Distortion primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Harmony</span>
-                <select
-                  value={settings.massageLabGridDistortionHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabGridDistortionHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="MassageLab Grid Distortion color harmony"
-                >
-                  <option value="monochromatic">Monochromatic</option>
-                  <option value="analogous">Analogous</option>
-                  <option value="complementary">Complementary</option>
-                  <option value="triad">Triad</option>
-                  <option value="square">Square</option>
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           ) : null}
 
@@ -14227,20 +12249,7 @@ export function SetTimer({
     if (option.id === "massage-lab-orb") {
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Orb color mode</span>
-            <select
-              value={settings.massageLabOrbPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabOrbPaletteMode: event.target.value as MassageLabOrbPaletteMode,
-              })}
-              aria-label="MassageLab Orb color mode"
-            >
-              <option value="source">Source hue</option>
-              <option value="custom">Custom color</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {settings.massageLabOrbPaletteMode === "source" ? (
             <label className={styles.rangeRow}>
@@ -14258,45 +12267,17 @@ export function SetTimer({
           ) : null}
 
           {settings.massageLabOrbPaletteMode === "custom" ? (
-            <ColorField
-              label="Orb color"
-              value={settings.massageLabOrbColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabOrbColor: nextColor })}
-              pickerLabel="MassageLab Orb color"
-            />
+            <></>
           ) : null}
 
           {settings.massageLabOrbPaletteMode === "harmony" ? (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabOrbPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabOrbPrimaryColor: nextColor })}
-                pickerLabel="MassageLab Orb primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Harmony</span>
-                <select
-                  value={settings.massageLabOrbHarmony}
-                  onChange={(event) => onSettingsChange({ massageLabOrbHarmony: event.target.value as ColorHarmony })}
-                  aria-label="MassageLab Orb color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           ) : null}
 
-          <ColorField
-            label="Background"
-            value={settings.massageLabOrbBackgroundColor}
-            onValueChange={(nextColor) => onSettingsChange({ massageLabOrbBackgroundColor: nextColor })}
-            pickerLabel="MassageLab Orb background color"
-          />
+          <></>
 
           <label className={styles.switchRow}>
             <span>Cursor interaction</span>
@@ -14347,68 +12328,20 @@ export function SetTimer({
     if (option.id === "massage-lab-letter-glitch") {
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Glitch color mode</span>
-            <select
-              value={settings.massageLabLetterGlitchPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabLetterGlitchPaletteMode: event.target.value as MassageLabLetterGlitchPaletteMode,
-              })}
-              aria-label="MassageLab Letter Glitch color mode"
-            >
-              <option value="source">Source colors</option>
-              <option value="custom">Custom colors</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {settings.massageLabLetterGlitchPaletteMode === "custom" ? (
             <>
-              <ColorField
-                label="Color 1"
-                value={settings.massageLabLetterGlitchColorOne}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabLetterGlitchColorOne: nextColor })}
-                pickerLabel="MassageLab Letter Glitch color 1"
-              />
-              <ColorField
-                label="Color 2"
-                value={settings.massageLabLetterGlitchColorTwo}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabLetterGlitchColorTwo: nextColor })}
-                pickerLabel="MassageLab Letter Glitch color 2"
-              />
-              <ColorField
-                label="Color 3"
-                value={settings.massageLabLetterGlitchColorThree}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabLetterGlitchColorThree: nextColor })}
-                pickerLabel="MassageLab Letter Glitch color 3"
-              />
+              <></>
+              <></>
+              <></>
             </>
           ) : null}
 
           {settings.massageLabLetterGlitchPaletteMode === "harmony" ? (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabLetterGlitchPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabLetterGlitchPrimaryColor: nextColor })}
-                pickerLabel="MassageLab Letter Glitch primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Harmony</span>
-                <select
-                  value={settings.massageLabLetterGlitchHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabLetterGlitchHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="MassageLab Letter Glitch color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           ) : null}
 
@@ -14461,68 +12394,20 @@ export function SetTimer({
     if (option.id === "massage-lab-grid-motion") {
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Motion color mode</span>
-            <select
-              value={settings.massageLabGridMotionPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabGridMotionPaletteMode: event.target.value as MassageLabGridMotionPaletteMode,
-              })}
-              aria-label="MassageLab Grid Motion color mode"
-            >
-              <option value="source">Source colors</option>
-              <option value="custom">Custom colors</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {settings.massageLabGridMotionPaletteMode === "custom" ? (
             <>
-              <ColorField
-                label="Gradient"
-                value={settings.massageLabGridMotionGradientColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabGridMotionGradientColor: nextColor })}
-                pickerLabel="MassageLab Grid Motion gradient color"
-              />
-              <ColorField
-                label="Tile"
-                value={settings.massageLabGridMotionTileColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabGridMotionTileColor: nextColor })}
-                pickerLabel="MassageLab Grid Motion tile color"
-              />
-              <ColorField
-                label="Text"
-                value={settings.massageLabGridMotionTextColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabGridMotionTextColor: nextColor })}
-                pickerLabel="MassageLab Grid Motion text color"
-              />
+              <></>
+              <></>
+              <></>
             </>
           ) : null}
 
           {settings.massageLabGridMotionPaletteMode === "harmony" ? (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabGridMotionPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabGridMotionPrimaryColor: nextColor })}
-                pickerLabel="MassageLab Grid Motion primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Harmony</span>
-                <select
-                  value={settings.massageLabGridMotionHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabGridMotionHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="MassageLab Grid Motion color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           ) : null}
 
@@ -14568,62 +12453,19 @@ export function SetTimer({
     if (option.id === "massage-lab-shape-grid") {
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Grid color mode</span>
-            <select
-              value={settings.massageLabShapeGridPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabShapeGridPaletteMode: event.target.value as MassageLabShapeGridPaletteMode,
-              })}
-              aria-label="MassageLab Shape Grid color mode"
-            >
-              <option value="source">Source colors</option>
-              <option value="custom">Custom colors</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {settings.massageLabShapeGridPaletteMode === "custom" ? (
             <>
-              <ColorField
-                label="Border"
-                value={settings.massageLabShapeGridBorderColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabShapeGridBorderColor: nextColor })}
-                pickerLabel="MassageLab Shape Grid border color"
-              />
-              <ColorField
-                label="Hover fill"
-                value={settings.massageLabShapeGridHoverFillColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabShapeGridHoverFillColor: nextColor })}
-                pickerLabel="MassageLab Shape Grid hover fill color"
-              />
+              <></>
+              <></>
             </>
           ) : null}
 
           {settings.massageLabShapeGridPaletteMode === "harmony" ? (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabShapeGridPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabShapeGridPrimaryColor: nextColor })}
-                pickerLabel="MassageLab Shape Grid primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Harmony</span>
-                <select
-                  value={settings.massageLabShapeGridHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabShapeGridHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="MassageLab Shape Grid color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           ) : null}
 
@@ -14715,54 +12557,16 @@ export function SetTimer({
     if (option.id === "massage-lab-liquid-chrome") {
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Chrome color mode</span>
-            <select
-              value={settings.massageLabLiquidChromePaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabLiquidChromePaletteMode: event.target.value as MassageLabLiquidChromePaletteMode,
-              })}
-              aria-label="MassageLab Liquid Chrome color mode"
-            >
-              <option value="source">Source base color</option>
-              <option value="custom">Custom color</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {settings.massageLabLiquidChromePaletteMode === "custom" ? (
-            <ColorField
-              label="Base color"
-              value={settings.massageLabLiquidChromeBaseColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabLiquidChromeBaseColor: nextColor })}
-              pickerLabel="MassageLab Liquid Chrome base color"
-            />
+            <></>
           ) : null}
 
           {settings.massageLabLiquidChromePaletteMode === "harmony" ? (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabLiquidChromePrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabLiquidChromePrimaryColor: nextColor })}
-                pickerLabel="MassageLab Liquid Chrome primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Harmony</span>
-                <select
-                  value={settings.massageLabLiquidChromeHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabLiquidChromeHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="MassageLab Liquid Chrome color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           ) : null}
 
@@ -14834,66 +12638,20 @@ export function SetTimer({
     if (option.id === "massage-lab-balatro") {
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Balatro color mode</span>
-            <select
-              value={settings.massageLabBalatroPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabBalatroPaletteMode: event.target.value as MassageLabBalatroPaletteMode,
-              })}
-              aria-label="MassageLab Balatro color mode"
-            >
-              <option value="source">Source colors</option>
-              <option value="custom">Custom colors</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {settings.massageLabBalatroPaletteMode === "custom" ? (
             <>
-              <ColorField
-                label="Color 1"
-                value={settings.massageLabBalatroColorOne}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabBalatroColorOne: nextColor })}
-                pickerLabel="MassageLab Balatro color 1"
-              />
-              <ColorField
-                label="Color 2"
-                value={settings.massageLabBalatroColorTwo}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabBalatroColorTwo: nextColor })}
-                pickerLabel="MassageLab Balatro color 2"
-              />
-              <ColorField
-                label="Color 3"
-                value={settings.massageLabBalatroColorThree}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabBalatroColorThree: nextColor })}
-                pickerLabel="MassageLab Balatro color 3"
-              />
+              <></>
+              <></>
+              <></>
             </>
           ) : null}
 
           {settings.massageLabBalatroPaletteMode === "harmony" ? (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabBalatroPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabBalatroPrimaryColor: nextColor })}
-                pickerLabel="MassageLab Balatro primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Harmony</span>
-                <select
-                  value={settings.massageLabBalatroHarmony}
-                  onChange={(event) => onSettingsChange({ massageLabBalatroHarmony: event.target.value as ColorHarmony })}
-                  aria-label="MassageLab Balatro color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           ) : null}
 
@@ -15017,40 +12775,13 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabPhotonBeamPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabPhotonBeamPaletteMode: event.target.value as MassageLabPhotonBeamPaletteMode,
-              })}
-              aria-label="Photon Beam color mode"
-            >
-              <option value="custom">Custom colors</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useCustomPalette ? (
             <>
-              <ColorField
-                label="Background"
-                value={settings.massageLabPhotonBeamColorBg}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabPhotonBeamColorBg: nextColor })}
-                pickerLabel="Photon Beam background color"
-              />
-              <ColorField
-                label="Beam lines"
-                value={settings.massageLabPhotonBeamColorLine}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabPhotonBeamColorLine: nextColor })}
-                pickerLabel="Photon Beam line color"
-              />
-              <ColorField
-                label="Signal 1"
-                value={settings.massageLabPhotonBeamColorSignal}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabPhotonBeamColorSignal: nextColor })}
-                pickerLabel="Photon Beam signal color"
-              />
+              <></>
+              <></>
+              <></>
               <label className={styles.switchRow}>
                 <span>Signal 2</span>
                 <input
@@ -15061,12 +12792,7 @@ export function SetTimer({
                 />
               </label>
               {settings.massageLabPhotonBeamUseColor2 && (
-                <ColorField
-                  label="Signal 2 color"
-                  value={settings.massageLabPhotonBeamColorSignal2}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabPhotonBeamColorSignal2: nextColor })}
-                  pickerLabel="Photon Beam second signal color"
-                />
+                <></>
               )}
               <label className={styles.switchRow}>
                 <span>Signal 3</span>
@@ -15078,39 +12804,14 @@ export function SetTimer({
                 />
               </label>
               {settings.massageLabPhotonBeamUseColor3 && (
-                <ColorField
-                  label="Signal 3 color"
-                  value={settings.massageLabPhotonBeamColorSignal3}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabPhotonBeamColorSignal3: nextColor })}
-                  pickerLabel="Photon Beam third signal color"
-                />
+                <></>
               )}
             </>
           ) : (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabPhotonBeamPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabPhotonBeamPrimaryColor: nextColor })}
-                pickerLabel="Photon Beam primary color"
-              />
+              <></>
 
-              <label className={styles.selectRow}>
-                <span>Color harmony</span>
-                <select
-                  value={settings.massageLabPhotonBeamHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabPhotonBeamHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="Photon Beam color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
             </>
           )}
 
@@ -15307,51 +13008,14 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabMatrixRainPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabMatrixRainPaletteMode: event.target.value as MassageLabMatrixRainPaletteMode,
-              })}
-              aria-label="Matrix Rain color mode"
-            >
-              <option value="custom">Custom color</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useCustomPalette ? (
-            <ColorField
-              label="Character color"
-              value={settings.massageLabMatrixRainColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabMatrixRainColor: nextColor })}
-              pickerLabel="Matrix Rain character color"
-            />
+            <></>
           ) : (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabMatrixRainPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabMatrixRainPrimaryColor: nextColor })}
-                pickerLabel="Matrix Rain primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Color harmony</span>
-                <select
-                  value={settings.massageLabMatrixRainHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabMatrixRainHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="Matrix Rain color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           )}
 
@@ -15393,51 +13057,14 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabNovatrixPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabNovatrixPaletteMode: event.target.value as MassageLabNovatrixPaletteMode,
-              })}
-              aria-label="Novatrix color mode"
-            >
-              <option value="custom">Custom color</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
 
           {useCustomPalette ? (
-            <ColorField
-              label="Animation color"
-              value={settings.massageLabNovatrixColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabNovatrixColor: nextColor })}
-              pickerLabel="Novatrix animation color"
-            />
+            <></>
           ) : (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabNovatrixPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabNovatrixPrimaryColor: nextColor })}
-                pickerLabel="Novatrix primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Color harmony</span>
-                <select
-                  value={settings.massageLabNovatrixHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabNovatrixHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="Novatrix color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           )}
 
@@ -15480,64 +13107,17 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <label className={styles.selectRow}>
-            <span>Color mode</span>
-            <select
-              value={settings.massageLabSynthesisPaletteMode}
-              onChange={(event) => onSettingsChange({
-                massageLabSynthesisPaletteMode: event.target.value as MassageLabSynthesisPaletteMode,
-              })}
-              aria-label="Synthesis color mode"
-            >
-              <option value="custom">Custom colors</option>
-              <option value="harmony">Harmony from primary</option>
-            </select>
-          </label>
+          <></>
           {useCustomPalette ? (
             <>
-              <ColorField
-                label="Color 1"
-                value={settings.massageLabSynthesisColorOne}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabSynthesisColorOne: nextColor })}
-                pickerLabel="Synthesis color 1"
-              />
-              <ColorField
-                label="Color 2"
-                value={settings.massageLabSynthesisColorTwo}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabSynthesisColorTwo: nextColor })}
-                pickerLabel="Synthesis color 2"
-              />
-              <ColorField
-                label="Color 3"
-                value={settings.massageLabSynthesisColorThree}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabSynthesisColorThree: nextColor })}
-                pickerLabel="Synthesis color 3"
-              />
+              <></>
+              <></>
+              <></>
             </>
           ) : (
             <>
-              <ColorField
-                label="Primary color"
-                value={settings.massageLabSynthesisPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabSynthesisPrimaryColor: nextColor })}
-                pickerLabel="Synthesis primary color"
-              />
-              <label className={styles.selectRow}>
-                <span>Color harmony</span>
-                <select
-                  value={settings.massageLabSynthesisHarmony}
-                  onChange={(event) => onSettingsChange({
-                    massageLabSynthesisHarmony: event.target.value as ColorHarmony,
-                  })}
-                  aria-label="Synthesis color harmony"
-                >
-                  {COLOR_HARMONY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <></>
+              <></>
             </>
           )}
           <label className={styles.rangeRow}>
@@ -15621,24 +13201,9 @@ export function SetTimer({
     if (option.id === "massage-lab-reveal-dots") {
       return (
         <div className={styles.backgroundCardControls}>
-          <ColorField
-            label="Background"
-            value={settings.canvasRevealDotsBackgroundColor}
-            onValueChange={(nextColor) => onSettingsChange({ canvasRevealDotsBackgroundColor: nextColor })}
-            pickerLabel="Reveal dots background color"
-          />
-          <ColorField
-            label="Dot color"
-            value={settings.canvasRevealDotsDotColor}
-            onValueChange={(nextColor) => onSettingsChange({ canvasRevealDotsDotColor: nextColor })}
-            pickerLabel="Reveal dots dot color"
-          />
-          <ColorField
-            label="Accent"
-            value={settings.canvasRevealDotsAccentColor}
-            onValueChange={(nextColor) => onSettingsChange({ canvasRevealDotsAccentColor: nextColor })}
-            pickerLabel="Reveal dots accent color"
-          />
+          <></>
+          <></>
+          <></>
           <label className={styles.rangeRow}>
             <span>Dot size</span>
             <input
@@ -15702,12 +13267,7 @@ export function SetTimer({
     if (option.id === "massage-lab-spotlight") {
       return (
         <div className={styles.backgroundCardControls}>
-          <ColorField
-            label="Spotlight color"
-            value={settings.spotlightColor}
-            onValueChange={(nextColor) => onSettingsChange({ spotlightColor: nextColor })}
-            pickerLabel="Spotlight color"
-          />
+          <></>
           <label className={styles.rangeRow}>
             <span>Intensity</span>
             <input
@@ -15799,18 +13359,8 @@ export function SetTimer({
     if (option.id === "massage-lab-lamp-effect") {
       return (
         <div className={styles.backgroundCardControls}>
-          <ColorField
-            label="Background"
-            value={settings.lampBackgroundColor}
-            onValueChange={(nextColor) => onSettingsChange({ lampBackgroundColor: nextColor })}
-            pickerLabel="Lamp background color"
-          />
-          <ColorField
-            label="Beam color"
-            value={settings.lampColor}
-            onValueChange={(nextColor) => onSettingsChange({ lampColor: nextColor })}
-            pickerLabel="Lamp beam color"
-          />
+          <></>
+          <></>
           <label className={styles.rangeRow}>
             <span>Glow intensity</span>
             <input
@@ -15878,24 +13428,8 @@ export function SetTimer({
     if (option.id === "massage-lab-vortex") {
       return (
         <div className={styles.backgroundCardControls}>
-          <ColorField
-            label="Background"
-            value={settings.vortexBackgroundColor}
-            onValueChange={(nextColor) => onSettingsChange({ vortexBackgroundColor: nextColor })}
-            pickerLabel="Vortex field color"
-          />
-          <label className={styles.rangeRow}>
-            <span>Hue</span>
-            <input
-              type="range"
-              min="0"
-              max="360"
-              step="1"
-              value={settings.vortexBaseHue}
-              onChange={(event) => onSettingsChange({ vortexBaseHue: Number(event.target.value) })}
-              aria-label="Vortex base hue"
-            />
-          </label>
+          <></>
+          <></>
           <label className={styles.rangeRow}>
             <span>Particles</span>
             <input
