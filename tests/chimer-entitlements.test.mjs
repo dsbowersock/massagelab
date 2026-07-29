@@ -103,9 +103,7 @@ describe("Chimer entitlement-aware settings", () => {
       massageLabPhotonBeamColorBg: "#010203",
       massageLabPhotonBeamColorLine: "#123456",
       massageLabPhotonBeamColorSignal: "#ABCDEF",
-      massageLabPhotonBeamUseColor2: true,
       massageLabPhotonBeamColorSignal2: "#FEDCBA",
-      massageLabPhotonBeamUseColor3: true,
       massageLabPhotonBeamColorSignal3: "#22D3EE",
       massageLabPhotonBeamLineCount: 120,
       massageLabPhotonBeamSpreadHeight: 64,
@@ -126,8 +124,6 @@ describe("Chimer entitlement-aware settings", () => {
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
-    assert.equal(freeSettings.massageLabPhotonBeamUseColor2, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamUseColor2)
-    assert.equal(freeSettings.massageLabPhotonBeamUseColor3, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamUseColor3)
     assert.equal(freeSettings.massageLabPhotonBeamLineCount, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamLineCount)
     assert.equal(freeSettings.massageLabPhotonBeamSpreadHeight, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamSpreadHeight)
     assert.equal(freeSettings.massageLabPhotonBeamSpreadDepth, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamSpreadDepth)
@@ -146,8 +142,6 @@ describe("Chimer entitlement-aware settings", () => {
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, ["premium_backgrounds"])
 
     assert.equal(premiumSettings.backgroundId, "massage-lab-photon-beam")
-    assert.equal(premiumSettings.massageLabPhotonBeamUseColor2, true)
-    assert.equal(premiumSettings.massageLabPhotonBeamUseColor3, true)
     assert.equal(premiumSettings.massageLabPhotonBeamLineCount, 120)
     assert.equal(premiumSettings.massageLabPhotonBeamSpreadHeight, 64)
     assert.equal(premiumSettings.massageLabPhotonBeamSpreadDepth, 18)
@@ -1753,7 +1747,6 @@ describe("Chimer entitlement-aware settings", () => {
       massageLabLightningPrimaryColor: "#ABCDEF",
       massageLabLightningHarmony: "triad",
       massageLabLightningColor: "#010203",
-      massageLabLightningHue: 310,
       massageLabLightningXOffset: -0.5,
       massageLabLightningSpeed: 2.25,
       massageLabLightningIntensity: 3.5,
@@ -1768,7 +1761,6 @@ describe("Chimer entitlement-aware settings", () => {
       "massageLabLightningPrimaryColor",
       "massageLabLightningHarmony",
       "massageLabLightningColor",
-      "massageLabLightningHue",
       "massageLabLightningXOffset",
       "massageLabLightningSpeed",
       "massageLabLightningIntensity",
@@ -1780,7 +1772,6 @@ describe("Chimer entitlement-aware settings", () => {
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
     assert.equal(premiumSettings.backgroundId, "massage-lab-lightning")
-    assert.equal(premiumSettings.massageLabLightningHue, 310)
     assert.equal(premiumSettings.massageLabLightningXOffset, -0.5)
     assert.equal(premiumSettings.massageLabLightningSpeed, 2.25)
     assert.equal(premiumSettings.massageLabLightningIntensity, 3.5)
@@ -2104,9 +2095,7 @@ describe("Chimer entitlement-aware settings", () => {
       massageLabDotFieldPrimaryColor: "#ABCDEF",
       massageLabDotFieldHarmony: "triad",
       massageLabDotFieldGradientFromColor: "#010203",
-      massageLabDotFieldGradientFromAlpha: 0.62,
       massageLabDotFieldGradientToColor: "#040506",
-      massageLabDotFieldGradientToAlpha: 0.31,
       massageLabDotFieldGlowColor: "#070809",
       massageLabDotFieldDotRadius: 2.4,
       massageLabDotFieldDotSpacing: 18,
@@ -2128,9 +2117,7 @@ describe("Chimer entitlement-aware settings", () => {
       "massageLabDotFieldPrimaryColor",
       "massageLabDotFieldHarmony",
       "massageLabDotFieldGradientFromColor",
-      "massageLabDotFieldGradientFromAlpha",
       "massageLabDotFieldGradientToColor",
-      "massageLabDotFieldGradientToAlpha",
       "massageLabDotFieldGlowColor",
       "massageLabDotFieldDotRadius",
       "massageLabDotFieldDotSpacing",
@@ -2149,8 +2136,6 @@ describe("Chimer entitlement-aware settings", () => {
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
     assert.equal(premiumSettings.backgroundId, "massage-lab-dot-field")
-    assert.equal(premiumSettings.massageLabDotFieldGradientFromAlpha, 0.62)
-    assert.equal(premiumSettings.massageLabDotFieldGradientToAlpha, 0.31)
     assert.equal(premiumSettings.massageLabDotFieldDotRadius, 2.4)
     assert.equal(premiumSettings.massageLabDotFieldDotSpacing, 18)
     assert.equal(premiumSettings.massageLabDotFieldCursorRadius, 420)
@@ -2402,7 +2387,6 @@ describe("Chimer entitlement-aware settings", () => {
 
   it("resets the latest MassageLab background controls without premium background access", () => {
     const expected = {
-      massageLabOrbHue: 180,
       massageLabOrbHoverIntensity: 0.55,
       massageLabOrbRotateOnHover: false,
       massageLabOrbForceHoverState: true,
@@ -3398,5 +3382,45 @@ describe("Chimer entitlement-aware settings", () => {
 
     assert.equal(settings.primaryFontColor, "#000000")
     assert.equal(settings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+  })
+
+  it("hydrates one owned-only access snapshot without granting unrelated backgrounds", () => {
+    const ownedBackgroundId = "massage-lab-stars"
+    const settings = sanitizeChimerSettingsForEntitlements({
+      backgroundId: ownedBackgroundId,
+      massageLabStarsSpeed: 72,
+      backgroundVisualPreferences: {
+        palette: {
+          mode: "custom",
+          primaryColor: "#112233",
+          harmony: "analogous",
+          swatches: [
+            "#112233",
+            "#223344",
+            "#334455",
+            "#445566",
+            "#556677",
+            "#667788",
+            "#778899",
+          ],
+        },
+      },
+    }, {
+      featureKeys: [],
+      ownedBackgroundIds: [ownedBackgroundId],
+    })
+
+    assert.equal(settings.backgroundId, ownedBackgroundId)
+    assert.equal(settings.massageLabStarsSpeed, 72)
+    assert.equal(settings.backgroundVisualPreferences.palette.mode, "custom")
+    assert.equal(
+      sanitizeChimerSettingsForEntitlements({
+        backgroundId: "massage-lab-hole",
+      }, {
+        featureKeys: [],
+        ownedBackgroundIds: [ownedBackgroundId],
+      }).backgroundId,
+      DEFAULT_CHIMER_SETTINGS.backgroundId,
+    )
   })
 })

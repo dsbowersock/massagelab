@@ -183,6 +183,7 @@ describe("background acquisition and shared account cart", () => {
     assert.match(running, /onLockedSelect=\{\(background\) => \{[\s\S]*triggerHapticFeedback\(hapticsEnabled\)[\s\S]*mode: "locked"/)
     assert.match(running, /onKeepPermanently=\{\(background\) => \{[\s\S]*triggerHapticFeedback\(hapticsEnabled\)[\s\S]*mode: "keep-permanently"/)
     assert.match(running, /<BackgroundAcquisitionDialog/)
-    assert.match(running, /ownedBackgroundIds:\s*commerceState\.snapshot\?\.ownedBackgroundIds/)
+    assert.match(running, /backgroundAccess: BackgroundAccessSnapshot/)
+    assert.match(running, /<BackgroundCarousel[\s\S]*access=\{backgroundAccess\}/)
   })
 })

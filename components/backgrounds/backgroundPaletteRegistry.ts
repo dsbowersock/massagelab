@@ -1,5 +1,7 @@
 import {
   CHIMER_BACKGROUND_SOURCE_COLOR_DEFAULTS,
+} from "../../lib/background-source-color-defaults.js"
+import {
   DEFAULT_CHIMER_SETTINGS,
   sanitizeChimerSettings,
 } from "../../lib/chimer-timer.js"
@@ -84,8 +86,6 @@ export const BACKGROUND_PALETTE_METADATA_SUFFIXES = Object.freeze([
   "PaletteMode",
   "PrimaryColor",
   "Harmony",
-  "ControlVersion",
-  "WarpSpeedVersion",
 ])
 const FIXED_RENDERER_REASON =
   "This renderer has no meaningful color input, so the shared palette leaves its source rendering unchanged."

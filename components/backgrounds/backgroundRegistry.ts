@@ -134,13 +134,13 @@ export interface BackgroundDefinition {
 }
 
 export type BackgroundAccessSnapshot = {
-  featureKeys?: readonly string[]
-  ownedBackgroundIds?: readonly string[]
+  featureKeys: readonly string[]
+  ownedBackgroundIds: readonly string[]
 }
 
 type BackgroundAccessInput =
   | readonly string[]
-  | BackgroundAccessSnapshot
+  | Partial<BackgroundAccessSnapshot>
   | Pick<BackgroundAccessDecision, "canUse">
 
 function isResolvedAccessDecision(

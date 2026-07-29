@@ -94,8 +94,7 @@ test("review fixes preserve live route controls and interaction cleanup", async 
     read("app/tools/business-planner/page.tsx"),
   ])
 
-  assert.match(runningTimer, /resolvedMovingBackgroundMainColor = resolvePaletteDrivenColor/)
-  assert.match(runningTimer, /value: movingBackgroundOrbColor,[\s\S]*globalValue: globalPaletteSecondary/)
+  assert.doesNotMatch(runningTimer, /resolvePaletteDrivenColor|globalPalette/)
   assert.match(backgroundHost, /resolveBackgroundEffectProps/)
   assert.match(backgroundHost, /backgroundPalette/)
   assert.doesNotMatch(backgroundHost, /applyPaletteToBackgroundEffects/)
@@ -183,4 +182,25 @@ test("background palette browser review fails closed and reads real Host diagnos
   assert.match(browserSource, /data-background-diagnostic-targets/)
   assert.match(browserSource, /mlab-proof-drone/)
   assert.match(browserSource, /Running Chimer timer/)
+})
+
+test("shared background access and palette resolver inputs stay authoritative and tick-stable", async () => {
+  const [pageSource, runningSource, hostSource, pickerSource, indexSource] = await Promise.all([
+    read("app/chimer/page.tsx"),
+    read("app/chimer/running-timer.tsx"),
+    read("components/backgrounds/BackgroundHost.tsx"),
+    read("components/chimer-controls/GlobalColorPicker.tsx"),
+    read("components/chimer-controls/index.ts"),
+  ])
+
+  assert.match(pageSource, /const backgroundAccess = useMemo/)
+  assert.match(pageSource, /featureKeys,\s+ownedBackgroundIds: permanentlyOwnedBackgroundIds/)
+  assert.match(runningSource, /backgroundAccess: BackgroundAccessSnapshot/)
+  assert.match(runningSource, /<BackgroundHost[\s\S]*access=\{backgroundAccess\}/)
+  assert.match(runningSource, /const effectiveBackgroundPalette = useMemo/)
+  assert.match(hostSource, /access: BackgroundAccessSnapshot/)
+  assert.match(hostSource, /resolveAccessibleBackgroundDefinition\(selectedId, access, category\)/)
+  assert.doesNotMatch(runningSource, /resolvePaletteDrivenColor|globalColors|globalPalette/)
+  assert.doesNotMatch(pickerSource, /export function GlobalColorPicker|GlobalColorValues/)
+  assert.doesNotMatch(indexSource, /\bGlobalColorPicker\b(?=\s*[},])/)
 })

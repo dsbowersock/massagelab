@@ -673,28 +673,6 @@
   padding-top: 0.05rem;
 }
 
-.globalColorModeControls {
-  display: grid;
-  gap: 0.65rem;
-}
-
-.globalColorAccessHint {
-  padding: 0.5rem 0.65rem;
-  border: 1px solid hsl(var(--button-orange-edge) / 0.28);
-  border-radius: 0.6rem;
-  background: hsl(var(--button-orange-edge) / 0.08);
-  color: rgba(255, 255, 255, 0.78);
-  font-size: 0.78rem;
-  line-height: 1.35;
-}
-
-.immersiveGlobalColorPicker button[aria-haspopup="dialog"],
-.immersiveGlobalHarmony button {
-  width: 2.75rem;
-  height: 2.75rem;
-  min-height: 2.75rem;
-}
-
 .settingsSectionHeader {
   display: flex;
   align-items: center;

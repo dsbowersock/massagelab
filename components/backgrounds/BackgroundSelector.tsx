@@ -17,6 +17,7 @@ import {
 import { BackgroundCarousel } from "@/components/backgrounds/background-carousel"
 import { useBackgroundCreditStatus } from "@/components/backgrounds/BackgroundCommerceProvider"
 import {
+  type BackgroundAccessSnapshot,
   type BackgroundDefinition,
   getBackgroundOptionsForCategory,
   type BackgroundCategory,
@@ -26,7 +27,7 @@ import {
 interface BackgroundSelectorProps {
   value: BackgroundId | string
   onChange: (value: BackgroundId) => void
-  featureKeys?: string[]
+  access: BackgroundAccessSnapshot
   category: BackgroundCategory
   className?: string
   compact?: boolean
@@ -39,7 +40,7 @@ type BackgroundVisualFilter = (typeof BACKGROUND_VISUAL_FILTERS)[number]["value"
 export function BackgroundSelector({
   value,
   onChange,
-  featureKeys = [],
+  access,
   category,
   className,
   compact = false,
@@ -128,7 +129,7 @@ export function BackgroundSelector({
           key={visualFilter}
           options={visibleOptions}
           selectedId={selectedOption?.id ?? value}
-          featureKeys={featureKeys}
+          access={access}
           savedIds={savedBackgroundIds}
           onSelect={(backgroundId) => {
             setUpgradeMessage("")

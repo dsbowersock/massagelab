@@ -25,7 +25,7 @@ test("ChimerPage resolves and safely closes the shared Music visualizer route", 
 })
 
 test("Music selection waits for hydration and uses explicit registry eligibility", () => {
-  assert.match(pageSource, /isBackgroundId\(id\)\s*&&\s*canUseBackgroundId\(id, featureKeys, "music"\)/)
+  assert.match(pageSource, /isBackgroundId\(id\)\s*&&\s*canUseBackgroundId\(id, backgroundAccess, "music"\)/)
   assert.match(pageSource, /resolveMusicVisualizerBackground/)
   assert.match(pageSource, /storageStatus !== "loading"/)
   assert.match(pageSource, /accountStatus !== "loading"/)

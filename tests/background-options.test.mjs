@@ -255,6 +255,23 @@ describe("premium background registry", () => {
     assert.equal(hasPremiumBackgroundAccess([FEATURE_KEYS.premiumBackgrounds]), true)
   })
 
+  it("uses the same owned-only snapshot for Chimer, Clock, and Music access", () => {
+    const ownedBackgroundId = "massage-lab-stars"
+    const access = {
+      featureKeys: [],
+      ownedBackgroundIds: [ownedBackgroundId],
+    }
+
+    for (const category of ["chimer", "clock", "music"]) {
+      assert.equal(canUseBackgroundId(ownedBackgroundId, access, category), true, category)
+      assert.equal(
+        resolveAccessibleBackgroundDefinition(ownedBackgroundId, access, category).id,
+        ownedBackgroundId,
+        category,
+      )
+    }
+  })
+
   it("keeps paused draft backgrounds unavailable even with premium access", () => {
     assert.equal(canUseBackgroundId("massage-lab-noise-texture-draft", [FEATURE_KEYS.premiumBackgrounds]), false)
   })
@@ -718,7 +735,6 @@ describe("premium background registry", () => {
     for (const settingKey of [
       "massageLabLightSpeedWarpSpeed",
       "massageLabLightSpeedParticleCount",
-      "massageLabLightSpeedLightColor",
       "massageLabLightSpeedIntensity",
       "massageLabLightSpeedRadius",
       "massageLabLightSpeedCylinderLength",
@@ -781,7 +797,6 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /postprocessing/)
     assert.doesNotMatch(effectSource, /createImageData/)
     for (const settingKey of [
-      "massageLabElectricMistColor",
       "massageLabElectricMistSpeed",
       "massageLabElectricMistDetail",
       "massageLabElectricMistDistortion",
@@ -837,7 +852,6 @@ describe("premium background registry", () => {
     assert.match(stylesSource, /massageLabAstralFlow/)
     assert.match(hostSource, /massageLabAstralFlow/)
     assert.match(runningSource, /massageLabAstralFlow=\{\{/)
-    assert.match(runningSource, /resolveMassageLabAstralFlowColors/)
     assert.match(setupSource, /getMassageLabAstralFlowDisplaySpeed/)
     assert.match(setupSource, /getMassageLabAstralFlowSourceSpeed/)
     assert.match(setupSource, /MASSAGE_LAB_ASTRAL_FLOW_SOURCE_SPEED_MIN = 0\.1/)
@@ -851,12 +865,6 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /postprocessing/)
     assert.doesNotMatch(effectSource, /createImageData/)
     for (const settingKey of [
-      "massageLabAstralFlowColorOne",
-      "massageLabAstralFlowColorTwo",
-      "massageLabAstralFlowColorThree",
-      "massageLabAstralFlowPaletteMode",
-      "massageLabAstralFlowPrimaryColor",
-      "massageLabAstralFlowHarmony",
       "massageLabAstralFlowSpeed",
       "massageLabAstralFlowFlowMin",
       "massageLabAstralFlowFlowMax",
@@ -909,7 +917,6 @@ describe("premium background registry", () => {
     assert.match(stylesSource, /massageLabDeepSpaceNebula/)
     assert.match(hostSource, /massageLabDeepSpaceNebula/)
     assert.match(runningSource, /massageLabDeepSpaceNebula=\{\{/)
-    assert.match(runningSource, /resolveMassageLabDeepSpaceNebulaColors/)
     assert.match(setupSource, /getMassageLabDeepSpaceNebulaDisplaySpeed/)
     assert.match(setupSource, /getMassageLabDeepSpaceNebulaSourceSpeed/)
     assert.match(setupSource, /MASSAGE_LAB_DEEP_SPACE_NEBULA_SOURCE_SPEED_MIN = 0\.1/)
@@ -923,12 +930,6 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /postprocessing/)
     assert.doesNotMatch(effectSource, /createImageData/)
     for (const settingKey of [
-      "massageLabDeepSpaceNebulaColorOne",
-      "massageLabDeepSpaceNebulaColorTwo",
-      "massageLabDeepSpaceNebulaColorThree",
-      "massageLabDeepSpaceNebulaPaletteMode",
-      "massageLabDeepSpaceNebulaPrimaryColor",
-      "massageLabDeepSpaceNebulaHarmony",
       "massageLabDeepSpaceNebulaSpeed",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
@@ -1003,7 +1004,6 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /iMouse/)
     assert.doesNotMatch(effectSource, /uMouseActive/)
     for (const settingKey of [
-      "massageLabGridBloomColor",
       "massageLabGridBloomSpeed",
       "massageLabGridBloomGridScale",
       "massageLabGridBloomRotationSpeed",
@@ -1061,7 +1061,6 @@ describe("premium background registry", () => {
     assert.match(stylesSource, /massageLabChromeFlow/)
     assert.match(hostSource, /massageLabChromeFlow/)
     assert.match(runningSource, /massageLabChromeFlow=\{\{/)
-    assert.match(runningSource, /resolveMassageLabChromeFlowColors/)
     assert.match(setupSource, /getMassageLabChromeFlowDisplayFlowSpeed/)
     assert.match(setupSource, /getMassageLabChromeFlowSourceFlowSpeed/)
     assert.match(setupSource, /getMassageLabChromeFlowDisplayTimeScale/)
@@ -1082,11 +1081,6 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /createImageData/)
     assert.doesNotMatch(effectSource, /pointermove/)
     for (const settingKey of [
-      "massageLabChromeFlowPaletteMode",
-      "massageLabChromeFlowPrimaryColor",
-      "massageLabChromeFlowHarmony",
-      "massageLabChromeFlowColorOne",
-      "massageLabChromeFlowColorTwo",
       "massageLabChromeFlowFlowSpeed",
       "massageLabChromeFlowTimeScale",
     ]) {
@@ -1145,7 +1139,6 @@ describe("premium background registry", () => {
     assert.match(stylesSource, /pointer-events: none/)
     assert.match(hostSource, /massageLabWaveCurrent/)
     assert.match(runningSource, /massageLabWaveCurrent=\{\{/)
-    assert.match(runningSource, /resolveMassageLabWaveCurrentColors/)
     assert.match(setupSource, /getMassageLabWaveCurrentDisplaySpeed/)
     assert.match(setupSource, /getMassageLabWaveCurrentSourceSpeed/)
     assert.match(setupSource, /MASSAGE_LAB_WAVES_SOURCE_SPEED_MIN = 0\.001/)
@@ -1160,13 +1153,6 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /postprocessing/)
     assert.doesNotMatch(effectSource, /pointermove/)
     for (const settingKey of [
-      "massageLabWaveCurrentPaletteMode",
-      "massageLabWaveCurrentPrimaryColor",
-      "massageLabWaveCurrentHarmony",
-      "massageLabWaveCurrentBackgroundColor",
-      "massageLabWaveCurrentColorOne",
-      "massageLabWaveCurrentColorTwo",
-      "massageLabWaveCurrentColorThree",
       "massageLabWaveCurrentSpeedX",
       "massageLabWaveCurrentSpeedY",
       "massageLabWaveCurrentAmplitude",
@@ -1231,8 +1217,6 @@ describe("premium background registry", () => {
     assert.match(stylesSource, /pointer-events: none/)
     assert.match(hostSource, /massageLabFerrofluid/)
     assert.match(runningSource, /massageLabFerrofluid=\{\{/)
-    assert.match(runningSource, /resolveMassageLabFerrofluidColors/)
-    assert.match(setupSource, /resolveMassageLabFerrofluidColors/)
     assert.doesNotMatch(pageSource, /massageLabFerrofluid=\{\{/)
     assert.match(docsSource, /Ferrofluid \|/)
     assert.match(docsSource, /Ferrofluid\.jsx/)
@@ -1245,12 +1229,6 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /pointermove/)
     assert.doesNotMatch(effectSource, /mousemove/)
     for (const settingKey of [
-      "massageLabFerrofluidPaletteMode",
-      "massageLabFerrofluidPrimaryColor",
-      "massageLabFerrofluidHarmony",
-      "massageLabFerrofluidColorOne",
-      "massageLabFerrofluidColorTwo",
-      "massageLabFerrofluidColorThree",
       "massageLabFerrofluidSpeed",
       "massageLabFerrofluidScale",
       "massageLabFerrofluidTurbulence",
@@ -1327,8 +1305,6 @@ describe("premium background registry", () => {
     assert.match(stylesSource, /pointer-events: none/)
     assert.match(hostSource, /massageLabLightfall/)
     assert.match(runningSource, /massageLabLightfall=\{\{/)
-    assert.match(runningSource, /resolveMassageLabLightfallColors/)
-    assert.match(setupSource, /resolveMassageLabLightfallColors/)
     assert.doesNotMatch(pageSource, /massageLabLightfall=\{\{/)
     assert.match(docsSource, /Lightfall \|/)
     assert.match(docsSource, /Lightfall\.jsx/)
@@ -1343,13 +1319,6 @@ describe("premium background registry", () => {
     assert.match(effectSource, /window\.removeEventListener\("pointermove"/)
     assert.doesNotMatch(effectSource, /mousemove/)
     for (const settingKey of [
-      "massageLabLightfallPaletteMode",
-      "massageLabLightfallPrimaryColor",
-      "massageLabLightfallHarmony",
-      "massageLabLightfallColorOne",
-      "massageLabLightfallColorTwo",
-      "massageLabLightfallColorThree",
-      "massageLabLightfallBackgroundColor",
       "massageLabLightfallSpeed",
       "massageLabLightfallStreakCount",
       "massageLabLightfallStreakWidth",
@@ -1463,8 +1432,6 @@ describe("premium background registry", () => {
     assert.match(hostSource, /massageLabLiquidEther/)
     assert.match(cssEffectsSource, /MassageLabLiquidEtherOptions/)
     assert.match(runningSource, /massageLabLiquidEther=\{\{/)
-    assert.match(runningSource, /resolveMassageLabLiquidEtherColors/)
-    assert.match(setupSource, /resolveMassageLabLiquidEtherColors/)
     assert.doesNotMatch(pageSource, /massageLabLiquidEther=\{\{/)
     assert.match(docsSource, /Liquid Ether \|/)
     assert.match(docsSource, /LiquidEther\.jsx/)
@@ -1479,12 +1446,6 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /postprocessing/)
     assert.doesNotMatch(effectSource, /mousemove/)
     for (const settingKey of [
-      "massageLabLiquidEtherPaletteMode",
-      "massageLabLiquidEtherPrimaryColor",
-      "massageLabLiquidEtherHarmony",
-      "massageLabLiquidEtherColorOne",
-      "massageLabLiquidEtherColorTwo",
-      "massageLabLiquidEtherColorThree",
       "massageLabLiquidEtherCursorEnabled",
       "massageLabLiquidEtherMouseForce",
       "massageLabLiquidEtherCursorSize",
@@ -1786,7 +1747,6 @@ describe("premium background registry", () => {
     assert.match(stylesSource, /pointer-events: none/)
     assert.match(hostSource, /massageLabLightPillar/)
     assert.match(cssEffectsSource, /MassageLabLightPillarOptions/)
-    assert.match(setupSource, /resolveMassageLabLightPillarColors/)
     assert.match(runningSource, /massageLabLightPillar=\{\{/)
     assert.doesNotMatch(pageSource, /massageLabLightPillar=\{\{/)
     assert.match(docsSource, /Light Pillar \|/)
@@ -1800,11 +1760,6 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /postprocessing/)
     assert.doesNotMatch(effectSource, /container\.addEventListener\("mousemove"/)
     for (const settingKey of [
-      "massageLabLightPillarPaletteMode",
-      "massageLabLightPillarPrimaryColor",
-      "massageLabLightPillarHarmony",
-      "massageLabLightPillarTopColor",
-      "massageLabLightPillarBottomColor",
       "massageLabLightPillarIntensity",
       "massageLabLightPillarRotationSpeed",
       "massageLabLightPillarInteractive",
@@ -1889,7 +1844,6 @@ describe("premium background registry", () => {
     assert.match(stylesSource, /pointer-events: none/)
     assert.match(hostSource, /massageLabSilk/)
     assert.match(cssEffectsSource, /MassageLabSilkOptions/)
-    assert.match(setupSource, /resolveMassageLabSilkColor/)
     assert.match(runningSource, /massageLabSilk=\{\{/)
     assert.doesNotMatch(pageSource, /massageLabSilk=\{\{/)
     assert.match(docsSource, /Silk \|/)
@@ -1904,10 +1858,6 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /pointermove/)
     assert.doesNotMatch(effectSource, /mousemove/)
     for (const settingKey of [
-      "massageLabSilkPaletteMode",
-      "massageLabSilkPrimaryColor",
-      "massageLabSilkHarmony",
-      "massageLabSilkColor",
       "massageLabSilkSpeed",
       "massageLabSilkScale",
       "massageLabSilkNoiseIntensity",
@@ -1982,7 +1932,6 @@ describe("premium background registry", () => {
 
     assert.match(hostSource, /massageLabFloatingLines/)
     assert.match(cssEffectsSource, /MassageLabFloatingLinesOptions/)
-    assert.match(setupSource, /resolveMassageLabFloatingLinesGradient/)
     assert.match(runningSource, /massageLabFloatingLines=\{\{/)
     assert.doesNotMatch(pageSource, /massageLabFloatingLines=\{\{/)
     assert.match(docsSource, /Floating Lines \|/)
@@ -1992,12 +1941,6 @@ describe("premium background registry", () => {
     assert.match(docsSource, /Three\.js/)
 
     const settingKeys = [
-      "massageLabFloatingLinesPaletteMode",
-      "massageLabFloatingLinesPrimaryColor",
-      "massageLabFloatingLinesHarmony",
-      "massageLabFloatingLinesColorOne",
-      "massageLabFloatingLinesColorTwo",
-      "massageLabFloatingLinesColorThree",
       "massageLabFloatingLinesEnableTop",
       "massageLabFloatingLinesEnableMiddle",
       "massageLabFloatingLinesEnableBottom",
@@ -2097,7 +2040,6 @@ describe("premium background registry", () => {
 
     assert.match(hostSource, /massageLabSideRays/)
     assert.match(cssEffectsSource, /MassageLabSideRaysOptions/)
-    assert.match(setupSource, /resolveMassageLabSideRaysColors/)
     assert.match(runningSource, /massageLabSideRays=\{\{/)
     assert.doesNotMatch(pageSource, /massageLabSideRays=\{\{/)
     assert.match(docsSource, /Side Rays \|/)
@@ -2107,11 +2049,6 @@ describe("premium background registry", () => {
     assert.match(docsSource, /OGL/)
 
     const settingKeys = [
-      "massageLabSideRaysPaletteMode",
-      "massageLabSideRaysPrimaryColor",
-      "massageLabSideRaysHarmony",
-      "massageLabSideRaysColorOne",
-      "massageLabSideRaysColorTwo",
       "massageLabSideRaysSpeed",
       "massageLabSideRaysIntensity",
       "massageLabSideRaysSpread",
@@ -2190,7 +2127,6 @@ describe("premium background registry", () => {
 
     assert.match(hostSource, /massageLabLightRays/)
     assert.match(cssEffectsSource, /MassageLabLightRaysOptions/)
-    assert.match(setupSource, /resolveMassageLabLightRaysColor/)
     assert.match(runningSource, /massageLabLightRays=\{\{/)
     assert.doesNotMatch(pageSource, /massageLabLightRays=\{\{/)
     assert.match(docsSource, /Light Rays \|/)
@@ -2200,10 +2136,6 @@ describe("premium background registry", () => {
     assert.match(docsSource, /OGL/)
 
     const settingKeys = [
-      "massageLabLightRaysPaletteMode",
-      "massageLabLightRaysPrimaryColor",
-      "massageLabLightRaysHarmony",
-      "massageLabLightRaysColor",
       "massageLabLightRaysOrigin",
       "massageLabLightRaysSpeed",
       "massageLabLightRaysSpread",
@@ -2293,7 +2225,6 @@ describe("premium background registry", () => {
 
     assert.match(hostSource, /massageLabPixelBlast/)
     assert.match(cssEffectsSource, /MassageLabPixelBlastOptions/)
-    assert.match(setupSource, /resolveMassageLabPixelBlastColor/)
     assert.match(runningSource, /massageLabPixelBlast=\{\{/)
     assert.doesNotMatch(pageSource, /massageLabPixelBlast=\{\{/)
     assert.match(docsSource, /Pixel Blast \|/)
@@ -2304,10 +2235,6 @@ describe("premium background registry", () => {
     assert.match(docsSource, /postprocessing/)
 
     const settingKeys = [
-      "massageLabPixelBlastPaletteMode",
-      "massageLabPixelBlastPrimaryColor",
-      "massageLabPixelBlastHarmony",
-      "massageLabPixelBlastColor",
       "massageLabPixelBlastVariant",
       "massageLabPixelBlastPixelSize",
       "massageLabPixelBlastAntialias",
@@ -2403,7 +2330,6 @@ describe("premium background registry", () => {
 
     assert.match(hostSource, /massageLabColorBends/)
     assert.match(cssEffectsSource, /MassageLabColorBendsOptions/)
-    assert.match(setupSource, /resolveMassageLabColorBendsColors/)
     assert.match(runningSource, /massageLabColorBends=\{\{/)
     assert.doesNotMatch(pageSource, /massageLabColorBends=\{\{/)
     assert.match(docsSource, /Color Bends \|/)
@@ -2413,13 +2339,6 @@ describe("premium background registry", () => {
     assert.match(docsSource, /Three\.js/)
 
     const settingKeys = [
-      "massageLabColorBendsPaletteMode",
-      "massageLabColorBendsPrimaryColor",
-      "massageLabColorBendsHarmony",
-      "massageLabColorBendsColorOne",
-      "massageLabColorBendsColorTwo",
-      "massageLabColorBendsColorThree",
-      "massageLabColorBendsColorFour",
       "massageLabColorBendsRotation",
       "massageLabColorBendsSpeed",
       "massageLabColorBendsTransparent",
@@ -2511,7 +2430,6 @@ describe("premium background registry", () => {
 
     assert.match(hostSource, /massageLabEvilEye/)
     assert.match(cssEffectsSource, /MassageLabEvilEyeOptions/)
-    assert.match(setupSource, /resolveMassageLabEvilEyeColor/)
     assert.match(runningSource, /massageLabEvilEye=\{\{/)
     assert.doesNotMatch(pageSource, /massageLabEvilEye=\{\{/)
     assert.match(docsSource, /Evil Eye \|/)
@@ -2521,11 +2439,6 @@ describe("premium background registry", () => {
     assert.match(docsSource, /OGL/)
 
     const settingKeys = [
-      "massageLabEvilEyePaletteMode",
-      "massageLabEvilEyePrimaryColor",
-      "massageLabEvilEyeHarmony",
-      "massageLabEvilEyeColor",
-      "massageLabEvilEyeBackgroundColor",
       "massageLabEvilEyeIntensity",
       "massageLabEvilEyePupilSize",
       "massageLabEvilEyeIrisWidth",
@@ -2614,7 +2527,6 @@ describe("premium background registry", () => {
 
     assert.match(hostSource, /massageLabLineWaves/)
     assert.match(cssEffectsSource, /MassageLabLineWavesOptions/)
-    assert.match(setupSource, /resolveMassageLabLineWavesColors/)
     assert.match(runningSource, /massageLabLineWaves=\{\{/)
     assert.doesNotMatch(pageSource, /massageLabLineWaves=\{\{/)
     assert.match(docsSource, /Line Waves \|/)
@@ -2624,12 +2536,6 @@ describe("premium background registry", () => {
     assert.match(docsSource, /OGL/)
 
     const settingKeys = [
-      "massageLabLineWavesPaletteMode",
-      "massageLabLineWavesPrimaryColor",
-      "massageLabLineWavesHarmony",
-      "massageLabLineWavesColorOne",
-      "massageLabLineWavesColorTwo",
-      "massageLabLineWavesColorThree",
       "massageLabLineWavesSpeed",
       "massageLabLineWavesInnerLineCount",
       "massageLabLineWavesOuterLineCount",
@@ -2722,7 +2628,6 @@ describe("premium background registry", () => {
 
     assert.match(hostSource, /massageLabRadar/)
     assert.match(cssEffectsSource, /MassageLabRadarOptions/)
-    assert.match(setupSource, /resolveMassageLabRadarColor/)
     assert.match(runningSource, /massageLabRadar=\{\{/)
     assert.doesNotMatch(pageSource, /massageLabRadar=\{\{/)
     assert.match(docsSource, /Radar \|/)
@@ -2732,11 +2637,6 @@ describe("premium background registry", () => {
     assert.match(docsSource, /OGL/)
 
     const settingKeys = [
-      "massageLabRadarPaletteMode",
-      "massageLabRadarPrimaryColor",
-      "massageLabRadarHarmony",
-      "massageLabRadarColor",
-      "massageLabRadarBackgroundColor",
       "massageLabRadarSpeed",
       "massageLabRadarScale",
       "massageLabRadarRingCount",
@@ -2833,7 +2733,6 @@ describe("premium background registry", () => {
 
     assert.match(hostSource, /massageLabSoftAurora/)
     assert.match(cssEffectsSource, /MassageLabSoftAuroraOptions/)
-    assert.match(setupSource, /resolveMassageLabSoftAuroraColors/)
     assert.match(runningSource, /massageLabSoftAurora=\{\{/)
     assert.doesNotMatch(pageSource, /massageLabSoftAurora=\{\{/)
     assert.match(docsSource, /Soft Aurora \|/)
@@ -2843,11 +2742,6 @@ describe("premium background registry", () => {
     assert.match(docsSource, /OGL/)
 
     const settingKeys = [
-      "massageLabSoftAuroraPaletteMode",
-      "massageLabSoftAuroraPrimaryColor",
-      "massageLabSoftAuroraHarmony",
-      "massageLabSoftAuroraColorOne",
-      "massageLabSoftAuroraColorTwo",
       "massageLabSoftAuroraSpeed",
       "massageLabSoftAuroraScale",
       "massageLabSoftAuroraBrightness",
@@ -2928,7 +2822,6 @@ describe("premium background registry", () => {
 
     assert.match(hostSource, /massageLabPlasma/)
     assert.match(cssEffectsSource, /MassageLabPlasmaOptions/)
-    assert.match(setupSource, /resolveMassageLabPlasmaColor/)
     assert.match(runningSource, /massageLabPlasma=\{\{/)
     assert.doesNotMatch(pageSource, /massageLabPlasma=\{\{/)
     assert.match(docsSource, /Plasma \|/)
@@ -2938,10 +2831,6 @@ describe("premium background registry", () => {
     assert.match(docsSource, /OGL/)
 
     const settingKeys = [
-      "massageLabPlasmaPaletteMode",
-      "massageLabPlasmaPrimaryColor",
-      "massageLabPlasmaHarmony",
-      "massageLabPlasmaColor",
       "massageLabPlasmaSpeed",
       "massageLabPlasmaDirection",
       "massageLabPlasmaScale",
@@ -3019,7 +2908,6 @@ describe("premium background registry", () => {
 
     assert.match(hostSource, /massageLabPlasmaWave/)
     assert.match(cssEffectsSource, /MassageLabPlasmaWaveOptions/)
-    assert.match(setupSource, /resolveMassageLabPlasmaWaveColors/)
     assert.match(runningSource, /massageLabPlasmaWave=\{\{/)
     assert.doesNotMatch(pageSource, /massageLabPlasmaWave=\{\{/)
     assert.match(docsSource, /Plasma Wave \|/)
@@ -3029,11 +2917,6 @@ describe("premium background registry", () => {
     assert.match(docsSource, /OGL/)
 
     const settingKeys = [
-      "massageLabPlasmaWavePaletteMode",
-      "massageLabPlasmaWavePrimaryColor",
-      "massageLabPlasmaWaveHarmony",
-      "massageLabPlasmaWaveColorOne",
-      "massageLabPlasmaWaveColorTwo",
       "massageLabPlasmaWaveXOffset",
       "massageLabPlasmaWaveYOffset",
       "massageLabPlasmaWaveRotationDeg",
@@ -3115,7 +2998,6 @@ describe("premium background registry", () => {
 
     assert.match(hostSource, /massageLabParticles/)
     assert.match(cssEffectsSource, /MassageLabParticlesOptions/)
-    assert.match(setupSource, /resolveMassageLabParticlesColors/)
     assert.match(runningSource, /massageLabParticles=\{\{/)
     assert.doesNotMatch(pageSource, /massageLabParticles=\{\{/)
     assert.match(docsSource, /Particles \|/)
@@ -3126,12 +3008,6 @@ describe("premium background registry", () => {
     assert.match(docsSource, /OGL/)
 
     const settingKeys = [
-      "massageLabParticlesPaletteMode",
-      "massageLabParticlesPrimaryColor",
-      "massageLabParticlesHarmony",
-      "massageLabParticlesColorOne",
-      "massageLabParticlesColorTwo",
-      "massageLabParticlesColorThree",
       "massageLabParticlesCount",
       "massageLabParticlesSpread",
       "massageLabParticlesSpeed",
@@ -3212,7 +3088,6 @@ describe("premium background registry", () => {
     assert.match(stylesSource, /massageLabGradientBlindsCanvas/)
     assert.match(hostSource, /massageLabGradientBlinds/)
     assert.match(cssEffectsSource, /MassageLabGradientBlindsOptions/)
-    assert.match(setupSource, /resolveMassageLabGradientBlindsColors/)
     assert.match(runningSource, /massageLabGradientBlinds=\{\{/)
     assert.doesNotMatch(pageSource, /massageLabGradientBlinds=\{\{/)
     assert.match(docsSource, /Gradient Blinds \|/)
@@ -3222,11 +3097,6 @@ describe("premium background registry", () => {
     assert.match(docsSource, /OGL/)
 
     const settingKeys = [
-      "massageLabGradientBlindsPaletteMode",
-      "massageLabGradientBlindsPrimaryColor",
-      "massageLabGradientBlindsHarmony",
-      "massageLabGradientBlindsColorOne",
-      "massageLabGradientBlindsColorTwo",
       "massageLabGradientBlindsAngle",
       "massageLabGradientBlindsNoise",
       "massageLabGradientBlindsBlindCount",
@@ -3313,7 +3183,6 @@ describe("premium background registry", () => {
     assert.match(stylesSource, /massageLabGrainientCanvas/)
     assert.match(hostSource, /massageLabGrainient/)
     assert.match(cssEffectsSource, /MassageLabGrainientOptions/)
-    assert.match(setupSource, /resolveMassageLabGrainientColors/)
     assert.match(runningSource, /massageLabGrainient=\{\{/)
     assert.doesNotMatch(pageSource, /massageLabGrainient=\{\{/)
     assert.match(docsSource, /Grainient \|/)
@@ -3323,12 +3192,6 @@ describe("premium background registry", () => {
     assert.match(docsSource, /OGL/)
 
     const settingKeys = [
-      "massageLabGrainientPaletteMode",
-      "massageLabGrainientPrimaryColor",
-      "massageLabGrainientHarmony",
-      "massageLabGrainientColorOne",
-      "massageLabGrainientColorTwo",
-      "massageLabGrainientColorThree",
       "massageLabGrainientTimeSpeed",
       "massageLabGrainientColorBalance",
       "massageLabGrainientWarpStrength",
@@ -3420,7 +3283,6 @@ describe("premium background registry", () => {
     assert.match(stylesSource, /massageLabGridScanCanvas/)
     assert.match(hostSource, /massageLabGridScan/)
     assert.match(cssEffectsSource, /MassageLabGridScanOptions/)
-    assert.match(setupSource, /resolveMassageLabGridScanColors/)
     assert.match(runningSource, /massageLabGridScan=\{\{/)
     assert.doesNotMatch(pageSource, /massageLabGridScan=\{\{/)
     assert.match(docsSource, /Grid Scan \|/)
@@ -3431,11 +3293,6 @@ describe("premium background registry", () => {
     assert.match(docsSource, /postprocessing/)
 
     const settingKeys = [
-      "massageLabGridScanPaletteMode",
-      "massageLabGridScanPrimaryColor",
-      "massageLabGridScanHarmony",
-      "massageLabGridScanLinesColor",
-      "massageLabGridScanScanColor",
       "massageLabGridScanSensitivity",
       "massageLabGridScanLineThickness",
       "massageLabGridScanScanOpacity",
@@ -3511,8 +3368,6 @@ describe("premium background registry", () => {
     assert.match(stylesSource, /massageLabBeamsCanvas/)
     assert.match(hostSource, /massageLabBeams/)
     assert.match(cssEffectsSource, /MassageLabBeamsOptions/)
-    assert.match(setupSource, /resolveMassageLabBeamsColor/)
-    assert.match(setupSource, /createMassageLabBeamsHarmonyColor/)
     assert.match(runningSource, /massageLabBeams=\{\{/)
     assert.doesNotMatch(pageSource, /massageLabBeams=\{\{/)
     assert.match(docsSource, /Beams \|/)
@@ -3522,10 +3377,6 @@ describe("premium background registry", () => {
     assert.match(docsSource, /Three\/R3F\/Drei/)
 
     const settingKeys = [
-      "massageLabBeamsPaletteMode",
-      "massageLabBeamsPrimaryColor",
-      "massageLabBeamsHarmony",
-      "massageLabBeamsLightColor",
       "massageLabBeamsBeamWidth",
       "massageLabBeamsBeamHeight",
       "massageLabBeamsBeamNumber",
@@ -3590,8 +3441,6 @@ describe("premium background registry", () => {
     assert.match(stylesSource, /massageLabPixelSnowCanvas/)
     assert.match(hostSource, /massageLabPixelSnow/)
     assert.match(cssEffectsSource, /MassageLabPixelSnowOptions/)
-    assert.match(setupSource, /resolveMassageLabPixelSnowColor/)
-    assert.match(setupSource, /createMassageLabPixelSnowHarmonyColor/)
     assert.match(runningSource, /massageLabPixelSnow=\{\{/)
     assert.doesNotMatch(pageSource, /massageLabPixelSnow=\{\{/)
     assert.match(docsSource, /Pixel Snow \|/)
@@ -3601,10 +3450,6 @@ describe("premium background registry", () => {
     assert.match(docsSource, /Three\/R3F/)
 
     const settingKeys = [
-      "massageLabPixelSnowPaletteMode",
-      "massageLabPixelSnowPrimaryColor",
-      "massageLabPixelSnowHarmony",
-      "massageLabPixelSnowColor",
       "massageLabPixelSnowFlakeSize",
       "massageLabPixelSnowMinFlakeSize",
       "massageLabPixelSnowPixelResolution",
@@ -3676,8 +3521,6 @@ describe("premium background registry", () => {
     assert.match(stylesSource, /massageLabLightningCanvas/)
     assert.match(hostSource, /massageLabLightning/)
     assert.match(cssEffectsSource, /MassageLabLightningOptions/)
-    assert.match(setupSource, /resolveMassageLabLightningHue/)
-    assert.match(setupSource, /createMassageLabLightningHarmonyHue/)
     assert.match(runningSource, /massageLabLightning=\{\{/)
     assert.doesNotMatch(pageSource, /massageLabLightning=\{\{/)
     assert.match(docsSource, /Lightning \|/)
@@ -3687,11 +3530,6 @@ describe("premium background registry", () => {
     assert.match(docsSource, /hsv2rgb/)
 
     const settingKeys = [
-      "massageLabLightningPaletteMode",
-      "massageLabLightningPrimaryColor",
-      "massageLabLightningHarmony",
-      "massageLabLightningColor",
-      "massageLabLightningHue",
       "massageLabLightningXOffset",
       "massageLabLightningSpeed",
       "massageLabLightningIntensity",
@@ -3769,8 +3607,6 @@ describe("premium background registry", () => {
     assert.match(stylesSource, /massageLabPrismaticBurstCanvas/)
     assert.match(hostSource, /massageLabPrismaticBurst/)
     assert.match(cssEffectsSource, /MassageLabPrismaticBurstOptions/)
-    assert.match(setupSource, /resolveMassageLabPrismaticBurstColors/)
-    assert.match(setupSource, /createMassageLabPrismaticBurstHarmonyPalette/)
     assert.match(runningSource, /massageLabPrismaticBurst=\{\{/)
     assert.doesNotMatch(pageSource, /massageLabPrismaticBurst=\{\{/)
     assert.match(docsSource, /Prismatic Burst \|/)
@@ -3780,13 +3616,6 @@ describe("premium background registry", () => {
     assert.match(docsSource, /OGL/)
 
     const settingKeys = [
-      "massageLabPrismaticBurstPaletteMode",
-      "massageLabPrismaticBurstPrimaryColor",
-      "massageLabPrismaticBurstHarmony",
-      "massageLabPrismaticBurstColorOne",
-      "massageLabPrismaticBurstColorTwo",
-      "massageLabPrismaticBurstColorThree",
-      "massageLabPrismaticBurstColorFour",
       "massageLabPrismaticBurstIntensity",
       "massageLabPrismaticBurstSpeed",
       "massageLabPrismaticBurstAnimationType",
@@ -3859,8 +3688,6 @@ describe("premium background registry", () => {
     assert.match(stylesSource, /massageLabGalaxyCanvas/)
     assert.match(hostSource, /massageLabGalaxy/)
     assert.match(cssEffectsSource, /MassageLabGalaxyOptions/)
-    assert.match(setupSource, /resolveMassageLabGalaxyHueShift/)
-    assert.match(setupSource, /createMassageLabGalaxyHarmonyHue/)
     assert.match(runningSource, /massageLabGalaxy=\{\{/)
     assert.doesNotMatch(pageSource, /massageLabGalaxy=\{\{/)
     assert.match(docsSource, /Galaxy \|/)
@@ -3870,10 +3697,6 @@ describe("premium background registry", () => {
     assert.match(docsSource, /OGL/)
 
     const settingKeys = [
-      "massageLabGalaxyPaletteMode",
-      "massageLabGalaxyPrimaryColor",
-      "massageLabGalaxyHarmony",
-      "massageLabGalaxyColor",
       "massageLabGalaxyHueShift",
       "massageLabGalaxyFocalX",
       "massageLabGalaxyFocalY",
@@ -3958,8 +3781,6 @@ describe("premium background registry", () => {
     assert.match(stylesSource, /massageLabDitherCanvas/)
     assert.match(hostSource, /massageLabDither/)
     assert.match(cssEffectsSource, /MassageLabDitherOptions/)
-    assert.match(setupSource, /resolveMassageLabDitherColor/)
-    assert.match(setupSource, /createMassageLabDitherHarmonyColor/)
     assert.match(runningSource, /massageLabDither=\{\{/)
     assert.doesNotMatch(pageSource, /massageLabDither=\{\{/)
     assert.match(docsSource, /Dither \|/)
@@ -3969,14 +3790,9 @@ describe("premium background registry", () => {
     assert.match(docsSource, /Bayer/)
 
     const settingKeys = [
-      "massageLabDitherPaletteMode",
-      "massageLabDitherPrimaryColor",
-      "massageLabDitherHarmony",
-      "massageLabDitherColor",
       "massageLabDitherWaveSpeed",
       "massageLabDitherWaveFrequency",
       "massageLabDitherWaveAmplitude",
-      "massageLabDitherColorNum",
       "massageLabDitherPixelSize",
       "massageLabDitherMouseInteraction",
       "massageLabDitherMouseRadius",
@@ -4048,8 +3864,6 @@ describe("premium background registry", () => {
     assert.match(stylesSource, /massageLabFaultyTerminalCanvas/)
     assert.match(hostSource, /massageLabFaultyTerminal/)
     assert.match(cssEffectsSource, /MassageLabFaultyTerminalOptions/)
-    assert.match(setupSource, /resolveMassageLabFaultyTerminalTint/)
-    assert.match(setupSource, /createMassageLabFaultyTerminalHarmonyColor/)
     assert.match(runningSource, /massageLabFaultyTerminal=\{\{/)
     assert.doesNotMatch(pageSource, /massageLabFaultyTerminal=\{\{/)
     assert.match(docsSource, /Faulty Terminal \|/)
@@ -4059,10 +3873,6 @@ describe("premium background registry", () => {
     assert.match(docsSource, /CRT-like terminal digit shader/)
 
     const settingKeys = [
-      "massageLabFaultyTerminalPaletteMode",
-      "massageLabFaultyTerminalPrimaryColor",
-      "massageLabFaultyTerminalHarmony",
-      "massageLabFaultyTerminalTint",
       "massageLabFaultyTerminalScale",
       "massageLabFaultyTerminalGridMulX",
       "massageLabFaultyTerminalGridMulY",
@@ -4149,8 +3959,6 @@ describe("premium background registry", () => {
     assert.match(stylesSource, /massageLabRippleGridCanvas/)
     assert.match(hostSource, /massageLabRippleGrid/)
     assert.match(cssEffectsSource, /MassageLabRippleGridOptions/)
-    assert.match(setupSource, /resolveMassageLabRippleGridColor/)
-    assert.match(setupSource, /createMassageLabRippleGridHarmonyColor/)
     assert.match(runningSource, /massageLabRippleGrid=\{\{/)
     assert.doesNotMatch(pageSource, /massageLabRippleGrid=\{\{/)
     assert.match(docsSource, /Ripple Grid \|/)
@@ -4160,10 +3968,6 @@ describe("premium background registry", () => {
     assert.match(docsSource, /ripple grid shader/)
 
     const settingKeys = [
-      "massageLabRippleGridPaletteMode",
-      "massageLabRippleGridPrimaryColor",
-      "massageLabRippleGridHarmony",
-      "massageLabRippleGridColor",
       "massageLabRippleGridRippleIntensity",
       "massageLabRippleGridGridSize",
       "massageLabRippleGridGridThickness",
@@ -4239,8 +4043,6 @@ describe("premium background registry", () => {
     assert.match(stylesSource, /massageLabDotFieldGlowSvg/)
     assert.match(hostSource, /massageLabDotField/)
     assert.match(cssEffectsSource, /MassageLabDotFieldOptions/)
-    assert.match(setupSource, /resolveMassageLabDotFieldColors/)
-    assert.match(setupSource, /createMassageLabDotFieldHarmonyColors/)
     assert.match(runningSource, /massageLabDotField=\{\{/)
     assert.doesNotMatch(pageSource, /massageLabDotField=\{\{/)
     assert.match(docsSource, /Dot Field \|/)
@@ -4249,14 +4051,6 @@ describe("premium background registry", () => {
     assert.match(docsSource, /canvas\/SVG/)
 
     const settingKeys = [
-      "massageLabDotFieldPaletteMode",
-      "massageLabDotFieldPrimaryColor",
-      "massageLabDotFieldHarmony",
-      "massageLabDotFieldGradientFromColor",
-      "massageLabDotFieldGradientFromAlpha",
-      "massageLabDotFieldGradientToColor",
-      "massageLabDotFieldGradientToAlpha",
-      "massageLabDotFieldGlowColor",
       "massageLabDotFieldDotRadius",
       "massageLabDotFieldDotSpacing",
       "massageLabDotFieldCursorRadius",
@@ -4324,8 +4118,6 @@ describe("premium background registry", () => {
     assert.match(stylesSource, /massageLabDotGridCanvas/)
     assert.match(hostSource, /massageLabDotGrid/)
     assert.match(cssEffectsSource, /MassageLabDotGridOptions/)
-    assert.match(setupSource, /resolveMassageLabDotGridColors/)
-    assert.match(setupSource, /createMassageLabDotGridHarmonyColors/)
     assert.match(runningSource, /massageLabDotGrid=\{\{/)
     assert.doesNotMatch(pageSource, /massageLabDotGrid=\{\{/)
     assert.match(docsSource, /Dot Grid \|/)
@@ -4334,11 +4126,6 @@ describe("premium background registry", () => {
     assert.match(docsSource, /GSAP InertiaPlugin/)
 
     for (const settingKey of [
-      "massageLabDotGridPaletteMode",
-      "massageLabDotGridPrimaryColor",
-      "massageLabDotGridHarmony",
-      "massageLabDotGridBaseColor",
-      "massageLabDotGridActiveColor",
       "massageLabDotGridDotSize",
       "massageLabDotGridGap",
       "massageLabDotGridProximity",
@@ -4403,8 +4190,6 @@ describe("premium background registry", () => {
     assert.match(stylesSource, /massageLabThreadsCanvas/)
     assert.match(hostSource, /massageLabThreads/)
     assert.match(cssEffectsSource, /MassageLabThreadsOptions/)
-    assert.match(setupSource, /resolveMassageLabThreadsColor/)
-    assert.match(setupSource, /createMassageLabThreadsHarmonyColor/)
     assert.match(runningSource, /massageLabThreads=\{\{/)
     assert.doesNotMatch(pageSource, /massageLabThreads=\{\{/)
     assert.match(docsSource, /Threads \|/)
@@ -4413,10 +4198,6 @@ describe("premium background registry", () => {
     assert.match(docsSource, /OGL/)
 
     for (const settingKey of [
-      "massageLabThreadsPaletteMode",
-      "massageLabThreadsPrimaryColor",
-      "massageLabThreadsHarmony",
-      "massageLabThreadsColor",
       "massageLabThreadsAmplitude",
       "massageLabThreadsDistance",
       "massageLabThreadsEnableMouseInteraction",
@@ -4475,8 +4256,6 @@ describe("premium background registry", () => {
     assert.match(stylesSource, /massageLabIridescenceCanvas/)
     assert.match(hostSource, /massageLabIridescence/)
     assert.match(cssEffectsSource, /MassageLabIridescenceOptions/)
-    assert.match(setupSource, /resolveMassageLabIridescenceColor/)
-    assert.match(setupSource, /createMassageLabIridescenceHarmonyColor/)
     assert.match(runningSource, /massageLabIridescence=\{\{/)
     assert.doesNotMatch(pageSource, /massageLabIridescence=\{\{/)
     assert.match(docsSource, /Iridescence \|/)
@@ -4485,10 +4264,6 @@ describe("premium background registry", () => {
     assert.match(docsSource, /OGL/)
 
     for (const settingKey of [
-      "massageLabIridescencePaletteMode",
-      "massageLabIridescencePrimaryColor",
-      "massageLabIridescenceHarmony",
-      "massageLabIridescenceColor",
       "massageLabIridescenceSpeed",
       "massageLabIridescenceAmplitude",
       "massageLabIridescenceMouseReact",
@@ -4547,8 +4322,6 @@ describe("premium background registry", () => {
     assert.match(stylesSource, /massageLabWavesCanvas/)
     assert.match(hostSource, /massageLabWaves/)
     assert.match(cssEffectsSource, /MassageLabWavesOptions/)
-    assert.match(setupSource, /resolveMassageLabWavesLineColor/)
-    assert.match(setupSource, /createMassageLabWavesHarmonyColor/)
     assert.match(runningSource, /massageLabWaves=\{\{/)
     assert.doesNotMatch(pageSource, /massageLabWaves=\{\{/)
     assert.match(docsSource, /Waves \|/)
@@ -4557,11 +4330,6 @@ describe("premium background registry", () => {
     assert.match(docsSource, /Perlin/)
 
     for (const settingKey of [
-      "massageLabWavesPaletteMode",
-      "massageLabWavesPrimaryColor",
-      "massageLabWavesHarmony",
-      "massageLabWavesLineColor",
-      "massageLabWavesBackgroundColor",
       "massageLabWavesTransparentBackground",
       "massageLabWavesSpeedX",
       "massageLabWavesSpeedY",
@@ -4631,8 +4399,6 @@ describe("premium background registry", () => {
     assert.match(stylesSource, /massageLabGridDistortionCanvas/)
     assert.match(hostSource, /massageLabGridDistortion/)
     assert.match(cssEffectsSource, /MassageLabGridDistortionOptions/)
-    assert.match(setupSource, /resolveMassageLabGridDistortionColors/)
-    assert.match(setupSource, /createMassageLabGridDistortionHarmonyPalette/)
     assert.match(runningSource, /massageLabGridDistortion=\{\{/)
     assert.doesNotMatch(pageSource, /massageLabGridDistortion=\{\{/)
     assert.match(docsSource, /Grid Distortion \|/)
@@ -4641,12 +4407,6 @@ describe("premium background registry", () => {
     assert.match(docsSource, /DataTexture|data texture/)
 
     for (const settingKey of [
-      "massageLabGridDistortionPaletteMode",
-      "massageLabGridDistortionPrimaryColor",
-      "massageLabGridDistortionHarmony",
-      "massageLabGridDistortionColorOne",
-      "massageLabGridDistortionColorTwo",
-      "massageLabGridDistortionColorThree",
       "massageLabGridDistortionGrid",
       "massageLabGridDistortionMouse",
       "massageLabGridDistortionStrength",
@@ -4703,17 +4463,10 @@ describe("premium background registry", () => {
           /window\.addEventListener\("pointermove"/,
         ],
         negativePatterns: [/from "ogl"/, /from "three"/, /@react-three/],
-        setupPatterns: [/resolveMassageLabOrbHue/, /createMassageLabOrbHarmonyHue/],
         settingKeys: [
-          "massageLabOrbPaletteMode",
-          "massageLabOrbPrimaryColor",
-          "massageLabOrbHarmony",
-          "massageLabOrbColor",
-          "massageLabOrbHue",
           "massageLabOrbHoverIntensity",
           "massageLabOrbRotateOnHover",
           "massageLabOrbForceHoverState",
-          "massageLabOrbBackgroundColor",
           "massageLabOrbCursorInteraction",
         ],
       },
@@ -4735,14 +4488,7 @@ describe("premium background registry", () => {
           /massageLabLetterGlitchOuterVignette/,
         ],
         negativePatterns: [/Math\.random/, /from "gsap"/, /from "three"/, /from "ogl"/],
-        setupPatterns: [/resolveMassageLabLetterGlitchColors/, /createMassageLabLetterGlitchHarmonyPalette/],
         settingKeys: [
-          "massageLabLetterGlitchPaletteMode",
-          "massageLabLetterGlitchPrimaryColor",
-          "massageLabLetterGlitchHarmony",
-          "massageLabLetterGlitchColorOne",
-          "massageLabLetterGlitchColorTwo",
-          "massageLabLetterGlitchColorThree",
           "massageLabLetterGlitchGlitchSpeed",
           "massageLabLetterGlitchCenterVignette",
           "massageLabLetterGlitchOuterVignette",
@@ -4767,14 +4513,7 @@ describe("premium background registry", () => {
           /requestAnimationFrame/,
         ],
         negativePatterns: [/from "gsap"/, /from "three"/, /from "ogl"/],
-        setupPatterns: [/resolveMassageLabGridMotionColors/, /createMassageLabGridMotionHarmonyPalette/],
         settingKeys: [
-          "massageLabGridMotionPaletteMode",
-          "massageLabGridMotionPrimaryColor",
-          "massageLabGridMotionHarmony",
-          "massageLabGridMotionGradientColor",
-          "massageLabGridMotionTileColor",
-          "massageLabGridMotionTextColor",
           "massageLabGridMotionMaxMoveAmount",
           "massageLabGridMotionBaseDuration",
           "massageLabGridMotionCursorInteraction",
@@ -4798,13 +4537,7 @@ describe("premium background registry", () => {
           /positiveModulo/,
         ],
         negativePatterns: [/from "gsap"/, /from "three"/, /from "ogl"/],
-        setupPatterns: [/resolveMassageLabShapeGridColors/, /createMassageLabShapeGridHarmonyPalette/],
         settingKeys: [
-          "massageLabShapeGridPaletteMode",
-          "massageLabShapeGridPrimaryColor",
-          "massageLabShapeGridHarmony",
-          "massageLabShapeGridBorderColor",
-          "massageLabShapeGridHoverFillColor",
           "massageLabShapeGridDirection",
           "massageLabShapeGridSpeed",
           "massageLabShapeGridSquareSize",
@@ -4831,12 +4564,7 @@ describe("premium background registry", () => {
           /getContext\("webgl"/,
         ],
         negativePatterns: [/from "ogl"/, /from "three"/, /@react-three/],
-        setupPatterns: [/resolveMassageLabLiquidChromeBaseColor/, /createMassageLabLiquidChromeHarmonyColor/],
         settingKeys: [
-          "massageLabLiquidChromePaletteMode",
-          "massageLabLiquidChromePrimaryColor",
-          "massageLabLiquidChromeHarmony",
-          "massageLabLiquidChromeBaseColor",
           "massageLabLiquidChromeSpeed",
           "massageLabLiquidChromeAmplitude",
           "massageLabLiquidChromeFrequencyX",
@@ -4862,14 +4590,7 @@ describe("premium background registry", () => {
           /effect\(iResolution\.xy/,
         ],
         negativePatterns: [/from "ogl"/, /from "three"/, /@react-three/],
-        setupPatterns: [/resolveMassageLabBalatroColors/, /createMassageLabBalatroHarmonyPalette/],
         settingKeys: [
-          "massageLabBalatroPaletteMode",
-          "massageLabBalatroPrimaryColor",
-          "massageLabBalatroHarmony",
-          "massageLabBalatroColorOne",
-          "massageLabBalatroColorTwo",
-          "massageLabBalatroColorThree",
           "massageLabBalatroSpinRotation",
           "massageLabBalatroSpinSpeed",
           "massageLabBalatroOffsetX",
@@ -4913,7 +4634,7 @@ describe("premium background registry", () => {
         assert.doesNotMatch(effectSource, pattern)
       }
 
-      for (const pattern of background.setupPatterns) {
+      for (const pattern of background.setupPatterns ?? []) {
         assert.match(setupSource, pattern)
       }
 
@@ -4980,7 +4701,6 @@ describe("premium background registry", () => {
     assert.match(hostSource, /massageLabNovatrix/)
     assert.match(cssEffectsSource, /MassageLabNovatrixOptions/)
     assert.match(runningSource, /massageLabNovatrix=\{\{/)
-    assert.match(runningSource, /resolveMassageLabNovatrixColor/)
     assert.match(setupSource, /getMassageLabNovatrixDisplaySpeed/)
     assert.match(setupSource, /getMassageLabNovatrixSourceSpeed/)
     assert.match(setupSource, /getMassageLabNovatrixDisplayAmplitude/)
@@ -4997,10 +4717,6 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /mousemove/)
     assert.doesNotMatch(effectSource, /pointermove/)
     for (const settingKey of [
-      "massageLabNovatrixPaletteMode",
-      "massageLabNovatrixPrimaryColor",
-      "massageLabNovatrixHarmony",
-      "massageLabNovatrixColor",
       "massageLabNovatrixSpeed",
       "massageLabNovatrixAmplitude",
     ]) {
@@ -5059,7 +4775,6 @@ describe("premium background registry", () => {
     assert.match(hostSource, /massageLabMatrixRain/)
     assert.match(cssEffectsSource, /MassageLabMatrixRainOptions/)
     assert.match(runningSource, /massageLabMatrixRain=\{\{/)
-    assert.match(runningSource, /resolveMassageLabMatrixRainColor/)
     assert.match(setupSource, /getMassageLabMatrixRainDisplaySpeed/)
     assert.match(setupSource, /getMassageLabMatrixRainSourceSpeed/)
     assert.match(setupSource, /MASSAGE_LAB_MATRIX_RAIN_SOURCE_SPEED_MIN = 0\.05/)
@@ -5072,10 +4787,6 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /mousemove/)
     assert.doesNotMatch(effectSource, /pointermove/)
     for (const settingKey of [
-      "massageLabMatrixRainPaletteMode",
-      "massageLabMatrixRainPrimaryColor",
-      "massageLabMatrixRainHarmony",
-      "massageLabMatrixRainColor",
       "massageLabMatrixRainSpeed",
       "massageLabMatrixRainFontSize",
     ]) {
@@ -5155,9 +4866,6 @@ describe("premium background registry", () => {
     assert.match(hostSource, /massageLabPhotonBeam/)
     assert.match(cssEffectsSource, /MassageLabPhotonBeamOptions/)
     assert.match(runningSource, /massageLabPhotonBeam=\{\{/)
-    assert.match(runningSource, /resolveMassageLabPhotonBeamColors/)
-    assert.match(setupSource, /resolveMassageLabPhotonBeamColors/)
-    assert.match(setupSource, /createMassageLabPhotonBeamHarmonyPalette/)
     assert.match(setupSource, /getMassageLabPhotonBeamDisplaySpeed/)
     assert.match(setupSource, /getMassageLabPhotonBeamSourceSpeed/)
     assert.match(setupSource, /MASSAGE_LAB_PHOTON_BEAM_SOURCE_SPEED_MIN = 0\.02/)
@@ -5173,16 +4881,6 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /mousemove/)
     assert.doesNotMatch(effectSource, /pointermove/)
     for (const settingKey of [
-      "massageLabPhotonBeamPaletteMode",
-      "massageLabPhotonBeamPrimaryColor",
-      "massageLabPhotonBeamHarmony",
-      "massageLabPhotonBeamColorBg",
-      "massageLabPhotonBeamColorLine",
-      "massageLabPhotonBeamColorSignal",
-      "massageLabPhotonBeamUseColor2",
-      "massageLabPhotonBeamColorSignal2",
-      "massageLabPhotonBeamUseColor3",
-      "massageLabPhotonBeamColorSignal3",
       "massageLabPhotonBeamLineCount",
       "massageLabPhotonBeamSpreadHeight",
       "massageLabPhotonBeamSpreadDepth",
@@ -5434,9 +5132,6 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /pointermove/)
 
     for (const settingKey of [
-      "massageLabRetroGridBackgroundColor",
-      "massageLabRetroGridLightLineColor",
-      "massageLabRetroGridDarkLineColor",
       "massageLabRetroGridAngle",
       "massageLabRetroGridCellSize",
       "massageLabRetroGridOpacity",
@@ -5509,8 +5204,6 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /pointermove/)
 
     for (const settingKey of [
-      "massageLabAerialRaysBackgroundColor",
-      "massageLabAerialRaysColor",
       "massageLabAerialRaysCount",
       "massageLabAerialRaysBlur",
       "massageLabAerialRaysSpeed",
@@ -5567,7 +5260,6 @@ describe("premium background registry", () => {
     assert.match(stylesSource, /massageLabSynthesis/)
     assert.match(hostSource, /massageLabSynthesis/)
     assert.match(runningSource, /massageLabSynthesis=\{\{/)
-    assert.match(runningSource, /resolveMassageLabSynthesisColors/)
     assert.match(setupSource, /getMassageLabSynthesisDisplaySpeed/)
     assert.match(setupSource, /getMassageLabSynthesisSourceSpeed/)
     assert.doesNotMatch(pageSource, /massageLabSynthesis=\{\{/)
@@ -5578,12 +5270,6 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /createImageData/)
     assert.doesNotMatch(effectSource, /seededFraction/)
     for (const settingKey of [
-      "massageLabSynthesisColorOne",
-      "massageLabSynthesisColorTwo",
-      "massageLabSynthesisColorThree",
-      "massageLabSynthesisPaletteMode",
-      "massageLabSynthesisPrimaryColor",
-      "massageLabSynthesisHarmony",
       "massageLabSynthesisSpeed",
       "massageLabSynthesisComplexity",
       "massageLabSynthesisScale",
@@ -5658,8 +5344,6 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /motion\/react/)
     assert.doesNotMatch(effectSource, /from "motion"/)
     for (const settingKey of [
-      "massageLabGradientPrimaryColor",
-      "massageLabGradientHarmony",
       "massageLabGradientOpacity",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
@@ -5706,7 +5390,6 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /motion\/react/)
     assert.doesNotMatch(effectSource, /from "motion"/)
     for (const settingKey of [
-      "massageLabStarsColor",
       "massageLabStarsSpeed",
       "massageLabStarsDensity",
       "massageLabStarsParallax",
@@ -5755,8 +5438,6 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /motion\/react/)
     assert.doesNotMatch(effectSource, /from "motion"/)
     for (const settingKey of [
-      "massageLabHoleStrokeColor",
-      "massageLabHoleParticleColor",
       "massageLabHoleLineCount",
       "massageLabHoleDiscCount",
     ]) {

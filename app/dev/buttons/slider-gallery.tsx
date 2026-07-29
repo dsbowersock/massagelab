@@ -4,11 +4,9 @@ import * as React from "react"
 import { Palette, SlidersHorizontal, Volume2 } from "lucide-react"
 
 import { AppSurface } from "@/components/ui/app-surface"
-import { ColorPickerSwatch, ColorSlider, GlobalColorPicker, HarmonyToggleGroup } from "@/components/chimer-controls"
+import { ColorPickerSwatch, ColorSlider } from "@/components/chimer-controls"
 import { RangeControl } from "@/components/ui/range-control"
 import { Slider } from "@/components/ui/slider"
-import type { ChimerHarmonyValue } from "@/components/chimer-controls"
-import type { GlobalColorValues } from "@/components/chimer-controls/GlobalColorPicker"
 
 const sliderColorTreatments = [
   {
@@ -56,16 +54,6 @@ export function SliderGallery() {
   const [hue, setHue] = React.useState(24)
   const [colorSliderHue, setColorSliderHue] = React.useState(237)
   const [swatchColor, setSwatchColor] = React.useState("#ff7a1a")
-  const [harmony, setHarmony] = React.useState<ChimerHarmonyValue>("analogous")
-  const [pickerColors, setPickerColors] = React.useState<GlobalColorValues>({
-    primary: "#ff7a1a",
-    secondary: "#b66a38",
-    accent: "#3f7ee8",
-    background: "#151515",
-    foreground: "#f8f5f0",
-    ctaStart: "#b719ff",
-    ctaEnd: "#7a31d9",
-  })
 
   return (
     <section className="space-y-4" aria-labelledby="range-heading">
@@ -205,21 +193,6 @@ export function SliderGallery() {
               </div>
             </div>
 
-            <GlobalColorPicker
-              title="Color picker"
-              description="This is the full shared picker surface, including the Harmony picker, swatches, and the updated hue slider inside the popover."
-              value={pickerColors}
-              onChange={setPickerColors}
-              harmonyControl={(
-                <HarmonyToggleGroup
-                  label="Color harmony"
-                  value={harmony}
-                  onChange={setHarmony}
-                  description="Generate related palette families from your primary color."
-                  embedded
-                />
-              )}
-            />
           </div>
         </AppSurface>
       </div>

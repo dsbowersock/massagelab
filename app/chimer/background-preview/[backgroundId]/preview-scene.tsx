@@ -7,7 +7,10 @@ import type { BackgroundId } from "@/components/backgrounds/backgroundRegistry"
 import { FEATURE_KEYS } from "@/lib/membership"
 import styles from "./preview-scene.module.css"
 
-const PREVIEW_FEATURE_KEYS = [FEATURE_KEYS.premiumBackgrounds]
+const PREVIEW_ACCESS = Object.freeze({
+  featureKeys: [FEATURE_KEYS.premiumBackgrounds],
+  ownedBackgroundIds: [],
+})
 
 /**
  * Internal capture surface for Chimer preview media generation. It intentionally
@@ -41,7 +44,7 @@ export function ChimerBackgroundPreviewScene({
       <h1 className={styles.label}>{label}</h1>
       <BackgroundHost
         selectedId={backgroundId}
-        featureKeys={PREVIEW_FEATURE_KEYS}
+        access={PREVIEW_ACCESS}
         category="chimer"
         className={styles.background}
         testId="chimer-preview-background"

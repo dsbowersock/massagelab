@@ -9,6 +9,7 @@ import {
 import { BackgroundCarouselCard } from "@/components/backgrounds/background-carousel-card"
 import { useBackgroundCommerce } from "@/components/backgrounds/BackgroundCommerceProvider"
 import {
+  type BackgroundAccessSnapshot,
   type BackgroundDefinition,
   type BackgroundId,
   userCanUseBackground,
@@ -25,7 +26,7 @@ type BackgroundViewportProfile =
 interface BackgroundCarouselProps {
   options: readonly BackgroundDefinition[]
   selectedId?: string | null
-  featureKeys?: string[]
+  access: BackgroundAccessSnapshot
   savedIds: readonly BackgroundId[]
   active?: boolean
   onSelect: (backgroundId: BackgroundId) => void
@@ -45,7 +46,7 @@ interface BackgroundCarouselProps {
 export function BackgroundCarousel({
   options,
   selectedId = null,
-  featureKeys = [],
+  access,
   savedIds,
   active = true,
   onSelect,
@@ -104,10 +105,7 @@ export function BackgroundCarousel({
 
   const items = useMemo(
     () => options.map((option) => {
-      const canUse = userCanUseBackground(option, {
-        featureKeys,
-        ownedBackgroundIds: snapshot?.ownedBackgroundIds ?? [],
-      })
+      const canUse = userCanUseBackground(option, access)
       const commerceState = backgroundCardCommerceState({
         background: option,
         access: {
@@ -127,7 +125,7 @@ export function BackgroundCarousel({
         statusLabel: commerceState.state,
       }
     }),
-    [featureKeys, options, snapshot],
+    [access, options, snapshot],
   )
   const initialItemId = items.some((option) => option.id === selectedId)
     ? selectedId

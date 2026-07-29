@@ -241,16 +241,14 @@ describe("Shared background preference access and retry wiring", () => {
     assert.match(source, /prepareChimerBackgroundPreferenceMigration/)
     assert.match(source, /localStorage\.setItem\(CHIMER_STORAGE_KEY/)
     assert.match(source, /legacyKeysToRemove/)
-    assert.match(source, /const selectedBackgroundId = immersiveContext === "musicVisualizer"[\s\S]*\? selectedMusicBackgroundId[\s\S]*: settings\.backgroundId/)
-    assert.match(source, /canCustomizeBackgroundColors\(\{[\s\S]*hasCustomColorFeature:\s*featureKeys\.includes\(FEATURE_KEYS\.chimerCustomColors\)[\s\S]*selectedBackgroundId,[\s\S]*permanentlyOwnedBackgroundIds/)
+    assert.match(source, /const immersiveMode: ImmersiveDisplayMode = immersiveContext === "musicVisualizer"[\s\S]*selectedBackgroundId: selectedMusicBackgroundId,[\s\S]*selectedBackgroundId: settings\.backgroundId/)
+    assert.match(source, /const backgroundAccess = useMemo<BackgroundAccessSnapshot>[\s\S]*featureKeys,[\s\S]*ownedBackgroundIds: permanentlyOwnedBackgroundIds/)
+    assert.match(source, /<RunningTimer[\s\S]*backgroundAccess=\{backgroundAccess\}/)
     assert.match(source, /applyBackgroundVisualPreferences/)
     assert.match(source, /retryBackgroundVisualPreferenceSync/)
     assert.match(source, /createChimerPreferenceSyncRetry\(\s*backgroundPreferenceSync,\s*requestId/)
     assert.match(source, /body:\s*request\.requestBody/)
     assert.match(source, /setBackgroundPreferenceSync\(\(currentRequest\)\s*=>/)
-    assert.doesNotMatch(
-      source,
-      /canCustomizeBackgroundColors\(\{[\s\S]{0,300}canUseAccountColorControls/,
-    )
+    assert.doesNotMatch(source, /canCustomizeBackgroundColors/)
   })
 })

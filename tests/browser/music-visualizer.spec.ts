@@ -1101,40 +1101,46 @@ test("539px dock headers own shared actions and compact visual color controls", 
   })
 })
 
-test("guest Global Colors stay visible, disabled, and use equal 44px controls", async ({ page }, testInfo) => {
+test("guest Shared Colors stay visible, source-only, and keep touch-sized controls", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-chromium", "single 539px rendered guest-permission proof")
   await page.setViewportSize({ width: 539, height: 597 })
   await openClock(page)
   await page.getByRole("button", { name: "Visual", exact: true }).click()
   const visualPanel = page.getByRole("dialog", { name: "Visual controls" })
-  const globalColors = visualPanel.getByText("Global Colors", { exact: true }).locator("../..")
-  await expect(globalColors).toBeVisible()
-  await expect.soft(visualPanel.getByText(/Sign in to customize and save Global Colors/i)).toBeVisible()
+  const sharedColors = visualPanel.getByRole("region", { name: "Shared Colors" })
+  await expect(sharedColors).toBeVisible()
+  await expect.soft(
+    visualPanel.getByText(/Source colors remain available\. Custom and Harmony require color access/i),
+  ).toBeVisible()
 
-  const modeToggle = globalColors.getByRole("switch", { name: /^Choose each color:/ })
-  const harmonyButtons = globalColors.getByRole("group", { name: "Color harmony options" }).getByRole("button")
-  const paletteSwatches = globalColors.getByRole("button", { name: / picker$/ })
-  await expect.soft(modeToggle).toBeDisabled()
-  await expect.soft(harmonyButtons.first()).toBeDisabled()
-  await expect.soft(paletteSwatches).toHaveCount(5)
-  for (const swatch of await paletteSwatches.all()) {
-    await expect.soft(swatch).toBeDisabled()
-  }
-  await expect.soft(globalColors.getByRole("textbox", { name: "Palette name" })).toBeDisabled()
-  await expect.soft(globalColors.getByRole("button", { name: "Save palette" })).toBeDisabled()
+  const colorSource = sharedColors.getByRole("group", { name: "Color source" })
+  const sourceButton = colorSource.getByRole("radio", { name: "Source" })
+  const customButton = colorSource.getByRole("radio", { name: "Custom" })
+  const harmonyButton = colorSource.getByRole("radio", { name: "Harmony" })
+  const colorPresets = visualPanel.getByRole("region", { name: "Color presets" })
+  const paletteSwatches = sharedColors.locator("output[aria-label^='Swatch ']")
+  await expect.soft(sourceButton).toBeEnabled()
+  await expect.soft(sourceButton).toHaveAttribute("data-selected", "true")
+  await expect.soft(customButton).toBeDisabled()
+  await expect.soft(harmonyButton).toBeDisabled()
+  await expect.soft(paletteSwatches).toHaveCount(7)
+  await expect.soft(colorPresets.getByRole("textbox", { name: "New color preset name" })).toBeDisabled()
+  await expect.soft(colorPresets.getByRole("button", { name: "Save as new" })).toBeDisabled()
 
   const sizes = await Promise.all([
     paletteSwatches.first().boundingBox(),
-    harmonyButtons.first().boundingBox(),
+    customButton.boundingBox(),
   ])
-  const [swatchBox, harmonyBox] = sizes
-  expect.soft(swatchBox && harmonyBox ? {
-    swatch: [Math.round(swatchBox.width * 10) / 10, Math.round(swatchBox.height * 10) / 10],
-    harmony: [Math.round(harmonyBox.width * 10) / 10, Math.round(harmonyBox.height * 10) / 10],
-  } : null).toEqual({ swatch: [44, 44], harmony: [44, 44] })
+  const [swatchBox, modeBox] = sizes
+  expect.soft(swatchBox && modeBox ? {
+    swatchIsTouchSized: swatchBox.width >= 44
+      && swatchBox.height >= 44
+      && Math.abs(swatchBox.width - swatchBox.height) <= 1,
+    modeIsTouchSized: modeBox.height >= 40,
+  } : null).toEqual({ swatchIsTouchSized: true, modeIsTouchSized: true })
 
-  for (const label of ["Primary color", "Color 2", "Color 3", "Color 4", "Color 5"]) {
-    const labelElement = globalColors.getByText(label, { exact: true })
+  for (const label of ["Swatch 1", "Swatch 2", "Swatch 3", "Swatch 4", "Swatch 5", "Swatch 6", "Swatch 7"]) {
+    const labelElement = sharedColors.getByText(label, { exact: true })
     await expect.soft(labelElement).toBeVisible()
     expect.soft(await labelElement.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
   }
@@ -1146,14 +1152,14 @@ test("guest Global Colors stay visible, disabled, and use equal 44px controls", 
     const grid = fields[0]?.parentElement?.getBoundingClientRect()
     return {
       sameRow: rects.every((rect) => Math.abs(rect.top - rects[0].top) <= 1),
-      fiveColumns: new Set(rects.map((rect) => Math.round(rect.left))).size === 5,
+      columnCount: new Set(rects.map((rect) => Math.round(rect.left))).size,
       inside: grid ? rects.every((rect) => rect.left >= grid.left && rect.right <= grid.right) : false,
     }
   })
-  expect.soft(paletteRowAt539).toEqual({ sameRow: true, fiveColumns: true, inside: true })
+  expect.soft(paletteRowAt539).toEqual({ sameRow: false, columnCount: 4, inside: true })
 
   await page.setViewportSize({ width: 319, height: 823 })
-  await globalColors.scrollIntoViewIfNeeded()
+  await sharedColors.scrollIntoViewIfNeeded()
   const paletteRowAt319 = await paletteSwatches.evaluateAll((swatches) => {
     const fields = swatches.map((swatch) => swatch.closest("div")?.parentElement)
       .filter((field): field is HTMLElement => Boolean(field))
@@ -1163,15 +1169,15 @@ test("guest Global Colors stay visible, disabled, and use equal 44px controls", 
     const labels = fields.map((field) => field.querySelector<HTMLElement>("span")).filter(Boolean) as HTMLElement[]
     return {
       sameRow: rects.every((rect) => Math.abs(rect.top - rects[0].top) <= 1),
-      fiveColumns: new Set(rects.map((rect) => Math.round(rect.left))).size === 5,
+      columnCount: new Set(rects.map((rect) => Math.round(rect.left))).size,
       inside: grid ? rects.every((rect) => rect.left >= grid.left && rect.right <= grid.right) : false,
       noHorizontalClip: gridElement ? gridElement.scrollWidth <= gridElement.clientWidth + 1 : false,
-      labelsReadable: labels.length === 5 && labels.every((label) => label.scrollWidth <= label.clientWidth + 1),
+      labelsReadable: labels.length === 7 && labels.every((label) => label.scrollWidth <= label.clientWidth + 1),
     }
   })
   expect.soft(paletteRowAt319).toEqual({
-    sameRow: true,
-    fiveColumns: true,
+    sameRow: false,
+    columnCount: 2,
     inside: true,
     noHorizontalClip: true,
     labelsReadable: true,
@@ -1612,12 +1618,17 @@ test("signed-in defaults, device precedence, failed save, retry, and unrelated s
   )
   await page.getByRole("button", { name: "Visual", exact: true }).click()
   const signedInVisual = page.getByRole("dialog", { name: "Visual controls" })
-  const signedInGlobalColors = signedInVisual.getByText("Global Colors", { exact: true }).locator("../..")
-  await expect(signedInVisual.getByText(/Sign in to customize and save Global Colors/i)).toHaveCount(0)
-  await expect(signedInGlobalColors.getByRole("switch", { name: /^Choose each color:/ })).toBeEnabled()
-  await expect(signedInGlobalColors.getByRole("button", { name: "Primary color picker" })).toBeEnabled()
-  await expect(signedInGlobalColors.getByRole("textbox", { name: "Palette name" })).toBeEnabled()
-  await expect(signedInGlobalColors.getByRole("button", { name: "Save palette" })).toBeEnabled()
+  const signedInSharedColors = signedInVisual.getByRole("region", { name: "Shared Colors" })
+  const signedInColorPresets = signedInVisual.getByRole("region", { name: "Color presets" })
+  await expect(
+    signedInVisual.getByText(/Source colors remain available\. Custom and Harmony require color access/i),
+  ).toHaveCount(0)
+  await expect(
+    signedInSharedColors.getByText(/Colors are unavailable for Static gradient/i),
+  ).toBeVisible()
+  await expect(signedInSharedColors.getByRole("radio", { name: "Custom" })).toBeDisabled()
+  await expect(signedInColorPresets.getByRole("textbox", { name: "New color preset name" })).toBeDisabled()
+  await expect(signedInColorPresets.getByRole("button", { name: "Save as new" })).toBeDisabled()
   await page.getByRole("button", { name: "Restore account default", exact: true }).click()
   await expect(page.getByTestId("chimer-premium-background")).toBeVisible()
   await page.getByRole("button", { name: "Close Visual panel" }).click()

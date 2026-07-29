@@ -528,6 +528,7 @@ describe("Chimer timer helpers", () => {
     })
 
     assert.equal(settings.massageLabLightSpeedWarpSpeed, 0.1)
+    assert.equal(settings.massageLabLightSpeedWarpSpeedVersion, 2)
     assert.equal(settings.massageLabLightSpeedParticleCount, 200)
     assert.equal(settings.massageLabLightSpeedIntensity, 6)
     assert.equal(settings.massageLabLightSpeedRadius, 6)
@@ -564,6 +565,7 @@ describe("Chimer timer helpers", () => {
     })
 
     assert.equal(settings.massageLabElectricMistSpeed, 400)
+    assert.equal(settings.massageLabElectricMistControlVersion, 2)
     assert.equal(settings.massageLabElectricMistDetail, 0.5)
     assert.equal(settings.massageLabElectricMistDistortion, 8)
     assert.equal(settings.massageLabElectricMistBrightness, 1)
@@ -596,6 +598,20 @@ describe("Chimer timer helpers", () => {
       sanitizeChimerSettings({ massageLabElectricMistBrightness: "bright" }).massageLabElectricMistBrightness,
       DEFAULT_CHIMER_SETTINGS.massageLabElectricMistBrightness,
     )
+  })
+
+  it("round-trips non-color renderer migration markers idempotently", () => {
+    const first = sanitizeChimerSettings({
+      massageLabLightSpeedWarpSpeed: 0.4,
+      massageLabLightSpeedWarpSpeedVersion: 2,
+      massageLabElectricMistSpeed: 275,
+      massageLabElectricMistControlVersion: 2,
+    })
+    const second = sanitizeChimerSettings(first)
+
+    assert.equal(first.massageLabLightSpeedWarpSpeedVersion, 2)
+    assert.equal(first.massageLabElectricMistControlVersion, 2)
+    assert.deepEqual(second, first)
   })
 
   it("normalizes MassageLab Astral Flow background controls", () => {
@@ -2094,14 +2110,12 @@ describe("Chimer timer helpers", () => {
       massageLabLightningPrimaryColor: "#abcdef",
       massageLabLightningHarmony: "triad",
       massageLabLightningColor: "#010203",
-      massageLabLightningHue: 999,
       massageLabLightningXOffset: 99,
       massageLabLightningSpeed: 99,
       massageLabLightningIntensity: 99,
       massageLabLightningSize: 99,
     })
 
-    assert.equal(settings.massageLabLightningHue, 360)
     assert.equal(settings.massageLabLightningXOffset, 2)
     assert.equal(settings.massageLabLightningSpeed, 5)
     assert.equal(settings.massageLabLightningIntensity, 5)
@@ -2377,9 +2391,7 @@ describe("Chimer timer helpers", () => {
       massageLabDotFieldPrimaryColor: "#abcdef",
       massageLabDotFieldHarmony: "triad",
       massageLabDotFieldGradientFromColor: "#010203",
-      massageLabDotFieldGradientFromAlpha: 99,
       massageLabDotFieldGradientToColor: "#040506",
-      massageLabDotFieldGradientToAlpha: 99,
       massageLabDotFieldGlowColor: "#070809",
       massageLabDotFieldDotRadius: 99,
       massageLabDotFieldDotSpacing: 99,
@@ -2393,8 +2405,6 @@ describe("Chimer timer helpers", () => {
       massageLabDotFieldCursorInteraction: false,
     })
 
-    assert.equal(settings.massageLabDotFieldGradientFromAlpha, 1)
-    assert.equal(settings.massageLabDotFieldGradientToAlpha, 1)
     assert.equal(settings.massageLabDotFieldDotRadius, 8)
     assert.equal(settings.massageLabDotFieldDotSpacing, 48)
     assert.equal(settings.massageLabDotFieldCursorRadius, 900)
@@ -2417,7 +2427,6 @@ describe("Chimer timer helpers", () => {
       sanitizeChimerSettings({ massageLabDotFieldCursorInteraction: "yes" }).massageLabDotFieldCursorInteraction,
       DEFAULT_CHIMER_SETTINGS.massageLabDotFieldCursorInteraction,
     )
-    assert.equal(sanitizeChimerSettings({ massageLabDotFieldGradientFromAlpha: -1 }).massageLabDotFieldGradientFromAlpha, 0)
     assert.equal(sanitizeChimerSettings({ massageLabDotFieldDotRadius: 0 }).massageLabDotFieldDotRadius, 0.5)
     assert.equal(sanitizeChimerSettings({ massageLabDotFieldDotSpacing: 0 }).massageLabDotFieldDotSpacing, 4)
     assert.equal(sanitizeChimerSettings({ massageLabDotFieldCursorRadius: 0 }).massageLabDotFieldCursorRadius, 60)
@@ -2573,7 +2582,6 @@ describe("Chimer timer helpers", () => {
       massageLabOrbPrimaryColor: "#abcdef",
       massageLabOrbHarmony: "triad",
       massageLabOrbColor: "#010203",
-      massageLabOrbHue: 999,
       massageLabOrbHoverIntensity: 999,
       massageLabOrbRotateOnHover: false,
       massageLabOrbForceHoverState: true,
@@ -2638,7 +2646,6 @@ describe("Chimer timer helpers", () => {
       massageLabBalatroMouseInteraction: false,
     })
 
-    assert.equal(settings.massageLabOrbHue, 360)
     assert.equal(settings.massageLabOrbHoverIntensity, 1)
     assert.equal(settings.massageLabOrbRotateOnHover, false)
     assert.equal(settings.massageLabOrbForceHoverState, true)
@@ -2734,9 +2741,7 @@ describe("Chimer timer helpers", () => {
       massageLabPhotonBeamColorBg: "black",
       massageLabPhotonBeamColorLine: "#123456",
       massageLabPhotonBeamColorSignal: "#abcdef",
-      massageLabPhotonBeamUseColor2: true,
       massageLabPhotonBeamColorSignal2: "#fedcba",
-      massageLabPhotonBeamUseColor3: true,
       massageLabPhotonBeamColorSignal3: "#00ffff",
       massageLabPhotonBeamLineCount: 999,
       massageLabPhotonBeamSpreadHeight: 0,
@@ -2754,8 +2759,6 @@ describe("Chimer timer helpers", () => {
       massageLabPhotonBeamBloomRadius: 99,
     })
 
-    assert.equal(settings.massageLabPhotonBeamUseColor2, true)
-    assert.equal(settings.massageLabPhotonBeamUseColor3, true)
     assert.equal(settings.massageLabPhotonBeamLineCount, 160)
     assert.equal(settings.massageLabPhotonBeamSpreadHeight, 5)
     assert.equal(settings.massageLabPhotonBeamSpreadDepth, 60)
@@ -2770,10 +2773,6 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabPhotonBeamTrailLength, 16)
     assert.equal(settings.massageLabPhotonBeamBloomStrength, 6)
     assert.equal(settings.massageLabPhotonBeamBloomRadius, 1.5)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabPhotonBeamUseColor2: "yes" }).massageLabPhotonBeamUseColor2,
-      DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamUseColor2,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabPhotonBeamSpeedGlobal: "fast" }).massageLabPhotonBeamSpeedGlobal,
       DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamSpeedGlobal,

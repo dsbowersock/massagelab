@@ -1,6 +1,9 @@
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import test from "node:test"
+import {
+  LEGACY_BACKGROUND_COLOR_SETTING_KEYS,
+} from "../lib/background-palette.js"
 
 const pickerSource = await readFile(
   new URL("../components/chimer-controls/GlobalColorPicker.tsx", import.meta.url),
@@ -38,19 +41,18 @@ const serviceFormSource = await readFile(
   new URL("../app/calendar/services/service-form.tsx", import.meta.url),
   "utf8",
 )
+const chimerPageSource = await readFile(
+  new URL("../app/chimer/page.tsx", import.meta.url),
+  "utf8",
+)
 const SET_TIMER_VALUE_CALLBACK_PATTERN = /onValueChange: \(nextColor: string\) => void/
 const SET_TIMER_PICKER_WIRING_PATTERN =
   /<ColorPickerInput value=\{value\} onValueChange=\{onValueChange\} label=\{pickerLabel\} \/>/
 
-test("global color updates notify the parent outside the React state updater", () => {
-  assert.match(
-    pickerSource,
-    /draftColorsRef\.current = nextValues\s+setDraftColors\(nextValues\)\s+onChange\(nextValues\)/,
-  )
-  assert.doesNotMatch(
-    pickerSource,
-    /setDraftColors\(\(current\) => \{[\s\S]*?onChange\(/,
-  )
+test("the reusable picker stays value-driven without semantic palette state", () => {
+  assert.match(pickerSource, /export function ColorPickerInput/)
+  assert.match(pickerSource, /onChange=\{onValueChange\}/)
+  assert.doesNotMatch(pickerSource, /GlobalColorValues|draftColors|editableFields/)
 })
 
 test("immersive panels keep the portaled color picker inside their interaction boundary", () => {
@@ -81,18 +83,15 @@ test("calendar forms submit the shared picker value without restoring a native c
 })
 
 test("Visual and every immersive renderer use the staged shared palette contract", () => {
-  assert.match(pickerSource, /editableFields\?: readonly GlobalColorFieldName\[\]/)
   assert.match(runningTimerSource, /<BackgroundPaletteEditor/)
   assert.match(runningTimerSource, /palette=\{currentVisualSnapshot\.palette\}/)
   assert.match(runningTimerSource, /canCustomize=\{canCustomizeSelectedBackground\}/)
-  assert.match(setTimerSource, /toString\(16\)\.padStart\(2, "0"\)/)
-  assert.doesNotMatch(setTimerSource, /toString\(16\)\.slice\(-2\)/)
   assert.match(runningTimerSource, /backgroundPalette=\{effectiveBackgroundPalette\}/)
   assert.match(backgroundHostSource, /resolveBackgroundEffectProps/)
   assert.doesNotMatch(backgroundHostSource, /function applyPaletteToBackgroundEffects/)
   assert.doesNotMatch(backgroundHostSource, /COLOR_OPTION_PATTERN|NON_COLOR_OPTION_PATTERN/)
   assert.match(backgroundHostSource, /<BackgroundComponent[\s\S]*\{\.\.\.effectProps\}/)
-  assert.doesNotMatch(pickerSource, /\{ key: "background", label: "Color 6" \}/)
+  assert.doesNotMatch(pickerSource, /GlobalColorPicker|GlobalColorValues/)
   assert.match(harmonySource, /--ml-harmony-preview/)
 })
 
@@ -102,4 +101,12 @@ test("the shared palette editor reuses the approved picker instead of duplicatin
   assert.doesNotMatch(paletteEditorSource, /EyeDropper|rgbToHsv|hsvToRgb|colorPickerArea/)
   assert.match(pickerSource, /readOnly\?: boolean/)
   assert.match(pickerSource, /\{readOnly \? \(/)
+})
+
+test("legacy renderer colors no longer form part of Chimer runtime props or settings", () => {
+  for (const key of LEGACY_BACKGROUND_COLOR_SETTING_KEYS) {
+    assert.doesNotMatch(setTimerSource, new RegExp(`^\\s*${key}(?:\\?|):`, "m"), key)
+    assert.doesNotMatch(runningTimerSource, new RegExp(`^\\s*${key}(?:\\?|):`, "m"), key)
+    assert.doesNotMatch(chimerPageSource, new RegExp(`${key}=\\{settings\\.${key}\\}`), key)
+  }
 })

@@ -2,10 +2,12 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import {
-  CHIMER_BACKGROUND_SOURCE_COLOR_DEFAULTS,
   DEFAULT_CHIMER_SETTINGS,
   sanitizeChimerSettings,
 } from "../lib/chimer-timer.js"
+import {
+  CHIMER_BACKGROUND_SOURCE_COLOR_DEFAULTS,
+} from "../lib/background-source-color-defaults.js"
 import {
   BACKGROUND_PALETTE_METADATA_SUFFIXES,
   backgroundPaletteRegistry,
@@ -265,9 +267,9 @@ describe("background palette adapter registry", () => {
       "PaletteMode",
       "PrimaryColor",
       "Harmony",
-      "ControlVersion",
-      "WarpSpeedVersion",
     ])
+    assert.equal(BACKGROUND_PALETTE_METADATA_SUFFIXES.includes("ControlVersion"), false)
+    assert.equal(BACKGROUND_PALETTE_METADATA_SUFFIXES.includes("WarpSpeedVersion"), false)
     for (const key of [
       "massageLabShapeGridPaletteMode",
       "massageLabShapeGridPrimaryColor",

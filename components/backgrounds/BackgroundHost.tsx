@@ -7,6 +7,7 @@ import { shouldReduceAmbientMotion } from "@/lib/motion-preferences"
 import { cn } from "@/lib/utils"
 import {
   resolveAccessibleBackgroundDefinition,
+  type BackgroundAccessSnapshot,
   type BackgroundCategory,
   type BackgroundId,
 } from "@/components/backgrounds/backgroundRegistry"
@@ -19,13 +20,13 @@ import type {
   BackgroundEffectProps,
 } from "@/components/backgrounds/effects/css-backgrounds"
 import { resolveBackgroundEffectProps } from "@/components/backgrounds/resolveBackgroundEffectProps"
+import { canCustomizeBackgroundColors } from "@/lib/background-palette"
+import { FEATURE_KEYS } from "@/lib/membership"
 import styles from "@/components/backgrounds/BackgroundHost.module.css"
-
-const EMPTY_FEATURE_KEYS: string[] = []
 
 interface BackgroundHostProps extends BackgroundEffectProps {
   selectedId?: BackgroundId | string | null
-  featureKeys?: string[]
+  access: BackgroundAccessSnapshot
   category?: BackgroundCategory
   /**
    * Supplies the one committed-or-draft palette contract shared by Chimer,
@@ -39,7 +40,6 @@ interface BackgroundHostProps extends BackgroundEffectProps {
       swatches: readonly string[]
     }
     mapping: Readonly<Record<string, number>>
-    canCustomize: boolean
   } | null
   style?: CSSProperties
   /** Renders the static representative while avoiding animated effect work. */
@@ -66,7 +66,7 @@ function usePrefersReducedMotion() {
 
 export function BackgroundHost({
   selectedId,
-  featureKeys = EMPTY_FEATURE_KEYS,
+  access,
   category,
   backgroundPalette,
   className,
@@ -152,9 +152,14 @@ export function BackgroundHost({
   const { settings } = useSettings()
   const prefersReducedMotion = usePrefersReducedMotion()
   const entry = useMemo(
-    () => resolveAccessibleBackgroundDefinition(selectedId, featureKeys, category),
-    [category, featureKeys, selectedId],
+    () => resolveAccessibleBackgroundDefinition(selectedId, access, category),
+    [access, category, selectedId],
   )
+  const canCustomize = canCustomizeBackgroundColors({
+    hasCustomColorFeature: access.featureKeys.includes(FEATURE_KEYS.chimerCustomColors),
+    selectedBackgroundId: entry.id,
+    permanentlyOwnedBackgroundIds: access.ownedBackgroundIds,
+  })
   const reduceMotion = shouldReduceAmbientMotion({
     prefersReducedMotion,
     ambientMotionMode: settings.ambientMotionMode,
@@ -254,7 +259,7 @@ export function BackgroundHost({
             effectProps: baseEffectProps,
             palette: backgroundPalette.palette,
             mapping: backgroundPalette.mapping,
-            canCustomize: backgroundPalette.canCustomize,
+            canCustomize,
           })
         : baseEffectProps,
     }
@@ -334,6 +339,7 @@ export function BackgroundHost({
     hexGrid,
     auroraBars,
     backgroundPalette,
+    canCustomize,
     entry.id,
   ])
 

@@ -38,6 +38,10 @@ const DEVELOPMENT_REVIEW_FEATURE_KEYS = [
   FEATURE_KEYS.premiumBackgrounds,
   FEATURE_KEYS.chimerCustomColors,
 ]
+const DEVELOPMENT_REVIEW_ACCESS = Object.freeze({
+  featureKeys: DEVELOPMENT_REVIEW_FEATURE_KEYS,
+  ownedBackgroundIds: [],
+})
 
 const CUSTOM_SWATCHES = [
   "#ff5119",
@@ -421,7 +425,7 @@ export function BackgroundPaletteGallery() {
                 <div className="relative mt-3 h-24 overflow-hidden rounded-lg border border-border">
                   <BackgroundHost
                     selectedId={entry.id}
-                    featureKeys={DEVELOPMENT_REVIEW_FEATURE_KEYS}
+                    access={DEVELOPMENT_REVIEW_ACCESS}
                     massageLabLightSpeed={{
                       particleCount: 20,
                       warpSpeed: 0.1,
@@ -432,7 +436,6 @@ export function BackgroundPaletteGallery() {
                       mapping: entryAdapter?.status === "supported"
                         ? defaultMapping(entryAdapter)
                         : {},
-                      canCustomize: true,
                     }}
                     className="absolute inset-0"
                     testId={`background-palette-${entryAdapter?.rendererFamily ?? "unknown"}-representative`}
@@ -525,7 +528,7 @@ export function BackgroundPaletteGallery() {
               <div className="relative min-h-80 overflow-hidden rounded-2xl border border-border bg-black">
                 <BackgroundHost
                   selectedId={selectedId}
-                  featureKeys={DEVELOPMENT_REVIEW_FEATURE_KEYS}
+                  access={DEVELOPMENT_REVIEW_ACCESS}
                   massageLabLightSpeed={{
                     particleCount: 20,
                     warpSpeed: 0.1,
@@ -578,7 +581,6 @@ export function BackgroundPaletteGallery() {
                   backgroundPalette={{
                     palette,
                     mapping: selectedMapping,
-                    canCustomize: true,
                   }}
                   className="absolute inset-0"
                   motionEnabled
