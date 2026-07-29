@@ -96,7 +96,7 @@ test("review fixes preserve live route controls and interaction cleanup", async 
 
   assert.match(runningTimer, /resolvedMovingBackgroundMainColor = resolvePaletteDrivenColor/)
   assert.match(runningTimer, /value: movingBackgroundOrbColor,[\s\S]*globalValue: globalPaletteSecondary/)
-  assert.match(backgroundHost, /return applyPaletteToBackgroundEffects\(baseEffectProps, palette\)/)
+  assert.match(backgroundHost, /effectProps:\s*applyPaletteToBackgroundEffects\(baseEffectProps, palette\)/)
   assert.match(backgroundHost, /draftPalettePreview[\s\S]*adapter\.applyRoleColors/)
   assert.match(backgroundHost, /<BackgroundComponent \{\.\.\.effectProps\} \/>/)
   assert.doesNotMatch(backgroundHost, /<BackgroundComponent\s+mainColor=/)
@@ -164,7 +164,22 @@ test("development review exposes the complete shared background palette matrix",
   assert.match(gallery, /data-unsupported-reason/)
   assert.match(gallery, /data-resolved-role-colors/)
   assert.match(gallery, /data-background-palette-live-selector/)
-  assert.match(gallery, /data-timer-continuity/)
-  assert.match(gallery, /data-audio-continuity/)
+  assert.match(gallery, /useMusic/)
+  assert.match(gallery, /data-music-session-id/)
+  assert.match(gallery, /data-music-audio-elapsed/)
   assert.match(gallery, /process\.env\.NODE_ENV/)
+})
+
+test("background palette browser review fails closed and reads real Host diagnostics", async () => {
+  const browserSource = await read("tests/browser/background-palette.spec.ts")
+
+  assert.doesNotMatch(browserSource, /PALETTE_SWEEP_START_INDEX/)
+  assert.doesNotMatch(browserSource, /test\.skip\(/)
+  assert.match(browserSource, /EXPECTED_ENABLED_BACKGROUND_COUNT/)
+  assert.match(browserSource, /executedCaseCount/)
+  assert.match(browserSource, /data-background-diagnostic-status/)
+  assert.match(browserSource, /data-background-diagnostic-loaded-id/)
+  assert.match(browserSource, /data-background-diagnostic-targets/)
+  assert.match(browserSource, /mlab-proof-drone/)
+  assert.match(browserSource, /Running Chimer timer/)
 })

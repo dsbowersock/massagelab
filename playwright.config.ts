@@ -27,6 +27,12 @@ const browserQaPort = parseBrowserQaPort(process.env.PLAYWRIGHT_PORT)
 const browserQaBaseUrl = process.env.PLAYWRIGHT_BASE_URL
   ?? (browserQaPort === defaultBrowserQaPort ? defaultBrowserQaBaseUrl : `http://localhost:${browserQaPort}`)
 const skipWebServer = parseBooleanEnv(process.env.PLAYWRIGHT_SKIP_WEB_SERVER)
+const runsDevelopmentPaletteReview = process.argv.some((argument) => (
+  argument.replaceAll("\\", "/").endsWith("tests/browser/background-palette.spec.ts")
+))
+const defaultWebServerCommand = runsDevelopmentPaletteReview
+  ? `npm run dev -- -p ${browserQaPort}`
+  : `npm run start -- -p ${browserQaPort}`
 
 export default defineConfig({
   testDir: "tests/browser",
@@ -64,9 +70,11 @@ export default defineConfig({
   webServer: skipWebServer
     ? undefined
     : {
-        command: process.env.PLAYWRIGHT_START_COMMAND ?? `npm run start -- -p ${browserQaPort}`,
+        command: process.env.PLAYWRIGHT_START_COMMAND ?? defaultWebServerCommand,
         url: browserQaBaseUrl,
-        reuseExistingServer: !process.env.CI,
+        // A stale production server would turn a development review into a
+        // misleading 404. Fail on the occupied port instead of reusing it.
+        reuseExistingServer: !process.env.CI && !runsDevelopmentPaletteReview,
         timeout: 120_000,
       },
 })

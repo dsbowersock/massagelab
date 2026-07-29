@@ -273,6 +273,7 @@ describe("background palette adapter registry", () => {
       )
 
       if (adapter.status === "unsupported") {
+        assert.equal(VALID_RENDERER_FAMILIES.has(adapter.rendererFamily), true, backgroundId)
         assert.ok(adapter.unsupportedReason.trim().length > 0, backgroundId)
         continue
       }

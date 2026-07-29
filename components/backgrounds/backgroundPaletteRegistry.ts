@@ -38,6 +38,7 @@ export interface SupportedBackgroundPaletteAdapter {
 
 export interface UnsupportedBackgroundPaletteAdapter {
   status: "unsupported"
+  rendererFamily: BackgroundRendererFamily
   unsupportedReason: string
   visualPropertyKeys: readonly string[]
   sourceVisualProperties: Readonly<Record<string, unknown>>
@@ -72,6 +73,7 @@ type SupportedSpec = {
 }
 type UnsupportedSpec = {
   id: string
+  family: BackgroundRendererFamily
   prefixes?: readonly string[]
   reason?: string
 }
@@ -436,6 +438,7 @@ function supported(spec: SupportedSpec): SupportedBackgroundPaletteAdapter {
 function unsupported(spec: UnsupportedSpec): UnsupportedBackgroundPaletteAdapter {
   return Object.freeze({
     status: "unsupported",
+    rendererFamily: spec.family,
     unsupportedReason: spec.reason ?? FIXED_RENDERER_REASON,
     ...visualInventory(spec.id, spec.prefixes ?? [], new Set()),
   })
@@ -574,17 +577,17 @@ const SUPPORTED_SPECS: readonly SupportedSpec[] = [
 ]
 
 const UNSUPPORTED_SPECS: readonly UnsupportedSpec[] = [
-  { id: "static-gradient" },
-  { id: "massage-lab-prism", prefixes: ["massageLabPrism"], reason: "Prism exposes spectral and hue controls rather than a concrete color target, so its source rendering remains unchanged during adapter migration." },
-  { id: "massage-lab-dark-veil", prefixes: ["massageLabDarkVeil"], reason: "Dark Veil exposes a hue shift rather than a concrete color target, so its source rendering remains unchanged during adapter migration." },
-  { id: "massage-lab-aurora" },
-  { id: "massage-lab-dotted-glow" },
-  { id: "massage-lab-background-beams" },
-  { id: "massage-lab-collision-beams" },
-  { id: "massage-lab-background-lines", prefixes: ["backgroundLines"] },
-  { id: "massage-lab-glowing-stars" },
-  { id: "massage-lab-meteors" },
-  { id: "massage-lab-bubble" },
+  { id: "static-gradient", family: "css-dom" },
+  { id: "massage-lab-prism", family: "webgl", prefixes: ["massageLabPrism"], reason: "Prism exposes spectral and hue controls rather than a concrete color target, so its source rendering remains unchanged during adapter migration." },
+  { id: "massage-lab-dark-veil", family: "webgl", prefixes: ["massageLabDarkVeil"], reason: "Dark Veil exposes a hue shift rather than a concrete color target, so its source rendering remains unchanged during adapter migration." },
+  { id: "massage-lab-aurora", family: "css-dom" },
+  { id: "massage-lab-dotted-glow", family: "css-dom" },
+  { id: "massage-lab-background-beams", family: "css-dom" },
+  { id: "massage-lab-collision-beams", family: "css-dom" },
+  { id: "massage-lab-background-lines", family: "css-dom", prefixes: ["backgroundLines"] },
+  { id: "massage-lab-glowing-stars", family: "css-dom" },
+  { id: "massage-lab-meteors", family: "css-dom" },
+  { id: "massage-lab-bubble", family: "css-dom" },
 ]
 
 const SETTING_NAMESPACE_OWNERS = Object.freeze([

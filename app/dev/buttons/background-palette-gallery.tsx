@@ -1,6 +1,6 @@
 "use client"
 
-import { memo, useEffect, useMemo, useRef, useState } from "react"
+import { memo, useEffect, useMemo, useState } from "react"
 
 import { BackgroundHost } from "@/components/backgrounds/BackgroundHost"
 import {
@@ -26,6 +26,7 @@ import {
 import { AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Notice } from "@/components/ui/notice"
+import { useMusic } from "@/components/providers/music-provider"
 import { FEATURE_KEYS } from "@/lib/membership"
 import {
   DEFAULT_BACKGROUND_PALETTE_STATE,
@@ -98,7 +99,7 @@ const visualPresetFixtures: BackgroundVisualPreset[] = Array.from(
 )
 
 function adapterFamily(adapter: BackgroundPaletteAdapter) {
-  return adapter.status === "supported" ? adapter.rendererFamily : "untinted-fixed"
+  return adapter.rendererFamily
 }
 
 function adapterSourceBehavior(adapter: BackgroundPaletteAdapter) {
@@ -155,63 +156,43 @@ const StaticEditorSpecimen = memo(function StaticEditorSpecimen({
 })
 
 /**
- * Keeps one clock and a silent Web Audio graph alive while palette state
- * changes. The child boundary ensures the probe itself is never remounted by a
- * renderer selection and avoids making its clock rerender the full gallery.
+ * Reads the globally mounted production Music provider and its active Tone
+ * graph. Palette edits therefore prove continuity of the same station session,
+ * playback state, and audio-context clock used by the real Music route.
  */
-function ContinuityProbe() {
-  const [timerTick, setTimerTick] = useState(0)
-  const [audioState, setAudioState] = useState<"idle" | "playing" | "paused">("idle")
-  const [audioTime, setAudioTime] = useState(0)
-  const audioContextRef = useRef<AudioContext | null>(null)
-  const oscillatorRef = useRef<OscillatorNode | null>(null)
+function ProductionMusicContinuityProbe() {
+  const music = useMusic()
+  const [diagnostics, setDiagnostics] = useState(() => music.getPlaybackDiagnostics())
 
   useEffect(() => {
-    const interval = window.setInterval(() => {
-      setTimerTick((tick) => tick + 1)
-      setAudioTime(audioContextRef.current?.currentTime ?? 0)
-    }, 200)
-    return () => window.clearInterval(interval)
-  }, [])
-
-  useEffect(() => () => {
-    try {
-      oscillatorRef.current?.stop()
-    } catch {
-      // The node may already be stopped during a development hot reload.
+    let frame = 0
+    const update = () => {
+      setDiagnostics(music.getPlaybackDiagnostics())
+      frame = window.requestAnimationFrame(update)
     }
-    void audioContextRef.current?.close()
-  }, [])
-
-  async function startAudioProbe() {
-    if (!audioContextRef.current) {
-      const audioContext = new AudioContext()
-      const oscillator = audioContext.createOscillator()
-      const gain = audioContext.createGain()
-      gain.gain.value = 0
-      oscillator.connect(gain)
-      gain.connect(audioContext.destination)
-      oscillator.start()
-      audioContextRef.current = audioContext
-      oscillatorRef.current = oscillator
-    }
-    await audioContextRef.current.resume()
-    setAudioState(audioContextRef.current.state === "running" ? "playing" : "paused")
-  }
+    frame = window.requestAnimationFrame(update)
+    return () => window.cancelAnimationFrame(frame)
+  }, [music])
 
   return (
     <div
       className="flex flex-wrap items-center gap-3 text-sm"
-      data-background-palette-continuity
-      data-timer-continuity={timerTick}
-      data-audio-continuity={audioState}
-      data-audio-continuity-time={audioTime}
+      data-background-palette-music-continuity
+      data-music-station-id={music.activeStationId ?? ""}
+      data-music-playback-state={music.playbackState}
+      data-music-session-id={diagnostics?.sessionId ?? ""}
+      data-music-audio-context-state={diagnostics?.audioContextState ?? ""}
+      data-music-audio-elapsed={diagnostics?.elapsed ?? 0}
     >
-      <Button size="compact" variant="secondary" onClick={() => void startAudioProbe()}>
-        Start audio continuity probe
+      <Button
+        size="compact"
+        variant="secondary"
+        onClick={() => void music.playStation("mlab-proof-drone")}
+      >
+        Play MassageLab Proof Drone
       </Button>
-      <span>Timer tick {timerTick}</span>
-      <span>Audio probe {audioState}</span>
+      <span>{music.activeStationTitle ?? "No station selected"}</span>
+      <span>Production playback {music.playbackState}</span>
     </div>
   )
 }
@@ -258,10 +239,6 @@ export function BackgroundPaletteGallery() {
       canCustomize: true,
     })
     : {}
-  const sourceRestored = palette.mode === "source"
-  const renderResult = adapter?.status === "supported"
-    ? "mounted"
-    : "intentional-unsupported"
   const movingGradientAdapter = backgroundPaletteRegistry["massage-lab-moving-gradient"]
   const sharedRoleMapping: BackgroundColorMapping = movingGradientAdapter
     ? { main: 0, orb: 0 }
@@ -441,13 +418,31 @@ export function BackgroundPaletteGallery() {
                 <p className="font-medium">{entry.label}</p>
                 <p className="mt-1 break-words text-xs text-muted-foreground">{entry.id}</p>
                 <p className="mt-2 text-sm">{entryAdapter ? roleSummary(entryAdapter) : "Missing adapter"}</p>
-                <div
-                  className="mt-3 h-16 rounded-lg border border-border"
-                  data-family-representative={entryAdapter?.status === "supported" ? entryAdapter.rendererFamily : "unsupported"}
+                <div className="relative mt-3 h-24 overflow-hidden rounded-lg border border-border">
+                  <BackgroundHost
+                    selectedId={entry.id}
+                    featureKeys={DEVELOPMENT_REVIEW_FEATURE_KEYS}
+                    massageLabLightSpeed={{
+                      particleCount: 20,
+                      warpSpeed: 0.1,
+                      intensity: 0.25,
+                    }}
+                    draftPalettePreview={{
+                      palette: CUSTOM_PALETTE,
+                      mapping: entryAdapter?.status === "supported"
+                        ? defaultMapping(entryAdapter)
+                        : {},
+                      canCustomize: true,
+                    }}
+                    className="absolute inset-0"
+                    testId={`background-palette-${entryAdapter?.rendererFamily ?? "unknown"}-representative`}
+                    diagnostics
+                  />
+                </div>
+                <output
+                  className="sr-only"
+                  data-family-representative={entryAdapter?.rendererFamily ?? "unknown"}
                   data-resolved-role-colors={JSON.stringify(colors)}
-                  style={{
-                    background: `linear-gradient(135deg, ${Object.values(colors).join(", ")})`,
-                  }}
                 />
               </AppSurface>
             )
@@ -492,7 +487,7 @@ export function BackgroundPaletteGallery() {
             <option value="harmony">Harmony</option>
           </select>
         </label>
-        <ContinuityProbe />
+        <ProductionMusicContinuityProbe />
 
         {adapter && selectedBackground ? (
           <>
@@ -518,12 +513,13 @@ export function BackgroundPaletteGallery() {
               data-palette-mode={palette.mode}
               data-shared-swatches={JSON.stringify(palette.swatches)}
               data-active-mapping={JSON.stringify(selectedMapping)}
+              data-active-role-labels={JSON.stringify(
+                adapter.status === "supported"
+                  ? Object.fromEntries(adapter.roles.map((role) => [role.id, role.label]))
+                  : {},
+              )}
               data-resolved-role-colors={JSON.stringify(resolvedRoleColors)}
               data-role-count={adapter.status === "supported" ? adapter.roles.length : 0}
-              data-source-restored={sourceRestored ? "true" : "false"}
-              data-render-result={renderResult}
-              data-unexpected-fallback="false"
-              data-unsupported-untinted={adapter.status === "unsupported" ? "true" : "false"}
               data-reduced-motion={reducedMotion ? "true" : "false"}
             >
               <div className="relative min-h-80 overflow-hidden rounded-2xl border border-border bg-black">
@@ -542,6 +538,43 @@ export function BackgroundPaletteGallery() {
                     bloomStrength: 0,
                     bloomRadius: 0,
                   }}
+                  massageLabRippleGrid={{
+                    gridColor: "#ffffff",
+                    enableRainbow: true,
+                    gridSize: 17,
+                    rippleIntensity: 0.17,
+                    opacity: 0.63,
+                    mouseInteraction: false,
+                  }}
+                  auroraBars={{
+                    paletteMode: "auto",
+                    primaryColor: "#abcdef",
+                    colors: ["#111111", "#222222", "#333333", "#444444", "#555555"],
+                    background: "#060606",
+                    barCount: 12,
+                    speed: 0.2,
+                  }}
+                  tileGrid={{
+                    paletteMode: "auto",
+                    primaryColor: "#abcdef",
+                    colors: ["#111111", "#222222", "#333333", "#444444", "#555555"],
+                    tileSize: 43,
+                    jointSize: 3,
+                    changeFrequency: 0.42,
+                    activePercent: 0.31,
+                    opacity: 0.77,
+                  }}
+                  gradientAnimation={{
+                    backgroundStartColor: "#010101",
+                    backgroundEndColor: "#020202",
+                    firstColor: "#030303",
+                    secondColor: "#040404",
+                    thirdColor: "#050505",
+                    fourthColor: "#060606",
+                    fifthColor: "#070707",
+                    speed: 1.7,
+                    size: 63,
+                  }}
                   draftPalettePreview={{
                     palette,
                     mapping: selectedMapping,
@@ -550,6 +583,7 @@ export function BackgroundPaletteGallery() {
                   className="absolute inset-0"
                   motionEnabled
                   testId="background-palette-live-host"
+                  diagnostics
                 />
                 <div className="pointer-events-none absolute inset-x-3 bottom-3 rounded-lg bg-background/85 p-3 text-xs text-foreground backdrop-blur">
                   <p className="font-semibold">{selectedBackground.label}</p>

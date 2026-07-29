@@ -11,6 +11,10 @@ import {
   type BackgroundId,
 } from "@/components/backgrounds/backgroundRegistry"
 import { backgroundPaletteRegistry } from "@/components/backgrounds/backgroundPaletteRegistry"
+import {
+  createBackgroundHostDiagnosticSnapshot,
+  type BackgroundHostLoadStatus,
+} from "@/components/backgrounds/backgroundHostDiagnostics"
 import type {
   BackgroundEffectProps,
 } from "@/components/backgrounds/effects/css-backgrounds"
@@ -43,6 +47,8 @@ interface BackgroundHostProps extends BackgroundEffectProps {
   /** Renders the static representative while avoiding animated effect work. */
   motionEnabled?: boolean
   testId?: string
+  /** Exposes actual lazy-load and post-adapter props on data attributes for guarded QA surfaces. */
+  diagnostics?: boolean
 }
 
 const COLOR_OPTION_PATTERN = /(color|gradient|tint)/i
@@ -198,6 +204,7 @@ export function BackgroundHost({
   style,
   motionEnabled = true,
   testId = "background-host",
+  diagnostics = false,
 }: BackgroundHostProps) {
   const { settings } = useSettings()
   const prefersReducedMotion = usePrefersReducedMotion()
@@ -209,12 +216,17 @@ export function BackgroundHost({
     prefersReducedMotion,
     ambientMotionMode: settings.ambientMotionMode,
   })
-  const [BackgroundComponent, setBackgroundComponent] = useState<ComponentType<BackgroundEffectProps> | null>(null)
+  const [loadedEffect, setLoadedEffect] = useState<{
+    id: string
+    component: ComponentType<BackgroundEffectProps>
+  } | null>(null)
+  const [loadStatus, setLoadStatus] = useState<BackgroundHostLoadStatus>("loading")
+  const [loadError, setLoadError] = useState<string | null>(null)
   const shouldLoadEffect = Boolean(
     entry.component
     && (entry.motionIntensity === "static" || (motionEnabled && !reduceMotion)),
   )
-  const effectProps = useMemo(() => {
+  const { baseEffectProps, effectProps } = useMemo(() => {
     const baseEffectProps = {
     mainColor,
     orbColor,
@@ -303,9 +315,15 @@ export function BackgroundHost({
         mapping: draftPalettePreview.mapping,
         canCustomize: draftPalettePreview.canCustomize,
       })
-      return adapter.applyRoleColors(baseEffectProps, colors, effectiveMode)
+      return {
+        baseEffectProps,
+        effectProps: adapter.applyRoleColors(baseEffectProps, colors, effectiveMode),
+      }
     }
-    return applyPaletteToBackgroundEffects(baseEffectProps, palette)
+    return {
+      baseEffectProps,
+      effectProps: applyPaletteToBackgroundEffects(baseEffectProps, palette),
+    }
   }, [
     mainColor,
     orbColor,
@@ -391,9 +409,11 @@ export function BackgroundHost({
 
   useEffect(() => {
     let mounted = true
+    setLoadedEffect(null)
+    setLoadError(null)
+    setLoadStatus("loading")
 
     if (!shouldLoadEffect || !entry.component) {
-      setBackgroundComponent(null)
       return () => {
         mounted = false
       }
@@ -402,12 +422,18 @@ export function BackgroundHost({
     entry.component()
       .then((module) => {
         if (mounted) {
-          setBackgroundComponent(() => module.default)
+          setLoadedEffect({
+            id: entry.id,
+            component: module.default,
+          })
+          setLoadStatus("loaded")
         }
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (mounted) {
-          setBackgroundComponent(null)
+          setLoadedEffect(null)
+          setLoadStatus("error")
+          setLoadError(error instanceof Error ? error.message : "Background renderer failed to load.")
         }
       })
 
@@ -415,6 +441,23 @@ export function BackgroundHost({
       mounted = false
     }
   }, [entry, shouldLoadEffect])
+
+  const BackgroundComponent = loadedEffect?.id === entry.id
+    ? loadedEffect.component
+    : null
+  const adapter = backgroundPaletteRegistry[entry.id]
+  const diagnosticSnapshot = diagnostics && adapter
+    ? createBackgroundHostDiagnosticSnapshot({
+        requestedId: entry.id,
+        loadedId: loadedEffect?.id ?? null,
+        loadStatus,
+        adapter,
+        baseEffectProps,
+        appliedEffectProps: effectProps,
+        reducedMotion: reduceMotion,
+        error: loadError,
+      })
+    : null
 
   return (
     <div
@@ -427,6 +470,30 @@ export function BackgroundHost({
       }
       data-background-motion={motionEnabled ? "playing" : "paused"}
       data-background-provider={entry.provider}
+      data-background-diagnostic-requested-id={diagnosticSnapshot?.requestedId}
+      data-background-diagnostic-loaded-id={diagnosticSnapshot?.loadedId ?? undefined}
+      data-background-diagnostic-status={diagnosticSnapshot?.status}
+      data-background-diagnostic-family={diagnosticSnapshot?.rendererFamily}
+      data-background-diagnostic-targets={
+        diagnosticSnapshot
+          ? JSON.stringify(diagnosticSnapshot.resolvedRendererTargets)
+          : undefined
+      }
+      data-background-diagnostic-application-changed={
+        diagnosticSnapshot ? String(diagnosticSnapshot.applicationChanged) : undefined
+      }
+      data-background-diagnostic-applied={
+        diagnosticSnapshot
+          ? String(Boolean(draftPalettePreview && adapter?.status === "supported"))
+          : undefined
+      }
+      data-background-diagnostic-fallback={
+        diagnosticSnapshot ? String(diagnosticSnapshot.fallback) : undefined
+      }
+      data-background-diagnostic-error={diagnosticSnapshot?.error ?? undefined}
+      data-background-diagnostic-reduced-motion={
+        diagnosticSnapshot ? String(diagnosticSnapshot.reducedMotion) : undefined
+      }
       data-testid={testId}
       style={style}
     >
