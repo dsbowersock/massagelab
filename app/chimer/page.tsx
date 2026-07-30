@@ -33,6 +33,7 @@ import {
   sanitizeChimerVisualCommitForEntitlements,
 } from "@/lib/chimer-timer"
 import {
+  areChimerPreferenceSnapshotsEqual,
   canSyncAccountPreferencesFromSession,
   createChimerPreferenceSyncRouter,
   createSerializedChimerPreferenceWriter,
@@ -137,11 +138,9 @@ function hasSavedPreference(value: unknown) {
 }
 
 function areChimerSettingsEqual(left: ChimerSettings, right: ChimerSettings) {
-  const normalizationOptions = {
+  return areChimerPreferenceSnapshotsEqual(left, right, {
     backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
-  }
-  return JSON.stringify(sanitizeChimerSettings(left, normalizationOptions))
-    === JSON.stringify(sanitizeChimerSettings(right, normalizationOptions))
+  })
 }
 
 export default function ChimerPage() {

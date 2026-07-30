@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
   USER_PREFERENCES_VERSION,
+  areChimerPreferenceSnapshotsEqual,
   buildTherapistProfilePayload,
   canSyncAccountPreferencesFromSession,
   buildUserPreferencePayload,
@@ -236,6 +237,33 @@ describe("Account preference helpers", () => {
       {},
       { backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions },
     ), false)
+  })
+
+  it("compares normalized Chimer settings independent of persisted object key order", () => {
+    const first = {
+      backgroundVisualPreferences: {
+        version: 1,
+        mappingsByBackground: {
+          "massage-lab-novatrix": { field: 2 },
+          "massage-lab-stars": { stars: 3 },
+        },
+      },
+    }
+    const reordered = {
+      backgroundVisualPreferences: {
+        mappingsByBackground: {
+          "massage-lab-stars": { stars: 3 },
+          "massage-lab-novatrix": { field: 2 },
+        },
+        version: 1,
+      },
+    }
+
+    assert.equal(areChimerPreferenceSnapshotsEqual(
+      first,
+      reordered,
+      { backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions },
+    ), true)
   })
 
   it("ignores out-of-order completions and retries only the latest failed body", () => {
