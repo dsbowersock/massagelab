@@ -333,7 +333,11 @@ describe("premium background registry", () => {
     )
     assert.match(
       setTimerSource,
-      /onChange=\{\(backgroundId,\s*accessOverride\)\s*=>\s*onSettingsChange\(\{ backgroundId \},\s*accessOverride\)\}/,
+      /onChange=\{handleBackgroundSelection\}/,
+    )
+    assert.match(
+      setTimerSource,
+      /onSettingsChange\(\{[\s\S]*backgroundId:\s*nextBackgroundId,[\s\S]*backgroundVisualPreferences:[\s\S]*\}, accessOverride\)/,
     )
     assert.match(
       chimerPageSource,

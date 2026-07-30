@@ -25,9 +25,10 @@ type BackgroundCardCommerceState = {
   ownershipSource: string | null
 }
 
-/** Requires both an active ownership row and its permanent acquisition source. */
+/** Recognizes authoritative or freshly bridged permanent ownership. */
 function hasActivePermanentOwnership(commerceState: BackgroundCardCommerceState) {
-  return commerceState.ownershipStatus === "active"
+  return commerceState.state === "owned"
+    || commerceState.ownershipStatus === "active"
     && (
       commerceState.state === "owned-credit"
       || commerceState.state === "owned-purchase"
@@ -100,8 +101,7 @@ export function BackgroundCarouselCard({
     .slice(0, 4)
   const statusLabel = accessLabel(commerceState)
   const sourceLabel = ownershipSourceLabel(commerceState.ownershipSource)
-  // Only authoritative active credit or purchase states represent permanent
-  // ownership that survives membership cancellation.
+  // A transient generic state can precede the refreshed authoritative source.
   const permanentlyOwned = hasActivePermanentOwnership(commerceState)
   const unavailable = commerceState.state === "unavailable"
   const locked = !commerceState.canSelect && !unavailable

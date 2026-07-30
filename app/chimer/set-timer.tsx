@@ -3,6 +3,7 @@
 import { type FormEvent as ReactFormEvent, type MouseEvent as ReactMouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Clock, Minus, Play, Plus } from "lucide-react"
 import { BackgroundSelector } from "@/components/backgrounds/BackgroundSelector"
+import { backgroundPaletteRegistry } from "@/components/backgrounds/backgroundPaletteRegistry"
 import type { BackgroundAccessSnapshot, BackgroundCategory, BackgroundDefinition, BackgroundId } from "@/components/backgrounds/backgroundRegistry"
 import { Button } from "@/components/ui/button"
 import { AcceleratingStepButton } from "@/components/ui/accelerating-step-button"
@@ -15,6 +16,7 @@ import { StyledRangeControl } from "@/components/chimer-controls/StyledRangeCont
 import { StyledToggleControl } from "@/components/chimer-controls/StyledToggleControl"
 import { getMassageLab3DGlobeScaleDisplayPercent, getMassageLab3DGlobeScaleFromDisplayPercent, parseGlobeCoordinateDraft, sanitizeChimerSettings } from "@/lib/chimer-timer"
 import { normalizeSharedBackgroundVisualPreferences } from "@/lib/background-palette"
+import { buildBackgroundVisualOpeningSnapshot, buildBackgroundVisualPendingCommit } from "@/lib/background-visual-draft"
 import styles from "./set-timer.module.css"
 import { TileGridFadeTimeControl } from "./tile-grid-fade-time-control"
 
@@ -1119,6 +1121,35 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
   const isTimerSet = totalDurationMs > 0
   const withPress = (handler: () => void) => withChimerPress(handler, { hapticsEnabled })
   const setupPresetState = useMemo(() => createChimerSetupPresetState(settings, skipIntervalCues), [settings, skipIntervalCues])
+  const handleBackgroundSelection = (
+    nextBackgroundId: BackgroundId,
+    accessOverride?: BackgroundAccessSnapshot,
+  ) => {
+    if (nextBackgroundId === settings.backgroundId) {
+      return
+    }
+    // Setup selection uses the same destination snapshot contract as the live
+    // Visual picker so a saved default preset (or source defaults) is applied.
+    const commit = buildBackgroundVisualPendingCommit({
+      preferences: settings.backgroundVisualPreferences,
+      currentBackgroundId: settings.backgroundId,
+      currentSnapshot: buildBackgroundVisualOpeningSnapshot({
+        preferences: settings.backgroundVisualPreferences,
+        backgroundId: settings.backgroundId,
+        committedSettings: settings,
+        adapter: backgroundPaletteRegistry[settings.backgroundId],
+      }),
+      targetBackgroundId: nextBackgroundId,
+      targetAdapter: backgroundPaletteRegistry[nextBackgroundId],
+      commitCanonicalBackgroundSelection: true,
+    })
+    onSettingsChange({
+      ...(commit.properties as Partial<ChimerSettings>),
+      backgroundId: nextBackgroundId,
+      backgroundVisualPreferences:
+        commit.backgroundVisualPreferences as ChimerSettings["backgroundVisualPreferences"],
+    }, accessOverride)
+  }
 
   useEffect(() => {
     setGlobeMarkerDraft({
@@ -11157,7 +11188,7 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
             <>
               <div className={styles.backgroundSettings}>
                 <StyledToggleControl label="Visual background" checked={settings.movingBackgroundEnabled} hapticsEnabled={hapticsEnabled} onCheckedChange={(value) => onSettingsChange({ movingBackgroundEnabled: value })} />
-                {settings.movingBackgroundEnabled && <BackgroundSelector value={settings.backgroundId} onChange={(backgroundId, accessOverride) => onSettingsChange({ backgroundId }, accessOverride)} access={backgroundAccess} category={backgroundCategory} renderSelectedControls={renderBackgroundControls} />}
+                {settings.movingBackgroundEnabled && <BackgroundSelector value={settings.backgroundId} onChange={handleBackgroundSelection} access={backgroundAccess} category={backgroundCategory} renderSelectedControls={renderBackgroundControls} />}
               </div>
               <p className={styles.formHint}>Backgrounds are fully applied when timer starts. Use this section to set your preferred background and any per-background controls.</p>
             </>

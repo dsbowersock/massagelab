@@ -106,12 +106,15 @@ export function BackgroundCarousel({
   const items = useMemo(
     () => options.map((option) => {
       const canUse = userCanUseBackground(option, access)
+      const isOwnedByAccess = access.ownedBackgroundIds.includes(option.id)
       const commerceState = backgroundCardCommerceState({
         background: option,
         access: {
           canUse,
           accessSource: option.requiresSubscription && canUse
-            ? "subscription"
+            ? isOwnedByAccess
+              ? "ownership"
+              : "subscription"
             : canUse
               ? "free"
               : "locked",

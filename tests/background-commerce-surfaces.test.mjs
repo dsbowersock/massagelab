@@ -74,6 +74,7 @@ describe("production background commerce states", () => {
     assert.match(source, /onSelect\(\)/)
     assert.match(source, /onClick=\{onKeepPermanently\}/)
     assert.match(source, /commerceState\.ownershipStatus === "active"/)
+    assert.match(source, /commerceState\.state === "owned"/)
     assert.match(source, /commerceState\.state === "owned-credit"/)
     assert.match(source, /commerceState\.state === "owned-purchase"/)
     assert.match(source, /type="button"/)
@@ -89,12 +90,23 @@ describe("production background commerce states", () => {
     const selector = await readFile(selectorPath, "utf8")
     assert.match(carousel, /useBackgroundCommerce\(\)/)
     assert.match(carousel, /backgroundCardCommerceState/)
+    assert.match(carousel, /access\.ownedBackgroundIds\.includes\(option\.id\)/)
+    assert.match(carousel, /isOwnedByAccess[\s\S]*"ownership"[\s\S]*"subscription"/)
     assert.match(selector, /useBackgroundCreditStatus/)
     assert.match(selector, /setAcquisition/)
     assert.match(selector, /<BackgroundAcquisitionDialog/)
     assert.match(selector, /onAcquired/)
     assert.match(selector, /const selectedControls =/)
     assert.match(selector, /\{selectedControls \? \(/)
+  })
+
+  it("routes setup background selection through the shared Visual snapshot commit", async () => {
+    const setup = await readFile(setTimerPath, "utf8")
+    assert.match(setup, /buildBackgroundVisualOpeningSnapshot/)
+    assert.match(setup, /buildBackgroundVisualPendingCommit/)
+    assert.match(setup, /targetBackgroundId:\s*nextBackgroundId/)
+    assert.match(setup, /targetAdapter:\s*backgroundPaletteRegistry\[nextBackgroundId\]/)
+    assert.match(setup, /onChange=\{handleBackgroundSelection\}/)
   })
 
   it("removes the redundant Chimer background step shell and empty controls card", async () => {

@@ -798,6 +798,21 @@ test("live Visual integration owns draft preview, one Apply, and reachable actio
   assert.match(runningTimerStyles, /\.hideLegacyPaletteMetadataControls[\s\S]*color mode/)
 })
 
+test("reselecting the active background closes without rebuilding Visual state", () => {
+  assert.match(
+    runningTimerSource,
+    /if \(nextBackgroundId === visualBackgroundId\) \{\s*finishBackgroundSelection\(\)\s*return\s*\}/,
+  )
+  assert.ok(
+    runningTimerSource.indexOf("if (nextBackgroundId === visualBackgroundId)") <
+      runningTimerSource.indexOf("if (visualDraft?.dirty)"),
+  )
+  assert.match(
+    runningTimerSource,
+    /if \(nextBackgroundId === visualBackgroundId\) \{[\s\S]*if \(!visualDraft\?\.dirty\) \{\s*finishBackgroundSelection\(\)[\s\S]*return/,
+  )
+})
+
 test("Visual Apply updates the live settings snapshot before delayed account hydration can read it", () => {
   const applyStart = pageSource.indexOf("const applyBackgroundVisualPreferences")
   const applyEnd = pageSource.indexOf("const retryBackgroundVisualPreferenceSync", applyStart)

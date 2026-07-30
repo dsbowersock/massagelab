@@ -2051,6 +2051,12 @@ export function RunningTimer({
     if (!getSelectableBackground(nextBackgroundId, newlyOwnedBackgroundIds)) {
       return
     }
+    // Reselecting the active card only closes the picker; rebuilding its
+    // destination snapshot would replace the user's current visual tuning.
+    if (nextBackgroundId === visualBackgroundId) {
+      finishBackgroundSelection()
+      return
+    }
 
     const currentBackgroundId = visualBackgroundId
     const commit = buildBackgroundVisualPendingCommit({
@@ -2085,6 +2091,14 @@ export function RunningTimer({
     newlyOwnedBackgroundIds: readonly string[] = [],
   ) => {
     if (!getSelectableBackground(nextBackgroundId, newlyOwnedBackgroundIds)) {
+      return
+    }
+    if (nextBackgroundId === visualBackgroundId) {
+      // Never clear a dirty draft just because its already-selected card was
+      // pressed; the user must still choose Apply or Discard explicitly.
+      if (!visualDraft?.dirty) {
+        finishBackgroundSelection()
+      }
       return
     }
     if (visualDraft?.dirty) {
