@@ -106,6 +106,7 @@ describe("production background commerce states", () => {
     assert.match(setup, /buildBackgroundVisualPendingCommit/)
     assert.match(setup, /targetBackgroundId:\s*nextBackgroundId/)
     assert.match(setup, /targetAdapter:\s*backgroundPaletteRegistry\[nextBackgroundId\]/)
+    assert.match(setup, /onBackgroundVisualCommit\(\{/)
     assert.match(setup, /onChange=\{handleBackgroundSelection\}/)
   })
 

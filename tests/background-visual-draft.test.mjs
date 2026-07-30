@@ -605,6 +605,36 @@ test("owned-only Music Apply retains visual properties without changing canonica
   assert.equal(committed.primaryFontColor, DEFAULT_CHIMER_SETTINGS.primaryFontColor)
 })
 
+test("setup selection preserves owned source tuning while selecting a free canonical background", () => {
+  const ownedSourceBackgroundId = "massage-lab-stars"
+  const committed = sanitizeChimerVisualCommitForEntitlements({
+    currentSettings: {
+      ...DEFAULT_CHIMER_SETTINGS,
+      backgroundId: ownedSourceBackgroundId,
+      massageLabStarsSpeed: 72,
+    },
+    candidateProperties: {
+      massageLabStarsSpeed: 72,
+    },
+    canonicalBackgroundId: DEFAULT_CHIMER_SETTINGS.backgroundId,
+    visualBackgroundIds: [
+      ownedSourceBackgroundId,
+      DEFAULT_CHIMER_SETTINGS.backgroundId,
+    ],
+    visualPropertyKeysByBackground: {
+      [ownedSourceBackgroundId]: ["massageLabStarsSpeed"],
+      [DEFAULT_CHIMER_SETTINGS.backgroundId]: [],
+    },
+    backgroundVisualPreferences: DEFAULT_CHIMER_SETTINGS.backgroundVisualPreferences,
+  }, {
+    featureKeys: [],
+    ownedBackgroundIds: [ownedSourceBackgroundId],
+  })
+
+  assert.equal(committed.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+  assert.equal(committed.massageLabStarsSpeed, 72)
+})
+
 test("legacy host selection helper remains deterministic during the shared-host cutover", () => {
   assert.equal(shouldUseDraftAwareBackgroundHost({
     isOriginalBackground: true,

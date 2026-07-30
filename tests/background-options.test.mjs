@@ -337,7 +337,11 @@ describe("premium background registry", () => {
     )
     assert.match(
       setTimerSource,
-      /onSettingsChange\(\{[\s\S]*backgroundId:\s*nextBackgroundId,[\s\S]*backgroundVisualPreferences:[\s\S]*\}, accessOverride\)/,
+      /onBackgroundVisualCommit\(\{[\s\S]*sourceVisualBackgroundId:\s*settings\.backgroundId,[\s\S]*backgroundId:\s*nextBackgroundId,[\s\S]*backgroundVisualPreferences:/,
+    )
+    assert.match(
+      setTimerSource,
+      /if \(nextBackgroundId === settings\.backgroundId\) \{[\s\S]*if \(accessOverride\) \{\s*onSettingsChange\(\{\}, accessOverride\)/,
     )
     assert.match(
       chimerPageSource,

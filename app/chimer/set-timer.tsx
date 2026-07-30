@@ -1048,6 +1048,14 @@ interface SetTimerProps {
     settings: Partial<ChimerSettings>,
     accessOverride?: BackgroundAccessSnapshot,
   ) => void
+  onBackgroundVisualCommit: (input: {
+    visualBackgroundId: string
+    sourceVisualBackgroundId: string
+    backgroundId: string
+    backgroundVisualPreferences: ChimerSettings["backgroundVisualPreferences"]
+    properties: Partial<ChimerSettings>
+    accessOverride?: BackgroundAccessSnapshot
+  }) => void
   onStartTimer: (options?: ChimerSetupStartOptions) => void
   onStartClock: () => void
   hapticsEnabled: boolean
@@ -1090,7 +1098,7 @@ function syncNativeRangeFill(rangeInput: HTMLInputElement) {
   rangeInput.style.setProperty(NATIVE_RANGE_FILL_STYLE_PROPERTY, `${clampedPercentage}%`)
 }
 
-export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppressSyncNotice = false, isResolvingSync, backgroundAccess, backgroundCategory, initialStep = 0, onTimeClick, onSettingsChange, onStartTimer, onStartClock, hapticsEnabled, onTestAlert, onUseDeviceSettings, onUseSavedSettings }: SetTimerProps) {
+export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppressSyncNotice = false, isResolvingSync, backgroundAccess, backgroundCategory, initialStep = 0, onTimeClick, onSettingsChange, onBackgroundVisualCommit, onStartTimer, onStartClock, hapticsEnabled, onTestAlert, onUseDeviceSettings, onUseSavedSettings }: SetTimerProps) {
   const [activeStep, setActiveStep] = useState(() => {
     // Route-derived or future callers may pass non-finite values; setup always
     // falls back to the first step before applying the normal finite bounds.
@@ -1126,6 +1134,11 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
     accessOverride?: BackgroundAccessSnapshot,
   ) => {
     if (nextBackgroundId === settings.backgroundId) {
+      // A redemption can confirm access to the already-selected canonical ID.
+      // Retain that bridge without rebuilding or resetting its Visual snapshot.
+      if (accessOverride) {
+        onSettingsChange({}, accessOverride)
+      }
       return
     }
     // Setup selection uses the same destination snapshot contract as the live
@@ -1143,12 +1156,17 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
       targetAdapter: backgroundPaletteRegistry[nextBackgroundId],
       commitCanonicalBackgroundSelection: true,
     })
-    onSettingsChange({
-      ...(commit.properties as Partial<ChimerSettings>),
+    // The source and destination renderer inventories need per-background
+    // entitlement scopes; an ordinary settings patch cannot safely carry both.
+    onBackgroundVisualCommit({
+      visualBackgroundId: nextBackgroundId,
+      sourceVisualBackgroundId: settings.backgroundId,
       backgroundId: nextBackgroundId,
       backgroundVisualPreferences:
         commit.backgroundVisualPreferences as ChimerSettings["backgroundVisualPreferences"],
-    }, accessOverride)
+      properties: commit.properties as Partial<ChimerSettings>,
+      ...(accessOverride ? { accessOverride } : {}),
+    })
   }
 
   useEffect(() => {

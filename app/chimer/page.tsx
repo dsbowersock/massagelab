@@ -1271,6 +1271,7 @@ export default function ChimerPage() {
             initialStep={requestedInitialPanel === "background" ? CHIMER_BACKGROUND_SETUP_STEP_INDEX : 0}
             onTimeClick={openTimeModal}
             onSettingsChange={updateSettings}
+            onBackgroundVisualCommit={applyBackgroundVisualPreferences}
             onStartTimer={startTimer}
             onStartClock={startClock}
             hapticsEnabled={appSettings.hapticFeedbackEnabled}
