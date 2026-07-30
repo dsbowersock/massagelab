@@ -155,6 +155,14 @@ test("caps Visual vertically and gives both panels an opposite-sidebar side shee
     shellStyles,
     /html\[data-sidebar-position="right"\][\s\S]{0,180}\.dock\[data-immersive-layout="side"\][\s\S]{0,220}right:\s*auto;[\s\S]{0,220}left:\s*calc\(/,
   )
+  assert.match(
+    shellSource,
+    /closeClockSideSheetBeforeCenterControls\s*=\s*nonmodalPanel === "clock" && nonmodalPanelUsesSideSheet/,
+  )
+  assert.match(
+    shellSource,
+    /\{closeClockSideSheetBeforeCenterControls \? dockHeaderCloseControl : null\}[\s\S]{0,220}dockHeaderCenterAction[\s\S]{0,220}\{!closeClockSideSheetBeforeCenterControls \? dockHeaderCloseControl : null\}/,
+  )
   assert.match(shellSource, /--immersive-reserved-right/)
   assert.match(shellSource, /--immersive-reserved-left/)
   assert.match(

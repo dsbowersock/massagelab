@@ -519,6 +519,25 @@ export function ImmersivePanelShell({
     } : {}),
   } as CSSProperties
 
+  const dockHeaderCloseControl = (
+    <div className={styles.dockHeaderClose}>
+      <Button
+        type="button"
+        variant="destructive"
+        size="icon"
+        hapticsEnabled={hapticsEnabled}
+        aria-label={`Close ${activePanelLabel} panel`}
+        onClick={() => closeNonmodalPanel(true)}
+      >
+        <X className="h-4 w-4" aria-hidden="true" />
+      </Button>
+    </div>
+  )
+  // Match focus order to the Clock side sheet's visual rows without changing
+  // the approved header layout for bottom docks or the Visual panel.
+  const closeClockSideSheetBeforeCenterControls =
+    nonmodalPanel === "clock" && nonmodalPanelUsesSideSheet
+
   if (!portalTarget) {
     return null
   }
@@ -618,21 +637,11 @@ export function ImmersivePanelShell({
             {activeHeaderAction ? (
               <div className={styles.dockHeaderAction}>{activeHeaderAction}</div>
             ) : null}
+            {closeClockSideSheetBeforeCenterControls ? dockHeaderCloseControl : null}
             {activeHeaderCenterAction ? (
               <div className={styles.dockHeaderCenterAction}>{activeHeaderCenterAction}</div>
             ) : null}
-            <div className={styles.dockHeaderClose}>
-              <Button
-                type="button"
-                variant="destructive"
-                size="icon"
-                hapticsEnabled={hapticsEnabled}
-                aria-label={`Close ${activePanelLabel} panel`}
-                onClick={() => closeNonmodalPanel(true)}
-              >
-                <X className="h-4 w-4" aria-hidden="true" />
-              </Button>
-            </div>
+            {!closeClockSideSheetBeforeCenterControls ? dockHeaderCloseControl : null}
           </div>
           <div className={styles.dockScroller} data-immersive-dock-scroller>
             {nonmodalPanel === "clock" ? clockContent : visualContent}

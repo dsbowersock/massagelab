@@ -416,6 +416,15 @@ test("16:9-style viewports give Clock and Visual the same half-width side sheet 
   const clockDock = page.locator('[data-immersive-panel="clock"]')
   await expect(clockDock).toBeVisible()
   await expect(clockDock).toHaveAttribute("data-immersive-layout", "side")
+  await expect.poll(async () => clockDock.locator("[data-immersive-dock-header]").evaluate((header) => {
+    const close = header.querySelector('[aria-label="Close Clock panel"]')
+    const color = header.querySelector('[aria-label="Clock color picker"]')
+    return Boolean(
+      close
+      && color
+      && (close.compareDocumentPosition(color) & Node.DOCUMENT_POSITION_FOLLOWING),
+    )
+  })).toBe(true)
   await expect.poll(async () => {
     const [displayBox, dockBox] = await Promise.all([
       page.locator("[data-protected-display]").boundingBox(),
