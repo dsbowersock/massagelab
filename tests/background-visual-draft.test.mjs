@@ -1110,18 +1110,33 @@ test("background selection atomically activates direct, same-ID, and dirty-Apply
   )
 })
 
-test("setup presets route canonical background selection before applying remaining settings", () => {
+test("setup selections and presets route canonical background activation before applying remaining settings", () => {
+  const selectionStart = setTimerSource.indexOf("const handleBackgroundSelection")
+  const selectionEnd = setTimerSource.indexOf("useEffect(() =>", selectionStart)
+  const selectionSource = setTimerSource.slice(selectionStart, selectionEnd)
+  const presetStart = setTimerSource.indexOf("const applyPreset")
+  const presetEnd = setTimerSource.indexOf("const loadLastSetup", presetStart)
+  const presetSource = setTimerSource.slice(presetStart, presetEnd)
+
   assert.match(
     setTimerSource,
-    /onBackgroundVisualCommit: \(input: \{[\s\S]*backgroundId: BackgroundId/,
+    /onBackgroundVisualCommit: \(input: \{[\s\S]*backgroundId: BackgroundId[\s\S]*activateBackground\?: boolean/,
   )
   assert.match(
-    setTimerSource,
-    /const applyPreset = \(preset: ChimerSetupPresetState\) => \{[\s\S]*skipIntervalCues: intervalSkip,[\s\S]*backgroundId,[\s\S]*\.\.\.settingsToApply[\s\S]*handleBackgroundSelection\(backgroundId\)\s*onSettingsChange\(settingsToApply\)\s*setSkipIntervalCues\(intervalSkip\)/,
+    selectionSource,
+    /if \(nextBackgroundId === settings\.backgroundId\) \{[\s\S]*return[\s\S]*onBackgroundVisualCommit\(\{[\s\S]*activateBackground: true/,
+  )
+  assert.match(
+    presetSource,
+    /skipIntervalCues: intervalSkip,[\s\S]*backgroundId,[\s\S]*\.\.\.settingsToApply[\s\S]*handleBackgroundSelection\(backgroundId\)\s*onSettingsChange\(settingsToApply\)\s*setSkipIntervalCues\(intervalSkip\)/,
   )
   assert.doesNotMatch(
-    setTimerSource,
-    /const applyPreset = \(preset: ChimerSetupPresetState\) => \{[\s\S]*onSettingsChange\(preset\)/,
+    presetSource,
+    /movingBackgroundEnabled:[\s\S]*\.\.\.settingsToApply|onSettingsChange\(preset\)|activateBackground:\s*false/,
+  )
+  assert.match(
+    pageSource,
+    /"activateBackground" in input && input\.activateBackground === true/,
   )
 })
 

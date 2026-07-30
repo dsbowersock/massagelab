@@ -1055,6 +1055,7 @@ interface SetTimerProps {
     backgroundVisualPreferences: ChimerSettings["backgroundVisualPreferences"]
     properties: Partial<ChimerSettings>
     accessOverride?: BackgroundAccessSnapshot
+    activateBackground?: boolean
   }) => void
   onStartTimer: (options?: ChimerSetupStartOptions) => void
   onStartClock: () => void
@@ -1158,6 +1159,7 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
     })
     // The source and destination renderer inventories need per-background
     // entitlement scopes; an ordinary settings patch cannot safely carry both.
+    // An explicit setup selection also activates motion in this scoped commit.
     onBackgroundVisualCommit({
       visualBackgroundId: nextBackgroundId,
       sourceVisualBackgroundId: settings.backgroundId,
@@ -1166,6 +1168,7 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
         commit.backgroundVisualPreferences as ChimerSettings["backgroundVisualPreferences"],
       properties: commit.properties as Partial<ChimerSettings>,
       ...(accessOverride ? { accessOverride } : {}),
+      activateBackground: true,
     })
   }
 
