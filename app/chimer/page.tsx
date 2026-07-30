@@ -38,6 +38,7 @@ import {
   createSerializedChimerPreferenceWriter,
   createChimerPreferenceSyncRequest,
   createChimerPreferenceSyncRetry,
+  doesChimerPreferenceWriteResponseMatch,
   resolveChimerPreferenceSyncRequest,
 } from "@/lib/account-preferences"
 import { resolveBackgroundVisualCommitScope } from "@/lib/background-visual-draft"
@@ -243,7 +244,15 @@ export default function ChimerPage() {
           headers: { "content-type": "application/json" },
           body: request.requestBody,
         })
-        return response.ok
+        if (!response.ok) {
+          return false
+        }
+        const responseBody = await response.json().catch(() => null)
+        return doesChimerPreferenceWriteResponseMatch(
+          request.requestBody,
+          responseBody,
+          { backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions },
+        )
       },
       onComplete: (request, succeeded) => {
         setBackgroundPreferenceSync((currentRequest) => (

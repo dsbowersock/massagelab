@@ -11,6 +11,7 @@ import {
   createSerializedChimerPreferenceWriter,
   createChimerPreferenceSyncRequest,
   createChimerPreferenceSyncRetry,
+  doesChimerPreferenceWriteResponseMatch,
   removeForbiddenPreferenceFields,
   resolveChimerPreferenceSyncRequest,
   resolveSupporterRoadmapInterestsAfterSave,
@@ -203,6 +204,38 @@ describe("Account preference helpers", () => {
       requestBody: null,
       requestId: 1,
     })
+  })
+
+  it("marks a successful write stale when the server sanitizes the submitted Chimer snapshot", () => {
+    const request = createChimerPreferenceSyncRequest(
+      { minutes: 20 },
+      {
+        backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
+        requestId: 1,
+      },
+    )
+    const submittedSettings = JSON.parse(request.requestBody).chimerSettings
+
+    assert.equal(doesChimerPreferenceWriteResponseMatch(
+      request.requestBody,
+      { chimerSettings: submittedSettings },
+      { backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions },
+    ), true)
+    const responseMatches = doesChimerPreferenceWriteResponseMatch(
+      request.requestBody,
+      { chimerSettings: { ...submittedSettings, minutes: 10 } },
+      { backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions },
+    )
+    assert.equal(responseMatches, false)
+    assert.equal(
+      resolveChimerPreferenceSyncRequest(request, request, responseMatches).status,
+      "stale",
+    )
+    assert.equal(doesChimerPreferenceWriteResponseMatch(
+      request.requestBody,
+      {},
+      { backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions },
+    ), false)
   })
 
   it("ignores out-of-order completions and retries only the latest failed body", () => {
