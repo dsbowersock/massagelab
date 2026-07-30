@@ -202,5 +202,17 @@ test("legacy migration preserves non-color settings and access falls back withou
   assert.equal(canCustomizeBackgroundColors({ hasCustomColorFeature: true, selectedBackgroundId: "x", permanentlyOwnedBackgroundIds: [] }), true)
   assert.equal(canCustomizeBackgroundColors({ hasCustomColorFeature: false, selectedBackgroundId: "x", permanentlyOwnedBackgroundIds: ["x"] }), true)
   assert.equal(canCustomizeBackgroundColors({ hasCustomColorFeature: false, selectedBackgroundId: "x", permanentlyOwnedBackgroundIds: ["not-x"] }), false)
+  assert.equal(canCustomizeBackgroundColors({
+    hasCustomColorFeature: false,
+    hasAccountColorAccess: true,
+    selectedBackgroundId: "massage-lab-moving-gradient",
+    permanentlyOwnedBackgroundIds: [],
+  }), true)
+  assert.equal(canCustomizeBackgroundColors({
+    hasCustomColorFeature: false,
+    hasAccountColorAccess: true,
+    selectedBackgroundId: "static-gradient",
+    permanentlyOwnedBackgroundIds: [],
+  }), false)
   assert.equal(resolveEffectiveBackgroundPaletteMode({ savedMode: "custom", canCustomize: false }), "source")
 })

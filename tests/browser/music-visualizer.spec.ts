@@ -96,7 +96,11 @@ async function startProofStation(page: Page, origin = "/music") {
 }
 
 async function openVisualizerFromPlayer(page: Page) {
-  await page.getByRole("button", { name: "Background", exact: true }).last().click()
+  // The persistent player exposes navigation as a link so the visual-draft
+  // guard can preserve browser history semantics before the route changes.
+  await page.getByTestId("music-player-toolbar")
+    .getByRole("link", { name: "Background", exact: true })
+    .click()
   await expect(page).toHaveURL(/\/clock\?[^#]*source=music/)
   await expect(page.getByLabel("Music visualizer")).toBeVisible()
 }
@@ -424,7 +428,9 @@ test("anonymous visualizer journey preserves playback, exact origin, and stopped
   await page.getByRole("button", { name: "Stop", exact: true }).last().click()
   await expect(player.getByText(PROOF_STATION_TITLE)).toBeVisible()
   await expect(player).toContainText("Stopped")
-  await expect(page.getByRole("button", { name: "Background", exact: true }).last()).toBeVisible()
+  await expect(
+    player.getByRole("link", { name: "Background", exact: true }),
+  ).toBeVisible()
 
   await openVisualizerFromPlayer(page)
   await page.getByRole("button", { name: "Minimize visualizer", exact: true }).last().click()
@@ -1171,6 +1177,76 @@ test("guest Shared Colors stay visible, source-only, and keep touch-sized contro
     noHorizontalClip: true,
     labelsReadable: true,
   })
+})
+
+test("signed-in free Lamp keeps its saved palette editable and rendered", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "single account-level Lamp color proof")
+  const lampPalette = {
+    mode: "custom",
+    primaryColor: "#123456",
+    harmony: "analogous",
+    swatches: ["#123456", "#abcdef", "#345678", "#456789", "#56789a", "#6789ab", "#789abc"],
+  }
+  const chimerSettings = {
+    backgroundId: "massage-lab-moving-gradient",
+    backgroundVisualPreferences: {
+      version: 1,
+      palette: lampPalette,
+      mappingsByBackground: {
+        "massage-lab-moving-gradient": { main: 0, orb: 1 },
+      },
+      colorPresets: [],
+      visualPresetsByBackground: {},
+    },
+  }
+
+  await seedDeviceVisualizer(page, {
+    backgroundId: "massage-lab-moving-gradient",
+    showClock: false,
+  })
+  await page.addInitScript(({ key, settings }) => {
+    localStorage.setItem(key, JSON.stringify(settings))
+  }, {
+    key: CHIMER_STORAGE_KEY,
+    settings: chimerSettings,
+  })
+  await page.route("**/api/auth/session", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ user: { id: "free-lamp-user", email: "free-lamp@example.com" } }),
+    })
+  })
+  await page.route("**/api/account/preferences", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        accessAuthoritative: true,
+        features: [],
+        ownedBackgroundIds: [],
+        chimerSettings,
+        appSettings: {},
+      }),
+    })
+  })
+
+  await page.goto("/clock?source=music&returnTo=%2Fmusic", { waitUntil: "domcontentloaded" })
+  const lamp = page.getByTestId("background-host-moving-gradient")
+  await expect(lamp).toBeVisible()
+
+  await page.getByRole("button", { name: "Visual", exact: true }).click()
+  const sharedColors = page.getByRole("dialog", { name: "Visual controls" })
+    .getByRole("region", { name: "Shared Colors" })
+  await expect(sharedColors.getByRole("radio", { name: "Custom" })).toBeEnabled()
+  await expect(sharedColors.getByRole("radio", { name: "Custom" })).toHaveAttribute("data-selected", "true")
+  await expect(sharedColors.getByRole("radio", { name: "Harmony" })).toBeEnabled()
+  await expect(sharedColors.getByLabel("Swatch 1, Primary, Main light")).toBeEnabled()
+  await expect(sharedColors.getByLabel("Swatch 2, Orb light")).toBeEnabled()
+  await expect.poll(() => lamp.locator(".massagelab-background-fallback").evaluate((element) => [
+    (element as HTMLElement).style.getPropertyValue("--ml-background-main"),
+    (element as HTMLElement).style.getPropertyValue("--ml-background-orb"),
+  ])).toEqual(["#123456", "#abcdef"])
 })
 
 test("narrow mobile keeps immersive controls in one circular top row", async ({ page }, testInfo) => {

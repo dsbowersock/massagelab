@@ -344,7 +344,7 @@ async function openMusicBackground(page: Page) {
   const playerToolbar = page.getByTestId("music-player-toolbar")
   await expect(playerToolbar).toBeVisible({ timeout: 30_000 })
   await expect(playerToolbar.getByText("MassageLab Proof Drone")).toBeVisible()
-  await playerToolbar.getByRole("button", { name: /^Background$/i }).click()
+  await playerToolbar.getByRole("link", { name: /^Background$/i }).click()
   await expect(page).toHaveURL(/\/clock\?[^#]*source=music/)
   await expect(page.getByLabel("Music visualizer")).toBeVisible()
   await expect(page.getByRole("dialog", { name: "Background" })).toBeVisible()
@@ -746,7 +746,7 @@ test("Music visualizer keeps the shared account cart through minimize and restor
   await page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
   const playerToolbar = page.getByTestId("music-player-toolbar")
   await expect(playerToolbar).toBeVisible({ timeout: 30_000 })
-  await playerToolbar.getByRole("button", { name: /^Background$/i }).click()
+  await playerToolbar.getByRole("link", { name: /^Background$/i }).click()
   await expect(page).toHaveURL(/\/clock\?[^#]*source=music/)
   await expect(page.getByLabel("Music visualizer")).toBeVisible()
 
@@ -765,7 +765,7 @@ test("Music visualizer keeps the shared account cart through minimize and restor
   await expect(page.locator("[data-commerce-cart-trigger]:visible"))
     .toHaveAccessibleName("Open account cart with 1 item")
 
-  await page.getByTestId("music-player-toolbar").getByRole("button", { name: /^Background$/i }).click()
+  await page.getByTestId("music-player-toolbar").getByRole("link", { name: /^Background$/i }).click()
   await expect(page).toHaveURL(/\/clock\?[^#]*source=music/)
   const restoredPanel = page.getByRole("dialog", { name: "Background" })
   await expect(restoredPanel.getByRole("region", { name: "Account cart" })).toContainText("Aurora field")

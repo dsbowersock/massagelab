@@ -1492,6 +1492,7 @@ export function RunningTimer({
   const visualBackgroundId = selectedBackgroundDefinition.id
   const canCustomizeSelectedBackground = canCustomizeBackgroundColors({
     hasCustomColorFeature: effectiveBackgroundAccess.featureKeys.includes(FEATURE_KEYS.chimerCustomColors),
+    hasAccountColorAccess: canUseAccountColorControls,
     selectedBackgroundId: visualBackgroundId,
     permanentlyOwnedBackgroundIds: effectiveBackgroundAccess.ownedBackgroundIds,
   })
@@ -12245,6 +12246,7 @@ export function RunningTimer({
           motionEnabled={movingBackgroundEnabled}
           access={effectiveBackgroundAccess}
           category={backgroundCategory}
+          canUseAccountColorControls={canUseAccountColorControls}
           backgroundPalette={effectiveBackgroundPalette}
           sparkles={{
             maxSize: sparklesMaxSize,

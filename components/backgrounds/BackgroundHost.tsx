@@ -29,6 +29,11 @@ interface BackgroundHostProps extends BackgroundEffectProps {
   access: BackgroundAccessSnapshot
   category?: BackgroundCategory
   /**
+   * Preserves the signed-in account color permission for the original free
+   * Lamp without widening palette access for other backgrounds.
+   */
+  canUseAccountColorControls?: boolean
+  /**
    * Supplies the one committed-or-draft palette contract shared by Chimer,
    * Clock, and Music. Unsupported media intentionally ignores this input.
    */
@@ -69,6 +74,7 @@ export function BackgroundHost(props: BackgroundHostProps) {
     selectedId,
     access,
     category,
+    canUseAccountColorControls = false,
     backgroundPalette,
     className,
     style,
@@ -169,6 +175,7 @@ export function BackgroundHost(props: BackgroundHostProps) {
   )
   const canCustomize = canCustomizeBackgroundColors({
     hasCustomColorFeature: access.featureKeys.includes(FEATURE_KEYS.chimerCustomColors),
+    hasAccountColorAccess: canUseAccountColorControls,
     selectedBackgroundId: entry.id,
     permanentlyOwnedBackgroundIds: access.ownedBackgroundIds,
   })

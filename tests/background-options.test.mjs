@@ -5367,6 +5367,26 @@ describe("premium background registry", () => {
     assert.doesNotMatch(runningSource, /<MovingBackground/)
   })
 
+  it("passes signed-in free Lamp color access to both the editor and renderer", () => {
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+
+    assert.match(
+      runningTimerSource,
+      /canCustomizeBackgroundColors\(\{[\s\S]*hasAccountColorAccess:\s*canUseAccountColorControls/,
+    )
+    assert.match(
+      runningTimerSource,
+      /<BackgroundHost[\s\S]*canUseAccountColorControls=\{canUseAccountColorControls\}/,
+    )
+    assert.match(
+      hostSource,
+      /canCustomizeBackgroundColors\(\{[\s\S]*hasAccountColorAccess:\s*canUseAccountColorControls/,
+    )
+  })
+
   it("keeps MassageLab Bubble non-interactive and dependency-free", () => {
     const effectSource = readFileSync(
       new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
