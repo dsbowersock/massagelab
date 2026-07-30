@@ -281,15 +281,15 @@ export function BackgroundHost(props: BackgroundHostProps) {
     }
     return {
       baseEffectProps,
-      effectProps: backgroundPalette
-        ? resolveBackgroundEffectProps({
-            selectedId: entry.id,
-            effectProps: baseEffectProps,
-            palette: backgroundPalette.palette,
-            mapping: backgroundPalette.mapping,
-            canCustomize,
-          })
-        : baseEffectProps,
+      // A missing saved palette is Source mode, not an instruction to bypass
+      // renderer-owned Source overrides such as Ripple Grid's rainbow switch.
+      effectProps: resolveBackgroundEffectProps({
+        selectedId: entry.id,
+        effectProps: baseEffectProps,
+        palette: backgroundPalette?.palette,
+        mapping: backgroundPalette?.mapping,
+        canCustomize,
+      }),
     }
   }, [
     mainColor,

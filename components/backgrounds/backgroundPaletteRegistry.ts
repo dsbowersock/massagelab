@@ -93,6 +93,10 @@ export const BACKGROUND_PALETTE_METADATA_SUFFIXES = Object.freeze([
 ])
 const FIXED_RENDERER_REASON =
   "This renderer has no meaningful color input, so the shared palette leaves its source rendering unchanged."
+const PRESERVED_ALPHA_FALLBACKS: Readonly<Record<string, number>> = Object.freeze({
+  "massageLabDotField.gradientFrom": 0.35,
+  "massageLabDotField.gradientTo": 0.25,
+})
 
 const role = (
   id: string,
@@ -183,11 +187,11 @@ function hexHue(value: string) {
   return Math.round((sector * 60 + 360) % 360)
 }
 
-function preserveAlpha(color: string, current: unknown) {
+function preserveAlpha(color: string, current: unknown, fallbackAlpha = 1) {
   const match = typeof current === "string"
     ? current.match(/^rgba\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+\s*,\s*(0(?:\.\d+)?|1(?:\.0+)?)\s*\)$/i)
     : null
-  const alpha = match ? Number(match[1]) : 1
+  const alpha = match ? Number(match[1]) : fallbackAlpha
   const red = Number.parseInt(color.slice(1, 3), 16)
   const green = Number.parseInt(color.slice(3, 5), 16)
   const blue = Number.parseInt(color.slice(5, 7), 16)
@@ -236,7 +240,7 @@ function setRendererTarget(
   const value = transform === "hex-hue"
     ? hexHue(color)
     : transform === "preserve-alpha"
-      ? preserveAlpha(color, current)
+      ? preserveAlpha(color, current, PRESERVED_ALPHA_FALLBACKS[target] ?? 1)
       : color
   return setRendererValue(props, target, value)
 }

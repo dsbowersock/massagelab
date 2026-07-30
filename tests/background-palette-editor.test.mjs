@@ -122,6 +122,14 @@ test("Source mode blocks Color preset saves but keeps saved-preset Apply availab
 })
 
 test("BackgroundHost applies the resolved palette to its persistent fallback layer", () => {
+  assert.match(
+    backgroundHostSource,
+    /effectProps:\s*resolveBackgroundEffectProps\(\{[\s\S]*palette:\s*backgroundPalette\?\.palette,[\s\S]*mapping:\s*backgroundPalette\?\.mapping/,
+  )
+  assert.doesNotMatch(
+    backgroundHostSource,
+    /effectProps:\s*backgroundPalette\s*\?\s*resolveBackgroundEffectProps/,
+  )
   assert.match(backgroundHostSource, /const fallbackStyle = useMemo\([\s\S]*resolveBackgroundFallbackStyle\(\{[\s\S]*palette: backgroundPalette\.palette,[\s\S]*mapping: backgroundPalette\.mapping,[\s\S]*canCustomize,[\s\S]*\[backgroundPalette, canCustomize, entry\.fallbackStyle, entry\.id\]/)
   assert.match(backgroundHostSource, /className=\{cn\(styles\.fallback, entry\.fallbackClassName\)\}[\s\S]*style=\{fallbackStyle\}/)
   assert.doesNotMatch(backgroundHostSource, /style=\{entry\.fallbackStyle\}/)

@@ -944,6 +944,21 @@ describe("background palette adapter registry", () => {
       dotRadius: 2.1,
       cursorInteraction: false,
     })
+    const dotFieldWithoutAuthoredProps = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-dot-field",
+      effectProps: { massageLabDotField: { dotRadius: 2.1 } },
+      palette: paletteForMode("custom"),
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.equal(
+      dotFieldWithoutAuthoredProps.massageLabDotField.gradientFrom,
+      "rgba(17, 0, 17, 0.35)",
+    )
+    assert.equal(
+      dotFieldWithoutAuthoredProps.massageLabDotField.gradientTo,
+      "rgba(34, 0, 34, 0.25)",
+    )
     assert.deepEqual(dotFieldProps.massageLabDotField, {
       gradientFrom: "rgba(1, 2, 3, 0.35)",
       gradientTo: "rgba(4, 5, 6, 0.25)",
@@ -1158,12 +1173,20 @@ describe("background palette adapter registry", () => {
       mapping: {},
       canCustomize: false,
     })
+    const rippleWithoutSavedPalette = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-ripple-grid",
+      effectProps: rippleProps,
+      palette: undefined,
+      mapping: undefined,
+      canCustomize: true,
+    })
     assert.equal(rippleCustom.massageLabRippleGrid.enableRainbow, false)
     assert.equal(rippleCustom.massageLabRippleGrid.gridColor, CUSTOM_SWATCHES[0])
     assert.equal(rippleHarmony.massageLabRippleGrid.enableRainbow, false)
     assert.equal(rippleHarmony.massageLabRippleGrid.gridColor, harmonyColors[0])
     assert.equal(rippleSource.massageLabRippleGrid.enableRainbow, true)
     assert.equal(rippleAccessFallback.massageLabRippleGrid.enableRainbow, true)
+    assert.equal(rippleWithoutSavedPalette.massageLabRippleGrid.enableRainbow, true)
     assert.equal(rippleAccessFallback.massageLabRippleGrid.gridColor, "#ffffff")
     assert.equal(rippleAccessFallback.massageLabRippleGrid.rippleIntensity, 0.17)
     assert.equal(rippleAccessFallback.massageLabRippleGrid.mouseInteraction, false)
