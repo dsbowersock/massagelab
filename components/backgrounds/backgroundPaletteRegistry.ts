@@ -528,8 +528,9 @@ const SUPPORTED_SPECS: readonly SupportedSpec[] = [
     prefixes: ["massageLabRippleGrid"],
     sourceBehavior: "rainbow",
     roles: [role("grid", "Grid", "massageLabRippleGridColor", "massageLabRippleGrid.gridColor")],
-    // Source preserves the existing/default rainbow choice; mapped colors must disable it.
-    modeOverrides: [{ rendererTarget: "massageLabRippleGrid.enableRainbow", customValue: false }],
+    // Production props omit this renderer-owned switch, so Source must restore
+    // rainbow explicitly while mapped colors disable it.
+    modeOverrides: [{ rendererTarget: "massageLabRippleGrid.enableRainbow", sourceValue: true, customValue: false }],
   },
   {
     id: "massage-lab-dot-field",

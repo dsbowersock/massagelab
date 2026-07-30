@@ -1125,7 +1125,6 @@ describe("background palette adapter registry", () => {
 
     const rippleProps = {
       massageLabRippleGrid: {
-        enableRainbow: true,
         gridColor: "#FFFFFF",
         rippleIntensity: 0.17,
         mouseInteraction: false,
@@ -1179,11 +1178,11 @@ describe("background palette adapter registry", () => {
     )
     assert.deepEqual(
       backgroundPaletteRegistry["massage-lab-ripple-grid"].modeOverrides,
-      [{ rendererTarget: "massageLabRippleGrid.enableRainbow", customValue: false }],
+      [{ rendererTarget: "massageLabRippleGrid.enableRainbow", sourceValue: true, customValue: false }],
     )
     assert.deepEqual(tileProps.tileGrid.paletteMode, "auto")
     assert.deepEqual(auroraProps.auroraBars.paletteMode, "auto")
-    assert.deepEqual(rippleProps.massageLabRippleGrid.enableRainbow, true)
+    assert.equal(Object.hasOwn(rippleProps.massageLabRippleGrid, "enableRainbow"), false)
   })
 
   it("maps Moving Gradient and all seven Gradient Animation roles exactly", () => {
