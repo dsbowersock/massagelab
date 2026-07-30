@@ -825,6 +825,13 @@ export default function ChimerPage() {
       )
       : {}
     const accessOverride = "accessOverride" in input ? input.accessOverride : undefined
+    if (accessOverride) {
+      // Retain the redemption proof through a failed commerce refresh. The
+      // authoritative snapshot effect above still clears this bridge.
+      setTransientOwnedBackgroundIds((current) => [
+        ...new Set([...current, ...accessOverride.ownedBackgroundIds]),
+      ])
+    }
     const nextSettings = sanitizeChimerVisualCommitForEntitlements({
       currentSettings: settingsRef.current,
       candidateProperties: properties,

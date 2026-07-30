@@ -833,6 +833,19 @@ test("redeemed ownership survives Apply and Discard background-switch continuati
     runningTimerSource,
     /const selectionAccess = intent\?\.type === "select-background"[\s\S]*intent\.newlyOwnedBackgroundIds[\s\S]*accessOverride: selectionAccess/,
   )
+  const applyStart = pageSource.indexOf("const applyBackgroundVisualPreferences")
+  const applyEnd = pageSource.indexOf("const retryBackgroundVisualPreferenceSync", applyStart)
+  const applySource = pageSource.slice(applyStart, applyEnd)
+  assert.notEqual(applyStart, -1)
+  assert.notEqual(applyEnd, -1)
+  assert.match(
+    applySource,
+    /const accessOverride = "accessOverride" in input \? input\.accessOverride : undefined[\s\S]*setTransientOwnedBackgroundIds\(\(current\) => \[[\s\S]*accessOverride\.ownedBackgroundIds[\s\S]*sanitizeChimerVisualCommitForEntitlements/,
+  )
+  assert.match(
+    pageSource,
+    /setTransientOwnedBackgroundIds\(\[\]\)[\s\S]*\[commerceOwnedBackgroundIds\]/,
+  )
 })
 
 test("Music visualizer minimize preserves replace navigation through Apply, Discard, and Keep Editing", () => {
