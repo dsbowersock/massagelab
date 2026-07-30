@@ -94,7 +94,7 @@ test("Color and Visual preset managers expose only their approved draft actions 
 test("Source mode blocks Color preset saves but keeps saved-preset Apply available", () => {
   assert.match(
     runningTimerSource,
-    /<BackgroundColorPresetManager[\s\S]*disabled=\{!canCustomizeSelectedBackground\}[\s\S]*saveDisabled=\{currentVisualSnapshot\.palette\.mode === "source"\}/,
+    /<BackgroundColorPresetManager[\s\S]*disabled=\{!canCustomizeSelectedBackground\}[\s\S]*saveDisabled=\{currentVisualEditorSnapshot\.palette\.mode === "source"\}/,
   )
   assert.match(presetSource, /disabled=\{disabled \|\| saveDisabled \|\| atLimit\}/)
   assert.match(

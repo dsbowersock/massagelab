@@ -84,7 +84,7 @@ test("calendar forms submit the shared picker value without restoring a native c
 
 test("Visual and every immersive renderer use the staged shared palette contract", () => {
   assert.match(runningTimerSource, /<BackgroundPaletteEditor/)
-  assert.match(runningTimerSource, /palette=\{currentVisualSnapshot\.palette\}/)
+  assert.match(runningTimerSource, /palette=\{currentVisualEditorSnapshot\.palette\}/)
   assert.match(runningTimerSource, /canCustomize=\{canCustomizeSelectedBackground\}/)
   assert.match(runningTimerSource, /backgroundPalette=\{effectiveBackgroundPalette\}/)
   assert.match(backgroundHostSource, /resolveBackgroundEffectProps/)

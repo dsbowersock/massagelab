@@ -36,6 +36,11 @@ import { VisualDraftNavigationGuard, type VisualDraftNavigationIntent } from "./
 
 type PrimaryDisplay = "timer" | "currentTime"
 type BackgroundVisualCategory = "all" | "animated" | "image" | "interactive" | "premium" | "saved" | "static" | "shader" | "video"
+type VisualAccessRebaseIntent = {
+  type: "rebase-background"
+  sourceBackgroundId: BackgroundId
+  backgroundId: BackgroundId
+}
 type PendingVisualIntent = ({ type: "close-panel" } | { type: "change-panel"; panel: Exclude<ImmersivePanelId, null> } | {
   type: "select-background"
   backgroundId: BackgroundId
@@ -45,7 +50,7 @@ type PendingVisualIntent = ({ type: "close-panel" } | { type: "change-panel"; pa
    * through the unsaved-changes continuation.
    */
   newlyOwnedBackgroundIds: readonly string[]
-} | { type: "navigate"; href: string | null; historyDelta: number | null; replace: boolean }) & {
+} | VisualAccessRebaseIntent | { type: "navigate"; href: string | null; historyDelta: number | null; replace: boolean }) & {
   restoreFocusTarget: HTMLElement | null
 }
 
@@ -1490,12 +1495,6 @@ export function RunningTimer({
   const backgroundId = mode.selectedBackgroundId ?? DEFAULT_BACKGROUND_ID
   const selectedBackgroundDefinition = resolveAccessibleBackgroundDefinition(backgroundId, effectiveBackgroundAccess, backgroundCategory)
   const visualBackgroundId = selectedBackgroundDefinition.id
-  const canCustomizeSelectedBackground = canCustomizeBackgroundColors({
-    hasCustomColorFeature: effectiveBackgroundAccess.featureKeys.includes(FEATURE_KEYS.chimerCustomColors),
-    hasAccountColorAccess: canUseAccountColorControls,
-    selectedBackgroundId: visualBackgroundId,
-    permanentlyOwnedBackgroundIds: effectiveBackgroundAccess.ownedBackgroundIds,
-  })
   const isLiveBackgroundSession = status === "running" || status === "paused" || status === "clock"
   const shouldRenderLiveBackground = mode.selectedBackgroundId !== null && (isLiveBackgroundSession || !canUseBackgroundId(backgroundId, effectiveBackgroundAccess, backgroundCategory))
   const astralFlowDisplaySpeed = getMassageLabAstralFlowDisplaySpeed(massageLabAstralFlowSpeed)
@@ -1514,6 +1513,7 @@ export function RunningTimer({
   const [activePanel, setActivePanel] = useState<ImmersivePanelId>(null)
   const [visualDraft, setVisualDraft] = useState<ReturnType<typeof createBackgroundVisualDraft> | null>(null)
   const [pendingVisualIntent, setPendingVisualIntent] = useState<PendingVisualIntent | null>(null)
+  const [deferredVisualRebase, setDeferredVisualRebase] = useState<VisualAccessRebaseIntent | null>(null)
   const [acquisition, setAcquisition] = useState<{
     background: BackgroundDefinition
     mode: "locked" | "keep-permanently"
@@ -1531,6 +1531,23 @@ export function RunningTimer({
     () => (visualDraft && visualDraftBackgroundId === visualBackgroundId ? getCommittedBackgroundVisualSnapshot(visualDraft) : null),
     [visualBackgroundId, visualDraft, visualDraftBackgroundId],
   )
+  const visualEditorBackgroundId = visualDraftBackgroundId ?? visualBackgroundId
+  const currentVisualEditorSnapshot = useMemo(
+    () => (visualDraft && visualDraftBackgroundId === visualEditorBackgroundId ? getCommittedBackgroundVisualSnapshot(visualDraft) : null),
+    [visualDraft, visualDraftBackgroundId, visualEditorBackgroundId],
+  )
+  const visualEditorBackgroundDefinition = useMemo(
+    () => getBackgroundOptionsForCategory(backgroundCategory).find(
+      (option) => option.id === visualEditorBackgroundId,
+    ) ?? selectedBackgroundDefinition,
+    [backgroundCategory, selectedBackgroundDefinition, visualEditorBackgroundId],
+  )
+  const canCustomizeSelectedBackground = canCustomizeBackgroundColors({
+    hasCustomColorFeature: effectiveBackgroundAccess.featureKeys.includes(FEATURE_KEYS.chimerCustomColors),
+    hasAccountColorAccess: canUseAccountColorControls,
+    selectedBackgroundId: visualEditorBackgroundId,
+    permanentlyOwnedBackgroundIds: effectiveBackgroundAccess.ownedBackgroundIds,
+  })
   const effectivePaletteState = currentVisualSnapshot?.palette ?? backgroundVisualPreferences.palette
   const [controlState, setControlState] = useState<"visible" | "faded" | "hidden">("visible")
   const pressHaptic = useCallback(() => {
@@ -1622,32 +1639,87 @@ export function RunningTimer({
       } else {
         setVisualDraftBackgroundId(null)
         setVisualDraft(null)
+        setDeferredVisualRebase(null)
       }
       setActivePanel(nextPanel)
     },
     [backgroundVisualPreferences, clearVisualHint, committedSettings, setVisualDraft, visualBackgroundId],
   )
 
-  useEffect(() => {
-    if (
-      activePanel !== "visual"
-      || (visualDraft && visualDraftBackgroundId === visualBackgroundId)
-    ) {
-      return
-    }
-    setVisualDraftBackgroundId(visualBackgroundId)
-    setPendingVisualIntent(null)
+  /**
+   * Opens a clean draft for the access-safe renderer identity. An Apply outcome
+   * may supply its complete pending commit so the new draft does not briefly
+   * reopen from stale parent props while React commits the preference update.
+   */
+  const rebaseVisualDraft = useCallback((
+    targetBackgroundId: BackgroundId,
+    commit: ReturnType<typeof buildBackgroundVisualPendingCommit> | null = null,
+  ) => {
+    setVisualDraftBackgroundId(targetBackgroundId)
     setVisualDraft(
       createBackgroundVisualDraft(
         buildBackgroundVisualOpeningSnapshot({
-          preferences: backgroundVisualPreferences,
-          backgroundId: visualBackgroundId,
-          committedSettings,
-          adapter: backgroundPaletteRegistry[visualBackgroundId],
+          preferences: commit?.backgroundVisualPreferences ?? backgroundVisualPreferences,
+          backgroundId: targetBackgroundId,
+          committedSettings: commit
+            ? { ...committedSettings, ...commit.properties }
+            : committedSettings,
+          adapter: backgroundPaletteRegistry[targetBackgroundId],
         }),
       ),
     )
-  }, [activePanel, backgroundVisualPreferences, committedSettings, visualBackgroundId, visualDraft, visualDraftBackgroundId])
+  }, [backgroundVisualPreferences, committedSettings, setVisualDraft])
+
+  useEffect(() => {
+    if (activePanel !== "visual") {
+      return
+    }
+    if (visualDraft && visualDraftBackgroundId === visualBackgroundId) {
+      if (deferredVisualRebase) {
+        setDeferredVisualRebase(null)
+      }
+      return
+    }
+    if (visualDraft?.dirty && visualDraftBackgroundId) {
+      if (deferredVisualRebase?.sourceBackgroundId === visualDraftBackgroundId) {
+        if (deferredVisualRebase.backgroundId !== visualBackgroundId) {
+          setDeferredVisualRebase({
+            ...deferredVisualRebase,
+            backgroundId: visualBackgroundId,
+          })
+        }
+        return
+      }
+      setPendingVisualIntent((current) => {
+        if (current && current.type !== "rebase-background") {
+          return current
+        }
+        if (
+          current?.sourceBackgroundId === visualDraftBackgroundId
+          && current.backgroundId === visualBackgroundId
+        ) {
+          return current
+        }
+        return {
+          type: "rebase-background",
+          sourceBackgroundId: visualDraftBackgroundId,
+          backgroundId: visualBackgroundId,
+          restoreFocusTarget: getConnectedVisualFocusTarget(document.activeElement) as HTMLElement | null,
+        }
+      })
+      return
+    }
+    setDeferredVisualRebase(null)
+    setPendingVisualIntent((current) => current?.type === "rebase-background" ? null : current)
+    rebaseVisualDraft(visualBackgroundId)
+  }, [
+    activePanel,
+    deferredVisualRebase,
+    rebaseVisualDraft,
+    visualBackgroundId,
+    visualDraft,
+    visualDraftBackgroundId,
+  ])
 
   useEffect(() => {
     onVisualDraftPreviewChange(currentVisualSnapshot ? (currentVisualSnapshot.properties as Partial<ChimerSettings>) : null)
@@ -2020,24 +2092,34 @@ export function RunningTimer({
 
   const buildVisualDraftCommit = useCallback(
     (intent: PendingVisualIntent | null = null) => {
-      if (!visualDraft || visualDraftBackgroundId !== visualBackgroundId) {
+      const sourceBackgroundId = intent?.type === "rebase-background"
+        ? intent.sourceBackgroundId
+        : visualDraftBackgroundId
+      if (!visualDraft || !sourceBackgroundId || visualDraftBackgroundId !== sourceBackgroundId) {
         return null
       }
-      const targetBackgroundId = intent?.type === "select-background" ? intent.backgroundId : null
+      const targetBackgroundId =
+        intent?.type === "select-background" || intent?.type === "rebase-background"
+          ? intent.backgroundId
+          : null
       return buildBackgroundVisualPendingCommit({
         preferences: backgroundVisualPreferences,
-        currentBackgroundId: visualBackgroundId,
+        currentBackgroundId: sourceBackgroundId,
         currentSnapshot: getCommittedBackgroundVisualSnapshot(visualDraft),
         targetBackgroundId,
         targetAdapter: targetBackgroundId ? backgroundPaletteRegistry[targetBackgroundId] : null,
-        commitCanonicalBackgroundSelection: Boolean(targetBackgroundId) && mode.context !== "musicVisualizer",
+        commitCanonicalBackgroundSelection:
+          intent?.type === "select-background" && mode.context !== "musicVisualizer",
       })
     },
-    [backgroundVisualPreferences, mode.context, visualBackgroundId, visualDraft, visualDraftBackgroundId],
+    [backgroundVisualPreferences, mode.context, visualDraft, visualDraftBackgroundId],
   )
 
   const commitVisualDraft = useCallback(() => {
-    const commit = buildVisualDraftCommit()
+    const rebaseIntent = deferredVisualRebase
+      ? { ...deferredVisualRebase, restoreFocusTarget: null }
+      : null
+    const commit = buildVisualDraftCommit(rebaseIntent)
     if (!visualDraft || !commit) {
       return
     }
@@ -2048,10 +2130,26 @@ export function RunningTimer({
       backgroundVisualPreferences: commit.backgroundVisualPreferences as ChimerSettings["backgroundVisualPreferences"],
       properties: commit.properties as Partial<ChimerSettings>,
     })
+    if (deferredVisualRebase) {
+      rebaseVisualDraft(deferredVisualRebase.backgroundId, commit)
+      setDeferredVisualRebase(null)
+      return
+    }
     setVisualDraft(reduceBackgroundVisualDraft(visualDraft, { type: "apply" }))
-  }, [buildVisualDraftCommit, onApplyBackgroundVisualPreferences, setVisualDraft, visualDraft])
+  }, [
+    buildVisualDraftCommit,
+    deferredVisualRebase,
+    onApplyBackgroundVisualPreferences,
+    rebaseVisualDraft,
+    setVisualDraft,
+    visualDraft,
+  ])
 
   const continuePendingVisualIntent = (intent: PendingVisualIntent, selectionCommitted = false) => {
+    if (intent.type === "rebase-background") {
+      rebaseVisualDraft(intent.backgroundId)
+      return
+    }
     if (intent.type === "close-panel") {
       setActivePanel(null)
       return
@@ -2147,6 +2245,15 @@ export function RunningTimer({
       })
     }
     setPendingVisualIntent(null)
+    if (intent?.type === "rebase-background") {
+      if (outcome === "keep") {
+        setDeferredVisualRebase(intent)
+      } else {
+        setDeferredVisualRebase(null)
+        rebaseVisualDraft(intent.backgroundId, resolution.commit)
+      }
+      return
+    }
     if (outcome !== "keep") {
       setVisualDraftBackgroundId(null)
       setVisualDraft(null)
@@ -2189,7 +2296,7 @@ export function RunningTimer({
       return
     }
 
-    const adapter = backgroundPaletteRegistry[visualBackgroundId]
+    const adapter = backgroundPaletteRegistry[visualEditorBackgroundId]
     const partitioned = partitionBackgroundVisualSettingChange({
       nextSettings,
       draftOpen: Boolean(visualDraft),
@@ -12220,7 +12327,7 @@ export function RunningTimer({
           "--ml-lamp-min-core-glow-width": `${fullscreenLampCoreGlowWidth}vw`,
         } as CSSProperties)
       : undefined
-  const selectedPaletteAdapter = backgroundPaletteRegistry[visualBackgroundId]
+  const selectedPaletteAdapter = backgroundPaletteRegistry[visualEditorBackgroundId]
   const committedPaletteMapping = useMemo(
     () => (backgroundVisualPreferences.mappingsByBackground as Record<string, Record<string, number>>)[visualBackgroundId] ?? {},
     [backgroundVisualPreferences.mappingsByBackground, visualBackgroundId],
@@ -13502,24 +13609,24 @@ export function RunningTimer({
                 </div>
               ) : null}
 
-              {currentVisualSnapshot && selectedPaletteAdapter ? (
+              {currentVisualEditorSnapshot && selectedPaletteAdapter ? (
                 <>
                   <BackgroundPaletteEditor
-                    palette={currentVisualSnapshot.palette}
+                    palette={currentVisualEditorSnapshot.palette}
                     adapter={selectedPaletteAdapter}
-                    mapping={currentVisualSnapshot.mapping}
+                    mapping={currentVisualEditorSnapshot.mapping}
                     canCustomize={canCustomizeSelectedBackground}
-                    backgroundName={selectedBackgroundDefinition.label}
+                    backgroundName={visualEditorBackgroundDefinition.label}
                     onPaletteChange={(palette) =>
                       dispatchVisualDraft({
                         type: "replace",
-                        snapshot: { ...currentVisualSnapshot, palette },
+                        snapshot: { ...currentVisualEditorSnapshot, palette },
                       })
                     }
                     onMappingChange={(mapping) =>
                       dispatchVisualDraft({
                         type: "replace",
-                        snapshot: { ...currentVisualSnapshot, mapping },
+                        snapshot: { ...currentVisualEditorSnapshot, mapping },
                       })
                     }
                   />
@@ -13527,12 +13634,12 @@ export function RunningTimer({
                     <Button
                       type="button"
                       variant="ghost"
-                      disabled={currentVisualSnapshot.palette.mode === "source"}
+                      disabled={currentVisualEditorSnapshot.palette.mode === "source"}
                       onClick={() =>
                         dispatchVisualDraft({
                           type: "reset-colors",
                           palette: {
-                            ...currentVisualSnapshot.palette,
+                            ...currentVisualEditorSnapshot.palette,
                             mode: "source",
                           },
                         })
@@ -13541,14 +13648,14 @@ export function RunningTimer({
                       Use source colors
                     </Button>
                   </div>
-                  <BackgroundColorPresetManager presets={currentVisualSnapshot.colorPresets} currentPalette={currentVisualSnapshot.palette as never} disabled={!canCustomizeSelectedBackground} saveDisabled={currentVisualSnapshot.palette.mode === "source"} onDraftAction={(action: BackgroundPresetDraftAction) => dispatchVisualDraft(action)} />
+                  <BackgroundColorPresetManager presets={currentVisualEditorSnapshot.colorPresets} currentPalette={currentVisualEditorSnapshot.palette as never} disabled={!canCustomizeSelectedBackground} saveDisabled={currentVisualEditorSnapshot.palette.mode === "source"} onDraftAction={(action: BackgroundPresetDraftAction) => dispatchVisualDraft(action)} />
 
                   <div className={styles.settingsSection}>
                     <div className={styles.settingsSectionHeader}>
                       <span>Selected Background Properties</span>
                       <span className={styles.settingsPill}>Visual tuning</span>
                     </div>
-                    {renderBackgroundControls(selectedBackgroundDefinition)}
+                    {renderBackgroundControls(visualEditorBackgroundDefinition)}
                     <div className={styles.visualDraftSecondaryAction}>
                       <Button
                         type="button"
@@ -13565,7 +13672,7 @@ export function RunningTimer({
                       </Button>
                     </div>
                   </div>
-                  <BackgroundVisualPresetManager presets={currentVisualSnapshot.visualPresets as never} currentProperties={currentVisualSnapshot.properties} currentMapping={currentVisualSnapshot.mapping} backgroundName={selectedBackgroundDefinition.label} defaultPresetId={currentVisualSnapshot.defaultVisualPresetId} roleLabels={selectedRoleLabels} onDraftAction={(action: BackgroundPresetDraftAction) => dispatchVisualDraft(action)} />
+                  <BackgroundVisualPresetManager presets={currentVisualEditorSnapshot.visualPresets as never} currentProperties={currentVisualEditorSnapshot.properties} currentMapping={currentVisualEditorSnapshot.mapping} backgroundName={visualEditorBackgroundDefinition.label} defaultPresetId={currentVisualEditorSnapshot.defaultVisualPresetId} roleLabels={selectedRoleLabels} onDraftAction={(action: BackgroundPresetDraftAction) => dispatchVisualDraft(action)} />
 
                   <div className={styles.visualDraftActions}>
                     <span className={styles.visualDraftStatus} role="status" aria-live="polite" aria-atomic="true">
@@ -13642,7 +13749,7 @@ export function RunningTimer({
           }}
         />
         <VisualDraftNavigationGuard dirty={Boolean(visualDraft?.dirty)} blocked={pendingVisualIntent?.type === "navigate"} onNavigateAttempt={handleVisualNavigationAttempt} />
-        <UnsavedVisualChangesDialog open={Boolean(pendingVisualIntent)} backgroundName={selectedBackgroundDefinition.label} restoreFocusTarget={pendingVisualIntent?.restoreFocusTarget ?? null} onApply={() => resolvePendingVisualIntent("apply")} onDiscard={() => resolvePendingVisualIntent("discard")} onKeepEditing={() => resolvePendingVisualIntent("keep")} />
+        <UnsavedVisualChangesDialog open={Boolean(pendingVisualIntent)} backgroundName={visualEditorBackgroundDefinition.label} restoreFocusTarget={pendingVisualIntent?.restoreFocusTarget ?? null} onApply={() => resolvePendingVisualIntent("apply")} onDiscard={() => resolvePendingVisualIntent("discard")} onKeepEditing={() => resolvePendingVisualIntent("keep")} />
 
         <div className={styles.bottomControls}>
           <div className={styles.bottomButtonRow}>

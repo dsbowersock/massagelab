@@ -798,26 +798,98 @@ test("live Visual integration owns draft preview, one Apply, and reachable actio
   assert.match(runningTimerStyles, /\.hideLegacyPaletteMetadataControls[\s\S]*color mode/)
 })
 
+test("Visual Apply updates the live settings snapshot before delayed account hydration can read it", () => {
+  const applyStart = pageSource.indexOf("const applyBackgroundVisualPreferences")
+  const applyEnd = pageSource.indexOf("const retryBackgroundVisualPreferenceSync", applyStart)
+  const applySource = pageSource.slice(applyStart, applyEnd)
+
+  assert.notEqual(applyStart, -1)
+  assert.notEqual(applyEnd, -1)
+  assert.match(
+    applySource,
+    /const committedSettings = request\.sanitizedSettings[\s\S]*settingsRef\.current = committedSettings\s+setSettings\(committedSettings\)[\s\S]*localStorage\.setItem\(CHIMER_STORAGE_KEY, JSON\.stringify\(committedSettings\)\)/,
+  )
+})
+
 test("authoritative access fallback replaces revoked background Visual identity", () => {
   assert.match(
     runningTimerSource,
     /const selectedBackgroundDefinition = resolveAccessibleBackgroundDefinition\(backgroundId, effectiveBackgroundAccess, backgroundCategory\)\s*const visualBackgroundId = selectedBackgroundDefinition\.id/,
   )
-  assert.match(runningTimerSource, /selectedBackgroundId:\s*visualBackgroundId/)
+  assert.match(runningTimerSource, /selectedBackgroundId:\s*visualEditorBackgroundId/)
   assert.match(
     runningTimerSource,
     /visualDraft && visualDraftBackgroundId === visualBackgroundId\s*\? getCommittedBackgroundVisualSnapshot\(visualDraft\)\s*:\s*null/,
   )
   assert.match(
     runningTimerSource,
-    /setVisualDraftBackgroundId\(visualBackgroundId\)[\s\S]*buildBackgroundVisualOpeningSnapshot\(\{[\s\S]*backgroundId:\s*visualBackgroundId,[\s\S]*adapter:\s*backgroundPaletteRegistry\[visualBackgroundId\]/,
+    /rebaseVisualDraft\(visualBackgroundId\)/,
   )
   assert.match(runningTimerSource, /onVisualDraftPreviewChange\(currentVisualSnapshot \? \(currentVisualSnapshot\.properties as Partial<ChimerSettings>\) : null\)/)
   assert.match(runningTimerSource, /const adapter = backgroundPaletteRegistry\[visualBackgroundId\]/)
-  assert.match(runningTimerSource, /const selectedPaletteAdapter = backgroundPaletteRegistry\[visualBackgroundId\]/)
+  assert.match(runningTimerSource, /const selectedPaletteAdapter = backgroundPaletteRegistry\[visualEditorBackgroundId\]/)
   assert.match(runningTimerSource, /mappingsByBackground as Record<string, Record<string, number>>\)\[visualBackgroundId\]/)
   assert.doesNotMatch(runningTimerSource, /backgroundPaletteRegistry\[backgroundId\]/)
   assert.doesNotMatch(runningTimerSource, /mappingsByBackground as Record<string, Record<string, number>>\)\[backgroundId\]/)
+})
+
+test("access-driven Visual rebase preserves explicit Apply, Discard, and Keep Editing outcomes", () => {
+  const rebaseIntent = {
+    type: "rebase-background",
+    sourceBackgroundId: "revoked",
+    backgroundId: "accessible",
+    restoreFocusTarget: null,
+  }
+  const commit = { visualBackgroundId: "accessible", sourceVisualBackgroundId: "revoked" }
+
+  assert.deepEqual(
+    resolveBackgroundVisualPendingOutcome({
+      outcome: "apply",
+      intent: rebaseIntent,
+      commit,
+    }),
+    { commit, resumeIntent: rebaseIntent },
+  )
+  assert.deepEqual(
+    resolveBackgroundVisualPendingOutcome({
+      outcome: "discard",
+      intent: rebaseIntent,
+      commit,
+    }),
+    { commit: null, resumeIntent: rebaseIntent },
+  )
+  assert.deepEqual(
+    resolveBackgroundVisualPendingOutcome({
+      outcome: "keep",
+      intent: rebaseIntent,
+      commit,
+    }),
+    { commit: null, resumeIntent: null },
+  )
+  assert.match(
+    runningTimerSource,
+    /visualDraft\?\.dirty && visualDraftBackgroundId[\s\S]*type:\s*"rebase-background"[\s\S]*sourceBackgroundId:\s*visualDraftBackgroundId,[\s\S]*backgroundId:\s*visualBackgroundId,/,
+  )
+  assert.match(
+    runningTimerSource,
+    /const currentVisualSnapshot = useMemo\([\s\S]*visualDraftBackgroundId === visualBackgroundId[\s\S]*const currentVisualEditorSnapshot = useMemo\([\s\S]*visualDraftBackgroundId === visualEditorBackgroundId/,
+  )
+  assert.match(
+    runningTimerSource,
+    /if \(outcome === "keep"\) \{\s*setDeferredVisualRebase\(intent\)\s*\} else \{[\s\S]*rebaseVisualDraft\(intent\.backgroundId, resolution\.commit\)/,
+  )
+  assert.match(
+    runningTimerSource,
+    /const rebaseIntent = deferredVisualRebase[\s\S]*buildVisualDraftCommit\(rebaseIntent\)[\s\S]*rebaseVisualDraft\(deferredVisualRebase\.backgroundId, commit\)/,
+  )
+  assert.match(
+    runningTimerSource,
+    /currentVisualEditorSnapshot && selectedPaletteAdapter[\s\S]*backgroundName=\{visualEditorBackgroundDefinition\.label\}/,
+  )
+  assert.match(
+    runningTimerSource,
+    /onVisualDraftPreviewChange\(currentVisualSnapshot \? \(currentVisualSnapshot\.properties as Partial<ChimerSettings>\) : null\)/,
+  )
 })
 
 test("redeemed ownership survives Apply and Discard background-switch continuations", () => {
@@ -894,7 +966,7 @@ test("ordinary Clock background selection commits visual state and canonical sel
   )
   assert.match(
     runningTimerSource,
-    /commitCanonicalBackgroundSelection:\s*Boolean\(targetBackgroundId\)\s*&&\s*mode\.context !== "musicVisualizer"/,
+    /commitCanonicalBackgroundSelection:\s*intent\?\.type === "select-background"\s*&&\s*mode\.context !== "musicVisualizer"/,
   )
   assert.match(
     runningTimerSource,

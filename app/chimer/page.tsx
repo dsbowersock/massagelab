@@ -851,6 +851,9 @@ export default function ChimerPage() {
     }) as BackgroundPreferenceSyncState & { sanitizedSettings: ChimerSettings }
     const committedSettings = request.sanitizedSettings
 
+    // Account hydration can finish before React commits this state update.
+    // Keep every async reader on the exact locally applied snapshot immediately.
+    settingsRef.current = committedSettings
     setSettings(committedSettings)
     setVisualDraftPropertyOverrides(null)
     window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(committedSettings))
