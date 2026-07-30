@@ -17,6 +17,7 @@ import {
   parseGlobeCoordinateDraft,
   sanitizeChimerSettings,
   sanitizeChimerSettingsForEntitlements,
+  sanitizeChimerSettingsPatchForEntitlements,
 } from "../lib/chimer-timer.js"
 import {
   combineTileGridFadeParts,
@@ -101,6 +102,58 @@ describe("Chimer timer helpers", () => {
         novatrixPreferenceOptions,
       ),
       settings.backgroundVisualPreferences,
+    )
+  })
+
+  it("ordinary patches retain only untouched tuning authorized by owned backgrounds", () => {
+    const current = {
+      ...DEFAULT_CHIMER_SETTINGS,
+      backgroundId: DEFAULT_CHIMER_SETTINGS.backgroundId,
+      minutes: 20,
+      massageLabNovatrixSpeed: 2.5,
+    }
+    const access = {
+      featureKeys: [],
+      ownedBackgroundIds: ["massage-lab-novatrix"],
+    }
+    const options = {
+      backgroundPreferenceOptions: novatrixPreferenceOptions,
+    }
+
+    assert.equal(
+      sanitizeChimerSettingsForEntitlements(current, access, options)
+        .massageLabNovatrixSpeed,
+      DEFAULT_CHIMER_SETTINGS.massageLabNovatrixSpeed,
+    )
+    const durationPatch = sanitizeChimerSettingsPatchForEntitlements(
+      current,
+      { minutes: 45 },
+      access,
+      options,
+    )
+    assert.equal(durationPatch.minutes, 45)
+    assert.equal(durationPatch.massageLabNovatrixSpeed, 2.5)
+
+    const explicitVisualPatch = sanitizeChimerSettingsPatchForEntitlements(
+      current,
+      { massageLabNovatrixSpeed: 2.75 },
+      access,
+      options,
+    )
+    assert.equal(
+      explicitVisualPatch.massageLabNovatrixSpeed,
+      DEFAULT_CHIMER_SETTINGS.massageLabNovatrixSpeed,
+    )
+
+    const revokedPatch = sanitizeChimerSettingsPatchForEntitlements(
+      current,
+      { minutes: 45 },
+      { featureKeys: [], ownedBackgroundIds: [] },
+      options,
+    )
+    assert.equal(
+      revokedPatch.massageLabNovatrixSpeed,
+      DEFAULT_CHIMER_SETTINGS.massageLabNovatrixSpeed,
     )
   })
 

@@ -178,6 +178,10 @@ describe("account preference route ownership boundary", () => {
       chimerPageSource,
       /settingsRef\.current = nextSanitizedSettings\s+setSettings\(nextSanitizedSettings\)/,
     )
+    assert.match(
+      chimerPageSource,
+      /const nextSanitizedSettings = sanitizeChimerSettingsPatchForEntitlements\(\s*settingsRef\.current,\s*nextSettings,\s*accessOverride \?\? backgroundAccessRef\.current,/,
+    )
   })
 
   it("GET retains an owned-only background, shared palette, and allowed renderer settings", async () => {

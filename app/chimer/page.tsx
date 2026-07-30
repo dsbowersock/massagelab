@@ -29,6 +29,7 @@ import {
   normalizeInteger,
   sanitizeChimerSettings,
   sanitizeChimerSettingsForEntitlements,
+  sanitizeChimerSettingsPatchForEntitlements,
   sanitizeChimerVisualCommitForEntitlements,
 } from "@/lib/chimer-timer"
 import {
@@ -760,8 +761,9 @@ export default function ChimerPage() {
         ...new Set([...current, ...accessOverride.ownedBackgroundIds]),
       ])
     }
-    const nextSanitizedSettings = sanitizeChimerSettingsForEntitlements(
-      { ...settingsRef.current, ...nextSettings },
+    const nextSanitizedSettings = sanitizeChimerSettingsPatchForEntitlements(
+      settingsRef.current,
+      nextSettings,
       accessOverride ?? backgroundAccessRef.current,
       {
         canUseAccountColorControls,
