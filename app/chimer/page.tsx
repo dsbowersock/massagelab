@@ -794,6 +794,7 @@ export default function ChimerPage() {
       backgroundVisualPreferences: ChimerSettings["backgroundVisualPreferences"]
       properties: Partial<ChimerSettings>
       accessOverride?: BackgroundAccessSnapshot
+      activateBackground?: boolean
     },
   ) => {
     const backgroundVisualPreferences = "backgroundVisualPreferences" in input
@@ -821,11 +822,19 @@ export default function ChimerPage() {
     const allowedPropertyKeys = new Set(
       Object.values(visualPropertyKeysByBackground).flat(),
     )
-    const properties = "properties" in input
+    const visualProperties = "properties" in input
       ? Object.fromEntries(
         Object.entries(input.properties).filter(([key]) => allowedPropertyKeys.has(key)),
       )
       : {}
+    // Selection activation belongs to the same atomic commit, but is a
+    // canonical setting rather than a renderer-owned Visual property.
+    const properties = {
+      ...visualProperties,
+      ...("activateBackground" in input && input.activateBackground === true
+        ? { movingBackgroundEnabled: true }
+        : {}),
+    }
     const accessOverride = "accessOverride" in input ? input.accessOverride : undefined
     if (accessOverride) {
       // Retain the redemption proof through a failed commerce refresh. The

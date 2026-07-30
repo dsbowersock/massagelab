@@ -1027,6 +1027,28 @@ test("ordinary Clock background selection commits visual state and canonical sel
   )
 })
 
+test("non-Music background selection atomically activates direct and dirty-Apply commits", () => {
+  const directSelectionStart = runningTimerSource.indexOf("const performBackgroundSelection")
+  const directSelectionEnd = runningTimerSource.indexOf("const handleBackgroundSelection", directSelectionStart)
+  const directSelectionSource = runningTimerSource.slice(directSelectionStart, directSelectionEnd)
+  const pendingResolutionStart = runningTimerSource.indexOf("const resolvePendingVisualIntent")
+  const pendingResolutionEnd = runningTimerSource.indexOf("const handleBackgroundSavedToggle", pendingResolutionStart)
+  const pendingResolutionSource = runningTimerSource.slice(pendingResolutionStart, pendingResolutionEnd)
+
+  assert.match(
+    directSelectionSource,
+    /mode\.context !== "musicVisualizer" \? \{ activateBackground: true \} : \{\}/,
+  )
+  assert.match(
+    pendingResolutionSource,
+    /intent\?\.type === "select-background" && mode\.context !== "musicVisualizer"[\s\S]*\{ activateBackground: true \}/,
+  )
+  assert.match(
+    pageSource,
+    /"activateBackground" in input && input\.activateBackground === true[\s\S]*movingBackgroundEnabled: true/,
+  )
+})
+
 test("dirty navigation guard covers eligible app links, history, and native unload only", () => {
   assert.match(navigationGuardSource, /handleBeforeUnload/)
   assert.match(navigationGuardSource, /handlePopState/)

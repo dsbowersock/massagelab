@@ -847,7 +847,7 @@ interface RunningTimerProps {
   onSetActiveRemainingDuration: (hours: number, minutes: number) => void
   onSetActiveIntervalMinutes: (minutes: number) => void
   onVisualDraftPreviewChange: (properties: Partial<ChimerSettings> | null) => void
-  onApplyBackgroundVisualPreferences: (commit: { visualBackgroundId: BackgroundId; sourceVisualBackgroundId?: BackgroundId; backgroundId?: BackgroundId; backgroundVisualPreferences: ChimerSettings["backgroundVisualPreferences"]; properties: Partial<ChimerSettings>; accessOverride?: BackgroundAccessSnapshot }) => void
+  onApplyBackgroundVisualPreferences: (commit: { visualBackgroundId: BackgroundId; sourceVisualBackgroundId?: BackgroundId; backgroundId?: BackgroundId; backgroundVisualPreferences: ChimerSettings["backgroundVisualPreferences"]; properties: Partial<ChimerSettings>; accessOverride?: BackgroundAccessSnapshot; activateBackground?: boolean }) => void
   onRetryBackgroundVisualPreferences: () => void
   hapticsEnabled: boolean
 }
@@ -2082,6 +2082,7 @@ export function RunningTimer({
       backgroundVisualPreferences: commit.backgroundVisualPreferences as ChimerSettings["backgroundVisualPreferences"],
       properties: commit.properties as Partial<ChimerSettings>,
       accessOverride: selectionAccess,
+      ...(mode.context !== "musicVisualizer" ? { activateBackground: true } : {}),
     })
     if (mode.context === "musicVisualizer") {
       mode.onBackgroundChange(nextBackgroundId, selectionAccess)
@@ -2268,6 +2269,9 @@ export function RunningTimer({
         backgroundVisualPreferences: resolution.commit.backgroundVisualPreferences as ChimerSettings["backgroundVisualPreferences"],
         properties: resolution.commit.properties as Partial<ChimerSettings>,
         ...(selectionAccess ? { accessOverride: selectionAccess } : {}),
+        ...(intent?.type === "select-background" && mode.context !== "musicVisualizer"
+          ? { activateBackground: true }
+          : {}),
       })
     }
     setPendingVisualIntent(null)
