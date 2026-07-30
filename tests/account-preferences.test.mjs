@@ -68,7 +68,20 @@ describe("Account preference helpers", () => {
 
     assert.equal(payload.chimer_settings.minutes, 30)
     assert.equal(payload.chimer_settings.backgroundVisualPreferences.version, 1)
-    assert.equal(payload.chimer_settings.backgroundVisualPreferences.palette.mode, "harmony")
+    assert.deepEqual(payload.chimer_settings.backgroundVisualPreferences.palette, {
+      mode: "harmony",
+      primaryColor: "#123456",
+      harmony: "triadic",
+      swatches: [
+        "#123456",
+        "#fb923c",
+        "#fb7185",
+        "#0f172a",
+        "#f8fafc",
+        "#db2777",
+        "#ea580c",
+      ],
+    })
     assert.deepEqual(
       payload.chimer_settings.backgroundVisualPreferences
         .visualPresetsByBackground["massage-lab-novatrix"][0].properties,
