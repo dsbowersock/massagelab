@@ -25,6 +25,7 @@ import {
 } from "../lib/visual-draft-navigation.js"
 import {
   BACKGROUND_PALETTE_METADATA_SUFFIXES,
+  backgroundPreferenceNormalizationOptions,
 } from "../components/backgrounds/backgroundPaletteRegistry.ts"
 import {
   DEFAULT_CHIMER_SETTINGS,
@@ -634,6 +635,37 @@ test("setup selection preserves owned source tuning while selecting a free canon
 
   assert.equal(committed.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
   assert.equal(committed.massageLabStarsSpeed, 72)
+})
+
+test("Visual Apply preserves untouched tuning for every owned background", () => {
+  const editedBackgroundId = "massage-lab-stars"
+  const untouchedBackgroundId = "massage-lab-hole"
+  const committed = sanitizeChimerVisualCommitForEntitlements({
+    currentSettings: {
+      ...DEFAULT_CHIMER_SETTINGS,
+      backgroundId: DEFAULT_CHIMER_SETTINGS.backgroundId,
+      massageLabStarsSpeed: 54,
+      massageLabHoleLineCount: 88,
+    },
+    candidateProperties: {
+      massageLabStarsSpeed: 72,
+    },
+    canonicalBackgroundId: DEFAULT_CHIMER_SETTINGS.backgroundId,
+    visualBackgroundIds: [editedBackgroundId],
+    visualPropertyKeysByBackground: {
+      [editedBackgroundId]: ["massageLabStarsSpeed"],
+    },
+    backgroundVisualPreferences: DEFAULT_CHIMER_SETTINGS.backgroundVisualPreferences,
+  }, {
+    featureKeys: [],
+    ownedBackgroundIds: [editedBackgroundId, untouchedBackgroundId],
+  }, {
+    backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
+  })
+
+  assert.equal(committed.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+  assert.equal(committed.massageLabStarsSpeed, 72)
+  assert.equal(committed.massageLabHoleLineCount, 88)
 })
 
 test("legacy host selection helper remains deterministic during the shared-host cutover", () => {
