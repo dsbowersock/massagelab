@@ -797,6 +797,28 @@ test("live Visual integration owns draft preview, one Apply, and reachable actio
   assert.match(runningTimerStyles, /\.hideLegacyPaletteMetadataControls[\s\S]*color mode/)
 })
 
+test("authoritative access fallback replaces revoked background Visual identity", () => {
+  assert.match(
+    runningTimerSource,
+    /const selectedBackgroundDefinition = resolveAccessibleBackgroundDefinition\(backgroundId, effectiveBackgroundAccess, backgroundCategory\)\s*const visualBackgroundId = selectedBackgroundDefinition\.id/,
+  )
+  assert.match(runningTimerSource, /selectedBackgroundId:\s*visualBackgroundId/)
+  assert.match(
+    runningTimerSource,
+    /visualDraft && visualDraftBackgroundId === visualBackgroundId\s*\? getCommittedBackgroundVisualSnapshot\(visualDraft\)\s*:\s*null/,
+  )
+  assert.match(
+    runningTimerSource,
+    /setVisualDraftBackgroundId\(visualBackgroundId\)[\s\S]*buildBackgroundVisualOpeningSnapshot\(\{[\s\S]*backgroundId:\s*visualBackgroundId,[\s\S]*adapter:\s*backgroundPaletteRegistry\[visualBackgroundId\]/,
+  )
+  assert.match(runningTimerSource, /onVisualDraftPreviewChange\(currentVisualSnapshot \? \(currentVisualSnapshot\.properties as Partial<ChimerSettings>\) : null\)/)
+  assert.match(runningTimerSource, /const adapter = backgroundPaletteRegistry\[visualBackgroundId\]/)
+  assert.match(runningTimerSource, /const selectedPaletteAdapter = backgroundPaletteRegistry\[visualBackgroundId\]/)
+  assert.match(runningTimerSource, /mappingsByBackground as Record<string, Record<string, number>>\)\[visualBackgroundId\]/)
+  assert.doesNotMatch(runningTimerSource, /backgroundPaletteRegistry\[backgroundId\]/)
+  assert.doesNotMatch(runningTimerSource, /mappingsByBackground as Record<string, Record<string, number>>\)\[backgroundId\]/)
+})
+
 test("redeemed ownership survives Apply and Discard background-switch continuations", () => {
   assert.match(
     runningTimerSource,

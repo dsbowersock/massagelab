@@ -1488,9 +1488,11 @@ export function RunningTimer({
   const canEditActiveTimer = status === "running" || status === "paused"
   const backgroundCategory = mode.backgroundCategory
   const backgroundId = mode.selectedBackgroundId ?? DEFAULT_BACKGROUND_ID
+  const selectedBackgroundDefinition = resolveAccessibleBackgroundDefinition(backgroundId, effectiveBackgroundAccess, backgroundCategory)
+  const visualBackgroundId = selectedBackgroundDefinition.id
   const canCustomizeSelectedBackground = canCustomizeBackgroundColors({
     hasCustomColorFeature: effectiveBackgroundAccess.featureKeys.includes(FEATURE_KEYS.chimerCustomColors),
-    selectedBackgroundId: backgroundId,
+    selectedBackgroundId: visualBackgroundId,
     permanentlyOwnedBackgroundIds: effectiveBackgroundAccess.ownedBackgroundIds,
   })
   const isLiveBackgroundSession = status === "running" || status === "paused" || status === "clock"
@@ -1518,12 +1520,16 @@ export function RunningTimer({
   const [visualHintMessage, setVisualHintMessage] = useState<string | null>(null)
   const [backgroundCategoryFilter, setBackgroundCategoryFilter] = useState<BackgroundVisualCategory>("all")
   const [savedBackgroundIds, setSavedBackgroundIds] = useState<BackgroundId[]>([])
+  const [visualDraftBackgroundId, setVisualDraftBackgroundId] = useState<BackgroundId | null>(null)
   const [globeMarkerDraft, setGlobeMarkerDraft] = useState(() => ({
     latitude: String(massageLab3DGlobeMarkerLat),
     longitude: String(massageLab3DGlobeMarkerLng),
   }))
   const [globeLocationMessage, setGlobeLocationMessage] = useState<string | null>(null)
-  const currentVisualSnapshot = useMemo(() => (visualDraft ? getCommittedBackgroundVisualSnapshot(visualDraft) : null), [visualDraft])
+  const currentVisualSnapshot = useMemo(
+    () => (visualDraft && visualDraftBackgroundId === visualBackgroundId ? getCommittedBackgroundVisualSnapshot(visualDraft) : null),
+    [visualBackgroundId, visualDraft, visualDraftBackgroundId],
+  )
   const effectivePaletteState = currentVisualSnapshot?.palette ?? backgroundVisualPreferences.palette
   const [controlState, setControlState] = useState<"visible" | "faded" | "hidden">("visible")
   const pressHaptic = useCallback(() => {
@@ -1600,44 +1606,51 @@ export function RunningTimer({
         visualPanelOpenedHydratedRef.current = true
         writeVisualPanelOpened()
         clearVisualHint()
-        const adapter = backgroundPaletteRegistry[backgroundId]
+        const adapter = backgroundPaletteRegistry[visualBackgroundId]
+        setVisualDraftBackgroundId(visualBackgroundId)
         setVisualDraft(
           createBackgroundVisualDraft(
             buildBackgroundVisualOpeningSnapshot({
               preferences: backgroundVisualPreferences,
-              backgroundId,
+              backgroundId: visualBackgroundId,
               committedSettings,
               adapter,
             }),
           ),
         )
       } else {
+        setVisualDraftBackgroundId(null)
         setVisualDraft(null)
       }
       setActivePanel(nextPanel)
     },
-    [backgroundId, backgroundVisualPreferences, clearVisualHint, committedSettings, setVisualDraft],
+    [backgroundVisualPreferences, clearVisualHint, committedSettings, setVisualDraft, visualBackgroundId],
   )
 
   useEffect(() => {
-    if (activePanel !== "visual" || visualDraft) {
+    if (
+      activePanel !== "visual"
+      || (visualDraft && visualDraftBackgroundId === visualBackgroundId)
+    ) {
       return
     }
+    setVisualDraftBackgroundId(visualBackgroundId)
+    setPendingVisualIntent(null)
     setVisualDraft(
       createBackgroundVisualDraft(
         buildBackgroundVisualOpeningSnapshot({
           preferences: backgroundVisualPreferences,
-          backgroundId,
+          backgroundId: visualBackgroundId,
           committedSettings,
-          adapter: backgroundPaletteRegistry[backgroundId],
+          adapter: backgroundPaletteRegistry[visualBackgroundId],
         }),
       ),
     )
-  }, [activePanel, backgroundId, backgroundVisualPreferences, committedSettings, visualDraft])
+  }, [activePanel, backgroundVisualPreferences, committedSettings, visualBackgroundId, visualDraft, visualDraftBackgroundId])
 
   useEffect(() => {
-    onVisualDraftPreviewChange(visualDraft ? (getCommittedBackgroundVisualSnapshot(visualDraft).properties as Partial<ChimerSettings>) : null)
-  }, [onVisualDraftPreviewChange, visualDraft])
+    onVisualDraftPreviewChange(currentVisualSnapshot ? (currentVisualSnapshot.properties as Partial<ChimerSettings>) : null)
+  }, [currentVisualSnapshot, onVisualDraftPreviewChange])
 
   const dispatchVisualDraft = useCallback(
     (action: Record<string, unknown>) => {
@@ -1682,7 +1695,6 @@ export function RunningTimer({
   const canDecreaseFontSize = effectiveFontSize > MIN_FONT_SIZE + 0.05
   const activeRemainingHours = Number(activeTimeDisplay.hours)
   const activeRemainingMinutes = Number(activeTimeDisplay.minutes)
-  const selectedBackgroundDefinition = resolveAccessibleBackgroundDefinition(backgroundId, effectiveBackgroundAccess, backgroundCategory)
   const visibleBackgroundOptions = useMemo(() => getBackgroundOptionsForCategory(backgroundCategory).filter((option) => matchesBackgroundVisualFilter(option, backgroundCategoryFilter, savedBackgroundIds)), [backgroundCategory, backgroundCategoryFilter, savedBackgroundIds])
   const hasVisibleBackgrounds = visibleBackgroundOptions.length > 0
 
@@ -1934,6 +1946,7 @@ export function RunningTimer({
 
   const finishBackgroundSelection = () => {
     setActivePanel(null)
+    setVisualDraftBackgroundId(null)
     setVisualDraft(null)
 
     if (!visualPanelOpenedHydratedRef.current) {
@@ -1957,7 +1970,7 @@ export function RunningTimer({
       return
     }
 
-    const currentBackgroundId = selectedBackgroundDefinition.id
+    const currentBackgroundId = visualBackgroundId
     const commit = buildBackgroundVisualPendingCommit({
       preferences: backgroundVisualPreferences,
       currentBackgroundId,
@@ -2006,20 +2019,20 @@ export function RunningTimer({
 
   const buildVisualDraftCommit = useCallback(
     (intent: PendingVisualIntent | null = null) => {
-      if (!visualDraft) {
+      if (!visualDraft || visualDraftBackgroundId !== visualBackgroundId) {
         return null
       }
       const targetBackgroundId = intent?.type === "select-background" ? intent.backgroundId : null
       return buildBackgroundVisualPendingCommit({
         preferences: backgroundVisualPreferences,
-        currentBackgroundId: selectedBackgroundDefinition.id,
+        currentBackgroundId: visualBackgroundId,
         currentSnapshot: getCommittedBackgroundVisualSnapshot(visualDraft),
         targetBackgroundId,
         targetAdapter: targetBackgroundId ? backgroundPaletteRegistry[targetBackgroundId] : null,
         commitCanonicalBackgroundSelection: Boolean(targetBackgroundId) && mode.context !== "musicVisualizer",
       })
     },
-    [backgroundVisualPreferences, mode.context, selectedBackgroundDefinition.id, visualDraft],
+    [backgroundVisualPreferences, mode.context, visualBackgroundId, visualDraft, visualDraftBackgroundId],
   )
 
   const commitVisualDraft = useCallback(() => {
@@ -2129,6 +2142,7 @@ export function RunningTimer({
     }
     setPendingVisualIntent(null)
     if (outcome !== "keep") {
+      setVisualDraftBackgroundId(null)
       setVisualDraft(null)
     }
     if (resolution.resumeIntent) {
@@ -2169,7 +2183,7 @@ export function RunningTimer({
       return
     }
 
-    const adapter = backgroundPaletteRegistry[backgroundId]
+    const adapter = backgroundPaletteRegistry[visualBackgroundId]
     const partitioned = partitionBackgroundVisualSettingChange({
       nextSettings,
       draftOpen: Boolean(visualDraft),
@@ -12200,8 +12214,11 @@ export function RunningTimer({
           "--ml-lamp-min-core-glow-width": `${fullscreenLampCoreGlowWidth}vw`,
         } as CSSProperties)
       : undefined
-  const selectedPaletteAdapter = backgroundPaletteRegistry[backgroundId]
-  const committedPaletteMapping = useMemo(() => (backgroundVisualPreferences.mappingsByBackground as Record<string, Record<string, number>>)[backgroundId] ?? {}, [backgroundId, backgroundVisualPreferences.mappingsByBackground])
+  const selectedPaletteAdapter = backgroundPaletteRegistry[visualBackgroundId]
+  const committedPaletteMapping = useMemo(
+    () => (backgroundVisualPreferences.mappingsByBackground as Record<string, Record<string, number>>)[visualBackgroundId] ?? {},
+    [backgroundVisualPreferences.mappingsByBackground, visualBackgroundId],
+  )
   const effectivePaletteMapping = currentVisualSnapshot?.mapping ?? committedPaletteMapping
   const effectiveBackgroundPalette = useMemo(
     () => ({
