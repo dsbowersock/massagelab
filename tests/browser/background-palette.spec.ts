@@ -208,7 +208,9 @@ async function installPremiumAccount(page: Page) {
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
+        accessAuthoritative: true,
         features: ["premium_backgrounds", "chimer_custom_colors"],
+        ownedBackgroundIds: [],
         chimerSettings: {},
         appSettings: {},
       }),

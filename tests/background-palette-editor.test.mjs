@@ -72,7 +72,7 @@ test("Color and Visual preset managers expose only their approved draft actions 
     "Delete",
     "Set as default",
   ]) {
-    assert.match(presetSource, new RegExp(action))
+    assert.match(presetSource, new RegExp(`>\\s*${action}\\s*<|name="${action}"`))
   }
   assert.match(presetSource, /kind === "visual"/)
   assert.match(presetSource, /defaultMarker/)

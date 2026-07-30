@@ -36,6 +36,10 @@ const defaultWebServerCommand = runsDevelopmentPaletteReview
 
 export default defineConfig({
   testDir: "tests/browser",
+  // The palette gallery is development-only. Ordinary production-server QA
+  // excludes it, while an exact-spec invocation flips the dev server on and
+  // keeps the review matrix runnable.
+  testIgnore: runsDevelopmentPaletteReview ? [] : ["**/background-palette.spec.ts"],
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,

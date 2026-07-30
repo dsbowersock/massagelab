@@ -41,6 +41,11 @@ test("browser QA harness is wired for public smoke, PWA, and local-first checks"
   assert.match(config, /function parseBooleanEnv/)
   assert.match(config, /const skipWebServer = parseBooleanEnv\(process\.env\.PLAYWRIGHT_SKIP_WEB_SERVER\)/)
   assert.match(config, /webServer: skipWebServer/)
+  assert.match(config, /runsDevelopmentPaletteReview/)
+  assert.match(
+    config,
+    /testIgnore:\s*runsDevelopmentPaletteReview\s*\?\s*\[\]\s*:\s*\["\*\*\/background-palette\.spec\.ts"\]/,
+  )
 
   for (const route of ["/", "/notes", "/notes/soap", "/chimer", "/calendar", "/anatomime"]) {
     assert.match(publicRoutesSpec, new RegExp(JSON.stringify(route)))

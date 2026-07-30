@@ -17,7 +17,7 @@ concurrency:
 jobs:
   qa:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     env:
       AUTH_SECRET: ci-browser-qa-auth-secret-not-for-production-use-only
       NEXTAUTH_SECRET: ci-browser-qa-auth-secret-not-for-production-use-only

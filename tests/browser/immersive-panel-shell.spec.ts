@@ -252,22 +252,28 @@ test("Escape in a portaled color picker closes only the picker", async ({ page }
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ features: [], chimerSettings: {}, appSettings: {} }),
+      body: JSON.stringify({
+        accessAuthoritative: true,
+        features: [],
+        ownedBackgroundIds: [],
+        chimerSettings: {},
+        appSettings: {},
+      }),
     })
   })
   await openClock(page)
-  await page.getByRole("button", { name: "Visual", exact: true }).click()
-  const visual = page.getByRole("dialog", { name: "Visual controls" })
-  const primaryPickerButton = visual.getByRole("button", { name: "Primary color picker" })
+  await page.getByRole("button", { name: "Clock", exact: true }).click()
+  const clock = page.getByRole("dialog", { name: "Clock controls" })
+  const clockPickerButton = clock.getByRole("button", { name: "Clock color picker" })
 
-  await primaryPickerButton.click()
-  const picker = page.getByRole("dialog", { name: "Primary color picker" })
+  await clockPickerButton.click()
+  const picker = page.getByRole("dialog", { name: "Clock color picker" })
   await expect(picker).toBeVisible()
-  await picker.getByRole("slider", { name: "Primary color saturation and brightness" }).focus()
+  await picker.getByRole("slider", { name: "Clock color saturation and brightness" }).focus()
   await page.keyboard.press("Escape")
 
   await expect(picker).toHaveCount(0)
-  await expect(visual).toBeVisible()
+  await expect(clock).toBeVisible()
 })
 
 test("Background is modal, restores focus, and uses outside dismissal only when visible", async ({ page }) => {

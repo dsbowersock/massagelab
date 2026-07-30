@@ -61,9 +61,7 @@ describe("premium background registry", () => {
   it("keeps the enabled registry synchronized with the authoritative active-ID inventory", () => {
     assert.deepEqual(
       backgroundRegistry.filter((entry) => entry.enabled).map((entry) => entry.id).sort(),
-      ACTIVE_BACKGROUND_IDS.filter((id) => (
-        backgroundRegistry.some((entry) => entry.id === id && entry.enabled)
-      )).sort(),
+      [...ACTIVE_BACKGROUND_IDS].sort(),
     )
   })
 

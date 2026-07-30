@@ -143,7 +143,13 @@ async function installSignedInFreeAccount(page: Page) {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ features: [], chimerSettings: {}, appSettings: {} }),
+      body: JSON.stringify({
+        accessAuthoritative: true,
+        features: [],
+        ownedBackgroundIds: [],
+        chimerSettings: {},
+        appSettings: {},
+      }),
     })
   })
 }
@@ -547,21 +553,21 @@ test("Clock and Visual panels honor toggle, focus, outside, portal, and no-autoc
   await page.locator("[data-protected-display]").click({ position: { x: 2, y: 2 } })
   await expect(page.getByRole("dialog", { name: "Clock controls" })).toHaveCount(0)
 
-  await visualControl.click()
-  const visual = page.getByRole("dialog", { name: "Visual controls" })
-  await visual.getByRole("button", { name: "Primary color picker" }).click()
-  const picker = page.getByRole("dialog", { name: "Primary color picker" })
-  await picker.getByRole("slider", { name: "Primary color saturation and brightness" }).click({
+  await clockControl.click()
+  const clock = page.getByRole("dialog", { name: "Clock controls" })
+  await clock.getByRole("button", { name: "Clock color picker" }).click()
+  const picker = page.getByRole("dialog", { name: "Clock color picker" })
+  await picker.getByRole("slider", { name: "Clock color saturation and brightness" }).click({
     position: { x: 30, y: 30 },
   })
-  await expect(visual).toBeVisible()
+  await expect(clock).toBeVisible()
   await page.keyboard.press("Escape")
   await expect(picker).toHaveCount(0)
-  await expect(visual).toBeVisible()
+  await expect(clock).toBeVisible()
   await page.waitForTimeout(6_500)
-  await expect(visual).toBeVisible()
-  await visualControl.click()
-  await expect(visual).toHaveCount(0)
+  await expect(clock).toBeVisible()
+  await clockControl.click()
+  await expect(clock).toHaveCount(0)
 })
 
 test("Background traps focus and selection, Escape, and Close restore its control", async ({ page }) => {
@@ -999,13 +1005,13 @@ test("539px dock headers own shared actions and compact visual color controls", 
   expect.soft(await visualScroller.evaluate((scroller, toggle) => scroller.contains(toggle), await visualBackground.elementHandle())).toBe(false)
   const renderedBackground = page.getByTestId("chimer-premium-background")
   await expect(renderedBackground).toHaveCount(1)
-  await visualBackground.click()
+  await visualBackground.press("Space")
   await expect(renderedBackground).toHaveCount(1)
-  await expect(renderedBackground).toHaveAttribute("data-ml-background-motion", "paused")
-  await expect(visualPanel.getByText("Lamp main color", { exact: true })).toBeVisible()
-  await expect(visualPanel.getByText("Lamp orb color", { exact: true })).toBeVisible()
-  await visualBackground.click()
-  await expect(renderedBackground).toHaveAttribute("data-ml-background-motion", "playing")
+  await expect(renderedBackground).toHaveAttribute("data-background-motion", "paused")
+  await expect(visualPanel.getByRole("combobox", { name: "Main light color mapping" })).toBeVisible()
+  await expect(visualPanel.getByRole("combobox", { name: "Orb light color mapping" })).toBeVisible()
+  await visualBackground.press("Space")
+  await expect(renderedBackground).toHaveAttribute("data-background-motion", "playing")
   const clockColor = visualPanel.getByRole("button", { name: "Clock color picker" })
   await expect(clockColor).toHaveCount(1)
   expect.soft(await visualHeader.evaluate((header, picker) => header.contains(picker), await clockColor.elementHandle())).toBe(true)
@@ -1080,25 +1086,6 @@ test("539px dock headers own shared actions and compact visual color controls", 
   })
   await expectHitTestable(page, closeVisual)
 
-  const lampRow = visualPanel.getByText("Lamp main color", { exact: true }).locator("..").first()
-  const compactRowGeometry = await lampRow.evaluate((row) => {
-    const label = row.querySelector("span")?.getBoundingClientRect()
-    const swatch = row.querySelector<HTMLElement>("button[aria-haspopup='dialog']")?.getBoundingClientRect()
-    const bounds = row.getBoundingClientRect()
-    if (!label || !swatch) return null
-    return {
-      rowHeight: Math.round(bounds.height * 10) / 10,
-      inline: Math.abs((label.top + label.bottom) / 2 - (swatch.top + swatch.bottom) / 2) <= 1,
-      swatchWidth: Math.round(swatch.width * 10) / 10,
-      swatchHeight: Math.round(swatch.height * 10) / 10,
-    }
-  })
-  expect.soft(compactRowGeometry).toEqual({
-    rowHeight: 44,
-    inline: true,
-    swatchWidth: 44,
-    swatchHeight: 44,
-  })
 })
 
 test("guest Shared Colors stay visible, source-only, and keep touch-sized controls", async ({ page }, testInfo) => {

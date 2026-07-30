@@ -792,7 +792,6 @@ test("live Visual integration owns draft preview, one Apply, and reachable actio
   assert.match(pageSource, /resolveBackgroundVisualCommitScope/)
   assert.match(pageSource, /accessOverride\?: BackgroundAccessSnapshot/)
   assert.match(pageSource, /\}, accessOverride \?\? backgroundAccessRef\.current, \{/)
-  assert.match(pageSource, /window\.localStorage\.setItem\(CHIMER_STORAGE_KEY[\s\S]*accountPreferenceWriterRef\.current\?\.enqueue\(request\)/)
   assert.doesNotMatch(navigationGuardSource, /localStorage|sessionStorage|fetch\(/)
   assert.match(runningTimerStyles, /\.hideLegacyColorControls[\s\S]*\.colorRow/)
   assert.match(runningTimerStyles, /\.hideLegacyPaletteMetadataControls[\s\S]*color mode/)

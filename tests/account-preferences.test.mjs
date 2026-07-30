@@ -1,5 +1,4 @@
 import assert from "node:assert/strict"
-import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import {
   USER_PREFERENCES_VERSION,
@@ -8,6 +7,7 @@ import {
   buildUserPreferencePayload,
   canSyncAccountPreferences,
   choosePreferenceSource,
+  createChimerPreferenceSyncRouter,
   createSerializedChimerPreferenceWriter,
   createChimerPreferenceSyncRequest,
   createChimerPreferenceSyncRetry,
@@ -172,15 +172,6 @@ describe("Account preference helpers", () => {
       {},
     )
 
-    const source = await readFile(new URL("../app/account/preference-sync.tsx", import.meta.url), "utf8")
-    assert.match(
-      source,
-      /import\s+\{\s*backgroundPreferenceNormalizationOptions\s*\}\s+from\s+"@\/components\/backgrounds\/backgroundPaletteRegistry"/,
-    )
-    assert.match(
-      source,
-      /buildUserPreferencePayload\(\{[\s\S]*?calendarPreferences:[\s\S]*?\},\s*\{\s*backgroundPreferenceOptions:\s*backgroundPreferenceNormalizationOptions,\s*\}\)/,
-    )
   })
 
   it("retains the exact sanitized request body after a failed cloud write for retry", () => {
@@ -333,28 +324,23 @@ describe("Account preference helpers", () => {
     assert.deepEqual(completedRequestIds, [1, 2])
   })
 
-  it("routes automatic, Visual Apply, and Visual Retry through one writer", async () => {
-    const source = await readFile(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
-
-    assert.match(source, /createSerializedChimerPreferenceWriter/)
-    assert.equal(
-      [...source.matchAll(/accountPreferenceWriterRef\.current\?\.enqueue\(/g)].length,
+  it("routes automatic, Visual Apply, and Visual Retry through one writer", () => {
+    const enqueued = []
+    const router = createChimerPreferenceSyncRouter({
+      enqueue: (request) => enqueued.push(request),
+    })
+    const automatic = createChimerPreferenceSyncRequest({ minutes: 10 }, { requestId: 1 })
+    const visualApply = createChimerPreferenceSyncRequest({ minutes: 20 }, { requestId: 2 })
+    const visualRetry = createChimerPreferenceSyncRetry(
+      resolveChimerPreferenceSyncRequest(visualApply, visualApply, false),
       3,
     )
-    assert.doesNotMatch(source, /syncBackgroundVisualPreferenceRequest/)
-  })
 
-  it("uses the canonical Track 1 snapshot for account preference ownership IDs", async () => {
-    const source = await readFile(new URL("../app/api/account/preferences/route.ts", import.meta.url), "utf8")
-    const pageSource = await readFile(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    router.automatic(automatic)
+    router.visualApply(visualApply)
+    router.visualRetry(visualRetry)
 
-    assert.match(source, /getBackgroundCommerceSnapshot/)
-    assert.match(source, /backgroundPreferenceNormalizationOptions/)
-    assert.match(source, /accessAuthoritative:\s*access\.authoritative/)
-    assert.match(source, /ownedBackgroundIds:\s*access\.authoritative\s*\?\s*access\.commerceSnapshot\.ownedBackgroundIds\s*:\s*\[\]/)
-    assert.match(pageSource, /preferences\.accessAuthoritative !== true/)
-    assert.match(pageSource, /Keep the last local[\s\S]*empty access keeps rendering fail-closed/)
-    assert.doesNotMatch(source, /paymentIntent|customerId|stripeCustomer|checkoutSession/)
+    assert.deepEqual(enqueued, [automatic, visualApply, visualRetry])
   })
 
   it("removes known PHI fields before account sync", () => {

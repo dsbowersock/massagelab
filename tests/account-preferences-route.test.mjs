@@ -19,6 +19,7 @@ const routeSource = await readFile(
   "utf8",
 )
 const ownedBackgroundId = "massage-lab-stars"
+const unownedBackgroundId = "massage-lab-aurora"
 
 function ownedOnlySettings() {
   return {
@@ -131,6 +132,23 @@ function assertOwnedOnlySnapshot(settings) {
   assert.equal(settings.primaryFontColor, DEFAULT_CHIMER_SETTINGS.primaryFontColor)
 }
 
+function unownedSettings() {
+  return {
+    ...ownedOnlySettings(),
+    backgroundId: unownedBackgroundId,
+    massageLabAuroraSpeed: 88,
+  }
+}
+
+function assertUnownedFallback(settings) {
+  assert.equal(settings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+  assert.equal(
+    Object.hasOwn(settings, "massageLabAuroraSpeed"),
+    false,
+    "unowned renderer settings must not survive sanitization",
+  )
+}
+
 describe("account preference route ownership boundary", () => {
   it("GET retains an owned-only background, shared palette, and allowed renderer settings", async () => {
     const { GET, calls } = loadRoute()
@@ -140,6 +158,22 @@ describe("account preference route ownership boundary", () => {
     assert.equal(response.status, 200)
     assert.equal(response.body.accessAuthoritative, true)
     assertOwnedOnlySnapshot(response.body.chimerSettings)
+    assert.deepEqual(response.body.ownedBackgroundIds, [ownedBackgroundId])
+    assert.equal(calls.snapshots.length, 1)
+    assert.doesNotMatch(
+      JSON.stringify(response.body),
+      /paymentIntent|customerId|stripeCustomer|checkoutSession/,
+    )
+  })
+
+  it("GET falls back when the saved background is not owned", async () => {
+    const { GET, calls } = loadRoute({ savedSettings: unownedSettings() })
+
+    const response = await GET()
+
+    assert.equal(response.status, 200)
+    assert.equal(response.body.accessAuthoritative, true)
+    assertUnownedFallback(response.body.chimerSettings)
     assert.deepEqual(response.body.ownedBackgroundIds, [ownedBackgroundId])
     assert.equal(calls.snapshots.length, 1)
   })
@@ -170,5 +204,20 @@ describe("account preference route ownership boundary", () => {
     assert.equal(calls.upserts.length, 1)
     assertOwnedOnlySnapshot(calls.upserts[0].update.chimerSettings)
     assertOwnedOnlySnapshot(response.body.chimerSettings)
+  })
+
+  it("PUT persists and returns the fallback for an unowned submitted background", async () => {
+    const { PUT, calls } = loadRoute()
+    const response = await PUT(new Request("https://massagelab.app/api/account/preferences", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ chimerSettings: unownedSettings() }),
+    }))
+
+    assert.equal(response.status, 200)
+    assert.equal(calls.snapshots.length, 1)
+    assert.equal(calls.upserts.length, 1)
+    assertUnownedFallback(calls.upserts[0].update.chimerSettings)
+    assertUnownedFallback(response.body.chimerSettings)
   })
 })

@@ -558,7 +558,7 @@ describe("background palette adapter registry", () => {
     for (const [backgroundId, adapter] of cssDomEntries) {
       assert.equal(adapter.status, "supported", backgroundId)
       const fixture = cssDomFixtures[backgroundId]
-      const sourceBehavior = adapter.sourceBehavior
+      const original = structuredClone(fixture)
 
       for (const mode of ["source", "custom", "harmony"]) {
         const after = adapter.applyRoleColors(fixture, roleColorsForMode(adapter, mode))
@@ -567,8 +567,8 @@ describe("background palette adapter registry", () => {
           adapter.roles.map((role) => role.rendererTarget).sort(),
           `${backgroundId}:${mode}`,
         )
-        assert.deepEqual(fixture, cssDomFixtures[backgroundId], `${backgroundId}:${mode}:mutation`)
-        assert.equal(adapter.sourceBehavior, sourceBehavior, `${backgroundId}:${mode}:source-behavior`)
+        assert.deepEqual(fixture, original, `${backgroundId}:${mode}:mutation`)
+        assert.notEqual(after, fixture, `${backgroundId}:${mode}:identity`)
       }
     }
   })
