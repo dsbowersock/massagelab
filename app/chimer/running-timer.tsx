@@ -841,7 +841,10 @@ interface RunningTimerProps {
   activeIntervalMinutes: number | null
   onPause: () => void
   onFullscreen: () => void
-  onSettingsChange: (settings: Partial<ChimerSettings>) => void
+  onSettingsChange: (
+    settings: Partial<ChimerSettings>,
+    accessOverride?: BackgroundAccessSnapshot,
+  ) => void
   onFontSizeChange: (fontSize: number) => void
   onAdjustActiveRemainingMinutes: (deltaMinutes: number) => void
   onSetActiveRemainingDuration: (hours: number, minutes: number) => void
@@ -2098,6 +2101,17 @@ export function RunningTimer({
       return
     }
     if (nextBackgroundId === visualBackgroundId) {
+      if (newlyOwnedBackgroundIds.length > 0) {
+        // Retain a same-card acquisition through a failed provider refresh
+        // without rebuilding the current Visual snapshot.
+        onSettingsChange(
+          {},
+          mergeBackgroundAccessOwnership(
+            effectiveBackgroundAccess,
+            newlyOwnedBackgroundIds,
+          ),
+        )
+      }
       // Never clear a dirty draft just because its already-selected card was
       // pressed; the user must still choose Apply or Discard explicitly.
       if (!visualDraft?.dirty) {

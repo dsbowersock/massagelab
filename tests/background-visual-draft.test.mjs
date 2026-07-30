@@ -841,6 +841,10 @@ test("reselecting the active background closes without rebuilding Visual state",
     runningTimerSource,
     /if \(nextBackgroundId === visualBackgroundId\) \{[\s\S]*if \(!visualDraft\?\.dirty\) \{\s*finishBackgroundSelection\(\)[\s\S]*return/,
   )
+  assert.match(
+    runningTimerSource,
+    /if \(nextBackgroundId === visualBackgroundId\) \{[\s\S]*newlyOwnedBackgroundIds\.length > 0[\s\S]*onSettingsChange\(\s*\{\},\s*mergeBackgroundAccessOwnership\(\s*effectiveBackgroundAccess,\s*newlyOwnedBackgroundIds/,
+  )
 })
 
 test("Visual Apply updates the live settings snapshot before delayed account hydration can read it", () => {
