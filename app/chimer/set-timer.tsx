@@ -1042,7 +1042,10 @@ interface SetTimerProps {
   backgroundCategory: BackgroundCategory
   initialStep?: number
   onTimeClick: (unit: "hours" | "minutes") => void
-  onSettingsChange: (settings: Partial<ChimerSettings>) => void
+  onSettingsChange: (
+    settings: Partial<ChimerSettings>,
+    accessOverride?: BackgroundAccessSnapshot,
+  ) => void
   onStartTimer: (options?: ChimerSetupStartOptions) => void
   onStartClock: () => void
   hapticsEnabled: boolean
@@ -11154,7 +11157,7 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
             <>
               <div className={styles.backgroundSettings}>
                 <StyledToggleControl label="Visual background" checked={settings.movingBackgroundEnabled} hapticsEnabled={hapticsEnabled} onCheckedChange={(value) => onSettingsChange({ movingBackgroundEnabled: value })} />
-                {settings.movingBackgroundEnabled && <BackgroundSelector value={settings.backgroundId} onChange={(backgroundId) => onSettingsChange({ backgroundId })} access={backgroundAccess} category={backgroundCategory} renderSelectedControls={renderBackgroundControls} />}
+                {settings.movingBackgroundEnabled && <BackgroundSelector value={settings.backgroundId} onChange={(backgroundId, accessOverride) => onSettingsChange({ backgroundId }, accessOverride)} access={backgroundAccess} category={backgroundCategory} renderSelectedControls={renderBackgroundControls} />}
               </div>
               <p className={styles.formHint}>Backgrounds are fully applied when timer starts. Use this section to set your preferred background and any per-background controls.</p>
             </>

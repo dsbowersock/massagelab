@@ -7,64 +7,16 @@ import {
 } from "@/lib/account-preferences"
 import { clearAccountSurfaceDataCache } from "@/lib/account-surface-data"
 import {
-  backgroundPaletteRegistry,
   backgroundPreferenceNormalizationOptions,
 } from "@/components/backgrounds/backgroundPaletteRegistry"
-import {
-  backgroundRegistry,
-  userCanUseBackground,
-  type BackgroundAccessSnapshot,
-} from "@/components/backgrounds/backgroundRegistry"
+import { sanitizeAccessibleChimerSettings } from "@/lib/chimer-accessible-settings"
 import { objectRecord } from "@/lib/onboarding-preferences"
-import { sanitizeChimerSettingsForEntitlements } from "@/lib/chimer-timer"
 import { getUserEntitlementState } from "@/lib/membership"
 import { getBackgroundCommerceSnapshot } from "@/lib/commerce/snapshot-service"
 import { prisma } from "@/lib/prisma"
 
 function jsonObject(value: Record<string, unknown>) {
   return value as Prisma.InputJsonObject
-}
-
-/**
- * Sanitizes the canonical Chimer snapshot while retaining renderer tuning for
- * every background the account can currently use. Clock and Music share the
- * flat renderer settings even when their selected visual is not the canonical
- * Chimer background.
- */
-function sanitizeAccessibleChimerSettings(
-  input: unknown,
-  access: BackgroundAccessSnapshot,
-) {
-  const candidateSettings = objectRecord(input)
-  const options = {
-    canUseAccountColorControls: true,
-    backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
-  }
-  const canonicalSettings = sanitizeChimerSettingsForEntitlements(candidateSettings, access, options)
-  const accessibleRendererSettings: Record<string, unknown> = {}
-
-  for (const backgroundId of access.ownedBackgroundIds) {
-    const background = backgroundRegistry.find((entry) => entry.id === backgroundId)
-    if (!background || !userCanUseBackground(background, access)) {
-      continue
-    }
-    const visualPropertyKeys = backgroundPaletteRegistry[background.id]?.visualPropertyKeys
-    if (!visualPropertyKeys?.length) {
-      continue
-    }
-    const scopedSettings = sanitizeChimerSettingsForEntitlements({
-      ...candidateSettings,
-      backgroundId: background.id,
-    }, access, options)
-    for (const propertyKey of visualPropertyKeys) {
-      accessibleRendererSettings[propertyKey] = scopedSettings[propertyKey]
-    }
-  }
-
-  return {
-    ...canonicalSettings,
-    ...accessibleRendererSettings,
-  }
 }
 
 export async function GET() {

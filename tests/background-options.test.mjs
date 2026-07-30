@@ -24,6 +24,11 @@ const runningTimerStyles = readFileSync(
 )
 const runningTimerSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
 const chimerPageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+const backgroundSelectorSource = readFileSync(
+  new URL("../components/backgrounds/BackgroundSelector.tsx", import.meta.url),
+  "utf8",
+)
+const setTimerSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
 const projectLogSource = readFileSync(new URL("../docs/project-log.md", import.meta.url), "utf8")
 const paletteRegistrySource = readFileSync(
   new URL("../components/backgrounds/backgroundPaletteRegistry.ts", import.meta.url),
@@ -317,6 +322,18 @@ describe("premium background registry", () => {
     assert.match(
       runningTimerSource,
       /onApplyBackgroundVisualPreferences\(\{[\s\S]*accessOverride: selectionAccess/,
+    )
+    assert.match(
+      backgroundSelectorSource,
+      /mergeBackgroundAccessOwnership\(access,\s*\[background\.id\]\)/,
+    )
+    assert.match(
+      backgroundSelectorSource,
+      /onChange\(\s*background\.id,\s*mergeBackgroundAccessOwnership/,
+    )
+    assert.match(
+      setTimerSource,
+      /onChange=\{\(backgroundId,\s*accessOverride\)\s*=>\s*onSettingsChange\(\{ backgroundId \},\s*accessOverride\)\}/,
     )
   })
 

@@ -85,6 +85,8 @@ async function startProofStation(page: Page, origin = "/music") {
   await expect(
     page.getByRole("heading", { name: /Atmosphere audio stations/i, includeHidden: true }),
   ).toBeAttached()
+  await expect(page.getByRole("region", { name: "Atmosphere audio stations" }))
+    .toHaveAttribute("data-music-storage-status", "available")
   await centerCarouselItem(page, "mlab-proof-drone", "Next station")
   await page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
   const player = page.getByTestId("music-player-toolbar")
@@ -1105,7 +1107,7 @@ test("guest Shared Colors stay visible, source-only, and keep touch-sized contro
   const customButton = colorSource.getByRole("radio", { name: "Custom" })
   const harmonyButton = colorSource.getByRole("radio", { name: "Harmony" })
   const colorPresets = visualPanel.getByRole("region", { name: "Color presets" })
-  const paletteSwatches = sharedColors.locator("output[aria-label^='Swatch ']")
+  const paletteSwatches = sharedColors.locator("[aria-label^='Swatch ']")
   await expect.soft(sourceButton).toBeEnabled()
   await expect.soft(sourceButton).toHaveAttribute("data-selected", "true")
   await expect.soft(customButton).toBeDisabled()

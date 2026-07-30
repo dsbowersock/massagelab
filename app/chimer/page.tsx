@@ -45,6 +45,7 @@ import {
   prepareChimerBackgroundPreferenceMigration,
 } from "@/lib/background-palette"
 import { fetchWithTimeout } from "@/lib/client-fetch"
+import { sanitizeAccessibleChimerSettings } from "@/lib/chimer-accessible-settings"
 import { FEATURE_KEYS } from "@/lib/membership"
 import { triggerHapticFeedback } from "@/lib/haptics"
 import { isBackgroundId } from "@/lib/background-options"
@@ -367,15 +368,11 @@ export default function ChimerPage() {
         }
 
         if (hasSavedPreference(preferences.chimerSettings)) {
-          const nextSettings = sanitizeChimerSettingsForEntitlements(
+          const nextSettings = sanitizeAccessibleChimerSettings(
             preferences.chimerSettings,
             {
               featureKeys: nextFeatureKeys,
               ownedBackgroundIds: nextOwnedBackgroundIds,
-            },
-            {
-              canUseAccountColorControls: true,
-              backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
             },
           ) as ChimerSettings
           if (areChimerSettingsEqual(localSettings, nextSettings)) {
@@ -394,15 +391,11 @@ export default function ChimerPage() {
           return
         }
 
-        const seedSettings = sanitizeChimerSettingsForEntitlements(
+        const seedSettings = sanitizeAccessibleChimerSettings(
           localSettings,
           {
             featureKeys: nextFeatureKeys,
             ownedBackgroundIds: nextOwnedBackgroundIds,
-          },
-          {
-            canUseAccountColorControls: true,
-            backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
           },
         ) as ChimerSettings
         const seedResponse = await fetchWithTimeout("/api/account/preferences", {

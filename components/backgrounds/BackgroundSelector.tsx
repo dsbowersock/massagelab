@@ -20,13 +20,14 @@ import {
   type BackgroundAccessSnapshot,
   type BackgroundDefinition,
   getBackgroundOptionsForCategory,
+  mergeBackgroundAccessOwnership,
   type BackgroundCategory,
   type BackgroundId,
 } from "@/components/backgrounds/backgroundRegistry"
 
 interface BackgroundSelectorProps {
   value: BackgroundId | string
-  onChange: (value: BackgroundId) => void
+  onChange: (value: BackgroundId, accessOverride?: BackgroundAccessSnapshot) => void
   access: BackgroundAccessSnapshot
   category: BackgroundCategory
   className?: string
@@ -157,7 +158,10 @@ export function BackgroundSelector({
         onAcquired={(background) => {
           setAcquisition(null)
           setUpgradeMessage("")
-          onChange(background.id)
+          onChange(
+            background.id,
+            mergeBackgroundAccessOwnership(access, [background.id]),
+          )
         }}
       />
 

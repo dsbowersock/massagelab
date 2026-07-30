@@ -411,6 +411,7 @@ test("desktop tooltips open from hover and keyboard focus", async ({ page }, tes
 test("account menu launches a captured install prompt and keeps help or feedback available", async ({ page }, testInfo) => {
   await gotoShell(page, "/")
   await prepareAccountMenu(page)
+  await openAccountMenu(page)
   await page.evaluate(() => {
     const event = new Event("beforeinstallprompt") as Event & {
       prompt: () => Promise<void>
@@ -420,7 +421,6 @@ test("account menu launches a captured install prompt and keeps help or feedback
     event.userChoice = Promise.resolve({ outcome: "dismissed", platform: "web" })
     window.dispatchEvent(event)
   })
-  await openAccountMenu(page)
   await expect(page.getByRole("menuitem", { name: "Install MassageLab" })).toBeVisible()
   await expect(page.getByRole("menuitem", { name: "Help & FAQ" })).toBeVisible()
   await expect(page.getByRole("menuitem", { name: "Send Feedback" })).toBeVisible()
@@ -731,6 +731,11 @@ test("running alerting and preview capture clear computed shell offsets while ba
     appBarPosition: "bottom", sidebarPosition: "left", sidebarTriggerPosition: "bottom", themeMode: "dark",
   })))
   await gotoShell(page, "/wellness")
+  // Opening a client-owned menu is the hydration barrier for the route cleanup
+  // effect that removes stale immersive classes after navigation.
+  await openAccountMenu(page)
+  await expect(page.getByRole("menuitem", { name: "Help & FAQ" })).toBeVisible()
+  await page.keyboard.press("Escape")
 
   for (const bodyClass of ["chimer-running", "chimer-alerting", "chimer-preview-capture"]) {
     await expectImmersiveOffsetsCleared(page, bodyClass)

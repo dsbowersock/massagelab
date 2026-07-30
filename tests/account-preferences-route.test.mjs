@@ -7,20 +7,20 @@ import {
   buildUserPreferencePayload,
 } from "../lib/account-preferences.js"
 import {
-  backgroundPaletteRegistry,
   backgroundPreferenceNormalizationOptions,
 } from "../components/backgrounds/backgroundPaletteRegistry.ts"
-import {
-  backgroundRegistry,
-  userCanUseBackground,
-} from "../components/backgrounds/backgroundRegistry.ts"
-import { DEFAULT_CHIMER_SETTINGS, sanitizeChimerSettingsForEntitlements } from "../lib/chimer-timer.js"
+import { DEFAULT_CHIMER_SETTINGS } from "../lib/chimer-timer.js"
+import { sanitizeAccessibleChimerSettings } from "../lib/chimer-accessible-settings.ts"
 import { objectRecord } from "../lib/onboarding-preferences.js"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const routeSource = await readFile(
   new URL("../app/api/account/preferences/route.ts", import.meta.url),
+  "utf8",
+)
+const chimerPageSource = await readFile(
+  new URL("../app/chimer/page.tsx", import.meta.url),
   "utf8",
 )
 const ownedBackgroundId = "massage-lab-stars"
@@ -96,18 +96,13 @@ function loadRoute({ savedSettings = ownedOnlySettings(), failAccess = false } =
         clearAccountSurfaceDataCache: () => undefined,
       },
       "@/components/backgrounds/backgroundPaletteRegistry": {
-        backgroundPaletteRegistry,
         backgroundPreferenceNormalizationOptions,
       },
-      "@/components/backgrounds/backgroundRegistry": {
-        backgroundRegistry,
-        userCanUseBackground,
+      "@/lib/chimer-accessible-settings": {
+        sanitizeAccessibleChimerSettings,
       },
       "@/lib/onboarding-preferences": {
         objectRecord,
-      },
-      "@/lib/chimer-timer": {
-        sanitizeChimerSettingsForEntitlements,
       },
       "@/lib/membership": {
         getUserEntitlementState: async () => {
@@ -160,6 +155,27 @@ function assertUnownedFallback(settings) {
 }
 
 describe("account preference route ownership boundary", () => {
+  it("retains renderer tuning for an owned Music background when Chimer selects another visual", () => {
+    const settings = sanitizeAccessibleChimerSettings({
+      backgroundId: DEFAULT_CHIMER_SETTINGS.backgroundId,
+      massageLabStarsSpeed: 72,
+    }, {
+      featureKeys: [],
+      ownedBackgroundIds: [ownedBackgroundId],
+    })
+
+    assert.equal(settings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    assert.equal(settings.massageLabStarsSpeed, 72)
+    assert.match(
+      chimerPageSource,
+      /sanitizeAccessibleChimerSettings\(\s*preferences\.chimerSettings,/,
+    )
+    assert.match(
+      chimerPageSource,
+      /sanitizeAccessibleChimerSettings\(\s*localSettings,/,
+    )
+  })
+
   it("GET retains an owned-only background, shared palette, and allowed renderer settings", async () => {
     const { GET, calls } = loadRoute()
 

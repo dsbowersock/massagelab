@@ -98,7 +98,11 @@ export function AtmosphereStationCarousel() {
   }
 
   return (
-    <section className="grid gap-4" aria-label="Atmosphere audio stations">
+    <section
+      className="grid gap-4"
+      aria-label="Atmosphere audio stations"
+      data-music-storage-status={music.visualizer.storageStatus}
+    >
       <div className="grid gap-3">
         <div className="grid gap-1.5">
           <p className="text-sm font-medium">Station category</p>
