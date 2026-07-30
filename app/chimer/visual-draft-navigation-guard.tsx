@@ -42,8 +42,11 @@ function observableHistoryIndex() {
 
 /**
  * Guards document-level app navigation without taking ownership of draft
- * resolution. History interception is enabled only when the browser or router
- * already exposes stable entry indexes; it never stamps or replaces Next state.
+ * resolution. Eligible same-origin anchors and native `beforeunload` remain
+ * guarded in every browser. A custom same-document Back/Forward dialog requires
+ * a stable Navigation API or router history index; without one, direction cannot
+ * be restored safely, so this guard deliberately does not install `popstate`,
+ * stamp/push/replace history, or risk corrupting Forward history and Next state.
  */
 export function VisualDraftNavigationGuard({
   dirty,
@@ -131,6 +134,8 @@ export function VisualDraftNavigationGuard({
       windowTarget: window,
       onClick: handleClick as EventListener,
       onBeforeUnload: handleBeforeUnload as EventListener,
+      // Without a stable index, popstate exposes neither direction nor a
+      // cancellable transition. Anchors and beforeunload stay guarded.
       onPopState: guardedHistoryIndex !== null
         ? handlePopState as EventListener
         : null,

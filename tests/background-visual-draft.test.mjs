@@ -19,6 +19,7 @@ import {
 import {
   classifyVisualDraftAnchorNavigation,
   getConnectedVisualFocusTarget,
+  getObservableVisualHistoryIndex,
   getVisualDraftHistoryTransition,
   installVisualDraftNavigationListeners,
 } from "../lib/visual-draft-navigation.js"
@@ -803,6 +804,46 @@ test("dirty navigation listeners install and clean up exactly once", () => {
   ])
 })
 
+test("indexless history keeps anchor and unload guards without directionless popstate", () => {
+  assert.equal(getObservableVisualHistoryIndex({
+    navigationIndex: null,
+    historyStateIndex: null,
+  }), null)
+
+  const calls = []
+  const target = (owner) => ({
+    addEventListener(type) {
+      calls.push(["add", owner, type])
+    },
+    removeEventListener(type) {
+      calls.push(["remove", owner, type])
+    },
+  })
+  const cleanup = installVisualDraftNavigationListeners({
+    documentTarget: target("document"),
+    windowTarget: target("window"),
+    onClick() {},
+    onBeforeUnload() {},
+    onPopState: null,
+  })
+  cleanup()
+
+  assert.deepEqual(calls, [
+    ["add", "document", "click"],
+    ["add", "window", "beforeunload"],
+    ["remove", "document", "click"],
+    ["remove", "window", "beforeunload"],
+  ])
+  assert.match(
+    navigationGuardSource,
+    /onPopState: guardedHistoryIndex !== null\s*\? handlePopState as EventListener\s*:\s*null/,
+  )
+  assert.doesNotMatch(
+    navigationGuardSource,
+    /history\.(?:pushState|replaceState)|visual-draft-\$\{|__massageLabVisualDraftGuard|sessionStorage/,
+  )
+})
+
 test("live Visual integration owns draft preview, one Apply, and reachable actions", () => {
   assert.match(runningTimerSource, /createBackgroundVisualDraft/)
   assert.match(runningTimerSource, /BackgroundPaletteEditor/)
@@ -1091,6 +1132,8 @@ test("dirty navigation guard covers eligible app links, history, and native unlo
   assert.match(navigationGuardSource, /anchor\.hasAttribute\("download"\)/)
   assert.match(navigationGuardSource, /target: anchor\.target \|\| "_self"/)
   assert.doesNotMatch(navigationGuardSource, /history\.pushState/)
+  assert.doesNotMatch(navigationGuardSource, /history\.replaceState/)
+  assert.doesNotMatch(navigationGuardSource, /sessionStorage|VisualDraftGuard/)
   assert.match(navigationGuardSource, /history\.go/)
   assert.match(navigationGuardSource, /installVisualDraftNavigationListeners/)
   assert.match(unsavedDialogSource, /Apply changes/)
