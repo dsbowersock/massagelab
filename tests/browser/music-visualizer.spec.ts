@@ -221,9 +221,10 @@ async function expectDockAvoidsDisplay(
   await expect.poll(() => page.evaluate(() => {
     const displayBox = document.querySelector<HTMLElement>("[data-protected-display]")
       ?.getBoundingClientRect()
-    const dockBox = document.querySelector<HTMLElement>("[data-immersive-dock]")
-      ?.getBoundingClientRect()
-    if (!displayBox || !dockBox) return null
+    const dockElement = document.querySelector<HTMLElement>("[data-immersive-dock]")
+    const dockBox = dockElement?.getBoundingClientRect()
+    const dockLayout = dockElement?.dataset.immersiveLayout
+    if (!displayBox || !dockBox || !dockLayout) return null
     const viewport = window.visualViewport
     const viewportLeft = viewport?.offsetLeft ?? 0
     const viewportTop = viewport?.offsetTop ?? 0
@@ -231,6 +232,10 @@ async function expectDockAvoidsDisplay(
     const viewportBottom = viewportTop + (viewport?.height ?? window.innerHeight)
     const viewportCenter = (viewportLeft + viewportRight) / 2
     const dockCenter = (dockBox.left + dockBox.right) / 2
+    const nearestSideInset = Math.min(
+      Math.abs(dockBox.left - viewportLeft),
+      Math.abs(viewportRight - dockBox.right),
+    )
     const intersects = !(
       dockBox.right <= displayBox.left
       || displayBox.right <= dockBox.left
@@ -243,7 +248,9 @@ async function expectDockAvoidsDisplay(
       insideTop: dockBox.top >= viewportTop - 1,
       insideRight: dockBox.right <= viewportRight + 1,
       insideBottom: dockBox.bottom <= viewportBottom + 1,
-      centered: Math.abs(dockCenter - viewportCenter) <= 1,
+      alignedForLayout: dockLayout === "side"
+        ? nearestSideInset <= 16
+        : Math.abs(dockCenter - viewportCenter) <= 1,
       dock: {
         top: dockBox.top,
         right: dockBox.right,
@@ -269,7 +276,7 @@ async function expectDockAvoidsDisplay(
     insideTop: true,
     insideRight: true,
     insideBottom: true,
-    centered: true,
+    alignedForLayout: true,
   }))
   if (useKeyboard) {
     await expectToolbarInsideVisualViewport(page)
