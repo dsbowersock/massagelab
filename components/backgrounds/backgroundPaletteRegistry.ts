@@ -568,7 +568,18 @@ const SUPPORTED_SPECS: readonly SupportedSpec[] = [
   { id: "massage-lab-balatro", family: "webgl", prefixes: ["massageLabBalatro"], roles: [role("field-1", "Field 1", "massageLabBalatroColorOne", "massageLabBalatro.color1"), role("field-2", "Field 2", "massageLabBalatroColorTwo", "massageLabBalatro.color2"), role("field-3", "Field 3", "massageLabBalatroColorThree", "massageLabBalatro.color3")] },
   { id: "massage-lab-novatrix", family: "webgl", prefixes: ["massageLabNovatrix"], roles: [role("field", "Field", "massageLabNovatrixColor", "massageLabNovatrix.color")] },
   { id: "massage-lab-matrix-rain", family: "canvas", prefixes: ["massageLabMatrixRain"], roles: [role("glyphs", "Glyphs", "massageLabMatrixRainColor", "massageLabMatrixRain.color")] },
-  { id: "massage-lab-photon-beam", family: "canvas", prefixes: ["massageLabPhotonBeam"], roles: [role("background", "Background", "massageLabPhotonBeamColorBg", "massageLabPhotonBeam.colorBg"), role("lines", "Beam lines", "massageLabPhotonBeamColorLine", "massageLabPhotonBeam.colorLine"), role("signal-1", "Signal 1", "massageLabPhotonBeamColorSignal", "massageLabPhotonBeam.colorSignal"), role("signal-2", "Signal 2", "massageLabPhotonBeamColorSignal2", "massageLabPhotonBeam.colorSignal2"), role("signal-3", "Signal 3", "massageLabPhotonBeamColorSignal3", "massageLabPhotonBeam.colorSignal3")] },
+  {
+    id: "massage-lab-photon-beam",
+    family: "canvas",
+    prefixes: ["massageLabPhotonBeam"],
+    roles: [role("background", "Background", "massageLabPhotonBeamColorBg", "massageLabPhotonBeam.colorBg"), role("lines", "Beam lines", "massageLabPhotonBeamColorLine", "massageLabPhotonBeam.colorLine"), role("signal-1", "Signal 1", "massageLabPhotonBeamColorSignal", "massageLabPhotonBeam.colorSignal"), role("signal-2", "Signal 2", "massageLabPhotonBeamColorSignal2", "massageLabPhotonBeam.colorSignal2"), role("signal-3", "Signal 3", "massageLabPhotonBeamColorSignal3", "massageLabPhotonBeam.colorSignal3")],
+    // Source retains the authored single-signal behavior. Mapped palettes opt
+    // into all three signal channels so every exposed role reaches the canvas.
+    modeOverrides: [
+      { rendererTarget: "massageLabPhotonBeam.useColor2", sourceValue: false, customValue: true },
+      { rendererTarget: "massageLabPhotonBeam.useColor3", sourceValue: false, customValue: true },
+    ],
+  },
   { id: "massage-lab-sparkles", family: "canvas", prefixes: ["sparkles"], roles: [role("particles", "Particles", "sparklesParticleColor", "sparkles.particleColor")] },
   { id: "massage-lab-gradient-animation", family: "css-dom", prefixes: ["gradientAnimation"], roles: [role("backdrop-start", "Backdrop start", "gradientAnimationBackgroundStartColor", "gradientAnimation.backgroundStartColor"), role("backdrop-end", "Backdrop end", "gradientAnimationBackgroundEndColor", "gradientAnimation.backgroundEndColor"), role("gradient-1", "Gradient 1", "gradientAnimationFirstColor", "gradientAnimation.firstColor"), role("gradient-2", "Gradient 2", "gradientAnimationSecondColor", "gradientAnimation.secondColor"), role("gradient-3", "Gradient 3", "gradientAnimationThirdColor", "gradientAnimation.thirdColor"), role("gradient-4", "Gradient 4", "gradientAnimationFourthColor", "gradientAnimation.fourthColor"), role("gradient-5", "Gradient 5", "gradientAnimationFifthColor", "gradientAnimation.fifthColor")] },
   { id: "massage-lab-shooting-stars", family: "css-dom", prefixes: ["shootingStars"], roles: [role("stars", "Stars", "shootingStarsStarColor", "shootingStars.starColor"), role("trails", "Trails", "shootingStarsTrailColor", "shootingStars.trailColor"), role("shooting-stars", "Shooting stars", "shootingStarsShootingStarColor", "shootingStars.shootingStarColor")] },

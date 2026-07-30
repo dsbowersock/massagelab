@@ -1191,6 +1191,51 @@ describe("background palette adapter registry", () => {
     assert.equal(rippleAccessFallback.massageLabRippleGrid.rippleIntensity, 0.17)
     assert.equal(rippleAccessFallback.massageLabRippleGrid.mouseInteraction, false)
 
+    const photonProps = {
+      massageLabPhotonBeam: {
+        colorBg: "#080808",
+        colorLine: "#005F6F",
+        colorSignal: "#00D9FF",
+        colorSignal2: "#00FFFF",
+        colorSignal3: "#00B8D4",
+        lineCount: 80,
+      },
+    }
+    const photonCustom = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-photon-beam",
+      effectProps: photonProps,
+      palette: customPalette,
+      mapping: {},
+      canCustomize: true,
+    })
+    const photonHarmony = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-photon-beam",
+      effectProps: photonProps,
+      palette: harmonyPalette,
+      mapping: {},
+      canCustomize: true,
+    })
+    const photonSource = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-photon-beam",
+      effectProps: photonProps,
+      palette: sourcePalette,
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.equal(photonCustom.massageLabPhotonBeam.useColor2, true)
+    assert.equal(photonCustom.massageLabPhotonBeam.useColor3, true)
+    assert.equal(photonCustom.massageLabPhotonBeam.colorSignal2, CUSTOM_SWATCHES[3])
+    assert.equal(photonCustom.massageLabPhotonBeam.colorSignal3, CUSTOM_SWATCHES[4])
+    assert.equal(photonHarmony.massageLabPhotonBeam.useColor2, true)
+    assert.equal(photonHarmony.massageLabPhotonBeam.useColor3, true)
+    assert.equal(photonHarmony.massageLabPhotonBeam.colorSignal2, harmonyColors[3])
+    assert.equal(photonHarmony.massageLabPhotonBeam.colorSignal3, harmonyColors[4])
+    assert.equal(photonSource.massageLabPhotonBeam.useColor2, false)
+    assert.equal(photonSource.massageLabPhotonBeam.useColor3, false)
+    assert.equal(photonSource.massageLabPhotonBeam.lineCount, 80)
+    assert.equal(Object.hasOwn(photonProps.massageLabPhotonBeam, "useColor2"), false)
+    assert.equal(Object.hasOwn(photonProps.massageLabPhotonBeam, "useColor3"), false)
+
     assert.deepEqual(
       backgroundPaletteRegistry["massage-lab-tile-grid"].modeOverrides,
       [{ rendererTarget: "tileGrid.paletteMode", sourceValue: "auto", customValue: "custom" }],
@@ -1202,6 +1247,13 @@ describe("background palette adapter registry", () => {
     assert.deepEqual(
       backgroundPaletteRegistry["massage-lab-ripple-grid"].modeOverrides,
       [{ rendererTarget: "massageLabRippleGrid.enableRainbow", sourceValue: true, customValue: false }],
+    )
+    assert.deepEqual(
+      backgroundPaletteRegistry["massage-lab-photon-beam"].modeOverrides,
+      [
+        { rendererTarget: "massageLabPhotonBeam.useColor2", sourceValue: false, customValue: true },
+        { rendererTarget: "massageLabPhotonBeam.useColor3", sourceValue: false, customValue: true },
+      ],
     )
     assert.deepEqual(tileProps.tileGrid.paletteMode, "auto")
     assert.deepEqual(auroraProps.auroraBars.paletteMode, "auto")
