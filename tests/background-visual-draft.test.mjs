@@ -37,6 +37,7 @@ const setTimerSource = await read("app/chimer/set-timer.tsx")
 const navigationGuardSource = await read("app/chimer/visual-draft-navigation-guard.tsx")
 const unsavedDialogSource = await read("app/chimer/unsaved-visual-changes-dialog.tsx")
 const pageSource = await read("app/chimer/page.tsx")
+const musicMiniPlayerSource = await read("components/providers/music-mini-player.tsx")
 const runningTimerStyles = await read("app/chimer/running-timer.module.css")
 
 const openingSnapshot = {
@@ -832,6 +833,45 @@ test("redeemed ownership survives Apply and Discard background-switch continuati
     runningTimerSource,
     /const selectionAccess = intent\?\.type === "select-background"[\s\S]*intent\.newlyOwnedBackgroundIds[\s\S]*accessOverride: selectionAccess/,
   )
+})
+
+test("Music visualizer minimize preserves replace navigation through Apply, Discard, and Keep Editing", () => {
+  const minimizeCommit = { visualBackgroundId: "current" }
+  const minimizeIntent = {
+    type: "navigate",
+    href: "/music",
+    historyDelta: null,
+    replace: true,
+    restoreFocusTarget: null,
+  }
+  assert.deepEqual(
+    resolveBackgroundVisualPendingOutcome({
+      outcome: "apply",
+      intent: minimizeIntent,
+      commit: minimizeCommit,
+    }),
+    { commit: minimizeCommit, resumeIntent: minimizeIntent },
+  )
+  assert.deepEqual(
+    resolveBackgroundVisualPendingOutcome({
+      outcome: "discard",
+      intent: minimizeIntent,
+      commit: minimizeCommit,
+    }),
+    { commit: null, resumeIntent: minimizeIntent },
+  )
+  assert.deepEqual(
+    resolveBackgroundVisualPendingOutcome({
+      outcome: "keep",
+      intent: minimizeIntent,
+      commit: minimizeCommit,
+    }),
+    { commit: null, resumeIntent: null },
+  )
+  assert.match(musicMiniPlayerSource, /<Link[\s\S]*data-visual-draft-navigation-mode=\{isMusicVisualizerRoute \? "replace" : undefined\}/)
+  assert.match(navigationGuardSource, /replace:\s*anchor\.dataset\.visualDraftNavigationMode === "replace"/)
+  assert.match(runningTimerSource, /replace:\s*navigation\.replace/)
+  assert.match(runningTimerSource, /if \(intent\.replace\) \{\s*router\.replace\(intent\.href\)/)
 })
 
 test("ordinary Clock background selection commits visual state and canonical selection atomically", () => {

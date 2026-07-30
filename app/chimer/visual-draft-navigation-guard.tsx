@@ -13,6 +13,8 @@ import {
 export interface VisualDraftNavigationIntent {
   href: string
   historyDelta: number | null
+  /** Preserves a guarded link's history behavior after the draft dialog resolves. */
+  replace: boolean
   restoreFocusTarget: HTMLElement | null
 }
 
@@ -90,6 +92,7 @@ export function VisualDraftNavigationGuard({
       onNavigateAttempt({
         href: navigation.href,
         historyDelta: null,
+        replace: anchor.dataset.visualDraftNavigationMode === "replace",
         restoreFocusTarget: getConnectedVisualFocusTarget(anchor),
       })
     }
@@ -118,6 +121,7 @@ export function VisualDraftNavigationGuard({
       onNavigateAttempt({
         href: `${target.pathname}${target.search}${target.hash}`,
         historyDelta: transition.historyDelta,
+        replace: false,
         restoreFocusTarget: getConnectedVisualFocusTarget(document.activeElement),
       })
     }

@@ -45,7 +45,7 @@ type PendingVisualIntent = ({ type: "close-panel" } | { type: "change-panel"; pa
    * through the unsaved-changes continuation.
    */
   newlyOwnedBackgroundIds: readonly string[]
-} | { type: "navigate"; href: string | null; historyDelta: number | null }) & {
+} | { type: "navigate"; href: string | null; historyDelta: number | null; replace: boolean }) & {
   restoreFocusTarget: HTMLElement | null
 }
 
@@ -2079,7 +2079,11 @@ export function RunningTimer({
       return
     }
     if (intent.href) {
-      router.push(intent.href)
+      if (intent.replace) {
+        router.replace(intent.href)
+      } else {
+        router.push(intent.href)
+      }
     } else {
       mode.onClose()
     }
@@ -2113,6 +2117,7 @@ export function RunningTimer({
         type: "navigate",
         href: navigation.href,
         historyDelta: navigation.historyDelta,
+        replace: navigation.replace,
         restoreFocusTarget: navigation.restoreFocusTarget,
       })
     },
@@ -13017,6 +13022,7 @@ export function RunningTimer({
                 type: "navigate",
                 href: null,
                 historyDelta: null,
+                replace: false,
                 restoreFocusTarget: getConnectedVisualFocusTarget(document.activeElement) as HTMLElement | null,
               })
             } else {

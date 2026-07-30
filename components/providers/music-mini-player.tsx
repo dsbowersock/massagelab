@@ -2,7 +2,8 @@
 
 import { useEffect } from "react"
 import { Play, RefreshCw, SkipBack, SkipForward, Square, Volume2, Wallpaper } from "lucide-react"
-import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
+import { usePathname, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import {
@@ -18,7 +19,6 @@ type MusicMiniPlayerPlacement = "top" | "bottom"
 export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMiniPlayerPlacement }) {
   const music = useMusic()
   const pathname = usePathname()
-  const router = useRouter()
   const searchParams = useSearchParams()
   const hasStation = Boolean(music.activeStationId)
   const showPlayer = hasStation || music.playbackState === "failed"
@@ -26,22 +26,16 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
     pathname === "/clock"
     && searchParams.getAll("source").includes("music")
   const visualizerActionLabel = isMusicVisualizerRoute ? "Minimize visualizer" : "Background"
-
-  const handleVisualizerAction = () => {
-    if (isMusicVisualizerRoute) {
-      router.replace(sanitizeMusicVisualizerReturnTo(searchParams.get("returnTo")))
-      return
-    }
-
-    const currentSearch = searchParams.toString()
-    const returnTo = currentSearch ? `${pathname}?${currentSearch}` : pathname
-    router.push(buildMusicVisualizerHref({
-      returnTo,
-      openBackgroundPanel:
-        !music.visualizer.backgroundId
-        && !music.visualizer.accountDefaultBackgroundId,
-    }))
-  }
+  const currentSearch = searchParams.toString()
+  const returnTo = currentSearch ? `${pathname}?${currentSearch}` : pathname
+  const visualizerHref = isMusicVisualizerRoute
+    ? sanitizeMusicVisualizerReturnTo(searchParams.get("returnTo"))
+    : buildMusicVisualizerHref({
+        returnTo,
+        openBackgroundPanel:
+          !music.visualizer.backgroundId
+          && !music.visualizer.accountDefaultBackgroundId,
+      })
 
   useEffect(() => {
     const { body } = document
@@ -124,15 +118,21 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
             </Button>
             {hasStation ? (
               <Button
+                asChild
                 size={isCollapsed ? "icon" : "sm"}
                 variant="secondary"
-                aria-label={visualizerActionLabel}
-                title={visualizerActionLabel}
                 className={cn(isCollapsed && "size-9")}
-                onClick={handleVisualizerAction}
               >
-                <Wallpaper aria-hidden="true" />
-                {!isCollapsed ? <span>{visualizerActionLabel}</span> : null}
+                <Link
+                  href={visualizerHref}
+                  replace={isMusicVisualizerRoute}
+                  data-visual-draft-navigation-mode={isMusicVisualizerRoute ? "replace" : undefined}
+                  aria-label={visualizerActionLabel}
+                  title={visualizerActionLabel}
+                >
+                  <Wallpaper aria-hidden="true" />
+                  {!isCollapsed ? <span>{visualizerActionLabel}</span> : null}
+                </Link>
               </Button>
             ) : null}
             <Button size="sm" variant="secondary" onClick={() => void music.stopCurrent()}>
