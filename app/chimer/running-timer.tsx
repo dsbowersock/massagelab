@@ -36,7 +36,16 @@ import { VisualDraftNavigationGuard, type VisualDraftNavigationIntent } from "./
 
 type PrimaryDisplay = "timer" | "currentTime"
 type BackgroundVisualCategory = "all" | "animated" | "image" | "interactive" | "premium" | "saved" | "static" | "shader" | "video"
-type PendingVisualIntent = ({ type: "close-panel" } | { type: "change-panel"; panel: Exclude<ImmersivePanelId, null> } | { type: "select-background"; backgroundId: BackgroundId } | { type: "navigate"; href: string | null; historyDelta: number | null }) & {
+type PendingVisualIntent = ({ type: "close-panel" } | { type: "change-panel"; panel: Exclude<ImmersivePanelId, null> } | {
+  type: "select-background"
+  backgroundId: BackgroundId
+  /**
+   * Transient ownership returned by the acquisition flow. The account access
+   * snapshot can lag a redemption, so Apply and Discard must carry these IDs
+   * through the unsaved-changes continuation.
+   */
+  newlyOwnedBackgroundIds: readonly string[]
+} | { type: "navigate"; href: string | null; historyDelta: number | null }) & {
   restoreFocusTarget: HTMLElement | null
 }
 
@@ -1986,6 +1995,7 @@ export function RunningTimer({
       setPendingVisualIntent({
         type: "select-background",
         backgroundId: nextBackgroundId,
+        newlyOwnedBackgroundIds,
         restoreFocusTarget: getConnectedVisualFocusTarget(document.activeElement) as HTMLElement | null,
       })
       return
@@ -2036,13 +2046,17 @@ export function RunningTimer({
       return
     }
     if (intent.type === "select-background") {
+      const selectionAccess = mergeBackgroundAccessOwnership(
+        effectiveBackgroundAccess,
+        intent.newlyOwnedBackgroundIds,
+      )
       if (selectionCommitted) {
         if (mode.context !== "chimer") {
-          mode.onBackgroundChange(intent.backgroundId)
+          mode.onBackgroundChange(intent.backgroundId, selectionAccess)
         }
         finishBackgroundSelection()
       } else {
-        performBackgroundSelection(intent.backgroundId)
+        performBackgroundSelection(intent.backgroundId, intent.newlyOwnedBackgroundIds)
       }
       return
     }
@@ -2094,6 +2108,9 @@ export function RunningTimer({
   const resolvePendingVisualIntent = (outcome: "apply" | "discard" | "keep") => {
     const intent = pendingVisualIntent
     const commit = outcome === "apply" ? buildVisualDraftCommit(intent) : null
+    const selectionAccess = intent?.type === "select-background"
+      ? mergeBackgroundAccessOwnership(effectiveBackgroundAccess, intent.newlyOwnedBackgroundIds)
+      : undefined
     const resolution = resolveBackgroundVisualPendingOutcome({
       outcome,
       intent,
@@ -2106,6 +2123,7 @@ export function RunningTimer({
         ...("backgroundId" in resolution.commit ? { backgroundId: resolution.commit.backgroundId as BackgroundId } : {}),
         backgroundVisualPreferences: resolution.commit.backgroundVisualPreferences as ChimerSettings["backgroundVisualPreferences"],
         properties: resolution.commit.properties as Partial<ChimerSettings>,
+        ...(selectionAccess ? { accessOverride: selectionAccess } : {}),
       })
     }
     setPendingVisualIntent(null)

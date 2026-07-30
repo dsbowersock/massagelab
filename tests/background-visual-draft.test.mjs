@@ -30,13 +30,7 @@ import {
   sanitizeChimerVisualCommitForEntitlements,
 } from "../lib/chimer-timer.js"
 
-const read = async (path) => {
-  try {
-    return await readFile(new URL(`../${path}`, import.meta.url), "utf8")
-  } catch {
-    return ""
-  }
-}
+const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8")
 
 const runningTimerSource = await read("app/chimer/running-timer.tsx")
 const setTimerSource = await read("app/chimer/set-timer.tsx")
@@ -528,9 +522,14 @@ test("Music Apply and switch keep canonical Chimer selection while Chimer switch
 
   const accountBodies = []
   const selectedBackgrounds = []
+  const redemptionIntent = {
+    type: "select-background",
+    backgroundId: "target",
+    newlyOwnedBackgroundIds: ["target"],
+  }
   const applied = resolveBackgroundVisualPendingOutcome({
     outcome: "apply",
-    intent: { type: "select-background", backgroundId: "target" },
+    intent: redemptionIntent,
     commit: musicSwitchCommit,
   })
   if (applied.commit) accountBodies.push(applied.commit)
@@ -539,21 +538,22 @@ test("Music Apply and switch keep canonical Chimer selection while Chimer switch
   }
   assert.deepEqual(accountBodies, [musicSwitchCommit])
   assert.deepEqual(selectedBackgrounds, ["target"])
+  assert.deepEqual(applied.resumeIntent, redemptionIntent)
   assert.deepEqual(
     resolveBackgroundVisualPendingOutcome({
       outcome: "discard",
-      intent: { type: "select-background", backgroundId: "target" },
+      intent: redemptionIntent,
       commit: musicSwitchCommit,
     }),
     {
       commit: null,
-      resumeIntent: { type: "select-background", backgroundId: "target" },
+      resumeIntent: redemptionIntent,
     },
   )
   assert.deepEqual(
     resolveBackgroundVisualPendingOutcome({
       outcome: "keep",
-      intent: { type: "select-background", backgroundId: "target" },
+      intent: redemptionIntent,
       commit: musicSwitchCommit,
     }),
     { commit: null, resumeIntent: null },
@@ -796,6 +796,21 @@ test("live Visual integration owns draft preview, one Apply, and reachable actio
   assert.doesNotMatch(navigationGuardSource, /localStorage|sessionStorage|fetch\(/)
   assert.match(runningTimerStyles, /\.hideLegacyColorControls[\s\S]*\.colorRow/)
   assert.match(runningTimerStyles, /\.hideLegacyPaletteMetadataControls[\s\S]*color mode/)
+})
+
+test("redeemed ownership survives Apply and Discard background-switch continuations", () => {
+  assert.match(
+    runningTimerSource,
+    /type:\s*"select-background",[\s\S]*backgroundId:\s*nextBackgroundId,[\s\S]*newlyOwnedBackgroundIds,/,
+  )
+  assert.match(
+    runningTimerSource,
+    /intent\.type === "select-background"[\s\S]*mergeBackgroundAccessOwnership\([\s\S]*intent\.newlyOwnedBackgroundIds[\s\S]*mode\.onBackgroundChange\(intent\.backgroundId, selectionAccess\)[\s\S]*performBackgroundSelection\(intent\.backgroundId, intent\.newlyOwnedBackgroundIds\)/,
+  )
+  assert.match(
+    runningTimerSource,
+    /const selectionAccess = intent\?\.type === "select-background"[\s\S]*intent\.newlyOwnedBackgroundIds[\s\S]*accessOverride: selectionAccess/,
+  )
 })
 
 test("dirty navigation guard covers eligible app links, history, and native unload only", () => {
