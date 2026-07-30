@@ -121,6 +121,29 @@ test("Source mode blocks Color preset saves but keeps saved-preset Apply availab
   assert.doesNotMatch(presetSource, /<DropdownMenuTrigger[\s\S]{0,400}disabled=\{disabled \|\| saveDisabled\}/)
 })
 
+test("revoked background access makes palette, property, and preset editing read-only", () => {
+  assert.match(
+    runningTimerSource,
+    /<fieldset disabled=\{!canCustomizeSelectedBackground\} className=\{`\$\{styles\.backgroundCardControls\}/,
+  )
+  assert.match(
+    runningTimerSource,
+    /disabled=\{!canCustomizeSelectedBackground \|\| currentVisualEditorSnapshot\.palette\.mode === "source"\}/,
+  )
+  assert.match(
+    runningTimerSource,
+    /<BackgroundVisualPresetManager[\s\S]*disabled=\{!canCustomizeSelectedBackground\}[\s\S]*onDraftAction=/,
+  )
+  assert.match(
+    runningTimerSource,
+    /variant="ghost"\s*disabled=\{!canCustomizeSelectedBackground\}\s*onClick=\{\(\) =>\s*dispatchVisualDraft\(\{\s*type: "reset-properties"/,
+  )
+  assert.match(
+    runningTimerSource,
+    /variant="destructive" disabled=\{!visualDraft\?\.dirty\}[\s\S]*Cancel[\s\S]*variant="success" disabled=\{!visualDraft\?\.dirty\}[\s\S]*Apply/,
+  )
+})
+
 test("BackgroundHost applies the resolved palette to its persistent fallback layer", () => {
   assert.match(
     backgroundHostSource,

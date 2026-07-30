@@ -2433,7 +2433,7 @@ export function RunningTimer({
   const isGraphicGlobe = massageLab3DGlobeViewStyle === "graphic"
   const followSun = massageLab3DGlobeLightingMode === "sun"
   const renderBackgroundControls = (option: BackgroundDefinition) => (
-    <div className={`${styles.backgroundCardControls} ${styles.immersiveSelectedBackgroundControls} ${visualDraft ? `${styles.hideLegacyColorControls} ${styles.hideLegacyPaletteMetadataControls}` : ""} ${option.id === "massage-lab-moving-gradient" ? styles.immersiveLampColorControls : ""}`}>
+    <fieldset disabled={!canCustomizeSelectedBackground} className={`${styles.backgroundCardControls} ${styles.immersiveSelectedBackgroundControls} ${visualDraft ? `${styles.hideLegacyColorControls} ${styles.hideLegacyPaletteMetadataControls}` : ""} ${option.id === "massage-lab-moving-gradient" ? styles.immersiveLampColorControls : ""}`}>
       {!isClockMode && (
         <div className={styles.colorRow} title={customColorDisabledHint}>
           <span>Primary color</span>
@@ -12196,7 +12196,7 @@ export function RunningTimer({
           </label>
         </>
       )}
-    </div>
+    </fieldset>
   )
 
   const renderTimerUnitLabel = (label: "h" | "m" | "s") => (
@@ -13680,7 +13680,7 @@ export function RunningTimer({
                     <Button
                       type="button"
                       variant="ghost"
-                      disabled={currentVisualEditorSnapshot.palette.mode === "source"}
+                      disabled={!canCustomizeSelectedBackground || currentVisualEditorSnapshot.palette.mode === "source"}
                       onClick={() =>
                         dispatchVisualDraft({
                           type: "reset-colors",
@@ -13706,6 +13706,7 @@ export function RunningTimer({
                       <Button
                         type="button"
                         variant="ghost"
+                        disabled={!canCustomizeSelectedBackground}
                         onClick={() =>
                           dispatchVisualDraft({
                             type: "reset-properties",
@@ -13718,7 +13719,7 @@ export function RunningTimer({
                       </Button>
                     </div>
                   </div>
-                  <BackgroundVisualPresetManager presets={currentVisualEditorSnapshot.visualPresets as never} currentProperties={currentVisualEditorSnapshot.properties} currentMapping={currentVisualEditorSnapshot.mapping} backgroundName={visualEditorBackgroundDefinition.label} defaultPresetId={currentVisualEditorSnapshot.defaultVisualPresetId} roleLabels={selectedRoleLabels} onDraftAction={(action: BackgroundPresetDraftAction) => dispatchVisualDraft(action)} />
+                  <BackgroundVisualPresetManager presets={currentVisualEditorSnapshot.visualPresets as never} currentProperties={currentVisualEditorSnapshot.properties} currentMapping={currentVisualEditorSnapshot.mapping} backgroundName={visualEditorBackgroundDefinition.label} defaultPresetId={currentVisualEditorSnapshot.defaultVisualPresetId} roleLabels={selectedRoleLabels} disabled={!canCustomizeSelectedBackground} onDraftAction={(action: BackgroundPresetDraftAction) => dispatchVisualDraft(action)} />
 
                   <div className={styles.visualDraftActions}>
                     <span className={styles.visualDraftStatus} role="status" aria-live="polite" aria-atomic="true">
