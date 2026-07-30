@@ -212,6 +212,17 @@ describe("account preference route ownership boundary", () => {
     assert.equal(calls.snapshots.length, 1)
   })
 
+  it("GET preserves an empty Chimer preference so device settings can seed the account", async () => {
+    const { GET, calls } = loadRoute({ savedSettings: {} })
+
+    const response = await GET()
+
+    assert.equal(response.status, 200)
+    assert.equal(response.body.accessAuthoritative, true)
+    assert.deepEqual(response.body.chimerSettings, {})
+    assert.equal(calls.snapshots.length, 1)
+  })
+
   it("marks access failures non-authoritative without returning a downgraded Chimer snapshot", async () => {
     const { GET } = loadRoute({ failAccess: true })
 

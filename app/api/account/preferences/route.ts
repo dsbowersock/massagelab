@@ -53,9 +53,10 @@ export async function GET() {
     }),
   ])
 
-  const chimerSettings = preferences?.chimerSettings && access.authoritative
+  const savedChimerSettings = objectRecord(preferences?.chimerSettings)
+  const chimerSettings = access.authoritative && Object.keys(savedChimerSettings).length > 0
     ? sanitizeAccessibleChimerSettings(
-      preferences.chimerSettings,
+      savedChimerSettings,
       {
         featureKeys: access.entitlements.features,
         ownedBackgroundIds: access.commerceSnapshot.ownedBackgroundIds,
