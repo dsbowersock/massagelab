@@ -14,6 +14,7 @@ import {
   createChimerPreferenceSyncRetry,
   doesChimerPreferenceWriteResponseMatch,
   removeForbiddenPreferenceFields,
+  resolveChimerPreferenceSeedSnapshot,
   resolveChimerPreferenceSyncRequest,
   resolveSupporterRoadmapInterestsAfterSave,
 } from "../lib/account-preferences.js"
@@ -22,6 +23,27 @@ import {
 } from "../components/backgrounds/backgroundPaletteRegistry.ts"
 
 describe("Account preference helpers", () => {
+  it("adopts the server-authoritative snapshot returned by an initial account seed", () => {
+    const submitted = {
+      backgroundId: "massage-lab-stars",
+      massageLabStarsSpeed: 80,
+      minutes: 25,
+    }
+    const resolved = resolveChimerPreferenceSeedSnapshot({
+      chimerSettings: {
+        backgroundId: "massage-lab-moving-gradient",
+        minutes: 25,
+      },
+    })
+
+    assert.notEqual(resolved.backgroundId, submitted.backgroundId)
+    assert.equal(resolved.backgroundId, "massage-lab-moving-gradient")
+    assert.equal(resolved.minutes, 25)
+    assert.notEqual(resolved.massageLabStarsSpeed, submitted.massageLabStarsSpeed)
+    assert.equal(resolveChimerPreferenceSeedSnapshot({ chimerSettings: null }), null)
+    assert.equal(resolveChimerPreferenceSeedSnapshot({}), null)
+  })
+
   it("builds a versioned sync payload from safe local settings", () => {
     const payload = buildUserPreferencePayload({
       appSettings: { appBarPosition: "bottom", sidebarPosition: "right", sidebarTriggerPosition: "bottom", themeMode: "system" },

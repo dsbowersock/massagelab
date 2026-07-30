@@ -40,6 +40,7 @@ import {
   createChimerPreferenceSyncRequest,
   createChimerPreferenceSyncRetry,
   doesChimerPreferenceWriteResponseMatch,
+  resolveChimerPreferenceSeedSnapshot,
   resolveChimerPreferenceSyncRequest,
 } from "@/lib/account-preferences"
 import { resolveBackgroundVisualCommitScope } from "@/lib/background-visual-draft"
@@ -425,18 +426,69 @@ export default function ChimerPage() {
             ownedBackgroundIds: nextOwnedBackgroundIds,
           },
         ) as ChimerSettings
+        // Apply the authoritative GET access boundary before the seed write.
+        // This also gives edits made while the request is in flight a safe base.
+        settingsRef.current = seedSettings
+        setSettings(seedSettings)
+        window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(seedSettings))
         const seedResponse = await fetchWithTimeout("/api/account/preferences", {
           method: "PUT",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ chimerSettings: seedSettings }),
         })
+        const seedResponseBody = seedResponse.ok
+          ? await seedResponse.json().catch(() => null)
+          : null
+        const reconciledSeedSettings = seedResponse.ok
+          ? resolveChimerPreferenceSeedSnapshot(seedResponseBody, {
+              backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
+            }) as ChimerSettings | null
+          : null
 
         if (!isMounted) {
           return
         }
 
-        setCanSync(seedResponse.ok)
-        setAccountSyncStatus(seedResponse.ok ? "synced" : "local")
+        if (!reconciledSeedSettings) {
+          setCanSync(false)
+          setAccountSyncStatus("local")
+          return
+        }
+
+        const settingsChangedWhileSeeding = !areChimerSettingsEqual(
+          settingsRef.current,
+          seedSettings,
+        )
+        const serverChangedSeed = !areChimerSettingsEqual(
+          reconciledSeedSettings,
+          seedSettings,
+        )
+        if (settingsChangedWhileSeeding && serverChangedSeed) {
+          setAccountSettings(reconciledSeedSettings)
+          setHasEditedLocalConflictSettings(true)
+          setCanSync(false)
+          setAccountSyncStatus("conflict")
+          return
+        }
+        if (settingsChangedWhileSeeding) {
+          // The server accepted the seed, so enable the serialized writer to
+          // send the newer local edit without overwriting it.
+          setCanSync(true)
+          setAccountSyncStatus("synced")
+          return
+        }
+
+        // The PUT re-checks access after the preceding GET. Adopt its returned
+        // snapshot before enabling sync so revoked tuning cannot be requeued.
+        settingsRef.current = reconciledSeedSettings
+        setSettings(reconciledSeedSettings)
+        window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(reconciledSeedSettings))
+        skipNextAutomaticAccountSyncBodyRef.current = createChimerPreferenceSyncRequest(
+          reconciledSeedSettings,
+          { backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions },
+        ).requestBody
+        setCanSync(true)
+        setAccountSyncStatus("synced")
       } catch {
         if (!isMounted) {
           return

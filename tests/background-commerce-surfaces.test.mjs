@@ -113,7 +113,10 @@ describe("production background commerce states", () => {
     assert.match(selector, /setAcquisition/)
     assert.match(selector, /<BackgroundAcquisitionDialog/)
     assert.match(selector, /onAcquired/)
-    assert.match(selector, /const selectedControls =/)
+    assert.match(
+      selector,
+      /const selectedControls = selectedOption\s+&& userCanUseBackground\(selectedOption, access\)\s+&& renderSelectedControls/,
+    )
     assert.match(selector, /\{selectedControls \? \(/)
   })
 

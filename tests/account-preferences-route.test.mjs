@@ -176,6 +176,14 @@ describe("account preference route ownership boundary", () => {
     )
     assert.match(
       chimerPageSource,
+      /settingsRef\.current = seedSettings\s+setSettings\(seedSettings\)[\s\S]*?resolveChimerPreferenceSeedSnapshot\(seedResponseBody,/,
+    )
+    assert.match(
+      chimerPageSource,
+      /settingsChangedWhileSeeding[\s\S]*?serverChangedSeed[\s\S]*?setAccountSyncStatus\("conflict"\)/,
+    )
+    assert.match(
+      chimerPageSource,
       /settingsRef\.current = nextSanitizedSettings\s+setSettings\(nextSanitizedSettings\)/,
     )
     assert.match(
