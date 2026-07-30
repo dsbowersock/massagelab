@@ -408,8 +408,12 @@ test("storage denial falls back to in-memory Visual visit state", async ({ page 
   await expect(page.getByText("Customize this background in Visual.")).toHaveCount(0)
 })
 
+const SIDE_SHEET_VIEWPORT = { width: 844, height: 390 }
+const MAX_SIDE_SHEET_WIDTH = SIDE_SHEET_VIEWPORT.width / 2
+const MAX_SIDE_SHEET_EDGE_INSET = 13
+
 test("16:9-style viewports give Clock and Visual the same half-width side sheet and reserved stage", async ({ page }) => {
-  await page.setViewportSize({ width: 844, height: 390 })
+  await page.setViewportSize(SIDE_SHEET_VIEWPORT)
   await openClock(page)
 
   await page.getByRole("button", { name: "Clock", exact: true }).click()
@@ -438,12 +442,12 @@ test("16:9-style viewports give Clock and Visual the same half-width side sheet 
       || displayBox.y + displayBox.height <= dockBox.y
     )
     return !intersects
-      && dockBox.width <= 422
-      && dockBox.x >= 844 - 422 - 13
+      && dockBox.width <= MAX_SIDE_SHEET_WIDTH
+      && dockBox.x >= SIDE_SHEET_VIEWPORT.width - MAX_SIDE_SHEET_WIDTH - MAX_SIDE_SHEET_EDGE_INSET
       && dockBox.x >= 0
       && dockBox.y >= 0
-      && dockBox.x + dockBox.width <= 844
-      && dockBox.y + dockBox.height <= 390
+      && dockBox.x + dockBox.width <= SIDE_SHEET_VIEWPORT.width
+      && dockBox.y + dockBox.height <= SIDE_SHEET_VIEWPORT.height
   }).toBe(true)
   await page.getByRole("button", { name: "Close Clock panel" }).click()
 
@@ -464,9 +468,9 @@ test("16:9-style viewports give Clock and Visual the same half-width side sheet 
     )
     return Boolean(
       !intersects
-      && box.width <= 422
-      && box.x >= 844 - 422 - 13
-      && box.x + box.width <= 844,
+      && box.width <= MAX_SIDE_SHEET_WIDTH
+      && box.x >= SIDE_SHEET_VIEWPORT.width - MAX_SIDE_SHEET_WIDTH - MAX_SIDE_SHEET_EDGE_INSET
+      && box.x + box.width <= SIDE_SHEET_VIEWPORT.width,
     )
   }).toBe(true)
   await expect.poll(async () => visualDock.evaluate((dock) => {
@@ -492,8 +496,8 @@ test("16:9-style viewports give Clock and Visual the same half-width side sheet 
       displayBox
       && box
       && box.x >= 0
-      && box.x <= 13
-      && box.width <= 422
+      && box.x <= MAX_SIDE_SHEET_EDGE_INSET
+      && box.width <= MAX_SIDE_SHEET_WIDTH
       && displayBox.x >= box.x + box.width,
     )
   }).toBe(true)
