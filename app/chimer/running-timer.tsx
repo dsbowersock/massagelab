@@ -13541,7 +13541,7 @@ export function RunningTimer({
                       Use source colors
                     </Button>
                   </div>
-                  <BackgroundColorPresetManager presets={currentVisualSnapshot.colorPresets} currentPalette={currentVisualSnapshot.palette as never} disabled={!canCustomizeSelectedBackground || currentVisualSnapshot.palette.mode === "source"} onDraftAction={(action: BackgroundPresetDraftAction) => dispatchVisualDraft(action)} />
+                  <BackgroundColorPresetManager presets={currentVisualSnapshot.colorPresets} currentPalette={currentVisualSnapshot.palette as never} disabled={!canCustomizeSelectedBackground} saveDisabled={currentVisualSnapshot.palette.mode === "source"} onDraftAction={(action: BackgroundPresetDraftAction) => dispatchVisualDraft(action)} />
 
                   <div className={styles.settingsSection}>
                     <div className={styles.settingsSectionHeader}>

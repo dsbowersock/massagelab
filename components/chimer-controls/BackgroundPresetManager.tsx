@@ -64,6 +64,8 @@ export interface BackgroundColorPresetManagerProps {
   currentPalette: BackgroundColorPreset["palette"]
   onDraftAction: (action: BackgroundPresetDraftAction) => void
   disabled?: boolean
+  /** Disables saving Source colors while keeping saved-preset actions available. */
+  saveDisabled?: boolean
   className?: string
   idFactory?: () => string
   now?: () => number
@@ -78,6 +80,7 @@ export interface BackgroundVisualPresetManagerProps {
   roleLabels?: Readonly<Record<string, string>>
   onDraftAction: (action: BackgroundPresetDraftAction) => void
   disabled?: boolean
+  saveDisabled?: boolean
   className?: string
   idFactory?: () => string
   now?: () => number
@@ -169,6 +172,7 @@ export function BackgroundPresetManager(props: BackgroundPresetManagerProps) {
     presets,
     onDraftAction,
     disabled = false,
+    saveDisabled = false,
     className,
     idFactory = defaultIdFactory,
     now = Date.now,
@@ -194,6 +198,10 @@ export function BackgroundPresetManager(props: BackgroundPresetManagerProps) {
     const name = boundedName(newName)
     if (!name) {
       announce(`Enter a name before saving a ${itemLabel}.`)
+      return
+    }
+    if (saveDisabled) {
+      announce(`Choose Custom or Harmony before saving a ${itemLabel}.`)
       return
     }
     if (atLimit || disabled) {
@@ -227,6 +235,10 @@ export function BackgroundPresetManager(props: BackgroundPresetManagerProps) {
   }
 
   function updatePreset(preset: BackgroundPresetBase) {
+    if (saveDisabled) {
+      announce(`Choose Custom or Harmony before updating a ${itemLabel}.`)
+      return
+    }
     const name = presetDisplayName(preset.name)
     const common = {
       operation: "update" as const,
@@ -312,9 +324,9 @@ export function BackgroundPresetManager(props: BackgroundPresetManagerProps) {
           }}
           className={styles.globalColorNameInput}
           placeholder={`New ${itemLabel} name`}
-          disabled={disabled || atLimit}
+          disabled={disabled || saveDisabled || atLimit}
         />
-        <Button type="button" size="compact" onClick={saveAsNew} disabled={disabled || atLimit}>
+        <Button type="button" size="compact" onClick={saveAsNew} disabled={disabled || saveDisabled || atLimit}>
           Save as new
         </Button>
       </div>
@@ -401,7 +413,7 @@ export function BackgroundPresetManager(props: BackgroundPresetManagerProps) {
                           <DropdownMenuItem onSelect={() => applyPreset(preset)}>
                             Apply
                           </DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => updatePreset(preset)}>
+                          <DropdownMenuItem disabled={saveDisabled} onSelect={() => updatePreset(preset)}>
                             Update
                           </DropdownMenuItem>
                           <DropdownMenuItem onSelect={() => beginRename(preset)}>

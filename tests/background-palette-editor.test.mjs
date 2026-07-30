@@ -29,6 +29,14 @@ const controlsSource = await readFile(
   new URL("../components/chimer-controls/background-palette-controls.ts", import.meta.url),
   "utf8",
 )
+const runningTimerSource = await readFile(
+  new URL("../app/chimer/running-timer.tsx", import.meta.url),
+  "utf8",
+)
+const backgroundHostSource = await readFile(
+  new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+  "utf8",
+)
 
 test("shared palette editor presents one accessible mode choice and seven indexed swatches", () => {
   assert.match(editorSource, /SegmentedToggleGroup/)
@@ -81,6 +89,25 @@ test("Color and Visual preset managers expose only their approved draft actions 
   assert.match(presetSource, /AlertDialog/)
   assert.match(presetSource, /aria-live="polite"/)
   assert.doesNotMatch(presetSource, /localStorage|sessionStorage|fetch\(/)
+})
+
+test("Source mode blocks Color preset saves but keeps saved-preset Apply available", () => {
+  assert.match(
+    runningTimerSource,
+    /<BackgroundColorPresetManager[\s\S]*disabled=\{!canCustomizeSelectedBackground\}[\s\S]*saveDisabled=\{currentVisualSnapshot\.palette\.mode === "source"\}/,
+  )
+  assert.match(presetSource, /disabled=\{disabled \|\| saveDisabled \|\| atLimit\}/)
+  assert.match(
+    presetSource,
+    /<DropdownMenuItem onSelect=\{\(\) => applyPreset\(preset\)\}>[\s\S]*Apply[\s\S]*<DropdownMenuItem disabled=\{saveDisabled\} onSelect=\{\(\) => updatePreset\(preset\)\}>/,
+  )
+  assert.doesNotMatch(presetSource, /<DropdownMenuTrigger[\s\S]{0,400}disabled=\{disabled \|\| saveDisabled\}/)
+})
+
+test("BackgroundHost applies the resolved palette to its persistent fallback layer", () => {
+  assert.match(backgroundHostSource, /resolveBackgroundFallbackStyle\(\{[\s\S]*palette: backgroundPalette\.palette,[\s\S]*mapping: backgroundPalette\.mapping,[\s\S]*canCustomize,/)
+  assert.match(backgroundHostSource, /className=\{cn\(styles\.fallback, entry\.fallbackClassName\)\}[\s\S]*style=\{fallbackStyle\}/)
+  assert.doesNotMatch(backgroundHostSource, /style=\{entry\.fallbackStyle\}/)
 })
 
 test("Visual summaries exclude shared colors and retain the active role mapping", () => {

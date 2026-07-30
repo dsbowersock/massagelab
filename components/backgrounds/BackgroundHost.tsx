@@ -19,7 +19,7 @@ import {
 import type {
   BackgroundEffectProps,
 } from "@/components/backgrounds/effects/css-backgrounds"
-import { resolveBackgroundEffectProps } from "@/components/backgrounds/resolveBackgroundEffectProps"
+import { resolveBackgroundEffectProps, resolveBackgroundFallbackStyle } from "@/components/backgrounds/resolveBackgroundEffectProps"
 import { canCustomizeBackgroundColors } from "@/lib/background-palette"
 import { FEATURE_KEYS } from "@/lib/membership"
 import styles from "@/components/backgrounds/BackgroundHost.module.css"
@@ -402,6 +402,15 @@ export function BackgroundHost(props: BackgroundHostProps) {
     ? loadedEffect.component
     : null
   const adapter = backgroundPaletteRegistry[entry.id]
+  const fallbackStyle = backgroundPalette
+    ? resolveBackgroundFallbackStyle({
+        selectedId: entry.id,
+        fallbackStyle: entry.fallbackStyle,
+        palette: backgroundPalette.palette,
+        mapping: backgroundPalette.mapping,
+        canCustomize,
+      })
+    : entry.fallbackStyle
   const diagnosticSnapshot = diagnostics && adapter
     ? createBackgroundHostDiagnosticSnapshot({
         requestedId: entry.id,
@@ -455,7 +464,7 @@ export function BackgroundHost(props: BackgroundHostProps) {
     >
       <div
         className={cn(styles.fallback, entry.fallbackClassName)}
-        style={entry.fallbackStyle}
+        style={fallbackStyle}
       />
       {BackgroundComponent ? (
         <BackgroundComponent {...effectProps} />

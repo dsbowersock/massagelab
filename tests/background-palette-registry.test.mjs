@@ -16,6 +16,7 @@ import {
   backgroundRegistry,
 } from "../components/backgrounds/backgroundRegistry.ts"
 import {
+  resolveBackgroundFallbackStyle,
   resolveBackgroundEffectProps,
 } from "../components/backgrounds/resolveBackgroundEffectProps.ts"
 import {
@@ -703,6 +704,49 @@ describe("background palette adapter registry", () => {
       opacity: 0.63,
       speed: 1.7,
     })
+  })
+
+  it("uses resolved Custom colors for static fallbacks while preserving Source and denied fallbacks", () => {
+    const fallbackStyle = { background: "linear-gradient(#010101, #020202)" }
+    const palette = {
+      mode: "custom",
+      primaryColor: CUSTOM_SWATCHES[0],
+      harmony: "triadic",
+      swatches: CUSTOM_SWATCHES,
+    }
+    const input = {
+      selectedId: "massage-lab-retro-grid",
+      fallbackStyle,
+      palette,
+      mapping: {
+        background: 6,
+        "light-lines": 5,
+        "dark-lines": 4,
+      },
+    }
+
+    const custom = resolveBackgroundFallbackStyle({
+      ...input,
+      canCustomize: true,
+    })
+    assert.deepEqual(custom, {
+      background: `linear-gradient(135deg, ${CUSTOM_SWATCHES[6]} 0%, ${CUSTOM_SWATCHES[5]} 50%, ${CUSTOM_SWATCHES[4]} 100%)`,
+    })
+    assert.equal(
+      resolveBackgroundFallbackStyle({
+        ...input,
+        palette: { ...palette, mode: "source" },
+        canCustomize: true,
+      }),
+      fallbackStyle,
+    )
+    assert.equal(
+      resolveBackgroundFallbackStyle({
+        ...input,
+        canCustomize: false,
+      }),
+      fallbackStyle,
+    )
   })
 
   it("falls back to source colors when customization access is unavailable", () => {
