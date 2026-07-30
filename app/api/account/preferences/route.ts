@@ -108,15 +108,22 @@ export async function PUT(request: Request) {
     ...objectRecord(existing?.appSettings),
     ...payload.app_settings,
   }
-  const chimerSettings = jsonObject(sanitizeAccessibleChimerSettings(
-    "chimerSettings" in body
-      ? payload.chimer_settings
-      : objectRecord(existing?.chimerSettings),
-    {
-      featureKeys: entitlements.features,
-      ownedBackgroundIds: commerceSnapshot.ownedBackgroundIds,
-    },
-  ))
+  const retainedChimerSettings = objectRecord(existing?.chimerSettings)
+  // An authoritative empty preference means the device may seed its local
+  // settings later. Preserve that sentinel on unrelated partial writes while
+  // still re-sanitizing every non-empty retained snapshot against fresh access.
+  const chimerSettings = !("chimerSettings" in body)
+    && Object.keys(retainedChimerSettings).length === 0
+    ? jsonObject({})
+    : jsonObject(sanitizeAccessibleChimerSettings(
+        "chimerSettings" in body
+          ? payload.chimer_settings
+          : retainedChimerSettings,
+        {
+          featureKeys: entitlements.features,
+          ownedBackgroundIds: commerceSnapshot.ownedBackgroundIds,
+        },
+      ))
 
   const preferences = await prisma.userPreference.upsert({
     where: { userId: session.user.id },

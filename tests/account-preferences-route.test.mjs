@@ -294,6 +294,20 @@ describe("account preference route ownership boundary", () => {
     assertUnownedFallback(response.body.chimerSettings)
   })
 
+  it("PUT preserves an empty retained Chimer preference during unrelated partial writes", async () => {
+    const { PUT, calls } = loadRoute({ savedSettings: {} })
+    const response = await PUT(new Request("https://massagelab.app/api/account/preferences", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ appSettings: { theme: "dark" } }),
+    }))
+
+    assert.equal(response.status, 200)
+    assert.equal(calls.upserts.length, 1)
+    assert.deepEqual(calls.upserts[0].update.chimerSettings, {})
+    assert.deepEqual(response.body.chimerSettings, {})
+  })
+
   it("PUT retains owned Music tuning when Chimer uses a different background", async () => {
     const { PUT, calls } = loadRoute()
     const response = await PUT(new Request("https://massagelab.app/api/account/preferences", {
