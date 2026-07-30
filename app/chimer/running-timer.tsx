@@ -22,7 +22,6 @@ import { Switch } from "@/components/ui/switch"
 import type { MusicVisualizerState } from "@/components/providers/music-provider"
 import { DEFAULT_CHIMER_SETTINGS, parseGlobeCoordinateDraft } from "@/lib/chimer-timer"
 import { canCustomizeBackgroundColors } from "@/lib/background-palette"
-import { FEATURE_KEYS } from "@/lib/membership"
 import { buildBackgroundVisualOpeningSnapshot, buildBackgroundVisualPendingCommit, createBackgroundVisualDraft, getCommittedBackgroundVisualSnapshot, partitionBackgroundVisualSettingChange, reduceBackgroundVisualDraft, resolveBackgroundVisualPendingOutcome } from "@/lib/background-visual-draft"
 import { getConnectedVisualFocusTarget } from "@/lib/visual-draft-navigation"
 import { normalizeBackgroundColorMapping } from "@/lib/background-palette"
@@ -1546,10 +1545,10 @@ export function RunningTimer({
     [backgroundCategory, selectedBackgroundDefinition, visualEditorBackgroundId],
   )
   const canCustomizeSelectedBackground = canCustomizeBackgroundColors({
-    hasCustomColorFeature: effectiveBackgroundAccess.featureKeys.includes(FEATURE_KEYS.chimerCustomColors),
-    hasAccountColorAccess: canUseAccountColorControls,
-    selectedBackgroundId: visualEditorBackgroundId,
-    permanentlyOwnedBackgroundIds: effectiveBackgroundAccess.ownedBackgroundIds,
+    hasBackgroundAccess: userCanUseBackground(
+      visualEditorBackgroundDefinition,
+      effectiveBackgroundAccess,
+    ),
   })
   const effectivePaletteState = currentVisualSnapshot?.palette ?? backgroundVisualPreferences.palette
   const [controlState, setControlState] = useState<"visible" | "faded" | "hidden">("visible")
@@ -12401,7 +12400,6 @@ export function RunningTimer({
           motionEnabled={movingBackgroundEnabled}
           access={effectiveBackgroundAccess}
           category={backgroundCategory}
-          canUseAccountColorControls={canUseAccountColorControls}
           backgroundPalette={effectiveBackgroundPalette}
           sparkles={{
             maxSize: sparklesMaxSize,

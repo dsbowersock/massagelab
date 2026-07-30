@@ -140,7 +140,6 @@ async function resolveBackgroundAccessInTransaction(
   const ownershipStatus = ownership?.status ?? null
   const isPermanentlyOwned = ownershipStatus === "ACTIVE"
   const hasSubscriptionAccess = hasFeature(entitlements.features, FEATURE_KEYS.premiumBackgrounds)
-  const hasColorAccess = hasFeature(entitlements.features, FEATURE_KEYS.chimerCustomColors)
   const isFree = !background.requiresSubscription
   const reservation = reservedOrder?.reservationExpiresAt
     ? {
@@ -150,7 +149,9 @@ async function resolveBackgroundAccessInTransaction(
       }
     : { active: false, orderId: null, expiresAt: null }
   const canUse = isFree || isPermanentlyOwned || hasSubscriptionAccess
-  const canCustomizeColors = isPermanentlyOwned || hasColorAccess
+  // Background use and customization are one product boundary: every usable
+  // background exposes its colors and renderer properties.
+  const canCustomizeColors = canUse
   const accessSource = isFree
     ? "free"
     : isPermanentlyOwned

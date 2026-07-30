@@ -67,6 +67,9 @@ const DEFAULT_PLACEMENT: DockPlacement = {
   maxPanelPx: 0,
 }
 
+const SIDE_SHEET_MIN_ASPECT_RATIO = 16 / 9
+const SIDE_SHEET_STAGE_GAP_PX = 16
+
 const PANEL_CONTROLS = [
   { id: "clock", label: "Clock", icon: Clock3 },
   { id: "visual", label: "Visual", icon: Palette },
@@ -134,6 +137,14 @@ function subscribeToViewportChanges(listener: () => void) {
   }
 }
 
+/** Clears every panel reservation so a closed or edge-docked panel cannot leave the display shifted. */
+function resetStageReservations(stage: HTMLElement) {
+  stage.style.setProperty("--immersive-reserved-top", "0px")
+  stage.style.setProperty("--immersive-reserved-right", "0px")
+  stage.style.setProperty("--immersive-reserved-bottom", "0px")
+  stage.style.setProperty("--immersive-reserved-left", "0px")
+}
+
 export function ImmersivePanelShell({
   activePanel,
   onActivePanelChange,
@@ -169,11 +180,12 @@ export function ImmersivePanelShell({
   const activeHeaderTitle = nonmodalPanel === "clock" ? "Clock" : (visualHeaderTitle ?? "Visual")
   const activeHeaderAction = nonmodalPanel === "clock" ? clockHeaderAction : visualHeaderAction
   const activeHeaderCenterAction = nonmodalPanel === "clock" ? clockHeaderCenterAction : visualHeaderCenterAction
-  const visualPanelUsesSideSheet = nonmodalPanel === "visual"
-    && Boolean(
-      visualViewportFrame
-      && visualViewportFrame.width > visualViewportFrame.height,
-    )
+  const nonmodalPanelUsesSideSheet = Boolean(
+    nonmodalPanel
+    && visualViewportFrame
+    && visualViewportFrame.height > 0
+    && (visualViewportFrame.width / visualViewportFrame.height) >= SIDE_SHEET_MIN_ASPECT_RATIO,
+  )
 
   useLayoutEffect(() => {
     setPortalTarget(document.body)
@@ -280,21 +292,70 @@ export function ImmersivePanelShell({
 
     if (!dock || !dockInsetProbe || !stage || !nonmodalPanel) {
       setPlacement(DEFAULT_PLACEMENT)
-      stage?.style.setProperty("--immersive-reserved-top", "0px")
-      stage?.style.setProperty("--immersive-reserved-bottom", "0px")
+      if (stage) {
+        resetStageReservations(stage)
+      }
       stage?.style.removeProperty("--immersive-panel-max-height")
       return
     }
 
-    // Landscape Visual uses a side sheet so half of the background remains
-    // visible. It must not feed a vertical reservation into the timer stage.
-    if (visualPanelUsesSideSheet) {
-      setPlacement(DEFAULT_PLACEMENT)
-      stage.style.setProperty("--immersive-reserved-top", "0px")
-      stage.style.setProperty("--immersive-reserved-bottom", "0px")
-      stage.style.removeProperty("--immersive-panel-max-height")
-      return
+    // Genuinely wide Clock and Visual layouts share one side-sheet contract.
+    // Reserving that exact side recenters and refits the protected display in
+    // the remaining stage instead of allowing the panel to cover the clock.
+    if (nonmodalPanelUsesSideSheet) {
+      let animationFrame = 0
+      const measureSideSheet = () => {
+        window.cancelAnimationFrame(animationFrame)
+        animationFrame = window.requestAnimationFrame(() => {
+          const visualViewport = window.visualViewport
+          const viewportLeft = visualViewport?.offsetLeft ?? 0
+          const viewportWidth = visualViewport?.width ?? window.innerWidth
+          const viewportRight = viewportLeft + viewportWidth
+          const dockBounds = dock.getBoundingClientRect()
+          const sidebarIsRight = document.documentElement.dataset.sidebarPosition === "right"
+          const edgeInset = sidebarIsRight
+            ? Math.max(0, dockBounds.left - viewportLeft)
+            : Math.max(0, viewportRight - dockBounds.right)
+          const reservedPx = Math.min(
+            viewportWidth,
+            dockBounds.width + edgeInset + SIDE_SHEET_STAGE_GAP_PX,
+          )
+
+          setPlacement(DEFAULT_PLACEMENT)
+          stage.style.setProperty("--immersive-reserved-top", "0px")
+          stage.style.setProperty("--immersive-reserved-right", sidebarIsRight ? "0px" : `${reservedPx}px`)
+          stage.style.setProperty("--immersive-reserved-bottom", "0px")
+          stage.style.setProperty("--immersive-reserved-left", sidebarIsRight ? `${reservedPx}px` : "0px")
+          stage.style.removeProperty("--immersive-panel-max-height")
+        })
+      }
+
+      measureSideSheet()
+      const resizeObserver = typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(measureSideSheet)
+      resizeObserver?.observe(dock)
+      const sidebarObserver = typeof MutationObserver === "undefined"
+        ? null
+        : new MutationObserver(measureSideSheet)
+      sidebarObserver?.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ["data-sidebar-position"],
+      })
+      const unsubscribeFromViewportChanges = subscribeToViewportChanges(measureSideSheet)
+
+      return () => {
+        window.cancelAnimationFrame(animationFrame)
+        resizeObserver?.disconnect()
+        sidebarObserver?.disconnect()
+        unsubscribeFromViewportChanges()
+        resetStageReservations(stage)
+        stage.style.removeProperty("--immersive-panel-max-height")
+      }
     }
+
+    resetStageReservations(stage)
+    stage.style.removeProperty("--immersive-panel-max-height")
 
     let animationFrame = 0
     let observedProtectedDisplay = protectedDisplay
@@ -346,7 +407,13 @@ export function ImmersivePanelShell({
           viewportHeight,
           displayTop: displayBounds.top,
           displayBottom: displayBounds.bottom,
-          panelHeight: dock.scrollHeight,
+          // Visual is a scrollable bottom sheet, so its full content height
+          // must not influence protected-display placement. A zero request is
+          // normalized by the shared helper to the same stable minimum
+          // reservation Clock reaches once its dock settles.
+          panelHeight: nonmodalPanel === "visual"
+            ? 0
+            : dock.scrollHeight,
           topInset: dockInsets.top,
           bottomInset: dockInsets.bottom,
         })
@@ -366,6 +433,8 @@ export function ImmersivePanelShell({
           "--immersive-reserved-bottom",
           nextPlacement.edge === "bottom" ? `${nextPlacement.reservedPx}px` : "0px",
         )
+        stage.style.setProperty("--immersive-reserved-right", "0px")
+        stage.style.setProperty("--immersive-reserved-left", "0px")
         stage.style.setProperty("--immersive-panel-max-height", `${nextPlacement.maxPanelPx}px`)
       })
     }
@@ -382,11 +451,10 @@ export function ImmersivePanelShell({
       window.cancelAnimationFrame(animationFrame)
       resizeObserver?.disconnect()
       unsubscribeFromViewportChanges()
-      stage.style.setProperty("--immersive-reserved-top", "0px")
-      stage.style.setProperty("--immersive-reserved-bottom", "0px")
+      resetStageReservations(stage)
       stage.style.removeProperty("--immersive-panel-max-height")
     }
-  }, [nonmodalPanel, protectedDisplayRef, visualPanelUsesSideSheet])
+  }, [nonmodalPanel, nonmodalPanelUsesSideSheet, protectedDisplayRef])
 
   useLayoutEffect(() => {
     if (!nonmodalPanel) {
@@ -434,7 +502,9 @@ export function ImmersivePanelShell({
 
   const rootStyle = {
     "--immersive-reserved-top": placement.edge === "top" ? `${placement.reservedPx}px` : "0px",
+    "--immersive-reserved-right": "0px",
     "--immersive-reserved-bottom": placement.edge === "bottom" ? `${placement.reservedPx}px` : "0px",
+    "--immersive-reserved-left": "0px",
     "--immersive-panel-max-height": `${placement.maxPanelPx}px`,
     ...(visualViewportFrame ? {
       "--immersive-visual-viewport-top": `${visualViewportFrame.top}px`,
@@ -541,7 +611,7 @@ export function ImmersivePanelShell({
           aria-label={`${activePanelLabel} controls`}
           data-immersive-panel={nonmodalPanel}
           data-immersive-dock={placement.edge}
-          data-immersive-layout={visualPanelUsesSideSheet ? "side" : "dock"}
+          data-immersive-layout={nonmodalPanelUsesSideSheet ? "side" : "dock"}
         >
           <div className={styles.dockHeader} data-immersive-dock-header>
             <h2>{activeHeaderTitle}</h2>

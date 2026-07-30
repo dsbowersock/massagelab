@@ -801,6 +801,57 @@
   gap: 0.42rem;
 }
 
+.backgroundPaletteHeader {
+  display: grid;
+  grid-template-areas: "mode intro";
+  grid-template-columns: minmax(17rem, 0.9fr) minmax(16rem, 1.1fr);
+  align-items: end;
+  gap: 1rem;
+}
+
+.backgroundPaletteHeader .globalColorIntro {
+  grid-area: intro;
+}
+
+.backgroundPaletteHeader .paletteModeControl {
+  grid-area: mode;
+}
+
+:global([data-immersive-layout="side"]) .backgroundPaletteHeader {
+  grid-template-areas:
+    "intro"
+    "mode";
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 0.55rem;
+}
+
+/*
+ * The immersive Visual editor keeps all seven roles visible without a
+ * horizontal strip. Its swatch faces are roughly one-third smaller than the
+ * full editor specimens while labels and mappings continue to wrap normally.
+ */
+:global([data-immersive-panel="visual"][data-immersive-layout="side"]) .backgroundPaletteGrid {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.25rem;
+}
+
+:global([data-immersive-panel="visual"]) .backgroundPaletteSwatch {
+  gap: 0.25rem;
+  padding: 0.32rem 0.14rem;
+}
+
+:global([data-immersive-panel="visual"]) .backgroundPaletteSwatchLabel {
+  min-height: 2.75rem;
+  font-size: 0.54rem;
+}
+
+:global([data-immersive-panel="visual"]) .backgroundPaletteGrid .globalColorSwatchButton {
+  width: 2.15rem;
+  height: 2.15rem;
+  border-radius: 0.58rem;
+}
+
 .backgroundPaletteSwatch {
   display: grid;
   min-width: 0;
@@ -1264,6 +1315,15 @@
 
   .backgroundPaletteGrid {
     grid-template-columns: repeat(4, minmax(4rem, 1fr));
+  }
+
+  .backgroundPaletteHeader {
+    grid-template-areas:
+      "intro"
+      "mode";
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    gap: 0.55rem;
   }
 }
 

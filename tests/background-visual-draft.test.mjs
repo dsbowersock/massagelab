@@ -938,7 +938,14 @@ test("authoritative access fallback replaces revoked background Visual identity"
     runningTimerSource,
     /const selectedBackgroundDefinition = resolveAccessibleBackgroundDefinition\(backgroundId, effectiveBackgroundAccess, backgroundCategory\)\s*const visualBackgroundId = selectedBackgroundDefinition\.id/,
   )
-  assert.match(runningTimerSource, /selectedBackgroundId:\s*visualEditorBackgroundId/)
+  assert.match(
+    runningTimerSource,
+    /const visualEditorBackgroundDefinition = useMemo\([\s\S]*option\.id === visualEditorBackgroundId[\s\S]*\?\? selectedBackgroundDefinition/,
+  )
+  assert.match(
+    runningTimerSource,
+    /hasBackgroundAccess:\s*userCanUseBackground\(\s*visualEditorBackgroundDefinition,\s*effectiveBackgroundAccess,/,
+  )
   assert.match(
     runningTimerSource,
     /visualDraft && visualDraftBackgroundId === visualBackgroundId\s*\? getCommittedBackgroundVisualSnapshot\(visualDraft\)\s*:\s*null/,

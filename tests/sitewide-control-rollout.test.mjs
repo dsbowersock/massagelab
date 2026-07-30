@@ -160,7 +160,7 @@ test("development review exposes the complete shared background palette matrix",
   assert.match(gallery, /backgroundRegistry/)
   assert.match(gallery, /<BackgroundHost/)
   assert.match(gallery, /FEATURE_KEYS\.premiumBackgrounds/)
-  assert.match(gallery, /FEATURE_KEYS\.chimerCustomColors/)
+  assert.doesNotMatch(gallery, /FEATURE_KEYS\.chimerCustomColors/)
   assert.match(gallery, /Source[\s\S]*Custom[\s\S]*Harmony/)
   assert.match(gallery, /Not used by this background/)
   assert.match(gallery, /Shared roles/)

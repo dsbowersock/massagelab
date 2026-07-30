@@ -36,7 +36,6 @@ import {
 
 const DEVELOPMENT_REVIEW_FEATURE_KEYS = [
   FEATURE_KEYS.premiumBackgrounds,
-  FEATURE_KEYS.chimerCustomColors,
 ]
 const DEVELOPMENT_REVIEW_ACCESS = Object.freeze({
   featureKeys: DEVELOPMENT_REVIEW_FEATURE_KEYS,
@@ -296,7 +295,7 @@ export function BackgroundPaletteGallery() {
         <Notice
           tone="info"
           title="Development-only premium fixture"
-          description="This guarded gallery supplies the real premium_backgrounds and chimer_custom_colors feature keys. Production access checks and BackgroundHost remain unchanged."
+          description="This guarded gallery supplies the real premium_backgrounds feature key. Production customization follows access to the selected background."
         />
       </section>
 

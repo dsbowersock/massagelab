@@ -126,25 +126,27 @@ export function BackgroundPaletteEditor({
       className={cn(styles.controlCard, styles.backgroundPaletteEditor, className)}
       aria-labelledby={`${componentId}-title`}
     >
-      <div className={styles.globalColorIntro}>
-        <p id={`${componentId}-title`} className={styles.globalColorTitle}>
-          Shared Colors
-        </p>
-        <p className={styles.globalColorDescription}>
-          Seven saved colors can be reused by every compatible background.
-        </p>
-      </div>
+      <div className={styles.backgroundPaletteHeader}>
+        <div className={styles.globalColorIntro}>
+          <p id={`${componentId}-title`} className={styles.globalColorTitle}>
+            Shared Colors
+          </p>
+          <p className={styles.globalColorDescription}>
+            Seven saved colors can be reused by every compatible background.
+          </p>
+        </div>
 
-      <div className={styles.paletteModeControl}>
-        <p className={styles.controlLabel}>Color source</p>
-        <SegmentedToggleGroup
-          label="Color source"
-          value={effectiveMode}
-          options={modeOptions}
-          onValueChange={changeMode}
-          disabled={disabled}
-          fit
-        />
+        <div className={styles.paletteModeControl}>
+          <p className={styles.controlLabel}>Color source</p>
+          <SegmentedToggleGroup
+            label="Color source"
+            value={effectiveMode}
+            options={modeOptions}
+            onValueChange={changeMode}
+            disabled={disabled}
+            fit
+          />
+        </div>
       </div>
 
       {unavailableReason ? (
@@ -153,8 +155,8 @@ export function BackgroundPaletteEditor({
         </p>
       ) : !canCustomize ? (
         <p className={styles.paletteAccessMessage} role="status" aria-live="polite">
-          Source colors remain available. Custom and Harmony require color access for {backgroundName};
-          your saved colors stay unchanged.
+          Unlock {backgroundName} with a credit, purchase, or membership to customize its colors and
+          properties; your saved settings stay unchanged.
         </p>
       ) : isSource ? (
         <p className={styles.paletteAccessMessage}>

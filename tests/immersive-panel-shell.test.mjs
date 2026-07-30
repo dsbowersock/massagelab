@@ -15,6 +15,7 @@ const shellStyles = await read("app/chimer/immersive-panel-shell.module.css")
 const layoutSource = await read("app/chimer/immersive-panel-layout.js")
 const runningTimerSource = await read("app/chimer/running-timer.tsx")
 const runningTimerStyles = await read("app/chimer/running-timer.module.css")
+const chimerControlStyles = await read("components/chimer-controls/chimer-controls.module.css")
 const planSource = await read("docs/superpowers/plans/2026-07-18-clock-chimer-music-visualizer.md")
 const specSource = await read("docs/superpowers/specs/2026-07-18-clock-chimer-music-visualizer-design.md")
 
@@ -112,7 +113,7 @@ test("measures a stable protected display and dock with bottom-first placement",
   assert.doesNotMatch(shellSource, /currentProtectedDisplay\.getBoundingClientRect\(\)/)
   assert.match(layoutSource, /const bottomSpace =[\s\S]*if \(bottomSpace >= requestedPanelPx \+ SAFE_STAGE_GAP_PX \+ normalizedBottomInset\)/)
   assert.match(layoutSource, /const topSpace =[\s\S]*if \(topSpace >= requestedPanelPx \+ SAFE_STAGE_GAP_PX \+ normalizedTopInset\)/)
-  assert.equal((shellSource.match(/new ResizeObserver/g) ?? []).length, 2)
+  assert.equal((shellSource.match(/new ResizeObserver/g) ?? []).length, 3)
   assert.match(shellSource, /resizeObserver\?\.observe\(toolbar\)/)
   assert.match(shellSource, /resizeObserver\?\.observe\(protectedDisplay\)/)
   assert.match(shellSource, /resizeObserver\?\.observe\(dock\)/)
@@ -133,9 +134,13 @@ test("measures a stable protected display and dock with bottom-first placement",
   assert.match(shellStyles, /@media \(max-width: 36rem\)[\s\S]*\.dock \{[\s\S]*width:\s*auto/)
 })
 
-test("caps Visual to half the viewport and uses the side opposite the sidebar in landscape", () => {
-  assert.match(shellSource, /visualViewportFrame\.width > visualViewportFrame\.height/)
-  assert.match(shellSource, /data-immersive-layout=\{visualPanelUsesSideSheet \? "side" : "dock"\}/)
+test("caps Visual vertically and gives both panels an opposite-sidebar side sheet only at 16:9", () => {
+  assert.match(shellSource, /const SIDE_SHEET_MIN_ASPECT_RATIO = 16 \/ 9/)
+  assert.match(
+    shellSource,
+    /\(visualViewportFrame\.width \/ visualViewportFrame\.height\) >= SIDE_SHEET_MIN_ASPECT_RATIO/,
+  )
+  assert.match(shellSource, /data-immersive-layout=\{nonmodalPanelUsesSideSheet \? "side" : "dock"\}/)
   assert.match(shellSource, /--immersive-visual-viewport-half-width/)
   assert.match(shellSource, /--immersive-visual-viewport-half-height/)
   assert.match(
@@ -144,15 +149,28 @@ test("caps Visual to half the viewport and uses the side opposite the sidebar in
   )
   assert.match(
     shellStyles,
-    /\.dock\[data-immersive-panel="visual"\]\[data-immersive-layout="side"\]\s*\{[\s\S]{0,700}width:\s*min\(36rem,\s*var\(--immersive-visual-viewport-half-width,\s*50vw\)\)/,
+    /\.dock\[data-immersive-layout="side"\]\s*\{[\s\S]{0,700}width:\s*min\(36rem,\s*var\(--immersive-visual-viewport-half-width,\s*50vw\)\)/,
   )
   assert.match(
     shellStyles,
-    /html\[data-sidebar-position="right"\][\s\S]{0,180}\.dock\[data-immersive-panel="visual"\]\[data-immersive-layout="side"\][\s\S]{0,220}right:\s*auto;[\s\S]{0,220}left:\s*calc\(/,
+    /html\[data-sidebar-position="right"\][\s\S]{0,180}\.dock\[data-immersive-layout="side"\][\s\S]{0,220}right:\s*auto;[\s\S]{0,220}left:\s*calc\(/,
   )
+  assert.match(shellSource, /--immersive-reserved-right/)
+  assert.match(shellSource, /--immersive-reserved-left/)
   assert.match(
     shellSource,
-    /visualPanelUsesSideSheet[\s\S]{0,500}--immersive-reserved-top", "0px"[\s\S]{0,200}--immersive-reserved-bottom", "0px"/,
+    /panelHeight:\s*nonmodalPanel === "visual"[\s\S]{0,80}\?\s*0[\s\S]{0,80}:\s*dock\.scrollHeight/,
+  )
+  assert.match(shellSource, /attributeFilter:\s*\["data-sidebar-position"\]/)
+  assert.match(runningTimerStyles, /right:\s*var\(--immersive-reserved-right\)/)
+  assert.match(runningTimerStyles, /left:\s*var\(--immersive-reserved-left\)/)
+  assert.match(
+    chimerControlStyles,
+    /\[data-immersive-panel="visual"\]\[data-immersive-layout="side"\][\s\S]{0,120}\.backgroundPaletteGrid[\s\S]{0,100}repeat\(7,\s*minmax\(0,\s*1fr\)\)/,
+  )
+  assert.match(
+    chimerControlStyles,
+    /\.backgroundPaletteHeader\s*\{[\s\S]{0,180}grid-template-areas:\s*"mode intro"/,
   )
 })
 

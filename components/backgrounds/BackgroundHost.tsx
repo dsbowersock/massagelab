@@ -10,6 +10,7 @@ import {
   type BackgroundAccessSnapshot,
   type BackgroundCategory,
   type BackgroundId,
+  userCanUseBackground,
 } from "@/components/backgrounds/backgroundRegistry"
 import { backgroundPaletteRegistry } from "@/components/backgrounds/backgroundPaletteRegistry"
 import {
@@ -21,18 +22,12 @@ import type {
 } from "@/components/backgrounds/effects/css-backgrounds"
 import { resolveBackgroundEffectProps, resolveBackgroundFallbackStyle } from "@/components/backgrounds/resolveBackgroundEffectProps"
 import { canCustomizeBackgroundColors } from "@/lib/background-palette"
-import { FEATURE_KEYS } from "@/lib/membership"
 import styles from "@/components/backgrounds/BackgroundHost.module.css"
 
 interface BackgroundHostProps extends BackgroundEffectProps {
   selectedId?: BackgroundId | string | null
   access: BackgroundAccessSnapshot
   category?: BackgroundCategory
-  /**
-   * Preserves the signed-in account color permission for the original free
-   * Lamp without widening palette access for other backgrounds.
-   */
-  canUseAccountColorControls?: boolean
   /**
    * Supplies the one committed-or-draft palette contract shared by Chimer,
    * Clock, and Music. Unsupported media intentionally ignores this input.
@@ -79,7 +74,6 @@ export function BackgroundHost(props: BackgroundHostProps) {
     selectedId,
     access,
     category,
-    canUseAccountColorControls = false,
     backgroundPalette,
     className,
     style,
@@ -180,10 +174,7 @@ export function BackgroundHost(props: BackgroundHostProps) {
     [access, category, selectedId],
   )
   const canCustomize = canCustomizeBackgroundColors({
-    hasCustomColorFeature: access.featureKeys.includes(FEATURE_KEYS.chimerCustomColors),
-    hasAccountColorAccess: canUseAccountColorControls,
-    selectedBackgroundId: entry.id,
-    permanentlyOwnedBackgroundIds: access.ownedBackgroundIds,
+    hasBackgroundAccess: userCanUseBackground(entry, access),
   })
   const reduceMotion = shouldReduceAmbientMotion({
     prefersReducedMotion,

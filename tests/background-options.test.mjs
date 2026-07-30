@@ -5375,7 +5375,7 @@ describe("premium background registry", () => {
     assert.doesNotMatch(runningSource, /<MovingBackground/)
   })
 
-  it("passes signed-in free Lamp color access to both the editor and renderer", () => {
+  it("aligns editor and renderer customization with selected-background access", () => {
     const hostSource = readFileSync(
       new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
       "utf8",
@@ -5383,15 +5383,12 @@ describe("premium background registry", () => {
 
     assert.match(
       runningTimerSource,
-      /canCustomizeBackgroundColors\(\{[\s\S]*hasAccountColorAccess:\s*canUseAccountColorControls/,
+      /canCustomizeBackgroundColors\(\{[\s\S]*hasBackgroundAccess:\s*userCanUseBackground\(/,
     )
-    assert.match(
-      runningTimerSource,
-      /<BackgroundHost[\s\S]*canUseAccountColorControls=\{canUseAccountColorControls\}/,
-    )
+    assert.doesNotMatch(runningTimerSource, /<BackgroundHost[\s\S]*canUseAccountColorControls=/)
     assert.match(
       hostSource,
-      /canCustomizeBackgroundColors\(\{[\s\S]*hasAccountColorAccess:\s*canUseAccountColorControls/,
+      /canCustomizeBackgroundColors\(\{[\s\S]*hasBackgroundAccess:\s*userCanUseBackground\(entry,\s*access\)/,
     )
   })
 

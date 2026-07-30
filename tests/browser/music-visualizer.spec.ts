@@ -1101,7 +1101,7 @@ test("539px dock headers own shared actions and compact visual color controls", 
 
 })
 
-test("guest Shared Colors stay visible, source-only, and keep touch-sized controls", async ({ page }, testInfo) => {
+test("guest free-background colors stay editable with compact swatches and touch-sized modes", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-chromium", "single 539px rendered guest-permission proof")
   await page.setViewportSize({ width: 539, height: 597 })
   await openClock(page)
@@ -1109,9 +1109,7 @@ test("guest Shared Colors stay visible, source-only, and keep touch-sized contro
   const visualPanel = page.getByRole("dialog", { name: "Visual controls" })
   const sharedColors = visualPanel.getByRole("region", { name: "Shared Colors" })
   await expect(sharedColors).toBeVisible()
-  await expect.soft(
-    visualPanel.getByText(/Source colors remain available\. Custom and Harmony require color access/i),
-  ).toBeVisible()
+  await expect.soft(visualPanel.getByText(/Unlock .* with a credit, purchase, or membership/i)).toHaveCount(0)
 
   const colorSource = sharedColors.getByRole("group", { name: "Color source" })
   const sourceButton = colorSource.getByRole("radio", { name: "Source" })
@@ -1121,11 +1119,13 @@ test("guest Shared Colors stay visible, source-only, and keep touch-sized contro
   const paletteSwatches = sharedColors.locator("[aria-label^='Swatch ']")
   await expect.soft(sourceButton).toBeEnabled()
   await expect.soft(sourceButton).toHaveAttribute("data-selected", "true")
-  await expect.soft(customButton).toBeDisabled()
-  await expect.soft(harmonyButton).toBeDisabled()
+  await expect.soft(customButton).toBeEnabled()
+  await expect.soft(harmonyButton).toBeEnabled()
   await expect.soft(paletteSwatches).toHaveCount(7)
-  await expect.soft(colorPresets.getByRole("textbox", { name: "New color preset name" })).toBeDisabled()
-  await expect.soft(colorPresets.getByRole("button", { name: "Save as new" })).toBeDisabled()
+  await customButton.click()
+  await expect.soft(colorPresets.getByRole("textbox", { name: "New color preset name" })).toBeEnabled()
+  await colorPresets.getByRole("textbox", { name: "New color preset name" }).fill("Guest palette")
+  await expect.soft(colorPresets.getByRole("button", { name: "Save as new" })).toBeEnabled()
 
   const sizes = await Promise.all([
     paletteSwatches.first().boundingBox(),
@@ -1133,11 +1133,13 @@ test("guest Shared Colors stay visible, source-only, and keep touch-sized contro
   ])
   const [swatchBox, modeBox] = sizes
   expect.soft(swatchBox && modeBox ? {
-    swatchIsTouchSized: swatchBox.width >= 44
-      && swatchBox.height >= 44
+    swatchUsesApprovedCompactSize: swatchBox.width >= 28
+      && swatchBox.width <= 36
+      && swatchBox.height >= 28
+      && swatchBox.height <= 36
       && Math.abs(swatchBox.width - swatchBox.height) <= 1,
     modeIsTouchSized: modeBox.height >= 40,
-  } : null).toEqual({ swatchIsTouchSized: true, modeIsTouchSized: true })
+  } : null).toEqual({ swatchUsesApprovedCompactSize: true, modeIsTouchSized: true })
 
   for (const label of ["Swatch 1", "Swatch 2", "Swatch 3", "Swatch 4", "Swatch 5", "Swatch 6", "Swatch 7"]) {
     const labelElement = sharedColors.getByText(label, { exact: true })
@@ -1691,7 +1693,7 @@ test("signed-in defaults, device precedence, failed save, retry, and unrelated s
   const signedInSharedColors = signedInVisual.getByRole("region", { name: "Shared Colors" })
   const signedInColorPresets = signedInVisual.getByRole("region", { name: "Color presets" })
   await expect(
-    signedInVisual.getByText(/Source colors remain available\. Custom and Harmony require color access/i),
+    signedInVisual.getByText(/Unlock .* with a credit, purchase, or membership/i),
   ).toHaveCount(0)
   await expect(
     signedInSharedColors.getByText(/Colors are unavailable for Static gradient/i),

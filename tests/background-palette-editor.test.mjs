@@ -74,7 +74,7 @@ test("Source and Harmony are contextual views that preserve dormant saved swatch
   assert.match(controlsSource, /readOnly: isSource \|\| \(isHarmony && index > 0\)/)
   assert.match(controlsSource, /generateBackgroundHarmonySwatches/)
   assert.match(editorSource, /HarmonyToggleGroup/)
-  assert.match(editorSource, /Source colors remain available/)
+  assert.match(editorSource, /Unlock \{backgroundName\} with a credit, purchase, or membership/)
   assert.doesNotMatch(editorSource, /localStorage|sessionStorage|fetch\(/)
 })
 

@@ -39,9 +39,7 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(resolveEffectiveBackgroundPaletteMode({
       savedMode: settings.backgroundVisualPreferences.palette.mode,
       canCustomize: canCustomizeBackgroundColors({
-        hasCustomColorFeature: false,
-        selectedBackgroundId: "massage-lab-novatrix",
-        permanentlyOwnedBackgroundIds: [],
+        hasBackgroundAccess: false,
       }),
     }), "source")
   })

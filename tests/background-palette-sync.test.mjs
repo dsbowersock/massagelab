@@ -202,31 +202,23 @@ describe("Shared background preference access and retry wiring", () => {
     assert.deepEqual(withoutInventory.visualPresetsByBackground, {})
   })
 
-  it("covers feature, owned-only, unowned/free Source, and reversible access loss", () => {
+  it("aligns customization with selected-background access and preserves reversible access loss", () => {
     assert.equal(canCustomizeBackgroundColors({
-      hasCustomColorFeature: true,
-      selectedBackgroundId: "premium-a",
-      permanentlyOwnedBackgroundIds: [],
+      hasBackgroundAccess: true,
     }), true)
     assert.equal(canCustomizeBackgroundColors({
-      hasCustomColorFeature: false,
-      selectedBackgroundId: "premium-a",
-      permanentlyOwnedBackgroundIds: ["premium-a"],
+      hasBackgroundAccess: true,
     }), true)
     assert.equal(canCustomizeBackgroundColors({
-      hasCustomColorFeature: false,
-      selectedBackgroundId: "premium-b",
-      permanentlyOwnedBackgroundIds: ["premium-a"],
+      hasBackgroundAccess: false,
     }), false)
     assert.equal(resolveEffectiveBackgroundPaletteMode({
       savedMode: "source",
       canCustomize: false,
     }), "source")
-    for (const ownedAfterLoss of [[], ["refunded-background"]]) {
+    for (const hasBackgroundAccess of [false, null]) {
       const canCustomize = canCustomizeBackgroundColors({
-        hasCustomColorFeature: false,
-        selectedBackgroundId: "premium-a",
-        permanentlyOwnedBackgroundIds: ownedAfterLoss,
+        hasBackgroundAccess,
       })
       assert.equal(resolveEffectiveBackgroundPaletteMode({
         savedMode: "custom",
