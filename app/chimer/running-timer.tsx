@@ -2085,7 +2085,7 @@ export function RunningTimer({
       backgroundVisualPreferences: commit.backgroundVisualPreferences as ChimerSettings["backgroundVisualPreferences"],
       properties: commit.properties as Partial<ChimerSettings>,
       accessOverride: selectionAccess,
-      ...(mode.context !== "musicVisualizer" ? { activateBackground: true } : {}),
+      activateBackground: true,
     })
     if (mode.context === "musicVisualizer") {
       mode.onBackgroundChange(nextBackgroundId, selectionAccess)
@@ -2101,15 +2101,19 @@ export function RunningTimer({
       return
     }
     if (nextBackgroundId === visualBackgroundId) {
-      if (newlyOwnedBackgroundIds.length > 0) {
-        // Retain a same-card acquisition through a failed provider refresh
+      const accessOverride = newlyOwnedBackgroundIds.length > 0
+        ? mergeBackgroundAccessOwnership(
+          effectiveBackgroundAccess,
+          newlyOwnedBackgroundIds,
+        )
+        : undefined
+      const shouldActivateBackground = !movingBackgroundEnabled
+      if (accessOverride || shouldActivateBackground) {
+        // Keep same-card activation and acquisition in one settings update
         // without rebuilding the current Visual snapshot.
         onSettingsChange(
-          {},
-          mergeBackgroundAccessOwnership(
-            effectiveBackgroundAccess,
-            newlyOwnedBackgroundIds,
-          ),
+          shouldActivateBackground ? { movingBackgroundEnabled: true } : {},
+          accessOverride,
         )
       }
       // Never clear a dirty draft just because its already-selected card was
@@ -2283,7 +2287,7 @@ export function RunningTimer({
         backgroundVisualPreferences: resolution.commit.backgroundVisualPreferences as ChimerSettings["backgroundVisualPreferences"],
         properties: resolution.commit.properties as Partial<ChimerSettings>,
         ...(selectionAccess ? { accessOverride: selectionAccess } : {}),
-        ...(intent?.type === "select-background" && mode.context !== "musicVisualizer"
+        ...(intent?.type === "select-background"
           ? { activateBackground: true }
           : {}),
       })

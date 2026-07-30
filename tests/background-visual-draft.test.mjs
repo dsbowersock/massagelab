@@ -843,7 +843,7 @@ test("reselecting the active background closes without rebuilding Visual state",
   )
   assert.match(
     runningTimerSource,
-    /if \(nextBackgroundId === visualBackgroundId\) \{[\s\S]*newlyOwnedBackgroundIds\.length > 0[\s\S]*onSettingsChange\(\s*\{\},\s*mergeBackgroundAccessOwnership\(\s*effectiveBackgroundAccess,\s*newlyOwnedBackgroundIds/,
+    /if \(nextBackgroundId === visualBackgroundId\) \{[\s\S]*const accessOverride = newlyOwnedBackgroundIds\.length > 0[\s\S]*mergeBackgroundAccessOwnership\([\s\S]*const shouldActivateBackground = !movingBackgroundEnabled[\s\S]*onSettingsChange\(\s*shouldActivateBackground \? \{ movingBackgroundEnabled: true \} : \{\},\s*accessOverride/,
   )
 })
 
@@ -1031,7 +1031,7 @@ test("ordinary Clock background selection commits visual state and canonical sel
   )
 })
 
-test("non-Music background selection atomically activates direct and dirty-Apply commits", () => {
+test("background selection atomically activates direct, same-ID, and dirty-Apply commits in every context", () => {
   const directSelectionStart = runningTimerSource.indexOf("const performBackgroundSelection")
   const directSelectionEnd = runningTimerSource.indexOf("const handleBackgroundSelection", directSelectionStart)
   const directSelectionSource = runningTimerSource.slice(directSelectionStart, directSelectionEnd)
@@ -1041,15 +1041,46 @@ test("non-Music background selection atomically activates direct and dirty-Apply
 
   assert.match(
     directSelectionSource,
-    /mode\.context !== "musicVisualizer" \? \{ activateBackground: true \} : \{\}/,
+    /activateBackground: true/,
   )
   assert.match(
     pendingResolutionSource,
-    /intent\?\.type === "select-background" && mode\.context !== "musicVisualizer"[\s\S]*\{ activateBackground: true \}/,
+    /intent\?\.type === "select-background"[\s\S]*\{ activateBackground: true \}/,
   )
   assert.match(
     pageSource,
-    /"activateBackground" in input && input\.activateBackground === true[\s\S]*movingBackgroundEnabled: true/,
+    /const activateBackground =\s*"activateBackground" in input && input\.activateBackground === true[\s\S]*movingBackgroundEnabled: true/,
+  )
+  assert.match(
+    pageSource,
+    /if \(nextSettings\.movingBackgroundEnabled === true\) \{[\s\S]*setRunWithoutAnimatedBackground\(false\)/,
+  )
+  assert.match(
+    pageSource,
+    /if \(activateBackground\) \{[\s\S]*setRunWithoutAnimatedBackground\(false\)/,
+  )
+  assert.doesNotMatch(
+    directSelectionSource,
+    /\.\.\.\(mode\.context !== "musicVisualizer" \? \{ activateBackground: true \} : \{\}\)/,
+  )
+  assert.doesNotMatch(
+    pendingResolutionSource,
+    /intent\?\.type === "select-background" && mode\.context !== "musicVisualizer"/,
+  )
+})
+
+test("setup presets route canonical background selection before applying remaining settings", () => {
+  assert.match(
+    setTimerSource,
+    /onBackgroundVisualCommit: \(input: \{[\s\S]*backgroundId: BackgroundId/,
+  )
+  assert.match(
+    setTimerSource,
+    /const applyPreset = \(preset: ChimerSetupPresetState\) => \{[\s\S]*skipIntervalCues: intervalSkip,[\s\S]*backgroundId,[\s\S]*\.\.\.settingsToApply[\s\S]*handleBackgroundSelection\(backgroundId\)\s*onSettingsChange\(settingsToApply\)\s*setSkipIntervalCues\(intervalSkip\)/,
+  )
+  assert.doesNotMatch(
+    setTimerSource,
+    /const applyPreset = \(preset: ChimerSetupPresetState\) => \{[\s\S]*onSettingsChange\(preset\)/,
   )
 })
 

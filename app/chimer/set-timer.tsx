@@ -1051,7 +1051,7 @@ interface SetTimerProps {
   onBackgroundVisualCommit: (input: {
     visualBackgroundId: string
     sourceVisualBackgroundId: string
-    backgroundId: string
+    backgroundId: BackgroundId
     backgroundVisualPreferences: ChimerSettings["backgroundVisualPreferences"]
     properties: Partial<ChimerSettings>
     accessOverride?: BackgroundAccessSnapshot
@@ -1341,7 +1341,14 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
   }
 
   const applyPreset = (preset: ChimerSetupPresetState) => {
-    const { skipIntervalCues: intervalSkip, ...settingsToApply } = preset
+    const {
+      skipIntervalCues: intervalSkip,
+      backgroundId,
+      ...settingsToApply
+    } = preset
+    // Commit the destination/source Visual scopes through the entitlement-aware
+    // selection path before its synchronous settings ref feeds the rest.
+    handleBackgroundSelection(backgroundId)
     onSettingsChange(settingsToApply)
     setSkipIntervalCues(intervalSkip)
   }

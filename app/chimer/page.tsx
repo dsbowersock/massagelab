@@ -756,7 +756,15 @@ export default function ChimerPage() {
     accessOverride?: BackgroundAccessSnapshot,
   ) => {
     setError(null)
+    if (nextSettings.movingBackgroundEnabled === true) {
+      // An explicit picker activation also ends the current session's
+      // temporary "run without animation" suppression.
+      setRunWithoutAnimatedBackground(false)
+    }
     if (accessOverride) {
+      // This override is only short-lived proof of a newly completed
+      // acquisition. Authoritative refresh and revocation still own lasting
+      // access, so it must not become a general entitlement bypass.
       setTransientOwnedBackgroundIds((current) => [
         ...new Set([...current, ...accessOverride.ownedBackgroundIds]),
       ])
@@ -829,11 +837,18 @@ export default function ChimerPage() {
       : {}
     // Selection activation belongs to the same atomic commit, but is a
     // canonical setting rather than a renderer-owned Visual property.
+    const activateBackground =
+      "activateBackground" in input && input.activateBackground === true
     const properties = {
       ...visualProperties,
-      ...("activateBackground" in input && input.activateBackground === true
+      ...(activateBackground
         ? { movingBackgroundEnabled: true }
         : {}),
+    }
+    if (activateBackground) {
+      // Apply and background selection share the same session-level activation
+      // semantics as a direct settings change.
+      setRunWithoutAnimatedBackground(false)
     }
     const accessOverride = "accessOverride" in input ? input.accessOverride : undefined
     if (accessOverride) {
