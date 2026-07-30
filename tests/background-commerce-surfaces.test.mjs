@@ -2,7 +2,10 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import { backgroundRegistry } from "../components/backgrounds/backgroundRegistry.ts"
-import { backgroundCardCommerceState } from "../lib/background-commerce-client.js"
+import {
+  backgroundCardCommerceState,
+  hasActivePermanentOwnership,
+} from "../lib/background-commerce-client.js"
 
 const cardPath = new URL("../components/backgrounds/background-carousel-card.tsx", import.meta.url)
 const carouselPath = new URL("../components/backgrounds/background-carousel.tsx", import.meta.url)
@@ -40,6 +43,23 @@ describe("production background commerce states", () => {
     })
     assert.equal(owned.state, "owned-purchase")
     assert.equal(owned.canSelect, true)
+    assert.equal(hasActivePermanentOwnership(owned), true)
+  })
+
+  it("keeps transient ownership selectable without claiming permanent acquisition", () => {
+    const background = backgroundRegistry.find((entry) => entry.enabled && entry.requiresSubscription)
+    assert.ok(background, "expected an enabled premium background")
+    const transient = backgroundCardCommerceState({
+      background,
+      access: { canUse: true, accessSource: "ownership" },
+      snapshot: snapshot(),
+    })
+
+    assert.equal(transient.state, "owned")
+    assert.equal(transient.canSelect, true)
+    assert.equal(transient.ownershipStatus, null)
+    assert.equal(transient.ownershipSource, null)
+    assert.equal(hasActivePermanentOwnership(transient), false)
   })
 
   it("renders ownership, inclusion, cart, reservation, and inactive-status labels", async () => {
@@ -73,10 +93,7 @@ describe("production background commerce states", () => {
     assert.match(source, /onLockedSelect\?\.\(\)/)
     assert.match(source, /onSelect\(\)/)
     assert.match(source, /onClick=\{onKeepPermanently\}/)
-    assert.match(source, /commerceState\.ownershipStatus === "active"/)
-    assert.match(source, /commerceState\.state === "owned"/)
-    assert.match(source, /commerceState\.state === "owned-credit"/)
-    assert.match(source, /commerceState\.state === "owned-purchase"/)
+    assert.match(source, /hasActivePermanentOwnership\(commerceState\)/)
     assert.match(source, /type="button"/)
     assert.match(source, /locked \? "Unlock"/)
     assert.match(source, /variant=\{locked \? "default" : "glow"\}/)

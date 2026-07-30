@@ -13,6 +13,7 @@ import {
   getBackgroundPreviewMedia,
   getBackgroundVisualTags,
 } from "@/lib/background-catalog"
+import { hasActivePermanentOwnership } from "@/lib/background-commerce-client.js"
 import { cn } from "@/lib/utils"
 
 type BackgroundCardCommerceState = {
@@ -23,16 +24,6 @@ type BackgroundCardCommerceState = {
   isReserved: boolean
   ownershipStatus: string | null
   ownershipSource: string | null
-}
-
-/** Recognizes authoritative or freshly bridged permanent ownership. */
-function hasActivePermanentOwnership(commerceState: BackgroundCardCommerceState) {
-  return commerceState.state === "owned"
-    || commerceState.ownershipStatus === "active"
-    && (
-      commerceState.state === "owned-credit"
-      || commerceState.state === "owned-purchase"
-    )
 }
 
 interface BackgroundCarouselCardProps {
@@ -101,7 +92,8 @@ export function BackgroundCarouselCard({
     .slice(0, 4)
   const statusLabel = accessLabel(commerceState)
   const sourceLabel = ownershipSourceLabel(commerceState.ownershipSource)
-  // A transient generic state can precede the refreshed authoritative source.
+  // A transient generic state stays selectable but cannot claim a permanent
+  // acquisition until the authoritative ownership row reaches this card.
   const permanentlyOwned = hasActivePermanentOwnership(commerceState)
   const unavailable = commerceState.state === "unavailable"
   const locked = !commerceState.canSelect && !unavailable
