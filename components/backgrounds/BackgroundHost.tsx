@@ -402,15 +402,18 @@ export function BackgroundHost(props: BackgroundHostProps) {
     ? loadedEffect.component
     : null
   const adapter = backgroundPaletteRegistry[entry.id]
-  const fallbackStyle = backgroundPalette
-    ? resolveBackgroundFallbackStyle({
-        selectedId: entry.id,
-        fallbackStyle: entry.fallbackStyle,
-        palette: backgroundPalette.palette,
-        mapping: backgroundPalette.mapping,
-        canCustomize,
-      })
-    : entry.fallbackStyle
+  const fallbackStyle = useMemo(
+    () => (backgroundPalette
+      ? resolveBackgroundFallbackStyle({
+          selectedId: entry.id,
+          fallbackStyle: entry.fallbackStyle,
+          palette: backgroundPalette.palette,
+          mapping: backgroundPalette.mapping,
+          canCustomize,
+        })
+      : entry.fallbackStyle),
+    [backgroundPalette, canCustomize, entry.fallbackStyle, entry.id],
+  )
   const diagnosticSnapshot = diagnostics && adapter
     ? createBackgroundHostDiagnosticSnapshot({
         requestedId: entry.id,
