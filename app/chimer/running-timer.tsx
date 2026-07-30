@@ -1725,6 +1725,15 @@ export function RunningTimer({
     onVisualDraftPreviewChange(currentVisualSnapshot ? (currentVisualSnapshot.properties as Partial<ChimerSettings>) : null)
   }, [currentVisualSnapshot, onVisualDraftPreviewChange])
 
+  useEffect(
+    () => () => {
+      // Closing the immersive session can unmount before the null draft state
+      // renders, so explicitly release the parent's transient preview bridge.
+      onVisualDraftPreviewChange(null)
+    },
+    [onVisualDraftPreviewChange],
+  )
+
   const dispatchVisualDraft = useCallback(
     (action: Record<string, unknown>) => {
       setVisualDraft((current) => (current ? reduceBackgroundVisualDraft(current, action) : current))

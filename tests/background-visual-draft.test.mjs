@@ -890,6 +890,10 @@ test("access-driven Visual rebase preserves explicit Apply, Discard, and Keep Ed
     runningTimerSource,
     /onVisualDraftPreviewChange\(currentVisualSnapshot \? \(currentVisualSnapshot\.properties as Partial<ChimerSettings>\) : null\)/,
   )
+  assert.match(
+    runningTimerSource,
+    /useEffect\(\s*\(\) => \(\) => \{[\s\S]*onVisualDraftPreviewChange\(null\)[\s\S]*\},\s*\[onVisualDraftPreviewChange\],\s*\)/,
+  )
 })
 
 test("redeemed ownership survives Apply and Discard background-switch continuations", () => {
