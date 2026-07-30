@@ -155,6 +155,20 @@ export function mergeBackgroundAccessOwnership(
   }
 }
 
+/**
+ * Uses the account response only while the commerce provider is hydrating.
+ * Any commerce snapshot, including an empty one, is authoritative so revoked
+ * ownership cannot remain accessible from an older preference response.
+ */
+export function resolveAuthoritativeBackgroundOwnership(
+  accountOwnedBackgroundIds: readonly string[],
+  commerceOwnedBackgroundIds: readonly string[] | null | undefined,
+) {
+  return [...new Set(
+    commerceOwnedBackgroundIds ?? accountOwnedBackgroundIds,
+  )]
+}
+
 type BackgroundAccessInput =
   | readonly string[]
   | Partial<BackgroundAccessSnapshot>

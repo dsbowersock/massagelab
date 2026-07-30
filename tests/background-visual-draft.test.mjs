@@ -804,11 +804,30 @@ test("redeemed ownership survives Apply and Discard background-switch continuati
   )
   assert.match(
     runningTimerSource,
-    /intent\.type === "select-background"[\s\S]*mergeBackgroundAccessOwnership\([\s\S]*intent\.newlyOwnedBackgroundIds[\s\S]*mode\.onBackgroundChange\(intent\.backgroundId, selectionAccess\)[\s\S]*performBackgroundSelection\(intent\.backgroundId, intent\.newlyOwnedBackgroundIds\)/,
+    /intent\.type === "select-background"[\s\S]*mergeBackgroundAccessOwnership\([\s\S]*intent\.newlyOwnedBackgroundIds[\s\S]*mode\.context === "musicVisualizer"[\s\S]*mode\.onBackgroundChange\(intent\.backgroundId, selectionAccess\)[\s\S]*performBackgroundSelection\(intent\.backgroundId, intent\.newlyOwnedBackgroundIds\)/,
   )
   assert.match(
     runningTimerSource,
     /const selectionAccess = intent\?\.type === "select-background"[\s\S]*intent\.newlyOwnedBackgroundIds[\s\S]*accessOverride: selectionAccess/,
+  )
+})
+
+test("ordinary Clock background selection commits visual state and canonical selection atomically", () => {
+  assert.match(
+    runningTimerSource,
+    /commitCanonicalBackgroundSelection:\s*mode\.context !== "musicVisualizer"/,
+  )
+  assert.match(
+    runningTimerSource,
+    /commitCanonicalBackgroundSelection:\s*Boolean\(targetBackgroundId\)\s*&&\s*mode\.context !== "musicVisualizer"/,
+  )
+  assert.match(
+    runningTimerSource,
+    /if \(mode\.context === "musicVisualizer"\) \{\s*mode\.onBackgroundChange\(nextBackgroundId, selectionAccess\)/,
+  )
+  assert.doesNotMatch(
+    runningTimerSource,
+    /if \(mode\.context !== "chimer"\) \{\s*mode\.onBackgroundChange\(nextBackgroundId, selectionAccess\)/,
   )
 })
 
@@ -828,6 +847,7 @@ test("dirty navigation guard covers eligible app links, history, and native unlo
   assert.doesNotMatch(unsavedDialogSource, /document\.activeElement/)
   assert.match(unsavedDialogSource, /restoreFocusTarget/)
   assert.match(unsavedDialogSource, /explicitOutcomeRef/)
+  assert.match(unsavedDialogSource, /useEffect\(\(\) => \{[\s\S]*if \(!open\)[\s\S]*explicitOutcomeRef\.current = false/)
   assert.match(unsavedDialogSource, /resolveExplicitOutcome\(onApply\)/)
   assert.match(unsavedDialogSource, /resolveExplicitOutcome\(onDiscard\)/)
   assert.match(unsavedDialogSource, /resolveExplicitOutcome\(onKeepEditing\)/)
@@ -842,6 +862,10 @@ test("dirty navigation guard covers eligible app links, history, and native unlo
 test("globe coordinate inputs keep string drafts and clock font changes remeasure", () => {
   for (const source of [setTimerSource, runningTimerSource]) {
     assert.match(source, /globeMarkerDraft/)
+    assert.match(source, /globeLocationMessage/)
+    assert.match(source, /getCurrentPosition\(\(\{ coords \}\) => \{[\s\S]*\}, \(\) => \{[\s\S]*setGlobeLocationMessage/)
+    assert.match(source, /role="status" aria-live="polite"/)
+    assert.match(source, /We could not access your location/)
     assert.match(source, /parseGlobeCoordinateDraft/)
     assert.match(source, /onBlur=\{\(\) => commitGlobeCoordinate\("latitude"\)\}/)
     assert.match(source, /onBlur=\{\(\) => commitGlobeCoordinate\("longitude"\)\}/)

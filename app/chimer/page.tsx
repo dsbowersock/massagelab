@@ -13,7 +13,7 @@ import {
 import { useBackgroundCommerce } from "@/components/backgrounds/BackgroundCommerceProvider"
 import {
   canUseBackgroundId,
-  mergeBackgroundAccessOwnership,
+  resolveAuthoritativeBackgroundOwnership,
   type BackgroundAccessSnapshot,
 } from "@/components/backgrounds/backgroundRegistry"
 import {
@@ -199,10 +199,16 @@ export default function ChimerPage() {
   const [wakeLockMessage, setWakeLockMessage] = useState<string | null>(null)
   const commerceOwnedBackgroundIds = backgroundCommerceState.snapshot?.ownedBackgroundIds
   const backgroundAccess = useMemo<BackgroundAccessSnapshot>(
-    () => mergeBackgroundAccessOwnership({
+    () => ({
       featureKeys,
-      ownedBackgroundIds: permanentlyOwnedBackgroundIds,
-    }, commerceOwnedBackgroundIds ?? []),
+      // The account-preference response bridges initial hydration. Once the
+      // commerce provider has a snapshot, it is authoritative for revocation
+      // as well as acquisition and must replace the older ownership list.
+      ownedBackgroundIds: resolveAuthoritativeBackgroundOwnership(
+        permanentlyOwnedBackgroundIds,
+        commerceOwnedBackgroundIds,
+      ),
+    }),
     [commerceOwnedBackgroundIds, featureKeys, permanentlyOwnedBackgroundIds],
   )
   const canUseCustomColors = featureKeys.includes(FEATURE_KEYS.chimerCustomColors)

@@ -139,6 +139,10 @@ function visualInventory(
   }
 }
 
+/**
+ * Copies one traversed container, creating the next object/array shape when
+ * the renderer path enters a missing branch.
+ */
 function copyRendererContainer(
   value: unknown,
   nextSegment: string | number,
@@ -152,6 +156,7 @@ function copyRendererContainer(
   return (typeof nextSegment === "number" ? [] : {}) as Record<string | number, unknown>
 }
 
+/** Detaches an assigned renderer value so immutable path writes cannot alias it. */
 function copyRendererValue(value: unknown) {
   if (Array.isArray(value)) {
     return [...value]

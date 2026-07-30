@@ -242,7 +242,7 @@ describe("Shared background preference access and retry wiring", () => {
     assert.match(source, /localStorage\.setItem\(CHIMER_STORAGE_KEY/)
     assert.match(source, /legacyKeysToRemove/)
     assert.match(source, /const immersiveMode: ImmersiveDisplayMode = immersiveContext === "musicVisualizer"[\s\S]*selectedBackgroundId: selectedMusicBackgroundId,[\s\S]*selectedBackgroundId: settings\.backgroundId/)
-    assert.match(source, /const backgroundAccess = useMemo<BackgroundAccessSnapshot>[\s\S]*featureKeys,[\s\S]*ownedBackgroundIds: permanentlyOwnedBackgroundIds/)
+    assert.match(source, /const backgroundAccess = useMemo<BackgroundAccessSnapshot>[\s\S]*featureKeys,[\s\S]*resolveAuthoritativeBackgroundOwnership\([\s\S]*permanentlyOwnedBackgroundIds,[\s\S]*commerceOwnedBackgroundIds/)
     assert.match(source, /<RunningTimer[\s\S]*backgroundAccess=\{backgroundAccess\}/)
     assert.match(source, /applyBackgroundVisualPreferences/)
     assert.match(source, /retryBackgroundVisualPreferenceSync/)

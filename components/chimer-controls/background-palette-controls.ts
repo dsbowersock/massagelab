@@ -281,19 +281,22 @@ export function buildBackgroundPaletteHarmonyChange(
   harmony: string,
 ): BackgroundPaletteEditorValue | null {
   const normalized = normalizeBackgroundPaletteState(input.palette) as BackgroundPaletteEditorValue
+  const requestedHarmony = typeof harmony === "string" ? harmony.trim() : ""
+  const candidate = normalizeBackgroundPaletteState({
+    ...normalized,
+    harmony: requestedHarmony,
+  }) as BackgroundPaletteEditorValue
   if (
     input.disabled
     || input.adapter.status === "unsupported"
     || !input.canCustomize
     || normalized.mode !== "harmony"
-    || !harmony
+    || !requestedHarmony
+    || candidate.harmony !== requestedHarmony
   ) {
     return null
   }
-  return {
-    ...normalized,
-    harmony,
-  }
+  return candidate
 }
 
 /** Returns one background-specific role remap without touching shared colors. */

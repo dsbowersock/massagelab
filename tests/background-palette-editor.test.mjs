@@ -263,6 +263,12 @@ test("palette editor view models and changes are pure, indexed, and mapping-awar
   assert.equal(buildBackgroundPaletteHarmonyChange({
     palette: harmonyPalette,
     adapter,
+    canCustomize: true,
+    disabled: false,
+  }, "arbitrary-harmony"), null)
+  assert.equal(buildBackgroundPaletteHarmonyChange({
+    palette: harmonyPalette,
+    adapter,
     canCustomize: false,
   }, "complementary"), null)
   assert.equal(buildBackgroundPaletteHarmonyChange({

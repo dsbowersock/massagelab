@@ -14,6 +14,7 @@ import {
   canUseBackgroundId,
   getBackgroundOptionsForCategory,
   mergeBackgroundAccessOwnership,
+  resolveAuthoritativeBackgroundOwnership,
   resolveAccessibleBackgroundDefinition,
 } from "../components/backgrounds/backgroundRegistry.ts"
 
@@ -287,8 +288,23 @@ describe("premium background registry", () => {
     assert.equal(canUseBackgroundId(redeemedBackgroundId, refreshedAccess, "clock"), true)
     assert.equal(canUseBackgroundId("massage-lab-stars", refreshedAccess, "clock"), false)
     assert.deepEqual(refreshedAccess.featureKeys, [])
+    assert.deepEqual(
+      resolveAuthoritativeBackgroundOwnership([redeemedBackgroundId], undefined),
+      [redeemedBackgroundId],
+      "account ownership bridges provider hydration",
+    )
+    assert.deepEqual(
+      resolveAuthoritativeBackgroundOwnership([redeemedBackgroundId], []),
+      [],
+      "an empty commerce snapshot removes stale or revoked account ownership",
+    )
+    assert.deepEqual(
+      resolveAuthoritativeBackgroundOwnership([], [redeemedBackgroundId]),
+      [redeemedBackgroundId],
+      "a refreshed commerce snapshot grants redeemed ownership immediately",
+    )
     assert.match(chimerPageSource, /const commerceOwnedBackgroundIds = backgroundCommerceState\.snapshot\?\.ownedBackgroundIds/)
-    assert.match(chimerPageSource, /mergeBackgroundAccessOwnership\([\s\S]*featureKeys,[\s\S]*ownedBackgroundIds: permanentlyOwnedBackgroundIds/)
+    assert.match(chimerPageSource, /resolveAuthoritativeBackgroundOwnership\([\s\S]*permanentlyOwnedBackgroundIds,[\s\S]*commerceOwnedBackgroundIds/)
     assert.match(chimerPageSource, /canUseBackgroundId\(id, backgroundAccess, "music"\)/)
     assert.match(
       runningTimerSource,

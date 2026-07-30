@@ -6,7 +6,15 @@ import {
   buildUserPreferencePayload,
 } from "@/lib/account-preferences"
 import { clearAccountSurfaceDataCache } from "@/lib/account-surface-data"
-import { backgroundPreferenceNormalizationOptions } from "@/components/backgrounds/backgroundPaletteRegistry"
+import {
+  backgroundPaletteRegistry,
+  backgroundPreferenceNormalizationOptions,
+} from "@/components/backgrounds/backgroundPaletteRegistry"
+import {
+  backgroundRegistry,
+  userCanUseBackground,
+  type BackgroundAccessSnapshot,
+} from "@/components/backgrounds/backgroundRegistry"
 import { objectRecord } from "@/lib/onboarding-preferences"
 import { sanitizeChimerSettingsForEntitlements } from "@/lib/chimer-timer"
 import { getUserEntitlementState } from "@/lib/membership"
@@ -15,6 +23,48 @@ import { prisma } from "@/lib/prisma"
 
 function jsonObject(value: Record<string, unknown>) {
   return value as Prisma.InputJsonObject
+}
+
+/**
+ * Sanitizes the canonical Chimer snapshot while retaining renderer tuning for
+ * every background the account can currently use. Clock and Music share the
+ * flat renderer settings even when their selected visual is not the canonical
+ * Chimer background.
+ */
+function sanitizeAccessibleChimerSettings(
+  input: unknown,
+  access: BackgroundAccessSnapshot,
+) {
+  const candidateSettings = objectRecord(input)
+  const options = {
+    canUseAccountColorControls: true,
+    backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
+  }
+  const canonicalSettings = sanitizeChimerSettingsForEntitlements(candidateSettings, access, options)
+  const accessibleRendererSettings: Record<string, unknown> = {}
+
+  for (const backgroundId of access.ownedBackgroundIds) {
+    const background = backgroundRegistry.find((entry) => entry.id === backgroundId)
+    if (!background || !userCanUseBackground(background, access)) {
+      continue
+    }
+    const visualPropertyKeys = backgroundPaletteRegistry[background.id]?.visualPropertyKeys
+    if (!visualPropertyKeys?.length) {
+      continue
+    }
+    const scopedSettings = sanitizeChimerSettingsForEntitlements({
+      ...candidateSettings,
+      backgroundId: background.id,
+    }, access, options)
+    for (const propertyKey of visualPropertyKeys) {
+      accessibleRendererSettings[propertyKey] = scopedSettings[propertyKey]
+    }
+  }
+
+  return {
+    ...canonicalSettings,
+    ...accessibleRendererSettings,
+  }
 }
 
 export async function GET() {
@@ -39,23 +89,24 @@ export async function GET() {
       authoritative: true as const,
       entitlements,
       commerceSnapshot,
-    })).catch(() => ({
-      authoritative: false as const,
-      entitlements: null,
-      commerceSnapshot: null,
-    })),
+    })).catch(() => {
+      // Access is one security boundary: if either entitlement or ownership
+      // lookup fails, return no saved Chimer settings instead of persisting or
+      // presenting a snapshot sanitized against invented empty access.
+      return {
+        authoritative: false as const,
+        entitlements: null,
+        commerceSnapshot: null,
+      }
+    }),
   ])
 
   const chimerSettings = preferences?.chimerSettings && access.authoritative
-    ? sanitizeChimerSettingsForEntitlements(
+    ? sanitizeAccessibleChimerSettings(
       preferences.chimerSettings,
       {
         featureKeys: access.entitlements.features,
         ownedBackgroundIds: access.commerceSnapshot.ownedBackgroundIds,
-      },
-      {
-        canUseAccountColorControls: true,
-        backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
       },
     )
     : {}
@@ -105,12 +156,9 @@ export async function PUT(request: Request) {
     ...payload.app_settings,
   }
   const chimerSettings = "chimerSettings" in body
-    ? jsonObject(sanitizeChimerSettingsForEntitlements(payload.chimer_settings, {
+    ? jsonObject(sanitizeAccessibleChimerSettings(payload.chimer_settings, {
       featureKeys: entitlements.features,
       ownedBackgroundIds: commerceSnapshot.ownedBackgroundIds,
-    }, {
-      canUseAccountColorControls: true,
-      backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
     }))
     : (existing?.chimerSettings as Prisma.InputJsonValue | undefined) ?? {}
 

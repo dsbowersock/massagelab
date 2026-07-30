@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef } from "react"
+import { useEffect, useRef } from "react"
 
 import {
   AlertDialog,
@@ -38,6 +38,15 @@ export function UnsavedVisualChangesDialog({
   onKeepEditing,
 }: UnsavedVisualChangesDialogProps) {
   const explicitOutcomeRef = useRef(false)
+
+  useEffect(() => {
+    if (!open) {
+      // Controlled parents may close without Radix emitting onOpenChange (the
+      // custom Discard button does this), so never carry an explicit outcome
+      // into the next time the dialog opens.
+      explicitOutcomeRef.current = false
+    }
+  }, [open])
 
   const resolveExplicitOutcome = (outcome: () => void) => {
     explicitOutcomeRef.current = true

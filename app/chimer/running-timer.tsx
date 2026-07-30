@@ -1522,6 +1522,7 @@ export function RunningTimer({
     latitude: String(massageLab3DGlobeMarkerLat),
     longitude: String(massageLab3DGlobeMarkerLng),
   }))
+  const [globeLocationMessage, setGlobeLocationMessage] = useState<string | null>(null)
   const currentVisualSnapshot = useMemo(() => (visualDraft ? getCommittedBackgroundVisualSnapshot(visualDraft) : null), [visualDraft])
   const effectivePaletteState = currentVisualSnapshot?.palette ?? backgroundVisualPreferences.palette
   const [controlState, setControlState] = useState<"visible" | "faded" | "hidden">("visible")
@@ -1968,7 +1969,7 @@ export function RunningTimer({
       }),
       targetBackgroundId: nextBackgroundId,
       targetAdapter: backgroundPaletteRegistry[nextBackgroundId],
-      commitCanonicalBackgroundSelection: mode.context === "chimer",
+      commitCanonicalBackgroundSelection: mode.context !== "musicVisualizer",
     })
     onApplyBackgroundVisualPreferences({
       visualBackgroundId: commit.visualBackgroundId as BackgroundId,
@@ -1978,7 +1979,7 @@ export function RunningTimer({
       properties: commit.properties as Partial<ChimerSettings>,
       accessOverride: selectionAccess,
     })
-    if (mode.context !== "chimer") {
+    if (mode.context === "musicVisualizer") {
       mode.onBackgroundChange(nextBackgroundId, selectionAccess)
     }
     finishBackgroundSelection()
@@ -2015,7 +2016,7 @@ export function RunningTimer({
         currentSnapshot: getCommittedBackgroundVisualSnapshot(visualDraft),
         targetBackgroundId,
         targetAdapter: targetBackgroundId ? backgroundPaletteRegistry[targetBackgroundId] : null,
-        commitCanonicalBackgroundSelection: Boolean(targetBackgroundId) && mode.context === "chimer",
+        commitCanonicalBackgroundSelection: Boolean(targetBackgroundId) && mode.context !== "musicVisualizer",
       })
     },
     [backgroundVisualPreferences, mode.context, selectedBackgroundDefinition.id, visualDraft],
@@ -2051,7 +2052,7 @@ export function RunningTimer({
         intent.newlyOwnedBackgroundIds,
       )
       if (selectionCommitted) {
-        if (mode.context !== "chimer") {
+        if (mode.context === "musicVisualizer") {
           mode.onBackgroundChange(intent.backgroundId, selectionAccess)
         }
         finishBackgroundSelection()
@@ -2234,9 +2235,11 @@ export function RunningTimer({
   const getCurrentLocationForGlobe = () => {
     pressHaptic()
     if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setGlobeLocationMessage("Location access is unavailable in this browser.")
       return
     }
 
+    setGlobeLocationMessage(null)
     navigator.geolocation.getCurrentPosition(({ coords }) => {
       setGlobeMarkerDraft({
         latitude: coords.latitude.toFixed(4),
@@ -2247,6 +2250,8 @@ export function RunningTimer({
         massageLab3DGlobeMarkerLat: Number(coords.latitude.toFixed(4)),
         massageLab3DGlobeMarkerLng: Number(coords.longitude.toFixed(4)),
       })
+    }, () => {
+      setGlobeLocationMessage("We could not access your location. Check browser permission and try again.")
     })
   }
 
@@ -3211,6 +3216,11 @@ export function RunningTimer({
               <button type="button" className={`${styles.inlineButton} ${styles.tactileButton}`} onClick={getCurrentLocationForGlobe}>
                 Use my location
               </button>
+              {globeLocationMessage ? (
+                <p className={styles.locationStatus} role="status" aria-live="polite">
+                  {globeLocationMessage}
+                </p>
+              ) : null}
               <label className={styles.textField}>
                 <span>Marker label</span>
                 <input

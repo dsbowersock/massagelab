@@ -1105,6 +1105,7 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
     latitude: String(settings.massageLab3DGlobeMarkerLat),
     longitude: String(settings.massageLab3DGlobeMarkerLng),
   }))
+  const [globeLocationMessage, setGlobeLocationMessage] = useState<string | null>(null)
   const { settings: appShellSettings } = useSettings()
   const [syncNoticeDismissed, setSyncNoticeDismissed] = useState(false)
   const [isSyncNoticeExiting, setIsSyncNoticeExiting] = useState(false)
@@ -1155,9 +1156,11 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
 
   const useCurrentLocationForGlobe = () => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setGlobeLocationMessage("Location access is unavailable in this browser.")
       return
     }
 
+    setGlobeLocationMessage(null)
     navigator.geolocation.getCurrentPosition(({ coords }) => {
       setGlobeMarkerDraft({
         latitude: coords.latitude.toFixed(4),
@@ -1168,6 +1171,8 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
         massageLab3DGlobeMarkerLat: Number(coords.latitude.toFixed(4)),
         massageLab3DGlobeMarkerLng: Number(coords.longitude.toFixed(4)),
       })
+    }, () => {
+      setGlobeLocationMessage("We could not access your location. Check browser permission and try again.")
     })
   }
 
@@ -2773,6 +2778,11 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
               <button type="button" className={`${styles.inlineButton} ${styles.tactileButton}`} onClick={withPress(useCurrentLocationForGlobe)}>
                 Use my location
               </button>
+              {globeLocationMessage ? (
+                <p className={styles.locationStatus} role="status" aria-live="polite">
+                  {globeLocationMessage}
+                </p>
+              ) : null}
               <label className={styles.textField}>
                 <span>Marker label</span>
                 <input

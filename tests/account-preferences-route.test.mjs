@@ -7,8 +7,13 @@ import {
   buildUserPreferencePayload,
 } from "../lib/account-preferences.js"
 import {
+  backgroundPaletteRegistry,
   backgroundPreferenceNormalizationOptions,
 } from "../components/backgrounds/backgroundPaletteRegistry.ts"
+import {
+  backgroundRegistry,
+  userCanUseBackground,
+} from "../components/backgrounds/backgroundRegistry.ts"
 import { DEFAULT_CHIMER_SETTINGS, sanitizeChimerSettingsForEntitlements } from "../lib/chimer-timer.js"
 import { objectRecord } from "../lib/onboarding-preferences.js"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
@@ -91,7 +96,12 @@ function loadRoute({ savedSettings = ownedOnlySettings(), failAccess = false } =
         clearAccountSurfaceDataCache: () => undefined,
       },
       "@/components/backgrounds/backgroundPaletteRegistry": {
+        backgroundPaletteRegistry,
         backgroundPreferenceNormalizationOptions,
+      },
+      "@/components/backgrounds/backgroundRegistry": {
+        backgroundRegistry,
+        userCanUseBackground,
       },
       "@/lib/onboarding-preferences": {
         objectRecord,
@@ -219,5 +229,25 @@ describe("account preference route ownership boundary", () => {
     assert.equal(calls.upserts.length, 1)
     assertUnownedFallback(calls.upserts[0].update.chimerSettings)
     assertUnownedFallback(response.body.chimerSettings)
+  })
+
+  it("PUT retains owned Music tuning when Chimer uses a different background", async () => {
+    const { PUT, calls } = loadRoute()
+    const response = await PUT(new Request("https://massagelab.app/api/account/preferences", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        chimerSettings: {
+          ...ownedOnlySettings(),
+          backgroundId: DEFAULT_CHIMER_SETTINGS.backgroundId,
+          massageLabStarsSpeed: 72,
+        },
+      }),
+    }))
+
+    assert.equal(response.status, 200)
+    assert.equal(calls.upserts[0].update.chimerSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    assert.equal(calls.upserts[0].update.chimerSettings.massageLabStarsSpeed, 72)
+    assert.equal(response.body.chimerSettings.massageLabStarsSpeed, 72)
   })
 })
