@@ -1,6 +1,6 @@
 "use client"
 
-import { useId, useState } from "react"
+import { useEffect, useId, useState } from "react"
 import { MoreHorizontal } from "lucide-react"
 
 import {
@@ -190,11 +190,26 @@ export function BackgroundPresetManager(props: BackgroundPresetManagerProps) {
   const backgroundLabel = isVisual ? ` for ${props.backgroundName}` : ""
   const defaultMarker = isVisual ? props.defaultPresetId : null
 
+  useEffect(() => {
+    if (!disabled) {
+      return
+    }
+
+    // Access can change while a rename or delete confirmation is open.
+    // Close both flows so stale controls cannot mutate a newly locked draft.
+    setRenamingId(null)
+    setRenameValue("")
+    setDeleteTarget(null)
+  }, [disabled])
+
   function announce(message: string) {
     setStatus(message)
   }
 
   function saveAsNew() {
+    if (disabled) {
+      return
+    }
     const name = boundedName(newName)
     if (!name) {
       announce(`Enter a name before saving a ${itemLabel}.`)
@@ -204,7 +219,7 @@ export function BackgroundPresetManager(props: BackgroundPresetManagerProps) {
       announce(`Choose Custom or Harmony before saving a ${itemLabel}.`)
       return
     }
-    if (atLimit || disabled) {
+    if (atLimit) {
       announce(`${collectionLabel} limit reached. Delete one before saving another.`)
       return
     }
@@ -229,12 +244,18 @@ export function BackgroundPresetManager(props: BackgroundPresetManagerProps) {
   }
 
   function applyPreset(preset: BackgroundPresetBase) {
+    if (disabled) {
+      return
+    }
     const name = presetDisplayName(preset.name)
     onDraftAction(buildPresetApplyDraftAction(kind, preset.id))
     announce(`${name} applied to the draft.`)
   }
 
   function updatePreset(preset: BackgroundPresetBase) {
+    if (disabled) {
+      return
+    }
     if (saveDisabled) {
       announce(`Choose Custom or Harmony before updating a ${itemLabel}.`)
       return
@@ -260,6 +281,9 @@ export function BackgroundPresetManager(props: BackgroundPresetManagerProps) {
   }
 
   function beginRename(preset: BackgroundPresetBase) {
+    if (disabled) {
+      return
+    }
     const name = presetDisplayName(preset.name)
     setRenamingId(preset.id)
     setRenameValue(name)
@@ -267,6 +291,9 @@ export function BackgroundPresetManager(props: BackgroundPresetManagerProps) {
   }
 
   function commitRename(preset: BackgroundPresetBase) {
+    if (disabled) {
+      return
+    }
     const name = boundedName(renameValue)
     if (!name) {
       announce(`${collectionLabel} names cannot be empty.`)
@@ -279,7 +306,7 @@ export function BackgroundPresetManager(props: BackgroundPresetManagerProps) {
   }
 
   function deletePreset() {
-    if (!deleteTarget) {
+    if (disabled || !deleteTarget) {
       return
     }
     onDraftAction(buildPresetDeleteDraftAction(kind, deleteTarget.id))
@@ -372,9 +399,10 @@ export function BackgroundPresetManager(props: BackgroundPresetManagerProps) {
                           }
                         }}
                         className={styles.globalColorNameInput}
+                        disabled={disabled}
                         autoFocus
                       />
-                      <Button type="button" size="compact" onClick={() => commitRename(preset)}>
+                      <Button type="button" size="compact" onClick={() => commitRename(preset)} disabled={disabled}>
                         Rename
                       </Button>
                       <Button
@@ -410,18 +438,18 @@ export function BackgroundPresetManager(props: BackgroundPresetManagerProps) {
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>{boundedPresetName}</DropdownMenuLabel>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem onSelect={() => applyPreset(preset)}>
+                          <DropdownMenuItem disabled={disabled} onSelect={() => applyPreset(preset)}>
                             Apply
                           </DropdownMenuItem>
-                          <DropdownMenuItem disabled={saveDisabled} onSelect={() => updatePreset(preset)}>
+                          <DropdownMenuItem disabled={disabled || saveDisabled} onSelect={() => updatePreset(preset)}>
                             Update
                           </DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => beginRename(preset)}>
+                          <DropdownMenuItem disabled={disabled} onSelect={() => beginRename(preset)}>
                             Rename
                           </DropdownMenuItem>
                           {kind === "visual" ? (
                             <DropdownMenuItem
-                              disabled={isDefault}
+                              disabled={disabled || isDefault}
                               onSelect={() => {
                                 onDraftAction(buildVisualPresetDefaultDraftAction(preset.id))
                                 announce(`${boundedPresetName} set as the draft default for ${props.backgroundName}.`)
@@ -433,6 +461,7 @@ export function BackgroundPresetManager(props: BackgroundPresetManagerProps) {
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className={styles.presetDeleteItem}
+                            disabled={disabled}
                             onSelect={() => setDeleteTarget(preset)}
                           >
                             Delete
@@ -463,7 +492,7 @@ export function BackgroundPresetManager(props: BackgroundPresetManagerProps) {
       )}
 
       <AlertDialog
-        open={Boolean(deleteTarget)}
+        open={Boolean(deleteTarget) && !disabled}
         onOpenChange={(open) => {
           if (!open) {
             setDeleteTarget(null)
@@ -482,7 +511,7 @@ export function BackgroundPresetManager(props: BackgroundPresetManagerProps) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Keep preset</AlertDialogCancel>
-            <AlertDialogAction onClick={deletePreset}>Delete</AlertDialogAction>
+            <AlertDialogAction onClick={deletePreset} disabled={disabled}>Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

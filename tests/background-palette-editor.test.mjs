@@ -116,7 +116,7 @@ test("Source mode blocks Color preset saves but keeps saved-preset Apply availab
   assert.match(presetSource, /disabled=\{disabled \|\| saveDisabled \|\| atLimit\}/)
   assert.match(
     presetSource,
-    /<DropdownMenuItem onSelect=\{\(\) => applyPreset\(preset\)\}>[\s\S]*Apply[\s\S]*<DropdownMenuItem disabled=\{saveDisabled\} onSelect=\{\(\) => updatePreset\(preset\)\}>/,
+    /<DropdownMenuItem disabled=\{disabled\} onSelect=\{\(\) => applyPreset\(preset\)\}>[\s\S]*Apply[\s\S]*<DropdownMenuItem disabled=\{disabled \|\| saveDisabled\} onSelect=\{\(\) => updatePreset\(preset\)\}>/,
   )
   assert.doesNotMatch(presetSource, /<DropdownMenuTrigger[\s\S]{0,400}disabled=\{disabled \|\| saveDisabled\}/)
 })
@@ -142,6 +142,15 @@ test("revoked background access makes palette, property, and preset editing read
     runningTimerSource,
     /variant="destructive" disabled=\{!visualDraft\?\.dirty\}[\s\S]*Cancel[\s\S]*variant="success" disabled=\{!visualDraft\?\.dirty\}[\s\S]*Apply/,
   )
+  assert.match(
+    presetSource,
+    /useEffect\(\(\) => \{[\s\S]*if \(!disabled\)[\s\S]*setRenamingId\(null\)[\s\S]*setRenameValue\(""\)[\s\S]*setDeleteTarget\(null\)[\s\S]*\}, \[disabled\]\)/,
+  )
+  assert.match(presetSource, /open=\{Boolean\(deleteTarget\) && !disabled\}/)
+  assert.match(presetSource, /<AlertDialogAction onClick=\{deletePreset\} disabled=\{disabled\}>Delete/)
+  assert.match(presetSource, /<DropdownMenuItem disabled=\{disabled\} onSelect=\{\(\) => applyPreset\(preset\)\}>/)
+  assert.match(presetSource, /<DropdownMenuItem disabled=\{disabled \|\| saveDisabled\} onSelect=\{\(\) => updatePreset\(preset\)\}>/)
+  assert.match(presetSource, /className=\{styles\.presetDeleteItem\}[\s\S]*disabled=\{disabled\}/)
 })
 
 test("BackgroundHost applies the resolved palette to its persistent fallback layer", () => {
