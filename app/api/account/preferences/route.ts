@@ -148,6 +148,8 @@ export async function PUT(request: Request) {
     calendarPreferences: preferences.calendarPreferences,
     membershipLevel: entitlements.level,
     features: entitlements.features,
+    ownedBackgroundIds: commerceSnapshot.ownedBackgroundIds,
+    accessAuthoritative: true,
     updatedAt: preferences.updatedAt,
   })
 }

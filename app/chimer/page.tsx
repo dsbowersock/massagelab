@@ -40,7 +40,7 @@ import {
   createChimerPreferenceSyncRequest,
   createChimerPreferenceSyncRetry,
   doesChimerPreferenceWriteResponseMatch,
-  resolveChimerPreferenceSeedSnapshot,
+  resolveChimerPreferenceSeedResult,
   resolveChimerPreferenceSyncRequest,
 } from "@/lib/account-preferences"
 import { resolveBackgroundVisualCommitScope } from "@/lib/background-visual-draft"
@@ -439,22 +439,29 @@ export default function ChimerPage() {
         const seedResponseBody = seedResponse.ok
           ? await seedResponse.json().catch(() => null)
           : null
-        const reconciledSeedSettings = seedResponse.ok
-          ? resolveChimerPreferenceSeedSnapshot(seedResponseBody, {
+        const reconciledSeed = seedResponse.ok
+          ? resolveChimerPreferenceSeedResult(seedResponseBody, {
               backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
-            }) as ChimerSettings | null
+            }) as {
+              settings: ChimerSettings
+              featureKeys: string[]
+              ownedBackgroundIds: string[]
+            } | null
           : null
 
         if (!isMounted) {
           return
         }
 
-        if (!reconciledSeedSettings) {
+        if (!reconciledSeed) {
           setCanSync(false)
           setAccountSyncStatus("local")
           return
         }
 
+        const reconciledSeedSettings = reconciledSeed.settings
+        setFeatureKeys(reconciledSeed.featureKeys)
+        setPermanentlyOwnedBackgroundIds(reconciledSeed.ownedBackgroundIds)
         const settingsChangedWhileSeeding = !areChimerSettingsEqual(
           settingsRef.current,
           seedSettings,

@@ -14,7 +14,7 @@ import {
   createChimerPreferenceSyncRetry,
   doesChimerPreferenceWriteResponseMatch,
   removeForbiddenPreferenceFields,
-  resolveChimerPreferenceSeedSnapshot,
+  resolveChimerPreferenceSeedResult,
   resolveChimerPreferenceSyncRequest,
   resolveSupporterRoadmapInterestsAfterSave,
 } from "../lib/account-preferences.js"
@@ -29,19 +29,28 @@ describe("Account preference helpers", () => {
       massageLabStarsSpeed: 80,
       minutes: 25,
     }
-    const resolved = resolveChimerPreferenceSeedSnapshot({
+    const resolved = resolveChimerPreferenceSeedResult({
+      accessAuthoritative: true,
+      features: ["premium_backgrounds", "premium_backgrounds"],
+      ownedBackgroundIds: ["massage-lab-stars", "massage-lab-stars"],
       chimerSettings: {
         backgroundId: "massage-lab-moving-gradient",
         minutes: 25,
       },
     })
 
-    assert.notEqual(resolved.backgroundId, submitted.backgroundId)
-    assert.equal(resolved.backgroundId, "massage-lab-moving-gradient")
-    assert.equal(resolved.minutes, 25)
-    assert.notEqual(resolved.massageLabStarsSpeed, submitted.massageLabStarsSpeed)
-    assert.equal(resolveChimerPreferenceSeedSnapshot({ chimerSettings: null }), null)
-    assert.equal(resolveChimerPreferenceSeedSnapshot({}), null)
+    assert.notEqual(resolved.settings.backgroundId, submitted.backgroundId)
+    assert.equal(resolved.settings.backgroundId, "massage-lab-moving-gradient")
+    assert.equal(resolved.settings.minutes, 25)
+    assert.notEqual(resolved.settings.massageLabStarsSpeed, submitted.massageLabStarsSpeed)
+    assert.deepEqual(resolved.featureKeys, ["premium_backgrounds"])
+    assert.deepEqual(resolved.ownedBackgroundIds, ["massage-lab-stars"])
+    assert.equal(resolveChimerPreferenceSeedResult({
+      accessAuthoritative: false,
+      chimerSettings: {},
+    }), null)
+    assert.equal(resolveChimerPreferenceSeedResult({ chimerSettings: null }), null)
+    assert.equal(resolveChimerPreferenceSeedResult({}), null)
   })
 
   it("builds a versioned sync payload from safe local settings", () => {

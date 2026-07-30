@@ -176,7 +176,7 @@ describe("account preference route ownership boundary", () => {
     )
     assert.match(
       chimerPageSource,
-      /settingsRef\.current = seedSettings\s+setSettings\(seedSettings\)[\s\S]*?resolveChimerPreferenceSeedSnapshot\(seedResponseBody,/,
+      /settingsRef\.current = seedSettings\s+setSettings\(seedSettings\)[\s\S]*?resolveChimerPreferenceSeedResult\(seedResponseBody,/,
     )
     assert.match(
       chimerPageSource,
@@ -255,6 +255,8 @@ describe("account preference route ownership boundary", () => {
     assert.equal(response.status, 200)
     assert.equal(calls.snapshots.length, 1)
     assert.equal(calls.upserts.length, 1)
+    assert.equal(response.body.accessAuthoritative, true)
+    assert.deepEqual(response.body.ownedBackgroundIds, [ownedBackgroundId])
     assertOwnedOnlySnapshot(calls.upserts[0].update.chimerSettings)
     assertOwnedOnlySnapshot(response.body.chimerSettings)
   })
