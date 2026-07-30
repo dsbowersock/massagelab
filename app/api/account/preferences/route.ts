@@ -108,12 +108,15 @@ export async function PUT(request: Request) {
     ...objectRecord(existing?.appSettings),
     ...payload.app_settings,
   }
-  const chimerSettings = "chimerSettings" in body
-    ? jsonObject(sanitizeAccessibleChimerSettings(payload.chimer_settings, {
+  const chimerSettings = jsonObject(sanitizeAccessibleChimerSettings(
+    "chimerSettings" in body
+      ? payload.chimer_settings
+      : objectRecord(existing?.chimerSettings),
+    {
       featureKeys: entitlements.features,
       ownedBackgroundIds: commerceSnapshot.ownedBackgroundIds,
-    }))
-    : (existing?.chimerSettings as Prisma.InputJsonValue | undefined) ?? {}
+    },
+  ))
 
   const preferences = await prisma.userPreference.upsert({
     where: { userId: session.user.id },

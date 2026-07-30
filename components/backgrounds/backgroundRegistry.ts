@@ -2065,6 +2065,23 @@ export function userCanUseBackground(entry: BackgroundDefinition, access: Backgr
   return hasPremiumBackgroundAccess(featureKeys) || ownedBackgroundIds.includes(entry.id)
 }
 
+/**
+ * Resolves per-background controls only after the same access decision used by
+ * selection. Keeping this boundary pure makes locked/unlocked rendering
+ * behavior executable without coupling tests to component source formatting.
+ */
+export function resolveAccessibleBackgroundControls<T>(
+  entry: BackgroundDefinition | undefined,
+  access: BackgroundAccessInput,
+  renderControls?: (option: BackgroundDefinition) => T,
+): T | null {
+  if (!entry || !renderControls || !userCanUseBackground(entry, access)) {
+    return null
+  }
+
+  return renderControls(entry)
+}
+
 export function canUseBackgroundId(id: unknown, access: BackgroundAccessInput = [], category?: BackgroundCategory) {
   const entry = getBackgroundDefinition(id)
   return (!category || entry.category.includes(category)) && userCanUseBackground(entry, access)

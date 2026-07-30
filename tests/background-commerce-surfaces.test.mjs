@@ -1,7 +1,10 @@
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
-import { backgroundRegistry } from "../components/backgrounds/backgroundRegistry.ts"
+import {
+  backgroundRegistry,
+  resolveAccessibleBackgroundControls,
+} from "../components/backgrounds/backgroundRegistry.ts"
 import {
   backgroundCardCommerceState,
   hasActivePermanentOwnership,
@@ -113,11 +116,32 @@ describe("production background commerce states", () => {
     assert.match(selector, /setAcquisition/)
     assert.match(selector, /<BackgroundAcquisitionDialog/)
     assert.match(selector, /onAcquired/)
-    assert.match(
-      selector,
-      /const selectedControls = selectedOption\s+&& userCanUseBackground\(selectedOption, access\)\s+&& renderSelectedControls/,
-    )
+    assert.match(selector, /resolveAccessibleBackgroundControls/)
     assert.match(selector, /\{selectedControls \? \(/)
+  })
+
+  it("renders selected setup controls only for an accessible background", () => {
+    const premiumBackground = backgroundRegistry.find(
+      (entry) => entry.enabled && entry.requiresSubscription,
+    )
+    assert.ok(premiumBackground, "expected an enabled premium background")
+    const renderControls = (option) => `controls:${option.id}`
+
+    assert.equal(resolveAccessibleBackgroundControls(
+      premiumBackground,
+      { featureKeys: [], ownedBackgroundIds: [] },
+      renderControls,
+    ), null)
+    assert.equal(resolveAccessibleBackgroundControls(
+      premiumBackground,
+      { featureKeys: ["premium_backgrounds"], ownedBackgroundIds: [] },
+      renderControls,
+    ), `controls:${premiumBackground.id}`)
+    assert.equal(resolveAccessibleBackgroundControls(
+      premiumBackground,
+      { featureKeys: [], ownedBackgroundIds: [premiumBackground.id] },
+      renderControls,
+    ), `controls:${premiumBackground.id}`)
   })
 
   it("routes setup background selection through the shared Visual snapshot commit", async () => {

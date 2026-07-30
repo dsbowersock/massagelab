@@ -184,6 +184,10 @@ describe("account preference route ownership boundary", () => {
     )
     assert.match(
       chimerPageSource,
+      /const accessibleInFlightSettings = sanitizeAccessibleChimerSettings\(\s*settingsRef\.current,[\s\S]*?featureKeys: reconciledSeed\.featureKeys,[\s\S]*?ownedBackgroundIds: reconciledSeed\.ownedBackgroundIds,/,
+    )
+    assert.match(
+      chimerPageSource,
       /settingsRef\.current = nextSanitizedSettings\s+setSettings\(nextSanitizedSettings\)/,
     )
     assert.match(
@@ -271,6 +275,20 @@ describe("account preference route ownership boundary", () => {
 
     assert.equal(response.status, 200)
     assert.equal(calls.snapshots.length, 1)
+    assert.equal(calls.upserts.length, 1)
+    assertUnownedFallback(calls.upserts[0].update.chimerSettings)
+    assertUnownedFallback(response.body.chimerSettings)
+  })
+
+  it("PUT re-sanitizes retained Chimer settings when another preference section changes", async () => {
+    const { PUT, calls } = loadRoute({ savedSettings: unownedSettings() })
+    const response = await PUT(new Request("https://massagelab.app/api/account/preferences", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ appSettings: { theme: "dark" } }),
+    }))
+
+    assert.equal(response.status, 200)
     assert.equal(calls.upserts.length, 1)
     assertUnownedFallback(calls.upserts[0].update.chimerSettings)
     assertUnownedFallback(response.body.chimerSettings)

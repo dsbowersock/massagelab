@@ -21,9 +21,9 @@ import {
   type BackgroundDefinition,
   getBackgroundOptionsForCategory,
   mergeBackgroundAccessOwnership,
+  resolveAccessibleBackgroundControls,
   type BackgroundCategory,
   type BackgroundId,
-  userCanUseBackground,
 } from "@/components/backgrounds/backgroundRegistry"
 
 interface BackgroundSelectorProps {
@@ -65,11 +65,11 @@ export function BackgroundSelector({
   const selectedOption = options.find((option) => option.id === value) ?? options.find((option) => option.id === DEFAULT_BACKGROUND_ID)
   // Locked backgrounds may not expose any per-background controls; do not leave
   // an empty decorative card beneath the carousel when the renderer returns null.
-  const selectedControls = selectedOption
-    && userCanUseBackground(selectedOption, access)
-    && renderSelectedControls
-    ? renderSelectedControls(selectedOption)
-    : null
+  const selectedControls = resolveAccessibleBackgroundControls(
+    selectedOption,
+    access,
+    renderSelectedControls,
+  )
 
   useEffect(() => {
     setSavedBackgroundIds(readSavedBackgroundIds(window.localStorage) as BackgroundId[])

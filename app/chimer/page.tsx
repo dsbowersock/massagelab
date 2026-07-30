@@ -478,8 +478,28 @@ export default function ChimerPage() {
           return
         }
         if (settingsChangedWhileSeeding) {
-          // The server accepted the seed, so enable the serialized writer to
-          // send the newer local edit without overwriting it.
+          // Access may have changed while the seed PUT was in flight. Preserve
+          // newer edits only after applying the access boundary returned by
+          // that PUT, then let the serialized writer send any safe remainder.
+          const accessibleInFlightSettings = sanitizeAccessibleChimerSettings(
+            settingsRef.current,
+            {
+              featureKeys: reconciledSeed.featureKeys,
+              ownedBackgroundIds: reconciledSeed.ownedBackgroundIds,
+            },
+          ) as ChimerSettings
+          settingsRef.current = accessibleInFlightSettings
+          setSettings(accessibleInFlightSettings)
+          window.localStorage.setItem(
+            CHIMER_STORAGE_KEY,
+            JSON.stringify(accessibleInFlightSettings),
+          )
+          if (areChimerSettingsEqual(accessibleInFlightSettings, reconciledSeedSettings)) {
+            skipNextAutomaticAccountSyncBodyRef.current = createChimerPreferenceSyncRequest(
+              accessibleInFlightSettings,
+              { backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions },
+            ).requestBody
+          }
           setCanSync(true)
           setAccountSyncStatus("synced")
           return
