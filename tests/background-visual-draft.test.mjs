@@ -938,6 +938,10 @@ test("globe coordinate inputs keep string drafts and clock font changes remeasur
   }
   assert.match(
     runningTimerSource,
+    /getCurrentPosition\(\(\{ coords \}\) => \{[\s\S]*\}, \(\) => \{[\s\S]*\}, \{ timeout: 10_000 \}\)/,
+  )
+  assert.match(
+    runningTimerSource,
     /\}, \[clockFontFamily, fontSize, isClockMode, isCurrentTimePrimary,/,
   )
 })

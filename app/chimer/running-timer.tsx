@@ -2271,7 +2271,7 @@ export function RunningTimer({
       })
     }, () => {
       setGlobeLocationMessage("We could not access your location. Check browser permission and try again.")
-    })
+    }, { timeout: 10_000 })
   }
 
   const massageLab3DGlobeScaleDisplayPercent = getMassageLab3DGlobeScaleDisplayPercent(massageLab3DGlobeScale)

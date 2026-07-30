@@ -13,6 +13,7 @@ import {
 import { useBackgroundCommerce } from "@/components/backgrounds/BackgroundCommerceProvider"
 import {
   canUseBackgroundId,
+  mergeBackgroundAccessOwnership,
   resolveAuthoritativeBackgroundOwnership,
   type BackgroundAccessSnapshot,
 } from "@/components/backgrounds/backgroundRegistry"
@@ -190,6 +191,7 @@ export default function ChimerPage() {
   const [isResolvingSync, setIsResolvingSync] = useState(false)
   const [featureKeys, setFeatureKeys] = useState<string[]>([])
   const [permanentlyOwnedBackgroundIds, setPermanentlyOwnedBackgroundIds] = useState<string[]>([])
+  const [transientOwnedBackgroundIds, setTransientOwnedBackgroundIds] = useState<string[]>([])
   const [backgroundPreferenceSync, setBackgroundPreferenceSync] = useState<BackgroundPreferenceSyncState>({
     status: "local",
     requestBody: null,
@@ -200,7 +202,7 @@ export default function ChimerPage() {
   const [wakeLockMessage, setWakeLockMessage] = useState<string | null>(null)
   const commerceOwnedBackgroundIds = backgroundCommerceState.snapshot?.ownedBackgroundIds
   const backgroundAccess = useMemo<BackgroundAccessSnapshot>(
-    () => ({
+    () => mergeBackgroundAccessOwnership({
       featureKeys,
       // The account-preference response bridges initial hydration. Once the
       // commerce provider has a snapshot, it is authoritative for revocation
@@ -209,8 +211,13 @@ export default function ChimerPage() {
         permanentlyOwnedBackgroundIds,
         commerceOwnedBackgroundIds,
       ),
-    }),
-    [commerceOwnedBackgroundIds, featureKeys, permanentlyOwnedBackgroundIds],
+    }, transientOwnedBackgroundIds),
+    [
+      commerceOwnedBackgroundIds,
+      featureKeys,
+      permanentlyOwnedBackgroundIds,
+      transientOwnedBackgroundIds,
+    ],
   )
   const canUseCustomColors = featureKeys.includes(FEATURE_KEYS.chimerCustomColors)
   const hasAccountPreferenceAccess = accountSyncStatus === "synced" || accountSyncStatus === "conflict"
@@ -273,6 +280,12 @@ export default function ChimerPage() {
   useEffect(() => {
     backgroundAccessRef.current = backgroundAccess
   }, [backgroundAccess])
+
+  useEffect(() => {
+    // A successful commerce snapshot supersedes the in-session ownership proof
+    // carried by an acquisition response, including later refund/revocation.
+    setTransientOwnedBackgroundIds([])
+  }, [commerceOwnedBackgroundIds])
 
   useEffect(() => {
     let isMounted = true
@@ -737,6 +750,11 @@ export default function ChimerPage() {
     accessOverride?: BackgroundAccessSnapshot,
   ) => {
     setError(null)
+    if (accessOverride) {
+      setTransientOwnedBackgroundIds((current) => [
+        ...new Set([...current, ...accessOverride.ownedBackgroundIds]),
+      ])
+    }
     const nextSanitizedSettings = sanitizeChimerSettingsForEntitlements(
       { ...settingsRef.current, ...nextSettings },
       accessOverride ?? backgroundAccessRef.current,

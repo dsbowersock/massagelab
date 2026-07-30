@@ -335,6 +335,14 @@ describe("premium background registry", () => {
       setTimerSource,
       /onChange=\{\(backgroundId,\s*accessOverride\)\s*=>\s*onSettingsChange\(\{ backgroundId \},\s*accessOverride\)\}/,
     )
+    assert.match(
+      chimerPageSource,
+      /setTransientOwnedBackgroundIds\(\(current\) => \[[\s\S]*accessOverride\.ownedBackgroundIds/,
+    )
+    assert.match(
+      chimerPageSource,
+      /setTransientOwnedBackgroundIds\(\[\]\)[\s\S]*\[commerceOwnedBackgroundIds\]/,
+    )
   })
 
   it("keeps paused draft backgrounds unavailable even with premium access", () => {

@@ -286,6 +286,9 @@ export function buildBackgroundPaletteHarmonyChange(
     ...normalized,
     harmony: requestedHarmony,
   }) as BackgroundPaletteEditorValue
+  // Normalization falls back to the default harmony for unknown values. The
+  // equality gate keeps that fallback from turning an invalid request into a
+  // different, apparently successful user selection.
   if (
     input.disabled
     || input.adapter.status === "unsupported"

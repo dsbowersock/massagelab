@@ -130,6 +130,7 @@ async function installCommerceFixture({
   const snapshot = structuredClone(initialSnapshot)
   let snapshotReads = 0
   let redemptionRefreshPending = false
+  let redemptionRefreshFailures = 0
   const checkoutBodies: Array<Record<string, unknown>> = []
 
   // Signed-in shell links may prefetch Account routes, whose server loaders are
@@ -181,6 +182,7 @@ async function installCommerceFixture({
       snapshotReads += 1
       if (failRedemptionRefresh && redemptionRefreshPending) {
         redemptionRefreshPending = false
+        redemptionRefreshFailures += 1
         await route.fulfill({ status: 503, contentType: "application/json", body: "{}" })
         return
       }
@@ -216,7 +218,6 @@ async function installCommerceFixture({
       const backgroundId = String(body?.backgroundId ?? "")
       snapshot.cart.items = snapshot.cart.items.filter((item) => item.productKey !== backgroundId)
       recalculateCart(snapshot)
-      redemptionRefreshPending = true
       await route.fulfill({ status: 200, contentType: "application/json", body: "{}" })
       return
     }
@@ -233,6 +234,7 @@ async function installCommerceFixture({
       })
       snapshot.cart.items = snapshot.cart.items.filter((item) => item.productKey !== backgroundId)
       recalculateCart(snapshot)
+      redemptionRefreshPending = true
       await route.fulfill({ status: 200, contentType: "application/json", body: "{}" })
       return
     }
@@ -257,7 +259,12 @@ async function installCommerceFixture({
     await route.fulfill({ status: 404, contentType: "application/json", body: "{}" })
   })
 
-  return { snapshot, checkoutBodies, getSnapshotReads: () => snapshotReads }
+  return {
+    snapshot,
+    checkoutBodies,
+    getSnapshotReads: () => snapshotReads,
+    getRedemptionRefreshFailures: () => redemptionRefreshFailures,
+  }
 }
 
 async function installGuestFixture(page: Page) {
@@ -503,7 +510,7 @@ test("Chimer selects a newly redeemed background before account ownership reload
 
 test("pre-timer Chimer setup selects a newly redeemed background when ownership refresh fails", async ({ context, page }, testInfo) => {
   const baseURL = String(testInfo.project.use.baseURL)
-  await installCommerceFixture({
+  const fixture = await installCommerceFixture({
     context,
     page,
     baseURL,
@@ -533,6 +540,7 @@ test("pre-timer Chimer setup selects a newly redeemed background when ownership 
     "data-background-id",
     AURORA_ID,
   )
+  expect(fixture.getRedemptionRefreshFailures()).toBe(1)
 })
 
 test("Music selects a newly redeemed background before account ownership reloads", async ({ context, page }, testInfo) => {
