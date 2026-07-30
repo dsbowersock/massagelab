@@ -287,6 +287,11 @@ async function expectDockAvoidsDisplay(
     await close.click()
   }
   await expect(dock).toHaveCount(0)
+  if (useKeyboard) {
+    // Dialog focus restoration finishes after the dock unmounts. Prove that
+    // accessibility contract before another toolbar control receives focus.
+    await expect(control).toBeFocused()
+  }
 }
 
 async function expectHitTestable(page: Page, locator: Locator) {
