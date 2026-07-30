@@ -93,6 +93,8 @@ export const BACKGROUND_PALETTE_METADATA_SUFFIXES = Object.freeze([
 ])
 const FIXED_RENDERER_REASON =
   "This renderer has no meaningful color input, so the shared palette leaves its source rendering unchanged."
+// Preserve Dot Field's authored gradient opacity when production props omit
+// the current renderer value and therefore expose no parseable rgba alpha.
 const PRESERVED_ALPHA_FALLBACKS: Readonly<Record<string, number>> = Object.freeze({
   "massageLabDotField.gradientFrom": 0.35,
   "massageLabDotField.gradientTo": 0.25,
@@ -187,6 +189,7 @@ function hexHue(value: string) {
   return Math.round((sector * 60 + 360) % 360)
 }
 
+/** Uses fallbackAlpha only when the current renderer value has no rgba alpha. */
 function preserveAlpha(color: string, current: unknown, fallbackAlpha = 1) {
   const match = typeof current === "string"
     ? current.match(/^rgba\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+\s*,\s*(0(?:\.\d+)?|1(?:\.0+)?)\s*\)$/i)
