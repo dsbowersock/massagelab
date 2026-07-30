@@ -199,8 +199,7 @@ export function BackgroundHost(props: BackgroundHostProps) {
     entry.component
     && (
       entry.motionIntensity === "static"
-      || forceEffectMount
-      || (motionEnabled && !reduceMotion)
+      || (motionEnabled && (forceEffectMount || !reduceMotion))
     ),
   )
   const { baseEffectProps, effectProps } = useMemo(() => {
