@@ -172,7 +172,11 @@ describe("account preference route ownership boundary", () => {
     )
     assert.match(
       chimerPageSource,
-      /sanitizeAccessibleChimerSettings\(\s*localSettings,/,
+      /sanitizeAccessibleChimerSettings\(\s*settingsRef\.current,/,
+    )
+    assert.match(
+      chimerPageSource,
+      /settingsRef\.current = nextSanitizedSettings\s+setSettings\(nextSanitizedSettings\)/,
     )
   })
 

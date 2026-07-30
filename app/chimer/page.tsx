@@ -300,6 +300,9 @@ export default function ChimerPage() {
         }),
       })
       const nextSettings = prepared.settings as ChimerSettings
+      // Account hydration continues asynchronously, so its later entitlement
+      // decision must read the same local snapshot the setup UI is editing.
+      settingsRef.current = nextSettings
       setSettings(nextSettings)
       try {
         window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(nextSettings))
@@ -314,7 +317,7 @@ export default function ChimerPage() {
       return nextSettings
     }
 
-    async function syncAccountSettings(localSettings: ChimerSettings) {
+    async function syncAccountSettings() {
       try {
         const sessionResponse = await fetchWithTimeout("/api/auth/session")
 
@@ -329,9 +332,10 @@ export default function ChimerPage() {
         }
 
         if (!canSyncAccountPreferencesFromSession(session)) {
-          const localFreeSettings = sanitizeChimerSettingsForEntitlements(localSettings, EMPTY_BACKGROUND_ACCESS, {
+          const localFreeSettings = sanitizeChimerSettingsForEntitlements(settingsRef.current, EMPTY_BACKGROUND_ACCESS, {
             backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
           }) as ChimerSettings
+          settingsRef.current = localFreeSettings
           setSettings(localFreeSettings)
           window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(localFreeSettings))
           setFeatureKeys([])
@@ -388,7 +392,8 @@ export default function ChimerPage() {
               ownedBackgroundIds: nextOwnedBackgroundIds,
             },
           ) as ChimerSettings
-          if (areChimerSettingsEqual(localSettings, nextSettings)) {
+          if (areChimerSettingsEqual(settingsRef.current, nextSettings)) {
+            settingsRef.current = nextSettings
             setSettings(nextSettings)
             window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(nextSettings))
             setCanSync(true)
@@ -405,7 +410,7 @@ export default function ChimerPage() {
         }
 
         const seedSettings = sanitizeAccessibleChimerSettings(
-          localSettings,
+          settingsRef.current,
           {
             featureKeys: nextFeatureKeys,
             ownedBackgroundIds: nextOwnedBackgroundIds,
@@ -434,8 +439,8 @@ export default function ChimerPage() {
       }
     }
 
-    const localSettings = loadLocalSettings()
-    void syncAccountSettings(localSettings)
+    loadLocalSettings()
+    void syncAccountSettings()
 
     return () => {
       isMounted = false
@@ -764,6 +769,9 @@ export default function ChimerPage() {
       },
     ) as ChimerSettings
 
+    // Keep edits ahead of an in-flight account response; otherwise that
+    // response could restore the pre-edit duration captured during mount.
+    settingsRef.current = nextSanitizedSettings
     setSettings(nextSanitizedSettings)
 
     if (accountSyncStatus === "conflict" && accountSettings) {

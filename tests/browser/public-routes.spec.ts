@@ -680,6 +680,8 @@ test("Atmosphere registers mobile media notification controls for active station
   })
 
   await page.goto("/music", { waitUntil: "domcontentloaded" })
+  await expect(page.getByRole("region", { name: "Atmosphere audio stations" }))
+    .toHaveAttribute("data-music-storage-status", "available")
   await centerCarouselItem(page, "mlab-proof-drone", "Next station")
   await page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
 
@@ -726,12 +728,28 @@ test("Atmosphere registers mobile media notification controls for active station
 })
 
 test("immersive context changes keep only the displays owned by Chimer, Clock, and hidden Music", async ({ page }) => {
+  let releaseSession!: () => void
+  const sessionGate = new Promise<void>((resolve) => {
+    releaseSession = resolve
+  })
+  await page.route("**/api/auth/session", async (route) => {
+    await sessionGate
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: "{}",
+    })
+  })
+
   await page.goto("/chimer", { waitUntil: "domcontentloaded" })
-  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined)
   await page.getByRole("button", { name: /^Increase minutes$/i }).click()
-  for (let step = 0; step < 4; step += 1) {
+  for (let step = 0; step < 3; step += 1) {
     await page.getByRole("button", { name: /^Continue$/i }).click()
   }
+  releaseSession()
+  await expect(page.getByText(/Settings stay on this device\./i)).toBeVisible()
+  await expect(page.getByRole("button", { name: /^Continue$/i })).toBeEnabled()
+  await page.getByRole("button", { name: /^Continue$/i }).click()
   await page.getByRole("button", { name: /^Start Chimer$/i }).click()
 
   await expect(page.getByTestId("running-timer-clock")).toBeVisible()

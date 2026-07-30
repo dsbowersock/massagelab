@@ -123,6 +123,9 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
                 variant="secondary"
                 className={cn(isCollapsed && "size-9")}
               >
+                {/* The shared dirty-draft guard intercepts this marker. On the
+                    visualizer route, href plus replace preserves the Music
+                    return target without stacking another /clock entry. */}
                 <Link
                   href={visualizerHref}
                   replace={isMusicVisualizerRoute}
