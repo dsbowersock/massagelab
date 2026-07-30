@@ -13734,14 +13734,14 @@ export function RunningTimer({
                         Redo
                       </Button>
                       {backgroundPreferenceSyncStatus === "stale" ? (
-                        <Button type="button" variant="secondary" onClick={onRetryBackgroundVisualPreferences}>
+                        <Button type="button" variant="cta" onClick={onRetryBackgroundVisualPreferences}>
                           Retry sync
                         </Button>
                       ) : null}
-                      <Button type="button" variant="secondary" disabled={!visualDraft?.dirty} onClick={() => dispatchVisualDraft({ type: "cancel" })}>
+                      <Button type="button" variant="destructive" disabled={!visualDraft?.dirty} onClick={() => dispatchVisualDraft({ type: "cancel" })}>
                         Cancel
                       </Button>
-                      <Button type="button" disabled={!visualDraft?.dirty} onClick={commitVisualDraft}>
+                      <Button type="button" variant="success" disabled={!visualDraft?.dirty} onClick={commitVisualDraft}>
                         Apply
                       </Button>
                     </div>

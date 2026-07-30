@@ -5,6 +5,7 @@ import test from "node:test"
 import {
   buildBackgroundPaletteEditorViewModel,
   buildBackgroundPaletteHarmonyChange,
+  buildBackgroundHarmonyPreviews,
   buildBackgroundPaletteMappingChange,
   buildBackgroundPaletteModeChange,
   buildBackgroundPaletteSwatchChange,
@@ -37,6 +38,22 @@ const backgroundHostSource = await readFile(
   new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
   "utf8",
 )
+
+test("Harmony buttons preview every generated palette from the current Primary", () => {
+  const harmonies = ["analogous", "complementary", "triad"]
+  const previews = buildBackgroundHarmonyPreviews("#ff0000", harmonies)
+  const changedPrimary = buildBackgroundHarmonyPreviews("#00ff00", harmonies)
+
+  assert.deepEqual(Object.keys(previews), harmonies)
+  for (const harmony of harmonies) {
+    assert.equal(previews[harmony].length, 7)
+    assert.equal(previews[harmony][0], "#ff0000")
+    assert.equal(changedPrimary[harmony][0], "#00ff00")
+    assert.notDeepEqual(changedPrimary[harmony], previews[harmony])
+  }
+  assert.notDeepEqual(previews.analogous, previews.complementary)
+  assert.match(editorSource, /previewColors=\{harmonyPreviews\}/)
+})
 
 test("shared palette editor presents one accessible mode choice and seven indexed swatches", () => {
   assert.match(editorSource, /SegmentedToggleGroup/)

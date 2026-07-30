@@ -4,6 +4,13 @@ This is the canonical chronological planning and progress log for MassageLab. Us
 
 Existing plans, audits, roadmaps, and checklists remain source evidence. Keep them for context, but mirror meaningful progress, plan changes, and priority changes in [project-state.md](project-state.md) and here.
 
+## 2026-07-30 — Track 4A visual-review corrections
+
+- The first manual `/dev/buttons` palette review found that reduced-motion preferences left the guarded live-renderer panel on its common fallback, while the Custom and Harmony static specimens exposed real controls through no-op callbacks. The development-only live review now explicitly mounts the selected real renderer without changing production motion behavior, and the editable specimens retain local palette/mapping state while Source and Access locked preserve their intended read-only behavior.
+- Complete six-digit HEX edits now immediately update the controlled swatch, saturation/value handle, and hue control. Harmony choices now preview their generated seven-color palettes from the current Primary color instead of showing only the generic blue button face.
+- Added the semantic shared `success` button variant using the established leaf-green material. Visual Apply uses Success, Cancel uses Destructive, and Retry/Retry sync uses CTA in both the real Visual draft row and its review specimen.
+- Focused contracts passed 38/38; the reduced-motion real-renderer Playwright regression passed on desktop and mobile; typecheck, lint, all 1,801 tests, the 101-page production build, and `git diff --check` passed. Manual visual acceptance remains open pending a corrected gallery recheck and the rest of the plan matrix.
+
 ## 2026-07-29 — Track 4A shared background palette atomic cutover
 
 - Completed the Track 4A Task 10 implementation cutover from the old Global Colors and per-renderer color-control state to the nested seven-swatch Source/Custom/Harmony preference contract established by Tasks 1-9. Sanitized Chimer and entitlement payloads now omit renderer color fallbacks plus obsolete palette mode, Primary, harmony, and renderer metadata fields while retaining non-color settings.

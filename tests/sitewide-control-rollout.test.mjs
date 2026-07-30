@@ -123,11 +123,26 @@ test("immersive display panels delegate toolbar actions to shared controls", asy
 })
 
 test("Visual draft actions stay sticky and usable at compact viewport sizes", async () => {
-  const styles = await read("app/chimer/running-timer.module.css")
+  const [styles, runningTimer] = await Promise.all([
+    read("app/chimer/running-timer.module.css"),
+    read("app/chimer/running-timer.tsx"),
+  ])
 
   assert.match(styles, /\.visualDraftActions[\s\S]*position:\s*sticky/)
   assert.match(styles, /@media \(max-width:\s*36rem\)[\s\S]*\.visualDraftActions/)
   assert.match(styles, /@media \(max-height:\s*32rem\)[\s\S]*\.visualDraftActions/)
+  assert.match(
+    runningTimer,
+    /variant="cta" onClick=\{onRetryBackgroundVisualPreferences\}[\s\S]*Retry sync/,
+  )
+  assert.match(
+    runningTimer,
+    /variant="destructive" disabled=\{!visualDraft\?\.dirty\}[\s\S]*Cancel/,
+  )
+  assert.match(
+    runningTimer,
+    /variant="success" disabled=\{!visualDraft\?\.dirty\}[\s\S]*Apply/,
+  )
 })
 
 test("development review exposes the complete shared background palette matrix", async () => {
@@ -152,6 +167,14 @@ test("development review exposes the complete shared background palette matrix",
   assert.match(gallery, /Access locked/)
   assert.match(gallery, /Unsaved changes[\s\S]*Undo[\s\S]*Redo[\s\S]*Apply[\s\S]*Cancel/)
   assert.match(gallery, /Sync failed[\s\S]*Retry/)
+  assert.match(gallery, /<Button size="compact" variant="success">Apply<\/Button>/)
+  assert.match(gallery, /<Button size="compact" variant="destructive">Cancel<\/Button>/)
+  assert.match(gallery, /className="mt-4" size="compact" variant="cta"[\s\S]*Retry/)
+  assert.match(gallery, /const \[localPalette, setLocalPalette\] = useState/)
+  assert.match(gallery, /const \[localMapping, setLocalMapping\] = useState/)
+  assert.match(gallery, /const isInteractiveSpecimen = canCustomize && palette\.mode !== "source"/)
+  assert.match(gallery, /onPaletteChange=\{isInteractiveSpecimen \? setLocalPalette : \(\) => undefined\}/)
+  assert.match(gallery, /onMappingChange=\{isInteractiveSpecimen \? setLocalMapping : \(\) => undefined\}/)
   assert.match(gallery, /colorPresetFixtures[\s\S]*\{ length: 6 \}/)
   assert.match(gallery, /visualPresetFixtures[\s\S]*\{ length: 3 \}/)
   assert.match(gallery, /defaultPresetId="review-visual-1"/)

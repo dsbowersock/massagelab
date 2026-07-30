@@ -88,6 +88,19 @@ const PALETTE_MODE_OPTIONS = [
   { value: "harmony", label: "Harmony" },
 ] as const
 
+/** Builds each Harmony button's seven-color preview from the current Primary. */
+export function buildBackgroundHarmonyPreviews(
+  primaryColor: string,
+  harmonies: readonly string[],
+) {
+  return Object.fromEntries(
+    harmonies.map((harmony) => [
+      harmony,
+      generateBackgroundHarmonySwatches(primaryColor, harmony),
+    ]),
+  )
+}
+
 function clone<T>(value: T): T {
   return structuredClone(value)
 }

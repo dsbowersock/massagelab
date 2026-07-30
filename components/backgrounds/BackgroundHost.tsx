@@ -49,6 +49,11 @@ interface BackgroundHostProps extends BackgroundEffectProps {
   style?: CSSProperties
   /** Renders the static representative while avoiding animated effect work. */
   motionEnabled?: boolean
+  /**
+   * Guarded review surfaces may mount the real renderer even when ambient
+   * motion preferences would otherwise leave only its fallback visible.
+   */
+  forceEffectMount?: boolean
   testId?: string
   /** Exposes actual lazy-load and post-adapter props on data attributes for guarded QA surfaces. */
   diagnostics?: boolean
@@ -79,6 +84,7 @@ export function BackgroundHost(props: BackgroundHostProps) {
     className,
     style,
     motionEnabled = true,
+    forceEffectMount = false,
     testId = "background-host",
     diagnostics = false,
     ...effectPropsInput
@@ -191,7 +197,11 @@ export function BackgroundHost(props: BackgroundHostProps) {
   const [loadError, setLoadError] = useState<string | null>(null)
   const shouldLoadEffect = Boolean(
     entry.component
-    && (entry.motionIntensity === "static" || (motionEnabled && !reduceMotion)),
+    && (
+      entry.motionIntensity === "static"
+      || forceEffectMount
+      || (motionEnabled && !reduceMotion)
+    ),
   )
   const { baseEffectProps, effectProps } = useMemo(() => {
     const baseEffectProps = {

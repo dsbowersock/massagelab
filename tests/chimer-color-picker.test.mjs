@@ -4,6 +4,9 @@ import test from "node:test"
 import {
   LEGACY_BACKGROUND_COLOR_SETTING_KEYS,
 } from "../lib/background-palette.js"
+import {
+  normalizeLiveColorPickerHex,
+} from "../components/chimer-controls/color-picker-value.ts"
 
 const pickerSource = await readFile(
   new URL("../components/chimer-controls/GlobalColorPicker.tsx", import.meta.url),
@@ -72,6 +75,18 @@ test("shared color fields use explicit string values instead of synthetic native
   assert.equal((setTimerSource.match(/<ColorPickerInput/g) ?? []).length, 0)
   assert.doesNotMatch(runningTimerSource, /type="color"/)
   assert.doesNotMatch(setTimerSource, /type="color"/)
+})
+
+test("complete HEX edits immediately drive the controlled picker value", () => {
+  assert.equal(normalizeLiveColorPickerHex("#12AbEF"), "#12abef")
+  assert.equal(normalizeLiveColorPickerHex("  #123456  "), "#123456")
+  assert.equal(normalizeLiveColorPickerHex("#123"), null)
+  assert.equal(normalizeLiveColorPickerHex("#12345"), null)
+  assert.equal(normalizeLiveColorPickerHex("#12345g"), null)
+  assert.match(
+    pickerSource,
+    /const nextColor = normalizeLiveColorPickerHex\(nextDraft\)[\s\S]*onChange\(nextColor\)/,
+  )
 })
 
 test("calendar forms submit the shared picker value without restoring a native color control", () => {

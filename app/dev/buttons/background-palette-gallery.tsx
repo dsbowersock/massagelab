@@ -153,16 +153,28 @@ const StaticEditorSpecimen = memo(function StaticEditorSpecimen({
   mapping?: BackgroundColorMapping
   canCustomize?: boolean
 }) {
+  const [localPalette, setLocalPalette] = useState<BackgroundPaletteEditorValue>(() => ({
+    ...palette,
+    swatches: [...palette.swatches],
+  }))
+  const [localMapping, setLocalMapping] = useState<BackgroundColorMapping>(() => ({
+    ...(mapping ?? defaultMapping(adapter)),
+  }))
+  // Source is intentionally read-only context and access-locked specimens
+  // retain their production no-access behavior. Custom and Harmony fixtures
+  // own local state so their real controls can be reviewed interactively.
+  const isInteractiveSpecimen = canCustomize && palette.mode !== "source"
+
   return (
     <AppSurface title={title} variant="inset">
       <BackgroundPaletteEditor
-        palette={palette}
+        palette={localPalette}
         adapter={adapter}
-        mapping={mapping}
+        mapping={localMapping}
         canCustomize={canCustomize}
         backgroundName={title}
-        onPaletteChange={() => undefined}
-        onMappingChange={() => undefined}
+        onPaletteChange={isInteractiveSpecimen ? setLocalPalette : () => undefined}
+        onMappingChange={isInteractiveSpecimen ? setLocalMapping : () => undefined}
       />
     </AppSurface>
   )
@@ -347,15 +359,15 @@ export function BackgroundPaletteGallery() {
             <div className="mt-4 flex flex-wrap gap-2">
               <Button size="compact">Undo</Button>
               <Button size="compact">Redo</Button>
-              <Button size="compact">Apply</Button>
-              <Button size="compact" variant="secondary">Cancel</Button>
+              <Button size="compact" variant="success">Apply</Button>
+              <Button size="compact" variant="destructive">Cancel</Button>
             </div>
           </AppSurface>
           <AppSurface title="Sync failed" variant="inset">
             <p className="text-sm text-destructive" role="alert">
               Sync failed. Local changes remain active and the cloud state is stale.
             </p>
-            <Button className="mt-4" size="compact" variant="secondary">
+            <Button className="mt-4" size="compact" variant="cta">
               Retry
             </Button>
           </AppSurface>
@@ -583,6 +595,7 @@ export function BackgroundPaletteGallery() {
                   }}
                   className="absolute inset-0"
                   motionEnabled
+                  forceEffectMount
                   testId="background-palette-live-host"
                   diagnostics
                 />

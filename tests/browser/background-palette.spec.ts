@@ -286,6 +286,34 @@ test.describe("shared background palette review matrix", () => {
     await expect(page.getByTestId("background-palette-live-host")).toHaveCount(1)
   })
 
+  test("mounts the selected real effect for review even with reduced motion", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" })
+    await openPaletteGallery(page)
+    await selectBackground(page, "massage-lab-gradient-animation")
+    await expectLoadedPaletteMode(page, "massage-lab-gradient-animation", "supported", "custom")
+
+    const host = page.getByTestId("background-palette-live-host")
+    await expect(host).toHaveAttribute("data-background-diagnostic-reduced-motion", "true")
+    await expect(host).toHaveAttribute("data-background-fallback-only", "false")
+
+    const effectLayer = host.locator(":scope > div").nth(1)
+    await expect(effectLayer).toBeVisible()
+    const effectBounds = await effectLayer.boundingBox()
+    expect(effectBounds?.width).toBeGreaterThan(0)
+    expect(effectBounds?.height).toBeGreaterThan(0)
+    expect(await effectLayer.evaluate((element) => ({
+      start: (element as HTMLElement).style
+        .getPropertyValue("--ml-gradient-background-start").toLowerCase(),
+      end: (element as HTMLElement).style
+        .getPropertyValue("--ml-gradient-background-end").toLowerCase(),
+      first: (element as HTMLElement).style.getPropertyValue("--ml-gradient-first-color"),
+    }))).toEqual({
+      start: CUSTOM_SWATCHES[0],
+      end: CUSTOM_SWATCHES[1],
+      first: "34, 197, 94",
+    })
+  })
+
   test("reports Canvas-backed Dotted Glow truthfully in every palette mode", async ({ page }) => {
     await openPaletteGallery(page)
     const dottedGlowRow = page.locator(

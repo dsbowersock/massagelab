@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils"
 import {
   buildBackgroundPaletteEditorViewModel,
   buildBackgroundPaletteHarmonyChange,
+  buildBackgroundHarmonyPreviews,
   buildBackgroundPaletteMappingChange,
   buildBackgroundPaletteModeChange,
   buildBackgroundPaletteSwatchChange,
@@ -81,6 +82,13 @@ export function BackgroundPaletteEditor({
     unavailableReason,
     displayedHarmony,
   } = viewModel
+  const harmonyPreviews = useMemo(
+    () => buildBackgroundHarmonyPreviews(
+      normalizedPalette.primaryColor,
+      HARMONY_OPTIONS.map((option) => option.value),
+    ),
+    [normalizedPalette.primaryColor],
+  )
 
   function changeMode(nextMode: string) {
     const nextPalette = buildBackgroundPaletteModeChange(
@@ -160,6 +168,7 @@ export function BackgroundPaletteEditor({
           label="Harmony choice"
           value={displayedHarmony as ChimerHarmonyValue}
           options={HARMONY_OPTIONS}
+          previewColors={harmonyPreviews}
           onChange={changeHarmony}
           disabled={disabled}
           embedded

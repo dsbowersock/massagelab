@@ -6,6 +6,7 @@ import { Pipette } from "lucide-react"
 
 import { Slider } from "@/components/ui/slider"
 import { cn } from "@/lib/utils"
+import { normalizeLiveColorPickerHex } from "./color-picker-value"
 import styles from "./chimer-controls.module.css"
 
 export interface ColorPickerSwatchProps {
@@ -400,7 +401,14 @@ export function ColorPickerSwatch({ id, label, value, fallback, disabled, readOn
                   type="text"
                   className={styles.colorPickerHexInput}
                   value={draftHex}
-                  onChange={(event) => setDraftHex(event.currentTarget.value)}
+                  onChange={(event) => {
+                    const nextDraft = event.currentTarget.value
+                    setDraftHex(nextDraft)
+                    const nextColor = normalizeLiveColorPickerHex(nextDraft)
+                    if (nextColor) {
+                      onChange(nextColor)
+                    }
+                  }}
                   onBlur={() => commitColor(draftHex)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {

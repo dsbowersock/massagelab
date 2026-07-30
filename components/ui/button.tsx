@@ -25,6 +25,9 @@ const buttonVariants = cva(
         cta: "ml-button-tactile ml-button-cta",
         ctaBlue: "ml-button-tactile ml-button-cta-blue",
         calendar: "ml-button-tactile ml-button-calendar",
+        // Semantic positive action; reuse the established leaf-green material
+        // while calendar callers retain their compatibility variant.
+        success: "ml-button-tactile ml-button-success ml-button-calendar",
         glow: "ml-button-tactile ml-button-glow",
         attention: "ml-button-tactile ml-button-attention",
         destructive: "ml-button-tactile ml-button-destructive",
@@ -69,6 +72,7 @@ const tactileVariants: ReadonlySet<ButtonVariant> = new Set([
   "cta",
   "ctaBlue",
   "calendar",
+  "success",
   "glow",
   "attention",
   "destructive",
