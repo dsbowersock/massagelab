@@ -374,34 +374,69 @@ test("storage denial falls back to in-memory Visual visit state", async ({ page 
   await expect(page.getByText("Customize this background in Visual.")).toHaveCount(0)
 })
 
-test("short viewport docks remain bounded and avoid the protected display", async ({ page }) => {
+test("short viewport Clock stays bounded while Visual becomes a half-width side sheet", async ({ page }) => {
   await page.setViewportSize({ width: 844, height: 390 })
   await openClock(page)
 
-  for (const panelName of ["Clock", "Visual"] as const) {
-    await page.getByRole("button", { name: panelName, exact: true }).click()
-    const dock = page.locator("[data-immersive-dock]")
-    await expect(dock).toBeVisible()
-    await expect.poll(async () => {
-      const [displayBox, dockBox] = await Promise.all([
-        page.locator("[data-protected-display]").boundingBox(),
-        dock.boundingBox(),
-      ])
-      if (!displayBox || !dockBox) return false
-      const intersects = !(
-        dockBox.x + dockBox.width <= displayBox.x
-        || displayBox.x + displayBox.width <= dockBox.x
-        || dockBox.y + dockBox.height <= displayBox.y
-        || displayBox.y + displayBox.height <= dockBox.y
-      )
-      return !intersects
-        && dockBox.x >= 0
-        && dockBox.y >= 0
-        && dockBox.x + dockBox.width <= 844
-        && dockBox.y + dockBox.height <= 390
-    }).toBe(true)
-    await page.getByRole("button", { name: `Close ${panelName} panel` }).click()
-  }
+  await page.getByRole("button", { name: "Clock", exact: true }).click()
+  const clockDock = page.locator('[data-immersive-panel="clock"]')
+  await expect(clockDock).toBeVisible()
+  await expect.poll(async () => {
+    const [displayBox, dockBox] = await Promise.all([
+      page.locator("[data-protected-display]").boundingBox(),
+      clockDock.boundingBox(),
+    ])
+    if (!displayBox || !dockBox) return false
+    const intersects = !(
+      dockBox.x + dockBox.width <= displayBox.x
+      || displayBox.x + displayBox.width <= dockBox.x
+      || dockBox.y + dockBox.height <= displayBox.y
+      || displayBox.y + displayBox.height <= dockBox.y
+    )
+    return !intersects
+      && dockBox.x >= 0
+      && dockBox.y >= 0
+      && dockBox.x + dockBox.width <= 844
+      && dockBox.y + dockBox.height <= 390
+  }).toBe(true)
+  await page.getByRole("button", { name: "Close Clock panel" }).click()
+
+  await page.getByRole("button", { name: "Visual", exact: true }).click()
+  const visualDock = page.locator('[data-immersive-panel="visual"]')
+  await expect(visualDock).toHaveAttribute("data-immersive-layout", "side")
+  await expect.poll(async () => {
+    const box = await visualDock.boundingBox()
+    return Boolean(
+      box
+      && box.width <= 422
+      && box.x >= 844 - 422 - 13
+      && box.x + box.width <= 844,
+    )
+  }).toBe(true)
+
+  await page.locator("html").evaluate((element) => {
+    element.setAttribute("data-sidebar-position", "right")
+  })
+  await expect.poll(async () => {
+    const box = await visualDock.boundingBox()
+    return Boolean(box && box.x >= 0 && box.x <= 13 && box.width <= 422)
+  }).toBe(true)
+})
+
+test("portrait Visual never covers more than half the visual viewport height", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await openClock(page)
+  await page.getByRole("button", { name: "Visual", exact: true }).click()
+  const visualDock = page.locator('[data-immersive-panel="visual"]')
+
+  await expect(visualDock).toHaveAttribute("data-immersive-layout", "dock")
+  await expect.poll(async () => {
+    const [box, viewportHeight] = await Promise.all([
+      visualDock.boundingBox(),
+      page.evaluate(() => window.visualViewport?.height ?? window.innerHeight),
+    ])
+    return Boolean(box && box.height <= (viewportHeight / 2) + 1)
+  }).toBe(true)
 })
 
 test("measured edge insets and visual-viewport offsets preserve the protected gap", async ({ page }) => {

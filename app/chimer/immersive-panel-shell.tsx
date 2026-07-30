@@ -55,6 +55,7 @@ type VisualViewportFrame = {
   right: number
   bottom: number
   width: number
+  height: number
   centerY: number
 }
 
@@ -168,6 +169,11 @@ export function ImmersivePanelShell({
   const activeHeaderTitle = nonmodalPanel === "clock" ? "Clock" : (visualHeaderTitle ?? "Visual")
   const activeHeaderAction = nonmodalPanel === "clock" ? clockHeaderAction : visualHeaderAction
   const activeHeaderCenterAction = nonmodalPanel === "clock" ? clockHeaderCenterAction : visualHeaderCenterAction
+  const visualPanelUsesSideSheet = nonmodalPanel === "visual"
+    && Boolean(
+      visualViewportFrame
+      && visualViewportFrame.width > visualViewportFrame.height,
+    )
 
   useLayoutEffect(() => {
     setPortalTarget(document.body)
@@ -188,6 +194,7 @@ export function ImmersivePanelShell({
         right: Math.max(0, window.innerWidth - viewportLeft - viewportWidth),
         bottom: Math.max(0, window.innerHeight - viewportTop - viewportHeight),
         width: viewportWidth,
+        height: viewportHeight,
         centerY: viewportTop + (viewportHeight / 2),
       }
       setVisualViewportFrame((current) => (
@@ -276,6 +283,16 @@ export function ImmersivePanelShell({
       stage?.style.setProperty("--immersive-reserved-top", "0px")
       stage?.style.setProperty("--immersive-reserved-bottom", "0px")
       stage?.style.removeProperty("--immersive-panel-max-height")
+      return
+    }
+
+    // Landscape Visual uses a side sheet so half of the background remains
+    // visible. It must not feed a vertical reservation into the timer stage.
+    if (visualPanelUsesSideSheet) {
+      setPlacement(DEFAULT_PLACEMENT)
+      stage.style.setProperty("--immersive-reserved-top", "0px")
+      stage.style.setProperty("--immersive-reserved-bottom", "0px")
+      stage.style.removeProperty("--immersive-panel-max-height")
       return
     }
 
@@ -369,7 +386,7 @@ export function ImmersivePanelShell({
       stage.style.setProperty("--immersive-reserved-bottom", "0px")
       stage.style.removeProperty("--immersive-panel-max-height")
     }
-  }, [nonmodalPanel, protectedDisplayRef])
+  }, [nonmodalPanel, protectedDisplayRef, visualPanelUsesSideSheet])
 
   useLayoutEffect(() => {
     if (!nonmodalPanel) {
@@ -425,6 +442,9 @@ export function ImmersivePanelShell({
       "--immersive-visual-viewport-right": `${visualViewportFrame.right}px`,
       "--immersive-visual-viewport-bottom": `${visualViewportFrame.bottom}px`,
       "--immersive-visual-viewport-width": `${visualViewportFrame.width}px`,
+      "--immersive-visual-viewport-height": `${visualViewportFrame.height}px`,
+      "--immersive-visual-viewport-half-width": `${visualViewportFrame.width / 2}px`,
+      "--immersive-visual-viewport-half-height": `${visualViewportFrame.height / 2}px`,
       "--immersive-visual-viewport-center-y": `${visualViewportFrame.centerY}px`,
     } : {}),
   } as CSSProperties
@@ -521,6 +541,7 @@ export function ImmersivePanelShell({
           aria-label={`${activePanelLabel} controls`}
           data-immersive-panel={nonmodalPanel}
           data-immersive-dock={placement.edge}
+          data-immersive-layout={visualPanelUsesSideSheet ? "side" : "dock"}
         >
           <div className={styles.dockHeader} data-immersive-dock-header>
             <h2>{activeHeaderTitle}</h2>

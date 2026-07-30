@@ -133,6 +133,29 @@ test("measures a stable protected display and dock with bottom-first placement",
   assert.match(shellStyles, /@media \(max-width: 36rem\)[\s\S]*\.dock \{[\s\S]*width:\s*auto/)
 })
 
+test("caps Visual to half the viewport and uses the side opposite the sidebar in landscape", () => {
+  assert.match(shellSource, /visualViewportFrame\.width > visualViewportFrame\.height/)
+  assert.match(shellSource, /data-immersive-layout=\{visualPanelUsesSideSheet \? "side" : "dock"\}/)
+  assert.match(shellSource, /--immersive-visual-viewport-half-width/)
+  assert.match(shellSource, /--immersive-visual-viewport-half-height/)
+  assert.match(
+    shellStyles,
+    /\.dock\[data-immersive-panel="visual"\]\s*\{[\s\S]{0,300}var\(--immersive-visual-viewport-half-height,\s*50dvh\)/,
+  )
+  assert.match(
+    shellStyles,
+    /\.dock\[data-immersive-panel="visual"\]\[data-immersive-layout="side"\]\s*\{[\s\S]{0,700}width:\s*min\(36rem,\s*var\(--immersive-visual-viewport-half-width,\s*50vw\)\)/,
+  )
+  assert.match(
+    shellStyles,
+    /html\[data-sidebar-position="right"\][\s\S]{0,180}\.dock\[data-immersive-panel="visual"\]\[data-immersive-layout="side"\][\s\S]{0,220}right:\s*auto;[\s\S]{0,220}left:\s*calc\(/,
+  )
+  assert.match(
+    shellSource,
+    /visualPanelUsesSideSheet[\s\S]{0,500}--immersive-reserved-top", "0px"[\s\S]{0,200}--immersive-reserved-bottom", "0px"/,
+  )
+})
+
 test("RunningTimer owns one active panel without legacy settings tabs or auto-close", () => {
   assert.match(runningTimerSource, /useState<ImmersivePanelId>\(null\)/)
   assert.match(runningTimerSource, /<ImmersivePanelShell[\s\S]*activePanel=\{activePanel\}[\s\S]*onActivePanelChange=\{handleActivePanelChange\}/)

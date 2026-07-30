@@ -209,6 +209,51 @@
   );
 }
 
+.dock[data-immersive-panel="visual"] {
+  height: min(
+    var(--immersive-panel-max-height),
+    var(--immersive-visual-viewport-half-height, 50dvh)
+  );
+  max-height: min(
+    var(--immersive-panel-max-height),
+    var(--immersive-visual-viewport-half-height, 50dvh)
+  );
+}
+
+/*
+ * A landscape Visual sheet preserves at least half of the background and opens
+ * opposite the configured app sidebar. Clock keeps its measured edge dock.
+ */
+.dock[data-immersive-panel="visual"][data-immersive-layout="side"] {
+  top: calc(
+    var(--immersive-visual-viewport-top, 0px)
+    + var(--immersive-dock-top-inset)
+  );
+  right: calc(
+    var(--immersive-visual-viewport-right, 0px)
+    + max(0.75rem, env(safe-area-inset-right, 0px))
+  );
+  bottom: calc(
+    var(--immersive-visual-viewport-bottom, 0px)
+    + var(--immersive-dock-bottom-inset)
+  );
+  left: auto;
+  width: min(36rem, var(--immersive-visual-viewport-half-width, 50vw));
+  max-width: var(--immersive-visual-viewport-half-width, 50vw);
+  height: auto;
+  max-height: none;
+  margin-inline: 0;
+}
+
+:global(html[data-sidebar-position="right"])
+  .dock[data-immersive-panel="visual"][data-immersive-layout="side"] {
+  right: auto;
+  left: calc(
+    var(--immersive-visual-viewport-left, 0px)
+    + max(0.75rem, env(safe-area-inset-left, 0px))
+  );
+}
+
 .dockHeader,
 .backgroundHeader {
   display: flex;
