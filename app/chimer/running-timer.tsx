@@ -1670,6 +1670,9 @@ export function RunningTimer({
     )
   }, [backgroundVisualPreferences, committedSettings, setVisualDraft])
 
+  // Access-driven identity changes resolve in strict precedence: clear a
+  // matching deferred rebase, retarget a deferred rebase, queue the dirty-draft
+  // decision dialog, or silently rebase a clean draft.
   useEffect(() => {
     if (activePanel !== "visual") {
       return

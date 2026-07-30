@@ -106,6 +106,9 @@ export function BackgroundCarousel({
   const items = useMemo(
     () => options.map((option) => {
       const canUse = userCanUseBackground(option, access)
+      // Access-owned IDs are permanent acquisitions even while the provider
+      // refreshes; other usable premium IDs are subscription-backed membership
+      // access.
       const isOwnedByAccess = access.ownedBackgroundIds.includes(option.id)
       const commerceState = backgroundCardCommerceState({
         background: option,
