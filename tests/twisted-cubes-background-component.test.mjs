@@ -39,7 +39,7 @@ test("the Twisted Cubes renderer stays a scoped, non-interactive CSS DOM effect"
   assert.match(stylesheetSource, /@keyframes\s+mlTwistedCubesRotate/)
   assert.match(stylesheetSource, /cubic-bezier\(0\.5, 0\.1, 0\.5, 0\.9\)/)
   for (const stage of ["0%", "33%", "66%", "100%"]) {
-    assert.match(stylesheetSource, new RegExp(`${stage}\\s*\\{`))
+    assert.match(stylesheetSource, new RegExp(`(?:^|\\n)\\s*${stage}\\s*\\{`))
   }
   assert.match(stylesheetSource, /\.front/)
   assert.match(stylesheetSource, /\.back/)

@@ -43,17 +43,20 @@ export function MassageLabDnaBackground({
     connectorColor,
     outlineColor,
   } = massageLabDna
+  const renderStrandCount = Number.isFinite(strandCount)
+    ? Math.min(25, Math.max(0, Math.floor(strandCount)))
+    : 0
   const [nodeRoleAssignments, setNodeRoleAssignments] = useState(() => (
-    createDnaNodeRoleAssignments(strandCount * 2)
+    createDnaNodeRoleAssignments(renderStrandCount * 2)
   ))
-  const previousStrandCount = useRef(strandCount)
+  const previousStrandCount = useRef(renderStrandCount)
 
   useEffect(() => {
-    if (previousStrandCount.current === strandCount) return
+    if (previousStrandCount.current === renderStrandCount) return
 
-    previousStrandCount.current = strandCount
-    setNodeRoleAssignments(createDnaNodeRoleAssignments(strandCount * 2))
-  }, [strandCount])
+    previousStrandCount.current = renderStrandCount
+    setNodeRoleAssignments(createDnaNodeRoleAssignments(renderStrandCount * 2))
+  }, [renderStrandCount])
 
   const responsiveTransform = resolveResponsiveBackgroundTransform({
     scale,
@@ -83,12 +86,12 @@ export function MassageLabDnaBackground({
     "--ml-dna-position-x": `${responsiveTransform.positionX}%`,
     "--ml-dna-position-y": `${responsiveTransform.positionY}%`,
   } as CSSProperties
-  const strands = Array.from({ length: strandCount }, (_, index) => {
+  const strands = Array.from({ length: renderStrandCount }, (_, index) => {
     const oneBasedIndex = index + 1
-    const phase = getDnaStrandPhase({ oneBasedIndex, total: strandCount })
+    const phase = getDnaStrandPhase({ oneBasedIndex, total: renderStrandCount })
     const delaySeconds = getDnaStrandDelaySeconds({
       oneBasedIndex,
-      total: strandCount,
+      total: renderStrandCount,
       speed: nodeMotionSpeed,
     })
 

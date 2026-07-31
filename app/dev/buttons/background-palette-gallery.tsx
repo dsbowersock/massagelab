@@ -352,15 +352,20 @@ function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) 
     })
     : {}
 
-  function replaceSnapshot(patch: Partial<typeof snapshot>) {
+  function replaceSnapshot(
+    patch: Partial<typeof snapshot> | ((current: typeof snapshot) => Partial<typeof snapshot>),
+  ) {
     setDraft((current) => reduceBackgroundVisualDraft(current, {
       type: "replace",
-      snapshot: { ...current.currentSnapshot, ...patch },
+      snapshot: {
+        ...current.currentSnapshot,
+        ...(typeof patch === "function" ? patch(current.currentSnapshot) : patch),
+      },
     }))
   }
 
   function updateProperties(patch: Record<string, number>) {
-    replaceSnapshot({ properties: { ...snapshot.properties, ...patch } })
+    replaceSnapshot((current) => ({ properties: { ...current.properties, ...patch } }))
   }
 
   function selectBackground(nextId: Track4BBackgroundId) {
@@ -510,6 +515,16 @@ function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) 
         <Button size="compact" variant="success" disabled={!draft.dirty} onClick={applyDraft}>Apply</Button>
         <Button size="compact" variant="secondary" onClick={() => setDraft((current) => reduceBackgroundVisualDraft(current, { type: "apply-visual-preset", id: TRACK_4B_VISUAL_PRESET.id }))}>Apply Visual preset</Button>
         <Button size="compact" variant="secondary" onClick={() => setDraft((current) => reduceBackgroundVisualDraft(current, { type: "apply-color-preset", id: TRACK_4B_COLOR_PRESET.id }))}>Apply Color preset</Button>
+        <Button
+          size="compact"
+          variant="secondary"
+          onClick={() => {
+            updateProperties({ massageLabDnaStrandAngle: snapshot.properties.massageLabDnaStrandAngle + 1 })
+            updateProperties({ massageLabTwistedCubesViewAngleX: snapshot.properties.massageLabTwistedCubesViewAngleX + 1 })
+          }}
+        >
+          Apply consecutive property patches
+        </Button>
       </div>
 
       <div className="relative min-h-80 overflow-hidden rounded-2xl border border-border bg-black">

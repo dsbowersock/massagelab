@@ -45,7 +45,7 @@ describe("background preview media", () => {
   })
 
   it("resynchronizes playback when an active preview swaps to another nonempty source", () => {
-    assert.match(componentSource, /\}, \[showVideo, videoUrl\]\)/)
+    assert.match(componentSource, /\}, \[(?=[^\]]*\bshowVideo\b)(?=[^\]]*\bvideoUrl\b)[^\]]*\]\)/)
   })
 
   it("generates one-third-duration quality-78 WebP posters, including missing posters", () => {
@@ -53,7 +53,7 @@ describe("background preview media", () => {
     assert.match(renderSource, /durationMs \/ 3000/)
     assert.match(renderSource, /"-c:v", "libwebp"/)
     assert.match(renderSource, /"-quality", "78"/)
-    assert.match(renderSource, /existsSync\(outputPath\).*existsSync\(posterPath\)/s)
+    assert.match(renderSource, /if \(existsSync\(outputPath\) && existsSync\(posterPath\) && !options\.force\) \{[\s\S]*?skipped: true/)
   })
 
   it("captures Track 4B effects through the shared canonical host-option resolver", () => {

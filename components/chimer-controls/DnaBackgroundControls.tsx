@@ -61,7 +61,7 @@ export function DnaBackgroundControls({
 
       <fieldset className={styles.backgroundPropertyGroup}>
         <legend>Outline</legend>
-        <StyledRangeControl label="Outline thickness" value={value.outlineThickness} min={0} max={1.5} step={0.05} disabled={disabled} displayValue={`${value.outlineThickness.toFixed(2)}px`} onChange={(nextValue) => onChange({ outlineThickness: nextValue })} />
+        <StyledRangeControl label="Outline thickness" value={value.outlineThickness} min={0} max={1.5} step={0.05} disabled={disabled} displayValue={`${value.outlineThickness.toFixed(2)}vmin`} onChange={(nextValue) => onChange({ outlineThickness: nextValue })} />
       </fieldset>
     </div>
   )

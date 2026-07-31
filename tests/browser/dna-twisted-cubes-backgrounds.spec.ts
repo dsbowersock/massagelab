@@ -12,6 +12,7 @@ import {
   getTwistedCubeAlpha,
   getTwistedCubeCycleSeconds,
   getTwistedCubeDelaySeconds,
+  getTwistedCubeSourceOutline,
   interpolateTwistedCubeOutline,
 } from "../../lib/twisted-cubes-background.js"
 import { COMPUTED_CONSUMER_CONTRACTS } from "./dna-twisted-cubes-consumer-contract.mjs"
@@ -543,12 +544,14 @@ const ALLOWED_RENDER_CHANGES: Record<string, readonly string[]> = {
 }
 
 async function expectExactControlRender({
+  review,
   host,
   id,
   key,
   properties,
   before,
 }: {
+  review: Locator
   host: Locator
   id: typeof EFFECTS[number]["id"]
   key: string
@@ -620,6 +623,18 @@ async function expectExactControlRender({
     positionY: properties.massageLabTwistedCubesPositionY,
     compactViewport,
   })
+  const roleColors = await resolveCurrentRoleColors(review, id)
+  const outlineAnchors = ["one", "two", "three", "four", "five", "six"].map(
+    (name) => roleColors[`outline-${name}`],
+  )
+  const middleOneBasedIndex = Math.floor(count / 2) + 1
+  const middleOutline = await review.getAttribute("data-palette-mode") === "source"
+    ? getTwistedCubeSourceOutline({ oneBasedIndex: middleOneBasedIndex, count })
+    : interpolateTwistedCubeOutline({
+      anchors: outlineAnchors,
+      oneBasedIndex: middleOneBasedIndex,
+      count,
+    })
   const expectedByKey: Record<string, Partial<typeof after>> = {
     massageLabTwistedCubesRotationSpeed: {
       cycle: `${getTwistedCubeCycleSeconds(properties.massageLabTwistedCubesRotationSpeed)}s`,
@@ -632,8 +647,10 @@ async function expectExactControlRender({
     massageLabTwistedCubesViewAngleY: { viewAngleY: `${properties.massageLabTwistedCubesViewAngleY}deg` },
     massageLabTwistedCubesLayerCount: {
       layerCount: count,
+      middleOutline,
       firstAlpha: String(getTwistedCubeAlpha({ oneBasedIndex: 1, count, opacityFalloff: properties.massageLabTwistedCubesOpacityFalloff })),
       firstDelay: `${getTwistedCubeDelaySeconds({ oneBasedIndex: 1, count, stagger: properties.massageLabTwistedCubesLayerStagger })}s`,
+      firstSize: `${50 / count}vmin`,
     },
     massageLabTwistedCubesLayerDepthSpacing: { secondDepth: `${-properties.massageLabTwistedCubesLayerDepthSpacing}vmin` },
     massageLabTwistedCubesScale: { scale: String(transform.scale) },
@@ -774,7 +791,9 @@ async function expectExactComputedConsumer({
         expect(after.strandHeight).toBe(geometryExpected.strandHeight)
         expect(after.connectorHeight).toBe(geometryExpected.connectorHeight)
         expect(after.startNodeWidth).toBe(geometryExpected.nodeWidth)
+        expect(after.startNodeHeight).toBe(geometryExpected.nodeHeight)
         expect(after.endNodeWidth).toBe(geometryExpected.nodeWidth)
+        expect(after.endNodeHeight).toBe(geometryExpected.nodeHeight)
         {
           const delayExpected = await normalizeComputedConsumer(host, {
             "animation-delay": `${firstDelaySeconds}s`,
@@ -791,6 +810,11 @@ async function expectExactComputedConsumer({
       case "massageLabDnaStrandSpacing":
         expect(after.sceneRowGap).toBe(geometryExpected.rowGap)
         expect(after.strandHeight).toBe(geometryExpected.strandHeight)
+        expect(after.connectorHeight).toBe(geometryExpected.connectorHeight)
+        expect(after.startNodeWidth).toBe(geometryExpected.nodeWidth)
+        expect(after.startNodeHeight).toBe(geometryExpected.nodeHeight)
+        expect(after.endNodeWidth).toBe(geometryExpected.nodeWidth)
+        expect(after.endNodeHeight).toBe(geometryExpected.nodeHeight)
         await expectAnimatedTransforms()
         break
       case "massageLabDnaScale":
@@ -812,7 +836,9 @@ async function expectExactComputedConsumer({
         expect(after.endNodeBorderWidth).toBe(borderExpected.borderTopWidth)
         expect(after.connectorHeight).toBe(geometryExpected.connectorHeight)
         expect(after.startNodeWidth).toBe(geometryExpected.nodeWidth)
+        expect(after.startNodeHeight).toBe(geometryExpected.nodeHeight)
         expect(after.endNodeWidth).toBe(geometryExpected.nodeWidth)
+        expect(after.endNodeHeight).toBe(geometryExpected.nodeHeight)
         await expectAnimatedTransforms()
         break
       default:
@@ -1291,6 +1317,28 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
     expectHealthy(health)
   })
 
+  test("consecutive property patches merge against the latest draft snapshot", async ({ page }) => {
+    const health = captureRuntimeErrors(page)
+    const review = await openTrack4BReview(page)
+    const before = await parsedAttribute<Record<string, number>>(review, "data-current-properties")
+
+    await review.getByRole("button", { name: "Apply consecutive property patches" }).click()
+    await expect.poll(async () => {
+      const current = await parsedAttribute<Record<string, number>>(review, "data-current-properties")
+      return [
+        current.massageLabDnaStrandAngle,
+        current.massageLabTwistedCubesViewAngleX,
+      ]
+    }).toEqual([
+      before.massageLabDnaStrandAngle + 1,
+      before.massageLabTwistedCubesViewAngleX + 1,
+    ])
+
+    await review.getByRole("button", { name: "Cancel", exact: true }).click()
+    await expect(review).toHaveAttribute("data-draft-state", "clean")
+    expectHealthy(health)
+  })
+
   test("generated DNA and Twisted Cubes posters back the production preview player", async ({ page }) => {
     const health = captureRuntimeErrors(page)
     const review = await openTrack4BReview(page)
@@ -1514,6 +1562,7 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
         expect(changedKeys, label).toEqual([key])
         expect(after[key], label).toBe(Number(await slider.getAttribute("aria-valuenow")))
         await expectExactControlRender({
+          review,
           host,
           id: effect.id,
           key,
@@ -1667,8 +1716,10 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
     const contexts = await Promise.all(["chimer", "clock", "music"].map((context) => (
       review.locator(`[data-track-4b-context="${context}"]`).getAttribute("data-config")
     )))
-    expect(contexts[1]).toBe(contexts[0])
-    expect(contexts[2]).toBe(contexts[0])
+    expect(contexts[0]).not.toBeNull()
+    const sharedConfiguration = contexts[0]!
+    expect(contexts[1]).toBe(sharedConfiguration)
+    expect(contexts[2]).toBe(sharedConfiguration)
 
     for (const effect of EFFECTS) {
       await selectEffect(review, host, effect.id)

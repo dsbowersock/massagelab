@@ -17,7 +17,9 @@ test("the DNA renderer stays a scoped, non-interactive CSS DOM effect", () => {
   const componentSource = readFileSync(componentPath, "utf8")
   const stylesheetSource = readFileSync(stylesheetPath, "utf8")
 
-  assert.match(componentSource, /createDnaNodeRoleAssignments\(strandCount \* 2\)/)
+  assert.match(componentSource, /const renderStrandCount = Number\.isFinite\(strandCount\)[\s\S]*?Math\.min\(25, Math\.max\(0, Math\.floor\(strandCount\)\)\)[\s\S]*?: 0/)
+  assert.match(componentSource, /createDnaNodeRoleAssignments\(renderStrandCount \* 2\)/)
+  assert.doesNotMatch(componentSource, /Array\.from\(\{ length: strandCount \}/)
   assert.match(componentSource, /resolveResponsiveBackgroundTransform/)
   assert.match(componentSource, /aria-hidden="true"/)
   assert.match(componentSource, /data-reduce-motion=\{reduceMotion \|\| undefined\}/)

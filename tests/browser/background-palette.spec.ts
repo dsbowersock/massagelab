@@ -594,6 +594,7 @@ test.describe("shared background palette review matrix", () => {
     ))
     await fixture.getByRole("button", { name: "Swap preview source" }).click()
     await expect(video).toHaveAttribute("src", /massage-lab-twisted-cubes-vertical\.webm$/)
+    await expect(video).toHaveAttribute("poster", /massage-lab-twisted-cubes-vertical\.webp$/)
     await expect.poll(() => page.evaluate(() => (
       (window as typeof window & {
         __previewMediaProbe: { playCalls: number }

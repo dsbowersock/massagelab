@@ -177,7 +177,7 @@ For every isolated edit across the 22 authoritative controls, the browser suite 
 The per-control mapping now proves concrete consumers as follows:
 
 - DNA motion speeds: normalized connector/node and strand animation durations/delays;
-- DNA count/spacing: strand/node DOM counts and layout-quantized concrete strand top;
+- DNA count/spacing: strand/node DOM counts, concrete row gap, strand height, connector height, and both-node dimensions;
 - DNA angle: paused-time-zero strand transform matrix;
 - DNA scale/position: concrete scene transform matrix after responsive normalization;
 - DNA connector width/thickness: concrete strand/connector/node dimensions and margins;
@@ -199,7 +199,7 @@ Expected computed values are produced independently from the settings/domain con
 The full reduced-state matrix still verifies every inline setting/color/geometry value and now additionally proves:
 
 - DNA concrete root/connector/node backgrounds, outline borders, strand/connector/node dimensions, margins, scene/strand/connector/node transform matrices, counts, and `animation-name: none`;
-- Twisted concrete root/face backgrounds, outline border color/width, face opacity/dimensions, `800px` perspective, scene/view/layer/cube transform matrices, layer/face counts, and `animation-name: none`.
+- Twisted concrete root/face backgrounds, outline border color/width, face opacity/dimensions, the computed `100vmin` perspective, scene/view/layer/cube transform matrices, layer/face counts, and `animation-name: none`.
 
 Harmony colors are normalized from the real registry adapter/palette resolver before concrete color comparison. No pseudo-element is involved in either renderer's production CSS. No production consumer miswire was uncovered, so no production file was changed.
 
@@ -229,9 +229,9 @@ The focused Node guard imports the same runtime table and asserts exactly 22 uni
 
 ### Positive computed coupling and static-state proof
 
-Every allowed computed change now has an independent positive assertion:
+The structured consumer contract fails on every unapproved computed change and positively asserts the representative direct and coupled consumers below:
 
-- DNA count and spacing assert both first and last layout-quantized strand tops; count also asserts connector and both-node delays and transforms.
+- DNA count and spacing assert concrete row/strand/connector/node geometry; count also asserts connector and both-node delays and transforms.
 - DNA node speed asserts connector and both-node duration, delay, and paused time-zero transform. Connector width and thickness assert all affected dimensions, margins, and connector/both-node transforms.
 - Twisted rotation speed, layer stagger, and layer count assert the concrete paused time-zero cube transform; stagger and count also assert the normalized negative delay.
 - All previously direct angle, responsive scene transform, depth, opacity, border, count, and dimension consumers remain exact.

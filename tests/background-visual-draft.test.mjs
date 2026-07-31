@@ -42,8 +42,8 @@ const unsavedDialogSource = await read("app/chimer/unsaved-visual-changes-dialog
 const pageSource = await read("app/chimer/page.tsx")
 const musicMiniPlayerSource = await read("components/providers/music-mini-player.tsx")
 const runningTimerStyles = await read("app/chimer/running-timer.module.css")
-const dnaControlsSource = await read("components/chimer-controls/DnaBackgroundControls.tsx").catch(() => "")
-const twistedCubesControlsSource = await read("components/chimer-controls/TwistedCubesBackgroundControls.tsx").catch(() => "")
+const dnaControlsSource = await read("components/chimer-controls/DnaBackgroundControls.tsx")
+const twistedCubesControlsSource = await read("components/chimer-controls/TwistedCubesBackgroundControls.tsx")
 
 const openingSnapshot = {
   palette: { mode: "custom", primaryColor: "#123456", harmony: "triadic", swatches: ["#123456", "#234567", "#345678", "#456789", "#56789a", "#6789ab", "#789abc"] },
@@ -1274,7 +1274,8 @@ test("globe coordinate inputs keep string drafts and clock font changes remeasur
 
 test("DNA and Twisted Cubes controls emit only draft property patches with exact bounded sliders", () => {
   const assertSlider = (source, label, property, minimum, maximum, step) => {
-    assert.match(source, new RegExp(`label="${label}"[\\s\\S]*value=\\{value\\.${property}\\}[\\s\\S]*min=\\{${minimum}\\}[\\s\\S]*max=\\{${maximum}\\}[\\s\\S]*step=\\{${step}\\}[\\s\\S]*onChange=\\{\\(nextValue\\) => onChange\\(\\{ ${property}: nextValue \\}\\)\\}`))
+    const withinSlider = "(?:(?!\\/>)[\\s\\S])*?"
+    assert.match(source, new RegExp(`<StyledRangeControl${withinSlider}label="${label}"${withinSlider}value=\\{value\\.${property}\\}${withinSlider}min=\\{${minimum}\\}${withinSlider}max=\\{${maximum}\\}${withinSlider}step=\\{${step}\\}${withinSlider}onChange=\\{\\(nextValue\\) => onChange\\(\\{ ${property}: nextValue \\}\\)\\}${withinSlider}\\/>`))
   }
 
   for (const [label, property, min, max, step] of [
@@ -1309,6 +1310,7 @@ test("DNA and Twisted Cubes controls emit only draft property patches with exact
     assert.match(source, /StyledRangeControl/)
     assert.doesNotMatch(source, /localStorage|sessionStorage|fetch\(|type="number"|onPointerMove|shuffle/i)
   }
+  assert.match(dnaControlsSource, /displayValue=\{`\$\{value\.outlineThickness\.toFixed\(2\)\}vmin`\}/)
 })
 
 test("selected-background properties share the existing Visual draft lifecycle", () => {
