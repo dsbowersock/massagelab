@@ -461,7 +461,7 @@ const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
       default: module.MassageLabTwistedCubesBackground as ComponentType<BackgroundEffectProps>,
     })),
     fallbackStyle: {
-      background: "radial-gradient(circle at 50% 45%, hsl(244 45% 20%), transparent 58%), hsl(210 20% 10%)",
+      background: "radial-gradient(circle at 50% 45%, hsl(244 45% 20%), transparent 58%), hsl(210 20% 12%)",
     },
   },
   {

@@ -222,10 +222,10 @@ test("development review exposes the real DNA and Twisted Cubes acceptance matri
   assert.equal(new Set(COMPUTED_CONSUMER_CONTRACTS.map(({ key }) => key)).size, 22)
   assert.deepEqual(computedConsumerProjection, [
     ["massage-lab-dna", "Node motion speed", "massageLabDnaNodeMotionSpeed", "strand > connector + [data-side]", "animationDuration|animationDelay|transform", "connectorTransform|startNodeTransform|endNodeTransform|connectorDuration|connectorDelay|startNodeDuration|startNodeDelay|endNodeDuration|endNodeDelay"],
-    ["massage-lab-dna", "Strand rotation speed", "massageLabDnaStrandRotationSpeed", ":scope > .scene", "animationDuration", "sceneDuration"],
+    ["massage-lab-dna", "Strand rotation speed", "massageLabDnaStrandRotationSpeed", ".scene > .composition", "animationDuration", "sceneDuration"],
     ["massage-lab-dna", "Strand count", "massageLabDnaStrandCount", ".scene grid + [data-side]", "count|height|animationDelay|transform", "strandCount|nodeCount|strandHeight|connectorHeight|startNodeWidth|startNodeHeight|endNodeWidth|endNodeHeight|connectorDelay|startNodeDelay|endNodeDelay|connectorTransform|startNodeTransform|endNodeTransform"],
-    ["massage-lab-dna", "Strand angle", "massageLabDnaStrandAngle", ":scope > .scene", "rotate", "sceneRotate"],
-    ["massage-lab-dna", "Strand spacing", "massageLabDnaStrandSpacing", ":scope > .scene", "rowGap|height|transform", "sceneRowGap|strandHeight|connectorHeight|startNodeWidth|startNodeHeight|endNodeWidth|endNodeHeight|connectorTransform|startNodeTransform|endNodeTransform"],
+    ["massage-lab-dna", "Strand angle", "massageLabDnaStrandAngle", ".scene > .composition", "rotate", "sceneRotate"],
+    ["massage-lab-dna", "Strand spacing", "massageLabDnaStrandSpacing", ".scene > .composition", "rowGap|height|transform", "sceneRowGap|strandHeight|connectorHeight|startNodeWidth|startNodeHeight|endNodeWidth|endNodeHeight|connectorTransform|startNodeTransform|endNodeTransform"],
     ["massage-lab-dna", "Scale", "massageLabDnaScale", ":scope > .scene", "transform", "sceneTransform"],
     ["massage-lab-dna", "Position X", "massageLabDnaPositionX", ":scope > .scene", "transform", "sceneTransform"],
     ["massage-lab-dna", "Position Y", "massageLabDnaPositionY", ":scope > .scene", "transform", "sceneTransform"],

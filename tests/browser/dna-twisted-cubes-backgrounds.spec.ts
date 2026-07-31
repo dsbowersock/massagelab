@@ -171,7 +171,7 @@ async function expectRenderedContract(host: Locator, id: typeof EFFECTS[number][
         .map((name) => style.getPropertyValue(name))
     })
     expect(sceneVars.every(Boolean)).toBe(true)
-    const animationName = await root.locator(":scope > div").evaluate((element) => getComputedStyle(element).animationName)
+    const animationName = await root.locator(":scope > div > div").evaluate((element) => getComputedStyle(element).animationName)
     if (reducedMotion) expect(animationName).toBe("none")
     else expect(animationName).toContain("mlDnaStrandRotate")
   } else {
@@ -290,6 +290,7 @@ async function captureComputedConsumerState(host: Locator, id: typeof EFFECTS[nu
       }
       const rootCss = getComputedStyle(rootElement)
       const sceneCss = getComputedStyle(scene)
+      const compositionCss = getComputedStyle(scene.firstElementChild as HTMLElement)
       const strandCss = getComputedStyle(first as HTMLElement)
       const lastCss = getComputedStyle(last as HTMLElement)
       const connectorCss = getComputedStyle(connector)
@@ -299,10 +300,10 @@ async function captureComputedConsumerState(host: Locator, id: typeof EFFECTS[nu
         rootBackground: rootCss.backgroundColor,
         rootFontSize: rootCss.fontSize,
         sceneTransform: sceneCss.transform,
-        sceneRotate: sceneCss.rotate,
-        sceneAnimationName: sceneCss.animationName,
-        sceneDuration: sceneCss.animationDuration,
-        sceneRowGap: sceneCss.rowGap,
+        sceneRotate: compositionCss.rotate,
+        sceneAnimationName: compositionCss.animationName,
+        sceneDuration: compositionCss.animationDuration,
+        sceneRowGap: compositionCss.rowGap,
         scenePerspective: sceneCss.perspective,
         sceneWidth: sceneCss.width,
         sceneHeight: sceneCss.height,
@@ -1280,6 +1281,9 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
     await expectLoaded(host, "massage-lab-twisted-cubes")
     const cubeRoot = effectRoot(host)
     const layers = cubeRoot.locator('[style*="--ml-twisted-cubes-outline"]')
+    expect(await cubeRoot.evaluate((element) => (
+      (element as HTMLElement).style.getPropertyValue("--ml-twisted-cubes-background-color")
+    ))).toBe("hsl(210 20% 12%)")
     expect(await layers.count()).toBeLessThanOrEqual(30)
     expect(await layers.locator(":scope > span > span > span").count()).toBeLessThanOrEqual(180)
     expect(await host.locator('[style*="--ml-dna-start-color"]').count()).toBe(0)

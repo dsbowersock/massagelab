@@ -112,13 +112,15 @@ export function MassageLabDnaBackground({
       aria-hidden="true"
     >
       <div className={styles.scene} style={sceneStyle}>
-        {strands.map((strand) => (
-          <span className={styles.strand} style={strand.style} key={strand.index}>
-            <span className={styles.connector} />
-            <span className={styles.node} data-side="start" />
-            <span className={styles.node} data-side="end" />
-          </span>
-        ))}
+        <div className={styles.composition}>
+          {strands.map((strand) => (
+            <span className={styles.strand} style={strand.style} key={strand.index}>
+              <span className={styles.connector} />
+              <span className={styles.node} data-side="start" />
+              <span className={styles.node} data-side="end" />
+            </span>
+          ))}
+        </div>
       </div>
     </div>
   )

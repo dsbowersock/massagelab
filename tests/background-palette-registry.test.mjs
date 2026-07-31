@@ -648,7 +648,7 @@ describe("background palette adapter registry", () => {
         rendererTarget,
       })),
       [
-        { id: "background", label: "Background", sourceColor: "hsl(210 20% 10%)", defaultSwatch: 3, rendererTarget: "massageLabTwistedCubes.backgroundColor" },
+        { id: "background", label: "Background", sourceColor: "hsl(210 20% 12%)", defaultSwatch: 3, rendererTarget: "massageLabTwistedCubes.backgroundColor" },
         { id: "outline-one", label: "Outline 1", sourceColor: "hsl(180 80% 60%)", defaultSwatch: 0, rendererTarget: "massageLabTwistedCubes.outlineAnchors[0]" },
         { id: "outline-two", label: "Outline 2", sourceColor: "hsl(212 80% 60%)", defaultSwatch: 1, rendererTarget: "massageLabTwistedCubes.outlineAnchors[1]" },
         { id: "outline-three", label: "Outline 3", sourceColor: "hsl(244 80% 60%)", defaultSwatch: 2, rendererTarget: "massageLabTwistedCubes.outlineAnchors[2]" },
@@ -689,6 +689,7 @@ describe("background palette adapter registry", () => {
       canCustomize: true,
     })
     assert.equal(source.massageLabTwistedCubes.paletteMode, "source")
+    assert.equal(source.massageLabTwistedCubes.backgroundColor, "hsl(210 20% 12%)")
 
     const denied = resolveBackgroundEffectProps({
       selectedId: "massage-lab-twisted-cubes",

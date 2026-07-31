@@ -13,15 +13,20 @@
   left: 50%;
   height: 65vmin;
   aspect-ratio: 2 / 5;
-  display: grid;
-  gap: var(--ml-dna-strand-spacing);
-  transform-style: preserve-3d;
   transform: translate(
       calc(-50% + var(--ml-dna-position-x)),
       calc(-50% + var(--ml-dna-position-y))
     )
     scale(var(--ml-dna-scale));
   transform-origin: center;
+}
+
+.composition {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  gap: var(--ml-dna-strand-spacing);
+  transform-style: preserve-3d;
   rotate: var(--ml-dna-strand-angle);
   animation: mlDnaStrandRotate var(--ml-dna-rotation-duration) linear infinite;
 }
@@ -110,14 +115,14 @@
   }
 }
 
-.root[data-reduce-motion] .scene,
+.root[data-reduce-motion] .composition,
 .root[data-reduce-motion] .connector,
 .root[data-reduce-motion] .node {
   /* Animation transforms override author transforms, so remove them first. */
   animation: none;
 }
 
-.root[data-reduce-motion] .scene {
+.root[data-reduce-motion] .composition {
   rotate: calc(var(--ml-dna-strand-angle) + 180deg);
 }
 
