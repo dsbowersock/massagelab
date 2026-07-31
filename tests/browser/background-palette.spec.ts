@@ -490,4 +490,135 @@ test.describe("shared background palette review matrix", () => {
     expect(health.pageErrors).toEqual([])
     expect(health.consoleErrors).toEqual([])
   })
+
+  test("preview media uses posters, playback, fallbacks, and listener cleanup", async ({ page }) => {
+    await page.addInitScript(() => {
+      type PreviewMediaProbe = {
+        playCalls: number
+        pauseCalls: number
+        visibilityListeners: Set<EventListenerOrEventListenerObject>
+      }
+      const browserWindow = window as typeof window & { __previewMediaProbe?: PreviewMediaProbe }
+      const probe: PreviewMediaProbe = {
+        playCalls: 0,
+        pauseCalls: 0,
+        visibilityListeners: new Set(),
+      }
+      browserWindow.__previewMediaProbe = probe
+
+      HTMLMediaElement.prototype.play = function play() {
+        if (this.dataset.testid === "carousel-background-video") probe.playCalls += 1
+        return Promise.resolve()
+      }
+      HTMLMediaElement.prototype.pause = function pause() {
+        if (this.dataset.testid === "carousel-background-video") probe.pauseCalls += 1
+      }
+
+      const addEventListener = Document.prototype.addEventListener as (
+        this: Document,
+        type: string,
+        listener: EventListenerOrEventListenerObject,
+        options?: boolean | AddEventListenerOptions,
+      ) => void
+      const removeEventListener = Document.prototype.removeEventListener as (
+        this: Document,
+        type: string,
+        listener: EventListenerOrEventListenerObject,
+        options?: boolean | EventListenerOptions,
+      ) => void
+      Document.prototype.addEventListener = function add(
+        this: Document,
+        type: string,
+        listener: EventListenerOrEventListenerObject,
+        options?: boolean | AddEventListenerOptions,
+      ) {
+        if (type === "visibilitychange") probe.visibilityListeners.add(listener)
+        return addEventListener.call(this, type, listener, options)
+      } as Document["addEventListener"]
+      Document.prototype.removeEventListener = function remove(
+        this: Document,
+        type: string,
+        listener: EventListenerOrEventListenerObject,
+        options?: boolean | EventListenerOptions,
+      ) {
+        if (type === "visibilitychange") probe.visibilityListeners.delete(listener)
+        return removeEventListener.call(this, type, listener, options)
+      } as Document["removeEventListener"]
+    })
+
+    await openPaletteGallery(page)
+    const fixture = page.getByTestId("background-preview-media-review")
+    const video = fixture.getByTestId("carousel-background-video")
+    const poster = fixture.getByTestId("background-preview-poster")
+    const fallback = fixture.getByTestId("background-preview-fallback")
+    await expect(fixture).toBeVisible()
+    await expect(poster).toBeVisible()
+    await expect(video).toHaveCount(0)
+    const baselineListeners = await page.evaluate(() => (
+      (window as typeof window & {
+        __previewMediaProbe: { visibilityListeners: Set<unknown> }
+      }).__previewMediaProbe.visibilityListeners.size
+    ))
+
+    await fixture.getByRole("button", { name: "Activate preview" }).click()
+    await expect(video).toBeVisible()
+    await expect(video).toHaveAttribute("poster", /massage-lab-dna-vertical\.webp$/)
+    await expect.poll(() => page.evaluate(() => (
+      (window as typeof window & {
+        __previewMediaProbe: { playCalls: number }
+      }).__previewMediaProbe.playCalls
+    ))).toBeGreaterThan(0)
+    await expect.poll(() => page.evaluate(() => (
+      (window as typeof window & {
+        __previewMediaProbe: { visibilityListeners: Set<unknown> }
+      }).__previewMediaProbe.visibilityListeners.size
+    ))).toBe(baselineListeners + 1)
+
+    const pausesBeforeHidden = await page.evaluate(() => (
+      (window as typeof window & {
+        __previewMediaProbe: { pauseCalls: number }
+      }).__previewMediaProbe.pauseCalls
+    ))
+    await page.evaluate(() => {
+      Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" })
+      document.dispatchEvent(new Event("visibilitychange"))
+    })
+    await expect.poll(() => page.evaluate(() => (
+      (window as typeof window & {
+        __previewMediaProbe: { pauseCalls: number }
+      }).__previewMediaProbe.pauseCalls
+    ))).toBeGreaterThan(pausesBeforeHidden)
+
+    await video.dispatchEvent("error")
+    await expect(video).toHaveCount(0)
+    await expect(poster).toBeVisible()
+    await expect.poll(() => page.evaluate(() => (
+      (window as typeof window & {
+        __previewMediaProbe: { visibilityListeners: Set<unknown> }
+      }).__previewMediaProbe.visibilityListeners.size
+    ))).toBe(baselineListeners)
+
+    await poster.dispatchEvent("error")
+    await expect(poster).toHaveCount(0)
+    await expect(fallback).toHaveCSS("background-color", "rgb(18, 52, 86)")
+
+    await fixture.getByRole("button", { name: "Unmount preview" }).click()
+    await page.evaluate(() => {
+      Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" })
+    })
+    await fixture.getByRole("button", { name: "Mount preview" }).click()
+    await expect(video).toBeVisible()
+    await expect.poll(() => page.evaluate(() => (
+      (window as typeof window & {
+        __previewMediaProbe: { visibilityListeners: Set<unknown> }
+      }).__previewMediaProbe.visibilityListeners.size
+    ))).toBe(baselineListeners + 1)
+    await fixture.getByRole("button", { name: "Unmount preview" }).click()
+    await expect(video).toHaveCount(0)
+    await expect.poll(() => page.evaluate(() => (
+      (window as typeof window & {
+        __previewMediaProbe: { visibilityListeners: Set<unknown> }
+      }).__previewMediaProbe.visibilityListeners.size
+    ))).toBe(baselineListeners)
+  })
 })

@@ -54,6 +54,7 @@ export function BackgroundPreviewMedia({
   return (
     <div className={cn("relative size-full overflow-hidden", className)} aria-hidden="true">
       <div
+        data-testid="background-preview-fallback"
         className="absolute inset-0"
         style={fallbackStyle ?? { background: "#0f172a" }}
       />
@@ -75,6 +76,7 @@ export function BackgroundPreviewMedia({
         // Native img lets a failed poster reveal the already-mounted registry fallback.
         // eslint-disable-next-line @next/next/no-img-element
         <img
+          data-testid="background-preview-poster"
           src={posterUrl}
           alt=""
           className="absolute inset-0 size-full object-cover"

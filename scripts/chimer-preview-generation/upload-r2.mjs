@@ -91,6 +91,12 @@ async function runUpload(rawArgs) {
       objectPrefix: env.objectPrefix,
       objectCount: objects.length,
       totalBytes: selectedFiles.reduce((total, file) => total + file.bytes, 0),
+      objects: objects.map((object) => ({
+        objectKey: object.objectKey,
+        publicUrl: object.publicUrl,
+        contentType: object.contentType,
+        bytes: object.file.bytes,
+      })),
       firstObjects: objects.slice(0, 5).map((object) => ({
         objectKey: object.objectKey,
         publicUrl: object.publicUrl,
@@ -185,7 +191,7 @@ async function collectPreviewFiles(inputDir) {
       continue
     }
 
-    if (!entry.name.endsWith(".webm") && entry.name !== "index.json") {
+    if (!entry.name.endsWith(".webm") && !entry.name.endsWith(".webp") && entry.name !== "index.json") {
       continue
     }
 
@@ -204,6 +210,9 @@ async function collectPreviewFiles(inputDir) {
 function contentTypeForFile(fileName) {
   if (fileName.endsWith(".webm")) {
     return "video/webm"
+  }
+  if (fileName.endsWith(".webp")) {
+    return "image/webp"
   }
   if (fileName.endsWith(".json")) {
     return "application/json; charset=utf-8"

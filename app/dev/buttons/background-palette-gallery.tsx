@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button"
 import { Notice } from "@/components/ui/notice"
 import { useMusic } from "@/components/providers/music-provider"
 import { FEATURE_KEYS } from "@/lib/membership"
+import { BackgroundPreviewMediaReview } from "./background-preview-media-review"
 import {
   DEFAULT_BACKGROUND_PALETTE_STATE,
   normalizeBackgroundColorMapping,
@@ -618,6 +619,8 @@ export function BackgroundPaletteGallery() {
         ) : null}
 
       </section>
+
+      <BackgroundPreviewMediaReview />
 
       <section className="space-y-4" aria-labelledby="adapter-status-heading">
         <div>
