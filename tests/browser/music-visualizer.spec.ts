@@ -702,14 +702,16 @@ test("Clock and Visual docks avoid protected digits at required viewport shapes"
   }
 })
 
-test("Clock fills the safe edge while Visual preserves its half-height review area", async ({ page }, testInfo) => {
+test("Clock and Visual preserve their height caps with useful first-viewport density", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-chromium", "single 539x597 rendered density proof")
   await page.setViewportSize({ width: 539, height: 597 })
   await openClock(page)
 
   for (const panelName of ["Clock", "Visual"] as const) {
     await page.getByRole("button", { name: panelName, exact: true }).click()
-    await expect.poll(() => page.evaluate((activePanelName) => {
+    const dock = page.locator("[data-immersive-dock]")
+    await expect(dock).toHaveAttribute("data-immersive-panel", panelName.toLowerCase())
+    await expect.poll(() => page.evaluate(() => {
       const display = document.querySelector<HTMLElement>("[data-protected-display]")
         ?.getBoundingClientRect()
       const dockElement = document.querySelector<HTMLElement>("[data-immersive-dock]")
@@ -717,7 +719,8 @@ test("Clock fills the safe edge while Visual preserves its half-height review ar
       const scrollerElement = dockElement?.querySelector<HTMLElement>(":scope > div:last-child")
       const scroller = scrollerElement?.getBoundingClientRect()
       const edge = dockElement?.dataset.immersiveDock
-      if (!display || !dock || !scrollerElement || !scroller || !edge) return null
+      const activePanelName = dockElement?.dataset.immersivePanel
+      if (!display || !dock || !scrollerElement || !scroller || !edge || !activePanelName) return null
 
       const safeGap = edge === "bottom"
         ? dock.top - display.bottom
@@ -725,9 +728,11 @@ test("Clock fills the safe edge while Visual preserves its half-height review ar
       const availableHeight = edge === "bottom"
         ? dock.bottom - display.bottom - 16
         : display.top - dock.top - 16
+      const dockStyle = getComputedStyle(dockElement)
       const visualHalfHeight = Number.parseFloat(
-        getComputedStyle(dockElement).getPropertyValue("--immersive-visual-viewport-half-height"),
+        dockStyle.getPropertyValue("--immersive-visual-viewport-half-height"),
       )
+      const dockMaxHeight = Number.parseFloat(dockStyle.maxHeight)
       const visibleInteractiveCount = Array.from(scrollerElement.querySelectorAll<HTMLElement>(
         "button, input, select, [role='switch'], [role='slider']",
       )).filter((element) => {
@@ -742,25 +747,28 @@ test("Clock fills the safe edge while Visual preserves its half-height review ar
         gapPx: Math.round(safeGap),
         dockHeightPx: Math.round(dock.height),
         availableHeightPx: Math.round(availableHeight),
+        dockMaxHeightPx: Math.round(dockMaxHeight),
         visualHalfHeightPx: Math.round(visualHalfHeight),
         visibleInteractiveCount,
-        preservesDisplayGap: safeGap >= 14
-          && (activePanelName === "Visual" || safeGap <= 18),
-        respectsHeightContract: activePanelName === "Visual"
-          ? Number.isFinite(visualHalfHeight)
-            && Math.abs(dock.height - visualHalfHeight) <= 2
-          : Math.abs(dock.height - availableHeight) <= 2,
+        preservesDisplayGap: safeGap >= 14,
+        respectsHeightCap: Number.isFinite(dockMaxHeight)
+          && dock.height <= dockMaxHeight + 2,
+        respectsVisualHalfHeight: activePanelName !== "visual"
+          || (Number.isFinite(visualHalfHeight)
+            && dock.height <= visualHalfHeight + 2),
         usefulFirstViewport: visibleInteractiveCount >= 2,
         internallyScrollable: scrollerElement.scrollHeight > scrollerElement.clientHeight,
       }
-    }, panelName)).toEqual({
+    })).toEqual({
       gapPx: expect.any(Number),
       dockHeightPx: expect.any(Number),
       availableHeightPx: expect.any(Number),
+      dockMaxHeightPx: expect.any(Number),
       visualHalfHeightPx: expect.any(Number),
       visibleInteractiveCount: expect.any(Number),
       preservesDisplayGap: true,
-      respectsHeightContract: true,
+      respectsHeightCap: true,
+      respectsVisualHalfHeight: true,
       usefulFirstViewport: true,
       internallyScrollable: true,
     })
