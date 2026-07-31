@@ -14,6 +14,7 @@ import {
   getTwistedCubeDelaySeconds,
   interpolateTwistedCubeOutline,
 } from "../../lib/twisted-cubes-background.js"
+import { COMPUTED_CONSUMER_CONTRACTS } from "./dna-twisted-cubes-consumer-contract.mjs"
 
 const EFFECTS = [
   {
@@ -23,19 +24,7 @@ const EFFECTS = [
       "Strand spacing", "Scale", "Position X", "Position Y", "Connector width",
       "Connector thickness", "Outline thickness",
     ],
-    controls: [
-      ["Node motion speed", "massageLabDnaNodeMotionSpeed"],
-      ["Strand rotation speed", "massageLabDnaStrandRotationSpeed"],
-      ["Strand count", "massageLabDnaStrandCount"],
-      ["Strand angle", "massageLabDnaStrandAngle"],
-      ["Strand spacing", "massageLabDnaStrandSpacing"],
-      ["Scale", "massageLabDnaScale"],
-      ["Position X", "massageLabDnaPositionX"],
-      ["Position Y", "massageLabDnaPositionY"],
-      ["Connector width", "massageLabDnaConnectorWidth"],
-      ["Connector thickness", "massageLabDnaConnectorThickness"],
-      ["Outline thickness", "massageLabDnaOutlineThickness"],
-    ],
+    controls: COMPUTED_CONSUMER_CONTRACTS.filter(({ effectId }) => effectId === "massage-lab-dna"),
     scaleKey: "massageLabDnaScale",
     positionXKey: "massageLabDnaPositionX",
     positionYKey: "massageLabDnaPositionY",
@@ -61,19 +50,7 @@ const EFFECTS = [
       "Layer depth", "Scale", "Position X", "Position Y", "Fade falloff",
       "Relative outline thickness",
     ],
-    controls: [
-      ["Rotation speed", "massageLabTwistedCubesRotationSpeed"],
-      ["Layer stagger", "massageLabTwistedCubesLayerStagger"],
-      ["View angle X", "massageLabTwistedCubesViewAngleX"],
-      ["View angle Y", "massageLabTwistedCubesViewAngleY"],
-      ["Layer count", "massageLabTwistedCubesLayerCount"],
-      ["Layer depth", "massageLabTwistedCubesLayerDepthSpacing"],
-      ["Scale", "massageLabTwistedCubesScale"],
-      ["Position X", "massageLabTwistedCubesPositionX"],
-      ["Position Y", "massageLabTwistedCubesPositionY"],
-      ["Fade falloff", "massageLabTwistedCubesOpacityFalloff"],
-      ["Relative outline thickness", "massageLabTwistedCubesOutlineThickness"],
-    ],
+    controls: COMPUTED_CONSUMER_CONTRACTS.filter(({ effectId }) => effectId === "massage-lab-twisted-cubes"),
     scaleKey: "massageLabTwistedCubesScale",
     positionXKey: "massageLabTwistedCubesPositionX",
     positionYKey: "massageLabTwistedCubesPositionY",
@@ -340,6 +317,7 @@ async function captureComputedConsumerState(host: Locator, id: typeof EFFECTS[nu
         strandTransform: strandCss.transform,
         strandAnimationName: strandCss.animationName,
         strandDuration: strandCss.animationDuration,
+        strandDelay: strandCss.animationDelay,
         connectorWidth: connectorCss.width,
         connectorHeight: connectorCss.height,
         connectorBorderWidth: connectorCss.borderTopWidth,
@@ -353,17 +331,18 @@ async function captureComputedConsumerState(host: Locator, id: typeof EFFECTS[nu
         startNodeHeight: startCss.height,
         startNodeBorderWidth: startCss.borderTopWidth,
         startNodeBorderColor: startCss.borderTopColor,
-        startNodeBackground: startCss.backgroundColor,
         startNodeTransform: startCss.transform,
         startNodeAnimationName: startCss.animationName,
         startNodeDuration: startCss.animationDuration,
         startNodeDelay: startCss.animationDelay,
         endNodeWidth: endCss.width,
         endNodeHeight: endCss.height,
-        endNodeBackground: endCss.backgroundColor,
+        endNodeBorderWidth: endCss.borderTopWidth,
+        endNodeBorderColor: endCss.borderTopColor,
         endNodeTransform: endCss.transform,
-        startNodeRole: first?.style.getPropertyValue("--ml-dna-start-color") ?? "",
-        endNodeRole: first?.style.getPropertyValue("--ml-dna-end-color") ?? "",
+        endNodeAnimationName: endCss.animationName,
+        endNodeDuration: endCss.animationDuration,
+        endNodeDelay: endCss.animationDelay,
       }
     })
   }
@@ -454,6 +433,8 @@ async function normalizeComputedConsumer(
       animationDuration: css.animationDuration,
       animationDelay: css.animationDelay,
       top: css.top,
+      width: css.width,
+      height: css.height,
     }
     if (container) container.remove()
     else specimen.remove()
@@ -472,6 +453,27 @@ async function normalizeTransformForTarget(target: Locator, transform: string) {
     specimen.remove()
     return normalized
   }, transform)
+}
+
+/** Independently samples a reconstructed animation at CSS time zero, including negative delays. */
+async function normalizeAnimatedTransformForTarget(
+  target: Locator,
+  keyframes: Keyframe[],
+  timing: { duration: number; delay: number; easing: string; iterations: number },
+) {
+  return target.evaluate((element, input) => {
+    const specimen = element.cloneNode(false) as HTMLElement
+    specimen.style.visibility = "hidden"
+    specimen.style.animation = "none"
+    element.parentElement?.append(specimen)
+    const animation = specimen.animate(input.keyframes, input.timing)
+    animation.pause()
+    animation.currentTime = 0
+    const normalized = getComputedStyle(specimen).transform
+    animation.cancel()
+    specimen.remove()
+    return normalized
+  }, { keyframes, timing })
 }
 
 const ALLOWED_RENDER_CHANGES: Record<string, readonly string[]> = {
@@ -497,44 +499,6 @@ const ALLOWED_RENDER_CHANGES: Record<string, readonly string[]> = {
   massageLabTwistedCubesPositionY: ["positionY"],
   massageLabTwistedCubesOpacityFalloff: ["firstAlpha"],
   massageLabTwistedCubesOutlineThickness: ["firstOutlineThickness"],
-}
-
-const ALLOWED_COMPUTED_CHANGES: Record<string, readonly string[]> = {
-  massageLabDnaNodeMotionSpeed: [
-    "connectorTransform", "startNodeTransform", "endNodeTransform",
-    "connectorDuration", "connectorDelay", "startNodeDuration", "startNodeDelay",
-  ],
-  massageLabDnaStrandRotationSpeed: ["strandDuration"],
-  massageLabDnaStrandCount: [
-    "strandCount", "nodeCount", "firstTop", "lastTop", "connectorDelay", "startNodeDelay",
-    "connectorTransform", "startNodeTransform", "endNodeTransform",
-    "startNodeBackground", "endNodeBackground", "startNodeRole", "endNodeRole",
-  ],
-  massageLabDnaStrandAngle: ["strandTransform"],
-  massageLabDnaStrandSpacing: ["firstTop", "lastTop"],
-  massageLabDnaScale: ["sceneTransform"],
-  massageLabDnaPositionX: ["sceneTransform"],
-  massageLabDnaPositionY: ["sceneTransform"],
-  massageLabDnaConnectorWidth: [
-    "strandWidth", "strandMarginLeft", "connectorWidth",
-    "connectorTransform", "startNodeTransform", "endNodeTransform",
-  ],
-  massageLabDnaConnectorThickness: [
-    "strandHeight", "strandMarginTop", "connectorHeight", "startNodeWidth", "startNodeHeight",
-    "endNodeWidth", "endNodeHeight", "connectorTransform", "startNodeTransform", "endNodeTransform",
-  ],
-  massageLabDnaOutlineThickness: ["connectorBorderWidth", "startNodeBorderWidth"],
-  massageLabTwistedCubesRotationSpeed: ["cubeTransform", "cubeDuration"],
-  massageLabTwistedCubesLayerStagger: ["cubeTransform", "cubeDelay"],
-  massageLabTwistedCubesViewAngleX: ["viewTransform"],
-  massageLabTwistedCubesViewAngleY: ["viewTransform"],
-  massageLabTwistedCubesLayerCount: ["layerCount", "faceCount", "cubeTransform", "cubeDelay", "faceOpacity"],
-  massageLabTwistedCubesLayerDepthSpacing: ["secondLayerTransform"],
-  massageLabTwistedCubesScale: ["sceneTransform"],
-  massageLabTwistedCubesPositionX: ["sceneTransform"],
-  massageLabTwistedCubesPositionY: ["sceneTransform"],
-  massageLabTwistedCubesOpacityFalloff: ["faceOpacity"],
-  massageLabTwistedCubesOutlineThickness: ["faceBorderWidth"],
 }
 
 async function expectExactControlRender({
@@ -652,18 +616,19 @@ async function expectExactControlRender({
 async function expectExactComputedConsumer({
   host,
   id,
-  key,
+  contract,
   properties,
   before,
 }: {
   host: Locator
   id: typeof EFFECTS[number]["id"]
-  key: string
+  contract: { key: string; allowedCouplings: readonly string[] }
   properties: Record<string, number>
   before: Record<string, string | number>
 }) {
+  const { key } = contract
   const after = await captureComputedConsumerState(host, id) as Record<string, string | number>
-  const allowedChanges = new Set(ALLOWED_COMPUTED_CHANGES[key] ?? [])
+  const allowedChanges = new Set(contract.allowedCouplings)
   for (const [sentinel, value] of Object.entries(before)) {
     if (!allowedChanges.has(sentinel)) expect(after[sentinel], `${key} rewired computed ${sentinel}`).toBe(value)
   }
@@ -695,6 +660,52 @@ async function expectExactComputedConsumer({
       "font-size": String(after.rootFontSize),
       top: `calc(0% + ${firstPhase * properties.massageLabDnaStrandSpacing}rem)`,
     }, undefined, { width: String(after.sceneWidth), height: String(after.sceneHeight) })
+    const lastPhase = getDnaStrandPhase({ oneBasedIndex: count, total: count })
+    const lastTopExpected = await normalizeComputedConsumer(host, {
+      position: "absolute",
+      "font-size": String(after.rootFontSize),
+      top: `calc(100% + ${lastPhase * properties.massageLabDnaStrandSpacing}rem)`,
+    }, undefined, { width: String(after.sceneWidth), height: String(after.sceneHeight) })
+    const nodeDurationSeconds = getDnaNodeCycleSeconds(properties.massageLabDnaNodeMotionSpeed)
+    const firstDelaySeconds = getDnaStrandDelaySeconds({
+      oneBasedIndex: 1,
+      total: count,
+      speed: properties.massageLabDnaNodeMotionSpeed,
+    })
+    const nodeTiming = {
+      duration: nodeDurationSeconds * 1000,
+      delay: firstDelaySeconds * 1000,
+      easing: "linear",
+      iterations: Number.POSITIVE_INFINITY,
+    }
+    const firstStrand = effectRoot(host).locator('[style*="--ml-dna-start-color"]').first()
+    const connectorTarget = firstStrand.locator(":scope > span").first()
+    const startNodeTarget = firstStrand.locator('[data-side="start"]')
+    const endNodeTarget = firstStrand.locator('[data-side="end"]')
+    const restScale = 0.55 + firstPhase * 0.45
+    const expectedAnimatedTransforms = async () => ({
+      connectorTransform: await normalizeAnimatedTransformForTarget(connectorTarget, [
+        { transform: `translate(-50%, -50%) scaleX(${restScale})`, offset: 0, easing: "ease-in-out" },
+        { transform: "translate(-50%, -50%) scaleX(0.08)", offset: 0.5, easing: "ease-in-out" },
+        { transform: `translate(-50%, -50%) scaleX(${restScale})`, offset: 1 },
+      ], nodeTiming),
+      startNodeTransform: await normalizeAnimatedTransformForTarget(startNodeTarget, [
+        { transform: "translate(-50%, -50%) translateX(0px)", offset: 0, easing: "ease-in-out" },
+        { transform: `translate(-50%, -50%) translateX(${properties.massageLabDnaConnectorWidth / 2}px)`, offset: 0.5, easing: "ease-in-out" },
+        { transform: "translate(-50%, -50%) translateX(0px)", offset: 1 },
+      ], nodeTiming),
+      endNodeTransform: await normalizeAnimatedTransformForTarget(endNodeTarget, [
+        { transform: "translate(-50%, -50%) translateX(0px)", offset: 0, easing: "ease-in-out" },
+        { transform: `translate(-50%, -50%) translateX(${-properties.massageLabDnaConnectorWidth / 2}px)`, offset: 0.5, easing: "ease-in-out" },
+        { transform: "translate(-50%, -50%) translateX(0px)", offset: 1 },
+      ], nodeTiming),
+    })
+    const expectAnimatedTransforms = async () => {
+      const expected = await expectedAnimatedTransforms()
+      expect(after.connectorTransform).toBe(expected.connectorTransform)
+      expect(after.startNodeTransform).toBe(expected.startNodeTransform)
+      expect(after.endNodeTransform).toBe(expected.endNodeTransform)
+    }
 
     switch (key) {
       case "massageLabDnaNodeMotionSpeed":
@@ -709,8 +720,11 @@ async function expectExactComputedConsumer({
           })
           expect(after.connectorDuration).toBe(timingExpected.animationDuration)
           expect(after.startNodeDuration).toBe(timingExpected.animationDuration)
+          expect(after.endNodeDuration).toBe(timingExpected.animationDuration)
           expect(after.connectorDelay).toBe(timingExpected.animationDelay)
           expect(after.startNodeDelay).toBe(timingExpected.animationDelay)
+          expect(after.endNodeDelay).toBe(timingExpected.animationDelay)
+          await expectAnimatedTransforms()
         }
         break
       case "massageLabDnaStrandRotationSpeed":
@@ -725,12 +739,23 @@ async function expectExactComputedConsumer({
         expect(after.strandCount).toBe(count)
         expect(after.nodeCount).toBe(count * 2)
         expect(after.firstTop).toBe(firstTopExpected.top)
+        expect(after.lastTop).toBe(lastTopExpected.top)
+        {
+          const delayExpected = await normalizeComputedConsumer(host, {
+            "animation-delay": `${firstDelaySeconds}s`,
+          })
+          expect(after.connectorDelay).toBe(delayExpected.animationDelay)
+          expect(after.startNodeDelay).toBe(delayExpected.animationDelay)
+          expect(after.endNodeDelay).toBe(delayExpected.animationDelay)
+          await expectAnimatedTransforms()
+        }
         break
       case "massageLabDnaStrandAngle":
         expect(after.strandTransform).toBe(strandExpected.transform)
         break
       case "massageLabDnaStrandSpacing":
         expect(after.firstTop).toBe(firstTopExpected.top)
+        expect(after.lastTop).toBe(lastTopExpected.top)
         break
       case "massageLabDnaScale":
       case "massageLabDnaPositionX":
@@ -741,6 +766,7 @@ async function expectExactComputedConsumer({
         expect(after.strandWidth).toBe(`${properties[key]}px`)
         expect(after.connectorWidth).toBe(`${properties[key]}px`)
         expect(after.strandMarginLeft).toBe(`${-properties[key] / 2}px`)
+        await expectAnimatedTransforms()
         break
       case "massageLabDnaConnectorThickness":
         expect(after.strandHeight).toBe(`${properties[key]}px`)
@@ -750,10 +776,12 @@ async function expectExactComputedConsumer({
         expect(after.endNodeWidth).toBe(`${properties[key]}px`)
         expect(after.endNodeHeight).toBe(`${properties[key]}px`)
         expect(after.strandMarginTop).toBe(`${-properties[key] / 2}px`)
+        await expectAnimatedTransforms()
         break
       case "massageLabDnaOutlineThickness":
         expect(after.connectorBorderWidth).toBe(borderExpected.borderTopWidth)
         expect(after.startNodeBorderWidth).toBe(borderExpected.borderTopWidth)
+        expect(after.endNodeBorderWidth).toBe(borderExpected.borderTopWidth)
         break
       default:
         throw new Error(`Missing DNA computed consumer assertion for ${key}.`)
@@ -781,6 +809,28 @@ async function expectExactComputedConsumer({
   const faceBorderExpected = await normalizeComputedConsumer(host, {
     border: `calc(${properties.massageLabTwistedCubesOutlineThickness} * 50vmin) solid black`,
   })
+  const cubeDurationSeconds = getTwistedCubeCycleSeconds(properties.massageLabTwistedCubesRotationSpeed)
+  const firstCubeDelaySeconds = getTwistedCubeDelaySeconds({
+    oneBasedIndex: 1,
+    count,
+    stagger: properties.massageLabTwistedCubesLayerStagger,
+  })
+  const firstCube = effectRoot(host)
+    .locator('[style*="--ml-twisted-cubes-outline"]')
+    .first()
+    .locator(":scope > span")
+  const expectedCubeTransform = async () => normalizeAnimatedTransformForTarget(firstCube, [
+    { transform: "rotateX(0deg) rotateY(0deg) rotateZ(0deg)", offset: 0, easing: "cubic-bezier(0.5, 0, 0.5, 1)" },
+    { transform: "rotateX(180deg) rotateY(0deg) rotateZ(0deg)", offset: 0.25, easing: "cubic-bezier(0.5, 0, 0.5, 1)" },
+    { transform: "rotateX(180deg) rotateY(180deg) rotateZ(0deg)", offset: 0.5, easing: "cubic-bezier(0.5, 0, 0.5, 1)" },
+    { transform: "rotateX(180deg) rotateY(180deg) rotateZ(180deg)", offset: 0.75, easing: "cubic-bezier(0.5, 0, 0.5, 1)" },
+    { transform: "rotateX(360deg) rotateY(360deg) rotateZ(360deg)", offset: 1 },
+  ], {
+    duration: cubeDurationSeconds * 1000,
+    delay: firstCubeDelaySeconds * 1000,
+    easing: "linear",
+    iterations: Number.POSITIVE_INFINITY,
+  })
 
   switch (key) {
     case "massageLabTwistedCubesRotationSpeed":
@@ -789,6 +839,7 @@ async function expectExactComputedConsumer({
           "animation-duration": `${getTwistedCubeCycleSeconds(properties[key])}s`,
         })
         expect(after.cubeDuration).toBe(timingExpected.animationDuration)
+        expect(after.cubeTransform).toBe(await expectedCubeTransform())
       }
       break
     case "massageLabTwistedCubesLayerStagger":
@@ -801,6 +852,7 @@ async function expectExactComputedConsumer({
           })}s`,
         })
         expect(after.cubeDelay).toBe(timingExpected.animationDelay)
+        expect(after.cubeTransform).toBe(await expectedCubeTransform())
       }
       break
     case "massageLabTwistedCubesViewAngleX":
@@ -810,6 +862,13 @@ async function expectExactComputedConsumer({
     case "massageLabTwistedCubesLayerCount":
       expect(after.layerCount).toBe(count)
       expect(after.faceCount).toBe(count * 6)
+      {
+        const delayExpected = await normalizeComputedConsumer(host, {
+          "animation-delay": `${firstCubeDelaySeconds}s`,
+        })
+        expect(after.cubeDelay).toBe(delayExpected.animationDelay)
+        expect(after.cubeTransform).toBe(await expectedCubeTransform())
+      }
       expect(Number(after.faceOpacity)).toBeCloseTo(getTwistedCubeAlpha({
         oneBasedIndex: 1,
         count,
@@ -947,8 +1006,19 @@ async function expectExactReducedEffectState(
     expect(actual.nodes).toBe(count * 2)
     expect(actual.childAnimations.every((animation) => animation === "none")).toBe(true)
     const computed = await captureComputedConsumerState(host, id) as Record<string, string | number>
-    const startRoleIndex = Number.parseInt(String(computed.startNodeRole).match(/node-color-(\d)/)?.[1] ?? "-1", 10)
-    const endRoleIndex = Number.parseInt(String(computed.endNodeRole).match(/node-color-(\d)/)?.[1] ?? "-1", 10)
+    const firstNodeEvidence = await root.locator('[style*="--ml-dna-start-color"]').first().evaluate((strand) => {
+      const element = strand as HTMLElement
+      const startNode = element.querySelector<HTMLElement>('[data-side="start"]') as HTMLElement
+      const endNode = element.querySelector<HTMLElement>('[data-side="end"]') as HTMLElement
+      return {
+        startRole: element.style.getPropertyValue("--ml-dna-start-color"),
+        endRole: element.style.getPropertyValue("--ml-dna-end-color"),
+        startBackground: getComputedStyle(startNode).backgroundColor,
+        endBackground: getComputedStyle(endNode).backgroundColor,
+      }
+    })
+    const startRoleIndex = Number.parseInt(firstNodeEvidence.startRole.match(/node-color-(\d)/)?.[1] ?? "-1", 10)
+    const endRoleIndex = Number.parseInt(firstNodeEvidence.endRole.match(/node-color-(\d)/)?.[1] ?? "-1", 10)
     expect(startRoleIndex).toBeGreaterThanOrEqual(0)
     expect(endRoleIndex).toBeGreaterThanOrEqual(0)
     const nodeRoleColors = [
@@ -956,6 +1026,10 @@ async function expectExactReducedEffectState(
     ]
     const rootExpected = await normalizeComputedConsumer(host, {
       "background-color": roleColors.background,
+    })
+    const sceneGeometryExpected = await normalizeComputedConsumer(host, {
+      height: "65vmin",
+      "aspect-ratio": "2 / 5",
     })
     const sceneExpected = await normalizeTransformForTarget(
       root.locator(":scope > div"),
@@ -983,6 +1057,8 @@ async function expectExactReducedEffectState(
       rootBackground: rootExpected.backgroundColor,
       sceneTransform: sceneExpected,
       scenePerspective: "none",
+      sceneWidth: sceneGeometryExpected.width,
+      sceneHeight: sceneGeometryExpected.height,
       strandCount: count,
       nodeCount: count * 2,
       strandWidth: `${properties.massageLabDnaConnectorWidth}px`,
@@ -991,10 +1067,14 @@ async function expectExactReducedEffectState(
       strandMarginTop: `${-properties.massageLabDnaConnectorThickness / 2}px`,
       strandTransform: strandExpected.transform,
       strandAnimationName: "none",
+      strandDuration: "0s",
+      strandDelay: "0s",
       connectorWidth: `${properties.massageLabDnaConnectorWidth}px`,
       connectorHeight: `${properties.massageLabDnaConnectorThickness}px`,
       connectorTransform: connectorExpected.transform,
       connectorAnimationName: "none",
+      connectorDuration: "0s",
+      connectorDelay: "0s",
       connectorBorderWidth: connectorExpected.borderTopWidth,
       connectorBorderColor: connectorExpected.borderTopColor,
       connectorBackground: connectorExpected.backgroundColor,
@@ -1002,14 +1082,21 @@ async function expectExactReducedEffectState(
       startNodeHeight: `${properties.massageLabDnaConnectorThickness}px`,
       startNodeTransform: startNodeExpected.transform,
       startNodeAnimationName: "none",
+      startNodeDuration: "0s",
+      startNodeDelay: "0s",
       startNodeBorderWidth: startNodeExpected.borderTopWidth,
       startNodeBorderColor: startNodeExpected.borderTopColor,
-      startNodeBackground: startNodeExpected.backgroundColor,
       endNodeWidth: `${properties.massageLabDnaConnectorThickness}px`,
       endNodeHeight: `${properties.massageLabDnaConnectorThickness}px`,
       endNodeTransform: endNodeExpected.transform,
-      endNodeBackground: endNodeExpected.backgroundColor,
+      endNodeAnimationName: "none",
+      endNodeDuration: "0s",
+      endNodeDelay: "0s",
+      endNodeBorderWidth: endNodeExpected.borderTopWidth,
+      endNodeBorderColor: endNodeExpected.borderTopColor,
     })
+    expect(firstNodeEvidence.startBackground).toBe(startNodeExpected.backgroundColor)
+    expect(firstNodeEvidence.endBackground).toBe(endNodeExpected.backgroundColor)
     return
   }
 
@@ -1085,6 +1172,10 @@ async function expectExactReducedEffectState(
   const rootExpected = await normalizeComputedConsumer(host, {
     "background-color": roleColors.background,
   })
+  const sceneGeometryExpected = await normalizeComputedConsumer(host, {
+    width: "50vmin",
+    height: "50vmin",
+  })
   const sceneExpected = await normalizeTransformForTarget(
     root.locator(":scope > div"),
     `translate(calc(-50% + ${transform.positionX}%), calc(-50% + ${transform.positionY}%)) scale(${transform.scale})`,
@@ -1112,6 +1203,8 @@ async function expectExactReducedEffectState(
     rootBackground: rootExpected.backgroundColor,
     sceneTransform: sceneExpected,
     scenePerspective: "800px",
+    sceneWidth: sceneGeometryExpected.width,
+    sceneHeight: sceneGeometryExpected.height,
     viewTransform: viewExpected.transform,
     layerCount: count,
     faceCount: count * 6,
@@ -1119,8 +1212,10 @@ async function expectExactReducedEffectState(
     secondLayerTransform: secondLayerExpected.transform,
     cubeTransform: cubeExpected.transform,
     cubeAnimationName: "none",
-    faceWidth: String(computed.sceneWidth),
-    faceHeight: String(computed.sceneHeight),
+    cubeDuration: "0s",
+    cubeDelay: "0s",
+    faceWidth: sceneGeometryExpected.width,
+    faceHeight: sceneGeometryExpected.height,
     faceOpacity: firstFaceExpected.opacity,
     faceBorderWidth: firstFaceExpected.borderTopWidth,
     faceBorderColor: firstFaceExpected.borderTopColor,
@@ -1361,7 +1456,8 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
       expect(labelledByIds).toHaveLength(11)
       expect(labelledByIds.every(Boolean)).toBe(true)
       expect(new Set(labelledByIds).size).toBe(11)
-      for (const [label, key] of effect.controls) {
+      for (const contract of effect.controls) {
+        const { label, key } = contract
         const slider = namedSlider(review, label)
         await expect(slider).toHaveCount(1)
         const before = await parsedAttribute<Record<string, number>>(review, "data-current-properties")
@@ -1390,7 +1486,7 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
         await expectExactComputedConsumer({
           host,
           id: effect.id,
-          key,
+          contract,
           properties: after,
           before: beforeComputed,
         })
@@ -1399,7 +1495,7 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
         expect(await parsedAttribute(review, "data-current-properties"), label).toEqual(before)
       }
       await expectRenderedContract(host, effect.id)
-      await namedSlider(review, effect.controls[0][0]).press("ArrowRight")
+      await namedSlider(review, effect.controls[0].label).press("ArrowRight")
       const edited = await review.getAttribute("data-current-properties")
       await review.getByRole("button", { name: "Undo", exact: true }).click()
       await expect(review).not.toHaveAttribute("data-current-properties", edited ?? "")
@@ -1456,7 +1552,7 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
         await selectEffect(review, host, effect.id)
         await expect(host).toHaveAttribute("data-background-diagnostic-reduced-motion", "true")
         await review.getByRole("button", { name: "Harmony", exact: true }).click()
-        for (const [label] of effect.controls) await namedSlider(review, label).press("End")
+        for (const { label } of effect.controls) await namedSlider(review, label).press("End")
         const saved = await parsedAttribute<Record<string, number>>(review, "data-current-properties")
         expect(Object.fromEntries(Object.keys(effect.endValues).map((key) => [key, saved[key]])))
           .toEqual(effect.endValues)

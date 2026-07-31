@@ -216,3 +216,43 @@ Harmony colors are normalized from the real registry adapter/palette resolver be
 - `git diff --check`: passed.
 
 The Fix Round 3 diff contains only the dedicated browser suite, its focused source guard, and this report. Package/lock, Prisma, roadmap, TODO, generated-media, production behavior, and primary-checkout files remain unchanged. Both isolated and primary `TODO.md` SHA-256 values remain `034BE9755BE897094EA6E1229D0E7C662BF32C2A27AE917E8A5A7FCE890CE51C` and `C2DBD02A98631A6653DD5F1111EC030FDF00BC353B5A19B81AFFC7548811CDD5`. No push was performed.
+
+## Fix Round 4
+
+Task 8 was reviewed again from commit `18e0e28a76c1d030b23dba4c5988c4493f6580fa`. Fix Round 3 had the right computed-consumer targets, but its exception map and source guard did not positively prove every permitted coupled field or freeze the complete slider-to-consumer contract.
+
+### Complete runtime-owned consumer contract
+
+`tests/browser/dna-twisted-cubes-consumer-contract.mjs` now contains the single structured 22-entry acceptance map. Every entry fixes the effect id, accessible label, canonical key, concrete target, computed properties, and allowed coupled snapshot fields. The browser loop derives both 11-control matrices from this table and uses each entry's `allowedCouplings` as its only computed-change exception set; the former second allowlist was removed.
+
+The focused Node guard imports the same runtime table and asserts exactly 22 unique entries against a complete literal projection. A missing, reordered, relabelled, retargeted, re-keyed, or recoupled entry now fails CI. The guard also requires the reduced-motion duration/delay evidence and fixed-geometry tokens used by the browser suite.
+
+### Positive computed coupling and static-state proof
+
+Every allowed computed change now has an independent positive assertion:
+
+- DNA count and spacing assert both first and last layout-quantized strand tops; count also asserts connector and both-node delays and transforms.
+- DNA node speed asserts connector and both-node duration, delay, and paused time-zero transform. Connector width and thickness assert all affected dimensions, margins, and connector/both-node transforms.
+- Twisted rotation speed, layer stagger, and layer count assert the concrete paused time-zero cube transform; stagger and count also assert the normalized negative delay.
+- All previously direct angle, responsive scene transform, depth, opacity, border, count, and dimension consumers remain exact.
+
+Animated transform expectations come from reconstructed keyframes and independently supplied domain timing, sampled on hidden target-shaped specimens at CSS time zero. The oracle applies CSS timing functions per keyframe interval and therefore covers the negative-delay phase without reading the production animation's computed transform back into its expectation.
+
+Reduced motion now asserts `animation-name: none`, exact `0s` duration, and exact `0s` delay for the DNA strand, connector, start node, end node, and Twisted cube. Both DNA node sides also have independent concrete border/color evidence. Fixed geometry is independently normalized from `height: 65vmin` plus `aspect-ratio: 2 / 5` for the DNA scene and `50vmin` square geometry for the Twisted scene and faces; face expectations no longer derive from the captured production scene dimensions.
+
+No production consumer miswire was uncovered, so no production file was changed.
+
+### Fix Round 4 validation
+
+- `node --test tests/browser-qa-harness.test.mjs tests/sitewide-control-rollout.test.mjs`: 16/16 passed.
+- Combined desktop/mobile browser acceptance: 16/16 passed (8/8 per project).
+- Computed-consumer/reduced-state repeat with `--repeat-each=3 --workers=2`: 12/12 passed across desktop and mobile in 3.4 minutes.
+- `npm run typecheck`: passed.
+- `npm run lint`: passed with only Babel's existing large-file informational note for `app/chimer/running-timer.tsx`.
+- `npm run test`: 1,857/1,857 passed.
+- `npm run build`: passed; Next compiled, typechecked, and generated 101 pages. Prebuild Prisma generation changed no tracked Prisma or package files.
+- `git diff --check`: passed.
+
+The first strengthened desktop run exposed a test-oracle mismatch: Web Animations easing had been applied once to the whole reconstructed effect, while CSS applies `animation-timing-function` per keyframe interval. Moving the independent easing to each keyframe interval made the exact consumer and oracle matrices agree; the focused rerun and all exhaustive/repeat runs then passed.
+
+The Fix Round 4 diff contains only the dedicated browser suite, its new structured consumer-contract fixture, the focused source guard, and this report. Package/lock, Prisma, roadmap, TODO, generated-media, production behavior, and primary-checkout files remain unchanged. Both isolated and primary `TODO.md` SHA-256 values remain `034BE9755BE897094EA6E1229D0E7C662BF32C2A27AE917E8A5A7FCE890CE51C` and `C2DBD02A98631A6653DD5F1111EC030FDF00BC353B5A19B81AFFC7548811CDD5`. No push was performed.
