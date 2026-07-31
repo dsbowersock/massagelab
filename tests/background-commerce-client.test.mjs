@@ -7,6 +7,7 @@ import {
   buildBackgroundCartAuthReturnPath,
   formatCommerceAmount,
   normalizeBackgroundCommerceSnapshot,
+  shouldApplyPreferenceOwnershipProof,
 } from "../lib/background-commerce-client.js"
 
 const EMPTY_SNAPSHOT = {
@@ -299,6 +300,13 @@ describe("background cart authentication return paths", () => {
 })
 
 describe("background commerce reducer", () => {
+  it("applies preference ownership only against the commerce revision it observed", () => {
+    assert.equal(shouldApplyPreferenceOwnershipProof(4, 4), true)
+    assert.equal(shouldApplyPreferenceOwnershipProof(4, 5), false)
+    assert.equal(shouldApplyPreferenceOwnershipProof(-1, -1), false)
+    assert.equal(shouldApplyPreferenceOwnershipProof("4", 4), false)
+  })
+
   it("uses full snapshots and rejects stale fetch responses", () => {
     const loadingOne = backgroundCommerceReducer(EMPTY_BACKGROUND_COMMERCE_STATE, {
       type: "fetch-begin",

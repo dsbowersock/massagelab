@@ -312,7 +312,7 @@ describe("premium background registry", () => {
     assert.match(chimerPageSource, /resolveAuthoritativeBackgroundOwnership\([\s\S]*permanentlyOwnedBackgroundIds,[\s\S]*commerceOwnedBackgroundIds/)
     assert.match(
       chimerPageSource,
-      /reconcileBackgroundCommerceOwnership\(reconciledWrite\.ownedBackgroundIds\)/,
+      /const commerceRevision = captureBackgroundCommerceOwnershipRevision\(\)[\s\S]*reconcileBackgroundCommerceOwnership\(\s*reconciledWrite\.ownedBackgroundIds,\s*commerceRevision,/,
     )
     assert.match(chimerPageSource, /canUseBackgroundId\(id, backgroundAccess, "music"\)/)
     assert.match(

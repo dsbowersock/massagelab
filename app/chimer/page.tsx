@@ -151,6 +151,8 @@ export default function ChimerPage() {
   const { settings: appSettings } = useSettings()
   const {
     state: backgroundCommerceState,
+    captureOwnershipReconciliationRevision:
+      captureBackgroundCommerceOwnershipRevision,
     reconcileOwnedBackgroundIds: reconcileBackgroundCommerceOwnership,
   } = useBackgroundCommerce()
   const {
@@ -242,6 +244,7 @@ export default function ChimerPage() {
   const [accountPreferenceWriter] = useState(() =>
     createSerializedChimerPreferenceWriter({
       send: async (request) => {
+        const commerceRevision = captureBackgroundCommerceOwnershipRevision()
         const response = await fetchWithTimeout("/api/account/preferences", {
           method: "PUT",
           headers: { "content-type": "application/json" },
@@ -262,7 +265,10 @@ export default function ChimerPage() {
         // cannot leave a revoked background usable until another refresh.
         setFeatureKeys(reconciledWrite.featureKeys)
         setPermanentlyOwnedBackgroundIds(reconciledWrite.ownedBackgroundIds)
-        void reconcileBackgroundCommerceOwnership(reconciledWrite.ownedBackgroundIds)
+        void reconcileBackgroundCommerceOwnership(
+          reconciledWrite.ownedBackgroundIds,
+          commerceRevision,
+        )
         return doesChimerPreferenceWriteResponseMatch(
           request.requestBody,
           responseBody,
@@ -446,6 +452,7 @@ export default function ChimerPage() {
         settingsRef.current = seedSettings
         setSettings(seedSettings)
         window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(seedSettings))
+        const seedCommerceRevision = captureBackgroundCommerceOwnershipRevision()
         const seedResponse = await fetchWithTimeout("/api/account/preferences", {
           method: "PUT",
           headers: { "content-type": "application/json" },
@@ -477,7 +484,10 @@ export default function ChimerPage() {
         const reconciledSeedSettings = reconciledSeed.settings
         setFeatureKeys(reconciledSeed.featureKeys)
         setPermanentlyOwnedBackgroundIds(reconciledSeed.ownedBackgroundIds)
-        void reconcileBackgroundCommerceOwnership(reconciledSeed.ownedBackgroundIds)
+        void reconcileBackgroundCommerceOwnership(
+          reconciledSeed.ownedBackgroundIds,
+          seedCommerceRevision,
+        )
         const settingsChangedWhileSeeding = !areChimerSettingsEqual(
           settingsRef.current,
           seedSettings,
@@ -549,7 +559,10 @@ export default function ChimerPage() {
     return () => {
       isMounted = false
     }
-  }, [reconcileBackgroundCommerceOwnership])
+  }, [
+    captureBackgroundCommerceOwnershipRevision,
+    reconcileBackgroundCommerceOwnership,
+  ])
 
   useEffect(() => {
     if (hasLoadedSettings) {
@@ -1088,6 +1101,7 @@ export default function ChimerPage() {
     setIsResolvingSync(true)
     setError(null)
     const submittedSettings = settingsRef.current
+    const commerceRevision = captureBackgroundCommerceOwnershipRevision()
 
     try {
       const response = await fetchWithTimeout("/api/account/preferences", {
@@ -1115,7 +1129,10 @@ export default function ChimerPage() {
 
       setFeatureKeys(reconciledWrite.featureKeys)
       setPermanentlyOwnedBackgroundIds(reconciledWrite.ownedBackgroundIds)
-      void reconcileBackgroundCommerceOwnership(reconciledWrite.ownedBackgroundIds)
+      void reconcileBackgroundCommerceOwnership(
+        reconciledWrite.ownedBackgroundIds,
+        commerceRevision,
+      )
       const settingsChangedWhileResolving = !areChimerSettingsEqual(
         settingsRef.current,
         submittedSettings,
