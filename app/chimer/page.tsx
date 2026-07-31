@@ -1082,19 +1082,66 @@ export default function ChimerPage() {
   const useDeviceSettingsForAccount = async () => {
     setIsResolvingSync(true)
     setError(null)
+    const submittedSettings = settingsRef.current
 
     try {
       const response = await fetchWithTimeout("/api/account/preferences", {
         method: "PUT",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ chimerSettings: settingsRef.current }),
+        body: JSON.stringify({ chimerSettings: submittedSettings }),
       })
+      const responseBody = response.ok
+        ? await response.json().catch(() => null)
+        : null
+      const reconciledWrite = response.ok
+        ? resolveChimerPreferenceSeedResult(responseBody, {
+            backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
+          }) as {
+            settings: ChimerSettings
+            featureKeys: string[]
+            ownedBackgroundIds: string[]
+          } | null
+        : null
 
-      if (!response.ok) {
+      if (!reconciledWrite) {
         setError("Could not sync this device's Chimer settings. Try again after signing in.")
         return
       }
 
+      setFeatureKeys(reconciledWrite.featureKeys)
+      setPermanentlyOwnedBackgroundIds(reconciledWrite.ownedBackgroundIds)
+      const settingsChangedWhileResolving = !areChimerSettingsEqual(
+        settingsRef.current,
+        submittedSettings,
+      )
+      const accessibleCurrentSettings = settingsChangedWhileResolving
+        ? sanitizeAccessibleChimerSettings(settingsRef.current, {
+            featureKeys: reconciledWrite.featureKeys,
+            ownedBackgroundIds: reconciledWrite.ownedBackgroundIds,
+          }) as ChimerSettings
+        : reconciledWrite.settings
+
+      settingsRef.current = accessibleCurrentSettings
+      setSettings(accessibleCurrentSettings)
+      window.localStorage.setItem(
+        CHIMER_STORAGE_KEY,
+        JSON.stringify(accessibleCurrentSettings),
+      )
+      if (
+        settingsChangedWhileResolving
+        && !areChimerSettingsEqual(accessibleCurrentSettings, reconciledWrite.settings)
+      ) {
+        setAccountSettings(reconciledWrite.settings)
+        setHasEditedLocalConflictSettings(true)
+        setCanSync(false)
+        setAccountSyncStatus("conflict")
+        return
+      }
+
+      skipNextAutomaticAccountSyncBodyRef.current = createChimerPreferenceSyncRequest(
+        reconciledWrite.settings,
+        { backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions },
+      ).requestBody
       setAccountSettings(null)
       setCanSync(true)
       setHasEditedLocalConflictSettings(false)

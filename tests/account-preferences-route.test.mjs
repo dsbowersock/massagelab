@@ -190,6 +190,23 @@ describe("account preference route ownership boundary", () => {
       chimerPageSource,
       /const reconciledWrite = resolveChimerPreferenceSeedResult\(responseBody,[\s\S]*?setFeatureKeys\(reconciledWrite\.featureKeys\)[\s\S]*?setPermanentlyOwnedBackgroundIds\(reconciledWrite\.ownedBackgroundIds\)[\s\S]*?doesChimerPreferenceWriteResponseMatch/,
     )
+    const conflictResolutionStart = chimerPageSource.indexOf("const useDeviceSettingsForAccount")
+    const conflictResolutionEnd = chimerPageSource.indexOf(
+      "const useSavedAccountSettings",
+      conflictResolutionStart,
+    )
+    const conflictResolutionSource = chimerPageSource.slice(
+      conflictResolutionStart,
+      conflictResolutionEnd,
+    )
+    assert.match(
+      conflictResolutionSource,
+      /resolveChimerPreferenceSeedResult\(responseBody,[\s\S]*?setFeatureKeys\(reconciledWrite\.featureKeys\)[\s\S]*?setPermanentlyOwnedBackgroundIds\(reconciledWrite\.ownedBackgroundIds\)/,
+    )
+    assert.match(
+      conflictResolutionSource,
+      /settingsChangedWhileResolving[\s\S]*?sanitizeAccessibleChimerSettings\(settingsRef\.current,[\s\S]*?setAccountSyncStatus\("conflict"\)/,
+    )
     assert.match(
       chimerPageSource,
       /settingsRef\.current = nextSanitizedSettings\s+setSettings\(nextSanitizedSettings\)/,
