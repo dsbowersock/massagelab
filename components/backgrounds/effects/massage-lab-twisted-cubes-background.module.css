@@ -14,7 +14,7 @@
   left: 50%;
   width: 50vmin;
   height: 50vmin;
-  perspective: 800px;
+  perspective: 100vmin;
   transform: translate(
       calc(-50% + var(--ml-twisted-cubes-position-x)),
       calc(-50% + var(--ml-twisted-cubes-position-y))
@@ -41,7 +41,12 @@
 }
 
 .cube {
-  animation: mlTwistedCubesRotate var(--ml-twisted-cubes-cycle) cubic-bezier(0.5, 0, 0.5, 1) infinite;
+  inset: auto;
+  top: 50%;
+  left: 50%;
+  width: var(--ml-twisted-cubes-size);
+  height: var(--ml-twisted-cubes-size);
+  animation: mlTwistedCubesRotate var(--ml-twisted-cubes-cycle) cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite;
   animation-delay: var(--ml-twisted-cubes-delay);
 }
 
@@ -56,53 +61,49 @@
 }
 
 .front {
-  transform: translateZ(25vmin);
+  transform: translateZ(calc(var(--ml-twisted-cubes-size) * 0.5));
 }
 
 .back {
-  transform: rotateY(180deg) translateZ(25vmin);
+  transform: rotateY(180deg) translateZ(calc(var(--ml-twisted-cubes-size) * 0.5));
 }
 
 .right {
-  transform: rotateY(90deg) translateZ(25vmin);
+  transform: rotateY(90deg) translateZ(calc(var(--ml-twisted-cubes-size) * 0.5));
 }
 
 .left {
-  transform: rotateY(-90deg) translateZ(25vmin);
+  transform: rotateY(-90deg) translateZ(calc(var(--ml-twisted-cubes-size) * 0.5));
 }
 
 .top {
-  transform: rotateX(90deg) translateZ(25vmin);
+  transform: rotateX(90deg) translateZ(calc(var(--ml-twisted-cubes-size) * 0.5));
 }
 
 .bottom {
-  transform: rotateX(-90deg) translateZ(25vmin);
+  transform: rotateX(-90deg) translateZ(calc(var(--ml-twisted-cubes-size) * 0.5));
 }
 
 @keyframes mlTwistedCubesRotate {
   0% {
-    transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg);
+    transform: translate(-50%, -50%) rotateZ(0deg) rotateX(0deg) rotateZ(0deg);
   }
 
-  25% {
-    transform: rotateX(180deg) rotateY(0deg) rotateZ(0deg);
+  33% {
+    transform: translate(-50%, -50%) rotateZ(90deg) rotateX(0deg) rotateZ(0deg);
   }
 
-  50% {
-    transform: rotateX(180deg) rotateY(180deg) rotateZ(0deg);
-  }
-
-  75% {
-    transform: rotateX(180deg) rotateY(180deg) rotateZ(180deg);
+  66% {
+    transform: translate(-50%, -50%) rotateZ(90deg) rotateX(90deg) rotateZ(0deg);
   }
 
   100% {
-    transform: rotateX(360deg) rotateY(360deg) rotateZ(360deg);
+    transform: translate(-50%, -50%) rotateZ(90deg) rotateX(90deg) rotateZ(90deg);
   }
 }
 
 .root[data-reduce-motion] .cube {
   /* Animation transforms override author transforms, so remove them first. */
   animation: none;
-  transform: rotateX(180deg) rotateY(180deg) rotateZ(0deg);
+  transform: translate(-50%, -50%) rotateZ(90deg) rotateX(90deg) rotateZ(0deg);
 }

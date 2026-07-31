@@ -17,7 +17,7 @@ type AdapterInventoryRow = {
 }
 
 const MODES = ["source", "custom", "harmony"] as const
-const EXPECTED_ENABLED_BACKGROUND_COUNT = 81
+const EXPECTED_ENABLED_BACKGROUND_COUNT = 83
 const CUSTOM_SWATCHES = [
   "#ff5119",
   "#fbbf24",
@@ -174,6 +174,14 @@ async function expectLoadedPaletteMode(
     if (replacingOverride) {
       continue
     }
+    if (
+      mode === "source"
+      && (id === "massage-lab-dna" || id === "massage-lab-twisted-cubes")
+    ) {
+      expect(actualTargets[role.rendererTarget], `${id}:${mode}:${role.rendererTarget}`)
+        .toBe(role.sourceColor)
+      continue
+    }
     expectTargetColor(
       actualTargets[role.rendererTarget],
       expectedRoleColors[role.id],
@@ -226,9 +234,12 @@ async function startActiveChimer(page: Page) {
   })
   await installPremiumAccount(page)
   await page.goto("/chimer", { waitUntil: "domcontentloaded" })
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined)
   await page.getByRole("button", { name: /^Increase minutes$/i }).click()
   for (let step = 0; step < 4; step += 1) {
-    await page.getByRole("button", { name: /^Continue$/i }).click()
+    const continueButton = page.getByRole("button", { name: /^Continue$/i })
+    await expect(continueButton).toBeEnabled()
+    await continueButton.click()
   }
   await page.getByRole("button", { name: /^Start Chimer$/i }).click()
   await expect(page.getByLabel("Running Chimer timer")).toBeVisible()
@@ -289,28 +300,30 @@ test.describe("shared background palette review matrix", () => {
   test("mounts the selected real effect for review even with reduced motion", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" })
     await openPaletteGallery(page)
-    await selectBackground(page, "massage-lab-gradient-animation")
-    await expectLoadedPaletteMode(page, "massage-lab-gradient-animation", "supported", "custom")
+    await selectBackground(page, "massage-lab-dna")
+    await expectLoadedPaletteMode(page, "massage-lab-dna", "supported", "custom")
 
     const host = page.getByTestId("background-palette-live-host")
     await expect(host).toHaveAttribute("data-background-diagnostic-reduced-motion", "true")
     await expect(host).toHaveAttribute("data-background-fallback-only", "false")
 
-    const effectLayer = host.locator(":scope > div").nth(1)
+    const effectLayer = host.locator('[style*="--ml-dna-background-color"]')
     await expect(effectLayer).toBeVisible()
     const effectBounds = await effectLayer.boundingBox()
     expect(effectBounds?.width).toBeGreaterThan(0)
     expect(effectBounds?.height).toBeGreaterThan(0)
-    expect(await effectLayer.evaluate((element) => ({
-      start: (element as HTMLElement).style
-        .getPropertyValue("--ml-gradient-background-start").toLowerCase(),
-      end: (element as HTMLElement).style
-        .getPropertyValue("--ml-gradient-background-end").toLowerCase(),
-      first: (element as HTMLElement).style.getPropertyValue("--ml-gradient-first-color"),
-    }))).toEqual({
-      start: CUSTOM_SWATCHES[0],
-      end: CUSTOM_SWATCHES[1],
-      first: "34, 197, 94",
+    expect(await effectLayer.evaluate((element) => {
+      const root = element as HTMLElement
+      const scene = root.firstElementChild as HTMLElement
+      return {
+        background: root.style.getPropertyValue("--ml-dna-background-color"),
+        nodeOne: root.style.getPropertyValue("--ml-dna-node-color-0"),
+        animation: getComputedStyle(scene).animationName,
+      }
+    })).toEqual({
+      background: CUSTOM_SWATCHES[3],
+      nodeOne: CUSTOM_SWATCHES[0],
+      animation: "none",
     })
   })
 

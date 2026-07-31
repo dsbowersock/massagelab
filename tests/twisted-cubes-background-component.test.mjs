@@ -34,11 +34,11 @@ test("the Twisted Cubes renderer stays a scoped, non-interactive CSS DOM effect"
   assert.doesNotMatch(componentSource, /(?:billing|account|entitlement|stripe|registry|storage)/i)
   assert.doesNotMatch(componentSource, /\b(?:button|input|select|textarea|tabIndex|onClick|onPointer|onDrag|onTouch|cursor)\b/)
 
-  assert.match(stylesheetSource, /perspective:\s*800px/)
+  assert.match(stylesheetSource, /perspective:\s*100vmin/)
   assert.match(stylesheetSource, /transform-style:\s*preserve-3d/)
   assert.match(stylesheetSource, /@keyframes\s+mlTwistedCubesRotate/)
-  assert.match(stylesheetSource, /cubic-bezier\(0\.5, 0, 0\.5, 1\)/)
-  for (const stage of ["0%", "25%", "50%", "75%", "100%"]) {
+  assert.match(stylesheetSource, /cubic-bezier\(0\.5, 0\.1, 0\.5, 0\.9\)/)
+  for (const stage of ["0%", "33%", "66%", "100%"]) {
     assert.match(stylesheetSource, new RegExp(`${stage}\\s*\\{`))
   }
   assert.match(stylesheetSource, /\.front/)
@@ -48,7 +48,7 @@ test("the Twisted Cubes renderer stays a scoped, non-interactive CSS DOM effect"
   assert.match(stylesheetSource, /\.top/)
   assert.match(stylesheetSource, /\.bottom/)
   assert.match(stylesheetSource, /\.root\[data-reduce-motion\] \.cube \{[\s\S]*?animation:\s*none;/)
-  assert.match(stylesheetSource, /\.root\[data-reduce-motion\] \.cube \{[\s\S]*?transform:\s*rotateX\(180deg\) rotateY\(180deg\) rotateZ\(0deg\);/)
+  assert.match(stylesheetSource, /\.root\[data-reduce-motion\] \.cube \{[\s\S]*?transform:\s*translate\(-50%, -50%\) rotateZ\(90deg\) rotateX\(90deg\) rotateZ\(0deg\);/)
   assert.doesNotMatch(stylesheetSource, /(?:^|\n)\s*(?:body|:root|\*)\s*(?:,|\{)/m)
   assert.doesNotMatch(stylesheetSource, /(?:@font-face|font-family|min-height|touch-action|cursor)/i)
 })

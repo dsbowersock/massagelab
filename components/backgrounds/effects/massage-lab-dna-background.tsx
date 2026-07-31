@@ -72,13 +72,10 @@ export function MassageLabDnaBackground({
     "--ml-dna-connector-color": connectorColor,
     "--ml-dna-outline-color": outlineColor,
     "--ml-dna-strand-angle": `${strandAngle}deg`,
-    "--ml-dna-strand-spacing": `${strandSpacing}rem`,
-    "--ml-dna-connector-width": `${connectorWidth}px`,
-    "--ml-dna-connector-half-width": `${connectorWidth / 2}px`,
-    "--ml-dna-connector-negative-half-width": `${-connectorWidth / 2}px`,
-    "--ml-dna-connector-thickness": `${connectorThickness}px`,
-    "--ml-dna-connector-negative-half-thickness": `${-connectorThickness / 2}px`,
-    "--ml-dna-outline-thickness": `${outlineThickness}px`,
+    "--ml-dna-strand-spacing": `${strandSpacing}vmin`,
+    "--ml-dna-connector-width": `${connectorWidth}%`,
+    "--ml-dna-connector-thickness": `${connectorThickness}%`,
+    "--ml-dna-outline-thickness": `${outlineThickness}vmin`,
     "--ml-dna-rotation-duration": `${strandRotationSeconds}s`,
   } as CSSProperties
   const sceneStyle = {
@@ -99,9 +96,6 @@ export function MassageLabDnaBackground({
       index,
       style: {
         "--ml-dna-phase": phase,
-        "--ml-dna-connector-rest-scale": 0.55 + phase * 0.45,
-        "--ml-dna-row": `${(index / Math.max(1, strandCount - 1)) * 100}%`,
-        "--ml-dna-phase-spacing": `${phase * strandSpacing}rem`,
         "--ml-dna-node-duration": `${nodeCycleSeconds}s`,
         "--ml-dna-node-delay": `${delaySeconds}s`,
         "--ml-dna-start-color": `var(--ml-dna-node-color-${nodeRoleAssignments[index * 2] ?? 0})`,

@@ -3,6 +3,7 @@
   inset: 0;
   overflow: hidden;
   isolation: isolate;
+  perspective: 100vmin;
   background: var(--ml-dna-background-color);
 }
 
@@ -12,25 +13,26 @@
   left: 50%;
   height: 65vmin;
   aspect-ratio: 2 / 5;
+  display: grid;
+  gap: var(--ml-dna-strand-spacing);
+  transform-style: preserve-3d;
   transform: translate(
       calc(-50% + var(--ml-dna-position-x)),
       calc(-50% + var(--ml-dna-position-y))
     )
     scale(var(--ml-dna-scale));
   transform-origin: center;
+  rotate: var(--ml-dna-strand-angle);
+  animation: mlDnaStrandRotate var(--ml-dna-rotation-duration) linear infinite;
 }
 
 .strand {
-  position: absolute;
-  top: calc(var(--ml-dna-row) + var(--ml-dna-phase-spacing));
-  left: 50%;
-  display: block;
-  width: var(--ml-dna-connector-width);
-  height: var(--ml-dna-connector-thickness);
-  margin-left: var(--ml-dna-connector-negative-half-width);
-  margin-top: var(--ml-dna-connector-negative-half-thickness);
-  transform-origin: center;
-  animation: mlDnaStrandRotate var(--ml-dna-rotation-duration) linear infinite;
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-block-size: 0;
+  justify-content: space-between;
+  transform-style: preserve-3d;
 }
 
 .connector {
@@ -42,85 +44,87 @@
   border: var(--ml-dna-outline-thickness) solid var(--ml-dna-outline-color);
   border-radius: 999px;
   background: var(--ml-dna-connector-color);
-  transform: translate(-50%, -50%) scaleX(var(--ml-dna-connector-rest-scale));
+  transform: translate3d(-50%, -50%, -2px) scaleX(1);
   transform-origin: center;
-  animation: mlDnaConnectorCollapse var(--ml-dna-node-duration) ease-in-out infinite;
+  animation: mlDnaConnectorCollapse var(--ml-dna-node-duration) linear infinite;
   animation-delay: var(--ml-dna-node-delay);
 }
 
 .node {
-  position: absolute;
-  top: 50%;
-  width: var(--ml-dna-connector-thickness);
-  height: var(--ml-dna-connector-thickness);
+  position: relative;
+  height: 100%;
+  aspect-ratio: 1;
   border: var(--ml-dna-outline-thickness) solid var(--ml-dna-outline-color);
   border-radius: 50%;
   box-sizing: border-box;
-  transform: translate(-50%, -50%);
+  transform: translateX(0);
   animation: mlDnaNodeCrossover var(--ml-dna-node-duration) ease-in-out infinite;
   animation-delay: var(--ml-dna-node-delay);
 }
 
 .node[data-side="start"] {
-  left: 0;
-  z-index: 1;
   background: var(--ml-dna-start-color);
-  --ml-dna-crossover-distance: var(--ml-dna-connector-half-width);
+  --ml-dna-crossover-distance: calc(26vmin - 100%);
 }
 
 .node[data-side="end"] {
-  left: 100%;
   background: var(--ml-dna-end-color);
-  --ml-dna-crossover-distance: var(--ml-dna-connector-negative-half-width);
+  --ml-dna-crossover-distance: calc(-26vmin + 100%);
+  animation-direction: reverse;
 }
 
 @keyframes mlDnaNodeCrossover {
-  0%,
-  100% {
-    transform: translate(-50%, -50%) translateX(0);
+  25% {
+    translate: 0 0 1px;
   }
 
   50% {
-    transform: translate(-50%, -50%) translateX(var(--ml-dna-crossover-distance));
+    transform: translateX(var(--ml-dna-crossover-distance));
+  }
+
+  75% {
+    translate: 0 0 -1px;
   }
 }
 
 @keyframes mlDnaConnectorCollapse {
   0%,
+  50%,
   100% {
-    transform: translate(-50%, -50%) scaleX(var(--ml-dna-connector-rest-scale));
+    transform: translate3d(-50%, -50%, -2px) scaleX(1);
   }
 
-  50% {
-    transform: translate(-50%, -50%) scaleX(0.08);
+  25%,
+  75% {
+    transform: translate3d(-50%, -50%, -2px) scaleX(0);
   }
 }
 
 @keyframes mlDnaStrandRotate {
   from {
-    transform: rotate(var(--ml-dna-strand-angle));
+    rotate: var(--ml-dna-strand-angle);
   }
 
   to {
-    transform: rotate(calc(var(--ml-dna-strand-angle) + 360deg));
+    rotate: calc(var(--ml-dna-strand-angle) + 360deg);
   }
 }
 
-.root[data-reduce-motion] .strand,
+.root[data-reduce-motion] .scene,
 .root[data-reduce-motion] .connector,
 .root[data-reduce-motion] .node {
   /* Animation transforms override author transforms, so remove them first. */
   animation: none;
 }
 
-.root[data-reduce-motion] .strand {
-  transform: rotate(calc(var(--ml-dna-strand-angle) + 180deg));
+.root[data-reduce-motion] .scene {
+  rotate: calc(var(--ml-dna-strand-angle) + 180deg);
 }
 
 .root[data-reduce-motion] .connector {
-  transform: translate(-50%, -50%) scaleX(0.08);
+  transform: translate3d(-50%, -50%, -2px) scaleX(1);
 }
 
 .root[data-reduce-motion] .node {
-  transform: translate(-50%, -50%) translateX(var(--ml-dna-crossover-distance));
+  transform: translateX(var(--ml-dna-crossover-distance));
 }

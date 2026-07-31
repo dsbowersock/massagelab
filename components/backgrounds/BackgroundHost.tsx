@@ -489,6 +489,10 @@ export function BackgroundHost(props: BackgroundHostProps) {
       style={style}
     >
       <div
+        // Registry fallbacks mix legacy background shorthand and longhands.
+        // Remounting this decorative layer prevents React from reconciling
+        // conflicting style families when the selected entry or mode changes.
+        key={`${entry.id}:${backgroundPalette?.palette.mode ?? "source"}:${canCustomize}`}
         className={cn(styles.fallback, entry.fallbackClassName)}
         style={fallbackStyle}
       />

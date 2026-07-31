@@ -83,6 +83,7 @@ export function MassageLabTwistedCubesBackground({
           stagger: layerStagger,
         })}s`,
         "--ml-twisted-cubes-depth": `${-index * layerDepthSpacing}vmin`,
+        "--ml-twisted-cubes-size": `${(oneBasedIndex / renderLayerCount) * 50}vmin`,
         "--ml-twisted-cubes-outline-thickness": outlineThickness,
       } as CSSProperties,
     }
