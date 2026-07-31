@@ -149,7 +149,10 @@ export default function ChimerPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { settings: appSettings } = useSettings()
-  const { state: backgroundCommerceState } = useBackgroundCommerce()
+  const {
+    state: backgroundCommerceState,
+    refresh: refreshBackgroundCommerce,
+  } = useBackgroundCommerce()
   const {
     visualizer,
     selectVisualizerBackground,
@@ -193,6 +196,8 @@ export default function ChimerPage() {
   const [isResolvingSync, setIsResolvingSync] = useState(false)
   const [featureKeys, setFeatureKeys] = useState<string[]>([])
   const [permanentlyOwnedBackgroundIds, setPermanentlyOwnedBackgroundIds] = useState<string[]>([])
+  const [preferenceWriteOwnedBackgroundIds, setPreferenceWriteOwnedBackgroundIds] =
+    useState<string[] | null>(null)
   const [transientOwnedBackgroundIds, setTransientOwnedBackgroundIds] = useState<string[]>([])
   const [backgroundPreferenceSync, setBackgroundPreferenceSync] = useState<BackgroundPreferenceSyncState>({
     status: "local",
@@ -206,18 +211,20 @@ export default function ChimerPage() {
   const backgroundAccess = useMemo<BackgroundAccessSnapshot>(
     () => mergeBackgroundAccessOwnership({
       featureKeys,
-      // The account-preference response bridges initial hydration. Once the
-      // commerce provider has a snapshot, it is authoritative for revocation
-      // as well as acquisition and must replace the older ownership list.
+      // A successful preference write can contain newer ownership than the
+      // cached commerce snapshot. It bridges access until the requested
+      // commerce refresh completes; otherwise commerce remains authoritative.
       ownedBackgroundIds: resolveAuthoritativeBackgroundOwnership(
         permanentlyOwnedBackgroundIds,
         commerceOwnedBackgroundIds,
+        preferenceWriteOwnedBackgroundIds,
       ),
     }, transientOwnedBackgroundIds),
     [
       commerceOwnedBackgroundIds,
       featureKeys,
       permanentlyOwnedBackgroundIds,
+      preferenceWriteOwnedBackgroundIds,
       transientOwnedBackgroundIds,
     ],
   )
@@ -259,6 +266,8 @@ export default function ChimerPage() {
         // cannot leave a revoked background usable until another refresh.
         setFeatureKeys(reconciledWrite.featureKeys)
         setPermanentlyOwnedBackgroundIds(reconciledWrite.ownedBackgroundIds)
+        setPreferenceWriteOwnedBackgroundIds(reconciledWrite.ownedBackgroundIds)
+        void refreshBackgroundCommerce()
         return doesChimerPreferenceWriteResponseMatch(
           request.requestBody,
           responseBody,
@@ -303,9 +312,10 @@ export default function ChimerPage() {
   }, [backgroundAccess])
 
   useEffect(() => {
-    // A successful commerce snapshot supersedes the in-session ownership proof
-    // carried by an acquisition response, including later refund/revocation.
+    // A successful commerce snapshot supersedes temporary ownership evidence
+    // from both acquisition and preference-write responses.
     setTransientOwnedBackgroundIds([])
+    setPreferenceWriteOwnedBackgroundIds(null)
   }, [commerceOwnedBackgroundIds])
 
   useEffect(() => {
@@ -473,6 +483,8 @@ export default function ChimerPage() {
         const reconciledSeedSettings = reconciledSeed.settings
         setFeatureKeys(reconciledSeed.featureKeys)
         setPermanentlyOwnedBackgroundIds(reconciledSeed.ownedBackgroundIds)
+        setPreferenceWriteOwnedBackgroundIds(reconciledSeed.ownedBackgroundIds)
+        void refreshBackgroundCommerce()
         const settingsChangedWhileSeeding = !areChimerSettingsEqual(
           settingsRef.current,
           seedSettings,
@@ -544,7 +556,7 @@ export default function ChimerPage() {
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [refreshBackgroundCommerce])
 
   useEffect(() => {
     if (hasLoadedSettings) {
@@ -1110,6 +1122,8 @@ export default function ChimerPage() {
 
       setFeatureKeys(reconciledWrite.featureKeys)
       setPermanentlyOwnedBackgroundIds(reconciledWrite.ownedBackgroundIds)
+      setPreferenceWriteOwnedBackgroundIds(reconciledWrite.ownedBackgroundIds)
+      void refreshBackgroundCommerce()
       const settingsChangedWhileResolving = !areChimerSettingsEqual(
         settingsRef.current,
         submittedSettings,

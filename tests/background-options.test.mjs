@@ -308,8 +308,21 @@ describe("premium background registry", () => {
       [redeemedBackgroundId],
       "a refreshed commerce snapshot grants redeemed ownership immediately",
     )
+    assert.deepEqual(
+      resolveAuthoritativeBackgroundOwnership(
+        [],
+        [redeemedBackgroundId],
+        [],
+      ),
+      [],
+      "a newer preference write revokes access before commerce refresh completes",
+    )
     assert.match(chimerPageSource, /const commerceOwnedBackgroundIds = backgroundCommerceState\.snapshot\?\.ownedBackgroundIds/)
-    assert.match(chimerPageSource, /resolveAuthoritativeBackgroundOwnership\([\s\S]*permanentlyOwnedBackgroundIds,[\s\S]*commerceOwnedBackgroundIds/)
+    assert.match(chimerPageSource, /resolveAuthoritativeBackgroundOwnership\([\s\S]*permanentlyOwnedBackgroundIds,[\s\S]*commerceOwnedBackgroundIds,[\s\S]*preferenceWriteOwnedBackgroundIds/)
+    assert.match(
+      chimerPageSource,
+      /setPreferenceWriteOwnedBackgroundIds\(reconciledWrite\.ownedBackgroundIds\)[\s\S]*refreshBackgroundCommerce\(\)/,
+    )
     assert.match(chimerPageSource, /canUseBackgroundId\(id, backgroundAccess, "music"\)/)
     assert.match(
       runningTimerSource,
