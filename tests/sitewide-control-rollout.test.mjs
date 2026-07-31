@@ -200,6 +200,42 @@ test("development review exposes the complete shared background palette matrix",
   assert.match(gallery, /process\.env\.NODE_ENV/)
 })
 
+test("development review exposes the real DNA and Twisted Cubes acceptance matrix", async () => {
+  const [gallery, browserSource, playwrightConfig, sliderSource] = await Promise.all([
+    read("app/dev/buttons/background-palette-gallery.tsx"),
+    read("tests/browser/dna-twisted-cubes-backgrounds.spec.ts"),
+    read("playwright.config.ts"),
+    read("components/ui/slider.tsx"),
+  ])
+
+  assert.match(gallery, /DnaBackgroundControls/)
+  assert.match(gallery, /TwistedCubesBackgroundControls/)
+  assert.match(gallery, /createBackgroundVisualDraft/)
+  assert.match(gallery, /reduceBackgroundVisualDraft/)
+  assert.match(gallery, /data-track-4b-review/)
+  assert.match(gallery, /Source[\s\S]*Custom[\s\S]*Harmony/)
+  assert.match(gallery, /Subscriber access[\s\S]*Permanent owner[\s\S]*Access locked/)
+  assert.match(gallery, /Dirty draft[\s\S]*Applied state/)
+  assert.match(gallery, /data-track-4b-context="chimer"/)
+  assert.match(gallery, /data-track-4b-context="clock"/)
+  assert.match(gallery, /data-track-4b-context="music"/)
+  assert.match(gallery, /BackgroundPreviewMediaReview/)
+  assert.match(gallery, /backgroundPreviewManifest/)
+  assert.match(gallery, /<BackgroundPreviewMedia/)
+  assert.match(gallery, /data-track-4b-preview/)
+
+  assert.match(browserSource, /desktop[\s\S]*phone portrait[\s\S]*short landscape[\s\S]*200% zoom[\s\S]*reduced motion/i)
+  assert.match(browserSource, /data-track-4b-review/)
+  assert.match(browserSource, /data-background-diagnostic-status/)
+  assert.match(browserSource, /data-background-palette-music-continuity/)
+  assert.match(browserSource, /scrollWidth/)
+  assert.doesNotMatch(browserSource, /test\.skip\(/)
+  assert.match(playwrightConfig, /dna-twisted-cubes-backgrounds\.spec\.ts/)
+  assert.match(sliderSource, /<SliderPrimitive\.Thumb[\s\S]*aria-label=\{ariaLabel\}/)
+  assert.match(sliderSource, /aria-labelledby=\{ariaLabelledBy\}/)
+  assert.match(sliderSource, /aria-describedby=\{ariaDescribedBy\}/)
+})
+
 test("slider gallery copy and layout match the remaining color controls", async () => {
   const gallery = await read("app/dev/buttons/slider-gallery.tsx")
   const colorExamples = gallery.slice(gallery.indexOf('title="Color control examples"'))
@@ -271,6 +307,8 @@ test("DNA and Twisted Cubes share compact options and host-owned responsive moti
   assert.match(hostSource, /reduceMotion,[\s\S]*compactViewport,/)
   assert.doesNotMatch(dnaEffect, /matchMedia|addEventListener\("resize"/)
   assert.doesNotMatch(cubesEffect, /matchMedia|addEventListener\("resize"/)
+  assert.doesNotMatch(dnaEffect, /\bdocument\b|\bwindow\b|addEventListener|requestAnimationFrame/)
+  assert.doesNotMatch(cubesEffect, /\bdocument\b|\bwindow\b|addEventListener|requestAnimationFrame/)
   assert.match(styles, /\.backgroundPropertyGroups[\s\S]*min-width:\s*0/)
   assert.match(styles, /\.backgroundPropertyGroup[\s\S]*min-width:\s*0/)
 })

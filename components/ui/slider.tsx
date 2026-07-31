@@ -60,6 +60,9 @@ const Slider = React.forwardRef<
       defaultValue,
       onValueChange,
       style,
+      "aria-label": ariaLabel,
+      "aria-labelledby": ariaLabelledBy,
+      "aria-describedby": ariaDescribedBy,
       ...props
     },
     ref
@@ -97,6 +100,9 @@ const Slider = React.forwardRef<
           <SliderPrimitive.Range className={cn("ml-slider-range absolute h-full", rangeClassName)} />
         </SliderPrimitive.Track>
         <SliderPrimitive.Thumb
+          aria-label={ariaLabel}
+          aria-labelledby={ariaLabelledBy}
+          aria-describedby={ariaDescribedBy}
           className={cn(
             "ml-slider-thumb block ring-offset-background transition-[background-color,border-color,box-shadow,filter,transform] focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50",
             thumbClassName

@@ -27,8 +27,12 @@ const browserQaPort = parseBrowserQaPort(process.env.PLAYWRIGHT_PORT)
 const browserQaBaseUrl = process.env.PLAYWRIGHT_BASE_URL
   ?? (browserQaPort === defaultBrowserQaPort ? defaultBrowserQaBaseUrl : `http://localhost:${browserQaPort}`)
 const skipWebServer = parseBooleanEnv(process.env.PLAYWRIGHT_SKIP_WEB_SERVER)
+const developmentPaletteReviewSpecs = [
+  "tests/browser/background-palette.spec.ts",
+  "tests/browser/dna-twisted-cubes-backgrounds.spec.ts",
+]
 const runsDevelopmentPaletteReview = process.argv.some((argument) => (
-  argument.replaceAll("\\", "/").endsWith("tests/browser/background-palette.spec.ts")
+  developmentPaletteReviewSpecs.some((spec) => argument.replaceAll("\\", "/").endsWith(spec))
 ))
 const defaultWebServerCommand = runsDevelopmentPaletteReview
   ? `npm run dev -- -p ${browserQaPort}`
@@ -39,7 +43,9 @@ export default defineConfig({
   // The palette gallery is development-only. Ordinary production-server QA
   // excludes it, while an exact-spec invocation flips the dev server on and
   // keeps the review matrix runnable.
-  testIgnore: runsDevelopmentPaletteReview ? [] : ["**/background-palette.spec.ts"],
+  testIgnore: runsDevelopmentPaletteReview
+    ? []
+    : ["**/background-palette.spec.ts", "**/dna-twisted-cubes-backgrounds.spec.ts"],
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,

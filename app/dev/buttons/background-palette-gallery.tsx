@@ -3,6 +3,9 @@
 import { memo, useEffect, useMemo, useState } from "react"
 
 import { BackgroundHost } from "@/components/backgrounds/BackgroundHost"
+import { BackgroundPreviewMedia } from "@/components/backgrounds/BackgroundPreviewMedia"
+import { backgroundPreviewManifest } from "@/components/backgrounds/backgroundPreviewManifest"
+import type { BackgroundEffectProps } from "@/components/backgrounds/effects/css-backgrounds"
 import {
   backgroundPaletteRegistry,
   type BackgroundPaletteAdapter,
@@ -23,6 +26,14 @@ import {
   type BackgroundColorPreset,
   type BackgroundVisualPreset,
 } from "@/components/chimer-controls/BackgroundPresetManager"
+import {
+  DnaBackgroundControls,
+  type DnaBackgroundControlOptions,
+} from "@/components/chimer-controls/DnaBackgroundControls"
+import {
+  TwistedCubesBackgroundControls,
+  type TwistedCubesBackgroundControlOptions,
+} from "@/components/chimer-controls/TwistedCubesBackgroundControls"
 import { AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Notice } from "@/components/ui/notice"
@@ -34,6 +45,23 @@ import {
   normalizeBackgroundColorMapping,
   resolveBackgroundRoleColors,
 } from "@/lib/background-palette.js"
+import {
+  buildCommittedBackgroundVisualPreferences,
+  createBackgroundVisualDraft,
+  getCommittedBackgroundVisualSnapshot,
+  reduceBackgroundVisualDraft,
+} from "@/lib/background-visual-draft.js"
+import {
+  DEFAULT_DNA_BACKGROUND_OPTIONS,
+  getDnaBackgroundOptionsFromChimerSettings,
+  toDnaChimerSettingsPatch,
+} from "@/lib/dna-background.js"
+import { resolveDnaTwistedCubesBackgroundHostProps } from "@/lib/dna-twisted-cubes-background-host.js"
+import {
+  DEFAULT_TWISTED_CUBES_BACKGROUND_OPTIONS,
+  getTwistedCubesBackgroundOptionsFromChimerSettings,
+  toTwistedCubesChimerSettingsPatch,
+} from "@/lib/twisted-cubes-background.js"
 
 const DEVELOPMENT_REVIEW_FEATURE_KEYS = [
   FEATURE_KEYS.premiumBackgrounds,
@@ -41,6 +69,37 @@ const DEVELOPMENT_REVIEW_FEATURE_KEYS = [
 const DEVELOPMENT_REVIEW_ACCESS = Object.freeze({
   featureKeys: DEVELOPMENT_REVIEW_FEATURE_KEYS,
   ownedBackgroundIds: [],
+})
+
+const TRACK_4B_IDS = ["massage-lab-dna", "massage-lab-twisted-cubes"] as const
+type Track4BBackgroundId = (typeof TRACK_4B_IDS)[number]
+
+const TRACK_4B_SOURCE_SETTINGS = Object.freeze({
+  ...toDnaChimerSettingsPatch(DEFAULT_DNA_BACKGROUND_OPTIONS),
+  ...toTwistedCubesChimerSettingsPatch(DEFAULT_TWISTED_CUBES_BACKGROUND_OPTIONS),
+})
+
+const TRACK_4B_SUBSCRIBER_ACCESS = Object.freeze({
+  featureKeys: [FEATURE_KEYS.premiumBackgrounds],
+  ownedBackgroundIds: [],
+})
+const TRACK_4B_OWNER_ACCESS = Object.freeze({
+  featureKeys: [],
+  ownedBackgroundIds: [...TRACK_4B_IDS],
+})
+const TRACK_4B_LOCKED_ACCESS = Object.freeze({
+  featureKeys: [],
+  ownedBackgroundIds: [],
+})
+const TRACK_4B_PREVIEWS = TRACK_4B_IDS.map((id) => {
+  const entry = backgroundPreviewManifest[id]
+  const variant = entry?.variants?.vertical
+  return {
+    id,
+    label: id === "massage-lab-dna" ? "DNA" : "Twisted Cubes",
+    videoUrl: variant?.previewMediaUrl ?? entry?.previewVerticalVideoUrl,
+    posterUrl: variant?.previewPosterUrl ?? entry?.previewVerticalImageUrl,
+  }
 })
 
 const CUSTOM_SWATCHES = [
@@ -71,6 +130,24 @@ const HARMONY_PALETTE: BackgroundPaletteEditorValue = {
   harmony: "triad",
   swatches: CUSTOM_SWATCHES,
 }
+
+const TRACK_4B_VISUAL_PRESET = Object.freeze({
+  id: "track-4b-visual-preset",
+  name: "Edited geometry",
+  timestamp: 1,
+  properties: {
+    massageLabDnaStrandAngle: 72,
+    massageLabTwistedCubesViewAngleX: -18,
+  },
+  mapping: {},
+})
+
+const TRACK_4B_COLOR_PRESET = Object.freeze({
+  id: "track-4b-color-preset",
+  name: "Review colors",
+  timestamp: 1,
+  palette: CUSTOM_PALETTE,
+})
 
 const enabledBackgrounds = backgroundRegistry.filter((entry) => entry.enabled)
 const movingGradientAdapter = backgroundPaletteRegistry["massage-lab-moving-gradient"]
@@ -219,6 +296,264 @@ function ProductionMusicContinuityProbe() {
       <span>{music.activeStationTitle ?? "No station selected"}</span>
       <span>Production playback {music.playbackState}</span>
     </div>
+  )
+}
+
+function createTrack4BReviewDraft(backgroundId: Track4BBackgroundId) {
+  const adapter = backgroundPaletteRegistry[backgroundId]
+  if (!adapter) {
+    throw new Error(`Track 4B review adapter is missing for ${backgroundId}.`)
+  }
+  return createBackgroundVisualDraft({
+    palette: SOURCE_PALETTE,
+    colorPresets: [TRACK_4B_COLOR_PRESET],
+    properties: TRACK_4B_SOURCE_SETTINGS,
+    mapping: defaultMapping(adapter),
+    visualPresets: [TRACK_4B_VISUAL_PRESET],
+    defaultVisualPresetId: null,
+  })
+}
+
+/**
+ * Exercises Track 4B through the same option adapters, Visual draft reducer,
+ * access snapshot, palette adapter, and Host used by Chimer/Clock/Music. The
+ * fixture persists only to a namespaced development-review key.
+ */
+function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) {
+  const [selectedId, setSelectedId] = useState<Track4BBackgroundId>("massage-lab-dna")
+  const [accessMode, setAccessMode] = useState<"subscriber" | "owner" | "locked">("subscriber")
+  const [draft, setDraft] = useState(() => createTrack4BReviewDraft("massage-lab-dna"))
+  const [appliedSnapshot, setAppliedSnapshot] = useState(() => draft.openingSnapshot)
+  const [activePreviewId, setActivePreviewId] = useState<Track4BBackgroundId | null>(null)
+  const adapter = backgroundPaletteRegistry[selectedId]
+  const snapshot = draft.currentSnapshot
+  const dnaOptions = getDnaBackgroundOptionsFromChimerSettings(
+    snapshot.properties,
+  ) as DnaBackgroundControlOptions
+  const cubesOptions = getTwistedCubesBackgroundOptionsFromChimerSettings(
+    snapshot.properties,
+  ) as TwistedCubesBackgroundControlOptions
+  const hostPropsByContext = useMemo(() => ({
+    chimer: resolveDnaTwistedCubesBackgroundHostProps({ settings: snapshot.properties, category: "chimer" }),
+    clock: resolveDnaTwistedCubesBackgroundHostProps({ settings: snapshot.properties, category: "clock" }),
+    music: resolveDnaTwistedCubesBackgroundHostProps({ settings: snapshot.properties, category: "music" }),
+  }), [snapshot.properties])
+  const access = accessMode === "subscriber"
+    ? TRACK_4B_SUBSCRIBER_ACCESS
+    : accessMode === "owner"
+      ? TRACK_4B_OWNER_ACCESS
+      : TRACK_4B_LOCKED_ACCESS
+  const resolvedRoleColors = adapter?.status === "supported"
+    ? resolveBackgroundRoleColors({
+      palette: snapshot.palette,
+      adapter,
+      mapping: snapshot.mapping,
+      canCustomize: accessMode !== "locked",
+    })
+    : {}
+
+  function replaceSnapshot(patch: Partial<typeof snapshot>) {
+    setDraft((current) => reduceBackgroundVisualDraft(current, {
+      type: "replace",
+      snapshot: { ...current.currentSnapshot, ...patch },
+    }))
+  }
+
+  function updateProperties(patch: Record<string, number>) {
+    replaceSnapshot({ properties: { ...snapshot.properties, ...patch } })
+  }
+
+  function selectBackground(nextId: Track4BBackgroundId) {
+    const nextAdapter = backgroundPaletteRegistry[nextId]
+    setSelectedId(nextId)
+    if (nextAdapter) {
+      replaceSnapshot({ mapping: defaultMapping(nextAdapter) })
+    }
+  }
+
+  function applyDraft() {
+    const committedSnapshot = getCommittedBackgroundVisualSnapshot(draft)
+    const persisted = buildCommittedBackgroundVisualPreferences({
+      preferences: {},
+      backgroundId: selectedId,
+      snapshot: committedSnapshot,
+    })
+    window.localStorage.setItem(
+      "massage-lab:dev:track-4b-review-applied",
+      JSON.stringify(persisted),
+    )
+    setAppliedSnapshot(committedSnapshot)
+    setDraft((current) => reduceBackgroundVisualDraft(current, { type: "apply" }))
+  }
+
+  if (!adapter || adapter.status !== "supported") return null
+
+  return (
+    <section
+      className="space-y-4"
+      aria-labelledby="track-4b-review-heading"
+      data-track-4b-review
+      data-background-id={selectedId}
+      data-access-mode={accessMode}
+      data-draft-state={draft.dirty ? "dirty" : "clean"}
+      data-palette-mode={snapshot.palette.mode}
+      data-role-labels={JSON.stringify(adapter.roles.map((role) => role.label))}
+      data-resolved-role-colors={JSON.stringify(resolvedRoleColors)}
+      data-current-properties={JSON.stringify(snapshot.properties)}
+      data-applied-properties={JSON.stringify(appliedSnapshot.properties)}
+      data-applied-palette={JSON.stringify(appliedSnapshot.palette)}
+      data-preview-contract="BackgroundPreviewMediaReview"
+    >
+      <div>
+        <h3 id="track-4b-review-heading" className="text-xl font-semibold">
+          DNA and Twisted Cubes acceptance matrix
+        </h3>
+        <p className="text-sm text-muted-foreground">
+          Source, Custom, Harmony, reduced motion, compact viewport, access, draft,
+          persistence, and shared-host states use production contracts.
+        </p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Track 4B review states">
+        {[
+          ["Source", snapshot.palette.mode === "source"],
+          ["Custom", snapshot.palette.mode === "custom"],
+          ["Harmony", snapshot.palette.mode === "harmony"],
+          ["Reduced motion", reducedMotion],
+          ["Compact viewport", false],
+          ["Subscriber access", accessMode === "subscriber"],
+          ["Permanent owner", accessMode === "owner"],
+          ["Access locked", accessMode === "locked"],
+          ["Dirty draft", draft.dirty],
+          ["Applied state", !draft.dirty],
+        ].map(([label, active]) => (
+          <div
+            className="rounded-lg border border-border bg-muted/30 p-3 text-sm"
+            data-track-4b-specimen={String(label).toLowerCase().replaceAll(" ", "-")}
+            data-active={String(active)}
+            key={String(label)}
+          >
+            {label}
+          </div>
+        ))}
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <label className="grid gap-1 text-sm font-medium">
+          Track 4B background
+          <select
+            value={selectedId}
+            onChange={(event) => selectBackground(event.currentTarget.value as Track4BBackgroundId)}
+            className="h-10 rounded-md border border-input bg-background px-3"
+          >
+            <option value="massage-lab-dna">DNA</option>
+            <option value="massage-lab-twisted-cubes">Twisted Cubes</option>
+          </select>
+        </label>
+        <label className="grid gap-1 text-sm font-medium">
+          Track 4B access
+          <select
+            value={accessMode}
+            onChange={(event) => setAccessMode(event.currentTarget.value as typeof accessMode)}
+            className="h-10 rounded-md border border-input bg-background px-3"
+          >
+            <option value="subscriber">Subscriber access</option>
+            <option value="owner">Permanent owner</option>
+            <option value="locked">Access locked</option>
+          </select>
+        </label>
+      </div>
+
+      <div className="flex flex-wrap gap-2" aria-label="Track 4B palette modes">
+        <Button size="compact" onClick={() => replaceSnapshot({ palette: SOURCE_PALETTE })}>Source</Button>
+        <Button size="compact" onClick={() => replaceSnapshot({ palette: CUSTOM_PALETTE })}>Custom</Button>
+        <Button size="compact" onClick={() => replaceSnapshot({ palette: HARMONY_PALETTE })}>Harmony</Button>
+      </div>
+
+      <div data-track-4b-palette-controls>
+        <BackgroundPaletteEditor
+          palette={snapshot.palette}
+          adapter={adapter}
+          mapping={snapshot.mapping}
+          canCustomize={accessMode !== "locked"}
+          backgroundName={selectedId === "massage-lab-dna" ? "DNA" : "Twisted Cubes"}
+          onPaletteChange={(palette) => replaceSnapshot({ palette })}
+          onMappingChange={(mapping) => replaceSnapshot({ mapping })}
+        />
+      </div>
+
+      <AppSurface title="Real renderer controls" variant="inset">
+        <div data-track-4b-property-controls>
+          {selectedId === "massage-lab-dna" ? (
+            <DnaBackgroundControls
+              value={dnaOptions}
+              disabled={accessMode === "locked"}
+              onChange={(patch) => updateProperties(toDnaChimerSettingsPatch(patch))}
+            />
+          ) : (
+            <TwistedCubesBackgroundControls
+              value={cubesOptions}
+              disabled={accessMode === "locked"}
+              onChange={(patch) => updateProperties(toTwistedCubesChimerSettingsPatch(patch))}
+            />
+          )}
+        </div>
+      </AppSurface>
+
+      <div className="flex flex-wrap gap-2" aria-label="Track 4B draft actions">
+        <Button size="compact" disabled={!draft.undoStack.length} onClick={() => setDraft((current) => reduceBackgroundVisualDraft(current, { type: "undo" }))}>Undo</Button>
+        <Button size="compact" disabled={!draft.redoStack.length} onClick={() => setDraft((current) => reduceBackgroundVisualDraft(current, { type: "redo" }))}>Redo</Button>
+        <Button size="compact" variant="destructive" disabled={!draft.dirty} onClick={() => setDraft((current) => reduceBackgroundVisualDraft(current, { type: "cancel" }))}>Cancel</Button>
+        <Button size="compact" variant="success" disabled={!draft.dirty} onClick={applyDraft}>Apply</Button>
+        <Button size="compact" variant="secondary" onClick={() => setDraft((current) => reduceBackgroundVisualDraft(current, { type: "apply-visual-preset", id: TRACK_4B_VISUAL_PRESET.id }))}>Apply Visual preset</Button>
+        <Button size="compact" variant="secondary" onClick={() => setDraft((current) => reduceBackgroundVisualDraft(current, { type: "apply-color-preset", id: TRACK_4B_COLOR_PRESET.id }))}>Apply Color preset</Button>
+      </div>
+
+      <div className="relative min-h-80 overflow-hidden rounded-2xl border border-border bg-black">
+        <BackgroundHost
+          selectedId={selectedId}
+          category="chimer"
+          access={access}
+          {...hostPropsByContext.chimer as BackgroundEffectProps}
+          backgroundPalette={{ palette: snapshot.palette, mapping: snapshot.mapping }}
+          className="absolute inset-0"
+          motionEnabled
+          forceEffectMount
+          testId="track-4b-live-host"
+          diagnostics
+        />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2" aria-label="Track 4B generated preview media">
+        {TRACK_4B_PREVIEWS.map((preview) => (
+          <AppSurface key={preview.id} title={`${preview.label} preview`} variant="inset">
+            <div
+              className="relative mx-auto aspect-[5/7] w-40 overflow-hidden rounded-xl border border-border"
+              data-track-4b-preview={preview.id}
+            >
+              <BackgroundPreviewMedia
+                videoUrl={preview.videoUrl}
+                posterUrl={preview.posterUrl}
+                fallbackStyle={backgroundRegistry.find((entry) => entry.id === preview.id)?.fallbackStyle}
+                active={activePreviewId === preview.id}
+              />
+            </div>
+            <Button
+              className="mt-3"
+              size="compact"
+              variant="secondary"
+              onClick={() => setActivePreviewId((current) => current === preview.id ? null : preview.id)}
+            >
+              {activePreviewId === preview.id ? `Pause ${preview.label} preview` : `Play ${preview.label} preview`}
+            </Button>
+          </AppSurface>
+        ))}
+      </div>
+
+      <output data-track-4b-context="chimer" data-config={JSON.stringify(hostPropsByContext.chimer)} />
+      <output data-track-4b-context="clock" data-config={JSON.stringify(hostPropsByContext.clock)} />
+      <output data-track-4b-context="music" data-config={JSON.stringify(hostPropsByContext.music)} />
+    </section>
   )
 }
 
@@ -619,6 +954,8 @@ export function BackgroundPaletteGallery() {
         ) : null}
 
       </section>
+
+      <Track4BBackgroundReview reducedMotion={reducedMotion} />
 
       <BackgroundPreviewMediaReview />
 
