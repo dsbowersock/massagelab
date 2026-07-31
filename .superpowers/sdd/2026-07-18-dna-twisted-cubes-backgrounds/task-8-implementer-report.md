@@ -118,3 +118,47 @@ The redundant `aria-label` passed by `ColorSlider` was removed. Browser coverage
 - `git diff --check`: passed.
 
 The fix-round diff contains no package/lock, Prisma, roadmap, TODO, generated-media, or primary-checkout files. The isolated `TODO.md` SHA-256 remains `034BE9755BE897094EA6E1229D0E7C662BF32C2A27AE917E8A5A7FCE890CE51C`. No push was performed.
+
+## Fix Round 2
+
+Task 8 was reviewed again from commit `f891b97fdd056682622c86b85625161a04f23745`. The remaining gap was acceptance evidence: the prior per-slider loop proved only that the aggregate property JSON changed, while the renderer helper proved only that variables were nonempty.
+
+### Authoritative terminology reconciliation
+
+The review request named geometry models that are not present in this branch's production contracts (`strandLength`, `nodeSize`, `nodeSpacing`, `tilt`, `phaseOffset`, `twistAngle`, `cubeSize`, and adjustable `perspective`). Repository search confirmed that adding those names would invent a second product model. Per the real-gallery/real-Host constraint, Fix Round 2 instead covers the authoritative 11 controls currently exported by each production control component:
+
+- DNA: node motion speed, strand rotation speed, strand count, strand angle, strand spacing, scale, position X/Y, connector width/thickness, and outline thickness.
+- Twisted Cubes: rotation speed, layer stagger, view angle X/Y, layer count, layer depth spacing, scale, position X/Y, opacity falloff, and relative outline thickness.
+
+No production option, control, sanitizer, renderer, or CSS behavior was changed.
+
+### Exact renderer evidence
+
+- Every accessible control name is explicitly mapped to its one canonical flat Chimer settings key.
+- Each isolated `ArrowRight` edit must change exactly that key, and its value must equal the real slider thumb's `aria-valuenow`.
+- The intended production CSS variable or DOM count must equal the value produced by the real domain helper and unit conversion. DNA coverage includes node-cycle duration/delay, strand rotation, count/phase/rest scale, angle/spacing, responsive transform, connector half-width derivations, thickness, and outline. Twisted coverage includes cycle, stagger delay, view angles, layer count, depth, responsive transform, alpha falloff, and outline thickness.
+- A per-key allowlist identifies documented coupled renderer derivations. All other captured renderer sentinels, including resolved colors, must remain unchanged.
+- Cancel resets every isolated edit before the next control; canonical Undo/Redo/Cancel/Apply and Twisted Apply-then-Cancel proof remain covered.
+
+The reduced-motion matrix now pushes all 11 settings for the selected effect to their exact upper bounds, then checks saved settings without responsive mutation. Across desktop, phone portrait, short landscape, and real CDP 200% page scale, it verifies:
+
+- exact adapter/palette-resolver Harmony colors;
+- every DNA root/scene/strand geometry and timing variable, strand/node counts, and static strand/connector/node animations;
+- every Twisted root/scene/layer outline, alpha, delay, depth, thickness, face count, and static cube animation;
+- production compact clamps only for scale and position, derived through the real responsive transform helper.
+
+### Fix Round 2 validation
+
+- `node --test tests/browser-qa-harness.test.mjs tests/sitewide-control-rollout.test.mjs`: 16/16 passed.
+- `npm run test:browser -- tests/browser/dna-twisted-cubes-backgrounds.spec.ts --project=desktop-chromium`: 8/8 passed.
+- `npm run test:browser -- tests/browser/dna-twisted-cubes-backgrounds.spec.ts --project=mobile-chromium`: 8/8 passed.
+- Sensitive exact-render/reduced-state repeat with `--repeat-each=3 --workers=2`: 12/12 passed across desktop and mobile in 2.9 minutes.
+- `npm run typecheck`: passed.
+- `npm run lint`: passed with only Babel's existing large-file informational note for `app/chimer/running-timer.tsx`.
+- `npm run test`: 1,857/1,857 passed.
+- `npm run build`: passed; Next compiled, typechecked, and generated 101 pages. Prebuild Prisma generation changed no tracked Prisma or package files.
+- `git diff --check`: passed.
+
+The first stress attempt used six concurrent workers with the original 60-second case timeout. All reduced-state repeats and all mobile exact-render repeats passed, while three desktop exact-render cases timed out near the final Undo/Redo interaction under dev-server contention. The exhaustive exact-render case now has a 120-second budget; the bounded two-worker repeat above passed without assertion or timeout failures.
+
+The Fix Round 2 diff contains only the dedicated browser suite, its focused source contract, and this report. Package/lock, Prisma, roadmap, TODO, generated-media, production behavior, and primary-checkout files remain unchanged. Both isolated and primary `TODO.md` SHA-256 values remain `034BE9755BE897094EA6E1229D0E7C662BF32C2A27AE917E8A5A7FCE890CE51C` and `C2DBD02A98631A6653DD5F1111EC030FDF00BC353B5A19B81AFFC7548811CDD5`. No push was performed.
