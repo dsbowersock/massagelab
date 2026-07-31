@@ -702,14 +702,14 @@ test("Clock and Visual docks avoid protected digits at required viewport shapes"
   }
 })
 
-test("Clock and Visual docks fill the safe edge with useful first-viewport density", async ({ page }, testInfo) => {
+test("Clock fills the safe edge while Visual preserves its half-height review area", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-chromium", "single 539x597 rendered density proof")
   await page.setViewportSize({ width: 539, height: 597 })
   await openClock(page)
 
   for (const panelName of ["Clock", "Visual"] as const) {
     await page.getByRole("button", { name: panelName, exact: true }).click()
-    await expect.poll(() => page.evaluate(() => {
+    await expect.poll(() => page.evaluate((activePanelName) => {
       const display = document.querySelector<HTMLElement>("[data-protected-display]")
         ?.getBoundingClientRect()
       const dockElement = document.querySelector<HTMLElement>("[data-immersive-dock]")
@@ -725,6 +725,9 @@ test("Clock and Visual docks fill the safe edge with useful first-viewport densi
       const availableHeight = edge === "bottom"
         ? dock.bottom - display.bottom - 16
         : display.top - dock.top - 16
+      const visualHalfHeight = Number.parseFloat(
+        getComputedStyle(dockElement).getPropertyValue("--immersive-visual-viewport-half-height"),
+      )
       const visibleInteractiveCount = Array.from(scrollerElement.querySelectorAll<HTMLElement>(
         "button, input, select, [role='switch'], [role='slider']",
       )).filter((element) => {
@@ -739,19 +742,25 @@ test("Clock and Visual docks fill the safe edge with useful first-viewport densi
         gapPx: Math.round(safeGap),
         dockHeightPx: Math.round(dock.height),
         availableHeightPx: Math.round(availableHeight),
+        visualHalfHeightPx: Math.round(visualHalfHeight),
         visibleInteractiveCount,
-        safeGap: safeGap >= 14 && safeGap <= 18,
-        fillsAvailableHeight: Math.abs(dock.height - availableHeight) <= 2,
+        preservesDisplayGap: safeGap >= 14
+          && (activePanelName === "Visual" || safeGap <= 18),
+        respectsHeightContract: activePanelName === "Visual"
+          ? Number.isFinite(visualHalfHeight)
+            && Math.abs(dock.height - visualHalfHeight) <= 2
+          : Math.abs(dock.height - availableHeight) <= 2,
         usefulFirstViewport: visibleInteractiveCount >= 2,
         internallyScrollable: scrollerElement.scrollHeight > scrollerElement.clientHeight,
       }
-    })).toEqual({
+    }, panelName)).toEqual({
       gapPx: expect.any(Number),
       dockHeightPx: expect.any(Number),
       availableHeightPx: expect.any(Number),
+      visualHalfHeightPx: expect.any(Number),
       visibleInteractiveCount: expect.any(Number),
-      safeGap: true,
-      fillsAvailableHeight: true,
+      preservesDisplayGap: true,
+      respectsHeightContract: true,
       usefulFirstViewport: true,
       internallyScrollable: true,
     })

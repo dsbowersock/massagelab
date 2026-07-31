@@ -148,6 +148,14 @@ async function installCommerceFixture({
     })
   })
   await page.route("**/api/account/preferences", async (route) => {
+    const request = route.request()
+    const chimerSettings = request.method() === "PUT"
+      ? ((await request.postDataJSON()) as { chimerSettings?: unknown }).chimerSettings ?? {}
+      : {}
+
+    // Preference writes return the submitted, server-sanitized snapshot plus
+    // authoritative access. Keep this fixture production-shaped so initial
+    // device seeding cannot look like a server-side reset.
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -155,7 +163,7 @@ async function installCommerceFixture({
         accessAuthoritative: true,
         features: featureKeys,
         ownedBackgroundIds: snapshot.ownedBackgroundIds,
-        chimerSettings: {},
+        chimerSettings,
         appSettings: {},
       }),
     })
@@ -311,8 +319,20 @@ function accessCard(slide: Awaited<ReturnType<typeof centerPremium>>) {
   return slide.locator("[data-background-access-state]")
 }
 
-async function startActiveChimer(page: Page) {
+async function openChimerAfterPreferenceSeed(page: Page) {
+  const preferenceSeed = page.waitForResponse((response) =>
+    new URL(response.url()).pathname === "/api/account/preferences"
+      && response.request().method() === "PUT"
+      && response.ok())
   await page.goto("/chimer", { waitUntil: "domcontentloaded" })
+  // The signed-in fixture starts with no saved Chimer preference. Let the
+  // initial device seed settle before editing so the test does not race the
+  // authoritative response that hydration is specifically designed to adopt.
+  await preferenceSeed
+}
+
+async function startActiveChimer(page: Page) {
+  await openChimerAfterPreferenceSeed(page)
   await page.getByRole("button", { name: /^Increase minutes$/i }).click()
   for (let step = 0; step < 4; step += 1) {
     await page.getByRole("button", { name: /^Continue$/i }).click()
@@ -516,7 +536,7 @@ test("pre-timer Chimer setup selects a newly redeemed background when ownership 
     baseURL,
     failRedemptionRefresh: true,
   })
-  await page.goto("/chimer", { waitUntil: "domcontentloaded" })
+  await openChimerAfterPreferenceSeed(page)
   await page.getByRole("button", { name: /^Increase minutes$/i }).click()
   for (let step = 0; step < 3; step += 1) {
     await page.getByRole("button", { name: /^Continue$/i }).click()
