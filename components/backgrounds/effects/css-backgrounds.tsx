@@ -19,7 +19,7 @@ export interface MassageLabDnaOptions {
   connectorThickness: number
   outlineThickness: number
   backgroundColor: string
-  nodeColors: readonly [string, string, string, string]
+  nodeRoleColors: readonly [string, string, string, string]
   connectorColor: string
   outlineColor: string
 }
@@ -139,6 +139,8 @@ export interface CssDomPaletteEffectPropsById {
   "massage-lab-aurora-bars": Pick<BackgroundEffectProps, "auroraBars">
   "massage-lab-gradient": Pick<BackgroundEffectProps, "massageLabGradient">
   "massage-lab-stars": Pick<BackgroundEffectProps, "massageLabStars">
+  "massage-lab-dna": Pick<BackgroundEffectProps, "massageLabDna">
+  "massage-lab-twisted-cubes": Pick<BackgroundEffectProps, "massageLabTwistedCubes">
 }
 
 export type CssDomPaletteBackgroundId = keyof CssDomPaletteEffectPropsById

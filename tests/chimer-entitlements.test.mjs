@@ -11,6 +11,48 @@ import {
 } from "../lib/background-palette.js"
 
 describe("Chimer entitlement-aware settings", () => {
+  it("keeps Track 4B customization access feature- and ownership-based with Source fallback", () => {
+    for (const backgroundId of ["massage-lab-dna", "massage-lab-twisted-cubes"]) {
+      const visualPropertyKey = backgroundId === "massage-lab-dna"
+        ? "massageLabDnaStrandCount"
+        : "massageLabTwistedCubesLayerCount"
+      const editedVisualValue = backgroundId === "massage-lab-dna" ? 17 : 24
+      assert.equal(canCustomizeBackgroundColors({ hasBackgroundAccess: true }), true)
+      assert.equal(resolveEffectiveBackgroundPaletteMode({
+        savedMode: "custom",
+        canCustomize: canCustomizeBackgroundColors({ hasBackgroundAccess: true }),
+      }), "custom")
+      assert.equal(resolveEffectiveBackgroundPaletteMode({
+        savedMode: "harmony",
+        canCustomize: false,
+      }), "source")
+
+      const featureSettings = sanitizeChimerSettingsForEntitlements({
+        backgroundId,
+        [visualPropertyKey]: editedVisualValue,
+        backgroundVisualPreferences: { palette: { mode: "custom" } },
+      }, [FEATURE_KEYS.premiumBackgrounds, FEATURE_KEYS.chimerCustomColors])
+      assert.equal(featureSettings.backgroundId, backgroundId)
+      assert.equal(featureSettings[visualPropertyKey], editedVisualValue)
+
+      const ownedSettings = sanitizeChimerSettingsForEntitlements({
+        backgroundId,
+        [visualPropertyKey]: editedVisualValue,
+        backgroundVisualPreferences: { palette: { mode: "harmony" } },
+      }, { featureKeys: [], ownedBackgroundIds: [backgroundId] })
+      assert.equal(ownedSettings.backgroundId, backgroundId)
+      assert.equal(ownedSettings[visualPropertyKey], editedVisualValue)
+      assert.equal(ownedSettings.backgroundVisualPreferences.palette.mode, "harmony")
+
+      const lockedSettings = sanitizeChimerSettingsForEntitlements({
+        backgroundId,
+        [visualPropertyKey]: editedVisualValue,
+      }, [])
+      assert.equal(lockedSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+      assert.equal(lockedSettings[visualPropertyKey], DEFAULT_CHIMER_SETTINGS[visualPropertyKey])
+    }
+  })
+
   it("retains saved shared palettes across access loss while resolving denied access to Source", () => {
     const saved = {
       version: 1,

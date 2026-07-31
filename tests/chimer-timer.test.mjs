@@ -3196,4 +3196,115 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.canvasRevealDotsOpacity, DEFAULT_CHIMER_SETTINGS.canvasRevealDotsOpacity)
     assert.equal(settings.canvasRevealDotsShowGradient, DEFAULT_CHIMER_SETTINGS.canvasRevealDotsShowGradient)
   })
+
+  it("sanitizes the exact DNA and Twisted Cubes flat visual settings", () => {
+    const expectedDefaults = {
+      massageLabDnaStrandCount: 13,
+      massageLabDnaNodeMotionSpeed: 1,
+      massageLabDnaStrandRotationSpeed: 1,
+      massageLabDnaStrandAngle: 30,
+      massageLabDnaScale: 1,
+      massageLabDnaPositionX: 0,
+      massageLabDnaPositionY: 0,
+      massageLabDnaStrandSpacing: 0.5,
+      massageLabDnaConnectorWidth: 94,
+      massageLabDnaConnectorThickness: 30,
+      massageLabDnaOutlineThickness: 0.5,
+      massageLabTwistedCubesLayerCount: 20,
+      massageLabTwistedCubesRotationSpeed: 1,
+      massageLabTwistedCubesLayerStagger: 0.1,
+      massageLabTwistedCubesViewAngleX: -35,
+      massageLabTwistedCubesViewAngleY: -45,
+      massageLabTwistedCubesScale: 1,
+      massageLabTwistedCubesPositionX: 0,
+      massageLabTwistedCubesPositionY: 0,
+      massageLabTwistedCubesLayerDepthSpacing: 50,
+      massageLabTwistedCubesOpacityFalloff: 0.85,
+      massageLabTwistedCubesOutlineThickness: 0.0075,
+    }
+    assert.deepEqual(
+      Object.fromEntries(Object.keys(expectedDefaults).map((key) => [key, DEFAULT_CHIMER_SETTINGS[key]])),
+      expectedDefaults,
+    )
+
+    const minimums = sanitizeChimerSettings(Object.fromEntries(
+      Object.keys(expectedDefaults).map((key) => [key, -Infinity]),
+    ))
+    assert.deepEqual(
+      Object.fromEntries(Object.keys(expectedDefaults).map((key) => [key, minimums[key]])),
+      expectedDefaults,
+    )
+
+    const clamped = sanitizeChimerSettings({
+      massageLabDnaStrandCount: 99.8,
+      massageLabDnaNodeMotionSpeed: 0,
+      massageLabDnaStrandRotationSpeed: 9,
+      massageLabDnaStrandAngle: -999,
+      massageLabDnaScale: 9,
+      massageLabDnaPositionX: -99,
+      massageLabDnaPositionY: 99,
+      massageLabDnaStrandSpacing: -1,
+      massageLabDnaConnectorWidth: 2,
+      massageLabDnaConnectorThickness: 99,
+      massageLabDnaOutlineThickness: 9,
+      massageLabTwistedCubesLayerCount: 99.8,
+      massageLabTwistedCubesRotationSpeed: 0,
+      massageLabTwistedCubesLayerStagger: 9,
+      massageLabTwistedCubesViewAngleX: -999,
+      massageLabTwistedCubesViewAngleY: 999,
+      massageLabTwistedCubesScale: 0,
+      massageLabTwistedCubesPositionX: -99,
+      massageLabTwistedCubesPositionY: 99,
+      massageLabTwistedCubesLayerDepthSpacing: 0,
+      massageLabTwistedCubesOpacityFalloff: 9,
+      massageLabTwistedCubesOutlineThickness: 9,
+    })
+    assert.deepEqual({
+      massageLabDnaStrandCount: clamped.massageLabDnaStrandCount,
+      massageLabDnaNodeMotionSpeed: clamped.massageLabDnaNodeMotionSpeed,
+      massageLabDnaStrandRotationSpeed: clamped.massageLabDnaStrandRotationSpeed,
+      massageLabDnaStrandAngle: clamped.massageLabDnaStrandAngle,
+      massageLabDnaScale: clamped.massageLabDnaScale,
+      massageLabDnaPositionX: clamped.massageLabDnaPositionX,
+      massageLabDnaPositionY: clamped.massageLabDnaPositionY,
+      massageLabDnaStrandSpacing: clamped.massageLabDnaStrandSpacing,
+      massageLabDnaConnectorWidth: clamped.massageLabDnaConnectorWidth,
+      massageLabDnaConnectorThickness: clamped.massageLabDnaConnectorThickness,
+      massageLabDnaOutlineThickness: clamped.massageLabDnaOutlineThickness,
+      massageLabTwistedCubesLayerCount: clamped.massageLabTwistedCubesLayerCount,
+      massageLabTwistedCubesRotationSpeed: clamped.massageLabTwistedCubesRotationSpeed,
+      massageLabTwistedCubesLayerStagger: clamped.massageLabTwistedCubesLayerStagger,
+      massageLabTwistedCubesViewAngleX: clamped.massageLabTwistedCubesViewAngleX,
+      massageLabTwistedCubesViewAngleY: clamped.massageLabTwistedCubesViewAngleY,
+      massageLabTwistedCubesScale: clamped.massageLabTwistedCubesScale,
+      massageLabTwistedCubesPositionX: clamped.massageLabTwistedCubesPositionX,
+      massageLabTwistedCubesPositionY: clamped.massageLabTwistedCubesPositionY,
+      massageLabTwistedCubesLayerDepthSpacing: clamped.massageLabTwistedCubesLayerDepthSpacing,
+      massageLabTwistedCubesOpacityFalloff: clamped.massageLabTwistedCubesOpacityFalloff,
+      massageLabTwistedCubesOutlineThickness: clamped.massageLabTwistedCubesOutlineThickness,
+    }, {
+      massageLabDnaStrandCount: 25,
+      massageLabDnaNodeMotionSpeed: 0.25,
+      massageLabDnaStrandRotationSpeed: 3,
+      massageLabDnaStrandAngle: -180,
+      massageLabDnaScale: 1.2,
+      massageLabDnaPositionX: -35,
+      massageLabDnaPositionY: 35,
+      massageLabDnaStrandSpacing: 0,
+      massageLabDnaConnectorWidth: 60,
+      massageLabDnaConnectorThickness: 60,
+      massageLabDnaOutlineThickness: 1.5,
+      massageLabTwistedCubesLayerCount: 30,
+      massageLabTwistedCubesRotationSpeed: 0.25,
+      massageLabTwistedCubesLayerStagger: 0.3,
+      massageLabTwistedCubesViewAngleX: -80,
+      massageLabTwistedCubesViewAngleY: 80,
+      massageLabTwistedCubesScale: 0.4,
+      massageLabTwistedCubesPositionX: -35,
+      massageLabTwistedCubesPositionY: 35,
+      massageLabTwistedCubesLayerDepthSpacing: 10,
+      massageLabTwistedCubesOpacityFalloff: 0.95,
+      massageLabTwistedCubesOutlineThickness: 0.02,
+    })
+  })
 })

@@ -44,6 +44,7 @@ test("the DNA renderer stays a scoped, non-interactive CSS DOM effect", () => {
 test("DNA options extend the shared background effect contract", () => {
   const effectPropsSource = readFileSync(effectPropsPath, "utf8")
 
-  assert.match(effectPropsSource, /export interface MassageLabDnaOptions \{[\s\S]*?strandCount: number;?[\s\S]*?nodeColors: readonly \[string, string, string, string\];?[\s\S]*?outlineColor: string;?[\s\S]*?\}/)
+  assert.match(effectPropsSource, /export interface MassageLabDnaOptions \{[\s\S]*?strandCount: number;?[\s\S]*?nodeRoleColors: readonly \[string, string, string, string\];?[\s\S]*?outlineColor: string;?[\s\S]*?\}/)
+  assert.doesNotMatch(effectPropsSource, /\bnodeColors\b/)
   assert.match(effectPropsSource, /export interface BackgroundEffectProps \{[\s\S]*?reduceMotion\?: boolean;?[\s\S]*?compactViewport\?: boolean;?[\s\S]*?massageLabDna\?: MassageLabDnaOptions;?/)
 })

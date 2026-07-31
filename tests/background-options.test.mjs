@@ -46,6 +46,8 @@ describe("premium background registry", () => {
     for (const backgroundId of [
       "massage-lab-moving-gradient",
       "massage-lab-aerial-rays",
+      "massage-lab-dna",
+      "massage-lab-twisted-cubes",
       "massage-lab-grid-motion",
       "massage-lab-gradient-animation",
       "massage-lab-shooting-stars",
@@ -142,6 +144,63 @@ describe("premium background registry", () => {
     assert.equal(canUseBackgroundId(DEFAULT_BACKGROUND_ID, []), true)
     assert.equal(canUseBackgroundId("static-gradient", []), true)
     assert.equal(resolveAccessibleBackgroundDefinition("unknown", []).id, DEFAULT_BACKGROUND_ID)
+  })
+
+  it("registers DNA and Twisted Cubes as static-capable premium CSS backgrounds", () => {
+    for (const backgroundId of ["massage-lab-dna", "massage-lab-twisted-cubes"]) {
+      assert.equal(isBackgroundId(backgroundId), true)
+      const definition = backgroundRegistry.find((entry) => entry.id === backgroundId)
+      assert.ok(definition)
+      assert.equal(definition.enabled, true)
+      assert.equal(definition.requiresSubscription, true)
+      assert.equal(definition.licenseStatus, "verified")
+      assert.match(definition.license, /MIT/)
+      assert.equal(definition.motionIntensity, "medium")
+      assert.equal(definition.performanceCost, "medium")
+      assert.deepEqual(definition.category, ["chimer", "clock", "music", "ambient"])
+      assert.equal(definition.supportsReducedMotionStatic, true)
+      assert.equal(typeof definition.component, "function")
+      assert.match(
+        definition.component.toString(),
+        new RegExp(`${backgroundId}-background`),
+      )
+    }
+  })
+
+  it("uses canonical subscription and authoritative ownership access for Track 4B backgrounds", () => {
+    for (const backgroundId of ["massage-lab-dna", "massage-lab-twisted-cubes"]) {
+      assert.equal(canUseBackgroundId(backgroundId, [FEATURE_KEYS.premiumBackgrounds]), true)
+      assert.equal(canUseBackgroundId(backgroundId, { featureKeys: [], ownedBackgroundIds: [backgroundId] }), true)
+      assert.equal(resolveAccessibleBackgroundDefinition(backgroundId, []).id, DEFAULT_BACKGROUND_ID)
+      assert.equal(
+        resolveAccessibleBackgroundDefinition(backgroundId, [FEATURE_KEYS.premiumBackgrounds]).id,
+        backgroundId,
+      )
+      assert.equal(
+        resolveAccessibleBackgroundDefinition(backgroundId, {
+          featureKeys: [],
+          ownedBackgroundIds: [backgroundId],
+        }).id,
+        backgroundId,
+      )
+      assert.equal(
+        resolveAccessibleBackgroundDefinition(backgroundId, [FEATURE_KEYS.chimerCustomColors]).id,
+        DEFAULT_BACKGROUND_ID,
+      )
+
+      const retainedWhileHydrating = resolveAuthoritativeBackgroundOwnership([backgroundId], undefined)
+      assert.equal(canUseBackgroundId(backgroundId, { featureKeys: [], ownedBackgroundIds: retainedWhileHydrating }), true)
+
+      const removedAfterRefundOrChargeback = resolveAuthoritativeBackgroundOwnership([backgroundId], [])
+      assert.deepEqual(removedAfterRefundOrChargeback, [])
+      assert.equal(
+        resolveAccessibleBackgroundDefinition(backgroundId, {
+          featureKeys: [],
+          ownedBackgroundIds: removedAfterRefundOrChargeback,
+        }).id,
+        DEFAULT_BACKGROUND_ID,
+      )
+    }
   })
 
   it("requires explicit known IDs before applying Music category eligibility", () => {

@@ -69,6 +69,7 @@ type RoleSpec = readonly [
   rendererTarget: string,
   transform?: RoleTransform,
   sourceColorOverride?: string,
+  defaultSwatchOverride?: BackgroundPaletteRole["defaultSwatch"],
 ]
 type SupportedSpec = {
   id: string
@@ -107,6 +108,7 @@ const role = (
   rendererTarget: string,
   transform?: RoleTransform,
   sourceColorOverride?: string,
+  defaultSwatchOverride?: BackgroundPaletteRole["defaultSwatch"],
 ): RoleSpec => [
   id,
   label,
@@ -114,6 +116,7 @@ const role = (
   rendererTarget,
   transform,
   sourceColorOverride,
+  defaultSwatchOverride,
 ]
 
 /**
@@ -257,7 +260,7 @@ function roleColor(
 }
 
 function roleColorArray(
-  current: string[] | undefined,
+  current: readonly string[] | undefined,
   roleIds: readonly string[],
   colors: Readonly<Record<string, string>>,
 ) {
@@ -303,6 +306,48 @@ export function applyCssDomPaletteRoleColors<
           ),
           color: roleColor(colors, "rays", props.massageLabAerialRays?.color),
         },
+      }
+    case "massage-lab-dna":
+      return {
+        ...props,
+        massageLabDna: {
+          ...props.massageLabDna,
+          backgroundColor: roleColor(colors, "background", props.massageLabDna?.backgroundColor)
+            ?? "hsl(210 80% 12%)",
+          nodeRoleColors: roleColorArray(
+            props.massageLabDna?.nodeRoleColors,
+            ["node-one", "node-two", "node-three", "node-four"],
+            colors,
+          ) as [string, string, string, string],
+          connectorColor: roleColor(colors, "connector", props.massageLabDna?.connectorColor)
+            ?? "#ffffff",
+          outlineColor: roleColor(colors, "outline", props.massageLabDna?.outlineColor)
+            ?? "#000000",
+        } as NonNullable<BackgroundEffectProps["massageLabDna"]>,
+      }
+    case "massage-lab-twisted-cubes":
+      return {
+        ...props,
+        massageLabTwistedCubes: {
+          ...props.massageLabTwistedCubes,
+          backgroundColor: roleColor(
+            colors,
+            "background",
+            props.massageLabTwistedCubes?.backgroundColor,
+          ) ?? "hsl(210 20% 10%)",
+          outlineAnchors: roleColorArray(
+            props.massageLabTwistedCubes?.outlineAnchors,
+            [
+              "outline-one",
+              "outline-two",
+              "outline-three",
+              "outline-four",
+              "outline-five",
+              "outline-six",
+            ],
+            colors,
+          ) as [string, string, string, string, string, string],
+        } as NonNullable<BackgroundEffectProps["massageLabTwistedCubes"]>,
       }
     case "massage-lab-grid-motion":
       return {
@@ -419,13 +464,15 @@ function supported(spec: SupportedSpec): SupportedBackgroundPaletteAdapter {
     rendererTarget,
     ,
     sourceColorOverride,
+    defaultSwatchOverride,
   ], index) => ({
     id,
     label,
     sourceSettingKey,
     sourceColor: sourceColorOverride
       ?? String(CHIMER_BACKGROUND_SOURCE_COLOR_DEFAULTS[sourceSettingKey]),
-    defaultSwatch: (index % 7) as BackgroundPaletteRole["defaultSwatch"],
+    defaultSwatch: defaultSwatchOverride
+      ?? (index % 7) as BackgroundPaletteRole["defaultSwatch"],
     rendererTarget,
   }))
   return Object.freeze({
@@ -481,6 +528,41 @@ const SUPPORTED_SPECS: readonly SupportedSpec[] = [
   { id: "massage-lab-moving-gradient", family: "css-dom", prefixes: ["movingBackground"], roles: [role("main", "Main light", "movingBackgroundMainColor", "mainColor"), role("orb", "Orb light", "movingBackgroundOrbColor", "orbColor")] },
   { id: "massage-lab-retro-grid", family: "webgl", prefixes: ["massageLabRetroGrid"], roles: [role("background", "Background", "massageLabRetroGridBackgroundColor", "massageLabRetroGrid.backgroundColor"), role("light-lines", "Light grid lines", "massageLabRetroGridLightLineColor", "massageLabRetroGrid.lightLineColor"), role("dark-lines", "Dark grid lines", "massageLabRetroGridDarkLineColor", "massageLabRetroGrid.darkLineColor")] },
   { id: "massage-lab-aerial-rays", family: "css-dom", prefixes: ["massageLabAerialRays"], roles: [role("background", "Background", "massageLabAerialRaysBackgroundColor", "massageLabAerialRays.backgroundColor"), role("rays", "Rays", "massageLabAerialRaysColor", "massageLabAerialRays.color")] },
+  {
+    id: "massage-lab-dna",
+    family: "css-dom",
+    prefixes: ["massageLabDna"],
+    sourceBehavior: "fixed",
+    roles: [
+      role("background", "Background", "massageLabDnaBackgroundColor", "massageLabDna.backgroundColor", undefined, "hsl(210 80% 12%)", 3),
+      role("node-one", "Node 1", "massageLabDnaNodeRoleColorOne", "massageLabDna.nodeRoleColors[0]", undefined, "hsl(44 98% 60%)", 0),
+      role("node-two", "Node 2", "massageLabDnaNodeRoleColorTwo", "massageLabDna.nodeRoleColors[1]", undefined, "hsl(197 50% 44%)", 1),
+      role("node-three", "Node 3", "massageLabDnaNodeRoleColorThree", "massageLabDna.nodeRoleColors[2]", undefined, "hsl(300 100% 100%)", 2),
+      role("node-four", "Node 4", "massageLabDnaNodeRoleColorFour", "massageLabDna.nodeRoleColors[3]", undefined, "hsl(331 76% 50%)", 5),
+      role("connector", "Connector", "massageLabDnaConnectorColor", "massageLabDna.connectorColor", undefined, "#ffffff", 4),
+      role("outline", "Outline", "massageLabDnaOutlineColor", "massageLabDna.outlineColor", undefined, "#000000", 6),
+    ],
+  },
+  {
+    id: "massage-lab-twisted-cubes",
+    family: "css-dom",
+    prefixes: ["massageLabTwistedCubes"],
+    sourceBehavior: "automatic",
+    roles: [
+      role("background", "Background", "massageLabTwistedCubesBackgroundColor", "massageLabTwistedCubes.backgroundColor", undefined, "hsl(210 20% 10%)", 3),
+      role("outline-one", "Outline 1", "massageLabTwistedCubesOutlineOne", "massageLabTwistedCubes.outlineAnchors[0]", undefined, "hsl(180 80% 60%)", 0),
+      role("outline-two", "Outline 2", "massageLabTwistedCubesOutlineTwo", "massageLabTwistedCubes.outlineAnchors[1]", undefined, "hsl(212 80% 60%)", 1),
+      role("outline-three", "Outline 3", "massageLabTwistedCubesOutlineThree", "massageLabTwistedCubes.outlineAnchors[2]", undefined, "hsl(244 80% 60%)", 2),
+      role("outline-four", "Outline 4", "massageLabTwistedCubesOutlineFour", "massageLabTwistedCubes.outlineAnchors[3]", undefined, "hsl(276 80% 60%)", 4),
+      role("outline-five", "Outline 5", "massageLabTwistedCubesOutlineFive", "massageLabTwistedCubes.outlineAnchors[4]", undefined, "hsl(308 80% 60%)", 5),
+      role("outline-six", "Outline 6", "massageLabTwistedCubesOutlineSix", "massageLabTwistedCubes.outlineAnchors[5]", undefined, "hsl(340 80% 60%)", 6),
+    ],
+    modeOverrides: [{
+      rendererTarget: "massageLabTwistedCubes.paletteMode",
+      sourceValue: "source",
+      customValue: "resolved",
+    }],
+  },
   { id: "massage-lab-wave-current", family: "webgl", prefixes: ["massageLabWaveCurrent"], roles: [role("background", "Background", "massageLabWaveCurrentBackgroundColor", "massageLabWaveCurrent.backgroundColor"), role("wave-1", "Wave 1", "massageLabWaveCurrentColorOne", "massageLabWaveCurrent.waveColor1"), role("wave-2", "Wave 2", "massageLabWaveCurrentColorTwo", "massageLabWaveCurrent.waveColor2"), role("wave-3", "Wave 3", "massageLabWaveCurrentColorThree", "massageLabWaveCurrent.waveColor3")] },
   { id: "massage-lab-electric-mist", family: "webgl", prefixes: ["massageLabElectricMist"], roles: [role("mist", "Mist", "massageLabElectricMistColor", "massageLabElectricMist.color")] },
   { id: "massage-lab-astral-flow", family: "webgl", prefixes: ["massageLabAstralFlow"], roles: [role("space", "Deep space", "massageLabAstralFlowColorOne", "massageLabAstralFlow.color1"), role("flow", "Flow", "massageLabAstralFlowColorTwo", "massageLabAstralFlow.color2"), role("highlight", "Highlight", "massageLabAstralFlowColorThree", "massageLabAstralFlow.color3")] },

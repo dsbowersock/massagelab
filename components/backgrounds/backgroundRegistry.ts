@@ -19,6 +19,8 @@ export type BackgroundId =
   | "massage-lab-animated-grid-draft"
   | "massage-lab-retro-grid"
   | "massage-lab-aerial-rays"
+  | "massage-lab-dna"
+  | "massage-lab-twisted-cubes"
   | "massage-lab-wave-current"
   | "massage-lab-electric-mist"
   | "massage-lab-astral-flow"
@@ -129,6 +131,8 @@ export interface BackgroundDefinition {
   component?: BackgroundComponentLoader
   fallbackClassName?: string
   fallbackStyle?: CSSProperties
+  /** Host-only capability: reduced motion can retain a representative static scene. */
+  supportsReducedMotionStatic?: boolean
   /** Authoritative shared-palette migration contract for enabled renderers. */
   paletteAdapter?: BackgroundPaletteAdapter
 }
@@ -410,6 +414,52 @@ const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 20% 15%, rgba(160,210,255,0.2), transparent 58%), radial-gradient(circle at 80% 10%, rgba(160,210,255,0.14), transparent 62%), #020617",
+    },
+  },
+  {
+    id: "massage-lab-dna",
+    label: "DNA",
+    provider: "Jhey / CodePen",
+    sourceUrl: "https://codepen.io/jh3y/pen/GRBVNJE",
+    license: "MIT; copyright 2026 Jhey; MassageLab repository reviewed 2026-07-31",
+    licenseStatus: "verified",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium source-preserving DNA strand background for Chimer, Clock, Music, and ambient surfaces.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    supportsReducedMotionStatic: true,
+    customizationSummary: "Source/Custom/Harmony role colors plus bounded strand motion, geometry, scale, position, connector, and outline controls.",
+    component: () => import("./effects/massage-lab-dna-background").then((module) => ({
+      // BackgroundHost supplies the selected adapter's required option object.
+      default: module.MassageLabDnaBackground as ComponentType<BackgroundEffectProps>,
+    })),
+    fallbackStyle: {
+      background: "radial-gradient(circle at 50% 45%, hsl(197 50% 24%), transparent 55%), hsl(210 80% 12%)",
+    },
+  },
+  {
+    id: "massage-lab-twisted-cubes",
+    label: "Twisted Cubes",
+    provider: "Jhey / CodePen",
+    sourceUrl: "https://codepen.io/jh3y/pen/qBoGJQj",
+    license: "MIT; copyright 2026 Jhey; MassageLab repository reviewed 2026-07-31",
+    licenseStatus: "verified",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium layered CSS cube background for Chimer, Clock, Music, and ambient surfaces.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    supportsReducedMotionStatic: true,
+    customizationSummary: "Continuous Source HSL or resolved Custom/Harmony anchors plus bounded layer, rotation, view, depth, fade, position, scale, and outline controls.",
+    component: () => import("./effects/massage-lab-twisted-cubes-background").then((module) => ({
+      // BackgroundHost supplies the selected adapter's required option object.
+      default: module.MassageLabTwistedCubesBackground as ComponentType<BackgroundEffectProps>,
+    })),
+    fallbackStyle: {
+      background: "radial-gradient(circle at 50% 45%, hsl(244 45% 20%), transparent 58%), hsl(210 20% 10%)",
     },
   },
   {

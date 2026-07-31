@@ -39,7 +39,7 @@ export function MassageLabDnaBackground({
     connectorThickness,
     outlineThickness,
     backgroundColor,
-    nodeColors,
+    nodeRoleColors,
     connectorColor,
     outlineColor,
   } = massageLabDna
@@ -65,10 +65,10 @@ export function MassageLabDnaBackground({
   const strandRotationSeconds = getDnaStrandRotationSeconds(strandRotationSpeed)
   const rootStyle = {
     "--ml-dna-background-color": backgroundColor,
-    "--ml-dna-node-color-0": nodeColors[0],
-    "--ml-dna-node-color-1": nodeColors[1],
-    "--ml-dna-node-color-2": nodeColors[2],
-    "--ml-dna-node-color-3": nodeColors[3],
+    "--ml-dna-node-color-0": nodeRoleColors[0],
+    "--ml-dna-node-color-1": nodeRoleColors[1],
+    "--ml-dna-node-color-2": nodeRoleColors[2],
+    "--ml-dna-node-color-3": nodeRoleColors[3],
     "--ml-dna-connector-color": connectorColor,
     "--ml-dna-outline-color": outlineColor,
     "--ml-dna-strand-angle": `${strandAngle}deg`,
