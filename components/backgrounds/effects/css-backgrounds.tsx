@@ -24,10 +24,28 @@ export interface MassageLabDnaOptions {
   outlineColor: string
 }
 
+export interface MassageLabTwistedCubesOptions {
+  layerCount: number
+  rotationSpeed: number
+  layerStagger: number
+  viewAngleX: number
+  viewAngleY: number
+  scale: number
+  positionX: number
+  positionY: number
+  layerDepthSpacing: number
+  opacityFalloff: number
+  outlineThickness: number
+  paletteMode: "source" | "resolved"
+  backgroundColor: string
+  outlineAnchors: readonly [string, string, string, string, string, string]
+}
+
 export interface BackgroundEffectProps {
   reduceMotion?: boolean
   compactViewport?: boolean
   massageLabDna?: MassageLabDnaOptions
+  massageLabTwistedCubes?: MassageLabTwistedCubesOptions
   className?: string
   mainColor?: string
   orbColor?: string
