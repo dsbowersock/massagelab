@@ -188,6 +188,10 @@ describe("account preference route ownership boundary", () => {
     )
     assert.match(
       chimerPageSource,
+      /const reconciledWrite = resolveChimerPreferenceSeedResult\(responseBody,[\s\S]*?setFeatureKeys\(reconciledWrite\.featureKeys\)[\s\S]*?setPermanentlyOwnedBackgroundIds\(reconciledWrite\.ownedBackgroundIds\)[\s\S]*?doesChimerPreferenceWriteResponseMatch/,
+    )
+    assert.match(
+      chimerPageSource,
       /settingsRef\.current = nextSanitizedSettings\s+setSettings\(nextSanitizedSettings\)/,
     )
     assert.match(

@@ -248,6 +248,17 @@ export default function ChimerPage() {
           return false
         }
         const responseBody = await response.json().catch(() => null)
+        const reconciledWrite = resolveChimerPreferenceSeedResult(responseBody, {
+          backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
+        })
+        if (!reconciledWrite) {
+          return false
+        }
+        // Every successful PUT re-checks membership and ownership. Adopt that
+        // access before resolving the write so an ordinary preference save
+        // cannot leave a revoked background usable until another refresh.
+        setFeatureKeys(reconciledWrite.featureKeys)
+        setPermanentlyOwnedBackgroundIds(reconciledWrite.ownedBackgroundIds)
         return doesChimerPreferenceWriteResponseMatch(
           request.requestBody,
           responseBody,
