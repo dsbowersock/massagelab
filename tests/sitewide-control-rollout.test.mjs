@@ -3,8 +3,9 @@ import { readFile } from "node:fs/promises"
 import test from "node:test"
 
 import { resolveAccessibleBackgroundDefinition } from "../components/backgrounds/backgroundRegistry.ts"
-import { getDnaBackgroundOptionsFromChimerSettings } from "../lib/dna-background.js"
-import { getTwistedCubesBackgroundOptionsFromChimerSettings } from "../lib/twisted-cubes-background.js"
+import { resolveBackgroundEffectProps } from "../components/backgrounds/resolveBackgroundEffectProps.ts"
+import { resolveDnaTwistedCubesBackgroundHostProps } from "../lib/dna-twisted-cubes-background-host.js"
+import { resolveImmersiveDisplayContext } from "../lib/immersive-display.js"
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8")
 
@@ -262,8 +263,8 @@ test("DNA and Twisted Cubes share compact options and host-owned responsive moti
 
   assert.match(runningSource, /getDnaBackgroundOptionsFromChimerSettings/)
   assert.match(runningSource, /getTwistedCubesBackgroundOptionsFromChimerSettings/)
-  assert.match(runningSource, /massageLabDna=\{effectiveDnaBackgroundOptions\}/)
-  assert.match(runningSource, /massageLabTwistedCubes=\{effectiveTwistedCubesBackgroundOptions\}/)
+  assert.match(runningSource, /resolveDnaTwistedCubesBackgroundHostProps/)
+  assert.match(runningSource, /\{\.\.\.effectiveDnaTwistedCubesHostProps\}/)
   assert.doesNotMatch(runningSource, /massageLabDnaStrandCount=|massageLabTwistedCubesLayerCount=/)
   assert.match(hostSource, /window\.matchMedia\("\(max-width: 479px\), \(max-height: 479px\)"\)/)
   assert.match(hostSource, /entry\.supportsReducedMotionStatic/)
@@ -274,7 +275,7 @@ test("DNA and Twisted Cubes share compact options and host-owned responsive moti
   assert.match(styles, /\.backgroundPropertyGroup[\s\S]*min-width:\s*0/)
 })
 
-test("Chimer, ordinary Clock, Music, and ambient contexts resolve the same 22 sanitized values", () => {
+test("actual Chimer, ordinary Clock, Music, and ambient Host plumbing resolves all 22 values", async () => {
   const settings = {
     massageLabDnaStrandCount: 15,
     massageLabDnaNodeMotionSpeed: 1.25,
@@ -330,13 +331,50 @@ test("Chimer, ordinary Clock, Music, and ambient contexts resolve the same 22 sa
     ownedBackgroundIds: [],
   }
   const contexts = [
-    ["active Chimer", "chimer"],
-    ["ordinary Clock", "clock"],
-    ["Music visualizer", "music"],
-    ["ambient Host", "ambient"],
+    {
+      label: "active Chimer",
+      category: "chimer",
+      route: { pathname: "/chimer", source: null },
+      immersiveContext: "chimer",
+    },
+    {
+      label: "ordinary Clock",
+      category: "clock",
+      route: { pathname: "/clock", source: null },
+      immersiveContext: "clock",
+    },
+    {
+      label: "Music visualizer",
+      category: "music",
+      route: { pathname: "/clock", source: "music" },
+      immersiveContext: "musicVisualizer",
+    },
+    {
+      label: "ambient Host",
+      category: "ambient",
+      route: null,
+      immersiveContext: null,
+    },
   ]
+  const runningSource = await read("app/chimer/running-timer.tsx")
 
-  for (const [label, category] of contexts) {
+  assert.match(
+    runningSource,
+    /resolveDnaTwistedCubesBackgroundHostProps\(\{[\s\S]*settings: effectiveLiveBackgroundSettings,[\s\S]*category: backgroundCategory,[\s\S]*\}\)/,
+  )
+  assert.match(runningSource, /<BackgroundHost[\s\S]*\{\.\.\.effectiveDnaTwistedCubesHostProps\}/)
+
+  for (const { label, category, route, immersiveContext } of contexts) {
+    if (route) {
+      assert.equal(resolveImmersiveDisplayContext(route), immersiveContext, label)
+    }
+
+    const hostProps = resolveDnaTwistedCubesBackgroundHostProps({ settings, category })
+    assert.deepEqual(hostProps, {
+      massageLabDna: expectedDna,
+      massageLabTwistedCubes: expectedCubes,
+    }, label)
+
     assert.equal(
       resolveAccessibleBackgroundDefinition("massage-lab-dna", access, category).id,
       "massage-lab-dna",
@@ -347,7 +385,30 @@ test("Chimer, ordinary Clock, Music, and ambient contexts resolve the same 22 sa
       "massage-lab-twisted-cubes",
       label,
     )
-    assert.deepEqual(getDnaBackgroundOptionsFromChimerSettings(settings), expectedDna, label)
-    assert.deepEqual(getTwistedCubesBackgroundOptionsFromChimerSettings(settings), expectedCubes, label)
+    const resolvedDna = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-dna",
+      effectProps: hostProps,
+      palette: null,
+      mapping: {},
+      canCustomize: false,
+    })
+    const resolvedCubes = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-twisted-cubes",
+      effectProps: hostProps,
+      palette: null,
+      mapping: {},
+      canCustomize: false,
+    })
+
+    assert.deepEqual(
+      Object.fromEntries(Object.keys(expectedDna).map((key) => [key, resolvedDna.massageLabDna?.[key]])),
+      expectedDna,
+      `${label} DNA Host prop`,
+    )
+    assert.deepEqual(
+      Object.fromEntries(Object.keys(expectedCubes).map((key) => [key, resolvedCubes.massageLabTwistedCubes?.[key]])),
+      expectedCubes,
+      `${label} Twisted Cubes Host prop`,
+    )
   }
 })
