@@ -298,6 +298,182 @@ async function captureControlRenderState(host: Locator, id: typeof EFFECTS[numbe
   })
 }
 
+/** Captures the concrete CSS consumers, not their custom-property declarations. */
+async function captureComputedConsumerState(host: Locator, id: typeof EFFECTS[number]["id"]) {
+  const root = effectRoot(host)
+  if (id === "massage-lab-dna") {
+    return root.evaluate((element) => {
+      const rootElement = element as HTMLElement
+      const scene = rootElement.firstElementChild as HTMLElement
+      const strands = Array.from(rootElement.querySelectorAll<HTMLElement>('[style*="--ml-dna-start-color"]'))
+      const first = strands[0]
+      const last = strands.at(-1)
+      const connector = first?.children[0] as HTMLElement
+      const startNode = first?.querySelector<HTMLElement>('[data-side="start"]')
+      const endNode = first?.querySelector<HTMLElement>('[data-side="end"]')
+      for (const animation of first?.getAnimations({ subtree: true }) ?? []) {
+        animation.pause()
+        animation.currentTime = 0
+      }
+      const rootCss = getComputedStyle(rootElement)
+      const sceneCss = getComputedStyle(scene)
+      const strandCss = getComputedStyle(first as HTMLElement)
+      const lastCss = getComputedStyle(last as HTMLElement)
+      const connectorCss = getComputedStyle(connector)
+      const startCss = getComputedStyle(startNode as HTMLElement)
+      const endCss = getComputedStyle(endNode as HTMLElement)
+      return {
+        rootBackground: rootCss.backgroundColor,
+        rootFontSize: rootCss.fontSize,
+        sceneTransform: sceneCss.transform,
+        scenePerspective: sceneCss.perspective,
+        sceneWidth: sceneCss.width,
+        sceneHeight: sceneCss.height,
+        strandCount: strands.length,
+        nodeCount: rootElement.querySelectorAll("[data-side]").length,
+        firstTop: strandCss.top,
+        lastTop: lastCss.top,
+        strandWidth: strandCss.width,
+        strandHeight: strandCss.height,
+        strandMarginLeft: strandCss.marginLeft,
+        strandMarginTop: strandCss.marginTop,
+        strandTransform: strandCss.transform,
+        strandAnimationName: strandCss.animationName,
+        strandDuration: strandCss.animationDuration,
+        connectorWidth: connectorCss.width,
+        connectorHeight: connectorCss.height,
+        connectorBorderWidth: connectorCss.borderTopWidth,
+        connectorBorderColor: connectorCss.borderTopColor,
+        connectorBackground: connectorCss.backgroundColor,
+        connectorTransform: connectorCss.transform,
+        connectorAnimationName: connectorCss.animationName,
+        connectorDuration: connectorCss.animationDuration,
+        connectorDelay: connectorCss.animationDelay,
+        startNodeWidth: startCss.width,
+        startNodeHeight: startCss.height,
+        startNodeBorderWidth: startCss.borderTopWidth,
+        startNodeBorderColor: startCss.borderTopColor,
+        startNodeBackground: startCss.backgroundColor,
+        startNodeTransform: startCss.transform,
+        startNodeAnimationName: startCss.animationName,
+        startNodeDuration: startCss.animationDuration,
+        startNodeDelay: startCss.animationDelay,
+        endNodeWidth: endCss.width,
+        endNodeHeight: endCss.height,
+        endNodeBackground: endCss.backgroundColor,
+        endNodeTransform: endCss.transform,
+        startNodeRole: first?.style.getPropertyValue("--ml-dna-start-color") ?? "",
+        endNodeRole: first?.style.getPropertyValue("--ml-dna-end-color") ?? "",
+      }
+    })
+  }
+
+  return root.evaluate((element) => {
+    const rootElement = element as HTMLElement
+    const scene = rootElement.firstElementChild as HTMLElement
+    const view = scene.firstElementChild as HTMLElement
+    const layers = Array.from(rootElement.querySelectorAll<HTMLElement>('[style*="--ml-twisted-cubes-outline"]'))
+    const firstLayer = layers[0]
+    const secondLayer = layers[1]
+    const firstCube = firstLayer?.firstElementChild as HTMLElement
+    const firstFace = firstLayer?.querySelector<HTMLElement>(":scope > span > span > span")
+    const cubeAnimation = firstCube?.getAnimations()[0]
+    if (cubeAnimation) {
+      cubeAnimation.pause()
+      cubeAnimation.currentTime = 0
+    }
+    const rootCss = getComputedStyle(rootElement)
+    const sceneCss = getComputedStyle(scene)
+    const viewCss = getComputedStyle(view)
+    const firstLayerCss = getComputedStyle(firstLayer)
+    const secondLayerCss = getComputedStyle(secondLayer)
+    const cubeCss = getComputedStyle(firstCube)
+    const faceCss = getComputedStyle(firstFace as HTMLElement)
+    return {
+      rootBackground: rootCss.backgroundColor,
+      sceneTransform: sceneCss.transform,
+      scenePerspective: sceneCss.perspective,
+      sceneWidth: sceneCss.width,
+      sceneHeight: sceneCss.height,
+      viewTransform: viewCss.transform,
+      layerCount: layers.length,
+      faceCount: rootElement.querySelectorAll('[style*="--ml-twisted-cubes-outline"] > span > span > span').length,
+      firstLayerTransform: firstLayerCss.transform,
+      secondLayerTransform: secondLayerCss.transform,
+      cubeTransform: cubeCss.transform,
+      cubeAnimationName: cubeCss.animationName,
+      cubeDuration: cubeCss.animationDuration,
+      cubeDelay: cubeCss.animationDelay,
+      faceWidth: faceCss.width,
+      faceHeight: faceCss.height,
+      faceOpacity: faceCss.opacity,
+      faceBorderWidth: faceCss.borderTopWidth,
+      faceBorderColor: faceCss.borderTopColor,
+      faceBackground: faceCss.backgroundColor,
+    }
+  })
+}
+
+async function normalizeComputedConsumer(
+  host: Locator,
+  styles: Record<string, string>,
+  dimensions?: { width: string; height: string },
+  containingBlock?: { width: string; height: string },
+) {
+  return host.evaluate((_, input: {
+    styles: Record<string, string>
+    dimensions?: { width: string; height: string }
+    containingBlock?: { width: string; height: string }
+  }) => {
+    const { styles: inputStyles, dimensions: inputDimensions, containingBlock: inputContainingBlock } = input
+    const specimen = document.createElement("span")
+    specimen.style.position = "fixed"
+    specimen.style.display = "block"
+    if (inputDimensions) {
+      specimen.style.width = inputDimensions.width
+      specimen.style.height = inputDimensions.height
+    }
+    for (const [name, value] of Object.entries(inputStyles)) specimen.style.setProperty(name, value)
+    const container = inputContainingBlock ? document.createElement("div") : null
+    if (container && inputContainingBlock) {
+      container.style.position = "fixed"
+      container.style.width = inputContainingBlock.width
+      container.style.height = inputContainingBlock.height
+      container.append(specimen)
+      document.body.append(container)
+    } else {
+      document.body.append(specimen)
+    }
+    const css = getComputedStyle(specimen)
+    const normalized = {
+      transform: css.transform,
+      backgroundColor: css.backgroundColor,
+      borderTopWidth: css.borderTopWidth,
+      borderTopColor: css.borderTopColor,
+      opacity: css.opacity,
+      animationDuration: css.animationDuration,
+      animationDelay: css.animationDelay,
+      top: css.top,
+    }
+    if (container) container.remove()
+    else specimen.remove()
+    return normalized
+  }, { styles, dimensions, containingBlock })
+}
+
+async function normalizeTransformForTarget(target: Locator, transform: string) {
+  return target.evaluate((element, expectedTransform) => {
+    const specimen = element.cloneNode(false) as HTMLElement
+    specimen.style.visibility = "hidden"
+    specimen.style.animation = "none"
+    specimen.style.transform = expectedTransform
+    element.parentElement?.append(specimen)
+    const normalized = getComputedStyle(specimen).transform
+    specimen.remove()
+    return normalized
+  }, transform)
+}
+
 const ALLOWED_RENDER_CHANGES: Record<string, readonly string[]> = {
   massageLabDnaNodeMotionSpeed: ["firstNodeDuration", "firstNodeDelay"],
   massageLabDnaStrandRotationSpeed: ["rotationDuration"],
@@ -321,6 +497,44 @@ const ALLOWED_RENDER_CHANGES: Record<string, readonly string[]> = {
   massageLabTwistedCubesPositionY: ["positionY"],
   massageLabTwistedCubesOpacityFalloff: ["firstAlpha"],
   massageLabTwistedCubesOutlineThickness: ["firstOutlineThickness"],
+}
+
+const ALLOWED_COMPUTED_CHANGES: Record<string, readonly string[]> = {
+  massageLabDnaNodeMotionSpeed: [
+    "connectorTransform", "startNodeTransform", "endNodeTransform",
+    "connectorDuration", "connectorDelay", "startNodeDuration", "startNodeDelay",
+  ],
+  massageLabDnaStrandRotationSpeed: ["strandDuration"],
+  massageLabDnaStrandCount: [
+    "strandCount", "nodeCount", "firstTop", "lastTop", "connectorDelay", "startNodeDelay",
+    "connectorTransform", "startNodeTransform", "endNodeTransform",
+    "startNodeBackground", "endNodeBackground", "startNodeRole", "endNodeRole",
+  ],
+  massageLabDnaStrandAngle: ["strandTransform"],
+  massageLabDnaStrandSpacing: ["firstTop", "lastTop"],
+  massageLabDnaScale: ["sceneTransform"],
+  massageLabDnaPositionX: ["sceneTransform"],
+  massageLabDnaPositionY: ["sceneTransform"],
+  massageLabDnaConnectorWidth: [
+    "strandWidth", "strandMarginLeft", "connectorWidth",
+    "connectorTransform", "startNodeTransform", "endNodeTransform",
+  ],
+  massageLabDnaConnectorThickness: [
+    "strandHeight", "strandMarginTop", "connectorHeight", "startNodeWidth", "startNodeHeight",
+    "endNodeWidth", "endNodeHeight", "connectorTransform", "startNodeTransform", "endNodeTransform",
+  ],
+  massageLabDnaOutlineThickness: ["connectorBorderWidth", "startNodeBorderWidth"],
+  massageLabTwistedCubesRotationSpeed: ["cubeTransform", "cubeDuration"],
+  massageLabTwistedCubesLayerStagger: ["cubeTransform", "cubeDelay"],
+  massageLabTwistedCubesViewAngleX: ["viewTransform"],
+  massageLabTwistedCubesViewAngleY: ["viewTransform"],
+  massageLabTwistedCubesLayerCount: ["layerCount", "faceCount", "cubeTransform", "cubeDelay", "faceOpacity"],
+  massageLabTwistedCubesLayerDepthSpacing: ["secondLayerTransform"],
+  massageLabTwistedCubesScale: ["sceneTransform"],
+  massageLabTwistedCubesPositionX: ["sceneTransform"],
+  massageLabTwistedCubesPositionY: ["sceneTransform"],
+  massageLabTwistedCubesOpacityFalloff: ["faceOpacity"],
+  massageLabTwistedCubesOutlineThickness: ["faceBorderWidth"],
 }
 
 async function expectExactControlRender({
@@ -435,6 +649,196 @@ async function expectExactControlRender({
   expect(after).toMatchObject(expectedByKey[key])
 }
 
+async function expectExactComputedConsumer({
+  host,
+  id,
+  key,
+  properties,
+  before,
+}: {
+  host: Locator
+  id: typeof EFFECTS[number]["id"]
+  key: string
+  properties: Record<string, number>
+  before: Record<string, string | number>
+}) {
+  const after = await captureComputedConsumerState(host, id) as Record<string, string | number>
+  const allowedChanges = new Set(ALLOWED_COMPUTED_CHANGES[key] ?? [])
+  for (const [sentinel, value] of Object.entries(before)) {
+    if (!allowedChanges.has(sentinel)) expect(after[sentinel], `${key} rewired computed ${sentinel}`).toBe(value)
+  }
+  const compactViewport = await host.evaluate(() => (
+    window.matchMedia("(max-width: 479px), (max-height: 479px)").matches
+  ))
+
+  if (id === "massage-lab-dna") {
+    const count = properties.massageLabDnaStrandCount
+    const transform = resolveResponsiveBackgroundTransform({
+      scale: properties.massageLabDnaScale,
+      positionX: properties.massageLabDnaPositionX,
+      positionY: properties.massageLabDnaPositionY,
+      compactViewport,
+    })
+    const sceneExpected = await normalizeTransformForTarget(
+      effectRoot(host).locator(":scope > div"),
+      `translate(calc(-50% + ${transform.positionX}%), calc(-50% + ${transform.positionY}%)) scale(${transform.scale})`,
+    )
+    const strandExpected = await normalizeComputedConsumer(host, {
+      transform: `rotate(${properties.massageLabDnaStrandAngle}deg)`,
+    }, { width: String(after.strandWidth), height: String(after.strandHeight) })
+    const borderExpected = await normalizeComputedConsumer(host, {
+      border: `${properties.massageLabDnaOutlineThickness}px solid black`,
+    })
+    const firstPhase = getDnaStrandPhase({ oneBasedIndex: 1, total: count })
+    const firstTopExpected = await normalizeComputedConsumer(host, {
+      position: "absolute",
+      "font-size": String(after.rootFontSize),
+      top: `calc(0% + ${firstPhase * properties.massageLabDnaStrandSpacing}rem)`,
+    }, undefined, { width: String(after.sceneWidth), height: String(after.sceneHeight) })
+
+    switch (key) {
+      case "massageLabDnaNodeMotionSpeed":
+        {
+          const timingExpected = await normalizeComputedConsumer(host, {
+            "animation-duration": `${getDnaNodeCycleSeconds(properties[key])}s`,
+            "animation-delay": `${getDnaStrandDelaySeconds({
+              oneBasedIndex: 1,
+              total: count,
+              speed: properties[key],
+            })}s`,
+          })
+          expect(after.connectorDuration).toBe(timingExpected.animationDuration)
+          expect(after.startNodeDuration).toBe(timingExpected.animationDuration)
+          expect(after.connectorDelay).toBe(timingExpected.animationDelay)
+          expect(after.startNodeDelay).toBe(timingExpected.animationDelay)
+        }
+        break
+      case "massageLabDnaStrandRotationSpeed":
+        {
+          const timingExpected = await normalizeComputedConsumer(host, {
+            "animation-duration": `${getDnaStrandRotationSeconds(properties[key])}s`,
+          })
+          expect(after.strandDuration).toBe(timingExpected.animationDuration)
+        }
+        break
+      case "massageLabDnaStrandCount":
+        expect(after.strandCount).toBe(count)
+        expect(after.nodeCount).toBe(count * 2)
+        expect(after.firstTop).toBe(firstTopExpected.top)
+        break
+      case "massageLabDnaStrandAngle":
+        expect(after.strandTransform).toBe(strandExpected.transform)
+        break
+      case "massageLabDnaStrandSpacing":
+        expect(after.firstTop).toBe(firstTopExpected.top)
+        break
+      case "massageLabDnaScale":
+      case "massageLabDnaPositionX":
+      case "massageLabDnaPositionY":
+        expect(after.sceneTransform).toBe(sceneExpected)
+        break
+      case "massageLabDnaConnectorWidth":
+        expect(after.strandWidth).toBe(`${properties[key]}px`)
+        expect(after.connectorWidth).toBe(`${properties[key]}px`)
+        expect(after.strandMarginLeft).toBe(`${-properties[key] / 2}px`)
+        break
+      case "massageLabDnaConnectorThickness":
+        expect(after.strandHeight).toBe(`${properties[key]}px`)
+        expect(after.connectorHeight).toBe(`${properties[key]}px`)
+        expect(after.startNodeWidth).toBe(`${properties[key]}px`)
+        expect(after.startNodeHeight).toBe(`${properties[key]}px`)
+        expect(after.endNodeWidth).toBe(`${properties[key]}px`)
+        expect(after.endNodeHeight).toBe(`${properties[key]}px`)
+        expect(after.strandMarginTop).toBe(`${-properties[key] / 2}px`)
+        break
+      case "massageLabDnaOutlineThickness":
+        expect(after.connectorBorderWidth).toBe(borderExpected.borderTopWidth)
+        expect(after.startNodeBorderWidth).toBe(borderExpected.borderTopWidth)
+        break
+      default:
+        throw new Error(`Missing DNA computed consumer assertion for ${key}.`)
+    }
+    return
+  }
+
+  const count = properties.massageLabTwistedCubesLayerCount
+  const transform = resolveResponsiveBackgroundTransform({
+    scale: properties.massageLabTwistedCubesScale,
+    positionX: properties.massageLabTwistedCubesPositionX,
+    positionY: properties.massageLabTwistedCubesPositionY,
+    compactViewport,
+  })
+  const sceneExpected = await normalizeTransformForTarget(
+    effectRoot(host).locator(":scope > div"),
+    `translate(calc(-50% + ${transform.positionX}%), calc(-50% + ${transform.positionY}%)) scale(${transform.scale})`,
+  )
+  const viewExpected = await normalizeComputedConsumer(host, {
+    transform: `rotateX(${properties.massageLabTwistedCubesViewAngleX}deg) rotateY(${properties.massageLabTwistedCubesViewAngleY}deg)`,
+  })
+  const secondLayerExpected = await normalizeComputedConsumer(host, {
+    transform: `translateZ(${-properties.massageLabTwistedCubesLayerDepthSpacing}vmin)`,
+  })
+  const faceBorderExpected = await normalizeComputedConsumer(host, {
+    border: `calc(${properties.massageLabTwistedCubesOutlineThickness} * 50vmin) solid black`,
+  })
+
+  switch (key) {
+    case "massageLabTwistedCubesRotationSpeed":
+      {
+        const timingExpected = await normalizeComputedConsumer(host, {
+          "animation-duration": `${getTwistedCubeCycleSeconds(properties[key])}s`,
+        })
+        expect(after.cubeDuration).toBe(timingExpected.animationDuration)
+      }
+      break
+    case "massageLabTwistedCubesLayerStagger":
+      {
+        const timingExpected = await normalizeComputedConsumer(host, {
+          "animation-delay": `${getTwistedCubeDelaySeconds({
+            oneBasedIndex: 1,
+            count,
+            stagger: properties[key],
+          })}s`,
+        })
+        expect(after.cubeDelay).toBe(timingExpected.animationDelay)
+      }
+      break
+    case "massageLabTwistedCubesViewAngleX":
+    case "massageLabTwistedCubesViewAngleY":
+      expect(after.viewTransform).toBe(viewExpected.transform)
+      break
+    case "massageLabTwistedCubesLayerCount":
+      expect(after.layerCount).toBe(count)
+      expect(after.faceCount).toBe(count * 6)
+      expect(Number(after.faceOpacity)).toBeCloseTo(getTwistedCubeAlpha({
+        oneBasedIndex: 1,
+        count,
+        opacityFalloff: properties.massageLabTwistedCubesOpacityFalloff,
+      }), 6)
+      break
+    case "massageLabTwistedCubesLayerDepthSpacing":
+      expect(after.secondLayerTransform).toBe(secondLayerExpected.transform)
+      break
+    case "massageLabTwistedCubesScale":
+    case "massageLabTwistedCubesPositionX":
+    case "massageLabTwistedCubesPositionY":
+      expect(after.sceneTransform).toBe(sceneExpected)
+      break
+    case "massageLabTwistedCubesOpacityFalloff":
+      expect(Number(after.faceOpacity)).toBeCloseTo(getTwistedCubeAlpha({
+        oneBasedIndex: 1,
+        count,
+        opacityFalloff: properties[key],
+      }), 6)
+      break
+    case "massageLabTwistedCubesOutlineThickness":
+      expect(after.faceBorderWidth).toBe(faceBorderExpected.borderTopWidth)
+      break
+    default:
+      throw new Error(`Missing Twisted Cubes computed consumer assertion for ${key}.`)
+  }
+}
+
 async function resolveCurrentRoleColors(review: Locator, id: typeof EFFECTS[number]["id"]) {
   return resolveBackgroundRoleColors({
     palette: await parsedAttribute(review, "data-current-palette") as never,
@@ -542,6 +946,70 @@ async function expectExactReducedEffectState(
     }))
     expect(actual.nodes).toBe(count * 2)
     expect(actual.childAnimations.every((animation) => animation === "none")).toBe(true)
+    const computed = await captureComputedConsumerState(host, id) as Record<string, string | number>
+    const startRoleIndex = Number.parseInt(String(computed.startNodeRole).match(/node-color-(\d)/)?.[1] ?? "-1", 10)
+    const endRoleIndex = Number.parseInt(String(computed.endNodeRole).match(/node-color-(\d)/)?.[1] ?? "-1", 10)
+    expect(startRoleIndex).toBeGreaterThanOrEqual(0)
+    expect(endRoleIndex).toBeGreaterThanOrEqual(0)
+    const nodeRoleColors = [
+      roleColors["node-one"], roleColors["node-two"], roleColors["node-three"], roleColors["node-four"],
+    ]
+    const rootExpected = await normalizeComputedConsumer(host, {
+      "background-color": roleColors.background,
+    })
+    const sceneExpected = await normalizeTransformForTarget(
+      root.locator(":scope > div"),
+      `translate(calc(-50% + ${transform.positionX}%), calc(-50% + ${transform.positionY}%)) scale(${transform.scale})`,
+    )
+    const strandExpected = await normalizeComputedConsumer(host, {
+      transform: `rotate(${properties.massageLabDnaStrandAngle + 180}deg)`,
+    }, { width: String(computed.strandWidth), height: String(computed.strandHeight) })
+    const connectorExpected = await normalizeComputedConsumer(host, {
+      transform: "translate(-50%, -50%) scaleX(0.08)",
+      "background-color": roleColors.connector,
+      border: `${properties.massageLabDnaOutlineThickness}px solid ${roleColors.outline}`,
+    }, { width: String(computed.connectorWidth), height: String(computed.connectorHeight) })
+    const startNodeExpected = await normalizeComputedConsumer(host, {
+      transform: `translate(-50%, -50%) translateX(${properties.massageLabDnaConnectorWidth / 2}px)`,
+      "background-color": nodeRoleColors[startRoleIndex],
+      border: `${properties.massageLabDnaOutlineThickness}px solid ${roleColors.outline}`,
+    }, { width: String(computed.startNodeWidth), height: String(computed.startNodeHeight) })
+    const endNodeExpected = await normalizeComputedConsumer(host, {
+      transform: `translate(-50%, -50%) translateX(${-properties.massageLabDnaConnectorWidth / 2}px)`,
+      "background-color": nodeRoleColors[endRoleIndex],
+      border: `${properties.massageLabDnaOutlineThickness}px solid ${roleColors.outline}`,
+    }, { width: String(computed.endNodeWidth), height: String(computed.endNodeHeight) })
+    expect(computed).toMatchObject({
+      rootBackground: rootExpected.backgroundColor,
+      sceneTransform: sceneExpected,
+      scenePerspective: "none",
+      strandCount: count,
+      nodeCount: count * 2,
+      strandWidth: `${properties.massageLabDnaConnectorWidth}px`,
+      strandHeight: `${properties.massageLabDnaConnectorThickness}px`,
+      strandMarginLeft: `${-properties.massageLabDnaConnectorWidth / 2}px`,
+      strandMarginTop: `${-properties.massageLabDnaConnectorThickness / 2}px`,
+      strandTransform: strandExpected.transform,
+      strandAnimationName: "none",
+      connectorWidth: `${properties.massageLabDnaConnectorWidth}px`,
+      connectorHeight: `${properties.massageLabDnaConnectorThickness}px`,
+      connectorTransform: connectorExpected.transform,
+      connectorAnimationName: "none",
+      connectorBorderWidth: connectorExpected.borderTopWidth,
+      connectorBorderColor: connectorExpected.borderTopColor,
+      connectorBackground: connectorExpected.backgroundColor,
+      startNodeWidth: `${properties.massageLabDnaConnectorThickness}px`,
+      startNodeHeight: `${properties.massageLabDnaConnectorThickness}px`,
+      startNodeTransform: startNodeExpected.transform,
+      startNodeAnimationName: "none",
+      startNodeBorderWidth: startNodeExpected.borderTopWidth,
+      startNodeBorderColor: startNodeExpected.borderTopColor,
+      startNodeBackground: startNodeExpected.backgroundColor,
+      endNodeWidth: `${properties.massageLabDnaConnectorThickness}px`,
+      endNodeHeight: `${properties.massageLabDnaConnectorThickness}px`,
+      endNodeTransform: endNodeExpected.transform,
+      endNodeBackground: endNodeExpected.backgroundColor,
+    })
     return
   }
 
@@ -613,6 +1081,51 @@ async function expectExactReducedEffectState(
     animation: "none",
     faceCount: 6,
   })))
+  const computed = await captureComputedConsumerState(host, id) as Record<string, string | number>
+  const rootExpected = await normalizeComputedConsumer(host, {
+    "background-color": roleColors.background,
+  })
+  const sceneExpected = await normalizeTransformForTarget(
+    root.locator(":scope > div"),
+    `translate(calc(-50% + ${transform.positionX}%), calc(-50% + ${transform.positionY}%)) scale(${transform.scale})`,
+  )
+  const viewExpected = await normalizeComputedConsumer(host, {
+    transform: `rotateX(${properties.massageLabTwistedCubesViewAngleX}deg) rotateY(${properties.massageLabTwistedCubesViewAngleY}deg)`,
+  })
+  const firstLayerExpected = await normalizeComputedConsumer(host, { transform: "translateZ(0vmin)" })
+  const secondLayerExpected = await normalizeComputedConsumer(host, {
+    transform: `translateZ(${-properties.massageLabTwistedCubesLayerDepthSpacing}vmin)`,
+  })
+  const cubeExpected = await normalizeComputedConsumer(host, {
+    transform: "rotateX(180deg) rotateY(180deg) rotateZ(0deg)",
+  })
+  const firstFaceExpected = await normalizeComputedConsumer(host, {
+    opacity: String(getTwistedCubeAlpha({
+      oneBasedIndex: 1,
+      count,
+      opacityFalloff: properties.massageLabTwistedCubesOpacityFalloff,
+    })),
+    "background-color": roleColors.background,
+    border: `calc(${properties.massageLabTwistedCubesOutlineThickness} * 50vmin) solid ${anchors[0]}`,
+  })
+  expect(computed).toMatchObject({
+    rootBackground: rootExpected.backgroundColor,
+    sceneTransform: sceneExpected,
+    scenePerspective: "800px",
+    viewTransform: viewExpected.transform,
+    layerCount: count,
+    faceCount: count * 6,
+    firstLayerTransform: firstLayerExpected.transform,
+    secondLayerTransform: secondLayerExpected.transform,
+    cubeTransform: cubeExpected.transform,
+    cubeAnimationName: "none",
+    faceWidth: String(computed.sceneWidth),
+    faceHeight: String(computed.sceneHeight),
+    faceOpacity: firstFaceExpected.opacity,
+    faceBorderWidth: firstFaceExpected.borderTopWidth,
+    faceBorderColor: firstFaceExpected.borderTopColor,
+    faceBackground: firstFaceExpected.backgroundColor,
+  })
 }
 
 test.describe("DNA and Twisted Cubes development acceptance", () => {
@@ -853,7 +1366,13 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
         await expect(slider).toHaveCount(1)
         const before = await parsedAttribute<Record<string, number>>(review, "data-current-properties")
         const beforeRender = await captureControlRenderState(host, effect.id)
-        await slider.press("ArrowRight")
+        const beforeComputed = await captureComputedConsumerState(host, effect.id)
+        const keypress = key === "massageLabDnaOutlineThickness"
+          ? "End"
+          : key.endsWith("Scale")
+            ? "Home"
+            : "ArrowRight"
+        await slider.press(keypress)
         await expect.poll(async () => (
           (await parsedAttribute<Record<string, number>>(review, "data-current-properties"))[key]
         )).not.toBe(before[key])
@@ -867,6 +1386,13 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
           key,
           properties: after,
           before: beforeRender,
+        })
+        await expectExactComputedConsumer({
+          host,
+          id: effect.id,
+          key,
+          properties: after,
+          before: beforeComputed,
         })
         await review.getByRole("button", { name: "Cancel", exact: true }).click()
         await expect(review).toHaveAttribute("data-draft-state", "clean")

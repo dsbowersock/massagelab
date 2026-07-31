@@ -162,3 +162,57 @@ The reduced-motion matrix now pushes all 11 settings for the selected effect to 
 The first stress attempt used six concurrent workers with the original 60-second case timeout. All reduced-state repeats and all mobile exact-render repeats passed, while three desktop exact-render cases timed out near the final Undo/Redo interaction under dev-server contention. The exhaustive exact-render case now has a 120-second budget; the bounded two-worker repeat above passed without assertion or timeout failures.
 
 The Fix Round 2 diff contains only the dedicated browser suite, its focused source contract, and this report. Package/lock, Prisma, roadmap, TODO, generated-media, production behavior, and primary-checkout files remain unchanged. Both isolated and primary `TODO.md` SHA-256 values remain `034BE9755BE897094EA6E1229D0E7C662BF32C2A27AE917E8A5A7FCE890CE51C` and `C2DBD02A98631A6653DD5F1111EC030FDF00BC353B5A19B81AFFC7548811CDD5`. No push was performed.
+
+## Fix Round 3
+
+Task 8 was reviewed again from commit `45a5641b0cc65487b0ba6b4f78cb4f176afe20dc`. Fix Round 2 proved exact canonical keys and inline custom-property declarations, but a production stylesheet could still ignore or miswire those declarations. Fix Round 3 adds concrete computed-consumer evidence without changing production code.
+
+### Concrete CSS consumer coverage
+
+For every isolated edit across the 22 authoritative controls, the browser suite now captures both the existing inline-variable state and a `getComputedStyle` snapshot of the real CSS targets:
+
+- DNA root, scene, first/last strand, connector, and both node sides;
+- Twisted root, scene, view, first/second layer, cube, and first face.
+
+The per-control mapping now proves concrete consumers as follows:
+
+- DNA motion speeds: normalized connector/node and strand animation durations/delays;
+- DNA count/spacing: strand/node DOM counts and layout-quantized concrete strand top;
+- DNA angle: paused-time-zero strand transform matrix;
+- DNA scale/position: concrete scene transform matrix after responsive normalization;
+- DNA connector width/thickness: concrete strand/connector/node dimensions and margins;
+- DNA outline: concrete connector/node border widths;
+- Twisted speed/stagger: normalized cube duration/delay;
+- Twisted view angles: concrete view transform matrix;
+- Twisted count: layer/face counts and concrete first-face opacity;
+- Twisted depth: concrete second-layer 3D transform;
+- Twisted scale/position: concrete scene transform matrix;
+- Twisted falloff: concrete face opacity;
+- Twisted outline: concrete face border width.
+
+Computed root backgrounds, border/background colors, perspective, unaffected dimensions/transforms, and other representative consumers are retained as unrelated sentinels. The allowlist includes only real derived coupling found in the stylesheet: connector dimensions alter percentage-based connector/node translations, and Twisted's negative delay makes the time-zero cube matrix depend on duration, stagger, and layer count.
+
+Expected computed values are produced independently from the settings/domain contract and normalized through the browser before comparison. Animation times use exact CSSOM-normalized strings. Layout `top` uses an independent containing block to preserve Chromium's subpixel quantization. Scene transforms use a hidden clone of the real scene so aspect-ratio layout retains the exact unrounded production geometry while the expected transform itself is supplied by the test contract.
+
+### Reduced-motion concrete proof
+
+The full reduced-state matrix still verifies every inline setting/color/geometry value and now additionally proves:
+
+- DNA concrete root/connector/node backgrounds, outline borders, strand/connector/node dimensions, margins, scene/strand/connector/node transform matrices, counts, and `animation-name: none`;
+- Twisted concrete root/face backgrounds, outline border color/width, face opacity/dimensions, `800px` perspective, scene/view/layer/cube transform matrices, layer/face counts, and `animation-name: none`.
+
+Harmony colors are normalized from the real registry adapter/palette resolver before concrete color comparison. No pseudo-element is involved in either renderer's production CSS. No production consumer miswire was uncovered, so no production file was changed.
+
+### Fix Round 3 validation
+
+- `node --test tests/browser-qa-harness.test.mjs tests/sitewide-control-rollout.test.mjs`: 16/16 passed.
+- `npm run test:browser -- tests/browser/dna-twisted-cubes-backgrounds.spec.ts --project=desktop-chromium`: 8/8 passed.
+- `npm run test:browser -- tests/browser/dna-twisted-cubes-backgrounds.spec.ts --project=mobile-chromium`: 8/8 passed.
+- Computed-consumer/reduced-state repeat with `--repeat-each=3 --workers=2`: 12/12 passed across desktop and mobile in 3.0 minutes.
+- `npm run typecheck`: passed.
+- `npm run lint`: passed with only Babel's existing large-file informational note for `app/chimer/running-timer.tsx`.
+- `npm run test`: 1,857/1,857 passed.
+- `npm run build`: passed; Next compiled, typechecked, and generated 101 pages. Prebuild Prisma generation changed no tracked Prisma or package files.
+- `git diff --check`: passed.
+
+The Fix Round 3 diff contains only the dedicated browser suite, its focused source guard, and this report. Package/lock, Prisma, roadmap, TODO, generated-media, production behavior, and primary-checkout files remain unchanged. Both isolated and primary `TODO.md` SHA-256 values remain `034BE9755BE897094EA6E1229D0E7C662BF32C2A27AE917E8A5A7FCE890CE51C` and `C2DBD02A98631A6653DD5F1111EC030FDF00BC353B5A19B81AFFC7548811CDD5`. No push was performed.
