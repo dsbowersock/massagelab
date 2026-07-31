@@ -4,6 +4,13 @@ This is the canonical chronological planning and progress log for MassageLab. Us
 
 Existing plans, audits, roadmaps, and checklists remain source evidence. Keep them for context, but mirror meaningful progress, plan changes, and priority changes in [project-state.md](project-state.md) and here.
 
+## 2026-07-31 — Track 4A acceptance and Production closure
+
+- PR #158 merged to `main` as `dd481ad85056f968b3c58674038d7ef1ea983baf`. Vercel reported the exact commit ready in Production, and the post-deploy one-hour runtime-error check found no errors.
+- The final branch passed focused coverage, typecheck, lint, all 1,815 tests, a 101-page Production build, and `git diff --check`; QA, CodeQL, Vercel, CodeRabbit, and exact-head Codex review were clean, and every review thread was resolved before merge.
+- The user accepted the final local visual result, including real background rendering for palette review, color-picker behavior, generated Harmony previews, Apply/Cancel/Retry styling, the responsive bottom-dock and short-landscape side-sheet Visual layouts, and access-based background customization.
+- Track 4A is fully accepted. Track 4B Task 1, responsive layout and DNA domain rules, is now the next numbered dependency-backed work.
+
 ## 2026-07-30 — Track 4A visual-review corrections
 
 - The first manual `/dev/buttons` palette review found that reduced-motion preferences left the guarded live-renderer panel on its common fallback, while the Custom and Harmony static specimens exposed real controls through no-op callbacks. The development-only live review now explicitly mounts the selected real renderer without changing production motion behavior, and the editable specimens retain local palette/mapping state while Source and Access locked preserve their intended read-only behavior.
