@@ -5,6 +5,7 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { getBackgroundOptionsForCategory } from "../../components/backgrounds/backgroundRegistry.ts"
+import { parseProbeDimensions } from "./probe-result.mjs"
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const outputDir = path.join(repoRoot, "public/chimer/background-previews")
@@ -46,8 +47,8 @@ function validateDimensions(filePath, expectedWidth, expectedHeight) {
     "-of", "csv=s=x:p=0",
     filePath,
   ], { encoding: "utf8" })
-  const [width, height] = result.stdout.trim().split("x").map(Number)
-  if (result.status !== 0 || width !== expectedWidth || height !== expectedHeight) {
+  const { width, height } = parseProbeDimensions(result, filePath)
+  if (width !== expectedWidth || height !== expectedHeight) {
     throw new Error(`${path.basename(filePath)} must decode at ${expectedWidth}x${expectedHeight}.`)
   }
 }

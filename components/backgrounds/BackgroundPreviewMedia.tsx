@@ -49,7 +49,8 @@ export function BackgroundPreviewMedia({
       document.removeEventListener("visibilitychange", syncPlayback)
       video.pause()
     }
-  }, [showVideo])
+    // A nonempty source can change while showVideo stays true, so resync after the browser reloads it.
+  }, [showVideo, videoUrl])
 
   return (
     <div className={cn("relative size-full overflow-hidden", className)} aria-hidden="true">

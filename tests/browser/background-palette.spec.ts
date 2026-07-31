@@ -587,6 +587,19 @@ test.describe("shared background palette review matrix", () => {
       }).__previewMediaProbe.visibilityListeners.size
     ))).toBe(baselineListeners + 1)
 
+    const playsBeforeSourceSwap = await page.evaluate(() => (
+      (window as typeof window & {
+        __previewMediaProbe: { playCalls: number }
+      }).__previewMediaProbe.playCalls
+    ))
+    await fixture.getByRole("button", { name: "Swap preview source" }).click()
+    await expect(video).toHaveAttribute("src", /massage-lab-twisted-cubes-vertical\.webm$/)
+    await expect.poll(() => page.evaluate(() => (
+      (window as typeof window & {
+        __previewMediaProbe: { playCalls: number }
+      }).__previewMediaProbe.playCalls
+    ))).toBeGreaterThan(playsBeforeSourceSwap)
+
     const pausesBeforeHidden = await page.evaluate(() => (
       (window as typeof window & {
         __previewMediaProbe: { pauseCalls: number }

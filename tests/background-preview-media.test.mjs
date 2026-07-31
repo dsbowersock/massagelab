@@ -2,6 +2,8 @@ import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { describe, it } from "node:test"
 
+import { parseProbeDimensions } from "../scripts/chimer-preview-generation/probe-result.mjs"
+
 const componentSource = readFileSync(
   new URL("../components/backgrounds/BackgroundPreviewMedia.tsx", import.meta.url),
   "utf8",
@@ -42,6 +44,10 @@ describe("background preview media", () => {
     assert.doesNotMatch(cardSource, /<video/)
   })
 
+  it("resynchronizes playback when an active preview swaps to another nonempty source", () => {
+    assert.match(componentSource, /\}, \[showVideo, videoUrl\]\)/)
+  })
+
   it("generates one-third-duration quality-78 WebP posters, including missing posters", () => {
     assert.match(renderSource, /async function encodePoster/)
     assert.match(renderSource, /durationMs \/ 3000/)
@@ -65,5 +71,22 @@ describe("background preview media", () => {
     assert.match(manifestGeneratorSource, /previewVerticalImageUrl/)
     assert.match(manifestGeneratorSource, /validateDimensions\(posterPath, variant\.width, variant\.height\)/)
     assert.match(manifestGeneratorSource, /resolvePreviewMediaUrl\(variant\.previewPosterUrl\)/)
+  })
+
+  it("reports FFprobe spawn and decoder failures before parsing dimensions", () => {
+    assert.deepEqual(
+      parseProbeDimensions({ status: 0, stdout: "384x216\n", stderr: "" }, "preview.webm"),
+      { width: 384, height: 216 },
+    )
+
+    const spawnError = new Error("spawn ffprobe ENOENT")
+    assert.throws(
+      () => parseProbeDimensions({ error: spawnError, status: null }, "preview.webm"),
+      (error) => error.cause === spawnError && /spawn ffprobe ENOENT/.test(error.message),
+    )
+    assert.throws(
+      () => parseProbeDimensions({ status: 1, stdout: "", stderr: "invalid codec parameters" }, "preview.webm"),
+      /FFprobe failed for preview\.webm with exit code 1: invalid codec parameters/,
+    )
   })
 })
