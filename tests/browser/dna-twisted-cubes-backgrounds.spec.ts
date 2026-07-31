@@ -1,4 +1,34 @@
 import { expect, test, type Locator, type Page } from "@playwright/test"
+import { backgroundPaletteRegistry } from "../../components/backgrounds/backgroundPaletteRegistry"
+import { resolveBackgroundRoleColors } from "../../lib/background-palette.js"
+import { interpolateTwistedCubeOutline } from "../../lib/twisted-cubes-background.js"
+
+const EFFECTS = [
+  {
+    id: "massage-lab-dna",
+    labels: [
+      "Node motion speed", "Strand rotation speed", "Strand count", "Strand angle",
+      "Strand spacing", "Scale", "Position X", "Position Y", "Connector width",
+      "Connector thickness", "Outline thickness",
+    ],
+    scaleKey: "massageLabDnaScale",
+    positionXKey: "massageLabDnaPositionX",
+    positionYKey: "massageLabDnaPositionY",
+    maxScale: 1.2,
+  },
+  {
+    id: "massage-lab-twisted-cubes",
+    labels: [
+      "Rotation speed", "Layer stagger", "View angle X", "View angle Y", "Layer count",
+      "Layer depth", "Scale", "Position X", "Position Y", "Fade falloff",
+      "Relative outline thickness",
+    ],
+    scaleKey: "massageLabTwistedCubesScale",
+    positionXKey: "massageLabTwistedCubesPositionX",
+    positionYKey: "massageLabTwistedCubesPositionY",
+    maxScale: 1.2,
+  },
+] as const
 
 type RuntimeHealth = ReturnType<typeof captureRuntimeErrors>
 
@@ -56,10 +86,10 @@ async function cubeOutlines(host: Locator) {
   ))
 }
 
-function parsedAttribute(locator: Locator, name: string) {
+function parsedAttribute<T = Record<string, unknown>>(locator: Locator, name: string) {
   return locator.getAttribute(name).then((value) => {
     if (!value) throw new Error(`${name} was missing.`)
-    return JSON.parse(value) as Record<string, unknown>
+    return JSON.parse(value) as T
   })
 }
 
@@ -70,6 +100,74 @@ function namedSlider(review: Locator, label: string) {
 function expectHealthy(health: RuntimeHealth) {
   expect(health.pageErrors).toEqual([])
   expect(health.consoleErrors).toEqual([])
+}
+
+async function selectEffect(review: Locator, host: Locator, id: typeof EFFECTS[number]["id"]) {
+  await review.getByLabel("Track 4B background").selectOption(id)
+  await expectLoaded(host, id)
+}
+
+async function expectRenderedContract(host: Locator, id: typeof EFFECTS[number]["id"], reducedMotion = false) {
+  const root = effectRoot(host)
+  await expect(root).toHaveAttribute("aria-hidden", "true")
+  if (id === "massage-lab-dna") {
+    const strands = root.locator('[style*="--ml-dna-start-color"]')
+    expect(await strands.count()).toBeGreaterThan(0)
+    expect(await strands.locator("[data-side]").count()).toBe((await strands.count()) * 2)
+    const vars = await root.evaluate((element) => {
+      const style = (element as HTMLElement).style
+      return [
+        "--ml-dna-background-color", "--ml-dna-node-color-0", "--ml-dna-node-color-3",
+        "--ml-dna-connector-color", "--ml-dna-outline-color", "--ml-dna-strand-angle",
+        "--ml-dna-strand-spacing", "--ml-dna-connector-width", "--ml-dna-connector-thickness",
+        "--ml-dna-outline-thickness", "--ml-dna-rotation-duration",
+      ].map((name) => style.getPropertyValue(name))
+    })
+    expect(vars.every(Boolean)).toBe(true)
+    const sceneVars = await root.locator(":scope > div").evaluate((element) => {
+      const style = (element as HTMLElement).style
+      return ["--ml-dna-scale", "--ml-dna-position-x", "--ml-dna-position-y"]
+        .map((name) => style.getPropertyValue(name))
+    })
+    expect(sceneVars.every(Boolean)).toBe(true)
+    const animationName = await strands.first().evaluate((element) => getComputedStyle(element).animationName)
+    if (reducedMotion) expect(animationName).toBe("none")
+    else expect(animationName).toContain("mlDnaStrandRotate")
+  } else {
+    const layers = root.locator('[style*="--ml-twisted-cubes-outline"]')
+    expect(await layers.count()).toBeGreaterThan(0)
+    expect(await layers.locator(":scope > span > span > span").count()).toBe((await layers.count()) * 6)
+    const vars = await root.evaluate((element) => {
+      const style = (element as HTMLElement).style
+      return [
+        "--ml-twisted-cubes-background-color", "--ml-twisted-cubes-cycle",
+        "--ml-twisted-cubes-view-angle-x", "--ml-twisted-cubes-view-angle-y",
+      ].map((name) => style.getPropertyValue(name))
+    })
+    expect(vars.every(Boolean)).toBe(true)
+    const sceneVars = await root.locator(":scope > div").evaluate((element) => {
+      const style = (element as HTMLElement).style
+      return [
+        "--ml-twisted-cubes-scale", "--ml-twisted-cubes-position-x",
+        "--ml-twisted-cubes-position-y",
+      ].map((name) => style.getPropertyValue(name))
+    })
+    expect(sceneVars.every(Boolean)).toBe(true)
+    const firstLayer = layers.first()
+    const layerVars = await firstLayer.evaluate((element) => {
+      const style = (element as HTMLElement).style
+      return [
+        "--ml-twisted-cubes-outline", "--ml-twisted-cubes-alpha",
+        "--ml-twisted-cubes-delay", "--ml-twisted-cubes-depth",
+        "--ml-twisted-cubes-outline-thickness",
+      ].map((name) => style.getPropertyValue(name))
+    })
+    expect(layerVars.every(Boolean)).toBe(true)
+    const animationName = await firstLayer.locator(":scope > span")
+      .evaluate((element) => getComputedStyle(element).animationName)
+    if (reducedMotion) expect(animationName).toBe("none")
+    else expect(animationName).toContain("mlTwistedCubesRotate")
+  }
 }
 
 test.describe("DNA and Twisted Cubes development acceptance", () => {
@@ -139,7 +237,40 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
     expectHealthy(health)
   })
 
-  test("DNA assignments survive palette and property edits, then refresh with count/remount", async ({ page }) => {
+  test("shared slider thumbs exclusively own their accessible names and descriptions", async ({ page }) => {
+    const health = captureRuntimeErrors(page)
+    const response = await page.goto("/dev/buttons")
+    expect(response?.ok()).toBe(true)
+    await expect(page.locator('[data-review-lab-ready="true"]')).toBeAttached()
+    await page.getByRole("tab", { name: "Fields & color" }).click()
+
+    const cases = [
+      {
+        name: "Lamp hue",
+        description: "This is the ColorSlider wrapper after moving onto the shared split-pill range treatment.",
+      },
+      { name: "Sweep speed", description: "" },
+      { name: "Example volume", description: "" },
+    ]
+    for (const specimen of cases) {
+      const thumb = page.getByRole("slider", { name: specimen.name, exact: true })
+      await expect(thumb).toHaveCount(1)
+      await expect(thumb).toHaveAccessibleName(specimen.name)
+      await expect(thumb).toHaveAccessibleDescription(specimen.description)
+      const root = thumb.locator("xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' ml-slider ')][1]")
+      await expect(root).not.toHaveAttribute("aria-label", /.+/)
+      await expect(root).not.toHaveAttribute("aria-labelledby", /.+/)
+      await expect(root).not.toHaveAttribute("aria-describedby", /.+/)
+      if (specimen.name === "Lamp hue") {
+        await expect(thumb).not.toHaveAttribute("aria-label", /.+/)
+        await expect(thumb).toHaveAttribute("aria-labelledby", /.+/)
+        await expect(thumb).toHaveAttribute("aria-describedby", /.+/)
+      }
+    }
+    expectHealthy(health)
+  })
+
+  test("DNA assignments survive palette and property edits, then refresh at equal counts and remount", async ({ page }) => {
     const health = captureRuntimeErrors(page)
     const review = await openTrack4BReview(page)
     const host = review.getByTestId("track-4b-live-host")
@@ -162,16 +293,50 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
     await review.getByRole("button", { name: "Harmony", exact: true }).click()
     await expect(review).toHaveAttribute("data-palette-mode", "harmony")
     expect(await dnaAssignments(host)).toEqual(initialAssignments)
+    const harmonyPalette = await parsedAttribute(review, "data-current-palette")
+    const harmonyMapping = await parsedAttribute<Record<string, string>>(review, "data-current-mapping")
+    const expectedHarmony = resolveBackgroundRoleColors({
+      palette: harmonyPalette as never,
+      adapter: backgroundPaletteRegistry["massage-lab-dna"],
+      mapping: harmonyMapping,
+      canCustomize: true,
+    })
+    const harmonyRootColors = await effectRoot(host).evaluate((root) => {
+      const style = (root as HTMLElement).style
+      return {
+        background: style.getPropertyValue("--ml-dna-background-color"),
+        "node-one": style.getPropertyValue("--ml-dna-node-color-0"),
+        "node-two": style.getPropertyValue("--ml-dna-node-color-1"),
+        "node-three": style.getPropertyValue("--ml-dna-node-color-2"),
+        "node-four": style.getPropertyValue("--ml-dna-node-color-3"),
+        connector: style.getPropertyValue("--ml-dna-connector-color"),
+        outline: style.getPropertyValue("--ml-dna-outline-color"),
+      }
+    })
+    expect(harmonyRootColors).toEqual(expectedHarmony)
+    expect({ one: harmonyRootColors["node-one"], four: harmonyRootColors["node-four"] })
+      .not.toEqual(customRootColors)
     await namedSlider(review, "Strand angle").press("ArrowRight")
     expect(await dnaAssignments(host)).toEqual(initialAssignments)
 
     await namedSlider(review, "Strand count").press("ArrowRight")
-    await expect.poll(() => dnaAssignments(host)).not.toEqual(initialAssignments)
-    await review.getByLabel("Track 4B background").selectOption("massage-lab-twisted-cubes")
-    await expectLoaded(host, "massage-lab-twisted-cubes")
-    await review.getByLabel("Track 4B background").selectOption("massage-lab-dna")
-    await expectLoaded(host, "massage-lab-dna")
-    expect(await dnaAssignments(host)).not.toEqual(initialAssignments)
+    await expect.poll(async () => {
+      const refreshed = await dnaAssignments(host)
+      return refreshed.length === initialAssignments.length + 1
+        && refreshed.slice(0, initialAssignments.length).some((value, index) => value !== initialAssignments[index])
+    }).toBe(true)
+    await namedSlider(review, "Strand count").press("ArrowLeft")
+    await expect.poll(async () => {
+      const refreshed = await dnaAssignments(host)
+      return refreshed.length === initialAssignments.length
+        && refreshed.some((value, index) => value !== initialAssignments[index])
+    }).toBe(true)
+    const equalCountSettledAssignments = await dnaAssignments(host)
+    await selectEffect(review, host, "massage-lab-twisted-cubes")
+    await selectEffect(review, host, "massage-lab-dna")
+    const remountedAssignments = await dnaAssignments(host)
+    expect(remountedAssignments).toHaveLength(equalCountSettledAssignments.length)
+    expect(remountedAssignments).not.toEqual(equalCountSettledAssignments)
     expectHealthy(health)
   })
 
@@ -197,34 +362,80 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
 
     await review.getByRole("button", { name: "Harmony", exact: true }).click()
     const harmony = await cubeOutlines(host)
-    expect(harmony[0]).toMatch(/^#[\da-f]{6}$/i)
-    expect(harmony.at(-1)).toMatch(/^#[\da-f]{6}$/i)
-    expect(harmony.slice(1, -1).every((color) => color.startsWith("rgb("))).toBe(true)
-    expect(new Set(harmony).size).toBeGreaterThan(6)
+    const harmonyPalette = await parsedAttribute(review, "data-current-palette")
+    const harmonyMapping = await parsedAttribute<Record<string, string>>(review, "data-current-mapping")
+    const resolvedHarmony = resolveBackgroundRoleColors({
+      palette: harmonyPalette as never,
+      adapter: backgroundPaletteRegistry["massage-lab-twisted-cubes"],
+      mapping: harmonyMapping,
+      canCustomize: true,
+    })
+    const harmonyAnchors = Array.from({ length: 6 }, (_, index) => (
+      resolvedHarmony[`outline-${["one", "two", "three", "four", "five", "six"][index]}`]
+    ))
+    const expectedHarmony = Array.from({ length: harmony.length }, (_, index) => (
+      interpolateTwistedCubeOutline({
+        anchors: harmonyAnchors,
+        oneBasedIndex: index + 1,
+        count: harmony.length,
+      })
+    ))
+    expect(harmony).toEqual(expectedHarmony)
+    expect(harmony[0]).toBe(harmonyAnchors[0])
+    expect(harmony.at(-1)).toBe(harmonyAnchors.at(-1))
+    expect(harmony[9]).toBe(expectedHarmony[9])
     expectHealthy(health)
   })
 
-  test("every real slider updates the draft and canonical Undo, Redo, Cancel, Apply, and presets stay separated", async ({ page }) => {
+  test("each effect exposes 11 named real sliders with canonical draft, Cancel, Apply, and rendered output", async ({ page }) => {
     const health = captureRuntimeErrors(page)
     const review = await openTrack4BReview(page)
+    const host = review.getByTestId("track-4b-live-host")
     const controls = review.locator("[data-track-4b-property-controls]")
-    const sliders = await controls.getByRole("slider").all()
-    expect(sliders).toHaveLength(11)
-    for (const slider of sliders) {
-      const before = await review.getAttribute("data-current-properties")
-      await slider.press("ArrowRight")
-      await expect(review).not.toHaveAttribute("data-current-properties", before ?? "")
+    for (const effect of EFFECTS) {
+      await selectEffect(review, host, effect.id)
+      await expect(review).toHaveAttribute("data-draft-state", "clean")
+      await expect(controls.getByRole("slider")).toHaveCount(11)
+      expect(await controls.getByRole("slider").evaluateAll((sliders) => (
+        sliders.map((slider) => slider.getAttribute("aria-labelledby"))
+      ))).toHaveLength(11)
+      for (const label of effect.labels) {
+        const slider = namedSlider(review, label)
+        await expect(slider).toHaveCount(1)
+        const before = await review.getAttribute("data-current-properties")
+        await slider.press("ArrowRight")
+        await expect(review).not.toHaveAttribute("data-current-properties", before ?? "")
+      }
+      await expectRenderedContract(host, effect.id)
+      await expect(review).toHaveAttribute("data-draft-state", "dirty")
+
+      const edited = await review.getAttribute("data-current-properties")
+      await review.getByRole("button", { name: "Undo", exact: true }).click()
+      await expect(review).not.toHaveAttribute("data-current-properties", edited ?? "")
+      await review.getByRole("button", { name: "Redo", exact: true }).click()
+      await expect(review).toHaveAttribute("data-current-properties", edited ?? "")
+      await review.getByRole("button", { name: "Cancel", exact: true }).click()
+      await expect(review).toHaveAttribute("data-draft-state", "clean")
+      expect(await parsedAttribute(review, "data-current-properties"))
+        .toEqual(await parsedAttribute(review, "data-opening-properties"))
     }
-    await expect(review).toHaveAttribute("data-draft-state", "dirty")
 
-    const edited = await review.getAttribute("data-current-properties")
-    await review.getByRole("button", { name: "Undo", exact: true }).click()
-    await expect(review).not.toHaveAttribute("data-current-properties", edited ?? "")
-    await review.getByRole("button", { name: "Redo", exact: true }).click()
-    await expect(review).toHaveAttribute("data-current-properties", edited ?? "")
-    await review.getByRole("button", { name: "Cancel", exact: true }).click()
+    await selectEffect(review, host, "massage-lab-twisted-cubes")
+    const twistedOpening = await parsedAttribute(review, "data-current-properties")
+    await namedSlider(review, "Rotation speed").press("ArrowRight")
+    const twistedApplied = await parsedAttribute(review, "data-current-properties")
+    expect(twistedApplied).not.toEqual(twistedOpening)
+    await review.getByRole("button", { name: "Apply", exact: true }).click()
     await expect(review).toHaveAttribute("data-draft-state", "clean")
+    expect(await parsedAttribute(review, "data-applied-properties")).toEqual(twistedApplied)
+    await namedSlider(review, "Layer stagger").press("ArrowRight")
+    await review.getByRole("button", { name: "Cancel", exact: true }).click()
+    expect(await parsedAttribute(review, "data-current-properties")).toEqual(twistedApplied)
+    expect(JSON.parse(await page.evaluate(() => (
+      localStorage.getItem("massage-lab:dev:track-4b-review-applied") ?? "null"
+    )))).toMatchObject({ properties: twistedApplied })
 
+    await selectEffect(review, host, "massage-lab-dna")
     const sourceProperties = await parsedAttribute(review, "data-current-properties")
     const sourcePalette = await review.getAttribute("data-palette-mode")
     await review.getByRole("button", { name: "Apply Visual preset" }).click()
@@ -240,53 +451,83 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
     await review.getByRole("button", { name: "Apply", exact: true }).click()
     await expect(review).toHaveAttribute("data-draft-state", "clean")
     expect(await parsedAttribute(review, "data-applied-properties")).toEqual(visualProperties)
-    expect(JSON.parse(await page.evaluate(() => (
-      localStorage.getItem("massage-lab:dev:track-4b-review-applied") ?? "null"
-    )))).toMatchObject({ properties: visualProperties })
     expectHealthy(health)
   })
 
-  test("desktop, phone portrait, short landscape, 200% zoom, and reduced motion retain bounded saved geometry", async ({ page }) => {
+  test("each effect retains bounded geometry and static motion across responsive viewports and real 200% page scale", async ({ page }) => {
     const health = captureRuntimeErrors(page)
     await page.emulateMedia({ reducedMotion: "reduce" })
     const review = await openTrack4BReview(page)
     const host = review.getByTestId("track-4b-live-host")
-    await expectLoaded(host, "massage-lab-dna")
-    await expect(host).toHaveAttribute("data-background-diagnostic-reduced-motion", "true")
+    const cdp = await page.context().newCDPSession(page)
+    try {
+      for (const effect of EFFECTS) {
+        await selectEffect(review, host, effect.id)
+        await expect(host).toHaveAttribute("data-background-diagnostic-reduced-motion", "true")
+        await namedSlider(review, "Scale").press("End")
+        await namedSlider(review, "Position X").press("End")
+        await namedSlider(review, "Position Y").press("End")
+        const saved = await parsedAttribute<Record<string, number>>(review, "data-current-properties")
+        expect(saved[effect.scaleKey]).toBe(effect.maxScale)
+        expect(saved[effect.positionXKey]).toBe(35)
+        expect(saved[effect.positionYKey]).toBe(35)
 
-    await namedSlider(review, "Scale").press("End")
-    await namedSlider(review, "Position X").press("End")
-    await namedSlider(review, "Position Y").press("End")
-    const saved = await parsedAttribute(review, "data-current-properties")
-    expect(saved.massageLabDnaScale).toBe(1.2)
-    expect(saved.massageLabDnaPositionX).toBe(35)
-    expect(saved.massageLabDnaPositionY).toBe(35)
+        for (const viewport of [
+          { name: "desktop", width: 1280, height: 900 },
+          { name: "phone portrait", width: 390, height: 844 },
+          { name: "short landscape", width: 844, height: 390 },
+        ]) {
+          await page.setViewportSize({ width: viewport.width, height: viewport.height })
+          const current = await parsedAttribute<Record<string, number>>(review, "data-current-properties")
+          expect(current[effect.scaleKey], viewport.name).toBe(effect.maxScale)
+          expect(current[effect.positionXKey], viewport.name).toBe(35)
+          expect(current[effect.positionYKey], viewport.name).toBe(35)
+          expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1), viewport.name).toBe(false)
+          await expectRenderedContract(host, effect.id, true)
+        }
 
-    for (const viewport of [
-      { name: "desktop", width: 1280, height: 900 },
-      { name: "phone portrait", width: 390, height: 844 },
-      { name: "short landscape", width: 844, height: 390 },
-      { name: "200% zoom", width: 640, height: 450 },
-    ]) {
-      await page.setViewportSize({ width: viewport.width, height: viewport.height })
-      if (viewport.name === "200% zoom") await page.evaluate(() => { document.body.style.zoom = "2" })
-      const current = await parsedAttribute(review, "data-current-properties")
-      expect(current.massageLabDnaScale, viewport.name).toBe(1.2)
-      expect(current.massageLabDnaPositionX, viewport.name).toBe(35)
-      expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1), viewport.name).toBe(false)
+        await page.setViewportSize({ width: 640, height: 450 })
+        await cdp.send("Emulation.setPageScaleFactor", { pageScaleFactor: 2 })
+        await expect.poll(() => page.evaluate(() => window.visualViewport?.scale ?? 1)).toBe(2)
+        const scaleSlider = namedSlider(review, "Scale")
+        await scaleSlider.scrollIntoViewIfNeeded()
+        await scaleSlider.focus()
+        const scaledLayout = await page.evaluate(() => {
+          const active = document.activeElement as HTMLElement | null
+          const rect = active?.getBoundingClientRect()
+          const viewport = window.visualViewport
+          return {
+            activeRole: active?.getAttribute("role"),
+            scale: viewport?.scale,
+            focusVisible: Boolean(rect && viewport
+              && rect.left >= viewport.offsetLeft - 1
+              && rect.right <= viewport.offsetLeft + viewport.width + 1
+              && rect.top >= viewport.offsetTop - 1
+              && rect.bottom <= viewport.offsetTop + viewport.height + 1),
+            overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+          }
+        })
+        expect(scaledLayout).toEqual({ activeRole: "slider", scale: 2, focusVisible: true, overflow: false })
+        await cdp.send("Emulation.setPageScaleFactor", { pageScaleFactor: 1 })
+        await expect.poll(() => page.evaluate(() => window.visualViewport?.scale ?? 1)).toBe(1)
+
+        await page.setViewportSize({ width: 390, height: 844 })
+        const sceneStyle = await effectRoot(host).locator(":scope > div").evaluate((scene, id) => {
+          const prefix = id === "massage-lab-dna" ? "--ml-dna" : "--ml-twisted-cubes"
+          const style = (scene as HTMLElement).style
+          return {
+            scale: style.getPropertyValue(`${prefix}-scale`),
+            x: style.getPropertyValue(`${prefix}-position-x`),
+            y: style.getPropertyValue(`${prefix}-position-y`),
+          }
+        }, effect.id)
+        expect(sceneStyle).toEqual({ scale: "1", x: "20%", y: "20%" })
+        await expectRenderedContract(host, effect.id, true)
+      }
+    } finally {
+      await cdp.send("Emulation.setPageScaleFactor", { pageScaleFactor: 1 })
+      await cdp.detach()
     }
-
-    await page.evaluate(() => { document.body.style.zoom = "1" })
-    await page.setViewportSize({ width: 390, height: 844 })
-    const sceneStyle = await effectRoot(host).locator(":scope > div").evaluate((scene) => ({
-      scale: (scene as HTMLElement).style.getPropertyValue("--ml-dna-scale"),
-      x: (scene as HTMLElement).style.getPropertyValue("--ml-dna-position-x"),
-      y: (scene as HTMLElement).style.getPropertyValue("--ml-dna-position-y"),
-    }))
-    expect(sceneStyle).toEqual({ scale: "1", x: "20%", y: "20%" })
-    expect(await effectRoot(host).locator('[style*="--ml-dna-start-color"]').first().evaluate((strand) => (
-      getComputedStyle(strand).animationName
-    ))).toBe("none")
     expectHealthy(health)
   })
 
@@ -302,14 +543,21 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
     expect(contexts[1]).toBe(contexts[0])
     expect(contexts[2]).toBe(contexts[0])
 
-    await review.getByLabel("Track 4B access").selectOption("owner")
-    await expectLoaded(host, "massage-lab-dna")
-    await review.getByLabel("Track 4B access").selectOption("locked")
-    await expect(host).not.toHaveAttribute("data-background-id", "massage-lab-dna")
-    await expect(namedSlider(review, "Strand count")).toBeDisabled()
-    await review.getByLabel("Track 4B access").selectOption("subscriber")
-    await expectLoaded(host, "massage-lab-dna")
+    for (const effect of EFFECTS) {
+      await selectEffect(review, host, effect.id)
+      await expect(namedSlider(review, effect.labels[0])).toBeEnabled()
+      await expectRenderedContract(host, effect.id)
+      await review.getByLabel("Track 4B access").selectOption("owner")
+      await expectLoaded(host, effect.id)
+      await expect(namedSlider(review, effect.labels[0])).toBeEnabled()
+      await review.getByLabel("Track 4B access").selectOption("locked")
+      await expect(host).not.toHaveAttribute("data-background-id", effect.id)
+      await expect(namedSlider(review, effect.labels[0])).toBeDisabled()
+      await review.getByLabel("Track 4B access").selectOption("subscriber")
+      await expectLoaded(host, effect.id)
+    }
 
+    await selectEffect(review, host, "massage-lab-dna")
     await page.getByRole("button", { name: "Play MassageLab Proof Drone" }).click()
     await expect(continuity).toHaveAttribute("data-music-playback-state", "playing", { timeout: 30_000 })
     await expect(continuity).toHaveAttribute("data-music-session-id", /^\d+$/)

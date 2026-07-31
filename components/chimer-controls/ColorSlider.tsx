@@ -58,7 +58,6 @@ export function ColorSlider({
       disabled={disabled}
       description={description}
       displayValue={displayValue}
-      aria-label={label}
       className={cn(styles.controlCard, styles.colorSlider, channel === "hue" && "ml-slider-hue", className)}
       style={sliderStyle}
       onValueChange={(nextValue) => {

@@ -201,11 +201,12 @@ test("development review exposes the complete shared background palette matrix",
 })
 
 test("development review exposes the real DNA and Twisted Cubes acceptance matrix", async () => {
-  const [gallery, browserSource, playwrightConfig, sliderSource] = await Promise.all([
+  const [gallery, browserSource, playwrightConfig, sliderSource, colorSliderSource] = await Promise.all([
     read("app/dev/buttons/background-palette-gallery.tsx"),
     read("tests/browser/dna-twisted-cubes-backgrounds.spec.ts"),
     read("playwright.config.ts"),
     read("components/ui/slider.tsx"),
+    read("components/chimer-controls/ColorSlider.tsx"),
   ])
 
   assert.match(gallery, /DnaBackgroundControls/)
@@ -223,17 +224,28 @@ test("development review exposes the real DNA and Twisted Cubes acceptance matri
   assert.match(gallery, /backgroundPreviewManifest/)
   assert.match(gallery, /<BackgroundPreviewMedia/)
   assert.match(gallery, /data-track-4b-preview/)
+  assert.match(gallery, /const nextDraft = createTrack4BReviewDraft\(nextId\)/)
+  assert.match(gallery, /setDraft\(nextDraft\)/)
+  assert.match(gallery, /setAppliedSnapshot\(nextDraft\.openingSnapshot\)/)
+  assert.match(gallery, /data-current-palette/)
+  assert.match(gallery, /data-current-mapping/)
 
-  assert.match(browserSource, /desktop[\s\S]*phone portrait[\s\S]*short landscape[\s\S]*200% zoom[\s\S]*reduced motion/i)
+  assert.match(browserSource, /desktop[\s\S]*phone portrait[\s\S]*short landscape/i)
+  assert.match(browserSource, /reducedMotion/)
+  assert.match(browserSource, /200% page scale/i)
   assert.match(browserSource, /data-track-4b-review/)
   assert.match(browserSource, /data-background-diagnostic-status/)
   assert.match(browserSource, /data-background-palette-music-continuity/)
   assert.match(browserSource, /scrollWidth/)
+  assert.match(browserSource, /Emulation\.setPageScaleFactor/)
+  assert.match(browserSource, /massage-lab-dna[\s\S]*massage-lab-twisted-cubes/)
+  assert.match(browserSource, /interpolateTwistedCubeOutline/)
   assert.doesNotMatch(browserSource, /test\.skip\(/)
   assert.match(playwrightConfig, /dna-twisted-cubes-backgrounds\.spec\.ts/)
   assert.match(sliderSource, /<SliderPrimitive\.Thumb[\s\S]*aria-label=\{ariaLabel\}/)
   assert.match(sliderSource, /aria-labelledby=\{ariaLabelledBy\}/)
   assert.match(sliderSource, /aria-describedby=\{ariaDescribedBy\}/)
+  assert.doesNotMatch(colorSliderSource, /aria-label=\{label\}/)
 })
 
 test("slider gallery copy and layout match the remaining color controls", async () => {

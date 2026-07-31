@@ -91,3 +91,30 @@ The first complete matrix was 11/12 because mobile read the Music session id bef
 - Production randomness remains in live DNA specimens. Deterministic role-generation assertions remain in the existing injected pure-helper tests; browser comparisons only require the production stability contract.
 - Tone printed expected development-server warnings before user activation. The test then starts playback from a real button action, observes a running audio context, and verifies session continuity; captured page and console-error arrays remain empty.
 - No remaining Task 8 blocker is known.
+
+## Fix Round 1
+
+Task 8 was reviewed again from commit `abf4bfaf4fd3da5dc19451e4906f1299956cb62b`. The follow-up keeps the same development-only route and production adapters while closing five acceptance-evidence gaps:
+
+- DNA assignment refresh now waits for the post-effect replacement after a count change, compares overlapping assignments, returns to the original count, captures the settled equal-length array, and compares it with a fresh equal-length remount.
+- The slider, rendered-output, responsive/reduced-motion, and subscriber/owner/locked matrices now run for both DNA and Twisted Cubes. Each effect exposes exactly 11 independently named real sliders and is checked for its actual CSS variables, motion/static state, colors, and bounded DOM geometry.
+- Selecting either effect creates a fresh canonical Visual draft and opening snapshot. Twisted Cubes now has direct Apply, post-Apply edit, and Cancel restoration proof, so switching from DNA cannot leave an incompatible opening snapshot.
+- Harmony expectations are derived through `resolveBackgroundRoleColors` with the selected real adapter, palette, and mapping. DNA renderer variables must equal those resolved roles without changing assignments; Twisted endpoints and every intermediate must equal `interpolateTwistedCubeOutline` over the resolved anchors.
+- The 200% check uses Chromium CDP `Emulation.setPageScaleFactor`, verifies `visualViewport.scale`, focused-slider containment, and horizontal layout, and restores page scale in `finally`.
+
+The redundant `aria-label` passed by `ColorSlider` was removed. Browser coverage now proves the Radix Thumb owns the accessible name/description, the Slider Root has no duplicate naming attributes, and raw Slider, `RangeControl`, and `ColorSlider` specimens expose the expected accessible text.
+
+### Fix Round 1 validation
+
+- `node --test tests/sitewide-control-rollout.test.mjs`: 15/15 passed.
+- `node --test tests/browser-qa-harness.test.mjs tests/sitewide-control-rollout.test.mjs`: 16/16 passed.
+- `npm run test:browser -- tests/browser/dna-twisted-cubes-backgrounds.spec.ts --project=desktop-chromium`: 8/8 passed.
+- `npm run test:browser -- tests/browser/dna-twisted-cubes-backgrounds.spec.ts --project=mobile-chromium`: 8/8 passed.
+- Sensitive-case repeat (`DNA assignments|200% page scale`, `--repeat-each=3`): 12/12 passed across desktop and mobile.
+- `npm run typecheck`: passed.
+- `npm run lint`: passed with only Babel's existing large-file informational note for `app/chimer/running-timer.tsx`.
+- `npm run test`: 1,857/1,857 passed.
+- `npm run build`: passed; Next compiled, typechecked, and generated 101 pages. Prebuild Prisma generation changed no tracked Prisma or package files.
+- `git diff --check`: passed.
+
+The fix-round diff contains no package/lock, Prisma, roadmap, TODO, generated-media, or primary-checkout files. The isolated `TODO.md` SHA-256 remains `034BE9755BE897094EA6E1229D0E7C662BF32C2A27AE917E8A5A7FCE890CE51C`. No push was performed.

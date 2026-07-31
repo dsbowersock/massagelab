@@ -364,11 +364,10 @@ function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) 
   }
 
   function selectBackground(nextId: Track4BBackgroundId) {
-    const nextAdapter = backgroundPaletteRegistry[nextId]
+    const nextDraft = createTrack4BReviewDraft(nextId)
     setSelectedId(nextId)
-    if (nextAdapter) {
-      replaceSnapshot({ mapping: defaultMapping(nextAdapter) })
-    }
+    setDraft(nextDraft)
+    setAppliedSnapshot(nextDraft.openingSnapshot)
   }
 
   function applyDraft() {
@@ -399,7 +398,11 @@ function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) 
       data-palette-mode={snapshot.palette.mode}
       data-role-labels={JSON.stringify(adapter.roles.map((role) => role.label))}
       data-resolved-role-colors={JSON.stringify(resolvedRoleColors)}
+      data-current-palette={JSON.stringify(snapshot.palette)}
+      data-current-mapping={JSON.stringify(snapshot.mapping)}
       data-current-properties={JSON.stringify(snapshot.properties)}
+      data-opening-properties={JSON.stringify(draft.openingSnapshot.properties)}
+      data-opening-mapping={JSON.stringify(draft.openingSnapshot.mapping)}
       data-applied-properties={JSON.stringify(appliedSnapshot.properties)}
       data-applied-palette={JSON.stringify(appliedSnapshot.palette)}
       data-preview-contract="BackgroundPreviewMediaReview"
