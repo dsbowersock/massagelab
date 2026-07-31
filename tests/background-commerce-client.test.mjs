@@ -430,6 +430,12 @@ describe("background commerce reducer", () => {
             status: "active",
             acquiredAt: "2026-07-20T11:00:00.000Z",
           },
+          {
+            backgroundId: "pending-reversal",
+            source: "purchase",
+            status: "refund_pending",
+            acquiredAt: "2026-07-20T12:00:00.000Z",
+          },
         ],
       }),
       pendingAction: null,
@@ -443,9 +449,14 @@ describe("background commerce reducer", () => {
     assert.deepEqual(next.snapshot.ownedBackgroundIds, ["retained", "newly-owned"])
     assert.deepEqual(
       next.snapshot.ownerships.map((ownership) => ownership.backgroundId),
-      ["retained"],
+      ["retained", "pending-reversal"],
     )
     assert.equal(next.snapshot.creditBalance, 2)
+    assert.equal(backgroundCardCommerceState({
+      background: { id: "pending-reversal", enabled: true, requiresSubscription: true },
+      access: { canUse: true, accessSource: "subscription" },
+      snapshot: next.snapshot,
+    }).state, "unavailable")
   })
 })
 
