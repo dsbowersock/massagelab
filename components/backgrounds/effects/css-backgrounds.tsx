@@ -6,7 +6,28 @@ import { shouldAnimateAmbientBackground } from "@/lib/motion-preferences"
 import { cn } from "@/lib/utils"
 import styles from "@/components/backgrounds/BackgroundHost.module.css"
 
+export interface MassageLabDnaOptions {
+  strandCount: number
+  nodeMotionSpeed: number
+  strandRotationSpeed: number
+  strandAngle: number
+  scale: number
+  positionX: number
+  positionY: number
+  strandSpacing: number
+  connectorWidth: number
+  connectorThickness: number
+  outlineThickness: number
+  backgroundColor: string
+  nodeColors: readonly [string, string, string, string]
+  connectorColor: string
+  outlineColor: string
+}
+
 export interface BackgroundEffectProps {
+  reduceMotion?: boolean
+  compactViewport?: boolean
+  massageLabDna?: MassageLabDnaOptions
   className?: string
   mainColor?: string
   orbColor?: string
