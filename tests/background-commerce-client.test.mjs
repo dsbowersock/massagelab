@@ -436,6 +436,12 @@ describe("background commerce reducer", () => {
             status: "refund_pending",
             acquiredAt: "2026-07-20T12:00:00.000Z",
           },
+          {
+            backgroundId: "restored",
+            source: "purchase",
+            status: "dispute_suspended",
+            acquiredAt: "2026-07-20T13:00:00.000Z",
+          },
         ],
       }),
       pendingAction: null,
@@ -443,10 +449,10 @@ describe("background commerce reducer", () => {
     }
     const next = backgroundCommerceReducer(state, {
       type: "ownership-reconcile",
-      ownedBackgroundIds: ["retained", "newly-owned"],
+      ownedBackgroundIds: ["retained", "newly-owned", "restored"],
     })
 
-    assert.deepEqual(next.snapshot.ownedBackgroundIds, ["retained", "newly-owned"])
+    assert.deepEqual(next.snapshot.ownedBackgroundIds, ["retained", "newly-owned", "restored"])
     assert.deepEqual(
       next.snapshot.ownerships.map((ownership) => ownership.backgroundId),
       ["retained", "pending-reversal"],
@@ -457,6 +463,11 @@ describe("background commerce reducer", () => {
       access: { canUse: true, accessSource: "subscription" },
       snapshot: next.snapshot,
     }).state, "unavailable")
+    assert.equal(backgroundCardCommerceState({
+      background: { id: "restored", enabled: true, requiresSubscription: true },
+      access: { canUse: true, accessSource: "ownership" },
+      snapshot: next.snapshot,
+    }).state, "owned")
   })
 })
 
