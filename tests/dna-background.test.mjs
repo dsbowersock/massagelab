@@ -14,7 +14,7 @@ import {
 } from "../lib/dna-background.js"
 import { resolveResponsiveBackgroundTransform } from "../lib/background-effect-layout.js"
 
-describe("DNA background domain rules", () => {
+describe("DNA background domain and shared layout rules", () => {
   it("preserves the exact source defaults and fixed source geometry", () => {
     assert.deepEqual(DEFAULT_DNA_BACKGROUND_OPTIONS, {
       strandCount: 13,
