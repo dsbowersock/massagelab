@@ -244,3 +244,38 @@ describe("Shared background preference access and retry wiring", () => {
     assert.doesNotMatch(source, /canCustomizeBackgroundColors/)
   })
 })
+
+describe("DNA and Twisted Cubes non-color persistence", () => {
+  it("sanitizes all 22 adapter-owned keys without serializing transient renderer values", () => {
+    const dnaKeys = backgroundPaletteRegistry["massage-lab-dna"].visualPropertyKeys
+    const cubesKeys = backgroundPaletteRegistry["massage-lab-twisted-cubes"].visualPropertyKeys
+    assert.equal(dnaKeys.length, 11)
+    assert.equal(cubesKeys.length, 11)
+
+    const sanitized = sanitizeWithRegistry({
+      massageLabDnaStrandCount: 999,
+      massageLabDnaNodeMotionSpeed: -1,
+      massageLabTwistedCubesLayerCount: 999,
+      massageLabTwistedCubesOutlineThickness: 99,
+      backgroundVisualPreferences: {
+        visualPresetsByBackground: {
+          "massage-lab-dna": [{ id: "dna", name: "DNA", properties: Object.fromEntries(dnaKeys.map((key) => [key, 999])), mapping: {} }],
+          "massage-lab-twisted-cubes": [{ id: "cubes", name: "Cubes", properties: Object.fromEntries(cubesKeys.map((key) => [key, 999])), mapping: {} }],
+        },
+      },
+      nodeRoleAssignments: [0, 1],
+      outlineAnchors: ["#ffffff"],
+      derivedAlpha: 0.5,
+    })
+    const payload = buildUserPreferencePayload({ chimerSettings: sanitized }, {
+      backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
+    })
+    const serialized = JSON.stringify(payload)
+
+    assert.equal(sanitized.massageLabDnaStrandCount, 25)
+    assert.equal(sanitized.massageLabDnaNodeMotionSpeed, 0.25)
+    assert.equal(sanitized.massageLabTwistedCubesLayerCount, 30)
+    assert.equal(sanitized.massageLabTwistedCubesOutlineThickness, 0.02)
+    assert.doesNotMatch(serialized, /nodeRoleAssignments|outlineAnchors|derivedAlpha/)
+  })
+})

@@ -41,6 +41,8 @@ const unsavedDialogSource = await read("app/chimer/unsaved-visual-changes-dialog
 const pageSource = await read("app/chimer/page.tsx")
 const musicMiniPlayerSource = await read("components/providers/music-mini-player.tsx")
 const runningTimerStyles = await read("app/chimer/running-timer.module.css")
+const dnaControlsSource = await read("components/chimer-controls/DnaBackgroundControls.tsx").catch(() => "")
+const twistedCubesControlsSource = await read("components/chimer-controls/TwistedCubesBackgroundControls.tsx").catch(() => "")
 
 const openingSnapshot = {
   palette: { mode: "custom", primaryColor: "#123456", harmony: "triadic", swatches: ["#123456", "#234567", "#345678", "#456789", "#56789a", "#6789ab", "#789abc"] },
@@ -1232,4 +1234,54 @@ test("globe coordinate inputs keep string drafts and clock font changes remeasur
     runningTimerSource,
     /\}, \[clockFontFamily, fontSize, isClockMode, isCurrentTimePrimary,/,
   )
+})
+
+test("DNA and Twisted Cubes controls emit only draft property patches with exact bounded sliders", () => {
+  const assertSlider = (source, label, property, minimum, maximum, step) => {
+    assert.match(source, new RegExp(`label="${label}"[\\s\\S]*value=\\{value\\.${property}\\}[\\s\\S]*min=\\{${minimum}\\}[\\s\\S]*max=\\{${maximum}\\}[\\s\\S]*step=\\{${step}\\}[\\s\\S]*onChange=\\{\\(nextValue\\) => onChange\\(\\{ ${property}: nextValue \\}\\)\\}`))
+  }
+
+  for (const [label, property, min, max, step] of [
+    ["Node motion speed", "nodeMotionSpeed", "0.25", "3", "0.05"],
+    ["Strand rotation speed", "strandRotationSpeed", "0.1", "3", "0.05"],
+    ["Strand count", "strandCount", "7", "25", "1"],
+    ["Strand angle", "strandAngle", "-180", "180", "1"],
+    ["Strand spacing", "strandSpacing", "0", "2", "0.05"],
+    ["Scale", "scale", "0.4", "1.2", "0.01"],
+    ["Position X", "positionX", "-35", "35", "1"],
+    ["Position Y", "positionY", "-35", "35", "1"],
+    ["Connector width", "connectorWidth", "60", "100", "1"],
+    ["Connector thickness", "connectorThickness", "10", "60", "1"],
+    ["Outline thickness", "outlineThickness", "0", "1.5", "0.05"],
+  ]) assertSlider(dnaControlsSource, label, property, min, max, step)
+
+  for (const [label, property, min, max, step] of [
+    ["Rotation speed", "rotationSpeed", "0.25", "3", "0.05"],
+    ["Layer stagger", "layerStagger", "0", "0.3", "0.01"],
+    ["View angle X", "viewAngleX", "-80", "80", "1"],
+    ["View angle Y", "viewAngleY", "-80", "80", "1"],
+    ["Layer count", "layerCount", "6", "30", "1"],
+    ["Layer depth", "layerDepthSpacing", "10", "70", "1"],
+    ["Scale", "scale", "0.4", "1.2", "0.01"],
+    ["Position X", "positionX", "-35", "35", "1"],
+    ["Position Y", "positionY", "-35", "35", "1"],
+    ["Fade falloff", "opacityFalloff", "0", "0.95", "0.01"],
+    ["Relative outline thickness", "outlineThickness", "0.0025", "0.02", "0.0005"],
+  ]) assertSlider(twistedCubesControlsSource, label, property, min, max, step)
+
+  for (const source of [dnaControlsSource, twistedCubesControlsSource]) {
+    assert.match(source, /StyledRangeControl/)
+    assert.doesNotMatch(source, /localStorage|sessionStorage|fetch\(|type="number"|onPointerMove|shuffle/i)
+  }
+})
+
+test("selected-background properties share the existing Visual draft lifecycle", () => {
+  assert.match(runningTimerSource, /visualEditorBackgroundId === "massage-lab-dna"[\s\S]*<DnaBackgroundControls/)
+  assert.match(runningTimerSource, /visualEditorBackgroundId === "massage-lab-twisted-cubes"[\s\S]*<TwistedCubesBackgroundControls/)
+  assert.match(runningTimerSource, /toDnaChimerSettingsPatch\(patch\)/)
+  assert.match(runningTimerSource, /toTwistedCubesChimerSettingsPatch\(patch\)/)
+  assert.match(runningTimerSource, /dispatchVisualDraft\(\{[\s\S]*type: "replace"[\s\S]*partitioned\.draftProperties/)
+  assert.match(runningTimerSource, /type: "reset-properties"/)
+  assert.match(runningTimerSource, /BackgroundVisualPresetManager/)
+  assert.match(runningTimerSource, /visualDraft\?\.dirty/)
 })

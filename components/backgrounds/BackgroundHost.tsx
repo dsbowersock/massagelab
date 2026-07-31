@@ -69,6 +69,21 @@ function usePrefersReducedMotion() {
   return prefersReducedMotion
 }
 
+function useCompactBackgroundViewport() {
+  const [compactViewport, setCompactViewport] = useState(false)
+
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 479px), (max-height: 479px)")
+    const handleChange = () => setCompactViewport(query.matches)
+
+    handleChange()
+    query.addEventListener("change", handleChange)
+    return () => query.removeEventListener("change", handleChange)
+  }, [])
+
+  return compactViewport
+}
+
 export function BackgroundHost(props: BackgroundHostProps) {
   const {
     selectedId,
@@ -155,6 +170,8 @@ export function BackgroundHost(props: BackgroundHostProps) {
     massageLab3DGlobe,
     massageLabRetroGrid,
     massageLabAerialRays,
+    massageLabDna,
+    massageLabTwistedCubes,
     backgroundLines,
     shootingStars,
     canvasRevealDots,
@@ -169,6 +186,7 @@ export function BackgroundHost(props: BackgroundHostProps) {
   } = stableEffectPropsInput
   const { settings } = useSettings()
   const prefersReducedMotion = usePrefersReducedMotion()
+  const compactViewport = useCompactBackgroundViewport()
   const entry = useMemo(
     () => resolveAccessibleBackgroundDefinition(selectedId, access, category),
     [access, category, selectedId],
@@ -188,10 +206,11 @@ export function BackgroundHost(props: BackgroundHostProps) {
   const [loadError, setLoadError] = useState<string | null>(null)
   const shouldLoadEffect = Boolean(
     entry.component
-    && (
-      entry.motionIntensity === "static"
-      || (motionEnabled && (forceEffectMount || !reduceMotion))
-    ),
+      && (
+        entry.motionIntensity === "static"
+        || (motionEnabled && (forceEffectMount || !reduceMotion))
+        || (motionEnabled && entry.supportsReducedMotionStatic)
+      ),
   )
   const { baseEffectProps, effectProps } = useMemo(() => {
     const baseEffectProps = {
@@ -258,6 +277,10 @@ export function BackgroundHost(props: BackgroundHostProps) {
     massageLab3DGlobe,
     massageLabRetroGrid,
     massageLabAerialRays,
+    massageLabDna,
+    massageLabTwistedCubes,
+    reduceMotion,
+    compactViewport,
     backgroundLines,
     shootingStars,
     canvasRevealDots,
@@ -346,6 +369,10 @@ export function BackgroundHost(props: BackgroundHostProps) {
     massageLab3DGlobe,
     massageLabRetroGrid,
     massageLabAerialRays,
+    massageLabDna,
+    massageLabTwistedCubes,
+    reduceMotion,
+    compactViewport,
     backgroundLines,
     shootingStars,
     canvasRevealDots,

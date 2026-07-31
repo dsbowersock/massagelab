@@ -2357,3 +2357,32 @@
     transform: none;
   }
 }
+
+.backgroundPropertyGroups {
+  display: grid;
+  min-width: 0;
+  gap: 0.8rem;
+}
+
+.backgroundPropertyGroup {
+  display: grid;
+  min-width: 0;
+  gap: 0.55rem;
+  padding: 0;
+  border: 0;
+}
+
+.backgroundPropertyGroup legend {
+  width: 100%;
+  padding: 0 0 0.15rem;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.73rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.backgroundPropertyGroup > * {
+  min-width: 0;
+  max-width: 100%;
+}

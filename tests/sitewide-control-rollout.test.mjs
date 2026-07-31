@@ -246,3 +246,26 @@ test("shared background access and palette resolver inputs stay authoritative an
   assert.doesNotMatch(pickerSource, /export function GlobalColorPicker|GlobalColorValues/)
   assert.doesNotMatch(indexSource, /\bGlobalColorPicker\b(?=\s*[},])/)
 })
+
+test("DNA and Twisted Cubes share compact options and host-owned responsive motion context", async () => {
+  const [runningSource, hostSource, dnaEffect, cubesEffect, styles] = await Promise.all([
+    read("app/chimer/running-timer.tsx"),
+    read("components/backgrounds/BackgroundHost.tsx"),
+    read("components/backgrounds/effects/massage-lab-dna-background.tsx"),
+    read("components/backgrounds/effects/massage-lab-twisted-cubes-background.tsx"),
+    read("app/chimer/running-timer.module.css"),
+  ])
+
+  assert.match(runningSource, /getDnaBackgroundOptionsFromChimerSettings/)
+  assert.match(runningSource, /getTwistedCubesBackgroundOptionsFromChimerSettings/)
+  assert.match(runningSource, /massageLabDna=\{effectiveDnaBackgroundOptions\}/)
+  assert.match(runningSource, /massageLabTwistedCubes=\{effectiveTwistedCubesBackgroundOptions\}/)
+  assert.doesNotMatch(runningSource, /massageLabDnaStrandCount=|massageLabTwistedCubesLayerCount=/)
+  assert.match(hostSource, /window\.matchMedia\("\(max-width: 479px\), \(max-height: 479px\)"\)/)
+  assert.match(hostSource, /entry\.supportsReducedMotionStatic/)
+  assert.match(hostSource, /reduceMotion,[\s\S]*compactViewport,/)
+  assert.doesNotMatch(dnaEffect, /matchMedia|addEventListener\("resize"/)
+  assert.doesNotMatch(cubesEffect, /matchMedia|addEventListener\("resize"/)
+  assert.match(styles, /\.backgroundPropertyGroups[\s\S]*min-width:\s*0/)
+  assert.match(styles, /\.backgroundPropertyGroup[\s\S]*min-width:\s*0/)
+})

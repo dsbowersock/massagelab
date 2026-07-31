@@ -9,6 +9,7 @@ import { BackgroundAcquisitionDialog } from "@/components/backgrounds/Background
 import { BackgroundCarousel } from "@/components/backgrounds/background-carousel"
 import { useBackgroundCreditStatus } from "@/components/backgrounds/BackgroundCommerceProvider"
 import { BackgroundHost } from "@/components/backgrounds/BackgroundHost"
+import type { MassageLabDnaOptions, MassageLabTwistedCubesOptions } from "@/components/backgrounds/effects/css-backgrounds"
 import { BACKGROUND_PALETTE_METADATA_SUFFIXES, backgroundPaletteRegistry } from "@/components/backgrounds/backgroundPaletteRegistry"
 import { canUseBackgroundId, getBackgroundOptionsForCategory, mergeBackgroundAccessOwnership, resolveAccessibleBackgroundDefinition, type BackgroundAccessSnapshot, type BackgroundId, type BackgroundDefinition, userCanUseBackground } from "@/components/backgrounds/backgroundRegistry"
 import { triggerHapticFeedback } from "@/lib/haptics"
@@ -17,6 +18,8 @@ import { StyledRangeControl } from "@/components/chimer-controls/StyledRangeCont
 import { StyledToggleControl } from "@/components/chimer-controls/StyledToggleControl"
 import { BackgroundPaletteEditor } from "@/components/chimer-controls/BackgroundPaletteEditor"
 import { BackgroundColorPresetManager, BackgroundVisualPresetManager, type BackgroundPresetDraftAction } from "@/components/chimer-controls/BackgroundPresetManager"
+import { DnaBackgroundControls } from "@/components/chimer-controls/DnaBackgroundControls"
+import { TwistedCubesBackgroundControls } from "@/components/chimer-controls/TwistedCubesBackgroundControls"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import type { MusicVisualizerState } from "@/components/providers/music-provider"
@@ -25,6 +28,8 @@ import { canCustomizeBackgroundColors } from "@/lib/background-palette"
 import { buildBackgroundVisualOpeningSnapshot, buildBackgroundVisualPendingCommit, createBackgroundVisualDraft, getCommittedBackgroundVisualSnapshot, partitionBackgroundVisualSettingChange, reduceBackgroundVisualDraft, resolveBackgroundVisualPendingOutcome } from "@/lib/background-visual-draft"
 import { getConnectedVisualFocusTarget } from "@/lib/visual-draft-navigation"
 import { normalizeBackgroundColorMapping } from "@/lib/background-palette"
+import { getDnaBackgroundOptionsFromChimerSettings, toDnaChimerSettingsPatch } from "@/lib/dna-background"
+import { getTwistedCubesBackgroundOptionsFromChimerSettings, toTwistedCubesChimerSettingsPatch } from "@/lib/twisted-cubes-background"
 import { MASSAGE_LAB_ASTRAL_FLOW_DISPLAY_SPEED_MAX, MASSAGE_LAB_ASTRAL_FLOW_DISPLAY_SPEED_MIN, MASSAGE_LAB_ASTRAL_FLOW_DISPLAY_SPEED_STEP, MASSAGE_LAB_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MAX, MASSAGE_LAB_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MIN, MASSAGE_LAB_DEEP_SPACE_NEBULA_DISPLAY_SPEED_STEP, MASSAGE_LAB_GRID_BLOOM_DISPLAY_SPEED_MAX, MASSAGE_LAB_GRID_BLOOM_DISPLAY_SPEED_MIN, MASSAGE_LAB_GRID_BLOOM_DISPLAY_SPEED_STEP, MASSAGE_LAB_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MAX, MASSAGE_LAB_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MIN, MASSAGE_LAB_LIQUID_CHROME_DISPLAY_FLOW_SPEED_STEP, MASSAGE_LAB_LIQUID_CHROME_DISPLAY_TIME_SCALE_MAX, MASSAGE_LAB_LIQUID_CHROME_DISPLAY_TIME_SCALE_MIN, MASSAGE_LAB_LIQUID_CHROME_DISPLAY_TIME_SCALE_STEP, MASSAGE_LAB_WAVES_DISPLAY_SPEED_MAX, MASSAGE_LAB_WAVES_DISPLAY_SPEED_MIN, MASSAGE_LAB_WAVES_DISPLAY_SPEED_STEP, MASSAGE_LAB_SYNTHESIS_DISPLAY_SPEED_MAX, MASSAGE_LAB_SYNTHESIS_DISPLAY_SPEED_MIN, MASSAGE_LAB_SYNTHESIS_DISPLAY_SPEED_STEP, MASSAGE_LAB_NOVATRIX_DISPLAY_AMPLITUDE_MAX, MASSAGE_LAB_NOVATRIX_DISPLAY_AMPLITUDE_MIN, MASSAGE_LAB_NOVATRIX_DISPLAY_AMPLITUDE_STEP, MASSAGE_LAB_NOVATRIX_DISPLAY_SPEED_MAX, MASSAGE_LAB_NOVATRIX_DISPLAY_SPEED_MIN, MASSAGE_LAB_NOVATRIX_DISPLAY_SPEED_STEP, MASSAGE_LAB_HACKER_DISPLAY_SPEED_MAX, MASSAGE_LAB_HACKER_DISPLAY_SPEED_MIN, MASSAGE_LAB_HACKER_DISPLAY_SPEED_STEP, MASSAGE_LAB_PHOTON_BEAM_DISPLAY_SPEED_MAX, MASSAGE_LAB_PHOTON_BEAM_DISPLAY_SPEED_MIN, MASSAGE_LAB_PHOTON_BEAM_DISPLAY_SPEED_STEP, getMassageLabAstralFlowDisplaySpeed, getMassageLabAstralFlowSourceSpeed, getMassageLabDeepSpaceNebulaDisplaySpeed, getMassageLabDeepSpaceNebulaSourceSpeed, getMassageLabGridBloomDisplaySpeed, getMassageLabGridBloomSourceSpeed, getMassageLabChromeFlowDisplayFlowSpeed, getMassageLabChromeFlowDisplayTimeScale, getMassageLabChromeFlowSourceFlowSpeed, getMassageLabChromeFlowSourceTimeScale, getMassageLabWaveCurrentDisplaySpeed, getMassageLabWaveCurrentSourceSpeed, getMassageLabSynthesisDisplaySpeed, getMassageLabSynthesisSourceSpeed, getMassageLabNovatrixDisplayAmplitude, getMassageLabNovatrixDisplaySpeed, getMassageLabNovatrixSourceAmplitude, getMassageLabNovatrixSourceSpeed, getMassageLabMatrixRainDisplaySpeed, getMassageLabMatrixRainSourceSpeed, getMassageLab3DGlobeScaleDisplayPercent, getMassageLab3DGlobeScaleFromDisplayPercent, getMassageLabPhotonBeamDisplaySpeed, getMassageLabPhotonBeamSourceSpeed, type MassageLabPrismAnimationType, type MassageLabLightPillarBlendMode, type MassageLabFloatingLinesBlendMode, type MassageLabSideRaysOrigin, type MassageLabLightRaysOrigin, type MassageLabPixelBlastVariant, type MassageLabPlasmaDirection, type MassageLabGradientBlindsBlendMode, type MassageLabGradientBlindsShineDirection, type MassageLabGridScanDirection, type MassageLabGridScanLineStyle, type MassageLabPixelSnowVariant, type MassageLabPrismaticBurstAnimationType, type MassageLabPrismaticBurstMixBlendMode, type MassageLabLightPillarQuality, type ChimerSettings } from "./set-timer"
 import styles from "./running-timer.module.css"
 import { ImmersivePanelShell, type ImmersivePanelId } from "./immersive-panel-shell"
@@ -1537,6 +1542,32 @@ export function RunningTimer({
   const currentVisualEditorSnapshot = useMemo(
     () => (visualDraft && visualDraftBackgroundId === visualEditorBackgroundId ? getCommittedBackgroundVisualSnapshot(visualDraft) : null),
     [visualDraft, visualDraftBackgroundId, visualEditorBackgroundId],
+  )
+  // One committed-or-draft settings projection feeds every immersive context;
+  // the compact option objects keep the Host boundary from growing 22 props.
+  const effectiveLiveBackgroundSettings = useMemo(
+    () => ({ ...committedSettings, ...(currentVisualSnapshot?.properties ?? {}) }),
+    [committedSettings, currentVisualSnapshot],
+  )
+  const effectiveDnaBackgroundOptions = useMemo(
+    () => getDnaBackgroundOptionsFromChimerSettings(effectiveLiveBackgroundSettings) as MassageLabDnaOptions,
+    [effectiveLiveBackgroundSettings],
+  )
+  const effectiveTwistedCubesBackgroundOptions = useMemo(
+    () => getTwistedCubesBackgroundOptionsFromChimerSettings(effectiveLiveBackgroundSettings) as MassageLabTwistedCubesOptions,
+    [effectiveLiveBackgroundSettings],
+  )
+  const effectiveVisualEditorSettings = useMemo(
+    () => ({ ...committedSettings, ...(currentVisualEditorSnapshot?.properties ?? {}) }),
+    [committedSettings, currentVisualEditorSnapshot],
+  )
+  const visualEditorDnaOptions = useMemo(
+    () => getDnaBackgroundOptionsFromChimerSettings(effectiveVisualEditorSettings) as MassageLabDnaOptions,
+    [effectiveVisualEditorSettings],
+  )
+  const visualEditorTwistedCubesOptions = useMemo(
+    () => getTwistedCubesBackgroundOptionsFromChimerSettings(effectiveVisualEditorSettings) as MassageLabTwistedCubesOptions,
+    [effectiveVisualEditorSettings],
   )
   const visualEditorBackgroundDefinition = useMemo(
     () => getBackgroundOptionsForCategory(backgroundCategory).find(
@@ -12401,6 +12432,8 @@ export function RunningTimer({
           access={effectiveBackgroundAccess}
           category={backgroundCategory}
           backgroundPalette={effectiveBackgroundPalette}
+          massageLabDna={effectiveDnaBackgroundOptions}
+          massageLabTwistedCubes={effectiveTwistedCubesBackgroundOptions}
           sparkles={{
             maxSize: sparklesMaxSize,
             minSize: sparklesMinSize,
@@ -13701,7 +13734,19 @@ export function RunningTimer({
                       <span>Selected Background Properties</span>
                       <span className={styles.settingsPill}>Visual tuning</span>
                     </div>
-                    {renderBackgroundControls(visualEditorBackgroundDefinition)}
+                    {visualEditorBackgroundId === "massage-lab-dna" ? (
+                      <DnaBackgroundControls
+                        value={visualEditorDnaOptions}
+                        disabled={!canCustomizeSelectedBackground}
+                        onChange={(patch) => handleSettingsChange(toDnaChimerSettingsPatch(patch))}
+                      />
+                    ) : visualEditorBackgroundId === "massage-lab-twisted-cubes" ? (
+                      <TwistedCubesBackgroundControls
+                        value={visualEditorTwistedCubesOptions}
+                        disabled={!canCustomizeSelectedBackground}
+                        onChange={(patch) => handleSettingsChange(toTwistedCubesChimerSettingsPatch(patch))}
+                      />
+                    ) : renderBackgroundControls(visualEditorBackgroundDefinition)}
                     <div className={styles.visualDraftSecondaryAction}>
                       <Button
                         type="button"
