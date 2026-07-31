@@ -109,7 +109,8 @@
 .root[data-reduce-motion] .strand,
 .root[data-reduce-motion] .connector,
 .root[data-reduce-motion] .node {
-  animation-play-state: paused;
+  /* Animation transforms override author transforms, so remove them first. */
+  animation: none;
 }
 
 .root[data-reduce-motion] .strand {

@@ -36,6 +36,7 @@ test("the DNA renderer stays a scoped, non-interactive CSS DOM effect", () => {
   assert.match(stylesheetSource, /@keyframes\s+mlDnaConnectorCollapse/)
   assert.match(stylesheetSource, /@keyframes\s+mlDnaStrandRotate/)
   assert.match(stylesheetSource, /\[data-reduce-motion\]/)
+  assert.match(stylesheetSource, /\.root\[data-reduce-motion\] \.strand,[\s\S]*?\.root\[data-reduce-motion\] \.node \{[\s\S]*?animation:\s*none;/)
   assert.doesNotMatch(stylesheetSource, /(?:^|[\s,])(?:body|:root|\*)(?:\s|\{|,|$)/m)
   assert.doesNotMatch(stylesheetSource, /(?:@font-face|font-family|min-height|touch-action)/i)
 })
