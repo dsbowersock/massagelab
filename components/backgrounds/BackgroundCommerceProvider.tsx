@@ -46,6 +46,7 @@ export type BackgroundCommerceContextValue = {
   state: BackgroundCommerceClientState
   signedIn: boolean
   refresh(): Promise<void>
+  reconcileOwnedBackgroundIds(ownedBackgroundIds: readonly string[]): Promise<void>
   addToCart(backgroundId: string): Promise<void>
   removeFromCart(backgroundId: string): Promise<void>
   redeemCredit(backgroundId: string, idempotencyKey: string): Promise<void>
@@ -220,6 +221,19 @@ export function BackgroundCommerceProvider({
       if (readControllerRef.current === controller) readControllerRef.current = null
     }
   }, [enabled])
+
+  /**
+   * Applies ownership proven by a newer preference response, cancels any older
+   * state read, then refreshes the complete commerce snapshot.
+   */
+  const reconcileOwnedBackgroundIds = useCallback(async (
+    ownedBackgroundIds: readonly string[],
+  ) => {
+    if (!enabled) return
+    readControllerRef.current?.abort()
+    dispatch({ type: "ownership-reconcile", ownedBackgroundIds })
+    await refresh()
+  }, [enabled, refresh])
 
   /** Serializes cart, credit, reservation, and checkout writes through one queue. */
   const enqueueSerializedOperation = useCallback((operation: () => Promise<void>) => {
@@ -456,6 +470,7 @@ export function BackgroundCommerceProvider({
     state: exposedState,
     signedIn: enabled,
     refresh,
+    reconcileOwnedBackgroundIds,
     addToCart,
     removeFromCart,
     redeemCredit,
@@ -468,6 +483,7 @@ export function BackgroundCommerceProvider({
     exposedState,
     enabled,
     refresh,
+    reconcileOwnedBackgroundIds,
     addToCart,
     removeFromCart,
     redeemCredit,

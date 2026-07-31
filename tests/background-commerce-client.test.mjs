@@ -410,6 +410,43 @@ describe("background commerce reducer", () => {
     assert.deepEqual(next.snapshot.ownedBackgroundIds, ["new"])
     assert.equal(next.snapshot.creditBalance, 1)
   })
+
+  it("reconciles newer ownership without inventing acquisition evidence", () => {
+    const state = {
+      status: "ready",
+      snapshot: snapshot({
+        creditBalance: 2,
+        ownedBackgroundIds: ["revoked", "retained"],
+        ownerships: [
+          {
+            backgroundId: "revoked",
+            source: "purchase",
+            status: "active",
+            acquiredAt: "2026-07-20T10:00:00.000Z",
+          },
+          {
+            backgroundId: "retained",
+            source: "credit",
+            status: "active",
+            acquiredAt: "2026-07-20T11:00:00.000Z",
+          },
+        ],
+      }),
+      pendingAction: null,
+      error: null,
+    }
+    const next = backgroundCommerceReducer(state, {
+      type: "ownership-reconcile",
+      ownedBackgroundIds: ["retained", "newly-owned"],
+    })
+
+    assert.deepEqual(next.snapshot.ownedBackgroundIds, ["retained", "newly-owned"])
+    assert.deepEqual(
+      next.snapshot.ownerships.map((ownership) => ownership.backgroundId),
+      ["retained"],
+    )
+    assert.equal(next.snapshot.creditBalance, 2)
+  })
 })
 
 describe("background card commerce states", () => {

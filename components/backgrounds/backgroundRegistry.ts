@@ -156,22 +156,16 @@ export function mergeBackgroundAccessOwnership(
 }
 
 /**
- * Resolves the newest authoritative ownership evidence available to the UI.
- *
- * A successful preference write can be newer than the currently cached
- * commerce snapshot, so it bridges access until a commerce refresh completes.
- * Otherwise, any commerce snapshot (including an empty one) is authoritative;
- * the account response is used only while the commerce provider is hydrating.
+ * Uses the account response only while the commerce provider is hydrating.
+ * Any commerce snapshot, including an empty one, is authoritative so revoked
+ * ownership cannot remain accessible from an older preference response.
  */
 export function resolveAuthoritativeBackgroundOwnership(
   accountOwnedBackgroundIds: readonly string[],
   commerceOwnedBackgroundIds: readonly string[] | null | undefined,
-  preferenceWriteOwnedBackgroundIds?: readonly string[] | null,
 ) {
   return [...new Set(
-    preferenceWriteOwnedBackgroundIds
-      ?? commerceOwnedBackgroundIds
-      ?? accountOwnedBackgroundIds,
+    commerceOwnedBackgroundIds ?? accountOwnedBackgroundIds,
   )]
 }
 

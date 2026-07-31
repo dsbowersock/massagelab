@@ -51,6 +51,14 @@ describe("BackgroundCommerceProvider contract", () => {
     assert.doesNotMatch(value, /creditBalance\s*[+\-]=|ownedBackgroundIds\.push/)
   })
 
+  it("reconciles newer preference ownership before refreshing commerce", async () => {
+    const value = await source(providerPath)
+    assert.match(
+      value,
+      /const reconcileOwnedBackgroundIds[\s\S]*readControllerRef\.current\?\.abort\(\)[\s\S]*type: "ownership-reconcile"[\s\S]*await refresh\(\)/,
+    )
+  })
+
   it("keeps guest cart identities unique and removes one matching line", async () => {
     const value = await source(providerPath)
     assert.match(value, /current\.includes\(item\.productKey\) \? current/)
