@@ -44,10 +44,7 @@ interface BackgroundHostProps extends BackgroundEffectProps {
   style?: CSSProperties
   /** Renders the static representative while avoiding animated effect work. */
   motionEnabled?: boolean
-  /**
-   * Guarded review surfaces may mount the real renderer even when ambient
-   * motion preferences would otherwise leave only its fallback visible.
-   */
+  /** Records guarded review intent without bypassing pause or reduced motion. */
   forceEffectMount?: boolean
   testId?: string
   /** Exposes actual lazy-load and post-adapter props on data attributes for guarded QA surfaces. */
@@ -194,7 +191,9 @@ export function BackgroundHost(props: BackgroundHostProps) {
   const canCustomize = canCustomizeBackgroundColors({
     hasBackgroundAccess: userCanUseBackground(entry, access),
   })
-  const reduceMotion = shouldReduceAmbientMotion({
+  // An explicit pause uses the same resolved renderer contract as ambient
+  // reduced motion. Static-capable effects still mount, but pause internally.
+  const reduceMotion = !motionEnabled || shouldReduceAmbientMotion({
     prefersReducedMotion,
     ambientMotionMode: settings.ambientMotionMode,
   })
@@ -205,12 +204,8 @@ export function BackgroundHost(props: BackgroundHostProps) {
   const [loadStatus, setLoadStatus] = useState<BackgroundHostLoadStatus>("idle")
   const [loadError, setLoadError] = useState<string | null>(null)
   const shouldLoadEffect = Boolean(
-    entry.component
-      && (
-        entry.motionIntensity === "static"
-        || (motionEnabled && (forceEffectMount || !reduceMotion))
-        || (motionEnabled && entry.supportsReducedMotionStatic)
-      ),
+    entry.component &&
+      (!reduceMotion || entry.motionIntensity === "static" || entry.supportsReducedMotionStatic),
   )
   const { baseEffectProps, effectProps } = useMemo(() => {
     const baseEffectProps = {
@@ -464,6 +459,7 @@ export function BackgroundHost(props: BackgroundHostProps) {
         shouldLoadEffect && !BackgroundComponent ? "true" : "false"
       }
       data-background-motion={motionEnabled ? "playing" : "paused"}
+      data-background-review-mount-requested={forceEffectMount ? "true" : undefined}
       data-background-provider={entry.provider}
       data-background-diagnostic-requested-id={diagnosticSnapshot?.requestedId}
       data-background-diagnostic-loaded-id={diagnosticSnapshot?.loadedId ?? undefined}

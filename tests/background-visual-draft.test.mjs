@@ -25,6 +25,7 @@ import {
 } from "../lib/visual-draft-navigation.js"
 import {
   BACKGROUND_PALETTE_METADATA_SUFFIXES,
+  backgroundPaletteRegistry,
   backgroundPreferenceNormalizationOptions,
 } from "../components/backgrounds/backgroundPaletteRegistry.ts"
 import {
@@ -52,6 +53,41 @@ const openingSnapshot = {
   visualPresets: [{ id: "calm", name: "Calm", timestamp: 1, properties: { speed: 0.5 }, mapping: { main: 3 } }],
   defaultVisualPresetId: "calm",
 }
+
+const TRACK4B_VISUAL_CASES = [
+  {
+    backgroundId: "massage-lab-dna",
+    changedProperties: {
+      massageLabDnaStrandCount: 15,
+      massageLabDnaNodeMotionSpeed: 1.25,
+      massageLabDnaStrandRotationSpeed: 1.5,
+      massageLabDnaStrandAngle: 45,
+      massageLabDnaScale: 0.9,
+      massageLabDnaPositionX: 5,
+      massageLabDnaPositionY: -5,
+      massageLabDnaStrandSpacing: 0.75,
+      massageLabDnaConnectorWidth: 88,
+      massageLabDnaConnectorThickness: 35,
+      massageLabDnaOutlineThickness: 0.75,
+    },
+  },
+  {
+    backgroundId: "massage-lab-twisted-cubes",
+    changedProperties: {
+      massageLabTwistedCubesLayerCount: 18,
+      massageLabTwistedCubesRotationSpeed: 1.25,
+      massageLabTwistedCubesLayerStagger: 0.15,
+      massageLabTwistedCubesViewAngleX: -20,
+      massageLabTwistedCubesViewAngleY: 20,
+      massageLabTwistedCubesScale: 0.85,
+      massageLabTwistedCubesPositionX: 8,
+      massageLabTwistedCubesPositionY: -8,
+      massageLabTwistedCubesLayerDepthSpacing: 42,
+      massageLabTwistedCubesOpacityFalloff: 0.6,
+      massageLabTwistedCubesOutlineThickness: 0.01,
+    },
+  },
+]
 
 function reduce(state, action) { return reduceBackgroundVisualDraft(state, action) }
 
@@ -1284,4 +1320,146 @@ test("selected-background properties share the existing Visual draft lifecycle",
   assert.match(runningTimerSource, /type: "reset-properties"/)
   assert.match(runningTimerSource, /BackgroundVisualPresetManager/)
   assert.match(runningTimerSource, /visualDraft\?\.dirty/)
+})
+
+test("all 22 DNA and Twisted Cubes keys execute the complete shared Visual draft lifecycle", () => {
+  for (const { backgroundId, changedProperties } of TRACK4B_VISUAL_CASES) {
+    const adapter = backgroundPaletteRegistry[backgroundId]
+    const sourceProperties = adapter.sourceVisualProperties
+    const entries = Object.entries(changedProperties)
+    assert.deepEqual(Object.keys(changedProperties), adapter.visualPropertyKeys)
+
+    const opening = {
+      ...openingSnapshot,
+      properties: sourceProperties,
+      mapping: {},
+      visualPresets: [],
+      defaultVisualPresetId: null,
+    }
+    let edited = createBackgroundVisualDraft(opening)
+
+    for (const [key, value] of entries) {
+      const partitioned = partitionBackgroundVisualSettingChange({
+        nextSettings: { [key]: value },
+        draftOpen: true,
+        visualPropertyKeys: adapter.visualPropertyKeys,
+      })
+      assert.deepEqual(partitioned, {
+        draftProperties: { [key]: value },
+        committedSettings: {},
+      })
+      edited = reduce(edited, {
+        type: "replace",
+        snapshot: {
+          ...getCommittedBackgroundVisualSnapshot(edited),
+          properties: {
+            ...getCommittedBackgroundVisualSnapshot(edited).properties,
+            ...partitioned.draftProperties,
+          },
+        },
+      })
+      assert.equal(edited.currentSnapshot.properties[key], value)
+    }
+    assert.equal(edited.dirty, true)
+    assert.deepEqual(edited.currentSnapshot.properties, changedProperties)
+
+    let history = edited
+    for (const [key] of [...entries].reverse()) {
+      history = reduce(history, { type: "undo" })
+      assert.equal(history.currentSnapshot.properties[key], sourceProperties[key])
+    }
+    assert.deepEqual(history.currentSnapshot.properties, sourceProperties)
+    for (const [key, value] of entries) {
+      history = reduce(history, { type: "redo" })
+      assert.equal(history.currentSnapshot.properties[key], value)
+    }
+    assert.deepEqual(history.currentSnapshot.properties, changedProperties)
+
+    const reset = reduce(edited, {
+      type: "reset-properties",
+      properties: sourceProperties,
+      mapping: {},
+    })
+    assert.deepEqual(reset.currentSnapshot.properties, sourceProperties)
+    assert.deepEqual(reduce(edited, { type: "cancel" }).currentSnapshot.properties, sourceProperties)
+
+    let presetState = createBackgroundVisualDraft(opening)
+    presetState = reduce(presetState, {
+      type: "save-visual-preset",
+      preset: {
+        id: "track4b-all-properties",
+        name: "All properties",
+        timestamp: 1,
+        properties: changedProperties,
+        mapping: {},
+      },
+    })
+    presetState = reduce(presetState, {
+      type: "set-default-visual-preset",
+      id: "track4b-all-properties",
+    })
+    presetState = reduce(presetState, {
+      type: "apply-visual-preset",
+      id: "track4b-all-properties",
+    })
+    assert.deepEqual(presetState.currentSnapshot.properties, changedProperties)
+    assert.deepEqual(presetState.currentSnapshot.visualPresets[0].properties, changedProperties)
+    assert.equal(presetState.currentSnapshot.defaultVisualPresetId, "track4b-all-properties")
+
+    const applied = reduce(edited, { type: "apply" })
+    assert.equal(applied.dirty, false)
+    assert.deepEqual(applied.openingSnapshot.properties, changedProperties)
+    const postApplyEdit = reduce(applied, {
+      type: "replace",
+      snapshot: {
+        ...applied.currentSnapshot,
+        properties: {
+          ...applied.currentSnapshot.properties,
+          [entries[0][0]]: sourceProperties[entries[0][0]],
+        },
+      },
+    })
+    assert.deepEqual(reduce(postApplyEdit, { type: "cancel" }).currentSnapshot.properties, changedProperties)
+
+    const committed = buildCommittedBackgroundVisualPreferences({
+      preferences: {},
+      backgroundId,
+      snapshot: presetState.currentSnapshot,
+    })
+    assert.deepEqual(committed.properties, changedProperties)
+    assert.deepEqual(
+      committed.preferences.visualPresetsByBackground[backgroundId][0].properties,
+      changedProperties,
+    )
+    assert.equal(
+      committed.preferences.defaultVisualPresetByBackground[backgroundId],
+      "track4b-all-properties",
+    )
+    assert.deepEqual(resolveBackgroundSelectionVisualSnapshot({
+      preferences: committed.preferences,
+      backgroundId,
+      adapter,
+    }).properties, changedProperties)
+
+    const guardIntent = {
+      type: "select-background",
+      backgroundId: "massage-lab-moving-gradient",
+    }
+    const guardedCommit = { visualBackgroundId: backgroundId, properties: committed.properties }
+    assert.deepEqual(resolveBackgroundVisualPendingOutcome({
+      outcome: "apply",
+      intent: guardIntent,
+      commit: guardedCommit,
+    }), { commit: guardedCommit, resumeIntent: guardIntent })
+    assert.deepEqual(resolveBackgroundVisualPendingOutcome({
+      outcome: "discard",
+      intent: guardIntent,
+      commit: guardedCommit,
+    }), { commit: null, resumeIntent: guardIntent })
+    assert.deepEqual(resolveBackgroundVisualPendingOutcome({
+      outcome: "keep",
+      intent: guardIntent,
+      commit: guardedCommit,
+    }), { commit: null, resumeIntent: null })
+  }
 })

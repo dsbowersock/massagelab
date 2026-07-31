@@ -2,6 +2,10 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import test from "node:test"
 
+import { resolveAccessibleBackgroundDefinition } from "../components/backgrounds/backgroundRegistry.ts"
+import { getDnaBackgroundOptionsFromChimerSettings } from "../lib/dna-background.js"
+import { getTwistedCubesBackgroundOptionsFromChimerSettings } from "../lib/twisted-cubes-background.js"
+
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8")
 
 test("S6 ordinary action routes delegate to the shared Button family", async () => {
@@ -268,4 +272,82 @@ test("DNA and Twisted Cubes share compact options and host-owned responsive moti
   assert.doesNotMatch(cubesEffect, /matchMedia|addEventListener\("resize"/)
   assert.match(styles, /\.backgroundPropertyGroups[\s\S]*min-width:\s*0/)
   assert.match(styles, /\.backgroundPropertyGroup[\s\S]*min-width:\s*0/)
+})
+
+test("Chimer, ordinary Clock, Music, and ambient contexts resolve the same 22 sanitized values", () => {
+  const settings = {
+    massageLabDnaStrandCount: 15,
+    massageLabDnaNodeMotionSpeed: 1.25,
+    massageLabDnaStrandRotationSpeed: 1.5,
+    massageLabDnaStrandAngle: 45,
+    massageLabDnaScale: 0.9,
+    massageLabDnaPositionX: 5,
+    massageLabDnaPositionY: -5,
+    massageLabDnaStrandSpacing: 0.75,
+    massageLabDnaConnectorWidth: 88,
+    massageLabDnaConnectorThickness: 35,
+    massageLabDnaOutlineThickness: 0.75,
+    massageLabTwistedCubesLayerCount: 18,
+    massageLabTwistedCubesRotationSpeed: 1.25,
+    massageLabTwistedCubesLayerStagger: 0.15,
+    massageLabTwistedCubesViewAngleX: -20,
+    massageLabTwistedCubesViewAngleY: 20,
+    massageLabTwistedCubesScale: 0.85,
+    massageLabTwistedCubesPositionX: 8,
+    massageLabTwistedCubesPositionY: -8,
+    massageLabTwistedCubesLayerDepthSpacing: 42,
+    massageLabTwistedCubesOpacityFalloff: 0.6,
+    massageLabTwistedCubesOutlineThickness: 0.01,
+  }
+  const expectedDna = {
+    strandCount: 15,
+    nodeMotionSpeed: 1.25,
+    strandRotationSpeed: 1.5,
+    strandAngle: 45,
+    scale: 0.9,
+    positionX: 5,
+    positionY: -5,
+    strandSpacing: 0.75,
+    connectorWidth: 88,
+    connectorThickness: 35,
+    outlineThickness: 0.75,
+  }
+  const expectedCubes = {
+    layerCount: 18,
+    rotationSpeed: 1.25,
+    layerStagger: 0.15,
+    viewAngleX: -20,
+    viewAngleY: 20,
+    scale: 0.85,
+    positionX: 8,
+    positionY: -8,
+    layerDepthSpacing: 42,
+    opacityFalloff: 0.6,
+    outlineThickness: 0.01,
+  }
+  const access = {
+    featureKeys: ["premium_backgrounds"],
+    ownedBackgroundIds: [],
+  }
+  const contexts = [
+    ["active Chimer", "chimer"],
+    ["ordinary Clock", "clock"],
+    ["Music visualizer", "music"],
+    ["ambient Host", "ambient"],
+  ]
+
+  for (const [label, category] of contexts) {
+    assert.equal(
+      resolveAccessibleBackgroundDefinition("massage-lab-dna", access, category).id,
+      "massage-lab-dna",
+      label,
+    )
+    assert.equal(
+      resolveAccessibleBackgroundDefinition("massage-lab-twisted-cubes", access, category).id,
+      "massage-lab-twisted-cubes",
+      label,
+    )
+    assert.deepEqual(getDnaBackgroundOptionsFromChimerSettings(settings), expectedDna, label)
+    assert.deepEqual(getTwistedCubesBackgroundOptionsFromChimerSettings(settings), expectedCubes, label)
+  }
 })

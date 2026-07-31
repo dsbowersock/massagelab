@@ -14,7 +14,12 @@ import {
   normalizeChimerBackgroundVisualPreferences,
   sanitizeChimerSettings,
 } from "../lib/chimer-timer.js"
-import { buildUserPreferencePayload } from "../lib/account-preferences.js"
+import {
+  buildUserPreferencePayload,
+  createChimerPreferenceSyncRequest,
+  createChimerPreferenceSyncRetry,
+  resolveChimerPreferenceSyncRequest,
+} from "../lib/account-preferences.js"
 import {
   backgroundPaletteRegistry,
   backgroundPreferenceNormalizationOptions,
@@ -246,36 +251,109 @@ describe("Shared background preference access and retry wiring", () => {
 })
 
 describe("DNA and Twisted Cubes non-color persistence", () => {
-  it("sanitizes all 22 adapter-owned keys without serializing transient renderer values", () => {
-    const dnaKeys = backgroundPaletteRegistry["massage-lab-dna"].visualPropertyKeys
-    const cubesKeys = backgroundPaletteRegistry["massage-lab-twisted-cubes"].visualPropertyKeys
-    assert.equal(dnaKeys.length, 11)
-    assert.equal(cubesKeys.length, 11)
+  const cases = [
+    {
+      backgroundId: "massage-lab-dna",
+      presetId: "dna",
+      properties: {
+        massageLabDnaStrandCount: { invalid: 999, expected: 25 },
+        massageLabDnaNodeMotionSpeed: { invalid: -999, expected: 0.25 },
+        massageLabDnaStrandRotationSpeed: { invalid: 999, expected: 3 },
+        massageLabDnaStrandAngle: { invalid: -999, expected: -180 },
+        massageLabDnaScale: { invalid: 999, expected: 1.2 },
+        massageLabDnaPositionX: { invalid: -999, expected: -35 },
+        massageLabDnaPositionY: { invalid: 999, expected: 35 },
+        massageLabDnaStrandSpacing: { invalid: -999, expected: 0 },
+        massageLabDnaConnectorWidth: { invalid: 999, expected: 100 },
+        massageLabDnaConnectorThickness: { invalid: -999, expected: 10 },
+        massageLabDnaOutlineThickness: { invalid: 999, expected: 1.5 },
+      },
+    },
+    {
+      backgroundId: "massage-lab-twisted-cubes",
+      presetId: "cubes",
+      properties: {
+        massageLabTwistedCubesLayerCount: { invalid: -999, expected: 6 },
+        massageLabTwistedCubesRotationSpeed: { invalid: 999, expected: 3 },
+        massageLabTwistedCubesLayerStagger: { invalid: -999, expected: 0 },
+        massageLabTwistedCubesViewAngleX: { invalid: 999, expected: 80 },
+        massageLabTwistedCubesViewAngleY: { invalid: -999, expected: -80 },
+        massageLabTwistedCubesScale: { invalid: -999, expected: 0.4 },
+        massageLabTwistedCubesPositionX: { invalid: 999, expected: 35 },
+        massageLabTwistedCubesPositionY: { invalid: -999, expected: -35 },
+        massageLabTwistedCubesLayerDepthSpacing: { invalid: 999, expected: 70 },
+        massageLabTwistedCubesOpacityFalloff: { invalid: -999, expected: 0 },
+        massageLabTwistedCubesOutlineThickness: { invalid: 999, expected: 0.02 },
+      },
+    },
+  ]
 
-    const sanitized = sanitizeWithRegistry({
-      massageLabDnaStrandCount: 999,
-      massageLabDnaNodeMotionSpeed: -1,
-      massageLabTwistedCubesLayerCount: 999,
-      massageLabTwistedCubesOutlineThickness: 99,
+  it("sanitizes every key through local, account Apply, preset/default, and exact retry payloads", () => {
+    const invalidProperties = Object.fromEntries(cases.flatMap(({ properties }) => (
+      Object.entries(properties).map(([key, value]) => [key, value.invalid])
+    )))
+    const expectedProperties = Object.fromEntries(cases.flatMap(({ properties }) => (
+      Object.entries(properties).map(([key, value]) => [key, value.expected])
+    )))
+    const raw = {
+      ...invalidProperties,
       backgroundVisualPreferences: {
         visualPresetsByBackground: {
-          "massage-lab-dna": [{ id: "dna", name: "DNA", properties: Object.fromEntries(dnaKeys.map((key) => [key, 999])), mapping: {} }],
-          "massage-lab-twisted-cubes": [{ id: "cubes", name: "Cubes", properties: Object.fromEntries(cubesKeys.map((key) => [key, 999])), mapping: {} }],
+          ...Object.fromEntries(cases.map(({ backgroundId, presetId, properties }) => [
+            backgroundId,
+            [{
+              id: presetId,
+              name: presetId,
+              properties: Object.fromEntries(Object.entries(properties).map(([key, value]) => [key, value.invalid])),
+              mapping: {},
+            }],
+          ])),
         },
+        defaultVisualPresetByBackground: Object.fromEntries(
+          cases.map(({ backgroundId, presetId }) => [backgroundId, presetId]),
+        ),
       },
       nodeRoleAssignments: [0, 1],
       outlineAnchors: ["#ffffff"],
       derivedAlpha: 0.5,
+    }
+    const locallySanitized = sanitizeWithRegistry(raw)
+    const applyRequest = createChimerPreferenceSyncRequest(raw, {
+      backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
+      requestId: 41,
     })
-    const payload = buildUserPreferencePayload({ chimerSettings: sanitized }, {
+    const accountSettings = JSON.parse(applyRequest.requestBody).chimerSettings
+    const stale = resolveChimerPreferenceSyncRequest(applyRequest, applyRequest, false)
+    const retry = createChimerPreferenceSyncRetry(stale, 42)
+    const retrySettings = JSON.parse(retry.requestBody).chimerSettings
+    const payload = buildUserPreferencePayload({ chimerSettings: locallySanitized }, {
       backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
     })
     const serialized = JSON.stringify(payload)
 
-    assert.equal(sanitized.massageLabDnaStrandCount, 25)
-    assert.equal(sanitized.massageLabDnaNodeMotionSpeed, 0.25)
-    assert.equal(sanitized.massageLabTwistedCubesLayerCount, 30)
-    assert.equal(sanitized.massageLabTwistedCubesOutlineThickness, 0.02)
+    for (const [key, expected] of Object.entries(expectedProperties)) {
+      assert.equal(locallySanitized[key], expected, `local ${key}`)
+      assert.equal(accountSettings[key], expected, `account Apply ${key}`)
+      assert.equal(retrySettings[key], expected, `account retry ${key}`)
+    }
+    for (const { backgroundId, presetId, properties } of cases) {
+      const expectedPresetProperties = Object.fromEntries(
+        Object.entries(properties).map(([key, value]) => [key, value.expected]),
+      )
+      for (const settings of [locallySanitized, accountSettings, retrySettings]) {
+        assert.deepEqual(
+          settings.backgroundVisualPreferences.visualPresetsByBackground[backgroundId][0].properties,
+          expectedPresetProperties,
+        )
+        assert.equal(
+          settings.backgroundVisualPreferences.defaultVisualPresetByBackground[backgroundId],
+          presetId,
+        )
+      }
+    }
+    assert.equal(retry.status, "pending")
+    assert.equal(retry.requestId, 42)
+    assert.equal(retry.requestBody, applyRequest.requestBody)
     assert.doesNotMatch(serialized, /nodeRoleAssignments|outlineAnchors|derivedAlpha/)
   })
 })

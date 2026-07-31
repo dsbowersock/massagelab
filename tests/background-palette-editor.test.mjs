@@ -167,12 +167,22 @@ test("BackgroundHost applies the resolved palette to its persistent fallback lay
   assert.doesNotMatch(backgroundHostSource, /style=\{entry\.fallbackStyle\}/)
 })
 
-test("BackgroundHost review mounting bypasses reduced motion without bypassing an explicit pause", () => {
+test("BackgroundHost mounts only active or static-capable effects and treats explicit pause as reduced motion", () => {
   assert.match(
     backgroundHostSource,
-    /entry\.motionIntensity === "static"\s*\|\| \(motionEnabled && \(forceEffectMount \|\| !reduceMotion\)\)/,
+    /const reduceMotion = !motionEnabled \|\| shouldReduceAmbientMotion/,
   )
-  assert.doesNotMatch(backgroundHostSource, /\|\| forceEffectMount\s*\|\|/)
+  assert.match(
+    backgroundHostSource,
+    /entry\.component &&\s*\(!reduceMotion \|\| entry\.motionIntensity === "static" \|\| entry\.supportsReducedMotionStatic\)/,
+  )
+  assert.doesNotMatch(
+    backgroundHostSource.slice(
+      backgroundHostSource.indexOf("const shouldLoadEffect"),
+      backgroundHostSource.indexOf("const { baseEffectProps", backgroundHostSource.indexOf("const shouldLoadEffect")),
+    ),
+    /forceEffectMount|motionEnabled/,
+  )
 })
 
 test("Visual summaries exclude shared colors and retain the active role mapping", () => {
