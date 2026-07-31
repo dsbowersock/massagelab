@@ -13,8 +13,11 @@ import {
   MAX_CHIMER_DURATION_MS,
   normalizeHexColor,
   normalizeInteger,
+  normalizeChimerBackgroundVisualPreferences,
+  parseGlobeCoordinateDraft,
   sanitizeChimerSettings,
   sanitizeChimerSettingsForEntitlements,
+  sanitizeChimerSettingsPatchForEntitlements,
 } from "../lib/chimer-timer.js"
 import {
   combineTileGridFadeParts,
@@ -23,7 +26,137 @@ import {
   TILE_GRID_FADE_SECONDS_MAX,
 } from "../lib/tile-grid-background.js"
 
+const novatrixPreferenceOptions = {
+  isKnownBackgroundId: (backgroundId) => backgroundId === "massage-lab-novatrix",
+  getVisualPropertyKeys: (backgroundId) => (
+    backgroundId === "massage-lab-novatrix" ? ["massageLabNovatrixSpeed"] : null
+  ),
+  getColorRoleIds: (backgroundId) => (
+    backgroundId === "massage-lab-novatrix" ? ["field"] : null
+  ),
+}
+
 describe("Chimer timer helpers", () => {
+  it("commits globe coordinate drafts only when finite and in range", () => {
+    assert.equal(parseGlobeCoordinateDraft("40.1234", -90, 90), 40.1234)
+    assert.equal(parseGlobeCoordinateDraft("-180", -180, 180), -180)
+    assert.equal(parseGlobeCoordinateDraft("", -90, 90), null)
+    assert.equal(parseGlobeCoordinateDraft("-", -90, 90), null)
+    assert.equal(parseGlobeCoordinateDraft("Infinity", -90, 90), null)
+    assert.equal(parseGlobeCoordinateDraft("90.1", -90, 90), null)
+    assert.equal(parseGlobeCoordinateDraft("-180.1", -180, 180), null)
+  })
+
+  it("normalizes nested shared background preferences without changing non-color settings", () => {
+    const settings = sanitizeChimerSettings({
+      minutes: 45,
+      keepTimerScreenAwake: false,
+      massageLabNovatrixSpeed: 1.75,
+      backgroundVisualPreferences: {
+        version: 1,
+        palette: {
+          mode: "custom",
+          primaryColor: "#123456",
+          swatches: ["#123456", "#234567", "#345678", "#456789", "#56789a", "#6789ab", "#789abc"],
+        },
+        visualPresetsByBackground: {
+          "massage-lab-novatrix": [{
+            id: "novatrix-fast",
+            name: "Fast",
+            properties: {
+              massageLabNovatrixSpeed: 999,
+              unknownRendererProperty: true,
+            },
+            mapping: {
+              field: 5,
+              staleRole: 2,
+            },
+          }],
+        },
+      },
+    }, { backgroundPreferenceOptions: novatrixPreferenceOptions })
+
+    assert.equal(DEFAULT_CHIMER_SETTINGS.backgroundVisualPreferences.version, 1)
+    assert.equal(settings.minutes, 45)
+    assert.equal(settings.keepTimerScreenAwake, false)
+    assert.equal(settings.massageLabNovatrixSpeed, 1.75)
+    assert.equal(settings.backgroundVisualPreferences.palette.mode, "custom")
+    assert.equal(
+      settings.backgroundVisualPreferences.visualPresetsByBackground["massage-lab-novatrix"][0]
+        .properties.massageLabNovatrixSpeed,
+      3,
+    )
+    assert.equal(
+      "unknownRendererProperty" in settings.backgroundVisualPreferences
+        .visualPresetsByBackground["massage-lab-novatrix"][0].properties,
+      false,
+    )
+    assert.deepEqual(
+      settings.backgroundVisualPreferences
+        .visualPresetsByBackground["massage-lab-novatrix"][0].mapping,
+      { field: 5 },
+    )
+    assert.deepEqual(
+      normalizeChimerBackgroundVisualPreferences(
+        settings.backgroundVisualPreferences,
+        novatrixPreferenceOptions,
+      ),
+      settings.backgroundVisualPreferences,
+    )
+  })
+
+  it("ordinary patches retain only untouched tuning authorized by owned backgrounds", () => {
+    const current = {
+      ...DEFAULT_CHIMER_SETTINGS,
+      backgroundId: DEFAULT_CHIMER_SETTINGS.backgroundId,
+      minutes: 20,
+      massageLabNovatrixSpeed: 2.5,
+    }
+    const access = {
+      featureKeys: [],
+      ownedBackgroundIds: ["massage-lab-novatrix"],
+    }
+    const options = {
+      backgroundPreferenceOptions: novatrixPreferenceOptions,
+    }
+
+    assert.equal(
+      sanitizeChimerSettingsForEntitlements(current, access, options)
+        .massageLabNovatrixSpeed,
+      DEFAULT_CHIMER_SETTINGS.massageLabNovatrixSpeed,
+    )
+    const durationPatch = sanitizeChimerSettingsPatchForEntitlements(
+      current,
+      { minutes: 45 },
+      access,
+      options,
+    )
+    assert.equal(durationPatch.minutes, 45)
+    assert.equal(durationPatch.massageLabNovatrixSpeed, 2.5)
+
+    const explicitVisualPatch = sanitizeChimerSettingsPatchForEntitlements(
+      current,
+      { massageLabNovatrixSpeed: 2.75 },
+      access,
+      options,
+    )
+    assert.equal(
+      explicitVisualPatch.massageLabNovatrixSpeed,
+      DEFAULT_CHIMER_SETTINGS.massageLabNovatrixSpeed,
+    )
+
+    const revokedPatch = sanitizeChimerSettingsPatchForEntitlements(
+      current,
+      { minutes: 45 },
+      { featureKeys: [], ownedBackgroundIds: [] },
+      options,
+    )
+    assert.equal(
+      revokedPatch.massageLabNovatrixSpeed,
+      DEFAULT_CHIMER_SETTINGS.massageLabNovatrixSpeed,
+    )
+  })
+
   it("converts selected hours and minutes into milliseconds", () => {
     assert.equal(getTotalTimerMs(1, 30), 90 * 60 * 1000)
     assert.equal(getTotalTimerMs("0", "45"), 45 * 60 * 1000)
@@ -365,14 +498,6 @@ describe("Chimer timer helpers", () => {
   it("normalizes moving background colors", () => {
     assert.equal(normalizeHexColor("#ff7a1a", "#000000"), "#FF7A1A")
     assert.equal(normalizeHexColor("not-a-color", "#4169E1"), "#4169E1")
-    assert.equal(sanitizeChimerSettings({
-      movingBackgroundMainColor: "#123abc",
-      movingBackgroundOrbColor: "bad",
-    }).movingBackgroundMainColor, "#123ABC")
-    assert.equal(sanitizeChimerSettings({
-      movingBackgroundMainColor: "#123abc",
-      movingBackgroundOrbColor: "bad",
-    }).movingBackgroundOrbColor, DEFAULT_CHIMER_SETTINGS.movingBackgroundOrbColor)
   })
 
   it("normalizes Spotlight background controls", () => {
@@ -387,7 +512,6 @@ describe("Chimer timer helpers", () => {
       spotlightXOffset: -10,
     })
 
-    assert.equal(settings.spotlightColor, "#AABBCC")
     assert.equal(settings.spotlightOpacity, 1.5)
     assert.equal(settings.spotlightWidth, 240)
     assert.equal(settings.spotlightHeight, 1800)
@@ -404,21 +528,7 @@ describe("Chimer timer helpers", () => {
       massageLabGradientOpacity: 99,
     })
 
-    assert.equal(settings.massageLabGradientPrimaryColor, "#112233")
-    assert.equal(settings.massageLabGradientHarmony, "triad")
     assert.equal(settings.massageLabGradientOpacity, 1)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabGradientFromColor: "#445566" }).massageLabGradientPrimaryColor,
-      "#445566",
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabGradientPrimaryColor: "bad" }).massageLabGradientPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabGradientPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabGradientHarmony: "rainbow" }).massageLabGradientHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabGradientHarmony,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabGradientOpacity: "clear" }).massageLabGradientOpacity,
       DEFAULT_CHIMER_SETTINGS.massageLabGradientOpacity,
@@ -433,14 +543,9 @@ describe("Chimer timer helpers", () => {
       massageLabStarsParallax: 9,
     })
 
-    assert.equal(settings.massageLabStarsColor, "#AABBCC")
     assert.equal(settings.massageLabStarsSpeed, 120)
     assert.equal(settings.massageLabStarsDensity, 0.25)
     assert.equal(settings.massageLabStarsParallax, 0.12)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabStarsColor: "white" }).massageLabStarsColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabStarsColor,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabStarsSpeed: "fast" }).massageLabStarsSpeed,
       DEFAULT_CHIMER_SETTINGS.massageLabStarsSpeed,
@@ -463,18 +568,8 @@ describe("Chimer timer helpers", () => {
       massageLabHoleDiscCount: 0,
     })
 
-    assert.equal(settings.massageLabHoleStrokeColor, "#112233")
-    assert.equal(settings.massageLabHoleParticleColor, "#AABBCC")
     assert.equal(settings.massageLabHoleLineCount, 96)
     assert.equal(settings.massageLabHoleDiscCount, 12)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabHoleStrokeColor: "gray" }).massageLabHoleStrokeColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabHoleStrokeColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabHoleParticleColor: "white" }).massageLabHoleParticleColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabHoleParticleColor,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabHoleLineCount: "many" }).massageLabHoleLineCount,
       DEFAULT_CHIMER_SETTINGS.massageLabHoleLineCount,
@@ -499,7 +594,6 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabLightSpeedWarpSpeed, 0.1)
     assert.equal(settings.massageLabLightSpeedWarpSpeedVersion, 2)
     assert.equal(settings.massageLabLightSpeedParticleCount, 200)
-    assert.equal(settings.massageLabLightSpeedLightColor, "#33B2FF")
     assert.equal(settings.massageLabLightSpeedIntensity, 6)
     assert.equal(settings.massageLabLightSpeedRadius, 6)
     assert.equal(settings.massageLabLightSpeedCylinderLength, 300)
@@ -522,10 +616,6 @@ describe("Chimer timer helpers", () => {
       sanitizeChimerSettings({ massageLabLightSpeedParticleCount: "many" }).massageLabLightSpeedParticleCount,
       DEFAULT_CHIMER_SETTINGS.massageLabLightSpeedParticleCount,
     )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabLightSpeedLightColor: "purple" }).massageLabLightSpeedLightColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabLightSpeedLightColor,
-    )
   })
 
   it("normalizes MassageLab Electric Mist background controls", () => {
@@ -538,7 +628,6 @@ describe("Chimer timer helpers", () => {
       massageLabElectricMistBrightness: 0,
     })
 
-    assert.equal(settings.massageLabElectricMistColor, "#33B2FF")
     assert.equal(settings.massageLabElectricMistSpeed, 400)
     assert.equal(settings.massageLabElectricMistControlVersion, 2)
     assert.equal(settings.massageLabElectricMistDetail, 0.5)
@@ -550,17 +639,12 @@ describe("Chimer timer helpers", () => {
     })
     assert.equal(legacySettings.massageLabElectricMistSpeed, 350)
     assert.equal(legacySettings.massageLabElectricMistBrightness, 50)
-    assert.equal(legacySettings.massageLabElectricMistControlVersion, 2)
     assert.equal(
       sanitizeChimerSettings({
         massageLabElectricMistControlVersion: 2,
         massageLabElectricMistBrightness: 1,
       }).massageLabElectricMistBrightness,
       1,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabElectricMistColor: "blue" }).massageLabElectricMistColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabElectricMistColor,
     )
     assert.equal(
       sanitizeChimerSettings({ massageLabElectricMistSpeed: "fast" }).massageLabElectricMistSpeed,
@@ -580,6 +664,20 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("round-trips non-color renderer migration markers idempotently", () => {
+    const first = sanitizeChimerSettings({
+      massageLabLightSpeedWarpSpeed: 0.4,
+      massageLabLightSpeedWarpSpeedVersion: 2,
+      massageLabElectricMistSpeed: 275,
+      massageLabElectricMistControlVersion: 2,
+    })
+    const second = sanitizeChimerSettings(first)
+
+    assert.equal(first.massageLabLightSpeedWarpSpeedVersion, 2)
+    assert.equal(first.massageLabElectricMistControlVersion, 2)
+    assert.deepEqual(second, first)
+  })
+
   it("normalizes MassageLab Astral Flow background controls", () => {
     const settings = sanitizeChimerSettings({
       massageLabAstralFlowPaletteMode: "harmony",
@@ -593,12 +691,6 @@ describe("Chimer timer helpers", () => {
       massageLabAstralFlowFlowMax: 99,
     })
 
-    assert.equal(settings.massageLabAstralFlowPaletteMode, "harmony")
-    assert.equal(settings.massageLabAstralFlowPrimaryColor, "#A0769A")
-    assert.equal(settings.massageLabAstralFlowHarmony, "triad")
-    assert.equal(settings.massageLabAstralFlowColorOne, "#05070A")
-    assert.equal(settings.massageLabAstralFlowColorTwo, DEFAULT_CHIMER_SETTINGS.massageLabAstralFlowColorTwo)
-    assert.equal(settings.massageLabAstralFlowColorThree, "#A0769A")
     assert.equal(settings.massageLabAstralFlowSpeed, 3)
     assert.equal(settings.massageLabAstralFlowFlowMin, 0.5)
     assert.equal(settings.massageLabAstralFlowFlowMax, 12)
@@ -607,18 +699,6 @@ describe("Chimer timer helpers", () => {
       DEFAULT_CHIMER_SETTINGS.massageLabAstralFlowSpeed,
     )
     assert.equal(sanitizeChimerSettings({ massageLabAstralFlowSpeed: 0 }).massageLabAstralFlowSpeed, 0.1)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabAstralFlowPaletteMode: "demo" }).massageLabAstralFlowPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabAstralFlowPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabAstralFlowPrimaryColor: "mauve" }).massageLabAstralFlowPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabAstralFlowPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabAstralFlowHarmony: "rainbow" }).massageLabAstralFlowHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabAstralFlowHarmony,
-    )
   })
 
   it("normalizes MassageLab Deep Space Nebula background controls", () => {
@@ -632,30 +712,12 @@ describe("Chimer timer helpers", () => {
       massageLabDeepSpaceNebulaSpeed: 99,
     })
 
-    assert.equal(settings.massageLabDeepSpaceNebulaPaletteMode, "harmony")
-    assert.equal(settings.massageLabDeepSpaceNebulaPrimaryColor, "#763B65")
-    assert.equal(settings.massageLabDeepSpaceNebulaHarmony, "triad")
-    assert.equal(settings.massageLabDeepSpaceNebulaColorOne, "#5EFFF4")
-    assert.equal(settings.massageLabDeepSpaceNebulaColorTwo, DEFAULT_CHIMER_SETTINGS.massageLabDeepSpaceNebulaColorTwo)
-    assert.equal(settings.massageLabDeepSpaceNebulaColorThree, "#1A0B2E")
     assert.equal(settings.massageLabDeepSpaceNebulaSpeed, 5)
     assert.equal(
       sanitizeChimerSettings({ massageLabDeepSpaceNebulaSpeed: "fast" }).massageLabDeepSpaceNebulaSpeed,
       DEFAULT_CHIMER_SETTINGS.massageLabDeepSpaceNebulaSpeed,
     )
     assert.equal(sanitizeChimerSettings({ massageLabDeepSpaceNebulaSpeed: 0 }).massageLabDeepSpaceNebulaSpeed, 0.1)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabDeepSpaceNebulaPaletteMode: "demo" }).massageLabDeepSpaceNebulaPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabDeepSpaceNebulaPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabDeepSpaceNebulaPrimaryColor: "mauve" }).massageLabDeepSpaceNebulaPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabDeepSpaceNebulaPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabDeepSpaceNebulaHarmony: "rainbow" }).massageLabDeepSpaceNebulaHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabDeepSpaceNebulaHarmony,
-    )
   })
 
   it("normalizes MassageLab Grid Bloom background controls", () => {
@@ -670,7 +732,6 @@ describe("Chimer timer helpers", () => {
       massageLabGridBloomFlowSpeedY: 99,
     })
 
-    assert.equal(settings.massageLabGridBloomColor, "#E040FB")
     assert.equal(settings.massageLabGridBloomSpeed, 3)
     assert.equal(settings.massageLabGridBloomGridScale, 32)
     assert.equal(settings.massageLabGridBloomRotationSpeed, -3)
@@ -678,10 +739,6 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabGridBloomDistortionAmount, 0.5)
     assert.equal(settings.massageLabGridBloomFlowSpeedX, -2)
     assert.equal(settings.massageLabGridBloomFlowSpeedY, 2)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabGridBloomColor: "purple" }).massageLabGridBloomColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabGridBloomColor,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabGridBloomSpeed: "fast" }).massageLabGridBloomSpeed,
       DEFAULT_CHIMER_SETTINGS.massageLabGridBloomSpeed,
@@ -708,11 +765,6 @@ describe("Chimer timer helpers", () => {
       massageLabChromeFlowTimeScale: 99,
     })
 
-    assert.equal(settings.massageLabChromeFlowPaletteMode, "harmony")
-    assert.equal(settings.massageLabChromeFlowPrimaryColor, "#C0C0C0")
-    assert.equal(settings.massageLabChromeFlowHarmony, "triad")
-    assert.equal(settings.massageLabChromeFlowColorOne, "#C0C0C0")
-    assert.equal(settings.massageLabChromeFlowColorTwo, DEFAULT_CHIMER_SETTINGS.massageLabChromeFlowColorTwo)
     assert.equal(settings.massageLabChromeFlowFlowSpeed, 2)
     assert.equal(settings.massageLabChromeFlowTimeScale, 1)
     assert.equal(
@@ -725,14 +777,6 @@ describe("Chimer timer helpers", () => {
       DEFAULT_CHIMER_SETTINGS.massageLabChromeFlowTimeScale,
     )
     assert.equal(sanitizeChimerSettings({ massageLabChromeFlowTimeScale: 0 }).massageLabChromeFlowTimeScale, 0.001)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabChromeFlowPaletteMode: "demo" }).massageLabChromeFlowPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabChromeFlowPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabChromeFlowHarmony: "rainbow" }).massageLabChromeFlowHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabChromeFlowHarmony,
-    )
   })
 
   it("normalizes MassageLab Wave Current background controls", () => {
@@ -749,13 +793,6 @@ describe("Chimer timer helpers", () => {
       massageLabWaveCurrentAmplitude: 128,
     })
 
-    assert.equal(settings.massageLabWaveCurrentPaletteMode, "harmony")
-    assert.equal(settings.massageLabWaveCurrentPrimaryColor, "#071697")
-    assert.equal(settings.massageLabWaveCurrentHarmony, "triad")
-    assert.equal(settings.massageLabWaveCurrentBackgroundColor, "#000000")
-    assert.equal(settings.massageLabWaveCurrentColorOne, "#071697")
-    assert.equal(settings.massageLabWaveCurrentColorTwo, "#00D4FF")
-    assert.equal(settings.massageLabWaveCurrentColorThree, DEFAULT_CHIMER_SETTINGS.massageLabWaveCurrentColorThree)
     assert.equal(settings.massageLabWaveCurrentSpeedX, 0.1)
     assert.equal(settings.massageLabWaveCurrentSpeedY, 0.001)
     assert.equal(settings.massageLabWaveCurrentAmplitude, 64)
@@ -770,18 +807,6 @@ describe("Chimer timer helpers", () => {
     assert.equal(
       sanitizeChimerSettings({ massageLabWaveCurrentAmplitude: "big" }).massageLabWaveCurrentAmplitude,
       DEFAULT_CHIMER_SETTINGS.massageLabWaveCurrentAmplitude,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabWaveCurrentPaletteMode: "demo" }).massageLabWaveCurrentPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabWaveCurrentPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabWaveCurrentPrimaryColor: "blue" }).massageLabWaveCurrentPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabWaveCurrentPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabWaveCurrentHarmony: "rainbow" }).massageLabWaveCurrentHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabWaveCurrentHarmony,
     )
   })
 
@@ -805,12 +830,6 @@ describe("Chimer timer helpers", () => {
       massageLabFerrofluidOpacity: 0,
     })
 
-    assert.equal(settings.massageLabFerrofluidPaletteMode, "harmony")
-    assert.equal(settings.massageLabFerrofluidPrimaryColor, "#FFFFFF")
-    assert.equal(settings.massageLabFerrofluidHarmony, "triad")
-    assert.equal(settings.massageLabFerrofluidColorOne, "#010203")
-    assert.equal(settings.massageLabFerrofluidColorTwo, "#AABBCC")
-    assert.equal(settings.massageLabFerrofluidColorThree, DEFAULT_CHIMER_SETTINGS.massageLabFerrofluidColorThree)
     assert.equal(settings.massageLabFerrofluidSpeed, 2)
     assert.equal(settings.massageLabFerrofluidScale, 4)
     assert.equal(settings.massageLabFerrofluidTurbulence, 0)
@@ -861,18 +880,6 @@ describe("Chimer timer helpers", () => {
       sanitizeChimerSettings({ massageLabFerrofluidOpacity: "clear" }).massageLabFerrofluidOpacity,
       DEFAULT_CHIMER_SETTINGS.massageLabFerrofluidOpacity,
     )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabFerrofluidPaletteMode: "demo" }).massageLabFerrofluidPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabFerrofluidPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabFerrofluidPrimaryColor: "white" }).massageLabFerrofluidPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabFerrofluidPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabFerrofluidHarmony: "rainbow" }).massageLabFerrofluidHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabFerrofluidHarmony,
-    )
   })
 
   it("normalizes MassageLab Lightfall background controls", () => {
@@ -900,13 +907,6 @@ describe("Chimer timer helpers", () => {
       massageLabLightfallCursorDampening: 9,
     })
 
-    assert.equal(settings.massageLabLightfallPaletteMode, "harmony")
-    assert.equal(settings.massageLabLightfallPrimaryColor, "#A6C8FF")
-    assert.equal(settings.massageLabLightfallHarmony, "triad")
-    assert.equal(settings.massageLabLightfallColorOne, "#010203")
-    assert.equal(settings.massageLabLightfallColorTwo, "#AABBCC")
-    assert.equal(settings.massageLabLightfallColorThree, DEFAULT_CHIMER_SETTINGS.massageLabLightfallColorThree)
-    assert.equal(settings.massageLabLightfallBackgroundColor, "#0A29FF")
     assert.equal(settings.massageLabLightfallSpeed, 2)
     assert.equal(settings.massageLabLightfallStreakCount, 16)
     assert.equal(settings.massageLabLightfallStreakWidth, 0.2)
@@ -977,22 +977,6 @@ describe("Chimer timer helpers", () => {
       sanitizeChimerSettings({ massageLabLightfallCursorDampening: "smooth" }).massageLabLightfallCursorDampening,
       DEFAULT_CHIMER_SETTINGS.massageLabLightfallCursorDampening,
     )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabLightfallPaletteMode: "demo" }).massageLabLightfallPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabLightfallPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabLightfallPrimaryColor: "blue" }).massageLabLightfallPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabLightfallPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabLightfallHarmony: "rainbow" }).massageLabLightfallHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabLightfallHarmony,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabLightfallBackgroundColor: "blue" }).massageLabLightfallBackgroundColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabLightfallBackgroundColor,
-    )
   })
 
   it("normalizes MassageLab Liquid Ether background controls", () => {
@@ -1022,12 +1006,6 @@ describe("Chimer timer helpers", () => {
       massageLabLiquidEtherOpacity: 0,
     })
 
-    assert.equal(settings.massageLabLiquidEtherPaletteMode, "harmony")
-    assert.equal(settings.massageLabLiquidEtherPrimaryColor, "#5227FF")
-    assert.equal(settings.massageLabLiquidEtherHarmony, "triad")
-    assert.equal(settings.massageLabLiquidEtherColorOne, "#010203")
-    assert.equal(settings.massageLabLiquidEtherColorTwo, "#AABBCC")
-    assert.equal(settings.massageLabLiquidEtherColorThree, DEFAULT_CHIMER_SETTINGS.massageLabLiquidEtherColorThree)
     assert.equal(settings.massageLabLiquidEtherCursorEnabled, true)
     assert.equal(settings.massageLabLiquidEtherMouseForce, 80)
     assert.equal(settings.massageLabLiquidEtherCursorSize, 20)
@@ -1112,18 +1090,6 @@ describe("Chimer timer helpers", () => {
     assert.equal(
       sanitizeChimerSettings({ massageLabLiquidEtherOpacity: "clear" }).massageLabLiquidEtherOpacity,
       DEFAULT_CHIMER_SETTINGS.massageLabLiquidEtherOpacity,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabLiquidEtherPaletteMode: "demo" }).massageLabLiquidEtherPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabLiquidEtherPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabLiquidEtherPrimaryColor: "purple" }).massageLabLiquidEtherPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabLiquidEtherPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabLiquidEtherHarmony: "rainbow" }).massageLabLiquidEtherHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabLiquidEtherHarmony,
     )
   })
 
@@ -1293,11 +1259,6 @@ describe("Chimer timer helpers", () => {
       massageLabLightPillarQuality: "low",
     })
 
-    assert.equal(settings.massageLabLightPillarPaletteMode, "harmony")
-    assert.equal(settings.massageLabLightPillarPrimaryColor, "#123456")
-    assert.equal(settings.massageLabLightPillarHarmony, "triad")
-    assert.equal(settings.massageLabLightPillarTopColor, "#ABCDEF")
-    assert.equal(settings.massageLabLightPillarBottomColor, "#FEDCBA")
     assert.equal(settings.massageLabLightPillarIntensity, 3)
     assert.equal(settings.massageLabLightPillarRotationSpeed, 0)
     assert.equal(settings.massageLabLightPillarInteractive, true)
@@ -1308,26 +1269,6 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabLightPillarBlendMode, "normal")
     assert.equal(settings.massageLabLightPillarRotation, 180)
     assert.equal(settings.massageLabLightPillarQuality, "low")
-    assert.equal(
-      sanitizeChimerSettings({ massageLabLightPillarPaletteMode: "auto" }).massageLabLightPillarPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabLightPillarPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabLightPillarPrimaryColor: "purple" }).massageLabLightPillarPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabLightPillarPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabLightPillarHarmony: "wild" }).massageLabLightPillarHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabLightPillarHarmony,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabLightPillarTopColor: "violet" }).massageLabLightPillarTopColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabLightPillarTopColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabLightPillarBottomColor: "pink" }).massageLabLightPillarBottomColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabLightPillarBottomColor,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabLightPillarIntensity: "bright" }).massageLabLightPillarIntensity,
       DEFAULT_CHIMER_SETTINGS.massageLabLightPillarIntensity,
@@ -1383,30 +1324,10 @@ describe("Chimer timer helpers", () => {
       massageLabSilkRotation: 99,
     })
 
-    assert.equal(settings.massageLabSilkPaletteMode, "harmony")
-    assert.equal(settings.massageLabSilkPrimaryColor, "#123456")
-    assert.equal(settings.massageLabSilkHarmony, "triad")
-    assert.equal(settings.massageLabSilkColor, "#ABCDEF")
     assert.equal(settings.massageLabSilkSpeed, 10)
     assert.equal(settings.massageLabSilkScale, 0.2)
     assert.equal(settings.massageLabSilkNoiseIntensity, 4)
     assert.equal(settings.massageLabSilkRotation, Math.PI)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabSilkPaletteMode: "auto" }).massageLabSilkPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabSilkPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabSilkPrimaryColor: "purple" }).massageLabSilkPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabSilkPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabSilkHarmony: "wild" }).massageLabSilkHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabSilkHarmony,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabSilkColor: "violet" }).massageLabSilkColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabSilkColor,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabSilkSpeed: "fast" }).massageLabSilkSpeed,
       DEFAULT_CHIMER_SETTINGS.massageLabSilkSpeed,
@@ -1461,12 +1382,6 @@ describe("Chimer timer helpers", () => {
       massageLabFloatingLinesBlendMode: "normal",
     })
 
-    assert.equal(settings.massageLabFloatingLinesPaletteMode, "harmony")
-    assert.equal(settings.massageLabFloatingLinesPrimaryColor, "#123456")
-    assert.equal(settings.massageLabFloatingLinesHarmony, "triad")
-    assert.equal(settings.massageLabFloatingLinesColorOne, "#ABCDEF")
-    assert.equal(settings.massageLabFloatingLinesColorTwo, "#FEDCBA")
-    assert.equal(settings.massageLabFloatingLinesColorThree, "#010203")
     assert.equal(settings.massageLabFloatingLinesEnableTop, false)
     assert.equal(settings.massageLabFloatingLinesEnableMiddle, false)
     assert.equal(settings.massageLabFloatingLinesEnableBottom, true)
@@ -1493,18 +1408,6 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabFloatingLinesParallax, false)
     assert.equal(settings.massageLabFloatingLinesParallaxStrength, 1)
     assert.equal(settings.massageLabFloatingLinesBlendMode, "normal")
-    assert.equal(
-      sanitizeChimerSettings({ massageLabFloatingLinesPaletteMode: "auto" }).massageLabFloatingLinesPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabFloatingLinesPrimaryColor: "purple" }).massageLabFloatingLinesPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabFloatingLinesHarmony: "wild" }).massageLabFloatingLinesHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesHarmony,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabFloatingLinesBlendMode: "multiply" }).massageLabFloatingLinesBlendMode,
       DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesBlendMode,
@@ -1538,11 +1441,6 @@ describe("Chimer timer helpers", () => {
       massageLabSideRaysOpacity: 2,
     })
 
-    assert.equal(settings.massageLabSideRaysPaletteMode, "harmony")
-    assert.equal(settings.massageLabSideRaysPrimaryColor, "#EAB308")
-    assert.equal(settings.massageLabSideRaysHarmony, "triad")
-    assert.equal(settings.massageLabSideRaysColorOne, "#ABCDEF")
-    assert.equal(settings.massageLabSideRaysColorTwo, "#FEDCBA")
     assert.equal(settings.massageLabSideRaysSpeed, 8)
     assert.equal(settings.massageLabSideRaysIntensity, 6)
     assert.equal(settings.massageLabSideRaysSpread, 0.1)
@@ -1552,26 +1450,6 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabSideRaysBlend, 0)
     assert.equal(settings.massageLabSideRaysFalloff, 4)
     assert.equal(settings.massageLabSideRaysOpacity, 1)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabSideRaysPaletteMode: "auto" }).massageLabSideRaysPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabSideRaysPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabSideRaysPrimaryColor: "yellow" }).massageLabSideRaysPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabSideRaysPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabSideRaysHarmony: "wild" }).massageLabSideRaysHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabSideRaysHarmony,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabSideRaysColorOne: "gold" }).massageLabSideRaysColorOne,
-      DEFAULT_CHIMER_SETTINGS.massageLabSideRaysColorOne,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabSideRaysColorTwo: "blue" }).massageLabSideRaysColorTwo,
-      DEFAULT_CHIMER_SETTINGS.massageLabSideRaysColorTwo,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabSideRaysOrigin: "center" }).massageLabSideRaysOrigin,
       DEFAULT_CHIMER_SETTINGS.massageLabSideRaysOrigin,
@@ -1601,10 +1479,6 @@ describe("Chimer timer helpers", () => {
       massageLabLightRaysDistortion: 99,
     })
 
-    assert.equal(settings.massageLabLightRaysPaletteMode, "harmony")
-    assert.equal(settings.massageLabLightRaysPrimaryColor, "#FFFFFF")
-    assert.equal(settings.massageLabLightRaysHarmony, "triad")
-    assert.equal(settings.massageLabLightRaysColor, "#ABCDEF")
     assert.equal(settings.massageLabLightRaysOrigin, "bottom-center")
     assert.equal(settings.massageLabLightRaysSpeed, 4)
     assert.equal(settings.massageLabLightRaysSpread, 0.1)
@@ -1616,22 +1490,6 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabLightRaysMouseInfluence, 0)
     assert.equal(settings.massageLabLightRaysNoiseAmount, 1)
     assert.equal(settings.massageLabLightRaysDistortion, 2)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabLightRaysPaletteMode: "auto" }).massageLabLightRaysPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabLightRaysPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabLightRaysPrimaryColor: "white" }).massageLabLightRaysPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabLightRaysPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabLightRaysHarmony: "wild" }).massageLabLightRaysHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabLightRaysHarmony,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabLightRaysColor: "white" }).massageLabLightRaysColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabLightRaysColor,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabLightRaysOrigin: "center" }).massageLabLightRaysOrigin,
       DEFAULT_CHIMER_SETTINGS.massageLabLightRaysOrigin,
@@ -1677,10 +1535,6 @@ describe("Chimer timer helpers", () => {
       massageLabPixelBlastNoiseAmount: 99,
     })
 
-    assert.equal(settings.massageLabPixelBlastPaletteMode, "harmony")
-    assert.equal(settings.massageLabPixelBlastPrimaryColor, "#FFFFFF")
-    assert.equal(settings.massageLabPixelBlastHarmony, "triad")
-    assert.equal(settings.massageLabPixelBlastColor, "#ABCDEF")
     assert.equal(settings.massageLabPixelBlastVariant, "diamond")
     assert.equal(settings.massageLabPixelBlastPixelSize, 16)
     assert.equal(settings.massageLabPixelBlastAntialias, false)
@@ -1700,22 +1554,6 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabPixelBlastTransparent, false)
     assert.equal(settings.massageLabPixelBlastEdgeFade, 1)
     assert.equal(settings.massageLabPixelBlastNoiseAmount, 0.4)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabPixelBlastPaletteMode: "auto" }).massageLabPixelBlastPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabPixelBlastPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabPixelBlastPrimaryColor: "white" }).massageLabPixelBlastPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabPixelBlastPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabPixelBlastHarmony: "wild" }).massageLabPixelBlastHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabPixelBlastHarmony,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabPixelBlastColor: "white" }).massageLabPixelBlastColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabPixelBlastColor,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabPixelBlastVariant: "hex" }).massageLabPixelBlastVariant,
       DEFAULT_CHIMER_SETTINGS.massageLabPixelBlastVariant,
@@ -1771,13 +1609,6 @@ describe("Chimer timer helpers", () => {
       massageLabColorBendsBandWidth: 99,
     })
 
-    assert.equal(settings.massageLabColorBendsPaletteMode, "harmony")
-    assert.equal(settings.massageLabColorBendsPrimaryColor, "#FFFFFF")
-    assert.equal(settings.massageLabColorBendsHarmony, "triad")
-    assert.equal(settings.massageLabColorBendsColorOne, "#ABCDEF")
-    assert.equal(settings.massageLabColorBendsColorTwo, "#123456")
-    assert.equal(settings.massageLabColorBendsColorThree, "#654321")
-    assert.equal(settings.massageLabColorBendsColorFour, "#010203")
     assert.equal(settings.massageLabColorBendsRotation, 360)
     assert.equal(settings.massageLabColorBendsSpeed, 3)
     assert.equal(settings.massageLabColorBendsTransparent, false)
@@ -1792,22 +1623,6 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabColorBendsIterations, 5)
     assert.equal(settings.massageLabColorBendsIntensity, 4)
     assert.equal(settings.massageLabColorBendsBandWidth, 16)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabColorBendsPaletteMode: "auto" }).massageLabColorBendsPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabColorBendsPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabColorBendsPrimaryColor: "white" }).massageLabColorBendsPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabColorBendsPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabColorBendsHarmony: "wild" }).massageLabColorBendsHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabColorBendsHarmony,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabColorBendsColorOne: "white" }).massageLabColorBendsColorOne,
-      DEFAULT_CHIMER_SETTINGS.massageLabColorBendsColorOne,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabColorBendsSpeed: "fast" }).massageLabColorBendsSpeed,
       DEFAULT_CHIMER_SETTINGS.massageLabColorBendsSpeed,
@@ -1840,11 +1655,6 @@ describe("Chimer timer helpers", () => {
       massageLabEvilEyeInteractive: true,
     })
 
-    assert.equal(settings.massageLabEvilEyePaletteMode, "harmony")
-    assert.equal(settings.massageLabEvilEyePrimaryColor, "#FFFFFF")
-    assert.equal(settings.massageLabEvilEyeHarmony, "triad")
-    assert.equal(settings.massageLabEvilEyeColor, "#ABCDEF")
-    assert.equal(settings.massageLabEvilEyeBackgroundColor, "#010203")
     assert.equal(settings.massageLabEvilEyeIntensity, 3)
     assert.equal(settings.massageLabEvilEyePupilSize, 2)
     assert.equal(settings.massageLabEvilEyeIrisWidth, 1)
@@ -1854,26 +1664,6 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabEvilEyePupilFollow, 2)
     assert.equal(settings.massageLabEvilEyeFlameSpeed, 3)
     assert.equal(settings.massageLabEvilEyeInteractive, true)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabEvilEyePaletteMode: "auto" }).massageLabEvilEyePaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabEvilEyePaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabEvilEyePrimaryColor: "white" }).massageLabEvilEyePrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabEvilEyePrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabEvilEyeHarmony: "wild" }).massageLabEvilEyeHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabEvilEyeHarmony,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabEvilEyeColor: "white" }).massageLabEvilEyeColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabEvilEyeColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabEvilEyeBackgroundColor: "black" }).massageLabEvilEyeBackgroundColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabEvilEyeBackgroundColor,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabEvilEyeFlameSpeed: "fast" }).massageLabEvilEyeFlameSpeed,
       DEFAULT_CHIMER_SETTINGS.massageLabEvilEyeFlameSpeed,
@@ -1904,12 +1694,6 @@ describe("Chimer timer helpers", () => {
       massageLabLineWavesMouseInfluence: 99,
     })
 
-    assert.equal(settings.massageLabLineWavesPaletteMode, "harmony")
-    assert.equal(settings.massageLabLineWavesPrimaryColor, "#FFFFFF")
-    assert.equal(settings.massageLabLineWavesHarmony, "triad")
-    assert.equal(settings.massageLabLineWavesColorOne, "#ABCDEF")
-    assert.equal(settings.massageLabLineWavesColorTwo, "#123456")
-    assert.equal(settings.massageLabLineWavesColorThree, "#654321")
     assert.equal(settings.massageLabLineWavesSpeed, 3)
     assert.equal(settings.massageLabLineWavesInnerLineCount, 96)
     assert.equal(settings.massageLabLineWavesOuterLineCount, 96)
@@ -1920,22 +1704,6 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabLineWavesBrightness, 1.5)
     assert.equal(settings.massageLabLineWavesEnableMouseInteraction, true)
     assert.equal(settings.massageLabLineWavesMouseInfluence, 4)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabLineWavesPaletteMode: "auto" }).massageLabLineWavesPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabLineWavesPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabLineWavesPrimaryColor: "white" }).massageLabLineWavesPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabLineWavesPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabLineWavesHarmony: "wild" }).massageLabLineWavesHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabLineWavesHarmony,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabLineWavesColorOne: "white" }).massageLabLineWavesColorOne,
-      DEFAULT_CHIMER_SETTINGS.massageLabLineWavesColorOne,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabLineWavesSpeed: "fast" }).massageLabLineWavesSpeed,
       DEFAULT_CHIMER_SETTINGS.massageLabLineWavesSpeed,
@@ -1968,11 +1736,6 @@ describe("Chimer timer helpers", () => {
       massageLabRadarMouseInfluence: 99,
     })
 
-    assert.equal(settings.massageLabRadarPaletteMode, "harmony")
-    assert.equal(settings.massageLabRadarPrimaryColor, "#FFFFFF")
-    assert.equal(settings.massageLabRadarHarmony, "triad")
-    assert.equal(settings.massageLabRadarColor, "#ABCDEF")
-    assert.equal(settings.massageLabRadarBackgroundColor, "#010203")
     assert.equal(settings.massageLabRadarSpeed, 3)
     assert.equal(settings.massageLabRadarScale, 2)
     assert.equal(settings.massageLabRadarRingCount, 40)
@@ -1986,22 +1749,6 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabRadarBrightness, 3)
     assert.equal(settings.massageLabRadarEnableMouseInteraction, true)
     assert.equal(settings.massageLabRadarMouseInfluence, 1)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabRadarPaletteMode: "auto" }).massageLabRadarPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabRadarPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabRadarPrimaryColor: "white" }).massageLabRadarPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabRadarPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabRadarHarmony: "wild" }).massageLabRadarHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabRadarHarmony,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabRadarColor: "white" }).massageLabRadarColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabRadarColor,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabRadarSpeed: "fast" }).massageLabRadarSpeed,
       DEFAULT_CHIMER_SETTINGS.massageLabRadarSpeed,
@@ -2033,11 +1780,6 @@ describe("Chimer timer helpers", () => {
       massageLabSoftAuroraMouseInfluence: 99,
     })
 
-    assert.equal(settings.massageLabSoftAuroraPaletteMode, "harmony")
-    assert.equal(settings.massageLabSoftAuroraPrimaryColor, "#FFFFFF")
-    assert.equal(settings.massageLabSoftAuroraHarmony, "triad")
-    assert.equal(settings.massageLabSoftAuroraColorOne, "#ABCDEF")
-    assert.equal(settings.massageLabSoftAuroraColorTwo, "#010203")
     assert.equal(settings.massageLabSoftAuroraSpeed, 3)
     assert.equal(settings.massageLabSoftAuroraScale, 4)
     assert.equal(settings.massageLabSoftAuroraBrightness, 3)
@@ -2050,22 +1792,6 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabSoftAuroraColorSpeed, 4)
     assert.equal(settings.massageLabSoftAuroraEnableMouseInteraction, true)
     assert.equal(settings.massageLabSoftAuroraMouseInfluence, 1)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabSoftAuroraPaletteMode: "auto" }).massageLabSoftAuroraPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabSoftAuroraPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabSoftAuroraPrimaryColor: "white" }).massageLabSoftAuroraPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabSoftAuroraPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabSoftAuroraHarmony: "wild" }).massageLabSoftAuroraHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabSoftAuroraHarmony,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabSoftAuroraColorOne: "white" }).massageLabSoftAuroraColorOne,
-      DEFAULT_CHIMER_SETTINGS.massageLabSoftAuroraColorOne,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabSoftAuroraSpeed: "fast" }).massageLabSoftAuroraSpeed,
       DEFAULT_CHIMER_SETTINGS.massageLabSoftAuroraSpeed,
@@ -2089,31 +1815,11 @@ describe("Chimer timer helpers", () => {
       massageLabPlasmaMouseInteractive: true,
     })
 
-    assert.equal(settings.massageLabPlasmaPaletteMode, "harmony")
-    assert.equal(settings.massageLabPlasmaPrimaryColor, "#FFFFFF")
-    assert.equal(settings.massageLabPlasmaHarmony, "triad")
-    assert.equal(settings.massageLabPlasmaColor, "#ABCDEF")
     assert.equal(settings.massageLabPlasmaSpeed, 3)
     assert.equal(settings.massageLabPlasmaDirection, "pingpong")
     assert.equal(settings.massageLabPlasmaScale, 4)
     assert.equal(settings.massageLabPlasmaOpacity, 1)
     assert.equal(settings.massageLabPlasmaMouseInteractive, true)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabPlasmaPaletteMode: "auto" }).massageLabPlasmaPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabPlasmaPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabPlasmaPrimaryColor: "white" }).massageLabPlasmaPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabPlasmaPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabPlasmaHarmony: "wild" }).massageLabPlasmaHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabPlasmaHarmony,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabPlasmaColor: "white" }).massageLabPlasmaColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabPlasmaColor,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabPlasmaSpeed: "fast" }).massageLabPlasmaSpeed,
       DEFAULT_CHIMER_SETTINGS.massageLabPlasmaSpeed,
@@ -2146,11 +1852,6 @@ describe("Chimer timer helpers", () => {
       massageLabPlasmaWaveBendTwo: 99,
     })
 
-    assert.equal(settings.massageLabPlasmaWavePaletteMode, "harmony")
-    assert.equal(settings.massageLabPlasmaWavePrimaryColor, "#FFFFFF")
-    assert.equal(settings.massageLabPlasmaWaveHarmony, "triad")
-    assert.equal(settings.massageLabPlasmaWaveColorOne, "#ABCDEF")
-    assert.equal(settings.massageLabPlasmaWaveColorTwo, "#010203")
     assert.equal(settings.massageLabPlasmaWaveXOffset, 800)
     assert.equal(settings.massageLabPlasmaWaveYOffset, -800)
     assert.equal(settings.massageLabPlasmaWaveRotationDeg, 180)
@@ -2160,22 +1861,6 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabPlasmaWaveDirectionTwo, -1)
     assert.equal(settings.massageLabPlasmaWaveBendOne, 3)
     assert.equal(settings.massageLabPlasmaWaveBendTwo, 3)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabPlasmaWavePaletteMode: "auto" }).massageLabPlasmaWavePaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabPlasmaWavePaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabPlasmaWavePrimaryColor: "white" }).massageLabPlasmaWavePrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabPlasmaWavePrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabPlasmaWaveHarmony: "wild" }).massageLabPlasmaWaveHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabPlasmaWaveHarmony,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabPlasmaWaveColorOne: "white" }).massageLabPlasmaWaveColorOne,
-      DEFAULT_CHIMER_SETTINGS.massageLabPlasmaWaveColorOne,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabPlasmaWaveSpeedOne: "fast" }).massageLabPlasmaWaveSpeedOne,
       DEFAULT_CHIMER_SETTINGS.massageLabPlasmaWaveSpeedOne,
@@ -2207,12 +1892,6 @@ describe("Chimer timer helpers", () => {
       massageLabParticlesPixelRatio: 99,
     })
 
-    assert.equal(settings.massageLabParticlesPaletteMode, "harmony")
-    assert.equal(settings.massageLabParticlesPrimaryColor, "#FFFFFF")
-    assert.equal(settings.massageLabParticlesHarmony, "triad")
-    assert.equal(settings.massageLabParticlesColorOne, "#ABCDEF")
-    assert.equal(settings.massageLabParticlesColorTwo, "#010203")
-    assert.equal(settings.massageLabParticlesColorThree, "#111111")
     assert.equal(settings.massageLabParticlesCount, 1500)
     assert.equal(settings.massageLabParticlesSpread, 30)
     assert.equal(settings.massageLabParticlesSpeed, 1)
@@ -2224,22 +1903,6 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabParticlesCameraDistance, 60)
     assert.equal(settings.massageLabParticlesDisableRotation, true)
     assert.equal(settings.massageLabParticlesPixelRatio, 2)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabParticlesPaletteMode: "auto" }).massageLabParticlesPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabParticlesPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabParticlesPrimaryColor: "white" }).massageLabParticlesPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabParticlesPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabParticlesHarmony: "wild" }).massageLabParticlesHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabParticlesHarmony,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabParticlesColorOne: "white" }).massageLabParticlesColorOne,
-      DEFAULT_CHIMER_SETTINGS.massageLabParticlesColorOne,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabParticlesCount: "many" }).massageLabParticlesCount,
       DEFAULT_CHIMER_SETTINGS.massageLabParticlesCount,
@@ -2273,11 +1936,6 @@ describe("Chimer timer helpers", () => {
       massageLabGradientBlindsEnableMouseInteraction: true,
     })
 
-    assert.equal(settings.massageLabGradientBlindsPaletteMode, "harmony")
-    assert.equal(settings.massageLabGradientBlindsPrimaryColor, "#FF9FFC")
-    assert.equal(settings.massageLabGradientBlindsHarmony, "triad")
-    assert.equal(settings.massageLabGradientBlindsColorOne, "#ABCDEF")
-    assert.equal(settings.massageLabGradientBlindsColorTwo, "#010203")
     assert.equal(settings.massageLabGradientBlindsAngle, 180)
     assert.equal(settings.massageLabGradientBlindsNoise, 1)
     assert.equal(settings.massageLabGradientBlindsBlindCount, 80)
@@ -2292,22 +1950,6 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabGradientBlindsBlendMode, "screen")
     assert.equal(settings.massageLabGradientBlindsDpr, 2)
     assert.equal(settings.massageLabGradientBlindsEnableMouseInteraction, true)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabGradientBlindsPaletteMode: "auto" }).massageLabGradientBlindsPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabGradientBlindsPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabGradientBlindsPrimaryColor: "pink" }).massageLabGradientBlindsPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabGradientBlindsPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabGradientBlindsHarmony: "wild" }).massageLabGradientBlindsHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabGradientBlindsHarmony,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabGradientBlindsColorOne: "pink" }).massageLabGradientBlindsColorOne,
-      DEFAULT_CHIMER_SETTINGS.massageLabGradientBlindsColorOne,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabGradientBlindsAngle: "wide" }).massageLabGradientBlindsAngle,
       DEFAULT_CHIMER_SETTINGS.massageLabGradientBlindsAngle,
@@ -2364,12 +2006,6 @@ describe("Chimer timer helpers", () => {
       massageLabGrainientZoom: 99,
     })
 
-    assert.equal(settings.massageLabGrainientPaletteMode, "harmony")
-    assert.equal(settings.massageLabGrainientPrimaryColor, "#FF9FFC")
-    assert.equal(settings.massageLabGrainientHarmony, "triad")
-    assert.equal(settings.massageLabGrainientColorOne, "#ABCDEF")
-    assert.equal(settings.massageLabGrainientColorTwo, "#010203")
-    assert.equal(settings.massageLabGrainientColorThree, "#111111")
     assert.equal(settings.massageLabGrainientTimeSpeed, 2)
     assert.equal(settings.massageLabGrainientColorBalance, 1)
     assert.equal(settings.massageLabGrainientWarpStrength, 5)
@@ -2389,22 +2025,6 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabGrainientCenterX, 1)
     assert.equal(settings.massageLabGrainientCenterY, -1)
     assert.equal(settings.massageLabGrainientZoom, 3)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabGrainientPaletteMode: "auto" }).massageLabGrainientPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabGrainientPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabGrainientPrimaryColor: "pink" }).massageLabGrainientPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabGrainientPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabGrainientHarmony: "wild" }).massageLabGrainientHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabGrainientHarmony,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabGrainientColorOne: "pink" }).massageLabGrainientColorOne,
-      DEFAULT_CHIMER_SETTINGS.massageLabGrainientColorOne,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabGrainientTimeSpeed: "fast" }).massageLabGrainientTimeSpeed,
       DEFAULT_CHIMER_SETTINGS.massageLabGrainientTimeSpeed,
@@ -2442,11 +2062,6 @@ describe("Chimer timer helpers", () => {
       massageLabGridScanScanOnClick: true,
     })
 
-    assert.equal(settings.massageLabGridScanPaletteMode, "harmony")
-    assert.equal(settings.massageLabGridScanPrimaryColor, "#FF9FFC")
-    assert.equal(settings.massageLabGridScanHarmony, "triad")
-    assert.equal(settings.massageLabGridScanLinesColor, "#ABCDEF")
-    assert.equal(settings.massageLabGridScanScanColor, "#010203")
     assert.equal(settings.massageLabGridScanSensitivity, 1)
     assert.equal(settings.massageLabGridScanLineThickness, 6)
     assert.equal(settings.massageLabGridScanScanOpacity, 1)
@@ -2463,22 +2078,6 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabGridScanScanDelay, 10)
     assert.equal(settings.massageLabGridScanEnablePointerInteraction, true)
     assert.equal(settings.massageLabGridScanScanOnClick, true)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabGridScanPaletteMode: "auto" }).massageLabGridScanPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabGridScanPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabGridScanPrimaryColor: "pink" }).massageLabGridScanPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabGridScanPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabGridScanHarmony: "wild" }).massageLabGridScanHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabGridScanHarmony,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabGridScanLinesColor: "pink" }).massageLabGridScanLinesColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabGridScanLinesColor,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabGridScanLineStyle: "double" }).massageLabGridScanLineStyle,
       DEFAULT_CHIMER_SETTINGS.massageLabGridScanLineStyle,
@@ -2513,10 +2112,6 @@ describe("Chimer timer helpers", () => {
       massageLabBeamsRotation: 999,
     })
 
-    assert.equal(settings.massageLabBeamsPaletteMode, "harmony")
-    assert.equal(settings.massageLabBeamsPrimaryColor, "#ABCDEF")
-    assert.equal(settings.massageLabBeamsHarmony, "triad")
-    assert.equal(settings.massageLabBeamsLightColor, "#010203")
     assert.equal(settings.massageLabBeamsBeamWidth, 6)
     assert.equal(settings.massageLabBeamsBeamHeight, 32)
     assert.equal(settings.massageLabBeamsBeamNumber, 48)
@@ -2524,22 +2119,6 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabBeamsNoiseIntensity, 4)
     assert.equal(settings.massageLabBeamsScale, 1.5)
     assert.equal(settings.massageLabBeamsRotation, 180)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabBeamsPaletteMode: "auto" }).massageLabBeamsPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabBeamsPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabBeamsPrimaryColor: "white" }).massageLabBeamsPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabBeamsPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabBeamsHarmony: "wild" }).massageLabBeamsHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabBeamsHarmony,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabBeamsLightColor: "white" }).massageLabBeamsLightColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabBeamsLightColor,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabBeamsSpeed: "fast" }).massageLabBeamsSpeed,
       DEFAULT_CHIMER_SETTINGS.massageLabBeamsSpeed,
@@ -2567,10 +2146,6 @@ describe("Chimer timer helpers", () => {
       massageLabPixelSnowDirection: 999,
     })
 
-    assert.equal(settings.massageLabPixelSnowPaletteMode, "harmony")
-    assert.equal(settings.massageLabPixelSnowPrimaryColor, "#ABCDEF")
-    assert.equal(settings.massageLabPixelSnowHarmony, "triad")
-    assert.equal(settings.massageLabPixelSnowColor, "#010203")
     assert.equal(settings.massageLabPixelSnowFlakeSize, 0.08)
     assert.equal(settings.massageLabPixelSnowMinFlakeSize, 6)
     assert.equal(settings.massageLabPixelSnowPixelResolution, 640)
@@ -2582,22 +2157,6 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabPixelSnowDensity, 1)
     assert.equal(settings.massageLabPixelSnowVariant, "snowflake")
     assert.equal(settings.massageLabPixelSnowDirection, 360)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabPixelSnowPaletteMode: "auto" }).massageLabPixelSnowPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabPixelSnowPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabPixelSnowPrimaryColor: "white" }).massageLabPixelSnowPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabPixelSnowPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabPixelSnowHarmony: "wild" }).massageLabPixelSnowHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabPixelSnowHarmony,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabPixelSnowColor: "white" }).massageLabPixelSnowColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabPixelSnowColor,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabPixelSnowSpeed: "fast" }).massageLabPixelSnowSpeed,
       DEFAULT_CHIMER_SETTINGS.massageLabPixelSnowSpeed,
@@ -2615,38 +2174,16 @@ describe("Chimer timer helpers", () => {
       massageLabLightningPrimaryColor: "#abcdef",
       massageLabLightningHarmony: "triad",
       massageLabLightningColor: "#010203",
-      massageLabLightningHue: 999,
       massageLabLightningXOffset: 99,
       massageLabLightningSpeed: 99,
       massageLabLightningIntensity: 99,
       massageLabLightningSize: 99,
     })
 
-    assert.equal(settings.massageLabLightningPaletteMode, "harmony")
-    assert.equal(settings.massageLabLightningPrimaryColor, "#ABCDEF")
-    assert.equal(settings.massageLabLightningHarmony, "triad")
-    assert.equal(settings.massageLabLightningColor, "#010203")
-    assert.equal(settings.massageLabLightningHue, 360)
     assert.equal(settings.massageLabLightningXOffset, 2)
     assert.equal(settings.massageLabLightningSpeed, 5)
     assert.equal(settings.massageLabLightningIntensity, 5)
     assert.equal(settings.massageLabLightningSize, 5)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabLightningPaletteMode: "auto" }).massageLabLightningPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabLightningPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabLightningPrimaryColor: "white" }).massageLabLightningPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabLightningPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabLightningHarmony: "wild" }).massageLabLightningHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabLightningHarmony,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabLightningColor: "white" }).massageLabLightningColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabLightningColor,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabLightningSpeed: "fast" }).massageLabLightningSpeed,
       DEFAULT_CHIMER_SETTINGS.massageLabLightningSpeed,
@@ -2676,13 +2213,6 @@ describe("Chimer timer helpers", () => {
       massageLabPrismaticBurstMixBlendMode: "screen",
     })
 
-    assert.equal(settings.massageLabPrismaticBurstPaletteMode, "harmony")
-    assert.equal(settings.massageLabPrismaticBurstPrimaryColor, "#ABCDEF")
-    assert.equal(settings.massageLabPrismaticBurstHarmony, "triad")
-    assert.equal(settings.massageLabPrismaticBurstColorOne, "#010203")
-    assert.equal(settings.massageLabPrismaticBurstColorTwo, "#AABBCC")
-    assert.equal(settings.massageLabPrismaticBurstColorThree, "#DDEEFF")
-    assert.equal(settings.massageLabPrismaticBurstColorFour, "#112233")
     assert.equal(settings.massageLabPrismaticBurstIntensity, 5)
     assert.equal(settings.massageLabPrismaticBurstSpeed, 3)
     assert.equal(settings.massageLabPrismaticBurstAnimationType, "hover")
@@ -2692,22 +2222,6 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabPrismaticBurstHoverDampness, 1)
     assert.equal(settings.massageLabPrismaticBurstRayCount, 64)
     assert.equal(settings.massageLabPrismaticBurstMixBlendMode, "screen")
-    assert.equal(
-      sanitizeChimerSettings({ massageLabPrismaticBurstPaletteMode: "auto" }).massageLabPrismaticBurstPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabPrismaticBurstPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabPrismaticBurstPrimaryColor: "white" }).massageLabPrismaticBurstPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabPrismaticBurstPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabPrismaticBurstHarmony: "wild" }).massageLabPrismaticBurstHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabPrismaticBurstHarmony,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabPrismaticBurstColorOne: "white" }).massageLabPrismaticBurstColorOne,
-      DEFAULT_CHIMER_SETTINGS.massageLabPrismaticBurstColorOne,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabPrismaticBurstSpeed: "fast" }).massageLabPrismaticBurstSpeed,
       DEFAULT_CHIMER_SETTINGS.massageLabPrismaticBurstSpeed,
@@ -2755,10 +2269,6 @@ describe("Chimer timer helpers", () => {
       massageLabGalaxyTransparent: false,
     })
 
-    assert.equal(settings.massageLabGalaxyPaletteMode, "harmony")
-    assert.equal(settings.massageLabGalaxyPrimaryColor, "#ABCDEF")
-    assert.equal(settings.massageLabGalaxyHarmony, "triad")
-    assert.equal(settings.massageLabGalaxyColor, "#010203")
     assert.equal(settings.massageLabGalaxyHueShift, 360)
     assert.equal(settings.massageLabGalaxyFocalX, 1)
     assert.equal(settings.massageLabGalaxyFocalY, 0)
@@ -2775,22 +2285,6 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabGalaxyRotationSpeed, 2)
     assert.equal(settings.massageLabGalaxyAutoCenterRepulsion, 6)
     assert.equal(settings.massageLabGalaxyTransparent, false)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabGalaxyPaletteMode: "auto" }).massageLabGalaxyPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabGalaxyPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabGalaxyPrimaryColor: "white" }).massageLabGalaxyPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabGalaxyPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabGalaxyHarmony: "wild" }).massageLabGalaxyHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabGalaxyHarmony,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabGalaxyColor: "white" }).massageLabGalaxyColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabGalaxyColor,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabGalaxySpeed: "fast" }).massageLabGalaxySpeed,
       DEFAULT_CHIMER_SETTINGS.massageLabGalaxySpeed,
@@ -2827,10 +2321,6 @@ describe("Chimer timer helpers", () => {
       massageLabDitherMouseRadius: 99,
     })
 
-    assert.equal(settings.massageLabDitherPaletteMode, "harmony")
-    assert.equal(settings.massageLabDitherPrimaryColor, "#ABCDEF")
-    assert.equal(settings.massageLabDitherHarmony, "triad")
-    assert.equal(settings.massageLabDitherColor, "#010203")
     assert.equal(settings.massageLabDitherWaveSpeed, 0.5)
     assert.equal(settings.massageLabDitherWaveFrequency, 8)
     assert.equal(settings.massageLabDitherWaveAmplitude, 1)
@@ -2838,22 +2328,6 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabDitherPixelSize, 24)
     assert.equal(settings.massageLabDitherMouseInteraction, false)
     assert.equal(settings.massageLabDitherMouseRadius, 3)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabDitherPaletteMode: "auto" }).massageLabDitherPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabDitherPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabDitherPrimaryColor: "white" }).massageLabDitherPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabDitherPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabDitherHarmony: "wild" }).massageLabDitherHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabDitherHarmony,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabDitherColor: "white" }).massageLabDitherColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabDitherColor,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabDitherWaveSpeed: "fast" }).massageLabDitherWaveSpeed,
       DEFAULT_CHIMER_SETTINGS.massageLabDitherWaveSpeed,
@@ -2893,10 +2367,6 @@ describe("Chimer timer helpers", () => {
       massageLabFaultyTerminalBrightness: 99,
     })
 
-    assert.equal(settings.massageLabFaultyTerminalPaletteMode, "harmony")
-    assert.equal(settings.massageLabFaultyTerminalPrimaryColor, "#ABCDEF")
-    assert.equal(settings.massageLabFaultyTerminalHarmony, "triad")
-    assert.equal(settings.massageLabFaultyTerminalTint, "#010203")
     assert.equal(settings.massageLabFaultyTerminalScale, 4)
     assert.equal(settings.massageLabFaultyTerminalGridMulX, 6)
     assert.equal(settings.massageLabFaultyTerminalGridMulY, 6)
@@ -2913,22 +2383,6 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabFaultyTerminalMouseStrength, 2)
     assert.equal(settings.massageLabFaultyTerminalPageLoadAnimation, false)
     assert.equal(settings.massageLabFaultyTerminalBrightness, 3)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabFaultyTerminalPaletteMode: "auto" }).massageLabFaultyTerminalPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabFaultyTerminalPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabFaultyTerminalPrimaryColor: "white" }).massageLabFaultyTerminalPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabFaultyTerminalPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabFaultyTerminalHarmony: "wild" }).massageLabFaultyTerminalHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabFaultyTerminalHarmony,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabFaultyTerminalTint: "white" }).massageLabFaultyTerminalTint,
-      DEFAULT_CHIMER_SETTINGS.massageLabFaultyTerminalTint,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabFaultyTerminalTimeScale: "fast" }).massageLabFaultyTerminalTimeScale,
       DEFAULT_CHIMER_SETTINGS.massageLabFaultyTerminalTimeScale,
@@ -2965,10 +2419,6 @@ describe("Chimer timer helpers", () => {
       massageLabRippleGridMouseInteractionRadius: 99,
     })
 
-    assert.equal(settings.massageLabRippleGridPaletteMode, "harmony")
-    assert.equal(settings.massageLabRippleGridPrimaryColor, "#ABCDEF")
-    assert.equal(settings.massageLabRippleGridHarmony, "triad")
-    assert.equal(settings.massageLabRippleGridColor, "#010203")
     assert.equal(settings.massageLabRippleGridRippleIntensity, 0.3)
     assert.equal(settings.massageLabRippleGridGridSize, 30)
     assert.equal(settings.massageLabRippleGridGridThickness, 50)
@@ -2979,22 +2429,6 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabRippleGridGridRotation, 180)
     assert.equal(settings.massageLabRippleGridMouseInteraction, false)
     assert.equal(settings.massageLabRippleGridMouseInteractionRadius, 5)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabRippleGridPaletteMode: "auto" }).massageLabRippleGridPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabRippleGridPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabRippleGridPrimaryColor: "white" }).massageLabRippleGridPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabRippleGridPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabRippleGridHarmony: "wild" }).massageLabRippleGridHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabRippleGridHarmony,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabRippleGridColor: "white" }).massageLabRippleGridColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabRippleGridColor,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabRippleGridRippleIntensity: "strong" }).massageLabRippleGridRippleIntensity,
       DEFAULT_CHIMER_SETTINGS.massageLabRippleGridRippleIntensity,
@@ -3021,9 +2455,7 @@ describe("Chimer timer helpers", () => {
       massageLabDotFieldPrimaryColor: "#abcdef",
       massageLabDotFieldHarmony: "triad",
       massageLabDotFieldGradientFromColor: "#010203",
-      massageLabDotFieldGradientFromAlpha: 99,
       massageLabDotFieldGradientToColor: "#040506",
-      massageLabDotFieldGradientToAlpha: 99,
       massageLabDotFieldGlowColor: "#070809",
       massageLabDotFieldDotRadius: 99,
       massageLabDotFieldDotSpacing: 99,
@@ -3037,14 +2469,6 @@ describe("Chimer timer helpers", () => {
       massageLabDotFieldCursorInteraction: false,
     })
 
-    assert.equal(settings.massageLabDotFieldPaletteMode, "harmony")
-    assert.equal(settings.massageLabDotFieldPrimaryColor, "#ABCDEF")
-    assert.equal(settings.massageLabDotFieldHarmony, "triad")
-    assert.equal(settings.massageLabDotFieldGradientFromColor, "#010203")
-    assert.equal(settings.massageLabDotFieldGradientFromAlpha, 1)
-    assert.equal(settings.massageLabDotFieldGradientToColor, "#040506")
-    assert.equal(settings.massageLabDotFieldGradientToAlpha, 1)
-    assert.equal(settings.massageLabDotFieldGlowColor, "#070809")
     assert.equal(settings.massageLabDotFieldDotRadius, 8)
     assert.equal(settings.massageLabDotFieldDotSpacing, 48)
     assert.equal(settings.massageLabDotFieldCursorRadius, 900)
@@ -3055,22 +2479,6 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabDotFieldSparkle, true)
     assert.equal(settings.massageLabDotFieldWaveAmplitude, 48)
     assert.equal(settings.massageLabDotFieldCursorInteraction, false)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabDotFieldPaletteMode: "auto" }).massageLabDotFieldPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabDotFieldPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabDotFieldPrimaryColor: "white" }).massageLabDotFieldPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabDotFieldPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabDotFieldHarmony: "wild" }).massageLabDotFieldHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabDotFieldHarmony,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabDotFieldGradientFromColor: "white" }).massageLabDotFieldGradientFromColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabDotFieldGradientFromColor,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabDotFieldBulgeOnly: "yes" }).massageLabDotFieldBulgeOnly,
       DEFAULT_CHIMER_SETTINGS.massageLabDotFieldBulgeOnly,
@@ -3083,7 +2491,6 @@ describe("Chimer timer helpers", () => {
       sanitizeChimerSettings({ massageLabDotFieldCursorInteraction: "yes" }).massageLabDotFieldCursorInteraction,
       DEFAULT_CHIMER_SETTINGS.massageLabDotFieldCursorInteraction,
     )
-    assert.equal(sanitizeChimerSettings({ massageLabDotFieldGradientFromAlpha: -1 }).massageLabDotFieldGradientFromAlpha, 0)
     assert.equal(sanitizeChimerSettings({ massageLabDotFieldDotRadius: 0 }).massageLabDotFieldDotRadius, 0.5)
     assert.equal(sanitizeChimerSettings({ massageLabDotFieldDotSpacing: 0 }).massageLabDotFieldDotSpacing, 4)
     assert.equal(sanitizeChimerSettings({ massageLabDotFieldCursorRadius: 0 }).massageLabDotFieldCursorRadius, 60)
@@ -3113,11 +2520,6 @@ describe("Chimer timer helpers", () => {
       massageLabDotGridClickShock: false,
     })
 
-    assert.equal(settings.massageLabDotGridPaletteMode, "harmony")
-    assert.equal(settings.massageLabDotGridPrimaryColor, "#ABCDEF")
-    assert.equal(settings.massageLabDotGridHarmony, "triad")
-    assert.equal(settings.massageLabDotGridBaseColor, "#010203")
-    assert.equal(settings.massageLabDotGridActiveColor, "#040506")
     assert.equal(settings.massageLabDotGridDotSize, 40)
     assert.equal(settings.massageLabDotGridGap, 80)
     assert.equal(settings.massageLabDotGridProximity, 500)
@@ -3129,18 +2531,6 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabDotGridReturnDuration, 4)
     assert.equal(settings.massageLabDotGridCursorInteraction, false)
     assert.equal(settings.massageLabDotGridClickShock, false)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabDotGridPaletteMode: "auto" }).massageLabDotGridPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabDotGridPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabDotGridPrimaryColor: "white" }).massageLabDotGridPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabDotGridPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabDotGridHarmony: "wild" }).massageLabDotGridHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabDotGridHarmony,
-    )
     assert.equal(sanitizeChimerSettings({ massageLabDotGridDotSize: 0 }).massageLabDotGridDotSize, 2)
     assert.equal(sanitizeChimerSettings({ massageLabDotGridGap: 0 }).massageLabDotGridGap, 4)
     assert.equal(sanitizeChimerSettings({ massageLabDotGridProximity: 0 }).massageLabDotGridProximity, 40)
@@ -3159,29 +2549,9 @@ describe("Chimer timer helpers", () => {
       massageLabThreadsEnableMouseInteraction: true,
     })
 
-    assert.equal(settings.massageLabThreadsPaletteMode, "harmony")
-    assert.equal(settings.massageLabThreadsPrimaryColor, "#ABCDEF")
-    assert.equal(settings.massageLabThreadsHarmony, "triad")
-    assert.equal(settings.massageLabThreadsColor, "#010203")
     assert.equal(settings.massageLabThreadsAmplitude, 3)
     assert.equal(settings.massageLabThreadsDistance, 1.5)
     assert.equal(settings.massageLabThreadsEnableMouseInteraction, true)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabThreadsPaletteMode: "auto" }).massageLabThreadsPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabThreadsPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabThreadsPrimaryColor: "white" }).massageLabThreadsPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabThreadsPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabThreadsHarmony: "wild" }).massageLabThreadsHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabThreadsHarmony,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabThreadsColor: "white" }).massageLabThreadsColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabThreadsColor,
-    )
     assert.equal(sanitizeChimerSettings({ massageLabThreadsAmplitude: -1 }).massageLabThreadsAmplitude, 0)
     assert.equal(sanitizeChimerSettings({ massageLabThreadsDistance: -9 }).massageLabThreadsDistance, -1)
   })
@@ -3197,29 +2567,9 @@ describe("Chimer timer helpers", () => {
       massageLabIridescenceMouseReact: false,
     })
 
-    assert.equal(settings.massageLabIridescencePaletteMode, "harmony")
-    assert.equal(settings.massageLabIridescencePrimaryColor, "#ABCDEF")
-    assert.equal(settings.massageLabIridescenceHarmony, "triad")
-    assert.equal(settings.massageLabIridescenceColor, "#010203")
     assert.equal(settings.massageLabIridescenceSpeed, 3)
     assert.equal(settings.massageLabIridescenceAmplitude, 1)
     assert.equal(settings.massageLabIridescenceMouseReact, false)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabIridescencePaletteMode: "auto" }).massageLabIridescencePaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabIridescencePaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabIridescencePrimaryColor: "white" }).massageLabIridescencePrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabIridescencePrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabIridescenceHarmony: "wild" }).massageLabIridescenceHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabIridescenceHarmony,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabIridescenceColor: "white" }).massageLabIridescenceColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabIridescenceColor,
-    )
     assert.equal(sanitizeChimerSettings({ massageLabIridescenceSpeed: -1 }).massageLabIridescenceSpeed, 0)
     assert.equal(sanitizeChimerSettings({ massageLabIridescenceAmplitude: -1 }).massageLabIridescenceAmplitude, 0)
   })
@@ -3244,11 +2594,6 @@ describe("Chimer timer helpers", () => {
       massageLabWavesCursorInteraction: false,
     })
 
-    assert.equal(settings.massageLabWavesPaletteMode, "harmony")
-    assert.equal(settings.massageLabWavesPrimaryColor, "#ABCDEF")
-    assert.equal(settings.massageLabWavesHarmony, "triad")
-    assert.equal(settings.massageLabWavesLineColor, "#010203")
-    assert.equal(settings.massageLabWavesBackgroundColor, "#040506")
     assert.equal(settings.massageLabWavesTransparentBackground, false)
     assert.equal(settings.massageLabWavesSpeedX, 0.05)
     assert.equal(settings.massageLabWavesSpeedY, 0.05)
@@ -3260,26 +2605,6 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabWavesTension, 0.05)
     assert.equal(settings.massageLabWavesMaxCursorMove, 240)
     assert.equal(settings.massageLabWavesCursorInteraction, false)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabWavesPaletteMode: "auto" }).massageLabWavesPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabWavesPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabWavesPrimaryColor: "white" }).massageLabWavesPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabWavesPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabWavesHarmony: "wild" }).massageLabWavesHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabWavesHarmony,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabWavesLineColor: "black" }).massageLabWavesLineColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabWavesLineColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabWavesBackgroundColor: "black" }).massageLabWavesBackgroundColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabWavesBackgroundColor,
-    )
     assert.equal(sanitizeChimerSettings({ massageLabWavesSpeedX: -1 }).massageLabWavesSpeedX, 0)
     assert.equal(sanitizeChimerSettings({ massageLabWavesSpeedY: -1 }).massageLabWavesSpeedY, 0)
     assert.equal(sanitizeChimerSettings({ massageLabWavesGapX: 0 }).massageLabWavesGapX, 4)
@@ -3304,41 +2629,11 @@ describe("Chimer timer helpers", () => {
       massageLabGridDistortionCursorInteraction: false,
     })
 
-    assert.equal(settings.massageLabGridDistortionPaletteMode, "harmony")
-    assert.equal(settings.massageLabGridDistortionPrimaryColor, "#ABCDEF")
-    assert.equal(settings.massageLabGridDistortionHarmony, "triad")
-    assert.equal(settings.massageLabGridDistortionColorOne, "#010203")
-    assert.equal(settings.massageLabGridDistortionColorTwo, "#040506")
-    assert.equal(settings.massageLabGridDistortionColorThree, "#070809")
     assert.equal(settings.massageLabGridDistortionGrid, 40)
     assert.equal(settings.massageLabGridDistortionMouse, 0.5)
     assert.equal(settings.massageLabGridDistortionStrength, 0.6)
     assert.equal(settings.massageLabGridDistortionRelaxation, 0.99)
     assert.equal(settings.massageLabGridDistortionCursorInteraction, false)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabGridDistortionPaletteMode: "auto" }).massageLabGridDistortionPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabGridDistortionPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabGridDistortionPrimaryColor: "white" }).massageLabGridDistortionPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabGridDistortionPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabGridDistortionHarmony: "wild" }).massageLabGridDistortionHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabGridDistortionHarmony,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabGridDistortionColorOne: "black" }).massageLabGridDistortionColorOne,
-      DEFAULT_CHIMER_SETTINGS.massageLabGridDistortionColorOne,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabGridDistortionColorTwo: "black" }).massageLabGridDistortionColorTwo,
-      DEFAULT_CHIMER_SETTINGS.massageLabGridDistortionColorTwo,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabGridDistortionColorThree: "black" }).massageLabGridDistortionColorThree,
-      DEFAULT_CHIMER_SETTINGS.massageLabGridDistortionColorThree,
-    )
     assert.equal(sanitizeChimerSettings({ massageLabGridDistortionGrid: 0 }).massageLabGridDistortionGrid, 4)
     assert.equal(sanitizeChimerSettings({ massageLabGridDistortionMouse: 0 }).massageLabGridDistortionMouse, 0.02)
     assert.equal(sanitizeChimerSettings({ massageLabGridDistortionStrength: -1 }).massageLabGridDistortionStrength, 0)
@@ -3351,7 +2646,6 @@ describe("Chimer timer helpers", () => {
       massageLabOrbPrimaryColor: "#abcdef",
       massageLabOrbHarmony: "triad",
       massageLabOrbColor: "#010203",
-      massageLabOrbHue: 999,
       massageLabOrbHoverIntensity: 999,
       massageLabOrbRotateOnHover: false,
       massageLabOrbForceHoverState: true,
@@ -3416,62 +2710,29 @@ describe("Chimer timer helpers", () => {
       massageLabBalatroMouseInteraction: false,
     })
 
-    assert.equal(settings.massageLabOrbPaletteMode, "harmony")
-    assert.equal(settings.massageLabOrbPrimaryColor, "#ABCDEF")
-    assert.equal(settings.massageLabOrbHarmony, "triad")
-    assert.equal(settings.massageLabOrbColor, "#010203")
-    assert.equal(settings.massageLabOrbHue, 360)
     assert.equal(settings.massageLabOrbHoverIntensity, 1)
     assert.equal(settings.massageLabOrbRotateOnHover, false)
     assert.equal(settings.massageLabOrbForceHoverState, true)
-    assert.equal(settings.massageLabOrbBackgroundColor, "#112233")
     assert.equal(settings.massageLabOrbCursorInteraction, false)
-    assert.equal(settings.massageLabLetterGlitchPaletteMode, "harmony")
-    assert.equal(settings.massageLabLetterGlitchPrimaryColor, "#ABCDEF")
-    assert.equal(settings.massageLabLetterGlitchHarmony, "triad")
-    assert.equal(settings.massageLabLetterGlitchColorOne, "#010203")
-    assert.equal(settings.massageLabLetterGlitchColorTwo, "#040506")
-    assert.equal(settings.massageLabLetterGlitchColorThree, "#070809")
     assert.equal(settings.massageLabLetterGlitchGlitchSpeed, 500)
     assert.equal(settings.massageLabLetterGlitchCenterVignette, true)
     assert.equal(settings.massageLabLetterGlitchOuterVignette, false)
     assert.equal(settings.massageLabLetterGlitchSmooth, false)
     assert.equal(settings.massageLabLetterGlitchCharacters.length, 120)
-    assert.equal(settings.massageLabGridMotionPaletteMode, "harmony")
-    assert.equal(settings.massageLabGridMotionPrimaryColor, "#ABCDEF")
-    assert.equal(settings.massageLabGridMotionHarmony, "triad")
-    assert.equal(settings.massageLabGridMotionGradientColor, "#010203")
-    assert.equal(settings.massageLabGridMotionTileColor, "#040506")
-    assert.equal(settings.massageLabGridMotionTextColor, "#070809")
     assert.equal(settings.massageLabGridMotionMaxMoveAmount, 600)
     assert.equal(settings.massageLabGridMotionBaseDuration, 2)
     assert.equal(settings.massageLabGridMotionCursorInteraction, false)
-    assert.equal(settings.massageLabShapeGridPaletteMode, "harmony")
-    assert.equal(settings.massageLabShapeGridPrimaryColor, "#ABCDEF")
-    assert.equal(settings.massageLabShapeGridHarmony, "triad")
-    assert.equal(settings.massageLabShapeGridBorderColor, "#010203")
-    assert.equal(settings.massageLabShapeGridHoverFillColor, "#040506")
     assert.equal(settings.massageLabShapeGridDirection, "diagonal")
     assert.equal(settings.massageLabShapeGridSpeed, 8)
     assert.equal(settings.massageLabShapeGridSquareSize, 12)
     assert.equal(settings.massageLabShapeGridShape, "hexagon")
     assert.equal(settings.massageLabShapeGridHoverTrailAmount, 24)
     assert.equal(settings.massageLabShapeGridCursorInteraction, false)
-    assert.equal(settings.massageLabLiquidChromePaletteMode, "harmony")
-    assert.equal(settings.massageLabLiquidChromePrimaryColor, "#ABCDEF")
-    assert.equal(settings.massageLabLiquidChromeHarmony, "triad")
-    assert.equal(settings.massageLabLiquidChromeBaseColor, "#010203")
     assert.equal(settings.massageLabLiquidChromeSpeed, 3)
     assert.equal(settings.massageLabLiquidChromeAmplitude, 1)
     assert.equal(settings.massageLabLiquidChromeFrequencyX, 12)
     assert.equal(settings.massageLabLiquidChromeFrequencyY, 0.1)
     assert.equal(settings.massageLabLiquidChromeInteractive, false)
-    assert.equal(settings.massageLabBalatroPaletteMode, "harmony")
-    assert.equal(settings.massageLabBalatroPrimaryColor, "#ABCDEF")
-    assert.equal(settings.massageLabBalatroHarmony, "triad")
-    assert.equal(settings.massageLabBalatroColorOne, "#010203")
-    assert.equal(settings.massageLabBalatroColorTwo, "#040506")
-    assert.equal(settings.massageLabBalatroColorThree, "#070809")
     assert.equal(settings.massageLabBalatroSpinRotation, 8)
     assert.equal(settings.massageLabBalatroSpinSpeed, 14)
     assert.equal(settings.massageLabBalatroOffsetX, -1)
@@ -3484,16 +2745,8 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabBalatroIsRotate, true)
     assert.equal(settings.massageLabBalatroMouseInteraction, false)
     assert.equal(
-      sanitizeChimerSettings({ massageLabOrbPaletteMode: "auto" }).massageLabOrbPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabOrbPaletteMode,
-    )
-    assert.equal(
       sanitizeChimerSettings({ massageLabShapeGridDirection: "sideways" }).massageLabShapeGridDirection,
       DEFAULT_CHIMER_SETTINGS.massageLabShapeGridDirection,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabBalatroColorOne: "red" }).massageLabBalatroColorOne,
-      DEFAULT_CHIMER_SETTINGS.massageLabBalatroColorOne,
     )
   })
 
@@ -3507,10 +2760,6 @@ describe("Chimer timer helpers", () => {
       massageLabNovatrixAmplitude: 0,
     })
 
-    assert.equal(settings.massageLabNovatrixPaletteMode, "harmony")
-    assert.equal(settings.massageLabNovatrixPrimaryColor, "#FFFFFF")
-    assert.equal(settings.massageLabNovatrixHarmony, "triad")
-    assert.equal(settings.massageLabNovatrixColor, DEFAULT_CHIMER_SETTINGS.massageLabNovatrixColor)
     assert.equal(settings.massageLabNovatrixSpeed, 3)
     assert.equal(settings.massageLabNovatrixAmplitude, 0.01)
     assert.equal(
@@ -3522,18 +2771,6 @@ describe("Chimer timer helpers", () => {
       DEFAULT_CHIMER_SETTINGS.massageLabNovatrixAmplitude,
     )
     assert.equal(sanitizeChimerSettings({ massageLabNovatrixAmplitude: 10 }).massageLabNovatrixAmplitude, 0.45)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabNovatrixPaletteMode: "demo" }).massageLabNovatrixPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabNovatrixPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabNovatrixPrimaryColor: "blue" }).massageLabNovatrixPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabNovatrixPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabNovatrixHarmony: "rainbow" }).massageLabNovatrixHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabNovatrixHarmony,
-    )
   })
 
   it("normalizes MassageLab Matrix Rain background controls", () => {
@@ -3546,10 +2783,6 @@ describe("Chimer timer helpers", () => {
       massageLabMatrixRainFontSize: 4,
     })
 
-    assert.equal(settings.massageLabMatrixRainPaletteMode, "harmony")
-    assert.equal(settings.massageLabMatrixRainPrimaryColor, "#00D4FF")
-    assert.equal(settings.massageLabMatrixRainHarmony, "triad")
-    assert.equal(settings.massageLabMatrixRainColor, DEFAULT_CHIMER_SETTINGS.massageLabMatrixRainColor)
     assert.equal(settings.massageLabMatrixRainSpeed, 3)
     assert.equal(settings.massageLabMatrixRainFontSize, 8)
     assert.equal(
@@ -3562,18 +2795,6 @@ describe("Chimer timer helpers", () => {
     )
     assert.equal(sanitizeChimerSettings({ massageLabMatrixRainSpeed: 0 }).massageLabMatrixRainSpeed, 0.05)
     assert.equal(sanitizeChimerSettings({ massageLabMatrixRainFontSize: 99 }).massageLabMatrixRainFontSize, 28)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabMatrixRainPaletteMode: "demo" }).massageLabMatrixRainPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabMatrixRainPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabMatrixRainPrimaryColor: "blue" }).massageLabMatrixRainPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabMatrixRainPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabMatrixRainHarmony: "rainbow" }).massageLabMatrixRainHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabMatrixRainHarmony,
-    )
   })
 
   it("normalizes MassageLab Photon Beam background controls", () => {
@@ -3584,9 +2805,7 @@ describe("Chimer timer helpers", () => {
       massageLabPhotonBeamColorBg: "black",
       massageLabPhotonBeamColorLine: "#123456",
       massageLabPhotonBeamColorSignal: "#abcdef",
-      massageLabPhotonBeamUseColor2: true,
       massageLabPhotonBeamColorSignal2: "#fedcba",
-      massageLabPhotonBeamUseColor3: true,
       massageLabPhotonBeamColorSignal3: "#00ffff",
       massageLabPhotonBeamLineCount: 999,
       massageLabPhotonBeamSpreadHeight: 0,
@@ -3604,16 +2823,6 @@ describe("Chimer timer helpers", () => {
       massageLabPhotonBeamBloomRadius: 99,
     })
 
-    assert.equal(settings.massageLabPhotonBeamPaletteMode, "harmony")
-    assert.equal(settings.massageLabPhotonBeamPrimaryColor, "#00D4FF")
-    assert.equal(settings.massageLabPhotonBeamHarmony, "triad")
-    assert.equal(settings.massageLabPhotonBeamColorBg, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamColorBg)
-    assert.equal(settings.massageLabPhotonBeamColorLine, "#123456")
-    assert.equal(settings.massageLabPhotonBeamColorSignal, "#ABCDEF")
-    assert.equal(settings.massageLabPhotonBeamUseColor2, true)
-    assert.equal(settings.massageLabPhotonBeamColorSignal2, "#FEDCBA")
-    assert.equal(settings.massageLabPhotonBeamUseColor3, true)
-    assert.equal(settings.massageLabPhotonBeamColorSignal3, "#00FFFF")
     assert.equal(settings.massageLabPhotonBeamLineCount, 160)
     assert.equal(settings.massageLabPhotonBeamSpreadHeight, 5)
     assert.equal(settings.massageLabPhotonBeamSpreadDepth, 60)
@@ -3628,18 +2837,6 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabPhotonBeamTrailLength, 16)
     assert.equal(settings.massageLabPhotonBeamBloomStrength, 6)
     assert.equal(settings.massageLabPhotonBeamBloomRadius, 1.5)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabPhotonBeamPaletteMode: "demo" }).massageLabPhotonBeamPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabPhotonBeamHarmony: "rainbow" }).massageLabPhotonBeamHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamHarmony,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabPhotonBeamUseColor2: "yes" }).massageLabPhotonBeamUseColor2,
-      DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamUseColor2,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabPhotonBeamSpeedGlobal: "fast" }).massageLabPhotonBeamSpeedGlobal,
       DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamSpeedGlobal,
@@ -3682,11 +2879,6 @@ describe("Chimer timer helpers", () => {
     })
 
     assert.equal(settings.massageLab3DGlobeViewStyle, "graphic")
-    assert.equal(settings.massageLab3DGlobeBackgroundColor, "#AABBCC")
-    assert.equal(settings.massageLab3DGlobeGlobeColor, DEFAULT_CHIMER_SETTINGS.massageLab3DGlobeGlobeColor)
-    assert.equal(settings.massageLab3DGlobeGraphicMapColor, "#DDEEFF")
-    assert.equal(settings.massageLab3DGlobeGraphicGlowColor, DEFAULT_CHIMER_SETTINGS.massageLab3DGlobeGraphicGlowColor)
-    assert.equal(settings.massageLab3DGlobeGraphicMarkerColor, "#FB6415")
     assert.equal(settings.massageLab3DGlobeGraphicMapSamples, 10000)
     assert.equal(settings.massageLab3DGlobeAutoRotateSpeed, 2)
     assert.equal(settings.massageLab3DGlobeReverseSpin, true)
@@ -3700,11 +2892,9 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLab3DGlobePanY, 50)
     assert.equal(settings.massageLab3DGlobeShowTilt, true)
     assert.equal(settings.massageLab3DGlobeShowAtmosphere, true)
-    assert.equal(settings.massageLab3DGlobeAtmosphereColor, "#4DA6FF")
     assert.equal(settings.massageLab3DGlobeAtmosphereIntensity, 2)
     assert.equal(settings.massageLab3DGlobeAtmosphereBlur, 0.5)
     assert.equal(settings.massageLab3DGlobeShowWireframe, true)
-    assert.equal(settings.massageLab3DGlobeWireframeColor, "#4A9EFF")
     assert.equal(settings.massageLab3DGlobeMarkerEnabled, true)
     assert.equal(settings.massageLab3DGlobeMarkerLat, 90)
     assert.equal(settings.massageLab3DGlobeMarkerLng, -180)
@@ -3765,9 +2955,6 @@ describe("Chimer timer helpers", () => {
       massageLabRetroGridOpacity: 0,
     })
 
-    assert.equal(settings.massageLabRetroGridBackgroundColor, DEFAULT_CHIMER_SETTINGS.massageLabRetroGridBackgroundColor)
-    assert.equal(settings.massageLabRetroGridLightLineColor, "#AABBCC")
-    assert.equal(settings.massageLabRetroGridDarkLineColor, "#112233")
     assert.equal(settings.massageLabRetroGridAngle, 89)
     assert.equal(settings.massageLabRetroGridCellSize, 12)
     assert.equal(settings.massageLabRetroGridOpacity, 0.05)
@@ -3786,14 +2973,6 @@ describe("Chimer timer helpers", () => {
       DEFAULT_CHIMER_SETTINGS.massageLabRetroGridOpacity,
     )
     assert.equal(sanitizeChimerSettings({ massageLabRetroGridOpacity: 99 }).massageLabRetroGridOpacity, 1)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabRetroGridLightLineColor: "gray" }).massageLabRetroGridLightLineColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabRetroGridLightLineColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabRetroGridDarkLineColor: "gray" }).massageLabRetroGridDarkLineColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabRetroGridDarkLineColor,
-    )
   })
 
   it("normalizes MassageLab Aerial Rays background controls", () => {
@@ -3807,17 +2986,11 @@ describe("Chimer timer helpers", () => {
       massageLabAerialRaysOpacity: 0,
     })
 
-    assert.equal(settings.massageLabAerialRaysBackgroundColor, DEFAULT_CHIMER_SETTINGS.massageLabAerialRaysBackgroundColor)
-    assert.equal(settings.massageLabAerialRaysColor, "#A0D2FF")
     assert.equal(settings.massageLabAerialRaysCount, 20)
     assert.equal(settings.massageLabAerialRaysBlur, 80)
     assert.equal(settings.massageLabAerialRaysSpeed, 2)
     assert.equal(settings.massageLabAerialRaysLength, 120)
     assert.equal(settings.massageLabAerialRaysOpacity, 0.05)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabAerialRaysColor: "blue" }).massageLabAerialRaysColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabAerialRaysColor,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabAerialRaysCount: "many" }).massageLabAerialRaysCount,
       DEFAULT_CHIMER_SETTINGS.massageLabAerialRaysCount,
@@ -3861,12 +3034,6 @@ describe("Chimer timer helpers", () => {
       massageLabSynthesisFlowFrequency: 999,
     })
 
-    assert.equal(settings.massageLabSynthesisPaletteMode, "harmony")
-    assert.equal(settings.massageLabSynthesisPrimaryColor, "#0EA5E9")
-    assert.equal(settings.massageLabSynthesisHarmony, "triad")
-    assert.equal(settings.massageLabSynthesisColorOne, "#0F172A")
-    assert.equal(settings.massageLabSynthesisColorTwo, DEFAULT_CHIMER_SETTINGS.massageLabSynthesisColorTwo)
-    assert.equal(settings.massageLabSynthesisColorThree, "#0EA5E9")
     assert.equal(settings.massageLabSynthesisSpeed, 2)
     assert.equal(settings.massageLabSynthesisComplexity, 20)
     assert.equal(settings.massageLabSynthesisScale, 0.1)
@@ -3878,18 +3045,6 @@ describe("Chimer timer helpers", () => {
       DEFAULT_CHIMER_SETTINGS.massageLabSynthesisSpeed,
     )
     assert.equal(sanitizeChimerSettings({ massageLabSynthesisSpeed: 0 }).massageLabSynthesisSpeed, 0.004)
-    assert.equal(
-      sanitizeChimerSettings({ massageLabSynthesisPaletteMode: "demo" }).massageLabSynthesisPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.massageLabSynthesisPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabSynthesisPrimaryColor: "cyan" }).massageLabSynthesisPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.massageLabSynthesisPrimaryColor,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ massageLabSynthesisHarmony: "rainbow" }).massageLabSynthesisHarmony,
-      DEFAULT_CHIMER_SETTINGS.massageLabSynthesisHarmony,
-    )
     assert.equal(
       sanitizeChimerSettings({ massageLabSynthesisComplexity: "many" }).massageLabSynthesisComplexity,
       DEFAULT_CHIMER_SETTINGS.massageLabSynthesisComplexity,
@@ -3907,8 +3062,6 @@ describe("Chimer timer helpers", () => {
       lampPulseSpeed: 99,
     })
 
-    assert.equal(settings.lampBackgroundColor, DEFAULT_CHIMER_SETTINGS.lampBackgroundColor)
-    assert.equal(settings.lampColor, "#22D3EE")
     assert.equal(settings.lampGlowOpacity, 0.95)
     assert.equal(settings.lampBeamWidth, 240)
     assert.equal(settings.lampGlowWidth, 900)
@@ -3927,22 +3080,10 @@ describe("Chimer timer helpers", () => {
       pixelLiquidMotionSpeed: 99,
     })
 
-    assert.equal(settings.pixelLiquidBackgroundColor, "#0A0B0C")
-    assert.equal(settings.pixelLiquidBaseColor, "#123ABC")
-    assert.equal(settings.pixelLiquidAccentColor, DEFAULT_CHIMER_SETTINGS.pixelLiquidAccentColor)
-    assert.equal(settings.pixelLiquidHighlightColor, "#FEDCBA")
     assert.equal(settings.pixelLiquidPixelSize, 18)
     assert.equal(settings.pixelLiquidDetail, DEFAULT_CHIMER_SETTINGS.pixelLiquidDetail)
     assert.equal(settings.pixelLiquidMotionSpeed, 1.4)
 
-    const legacyPaletteSettings = sanitizeChimerSettings({
-      pixelLiquidPalette: "ember",
-    })
-
-    assert.equal(legacyPaletteSettings.pixelLiquidBackgroundColor, "#110603")
-    assert.equal(legacyPaletteSettings.pixelLiquidBaseColor, "#A4360C")
-    assert.equal(legacyPaletteSettings.pixelLiquidAccentColor, "#FF7A1A")
-    assert.equal(legacyPaletteSettings.pixelLiquidHighlightColor, "#FFE2AB")
   })
 
   it("normalizes Aurora Bars background controls", () => {
@@ -3963,28 +3104,12 @@ describe("Chimer timer helpers", () => {
       auroraBarsMinHeightRatio: 99,
     })
 
-    assert.equal(settings.auroraBarsBackgroundColor, "#010203")
-    assert.equal(settings.auroraBarsPaletteMode, "custom")
-    assert.equal(settings.auroraBarsPrimaryColor, "#334455")
-    assert.equal(settings.auroraBarsColorOne, "#AABBCC")
-    assert.equal(settings.auroraBarsColorTwo, DEFAULT_CHIMER_SETTINGS.auroraBarsColorTwo)
-    assert.equal(settings.auroraBarsColorThree, "#123ABC")
-    assert.equal(settings.auroraBarsColorFour, "#FEDCBA")
-    assert.equal(settings.auroraBarsColorFive, "#112233")
     assert.equal(settings.auroraBarsBarCount, 80)
     assert.equal(settings.auroraBarsSpeed, 2)
     assert.equal(settings.auroraBarsBlur, 18)
     assert.equal(settings.auroraBarsGap, 0)
     assert.equal(settings.auroraBarsMaxHeightRatio, 1)
     assert.equal(settings.auroraBarsMinHeightRatio, 0.78)
-    assert.equal(
-      sanitizeChimerSettings({ auroraBarsPaletteMode: "rainbow" }).auroraBarsPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.auroraBarsPaletteMode,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ auroraBarsPrimaryColor: "bad" }).auroraBarsPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.auroraBarsPrimaryColor,
-    )
   })
 
   it("normalizes MassageLab Tile Grid background controls", () => {
@@ -4003,23 +3128,12 @@ describe("Chimer timer helpers", () => {
       tileGridOpacity: 99,
     })
 
-    assert.equal(settings.tileGridPaletteMode, "custom")
-    assert.equal(settings.tileGridPrimaryColor, "#112233")
-    assert.equal(settings.tileGridColorOne, "#AABBCC")
-    assert.equal(settings.tileGridColorTwo, DEFAULT_CHIMER_SETTINGS.tileGridColorTwo)
-    assert.equal(settings.tileGridColorThree, "#123ABC")
-    assert.equal(settings.tileGridColorFour, "#FEDCBA")
-    assert.equal(settings.tileGridColorFive, "#010203")
     assert.equal(settings.tileGridTileSize, 120)
     assert.equal(settings.tileGridJointSize, 1)
     assert.equal(settings.tileGridChangeFrequency, 99)
     assert.equal(settings.tileGridActivePercent, 1)
     assert.equal(settings.tileGridOpacity, 1)
 
-    assert.equal(
-      sanitizeChimerSettings({ tileGridPaletteMode: "palette" }).tileGridPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.tileGridPaletteMode,
-    )
     assert.equal(
       sanitizeChimerSettings({ tileGridOpacity: "faint" }).tileGridOpacity,
       DEFAULT_CHIMER_SETTINGS.tileGridOpacity,
@@ -4041,22 +3155,12 @@ describe("Chimer timer helpers", () => {
       hexGridOpacity: 99,
     })
 
-    assert.equal(settings.hexGridPrimaryColor, "#112233")
-    assert.equal(settings.hexGridHarmony, "split-complementary")
     assert.equal(settings.hexGridHexSize, 120)
     assert.equal(settings.hexGridJointSize, 1)
     assert.equal(settings.hexGridChangeFrequency, 99)
     assert.equal(settings.hexGridActivePercent, 1)
     assert.equal(settings.hexGridOpacity, 1)
 
-    assert.equal(
-      sanitizeChimerSettings({ hexGridHarmony: "random" }).hexGridHarmony,
-      DEFAULT_CHIMER_SETTINGS.hexGridHarmony,
-    )
-    assert.equal(
-      sanitizeChimerSettings({ hexGridPrimaryColor: "bad" }).hexGridPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.hexGridPrimaryColor,
-    )
     assert.equal(
       sanitizeChimerSettings({ hexGridChangeFrequency: 900_000 }).hexGridChangeFrequency,
       TILE_GRID_FADE_SECONDS_MAX,
@@ -4087,9 +3191,6 @@ describe("Chimer timer helpers", () => {
       canvasRevealDotsShowGradient: true,
     })
 
-    assert.equal(settings.canvasRevealDotsBackgroundColor, DEFAULT_CHIMER_SETTINGS.canvasRevealDotsBackgroundColor)
-    assert.equal(settings.canvasRevealDotsDotColor, DEFAULT_CHIMER_SETTINGS.canvasRevealDotsDotColor)
-    assert.equal(settings.canvasRevealDotsAccentColor, DEFAULT_CHIMER_SETTINGS.canvasRevealDotsAccentColor)
     assert.equal(settings.canvasRevealDotsDotSize, DEFAULT_CHIMER_SETTINGS.canvasRevealDotsDotSize)
     assert.equal(settings.canvasRevealDotsDotSpacing, DEFAULT_CHIMER_SETTINGS.canvasRevealDotsDotSpacing)
     assert.equal(settings.canvasRevealDotsOpacity, DEFAULT_CHIMER_SETTINGS.canvasRevealDotsOpacity)

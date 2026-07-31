@@ -10,7 +10,7 @@ const runningTimerStyles = await read("app/chimer/running-timer.module.css")
 const providerSource = await read("components/providers/music-provider.tsx")
 
 test("RunningTimer accepts one compact immersive mode contract", () => {
-  assert.match(runningTimerSource, /interface ImmersiveDisplayMode \{[\s\S]*context: "chimer" \| "clock" \| "musicVisualizer"[\s\S]*backgroundCategory: "chimer" \| "clock" \| "music"[\s\S]*selectedBackgroundId: string \| null[\s\S]*showClock: boolean[\s\S]*canToggleClock: boolean[\s\S]*initialPanel: ImmersivePanelId[\s\S]*unavailableBackgroundMessage: string \| null[\s\S]*storageStatus: MusicVisualizerState\["storageStatus"\][\s\S]*storageError: string \| null[\s\S]*onBackgroundChange: \(backgroundId: string\) => void[\s\S]*onClose: \(\) => void/)
+  assert.match(runningTimerSource, /interface ImmersiveDisplayMode \{[\s\S]*context: "chimer" \| "clock" \| "musicVisualizer"[\s\S]*backgroundCategory: "chimer" \| "clock" \| "music"[\s\S]*selectedBackgroundId: string \| null[\s\S]*showClock: boolean[\s\S]*canToggleClock: boolean[\s\S]*initialPanel: ImmersivePanelId[\s\S]*unavailableBackgroundMessage: string \| null[\s\S]*storageStatus: MusicVisualizerState\["storageStatus"\][\s\S]*storageError: string \| null[\s\S]*onBackgroundChange: \([\s\S]*backgroundId: string,[\s\S]*accessOverride\?: BackgroundAccessSnapshot,[\s\S]*\) => void[\s\S]*onClose: \(\) => void/)
   assert.match(runningTimerSource, /interface RunningTimerProps \{[\s\S]*mode: ImmersiveDisplayMode/)
   assert.doesNotMatch(runningTimerSource, /MusicVisualizerRunningTimer/)
   assert.doesNotMatch(pageSource, /MusicVisualizerRunningTimer/)
@@ -25,13 +25,13 @@ test("ChimerPage resolves and safely closes the shared Music visualizer route", 
 })
 
 test("Music selection waits for hydration and uses explicit registry eligibility", () => {
-  assert.match(pageSource, /isBackgroundId\(id\)\s*&&\s*canUseBackgroundId\(id, featureKeys, "music"\)/)
+  assert.match(pageSource, /isBackgroundId\(id\)\s*&&\s*canUseBackgroundId\(id, backgroundAccess, "music"\)/)
   assert.match(pageSource, /resolveMusicVisualizerBackground/)
   assert.match(pageSource, /storageStatus !== "loading"/)
   assert.match(pageSource, /accountStatus !== "loading"/)
   assert.match(pageSource, /accountSyncStatus !== "checking"/)
   assert.match(pageSource, /unavailableSavedId/)
-  assert.match(runningTimerSource, /mode\.onBackgroundChange\(nextBackgroundId\)/)
+  assert.match(runningTimerSource, /mode\.onBackgroundChange\(nextBackgroundId, selectionAccess\)/)
   assert.match(runningTimerSource, /setActivePanel\(null\)/)
 })
 

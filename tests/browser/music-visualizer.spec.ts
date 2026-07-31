@@ -85,6 +85,8 @@ async function startProofStation(page: Page, origin = "/music") {
   await expect(
     page.getByRole("heading", { name: /Atmosphere audio stations/i, includeHidden: true }),
   ).toBeAttached()
+  await expect(page.getByRole("region", { name: "Atmosphere audio stations" }))
+    .toHaveAttribute("data-music-storage-status", "available")
   await centerCarouselItem(page, "mlab-proof-drone", "Next station")
   await page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
   const player = page.getByTestId("music-player-toolbar")
@@ -94,7 +96,11 @@ async function startProofStation(page: Page, origin = "/music") {
 }
 
 async function openVisualizerFromPlayer(page: Page) {
-  await page.getByRole("button", { name: "Background", exact: true }).last().click()
+  // The persistent player exposes navigation as a link so the visual-draft
+  // guard can preserve browser history semantics before the route changes.
+  await page.getByTestId("music-player-toolbar")
+    .getByRole("link", { name: "Background", exact: true })
+    .click()
   await expect(page).toHaveURL(/\/clock\?[^#]*source=music/)
   await expect(page.getByLabel("Music visualizer")).toBeVisible()
 }
@@ -143,7 +149,13 @@ async function installSignedInFreeAccount(page: Page) {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ features: [], chimerSettings: {}, appSettings: {} }),
+      body: JSON.stringify({
+        accessAuthoritative: true,
+        features: [],
+        ownedBackgroundIds: [],
+        chimerSettings: {},
+        appSettings: {},
+      }),
     })
   })
 }
@@ -209,9 +221,10 @@ async function expectDockAvoidsDisplay(
   await expect.poll(() => page.evaluate(() => {
     const displayBox = document.querySelector<HTMLElement>("[data-protected-display]")
       ?.getBoundingClientRect()
-    const dockBox = document.querySelector<HTMLElement>("[data-immersive-dock]")
-      ?.getBoundingClientRect()
-    if (!displayBox || !dockBox) return null
+    const dockElement = document.querySelector<HTMLElement>("[data-immersive-dock]")
+    const dockBox = dockElement?.getBoundingClientRect()
+    const dockLayout = dockElement?.dataset.immersiveLayout
+    if (!displayBox || !dockBox || !dockLayout) return null
     const viewport = window.visualViewport
     const viewportLeft = viewport?.offsetLeft ?? 0
     const viewportTop = viewport?.offsetTop ?? 0
@@ -219,6 +232,10 @@ async function expectDockAvoidsDisplay(
     const viewportBottom = viewportTop + (viewport?.height ?? window.innerHeight)
     const viewportCenter = (viewportLeft + viewportRight) / 2
     const dockCenter = (dockBox.left + dockBox.right) / 2
+    const nearestSideInset = Math.min(
+      Math.abs(dockBox.left - viewportLeft),
+      Math.abs(viewportRight - dockBox.right),
+    )
     const intersects = !(
       dockBox.right <= displayBox.left
       || displayBox.right <= dockBox.left
@@ -231,7 +248,9 @@ async function expectDockAvoidsDisplay(
       insideTop: dockBox.top >= viewportTop - 1,
       insideRight: dockBox.right <= viewportRight + 1,
       insideBottom: dockBox.bottom <= viewportBottom + 1,
-      centered: Math.abs(dockCenter - viewportCenter) <= 1,
+      alignedForLayout: dockLayout === "side"
+        ? nearestSideInset <= 16
+        : Math.abs(dockCenter - viewportCenter) <= 1,
       dock: {
         top: dockBox.top,
         right: dockBox.right,
@@ -257,7 +276,7 @@ async function expectDockAvoidsDisplay(
     insideTop: true,
     insideRight: true,
     insideBottom: true,
-    centered: true,
+    alignedForLayout: true,
   }))
   if (useKeyboard) {
     await expectToolbarInsideVisualViewport(page)
@@ -275,6 +294,11 @@ async function expectDockAvoidsDisplay(
     await close.click()
   }
   await expect(dock).toHaveCount(0)
+  if (useKeyboard) {
+    // Dialog focus restoration finishes after the dock unmounts. Prove that
+    // accessibility contract before another toolbar control receives focus.
+    await expect(control).toBeFocused()
+  }
 }
 
 async function expectHitTestable(page: Page, locator: Locator) {
@@ -416,7 +440,9 @@ test("anonymous visualizer journey preserves playback, exact origin, and stopped
   await page.getByRole("button", { name: "Stop", exact: true }).last().click()
   await expect(player.getByText(PROOF_STATION_TITLE)).toBeVisible()
   await expect(player).toContainText("Stopped")
-  await expect(page.getByRole("button", { name: "Background", exact: true }).last()).toBeVisible()
+  await expect(
+    player.getByRole("link", { name: "Background", exact: true }),
+  ).toBeVisible()
 
   await openVisualizerFromPlayer(page)
   await page.getByRole("button", { name: "Minimize visualizer", exact: true }).last().click()
@@ -547,21 +573,21 @@ test("Clock and Visual panels honor toggle, focus, outside, portal, and no-autoc
   await page.locator("[data-protected-display]").click({ position: { x: 2, y: 2 } })
   await expect(page.getByRole("dialog", { name: "Clock controls" })).toHaveCount(0)
 
-  await visualControl.click()
-  const visual = page.getByRole("dialog", { name: "Visual controls" })
-  await visual.getByRole("button", { name: "Primary color picker" }).click()
-  const picker = page.getByRole("dialog", { name: "Primary color picker" })
-  await picker.getByRole("slider", { name: "Primary color saturation and brightness" }).click({
+  await clockControl.click()
+  const clock = page.getByRole("dialog", { name: "Clock controls" })
+  await clock.getByRole("button", { name: "Clock color picker" }).click()
+  const picker = page.getByRole("dialog", { name: "Clock color picker" })
+  await picker.getByRole("slider", { name: "Clock color saturation and brightness" }).click({
     position: { x: 30, y: 30 },
   })
-  await expect(visual).toBeVisible()
+  await expect(clock).toBeVisible()
   await page.keyboard.press("Escape")
   await expect(picker).toHaveCount(0)
-  await expect(visual).toBeVisible()
+  await expect(clock).toBeVisible()
   await page.waitForTimeout(6_500)
-  await expect(visual).toBeVisible()
-  await visualControl.click()
-  await expect(visual).toHaveCount(0)
+  await expect(clock).toBeVisible()
+  await clockControl.click()
+  await expect(clock).toHaveCount(0)
 })
 
 test("Background traps focus and selection, Escape, and Close restore its control", async ({ page }) => {
@@ -676,13 +702,15 @@ test("Clock and Visual docks avoid protected digits at required viewport shapes"
   }
 })
 
-test("Clock and Visual docks fill the safe edge with useful first-viewport density", async ({ page }, testInfo) => {
+test("Clock and Visual preserve their height caps with useful first-viewport density", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-chromium", "single 539x597 rendered density proof")
   await page.setViewportSize({ width: 539, height: 597 })
   await openClock(page)
 
   for (const panelName of ["Clock", "Visual"] as const) {
     await page.getByRole("button", { name: panelName, exact: true }).click()
+    const dock = page.locator("[data-immersive-dock]")
+    await expect(dock).toHaveAttribute("data-immersive-panel", panelName.toLowerCase())
     await expect.poll(() => page.evaluate(() => {
       const display = document.querySelector<HTMLElement>("[data-protected-display]")
         ?.getBoundingClientRect()
@@ -691,7 +719,8 @@ test("Clock and Visual docks fill the safe edge with useful first-viewport densi
       const scrollerElement = dockElement?.querySelector<HTMLElement>(":scope > div:last-child")
       const scroller = scrollerElement?.getBoundingClientRect()
       const edge = dockElement?.dataset.immersiveDock
-      if (!display || !dock || !scrollerElement || !scroller || !edge) return null
+      const activePanelName = dockElement?.dataset.immersivePanel
+      if (!display || !dock || !scrollerElement || !scroller || !edge || !activePanelName) return null
 
       const safeGap = edge === "bottom"
         ? dock.top - display.bottom
@@ -699,6 +728,11 @@ test("Clock and Visual docks fill the safe edge with useful first-viewport densi
       const availableHeight = edge === "bottom"
         ? dock.bottom - display.bottom - 16
         : display.top - dock.top - 16
+      const dockStyle = getComputedStyle(dockElement)
+      const visualHalfHeight = Number.parseFloat(
+        dockStyle.getPropertyValue("--immersive-visual-viewport-half-height"),
+      )
+      const dockMaxHeight = Number.parseFloat(dockStyle.maxHeight)
       const visibleInteractiveCount = Array.from(scrollerElement.querySelectorAll<HTMLElement>(
         "button, input, select, [role='switch'], [role='slider']",
       )).filter((element) => {
@@ -713,9 +747,15 @@ test("Clock and Visual docks fill the safe edge with useful first-viewport densi
         gapPx: Math.round(safeGap),
         dockHeightPx: Math.round(dock.height),
         availableHeightPx: Math.round(availableHeight),
+        dockMaxHeightPx: Math.round(dockMaxHeight),
+        visualHalfHeightPx: Math.round(visualHalfHeight),
         visibleInteractiveCount,
-        safeGap: safeGap >= 14 && safeGap <= 18,
-        fillsAvailableHeight: Math.abs(dock.height - availableHeight) <= 2,
+        preservesDisplayGap: safeGap >= 14,
+        respectsHeightCap: Number.isFinite(dockMaxHeight)
+          && dock.height <= dockMaxHeight + 2,
+        respectsVisualHalfHeight: activePanelName !== "visual"
+          || (Number.isFinite(visualHalfHeight)
+            && dock.height <= visualHalfHeight + 2),
         usefulFirstViewport: visibleInteractiveCount >= 2,
         internallyScrollable: scrollerElement.scrollHeight > scrollerElement.clientHeight,
       }
@@ -723,9 +763,12 @@ test("Clock and Visual docks fill the safe edge with useful first-viewport densi
       gapPx: expect.any(Number),
       dockHeightPx: expect.any(Number),
       availableHeightPx: expect.any(Number),
+      dockMaxHeightPx: expect.any(Number),
+      visualHalfHeightPx: expect.any(Number),
       visibleInteractiveCount: expect.any(Number),
-      safeGap: true,
-      fillsAvailableHeight: true,
+      preservesDisplayGap: true,
+      respectsHeightCap: true,
+      respectsVisualHalfHeight: true,
       usefulFirstViewport: true,
       internallyScrollable: true,
     })
@@ -999,13 +1042,13 @@ test("539px dock headers own shared actions and compact visual color controls", 
   expect.soft(await visualScroller.evaluate((scroller, toggle) => scroller.contains(toggle), await visualBackground.elementHandle())).toBe(false)
   const renderedBackground = page.getByTestId("chimer-premium-background")
   await expect(renderedBackground).toHaveCount(1)
-  await visualBackground.click()
+  await visualBackground.press("Space")
   await expect(renderedBackground).toHaveCount(1)
-  await expect(renderedBackground).toHaveAttribute("data-ml-background-motion", "paused")
-  await expect(visualPanel.getByText("Lamp main color", { exact: true })).toBeVisible()
-  await expect(visualPanel.getByText("Lamp orb color", { exact: true })).toBeVisible()
-  await visualBackground.click()
-  await expect(renderedBackground).toHaveAttribute("data-ml-background-motion", "playing")
+  await expect(renderedBackground).toHaveAttribute("data-background-motion", "paused")
+  await expect(visualPanel.getByRole("combobox", { name: "Main light color mapping" })).toBeVisible()
+  await expect(visualPanel.getByRole("combobox", { name: "Orb light color mapping" })).toBeVisible()
+  await visualBackground.press("Space")
+  await expect(renderedBackground).toHaveAttribute("data-background-motion", "playing")
   const clockColor = visualPanel.getByRole("button", { name: "Clock color picker" })
   await expect(clockColor).toHaveCount(1)
   expect.soft(await visualHeader.evaluate((header, picker) => header.contains(picker), await clockColor.elementHandle())).toBe(true)
@@ -1080,61 +1123,50 @@ test("539px dock headers own shared actions and compact visual color controls", 
   })
   await expectHitTestable(page, closeVisual)
 
-  const lampRow = visualPanel.getByText("Lamp main color", { exact: true }).locator("..").first()
-  const compactRowGeometry = await lampRow.evaluate((row) => {
-    const label = row.querySelector("span")?.getBoundingClientRect()
-    const swatch = row.querySelector<HTMLElement>("button[aria-haspopup='dialog']")?.getBoundingClientRect()
-    const bounds = row.getBoundingClientRect()
-    if (!label || !swatch) return null
-    return {
-      rowHeight: Math.round(bounds.height * 10) / 10,
-      inline: Math.abs((label.top + label.bottom) / 2 - (swatch.top + swatch.bottom) / 2) <= 1,
-      swatchWidth: Math.round(swatch.width * 10) / 10,
-      swatchHeight: Math.round(swatch.height * 10) / 10,
-    }
-  })
-  expect.soft(compactRowGeometry).toEqual({
-    rowHeight: 44,
-    inline: true,
-    swatchWidth: 44,
-    swatchHeight: 44,
-  })
 })
 
-test("guest Global Colors stay visible, disabled, and use equal 44px controls", async ({ page }, testInfo) => {
+test("guest free-background colors stay editable with compact swatches and touch-sized modes", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-chromium", "single 539px rendered guest-permission proof")
   await page.setViewportSize({ width: 539, height: 597 })
   await openClock(page)
   await page.getByRole("button", { name: "Visual", exact: true }).click()
   const visualPanel = page.getByRole("dialog", { name: "Visual controls" })
-  const globalColors = visualPanel.getByText("Global Colors", { exact: true }).locator("../..")
-  await expect(globalColors).toBeVisible()
-  await expect.soft(visualPanel.getByText(/Sign in to customize and save Global Colors/i)).toBeVisible()
+  const sharedColors = visualPanel.getByRole("region", { name: "Shared Colors" })
+  await expect(sharedColors).toBeVisible()
+  await expect.soft(visualPanel.getByText(/Unlock .* with a credit, purchase, or membership/i)).toHaveCount(0)
 
-  const modeToggle = globalColors.getByRole("switch", { name: /^Choose each color:/ })
-  const harmonyButtons = globalColors.getByRole("group", { name: "Color harmony options" }).getByRole("button")
-  const paletteSwatches = globalColors.getByRole("button", { name: / picker$/ })
-  await expect.soft(modeToggle).toBeDisabled()
-  await expect.soft(harmonyButtons.first()).toBeDisabled()
-  await expect.soft(paletteSwatches).toHaveCount(5)
-  for (const swatch of await paletteSwatches.all()) {
-    await expect.soft(swatch).toBeDisabled()
-  }
-  await expect.soft(globalColors.getByRole("textbox", { name: "Palette name" })).toBeDisabled()
-  await expect.soft(globalColors.getByRole("button", { name: "Save palette" })).toBeDisabled()
+  const colorSource = sharedColors.getByRole("group", { name: "Color source" })
+  const sourceButton = colorSource.getByRole("radio", { name: "Source" })
+  const customButton = colorSource.getByRole("radio", { name: "Custom" })
+  const harmonyButton = colorSource.getByRole("radio", { name: "Harmony" })
+  const colorPresets = visualPanel.getByRole("region", { name: "Color presets" })
+  const paletteSwatches = sharedColors.locator("[aria-label^='Swatch ']")
+  await expect.soft(sourceButton).toBeEnabled()
+  await expect.soft(sourceButton).toHaveAttribute("data-selected", "true")
+  await expect.soft(customButton).toBeEnabled()
+  await expect.soft(harmonyButton).toBeEnabled()
+  await expect.soft(paletteSwatches).toHaveCount(7)
+  await customButton.click()
+  await expect.soft(colorPresets.getByRole("textbox", { name: "New color preset name" })).toBeEnabled()
+  await colorPresets.getByRole("textbox", { name: "New color preset name" }).fill("Guest palette")
+  await expect.soft(colorPresets.getByRole("button", { name: "Save as new" })).toBeEnabled()
 
   const sizes = await Promise.all([
     paletteSwatches.first().boundingBox(),
-    harmonyButtons.first().boundingBox(),
+    customButton.boundingBox(),
   ])
-  const [swatchBox, harmonyBox] = sizes
-  expect.soft(swatchBox && harmonyBox ? {
-    swatch: [Math.round(swatchBox.width * 10) / 10, Math.round(swatchBox.height * 10) / 10],
-    harmony: [Math.round(harmonyBox.width * 10) / 10, Math.round(harmonyBox.height * 10) / 10],
-  } : null).toEqual({ swatch: [44, 44], harmony: [44, 44] })
+  const [swatchBox, modeBox] = sizes
+  expect.soft(swatchBox && modeBox ? {
+    swatchUsesApprovedCompactSize: swatchBox.width >= 28
+      && swatchBox.width <= 36
+      && swatchBox.height >= 28
+      && swatchBox.height <= 36
+      && Math.abs(swatchBox.width - swatchBox.height) <= 1,
+    modeIsTouchSized: modeBox.height >= 40,
+  } : null).toEqual({ swatchUsesApprovedCompactSize: true, modeIsTouchSized: true })
 
-  for (const label of ["Primary color", "Color 2", "Color 3", "Color 4", "Color 5"]) {
-    const labelElement = globalColors.getByText(label, { exact: true })
+  for (const label of ["Swatch 1", "Swatch 2", "Swatch 3", "Swatch 4", "Swatch 5", "Swatch 6", "Swatch 7"]) {
+    const labelElement = sharedColors.getByText(label, { exact: true })
     await expect.soft(labelElement).toBeVisible()
     expect.soft(await labelElement.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
   }
@@ -1146,14 +1178,14 @@ test("guest Global Colors stay visible, disabled, and use equal 44px controls", 
     const grid = fields[0]?.parentElement?.getBoundingClientRect()
     return {
       sameRow: rects.every((rect) => Math.abs(rect.top - rects[0].top) <= 1),
-      fiveColumns: new Set(rects.map((rect) => Math.round(rect.left))).size === 5,
+      columnCount: new Set(rects.map((rect) => Math.round(rect.left))).size,
       inside: grid ? rects.every((rect) => rect.left >= grid.left && rect.right <= grid.right) : false,
     }
   })
-  expect.soft(paletteRowAt539).toEqual({ sameRow: true, fiveColumns: true, inside: true })
+  expect.soft(paletteRowAt539).toEqual({ sameRow: false, columnCount: 4, inside: true })
 
   await page.setViewportSize({ width: 319, height: 823 })
-  await globalColors.scrollIntoViewIfNeeded()
+  await sharedColors.scrollIntoViewIfNeeded()
   const paletteRowAt319 = await paletteSwatches.evaluateAll((swatches) => {
     const fields = swatches.map((swatch) => swatch.closest("div")?.parentElement)
       .filter((field): field is HTMLElement => Boolean(field))
@@ -1163,19 +1195,89 @@ test("guest Global Colors stay visible, disabled, and use equal 44px controls", 
     const labels = fields.map((field) => field.querySelector<HTMLElement>("span")).filter(Boolean) as HTMLElement[]
     return {
       sameRow: rects.every((rect) => Math.abs(rect.top - rects[0].top) <= 1),
-      fiveColumns: new Set(rects.map((rect) => Math.round(rect.left))).size === 5,
+      columnCount: new Set(rects.map((rect) => Math.round(rect.left))).size,
       inside: grid ? rects.every((rect) => rect.left >= grid.left && rect.right <= grid.right) : false,
       noHorizontalClip: gridElement ? gridElement.scrollWidth <= gridElement.clientWidth + 1 : false,
-      labelsReadable: labels.length === 5 && labels.every((label) => label.scrollWidth <= label.clientWidth + 1),
+      labelsReadable: labels.length === 7 && labels.every((label) => label.scrollWidth <= label.clientWidth + 1),
     }
   })
   expect.soft(paletteRowAt319).toEqual({
-    sameRow: true,
-    fiveColumns: true,
+    sameRow: false,
+    columnCount: 2,
     inside: true,
     noHorizontalClip: true,
     labelsReadable: true,
   })
+})
+
+test("signed-in free Lamp keeps its saved palette editable and rendered", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "single account-level Lamp color proof")
+  const lampPalette = {
+    mode: "custom",
+    primaryColor: "#123456",
+    harmony: "analogous",
+    swatches: ["#123456", "#abcdef", "#345678", "#456789", "#56789a", "#6789ab", "#789abc"],
+  }
+  const chimerSettings = {
+    backgroundId: "massage-lab-moving-gradient",
+    backgroundVisualPreferences: {
+      version: 1,
+      palette: lampPalette,
+      mappingsByBackground: {
+        "massage-lab-moving-gradient": { main: 0, orb: 1 },
+      },
+      colorPresets: [],
+      visualPresetsByBackground: {},
+    },
+  }
+
+  await seedDeviceVisualizer(page, {
+    backgroundId: "massage-lab-moving-gradient",
+    showClock: false,
+  })
+  await page.addInitScript(({ key, settings }) => {
+    localStorage.setItem(key, JSON.stringify(settings))
+  }, {
+    key: CHIMER_STORAGE_KEY,
+    settings: chimerSettings,
+  })
+  await page.route("**/api/auth/session", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ user: { id: "free-lamp-user", email: "free-lamp@example.com" } }),
+    })
+  })
+  await page.route("**/api/account/preferences", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        accessAuthoritative: true,
+        features: [],
+        ownedBackgroundIds: [],
+        chimerSettings,
+        appSettings: {},
+      }),
+    })
+  })
+
+  await page.goto("/clock?source=music&returnTo=%2Fmusic", { waitUntil: "domcontentloaded" })
+  const lamp = page.getByTestId("background-host-moving-gradient")
+  await expect(lamp).toBeVisible()
+
+  await page.getByRole("button", { name: "Visual", exact: true }).click()
+  const sharedColors = page.getByRole("dialog", { name: "Visual controls" })
+    .getByRole("region", { name: "Shared Colors" })
+  await expect(sharedColors.getByRole("radio", { name: "Custom" })).toBeEnabled()
+  await expect(sharedColors.getByRole("radio", { name: "Custom" })).toHaveAttribute("data-selected", "true")
+  await expect(sharedColors.getByRole("radio", { name: "Harmony" })).toBeEnabled()
+  await expect(sharedColors.getByLabel("Swatch 1, Primary, Main light")).toBeEnabled()
+  await expect(sharedColors.getByLabel("Swatch 2, Orb light")).toBeEnabled()
+  await expect.poll(() => lamp.locator(".massagelab-background-fallback").evaluate((element) => [
+    (element as HTMLElement).style.getPropertyValue("--ml-background-main"),
+    (element as HTMLElement).style.getPropertyValue("--ml-background-orb"),
+  ])).toEqual(["#123456", "#abcdef"])
 })
 
 test("narrow mobile keeps immersive controls in one circular top row", async ({ page }, testInfo) => {
@@ -1501,10 +1603,10 @@ test("rotation and forward glow follow the centered display and stop for reduced
   ]) {
     await expect(clockPanel.getByText(label, { exact: true })).toHaveCount(1)
   }
-  // The rotation cycle lasts 10 seconds, so sample through a complete cycle
-  // before deciding whether the transformed display clears the open panel.
+  // Panel placement intentionally follows the stable wrapper rather than the
+  // animated inner yaw bounds, which vary during the rotation cycle.
   await expect.poll(async () => {
-    const displayBounds = await protectedDisplay.locator("[data-display-content='true']").boundingBox()
+    const displayBounds = await protectedDisplay.boundingBox()
     const panelBounds = await clockPanel.boundingBox()
     if (!displayBounds || !panelBounds) return 0
     const displayRight = displayBounds.x + displayBounds.width
@@ -1518,7 +1620,7 @@ test("rotation and forward glow follow the centered display and stop for reduced
       panelBounds.y - displayBottom,
       displayBounds.y - panelBottom,
     )
-  }, { timeout: 12_000 }).toBeGreaterThanOrEqual(32)
+  }).toBeGreaterThanOrEqual(16)
 
   await page.emulateMedia({ reducedMotion: "reduce" })
   await expect.poll(() => protectedDisplay.locator("[data-display-rotation-layer]").evaluate(
@@ -1612,12 +1714,17 @@ test("signed-in defaults, device precedence, failed save, retry, and unrelated s
   )
   await page.getByRole("button", { name: "Visual", exact: true }).click()
   const signedInVisual = page.getByRole("dialog", { name: "Visual controls" })
-  const signedInGlobalColors = signedInVisual.getByText("Global Colors", { exact: true }).locator("../..")
-  await expect(signedInVisual.getByText(/Sign in to customize and save Global Colors/i)).toHaveCount(0)
-  await expect(signedInGlobalColors.getByRole("switch", { name: /^Choose each color:/ })).toBeEnabled()
-  await expect(signedInGlobalColors.getByRole("button", { name: "Primary color picker" })).toBeEnabled()
-  await expect(signedInGlobalColors.getByRole("textbox", { name: "Palette name" })).toBeEnabled()
-  await expect(signedInGlobalColors.getByRole("button", { name: "Save palette" })).toBeEnabled()
+  const signedInSharedColors = signedInVisual.getByRole("region", { name: "Shared Colors" })
+  const signedInColorPresets = signedInVisual.getByRole("region", { name: "Color presets" })
+  await expect(
+    signedInVisual.getByText(/Unlock .* with a credit, purchase, or membership/i),
+  ).toHaveCount(0)
+  await expect(
+    signedInSharedColors.getByText(/Colors are unavailable for Static gradient/i),
+  ).toBeVisible()
+  await expect(signedInSharedColors.getByRole("radio", { name: "Custom" })).toBeDisabled()
+  await expect(signedInColorPresets.getByRole("textbox", { name: "New color preset name" })).toBeDisabled()
+  await expect(signedInColorPresets.getByRole("button", { name: "Save as new" })).toBeDisabled()
   await page.getByRole("button", { name: "Restore account default", exact: true }).click()
   await expect(page.getByTestId("chimer-premium-background")).toBeVisible()
   await page.getByRole("button", { name: "Close Visual panel" }).click()

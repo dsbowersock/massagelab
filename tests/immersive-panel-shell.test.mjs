@@ -15,8 +15,16 @@ const shellStyles = await read("app/chimer/immersive-panel-shell.module.css")
 const layoutSource = await read("app/chimer/immersive-panel-layout.js")
 const runningTimerSource = await read("app/chimer/running-timer.tsx")
 const runningTimerStyles = await read("app/chimer/running-timer.module.css")
+const chimerControlStyles = await read("components/chimer-controls/chimer-controls.module.css")
 const planSource = await read("docs/superpowers/plans/2026-07-18-clock-chimer-music-visualizer.md")
 const specSource = await read("docs/superpowers/specs/2026-07-18-clock-chimer-music-visualizer-design.md")
+
+function getPanelContentSource(startProp, endProp) {
+  const start = runningTimerSource.indexOf(`${startProp}={`)
+  const end = runningTimerSource.indexOf(`${endProp}={`)
+  assert.ok(start >= 0 && end > start)
+  return runningTimerSource.slice(start, end)
+}
 
 test("exports the reusable controlled immersive panel contract", () => {
   assert.match(shellSource, /export type ImmersivePanelId = "clock" \| "visual" \| "background" \| null/)
@@ -32,7 +40,7 @@ test("renders three accessible grouped panel toggles with responsive tooltips", 
   assert.match(shellSource, /aria-controls=\{panelId\}/)
   assert.match(shellSource, /aria-label=\{label\}/)
   assert.match(shellSource, /<TooltipProvider[\s\S]*<Tooltip[\s\S]*<TooltipContent/)
-  assert.match(shellSource, /onActivePanelChange\(isActive \? null : id\)/)
+  assert.match(shellSource, /requestActivePanelChange\(isActive \? null : id\)/)
   assert.match(
     shellStyles,
     /\.toolbarLabel\s*\{[\s\S]{0,300}position:\s*absolute[\s\S]{0,300}clip:\s*rect\(0, 0, 0, 0\)/,
@@ -72,6 +80,20 @@ test("keeps Clock and Visual nonmodal with complete dismissal mechanics", () => 
   assert.match(shellSource, /aria-label=\{`Close \$\{activePanelLabel\} panel`\}/)
 })
 
+test("asks the owner before closing or changing Visual only", () => {
+  assert.match(
+    shellSource,
+    /onRequestActivePanelChange\?: \(panel: ImmersivePanelId\) => boolean/,
+  )
+  assert.match(
+    shellSource,
+    /activePanel === "visual"[\s\S]*onRequestActivePanelChange\?\.\(nextPanel\) === false/,
+  )
+  assert.match(shellSource, /requestActivePanelChange\(null/)
+  assert.match(shellSource, /requestActivePanelChange\(isActive \? null : id/)
+  assert.match(runningTimerSource, /onRequestActivePanelChange=\{handlePanelChangeRequest\}/)
+})
+
 test("uses a full-screen Radix modal for Background with default outside dismissal", () => {
   assert.match(shellSource, /@radix-ui\/react-dialog/)
   assert.match(shellSource, /data-immersive-panel="background"/)
@@ -91,7 +113,7 @@ test("measures a stable protected display and dock with bottom-first placement",
   assert.doesNotMatch(shellSource, /currentProtectedDisplay\.getBoundingClientRect\(\)/)
   assert.match(layoutSource, /const bottomSpace =[\s\S]*if \(bottomSpace >= requestedPanelPx \+ SAFE_STAGE_GAP_PX \+ normalizedBottomInset\)/)
   assert.match(layoutSource, /const topSpace =[\s\S]*if \(topSpace >= requestedPanelPx \+ SAFE_STAGE_GAP_PX \+ normalizedTopInset\)/)
-  assert.equal((shellSource.match(/new ResizeObserver/g) ?? []).length, 2)
+  assert.equal((shellSource.match(/new ResizeObserver/g) ?? []).length, 3)
   assert.match(shellSource, /resizeObserver\?\.observe\(toolbar\)/)
   assert.match(shellSource, /resizeObserver\?\.observe\(protectedDisplay\)/)
   assert.match(shellSource, /resizeObserver\?\.observe\(dock\)/)
@@ -112,6 +134,54 @@ test("measures a stable protected display and dock with bottom-first placement",
   assert.match(shellStyles, /@media \(max-width: 36rem\)[\s\S]*\.dock \{[\s\S]*width:\s*auto/)
 })
 
+test("caps Visual vertically and gives both panels an opposite-sidebar side sheet only at 16:9", () => {
+  assert.match(shellSource, /const SIDE_SHEET_MIN_ASPECT_RATIO = 16 \/ 9/)
+  assert.match(
+    shellSource,
+    /\(visualViewportFrame\.width \/ visualViewportFrame\.height\) >= SIDE_SHEET_MIN_ASPECT_RATIO/,
+  )
+  assert.match(shellSource, /data-immersive-layout=\{nonmodalPanelUsesSideSheet \? "side" : "dock"\}/)
+  assert.match(shellSource, /--immersive-visual-viewport-half-width/)
+  assert.match(shellSource, /--immersive-visual-viewport-half-height/)
+  assert.match(
+    shellStyles,
+    /\.dock\[data-immersive-panel="visual"\]\s*\{[\s\S]{0,300}var\(--immersive-visual-viewport-half-height,\s*50dvh\)/,
+  )
+  assert.match(
+    shellStyles,
+    /\.dock\[data-immersive-layout="side"\]\s*\{[\s\S]{0,700}width:\s*min\(36rem,\s*var\(--immersive-visual-viewport-half-width,\s*50vw\)\)/,
+  )
+  assert.match(
+    shellStyles,
+    /html\[data-sidebar-position="right"\][\s\S]{0,180}\.dock\[data-immersive-layout="side"\][\s\S]{0,220}right:\s*auto;[\s\S]{0,220}left:\s*calc\(/,
+  )
+  assert.match(
+    shellSource,
+    /closeClockSideSheetBeforeCenterControls\s*=\s*nonmodalPanel === "clock" && nonmodalPanelUsesSideSheet/,
+  )
+  assert.match(
+    shellSource,
+    /\{closeClockSideSheetBeforeCenterControls \? dockHeaderCloseControl : null\}[\s\S]{0,220}dockHeaderCenterAction[\s\S]{0,220}\{!closeClockSideSheetBeforeCenterControls \? dockHeaderCloseControl : null\}/,
+  )
+  assert.match(shellSource, /--immersive-reserved-right/)
+  assert.match(shellSource, /--immersive-reserved-left/)
+  assert.match(
+    shellSource,
+    /panelHeight:\s*nonmodalPanel === "visual"[\s\S]{0,80}\?\s*0[\s\S]{0,80}:\s*dock\.scrollHeight/,
+  )
+  assert.match(shellSource, /attributeFilter:\s*\["data-sidebar-position"\]/)
+  assert.match(runningTimerStyles, /right:\s*var\(--immersive-reserved-right\)/)
+  assert.match(runningTimerStyles, /left:\s*var\(--immersive-reserved-left\)/)
+  assert.match(
+    chimerControlStyles,
+    /\[data-immersive-panel="visual"\]\[data-immersive-layout="side"\][\s\S]{0,120}\.backgroundPaletteGrid[\s\S]{0,100}repeat\(7,\s*minmax\(0,\s*1fr\)\)/,
+  )
+  assert.match(
+    chimerControlStyles,
+    /\.backgroundPaletteHeader\s*\{[\s\S]{0,180}grid-template-areas:\s*"mode intro"/,
+  )
+})
+
 test("RunningTimer owns one active panel without legacy settings tabs or auto-close", () => {
   assert.match(runningTimerSource, /useState<ImmersivePanelId>\(null\)/)
   assert.match(runningTimerSource, /<ImmersivePanelShell[\s\S]*activePanel=\{activePanel\}[\s\S]*onActivePanelChange=\{handleActivePanelChange\}/)
@@ -119,8 +189,14 @@ test("RunningTimer owns one active panel without legacy settings tabs or auto-cl
   assert.doesNotMatch(runningTimerSource, /<Tabs(?:Content|List|Trigger)?\b/)
   assert.doesNotMatch(runningTimerSource, /settingsButton|SettingsButton|settingsAutoClose|SettingsAutoClose|SETTINGS_AUTO_CLOSE/)
   assert.doesNotMatch(runningTimerStyles, /settingsButton|settingsPanel|settingsTabs|settingsTabList|settingsTabTrigger/)
-  assert.match(runningTimerSource, /visualContent=\{\([\s\S]*label="Keep timer screen awake"/)
-  assert.doesNotMatch(runningTimerSource, /clockContent=\{\([\s\S]*label="Keep timer screen awake"[\s\S]*visualContent=/)
+  assert.match(
+    getPanelContentSource("visualContent", "backgroundContent"),
+    /label="Keep timer screen awake"/,
+  )
+  assert.doesNotMatch(
+    getPanelContentSource("clockContent", "visualContent"),
+    /label="Keep timer screen awake"/,
+  )
 })
 
 test("tracked docs clarify Background dismissal, selection, and Visual hint behavior", () => {
@@ -140,5 +216,8 @@ test("wires a non-blocking device-local Visual hint without changing the active-
   assert.match(shellSource, /aria-describedby=\{id === "visual" && visualHintMessage \? visualHintId : undefined\}/)
   assert.match(shellSource, /role="status"/)
   assert.match(shellStyles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.visualHintActive/)
-  assert.match(runningTimerSource, /visualContent=\{\([\s\S]*!isClockMode[\s\S]*label="Keep timer screen awake"/)
+  assert.match(
+    getPanelContentSource("visualContent", "backgroundContent"),
+    /!isClockMode[\s\S]*label="Keep timer screen awake"/,
+  )
 })

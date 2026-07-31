@@ -92,26 +92,17 @@ describe("Music visualizer provider contract", () => {
 
 describe("Persistent player visualizer boundary", () => {
   it("replaces visualizer history on minimize but pushes on entry", () => {
-    const actionStart = miniPlayerSource.indexOf("const handleVisualizerAction")
-    const actionSource = miniPlayerSource.slice(
-      actionStart,
-      miniPlayerSource.indexOf("useEffect", actionStart),
-    )
-
-    assert.notEqual(actionStart, -1)
     for (const contract of [
-      /usePathname/, /useSearchParams/, /useRouter/, /buildMusicVisualizerHref/,
+      /usePathname/, /useSearchParams/, /buildMusicVisualizerHref/,
       /sanitizeMusicVisualizerReturnTo/, /Minimize visualizer/, /Background/,
     ]) assert.match(miniPlayerSource, contract)
     assert.match(
-      actionSource,
-      /router\.replace\(sanitizeMusicVisualizerReturnTo\(searchParams\.get\("returnTo"\)\)\)/,
+      miniPlayerSource,
+      /const visualizerHref = isMusicVisualizerRoute[\s\S]*sanitizeMusicVisualizerReturnTo\(searchParams\.get\("returnTo"\)\)[\s\S]*buildMusicVisualizerHref\(/,
     )
-    assert.match(actionSource, /router\.push\(buildMusicVisualizerHref\(/)
-    assert.doesNotMatch(
-      actionSource,
-      /router\.push\(sanitizeMusicVisualizerReturnTo/,
-    )
+    assert.match(miniPlayerSource, /<Link[\s\S]*href=\{visualizerHref\}[\s\S]*replace=\{isMusicVisualizerRoute\}/)
+    assert.match(miniPlayerSource, /data-visual-draft-navigation-mode=\{isMusicVisualizerRoute \? "replace" : undefined\}/)
+    assert.doesNotMatch(miniPlayerSource, /router\.(?:push|replace)/)
     assert.doesNotMatch(miniPlayerSource, /backgroundRegistry/)
   })
 

@@ -14,6 +14,40 @@ type ToneProofDroneOptions = {
 }
 
 let activeVolumeNode: Volume | null = null
+let activeProofSession: {
+  id: number
+  startedAt: number
+  output: Volume
+} | null = null
+let nextProofSessionId = 1
+
+export interface ToneProofDroneDiagnostics {
+  sessionId: number
+  audioContextState: string
+  startedAt: number
+  currentTime: number
+  elapsed: number
+}
+
+/**
+ * Reads the active production Tone graph without creating or advancing it.
+ * Guarded QA surfaces use this to prove playback identity and audio-context
+ * time survive unrelated React draft updates.
+ */
+export function getToneProofDroneDiagnostics(): ToneProofDroneDiagnostics | null {
+  if (!activeProofSession) {
+    return null
+  }
+  const rawContext = activeProofSession.output.context.rawContext
+  const currentTime = rawContext.currentTime
+  return {
+    sessionId: activeProofSession.id,
+    audioContextState: rawContext.state,
+    startedAt: activeProofSession.startedAt,
+    currentTime,
+    elapsed: currentTime - activeProofSession.startedAt,
+  }
+}
 
 /**
  * Starts the first MassageLab-owned browser generator used to prove the global
@@ -43,6 +77,12 @@ export async function startToneProofDrone({
   let disposed = false
 
   activeVolumeNode = output
+  activeProofSession = {
+    id: nextProofSessionId,
+    startedAt: output.context.rawContext.currentTime,
+    output,
+  }
+  nextProofSessionId += 1
 
   baseOscillator.start()
   detunedOscillator.start("+0.03")
@@ -52,6 +92,9 @@ export async function startToneProofDrone({
   return () => {
     if (activeVolumeNode === output) {
       activeVolumeNode = null
+    }
+    if (activeProofSession?.output === output) {
+      activeProofSession = null
     }
 
     output.volume.rampTo(volumeToDecibels(0), safeFadeSeconds)

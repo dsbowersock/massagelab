@@ -1,7 +1,9 @@
 .root {
   --immersive-global-chrome-z: 10030;
   --immersive-reserved-top: 0px;
+  --immersive-reserved-right: 0px;
   --immersive-reserved-bottom: 0px;
+  --immersive-reserved-left: 0px;
   --immersive-panel-max-height: min(70dvh, 44rem);
   --immersive-dock-top-inset: max(0.75rem, env(safe-area-inset-top, 0px));
   --immersive-dock-bottom-inset: max(0.75rem, env(safe-area-inset-bottom, 0px));
@@ -209,6 +211,86 @@
   );
 }
 
+.dock[data-immersive-panel="visual"] {
+  height: min(
+    var(--immersive-panel-max-height),
+    var(--immersive-visual-viewport-half-height, 50dvh)
+  );
+  max-height: min(
+    var(--immersive-panel-max-height),
+    var(--immersive-visual-viewport-half-height, 50dvh)
+  );
+}
+
+/*
+ * At true wide-screen aspect ratios Clock and Visual share one side sheet.
+ * The timer stage reserves the same edge so its protected display recenters in
+ * the visible half instead of sitting beneath the panel.
+ */
+.dock[data-immersive-layout="side"] {
+  top: calc(
+    var(--immersive-visual-viewport-top, 0px)
+    + var(--immersive-dock-top-inset)
+  );
+  right: calc(
+    var(--immersive-visual-viewport-right, 0px)
+    + max(0.75rem, env(safe-area-inset-right, 0px))
+  );
+  bottom: calc(
+    var(--immersive-visual-viewport-bottom, 0px)
+    + var(--immersive-dock-bottom-inset)
+  );
+  left: auto;
+  width: min(36rem, var(--immersive-visual-viewport-half-width, 50vw));
+  max-width: var(--immersive-visual-viewport-half-width, 50vw);
+  height: auto;
+  max-height: none;
+  margin-inline: 0;
+  overflow-x: hidden;
+}
+
+:global(html[data-sidebar-position="right"])
+  .dock[data-immersive-layout="side"] {
+  right: auto;
+  left: calc(
+    var(--immersive-visual-viewport-left, 0px)
+    + max(0.75rem, env(safe-area-inset-left, 0px))
+  );
+}
+
+.dock[data-immersive-layout="side"] .dockHeader {
+  gap: 0.4rem;
+  padding-inline: 0.75rem;
+}
+
+.dock[data-immersive-layout="side"][data-immersive-panel="clock"] .dockHeader {
+  display: grid;
+  grid-template-areas:
+    "title visibility close"
+    "controls controls controls";
+  grid-template-columns: max-content max-content minmax(0, 1fr);
+}
+
+.dock[data-immersive-layout="side"][data-immersive-panel="clock"] .dockHeader h2 {
+  grid-area: title;
+  margin-right: 0;
+}
+
+.dock[data-immersive-layout="side"][data-immersive-panel="clock"] .dockHeaderAction {
+  grid-area: visibility;
+}
+
+.dock[data-immersive-layout="side"][data-immersive-panel="clock"] .dockHeaderCenterAction {
+  grid-area: controls;
+  width: 100%;
+}
+
+.dock[data-immersive-layout="side"][data-immersive-panel="clock"] .dockHeaderClose {
+  grid-area: close;
+  justify-self: end;
+  margin-left: 0;
+}
+
 .dockHeader,
 .backgroundHeader {
   display: flex;
@@ -317,6 +399,13 @@
 
 .dockScroller {
   flex: 1 1 auto;
+}
+
+.dock[data-immersive-layout="side"] .dockScroller {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 /* This layer sits above the app bar/player (10015) and the immersive timer (10000). */

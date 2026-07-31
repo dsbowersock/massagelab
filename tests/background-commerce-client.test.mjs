@@ -7,6 +7,7 @@ import {
   buildBackgroundCartAuthReturnPath,
   formatCommerceAmount,
   normalizeBackgroundCommerceSnapshot,
+  shouldApplyPreferenceOwnershipProof,
 } from "../lib/background-commerce-client.js"
 
 const EMPTY_SNAPSHOT = {
@@ -299,6 +300,13 @@ describe("background cart authentication return paths", () => {
 })
 
 describe("background commerce reducer", () => {
+  it("applies preference ownership only against the commerce revision it observed", () => {
+    assert.equal(shouldApplyPreferenceOwnershipProof(4, 4), true)
+    assert.equal(shouldApplyPreferenceOwnershipProof(4, 5), false)
+    assert.equal(shouldApplyPreferenceOwnershipProof(-1, -1), false)
+    assert.equal(shouldApplyPreferenceOwnershipProof("4", 4), false)
+  })
+
   it("uses full snapshots and rejects stale fetch responses", () => {
     const loadingOne = backgroundCommerceReducer(EMPTY_BACKGROUND_COMMERCE_STATE, {
       type: "fetch-begin",
@@ -410,6 +418,65 @@ describe("background commerce reducer", () => {
     assert.deepEqual(next.snapshot.ownedBackgroundIds, ["new"])
     assert.equal(next.snapshot.creditBalance, 1)
   })
+
+  it("reconciles newer ownership without inventing acquisition evidence", () => {
+    const state = {
+      status: "ready",
+      snapshot: snapshot({
+        creditBalance: 2,
+        ownedBackgroundIds: ["revoked", "retained"],
+        ownerships: [
+          {
+            backgroundId: "revoked",
+            source: "purchase",
+            status: "active",
+            acquiredAt: "2026-07-20T10:00:00.000Z",
+          },
+          {
+            backgroundId: "retained",
+            source: "credit",
+            status: "active",
+            acquiredAt: "2026-07-20T11:00:00.000Z",
+          },
+          {
+            backgroundId: "pending-reversal",
+            source: "purchase",
+            status: "refund_pending",
+            acquiredAt: "2026-07-20T12:00:00.000Z",
+          },
+          {
+            backgroundId: "restored",
+            source: "purchase",
+            status: "dispute_suspended",
+            acquiredAt: "2026-07-20T13:00:00.000Z",
+          },
+        ],
+      }),
+      pendingAction: null,
+      error: null,
+    }
+    const next = backgroundCommerceReducer(state, {
+      type: "ownership-reconcile",
+      ownedBackgroundIds: ["retained", "newly-owned", "restored"],
+    })
+
+    assert.deepEqual(next.snapshot.ownedBackgroundIds, ["retained", "newly-owned", "restored"])
+    assert.deepEqual(
+      next.snapshot.ownerships.map((ownership) => ownership.backgroundId),
+      ["retained", "pending-reversal"],
+    )
+    assert.equal(next.snapshot.creditBalance, 2)
+    assert.equal(backgroundCardCommerceState({
+      background: { id: "pending-reversal", enabled: true, requiresSubscription: true },
+      access: { canUse: true, accessSource: "subscription" },
+      snapshot: next.snapshot,
+    }).state, "unavailable")
+    assert.equal(backgroundCardCommerceState({
+      background: { id: "restored", enabled: true, requiresSubscription: true },
+      access: { canUse: true, accessSource: "ownership" },
+      snapshot: next.snapshot,
+    }).state, "owned")
+  })
 })
 
 describe("background card commerce states", () => {
@@ -444,6 +511,16 @@ describe("background card commerce states", () => {
     assert.equal(included.state, "included-subscription")
     assert.equal(included.canSelect, true)
     assert.equal(included.showKeepPermanently, true)
+
+    const transientlyOwned = backgroundCardCommerceState({
+      background: premium,
+      access: { canUse: true, accessSource: "ownership" },
+      snapshot: snapshot(),
+    })
+    assert.equal(transientlyOwned.state, "owned")
+    assert.equal(transientlyOwned.canSelect, true)
+    assert.equal(transientlyOwned.showKeepPermanently, false)
+    assert.equal(transientlyOwned.ownershipSource, null)
 
     assert.equal(backgroundCardCommerceState({
       background: premium,

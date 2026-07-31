@@ -25,6 +25,7 @@ import {
   normalizeMusicVisualizerAccountPreferences,
   normalizeMusicVisualizerDevicePreferences,
 } from "@/lib/music-visualizer"
+import type { ToneProofDroneDiagnostics } from "@/lib/atmosphere/tone-proof-runtime"
 
 type PlaybackState = "stopped" | "loading" | "playing" | "failed"
 
@@ -67,6 +68,8 @@ interface MusicContextType {
   setCurrentVisualizerBackgroundAsDefault: () => Promise<void>
   restoreVisualizerAccountDefault: () => void
   retryVisualizerAccountSync: () => Promise<void>
+  /** Reads the active production Tone graph for guarded continuity QA. */
+  getPlaybackDiagnostics: () => ToneProofDroneDiagnostics | null
 }
 
 interface AtmosphereStorageState {
@@ -162,6 +165,7 @@ type AtmosphereRuntimeModules = {
   }) => Promise<void>
   setGenerativeFmPieceVolume: (volume: number) => void
   setToneProofDroneVolume: (volume: number) => void
+  getToneProofDroneDiagnostics: () => ToneProofDroneDiagnostics | null
   startGenerativeFmPiece: (options: {
     onLoadProgress?: (progress: number) => void
     station: RuntimeAdapterPayload["station"]
@@ -216,6 +220,7 @@ const defaultMusicContext: MusicContextType = {
   setCurrentVisualizerBackgroundAsDefault: async () => undefined,
   restoreVisualizerAccountDefault: () => undefined,
   retryVisualizerAccountSync: async () => undefined,
+  getPlaybackDiagnostics: () => null,
 }
 
 const MusicContext = createContext<MusicContextType>(defaultMusicContext)
@@ -801,6 +806,10 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     await syncVisualizerAccountPreferences()
   }, [persistVisualizerAccountPreferences, syncVisualizerAccountPreferences])
 
+  const getPlaybackDiagnostics = useCallback(() => (
+    runtimeRef.current?.getToneProofDroneDiagnostics() ?? null
+  ), [])
+
   const value = useMemo<MusicContextType>(() => ({
     activeStationId,
     activeStationTitle,
@@ -835,6 +844,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     setCurrentVisualizerBackgroundAsDefault,
     restoreVisualizerAccountDefault,
     retryVisualizerAccountSync,
+    getPlaybackDiagnostics,
   }), [
     accountDefaultBackgroundId,
     accountError,
@@ -852,6 +862,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     prewarmStation,
     restoreVisualizerAccountDefault,
     retryVisualizerAccountSync,
+    getPlaybackDiagnostics,
     selectVisualizerBackground,
     setMiniPlayerCollapsed,
     setCurrentVisualizerBackgroundAsDefault,
@@ -969,6 +980,7 @@ async function loadAtmosphereRuntimeModules(): Promise<AtmosphereRuntimeModules>
     prewarmGenerativeFmPiece: generativeRuntime.prewarmGenerativeFmPiece,
     setGenerativeFmPieceVolume: generativeRuntime.setGenerativeFmPieceVolume,
     setToneProofDroneVolume: toneProofRuntime.setToneProofDroneVolume,
+    getToneProofDroneDiagnostics: toneProofRuntime.getToneProofDroneDiagnostics,
     startGenerativeFmPiece: generativeRuntime.startGenerativeFmPiece,
     startToneProofDrone: toneProofRuntime.startToneProofDrone,
   }

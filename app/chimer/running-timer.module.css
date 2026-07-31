@@ -7,7 +7,9 @@
   --chimer-digit-stroke-width: 0px;
   --chimer-digit-stroke-color: #050505;
   --immersive-reserved-top: 0px;
+  --immersive-reserved-right: 0px;
   --immersive-reserved-bottom: 0px;
+  --immersive-reserved-left: 0px;
   --chimer-digit-glow:
     0 0 0.035em color-mix(in srgb, currentColor 72%, transparent),
     0 0 0.16em color-mix(in srgb, currentColor 38%, transparent),
@@ -113,15 +115,19 @@
 
   position: fixed;
   top: calc(var(--chimer-top-control-space) + var(--immersive-reserved-top));
-  right: 0;
+  right: var(--immersive-reserved-right);
   bottom: calc(var(--chimer-bottom-control-space) + var(--immersive-reserved-bottom));
-  left: 0;
+  left: var(--immersive-reserved-left);
   z-index: 10001;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100vw;
-  max-width: 100vw;
+  width: auto;
+  max-width: calc(
+    100vw
+    - var(--immersive-reserved-left)
+    - var(--immersive-reserved-right)
+  );
   min-height: 0;
   padding: 0;
   overflow: hidden;
@@ -137,7 +143,9 @@
     bottom 180ms ease,
     color 150ms ease,
     left 180ms ease,
+    max-width 180ms ease,
     opacity 180ms ease,
+    right 180ms ease,
     top 180ms ease,
     transform 180ms ease,
     width 180ms ease;
@@ -671,28 +679,6 @@
   display: grid;
   gap: 0.5rem;
   padding-top: 0.05rem;
-}
-
-.globalColorModeControls {
-  display: grid;
-  gap: 0.65rem;
-}
-
-.globalColorAccessHint {
-  padding: 0.5rem 0.65rem;
-  border: 1px solid hsl(var(--button-orange-edge) / 0.28);
-  border-radius: 0.6rem;
-  background: hsl(var(--button-orange-edge) / 0.08);
-  color: rgba(255, 255, 255, 0.78);
-  font-size: 0.78rem;
-  line-height: 1.35;
-}
-
-.immersiveGlobalColorPicker button[aria-haspopup="dialog"],
-.immersiveGlobalHarmony button {
-  width: 2.75rem;
-  height: 2.75rem;
-  min-height: 2.75rem;
 }
 
 .settingsSectionHeader {
@@ -1457,6 +1443,101 @@
   padding: 0 0.45rem 0.45rem;
 }
 
+.visualDraftSecondaryAction {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.hideLegacyColorControls .colorRow {
+  display: none;
+}
+
+.hideLegacyPaletteMetadataControls .selectRow:has(select[aria-label*="color mode" i]),
+.hideLegacyPaletteMetadataControls .selectRow:has(select[aria-label*="palette mode" i]),
+.hideLegacyPaletteMetadataControls .selectRow:has(select[aria-label*="tint mode" i]),
+.hideLegacyPaletteMetadataControls .selectRow:has(select[aria-label*="color harmony" i]) {
+  display: none;
+}
+
+.visualDraftActions {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.65rem;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 0.9rem;
+  background: rgb(8 10 14 / 96%);
+  box-shadow: 0 -0.8rem 1.6rem rgb(0 0 0 / 28%);
+  backdrop-filter: blur(16px);
+}
+
+.visualDraftStatus {
+  min-width: 0;
+  color: rgb(255 255 255 / 78%);
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+.visualDraftActionButtons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
+:global([data-immersive-layout="side"]) .settingsTabContent,
+:global([data-immersive-layout="side"]) .immersiveSettingsTabContent {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+:global([data-immersive-layout="side"]) .clockCompactRow,
+:global([data-immersive-layout="side"]) .clockControlGrid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+:global([data-immersive-layout="side"]) .visualDraftActions {
+  align-items: stretch;
+  flex-direction: column;
+}
+
+:global([data-immersive-layout="side"]) .visualDraftActionButtons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+:global([data-immersive-layout="side"]) .immersiveClockHeaderControls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 36rem) {
+  .visualDraftActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .visualDraftActionButtons {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-height: 32rem) {
+  .visualDraftActions {
+    padding: 0.45rem;
+  }
+
+  .visualDraftActionButtons {
+    gap: 0.25rem;
+  }
+}
+
 .settingsNotice {
   display: flex;
   align-items: center;
@@ -1806,6 +1887,13 @@
   gap: 0.55rem;
 }
 
+.locationStatus {
+  margin: 0;
+  color: hsl(30 100% 82%);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
 .textField {
   display: grid;
   gap: 0.35rem;
@@ -1897,7 +1985,11 @@
 
 .backgroundCardControls {
   display: grid;
+  min-width: 0;
+  margin: 0;
+  border: 0;
   gap: 0.7rem;
+  padding: 0;
 }
 
 .immersiveSelectedBackgroundControls {

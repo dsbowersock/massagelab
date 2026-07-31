@@ -737,6 +737,11 @@
   opacity: 0.62;
 }
 
+.globalColorSwatchReadOnly {
+  display: block;
+  cursor: default;
+}
+
 .globalColorSwatchValue {
   position: absolute;
   width: 1px;
@@ -761,6 +766,321 @@
   display: flex;
   gap: 0.45rem;
   flex-wrap: wrap;
+}
+
+.backgroundPaletteEditor,
+.backgroundPresetManager {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.paletteModeControl {
+  display: grid;
+  gap: 0.42rem;
+}
+
+.paletteAccessMessage,
+.presetStatus,
+.presetEmpty {
+  margin: 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.paletteAccessMessage {
+  padding: 0.48rem 0.58rem;
+  border: 1px solid hsl(var(--border) / 0.85);
+  border-radius: 0.62rem;
+  background: hsl(var(--foreground) / 0.035);
+}
+
+.backgroundPaletteGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(4.25rem, 1fr));
+  gap: 0.42rem;
+}
+
+.backgroundPaletteHeader {
+  display: grid;
+  grid-template-areas: "mode intro";
+  grid-template-columns: minmax(17rem, 0.9fr) minmax(16rem, 1.1fr);
+  align-items: end;
+  gap: 1rem;
+}
+
+.backgroundPaletteHeader .globalColorIntro {
+  grid-area: intro;
+}
+
+.backgroundPaletteHeader .paletteModeControl {
+  grid-area: mode;
+}
+
+:global([data-immersive-layout="side"]) .backgroundPaletteHeader {
+  grid-template-areas:
+    "intro"
+    "mode";
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 0.55rem;
+}
+
+/*
+ * The immersive Visual editor keeps all seven roles visible without a
+ * horizontal strip. Its swatch faces are roughly one-third smaller than the
+ * full editor specimens while labels and mappings continue to wrap normally.
+ */
+:global([data-immersive-panel="visual"][data-immersive-layout="side"]) .backgroundPaletteGrid {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.25rem;
+}
+
+:global([data-immersive-panel="visual"]) .backgroundPaletteSwatch {
+  gap: 0.25rem;
+  padding: 0.32rem 0.14rem;
+}
+
+:global([data-immersive-panel="visual"]) .backgroundPaletteSwatchLabel {
+  min-height: 2.75rem;
+  font-size: 0.54rem;
+}
+
+:global([data-immersive-panel="visual"]) .backgroundPaletteGrid .globalColorSwatchButton {
+  width: 2.15rem;
+  height: 2.15rem;
+  border-radius: 0.58rem;
+}
+
+.backgroundPaletteSwatch {
+  display: grid;
+  min-width: 0;
+  justify-items: center;
+  align-content: start;
+  gap: 0.38rem;
+  padding: 0.45rem 0.25rem;
+  border: 1px solid hsl(var(--border) / 0.72);
+  border-radius: 0.7rem;
+  background: hsl(var(--foreground) / 0.035);
+}
+
+.backgroundPaletteSwatchUnused {
+  border-style: dashed;
+  background: hsl(var(--muted) / 0.28);
+}
+
+.backgroundPaletteSwatchLabel {
+  display: grid;
+  width: 100%;
+  min-height: 3.2rem;
+  align-content: start;
+  gap: 0.08rem;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.61rem;
+  font-weight: 650;
+  line-height: 1.18;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.backgroundPaletteSwatchLabel > :first-child,
+.backgroundPaletteSwatchLabel strong {
+  color: hsl(var(--foreground));
+  font-weight: 750;
+}
+
+.backgroundPaletteMapping {
+  min-width: 0;
+  margin: 0;
+  padding: 0.62rem;
+  border: 1px solid hsl(var(--border) / 0.85);
+  border-radius: 0.75rem;
+}
+
+.backgroundPaletteMapping legend {
+  padding-inline: 0.25rem;
+  color: hsl(var(--foreground));
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.backgroundPaletteMappingGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.backgroundPaletteMappingField {
+  display: grid;
+  min-width: 0;
+  gap: 0.25rem;
+  color: hsl(var(--foreground));
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.backgroundPaletteMappingField select {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.45rem;
+  padding: 0 2rem 0 0.65rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.62rem;
+  background: hsl(var(--foreground) / 0.045);
+  color: hsl(var(--foreground));
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.backgroundPaletteMappingField select:focus-visible {
+  border-color: hsl(var(--brand-orange));
+  outline: none;
+  box-shadow: 0 0 0 2px hsl(var(--brand-orange) / 0.24);
+}
+
+.backgroundPaletteMappingField select:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+}
+
+.presetHeader,
+.presetItemHeader,
+.presetName,
+.presetColorSummary {
+  display: flex;
+  align-items: center;
+}
+
+.presetHeader,
+.presetItemHeader {
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.presetCount,
+.presetDefaultMarker {
+  flex: 0 0 auto;
+  border: 1px solid hsl(var(--border));
+  border-radius: 999px;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.66rem;
+  font-weight: 750;
+  line-height: 1;
+}
+
+.presetCount {
+  padding: 0.3rem 0.45rem;
+}
+
+.presetDefaultMarker {
+  padding: 0.22rem 0.38rem;
+  border-color: hsl(var(--brand-orange) / 0.48);
+  color: hsl(var(--brand-orange-soft));
+}
+
+.presetCreateRow,
+.presetRenameRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.42rem;
+}
+
+.presetRenameRow {
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.presetLimitStatus {
+  color: hsl(var(--brand-orange-soft));
+  font-weight: 700;
+}
+
+.presetList {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.presetItem {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.55rem;
+  border: 1px solid hsl(var(--border) / 0.8);
+  border-radius: 0.72rem;
+  background: hsl(var(--foreground) / 0.03);
+}
+
+.presetName {
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 0.38rem;
+  color: hsl(var(--foreground));
+  font-size: 0.8rem;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+.presetDeleteItem {
+  color: hsl(var(--destructive));
+}
+
+.presetSummary {
+  display: grid;
+  gap: 0.28rem;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.presetSummary p,
+.presetSummary dl,
+.presetSummary ul {
+  margin: 0;
+}
+
+.presetSummary dl {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.presetSummary dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.presetSummary dt {
+  overflow-wrap: anywhere;
+}
+
+.presetSummary dd {
+  margin: 0;
+  color: hsl(var(--foreground));
+  font-weight: 650;
+  text-align: right;
+}
+
+.presetSummary ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.22rem 0.7rem;
+  padding-left: 1rem;
+}
+
+.presetMappingTitle {
+  color: hsl(var(--foreground));
+  font-weight: 700;
+}
+
+.presetColorSummary {
+  justify-content: flex-start;
+  gap: 0.5rem;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.68rem;
 }
 
 .globalColorNameInput,
@@ -992,6 +1312,19 @@
   .controlCard {
     gap: 0.45rem;
   }
+
+  .backgroundPaletteGrid {
+    grid-template-columns: repeat(4, minmax(4rem, 1fr));
+  }
+
+  .backgroundPaletteHeader {
+    grid-template-areas:
+      "intro"
+      "mode";
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    gap: 0.55rem;
+  }
 }
 
 @media (max-width: 420px) {
@@ -1028,6 +1361,15 @@
     right: 0;
     left: auto;
     transform: none;
+  }
+
+  .backgroundPaletteGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .presetCreateRow,
+  .presetRenameRow {
+    grid-template-columns: 1fr;
   }
 }
 

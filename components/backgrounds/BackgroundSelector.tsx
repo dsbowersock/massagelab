@@ -17,16 +17,19 @@ import {
 import { BackgroundCarousel } from "@/components/backgrounds/background-carousel"
 import { useBackgroundCreditStatus } from "@/components/backgrounds/BackgroundCommerceProvider"
 import {
+  type BackgroundAccessSnapshot,
   type BackgroundDefinition,
   getBackgroundOptionsForCategory,
+  mergeBackgroundAccessOwnership,
+  resolveAccessibleBackgroundControls,
   type BackgroundCategory,
   type BackgroundId,
 } from "@/components/backgrounds/backgroundRegistry"
 
 interface BackgroundSelectorProps {
   value: BackgroundId | string
-  onChange: (value: BackgroundId) => void
-  featureKeys?: string[]
+  onChange: (value: BackgroundId, accessOverride?: BackgroundAccessSnapshot) => void
+  access: BackgroundAccessSnapshot
   category: BackgroundCategory
   className?: string
   compact?: boolean
@@ -39,7 +42,7 @@ type BackgroundVisualFilter = (typeof BACKGROUND_VISUAL_FILTERS)[number]["value"
 export function BackgroundSelector({
   value,
   onChange,
-  featureKeys = [],
+  access,
   category,
   className,
   compact = false,
@@ -62,9 +65,11 @@ export function BackgroundSelector({
   const selectedOption = options.find((option) => option.id === value) ?? options.find((option) => option.id === DEFAULT_BACKGROUND_ID)
   // Locked backgrounds may not expose any per-background controls; do not leave
   // an empty decorative card beneath the carousel when the renderer returns null.
-  const selectedControls = selectedOption && renderSelectedControls
-    ? renderSelectedControls(selectedOption)
-    : null
+  const selectedControls = resolveAccessibleBackgroundControls(
+    selectedOption,
+    access,
+    renderSelectedControls,
+  )
 
   useEffect(() => {
     setSavedBackgroundIds(readSavedBackgroundIds(window.localStorage) as BackgroundId[])
@@ -128,7 +133,7 @@ export function BackgroundSelector({
           key={visualFilter}
           options={visibleOptions}
           selectedId={selectedOption?.id ?? value}
-          featureKeys={featureKeys}
+          access={access}
           savedIds={savedBackgroundIds}
           onSelect={(backgroundId) => {
             setUpgradeMessage("")
@@ -156,7 +161,10 @@ export function BackgroundSelector({
         onAcquired={(background) => {
           setAcquisition(null)
           setUpgradeMessage("")
-          onChange(background.id)
+          onChange(
+            background.id,
+            mergeBackgroundAccessOwnership(access, [background.id]),
+          )
         }}
       />
 

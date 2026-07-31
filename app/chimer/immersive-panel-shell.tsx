@@ -28,6 +28,7 @@ export type ImmersivePanelId = "clock" | "visual" | "background" | null
 interface ImmersivePanelShellProps {
   activePanel: ImmersivePanelId
   onActivePanelChange: (panel: ImmersivePanelId) => void
+  onRequestActivePanelChange?: (panel: ImmersivePanelId) => boolean
   protectedDisplayRef: RefObject<HTMLElement | null>
   clockContent: ReactNode
   visualContent: ReactNode
@@ -54,6 +55,7 @@ type VisualViewportFrame = {
   right: number
   bottom: number
   width: number
+  height: number
   centerY: number
 }
 
@@ -64,6 +66,9 @@ const DEFAULT_PLACEMENT: DockPlacement = {
   reservedPx: 0,
   maxPanelPx: 0,
 }
+
+const SIDE_SHEET_MIN_ASPECT_RATIO = 16 / 9
+const SIDE_SHEET_STAGE_GAP_PX = 16
 
 const PANEL_CONTROLS = [
   { id: "clock", label: "Clock", icon: Clock3 },
@@ -132,9 +137,18 @@ function subscribeToViewportChanges(listener: () => void) {
   }
 }
 
+/** Clears every panel reservation so a closed or edge-docked panel cannot leave the display shifted. */
+function resetStageReservations(stage: HTMLElement) {
+  stage.style.setProperty("--immersive-reserved-top", "0px")
+  stage.style.setProperty("--immersive-reserved-right", "0px")
+  stage.style.setProperty("--immersive-reserved-bottom", "0px")
+  stage.style.setProperty("--immersive-reserved-left", "0px")
+}
+
 export function ImmersivePanelShell({
   activePanel,
   onActivePanelChange,
+  onRequestActivePanelChange,
   protectedDisplayRef,
   clockContent,
   visualContent,
@@ -166,6 +180,12 @@ export function ImmersivePanelShell({
   const activeHeaderTitle = nonmodalPanel === "clock" ? "Clock" : (visualHeaderTitle ?? "Visual")
   const activeHeaderAction = nonmodalPanel === "clock" ? clockHeaderAction : visualHeaderAction
   const activeHeaderCenterAction = nonmodalPanel === "clock" ? clockHeaderCenterAction : visualHeaderCenterAction
+  const nonmodalPanelUsesSideSheet = Boolean(
+    nonmodalPanel
+    && visualViewportFrame
+    && visualViewportFrame.height > 0
+    && (visualViewportFrame.width / visualViewportFrame.height) >= SIDE_SHEET_MIN_ASPECT_RATIO,
+  )
 
   useLayoutEffect(() => {
     setPortalTarget(document.body)
@@ -186,6 +206,7 @@ export function ImmersivePanelShell({
         right: Math.max(0, window.innerWidth - viewportLeft - viewportWidth),
         bottom: Math.max(0, window.innerHeight - viewportTop - viewportHeight),
         width: viewportWidth,
+        height: viewportHeight,
         centerY: viewportTop + (viewportHeight / 2),
       }
       setVisualViewportFrame((current) => (
@@ -235,17 +256,30 @@ export function ImmersivePanelShell({
     }
   }, [portalTarget, visualHintMessage, visualViewportFrame?.width])
 
+  // Consult the veto only when leaving the active Visual panel. False blocks
+  // both the transition and the caller's subsequent focus restoration.
+  const requestActivePanelChange = useCallback((nextPanel: ImmersivePanelId) => {
+    if (
+      activePanel === "visual"
+      && nextPanel !== "visual"
+      && onRequestActivePanelChange?.(nextPanel) === false
+    ) {
+      return false
+    }
+    onActivePanelChange(nextPanel)
+    return true
+  }, [activePanel, onActivePanelChange, onRequestActivePanelChange])
+
   const closeNonmodalPanel = useCallback((restoreFocus: boolean) => {
     if (!nonmodalPanel) {
       return
     }
 
     const panelToRestore = nonmodalPanel
-    onActivePanelChange(null)
-    if (restoreFocus) {
+    if (requestActivePanelChange(null) && restoreFocus) {
       restoreToolbarFocus(toolbarButtonRefs, panelToRestore)
     }
-  }, [nonmodalPanel, onActivePanelChange])
+  }, [nonmodalPanel, requestActivePanelChange])
 
   useLayoutEffect(() => {
     const protectedDisplay = protectedDisplayRef.current
@@ -258,11 +292,70 @@ export function ImmersivePanelShell({
 
     if (!dock || !dockInsetProbe || !stage || !nonmodalPanel) {
       setPlacement(DEFAULT_PLACEMENT)
-      stage?.style.setProperty("--immersive-reserved-top", "0px")
-      stage?.style.setProperty("--immersive-reserved-bottom", "0px")
+      if (stage) {
+        resetStageReservations(stage)
+      }
       stage?.style.removeProperty("--immersive-panel-max-height")
       return
     }
+
+    // Genuinely wide Clock and Visual layouts share one side-sheet contract.
+    // Reserving that exact side recenters and refits the protected display in
+    // the remaining stage instead of allowing the panel to cover the clock.
+    if (nonmodalPanelUsesSideSheet) {
+      let animationFrame = 0
+      const measureSideSheet = () => {
+        window.cancelAnimationFrame(animationFrame)
+        animationFrame = window.requestAnimationFrame(() => {
+          const visualViewport = window.visualViewport
+          const viewportLeft = visualViewport?.offsetLeft ?? 0
+          const viewportWidth = visualViewport?.width ?? window.innerWidth
+          const viewportRight = viewportLeft + viewportWidth
+          const dockBounds = dock.getBoundingClientRect()
+          const sidebarIsRight = document.documentElement.dataset.sidebarPosition === "right"
+          const edgeInset = sidebarIsRight
+            ? Math.max(0, dockBounds.left - viewportLeft)
+            : Math.max(0, viewportRight - dockBounds.right)
+          const reservedPx = Math.min(
+            viewportWidth,
+            dockBounds.width + edgeInset + SIDE_SHEET_STAGE_GAP_PX,
+          )
+
+          setPlacement(DEFAULT_PLACEMENT)
+          stage.style.setProperty("--immersive-reserved-top", "0px")
+          stage.style.setProperty("--immersive-reserved-right", sidebarIsRight ? "0px" : `${reservedPx}px`)
+          stage.style.setProperty("--immersive-reserved-bottom", "0px")
+          stage.style.setProperty("--immersive-reserved-left", sidebarIsRight ? `${reservedPx}px` : "0px")
+          stage.style.removeProperty("--immersive-panel-max-height")
+        })
+      }
+
+      measureSideSheet()
+      const resizeObserver = typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(measureSideSheet)
+      resizeObserver?.observe(dock)
+      const sidebarObserver = typeof MutationObserver === "undefined"
+        ? null
+        : new MutationObserver(measureSideSheet)
+      sidebarObserver?.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ["data-sidebar-position"],
+      })
+      const unsubscribeFromViewportChanges = subscribeToViewportChanges(measureSideSheet)
+
+      return () => {
+        window.cancelAnimationFrame(animationFrame)
+        resizeObserver?.disconnect()
+        sidebarObserver?.disconnect()
+        unsubscribeFromViewportChanges()
+        resetStageReservations(stage)
+        stage.style.removeProperty("--immersive-panel-max-height")
+      }
+    }
+
+    resetStageReservations(stage)
+    stage.style.removeProperty("--immersive-panel-max-height")
 
     let animationFrame = 0
     let observedProtectedDisplay = protectedDisplay
@@ -314,7 +407,13 @@ export function ImmersivePanelShell({
           viewportHeight,
           displayTop: displayBounds.top,
           displayBottom: displayBounds.bottom,
-          panelHeight: dock.scrollHeight,
+          // Visual is a scrollable bottom sheet, so its full content height
+          // must not influence protected-display placement. A zero request is
+          // normalized by the shared helper to the same stable minimum
+          // reservation Clock reaches once its dock settles.
+          panelHeight: nonmodalPanel === "visual"
+            ? 0
+            : dock.scrollHeight,
           topInset: dockInsets.top,
           bottomInset: dockInsets.bottom,
         })
@@ -334,6 +433,8 @@ export function ImmersivePanelShell({
           "--immersive-reserved-bottom",
           nextPlacement.edge === "bottom" ? `${nextPlacement.reservedPx}px` : "0px",
         )
+        stage.style.setProperty("--immersive-reserved-right", "0px")
+        stage.style.setProperty("--immersive-reserved-left", "0px")
         stage.style.setProperty("--immersive-panel-max-height", `${nextPlacement.maxPanelPx}px`)
       })
     }
@@ -350,11 +451,10 @@ export function ImmersivePanelShell({
       window.cancelAnimationFrame(animationFrame)
       resizeObserver?.disconnect()
       unsubscribeFromViewportChanges()
-      stage.style.setProperty("--immersive-reserved-top", "0px")
-      stage.style.setProperty("--immersive-reserved-bottom", "0px")
+      resetStageReservations(stage)
       stage.style.removeProperty("--immersive-panel-max-height")
     }
-  }, [nonmodalPanel, protectedDisplayRef])
+  }, [nonmodalPanel, nonmodalPanelUsesSideSheet, protectedDisplayRef])
 
   useLayoutEffect(() => {
     if (!nonmodalPanel) {
@@ -402,7 +502,9 @@ export function ImmersivePanelShell({
 
   const rootStyle = {
     "--immersive-reserved-top": placement.edge === "top" ? `${placement.reservedPx}px` : "0px",
+    "--immersive-reserved-right": "0px",
     "--immersive-reserved-bottom": placement.edge === "bottom" ? `${placement.reservedPx}px` : "0px",
+    "--immersive-reserved-left": "0px",
     "--immersive-panel-max-height": `${placement.maxPanelPx}px`,
     ...(visualViewportFrame ? {
       "--immersive-visual-viewport-top": `${visualViewportFrame.top}px`,
@@ -410,9 +512,31 @@ export function ImmersivePanelShell({
       "--immersive-visual-viewport-right": `${visualViewportFrame.right}px`,
       "--immersive-visual-viewport-bottom": `${visualViewportFrame.bottom}px`,
       "--immersive-visual-viewport-width": `${visualViewportFrame.width}px`,
+      "--immersive-visual-viewport-height": `${visualViewportFrame.height}px`,
+      "--immersive-visual-viewport-half-width": `${visualViewportFrame.width / 2}px`,
+      "--immersive-visual-viewport-half-height": `${visualViewportFrame.height / 2}px`,
       "--immersive-visual-viewport-center-y": `${visualViewportFrame.centerY}px`,
     } : {}),
   } as CSSProperties
+
+  const dockHeaderCloseControl = (
+    <div className={styles.dockHeaderClose}>
+      <Button
+        type="button"
+        variant="destructive"
+        size="icon"
+        hapticsEnabled={hapticsEnabled}
+        aria-label={`Close ${activePanelLabel} panel`}
+        onClick={() => closeNonmodalPanel(true)}
+      >
+        <X className="h-4 w-4" aria-hidden="true" />
+      </Button>
+    </div>
+  )
+  // Match focus order to the Clock side sheet's visual rows without changing
+  // the approved header layout for bottom docks or the Visual panel.
+  const closeClockSideSheetBeforeCenterControls =
+    nonmodalPanel === "clock" && nonmodalPanelUsesSideSheet
 
   if (!portalTarget) {
     return null
@@ -471,7 +595,7 @@ export function ImmersivePanelShell({
                     }}
                     onClick={() => {
                       triggerHapticFeedback(hapticsEnabled)
-                      onActivePanelChange(isActive ? null : id)
+                      requestActivePanelChange(isActive ? null : id)
                     }}
                   >
                     <Icon className={styles.toolbarIcon} aria-hidden="true" />
@@ -506,27 +630,18 @@ export function ImmersivePanelShell({
           aria-label={`${activePanelLabel} controls`}
           data-immersive-panel={nonmodalPanel}
           data-immersive-dock={placement.edge}
+          data-immersive-layout={nonmodalPanelUsesSideSheet ? "side" : "dock"}
         >
           <div className={styles.dockHeader} data-immersive-dock-header>
             <h2>{activeHeaderTitle}</h2>
             {activeHeaderAction ? (
               <div className={styles.dockHeaderAction}>{activeHeaderAction}</div>
             ) : null}
+            {closeClockSideSheetBeforeCenterControls ? dockHeaderCloseControl : null}
             {activeHeaderCenterAction ? (
               <div className={styles.dockHeaderCenterAction}>{activeHeaderCenterAction}</div>
             ) : null}
-            <div className={styles.dockHeaderClose}>
-              <Button
-                type="button"
-                variant="destructive"
-                size="icon"
-                hapticsEnabled={hapticsEnabled}
-                aria-label={`Close ${activePanelLabel} panel`}
-                onClick={() => closeNonmodalPanel(true)}
-              >
-                <X className="h-4 w-4" aria-hidden="true" />
-              </Button>
-            </div>
+            {!closeClockSideSheetBeforeCenterControls ? dockHeaderCloseControl : null}
           </div>
           <div className={styles.dockScroller} data-immersive-dock-scroller>
             {nonmodalPanel === "clock" ? clockContent : visualContent}

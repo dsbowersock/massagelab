@@ -7,80 +7,51 @@ import { shouldReduceAmbientMotion } from "@/lib/motion-preferences"
 import { cn } from "@/lib/utils"
 import {
   resolveAccessibleBackgroundDefinition,
+  type BackgroundAccessSnapshot,
   type BackgroundCategory,
   type BackgroundId,
+  userCanUseBackground,
 } from "@/components/backgrounds/backgroundRegistry"
+import { backgroundPaletteRegistry } from "@/components/backgrounds/backgroundPaletteRegistry"
+import {
+  createBackgroundHostDiagnosticSnapshot,
+  type BackgroundHostLoadStatus,
+} from "@/components/backgrounds/backgroundHostDiagnostics"
 import type {
   BackgroundEffectProps,
 } from "@/components/backgrounds/effects/css-backgrounds"
+import { resolveBackgroundEffectProps, resolveBackgroundFallbackStyle } from "@/components/backgrounds/resolveBackgroundEffectProps"
+import { canCustomizeBackgroundColors } from "@/lib/background-palette"
 import styles from "@/components/backgrounds/BackgroundHost.module.css"
-
-const EMPTY_FEATURE_KEYS: string[] = []
 
 interface BackgroundHostProps extends BackgroundEffectProps {
   selectedId?: BackgroundId | string | null
-  featureKeys?: string[]
+  access: BackgroundAccessSnapshot
   category?: BackgroundCategory
-  /** Applies one resolved palette across every color-capable background effect. */
-  palette?: readonly string[]
+  /**
+   * Supplies the one committed-or-draft palette contract shared by Chimer,
+   * Clock, and Music. Unsupported media intentionally ignores this input.
+   */
+  backgroundPalette?: {
+    palette: {
+      mode: string
+      primaryColor: string
+      harmony: string
+      swatches: readonly string[]
+    }
+    mapping: Readonly<Record<string, number>>
+  } | null
   style?: CSSProperties
   /** Renders the static representative while avoiding animated effect work. */
   motionEnabled?: boolean
+  /**
+   * Guarded review surfaces may mount the real renderer even when ambient
+   * motion preferences would otherwise leave only its fallback visible.
+   */
+  forceEffectMount?: boolean
   testId?: string
-}
-
-const COLOR_OPTION_PATTERN = /(color|gradient|tint)/i
-const NON_COLOR_OPTION_PATTERN = /(balance|frequency|number|speed)/i
-
-/**
- * Recolors heterogeneous background option objects without coupling the global
- * picker to every individual effect implementation. Non-color settings retain
- * their route-owned values, while color strings and color arrays consume the
- * resolved palette in declaration order.
- */
-export function applyPaletteToBackgroundEffects(
-  effectProps: BackgroundEffectProps,
-  palette: readonly string[] | undefined,
-): BackgroundEffectProps {
-  const resolvedPalette = palette?.filter((value) => value.trim().length > 0) ?? []
-  if (resolvedPalette.length === 0) {
-    return effectProps
-  }
-
-  let paletteIndex = 0
-  const nextColor = () => {
-    const color = resolvedPalette[paletteIndex % resolvedPalette.length]
-    paletteIndex += 1
-    return color
-  }
-
-  const applyPalette = (value: unknown, key: string): unknown => {
-    if (Array.isArray(value)) {
-      if (!COLOR_OPTION_PATTERN.test(key) || NON_COLOR_OPTION_PATTERN.test(key)) {
-        return value
-      }
-      return value.map((entry) => (typeof entry === "string" ? nextColor() : entry))
-    }
-
-    if (typeof value === "string") {
-      return COLOR_OPTION_PATTERN.test(key) && !NON_COLOR_OPTION_PATTERN.test(key)
-        ? nextColor()
-        : value
-    }
-
-    if (value && typeof value === "object") {
-      return Object.fromEntries(
-        Object.entries(value).map(([entryKey, entryValue]) => [
-          entryKey,
-          applyPalette(entryValue, entryKey),
-        ]),
-      )
-    }
-
-    return value
-  }
-
-  return applyPalette(effectProps, "") as BackgroundEffectProps
+  /** Exposes actual lazy-load and post-adapter props on data attributes for guarded QA surfaces. */
+  diagnostics?: boolean
 }
 
 function usePrefersReducedMotion() {
@@ -98,106 +69,220 @@ function usePrefersReducedMotion() {
   return prefersReducedMotion
 }
 
-export function BackgroundHost({
-  selectedId,
-  featureKeys = EMPTY_FEATURE_KEYS,
-  category,
-  palette,
-  className,
-  mainColor,
-  orbColor,
-  sparkles,
-  gradientAnimation,
-  massageLabGradient,
-  massageLabHole,
-  massageLabStars,
-  massageLabLightSpeed,
-  massageLabElectricMist,
-  massageLabAstralFlow,
-  massageLabDeepSpaceNebula,
-  massageLabGridBloom,
-  massageLabChromeFlow,
-  massageLabWaveCurrent,
-  massageLabSynthesis,
-  massageLabFerrofluid,
-  massageLabLightfall,
-  massageLabLiquidEther,
-  massageLabPrism,
-  massageLabDarkVeil,
-  massageLabLightPillar,
-  massageLabSilk,
-  massageLabFloatingLines,
-  massageLabSideRays,
-  massageLabLightRays,
-  massageLabPixelBlast,
-  massageLabColorBends,
-  massageLabEvilEye,
-  massageLabLineWaves,
-  massageLabRadar,
-  massageLabSoftAurora,
-  massageLabPlasma,
-  massageLabPlasmaWave,
-  massageLabParticles,
-  massageLabGradientBlinds,
-  massageLabGrainient,
-  massageLabGridScan,
-  massageLabBeams,
-  massageLabPixelSnow,
-  massageLabLightning,
-  massageLabPrismaticBurst,
-  massageLabGalaxy,
-  massageLabDither,
-  massageLabFaultyTerminal,
-  massageLabRippleGrid,
-  massageLabDotField,
-  massageLabDotGrid,
-  massageLabThreads,
-  massageLabIridescence,
-  massageLabWaves,
-  massageLabGridDistortion,
-  massageLabOrb,
-  massageLabLetterGlitch,
-  massageLabGridMotion,
-  massageLabShapeGrid,
-  massageLabLiquidChrome,
-  massageLabBalatro,
-  massageLabNovatrix,
-  massageLabMatrixRain,
-  massageLabPhotonBeam,
-  massageLab3DGlobe,
-  massageLabRetroGrid,
-  massageLabAerialRays,
-  backgroundLines,
-  shootingStars,
-  canvasRevealDots,
-  spotlight,
-  lamp,
-  vortex,
-  wavy,
-  pixelLiquid,
-  tileGrid,
-  hexGrid,
-  auroraBars,
-  style,
-  motionEnabled = true,
-  testId = "background-host",
-}: BackgroundHostProps) {
+export function BackgroundHost(props: BackgroundHostProps) {
+  const {
+    selectedId,
+    access,
+    category,
+    backgroundPalette,
+    className,
+    style,
+    motionEnabled = true,
+    forceEffectMount = false,
+    testId = "background-host",
+    diagnostics = false,
+    ...effectPropsInput
+  } = props
+  // Running timer ticks recreate the JSX prop objects. Canonicalizing the
+  // complete effect-only input keeps adapter resolution stable until an
+  // actual renderer value changes.
+  const effectPropsInputSignature = JSON.stringify(effectPropsInput)
+  const stableEffectPropsInput = useMemo(
+    () => JSON.parse(effectPropsInputSignature) as BackgroundEffectProps,
+    [effectPropsInputSignature],
+  )
+  const {
+    mainColor,
+    orbColor,
+    sparkles,
+    gradientAnimation,
+    massageLabGradient,
+    massageLabHole,
+    massageLabStars,
+    massageLabLightSpeed,
+    massageLabElectricMist,
+    massageLabAstralFlow,
+    massageLabDeepSpaceNebula,
+    massageLabGridBloom,
+    massageLabChromeFlow,
+    massageLabWaveCurrent,
+    massageLabSynthesis,
+    massageLabFerrofluid,
+    massageLabLightfall,
+    massageLabLiquidEther,
+    massageLabPrism,
+    massageLabDarkVeil,
+    massageLabLightPillar,
+    massageLabSilk,
+    massageLabFloatingLines,
+    massageLabSideRays,
+    massageLabLightRays,
+    massageLabPixelBlast,
+    massageLabColorBends,
+    massageLabEvilEye,
+    massageLabLineWaves,
+    massageLabRadar,
+    massageLabSoftAurora,
+    massageLabPlasma,
+    massageLabPlasmaWave,
+    massageLabParticles,
+    massageLabGradientBlinds,
+    massageLabGrainient,
+    massageLabGridScan,
+    massageLabBeams,
+    massageLabPixelSnow,
+    massageLabLightning,
+    massageLabPrismaticBurst,
+    massageLabGalaxy,
+    massageLabDither,
+    massageLabFaultyTerminal,
+    massageLabRippleGrid,
+    massageLabDotField,
+    massageLabDotGrid,
+    massageLabThreads,
+    massageLabIridescence,
+    massageLabWaves,
+    massageLabGridDistortion,
+    massageLabOrb,
+    massageLabLetterGlitch,
+    massageLabGridMotion,
+    massageLabShapeGrid,
+    massageLabLiquidChrome,
+    massageLabBalatro,
+    massageLabNovatrix,
+    massageLabMatrixRain,
+    massageLabPhotonBeam,
+    massageLab3DGlobe,
+    massageLabRetroGrid,
+    massageLabAerialRays,
+    backgroundLines,
+    shootingStars,
+    canvasRevealDots,
+    spotlight,
+    lamp,
+    vortex,
+    wavy,
+    pixelLiquid,
+    tileGrid,
+    hexGrid,
+    auroraBars,
+  } = stableEffectPropsInput
   const { settings } = useSettings()
   const prefersReducedMotion = usePrefersReducedMotion()
   const entry = useMemo(
-    () => resolveAccessibleBackgroundDefinition(selectedId, featureKeys, category),
-    [category, featureKeys, selectedId],
+    () => resolveAccessibleBackgroundDefinition(selectedId, access, category),
+    [access, category, selectedId],
   )
+  const canCustomize = canCustomizeBackgroundColors({
+    hasBackgroundAccess: userCanUseBackground(entry, access),
+  })
   const reduceMotion = shouldReduceAmbientMotion({
     prefersReducedMotion,
     ambientMotionMode: settings.ambientMotionMode,
   })
-  const [BackgroundComponent, setBackgroundComponent] = useState<ComponentType<BackgroundEffectProps> | null>(null)
+  const [loadedEffect, setLoadedEffect] = useState<{
+    id: string
+    component: ComponentType<BackgroundEffectProps>
+  } | null>(null)
+  const [loadStatus, setLoadStatus] = useState<BackgroundHostLoadStatus>("idle")
+  const [loadError, setLoadError] = useState<string | null>(null)
   const shouldLoadEffect = Boolean(
     entry.component
-    && (entry.motionIntensity === "static" || (motionEnabled && !reduceMotion)),
+    && (
+      entry.motionIntensity === "static"
+      || (motionEnabled && (forceEffectMount || !reduceMotion))
+    ),
   )
-  const effectProps = useMemo(() => applyPaletteToBackgroundEffects({
+  const { baseEffectProps, effectProps } = useMemo(() => {
+    const baseEffectProps = {
+    mainColor,
+    orbColor,
+    sparkles,
+    gradientAnimation,
+    massageLabGradient,
+    massageLabHole,
+    massageLabStars,
+    massageLabLightSpeed,
+    massageLabElectricMist,
+    massageLabAstralFlow,
+    massageLabDeepSpaceNebula,
+    massageLabGridBloom,
+    massageLabChromeFlow,
+    massageLabWaveCurrent,
+    massageLabSynthesis,
+    massageLabFerrofluid,
+    massageLabLightfall,
+    massageLabLiquidEther,
+    massageLabPrism,
+    massageLabDarkVeil,
+    massageLabLightPillar,
+    massageLabSilk,
+    massageLabFloatingLines,
+    massageLabSideRays,
+    massageLabLightRays,
+    massageLabPixelBlast,
+    massageLabColorBends,
+    massageLabEvilEye,
+    massageLabLineWaves,
+    massageLabRadar,
+    massageLabSoftAurora,
+    massageLabPlasma,
+    massageLabPlasmaWave,
+    massageLabParticles,
+    massageLabGradientBlinds,
+    massageLabGrainient,
+    massageLabGridScan,
+    massageLabBeams,
+    massageLabPixelSnow,
+    massageLabLightning,
+    massageLabPrismaticBurst,
+    massageLabGalaxy,
+    massageLabDither,
+    massageLabFaultyTerminal,
+    massageLabRippleGrid,
+    massageLabDotField,
+    massageLabDotGrid,
+    massageLabThreads,
+    massageLabIridescence,
+    massageLabWaves,
+    massageLabGridDistortion,
+    massageLabOrb,
+    massageLabLetterGlitch,
+    massageLabGridMotion,
+    massageLabShapeGrid,
+    massageLabLiquidChrome,
+    massageLabBalatro,
+    massageLabNovatrix,
+    massageLabMatrixRain,
+    massageLabPhotonBeam,
+    massageLab3DGlobe,
+    massageLabRetroGrid,
+    massageLabAerialRays,
+    backgroundLines,
+    shootingStars,
+    canvasRevealDots,
+    spotlight,
+    lamp,
+    vortex,
+    wavy,
+    pixelLiquid,
+    tileGrid,
+    hexGrid,
+      auroraBars,
+    }
+    return {
+      baseEffectProps,
+      // A missing saved palette is Source mode, not an instruction to bypass
+      // renderer-owned Source overrides such as Ripple Grid's rainbow switch.
+      effectProps: resolveBackgroundEffectProps({
+        selectedId: entry.id,
+        effectProps: baseEffectProps,
+        palette: backgroundPalette?.palette,
+        mapping: backgroundPalette?.mapping,
+        canCustomize,
+      }),
+    }
+  }, [
     mainColor,
     orbColor,
     sparkles,
@@ -272,106 +357,39 @@ export function BackgroundHost({
     tileGrid,
     hexGrid,
     auroraBars,
-  }, palette), [
-    mainColor,
-    orbColor,
-    sparkles,
-    gradientAnimation,
-    massageLabGradient,
-    massageLabHole,
-    massageLabStars,
-    massageLabLightSpeed,
-    massageLabElectricMist,
-    massageLabAstralFlow,
-    massageLabDeepSpaceNebula,
-    massageLabGridBloom,
-    massageLabChromeFlow,
-    massageLabWaveCurrent,
-    massageLabSynthesis,
-    massageLabFerrofluid,
-    massageLabLightfall,
-    massageLabLiquidEther,
-    massageLabPrism,
-    massageLabDarkVeil,
-    massageLabLightPillar,
-    massageLabSilk,
-    massageLabFloatingLines,
-    massageLabSideRays,
-    massageLabLightRays,
-    massageLabPixelBlast,
-    massageLabColorBends,
-    massageLabEvilEye,
-    massageLabLineWaves,
-    massageLabRadar,
-    massageLabSoftAurora,
-    massageLabPlasma,
-    massageLabPlasmaWave,
-    massageLabParticles,
-    massageLabGradientBlinds,
-    massageLabGrainient,
-    massageLabGridScan,
-    massageLabBeams,
-    massageLabPixelSnow,
-    massageLabLightning,
-    massageLabPrismaticBurst,
-    massageLabGalaxy,
-    massageLabDither,
-    massageLabFaultyTerminal,
-    massageLabRippleGrid,
-    massageLabDotField,
-    massageLabDotGrid,
-    massageLabThreads,
-    massageLabIridescence,
-    massageLabWaves,
-    massageLabGridDistortion,
-    massageLabOrb,
-    massageLabLetterGlitch,
-    massageLabGridMotion,
-    massageLabShapeGrid,
-    massageLabLiquidChrome,
-    massageLabBalatro,
-    massageLabNovatrix,
-    massageLabMatrixRain,
-    massageLabPhotonBeam,
-    massageLab3DGlobe,
-    massageLabRetroGrid,
-    massageLabAerialRays,
-    backgroundLines,
-    shootingStars,
-    canvasRevealDots,
-    spotlight,
-    lamp,
-    vortex,
-    wavy,
-    pixelLiquid,
-    tileGrid,
-    hexGrid,
-    auroraBars,
-    palette,
+    backgroundPalette,
+    canCustomize,
+    entry.id,
   ])
-  const paletteFallbackStyle = palette?.length
-    ? { background: `linear-gradient(135deg, ${palette.join(", ")})` }
-    : undefined
 
   useEffect(() => {
     let mounted = true
+    setLoadedEffect(null)
+    setLoadError(null)
 
     if (!shouldLoadEffect || !entry.component) {
-      setBackgroundComponent(null)
+      setLoadStatus("idle")
       return () => {
         mounted = false
       }
     }
 
+    setLoadStatus("loading")
     entry.component()
       .then((module) => {
         if (mounted) {
-          setBackgroundComponent(() => module.default)
+          setLoadedEffect({
+            id: entry.id,
+            component: module.default,
+          })
+          setLoadStatus("loaded")
         }
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (mounted) {
-          setBackgroundComponent(null)
+          setLoadedEffect(null)
+          setLoadStatus("error")
+          setLoadError(error instanceof Error ? error.message : "Background renderer failed to load.")
         }
       })
 
@@ -380,19 +398,76 @@ export function BackgroundHost({
     }
   }, [entry, shouldLoadEffect])
 
+  const BackgroundComponent = loadedEffect?.id === entry.id
+    ? loadedEffect.component
+    : null
+  const adapter = backgroundPaletteRegistry[entry.id]
+  const fallbackStyle = useMemo(
+    () => (backgroundPalette
+      ? resolveBackgroundFallbackStyle({
+          selectedId: entry.id,
+          fallbackStyle: entry.fallbackStyle,
+          palette: backgroundPalette.palette,
+          mapping: backgroundPalette.mapping,
+          canCustomize,
+        })
+      : entry.fallbackStyle),
+    [backgroundPalette, canCustomize, entry.fallbackStyle, entry.id],
+  )
+  const diagnosticSnapshot = diagnostics && adapter
+    ? createBackgroundHostDiagnosticSnapshot({
+        requestedId: entry.id,
+        loadedId: loadedEffect?.id ?? null,
+        loadStatus,
+        adapter,
+        baseEffectProps,
+        appliedEffectProps: effectProps,
+        reducedMotion: reduceMotion,
+        error: loadError,
+      })
+    : null
+
   return (
     <div
       aria-hidden="true"
       className={cn(styles.host, !className && styles.hostDefault, className)}
       data-background-id={entry.id}
+      data-background-effect-mounted={BackgroundComponent ? "true" : "false"}
+      data-background-fallback-only={
+        shouldLoadEffect && !BackgroundComponent ? "true" : "false"
+      }
       data-background-motion={motionEnabled ? "playing" : "paused"}
       data-background-provider={entry.provider}
+      data-background-diagnostic-requested-id={diagnosticSnapshot?.requestedId}
+      data-background-diagnostic-loaded-id={diagnosticSnapshot?.loadedId ?? undefined}
+      data-background-diagnostic-status={diagnosticSnapshot?.status}
+      data-background-diagnostic-family={diagnosticSnapshot?.rendererFamily}
+      data-background-diagnostic-targets={
+        diagnosticSnapshot
+          ? JSON.stringify(diagnosticSnapshot.resolvedRendererTargets)
+          : undefined
+      }
+      data-background-diagnostic-application-changed={
+        diagnosticSnapshot ? String(diagnosticSnapshot.applicationChanged) : undefined
+      }
+      data-background-diagnostic-applied={
+        diagnosticSnapshot
+          ? String(Boolean(backgroundPalette && adapter?.status === "supported"))
+          : undefined
+      }
+      data-background-diagnostic-fallback={
+        diagnosticSnapshot ? String(diagnosticSnapshot.fallback) : undefined
+      }
+      data-background-diagnostic-error={diagnosticSnapshot?.error ?? undefined}
+      data-background-diagnostic-reduced-motion={
+        diagnosticSnapshot ? String(diagnosticSnapshot.reducedMotion) : undefined
+      }
       data-testid={testId}
       style={style}
     >
       <div
         className={cn(styles.fallback, entry.fallbackClassName)}
-        style={{ ...entry.fallbackStyle, ...paletteFallbackStyle }}
+        style={fallbackStyle}
       />
       {BackgroundComponent ? (
         <BackgroundComponent {...effectProps} />

@@ -24,6 +24,7 @@ const variants: Array<{ variant: ButtonVariant; label: string; note: string }> =
   { variant: "secondary", label: "Secondary", note: "Lower-emphasis physical action." },
   { variant: "cta", label: "CTA", note: "Membership and signup action." },
   { variant: "ctaBlue", label: "CTA blue", note: "Blue/purple high-emphasis alternate." },
+  { variant: "success", label: "Success", note: "Positive confirmation or apply action." },
   { variant: "attention", label: "Attention", note: "Strategic action face used with the shared ring." },
   { variant: "glow", label: "Glow", note: "Glass/glow action treatment." },
   { variant: "destructive", label: "Destructive", note: "Irreversible or dangerous action." },

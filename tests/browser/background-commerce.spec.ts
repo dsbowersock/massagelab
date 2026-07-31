@@ -116,6 +116,7 @@ async function installCommerceFixture({
   initialSnapshot = emptySnapshot(),
   featureKeys = [],
   fulfillAfterReads,
+  failRedemptionRefresh = false,
 }: {
   context: BrowserContext
   page: Page
@@ -123,10 +124,13 @@ async function installCommerceFixture({
   initialSnapshot?: CommerceSnapshot
   featureKeys?: string[]
   fulfillAfterReads?: number
+  failRedemptionRefresh?: boolean
 }) {
   await installSignedInCookie(context, baseURL)
   const snapshot = structuredClone(initialSnapshot)
   let snapshotReads = 0
+  let redemptionRefreshPending = false
+  let redemptionRefreshFailures = 0
   const checkoutBodies: Array<Record<string, unknown>> = []
 
   // Signed-in shell links may prefetch Account routes, whose server loaders are
@@ -144,10 +148,24 @@ async function installCommerceFixture({
     })
   })
   await page.route("**/api/account/preferences", async (route) => {
+    const request = route.request()
+    const chimerSettings = request.method() === "PUT"
+      ? ((await request.postDataJSON()) as { chimerSettings?: unknown }).chimerSettings ?? {}
+      : {}
+
+    // Preference writes return the submitted, server-sanitized snapshot plus
+    // authoritative access. Keep this fixture production-shaped so initial
+    // device seeding cannot look like a server-side reset.
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ features: featureKeys, chimerSettings: {}, appSettings: {} }),
+      body: JSON.stringify({
+        accessAuthoritative: true,
+        features: featureKeys,
+        ownedBackgroundIds: snapshot.ownedBackgroundIds,
+        chimerSettings,
+        appSettings: {},
+      }),
     })
   })
   await page.route("**/api/calendar/sidebar-context", async (route) => {
@@ -170,6 +188,12 @@ async function installCommerceFixture({
 
     if ((path === "/api/background-commerce" || path === "/api/background-commerce/state") && method === "GET") {
       snapshotReads += 1
+      if (failRedemptionRefresh && redemptionRefreshPending) {
+        redemptionRefreshPending = false
+        redemptionRefreshFailures += 1
+        await route.fulfill({ status: 503, contentType: "application/json", body: "{}" })
+        return
+      }
       if (fulfillAfterReads && snapshotReads >= fulfillAfterReads) {
         snapshot.ownedBackgroundIds = [AURORA_ID]
         snapshot.ownerships = [{
@@ -218,6 +242,7 @@ async function installCommerceFixture({
       })
       snapshot.cart.items = snapshot.cart.items.filter((item) => item.productKey !== backgroundId)
       recalculateCart(snapshot)
+      redemptionRefreshPending = true
       await route.fulfill({ status: 200, contentType: "application/json", body: "{}" })
       return
     }
@@ -242,7 +267,12 @@ async function installCommerceFixture({
     await route.fulfill({ status: 404, contentType: "application/json", body: "{}" })
   })
 
-  return { snapshot, checkoutBodies, getSnapshotReads: () => snapshotReads }
+  return {
+    snapshot,
+    checkoutBodies,
+    getSnapshotReads: () => snapshotReads,
+    getRedemptionRefreshFailures: () => redemptionRefreshFailures,
+  }
 }
 
 async function installGuestFixture(page: Page) {
@@ -289,14 +319,55 @@ function accessCard(slide: Awaited<ReturnType<typeof centerPremium>>) {
   return slide.locator("[data-background-access-state]")
 }
 
-async function startActiveChimer(page: Page) {
+async function openChimerAfterPreferenceSeed(page: Page) {
+  const preferenceSeed = page.waitForResponse((response) =>
+    new URL(response.url()).pathname === "/api/account/preferences"
+      && response.request().method() === "PUT"
+      && response.ok())
   await page.goto("/chimer", { waitUntil: "domcontentloaded" })
+  // The signed-in fixture starts with no saved Chimer preference. Let the
+  // initial device seed settle before editing so the test does not race the
+  // authoritative response that hydration is specifically designed to adopt.
+  await preferenceSeed
+}
+
+async function startActiveChimer(page: Page) {
+  await openChimerAfterPreferenceSeed(page)
   await page.getByRole("button", { name: /^Increase minutes$/i }).click()
   for (let step = 0; step < 4; step += 1) {
     await page.getByRole("button", { name: /^Continue$/i }).click()
   }
   await page.getByRole("button", { name: /^Start Chimer$/i }).click()
   await expect(page.getByLabel("Running Chimer timer")).toBeVisible()
+}
+
+async function openMusicBackground(page: Page) {
+  await page.addInitScript(() => {
+    localStorage.setItem("massagelab-atmosphere-v2", JSON.stringify({
+      version: 2,
+      favorites: ["tone-proof-drone"],
+      recentStations: ["tone-proof-drone"],
+      volume: 0.4,
+      miniPlayerCollapsed: false,
+      visualizer: { backgroundId: null, showClock: false },
+      migrations: { legacyMusicBackground: true },
+    }))
+  })
+  await page.goto("/music", { waitUntil: "domcontentloaded" })
+  await expect(
+    page.getByRole("heading", { name: /Atmosphere audio stations/i, includeHidden: true }),
+  ).toBeAttached()
+  await expect(page.getByRole("region", { name: "Atmosphere audio stations" }))
+    .toHaveAttribute("data-music-storage-status", "available")
+  await centerCarouselItem(page, "mlab-proof-drone", "Next station")
+  await page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
+  const playerToolbar = page.getByTestId("music-player-toolbar")
+  await expect(playerToolbar).toBeVisible({ timeout: 30_000 })
+  await expect(playerToolbar.getByText("MassageLab Proof Drone")).toBeVisible()
+  await playerToolbar.getByRole("link", { name: /^Background$/i }).click()
+  await expect(page).toHaveURL(/\/clock\?[^#]*source=music/)
+  await expect(page.getByLabel("Music visualizer")).toBeVisible()
+  await expect(page.getByRole("dialog", { name: "Background" })).toBeVisible()
 }
 
 test("guest cart persists locally and requires an account only at checkout", async ({ page }) => {
@@ -416,12 +487,104 @@ test("Clock redeems one explicit permanent credit and keeps the nested dialog fo
   await page.getByRole("checkbox", { name: /permanent, non-swappable/i }).check()
   await page.getByRole("button", { name: "Use credit", exact: true }).click()
 
+  await expect(backgroundPanel).toHaveCount(0)
+  await page.getByRole("button", { name: "Background", exact: true }).click()
+  await expect(backgroundPanel).toBeVisible()
   await expect(backgroundPanel.getByRole("status").filter({ hasText: "1 credit" })).toBeVisible()
   const ownedAurora = await centerPremium(page, AURORA_ID)
   await expect(accessCard(ownedAurora)).toHaveAttribute("data-background-access-state", "owned-credit")
   await expect(accessCard(ownedAurora).getByText("Owned")).toBeVisible()
   await expect(accessCard(ownedAurora).getByRole("img", {
     name: "Aurora field is permanently owned",
+  })).toBeVisible()
+  await expect(accessCard(ownedAurora).getByRole("button", {
+    name: "Selected Aurora field background",
+  })).toBeVisible()
+})
+
+test("Chimer selects a newly redeemed background before account ownership reloads", async ({ context, page }, testInfo) => {
+  const baseURL = String(testInfo.project.use.baseURL)
+  await installCommerceFixture({ context, page, baseURL })
+  await startActiveChimer(page)
+  await page.getByRole("button", { name: "Background", exact: true }).click()
+  const panel = page.getByRole("dialog", { name: "Background" })
+  await centerPremium(page, AURORA_ID)
+  await panel.getByRole("button", { name: "Unlock Aurora field background" }).click()
+  await page.getByRole("dialog", { name: "Unlock Aurora field" })
+    .getByRole("button", { name: "Use free credit" })
+    .click()
+  await page.getByRole("checkbox", { name: /permanent, non-swappable/i }).check()
+  await page.getByRole("button", { name: "Use credit", exact: true }).click()
+
+  await expect(panel).toHaveCount(0)
+  await expect(page.getByTestId("chimer-premium-background")).toHaveAttribute(
+    "data-background-id",
+    AURORA_ID,
+  )
+  await page.getByRole("button", { name: "Background", exact: true }).click()
+  const ownedAurora = await centerPremium(page, AURORA_ID)
+  await expect(accessCard(ownedAurora).getByRole("button", {
+    name: "Selected Aurora field background",
+  })).toBeVisible()
+})
+
+test("pre-timer Chimer setup selects a newly redeemed background when ownership refresh fails", async ({ context, page }, testInfo) => {
+  const baseURL = String(testInfo.project.use.baseURL)
+  const fixture = await installCommerceFixture({
+    context,
+    page,
+    baseURL,
+    failRedemptionRefresh: true,
+  })
+  await openChimerAfterPreferenceSeed(page)
+  await page.getByRole("button", { name: /^Increase minutes$/i }).click()
+  for (let step = 0; step < 3; step += 1) {
+    await page.getByRole("button", { name: /^Continue$/i }).click()
+  }
+
+  const aurora = await centerPremium(page, AURORA_ID)
+  await accessCard(aurora).getByRole("button", { name: "Unlock Aurora field background" }).click()
+  await page.getByRole("dialog", { name: "Unlock Aurora field" })
+    .getByRole("button", { name: "Use free credit" })
+    .click()
+  await page.getByRole("checkbox", { name: /permanent, non-swappable/i }).check()
+  await page.getByRole("button", { name: "Use credit", exact: true }).click()
+
+  const selectedAurora = await centerPremium(page, AURORA_ID)
+  await expect(accessCard(selectedAurora).getByRole("button", {
+    name: "Selected Aurora field background",
+  })).toBeVisible()
+  await page.getByRole("button", { name: /^Continue$/i }).click()
+  await page.getByRole("button", { name: /^Start Chimer$/i }).click()
+  await expect(page.getByTestId("chimer-premium-background")).toHaveAttribute(
+    "data-background-id",
+    AURORA_ID,
+  )
+  expect(fixture.getRedemptionRefreshFailures()).toBe(1)
+})
+
+test("Music selects a newly redeemed background before account ownership reloads", async ({ context, page }, testInfo) => {
+  const baseURL = String(testInfo.project.use.baseURL)
+  await installCommerceFixture({ context, page, baseURL })
+  await openMusicBackground(page)
+  const panel = page.getByRole("dialog", { name: "Background" })
+  await centerPremium(page, AURORA_ID)
+  await panel.getByRole("button", { name: "Unlock Aurora field background" }).click()
+  await page.getByRole("dialog", { name: "Unlock Aurora field" })
+    .getByRole("button", { name: "Use free credit" })
+    .click()
+  await page.getByRole("checkbox", { name: /permanent, non-swappable/i }).check()
+  await page.getByRole("button", { name: "Use credit", exact: true }).click()
+
+  await expect(panel).toHaveCount(0)
+  await expect(page.getByTestId("chimer-premium-background")).toHaveAttribute(
+    "data-background-id",
+    AURORA_ID,
+  )
+  await page.getByRole("button", { name: "Background", exact: true }).click()
+  const ownedAurora = await centerPremium(page, AURORA_ID)
+  await expect(accessCard(ownedAurora).getByRole("button", {
+    name: "Selected Aurora field background",
   })).toBeVisible()
 })
 
@@ -599,11 +762,13 @@ test("Music visualizer keeps the shared account cart through minimize and restor
   })
 
   await page.goto("/music", { waitUntil: "domcontentloaded" })
+  await expect(page.getByRole("region", { name: "Atmosphere audio stations" }))
+    .toHaveAttribute("data-music-storage-status", "available")
   await centerCarouselItem(page, "mlab-proof-drone", "Next station")
   await page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
   const playerToolbar = page.getByTestId("music-player-toolbar")
   await expect(playerToolbar).toBeVisible({ timeout: 30_000 })
-  await playerToolbar.getByRole("button", { name: /^Background$/i }).click()
+  await playerToolbar.getByRole("link", { name: /^Background$/i }).click()
   await expect(page).toHaveURL(/\/clock\?[^#]*source=music/)
   await expect(page.getByLabel("Music visualizer")).toBeVisible()
 
@@ -622,7 +787,7 @@ test("Music visualizer keeps the shared account cart through minimize and restor
   await expect(page.locator("[data-commerce-cart-trigger]:visible"))
     .toHaveAccessibleName("Open account cart with 1 item")
 
-  await page.getByTestId("music-player-toolbar").getByRole("button", { name: /^Background$/i }).click()
+  await page.getByTestId("music-player-toolbar").getByRole("link", { name: /^Background$/i }).click()
   await expect(page).toHaveURL(/\/clock\?[^#]*source=music/)
   const restoredPanel = page.getByRole("dialog", { name: "Background" })
   await expect(restoredPanel.getByRole("region", { name: "Account cart" })).toContainText("Aurora field")

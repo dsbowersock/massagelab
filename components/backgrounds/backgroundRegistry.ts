@@ -5,6 +5,10 @@ import { backgroundPreviewManifest } from "./backgroundPreviewManifest.ts"
 import type { BackgroundPreviewManifestEntry } from "./backgroundPreviewManifest.ts"
 import type { BackgroundEffectProps } from "./effects/css-backgrounds"
 import type { BackgroundAccessDecision } from "../../lib/commerce/background-access.ts"
+import {
+  backgroundPaletteRegistry,
+  type BackgroundPaletteAdapter,
+} from "./backgroundPaletteRegistry.ts"
 
 export type BackgroundId =
   | "massage-lab-moving-gradient"
@@ -125,16 +129,49 @@ export interface BackgroundDefinition {
   component?: BackgroundComponentLoader
   fallbackClassName?: string
   fallbackStyle?: CSSProperties
+  /** Authoritative shared-palette migration contract for enabled renderers. */
+  paletteAdapter?: BackgroundPaletteAdapter
 }
 
 export type BackgroundAccessSnapshot = {
-  featureKeys?: readonly string[]
-  ownedBackgroundIds?: readonly string[]
+  featureKeys: readonly string[]
+  ownedBackgroundIds: readonly string[]
+}
+
+/**
+ * Adds freshly refreshed commerce ownership to account-loaded access without
+ * allowing commerce state to invent subscription feature entitlements.
+ */
+export function mergeBackgroundAccessOwnership(
+  access: BackgroundAccessSnapshot,
+  liveOwnedBackgroundIds: readonly string[] = [],
+): BackgroundAccessSnapshot {
+  return {
+    featureKeys: access.featureKeys,
+    ownedBackgroundIds: [...new Set([
+      ...access.ownedBackgroundIds,
+      ...liveOwnedBackgroundIds,
+    ])],
+  }
+}
+
+/**
+ * Uses the account response only while the commerce provider is hydrating.
+ * Any commerce snapshot, including an empty one, is authoritative so revoked
+ * ownership cannot remain accessible from an older preference response.
+ */
+export function resolveAuthoritativeBackgroundOwnership(
+  accountOwnedBackgroundIds: readonly string[],
+  commerceOwnedBackgroundIds: readonly string[] | null | undefined,
+) {
+  return [...new Set(
+    commerceOwnedBackgroundIds ?? accountOwnedBackgroundIds,
+  )]
 }
 
 type BackgroundAccessInput =
   | readonly string[]
-  | BackgroundAccessSnapshot
+  | Partial<BackgroundAccessSnapshot>
   | Pick<BackgroundAccessDecision, "canUse">
 
 function isResolvedAccessDecision(
@@ -1996,7 +2033,14 @@ function withGeneratedPreview(entry: BackgroundDefinition): BackgroundDefinition
   }
 }
 
-export const backgroundRegistry: readonly BackgroundDefinition[] = rawBackgroundRegistry.map(withGeneratedPreview)
+export const backgroundRegistry: readonly BackgroundDefinition[] = rawBackgroundRegistry
+  .map(withGeneratedPreview)
+  .map((entry) => ({
+    ...entry,
+    ...(entry.enabled
+      ? { paletteAdapter: backgroundPaletteRegistry[entry.id] }
+      : {}),
+  }))
 
 export function getBackgroundDefinition(id: unknown) {
   return backgroundRegistry.find((entry) => entry.id === id) ?? backgroundRegistry[0]
@@ -2019,6 +2063,23 @@ export function userCanUseBackground(entry: BackgroundDefinition, access: Backgr
   const featureKeys = Array.isArray(access) ? access : snapshot.featureKeys ?? []
   const ownedBackgroundIds = Array.isArray(access) ? [] : snapshot.ownedBackgroundIds ?? []
   return hasPremiumBackgroundAccess(featureKeys) || ownedBackgroundIds.includes(entry.id)
+}
+
+/**
+ * Resolves per-background controls only after the same access decision used by
+ * selection. Keeping this boundary pure makes locked/unlocked rendering
+ * behavior executable without coupling tests to component source formatting.
+ */
+export function resolveAccessibleBackgroundControls<T>(
+  entry: BackgroundDefinition | undefined,
+  access: BackgroundAccessInput,
+  renderControls?: (option: BackgroundDefinition) => T,
+): T | null {
+  if (!entry || !renderControls || !userCanUseBackground(entry, access)) {
+    return null
+  }
+
+  return renderControls(entry)
 }
 
 export function canUseBackgroundId(id: unknown, access: BackgroundAccessInput = [], category?: BackgroundCategory) {

@@ -17,7 +17,7 @@ describe("Atmosphere provider lazy-loading boundary", () => {
     for (const moduleName of heavyRuntimeModules) {
       assert.doesNotMatch(
         providerSource,
-        new RegExp(`from\\s+["@']@/lib/atmosphere/${moduleName}["@']`),
+        new RegExp(`import\\s+(?!type\\b)[^;\\n]*from\\s+["@']@/lib/atmosphere/${moduleName}["@']`),
         `${moduleName} should stay behind the lazy runtime loader`,
       )
       assert.match(

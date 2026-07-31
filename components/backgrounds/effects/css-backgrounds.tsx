@@ -84,6 +84,26 @@ export interface BackgroundEffectProps {
   auroraBars?: AuroraBarsOptions
 }
 
+/**
+ * Compile-time ledger for the CSS/DOM adapter family. Palette application is
+ * kept outside React, while this map makes every named renderer destination
+ * resolve to the same prop contract consumed by the actual effect component.
+ */
+export interface CssDomPaletteEffectPropsById {
+  "massage-lab-moving-gradient": Pick<BackgroundEffectProps, "className" | "mainColor" | "orbColor">
+  "massage-lab-aerial-rays": Pick<BackgroundEffectProps, "massageLabAerialRays">
+  "massage-lab-grid-motion": Pick<BackgroundEffectProps, "massageLabGridMotion">
+  "massage-lab-gradient-animation": Pick<BackgroundEffectProps, "gradientAnimation">
+  "massage-lab-shooting-stars": Pick<BackgroundEffectProps, "shootingStars">
+  "massage-lab-spotlight": Pick<BackgroundEffectProps, "spotlight">
+  "massage-lab-lamp-effect": Pick<BackgroundEffectProps, "lamp">
+  "massage-lab-aurora-bars": Pick<BackgroundEffectProps, "auroraBars">
+  "massage-lab-gradient": Pick<BackgroundEffectProps, "massageLabGradient">
+  "massage-lab-stars": Pick<BackgroundEffectProps, "massageLabStars">
+}
+
+export type CssDomPaletteBackgroundId = keyof CssDomPaletteEffectPropsById
+
 export interface SparklesBackgroundOptions {
   particleColor?: string
   particleDensity?: number

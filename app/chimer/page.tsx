@@ -6,7 +6,17 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { MovingBackground } from "@/components/moving-background"
 import { useSettings } from "@/components/providers/settings-provider"
 import { useMusic } from "@/components/providers/music-provider"
-import { canUseBackgroundId } from "@/components/backgrounds/backgroundRegistry"
+import {
+  backgroundPaletteRegistry,
+  backgroundPreferenceNormalizationOptions,
+} from "@/components/backgrounds/backgroundPaletteRegistry"
+import { useBackgroundCommerce } from "@/components/backgrounds/BackgroundCommerceProvider"
+import {
+  canUseBackgroundId,
+  mergeBackgroundAccessOwnership,
+  resolveAuthoritativeBackgroundOwnership,
+  type BackgroundAccessSnapshot,
+} from "@/components/backgrounds/backgroundRegistry"
 import {
   clampActiveTimerMs,
   CHIMER_STORAGE_KEY,
@@ -19,9 +29,28 @@ import {
   normalizeInteger,
   sanitizeChimerSettings,
   sanitizeChimerSettingsForEntitlements,
+  sanitizeChimerSettingsPatchForEntitlements,
+  sanitizeChimerVisualCommitForEntitlements,
 } from "@/lib/chimer-timer"
-import { canSyncAccountPreferencesFromSession } from "@/lib/account-preferences"
+import {
+  areChimerPreferenceSnapshotsEqual,
+  canSyncAccountPreferencesFromSession,
+  createChimerPreferenceSyncRouter,
+  createSerializedChimerPreferenceWriter,
+  createChimerPreferenceSyncRequest,
+  createChimerPreferenceSyncRetry,
+  doesChimerPreferenceWriteResponseMatch,
+  resolveChimerPreferenceSeedResult,
+  resolveChimerPreferenceSyncRequest,
+} from "@/lib/account-preferences"
+import { resolveBackgroundVisualCommitScope } from "@/lib/background-visual-draft"
+import {
+  LEGACY_CHIMER_GLOBAL_COLOR_STORAGE_KEY,
+  LEGACY_CHIMER_GLOBAL_PALETTE_STORAGE_KEY,
+  prepareChimerBackgroundPreferenceMigration,
+} from "@/lib/background-palette"
 import { fetchWithTimeout } from "@/lib/client-fetch"
+import { sanitizeAccessibleChimerSettings } from "@/lib/chimer-accessible-settings"
 import { FEATURE_KEYS } from "@/lib/membership"
 import { triggerHapticFeedback } from "@/lib/haptics"
 import { isBackgroundId } from "@/lib/background-options"
@@ -43,9 +72,18 @@ import { RunningTimer, type ImmersiveDisplayMode } from "./running-timer"
 
 type TimerStatus = "idle" | "running" | "paused" | "complete" | "clock"
 type AccountSyncStatus = "checking" | "local" | "synced" | "conflict"
+type BackgroundPreferenceSyncState = {
+  status: "local" | "pending" | "stale" | "synced"
+  requestBody: string | null
+  requestId: number
+}
 const SOUND_ALERT_TYPES = new Set<ChimerSettings["alertType"]>(["chime", "both", "chime-haptic", "all"])
 const FLASH_ALERT_TYPES = new Set<ChimerSettings["alertType"]>(["flash", "both", "flash-haptic", "all"])
 const HAPTIC_ALERT_TYPES = new Set<ChimerSettings["alertType"]>(["haptic", "chime-haptic", "flash-haptic", "all"])
+const EMPTY_BACKGROUND_ACCESS: BackgroundAccessSnapshot = {
+  featureKeys: [],
+  ownedBackgroundIds: [],
+}
 
 type CurrentTimeParts = {
   time: string
@@ -101,7 +139,9 @@ function hasSavedPreference(value: unknown) {
 }
 
 function areChimerSettingsEqual(left: ChimerSettings, right: ChimerSettings) {
-  return JSON.stringify(sanitizeChimerSettings(left)) === JSON.stringify(sanitizeChimerSettings(right))
+  return areChimerPreferenceSnapshotsEqual(left, right, {
+    backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
+  })
 }
 
 export default function ChimerPage() {
@@ -109,6 +149,12 @@ export default function ChimerPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { settings: appSettings } = useSettings()
+  const {
+    state: backgroundCommerceState,
+    captureOwnershipReconciliationRevision:
+      captureBackgroundCommerceOwnershipRevision,
+    reconcileOwnedBackgroundIds: reconcileBackgroundCommerceOwnership,
+  } = useBackgroundCommerce()
   const {
     visualizer,
     selectVisualizerBackground,
@@ -151,7 +197,35 @@ export default function ChimerPage() {
   const [hasEditedLocalConflictSettings, setHasEditedLocalConflictSettings] = useState(false)
   const [isResolvingSync, setIsResolvingSync] = useState(false)
   const [featureKeys, setFeatureKeys] = useState<string[]>([])
+  const [permanentlyOwnedBackgroundIds, setPermanentlyOwnedBackgroundIds] = useState<string[]>([])
+  const [transientOwnedBackgroundIds, setTransientOwnedBackgroundIds] = useState<string[]>([])
+  const [backgroundPreferenceSync, setBackgroundPreferenceSync] = useState<BackgroundPreferenceSyncState>({
+    status: "local",
+    requestBody: null,
+    requestId: 0,
+  })
+  const [visualDraftPropertyOverrides, setVisualDraftPropertyOverrides] =
+    useState<Partial<ChimerSettings> | null>(null)
   const [wakeLockMessage, setWakeLockMessage] = useState<string | null>(null)
+  const commerceOwnedBackgroundIds = backgroundCommerceState.snapshot?.ownedBackgroundIds
+  const backgroundAccess = useMemo<BackgroundAccessSnapshot>(
+    () => mergeBackgroundAccessOwnership({
+      featureKeys,
+      // The account-preference response bridges initial hydration. Once the
+      // commerce provider has a snapshot, it is authoritative for revocation
+      // as well as acquisition and must replace the older ownership list.
+      ownedBackgroundIds: resolveAuthoritativeBackgroundOwnership(
+        permanentlyOwnedBackgroundIds,
+        commerceOwnedBackgroundIds,
+      ),
+    }, transientOwnedBackgroundIds),
+    [
+      commerceOwnedBackgroundIds,
+      featureKeys,
+      permanentlyOwnedBackgroundIds,
+      transientOwnedBackgroundIds,
+    ],
+  )
   const canUseCustomColors = featureKeys.includes(FEATURE_KEYS.chimerCustomColors)
   const hasAccountPreferenceAccess = accountSyncStatus === "synced" || accountSyncStatus === "conflict"
   const canUseAccountColorControls = canUseCustomColors || hasAccountPreferenceAccess
@@ -160,11 +234,61 @@ export default function ChimerPage() {
   const alertTimeout = useRef<number | null>(null)
   const timerStateRef = useRef(timerState)
   const settingsRef = useRef(settings)
-  const featureKeysRef = useRef(featureKeys)
+  const backgroundAccessRef = useRef(backgroundAccess)
   const audioContextRef = useRef<AudioContext | null>(null)
   const wakeLockRef = useRef<ChimerWakeLockSentinel | null>(null)
   const wakeLockRequestRef = useRef<Promise<void> | null>(null)
   const shouldKeepWakeLockRef = useRef(false)
+  const skipNextAutomaticAccountSyncBodyRef = useRef<string | null>(null)
+  const backgroundPreferenceRequestIdRef = useRef(0)
+  const [accountPreferenceWriter] = useState(() =>
+    createSerializedChimerPreferenceWriter({
+      send: async (request) => {
+        const commerceRevision = captureBackgroundCommerceOwnershipRevision()
+        const response = await fetchWithTimeout("/api/account/preferences", {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: request.requestBody,
+        })
+        if (!response.ok) {
+          return false
+        }
+        const responseBody = await response.json().catch(() => null)
+        const reconciledWrite = resolveChimerPreferenceSeedResult(responseBody, {
+          backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
+        })
+        if (!reconciledWrite) {
+          return false
+        }
+        // Every successful PUT re-checks membership and ownership. Adopt that
+        // access before resolving the write so an ordinary preference save
+        // cannot leave a revoked background usable until another refresh.
+        setFeatureKeys(reconciledWrite.featureKeys)
+        setPermanentlyOwnedBackgroundIds(reconciledWrite.ownedBackgroundIds)
+        void reconcileBackgroundCommerceOwnership(
+          reconciledWrite.ownedBackgroundIds,
+          commerceRevision,
+        )
+        return doesChimerPreferenceWriteResponseMatch(
+          request.requestBody,
+          responseBody,
+          { backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions },
+        )
+      },
+      onComplete: (request, succeeded) => {
+        setBackgroundPreferenceSync((currentRequest) => (
+          resolveChimerPreferenceSyncRequest(
+            currentRequest,
+            request,
+            succeeded,
+          ) as BackgroundPreferenceSyncState
+        ))
+      },
+    }),
+  )
+  const [accountPreferenceSyncRouter] = useState(() =>
+    createChimerPreferenceSyncRouter(accountPreferenceWriter),
+  )
 
   const totalDurationMs = useMemo(
     () => getTotalTimerMs(settings.hours, settings.minutes),
@@ -185,31 +309,46 @@ export default function ChimerPage() {
   }, [settings])
 
   useEffect(() => {
-    featureKeysRef.current = featureKeys
-  }, [featureKeys])
+    backgroundAccessRef.current = backgroundAccess
+  }, [backgroundAccess])
+
+  useEffect(() => {
+    // A successful commerce snapshot supersedes the in-session ownership proof
+    // carried by an acquisition response, including later refund/revocation.
+    setTransientOwnedBackgroundIds([])
+  }, [commerceOwnedBackgroundIds])
 
   useEffect(() => {
     let isMounted = true
 
     const loadLocalSettings = () => {
-      let nextSettings = DEFAULT_CHIMER_SETTINGS as ChimerSettings
-      const savedSettings = window.localStorage.getItem(CHIMER_STORAGE_KEY)
-
-      if (savedSettings) {
-        try {
-          nextSettings = sanitizeChimerSettings(JSON.parse(savedSettings)) as ChimerSettings
-        } catch {
-          window.localStorage.removeItem(CHIMER_STORAGE_KEY)
-        }
-      }
-
+      const prepared = prepareChimerBackgroundPreferenceMigration({
+        rawChimerSettings: window.localStorage.getItem(CHIMER_STORAGE_KEY),
+        rawLegacyGlobalColors: window.localStorage.getItem(LEGACY_CHIMER_GLOBAL_COLOR_STORAGE_KEY),
+        rawLegacySavedPalettes: window.localStorage.getItem(LEGACY_CHIMER_GLOBAL_PALETTE_STORAGE_KEY),
+        sanitizeSettings: (value) => sanitizeChimerSettings(value, {
+          backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
+        }),
+      })
+      const nextSettings = prepared.settings as ChimerSettings
+      // Account hydration continues asynchronously, so its later entitlement
+      // decision must read the same local snapshot the setup UI is editing.
+      settingsRef.current = nextSettings
       setSettings(nextSettings)
-      window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(nextSettings))
+      try {
+        window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(nextSettings))
+        // Legacy keys are deleted only after the nested v1 record commits.
+        for (const legacyKey of prepared.legacyKeysToRemove) {
+          window.localStorage.removeItem(legacyKey)
+        }
+      } catch {
+        // Keep the legacy records intact so a later successful load can retry.
+      }
       setHasLoadedSettings(true)
       return nextSettings
     }
 
-    async function syncAccountSettings(localSettings: ChimerSettings) {
+    async function syncAccountSettings() {
       try {
         const sessionResponse = await fetchWithTimeout("/api/auth/session")
 
@@ -224,10 +363,14 @@ export default function ChimerPage() {
         }
 
         if (!canSyncAccountPreferencesFromSession(session)) {
-          const localFreeSettings = sanitizeChimerSettingsForEntitlements(localSettings, []) as ChimerSettings
+          const localFreeSettings = sanitizeChimerSettingsForEntitlements(settingsRef.current, EMPTY_BACKGROUND_ACCESS, {
+            backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
+          }) as ChimerSettings
+          settingsRef.current = localFreeSettings
           setSettings(localFreeSettings)
           window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(localFreeSettings))
           setFeatureKeys([])
+          setPermanentlyOwnedBackgroundIds([])
           setCanSync(false)
           setAccountSyncStatus("local")
           return
@@ -240,31 +383,48 @@ export default function ChimerPage() {
         }
 
         if (!response.ok) {
-          const localFreeSettings = sanitizeChimerSettingsForEntitlements(localSettings, []) as ChimerSettings
-          setSettings(localFreeSettings)
-          window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(localFreeSettings))
+          setFeatureKeys([])
+          setPermanentlyOwnedBackgroundIds([])
           setCanSync(false)
           setAccountSyncStatus("local")
           return
         }
 
         const preferences = await response.json()
+        if (preferences.accessAuthoritative !== true) {
+          // Access lookup failures are non-authoritative. Keep the last local
+          // snapshot intact while empty access keeps rendering fail-closed.
+          setFeatureKeys([])
+          setPermanentlyOwnedBackgroundIds([])
+          setCanSync(false)
+          setAccountSyncStatus("local")
+          return
+        }
         const nextFeatureKeys = Array.isArray(preferences.features)
           ? preferences.features.filter((feature: unknown) => typeof feature === "string")
           : []
+        const nextOwnedBackgroundIds = Array.isArray(preferences.ownedBackgroundIds)
+          ? [...new Set(preferences.ownedBackgroundIds.filter(
+              (backgroundId: unknown): backgroundId is string => typeof backgroundId === "string",
+            ) as string[])]
+          : []
         setFeatureKeys(nextFeatureKeys)
+        setPermanentlyOwnedBackgroundIds(nextOwnedBackgroundIds)
 
         if (!isMounted) {
           return
         }
 
         if (hasSavedPreference(preferences.chimerSettings)) {
-          const nextSettings = sanitizeChimerSettingsForEntitlements(
+          const nextSettings = sanitizeAccessibleChimerSettings(
             preferences.chimerSettings,
-            nextFeatureKeys,
-            { canUseAccountColorControls: true },
+            {
+              featureKeys: nextFeatureKeys,
+              ownedBackgroundIds: nextOwnedBackgroundIds,
+            },
           ) as ChimerSettings
-          if (areChimerSettingsEqual(localSettings, nextSettings)) {
+          if (areChimerSettingsEqual(settingsRef.current, nextSettings)) {
+            settingsRef.current = nextSettings
             setSettings(nextSettings)
             window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(nextSettings))
             setCanSync(true)
@@ -280,56 +440,156 @@ export default function ChimerPage() {
           return
         }
 
-        const seedSettings = sanitizeChimerSettingsForEntitlements(
-          localSettings,
-          nextFeatureKeys,
-          { canUseAccountColorControls: true },
+        const seedSettings = sanitizeAccessibleChimerSettings(
+          settingsRef.current,
+          {
+            featureKeys: nextFeatureKeys,
+            ownedBackgroundIds: nextOwnedBackgroundIds,
+          },
         ) as ChimerSettings
+        // Apply the authoritative GET access boundary before the seed write.
+        // This also gives edits made while the request is in flight a safe base.
+        settingsRef.current = seedSettings
+        setSettings(seedSettings)
+        window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(seedSettings))
+        const seedCommerceRevision = captureBackgroundCommerceOwnershipRevision()
         const seedResponse = await fetchWithTimeout("/api/account/preferences", {
           method: "PUT",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ chimerSettings: seedSettings }),
         })
+        const seedResponseBody = seedResponse.ok
+          ? await seedResponse.json().catch(() => null)
+          : null
+        const reconciledSeed = seedResponse.ok
+          ? resolveChimerPreferenceSeedResult(seedResponseBody, {
+              backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
+            }) as {
+              settings: ChimerSettings
+              featureKeys: string[]
+              ownedBackgroundIds: string[]
+            } | null
+          : null
 
         if (!isMounted) {
           return
         }
 
-        setCanSync(seedResponse.ok)
-        setAccountSyncStatus(seedResponse.ok ? "synced" : "local")
+        if (!reconciledSeed) {
+          setCanSync(false)
+          setAccountSyncStatus("local")
+          return
+        }
+
+        const reconciledSeedSettings = reconciledSeed.settings
+        setFeatureKeys(reconciledSeed.featureKeys)
+        setPermanentlyOwnedBackgroundIds(reconciledSeed.ownedBackgroundIds)
+        void reconcileBackgroundCommerceOwnership(
+          reconciledSeed.ownedBackgroundIds,
+          seedCommerceRevision,
+        )
+        const settingsChangedWhileSeeding = !areChimerSettingsEqual(
+          settingsRef.current,
+          seedSettings,
+        )
+        const serverChangedSeed = !areChimerSettingsEqual(
+          reconciledSeedSettings,
+          seedSettings,
+        )
+        if (settingsChangedWhileSeeding && serverChangedSeed) {
+          setAccountSettings(reconciledSeedSettings)
+          setHasEditedLocalConflictSettings(true)
+          setCanSync(false)
+          setAccountSyncStatus("conflict")
+          return
+        }
+        if (settingsChangedWhileSeeding) {
+          // Access may have changed while the seed PUT was in flight. Preserve
+          // newer edits only after applying the access boundary returned by
+          // that PUT, then let the serialized writer send any safe remainder.
+          const accessibleInFlightSettings = sanitizeAccessibleChimerSettings(
+            settingsRef.current,
+            {
+              featureKeys: reconciledSeed.featureKeys,
+              ownedBackgroundIds: reconciledSeed.ownedBackgroundIds,
+            },
+          ) as ChimerSettings
+          settingsRef.current = accessibleInFlightSettings
+          setSettings(accessibleInFlightSettings)
+          window.localStorage.setItem(
+            CHIMER_STORAGE_KEY,
+            JSON.stringify(accessibleInFlightSettings),
+          )
+          if (areChimerSettingsEqual(accessibleInFlightSettings, reconciledSeedSettings)) {
+            skipNextAutomaticAccountSyncBodyRef.current = createChimerPreferenceSyncRequest(
+              accessibleInFlightSettings,
+              { backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions },
+            ).requestBody
+          }
+          setCanSync(true)
+          setAccountSyncStatus("synced")
+          return
+        }
+
+        // The PUT re-checks access after the preceding GET. Adopt its returned
+        // snapshot before enabling sync so revoked tuning cannot be requeued.
+        settingsRef.current = reconciledSeedSettings
+        setSettings(reconciledSeedSettings)
+        window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(reconciledSeedSettings))
+        skipNextAutomaticAccountSyncBodyRef.current = createChimerPreferenceSyncRequest(
+          reconciledSeedSettings,
+          { backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions },
+        ).requestBody
+        setCanSync(true)
+        setAccountSyncStatus("synced")
       } catch {
         if (!isMounted) {
           return
         }
-        const localFreeSettings = sanitizeChimerSettingsForEntitlements(localSettings, []) as ChimerSettings
-        setSettings(localFreeSettings)
-        window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(localFreeSettings))
+        setFeatureKeys([])
+        setPermanentlyOwnedBackgroundIds([])
         setCanSync(false)
         setAccountSyncStatus("local")
       }
     }
 
-    const localSettings = loadLocalSettings()
-    void syncAccountSettings(localSettings)
+    loadLocalSettings()
+    void syncAccountSettings()
 
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [
+    captureBackgroundCommerceOwnershipRevision,
+    reconcileBackgroundCommerceOwnership,
+  ])
 
   useEffect(() => {
     if (hasLoadedSettings) {
       window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(settings))
 
       if (canSync && accountSyncStatus === "synced") {
-        void fetchWithTimeout("/api/account/preferences", {
-          method: "PUT",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ chimerSettings: settings }),
-        }).catch(() => undefined)
+        const requestId = backgroundPreferenceRequestIdRef.current + 1
+        const request = createChimerPreferenceSyncRequest(settings, {
+          backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
+          requestId,
+        }) as BackgroundPreferenceSyncState
+        if (skipNextAutomaticAccountSyncBodyRef.current === request.requestBody) {
+          skipNextAutomaticAccountSyncBodyRef.current = null
+          return
+        }
+        backgroundPreferenceRequestIdRef.current = requestId
+        setBackgroundPreferenceSync(request)
+        accountPreferenceSyncRouter.automatic(request)
       }
     }
-  }, [accountSyncStatus, canSync, hasLoadedSettings, settings])
+  }, [
+    accountPreferenceSyncRouter,
+    accountSyncStatus,
+    canSync,
+    hasLoadedSettings,
+    settings,
+  ])
 
   useEffect(() => {
     const updateTime = () => {
@@ -607,14 +867,37 @@ export default function ChimerPage() {
     window.setTimeout(tick, 0)
   }, [clearTimerInterval, tick])
 
-  const updateSettings = (nextSettings: Partial<ChimerSettings>) => {
+  const updateSettings = (
+    nextSettings: Partial<ChimerSettings>,
+    accessOverride?: BackgroundAccessSnapshot,
+  ) => {
     setError(null)
-    const nextSanitizedSettings = sanitizeChimerSettingsForEntitlements(
-      { ...settingsRef.current, ...nextSettings },
-      featureKeysRef.current,
-      { canUseAccountColorControls },
+    if (nextSettings.movingBackgroundEnabled === true) {
+      // An explicit picker activation also ends the current session's
+      // temporary "run without animation" suppression.
+      setRunWithoutAnimatedBackground(false)
+    }
+    if (accessOverride) {
+      // This override is only short-lived proof of a newly completed
+      // acquisition. Authoritative refresh and revocation still own lasting
+      // access, so it must not become a general entitlement bypass.
+      setTransientOwnedBackgroundIds((current) => [
+        ...new Set([...current, ...accessOverride.ownedBackgroundIds]),
+      ])
+    }
+    const nextSanitizedSettings = sanitizeChimerSettingsPatchForEntitlements(
+      settingsRef.current,
+      nextSettings,
+      accessOverride ?? backgroundAccessRef.current,
+      {
+        canUseAccountColorControls,
+        backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
+      },
     ) as ChimerSettings
 
+    // Keep edits ahead of an in-flight account response; otherwise that
+    // response could restore the pre-edit duration captured during mount.
+    settingsRef.current = nextSanitizedSettings
     setSettings(nextSanitizedSettings)
 
     if (accountSyncStatus === "conflict" && accountSettings) {
@@ -622,6 +905,125 @@ export default function ChimerPage() {
       setHasEditedLocalConflictSettings(!areChimerSettingsEqual(nextSanitizedSettings, accountSettings))
     }
   }
+
+  /**
+   * Commits one complete sanitized Visual snapshot locally before starting
+   * account sync. Setup callers may still supply only the nested preference.
+   */
+  const applyBackgroundVisualPreferences = (
+    input: ChimerSettings["backgroundVisualPreferences"] | {
+      visualBackgroundId: string
+      sourceVisualBackgroundId?: string
+      backgroundId?: string
+      backgroundVisualPreferences: ChimerSettings["backgroundVisualPreferences"]
+      properties: Partial<ChimerSettings>
+      accessOverride?: BackgroundAccessSnapshot
+      activateBackground?: boolean
+    },
+  ) => {
+    const backgroundVisualPreferences = "backgroundVisualPreferences" in input
+      ? input.backgroundVisualPreferences
+      : input
+    const visualBackgroundId = "visualBackgroundId" in input
+      ? input.visualBackgroundId
+      : settingsRef.current.backgroundId
+    const scope = resolveBackgroundVisualCommitScope({
+      canonicalBackgroundId: settingsRef.current.backgroundId,
+      visualBackgroundId,
+      sourceVisualBackgroundId: "sourceVisualBackgroundId" in input
+        ? input.sourceVisualBackgroundId
+        : visualBackgroundId,
+      committedBackgroundId: "backgroundId" in input
+        ? input.backgroundId
+        : null,
+    })
+    const visualPropertyKeysByBackground = Object.fromEntries(
+      scope.visualBackgroundIds.map((backgroundId) => [
+        backgroundId,
+        backgroundPaletteRegistry[backgroundId]?.visualPropertyKeys ?? [],
+      ]),
+    )
+    const allowedPropertyKeys = new Set(
+      Object.values(visualPropertyKeysByBackground).flat(),
+    )
+    const visualProperties = "properties" in input
+      ? Object.fromEntries(
+        Object.entries(input.properties).filter(([key]) => allowedPropertyKeys.has(key)),
+      )
+      : {}
+    // Selection activation belongs to the same atomic commit, but is a
+    // canonical setting rather than a renderer-owned Visual property.
+    const activateBackground =
+      "activateBackground" in input && input.activateBackground === true
+    const properties = {
+      ...visualProperties,
+      ...(activateBackground
+        ? { movingBackgroundEnabled: true }
+        : {}),
+    }
+    if (activateBackground) {
+      // Apply and background selection share the same session-level activation
+      // semantics as a direct settings change.
+      setRunWithoutAnimatedBackground(false)
+    }
+    const accessOverride = "accessOverride" in input ? input.accessOverride : undefined
+    if (accessOverride) {
+      // Retain the redemption proof through a failed commerce refresh. The
+      // authoritative snapshot effect above still clears this bridge.
+      setTransientOwnedBackgroundIds((current) => [
+        ...new Set([...current, ...accessOverride.ownedBackgroundIds]),
+      ])
+    }
+    const nextSettings = sanitizeChimerVisualCommitForEntitlements({
+      currentSettings: settingsRef.current,
+      candidateProperties: properties,
+      canonicalBackgroundId: scope.canonicalBackgroundId,
+      visualBackgroundIds: scope.visualBackgroundIds,
+      visualPropertyKeysByBackground,
+      backgroundVisualPreferences,
+    }, accessOverride ?? backgroundAccessRef.current, {
+      canUseAccountColorControls,
+      backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
+    }) as ChimerSettings
+    const requestId = backgroundPreferenceRequestIdRef.current + 1
+    backgroundPreferenceRequestIdRef.current = requestId
+    const request = createChimerPreferenceSyncRequest(nextSettings, {
+      backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
+      requestId,
+    }) as BackgroundPreferenceSyncState & { sanitizedSettings: ChimerSettings }
+    const committedSettings = request.sanitizedSettings
+
+    // Account hydration can finish before React commits this state update.
+    // Keep every async reader on the exact locally applied snapshot immediately.
+    settingsRef.current = committedSettings
+    setSettings(committedSettings)
+    setVisualDraftPropertyOverrides(null)
+    window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(committedSettings))
+
+    if (!canSync || accountSyncStatus !== "synced") {
+      setBackgroundPreferenceSync({ status: "local", requestBody: null, requestId })
+      return
+    }
+
+    skipNextAutomaticAccountSyncBodyRef.current = request.requestBody
+    setBackgroundPreferenceSync(request)
+    accountPreferenceSyncRouter.visualApply(request)
+  }
+
+  /** Retries the exact last locally applied payload after a stale cloud write. */
+  const retryBackgroundVisualPreferenceSync = useCallback(() => {
+    if (backgroundPreferenceSync.status !== "stale" || !backgroundPreferenceSync.requestBody) {
+      return
+    }
+    const requestId = backgroundPreferenceRequestIdRef.current + 1
+    backgroundPreferenceRequestIdRef.current = requestId
+    const pending = createChimerPreferenceSyncRetry(
+      backgroundPreferenceSync,
+      requestId,
+    ) as BackgroundPreferenceSyncState
+    setBackgroundPreferenceSync(pending)
+    accountPreferenceSyncRouter.visualRetry(pending)
+  }, [accountPreferenceSyncRouter, backgroundPreferenceSync])
 
   const openTimeModal = (unit: "hours" | "minutes") => {
     setSelectedTimeUnit(unit)
@@ -698,19 +1100,71 @@ export default function ChimerPage() {
   const useDeviceSettingsForAccount = async () => {
     setIsResolvingSync(true)
     setError(null)
+    const submittedSettings = settingsRef.current
+    const commerceRevision = captureBackgroundCommerceOwnershipRevision()
 
     try {
       const response = await fetchWithTimeout("/api/account/preferences", {
         method: "PUT",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ chimerSettings: settingsRef.current }),
+        body: JSON.stringify({ chimerSettings: submittedSettings }),
       })
+      const responseBody = response.ok
+        ? await response.json().catch(() => null)
+        : null
+      const reconciledWrite = response.ok
+        ? resolveChimerPreferenceSeedResult(responseBody, {
+            backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
+          }) as {
+            settings: ChimerSettings
+            featureKeys: string[]
+            ownedBackgroundIds: string[]
+          } | null
+        : null
 
-      if (!response.ok) {
+      if (!reconciledWrite) {
         setError("Could not sync this device's Chimer settings. Try again after signing in.")
         return
       }
 
+      setFeatureKeys(reconciledWrite.featureKeys)
+      setPermanentlyOwnedBackgroundIds(reconciledWrite.ownedBackgroundIds)
+      void reconcileBackgroundCommerceOwnership(
+        reconciledWrite.ownedBackgroundIds,
+        commerceRevision,
+      )
+      const settingsChangedWhileResolving = !areChimerSettingsEqual(
+        settingsRef.current,
+        submittedSettings,
+      )
+      const accessibleCurrentSettings = settingsChangedWhileResolving
+        ? sanitizeAccessibleChimerSettings(settingsRef.current, {
+            featureKeys: reconciledWrite.featureKeys,
+            ownedBackgroundIds: reconciledWrite.ownedBackgroundIds,
+          }) as ChimerSettings
+        : reconciledWrite.settings
+
+      settingsRef.current = accessibleCurrentSettings
+      setSettings(accessibleCurrentSettings)
+      window.localStorage.setItem(
+        CHIMER_STORAGE_KEY,
+        JSON.stringify(accessibleCurrentSettings),
+      )
+      if (
+        settingsChangedWhileResolving
+        && !areChimerSettingsEqual(accessibleCurrentSettings, reconciledWrite.settings)
+      ) {
+        setAccountSettings(reconciledWrite.settings)
+        setHasEditedLocalConflictSettings(true)
+        setCanSync(false)
+        setAccountSyncStatus("conflict")
+        return
+      }
+
+      skipNextAutomaticAccountSyncBodyRef.current = createChimerPreferenceSyncRequest(
+        reconciledWrite.settings,
+        { backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions },
+      ).requestBody
       setAccountSettings(null)
       setCanSync(true)
       setHasEditedLocalConflictSettings(false)
@@ -908,7 +1362,7 @@ export default function ChimerPage() {
     ? resolveMusicVisualizerBackground({
       deviceBackgroundId: visualizer.backgroundId,
       accountDefaultBackgroundId: visualizer.accountDefaultBackgroundId,
-      canUseBackground: (id: string) => isBackgroundId(id) && canUseBackgroundId(id, featureKeys, "music"),
+      canUseBackground: (id: string) => isBackgroundId(id) && canUseBackgroundId(id, backgroundAccess, "music"),
     })
     : { backgroundId: null, source: "none", unavailableSavedId: null }
   const selectedMusicBackgroundId = resolvedMusicBackground.backgroundId
@@ -958,10 +1412,10 @@ export default function ChimerPage() {
         storageError: null,
         wakeLockMessage,
         onShowClockChange: (showClock) => updateSettings({ showClockDisplay: showClock }),
-        onBackgroundChange: (backgroundId) => updateSettings({
+        onBackgroundChange: (backgroundId, accessOverride) => updateSettings({
           movingBackgroundEnabled: true,
           backgroundId: backgroundId as ChimerSettings["backgroundId"],
-        }),
+        }, accessOverride),
         onClose: endTimer,
       }
       : {
@@ -981,7 +1435,6 @@ export default function ChimerPage() {
         }),
         onClose: endTimer,
       }
-
   return (
     <div className="relative min-h-full px-4 py-[7px]">
       {!isTimerActive && (
@@ -1005,11 +1458,12 @@ export default function ChimerPage() {
             syncStatus={accountSyncStatus}
             suppressSyncNotice={hasEditedLocalConflictSettings}
             isResolvingSync={isResolvingSync}
-            featureKeys={featureKeys}
+            backgroundAccess={backgroundAccess}
             backgroundCategory={backgroundCategory}
             initialStep={requestedInitialPanel === "background" ? CHIMER_BACKGROUND_SETUP_STEP_INDEX : 0}
             onTimeClick={openTimeModal}
             onSettingsChange={updateSettings}
+            onBackgroundVisualCommit={applyBackgroundVisualPreferences}
             onStartTimer={startTimer}
             onStartClock={startClock}
             hapticsEnabled={appSettings.hapticFeedbackEnabled}
@@ -1055,61 +1509,31 @@ export default function ChimerPage() {
             clockGlowEnabled={settings.clockGlowEnabled}
             clockGlowColor={settings.clockGlowColor}
             clockGlowStrength={settings.clockGlowStrength}
-            movingBackgroundMainColor={settings.movingBackgroundMainColor}
-            movingBackgroundOrbColor={settings.movingBackgroundOrbColor}
             sparklesMaxSize={settings.sparklesMaxSize}
             sparklesMinSize={settings.sparklesMinSize}
-            sparklesParticleColor={settings.sparklesParticleColor}
             sparklesParticleDensity={settings.sparklesParticleDensity}
             sparklesSpeed={settings.sparklesSpeed}
-            gradientAnimationBackgroundStartColor={settings.gradientAnimationBackgroundStartColor}
-            gradientAnimationBackgroundEndColor={settings.gradientAnimationBackgroundEndColor}
-            gradientAnimationFirstColor={settings.gradientAnimationFirstColor}
-            gradientAnimationSecondColor={settings.gradientAnimationSecondColor}
-            gradientAnimationThirdColor={settings.gradientAnimationThirdColor}
-            gradientAnimationFourthColor={settings.gradientAnimationFourthColor}
-            gradientAnimationFifthColor={settings.gradientAnimationFifthColor}
             gradientAnimationSpeed={settings.gradientAnimationSpeed}
             gradientAnimationSize={settings.gradientAnimationSize}
-            massageLabGradientPrimaryColor={settings.massageLabGradientPrimaryColor}
-            massageLabGradientHarmony={settings.massageLabGradientHarmony}
             massageLabGradientOpacity={settings.massageLabGradientOpacity}
-            massageLabStarsColor={settings.massageLabStarsColor}
             massageLabStarsSpeed={settings.massageLabStarsSpeed}
             massageLabStarsDensity={settings.massageLabStarsDensity}
             massageLabStarsParallax={settings.massageLabStarsParallax}
-            massageLabHoleStrokeColor={settings.massageLabHoleStrokeColor}
-            massageLabHoleParticleColor={settings.massageLabHoleParticleColor}
             massageLabHoleLineCount={settings.massageLabHoleLineCount}
             massageLabHoleDiscCount={settings.massageLabHoleDiscCount}
             massageLabLightSpeedWarpSpeed={settings.massageLabLightSpeedWarpSpeed}
             massageLabLightSpeedParticleCount={settings.massageLabLightSpeedParticleCount}
-            massageLabLightSpeedLightColor={settings.massageLabLightSpeedLightColor}
             massageLabLightSpeedIntensity={settings.massageLabLightSpeedIntensity}
             massageLabLightSpeedRadius={settings.massageLabLightSpeedRadius}
             massageLabLightSpeedCylinderLength={settings.massageLabLightSpeedCylinderLength}
-            massageLabElectricMistColor={settings.massageLabElectricMistColor}
             massageLabElectricMistSpeed={settings.massageLabElectricMistSpeed}
             massageLabElectricMistDetail={settings.massageLabElectricMistDetail}
             massageLabElectricMistDistortion={settings.massageLabElectricMistDistortion}
             massageLabElectricMistBrightness={settings.massageLabElectricMistBrightness}
-            massageLabAstralFlowPaletteMode={settings.massageLabAstralFlowPaletteMode}
-            massageLabAstralFlowPrimaryColor={settings.massageLabAstralFlowPrimaryColor}
-            massageLabAstralFlowHarmony={settings.massageLabAstralFlowHarmony}
-            massageLabAstralFlowColorOne={settings.massageLabAstralFlowColorOne}
-            massageLabAstralFlowColorTwo={settings.massageLabAstralFlowColorTwo}
-            massageLabAstralFlowColorThree={settings.massageLabAstralFlowColorThree}
             massageLabAstralFlowSpeed={settings.massageLabAstralFlowSpeed}
             massageLabAstralFlowFlowMin={settings.massageLabAstralFlowFlowMin}
             massageLabAstralFlowFlowMax={settings.massageLabAstralFlowFlowMax}
-            massageLabDeepSpaceNebulaPaletteMode={settings.massageLabDeepSpaceNebulaPaletteMode}
-            massageLabDeepSpaceNebulaPrimaryColor={settings.massageLabDeepSpaceNebulaPrimaryColor}
-            massageLabDeepSpaceNebulaHarmony={settings.massageLabDeepSpaceNebulaHarmony}
-            massageLabDeepSpaceNebulaColorOne={settings.massageLabDeepSpaceNebulaColorOne}
-            massageLabDeepSpaceNebulaColorTwo={settings.massageLabDeepSpaceNebulaColorTwo}
-            massageLabDeepSpaceNebulaColorThree={settings.massageLabDeepSpaceNebulaColorThree}
             massageLabDeepSpaceNebulaSpeed={settings.massageLabDeepSpaceNebulaSpeed}
-            massageLabGridBloomColor={settings.massageLabGridBloomColor}
             massageLabGridBloomSpeed={settings.massageLabGridBloomSpeed}
             massageLabGridBloomGridScale={settings.massageLabGridBloomGridScale}
             massageLabGridBloomRotationSpeed={settings.massageLabGridBloomRotationSpeed}
@@ -1117,29 +1541,11 @@ export default function ChimerPage() {
             massageLabGridBloomDistortionAmount={settings.massageLabGridBloomDistortionAmount}
             massageLabGridBloomFlowSpeedX={settings.massageLabGridBloomFlowSpeedX}
             massageLabGridBloomFlowSpeedY={settings.massageLabGridBloomFlowSpeedY}
-            massageLabChromeFlowPaletteMode={settings.massageLabChromeFlowPaletteMode}
-            massageLabChromeFlowPrimaryColor={settings.massageLabChromeFlowPrimaryColor}
-            massageLabChromeFlowHarmony={settings.massageLabChromeFlowHarmony}
-            massageLabChromeFlowColorOne={settings.massageLabChromeFlowColorOne}
-            massageLabChromeFlowColorTwo={settings.massageLabChromeFlowColorTwo}
             massageLabChromeFlowFlowSpeed={settings.massageLabChromeFlowFlowSpeed}
             massageLabChromeFlowTimeScale={settings.massageLabChromeFlowTimeScale}
-            massageLabWaveCurrentPaletteMode={settings.massageLabWaveCurrentPaletteMode}
-            massageLabWaveCurrentPrimaryColor={settings.massageLabWaveCurrentPrimaryColor}
-            massageLabWaveCurrentHarmony={settings.massageLabWaveCurrentHarmony}
-            massageLabWaveCurrentBackgroundColor={settings.massageLabWaveCurrentBackgroundColor}
-            massageLabWaveCurrentColorOne={settings.massageLabWaveCurrentColorOne}
-            massageLabWaveCurrentColorTwo={settings.massageLabWaveCurrentColorTwo}
-            massageLabWaveCurrentColorThree={settings.massageLabWaveCurrentColorThree}
             massageLabWaveCurrentSpeedX={settings.massageLabWaveCurrentSpeedX}
             massageLabWaveCurrentSpeedY={settings.massageLabWaveCurrentSpeedY}
             massageLabWaveCurrentAmplitude={settings.massageLabWaveCurrentAmplitude}
-            massageLabFerrofluidPaletteMode={settings.massageLabFerrofluidPaletteMode}
-            massageLabFerrofluidPrimaryColor={settings.massageLabFerrofluidPrimaryColor}
-            massageLabFerrofluidHarmony={settings.massageLabFerrofluidHarmony}
-            massageLabFerrofluidColorOne={settings.massageLabFerrofluidColorOne}
-            massageLabFerrofluidColorTwo={settings.massageLabFerrofluidColorTwo}
-            massageLabFerrofluidColorThree={settings.massageLabFerrofluidColorThree}
             massageLabFerrofluidSpeed={settings.massageLabFerrofluidSpeed}
             massageLabFerrofluidScale={settings.massageLabFerrofluidScale}
             massageLabFerrofluidTurbulence={settings.massageLabFerrofluidTurbulence}
@@ -1150,13 +1556,6 @@ export default function ChimerPage() {
             massageLabFerrofluidGlow={settings.massageLabFerrofluidGlow}
             massageLabFerrofluidFlowDirection={settings.massageLabFerrofluidFlowDirection}
             massageLabFerrofluidOpacity={settings.massageLabFerrofluidOpacity}
-            massageLabLightfallPaletteMode={settings.massageLabLightfallPaletteMode}
-            massageLabLightfallPrimaryColor={settings.massageLabLightfallPrimaryColor}
-            massageLabLightfallHarmony={settings.massageLabLightfallHarmony}
-            massageLabLightfallColorOne={settings.massageLabLightfallColorOne}
-            massageLabLightfallColorTwo={settings.massageLabLightfallColorTwo}
-            massageLabLightfallColorThree={settings.massageLabLightfallColorThree}
-            massageLabLightfallBackgroundColor={settings.massageLabLightfallBackgroundColor}
             massageLabLightfallSpeed={settings.massageLabLightfallSpeed}
             massageLabLightfallStreakCount={settings.massageLabLightfallStreakCount}
             massageLabLightfallStreakWidth={settings.massageLabLightfallStreakWidth}
@@ -1171,12 +1570,6 @@ export default function ChimerPage() {
             massageLabLightfallCursorStrength={settings.massageLabLightfallCursorStrength}
             massageLabLightfallCursorRadius={settings.massageLabLightfallCursorRadius}
             massageLabLightfallCursorDampening={settings.massageLabLightfallCursorDampening}
-            massageLabLiquidEtherPaletteMode={settings.massageLabLiquidEtherPaletteMode}
-            massageLabLiquidEtherPrimaryColor={settings.massageLabLiquidEtherPrimaryColor}
-            massageLabLiquidEtherHarmony={settings.massageLabLiquidEtherHarmony}
-            massageLabLiquidEtherColorOne={settings.massageLabLiquidEtherColorOne}
-            massageLabLiquidEtherColorTwo={settings.massageLabLiquidEtherColorTwo}
-            massageLabLiquidEtherColorThree={settings.massageLabLiquidEtherColorThree}
             massageLabLiquidEtherCursorEnabled={settings.massageLabLiquidEtherCursorEnabled}
             massageLabLiquidEtherMouseForce={settings.massageLabLiquidEtherMouseForce}
             massageLabLiquidEtherCursorSize={settings.massageLabLiquidEtherCursorSize}
@@ -1216,11 +1609,6 @@ export default function ChimerPage() {
             massageLabDarkVeilScanlineFrequency={settings.massageLabDarkVeilScanlineFrequency}
             massageLabDarkVeilWarpAmount={settings.massageLabDarkVeilWarpAmount}
             massageLabDarkVeilResolutionScale={settings.massageLabDarkVeilResolutionScale}
-            massageLabLightPillarPaletteMode={settings.massageLabLightPillarPaletteMode}
-            massageLabLightPillarPrimaryColor={settings.massageLabLightPillarPrimaryColor}
-            massageLabLightPillarHarmony={settings.massageLabLightPillarHarmony}
-            massageLabLightPillarTopColor={settings.massageLabLightPillarTopColor}
-            massageLabLightPillarBottomColor={settings.massageLabLightPillarBottomColor}
             massageLabLightPillarIntensity={settings.massageLabLightPillarIntensity}
             massageLabLightPillarRotationSpeed={settings.massageLabLightPillarRotationSpeed}
             massageLabLightPillarInteractive={settings.massageLabLightPillarInteractive}
@@ -1231,20 +1619,10 @@ export default function ChimerPage() {
             massageLabLightPillarBlendMode={settings.massageLabLightPillarBlendMode}
             massageLabLightPillarRotation={settings.massageLabLightPillarRotation}
             massageLabLightPillarQuality={settings.massageLabLightPillarQuality}
-            massageLabSilkPaletteMode={settings.massageLabSilkPaletteMode}
-            massageLabSilkPrimaryColor={settings.massageLabSilkPrimaryColor}
-            massageLabSilkHarmony={settings.massageLabSilkHarmony}
-            massageLabSilkColor={settings.massageLabSilkColor}
             massageLabSilkSpeed={settings.massageLabSilkSpeed}
             massageLabSilkScale={settings.massageLabSilkScale}
             massageLabSilkNoiseIntensity={settings.massageLabSilkNoiseIntensity}
             massageLabSilkRotation={settings.massageLabSilkRotation}
-            massageLabFloatingLinesPaletteMode={settings.massageLabFloatingLinesPaletteMode}
-            massageLabFloatingLinesPrimaryColor={settings.massageLabFloatingLinesPrimaryColor}
-            massageLabFloatingLinesHarmony={settings.massageLabFloatingLinesHarmony}
-            massageLabFloatingLinesColorOne={settings.massageLabFloatingLinesColorOne}
-            massageLabFloatingLinesColorTwo={settings.massageLabFloatingLinesColorTwo}
-            massageLabFloatingLinesColorThree={settings.massageLabFloatingLinesColorThree}
             massageLabFloatingLinesEnableTop={settings.massageLabFloatingLinesEnableTop}
             massageLabFloatingLinesEnableMiddle={settings.massageLabFloatingLinesEnableMiddle}
             massageLabFloatingLinesEnableBottom={settings.massageLabFloatingLinesEnableBottom}
@@ -1271,11 +1649,6 @@ export default function ChimerPage() {
             massageLabFloatingLinesParallax={settings.massageLabFloatingLinesParallax}
             massageLabFloatingLinesParallaxStrength={settings.massageLabFloatingLinesParallaxStrength}
             massageLabFloatingLinesBlendMode={settings.massageLabFloatingLinesBlendMode}
-            massageLabSideRaysPaletteMode={settings.massageLabSideRaysPaletteMode}
-            massageLabSideRaysPrimaryColor={settings.massageLabSideRaysPrimaryColor}
-            massageLabSideRaysHarmony={settings.massageLabSideRaysHarmony}
-            massageLabSideRaysColorOne={settings.massageLabSideRaysColorOne}
-            massageLabSideRaysColorTwo={settings.massageLabSideRaysColorTwo}
             massageLabSideRaysSpeed={settings.massageLabSideRaysSpeed}
             massageLabSideRaysIntensity={settings.massageLabSideRaysIntensity}
             massageLabSideRaysSpread={settings.massageLabSideRaysSpread}
@@ -1285,10 +1658,6 @@ export default function ChimerPage() {
             massageLabSideRaysBlend={settings.massageLabSideRaysBlend}
             massageLabSideRaysFalloff={settings.massageLabSideRaysFalloff}
             massageLabSideRaysOpacity={settings.massageLabSideRaysOpacity}
-            massageLabLightRaysPaletteMode={settings.massageLabLightRaysPaletteMode}
-            massageLabLightRaysPrimaryColor={settings.massageLabLightRaysPrimaryColor}
-            massageLabLightRaysHarmony={settings.massageLabLightRaysHarmony}
-            massageLabLightRaysColor={settings.massageLabLightRaysColor}
             massageLabLightRaysOrigin={settings.massageLabLightRaysOrigin}
             massageLabLightRaysSpeed={settings.massageLabLightRaysSpeed}
             massageLabLightRaysSpread={settings.massageLabLightRaysSpread}
@@ -1300,10 +1669,6 @@ export default function ChimerPage() {
             massageLabLightRaysMouseInfluence={settings.massageLabLightRaysMouseInfluence}
             massageLabLightRaysNoiseAmount={settings.massageLabLightRaysNoiseAmount}
             massageLabLightRaysDistortion={settings.massageLabLightRaysDistortion}
-            massageLabPixelBlastPaletteMode={settings.massageLabPixelBlastPaletteMode}
-            massageLabPixelBlastPrimaryColor={settings.massageLabPixelBlastPrimaryColor}
-            massageLabPixelBlastHarmony={settings.massageLabPixelBlastHarmony}
-            massageLabPixelBlastColor={settings.massageLabPixelBlastColor}
             massageLabPixelBlastVariant={settings.massageLabPixelBlastVariant}
             massageLabPixelBlastPixelSize={settings.massageLabPixelBlastPixelSize}
             massageLabPixelBlastAntialias={settings.massageLabPixelBlastAntialias}
@@ -1323,13 +1688,6 @@ export default function ChimerPage() {
             massageLabPixelBlastTransparent={settings.massageLabPixelBlastTransparent}
             massageLabPixelBlastEdgeFade={settings.massageLabPixelBlastEdgeFade}
             massageLabPixelBlastNoiseAmount={settings.massageLabPixelBlastNoiseAmount}
-            massageLabColorBendsPaletteMode={settings.massageLabColorBendsPaletteMode}
-            massageLabColorBendsPrimaryColor={settings.massageLabColorBendsPrimaryColor}
-            massageLabColorBendsHarmony={settings.massageLabColorBendsHarmony}
-            massageLabColorBendsColorOne={settings.massageLabColorBendsColorOne}
-            massageLabColorBendsColorTwo={settings.massageLabColorBendsColorTwo}
-            massageLabColorBendsColorThree={settings.massageLabColorBendsColorThree}
-            massageLabColorBendsColorFour={settings.massageLabColorBendsColorFour}
             massageLabColorBendsRotation={settings.massageLabColorBendsRotation}
             massageLabColorBendsSpeed={settings.massageLabColorBendsSpeed}
             massageLabColorBendsTransparent={settings.massageLabColorBendsTransparent}
@@ -1344,11 +1702,6 @@ export default function ChimerPage() {
             massageLabColorBendsIterations={settings.massageLabColorBendsIterations}
             massageLabColorBendsIntensity={settings.massageLabColorBendsIntensity}
             massageLabColorBendsBandWidth={settings.massageLabColorBendsBandWidth}
-            massageLabEvilEyePaletteMode={settings.massageLabEvilEyePaletteMode}
-            massageLabEvilEyePrimaryColor={settings.massageLabEvilEyePrimaryColor}
-            massageLabEvilEyeHarmony={settings.massageLabEvilEyeHarmony}
-            massageLabEvilEyeColor={settings.massageLabEvilEyeColor}
-            massageLabEvilEyeBackgroundColor={settings.massageLabEvilEyeBackgroundColor}
             massageLabEvilEyeIntensity={settings.massageLabEvilEyeIntensity}
             massageLabEvilEyePupilSize={settings.massageLabEvilEyePupilSize}
             massageLabEvilEyeIrisWidth={settings.massageLabEvilEyeIrisWidth}
@@ -1358,12 +1711,6 @@ export default function ChimerPage() {
             massageLabEvilEyePupilFollow={settings.massageLabEvilEyePupilFollow}
             massageLabEvilEyeFlameSpeed={settings.massageLabEvilEyeFlameSpeed}
             massageLabEvilEyeInteractive={settings.massageLabEvilEyeInteractive}
-            massageLabLineWavesPaletteMode={settings.massageLabLineWavesPaletteMode}
-            massageLabLineWavesPrimaryColor={settings.massageLabLineWavesPrimaryColor}
-            massageLabLineWavesHarmony={settings.massageLabLineWavesHarmony}
-            massageLabLineWavesColorOne={settings.massageLabLineWavesColorOne}
-            massageLabLineWavesColorTwo={settings.massageLabLineWavesColorTwo}
-            massageLabLineWavesColorThree={settings.massageLabLineWavesColorThree}
             massageLabLineWavesSpeed={settings.massageLabLineWavesSpeed}
             massageLabLineWavesInnerLineCount={settings.massageLabLineWavesInnerLineCount}
             massageLabLineWavesOuterLineCount={settings.massageLabLineWavesOuterLineCount}
@@ -1374,11 +1721,6 @@ export default function ChimerPage() {
             massageLabLineWavesBrightness={settings.massageLabLineWavesBrightness}
             massageLabLineWavesEnableMouseInteraction={settings.massageLabLineWavesEnableMouseInteraction}
             massageLabLineWavesMouseInfluence={settings.massageLabLineWavesMouseInfluence}
-            massageLabRadarPaletteMode={settings.massageLabRadarPaletteMode}
-            massageLabRadarPrimaryColor={settings.massageLabRadarPrimaryColor}
-            massageLabRadarHarmony={settings.massageLabRadarHarmony}
-            massageLabRadarColor={settings.massageLabRadarColor}
-            massageLabRadarBackgroundColor={settings.massageLabRadarBackgroundColor}
             massageLabRadarSpeed={settings.massageLabRadarSpeed}
             massageLabRadarScale={settings.massageLabRadarScale}
             massageLabRadarRingCount={settings.massageLabRadarRingCount}
@@ -1392,11 +1734,6 @@ export default function ChimerPage() {
             massageLabRadarBrightness={settings.massageLabRadarBrightness}
             massageLabRadarEnableMouseInteraction={settings.massageLabRadarEnableMouseInteraction}
             massageLabRadarMouseInfluence={settings.massageLabRadarMouseInfluence}
-            massageLabSoftAuroraPaletteMode={settings.massageLabSoftAuroraPaletteMode}
-            massageLabSoftAuroraPrimaryColor={settings.massageLabSoftAuroraPrimaryColor}
-            massageLabSoftAuroraHarmony={settings.massageLabSoftAuroraHarmony}
-            massageLabSoftAuroraColorOne={settings.massageLabSoftAuroraColorOne}
-            massageLabSoftAuroraColorTwo={settings.massageLabSoftAuroraColorTwo}
             massageLabSoftAuroraSpeed={settings.massageLabSoftAuroraSpeed}
             massageLabSoftAuroraScale={settings.massageLabSoftAuroraScale}
             massageLabSoftAuroraBrightness={settings.massageLabSoftAuroraBrightness}
@@ -1409,20 +1746,11 @@ export default function ChimerPage() {
             massageLabSoftAuroraColorSpeed={settings.massageLabSoftAuroraColorSpeed}
             massageLabSoftAuroraEnableMouseInteraction={settings.massageLabSoftAuroraEnableMouseInteraction}
             massageLabSoftAuroraMouseInfluence={settings.massageLabSoftAuroraMouseInfluence}
-            massageLabPlasmaPaletteMode={settings.massageLabPlasmaPaletteMode}
-            massageLabPlasmaPrimaryColor={settings.massageLabPlasmaPrimaryColor}
-            massageLabPlasmaHarmony={settings.massageLabPlasmaHarmony}
-            massageLabPlasmaColor={settings.massageLabPlasmaColor}
             massageLabPlasmaSpeed={settings.massageLabPlasmaSpeed}
             massageLabPlasmaDirection={settings.massageLabPlasmaDirection}
             massageLabPlasmaScale={settings.massageLabPlasmaScale}
             massageLabPlasmaOpacity={settings.massageLabPlasmaOpacity}
             massageLabPlasmaMouseInteractive={settings.massageLabPlasmaMouseInteractive}
-            massageLabPlasmaWavePaletteMode={settings.massageLabPlasmaWavePaletteMode}
-            massageLabPlasmaWavePrimaryColor={settings.massageLabPlasmaWavePrimaryColor}
-            massageLabPlasmaWaveHarmony={settings.massageLabPlasmaWaveHarmony}
-            massageLabPlasmaWaveColorOne={settings.massageLabPlasmaWaveColorOne}
-            massageLabPlasmaWaveColorTwo={settings.massageLabPlasmaWaveColorTwo}
             massageLabPlasmaWaveXOffset={settings.massageLabPlasmaWaveXOffset}
             massageLabPlasmaWaveYOffset={settings.massageLabPlasmaWaveYOffset}
             massageLabPlasmaWaveRotationDeg={settings.massageLabPlasmaWaveRotationDeg}
@@ -1432,12 +1760,6 @@ export default function ChimerPage() {
             massageLabPlasmaWaveDirectionTwo={settings.massageLabPlasmaWaveDirectionTwo}
             massageLabPlasmaWaveBendOne={settings.massageLabPlasmaWaveBendOne}
             massageLabPlasmaWaveBendTwo={settings.massageLabPlasmaWaveBendTwo}
-            massageLabParticlesPaletteMode={settings.massageLabParticlesPaletteMode}
-            massageLabParticlesPrimaryColor={settings.massageLabParticlesPrimaryColor}
-            massageLabParticlesHarmony={settings.massageLabParticlesHarmony}
-            massageLabParticlesColorOne={settings.massageLabParticlesColorOne}
-            massageLabParticlesColorTwo={settings.massageLabParticlesColorTwo}
-            massageLabParticlesColorThree={settings.massageLabParticlesColorThree}
             massageLabParticlesCount={settings.massageLabParticlesCount}
             massageLabParticlesSpread={settings.massageLabParticlesSpread}
             massageLabParticlesSpeed={settings.massageLabParticlesSpeed}
@@ -1449,11 +1771,6 @@ export default function ChimerPage() {
             massageLabParticlesCameraDistance={settings.massageLabParticlesCameraDistance}
             massageLabParticlesDisableRotation={settings.massageLabParticlesDisableRotation}
             massageLabParticlesPixelRatio={settings.massageLabParticlesPixelRatio}
-            massageLabGradientBlindsPaletteMode={settings.massageLabGradientBlindsPaletteMode}
-            massageLabGradientBlindsPrimaryColor={settings.massageLabGradientBlindsPrimaryColor}
-            massageLabGradientBlindsHarmony={settings.massageLabGradientBlindsHarmony}
-            massageLabGradientBlindsColorOne={settings.massageLabGradientBlindsColorOne}
-            massageLabGradientBlindsColorTwo={settings.massageLabGradientBlindsColorTwo}
             massageLabGradientBlindsAngle={settings.massageLabGradientBlindsAngle}
             massageLabGradientBlindsNoise={settings.massageLabGradientBlindsNoise}
             massageLabGradientBlindsBlindCount={settings.massageLabGradientBlindsBlindCount}
@@ -1468,12 +1785,6 @@ export default function ChimerPage() {
             massageLabGradientBlindsBlendMode={settings.massageLabGradientBlindsBlendMode}
             massageLabGradientBlindsDpr={settings.massageLabGradientBlindsDpr}
             massageLabGradientBlindsEnableMouseInteraction={settings.massageLabGradientBlindsEnableMouseInteraction}
-            massageLabGrainientPaletteMode={settings.massageLabGrainientPaletteMode}
-            massageLabGrainientPrimaryColor={settings.massageLabGrainientPrimaryColor}
-            massageLabGrainientHarmony={settings.massageLabGrainientHarmony}
-            massageLabGrainientColorOne={settings.massageLabGrainientColorOne}
-            massageLabGrainientColorTwo={settings.massageLabGrainientColorTwo}
-            massageLabGrainientColorThree={settings.massageLabGrainientColorThree}
             massageLabGrainientTimeSpeed={settings.massageLabGrainientTimeSpeed}
             massageLabGrainientColorBalance={settings.massageLabGrainientColorBalance}
             massageLabGrainientWarpStrength={settings.massageLabGrainientWarpStrength}
@@ -1493,11 +1804,6 @@ export default function ChimerPage() {
             massageLabGrainientCenterX={settings.massageLabGrainientCenterX}
             massageLabGrainientCenterY={settings.massageLabGrainientCenterY}
             massageLabGrainientZoom={settings.massageLabGrainientZoom}
-            massageLabGridScanPaletteMode={settings.massageLabGridScanPaletteMode}
-            massageLabGridScanPrimaryColor={settings.massageLabGridScanPrimaryColor}
-            massageLabGridScanHarmony={settings.massageLabGridScanHarmony}
-            massageLabGridScanLinesColor={settings.massageLabGridScanLinesColor}
-            massageLabGridScanScanColor={settings.massageLabGridScanScanColor}
             massageLabGridScanSensitivity={settings.massageLabGridScanSensitivity}
             massageLabGridScanLineThickness={settings.massageLabGridScanLineThickness}
             massageLabGridScanScanOpacity={settings.massageLabGridScanScanOpacity}
@@ -1514,10 +1820,6 @@ export default function ChimerPage() {
             massageLabGridScanScanDelay={settings.massageLabGridScanScanDelay}
             massageLabGridScanEnablePointerInteraction={settings.massageLabGridScanEnablePointerInteraction}
             massageLabGridScanScanOnClick={settings.massageLabGridScanScanOnClick}
-            massageLabBeamsPaletteMode={settings.massageLabBeamsPaletteMode}
-            massageLabBeamsPrimaryColor={settings.massageLabBeamsPrimaryColor}
-            massageLabBeamsHarmony={settings.massageLabBeamsHarmony}
-            massageLabBeamsLightColor={settings.massageLabBeamsLightColor}
             massageLabBeamsBeamWidth={settings.massageLabBeamsBeamWidth}
             massageLabBeamsBeamHeight={settings.massageLabBeamsBeamHeight}
             massageLabBeamsBeamNumber={settings.massageLabBeamsBeamNumber}
@@ -1525,10 +1827,6 @@ export default function ChimerPage() {
             massageLabBeamsNoiseIntensity={settings.massageLabBeamsNoiseIntensity}
             massageLabBeamsScale={settings.massageLabBeamsScale}
             massageLabBeamsRotation={settings.massageLabBeamsRotation}
-            massageLabPixelSnowPaletteMode={settings.massageLabPixelSnowPaletteMode}
-            massageLabPixelSnowPrimaryColor={settings.massageLabPixelSnowPrimaryColor}
-            massageLabPixelSnowHarmony={settings.massageLabPixelSnowHarmony}
-            massageLabPixelSnowColor={settings.massageLabPixelSnowColor}
             massageLabPixelSnowFlakeSize={settings.massageLabPixelSnowFlakeSize}
             massageLabPixelSnowMinFlakeSize={settings.massageLabPixelSnowMinFlakeSize}
             massageLabPixelSnowPixelResolution={settings.massageLabPixelSnowPixelResolution}
@@ -1540,22 +1838,10 @@ export default function ChimerPage() {
             massageLabPixelSnowDensity={settings.massageLabPixelSnowDensity}
             massageLabPixelSnowVariant={settings.massageLabPixelSnowVariant}
             massageLabPixelSnowDirection={settings.massageLabPixelSnowDirection}
-            massageLabLightningPaletteMode={settings.massageLabLightningPaletteMode}
-            massageLabLightningPrimaryColor={settings.massageLabLightningPrimaryColor}
-            massageLabLightningHarmony={settings.massageLabLightningHarmony}
-            massageLabLightningColor={settings.massageLabLightningColor}
-            massageLabLightningHue={settings.massageLabLightningHue}
             massageLabLightningXOffset={settings.massageLabLightningXOffset}
             massageLabLightningSpeed={settings.massageLabLightningSpeed}
             massageLabLightningIntensity={settings.massageLabLightningIntensity}
             massageLabLightningSize={settings.massageLabLightningSize}
-            massageLabPrismaticBurstPaletteMode={settings.massageLabPrismaticBurstPaletteMode}
-            massageLabPrismaticBurstPrimaryColor={settings.massageLabPrismaticBurstPrimaryColor}
-            massageLabPrismaticBurstHarmony={settings.massageLabPrismaticBurstHarmony}
-            massageLabPrismaticBurstColorOne={settings.massageLabPrismaticBurstColorOne}
-            massageLabPrismaticBurstColorTwo={settings.massageLabPrismaticBurstColorTwo}
-            massageLabPrismaticBurstColorThree={settings.massageLabPrismaticBurstColorThree}
-            massageLabPrismaticBurstColorFour={settings.massageLabPrismaticBurstColorFour}
             massageLabPrismaticBurstIntensity={settings.massageLabPrismaticBurstIntensity}
             massageLabPrismaticBurstSpeed={settings.massageLabPrismaticBurstSpeed}
             massageLabPrismaticBurstAnimationType={settings.massageLabPrismaticBurstAnimationType}
@@ -1565,10 +1851,6 @@ export default function ChimerPage() {
             massageLabPrismaticBurstHoverDampness={settings.massageLabPrismaticBurstHoverDampness}
             massageLabPrismaticBurstRayCount={settings.massageLabPrismaticBurstRayCount}
             massageLabPrismaticBurstMixBlendMode={settings.massageLabPrismaticBurstMixBlendMode}
-            massageLabGalaxyPaletteMode={settings.massageLabGalaxyPaletteMode}
-            massageLabGalaxyPrimaryColor={settings.massageLabGalaxyPrimaryColor}
-            massageLabGalaxyHarmony={settings.massageLabGalaxyHarmony}
-            massageLabGalaxyColor={settings.massageLabGalaxyColor}
             massageLabGalaxyHueShift={settings.massageLabGalaxyHueShift}
             massageLabGalaxyFocalX={settings.massageLabGalaxyFocalX}
             massageLabGalaxyFocalY={settings.massageLabGalaxyFocalY}
@@ -1585,10 +1867,6 @@ export default function ChimerPage() {
             massageLabGalaxyRotationSpeed={settings.massageLabGalaxyRotationSpeed}
             massageLabGalaxyAutoCenterRepulsion={settings.massageLabGalaxyAutoCenterRepulsion}
             massageLabGalaxyTransparent={settings.massageLabGalaxyTransparent}
-            massageLabDitherPaletteMode={settings.massageLabDitherPaletteMode}
-            massageLabDitherPrimaryColor={settings.massageLabDitherPrimaryColor}
-            massageLabDitherHarmony={settings.massageLabDitherHarmony}
-            massageLabDitherColor={settings.massageLabDitherColor}
             massageLabDitherWaveSpeed={settings.massageLabDitherWaveSpeed}
             massageLabDitherWaveFrequency={settings.massageLabDitherWaveFrequency}
             massageLabDitherWaveAmplitude={settings.massageLabDitherWaveAmplitude}
@@ -1596,10 +1874,6 @@ export default function ChimerPage() {
             massageLabDitherPixelSize={settings.massageLabDitherPixelSize}
             massageLabDitherMouseInteraction={settings.massageLabDitherMouseInteraction}
             massageLabDitherMouseRadius={settings.massageLabDitherMouseRadius}
-            massageLabFaultyTerminalPaletteMode={settings.massageLabFaultyTerminalPaletteMode}
-            massageLabFaultyTerminalPrimaryColor={settings.massageLabFaultyTerminalPrimaryColor}
-            massageLabFaultyTerminalHarmony={settings.massageLabFaultyTerminalHarmony}
-            massageLabFaultyTerminalTint={settings.massageLabFaultyTerminalTint}
             massageLabFaultyTerminalScale={settings.massageLabFaultyTerminalScale}
             massageLabFaultyTerminalGridMulX={settings.massageLabFaultyTerminalGridMulX}
             massageLabFaultyTerminalGridMulY={settings.massageLabFaultyTerminalGridMulY}
@@ -1616,10 +1890,6 @@ export default function ChimerPage() {
             massageLabFaultyTerminalMouseStrength={settings.massageLabFaultyTerminalMouseStrength}
             massageLabFaultyTerminalPageLoadAnimation={settings.massageLabFaultyTerminalPageLoadAnimation}
             massageLabFaultyTerminalBrightness={settings.massageLabFaultyTerminalBrightness}
-            massageLabRippleGridPaletteMode={settings.massageLabRippleGridPaletteMode}
-            massageLabRippleGridPrimaryColor={settings.massageLabRippleGridPrimaryColor}
-            massageLabRippleGridHarmony={settings.massageLabRippleGridHarmony}
-            massageLabRippleGridColor={settings.massageLabRippleGridColor}
             massageLabRippleGridRippleIntensity={settings.massageLabRippleGridRippleIntensity}
             massageLabRippleGridGridSize={settings.massageLabRippleGridGridSize}
             massageLabRippleGridGridThickness={settings.massageLabRippleGridGridThickness}
@@ -1630,14 +1900,6 @@ export default function ChimerPage() {
             massageLabRippleGridGridRotation={settings.massageLabRippleGridGridRotation}
             massageLabRippleGridMouseInteraction={settings.massageLabRippleGridMouseInteraction}
             massageLabRippleGridMouseInteractionRadius={settings.massageLabRippleGridMouseInteractionRadius}
-            massageLabDotFieldPaletteMode={settings.massageLabDotFieldPaletteMode}
-            massageLabDotFieldPrimaryColor={settings.massageLabDotFieldPrimaryColor}
-            massageLabDotFieldHarmony={settings.massageLabDotFieldHarmony}
-            massageLabDotFieldGradientFromColor={settings.massageLabDotFieldGradientFromColor}
-            massageLabDotFieldGradientFromAlpha={settings.massageLabDotFieldGradientFromAlpha}
-            massageLabDotFieldGradientToColor={settings.massageLabDotFieldGradientToColor}
-            massageLabDotFieldGradientToAlpha={settings.massageLabDotFieldGradientToAlpha}
-            massageLabDotFieldGlowColor={settings.massageLabDotFieldGlowColor}
             massageLabDotFieldDotRadius={settings.massageLabDotFieldDotRadius}
             massageLabDotFieldDotSpacing={settings.massageLabDotFieldDotSpacing}
             massageLabDotFieldCursorRadius={settings.massageLabDotFieldCursorRadius}
@@ -1648,11 +1910,6 @@ export default function ChimerPage() {
             massageLabDotFieldSparkle={settings.massageLabDotFieldSparkle}
             massageLabDotFieldWaveAmplitude={settings.massageLabDotFieldWaveAmplitude}
             massageLabDotFieldCursorInteraction={settings.massageLabDotFieldCursorInteraction}
-            massageLabDotGridPaletteMode={settings.massageLabDotGridPaletteMode}
-            massageLabDotGridPrimaryColor={settings.massageLabDotGridPrimaryColor}
-            massageLabDotGridHarmony={settings.massageLabDotGridHarmony}
-            massageLabDotGridBaseColor={settings.massageLabDotGridBaseColor}
-            massageLabDotGridActiveColor={settings.massageLabDotGridActiveColor}
             massageLabDotGridDotSize={settings.massageLabDotGridDotSize}
             massageLabDotGridGap={settings.massageLabDotGridGap}
             massageLabDotGridProximity={settings.massageLabDotGridProximity}
@@ -1664,25 +1921,12 @@ export default function ChimerPage() {
             massageLabDotGridReturnDuration={settings.massageLabDotGridReturnDuration}
             massageLabDotGridCursorInteraction={settings.massageLabDotGridCursorInteraction}
             massageLabDotGridClickShock={settings.massageLabDotGridClickShock}
-            massageLabThreadsPaletteMode={settings.massageLabThreadsPaletteMode}
-            massageLabThreadsPrimaryColor={settings.massageLabThreadsPrimaryColor}
-            massageLabThreadsHarmony={settings.massageLabThreadsHarmony}
-            massageLabThreadsColor={settings.massageLabThreadsColor}
             massageLabThreadsAmplitude={settings.massageLabThreadsAmplitude}
             massageLabThreadsDistance={settings.massageLabThreadsDistance}
             massageLabThreadsEnableMouseInteraction={settings.massageLabThreadsEnableMouseInteraction}
-            massageLabIridescencePaletteMode={settings.massageLabIridescencePaletteMode}
-            massageLabIridescencePrimaryColor={settings.massageLabIridescencePrimaryColor}
-            massageLabIridescenceHarmony={settings.massageLabIridescenceHarmony}
-            massageLabIridescenceColor={settings.massageLabIridescenceColor}
             massageLabIridescenceSpeed={settings.massageLabIridescenceSpeed}
             massageLabIridescenceAmplitude={settings.massageLabIridescenceAmplitude}
             massageLabIridescenceMouseReact={settings.massageLabIridescenceMouseReact}
-            massageLabWavesPaletteMode={settings.massageLabWavesPaletteMode}
-            massageLabWavesPrimaryColor={settings.massageLabWavesPrimaryColor}
-            massageLabWavesHarmony={settings.massageLabWavesHarmony}
-            massageLabWavesLineColor={settings.massageLabWavesLineColor}
-            massageLabWavesBackgroundColor={settings.massageLabWavesBackgroundColor}
             massageLabWavesTransparentBackground={settings.massageLabWavesTransparentBackground}
             massageLabWavesSpeedX={settings.massageLabWavesSpeedX}
             massageLabWavesSpeedY={settings.massageLabWavesSpeedY}
@@ -1694,73 +1938,34 @@ export default function ChimerPage() {
             massageLabWavesTension={settings.massageLabWavesTension}
             massageLabWavesMaxCursorMove={settings.massageLabWavesMaxCursorMove}
             massageLabWavesCursorInteraction={settings.massageLabWavesCursorInteraction}
-            massageLabGridDistortionPaletteMode={settings.massageLabGridDistortionPaletteMode}
-            massageLabGridDistortionPrimaryColor={settings.massageLabGridDistortionPrimaryColor}
-            massageLabGridDistortionHarmony={settings.massageLabGridDistortionHarmony}
-            massageLabGridDistortionColorOne={settings.massageLabGridDistortionColorOne}
-            massageLabGridDistortionColorTwo={settings.massageLabGridDistortionColorTwo}
-            massageLabGridDistortionColorThree={settings.massageLabGridDistortionColorThree}
             massageLabGridDistortionGrid={settings.massageLabGridDistortionGrid}
             massageLabGridDistortionMouse={settings.massageLabGridDistortionMouse}
             massageLabGridDistortionStrength={settings.massageLabGridDistortionStrength}
             massageLabGridDistortionRelaxation={settings.massageLabGridDistortionRelaxation}
             massageLabGridDistortionCursorInteraction={settings.massageLabGridDistortionCursorInteraction}
-            massageLabOrbPaletteMode={settings.massageLabOrbPaletteMode}
-            massageLabOrbPrimaryColor={settings.massageLabOrbPrimaryColor}
-            massageLabOrbHarmony={settings.massageLabOrbHarmony}
-            massageLabOrbColor={settings.massageLabOrbColor}
-            massageLabOrbHue={settings.massageLabOrbHue}
             massageLabOrbHoverIntensity={settings.massageLabOrbHoverIntensity}
             massageLabOrbRotateOnHover={settings.massageLabOrbRotateOnHover}
             massageLabOrbForceHoverState={settings.massageLabOrbForceHoverState}
-            massageLabOrbBackgroundColor={settings.massageLabOrbBackgroundColor}
             massageLabOrbCursorInteraction={settings.massageLabOrbCursorInteraction}
-            massageLabLetterGlitchPaletteMode={settings.massageLabLetterGlitchPaletteMode}
-            massageLabLetterGlitchPrimaryColor={settings.massageLabLetterGlitchPrimaryColor}
-            massageLabLetterGlitchHarmony={settings.massageLabLetterGlitchHarmony}
-            massageLabLetterGlitchColorOne={settings.massageLabLetterGlitchColorOne}
-            massageLabLetterGlitchColorTwo={settings.massageLabLetterGlitchColorTwo}
-            massageLabLetterGlitchColorThree={settings.massageLabLetterGlitchColorThree}
             massageLabLetterGlitchGlitchSpeed={settings.massageLabLetterGlitchGlitchSpeed}
             massageLabLetterGlitchCenterVignette={settings.massageLabLetterGlitchCenterVignette}
             massageLabLetterGlitchOuterVignette={settings.massageLabLetterGlitchOuterVignette}
             massageLabLetterGlitchSmooth={settings.massageLabLetterGlitchSmooth}
             massageLabLetterGlitchCharacters={settings.massageLabLetterGlitchCharacters}
-            massageLabGridMotionPaletteMode={settings.massageLabGridMotionPaletteMode}
-            massageLabGridMotionPrimaryColor={settings.massageLabGridMotionPrimaryColor}
-            massageLabGridMotionHarmony={settings.massageLabGridMotionHarmony}
-            massageLabGridMotionGradientColor={settings.massageLabGridMotionGradientColor}
-            massageLabGridMotionTileColor={settings.massageLabGridMotionTileColor}
-            massageLabGridMotionTextColor={settings.massageLabGridMotionTextColor}
             massageLabGridMotionMaxMoveAmount={settings.massageLabGridMotionMaxMoveAmount}
             massageLabGridMotionBaseDuration={settings.massageLabGridMotionBaseDuration}
             massageLabGridMotionCursorInteraction={settings.massageLabGridMotionCursorInteraction}
-            massageLabShapeGridPaletteMode={settings.massageLabShapeGridPaletteMode}
-            massageLabShapeGridPrimaryColor={settings.massageLabShapeGridPrimaryColor}
-            massageLabShapeGridHarmony={settings.massageLabShapeGridHarmony}
-            massageLabShapeGridBorderColor={settings.massageLabShapeGridBorderColor}
-            massageLabShapeGridHoverFillColor={settings.massageLabShapeGridHoverFillColor}
             massageLabShapeGridDirection={settings.massageLabShapeGridDirection}
             massageLabShapeGridSpeed={settings.massageLabShapeGridSpeed}
             massageLabShapeGridSquareSize={settings.massageLabShapeGridSquareSize}
             massageLabShapeGridShape={settings.massageLabShapeGridShape}
             massageLabShapeGridHoverTrailAmount={settings.massageLabShapeGridHoverTrailAmount}
             massageLabShapeGridCursorInteraction={settings.massageLabShapeGridCursorInteraction}
-            massageLabLiquidChromePaletteMode={settings.massageLabLiquidChromePaletteMode}
-            massageLabLiquidChromePrimaryColor={settings.massageLabLiquidChromePrimaryColor}
-            massageLabLiquidChromeHarmony={settings.massageLabLiquidChromeHarmony}
-            massageLabLiquidChromeBaseColor={settings.massageLabLiquidChromeBaseColor}
             massageLabLiquidChromeSpeed={settings.massageLabLiquidChromeSpeed}
             massageLabLiquidChromeAmplitude={settings.massageLabLiquidChromeAmplitude}
             massageLabLiquidChromeFrequencyX={settings.massageLabLiquidChromeFrequencyX}
             massageLabLiquidChromeFrequencyY={settings.massageLabLiquidChromeFrequencyY}
             massageLabLiquidChromeInteractive={settings.massageLabLiquidChromeInteractive}
-            massageLabBalatroPaletteMode={settings.massageLabBalatroPaletteMode}
-            massageLabBalatroPrimaryColor={settings.massageLabBalatroPrimaryColor}
-            massageLabBalatroHarmony={settings.massageLabBalatroHarmony}
-            massageLabBalatroColorOne={settings.massageLabBalatroColorOne}
-            massageLabBalatroColorTwo={settings.massageLabBalatroColorTwo}
-            massageLabBalatroColorThree={settings.massageLabBalatroColorThree}
             massageLabBalatroSpinRotation={settings.massageLabBalatroSpinRotation}
             massageLabBalatroSpinSpeed={settings.massageLabBalatroSpinSpeed}
             massageLabBalatroOffsetX={settings.massageLabBalatroOffsetX}
@@ -1772,28 +1977,10 @@ export default function ChimerPage() {
             massageLabBalatroSpinEase={settings.massageLabBalatroSpinEase}
             massageLabBalatroIsRotate={settings.massageLabBalatroIsRotate}
             massageLabBalatroMouseInteraction={settings.massageLabBalatroMouseInteraction}
-            massageLabNovatrixPaletteMode={settings.massageLabNovatrixPaletteMode}
-            massageLabNovatrixPrimaryColor={settings.massageLabNovatrixPrimaryColor}
-            massageLabNovatrixHarmony={settings.massageLabNovatrixHarmony}
-            massageLabNovatrixColor={settings.massageLabNovatrixColor}
             massageLabNovatrixSpeed={settings.massageLabNovatrixSpeed}
             massageLabNovatrixAmplitude={settings.massageLabNovatrixAmplitude}
-            massageLabMatrixRainPaletteMode={settings.massageLabMatrixRainPaletteMode}
-            massageLabMatrixRainPrimaryColor={settings.massageLabMatrixRainPrimaryColor}
-            massageLabMatrixRainHarmony={settings.massageLabMatrixRainHarmony}
-            massageLabMatrixRainColor={settings.massageLabMatrixRainColor}
             massageLabMatrixRainSpeed={settings.massageLabMatrixRainSpeed}
             massageLabMatrixRainFontSize={settings.massageLabMatrixRainFontSize}
-            massageLabPhotonBeamPaletteMode={settings.massageLabPhotonBeamPaletteMode}
-            massageLabPhotonBeamPrimaryColor={settings.massageLabPhotonBeamPrimaryColor}
-            massageLabPhotonBeamHarmony={settings.massageLabPhotonBeamHarmony}
-            massageLabPhotonBeamColorBg={settings.massageLabPhotonBeamColorBg}
-            massageLabPhotonBeamColorLine={settings.massageLabPhotonBeamColorLine}
-            massageLabPhotonBeamColorSignal={settings.massageLabPhotonBeamColorSignal}
-            massageLabPhotonBeamUseColor2={settings.massageLabPhotonBeamUseColor2}
-            massageLabPhotonBeamColorSignal2={settings.massageLabPhotonBeamColorSignal2}
-            massageLabPhotonBeamUseColor3={settings.massageLabPhotonBeamUseColor3}
-            massageLabPhotonBeamColorSignal3={settings.massageLabPhotonBeamColorSignal3}
             massageLabPhotonBeamLineCount={settings.massageLabPhotonBeamLineCount}
             massageLabPhotonBeamSpreadHeight={settings.massageLabPhotonBeamSpreadHeight}
             massageLabPhotonBeamSpreadDepth={settings.massageLabPhotonBeamSpreadDepth}
@@ -1809,11 +1996,6 @@ export default function ChimerPage() {
             massageLabPhotonBeamBloomStrength={settings.massageLabPhotonBeamBloomStrength}
             massageLabPhotonBeamBloomRadius={settings.massageLabPhotonBeamBloomRadius}
             massageLab3DGlobeViewStyle={settings.massageLab3DGlobeViewStyle}
-            massageLab3DGlobeBackgroundColor={settings.massageLab3DGlobeBackgroundColor}
-            massageLab3DGlobeGlobeColor={settings.massageLab3DGlobeGlobeColor}
-            massageLab3DGlobeGraphicMapColor={settings.massageLab3DGlobeGraphicMapColor}
-            massageLab3DGlobeGraphicGlowColor={settings.massageLab3DGlobeGraphicGlowColor}
-            massageLab3DGlobeGraphicMarkerColor={settings.massageLab3DGlobeGraphicMarkerColor}
             massageLab3DGlobeGraphicMapSamples={settings.massageLab3DGlobeGraphicMapSamples}
             massageLab3DGlobeAutoRotateSpeed={settings.massageLab3DGlobeAutoRotateSpeed}
             massageLab3DGlobeReverseSpin={settings.massageLab3DGlobeReverseSpin}
@@ -1827,36 +2009,23 @@ export default function ChimerPage() {
             massageLab3DGlobePanY={settings.massageLab3DGlobePanY}
             massageLab3DGlobeShowTilt={settings.massageLab3DGlobeShowTilt}
             massageLab3DGlobeShowAtmosphere={settings.massageLab3DGlobeShowAtmosphere}
-            massageLab3DGlobeAtmosphereColor={settings.massageLab3DGlobeAtmosphereColor}
             massageLab3DGlobeAtmosphereIntensity={settings.massageLab3DGlobeAtmosphereIntensity}
             massageLab3DGlobeAtmosphereBlur={settings.massageLab3DGlobeAtmosphereBlur}
             massageLab3DGlobeShowWireframe={settings.massageLab3DGlobeShowWireframe}
-            massageLab3DGlobeWireframeColor={settings.massageLab3DGlobeWireframeColor}
             massageLab3DGlobeMarkerEnabled={settings.massageLab3DGlobeMarkerEnabled}
             massageLab3DGlobeMarkerLat={settings.massageLab3DGlobeMarkerLat}
             massageLab3DGlobeMarkerLng={settings.massageLab3DGlobeMarkerLng}
             massageLab3DGlobeMarkerLabel={settings.massageLab3DGlobeMarkerLabel}
             massageLab3DGlobeMarkerIcon={settings.massageLab3DGlobeMarkerIcon}
             massageLab3DGlobeMarkerSize={settings.massageLab3DGlobeMarkerSize}
-            massageLabRetroGridBackgroundColor={settings.massageLabRetroGridBackgroundColor}
-            massageLabRetroGridLightLineColor={settings.massageLabRetroGridLightLineColor}
-            massageLabRetroGridDarkLineColor={settings.massageLabRetroGridDarkLineColor}
             massageLabRetroGridAngle={settings.massageLabRetroGridAngle}
             massageLabRetroGridCellSize={settings.massageLabRetroGridCellSize}
             massageLabRetroGridOpacity={settings.massageLabRetroGridOpacity}
-            massageLabAerialRaysBackgroundColor={settings.massageLabAerialRaysBackgroundColor}
-            massageLabAerialRaysColor={settings.massageLabAerialRaysColor}
             massageLabAerialRaysCount={settings.massageLabAerialRaysCount}
             massageLabAerialRaysBlur={settings.massageLabAerialRaysBlur}
             massageLabAerialRaysSpeed={settings.massageLabAerialRaysSpeed}
             massageLabAerialRaysLength={settings.massageLabAerialRaysLength}
             massageLabAerialRaysOpacity={settings.massageLabAerialRaysOpacity}
-            massageLabSynthesisPaletteMode={settings.massageLabSynthesisPaletteMode}
-            massageLabSynthesisPrimaryColor={settings.massageLabSynthesisPrimaryColor}
-            massageLabSynthesisHarmony={settings.massageLabSynthesisHarmony}
-            massageLabSynthesisColorOne={settings.massageLabSynthesisColorOne}
-            massageLabSynthesisColorTwo={settings.massageLabSynthesisColorTwo}
-            massageLabSynthesisColorThree={settings.massageLabSynthesisColorThree}
             massageLabSynthesisSpeed={settings.massageLabSynthesisSpeed}
             massageLabSynthesisComplexity={settings.massageLabSynthesisComplexity}
             massageLabSynthesisScale={settings.massageLabSynthesisScale}
@@ -1864,23 +2033,16 @@ export default function ChimerPage() {
             massageLabSynthesisGlowIntensity={settings.massageLabSynthesisGlowIntensity}
             massageLabSynthesisFlowFrequency={settings.massageLabSynthesisFlowFrequency}
             backgroundLinesDuration={settings.backgroundLinesDuration}
-            shootingStarsStarColor={settings.shootingStarsStarColor}
-            shootingStarsTrailColor={settings.shootingStarsTrailColor}
-            shootingStarsShootingStarColor={settings.shootingStarsShootingStarColor}
             shootingStarsDensity={settings.shootingStarsDensity}
             shootingStarsTwinkle={settings.shootingStarsTwinkle}
             shootingStarsTwinkleSpeed={settings.shootingStarsTwinkleSpeed}
             shootingStarsShootingSpeed={settings.shootingStarsShootingSpeed}
             shootingStarsFrequency={settings.shootingStarsFrequency}
-            canvasRevealDotsBackgroundColor={settings.canvasRevealDotsBackgroundColor}
-            canvasRevealDotsDotColor={settings.canvasRevealDotsDotColor}
-            canvasRevealDotsAccentColor={settings.canvasRevealDotsAccentColor}
             canvasRevealDotsDotSize={settings.canvasRevealDotsDotSize}
             canvasRevealDotsDotSpacing={settings.canvasRevealDotsDotSpacing}
             canvasRevealDotsOpacity={settings.canvasRevealDotsOpacity}
             canvasRevealDotsAnimationSpeed={settings.canvasRevealDotsAnimationSpeed}
             canvasRevealDotsShowGradient={settings.canvasRevealDotsShowGradient}
-            spotlightColor={settings.spotlightColor}
             spotlightOpacity={settings.spotlightOpacity}
             spotlightWidth={settings.spotlightWidth}
             spotlightHeight={settings.spotlightHeight}
@@ -1888,74 +2050,47 @@ export default function ChimerPage() {
             spotlightTranslateY={settings.spotlightTranslateY}
             spotlightDuration={settings.spotlightDuration}
             spotlightXOffset={settings.spotlightXOffset}
-            lampBackgroundColor={settings.lampBackgroundColor}
-            lampColor={settings.lampColor}
             lampGlowOpacity={settings.lampGlowOpacity}
             lampBeamWidth={settings.lampBeamWidth}
             lampGlowWidth={settings.lampGlowWidth}
             lampVerticalOffset={settings.lampVerticalOffset}
             lampPulseSpeed={settings.lampPulseSpeed}
-            vortexBackgroundColor={settings.vortexBackgroundColor}
-            vortexBaseHue={settings.vortexBaseHue}
             vortexParticleCount={settings.vortexParticleCount}
             vortexRangeY={settings.vortexRangeY}
             vortexBaseSpeed={settings.vortexBaseSpeed}
             vortexRangeSpeed={settings.vortexRangeSpeed}
             vortexBaseRadius={settings.vortexBaseRadius}
             vortexRangeRadius={settings.vortexRangeRadius}
-            wavyBackgroundFill={settings.wavyBackgroundFill}
-            wavyColorOne={settings.wavyColorOne}
-            wavyColorTwo={settings.wavyColorTwo}
-            wavyColorThree={settings.wavyColorThree}
-            wavyColorFour={settings.wavyColorFour}
-            wavyColorFive={settings.wavyColorFive}
             wavyWaveWidth={settings.wavyWaveWidth}
             wavyBlur={settings.wavyBlur}
             wavySpeed={settings.wavySpeed}
             wavyWaveOpacity={settings.wavyWaveOpacity}
-            auroraBarsBackgroundColor={settings.auroraBarsBackgroundColor}
-            auroraBarsPaletteMode={settings.auroraBarsPaletteMode}
-            auroraBarsPrimaryColor={settings.auroraBarsPrimaryColor}
-            auroraBarsColorOne={settings.auroraBarsColorOne}
-            auroraBarsColorTwo={settings.auroraBarsColorTwo}
-            auroraBarsColorThree={settings.auroraBarsColorThree}
-            auroraBarsColorFour={settings.auroraBarsColorFour}
-            auroraBarsColorFive={settings.auroraBarsColorFive}
             auroraBarsBarCount={settings.auroraBarsBarCount}
             auroraBarsSpeed={settings.auroraBarsSpeed}
             auroraBarsBlur={settings.auroraBarsBlur}
             auroraBarsGap={settings.auroraBarsGap}
             auroraBarsMaxHeightRatio={settings.auroraBarsMaxHeightRatio}
             auroraBarsMinHeightRatio={settings.auroraBarsMinHeightRatio}
-            pixelLiquidBackgroundColor={settings.pixelLiquidBackgroundColor}
-            pixelLiquidBaseColor={settings.pixelLiquidBaseColor}
-            pixelLiquidAccentColor={settings.pixelLiquidAccentColor}
-            pixelLiquidHighlightColor={settings.pixelLiquidHighlightColor}
             pixelLiquidPixelSize={settings.pixelLiquidPixelSize}
             pixelLiquidDetail={settings.pixelLiquidDetail}
             pixelLiquidMotionSpeed={settings.pixelLiquidMotionSpeed}
-            tileGridPaletteMode={settings.tileGridPaletteMode}
-            tileGridPrimaryColor={settings.tileGridPrimaryColor}
-            tileGridColorOne={settings.tileGridColorOne}
-            tileGridColorTwo={settings.tileGridColorTwo}
-            tileGridColorThree={settings.tileGridColorThree}
-            tileGridColorFour={settings.tileGridColorFour}
-            tileGridColorFive={settings.tileGridColorFive}
             tileGridTileSize={settings.tileGridTileSize}
             tileGridJointSize={settings.tileGridJointSize}
             tileGridChangeFrequency={settings.tileGridChangeFrequency}
             tileGridActivePercent={settings.tileGridActivePercent}
             tileGridOpacity={settings.tileGridOpacity}
-            hexGridPrimaryColor={settings.hexGridPrimaryColor}
-            hexGridHarmony={settings.hexGridHarmony}
             hexGridHexSize={settings.hexGridHexSize}
             hexGridJointSize={settings.hexGridJointSize}
             hexGridChangeFrequency={settings.hexGridChangeFrequency}
             hexGridActivePercent={settings.hexGridActivePercent}
             hexGridOpacity={settings.hexGridOpacity}
+            {...(visualDraftPropertyOverrides ?? {})}
             canUseCustomColors={canUseCustomColors}
             canUseAccountColorControls={canUseAccountColorControls}
-            featureKeys={featureKeys}
+            committedSettings={settings}
+            backgroundVisualPreferences={settings.backgroundVisualPreferences}
+            backgroundPreferenceSyncStatus={backgroundPreferenceSync.status}
+            backgroundAccess={backgroundAccess}
             activeIntervalMinutes={timerState.intervalMs ? Math.max(1, Math.round(timerState.intervalMs / 60_000)) : null}
             onPause={togglePause}
             onFullscreen={toggleFullscreen}
@@ -1964,6 +2099,9 @@ export default function ChimerPage() {
             onAdjustActiveRemainingMinutes={adjustActiveRemainingMinutes}
             onSetActiveRemainingDuration={setActiveRemainingDuration}
             onSetActiveIntervalMinutes={setActiveIntervalMinutes}
+            onVisualDraftPreviewChange={setVisualDraftPropertyOverrides}
+            onApplyBackgroundVisualPreferences={applyBackgroundVisualPreferences}
+            onRetryBackgroundVisualPreferences={retryBackgroundVisualPreferenceSync}
             hapticsEnabled={appSettings.hapticFeedbackEnabled}
           />
         )}

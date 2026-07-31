@@ -550,8 +550,8 @@ test("Atmosphere visualizer action retains selected station across client routes
   await expect(page.getByText(/Playing|Preparing audio|Preparing station/i).last()).toBeVisible()
   await expect(page.getByRole("button", { name: /^Previous station$/i }).last()).toBeVisible()
   await expect(page.getByRole("button", { name: /^Next station$/i }).last()).toBeVisible()
-  await expect(page.getByRole("button", { name: /^Background$/i }).last()).toBeVisible()
-  await page.getByRole("button", { name: /^Background$/i }).last().click()
+  await expect(playerToolbar.getByRole("link", { name: /^Background$/i })).toBeVisible()
+  await playerToolbar.getByRole("link", { name: /^Background$/i }).click()
   await expect(page).toHaveURL(/\/clock\?[^#]*source=music/)
   const backgroundDialog = page.getByRole("dialog", { name: "Background" })
   await expect(backgroundDialog).toBeVisible()
@@ -562,23 +562,23 @@ test("Atmosphere visualizer action retains selected station across client routes
   await expect(page).toHaveURL(/\/music\?task8=public-route$/)
   await page.goBack()
   await expect(page).toHaveURL(/\/music\?task8=public-route$/)
-  await expect(page.getByRole("button", { name: /^Background$/i }).last()).toBeVisible()
+  await expect(playerToolbar.getByRole("link", { name: /^Background$/i })).toBeVisible()
   const collapseButton = page.getByRole("button", { name: /^Collapse$/i }).last()
   const canCollapsePlayer = (page.viewportSize()?.width ?? 0) >= 640
   if (canCollapsePlayer) {
     await collapseButton.click()
-    await expect(page.getByRole("button", { name: /^Background$/i }).last()).toBeVisible()
+    await expect(playerToolbar.getByRole("link", { name: /^Background$/i })).toBeVisible()
   } else {
     await expect(collapseButton).toHaveCount(0)
   }
   await page.getByRole("button", { name: /^Stop$/i }).last().click()
   await expect(page.getByText("MassageLab Proof Drone").last()).toBeVisible()
-  await expect(page.getByRole("button", { name: /^Background$/i }).last()).toBeVisible()
+  await expect(playerToolbar.getByRole("link", { name: /^Background$/i })).toBeVisible()
   if (canCollapsePlayer) {
     await page.getByRole("button", { name: /^Expand$/i }).last().click()
   }
   await expect(page.getByText("Stopped").last()).toBeVisible()
-  await expect(page.getByRole("button", { name: /^Background$/i }).last()).toBeVisible()
+  await expect(playerToolbar.getByRole("link", { name: /^Background$/i })).toBeVisible()
 
   const flashcardsLink = page.getByRole("link", { name: /^Flashcards$/i }).first()
   if (!await flashcardsLink.isVisible().catch(() => false)) {
@@ -597,7 +597,7 @@ test("Atmosphere visualizer action retains selected station across client routes
   await flashcardsLink.click()
   await expect(page).toHaveURL(/\/education\/flashcards/)
   await expect(page.getByText("MassageLab Proof Drone").last()).toBeVisible()
-  await expect(page.getByRole("button", { name: /^Background$/i }).last()).toBeVisible()
+  await expect(playerToolbar.getByRole("link", { name: /^Background$/i })).toBeVisible()
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
@@ -618,7 +618,7 @@ test("Atmosphere restores the active station category after the Music route remo
   await page.getByRole("button", { name: /^Play Last Transit$/i }).click()
   await expect(page.getByRole("button", { name: /^Stop Last Transit$/i })).toBeVisible({ timeout: 45_000 })
 
-  await page.getByRole("button", { name: /^Background$/i }).last().click()
+  await page.getByTestId("music-player-toolbar").getByRole("link", { name: /^Background$/i }).click()
   await expect(page).toHaveURL(/\/clock\?[^#]*source=music/)
   const backgroundDialog = page.getByRole("dialog", { name: "Background" })
   await expect(backgroundDialog).toBeVisible()
@@ -680,6 +680,8 @@ test("Atmosphere registers mobile media notification controls for active station
   })
 
   await page.goto("/music", { waitUntil: "domcontentloaded" })
+  await expect(page.getByRole("region", { name: "Atmosphere audio stations" }))
+    .toHaveAttribute("data-music-storage-status", "available")
   await centerCarouselItem(page, "mlab-proof-drone", "Next station")
   await page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
 
@@ -726,12 +728,28 @@ test("Atmosphere registers mobile media notification controls for active station
 })
 
 test("immersive context changes keep only the displays owned by Chimer, Clock, and hidden Music", async ({ page }) => {
+  let releaseSession!: () => void
+  const sessionGate = new Promise<void>((resolve) => {
+    releaseSession = resolve
+  })
+  await page.route("**/api/auth/session", async (route) => {
+    await sessionGate
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: "{}",
+    })
+  })
+
   await page.goto("/chimer", { waitUntil: "domcontentloaded" })
-  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined)
   await page.getByRole("button", { name: /^Increase minutes$/i }).click()
-  for (let step = 0; step < 4; step += 1) {
+  for (let step = 0; step < 3; step += 1) {
     await page.getByRole("button", { name: /^Continue$/i }).click()
   }
+  releaseSession()
+  await expect(page.getByText(/Settings stay on this device\./i)).toBeVisible()
+  await expect(page.getByRole("button", { name: /^Continue$/i })).toBeEnabled()
+  await page.getByRole("button", { name: /^Continue$/i }).click()
   await page.getByRole("button", { name: /^Start Chimer$/i }).click()
 
   await expect(page.getByTestId("running-timer-clock")).toBeVisible()
@@ -887,12 +905,14 @@ test("Music background selection and account default actions preserve playback a
   })
 
   await page.goto("/music", { waitUntil: "domcontentloaded" })
+  await expect(page.getByRole("region", { name: "Atmosphere audio stations" }))
+    .toHaveAttribute("data-music-storage-status", "available")
   await centerCarouselItem(page, "mlab-proof-drone", "Next station")
   await page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
   const playerToolbar = page.getByTestId("music-player-toolbar")
   await expect(playerToolbar).toBeVisible({ timeout: 30_000 })
   await expect(page.getByText("MassageLab Proof Drone").last()).toBeVisible()
-  await page.getByRole("button", { name: /^Background$/i }).last().click()
+  await playerToolbar.getByRole("link", { name: /^Background$/i }).click()
   await expect(page).toHaveURL(/\/clock\?[^#]*source=music/)
 
   const deviceStateBeforeSelection = await page.evaluate(() => {

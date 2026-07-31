@@ -2,16 +2,57 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
   USER_PREFERENCES_VERSION,
+  areChimerPreferenceSnapshotsEqual,
   buildTherapistProfilePayload,
   canSyncAccountPreferencesFromSession,
   buildUserPreferencePayload,
   canSyncAccountPreferences,
   choosePreferenceSource,
+  createChimerPreferenceSyncRouter,
+  createSerializedChimerPreferenceWriter,
+  createChimerPreferenceSyncRequest,
+  createChimerPreferenceSyncRetry,
+  doesChimerPreferenceWriteResponseMatch,
   removeForbiddenPreferenceFields,
+  resolveChimerPreferenceSeedResult,
+  resolveChimerPreferenceSyncRequest,
   resolveSupporterRoadmapInterestsAfterSave,
 } from "../lib/account-preferences.js"
+import {
+  backgroundPreferenceNormalizationOptions,
+} from "../components/backgrounds/backgroundPaletteRegistry.ts"
 
 describe("Account preference helpers", () => {
+  it("adopts the server-authoritative snapshot returned by an initial account seed", () => {
+    const submitted = {
+      backgroundId: "massage-lab-stars",
+      massageLabStarsSpeed: 80,
+      minutes: 25,
+    }
+    const resolved = resolveChimerPreferenceSeedResult({
+      accessAuthoritative: true,
+      features: ["premium_backgrounds", "premium_backgrounds"],
+      ownedBackgroundIds: ["massage-lab-stars", "massage-lab-stars"],
+      chimerSettings: {
+        backgroundId: "massage-lab-moving-gradient",
+        minutes: 25,
+      },
+    })
+
+    assert.notEqual(resolved.settings.backgroundId, submitted.backgroundId)
+    assert.equal(resolved.settings.backgroundId, "massage-lab-moving-gradient")
+    assert.equal(resolved.settings.minutes, 25)
+    assert.notEqual(resolved.settings.massageLabStarsSpeed, submitted.massageLabStarsSpeed)
+    assert.deepEqual(resolved.featureKeys, ["premium_backgrounds"])
+    assert.deepEqual(resolved.ownedBackgroundIds, ["massage-lab-stars"])
+    assert.equal(resolveChimerPreferenceSeedResult({
+      accessAuthoritative: false,
+      chimerSettings: {},
+    }), null)
+    assert.equal(resolveChimerPreferenceSeedResult({ chimerSettings: null }), null)
+    assert.equal(resolveChimerPreferenceSeedResult({}), null)
+  })
+
   it("builds a versioned sync payload from safe local settings", () => {
     const payload = buildUserPreferencePayload({
       appSettings: { appBarPosition: "bottom", sidebarPosition: "right", sidebarTriggerPosition: "bottom", themeMode: "system" },
@@ -27,6 +68,384 @@ describe("Account preference helpers", () => {
     assert.deepEqual(payload.anatomime_settings, { roundLimit: 8 })
     assert.deepEqual(payload.note_preferences, { defaultNoteType: "soap" })
     assert.deepEqual(payload.calendar_preferences, { defaultRange: "week", providerViewMode: "combined" })
+  })
+
+  it("round-trips sanitized nested background preferences without PHI-shaped fields", () => {
+    const payload = buildUserPreferencePayload({
+      chimerSettings: {
+        minutes: 30,
+        backgroundVisualPreferences: {
+          version: 1,
+          palette: {
+            mode: "harmony",
+            primaryColor: "#123456",
+            harmony: "triadic",
+          },
+          visualPresetsByBackground: {
+            "massage-lab-novatrix": [{
+              id: "bounded",
+              name: "Bounded",
+              properties: {
+                massageLabNovatrixSpeed: 999,
+                soapDraft: "never sync",
+                clientName: "never sync",
+              },
+              mapping: { field: 5, staleRole: 2 },
+            }],
+          },
+        },
+      },
+    }, { backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions })
+
+    assert.equal(payload.chimer_settings.minutes, 30)
+    assert.equal(payload.chimer_settings.backgroundVisualPreferences.version, 1)
+    assert.deepEqual(payload.chimer_settings.backgroundVisualPreferences.palette, {
+      mode: "harmony",
+      primaryColor: "#123456",
+      harmony: "triadic",
+      swatches: [
+        "#123456",
+        "#fb923c",
+        "#fb7185",
+        "#0f172a",
+        "#f8fafc",
+        "#db2777",
+        "#ea580c",
+      ],
+    })
+    assert.deepEqual(
+      payload.chimer_settings.backgroundVisualPreferences
+        .visualPresetsByBackground["massage-lab-novatrix"][0].properties,
+      { massageLabNovatrixSpeed: 3 },
+    )
+    assert.deepEqual(
+      payload.chimer_settings.backgroundVisualPreferences
+        .visualPresetsByBackground["massage-lab-novatrix"][0].mapping,
+      { field: 5 },
+    )
+    assert.doesNotMatch(JSON.stringify(payload.chimer_settings), /soapDraft|clientName|never sync|staleRole/)
+  })
+
+  it("serializes Account sync with the authoritative background inventory", async () => {
+    const localPreferences = {
+      appSettings: {
+        themeMode: "system",
+        clientName: "Never sync",
+      },
+      chimerSettings: {
+        minutes: 30,
+        backgroundVisualPreferences: {
+          version: 1,
+          mappingsByBackground: {
+            "massage-lab-novatrix": {
+              field: 2,
+              staleRole: 6,
+            },
+            "unknown-background": {
+              field: 4,
+            },
+          },
+          visualPresetsByBackground: {
+            "massage-lab-novatrix": [{
+              id: "account-local",
+              name: "Account local",
+              properties: {
+                massageLabNovatrixSpeed: 999,
+                hours: 4,
+                clientName: "Never sync",
+              },
+              mapping: { field: 6, staleVisualRole: 1 },
+            }],
+            "unknown-background": [{
+              id: "unknown",
+              name: "Unknown",
+              properties: {
+                unknownSpeed: 2,
+              },
+            }],
+          },
+        },
+      },
+      anatomimeSettings: {
+        roundLimit: 8,
+      },
+      notePreferences: {
+        defaultNoteType: "soap",
+        soapDraft: "Never sync",
+      },
+      calendarPreferences: {
+        defaultRange: "week",
+      },
+    }
+
+    const payload = buildUserPreferencePayload(localPreferences, {
+      backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
+    })
+    const requestBody = JSON.parse(JSON.stringify({
+      appSettings: payload.app_settings,
+      chimerSettings: payload.chimer_settings,
+      anatomimeSettings: payload.anatomime_settings,
+      notePreferences: payload.note_preferences,
+      calendarPreferences: payload.calendar_preferences,
+    }))
+
+    assert.deepEqual(
+      requestBody.chimerSettings.backgroundVisualPreferences.mappingsByBackground,
+      { "massage-lab-novatrix": { field: 2 } },
+    )
+    assert.deepEqual(
+      requestBody.chimerSettings.backgroundVisualPreferences
+        .visualPresetsByBackground["massage-lab-novatrix"][0].properties,
+      { massageLabNovatrixSpeed: 3 },
+    )
+    assert.deepEqual(
+      requestBody.chimerSettings.backgroundVisualPreferences
+        .visualPresetsByBackground["massage-lab-novatrix"][0].mapping,
+      { field: 6 },
+    )
+    assert.doesNotMatch(
+      JSON.stringify(requestBody),
+      /unknown-background|staleRole|staleVisualRole|hours|clientName|soapDraft|Never sync/,
+    )
+
+    const withoutInventory = buildUserPreferencePayload(localPreferences)
+    assert.deepEqual(
+      withoutInventory.chimer_settings.backgroundVisualPreferences.mappingsByBackground,
+      {},
+    )
+    assert.deepEqual(
+      withoutInventory.chimer_settings.backgroundVisualPreferences.visualPresetsByBackground,
+      {},
+    )
+
+  })
+
+  it("retains the exact sanitized request body after a failed cloud write for retry", () => {
+    const pending = createChimerPreferenceSyncRequest({
+      minutes: 999,
+      backgroundVisualPreferences: {
+        version: 1,
+        palette: { mode: "custom", primaryColor: "#abc" },
+      },
+    }, {
+      backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
+      requestId: 1,
+    })
+    const stale = resolveChimerPreferenceSyncRequest(pending, pending, false)
+
+    assert.equal(pending.status, "pending")
+    assert.equal(pending.requestId, 1)
+    assert.deepEqual(pending.sanitizedSettings, JSON.parse(pending.requestBody).chimerSettings)
+    assert.equal(stale.status, "stale")
+    assert.equal(stale.requestBody, pending.requestBody)
+    assert.equal(JSON.parse(stale.requestBody).chimerSettings.hours, 16)
+    assert.equal(JSON.parse(stale.requestBody).chimerSettings.minutes, 39)
+    assert.equal(
+      JSON.parse(stale.requestBody).chimerSettings.backgroundVisualPreferences.palette.primaryColor,
+      "#aabbcc",
+    )
+    assert.deepEqual(resolveChimerPreferenceSyncRequest(stale, stale, true), {
+      status: "synced",
+      requestBody: null,
+      requestId: 1,
+    })
+  })
+
+  it("marks a successful write stale when the server sanitizes the submitted Chimer snapshot", () => {
+    const request = createChimerPreferenceSyncRequest(
+      { minutes: 20 },
+      {
+        backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
+        requestId: 1,
+      },
+    )
+    const submittedSettings = JSON.parse(request.requestBody).chimerSettings
+
+    assert.equal(doesChimerPreferenceWriteResponseMatch(
+      request.requestBody,
+      { chimerSettings: submittedSettings },
+      { backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions },
+    ), true)
+    const responseMatches = doesChimerPreferenceWriteResponseMatch(
+      request.requestBody,
+      { chimerSettings: { ...submittedSettings, minutes: 10 } },
+      { backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions },
+    )
+    assert.equal(responseMatches, false)
+    assert.equal(
+      resolveChimerPreferenceSyncRequest(request, request, responseMatches).status,
+      "stale",
+    )
+    assert.equal(doesChimerPreferenceWriteResponseMatch(
+      request.requestBody,
+      {},
+      { backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions },
+    ), false)
+  })
+
+  it("compares normalized Chimer settings independent of persisted object key order", () => {
+    const first = {
+      backgroundVisualPreferences: {
+        version: 1,
+        mappingsByBackground: {
+          "massage-lab-novatrix": { field: 2 },
+          "massage-lab-stars": { stars: 3 },
+        },
+      },
+    }
+    const reordered = {
+      backgroundVisualPreferences: {
+        mappingsByBackground: {
+          "massage-lab-stars": { stars: 3 },
+          "massage-lab-novatrix": { field: 2 },
+        },
+        version: 1,
+      },
+    }
+
+    assert.equal(areChimerPreferenceSnapshotsEqual(
+      first,
+      reordered,
+      { backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions },
+    ), true)
+  })
+
+  it("ignores out-of-order completions and retries only the latest failed body", () => {
+    const first = createChimerPreferenceSyncRequest({ minutes: 10 }, { requestId: 1 })
+    const second = createChimerPreferenceSyncRequest({ minutes: 20 }, { requestId: 2 })
+
+    assert.deepEqual(resolveChimerPreferenceSyncRequest(second, first, false), second)
+    const secondStale = resolveChimerPreferenceSyncRequest(second, second, false)
+    assert.equal(secondStale.status, "stale")
+    assert.equal(secondStale.requestBody, second.requestBody)
+
+    const retry = createChimerPreferenceSyncRetry(secondStale, 3)
+    assert.equal(retry.status, "pending")
+    assert.equal(retry.requestBody, second.requestBody)
+    assert.equal(retry.requestId, 3)
+    assert.deepEqual(resolveChimerPreferenceSyncRequest(retry, second, true), retry)
+    assert.deepEqual(resolveChimerPreferenceSyncRequest(retry, retry, false), {
+      status: "stale",
+      requestBody: second.requestBody,
+      requestId: 3,
+    })
+  })
+
+  it("serializes writes, supersedes queued bodies, and commits the newest payload last", async () => {
+    const deferred = []
+    const sentBodies = []
+    const completions = []
+    const writer = createSerializedChimerPreferenceWriter({
+      send: (request) => {
+        sentBodies.push(request.requestBody)
+        return new Promise((resolve) => deferred.push(resolve))
+      },
+      onComplete: (request, succeeded) => {
+        completions.push({ requestBody: request.requestBody, succeeded })
+      },
+    })
+    const first = createChimerPreferenceSyncRequest({ minutes: 10 }, { requestId: 1 })
+    const superseded = createChimerPreferenceSyncRequest({ minutes: 20 }, { requestId: 2 })
+    const latest = createChimerPreferenceSyncRequest({ minutes: 30 }, { requestId: 3 })
+
+    writer.enqueue(first)
+    writer.enqueue(superseded)
+    writer.enqueue(latest)
+    assert.deepEqual(sentBodies, [first.requestBody])
+
+    deferred.shift()(true)
+    await Promise.resolve()
+    await Promise.resolve()
+    assert.deepEqual(sentBodies, [first.requestBody, latest.requestBody])
+
+    deferred.shift()(true)
+    await writer.whenIdle()
+    assert.deepEqual(completions, [
+      { requestBody: first.requestBody, succeeded: true },
+      { requestBody: latest.requestBody, succeeded: true },
+    ])
+    assert.equal(
+      JSON.parse(completions.at(-1).requestBody).chimerSettings.minutes,
+      30,
+    )
+  })
+
+  it("lets a newer successful write invalidate an in-flight stale retry body", async () => {
+    const deferred = []
+    let state = {
+      status: "stale",
+      requestBody: createChimerPreferenceSyncRequest({ minutes: 20 }).requestBody,
+      requestId: 2,
+    }
+    const writer = createSerializedChimerPreferenceWriter({
+      send: () => new Promise((resolve) => deferred.push(resolve)),
+      onComplete: (request, succeeded) => {
+        state = resolveChimerPreferenceSyncRequest(state, request, succeeded)
+      },
+    })
+    const retry = createChimerPreferenceSyncRetry(state, 3)
+    const latest = createChimerPreferenceSyncRequest({ minutes: 40 }, { requestId: 4 })
+
+    state = retry
+    writer.enqueue(retry)
+    state = latest
+    writer.enqueue(latest)
+
+    deferred.shift()(false)
+    await Promise.resolve()
+    await Promise.resolve()
+    assert.deepEqual(state, latest)
+
+    deferred.shift()(true)
+    await writer.whenIdle()
+    assert.deepEqual(state, {
+      status: "synced",
+      requestBody: null,
+      requestId: 4,
+    })
+  })
+
+  it("continues draining and resolves idle when a completion observer throws", async () => {
+    const sentRequestIds = []
+    const completedRequestIds = []
+    const writer = createSerializedChimerPreferenceWriter({
+      send: async (request) => {
+        sentRequestIds.push(request.requestId)
+        return true
+      },
+      onComplete: (request) => {
+        completedRequestIds.push(request.requestId)
+        if (request.requestId === 1) {
+          throw new Error("observer failed")
+        }
+      },
+    })
+
+    writer.enqueue(createChimerPreferenceSyncRequest({ minutes: 10 }, { requestId: 1 }))
+    writer.enqueue(createChimerPreferenceSyncRequest({ minutes: 20 }, { requestId: 2 }))
+    await writer.whenIdle()
+
+    assert.deepEqual(sentRequestIds, [1, 2])
+    assert.deepEqual(completedRequestIds, [1, 2])
+  })
+
+  it("routes automatic, Visual Apply, and Visual Retry through one writer", () => {
+    const enqueued = []
+    const router = createChimerPreferenceSyncRouter({
+      enqueue: (request) => enqueued.push(request),
+    })
+    const automatic = createChimerPreferenceSyncRequest({ minutes: 10 }, { requestId: 1 })
+    const visualApply = createChimerPreferenceSyncRequest({ minutes: 20 }, { requestId: 2 })
+    const visualRetry = createChimerPreferenceSyncRetry(
+      resolveChimerPreferenceSyncRequest(visualApply, visualApply, false),
+      3,
+    )
+
+    router.automatic(automatic)
+    router.visualApply(visualApply)
+    router.visualRetry(visualRetry)
+
+    assert.deepEqual(enqueued, [automatic, visualApply, visualRetry])
   })
 
   it("removes known PHI fields before account sync", () => {

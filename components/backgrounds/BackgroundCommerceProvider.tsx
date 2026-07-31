@@ -15,6 +15,7 @@ import {
   EMPTY_BACKGROUND_COMMERCE_STATE,
   backgroundCommerceReducer,
   normalizeBackgroundCommerceSnapshot,
+  shouldApplyPreferenceOwnershipProof,
 } from "@/lib/background-commerce-client.js"
 import {
   createGuestBackgroundCommerceSnapshot,
@@ -46,6 +47,11 @@ export type BackgroundCommerceContextValue = {
   state: BackgroundCommerceClientState
   signedIn: boolean
   refresh(): Promise<void>
+  captureOwnershipReconciliationRevision(): number
+  reconcileOwnedBackgroundIds(
+    ownedBackgroundIds: readonly string[],
+    requestRevision: number,
+  ): Promise<void>
   addToCart(backgroundId: string): Promise<void>
   removeFromCart(backgroundId: string): Promise<void>
   redeemCredit(backgroundId: string, idempotencyKey: string): Promise<void>
@@ -178,6 +184,7 @@ export function BackgroundCommerceProvider({
   const mutationControllersRef = useRef(new Set<AbortController>())
   const mutationQueueRef = useRef<Promise<void>>(Promise.resolve())
   const mutationActiveRef = useRef(false)
+  const commerceRevisionRef = useRef(0)
   const [cartOpen, setCartOpen] = useState(false)
   const [guestCartIds, setGuestCartIds] = useState<string[]>([])
   const guestState = useMemo<BackgroundCommerceClientState>(() => ({
@@ -212,6 +219,8 @@ export function BackgroundCommerceProvider({
     dispatch({ type: "fetch-begin", requestId: id })
     try {
       const snapshot = await fetchSnapshot(controller.signal)
+      if (controller.signal.aborted || readControllerRef.current !== controller) return
+      commerceRevisionRef.current += 1
       dispatch({ type: "fetch-success", requestId: id, snapshot })
     } catch (error) {
       if (controller.signal.aborted) return
@@ -220,6 +229,31 @@ export function BackgroundCommerceProvider({
       if (readControllerRef.current === controller) readControllerRef.current = null
     }
   }, [enabled])
+
+  /** Captures the commerce generation against which a preference write starts. */
+  const captureOwnershipReconciliationRevision = useCallback(
+    () => commerceRevisionRef.current,
+    [],
+  )
+
+  /**
+   * Applies ownership proven by a preference response only if no newer
+   * commerce snapshot committed or mutation started, then refreshes fully.
+   */
+  const reconcileOwnedBackgroundIds = useCallback(async (
+    ownedBackgroundIds: readonly string[],
+    requestRevision: number,
+  ) => {
+    if (!enabled) return
+    readControllerRef.current?.abort()
+    if (shouldApplyPreferenceOwnershipProof(
+      requestRevision,
+      commerceRevisionRef.current,
+    )) {
+      dispatch({ type: "ownership-reconcile", ownedBackgroundIds })
+    }
+    await refresh()
+  }, [enabled, refresh])
 
   /** Serializes cart, credit, reservation, and checkout writes through one queue. */
   const enqueueSerializedOperation = useCallback((operation: () => Promise<void>) => {
@@ -243,6 +277,7 @@ export function BackgroundCommerceProvider({
       }
       if (controller.signal.aborted) return
 
+      commerceRevisionRef.current += 1
       readControllerRef.current?.abort()
       mutationActiveRef.current = true
       mutationControllersRef.current.add(controller)
@@ -261,6 +296,7 @@ export function BackgroundCommerceProvider({
         if (controller.signal.aborted) return
         try {
           const snapshot = await fetchSnapshot(controller.signal)
+          commerceRevisionRef.current += 1
           dispatch({ type: "mutation-success", requestId: id, snapshot })
         } catch (error) {
           if (controller.signal.aborted) return
@@ -362,6 +398,7 @@ export function BackgroundCommerceProvider({
       })
     }
     await enqueueSerializedOperation(async () => {
+      commerceRevisionRef.current += 1
       readControllerRef.current?.abort()
       mutationActiveRef.current = true
       const id = requestId("checkout")
@@ -456,6 +493,8 @@ export function BackgroundCommerceProvider({
     state: exposedState,
     signedIn: enabled,
     refresh,
+    captureOwnershipReconciliationRevision,
+    reconcileOwnedBackgroundIds,
     addToCart,
     removeFromCart,
     redeemCredit,
@@ -468,6 +507,8 @@ export function BackgroundCommerceProvider({
     exposedState,
     enabled,
     refresh,
+    captureOwnershipReconciliationRevision,
+    reconcileOwnedBackgroundIds,
     addToCart,
     removeFromCart,
     redeemCredit,

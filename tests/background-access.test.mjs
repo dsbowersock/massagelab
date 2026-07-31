@@ -91,7 +91,7 @@ describe("canonical background access", () => {
     const decision = await resolve(database, "static-gradient")
 
     assert.equal(decision.canUse, true)
-    assert.equal(decision.canCustomizeColors, false)
+    assert.equal(decision.canCustomizeColors, true)
     assert.equal(decision.accessSource, "free")
     assert.equal(decision.isPermanentlyOwned, false)
     assert.equal(decision.ownershipStatus, null)

@@ -119,6 +119,23 @@ describe("Sitewide control-system review lab", () => {
     )
   })
 
+  it("exposes a semantic success action through the established leaf-green material", async () => {
+    const [buttonSource, buttonGallerySource, styleSource] = await Promise.all([
+      readSource("../components/ui/button.tsx"),
+      readSource("../app/dev/buttons/button-gallery.tsx"),
+      readSource("../app/globals.css"),
+    ])
+
+    assert.match(
+      buttonSource,
+      /success:\s*"ml-button-tactile ml-button-success ml-button-calendar"/,
+    )
+    assert.match(buttonSource, /const tactileVariants[\s\S]*"success"/)
+    assert.match(buttonGallerySource, /variant: "success", label: "Success"/)
+    assert.match(styleSource, /--button-calendar-leaf-bright: 132 42% 47%/)
+    assert.match(styleSource, /\.ml-button-press-motion\.ml-button-calendar \{/)
+  })
+
   it("keeps the next review refinements on shared controls", async () => {
     const [
       buttonGallerySource,

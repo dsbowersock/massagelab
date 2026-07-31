@@ -94,9 +94,10 @@ test("review fixes preserve live route controls and interaction cleanup", async 
     read("app/tools/business-planner/page.tsx"),
   ])
 
-  assert.match(runningTimer, /resolvedMovingBackgroundMainColor = resolvePaletteDrivenColor/)
-  assert.match(runningTimer, /value: movingBackgroundOrbColor,[\s\S]*globalValue: globalPaletteSecondary/)
-  assert.match(backgroundHost, /const effectProps = useMemo\(\(\) => applyPaletteToBackgroundEffects/)
+  assert.doesNotMatch(runningTimer, /resolvePaletteDrivenColor|globalPalette/)
+  assert.match(backgroundHost, /resolveBackgroundEffectProps/)
+  assert.match(backgroundHost, /backgroundPalette/)
+  assert.doesNotMatch(backgroundHost, /applyPaletteToBackgroundEffects/)
   assert.match(backgroundHost, /<BackgroundComponent \{\.\.\.effectProps\} \/>/)
   assert.doesNotMatch(backgroundHost, /<BackgroundComponent\s+mainColor=/)
   assert.equal((controlCss.match(/^\.harmonyList \{/gm) ?? []).length, 1)
@@ -119,4 +120,129 @@ test("immersive display panels delegate toolbar actions to shared controls", asy
   assert.match(shell, /<Button[\s\S]*hapticsEnabled=\{hapticsEnabled\}/)
   assert.match(shell, /<TooltipProvider/)
   assert.match(shell, /Clock[\s\S]*Visual[\s\S]*Background/)
+})
+
+test("Visual draft actions stay sticky and usable at compact viewport sizes", async () => {
+  const [styles, runningTimer] = await Promise.all([
+    read("app/chimer/running-timer.module.css"),
+    read("app/chimer/running-timer.tsx"),
+  ])
+
+  assert.match(styles, /\.visualDraftActions[\s\S]*position:\s*sticky/)
+  assert.match(styles, /@media \(max-width:\s*36rem\)[\s\S]*\.visualDraftActions/)
+  assert.match(styles, /@media \(max-height:\s*32rem\)[\s\S]*\.visualDraftActions/)
+  assert.match(
+    runningTimer,
+    /variant="cta" onClick=\{onRetryBackgroundVisualPreferences\}[\s\S]*Retry sync/,
+  )
+  assert.match(
+    runningTimer,
+    /variant="destructive" disabled=\{!visualDraft\?\.dirty\}[\s\S]*Cancel/,
+  )
+  assert.match(
+    runningTimer,
+    /variant="success" disabled=\{!visualDraft\?\.dirty\}[\s\S]*Apply/,
+  )
+})
+
+test("development review exposes the complete shared background palette matrix", async () => {
+  const [page, gallery] = await Promise.all([
+    read("app/dev/buttons/page.tsx"),
+    read("app/dev/buttons/background-palette-gallery.tsx"),
+  ])
+
+  assert.match(page, /\{ value: "background-palettes", label: "Background palettes" \}/)
+  assert.match(page, /<BackgroundPaletteGallery \/>/)
+  assert.match(gallery, /BackgroundPaletteEditor/)
+  assert.match(gallery, /BackgroundColorPresetManager/)
+  assert.match(gallery, /BackgroundVisualPresetManager/)
+  assert.match(gallery, /backgroundPaletteRegistry/)
+  assert.match(gallery, /backgroundRegistry/)
+  assert.match(gallery, /<BackgroundHost/)
+  assert.match(gallery, /FEATURE_KEYS\.premiumBackgrounds/)
+  assert.doesNotMatch(gallery, /FEATURE_KEYS\.chimerCustomColors/)
+  assert.match(gallery, /Source[\s\S]*Custom[\s\S]*Harmony/)
+  assert.match(gallery, /Not used by this background/)
+  assert.match(gallery, /Shared roles/)
+  assert.match(gallery, /Access locked/)
+  assert.match(gallery, /Unsaved changes[\s\S]*Undo[\s\S]*Redo[\s\S]*Apply[\s\S]*Cancel/)
+  assert.match(gallery, /Sync failed[\s\S]*Retry/)
+  assert.match(gallery, /<Button size="compact" variant="success">Apply<\/Button>/)
+  assert.match(gallery, /<Button size="compact" variant="destructive">Cancel<\/Button>/)
+  assert.match(gallery, /className="mt-4" size="compact" variant="cta"[\s\S]*Retry/)
+  assert.match(gallery, /const \[localPalette, setLocalPalette\] = useState/)
+  assert.match(gallery, /const \[localMapping, setLocalMapping\] = useState/)
+  assert.match(gallery, /const isInteractiveSpecimen = canCustomize && palette\.mode !== "source"/)
+  assert.match(gallery, /onPaletteChange=\{isInteractiveSpecimen \? setLocalPalette : \(\) => undefined\}/)
+  assert.match(gallery, /onMappingChange=\{isInteractiveSpecimen \? setLocalMapping : \(\) => undefined\}/)
+  assert.match(gallery, /colorPresetFixtures[\s\S]*\{ length: 6 \}/)
+  assert.match(gallery, /visualPresetFixtures[\s\S]*\{ length: 3 \}/)
+  assert.match(gallery, /defaultPresetId="review-visual-1"/)
+  assert.match(gallery, /Color mapping/)
+  assert.match(gallery, /Use source colors/)
+  assert.match(gallery, /Reset visual properties/)
+  assert.match(gallery, /data-adapter-status/)
+  assert.match(gallery, /data-renderer-family/)
+  assert.match(gallery, /data-source-behavior/)
+  assert.match(gallery, /data-unsupported-reason/)
+  assert.match(gallery, /data-resolved-role-colors/)
+  assert.match(gallery, /data-background-palette-live-selector/)
+  assert.match(gallery, /useMusic/)
+  assert.match(gallery, /data-music-session-id/)
+  assert.match(gallery, /data-music-audio-elapsed/)
+  assert.match(gallery, /window\.setInterval\(update,\s*500\)/)
+  assert.doesNotMatch(gallery, /requestAnimationFrame\(update\)/)
+  assert.match(gallery, /process\.env\.NODE_ENV/)
+})
+
+test("slider gallery copy and layout match the remaining color controls", async () => {
+  const gallery = await read("app/dev/buttons/slider-gallery.tsx")
+  const colorExamples = gallery.slice(gallery.indexOf('title="Color control examples"'))
+
+  assert.match(colorExamples, /shared color slider wrapper and compact swatch/)
+  assert.doesNotMatch(colorExamples, /reusable picker/)
+  assert.doesNotMatch(colorExamples, /lg:grid-cols-\[/)
+})
+
+test("background palette browser review fails closed and reads real Host diagnostics", async () => {
+  const browserSource = await read("tests/browser/background-palette.spec.ts")
+
+  assert.doesNotMatch(browserSource, /PALETTE_SWEEP_START_INDEX/)
+  assert.doesNotMatch(browserSource, /test\.skip\(/)
+  assert.match(browserSource, /EXPECTED_ENABLED_BACKGROUND_COUNT/)
+  assert.match(browserSource, /executedCaseCount/)
+  assert.match(browserSource, /data-background-diagnostic-status/)
+  assert.match(browserSource, /data-background-diagnostic-loaded-id/)
+  assert.match(browserSource, /data-background-diagnostic-targets/)
+  assert.match(browserSource, /mlab-proof-drone/)
+  assert.match(browserSource, /Running Chimer timer/)
+})
+
+test("shared background access and palette resolver inputs stay authoritative and tick-stable", async () => {
+  const [pageSource, runningSource, hostSource, pickerSource, indexSource] = await Promise.all([
+    read("app/chimer/page.tsx"),
+    read("app/chimer/running-timer.tsx"),
+    read("components/backgrounds/BackgroundHost.tsx"),
+    read("components/chimer-controls/GlobalColorPicker.tsx"),
+    read("components/chimer-controls/index.ts"),
+  ])
+
+  assert.match(pageSource, /const backgroundAccess = useMemo/)
+  assert.match(pageSource, /featureKeys,[\s\S]*resolveAuthoritativeBackgroundOwnership\([\s\S]*permanentlyOwnedBackgroundIds,[\s\S]*commerceOwnedBackgroundIds/)
+  assert.match(runningSource, /backgroundAccess: BackgroundAccessSnapshot/)
+  assert.match(runningSource, /<BackgroundHost[\s\S]*access=\{effectiveBackgroundAccess\}/)
+  assert.match(runningSource, /const effectiveBackgroundPalette = useMemo/)
+  assert.match(
+    runningSource,
+    /const ACCOUNT_COLOR_SETTING_KEYS = new Set\(\["clockModeFontColor"\]\)/,
+  )
+  assert.match(hostSource, /access: BackgroundAccessSnapshot/)
+  assert.match(hostSource, /resolveAccessibleBackgroundDefinition\(selectedId, access, category\)/)
+  assert.match(hostSource, /const effectPropsInputSignature = JSON\.stringify/)
+  assert.match(hostSource, /const stableEffectPropsInput = useMemo/)
+  assert.match(hostSource, /\[effectPropsInputSignature\]/)
+  assert.match(hostSource, /resolveBackgroundEffectProps\(\{[\s\S]*effectProps: baseEffectProps/)
+  assert.doesNotMatch(runningSource, /resolvePaletteDrivenColor|globalColors|globalPalette/)
+  assert.doesNotMatch(pickerSource, /export function GlobalColorPicker|GlobalColorValues/)
+  assert.doesNotMatch(indexSource, /\bGlobalColorPicker\b(?=\s*[},])/)
 })
