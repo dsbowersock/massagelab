@@ -3,6 +3,7 @@ export type BackgroundPreviewVariantName = "landscape" | "square" | "vertical"
 export type BackgroundPreviewVariant = {
   key: BackgroundPreviewVariantName
   previewMediaUrl: string
+  previewPosterUrl?: string
   previewMediaType: "video"
   width: number
   height: number
@@ -10,14 +11,19 @@ export type BackgroundPreviewVariant = {
   fps: number
   bytes: number
   sha256: string
+  posterBytes?: number
+  posterSha256?: string
 }
 
 export type BackgroundPreviewManifestEntry = {
   previewMediaUrl: string
   previewMediaType: "image" | "video"
   previewVideoUrl?: string
+  previewImageUrl?: string
   previewSquareVideoUrl?: string
+  previewSquareImageUrl?: string
   previewVerticalVideoUrl?: string
+  previewVerticalImageUrl?: string
   variants?: Partial<Record<BackgroundPreviewVariantName, BackgroundPreviewVariant>>
 }
 
@@ -42,6 +48,7 @@ function resolvePreviewManifestVariants(variants: BackgroundPreviewManifestEntry
       resolved[key] = {
         ...variant,
         previewMediaUrl: resolvePreviewMediaUrl(variant.previewMediaUrl),
+        previewPosterUrl: variant.previewPosterUrl ? resolvePreviewMediaUrl(variant.previewPosterUrl) : undefined,
       }
     }
   }
@@ -54,8 +61,11 @@ function resolvePreviewManifestEntry(entry: BackgroundPreviewManifestEntry): Bac
     ...entry,
     previewMediaUrl: resolvePreviewMediaUrl(entry.previewMediaUrl),
     previewVideoUrl: entry.previewVideoUrl ? resolvePreviewMediaUrl(entry.previewVideoUrl) : undefined,
+    previewImageUrl: entry.previewImageUrl ? resolvePreviewMediaUrl(entry.previewImageUrl) : undefined,
     previewSquareVideoUrl: entry.previewSquareVideoUrl ? resolvePreviewMediaUrl(entry.previewSquareVideoUrl) : undefined,
+    previewSquareImageUrl: entry.previewSquareImageUrl ? resolvePreviewMediaUrl(entry.previewSquareImageUrl) : undefined,
     previewVerticalVideoUrl: entry.previewVerticalVideoUrl ? resolvePreviewMediaUrl(entry.previewVerticalVideoUrl) : undefined,
+    previewVerticalImageUrl: entry.previewVerticalImageUrl ? resolvePreviewMediaUrl(entry.previewVerticalImageUrl) : undefined,
     variants: resolvePreviewManifestVariants(entry.variants),
   }
 }
@@ -730,6 +740,60 @@ const rawBackgroundPreviewManifest = {
         "fps": 12,
         "bytes": 12485,
         "sha256": "5d484b0482037a58813c19e47449dcf528e45e044f7827acd8cba4eff3da5ffd"
+      }
+    }
+  },
+  "massage-lab-dna": {
+    "previewMediaUrl": "/chimer/background-previews/massage-lab-dna.webm",
+    "previewMediaType": "video",
+    "previewVideoUrl": "/chimer/background-previews/massage-lab-dna.webm",
+    "previewImageUrl": "/chimer/background-previews/massage-lab-dna.webp",
+    "previewSquareVideoUrl": "/chimer/background-previews/massage-lab-dna-square.webm",
+    "previewSquareImageUrl": "/chimer/background-previews/massage-lab-dna-square.webp",
+    "previewVerticalVideoUrl": "/chimer/background-previews/massage-lab-dna-vertical.webm",
+    "previewVerticalImageUrl": "/chimer/background-previews/massage-lab-dna-vertical.webp",
+    "variants": {
+      "landscape": {
+        "key": "landscape",
+        "previewMediaType": "video",
+        "previewMediaUrl": "/chimer/background-previews/massage-lab-dna.webm",
+        "width": 384,
+        "height": 216,
+        "durationMs": 6000,
+        "fps": 12,
+        "bytes": 37401,
+        "sha256": "72903fac304a8f29cbf57d3f9d837980b4ea8a15d5a12d70a6c6975553b7c5e4",
+        "previewPosterUrl": "/chimer/background-previews/massage-lab-dna.webp",
+        "posterBytes": 2532,
+        "posterSha256": "71d606ea96dad97f141fb0c3ebb9a5ac2fe6b621ba02e856e516519cae5ca693"
+      },
+      "square": {
+        "key": "square",
+        "previewMediaType": "video",
+        "previewMediaUrl": "/chimer/background-previews/massage-lab-dna-square.webm",
+        "width": 384,
+        "height": 384,
+        "durationMs": 6000,
+        "fps": 12,
+        "bytes": 57478,
+        "sha256": "0a8ea17ddf493f122c63faf0320c780113270d7dfb921a67bd5732bda167e1b5",
+        "previewPosterUrl": "/chimer/background-previews/massage-lab-dna-square.webp",
+        "posterBytes": 3884,
+        "posterSha256": "3d5425f43c35bb6b129a442964f55a355b6b81e2c81ccc09c53e370b63a981b3"
+      },
+      "vertical": {
+        "key": "vertical",
+        "previewMediaType": "video",
+        "previewMediaUrl": "/chimer/background-previews/massage-lab-dna-vertical.webm",
+        "width": 216,
+        "height": 384,
+        "durationMs": 6000,
+        "fps": 12,
+        "bytes": 36947,
+        "sha256": "f5c52360c8531e8fbea97af3d1c3a1c856f3445f663cf1b94e203b10cf060c90",
+        "previewPosterUrl": "/chimer/background-previews/massage-lab-dna-vertical.webp",
+        "posterBytes": 2446,
+        "posterSha256": "35296bf0d30a694e2b736b3c2885b7efd28b894ec002691c4cf4e7da6325787b"
       }
     }
   },
@@ -3253,6 +3317,60 @@ const rawBackgroundPreviewManifest = {
       }
     }
   },
+  "massage-lab-twisted-cubes": {
+    "previewMediaUrl": "/chimer/background-previews/massage-lab-twisted-cubes.webm",
+    "previewMediaType": "video",
+    "previewVideoUrl": "/chimer/background-previews/massage-lab-twisted-cubes.webm",
+    "previewImageUrl": "/chimer/background-previews/massage-lab-twisted-cubes.webp",
+    "previewSquareVideoUrl": "/chimer/background-previews/massage-lab-twisted-cubes-square.webm",
+    "previewSquareImageUrl": "/chimer/background-previews/massage-lab-twisted-cubes-square.webp",
+    "previewVerticalVideoUrl": "/chimer/background-previews/massage-lab-twisted-cubes-vertical.webm",
+    "previewVerticalImageUrl": "/chimer/background-previews/massage-lab-twisted-cubes-vertical.webp",
+    "variants": {
+      "landscape": {
+        "key": "landscape",
+        "previewMediaType": "video",
+        "previewMediaUrl": "/chimer/background-previews/massage-lab-twisted-cubes.webm",
+        "width": 384,
+        "height": 216,
+        "durationMs": 6000,
+        "fps": 12,
+        "bytes": 47781,
+        "sha256": "af223139a78416d43487c36d6ef8c066f85207222e480b938ad0753aa8af4bfe",
+        "previewPosterUrl": "/chimer/background-previews/massage-lab-twisted-cubes.webp",
+        "posterBytes": 2362,
+        "posterSha256": "0b61f5530f1543a484cd328f1ce61d3d933e517274cca5f4dd17b2f44feefe8b"
+      },
+      "square": {
+        "key": "square",
+        "previewMediaType": "video",
+        "previewMediaUrl": "/chimer/background-previews/massage-lab-twisted-cubes-square.webm",
+        "width": 384,
+        "height": 384,
+        "durationMs": 6000,
+        "fps": 12,
+        "bytes": 92032,
+        "sha256": "e2a2fb0488be128a43eed2f51478acedba59599b11927cd070068e7c8a5224d6",
+        "previewPosterUrl": "/chimer/background-previews/massage-lab-twisted-cubes-square.webp",
+        "posterBytes": 4042,
+        "posterSha256": "d4db77e7b57e88caa930ef6ad01bdff905a24492a70418d1c712a54fa81f32e3"
+      },
+      "vertical": {
+        "key": "vertical",
+        "previewMediaType": "video",
+        "previewMediaUrl": "/chimer/background-previews/massage-lab-twisted-cubes-vertical.webm",
+        "width": 216,
+        "height": 384,
+        "durationMs": 6000,
+        "fps": 12,
+        "bytes": 42322,
+        "sha256": "16f1841199fcdc67a4f5ea994fcf305939d80b4094087caaad86f81156be6a2d",
+        "previewPosterUrl": "/chimer/background-previews/massage-lab-twisted-cubes-vertical.webp",
+        "posterBytes": 1814,
+        "posterSha256": "c3ea596aa9d341ad8f7fe68c0a34b7712269020a5952afb725664f0ed9baafa4"
+      }
+    }
+  },
   "massage-lab-vortex": {
     "previewMediaUrl": "/chimer/background-previews/massage-lab-vortex.webm",
     "previewMediaType": "video",
@@ -3466,5 +3584,5 @@ const rawBackgroundPreviewManifest = {
 } satisfies Record<string, BackgroundPreviewManifestEntry>
 
 export const backgroundPreviewManifest = Object.fromEntries(
-  Object.entries(rawBackgroundPreviewManifest).map(([id, entry]) => [id, resolvePreviewManifestEntry(entry)]),
+  Object.entries(rawBackgroundPreviewManifest as Record<string, BackgroundPreviewManifestEntry>).map(([id, entry]) => [id, resolvePreviewManifestEntry(entry)]),
 ) as Record<string, BackgroundPreviewManifestEntry>

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto"
+import { spawnSync } from "node:child_process"
 import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
@@ -36,10 +37,42 @@ function hashFile(filePath) {
   return createHash("sha256").update(readFileSync(filePath)).digest("hex")
 }
 
+/** Uses FFprobe to reject corrupt or incorrectly sized generated media before publishing metadata. */
+function validateDimensions(filePath, expectedWidth, expectedHeight) {
+  const result = spawnSync("ffprobe", [
+    "-v", "error",
+    "-select_streams", "v:0",
+    "-show_entries", "stream=width,height",
+    "-of", "csv=s=x:p=0",
+    filePath,
+  ], { encoding: "utf8" })
+  const [width, height] = result.stdout.trim().split("x").map(Number)
+  if (result.status !== 0 || width !== expectedWidth || height !== expectedHeight) {
+    throw new Error(`${path.basename(filePath)} must decode at ${expectedWidth}x${expectedHeight}.`)
+  }
+}
+
 function buildVariant(entry, variant) {
   const filePath = path.join(outputDir, `${entry.id}${variant.suffix}.webm`)
+  const posterPath = path.join(outputDir, `${entry.id}${variant.suffix}.webp`)
   if (!existsSync(filePath)) {
     return null
+  }
+
+  const bytes = statSync(filePath).size
+  if (bytes <= 0) throw new Error(`${path.basename(filePath)} is empty.`)
+  validateDimensions(filePath, variant.width, variant.height)
+
+  let posterMetadata = {}
+  if (existsSync(posterPath)) {
+    const posterBytes = statSync(posterPath).size
+    if (posterBytes <= 0) throw new Error(`${path.basename(posterPath)} is empty.`)
+    validateDimensions(posterPath, variant.width, variant.height)
+    posterMetadata = {
+      previewPosterUrl: `/chimer/background-previews/${entry.id}${variant.suffix}.webp`,
+      posterBytes,
+      posterSha256: hashFile(posterPath),
+    }
   }
 
   return {
@@ -50,15 +83,20 @@ function buildVariant(entry, variant) {
     height: variant.height,
     durationMs: defaultDurationMs,
     fps: defaultFps,
-    bytes: statSync(filePath).size,
+    bytes,
     sha256: hashFile(filePath),
+    ...posterMetadata,
   }
 }
 
 function buildItem(entry) {
   const variantEntries = Object.fromEntries(
     variants
-      .map((variant) => [variant.key, buildVariant(entry, variant)])
+      .map((variant) => [
+        variant.key,
+        buildVariant(entry, variant)
+          ?? entry.previewVariants?.[variant.key],
+      ])
       .filter(([, item]) => item),
   )
   const primary = variantEntries.landscape ?? Object.values(variantEntries)[0]
@@ -74,8 +112,11 @@ function buildItem(entry) {
     previewMediaType: "video",
     previewMediaUrl: primary.previewMediaUrl,
     previewVideoUrl: primary.previewMediaUrl,
+    previewImageUrl: primary.previewPosterUrl,
     previewSquareVideoUrl: variantEntries.square?.previewMediaUrl,
+    previewSquareImageUrl: variantEntries.square?.previewPosterUrl,
     previewVerticalVideoUrl: variantEntries.vertical?.previewMediaUrl,
+    previewVerticalImageUrl: variantEntries.vertical?.previewPosterUrl,
     variants: variantEntries,
   }
 }
@@ -103,8 +144,11 @@ const manifestRecord = Object.fromEntries(
       previewMediaUrl: item.previewMediaUrl,
       previewMediaType: item.previewMediaType,
       previewVideoUrl: item.previewVideoUrl,
+      ...(item.previewImageUrl ? { previewImageUrl: item.previewImageUrl } : {}),
       ...(item.previewSquareVideoUrl ? { previewSquareVideoUrl: item.previewSquareVideoUrl } : {}),
+      ...(item.previewSquareImageUrl ? { previewSquareImageUrl: item.previewSquareImageUrl } : {}),
       ...(item.previewVerticalVideoUrl ? { previewVerticalVideoUrl: item.previewVerticalVideoUrl } : {}),
+      ...(item.previewVerticalImageUrl ? { previewVerticalImageUrl: item.previewVerticalImageUrl } : {}),
       variants: item.variants,
     },
   ]),
@@ -116,6 +160,7 @@ const lines = [
   "export type BackgroundPreviewVariant = {",
   "  key: BackgroundPreviewVariantName",
   "  previewMediaUrl: string",
+  "  previewPosterUrl?: string",
   "  previewMediaType: \"video\"",
   "  width: number",
   "  height: number",
@@ -123,14 +168,19 @@ const lines = [
   "  fps: number",
   "  bytes: number",
   "  sha256: string",
+  "  posterBytes?: number",
+  "  posterSha256?: string",
   "}",
   "",
   "export type BackgroundPreviewManifestEntry = {",
   "  previewMediaUrl: string",
   "  previewMediaType: \"image\" | \"video\"",
   "  previewVideoUrl?: string",
+  "  previewImageUrl?: string",
   "  previewSquareVideoUrl?: string",
+  "  previewSquareImageUrl?: string",
   "  previewVerticalVideoUrl?: string",
+  "  previewVerticalImageUrl?: string",
   "  variants?: Partial<Record<BackgroundPreviewVariantName, BackgroundPreviewVariant>>",
   "}",
   "",
@@ -155,6 +205,7 @@ const lines = [
   "      resolved[key] = {",
   "        ...variant,",
   "        previewMediaUrl: resolvePreviewMediaUrl(variant.previewMediaUrl),",
+  "        previewPosterUrl: variant.previewPosterUrl ? resolvePreviewMediaUrl(variant.previewPosterUrl) : undefined,",
   "      }",
   "    }",
   "  }",
@@ -167,8 +218,11 @@ const lines = [
   "    ...entry,",
   "    previewMediaUrl: resolvePreviewMediaUrl(entry.previewMediaUrl),",
   "    previewVideoUrl: entry.previewVideoUrl ? resolvePreviewMediaUrl(entry.previewVideoUrl) : undefined,",
+  "    previewImageUrl: entry.previewImageUrl ? resolvePreviewMediaUrl(entry.previewImageUrl) : undefined,",
   "    previewSquareVideoUrl: entry.previewSquareVideoUrl ? resolvePreviewMediaUrl(entry.previewSquareVideoUrl) : undefined,",
+  "    previewSquareImageUrl: entry.previewSquareImageUrl ? resolvePreviewMediaUrl(entry.previewSquareImageUrl) : undefined,",
   "    previewVerticalVideoUrl: entry.previewVerticalVideoUrl ? resolvePreviewMediaUrl(entry.previewVerticalVideoUrl) : undefined,",
+  "    previewVerticalImageUrl: entry.previewVerticalImageUrl ? resolvePreviewMediaUrl(entry.previewVerticalImageUrl) : undefined,",
   "    variants: resolvePreviewManifestVariants(entry.variants),",
   "  }",
   "}",
@@ -176,7 +230,7 @@ const lines = [
   `const rawBackgroundPreviewManifest = ${JSON.stringify(manifestRecord, null, 2)} satisfies Record<string, BackgroundPreviewManifestEntry>`,
   "",
   "export const backgroundPreviewManifest = Object.fromEntries(",
-  "  Object.entries(rawBackgroundPreviewManifest).map(([id, entry]) => [id, resolvePreviewManifestEntry(entry)]),",
+  "  Object.entries(rawBackgroundPreviewManifest as Record<string, BackgroundPreviewManifestEntry>).map(([id, entry]) => [id, resolvePreviewManifestEntry(entry)]),",
   ") as Record<string, BackgroundPreviewManifestEntry>",
 ]
 

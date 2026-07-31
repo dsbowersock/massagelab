@@ -184,7 +184,12 @@ async function waitForServer(baseUrl, timeoutMs = 120_000) {
 
   while (Date.now() - startedAt < timeoutMs) {
     try {
-      const response = await fetch(url, { cache: "no-store" })
+      const response = await fetch(url, {
+        cache: "no-store",
+        // A dev server can accept the connection while its first route compile
+        // stalls. Bound each probe so the outer startup timeout remains real.
+        signal: AbortSignal.timeout(5000),
+      })
       if (response.ok) {
         return
       }
@@ -203,6 +208,7 @@ async function disableNextDevIndicator(baseUrl) {
     await fetch(new URL("/__nextjs_disable_dev_indicator", baseUrl), {
       method: "POST",
       cache: "no-store",
+      signal: AbortSignal.timeout(5000),
     })
   } catch {
     // Production servers do not expose the dev indicator endpoint.
@@ -311,17 +317,41 @@ async function encodeWebm(sourcePath, outputPath, options, variant) {
   }
 }
 
+/** Extracts a stable representative frame after encoding so poster and video dimensions match. */
+async function encodePoster(videoPath, posterPath, durationMs) {
+  await runProcess("ffmpeg", [
+    "-y",
+    "-ss", (durationMs / 3000).toFixed(3),
+    "-i", videoPath,
+    "-frames:v", "1",
+    "-c:v", "libwebp",
+    "-quality", "78",
+    posterPath,
+  ])
+}
+
 function hashFile(filePath) {
   return createHash("sha256").update(readFileSync(filePath)).digest("hex")
 }
 
 async function captureVariant(browser, entry, options, variant, tempVideoDir) {
   const outputPath = path.join(options.outputDir, `${entry.id}${variant.suffix}.webm`)
+  const posterPath = path.join(options.outputDir, `${entry.id}${variant.suffix}.webp`)
 
-  if (existsSync(outputPath) && !options.force) {
+  if (existsSync(outputPath) && existsSync(posterPath) && !options.force) {
     return {
       skipped: true,
-      variant: buildVariantManifest(entry, outputPath, options, variant),
+      variant: buildVariantManifest(entry, outputPath, posterPath, options, variant),
+    }
+  }
+
+  // A prior interrupted run may have a valid video but no poster. Complete the
+  // pair without paying the browser-recording cost again unless --force is set.
+  if (existsSync(outputPath) && !options.force) {
+    await encodePoster(outputPath, posterPath, options.durationMs)
+    return {
+      skipped: false,
+      variant: buildVariantManifest(entry, outputPath, posterPath, options, variant),
     }
   }
 
@@ -366,9 +396,10 @@ async function captureVariant(browser, entry, options, variant, tempVideoDir) {
 
     const sourcePath = await video.path()
     await encodeWebm(sourcePath, outputPath, options, variant)
+    await encodePoster(outputPath, posterPath, options.durationMs)
     return {
       skipped: false,
-      variant: buildVariantManifest(entry, outputPath, options, variant),
+      variant: buildVariantManifest(entry, outputPath, posterPath, options, variant),
     }
   } catch (error) {
     await context.close().catch(() => undefined)
@@ -392,18 +423,22 @@ async function captureBackground(browser, entry, options, variants, tempVideoDir
   }
 }
 
-function buildVariantManifest(entry, outputPath, options, variant) {
+function buildVariantManifest(entry, outputPath, posterPath, options, variant) {
   const stats = statSync(outputPath)
+  const posterStats = statSync(posterPath)
   return {
     key: variant.key,
     previewMediaType: "video",
     previewMediaUrl: `/chimer/background-previews/${entry.id}${variant.suffix}.webm`,
+    previewPosterUrl: `/chimer/background-previews/${entry.id}${variant.suffix}.webp`,
     width: variant.outputWidth,
     height: variant.outputHeight,
     durationMs: options.durationMs,
     fps: options.fps,
     bytes: stats.size,
     sha256: hashFile(outputPath),
+    posterBytes: posterStats.size,
+    posterSha256: hashFile(posterPath),
   }
 }
 
@@ -417,19 +452,41 @@ function buildManifestItem(entry, variants) {
     previewMediaType: "video",
     previewMediaUrl: primary.previewMediaUrl,
     previewVideoUrl: primary.previewMediaUrl,
+    previewImageUrl: primary.previewPosterUrl,
     previewSquareVideoUrl: variants.square?.previewMediaUrl,
+    previewSquareImageUrl: variants.square?.previewPosterUrl,
     previewVerticalVideoUrl: variants.vertical?.previewMediaUrl,
+    previewVerticalImageUrl: variants.vertical?.previewPosterUrl,
     variants,
   }
 }
 
 function writeManifest(items, options) {
+  const existingItems = getBackgroundOptionsForCategory(options.category)
+    .filter((entry) => entry.previewVariants && Object.keys(entry.previewVariants).length > 0)
+    .map((entry) => ({
+      id: entry.id,
+      label: entry.label,
+      provider: entry.provider,
+      previewMediaType: "video",
+      previewMediaUrl: entry.previewVideoUrl ?? entry.previewMediaUrl,
+      previewVideoUrl: entry.previewVideoUrl ?? entry.previewMediaUrl,
+      previewImageUrl: entry.previewImageUrl,
+      previewSquareVideoUrl: entry.previewSquareVideoUrl,
+      previewSquareImageUrl: entry.previewSquareImageUrl,
+      previewVerticalVideoUrl: entry.previewVerticalVideoUrl,
+      previewVerticalImageUrl: entry.previewVerticalImageUrl,
+      variants: entry.previewVariants,
+    }))
+  const mergedItems = new Map(existingItems.map((item) => [item.id, item]))
+  for (const item of items) mergedItems.set(item.id, item)
+
   const manifest = {
     generatedAt: new Date().toISOString(),
     category: options.category,
     durationMs: options.durationMs,
     fps: options.fps,
-    items: items.sort((left, right) => left.id.localeCompare(right.id)),
+    items: [...mergedItems.values()].sort((left, right) => left.id.localeCompare(right.id)),
   }
 
   writeFileSync(
@@ -444,8 +501,11 @@ function writeManifest(items, options) {
         previewMediaUrl: item.previewMediaUrl,
         previewMediaType: item.previewMediaType,
         previewVideoUrl: item.previewVideoUrl,
+        ...(item.previewImageUrl ? { previewImageUrl: item.previewImageUrl } : {}),
         ...(item.previewSquareVideoUrl ? { previewSquareVideoUrl: item.previewSquareVideoUrl } : {}),
+        ...(item.previewSquareImageUrl ? { previewSquareImageUrl: item.previewSquareImageUrl } : {}),
         ...(item.previewVerticalVideoUrl ? { previewVerticalVideoUrl: item.previewVerticalVideoUrl } : {}),
+        ...(item.previewVerticalImageUrl ? { previewVerticalImageUrl: item.previewVerticalImageUrl } : {}),
         variants: item.variants,
       },
     ]),
@@ -457,6 +517,7 @@ function writeManifest(items, options) {
     "export type BackgroundPreviewVariant = {",
     "  key: BackgroundPreviewVariantName",
     "  previewMediaUrl: string",
+    "  previewPosterUrl?: string",
     "  previewMediaType: \"video\"",
     "  width: number",
     "  height: number",
@@ -464,14 +525,19 @@ function writeManifest(items, options) {
     "  fps: number",
     "  bytes: number",
     "  sha256: string",
+    "  posterBytes?: number",
+    "  posterSha256?: string",
     "}",
     "",
     "export type BackgroundPreviewManifestEntry = {",
     "  previewMediaUrl: string",
     "  previewMediaType: \"image\" | \"video\"",
     "  previewVideoUrl?: string",
+    "  previewImageUrl?: string",
     "  previewSquareVideoUrl?: string",
+    "  previewSquareImageUrl?: string",
     "  previewVerticalVideoUrl?: string",
+    "  previewVerticalImageUrl?: string",
     "  variants?: Partial<Record<BackgroundPreviewVariantName, BackgroundPreviewVariant>>",
     "}",
     "",
@@ -496,6 +562,7 @@ function writeManifest(items, options) {
     "      resolved[key] = {",
     "        ...variant,",
     "        previewMediaUrl: resolvePreviewMediaUrl(variant.previewMediaUrl),",
+    "        previewPosterUrl: variant.previewPosterUrl ? resolvePreviewMediaUrl(variant.previewPosterUrl) : undefined,",
     "      }",
     "    }",
     "  }",
@@ -508,8 +575,11 @@ function writeManifest(items, options) {
     "    ...entry,",
     "    previewMediaUrl: resolvePreviewMediaUrl(entry.previewMediaUrl),",
     "    previewVideoUrl: entry.previewVideoUrl ? resolvePreviewMediaUrl(entry.previewVideoUrl) : undefined,",
+    "    previewImageUrl: entry.previewImageUrl ? resolvePreviewMediaUrl(entry.previewImageUrl) : undefined,",
     "    previewSquareVideoUrl: entry.previewSquareVideoUrl ? resolvePreviewMediaUrl(entry.previewSquareVideoUrl) : undefined,",
+    "    previewSquareImageUrl: entry.previewSquareImageUrl ? resolvePreviewMediaUrl(entry.previewSquareImageUrl) : undefined,",
     "    previewVerticalVideoUrl: entry.previewVerticalVideoUrl ? resolvePreviewMediaUrl(entry.previewVerticalVideoUrl) : undefined,",
+    "    previewVerticalImageUrl: entry.previewVerticalImageUrl ? resolvePreviewMediaUrl(entry.previewVerticalImageUrl) : undefined,",
     "    variants: resolvePreviewManifestVariants(entry.variants),",
     "  }",
     "}",
@@ -517,7 +587,7 @@ function writeManifest(items, options) {
     `const rawBackgroundPreviewManifest = ${JSON.stringify(manifestRecord, null, 2)} satisfies Record<string, BackgroundPreviewManifestEntry>`,
     "",
     "export const backgroundPreviewManifest = Object.fromEntries(",
-    "  Object.entries(rawBackgroundPreviewManifest).map(([id, entry]) => [id, resolvePreviewManifestEntry(entry)]),",
+    "  Object.entries(rawBackgroundPreviewManifest as Record<string, BackgroundPreviewManifestEntry>).map(([id, entry]) => [id, resolvePreviewManifestEntry(entry)]),",
     ") as Record<string, BackgroundPreviewManifestEntry>",
   ]
 

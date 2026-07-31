@@ -10,6 +10,7 @@ const [
   chimerLoaderSource,
   runningTimerSource,
   backgroundCarouselCardSource,
+  backgroundPreviewMediaSource,
   gallerySource,
   accountPageSource,
   preferenceSyncSource,
@@ -23,6 +24,7 @@ const [
   readFile(new URL("../components/chimer-controls/Loader.tsx", import.meta.url), "utf8"),
   readFile(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8"),
   readFile(new URL("../components/backgrounds/background-carousel-card.tsx", import.meta.url), "utf8"),
+  readFile(new URL("../components/backgrounds/BackgroundPreviewMedia.tsx", import.meta.url), "utf8"),
   readFile(new URL("../app/dev/buttons/loader-gallery.tsx", import.meta.url), "utf8"),
   readFile(new URL("../app/account/page.tsx", import.meta.url), "utf8"),
   readFile(new URL("../app/account/preference-sync.tsx", import.meta.url), "utf8"),
@@ -114,12 +116,14 @@ describe("Sitewide loader", () => {
     assert.doesNotMatch(globalsSource, /\.ml-loader-sphere/)
   })
 
-  it("keeps Chimer preview loading on the shared implementation", () => {
+  it("keeps Chimer preview loading on the fallback-safe media implementation", () => {
     assert.match(chimerLoaderSource, /export \{ Loader \} from "@\/components\/ui\/loader"/)
     assert.match(chimerLoaderSource, /export type \{ LoaderProps \}/)
     assert.match(runningTimerSource, /BackgroundCarousel/)
-    assert.match(backgroundCarouselCardSource, /from "@\/components\/chimer-controls\/Loader"/)
-    assert.match(backgroundCarouselCardSource, /label="Loading preview"/)
+    assert.match(backgroundCarouselCardSource, /from "@\/components\/backgrounds\/BackgroundPreviewMedia"/)
+    assert.match(backgroundPreviewMediaSource, /poster=\{posterUrl\}/)
+    assert.match(backgroundPreviewMediaSource, /preload="metadata"/)
+    assert.match(backgroundPreviewMediaSource, /fallbackStyle/)
   })
 
   it("shows the approved loader in the dev gallery and true indeterminate waits", () => {

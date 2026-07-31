@@ -126,7 +126,9 @@ export interface BackgroundDefinition {
   previewImageUrl?: string
   previewVideoUrl?: string
   previewSquareVideoUrl?: string
+  previewSquareImageUrl?: string
   previewVerticalVideoUrl?: string
+  previewVerticalImageUrl?: string
   previewVariants?: BackgroundPreviewManifestEntry["variants"]
   component?: BackgroundComponentLoader
   fallbackClassName?: string
@@ -2077,9 +2079,11 @@ function withGeneratedPreview(entry: BackgroundDefinition): BackgroundDefinition
     previewMediaType: preview.previewMediaType,
     previewVideoUrl: preview.previewVideoUrl ?? (preview.previewMediaType === "video" ? preview.previewMediaUrl : entry.previewVideoUrl),
     previewSquareVideoUrl: preview.previewSquareVideoUrl ?? entry.previewSquareVideoUrl,
+    previewSquareImageUrl: preview.previewSquareImageUrl ?? entry.previewSquareImageUrl,
     previewVerticalVideoUrl: preview.previewVerticalVideoUrl ?? entry.previewVerticalVideoUrl,
+    previewVerticalImageUrl: preview.previewVerticalImageUrl ?? entry.previewVerticalImageUrl,
     previewVariants: preview.variants ?? entry.previewVariants,
-    previewImageUrl: preview.previewMediaType === "image" ? preview.previewMediaUrl : entry.previewImageUrl,
+    previewImageUrl: preview.previewImageUrl ?? (preview.previewMediaType === "image" ? preview.previewMediaUrl : entry.previewImageUrl),
   }
 }
 

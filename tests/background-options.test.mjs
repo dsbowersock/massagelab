@@ -167,6 +167,33 @@ describe("premium background registry", () => {
     }
   })
 
+  it("merges generated video and aspect-specific poster fields into Track 4B registry entries", () => {
+    const expectedDimensions = {
+      landscape: [384, 216],
+      square: [384, 384],
+      vertical: [216, 384],
+    }
+    for (const backgroundId of ["massage-lab-dna", "massage-lab-twisted-cubes"]) {
+      const definition = backgroundRegistry.find((entry) => entry.id === backgroundId)
+      assert.ok(definition?.previewVideoUrl?.endsWith(`${backgroundId}.webm`))
+      assert.ok(definition?.previewImageUrl?.endsWith(`${backgroundId}.webp`))
+      assert.ok(definition?.previewSquareVideoUrl?.endsWith(`${backgroundId}-square.webm`))
+      assert.ok(definition?.previewSquareImageUrl?.endsWith(`${backgroundId}-square.webp`))
+      assert.ok(definition?.previewVerticalVideoUrl?.endsWith(`${backgroundId}-vertical.webm`))
+      assert.ok(definition?.previewVerticalImageUrl?.endsWith(`${backgroundId}-vertical.webp`))
+
+      for (const variant of ["landscape", "square", "vertical"]) {
+        const preview = definition?.previewVariants?.[variant]
+        assert.ok(preview)
+        assert.deepEqual([preview.width, preview.height], expectedDimensions[variant])
+        assert.equal(preview.bytes > 0, true)
+        assert.equal(preview.posterBytes > 0, true)
+        assert.match(preview.sha256, /^[a-f0-9]{64}$/)
+        assert.match(preview.posterSha256, /^[a-f0-9]{64}$/)
+      }
+    }
+  })
+
   it("uses canonical subscription and authoritative ownership access for Track 4B backgrounds", () => {
     for (const backgroundId of ["massage-lab-dna", "massage-lab-twisted-cubes"]) {
       assert.equal(canUseBackgroundId(backgroundId, [FEATURE_KEYS.premiumBackgrounds]), true)
