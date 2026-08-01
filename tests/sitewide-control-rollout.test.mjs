@@ -128,26 +128,30 @@ test("immersive display panels delegate toolbar actions to shared controls", asy
   assert.match(shell, /Clock[\s\S]*Visual[\s\S]*Background/)
 })
 
-test("Visual draft actions stay sticky and usable at compact viewport sizes", async () => {
+test("Visual draft actions live in the responsive panel header while sync status stays in flow", async () => {
   const [styles, runningTimer] = await Promise.all([
     read("app/chimer/running-timer.module.css"),
     read("app/chimer/running-timer.tsx"),
   ])
 
-  assert.match(styles, /\.visualDraftActions[\s\S]*position:\s*sticky/)
-  assert.match(styles, /@media \(max-width:\s*36rem\)[\s\S]*\.visualDraftActions/)
-  assert.match(styles, /@media \(max-height:\s*32rem\)[\s\S]*\.visualDraftActions/)
+  assert.doesNotMatch(styles, /\.visualDraftActions[\s\S]*position:\s*sticky/)
+  assert.match(styles, /\.immersiveVisualHeaderControls[\s\S]*\.visualHeaderDraftActions/)
+  assert.match(styles, /:global\(\[data-immersive-layout="side"\]\) \.visualHeaderDraftButtonLabel[\s\S]*display:\s*none/)
   assert.match(
     runningTimer,
-    /variant="cta" onClick=\{onRetryBackgroundVisualPreferences\}[\s\S]*Retry sync/,
+    /className=\{styles\.immersiveVisualHeaderControls\}[\s\S]*aria-label="Visual draft actions"/,
   )
   assert.match(
     runningTimer,
-    /variant="destructive" disabled=\{!visualDraft\?\.dirty\}[\s\S]*Cancel/,
+    /className=\{styles\.visualDraftStatusRow\}[\s\S]*variant="cta" onClick=\{onRetryBackgroundVisualPreferences\}[\s\S]*Retry sync/,
   )
   assert.match(
     runningTimer,
-    /variant="success" disabled=\{!visualDraft\?\.dirty\}[\s\S]*Apply/,
+    /aria-label="Undo"[\s\S]*aria-label="Redo"[\s\S]*variant="destructive" aria-label="Cancel"/,
+  )
+  assert.match(
+    runningTimer,
+    /variant="success" aria-label="Apply"[\s\S]*onClick=\{commitVisualDraft\}/,
   )
 })
 
@@ -232,12 +236,12 @@ test("development review exposes the real DNA and Twisted Cubes acceptance matri
     ["massage-lab-dna", "Connector width", "massageLabDnaConnectorWidth", "strand > connector", "width|transform", "connectorWidth|connectorTransform"],
     ["massage-lab-dna", "Connector thickness", "massageLabDnaConnectorThickness", "strand > connector", "height|transform", "connectorHeight|connectorTransform"],
     ["massage-lab-dna", "Outline thickness", "massageLabDnaOutlineThickness", "connector + [data-side]", "borderTopWidth|size|transform", "connectorBorderWidth|startNodeBorderWidth|endNodeBorderWidth|connectorHeight|startNodeWidth|startNodeHeight|endNodeWidth|endNodeHeight|connectorTransform|startNodeTransform|endNodeTransform"],
-    ["massage-lab-twisted-cubes", "Rotation speed", "massageLabTwistedCubesRotationSpeed", "[style*='--ml-twisted-cubes-outline'] > .cube", "animationDuration|transform", "cubeTransform|cubeDuration"],
-    ["massage-lab-twisted-cubes", "Layer stagger", "massageLabTwistedCubesLayerStagger", "[style*='--ml-twisted-cubes-outline'] > .cube", "animationDelay|transform", "cubeTransform|cubeDelay"],
-    ["massage-lab-twisted-cubes", "View angle X", "massageLabTwistedCubesViewAngleX", ".scene > .view", "transform", "viewTransform"],
-    ["massage-lab-twisted-cubes", "View angle Y", "massageLabTwistedCubesViewAngleY", ".scene > .view", "transform", "viewTransform"],
-    ["massage-lab-twisted-cubes", "Layer count", "massageLabTwistedCubesLayerCount", "[style*='--ml-twisted-cubes-outline'] > cube > cuboid > face", "count|size|animationDelay|transform|opacity", "layerCount|faceCount|cubeTransform|cubeDelay|faceWidth|faceHeight|faceOpacity"],
-    ["massage-lab-twisted-cubes", "Layer depth", "massageLabTwistedCubesLayerDepthSpacing", "second [style*='--ml-twisted-cubes-outline']", "transform", "secondLayerTransform"],
+    ["massage-lab-twisted-cubes", "Rotation speed", "massageLabTwistedCubesRotationSpeed", "[style*='--ml-twisted-cubes-outline'] > .view > .cube", "animationDuration|transform", "cubeTransform|cubeDuration"],
+    ["massage-lab-twisted-cubes", "Layer stagger", "massageLabTwistedCubesLayerStagger", "[style*='--ml-twisted-cubes-outline'] > .view > .cube", "animationDelay|transform", "cubeTransform|cubeDelay"],
+    ["massage-lab-twisted-cubes", "View angle X", "massageLabTwistedCubesViewAngleX", ".layer > .view", "transform", "viewTransform"],
+    ["massage-lab-twisted-cubes", "View angle Y", "massageLabTwistedCubesViewAngleY", ".layer > .view", "transform", "viewTransform"],
+    ["massage-lab-twisted-cubes", "Layer count", "massageLabTwistedCubesLayerCount", "[style*='--ml-twisted-cubes-outline'] > .view > .cube > .cuboid > .face", "count|depth|size|animationDelay|transform|opacity", "layerCount|faceCount|firstLayerTransform|secondLayerTransform|cubeTransform|cubeDelay|faceWidth|faceHeight|faceOpacity"],
+    ["massage-lab-twisted-cubes", "Layer depth", "massageLabTwistedCubesLayerDepthSpacing", "[style*='--ml-twisted-cubes-outline']", "transform", "firstLayerTransform|secondLayerTransform"],
     ["massage-lab-twisted-cubes", "Scale", "massageLabTwistedCubesScale", ":scope > .scene", "transform", "sceneTransform"],
     ["massage-lab-twisted-cubes", "Position X", "massageLabTwistedCubesPositionX", ":scope > .scene", "transform", "sceneTransform"],
     ["massage-lab-twisted-cubes", "Position Y", "massageLabTwistedCubesPositionY", ":scope > .scene", "transform", "sceneTransform"],
@@ -288,19 +292,20 @@ test("development review exposes the real DNA and Twisted Cubes acceptance matri
   assert.match(browserSource, /querySelector<HTMLElement>\('\[data-side="start"\]'\)/)
   assert.match(browserSource, /viewTransform/)
   assert.match(browserSource, /faceBorderWidth/)
-  assert.match(browserSource, /scenePerspective:\s*\(await normalizeComputedConsumer\(host, \{ perspective: "100vmin" \}\)\)\.perspective/)
+  assert.match(browserSource, /scenePerspective:\s*"none"/)
   assert.match(browserSource, /strandAnimationName:\s*"none"[\s\S]*strandDuration:\s*"0s"[\s\S]*strandDelay:\s*"0s"/)
   assert.match(browserSource, /connectorAnimationName:\s*"none"[\s\S]*connectorDuration:\s*"0s"[\s\S]*connectorDelay:\s*"0s"/)
   assert.match(browserSource, /startNodeAnimationName:\s*"none"[\s\S]*startNodeDuration:\s*"0s"[\s\S]*startNodeDelay:\s*"0s"/)
   assert.match(browserSource, /endNodeAnimationName:\s*"none"[\s\S]*endNodeDuration:\s*"0s"[\s\S]*endNodeDelay:\s*"0s"/)
   assert.match(browserSource, /cubeAnimationName:\s*"none"[\s\S]*cubeDuration:\s*"0s"[\s\S]*cubeDelay:\s*"0s"/)
-  assert.match(browserSource, /height:\s*"65vmin"[\s\S]*"aspect-ratio":\s*"2 \/ 5"/)
-  assert.match(browserSource, /width:\s*"50vmin"[\s\S]*height:\s*"50vmin"/)
+  assert.match(browserSource, /width:\s*"26vmin"[\s\S]*height:\s*"max\(120vmin, 115vmax\)"/)
+  assert.match(browserSource, /width:\s*`\$\{TWISTED_CUBES_VIEWPORT_EXTENT_VMAX\}vmax`[\s\S]*height:\s*`\$\{TWISTED_CUBES_VIEWPORT_EXTENT_VMAX\}vmax`/)
   assert.doesNotMatch(browserSource, /test\.skip\(/)
   assert.match(playwrightConfig, /dna-twisted-cubes-backgrounds\.spec\.ts/)
   assert.match(sliderSource, /<SliderPrimitive\.Thumb[\s\S]*aria-label=\{ariaLabel\}/)
   assert.match(sliderSource, /aria-labelledby=\{ariaLabelledBy\}/)
   assert.match(sliderSource, /aria-describedby=\{ariaDescribedBy\}/)
+  assert.match(colorSliderSource, /label=\{label\}/)
   assert.doesNotMatch(colorSliderSource, /aria-label=\{label\}/)
 })
 

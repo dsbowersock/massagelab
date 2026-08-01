@@ -17,7 +17,7 @@
 - Preserve the user-owned `TODO.md` modification and exclude it from every commit.
 - Use the attached MIT archives only as source references. Do not copy global `body`, `:root`, universal-selector, font, minimum-height, or `touch-action` rules.
 - Add no iframe, Canvas, WebGL, animation library, pointer-drag behavior, runtime dependency, public source artifact, shuffle-colors action, Prisma migration, or Roadmap entry.
-- Keep source colors and source property defaults until the user changes them. All property changes remain Track 4A draft operations and persist only on Apply.
+- Keep source colors until the user changes them. The post-implementation visual pass approved slower, denser DNA defaults and a slower Twisted Cubes rotation default; all later property changes remain Track 4A draft operations and persist only on Apply.
 - Use the canonical `premium_backgrounds` entitlement/permanent-ownership resolution. The renderers receive access-safe props and never inspect sessions, plan labels, carts, credits, or billing records.
 - Keep one committed configuration across active Chimer, ordinary `/clock`, `/clock?source=music`, and ambient hosts.
 
@@ -58,22 +58,23 @@ Cover source defaults, every minimum/maximum, integer strand count, invalid nume
 
 ```js
 export const DEFAULT_DNA_BACKGROUND_OPTIONS = Object.freeze({
-  strandCount: 13,
-  nodeMotionSpeed: 1,
-  strandRotationSpeed: 1,
+  strandCount: 35,
+  nodeMotionSpeed: 0.06,
+  strandRotationSpeed: 0.02,
   strandAngle: 30,
   scale: 1,
   positionX: 0,
   positionY: 0,
   strandSpacing: 0.5,
   connectorWidth: 94,
-  connectorThickness: 30,
-  outlineThickness: 0.5,
+  connectorThickness: 15,
+  outlineThickness: 0.1,
 });
 
 export const DNA_SOURCE_GEOMETRY = Object.freeze({
-  heightVmin: 65,
-  aspectRatio: "2 / 5",
+  widthVmin: 26,
+  minimumHeightVmin: 120,
+  viewportHeightVmax: 115,
 });
 
 export function sanitizeDnaBackgroundOptions(value) {}
@@ -83,7 +84,7 @@ export function getDnaStrandDelaySeconds({ oneBasedIndex, total, speed }) {}
 export function getDnaStrandPhase({ oneBasedIndex, total }) {}
 ```
 
-Assert defaults produce `2` and `14` second durations. `getDnaStrandPhase` must calculate with `Math.sin`, not return a CSS `sin()` expression. `DNA_SOURCE_GEOMETRY` is fixed renderer metadata—not persisted user options—and tests/render-source assertions require exactly `65vmin` height with CSS `aspect-ratio: 2 / 5`.
+Assert the approved defaults produce `2 / 0.06` and `14 / 0.02` second durations. `getDnaStrandPhase` must calculate with `Math.sin`, not return a CSS `sin()` expression. `DNA_SOURCE_GEOMETRY` is fixed renderer metadata—not persisted user options—and tests/render-source assertions require a `26vmin`-wide scene whose height is `max(120vmin, 115vmax)`, keeping the strand ends beyond the viewport while it rotates.
 
 Run: `node --test tests/dna-background.test.mjs`
 
@@ -165,7 +166,7 @@ git commit -m "feat: define dna background behavior"
 
 **Consumes:** Sanitized `MassageLabDnaOptions`, seven named role colors, `reduceMotion`, and the shared responsive layout helper.
 
-**Produces:** One decorative, non-interactive DNA effect root with at most 25 strands and 50 nodes.
+**Produces:** One decorative, non-interactive DNA effect root with at most 81 strands and 162 nodes.
 
 - [ ] **Step 1: Write failing type and source-isolation tests**
 
@@ -273,7 +274,7 @@ Use this public contract:
 ```js
 export const DEFAULT_TWISTED_CUBES_BACKGROUND_OPTIONS = Object.freeze({
   layerCount: 20,
-  rotationSpeed: 1,
+  rotationSpeed: 0.25,
   layerStagger: 0.1,
   viewAngleX: -35,
   viewAngleY: -45,
@@ -727,7 +728,7 @@ Cover desktop, phone portrait, short landscape, 200% zoom, and reduced motion. A
 
 - [ ] **Step 4: Add bounded-DOM and lifecycle checks**
 
-Require at most 25 DNA strands/50 nodes and 30 Twisted layers/180 faces. During repeated property edits, assert only the selected effect remains mounted and no document/window/listener/animation-frame API is introduced by either component.
+Require at most 81 DNA strands/162 nodes and 30 Twisted layers/180 faces. During repeated property edits, assert only the selected effect remains mounted and no document/window/listener/animation-frame API is introduced by either component.
 
 - [ ] **Step 5: Run review tests and commit**
 
@@ -795,7 +796,7 @@ Before committing, verify `git status --short` still contains the user-owned `TO
 - DNA and Twisted Cubes are enabled premium backgrounds in Chimer, Clock, Music, and ambient categories.
 - Both use native React plus scoped CSS Modules and add no runtime dependency, iframe, Canvas, WebGL, pointer drag, or shuffle action.
 - Source colors and source property values remain visible until edited.
-- DNA renders 7-25 strands, keeps mount-stable random four-role node assignment, uses React sine phases, and exposes separate node/strand speeds.
+- DNA renders 7-81 strands, keeps mount-stable random four-role node assignment, uses React sine phases, and exposes separate node/strand speeds.
 - Twisted Cubes renders 6-30 layers, preserves continuous Source HSL, smoothly interpolates six Custom/Harmony anchors, and exposes separate speed/stagger.
 - Both support bounded scale/X/Y controls without mutating stored values.
 - Track 4A owns every color, role mapping, draft, Undo/Redo, Apply/Cancel, Color preset, and Visual preset behavior; no duplicate color fields exist.

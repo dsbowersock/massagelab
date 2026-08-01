@@ -28,15 +28,16 @@ const previewSceneSource = readFileSync(
 
 describe("background preview media", () => {
   it("renders a decorative video with a WebP poster over the registry fallback", () => {
-    assert.match(componentSource, /<video/)
-    assert.match(componentSource, /poster=\{posterUrl\}/)
-    assert.match(componentSource, /muted/)
-    assert.match(componentSource, /loop/)
-    assert.match(componentSource, /playsInline/)
-    assert.match(componentSource, /preload="metadata"/)
-    assert.match(componentSource, /aria-hidden="true"/)
+    const videoMarkup = componentSource.match(/<video[\s\S]*?\/>/)?.[0]
+    assert.ok(videoMarkup, "decorative preview video markup exists")
+    assert.match(videoMarkup, /poster=\{posterUrl\}/)
+    assert.match(videoMarkup, /\bmuted\b/)
+    assert.match(videoMarkup, /\bloop\b/)
+    assert.match(videoMarkup, /\bplaysInline\b/)
+    assert.match(videoMarkup, /preload="metadata"/)
+    assert.match(videoMarkup, /aria-hidden="true"/)
+    assert.match(videoMarkup, /onError=\{\(\) => setVideoFailed\(true\)\}/)
     assert.match(componentSource, /fallbackStyle/)
-    assert.match(componentSource, /onError/)
   })
 
   it("keeps inactive cards on posters and limits playback to active selected cards", () => {
@@ -53,10 +54,18 @@ describe("background preview media", () => {
 
   it("generates one-third-duration quality-78 WebP posters, including missing posters", () => {
     assert.match(renderSource, /async function encodePoster/)
-    assert.match(renderSource, /durationMs \/ 3000/)
+    assert.match(renderSource, /const seekSeconds = \(durationMs \/ 1000\) \/ 3/)
     assert.match(renderSource, /"-c:v", "libwebp"/)
     assert.match(renderSource, /"-quality", "78"/)
     assert.match(renderSource, /if \(existsSync\(outputPath\) && existsSync\(posterPath\) && !options\.force\) \{[\s\S]*?skipped: true/)
+  })
+
+  it("suppresses delayed Next development chrome before recording", () => {
+    assert.match(renderSource, /page\.addStyleTag\(\{[\s\S]*?nextjs-portal \{ display: none !important; \}/)
+    assert.ok(
+      renderSource.indexOf("page.addStyleTag") < renderSource.indexOf("page.waitForTimeout(options.warmupMs"),
+      "development chrome is hidden before the warmup and recording window",
+    )
   })
 
   it("captures Track 4B effects through the shared canonical host-option resolver", () => {
@@ -67,7 +76,7 @@ describe("background preview media", () => {
 
   it("hashes poster metadata and resolves poster URLs through the configured base", () => {
     for (const field of ["previewPosterUrl", "posterBytes", "posterSha256"]) {
-      assert.match(manifestGeneratorSource, new RegExp(field))
+      assert.match(manifestGeneratorSource, new RegExp(`\\b${field}\\b`))
     }
     assert.match(manifestGeneratorSource, /previewImageUrl/)
     assert.match(manifestGeneratorSource, /previewSquareImageUrl/)

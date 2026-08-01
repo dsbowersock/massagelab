@@ -140,7 +140,7 @@ test("revoked background access makes palette, property, and preset editing read
   )
   assert.match(
     runningTimerSource,
-    /variant="destructive" disabled=\{!visualDraft\?\.dirty\}[\s\S]*Cancel[\s\S]*variant="success" disabled=\{!visualDraft\?\.dirty\}[\s\S]*Apply/,
+    /variant="destructive"[\s\S]*disabled=\{!visualDraft\?\.dirty\}[\s\S]*Cancel[\s\S]*variant="success"[\s\S]*disabled=\{!visualDraft\?\.dirty\}[\s\S]*Apply/,
   )
   assert.match(
     presetSource,
@@ -167,10 +167,10 @@ test("BackgroundHost applies the resolved palette to its persistent fallback lay
   assert.doesNotMatch(backgroundHostSource, /style=\{entry\.fallbackStyle\}/)
 })
 
-test("BackgroundHost mounts only active or static-capable effects and treats explicit pause as reduced motion", () => {
+test("BackgroundHost mounts only active or static-capable effects and keeps review motion development-only", () => {
   assert.match(
     backgroundHostSource,
-    /const reduceMotion = !motionEnabled \|\| shouldReduceAmbientMotion/,
+    /const allowAmbientMotionForReview = process\.env\.NODE_ENV !== "production"[\s\S]*const reduceMotion = !motionEnabled \|\| \(!allowAmbientMotionForReview && shouldReduceAmbientMotion/,
   )
   assert.match(
     backgroundHostSource,
@@ -183,7 +183,7 @@ test("BackgroundHost mounts only active or static-capable effects and treats exp
   assert.ok(effectGateEnd > effectGateStart, "BackgroundHost effect-gate markers should remain ordered")
   assert.doesNotMatch(
     backgroundHostSource.slice(effectGateStart, effectGateEnd),
-    /forceEffectMount|motionEnabled/,
+    /forceEffectMount|forceAmbientMotionForReview|motionEnabled/,
   )
 })
 

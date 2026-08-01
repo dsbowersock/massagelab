@@ -1,7 +1,7 @@
 "use client"
 
 import { type CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
-import { Maximize2, Minimize2, Minus, Pause, Play, Plus, X } from "lucide-react"
+import { Check, Maximize2, Minimize2, Minus, Pause, Play, Plus, Redo2, Undo2, X } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { BACKGROUND_VISUAL_FILTERS, matchesBackgroundVisualFilter, readSavedBackgroundIds, writeSavedBackgroundIds } from "@/lib/background-catalog"
 import { DEFAULT_BACKGROUND_ID } from "@/lib/background-options"
@@ -13287,12 +13287,32 @@ export function RunningTimer({
           visualHeaderTitle="Visual background"
           visualHeaderAction={<Switch className={styles.immersiveHeaderSwitch} checked={movingBackgroundEnabled} size="compact" aria-label={`Background animation: ${movingBackgroundEnabled ? "On" : "Off"}`} title={movingBackgroundEnabled ? "Pause background animation" : "Resume background animation"} hapticsEnabled={hapticsEnabled} onCheckedChange={(value) => handleSettingsChange({ movingBackgroundEnabled: value })} />}
           visualHeaderCenterAction={
-            isClockMode ? (
-              <div className={`${styles.immersiveHeaderColorControl} ${styles.immersiveVisualHeaderColorControl}`} title={accountColorDisabledHint}>
-                <span>Clock color</span>
-                <ColorPickerSwatch label="Clock color" value={resolvedClockModeFontColor} fallback={DEFAULT_CLOCK_MODE_FONT_COLOR} disabled={!canUseCoreColorControls} onChange={(nextColor) => handleSettingsChange({ clockModeFontColor: nextColor })} className={styles.colorSwatchPicker} buttonClassName={styles.immersiveHeaderColorSwatchButton} />
+            <div className={styles.immersiveVisualHeaderControls}>
+              {isClockMode ? (
+                <div className={`${styles.immersiveHeaderColorControl} ${styles.immersiveVisualHeaderColorControl}`} title={accountColorDisabledHint}>
+                  <span>Clock color</span>
+                  <ColorPickerSwatch label="Clock color" value={resolvedClockModeFontColor} fallback={DEFAULT_CLOCK_MODE_FONT_COLOR} disabled={!canUseCoreColorControls} onChange={(nextColor) => handleSettingsChange({ clockModeFontColor: nextColor })} className={styles.colorSwatchPicker} buttonClassName={styles.immersiveHeaderColorSwatchButton} />
+                </div>
+              ) : null}
+              <div className={styles.visualHeaderDraftActions} aria-label="Visual draft actions">
+                <Button type="button" size="compact" variant="ghost" aria-label="Undo" title="Undo" disabled={!visualDraft?.undoStack.length} onClick={() => dispatchVisualDraft({ type: "undo" })}>
+                  <Undo2 aria-hidden="true" />
+                  <span className={styles.visualHeaderDraftButtonLabel}>Undo</span>
+                </Button>
+                <Button type="button" size="compact" variant="ghost" aria-label="Redo" title="Redo" disabled={!visualDraft?.redoStack.length} onClick={() => dispatchVisualDraft({ type: "redo" })}>
+                  <Redo2 aria-hidden="true" />
+                  <span className={styles.visualHeaderDraftButtonLabel}>Redo</span>
+                </Button>
+                <Button type="button" size="compact" variant="destructive" aria-label="Cancel" title="Cancel changes" disabled={!visualDraft?.dirty} hapticsEnabled={hapticsEnabled} onClick={() => dispatchVisualDraft({ type: "cancel" })}>
+                  <X aria-hidden="true" />
+                  <span className={styles.visualHeaderDraftButtonLabel}>Cancel</span>
+                </Button>
+                <Button type="button" size="compact" variant="success" aria-label="Apply" title="Apply changes" disabled={!visualDraft?.dirty} hapticsEnabled={hapticsEnabled} onClick={commitVisualDraft}>
+                  <Check aria-hidden="true" />
+                  <span className={styles.visualHeaderDraftButtonLabel}>Apply</span>
+                </Button>
               </div>
-            ) : null
+            </div>
           }
           clockContent={
             <div className={`${styles.settingsTabContent} ${styles.immersiveSettingsTabContent}`}>
@@ -13652,6 +13672,17 @@ export function RunningTimer({
                 </div>
               ) : null}
 
+              <div className={styles.visualDraftStatusRow}>
+                <span className={styles.visualDraftStatus} role="status" aria-live="polite" aria-atomic="true">
+                  {backgroundPreferenceSyncStatus === "stale" ? "Saved on this device. Account sync failed." : backgroundPreferenceSyncStatus === "pending" ? "Applied on this device. Syncing account…" : visualDraft?.dirty ? "Unsaved changes" : "Saved"}
+                </span>
+                {backgroundPreferenceSyncStatus === "stale" ? (
+                  <Button type="button" size="compact" variant="cta" onClick={onRetryBackgroundVisualPreferences}>
+                    Retry sync
+                  </Button>
+                ) : null}
+              </div>
+
               {!isClockMode && mode.context === "chimer" ? (
                 <div className={styles.switchRow}>
                   <StyledToggleControl label="Keep timer screen awake" checked={keepTimerScreenAwake} valueLabel={keepTimerScreenAwake ? "On" : "Off"} hapticsEnabled={hapticsEnabled} onCheckedChange={(value) => handleSettingsChange({ keepTimerScreenAwake: value })} />
@@ -13768,30 +13799,6 @@ export function RunningTimer({
                   </div>
                   <BackgroundVisualPresetManager presets={currentVisualEditorSnapshot.visualPresets as never} currentProperties={currentVisualEditorSnapshot.properties} currentMapping={currentVisualEditorSnapshot.mapping} backgroundName={visualEditorBackgroundDefinition.label} defaultPresetId={currentVisualEditorSnapshot.defaultVisualPresetId} roleLabels={selectedRoleLabels} disabled={!canCustomizeSelectedBackground} onDraftAction={(action: BackgroundPresetDraftAction) => dispatchVisualDraft(action)} />
 
-                  <div className={styles.visualDraftActions}>
-                    <span className={styles.visualDraftStatus} role="status" aria-live="polite" aria-atomic="true">
-                      {backgroundPreferenceSyncStatus === "stale" ? "Saved on this device. Account sync failed." : backgroundPreferenceSyncStatus === "pending" ? "Applied on this device. Syncing account…" : visualDraft?.dirty ? "Unsaved changes" : "Saved"}
-                    </span>
-                    <div className={styles.visualDraftActionButtons}>
-                      <Button type="button" variant="ghost" disabled={!visualDraft?.undoStack.length} onClick={() => dispatchVisualDraft({ type: "undo" })}>
-                        Undo
-                      </Button>
-                      <Button type="button" variant="ghost" disabled={!visualDraft?.redoStack.length} onClick={() => dispatchVisualDraft({ type: "redo" })}>
-                        Redo
-                      </Button>
-                      {backgroundPreferenceSyncStatus === "stale" ? (
-                        <Button type="button" variant="cta" onClick={onRetryBackgroundVisualPreferences}>
-                          Retry sync
-                        </Button>
-                      ) : null}
-                      <Button type="button" variant="destructive" disabled={!visualDraft?.dirty} onClick={() => dispatchVisualDraft({ type: "cancel" })}>
-                        Cancel
-                      </Button>
-                      <Button type="button" variant="success" disabled={!visualDraft?.dirty} onClick={commitVisualDraft}>
-                        Apply
-                      </Button>
-                    </div>
-                  </div>
                 </>
               ) : null}
             </div>

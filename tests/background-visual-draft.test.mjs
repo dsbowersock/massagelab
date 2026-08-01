@@ -1240,11 +1240,12 @@ test("dirty navigation guard covers eligible app links, history, and native unlo
   assert.match(unsavedDialogSource, /resolveExplicitOutcome\(onDiscard\)/)
   assert.match(unsavedDialogSource, /resolveExplicitOutcome\(onKeepEditing\)/)
   assert.match(runningTimerSource, /className=\{styles\.visualDraftStatus\}[\s\S]*role="status"[\s\S]*aria-live="polite"/)
-  const actionRowOpeningTag = runningTimerSource.match(
-    /<div\s+className=\{styles\.visualDraftActions\}[^>]*>/,
+  const headerActionGroupOpeningTag = runningTimerSource.match(
+    /<div\s+className=\{styles\.visualHeaderDraftActions\}\s+aria-label="Visual draft actions">/,
   )?.[0]
-  assert.ok(actionRowOpeningTag)
-  assert.doesNotMatch(actionRowOpeningTag, /\brole=/)
+  assert.ok(headerActionGroupOpeningTag)
+  assert.doesNotMatch(headerActionGroupOpeningTag, /\brole=/)
+  assert.doesNotMatch(runningTimerSource, /className=\{styles\.visualDraftActions\}/)
 })
 
 test("globe coordinate inputs keep string drafts and clock font changes remeasure", () => {
@@ -1283,9 +1284,9 @@ test("DNA and Twisted Cubes controls emit only draft property patches with exact
   }
 
   for (const [label, property, min, max, step] of [
-    ["Node motion speed", "nodeMotionSpeed", "0.25", "3", "0.05"],
-    ["Strand rotation speed", "strandRotationSpeed", "0.1", "3", "0.05"],
-    ["Strand count", "strandCount", "7", "25", "1"],
+    ["Node motion speed", "nodeMotionSpeed", "0.01", "3", "0.01"],
+    ["Strand rotation speed", "strandRotationSpeed", "0.01", "3", "0.01"],
+    ["Strand count", "strandCount", "7", "81", "1"],
     ["Strand angle", "strandAngle", "-180", "180", "1"],
     ["Strand spacing", "strandSpacing", "0", "2", "0.05"],
     ["Scale", "scale", "0.4", "1.2", "0.01"],
@@ -1297,7 +1298,7 @@ test("DNA and Twisted Cubes controls emit only draft property patches with exact
   ]) assertSlider(dnaControlsSource, label, property, min, max, step)
 
   for (const [label, property, min, max, step] of [
-    ["Rotation speed", "rotationSpeed", "0.25", "3", "0.05"],
+    ["Rotation speed", "rotationSpeed", "0.01", "3", "0.01"],
     ["Layer stagger", "layerStagger", "0", "0.3", "0.01"],
     ["View angle X", "viewAngleX", "-80", "80", "1"],
     ["View angle Y", "viewAngleY", "-80", "80", "1"],

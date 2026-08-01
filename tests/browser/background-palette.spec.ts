@@ -174,17 +174,11 @@ async function expectLoadedPaletteMode(
     if (replacingOverride) {
       continue
     }
-    if (
-      mode === "source"
-      && (id === "massage-lab-dna" || id === "massage-lab-twisted-cubes")
-    ) {
-      expect(actualTargets[role.rendererTarget], `${id}:${mode}:${role.rendererTarget}`)
-        .toBe(role.sourceColor)
-      continue
-    }
     expectTargetColor(
       actualTargets[role.rendererTarget],
-      expectedRoleColors[role.id],
+      mode === "source" && !role.sourceColor.startsWith("#")
+        ? role.sourceColor
+        : expectedRoleColors[role.id],
       `${id}:${mode}:${role.rendererTarget}`,
     )
   }
@@ -297,14 +291,15 @@ test.describe("shared background palette review matrix", () => {
     await expect(page.getByTestId("background-palette-live-host")).toHaveCount(1)
   })
 
-  test("mounts the selected real effect for review even with reduced motion", async ({ page }) => {
+  test("animates the selected real effect for development review even with ambient reduced motion", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" })
     await openPaletteGallery(page)
     await selectBackground(page, "massage-lab-dna")
     await expectLoadedPaletteMode(page, "massage-lab-dna", "supported", "custom")
 
     const host = page.getByTestId("background-palette-live-host")
-    await expect(host).toHaveAttribute("data-background-diagnostic-reduced-motion", "true")
+    await expect(host).toHaveAttribute("data-background-diagnostic-reduced-motion", "false")
+    await expect(host).toHaveAttribute("data-background-review-motion-forced", "true")
     await expect(host).toHaveAttribute("data-background-fallback-only", "false")
 
     const effectLayer = host.locator('[style*="--ml-dna-background-color"]')
@@ -314,16 +309,16 @@ test.describe("shared background palette review matrix", () => {
     expect(effectBounds?.height).toBeGreaterThan(0)
     expect(await effectLayer.evaluate((element) => {
       const root = element as HTMLElement
-      const scene = root.firstElementChild as HTMLElement
+      const composition = root.firstElementChild?.firstElementChild as HTMLElement
       return {
         background: root.style.getPropertyValue("--ml-dna-background-color"),
         nodeOne: root.style.getPropertyValue("--ml-dna-node-color-0"),
-        animation: getComputedStyle(scene).animationName,
+        animation: getComputedStyle(composition).animationName,
       }
     })).toEqual({
       background: CUSTOM_SWATCHES[3],
       nodeOne: CUSTOM_SWATCHES[0],
-      animation: "none",
+      animation: expect.stringContaining("mlDnaStrandRotate"),
     })
   })
 
@@ -496,7 +491,7 @@ test.describe("shared background palette review matrix", () => {
       await expectLoadedPaletteMode(page, "static-gradient", "unsupported", mode)
     }
     const host = page.getByTestId("background-palette-live-host")
-    await expect(host).toHaveAttribute("data-background-diagnostic-reduced-motion", "true")
+    await expect(host).toHaveAttribute("data-background-diagnostic-reduced-motion", "false")
     await expect(host).toHaveAttribute("data-background-diagnostic-loaded-id", "static-gradient")
     expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1))
       .toBe(false)

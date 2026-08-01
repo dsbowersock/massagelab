@@ -34,6 +34,7 @@ describe("Chimer entitlement-aware settings", () => {
       }, [FEATURE_KEYS.premiumBackgrounds, FEATURE_KEYS.chimerCustomColors])
       assert.equal(featureSettings.backgroundId, backgroundId)
       assert.equal(featureSettings[visualPropertyKey], editedVisualValue)
+      assert.equal(featureSettings.backgroundVisualPreferences.palette.mode, "custom")
 
       const ownedSettings = sanitizeChimerSettingsForEntitlements({
         backgroundId,

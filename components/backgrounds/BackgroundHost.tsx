@@ -46,6 +46,12 @@ interface BackgroundHostProps extends BackgroundEffectProps {
   motionEnabled?: boolean
   /** Records guarded review intent without bypassing pause or reduced motion. */
   forceEffectMount?: boolean
+  /**
+   * Development-only review aid that bypasses ambient reduced-motion settings
+   * while preserving an explicit `motionEnabled={false}` pause. Production
+   * builds always ignore this override.
+   */
+  forceAmbientMotionForReview?: boolean
   testId?: string
   /** Exposes actual lazy-load and post-adapter props on data attributes for guarded QA surfaces. */
   diagnostics?: boolean
@@ -91,6 +97,7 @@ export function BackgroundHost(props: BackgroundHostProps) {
     style,
     motionEnabled = true,
     forceEffectMount = false,
+    forceAmbientMotionForReview = false,
     testId = "background-host",
     diagnostics = false,
     ...effectPropsInput
@@ -193,10 +200,12 @@ export function BackgroundHost(props: BackgroundHostProps) {
   })
   // An explicit pause uses the same resolved renderer contract as ambient
   // reduced motion. Static-capable effects still mount, but pause internally.
-  const reduceMotion = !motionEnabled || shouldReduceAmbientMotion({
+  const allowAmbientMotionForReview = process.env.NODE_ENV !== "production"
+    && forceAmbientMotionForReview
+  const reduceMotion = !motionEnabled || (!allowAmbientMotionForReview && shouldReduceAmbientMotion({
     prefersReducedMotion,
     ambientMotionMode: settings.ambientMotionMode,
-  })
+  }))
   const [loadedEffect, setLoadedEffect] = useState<{
     id: string
     component: ComponentType<BackgroundEffectProps>
@@ -460,6 +469,7 @@ export function BackgroundHost(props: BackgroundHostProps) {
       }
       data-background-motion={motionEnabled ? "playing" : "paused"}
       data-background-review-mount-requested={forceEffectMount ? "true" : undefined}
+      data-background-review-motion-forced={allowAmbientMotionForReview && motionEnabled ? "true" : undefined}
       data-background-provider={entry.provider}
       data-background-diagnostic-requested-id={diagnosticSnapshot?.requestedId}
       data-background-diagnostic-loaded-id={diagnosticSnapshot?.loadedId ?? undefined}

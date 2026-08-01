@@ -17,7 +17,7 @@ describe("Twisted Cubes background domain rules", () => {
   it("preserves the exact source defaults", () => {
     assert.deepEqual(DEFAULT_TWISTED_CUBES_BACKGROUND_OPTIONS, {
       layerCount: 20,
-      rotationSpeed: 1,
+      rotationSpeed: 0.25,
       layerStagger: 0.1,
       viewAngleX: -35,
       viewAngleY: -45,
@@ -49,7 +49,7 @@ describe("Twisted Cubes background domain rules", () => {
       }),
       {
         layerCount: 6,
-        rotationSpeed: 0.25,
+        rotationSpeed: 0.01,
         layerStagger: 0,
         viewAngleX: -80,
         viewAngleY: -80,
@@ -106,8 +106,8 @@ describe("Twisted Cubes background domain rules", () => {
   it("preserves source-derived cycle, count-relative delay, and depth alpha", () => {
     assert.equal(getTwistedCubeCycleSeconds(1), 4)
     assert.equal(getTwistedCubeCycleSeconds(2), 2)
-    assert.equal(getTwistedCubeCycleSeconds(0), 16)
-    assert.equal(getTwistedCubeCycleSeconds(Infinity), 4)
+    assert.equal(getTwistedCubeCycleSeconds(0), 400)
+    assert.equal(getTwistedCubeCycleSeconds(Infinity), 16)
 
     assert.ok(Math.abs(getTwistedCubeDelaySeconds({ oneBasedIndex: 1, count: 20, stagger: 0.1 }) + 1.7) < 1e-12)
     assert.ok(Math.abs(getTwistedCubeDelaySeconds({ oneBasedIndex: 20, count: 20, stagger: 0.1 }) - 0.2) < 1e-12)

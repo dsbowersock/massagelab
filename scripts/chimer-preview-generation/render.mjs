@@ -320,9 +320,10 @@ async function encodeWebm(sourcePath, outputPath, options, variant) {
 
 /** Extracts a stable representative frame after encoding so poster and video dimensions match. */
 async function encodePoster(videoPath, posterPath, durationMs) {
+  const seekSeconds = (durationMs / 1000) / 3
   await runProcess("ffmpeg", [
     "-y",
-    "-ss", (durationMs / 3000).toFixed(3),
+    "-ss", seekSeconds.toFixed(3),
     "-i", videoPath,
     "-frames:v", "1",
     "-c:v", "libwebp",
@@ -386,6 +387,12 @@ async function captureVariant(browser, entry, options, variant, tempVideoDir) {
       undefined,
       { timeout: 10_000 },
     )
+    // Next's development indicator is injected after hydration. Keep that
+    // tooling chrome out of generated product media even when capture reuses
+    // an already-running local dev server.
+    await page.addStyleTag({
+      content: "nextjs-portal { display: none !important; }",
+    })
     await page.waitForTimeout(options.warmupMs + options.durationMs + 600)
 
     const video = page.video()

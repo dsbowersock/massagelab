@@ -5,7 +5,6 @@ import {
   createDnaNodeRoleAssignments,
   getDnaNodeCycleSeconds,
   getDnaStrandDelaySeconds,
-  getDnaStrandPhase,
   getDnaStrandRotationSeconds,
 } from "@/lib/dna-background"
 import { resolveResponsiveBackgroundTransform } from "@/lib/background-effect-layout"
@@ -44,7 +43,7 @@ export function MassageLabDnaBackground({
     outlineColor,
   } = massageLabDna
   const renderStrandCount = Number.isFinite(strandCount)
-    ? Math.min(25, Math.max(0, Math.floor(strandCount)))
+    ? Math.min(81, Math.max(0, Math.floor(strandCount)))
     : 0
   const [nodeRoleAssignments, setNodeRoleAssignments] = useState(() => (
     createDnaNodeRoleAssignments(renderStrandCount * 2)
@@ -88,7 +87,6 @@ export function MassageLabDnaBackground({
   } as CSSProperties
   const strands = Array.from({ length: renderStrandCount }, (_, index) => {
     const oneBasedIndex = index + 1
-    const phase = getDnaStrandPhase({ oneBasedIndex, total: renderStrandCount })
     const delaySeconds = getDnaStrandDelaySeconds({
       oneBasedIndex,
       total: renderStrandCount,
@@ -98,7 +96,6 @@ export function MassageLabDnaBackground({
     return {
       index,
       style: {
-        "--ml-dna-phase": phase,
         "--ml-dna-node-duration": `${nodeCycleSeconds}s`,
         "--ml-dna-node-delay": `${delaySeconds}s`,
         "--ml-dna-start-color": `var(--ml-dna-node-color-${nodeRoleAssignments[index * 2] ?? 0})`,

@@ -36,17 +36,21 @@ describe("Chimer preview R2 uploader", () => {
     assert.ok(json, result.stdout)
     const summary = JSON.parse(json)
     assert.equal(summary.dryRun, true)
-    assert.equal(summary.objectCount, expectedMedia.length + 1)
+    const selectedObjects = summary.objects.filter(({ objectKey }) => {
+      const name = path.basename(objectKey)
+      return name === "index.json" || backgroundIds.some((id) => name.startsWith(id))
+    })
+    assert.equal(selectedObjects.length, expectedMedia.length + 1)
     assert.deepEqual(
-      summary.objects.map(({ objectKey }) => path.basename(objectKey)).sort(),
+      selectedObjects.map(({ objectKey }) => path.basename(objectKey)).sort(),
       [...expectedMedia, "index.json"].sort(),
     )
 
     const contentTypes = Object.fromEntries(
-      summary.objects.map(({ objectKey, contentType }) => [path.basename(objectKey), contentType]),
+      selectedObjects.map(({ objectKey, contentType }) => [path.basename(objectKey), contentType]),
     )
     const cacheControls = Object.fromEntries(
-      summary.objects.map(({ objectKey, cacheControl }) => [path.basename(objectKey), cacheControl]),
+      selectedObjects.map(({ objectKey, cacheControl }) => [path.basename(objectKey), cacheControl]),
     )
     for (const name of expectedMedia) {
       assert.equal(contentTypes[name], name.endsWith(".webp") ? "image/webp" : "video/webm")

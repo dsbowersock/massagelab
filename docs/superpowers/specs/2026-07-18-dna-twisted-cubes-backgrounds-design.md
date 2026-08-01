@@ -55,7 +55,7 @@ No source download, reusable component package, or implementation-oriented artif
 ## Goals
 
 - Ship DNA and Twisted Cubes as enabled premium backgrounds.
-- Preserve source defaults until a user changes visual properties or colors.
+- Preserve source colors until a user changes them. The post-implementation visual pass approved new MassageLab property defaults for DNA density/motion and Twisted Cubes rotation/viewport extent.
 - Use native React-generated markup plus scoped CSS Modules.
 - Use Track 4A palette roles instead of new per-background color fields.
 - Expose approved, responsive, bounded visual controls.
@@ -191,24 +191,24 @@ All properties use Track 4A's registry visual-property sanitizer and Visual pres
 
 | Property              |      Stored range | Default | UI behavior                        |
 | --------------------- | ----------------: | ------: | ---------------------------------- |
-| Strand count          |      integer 7-25 |      13 | Bounded count control              |
-| Node motion speed     |          0.25x-3x |      1x | Renderer duration is `2s / speed`  |
-| Strand rotation speed |           0.1x-3x |      1x | Renderer duration is `14s / speed` |
+| Strand count          |      integer 7-81 |      35 | Bounded count control              |
+| Node motion speed     |          0.01x-3x |   0.06x | Renderer duration is `2s / speed`  |
+| Strand rotation speed |          0.01x-3x |   0.02x | Renderer duration is `14s / speed` |
 | Strand angle          | -180deg to 180deg |   30deg | Degree slider                      |
 | Scale                 |           0.4-1.2 |       1 | Responsive percentage display      |
 | Horizontal position   |       -35% to 35% |      0% | Center-relative slider             |
 | Vertical position     |       -35% to 35% |      0% | Center-relative slider             |
 | Strand spacing        |           0-2vmin | 0.5vmin | Formatted spacing control          |
 | Connector width       |          60%-100% |     94% | Percentage slider                  |
-| Connector thickness   |           10%-60% |     30% | Percentage slider                  |
-| Outline thickness     |         0-1.5vmin | 0.5vmin | Allows zero outline                |
+| Connector thickness   |           10%-60% |     15% | Percentage slider                  |
+| Outline thickness     |         0-1.5vmin | 0.1vmin | Allows zero outline                |
 
 ### Twisted Cubes properties
 
 | Property            |    Stored range | Default | UI behavior                         |
 | ------------------- | --------------: | ------: | ----------------------------------- |
 | Layer count         |    integer 6-30 |      20 | Bounded count control               |
-| Rotation speed      |        0.25x-3x |      1x | Renderer duration is `4s / speed`   |
+| Rotation speed      |        0.01x-3x |   0.25x | Renderer duration is `4s / speed`   |
 | Layer stagger       |          0-0.3s |    0.1s | Independent delay control           |
 | X viewing angle     | -80deg to 80deg |  -35deg | Slider only                         |
 | Y viewing angle     | -80deg to 80deg |  -45deg | Slider only                         |
@@ -361,7 +361,7 @@ Visual controls retain Track 4A labels, keyboard behavior, value formatting, dir
 ## Lifecycle And Performance
 
 - `BackgroundHost` lazy-loads only the selected component.
-- DNA renders at most 25 strands and 50 nodes.
+- DNA renders at most 81 strands and 162 nodes.
 - Twisted Cubes renders at most 30 layers and 180 faces.
 - Palette or property changes update the mounted component without mounting other backgrounds.
 - DNA role assignments do not reshuffle on ordinary palette/property changes.
@@ -381,7 +381,7 @@ Use the existing Chimer preview generation workflow to create:
 - a short looping preview video for Twisted Cubes; and
 - a poster fallback for Twisted Cubes.
 
-Previews use source defaults and a representative source-color composition. DNA's generated preview records one acceptable random distribution; preview rendering does not make production assignments deterministic.
+Previews use the user-approved MassageLab defaults and a representative source-color composition. DNA's generated preview records one acceptable random distribution; preview rendering does not make production assignments deterministic.
 
 Update the preview manifest and source ledger only after generated files validate. Runtime selection never generates or downloads preview assets dynamically.
 
@@ -402,7 +402,7 @@ Update the preview manifest and source ledger only after generated files validat
 
 ### Pure tests
 
-- Every property default equals the supplied source value.
+- Every property default equals the source value except the explicit post-implementation visual-QA overrides recorded above.
 - Every property sanitizer clamps invalid, fractional, negative, excessive, and non-finite input.
 - Responsive transforms clamp effective output without mutating saved values.
 - DNA assignment returns exactly `strandCount * 2` valid role indexes.
@@ -474,12 +474,12 @@ For both backgrounds:
 - Keep DNA's node assignment truly random on every mount.
 - Apply DNA randomness in Source, Custom, and Harmony.
 - Give DNA separate node-motion and whole-strand-rotation speed controls.
-- Make DNA strand count adjustable from 7 to 25 with source default 13.
+- Make DNA strand count adjustable from 7 to 81 with the visually approved default 35.
 - Use DNA roles for Background, four Node colors, Connector, and Outline.
 - Give Twisted Cubes sliders only; do not add drag interaction.
 - Smoothly interpolate Twisted Cubes colors instead of repeating discrete swatches.
 - Use one Twisted Cubes Background role plus six Outline anchors.
-- Make Twisted Cubes layer count adjustable from 6 to 30 with source default 20.
+- Make Twisted Cubes layer count adjustable from 6 to 30 with source default 20 and use the visually approved `0.25x` rotation default.
 - Give Twisted Cubes separate rotation-speed and layer-stagger controls.
 - Add adjustable opacity falloff with the source value as default.
 - Include bounded X/Y position controls for both effects.

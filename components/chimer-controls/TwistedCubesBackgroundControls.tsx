@@ -35,7 +35,7 @@ export function TwistedCubesBackgroundControls({
     <div className={styles.backgroundPropertyGroups}>
       <fieldset className={styles.backgroundPropertyGroup}>
         <legend>Motion</legend>
-        <StyledRangeControl label="Rotation speed" value={value.rotationSpeed} min={0.25} max={3} step={0.05} disabled={disabled} displayValue={`${value.rotationSpeed.toFixed(2)}x`} onChange={(nextValue) => onChange({ rotationSpeed: nextValue })} />
+        <StyledRangeControl label="Rotation speed" value={value.rotationSpeed} min={0.01} max={3} step={0.01} disabled={disabled} displayValue={`${value.rotationSpeed.toFixed(2)}x`} onChange={(nextValue) => onChange({ rotationSpeed: nextValue })} />
         <StyledRangeControl label="Layer stagger" value={value.layerStagger} min={0} max={0.3} step={0.01} disabled={disabled} displayValue={`${value.layerStagger.toFixed(2)}s`} onChange={(nextValue) => onChange({ layerStagger: nextValue })} />
       </fieldset>
 

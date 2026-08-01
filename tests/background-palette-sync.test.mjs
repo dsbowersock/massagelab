@@ -256,8 +256,8 @@ describe("DNA and Twisted Cubes non-color persistence", () => {
       backgroundId: "massage-lab-dna",
       presetId: "dna",
       properties: {
-        massageLabDnaStrandCount: { invalid: 999, expected: 25 },
-        massageLabDnaNodeMotionSpeed: { invalid: -999, expected: 0.25 },
+        massageLabDnaStrandCount: { invalid: 999, expected: 81 },
+        massageLabDnaNodeMotionSpeed: { invalid: -999, expected: 0.01 },
         massageLabDnaStrandRotationSpeed: { invalid: 999, expected: 3 },
         massageLabDnaStrandAngle: { invalid: -999, expected: -180 },
         massageLabDnaScale: { invalid: 999, expected: 1.2 },

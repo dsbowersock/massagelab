@@ -15,21 +15,25 @@ import {
 import { resolveResponsiveBackgroundTransform } from "../lib/background-effect-layout.js"
 
 describe("DNA background domain and shared layout rules", () => {
-  it("preserves the exact source defaults and fixed source geometry", () => {
+  it("preserves the approved continuous-strand defaults and fixed geometry", () => {
     assert.deepEqual(DEFAULT_DNA_BACKGROUND_OPTIONS, {
-      strandCount: 13,
-      nodeMotionSpeed: 1,
-      strandRotationSpeed: 1,
+      strandCount: 35,
+      nodeMotionSpeed: 0.06,
+      strandRotationSpeed: 0.02,
       strandAngle: 30,
       scale: 1,
       positionX: 0,
       positionY: 0,
       strandSpacing: 0.5,
       connectorWidth: 94,
-      connectorThickness: 30,
-      outlineThickness: 0.5,
+      connectorThickness: 15,
+      outlineThickness: 0.1,
     })
-    assert.deepEqual(DNA_SOURCE_GEOMETRY, { heightVmin: 65, aspectRatio: "2 / 5" })
+    assert.deepEqual(DNA_SOURCE_GEOMETRY, {
+      widthVmin: 26,
+      minimumHeightVmin: 120,
+      viewportHeightVmax: 115,
+    })
     assert.equal(Object.isFrozen(DEFAULT_DNA_BACKGROUND_OPTIONS), true)
     assert.equal(Object.isFrozen(DNA_SOURCE_GEOMETRY), true)
   })
@@ -52,8 +56,8 @@ describe("DNA background domain and shared layout rules", () => {
       }),
       {
         strandCount: 7,
-        nodeMotionSpeed: 0.25,
-        strandRotationSpeed: 0.1,
+        nodeMotionSpeed: 0.01,
+        strandRotationSpeed: 0.01,
         strandAngle: -180,
         scale: 0.4,
         positionX: -35,
@@ -79,7 +83,7 @@ describe("DNA background domain and shared layout rules", () => {
         outlineThickness: 99,
       }),
       {
-        strandCount: 25,
+        strandCount: 81,
         nodeMotionSpeed: 3,
         strandRotationSpeed: 3,
         strandAngle: 180,
@@ -111,8 +115,9 @@ describe("DNA background domain and shared layout rules", () => {
     assert.equal(getDnaStrandRotationSeconds(1), 14)
     assert.equal(getDnaNodeCycleSeconds(2), 1)
     assert.equal(getDnaStrandRotationSeconds(2), 7)
-    assert.equal(getDnaNodeCycleSeconds(0), 8)
-    assert.equal(getDnaStrandRotationSeconds(Infinity), 14)
+    assert.equal(getDnaNodeCycleSeconds(0), 200)
+    assert.equal(getDnaStrandRotationSeconds(0), 1400)
+  assert.equal(getDnaStrandRotationSeconds(Infinity), 700)
 
     const phase = Math.sin((Math.PI / 180) * 45 * (3 / 13))
     assert.equal(getDnaStrandPhase({ oneBasedIndex: 3, total: 13 }), phase)

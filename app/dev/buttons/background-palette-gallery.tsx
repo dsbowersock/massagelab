@@ -322,6 +322,7 @@ function createTrack4BReviewDraft(backgroundId: Track4BBackgroundId) {
 function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) {
   const [selectedId, setSelectedId] = useState<Track4BBackgroundId>("massage-lab-dna")
   const [accessMode, setAccessMode] = useState<"subscriber" | "owner" | "locked">("subscriber")
+  const [reviewMotionEnabled, setReviewMotionEnabled] = useState(true)
   const [draft, setDraft] = useState(() => createTrack4BReviewDraft("massage-lab-dna"))
   const [appliedSnapshot, setAppliedSnapshot] = useState(() => draft.openingSnapshot)
   const [activePreviewId, setActivePreviewId] = useState<Track4BBackgroundId | null>(null)
@@ -518,6 +519,14 @@ function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) 
       </AppSurface>
 
       <div className="flex flex-wrap gap-2" aria-label="Track 4B draft actions">
+        <Button
+          size="compact"
+          variant="secondary"
+          aria-pressed={!reviewMotionEnabled}
+          onClick={() => setReviewMotionEnabled((current) => !current)}
+        >
+          {reviewMotionEnabled ? "Pause review animation" : "Play review animation"}
+        </Button>
         <Button size="compact" disabled={!draft.undoStack.length} onClick={() => setDraft((current) => reduceBackgroundVisualDraft(current, { type: "undo" }))}>Undo</Button>
         <Button size="compact" disabled={!draft.redoStack.length} onClick={() => setDraft((current) => reduceBackgroundVisualDraft(current, { type: "redo" }))}>Redo</Button>
         <Button size="compact" variant="destructive" disabled={!draft.dirty} onClick={() => setDraft((current) => reduceBackgroundVisualDraft(current, { type: "cancel" }))}>Cancel</Button>
@@ -544,8 +553,9 @@ function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) 
           {...hostPropsByContext.chimer as BackgroundEffectProps}
           backgroundPalette={{ palette: snapshot.palette, mapping: snapshot.mapping }}
           className="absolute inset-0"
-          motionEnabled
+          motionEnabled={reviewMotionEnabled}
           forceEffectMount
+          forceAmbientMotionForReview
           testId="track-4b-live-host"
           diagnostics
         />
@@ -958,6 +968,7 @@ export function BackgroundPaletteGallery() {
                   className="absolute inset-0"
                   motionEnabled
                   forceEffectMount
+                  forceAmbientMotionForReview
                   testId="background-palette-live-host"
                   diagnostics
                 />

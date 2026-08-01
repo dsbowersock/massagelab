@@ -10,14 +10,20 @@ const componentPath = path.join(rootDirectory, "components/backgrounds/effects/m
 const stylesheetPath = path.join(rootDirectory, "components/backgrounds/effects/massage-lab-dna-background.module.css")
 const effectPropsPath = path.join(rootDirectory, "components/backgrounds/effects/css-backgrounds.tsx")
 
+const stripSourceComments = (source) => source
+  .replace(/\/\*[\s\S]*?\*\//g, "")
+  .replace(/\/\/.*$/gm, "")
+
 test("the DNA renderer stays a scoped, non-interactive CSS DOM effect", () => {
   assert.equal(existsSync(componentPath), true, "the scoped DNA renderer exists")
   assert.equal(existsSync(stylesheetPath), true, "the scoped DNA stylesheet exists")
 
   const componentSource = readFileSync(componentPath, "utf8")
   const stylesheetSource = readFileSync(stylesheetPath, "utf8")
+  const componentCode = stripSourceComments(componentSource)
+  const stylesheetCode = stripSourceComments(stylesheetSource)
 
-  assert.match(componentSource, /const renderStrandCount = Number\.isFinite\(strandCount\)[\s\S]*?Math\.min\(25, Math\.max\(0, Math\.floor\(strandCount\)\)\)[\s\S]*?: 0/)
+  assert.match(componentSource, /const renderStrandCount = Number\.isFinite\(strandCount\)[\s\S]*?Math\.min\(81, Math\.max\(0, Math\.floor\(strandCount\)\)\)[\s\S]*?: 0/)
   assert.match(componentSource, /createDnaNodeRoleAssignments\(renderStrandCount \* 2\)/)
   assert.doesNotMatch(componentSource, /Array\.from\(\{ length: strandCount \}/)
   assert.match(componentSource, /resolveResponsiveBackgroundTransform/)
@@ -29,12 +35,12 @@ test("the DNA renderer stays a scoped, non-interactive CSS DOM effect", () => {
   assert.match(componentSource, /className=\{styles\.strand\}/)
   assert.match(componentSource, /className=\{styles\.connector\}/)
   assert.match(componentSource, /className=\{styles\.node\}/)
-  assert.doesNotMatch(componentSource, /\b(?:iframe|canvas|webgl|fetch|XMLHttpRequest|addEventListener|removeEventListener|ResizeObserver|window\.|document\.)\b/i)
-  assert.doesNotMatch(componentSource, /(?:billing|account|entitlement|stripe|registry|storage)/i)
-  assert.doesNotMatch(componentSource, /\b(?:button|input|select|textarea|tabIndex|onClick|onPointer|onDrag)\b/)
+  assert.doesNotMatch(componentCode, /\b(?:iframe|canvas|webgl|fetch|XMLHttpRequest|addEventListener|removeEventListener|ResizeObserver|window\.|document\.)\b/i)
+  assert.doesNotMatch(componentCode, /(?:billing|account|entitlement|stripe|registry|storage)/i)
+  assert.doesNotMatch(componentCode, /\b(?:button|input|select|textarea|tabIndex|onClick|onPointer|onDrag)\b/)
 
-  assert.match(stylesheetSource, /height:\s*65vmin/)
-  assert.match(stylesheetSource, /aspect-ratio:\s*2\s*\/\s*5/)
+  assert.match(stylesheetSource, /width:\s*26vmin/)
+  assert.match(stylesheetSource, /height:\s*max\(120vmin,\s*115vmax\)/)
   assert.match(stylesheetSource, /@keyframes\s+mlDnaNodeCrossover/)
   assert.match(stylesheetSource, /@keyframes\s+mlDnaConnectorCollapse/)
   assert.match(stylesheetSource, /@keyframes\s+mlDnaStrandRotate/)
@@ -45,7 +51,7 @@ test("the DNA renderer stays a scoped, non-interactive CSS DOM effect", () => {
   assert.match(stylesheetSource, /\.root \{[\s\S]*?pointer-events:\s*none;/)
   assert.match(stylesheetSource, /\.root\[data-reduce-motion\] \.composition,[\s\S]*?\.root\[data-reduce-motion\] \.node \{[\s\S]*?animation:\s*none;/)
   assert.doesNotMatch(stylesheetSource, /(?:^|\n)\s*(?:body|:root|\*)\s*(?:,|\{)/m)
-  assert.doesNotMatch(stylesheetSource, /(?:@font-face|font-family|min-height|touch-action)/i)
+  assert.doesNotMatch(stylesheetCode, /(?:@font-face|font-family|min-height|touch-action)/i)
 })
 
 test("DNA options extend the shared background effect contract", () => {

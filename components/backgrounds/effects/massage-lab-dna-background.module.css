@@ -12,8 +12,8 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  height: 65vmin;
-  aspect-ratio: 2 / 5;
+  width: 26vmin;
+  height: max(120vmin, 115vmax);
   transform: translate(
       calc(-50% + var(--ml-dna-position-x)),
       calc(-50% + var(--ml-dna-position-y))
@@ -80,6 +80,12 @@
 }
 
 @keyframes mlDnaNodeCrossover {
+  0%,
+  100% {
+    transform: translateX(0);
+    translate: 0 0 0;
+  }
+
   25% {
     translate: 0 0 1px;
   }

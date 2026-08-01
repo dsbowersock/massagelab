@@ -152,17 +152,17 @@ const cssDomFixtures = {
   },
   "massage-lab-dna": {
     massageLabDna: {
-      strandCount: 13,
-      nodeMotionSpeed: 1,
-      strandRotationSpeed: 1,
+      strandCount: 35,
+      nodeMotionSpeed: 0.06,
+      strandRotationSpeed: 0.02,
       strandAngle: 30,
       scale: 1,
       positionX: 0,
       positionY: 0,
       strandSpacing: 0.5,
       connectorWidth: 94,
-      connectorThickness: 30,
-      outlineThickness: 0.5,
+      connectorThickness: 15,
+      outlineThickness: 0.1,
       backgroundColor: "#010101",
       nodeRoleColors: ["#020202", "#030303", "#040404", "#050505"],
       connectorColor: "#060606",
@@ -172,7 +172,7 @@ const cssDomFixtures = {
   "massage-lab-twisted-cubes": {
     massageLabTwistedCubes: {
       layerCount: 20,
-      rotationSpeed: 1,
+      rotationSpeed: 0.25,
       layerStagger: 0.1,
       viewAngleX: -35,
       viewAngleY: -45,
@@ -632,7 +632,7 @@ describe("background palette adapter registry", () => {
       adapter.roles.map((role) => role.rendererTarget).sort(),
     )
     assert.deepEqual(fixture, original)
-    assert.equal(applied.massageLabDna.strandCount, 13)
+  assert.equal(applied.massageLabDna.strandCount, 35)
     assert.equal(applied.massageLabDna.connectorWidth, 94)
   })
 
@@ -660,6 +660,7 @@ describe("background palette adapter registry", () => {
     assert.equal(new Set(adapter.roles.map((role) => role.rendererTarget)).size, 7)
 
     const fixture = cssDomFixtures["massage-lab-twisted-cubes"]
+    const originalFixture = structuredClone(fixture)
     const custom = resolveBackgroundEffectProps({
       selectedId: "massage-lab-twisted-cubes",
       effectProps: fixture,
@@ -698,6 +699,7 @@ describe("background palette adapter registry", () => {
       canCustomize: false,
     })
     assert.equal(denied.massageLabTwistedCubes.paletteMode, "source")
+    assert.deepEqual(fixture, originalFixture)
   })
 
   it("completes every CSS/DOM adapter and changes only named renderer targets in every palette mode", () => {

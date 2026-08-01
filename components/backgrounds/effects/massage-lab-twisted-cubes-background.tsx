@@ -7,6 +7,7 @@ import {
   getTwistedCubeDelaySeconds,
   getTwistedCubeSourceOutline,
   interpolateTwistedCubeOutline,
+  TWISTED_CUBES_VIEWPORT_EXTENT_VMAX,
 } from "@/lib/twisted-cubes-background"
 import { resolveResponsiveBackgroundTransform } from "@/lib/background-effect-layout"
 import type { BackgroundEffectProps, MassageLabTwistedCubesOptions } from "./css-backgrounds"
@@ -21,7 +22,9 @@ const CUBE_FACES = ["front", "back", "right", "left", "top", "bottom"] as const
 /**
  * Keeps the source cuboid markup fixed at six faces, while the pre-sanitized
  * layer count remains defensively bounded before React allocates DOM nodes.
- * Per-layer color, fade, phase, and depth are presentation-only values.
+ * Per-layer color, fade, phase, and depth are presentation-only values. The
+ * depth wrapper intentionally sits outside the view rotation, matching the
+ * source Cubies transform order so every nested cube stays centered.
  */
 export function MassageLabTwistedCubesBackground({
   massageLabTwistedCubes,
@@ -44,7 +47,9 @@ export function MassageLabTwistedCubesBackground({
     backgroundColor,
     outlineAnchors,
   } = massageLabTwistedCubes
-  const renderLayerCount = Math.min(30, Math.max(0, Math.floor(layerCount)))
+  const renderLayerCount = Number.isFinite(layerCount)
+    ? Math.min(30, Math.max(0, Math.floor(layerCount)))
+    : 0
   const responsiveTransform = resolveResponsiveBackgroundTransform({
     scale,
     positionX,
@@ -82,9 +87,10 @@ export function MassageLabTwistedCubesBackground({
           count: renderLayerCount,
           stagger: layerStagger,
         })}s`,
-        "--ml-twisted-cubes-depth": `${-index * layerDepthSpacing}vmin`,
-        "--ml-twisted-cubes-size": `${(oneBasedIndex / renderLayerCount) * 50}vmin`,
+        "--ml-twisted-cubes-depth": `${(renderLayerCount - oneBasedIndex) * layerDepthSpacing}vmin`,
+        "--ml-twisted-cubes-size": `${(oneBasedIndex / renderLayerCount) * TWISTED_CUBES_VIEWPORT_EXTENT_VMAX}vmax`,
         "--ml-twisted-cubes-outline-thickness": outlineThickness,
+        zIndex: renderLayerCount - oneBasedIndex,
       } as CSSProperties,
     }
   })
@@ -97,9 +103,9 @@ export function MassageLabTwistedCubesBackground({
       aria-hidden="true"
     >
       <div className={styles.scene} style={sceneStyle}>
-        <div className={styles.view}>
-          {layers.map((layer) => (
-            <span className={styles.layer} style={layer.style} key={layer.index}>
+        {layers.map((layer) => (
+          <span className={styles.layer} style={layer.style} key={layer.index}>
+            <span className={styles.view}>
               <span className={styles.cube}>
                 <span className={styles.cuboid}>
                   {CUBE_FACES.map((face) => (
@@ -108,8 +114,8 @@ export function MassageLabTwistedCubesBackground({
                 </span>
               </span>
             </span>
-          ))}
-        </div>
+          </span>
+        ))}
       </div>
     </div>
   )

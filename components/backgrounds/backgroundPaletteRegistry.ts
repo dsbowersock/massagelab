@@ -61,6 +61,9 @@ export interface BackgroundPaletteModeOverride {
   customValue?: unknown
 }
 
+export const DNA_SOURCE_BACKGROUND_COLOR = "hsl(210 80% 12%)"
+export const TWISTED_CUBES_SOURCE_BACKGROUND_COLOR = "hsl(210 20% 12%)"
+
 type RoleTransform = "hex-hue" | "preserve-alpha"
 type RoleSpec = readonly [
   id: string,
@@ -313,7 +316,7 @@ export function applyCssDomPaletteRoleColors<
         massageLabDna: {
           ...props.massageLabDna,
           backgroundColor: roleColor(colors, "background", props.massageLabDna?.backgroundColor)
-            ?? "hsl(210 80% 12%)",
+            ?? DNA_SOURCE_BACKGROUND_COLOR,
           nodeRoleColors: roleColorArray(
             props.massageLabDna?.nodeRoleColors,
             ["node-one", "node-two", "node-three", "node-four"],
@@ -334,7 +337,7 @@ export function applyCssDomPaletteRoleColors<
             colors,
             "background",
             props.massageLabTwistedCubes?.backgroundColor,
-          ) ?? "hsl(210 20% 12%)",
+          ) ?? TWISTED_CUBES_SOURCE_BACKGROUND_COLOR,
           outlineAnchors: roleColorArray(
             props.massageLabTwistedCubes?.outlineAnchors,
             [
@@ -534,7 +537,7 @@ const SUPPORTED_SPECS: readonly SupportedSpec[] = [
     prefixes: ["massageLabDna"],
     sourceBehavior: "fixed",
     roles: [
-      role("background", "Background", "massageLabDnaBackgroundColor", "massageLabDna.backgroundColor", undefined, "hsl(210 80% 12%)", 3),
+      role("background", "Background", "massageLabDnaBackgroundColor", "massageLabDna.backgroundColor", undefined, DNA_SOURCE_BACKGROUND_COLOR, 3),
       role("node-one", "Node 1", "massageLabDnaNodeRoleColorOne", "massageLabDna.nodeRoleColors[0]", undefined, "hsl(44 98% 60%)", 0),
       role("node-two", "Node 2", "massageLabDnaNodeRoleColorTwo", "massageLabDna.nodeRoleColors[1]", undefined, "hsl(197 50% 44%)", 1),
       role("node-three", "Node 3", "massageLabDnaNodeRoleColorThree", "massageLabDna.nodeRoleColors[2]", undefined, "hsl(300 100% 100%)", 2),
@@ -549,7 +552,7 @@ const SUPPORTED_SPECS: readonly SupportedSpec[] = [
     prefixes: ["massageLabTwistedCubes"],
     sourceBehavior: "automatic",
     roles: [
-      role("background", "Background", "massageLabTwistedCubesBackgroundColor", "massageLabTwistedCubes.backgroundColor", undefined, "hsl(210 20% 12%)", 3),
+      role("background", "Background", "massageLabTwistedCubesBackgroundColor", "massageLabTwistedCubes.backgroundColor", undefined, TWISTED_CUBES_SOURCE_BACKGROUND_COLOR, 3),
       role("outline-one", "Outline 1", "massageLabTwistedCubesOutlineOne", "massageLabTwistedCubes.outlineAnchors[0]", undefined, "hsl(180 80% 60%)", 0),
       role("outline-two", "Outline 2", "massageLabTwistedCubesOutlineTwo", "massageLabTwistedCubes.outlineAnchors[1]", undefined, "hsl(212 80% 60%)", 1),
       role("outline-three", "Outline 3", "massageLabTwistedCubesOutlineThree", "massageLabTwistedCubes.outlineAnchors[2]", undefined, "hsl(244 80% 60%)", 2),

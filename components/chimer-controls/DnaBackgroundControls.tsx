@@ -35,13 +35,13 @@ export function DnaBackgroundControls({
     <div className={styles.backgroundPropertyGroups}>
       <fieldset className={styles.backgroundPropertyGroup}>
         <legend>Motion</legend>
-        <StyledRangeControl label="Node motion speed" value={value.nodeMotionSpeed} min={0.25} max={3} step={0.05} disabled={disabled} displayValue={`${value.nodeMotionSpeed.toFixed(2)}x`} onChange={(nextValue) => onChange({ nodeMotionSpeed: nextValue })} />
-        <StyledRangeControl label="Strand rotation speed" value={value.strandRotationSpeed} min={0.1} max={3} step={0.05} disabled={disabled} displayValue={`${value.strandRotationSpeed.toFixed(2)}x`} onChange={(nextValue) => onChange({ strandRotationSpeed: nextValue })} />
+        <StyledRangeControl label="Node motion speed" value={value.nodeMotionSpeed} min={0.01} max={3} step={0.01} disabled={disabled} displayValue={`${value.nodeMotionSpeed.toFixed(2)}x`} onChange={(nextValue) => onChange({ nodeMotionSpeed: nextValue })} />
+        <StyledRangeControl label="Strand rotation speed" value={value.strandRotationSpeed} min={0.01} max={3} step={0.01} disabled={disabled} displayValue={`${value.strandRotationSpeed.toFixed(2)}x`} onChange={(nextValue) => onChange({ strandRotationSpeed: nextValue })} />
       </fieldset>
 
       <fieldset className={styles.backgroundPropertyGroup}>
         <legend>Geometry</legend>
-        <StyledRangeControl label="Strand count" value={value.strandCount} min={7} max={25} step={1} disabled={disabled} displayValue={String(Math.round(value.strandCount))} onChange={(nextValue) => onChange({ strandCount: nextValue })} />
+        <StyledRangeControl label="Strand count" value={value.strandCount} min={7} max={81} step={1} disabled={disabled} displayValue={String(Math.round(value.strandCount))} onChange={(nextValue) => onChange({ strandCount: nextValue })} />
         <StyledRangeControl label="Strand angle" value={value.strandAngle} min={-180} max={180} step={1} disabled={disabled} displayValue={`${Math.round(value.strandAngle)}°`} onChange={(nextValue) => onChange({ strandAngle: nextValue })} />
         <StyledRangeControl label="Strand spacing" value={value.strandSpacing} min={0} max={2} step={0.05} disabled={disabled} displayValue={`${value.strandSpacing.toFixed(2)}vmin`} onChange={(nextValue) => onChange({ strandSpacing: nextValue })} />
       </fieldset>
