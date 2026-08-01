@@ -1284,6 +1284,22 @@ async function expectExactReducedEffectState(
 }
 
 test.describe("DNA and Twisted Cubes development acceptance", () => {
+  test("compact review state follows the live viewport media query", async ({ page }) => {
+    const health = captureRuntimeErrors(page)
+    await page.setViewportSize({ width: 800, height: 600 })
+    const review = await openTrack4BReview(page)
+    const compactState = review.locator('[data-track-4b-specimen="compact-viewport"]')
+
+    await expect(compactState).toHaveAttribute("data-active", "false")
+    await page.setViewportSize({ width: 479, height: 600 })
+    await expect(compactState).toHaveAttribute("data-active", "true")
+    await page.setViewportSize({ width: 800, height: 600 })
+    await expect(compactState).toHaveAttribute("data-active", "false")
+    await page.setViewportSize({ width: 800, height: 479 })
+    await expect(compactState).toHaveAttribute("data-active", "true")
+    expectHealthy(health)
+  })
+
   test("source defaults mount through the real Host with bounded, inert effect DOM", async ({ page }) => {
     const health = captureRuntimeErrors(page)
     const review = await openTrack4BReview(page)

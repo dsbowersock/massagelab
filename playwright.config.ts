@@ -31,9 +31,18 @@ const developmentPaletteReviewSpecs = [
   "tests/browser/background-palette.spec.ts",
   "tests/browser/dna-twisted-cubes-backgrounds.spec.ts",
 ]
-const runsDevelopmentPaletteReview = process.argv.some((argument) => (
-  developmentPaletteReviewSpecs.some((spec) => argument.replaceAll("\\", "/").endsWith(spec))
-))
+
+/** Matches exact development-review specs with Playwright's optional line/column suffix. */
+export function matchesDevelopmentPaletteReviewArgument(argument: string) {
+  const normalizedArgument = argument
+    .replaceAll("\\", "/")
+    .replace(/:\d+(?::\d+)?$/, "")
+  return developmentPaletteReviewSpecs.some((spec) => (
+    normalizedArgument === spec || normalizedArgument.endsWith(`/${spec}`)
+  ))
+}
+
+const runsDevelopmentPaletteReview = process.argv.some(matchesDevelopmentPaletteReviewArgument)
 const defaultWebServerCommand = runsDevelopmentPaletteReview
   ? `npm run dev -- -p ${browserQaPort}`
   : `npm run start -- -p ${browserQaPort}`

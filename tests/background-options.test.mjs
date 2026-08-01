@@ -147,6 +147,10 @@ describe("premium background registry", () => {
   })
 
   it("registers DNA and Twisted Cubes as static-capable premium CSS backgrounds", () => {
+    const expectedLicenses = {
+      "massage-lab-dna": "MIT; copyright 2026 Jhey; archive `css-trigonometric-function-dna-strand.zip` reviewed",
+      "massage-lab-twisted-cubes": "MIT; copyright 2026 Jhey; archive `cubies.zip` reviewed",
+    }
     for (const backgroundId of ["massage-lab-dna", "massage-lab-twisted-cubes"]) {
       assert.equal(isBackgroundId(backgroundId), true)
       const definition = backgroundRegistry.find((entry) => entry.id === backgroundId)
@@ -154,7 +158,7 @@ describe("premium background registry", () => {
       assert.equal(definition.enabled, true)
       assert.equal(definition.requiresSubscription, true)
       assert.equal(definition.licenseStatus, "verified")
-      assert.match(definition.license, /MIT/)
+      assert.equal(definition.license, expectedLicenses[backgroundId])
       assert.equal(definition.motionIntensity, "medium")
       assert.equal(definition.performanceCost, "medium")
       assert.deepEqual(definition.category, ["chimer", "clock", "music", "ambient"])

@@ -354,6 +354,9 @@ describe("DNA and Twisted Cubes non-color persistence", () => {
     assert.equal(retry.status, "pending")
     assert.equal(retry.requestId, 42)
     assert.equal(retry.requestBody, applyRequest.requestBody)
-    assert.doesNotMatch(serialized, /nodeRoleAssignments|outlineAnchors|derivedAlpha/)
+    const transientRendererFields = /nodeRoleAssignments|outlineAnchors|derivedAlpha/
+    assert.doesNotMatch(JSON.stringify(accountSettings), transientRendererFields)
+    assert.doesNotMatch(JSON.stringify(retrySettings), transientRendererFields)
+    assert.doesNotMatch(serialized, transientRendererFields)
   })
 })

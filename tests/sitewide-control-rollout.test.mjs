@@ -377,8 +377,8 @@ test("DNA and Twisted Cubes share compact options and host-owned responsive moti
   assert.doesNotMatch(cubesEffect, /matchMedia|addEventListener\("resize"/)
   assert.doesNotMatch(dnaEffect, /\bdocument\b|\bwindow\b|addEventListener|requestAnimationFrame/)
   assert.doesNotMatch(cubesEffect, /\bdocument\b|\bwindow\b|addEventListener|requestAnimationFrame/)
-  assert.match(styles, /\.backgroundPropertyGroups[\s\S]*min-width:\s*0/)
-  assert.match(styles, /\.backgroundPropertyGroup[\s\S]*min-width:\s*0/)
+  assert.match(styles, /\.backgroundPropertyGroups\s*\{[^}]*\bmin-width:\s*0/)
+  assert.match(styles, /\.backgroundPropertyGroup\s*\{[^}]*\bmin-width:\s*0/)
 })
 
 test("actual Chimer, ordinary Clock, Music, and ambient Host plumbing resolves all 22 values", async () => {
@@ -466,7 +466,7 @@ test("actual Chimer, ordinary Clock, Music, and ambient Host plumbing resolves a
 
   assert.match(
     runningSource,
-    /resolveDnaTwistedCubesBackgroundHostProps\(\{[\s\S]*settings: effectiveLiveBackgroundSettings,[\s\S]*category: backgroundCategory,[\s\S]*\}\)/,
+    /resolveDnaTwistedCubesBackgroundHostProps\(\{[^}]*settings: effectiveLiveBackgroundSettings,[^}]*category: backgroundCategory,[^}]*\}\)/,
   )
   assert.match(runningSource, /<BackgroundHost[\s\S]*\{\.\.\.effectiveDnaTwistedCubesHostProps\}/)
 

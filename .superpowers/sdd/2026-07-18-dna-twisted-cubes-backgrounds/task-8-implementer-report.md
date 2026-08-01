@@ -41,7 +41,7 @@ The first browser run proved that the real Track 4B sliders were keyboard-operab
 
 ## Browser matrix and results
 
-Final exact command:
+Original implementation-round exact command at `abf4bfaf`:
 
 ```text
 npm run test:browser -- tests/browser/dna-twisted-cubes-backgrounds.spec.ts
@@ -90,7 +90,7 @@ The first complete matrix was 11/12 because mobile read the Music session id bef
 - Review fixture persistence is deliberately namespaced to `massage-lab:dev:track-4b-review-applied`; it cannot create a production access or storage bypass.
 - Production randomness remains in live DNA specimens. Deterministic role-generation assertions remain in the existing injected pure-helper tests; browser comparisons only require the production stability contract.
 - Tone printed expected development-server warnings before user activation. The test then starts playback from a real button action, observes a running audio context, and verifies session continuity; captured page and console-error arrays remain empty.
-- No remaining Task 8 blocker is known.
+- No remaining Task 8 blocker was known at the original `abf4bfaf` implementation-round handoff; Fix Rounds 1–4 below supersede that historical status.
 
 ## Fix Round 1
 

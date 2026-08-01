@@ -325,6 +325,7 @@ function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) 
   const [draft, setDraft] = useState(() => createTrack4BReviewDraft("massage-lab-dna"))
   const [appliedSnapshot, setAppliedSnapshot] = useState(() => draft.openingSnapshot)
   const [activePreviewId, setActivePreviewId] = useState<Track4BBackgroundId | null>(null)
+  const [compactViewport, setCompactViewport] = useState(false)
   const adapter = backgroundPaletteRegistry[selectedId]
   const snapshot = draft.currentSnapshot
   const dnaOptions = getDnaBackgroundOptionsFromChimerSettings(
@@ -343,6 +344,14 @@ function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) 
     : accessMode === "owner"
       ? TRACK_4B_OWNER_ACCESS
       : TRACK_4B_LOCKED_ACCESS
+
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 479px), (max-height: 479px)")
+    const update = () => setCompactViewport(query.matches)
+    update()
+    query.addEventListener("change", update)
+    return () => query.removeEventListener("change", update)
+  }, [])
   const resolvedRoleColors = adapter?.status === "supported"
     ? resolveBackgroundRoleColors({
       palette: snapshot.palette,
@@ -428,7 +437,7 @@ function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) 
           ["Custom", snapshot.palette.mode === "custom"],
           ["Harmony", snapshot.palette.mode === "harmony"],
           ["Reduced motion", reducedMotion],
-          ["Compact viewport", false],
+          ["Compact viewport", compactViewport],
           ["Subscriber access", accessMode === "subscriber"],
           ["Permanent owner", accessMode === "owner"],
           ["Access locked", accessMode === "locked"],

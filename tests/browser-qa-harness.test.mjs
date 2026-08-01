@@ -2,6 +2,8 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 
+import { matchesDevelopmentPaletteReviewArgument } from "../playwright.config.ts"
+
 async function readProjectFile(path) {
   return readFile(new URL(`../${path}`, import.meta.url), "utf8")
 }
@@ -14,6 +16,19 @@ function assertWorkflowStepBefore(workflow, firstStep, secondStep) {
   assert.notEqual(secondIndex, -1, `Expected workflow to include ${secondStep}`)
   assert.ok(firstIndex < secondIndex, `Expected ${firstStep} before ${secondStep}`)
 }
+
+test("development review spec matching accepts Playwright line and column suffixes", () => {
+  for (const spec of [
+    "tests/browser/background-palette.spec.ts",
+    "tests/browser/dna-twisted-cubes-backgrounds.spec.ts",
+  ]) {
+    assert.equal(matchesDevelopmentPaletteReviewArgument(spec), true)
+    assert.equal(matchesDevelopmentPaletteReviewArgument(`${spec}:42`), true)
+    assert.equal(matchesDevelopmentPaletteReviewArgument(`C:\\repo\\${spec.replaceAll("/", "\\")}:42:7`), true)
+  }
+  assert.equal(matchesDevelopmentPaletteReviewArgument("tests/browser/public-routes.spec.ts:42"), false)
+  assert.equal(matchesDevelopmentPaletteReviewArgument("prefix-tests/browser/background-palette.spec.ts"), false)
+})
 
 test("browser QA harness is wired for public smoke, PWA, and local-first checks", async () => {
   const [packageJson, config, publicRoutesSpec, pwaSpec, localFirstSpec, ciWorkflow] = await Promise.all([

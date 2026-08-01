@@ -14,6 +14,7 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { getBackgroundOptionsForCategory } from "../../components/backgrounds/backgroundRegistry.ts"
+import { normalizeGeneratedPreviewManifestItem } from "./manifest-url-normalization.mjs"
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const defaultOutputDir = path.join(repoRoot, "public/chimer/background-previews")
@@ -464,7 +465,7 @@ function buildManifestItem(entry, variants) {
 function writeManifest(items, options) {
   const existingItems = getBackgroundOptionsForCategory(options.category)
     .filter((entry) => entry.previewVariants && Object.keys(entry.previewVariants).length > 0)
-    .map((entry) => ({
+    .map((entry) => normalizeGeneratedPreviewManifestItem({
       id: entry.id,
       label: entry.label,
       provider: entry.provider,

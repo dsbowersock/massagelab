@@ -1273,9 +1273,13 @@ test("globe coordinate inputs keep string drafts and clock font changes remeasur
 })
 
 test("DNA and Twisted Cubes controls emit only draft property patches with exact bounded sliders", () => {
+  const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
   const assertSlider = (source, label, property, minimum, maximum, step) => {
     const withinSlider = "(?:(?!\\/>)[\\s\\S])*?"
-    assert.match(source, new RegExp(`<StyledRangeControl${withinSlider}label="${label}"${withinSlider}value=\\{value\\.${property}\\}${withinSlider}min=\\{${minimum}\\}${withinSlider}max=\\{${maximum}\\}${withinSlider}step=\\{${step}\\}${withinSlider}onChange=\\{\\(nextValue\\) => onChange\\(\\{ ${property}: nextValue \\}\\)\\}${withinSlider}\\/>`))
+    const [safeLabel, safeProperty, safeMinimum, safeMaximum, safeStep] = [
+      label, property, minimum, maximum, step,
+    ].map(escapeRegExp)
+    assert.match(source, new RegExp(`<StyledRangeControl${withinSlider}label="${safeLabel}"${withinSlider}value=\\{value\\.${safeProperty}\\}${withinSlider}min=\\{${safeMinimum}\\}${withinSlider}max=\\{${safeMaximum}\\}${withinSlider}step=\\{${safeStep}\\}${withinSlider}onChange=\\{\\(nextValue\\) => onChange\\(\\{ ${safeProperty}: nextValue \\}\\)\\}${withinSlider}\\/>`))
   }
 
   for (const [label, property, min, max, step] of [

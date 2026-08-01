@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs"
 import { describe, it } from "node:test"
 
 import { parseProbeDimensions } from "../scripts/chimer-preview-generation/probe-result.mjs"
+import { normalizeGeneratedPreviewManifestItem } from "../scripts/chimer-preview-generation/manifest-url-normalization.mjs"
 
 const componentSource = readFileSync(
   new URL("../components/backgrounds/BackgroundPreviewMedia.tsx", import.meta.url),
@@ -71,6 +72,58 @@ describe("background preview media", () => {
     assert.match(manifestGeneratorSource, /previewVerticalImageUrl/)
     assert.match(manifestGeneratorSource, /validateDimensions\(posterPath, variant\.width, variant\.height\)/)
     assert.match(manifestGeneratorSource, /resolvePreviewMediaUrl\(variant\.previewPosterUrl\)/)
+  })
+
+  it("normalizes every copied manifest URL back to the raw local preview prefix", () => {
+    assert.match(renderSource, /\.map\(\(entry\) => normalizeGeneratedPreviewManifestItem\(\{/)
+    const normalized = normalizeGeneratedPreviewManifestItem({
+      previewMediaUrl: "https://media.example.test/chimer/background-previews/main.webm?cache=1",
+      previewVideoUrl: "https://custom.example.test/assets/main.webm",
+      previewImageUrl: "https://custom.example.test/assets/main.webp",
+      previewSquareVideoUrl: "https://custom.example.test/assets/main-square.webm",
+      previewSquareImageUrl: "https://custom.example.test/assets/main-square.webp",
+      previewVerticalVideoUrl: "https://custom.example.test/assets/main-vertical.webm",
+      previewVerticalImageUrl: "https://custom.example.test/assets/main-vertical.webp",
+      variants: {
+        landscape: {
+          key: "landscape",
+          previewMediaUrl: "https://custom.example.test/assets/main.webm#fragment",
+          previewPosterUrl: "https://custom.example.test/assets/main.webp",
+          previewMediaType: "video",
+        },
+        square: {
+          key: "square",
+          previewMediaUrl: "https://media.example.test/chimer/background-previews/main-square.webm",
+          previewPosterUrl: "https://media.example.test/chimer/background-previews/main-square.webp",
+          previewMediaType: "video",
+        },
+      },
+    })
+
+    assert.deepEqual(normalized, {
+      previewMediaUrl: "/chimer/background-previews/main.webm",
+      previewVideoUrl: "/chimer/background-previews/main.webm",
+      previewImageUrl: "/chimer/background-previews/main.webp",
+      previewSquareVideoUrl: "/chimer/background-previews/main-square.webm",
+      previewSquareImageUrl: "/chimer/background-previews/main-square.webp",
+      previewVerticalVideoUrl: "/chimer/background-previews/main-vertical.webm",
+      previewVerticalImageUrl: "/chimer/background-previews/main-vertical.webp",
+      variants: {
+        landscape: {
+          key: "landscape",
+          previewMediaUrl: "/chimer/background-previews/main.webm",
+          previewPosterUrl: "/chimer/background-previews/main.webp",
+          previewMediaType: "video",
+        },
+        square: {
+          key: "square",
+          previewMediaUrl: "/chimer/background-previews/main-square.webm",
+          previewPosterUrl: "/chimer/background-previews/main-square.webp",
+          previewMediaType: "video",
+        },
+      },
+    })
+    assert.doesNotMatch(JSON.stringify(normalized), /https?:\/\/|custom\.example|media\.example/)
   })
 
   it("reports FFprobe spawn and decoder failures before parsing dimensions", () => {
