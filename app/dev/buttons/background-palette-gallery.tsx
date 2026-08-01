@@ -392,10 +392,15 @@ function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) 
       backgroundId: selectedId,
       snapshot: committedSnapshot,
     })
-    window.localStorage.setItem(
-      "massage-lab:dev:track-4b-review-applied",
-      JSON.stringify(persisted),
-    )
+    try {
+      window.localStorage.setItem(
+        "massage-lab:dev:track-4b-review-applied",
+        JSON.stringify(persisted),
+      )
+    } catch {
+      // Storage can be unavailable in hardened review browsers; applying the
+      // in-memory specimen must remain usable because this route is dev-only.
+    }
     setAppliedSnapshot(committedSnapshot)
     setDraft((current) => reduceBackgroundVisualDraft(current, { type: "apply" }))
   }

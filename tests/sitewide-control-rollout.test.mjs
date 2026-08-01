@@ -134,9 +134,9 @@ test("Visual draft actions live in the responsive panel header while sync status
     read("app/chimer/running-timer.tsx"),
   ])
 
-  assert.doesNotMatch(styles, /\.visualDraftActions[\s\S]*position:\s*sticky/)
-  assert.match(styles, /\.immersiveVisualHeaderControls[\s\S]*\.visualHeaderDraftActions/)
-  assert.match(styles, /:global\(\[data-immersive-layout="side"\]\) \.visualHeaderDraftButtonLabel[\s\S]*display:\s*none/)
+  assert.doesNotMatch(styles, /\.visualDraftActions\s*\{[^}]*position:\s*sticky/)
+  assert.match(styles, /\.immersiveVisualHeaderControls,\s*\.visualHeaderDraftActions\s*\{/)
+  assert.match(styles, /:global\(\[data-immersive-layout="side"\]\) \.visualHeaderDraftButtonLabel\s*\{[^}]*display:\s*none/)
   assert.match(
     runningTimer,
     /className=\{styles\.immersiveVisualHeaderControls\}[\s\S]*aria-label="Visual draft actions"/,

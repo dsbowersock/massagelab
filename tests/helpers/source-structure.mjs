@@ -2,8 +2,10 @@ import assert from "node:assert/strict"
 
 /** Extracts one interface without allowing assertions to match later declarations. */
 export function extractInterfaceBody(source, name) {
-  const declarationIndex = source.indexOf(`export interface ${name}`)
-  assert.notEqual(declarationIndex, -1, `${name} is declared`)
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  const declaration = new RegExp(`export interface ${escapedName}(?![$\\w])`).exec(source)
+  assert.notEqual(declaration, null, `${name} is declared`)
+  const declarationIndex = declaration.index
 
   const openingBraceIndex = source.indexOf("{", declarationIndex)
   assert.notEqual(openingBraceIndex, -1, `${name} has an interface body`)

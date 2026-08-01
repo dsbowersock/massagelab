@@ -108,6 +108,18 @@ function expectTargetColor(actual: unknown, expectedHex: string, target: string)
   expect(actual, target).toBe(expectedHex)
 }
 
+/** Resolves any valid CSS color through the same browser parser used by renderers. */
+async function normalizeBrowserColor(page: Page, value: string) {
+  return page.evaluate((color) => {
+    const probe = document.createElement("span")
+    probe.style.color = color
+    document.body.append(probe)
+    const normalized = getComputedStyle(probe).color
+    probe.remove()
+    return normalized
+  }, value)
+}
+
 async function expectLoadedPaletteMode(
   page: Page,
   id: string,
@@ -174,11 +186,17 @@ async function expectLoadedPaletteMode(
     if (replacingOverride) {
       continue
     }
+    if (mode === "source" && !role.sourceColor.startsWith("#")) {
+      const [resolvedTargetColor, declaredColor] = await Promise.all([
+        normalizeBrowserColor(page, String(actualTargets[role.rendererTarget])),
+        normalizeBrowserColor(page, role.sourceColor),
+      ])
+      expect(resolvedTargetColor, `${id}:${mode}:${role.rendererTarget}`).toBe(declaredColor)
+      continue
+    }
     expectTargetColor(
       actualTargets[role.rendererTarget],
-      mode === "source" && !role.sourceColor.startsWith("#")
-        ? role.sourceColor
-        : expectedRoleColors[role.id],
+      expectedRoleColors[role.id],
       `${id}:${mode}:${role.rendererTarget}`,
     )
   }

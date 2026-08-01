@@ -150,7 +150,10 @@ MassageLab preserves the crossover geometry, phase relationship, opposite node a
 Each strand receives one valid complementary base pair and two independent role IDs through a pure helper comparable to:
 
 ```ts
-createDnaStrandAssignments(strandCount, (random = Math.random));
+function createDnaStrandAssignments(
+  strandCount: number,
+  random: () => number = Math.random,
+): readonly DnaStrandAssignment[];
 ```
 
 Production uses real randomness. Tests inject a deterministic random function.

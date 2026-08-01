@@ -13295,11 +13295,11 @@ export function RunningTimer({
                 </div>
               ) : null}
               <div className={styles.visualHeaderDraftActions} role="group" aria-label="Visual draft actions">
-                <Button type="button" size="compact" variant="ghost" aria-label="Undo" title="Undo" disabled={!visualDraft?.undoStack.length} onClick={() => dispatchVisualDraft({ type: "undo" })}>
+                <Button type="button" size="compact" variant="ghost" aria-label="Undo" title="Undo" disabled={!visualDraft?.undoStack.length} hapticsEnabled={hapticsEnabled} onClick={() => dispatchVisualDraft({ type: "undo" })}>
                   <Undo2 aria-hidden="true" />
                   <span className={styles.visualHeaderDraftButtonLabel}>Undo</span>
                 </Button>
-                <Button type="button" size="compact" variant="ghost" aria-label="Redo" title="Redo" disabled={!visualDraft?.redoStack.length} onClick={() => dispatchVisualDraft({ type: "redo" })}>
+                <Button type="button" size="compact" variant="ghost" aria-label="Redo" title="Redo" disabled={!visualDraft?.redoStack.length} hapticsEnabled={hapticsEnabled} onClick={() => dispatchVisualDraft({ type: "redo" })}>
                   <Redo2 aria-hidden="true" />
                   <span className={styles.visualHeaderDraftButtonLabel}>Redo</span>
                 </Button>

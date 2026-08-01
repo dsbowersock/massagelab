@@ -180,6 +180,7 @@ Add this exact option shape to `BackgroundEffectProps`:
 ```ts
 export interface MassageLabDnaOptions {
   strandCount: number;
+  showBaseLetters: boolean;
   nodeMotionSpeed: number;
   strandRotationSpeed: number;
   strandAngle: number;
@@ -191,7 +192,7 @@ export interface MassageLabDnaOptions {
   connectorThickness: number;
   outlineThickness: number;
   backgroundColor: string;
-  nodeColors: readonly [string, string, string, string];
+  nodeRoleColors: readonly [string, string, string, string];
   connectorColor: string;
   outlineColor: string;
 }

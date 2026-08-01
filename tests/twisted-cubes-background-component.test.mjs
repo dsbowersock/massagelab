@@ -42,11 +42,11 @@ test("the Twisted Cubes renderer stays a scoped, non-interactive CSS DOM effect"
   assert.match(componentCode, /"--ml-twisted-cubes-viewport-extent": `\$\{TWISTED_CUBES_VIEWPORT_EXTENT_VMAX\}vmax`/)
   assert.match(componentSource, /className=\{styles\.cube\}/)
   assert.match(componentSource, /className=\{styles\.cuboid\}/)
-  assert.doesNotMatch(componentSource, /\b(?:iframe|canvas|webgl|fetch|XMLHttpRequest|addEventListener|removeEventListener|ResizeObserver|window\.|document\.)\b/i)
-  assert.doesNotMatch(componentSource, /(?:billing|account|entitlement|stripe|registry|storage)/i)
-  assert.doesNotMatch(componentSource, /\b(?:button|input|select|textarea|tabIndex|onClick|onPointer|onDrag|onTouch|cursor)\b/)
+  assert.doesNotMatch(componentCode, /\b(?:iframe|canvas|webgl|fetch|XMLHttpRequest|addEventListener|removeEventListener|ResizeObserver|window\.|document\.)\b/i)
+  assert.doesNotMatch(componentCode, /(?:billing|account|entitlement|stripe|registry|storage)/i)
+  assert.doesNotMatch(componentCode, /\b(?:button|input|select|textarea|tabIndex|onClick|onPointer|onDrag|onTouch|cursor)\b/)
 
-  assert.doesNotMatch(stylesheetSource, /perspective:/)
+  assert.doesNotMatch(stylesheetCode, /perspective:/)
   assert.match(stylesheetCode, /width:\s*var\(--ml-twisted-cubes-viewport-extent\)/)
   assert.match(stylesheetCode, /height:\s*var\(--ml-twisted-cubes-viewport-extent\)/)
   assert.match(stylesheetCode, /\.face\s*\{[\s\S]*?background:\s*transparent;/)
@@ -54,7 +54,7 @@ test("the Twisted Cubes renderer stays a scoped, non-interactive CSS DOM effect"
   assert.match(stylesheetSource, /transform-style:\s*preserve-3d/)
   assert.match(stylesheetSource, /@keyframes\s+mlTwistedCubesRotate/)
   assert.match(stylesheetSource, /backface-visibility:\s*hidden/)
-  assert.doesNotMatch(stylesheetSource, /scale\(var\(--ml-twisted-cubes-scale\)\)/)
+  assert.doesNotMatch(stylesheetCode, /scale\(var\(--ml-twisted-cubes-scale\)\)/)
   assert.match(stylesheetSource, /cubic-bezier\(0\.5, 0\.1, 0\.5, 0\.9\)/)
   assert.match(
     stylesheetSource,
@@ -75,8 +75,8 @@ test("the Twisted Cubes renderer stays a scoped, non-interactive CSS DOM effect"
   assert.match(stylesheetSource, /\.bottom/)
   assert.match(stylesheetSource, /\.root\[data-reduce-motion\] \.cube \{[\s\S]*?animation:\s*none;/)
   assert.match(stylesheetSource, /\.root\[data-reduce-motion\] \.cube \{[\s\S]*?transform:\s*translate\(-50%, -50%\) rotateZ\(90deg\) rotateX\(90deg\) rotateZ\(0deg\);/)
-  assert.doesNotMatch(stylesheetSource, /(?:^|\n)\s*(?:body|:root|\*)\s*(?:,|\{)/m)
-  assert.doesNotMatch(stylesheetSource, /(?:@font-face|font-family|min-height|touch-action|cursor)/i)
+  assert.doesNotMatch(stylesheetCode, /(?:^|\n)\s*(?:body|:root|\*)\s*(?:,|\{)/m)
+  assert.doesNotMatch(stylesheetCode, /(?:@font-face|font-family|min-height|touch-action|cursor)/i)
 })
 
 test("Twisted Cubes options extend the shared background effect contract", () => {

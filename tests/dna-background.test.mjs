@@ -148,7 +148,7 @@ describe("DNA background domain and shared layout rules", () => {
     assert.ok(assignments.every((assignment) => Number.isInteger(assignment) && assignment >= 0 && assignment <= 3))
   })
 
-  it("creates biologically valid base pairs with independent node swatch roles", () => {
+  it("creates biologically valid base pairs with independently selected node swatch roles", () => {
     const sequence = [
       0, 0, 0.99,
       0.26, 0.3, 0.7,
@@ -165,7 +165,6 @@ describe("DNA background domain and shared layout rules", () => {
       { startBase: "G", endBase: "C", startRole: 1, endRole: 2 },
       { startBase: "C", endBase: "G", startRole: 3, endRole: 0 },
     ])
-    assert.notEqual(assignments[0].startRole, assignments[0].endRole)
     assert.deepEqual(createDnaStrandAssignments(1, () => Number.NaN), [
       { startBase: "A", endBase: "T", startRole: 0, endRole: 0 },
     ])
