@@ -32,6 +32,7 @@ test("development review spec matching accepts Playwright line and column suffix
   }
   assert.equal(matchesDevelopmentPaletteReviewArgument("dna-twisted"), true)
   assert.equal(matchesDevelopmentPaletteReviewArgument("background-palette"), true)
+  assert.equal(matchesDevelopmentPaletteReviewArgument("spec"), false)
   assert.equal(matchesDevelopmentPaletteReviewArgument("tests/browser/public-routes.spec.ts:42"), false)
   assert.equal(matchesDevelopmentPaletteReviewArgument("prefix-tests/browser/background-palette.spec.ts"), false)
   assert.deepEqual(
@@ -46,6 +47,16 @@ test("development review spec matching accepts Playwright line and column suffix
   assert.deepEqual(
     getPlaywrightFileFilterArguments(["test", "--grep=dna-twisted", "dna-twisted"]),
     ["test", "dna-twisted"],
+  )
+  assert.deepEqual(
+    getPlaywrightFileFilterArguments([
+      "test",
+      "--trace", "on-first-retry",
+      "--repeat-each", "dna-twisted",
+      "--tsconfig", "background-palette",
+      "tests/browser/public-routes.spec.ts",
+    ]),
+    ["test", "tests/browser/public-routes.spec.ts"],
   )
 })
 

@@ -40,20 +40,22 @@ export function matchesDevelopmentPaletteReviewArgument(argument: string) {
     .replace(/:\d+(?::\d+)?$/, "")
   const argumentBasename = path.posix.basename(normalizedArgument)
   const isStandaloneFilter = normalizedArgument === argumentBasename && argumentBasename.length > 0
-  return developmentPaletteReviewSpecs.some((spec) => {
-    const specBasename = path.posix.basename(spec)
-    return normalizedArgument === spec
-      || normalizedArgument.endsWith(`/${spec}`)
-      || (isStandaloneFilter && (
-        argumentBasename === specBasename || specBasename.includes(argumentBasename)
-      ))
-  })
+  if (developmentPaletteReviewSpecs.some((spec) => (
+    normalizedArgument === spec || normalizedArgument.endsWith(`/${spec}`)
+  ))) return true
+  if (!isStandaloneFilter) return false
+
+  // Playwright accepts positional filename substrings. Only switch servers
+  // when that substring identifies exactly one development-only review spec.
+  return developmentPaletteReviewSpecs.filter((spec) => (
+    path.posix.basename(spec).includes(argumentBasename)
+  )).length === 1
 }
 
 const playwrightOptionsWithSeparateValues = new Set([
   "-c", "--config", "-g", "--grep", "--grep-invert", "-j", "--workers",
   "--project", "--reporter", "--retries", "--timeout", "--global-timeout",
-  "--max-failures", "--output", "--shard",
+  "--max-failures", "--output", "--shard", "--trace", "--repeat-each", "--tsconfig",
 ])
 
 /** Returns only positional Playwright arguments, excluding option names and their values. */
