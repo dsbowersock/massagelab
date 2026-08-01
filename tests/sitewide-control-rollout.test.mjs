@@ -468,7 +468,10 @@ test("actual Chimer, ordinary Clock, Music, and ambient Host plumbing resolves a
     runningSource,
     /resolveDnaTwistedCubesBackgroundHostProps\(\{[^}]*settings: effectiveLiveBackgroundSettings,[^}]*category: backgroundCategory,[^}]*\}\)/,
   )
-  assert.match(runningSource, /<BackgroundHost[\s\S]*\{\.\.\.effectiveDnaTwistedCubesHostProps\}/)
+  assert.match(
+    runningSource,
+    /<BackgroundHost(?:(?!\/>)[\s\S])*?\{\.\.\.effectiveDnaTwistedCubesHostProps\}(?:(?!\/>)[\s\S])*?\/>/,
+  )
 
   for (const { label, category, route, immersiveContext } of contexts) {
     if (route) {

@@ -76,8 +76,9 @@ describe("background preview media", () => {
 
   it("normalizes every copied manifest URL back to the raw local preview prefix", () => {
     assert.match(renderSource, /\.map\(\(entry\) => normalizeGeneratedPreviewManifestItem\(\{/)
+    assert.match(manifestGeneratorSource, /const normalizedFallbackVariants = normalizeGeneratedPreviewManifestItem\(\{/)
     const normalized = normalizeGeneratedPreviewManifestItem({
-      previewMediaUrl: "https://media.example.test/chimer/background-previews/main.webm?cache=1",
+      previewMediaUrl: "https://media.massagelab.app/chimer/background-previews/main.webm?cache=1",
       previewVideoUrl: "https://custom.example.test/assets/main.webm",
       previewImageUrl: "https://custom.example.test/assets/main.webp",
       previewSquareVideoUrl: "https://custom.example.test/assets/main-square.webm",
@@ -93,8 +94,8 @@ describe("background preview media", () => {
         },
         square: {
           key: "square",
-          previewMediaUrl: "https://media.example.test/chimer/background-previews/main-square.webm",
-          previewPosterUrl: "https://media.example.test/chimer/background-previews/main-square.webp",
+          previewMediaUrl: "https://media.massagelab.app/chimer/background-previews/main-square.webm",
+          previewPosterUrl: "https://media.massagelab.app/chimer/background-previews/main-square.webp",
           previewMediaType: "video",
         },
       },
@@ -123,7 +124,7 @@ describe("background preview media", () => {
         },
       },
     })
-    assert.doesNotMatch(JSON.stringify(normalized), /https?:\/\/|custom\.example|media\.example/)
+    assert.doesNotMatch(JSON.stringify(normalized), /https?:\/\/|custom\.example|media\.massagelab/)
   })
 
   it("reports FFprobe spawn and decoder failures before parsing dimensions", () => {

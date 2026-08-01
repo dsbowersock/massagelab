@@ -5,6 +5,7 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { getBackgroundOptionsForCategory } from "../../components/backgrounds/backgroundRegistry.ts"
+import { normalizeGeneratedPreviewManifestItem } from "./manifest-url-normalization.mjs"
 import { parseProbeDimensions } from "./probe-result.mjs"
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
@@ -91,12 +92,15 @@ function buildVariant(entry, variant) {
 }
 
 function buildItem(entry) {
+  const normalizedFallbackVariants = normalizeGeneratedPreviewManifestItem({
+    variants: entry.previewVariants,
+  }).variants
   const variantEntries = Object.fromEntries(
     variants
       .map((variant) => [
         variant.key,
         buildVariant(entry, variant)
-          ?? entry.previewVariants?.[variant.key],
+          ?? normalizedFallbackVariants[variant.key],
       ])
       .filter(([, item]) => item),
   )

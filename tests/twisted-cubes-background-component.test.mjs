@@ -38,6 +38,14 @@ test("the Twisted Cubes renderer stays a scoped, non-interactive CSS DOM effect"
   assert.match(stylesheetSource, /transform-style:\s*preserve-3d/)
   assert.match(stylesheetSource, /@keyframes\s+mlTwistedCubesRotate/)
   assert.match(stylesheetSource, /cubic-bezier\(0\.5, 0\.1, 0\.5, 0\.9\)/)
+  assert.match(
+    stylesheetSource,
+    /\.cube\s*\{[^}]*transform:\s*translate\(-50%, -50%\) rotateZ\(0deg\) rotateX\(0deg\) rotateZ\(0deg\);[^}]*animation:/,
+  )
+  assert.match(
+    stylesheetSource,
+    /0%\s*\{[^}]*transform:\s*translate\(-50%, -50%\) rotateZ\(0deg\) rotateX\(0deg\) rotateZ\(0deg\);/,
+  )
   for (const stage of ["0%", "33%", "66%", "100%"]) {
     assert.match(stylesheetSource, new RegExp(`(?:^|\\n)\\s*${stage}\\s*\\{`))
   }

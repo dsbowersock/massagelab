@@ -1333,6 +1333,41 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
     expectHealthy(health)
   })
 
+  test("positive-delay Twisted layers stay centered before animation begins", async ({ page }) => {
+    const health = captureRuntimeErrors(page)
+    const review = await openTrack4BReview(page)
+    const host = review.getByTestId("track-4b-live-host")
+    await selectEffect(review, host, "massage-lab-twisted-cubes")
+    const root = effectRoot(host)
+    const layers = root.locator('[style*="--ml-twisted-cubes-outline"]')
+    const count = await layers.count()
+    const samples = await layers.evaluateAll((elements) => elements.slice(-2).map((layer) => {
+      const cube = layer.firstElementChild as HTMLElement | null
+      const animation = cube?.getAnimations()[0]
+      if (!cube || !animation) throw new Error("Twisted positive-delay cube animation is missing.")
+      animation.pause()
+      animation.currentTime = 0
+      const css = getComputedStyle(cube)
+      return {
+        delay: Number.parseFloat(css.animationDelay),
+        transform: css.transform,
+        width: css.width,
+        height: css.height,
+      }
+    }))
+
+    expect(count).toBe(20)
+    expect(samples).toHaveLength(2)
+    for (const sample of samples) {
+      expect(sample.delay).toBeGreaterThan(0)
+      const centered = await normalizeComputedConsumer(host, {
+        transform: "translate(-50%, -50%) rotateZ(0deg) rotateX(0deg) rotateZ(0deg)",
+      }, { width: sample.width, height: sample.height })
+      expect(sample.transform).toBe(centered.transform)
+    }
+    expectHealthy(health)
+  })
+
   test("consecutive property patches merge against the latest draft snapshot", async ({ page }) => {
     const health = captureRuntimeErrors(page)
     const review = await openTrack4BReview(page)
