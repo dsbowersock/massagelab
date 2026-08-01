@@ -80,9 +80,14 @@ function parseComputedMatrix(transform: string) {
   if (!match) {
     throw new Error(`Expected a computed 2D or 3D matrix, received: ${transform}`)
   }
-  const values = match[1].split(",").map((value) => Number.parseFloat(value.trim()))
+  const rawValues = match[1].split(",").map((value) => value.trim())
+  const values = rawValues.map((value) => Number(value))
   const expectedLength = matrix2d ? 6 : 16
-  if (values.length !== expectedLength || values.some((value) => !Number.isFinite(value))) {
+  if (
+    rawValues.length !== expectedLength
+    || rawValues.some((value) => value === "")
+    || values.some((value) => !Number.isFinite(value))
+  ) {
     throw new Error(`Expected ${expectedLength} finite computed matrix values, received: ${transform}`)
   }
   return values
@@ -1416,6 +1421,8 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
   })
 
   test("positive-delay Twisted layers stay centered before animation begins", async ({ page }) => {
+    expect(parseComputedMatrix("matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 12, 24, 0, 1)")).toHaveLength(16)
+    expect(() => parseComputedMatrix("matrix(1, 0, 0, 1, 6px, 7)")).toThrow(/6 finite computed matrix values/)
     const health = captureRuntimeErrors(page)
     const review = await openTrack4BReview(page)
     const host = review.getByTestId("track-4b-live-host")
