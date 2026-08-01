@@ -4,6 +4,8 @@ import path from "node:path"
 import test from "node:test"
 import { fileURLToPath } from "node:url"
 
+import { extractInterfaceBody } from "./helpers/source-structure.mjs"
+
 const testsDirectory = path.dirname(fileURLToPath(import.meta.url))
 const rootDirectory = path.resolve(testsDirectory, "..")
 const componentPath = path.join(rootDirectory, "components/backgrounds/effects/massage-lab-twisted-cubes-background.tsx")
@@ -13,26 +15,6 @@ const effectPropsPath = path.join(rootDirectory, "components/backgrounds/effects
 const stripSourceComments = (source) => source
   .replace(/\/\*[\s\S]*?\*\//g, "")
   .replace(/\/\/.*$/gm, "")
-
-/** Extracts one interface without allowing assertions to match fields from a later declaration. */
-const extractInterfaceBody = (source, name) => {
-  const declarationIndex = source.indexOf(`export interface ${name}`)
-  assert.notEqual(declarationIndex, -1, `${name} is declared`)
-
-  const openingBraceIndex = source.indexOf("{", declarationIndex)
-  assert.notEqual(openingBraceIndex, -1, `${name} has an interface body`)
-
-  let depth = 0
-  for (let index = openingBraceIndex; index < source.length; index += 1) {
-    if (source[index] === "{") depth += 1
-    if (source[index] !== "}") continue
-
-    depth -= 1
-    if (depth === 0) return source.slice(openingBraceIndex + 1, index)
-  }
-
-  assert.fail(`${name} has a balanced interface body`)
-}
 
 test("the Twisted Cubes renderer stays a scoped, non-interactive CSS DOM effect", () => {
   assert.equal(existsSync(componentPath), true, "the scoped Twisted Cubes renderer exists")

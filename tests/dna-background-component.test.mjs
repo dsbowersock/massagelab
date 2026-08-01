@@ -4,6 +4,8 @@ import path from "node:path"
 import test from "node:test"
 import { fileURLToPath } from "node:url"
 
+import { extractInterfaceBody } from "./helpers/source-structure.mjs"
+
 const testsDirectory = path.dirname(fileURLToPath(import.meta.url))
 const rootDirectory = path.resolve(testsDirectory, "..")
 const componentPath = path.join(rootDirectory, "components/backgrounds/effects/massage-lab-dna-background.tsx")
@@ -60,8 +62,10 @@ test("the DNA renderer stays a scoped, non-interactive CSS DOM effect", () => {
 
 test("DNA options extend the shared background effect contract", () => {
   const effectPropsSource = readFileSync(effectPropsPath, "utf8")
+  const dnaOptions = extractInterfaceBody(effectPropsSource, "MassageLabDnaOptions")
+  const effectProps = extractInterfaceBody(effectPropsSource, "BackgroundEffectProps")
 
-  assert.match(effectPropsSource, /export interface MassageLabDnaOptions \{[\s\S]*?strandCount: number;?[\s\S]*?showBaseLetters: boolean;?[\s\S]*?nodeRoleColors: readonly \[string, string, string, string\];?[\s\S]*?outlineColor: string;?[\s\S]*?\}/)
-  assert.doesNotMatch(effectPropsSource, /\bnodeColors\b/)
-  assert.match(effectPropsSource, /export interface BackgroundEffectProps \{[\s\S]*?reduceMotion\?: boolean;?[\s\S]*?compactViewport\?: boolean;?[\s\S]*?massageLabDna\?: MassageLabDnaOptions;?/)
+  assert.match(dnaOptions, /strandCount: number;?[\s\S]*?showBaseLetters: boolean;?[\s\S]*?nodeRoleColors: readonly \[string, string, string, string\];?[\s\S]*?outlineColor: string;?/)
+  assert.doesNotMatch(dnaOptions, /\bnodeColors\b/)
+  assert.match(effectProps, /reduceMotion\?: boolean;?[\s\S]*?compactViewport\?: boolean;?[\s\S]*?massageLabDna\?: MassageLabDnaOptions;?/)
 })
