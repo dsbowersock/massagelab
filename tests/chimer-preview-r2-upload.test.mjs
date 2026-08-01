@@ -36,7 +36,7 @@ describe("Chimer preview R2 uploader", () => {
     assert.ok(json, result.stdout)
     const summary = JSON.parse(json)
     assert.equal(summary.dryRun, true)
-    assert.equal(summary.objectCount, 13)
+    assert.equal(summary.objectCount, expectedMedia.length + 1)
     assert.deepEqual(
       summary.objects.map(({ objectKey }) => path.basename(objectKey)).sort(),
       [...expectedMedia, "index.json"].sort(),

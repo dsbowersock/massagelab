@@ -107,6 +107,7 @@ async function expectLoaded(host: Locator, id: string) {
   await expect(host).not.toHaveAttribute("data-background-diagnostic-error", /.+/)
 }
 
+/** BackgroundHost renders the fallback first and the mounted effect second. */
 function effectRoot(host: Locator) {
   return host.locator(":scope > div").nth(1)
 }
@@ -1689,6 +1690,7 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
         await selectEffect(review, host, effect.id)
         await expect(host).toHaveAttribute("data-background-diagnostic-reduced-motion", "true")
         await review.getByRole("button", { name: "Harmony", exact: true }).click()
+        await expect(review).toHaveAttribute("data-palette-mode", "harmony")
         for (const { label } of effect.controls) await namedSlider(review, label).press("End")
         const saved = await parsedAttribute<Record<string, number>>(review, "data-current-properties")
         expect(Object.fromEntries(Object.keys(effect.endValues).map((key) => [key, saved[key]])))

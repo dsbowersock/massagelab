@@ -46,6 +46,8 @@ describe("background preview media", () => {
   })
 
   it("resynchronizes playback when an active preview swaps to another nonempty source", () => {
+    // This source contract intentionally keeps both inputs in the replay effect;
+    // browser coverage exercises the resulting media restart behavior.
     assert.match(componentSource, /\}, \[(?=[^\]]*\bshowVideo\b)(?=[^\]]*\bvideoUrl\b)[^\]]*\]\)/)
   })
 

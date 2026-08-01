@@ -323,6 +323,7 @@ describe("DNA and Twisted Cubes non-color persistence", () => {
       requestId: 41,
     })
     const accountSettings = JSON.parse(applyRequest.requestBody).chimerSettings
+    // Turn the failed in-flight Apply request into the stale state consumed by retry.
     const stale = resolveChimerPreferenceSyncRequest(applyRequest, applyRequest, false)
     const retry = createChimerPreferenceSyncRetry(stale, 42)
     const retrySettings = JSON.parse(retry.requestBody).chimerSettings
