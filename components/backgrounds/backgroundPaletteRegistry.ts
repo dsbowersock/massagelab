@@ -63,6 +63,27 @@ export interface BackgroundPaletteModeOverride {
 
 export const DNA_SOURCE_BACKGROUND_COLOR = "hsl(210 80% 12%)"
 export const TWISTED_CUBES_SOURCE_BACKGROUND_COLOR = "hsl(210 20% 12%)"
+export const DNA_SOURCE_NODE_ROLE_COLORS = Object.freeze([
+  "hsl(44 98% 60%)",
+  "hsl(197 50% 44%)",
+  "hsl(300 100% 100%)",
+  "hsl(331 76% 50%)",
+] as const)
+export const TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS = Object.freeze([
+  "hsl(180 80% 60%)",
+  "hsl(212 80% 60%)",
+  "hsl(244 80% 60%)",
+  "hsl(276 80% 60%)",
+  "hsl(308 80% 60%)",
+  "hsl(340 80% 60%)",
+] as const)
+const AURORA_BARS_SOURCE_COLORS = Object.freeze([
+  "#FFD6EB",
+  "#FF9ACB",
+  "#FF5AA6",
+  "#FF2D78",
+  "#000000",
+] as const)
 
 type RoleTransform = "hex-hue" | "preserve-alpha"
 type RoleSpec = readonly [
@@ -266,15 +287,15 @@ function roleColorArray(
   current: readonly string[] | undefined,
   roleIds: readonly string[],
   colors: Readonly<Record<string, string>>,
+  sourceFallbacks: readonly string[],
 ) {
-  const result = [...(current ?? [])]
-  roleIds.forEach((roleId, index) => {
-    const nextColor = colors[roleId]
-    if (typeof nextColor === "string") {
-      result[index] = nextColor
+  return roleIds.map((roleId, index) => {
+    const resolved = roleColor(colors, roleId, current?.[index]) ?? sourceFallbacks[index]
+    if (typeof resolved !== "string") {
+      throw new Error(`Missing source color fallback for palette role ${roleId}`)
     }
+    return resolved
   })
-  return result
 }
 
 /**
@@ -321,6 +342,7 @@ export function applyCssDomPaletteRoleColors<
             props.massageLabDna?.nodeRoleColors,
             ["node-one", "node-two", "node-three", "node-four"],
             colors,
+            DNA_SOURCE_NODE_ROLE_COLORS,
           ) as [string, string, string, string],
           connectorColor: roleColor(colors, "connector", props.massageLabDna?.connectorColor)
             ?? "#ffffff",
@@ -349,6 +371,7 @@ export function applyCssDomPaletteRoleColors<
               "outline-six",
             ],
             colors,
+            TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS,
           ) as [string, string, string, string, string, string],
         } as NonNullable<BackgroundEffectProps["massageLabTwistedCubes"]>,
       }
@@ -429,6 +452,7 @@ export function applyCssDomPaletteRoleColors<
             props.auroraBars?.colors,
             ["bar-1", "bar-2", "bar-3", "bar-4", "bar-5"],
             colors,
+            AURORA_BARS_SOURCE_COLORS,
           ),
         },
       }
@@ -538,10 +562,10 @@ const SUPPORTED_SPECS: readonly SupportedSpec[] = [
     sourceBehavior: "fixed",
     roles: [
       role("background", "Background", "massageLabDnaBackgroundColor", "massageLabDna.backgroundColor", undefined, DNA_SOURCE_BACKGROUND_COLOR, 3),
-      role("node-one", "Node 1", "massageLabDnaNodeRoleColorOne", "massageLabDna.nodeRoleColors[0]", undefined, "hsl(44 98% 60%)", 0),
-      role("node-two", "Node 2", "massageLabDnaNodeRoleColorTwo", "massageLabDna.nodeRoleColors[1]", undefined, "hsl(197 50% 44%)", 1),
-      role("node-three", "Node 3", "massageLabDnaNodeRoleColorThree", "massageLabDna.nodeRoleColors[2]", undefined, "hsl(300 100% 100%)", 2),
-      role("node-four", "Node 4", "massageLabDnaNodeRoleColorFour", "massageLabDna.nodeRoleColors[3]", undefined, "hsl(331 76% 50%)", 5),
+      role("node-one", "Node 1", "massageLabDnaNodeRoleColorOne", "massageLabDna.nodeRoleColors[0]", undefined, DNA_SOURCE_NODE_ROLE_COLORS[0], 0),
+      role("node-two", "Node 2", "massageLabDnaNodeRoleColorTwo", "massageLabDna.nodeRoleColors[1]", undefined, DNA_SOURCE_NODE_ROLE_COLORS[1], 1),
+      role("node-three", "Node 3", "massageLabDnaNodeRoleColorThree", "massageLabDna.nodeRoleColors[2]", undefined, DNA_SOURCE_NODE_ROLE_COLORS[2], 2),
+      role("node-four", "Node 4", "massageLabDnaNodeRoleColorFour", "massageLabDna.nodeRoleColors[3]", undefined, DNA_SOURCE_NODE_ROLE_COLORS[3], 5),
       role("connector", "Connector", "massageLabDnaConnectorColor", "massageLabDna.connectorColor", undefined, "#ffffff", 4),
       role("outline", "Outline", "massageLabDnaOutlineColor", "massageLabDna.outlineColor", undefined, "#000000", 6),
     ],
@@ -553,12 +577,12 @@ const SUPPORTED_SPECS: readonly SupportedSpec[] = [
     sourceBehavior: "automatic",
     roles: [
       role("background", "Background", "massageLabTwistedCubesBackgroundColor", "massageLabTwistedCubes.backgroundColor", undefined, TWISTED_CUBES_SOURCE_BACKGROUND_COLOR, 3),
-      role("outline-one", "Outline 1", "massageLabTwistedCubesOutlineOne", "massageLabTwistedCubes.outlineAnchors[0]", undefined, "hsl(180 80% 60%)", 0),
-      role("outline-two", "Outline 2", "massageLabTwistedCubesOutlineTwo", "massageLabTwistedCubes.outlineAnchors[1]", undefined, "hsl(212 80% 60%)", 1),
-      role("outline-three", "Outline 3", "massageLabTwistedCubesOutlineThree", "massageLabTwistedCubes.outlineAnchors[2]", undefined, "hsl(244 80% 60%)", 2),
-      role("outline-four", "Outline 4", "massageLabTwistedCubesOutlineFour", "massageLabTwistedCubes.outlineAnchors[3]", undefined, "hsl(276 80% 60%)", 4),
-      role("outline-five", "Outline 5", "massageLabTwistedCubesOutlineFive", "massageLabTwistedCubes.outlineAnchors[4]", undefined, "hsl(308 80% 60%)", 5),
-      role("outline-six", "Outline 6", "massageLabTwistedCubesOutlineSix", "massageLabTwistedCubes.outlineAnchors[5]", undefined, "hsl(340 80% 60%)", 6),
+      role("outline-one", "Outline 1", "massageLabTwistedCubesOutlineOne", "massageLabTwistedCubes.outlineAnchors[0]", undefined, TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS[0], 0),
+      role("outline-two", "Outline 2", "massageLabTwistedCubesOutlineTwo", "massageLabTwistedCubes.outlineAnchors[1]", undefined, TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS[1], 1),
+      role("outline-three", "Outline 3", "massageLabTwistedCubesOutlineThree", "massageLabTwistedCubes.outlineAnchors[2]", undefined, TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS[2], 2),
+      role("outline-four", "Outline 4", "massageLabTwistedCubesOutlineFour", "massageLabTwistedCubes.outlineAnchors[3]", undefined, TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS[3], 4),
+      role("outline-five", "Outline 5", "massageLabTwistedCubesOutlineFive", "massageLabTwistedCubes.outlineAnchors[4]", undefined, TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS[4], 5),
+      role("outline-six", "Outline 6", "massageLabTwistedCubesOutlineSix", "massageLabTwistedCubes.outlineAnchors[5]", undefined, TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS[5], 6),
     ],
     modeOverrides: [{
       rendererTarget: "massageLabTwistedCubes.paletteMode",

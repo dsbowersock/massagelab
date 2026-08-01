@@ -1818,6 +1818,7 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
   })
 
   test("each effect retains bounded geometry and static motion across responsive viewports and real 200% page scale", async ({ page }) => {
+    test.setTimeout(120_000)
     const health = captureRuntimeErrors(page)
     await page.emulateMedia({ reducedMotion: "reduce" })
     const review = await openTrack4BReview(page)

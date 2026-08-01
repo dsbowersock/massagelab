@@ -11,6 +11,7 @@ import {
   resolveEffectiveBackgroundPaletteMode,
 } from "../lib/background-palette.js"
 import {
+  DEFAULT_CHIMER_SETTINGS,
   normalizeChimerBackgroundVisualPreferences,
   sanitizeChimerSettings,
 } from "../lib/chimer-timer.js"
@@ -257,7 +258,10 @@ describe("DNA and Twisted Cubes non-color persistence", () => {
       presetId: "dna",
       properties: {
         massageLabDnaStrandCount: { invalid: 999, expected: 81 },
-        massageLabDnaShowBaseLetters: { invalid: true, expected: true },
+        massageLabDnaShowBaseLetters: {
+          invalid: "yes",
+          expected: DEFAULT_CHIMER_SETTINGS.massageLabDnaShowBaseLetters,
+        },
         massageLabDnaNodeMotionSpeed: { invalid: -999, expected: 0.01 },
         massageLabDnaStrandRotationSpeed: { invalid: 999, expected: 3 },
         massageLabDnaStrandAngle: { invalid: -999, expected: -180 },

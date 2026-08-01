@@ -10,6 +10,9 @@ import {
 } from "../lib/background-source-color-defaults.js"
 import {
   BACKGROUND_PALETTE_METADATA_SUFFIXES,
+  DNA_SOURCE_NODE_ROLE_COLORS,
+  TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS,
+  applyCssDomPaletteRoleColors,
   backgroundPaletteRegistry,
 } from "../components/backgrounds/backgroundPaletteRegistry.ts"
 import {
@@ -703,6 +706,30 @@ describe("background palette adapter registry", () => {
     })
     assert.equal(denied.massageLabTwistedCubes.paletteMode, "source")
     assert.deepEqual(fixture, originalFixture)
+  })
+
+  it("completes DNA and Twisted Cubes role arrays from source fallbacks", () => {
+    const dna = applyCssDomPaletteRoleColors("massage-lab-dna", {}, {
+      "node-one": "#123456",
+    })
+    assert.deepEqual(dna.massageLabDna.nodeRoleColors, [
+      "#123456",
+      ...DNA_SOURCE_NODE_ROLE_COLORS.slice(1),
+    ])
+
+    const cubes = applyCssDomPaletteRoleColors("massage-lab-twisted-cubes", {
+      massageLabTwistedCubes: {
+        outlineAnchors: ["#abcdef"],
+      },
+    }, {
+      "outline-three": "#654321",
+    })
+    assert.deepEqual(cubes.massageLabTwistedCubes.outlineAnchors, [
+      "#abcdef",
+      TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS[1],
+      "#654321",
+      ...TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS.slice(3),
+    ])
   })
 
   it("completes every CSS/DOM adapter and changes only named renderer targets in every palette mode", () => {
