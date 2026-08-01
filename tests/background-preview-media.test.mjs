@@ -28,6 +28,10 @@ const previewSceneSource = readFileSync(
   new URL("../app/chimer/background-preview/[backgroundId]/preview-scene.tsx", import.meta.url),
   "utf8",
 )
+const reviewFixtureSource = readFileSync(
+  new URL("../app/dev/buttons/background-preview-media-review.tsx", import.meta.url),
+  "utf8",
+)
 
 describe("background preview media", () => {
   it("renders a decorative video with a WebP poster over the registry fallback", () => {
@@ -62,7 +66,18 @@ describe("background preview media", () => {
     assert.match(renderSource, /existsSync\(posterPath\) && statSync\(posterPath\)\.size > 0/)
     assert.match(renderSource, /"-c:v", "libwebp"/)
     assert.match(renderSource, /"-quality", "78"/)
+    assert.match(renderSource, /!existsSync\(posterPath\) \|\| statSync\(posterPath\)\.size <= 0/)
+    assert.match(renderSource, /is empty after poster encoding/)
     assert.match(renderSource, /const posterIsUsable = existsSync\(posterPath\) && statSync\(posterPath\)\.size > 0[\s\S]*?if \(existsSync\(outputPath\) && posterIsUsable && !options\.force\) \{[\s\S]*?skipped: true/)
+  })
+
+  it("offers a deterministic missing-video fixture while retaining a valid poster", () => {
+    assert.match(reviewFixtureSource, /__missing-preview__\.webm/)
+    assert.match(reviewFixtureSource, /missingVideo \? "Use working video" : "Use missing video"/)
+    assert.match(
+      reviewFixtureSource,
+      /videoUrl=\{videoUrl\}[\s\S]*?posterUrl=\{`\/chimer\/background-previews\/\$\{previewName\}-vertical\.webp`\}/,
+    )
   })
 
   it("suppresses delayed Next development chrome before recording", () => {

@@ -342,6 +342,10 @@ async function encodePoster(videoPath, posterPath) {
     "-quality", "78",
     posterPath,
   ])
+
+  if (!existsSync(posterPath) || statSync(posterPath).size <= 0) {
+    throw new Error(`${path.basename(posterPath)} is empty after poster encoding.`)
+  }
 }
 
 function hashFile(filePath) {

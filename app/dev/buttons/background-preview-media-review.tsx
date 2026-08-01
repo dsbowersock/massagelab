@@ -10,7 +10,11 @@ export function BackgroundPreviewMediaReview() {
   const [active, setActive] = useState(false)
   const [mounted, setMounted] = useState(true)
   const [alternateSource, setAlternateSource] = useState(false)
+  const [missingVideo, setMissingVideo] = useState(false)
   const previewName = alternateSource ? "massage-lab-twisted-cubes" : "massage-lab-dna"
+  const videoUrl = missingVideo
+    ? "/chimer/background-previews/__missing-preview__.webm"
+    : `/chimer/background-previews/${previewName}-vertical.webm`
 
   return (
     <section
@@ -29,7 +33,7 @@ export function BackgroundPreviewMediaReview() {
       <div className="relative aspect-[5/7] w-48 overflow-hidden rounded-xl border border-border">
         {mounted ? (
           <BackgroundPreviewMedia
-            videoUrl={`/chimer/background-previews/${previewName}-vertical.webm`}
+            videoUrl={videoUrl}
             posterUrl={`/chimer/background-previews/${previewName}-vertical.webp`}
             fallbackStyle={{ background: "rgb(18, 52, 86)" }}
             active={active}
@@ -45,6 +49,9 @@ export function BackgroundPreviewMediaReview() {
         </Button>
         <Button size="compact" variant="secondary" onClick={() => setAlternateSource((current) => !current)}>
           Swap preview source
+        </Button>
+        <Button size="compact" variant="secondary" onClick={() => setMissingVideo((current) => !current)}>
+          {missingVideo ? "Use working video" : "Use missing video"}
         </Button>
       </div>
     </section>

@@ -58,7 +58,7 @@ Coverage proves:
 - Undo, Redo, Cancel, Apply, Visual preset, and Color preset boundaries follow the canonical reducer, with Apply written to a development-only persistence key;
 - stored scale/X/Y values remain unchanged while compact rendering clamps to `1` and `20%`;
 - reduced motion retains geometry/colors while computed effect animation is `none`;
-- DNA remains at or below 25 strands/50 nodes and Twisted at or below 30 layers/180 faces;
+- the browser-review fixture caps DNA at 25 strands/50 nodes and Twisted at 30 layers/180 faces so the review matrix stays bounded; production DNA retains its documented 7-81 strand range and approved 70-strand default;
 - only the selected Track 4B effect remains mounted; neither effect owns document/window/listener/RAF APIs;
 - no shuffle action, pointer-drag affordance, focusable effect surface, or horizontal overflow appears;
 - subscriber and permanent-owner snapshots load the requested effect, while locked access follows the canonical fallback and disables controls;
