@@ -9,7 +9,6 @@ import {
   getTwistedCubeSourceOutline,
   interpolateTwistedCubeOutline,
   TWISTED_CUBES_OPTION_BOUNDS,
-  TWISTED_CUBES_VIEWPORT_EXTENT_VMAX,
 } from "@/lib/twisted-cubes-background"
 import { resolveResponsiveBackgroundTransform } from "@/lib/background-effect-layout"
 import type { BackgroundEffectProps, MassageLabTwistedCubesOptions } from "./css-backgrounds"
@@ -19,14 +18,27 @@ type MassageLabTwistedCubesBackgroundProps = Pick<BackgroundEffectProps, "reduce
   massageLabTwistedCubes: MassageLabTwistedCubesOptions
 }
 
-const CUBE_FACES = ["front", "back", "right", "left", "top", "bottom"] as const
+const CUBE_EDGES = [
+  ["x", "negative", "negative"],
+  ["x", "negative", "positive"],
+  ["x", "positive", "negative"],
+  ["x", "positive", "positive"],
+  ["y", "negative", "negative"],
+  ["y", "negative", "positive"],
+  ["y", "positive", "negative"],
+  ["y", "positive", "positive"],
+  ["z", "negative", "negative"],
+  ["z", "negative", "positive"],
+  ["z", "positive", "negative"],
+  ["z", "positive", "positive"],
+] as const
 
 /**
- * Keeps the source cuboid markup fixed at six faces, while the pre-sanitized
- * layer count remains defensively bounded before React allocates DOM nodes.
- * Per-layer color, fade, phase, and depth are presentation-only values. The
- * depth wrapper intentionally sits outside the view rotation, matching the
- * source Cubies transform order so every nested cube stays centered.
+ * Draws each cuboid from twelve thin edges instead of six viewport-sized
+ * transparent faces. The wireframe retains every cube-layer line throughout
+ * rotation while avoiding the oversized raster surfaces that can overwhelm a
+ * mobile GPU. Layer count remains defensively bounded before React allocates
+ * DOM nodes; color, fade, phase, and depth are presentation-only values.
  */
 export const MassageLabTwistedCubesBackground = memo(function MassageLabTwistedCubesBackground({
   massageLabTwistedCubes,
@@ -66,12 +78,16 @@ export const MassageLabTwistedCubesBackground = memo(function MassageLabTwistedC
   } as CSSProperties
   const sceneStyle = {
     "--ml-twisted-cubes-scale": responsiveTransform.scale,
-    "--ml-twisted-cubes-position-x": `${responsiveTransform.positionX}%`,
-    "--ml-twisted-cubes-position-y": `${responsiveTransform.positionY}%`,
-    "--ml-twisted-cubes-viewport-extent": `${TWISTED_CUBES_VIEWPORT_EXTENT_VMAX}vmax`,
+    "--ml-twisted-cubes-position-x": `${responsiveTransform.positionX}vw`,
+    "--ml-twisted-cubes-position-y": `${responsiveTransform.positionY}vh`,
   } as CSSProperties
   const layers = Array.from({ length: renderLayerCount }, (_, index) => {
     const oneBasedIndex = index + 1
+    const layerSizeVmax = getTwistedCubeLayerSizeVmax({
+      oneBasedIndex,
+      count: renderLayerCount,
+      scale: responsiveTransform.scale,
+    })
     const outline = paletteMode === "source"
       ? getTwistedCubeSourceOutline({ oneBasedIndex, count: renderLayerCount })
       : interpolateTwistedCubeOutline({ anchors: outlineAnchors, oneBasedIndex, count: renderLayerCount })
@@ -91,11 +107,8 @@ export const MassageLabTwistedCubesBackground = memo(function MassageLabTwistedC
           stagger: layerStagger,
         })}s`,
         "--ml-twisted-cubes-depth": `${(renderLayerCount - oneBasedIndex) * layerDepthSpacing}vmin`,
-        "--ml-twisted-cubes-size": `${getTwistedCubeLayerSizeVmax({
-          oneBasedIndex,
-          count: renderLayerCount,
-          scale: responsiveTransform.scale,
-        })}vmax`,
+        "--ml-twisted-cubes-size": `${layerSizeVmax}vmax`,
+        "--ml-twisted-cubes-half-size": `${layerSizeVmax / 2}vmax`,
         "--ml-twisted-cubes-outline-thickness": outlineThickness,
         zIndex: renderLayerCount - oneBasedIndex,
       } as CSSProperties,
@@ -115,8 +128,14 @@ export const MassageLabTwistedCubesBackground = memo(function MassageLabTwistedC
             <span className={styles.view}>
               <span className={styles.cube}>
                 <span className={styles.cuboid}>
-                  {CUBE_FACES.map((face) => (
-                    <span className={`${styles.face} ${styles[face]}`} key={face} />
+                  {CUBE_EDGES.map(([axis, firstSide, secondSide]) => (
+                    <span
+                      className={styles.edge}
+                      data-axis={axis}
+                      data-first-side={firstSide}
+                      data-second-side={secondSide}
+                      key={`${axis}-${firstSide}-${secondSide}`}
+                    />
                   ))}
                 </span>
               </span>

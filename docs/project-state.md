@@ -121,6 +121,10 @@ This is the read-first source of truth for MassageLab's current project state. U
 - P3: Revisit voice notes, intake conversation transcription, and SOAP-assist later, after a separate feasibility branch proves local/on-device options and any hosted path passes legal, BAA, security, consent, audit, and retention review.
 - P2: Land the technical SEO foundation and focused public landing-page copy before the broad public-alpha share window: production public pages can become indexable, preview/development builds stay noindex, private/auth/API/booking/shared-code/local-record routes stay out of the sitemap and robots allowlist, and the homepage plus flashcards, Anatomime, Chimer, notes, and wellness routes carry clear search-aligned product proof without weakening the local-first PHI boundary.
 
+### Track 4B final accepted renderer correction
+
+- This supersedes the earlier face-based Twisted Cubes description in the July 18 reconciliation above: Scale now applies uniformly to the complete count-relative progression; at the approved 20-layer, 30% default the outer wireframe reaches `120vmax`. Twelve thin CSS edges per layer preserve the full-bleed nested outline without the viewport-size transparent faces that caused the rejected page-wide slowdown. The user accepted this exact local visual result before the PR loop resumed.
+
 ## Documentation Rules
 
 - Update this file first when the current focus, database state, live surfaces, or priority order changes.

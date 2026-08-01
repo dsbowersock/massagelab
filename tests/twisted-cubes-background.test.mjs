@@ -3,7 +3,7 @@ import { describe, it } from "node:test"
 import {
   DEFAULT_TWISTED_CUBES_BACKGROUND_OPTIONS,
   TWISTED_CUBES_OPTION_BOUNDS,
-  TWISTED_CUBES_VIEWPORT_EXTENT_VMAX,
+  TWISTED_CUBES_LAYER_STEP_VMAX,
   getTwistedCubeAlpha,
   getTwistedCubeCycleSeconds,
   getTwistedCubeDelaySeconds,
@@ -31,7 +31,7 @@ describe("Twisted Cubes background domain rules", () => {
       opacityFalloff: 0.85,
       outlineThickness: 0.0075,
     })
-    assert.equal(TWISTED_CUBES_VIEWPORT_EXTENT_VMAX, 120)
+    assert.equal(TWISTED_CUBES_LAYER_STEP_VMAX, 20)
     assert.equal(Object.isFrozen(DEFAULT_TWISTED_CUBES_BACKGROUND_OPTIONS), true)
     assert.equal(Object.isFrozen(TWISTED_CUBES_OPTION_BOUNDS), true)
     assert.equal(TWISTED_CUBES_OPTION_BOUNDS.layerCount.maximum, 30)
@@ -126,16 +126,16 @@ describe("Twisted Cubes background domain rules", () => {
     assert.ok(Number.isFinite(getTwistedCubeAlpha({ oneBasedIndex: 1, count: 0, opacityFalloff: 0.85 })))
   })
 
-  it("keeps the outer envelope bounded while scale changes the inner progression", () => {
+  it("scales the complete layer progression and fills the viewport at the approved default", () => {
     assert.ok(Math.abs(getTwistedCubeLayerSizeVmax({
       oneBasedIndex: 1,
       count: 20,
       scale: 0.3,
-    }) - 2.01) < 1e-12)
+    }) - 6) < 1e-12)
     assert.equal(getTwistedCubeLayerSizeVmax({ oneBasedIndex: 20, count: 20, scale: 0.3 }), 120)
-    assert.equal(getTwistedCubeLayerSizeVmax({ oneBasedIndex: 20, count: 20, scale: 1.2 }), 120)
-    assert.equal(getTwistedCubeLayerSizeVmax({ oneBasedIndex: 10, count: 20, scale: 1 }), 60)
-    assert.equal(getTwistedCubeLayerSizeVmax({ oneBasedIndex: 10, count: 20, scale: 0 }), 33)
+    assert.equal(getTwistedCubeLayerSizeVmax({ oneBasedIndex: 20, count: 20, scale: 1.2 }), 480)
+    assert.equal(getTwistedCubeLayerSizeVmax({ oneBasedIndex: 10, count: 20, scale: 1 }), 200)
+    assert.equal(getTwistedCubeLayerSizeVmax({ oneBasedIndex: 10, count: 20, scale: 0 }), 20)
   })
 
   it("keeps Source outlines continuous from 180 through 340 HSL degrees", () => {

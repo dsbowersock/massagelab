@@ -255,13 +255,13 @@ test("development review exposes the real DNA and Twisted Cubes acceptance matri
     ["massage-lab-twisted-cubes", "Layer stagger", "massageLabTwistedCubesLayerStagger", "[style*='--ml-twisted-cubes-outline'] > .view > .cube", "animationDelay|transform", "firstDelay", "cubeTransform|cubeDelay"],
     ["massage-lab-twisted-cubes", "View angle X", "massageLabTwistedCubesViewAngleX", ".layer > .view", "transform", "viewAngleX", "viewTransform"],
     ["massage-lab-twisted-cubes", "View angle Y", "massageLabTwistedCubesViewAngleY", ".layer > .view", "transform", "viewAngleY", "viewTransform"],
-    ["massage-lab-twisted-cubes", "Layer count", "massageLabTwistedCubesLayerCount", "[style*='--ml-twisted-cubes-outline'] > .view > .cube > .cuboid > .face", "count|depth|size|animationDelay|transform|opacity", "layerCount|middleOutline|firstAlpha|firstDelay|firstSize|secondDepth", "layerCount|faceCount|firstLayerTransform|secondLayerTransform|cubeTransform|cubeDelay|faceWidth|faceHeight|faceOpacity"],
+    ["massage-lab-twisted-cubes", "Layer count", "massageLabTwistedCubesLayerCount", "[style*='--ml-twisted-cubes-outline'] > .view > .cube > .cuboid > .edge", "count|depth|size|animationDelay|transform|opacity", "layerCount|middleOutline|firstAlpha|firstDelay|firstSize|secondDepth", "layerCount|edgeCount|firstLayerTransform|secondLayerTransform|cubeTransform|cubeDelay|edgeWidth|edgeHeight|edgeOpacity"],
     ["massage-lab-twisted-cubes", "Layer depth", "massageLabTwistedCubesLayerDepthSpacing", "[style*='--ml-twisted-cubes-outline']", "transform", "secondDepth", "firstLayerTransform|secondLayerTransform"],
-    ["massage-lab-twisted-cubes", "Scale", "massageLabTwistedCubesScale", "inner cube faces", "size|transform", "scale|firstSize", "cubeTransform|faceWidth|faceHeight"],
+    ["massage-lab-twisted-cubes", "Scale", "massageLabTwistedCubesScale", "cube wireframe edges", "size|transform", "scale|firstSize", "cubeTransform|edgeWidth|edgeHeight"],
     ["massage-lab-twisted-cubes", "Position X", "massageLabTwistedCubesPositionX", ":scope > .scene", "transform", "positionX", "sceneTransform"],
     ["massage-lab-twisted-cubes", "Position Y", "massageLabTwistedCubesPositionY", ":scope > .scene", "transform", "positionY", "sceneTransform"],
-    ["massage-lab-twisted-cubes", "Fade falloff", "massageLabTwistedCubesOpacityFalloff", "first .face", "opacity", "firstAlpha", "faceOpacity"],
-    ["massage-lab-twisted-cubes", "Relative outline thickness", "massageLabTwistedCubesOutlineThickness", "first .face", "borderTopWidth", "firstOutlineThickness", "faceBorderWidth"],
+    ["massage-lab-twisted-cubes", "Fade falloff", "massageLabTwistedCubesOpacityFalloff", "first .edge", "opacity", "firstAlpha", "edgeOpacity"],
+    ["massage-lab-twisted-cubes", "Relative outline thickness", "massageLabTwistedCubesOutlineThickness", "first .edge", "height", "firstOutlineThickness", "edgeHeight"],
   ])
 
   assert.match(gallery, /DnaBackgroundControls/)
@@ -308,7 +308,7 @@ test("development review exposes the real DNA and Twisted Cubes acceptance matri
   assert.match(browserSource, /getComputedStyle\(connector\)/)
   assert.match(browserSource, /querySelector<HTMLElement>\('\[data-side="start"\]'\)/)
   assert.match(browserSource, /viewTransform/)
-  assert.match(browserSource, /faceBorderWidth/)
+  assert.match(browserSource, /edgeHeight/)
   assert.match(browserSource, /scenePerspective:\s*"none"/)
   assert.match(browserSource, /strandAnimationName:\s*"none"[\s\S]*strandDuration:\s*"0s"[\s\S]*strandDelay:\s*"0s"/)
   assert.match(browserSource, /connectorAnimationName:\s*"none"[\s\S]*connectorDuration:\s*"0s"[\s\S]*connectorDelay:\s*"0s"/)
@@ -316,7 +316,7 @@ test("development review exposes the real DNA and Twisted Cubes acceptance matri
   assert.match(browserSource, /endNodeAnimationName:\s*"none"[\s\S]*endNodeDuration:\s*"0s"[\s\S]*endNodeDelay:\s*"0s"/)
   assert.match(browserSource, /cubeAnimationName:\s*"none"[\s\S]*cubeDuration:\s*"0s"[\s\S]*cubeDelay:\s*"0s"/)
   assert.match(browserSource, /width:\s*"26vmin"[\s\S]*height:\s*"max\(240vmin, 230vmax\)"/)
-  assert.match(browserSource, /width:\s*`\$\{TWISTED_CUBES_VIEWPORT_EXTENT_VMAX\}vmax`[\s\S]*height:\s*`\$\{TWISTED_CUBES_VIEWPORT_EXTENT_VMAX\}vmax`/)
+  assert.match(browserSource, /width:\s*"0px"[\s\S]*height:\s*"0px"/)
   assert.doesNotMatch(browserSource, /test\.skip\(/)
   assert.match(playwrightConfig, /dna-twisted-cubes-backgrounds\.spec\.ts/)
   assert.match(sliderSource, /<SliderPrimitive\.Thumb[\s\S]*aria-label=\{ariaLabel\}/)

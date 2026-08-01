@@ -16,7 +16,6 @@ import {
   getTwistedCubeLayerSizeVmax,
   getTwistedCubeSourceOutline,
   interpolateTwistedCubeOutline,
-  TWISTED_CUBES_VIEWPORT_EXTENT_VMAX,
 } from "../../lib/twisted-cubes-background.js"
 import { COMPUTED_CONSUMER_CONTRACTS } from "./dna-twisted-cubes-consumer-contract.mjs"
 
@@ -389,7 +388,7 @@ async function captureComputedConsumerState(host: Locator, id: typeof EFFECTS[nu
     const secondLayer = layers[1]
     const view = firstLayer?.firstElementChild as HTMLElement
     const firstCube = view?.firstElementChild as HTMLElement
-    const firstFace = firstLayer?.querySelector<HTMLElement>(":scope > span > span > span > span")
+    const firstEdge = firstLayer?.querySelector<HTMLElement>(":scope > span > span > span > span")
     const cubeAnimation = firstCube?.getAnimations()[0]
     if (cubeAnimation) {
       cubeAnimation.pause()
@@ -401,7 +400,7 @@ async function captureComputedConsumerState(host: Locator, id: typeof EFFECTS[nu
     const firstLayerCss = getComputedStyle(firstLayer)
     const secondLayerCss = getComputedStyle(secondLayer)
     const cubeCss = getComputedStyle(firstCube)
-    const faceCss = getComputedStyle(firstFace as HTMLElement)
+    const edgeCss = getComputedStyle(firstEdge as HTMLElement)
     return {
       rootBackground: rootCss.backgroundColor,
       sceneTransform: sceneCss.transform,
@@ -410,20 +409,17 @@ async function captureComputedConsumerState(host: Locator, id: typeof EFFECTS[nu
       sceneHeight: sceneCss.height,
       viewTransform: viewCss.transform,
       layerCount: layers.length,
-      faceCount: rootElement.querySelectorAll('[style*="--ml-twisted-cubes-outline"] > span > span > span > span').length,
+      edgeCount: rootElement.querySelectorAll('[style*="--ml-twisted-cubes-outline"] > span > span > span > span').length,
       firstLayerTransform: firstLayerCss.transform,
       secondLayerTransform: secondLayerCss.transform,
       cubeTransform: cubeCss.transform,
       cubeAnimationName: cubeCss.animationName,
       cubeDuration: cubeCss.animationDuration,
       cubeDelay: cubeCss.animationDelay,
-      faceWidth: faceCss.width,
-      faceHeight: faceCss.height,
-      faceOpacity: faceCss.opacity,
-      faceBorderWidth: faceCss.borderTopWidth,
-      faceBorderColor: faceCss.borderTopColor,
-      faceBackground: faceCss.backgroundColor,
-      faceBackfaceVisibility: faceCss.backfaceVisibility,
+      edgeWidth: edgeCss.width,
+      edgeHeight: edgeCss.height,
+      edgeOpacity: edgeCss.opacity,
+      edgeBackground: edgeCss.backgroundColor,
     }
   })
 }
@@ -675,8 +671,8 @@ async function expectExactControlRender({
       scale: String(transform.scale),
       firstSize: `${getTwistedCubeLayerSizeVmax({ oneBasedIndex: 1, count, scale: transform.scale })}vmax`,
     },
-    massageLabTwistedCubesPositionX: { positionX: `${transform.positionX}%` },
-    massageLabTwistedCubesPositionY: { positionY: `${transform.positionY}%` },
+    massageLabTwistedCubesPositionX: { positionX: `${transform.positionX}vw` },
+    massageLabTwistedCubesPositionY: { positionY: `${transform.positionY}vh` },
     massageLabTwistedCubesOpacityFalloff: {
       firstAlpha: String(getTwistedCubeAlpha({ oneBasedIndex: 1, count, opacityFalloff: properties.massageLabTwistedCubesOpacityFalloff })),
     },
@@ -882,7 +878,7 @@ async function expectExactComputedConsumer({
   })
   const sceneExpected = await normalizeTransformForTarget(
     effectRoot(host).locator(":scope > div"),
-    `translate(calc(-50% + ${transform.positionX}%), calc(-50% + ${transform.positionY}%))`,
+    `translate(${transform.positionX}vw, ${transform.positionY}vh)`,
   )
   const viewExpected = await normalizeComputedConsumer(host, {
     transform: `rotateX(${properties.massageLabTwistedCubesViewAngleX}deg) rotateY(${properties.massageLabTwistedCubesViewAngleY}deg)`,
@@ -890,13 +886,10 @@ async function expectExactComputedConsumer({
   const secondLayerExpected = await normalizeComputedConsumer(host, {
     transform: `translateZ(${(count - 2) * properties.massageLabTwistedCubesLayerDepthSpacing}vmin)`,
   })
-  const faceBorderExpected = await normalizeComputedConsumer(host, {
-    border: `calc(${properties.massageLabTwistedCubesOutlineThickness} * 50vmin) solid black`,
-  })
   const firstLayerSize = getTwistedCubeLayerSizeVmax({ oneBasedIndex: 1, count, scale: transform.scale })
-  const firstFaceSizeExpected = await normalizeComputedConsumer(host, {}, {
+  const firstEdgeSizeExpected = await normalizeComputedConsumer(host, {}, {
     width: `${firstLayerSize}vmax`,
-    height: `${firstLayerSize}vmax`,
+    height: `calc(${properties.massageLabTwistedCubesOutlineThickness} * 50vmin)`,
   })
   const cubeDurationSeconds = getTwistedCubeCycleSeconds(properties.massageLabTwistedCubesRotationSpeed)
   const firstCubeDelaySeconds = getTwistedCubeDelaySeconds({
@@ -949,7 +942,7 @@ async function expectExactComputedConsumer({
       break
     case "massageLabTwistedCubesLayerCount":
       expect(after.layerCount).toBe(count)
-      expect(after.faceCount).toBe(count * 6)
+      expect(after.edgeCount).toBe(count * 12)
       {
         const delayExpected = await normalizeComputedConsumer(host, {
           "animation-delay": `${firstCubeDelaySeconds}s`,
@@ -957,20 +950,20 @@ async function expectExactComputedConsumer({
         expect(after.cubeDelay).toBe(delayExpected.animationDelay)
         expect(after.cubeTransform).toBe(await expectedCubeTransform())
       }
-      expect(Number(after.faceOpacity)).toBeCloseTo(getTwistedCubeAlpha({
+      expect(Number(after.edgeOpacity)).toBeCloseTo(getTwistedCubeAlpha({
         oneBasedIndex: 1,
         count,
         opacityFalloff: properties.massageLabTwistedCubesOpacityFalloff,
       }), 6)
-      expect(after.faceWidth).toBe(firstFaceSizeExpected.width)
-      expect(after.faceHeight).toBe(firstFaceSizeExpected.height)
+      expect(after.edgeWidth).toBe(firstEdgeSizeExpected.width)
+      expect(after.edgeHeight).toBe(firstEdgeSizeExpected.height)
       break
     case "massageLabTwistedCubesLayerDepthSpacing":
       expect(after.secondLayerTransform).toBe(secondLayerExpected.transform)
       break
     case "massageLabTwistedCubesScale":
-      expect(after.faceWidth).toBe(firstFaceSizeExpected.width)
-      expect(after.faceHeight).toBe(firstFaceSizeExpected.height)
+      expect(after.edgeWidth).toBe(firstEdgeSizeExpected.width)
+      expect(after.edgeHeight).toBe(firstEdgeSizeExpected.height)
       expect(after.cubeTransform).toBe(await expectedCubeTransform())
       break
     case "massageLabTwistedCubesPositionX":
@@ -978,14 +971,14 @@ async function expectExactComputedConsumer({
       expect(after.sceneTransform).toBe(sceneExpected)
       break
     case "massageLabTwistedCubesOpacityFalloff":
-      expect(Number(after.faceOpacity)).toBeCloseTo(getTwistedCubeAlpha({
+      expect(Number(after.edgeOpacity)).toBeCloseTo(getTwistedCubeAlpha({
         oneBasedIndex: 1,
         count,
         opacityFalloff: properties[key],
       }), 6)
       break
     case "massageLabTwistedCubesOutlineThickness":
-      expect(after.faceBorderWidth).toBe(faceBorderExpected.borderTopWidth)
+      expect(after.edgeHeight).toBe(firstEdgeSizeExpected.height)
       break
     default:
       throw new Error(`Missing Twisted Cubes computed consumer assertion for ${key}.`)
@@ -1232,7 +1225,7 @@ async function expectExactReducedEffectState(
         size: layer.style.getPropertyValue("--ml-twisted-cubes-size"),
         thickness: layer.style.getPropertyValue("--ml-twisted-cubes-outline-thickness"),
         animation: getComputedStyle(layer.firstElementChild?.firstElementChild as HTMLElement).animationName,
-        faceCount: layer.querySelectorAll(":scope > span > span > span > span").length,
+        edgeCount: layer.querySelectorAll(":scope > span > span > span > span").length,
       })),
     }
   })
@@ -1244,8 +1237,8 @@ async function expectExactReducedEffectState(
   })
   expect(actual.scene).toEqual({
     scale: String(transform.scale),
-    x: `${transform.positionX}%`,
-    y: `${transform.positionY}%`,
+    x: `${transform.positionX}vw`,
+    y: `${transform.positionY}vh`,
   })
   expect(actual.layers).toEqual(Array.from({ length: count }, (_, index) => ({
     outline: interpolateTwistedCubeOutline({ anchors, oneBasedIndex: index + 1, count }),
@@ -1263,19 +1256,19 @@ async function expectExactReducedEffectState(
     size: `${getTwistedCubeLayerSizeVmax({ oneBasedIndex: index + 1, count, scale: transform.scale })}vmax`,
     thickness: String(properties.massageLabTwistedCubesOutlineThickness),
     animation: "none",
-    faceCount: 6,
+    edgeCount: 12,
   })))
   const computed = await captureComputedConsumerState(host, id) as Record<string, string | number>
   const rootExpected = await normalizeComputedConsumer(host, {
     "background-color": roleColors.background,
   })
   const sceneGeometryExpected = await normalizeComputedConsumer(host, {
-    width: `${TWISTED_CUBES_VIEWPORT_EXTENT_VMAX}vmax`,
-    height: `${TWISTED_CUBES_VIEWPORT_EXTENT_VMAX}vmax`,
+    width: "0px",
+    height: "0px",
   })
   const sceneExpected = await normalizeTransformForTarget(
     root.locator(":scope > div"),
-    `translate(calc(-50% + ${transform.positionX}%), calc(-50% + ${transform.positionY}%))`,
+    `translate(${transform.positionX}vw, ${transform.positionY}vh)`,
   )
   const viewExpected = await normalizeComputedConsumer(host, {
     transform: `rotateX(${properties.massageLabTwistedCubesViewAngleX}deg) rotateY(${properties.massageLabTwistedCubesViewAngleY}deg)`,
@@ -1292,16 +1285,15 @@ async function expectExactReducedEffectState(
     width: `${getTwistedCubeLayerSizeVmax({ oneBasedIndex: 1, count, scale: transform.scale })}vmax`,
     height: `${getTwistedCubeLayerSizeVmax({ oneBasedIndex: 1, count, scale: transform.scale })}vmax`,
   })
-  const firstFaceExpected = await normalizeComputedConsumer(host, {
+  const firstEdgeExpected = await normalizeComputedConsumer(host, {
     width: `${getTwistedCubeLayerSizeVmax({ oneBasedIndex: 1, count, scale: transform.scale })}vmax`,
-    height: `${getTwistedCubeLayerSizeVmax({ oneBasedIndex: 1, count, scale: transform.scale })}vmax`,
+    height: `calc(${properties.massageLabTwistedCubesOutlineThickness} * 50vmin)`,
     opacity: String(getTwistedCubeAlpha({
       oneBasedIndex: 1,
       count,
       opacityFalloff: properties.massageLabTwistedCubesOpacityFalloff,
     })),
-    "background-color": "transparent",
-    border: `calc(${properties.massageLabTwistedCubesOutlineThickness} * 50vmin) solid ${anchors[0]}`,
+    "background-color": anchors[0],
   })
   expect(computed).toMatchObject({
     rootBackground: rootExpected.backgroundColor,
@@ -1311,20 +1303,17 @@ async function expectExactReducedEffectState(
     sceneHeight: sceneGeometryExpected.height,
     viewTransform: viewExpected.transform,
     layerCount: count,
-    faceCount: count * 6,
+    edgeCount: count * 12,
     firstLayerTransform: firstLayerExpected.transform,
     secondLayerTransform: secondLayerExpected.transform,
     cubeTransform: cubeExpected.transform,
     cubeAnimationName: "none",
     cubeDuration: "0s",
     cubeDelay: "0s",
-    faceWidth: firstFaceExpected.width,
-    faceHeight: firstFaceExpected.height,
-    faceOpacity: firstFaceExpected.opacity,
-    faceBorderWidth: firstFaceExpected.borderTopWidth,
-    faceBorderColor: firstFaceExpected.borderTopColor,
-    faceBackground: firstFaceExpected.backgroundColor,
-    faceBackfaceVisibility: "hidden",
+    edgeWidth: firstEdgeExpected.width,
+    edgeHeight: firstEdgeExpected.height,
+    edgeOpacity: firstEdgeExpected.opacity,
+    edgeBackground: firstEdgeExpected.backgroundColor,
   })
 }
 
@@ -1435,21 +1424,21 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
       (element as HTMLElement).style.getPropertyValue("--ml-twisted-cubes-background-color")
     ))).toBe("hsl(210 20% 12%)")
     expect(await layers.count()).toBeLessThanOrEqual(30)
-    const faceCount = await layers.locator(":scope > span > span > span > span").count()
-    expect(faceCount).toBe((await layers.count()) * 6)
-    expect(faceCount).toBeLessThanOrEqual(180)
-    const [cubeHostBounds, cubeSceneBounds, outerLayerSize] = await Promise.all([
-      host.boundingBox(),
-      cubeRoot.locator(":scope > div").boundingBox(),
+    const edgeCount = await layers.locator(":scope > span > span > span > span").count()
+    expect(edgeCount).toBe((await layers.count()) * 12)
+    expect(edgeCount).toBeLessThanOrEqual(360)
+    const [outerLayerSize, rootOverflow] = await Promise.all([
       layers.last().evaluate((element) => (
         (element as HTMLElement).style.getPropertyValue("--ml-twisted-cubes-size")
       )),
+      cubeRoot.evaluate((element) => getComputedStyle(element).overflow),
     ])
-    expect(outerLayerSize).toBe(`${TWISTED_CUBES_VIEWPORT_EXTENT_VMAX}vmax`)
-    expect(cubeHostBounds && cubeSceneBounds ? {
-      extendsHorizontally: cubeSceneBounds.width > cubeHostBounds.width,
-      extendsVertically: cubeSceneBounds.height > cubeHostBounds.height,
-    } : null).toEqual({ extendsHorizontally: true, extendsVertically: true })
+    expect(outerLayerSize).toBe(`${getTwistedCubeLayerSizeVmax({
+      oneBasedIndex: DEFAULT_TWISTED_CUBES_BACKGROUND_OPTIONS.layerCount,
+      count: DEFAULT_TWISTED_CUBES_BACKGROUND_OPTIONS.layerCount,
+      scale: DEFAULT_TWISTED_CUBES_BACKGROUND_OPTIONS.scale,
+    })}vmax`)
+    expect(rootOverflow).toBe("hidden")
     expect(await host.locator('[style*="--ml-dna-start-color"]').count()).toBe(0)
     expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)).toBe(false)
     expectHealthy(health)
