@@ -263,34 +263,7 @@
   padding-inline: 0.75rem;
 }
 
-.dock[data-immersive-layout="side"][data-immersive-panel="clock"] .dockHeader {
-  display: grid;
-  grid-template-areas:
-    "title visibility close"
-    "controls controls controls";
-  grid-template-columns: max-content max-content minmax(0, 1fr);
-}
-
-.dock[data-immersive-layout="side"][data-immersive-panel="clock"] .dockHeader h2 {
-  grid-area: title;
-  margin-right: 0;
-}
-
-.dock[data-immersive-layout="side"][data-immersive-panel="clock"] .dockHeaderAction {
-  grid-area: visibility;
-}
-
-.dock[data-immersive-layout="side"][data-immersive-panel="clock"] .dockHeaderCenterAction {
-  grid-area: controls;
-  width: 100%;
-}
-
-.dock[data-immersive-layout="side"][data-immersive-panel="clock"] .dockHeaderClose {
-  grid-area: close;
-  justify-self: end;
-  margin-left: 0;
-}
-
+.dock[data-immersive-layout="side"][data-immersive-panel="clock"] .dockHeader,
 .dock[data-immersive-layout="side"][data-immersive-panel="visual"] .dockHeader {
   display: grid;
   grid-template-areas:
@@ -299,20 +272,24 @@
   grid-template-columns: max-content max-content minmax(0, 1fr);
 }
 
+.dock[data-immersive-layout="side"][data-immersive-panel="clock"] .dockHeader h2,
 .dock[data-immersive-layout="side"][data-immersive-panel="visual"] .dockHeader h2 {
   grid-area: title;
   margin-right: 0;
 }
 
+.dock[data-immersive-layout="side"][data-immersive-panel="clock"] .dockHeaderAction,
 .dock[data-immersive-layout="side"][data-immersive-panel="visual"] .dockHeaderAction {
   grid-area: visibility;
 }
 
+.dock[data-immersive-layout="side"][data-immersive-panel="clock"] .dockHeaderCenterAction,
 .dock[data-immersive-layout="side"][data-immersive-panel="visual"] .dockHeaderCenterAction {
   grid-area: controls;
   width: 100%;
 }
 
+.dock[data-immersive-layout="side"][data-immersive-panel="clock"] .dockHeaderClose,
 .dock[data-immersive-layout="side"][data-immersive-panel="visual"] .dockHeaderClose {
   grid-area: close;
   justify-self: end;

@@ -445,6 +445,10 @@ export function BackgroundHost(props: BackgroundHostProps) {
       : entry.fallbackStyle),
     [backgroundPalette, canCustomize, entry.fallbackStyle, entry.id],
   )
+  const fallbackRemountKey = useMemo(
+    () => `${entry.id}:${backgroundPalette?.palette.mode ?? "source"}:${canCustomize}:${JSON.stringify(fallbackStyle ?? null)}`,
+    [backgroundPalette?.palette.mode, canCustomize, entry.id, fallbackStyle],
+  )
   const diagnosticSnapshot = diagnostics && adapter
     ? createBackgroundHostDiagnosticSnapshot({
         requestedId: entry.id,
@@ -502,7 +506,7 @@ export function BackgroundHost(props: BackgroundHostProps) {
         // Registry fallbacks mix legacy background shorthand and longhands.
         // Remounting this decorative layer prevents React from reconciling
         // conflicting style families when the selected entry or mode changes.
-        key={`${entry.id}:${backgroundPalette?.palette.mode ?? "source"}:${canCustomize}:${JSON.stringify(fallbackStyle ?? null)}`}
+        key={fallbackRemountKey}
         className={cn(styles.fallback, entry.fallbackClassName)}
         style={fallbackStyle}
       />

@@ -1479,6 +1479,8 @@
 
 .visualHeaderDraftActions > button {
   min-width: 2rem;
+  /* Compact header actions remain 32x32px, above WCAG's 24px target minimum. */
+  min-height: 2rem;
   padding-inline: 0.55rem;
 }
 

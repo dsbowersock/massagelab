@@ -204,13 +204,34 @@ describe("Twisted Cubes background domain rules", () => {
     assert.deepEqual(
       toTwistedCubesChimerSettingsPatch({
         layerCount: 8,
+        rotationSpeed: 0.5,
+        layerStagger: 0.15,
+        viewAngleX: -20,
+        viewAngleY: 25,
+        scale: 0.4,
         positionX: 12,
+        positionY: -9,
+        layerDepthSpacing: 30,
+        opacityFalloff: 0.7,
+        outlineThickness: 0.005,
         interpolatedOutline: "rgb(1 2 3)",
         alpha: 0.5,
         anchors: ["#000000"],
         unrelated: true,
       }),
-      { massageLabTwistedCubesLayerCount: 8, massageLabTwistedCubesPositionX: 12 },
+      {
+        massageLabTwistedCubesLayerCount: 8,
+        massageLabTwistedCubesRotationSpeed: 0.5,
+        massageLabTwistedCubesLayerStagger: 0.15,
+        massageLabTwistedCubesViewAngleX: -20,
+        massageLabTwistedCubesViewAngleY: 25,
+        massageLabTwistedCubesScale: 0.4,
+        massageLabTwistedCubesPositionX: 12,
+        massageLabTwistedCubesPositionY: -9,
+        massageLabTwistedCubesLayerDepthSpacing: 30,
+        massageLabTwistedCubesOpacityFalloff: 0.7,
+        massageLabTwistedCubesOutlineThickness: 0.005,
+      },
     )
   })
 

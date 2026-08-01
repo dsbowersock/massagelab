@@ -65,6 +65,62 @@ function maskNonCode(source) {
   return characters.join("")
 }
 
+/**
+ * Masks JavaScript comments without masking quoted program text. Source-based
+ * contract tests use this when string literals and JSX attributes are part of
+ * the executable evidence but prose comments must not satisfy an assertion.
+ */
+export function maskSourceComments(source) {
+  const characters = source.split("")
+  let state = "code"
+
+  for (let index = 0; index < characters.length; index += 1) {
+    const current = characters[index]
+    const next = characters[index + 1]
+
+    if (state === "code") {
+      if (current === "/" && next === "/") {
+        characters[index] = characters[index + 1] = " "
+        state = "line-comment"
+        index += 1
+      } else if (current === "/" && next === "*") {
+        characters[index] = characters[index + 1] = " "
+        state = "block-comment"
+        index += 1
+      } else if (current === "\"" || current === "'" || current === "`") {
+        state = current
+      }
+      continue
+    }
+
+    if (state === "line-comment") {
+      if (current === "\n" || current === "\r") state = "code"
+      else characters[index] = " "
+      continue
+    }
+
+    if (state === "block-comment") {
+      if (current === "*" && next === "/") {
+        characters[index] = characters[index + 1] = " "
+        state = "code"
+        index += 1
+      } else if (current !== "\n" && current !== "\r") {
+        characters[index] = " "
+      }
+      continue
+    }
+
+    if (current === "\\") {
+      index += 1
+    } else if (current === state) {
+      state = "code"
+    }
+  }
+
+  assert.notEqual(state, "block-comment", "source has a balanced block comment")
+  return characters.join("")
+}
+
 /** Extracts one interface without allowing assertions to match later declarations. */
 export function extractInterfaceBody(source, name) {
   const code = maskNonCode(source)

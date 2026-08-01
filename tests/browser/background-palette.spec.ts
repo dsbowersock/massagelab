@@ -109,6 +109,9 @@ function expectTargetColor(actual: unknown, expectedColor: string, target: strin
     return
   }
   if (typeof actual === "string" && actual.startsWith("rgba(")) {
+    if (!/^#[\da-f]{6}$/i.test(expectedColor)) {
+      throw new Error(`Expected a six-digit HEX color for ${target}, received: ${expectedColor}`)
+    }
     const expectedRgb = [
       Number.parseInt(expectedColor.slice(1, 3), 16),
       Number.parseInt(expectedColor.slice(3, 5), 16),
@@ -283,7 +286,9 @@ async function startActiveChimer(page: Page) {
   await installPremiumAccount(page)
   await page.goto("/chimer", { waitUntil: "domcontentloaded" })
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined)
-  await page.getByRole("button", { name: /^Increase minutes$/i }).click()
+  const increaseMinutesButton = page.getByRole("button", { name: /^Increase minutes$/i })
+  await expect(increaseMinutesButton).toBeEnabled()
+  await increaseMinutesButton.click()
   for (let step = 0; step < 4; step += 1) {
     const continueButton = page.getByRole("button", { name: /^Continue$/i })
     await expect(continueButton).toBeEnabled()

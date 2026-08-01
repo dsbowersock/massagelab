@@ -84,6 +84,24 @@ function clampNumber(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
 }
 
+/** Resolves the saved-state message without coupling the JSX to sync precedence. */
+function getVisualDraftStatusText({
+  dirty,
+  storageStatus,
+  syncStatus,
+}: {
+  dirty: boolean
+  storageStatus: string
+  syncStatus: string
+}) {
+  if (dirty) return "Unsaved changes"
+  if (storageStatus === "loading") return "Loading saved preferences…"
+  if (storageStatus !== "available") return "Changes active for this visit"
+  if (syncStatus === "stale") return "Saved on this device. Account sync failed."
+  if (syncStatus === "pending") return "Applied on this device. Syncing account…"
+  return "Saved"
+}
+
 function normalizeHexColor(value: string, fallback: string) {
   if (typeof value !== "string") {
     return fallback
@@ -13671,17 +13689,11 @@ export function RunningTimer({
 
               <div className={styles.visualDraftStatusRow}>
                 <span className={styles.visualDraftStatus} role="status" aria-live="polite" aria-atomic="true">
-                  {visualDraft?.dirty
-                    ? "Unsaved changes"
-                    : mode.storageStatus === "loading"
-                      ? "Loading saved preferences…"
-                      : mode.storageStatus !== "available"
-                        ? "Changes active for this visit"
-                        : backgroundPreferenceSyncStatus === "stale"
-                          ? "Saved on this device. Account sync failed."
-                          : backgroundPreferenceSyncStatus === "pending"
-                            ? "Applied on this device. Syncing account…"
-                            : "Saved"}
+                  {getVisualDraftStatusText({
+                    dirty: Boolean(visualDraft?.dirty),
+                    storageStatus: mode.storageStatus,
+                    syncStatus: backgroundPreferenceSyncStatus,
+                  })}
                 </span>
                 {!visualDraft?.dirty && backgroundPreferenceSyncStatus === "stale" ? (
                   <Button type="button" size="compact" variant="cta" onClick={onRetryBackgroundVisualPreferences}>

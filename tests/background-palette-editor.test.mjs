@@ -163,7 +163,8 @@ test("BackgroundHost applies the resolved palette to its persistent fallback lay
     /effectProps:\s*backgroundPalette\s*\?\s*resolveBackgroundEffectProps/,
   )
   assert.match(backgroundHostSource, /const fallbackStyle = useMemo\([\s\S]*resolveBackgroundFallbackStyle\(\{[\s\S]*palette: backgroundPalette\.palette,[\s\S]*mapping: backgroundPalette\.mapping,[\s\S]*canCustomize,[\s\S]*\[backgroundPalette, canCustomize, entry\.fallbackStyle, entry\.id\]/)
-  assert.match(backgroundHostSource, /key=\{`\$\{entry\.id\}:\$\{backgroundPalette\?\.palette\.mode \?\? "source"\}:\$\{canCustomize\}:\$\{JSON\.stringify\(fallbackStyle \?\? null\)\}`\}/)
+  assert.match(backgroundHostSource, /const fallbackRemountKey = useMemo\([\s\S]*JSON\.stringify\(fallbackStyle \?\? null\)[\s\S]*\[backgroundPalette\?\.palette\.mode, canCustomize, entry\.id, fallbackStyle\]/)
+  assert.match(backgroundHostSource, /key=\{fallbackRemountKey\}/)
   assert.match(backgroundHostSource, /className=\{cn\(styles\.fallback, entry\.fallbackClassName\)\}[\s\S]*style=\{fallbackStyle\}/)
   assert.doesNotMatch(backgroundHostSource, /style=\{entry\.fallbackStyle\}/)
 })

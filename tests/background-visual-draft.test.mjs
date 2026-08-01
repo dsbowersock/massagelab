@@ -1243,7 +1243,7 @@ test("dirty navigation guard covers eligible app links, history, and native unlo
   assert.match(runningTimerSource, /className=\{styles\.visualDraftStatus\}[\s\S]*role="status"[\s\S]*aria-live="polite"/)
   assert.match(
     runningTimerSource,
-    /visualDraft\?\.dirty[\s\S]*?mode\.storageStatus === "loading"[\s\S]*?mode\.storageStatus !== "available"[\s\S]*?backgroundPreferenceSyncStatus === "stale"/,
+    /function getVisualDraftStatusText[\s\S]*?if \(dirty\)[\s\S]*?storageStatus === "loading"[\s\S]*?storageStatus !== "available"[\s\S]*?syncStatus === "stale"/,
   )
   assert.match(runningTimerSource, /Changes active for this visit/)
   assert.match(
@@ -1293,34 +1293,34 @@ test("DNA and Twisted Cubes controls emit only draft property patches with exact
     assert.match(source, new RegExp(`<StyledRangeControl${withinSlider}label="${safeLabel}"${withinSlider}value=\\{value\\.${safeProperty}\\}${withinSlider}min=\\{${safeMinimum}\\}${withinSlider}max=\\{${safeMaximum}\\}${withinSlider}step=\\{${safeStep}\\}${withinSlider}onChange=\\{\\(nextValue\\) => onChange\\(\\{ ${safeProperty}: nextValue \\}\\)\\}${withinSlider}\\/>`))
   }
 
-  for (const [label, property, min, max, step] of [
-    ["Node motion speed", "nodeMotionSpeed", "0.01", "3", "0.01"],
-    ["Strand rotation speed", "strandRotationSpeed", "0.01", "3", "0.01"],
-    ["Strand count", "strandCount", "7", "81", "1"],
-    ["Strand angle", "strandAngle", "-180", "180", "1"],
-    ["Strand spacing", "strandSpacing", "0", "2", "0.05"],
-    ["Scale", "scale", "0.4", "1.2", "0.01"],
-    ["Position X", "positionX", "-35", "35", "1"],
-    ["Position Y", "positionY", "-35", "35", "1"],
-    ["Connector width", "connectorWidth", "60", "100", "1"],
-    ["Connector thickness", "connectorThickness", "10", "60", "1"],
-    ["Outline thickness", "outlineThickness", "0", "1.5", "0.05"],
-  ]) assertSlider(dnaControlsSource, label, property, min, max, step)
+  for (const [label, property, step] of [
+    ["Node motion speed", "nodeMotionSpeed", "0.01"],
+    ["Strand rotation speed", "strandRotationSpeed", "0.01"],
+    ["Strand count", "strandCount", "1"],
+    ["Strand angle", "strandAngle", "1"],
+    ["Strand spacing", "strandSpacing", "0.05"],
+    ["Scale", "scale", "0.01"],
+    ["Position X", "positionX", "1"],
+    ["Position Y", "positionY", "1"],
+    ["Connector width", "connectorWidth", "1"],
+    ["Connector thickness", "connectorThickness", "1"],
+    ["Outline thickness", "outlineThickness", "0.05"],
+  ]) assertSlider(dnaControlsSource, label, property, `DNA_OPTION_BOUNDS.${property}.minimum`, `DNA_OPTION_BOUNDS.${property}.maximum`, step)
   assert.match(dnaControlsSource, /<StyledToggleControl[\s\S]*?label="Show base letters"[\s\S]*?checked=\{value\.showBaseLetters\}[\s\S]*?onCheckedChange=\{\(nextValue\) => onChange\(\{ showBaseLetters: nextValue \}\)\}/)
 
-  for (const [label, property, min, max, step] of [
-    ["Rotation speed", "rotationSpeed", "0.01", "3", "0.01"],
-    ["Layer stagger", "layerStagger", "0", "0.3", "0.01"],
-    ["View angle X", "viewAngleX", "-80", "80", "1"],
-    ["View angle Y", "viewAngleY", "-80", "80", "1"],
-    ["Layer count", "layerCount", "6", "30", "1"],
-    ["Layer depth", "layerDepthSpacing", "10", "70", "1"],
-    ["Scale", "scale", "0.1", "1.2", "0.01"],
-    ["Position X", "positionX", "-35", "35", "1"],
-    ["Position Y", "positionY", "-35", "35", "1"],
-    ["Fade falloff", "opacityFalloff", "0", "0.95", "0.01"],
-    ["Relative outline thickness", "outlineThickness", "0.0025", "0.02", "0.0005"],
-  ]) assertSlider(twistedCubesControlsSource, label, property, min, max, step)
+  for (const [label, property, step] of [
+    ["Rotation speed", "rotationSpeed", "0.01"],
+    ["Layer stagger", "layerStagger", "0.01"],
+    ["View angle X", "viewAngleX", "1"],
+    ["View angle Y", "viewAngleY", "1"],
+    ["Layer count", "layerCount", "1"],
+    ["Layer depth", "layerDepthSpacing", "1"],
+    ["Scale", "scale", "0.01"],
+    ["Position X", "positionX", "1"],
+    ["Position Y", "positionY", "1"],
+    ["Fade falloff", "opacityFalloff", "0.01"],
+    ["Relative outline thickness", "outlineThickness", "0.0005"],
+  ]) assertSlider(twistedCubesControlsSource, label, property, `TWISTED_CUBES_OPTION_BOUNDS.${property}.minimum`, `TWISTED_CUBES_OPTION_BOUNDS.${property}.maximum`, step)
 
   for (const [label, source] of [
     ["DNA", dnaControlsSource],

@@ -4,7 +4,7 @@ import path from "node:path"
 import test from "node:test"
 import { fileURLToPath } from "node:url"
 
-import { extractInterfaceBody } from "./helpers/source-structure.mjs"
+import { extractInterfaceBody, maskSourceComments } from "./helpers/source-structure.mjs"
 import { TWISTED_CUBES_OPTION_BOUNDS } from "../lib/twisted-cubes-background.js"
 
 const testsDirectory = path.dirname(fileURLToPath(import.meta.url))
@@ -13,18 +13,14 @@ const componentPath = path.join(rootDirectory, "components/backgrounds/effects/m
 const stylesheetPath = path.join(rootDirectory, "components/backgrounds/effects/massage-lab-twisted-cubes-background.module.css")
 const effectPropsPath = path.join(rootDirectory, "components/backgrounds/effects/css-backgrounds.tsx")
 
-const stripSourceComments = (source) => source
-  .replace(/\/\*[\s\S]*?\*\//g, "")
-  .replace(/\/\/.*$/gm, "")
-
 test("the Twisted Cubes renderer stays a scoped, non-interactive CSS DOM effect", () => {
   assert.equal(existsSync(componentPath), true, "the scoped Twisted Cubes renderer exists")
   assert.equal(existsSync(stylesheetPath), true, "the scoped Twisted Cubes stylesheet exists")
 
   const componentSource = readFileSync(componentPath, "utf8")
   const stylesheetSource = readFileSync(stylesheetPath, "utf8")
-  const componentCode = stripSourceComments(componentSource)
-  const stylesheetCode = stripSourceComments(stylesheetSource)
+  const componentCode = maskSourceComments(componentSource)
+  const stylesheetCode = maskSourceComments(stylesheetSource)
 
   assert.match(componentCode, /getTwistedCubeSourceOutline/)
   assert.match(componentCode, /interpolateTwistedCubeOutline/)

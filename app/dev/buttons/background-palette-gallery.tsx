@@ -371,12 +371,16 @@ function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) 
     }))
   }
 
-  function updateProperties(patch: Record<string, number>) {
+  type Track4BPropertyValue = number | boolean
+
+  function updateProperties(patch: Record<string, Track4BPropertyValue>) {
     replaceSnapshot((current) => ({ properties: { ...current.properties, ...patch } }))
   }
 
   function updatePropertiesFromCurrent(
-    patch: (properties: Record<string, number>) => Record<string, number>,
+    patch: (
+      properties: Record<string, Track4BPropertyValue>,
+    ) => Record<string, Track4BPropertyValue>,
   ) {
     replaceSnapshot((current) => ({
       properties: { ...current.properties, ...patch(current.properties) },
@@ -548,10 +552,10 @@ function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) 
           variant="secondary"
           onClick={() => {
             updatePropertiesFromCurrent((properties) => ({
-              massageLabDnaStrandAngle: properties.massageLabDnaStrandAngle + 1,
+              massageLabDnaStrandAngle: Number(properties.massageLabDnaStrandAngle) + 1,
             }))
             updatePropertiesFromCurrent((properties) => ({
-              massageLabTwistedCubesViewAngleX: properties.massageLabTwistedCubesViewAngleX + 1,
+              massageLabTwistedCubesViewAngleX: Number(properties.massageLabTwistedCubesViewAngleX) + 1,
             }))
           }}
         >

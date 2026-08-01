@@ -257,6 +257,7 @@ const massageLabTwistedCubes = () => import("./effects/massage-lab-twisted-cubes
 const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
   {
     id: "massage-lab-moving-gradient",
+    // Established product label; canonical source docs and tests intentionally preserve this spelling.
     label: "MassageLaba Lamp",
     provider: "MassageLab",
     sourceUrl: "internal",
@@ -468,6 +469,7 @@ const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
   },
   {
     id: "massage-lab-wave-current",
+    // Existing catalog label retained pending a separate product naming decision.
     label: "Wave Current",
     provider: "MassageLab",
     sourceUrl: "internal",
@@ -1356,6 +1358,7 @@ const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
   },
   {
     id: "massage-lab-waves",
+    // Existing catalog label retained pending a separate product naming decision.
     label: "Wave Current",
     provider: "MassageLab",
     sourceUrl: "internal",

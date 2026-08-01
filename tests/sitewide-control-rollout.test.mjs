@@ -7,13 +7,9 @@ import { resolveBackgroundEffectProps } from "../components/backgrounds/resolveB
 import { resolveDnaTwistedCubesBackgroundHostProps } from "../lib/dna-twisted-cubes-background-host.js"
 import { resolveImmersiveDisplayContext } from "../lib/immersive-display.js"
 import { COMPUTED_CONSUMER_CONTRACTS } from "./browser/dna-twisted-cubes-consumer-contract.mjs"
+import { maskSourceComments } from "./helpers/source-structure.mjs"
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8")
-
-/** Removes comments before source-contract scans so prose cannot satisfy or fail executable checks. */
-const stripSourceComments = (source) => source
-  .replace(/\/\*[\s\S]*?\*\//g, "")
-  .replace(/\/\/.*$/gm, "")
 
 test("S6 ordinary action routes delegate to the shared Button family", async () => {
   const [chimer, pricing, anatomimeAlias] = await Promise.all([
@@ -212,8 +208,8 @@ test("development review exposes the complete shared background palette matrix",
 
 test("development review exposes the real DNA and Twisted Cubes acceptance matrix", async () => {
   const [gallery, browserSource, playwrightConfig, sliderSource, colorSliderSource] = await Promise.all([
-    read("app/dev/buttons/background-palette-gallery.tsx"),
-    read("tests/browser/dna-twisted-cubes-backgrounds.spec.ts"),
+    read("app/dev/buttons/background-palette-gallery.tsx").then(maskSourceComments),
+    read("tests/browser/dna-twisted-cubes-backgrounds.spec.ts").then(maskSourceComments),
     read("playwright.config.ts"),
     read("components/ui/slider.tsx"),
     read("components/chimer-controls/ColorSlider.tsx"),
@@ -386,8 +382,8 @@ test("DNA and Twisted Cubes share compact options and host-owned responsive moti
     read("components/backgrounds/effects/massage-lab-twisted-cubes-background.tsx"),
     read("app/chimer/running-timer.module.css"),
   ])
-  const dnaExecutableSource = stripSourceComments(dnaEffect)
-  const cubesExecutableSource = stripSourceComments(cubesEffect)
+  const dnaExecutableSource = maskSourceComments(dnaEffect)
+  const cubesExecutableSource = maskSourceComments(cubesEffect)
 
   assert.match(runningSource, /getDnaBackgroundOptionsFromChimerSettings/)
   assert.match(runningSource, /getTwistedCubesBackgroundOptionsFromChimerSettings/)

@@ -80,7 +80,7 @@ describe("background preview media", () => {
     assert.match(reviewFixtureSource, /missingVideo \? "Use working video" : "Use missing video"/)
     assert.match(
       reviewFixtureSource,
-      /videoUrl=\{videoUrl\}[\s\S]*?posterUrl=\{`\/chimer\/background-previews\/\$\{previewName\}-vertical\.webp`\}/,
+      /const preview = backgroundPreviewManifest\[previewName\][\s\S]*?const verticalPreview = preview\.variants\?\.vertical[\s\S]*?videoUrl=\{videoUrl\}[\s\S]*?posterUrl=\{posterUrl\}/,
     )
   })
 

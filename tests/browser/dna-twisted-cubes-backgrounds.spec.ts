@@ -18,6 +18,7 @@ import {
   interpolateTwistedCubeOutline,
 } from "../../lib/twisted-cubes-background.js"
 import { COMPUTED_CONSUMER_CONTRACTS } from "./dna-twisted-cubes-consumer-contract.mjs"
+import { parseComputedMatrix } from "../helpers/computed-matrix"
 
 const DNA_COMPUTED_CONSUMER_CONTRACTS = COMPUTED_CONSUMER_CONTRACTS.filter(
   ({ effectId }) => effectId === "massage-lab-dna",
@@ -72,27 +73,6 @@ const EFFECTS = [
     },
   },
 ] as const
-
-/** Parses Chromium's computed 2D transform so layout assertions can tolerate subpixel serialization drift. */
-function parseComputedMatrix(transform: string) {
-  const matrix2d = /^matrix\(([^)]+)\)$/.exec(transform)
-  const matrix3d = /^matrix3d\(([^)]+)\)$/.exec(transform)
-  const match = matrix2d ?? matrix3d
-  if (!match) {
-    throw new Error(`Expected a computed 2D or 3D matrix, received: ${transform}`)
-  }
-  const rawValues = match[1].split(",").map((value) => value.trim())
-  const values = rawValues.map((value) => Number(value))
-  const expectedLength = matrix2d ? 6 : 16
-  if (
-    rawValues.length !== expectedLength
-    || rawValues.some((value) => value === "")
-    || values.some((value) => !Number.isFinite(value))
-  ) {
-    throw new Error(`Expected ${expectedLength} finite computed matrix values, received: ${transform}`)
-  }
-  return values
-}
 
 type RuntimeHealth = ReturnType<typeof captureRuntimeErrors>
 
@@ -204,7 +184,7 @@ async function expectRenderedContract(host: Locator, id: typeof EFFECTS[number][
   } else {
     const layers = root.locator('[style*="--ml-twisted-cubes-outline"]')
     expect(await layers.count()).toBeGreaterThan(0)
-    expect(await layers.locator(":scope > span > span > span > span").count()).toBe((await layers.count()) * 6)
+    expect(await layers.locator(":scope > span > span > span > span").count()).toBe((await layers.count()) * 12)
     const vars = await root.evaluate((element) => {
       const style = (element as HTMLElement).style
       return [
@@ -1479,8 +1459,6 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
   })
 
   test("positive-delay Twisted layers stay centered before animation begins", async ({ page }) => {
-    expect(parseComputedMatrix("matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 12, 24, 0, 1)")).toHaveLength(16)
-    expect(() => parseComputedMatrix("matrix(1, 0, 0, 1, 6px, 7)")).toThrow(/6 finite computed matrix values/)
     const health = captureRuntimeErrors(page)
     const review = await openTrack4BReview(page)
     const host = review.getByTestId("track-4b-live-host")
@@ -1899,7 +1877,11 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
             y: style.getPropertyValue(`${prefix}-position-y`),
           }
         }, effect.id)
-        expect(sceneStyle).toEqual({ scale: "1", x: "20%", y: "20%" })
+        expect(sceneStyle).toEqual({
+          scale: "1",
+          x: effect.id === "massage-lab-dna" ? "20%" : "20vw",
+          y: effect.id === "massage-lab-dna" ? "20%" : "20vh",
+        })
         await expectExactReducedEffectState(
           review,
           host,

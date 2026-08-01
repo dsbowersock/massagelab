@@ -4,7 +4,7 @@ import path from "node:path"
 import test from "node:test"
 import { fileURLToPath } from "node:url"
 
-import { extractInterfaceBody } from "./helpers/source-structure.mjs"
+import { extractInterfaceBody, maskSourceComments } from "./helpers/source-structure.mjs"
 import { DNA_BASE_ROLE_INDEX, DNA_OPTION_BOUNDS } from "../lib/dna-background.js"
 
 const testsDirectory = path.dirname(fileURLToPath(import.meta.url))
@@ -13,18 +13,14 @@ const componentPath = path.join(rootDirectory, "components/backgrounds/effects/m
 const stylesheetPath = path.join(rootDirectory, "components/backgrounds/effects/massage-lab-dna-background.module.css")
 const effectPropsPath = path.join(rootDirectory, "components/backgrounds/effects/css-backgrounds.tsx")
 
-const stripSourceComments = (source) => source
-  .replace(/\/\*[\s\S]*?\*\//g, "")
-  .replace(/\/\/.*$/gm, "")
-
 test("the DNA renderer stays a scoped, non-interactive CSS DOM effect", () => {
   assert.equal(existsSync(componentPath), true, "the scoped DNA renderer exists")
   assert.equal(existsSync(stylesheetPath), true, "the scoped DNA stylesheet exists")
 
   const componentSource = readFileSync(componentPath, "utf8")
   const stylesheetSource = readFileSync(stylesheetPath, "utf8")
-  const componentCode = stripSourceComments(componentSource)
-  const stylesheetCode = stripSourceComments(stylesheetSource)
+  const componentCode = maskSourceComments(componentSource)
+  const stylesheetCode = maskSourceComments(stylesheetSource)
 
   assert.equal(DNA_OPTION_BOUNDS.strandCount.maximum, 81)
   assert.deepEqual(DNA_BASE_ROLE_INDEX, { A: 0, T: 1, G: 2, C: 3 })

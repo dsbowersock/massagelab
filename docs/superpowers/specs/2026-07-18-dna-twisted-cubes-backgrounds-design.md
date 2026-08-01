@@ -188,7 +188,7 @@ For adjustable layer counts, the negative animation delay is normalized as a cou
 
 ## Visual Property Contract
 
-All properties use Track 4A's registry visual-property sanitizer and Visual preset contract. Defaults are source values except the recorded visual-QA overrides: DNA uses 70 strands, 50% scale, `0.06x` node motion, `0.02x` strand rotation, 15% connector thickness, and `0.10vmin` outlines; Twisted Cubes uses 30% scale and `0.25x` rotation. The renderer's fixed full-bleed viewport extent is described below.
+All properties use Track 4A's registry visual-property sanitizer and Visual preset contract. Defaults are source values except the recorded visual-QA overrides: DNA uses 70 strands, 50% scale, `0.06x` node motion, `0.02x` strand rotation, 15% connector thickness, and `0.10vmin` outlines; Twisted Cubes uses 30% scale and `0.25x` rotation. The renderer's derived full-bleed layout is described below.
 
 ### DNA properties
 
@@ -223,7 +223,7 @@ All properties use Track 4A's registry visual-property sanitizer and Visual pres
 | Opacity falloff     |          0-0.95 |    0.85 | Retains source fade by default      |
 | Outline thickness   |     0.0025-0.02 |  0.0075 | Displayed as relative scene percent |
 
-The full-bleed viewport extent is a derived renderer layout constant, not a user property. It is fixed at `120vmax`, has no stored range or preference default, and is never persisted in local/account settings or Visual presets. The outermost layer always resolves to that bounded extent; the stored Scale value changes only the inner-layer size progression.
+Each layer's viewport extent is derived from its one-based index, the `20vmax` layer step, and the sanitized Scale value; no separate extent is persisted in local/account settings or Visual presets. At the approved 20-layer, 30% default, the outer wireframe reaches `120vmax`. Changing Scale uniformly shrinks or grows the complete count-relative progression.
 
 ### Responsive bounds
 
