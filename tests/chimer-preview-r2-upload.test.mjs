@@ -45,10 +45,20 @@ describe("Chimer preview R2 uploader", () => {
     const contentTypes = Object.fromEntries(
       summary.objects.map(({ objectKey, contentType }) => [path.basename(objectKey), contentType]),
     )
+    const cacheControls = Object.fromEntries(
+      summary.objects.map(({ objectKey, cacheControl }) => [path.basename(objectKey), cacheControl]),
+    )
     for (const name of expectedMedia) {
       assert.equal(contentTypes[name], name.endsWith(".webp") ? "image/webp" : "video/webm")
+      assert.equal(
+        cacheControls[name],
+        name.endsWith(".webp")
+          ? "public, max-age=300, must-revalidate"
+          : "public, max-age=31536000, immutable",
+      )
     }
     assert.equal(contentTypes["index.json"], "application/json; charset=utf-8")
+    assert.equal(cacheControls["index.json"], "public, max-age=300, must-revalidate")
     assert.doesNotMatch(result.stdout, /Uploaded/)
   })
 })

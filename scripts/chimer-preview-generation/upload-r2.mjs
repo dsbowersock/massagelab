@@ -74,11 +74,16 @@ async function runUpload(rawArgs) {
 
   const objects = selectedFiles.map((file) => {
     const objectKey = `${env.objectPrefix}/${file.name}`
+    // Poster keys are stable across regenerations, so they must revalidate like
+    // the manifest instead of inheriting the immutable video cache contract.
+    const cacheControl = file.name === "index.json" || file.name.endsWith(".webp")
+      ? env.metadataCacheControl
+      : env.cacheControl
     return {
       objectKey,
       publicUrl: publicUrlForR2Object(env.publicBaseUrl, objectKey),
       contentType: contentTypeForFile(file.name),
-      cacheControl: file.name === "index.json" ? env.metadataCacheControl : env.cacheControl,
+      cacheControl,
       file,
     }
   })
@@ -95,6 +100,7 @@ async function runUpload(rawArgs) {
         objectKey: object.objectKey,
         publicUrl: object.publicUrl,
         contentType: object.contentType,
+        cacheControl: object.cacheControl,
         bytes: object.file.bytes,
       })),
       firstObjects: objects.slice(0, 5).map((object) => ({
