@@ -1243,8 +1243,9 @@ test("dirty navigation guard covers eligible app links, history, and native unlo
   assert.match(runningTimerSource, /className=\{styles\.visualDraftStatus\}[\s\S]*role="status"[\s\S]*aria-live="polite"/)
   assert.match(
     runningTimerSource,
-    /visualDraft\?\.dirty \? "Unsaved changes" : backgroundPreferenceSyncStatus === "stale"/,
+    /visualDraft\?\.dirty[\s\S]*?mode\.storageStatus === "loading"[\s\S]*?mode\.storageStatus !== "available"[\s\S]*?backgroundPreferenceSyncStatus === "stale"/,
   )
+  assert.match(runningTimerSource, /Changes active for this visit/)
   assert.match(
     runningTimerSource,
     /!visualDraft\?\.dirty && backgroundPreferenceSyncStatus === "stale" \? \([\s\S]*?Retry sync/,

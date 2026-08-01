@@ -251,6 +251,8 @@ const massageLabPixelLiquid = () => import("./effects/massage-lab-pixel-liquid-b
 const massageLabTileGrid = () => import("./effects/massage-lab-tile-grid-background")
 const massageLabHexGrid = () => import("./effects/massage-lab-hex-grid-background")
 const massageLabAuroraBars = () => import("./effects/massage-lab-aurora-bars-background")
+const massageLabDna = () => import("./effects/massage-lab-dna-background")
+const massageLabTwistedCubes = () => import("./effects/massage-lab-twisted-cubes-background")
 
 const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
   {
@@ -433,7 +435,7 @@ const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
     enabled: true,
     supportsReducedMotionStatic: true,
     customizationSummary: "Source/Custom/Harmony role colors plus bounded strand motion, geometry, scale, position, connector, and outline controls.",
-    component: () => import("./effects/massage-lab-dna-background").then((module) => ({
+    component: () => massageLabDna().then((module) => ({
       // BackgroundHost supplies the selected adapter's required option object.
       default: module.MassageLabDnaBackground as ComponentType<BackgroundEffectProps>,
     })),
@@ -456,7 +458,7 @@ const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
     enabled: true,
     supportsReducedMotionStatic: true,
     customizationSummary: "Continuous Source HSL or resolved Custom/Harmony anchors plus bounded layer, rotation, view, depth, fade, position, scale, and outline controls.",
-    component: () => import("./effects/massage-lab-twisted-cubes-background").then((module) => ({
+    component: () => massageLabTwistedCubes().then((module) => ({
       // BackgroundHost supplies the selected adapter's required option object.
       default: module.MassageLabTwistedCubesBackground as ComponentType<BackgroundEffectProps>,
     })),

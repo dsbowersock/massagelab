@@ -17,6 +17,7 @@ describe("Chimer entitlement-aware settings", () => {
         ? "massageLabDnaStrandCount"
         : "massageLabTwistedCubesLayerCount"
       const editedVisualValue = backgroundId === "massage-lab-dna" ? 17 : 24
+      assert.equal(typeof DEFAULT_CHIMER_SETTINGS[visualPropertyKey], "number")
       assert.equal(canCustomizeBackgroundColors({ hasBackgroundAccess: true }), true)
       assert.equal(resolveEffectiveBackgroundPaletteMode({
         savedMode: "custom",

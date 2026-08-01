@@ -9,10 +9,11 @@
 }
 
 .scene {
+  --ml-dna-scene-width: 26vmin;
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 26vmin;
+  width: var(--ml-dna-scene-width);
   height: max(240vmin, 230vmax);
   transform: translate(
       calc(-50% + var(--ml-dna-position-x)),
@@ -81,12 +82,12 @@
 
 .node[data-side="start"] {
   background: var(--ml-dna-start-color);
-  --ml-dna-crossover-distance: calc(26vmin - 100%);
+  --ml-dna-crossover-distance: calc(var(--ml-dna-scene-width) - 100%);
 }
 
 .node[data-side="end"] {
   background: var(--ml-dna-end-color);
-  --ml-dna-crossover-distance: calc(-26vmin + 100%);
+  --ml-dna-crossover-distance: calc(-1 * var(--ml-dna-scene-width) + 100%);
   animation-direction: reverse;
 }
 

@@ -151,6 +151,10 @@ describe("premium background registry", () => {
       "massage-lab-dna": "MIT; copyright 2026 Jhey; archive `css-trigonometric-function-dna-strand.zip` reviewed",
       "massage-lab-twisted-cubes": "MIT; copyright 2026 Jhey; archive `cubies.zip` reviewed",
     }
+    const expectedLoaderNames = {
+      "massage-lab-dna": "massageLabDna",
+      "massage-lab-twisted-cubes": "massageLabTwistedCubes",
+    }
     for (const backgroundId of ["massage-lab-dna", "massage-lab-twisted-cubes"]) {
       assert.equal(isBackgroundId(backgroundId), true)
       const definition = backgroundRegistry.find((entry) => entry.id === backgroundId)
@@ -166,7 +170,7 @@ describe("premium background registry", () => {
       assert.equal(typeof definition.component, "function")
       assert.match(
         definition.component.toString(),
-        new RegExp(`${backgroundId}-background`),
+        new RegExp(expectedLoaderNames[backgroundId]),
       )
     }
   })

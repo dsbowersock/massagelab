@@ -37,6 +37,9 @@ test("development review spec matching accepts Playwright line and column suffix
   assert.equal(matchesDevelopmentPaletteReviewArgument("tests/browser"), false)
   assert.equal(matchesDevelopmentPaletteReviewArgument("tests/browser/public-routes.spec.ts:42"), false)
   assert.equal(matchesDevelopmentPaletteReviewArgument("prefix-tests/browser/background-palette.spec.ts"), false)
+})
+
+test("Playwright file filters skip separate option values", () => {
   assert.deepEqual(
     getPlaywrightFileFilterArguments([
       "test",
@@ -46,10 +49,16 @@ test("development review spec matching accepts Playwright line and column suffix
     ]),
     ["test", "tests/browser/public-routes.spec.ts"],
   )
+})
+
+test("Playwright file filters retain positional shorthand after inline options", () => {
   assert.deepEqual(
     getPlaywrightFileFilterArguments(["test", "--grep=dna-twisted", "dna-twisted"]),
     ["test", "dna-twisted"],
   )
+})
+
+test("Playwright file filters skip every supported option with a separate value", () => {
   assert.deepEqual(
     getPlaywrightFileFilterArguments([
       "test",

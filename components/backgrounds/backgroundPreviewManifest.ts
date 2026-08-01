@@ -3584,5 +3584,5 @@ const rawBackgroundPreviewManifest = {
 } satisfies Record<string, BackgroundPreviewManifestEntry>
 
 export const backgroundPreviewManifest = Object.fromEntries(
-  Object.entries(rawBackgroundPreviewManifest as Record<string, BackgroundPreviewManifestEntry>).map(([id, entry]) => [id, resolvePreviewManifestEntry(entry)]),
+  Object.entries(rawBackgroundPreviewManifest).map(([id, entry]) => [id, resolvePreviewManifestEntry(entry)]),
 ) as Record<string, BackgroundPreviewManifestEntry>

@@ -15,7 +15,10 @@ import {
   sanitizeDnaBackgroundOptions,
   toDnaChimerSettingsPatch,
 } from "../lib/dna-background.js"
-import { resolveResponsiveBackgroundTransform } from "../lib/background-effect-layout.js"
+import {
+  clampEffectiveValue,
+  resolveResponsiveBackgroundTransform,
+} from "../lib/background-effect-layout.js"
 
 describe("DNA background domain and shared layout rules", () => {
   it("preserves the approved continuous-strand defaults and fixed geometry", () => {
@@ -42,6 +45,11 @@ describe("DNA background domain and shared layout rules", () => {
     assert.equal(Object.isFrozen(DNA_OPTION_BOUNDS), true)
     assert.equal(DNA_OPTION_BOUNDS.strandCount.maximum, 81)
     assert.equal(Object.isFrozen(DNA_SOURCE_GEOMETRY), true)
+  })
+
+  it("clamps invalid responsive values through the same bounded fallback path", () => {
+    assert.equal(clampEffectiveValue(Number.NaN, 0.1, 1, 99), 1)
+    assert.equal(clampEffectiveValue(Number.POSITIVE_INFINITY, -20, 20, -99), -20)
   })
 
   it("sanitizes every DNA property to its approved stored range", () => {

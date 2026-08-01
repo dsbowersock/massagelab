@@ -375,6 +375,14 @@ function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) 
     replaceSnapshot((current) => ({ properties: { ...current.properties, ...patch } }))
   }
 
+  function updatePropertiesFromCurrent(
+    patch: (properties: Record<string, number>) => Record<string, number>,
+  ) {
+    replaceSnapshot((current) => ({
+      properties: { ...current.properties, ...patch(current.properties) },
+    }))
+  }
+
   function selectBackground(nextId: Track4BBackgroundId) {
     const nextDraft = createTrack4BReviewDraft(nextId)
     setSelectedId(nextId)
@@ -539,8 +547,12 @@ function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) 
           size="compact"
           variant="secondary"
           onClick={() => {
-            updateProperties({ massageLabDnaStrandAngle: snapshot.properties.massageLabDnaStrandAngle + 1 })
-            updateProperties({ massageLabTwistedCubesViewAngleX: snapshot.properties.massageLabTwistedCubesViewAngleX + 1 })
+            updatePropertiesFromCurrent((properties) => ({
+              massageLabDnaStrandAngle: properties.massageLabDnaStrandAngle + 1,
+            }))
+            updatePropertiesFromCurrent((properties) => ({
+              massageLabTwistedCubesViewAngleX: properties.massageLabTwistedCubesViewAngleX + 1,
+            }))
           }}
         >
           Apply consecutive property patches
@@ -575,6 +587,7 @@ function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) 
                 posterUrl={preview.posterUrl}
                 fallbackStyle={backgroundRegistry.find((entry) => entry.id === preview.id)?.fallbackStyle}
                 active={activePreviewId === preview.id}
+                reducedMotion={reducedMotion}
               />
             </div>
             <Button

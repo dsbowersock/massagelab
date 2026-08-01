@@ -5,7 +5,10 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { getBackgroundOptionsForCategory } from "../../components/backgrounds/backgroundRegistry.ts"
-import { normalizeGeneratedPreviewManifestItem } from "./manifest-url-normalization.mjs"
+import {
+  LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL,
+  normalizeGeneratedPreviewManifestItem,
+} from "./manifest-url-normalization.mjs"
 import { parseProbeDimensions } from "./probe-result.mjs"
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
@@ -71,7 +74,7 @@ function buildVariant(entry, variant) {
     if (posterBytes <= 0) throw new Error(`${path.basename(posterPath)} is empty.`)
     validateDimensions(posterPath, variant.width, variant.height)
     posterMetadata = {
-      previewPosterUrl: `/chimer/background-previews/${entry.id}${variant.suffix}.webp`,
+      previewPosterUrl: `${LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL}/${entry.id}${variant.suffix}.webp`,
       posterBytes,
       posterSha256: hashFile(posterPath),
     }
@@ -80,7 +83,7 @@ function buildVariant(entry, variant) {
   return {
     key: variant.key,
     previewMediaType: "video",
-    previewMediaUrl: `/chimer/background-previews/${entry.id}${variant.suffix}.webm`,
+    previewMediaUrl: `${LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL}/${entry.id}${variant.suffix}.webm`,
     width: variant.width,
     height: variant.height,
     durationMs: defaultDurationMs,
@@ -189,7 +192,7 @@ const lines = [
   "  variants?: Partial<Record<BackgroundPreviewVariantName, BackgroundPreviewVariant>>",
   "}",
   "",
-  "const LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL = \"/chimer/background-previews\"",
+  `const LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL = ${JSON.stringify(LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL)}`,
   "const HOSTED_CHIMER_PREVIEW_MEDIA_BASE_URL = \"https://media.massagelab.app/chimer/background-previews\"",
   "const CHIMER_PREVIEW_MEDIA_BASE_URL = (process.env.NEXT_PUBLIC_CHIMER_PREVIEW_MEDIA_BASE_URL || (process.env.NODE_ENV === \"production\" ? HOSTED_CHIMER_PREVIEW_MEDIA_BASE_URL : LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL)).replace(/\\/+$/, \"\")",
   "",
@@ -235,7 +238,7 @@ const lines = [
   `const rawBackgroundPreviewManifest = ${JSON.stringify(manifestRecord, null, 2)} satisfies Record<string, BackgroundPreviewManifestEntry>`,
   "",
   "export const backgroundPreviewManifest = Object.fromEntries(",
-  "  Object.entries(rawBackgroundPreviewManifest as Record<string, BackgroundPreviewManifestEntry>).map(([id, entry]) => [id, resolvePreviewManifestEntry(entry)]),",
+  "  Object.entries(rawBackgroundPreviewManifest).map(([id, entry]) => [id, resolvePreviewManifestEntry(entry)]),",
   ") as Record<string, BackgroundPreviewManifestEntry>",
 ]
 

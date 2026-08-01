@@ -116,7 +116,8 @@ export function BackgroundCarouselCard({
           videoUrl={previewVideoUrl}
           posterUrl={previewPosterUrl}
           fallbackStyle={option.fallbackStyle}
-          active={active && selected && detailLevel !== "shell" && !reducedMotion}
+          active={active && selected && detailLevel !== "shell"}
+          reducedMotion={reducedMotion}
         />
       </div>
 

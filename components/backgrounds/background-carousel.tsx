@@ -8,6 +8,7 @@ import {
 } from "@/components/carousels/adaptive-carousel-model"
 import { BackgroundCarouselCard } from "@/components/backgrounds/background-carousel-card"
 import { useBackgroundCommerce } from "@/components/backgrounds/BackgroundCommerceProvider"
+import { useSettings } from "@/components/providers/settings-provider"
 import {
   type BackgroundAccessSnapshot,
   type BackgroundDefinition,
@@ -15,6 +16,7 @@ import {
   userCanUseBackground,
 } from "@/components/backgrounds/backgroundRegistry"
 import { backgroundCardCommerceState } from "@/lib/background-commerce-client.js"
+import { shouldReduceAmbientMotion } from "@/lib/motion-preferences"
 
 type BackgroundViewportProfile =
   | "phone-portrait"
@@ -61,17 +63,23 @@ export function BackgroundCarousel({
   const hostRef = useRef<HTMLDivElement | null>(null)
   const [profile, setProfile] =
     useState<BackgroundViewportProfile>("compact-desktop")
-  const [reducedMotion, setReducedMotion] = useState(false)
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
+  const { settings } = useSettings()
   const { state: commerceClientState, signedIn } = useBackgroundCommerce()
   const snapshot = commerceClientState.snapshot
 
   useEffect(() => {
     const query = window.matchMedia("(prefers-reduced-motion: reduce)")
-    const update = () => setReducedMotion(query.matches)
+    const update = () => setPrefersReducedMotion(query.matches)
     update()
     query.addEventListener("change", update)
     return () => query.removeEventListener("change", update)
   }, [])
+
+  const reducedMotion = shouldReduceAmbientMotion({
+    prefersReducedMotion,
+    ambientMotionMode: settings.ambientMotionMode,
+  })
 
   useEffect(() => {
     const host = hostRef.current

@@ -16,6 +16,12 @@ type AdapterInventoryRow = {
   family: "css-dom" | "canvas" | "webgl"
 }
 
+type PreviewMediaProbeSnapshot = {
+  playCalls: number
+  pauseCalls: number
+  visibilityListenerCount: number
+}
+
 const MODES = ["source", "custom", "harmony"] as const
 const EXPECTED_ENABLED_BACKGROUND_COUNT = 83
 const CUSTOM_SWATCHES = [
@@ -90,22 +96,48 @@ function hexHue(value: string) {
   return Math.round((sector * 60 + 360) % 360)
 }
 
-function expectTargetColor(actual: unknown, expectedHex: string, target: string) {
+function colorHue(value: string) {
+  if (value.startsWith("#")) return hexHue(value)
+  const hsl = /^hsl\(\s*([+-]?\d+(?:\.\d+)?)/i.exec(value)
+  if (!hsl) throw new Error(`Cannot derive a hue from ${value}.`)
+  return ((Number(hsl[1]) % 360) + 360) % 360
+}
+
+function expectTargetColor(actual: unknown, expectedColor: string, target: string) {
   if (typeof actual === "number") {
-    expect(actual, target).toBe(hexHue(expectedHex))
+    expect(actual, target).toBe(colorHue(expectedColor))
     return
   }
   if (typeof actual === "string" && actual.startsWith("rgba(")) {
     const expectedRgb = [
-      Number.parseInt(expectedHex.slice(1, 3), 16),
-      Number.parseInt(expectedHex.slice(3, 5), 16),
-      Number.parseInt(expectedHex.slice(5, 7), 16),
+      Number.parseInt(expectedColor.slice(1, 3), 16),
+      Number.parseInt(expectedColor.slice(3, 5), 16),
+      Number.parseInt(expectedColor.slice(5, 7), 16),
     ]
     const actualRgb = actual.match(/[\d.]+/g)?.slice(0, 3).map(Number)
     expect(actualRgb, target).toEqual(expectedRgb)
     return
   }
-  expect(actual, target).toBe(expectedHex)
+  expect(actual, target).toBe(expectedColor)
+}
+
+async function readPreviewMediaProbe(page: Page): Promise<PreviewMediaProbeSnapshot> {
+  return page.evaluate(() => {
+    const rawProbe = Reflect.get(window, "__previewMediaProbe")
+    if (
+      !rawProbe
+      || typeof rawProbe.playCalls !== "number"
+      || typeof rawProbe.pauseCalls !== "number"
+      || !(rawProbe.visibilityListeners instanceof Set)
+    ) {
+      throw new Error("Preview media probe was not initialized.")
+    }
+    return {
+      playCalls: rawProbe.playCalls,
+      pauseCalls: rawProbe.pauseCalls,
+      visibilityListenerCount: rawProbe.visibilityListeners.size,
+    }
+  })
 }
 
 /** Resolves any valid CSS color through the same browser parser used by renderers. */
@@ -186,7 +218,11 @@ async function expectLoadedPaletteMode(
     if (replacingOverride) {
       continue
     }
-    if (mode === "source" && !role.sourceColor.startsWith("#")) {
+    if (
+      mode === "source"
+      && !role.sourceColor.startsWith("#")
+      && typeof actualTargets[role.rendererTarget] === "string"
+    ) {
       const [resolvedTargetColor, declaredColor] = await Promise.all([
         normalizeBrowserColor(page, String(actualTargets[role.rendererTarget])),
         normalizeBrowserColor(page, role.sourceColor),
@@ -524,13 +560,12 @@ test.describe("shared background palette review matrix", () => {
         pauseCalls: number
         visibilityListeners: Set<EventListenerOrEventListenerObject>
       }
-      const browserWindow = window as typeof window & { __previewMediaProbe?: PreviewMediaProbe }
       const probe: PreviewMediaProbe = {
         playCalls: 0,
         pauseCalls: 0,
         visibilityListeners: new Set(),
       }
-      browserWindow.__previewMediaProbe = probe
+      Reflect.set(window, "__previewMediaProbe", probe)
 
       HTMLMediaElement.prototype.play = function play() {
         if (this.dataset.testid === "carousel-background-video") probe.playCalls += 1
@@ -580,63 +615,37 @@ test.describe("shared background palette review matrix", () => {
     await expect(fixture).toBeVisible()
     await expect(poster).toBeVisible()
     await expect(video).toHaveCount(0)
-    const baselineListeners = await page.evaluate(() => (
-      (window as typeof window & {
-        __previewMediaProbe: { visibilityListeners: Set<unknown> }
-      }).__previewMediaProbe.visibilityListeners.size
-    ))
+    const baselineListeners = (await readPreviewMediaProbe(page)).visibilityListenerCount
 
     await fixture.getByRole("button", { name: "Activate preview" }).click()
     await expect(video).toBeVisible()
     await expect(video).toHaveAttribute("poster", /massage-lab-dna-vertical\.webp$/)
-    await expect.poll(() => page.evaluate(() => (
-      (window as typeof window & {
-        __previewMediaProbe: { playCalls: number }
-      }).__previewMediaProbe.playCalls
-    ))).toBeGreaterThan(0)
-    await expect.poll(() => page.evaluate(() => (
-      (window as typeof window & {
-        __previewMediaProbe: { visibilityListeners: Set<unknown> }
-      }).__previewMediaProbe.visibilityListeners.size
-    ))).toBe(baselineListeners + 1)
+    await expect.poll(async () => (await readPreviewMediaProbe(page)).playCalls).toBeGreaterThan(0)
+    await expect.poll(async () => (
+      await readPreviewMediaProbe(page)
+    ).visibilityListenerCount).toBe(baselineListeners + 1)
 
-    const playsBeforeSourceSwap = await page.evaluate(() => (
-      (window as typeof window & {
-        __previewMediaProbe: { playCalls: number }
-      }).__previewMediaProbe.playCalls
-    ))
+    const playsBeforeSourceSwap = (await readPreviewMediaProbe(page)).playCalls
     await fixture.getByRole("button", { name: "Swap preview source" }).click()
     await expect(video).toHaveAttribute("src", /massage-lab-twisted-cubes-vertical\.webm$/)
     await expect(video).toHaveAttribute("poster", /massage-lab-twisted-cubes-vertical\.webp$/)
-    await expect.poll(() => page.evaluate(() => (
-      (window as typeof window & {
-        __previewMediaProbe: { playCalls: number }
-      }).__previewMediaProbe.playCalls
-    ))).toBeGreaterThan(playsBeforeSourceSwap)
+    await expect.poll(async () => (await readPreviewMediaProbe(page)).playCalls)
+      .toBeGreaterThan(playsBeforeSourceSwap)
 
-    const pausesBeforeHidden = await page.evaluate(() => (
-      (window as typeof window & {
-        __previewMediaProbe: { pauseCalls: number }
-      }).__previewMediaProbe.pauseCalls
-    ))
+    const pausesBeforeHidden = (await readPreviewMediaProbe(page)).pauseCalls
     await page.evaluate(() => {
       Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" })
       document.dispatchEvent(new Event("visibilitychange"))
     })
-    await expect.poll(() => page.evaluate(() => (
-      (window as typeof window & {
-        __previewMediaProbe: { pauseCalls: number }
-      }).__previewMediaProbe.pauseCalls
-    ))).toBeGreaterThan(pausesBeforeHidden)
+    await expect.poll(async () => (await readPreviewMediaProbe(page)).pauseCalls)
+      .toBeGreaterThan(pausesBeforeHidden)
 
     await video.dispatchEvent("error")
     await expect(video).toHaveCount(0)
     await expect(poster).toBeVisible()
-    await expect.poll(() => page.evaluate(() => (
-      (window as typeof window & {
-        __previewMediaProbe: { visibilityListeners: Set<unknown> }
-      }).__previewMediaProbe.visibilityListeners.size
-    ))).toBe(baselineListeners)
+    await expect.poll(async () => (
+      await readPreviewMediaProbe(page)
+    ).visibilityListenerCount).toBe(baselineListeners)
 
     await poster.dispatchEvent("error")
     await expect(poster).toHaveCount(0)
@@ -648,17 +657,13 @@ test.describe("shared background palette review matrix", () => {
     })
     await fixture.getByRole("button", { name: "Mount preview" }).click()
     await expect(video).toBeVisible()
-    await expect.poll(() => page.evaluate(() => (
-      (window as typeof window & {
-        __previewMediaProbe: { visibilityListeners: Set<unknown> }
-      }).__previewMediaProbe.visibilityListeners.size
-    ))).toBe(baselineListeners + 1)
+    await expect.poll(async () => (
+      await readPreviewMediaProbe(page)
+    ).visibilityListenerCount).toBe(baselineListeners + 1)
     await fixture.getByRole("button", { name: "Unmount preview" }).click()
     await expect(video).toHaveCount(0)
-    await expect.poll(() => page.evaluate(() => (
-      (window as typeof window & {
-        __previewMediaProbe: { visibilityListeners: Set<unknown> }
-      }).__previewMediaProbe.visibilityListeners.size
-    ))).toBe(baselineListeners)
+    await expect.poll(async () => (
+      await readPreviewMediaProbe(page)
+    ).visibilityListenerCount).toBe(baselineListeners)
   })
 })

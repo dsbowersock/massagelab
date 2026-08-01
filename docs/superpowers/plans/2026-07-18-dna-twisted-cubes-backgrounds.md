@@ -217,7 +217,7 @@ Expected: FAIL because the renderer does not exist.
 
 - [ ] **Step 2: Implement stable mount-time assignments**
 
-Initialize assignment state from `createDnaNodeRoleAssignments(strandCount * 2)`. Regenerate only when `strandCount` changes; ordinary palette, geometry, position, scale, and speed renders retain the current array. A remount gets a new real-random distribution.
+Initialize assignment state from `createDnaStrandAssignments(strandCount)`. Regenerate only when `strandCount` changes; ordinary palette, geometry, position, scale, and speed renders retain the current array. A remount gets a new real-random distribution.
 
 Render this scoped structure:
 

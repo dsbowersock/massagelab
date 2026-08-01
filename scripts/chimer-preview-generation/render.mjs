@@ -14,7 +14,10 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { getBackgroundOptionsForCategory } from "../../components/backgrounds/backgroundRegistry.ts"
-import { normalizeGeneratedPreviewManifestItem } from "./manifest-url-normalization.mjs"
+import {
+  LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL,
+  normalizeGeneratedPreviewManifestItem,
+} from "./manifest-url-normalization.mjs"
 import { parseProbeDurationSeconds } from "./probe-result.mjs"
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
@@ -475,8 +478,8 @@ function buildVariantManifest(entry, outputPath, posterPath, options, variant) {
   return {
     key: variant.key,
     previewMediaType: "video",
-    previewMediaUrl: `/chimer/background-previews/${entry.id}${variant.suffix}.webm`,
-    previewPosterUrl: `/chimer/background-previews/${entry.id}${variant.suffix}.webp`,
+    previewMediaUrl: `${LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL}/${entry.id}${variant.suffix}.webm`,
+    previewPosterUrl: `${LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL}/${entry.id}${variant.suffix}.webp`,
     width: variant.outputWidth,
     height: variant.outputHeight,
     durationMs: options.durationMs,
@@ -508,6 +511,8 @@ function buildManifestItem(entry, variants) {
 }
 
 function writeManifest(items, options) {
+  // Registry entries are re-read and normalized so partial --only runs retain
+  // untouched media, while freshly rendered items overwrite matching IDs.
   const existingItems = getBackgroundOptionsForCategory(options.category)
     .filter((entry) => entry.previewVariants && Object.keys(entry.previewVariants).length > 0)
     .map((entry) => normalizeGeneratedPreviewManifestItem({
@@ -587,7 +592,7 @@ function writeManifest(items, options) {
     "  variants?: Partial<Record<BackgroundPreviewVariantName, BackgroundPreviewVariant>>",
     "}",
     "",
-    "const LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL = \"/chimer/background-previews\"",
+    `const LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL = ${JSON.stringify(LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL)}`,
     "const HOSTED_CHIMER_PREVIEW_MEDIA_BASE_URL = \"https://media.massagelab.app/chimer/background-previews\"",
     "const CHIMER_PREVIEW_MEDIA_BASE_URL = (process.env.NEXT_PUBLIC_CHIMER_PREVIEW_MEDIA_BASE_URL || (process.env.NODE_ENV === \"production\" ? HOSTED_CHIMER_PREVIEW_MEDIA_BASE_URL : LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL)).replace(/\\/+$/, \"\")",
     "",
@@ -633,7 +638,7 @@ function writeManifest(items, options) {
     `const rawBackgroundPreviewManifest = ${JSON.stringify(manifestRecord, null, 2)} satisfies Record<string, BackgroundPreviewManifestEntry>`,
     "",
     "export const backgroundPreviewManifest = Object.fromEntries(",
-    "  Object.entries(rawBackgroundPreviewManifest as Record<string, BackgroundPreviewManifestEntry>).map(([id, entry]) => [id, resolvePreviewManifestEntry(entry)]),",
+    "  Object.entries(rawBackgroundPreviewManifest).map(([id, entry]) => [id, resolvePreviewManifestEntry(entry)]),",
     ") as Record<string, BackgroundPreviewManifestEntry>",
   ]
 

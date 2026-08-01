@@ -37,6 +37,7 @@ export function BackgroundPreviewMediaReview() {
             posterUrl={`/chimer/background-previews/${previewName}-vertical.webp`}
             fallbackStyle={{ background: "rgb(18, 52, 86)" }}
             active={active}
+            reducedMotion={false}
           />
         ) : null}
       </div>

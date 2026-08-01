@@ -3,11 +3,13 @@ import { backgroundPaletteRegistry } from "../../components/backgrounds/backgrou
 import { resolveResponsiveBackgroundTransform } from "../../lib/background-effect-layout.js"
 import { resolveBackgroundRoleColors } from "../../lib/background-palette.js"
 import {
+  DEFAULT_DNA_BACKGROUND_OPTIONS,
   getDnaNodeCycleSeconds,
   getDnaStrandDelaySeconds,
   getDnaStrandRotationSeconds,
 } from "../../lib/dna-background.js"
 import {
+  DEFAULT_TWISTED_CUBES_BACKGROUND_OPTIONS,
   getTwistedCubeAlpha,
   getTwistedCubeCycleSeconds,
   getTwistedCubeDelaySeconds,
@@ -237,6 +239,7 @@ async function expectRenderedContract(host: Locator, id: typeof EFFECTS[number][
   }
 }
 
+/** Captures authored CSS custom-property values used by the property-isolation matrix. */
 async function captureControlRenderState(host: Locator, id: typeof EFFECTS[number]["id"]) {
   const root = effectRoot(host)
   if (id === "massage-lab-dna") {
@@ -425,6 +428,7 @@ async function captureComputedConsumerState(host: Locator, id: typeof EFFECTS[nu
   })
 }
 
+/** Normalizes authored CSS fragments through Chromium before exact computed-style comparison. */
 async function normalizeComputedConsumer(
   host: Locator,
   styles: Record<string, string>,
@@ -456,7 +460,7 @@ async function normalizeComputedConsumer(
       document.body.append(specimen)
     }
     const css = getComputedStyle(specimen)
-const normalized = {
+    const normalized = {
       transform: css.transform,
       backgroundColor: css.backgroundColor,
       borderTopWidth: css.borderTopWidth,
@@ -687,6 +691,7 @@ async function expectExactControlRender({
   expect(after).toMatchObject(expected)
 }
 
+/** Verifies that one edited setting changes only its declared computed-style consumers. */
 async function expectExactComputedConsumer({
   host,
   id,
@@ -996,6 +1001,7 @@ async function resolveCurrentRoleColors(review: Locator, id: typeof EFFECTS[numb
   })
 }
 
+/** Verifies every authored option while the effect retains a static reduced-motion scene. */
 async function expectExactReducedEffectState(
   review: Locator,
   host: Locator,
@@ -1382,13 +1388,15 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
     ])
     const dnaRoot = effectRoot(host)
     await expect(dnaRoot).toBeVisible()
-    expect(await dnaRoot.locator('[style*="--ml-dna-start-color"]').count()).toBe(70)
-    expect(await dnaRoot.locator("[data-side]").count()).toBe(140)
+    expect(await dnaRoot.locator('[style*="--ml-dna-start-color"]').count())
+      .toBe(DEFAULT_DNA_BACKGROUND_OPTIONS.strandCount)
+    expect(await dnaRoot.locator("[data-side]").count())
+      .toBe(DEFAULT_DNA_BACKGROUND_OPTIONS.strandCount * 2)
     const basePairs = await dnaRoot.locator('[style*="--ml-dna-start-color"]').evaluateAll((strands) => (
       strands.map((strand) => Array.from(strand.querySelectorAll<HTMLElement>("[data-base]"))
         .map((node) => node.dataset.base))
     ))
-    expect(basePairs).toHaveLength(70)
+    expect(basePairs).toHaveLength(DEFAULT_DNA_BACKGROUND_OPTIONS.strandCount)
     expect(basePairs.every(([startBase, endBase]) => (
       (startBase === "A" && endBase === "T")
       || (startBase === "T" && endBase === "A")
@@ -1400,7 +1408,8 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
     await expect(baseLetterToggle).toHaveAttribute("aria-checked", "false")
     await baseLetterToggle.click()
     await expect(baseLetterToggle).toHaveAttribute("aria-checked", "true")
-    await expect(dnaRoot.locator("[data-base]", { hasText: /^[AGTC]$/ })).toHaveCount(140)
+    await expect(dnaRoot.locator("[data-base]", { hasText: /^[AGTC]$/ }))
+      .toHaveCount(DEFAULT_DNA_BACKGROUND_OPTIONS.strandCount * 2)
     expect((await parsedAttribute<Record<string, number | boolean>>(
       review,
       "data-current-properties",
@@ -1471,7 +1480,7 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
       }
     }))
 
-    expect(count).toBe(20)
+    expect(count).toBe(DEFAULT_TWISTED_CUBES_BACKGROUND_OPTIONS.layerCount)
     expect(samples).toHaveLength(2)
     for (const sample of samples) {
       expect(sample.delay).toBeGreaterThan(0)
@@ -1657,7 +1666,7 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
     await expectLoaded(host, "massage-lab-twisted-cubes")
 
     const source = await cubeOutlines(host)
-    expect(source).toHaveLength(20)
+    expect(source).toHaveLength(DEFAULT_TWISTED_CUBES_BACKGROUND_OPTIONS.layerCount)
     expect(source[0]).toBe("hsl(180 80% 60%)")
     expect(source.at(-1)).toBe("hsl(340 80% 60%)")
     expect(new Set(source).size).toBe(source.length)

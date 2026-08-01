@@ -8,6 +8,7 @@ interface BackgroundPreviewMediaProps {
   posterUrl?: string
   fallbackStyle?: CSSProperties
   active: boolean
+  reducedMotion: boolean
   className?: string
 }
 
@@ -20,12 +21,13 @@ export function BackgroundPreviewMedia({
   posterUrl,
   fallbackStyle,
   active,
+  reducedMotion,
   className,
 }: BackgroundPreviewMediaProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const [videoFailed, setVideoFailed] = useState(false)
   const [posterFailed, setPosterFailed] = useState(false)
-  const showVideo = active && Boolean(videoUrl) && !videoFailed
+  const showVideo = active && !reducedMotion && Boolean(videoUrl) && !videoFailed
   const showPoster = Boolean(posterUrl) && !posterFailed && !showVideo
 
   useEffect(() => {

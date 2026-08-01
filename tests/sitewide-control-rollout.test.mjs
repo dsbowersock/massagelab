@@ -10,6 +10,11 @@ import { COMPUTED_CONSUMER_CONTRACTS } from "./browser/dna-twisted-cubes-consume
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8")
 
+/** Removes comments before source-contract scans so prose cannot satisfy or fail executable checks. */
+const stripSourceComments = (source) => source
+  .replace(/\/\*[\s\S]*?\*\//g, "")
+  .replace(/\/\/.*$/gm, "")
+
 test("S6 ordinary action routes delegate to the shared Button family", async () => {
   const [chimer, pricing, anatomimeAlias] = await Promise.all([
     read("app/chimer/set-timer.tsx"),
@@ -230,7 +235,7 @@ test("development review exposes the real DNA and Twisted Cubes acceptance matri
     false,
     "the boolean base-letter toggle has a direct add/remove DOM assertion instead of a numeric computed-style contract",
   )
-  assert.match(browserSource, /baseLetterToggle[\s\S]*toHaveCount\(140\)/)
+  assert.match(browserSource, /baseLetterToggle[\s\S]*DEFAULT_DNA_BACKGROUND_OPTIONS\.strandCount \* 2/)
   assert.ok(COMPUTED_CONSUMER_CONTRACTS.every(({ allowedRenderChanges }) => (
     Object.isFrozen(allowedRenderChanges) && allowedRenderChanges.length > 0
   )))
@@ -381,6 +386,8 @@ test("DNA and Twisted Cubes share compact options and host-owned responsive moti
     read("components/backgrounds/effects/massage-lab-twisted-cubes-background.tsx"),
     read("app/chimer/running-timer.module.css"),
   ])
+  const dnaExecutableSource = stripSourceComments(dnaEffect)
+  const cubesExecutableSource = stripSourceComments(cubesEffect)
 
   assert.match(runningSource, /getDnaBackgroundOptionsFromChimerSettings/)
   assert.match(runningSource, /getTwistedCubesBackgroundOptionsFromChimerSettings/)
@@ -390,10 +397,8 @@ test("DNA and Twisted Cubes share compact options and host-owned responsive moti
   assert.match(hostSource, /window\.matchMedia\("\(max-width: 479px\), \(max-height: 479px\)"\)/)
   assert.match(hostSource, /entry\.supportsReducedMotionStatic/)
   assert.match(hostSource, /reduceMotion,[\s\S]*compactViewport,/)
-  assert.doesNotMatch(dnaEffect, /matchMedia|addEventListener\("resize"/)
-  assert.doesNotMatch(cubesEffect, /matchMedia|addEventListener\("resize"/)
-  assert.doesNotMatch(dnaEffect, /\bdocument\b|\bwindow\b|addEventListener|requestAnimationFrame/)
-  assert.doesNotMatch(cubesEffect, /\bdocument\b|\bwindow\b|addEventListener|requestAnimationFrame/)
+  assert.doesNotMatch(dnaExecutableSource, /\bdocument\b|\bwindow\b|addEventListener|requestAnimationFrame/)
+  assert.doesNotMatch(cubesExecutableSource, /\bdocument\b|\bwindow\b|addEventListener|requestAnimationFrame/)
   assert.match(styles, /\.backgroundPropertyGroups\s*\{[^}]*\bmin-width:\s*0/)
   assert.match(styles, /\.backgroundPropertyGroup\s*\{[^}]*\bmin-width:\s*0/)
 })

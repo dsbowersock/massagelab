@@ -42,11 +42,29 @@ export interface MassageLabTwistedCubesOptions {
   outlineAnchors: readonly [string, string, string, string, string, string]
 }
 
+export type MassageLabDnaHostOptions = Omit<
+  MassageLabDnaOptions,
+  "backgroundColor" | "nodeRoleColors" | "connectorColor" | "outlineColor"
+> & Partial<Pick<
+  MassageLabDnaOptions,
+  "backgroundColor" | "nodeRoleColors" | "connectorColor" | "outlineColor"
+>>
+
+export type MassageLabTwistedCubesHostOptions = Omit<
+  MassageLabTwistedCubesOptions,
+  "paletteMode" | "backgroundColor" | "outlineAnchors"
+> & Partial<Pick<
+  MassageLabTwistedCubesOptions,
+  "paletteMode" | "backgroundColor" | "outlineAnchors"
+>>
+
 export interface BackgroundEffectProps {
   reduceMotion?: boolean
   compactViewport?: boolean
-  massageLabDna?: MassageLabDnaOptions
-  massageLabTwistedCubes?: MassageLabTwistedCubesOptions
+  /** Host input is completed with the selected adapter's resolved role colors. */
+  massageLabDna?: MassageLabDnaHostOptions
+  /** Host input is completed with the selected adapter's resolved role colors. */
+  massageLabTwistedCubes?: MassageLabTwistedCubesHostOptions
   className?: string
   mainColor?: string
   orbColor?: string

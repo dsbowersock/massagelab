@@ -1,4 +1,4 @@
-const LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL = "/chimer/background-previews"
+export const LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL = "/chimer/background-previews"
 
 const TOP_LEVEL_PREVIEW_URL_FIELDS = [
   "previewMediaUrl",

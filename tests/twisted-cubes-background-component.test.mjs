@@ -91,5 +91,5 @@ test("Twisted Cubes options extend the shared background effect contract", () =>
   assert.match(cubesOptions, /outlineAnchors: readonly \[string, string, string, string, string, string\];?/)
   assert.match(effectProps, /reduceMotion\?: boolean;?/)
   assert.match(effectProps, /compactViewport\?: boolean;?/)
-  assert.match(effectProps, /massageLabTwistedCubes\?: MassageLabTwistedCubesOptions;?/)
+  assert.match(effectProps, /massageLabTwistedCubes\?: MassageLabTwistedCubesHostOptions;?/)
 })

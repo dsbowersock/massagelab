@@ -49,7 +49,9 @@ describe("background preview media", () => {
 
   it("keeps inactive cards on posters and limits playback to active selected cards", () => {
     assert.match(cardSource, /<BackgroundPreviewMedia/)
-    assert.match(cardSource, /active=\{active && selected && detailLevel !== "shell"/)
+    assert.match(cardSource, /active=\{active && selected && detailLevel !== "shell"\}/)
+    assert.match(cardSource, /reducedMotion=\{reducedMotion\}/)
+    assert.match(componentSource, /const showVideo = active && !reducedMotion/)
     assert.doesNotMatch(cardSource, /<video/)
   })
 
