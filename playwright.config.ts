@@ -50,7 +50,33 @@ export function matchesDevelopmentPaletteReviewArgument(argument: string) {
   })
 }
 
-const runsDevelopmentPaletteReview = process.argv.some(matchesDevelopmentPaletteReviewArgument)
+const playwrightOptionsWithSeparateValues = new Set([
+  "-c", "--config", "-g", "--grep", "--grep-invert", "-j", "--workers",
+  "--project", "--reporter", "--retries", "--timeout", "--global-timeout",
+  "--max-failures", "--output", "--shard",
+])
+
+/** Returns only positional Playwright arguments, excluding option names and their values. */
+export function getPlaywrightFileFilterArguments(argv: readonly string[]) {
+  const positionalArguments: string[] = []
+  for (let index = 0; index < argv.length; index += 1) {
+    const argument = argv[index]
+    if (argument === "--") {
+      positionalArguments.push(...argv.slice(index + 1))
+      break
+    }
+    if (playwrightOptionsWithSeparateValues.has(argument)) {
+      index += 1
+      continue
+    }
+    if (argument.startsWith("-")) continue
+    positionalArguments.push(argument)
+  }
+  return positionalArguments
+}
+
+const runsDevelopmentPaletteReview = getPlaywrightFileFilterArguments(process.argv.slice(2))
+  .some(matchesDevelopmentPaletteReviewArgument)
 const defaultWebServerCommand = runsDevelopmentPaletteReview
   ? `npm run dev -- -p ${browserQaPort}`
   : `npm run start -- -p ${browserQaPort}`

@@ -225,6 +225,12 @@ test("development review exposes the real DNA and Twisted Cubes acceptance matri
   ])
   assert.equal(COMPUTED_CONSUMER_CONTRACTS.length, 22)
   assert.equal(new Set(COMPUTED_CONSUMER_CONTRACTS.map(({ key }) => key)).size, 22)
+  assert.equal(
+    COMPUTED_CONSUMER_CONTRACTS.some(({ key }) => key === "massageLabDnaShowBaseLetters"),
+    false,
+    "the boolean base-letter toggle has a direct add/remove DOM assertion instead of a numeric computed-style contract",
+  )
+  assert.match(browserSource, /baseLetterToggle[\s\S]*toHaveCount\(140\)/)
   assert.ok(COMPUTED_CONSUMER_CONTRACTS.every(({ allowedRenderChanges }) => (
     Object.isFrozen(allowedRenderChanges) && allowedRenderChanges.length > 0
   )))

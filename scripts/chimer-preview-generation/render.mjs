@@ -352,7 +352,8 @@ async function captureVariant(browser, entry, options, variant, tempVideoDir) {
   const outputPath = path.join(options.outputDir, `${entry.id}${variant.suffix}.webm`)
   const posterPath = path.join(options.outputDir, `${entry.id}${variant.suffix}.webp`)
 
-  if (existsSync(outputPath) && existsSync(posterPath) && !options.force) {
+  const posterIsUsable = existsSync(posterPath) && statSync(posterPath).size > 0
+  if (existsSync(outputPath) && posterIsUsable && !options.force) {
     return {
       skipped: true,
       variant: buildVariantManifest(entry, outputPath, posterPath, options, variant),

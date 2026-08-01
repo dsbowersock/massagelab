@@ -59,9 +59,10 @@ describe("background preview media", () => {
     assert.match(renderSource, /async function encodePoster/)
     assert.match(renderSource, /const seekSeconds = probeVideoDurationSeconds\(videoPath\) \/ 3/)
     assert.match(renderSource, /"-show_entries", "format=duration"/)
+    assert.match(renderSource, /existsSync\(posterPath\) && statSync\(posterPath\)\.size > 0/)
     assert.match(renderSource, /"-c:v", "libwebp"/)
     assert.match(renderSource, /"-quality", "78"/)
-    assert.match(renderSource, /if \(existsSync\(outputPath\) && existsSync\(posterPath\) && !options\.force\) \{[\s\S]*?skipped: true/)
+    assert.match(renderSource, /const posterIsUsable = existsSync\(posterPath\) && statSync\(posterPath\)\.size > 0[\s\S]*?if \(existsSync\(outputPath\) && posterIsUsable && !options\.force\) \{[\s\S]*?skipped: true/)
   })
 
   it("suppresses delayed Next development chrome before recording", () => {

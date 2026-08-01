@@ -134,6 +134,8 @@ describe("Twisted Cubes background domain rules", () => {
   })
 
   it("keeps Source outlines continuous from 180 through 340 HSL degrees", () => {
+    assert.equal(getTwistedCubeSourceOutline({ oneBasedIndex: 1, count: 0 }), "hsl(180 80% 60%)")
+    assert.equal(getTwistedCubeSourceOutline({ oneBasedIndex: 1, count: 1 }), "hsl(180 80% 60%)")
     assert.equal(getTwistedCubeSourceOutline({ oneBasedIndex: 1, count: 20 }), "hsl(180 80% 60%)")
     assert.equal(getTwistedCubeSourceOutline({ oneBasedIndex: 20, count: 20 }), "hsl(340 80% 60%)")
     assert.equal(getTwistedCubeSourceOutline({ oneBasedIndex: 11, count: 20 }), "hsl(264.2105263157895 80% 60%)")
@@ -141,6 +143,8 @@ describe("Twisted Cubes background domain rules", () => {
 
   it("interpolates six Custom or Harmony anchors through five sRGB segments", () => {
     const anchors = ["#000000", "#330000", "#660000", "#990000", "#cc0000", "#ffffff"]
+    assert.equal(interpolateTwistedCubeOutline({ anchors, oneBasedIndex: 1, count: 0 }), anchors[0])
+    assert.equal(interpolateTwistedCubeOutline({ anchors, oneBasedIndex: 1, count: 1 }), anchors[0])
     assert.equal(interpolateTwistedCubeOutline({ anchors, oneBasedIndex: 1, count: 20 }), anchors[0])
     assert.equal(interpolateTwistedCubeOutline({ anchors, oneBasedIndex: 20, count: 20 }), anchors[5])
     assert.equal(interpolateTwistedCubeOutline({ anchors, oneBasedIndex: 3, count: 20 }), "rgb(27 0 0)")

@@ -2,7 +2,10 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 
-import { matchesDevelopmentPaletteReviewArgument } from "../playwright.config.ts"
+import {
+  getPlaywrightFileFilterArguments,
+  matchesDevelopmentPaletteReviewArgument,
+} from "../playwright.config.ts"
 
 async function readProjectFile(path) {
   return readFile(new URL(`../${path}`, import.meta.url), "utf8")
@@ -31,6 +34,19 @@ test("development review spec matching accepts Playwright line and column suffix
   assert.equal(matchesDevelopmentPaletteReviewArgument("background-palette"), true)
   assert.equal(matchesDevelopmentPaletteReviewArgument("tests/browser/public-routes.spec.ts:42"), false)
   assert.equal(matchesDevelopmentPaletteReviewArgument("prefix-tests/browser/background-palette.spec.ts"), false)
+  assert.deepEqual(
+    getPlaywrightFileFilterArguments([
+      "test",
+      "--project", "desktop-chromium",
+      "--grep", "dna-twisted",
+      "tests/browser/public-routes.spec.ts",
+    ]),
+    ["test", "tests/browser/public-routes.spec.ts"],
+  )
+  assert.deepEqual(
+    getPlaywrightFileFilterArguments(["test", "--grep=dna-twisted", "dna-twisted"]),
+    ["test", "dna-twisted"],
+  )
 })
 
 test("browser QA harness is wired for public smoke, PWA, and local-first checks", async () => {

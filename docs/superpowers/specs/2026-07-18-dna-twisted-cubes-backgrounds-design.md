@@ -223,6 +223,8 @@ All properties use Track 4A's registry visual-property sanitizer and Visual pres
 | Opacity falloff     |          0-0.95 |    0.85 | Retains source fade by default      |
 | Outline thickness   |     0.0025-0.02 |  0.0075 | Displayed as relative scene percent |
 
+The full-bleed viewport extent is a derived renderer layout constant, not a user property. It is fixed at `120vmax`, has no stored range or preference default, and is never persisted in local/account settings or Visual presets. The outermost layer always resolves to that bounded extent; the stored Scale value changes only the inner-layer size progression.
+
 ### Responsive bounds
 
 A shared pure layout helper clamps scale and X/Y position against viewport aspect ratio and protected display space. Saved values remain unchanged; only the effective render transform is clamped. This lets the same preference recover when the viewport becomes larger and prevents a phone layout from making an effect unreachable.
