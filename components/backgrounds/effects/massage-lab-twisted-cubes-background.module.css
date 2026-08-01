@@ -12,8 +12,8 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 120vmax;
-  height: 120vmax;
+  width: var(--ml-twisted-cubes-viewport-extent);
+  height: var(--ml-twisted-cubes-viewport-extent);
   transform: translate(
       calc(-50% + var(--ml-twisted-cubes-position-x)),
       calc(-50% + var(--ml-twisted-cubes-position-y))

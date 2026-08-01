@@ -1131,7 +1131,7 @@ test("539px dock headers own shared actions and compact visual color controls", 
     const bounds = header.getBoundingClientRect()
     if (!title || !close || !color || actions.some((rect) => !rect)) return null
     return {
-      controlsOnSecondRow: color.top >= title.bottom,
+      controlsOnSecondRow: [color, ...actions].every((rect) => Boolean(rect) && (rect?.top ?? 0) >= title.bottom),
       closeOnTitleRow: Math.abs((close.top + close.bottom) / 2 - (title.top + title.bottom) / 2) <= 2,
       allInside: [color, ...actions].every((rect) => Boolean(rect)
         && (rect?.left ?? 0) >= bounds.left && (rect?.right ?? 0) <= bounds.right),

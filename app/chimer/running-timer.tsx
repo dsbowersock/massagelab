@@ -13294,7 +13294,7 @@ export function RunningTimer({
                   <ColorPickerSwatch label="Clock color" value={resolvedClockModeFontColor} fallback={DEFAULT_CLOCK_MODE_FONT_COLOR} disabled={!canUseCoreColorControls} onChange={(nextColor) => handleSettingsChange({ clockModeFontColor: nextColor })} className={styles.colorSwatchPicker} buttonClassName={styles.immersiveHeaderColorSwatchButton} />
                 </div>
               ) : null}
-              <div className={styles.visualHeaderDraftActions} aria-label="Visual draft actions">
+              <div className={styles.visualHeaderDraftActions} role="group" aria-label="Visual draft actions">
                 <Button type="button" size="compact" variant="ghost" aria-label="Undo" title="Undo" disabled={!visualDraft?.undoStack.length} onClick={() => dispatchVisualDraft({ type: "undo" })}>
                   <Undo2 aria-hidden="true" />
                   <span className={styles.visualHeaderDraftButtonLabel}>Undo</span>

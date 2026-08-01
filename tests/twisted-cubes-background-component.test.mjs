@@ -10,12 +10,18 @@ const componentPath = path.join(rootDirectory, "components/backgrounds/effects/m
 const stylesheetPath = path.join(rootDirectory, "components/backgrounds/effects/massage-lab-twisted-cubes-background.module.css")
 const effectPropsPath = path.join(rootDirectory, "components/backgrounds/effects/css-backgrounds.tsx")
 
+const stripSourceComments = (source) => source
+  .replace(/\/\*[\s\S]*?\*\//g, "")
+  .replace(/\/\/.*$/gm, "")
+
 test("the Twisted Cubes renderer stays a scoped, non-interactive CSS DOM effect", () => {
   assert.equal(existsSync(componentPath), true, "the scoped Twisted Cubes renderer exists")
   assert.equal(existsSync(stylesheetPath), true, "the scoped Twisted Cubes stylesheet exists")
 
   const componentSource = readFileSync(componentPath, "utf8")
   const stylesheetSource = readFileSync(stylesheetPath, "utf8")
+  const componentCode = stripSourceComments(componentSource)
+  const stylesheetCode = stripSourceComments(stylesheetSource)
 
   assert.match(componentSource, /getTwistedCubeSourceOutline/)
   assert.match(componentSource, /interpolateTwistedCubeOutline/)
@@ -28,9 +34,10 @@ test("the Twisted Cubes renderer stays a scoped, non-interactive CSS DOM effect"
   assert.match(componentSource, /className=\{styles\.root\}/)
   assert.match(componentSource, /className=\{styles\.scene\}/)
   assert.match(componentSource, /className=\{styles\.layer\}/)
-  assert.match(componentSource, /className=\{styles\.layer\}[\s\S]*className=\{styles\.view\}[\s\S]*className=\{styles\.cube\}/)
-  assert.match(componentSource, /\(renderLayerCount - oneBasedIndex\) \* layerDepthSpacing/)
-  assert.match(componentSource, /TWISTED_CUBES_VIEWPORT_EXTENT_VMAX/)
+  assert.match(componentCode, /<span className=\{styles\.layer\}[^>]*>[\s\S]*?<span className=\{styles\.view\}>[\s\S]*?<span className=\{styles\.cube\}>[\s\S]*?<span className=\{styles\.cuboid\}>[\s\S]*?CUBE_FACES\.map/)
+  assert.match(componentCode, /"--ml-twisted-cubes-depth": `\$\{\(renderLayerCount - oneBasedIndex\) \* layerDepthSpacing\}vmin`/)
+  assert.match(componentCode, /"--ml-twisted-cubes-size": `\$\{\(oneBasedIndex \/ renderLayerCount\) \* TWISTED_CUBES_VIEWPORT_EXTENT_VMAX\}vmax`/)
+  assert.match(componentCode, /"--ml-twisted-cubes-viewport-extent": `\$\{TWISTED_CUBES_VIEWPORT_EXTENT_VMAX\}vmax`/)
   assert.match(componentSource, /className=\{styles\.cube\}/)
   assert.match(componentSource, /className=\{styles\.cuboid\}/)
   assert.doesNotMatch(componentSource, /\b(?:iframe|canvas|webgl|fetch|XMLHttpRequest|addEventListener|removeEventListener|ResizeObserver|window\.|document\.)\b/i)
@@ -38,8 +45,8 @@ test("the Twisted Cubes renderer stays a scoped, non-interactive CSS DOM effect"
   assert.doesNotMatch(componentSource, /\b(?:button|input|select|textarea|tabIndex|onClick|onPointer|onDrag|onTouch|cursor)\b/)
 
   assert.doesNotMatch(stylesheetSource, /perspective:/)
-  assert.match(stylesheetSource, /width:\s*120vmax/)
-  assert.match(stylesheetSource, /height:\s*120vmax/)
+  assert.match(stylesheetCode, /width:\s*var\(--ml-twisted-cubes-viewport-extent\)/)
+  assert.match(stylesheetCode, /height:\s*var\(--ml-twisted-cubes-viewport-extent\)/)
   assert.match(stylesheetSource, /transform-style:\s*preserve-3d/)
   assert.match(stylesheetSource, /@keyframes\s+mlTwistedCubesRotate/)
   assert.match(stylesheetSource, /cubic-bezier\(0\.5, 0\.1, 0\.5, 0\.9\)/)

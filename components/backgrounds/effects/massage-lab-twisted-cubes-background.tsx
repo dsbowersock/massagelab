@@ -66,6 +66,7 @@ export function MassageLabTwistedCubesBackground({
     "--ml-twisted-cubes-scale": responsiveTransform.scale,
     "--ml-twisted-cubes-position-x": `${responsiveTransform.positionX}%`,
     "--ml-twisted-cubes-position-y": `${responsiveTransform.positionY}%`,
+    "--ml-twisted-cubes-viewport-extent": `${TWISTED_CUBES_VIEWPORT_EXTENT_VMAX}vmax`,
   } as CSSProperties
   const layers = Array.from({ length: renderLayerCount }, (_, index) => {
     const oneBasedIndex = index + 1

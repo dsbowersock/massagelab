@@ -1241,10 +1241,10 @@ test("dirty navigation guard covers eligible app links, history, and native unlo
   assert.match(unsavedDialogSource, /resolveExplicitOutcome\(onKeepEditing\)/)
   assert.match(runningTimerSource, /className=\{styles\.visualDraftStatus\}[\s\S]*role="status"[\s\S]*aria-live="polite"/)
   const headerActionGroupOpeningTag = runningTimerSource.match(
-    /<div\s+className=\{styles\.visualHeaderDraftActions\}\s+aria-label="Visual draft actions">/,
+    /<div\s+className=\{styles\.visualHeaderDraftActions\}\s+role="group"\s+aria-label="Visual draft actions">/,
   )?.[0]
   assert.ok(headerActionGroupOpeningTag)
-  assert.doesNotMatch(headerActionGroupOpeningTag, /\brole=/)
+  assert.match(headerActionGroupOpeningTag, /\brole="group"/)
   assert.doesNotMatch(runningTimerSource, /className=\{styles\.visualDraftActions\}/)
 })
 

@@ -185,7 +185,7 @@ For adjustable layer counts, the negative animation delay is normalized as a cou
 
 ## Visual Property Contract
 
-All properties use Track 4A's registry visual-property sanitizer and Visual preset contract. Defaults are source values.
+All properties use Track 4A's registry visual-property sanitizer and Visual preset contract. Defaults are source values except the recorded visual-QA overrides: DNA uses 35 strands, `0.06x` node motion, `0.02x` strand rotation, 15% connector thickness, and `0.10vmin` outlines; Twisted Cubes uses `0.25x` rotation and the full-bleed viewport extent described below.
 
 ### DNA properties
 

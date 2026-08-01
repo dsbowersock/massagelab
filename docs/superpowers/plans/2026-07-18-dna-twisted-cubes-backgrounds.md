@@ -516,15 +516,15 @@ Require these exact control groups and ranges:
 
 | DNA group | Controls |
 | --- | --- |
-| Motion | Node motion speed `0.25..3 step .05`; Strand rotation speed `0.1..3 step .05` |
-| Geometry | Strand count `7..25 step 1`; angle `-180..180 step 1`; spacing `0..2 step .05` |
+| Motion | Node motion speed `0.01..3 step .01` (default `0.06`); Strand rotation speed `0.01..3 step .01` (default `0.02`) |
+| Geometry | Strand count `7..81 step 1` (default `35`); angle `-180..180 step 1`; spacing `0..2 step .05` |
 | Position and scale | scale `.4..1.2 step .01`; X/Y `-35..35 step 1` |
 | Connector | width `60..100 step 1`; thickness `10..60 step 1` |
 | Outline | thickness `0..1.5 step .05` |
 
 | Twisted Cubes group | Controls |
 | --- | --- |
-| Motion | Rotation speed `.25..3 step .05`; Layer stagger `0..0.3 step .01` |
+| Motion | Rotation speed `.01..3 step .01` (default `.25`); Layer stagger `0..0.3 step .01` |
 | View angles | X/Y `-80..80 step 1` |
 | Geometry and depth | Layer count `6..30 step 1`; depth `10..70 step 1` |
 | Position and scale | scale `.4..1.2 step .01`; X/Y `-35..35 step 1` |

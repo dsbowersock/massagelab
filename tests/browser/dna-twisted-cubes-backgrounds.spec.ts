@@ -74,13 +74,16 @@ const EFFECTS = [
 
 /** Parses Chromium's computed 2D transform so layout assertions can tolerate subpixel serialization drift. */
 function parseComputedMatrix(transform: string) {
-  const match = /^matrix\(([^)]+)\)$/.exec(transform)
+  const matrix2d = /^matrix\(([^)]+)\)$/.exec(transform)
+  const matrix3d = /^matrix3d\(([^)]+)\)$/.exec(transform)
+  const match = matrix2d ?? matrix3d
   if (!match) {
-    throw new Error(`Expected a computed 2D matrix, received: ${transform}`)
+    throw new Error(`Expected a computed 2D or 3D matrix, received: ${transform}`)
   }
   const values = match[1].split(",").map((value) => Number.parseFloat(value.trim()))
-  if (values.length !== 6 || values.some((value) => !Number.isFinite(value))) {
-    throw new Error(`Expected six finite computed matrix values, received: ${transform}`)
+  const expectedLength = matrix2d ? 6 : 16
+  if (values.length !== expectedLength || values.some((value) => !Number.isFinite(value))) {
+    throw new Error(`Expected ${expectedLength} finite computed matrix values, received: ${transform}`)
   }
   return values
 }
@@ -1392,7 +1395,9 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
       (element as HTMLElement).style.getPropertyValue("--ml-twisted-cubes-background-color")
     ))).toBe("hsl(210 20% 12%)")
     expect(await layers.count()).toBeLessThanOrEqual(30)
-    expect(await layers.locator(":scope > span > span > span > span").count()).toBeLessThanOrEqual(180)
+    const faceCount = await layers.locator(":scope > span > span > span > span").count()
+    expect(faceCount).toBe((await layers.count()) * 6)
+    expect(faceCount).toBeLessThanOrEqual(180)
     const [cubeHostBounds, cubeSceneBounds, outerLayerSize] = await Promise.all([
       host.boundingBox(),
       cubeRoot.locator(":scope > div").boundingBox(),
@@ -1442,6 +1447,7 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
       }, { width: sample.width, height: sample.height })
       const actualMatrix = parseComputedMatrix(sample.transform)
       const centeredMatrix = parseComputedMatrix(centered.transform)
+      expect(actualMatrix).toHaveLength(centeredMatrix.length)
       for (const [index, actualValue] of actualMatrix.entries()) {
         expect(Math.abs(actualValue - centeredMatrix[index])).toBeLessThan(0.05)
       }
