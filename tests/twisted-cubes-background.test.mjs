@@ -2,9 +2,11 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
   DEFAULT_TWISTED_CUBES_BACKGROUND_OPTIONS,
+  TWISTED_CUBES_VIEWPORT_EXTENT_VMAX,
   getTwistedCubeAlpha,
   getTwistedCubeCycleSeconds,
   getTwistedCubeDelaySeconds,
+  getTwistedCubeLayerSizeVmax,
   getTwistedCubeSourceOutline,
   getTwistedCubesBackgroundOptionsFromChimerSettings,
   interpolateTwistedCubeOutline,
@@ -21,13 +23,14 @@ describe("Twisted Cubes background domain rules", () => {
       layerStagger: 0.1,
       viewAngleX: -35,
       viewAngleY: -45,
-      scale: 1,
+      scale: 0.3,
       positionX: 0,
       positionY: 0,
       layerDepthSpacing: 50,
       opacityFalloff: 0.85,
       outlineThickness: 0.0075,
     })
+    assert.equal(TWISTED_CUBES_VIEWPORT_EXTENT_VMAX, 120)
     assert.equal(Object.isFrozen(DEFAULT_TWISTED_CUBES_BACKGROUND_OPTIONS), true)
   })
 
@@ -53,7 +56,7 @@ describe("Twisted Cubes background domain rules", () => {
         layerStagger: 0,
         viewAngleX: -80,
         viewAngleY: -80,
-        scale: 0.4,
+        scale: 0.1,
         positionX: -35,
         positionY: -35,
         layerDepthSpacing: 10,
@@ -116,6 +119,18 @@ describe("Twisted Cubes background domain rules", () => {
     assert.equal(getTwistedCubeAlpha({ oneBasedIndex: 1, count: 20, opacityFalloff: 0.85 }), 0.9575)
     assert.ok(Math.abs(getTwistedCubeAlpha({ oneBasedIndex: 20, count: 20, opacityFalloff: 0.85 }) - 0.15) < 1e-12)
     assert.ok(Math.abs(getTwistedCubeAlpha({ oneBasedIndex: 30, count: 6, opacityFalloff: 0.95 }) - 0.05) < 1e-12)
+  })
+
+  it("keeps the outer envelope bounded while scale changes the inner progression", () => {
+    assert.ok(Math.abs(getTwistedCubeLayerSizeVmax({
+      oneBasedIndex: 1,
+      count: 20,
+      scale: 0.3,
+    }) - 2.01) < 1e-12)
+    assert.equal(getTwistedCubeLayerSizeVmax({ oneBasedIndex: 20, count: 20, scale: 0.3 }), 120)
+    assert.equal(getTwistedCubeLayerSizeVmax({ oneBasedIndex: 20, count: 20, scale: 1.2 }), 120)
+    assert.equal(getTwistedCubeLayerSizeVmax({ oneBasedIndex: 10, count: 20, scale: 1 }), 60)
+    assert.equal(getTwistedCubeLayerSizeVmax({ oneBasedIndex: 10, count: 20, scale: 0 }), 33)
   })
 
   it("keeps Source outlines continuous from 180 through 340 HSL degrees", () => {

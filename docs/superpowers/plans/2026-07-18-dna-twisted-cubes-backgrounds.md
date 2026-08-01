@@ -10,6 +10,8 @@
 
 **Approved design:** `docs/superpowers/specs/2026-07-18-dna-twisted-cubes-backgrounds-design.md`
 
+**Current status (2026-08-01):** Tasks 1-9 are implemented and the final local visual result is accepted. Canonical completion evidence lives in `docs/project-state.md` and `docs/project-log.md`; the original unchecked execution boxes below remain historical plan structure rather than current-state truth. The authorized PR loop is in progress and must stop before merge.
+
 ## Global Constraints
 
 - Start only after Tracks 1, 2, and 4A are merged into refreshed `main`; suggested branch: `codex/dna-twisted-cubes-backgrounds`.
@@ -58,11 +60,12 @@ Cover source defaults, every minimum/maximum, integer strand count, invalid nume
 
 ```js
 export const DEFAULT_DNA_BACKGROUND_OPTIONS = Object.freeze({
-  strandCount: 35,
+  strandCount: 70,
+  showBaseLetters: false,
   nodeMotionSpeed: 0.06,
   strandRotationSpeed: 0.02,
   strandAngle: 30,
-  scale: 1,
+  scale: 0.5,
   positionX: 0,
   positionY: 0,
   strandSpacing: 0.5,
@@ -73,8 +76,8 @@ export const DEFAULT_DNA_BACKGROUND_OPTIONS = Object.freeze({
 
 export const DNA_SOURCE_GEOMETRY = Object.freeze({
   widthVmin: 26,
-  minimumHeightVmin: 120,
-  viewportHeightVmax: 115,
+  minimumHeightVmin: 240,
+  viewportHeightVmax: 230,
 });
 
 export function sanitizeDnaBackgroundOptions(value) {}
@@ -84,7 +87,7 @@ export function getDnaStrandDelaySeconds({ oneBasedIndex, total, speed }) {}
 export function getDnaStrandPhase({ oneBasedIndex, total }) {}
 ```
 
-Assert the approved defaults produce `2 / 0.06` and `14 / 0.02` second durations. `getDnaStrandPhase` must calculate with `Math.sin`, not return a CSS `sin()` expression. `DNA_SOURCE_GEOMETRY` is fixed renderer metadata—not persisted user options—and tests/render-source assertions require a `26vmin`-wide scene whose height is `max(120vmin, 115vmax)`, keeping the strand ends beyond the viewport while it rotates.
+Assert the approved defaults produce `2 / 0.06` and `14 / 0.02` second durations. `getDnaStrandPhase` must calculate with `Math.sin`, not return a CSS `sin()` expression. `DNA_SOURCE_GEOMETRY` is fixed renderer metadata—not persisted user options—and tests/render-source assertions require a `26vmin`-wide scene whose height is `max(240vmin, 230vmax)`. At the approved 50% default this retains the prior off-screen envelope, while 70 strands preserve the reviewed node density and keep both ends beyond the viewport during horizontal rotation.
 
 Run: `node --test tests/dna-background.test.mjs`
 
@@ -96,6 +99,7 @@ Define:
 
 ```js
 export function createDnaNodeRoleAssignments(nodeCount, random = Math.random) {}
+export function createDnaStrandAssignments(strandCount, random = Math.random) {}
 export function resolveResponsiveBackgroundTransform({
   scale,
   positionX,
@@ -104,7 +108,7 @@ export function resolveResponsiveBackgroundTransform({
 }) {}
 ```
 
-Require two role assignments per strand, values limited to integers `0..3`, deterministic injected randomness, and invalid random results handled explicitly: `NaN`, `Infinity`, and `-Infinity` fall back to `0` before floor/clamp, while finite values clamp into the range. Add exact cases for every non-finite input. For the layout helper, use this exact rendering-only rule:
+Require every strand assignment to contain a valid `A-T`, `T-A`, `G-C`, or `C-G` pair plus two independent role assignments limited to integers `0..3`. Base identity must not determine swatch role. Require deterministic injected randomness, and handle invalid random results explicitly: `NaN`, `Infinity`, and `-Infinity` fall back to `0` before floor/clamp, while finite values clamp into the range. Add exact cases for every non-finite input. Keep `createDnaNodeRoleAssignments` as the compatible role-only helper. For the layout helper, use this exact rendering-only rule:
 
 - shortest viewport edge below `480px`: effective scale maximum `1`, X/Y maximum magnitude `20%`;
 - otherwise: effective scale maximum `1.2`, X/Y maximum magnitude `35%`.
@@ -119,6 +123,7 @@ Use the exact flat preference keys:
 
 ```js
 massageLabDnaStrandCount
+massageLabDnaShowBaseLetters
 massageLabDnaNodeMotionSpeed
 massageLabDnaStrandRotationSpeed
 massageLabDnaStrandAngle
@@ -278,7 +283,7 @@ export const DEFAULT_TWISTED_CUBES_BACKGROUND_OPTIONS = Object.freeze({
   layerStagger: 0.1,
   viewAngleX: -35,
   viewAngleY: -45,
-  scale: 1,
+  scale: 0.3,
   positionX: 0,
   positionY: 0,
   layerDepthSpacing: 50,
@@ -422,7 +427,7 @@ git commit -m "feat: add twisted cubes renderer"
 
 - [ ] **Step 1: Add failing setting and registry tests**
 
-Add all 22 keys from Tasks 1 and 3 to `DEFAULT_CHIMER_SETTINGS` and `sanitizeChimerSettings`. Assert exact source defaults and approved clamps. Add stable IDs to `BackgroundId`:
+Add all 23 keys from Tasks 1 and 3 to `DEFAULT_CHIMER_SETTINGS` and `sanitizeChimerSettings`. Assert exact source defaults and approved clamps. Add stable IDs to `BackgroundId`:
 
 ```ts
 | "massage-lab-dna"
@@ -456,7 +461,7 @@ Declare exactly these roles and zero-based swatch indexes:
 ]
 ```
 
-Set renderer family `css-dom`, status `supported`, and source behavior `fixed`. List all 11 DNA setting keys in `visualPropertyKeys` and source defaults in `sourceVisualProperties`. `applyRoleColors` must update only `massageLabDna` colors and preserve its non-color options.
+Set renderer family `css-dom`, status `supported`, and source behavior `fixed`. List all 12 DNA setting keys in `visualPropertyKeys` and source defaults in `sourceVisualProperties`. `applyRoleColors` must update only `massageLabDna` colors and preserve its non-color options.
 
 - [ ] **Step 3: Add the Twisted Cubes adapter**
 
@@ -517,8 +522,8 @@ Require these exact control groups and ranges:
 | DNA group | Controls |
 | --- | --- |
 | Motion | Node motion speed `0.01..3 step .01` (default `0.06`); Strand rotation speed `0.01..3 step .01` (default `0.02`) |
-| Geometry | Strand count `7..81 step 1` (default `35`); angle `-180..180 step 1`; spacing `0..2 step .05` |
-| Position and scale | scale `.4..1.2 step .01`; X/Y `-35..35 step 1` |
+| Geometry | Strand count `7..81 step 1` (default `70`); Show base letters toggle (default Off); angle `-180..180 step 1`; spacing `0..2 step .05` |
+| Position and scale | scale `.4..1.2 step .01` (default `.5`); X/Y `-35..35 step 1` |
 | Connector | width `60..100 step 1`; thickness `10..60 step 1` |
 | Outline | thickness `0..1.5 step .05` |
 
@@ -527,7 +532,7 @@ Require these exact control groups and ranges:
 | Motion | Rotation speed `.01..3 step .01` (default `.25`); Layer stagger `0..0.3 step .01` |
 | View angles | X/Y `-80..80 step 1` |
 | Geometry and depth | Layer count `6..30 step 1`; depth `10..70 step 1` |
-| Position and scale | scale `.4..1.2 step .01`; X/Y `-35..35 step 1` |
+| Position and scale | scale `.1..1.2 step .01` (default `.3`); X/Y `-35..35 step 1` |
 | Fade | falloff `0..0.95 step .01` |
 | Outline | relative thickness `.0025..0.02 step .0005` |
 
@@ -796,7 +801,7 @@ Before committing, verify `git status --short` still contains the user-owned `TO
 - DNA and Twisted Cubes are enabled premium backgrounds in Chimer, Clock, Music, and ambient categories.
 - Both use native React plus scoped CSS Modules and add no runtime dependency, iframe, Canvas, WebGL, pointer drag, or shuffle action.
 - Source colors and source property values remain visible until edited.
-- DNA renders 7-81 strands, keeps mount-stable random four-role node assignment, uses React sine phases, and exposes separate node/strand speeds.
+- DNA renders 7-81 strands, keeps mount-stable valid complementary base pairs with independent random four-role node colors, optionally shows A/G/T/C letters, uses React sine phases, and exposes separate node/strand speeds.
 - Twisted Cubes renders 6-30 layers, preserves continuous Source HSL, smoothly interpolates six Custom/Harmony anchors, and exposes separate speed/stagger.
 - Both support bounded scale/X/Y controls without mutating stored values.
 - Track 4A owns every color, role mapping, draft, Undo/Redo, Apply/Cancel, Color preset, and Visual preset behavior; no duplicate color fields exist.

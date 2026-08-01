@@ -11,6 +11,7 @@ import {
   getTwistedCubeAlpha,
   getTwistedCubeCycleSeconds,
   getTwistedCubeDelaySeconds,
+  getTwistedCubeLayerSizeVmax,
   getTwistedCubeSourceOutline,
   interpolateTwistedCubeOutline,
   TWISTED_CUBES_VIEWPORT_EXTENT_VMAX,
@@ -99,7 +100,10 @@ function captureRuntimeErrors(page: Page) {
   const consoleErrors: string[] = []
   const pageErrors: string[] = []
   page.on("console", (message) => {
-    if (message.type() === "error") consoleErrors.push(message.text())
+    if (message.type() === "error") {
+      const sourceUrl = message.location().url
+      consoleErrors.push(sourceUrl ? `${message.text()} (${sourceUrl})` : message.text())
+    }
   })
   page.on("pageerror", (error) => pageErrors.push(error.message))
   return { consoleErrors, pageErrors }
@@ -412,6 +416,7 @@ async function captureComputedConsumerState(host: Locator, id: typeof EFFECTS[nu
       faceBorderWidth: faceCss.borderTopWidth,
       faceBorderColor: faceCss.borderTopColor,
       faceBackground: faceCss.backgroundColor,
+      faceBackfaceVisibility: faceCss.backfaceVisibility,
     }
   })
 }
@@ -488,7 +493,7 @@ async function normalizeDnaGeometry(
 ) {
   return host.evaluate((_, options) => {
     const scene = document.createElement("div")
-    scene.style.cssText = `position:fixed;visibility:hidden;width:26vmin;height:max(120vmin,115vmax);display:grid;gap:${options.spacing}vmin`
+    scene.style.cssText = `position:fixed;visibility:hidden;width:26vmin;height:max(240vmin,230vmax);display:grid;gap:${options.spacing}vmin`
     const strands = Array.from({ length: options.count }, () => {
       const strand = document.createElement("div")
       strand.style.cssText = "position:relative;display:flex;width:100%;min-block-size:0"
@@ -559,7 +564,7 @@ const ALLOWED_RENDER_CHANGES: Record<string, readonly string[]> = {
   massageLabTwistedCubesViewAngleY: ["viewAngleY"],
   massageLabTwistedCubesLayerCount: ["layerCount", "middleOutline", "firstAlpha", "firstDelay", "firstSize", "secondDepth"],
   massageLabTwistedCubesLayerDepthSpacing: ["secondDepth"],
-  massageLabTwistedCubesScale: ["scale"],
+  massageLabTwistedCubesScale: ["scale", "firstSize"],
   massageLabTwistedCubesPositionX: ["positionX"],
   massageLabTwistedCubesPositionY: ["positionY"],
   massageLabTwistedCubesOpacityFalloff: ["firstAlpha"],
@@ -666,7 +671,7 @@ async function expectExactControlRender({
     },
     massageLabTwistedCubesLayerStagger: {
       firstDelay: `${getTwistedCubeDelaySeconds({ oneBasedIndex: 1, count, stagger: properties.massageLabTwistedCubesLayerStagger })}s`,
-      firstSize: `${(1 / count) * TWISTED_CUBES_VIEWPORT_EXTENT_VMAX}vmax`,
+      firstSize: `${getTwistedCubeLayerSizeVmax({ oneBasedIndex: 1, count, scale: transform.scale })}vmax`,
     },
     massageLabTwistedCubesViewAngleX: { viewAngleX: `${properties.massageLabTwistedCubesViewAngleX}deg` },
     massageLabTwistedCubesViewAngleY: { viewAngleY: `${properties.massageLabTwistedCubesViewAngleY}deg` },
@@ -675,11 +680,14 @@ async function expectExactControlRender({
       middleOutline,
       firstAlpha: String(getTwistedCubeAlpha({ oneBasedIndex: 1, count, opacityFalloff: properties.massageLabTwistedCubesOpacityFalloff })),
       firstDelay: `${getTwistedCubeDelaySeconds({ oneBasedIndex: 1, count, stagger: properties.massageLabTwistedCubesLayerStagger })}s`,
-      firstSize: `${(1 / count) * TWISTED_CUBES_VIEWPORT_EXTENT_VMAX}vmax`,
+      firstSize: `${getTwistedCubeLayerSizeVmax({ oneBasedIndex: 1, count, scale: transform.scale })}vmax`,
       secondDepth: `${(count - 2) * properties.massageLabTwistedCubesLayerDepthSpacing}vmin`,
     },
     massageLabTwistedCubesLayerDepthSpacing: { secondDepth: `${(count - 2) * properties.massageLabTwistedCubesLayerDepthSpacing}vmin` },
-    massageLabTwistedCubesScale: { scale: String(transform.scale) },
+    massageLabTwistedCubesScale: {
+      scale: String(transform.scale),
+      firstSize: `${getTwistedCubeLayerSizeVmax({ oneBasedIndex: 1, count, scale: transform.scale })}vmax`,
+    },
     massageLabTwistedCubesPositionX: { positionX: `${transform.positionX}%` },
     massageLabTwistedCubesPositionY: { positionY: `${transform.positionY}%` },
     massageLabTwistedCubesOpacityFalloff: {
@@ -886,7 +894,7 @@ async function expectExactComputedConsumer({
   })
   const sceneExpected = await normalizeTransformForTarget(
     effectRoot(host).locator(":scope > div"),
-    `translate(calc(-50% + ${transform.positionX}%), calc(-50% + ${transform.positionY}%)) scale(${transform.scale})`,
+    `translate(calc(-50% + ${transform.positionX}%), calc(-50% + ${transform.positionY}%))`,
   )
   const viewExpected = await normalizeComputedConsumer(host, {
     transform: `rotateX(${properties.massageLabTwistedCubesViewAngleX}deg) rotateY(${properties.massageLabTwistedCubesViewAngleY}deg)`,
@@ -896,6 +904,11 @@ async function expectExactComputedConsumer({
   })
   const faceBorderExpected = await normalizeComputedConsumer(host, {
     border: `calc(${properties.massageLabTwistedCubesOutlineThickness} * 50vmin) solid black`,
+  })
+  const firstLayerSize = getTwistedCubeLayerSizeVmax({ oneBasedIndex: 1, count, scale: transform.scale })
+  const firstFaceSizeExpected = await normalizeComputedConsumer(host, {}, {
+    width: `${firstLayerSize}vmax`,
+    height: `${firstLayerSize}vmax`,
   })
   const cubeDurationSeconds = getTwistedCubeCycleSeconds(properties.massageLabTwistedCubesRotationSpeed)
   const firstCubeDelaySeconds = getTwistedCubeDelaySeconds({
@@ -961,11 +974,17 @@ async function expectExactComputedConsumer({
         count,
         opacityFalloff: properties.massageLabTwistedCubesOpacityFalloff,
       }), 6)
+      expect(after.faceWidth).toBe(firstFaceSizeExpected.width)
+      expect(after.faceHeight).toBe(firstFaceSizeExpected.height)
       break
     case "massageLabTwistedCubesLayerDepthSpacing":
       expect(after.secondLayerTransform).toBe(secondLayerExpected.transform)
       break
     case "massageLabTwistedCubesScale":
+      expect(after.faceWidth).toBe(firstFaceSizeExpected.width)
+      expect(after.faceHeight).toBe(firstFaceSizeExpected.height)
+      expect(after.cubeTransform).toBe(await expectedCubeTransform())
+      break
     case "massageLabTwistedCubesPositionX":
     case "massageLabTwistedCubesPositionY":
       expect(after.sceneTransform).toBe(sceneExpected)
@@ -1103,7 +1122,7 @@ async function expectExactReducedEffectState(
     })
     const sceneGeometryExpected = await normalizeComputedConsumer(host, {
       width: "26vmin",
-      height: "max(120vmin, 115vmax)",
+      height: "max(240vmin, 230vmax)",
     })
     const dnaGeometryExpected = await normalizeDnaGeometry(host, {
       count,
@@ -1250,7 +1269,7 @@ async function expectExactReducedEffectState(
       stagger: properties.massageLabTwistedCubesLayerStagger,
     })}s`,
     depth: `${(count - (index + 1)) * properties.massageLabTwistedCubesLayerDepthSpacing}vmin`,
-    size: `${((index + 1) / count) * TWISTED_CUBES_VIEWPORT_EXTENT_VMAX}vmax`,
+    size: `${getTwistedCubeLayerSizeVmax({ oneBasedIndex: index + 1, count, scale: transform.scale })}vmax`,
     thickness: String(properties.massageLabTwistedCubesOutlineThickness),
     animation: "none",
     faceCount: 6,
@@ -1265,7 +1284,7 @@ async function expectExactReducedEffectState(
   })
   const sceneExpected = await normalizeTransformForTarget(
     root.locator(":scope > div"),
-    `translate(calc(-50% + ${transform.positionX}%), calc(-50% + ${transform.positionY}%)) scale(${transform.scale})`,
+    `translate(calc(-50% + ${transform.positionX}%), calc(-50% + ${transform.positionY}%))`,
   )
   const viewExpected = await normalizeComputedConsumer(host, {
     transform: `rotateX(${properties.massageLabTwistedCubesViewAngleX}deg) rotateY(${properties.massageLabTwistedCubesViewAngleY}deg)`,
@@ -1279,18 +1298,18 @@ async function expectExactReducedEffectState(
   const cubeExpected = await normalizeComputedConsumer(host, {
     transform: "translate(-50%, -50%) rotateZ(90deg) rotateX(90deg) rotateZ(0deg)",
   }, {
-    width: `${(1 / count) * TWISTED_CUBES_VIEWPORT_EXTENT_VMAX}vmax`,
-    height: `${(1 / count) * TWISTED_CUBES_VIEWPORT_EXTENT_VMAX}vmax`,
+    width: `${getTwistedCubeLayerSizeVmax({ oneBasedIndex: 1, count, scale: transform.scale })}vmax`,
+    height: `${getTwistedCubeLayerSizeVmax({ oneBasedIndex: 1, count, scale: transform.scale })}vmax`,
   })
   const firstFaceExpected = await normalizeComputedConsumer(host, {
-    width: `${(1 / count) * TWISTED_CUBES_VIEWPORT_EXTENT_VMAX}vmax`,
-    height: `${(1 / count) * TWISTED_CUBES_VIEWPORT_EXTENT_VMAX}vmax`,
+    width: `${getTwistedCubeLayerSizeVmax({ oneBasedIndex: 1, count, scale: transform.scale })}vmax`,
+    height: `${getTwistedCubeLayerSizeVmax({ oneBasedIndex: 1, count, scale: transform.scale })}vmax`,
     opacity: String(getTwistedCubeAlpha({
       oneBasedIndex: 1,
       count,
       opacityFalloff: properties.massageLabTwistedCubesOpacityFalloff,
     })),
-    "background-color": roleColors.background,
+    "background-color": "transparent",
     border: `calc(${properties.massageLabTwistedCubesOutlineThickness} * 50vmin) solid ${anchors[0]}`,
   })
   expect(computed).toMatchObject({
@@ -1314,6 +1333,7 @@ async function expectExactReducedEffectState(
     faceBorderWidth: firstFaceExpected.borderTopWidth,
     faceBorderColor: firstFaceExpected.borderTopColor,
     faceBackground: firstFaceExpected.backgroundColor,
+    faceBackfaceVisibility: "hidden",
   })
 }
 
@@ -1377,8 +1397,29 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
     ])
     const dnaRoot = effectRoot(host)
     await expect(dnaRoot).toBeVisible()
-    expect(await dnaRoot.locator('[style*="--ml-dna-start-color"]').count()).toBe(35)
-    expect(await dnaRoot.locator("[data-side]").count()).toBe(70)
+    expect(await dnaRoot.locator('[style*="--ml-dna-start-color"]').count()).toBe(70)
+    expect(await dnaRoot.locator("[data-side]").count()).toBe(140)
+    const basePairs = await dnaRoot.locator('[style*="--ml-dna-start-color"]').evaluateAll((strands) => (
+      strands.map((strand) => Array.from(strand.querySelectorAll<HTMLElement>("[data-base]"))
+        .map((node) => node.dataset.base))
+    ))
+    expect(basePairs).toHaveLength(70)
+    expect(basePairs.every(([startBase, endBase]) => (
+      (startBase === "A" && endBase === "T")
+      || (startBase === "T" && endBase === "A")
+      || (startBase === "G" && endBase === "C")
+      || (startBase === "C" && endBase === "G")
+    ))).toBe(true)
+    await expect(dnaRoot.locator("[data-base]", { hasText: /^[AGTC]$/ })).toHaveCount(0)
+    const baseLetterToggle = review.getByRole("switch", { name: /^Show base letters:/ })
+    await expect(baseLetterToggle).toHaveAttribute("aria-checked", "false")
+    await baseLetterToggle.click()
+    await expect(baseLetterToggle).toHaveAttribute("aria-checked", "true")
+    await expect(dnaRoot.locator("[data-base]", { hasText: /^[AGTC]$/ })).toHaveCount(140)
+    expect((await parsedAttribute<Record<string, number | boolean>>(
+      review,
+      "data-current-properties",
+    )).massageLabDnaShowBaseLetters).toBe(true)
     const [hostBounds, dnaSceneBounds] = await Promise.all([
       host.boundingBox(),
       dnaRoot.locator(":scope > div").boundingBox(),

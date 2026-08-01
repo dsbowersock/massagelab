@@ -3199,11 +3199,12 @@ describe("Chimer timer helpers", () => {
 
   it("sanitizes the exact DNA and Twisted Cubes flat visual settings", () => {
     const expectedDefaults = {
-      massageLabDnaStrandCount: 35,
+      massageLabDnaStrandCount: 70,
+      massageLabDnaShowBaseLetters: false,
       massageLabDnaNodeMotionSpeed: 0.06,
       massageLabDnaStrandRotationSpeed: 0.02,
       massageLabDnaStrandAngle: 30,
-      massageLabDnaScale: 1,
+      massageLabDnaScale: 0.5,
       massageLabDnaPositionX: 0,
       massageLabDnaPositionY: 0,
       massageLabDnaStrandSpacing: 0.5,
@@ -3215,7 +3216,7 @@ describe("Chimer timer helpers", () => {
       massageLabTwistedCubesLayerStagger: 0.1,
       massageLabTwistedCubesViewAngleX: -35,
       massageLabTwistedCubesViewAngleY: -45,
-      massageLabTwistedCubesScale: 1,
+      massageLabTwistedCubesScale: 0.3,
       massageLabTwistedCubesPositionX: 0,
       massageLabTwistedCubesPositionY: 0,
       massageLabTwistedCubesLayerDepthSpacing: 50,
@@ -3237,6 +3238,7 @@ describe("Chimer timer helpers", () => {
 
     const clamped = sanitizeChimerSettings({
       massageLabDnaStrandCount: 99.8,
+      massageLabDnaShowBaseLetters: true,
       massageLabDnaNodeMotionSpeed: 0,
       massageLabDnaStrandRotationSpeed: 9,
       massageLabDnaStrandAngle: -999,
@@ -3261,6 +3263,7 @@ describe("Chimer timer helpers", () => {
     })
     assert.deepEqual({
       massageLabDnaStrandCount: clamped.massageLabDnaStrandCount,
+      massageLabDnaShowBaseLetters: clamped.massageLabDnaShowBaseLetters,
       massageLabDnaNodeMotionSpeed: clamped.massageLabDnaNodeMotionSpeed,
       massageLabDnaStrandRotationSpeed: clamped.massageLabDnaStrandRotationSpeed,
       massageLabDnaStrandAngle: clamped.massageLabDnaStrandAngle,
@@ -3284,6 +3287,7 @@ describe("Chimer timer helpers", () => {
       massageLabTwistedCubesOutlineThickness: clamped.massageLabTwistedCubesOutlineThickness,
     }, {
       massageLabDnaStrandCount: 81,
+      massageLabDnaShowBaseLetters: true,
       massageLabDnaNodeMotionSpeed: 0.01,
       massageLabDnaStrandRotationSpeed: 3,
       massageLabDnaStrandAngle: -180,
@@ -3299,7 +3303,7 @@ describe("Chimer timer helpers", () => {
       massageLabTwistedCubesLayerStagger: 0.3,
       massageLabTwistedCubesViewAngleX: -80,
       massageLabTwistedCubesViewAngleY: 80,
-      massageLabTwistedCubesScale: 0.4,
+      massageLabTwistedCubesScale: 0.1,
       massageLabTwistedCubesPositionX: -35,
       massageLabTwistedCubesPositionY: 35,
       massageLabTwistedCubesLayerDepthSpacing: 10,

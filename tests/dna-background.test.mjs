@@ -2,8 +2,10 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
   DEFAULT_DNA_BACKGROUND_OPTIONS,
+  DNA_BASE_PAIRS,
   DNA_SOURCE_GEOMETRY,
   createDnaNodeRoleAssignments,
+  createDnaStrandAssignments,
   getDnaBackgroundOptionsFromChimerSettings,
   getDnaNodeCycleSeconds,
   getDnaStrandDelaySeconds,
@@ -17,11 +19,12 @@ import { resolveResponsiveBackgroundTransform } from "../lib/background-effect-l
 describe("DNA background domain and shared layout rules", () => {
   it("preserves the approved continuous-strand defaults and fixed geometry", () => {
     assert.deepEqual(DEFAULT_DNA_BACKGROUND_OPTIONS, {
-      strandCount: 35,
+      strandCount: 70,
+      showBaseLetters: false,
       nodeMotionSpeed: 0.06,
       strandRotationSpeed: 0.02,
       strandAngle: 30,
-      scale: 1,
+      scale: 0.5,
       positionX: 0,
       positionY: 0,
       strandSpacing: 0.5,
@@ -31,8 +34,8 @@ describe("DNA background domain and shared layout rules", () => {
     })
     assert.deepEqual(DNA_SOURCE_GEOMETRY, {
       widthVmin: 26,
-      minimumHeightVmin: 120,
-      viewportHeightVmax: 115,
+      minimumHeightVmin: 240,
+      viewportHeightVmax: 230,
     })
     assert.equal(Object.isFrozen(DEFAULT_DNA_BACKGROUND_OPTIONS), true)
     assert.equal(Object.isFrozen(DNA_SOURCE_GEOMETRY), true)
@@ -56,6 +59,7 @@ describe("DNA background domain and shared layout rules", () => {
       }),
       {
         strandCount: 7,
+        showBaseLetters: false,
         nodeMotionSpeed: 0.01,
         strandRotationSpeed: 0.01,
         strandAngle: -180,
@@ -84,6 +88,7 @@ describe("DNA background domain and shared layout rules", () => {
       }),
       {
         strandCount: 81,
+        showBaseLetters: false,
         nodeMotionSpeed: 3,
         strandRotationSpeed: 3,
         strandAngle: 180,
@@ -143,6 +148,34 @@ describe("DNA background domain and shared layout rules", () => {
     assert.ok(assignments.every((assignment) => Number.isInteger(assignment) && assignment >= 0 && assignment <= 3))
   })
 
+  it("creates biologically valid base pairs with independent node swatch roles", () => {
+    const sequence = [
+      0, 0, 0.99,
+      0.26, 0.3, 0.7,
+      0.51, 0.49, 0.51,
+      0.76, 0.99, 0,
+    ]
+    let index = 0
+    const assignments = createDnaStrandAssignments(4, () => sequence[index++])
+
+    assert.deepEqual(DNA_BASE_PAIRS, [["A", "T"], ["T", "A"], ["G", "C"], ["C", "G"]])
+    assert.deepEqual(assignments, [
+      { startBase: "A", endBase: "T", startRole: 0, endRole: 3 },
+      { startBase: "T", endBase: "A", startRole: 1, endRole: 2 },
+      { startBase: "G", endBase: "C", startRole: 1, endRole: 2 },
+      { startBase: "C", endBase: "G", startRole: 3, endRole: 0 },
+    ])
+    assert.notEqual(assignments[0].startRole, assignments[0].endRole)
+    assert.deepEqual(createDnaStrandAssignments(1, () => Number.NaN), [
+      { startBase: "A", endBase: "T", startRole: 0, endRole: 0 },
+    ])
+  })
+
+  it("preserves only explicit boolean base-letter preferences", () => {
+    assert.equal(sanitizeDnaBackgroundOptions({ showBaseLetters: true }).showBaseLetters, true)
+    assert.equal(sanitizeDnaBackgroundOptions({ showBaseLetters: "true" }).showBaseLetters, false)
+  })
+
   it("clamps only the effective responsive transform without changing stored options", () => {
     const stored = { scale: 1.2, positionX: 35, positionY: -35 }
     assert.deepEqual(
@@ -160,6 +193,7 @@ describe("DNA background domain and shared layout rules", () => {
     assert.deepEqual(
       getDnaBackgroundOptionsFromChimerSettings({
         massageLabDnaStrandCount: 24.6,
+        massageLabDnaShowBaseLetters: true,
         massageLabDnaNodeMotionSpeed: 2,
         massageLabDnaStrandRotationSpeed: 0.5,
         massageLabDnaStrandAngle: -40,
@@ -173,6 +207,7 @@ describe("DNA background domain and shared layout rules", () => {
       }),
       {
         strandCount: 24,
+        showBaseLetters: true,
         nodeMotionSpeed: 2,
         strandRotationSpeed: 0.5,
         strandAngle: -40,
@@ -191,13 +226,14 @@ describe("DNA background domain and shared layout rules", () => {
     assert.deepEqual(
       toDnaChimerSettingsPatch({
         strandCount: 8,
+        showBaseLetters: true,
         positionX: 12,
         backgroundColor: "#123456",
         nodeRoles: [1, 2],
         computedPhase: 0.2,
         unrelated: true,
       }),
-      { massageLabDnaStrandCount: 8, massageLabDnaPositionX: 12 },
+      { massageLabDnaStrandCount: 8, massageLabDnaShowBaseLetters: true, massageLabDnaPositionX: 12 },
     )
   })
 })

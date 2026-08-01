@@ -13,7 +13,7 @@
   top: 50%;
   left: 50%;
   width: 26vmin;
-  height: max(120vmin, 115vmax);
+  height: max(240vmin, 230vmax);
   transform: translate(
       calc(-50% + var(--ml-dna-position-x)),
       calc(-50% + var(--ml-dna-position-y))
@@ -58,6 +58,8 @@
 
 .node {
   position: relative;
+  display: grid;
+  place-items: center;
   height: 100%;
   aspect-ratio: 1;
   border: var(--ml-dna-outline-thickness) solid var(--ml-dna-outline-color);
@@ -66,6 +68,15 @@
   transform: translateX(0);
   animation: mlDnaNodeCrossover var(--ml-dna-node-duration) ease-in-out infinite;
   animation-delay: var(--ml-dna-node-delay);
+}
+
+.nodeLabel {
+  color: #fff;
+  font-size: clamp(0.42rem, 1.25vmin, 0.9rem);
+  font-weight: 800;
+  line-height: 1;
+  text-shadow: 0 0 0.12em #000, 0 0 0.22em #000;
+  user-select: none;
 }
 
 .node[data-side="start"] {

@@ -8,6 +8,7 @@ import styles from "@/components/backgrounds/BackgroundHost.module.css"
 
 export interface MassageLabDnaOptions {
   strandCount: number
+  showBaseLetters: boolean
   nodeMotionSpeed: number
   strandRotationSpeed: number
   strandAngle: number

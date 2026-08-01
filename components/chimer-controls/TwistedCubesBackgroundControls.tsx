@@ -53,7 +53,7 @@ export function TwistedCubesBackgroundControls({
 
       <fieldset className={styles.backgroundPropertyGroup}>
         <legend>Position and scale</legend>
-        <StyledRangeControl label="Scale" value={value.scale} min={0.4} max={1.2} step={0.01} disabled={disabled} displayValue={`${Math.round(value.scale * 100)}%`} onChange={(nextValue) => onChange({ scale: nextValue })} />
+        <StyledRangeControl label="Scale" value={value.scale} min={0.1} max={1.2} step={0.01} disabled={disabled} displayValue={`${Math.round(value.scale * 100)}%`} onChange={(nextValue) => onChange({ scale: nextValue })} />
         <StyledRangeControl label="Position X" value={value.positionX} min={-35} max={35} step={1} disabled={disabled} displayValue={`${Math.round(value.positionX)}%`} onChange={(nextValue) => onChange({ positionX: nextValue })} />
         <StyledRangeControl label="Position Y" value={value.positionY} min={-35} max={35} step={1} disabled={disabled} displayValue={`${Math.round(value.positionY)}%`} onChange={(nextValue) => onChange({ positionY: nextValue })} />
       </fieldset>

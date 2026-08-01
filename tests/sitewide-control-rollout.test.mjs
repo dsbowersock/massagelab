@@ -242,7 +242,7 @@ test("development review exposes the real DNA and Twisted Cubes acceptance matri
     ["massage-lab-twisted-cubes", "View angle Y", "massageLabTwistedCubesViewAngleY", ".layer > .view", "transform", "viewTransform"],
     ["massage-lab-twisted-cubes", "Layer count", "massageLabTwistedCubesLayerCount", "[style*='--ml-twisted-cubes-outline'] > .view > .cube > .cuboid > .face", "count|depth|size|animationDelay|transform|opacity", "layerCount|faceCount|firstLayerTransform|secondLayerTransform|cubeTransform|cubeDelay|faceWidth|faceHeight|faceOpacity"],
     ["massage-lab-twisted-cubes", "Layer depth", "massageLabTwistedCubesLayerDepthSpacing", "[style*='--ml-twisted-cubes-outline']", "transform", "firstLayerTransform|secondLayerTransform"],
-    ["massage-lab-twisted-cubes", "Scale", "massageLabTwistedCubesScale", ":scope > .scene", "transform", "sceneTransform"],
+    ["massage-lab-twisted-cubes", "Scale", "massageLabTwistedCubesScale", "inner cube faces", "size|transform", "cubeTransform|faceWidth|faceHeight"],
     ["massage-lab-twisted-cubes", "Position X", "massageLabTwistedCubesPositionX", ":scope > .scene", "transform", "sceneTransform"],
     ["massage-lab-twisted-cubes", "Position Y", "massageLabTwistedCubesPositionY", ":scope > .scene", "transform", "sceneTransform"],
     ["massage-lab-twisted-cubes", "Fade falloff", "massageLabTwistedCubesOpacityFalloff", "first .face", "opacity", "faceOpacity"],
@@ -298,7 +298,7 @@ test("development review exposes the real DNA and Twisted Cubes acceptance matri
   assert.match(browserSource, /startNodeAnimationName:\s*"none"[\s\S]*startNodeDuration:\s*"0s"[\s\S]*startNodeDelay:\s*"0s"/)
   assert.match(browserSource, /endNodeAnimationName:\s*"none"[\s\S]*endNodeDuration:\s*"0s"[\s\S]*endNodeDelay:\s*"0s"/)
   assert.match(browserSource, /cubeAnimationName:\s*"none"[\s\S]*cubeDuration:\s*"0s"[\s\S]*cubeDelay:\s*"0s"/)
-  assert.match(browserSource, /width:\s*"26vmin"[\s\S]*height:\s*"max\(120vmin, 115vmax\)"/)
+  assert.match(browserSource, /width:\s*"26vmin"[\s\S]*height:\s*"max\(240vmin, 230vmax\)"/)
   assert.match(browserSource, /width:\s*`\$\{TWISTED_CUBES_VIEWPORT_EXTENT_VMAX\}vmax`[\s\S]*height:\s*`\$\{TWISTED_CUBES_VIEWPORT_EXTENT_VMAX\}vmax`/)
   assert.doesNotMatch(browserSource, /test\.skip\(/)
   assert.match(playwrightConfig, /dna-twisted-cubes-backgrounds\.spec\.ts/)
@@ -386,9 +386,10 @@ test("DNA and Twisted Cubes share compact options and host-owned responsive moti
   assert.match(styles, /\.backgroundPropertyGroup\s*\{[^}]*\bmin-width:\s*0/)
 })
 
-test("actual Chimer, ordinary Clock, Music, and ambient Host plumbing resolves all 22 values", async () => {
+test("actual Chimer, ordinary Clock, Music, and ambient Host plumbing resolves all 23 values", async () => {
   const settings = {
     massageLabDnaStrandCount: 15,
+    massageLabDnaShowBaseLetters: true,
     massageLabDnaNodeMotionSpeed: 1.25,
     massageLabDnaStrandRotationSpeed: 1.5,
     massageLabDnaStrandAngle: 45,
@@ -413,6 +414,7 @@ test("actual Chimer, ordinary Clock, Music, and ambient Host plumbing resolves a
   }
   const expectedDna = {
     strandCount: 15,
+    showBaseLetters: true,
     nodeMotionSpeed: 1.25,
     strandRotationSpeed: 1.5,
     strandAngle: 45,

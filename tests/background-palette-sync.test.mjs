@@ -257,6 +257,7 @@ describe("DNA and Twisted Cubes non-color persistence", () => {
       presetId: "dna",
       properties: {
         massageLabDnaStrandCount: { invalid: 999, expected: 81 },
+        massageLabDnaShowBaseLetters: { invalid: true, expected: true },
         massageLabDnaNodeMotionSpeed: { invalid: -999, expected: 0.01 },
         massageLabDnaStrandRotationSpeed: { invalid: 999, expected: 3 },
         massageLabDnaStrandAngle: { invalid: -999, expected: -180 },
@@ -278,7 +279,7 @@ describe("DNA and Twisted Cubes non-color persistence", () => {
         massageLabTwistedCubesLayerStagger: { invalid: -999, expected: 0 },
         massageLabTwistedCubesViewAngleX: { invalid: 999, expected: 80 },
         massageLabTwistedCubesViewAngleY: { invalid: -999, expected: -80 },
-        massageLabTwistedCubesScale: { invalid: -999, expected: 0.4 },
+        massageLabTwistedCubesScale: { invalid: -999, expected: 0.1 },
         massageLabTwistedCubesPositionX: { invalid: 999, expected: 35 },
         massageLabTwistedCubesPositionY: { invalid: -999, expected: -35 },
         massageLabTwistedCubesLayerDepthSpacing: { invalid: 999, expected: 70 },

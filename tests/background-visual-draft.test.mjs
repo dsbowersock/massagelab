@@ -59,6 +59,7 @@ const TRACK4B_VISUAL_CASES = [
     backgroundId: "massage-lab-dna",
     changedProperties: {
       massageLabDnaStrandCount: 15,
+      massageLabDnaShowBaseLetters: true,
       massageLabDnaNodeMotionSpeed: 1.25,
       massageLabDnaStrandRotationSpeed: 1.5,
       massageLabDnaStrandAngle: 45,
@@ -1296,6 +1297,7 @@ test("DNA and Twisted Cubes controls emit only draft property patches with exact
     ["Connector thickness", "connectorThickness", "10", "60", "1"],
     ["Outline thickness", "outlineThickness", "0", "1.5", "0.05"],
   ]) assertSlider(dnaControlsSource, label, property, min, max, step)
+  assert.match(dnaControlsSource, /<StyledToggleControl[\s\S]*?label="Show base letters"[\s\S]*?checked=\{value\.showBaseLetters\}[\s\S]*?onCheckedChange=\{\(nextValue\) => onChange\(\{ showBaseLetters: nextValue \}\)\}/)
 
   for (const [label, property, min, max, step] of [
     ["Rotation speed", "rotationSpeed", "0.01", "3", "0.01"],
@@ -1304,7 +1306,7 @@ test("DNA and Twisted Cubes controls emit only draft property patches with exact
     ["View angle Y", "viewAngleY", "-80", "80", "1"],
     ["Layer count", "layerCount", "6", "30", "1"],
     ["Layer depth", "layerDepthSpacing", "10", "70", "1"],
-    ["Scale", "scale", "0.4", "1.2", "0.01"],
+    ["Scale", "scale", "0.1", "1.2", "0.01"],
     ["Position X", "positionX", "-35", "35", "1"],
     ["Position Y", "positionY", "-35", "35", "1"],
     ["Fade falloff", "opacityFalloff", "0", "0.95", "0.01"],
@@ -1329,7 +1331,7 @@ test("selected-background properties share the existing Visual draft lifecycle",
   assert.match(runningTimerSource, /visualDraft\?\.dirty/)
 })
 
-test("all 22 DNA and Twisted Cubes keys execute the complete shared Visual draft lifecycle", () => {
+test("all 23 DNA and Twisted Cubes keys execute the complete shared Visual draft lifecycle", () => {
   for (const { backgroundId, changedProperties } of TRACK4B_VISUAL_CASES) {
     const adapter = backgroundPaletteRegistry[backgroundId]
     const sourceProperties = adapter.sourceVisualProperties

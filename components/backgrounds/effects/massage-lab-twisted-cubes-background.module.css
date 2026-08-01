@@ -17,8 +17,7 @@
   transform: translate(
       calc(-50% + var(--ml-twisted-cubes-position-x)),
       calc(-50% + var(--ml-twisted-cubes-position-y))
-    )
-    scale(var(--ml-twisted-cubes-scale));
+    );
   transform-origin: center;
 }
 
@@ -56,8 +55,10 @@
   box-sizing: border-box;
   opacity: var(--ml-twisted-cubes-alpha);
   border: calc(var(--ml-twisted-cubes-outline-thickness) * 50vmin) solid var(--ml-twisted-cubes-outline);
-  background: var(--ml-twisted-cubes-background-color);
-  backface-visibility: visible;
+  /* Transparent faces keep nearer cubes from erasing deeper layer outlines. */
+  background: transparent;
+  /* Hidden reverse faces avoid drawing every transparent edge twice. */
+  backface-visibility: hidden;
 }
 
 .front {

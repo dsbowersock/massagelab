@@ -152,11 +152,12 @@ const cssDomFixtures = {
   },
   "massage-lab-dna": {
     massageLabDna: {
-      strandCount: 35,
+      strandCount: 70,
+      showBaseLetters: false,
       nodeMotionSpeed: 0.06,
       strandRotationSpeed: 0.02,
       strandAngle: 30,
-      scale: 1,
+      scale: 0.5,
       positionX: 0,
       positionY: 0,
       strandSpacing: 0.5,
@@ -176,7 +177,7 @@ const cssDomFixtures = {
       layerStagger: 0.1,
       viewAngleX: -35,
       viewAngleY: -45,
-      scale: 1,
+      scale: 0.3,
       positionX: 0,
       positionY: 0,
       layerDepthSpacing: 50,
@@ -611,6 +612,7 @@ describe("background palette adapter registry", () => {
     )
     assert.deepEqual(adapter.visualPropertyKeys, [
       "massageLabDnaStrandCount",
+      "massageLabDnaShowBaseLetters",
       "massageLabDnaNodeMotionSpeed",
       "massageLabDnaStrandRotationSpeed",
       "massageLabDnaStrandAngle",
@@ -632,7 +634,8 @@ describe("background palette adapter registry", () => {
       adapter.roles.map((role) => role.rendererTarget).sort(),
     )
     assert.deepEqual(fixture, original)
-  assert.equal(applied.massageLabDna.strandCount, 35)
+    assert.equal(applied.massageLabDna.strandCount, 70)
+    assert.equal(applied.massageLabDna.showBaseLetters, false)
     assert.equal(applied.massageLabDna.connectorWidth, 94)
   })
 

@@ -2,11 +2,13 @@
 
 import type { MassageLabDnaOptions } from "@/components/backgrounds/effects/css-backgrounds"
 import { StyledRangeControl } from "@/components/chimer-controls/StyledRangeControl"
+import { StyledToggleControl } from "@/components/chimer-controls/StyledToggleControl"
 import styles from "@/app/chimer/running-timer.module.css"
 
 export type DnaBackgroundControlOptions = Pick<
   MassageLabDnaOptions,
   | "strandCount"
+  | "showBaseLetters"
   | "nodeMotionSpeed"
   | "strandRotationSpeed"
   | "strandAngle"
@@ -42,6 +44,7 @@ export function DnaBackgroundControls({
       <fieldset className={styles.backgroundPropertyGroup}>
         <legend>Geometry</legend>
         <StyledRangeControl label="Strand count" value={value.strandCount} min={7} max={81} step={1} disabled={disabled} displayValue={String(Math.round(value.strandCount))} onChange={(nextValue) => onChange({ strandCount: nextValue })} />
+        <StyledToggleControl label="Show base letters" checked={value.showBaseLetters} valueLabel={value.showBaseLetters ? "On" : "Off"} disabled={disabled} onCheckedChange={(nextValue) => onChange({ showBaseLetters: nextValue })} />
         <StyledRangeControl label="Strand angle" value={value.strandAngle} min={-180} max={180} step={1} disabled={disabled} displayValue={`${Math.round(value.strandAngle)}°`} onChange={(nextValue) => onChange({ strandAngle: nextValue })} />
         <StyledRangeControl label="Strand spacing" value={value.strandSpacing} min={0} max={2} step={0.05} disabled={disabled} displayValue={`${value.strandSpacing.toFixed(2)}vmin`} onChange={(nextValue) => onChange({ strandSpacing: nextValue })} />
       </fieldset>

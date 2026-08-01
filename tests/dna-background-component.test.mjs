@@ -24,7 +24,10 @@ test("the DNA renderer stays a scoped, non-interactive CSS DOM effect", () => {
   const stylesheetCode = stripSourceComments(stylesheetSource)
 
   assert.match(componentCode, /const renderStrandCount = Number\.isFinite\(strandCount\)[\s\S]*?Math\.min\(81, Math\.max\(0, Math\.floor\(strandCount\)\)\)[\s\S]*?: 0/)
-  assert.match(componentCode, /createDnaNodeRoleAssignments\(renderStrandCount \* 2\)/)
+  assert.match(componentCode, /createDnaStrandAssignments\(renderStrandCount\)/)
+  assert.match(componentCode, /data-base=\{strand\.startBase\}/)
+  assert.match(componentCode, /data-base=\{strand\.endBase\}/)
+  assert.match(componentCode, /showBaseLetters && <span className=\{styles\.nodeLabel\}>/)
   assert.doesNotMatch(componentCode, /Array\.from\(\{ length: strandCount \}/)
   assert.match(componentCode, /resolveResponsiveBackgroundTransform/)
   assert.match(componentCode, /aria-hidden="true"/)
@@ -40,12 +43,13 @@ test("the DNA renderer stays a scoped, non-interactive CSS DOM effect", () => {
   assert.doesNotMatch(componentCode, /\b(?:button|input|select|textarea|tabIndex|onClick|onPointer|onDrag)\b/)
 
   assert.match(stylesheetCode, /width:\s*26vmin/)
-  assert.match(stylesheetCode, /height:\s*max\(120vmin,\s*115vmax\)/)
+  assert.match(stylesheetCode, /height:\s*max\(240vmin,\s*230vmax\)/)
   assert.match(stylesheetCode, /@keyframes\s+mlDnaNodeCrossover/)
   assert.match(stylesheetCode, /@keyframes\s+mlDnaConnectorCollapse/)
   assert.match(stylesheetCode, /@keyframes\s+mlDnaStrandRotate/)
   assert.match(stylesheetCode, /gap:\s*var\(--ml-dna-strand-spacing\)/)
   assert.match(stylesheetCode, /animation-direction:\s*reverse/)
+  assert.match(stylesheetCode, /\.nodeLabel\s*\{[\s\S]*?font-weight:\s*800/)
   assert.match(stylesheetCode, /25%,[\s\S]*?75%[\s\S]*?scaleX\(0\)/)
   assert.match(stylesheetCode, /\[data-reduce-motion\]/)
   assert.match(stylesheetCode, /\.root \{[\s\S]*?pointer-events:\s*none;/)
@@ -57,7 +61,7 @@ test("the DNA renderer stays a scoped, non-interactive CSS DOM effect", () => {
 test("DNA options extend the shared background effect contract", () => {
   const effectPropsSource = readFileSync(effectPropsPath, "utf8")
 
-  assert.match(effectPropsSource, /export interface MassageLabDnaOptions \{[\s\S]*?strandCount: number;?[\s\S]*?nodeRoleColors: readonly \[string, string, string, string\];?[\s\S]*?outlineColor: string;?[\s\S]*?\}/)
+  assert.match(effectPropsSource, /export interface MassageLabDnaOptions \{[\s\S]*?strandCount: number;?[\s\S]*?showBaseLetters: boolean;?[\s\S]*?nodeRoleColors: readonly \[string, string, string, string\];?[\s\S]*?outlineColor: string;?[\s\S]*?\}/)
   assert.doesNotMatch(effectPropsSource, /\bnodeColors\b/)
   assert.match(effectPropsSource, /export interface BackgroundEffectProps \{[\s\S]*?reduceMotion\?: boolean;?[\s\S]*?compactViewport\?: boolean;?[\s\S]*?massageLabDna\?: MassageLabDnaOptions;?/)
 })

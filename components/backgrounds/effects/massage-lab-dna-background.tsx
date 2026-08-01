@@ -2,7 +2,7 @@
 
 import { type CSSProperties, useEffect, useRef, useState } from "react"
 import {
-  createDnaNodeRoleAssignments,
+  createDnaStrandAssignments,
   getDnaNodeCycleSeconds,
   getDnaStrandDelaySeconds,
   getDnaStrandRotationSeconds,
@@ -16,9 +16,9 @@ type MassageLabDnaBackgroundProps = Pick<BackgroundEffectProps, "reduceMotion" |
 }
 
 /**
- * Renders the source DNA geometry with CSS-only motion. Node roles belong to a
- * mount, not to saved preferences: palette and geometry updates preserve them,
- * while a changed strand count receives exactly one fresh set after rendering.
+ * Renders the source DNA geometry with CSS-only motion. Biologically valid
+ * base pairs and independent node palette roles belong to a mount, not saved
+ * preferences; a changed strand count receives one fresh assignment set.
  */
 export function MassageLabDnaBackground({
   massageLabDna,
@@ -27,6 +27,7 @@ export function MassageLabDnaBackground({
 }: MassageLabDnaBackgroundProps) {
   const {
     strandCount,
+    showBaseLetters,
     nodeMotionSpeed,
     strandRotationSpeed,
     strandAngle,
@@ -45,8 +46,8 @@ export function MassageLabDnaBackground({
   const renderStrandCount = Number.isFinite(strandCount)
     ? Math.min(81, Math.max(0, Math.floor(strandCount)))
     : 0
-  const [nodeRoleAssignments, setNodeRoleAssignments] = useState(() => (
-    createDnaNodeRoleAssignments(renderStrandCount * 2)
+  const [strandAssignments, setStrandAssignments] = useState(() => (
+    createDnaStrandAssignments(renderStrandCount)
   ))
   const previousStrandCount = useRef(renderStrandCount)
 
@@ -54,7 +55,7 @@ export function MassageLabDnaBackground({
     if (previousStrandCount.current === renderStrandCount) return
 
     previousStrandCount.current = renderStrandCount
-    setNodeRoleAssignments(createDnaNodeRoleAssignments(renderStrandCount * 2))
+    setStrandAssignments(createDnaStrandAssignments(renderStrandCount))
   }, [renderStrandCount])
 
   const responsiveTransform = resolveResponsiveBackgroundTransform({
@@ -86,6 +87,12 @@ export function MassageLabDnaBackground({
     "--ml-dna-position-y": `${responsiveTransform.positionY}%`,
   } as CSSProperties
   const strands = Array.from({ length: renderStrandCount }, (_, index) => {
+    const assignment = strandAssignments[index] ?? {
+      startBase: "A",
+      endBase: "T",
+      startRole: 0,
+      endRole: 0,
+    }
     const oneBasedIndex = index + 1
     const delaySeconds = getDnaStrandDelaySeconds({
       oneBasedIndex,
@@ -95,11 +102,12 @@ export function MassageLabDnaBackground({
 
     return {
       index,
+      ...assignment,
       style: {
         "--ml-dna-node-duration": `${nodeCycleSeconds}s`,
         "--ml-dna-node-delay": `${delaySeconds}s`,
-        "--ml-dna-start-color": `var(--ml-dna-node-color-${nodeRoleAssignments[index * 2] ?? 0})`,
-        "--ml-dna-end-color": `var(--ml-dna-node-color-${nodeRoleAssignments[index * 2 + 1] ?? 0})`,
+        "--ml-dna-start-color": `var(--ml-dna-node-color-${assignment.startRole})`,
+        "--ml-dna-end-color": `var(--ml-dna-node-color-${assignment.endRole})`,
       } as CSSProperties,
     }
   })
@@ -116,8 +124,12 @@ export function MassageLabDnaBackground({
           {strands.map((strand) => (
             <span className={styles.strand} style={strand.style} key={strand.index}>
               <span className={styles.connector} />
-              <span className={styles.node} data-side="start" />
-              <span className={styles.node} data-side="end" />
+              <span className={styles.node} data-side="start" data-base={strand.startBase}>
+                {showBaseLetters && <span className={styles.nodeLabel}>{strand.startBase}</span>}
+              </span>
+              <span className={styles.node} data-side="end" data-base={strand.endBase}>
+                {showBaseLetters && <span className={styles.nodeLabel}>{strand.endBase}</span>}
+              </span>
             </span>
           ))}
         </div>

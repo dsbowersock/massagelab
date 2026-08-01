@@ -36,7 +36,7 @@ test("the Twisted Cubes renderer stays a scoped, non-interactive CSS DOM effect"
   assert.match(componentSource, /className=\{styles\.layer\}/)
   assert.match(componentCode, /<span className=\{styles\.layer\}[^>]*>[\s\S]*?<span className=\{styles\.view\}>[\s\S]*?<span className=\{styles\.cube\}>[\s\S]*?<span className=\{styles\.cuboid\}>[\s\S]*?CUBE_FACES\.map/)
   assert.match(componentCode, /"--ml-twisted-cubes-depth": `\$\{\(renderLayerCount - oneBasedIndex\) \* layerDepthSpacing\}vmin`/)
-  assert.match(componentCode, /"--ml-twisted-cubes-size": `\$\{\(oneBasedIndex \/ renderLayerCount\) \* TWISTED_CUBES_VIEWPORT_EXTENT_VMAX\}vmax`/)
+  assert.match(componentCode, /"--ml-twisted-cubes-size": `\$\{getTwistedCubeLayerSizeVmax\(\{[\s\S]*?oneBasedIndex,[\s\S]*?count: renderLayerCount,[\s\S]*?scale: responsiveTransform\.scale,[\s\S]*?\}\)\}vmax`/)
   assert.match(componentCode, /"--ml-twisted-cubes-viewport-extent": `\$\{TWISTED_CUBES_VIEWPORT_EXTENT_VMAX\}vmax`/)
   assert.match(componentSource, /className=\{styles\.cube\}/)
   assert.match(componentSource, /className=\{styles\.cuboid\}/)
@@ -47,8 +47,12 @@ test("the Twisted Cubes renderer stays a scoped, non-interactive CSS DOM effect"
   assert.doesNotMatch(stylesheetSource, /perspective:/)
   assert.match(stylesheetCode, /width:\s*var\(--ml-twisted-cubes-viewport-extent\)/)
   assert.match(stylesheetCode, /height:\s*var\(--ml-twisted-cubes-viewport-extent\)/)
+  assert.match(stylesheetCode, /\.face\s*\{[\s\S]*?background:\s*transparent;/)
+  assert.doesNotMatch(stylesheetCode, /\.face\s*\{[\s\S]*?background:\s*var\(--ml-twisted-cubes-background-color\)/)
   assert.match(stylesheetSource, /transform-style:\s*preserve-3d/)
   assert.match(stylesheetSource, /@keyframes\s+mlTwistedCubesRotate/)
+  assert.match(stylesheetSource, /backface-visibility:\s*hidden/)
+  assert.doesNotMatch(stylesheetSource, /scale\(var\(--ml-twisted-cubes-scale\)\)/)
   assert.match(stylesheetSource, /cubic-bezier\(0\.5, 0\.1, 0\.5, 0\.9\)/)
   assert.match(
     stylesheetSource,
