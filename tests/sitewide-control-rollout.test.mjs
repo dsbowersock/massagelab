@@ -220,33 +220,37 @@ test("development review exposes the real DNA and Twisted Cubes acceptance matri
     entry.key,
     entry.target,
     entry.properties.join("|"),
+    entry.allowedRenderChanges.join("|"),
     entry.allowedCouplings.join("|"),
   ])
   assert.equal(COMPUTED_CONSUMER_CONTRACTS.length, 22)
   assert.equal(new Set(COMPUTED_CONSUMER_CONTRACTS.map(({ key }) => key)).size, 22)
+  assert.ok(COMPUTED_CONSUMER_CONTRACTS.every(({ allowedRenderChanges }) => (
+    Object.isFrozen(allowedRenderChanges) && allowedRenderChanges.length > 0
+  )))
   assert.deepEqual(computedConsumerProjection, [
-    ["massage-lab-dna", "Node motion speed", "massageLabDnaNodeMotionSpeed", "strand > connector + [data-side]", "animationDuration|animationDelay|transform", "connectorTransform|startNodeTransform|endNodeTransform|connectorDuration|connectorDelay|startNodeDuration|startNodeDelay|endNodeDuration|endNodeDelay"],
-    ["massage-lab-dna", "Strand rotation speed", "massageLabDnaStrandRotationSpeed", ".scene > .composition", "animationDuration", "sceneDuration"],
-    ["massage-lab-dna", "Strand count", "massageLabDnaStrandCount", ".scene grid + [data-side]", "count|height|animationDelay|transform", "strandCount|nodeCount|strandHeight|connectorHeight|startNodeWidth|startNodeHeight|endNodeWidth|endNodeHeight|connectorDelay|startNodeDelay|endNodeDelay|connectorTransform|startNodeTransform|endNodeTransform"],
-    ["massage-lab-dna", "Strand angle", "massageLabDnaStrandAngle", ".scene > .composition", "rotate", "sceneRotate"],
-    ["massage-lab-dna", "Strand spacing", "massageLabDnaStrandSpacing", ".scene > .composition", "rowGap|height|transform", "sceneRowGap|strandHeight|connectorHeight|startNodeWidth|startNodeHeight|endNodeWidth|endNodeHeight|connectorTransform|startNodeTransform|endNodeTransform"],
-    ["massage-lab-dna", "Scale", "massageLabDnaScale", ":scope > .scene", "transform", "sceneTransform"],
-    ["massage-lab-dna", "Position X", "massageLabDnaPositionX", ":scope > .scene", "transform", "sceneTransform"],
-    ["massage-lab-dna", "Position Y", "massageLabDnaPositionY", ":scope > .scene", "transform", "sceneTransform"],
-    ["massage-lab-dna", "Connector width", "massageLabDnaConnectorWidth", "strand > connector", "width|transform", "connectorWidth|connectorTransform"],
-    ["massage-lab-dna", "Connector thickness", "massageLabDnaConnectorThickness", "strand > connector", "height|transform", "connectorHeight|connectorTransform"],
-    ["massage-lab-dna", "Outline thickness", "massageLabDnaOutlineThickness", "connector + [data-side]", "borderTopWidth|size|transform", "connectorBorderWidth|startNodeBorderWidth|endNodeBorderWidth|connectorHeight|startNodeWidth|startNodeHeight|endNodeWidth|endNodeHeight|connectorTransform|startNodeTransform|endNodeTransform"],
-    ["massage-lab-twisted-cubes", "Rotation speed", "massageLabTwistedCubesRotationSpeed", "[style*='--ml-twisted-cubes-outline'] > .view > .cube", "animationDuration|transform", "cubeTransform|cubeDuration"],
-    ["massage-lab-twisted-cubes", "Layer stagger", "massageLabTwistedCubesLayerStagger", "[style*='--ml-twisted-cubes-outline'] > .view > .cube", "animationDelay|transform", "cubeTransform|cubeDelay"],
-    ["massage-lab-twisted-cubes", "View angle X", "massageLabTwistedCubesViewAngleX", ".layer > .view", "transform", "viewTransform"],
-    ["massage-lab-twisted-cubes", "View angle Y", "massageLabTwistedCubesViewAngleY", ".layer > .view", "transform", "viewTransform"],
-    ["massage-lab-twisted-cubes", "Layer count", "massageLabTwistedCubesLayerCount", "[style*='--ml-twisted-cubes-outline'] > .view > .cube > .cuboid > .face", "count|depth|size|animationDelay|transform|opacity", "layerCount|faceCount|firstLayerTransform|secondLayerTransform|cubeTransform|cubeDelay|faceWidth|faceHeight|faceOpacity"],
-    ["massage-lab-twisted-cubes", "Layer depth", "massageLabTwistedCubesLayerDepthSpacing", "[style*='--ml-twisted-cubes-outline']", "transform", "firstLayerTransform|secondLayerTransform"],
-    ["massage-lab-twisted-cubes", "Scale", "massageLabTwistedCubesScale", "inner cube faces", "size|transform", "cubeTransform|faceWidth|faceHeight"],
-    ["massage-lab-twisted-cubes", "Position X", "massageLabTwistedCubesPositionX", ":scope > .scene", "transform", "sceneTransform"],
-    ["massage-lab-twisted-cubes", "Position Y", "massageLabTwistedCubesPositionY", ":scope > .scene", "transform", "sceneTransform"],
-    ["massage-lab-twisted-cubes", "Fade falloff", "massageLabTwistedCubesOpacityFalloff", "first .face", "opacity", "faceOpacity"],
-    ["massage-lab-twisted-cubes", "Relative outline thickness", "massageLabTwistedCubesOutlineThickness", "first .face", "borderTopWidth", "faceBorderWidth"],
+    ["massage-lab-dna", "Node motion speed", "massageLabDnaNodeMotionSpeed", "strand > connector + [data-side]", "animationDuration|animationDelay|transform", "firstNodeDuration|firstNodeDelay", "connectorTransform|startNodeTransform|endNodeTransform|connectorDuration|connectorDelay|startNodeDuration|startNodeDelay|endNodeDuration|endNodeDelay"],
+    ["massage-lab-dna", "Strand rotation speed", "massageLabDnaStrandRotationSpeed", ".scene > .composition", "animationDuration", "rotationDuration", "sceneDuration"],
+    ["massage-lab-dna", "Strand count", "massageLabDnaStrandCount", ".scene grid + [data-side]", "count|height|animationDelay|transform", "strandCount|firstNodeDelay", "strandCount|nodeCount|strandHeight|connectorHeight|startNodeWidth|startNodeHeight|endNodeWidth|endNodeHeight|connectorDelay|startNodeDelay|endNodeDelay|connectorTransform|startNodeTransform|endNodeTransform"],
+    ["massage-lab-dna", "Strand angle", "massageLabDnaStrandAngle", ".scene > .composition", "rotate", "strandAngle", "sceneRotate"],
+    ["massage-lab-dna", "Strand spacing", "massageLabDnaStrandSpacing", ".scene > .composition", "rowGap|height|transform", "strandSpacing", "sceneRowGap|strandHeight|connectorHeight|startNodeWidth|startNodeHeight|endNodeWidth|endNodeHeight|connectorTransform|startNodeTransform|endNodeTransform"],
+    ["massage-lab-dna", "Scale", "massageLabDnaScale", ":scope > .scene", "transform", "scale", "sceneTransform"],
+    ["massage-lab-dna", "Position X", "massageLabDnaPositionX", ":scope > .scene", "transform", "positionX", "sceneTransform"],
+    ["massage-lab-dna", "Position Y", "massageLabDnaPositionY", ":scope > .scene", "transform", "positionY", "sceneTransform"],
+    ["massage-lab-dna", "Connector width", "massageLabDnaConnectorWidth", "strand > connector", "width|transform", "connectorWidth", "connectorWidth|connectorTransform"],
+    ["massage-lab-dna", "Connector thickness", "massageLabDnaConnectorThickness", "strand > connector", "height|transform", "connectorThickness", "connectorHeight|connectorTransform"],
+    ["massage-lab-dna", "Outline thickness", "massageLabDnaOutlineThickness", "connector + [data-side]", "borderTopWidth|size|transform", "outlineThickness", "connectorBorderWidth|startNodeBorderWidth|endNodeBorderWidth|connectorHeight|startNodeWidth|startNodeHeight|endNodeWidth|endNodeHeight|connectorTransform|startNodeTransform|endNodeTransform"],
+    ["massage-lab-twisted-cubes", "Rotation speed", "massageLabTwistedCubesRotationSpeed", "[style*='--ml-twisted-cubes-outline'] > .view > .cube", "animationDuration|transform", "cycle", "cubeTransform|cubeDuration"],
+    ["massage-lab-twisted-cubes", "Layer stagger", "massageLabTwistedCubesLayerStagger", "[style*='--ml-twisted-cubes-outline'] > .view > .cube", "animationDelay|transform", "firstDelay", "cubeTransform|cubeDelay"],
+    ["massage-lab-twisted-cubes", "View angle X", "massageLabTwistedCubesViewAngleX", ".layer > .view", "transform", "viewAngleX", "viewTransform"],
+    ["massage-lab-twisted-cubes", "View angle Y", "massageLabTwistedCubesViewAngleY", ".layer > .view", "transform", "viewAngleY", "viewTransform"],
+    ["massage-lab-twisted-cubes", "Layer count", "massageLabTwistedCubesLayerCount", "[style*='--ml-twisted-cubes-outline'] > .view > .cube > .cuboid > .face", "count|depth|size|animationDelay|transform|opacity", "layerCount|middleOutline|firstAlpha|firstDelay|firstSize|secondDepth", "layerCount|faceCount|firstLayerTransform|secondLayerTransform|cubeTransform|cubeDelay|faceWidth|faceHeight|faceOpacity"],
+    ["massage-lab-twisted-cubes", "Layer depth", "massageLabTwistedCubesLayerDepthSpacing", "[style*='--ml-twisted-cubes-outline']", "transform", "secondDepth", "firstLayerTransform|secondLayerTransform"],
+    ["massage-lab-twisted-cubes", "Scale", "massageLabTwistedCubesScale", "inner cube faces", "size|transform", "scale|firstSize", "cubeTransform|faceWidth|faceHeight"],
+    ["massage-lab-twisted-cubes", "Position X", "massageLabTwistedCubesPositionX", ":scope > .scene", "transform", "positionX", "sceneTransform"],
+    ["massage-lab-twisted-cubes", "Position Y", "massageLabTwistedCubesPositionY", ":scope > .scene", "transform", "positionY", "sceneTransform"],
+    ["massage-lab-twisted-cubes", "Fade falloff", "massageLabTwistedCubesOpacityFalloff", "first .face", "opacity", "firstAlpha", "faceOpacity"],
+    ["massage-lab-twisted-cubes", "Relative outline thickness", "massageLabTwistedCubesOutlineThickness", "first .face", "borderTopWidth", "firstOutlineThickness", "faceBorderWidth"],
   ])
 
   assert.match(gallery, /DnaBackgroundControls/)
@@ -280,8 +284,9 @@ test("development review exposes the real DNA and Twisted Cubes acceptance matri
   assert.match(browserSource, /Emulation\.setPageScaleFactor/)
   assert.match(browserSource, /massage-lab-dna[\s\S]*massage-lab-twisted-cubes/)
   assert.match(browserSource, /interpolateTwistedCubeOutline/)
-  assert.match(browserSource, /ALLOWED_RENDER_CHANGES/)
+  assert.doesNotMatch(browserSource, /ALLOWED_RENDER_CHANGES/)
   assert.match(browserSource, /COMPUTED_CONSUMER_CONTRACTS\.filter/)
+  assert.match(browserSource, /new Set\(allowedRenderChanges\)/)
   assert.match(browserSource, /new Set\(contract\.allowedCouplings\)/)
   assert.match(browserSource, /expectExactControlRender/)
   assert.match(browserSource, /expectExactReducedEffectState/)

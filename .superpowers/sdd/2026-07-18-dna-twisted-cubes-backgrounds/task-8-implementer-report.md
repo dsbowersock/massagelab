@@ -223,7 +223,7 @@ Task 8 was reviewed again from commit `18e0e28a76c1d030b23dba4c5988c4493f6580fa`
 
 ### Complete runtime-owned consumer contract
 
-`tests/browser/dna-twisted-cubes-consumer-contract.mjs` now contains the single structured 22-entry acceptance map. Every entry fixes the effect id, accessible label, canonical key, concrete target, computed properties, and allowed coupled snapshot fields. The browser loop derives both 11-control matrices from this table and uses each entry's `allowedCouplings` as its only computed-change exception set; the former second allowlist was removed.
+`tests/browser/dna-twisted-cubes-consumer-contract.mjs` now contains the single structured 22-entry acceptance map. Every entry fixes the effect id, accessible label, canonical key, concrete target, computed properties, direct render changes, and allowed coupled snapshot fields. The browser loop derives both 11-control matrices from this table and uses each entry's `allowedRenderChanges` and `allowedCouplings` as its only exception sets; the former separate allowlists were removed.
 
 The focused Node guard imports the same runtime table and asserts exactly 22 unique entries against a complete literal projection. A missing, reordered, relabelled, retargeted, re-keyed, or recoupled entry now fails CI. The guard also requires the reduced-motion duration/delay evidence and fixed-geometry tokens used by the browser suite.
 
@@ -244,7 +244,7 @@ No production consumer miswire was uncovered, so no production file was changed.
 
 ### Fix Round 4 validation
 
-This block is historical evidence captured at commit `57f27162`; final pre-PR branch acceptance is recorded in `docs/project-log.md` and includes all 1,865 repository tests passing.
+This block is historical evidence captured at commit `57f27162`; it records the validation state at that commit. Current final pre-PR acceptance is recorded in `docs/project-log.md`.
 
 - `node --test tests/browser-qa-harness.test.mjs tests/sitewide-control-rollout.test.mjs`: 16/16 passed.
 - Combined desktop/mobile browser acceptance: 16/16 passed (8/8 per project).

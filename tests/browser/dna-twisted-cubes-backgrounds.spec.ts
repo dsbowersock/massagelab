@@ -548,33 +548,6 @@ async function normalizeAnimatedTransformForTarget(
   }, { keyframes, timing })
 }
 
-const ALLOWED_RENDER_CHANGES: Record<string, readonly string[]> = {
-  massageLabDnaNodeMotionSpeed: ["firstNodeDuration", "firstNodeDelay"],
-  massageLabDnaStrandRotationSpeed: ["rotationDuration"],
-  // Computed couplings are listed alongside the direct target so each slider
-  // proves every expected downstream render change and no others.
-  massageLabDnaStrandCount: ["strandCount", "firstNodeDelay"],
-  massageLabDnaStrandAngle: ["strandAngle"],
-  massageLabDnaStrandSpacing: ["strandSpacing"],
-  massageLabDnaScale: ["scale"],
-  massageLabDnaPositionX: ["positionX"],
-  massageLabDnaPositionY: ["positionY"],
-  massageLabDnaConnectorWidth: ["connectorWidth"],
-  massageLabDnaConnectorThickness: ["connectorThickness"],
-  massageLabDnaOutlineThickness: ["outlineThickness"],
-  massageLabTwistedCubesRotationSpeed: ["cycle"],
-  massageLabTwistedCubesLayerStagger: ["firstDelay"],
-  massageLabTwistedCubesViewAngleX: ["viewAngleX"],
-  massageLabTwistedCubesViewAngleY: ["viewAngleY"],
-  massageLabTwistedCubesLayerCount: ["layerCount", "middleOutline", "firstAlpha", "firstDelay", "firstSize", "secondDepth"],
-  massageLabTwistedCubesLayerDepthSpacing: ["secondDepth"],
-  massageLabTwistedCubesScale: ["scale", "firstSize"],
-  massageLabTwistedCubesPositionX: ["positionX"],
-  massageLabTwistedCubesPositionY: ["positionY"],
-  massageLabTwistedCubesOpacityFalloff: ["firstAlpha"],
-  massageLabTwistedCubesOutlineThickness: ["firstOutlineThickness"],
-}
-
 async function expectExactControlRender({
   review,
   host,
@@ -582,6 +555,7 @@ async function expectExactControlRender({
   key,
   properties,
   before,
+  allowedRenderChanges,
 }: {
   review: Locator
   host: Locator
@@ -589,6 +563,7 @@ async function expectExactControlRender({
   key: string
   properties: Record<string, number>
   before: Record<string, string | number>
+  allowedRenderChanges: readonly string[]
 }) {
   const compactViewport = await host.evaluate(() => (
     window.matchMedia("(max-width: 479px), (max-height: 479px)").matches
@@ -602,7 +577,7 @@ async function expectExactControlRender({
       .toBe(properties.massageLabTwistedCubesLayerCount)
   }
   const after = await captureControlRenderState(host, id) as Record<string, string | number>
-  const allowedChanges = new Set(ALLOWED_RENDER_CHANGES[key] ?? [])
+  const allowedChanges = new Set(allowedRenderChanges)
   for (const [sentinel, value] of Object.entries(before)) {
     if (!allowedChanges.has(sentinel)) expect(after[sentinel], `${key} changed ${sentinel}`).toBe(value)
   }
@@ -1758,6 +1733,7 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
           key,
           properties: after,
           before: beforeRender,
+          allowedRenderChanges: contract.allowedRenderChanges,
         })
         await expectExactComputedConsumer({
           host,
