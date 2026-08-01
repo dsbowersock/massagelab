@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url"
 
 import { getBackgroundOptionsForCategory } from "../../components/backgrounds/backgroundRegistry.ts"
 import { normalizeGeneratedPreviewManifestItem } from "./manifest-url-normalization.mjs"
+import { parseProbeDurationSeconds } from "./probe-result.mjs"
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const defaultOutputDir = path.join(repoRoot, "public/chimer/background-previews")
@@ -318,9 +319,20 @@ async function encodeWebm(sourcePath, outputPath, options, variant) {
   }
 }
 
-/** Extracts a stable representative frame after encoding so poster and video dimensions match. */
-async function encodePoster(videoPath, posterPath, durationMs) {
-  const seekSeconds = (durationMs / 1000) / 3
+/** Reads the encoded asset duration so reused videos cannot seek past their actual end. */
+function probeVideoDurationSeconds(videoPath) {
+  const result = spawnSync("ffprobe", [
+    "-v", "error",
+    "-show_entries", "format=duration",
+    "-of", "default=noprint_wrappers=1:nokey=1",
+    videoPath,
+  ], { encoding: "utf8" })
+  return parseProbeDurationSeconds(result, videoPath)
+}
+
+/** Extracts a stable representative frame one-third through the encoded video. */
+async function encodePoster(videoPath, posterPath) {
+  const seekSeconds = probeVideoDurationSeconds(videoPath) / 3
   await runProcess("ffmpeg", [
     "-y",
     "-ss", seekSeconds.toFixed(3),
@@ -350,7 +362,7 @@ async function captureVariant(browser, entry, options, variant, tempVideoDir) {
   // A prior interrupted run may have a valid video but no poster. Complete the
   // pair without paying the browser-recording cost again unless --force is set.
   if (existsSync(outputPath) && !options.force) {
-    await encodePoster(outputPath, posterPath, options.durationMs)
+    await encodePoster(outputPath, posterPath)
     return {
       skipped: false,
       variant: buildVariantManifest(entry, outputPath, posterPath, options, variant),
@@ -404,7 +416,7 @@ async function captureVariant(browser, entry, options, variant, tempVideoDir) {
 
     const sourcePath = await video.path()
     await encodeWebm(sourcePath, outputPath, options, variant)
-    await encodePoster(outputPath, posterPath, options.durationMs)
+    await encodePoster(outputPath, posterPath)
     return {
       skipped: false,
       variant: buildVariantManifest(entry, outputPath, posterPath, options, variant),

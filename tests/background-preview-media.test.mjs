@@ -2,7 +2,10 @@ import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { describe, it } from "node:test"
 
-import { parseProbeDimensions } from "../scripts/chimer-preview-generation/probe-result.mjs"
+import {
+  parseProbeDimensions,
+  parseProbeDurationSeconds,
+} from "../scripts/chimer-preview-generation/probe-result.mjs"
 import { normalizeGeneratedPreviewManifestItem } from "../scripts/chimer-preview-generation/manifest-url-normalization.mjs"
 
 const componentSource = readFileSync(
@@ -52,9 +55,10 @@ describe("background preview media", () => {
     assert.match(componentSource, /\}, \[(?=[^\]]*\bshowVideo\b)(?=[^\]]*\bvideoUrl\b)[^\]]*\]\)/)
   })
 
-  it("generates one-third-duration quality-78 WebP posters, including missing posters", () => {
+  it("generates quality-78 WebP posters one-third through each actual encoded video", () => {
     assert.match(renderSource, /async function encodePoster/)
-    assert.match(renderSource, /const seekSeconds = \(durationMs \/ 1000\) \/ 3/)
+    assert.match(renderSource, /const seekSeconds = probeVideoDurationSeconds\(videoPath\) \/ 3/)
+    assert.match(renderSource, /"-show_entries", "format=duration"/)
     assert.match(renderSource, /"-c:v", "libwebp"/)
     assert.match(renderSource, /"-quality", "78"/)
     assert.match(renderSource, /if \(existsSync\(outputPath\) && existsSync\(posterPath\) && !options\.force\) \{[\s\S]*?skipped: true/)
@@ -152,6 +156,21 @@ describe("background preview media", () => {
     assert.throws(
       () => parseProbeDimensions({ status: 1, stdout: "", stderr: "invalid codec parameters" }, "preview.webm"),
       /FFprobe failed for preview\.webm with exit code 1: invalid codec parameters/,
+    )
+  })
+
+  it("parses only positive finite FFprobe durations", () => {
+    assert.equal(
+      parseProbeDurationSeconds({ status: 0, stdout: "5.875000\n", stderr: "" }, "preview.webm"),
+      5.875,
+    )
+    assert.throws(
+      () => parseProbeDurationSeconds({ status: 0, stdout: "0\n", stderr: "" }, "preview.webm"),
+      /invalid duration for preview\.webm: 0/,
+    )
+    assert.throws(
+      () => parseProbeDurationSeconds({ status: 0, stdout: "N\/A\n", stderr: "" }, "preview.webm"),
+      /invalid duration for preview\.webm: N\/A/,
     )
   })
 })

@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test"
+import path from "node:path"
 
 const defaultBrowserQaPort = 3010
 const defaultBrowserQaBaseUrl = "http://localhost:3010"
@@ -32,14 +33,21 @@ const developmentPaletteReviewSpecs = [
   "tests/browser/dna-twisted-cubes-backgrounds.spec.ts",
 ]
 
-/** Matches exact development-review specs with Playwright's optional line/column suffix. */
+/** Matches exact development-review specs and Playwright's standalone substring filters. */
 export function matchesDevelopmentPaletteReviewArgument(argument: string) {
   const normalizedArgument = argument
     .replaceAll("\\", "/")
     .replace(/:\d+(?::\d+)?$/, "")
-  return developmentPaletteReviewSpecs.some((spec) => (
-    normalizedArgument === spec || normalizedArgument.endsWith(`/${spec}`)
-  ))
+  const argumentBasename = path.posix.basename(normalizedArgument)
+  const isStandaloneFilter = normalizedArgument === argumentBasename && argumentBasename.length > 0
+  return developmentPaletteReviewSpecs.some((spec) => {
+    const specBasename = path.posix.basename(spec)
+    return normalizedArgument === spec
+      || normalizedArgument.endsWith(`/${spec}`)
+      || (isStandaloneFilter && (
+        argumentBasename === specBasename || specBasename.includes(argumentBasename)
+      ))
+  })
 }
 
 const runsDevelopmentPaletteReview = process.argv.some(matchesDevelopmentPaletteReviewArgument)

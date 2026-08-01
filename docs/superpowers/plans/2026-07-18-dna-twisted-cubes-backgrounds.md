@@ -649,13 +649,14 @@ Expected: FAIL because poster fields and the media component do not exist.
 
 - [ ] **Step 2: Extend render and manifest generation**
 
-After each WebM encode, extract a representative frame at one-third of the clip:
+After each WebM encode, probe its actual duration and extract a representative frame at one-third of the available clip. This keeps the reuse path safe when an existing video was encoded with a different requested duration:
 
 ```js
-async function encodePoster(videoPath, posterPath, durationMs) {
+async function encodePoster(videoPath, posterPath) {
+  const durationSeconds = probeVideoDurationSeconds(videoPath)
   await runProcess("ffmpeg", [
     "-y",
-    "-ss", (durationMs / 3000).toFixed(3),
+    "-ss", (durationSeconds / 3).toFixed(3),
     "-i", videoPath,
     "-frames:v", "1",
     "-c:v", "libwebp",

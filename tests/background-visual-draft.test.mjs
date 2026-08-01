@@ -1241,6 +1241,10 @@ test("dirty navigation guard covers eligible app links, history, and native unlo
   assert.match(unsavedDialogSource, /resolveExplicitOutcome\(onDiscard\)/)
   assert.match(unsavedDialogSource, /resolveExplicitOutcome\(onKeepEditing\)/)
   assert.match(runningTimerSource, /className=\{styles\.visualDraftStatus\}[\s\S]*role="status"[\s\S]*aria-live="polite"/)
+  assert.match(
+    runningTimerSource,
+    /visualDraft\?\.dirty \? "Unsaved changes" : backgroundPreferenceSyncStatus === "stale"/,
+  )
   const headerActionGroupOpeningTag = runningTimerSource.match(
     /<div\s+className=\{styles\.visualHeaderDraftActions\}\s+role="group"\s+aria-label="Visual draft actions">/,
   )?.[0]

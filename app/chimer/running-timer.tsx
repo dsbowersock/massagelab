@@ -13674,7 +13674,7 @@ export function RunningTimer({
 
               <div className={styles.visualDraftStatusRow}>
                 <span className={styles.visualDraftStatus} role="status" aria-live="polite" aria-atomic="true">
-                  {backgroundPreferenceSyncStatus === "stale" ? "Saved on this device. Account sync failed." : backgroundPreferenceSyncStatus === "pending" ? "Applied on this device. Syncing account…" : visualDraft?.dirty ? "Unsaved changes" : "Saved"}
+                  {visualDraft?.dirty ? "Unsaved changes" : backgroundPreferenceSyncStatus === "stale" ? "Saved on this device. Account sync failed." : backgroundPreferenceSyncStatus === "pending" ? "Applied on this device. Syncing account…" : "Saved"}
                 </span>
                 {backgroundPreferenceSyncStatus === "stale" ? (
                   <Button type="button" size="compact" variant="cta" onClick={onRetryBackgroundVisualPreferences}>

@@ -25,7 +25,10 @@ test("development review spec matching accepts Playwright line and column suffix
     assert.equal(matchesDevelopmentPaletteReviewArgument(spec), true)
     assert.equal(matchesDevelopmentPaletteReviewArgument(`${spec}:42`), true)
     assert.equal(matchesDevelopmentPaletteReviewArgument(`C:\\repo\\${spec.replaceAll("/", "\\")}:42:7`), true)
+    assert.equal(matchesDevelopmentPaletteReviewArgument(spec.split("/").at(-1)), true)
   }
+  assert.equal(matchesDevelopmentPaletteReviewArgument("dna-twisted"), true)
+  assert.equal(matchesDevelopmentPaletteReviewArgument("background-palette"), true)
   assert.equal(matchesDevelopmentPaletteReviewArgument("tests/browser/public-routes.spec.ts:42"), false)
   assert.equal(matchesDevelopmentPaletteReviewArgument("prefix-tests/browser/background-palette.spec.ts"), false)
 })

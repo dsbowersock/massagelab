@@ -1091,11 +1091,13 @@ async function expectExactReducedEffectState(
     })
     const startRoleIndex = Number.parseInt(firstNodeEvidence.startRole.match(/node-color-(\d)/)?.[1] ?? "-1", 10)
     const endRoleIndex = Number.parseInt(firstNodeEvidence.endRole.match(/node-color-(\d)/)?.[1] ?? "-1", 10)
-    expect(startRoleIndex).toBeGreaterThanOrEqual(0)
-    expect(endRoleIndex).toBeGreaterThanOrEqual(0)
     const nodeRoleColors = [
       roleColors["node-one"], roleColors["node-two"], roleColors["node-three"], roleColors["node-four"],
     ]
+    expect(startRoleIndex).toBeGreaterThanOrEqual(0)
+    expect(startRoleIndex).toBeLessThan(nodeRoleColors.length)
+    expect(endRoleIndex).toBeGreaterThanOrEqual(0)
+    expect(endRoleIndex).toBeLessThan(nodeRoleColors.length)
     const rootExpected = await normalizeComputedConsumer(host, {
       "background-color": roleColors.background,
     })
