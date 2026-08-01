@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
   DEFAULT_TWISTED_CUBES_BACKGROUND_OPTIONS,
+  TWISTED_CUBES_OPTION_BOUNDS,
   TWISTED_CUBES_VIEWPORT_EXTENT_VMAX,
   getTwistedCubeAlpha,
   getTwistedCubeCycleSeconds,
@@ -32,6 +33,8 @@ describe("Twisted Cubes background domain rules", () => {
     })
     assert.equal(TWISTED_CUBES_VIEWPORT_EXTENT_VMAX, 120)
     assert.equal(Object.isFrozen(DEFAULT_TWISTED_CUBES_BACKGROUND_OPTIONS), true)
+    assert.equal(Object.isFrozen(TWISTED_CUBES_OPTION_BOUNDS), true)
+    assert.equal(TWISTED_CUBES_OPTION_BOUNDS.layerCount.maximum, 30)
   })
 
   it("sanitizes every Twisted Cubes property to its approved stored range", () => {
@@ -115,10 +118,12 @@ describe("Twisted Cubes background domain rules", () => {
     assert.ok(Math.abs(getTwistedCubeDelaySeconds({ oneBasedIndex: 1, count: 20, stagger: 0.1 }) + 1.7) < 1e-12)
     assert.ok(Math.abs(getTwistedCubeDelaySeconds({ oneBasedIndex: 20, count: 20, stagger: 0.1 }) - 0.2) < 1e-12)
     assert.equal(getTwistedCubeDelaySeconds({ oneBasedIndex: 3, count: 10, stagger: 0.2 }), -1)
+    assert.ok(Number.isFinite(getTwistedCubeDelaySeconds({ oneBasedIndex: 1, count: 0, stagger: 0.1 })))
 
     assert.equal(getTwistedCubeAlpha({ oneBasedIndex: 1, count: 20, opacityFalloff: 0.85 }), 0.9575)
     assert.ok(Math.abs(getTwistedCubeAlpha({ oneBasedIndex: 20, count: 20, opacityFalloff: 0.85 }) - 0.15) < 1e-12)
     assert.ok(Math.abs(getTwistedCubeAlpha({ oneBasedIndex: 30, count: 6, opacityFalloff: 0.95 }) - 0.05) < 1e-12)
+    assert.ok(Number.isFinite(getTwistedCubeAlpha({ oneBasedIndex: 1, count: 0, opacityFalloff: 0.85 })))
   })
 
   it("keeps the outer envelope bounded while scale changes the inner progression", () => {

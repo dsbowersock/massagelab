@@ -5,6 +5,7 @@ import test from "node:test"
 import { fileURLToPath } from "node:url"
 
 import { extractInterfaceBody } from "./helpers/source-structure.mjs"
+import { DNA_OPTION_BOUNDS } from "../lib/dna-background.js"
 
 const testsDirectory = path.dirname(fileURLToPath(import.meta.url))
 const rootDirectory = path.resolve(testsDirectory, "..")
@@ -25,7 +26,8 @@ test("the DNA renderer stays a scoped, non-interactive CSS DOM effect", () => {
   const componentCode = stripSourceComments(componentSource)
   const stylesheetCode = stripSourceComments(stylesheetSource)
 
-  assert.match(componentCode, /const renderStrandCount = Number\.isFinite\(strandCount\)[\s\S]*?Math\.min\(81, Math\.max\(0, Math\.floor\(strandCount\)\)\)[\s\S]*?: 0/)
+  assert.equal(DNA_OPTION_BOUNDS.strandCount.maximum, 81)
+  assert.match(componentCode, /const renderStrandCount = Number\.isFinite\(strandCount\)[\s\S]*?Math\.min\(DNA_OPTION_BOUNDS\.strandCount\.maximum, Math\.max\(0, Math\.floor\(strandCount\)\)\)[\s\S]*?: 0/)
   assert.match(componentCode, /createDnaStrandAssignments\(renderStrandCount\)/)
   assert.match(componentCode, /const \[previousStrandCount, setPreviousStrandCount\] = useState\(renderStrandCount\)[\s\S]*?if \(previousStrandCount !== renderStrandCount\) \{[\s\S]*?setStrandAssignments\(createDnaStrandAssignments\(renderStrandCount\)\)/)
   assert.doesNotMatch(componentCode, /\buse(?:Effect|Ref)\b/)

@@ -3,6 +3,7 @@ import { describe, it } from "node:test"
 import {
   DEFAULT_DNA_BACKGROUND_OPTIONS,
   DNA_BASE_PAIRS,
+  DNA_OPTION_BOUNDS,
   DNA_SOURCE_GEOMETRY,
   createDnaNodeRoleAssignments,
   createDnaStrandAssignments,
@@ -38,6 +39,8 @@ describe("DNA background domain and shared layout rules", () => {
       viewportHeightVmax: 230,
     })
     assert.equal(Object.isFrozen(DEFAULT_DNA_BACKGROUND_OPTIONS), true)
+    assert.equal(Object.isFrozen(DNA_OPTION_BOUNDS), true)
+    assert.equal(DNA_OPTION_BOUNDS.strandCount.maximum, 81)
     assert.equal(Object.isFrozen(DNA_SOURCE_GEOMETRY), true)
   })
 
@@ -122,7 +125,8 @@ describe("DNA background domain and shared layout rules", () => {
     assert.equal(getDnaStrandRotationSeconds(2), 7)
     assert.equal(getDnaNodeCycleSeconds(0), 200)
     assert.equal(getDnaStrandRotationSeconds(0), 1400)
-  assert.equal(getDnaStrandRotationSeconds(Infinity), 700)
+    assert.equal(getDnaNodeCycleSeconds(Number.NaN), 2 / DEFAULT_DNA_BACKGROUND_OPTIONS.nodeMotionSpeed)
+    assert.equal(getDnaStrandRotationSeconds(Infinity), 700)
 
     const phase = Math.sin((Math.PI / 180) * 45 * (3 / 13))
     assert.equal(getDnaStrandPhase({ oneBasedIndex: 3, total: 13 }), phase)

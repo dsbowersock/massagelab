@@ -1,6 +1,6 @@
 "use client"
 
-import { type CSSProperties } from "react"
+import { memo, type CSSProperties } from "react"
 import {
   getTwistedCubeAlpha,
   getTwistedCubeCycleSeconds,
@@ -8,6 +8,7 @@ import {
   getTwistedCubeLayerSizeVmax,
   getTwistedCubeSourceOutline,
   interpolateTwistedCubeOutline,
+  TWISTED_CUBES_OPTION_BOUNDS,
   TWISTED_CUBES_VIEWPORT_EXTENT_VMAX,
 } from "@/lib/twisted-cubes-background"
 import { resolveResponsiveBackgroundTransform } from "@/lib/background-effect-layout"
@@ -27,7 +28,7 @@ const CUBE_FACES = ["front", "back", "right", "left", "top", "bottom"] as const
  * depth wrapper intentionally sits outside the view rotation, matching the
  * source Cubies transform order so every nested cube stays centered.
  */
-export function MassageLabTwistedCubesBackground({
+export const MassageLabTwistedCubesBackground = memo(function MassageLabTwistedCubesBackground({
   massageLabTwistedCubes,
   reduceMotion = false,
   compactViewport = false,
@@ -49,7 +50,7 @@ export function MassageLabTwistedCubesBackground({
     outlineAnchors,
   } = massageLabTwistedCubes
   const renderLayerCount = Number.isFinite(layerCount)
-    ? Math.min(30, Math.max(0, Math.floor(layerCount)))
+    ? Math.min(TWISTED_CUBES_OPTION_BOUNDS.layerCount.maximum, Math.max(0, Math.floor(layerCount)))
     : 0
   const responsiveTransform = resolveResponsiveBackgroundTransform({
     scale,
@@ -125,4 +126,4 @@ export function MassageLabTwistedCubesBackground({
       </div>
     </div>
   )
-}
+})

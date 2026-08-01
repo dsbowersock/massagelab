@@ -62,6 +62,8 @@ export interface BackgroundPaletteModeOverride {
 }
 
 export const DNA_SOURCE_BACKGROUND_COLOR = "hsl(210 80% 12%)"
+export const DNA_SOURCE_CONNECTOR_COLOR = "#ffffff"
+export const DNA_SOURCE_OUTLINE_COLOR = "#000000"
 export const TWISTED_CUBES_SOURCE_BACKGROUND_COLOR = "hsl(210 20% 12%)"
 export const DNA_SOURCE_NODE_ROLE_COLORS = Object.freeze([
   "hsl(44 98% 60%)",
@@ -283,6 +285,11 @@ function roleColor(
   return typeof colors[roleId] === "string" ? colors[roleId] : current
 }
 
+/**
+ * Resolves an indexed renderer color array. `roleIds` and `sourceFallbacks`
+ * are positional contracts: each role and fallback at a given index feeds the
+ * renderer value at that same index, and a missing fallback is an error.
+ */
 function roleColorArray(
   current: readonly string[] | undefined,
   roleIds: readonly string[],
@@ -345,9 +352,9 @@ export function applyCssDomPaletteRoleColors<
             DNA_SOURCE_NODE_ROLE_COLORS,
           ) as [string, string, string, string],
           connectorColor: roleColor(colors, "connector", props.massageLabDna?.connectorColor)
-            ?? "#ffffff",
+            ?? DNA_SOURCE_CONNECTOR_COLOR,
           outlineColor: roleColor(colors, "outline", props.massageLabDna?.outlineColor)
-            ?? "#000000",
+            ?? DNA_SOURCE_OUTLINE_COLOR,
         } as NonNullable<BackgroundEffectProps["massageLabDna"]>,
       }
     case "massage-lab-twisted-cubes":
@@ -566,8 +573,8 @@ const SUPPORTED_SPECS: readonly SupportedSpec[] = [
       role("node-two", "Node 2", "massageLabDnaNodeRoleColorTwo", "massageLabDna.nodeRoleColors[1]", undefined, DNA_SOURCE_NODE_ROLE_COLORS[1], 1),
       role("node-three", "Node 3", "massageLabDnaNodeRoleColorThree", "massageLabDna.nodeRoleColors[2]", undefined, DNA_SOURCE_NODE_ROLE_COLORS[2], 2),
       role("node-four", "Node 4", "massageLabDnaNodeRoleColorFour", "massageLabDna.nodeRoleColors[3]", undefined, DNA_SOURCE_NODE_ROLE_COLORS[3], 5),
-      role("connector", "Connector", "massageLabDnaConnectorColor", "massageLabDna.connectorColor", undefined, "#ffffff", 4),
-      role("outline", "Outline", "massageLabDnaOutlineColor", "massageLabDna.outlineColor", undefined, "#000000", 6),
+      role("connector", "Connector", "massageLabDnaConnectorColor", "massageLabDna.connectorColor", undefined, DNA_SOURCE_CONNECTOR_COLOR, 4),
+      role("outline", "Outline", "massageLabDnaOutlineColor", "massageLabDna.outlineColor", undefined, DNA_SOURCE_OUTLINE_COLOR, 6),
     ],
   },
   {

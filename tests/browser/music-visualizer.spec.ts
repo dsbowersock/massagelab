@@ -1089,11 +1089,12 @@ test("539px dock headers own shared actions and compact visual color controls", 
       header.querySelector<HTMLElement>("[aria-label='Close Visual panel']"),
     ]
     const orderedElements = ordered.filter((element): element is HTMLElement => Boolean(element))
+    const actionLeft = Math.min(...actionRects.map((rect) => rect?.left ?? Number.POSITIVE_INFINITY))
+    const actionRight = Math.max(...actionRects.map((rect) => rect?.right ?? Number.NEGATIVE_INFINITY))
     return {
       titleReadable: title.width > 0 && title.height > 0,
       toggleImmediatelyAfterTitle: toggle.left >= title.right && toggle.left - title.right <= 24,
-      actionsBetweenColorAndClose: swatch.right <= (actionRects[0]?.left ?? 0)
-        && (actionRects[3]?.right ?? Number.POSITIVE_INFINITY) <= close.left,
+      actionsBetweenColorAndClose: swatch.right <= actionLeft && actionRight <= close.left,
       controlsOrdered: orderedElements.length === ordered.length
         && orderedElements.every((element, index) => index === 0 || Boolean(
           orderedElements[index - 1]!.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING,

@@ -31,8 +31,10 @@ test("development review spec matching accepts Playwright line and column suffix
     assert.equal(matchesDevelopmentPaletteReviewArgument(spec.split("/").at(-1)), true)
   }
   assert.equal(matchesDevelopmentPaletteReviewArgument("dna-twisted"), true)
+  assert.equal(matchesDevelopmentPaletteReviewArgument("browser/dna-twisted"), true)
   assert.equal(matchesDevelopmentPaletteReviewArgument("background-palette"), true)
   assert.equal(matchesDevelopmentPaletteReviewArgument("spec"), false)
+  assert.equal(matchesDevelopmentPaletteReviewArgument("tests/browser"), false)
   assert.equal(matchesDevelopmentPaletteReviewArgument("tests/browser/public-routes.spec.ts:42"), false)
   assert.equal(matchesDevelopmentPaletteReviewArgument("prefix-tests/browser/background-palette.spec.ts"), false)
   assert.deepEqual(
@@ -54,6 +56,13 @@ test("development review spec matching accepts Playwright line and column suffix
       "--trace", "on-first-retry",
       "--repeat-each", "dna-twisted",
       "--tsconfig", "background-palette",
+      "--browser", "chromium",
+      "--last-failed-file", ".last-run.json",
+      "--test-list", "tests.txt",
+      "--test-list-invert", "excluded-tests.txt",
+      "--ui-host", "127.0.0.1",
+      "--ui-port", "9323",
+      "--update-source-method", "patch",
       "tests/browser/public-routes.spec.ts",
     ]),
     ["test", "tests/browser/public-routes.spec.ts"],

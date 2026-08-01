@@ -1,8 +1,9 @@
 "use client"
 
-import { type CSSProperties, useState } from "react"
+import { memo, type CSSProperties, useState } from "react"
 import {
   createDnaStrandAssignments,
+  DNA_OPTION_BOUNDS,
   getDnaNodeCycleSeconds,
   getDnaStrandDelaySeconds,
   getDnaStrandRotationSeconds,
@@ -20,7 +21,7 @@ type MassageLabDnaBackgroundProps = Pick<BackgroundEffectProps, "reduceMotion" |
  * base pairs and independent node palette roles belong to a mount, not saved
  * preferences; a changed strand count receives one fresh assignment set.
  */
-export function MassageLabDnaBackground({
+export const MassageLabDnaBackground = memo(function MassageLabDnaBackground({
   massageLabDna,
   reduceMotion = false,
   compactViewport = false,
@@ -44,7 +45,7 @@ export function MassageLabDnaBackground({
     outlineColor,
   } = massageLabDna
   const renderStrandCount = Number.isFinite(strandCount)
-    ? Math.min(81, Math.max(0, Math.floor(strandCount)))
+    ? Math.min(DNA_OPTION_BOUNDS.strandCount.maximum, Math.max(0, Math.floor(strandCount)))
     : 0
   const [strandAssignments, setStrandAssignments] = useState(() => (
     createDnaStrandAssignments(renderStrandCount)
@@ -136,4 +137,4 @@ export function MassageLabDnaBackground({
       </div>
     </div>
   )
-}
+})

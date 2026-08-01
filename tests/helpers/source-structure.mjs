@@ -1,6 +1,10 @@
 import assert from "node:assert/strict"
 
-/** Masks comments and quoted text without changing source offsets. */
+/**
+ * Masks comments and quoted text without changing source offsets. This small
+ * scanner intentionally does not parse regular-expression literals or JSX
+ * text; callers use it only for TypeScript interface declarations.
+ */
 function maskNonCode(source) {
   const characters = source.split("")
   let state = "code"
@@ -42,7 +46,12 @@ function maskNonCode(source) {
       continue
     }
 
-    characters[index] = current === "\n" || current === "\r" ? current : " "
+    const isNewline = current === "\n" || current === "\r"
+    characters[index] = isNewline ? current : " "
+    if (isNewline && state !== "`") {
+      state = "code"
+      continue
+    }
     if (current === "\\") {
       if (index + 1 < characters.length) characters[index + 1] = " "
       index += 1
@@ -51,6 +60,8 @@ function maskNonCode(source) {
     }
   }
 
+  if (state === "line-comment") state = "code"
+  assert.equal(state, "code", "source has balanced comments and quoted text")
   return characters.join("")
 }
 

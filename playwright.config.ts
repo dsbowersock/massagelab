@@ -33,7 +33,7 @@ const developmentPaletteReviewSpecs = [
   "tests/browser/dna-twisted-cubes-backgrounds.spec.ts",
 ]
 
-/** Matches exact development-review specs and Playwright's standalone substring filters. */
+/** Matches exact development-review specs and Playwright's unique substring filters. */
 export function matchesDevelopmentPaletteReviewArgument(argument: string) {
   const normalizedArgument = argument
     .replaceAll("\\", "/")
@@ -43,7 +43,11 @@ export function matchesDevelopmentPaletteReviewArgument(argument: string) {
   if (developmentPaletteReviewSpecs.some((spec) => (
     normalizedArgument === spec || normalizedArgument.endsWith(`/${spec}`)
   ))) return true
-  if (!isStandaloneFilter) return false
+  if (!isStandaloneFilter) {
+    return developmentPaletteReviewSpecs.filter((spec) => (
+      spec.includes(normalizedArgument)
+    )).length === 1
+  }
 
   // Playwright accepts positional filename substrings. Only switch servers
   // when that substring identifies exactly one development-only review spec.
@@ -56,6 +60,8 @@ const playwrightOptionsWithSeparateValues = new Set([
   "-c", "--config", "-g", "--grep", "--grep-invert", "-j", "--workers",
   "--project", "--reporter", "--retries", "--timeout", "--global-timeout",
   "--max-failures", "--output", "--shard", "--trace", "--repeat-each", "--tsconfig",
+  "--browser", "--last-failed-file", "--test-list", "--test-list-invert",
+  "--ui-host", "--ui-port", "--update-source-method",
 ])
 
 /** Returns only positional Playwright arguments, excluding option names and their values. */

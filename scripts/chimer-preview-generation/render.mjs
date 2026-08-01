@@ -319,20 +319,40 @@ async function encodeWebm(sourcePath, outputPath, options, variant) {
   }
 }
 
-/** Reads the encoded asset duration so reused videos cannot seek past their actual end. */
-function probeVideoDurationSeconds(videoPath) {
+/**
+ * Reads the encoded asset duration so reused videos cannot seek past their
+ * actual end. A successful probe with no usable duration may fall back to the
+ * capture duration already known by this generator; process failures still
+ * surface their original diagnostic.
+ */
+function probeVideoDurationSeconds(videoPath, fallbackDurationMs) {
   const result = spawnSync("ffprobe", [
     "-v", "error",
     "-show_entries", "format=duration",
     "-of", "default=noprint_wrappers=1:nokey=1",
     videoPath,
   ], { encoding: "utf8" })
-  return parseProbeDurationSeconds(result, videoPath)
+  try {
+    return parseProbeDurationSeconds(result, videoPath)
+  } catch (error) {
+    const output = result.stdout?.trim() ?? ""
+    const fallbackSeconds = Number(fallbackDurationMs) / 1000
+    if (
+      !result.error
+      && result.status === 0
+      && (!output || output === "N/A")
+      && Number.isFinite(fallbackSeconds)
+      && fallbackSeconds > 0
+    ) {
+      return fallbackSeconds
+    }
+    throw error
+  }
 }
 
 /** Extracts a stable representative frame one-third through the encoded video. */
-async function encodePoster(videoPath, posterPath) {
-  const seekSeconds = probeVideoDurationSeconds(videoPath) / 3
+async function encodePoster(videoPath, posterPath, fallbackDurationMs) {
+  const seekSeconds = probeVideoDurationSeconds(videoPath, fallbackDurationMs) / 3
   await runProcess("ffmpeg", [
     "-y",
     "-ss", seekSeconds.toFixed(3),
@@ -368,7 +388,7 @@ async function captureVariant(browser, entry, options, variant, tempVideoDir) {
   // A prior interrupted run may have a valid video but no poster. Complete the
   // pair without paying the browser-recording cost again unless --force is set.
   if (videoIsUsable && !options.force) {
-    await encodePoster(outputPath, posterPath)
+    await encodePoster(outputPath, posterPath, options.durationMs)
     return {
       skipped: false,
       variant: buildVariantManifest(entry, outputPath, posterPath, options, variant),
@@ -422,7 +442,7 @@ async function captureVariant(browser, entry, options, variant, tempVideoDir) {
 
     const sourcePath = await video.path()
     await encodeWebm(sourcePath, outputPath, options, variant)
-    await encodePoster(outputPath, posterPath)
+    await encodePoster(outputPath, posterPath, options.durationMs)
     return {
       skipped: false,
       variant: buildVariantManifest(entry, outputPath, posterPath, options, variant),

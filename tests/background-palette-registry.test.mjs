@@ -403,7 +403,8 @@ describe("background palette adapter registry", () => {
           false,
           `${backgroundId}:${role.sourceSettingKey}`,
         )
-        assert.match(role.sourceColor, CSS_COLOR, `${backgroundId}:${role.id}`)
+        const sourceColorPattern = adapter.rendererFamily === "css-dom" ? CSS_COLOR : HEX_COLOR
+        assert.match(role.sourceColor, sourceColorPattern, `${backgroundId}:${role.id}`)
         assert.ok(Number.isInteger(role.defaultSwatch) && role.defaultSwatch >= 0 && role.defaultSwatch <= 6)
         assert.ok(role.rendererTarget.trim().length > 0, backgroundId)
         sourceRoleColors[role.id] = role.sourceColor

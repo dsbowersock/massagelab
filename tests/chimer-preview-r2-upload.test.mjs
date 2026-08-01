@@ -24,6 +24,7 @@ describe("Chimer preview R2 uploader", () => {
     ], {
       cwd: repoRoot,
       encoding: "utf8",
+      timeout: 30_000,
       env: {
         ...process.env,
         MASSAGELAB_PUBLIC_MEDIA_R2_ACCESS_KEY_ID: "",
@@ -31,6 +32,7 @@ describe("Chimer preview R2 uploader", () => {
       },
     })
 
+    assert.notEqual(result.error?.code, "ETIMEDOUT", "dry-run uploader completed within 30 seconds")
     assert.equal(result.status, 0, result.stderr)
     const json = result.stdout.match(/\{\s*"dryRun": true[\s\S]*$/)?.[0]
     assert.ok(json, result.stdout)

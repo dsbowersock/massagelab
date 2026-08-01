@@ -5,6 +5,7 @@ import test from "node:test"
 import { fileURLToPath } from "node:url"
 
 import { extractInterfaceBody } from "./helpers/source-structure.mjs"
+import { TWISTED_CUBES_OPTION_BOUNDS } from "../lib/twisted-cubes-background.js"
 
 const testsDirectory = path.dirname(fileURLToPath(import.meta.url))
 const rootDirectory = path.resolve(testsDirectory, "..")
@@ -30,7 +31,8 @@ test("the Twisted Cubes renderer stays a scoped, non-interactive CSS DOM effect"
   assert.match(componentCode, /resolveResponsiveBackgroundTransform/)
   assert.match(componentCode, /aria-hidden="true"/)
   assert.match(componentCode, /data-reduce-motion=\{reduceMotion \|\| undefined\}/)
-  assert.match(componentCode, /Math\.min\(30, Math\.max\(0, Math\.floor\(layerCount\)\)\)/)
+  assert.equal(TWISTED_CUBES_OPTION_BOUNDS.layerCount.maximum, 30)
+  assert.match(componentCode, /Math\.min\(TWISTED_CUBES_OPTION_BOUNDS\.layerCount\.maximum, Math\.max\(0, Math\.floor\(layerCount\)\)\)/)
   assert.match(componentCode, /const CUBE_FACES = \["front", "back", "right", "left", "top", "bottom"\] as const/)
   assert.match(componentCode, /CUBE_FACES\.map\(\(face\) =>/)
   assert.match(componentCode, /className=\{styles\.root\}/)

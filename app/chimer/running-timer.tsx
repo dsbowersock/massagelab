@@ -1554,10 +1554,7 @@ export function RunningTimer({
     () => resolveDnaTwistedCubesBackgroundHostProps({
       settings: effectiveLiveBackgroundSettings,
       category: backgroundCategory,
-    }) as {
-      massageLabDna: MassageLabDnaOptions
-      massageLabTwistedCubes: MassageLabTwistedCubesOptions
-    },
+    }),
     [backgroundCategory, effectiveLiveBackgroundSettings],
   )
   const effectiveVisualEditorSettings = useMemo(

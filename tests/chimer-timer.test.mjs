@@ -3223,8 +3223,11 @@ describe("Chimer timer helpers", () => {
       massageLabTwistedCubesOpacityFalloff: 0.85,
       massageLabTwistedCubesOutlineThickness: 0.0075,
     }
+    const projectTrack4BSettings = (settings) => Object.fromEntries(
+      Object.keys(expectedDefaults).map((key) => [key, settings[key]]),
+    )
     assert.deepEqual(
-      Object.fromEntries(Object.keys(expectedDefaults).map((key) => [key, DEFAULT_CHIMER_SETTINGS[key]])),
+      projectTrack4BSettings(DEFAULT_CHIMER_SETTINGS),
       expectedDefaults,
     )
 
@@ -3232,7 +3235,7 @@ describe("Chimer timer helpers", () => {
       Object.keys(expectedDefaults).map((key) => [key, -Infinity]),
     ))
     assert.deepEqual(
-      Object.fromEntries(Object.keys(expectedDefaults).map((key) => [key, minimums[key]])),
+      projectTrack4BSettings(minimums),
       expectedDefaults,
     )
 
@@ -3261,31 +3264,7 @@ describe("Chimer timer helpers", () => {
       massageLabTwistedCubesOpacityFalloff: 9,
       massageLabTwistedCubesOutlineThickness: 9,
     })
-    assert.deepEqual({
-      massageLabDnaStrandCount: clamped.massageLabDnaStrandCount,
-      massageLabDnaShowBaseLetters: clamped.massageLabDnaShowBaseLetters,
-      massageLabDnaNodeMotionSpeed: clamped.massageLabDnaNodeMotionSpeed,
-      massageLabDnaStrandRotationSpeed: clamped.massageLabDnaStrandRotationSpeed,
-      massageLabDnaStrandAngle: clamped.massageLabDnaStrandAngle,
-      massageLabDnaScale: clamped.massageLabDnaScale,
-      massageLabDnaPositionX: clamped.massageLabDnaPositionX,
-      massageLabDnaPositionY: clamped.massageLabDnaPositionY,
-      massageLabDnaStrandSpacing: clamped.massageLabDnaStrandSpacing,
-      massageLabDnaConnectorWidth: clamped.massageLabDnaConnectorWidth,
-      massageLabDnaConnectorThickness: clamped.massageLabDnaConnectorThickness,
-      massageLabDnaOutlineThickness: clamped.massageLabDnaOutlineThickness,
-      massageLabTwistedCubesLayerCount: clamped.massageLabTwistedCubesLayerCount,
-      massageLabTwistedCubesRotationSpeed: clamped.massageLabTwistedCubesRotationSpeed,
-      massageLabTwistedCubesLayerStagger: clamped.massageLabTwistedCubesLayerStagger,
-      massageLabTwistedCubesViewAngleX: clamped.massageLabTwistedCubesViewAngleX,
-      massageLabTwistedCubesViewAngleY: clamped.massageLabTwistedCubesViewAngleY,
-      massageLabTwistedCubesScale: clamped.massageLabTwistedCubesScale,
-      massageLabTwistedCubesPositionX: clamped.massageLabTwistedCubesPositionX,
-      massageLabTwistedCubesPositionY: clamped.massageLabTwistedCubesPositionY,
-      massageLabTwistedCubesLayerDepthSpacing: clamped.massageLabTwistedCubesLayerDepthSpacing,
-      massageLabTwistedCubesOpacityFalloff: clamped.massageLabTwistedCubesOpacityFalloff,
-      massageLabTwistedCubesOutlineThickness: clamped.massageLabTwistedCubesOutlineThickness,
-    }, {
+    assert.deepEqual(projectTrack4BSettings(clamped), {
       massageLabDnaStrandCount: 81,
       massageLabDnaShowBaseLetters: true,
       massageLabDnaNodeMotionSpeed: 0.01,

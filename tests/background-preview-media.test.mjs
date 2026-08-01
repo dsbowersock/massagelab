@@ -35,7 +35,7 @@ const reviewFixtureSource = readFileSync(
 
 describe("background preview media", () => {
   it("renders a decorative video with a WebP poster over the registry fallback", () => {
-    const videoMarkup = componentSource.match(/<video[\s\S]*?\/>/)?.[0]
+    const videoMarkup = componentSource.match(/<video(?:(?!\n\s*<[A-Za-z/])[\s\S])*?\/>/)?.[0]
     assert.ok(videoMarkup, "decorative preview video markup exists")
     assert.match(videoMarkup, /poster=\{posterUrl\}/)
     assert.match(videoMarkup, /\bmuted\b/)
@@ -61,7 +61,7 @@ describe("background preview media", () => {
 
   it("generates quality-78 WebP posters one-third through each actual encoded video", () => {
     assert.match(renderSource, /async function encodePoster/)
-    assert.match(renderSource, /const seekSeconds = probeVideoDurationSeconds\(videoPath\) \/ 3/)
+    assert.match(renderSource, /const seekSeconds = probeVideoDurationSeconds\(videoPath, fallbackDurationMs\) \/ 3/)
     assert.match(renderSource, /"-show_entries", "format=duration"/)
     assert.match(renderSource, /existsSync\(posterPath\) && statSync\(posterPath\)\.size > 0/)
     assert.match(renderSource, /"-c:v", "libwebp"/)
@@ -70,7 +70,7 @@ describe("background preview media", () => {
     assert.match(renderSource, /is empty after poster encoding/)
     assert.match(renderSource, /const videoIsUsable = existsSync\(outputPath\) && statSync\(outputPath\)\.size > 0/)
     assert.match(renderSource, /const posterIsUsable = existsSync\(posterPath\) && statSync\(posterPath\)\.size > 0[\s\S]*?if \(videoIsUsable && posterIsUsable && !options\.force\) \{[\s\S]*?skipped: true/)
-    assert.match(renderSource, /if \(videoIsUsable && !options\.force\) \{[\s\S]*?await encodePoster\(outputPath, posterPath\)/)
+    assert.match(renderSource, /if \(videoIsUsable && !options\.force\) \{[\s\S]*?await encodePoster\(outputPath, posterPath, options\.durationMs\)/)
   })
 
   it("offers a deterministic missing-video fixture while retaining a valid poster", () => {

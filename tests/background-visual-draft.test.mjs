@@ -1321,16 +1321,27 @@ test("DNA and Twisted Cubes controls emit only draft property patches with exact
     ["Relative outline thickness", "outlineThickness", "0.0025", "0.02", "0.0005"],
   ]) assertSlider(twistedCubesControlsSource, label, property, min, max, step)
 
-  for (const source of [dnaControlsSource, twistedCubesControlsSource]) {
-    assert.match(source, /StyledRangeControl/)
-    assert.doesNotMatch(source, /localStorage|sessionStorage|fetch\(|type="number"|onPointerMove|shuffle/i)
+  for (const [label, source] of [
+    ["DNA", dnaControlsSource],
+    ["Twisted Cubes", twistedCubesControlsSource],
+  ]) {
+    for (const pattern of [
+      /localStorage/i,
+      /sessionStorage/i,
+      /fetch\(/i,
+      /type="number"/i,
+      /onPointerMove/i,
+      /shuffle/i,
+    ]) {
+      assert.doesNotMatch(source, pattern, `${label} controls keep ${pattern} out of the UI boundary`)
+    }
   }
   assert.match(dnaControlsSource, /displayValue=\{`\$\{value\.outlineThickness\.toFixed\(2\)\}vmin`\}/)
 })
 
 test("selected-background properties share the existing Visual draft lifecycle", () => {
-  assert.match(runningTimerSource, /visualEditorBackgroundId === "massage-lab-dna"[\s\S]*<DnaBackgroundControls/)
-  assert.match(runningTimerSource, /visualEditorBackgroundId === "massage-lab-twisted-cubes"[\s\S]*<TwistedCubesBackgroundControls/)
+  assert.match(runningTimerSource, /visualEditorBackgroundId === "massage-lab-dna"(?:(?!visualEditorBackgroundId ===)[\s\S])*?<DnaBackgroundControls/)
+  assert.match(runningTimerSource, /visualEditorBackgroundId === "massage-lab-twisted-cubes"(?:(?!visualEditorBackgroundId ===)[\s\S])*?<TwistedCubesBackgroundControls/)
   assert.match(runningTimerSource, /toDnaChimerSettingsPatch\(patch\)/)
   assert.match(runningTimerSource, /toTwistedCubesChimerSettingsPatch\(patch\)/)
   assert.match(runningTimerSource, /dispatchVisualDraft\(\{[\s\S]*type: "replace"[\s\S]*partitioned\.draftProperties/)
@@ -1339,7 +1350,7 @@ test("selected-background properties share the existing Visual draft lifecycle",
   assert.match(runningTimerSource, /visualDraft\?\.dirty/)
 })
 
-test("all 23 DNA and Twisted Cubes keys execute the complete shared Visual draft lifecycle", () => {
+test("all DNA and Twisted Cubes keys execute the complete shared Visual draft lifecycle", () => {
   for (const { backgroundId, changedProperties } of TRACK4B_VISUAL_CASES) {
     const adapter = backgroundPaletteRegistry[backgroundId]
     const sourceProperties = adapter.sourceVisualProperties

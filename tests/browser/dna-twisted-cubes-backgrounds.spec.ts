@@ -18,15 +18,18 @@ import {
 } from "../../lib/twisted-cubes-background.js"
 import { COMPUTED_CONSUMER_CONTRACTS } from "./dna-twisted-cubes-consumer-contract.mjs"
 
+const DNA_COMPUTED_CONSUMER_CONTRACTS = COMPUTED_CONSUMER_CONTRACTS.filter(
+  ({ effectId }) => effectId === "massage-lab-dna",
+)
+const TWISTED_CUBES_COMPUTED_CONSUMER_CONTRACTS = COMPUTED_CONSUMER_CONTRACTS.filter(
+  ({ effectId }) => effectId === "massage-lab-twisted-cubes",
+)
+
 const EFFECTS = [
   {
     id: "massage-lab-dna",
-    labels: [
-      "Node motion speed", "Strand rotation speed", "Strand count", "Strand angle",
-      "Strand spacing", "Scale", "Position X", "Position Y", "Connector width",
-      "Connector thickness", "Outline thickness",
-    ],
-    controls: COMPUTED_CONSUMER_CONTRACTS.filter(({ effectId }) => effectId === "massage-lab-dna"),
+    labels: DNA_COMPUTED_CONSUMER_CONTRACTS.map(({ label }) => label),
+    controls: DNA_COMPUTED_CONSUMER_CONTRACTS,
     scaleKey: "massageLabDnaScale",
     positionXKey: "massageLabDnaPositionX",
     positionYKey: "massageLabDnaPositionY",
@@ -47,12 +50,8 @@ const EFFECTS = [
   },
   {
     id: "massage-lab-twisted-cubes",
-    labels: [
-      "Rotation speed", "Layer stagger", "View angle X", "View angle Y", "Layer count",
-      "Layer depth", "Scale", "Position X", "Position Y", "Fade falloff",
-      "Relative outline thickness",
-    ],
-    controls: COMPUTED_CONSUMER_CONTRACTS.filter(({ effectId }) => effectId === "massage-lab-twisted-cubes"),
+    labels: TWISTED_CUBES_COMPUTED_CONSUMER_CONTRACTS.map(({ label }) => label),
+    controls: TWISTED_CUBES_COMPUTED_CONSUMER_CONTRACTS,
     scaleKey: "massageLabTwistedCubesScale",
     positionXKey: "massageLabTwistedCubesPositionX",
     positionYKey: "massageLabTwistedCubesPositionY",
@@ -297,7 +296,12 @@ async function captureControlRenderState(host: Locator, id: typeof EFFECTS[numbe
   })
 }
 
-/** Captures the concrete CSS consumers, not their custom-property declarations. */
+/**
+ * Captures concrete CSS consumers rather than custom-property declarations.
+ * The probe pauses every animation in the effect subtree and seeks it to time
+ * zero for deterministic computed styles; it deliberately does not resume
+ * those animations because each caller discards or reloads the review host.
+ */
 async function captureComputedConsumerState(host: Locator, id: typeof EFFECTS[number]["id"]) {
   const root = effectRoot(host)
   if (id === "massage-lab-dna") {
