@@ -365,7 +365,7 @@ Visual controls retain Track 4A labels, keyboard behavior, value formatting, dir
 - DNA renders at most 81 strands and 162 nodes.
 - Twisted Cubes renders at most 30 layers and 180 faces.
 - Palette or property changes update the mounted component without mounting other backgrounds.
-- DNA base-pair and random role assignments do not reshuffle on ordinary palette/property changes.
+- DNA base-pair and random role assignments do not reshuffle on palette or non-count property changes. Changing strand count regenerates assignments for the new count.
 - CSS animations stop when the component unmounts.
 - No window, document, pointer, touch, animation-frame, or resize listeners are required inside either effect.
 - The existing host continues to own reduced-motion fallback and component cleanup.
@@ -403,7 +403,8 @@ Update the preview manifest and source ledger only after generated files validat
 
 ### Pure tests
 
-- Every property default equals the source value except the explicit post-implementation visual-QA overrides recorded above.
+- Every source-derived property default equals its corresponding source value except the explicit post-implementation visual-QA overrides recorded above.
+- Every Track 4B-only property default, including `Show base letters` and the position controls, equals the explicit default in the visual property table.
 - Every property sanitizer clamps invalid, fractional, negative, excessive, and non-finite input.
 - Responsive transforms clamp effective output without mutating saved values.
 - DNA assignment returns exactly `strandCount` valid complementary pairs and two independent `0..3` role indexes per pair.

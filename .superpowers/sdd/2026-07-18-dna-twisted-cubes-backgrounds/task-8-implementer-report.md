@@ -244,6 +244,8 @@ No production consumer miswire was uncovered, so no production file was changed.
 
 ### Fix Round 4 validation
 
+This block is historical evidence captured at commit `57f27162`; final pre-PR branch acceptance is recorded in `docs/project-log.md` and includes all 1,865 repository tests passing.
+
 - `node --test tests/browser-qa-harness.test.mjs tests/sitewide-control-rollout.test.mjs`: 16/16 passed.
 - Combined desktop/mobile browser acceptance: 16/16 passed (8/8 per project).
 - Computed-consumer/reduced-state repeat with `--repeat-each=3 --workers=2`: 12/12 passed across desktop and mobile in 3.4 minutes.

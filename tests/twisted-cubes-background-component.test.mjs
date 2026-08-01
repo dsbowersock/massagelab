@@ -14,6 +14,26 @@ const stripSourceComments = (source) => source
   .replace(/\/\*[\s\S]*?\*\//g, "")
   .replace(/\/\/.*$/gm, "")
 
+/** Extracts one interface without allowing assertions to match fields from a later declaration. */
+const extractInterfaceBody = (source, name) => {
+  const declarationIndex = source.indexOf(`export interface ${name}`)
+  assert.notEqual(declarationIndex, -1, `${name} is declared`)
+
+  const openingBraceIndex = source.indexOf("{", declarationIndex)
+  assert.notEqual(openingBraceIndex, -1, `${name} has an interface body`)
+
+  let depth = 0
+  for (let index = openingBraceIndex; index < source.length; index += 1) {
+    if (source[index] === "{") depth += 1
+    if (source[index] !== "}") continue
+
+    depth -= 1
+    if (depth === 0) return source.slice(openingBraceIndex + 1, index)
+  }
+
+  assert.fail(`${name} has a balanced interface body`)
+}
+
 test("the Twisted Cubes renderer stays a scoped, non-interactive CSS DOM effect", () => {
   assert.equal(existsSync(componentPath), true, "the scoped Twisted Cubes renderer exists")
   assert.equal(existsSync(stylesheetPath), true, "the scoped Twisted Cubes stylesheet exists")
@@ -79,7 +99,13 @@ test("the Twisted Cubes renderer stays a scoped, non-interactive CSS DOM effect"
 
 test("Twisted Cubes options extend the shared background effect contract", () => {
   const effectPropsSource = readFileSync(effectPropsPath, "utf8")
+  const cubesOptions = extractInterfaceBody(effectPropsSource, "MassageLabTwistedCubesOptions")
+  const effectProps = extractInterfaceBody(effectPropsSource, "BackgroundEffectProps")
 
-  assert.match(effectPropsSource, /export interface MassageLabTwistedCubesOptions \{[\s\S]*?layerCount: number;?[\s\S]*?paletteMode: "source" \| "resolved";?[\s\S]*?outlineAnchors: readonly \[string, string, string, string, string, string\];?[\s\S]*?\}/)
-  assert.match(effectPropsSource, /export interface BackgroundEffectProps \{[\s\S]*?reduceMotion\?: boolean;?[\s\S]*?compactViewport\?: boolean;?[\s\S]*?massageLabTwistedCubes\?: MassageLabTwistedCubesOptions;?/)
+  assert.match(cubesOptions, /layerCount: number;?/)
+  assert.match(cubesOptions, /paletteMode: "source" \| "resolved";?/)
+  assert.match(cubesOptions, /outlineAnchors: readonly \[string, string, string, string, string, string\];?/)
+  assert.match(effectProps, /reduceMotion\?: boolean;?/)
+  assert.match(effectProps, /compactViewport\?: boolean;?/)
+  assert.match(effectProps, /massageLabTwistedCubes\?: MassageLabTwistedCubesOptions;?/)
 })

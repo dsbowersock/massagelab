@@ -479,7 +479,9 @@ async function normalizeTransformForTarget(target: Locator, transform: string) {
     specimen.style.visibility = "hidden"
     specimen.style.animation = "none"
     specimen.style.transform = expectedTransform
-    element.parentElement?.append(specimen)
+    const parent = element.parentElement
+    if (!parent) throw new Error("Transform oracle target has no parent element.")
+    parent.append(specimen)
     const normalized = getComputedStyle(specimen).transform
     specimen.remove()
     return normalized
@@ -533,7 +535,9 @@ async function normalizeAnimatedTransformForTarget(
     const specimen = element.cloneNode(false) as HTMLElement
     specimen.style.visibility = "hidden"
     specimen.style.animation = "none"
-    element.parentElement?.append(specimen)
+    const parent = element.parentElement
+    if (!parent) throw new Error("Animated transform oracle target has no parent element.")
+    parent.append(specimen)
     const animation = specimen.animate(input.keyframes, input.timing)
     animation.pause()
     animation.currentTime = 0
