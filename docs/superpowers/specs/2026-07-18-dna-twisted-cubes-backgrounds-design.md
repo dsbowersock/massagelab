@@ -119,7 +119,7 @@ Both entries are:
 
 ### Rendering approach
 
-DNA generates strand markup from the sanitized strand count. React assigns stable random base-pair and node-role records for the current mounted count. Base identity and palette role are independent, so each endpoint retains its own swatch color while every rung remains A-T, T-A, G-C, or C-G. CSS performs the node crossover, connector scaling, and whole-strand rotation.
+DNA generates strand markup from the sanitized strand count. React assigns stable random complementary base-pair records for the current mounted count. Each base identity has one deterministic palette role, so A, T, G, and C remain visually teachable while every rung remains A-T, T-A, G-C, or C-G. CSS performs the node crossover, connector scaling, and whole-strand rotation.
 
 Twisted Cubes generates one wrapper, cube, cuboid, and six faces per sanitized layer. CSS performs staggered rotations and 3D transforms. The component calculates each layer's outline color and alpha from the resolved palette roles and current layer index.
 
@@ -139,15 +139,15 @@ The source defaults are:
 - 30% connector thickness;
 - 0.5vmin outlines;
 - dark blue background;
-- yellow, blue, white, and pink random node colors;
+- yellow Adenine, blue Thymine, white Guanine, and pink Cytosine nodes;
 - white connectors; and
 - black outlines.
 
 MassageLab preserves the crossover geometry, phase relationship, opposite node animation directions, connector collapse timing, and overall rotation.
 
-### Complementary bases and random node assignments
+### Complementary bases and base-specific node colors
 
-Each strand receives one valid complementary base pair and two independent role IDs through a pure helper comparable to:
+Each strand receives one valid complementary base pair and derives both role IDs from the bases through a pure helper comparable to:
 
 ```ts
 function createDnaStrandAssignments(
@@ -160,7 +160,7 @@ Production uses real randomness. Tests inject a deterministic random function.
 
 Assignments are created when the client-mounted component initializes. They remain stable while the mounted background changes palette, position, scale, or motion settings. Changing strand count regenerates a valid assignment set for the new node count. Unmounting and remounting creates a new distribution.
 
-Base-pair and color-role assignments operate in Source, Custom, and Harmony modes. They are transient runtime data: they are never placed in local storage, account preferences, presets, or draft history. The saved `Show base letters` boolean controls only whether A/G/T/C appears inside each colored node; it defaults Off and does not change pair identity, geometry, or color.
+Base-pair assignments operate in Source, Custom, and Harmony modes. The pair sequence is transient runtime data: it is never placed in local storage, account preferences, presets, or draft history. The A/T/G/C-to-role mapping is a stable renderer contract in every palette mode. The saved `Show base letters` boolean controls only whether A/G/T/C appears inside each colored node; it defaults Off and does not change pair identity, geometry, or color.
 
 ### Cross-browser phase calculation
 
@@ -242,16 +242,16 @@ DNA declares seven stable roles:
 | Role ID      | Label      | Source value         | Curated swatch |
 | ------------ | ---------- | -------------------- | -------------: |
 | `background` | Background | `hsl(210 80% 12%)`   |              4 |
-| `node-one`   | Node 1     | `hsl(44 98% 60%)`    |      1 Primary |
-| `node-two`   | Node 2     | `hsl(197 50% 44%)`   |              2 |
-| `node-three` | Node 3     | `hsl(300 100% 100%)` |              3 |
-| `node-four`  | Node 4     | `hsl(331 76% 50%)`   |              6 |
+| `node-one`   | Adenine (A) | `hsl(44 98% 60%)`    |      1 Primary |
+| `node-two`   | Thymine (T) | `hsl(197 50% 44%)`   |              2 |
+| `node-three` | Guanine (G) | `hsl(300 100% 100%)` |              3 |
+| `node-four`  | Cytosine (C) | `hsl(331 76% 50%)`   |              6 |
 | `connector`  | Connector  | `#ffffff`            |              5 |
 | `outline`    | Outline    | `#000000`            |              7 |
 
-Source mode uses the source values directly and keeps random assignment among the four Node roles.
+Source mode uses the source values directly and maps A/T/G/C to the four roles in order.
 
-Custom and Harmony resolve the same roles through the active per-background mapping. Random assignment still selects among Node 1-4; palette changes recolor existing role assignments without reshuffling them.
+Custom and Harmony resolve the same roles through the active per-background mapping. Palette changes recolor each base consistently without changing the complementary sequence or base-to-role identity.
 
 ### Twisted Cubes roles
 

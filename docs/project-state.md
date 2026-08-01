@@ -124,6 +124,7 @@ This is the read-first source of truth for MassageLab's current project state. U
 ### Track 4B final accepted renderer correction
 
 - This supersedes the earlier face-based Twisted Cubes description in the July 18 reconciliation above: Scale now applies uniformly to the complete count-relative progression; at the approved 20-layer, 30% default the outer wireframe reaches `120vmax`. Twelve thin CSS edges per layer preserve the full-bleed nested outline without the viewport-size transparent faces that caused the rejected page-wide slowdown. The user accepted this exact local visual result before the PR loop resumed.
+- DNA's palette contract now maps base identity to a stable role: A to Adenine, T to Thymine, G to Guanine, and C to Cytosine. The Show base letters setting is presentation-only, so hiding the letters never changes the educational color mapping. This supersedes the earlier randomized endpoint-role description above; focused desktop/mobile browser proof passed and the user accepted the corrected local visual result before the PR loop resumed.
 
 ## Documentation Rules
 

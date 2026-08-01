@@ -3,9 +3,9 @@ import { describe, it } from "node:test"
 import {
   DEFAULT_DNA_BACKGROUND_OPTIONS,
   DNA_BASE_PAIRS,
+  DNA_BASE_ROLE_INDEX,
   DNA_OPTION_BOUNDS,
   DNA_SOURCE_GEOMETRY,
-  createDnaNodeRoleAssignments,
   createDnaStrandAssignments,
   getDnaBackgroundOptionsFromChimerSettings,
   getDnaNodeCycleSeconds,
@@ -148,37 +148,21 @@ describe("DNA background domain and shared layout rules", () => {
     )
   })
 
-  it("creates two deterministic valid role assignments per strand and normalizes invalid randomness", () => {
-    assert.deepEqual(createDnaNodeRoleAssignments(3, () => 0.5), [2, 2, 2])
-    assert.deepEqual(createDnaNodeRoleAssignments(3, () => 2), [3, 3, 3])
-    assert.deepEqual(createDnaNodeRoleAssignments(3, () => -1), [0, 0, 0])
-    for (const invalid of [NaN, Infinity, -Infinity]) {
-      assert.deepEqual(createDnaNodeRoleAssignments(2, () => invalid), [0, 0])
-    }
-    const assignments = createDnaNodeRoleAssignments(25, () => 0.9999)
-    assert.equal(assignments.length, 25)
-    assert.ok(assignments.every((assignment) => Number.isInteger(assignment) && assignment >= 0 && assignment <= 3))
-  })
-
-  it("creates biologically valid base pairs with independently selected node swatch roles", () => {
-    const sequence = [
-      0, 0, 0.99,
-      0.26, 0.3, 0.7,
-      0.51, 0.49, 0.51,
-      0.76, 0.99, 0,
-    ]
+  it("creates biologically valid base pairs with nucleotide-specific swatch roles", () => {
+    const sequence = [0, 0.26, 0.51, 0.76]
     let index = 0
     const assignments = createDnaStrandAssignments(4, () => sequence[index++])
 
     assert.deepEqual(DNA_BASE_PAIRS, [["A", "T"], ["T", "A"], ["G", "C"], ["C", "G"]])
+    assert.deepEqual(DNA_BASE_ROLE_INDEX, { A: 0, T: 1, G: 2, C: 3 })
     assert.deepEqual(assignments, [
-      { startBase: "A", endBase: "T", startRole: 0, endRole: 3 },
-      { startBase: "T", endBase: "A", startRole: 1, endRole: 2 },
-      { startBase: "G", endBase: "C", startRole: 1, endRole: 2 },
-      { startBase: "C", endBase: "G", startRole: 3, endRole: 0 },
+      { startBase: "A", endBase: "T", startRole: 0, endRole: 1 },
+      { startBase: "T", endBase: "A", startRole: 1, endRole: 0 },
+      { startBase: "G", endBase: "C", startRole: 2, endRole: 3 },
+      { startBase: "C", endBase: "G", startRole: 3, endRole: 2 },
     ])
     assert.deepEqual(createDnaStrandAssignments(1, () => Number.NaN), [
-      { startBase: "A", endBase: "T", startRole: 0, endRole: 0 },
+      { startBase: "A", endBase: "T", startRole: 0, endRole: 1 },
     ])
   })
 

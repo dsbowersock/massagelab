@@ -1373,7 +1373,7 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
 
     await expect(review).toHaveAttribute("data-palette-mode", "source")
     expect(JSON.parse(await review.getAttribute("data-role-labels") ?? "[]")).toEqual([
-      "Background", "Node 1", "Node 2", "Node 3", "Node 4", "Connector", "Outline",
+      "Background", "Adenine (A)", "Thymine (T)", "Guanine (G)", "Cytosine (C)", "Connector", "Outline",
     ])
     const dnaRoot = effectRoot(host)
     await expect(dnaRoot).toBeVisible()
@@ -1392,6 +1392,40 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
       || (startBase === "G" && endBase === "C")
       || (startBase === "C" && endBase === "G")
     ))).toBe(true)
+    const dnaAdapter = backgroundPaletteRegistry["massage-lab-dna"]
+    if (dnaAdapter.status !== "supported") {
+      throw new Error("The DNA palette adapter must be supported.")
+    }
+    const dnaSourceNodeColors = ["node-one", "node-two", "node-three", "node-four"]
+      .map((roleId) => {
+        const role = dnaAdapter.roles.find(({ id }) => id === roleId)
+        if (!role) throw new Error(`Missing DNA palette role: ${roleId}`)
+        return role.sourceColor
+      })
+    const nodeColorsByBase = await dnaRoot.locator("[data-base]").evaluateAll(
+      (nodes) => Object.fromEntries(
+        ["A", "T", "G", "C"].map((base) => [
+          base,
+          [...new Set(nodes
+            .filter((node) => (node as HTMLElement).dataset.base === base)
+            .map((node) => getComputedStyle(node).backgroundColor))],
+        ]),
+      ),
+    )
+    const expectedNodeColors = await page.evaluate((colors) => colors.map((color) => {
+      const probe = document.createElement("span")
+      probe.style.color = color
+      document.body.append(probe)
+      const normalized = getComputedStyle(probe).color
+      probe.remove()
+      return normalized
+    }), dnaSourceNodeColors)
+    expect(nodeColorsByBase).toEqual({
+      A: [expectedNodeColors[0]],
+      T: [expectedNodeColors[1]],
+      G: [expectedNodeColors[2]],
+      C: [expectedNodeColors[3]],
+    })
     await expect(dnaRoot.locator("[data-base]", { hasText: /^[AGTC]$/ })).toHaveCount(0)
     const baseLetterToggle = review.getByRole("switch", { name: /^Show base letters:/ })
     await expect(baseLetterToggle).toHaveAttribute("aria-checked", "false")

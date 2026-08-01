@@ -18,8 +18,9 @@ type MassageLabDnaBackgroundProps = Pick<BackgroundEffectProps, "reduceMotion" |
 
 /**
  * Renders the source DNA geometry with CSS-only motion. Biologically valid
- * base pairs and independent node palette roles belong to a mount, not saved
- * preferences; a changed strand count receives one fresh assignment set.
+ * base pairs belong to a mount, while A/T/G/C always resolve to their own
+ * palette roles whether labels are visible or hidden. A changed strand count
+ * receives one fresh base-pair assignment set.
  */
 export const MassageLabDnaBackground = memo(function MassageLabDnaBackground({
   massageLabDna,
@@ -92,7 +93,7 @@ export const MassageLabDnaBackground = memo(function MassageLabDnaBackground({
       startBase: "A",
       endBase: "T",
       startRole: 0,
-      endRole: 0,
+      endRole: 1,
     }
     const oneBasedIndex = index + 1
     const delaySeconds = getDnaStrandDelaySeconds({

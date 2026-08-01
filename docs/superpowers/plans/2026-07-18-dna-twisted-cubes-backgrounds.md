@@ -98,7 +98,6 @@ Expected: FAIL because the modules do not exist.
 Define:
 
 ```js
-export function createDnaNodeRoleAssignments(nodeCount, random = Math.random) {}
 export function createDnaStrandAssignments(strandCount, random = Math.random) {}
 export function resolveResponsiveBackgroundTransform({
   scale,
@@ -108,7 +107,7 @@ export function resolveResponsiveBackgroundTransform({
 }) {}
 ```
 
-Require every strand assignment to contain a valid `A-T`, `T-A`, `G-C`, or `C-G` pair plus two independent role assignments limited to integers `0..3`. Base identity must not determine swatch role. Require deterministic injected randomness, and handle invalid random results explicitly: `NaN`, `Infinity`, and `-Infinity` fall back to `0` before floor/clamp, while finite values clamp into the range. Add exact cases for every non-finite input. Keep `createDnaNodeRoleAssignments` as the compatible role-only helper. For the layout helper, use this exact rendering-only rule:
+Require every strand assignment to contain a valid `A-T`, `T-A`, `G-C`, or `C-G` pair. Derive its role assignments deterministically from base identity using `A: 0`, `T: 1`, `G: 2`, and `C: 3`; letter visibility must not affect this mapping. Require deterministic injected randomness for pair selection, and handle invalid random results explicitly: `NaN`, `Infinity`, and `-Infinity` fall back to `0` before floor/clamp, while finite values clamp into the range. Add exact cases for every non-finite input. For the layout helper, use this exact rendering-only rule:
 
 - shortest viewport edge below `480px`: effective scale maximum `1`, X/Y maximum magnitude `20%`;
 - otherwise: effective scale maximum `1.2`, X/Y maximum magnitude `35%`.
@@ -453,10 +452,10 @@ Declare exactly these roles and zero-based swatch indexes:
 ```ts
 [
   { id: "background", label: "Background", sourceColor: "hsl(210 80% 12%)", defaultSwatch: 3, rendererTarget: "massageLabDna.backgroundColor" },
-  { id: "node-one", label: "Node 1", sourceColor: "hsl(44 98% 60%)", defaultSwatch: 0, rendererTarget: "massageLabDna.nodeRoleColors[0]" },
-  { id: "node-two", label: "Node 2", sourceColor: "hsl(197 50% 44%)", defaultSwatch: 1, rendererTarget: "massageLabDna.nodeRoleColors[1]" },
-  { id: "node-three", label: "Node 3", sourceColor: "hsl(300 100% 100%)", defaultSwatch: 2, rendererTarget: "massageLabDna.nodeRoleColors[2]" },
-  { id: "node-four", label: "Node 4", sourceColor: "hsl(331 76% 50%)", defaultSwatch: 5, rendererTarget: "massageLabDna.nodeRoleColors[3]" },
+  { id: "node-one", label: "Adenine (A)", sourceColor: "hsl(44 98% 60%)", defaultSwatch: 0, rendererTarget: "massageLabDna.nodeRoleColors[0]" },
+  { id: "node-two", label: "Thymine (T)", sourceColor: "hsl(197 50% 44%)", defaultSwatch: 1, rendererTarget: "massageLabDna.nodeRoleColors[1]" },
+  { id: "node-three", label: "Guanine (G)", sourceColor: "hsl(300 100% 100%)", defaultSwatch: 2, rendererTarget: "massageLabDna.nodeRoleColors[2]" },
+  { id: "node-four", label: "Cytosine (C)", sourceColor: "hsl(331 76% 50%)", defaultSwatch: 5, rendererTarget: "massageLabDna.nodeRoleColors[3]" },
   { id: "connector", label: "Connector", sourceColor: "#ffffff", defaultSwatch: 4, rendererTarget: "massageLabDna.connectorColor" },
   { id: "outline", label: "Outline", sourceColor: "#000000", defaultSwatch: 6, rendererTarget: "massageLabDna.outlineColor" },
 ]
@@ -803,7 +802,7 @@ Before committing, verify `git status --short` still contains the user-owned `TO
 - DNA and Twisted Cubes are enabled premium backgrounds in Chimer, Clock, Music, and ambient categories.
 - Both use native React plus scoped CSS Modules and add no runtime dependency, iframe, Canvas, WebGL, pointer drag, or shuffle action.
 - Source colors and source property values remain visible until edited.
-- DNA renders 7-81 strands, keeps mount-stable valid complementary base pairs with independent random four-role node colors, optionally shows A/G/T/C letters, uses React sine phases, and exposes separate node/strand speeds.
+- DNA renders 7-81 strands, keeps mount-stable valid complementary base pairs with deterministic A/T/G/C-specific node colors, optionally shows A/G/T/C letters without changing those colors, uses React sine phases, and exposes separate node/strand speeds.
 - Twisted Cubes renders 6-30 layers, preserves continuous Source HSL, smoothly interpolates six Custom/Harmony anchors, and exposes separate speed/stagger.
 - Both support bounded scale/X/Y controls without mutating stored values.
 - Track 4A owns every color, role mapping, draft, Undo/Redo, Apply/Cancel, Color preset, and Visual preset behavior; no duplicate color fields exist.
