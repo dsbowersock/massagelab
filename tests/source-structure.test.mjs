@@ -5,6 +5,7 @@ import { extractInterfaceBody } from "./helpers/source-structure.mjs"
 
 test("interface extraction ignores braces in comments and quoted types", () => {
   const source = `
+    // A non-BMP marker before the declaration must not shift UTF-16 offsets: 🧬
     /** {@link Example} keeps a documentation brace. */
     export interface Example {
       literal: "}";

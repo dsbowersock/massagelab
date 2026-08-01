@@ -68,7 +68,9 @@ describe("background preview media", () => {
     assert.match(renderSource, /"-quality", "78"/)
     assert.match(renderSource, /!existsSync\(posterPath\) \|\| statSync\(posterPath\)\.size <= 0/)
     assert.match(renderSource, /is empty after poster encoding/)
-    assert.match(renderSource, /const posterIsUsable = existsSync\(posterPath\) && statSync\(posterPath\)\.size > 0[\s\S]*?if \(existsSync\(outputPath\) && posterIsUsable && !options\.force\) \{[\s\S]*?skipped: true/)
+    assert.match(renderSource, /const videoIsUsable = existsSync\(outputPath\) && statSync\(outputPath\)\.size > 0/)
+    assert.match(renderSource, /const posterIsUsable = existsSync\(posterPath\) && statSync\(posterPath\)\.size > 0[\s\S]*?if \(videoIsUsable && posterIsUsable && !options\.force\) \{[\s\S]*?skipped: true/)
+    assert.match(renderSource, /if \(videoIsUsable && !options\.force\) \{[\s\S]*?await encodePoster\(outputPath, posterPath\)/)
   })
 
   it("offers a deterministic missing-video fixture while retaining a valid poster", () => {

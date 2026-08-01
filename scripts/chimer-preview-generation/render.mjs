@@ -356,8 +356,9 @@ async function captureVariant(browser, entry, options, variant, tempVideoDir) {
   const outputPath = path.join(options.outputDir, `${entry.id}${variant.suffix}.webm`)
   const posterPath = path.join(options.outputDir, `${entry.id}${variant.suffix}.webp`)
 
+  const videoIsUsable = existsSync(outputPath) && statSync(outputPath).size > 0
   const posterIsUsable = existsSync(posterPath) && statSync(posterPath).size > 0
-  if (existsSync(outputPath) && posterIsUsable && !options.force) {
+  if (videoIsUsable && posterIsUsable && !options.force) {
     return {
       skipped: true,
       variant: buildVariantManifest(entry, outputPath, posterPath, options, variant),
@@ -366,7 +367,7 @@ async function captureVariant(browser, entry, options, variant, tempVideoDir) {
 
   // A prior interrupted run may have a valid video but no poster. Complete the
   // pair without paying the browser-recording cost again unless --force is set.
-  if (existsSync(outputPath) && !options.force) {
+  if (videoIsUsable && !options.force) {
     await encodePoster(outputPath, posterPath)
     return {
       skipped: false,

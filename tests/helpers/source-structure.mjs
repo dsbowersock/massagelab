@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 
 /** Masks comments and quoted text without changing source offsets. */
 function maskNonCode(source) {
-  const characters = [...source]
+  const characters = source.split("")
   let state = "code"
 
   for (let index = 0; index < characters.length; index += 1) {

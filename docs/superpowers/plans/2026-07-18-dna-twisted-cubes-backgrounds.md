@@ -735,7 +735,7 @@ Cover desktop, phone portrait, short landscape, 200% zoom, and reduced motion. A
 
 - [ ] **Step 4: Add bounded-DOM and lifecycle checks**
 
-Require at most 81 DNA strands/162 nodes and 30 Twisted layers/180 faces. During repeated property edits, assert only the selected effect remains mounted and no document/window/listener/animation-frame API is introduced by either component.
+Keep the browser-review fixture bounded at 25 DNA strands/50 nodes and 30 Twisted layers/180 faces during repeated property edits. Cover the production DNA ceiling of 81 strands/162 nodes separately in the domain and renderer source contracts. Assert only the selected effect remains mounted and no document/window/listener/animation-frame API is introduced by either component.
 
 - [ ] **Step 5: Run review tests and commit**
 
