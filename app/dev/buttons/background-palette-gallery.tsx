@@ -301,14 +301,11 @@ function ProductionMusicContinuityProbe() {
 
 function createTrack4BReviewDraft(backgroundId: Track4BBackgroundId) {
   const adapter = backgroundPaletteRegistry[backgroundId]
-  if (!adapter) {
-    throw new Error(`Track 4B review adapter is missing for ${backgroundId}.`)
-  }
   return createBackgroundVisualDraft({
     palette: SOURCE_PALETTE,
     colorPresets: [TRACK_4B_COLOR_PRESET],
     properties: TRACK_4B_SOURCE_SETTINGS,
-    mapping: defaultMapping(adapter),
+    mapping: adapter ? defaultMapping(adapter) : {},
     visualPresets: [TRACK_4B_VISUAL_PRESET],
     defaultVisualPresetId: null,
   })

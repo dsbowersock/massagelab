@@ -274,6 +274,7 @@ test("development review exposes the real DNA and Twisted Cubes acceptance matri
   assert.match(gallery, /backgroundPreviewManifest/)
   assert.match(gallery, /<BackgroundPreviewMedia/)
   assert.match(gallery, /data-track-4b-preview/)
+  assert.match(gallery, /mapping: adapter \? defaultMapping\(adapter\) : \{\}/)
   assert.match(gallery, /const nextDraft = createTrack4BReviewDraft\(nextId\)/)
   assert.match(gallery, /setDraft\(nextDraft\)/)
   assert.match(gallery, /setAppliedSnapshot\(nextDraft\.openingSnapshot\)/)
