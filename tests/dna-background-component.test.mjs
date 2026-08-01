@@ -27,6 +27,8 @@ test("the DNA renderer stays a scoped, non-interactive CSS DOM effect", () => {
 
   assert.match(componentCode, /const renderStrandCount = Number\.isFinite\(strandCount\)[\s\S]*?Math\.min\(81, Math\.max\(0, Math\.floor\(strandCount\)\)\)[\s\S]*?: 0/)
   assert.match(componentCode, /createDnaStrandAssignments\(renderStrandCount\)/)
+  assert.match(componentCode, /const \[previousStrandCount, setPreviousStrandCount\] = useState\(renderStrandCount\)[\s\S]*?if \(previousStrandCount !== renderStrandCount\) \{[\s\S]*?setStrandAssignments\(createDnaStrandAssignments\(renderStrandCount\)\)/)
+  assert.doesNotMatch(componentCode, /\buse(?:Effect|Ref)\b/)
   assert.match(componentCode, /data-base=\{strand\.startBase\}/)
   assert.match(componentCode, /data-base=\{strand\.endBase\}/)
   assert.match(componentCode, /showBaseLetters && <span className=\{styles\.nodeLabel\}>/)

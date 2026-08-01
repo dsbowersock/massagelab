@@ -1,6 +1,6 @@
 "use client"
 
-import { type CSSProperties, useEffect, useRef, useState } from "react"
+import { type CSSProperties, useState } from "react"
 import {
   createDnaStrandAssignments,
   getDnaNodeCycleSeconds,
@@ -49,14 +49,14 @@ export function MassageLabDnaBackground({
   const [strandAssignments, setStrandAssignments] = useState(() => (
     createDnaStrandAssignments(renderStrandCount)
   ))
-  const previousStrandCount = useRef(renderStrandCount)
+  const [previousStrandCount, setPreviousStrandCount] = useState(renderStrandCount)
 
-  useEffect(() => {
-    if (previousStrandCount.current === renderStrandCount) return
-
-    previousStrandCount.current = renderStrandCount
+  // React restarts this render immediately, so a new count never paints with
+  // stale assignments while the mount-stable set remains unchanged otherwise.
+  if (previousStrandCount !== renderStrandCount) {
+    setPreviousStrandCount(renderStrandCount)
     setStrandAssignments(createDnaStrandAssignments(renderStrandCount))
-  }, [renderStrandCount])
+  }
 
   const responsiveTransform = resolveResponsiveBackgroundTransform({
     scale,

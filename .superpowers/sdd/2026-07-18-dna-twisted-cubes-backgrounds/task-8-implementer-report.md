@@ -140,7 +140,7 @@ No production option, control, sanitizer, renderer, or CSS behavior was changed.
 - A per-key allowlist identifies documented coupled renderer derivations. All other captured renderer sentinels, including resolved colors, must remain unchanged.
 - Cancel resets every isolated edit before the next control; canonical Undo/Redo/Cancel/Apply and Twisted Apply-then-Cancel proof remain covered.
 
-The reduced-motion matrix now pushes all 11 settings for the selected effect to their exact upper bounds, then checks saved settings without responsive mutation. Across desktop, phone portrait, short landscape, and real CDP 200% page scale, it verifies:
+The reduced-motion matrix now pushes all 11 numeric slider settings for the selected effect to their exact upper bounds, then checks saved settings without responsive mutation. DNA's separate `showBaseLetters` boolean control is outside that numeric slider map and its upper-bound checks; direct DOM coverage verifies that it adds and removes the 140 expected node labels. Across desktop, phone portrait, short landscape, and real CDP 200% page scale, the matrix verifies:
 
 - exact adapter/palette-resolver Harmony colors;
 - every DNA root/scene/strand geometry and timing variable, strand/node counts, and static strand/connector/node animations;
