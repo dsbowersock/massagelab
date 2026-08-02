@@ -356,7 +356,7 @@ test.describe("shared background palette review matrix", () => {
     expect(effectBounds?.height).toBeGreaterThan(0)
     expect(await effectLayer.evaluate((element) => {
       const root = element as HTMLElement
-      const composition = root.firstElementChild?.firstElementChild
+      const composition = root.querySelector('[data-testid="massage-lab-dna-composition"]')
       if (!(composition instanceof HTMLElement)) {
         throw new Error("The DNA review composition element is missing.")
       }
