@@ -135,10 +135,13 @@ test("revoked background access makes palette, property, and preset editing read
     runningTimerSource,
     /<BackgroundVisualPresetManager[\s\S]*disabled=\{!canCustomizeSelectedBackground\}[\s\S]*onDraftAction=/,
   )
-  assert.match(
-    runningTimerSource,
-    /variant="ghost"\s*disabled=\{!canCustomizeSelectedBackground\}\s*onClick=\{\(\) =>\s*dispatchVisualDraft\(\{\s*type: "reset-properties"/,
-  )
+  const resetPropertiesButton = runningTimerSource.match(
+    /<Button\b(?:(?!<\/Button>)[\s\S])*?type: "reset-properties"(?:(?!<\/Button>)[\s\S])*?<\/Button>/,
+  )?.[0]
+  assert.ok(resetPropertiesButton)
+  assert.match(resetPropertiesButton, /\bvariant="ghost"/)
+  assert.match(resetPropertiesButton, /\bdata-chimer-control="true"/)
+  assert.match(resetPropertiesButton, /\bdisabled=\{!canCustomizeSelectedBackground\}/)
   assert.match(
     runningTimerSource,
     /<Button(?:(?!<\/Button>)[\s\S])*?variant="destructive"(?:(?!<\/Button>)[\s\S])*?disabled=\{!visualDraft\?\.dirty\}(?:(?!<\/Button>)[\s\S])*?Cancel(?:(?!<\/Button>)[\s\S])*?<\/Button>/,
