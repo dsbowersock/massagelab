@@ -63,6 +63,13 @@ test("Playwright file filters skip separate option values", () => {
   )
 })
 
+test("Playwright file filters consume the grep-invert short-option value", () => {
+  assert.deepEqual(
+    getPlaywrightFileFilterArguments(["test", "-G", "tests/browser/background-palette.spec.ts"]),
+    ["test"],
+  )
+})
+
 test("Playwright file filters consume optional refs and every variadic project name", () => {
   assert.deepEqual(
     getPlaywrightFileFilterArguments([

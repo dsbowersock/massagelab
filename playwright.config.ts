@@ -77,7 +77,7 @@ export function matchesDevelopmentPaletteReviewArgument(argument: string) {
 }
 
 const playwrightOptionsWithSeparateValues = new Set([
-  "-c", "--config", "-g", "--grep", "--grep-invert", "-j", "--workers",
+  "-c", "--config", "-g", "--grep", "-G", "--grep-invert", "-j", "--workers",
   "--reporter", "--retries", "--timeout", "--global-timeout",
   "--max-failures", "--output", "--shard", "--trace", "--repeat-each", "--tsconfig",
   "--browser", "--last-failed-file", "--test-list", "--test-list-invert",

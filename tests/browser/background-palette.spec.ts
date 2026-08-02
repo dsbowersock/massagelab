@@ -664,6 +664,7 @@ test.describe("shared background palette review matrix", () => {
         .toBeGreaterThan(pausesBeforeHidden)
       await page.evaluate(() => {
         Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" })
+        document.dispatchEvent(new Event("visibilitychange"))
       })
 
       await video.dispatchEvent("error")

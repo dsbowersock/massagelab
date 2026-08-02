@@ -9,18 +9,18 @@
 }
 
 .scene {
-  --ml-dna-scene-width: 26vmin;
   position: absolute;
   top: 50%;
   left: 50%;
   width: var(--ml-dna-scene-width);
-  height: max(240vmin, 230vmax);
+  height: var(--ml-dna-scene-height);
   transform: translate(
       calc(-50% + var(--ml-dna-position-x)),
       calc(-50% + var(--ml-dna-position-y))
     )
     scale(var(--ml-dna-scale));
   transform-origin: center;
+  transform-style: preserve-3d;
 }
 
 .composition {
@@ -72,11 +72,13 @@
 }
 
 .nodeLabel {
-  color: #fff;
+  color: var(--ml-dna-outline-color);
   font-size: clamp(0.42rem, 1.25vmin, 0.9rem);
   font-weight: 800;
   line-height: 1;
-  text-shadow: 0 0 0.12em #000, 0 0 0.22em #000;
+  text-shadow:
+    0 0 0.12em var(--ml-dna-background-color),
+    0 0 0.22em var(--ml-dna-background-color);
   user-select: none;
 }
 

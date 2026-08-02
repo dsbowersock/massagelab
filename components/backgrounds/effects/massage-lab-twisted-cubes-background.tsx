@@ -17,7 +17,7 @@ import type { BackgroundEffectProps, MassageLabTwistedCubesOptions } from "./css
 import styles from "./massage-lab-twisted-cubes-background.module.css"
 
 type MassageLabTwistedCubesBackgroundProps = Pick<BackgroundEffectProps, "reduceMotion" | "compactViewport"> & {
-  massageLabTwistedCubes: MassageLabTwistedCubesOptions
+  massageLabTwistedCubes?: MassageLabTwistedCubesOptions
 }
 
 const CUBE_EDGES = [
@@ -47,6 +47,7 @@ export const MassageLabTwistedCubesBackground = memo(function MassageLabTwistedC
   reduceMotion = false,
   compactViewport = false,
 }: MassageLabTwistedCubesBackgroundProps) {
+  if (!massageLabTwistedCubes) return null
   const {
     layerCount,
     rotationSpeed,

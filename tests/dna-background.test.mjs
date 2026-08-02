@@ -116,10 +116,12 @@ describe("DNA background domain and shared layout rules", () => {
   })
 
   it("falls back to source defaults for non-finite DNA inputs", () => {
-    for (const invalid of [NaN, Infinity, -Infinity]) {
+    const numericOptionKeys = Object.keys(DEFAULT_DNA_BACKGROUND_OPTIONS)
+      .filter((key) => key !== "showBaseLetters")
+    for (const invalid of [NaN, Infinity, -Infinity, null, undefined, "20", true, {}]) {
       assert.deepEqual(
         sanitizeDnaBackgroundOptions(
-          Object.fromEntries(Object.keys(DEFAULT_DNA_BACKGROUND_OPTIONS).map((key) => [key, invalid])),
+          Object.fromEntries(numericOptionKeys.map((key) => [key, invalid])),
         ),
         DEFAULT_DNA_BACKGROUND_OPTIONS,
       )

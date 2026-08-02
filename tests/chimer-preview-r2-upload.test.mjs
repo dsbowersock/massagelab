@@ -33,9 +33,8 @@ describe("Chimer preview R2 uploader", () => {
       },
     })
 
-    assert.notEqual(result.error?.code, "ETIMEDOUT", "dry-run uploader completed within 30 seconds")
     assert.equal(result.error, undefined, `uploader failed to run: ${result.error?.message}`)
-    assert.equal(result.status, 0, result.stderr ?? "uploader produced no stderr")
+    assert.equal(result.status, 0, `uploader exited non-zero. stderr: ${result.stderr ?? "<empty>"}`)
     const summaryLine = result.stdout.split(/\r?\n/)
       .find((line) => line.startsWith(dryRunSummaryPrefix))
     assert.ok(summaryLine, result.stdout)

@@ -28,6 +28,11 @@ describe("Chimer entitlement-aware settings", () => {
         : "massageLabTwistedCubesLayerCount"
       const editedVisualValue = backgroundId === "massage-lab-dna" ? 17 : 24
       assert.equal(typeof DEFAULT_CHIMER_SETTINGS[visualPropertyKey], "number", backgroundId)
+      assert.notEqual(
+        editedVisualValue,
+        DEFAULT_CHIMER_SETTINGS[visualPropertyKey],
+        `${backgroundId} fixture must differ from its source default`,
+      )
       const featureSettings = sanitizeChimerSettingsForEntitlements({
         backgroundId,
         [visualPropertyKey]: editedVisualValue,

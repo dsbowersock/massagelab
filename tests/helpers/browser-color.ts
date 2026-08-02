@@ -6,6 +6,9 @@ export function normalizeBrowserColors(page: Page, values: readonly string[]) {
     const probe = document.createElement("span")
     try {
       probe.style.color = color
+      if (probe.style.color === "") {
+        throw new Error(`The browser rejected CSS color: ${color}`)
+      }
       document.body.append(probe)
       return getComputedStyle(probe).color
     } finally {

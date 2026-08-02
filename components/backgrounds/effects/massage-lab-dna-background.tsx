@@ -6,6 +6,7 @@ import {
   DNA_OPTION_BOUNDS,
   DNA_SOURCE_BACKGROUND_COLOR,
   DNA_SOURCE_CONNECTOR_COLOR,
+  DNA_SOURCE_GEOMETRY,
   DNA_SOURCE_NODE_ROLE_COLORS,
   DNA_SOURCE_OUTLINE_COLOR,
   getDnaNodeCycleSeconds,
@@ -17,8 +18,9 @@ import type { BackgroundEffectProps, MassageLabDnaOptions } from "./css-backgrou
 import styles from "./massage-lab-dna-background.module.css"
 
 type MassageLabDnaBackgroundProps = Pick<BackgroundEffectProps, "reduceMotion" | "compactViewport"> & {
-  massageLabDna: MassageLabDnaOptions
+  massageLabDna?: MassageLabDnaOptions
 }
+type MassageLabDnaRendererProps = MassageLabDnaBackgroundProps & { massageLabDna: MassageLabDnaOptions }
 
 /**
  * Renders the source DNA geometry with CSS-only motion. Biologically valid
@@ -26,11 +28,11 @@ type MassageLabDnaBackgroundProps = Pick<BackgroundEffectProps, "reduceMotion" |
  * palette roles whether labels are visible or hidden. A changed strand count
  * receives one fresh base-pair assignment set.
  */
-export const MassageLabDnaBackground = memo(function MassageLabDnaBackground({
+function MassageLabDnaRenderer({
   massageLabDna,
   reduceMotion = false,
   compactViewport = false,
-}: MassageLabDnaBackgroundProps) {
+}: MassageLabDnaRendererProps) {
   const {
     strandCount,
     showBaseLetters,
@@ -85,6 +87,8 @@ export const MassageLabDnaBackground = memo(function MassageLabDnaBackground({
     "--ml-dna-node-color-3": resolvedNodeRoleColors[3],
     "--ml-dna-connector-color": connectorColor,
     "--ml-dna-outline-color": outlineColor,
+    "--ml-dna-scene-width": `${DNA_SOURCE_GEOMETRY.widthVmin}vmin`,
+    "--ml-dna-scene-height": `max(${DNA_SOURCE_GEOMETRY.minimumHeightVmin}vmin, ${DNA_SOURCE_GEOMETRY.viewportHeightVmax}vmax)`,
     "--ml-dna-strand-angle": `${strandAngle}deg`,
     "--ml-dna-strand-spacing": `${strandSpacing}vmin`,
     "--ml-dna-connector-width": `${connectorWidth}%`,
@@ -147,4 +151,12 @@ export const MassageLabDnaBackground = memo(function MassageLabDnaBackground({
       </div>
     </div>
   )
+}
+
+/** Fails closed when a loosely typed registry caller omits the required DNA options. */
+export const MassageLabDnaBackground = memo(function MassageLabDnaBackground(
+  props: MassageLabDnaBackgroundProps,
+) {
+  if (!props.massageLabDna) return null
+  return <MassageLabDnaRenderer {...props} massageLabDna={props.massageLabDna} />
 })

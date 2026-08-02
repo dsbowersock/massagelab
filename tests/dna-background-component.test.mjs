@@ -4,7 +4,7 @@ import path from "node:path"
 import test from "node:test"
 import { fileURLToPath } from "node:url"
 
-import { extractInterfaceBody, maskSourceComments } from "./helpers/source-structure.mjs"
+import { extractInterfaceBody, maskCssComments, maskSourceComments } from "./helpers/source-structure.mjs"
 import { DNA_BASE_ROLE_INDEX, DNA_OPTION_BOUNDS } from "../lib/dna-background.js"
 
 const testsDirectory = path.dirname(fileURLToPath(import.meta.url))
@@ -20,7 +20,7 @@ test("the DNA renderer stays a scoped, non-interactive CSS DOM effect", () => {
   const componentSource = readFileSync(componentPath, "utf8")
   const stylesheetSource = readFileSync(stylesheetPath, "utf8")
   const componentCode = maskSourceComments(componentSource)
-  const stylesheetCode = maskSourceComments(stylesheetSource)
+  const stylesheetCode = maskCssComments(stylesheetSource)
 
   assert.equal(DNA_OPTION_BOUNDS.strandCount.maximum, 81)
   assert.deepEqual(DNA_BASE_ROLE_INDEX, { A: 0, T: 1, G: 2, C: 3 })
@@ -45,14 +45,19 @@ test("the DNA renderer stays a scoped, non-interactive CSS DOM effect", () => {
   assert.doesNotMatch(componentCode, /(?:billing|account|entitlement|stripe|registry|storage)/i)
   assert.doesNotMatch(componentCode, /\b(?:button|input|select|textarea|tabIndex|onClick|onPointer|onDrag)\b/)
 
-  assert.match(stylesheetCode, /width:\s*26vmin/)
-  assert.match(stylesheetCode, /height:\s*max\(240vmin,\s*230vmax\)/)
+  assert.match(componentCode, /"--ml-dna-scene-width": `\$\{DNA_SOURCE_GEOMETRY\.widthVmin\}vmin`/)
+  assert.match(componentCode, /"--ml-dna-scene-height": `max\(\$\{DNA_SOURCE_GEOMETRY\.minimumHeightVmin\}vmin, \$\{DNA_SOURCE_GEOMETRY\.viewportHeightVmax\}vmax\)`/)
+  assert.match(stylesheetCode, /width:\s*var\(--ml-dna-scene-width\)/)
+  assert.match(stylesheetCode, /height:\s*var\(--ml-dna-scene-height\)/)
+  assert.match(stylesheetCode, /\.scene\s*\{[\s\S]*?transform-style:\s*preserve-3d/)
   assert.match(stylesheetCode, /@keyframes\s+mlDnaNodeCrossover/)
   assert.match(stylesheetCode, /@keyframes\s+mlDnaConnectorCollapse/)
   assert.match(stylesheetCode, /@keyframes\s+mlDnaStrandRotate/)
   assert.match(stylesheetCode, /gap:\s*var\(--ml-dna-strand-spacing\)/)
   assert.match(stylesheetCode, /animation-direction:\s*reverse/)
   assert.match(stylesheetCode, /\.nodeLabel\s*\{[\s\S]*?font-weight:\s*800/)
+  assert.match(stylesheetCode, /\.nodeLabel\s*\{[\s\S]*?color:\s*var\(--ml-dna-outline-color\)/)
+  assert.match(componentCode, /if \(!props\.massageLabDna\) return null/)
   assert.match(stylesheetCode, /25%,[\s\S]*?75%[\s\S]*?scaleX\(0\)/)
   assert.match(stylesheetCode, /\[data-reduce-motion\]/)
   assert.match(stylesheetCode, /\.root \{[\s\S]*?pointer-events:\s*none;/)
