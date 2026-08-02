@@ -55,7 +55,7 @@ No source download, reusable component package, or implementation-oriented artif
 ## Goals
 
 - Ship DNA and Twisted Cubes as enabled premium backgrounds.
-- Preserve source colors until a user changes them. The post-implementation visual pass approved new MassageLab property defaults for DNA density/motion and Twisted Cubes rotation/viewport extent.
+- Preserve source colors until a user changes them. The post-implementation visual pass approved new MassageLab property defaults for DNA density/motion and Twisted Cubes rotation/scale. Twisted Cubes viewport extent remains render-only, derived from layer index, the `20vmax` step, and scale; it is never persisted as a `viewportExtent` preference.
 - Use native React-generated markup plus scoped CSS Modules.
 - Use Track 4A palette roles instead of new per-background color fields.
 - Expose approved, responsive, bounded visual controls.

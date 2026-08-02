@@ -8,7 +8,10 @@ import {
   resolveProbeDurationSeconds,
 } from "../scripts/chimer-preview-generation/probe-result.mjs"
 import { normalizeGeneratedPreviewManifestItem } from "../scripts/chimer-preview-generation/manifest-url-normalization.mjs"
-import { mergeGeneratedPreviewManifestItem } from "../scripts/chimer-preview-generation/manifest-item-merge.mjs"
+import {
+  buildGeneratedPreviewManifestItem,
+  mergeGeneratedPreviewManifestItem,
+} from "../scripts/chimer-preview-generation/manifest-item-merge.mjs"
 
 const componentSource = readFileSync(
   new URL("../components/backgrounds/BackgroundPreviewMedia.tsx", import.meta.url),
@@ -233,6 +236,13 @@ describe("background preview media", () => {
         square: incoming.variants.square,
       },
     })
+  })
+
+  it("rejects a generated manifest item without any rendered variant", () => {
+    assert.throws(
+      () => buildGeneratedPreviewManifestItem({ id: "missing", label: "Missing", provider: "MassageLab" }, {}),
+      /Preview manifest item "missing" requires at least one variant/,
+    )
   })
 
   it("reports FFprobe spawn and decoder failures before parsing dimensions", () => {

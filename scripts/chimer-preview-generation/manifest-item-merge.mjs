@@ -1,6 +1,9 @@
 /** Builds the top-level preview URLs from one complete variant map. */
 export function buildGeneratedPreviewManifestItem(entry, variants) {
-  const primary = variants.landscape ?? Object.values(variants)[0]
+  const primary = variants?.landscape ?? Object.values(variants ?? {})[0]
+  if (!primary) {
+    throw new Error(`Preview manifest item "${entry.id}" requires at least one variant.`)
+  }
 
   return {
     id: entry.id,

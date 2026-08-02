@@ -13,7 +13,6 @@ import {
   backgroundPreviewManifest,
   resolveVerticalPreviewMediaUrls,
 } from "@/components/backgrounds/backgroundPreviewManifest"
-import type { BackgroundEffectProps } from "@/components/backgrounds/effects/css-backgrounds"
 import {
   backgroundPaletteRegistry,
   type BackgroundPaletteAdapter,
@@ -583,7 +582,7 @@ function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) 
 
       <div className="relative min-h-80 overflow-hidden rounded-2xl border border-border bg-black">
         <BackgroundHost
-          {...hostPropsByContext.chimer as BackgroundEffectProps}
+          {...hostPropsByContext.chimer}
           selectedId={selectedId}
           category="chimer"
           access={access}

@@ -208,15 +208,15 @@ test("BackgroundHost mounts only active or static-capable effects and keeps revi
     motionBlock,
     /const ambientReducedMotion = useAmbientReducedMotion\(settings\.ambientMotionMode\)[\s\S]*const allowAmbientMotionForReview = process\.env\.NODE_ENV !== "production"[\s\S]*const reduceMotion = !motionEnabled \|\| \(!allowAmbientMotionForReview && ambientReducedMotion\)/,
   )
-  assert.match(
-    backgroundHostSource,
-    /entry\.component &&\s*\(!reduceMotion \|\| entry\.motionIntensity === "static" \|\| entry\.supportsReducedMotionStatic\)/,
-  )
   const effectGateBlock = sourceBetween(
     backgroundHostSource,
     "const shouldLoadEffect",
     "const { baseEffectProps",
     "BackgroundHost effect gate",
+  )
+  assert.match(
+    effectGateBlock,
+    /entry\.component &&\s*\(!reduceMotion \|\| entry\.motionIntensity === "static" \|\| entry\.supportsReducedMotionStatic\)/,
   )
   assert.doesNotMatch(
     effectGateBlock,

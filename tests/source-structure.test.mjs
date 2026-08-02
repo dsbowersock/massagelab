@@ -9,6 +9,7 @@ test("comment masking preserves quoted program text and JSX apostrophes", () => 
     const singleQuoted = '/* executable */';
     const template = \`// executable template\`;
     const pattern = /executable regex/;
+    const urlPattern = /https?:\\/\\/example\\.test\\/path/;
     const jsx = <p>DNA isn't random by color.</p>;
     // masked line comment
     /* masked block comment */
@@ -19,6 +20,7 @@ test("comment masking preserves quoted program text and JSX apostrophes", () => 
   assert.match(masked, /'\/\* executable \*\/'/)
   assert.match(masked, /`\/\/ executable template`/)
   assert.match(masked, /executable regex/)
+  assert.ok(masked.includes(String.raw`const urlPattern = /https?:\/\/example\.test\/path/;`))
   assert.match(masked, /DNA isn't random by color/)
   assert.doesNotMatch(masked, /masked line comment|masked block comment/)
 })

@@ -65,10 +65,7 @@ export function matchesDevelopmentPaletteReviewArgument(argument: string) {
         absoluteSpec.replaceAll("\\", "/"),
         absoluteSpec.replaceAll("/", "\\"),
       ])
-      return [...absoluteFormats].some((candidate) => {
-        filter.lastIndex = 0
-        return filter.test(candidate)
-      })
+      return [...absoluteFormats].some((candidate) => filter.test(candidate))
     })
     return regexMatches.length === 1
   } catch {
