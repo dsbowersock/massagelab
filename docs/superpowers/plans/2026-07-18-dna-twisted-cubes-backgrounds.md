@@ -87,7 +87,7 @@ export function getDnaStrandDelaySeconds({ oneBasedIndex, total, speed }) {}
 export function getDnaStrandPhase({ oneBasedIndex, total }) {}
 ```
 
-Assert the approved defaults produce `2 / 0.06` and `14 / 0.02` second durations. `getDnaStrandPhase` must calculate with `Math.sin`, not return a CSS `sin()` expression. `DNA_SOURCE_GEOMETRY` is fixed renderer metadata—not persisted user options—and tests/render-source assertions require a `26vmin`-wide scene whose height is `max(240vmin, 230vmax)`. At the approved 50% default this retains the prior off-screen envelope, while 70 strands preserve the reviewed node density and keep both ends beyond the viewport during horizontal rotation.
+Assert the approved defaults produce `2 / 0.06` and `14 / 0.02` second durations. `getDnaStrandPhase` must calculate with `Math.sin`, not return a CSS `sin()` expression. `DNA_SOURCE_GEOMETRY` is fixed renderer metadata—not persisted user options—and tests/render-source assertions require a `26vmin`-wide scene whose height is `max(240vmin, 230vmax)`. At the approved 50% default this retains the prior off-screen envelope, while 70 strands preserve the reviewed node density and keep both ends beyond the viewport during horizontal rotation. The repeated-edit browser fixture intentionally uses 25 DNA strands (50 nodes) to stay within its interaction cap; the separate default-render fixture proves 70 strands (140 nodes), and domain tests retain the 81-strand (162-node) upper-bound coverage outside that repeated-edit cap.
 
 Run: `node --test tests/dna-background.test.mjs`
 

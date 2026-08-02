@@ -91,8 +91,8 @@ function getVisualDraftStatusText({
   syncStatus,
 }: {
   dirty: boolean
-  storageStatus: string
-  syncStatus: string
+  storageStatus: RunningTimerProps["mode"]["storageStatus"]
+  syncStatus: RunningTimerProps["backgroundPreferenceSyncStatus"]
 }) {
   if (dirty) return "Unsaved changes"
   if (storageStatus === "loading") return "Loading saved preferences…"
@@ -13695,7 +13695,9 @@ export function RunningTimer({
                     syncStatus: backgroundPreferenceSyncStatus,
                   })}
                 </span>
-                {!visualDraft?.dirty && backgroundPreferenceSyncStatus === "stale" ? (
+                {!visualDraft?.dirty
+                  && mode.storageStatus === "available"
+                  && backgroundPreferenceSyncStatus === "stale" ? (
                   <Button type="button" size="compact" variant="cta" onClick={onRetryBackgroundVisualPreferences}>
                     Retry sync
                   </Button>

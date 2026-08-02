@@ -32,6 +32,7 @@ import {
   DEFAULT_CHIMER_SETTINGS,
   sanitizeChimerVisualCommitForEntitlements,
 } from "../lib/chimer-timer.js"
+import { maskSourceComments } from "./helpers/source-structure.mjs"
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8")
 
@@ -44,6 +45,9 @@ const musicMiniPlayerSource = await read("components/providers/music-mini-player
 const runningTimerStyles = await read("app/chimer/running-timer.module.css")
 const dnaControlsSource = await read("components/chimer-controls/DnaBackgroundControls.tsx")
 const twistedCubesControlsSource = await read("components/chimer-controls/TwistedCubesBackgroundControls.tsx")
+const runningTimerExecutableSource = maskSourceComments(runningTimerSource)
+const navigationGuardExecutableSource = maskSourceComments(navigationGuardSource)
+const unsavedDialogExecutableSource = maskSourceComments(unsavedDialogSource)
 
 const openingSnapshot = {
   palette: { mode: "custom", primaryColor: "#123456", harmony: "triadic", swatches: ["#123456", "#234567", "#345678", "#456789", "#56789a", "#6789ab", "#789abc"] },
@@ -922,7 +926,7 @@ test("live Visual integration owns draft preview, one Apply, and reachable actio
   assert.match(runningTimerSource, /BackgroundVisualPresetManager/)
   assert.match(runningTimerSource, /backgroundPalette=\{effectiveBackgroundPalette\}/)
   assert.match(runningTimerSource, /currentVisualSnapshot\?\.palette \?\? backgroundVisualPreferences\.palette/)
-  assert.doesNotMatch(runningTimerSource, /draftPalettePreview=/)
+  assert.doesNotMatch(runningTimerExecutableSource, /draftPalettePreview=/)
   assert.match(runningTimerSource, /hideLegacyColorControls/)
   assert.match(runningTimerSource, /hideLegacyPaletteMetadataControls/)
   assert.match(runningTimerSource, /type:\s*"reset-colors"/)
@@ -935,7 +939,7 @@ test("live Visual integration owns draft preview, one Apply, and reachable actio
   assert.match(pageSource, /resolveBackgroundVisualCommitScope/)
   assert.match(pageSource, /accessOverride\?: BackgroundAccessSnapshot/)
   assert.match(pageSource, /\}, accessOverride \?\? backgroundAccessRef\.current, \{/)
-  assert.doesNotMatch(navigationGuardSource, /localStorage|sessionStorage|fetch\(/)
+  assert.doesNotMatch(navigationGuardExecutableSource, /localStorage|sessionStorage|fetch\(/)
   assert.match(runningTimerStyles, /\.hideLegacyColorControls[\s\S]*\.colorRow/)
   assert.match(runningTimerStyles, /\.hideLegacyPaletteMetadataControls[\s\S]*color mode/)
 })
@@ -997,8 +1001,8 @@ test("authoritative access fallback replaces revoked background Visual identity"
   assert.match(runningTimerSource, /const adapter = backgroundPaletteRegistry\[visualBackgroundId\]/)
   assert.match(runningTimerSource, /const selectedPaletteAdapter = backgroundPaletteRegistry\[visualEditorBackgroundId\]/)
   assert.match(runningTimerSource, /mappingsByBackground as Record<string, Record<string, number>>\)\[visualBackgroundId\]/)
-  assert.doesNotMatch(runningTimerSource, /backgroundPaletteRegistry\[backgroundId\]/)
-  assert.doesNotMatch(runningTimerSource, /mappingsByBackground as Record<string, Record<string, number>>\)\[backgroundId\]/)
+  assert.doesNotMatch(runningTimerExecutableSource, /backgroundPaletteRegistry\[backgroundId\]/)
+  assert.doesNotMatch(runningTimerExecutableSource, /mappingsByBackground as Record<string, Record<string, number>>\)\[backgroundId\]/)
 })
 
 test("access-driven Visual rebase preserves explicit Apply, Discard, and Keep Editing outcomes", () => {
@@ -1224,16 +1228,16 @@ test("dirty navigation guard covers eligible app links, history, and native unlo
   assert.match(navigationGuardSource, /metaKey: event\.metaKey/)
   assert.match(navigationGuardSource, /anchor\.hasAttribute\("download"\)/)
   assert.match(navigationGuardSource, /target: anchor\.target \|\| "_self"/)
-  assert.doesNotMatch(navigationGuardSource, /history\.pushState/)
-  assert.doesNotMatch(navigationGuardSource, /history\.replaceState/)
-  assert.doesNotMatch(navigationGuardSource, /sessionStorage|VisualDraftGuard/)
+  assert.doesNotMatch(navigationGuardExecutableSource, /history\.pushState/)
+  assert.doesNotMatch(navigationGuardExecutableSource, /history\.replaceState/)
+  assert.doesNotMatch(navigationGuardExecutableSource, /sessionStorage|VisualDraftGuard/)
   assert.match(navigationGuardSource, /history\.go/)
   assert.match(navigationGuardSource, /installVisualDraftNavigationListeners/)
   assert.match(unsavedDialogSource, /Apply changes/)
   assert.match(unsavedDialogSource, /Discard changes/)
   assert.match(unsavedDialogSource, /Keep editing/)
   assert.match(unsavedDialogSource, /onCloseAutoFocus/)
-  assert.doesNotMatch(unsavedDialogSource, /document\.activeElement/)
+  assert.doesNotMatch(unsavedDialogExecutableSource, /document\.activeElement/)
   assert.match(unsavedDialogSource, /restoreFocusTarget/)
   assert.match(unsavedDialogSource, /explicitOutcomeRef/)
   assert.match(unsavedDialogSource, /useEffect\(\(\) => \{[\s\S]*if \(!open\)[\s\S]*explicitOutcomeRef\.current = false/)
@@ -1248,14 +1252,14 @@ test("dirty navigation guard covers eligible app links, history, and native unlo
   assert.match(runningTimerSource, /Changes active for this visit/)
   assert.match(
     runningTimerSource,
-    /!visualDraft\?\.dirty && backgroundPreferenceSyncStatus === "stale" \? \([\s\S]*?Retry sync/,
+    /!visualDraft\?\.dirty[\s\S]*?mode\.storageStatus === "available"[\s\S]*?backgroundPreferenceSyncStatus === "stale" \? \([\s\S]*?Retry sync/,
   )
   const headerActionGroupOpeningTag = runningTimerSource.match(
     /<div\s+className=\{styles\.visualHeaderDraftActions\}\s+role="group"\s+aria-label="Visual draft actions">/,
   )?.[0]
   assert.ok(headerActionGroupOpeningTag)
   assert.match(headerActionGroupOpeningTag, /\brole="group"/)
-  assert.doesNotMatch(runningTimerSource, /className=\{styles\.visualDraftActions\}/)
+  assert.doesNotMatch(runningTimerExecutableSource, /className=\{styles\.visualDraftActions\}/)
 })
 
 test("globe coordinate inputs keep string drafts and clock font changes remeasure", () => {
@@ -1359,7 +1363,10 @@ test("all DNA and Twisted Cubes keys execute the complete shared Visual draft li
     const adapter = backgroundPaletteRegistry[backgroundId]
     const sourceProperties = adapter.sourceVisualProperties
     const entries = Object.entries(changedProperties)
-    assert.deepEqual(Object.keys(changedProperties), adapter.visualPropertyKeys)
+    assert.deepEqual(
+      Object.keys(changedProperties).sort(),
+      [...adapter.visualPropertyKeys].sort(),
+    )
     for (const key of adapter.visualPropertyKeys) {
       assert.notEqual(sourceProperties[key], undefined, `${backgroundId}:${key} source value`)
     }

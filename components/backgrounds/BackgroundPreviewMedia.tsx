@@ -44,8 +44,12 @@ export function BackgroundPreviewMedia({
         video.pause()
         return
       }
-      void video.play().catch(() => {
-        if (!disposed) setVideoFailed(true)
+      void video.play().catch((error: unknown) => {
+        if (disposed) return
+        // pause(), source replacement, and unmount may abort an in-flight play
+        // without indicating that the preview asset itself failed.
+        if (error instanceof DOMException && error.name === "AbortError") return
+        setVideoFailed(true)
       })
     }
     syncPlayback()

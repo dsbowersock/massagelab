@@ -1090,7 +1090,13 @@ test("539px dock headers own shared actions and compact visual color controls", 
     const actionRects = actionElements.map((element) => element?.getBoundingClientRect())
     const close = header.querySelector<HTMLElement>("[aria-label='Close Visual panel']")?.getBoundingClientRect()
     const bounds = header.getBoundingClientRect()
-    if (!title || !toggle || !swatch || !colorControl || !close || actionElements.some((element) => !element) || actionRects.some((rect) => !rect)) return null
+    const missing = [
+      ["title", title], ["toggle", toggle], ["swatch", swatch],
+      ["colorControl", colorControl], ["close", close],
+      ...actionElements.map((element, index) => [`action-${index}`, element] as const),
+    ].filter(([, value]) => !value).map(([name]) => name)
+    if (!title || !toggle || !swatch || !colorControl || !close
+      || missing.length > 0 || actionRects.some((rect) => !rect)) return { missing }
     const validatedActionRects = actionRects as DOMRect[]
     const ordered = [
       header.querySelector<HTMLElement>("[aria-label='Clock color picker']"),
@@ -1143,12 +1149,18 @@ test("539px dock headers own shared actions and compact visual color controls", 
       header.querySelector<HTMLElement>(`[aria-label='${label}']`)?.getBoundingClientRect()
     ))
     const bounds = header.getBoundingClientRect()
-    if (!title || !close || !color || actions.some((rect) => !rect)) return null
+    const missing = [
+      ["title", title], ["close", close], ["color", color],
+      ...actions.map((action, index) => [`action-${index}`, action] as const),
+    ].filter(([, value]) => !value).map(([name]) => name)
+    if (!title || !close || !color || missing.length > 0) return { missing }
+    const validatedActions = actions as DOMRect[]
     return {
-      controlsOnSecondRow: [color, ...actions].every((rect) => Boolean(rect) && (rect?.top ?? 0) >= title.bottom),
+      controlsOnSecondRow: [color, ...validatedActions].every((rect) => rect.top >= title.bottom),
       closeOnTitleRow: Math.abs((close.top + close.bottom) / 2 - (title.top + title.bottom) / 2) <= 2,
-      allInside: [color, ...actions].every((rect) => Boolean(rect)
-        && (rect?.left ?? 0) >= bounds.left && (rect?.right ?? 0) <= bounds.right),
+      allInside: [color, ...validatedActions].every((rect) => (
+        rect.left >= bounds.left && rect.right <= bounds.right
+      )),
       noHorizontalOverflow: header.scrollWidth <= header.clientWidth + 1,
     }
   })
@@ -1173,7 +1185,12 @@ test("539px dock headers own shared actions and compact visual color controls", 
     const actions = actionElements.map((element) => element?.getBoundingClientRect())
     const close = header.querySelector<HTMLElement>("[aria-label='Close Visual panel']")?.getBoundingClientRect()
     const bounds = header.getBoundingClientRect()
-    if (!title || !toggle || !close || actions.some((action) => !action)) return null
+    const missing = [
+      ["title", title], ["toggle", toggle], ["close", close],
+      ...actions.map((action, index) => [`action-${index}`, action] as const),
+    ].filter(([, value]) => !value).map(([name]) => name)
+    if (!title || !toggle || !close || missing.length > 0) return { missing }
+    const validatedActions = actions as DOMRect[]
     const overlaps = (first: DOMRect, second: DOMRect) => !(
       first.right <= second.left
       || second.right <= first.left
@@ -1183,12 +1200,13 @@ test("539px dock headers own shared actions and compact visual color controls", 
     return {
       titleReadable: title.width > 0 && title.height > 0,
       toggleInside: toggle.left >= bounds.left && toggle.right <= bounds.right,
-      actionsInside: actions.every((action) => Boolean(action)
-        && (action?.left ?? 0) >= bounds.left && (action?.right ?? 0) <= bounds.right),
+      actionsInside: validatedActions.every((action) => (
+        action.left >= bounds.left && action.right <= bounds.right
+      )),
       closeInside: close.left >= bounds.left && close.right <= bounds.right,
-      actionsClearOfClose: actions.every((action) => Boolean(action) && !overlaps(action as DOMRect, close)),
+      actionsClearOfClose: validatedActions.every((action) => !overlaps(action, close)),
       titleClearOfToggle: !overlaps(title, toggle),
-      toggleClearOfActions: actions.every((action) => Boolean(action) && !overlaps(toggle, action as DOMRect)),
+      toggleClearOfActions: validatedActions.every((action) => !overlaps(toggle, action)),
       noHorizontalOverflow: header.scrollWidth <= header.clientWidth + 1,
     }
   })

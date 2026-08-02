@@ -202,8 +202,7 @@ async function expectRenderedContract(host: Locator, id: typeof EFFECTS[number][
     const sceneVars = await root.locator(":scope > div").evaluate((element) => {
       const style = (element as HTMLElement).style
       return [
-        "--ml-twisted-cubes-scale", "--ml-twisted-cubes-position-x",
-        "--ml-twisted-cubes-position-y",
+        "--ml-twisted-cubes-position-x", "--ml-twisted-cubes-position-y",
       ].map((name) => style.getPropertyValue(name))
     })
     expect(sceneVars.every(Boolean)).toBe(true)
@@ -269,7 +268,6 @@ async function captureControlRenderState(host: Locator, id: typeof EFFECTS[numbe
       cycle: rootStyle.getPropertyValue("--ml-twisted-cubes-cycle"),
       viewAngleX: rootStyle.getPropertyValue("--ml-twisted-cubes-view-angle-x"),
       viewAngleY: rootStyle.getPropertyValue("--ml-twisted-cubes-view-angle-y"),
-      scale: sceneStyle.getPropertyValue("--ml-twisted-cubes-scale"),
       positionX: sceneStyle.getPropertyValue("--ml-twisted-cubes-position-x"),
       positionY: sceneStyle.getPropertyValue("--ml-twisted-cubes-position-y"),
       layerCount: layers.length,
@@ -375,7 +373,10 @@ async function captureComputedConsumerState(host: Locator, id: typeof EFFECTS[nu
     const view = firstLayer?.firstElementChild as HTMLElement
     const firstCube = view?.firstElementChild as HTMLElement
     const firstEdge = firstLayer?.querySelector<HTMLElement>(":scope > span > span > span > span")
-    const cubeAnimation = firstCube?.getAnimations()[0]
+    if (!scene || !firstLayer || !secondLayer || !view || !firstCube || !firstEdge) {
+      throw new Error("Twisted Cubes consumer fixture is missing its scene, first two layers, cube, or edge")
+    }
+    const cubeAnimation = firstCube.getAnimations()[0]
     if (cubeAnimation) {
       cubeAnimation.pause()
       cubeAnimation.currentTime = 0
@@ -386,7 +387,7 @@ async function captureComputedConsumerState(host: Locator, id: typeof EFFECTS[nu
     const firstLayerCss = getComputedStyle(firstLayer)
     const secondLayerCss = getComputedStyle(secondLayer)
     const cubeCss = getComputedStyle(firstCube)
-    const edgeCss = getComputedStyle(firstEdge as HTMLElement)
+    const edgeCss = getComputedStyle(firstEdge)
     return {
       rootBackground: rootCss.backgroundColor,
       sceneTransform: sceneCss.transform,
@@ -652,7 +653,6 @@ async function expectExactControlRender({
     },
     massageLabTwistedCubesLayerDepthSpacing: { secondDepth: `${(count - 2) * properties.massageLabTwistedCubesLayerDepthSpacing}vmin` },
     massageLabTwistedCubesScale: {
-      scale: String(transform.scale),
       firstSize: `${getTwistedCubeLayerSizeVmax({ oneBasedIndex: 1, count, scale: transform.scale })}vmax`,
     },
     massageLabTwistedCubesPositionX: { positionX: `${transform.positionX}vw` },
@@ -936,7 +936,7 @@ async function expectExactComputedConsumer({
         oneBasedIndex: 1,
         count,
         opacityFalloff: properties.massageLabTwistedCubesOpacityFalloff,
-      }), 6)
+      }), 5)
       expect(after.edgeWidth).toBe(firstEdgeSizeExpected.width)
       expect(after.edgeHeight).toBe(firstEdgeSizeExpected.height)
       break
@@ -957,7 +957,7 @@ async function expectExactComputedConsumer({
         oneBasedIndex: 1,
         count,
         opacityFalloff: properties[key],
-      }), 6)
+      }), 5)
       break
     case "massageLabTwistedCubesOutlineThickness":
       expect(after.edgeHeight).toBe(firstEdgeSizeExpected.height)
@@ -1175,9 +1175,6 @@ async function expectExactReducedEffectState(
     positionY: properties.massageLabTwistedCubesPositionY,
     compactViewport,
   })
-  await expect.poll(() => root.locator(":scope > div").evaluate((scene) => (
-    (scene as HTMLElement).style.getPropertyValue("--ml-twisted-cubes-scale")
-  ))).toBe(String(transform.scale))
   const outlineRoleNames = ["one", "two", "three", "four", "five", "six"]
   const anchors = outlineRoleNames.map((name) => roleColors[`outline-${name}`])
   const actual = await root.evaluate((element) => {
@@ -1193,7 +1190,6 @@ async function expectExactReducedEffectState(
         y: style.getPropertyValue("--ml-twisted-cubes-view-angle-y"),
       },
       scene: {
-        scale: sceneStyle.getPropertyValue("--ml-twisted-cubes-scale"),
         x: sceneStyle.getPropertyValue("--ml-twisted-cubes-position-x"),
         y: sceneStyle.getPropertyValue("--ml-twisted-cubes-position-y"),
       },
@@ -1216,7 +1212,6 @@ async function expectExactReducedEffectState(
     y: `${properties.massageLabTwistedCubesViewAngleY}deg`,
   })
   expect(actual.scene).toEqual({
-    scale: String(transform.scale),
     x: `${transform.positionX}vw`,
     y: `${transform.positionY}vh`,
   })

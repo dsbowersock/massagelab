@@ -34,9 +34,11 @@ describe("Chimer preview R2 uploader", () => {
 
     assert.notEqual(result.error?.code, "ETIMEDOUT", "dry-run uploader completed within 30 seconds")
     assert.equal(result.status, 0, result.stderr)
-    const json = result.stdout.match(/\{\s*"dryRun": true[\s\S]*$/)?.[0]
-    assert.ok(json, result.stdout)
-    const summary = JSON.parse(json)
+    const dryRunField = result.stdout.indexOf('"dryRun": true')
+    const jsonStart = result.stdout.lastIndexOf("{", dryRunField)
+    const jsonEnd = result.stdout.lastIndexOf("}")
+    assert.ok(jsonStart >= 0 && jsonEnd > jsonStart, result.stdout)
+    const summary = JSON.parse(result.stdout.slice(jsonStart, jsonEnd + 1))
     assert.equal(summary.dryRun, true)
     const selectedObjects = summary.objects.filter(({ objectKey }) => {
       const name = path.basename(objectKey)

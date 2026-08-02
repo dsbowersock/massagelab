@@ -206,14 +206,10 @@ test("development review exposes the complete shared background palette matrix",
   assert.match(gallery, /process\.env\.NODE_ENV/)
 })
 
-test("development review exposes the real DNA and Twisted Cubes acceptance matrix", async () => {
-  const [gallery, browserSource, playwrightConfig, sliderSource, colorSliderSource] = await Promise.all([
-    read("app/dev/buttons/background-palette-gallery.tsx").then(maskSourceComments),
-    read("tests/browser/dna-twisted-cubes-backgrounds.spec.ts").then(maskSourceComments),
-    read("playwright.config.ts"),
-    read("components/ui/slider.tsx"),
-    read("components/chimer-controls/ColorSlider.tsx"),
-  ])
+test("Track 4B computed-consumer contracts project the complete acceptance matrix", async () => {
+  const browserSource = maskSourceComments(
+    await read("tests/browser/dna-twisted-cubes-backgrounds.spec.ts"),
+  )
 
   // This literal projection intentionally duplicates the runtime contract as a
   // change detector; update both tables together when a consumer changes.
@@ -255,12 +251,18 @@ test("development review exposes the real DNA and Twisted Cubes acceptance matri
     ["massage-lab-twisted-cubes", "View angle Y", "massageLabTwistedCubesViewAngleY", ".layer > .view", "transform", "viewAngleY", "viewTransform"],
     ["massage-lab-twisted-cubes", "Layer count", "massageLabTwistedCubesLayerCount", "[style*='--ml-twisted-cubes-outline'] > .view > .cube > .cuboid > .edge", "count|depth|size|animationDelay|transform|opacity", "layerCount|middleOutline|firstAlpha|firstDelay|firstSize|secondDepth", "layerCount|edgeCount|firstLayerTransform|secondLayerTransform|cubeTransform|cubeDelay|edgeWidth|edgeHeight|edgeOpacity"],
     ["massage-lab-twisted-cubes", "Layer depth", "massageLabTwistedCubesLayerDepthSpacing", "[style*='--ml-twisted-cubes-outline']", "transform", "secondDepth", "firstLayerTransform|secondLayerTransform"],
-    ["massage-lab-twisted-cubes", "Scale", "massageLabTwistedCubesScale", "cube wireframe edges", "size|transform", "scale|firstSize", "cubeTransform|edgeWidth|edgeHeight"],
+    ["massage-lab-twisted-cubes", "Scale", "massageLabTwistedCubesScale", "cube wireframe edges", "size|transform", "firstSize", "cubeTransform|edgeWidth|edgeHeight"],
     ["massage-lab-twisted-cubes", "Position X", "massageLabTwistedCubesPositionX", ":scope > .scene", "transform", "positionX", "sceneTransform"],
     ["massage-lab-twisted-cubes", "Position Y", "massageLabTwistedCubesPositionY", ":scope > .scene", "transform", "positionY", "sceneTransform"],
     ["massage-lab-twisted-cubes", "Fade falloff", "massageLabTwistedCubesOpacityFalloff", "first .edge", "opacity", "firstAlpha", "edgeOpacity"],
     ["massage-lab-twisted-cubes", "Relative outline thickness", "massageLabTwistedCubesOutlineThickness", "first .edge", "height", "firstOutlineThickness", "edgeHeight"],
   ])
+})
+
+test("Track 4B gallery exposes controls, state scenarios, and preview evidence", async () => {
+  const gallery = maskSourceComments(
+    await read("app/dev/buttons/background-palette-gallery.tsx"),
+  )
 
   assert.match(gallery, /DnaBackgroundControls/)
   assert.match(gallery, /TwistedCubesBackgroundControls/)
@@ -283,6 +285,13 @@ test("development review exposes the real DNA and Twisted Cubes acceptance matri
   assert.match(gallery, /setAppliedSnapshot\(nextDraft\.openingSnapshot\)/)
   assert.match(gallery, /data-current-palette/)
   assert.match(gallery, /data-current-mapping/)
+})
+
+test("Track 4B browser review covers geometry, motion, and diagnostics", async () => {
+  const [browserSource, playwrightConfig] = await Promise.all([
+    read("tests/browser/dna-twisted-cubes-backgrounds.spec.ts").then(maskSourceComments),
+    read("playwright.config.ts"),
+  ])
 
   assert.match(browserSource, /desktop[\s\S]*phone portrait[\s\S]*short landscape/i)
   assert.match(browserSource, /reducedMotion/)
@@ -317,6 +326,14 @@ test("development review exposes the real DNA and Twisted Cubes acceptance matri
   assert.match(browserSource, /width:\s*"0px"[\s\S]*height:\s*"0px"/)
   assert.doesNotMatch(browserSource, /test\.skip\(/)
   assert.match(playwrightConfig, /dna-twisted-cubes-backgrounds\.spec\.ts/)
+})
+
+test("Track 4B shared sliders preserve accessible labeling", async () => {
+  const [sliderSource, colorSliderSource] = await Promise.all([
+    read("components/ui/slider.tsx"),
+    read("components/chimer-controls/ColorSlider.tsx"),
+  ])
+
   assert.match(sliderSource, /<SliderPrimitive\.Thumb[\s\S]*aria-label=\{ariaLabel\}/)
   assert.match(sliderSource, /aria-labelledby=\{ariaLabelledBy\}/)
   assert.match(sliderSource, /aria-describedby=\{ariaDescribedBy\}/)

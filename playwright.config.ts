@@ -35,7 +35,7 @@ const developmentPaletteReviewSpecs = [
 const developmentPaletteReviewIgnoreGlobs = developmentPaletteReviewSpecs
   .map((spec) => `**/${path.posix.basename(spec)}`)
 
-/** Matches exact development-review specs and Playwright's unique substring filters. */
+/** Matches exact development-review specs plus Playwright substring and regex filters. */
 export function matchesDevelopmentPaletteReviewArgument(argument: string) {
   const normalizedArgument = argument
     .replaceAll("\\", "/")
@@ -45,26 +45,37 @@ export function matchesDevelopmentPaletteReviewArgument(argument: string) {
   if (developmentPaletteReviewSpecs.some((spec) => (
     normalizedArgument === spec || normalizedArgument.endsWith(`/${spec}`)
   ))) return true
-  if (!isStandaloneFilter) {
-    return developmentPaletteReviewSpecs.filter((spec) => (
+  const substringMatches = !isStandaloneFilter
+    ? developmentPaletteReviewSpecs.filter((spec) => (
       spec.includes(normalizedArgument)
-    )).length === 1
-  }
+    ))
+    : developmentPaletteReviewSpecs.filter((spec) => (
+      path.posix.basename(spec).includes(argumentBasename)
+    ))
+  // Only unique substrings select the development server. Ambiguous or absent
+  // substring matches fall through to Playwright's absolute-path regex model.
+  if (substringMatches.length === 1) return true
 
-  // Playwright accepts positional filename substrings. Only switch servers
-  // when that substring identifies exactly one development-only review spec.
-  return developmentPaletteReviewSpecs.filter((spec) => (
-    path.posix.basename(spec).includes(argumentBasename)
-  )).length === 1
+  try {
+    const filter = new RegExp(argument)
+    return developmentPaletteReviewSpecs.some((spec) => {
+      const absoluteSpec = path.resolve(spec)
+      return filter.test(absoluteSpec) || filter.test(absoluteSpec.replaceAll("\\", "/"))
+    })
+  } catch {
+    return false
+  }
 }
 
 const playwrightOptionsWithSeparateValues = new Set([
   "-c", "--config", "-g", "--grep", "--grep-invert", "-j", "--workers",
-  "--project", "--reporter", "--retries", "--timeout", "--global-timeout",
+  "--reporter", "--retries", "--timeout", "--global-timeout",
   "--max-failures", "--output", "--shard", "--trace", "--repeat-each", "--tsconfig",
   "--browser", "--last-failed-file", "--test-list", "--test-list-invert",
   "--ui-host", "--ui-port", "--update-source-method",
 ])
+const playwrightOptionsWithOptionalSeparateValues = new Set(["--only-changed"])
+const playwrightOptionsWithVariadicValues = new Set(["--project"])
 
 /** Returns only positional Playwright arguments, excluding option names and their values. */
 export function getPlaywrightFileFilterArguments(argv: readonly string[]) {
@@ -77,6 +88,14 @@ export function getPlaywrightFileFilterArguments(argv: readonly string[]) {
     }
     if (playwrightOptionsWithSeparateValues.has(argument)) {
       index += 1
+      continue
+    }
+    if (playwrightOptionsWithOptionalSeparateValues.has(argument)) {
+      if (argv[index + 1] && !argv[index + 1].startsWith("-")) index += 1
+      continue
+    }
+    if (playwrightOptionsWithVariadicValues.has(argument)) {
+      while (argv[index + 1] && !argv[index + 1].startsWith("-")) index += 1
       continue
     }
     if (argument.startsWith("-")) continue

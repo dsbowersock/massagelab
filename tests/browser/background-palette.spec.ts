@@ -565,13 +565,13 @@ test.describe("shared background palette review matrix", () => {
       type PreviewMediaProbe = {
         playCalls: number
         pauseCalls: number
-        rejectPlay: boolean
+        rejectPlayAs: "AbortError" | "NotAllowedError" | null
         visibilityListeners: Set<EventListenerOrEventListenerObject>
       }
       const probe: PreviewMediaProbe = {
         playCalls: 0,
         pauseCalls: 0,
-        rejectPlay: false,
+        rejectPlayAs: null,
         visibilityListeners: new Set(),
       }
       Reflect.set(window, "__previewMediaProbe", probe)
@@ -579,7 +579,9 @@ test.describe("shared background palette review matrix", () => {
       HTMLMediaElement.prototype.play = function play() {
         if (this.dataset.testid === "carousel-background-video") {
           probe.playCalls += 1
-          if (probe.rejectPlay) return Promise.reject(new DOMException("Autoplay blocked", "NotAllowedError"))
+          if (probe.rejectPlayAs) {
+            return Promise.reject(new DOMException("Preview playback rejected", probe.rejectPlayAs))
+          }
         }
         return Promise.resolve()
       }
@@ -679,7 +681,14 @@ test.describe("shared background palette review matrix", () => {
     ).visibilityListenerCount).toBe(baselineListeners)
 
     await page.evaluate(() => {
-      Reflect.get(window, "__previewMediaProbe").rejectPlay = true
+      Reflect.get(window, "__previewMediaProbe").rejectPlayAs = "AbortError"
+    })
+    await fixture.getByRole("button", { name: "Mount preview" }).click()
+    await expect(video).toBeVisible()
+    await fixture.getByRole("button", { name: "Unmount preview" }).click()
+
+    await page.evaluate(() => {
+      Reflect.get(window, "__previewMediaProbe").rejectPlayAs = "NotAllowedError"
     })
     await fixture.getByRole("button", { name: "Mount preview" }).click()
     await expect(video).toHaveCount(0)

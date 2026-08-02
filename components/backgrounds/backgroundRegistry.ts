@@ -469,7 +469,8 @@ const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
   },
   {
     id: "massage-lab-wave-current",
-    // Existing catalog label retained pending a separate product naming decision.
+    // Duplicate display copy is intentionally retained pending a separate
+    // product naming decision; stable IDs distinguish the two effects.
     label: "Wave Current",
     provider: "MassageLab",
     sourceUrl: "internal",
@@ -1358,7 +1359,8 @@ const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
   },
   {
     id: "massage-lab-waves",
-    // Existing catalog label retained pending a separate product naming decision.
+    // Keep this approved duplicate label pending a separate catalog naming
+    // decision; stable IDs continue to distinguish the two effects.
     label: "Wave Current",
     provider: "MassageLab",
     sourceUrl: "internal",

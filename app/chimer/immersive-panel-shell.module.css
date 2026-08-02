@@ -366,6 +366,9 @@
   }
 }
 
+/* Clock wraps only at phone width; Visual needs the same grid earlier because
+   its Undo/Redo/Cancel/Apply cluster is materially wider. Keep the separate
+   breakpoints even though the grid-area declarations intentionally match. */
 @media (max-width: 420px) {
   .dock[data-immersive-panel="clock"] .dockHeader {
     display: grid;

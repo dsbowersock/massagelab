@@ -77,7 +77,6 @@ export const MassageLabTwistedCubesBackground = memo(function MassageLabTwistedC
     "--ml-twisted-cubes-view-angle-y": `${viewAngleY}deg`,
   } as CSSProperties
   const sceneStyle = {
-    "--ml-twisted-cubes-scale": responsiveTransform.scale,
     "--ml-twisted-cubes-position-x": `${responsiveTransform.positionX}vw`,
     "--ml-twisted-cubes-position-y": `${responsiveTransform.positionY}vh`,
   } as CSSProperties

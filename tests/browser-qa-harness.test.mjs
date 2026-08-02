@@ -33,8 +33,10 @@ test("development review spec matching accepts Playwright line and column suffix
   assert.equal(matchesDevelopmentPaletteReviewArgument("dna-twisted"), true)
   assert.equal(matchesDevelopmentPaletteReviewArgument("browser/dna-twisted"), true)
   assert.equal(matchesDevelopmentPaletteReviewArgument("background-palette"), true)
-  assert.equal(matchesDevelopmentPaletteReviewArgument("spec"), false)
-  assert.equal(matchesDevelopmentPaletteReviewArgument("tests/browser"), false)
+  assert.equal(matchesDevelopmentPaletteReviewArgument(String.raw`dna.*cubes-backgrounds\.spec\.ts`), true)
+  assert.equal(matchesDevelopmentPaletteReviewArgument("[invalid"), false)
+  assert.equal(matchesDevelopmentPaletteReviewArgument("spec"), true)
+  assert.equal(matchesDevelopmentPaletteReviewArgument("tests/browser"), true)
   assert.equal(matchesDevelopmentPaletteReviewArgument("tests/browser/public-routes.spec.ts:42"), false)
   assert.equal(matchesDevelopmentPaletteReviewArgument("prefix-tests/browser/background-palette.spec.ts"), false)
 })
@@ -44,6 +46,19 @@ test("Playwright file filters skip separate option values", () => {
     getPlaywrightFileFilterArguments([
       "test",
       "--project", "desktop-chromium",
+      "--grep", "dna-twisted",
+      "tests/browser/public-routes.spec.ts",
+    ]),
+    ["test", "tests/browser/public-routes.spec.ts"],
+  )
+})
+
+test("Playwright file filters consume optional refs and every variadic project name", () => {
+  assert.deepEqual(
+    getPlaywrightFileFilterArguments([
+      "test",
+      "--only-changed", "origin/main",
+      "--project", "desktop-chromium", "mobile-chromium",
       "--grep", "dna-twisted",
       "tests/browser/public-routes.spec.ts",
     ]),

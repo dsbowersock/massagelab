@@ -416,7 +416,7 @@ describe("background palette adapter registry", () => {
         roleColors[role.id] = `#${(index + 1).toString(16).padStart(6, "0")}`
       }
 
-      const before = adapter.applyRoleColors({}, sourceRoleColors)
+      const before = adapter.applyRoleColors(fixtureForAdapter(adapter), sourceRoleColors)
       const after = adapter.applyRoleColors(before, roleColors)
       assert.deepEqual(
         [...changedLeafPaths(before, after)].sort(),
@@ -694,6 +694,11 @@ describe("background palette adapter registry", () => {
     })
     assert.equal(harmony.massageLabTwistedCubes.paletteMode, "resolved")
     assert.equal(harmony.massageLabTwistedCubes.outlineAnchors.length, 6)
+    assert.equal(new Set(harmony.massageLabTwistedCubes.outlineAnchors).size, 6)
+    assert.notDeepEqual(
+      harmony.massageLabTwistedCubes.outlineAnchors,
+      TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS,
+    )
 
     const source = resolveBackgroundEffectProps({
       selectedId: "massage-lab-twisted-cubes",
@@ -715,7 +720,9 @@ describe("background palette adapter registry", () => {
   })
 
   it("completes DNA and Twisted Cubes role arrays from source fallbacks", () => {
-    const dna = applyCssDomPaletteRoleColors("massage-lab-dna", {}, {
+    const dnaFixture = structuredClone(cssDomFixtures["massage-lab-dna"])
+    delete dnaFixture.massageLabDna.nodeRoleColors
+    const dna = applyCssDomPaletteRoleColors("massage-lab-dna", dnaFixture, {
       "node-one": "#123456",
     })
     assert.deepEqual(dna.massageLabDna.nodeRoleColors, [
@@ -723,11 +730,9 @@ describe("background palette adapter registry", () => {
       ...DNA_SOURCE_NODE_ROLE_COLORS.slice(1),
     ])
 
-    const cubes = applyCssDomPaletteRoleColors("massage-lab-twisted-cubes", {
-      massageLabTwistedCubes: {
-        outlineAnchors: ["#abcdef"],
-      },
-    }, {
+    const cubesFixture = structuredClone(cssDomFixtures["massage-lab-twisted-cubes"])
+    cubesFixture.massageLabTwistedCubes.outlineAnchors = ["#abcdef"]
+    const cubes = applyCssDomPaletteRoleColors("massage-lab-twisted-cubes", cubesFixture, {
       "outline-three": "#654321",
     })
     assert.deepEqual(cubes.massageLabTwistedCubes.outlineAnchors, [

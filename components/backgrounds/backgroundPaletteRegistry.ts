@@ -70,6 +70,8 @@ export const TWISTED_CUBES_SOURCE_BACKGROUND_COLOR = "hsl(210 20% 12%)"
 export const DNA_SOURCE_NODE_ROLE_COLORS = Object.freeze([
   "hsl(44 98% 60%)",
   "hsl(197 50% 44%)",
+  // The source renderer intentionally uses 100% lightness here: Guanine is
+  // the approved white role, not a magenta reinterpretation of the hue.
   "hsl(300 100% 100%)",
   "hsl(331 76% 50%)",
 ] as const)
@@ -361,6 +363,7 @@ export function applyCssDomPaletteRoleColors<
         },
       }
     case "massage-lab-dna":
+      if (!props.massageLabDna) return props
       return {
         ...props,
         massageLabDna: {
@@ -377,9 +380,10 @@ export function applyCssDomPaletteRoleColors<
             ?? DNA_SOURCE_CONNECTOR_COLOR,
           outlineColor: roleColor(colors, "outline", props.massageLabDna?.outlineColor)
             ?? DNA_SOURCE_OUTLINE_COLOR,
-        } as NonNullable<BackgroundEffectProps["massageLabDna"]>,
-      }
+        },
+      } satisfies BackgroundEffectProps
     case "massage-lab-twisted-cubes":
+      if (!props.massageLabTwistedCubes) return props
       return {
         ...props,
         massageLabTwistedCubes: {
@@ -395,8 +399,8 @@ export function applyCssDomPaletteRoleColors<
             colors,
             TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS,
           ) as [string, string, string, string, string, string],
-        } as NonNullable<BackgroundEffectProps["massageLabTwistedCubes"]>,
-      }
+        },
+      } satisfies BackgroundEffectProps
     case "massage-lab-grid-motion":
       return {
         ...props,
@@ -515,8 +519,11 @@ function supported(spec: SupportedSpec): SupportedBackgroundPaletteAdapter {
     sourceColorOverride,
     defaultSwatchOverride,
   ], index) => {
-    const sourceColor = sourceColorOverride
-      ?? String(CHIMER_BACKGROUND_SOURCE_COLOR_DEFAULTS[sourceSettingKey])
+    const sourceDefault = CHIMER_BACKGROUND_SOURCE_COLOR_DEFAULTS[sourceSettingKey]
+    if (sourceColorOverride === undefined && typeof sourceDefault !== "string") {
+      throw new Error(`Missing source color for ${spec.id}:${sourceSettingKey}`)
+    }
+    const sourceColor = sourceColorOverride ?? sourceDefault as string
     return {
       id,
       label,
