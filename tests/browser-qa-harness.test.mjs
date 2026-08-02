@@ -108,6 +108,13 @@ test("Playwright file filters skip every supported option with a separate value"
   )
 })
 
+test("Playwright file filters tolerate trailing options and an empty terminator", () => {
+  assert.deepEqual(getPlaywrightFileFilterArguments(["test", "--grep"]), ["test"])
+  assert.deepEqual(getPlaywrightFileFilterArguments(["test", "--only-changed"]), ["test"])
+  assert.deepEqual(getPlaywrightFileFilterArguments(["test", "--project"]), ["test"])
+  assert.deepEqual(getPlaywrightFileFilterArguments(["test", "--"]), ["test"])
+})
+
 test("browser QA harness is wired for public smoke, PWA, and local-first checks", async () => {
   const [packageJson, config, publicRoutesSpec, pwaSpec, localFirstSpec, ciWorkflow] = await Promise.all([
     readProjectFile("package.json"),

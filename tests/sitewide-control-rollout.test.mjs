@@ -5,6 +5,7 @@ import test from "node:test"
 import { resolveAccessibleBackgroundDefinition } from "../components/backgrounds/backgroundRegistry.ts"
 import { resolveBackgroundEffectProps } from "../components/backgrounds/resolveBackgroundEffectProps.ts"
 import { resolveDnaTwistedCubesBackgroundHostProps } from "../lib/dna-twisted-cubes-background-host.js"
+import { DNA_SOURCE_GEOMETRY } from "../lib/dna-background.js"
 import { resolveImmersiveDisplayContext } from "../lib/immersive-display.js"
 import { FEATURE_KEYS } from "../lib/membership.js"
 import { COMPUTED_CONSUMER_CONTRACTS } from "./browser/dna-twisted-cubes-consumer-contract.mjs"
@@ -325,7 +326,13 @@ test("Track 4B browser review covers geometry, motion, and diagnostics", async (
   assert.match(browserSource, /startNodeAnimationName:\s*"none"[\s\S]*startNodeDuration:\s*"0s"[\s\S]*startNodeDelay:\s*"0s"/)
   assert.match(browserSource, /endNodeAnimationName:\s*"none"[\s\S]*endNodeDuration:\s*"0s"[\s\S]*endNodeDelay:\s*"0s"/)
   assert.match(browserSource, /cubeAnimationName:\s*"none"[\s\S]*cubeDuration:\s*"0s"[\s\S]*cubeDelay:\s*"0s"/)
-  assert.match(browserSource, /width:\s*"26vmin"[\s\S]*height:\s*"max\(240vmin, 230vmax\)"/)
+  assert.deepEqual(DNA_SOURCE_GEOMETRY, {
+    widthVmin: 26,
+    minimumHeightVmin: 240,
+    viewportHeightVmax: 230,
+  })
+  assert.match(browserSource, /const DNA_SOURCE_WIDTH = `\$\{DNA_SOURCE_GEOMETRY\.widthVmin\}vmin`/)
+  assert.match(browserSource, /const DNA_SOURCE_HEIGHT = `max\(\$\{DNA_SOURCE_GEOMETRY\.minimumHeightVmin\}vmin, \$\{DNA_SOURCE_GEOMETRY\.viewportHeightVmax\}vmax\)`/)
   assert.match(browserSource, /width:\s*"0px"[\s\S]*height:\s*"0px"/)
   assert.doesNotMatch(browserSource, /test\.skip\(/)
   assert.match(playwrightConfig, /dna-twisted-cubes-backgrounds\.spec\.ts/)

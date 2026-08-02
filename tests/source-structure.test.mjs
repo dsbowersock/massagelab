@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { extractInterfaceBody, maskSourceComments } from "./helpers/source-structure.mjs"
+import { extractInterfaceBody, maskCssComments, maskSourceComments } from "./helpers/source-structure.mjs"
 
 test("comment masking preserves quoted program text and JSX apostrophes", () => {
   const source = `
@@ -46,9 +46,29 @@ test("interface extraction ignores braces in comments and quoted types", () => {
   assert.doesNotMatch(body, /unrelated/)
 })
 
+test("interface extraction skips object types in generic extends clauses", () => {
+  const source = `
+    interface Base<T> { base: T }
+    export interface Example extends Base<{ nested: string }> {
+      actual: number
+    }
+  `
+
+  const body = extractInterfaceBody(source, "Example", "generic fixture")
+  assert.match(body, /actual: number/)
+  assert.doesNotMatch(body, /nested: string/)
+})
+
+test("CSS comment masking preserves URL slashes and quoted text", () => {
+  const masked = maskCssComments(`.hero { background: url(https://cdn.example/image.png); content: "//"; } /* prose */`)
+  assert.match(masked, /https:\/\/cdn\.example\/image\.png/)
+  assert.match(masked, /content: "\/\/"/)
+  assert.doesNotMatch(masked, /prose/)
+})
+
 test("interface extraction requires balanced quoted and comment state", () => {
   assert.throws(
-    () => extractInterfaceBody("export interface Broken { value: 'unterminated", "Broken"),
-    /balanced comments and quoted text/,
+    () => extractInterfaceBody("export interface Broken { value: `unterminated", "Broken", "broken-fixture.ts"),
+    /broken-fixture\.ts has balanced comments and quoted text; unterminated ` starting at offset \d+/,
   )
 })

@@ -1356,6 +1356,7 @@ test("DNA and Twisted Cubes controls emit only draft property patches with exact
     }
   }
   assert.match(dnaControlsSource, /displayValue=\{`\$\{value\.outlineThickness\.toFixed\(2\)\}vmin`\}/)
+  assert.match(twistedCubesControlsSource, /displayValue=\{`\$\{\(value\.outlineThickness \* 100\)\.toFixed\(2\)\}%`\}/)
 })
 
 test("selected-background properties share the existing Visual draft lifecycle", () => {

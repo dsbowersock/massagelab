@@ -4,6 +4,7 @@ import { resolveResponsiveBackgroundTransform } from "../../lib/background-effec
 import { resolveBackgroundRoleColors } from "../../lib/background-palette.js"
 import {
   DEFAULT_DNA_BACKGROUND_OPTIONS,
+  DNA_SOURCE_GEOMETRY,
   getDnaNodeCycleSeconds,
   getDnaStrandDelaySeconds,
   getDnaStrandRotationSeconds,
@@ -26,6 +27,10 @@ const DNA_COMPUTED_CONSUMER_CONTRACTS = COMPUTED_CONSUMER_CONTRACTS.filter(
 const TWISTED_CUBES_COMPUTED_CONSUMER_CONTRACTS = COMPUTED_CONSUMER_CONTRACTS.filter(
   ({ effectId }) => effectId === "massage-lab-twisted-cubes",
 )
+const DNA_SOURCE_WIDTH = `${DNA_SOURCE_GEOMETRY.widthVmin}vmin`
+const DNA_SOURCE_HEIGHT = `max(${DNA_SOURCE_GEOMETRY.minimumHeightVmin}vmin, ${DNA_SOURCE_GEOMETRY.viewportHeightVmax}vmax)`
+const DNA_START_NODE_TRANSLATION = `translateX(calc(${DNA_SOURCE_WIDTH} - 100%))`
+const DNA_END_NODE_TRANSLATION = `translateX(calc(-${DNA_SOURCE_WIDTH} + 100%))`
 
 const EFFECTS = [
   {
@@ -489,7 +494,7 @@ async function normalizeDnaGeometry(
 ) {
   return host.evaluate((_, options) => {
     const scene = document.createElement("div")
-    scene.style.cssText = `position:fixed;visibility:hidden;width:26vmin;height:max(240vmin,230vmax);display:grid;gap:${options.spacing}vmin`
+    scene.style.cssText = `position:fixed;visibility:hidden;width:${options.widthVmin}vmin;height:max(${options.minimumHeightVmin}vmin,${options.viewportHeightVmax}vmax);display:grid;gap:${options.spacing}vmin`
     const strands = Array.from({ length: options.count }, () => {
       const strand = document.createElement("div")
       strand.style.cssText = "position:relative;display:flex;width:100%;min-block-size:0"
@@ -516,7 +521,7 @@ async function normalizeDnaGeometry(
     }
     scene.remove()
     return result
-  }, input)
+  }, { ...input, ...DNA_SOURCE_GEOMETRY })
 }
 
 /** Independently samples a reconstructed animation at CSS time zero, including negative delays. */
@@ -748,12 +753,12 @@ async function expectExactComputedConsumer({
       ], connectorTiming),
       startNodeTransform: await normalizeAnimatedTransformForTarget(startNodeTarget, [
         { transform: "translateX(0)", offset: 0, easing: "ease-in-out" },
-        { transform: "translateX(calc(26vmin - 100%))", offset: 0.5, easing: "ease-in-out" },
+        { transform: DNA_START_NODE_TRANSLATION, offset: 0.5, easing: "ease-in-out" },
         { transform: "translateX(0)", offset: 1 },
       ], nodeTiming),
       endNodeTransform: await normalizeAnimatedTransformForTarget(endNodeTarget, [
         { transform: "translateX(0)", offset: 0, easing: "ease-in-out" },
-        { transform: "translateX(calc(-26vmin + 100%))", offset: 0.5, easing: "ease-in-out" },
+        { transform: DNA_END_NODE_TRANSLATION, offset: 0.5, easing: "ease-in-out" },
         { transform: "translateX(0)", offset: 1 },
       ], { ...nodeTiming, direction: "reverse" }),
     })
@@ -1094,8 +1099,8 @@ async function expectExactReducedEffectState(
       "background-color": roleColors.background,
     })
     const sceneGeometryExpected = await normalizeComputedConsumer(host, {
-      width: "26vmin",
-      height: "max(240vmin, 230vmax)",
+      width: DNA_SOURCE_WIDTH,
+      height: DNA_SOURCE_HEIGHT,
     })
     const dnaGeometryExpected = await normalizeDnaGeometry(host, {
       count,
@@ -1117,12 +1122,12 @@ async function expectExactReducedEffectState(
       border: `${properties.massageLabDnaOutlineThickness}vmin solid ${roleColors.outline}`,
     }, { width: String(computed.connectorWidth), height: String(computed.connectorHeight) })
     const startNodeExpected = await normalizeComputedConsumer(host, {
-      transform: "translateX(calc(26vmin - 100%))",
+      transform: DNA_START_NODE_TRANSLATION,
       "background-color": nodeRoleColors[startRoleIndex],
       border: `${properties.massageLabDnaOutlineThickness}vmin solid ${roleColors.outline}`,
     }, { width: String(computed.startNodeWidth), height: String(computed.startNodeHeight) })
     const endNodeExpected = await normalizeComputedConsumer(host, {
-      transform: "translateX(calc(-26vmin + 100%))",
+      transform: DNA_END_NODE_TRANSLATION,
       "background-color": nodeRoleColors[endRoleIndex],
       border: `${properties.massageLabDnaOutlineThickness}vmin solid ${roleColors.outline}`,
     }, { width: String(computed.endNodeWidth), height: String(computed.endNodeHeight) })
@@ -1884,7 +1889,8 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
           }
         }, effect.id)
         expect(sceneStyle).toEqual({
-          scale: "1",
+          // DNA scales its scene; Twisted Cubes folds the same responsive scale into each layer's size.
+          scale: effect.id === "massage-lab-dna" ? "1" : "",
           x: effect.id === "massage-lab-dna" ? "20%" : "20vw",
           y: effect.id === "massage-lab-dna" ? "20%" : "20vh",
         })

@@ -4,7 +4,7 @@ import path from "node:path"
 import test from "node:test"
 import { fileURLToPath } from "node:url"
 
-import { extractInterfaceBody, maskSourceComments } from "./helpers/source-structure.mjs"
+import { extractInterfaceBody, maskCssComments, maskSourceComments } from "./helpers/source-structure.mjs"
 import { TWISTED_CUBES_OPTION_BOUNDS } from "../lib/twisted-cubes-background.js"
 
 const testsDirectory = path.dirname(fileURLToPath(import.meta.url))
@@ -20,7 +20,7 @@ test("the Twisted Cubes renderer stays a scoped, non-interactive CSS DOM effect"
   const componentSource = readFileSync(componentPath, "utf8")
   const stylesheetSource = readFileSync(stylesheetPath, "utf8")
   const componentCode = maskSourceComments(componentSource)
-  const stylesheetCode = maskSourceComments(stylesheetSource)
+  const stylesheetCode = maskCssComments(stylesheetSource)
 
   assert.match(componentCode, /getTwistedCubeSourceOutline/)
   assert.match(componentCode, /interpolateTwistedCubeOutline/)

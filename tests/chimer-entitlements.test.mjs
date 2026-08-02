@@ -17,41 +17,41 @@ describe("Chimer entitlement-aware settings", () => {
         ? "massageLabDnaStrandCount"
         : "massageLabTwistedCubesLayerCount"
       const editedVisualValue = backgroundId === "massage-lab-dna" ? 17 : 24
-      assert.equal(typeof DEFAULT_CHIMER_SETTINGS[visualPropertyKey], "number")
-      assert.equal(canCustomizeBackgroundColors({ hasBackgroundAccess: true }), true)
+      assert.equal(typeof DEFAULT_CHIMER_SETTINGS[visualPropertyKey], "number", backgroundId)
+      assert.equal(canCustomizeBackgroundColors({ hasBackgroundAccess: true }), true, backgroundId)
       assert.equal(resolveEffectiveBackgroundPaletteMode({
         savedMode: "custom",
         canCustomize: canCustomizeBackgroundColors({ hasBackgroundAccess: true }),
-      }), "custom")
+      }), "custom", backgroundId)
       assert.equal(resolveEffectiveBackgroundPaletteMode({
         savedMode: "harmony",
         canCustomize: false,
-      }), "source")
+      }), "source", backgroundId)
 
       const featureSettings = sanitizeChimerSettingsForEntitlements({
         backgroundId,
         [visualPropertyKey]: editedVisualValue,
         backgroundVisualPreferences: { palette: { mode: "custom" } },
       }, [FEATURE_KEYS.premiumBackgrounds, FEATURE_KEYS.chimerCustomColors])
-      assert.equal(featureSettings.backgroundId, backgroundId)
-      assert.equal(featureSettings[visualPropertyKey], editedVisualValue)
-      assert.equal(featureSettings.backgroundVisualPreferences.palette.mode, "custom")
+      assert.equal(featureSettings.backgroundId, backgroundId, backgroundId)
+      assert.equal(featureSettings[visualPropertyKey], editedVisualValue, backgroundId)
+      assert.equal(featureSettings.backgroundVisualPreferences.palette.mode, "custom", backgroundId)
 
       const ownedSettings = sanitizeChimerSettingsForEntitlements({
         backgroundId,
         [visualPropertyKey]: editedVisualValue,
         backgroundVisualPreferences: { palette: { mode: "harmony" } },
       }, { featureKeys: [], ownedBackgroundIds: [backgroundId] })
-      assert.equal(ownedSettings.backgroundId, backgroundId)
-      assert.equal(ownedSettings[visualPropertyKey], editedVisualValue)
-      assert.equal(ownedSettings.backgroundVisualPreferences.palette.mode, "harmony")
+      assert.equal(ownedSettings.backgroundId, backgroundId, backgroundId)
+      assert.equal(ownedSettings[visualPropertyKey], editedVisualValue, backgroundId)
+      assert.equal(ownedSettings.backgroundVisualPreferences.palette.mode, "harmony", backgroundId)
 
       const lockedSettings = sanitizeChimerSettingsForEntitlements({
         backgroundId,
         [visualPropertyKey]: editedVisualValue,
       }, [])
-      assert.equal(lockedSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
-      assert.equal(lockedSettings[visualPropertyKey], DEFAULT_CHIMER_SETTINGS[visualPropertyKey])
+      assert.equal(lockedSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId, backgroundId)
+      assert.equal(lockedSettings[visualPropertyKey], DEFAULT_CHIMER_SETTINGS[visualPropertyKey], backgroundId)
     }
   })
 

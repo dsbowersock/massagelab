@@ -65,6 +65,7 @@ export interface MassageLabTwistedCubesOptions {
   outlineAnchors: readonly [string, string, string, string, string, string]
 }
 
+/** Host-supplied options before the adapter completes palette-resolved fields. */
 export type MassageLabDnaHostOptions = Omit<
   MassageLabDnaOptions,
   "backgroundColor" | "nodeRoleColors" | "connectorColor" | "outlineColor"
