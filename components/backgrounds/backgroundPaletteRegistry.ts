@@ -11,12 +11,20 @@ import {
   DNA_SOURCE_NODE_ROLE_COLORS,
   DNA_SOURCE_OUTLINE_COLOR,
 } from "../../lib/dna-background.js"
+import {
+  TWISTED_CUBES_SOURCE_BACKGROUND_COLOR,
+  TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS,
+} from "../../lib/twisted-cubes-background.js"
 export {
   DNA_SOURCE_BACKGROUND_COLOR,
   DNA_SOURCE_CONNECTOR_COLOR,
   DNA_SOURCE_NODE_ROLE_COLORS,
   DNA_SOURCE_OUTLINE_COLOR,
 } from "../../lib/dna-background.js"
+export {
+  TWISTED_CUBES_SOURCE_BACKGROUND_COLOR,
+  TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS,
+} from "../../lib/twisted-cubes-background.js"
 import type {
   BackgroundEffectProps,
   CssDomPaletteBackgroundId,
@@ -75,15 +83,6 @@ export interface BackgroundPaletteModeOverride {
   customValue?: unknown
 }
 
-export const TWISTED_CUBES_SOURCE_BACKGROUND_COLOR = "hsl(210 20% 12%)"
-export const TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS = Object.freeze([
-  "hsl(180 80% 60%)",
-  "hsl(212 80% 60%)",
-  "hsl(244 80% 60%)",
-  "hsl(276 80% 60%)",
-  "hsl(308 80% 60%)",
-  "hsl(340 80% 60%)",
-] as const)
 const AURORA_BARS_SOURCE_COLORS = Object.freeze([
   "#FFD6EB",
   "#FF9ACB",

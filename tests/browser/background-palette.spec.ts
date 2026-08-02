@@ -104,7 +104,10 @@ function colorHue(value: string) {
   return ((Number(hsl[1]) % 360) + 360) % 360
 }
 
-/** Compares hue numbers, general CSS colors, rgba channels, or exact color strings. */
+/**
+ * Compares hue numbers, general CSS colors, rgba channels, or exact strings.
+ * The rgba-channel branch is reached only when the expected color is six-digit hex.
+ */
 async function expectTargetColor(
   page: Page,
   actual: unknown,
@@ -636,81 +639,81 @@ test.describe("shared background palette review matrix", () => {
 
     try {
       await openPaletteGallery(page)
-    const fixture = page.getByTestId("background-preview-media-review")
-    const video = fixture.getByTestId("carousel-background-video")
-    const poster = fixture.getByTestId("background-preview-poster")
-    const fallback = fixture.getByTestId("background-preview-fallback")
-    await expect(fixture).toBeVisible()
-    await expect(poster).toBeVisible()
-    await expect(video).toHaveCount(0)
-    const baselineListeners = (await readPreviewMediaProbe(page)).visibilityListenerCount
+      const fixture = page.getByTestId("background-preview-media-review")
+      const video = fixture.getByTestId("carousel-background-video")
+      const poster = fixture.getByTestId("background-preview-poster")
+      const fallback = fixture.getByTestId("background-preview-fallback")
+      await expect(fixture).toBeVisible()
+      await expect(poster).toBeVisible()
+      await expect(video).toHaveCount(0)
+      const baselineListeners = (await readPreviewMediaProbe(page)).visibilityListenerCount
 
-    await fixture.getByRole("button", { name: "Activate preview" }).click()
-    await expect(video).toBeVisible()
-    await expect(video).toHaveAttribute("poster", /massage-lab-dna-vertical\.webp$/)
-    await expect.poll(async () => (await readPreviewMediaProbe(page)).playCalls).toBeGreaterThan(0)
-    await expect.poll(async () => (
-      await readPreviewMediaProbe(page)
-    ).visibilityListenerCount).toBe(baselineListeners + 1)
+      await fixture.getByRole("button", { name: "Activate preview" }).click()
+      await expect(video).toBeVisible()
+      await expect(video).toHaveAttribute("poster", /massage-lab-dna-vertical\.webp$/)
+      await expect.poll(async () => (await readPreviewMediaProbe(page)).playCalls).toBeGreaterThan(0)
+      await expect.poll(async () => (
+        await readPreviewMediaProbe(page)
+      ).visibilityListenerCount).toBe(baselineListeners + 1)
 
-    const playsBeforeSourceSwap = (await readPreviewMediaProbe(page)).playCalls
-    await fixture.getByRole("button", { name: "Swap preview source" }).click()
-    await expect(video).toHaveAttribute("src", /massage-lab-twisted-cubes-vertical\.webm$/)
-    await expect(video).toHaveAttribute("poster", /massage-lab-twisted-cubes-vertical\.webp$/)
-    await expect.poll(async () => (await readPreviewMediaProbe(page)).playCalls)
-      .toBeGreaterThan(playsBeforeSourceSwap)
+      const playsBeforeSourceSwap = (await readPreviewMediaProbe(page)).playCalls
+      await fixture.getByRole("button", { name: "Swap preview source" }).click()
+      await expect(video).toHaveAttribute("src", /massage-lab-twisted-cubes-vertical\.webm$/)
+      await expect(video).toHaveAttribute("poster", /massage-lab-twisted-cubes-vertical\.webp$/)
+      await expect.poll(async () => (await readPreviewMediaProbe(page)).playCalls)
+        .toBeGreaterThan(playsBeforeSourceSwap)
 
-    const pausesBeforeHidden = (await readPreviewMediaProbe(page)).pauseCalls
-    await page.evaluate(() => {
-      Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" })
-      document.dispatchEvent(new Event("visibilitychange"))
-    })
-    await expect.poll(async () => (await readPreviewMediaProbe(page)).pauseCalls)
-      .toBeGreaterThan(pausesBeforeHidden)
+      const pausesBeforeHidden = (await readPreviewMediaProbe(page)).pauseCalls
+      await page.evaluate(() => {
+        Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" })
+        document.dispatchEvent(new Event("visibilitychange"))
+      })
+      await expect.poll(async () => (await readPreviewMediaProbe(page)).pauseCalls)
+        .toBeGreaterThan(pausesBeforeHidden)
+      await page.evaluate(() => {
+        Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" })
+      })
 
-    await video.dispatchEvent("error")
-    await expect(video).toHaveCount(0)
-    await expect(poster).toBeVisible()
-    await expect.poll(async () => (
-      await readPreviewMediaProbe(page)
-    ).visibilityListenerCount).toBe(baselineListeners)
+      await video.dispatchEvent("error")
+      await expect(video).toHaveCount(0)
+      await expect(poster).toBeVisible()
+      await expect.poll(async () => (
+        await readPreviewMediaProbe(page)
+      ).visibilityListenerCount).toBe(baselineListeners)
 
-    await poster.dispatchEvent("error")
-    await expect(poster).toHaveCount(0)
-    await expect(fallback).toHaveCSS("background-color", "rgb(18, 52, 86)")
+      await poster.dispatchEvent("error")
+      await expect(poster).toHaveCount(0)
+      await expect(fallback).toHaveCSS("background-color", "rgb(18, 52, 86)")
 
-    await fixture.getByRole("button", { name: "Unmount preview" }).click()
-    await page.evaluate(() => {
-      Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" })
-    })
-    await fixture.getByRole("button", { name: "Mount preview" }).click()
-    await expect(video).toBeVisible()
-    await expect.poll(async () => (
-      await readPreviewMediaProbe(page)
-    ).visibilityListenerCount).toBe(baselineListeners + 1)
-    await fixture.getByRole("button", { name: "Unmount preview" }).click()
-    await expect(video).toHaveCount(0)
-    await expect.poll(async () => (
-      await readPreviewMediaProbe(page)
-    ).visibilityListenerCount).toBe(baselineListeners)
+      await fixture.getByRole("button", { name: "Unmount preview" }).click()
+      await fixture.getByRole("button", { name: "Mount preview" }).click()
+      await expect(video).toBeVisible()
+      await expect.poll(async () => (
+        await readPreviewMediaProbe(page)
+      ).visibilityListenerCount).toBe(baselineListeners + 1)
+      await fixture.getByRole("button", { name: "Unmount preview" }).click()
+      await expect(video).toHaveCount(0)
+      await expect.poll(async () => (
+        await readPreviewMediaProbe(page)
+      ).visibilityListenerCount).toBe(baselineListeners)
 
-    await page.evaluate(() => {
-      Reflect.get(window, "__previewMediaProbe").rejectPlayAs = "AbortError"
-    })
-    await fixture.getByRole("button", { name: "Mount preview" }).click()
-    await expect(video).toBeVisible()
-    await fixture.getByRole("button", { name: "Unmount preview" }).click()
+      await page.evaluate(() => {
+        Reflect.get(window, "__previewMediaProbe").rejectPlayAs = "AbortError"
+      })
+      await fixture.getByRole("button", { name: "Mount preview" }).click()
+      await expect(video).toBeVisible()
+      await fixture.getByRole("button", { name: "Unmount preview" }).click()
 
-    await page.evaluate(() => {
-      Reflect.get(window, "__previewMediaProbe").rejectPlayAs = "NotAllowedError"
-    })
-    await fixture.getByRole("button", { name: "Mount preview" }).click()
-    await expect(video).toHaveCount(0)
-    await expect(poster).toBeVisible()
-    await expect.poll(async () => (
-      await readPreviewMediaProbe(page)
-    ).visibilityListenerCount).toBe(baselineListeners)
-    await fixture.getByRole("button", { name: "Unmount preview" }).click()
+      await page.evaluate(() => {
+        Reflect.get(window, "__previewMediaProbe").rejectPlayAs = "NotAllowedError"
+      })
+      await fixture.getByRole("button", { name: "Mount preview" }).click()
+      await expect(video).toHaveCount(0)
+      await expect(poster).toBeVisible()
+      await expect.poll(async () => (
+        await readPreviewMediaProbe(page)
+      ).visibilityListenerCount).toBe(baselineListeners)
+      await fixture.getByRole("button", { name: "Unmount preview" }).click()
     } finally {
       await page.evaluate(() => {
         const restore = Reflect.get(window, "__restorePreviewMediaProbe")

@@ -69,6 +69,6 @@ test("CSS comment masking preserves URL slashes and quoted text", () => {
 test("interface extraction requires balanced quoted and comment state", () => {
   assert.throws(
     () => extractInterfaceBody("export interface Broken { value: `unterminated", "Broken", "broken-fixture.ts"),
-    /broken-fixture\.ts has balanced comments and quoted text; unterminated ` starting at offset \d+/,
+    /broken-fixture\.ts has an unterminated ` starting at offset \d+/,
   )
 })

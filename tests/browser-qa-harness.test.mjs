@@ -2,7 +2,7 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 
-import {
+import playwrightConfig, {
   getPlaywrightFileFilterArguments,
   matchesDevelopmentPaletteReviewArgument,
 } from "../playwright.config.ts"
@@ -146,10 +146,10 @@ test("browser QA harness is wired for public smoke, PWA, and local-first checks"
     config,
     /developmentPaletteReviewSpecs[\s\S]*tests\/browser\/background-palette\.spec\.ts[\s\S]*tests\/browser\/dna-twisted-cubes-backgrounds\.spec\.ts/,
   )
-  assert.match(
-    config,
-    /developmentPaletteReviewIgnoreGlobs\s*=\s*developmentPaletteReviewSpecs[\s\S]*path\.posix\.basename[\s\S]*testIgnore:\s*runsDevelopmentPaletteReview[\s\S]*\?\s*\[\][\s\S]*:\s*developmentPaletteReviewIgnoreGlobs/,
-  )
+  assert.deepEqual(playwrightConfig.testIgnore, [
+    "**/background-palette.spec.ts",
+    "**/dna-twisted-cubes-backgrounds.spec.ts",
+  ])
 
   for (const route of ["/", "/notes", "/notes/soap", "/chimer", "/calendar", "/anatomime"]) {
     assert.match(publicRoutesSpec, new RegExp(JSON.stringify(route)))

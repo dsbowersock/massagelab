@@ -164,9 +164,16 @@ describe("DNA background domain and shared layout rules", () => {
       { startBase: "G", endBase: "C", startRole: 2, endRole: 3 },
       { startBase: "C", endBase: "G", startRole: 3, endRole: 2 },
     ])
-    assert.deepEqual(createDnaStrandAssignments(1, () => Number.NaN), [
-      { startBase: "A", endBase: "T", startRole: 0, endRole: 1 },
-    ])
+    for (const [value, expectedPair] of [
+      [-1, { startBase: "A", endBase: "T", startRole: 0, endRole: 1 }],
+      [1, { startBase: "C", endBase: "G", startRole: 3, endRole: 2 }],
+      [2, { startBase: "C", endBase: "G", startRole: 3, endRole: 2 }],
+      [Number.NaN, { startBase: "A", endBase: "T", startRole: 0, endRole: 1 }],
+      [Number.POSITIVE_INFINITY, { startBase: "A", endBase: "T", startRole: 0, endRole: 1 }],
+      [Number.NEGATIVE_INFINITY, { startBase: "A", endBase: "T", startRole: 0, endRole: 1 }],
+    ]) {
+      assert.deepEqual(createDnaStrandAssignments(1, () => value), [expectedPair], String(value))
+    }
   })
 
   it("preserves only explicit boolean base-letter preferences", () => {

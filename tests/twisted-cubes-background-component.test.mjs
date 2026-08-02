@@ -24,6 +24,9 @@ test("the Twisted Cubes renderer stays a scoped, non-interactive CSS DOM effect"
 
   assert.match(componentCode, /getTwistedCubeSourceOutline/)
   assert.match(componentCode, /interpolateTwistedCubeOutline/)
+  assert.match(componentCode, /paletteMode = "source"/)
+  assert.match(componentCode, /backgroundColor = TWISTED_CUBES_SOURCE_BACKGROUND_COLOR/)
+  assert.match(componentCode, /outlineAnchors = TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS/)
   assert.match(componentCode, /resolveResponsiveBackgroundTransform/)
   assert.match(componentCode, /aria-hidden="true"/)
   assert.match(componentCode, /data-reduce-motion=\{reduceMotion \|\| undefined\}/)
@@ -46,6 +49,7 @@ test("the Twisted Cubes renderer stays a scoped, non-interactive CSS DOM effect"
   assert.doesNotMatch(componentCode, /(?:billing|account|entitlement|stripe|registry|storage)/i)
   assert.doesNotMatch(componentCode, /\b(?:button|input|select|textarea|tabIndex|onClick|onPointer|onDrag|onTouch|cursor)\b/)
 
+  assert.match(stylesheetCode, /\.root\s*\{[^}]*?pointer-events:\s*none;/)
   assert.doesNotMatch(stylesheetCode, /perspective:/)
   assert.match(stylesheetCode, /\.scene\s*\{[^}]*?width:\s*0;[^}]*?height:\s*0;/)
   assert.match(stylesheetCode, /\.edge\s*\{[^}]*?height:\s*calc\(var\(--ml-twisted-cubes-outline-thickness\) \* 50vmin\);/)

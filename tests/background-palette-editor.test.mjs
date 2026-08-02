@@ -19,6 +19,16 @@ import {
 } from "../components/chimer-controls/background-palette-controls.ts"
 import { maskSourceComments } from "./helpers/source-structure.mjs"
 
+/** Returns one named source region so assertions cannot match repeated fragments later in the file. */
+function sourceBetween(source, startMarker, endMarker, label) {
+  const start = source.indexOf(startMarker)
+  assert.notEqual(start, -1, `${label} start marker exists`)
+  const end = source.indexOf(endMarker, start + startMarker.length)
+  assert.notEqual(end, -1, `${label} end marker exists`)
+  assert.ok(end > start, `${label} markers stay ordered`)
+  return source.slice(start, end)
+}
+
 const editorSource = await readFile(
   new URL("../components/chimer-controls/BackgroundPaletteEditor.tsx", import.meta.url),
   "utf8",
@@ -155,24 +165,47 @@ test("revoked background access makes palette, property, and preset editing read
 })
 
 test("BackgroundHost applies the resolved palette to its persistent fallback layer", () => {
-  assert.match(
+  const effectPropsBlock = sourceBetween(
     backgroundHostSource,
+    "const { baseEffectProps, effectProps }",
+    "useEffect(() =>",
+    "BackgroundHost effect props",
+  )
+  assert.match(
+    effectPropsBlock,
     /effectProps:\s*resolveBackgroundEffectProps\(\{[\s\S]*palette:\s*backgroundPalette\?\.palette,[\s\S]*mapping:\s*backgroundPalette\?\.mapping/,
   )
   assert.doesNotMatch(
-    backgroundHostSource,
+    effectPropsBlock,
     /effectProps:\s*backgroundPalette\s*\?\s*resolveBackgroundEffectProps/,
   )
-  assert.match(backgroundHostSource, /const fallbackStyle = useMemo\([\s\S]*resolveBackgroundFallbackStyle\(\{[\s\S]*palette: backgroundPalette\.palette,[\s\S]*mapping: backgroundPalette\.mapping,[\s\S]*canCustomize,[\s\S]*\[backgroundPalette, canCustomize, entry\.fallbackStyle, entry\.id\]/)
-  assert.match(backgroundHostSource, /const fallbackRemountKey = useMemo\([\s\S]*JSON\.stringify\(fallbackStyle \?\? null\)[\s\S]*\[backgroundPalette\?\.palette\.mode, canCustomize, entry\.id, fallbackStyle\]/)
-  assert.match(backgroundHostSource, /key=\{fallbackRemountKey\}/)
-  assert.match(backgroundHostSource, /className=\{cn\(styles\.fallback, entry\.fallbackClassName\)\}[\s\S]*style=\{fallbackStyle\}/)
-  assert.doesNotMatch(backgroundHostSource, /style=\{entry\.fallbackStyle\}/)
+  const fallbackBlock = sourceBetween(
+    backgroundHostSource,
+    "const fallbackStyle",
+    "const diagnosticSnapshot",
+    "BackgroundHost fallback memo",
+  )
+  assert.match(fallbackBlock, /resolveBackgroundFallbackStyle\(\{[\s\S]*palette: backgroundPalette\.palette,[\s\S]*mapping: backgroundPalette\.mapping,[\s\S]*canCustomize,[\s\S]*\[backgroundPalette, canCustomize, entry\.fallbackStyle, entry\.id\]/)
+  assert.match(fallbackBlock, /const fallbackRemountKey = useMemo\([\s\S]*JSON\.stringify\(fallbackStyle \?\? null\)[\s\S]*\[backgroundPalette\?\.palette\.mode, canCustomize, entry\.id, fallbackStyle\]/)
+  const fallbackRenderBlock = sourceBetween(
+    backgroundHostSource,
+    "key={fallbackRemountKey}",
+    "{BackgroundComponent ?",
+    "BackgroundHost fallback render",
+  )
+  assert.match(fallbackRenderBlock, /className=\{cn\(styles\.fallback, entry\.fallbackClassName\)\}[\s\S]*style=\{fallbackStyle\}/)
+  assert.doesNotMatch(fallbackRenderBlock, /style=\{entry\.fallbackStyle\}/)
 })
 
 test("BackgroundHost mounts only active or static-capable effects and keeps review motion development-only", () => {
-  assert.match(
+  const motionBlock = sourceBetween(
     backgroundHostSource,
+    "const ambientReducedMotion",
+    "const shouldLoadEffect",
+    "BackgroundHost motion policy",
+  )
+  assert.match(
+    motionBlock,
     /const ambientReducedMotion = useAmbientReducedMotion\(settings\.ambientMotionMode\)[\s\S]*const allowAmbientMotionForReview = process\.env\.NODE_ENV !== "production"[\s\S]*const reduceMotion = !motionEnabled \|\| \(!allowAmbientMotionForReview && ambientReducedMotion\)/,
   )
   assert.match(

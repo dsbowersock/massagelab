@@ -72,7 +72,7 @@ function scanSource(source, { maskQuotedText, label = "source" }) {
   assert.equal(
     state,
     "code",
-    `${label} has balanced comments and quoted text; unterminated ${state} starting at offset ${stateStartIndex}`,
+    `${label} has an unterminated ${state} starting at offset ${stateStartIndex}`,
   )
   return characters.join("")
 }
@@ -97,7 +97,10 @@ export function maskCssComments(source) {
   ))
 }
 
-/** Extracts one interface without allowing assertions to match later declarations. */
+/**
+ * Extracts one exported interface body without matching later declarations.
+ * Non-exported interfaces are intentionally reported as undeclared.
+ */
 export function extractInterfaceBody(source, name, label = `${name} interface source`) {
   const code = maskNonCode(source, label)
   const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")

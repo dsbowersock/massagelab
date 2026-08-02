@@ -9,6 +9,8 @@ import {
   getTwistedCubeSourceOutline,
   interpolateTwistedCubeOutline,
   TWISTED_CUBES_OPTION_BOUNDS,
+  TWISTED_CUBES_SOURCE_BACKGROUND_COLOR,
+  TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS,
 } from "@/lib/twisted-cubes-background"
 import { resolveResponsiveBackgroundTransform } from "@/lib/background-effect-layout"
 import type { BackgroundEffectProps, MassageLabTwistedCubesOptions } from "./css-backgrounds"
@@ -57,9 +59,9 @@ export const MassageLabTwistedCubesBackground = memo(function MassageLabTwistedC
     layerDepthSpacing,
     opacityFalloff,
     outlineThickness,
-    paletteMode,
-    backgroundColor,
-    outlineAnchors,
+    paletteMode = "source",
+    backgroundColor = TWISTED_CUBES_SOURCE_BACKGROUND_COLOR,
+    outlineAnchors = TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS,
   } = massageLabTwistedCubes
   // Persisted options enforce the product minimum; malformed direct host input
   // fails closed to inert DOM instead of fabricating the minimum render load.

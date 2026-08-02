@@ -1027,6 +1027,7 @@ test("539px dock headers own shared actions and compact visual color controls", 
   })
   await expectHitTestable(page, closeClock)
   await closeClock.click()
+  // Keep the Visual panel just above its single-column breakpoint while preserving the compact header layout.
   await page.setViewportSize({ width: 807, height: 597 })
   await page.waitForTimeout(500)
 
@@ -1038,8 +1039,8 @@ test("539px dock headers own shared actions and compact visual color controls", 
   await expect(visualHeader.getByRole("heading", { name: "Visual background" })).toBeVisible()
   await expect(visualBackground).toHaveCount(1)
   await expect.soft(visualHeader.getByText("Visual background", { exact: true })).toHaveCount(1)
-  expect.soft(await visualHeader.evaluate((header, toggle) => header.contains(toggle), await visualBackground.elementHandle())).toBe(true)
-  expect.soft(await visualScroller.evaluate((scroller, toggle) => scroller.contains(toggle), await visualBackground.elementHandle())).toBe(false)
+  await expect.soft(visualHeader.getByRole("switch", { name: /^Background animation:/ })).toHaveCount(1)
+  await expect.soft(visualScroller.getByRole("switch", { name: /^Background animation:/ })).toHaveCount(0)
   const renderedBackground = page.getByTestId("chimer-premium-background")
   await expect(renderedBackground).toHaveCount(1)
   await visualBackground.press("Space")
@@ -1051,8 +1052,8 @@ test("539px dock headers own shared actions and compact visual color controls", 
   await expect(renderedBackground).toHaveAttribute("data-background-motion", "playing")
   const clockColor = visualPanel.getByRole("button", { name: "Clock color picker" })
   await expect(clockColor).toHaveCount(1)
-  expect.soft(await visualHeader.evaluate((header, picker) => header.contains(picker), await clockColor.elementHandle())).toBe(true)
-  expect.soft(await visualScroller.evaluate((scroller, picker) => scroller.contains(picker), await clockColor.elementHandle())).toBe(false)
+  await expect.soft(visualHeader.getByRole("button", { name: "Clock color picker" })).toHaveCount(1)
+  await expect.soft(visualScroller.getByRole("button", { name: "Clock color picker" })).toHaveCount(0)
 
   const undoVisual = visualPanel.getByRole("button", { name: "Undo", exact: true })
   const redoVisual = visualPanel.getByRole("button", { name: "Redo", exact: true })
@@ -1065,14 +1066,8 @@ test("539px dock headers own shared actions and compact visual color controls", 
     ["Apply", applyVisual],
   ] as const) {
     await expect(action).toHaveCount(1)
-    expect.soft(
-      await visualHeader.evaluate((header, button) => header.contains(button), await action.elementHandle()),
-      `${name} in header`,
-    ).toBe(true)
-    expect.soft(
-      await visualScroller.evaluate((scroller, button) => scroller.contains(button), await action.elementHandle()),
-      `${name} outside scroller`,
-    ).toBe(false)
+    await expect.soft(visualHeader.getByRole("button", { name, exact: true }), `${name} in header`).toHaveCount(1)
+    await expect.soft(visualScroller.getByRole("button", { name, exact: true }), `${name} outside scroller`).toHaveCount(0)
   }
 
   const closeVisual = visualPanel.getByRole("button", { name: "Close Visual panel" })
@@ -1086,14 +1081,20 @@ test("539px dock headers own shared actions and compact visual color controls", 
     const redo = header.querySelector<HTMLElement>("[aria-label='Redo']")
     const cancel = header.querySelector<HTMLElement>("[aria-label='Cancel']")
     const apply = header.querySelector<HTMLElement>("[aria-label='Apply']")
-    const actionElements = [undo, redo, cancel, apply]
+    const actions = [
+      ["Undo", undo],
+      ["Redo", redo],
+      ["Cancel", cancel],
+      ["Apply", apply],
+    ] as const
+    const actionElements = actions.map(([, element]) => element)
     const actionRects = actionElements.map((element) => element?.getBoundingClientRect())
     const close = header.querySelector<HTMLElement>("[aria-label='Close Visual panel']")?.getBoundingClientRect()
     const bounds = header.getBoundingClientRect()
     const missing = [
       ["title", title], ["toggle", toggle], ["swatch", swatch],
       ["colorControl", colorControl], ["close", close],
-      ...actionElements.map((element, index) => [`action-${index}`, element] as const),
+      ...actions,
     ].filter(([, value]) => !value).map(([name]) => name)
     if (!title || !toggle || !swatch || !colorControl || !close
       || missing.length > 0 || actionRects.some((rect) => !rect)) return { missing }

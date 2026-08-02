@@ -147,7 +147,7 @@ MassageLab preserves the crossover geometry, phase relationship, opposite node a
 
 ### Complementary bases and base-specific node colors
 
-Each strand receives one valid complementary base pair and derives both role IDs from the bases through a pure helper comparable to:
+Each strand receives one valid complementary base pair and derives both role IDs from the bases through a side-effect-free helper with injectable randomness comparable to:
 
 ```ts
 function createDnaStrandAssignments(
@@ -342,7 +342,7 @@ Both effects honor the existing ambient-motion resolver and host lifecycle.
 
 ### DNA static state
 
-Reduced motion renders the configured strand count, angle, scale, position, spacing, connector geometry, outlines, and current role colors at a representative crossover phase. Node and strand animations are paused. Random role assignments still provide the approved multicolor composition.
+Reduced motion renders the configured strand count, angle, scale, position, spacing, connector geometry, outlines, and current role colors at a representative crossover phase. Node and strand animations are paused. Mount-stable random complementary-pair assignments still provide the approved multicolor composition.
 
 ### Twisted Cubes static state
 
@@ -396,7 +396,7 @@ Update the preview manifest and source ledger only after generated files validat
 - Invalid or missing properties fall back through the registry sanitizer to source defaults.
 - Invalid role colors fall back through Track 4A to adapter source values.
 - Invalid mappings fall back to curated mappings.
-- An invalid random value is clamped into one of the four complementary-pair variants.
+- Random values are normalized into the inclusive-lower/exclusive-upper `[0, 1)` interval before selecting one of the four complementary-pair variants: negative finite values select the first pair, `1` and larger finite values select the fourth pair, and `NaN` or either infinity fall back to `0` and the first pair.
 - Layer or strand counts are integers within their approved limits.
 - Invalid speed values never produce zero, negative, infinite, or `NaN` durations.
 - Invalid viewport measurements use centered saved values and source scale.
@@ -448,7 +448,7 @@ For both backgrounds:
 - one configuration remains consistent across contexts;
 - every approved property previews, applies, cancels, undoes, redoes, resets, and participates in Visual presets;
 - Source/Custom/Harmony and role remapping work through Track 4A;
-- DNA does not reshuffle during palette/property edits but does after remount;
+- DNA does not reshuffle during palette and non-count property edits but does regenerate assignments after a strand-count change or remount;
 - Twisted Cubes changes gradients smoothly without discrete repeating bands;
 - permanent ownership and subscription access produce the approved result;
 - timer state and Music playback continue during edits;

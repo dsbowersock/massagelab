@@ -4,6 +4,13 @@ import { describe, it } from "node:test"
 import { parseComputedMatrix } from "./helpers/computed-matrix.ts"
 
 describe("computed matrix parsing", () => {
+  it("rejects a computed transform that is not a matrix", () => {
+    assert.throws(
+      () => parseComputedMatrix("none"),
+      /Expected a computed 2D or 3D matrix/,
+    )
+  })
+
   it("accepts a finite Chromium matrix3d", () => {
     assert.deepEqual(
       parseComputedMatrix("matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 12, 24, 0, 1)"),

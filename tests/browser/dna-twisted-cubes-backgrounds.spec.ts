@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test"
 import { backgroundPaletteRegistry } from "../../components/backgrounds/backgroundPaletteRegistry"
 import { resolveResponsiveBackgroundTransform } from "../../lib/background-effect-layout.js"
+import { BACKGROUND_COMPACT_VIEWPORT_QUERY } from "../../components/backgrounds/use-media-query"
 import { resolveBackgroundRoleColors } from "../../lib/background-palette.js"
 import {
   DEFAULT_DNA_BACKGROUND_OPTIONS,
@@ -79,10 +80,8 @@ const EFFECTS = [
   },
 ] as const
 
-const COMPACT_BACKGROUND_VIEWPORT_QUERY = "(max-width: 479px), (max-height: 479px)"
-
 function isCompactBackgroundViewport(host: Locator) {
-  return host.evaluate((_element, query) => window.matchMedia(query).matches, COMPACT_BACKGROUND_VIEWPORT_QUERY)
+  return host.evaluate((_element, query) => window.matchMedia(query).matches, BACKGROUND_COMPACT_VIEWPORT_QUERY)
 }
 
 type RuntimeHealth = ReturnType<typeof captureRuntimeErrors>
@@ -171,8 +170,9 @@ async function expectRenderedContract(host: Locator, id: typeof EFFECTS[number][
   await expect(root).toHaveAttribute("aria-hidden", "true")
   if (id === "massage-lab-dna") {
     const strands = root.locator('[style*="--ml-dna-start-color"]')
-    expect(await strands.count()).toBeGreaterThan(0)
-    expect(await strands.locator("[data-side]").count()).toBe((await strands.count()) * 2)
+    const strandCount = await strands.count()
+    expect(strandCount).toBeGreaterThan(0)
+    expect(await strands.locator("[data-side]").count()).toBe(strandCount * 2)
     const vars = await root.evaluate((element) => {
       const style = (element as HTMLElement).style
       return [
@@ -194,8 +194,9 @@ async function expectRenderedContract(host: Locator, id: typeof EFFECTS[number][
     else expect(animationName).toContain("mlDnaStrandRotate")
   } else {
     const layers = root.locator('[style*="--ml-twisted-cubes-outline"]')
-    expect(await layers.count()).toBeGreaterThan(0)
-    expect(await layers.locator(":scope > span > span > span > span").count()).toBe((await layers.count()) * 12)
+    const layerCount = await layers.count()
+    expect(layerCount).toBeGreaterThan(0)
+    expect(await layers.locator(":scope > span > span > span > span").count()).toBe(layerCount * 12)
     const vars = await root.evaluate((element) => {
       const style = (element as HTMLElement).style
       return [
@@ -679,6 +680,55 @@ async function expectExactControlRender({
   expect(after).toMatchObject(expected)
 }
 
+/** Builds the shared responsive geometry oracle used by animated and reduced Twisted Cubes checks. */
+async function resolveTwistedCubeGeometryOracle({
+  host,
+  properties,
+  compactViewport,
+}: {
+  host: Locator
+  properties: Record<string, number>
+  compactViewport: boolean
+}) {
+  const count = properties.massageLabTwistedCubesLayerCount
+  const transform = resolveResponsiveBackgroundTransform({
+    scale: properties.massageLabTwistedCubesScale,
+    positionX: properties.massageLabTwistedCubesPositionX,
+    positionY: properties.massageLabTwistedCubesPositionY,
+    compactViewport,
+  })
+  const firstLayerSize = getTwistedCubeLayerSizeVmax({ oneBasedIndex: 1, count, scale: transform.scale })
+  const [sceneExpected, viewExpected, firstLayerExpected, secondLayerExpected, firstEdgeSizeExpected] = await Promise.all([
+    normalizeTransformForTarget(
+      effectRoot(host).locator(":scope > div"),
+      `translate(${transform.positionX}vw, ${transform.positionY}vh)`,
+    ),
+    normalizeComputedConsumer(host, {
+      transform: `rotateX(${properties.massageLabTwistedCubesViewAngleX}deg) rotateY(${properties.massageLabTwistedCubesViewAngleY}deg)`,
+    }),
+    normalizeComputedConsumer(host, {
+      transform: `translateZ(${(count - 1) * properties.massageLabTwistedCubesLayerDepthSpacing}vmin)`,
+    }),
+    normalizeComputedConsumer(host, {
+      transform: `translateZ(${(count - 2) * properties.massageLabTwistedCubesLayerDepthSpacing}vmin)`,
+    }),
+    normalizeComputedConsumer(host, {}, {
+      width: `${firstLayerSize}vmax`,
+      height: `calc(${properties.massageLabTwistedCubesOutlineThickness} * 50vmin)`,
+    }),
+  ])
+  return {
+    count,
+    transform,
+    firstLayerSize,
+    sceneExpected,
+    viewExpected,
+    firstLayerExpected,
+    secondLayerExpected,
+    firstEdgeSizeExpected,
+  }
+}
+
 /** Verifies that one edited setting changes only its declared computed-style consumers. */
 async function expectExactComputedConsumer({
   host,
@@ -859,31 +909,14 @@ async function expectExactComputedConsumer({
     return
   }
 
-  const count = properties.massageLabTwistedCubesLayerCount
-  const transform = resolveResponsiveBackgroundTransform({
-    scale: properties.massageLabTwistedCubesScale,
-    positionX: properties.massageLabTwistedCubesPositionX,
-    positionY: properties.massageLabTwistedCubesPositionY,
-    compactViewport,
-  })
-  const sceneExpected = await normalizeTransformForTarget(
-    effectRoot(host).locator(":scope > div"),
-    `translate(${transform.positionX}vw, ${transform.positionY}vh)`,
-  )
-  const viewExpected = await normalizeComputedConsumer(host, {
-    transform: `rotateX(${properties.massageLabTwistedCubesViewAngleX}deg) rotateY(${properties.massageLabTwistedCubesViewAngleY}deg)`,
-  })
-  const firstLayerExpected = await normalizeComputedConsumer(host, {
-    transform: `translateZ(${(count - 1) * properties.massageLabTwistedCubesLayerDepthSpacing}vmin)`,
-  })
-  const secondLayerExpected = await normalizeComputedConsumer(host, {
-    transform: `translateZ(${(count - 2) * properties.massageLabTwistedCubesLayerDepthSpacing}vmin)`,
-  })
-  const firstLayerSize = getTwistedCubeLayerSizeVmax({ oneBasedIndex: 1, count, scale: transform.scale })
-  const firstEdgeSizeExpected = await normalizeComputedConsumer(host, {}, {
-    width: `${firstLayerSize}vmax`,
-    height: `calc(${properties.massageLabTwistedCubesOutlineThickness} * 50vmin)`,
-  })
+  const {
+    count,
+    sceneExpected,
+    viewExpected,
+    firstLayerExpected,
+    secondLayerExpected,
+    firstEdgeSizeExpected,
+  } = await resolveTwistedCubeGeometryOracle({ host, properties, compactViewport })
   const cubeDurationSeconds = getTwistedCubeCycleSeconds(properties.massageLabTwistedCubesRotationSpeed)
   const firstCubeDelaySeconds = getTwistedCubeDelaySeconds({
     oneBasedIndex: 1,
@@ -1182,13 +1215,16 @@ async function expectExactReducedEffectState(
     return
   }
 
-  const count = properties.massageLabTwistedCubesLayerCount
-  const transform = resolveResponsiveBackgroundTransform({
-    scale: properties.massageLabTwistedCubesScale,
-    positionX: properties.massageLabTwistedCubesPositionX,
-    positionY: properties.massageLabTwistedCubesPositionY,
-    compactViewport,
-  })
+  const {
+    count,
+    transform,
+    firstLayerSize,
+    sceneExpected,
+    viewExpected,
+    firstLayerExpected,
+    secondLayerExpected,
+    firstEdgeSizeExpected,
+  } = await resolveTwistedCubeGeometryOracle({ host, properties, compactViewport })
   const outlineRoleNames = ["one", "two", "three", "four", "five", "six"]
   const anchors = outlineRoleNames.map((name) => roleColors[`outline-${name}`])
   const actual = await root.evaluate((element) => {
@@ -1255,28 +1291,13 @@ async function expectExactReducedEffectState(
     width: "0px",
     height: "0px",
   })
-  const sceneExpected = await normalizeTransformForTarget(
-    root.locator(":scope > div"),
-    `translate(${transform.positionX}vw, ${transform.positionY}vh)`,
-  )
-  const viewExpected = await normalizeComputedConsumer(host, {
-    transform: `rotateX(${properties.massageLabTwistedCubesViewAngleX}deg) rotateY(${properties.massageLabTwistedCubesViewAngleY}deg)`,
-  })
-  const firstLayerExpected = await normalizeComputedConsumer(host, {
-    transform: `translateZ(${(count - 1) * properties.massageLabTwistedCubesLayerDepthSpacing}vmin)`,
-  })
-  const secondLayerExpected = await normalizeComputedConsumer(host, {
-    transform: `translateZ(${(count - 2) * properties.massageLabTwistedCubesLayerDepthSpacing}vmin)`,
-  })
   const cubeExpected = await normalizeComputedConsumer(host, {
     transform: "translate(-50%, -50%) rotateZ(90deg) rotateX(90deg) rotateZ(0deg)",
   }, {
-    width: `${getTwistedCubeLayerSizeVmax({ oneBasedIndex: 1, count, scale: transform.scale })}vmax`,
-    height: `${getTwistedCubeLayerSizeVmax({ oneBasedIndex: 1, count, scale: transform.scale })}vmax`,
+    width: `${firstLayerSize}vmax`,
+    height: `${firstLayerSize}vmax`,
   })
-  const firstEdgeExpected = await normalizeComputedConsumer(host, {
-    width: `${getTwistedCubeLayerSizeVmax({ oneBasedIndex: 1, count, scale: transform.scale })}vmax`,
-    height: `calc(${properties.massageLabTwistedCubesOutlineThickness} * 50vmin)`,
+  const firstEdgePaintExpected = await normalizeComputedConsumer(host, {
     opacity: String(getTwistedCubeAlpha({
       oneBasedIndex: 1,
       count,
@@ -1299,10 +1320,10 @@ async function expectExactReducedEffectState(
     cubeAnimationName: "none",
     cubeDuration: "0s",
     cubeDelay: "0s",
-    edgeWidth: firstEdgeExpected.width,
-    edgeHeight: firstEdgeExpected.height,
-    edgeOpacity: firstEdgeExpected.opacity,
-    edgeBackground: firstEdgeExpected.backgroundColor,
+    edgeWidth: firstEdgeSizeExpected.width,
+    edgeHeight: firstEdgeSizeExpected.height,
+    edgeOpacity: firstEdgePaintExpected.opacity,
+    edgeBackground: firstEdgePaintExpected.backgroundColor,
   })
 }
 
@@ -1475,6 +1496,7 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
     const root = effectRoot(host)
     const layers = root.locator('[style*="--ml-twisted-cubes-outline"]')
     const count = await layers.count()
+    // Sampling intentionally leaves these animations paused because this test ends after inspecting the terminal state.
     const samples = await layers.evaluateAll((elements) => elements.slice(-2).map((layer) => {
       const cube = layer.firstElementChild?.firstElementChild as HTMLElement | null
       const animation = cube?.getAnimations()[0]
@@ -1738,11 +1760,9 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
         const before = await parsedAttribute<Record<string, number>>(review, "data-current-properties")
         const beforeRender = await captureControlRenderState(host, effect.id)
         const beforeComputed = await captureComputedConsumerState(host, effect.id)
-        const keypress = key === "massageLabDnaOutlineThickness"
-          ? "End"
-          : key.endsWith("Scale")
-            ? "Home"
-            : "ArrowRight"
+        // Outline thickness and Scale start at a bound, so one forward step would not change them.
+        const keypressByKey: Record<string, string> = { massageLabDnaOutlineThickness: "End" }
+        const keypress = keypressByKey[key] ?? (key.endsWith("Scale") ? "Home" : "ArrowRight")
         await slider.press(keypress)
         await expect.poll(async () => (
           (await parsedAttribute<Record<string, number>>(review, "data-current-properties"))[key]

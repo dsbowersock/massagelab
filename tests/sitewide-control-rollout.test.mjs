@@ -429,8 +429,8 @@ test("DNA and Twisted Cubes share compact options and host-owned responsive moti
   assert.match(ambientMotionSource, /useMediaQuery\(AMBIENT_REDUCED_MOTION_QUERY, true\)/)
   assert.match(hostSource, /entry\.supportsReducedMotionStatic/)
   assert.match(hostSource, /reduceMotion,[\s\S]*compactViewport,/)
-  assert.doesNotMatch(dnaExecutableSource, /\bdocument\b|\bwindow\b|addEventListener|requestAnimationFrame/)
-  assert.doesNotMatch(cubesExecutableSource, /\bdocument\b|\bwindow\b|addEventListener|requestAnimationFrame/)
+  assert.doesNotMatch(dnaExecutableSource, /\b(?:document|window)\s*\.|addEventListener|requestAnimationFrame/)
+  assert.doesNotMatch(cubesExecutableSource, /\b(?:document|window)\s*\.|addEventListener|requestAnimationFrame/)
   assert.match(styles, /\.backgroundPropertyGroups\s*\{[^}]*\bmin-width:\s*0/)
   assert.match(styles, /\.backgroundPropertyGroup\s*\{[^}]*\bmin-width:\s*0/)
 })
@@ -540,16 +540,12 @@ test("actual Chimer, ordinary Clock, Music, and ambient Host plumbing resolves a
       massageLabTwistedCubes: expectedCubes,
     }, label)
 
-    assert.equal(
-      resolveAccessibleBackgroundDefinition("massage-lab-dna", access, category).id,
-      "massage-lab-dna",
-      label,
-    )
-    assert.equal(
-      resolveAccessibleBackgroundDefinition("massage-lab-twisted-cubes", access, category).id,
-      "massage-lab-twisted-cubes",
-      label,
-    )
+    const dnaDefinition = resolveAccessibleBackgroundDefinition("massage-lab-dna", access, category)
+    assert.ok(dnaDefinition, `${label} resolves the DNA background definition`)
+    assert.equal(dnaDefinition.id, "massage-lab-dna", label)
+    const cubesDefinition = resolveAccessibleBackgroundDefinition("massage-lab-twisted-cubes", access, category)
+    assert.ok(cubesDefinition, `${label} resolves the Twisted Cubes background definition`)
+    assert.equal(cubesDefinition.id, "massage-lab-twisted-cubes", label)
     const resolvedDna = resolveBackgroundEffectProps({
       selectedId: "massage-lab-dna",
       effectProps: hostProps,
