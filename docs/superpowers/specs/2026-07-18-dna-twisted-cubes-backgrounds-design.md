@@ -225,7 +225,7 @@ All properties use Track 4A's registry visual-property sanitizer and Visual pres
 | Opacity falloff     |          0-0.95 |    0.85 | Retains source fade by default      |
 | Outline thickness   |     0.0025-0.02 |  0.0075 | Displayed as relative scene percent |
 
-Each layer's viewport extent is derived from its one-based index, the `20vmax` layer step, and the sanitized Scale value; no separate extent is persisted in local/account settings or Visual presets. This extent controls wireframe size only, while Layer depth spacing controls only the layers' z-axis separation. At the approved 20-layer, 30% default, the outer wireframe reaches `120vmax`. Changing Scale uniformly shrinks or grows the complete count-relative progression.
+Each layer's viewport extent is derived from its one-based index, the `20vmax` layer step, and the sanitized Scale value; no separate extent is persisted in local/account settings or Visual presets. This extent controls wireframe size only. Layer depth spacing projects the count-relative vmin depth into a bounded centered scale so the control stays visibly independent without adding perspective distortion to the approved orthographic composition. At the approved 20-layer, 30% default, the outer wireframe reaches `120vmax` before that depth projection. Changing Scale uniformly shrinks or grows the complete count-relative progression.
 
 ### Responsive bounds
 

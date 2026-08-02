@@ -75,6 +75,8 @@ function matchesDevelopmentPaletteReviewPattern(argument: string) {
   if (requiresStart) normalizedPattern = normalizedPattern.slice(1)
   if (requiresEnd) normalizedPattern = normalizedPattern.slice(0, -1)
 
+  const startsWithWildcard = /^(?:\.\*|\.\+)/.test(normalizedPattern)
+  const endsWithWildcard = /(?:\.\*|\.\+)$/.test(normalizedPattern)
   const fragments = normalizedPattern.split(/\.\*|\.\+/)
   if (fragments.some((fragment) => /[\[\]{}()|?*+^$]/.test(fragment))) return false
 
@@ -85,10 +87,10 @@ function matchesDevelopmentPaletteReviewPattern(argument: string) {
       if (!fragment) continue
       const fragmentIndex = candidate.indexOf(fragment, searchFrom)
       if (fragmentIndex === -1) return false
-      if (requiresStart && searchFrom === 0 && fragmentIndex !== 0) return false
+      if (requiresStart && !startsWithWildcard && searchFrom === 0 && fragmentIndex !== 0) return false
       searchFrom = fragmentIndex + fragment.length
     }
-    return !requiresEnd || searchFrom === candidate.length
+    return !requiresEnd || endsWithWildcard || searchFrom === candidate.length
   })
 }
 

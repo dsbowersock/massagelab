@@ -267,7 +267,7 @@ test("Track 4B computed-consumer contracts project the complete acceptance matri
     ["massage-lab-twisted-cubes", "View angle X", "massageLabTwistedCubesViewAngleX", ".layer > .view", "transform", "viewAngleX", "viewTransform|secondViewTransform"],
     ["massage-lab-twisted-cubes", "View angle Y", "massageLabTwistedCubesViewAngleY", ".layer > .view", "transform", "viewAngleY", "viewTransform|secondViewTransform"],
     ["massage-lab-twisted-cubes", "Layer count", "massageLabTwistedCubesLayerCount", "[style*='--ml-twisted-cubes-outline'] > .view > .cube > .cuboid > .edge", "count|depth|size|animationDelay|transform|opacity", "layerCount|middleOutline|firstAlpha|firstDelay|firstSize|secondDepth", "layerCount|edgeCount|viewTransform|secondViewTransform|cubeTransform|cubeDelay|edgeWidth|edgeHeight|edgeOpacity"],
-    ["massage-lab-twisted-cubes", "Layer depth", "massageLabTwistedCubesLayerDepthSpacing", ".layer > .view", "transform|projectedPosition", "secondDepth", "viewTransform|secondViewTransform"],
+    ["massage-lab-twisted-cubes", "Layer depth", "massageLabTwistedCubesLayerDepthSpacing", ".layer > .view", "transform|projectedSize", "secondDepth", "viewTransform|secondViewTransform|edgeRenderedWidth"],
     ["massage-lab-twisted-cubes", "Scale", "massageLabTwistedCubesScale", "cube wireframe edges", "size|transform", "firstSize", "cubeTransform|edgeWidth|edgeHeight"],
     ["massage-lab-twisted-cubes", "Position X", "massageLabTwistedCubesPositionX", ":scope > .scene", "transform", "positionX", "sceneTransform"],
     ["massage-lab-twisted-cubes", "Position Y", "massageLabTwistedCubesPositionY", ":scope > .scene", "transform", "positionY", "sceneTransform"],
@@ -449,7 +449,7 @@ test("DNA and Twisted Cubes share compact options and host-owned responsive moti
   assert.match(mediaQuerySource, /removeEventListener\("change", handleChange\)/)
   assert.match(ambientMotionSource, /useMediaQuery\(AMBIENT_REDUCED_MOTION_QUERY, true\)/)
   assert.match(hostExecutableSource, /entry\.supportsReducedMotionStatic/)
-  assert.match(hostExecutableSource, /reduceMotion,[\s\S]*compactViewport,/)
+  assert.match(hostExecutableSource, /reduceMotion,[\s\S]*?compactViewport,/)
   assert.doesNotMatch(dnaExecutableSource, /\b(?:globalThis|document|window)\b|addEventListener|requestAnimationFrame/)
   assert.doesNotMatch(cubesExecutableSource, /\b(?:globalThis|document|window)\b|addEventListener|requestAnimationFrame/)
   assert.match(propertyGroupExecutableStyles, /\.backgroundPropertyGroups\s*\{[^}]*\bmin-width:\s*0/)

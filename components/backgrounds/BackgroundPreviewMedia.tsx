@@ -15,8 +15,9 @@ interface BackgroundPreviewMediaProps {
 const BACKGROUND_PREVIEW_FALLBACK_COLOR = "#0f172a"
 
 /**
- * Keeps a registry-owned fallback behind optional preview assets and only
- * starts video playback when the owning picker card is explicitly active.
+ * Keeps a registry-owned fallback behind optional preview assets, starts video
+ * playback only for the explicitly active card, and preserves a paused frame
+ * for legacy entries that do not yet have an authored poster.
  */
 export function BackgroundPreviewMedia({
   videoUrl,
@@ -29,8 +30,9 @@ export function BackgroundPreviewMedia({
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const [videoFailed, setVideoFailed] = useState(false)
   const [posterFailed, setPosterFailed] = useState(false)
-  const showVideo = active && !reducedMotion && Boolean(videoUrl) && !videoFailed
-  const showPoster = Boolean(posterUrl) && !posterFailed && !showVideo
+  const shouldPlayVideo = active && !reducedMotion && Boolean(videoUrl) && !videoFailed
+  const showPoster = Boolean(posterUrl) && !posterFailed && !shouldPlayVideo
+  const showVideo = Boolean(videoUrl) && !videoFailed && (!showPoster || shouldPlayVideo)
 
   useEffect(() => {
     setVideoFailed(false)
@@ -42,7 +44,7 @@ export function BackgroundPreviewMedia({
     if (!video) return
     let disposed = false
     const syncPlayback = () => {
-      if (!showVideo || document.visibilityState !== "visible") {
+      if (!shouldPlayVideo || document.visibilityState !== "visible") {
         video.pause()
         return
       }
@@ -61,8 +63,8 @@ export function BackgroundPreviewMedia({
       document.removeEventListener("visibilitychange", syncPlayback)
       video.pause()
     }
-    // A nonempty source can change while showVideo stays true, so resync after the browser reloads it.
-  }, [showVideo, videoUrl])
+    // A nonempty source can change while playback stays active, so resync after the browser reloads it.
+  }, [shouldPlayVideo, videoUrl])
 
   return (
     <div className={cn("relative size-full overflow-hidden", className)} aria-hidden="true">

@@ -37,6 +37,8 @@ test("development review spec matching accepts Playwright line and column suffix
   assert.equal(matchesDevelopmentPaletteReviewArgument("background-palette"), true)
   assert.equal(matchesDevelopmentPaletteReviewArgument(String.raw`dna.*cubes-backgrounds\.spec\.ts`), true)
   assert.equal(matchesDevelopmentPaletteReviewArgument(String.raw`[\\/]tests[\\/]browser[\\/]dna-twisted-cubes-backgrounds\.spec\.ts$`), true)
+  assert.equal(matchesDevelopmentPaletteReviewArgument(String.raw`^.*background-palette`), true)
+  assert.equal(matchesDevelopmentPaletteReviewArgument(String.raw`background-palette.*$`), true)
   assert.equal(matchesDevelopmentPaletteReviewArgument("[invalid"), false)
   assert.equal(matchesDevelopmentPaletteReviewArgument("spec"), true)
   assert.equal(matchesDevelopmentPaletteReviewArgument("tests/browser"), true)

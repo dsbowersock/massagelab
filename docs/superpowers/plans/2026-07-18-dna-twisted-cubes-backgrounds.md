@@ -390,7 +390,7 @@ Expected: FAIL because the renderer does not exist.
 
 - [ ] **Step 2: Implement calculated per-layer variables**
 
-Generate one wrapper/cube/cuboid plus twelve edges per sanitized layer. For each layer, choose `getTwistedCubeSourceOutline` when `paletteMode === "source"`; otherwise call `interpolateTwistedCubeOutline`. Pass outline color, alpha, negative delay, depth, and relative outline thickness as CSS variables.
+Generate one wrapper/cube/cuboid plus twelve edges per sanitized layer. For each layer, choose `getTwistedCubeSourceOutline` when `paletteMode === "source"`; otherwise call `interpolateTwistedCubeOutline`. Pass outline color, alpha, negative delay, depth, bounded orthographic depth projection, and relative outline thickness as CSS variables.
 
 - [ ] **Step 3: Recreate source 3D motion and static state**
 

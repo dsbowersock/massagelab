@@ -1,6 +1,6 @@
 # MassageLab Project State
 
-Verified: 2026-08-01
+Verified: 2026-08-02
 
 This is the read-first source of truth for MassageLab's current project state. Use it before `docs/project-log.md`, `docs/roadmap.md`, `TODO.md`, audits, or wiki pages when deciding what is active now.
 

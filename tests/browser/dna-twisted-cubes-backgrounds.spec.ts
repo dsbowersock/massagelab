@@ -15,6 +15,7 @@ import {
   getTwistedCubeAlpha,
   getTwistedCubeCycleSeconds,
   getTwistedCubeDelaySeconds,
+  getTwistedCubeDepthScale,
   getTwistedCubeLayerSizeVmax,
   getTwistedCubeSourceOutline,
   interpolateTwistedCubeOutline,
@@ -311,7 +312,11 @@ async function captureControlRenderState(host: Locator, id: typeof EFFECTS[numbe
  * first cube animation used by the probe. The property-isolation matrix keeps
  * the same host and deliberately samples paused time-zero transforms after later edits.
  */
-async function captureComputedConsumerState(host: Locator, id: typeof EFFECTS[number]["id"]) {
+async function captureComputedConsumerState(
+  host: Locator,
+  id: typeof EFFECTS[number]["id"],
+  includeProjectedGeometry = false,
+) {
   const root = effectRoot(host)
   if (id === "massage-lab-dna") {
     return root.evaluate((element) => {
@@ -394,7 +399,7 @@ async function captureComputedConsumerState(host: Locator, id: typeof EFFECTS[nu
     })
   }
 
-  return root.evaluate((element) => {
+  return root.evaluate((element, includeProjectedGeometry) => {
     const rootElement = element as HTMLElement
     const scene = rootElement.firstElementChild
     if (!(scene instanceof HTMLElement)) {
@@ -436,11 +441,14 @@ async function captureComputedConsumerState(host: Locator, id: typeof EFFECTS[nu
       cubeDuration: cubeCss.animationDuration,
       cubeDelay: cubeCss.animationDelay,
       edgeWidth: edgeCss.width,
+      ...(includeProjectedGeometry
+        ? { edgeRenderedWidth: firstEdge.getBoundingClientRect().width }
+        : {}),
       edgeHeight: edgeCss.height,
       edgeOpacity: edgeCss.opacity,
       edgeBackground: edgeCss.backgroundColor,
     }
-  })
+  }, includeProjectedGeometry)
 }
 
 /** Normalizes authored CSS fragments through Chromium before exact computed-style comparison. */
@@ -721,10 +729,10 @@ async function resolveTwistedCubeGeometryOracle({
       `translate(${transform.positionX}vw, ${transform.positionY}vh)`,
     ),
     normalizeComputedConsumer(host, {
-      transform: `rotateX(${properties.massageLabTwistedCubesViewAngleX}deg) rotateY(${properties.massageLabTwistedCubesViewAngleY}deg) translateZ(${(count - 1) * properties.massageLabTwistedCubesLayerDepthSpacing}vmin)`,
+      transform: `scale(${getTwistedCubeDepthScale({ oneBasedIndex: 1, count, layerDepthSpacing: properties.massageLabTwistedCubesLayerDepthSpacing })}) rotateX(${properties.massageLabTwistedCubesViewAngleX}deg) rotateY(${properties.massageLabTwistedCubesViewAngleY}deg)`,
     }),
     normalizeComputedConsumer(host, {
-      transform: `rotateX(${properties.massageLabTwistedCubesViewAngleX}deg) rotateY(${properties.massageLabTwistedCubesViewAngleY}deg) translateZ(${(count - 2) * properties.massageLabTwistedCubesLayerDepthSpacing}vmin)`,
+      transform: `scale(${getTwistedCubeDepthScale({ oneBasedIndex: 2, count, layerDepthSpacing: properties.massageLabTwistedCubesLayerDepthSpacing })}) rotateX(${properties.massageLabTwistedCubesViewAngleX}deg) rotateY(${properties.massageLabTwistedCubesViewAngleY}deg)`,
     }),
     normalizeComputedConsumer(host, {}, {
       width: `${firstLayerSize}vmax`,
@@ -757,7 +765,11 @@ async function expectExactComputedConsumer({
   before: Record<string, string | number>
 }) {
   const { key } = contract
-  const after = await captureComputedConsumerState(host, id) as Record<string, string | number>
+  const after = await captureComputedConsumerState(
+    host,
+    id,
+    key === "massageLabTwistedCubesLayerDepthSpacing",
+  ) as Record<string, string | number>
   const allowedChanges = new Set(contract.allowedCouplings)
   for (const [sentinel, value] of Object.entries(before)) {
     if (!allowedChanges.has(sentinel)) expect(after[sentinel], `${key} rewired computed ${sentinel}`).toBe(value)
@@ -1002,18 +1014,11 @@ async function expectExactComputedConsumer({
     case "massageLabTwistedCubesLayerDepthSpacing":
       expect(after.viewTransform).toBe(viewExpected.transform)
       expect(after.secondViewTransform).toBe(secondViewExpected.transform)
-      {
-        const beforeMatrix = parseComputedMatrix(String(before.viewTransform))
-        const afterMatrix = parseComputedMatrix(String(after.viewTransform))
-        const translationOffset = beforeMatrix.length === 16 ? 12 : 4
-        expect(
-          Math.hypot(
-            afterMatrix[translationOffset] - beforeMatrix[translationOffset],
-            afterMatrix[translationOffset + 1] - beforeMatrix[translationOffset + 1],
-          ),
-          "Layer depth changes projected view translation",
-        ).toBeGreaterThan(0.5)
-      }
+      expect(after.scenePerspective).toBe("none")
+      expect(
+        Math.abs(Number(after.edgeRenderedWidth) - Number(before.edgeRenderedWidth)),
+        "Layer depth changes orthographically projected edge geometry",
+      ).toBeGreaterThan(0.05)
       break
     case "massageLabTwistedCubesScale":
       expect(after.edgeWidth).toBe(firstEdgeSizeExpected.width)
@@ -1790,7 +1795,11 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
         await expect(slider).toHaveCount(1)
         const before = await parsedAttribute<Record<string, number>>(review, "data-current-properties")
         const beforeRender = await captureControlRenderState(host, effect.id)
-        const beforeComputed = await captureComputedConsumerState(host, effect.id)
+        const beforeComputed = await captureComputedConsumerState(
+          host,
+          effect.id,
+          key === "massageLabTwistedCubesLayerDepthSpacing",
+        )
         // Outline thickness uses End and Scale uses Home so each step moves to a deterministic bound.
         const keypressByKey: Record<string, string> = { massageLabDnaOutlineThickness: "End" }
         const keypress = keypressByKey[key] ?? (key.endsWith("Scale") ? "Home" : "ArrowRight")

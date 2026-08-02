@@ -54,18 +54,21 @@ describe("background preview media", () => {
     assert.match(componentSource, /fallbackStyle/)
   })
 
-  it("keeps inactive cards on posters and limits playback to the active centered card", () => {
+  it("keeps inactive cards on posters or paused legacy video frames and limits playback to the active centered card", () => {
     assert.match(cardSource, /<BackgroundPreviewMedia/)
     assert.match(cardSource, /active=\{active && centered && detailLevel !== "shell"\}/)
     assert.match(cardSource, /reducedMotion=\{reducedMotion\}/)
-    assert.match(componentSource, /const showVideo = active && !reducedMotion/)
+    assert.match(componentSource, /const shouldPlayVideo = active && !reducedMotion/)
+    assert.match(componentSource, /const showPoster = Boolean\(posterUrl\).*?!shouldPlayVideo/)
+    assert.match(componentSource, /const showVideo = Boolean\(videoUrl\).*?!showPoster \|\| shouldPlayVideo/)
+    assert.match(componentSource, /if \(!shouldPlayVideo \|\| document\.visibilityState !== "visible"\)/)
     assert.doesNotMatch(cardSource, /<video/)
   })
 
   it("resynchronizes playback when an active preview swaps to another nonempty source", () => {
     // This source contract intentionally keeps both inputs in the replay effect;
     // browser coverage exercises the resulting media restart behavior.
-    assert.match(componentSource, /\}, \[(?=[^\]]*\bshowVideo\b)(?=[^\]]*\bvideoUrl\b)[^\]]*\]\)/)
+    assert.match(componentSource, /\}, \[(?=[^\]]*\bshouldPlayVideo\b)(?=[^\]]*\bvideoUrl\b)[^\]]*\]\)/)
   })
 
   it("generates quality-78 WebP posters one-third through each actual encoded video", () => {

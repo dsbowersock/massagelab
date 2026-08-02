@@ -4,9 +4,11 @@ import {
   DEFAULT_TWISTED_CUBES_BACKGROUND_OPTIONS,
   TWISTED_CUBES_OPTION_BOUNDS,
   TWISTED_CUBES_LAYER_STEP_VMAX,
+  TWISTED_CUBES_DEPTH_PROJECTION_DIVISOR,
   getTwistedCubeAlpha,
   getTwistedCubeCycleSeconds,
   getTwistedCubeDelaySeconds,
+  getTwistedCubeDepthScale,
   getTwistedCubeLayerSizeVmax,
   getTwistedCubeSourceOutline,
   getTwistedCubesBackgroundOptionsFromChimerSettings,
@@ -32,6 +34,7 @@ describe("Twisted Cubes background domain rules", () => {
       outlineThickness: 0.0075,
     })
     assert.equal(TWISTED_CUBES_LAYER_STEP_VMAX, 20)
+    assert.equal(TWISTED_CUBES_DEPTH_PROJECTION_DIVISOR, 10000)
     assert.equal(Object.isFrozen(DEFAULT_TWISTED_CUBES_BACKGROUND_OPTIONS), true)
     assert.equal(Object.isFrozen(TWISTED_CUBES_OPTION_BOUNDS), true)
     assert.equal(TWISTED_CUBES_OPTION_BOUNDS.layerCount.maximum, 30)
@@ -142,6 +145,16 @@ describe("Twisted Cubes background domain rules", () => {
     assert.equal(getTwistedCubeLayerSizeVmax({ oneBasedIndex: 20, count: 20, scale: 1.2 }), 480)
     assert.equal(getTwistedCubeLayerSizeVmax({ oneBasedIndex: 10, count: 20, scale: 1 }), 200)
     assert.equal(getTwistedCubeLayerSizeVmax({ oneBasedIndex: 10, count: 20, scale: 0 }), 20)
+  })
+
+  it("projects layer depth visibly without introducing perspective distortion", () => {
+    assert.equal(getTwistedCubeDepthScale({ oneBasedIndex: 20, count: 20, layerDepthSpacing: 50 }), 1)
+    assert.equal(getTwistedCubeDepthScale({ oneBasedIndex: 1, count: 20, layerDepthSpacing: 50 }), 1.095)
+    assert.equal(getTwistedCubeDepthScale({ oneBasedIndex: 1, count: 30, layerDepthSpacing: 70 }), 1.203)
+    assert.ok(
+      getTwistedCubeDepthScale({ oneBasedIndex: 1, count: 20, layerDepthSpacing: 51 })
+        > getTwistedCubeDepthScale({ oneBasedIndex: 1, count: 20, layerDepthSpacing: 50 }),
+    )
   })
 
   it("keeps Source outlines continuous from 180 through 340 HSL degrees", () => {
