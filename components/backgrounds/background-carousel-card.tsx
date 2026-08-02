@@ -30,6 +30,7 @@ interface BackgroundCarouselCardProps {
   detailLevel: AdaptiveCarouselDetailLevel
   commerceState: BackgroundCardCommerceState
   selected: boolean
+  centered: boolean
   saved: boolean
   active: boolean
   signedIn: boolean
@@ -69,6 +70,7 @@ export function BackgroundCarouselCard({
   detailLevel,
   commerceState,
   selected,
+  centered,
   saved,
   active,
   signedIn,
@@ -118,7 +120,7 @@ export function BackgroundCarouselCard({
           videoUrl={previewVideoUrl}
           posterUrl={previewPosterUrl}
           fallbackStyle={option.fallbackStyle}
-          active={active && selected && detailLevel !== "shell"}
+          active={active && centered && detailLevel !== "shell"}
           reducedMotion={reducedMotion}
         />
       </div>

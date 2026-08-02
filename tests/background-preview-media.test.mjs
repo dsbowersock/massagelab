@@ -54,9 +54,9 @@ describe("background preview media", () => {
     assert.match(componentSource, /fallbackStyle/)
   })
 
-  it("keeps inactive cards on posters and limits playback to active selected cards", () => {
+  it("keeps inactive cards on posters and limits playback to the active centered card", () => {
     assert.match(cardSource, /<BackgroundPreviewMedia/)
-    assert.match(cardSource, /active=\{active && selected && detailLevel !== "shell"\}/)
+    assert.match(cardSource, /active=\{active && centered && detailLevel !== "shell"\}/)
     assert.match(cardSource, /reducedMotion=\{reducedMotion\}/)
     assert.match(componentSource, /const showVideo = active && !reducedMotion/)
     assert.doesNotMatch(cardSource, /<video/)
@@ -130,7 +130,7 @@ describe("background preview media", () => {
     assert.match(manifestGeneratorSource, /previewVerticalImageUrl/)
     assert.match(manifestGeneratorSource, /probeMediaDimensions\(filePath\)/)
     assert.match(manifestGeneratorSource, /validateDimensions\(posterPath, variant\.width, variant\.height\)/)
-    assert.match(manifestGeneratorSource, /resolvePreviewMediaUrl\(variant\.previewPosterUrl\)/)
+    assert.match(manifestGeneratorSource, /resolvePreviewMediaUrl\(variant\.previewPosterUrl, mediaBaseUrl\)/)
     assert.match(manifestGeneratorSource, /export function resolveVerticalPreviewMediaUrls\(/)
     assert.match(manifestGeneratorSource, /\$\{fallbackId\}-vertical\.webm/)
     assert.match(manifestGeneratorSource, /\$\{fallbackId\}-vertical\.webp/)
@@ -155,6 +155,45 @@ describe("background preview media", () => {
         posterUrl: "https://media.example.test/previews/missing-preview-vertical.webp",
       })
     } finally {
+      if (originalBaseUrl === undefined) delete process.env.NEXT_PUBLIC_CHIMER_PREVIEW_MEDIA_BASE_URL
+      else process.env.NEXT_PUBLIC_CHIMER_PREVIEW_MEDIA_BASE_URL = originalBaseUrl
+    }
+  })
+
+  it("keeps bundled Track 4B previews same-origin in production", async () => {
+    const originalNodeEnv = process.env.NODE_ENV
+    const originalBaseUrl = process.env.NEXT_PUBLIC_CHIMER_PREVIEW_MEDIA_BASE_URL
+    process.env.NODE_ENV = "production"
+    delete process.env.NEXT_PUBLIC_CHIMER_PREVIEW_MEDIA_BASE_URL
+    try {
+      const { backgroundPreviewManifest } = await import(
+        `../components/backgrounds/backgroundPreviewManifest.ts?bundled-base=${randomUUID()}`
+      )
+      for (const id of ["massage-lab-dna", "massage-lab-twisted-cubes"]) {
+        const entry = backgroundPreviewManifest[id]
+        for (const value of [
+          entry.previewMediaUrl,
+          entry.previewVideoUrl,
+          entry.previewImageUrl,
+          entry.previewSquareVideoUrl,
+          entry.previewSquareImageUrl,
+          entry.previewVerticalVideoUrl,
+          entry.previewVerticalImageUrl,
+          ...Object.values(entry.variants).flatMap((variant) => [
+            variant.previewMediaUrl,
+            variant.previewPosterUrl,
+          ]),
+        ]) {
+          assert.match(value, /^\/chimer\/background-previews\//)
+        }
+      }
+      assert.match(
+        backgroundPreviewManifest["massage-lab-3d-globe"].previewMediaUrl,
+        /^https:\/\/media\.massagelab\.app\/chimer\/background-previews\//,
+      )
+    } finally {
+      if (originalNodeEnv === undefined) delete process.env.NODE_ENV
+      else process.env.NODE_ENV = originalNodeEnv
       if (originalBaseUrl === undefined) delete process.env.NEXT_PUBLIC_CHIMER_PREVIEW_MEDIA_BASE_URL
       else process.env.NEXT_PUBLIC_CHIMER_PREVIEW_MEDIA_BASE_URL = originalBaseUrl
     }

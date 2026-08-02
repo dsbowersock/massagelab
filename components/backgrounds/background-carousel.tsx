@@ -156,12 +156,13 @@ export function BackgroundCarousel({
         }}
         onEffectiveLoopChange={onEffectiveLoopChange}
         onNavigate={onNavigate}
-        renderItem={(option, { detailLevel }) => (
+        renderItem={(option, { centered, detailLevel }) => (
           <BackgroundCarouselCard
             option={option}
             detailLevel={detailLevel}
             commerceState={option.commerceState}
             selected={selectedId === option.id}
+            centered={centered}
             saved={savedIds.includes(option.id)}
             active={active}
             signedIn={signedIn}
