@@ -24,6 +24,7 @@ import {
 import { COMPUTED_CONSUMER_CONTRACTS } from "./dna-twisted-cubes-consumer-contract.mjs"
 import { parseComputedMatrix } from "../helpers/computed-matrix"
 import { normalizeBrowserColors } from "../helpers/browser-color"
+import { TRACK_4B_CUSTOM_SWATCHES } from "../../app/dev/buttons/background-palette-review-fixtures"
 
 const DNA_COMPUTED_CONSUMER_CONTRACTS = COMPUTED_CONSUMER_CONTRACTS.filter(
   ({ effectId }) => effectId === "massage-lab-dna",
@@ -307,8 +308,8 @@ async function captureControlRenderState(host: Locator, id: typeof EFFECTS[numbe
 /**
  * Captures concrete CSS consumers rather than custom-property declarations.
  * DNA pauses every subtree animation at time zero; Twisted Cubes pauses the
- * first cube animation used by the probe. Callers discard or reload the host,
- * so the sampled animations deliberately remain paused.
+ * first cube animation used by the probe. The property-isolation matrix keeps
+ * the same host and deliberately samples paused time-zero transforms after later edits.
  */
 async function captureComputedConsumerState(host: Locator, id: typeof EFFECTS[number]["id"]) {
   const root = effectRoot(host)
@@ -1718,8 +1719,8 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
 
     await review.getByRole("button", { name: "Custom", exact: true }).click()
     const custom = await cubeOutlines(host)
-    expect(custom[0]).toBe("#ff5119")
-    expect(custom.at(-1)).toBe("#ec4899")
+    expect(custom[0]).toBe(TRACK_4B_CUSTOM_SWATCHES[0])
+    expect(custom.at(-1)).toBe(TRACK_4B_CUSTOM_SWATCHES.at(-1))
     expect(custom.slice(1, -1).every((color) => color.startsWith("rgb("))).toBe(true)
     expect(new Set(custom).size).toBeGreaterThan(6)
 

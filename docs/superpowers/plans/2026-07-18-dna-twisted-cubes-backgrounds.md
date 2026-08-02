@@ -427,7 +427,7 @@ git commit -m "feat: add twisted cubes renderer"
 
 - [ ] **Step 1: Add failing setting and registry tests**
 
-Add all 23 keys from Tasks 1 and 3 to `DEFAULT_CHIMER_SETTINGS` and `sanitizeChimerSettings`. Assert exact source defaults and approved clamps. Add stable IDs to `BackgroundId`:
+Add all 23 new keys from Tasks 1 and 3 to `DEFAULT_CHIMER_SETTINGS` and `sanitizeChimerSettings`. Assert exact source defaults and approved clamps. Add stable IDs to `BackgroundId`:
 
 ```ts
 | "massage-lab-dna"

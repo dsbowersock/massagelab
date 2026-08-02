@@ -1330,8 +1330,8 @@ test("DNA and Twisted Cubes controls emit only draft property patches with exact
     dnaSliders.length + 1,
     backgroundPaletteRegistry["massage-lab-dna"].visualPropertyKeys.length,
   )
-  for (const [label, property, step] of dnaSliders) assertSlider(dnaControlsSource, label, property, `DNA_OPTION_BOUNDS.${property}.minimum`, `DNA_OPTION_BOUNDS.${property}.maximum`, step)
-  assert.match(dnaControlsSource, /<StyledToggleControl[\s\S]*?label="Show base letters"[\s\S]*?checked=\{value\.showBaseLetters\}[\s\S]*?onCheckedChange=\{\(nextValue\) => onChange\(\{ showBaseLetters: nextValue \}\)\}/)
+  for (const [label, property, step] of dnaSliders) assertSlider(dnaControlsExecutableSource, label, property, `DNA_OPTION_BOUNDS.${property}.minimum`, `DNA_OPTION_BOUNDS.${property}.maximum`, step)
+  assert.match(dnaControlsExecutableSource, /<StyledToggleControl[\s\S]*?label="Show base letters"[\s\S]*?checked=\{value\.showBaseLetters\}[\s\S]*?onCheckedChange=\{\(nextValue\) => onChange\(\{ showBaseLetters: nextValue \}\)\}/)
 
   const twistedCubesSliders = [
     ["Rotation speed", "rotationSpeed", "0.01"],
@@ -1350,7 +1350,7 @@ test("DNA and Twisted Cubes controls emit only draft property patches with exact
     twistedCubesSliders.length,
     backgroundPaletteRegistry["massage-lab-twisted-cubes"].visualPropertyKeys.length,
   )
-  for (const [label, property, step] of twistedCubesSliders) assertSlider(twistedCubesControlsSource, label, property, `TWISTED_CUBES_OPTION_BOUNDS.${property}.minimum`, `TWISTED_CUBES_OPTION_BOUNDS.${property}.maximum`, step)
+  for (const [label, property, step] of twistedCubesSliders) assertSlider(twistedCubesControlsExecutableSource, label, property, `TWISTED_CUBES_OPTION_BOUNDS.${property}.minimum`, `TWISTED_CUBES_OPTION_BOUNDS.${property}.maximum`, step)
 
   for (const [label, source] of [
     ["DNA", dnaControlsExecutableSource],
@@ -1367,11 +1367,11 @@ test("DNA and Twisted Cubes controls emit only draft property patches with exact
       assert.doesNotMatch(source, pattern, `${label} controls keep ${pattern} out of the UI boundary`)
     }
   }
-  assert.match(dnaControlsSource, /displayValue=\{`\$\{value\.outlineThickness\.toFixed\(2\)\}vmin`\}/)
-  assert.match(twistedCubesControlsSource, /displayValue=\{`\$\{\(value\.outlineThickness \* 100\)\.toFixed\(2\)\}%`\}/)
+  assert.match(dnaControlsExecutableSource, /displayValue=\{`\$\{value\.outlineThickness\.toFixed\(2\)\}vmin`\}/)
+  assert.match(twistedCubesControlsExecutableSource, /displayValue=\{`\$\{\(value\.outlineThickness \* 100\)\.toFixed\(2\)\}%`\}/)
   assert.match(backgroundPropertyGroupSource, /<fieldset className=\{styles\.backgroundPropertyGroup\}>[\s\S]*<legend>\{label\}<\/legend>/)
-  assert.match(dnaControlsSource, /<BackgroundPropertyGroup label="Motion">/)
-  assert.match(twistedCubesControlsSource, /<BackgroundPropertyGroup label="Motion">/)
+  assert.match(dnaControlsExecutableSource, /<BackgroundPropertyGroup label="Motion">/)
+  assert.match(twistedCubesControlsExecutableSource, /<BackgroundPropertyGroup label="Motion">/)
   assert.doesNotMatch(dnaControlsExecutableSource, /<fieldset|<legend>/)
   assert.doesNotMatch(twistedCubesControlsExecutableSource, /<fieldset|<legend>/)
 })

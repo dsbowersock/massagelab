@@ -67,6 +67,7 @@ export function BackgroundCarousel({
   const { state: commerceClientState, signedIn } = useBackgroundCommerce()
   const snapshot = commerceClientState.snapshot
 
+  // Keep the carousel, preview cards, and host on the shared ambient-motion source of truth.
   const reducedMotion = useAmbientReducedMotion(settings.ambientMotionMode)
 
   useEffect(() => {

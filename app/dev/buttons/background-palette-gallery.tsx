@@ -47,6 +47,7 @@ import { Notice } from "@/components/ui/notice"
 import { useMusic } from "@/components/providers/music-provider"
 import { FEATURE_KEYS } from "@/lib/membership"
 import { BackgroundPreviewMediaReview } from "./background-preview-media-review"
+import { TRACK_4B_CUSTOM_SWATCHES } from "./background-palette-review-fixtures"
 import {
   DEFAULT_BACKGROUND_PALETTE_STATE,
   normalizeBackgroundColorMapping,
@@ -116,16 +117,6 @@ const TRACK_4B_PREVIEWS = TRACK_4B_IDS.map((id) => {
   }
 })
 
-const CUSTOM_SWATCHES = [
-  "#ff5119",
-  "#fbbf24",
-  "#22c55e",
-  "#06b6d4",
-  "#3b82f6",
-  "#8b5cf6",
-  "#ec4899",
-] as const
-
 const SOURCE_PALETTE: BackgroundPaletteEditorValue = {
   ...DEFAULT_BACKGROUND_PALETTE_STATE,
   swatches: [...DEFAULT_BACKGROUND_PALETTE_STATE.swatches],
@@ -133,16 +124,16 @@ const SOURCE_PALETTE: BackgroundPaletteEditorValue = {
 
 const CUSTOM_PALETTE: BackgroundPaletteEditorValue = {
   mode: "custom",
-  primaryColor: CUSTOM_SWATCHES[0],
+  primaryColor: TRACK_4B_CUSTOM_SWATCHES[0],
   harmony: "analogous",
-  swatches: CUSTOM_SWATCHES,
+  swatches: TRACK_4B_CUSTOM_SWATCHES,
 }
 
 const HARMONY_PALETTE: BackgroundPaletteEditorValue = {
   mode: "harmony",
   primaryColor: "#0ea5e9",
   harmony: "triad",
-  swatches: CUSTOM_SWATCHES,
+  swatches: TRACK_4B_CUSTOM_SWATCHES,
 }
 
 const TRACK_4B_VISUAL_PRESET = Object.freeze({
@@ -176,9 +167,9 @@ const representativeEntries = (["css-dom", "canvas", "webgl"] as const)
 
 const presetPalette = {
   mode: "custom" as const,
-  primaryColor: CUSTOM_SWATCHES[0],
+  primaryColor: TRACK_4B_CUSTOM_SWATCHES[0],
   harmony: "analogous",
-  swatches: CUSTOM_SWATCHES,
+  swatches: TRACK_4B_CUSTOM_SWATCHES,
 }
 
 const colorPresetFixtures: BackgroundColorPreset[] = Array.from(

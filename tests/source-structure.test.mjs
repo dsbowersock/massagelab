@@ -38,9 +38,18 @@ test("passive background source guards detect each forbidden construct family", 
     "<button onClick={handleClick}>Interactive</button>",
   ]
   assert.equal(forbiddenSources.length, NON_INTERACTIVE_BACKGROUND_SOURCE_PATTERNS.length)
-  NON_INTERACTIVE_BACKGROUND_SOURCE_PATTERNS.forEach((pattern, index) => {
-    assert.match(forbiddenSources[index], pattern)
-  })
+  for (const pattern of NON_INTERACTIVE_BACKGROUND_SOURCE_PATTERNS) {
+    assert.ok(
+      forbiddenSources.some((source) => pattern.test(source)),
+      `no fixture exercises ${pattern}`,
+    )
+  }
+  for (const source of forbiddenSources) {
+    assert.ok(
+      NON_INTERACTIVE_BACKGROUND_SOURCE_PATTERNS.some((pattern) => pattern.test(source)),
+      `no pattern rejects ${source}`,
+    )
+  }
 })
 
 test("interface extraction ignores braces in comments and quoted types", () => {

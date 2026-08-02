@@ -9,6 +9,7 @@ import {
 import {
   resolveBackgroundRoleColors,
 } from "../../lib/background-palette.js"
+import { TRACK_4B_CUSTOM_SWATCHES as CUSTOM_SWATCHES } from "../../app/dev/buttons/background-palette-review-fixtures"
 import { normalizeBrowserColor } from "../helpers/browser-color"
 
 type AdapterInventoryRow = {
@@ -25,15 +26,6 @@ type PreviewMediaProbeSnapshot = {
 
 const MODES = ["source", "custom", "harmony"] as const
 const EXPECTED_ENABLED_BACKGROUND_COUNT = 83
-const CUSTOM_SWATCHES = [
-  "#ff5119",
-  "#fbbf24",
-  "#22c55e",
-  "#06b6d4",
-  "#3b82f6",
-  "#8b5cf6",
-  "#ec4899",
-] as const
 const enabledRegistryEntries = backgroundRegistry.filter((entry) => entry.enabled)
 
 function captureRuntimeErrors(page: Page) {
@@ -559,8 +551,8 @@ test.describe("shared background palette review matrix", () => {
   })
 
   test("preview media uses posters, playback, fallbacks, and listener cleanup", async ({ page }) => {
-    // Patch playback and visibility-listener prototypes only while the carousel
-    // preview video exists; __restorePreviewMediaProbe must restore them afterward.
+    // Patch playback and visibility-listener prototypes for this test. The post-mount
+    // baseline isolates the carousel listener; __restorePreviewMediaProbe restores both.
     await page.addInitScript(() => {
       type PreviewMediaProbe = {
         playCalls: number
@@ -611,10 +603,7 @@ test.describe("shared background palette review matrix", () => {
         listener: EventListenerOrEventListenerObject,
         options?: boolean | AddEventListenerOptions,
       ) {
-        if (
-          type === "visibilitychange"
-          && document.querySelector('[data-testid="carousel-background-video"]')
-        ) probe.visibilityListeners.add(listener)
+        if (type === "visibilitychange") probe.visibilityListeners.add(listener)
         return addEventListener.call(this, type, listener, options)
       } as Document["addEventListener"]
       Document.prototype.removeEventListener = function remove(
