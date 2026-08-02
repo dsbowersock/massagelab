@@ -6,6 +6,12 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-02 — July 18 numbered-program Production closure
+
+- PR #160 merged Track 4B to `main` as `3ababd8d3754419ecd7d3cc076fe69b8604dc246`, and the exact merge commit completed its Vercel Production deployment successfully.
+- Live verification at `https://www.massagelab.app/chimer` exercised the setup flow through the production Background carousel, confirmed DNA and Twisted Cubes as items 5 and 6, and loaded each centered vertical WebM preview to a complete ready state with its WebP poster and no media error. The public R2 manifest contains both entries, and all twelve Track 4B WebM/WebP assets across landscape, square, and vertical layouts return HTTP 200 with the declared MIME types and manifest-matching byte lengths. The only browser console failure was an unreachable external Cloudflare analytics beacon in the verification environment, not a MassageLab application or media request.
+- Tracks 1A/1B, 2, 3A/3B, 4A, and 4B are now complete. The July 18 numbered program has no remaining implementation or rollout gate; its detailed plan checklists remain historical execution evidence rather than active work.
+
 ## 2026-08-02 — Track 4B PR #160 review loop
 
 - Opened ready PR #160 for `codex/track4b-dna-twisted-cubes` after the user explicitly waived the missing final local CodeRabbit-clean artifact. The waiver was limited to the truncated, unpersisted local CLI result; GitHub QA, CodeQL, Vercel, CodeRabbit, Codex, issue comments, and review threads remain required gates, and merge remains a separate user action.
