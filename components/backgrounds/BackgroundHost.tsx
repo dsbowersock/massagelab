@@ -451,7 +451,7 @@ export function BackgroundHost(props: BackgroundHostProps) {
       }
       data-background-motion={motionEnabled ? "playing" : "paused"}
       data-background-review-mount-requested={diagnostics && forceEffectMount ? "true" : undefined}
-      data-background-review-motion-forced={diagnostics && allowAmbientMotionForReview && motionEnabled ? "true" : undefined}
+      data-background-review-motion-forced={diagnostics && allowAmbientMotionForReview && ambientReducedMotion && motionEnabled ? "true" : undefined}
       data-background-provider={entry.provider}
       data-background-diagnostic-requested-id={diagnosticSnapshot?.requestedId}
       data-background-diagnostic-loaded-id={diagnosticSnapshot?.loadedId ?? undefined}

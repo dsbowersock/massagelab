@@ -86,6 +86,10 @@ const TRACK_4B_SOURCE_SETTINGS = Object.freeze({
   ...toDnaChimerSettingsPatch(DEFAULT_DNA_BACKGROUND_OPTIONS),
   ...toTwistedCubesChimerSettingsPatch(DEFAULT_TWISTED_CUBES_BACKGROUND_OPTIONS),
 })
+const TRACK_4B_DEVELOPMENT_HOST_PROPS = resolveDnaTwistedCubesBackgroundHostProps({
+  settings: TRACK_4B_SOURCE_SETTINGS,
+  category: "ambient",
+})
 
 const TRACK_4B_SUBSCRIBER_ACCESS = Object.freeze({
   featureKeys: [FEATURE_KEYS.premiumBackgrounds],
@@ -928,6 +932,7 @@ export function BackgroundPaletteGallery() {
             >
               <div className="relative min-h-80 overflow-hidden rounded-2xl border border-border bg-black">
                 <BackgroundHost
+                  {...TRACK_4B_DEVELOPMENT_HOST_PROPS}
                   selectedId={selectedId}
                   access={DEVELOPMENT_REVIEW_ACCESS}
                   massageLabLightSpeed={{

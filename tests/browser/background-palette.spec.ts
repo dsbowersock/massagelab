@@ -9,6 +9,7 @@ import {
 import {
   resolveBackgroundRoleColors,
 } from "../../lib/background-palette.js"
+import { normalizeBrowserColor } from "../helpers/browser-color"
 
 type AdapterInventoryRow = {
   id: string
@@ -157,18 +158,6 @@ async function readPreviewMediaProbe(page: Page): Promise<PreviewMediaProbeSnaps
       visibilityListenerCount: rawProbe.visibilityListeners.size,
     }
   })
-}
-
-/** Resolves any valid CSS color through the same browser parser used by renderers. */
-async function normalizeBrowserColor(page: Page, value: string) {
-  return page.evaluate((color) => {
-    const probe = document.createElement("span")
-    probe.style.color = color
-    document.body.append(probe)
-    const normalized = getComputedStyle(probe).color
-    probe.remove()
-    return normalized
-  }, value)
 }
 
 async function expectLoadedPaletteMode(
@@ -376,7 +365,10 @@ test.describe("shared background palette review matrix", () => {
     expect(effectBounds?.height).toBeGreaterThan(0)
     expect(await effectLayer.evaluate((element) => {
       const root = element as HTMLElement
-      const composition = root.firstElementChild?.firstElementChild as HTMLElement
+      const composition = root.firstElementChild?.firstElementChild
+      if (!(composition instanceof HTMLElement)) {
+        throw new Error("The DNA review composition element is missing.")
+      }
       return {
         background: root.style.getPropertyValue("--ml-dna-background-color"),
         nodeOne: root.style.getPropertyValue("--ml-dna-node-color-0"),

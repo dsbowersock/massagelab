@@ -115,8 +115,16 @@ export function getPlaywrightFileFilterArguments(argv: readonly string[]) {
   return positionalArguments
 }
 
-const runsDevelopmentPaletteReview = getPlaywrightFileFilterArguments(process.argv.slice(2))
-  .some(matchesDevelopmentPaletteReviewArgument)
+const playwrightSubcommands = new Set(["test", "show-report", "codegen", "install"])
+
+/** Detects review-spec filters without treating a Playwright subcommand as a file filter. */
+export function isDevelopmentPaletteReviewInvocation(argv: readonly string[]) {
+  return getPlaywrightFileFilterArguments(argv)
+    .filter((argument, index) => index !== 0 || !playwrightSubcommands.has(argument))
+    .some(matchesDevelopmentPaletteReviewArgument)
+}
+
+const runsDevelopmentPaletteReview = isDevelopmentPaletteReviewInvocation(process.argv.slice(2))
 const defaultWebServerCommand = runsDevelopmentPaletteReview
   ? `npm run dev -- -p ${browserQaPort}`
   : `npm run start -- -p ${browserQaPort}`

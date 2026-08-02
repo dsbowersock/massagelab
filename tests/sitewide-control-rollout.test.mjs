@@ -13,6 +13,15 @@ import { maskSourceComments } from "./helpers/source-structure.mjs"
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8")
 
+function sourceBetween(source, startMarker, endMarker, label) {
+  const start = source.indexOf(startMarker)
+  assert.notEqual(start, -1, `${label} retains its start marker`)
+  const end = source.indexOf(endMarker, start + startMarker.length)
+  assert.notEqual(end, -1, `${label} retains its end marker`)
+  assert.ok(end > start, `${label} markers remain ordered`)
+  return source.slice(start, end)
+}
+
 test("S6 ordinary action routes delegate to the shared Button family", async () => {
   const [chimer, pricing, anatomimeAlias] = await Promise.all([
     read("app/chimer/set-timer.tsx"),
@@ -140,20 +149,32 @@ test("Visual draft actions live in the responsive panel header while sync status
   assert.doesNotMatch(styles, /\.visualDraftActions\s*\{[^}]*position:\s*sticky/)
   assert.match(styles, /\.immersiveVisualHeaderControls,\s*\.visualHeaderDraftActions\s*\{/)
   assert.match(styles, /:global\(\[data-immersive-layout="side"\]\) \.visualHeaderDraftButtonLabel\s*\{[^}]*display:\s*none/)
-  assert.match(
+  const headerControls = sourceBetween(
     runningTimer,
+    "visualHeaderCenterAction={",
+    "clockContent={",
+    "Visual header controls",
+  )
+  const visualStatus = sourceBetween(
+    runningTimer,
+    "visualContent={",
+    "{!isClockMode && mode.context",
+    "Visual status content",
+  )
+  assert.match(
+    headerControls,
     /className=\{styles\.immersiveVisualHeaderControls\}[\s\S]*aria-label="Visual draft actions"/,
   )
   assert.match(
-    runningTimer,
+    visualStatus,
     /className=\{styles\.visualDraftStatusRow\}[\s\S]*variant="cta" onClick=\{onRetryBackgroundVisualPreferences\}[\s\S]*Retry sync/,
   )
   assert.match(
-    runningTimer,
+    headerControls,
     /aria-label="Undo"[\s\S]*aria-label="Redo"[\s\S]*variant="destructive" aria-label="Cancel"/,
   )
   assert.match(
-    runningTimer,
+    headerControls,
     /variant="success" aria-label="Apply"[\s\S]*onClick=\{commitVisualDraft\}/,
   )
 })
@@ -172,6 +193,8 @@ test("development review exposes the complete shared background palette matrix",
   assert.match(gallery, /backgroundPaletteRegistry/)
   assert.match(gallery, /backgroundRegistry/)
   assert.match(gallery, /<BackgroundHost/)
+  assert.match(gallery, /const TRACK_4B_DEVELOPMENT_HOST_PROPS = resolveDnaTwistedCubesBackgroundHostProps/)
+  assert.match(gallery, /<BackgroundHost[\s\S]*\{\.\.\.TRACK_4B_DEVELOPMENT_HOST_PROPS\}/)
   assert.match(gallery, /FEATURE_KEYS\.premiumBackgrounds/)
   assert.doesNotMatch(gallery, /FEATURE_KEYS\.chimerCustomColors/)
   assert.match(gallery, /Source[\s\S]*Custom[\s\S]*Harmony/)
@@ -429,8 +452,8 @@ test("DNA and Twisted Cubes share compact options and host-owned responsive moti
   assert.match(ambientMotionSource, /useMediaQuery\(AMBIENT_REDUCED_MOTION_QUERY, true\)/)
   assert.match(hostSource, /entry\.supportsReducedMotionStatic/)
   assert.match(hostSource, /reduceMotion,[\s\S]*compactViewport,/)
-  assert.doesNotMatch(dnaExecutableSource, /\b(?:document|window)\s*\.|addEventListener|requestAnimationFrame/)
-  assert.doesNotMatch(cubesExecutableSource, /\b(?:document|window)\s*\.|addEventListener|requestAnimationFrame/)
+  assert.doesNotMatch(dnaExecutableSource, /\b(?:globalThis|document|window)\b|addEventListener|requestAnimationFrame/)
+  assert.doesNotMatch(cubesExecutableSource, /\b(?:globalThis|document|window)\b|addEventListener|requestAnimationFrame/)
   assert.match(styles, /\.backgroundPropertyGroups\s*\{[^}]*\bmin-width:\s*0/)
   assert.match(styles, /\.backgroundPropertyGroup\s*\{[^}]*\bmin-width:\s*0/)
 })
@@ -515,7 +538,7 @@ test("actual Chimer, ordinary Clock, Music, and ambient Host plumbing resolves a
       label: "ambient Host",
       category: "ambient",
       route: null,
-      immersiveContext: null,
+      immersiveContext: "chimer",
     },
   ]
   const runningSource = await read("app/chimer/running-timer.tsx")
@@ -530,9 +553,7 @@ test("actual Chimer, ordinary Clock, Music, and ambient Host plumbing resolves a
   )
 
   for (const { label, category, route, immersiveContext } of contexts) {
-    if (route) {
-      assert.equal(resolveImmersiveDisplayContext(route), immersiveContext, label)
-    }
+    assert.equal(resolveImmersiveDisplayContext(route ?? undefined), immersiveContext, label)
 
     const hostProps = resolveDnaTwistedCubesBackgroundHostProps({ settings, category })
     assert.deepEqual(hostProps, {

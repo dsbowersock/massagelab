@@ -1314,6 +1314,7 @@ test("DNA and Twisted Cubes controls emit only draft property patches with exact
     ["Connector thickness", "connectorThickness", "1"],
     ["Outline thickness", "outlineThickness", "0.05"],
   ]
+  // DNA also exposes the non-slider Show base letters toggle.
   assert.equal(
     dnaSliders.length + 1,
     backgroundPaletteRegistry["massage-lab-dna"].visualPropertyKeys.length,

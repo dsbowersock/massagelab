@@ -1113,7 +1113,7 @@ test("539px dock headers own shared actions and compact visual color controls", 
     return {
       titleReadable: title.width > 0 && title.height > 0,
       toggleImmediatelyAfterTitle: toggle.left >= title.right && toggle.left - title.right <= 24,
-      actionsBetweenColorAndClose: swatch.right <= actionLeft && actionRight <= close.left,
+      actionsBetweenColorAndClose: colorControl.right <= actionLeft && actionRight <= close.left,
       controlsOrdered: orderedElements.length === ordered.length
         && orderedElements.every((element, index) => index === 0 || Boolean(
           orderedElements[index - 1]!.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING,

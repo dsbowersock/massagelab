@@ -45,7 +45,7 @@ test("the Twisted Cubes renderer stays a scoped, non-interactive CSS DOM effect"
   assert.doesNotMatch(componentCode, /--ml-twisted-cubes-viewport-extent/)
   assert.match(componentCode, /className=\{styles\.cube\}/)
   assert.match(componentCode, /className=\{styles\.cuboid\}/)
-  assert.doesNotMatch(componentCode, /\b(?:iframe|canvas|webgl|fetch|XMLHttpRequest|addEventListener|removeEventListener|ResizeObserver|window\.|document\.)\b/i)
+  assert.doesNotMatch(componentCode, /\b(?:iframe|canvas|webgl|fetch|XMLHttpRequest|addEventListener|removeEventListener|ResizeObserver|globalThis|window|document)\b/i)
   assert.doesNotMatch(componentCode, /(?:billing|account|entitlement|stripe|registry|storage)/i)
   assert.doesNotMatch(componentCode, /\b(?:button|input|select|textarea|tabIndex|onClick|onPointer|onDrag|onTouch|cursor)\b/)
 
@@ -81,8 +81,8 @@ test("the Twisted Cubes renderer stays a scoped, non-interactive CSS DOM effect"
 
 test("Twisted Cubes options extend the shared background effect contract", () => {
   const effectPropsSource = readFileSync(effectPropsPath, "utf8")
-  const cubesOptions = extractInterfaceBody(effectPropsSource, "MassageLabTwistedCubesOptions")
-  const effectProps = extractInterfaceBody(effectPropsSource, "BackgroundEffectProps")
+  const cubesOptions = extractInterfaceBody(effectPropsSource, "MassageLabTwistedCubesOptions", "css-backgrounds.tsx")
+  const effectProps = extractInterfaceBody(effectPropsSource, "BackgroundEffectProps", "css-backgrounds.tsx")
 
   assert.match(cubesOptions, /layerCount: number;?/)
   assert.match(cubesOptions, /paletteMode: "source" \| "resolved";?/)

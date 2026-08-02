@@ -12,22 +12,22 @@ import {
 
 describe("Chimer entitlement-aware settings", () => {
   it("keeps Track 4B customization access feature- and ownership-based with Source fallback", () => {
+    assert.equal(canCustomizeBackgroundColors({ hasBackgroundAccess: true }), true)
+    assert.equal(resolveEffectiveBackgroundPaletteMode({
+      savedMode: "custom",
+      canCustomize: canCustomizeBackgroundColors({ hasBackgroundAccess: true }),
+    }), "custom")
+    assert.equal(resolveEffectiveBackgroundPaletteMode({
+      savedMode: "harmony",
+      canCustomize: false,
+    }), "source")
+
     for (const backgroundId of ["massage-lab-dna", "massage-lab-twisted-cubes"]) {
       const visualPropertyKey = backgroundId === "massage-lab-dna"
         ? "massageLabDnaStrandCount"
         : "massageLabTwistedCubesLayerCount"
       const editedVisualValue = backgroundId === "massage-lab-dna" ? 17 : 24
       assert.equal(typeof DEFAULT_CHIMER_SETTINGS[visualPropertyKey], "number", backgroundId)
-      assert.equal(canCustomizeBackgroundColors({ hasBackgroundAccess: true }), true, backgroundId)
-      assert.equal(resolveEffectiveBackgroundPaletteMode({
-        savedMode: "custom",
-        canCustomize: canCustomizeBackgroundColors({ hasBackgroundAccess: true }),
-      }), "custom", backgroundId)
-      assert.equal(resolveEffectiveBackgroundPaletteMode({
-        savedMode: "harmony",
-        canCustomize: false,
-      }), "source", backgroundId)
-
       const featureSettings = sanitizeChimerSettingsForEntitlements({
         backgroundId,
         [visualPropertyKey]: editedVisualValue,

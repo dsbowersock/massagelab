@@ -8,6 +8,7 @@ test("comment masking preserves quoted program text and JSX apostrophes", () => 
     const doubleQuoted = "// executable";
     const singleQuoted = '/* executable */';
     const template = \`// executable template\`;
+    const pattern = /executable regex/;
     const jsx = <p>DNA isn't random by color.</p>;
     // masked line comment
     /* masked block comment */
@@ -17,6 +18,7 @@ test("comment masking preserves quoted program text and JSX apostrophes", () => 
   assert.match(masked, /"\/\/ executable"/)
   assert.match(masked, /'\/\* executable \*\/'/)
   assert.match(masked, /`\/\/ executable template`/)
+  assert.match(masked, /executable regex/)
   assert.match(masked, /DNA isn't random by color/)
   assert.doesNotMatch(masked, /masked line comment|masked block comment/)
 })
@@ -70,5 +72,17 @@ test("interface extraction requires balanced quoted and comment state", () => {
   assert.throws(
     () => extractInterfaceBody("export interface Broken { value: `unterminated", "Broken", "broken-fixture.ts"),
     /broken-fixture\.ts has an unterminated ` starting at offset \d+/,
+  )
+  assert.throws(
+    () => extractInterfaceBody('export interface Broken { value: "unterminated', "Broken", "double-quote.ts"),
+    /double-quote\.ts has an unterminated " starting at offset \d+/,
+  )
+  assert.throws(
+    () => extractInterfaceBody("export interface Broken { value: 'unterminated", "Broken", "single-quote.ts"),
+    /single-quote\.ts has an unterminated ' starting at offset \d+/,
+  )
+  assert.throws(
+    () => extractInterfaceBody("export interface Broken { value: string /* unterminated", "Broken", "block-comment.ts"),
+    /block-comment\.ts has an unterminated block-comment starting at offset \d+/,
   )
 })

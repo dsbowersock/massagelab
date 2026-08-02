@@ -110,6 +110,9 @@ describe("background preview media", () => {
     assert.match(manifestGeneratorSource, /previewVerticalImageUrl/)
     assert.match(manifestGeneratorSource, /validateDimensions\(posterPath, variant\.width, variant\.height\)/)
     assert.match(manifestGeneratorSource, /resolvePreviewMediaUrl\(variant\.previewPosterUrl\)/)
+    assert.match(manifestGeneratorSource, /export function resolveVerticalPreviewMediaUrls\(/)
+    assert.match(manifestGeneratorSource, /\$\{fallbackId\}-vertical\.webm/)
+    assert.match(manifestGeneratorSource, /\$\{fallbackId\}-vertical\.webp/)
   })
 
   it("routes guessed vertical preview fallbacks through the configured media base", async () => {

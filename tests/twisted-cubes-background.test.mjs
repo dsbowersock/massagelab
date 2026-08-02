@@ -99,7 +99,7 @@ describe("Twisted Cubes background domain rules", () => {
   })
 
   it("falls back to source defaults for non-finite Twisted Cubes inputs", () => {
-    for (const invalid of [NaN, Infinity, -Infinity]) {
+    for (const invalid of [NaN, Infinity, -Infinity, null, undefined, "20", true, {}]) {
       assert.deepEqual(
         sanitizeTwistedCubesBackgroundOptions(
           Object.fromEntries(Object.keys(DEFAULT_TWISTED_CUBES_BACKGROUND_OPTIONS).map((key) => [key, invalid])),
@@ -143,7 +143,9 @@ describe("Twisted Cubes background domain rules", () => {
     assert.equal(getTwistedCubeSourceOutline({ oneBasedIndex: 1, count: 1 }), "hsl(180 80% 60%)")
     assert.equal(getTwistedCubeSourceOutline({ oneBasedIndex: 1, count: 20 }), "hsl(180 80% 60%)")
     assert.equal(getTwistedCubeSourceOutline({ oneBasedIndex: 20, count: 20 }), "hsl(340 80% 60%)")
-    assert.equal(getTwistedCubeSourceOutline({ oneBasedIndex: 11, count: 20 }), "hsl(264.2105263157895 80% 60%)")
+    const middleOutline = getTwistedCubeSourceOutline({ oneBasedIndex: 11, count: 20 })
+    const middleHue = Number(/^hsl\(([-\d.]+)/.exec(middleOutline)?.[1])
+    assert.ok(Math.abs(middleHue - 264.2105263157895) < 1e-12)
   })
 
   it("interpolates six Custom or Harmony anchors through five sRGB segments", () => {
@@ -188,6 +190,14 @@ describe("Twisted Cubes background domain rules", () => {
       interpolateTwistedCubeOutline({
         anchors: [anchors[0], "invalid", ...anchors.slice(2)],
         sourceAnchors: hslSourceAnchors,
+        oneBasedIndex: 2,
+        count: 6,
+      }),
+      "rgb(71 148 235)",
+    )
+    assert.equal(
+      interpolateTwistedCubeOutline({
+        anchors: [anchors[0], "invalid", ...anchors.slice(2)],
         oneBasedIndex: 2,
         count: 6,
       }),

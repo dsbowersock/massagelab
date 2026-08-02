@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises"
 
 import playwrightConfig, {
   getPlaywrightFileFilterArguments,
+  isDevelopmentPaletteReviewInvocation,
   matchesDevelopmentPaletteReviewArgument,
 } from "../playwright.config.ts"
 
@@ -42,6 +43,12 @@ test("development review spec matching accepts Playwright line and column suffix
   assert.equal(matchesDevelopmentPaletteReviewArgument("not-a-review-spec"), false)
   assert.equal(matchesDevelopmentPaletteReviewArgument("tests/browser/public-routes.spec.ts:42"), false)
   assert.equal(matchesDevelopmentPaletteReviewArgument("prefix-tests/browser/background-palette.spec.ts"), false)
+})
+
+test("development review invocation ignores the leading Playwright subcommand", () => {
+  assert.equal(isDevelopmentPaletteReviewInvocation(["test"]), false)
+  assert.equal(isDevelopmentPaletteReviewInvocation(["test", "tests/browser/public-routes.spec.ts"]), false)
+  assert.equal(isDevelopmentPaletteReviewInvocation(["test", "dna-twisted"]), true)
 })
 
 test("Playwright file filters skip separate option values", () => {

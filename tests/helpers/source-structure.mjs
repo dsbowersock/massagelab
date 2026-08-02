@@ -112,6 +112,8 @@ export function extractInterfaceBody(source, name, label = `${name} interface so
   let parenthesisDepth = 0
   let bracketDepth = 0
   let openingBraceIndex = -1
+  // This intentionally treats every `>` as a generic close. Operators such as
+  // `=>` and `>=` in an interface heritage clause are outside this helper's scope.
   for (let index = declarationEndIndex; index < code.length; index += 1) {
     const character = code[index]
     if (character === "<") angleDepth += 1

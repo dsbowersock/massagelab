@@ -4,17 +4,15 @@ import { memo, type CSSProperties, useState } from "react"
 import {
   createDnaStrandAssignments,
   DNA_OPTION_BOUNDS,
+  DNA_SOURCE_BACKGROUND_COLOR,
+  DNA_SOURCE_CONNECTOR_COLOR,
+  DNA_SOURCE_NODE_ROLE_COLORS,
+  DNA_SOURCE_OUTLINE_COLOR,
   getDnaNodeCycleSeconds,
   getDnaStrandDelaySeconds,
   getDnaStrandRotationSeconds,
 } from "@/lib/dna-background"
 import { resolveResponsiveBackgroundTransform } from "@/lib/background-effect-layout"
-import {
-  DNA_SOURCE_BACKGROUND_COLOR,
-  DNA_SOURCE_CONNECTOR_COLOR,
-  DNA_SOURCE_NODE_ROLE_COLORS,
-  DNA_SOURCE_OUTLINE_COLOR,
-} from "@/lib/dna-background"
 import type { BackgroundEffectProps, MassageLabDnaOptions } from "./css-backgrounds"
 import styles from "./massage-lab-dna-background.module.css"
 

@@ -21,6 +21,7 @@ import {
 } from "../../lib/twisted-cubes-background.js"
 import { COMPUTED_CONSUMER_CONTRACTS } from "./dna-twisted-cubes-consumer-contract.mjs"
 import { parseComputedMatrix } from "../helpers/computed-matrix"
+import { normalizeBrowserColors } from "../helpers/browser-color"
 
 const DNA_COMPUTED_CONSUMER_CONTRACTS = COMPUTED_CONSUMER_CONTRACTS.filter(
   ({ effectId }) => effectId === "massage-lab-dna",
@@ -28,6 +29,9 @@ const DNA_COMPUTED_CONSUMER_CONTRACTS = COMPUTED_CONSUMER_CONTRACTS.filter(
 const TWISTED_CUBES_COMPUTED_CONSUMER_CONTRACTS = COMPUTED_CONSUMER_CONTRACTS.filter(
   ({ effectId }) => effectId === "massage-lab-twisted-cubes",
 )
+if (DNA_COMPUTED_CONSUMER_CONTRACTS.length !== 11 || TWISTED_CUBES_COMPUTED_CONSUMER_CONTRACTS.length !== 11) {
+  throw new Error("Track 4B requires exactly 11 computed-consumer contracts per renderer.")
+}
 const DNA_SOURCE_WIDTH = `${DNA_SOURCE_GEOMETRY.widthVmin}vmin`
 const DNA_SOURCE_HEIGHT = `max(${DNA_SOURCE_GEOMETRY.minimumHeightVmin}vmin, ${DNA_SOURCE_GEOMETRY.viewportHeightVmax}vmax)`
 const DNA_START_NODE_TRANSLATION = `translateX(calc(${DNA_SOURCE_WIDTH} - 100%))`
@@ -236,7 +240,11 @@ async function captureControlRenderState(host: Locator, id: typeof EFFECTS[numbe
     return root.evaluate((element) => {
       const rootElement = element as HTMLElement
       const rootStyle = rootElement.style
-      const sceneStyle = (rootElement.firstElementChild as HTMLElement).style
+      const sceneElement = rootElement.firstElementChild
+      if (!(sceneElement instanceof HTMLElement)) {
+        throw new Error("The DNA render-state scene element is missing.")
+      }
+      const sceneStyle = sceneElement.style
       const strands = Array.from(rootElement.querySelectorAll<HTMLElement>('[style*="--ml-dna-start-color"]'))
       const firstStyle = strands[0]?.style
       return {
@@ -264,7 +272,11 @@ async function captureControlRenderState(host: Locator, id: typeof EFFECTS[numbe
   return root.evaluate((element) => {
     const rootElement = element as HTMLElement
     const rootStyle = rootElement.style
-    const sceneStyle = (rootElement.firstElementChild as HTMLElement).style
+    const sceneElement = rootElement.firstElementChild
+    if (!(sceneElement instanceof HTMLElement)) {
+      throw new Error("The Twisted Cubes render-state scene element is missing.")
+    }
+    const sceneStyle = sceneElement.style
     const layers = Array.from(rootElement.querySelectorAll<HTMLElement>('[style*="--ml-twisted-cubes-outline"]'))
     const firstStyle = layers[0]?.style
     const secondStyle = layers[1]?.style
@@ -1422,14 +1434,7 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
         ]),
       ),
     )
-    const expectedNodeColors = await page.evaluate((colors) => colors.map((color) => {
-      const probe = document.createElement("span")
-      probe.style.color = color
-      document.body.append(probe)
-      const normalized = getComputedStyle(probe).color
-      probe.remove()
-      return normalized
-    }), dnaSourceNodeColors)
+    const expectedNodeColors = await normalizeBrowserColors(page, dnaSourceNodeColors)
     expect(nodeColorsByBase).toEqual({
       A: [expectedNodeColors[0]],
       T: [expectedNodeColors[1]],

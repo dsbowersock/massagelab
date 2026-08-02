@@ -212,13 +212,14 @@ test("BackgroundHost mounts only active or static-capable effects and keeps revi
     backgroundHostSource,
     /entry\.component &&\s*\(!reduceMotion \|\| entry\.motionIntensity === "static" \|\| entry\.supportsReducedMotionStatic\)/,
   )
-  const effectGateStart = backgroundHostSource.indexOf("const shouldLoadEffect")
-  assert.notEqual(effectGateStart, -1, "BackgroundHost should retain the shouldLoadEffect marker")
-  const effectGateEnd = backgroundHostSource.indexOf("const { baseEffectProps", effectGateStart)
-  assert.notEqual(effectGateEnd, -1, "BackgroundHost should retain the baseEffectProps marker")
-  assert.ok(effectGateEnd > effectGateStart, "BackgroundHost effect-gate markers should remain ordered")
+  const effectGateBlock = sourceBetween(
+    backgroundHostSource,
+    "const shouldLoadEffect",
+    "const { baseEffectProps",
+    "BackgroundHost effect gate",
+  )
   assert.doesNotMatch(
-    backgroundHostSource.slice(effectGateStart, effectGateEnd),
+    effectGateBlock,
     /forceEffectMount|forceAmbientMotionForReview|motionEnabled/,
   )
 })
