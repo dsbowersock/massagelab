@@ -18,7 +18,7 @@ import {
   LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL,
   normalizeGeneratedPreviewManifestItem,
 } from "./manifest-url-normalization.mjs"
-import { parseProbeDurationSeconds } from "./probe-result.mjs"
+import { parseProbeDimensions, parseProbeDurationSeconds } from "./probe-result.mjs"
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const defaultOutputDir = path.join(repoRoot, "public/chimer/background-previews")
@@ -375,12 +375,41 @@ function hashFile(filePath) {
   return createHash("sha256").update(readFileSync(filePath)).digest("hex")
 }
 
+/** Verifies that a reusable video or poster is readable at the declared variant size. */
+function mediaMatchesVariant(filePath, variant) {
+  if (!existsSync(filePath) || statSync(filePath).size <= 0) return false
+  const result = spawnSync("ffprobe", [
+    "-v", "error",
+    "-select_streams", "v:0",
+    "-show_entries", "stream=width,height",
+    "-of", "csv=s=x:p=0",
+    filePath,
+  ], { encoding: "utf8" })
+  try {
+    const dimensions = parseProbeDimensions(result, filePath)
+    return dimensions.width === variant.outputWidth
+      && dimensions.height === variant.outputHeight
+  } catch {
+    return false
+  }
+}
+
+/** Prevents invalid media from being published into the generated manifest. */
+function assertVariantMedia(outputPath, posterPath, variant) {
+  if (!mediaMatchesVariant(outputPath, variant)) {
+    throw new Error(`${path.basename(outputPath)} is not valid ${variant.outputWidth}x${variant.outputHeight} video.`)
+  }
+  if (!mediaMatchesVariant(posterPath, variant)) {
+    throw new Error(`${path.basename(posterPath)} is not valid ${variant.outputWidth}x${variant.outputHeight} poster.`)
+  }
+}
+
 async function captureVariant(browser, entry, options, variant, tempVideoDir) {
   const outputPath = path.join(options.outputDir, `${entry.id}${variant.suffix}.webm`)
   const posterPath = path.join(options.outputDir, `${entry.id}${variant.suffix}.webp`)
 
-  const videoIsUsable = existsSync(outputPath) && statSync(outputPath).size > 0
-  const posterIsUsable = existsSync(posterPath) && statSync(posterPath).size > 0
+  const videoIsUsable = mediaMatchesVariant(outputPath, variant)
+  const posterIsUsable = mediaMatchesVariant(posterPath, variant)
   if (videoIsUsable && posterIsUsable && !options.force) {
     return {
       skipped: true,
@@ -392,6 +421,7 @@ async function captureVariant(browser, entry, options, variant, tempVideoDir) {
   // pair without paying the browser-recording cost again unless --force is set.
   if (videoIsUsable && !options.force) {
     await encodePoster(outputPath, posterPath, options.durationMs)
+    assertVariantMedia(outputPath, posterPath, variant)
     return {
       skipped: false,
       variant: buildVariantManifest(entry, outputPath, posterPath, options, variant),
@@ -446,6 +476,7 @@ async function captureVariant(browser, entry, options, variant, tempVideoDir) {
     const sourcePath = await video.path()
     await encodeWebm(sourcePath, outputPath, options, variant)
     await encodePoster(outputPath, posterPath, options.durationMs)
+    assertVariantMedia(outputPath, posterPath, variant)
     return {
       skipped: false,
       variant: buildVariantManifest(entry, outputPath, posterPath, options, variant),

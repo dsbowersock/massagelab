@@ -52,7 +52,7 @@
 
 **Consumes:** Plain numeric Chimer settings and an injected random function.
 
-**Produces:** Sanitized DNA options, duration/delay/phase calculations, setting conversion helpers, random role-index assignments, and viewport-only effective transform bounds.
+**Produces:** Sanitized DNA options, duration/delay/phase calculations, setting conversion helpers, random complementary-pair assignments with identity-derived roles, and viewport-only effective transform bounds.
 
 - [ ] **Step 1: Write failing sanitizer and timing tests**
 
@@ -93,7 +93,7 @@ Run: `node --test tests/dna-background.test.mjs`
 
 Expected: FAIL because the modules do not exist.
 
-- [ ] **Step 2: Add failing random-assignment and responsive-bound tests**
+- [ ] **Step 2: Add failing complementary-pair assignment and responsive-bound tests**
 
 Define:
 
@@ -581,7 +581,7 @@ Pass `reduceMotion` in resolved effect props. Both renderers pause internally, w
 
 - [ ] **Step 5: Verify persistence and context sharing**
 
-Test local/account Apply, save retry, presets, invalid-value sanitization, cancellation retention, Chimer-to-Clock navigation, ordinary Clock, and `/clock?source=music`. Assert DNA random assignments and Twisted derived colors/alpha never enter the payload.
+Test local/account Apply, save retry, presets, invalid-value sanitization, cancellation retention, Chimer-to-Clock navigation, ordinary Clock, and `/clock?source=music`. Assert DNA complementary-pair assignments and Twisted derived colors/alpha never enter the payload.
 
 - [ ] **Step 6: Run focused tests and commit**
 
@@ -713,14 +713,14 @@ Require DNA and Twisted Cubes specimens in Source, Custom, Harmony, reduced moti
 
 - [ ] **Step 2: Build review specimens**
 
-Show source-default and edited-property cases, all seven dynamic role labels, smooth Twisted anchor interpolation, and preview video/poster behavior. Keep the route development-only. DNA's live specimens use production randomness; deterministic assignment assertions stay in the injected pure-helper tests.
+Show source-default and edited-property cases, all seven dynamic role labels, smooth Twisted anchor interpolation, and preview video/poster behavior. Keep the route development-only. DNA's live specimens use production randomness for complementary-pair selection; deterministic assignment assertions stay in the injected pure-helper tests.
 
 - [ ] **Step 3: Write Playwright acceptance tests**
 
 Cover desktop, phone portrait, short landscape, 200% zoom, and reduced motion. Assert:
 
 - source defaults mount without unexpected fallback or console/page errors;
-- DNA role assignments stay stable across palette/property edits and change after count change/remount;
+- DNA complementary-pair assignments stay stable across palette/property edits and change after count change/remount, while nucleotide roles remain identity-derived;
 - Custom/Harmony recolor DNA without reshuffling;
 - Twisted Source is continuous HSL while Custom/Harmony uses exact endpoint anchors and smooth intermediate colors;
 - every slider updates the live draft, Undo/Redo works, Cancel restores, and Apply persists;

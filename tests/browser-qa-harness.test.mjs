@@ -111,7 +111,7 @@ test("browser QA harness is wired for public smoke, PWA, and local-first checks"
   )
   assert.match(
     config,
-    /testIgnore:\s*runsDevelopmentPaletteReview[\s\S]*\?\s*\[\][\s\S]*\*\*\/background-palette\.spec\.ts[\s\S]*\*\*\/dna-twisted-cubes-backgrounds\.spec\.ts/,
+    /developmentPaletteReviewIgnoreGlobs\s*=\s*developmentPaletteReviewSpecs[\s\S]*path\.posix\.basename[\s\S]*testIgnore:\s*runsDevelopmentPaletteReview[\s\S]*\?\s*\[\][\s\S]*:\s*developmentPaletteReviewIgnoreGlobs/,
   )
 
   for (const route of ["/", "/notes", "/notes/soap", "/chimer", "/calendar", "/anatomime"]) {

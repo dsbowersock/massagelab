@@ -14,13 +14,17 @@ export function BackgroundPreviewMediaReview() {
   const [missingVideo, setMissingVideo] = useState(false)
   const previewName = alternateSource ? "massage-lab-twisted-cubes" : "massage-lab-dna"
   const preview = backgroundPreviewManifest[previewName]
-  const verticalPreview = preview.variants?.vertical
+  const verticalPreview = preview?.variants?.vertical
   const videoUrl = missingVideo
     ? "/chimer/background-previews/__missing-preview__.webm"
-    : verticalPreview?.previewMediaUrl ?? preview.previewVerticalVideoUrl ?? preview.previewMediaUrl
+    : verticalPreview?.previewMediaUrl
+      ?? preview?.previewVerticalVideoUrl
+      ?? preview?.previewMediaUrl
+      ?? `/chimer/background-previews/${previewName}-vertical.webm`
   const posterUrl = verticalPreview?.previewPosterUrl
-    ?? preview.previewVerticalImageUrl
-    ?? preview.previewImageUrl
+    ?? preview?.previewVerticalImageUrl
+    ?? preview?.previewImageUrl
+    ?? `/chimer/background-previews/${previewName}-vertical.webp`
 
   return (
     <section

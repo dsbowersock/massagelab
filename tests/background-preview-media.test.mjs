@@ -65,14 +65,15 @@ describe("background preview media", () => {
     assert.match(renderSource, /async function encodePoster/)
     assert.match(renderSource, /const seekSeconds = probeVideoDurationSeconds\(videoPath, fallbackDurationMs\) \/ 3/)
     assert.match(renderSource, /"-show_entries", "format=duration"/)
-    assert.match(renderSource, /existsSync\(posterPath\) && statSync\(posterPath\)\.size > 0/)
     assert.match(renderSource, /"-c:v", "libwebp"/)
     assert.match(renderSource, /"-quality", "78"/)
     assert.match(renderSource, /!existsSync\(posterPath\) \|\| statSync\(posterPath\)\.size <= 0/)
     assert.match(renderSource, /is empty after poster encoding/)
-    assert.match(renderSource, /const videoIsUsable = existsSync\(outputPath\) && statSync\(outputPath\)\.size > 0/)
-    assert.match(renderSource, /const posterIsUsable = existsSync\(posterPath\) && statSync\(posterPath\)\.size > 0[\s\S]*?if \(videoIsUsable && posterIsUsable && !options\.force\) \{[\s\S]*?skipped: true/)
+    assert.match(renderSource, /function mediaMatchesVariant\(filePath, variant\)[\s\S]*parseProbeDimensions[\s\S]*variant\.outputWidth[\s\S]*variant\.outputHeight/)
+    assert.match(renderSource, /const videoIsUsable = mediaMatchesVariant\(outputPath, variant\)/)
+    assert.match(renderSource, /const posterIsUsable = mediaMatchesVariant\(posterPath, variant\)[\s\S]*?if \(videoIsUsable && posterIsUsable && !options\.force\) \{[\s\S]*?skipped: true/)
     assert.match(renderSource, /if \(videoIsUsable && !options\.force\) \{[\s\S]*?await encodePoster\(outputPath, posterPath, options\.durationMs\)/)
+    assert.match(renderSource, /function assertVariantMedia\(outputPath, posterPath, variant\)[\s\S]*captureVariant[\s\S]*assertVariantMedia\(outputPath, posterPath, variant\)/)
   })
 
   it("offers a deterministic missing-video fixture while retaining a valid poster", () => {
@@ -80,7 +81,7 @@ describe("background preview media", () => {
     assert.match(reviewFixtureSource, /missingVideo \? "Use working video" : "Use missing video"/)
     assert.match(
       reviewFixtureSource,
-      /const preview = backgroundPreviewManifest\[previewName\][\s\S]*?const verticalPreview = preview\.variants\?\.vertical[\s\S]*?videoUrl=\{videoUrl\}[\s\S]*?posterUrl=\{posterUrl\}/,
+      /const preview = backgroundPreviewManifest\[previewName\][\s\S]*?const verticalPreview = preview\?\.variants\?\.vertical[\s\S]*?videoUrl=\{videoUrl\}[\s\S]*?posterUrl=\{posterUrl\}/,
     )
   })
 

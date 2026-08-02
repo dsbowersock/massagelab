@@ -280,9 +280,9 @@ async function captureControlRenderState(host: Locator, id: typeof EFFECTS[numbe
 
 /**
  * Captures concrete CSS consumers rather than custom-property declarations.
- * The probe pauses every animation in the effect subtree and seeks it to time
- * zero for deterministic computed styles; it deliberately does not resume
- * those animations because each caller discards or reloads the review host.
+ * DNA pauses every subtree animation at time zero; Twisted Cubes pauses the
+ * first cube animation used by the probe. Callers discard or reload the host,
+ * so the sampled animations deliberately remain paused.
  */
 async function captureComputedConsumerState(host: Locator, id: typeof EFFECTS[number]["id"]) {
   const root = effectRoot(host)
@@ -1821,6 +1821,7 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
       for (const effect of EFFECTS) {
         await selectEffect(review, host, effect.id)
         await expect(host).toHaveAttribute("data-background-diagnostic-reduced-motion", "true")
+        await expectRenderedContract(host, effect.id, true)
         await review.getByRole("button", { name: "Harmony", exact: true }).click()
         await expect(review).toHaveAttribute("data-palette-mode", "harmony")
         for (const { label } of effect.controls) await namedSlider(review, label).press("End")

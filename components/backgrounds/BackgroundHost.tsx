@@ -72,6 +72,7 @@ function usePrefersReducedMotion() {
   return prefersReducedMotion
 }
 
+/** Reports compact rendering when either viewport dimension is at most 479px. */
 function useCompactBackgroundViewport() {
   const [compactViewport, setCompactViewport] = useState(false)
 

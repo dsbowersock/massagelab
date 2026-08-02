@@ -61,7 +61,7 @@ export function resolveBackgroundEffectProps({
   const roleColors = mode === "source"
     ? Object.fromEntries(adapter.roles.map((role) => [
       role.id,
-      role.sourceColor.startsWith("#")
+      role.sourceColorFormat === "hex"
         ? resolvedRoleColors[role.id]
         : role.sourceColor,
     ]))

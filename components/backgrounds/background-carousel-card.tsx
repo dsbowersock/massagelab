@@ -80,6 +80,8 @@ export function BackgroundCarouselCard({
 }: BackgroundCarouselCardProps) {
   const media = getBackgroundPreviewMedia(option, "vertical")
   const previewVideoUrl = media?.type === "video" ? media.source : undefined
+  // The 5:7 portrait card prefers authored vertical art, then square art,
+  // before falling back to the catalog's general landscape poster.
   const previewPosterUrl = option.previewVerticalImageUrl
     ?? option.previewSquareImageUrl
     ?? option.previewImageUrl

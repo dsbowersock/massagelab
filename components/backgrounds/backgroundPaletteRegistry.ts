@@ -24,6 +24,8 @@ export interface BackgroundPaletteRole {
   /** Persisted legacy color key suppressed while the shared draft is active. */
   sourceSettingKey: string
   sourceColor: string
+  /** Distinguishes normalized hex sources from authored CSS color syntax. */
+  sourceColorFormat: "hex" | "css"
   defaultSwatch: 0 | 1 | 2 | 3 | 4 | 5 | 6
   rendererTarget: string
 }
@@ -86,6 +88,26 @@ const AURORA_BARS_SOURCE_COLORS = Object.freeze([
   "#FF2D78",
   "#000000",
 ] as const)
+const DNA_NODE_ROLE_IDS = Object.freeze([
+  "node-one", "node-two", "node-three", "node-four",
+] as const)
+const TWISTED_CUBES_OUTLINE_ROLE_IDS = Object.freeze([
+  "outline-one", "outline-two", "outline-three",
+  "outline-four", "outline-five", "outline-six",
+] as const)
+const AURORA_BAR_ROLE_IDS = Object.freeze([
+  "bar-1", "bar-2", "bar-3", "bar-4", "bar-5",
+] as const)
+
+for (const [roleIds, sourceFallbacks] of [
+  [DNA_NODE_ROLE_IDS, DNA_SOURCE_NODE_ROLE_COLORS],
+  [TWISTED_CUBES_OUTLINE_ROLE_IDS, TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS],
+  [AURORA_BAR_ROLE_IDS, AURORA_BARS_SOURCE_COLORS],
+] as const) {
+  if (roleIds.length !== sourceFallbacks.length) {
+    throw new Error("Positional palette role and source fallback counts must match")
+  }
+}
 
 type RoleTransform = "hex-hue" | "preserve-alpha"
 type RoleSpec = readonly [
@@ -347,7 +369,7 @@ export function applyCssDomPaletteRoleColors<
             ?? DNA_SOURCE_BACKGROUND_COLOR,
           nodeRoleColors: roleColorArray(
             props.massageLabDna?.nodeRoleColors,
-            ["node-one", "node-two", "node-three", "node-four"],
+            DNA_NODE_ROLE_IDS,
             colors,
             DNA_SOURCE_NODE_ROLE_COLORS,
           ) as [string, string, string, string],
@@ -369,14 +391,7 @@ export function applyCssDomPaletteRoleColors<
           ) ?? TWISTED_CUBES_SOURCE_BACKGROUND_COLOR,
           outlineAnchors: roleColorArray(
             props.massageLabTwistedCubes?.outlineAnchors,
-            [
-              "outline-one",
-              "outline-two",
-              "outline-three",
-              "outline-four",
-              "outline-five",
-              "outline-six",
-            ],
+            TWISTED_CUBES_OUTLINE_ROLE_IDS,
             colors,
             TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS,
           ) as [string, string, string, string, string, string],
@@ -457,7 +472,7 @@ export function applyCssDomPaletteRoleColors<
           background: roleColor(colors, "background", props.auroraBars?.background),
           colors: roleColorArray(
             props.auroraBars?.colors,
-            ["bar-1", "bar-2", "bar-3", "bar-4", "bar-5"],
+            AURORA_BAR_ROLE_IDS,
             colors,
             AURORA_BARS_SOURCE_COLORS,
           ),
@@ -499,16 +514,20 @@ function supported(spec: SupportedSpec): SupportedBackgroundPaletteAdapter {
     ,
     sourceColorOverride,
     defaultSwatchOverride,
-  ], index) => ({
-    id,
-    label,
-    sourceSettingKey,
-    sourceColor: sourceColorOverride
-      ?? String(CHIMER_BACKGROUND_SOURCE_COLOR_DEFAULTS[sourceSettingKey]),
-    defaultSwatch: defaultSwatchOverride
-      ?? (index % 7) as BackgroundPaletteRole["defaultSwatch"],
-    rendererTarget,
-  }))
+  ], index) => {
+    const sourceColor = sourceColorOverride
+      ?? String(CHIMER_BACKGROUND_SOURCE_COLOR_DEFAULTS[sourceSettingKey])
+    return {
+      id,
+      label,
+      sourceSettingKey,
+      sourceColor,
+      sourceColorFormat: /^#[0-9a-f]{6}$/i.test(sourceColor) ? "hex" as const : "css" as const,
+      defaultSwatch: defaultSwatchOverride
+        ?? (index % 7) as BackgroundPaletteRole["defaultSwatch"],
+      rendererTarget,
+    }
+  })
   return Object.freeze({
     status: "supported",
     rendererFamily: spec.family,

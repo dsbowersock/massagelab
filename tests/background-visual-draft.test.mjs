@@ -1345,7 +1345,10 @@ test("selected-background properties share the existing Visual draft lifecycle",
   assert.match(runningTimerSource, /visualEditorBackgroundId === "massage-lab-twisted-cubes"(?:(?!visualEditorBackgroundId ===)[\s\S])*?<TwistedCubesBackgroundControls/)
   assert.match(runningTimerSource, /toDnaChimerSettingsPatch\(patch\)/)
   assert.match(runningTimerSource, /toTwistedCubesChimerSettingsPatch\(patch\)/)
-  assert.match(runningTimerSource, /dispatchVisualDraft\(\{[\s\S]*type: "replace"[\s\S]*partitioned\.draftProperties/)
+  assert.match(
+    runningTimerSource,
+    /dispatchVisualDraft\(\{(?:(?!dispatchVisualDraft)[\s\S])*type: "replace"(?:(?!dispatchVisualDraft)[\s\S])*partitioned\.draftProperties/,
+  )
   assert.match(runningTimerSource, /type: "reset-properties"/)
   assert.match(runningTimerSource, /BackgroundVisualPresetManager/)
   assert.match(runningTimerSource, /visualDraft\?\.dirty/)

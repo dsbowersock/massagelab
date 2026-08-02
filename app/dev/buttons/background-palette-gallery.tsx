@@ -91,12 +91,16 @@ const TRACK_4B_LOCKED_ACCESS = Object.freeze({
   featureKeys: [],
   ownedBackgroundIds: [],
 })
+const TRACK_4B_LABELS: Readonly<Record<Track4BBackgroundId, string>> = Object.freeze({
+  "massage-lab-dna": "DNA",
+  "massage-lab-twisted-cubes": "Twisted Cubes",
+})
 const TRACK_4B_PREVIEWS = TRACK_4B_IDS.map((id) => {
   const entry = backgroundPreviewManifest[id]
   const variant = entry?.variants?.vertical
   return {
     id,
-    label: id === "massage-lab-dna" ? "DNA" : "Twisted Cubes",
+    label: TRACK_4B_LABELS[id],
     videoUrl: variant?.previewMediaUrl ?? entry?.previewVerticalVideoUrl,
     posterUrl: variant?.previewPosterUrl ?? entry?.previewVerticalImageUrl,
   }
@@ -299,6 +303,7 @@ function ProductionMusicContinuityProbe() {
   )
 }
 
+/** Creates a source-mode Visual draft scoped to the selected Track 4B adapter. */
 function createTrack4BReviewDraft(backgroundId: Track4BBackgroundId) {
   const adapter = backgroundPaletteRegistry[backgroundId]
   return createBackgroundVisualDraft({
@@ -508,7 +513,7 @@ function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) 
           adapter={adapter}
           mapping={snapshot.mapping}
           canCustomize={accessMode !== "locked"}
-          backgroundName={selectedId === "massage-lab-dna" ? "DNA" : "Twisted Cubes"}
+          backgroundName={TRACK_4B_LABELS[selectedId]}
           onPaletteChange={(palette) => replaceSnapshot({ palette })}
           onMappingChange={(mapping) => replaceSnapshot({ mapping })}
         />

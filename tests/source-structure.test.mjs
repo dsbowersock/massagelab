@@ -1,7 +1,25 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { extractInterfaceBody } from "./helpers/source-structure.mjs"
+import { extractInterfaceBody, maskSourceComments } from "./helpers/source-structure.mjs"
+
+test("comment masking preserves quoted program text and JSX apostrophes", () => {
+  const source = `
+    const doubleQuoted = "// executable";
+    const singleQuoted = '/* executable */';
+    const template = \`// executable template\`;
+    const jsx = <p>DNA isn't random by color.</p>;
+    // masked line comment
+    /* masked block comment */
+  `
+
+  const masked = maskSourceComments(source)
+  assert.match(masked, /"\/\/ executable"/)
+  assert.match(masked, /'\/\* executable \*\/'/)
+  assert.match(masked, /`\/\/ executable template`/)
+  assert.match(masked, /DNA isn't random by color/)
+  assert.doesNotMatch(masked, /masked line comment|masked block comment/)
+})
 
 test("interface extraction ignores braces in comments and quoted types", () => {
   const source = `

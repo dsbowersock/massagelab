@@ -32,6 +32,8 @@ const developmentPaletteReviewSpecs = [
   "tests/browser/background-palette.spec.ts",
   "tests/browser/dna-twisted-cubes-backgrounds.spec.ts",
 ]
+const developmentPaletteReviewIgnoreGlobs = developmentPaletteReviewSpecs
+  .map((spec) => `**/${path.posix.basename(spec)}`)
 
 /** Matches exact development-review specs and Playwright's unique substring filters. */
 export function matchesDevelopmentPaletteReviewArgument(argument: string) {
@@ -96,7 +98,7 @@ export default defineConfig({
   // keeps the review matrix runnable.
   testIgnore: runsDevelopmentPaletteReview
     ? []
-    : ["**/background-palette.spec.ts", "**/dna-twisted-cubes-backgrounds.spec.ts"],
+    : developmentPaletteReviewIgnoreGlobs,
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,

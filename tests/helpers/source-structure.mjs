@@ -110,14 +110,16 @@ export function maskSourceComments(source) {
       continue
     }
 
-    if (current === "\\") {
+    if ((state === "\"" || state === "'") && (current === "\n" || current === "\r")) {
+      state = "code"
+    } else if (current === "\\") {
       index += 1
     } else if (current === state) {
       state = "code"
     }
   }
 
-  assert.notEqual(state, "block-comment", "source has a balanced block comment")
+  assert.equal(state, "code", "source has balanced comments and quoted text")
   return characters.join("")
 }
 

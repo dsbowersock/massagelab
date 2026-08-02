@@ -17,7 +17,7 @@ Add two enabled premium backgrounds adapted from the supplied MIT-licensed CodeP
 
 Implement both as native React components with scoped CSS. Preserve each source effect's visual character while exposing a curated, responsive set of geometry and motion controls. Integrate colors exclusively through Track 4A's shared Source/Custom/Harmony palette adapter, role mapping, draft editing, and Visual preset system.
 
-DNA keeps random node-color assignment on every mount, renders only biologically valid complementary A-T/G-C rungs, and can optionally show the base letter inside each node. Twisted Cubes keeps its layered 3D rotation and uses a smooth six-anchor outline gradient in Custom and Harmony modes. Both share one saved configuration across Chimer, Clock, and the Music visualizer.
+DNA chooses a mount-stable random sequence of biologically valid complementary A-T/T-A/G-C/C-G rungs, maps each A/T/G/C identity to its stable palette role, and can optionally show the base letter inside each node. Twisted Cubes keeps its layered 3D rotation and uses a smooth six-anchor outline gradient in Custom and Harmony modes. Both share one saved configuration across Chimer, Clock, and the Music visualizer.
 
 ## Dependencies
 
@@ -70,7 +70,7 @@ No source download, reusable component package, or implementation-oriented artif
 - Adding purchase, credit, cart, refund, chargeback, or ownership storage.
 - Adding pointer drag, touch rotation, cursor response, or shuffle-colors actions.
 - Adding route-specific settings copies.
-- Making DNA's random node-role assignment a saved preference.
+- Making DNA's transient complementary-pair sequence a saved preference.
 - Persisting Twisted Cubes' computed intermediate colors.
 - Reproducing the source archives' global `body`, universal selector, font, or `touch-action` rules.
 - Replacing the Background picker carousel.
@@ -316,7 +316,7 @@ Changing context does not duplicate, translate, or reset the configuration. A dr
 
 Derived runtime data is excluded from persistence:
 
-- DNA transient base-pair and random role assignments;
+- DNA transient complementary-pair assignments;
 - DNA calculated sine phases;
 - Twisted Cubes per-layer interpolated colors;
 - Twisted Cubes per-layer alpha;
@@ -370,7 +370,7 @@ Visual controls retain Track 4A labels, keyboard behavior, value formatting, dir
 - DNA renders at most 81 strands and 162 nodes.
 - Twisted Cubes renders at most 30 layers and 180 faces.
 - Palette or property changes update the mounted component without mounting other backgrounds.
-- DNA base-pair and random role assignments do not reshuffle on palette or non-count property changes. Changing strand count regenerates assignments for the new count.
+- DNA complementary-pair assignments do not reshuffle on palette or non-count property changes. Changing strand count regenerates assignments for the new count; nucleotide-to-role mapping remains fixed.
 - CSS animations stop when the component unmounts.
 - No window, document, pointer, touch, animation-frame, or resize listeners are required inside either effect.
 - The existing host continues to own reduced-motion fallback and component cleanup.
@@ -387,7 +387,7 @@ Use the existing Chimer preview generation workflow to create:
 - a short looping preview video for Twisted Cubes; and
 - a poster fallback for Twisted Cubes.
 
-Previews use the user-approved MassageLab defaults and a representative source-color composition. DNA's generated preview records one acceptable random distribution; preview rendering does not make production assignments deterministic.
+Previews use the user-approved MassageLab defaults and a representative source-color composition. DNA's generated preview records one acceptable random complementary-pair distribution; preview rendering does not make production pair selection deterministic.
 
 Update the preview manifest and source ledger only after generated files validate. Runtime selection never generates or downloads preview assets dynamically.
 
@@ -396,7 +396,7 @@ Update the preview manifest and source ledger only after generated files validat
 - Invalid or missing properties fall back through the registry sanitizer to source defaults.
 - Invalid role colors fall back through Track 4A to adapter source values.
 - Invalid mappings fall back to curated mappings.
-- An invalid random value is clamped into one of the four DNA role indexes.
+- An invalid random value is clamped into one of the four complementary-pair variants.
 - Layer or strand counts are integers within their approved limits.
 - Invalid speed values never produce zero, negative, infinite, or `NaN` durations.
 - Invalid viewport measurements use centered saved values and source scale.
@@ -412,7 +412,7 @@ Update the preview manifest and source ledger only after generated files validat
 - Every Track 4B-only property default, including `Show base letters` and the position controls, equals the explicit default in the visual property table.
 - Every property sanitizer clamps invalid, fractional, negative, excessive, and non-finite input.
 - Responsive transforms clamp effective output without mutating saved values.
-- DNA assignment returns exactly `strandCount` valid complementary pairs and two independent `0..3` role indexes per pair.
+- DNA assignment returns exactly `strandCount` valid complementary pairs and derives both palette roles from each nucleotide identity.
 - Injected randomness produces deterministic test assignments.
 - DNA phase calculation matches the source sine expression.
 - DNA duration helpers preserve independent node and strand speeds.
@@ -478,11 +478,11 @@ For both backgrounds:
 - Use one shared configuration across all contexts.
 - Use generated short videos plus poster fallbacks.
 - Use representative static reduced-motion states.
-- Keep DNA's node assignment truly random on every mount.
-- Apply DNA randomness in Source, Custom, and Harmony.
+- Keep DNA's complementary-pair selection truly random on every mount.
+- Preserve each mounted complementary-pair sequence across Source, Custom, and Harmony.
 - Give DNA separate node-motion and whole-strand-rotation speed controls.
 - Make DNA strand count adjustable from 7 to 81 with the visually approved default 70 and 50% scale.
-- Keep every DNA rung biologically valid (A-T or G-C in either orientation), keep base identity independent from swatch role, and provide a saved Show base letters toggle that defaults Off.
+- Keep every DNA rung biologically valid (A-T or G-C in either orientation), map each base identity to one stable swatch role, and provide a saved Show base letters toggle that defaults Off.
 - Use DNA roles for Background, four Node colors, Connector, and Outline.
 - Give Twisted Cubes sliders only; do not add drag interaction.
 - Smoothly interpolate Twisted Cubes colors instead of repeating discrete swatches.
