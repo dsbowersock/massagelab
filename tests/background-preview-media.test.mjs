@@ -275,6 +275,16 @@ describe("background preview media", () => {
         },
       },
     )
+
+    const metadataOnlyPrevious = {
+      ...previous,
+      previewVerticalImageUrl: "/metadata-only-vertical.webp",
+      variants: { landscape: previous.variants.landscape },
+    }
+    assert.equal(
+      mergeGeneratedPreviewManifestItem(metadataOnlyPrevious, incoming).previewVerticalImageUrl,
+      "/metadata-only-vertical.webp",
+    )
   })
 
   it("rejects a generated manifest item without any rendered variant", () => {

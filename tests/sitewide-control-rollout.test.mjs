@@ -132,10 +132,11 @@ test("immersive display panels delegate toolbar actions to shared controls", asy
 })
 
 test("Visual draft actions live in the responsive panel header while sync status stays in flow", async () => {
-  const [styles, runningTimer] = await Promise.all([
+  const [styles, runningTimerSource] = await Promise.all([
     read("app/chimer/running-timer.module.css"),
     read("app/chimer/running-timer.tsx"),
   ])
+  const runningTimer = maskSourceComments(runningTimerSource)
 
   assert.doesNotMatch(styles, /\.visualDraftActions\s*\{[^}]*position:\s*sticky/)
   assert.match(styles, /\.immersiveVisualHeaderControls,\s*\.visualHeaderDraftActions\s*\{/)

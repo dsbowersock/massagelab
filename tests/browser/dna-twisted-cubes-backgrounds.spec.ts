@@ -1934,8 +1934,8 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
         )
       }
     } finally {
-      await cdp.send("Emulation.setPageScaleFactor", { pageScaleFactor: 1 })
-      await cdp.detach()
+      await cdp.send("Emulation.setPageScaleFactor", { pageScaleFactor: 1 }).catch(() => undefined)
+      await cdp.detach().catch(() => undefined)
     }
     expectHealthy(health)
   })

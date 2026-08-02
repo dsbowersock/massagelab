@@ -37,6 +37,6 @@ export function mergeGeneratedPreviewManifestItem(previous, incoming) {
   const entry = { ...previous, ...withDefinedValues(incoming) }
   return {
     ...entry,
-    ...buildGeneratedPreviewManifestItem(entry, variants),
+    ...withDefinedValues(buildGeneratedPreviewManifestItem(entry, variants)),
   }
 }

@@ -10,7 +10,10 @@ import {
   maskSourceComments,
   NON_INTERACTIVE_BACKGROUND_SOURCE_PATTERNS,
 } from "./helpers/source-structure.mjs"
-import { TWISTED_CUBES_OPTION_BOUNDS } from "../lib/twisted-cubes-background.js"
+import {
+  DEFAULT_TWISTED_CUBES_BACKGROUND_OPTIONS,
+  TWISTED_CUBES_OPTION_BOUNDS,
+} from "../lib/twisted-cubes-background.js"
 
 const testsDirectory = path.dirname(fileURLToPath(import.meta.url))
 const rootDirectory = path.resolve(testsDirectory, "..")
@@ -38,9 +41,10 @@ test("the Twisted Cubes renderer stays a scoped, non-interactive CSS DOM effect"
   assert.match(componentCode, /if \(!massageLabTwistedCubes\) return null/)
   const sanitizedDestructuring = /const \{([\s\S]*?)\} = sanitizeTwistedCubesBackgroundOptions\(massageLabTwistedCubes\)/.exec(componentCode)
   assert.notEqual(sanitizedDestructuring, null, "the renderer destructures sanitized Twisted Cubes options")
-  for (const optionName of ["rotationSpeed", "viewAngleX", "layerDepthSpacing", "outlineThickness"]) {
+  for (const optionName of Object.keys(DEFAULT_TWISTED_CUBES_BACKGROUND_OPTIONS).filter((name) => name !== "layerCount")) {
     assert.match(sanitizedDestructuring[1], new RegExp(`\\b${optionName}\\b`), optionName)
   }
+  assert.match(componentCode, /const \{[\s\S]*?\blayerCount\b[\s\S]*?\} = massageLabTwistedCubes/)
   assert.equal(TWISTED_CUBES_OPTION_BOUNDS.layerCount.maximum, 30)
   assert.match(componentCode, /const renderLayerCount = resolveRenderCount\([\s\S]*?layerCount,[\s\S]*?TWISTED_CUBES_OPTION_BOUNDS\.layerCount\.maximum,[\s\S]*?\)/)
   assert.match(componentCode, /const CUBE_EDGES = \[/)

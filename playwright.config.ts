@@ -35,12 +35,14 @@ const developmentPaletteReviewSpecs = [
 const developmentPaletteReviewIgnoreGlobs = developmentPaletteReviewSpecs
   .map((spec) => `**/${path.posix.basename(spec)}`)
 
+/** Matches an exact normalized review-spec path or the same path with a leading directory. */
 function matchesExactDevelopmentPaletteReviewSpec(normalizedArgument: string) {
   return developmentPaletteReviewSpecs.some((spec) => (
     normalizedArgument === spec || normalizedArgument.endsWith(`/${spec}`)
   ))
 }
 
+/** Matches a bare filename against basenames, or a partial path against full review-spec paths. */
 function matchesDevelopmentPaletteReviewSubstring(normalizedArgument: string) {
   const argumentBasename = path.posix.basename(normalizedArgument)
   const isStandaloneFilter = normalizedArgument === argumentBasename && argumentBasename.length > 0
@@ -54,6 +56,7 @@ function matchesDevelopmentPaletteReviewSubstring(normalizedArgument: string) {
   return substringMatches.length > 0
 }
 
+/** Tests a raw regex against each review spec's absolute native and alternate-separator paths. */
 function matchesDevelopmentPaletteReviewRegex(argument: string) {
   try {
     const filter = new RegExp(argument)
