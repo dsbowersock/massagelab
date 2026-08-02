@@ -1164,6 +1164,8 @@ async function expectExactReducedEffectState(
       root.locator(":scope > div"),
       `translate(calc(-50% + ${transform.positionX}%), calc(-50% + ${transform.positionY}%)) scale(${transform.scale})`,
     )
+    // Reduced motion freezes the DNA strand at its half-rotation keyframe, so
+    // the static expectation includes a 180-degree offset from animated time zero.
     const sceneRotateExpected = await normalizeComputedConsumer(host, {
       rotate: `${properties.massageLabDnaStrandAngle + 180}deg`,
     })

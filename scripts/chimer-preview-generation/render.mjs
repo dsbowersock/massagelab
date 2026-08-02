@@ -553,7 +553,9 @@ function writeManifest(items, options) {
       console.warn(`Unable to reuse ${manifestPath}; merging onto registry sources. ${reason}`)
     }
   }
-  const existingItems = existingSources.map(normalizeGeneratedPreviewManifestItem)
+  const existingItems = existingSources
+    .filter((item) => typeof item?.id === "string" && item.id.length > 0)
+    .map(normalizeGeneratedPreviewManifestItem)
   const mergedItems = new Map(existingItems.map((item) => [item.id, item]))
   for (const item of items) {
     mergedItems.set(

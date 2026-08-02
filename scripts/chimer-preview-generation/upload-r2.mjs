@@ -102,11 +102,6 @@ async function runUpload(rawArgs) {
         cacheControl: object.cacheControl,
         bytes: object.file.bytes,
       })),
-      firstObjects: objects.slice(0, 5).map((object) => ({
-        objectKey: object.objectKey,
-        publicUrl: object.publicUrl,
-        bytes: object.file.bytes,
-      })),
     }
     console.log(`${dryRunSummaryPrefix}${JSON.stringify(summary)}`)
     return

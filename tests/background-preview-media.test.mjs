@@ -12,6 +12,7 @@ import {
   buildGeneratedPreviewManifestItem,
   mergeGeneratedPreviewManifestItem,
 } from "../scripts/chimer-preview-generation/manifest-item-merge.mjs"
+import { sourceBetween } from "./helpers/source-structure.mjs"
 
 const componentSource = readFileSync(
   new URL("../components/backgrounds/BackgroundPreviewMedia.tsx", import.meta.url),
@@ -67,19 +68,29 @@ describe("background preview media", () => {
   })
 
   it("generates quality-78 WebP posters one-third through each actual encoded video", () => {
-    assert.match(renderSource, /async function encodePoster/)
-    assert.match(renderSource, /const seekSeconds = probeVideoDurationSeconds\(videoPath, fallbackDurationMs\) \/ 3/)
-    assert.match(renderSource, /"-show_entries", "format=duration"/)
-    assert.match(renderSource, /"-c:v", "libwebp"/)
-    assert.match(renderSource, /"-quality", "78"/)
-    assert.match(renderSource, /!existsSync\(posterPath\) \|\| statSync\(posterPath\)\.size <= 0/)
-    assert.match(renderSource, /is empty after poster encoding/)
-    assert.match(renderSource, /function probeVariantDimensions\(filePath\)[\s\S]*parseProbeDimensions\(result, filePath\)/)
-    assert.match(renderSource, /function mediaMatchesVariant\(filePath, variant\)[\s\S]*probeVariantDimensions\(filePath\)[\s\S]*variant\.outputWidth[\s\S]*variant\.outputHeight/)
-    assert.match(renderSource, /const videoIsUsable = mediaMatchesVariant\(outputPath, variant\)/)
-    assert.match(renderSource, /const posterIsUsable = mediaMatchesVariant\(posterPath, variant\)[\s\S]*?if \(videoIsUsable && posterIsUsable && !options\.force\) \{[\s\S]*?skipped: true/)
-    assert.match(renderSource, /if \(videoIsUsable && !options\.force\) \{[\s\S]*?await encodePoster\(outputPath, posterPath, options\.durationMs\)/)
-    assert.match(renderSource, /function assertVariantMedia\(outputPath, posterPath, variant\)[\s\S]*probeVariantDimensions\(filePath\)[\s\S]*captureVariant[\s\S]*assertVariantMedia\(outputPath, posterPath, variant\)/)
+    const durationProbeSource = sourceBetween(renderSource, "function probeVideoDurationSeconds", "async function encodePoster", "video duration probe")
+    const posterEncoderSource = sourceBetween(renderSource, "async function encodePoster", "function hashFile", "poster encoder")
+    const dimensionProbeSource = sourceBetween(renderSource, "function probeVariantDimensions", "function mediaMatchesVariant", "dimension probe")
+    const mediaMatchSource = sourceBetween(renderSource, "function mediaMatchesVariant", "function assertVariantMedia", "variant media matcher")
+    const mediaAssertionSource = sourceBetween(renderSource, "function assertVariantMedia", "async function captureVariant", "variant media assertion")
+    const captureVariantSource = sourceBetween(renderSource, "async function captureVariant", "async function captureBackground", "variant capture")
+
+    assert.match(durationProbeSource, /"-show_entries", "format=duration"/)
+    assert.match(posterEncoderSource, /const seekSeconds = probeVideoDurationSeconds\(videoPath, fallbackDurationMs\) \/ 3/)
+    assert.match(posterEncoderSource, /"-c:v", "libwebp"/)
+    assert.match(posterEncoderSource, /"-quality", "78"/)
+    assert.match(posterEncoderSource, /!existsSync\(posterPath\) \|\| statSync\(posterPath\)\.size <= 0/)
+    assert.match(posterEncoderSource, /is empty after poster encoding/)
+    assert.match(dimensionProbeSource, /parseProbeDimensions\(result, filePath\)/)
+    assert.match(mediaMatchSource, /probeVariantDimensions\(filePath\)/)
+    assert.match(mediaMatchSource, /variant\.outputWidth/)
+    assert.match(mediaMatchSource, /variant\.outputHeight/)
+    assert.match(mediaAssertionSource, /probeVariantDimensions\(filePath\)/)
+    assert.match(captureVariantSource, /const videoIsUsable = mediaMatchesVariant\(outputPath, variant\)/)
+    assert.match(captureVariantSource, /const posterIsUsable = mediaMatchesVariant\(posterPath, variant\)/)
+    assert.match(captureVariantSource, /if \(videoIsUsable && posterIsUsable && !options\.force\) \{[\s\S]*?skipped: true/)
+    assert.match(captureVariantSource, /if \(videoIsUsable && !options\.force\) \{[\s\S]*?await encodePoster\(outputPath, posterPath, options\.durationMs\)/)
+    assert.match(captureVariantSource, /assertVariantMedia\(outputPath, posterPath, variant\)/)
   })
 
   it("offers a deterministic missing-video fixture while retaining a valid poster", () => {
@@ -144,9 +155,16 @@ describe("background preview media", () => {
   })
 
   it("normalizes every copied manifest URL back to the raw local preview prefix", () => {
-    assert.match(renderSource, /existsSync\(manifestPath\)[\s\S]*readFileSync\(manifestPath, "utf8"\)[\s\S]*existingSources\.map\(normalizeGeneratedPreviewManifestItem\)/)
-    assert.match(renderSource, /let existingSources = registrySources\(\)[\s\S]*try \{[\s\S]*if \(!Array\.isArray\(parsedItems\)\)[\s\S]*catch \(error\) \{[\s\S]*merging onto registry sources/)
-    assert.match(renderSource, /const registryIds = new Set\(registryEntries\.map\(\(entry\) => entry\.id\)\)[\s\S]*\.filter\(\(item\) => registryIds\.has\(item\.id\)\)/)
+    const writeManifestSource = sourceBetween(renderSource, "function writeManifest", "async function main", "manifest writer")
+    assert.match(writeManifestSource, /existsSync\(manifestPath\)/)
+    assert.match(writeManifestSource, /readFileSync\(manifestPath, "utf8"\)/)
+    assert.match(writeManifestSource, /\.filter\(\(item\) => typeof item\?\.id === "string" && item\.id\.length > 0\)/)
+    assert.match(writeManifestSource, /\.map\(normalizeGeneratedPreviewManifestItem\)/)
+    assert.match(writeManifestSource, /let existingSources = registrySources\(\)/)
+    assert.match(writeManifestSource, /if \(!Array\.isArray\(parsedItems\)\)/)
+    assert.match(writeManifestSource, /merging onto registry sources/)
+    assert.match(writeManifestSource, /const registryIds = new Set\(registryEntries\.map\(\(entry\) => entry\.id\)\)/)
+    assert.match(writeManifestSource, /\.filter\(\(item\) => registryIds\.has\(item\.id\)\)/)
     assert.match(manifestGeneratorSource, /const normalizedFallbackVariants = normalizeGeneratedPreviewManifestItem\(\{/)
     const normalized = normalizeGeneratedPreviewManifestItem({
       previewMediaUrl: "https://media.massagelab.app/chimer/background-previews/main.webm?cache=1",
@@ -237,6 +255,25 @@ describe("background preview media", () => {
         square: incoming.variants.square,
       },
     })
+
+    assert.deepEqual(
+      mergeGeneratedPreviewManifestItem(previous, { ...incoming, label: undefined, provider: undefined }),
+      {
+        ...previous,
+        previewMediaType: "video",
+        previewMediaUrl: "/preview.webm",
+        previewVideoUrl: "/preview.webm",
+        previewImageUrl: "/preview.webp",
+        previewSquareVideoUrl: "/preview-square.webm",
+        previewSquareImageUrl: "/preview-square.webp",
+        previewVerticalVideoUrl: "/preview-vertical.webm",
+        previewVerticalImageUrl: "/preview-vertical.webp",
+        variants: {
+          ...previous.variants,
+          square: incoming.variants.square,
+        },
+      },
+    )
   })
 
   it("rejects a generated manifest item without any rendered variant", () => {

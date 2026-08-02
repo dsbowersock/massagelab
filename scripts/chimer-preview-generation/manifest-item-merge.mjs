@@ -21,6 +21,11 @@ export function buildGeneratedPreviewManifestItem(entry, variants) {
   }
 }
 
+/** Copies only defined fields so partial renders cannot erase preserved metadata. */
+function withDefinedValues(item) {
+  return Object.fromEntries(Object.entries(item).filter(([, value]) => value !== undefined))
+}
+
 /** Preserves untouched aspect-ratio metadata when a partial render replaces selected variants. */
 export function mergeGeneratedPreviewManifestItem(previous, incoming) {
   if (!previous) return incoming
@@ -29,9 +34,9 @@ export function mergeGeneratedPreviewManifestItem(previous, incoming) {
     ...previous.variants,
     ...incoming.variants,
   }
+  const entry = { ...previous, ...withDefinedValues(incoming) }
   return {
-    ...previous,
-    ...incoming,
-    ...buildGeneratedPreviewManifestItem({ ...previous, ...incoming }, variants),
+    ...entry,
+    ...buildGeneratedPreviewManifestItem(entry, variants),
   }
 }

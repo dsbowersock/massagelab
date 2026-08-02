@@ -559,8 +559,8 @@ test.describe("shared background palette review matrix", () => {
   })
 
   test("preview media uses posters, playback, fallbacks, and listener cleanup", async ({ page }) => {
-    // Patch playback and visibility-listener prototypes only for the carousel
-    // preview video; __restorePreviewMediaProbe must restore them afterward.
+    // Patch playback and visibility-listener prototypes only while the carousel
+    // preview video exists; __restorePreviewMediaProbe must restore them afterward.
     await page.addInitScript(() => {
       type PreviewMediaProbe = {
         playCalls: number
@@ -611,7 +611,10 @@ test.describe("shared background palette review matrix", () => {
         listener: EventListenerOrEventListenerObject,
         options?: boolean | AddEventListenerOptions,
       ) {
-        if (type === "visibilitychange") probe.visibilityListeners.add(listener)
+        if (
+          type === "visibilitychange"
+          && document.querySelector('[data-testid="carousel-background-video"]')
+        ) probe.visibilityListeners.add(listener)
         return addEventListener.call(this, type, listener, options)
       } as Document["addEventListener"]
       Document.prototype.removeEventListener = function remove(

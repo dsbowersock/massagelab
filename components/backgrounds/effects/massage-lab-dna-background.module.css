@@ -4,6 +4,7 @@
   overflow: hidden;
   isolation: isolate;
   perspective: 100vmin;
+  contain: layout paint style;
   pointer-events: none;
   background: var(--ml-dna-background-color);
 }

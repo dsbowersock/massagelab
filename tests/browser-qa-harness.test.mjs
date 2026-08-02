@@ -48,6 +48,8 @@ test("development review spec matching accepts Playwright line and column suffix
 test("development review invocation ignores the leading Playwright subcommand", () => {
   assert.equal(isDevelopmentPaletteReviewInvocation(["test"]), false)
   assert.equal(isDevelopmentPaletteReviewInvocation(["test", "tests/browser/public-routes.spec.ts"]), false)
+  assert.equal(isDevelopmentPaletteReviewInvocation(["test", "--grep", "dna-twisted"]), false)
+  assert.equal(isDevelopmentPaletteReviewInvocation(["test", "--repeat-each", "background-palette"]), false)
   assert.equal(isDevelopmentPaletteReviewInvocation(["test", "dna-twisted"]), true)
 })
 
