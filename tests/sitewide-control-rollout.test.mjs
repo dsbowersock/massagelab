@@ -311,7 +311,8 @@ test("Track 4B gallery exposes controls, state scenarios, and preview evidence",
   assert.match(gallery, /setDraft\(nextDraft\)/)
   assert.match(gallery, /if \(!applyRequested\) return[\s\S]*getCommittedBackgroundVisualSnapshot\(draft\)/)
   assert.match(gallery, /setDraft\(\(current\) => reduceBackgroundVisualDraft\(current, \{ type: "apply" \}\)\)[\s\S]*setApplyRequested\(true\)/)
-  assert.match(gallery, /data-applied-properties=\{JSON\.stringify\(draft\.openingSnapshot\.properties\)\}/)
+  assert.match(gallery, /const appliedSnapshot = getCommittedBackgroundVisualSnapshot\(draft\)/)
+  assert.match(gallery, /data-applied-properties=\{JSON\.stringify\(appliedSnapshot\.properties\)\}/)
   assert.match(gallery, /data-current-palette/)
   assert.match(gallery, /data-current-mapping/)
 })
@@ -429,14 +430,14 @@ test("shared background access and palette resolver inputs stay authoritative an
 })
 
 test("DNA and Twisted Cubes share compact options and host-owned responsive motion context", async () => {
-  const [runningSource, hostSource, mediaQuerySource, ambientMotionSource, dnaEffect, cubesEffect, styles] = await Promise.all([
+  const [runningSource, hostSource, mediaQuerySource, ambientMotionSource, dnaEffect, cubesEffect, propertyGroupStyles] = await Promise.all([
     read("app/chimer/running-timer.tsx"),
     read("components/backgrounds/BackgroundHost.tsx"),
     read("components/backgrounds/use-media-query.ts"),
     read("components/backgrounds/use-ambient-reduced-motion.ts"),
     read("components/backgrounds/effects/massage-lab-dna-background.tsx"),
     read("components/backgrounds/effects/massage-lab-twisted-cubes-background.tsx"),
-    read("app/chimer/running-timer.module.css"),
+    read("components/chimer-controls/BackgroundPropertyGroup.module.css"),
   ])
   const dnaExecutableSource = maskSourceComments(dnaEffect)
   const cubesExecutableSource = maskSourceComments(cubesEffect)
@@ -456,8 +457,8 @@ test("DNA and Twisted Cubes share compact options and host-owned responsive moti
   assert.match(hostSource, /reduceMotion,[\s\S]*compactViewport,/)
   assert.doesNotMatch(dnaExecutableSource, /\b(?:globalThis|document|window)\b|addEventListener|requestAnimationFrame/)
   assert.doesNotMatch(cubesExecutableSource, /\b(?:globalThis|document|window)\b|addEventListener|requestAnimationFrame/)
-  assert.match(styles, /\.backgroundPropertyGroups\s*\{[^}]*\bmin-width:\s*0/)
-  assert.match(styles, /\.backgroundPropertyGroup\s*\{[^}]*\bmin-width:\s*0/)
+  assert.match(propertyGroupStyles, /\.backgroundPropertyGroups\s*\{[^}]*\bmin-width:\s*0/)
+  assert.match(propertyGroupStyles, /\.backgroundPropertyGroup\s*\{[^}]*\bmin-width:\s*0/)
 })
 
 test("actual Chimer, ordinary Clock, Music, and ambient Host plumbing resolves all 23 values", async () => {

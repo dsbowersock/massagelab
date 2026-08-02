@@ -127,7 +127,7 @@ async function expectTargetColor(
     expect(resolvedTargetColor, target).toBe(declaredColor)
     return
   }
-  if (typeof actual === "string" && actual.startsWith("rgba(")) {
+  if (typeof actual === "string" && /^rgba?\(/.test(actual)) {
     const expectedRgb = [
       Number.parseInt(expectedColor.slice(1, 3), 16),
       Number.parseInt(expectedColor.slice(3, 5), 16),
@@ -711,7 +711,7 @@ test.describe("shared background palette review matrix", () => {
       await page.evaluate(() => {
         const restore = Reflect.get(window, "__restorePreviewMediaProbe")
         if (typeof restore === "function") restore()
-      })
+      }).catch(() => undefined)
     }
   })
 })

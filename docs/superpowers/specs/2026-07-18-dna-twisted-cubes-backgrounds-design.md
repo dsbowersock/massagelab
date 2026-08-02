@@ -145,6 +145,8 @@ The source defaults are:
 
 MassageLab preserves the crossover geometry, phase relationship, opposite node animation directions, connector collapse timing, and overall rotation.
 
+The accepted full-bleed composition uses a fixed render-only scene width of `26vmin` and a scene height of `max(240vmin, 230vmax)`. This recorded visual-QA override replaces the source's 65vmin height and 2:5 aspect ratio so the dense strand field covers supported wide and compact viewports without changing the stored scale or position contracts.
+
 ### Complementary bases and base-specific node colors
 
 Each strand receives one valid complementary base pair and derives both role IDs from the bases through a side-effect-free helper with injectable randomness comparable to:

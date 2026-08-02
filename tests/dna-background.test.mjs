@@ -18,6 +18,7 @@ import {
 import {
   clampBoundedBackgroundOption,
   clampEffectiveValue,
+  resolveRenderCount,
   resolveResponsiveBackgroundTransform,
 } from "../lib/background-effect-layout.js"
 
@@ -59,6 +60,9 @@ describe("DNA background domain and shared layout rules", () => {
       clampBoundedBackgroundOption(Number.NaN, { minimum: 1, maximum: 7 }, 3),
       3,
     )
+    assert.equal(resolveRenderCount(12.9, 10), 10)
+    assert.equal(resolveRenderCount(-4, 10), 0)
+    assert.equal(resolveRenderCount(Number.NaN, 10), 0)
   })
 
   it("sanitizes every DNA property to its approved stored range", () => {

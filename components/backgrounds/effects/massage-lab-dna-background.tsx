@@ -13,7 +13,10 @@ import {
   getDnaStrandDelaySeconds,
   getDnaStrandRotationSeconds,
 } from "@/lib/dna-background"
-import { resolveResponsiveBackgroundTransform } from "@/lib/background-effect-layout"
+import {
+  resolveRenderCount,
+  resolveResponsiveBackgroundTransform,
+} from "@/lib/background-effect-layout"
 import type { BackgroundEffectProps, MassageLabDnaOptions } from "./css-backgrounds"
 import styles from "./massage-lab-dna-background.module.css"
 
@@ -56,9 +59,10 @@ function MassageLabDnaRenderer({
   ))
   // Persisted options enforce the product minimum; malformed direct host input
   // fails closed to inert DOM instead of fabricating the minimum render load.
-  const renderStrandCount = Number.isFinite(strandCount)
-    ? Math.min(DNA_OPTION_BOUNDS.strandCount.maximum, Math.max(0, Math.floor(strandCount)))
-    : 0
+  const renderStrandCount = resolveRenderCount(
+    strandCount,
+    DNA_OPTION_BOUNDS.strandCount.maximum,
+  )
   const [strandAssignments, setStrandAssignments] = useState(() => (
     createDnaStrandAssignments(renderStrandCount)
   ))

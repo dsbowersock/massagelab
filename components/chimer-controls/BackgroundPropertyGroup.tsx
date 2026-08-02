@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 
-import styles from "@/app/chimer/running-timer.module.css"
+import styles from "./BackgroundPropertyGroup.module.css"
 
 /** Keeps background-specific property editors on one accessible group structure. */
 export function BackgroundPropertyGroup({

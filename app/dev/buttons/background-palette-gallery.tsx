@@ -342,6 +342,7 @@ function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) 
   const compactViewport = useMediaQuery(BACKGROUND_COMPACT_VIEWPORT_QUERY)
   const adapter = backgroundPaletteRegistry[selectedId]
   const snapshot = draft.currentSnapshot
+  const appliedSnapshot = getCommittedBackgroundVisualSnapshot(draft)
   const dnaOptions = getDnaBackgroundOptionsFromChimerSettings(
     snapshot.properties,
   ) as DnaBackgroundControlOptions
@@ -460,8 +461,8 @@ function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) 
       data-current-properties={JSON.stringify(snapshot.properties)}
       data-opening-properties={JSON.stringify(draft.openingSnapshot.properties)}
       data-opening-mapping={JSON.stringify(draft.openingSnapshot.mapping)}
-      data-applied-properties={JSON.stringify(draft.openingSnapshot.properties)}
-      data-applied-palette={JSON.stringify(draft.openingSnapshot.palette)}
+      data-applied-properties={JSON.stringify(appliedSnapshot.properties)}
+      data-applied-palette={JSON.stringify(appliedSnapshot.palette)}
       data-preview-contract="BackgroundPreviewMediaReview"
     >
       <div>

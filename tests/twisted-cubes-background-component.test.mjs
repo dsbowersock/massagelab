@@ -4,7 +4,12 @@ import path from "node:path"
 import test from "node:test"
 import { fileURLToPath } from "node:url"
 
-import { extractInterfaceBody, maskCssComments, maskSourceComments } from "./helpers/source-structure.mjs"
+import {
+  extractInterfaceBody,
+  maskCssComments,
+  maskSourceComments,
+  NON_INTERACTIVE_BACKGROUND_SOURCE_PATTERNS,
+} from "./helpers/source-structure.mjs"
 import { TWISTED_CUBES_OPTION_BOUNDS } from "../lib/twisted-cubes-background.js"
 
 const testsDirectory = path.dirname(fileURLToPath(import.meta.url))
@@ -32,7 +37,7 @@ test("the Twisted Cubes renderer stays a scoped, non-interactive CSS DOM effect"
   assert.match(componentCode, /data-reduce-motion=\{reduceMotion \|\| undefined\}/)
   assert.match(componentCode, /if \(!massageLabTwistedCubes\) return null/)
   assert.equal(TWISTED_CUBES_OPTION_BOUNDS.layerCount.maximum, 30)
-  assert.match(componentCode, /Math\.min\(TWISTED_CUBES_OPTION_BOUNDS\.layerCount\.maximum, Math\.max\(0, Math\.floor\(layerCount\)\)\)/)
+  assert.match(componentCode, /const renderLayerCount = resolveRenderCount\([\s\S]*?layerCount,[\s\S]*?TWISTED_CUBES_OPTION_BOUNDS\.layerCount\.maximum,[\s\S]*?\)/)
   assert.match(componentCode, /const CUBE_EDGES = \[/)
   assert.match(componentCode, /CUBE_EDGES\.map\(\(\[axis, firstSide, secondSide\]\) =>/)
   assert.match(componentCode, /className=\{styles\.root\}/)
@@ -46,9 +51,9 @@ test("the Twisted Cubes renderer stays a scoped, non-interactive CSS DOM effect"
   assert.doesNotMatch(componentCode, /--ml-twisted-cubes-viewport-extent/)
   assert.match(componentCode, /className=\{styles\.cube\}/)
   assert.match(componentCode, /className=\{styles\.cuboid\}/)
-  assert.doesNotMatch(componentCode, /\b(?:iframe|canvas|webgl|fetch|XMLHttpRequest|addEventListener|removeEventListener|ResizeObserver|globalThis|window|document)\b/i)
-  assert.doesNotMatch(componentCode, /(?:billing|account|entitlement|stripe|registry|storage)/i)
-  assert.doesNotMatch(componentCode, /\b(?:button|input|select|textarea|tabIndex|onClick|onPointer|onDrag|onTouch|cursor)\b/)
+  for (const forbiddenPattern of NON_INTERACTIVE_BACKGROUND_SOURCE_PATTERNS) {
+    assert.doesNotMatch(componentCode, forbiddenPattern)
+  }
 
   assert.match(stylesheetCode, /\.root\s*\{[^}]*?pointer-events:\s*none;/)
   assert.doesNotMatch(stylesheetCode, /perspective:/)

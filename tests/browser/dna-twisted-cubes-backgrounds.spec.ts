@@ -561,6 +561,7 @@ async function normalizeAnimatedTransformForTarget(
   }, { keyframes, timing })
 }
 
+/** Verifies that one Visual control changes only its documented renderer sentinels. */
 async function expectExactControlRender({
   review,
   host,

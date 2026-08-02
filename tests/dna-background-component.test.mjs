@@ -4,7 +4,12 @@ import path from "node:path"
 import test from "node:test"
 import { fileURLToPath } from "node:url"
 
-import { extractInterfaceBody, maskCssComments, maskSourceComments } from "./helpers/source-structure.mjs"
+import {
+  extractInterfaceBody,
+  maskCssComments,
+  maskSourceComments,
+  NON_INTERACTIVE_BACKGROUND_SOURCE_PATTERNS,
+} from "./helpers/source-structure.mjs"
 import { DNA_BASE_ROLE_INDEX, DNA_OPTION_BOUNDS } from "../lib/dna-background.js"
 
 const testsDirectory = path.dirname(fileURLToPath(import.meta.url))
@@ -24,7 +29,7 @@ test("the DNA renderer stays a scoped, non-interactive CSS DOM effect", () => {
 
   assert.equal(DNA_OPTION_BOUNDS.strandCount.maximum, 81)
   assert.deepEqual(DNA_BASE_ROLE_INDEX, { A: 0, T: 1, G: 2, C: 3 })
-  assert.match(componentCode, /const renderStrandCount = Number\.isFinite\(strandCount\)[\s\S]*?Math\.min\(DNA_OPTION_BOUNDS\.strandCount\.maximum, Math\.max\(0, Math\.floor\(strandCount\)\)\)[\s\S]*?: 0/)
+  assert.match(componentCode, /const renderStrandCount = resolveRenderCount\([\s\S]*?strandCount,[\s\S]*?DNA_OPTION_BOUNDS\.strandCount\.maximum,[\s\S]*?\)/)
   assert.match(componentCode, /createDnaStrandAssignments\(renderStrandCount\)/)
   assert.match(componentCode, /const \[previousStrandCount, setPreviousStrandCount\] = useState\(renderStrandCount\)[\s\S]*?if \(previousStrandCount !== renderStrandCount\) \{[\s\S]*?setStrandAssignments\(createDnaStrandAssignments\(renderStrandCount\)\)/)
   assert.doesNotMatch(componentCode, /\buse(?:Effect|Ref)\b/)
@@ -41,9 +46,9 @@ test("the DNA renderer stays a scoped, non-interactive CSS DOM effect", () => {
   assert.match(componentCode, /className=\{styles\.strand\}/)
   assert.match(componentCode, /className=\{styles\.connector\}/)
   assert.match(componentCode, /className=\{styles\.node\}/)
-  assert.doesNotMatch(componentCode, /\b(?:iframe|canvas|webgl|fetch|XMLHttpRequest|addEventListener|removeEventListener|ResizeObserver|window\.|document\.)\b/i)
-  assert.doesNotMatch(componentCode, /(?:billing|account|entitlement|stripe|registry|storage)/i)
-  assert.doesNotMatch(componentCode, /\b(?:button|input|select|textarea|tabIndex|onClick|onPointer|onDrag)\b/)
+  for (const forbiddenPattern of NON_INTERACTIVE_BACKGROUND_SOURCE_PATTERNS) {
+    assert.doesNotMatch(componentCode, forbiddenPattern)
+  }
 
   assert.match(componentCode, /"--ml-dna-scene-width": `\$\{DNA_SOURCE_GEOMETRY\.widthVmin\}vmin`/)
   assert.match(componentCode, /"--ml-dna-scene-height": `max\(\$\{DNA_SOURCE_GEOMETRY\.minimumHeightVmin\}vmin, \$\{DNA_SOURCE_GEOMETRY\.viewportHeightVmax\}vmax\)`/)
@@ -68,8 +73,8 @@ test("the DNA renderer stays a scoped, non-interactive CSS DOM effect", () => {
 
 test("DNA options extend the shared background effect contract", () => {
   const effectPropsSource = readFileSync(effectPropsPath, "utf8")
-  const dnaOptions = extractInterfaceBody(effectPropsSource, "MassageLabDnaOptions")
-  const effectProps = extractInterfaceBody(effectPropsSource, "BackgroundEffectProps")
+  const dnaOptions = extractInterfaceBody(effectPropsSource, "MassageLabDnaOptions", "css-backgrounds.tsx")
+  const effectProps = extractInterfaceBody(effectPropsSource, "BackgroundEffectProps", "css-backgrounds.tsx")
 
   assert.match(dnaOptions, /strandCount: number;?[\s\S]*?showBaseLetters: boolean;?[\s\S]*?nodeRoleColors: readonly \[string, string, string, string\];?[\s\S]*?outlineColor: string;?/)
   assert.doesNotMatch(dnaOptions, /\bnodeColors\b/)

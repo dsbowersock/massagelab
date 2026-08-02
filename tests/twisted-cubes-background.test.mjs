@@ -113,7 +113,10 @@ describe("Twisted Cubes background domain rules", () => {
     assert.equal(getTwistedCubeCycleSeconds(1), 4)
     assert.equal(getTwistedCubeCycleSeconds(2), 2)
     assert.equal(getTwistedCubeCycleSeconds(0), 400)
-    assert.equal(getTwistedCubeCycleSeconds(Infinity), 16)
+    assert.equal(
+      getTwistedCubeCycleSeconds(Infinity),
+      4 / DEFAULT_TWISTED_CUBES_BACKGROUND_OPTIONS.rotationSpeed,
+    )
 
     assert.ok(Math.abs(getTwistedCubeDelaySeconds({ oneBasedIndex: 1, count: 20, stagger: 0.1 }) + 1.7) < 1e-12)
     assert.ok(Math.abs(getTwistedCubeDelaySeconds({ oneBasedIndex: 20, count: 20, stagger: 0.1 }) - 0.2) < 1e-12)

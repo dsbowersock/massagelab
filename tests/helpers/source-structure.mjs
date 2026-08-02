@@ -1,5 +1,12 @@
 import assert from "node:assert/strict"
 
+/** Shared source guards for passive, dependency-free background renderers. */
+export const NON_INTERACTIVE_BACKGROUND_SOURCE_PATTERNS = Object.freeze([
+  /\b(?:iframe|canvas|webgl|fetch|XMLHttpRequest|addEventListener|removeEventListener|ResizeObserver|globalThis|window|document)\b/i,
+  /(?:billing|account|entitlement|stripe|registry|storage)/i,
+  /\b(?:button|input|select|textarea|tabIndex|onClick|onPointer|onDrag|onTouch|cursor)\b/,
+])
+
 /**
  * Scans comments and quoted text without changing source offsets. Callers
  * choose whether quoted text is masked or preserved; this focused scanner

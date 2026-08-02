@@ -4,8 +4,8 @@ import type { MassageLabTwistedCubesOptions } from "@/components/backgrounds/eff
 import type { BackgroundPropertyControlsProps } from "@/components/chimer-controls/background-property-control-types"
 import { BackgroundPropertyGroup } from "@/components/chimer-controls/BackgroundPropertyGroup"
 import { StyledRangeControl } from "@/components/chimer-controls/StyledRangeControl"
-import styles from "@/app/chimer/running-timer.module.css"
 import { TWISTED_CUBES_OPTION_BOUNDS } from "@/lib/twisted-cubes-background"
+import styles from "./BackgroundPropertyGroup.module.css"
 
 export type TwistedCubesBackgroundControlOptions = Pick<
   MassageLabTwistedCubesOptions,

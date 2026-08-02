@@ -5,8 +5,8 @@ import type { BackgroundPropertyControlsProps } from "@/components/chimer-contro
 import { BackgroundPropertyGroup } from "@/components/chimer-controls/BackgroundPropertyGroup"
 import { StyledRangeControl } from "@/components/chimer-controls/StyledRangeControl"
 import { StyledToggleControl } from "@/components/chimer-controls/StyledToggleControl"
-import styles from "@/app/chimer/running-timer.module.css"
 import { DNA_OPTION_BOUNDS } from "@/lib/dna-background"
+import styles from "./BackgroundPropertyGroup.module.css"
 
 export type DnaBackgroundControlOptions = Pick<
   MassageLabDnaOptions,
