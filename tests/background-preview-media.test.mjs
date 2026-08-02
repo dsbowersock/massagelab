@@ -5,6 +5,7 @@ import { describe, it } from "node:test"
 import {
   parseProbeDimensions,
   parseProbeDurationSeconds,
+  resolveProbeDurationSeconds,
 } from "../scripts/chimer-preview-generation/probe-result.mjs"
 import { normalizeGeneratedPreviewManifestItem } from "../scripts/chimer-preview-generation/manifest-url-normalization.mjs"
 
@@ -81,7 +82,7 @@ describe("background preview media", () => {
     assert.match(reviewFixtureSource, /missingVideo \? "Use working video" : "Use missing video"/)
     assert.match(
       reviewFixtureSource,
-      /const preview = backgroundPreviewManifest\[previewName\][\s\S]*?const verticalPreview = preview\?\.variants\?\.vertical[\s\S]*?videoUrl=\{videoUrl\}[\s\S]*?posterUrl=\{posterUrl\}/,
+      /const preview = backgroundPreviewManifest\[previewName\][\s\S]*?resolveVerticalPreviewMediaUrls\(preview, previewName\)[\s\S]*?videoUrl=\{videoUrl\}[\s\S]*?posterUrl=\{posterUrl\}/,
     )
   })
 
@@ -196,6 +197,16 @@ describe("background preview media", () => {
     assert.throws(
       () => parseProbeDurationSeconds({ status: 0, stdout: "N\/A\n", stderr: "" }, "preview.webm"),
       /invalid duration for preview\.webm: N\/A/,
+    )
+  })
+
+  it("uses duration fallbacks only for successful probes with unusable output", () => {
+    assert.equal(resolveProbeDurationSeconds({ status: 0, stdout: "4.25", stderr: "" }, "clip.webm", 6000), 4.25)
+    assert.equal(resolveProbeDurationSeconds({ status: 0, stdout: "", stderr: "" }, "clip.webm", 6000), 6)
+    assert.equal(resolveProbeDurationSeconds({ status: 0, stdout: "N/A", stderr: "" }, "clip.webm", 6000), 6)
+    assert.throws(
+      () => resolveProbeDurationSeconds({ error: new Error("spawn failed") }, "clip.webm", 6000),
+      /spawn failed/,
     )
   })
 })

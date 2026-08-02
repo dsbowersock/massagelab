@@ -18,7 +18,7 @@ import {
   LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL,
   normalizeGeneratedPreviewManifestItem,
 } from "./manifest-url-normalization.mjs"
-import { parseProbeDimensions, parseProbeDurationSeconds } from "./probe-result.mjs"
+import { parseProbeDimensions, resolveProbeDurationSeconds } from "./probe-result.mjs"
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const defaultOutputDir = path.join(repoRoot, "public/chimer/background-previews")
@@ -335,22 +335,7 @@ function probeVideoDurationSeconds(videoPath, fallbackDurationMs) {
     "-of", "default=noprint_wrappers=1:nokey=1",
     videoPath,
   ], { encoding: "utf8" })
-  try {
-    return parseProbeDurationSeconds(result, videoPath)
-  } catch (error) {
-    const output = result.stdout?.trim() ?? ""
-    const fallbackSeconds = Number(fallbackDurationMs) / 1000
-    if (
-      !result.error
-      && result.status === 0
-      && (!output || output === "N/A")
-      && Number.isFinite(fallbackSeconds)
-      && fallbackSeconds > 0
-    ) {
-      return fallbackSeconds
-    }
-    throw error
-  }
+  return resolveProbeDurationSeconds(result, videoPath, fallbackDurationMs)
 }
 
 /** Extracts a stable representative frame one-third through the encoded video. */

@@ -20,6 +20,7 @@ config()
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const defaultInputDir = path.join(repoRoot, "public/chimer/background-previews")
 const defaultObjectPrefix = "chimer/background-previews"
+const dryRunSummaryPrefix = "MASSAGELAB_R2_DRY_RUN_SUMMARY="
 
 const command = process.argv[2]
 const args = process.argv.slice(3)
@@ -89,7 +90,7 @@ async function runUpload(rawArgs) {
   })
 
   if (options.dryRun) {
-    console.log(JSON.stringify({
+    const summary = {
       dryRun: true,
       bucket: env.bucket,
       publicBaseUrl: env.publicBaseUrl,
@@ -108,7 +109,8 @@ async function runUpload(rawArgs) {
         publicUrl: object.publicUrl,
         bytes: object.file.bytes,
       })),
-    }, null, 2))
+    }
+    console.log(`${dryRunSummaryPrefix}${JSON.stringify(summary)}`)
     return
   }
 

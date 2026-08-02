@@ -17,6 +17,7 @@ import {
   buildVisualPresetDraftAction,
   getBackgroundPresetLimit,
 } from "../components/chimer-controls/background-palette-controls.ts"
+import { maskSourceComments } from "./helpers/source-structure.mjs"
 
 const editorSource = await readFile(
   new URL("../components/chimer-controls/BackgroundPaletteEditor.tsx", import.meta.url),
@@ -34,10 +35,10 @@ const runningTimerSource = await readFile(
   new URL("../app/chimer/running-timer.tsx", import.meta.url),
   "utf8",
 )
-const backgroundHostSource = await readFile(
+const backgroundHostSource = maskSourceComments(await readFile(
   new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
   "utf8",
-)
+))
 
 test("Harmony buttons preview every generated palette from the current Primary", () => {
   const harmonies = ["analogous", "complementary", "triad"]

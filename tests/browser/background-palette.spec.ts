@@ -576,17 +576,21 @@ test.describe("shared background palette review matrix", () => {
       }
       Reflect.set(window, "__previewMediaProbe", probe)
 
+      const playOriginal = HTMLMediaElement.prototype.play
+      const pauseOriginal = HTMLMediaElement.prototype.pause
       HTMLMediaElement.prototype.play = function play() {
         if (this.dataset.testid === "carousel-background-video") {
           probe.playCalls += 1
           if (probe.rejectPlayAs) {
             return Promise.reject(new DOMException("Preview playback rejected", probe.rejectPlayAs))
           }
+          return Promise.resolve()
         }
-        return Promise.resolve()
+        return playOriginal.call(this)
       }
       HTMLMediaElement.prototype.pause = function pause() {
         if (this.dataset.testid === "carousel-background-video") probe.pauseCalls += 1
+        return pauseOriginal.call(this)
       }
 
       const addEventListener = Document.prototype.addEventListener as (
@@ -619,6 +623,12 @@ test.describe("shared background palette review matrix", () => {
         if (type === "visibilitychange") probe.visibilityListeners.delete(listener)
         return removeEventListener.call(this, type, listener, options)
       } as Document["removeEventListener"]
+      Reflect.set(window, "__restorePreviewMediaProbe", () => {
+        HTMLMediaElement.prototype.play = playOriginal
+        HTMLMediaElement.prototype.pause = pauseOriginal
+        Document.prototype.addEventListener = addEventListener
+        Document.prototype.removeEventListener = removeEventListener
+      })
     })
 
     await openPaletteGallery(page)
@@ -697,5 +707,6 @@ test.describe("shared background palette review matrix", () => {
       await readPreviewMediaProbe(page)
     ).visibilityListenerCount).toBe(baselineListeners)
     await fixture.getByRole("button", { name: "Unmount preview" }).click()
+    await page.evaluate(() => Reflect.get(window, "__restorePreviewMediaProbe")())
   })
 })

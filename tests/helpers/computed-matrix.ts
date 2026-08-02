@@ -1,4 +1,4 @@
-/** Parses Chromium's computed 2D transform while rejecting malformed numeric serialization. */
+/** Parses Chromium 2D or 3D computed matrices into finite numeric values. */
 export function parseComputedMatrix(transform: string) {
   const matrix2d = /^matrix\(([^)]+)\)$/.exec(transform)
   const matrix3d = /^matrix3d\(([^)]+)\)$/.exec(transform)

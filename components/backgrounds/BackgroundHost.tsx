@@ -12,6 +12,7 @@ import {
   userCanUseBackground,
 } from "@/components/backgrounds/backgroundRegistry"
 import { backgroundPaletteRegistry } from "@/components/backgrounds/backgroundPaletteRegistry"
+import { useMediaQuery } from "@/components/backgrounds/use-media-query"
 import {
   createBackgroundHostDiagnosticSnapshot,
   type BackgroundHostLoadStatus,
@@ -59,18 +60,7 @@ interface BackgroundHostProps extends BackgroundEffectProps {
 
 /** Reports compact rendering when either viewport dimension is at most 479px. */
 function useCompactBackgroundViewport() {
-  const [compactViewport, setCompactViewport] = useState(false)
-
-  useEffect(() => {
-    const query = window.matchMedia("(max-width: 479px), (max-height: 479px)")
-    const handleChange = () => setCompactViewport(query.matches)
-
-    handleChange()
-    query.addEventListener("change", handleChange)
-    return () => query.removeEventListener("change", handleChange)
-  }, [])
-
-  return compactViewport
+  return useMediaQuery("(max-width: 479px), (max-height: 479px)")
 }
 
 export function BackgroundHost(props: BackgroundHostProps) {
@@ -429,6 +419,8 @@ export function BackgroundHost(props: BackgroundHostProps) {
     [backgroundPalette, canCustomize, entry.fallbackStyle, entry.id],
   )
   const fallbackRemountKey = useMemo(
+    // The full resolved style signature is intentional: legacy fallbacks mix
+    // shorthand and longhands, so palette edits must not retain stale families.
     () => `${entry.id}:${backgroundPalette?.palette.mode ?? "source"}:${canCustomize}:${JSON.stringify(fallbackStyle ?? null)}`,
     [backgroundPalette?.palette.mode, canCustomize, entry.id, fallbackStyle],
   )
@@ -488,7 +480,7 @@ export function BackgroundHost(props: BackgroundHostProps) {
       <div
         // Registry fallbacks mix legacy background shorthand and longhands.
         // Remounting this decorative layer prevents React from reconciling
-        // conflicting style families when the selected entry or mode changes.
+        // conflicting style families when the complete resolved style changes.
         key={fallbackRemountKey}
         className={cn(styles.fallback, entry.fallbackClassName)}
         style={fallbackStyle}

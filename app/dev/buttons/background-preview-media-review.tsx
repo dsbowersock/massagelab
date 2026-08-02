@@ -3,7 +3,10 @@
 import { useState } from "react"
 
 import { BackgroundPreviewMedia } from "@/components/backgrounds/BackgroundPreviewMedia"
-import { backgroundPreviewManifest } from "@/components/backgrounds/backgroundPreviewManifest"
+import {
+  backgroundPreviewManifest,
+  resolveVerticalPreviewMediaUrls,
+} from "@/components/backgrounds/backgroundPreviewManifest"
 import { Button } from "@/components/ui/button"
 
 /** Development-only browser fixture for preview playback and fallback behavior. */
@@ -14,17 +17,11 @@ export function BackgroundPreviewMediaReview() {
   const [missingVideo, setMissingVideo] = useState(false)
   const previewName = alternateSource ? "massage-lab-twisted-cubes" : "massage-lab-dna"
   const preview = backgroundPreviewManifest[previewName]
-  const verticalPreview = preview?.variants?.vertical
+  const previewUrls = resolveVerticalPreviewMediaUrls(preview, previewName)
   const videoUrl = missingVideo
     ? "/chimer/background-previews/__missing-preview__.webm"
-    : verticalPreview?.previewMediaUrl
-      ?? preview?.previewVerticalVideoUrl
-      ?? preview?.previewMediaUrl
-      ?? `/chimer/background-previews/${previewName}-vertical.webm`
-  const posterUrl = verticalPreview?.previewPosterUrl
-    ?? preview?.previewVerticalImageUrl
-    ?? preview?.previewImageUrl
-    ?? `/chimer/background-previews/${previewName}-vertical.webp`
+    : previewUrls.videoUrl
+  const posterUrl = previewUrls.posterUrl
 
   return (
     <section

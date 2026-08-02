@@ -48,6 +48,8 @@ const twistedCubesControlsSource = await read("components/chimer-controls/Twiste
 const runningTimerExecutableSource = maskSourceComments(runningTimerSource)
 const navigationGuardExecutableSource = maskSourceComments(navigationGuardSource)
 const unsavedDialogExecutableSource = maskSourceComments(unsavedDialogSource)
+const dnaControlsExecutableSource = maskSourceComments(dnaControlsSource)
+const twistedCubesControlsExecutableSource = maskSourceComments(twistedCubesControlsSource)
 
 const openingSnapshot = {
   palette: { mode: "custom", primaryColor: "#123456", harmony: "triadic", swatches: ["#123456", "#234567", "#345678", "#456789", "#56789a", "#6789ab", "#789abc"] },
@@ -1230,13 +1232,13 @@ test("dirty navigation guard covers eligible app links, history, and native unlo
   assert.match(navigationGuardSource, /target: anchor\.target \|\| "_self"/)
   assert.doesNotMatch(navigationGuardExecutableSource, /history\.pushState/)
   assert.doesNotMatch(navigationGuardExecutableSource, /history\.replaceState/)
-  assert.doesNotMatch(navigationGuardExecutableSource, /sessionStorage|VisualDraftGuard/)
-  assert.match(navigationGuardSource, /history\.go/)
-  assert.match(navigationGuardSource, /installVisualDraftNavigationListeners/)
-  assert.match(unsavedDialogSource, /Apply changes/)
-  assert.match(unsavedDialogSource, /Discard changes/)
-  assert.match(unsavedDialogSource, /Keep editing/)
-  assert.match(unsavedDialogSource, /onCloseAutoFocus/)
+  assert.doesNotMatch(navigationGuardExecutableSource, /sessionStorage|["'`]VisualDraftGuard/)
+  assert.match(navigationGuardExecutableSource, /history\.go/)
+  assert.match(navigationGuardExecutableSource, /installVisualDraftNavigationListeners/)
+  assert.match(unsavedDialogExecutableSource, /Apply changes/)
+  assert.match(unsavedDialogExecutableSource, /Discard changes/)
+  assert.match(unsavedDialogExecutableSource, /Keep editing/)
+  assert.match(unsavedDialogExecutableSource, /onCloseAutoFocus/)
   assert.doesNotMatch(unsavedDialogExecutableSource, /document\.activeElement/)
   assert.match(unsavedDialogSource, /restoreFocusTarget/)
   assert.match(unsavedDialogSource, /explicitOutcomeRef/)
@@ -1255,10 +1257,11 @@ test("dirty navigation guard covers eligible app links, history, and native unlo
     /!visualDraft\?\.dirty[\s\S]*?mode\.storageStatus === "available"[\s\S]*?backgroundPreferenceSyncStatus === "stale" \? \([\s\S]*?Retry sync/,
   )
   const headerActionGroupOpeningTag = runningTimerSource.match(
-    /<div\s+className=\{styles\.visualHeaderDraftActions\}\s+role="group"\s+aria-label="Visual draft actions">/,
+    /<div\s+className=\{styles\.visualHeaderDraftActions\}[^>]*>/,
   )?.[0]
   assert.ok(headerActionGroupOpeningTag)
   assert.match(headerActionGroupOpeningTag, /\brole="group"/)
+  assert.match(headerActionGroupOpeningTag, /\baria-label="Visual draft actions"/)
   assert.doesNotMatch(runningTimerExecutableSource, /className=\{styles\.visualDraftActions\}/)
 })
 
@@ -1289,6 +1292,7 @@ test("globe coordinate inputs keep string drafts and clock font changes remeasur
 
 test("DNA and Twisted Cubes controls emit only draft property patches with exact bounded sliders", () => {
   const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  /** Keeps each ordered prop match inside one self-closing StyledRangeControl element. */
   const assertSlider = (source, label, property, minimum, maximum, step) => {
     const withinSlider = "(?:(?!\\/>)[\\s\\S])*?"
     const [safeLabel, safeProperty, safeMinimum, safeMaximum, safeStep] = [
@@ -1297,7 +1301,7 @@ test("DNA and Twisted Cubes controls emit only draft property patches with exact
     assert.match(source, new RegExp(`<StyledRangeControl${withinSlider}label="${safeLabel}"${withinSlider}value=\\{value\\.${safeProperty}\\}${withinSlider}min=\\{${safeMinimum}\\}${withinSlider}max=\\{${safeMaximum}\\}${withinSlider}step=\\{${safeStep}\\}${withinSlider}onChange=\\{\\(nextValue\\) => onChange\\(\\{ ${safeProperty}: nextValue \\}\\)\\}${withinSlider}\\/>`))
   }
 
-  for (const [label, property, step] of [
+  const dnaSliders = [
     ["Node motion speed", "nodeMotionSpeed", "0.01"],
     ["Strand rotation speed", "strandRotationSpeed", "0.01"],
     ["Strand count", "strandCount", "1"],
@@ -1309,10 +1313,15 @@ test("DNA and Twisted Cubes controls emit only draft property patches with exact
     ["Connector width", "connectorWidth", "1"],
     ["Connector thickness", "connectorThickness", "1"],
     ["Outline thickness", "outlineThickness", "0.05"],
-  ]) assertSlider(dnaControlsSource, label, property, `DNA_OPTION_BOUNDS.${property}.minimum`, `DNA_OPTION_BOUNDS.${property}.maximum`, step)
+  ]
+  assert.equal(
+    dnaSliders.length + 1,
+    backgroundPaletteRegistry["massage-lab-dna"].visualPropertyKeys.length,
+  )
+  for (const [label, property, step] of dnaSliders) assertSlider(dnaControlsSource, label, property, `DNA_OPTION_BOUNDS.${property}.minimum`, `DNA_OPTION_BOUNDS.${property}.maximum`, step)
   assert.match(dnaControlsSource, /<StyledToggleControl[\s\S]*?label="Show base letters"[\s\S]*?checked=\{value\.showBaseLetters\}[\s\S]*?onCheckedChange=\{\(nextValue\) => onChange\(\{ showBaseLetters: nextValue \}\)\}/)
 
-  for (const [label, property, step] of [
+  const twistedCubesSliders = [
     ["Rotation speed", "rotationSpeed", "0.01"],
     ["Layer stagger", "layerStagger", "0.01"],
     ["View angle X", "viewAngleX", "1"],
@@ -1324,11 +1333,16 @@ test("DNA and Twisted Cubes controls emit only draft property patches with exact
     ["Position Y", "positionY", "1"],
     ["Fade falloff", "opacityFalloff", "0.01"],
     ["Relative outline thickness", "outlineThickness", "0.0005"],
-  ]) assertSlider(twistedCubesControlsSource, label, property, `TWISTED_CUBES_OPTION_BOUNDS.${property}.minimum`, `TWISTED_CUBES_OPTION_BOUNDS.${property}.maximum`, step)
+  ]
+  assert.equal(
+    twistedCubesSliders.length,
+    backgroundPaletteRegistry["massage-lab-twisted-cubes"].visualPropertyKeys.length,
+  )
+  for (const [label, property, step] of twistedCubesSliders) assertSlider(twistedCubesControlsSource, label, property, `TWISTED_CUBES_OPTION_BOUNDS.${property}.minimum`, `TWISTED_CUBES_OPTION_BOUNDS.${property}.maximum`, step)
 
   for (const [label, source] of [
-    ["DNA", dnaControlsSource],
-    ["Twisted Cubes", twistedCubesControlsSource],
+    ["DNA", dnaControlsExecutableSource],
+    ["Twisted Cubes", twistedCubesControlsExecutableSource],
   ]) {
     for (const pattern of [
       /localStorage/i,
@@ -1361,14 +1375,21 @@ test("selected-background properties share the existing Visual draft lifecycle",
 test("all DNA and Twisted Cubes keys execute the complete shared Visual draft lifecycle", () => {
   for (const { backgroundId, changedProperties } of TRACK4B_VISUAL_CASES) {
     const adapter = backgroundPaletteRegistry[backgroundId]
+    assert.ok(adapter, `${backgroundId} is missing from backgroundPaletteRegistry`)
     const sourceProperties = adapter.sourceVisualProperties
     const entries = Object.entries(changedProperties)
     assert.deepEqual(
       Object.keys(changedProperties).sort(),
       [...adapter.visualPropertyKeys].sort(),
+      `${backgroundId} fixture keys must match adapter.visualPropertyKeys`,
     )
     for (const key of adapter.visualPropertyKeys) {
       assert.notEqual(sourceProperties[key], undefined, `${backgroundId}:${key} source value`)
+      assert.notDeepEqual(
+        changedProperties[key],
+        sourceProperties[key],
+        `${backgroundId}:${key} fixture must differ from the source value`,
+      )
     }
 
     const opening = {

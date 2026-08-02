@@ -4,6 +4,8 @@ import assert from "node:assert/strict"
  * Scans comments and quoted text without changing source offsets. Callers
  * choose whether quoted text is masked or preserved; this focused scanner
  * intentionally does not parse regular-expression literals or JSX structure.
+ * An unpaired apostrophe in JSX text keeps quote state until the next newline,
+ * so a same-line trailing comment is not masked; full JSX parsing is out of scope.
  */
 function scanSource(source, { maskQuotedText }) {
   const characters = source.split("")

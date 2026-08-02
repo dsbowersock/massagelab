@@ -394,9 +394,10 @@ test("shared background access and palette resolver inputs stay authoritative an
 })
 
 test("DNA and Twisted Cubes share compact options and host-owned responsive motion context", async () => {
-  const [runningSource, hostSource, dnaEffect, cubesEffect, styles] = await Promise.all([
+  const [runningSource, hostSource, mediaQuerySource, dnaEffect, cubesEffect, styles] = await Promise.all([
     read("app/chimer/running-timer.tsx"),
     read("components/backgrounds/BackgroundHost.tsx"),
+    read("components/backgrounds/use-media-query.ts"),
     read("components/backgrounds/effects/massage-lab-dna-background.tsx"),
     read("components/backgrounds/effects/massage-lab-twisted-cubes-background.tsx"),
     read("app/chimer/running-timer.module.css"),
@@ -409,7 +410,9 @@ test("DNA and Twisted Cubes share compact options and host-owned responsive moti
   assert.match(runningSource, /resolveDnaTwistedCubesBackgroundHostProps/)
   assert.match(runningSource, /\{\.\.\.effectiveDnaTwistedCubesHostProps\}/)
   assert.doesNotMatch(runningSource, /massageLabDnaStrandCount=|massageLabTwistedCubesLayerCount=/)
-  assert.match(hostSource, /window\.matchMedia\("\(max-width: 479px\), \(max-height: 479px\)"\)/)
+  assert.match(hostSource, /useMediaQuery\("\(max-width: 479px\), \(max-height: 479px\)"\)/)
+  assert.match(mediaQuerySource, /window\.matchMedia\(query\)/)
+  assert.match(mediaQuerySource, /removeEventListener\("change", handleChange\)/)
   assert.match(hostSource, /entry\.supportsReducedMotionStatic/)
   assert.match(hostSource, /reduceMotion,[\s\S]*compactViewport,/)
   assert.doesNotMatch(dnaExecutableSource, /\bdocument\b|\bwindow\b|addEventListener|requestAnimationFrame/)

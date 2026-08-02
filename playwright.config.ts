@@ -95,6 +95,8 @@ export function getPlaywrightFileFilterArguments(argv: readonly string[]) {
       continue
     }
     if (playwrightOptionsWithVariadicValues.has(argument)) {
+      // Playwright greedily treats following non-option operands as project names;
+      // callers must use `--` before a positional file filter after `--project`.
       while (argv[index + 1] && !argv[index + 1].startsWith("-")) index += 1
       continue
     }

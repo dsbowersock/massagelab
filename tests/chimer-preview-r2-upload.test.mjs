@@ -9,6 +9,7 @@ const uploaderPath = path.join(repoRoot, "scripts/chimer-preview-generation/uplo
 const previewDir = path.join(repoRoot, "public/chimer/background-previews")
 const backgroundIds = ["massage-lab-dna", "massage-lab-twisted-cubes"]
 const suffixes = ["", "-square", "-vertical"]
+const dryRunSummaryPrefix = "MASSAGELAB_R2_DRY_RUN_SUMMARY="
 const expectedMedia = backgroundIds.flatMap((id) => (
   suffixes.flatMap((suffix) => [`${id}${suffix}.webm`, `${id}${suffix}.webp`])
 ))
@@ -34,11 +35,10 @@ describe("Chimer preview R2 uploader", () => {
 
     assert.notEqual(result.error?.code, "ETIMEDOUT", "dry-run uploader completed within 30 seconds")
     assert.equal(result.status, 0, result.stderr)
-    const dryRunField = result.stdout.indexOf('"dryRun": true')
-    const jsonStart = result.stdout.lastIndexOf("{", dryRunField)
-    const jsonEnd = result.stdout.lastIndexOf("}")
-    assert.ok(jsonStart >= 0 && jsonEnd > jsonStart, result.stdout)
-    const summary = JSON.parse(result.stdout.slice(jsonStart, jsonEnd + 1))
+    const summaryLine = result.stdout.split(/\r?\n/)
+      .find((line) => line.startsWith(dryRunSummaryPrefix))
+    assert.ok(summaryLine, result.stdout)
+    const summary = JSON.parse(summaryLine.slice(dryRunSummaryPrefix.length))
     assert.equal(summary.dryRun, true)
     const selectedObjects = summary.objects.filter(({ objectKey }) => {
       const name = path.basename(objectKey)

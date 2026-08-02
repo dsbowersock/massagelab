@@ -5,9 +5,16 @@ import { parseComputedMatrix } from "./helpers/computed-matrix.ts"
 
 describe("computed matrix parsing", () => {
   it("accepts a finite Chromium matrix3d", () => {
-    assert.equal(
-      parseComputedMatrix("matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 12, 24, 0, 1)").length,
-      16,
+    assert.deepEqual(
+      parseComputedMatrix("matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 12, 24, 0, 1)"),
+      [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 12, 24, 0, 1],
+    )
+  })
+
+  it("accepts a finite Chromium matrix in authored order", () => {
+    assert.deepEqual(
+      parseComputedMatrix("matrix(1, 0.25, -0.5, 1, 12, 24)"),
+      [1, 0.25, -0.5, 1, 12, 24],
     )
   })
 

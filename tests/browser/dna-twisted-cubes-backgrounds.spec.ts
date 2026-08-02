@@ -300,6 +300,9 @@ async function captureComputedConsumerState(host: Locator, id: typeof EFFECTS[nu
       const connector = first?.children[0] as HTMLElement
       const startNode = first?.querySelector<HTMLElement>('[data-side="start"]')
       const endNode = first?.querySelector<HTMLElement>('[data-side="end"]')
+      if (!scene || !scene.firstElementChild || !first || !last || !connector || !startNode || !endNode) {
+        throw new Error("DNA consumer fixture is missing its scene, composition, strands, connector, or node elements")
+      }
       for (const animation of rootElement.getAnimations({ subtree: true })) {
         animation.pause()
         animation.currentTime = 0

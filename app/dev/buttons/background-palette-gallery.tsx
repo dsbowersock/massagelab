@@ -4,7 +4,10 @@ import { memo, useEffect, useMemo, useState } from "react"
 
 import { BackgroundHost } from "@/components/backgrounds/BackgroundHost"
 import { BackgroundPreviewMedia } from "@/components/backgrounds/BackgroundPreviewMedia"
-import { backgroundPreviewManifest } from "@/components/backgrounds/backgroundPreviewManifest"
+import {
+  backgroundPreviewManifest,
+  resolveVerticalPreviewMediaUrls,
+} from "@/components/backgrounds/backgroundPreviewManifest"
 import type { BackgroundEffectProps } from "@/components/backgrounds/effects/css-backgrounds"
 import {
   backgroundPaletteRegistry,
@@ -97,12 +100,11 @@ const TRACK_4B_LABELS: Readonly<Record<Track4BBackgroundId, string>> = Object.fr
 })
 const TRACK_4B_PREVIEWS = TRACK_4B_IDS.map((id) => {
   const entry = backgroundPreviewManifest[id]
-  const variant = entry?.variants?.vertical
+  const previewUrls = resolveVerticalPreviewMediaUrls(entry, id)
   return {
     id,
     label: TRACK_4B_LABELS[id],
-    videoUrl: variant?.previewMediaUrl ?? entry?.previewVerticalVideoUrl,
-    posterUrl: variant?.previewPosterUrl ?? entry?.previewVerticalImageUrl,
+    ...previewUrls,
   }
 })
 

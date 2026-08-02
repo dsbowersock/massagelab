@@ -45,6 +45,8 @@ export const MassageLabDnaBackground = memo(function MassageLabDnaBackground({
     connectorColor,
     outlineColor,
   } = massageLabDna
+  // Persisted options enforce the product minimum; malformed direct host input
+  // fails closed to inert DOM instead of fabricating the minimum render load.
   const renderStrandCount = Number.isFinite(strandCount)
     ? Math.min(DNA_OPTION_BOUNDS.strandCount.maximum, Math.max(0, Math.floor(strandCount)))
     : 0

@@ -66,6 +66,18 @@ test("Playwright file filters consume optional refs and every variadic project n
   )
 })
 
+test("Playwright file filters require an option terminator after variadic projects", () => {
+  assert.deepEqual(
+    getPlaywrightFileFilterArguments([
+      "test",
+      "--project", "desktop-chromium",
+      "--",
+      "tests/browser/public-routes.spec.ts",
+    ]),
+    ["test", "tests/browser/public-routes.spec.ts"],
+  )
+})
+
 test("Playwright file filters retain positional shorthand after inline options", () => {
   assert.deepEqual(
     getPlaywrightFileFilterArguments(["test", "--grep=dna-twisted", "dna-twisted"]),

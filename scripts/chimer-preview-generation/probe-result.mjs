@@ -48,3 +48,23 @@ export function parseProbeDurationSeconds(result, filePath) {
   }
   return durationSeconds
 }
+
+/** Uses a positive fallback only when a successful duration probe has no usable output. */
+export function resolveProbeDurationSeconds(result, filePath, fallbackDurationMs) {
+  try {
+    return parseProbeDurationSeconds(result, filePath)
+  } catch (error) {
+    const output = result.stdout?.trim() ?? ""
+    const fallbackSeconds = Number(fallbackDurationMs) / 1000
+    if (
+      !result.error
+      && result.status === 0
+      && (!output || output === "N/A")
+      && Number.isFinite(fallbackSeconds)
+      && fallbackSeconds > 0
+    ) {
+      return fallbackSeconds
+    }
+    throw error
+  }
+}
