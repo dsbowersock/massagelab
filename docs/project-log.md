@@ -6,6 +6,37 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-02 — Security dependency Fix Wave 2 local implementation
+
+- Verified PR #162 merged Fix Wave 1 to `main` as
+  `1f31a1295343e19bad9978363cf7f5a59faeabd3`, removed its clean merged local
+  worktree and branch, and created `codex/security-triage-wave2` from that
+  exact merge commit without changing the dirty primary checkout.
+- The post-merge Dependabot inventory contained 27 open alerts across seven
+  package families. The local exact-lock install reported 22 aggregate
+  vulnerabilities (2 low, 5 moderate, 15 high). Wave 2 upgrades Next and its
+  ESLint config to `16.2.12`, Prisma packages to `7.9.1`, shadcn to `4.16.1`,
+  and top-level PostCSS to a patched `8.5.x` resolution. Narrow overrides keep
+  every reviewed Next PostCSS/Sharp, Babel, Hono, `fast-uri`, and
+  `brace-expansion` copy above its advisory floor.
+- Auth.js keeps its optional Nodemailer peer absent because its email provider
+  is disabled. MassageLab's account mailer instead imports patched
+  `nodemailer@9.0.3` through `nodemailer-v9`, accepts only fixed text message
+  fields, and disables file and URL access. A runtime regression proves the
+  alias can deliver that bounded message shape.
+- The updated exact lockfile installs successfully, focused security/auth tests
+  pass 9/9, Prisma generation and schema validation pass, the upgraded shadcn
+  CLI starts, typecheck and lint pass, all 1,902 unit tests pass, the
+  Production build generates 101/101 pages, and three focused desktop Chromium
+  public-route, registration, and PWA/icon checks pass. The repo does not
+  contain the optional AgentOps security-gate scripts, so no result is claimed
+  from that scanner.
+- The clean install summary is reduced to 12 aggregate findings (1 low,
+  2 moderate, 9 high), but a standalone detailed npm audit was unavailable
+  under the environment security policy and GitHub has not rescanned the local
+  unpushed lockfile. The branch therefore does not claim a clean dependency
+  inventory yet. Nothing is pushed and no PR is open.
+
 ## 2026-08-02 — Security dependency Fix Wave 1 PR #162
 
 - Triaged all 42 open default-branch Dependabot alerts against the installed
