@@ -172,7 +172,7 @@ test("BackgroundHost applies the resolved palette to its persistent fallback lay
 test("BackgroundHost mounts only active or static-capable effects and keeps review motion development-only", () => {
   assert.match(
     backgroundHostSource,
-    /const allowAmbientMotionForReview = process\.env\.NODE_ENV !== "production"[\s\S]*const reduceMotion = !motionEnabled \|\| \(!allowAmbientMotionForReview && shouldReduceAmbientMotion/,
+    /const ambientReducedMotion = useAmbientReducedMotion\(settings\.ambientMotionMode\)[\s\S]*const allowAmbientMotionForReview = process\.env\.NODE_ENV !== "production"[\s\S]*const reduceMotion = !motionEnabled \|\| \(!allowAmbientMotionForReview && ambientReducedMotion\)/,
   )
   assert.match(
     backgroundHostSource,

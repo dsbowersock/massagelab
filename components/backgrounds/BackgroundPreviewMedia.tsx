@@ -38,16 +38,20 @@ export function BackgroundPreviewMedia({
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
+    let disposed = false
     const syncPlayback = () => {
       if (!showVideo || document.visibilityState !== "visible") {
         video.pause()
         return
       }
-      void video.play().catch(() => undefined)
+      void video.play().catch(() => {
+        if (!disposed) setVideoFailed(true)
+      })
     }
     syncPlayback()
     document.addEventListener("visibilitychange", syncPlayback)
     return () => {
+      disposed = true
       document.removeEventListener("visibilitychange", syncPlayback)
       video.pause()
     }

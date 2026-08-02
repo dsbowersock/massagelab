@@ -74,6 +74,12 @@ const EFFECTS = [
   },
 ] as const
 
+const COMPACT_BACKGROUND_VIEWPORT_QUERY = "(max-width: 479px), (max-height: 479px)"
+
+function isCompactBackgroundViewport(host: Locator) {
+  return host.evaluate((_element, query) => window.matchMedia(query).matches, COMPACT_BACKGROUND_VIEWPORT_QUERY)
+}
+
 type RuntimeHealth = ReturnType<typeof captureRuntimeErrors>
 
 function captureRuntimeErrors(page: Page) {
@@ -549,9 +555,7 @@ async function expectExactControlRender({
   before: Record<string, string | number>
   allowedRenderChanges: readonly string[]
 }) {
-  const compactViewport = await host.evaluate(() => (
-    window.matchMedia("(max-width: 479px), (max-height: 479px)").matches
-  ))
+  const compactViewport = await isCompactBackgroundViewport(host)
   if (key === "massageLabDnaStrandCount") {
     await expect.poll(() => effectRoot(host).locator('[style*="--ml-dna-start-color"]').count())
       .toBe(properties.massageLabDnaStrandCount)
@@ -687,9 +691,7 @@ async function expectExactComputedConsumer({
   for (const [sentinel, value] of Object.entries(before)) {
     if (!allowedChanges.has(sentinel)) expect(after[sentinel], `${key} rewired computed ${sentinel}`).toBe(value)
   }
-  const compactViewport = await host.evaluate(() => (
-    window.matchMedia("(max-width: 479px), (max-height: 479px)").matches
-  ))
+  const compactViewport = await isCompactBackgroundViewport(host)
 
   if (id === "massage-lab-dna") {
     const count = properties.massageLabDnaStrandCount
@@ -982,9 +984,7 @@ async function expectExactReducedEffectState(
   properties: Record<string, number>,
 ) {
   const root = effectRoot(host)
-  const compactViewport = await host.evaluate(() => (
-    window.matchMedia("(max-width: 479px), (max-height: 479px)").matches
-  ))
+  const compactViewport = await isCompactBackgroundViewport(host)
   const roleColors = await resolveCurrentRoleColors(review, id)
 
   if (id === "massage-lab-dna") {
@@ -1437,7 +1437,7 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
     expect(await cubeRoot.evaluate((element) => (
       (element as HTMLElement).style.getPropertyValue("--ml-twisted-cubes-background-color")
     ))).toBe("hsl(210 20% 12%)")
-    expect(await layers.count()).toBeLessThanOrEqual(30)
+    expect(await layers.count()).toBe(DEFAULT_TWISTED_CUBES_BACKGROUND_OPTIONS.layerCount)
     const edgeCount = await layers.locator(":scope > span > span > span > span").count()
     expect(edgeCount).toBe((await layers.count()) * 12)
     expect(edgeCount).toBeLessThanOrEqual(360)

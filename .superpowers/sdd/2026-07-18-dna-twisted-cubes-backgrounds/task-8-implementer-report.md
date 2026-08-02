@@ -58,7 +58,7 @@ Coverage proves:
 - Undo, Redo, Cancel, Apply, Visual preset, and Color preset boundaries follow the canonical reducer, with Apply written to a development-only persistence key;
 - stored scale/X/Y values remain unchanged while compact rendering clamps to `1` and `20%`;
 - reduced motion retains geometry/colors while computed effect animation is `none`;
-- the browser-review fixture caps DNA at 25 strands/50 nodes and Twisted at 30 layers/180 faces so the review matrix stays bounded; production DNA retains its documented 7-81 strand range and approved 70-strand default;
+- the browser review covers DNA's approved 70-strand/140-node default and Twisted's 30-layer upper bound with 360 thin CSS edges; production DNA retains its documented 7-81 strand range;
 - only the selected Track 4B effect remains mounted; neither effect owns document/window/listener/RAF APIs;
 - no shuffle action, pointer-drag affordance, focusable effect surface, or horizontal overflow appears;
 - subscriber and permanent-owner snapshots load the requested effect, while locked access follows the canonical fallback and disables controls;
@@ -144,7 +144,7 @@ The reduced-motion matrix now pushes all 11 numeric slider settings for the sele
 
 - exact adapter/palette-resolver Harmony colors;
 - every DNA root/scene/strand geometry and timing variable, strand/node counts, and static strand/connector/node animations;
-- every Twisted root/scene/layer outline, alpha, delay, depth, thickness, face count, and static cube animation;
+- every Twisted root/scene/layer outline, alpha, delay, depth, thickness, edge count, and static cube animation;
 - production compact clamps only for scale and position, derived through the real responsive transform helper.
 
 ### Fix Round 2 validation
@@ -172,7 +172,7 @@ Task 8 was reviewed again from commit `45a5641b0cc65487b0ba6b4f78cb4f176afe20dc`
 For every isolated edit across the 22 authoritative controls, the browser suite now captures both the existing inline-variable state and a `getComputedStyle` snapshot of the real CSS targets:
 
 - DNA root, scene, first/last strand, connector, and both node sides;
-- Twisted root, scene, view, first/second layer, cube, and first face.
+- Twisted root, scene, view, first/second layer, cube, and first edge.
 
 The per-control mapping now proves concrete consumers as follows:
 
@@ -184,11 +184,11 @@ The per-control mapping now proves concrete consumers as follows:
 - DNA outline: concrete connector/node border widths;
 - Twisted speed/stagger: normalized cube duration/delay;
 - Twisted view angles: concrete view transform matrix;
-- Twisted count: layer/face counts and concrete first-face opacity;
+- Twisted count: layer/edge counts and concrete first-edge opacity;
 - Twisted depth: concrete second-layer 3D transform;
 - Twisted scale/position: concrete scene transform matrix;
-- Twisted falloff: concrete face opacity;
-- Twisted outline: concrete face border width.
+- Twisted falloff: concrete edge opacity;
+- Twisted outline: concrete edge thickness.
 
 Computed root backgrounds, border/background colors, perspective, unaffected dimensions/transforms, and other representative consumers are retained as unrelated sentinels. The allowlist includes only real derived coupling found in the stylesheet: connector dimensions alter percentage-based connector/node translations, and Twisted's negative delay makes the time-zero cube matrix depend on duration, stagger, and layer count.
 
@@ -199,7 +199,7 @@ Expected computed values are produced independently from the settings/domain con
 The full reduced-state matrix still verifies every inline setting/color/geometry value and now additionally proves:
 
 - DNA concrete root/connector/node backgrounds, outline borders, strand/connector/node dimensions, margins, scene/strand/connector/node transform matrices, counts, and `animation-name: none`;
-- Twisted concrete root/face backgrounds, outline border color/width, face opacity/dimensions, the computed `100vmin` perspective, scene/view/layer/cube transform matrices, layer/face counts, and `animation-name: none`.
+- Twisted concrete root/edge backgrounds, outline color/thickness, edge opacity/dimensions, `scenePerspective: "none"`, scene/view/layer/cube transform matrices, layer/edge counts, and `animation-name: none`. This supersedes the earlier face-renderer geometry captured during Fix Round 3.
 
 Harmony colors are normalized from the real registry adapter/palette resolver before concrete color comparison. No pseudo-element is involved in either renderer's production CSS. No production consumer miswire was uncovered, so no production file was changed.
 
@@ -238,7 +238,7 @@ The structured consumer contract fails on every unapproved computed change and p
 
 Animated transform expectations come from reconstructed keyframes and independently supplied domain timing, sampled on hidden target-shaped specimens at CSS time zero. The oracle applies CSS timing functions per keyframe interval and therefore covers the negative-delay phase without reading the production animation's computed transform back into its expectation.
 
-Reduced motion now asserts `animation-name: none`, exact `0s` duration, and exact `0s` delay for the DNA strand, connector, start node, end node, and Twisted cube. Both DNA node sides also have independent concrete border/color evidence. Fixed geometry is independently normalized from `height: 65vmin` plus `aspect-ratio: 2 / 5` for the DNA scene and `50vmin` square geometry for the Twisted scene and faces; face expectations no longer derive from the captured production scene dimensions.
+Reduced motion now asserts `animation-name: none`, exact `0s` duration, and exact `0s` delay for the DNA strand, connector, start node, end node, and Twisted cube. Both DNA node sides also have independent concrete border/color evidence. The accepted geometry supersedes the Fix Round 4 face-renderer snapshot: DNA is independently normalized from its `26vmin` width and `max(240vmin, 230vmax)` height, while the Twisted scene itself has `0px` by `0px` geometry and its twelve edges per layer carry the visible dimensions.
 
 No production consumer miswire was uncovered, so no production file was changed.
 

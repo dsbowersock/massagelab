@@ -215,6 +215,8 @@ test("development review exposes the real DNA and Twisted Cubes acceptance matri
     read("components/chimer-controls/ColorSlider.tsx"),
   ])
 
+  // This literal projection intentionally duplicates the runtime contract as a
+  // change detector; update both tables together when a consumer changes.
   const computedConsumerProjection = COMPUTED_CONSUMER_CONTRACTS.map((entry) => [
     entry.effectId,
     entry.label,

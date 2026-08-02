@@ -3,7 +3,6 @@
 import type { ComponentType, CSSProperties } from "react"
 import { useEffect, useMemo, useState } from "react"
 import { useSettings } from "@/components/providers/settings-provider"
-import { shouldReduceAmbientMotion } from "@/lib/motion-preferences"
 import { cn } from "@/lib/utils"
 import {
   resolveAccessibleBackgroundDefinition,
@@ -21,6 +20,7 @@ import type {
   BackgroundEffectProps,
 } from "@/components/backgrounds/effects/css-backgrounds"
 import { resolveBackgroundEffectProps, resolveBackgroundFallbackStyle } from "@/components/backgrounds/resolveBackgroundEffectProps"
+import { useAmbientReducedMotion } from "@/components/backgrounds/use-ambient-reduced-motion"
 import { canCustomizeBackgroundColors } from "@/lib/background-palette"
 import styles from "@/components/backgrounds/BackgroundHost.module.css"
 
@@ -55,21 +55,6 @@ interface BackgroundHostProps extends BackgroundEffectProps {
   testId?: string
   /** Exposes actual lazy-load and post-adapter props on data attributes for guarded QA surfaces. */
   diagnostics?: boolean
-}
-
-function usePrefersReducedMotion() {
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
-
-  useEffect(() => {
-    const query = window.matchMedia("(prefers-reduced-motion: reduce)")
-    const handleChange = () => setPrefersReducedMotion(query.matches)
-
-    handleChange()
-    query.addEventListener("change", handleChange)
-    return () => query.removeEventListener("change", handleChange)
-  }, [])
-
-  return prefersReducedMotion
 }
 
 /** Reports compact rendering when either viewport dimension is at most 479px. */
@@ -190,7 +175,7 @@ export function BackgroundHost(props: BackgroundHostProps) {
     auroraBars,
   } = stableEffectPropsInput
   const { settings } = useSettings()
-  const prefersReducedMotion = usePrefersReducedMotion()
+  const ambientReducedMotion = useAmbientReducedMotion(settings.ambientMotionMode)
   const compactViewport = useCompactBackgroundViewport()
   const entry = useMemo(
     () => resolveAccessibleBackgroundDefinition(selectedId, access, category),
@@ -203,10 +188,7 @@ export function BackgroundHost(props: BackgroundHostProps) {
   // reduced motion. Static-capable effects still mount, but pause internally.
   const allowAmbientMotionForReview = process.env.NODE_ENV !== "production"
     && forceAmbientMotionForReview
-  const reduceMotion = !motionEnabled || (!allowAmbientMotionForReview && shouldReduceAmbientMotion({
-    prefersReducedMotion,
-    ambientMotionMode: settings.ambientMotionMode,
-  }))
+  const reduceMotion = !motionEnabled || (!allowAmbientMotionForReview && ambientReducedMotion)
   const [loadedEffect, setLoadedEffect] = useState<{
     id: string
     component: ComponentType<BackgroundEffectProps>

@@ -103,15 +103,25 @@ function colorHue(value: string) {
   return ((Number(hsl[1]) % 360) + 360) % 360
 }
 
-function expectTargetColor(actual: unknown, expectedColor: string, target: string) {
+async function expectTargetColor(
+  page: Page,
+  actual: unknown,
+  expectedColor: string,
+  target: string,
+) {
   if (typeof actual === "number") {
     expect(actual, target).toBe(colorHue(expectedColor))
     return
   }
+  if (!/^#[\da-f]{6}$/i.test(expectedColor) && typeof actual === "string") {
+    const [resolvedTargetColor, declaredColor] = await Promise.all([
+      normalizeBrowserColor(page, actual),
+      normalizeBrowserColor(page, expectedColor),
+    ])
+    expect(resolvedTargetColor, target).toBe(declaredColor)
+    return
+  }
   if (typeof actual === "string" && actual.startsWith("rgba(")) {
-    if (!/^#[\da-f]{6}$/i.test(expectedColor)) {
-      throw new Error(`Expected a six-digit HEX color for ${target}, received: ${expectedColor}`)
-    }
     const expectedRgb = [
       Number.parseInt(expectedColor.slice(1, 3), 16),
       Number.parseInt(expectedColor.slice(3, 5), 16),
@@ -221,21 +231,13 @@ async function expectLoadedPaletteMode(
     if (replacingOverride) {
       continue
     }
-    if (
-      mode === "source"
-      && !role.sourceColor.startsWith("#")
-      && typeof actualTargets[role.rendererTarget] === "string"
-    ) {
-      const [resolvedTargetColor, declaredColor] = await Promise.all([
-        normalizeBrowserColor(page, String(actualTargets[role.rendererTarget])),
-        normalizeBrowserColor(page, role.sourceColor),
-      ])
-      expect(resolvedTargetColor, `${id}:${mode}:${role.rendererTarget}`).toBe(declaredColor)
-      continue
-    }
-    expectTargetColor(
+    const expectedTargetColor = mode === "source" && role.sourceColorFormat === "css"
+      ? role.sourceColor
+      : expectedRoleColors[role.id]
+    await expectTargetColor(
+      page,
       actualTargets[role.rendererTarget],
-      expectedRoleColors[role.id],
+      expectedTargetColor,
       `${id}:${mode}:${role.rendererTarget}`,
     )
   }
@@ -437,7 +439,7 @@ test.describe("shared background palette review matrix", () => {
       throw new Error("Retro Grid must remain a supported palette adapter.")
     }
     for (const role of adapter.roles) {
-      expectTargetColor(sourceTargets[role.rendererTarget], role.sourceColor, role.rendererTarget)
+      await expectTargetColor(page, sourceTargets[role.rendererTarget], role.sourceColor, role.rendererTarget)
     }
   })
 
@@ -563,17 +565,22 @@ test.describe("shared background palette review matrix", () => {
       type PreviewMediaProbe = {
         playCalls: number
         pauseCalls: number
+        rejectPlay: boolean
         visibilityListeners: Set<EventListenerOrEventListenerObject>
       }
       const probe: PreviewMediaProbe = {
         playCalls: 0,
         pauseCalls: 0,
+        rejectPlay: false,
         visibilityListeners: new Set(),
       }
       Reflect.set(window, "__previewMediaProbe", probe)
 
       HTMLMediaElement.prototype.play = function play() {
-        if (this.dataset.testid === "carousel-background-video") probe.playCalls += 1
+        if (this.dataset.testid === "carousel-background-video") {
+          probe.playCalls += 1
+          if (probe.rejectPlay) return Promise.reject(new DOMException("Autoplay blocked", "NotAllowedError"))
+        }
         return Promise.resolve()
       }
       HTMLMediaElement.prototype.pause = function pause() {
@@ -670,5 +677,16 @@ test.describe("shared background palette review matrix", () => {
     await expect.poll(async () => (
       await readPreviewMediaProbe(page)
     ).visibilityListenerCount).toBe(baselineListeners)
+
+    await page.evaluate(() => {
+      Reflect.get(window, "__previewMediaProbe").rejectPlay = true
+    })
+    await fixture.getByRole("button", { name: "Mount preview" }).click()
+    await expect(video).toHaveCount(0)
+    await expect(poster).toBeVisible()
+    await expect.poll(async () => (
+      await readPreviewMediaProbe(page)
+    ).visibilityListenerCount).toBe(baselineListeners)
+    await fixture.getByRole("button", { name: "Unmount preview" }).click()
   })
 })

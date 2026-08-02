@@ -121,7 +121,7 @@ Both entries are:
 
 DNA generates strand markup from the sanitized strand count. React assigns stable random complementary base-pair records for the current mounted count. Each base identity has one deterministic palette role, so A, T, G, and C remain visually teachable while every rung remains A-T, T-A, G-C, or C-G. CSS performs the node crossover, connector scaling, and whole-strand rotation.
 
-Twisted Cubes generates one wrapper, cube, cuboid, and six faces per sanitized layer. CSS performs staggered rotations and 3D transforms. The component calculates each layer's outline color and alpha from the resolved palette roles and current layer index.
+Twisted Cubes generates one wrapper, cube, cuboid, and twelve thin CSS edges per sanitized layer. CSS performs staggered rotations and 3D transforms. The component calculates each layer's outline color and alpha from the resolved palette roles and current layer index.
 
 Neither component uses an iframe, Canvas, WebGL, external animation library, or runtime network request.
 
@@ -179,10 +179,10 @@ The source defaults are:
 - 50vmin source layer depth spacing;
 - 0.85 opacity falloff;
 - relative outline thickness of 0.0075 of scene size;
-- dark blue-gray root background with transparent cube faces so nested outlines remain visible; and
+- dark blue-gray root background with the nested outlines visible through the layer stack; and
 - a continuous 180-to-340-degree HSL outline range at 80% saturation and 60% lightness.
 
-MassageLab preserves the four-stage X/Y/Z rotation sequence and its cubic-bezier timing. It does not add pointer or touch rotation. Viewing angles change only through Visual-panel sliders.
+MassageLab preserves the four-stage X/Y/Z rotation sequence and its cubic-bezier timing. The accepted renderer uses twelve thin CSS edges per layer instead of viewport-sized transparent faces, preserving the full-bleed nested outline without the rejected raster cost. It does not add pointer or touch rotation. Viewing angles change only through Visual-panel sliders.
 
 For adjustable layer counts, the negative animation delay is normalized as a count-relative form of the source `(-18 + index) * 0.1s` expression, preserving the default phase at 20 layers while retaining a coherent traveling sequence at other counts.
 
@@ -368,7 +368,7 @@ Visual controls retain Track 4A labels, keyboard behavior, value formatting, dir
 
 - `BackgroundHost` lazy-loads only the selected component.
 - DNA renders at most 81 strands and 162 nodes.
-- Twisted Cubes renders at most 30 layers and 180 faces.
+- Twisted Cubes renders at most 30 layers and 360 thin CSS edges.
 - Palette or property changes update the mounted component without mounting other backgrounds.
 - DNA complementary-pair assignments do not reshuffle on palette or non-count property changes. Changing strand count regenerates assignments for the new count; nucleotide-to-role mapping remains fixed.
 - CSS animations stop when the component unmounts.

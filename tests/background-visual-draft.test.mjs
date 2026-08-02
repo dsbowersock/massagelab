@@ -1360,6 +1360,9 @@ test("all DNA and Twisted Cubes keys execute the complete shared Visual draft li
     const sourceProperties = adapter.sourceVisualProperties
     const entries = Object.entries(changedProperties)
     assert.deepEqual(Object.keys(changedProperties), adapter.visualPropertyKeys)
+    for (const key of adapter.visualPropertyKeys) {
+      assert.notEqual(sourceProperties[key], undefined, `${backgroundId}:${key} source value`)
+    }
 
     const opening = {
       ...openingSnapshot,

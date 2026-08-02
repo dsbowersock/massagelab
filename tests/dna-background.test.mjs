@@ -134,7 +134,10 @@ describe("DNA background domain and shared layout rules", () => {
     assert.equal(getDnaNodeCycleSeconds(0), 200)
     assert.equal(getDnaStrandRotationSeconds(0), 1400)
     assert.equal(getDnaNodeCycleSeconds(Number.NaN), 2 / DEFAULT_DNA_BACKGROUND_OPTIONS.nodeMotionSpeed)
-    assert.equal(getDnaStrandRotationSeconds(Infinity), 700)
+    assert.equal(
+      getDnaStrandRotationSeconds(Infinity),
+      14 / DEFAULT_DNA_BACKGROUND_OPTIONS.strandRotationSpeed,
+    )
 
     const phase = Math.sin((Math.PI / 180) * 45 * (3 / 13))
     assert.equal(getDnaStrandPhase({ oneBasedIndex: 3, total: 13 }), phase)

@@ -1058,10 +1058,21 @@ test("539px dock headers own shared actions and compact visual color controls", 
   const redoVisual = visualPanel.getByRole("button", { name: "Redo", exact: true })
   const cancelVisual = visualPanel.getByRole("button", { name: "Cancel", exact: true })
   const applyVisual = visualPanel.getByRole("button", { name: "Apply", exact: true })
-  for (const action of [undoVisual, redoVisual, cancelVisual, applyVisual]) {
+  for (const [name, action] of [
+    ["Undo", undoVisual],
+    ["Redo", redoVisual],
+    ["Cancel", cancelVisual],
+    ["Apply", applyVisual],
+  ] as const) {
     await expect(action).toHaveCount(1)
-    expect.soft(await visualHeader.evaluate((header, button) => header.contains(button), await action.elementHandle())).toBe(true)
-    expect.soft(await visualScroller.evaluate((scroller, button) => scroller.contains(button), await action.elementHandle())).toBe(false)
+    expect.soft(
+      await visualHeader.evaluate((header, button) => header.contains(button), await action.elementHandle()),
+      `${name} in header`,
+    ).toBe(true)
+    expect.soft(
+      await visualScroller.evaluate((scroller, button) => scroller.contains(button), await action.elementHandle()),
+      `${name} outside scroller`,
+    ).toBe(false)
   }
 
   const closeVisual = visualPanel.getByRole("button", { name: "Close Visual panel" })
@@ -1080,6 +1091,7 @@ test("539px dock headers own shared actions and compact visual color controls", 
     const close = header.querySelector<HTMLElement>("[aria-label='Close Visual panel']")?.getBoundingClientRect()
     const bounds = header.getBoundingClientRect()
     if (!title || !toggle || !swatch || !colorControl || !close || actionElements.some((element) => !element) || actionRects.some((rect) => !rect)) return null
+    const validatedActionRects = actionRects as DOMRect[]
     const ordered = [
       header.querySelector<HTMLElement>("[aria-label='Clock color picker']"),
       undo,
@@ -1089,8 +1101,8 @@ test("539px dock headers own shared actions and compact visual color controls", 
       header.querySelector<HTMLElement>("[aria-label='Close Visual panel']"),
     ]
     const orderedElements = ordered.filter((element): element is HTMLElement => Boolean(element))
-    const actionLeft = Math.min(...actionRects.map((rect) => rect?.left ?? Number.POSITIVE_INFINITY))
-    const actionRight = Math.max(...actionRects.map((rect) => rect?.right ?? Number.NEGATIVE_INFINITY))
+    const actionLeft = Math.min(...validatedActionRects.map((rect) => rect.left))
+    const actionRight = Math.max(...validatedActionRects.map((rect) => rect.right))
     return {
       titleReadable: title.width > 0 && title.height > 0,
       toggleImmediatelyAfterTitle: toggle.left >= title.right && toggle.left - title.right <= 24,
@@ -1099,8 +1111,9 @@ test("539px dock headers own shared actions and compact visual color controls", 
         && orderedElements.every((element, index) => index === 0 || Boolean(
           orderedElements[index - 1]!.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING,
         )),
-      allActionsInside: actionRects.every((rect) => Boolean(rect)
-        && (rect?.left ?? 0) >= bounds.left && (rect?.right ?? 0) <= bounds.right),
+      allActionsInside: validatedActionRects.every((rect) => (
+        rect.left >= bounds.left && rect.right <= bounds.right
+      )),
       swatchWidth: Math.round(swatch.width),
       swatchHeight: Math.round(swatch.height),
       closeInside: close.left >= bounds.left && close.right <= bounds.right

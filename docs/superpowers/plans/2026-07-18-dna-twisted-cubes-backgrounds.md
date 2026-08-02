@@ -357,7 +357,7 @@ git commit -m "feat: define twisted cubes behavior"
 
 **Consumes:** Sanitized `MassageLabTwistedCubesOptions`, palette mode, one background color, six outline anchors, and `reduceMotion`.
 
-**Produces:** One decorative 3D CSS scene with at most 30 layers and 180 faces.
+**Produces:** One decorative 3D CSS scene with at most 30 layers and 360 thin edges.
 
 - [ ] **Step 1: Write failing type, structure, and isolation tests**
 
@@ -382,7 +382,7 @@ export interface MassageLabTwistedCubesOptions {
 }
 ```
 
-Require scoped CSS only, no pointer/touch/cursor listeners or drag state, no iframe/Canvas/WebGL/runtime request, and exactly six face elements per generated layer.
+Require scoped CSS only, no pointer/touch/cursor listeners or drag state, no iframe/Canvas/WebGL/runtime request, and exactly twelve thin edge elements per generated layer.
 
 Run: `node --experimental-strip-types --test tests/twisted-cubes-background-component.test.mjs`
 
@@ -390,11 +390,11 @@ Expected: FAIL because the renderer does not exist.
 
 - [ ] **Step 2: Implement calculated per-layer variables**
 
-Generate one wrapper/cube/cuboid plus six faces per sanitized layer. For each layer, choose `getTwistedCubeSourceOutline` when `paletteMode === "source"`; otherwise call `interpolateTwistedCubeOutline`. Pass outline color, alpha, negative delay, depth, and relative outline thickness as CSS variables.
+Generate one wrapper/cube/cuboid plus twelve edges per sanitized layer. For each layer, choose `getTwistedCubeSourceOutline` when `paletteMode === "source"`; otherwise call `interpolateTwistedCubeOutline`. Pass outline color, alpha, negative delay, depth, and relative outline thickness as CSS variables.
 
 - [ ] **Step 3: Recreate source 3D motion and static state**
 
-Scope the four-stage X/Y/Z source rotation and cubic-bezier timing. Apply X/Y viewing angle, scene scale, X/Y position, depth spacing, face fill, falloff, and outline thickness independently. At reduced motion, pause animation at a representative middle phase while retaining every configured property and the resolved gradient.
+Scope the four-stage X/Y/Z source rotation and cubic-bezier timing. Apply X/Y viewing angle, scene scale, X/Y position, depth spacing, root fill, falloff, and edge thickness independently. At reduced motion, pause animation at a representative middle phase while retaining every configured property and the resolved gradient.
 
 - [ ] **Step 4: Run focused tests and commit**
 
@@ -734,7 +734,7 @@ Cover desktop, phone portrait, short landscape, 200% zoom, and reduced motion. A
 
 - [ ] **Step 4: Add bounded-DOM and lifecycle checks**
 
-Keep the browser-review fixture bounded at 25 DNA strands/50 nodes and 30 Twisted layers/180 faces during repeated property edits. Cover the production DNA ceiling of 81 strands/162 nodes separately in the domain and renderer source contracts. Assert only the selected effect remains mounted and no document/window/listener/animation-frame API is introduced by either component.
+Keep the browser-review fixture bounded at 25 DNA strands/50 nodes and 30 Twisted Cubes layers with twelve thin CSS edges per layer during repeated property edits. Cover the production DNA ceiling of 81 strands/162 nodes separately in the domain and renderer source contracts. Assert only the selected effect remains mounted and no document/window/listener/animation-frame API is introduced by either component.
 
 - [ ] **Step 5: Run review tests and commit**
 
@@ -761,7 +761,7 @@ git commit -m "test: add dna and cubes review coverage"
 
 - [ ] **Step 1: Perform source-default comparison**
 
-Run the supplied archives locally and compare DNA crossover geometry, phase, connector collapse, strand rotation, default composition, and Twisted four-stage 3D rotation, default angles, delay, depth, fade, face fill, and hue progression. Fix only deviations from the approved adaptation; document intentional responsive/static differences.
+Run the supplied archives locally and compare DNA crossover geometry, phase, connector collapse, strand rotation, default composition, and Twisted four-stage 3D rotation, default angles, delay, depth, fade, root fill, nested outline, and hue progression. Fix only deviations from the approved adaptation; document intentional responsive/static differences.
 
 - [ ] **Step 2: Run the complete automated gate**
 

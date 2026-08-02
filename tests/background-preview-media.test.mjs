@@ -178,6 +178,10 @@ describe("background preview media", () => {
       () => parseProbeDimensions({ status: 1, stdout: "", stderr: "invalid codec parameters" }, "preview.webm"),
       /FFprobe failed for preview\.webm with exit code 1: invalid codec parameters/,
     )
+    assert.throws(
+      () => parseProbeDimensions({ status: 0, stdout: "N\/Ax216\n", stderr: "" }, "preview.webm"),
+      /invalid dimensions for preview\.webm: N\/Ax216/,
+    )
   })
 
   it("parses only positive finite FFprobe durations", () => {

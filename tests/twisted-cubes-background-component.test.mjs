@@ -69,8 +69,8 @@ test("the Twisted Cubes renderer stays a scoped, non-interactive CSS DOM effect"
   for (const axis of ["x", "y", "z"]) {
     assert.match(stylesheetCode, new RegExp(`\\.edge\\[data-axis="${axis}"\\]`))
   }
-  assert.match(stylesheetCode, /\.root\[data-reduce-motion\] \.cube \{[\s\S]*?animation:\s*none;/)
-  assert.match(stylesheetCode, /\.root\[data-reduce-motion\] \.cube \{[\s\S]*?transform:\s*translate\(-50%, -50%\) rotateZ\(90deg\) rotateX\(90deg\) rotateZ\(0deg\);/)
+  assert.match(stylesheetCode, /\.root\[data-reduce-motion\] \.cube \{[^}]*?animation:\s*none;/)
+  assert.match(stylesheetCode, /\.root\[data-reduce-motion\] \.cube \{[^}]*?transform:\s*translate\(-50%, -50%\) rotateZ\(90deg\) rotateX\(90deg\) rotateZ\(0deg\);/)
   assert.doesNotMatch(stylesheetCode, /(?:^|\n)\s*(?:body|:root|\*)\s*(?:,|\{)/m)
   assert.doesNotMatch(stylesheetCode, /(?:@font-face|font-family|min-height|touch-action|cursor)/i)
 })

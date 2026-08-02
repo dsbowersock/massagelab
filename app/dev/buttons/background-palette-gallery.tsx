@@ -570,10 +570,10 @@ function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) 
 
       <div className="relative min-h-80 overflow-hidden rounded-2xl border border-border bg-black">
         <BackgroundHost
+          {...hostPropsByContext.chimer as BackgroundEffectProps}
           selectedId={selectedId}
           category="chimer"
           access={access}
-          {...hostPropsByContext.chimer as BackgroundEffectProps}
           backgroundPalette={{ palette: snapshot.palette, mapping: snapshot.mapping }}
           className="absolute inset-0"
           motionEnabled={reviewMotionEnabled}

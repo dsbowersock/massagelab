@@ -1,11 +1,11 @@
 import assert from "node:assert/strict"
 
 /**
- * Masks comments and quoted text without changing source offsets. This small
- * scanner intentionally does not parse regular-expression literals or JSX
- * text; callers use it only for TypeScript interface declarations.
+ * Scans comments and quoted text without changing source offsets. Callers
+ * choose whether quoted text is masked or preserved; this focused scanner
+ * intentionally does not parse regular-expression literals or JSX structure.
  */
-function maskNonCode(source) {
+function scanSource(source, { maskQuotedText }) {
   const characters = source.split("")
   let state = "code"
 
@@ -23,7 +23,7 @@ function maskNonCode(source) {
         state = "block-comment"
         index += 1
       } else if (current === "\"" || current === "'" || current === "`") {
-        characters[index] = " "
+        if (maskQuotedText) characters[index] = " "
         state = current
       }
       continue
@@ -47,13 +47,13 @@ function maskNonCode(source) {
     }
 
     const isNewline = current === "\n" || current === "\r"
-    characters[index] = isNewline ? current : " "
+    if (maskQuotedText) characters[index] = isNewline ? current : " "
     if (isNewline && state !== "`") {
       state = "code"
       continue
     }
     if (current === "\\") {
-      if (index + 1 < characters.length) characters[index + 1] = " "
+      if (maskQuotedText && index + 1 < characters.length) characters[index + 1] = " "
       index += 1
     } else if (current === state) {
       state = "code"
@@ -65,62 +65,17 @@ function maskNonCode(source) {
   return characters.join("")
 }
 
+function maskNonCode(source) {
+  return scanSource(source, { maskQuotedText: true })
+}
+
 /**
  * Masks JavaScript comments without masking quoted program text. Source-based
  * contract tests use this when string literals and JSX attributes are part of
  * the executable evidence but prose comments must not satisfy an assertion.
  */
 export function maskSourceComments(source) {
-  const characters = source.split("")
-  let state = "code"
-
-  for (let index = 0; index < characters.length; index += 1) {
-    const current = characters[index]
-    const next = characters[index + 1]
-
-    if (state === "code") {
-      if (current === "/" && next === "/") {
-        characters[index] = characters[index + 1] = " "
-        state = "line-comment"
-        index += 1
-      } else if (current === "/" && next === "*") {
-        characters[index] = characters[index + 1] = " "
-        state = "block-comment"
-        index += 1
-      } else if (current === "\"" || current === "'" || current === "`") {
-        state = current
-      }
-      continue
-    }
-
-    if (state === "line-comment") {
-      if (current === "\n" || current === "\r") state = "code"
-      else characters[index] = " "
-      continue
-    }
-
-    if (state === "block-comment") {
-      if (current === "*" && next === "/") {
-        characters[index] = characters[index + 1] = " "
-        state = "code"
-        index += 1
-      } else if (current !== "\n" && current !== "\r") {
-        characters[index] = " "
-      }
-      continue
-    }
-
-    if ((state === "\"" || state === "'") && (current === "\n" || current === "\r")) {
-      state = "code"
-    } else if (current === "\\") {
-      index += 1
-    } else if (current === state) {
-      state = "code"
-    }
-  }
-
-  assert.equal(state, "code", "source has balanced comments and quoted text")
-  return characters.join("")
+  return scanSource(source, { maskQuotedText: false })
 }
 
 /** Extracts one interface without allowing assertions to match later declarations. */
