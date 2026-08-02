@@ -447,8 +447,8 @@ export function BackgroundHost(props: BackgroundHostProps) {
         shouldLoadEffect && !BackgroundComponent ? "true" : "false"
       }
       data-background-motion={motionEnabled ? "playing" : "paused"}
-      data-background-review-mount-requested={forceEffectMount ? "true" : undefined}
-      data-background-review-motion-forced={allowAmbientMotionForReview && motionEnabled ? "true" : undefined}
+      data-background-review-mount-requested={diagnosticSnapshot && forceEffectMount ? "true" : undefined}
+      data-background-review-motion-forced={diagnosticSnapshot && allowAmbientMotionForReview && motionEnabled ? "true" : undefined}
       data-background-provider={entry.provider}
       data-background-diagnostic-requested-id={diagnosticSnapshot?.requestedId}
       data-background-diagnostic-loaded-id={diagnosticSnapshot?.loadedId ?? undefined}

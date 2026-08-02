@@ -23,6 +23,10 @@ describe("computed matrix parsing", () => {
       () => parseComputedMatrix("matrix(1, 0, 0, 1, 6px, 7)"),
       /6 finite computed matrix values/,
     )
+    assert.throws(
+      () => parseComputedMatrix("matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 12px, 24, 0, 1)"),
+      /16 finite computed matrix values/,
+    )
   })
 
   it("rejects JavaScript-only hexadecimal and binary numeric syntax", () => {

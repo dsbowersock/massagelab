@@ -199,7 +199,7 @@ Expected computed values are produced independently from the settings/domain con
 The full reduced-state matrix still verifies every inline setting/color/geometry value and now additionally proves:
 
 - DNA concrete root/connector/node backgrounds, outline borders, strand/connector/node dimensions, margins, scene/strand/connector/node transform matrices, counts, and `animation-name: none`;
-- Twisted concrete root/edge backgrounds, outline color/thickness, edge opacity/dimensions, `scenePerspective: "none"`, scene/view/layer/cube transform matrices, layer/edge counts, and `animation-name: none`. This supersedes the earlier face-renderer geometry captured during Fix Round 3.
+- Twisted concrete root/edge backgrounds, outline color/thickness, edge opacity/dimensions, `scenePerspective: "none"`, scene/view/layer/cube transform matrices, layer/edge counts, and `animation-name: none`. This supersedes the earlier face-renderer geometry captured during Fix Round 2.
 
 Harmony colors are normalized from the real registry adapter/palette resolver before concrete color comparison. No pseudo-element is involved in either renderer's production CSS. No production consumer miswire was uncovered, so no production file was changed.
 
@@ -238,7 +238,7 @@ The structured consumer contract fails on every unapproved computed change and p
 
 Animated transform expectations come from reconstructed keyframes and independently supplied domain timing, sampled on hidden target-shaped specimens at CSS time zero. The oracle applies CSS timing functions per keyframe interval and therefore covers the negative-delay phase without reading the production animation's computed transform back into its expectation.
 
-Reduced motion now asserts `animation-name: none`, exact `0s` duration, and exact `0s` delay for the DNA strand, connector, start node, end node, and Twisted cube. Both DNA node sides also have independent concrete border/color evidence. The accepted geometry supersedes the Fix Round 4 face-renderer snapshot: DNA is independently normalized from its `26vmin` width and `max(240vmin, 230vmax)` height, while the Twisted scene itself has `0px` by `0px` geometry and its twelve edges per layer carry the visible dimensions.
+Reduced motion now asserts `animation-name: none`, exact `0s` duration, and exact `0s` delay for the DNA strand, connector, start node, end node, and Twisted cube. Both DNA node sides also have independent concrete border/color evidence. The accepted geometry supersedes the Fix Round 3 face-renderer snapshot: DNA is independently normalized from its `26vmin` width and `max(240vmin, 230vmax)` height, while the Twisted scene itself has `0px` by `0px` geometry and its twelve edges per layer carry the visible dimensions.
 
 No production consumer miswire was uncovered, so no production file was changed.
 

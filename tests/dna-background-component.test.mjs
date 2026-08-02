@@ -31,7 +31,7 @@ test("the DNA renderer stays a scoped, non-interactive CSS DOM effect", () => {
   assert.match(componentCode, /data-base=\{strand\.startBase\}/)
   assert.match(componentCode, /data-base=\{strand\.endBase\}/)
   assert.match(componentCode, /showBaseLetters && <span className=\{styles\.nodeLabel\}>/)
-  assert.doesNotMatch(componentCode, /Array\.from\(\{ length: strandCount \}/)
+  assert.doesNotMatch(componentCode, /Array\.from\(\s*\{\s*length:\s*strandCount\s*\}/)
   assert.match(componentCode, /resolveResponsiveBackgroundTransform/)
   assert.match(componentCode, /aria-hidden="true"/)
   assert.match(componentCode, /data-reduce-motion=\{reduceMotion \|\| undefined\}/)

@@ -27,24 +27,6 @@ export type BackgroundPreviewManifestEntry = {
   variants?: Partial<Record<BackgroundPreviewVariantName, BackgroundPreviewVariant>>
 }
 
-/** Resolves vertical preview assets through manifest fields before local guessed paths. */
-export function resolveVerticalPreviewMediaUrls(
-  entry: BackgroundPreviewManifestEntry | undefined,
-  fallbackId: string,
-) {
-  const variant = entry?.variants?.vertical
-  return {
-    videoUrl: variant?.previewMediaUrl
-      ?? entry?.previewVerticalVideoUrl
-      ?? entry?.previewMediaUrl
-      ?? `/chimer/background-previews/${fallbackId}-vertical.webm`,
-    posterUrl: variant?.previewPosterUrl
-      ?? entry?.previewVerticalImageUrl
-      ?? entry?.previewImageUrl
-      ?? `/chimer/background-previews/${fallbackId}-vertical.webp`,
-  }
-}
-
 const LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL = "/chimer/background-previews"
 const HOSTED_CHIMER_PREVIEW_MEDIA_BASE_URL = "https://media.massagelab.app/chimer/background-previews"
 const CHIMER_PREVIEW_MEDIA_BASE_URL = (process.env.NEXT_PUBLIC_CHIMER_PREVIEW_MEDIA_BASE_URL || (process.env.NODE_ENV === "production" ? HOSTED_CHIMER_PREVIEW_MEDIA_BASE_URL : LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL)).replace(/\/+$/, "")
@@ -52,6 +34,28 @@ const CHIMER_PREVIEW_MEDIA_BASE_URL = (process.env.NEXT_PUBLIC_CHIMER_PREVIEW_ME
 function resolvePreviewMediaUrl(url: string) {
   const prefix = `${LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL}/`
   return url.startsWith(prefix) ? `${CHIMER_PREVIEW_MEDIA_BASE_URL}/${url.slice(prefix.length)}` : url
+}
+
+/** Resolves vertical preview assets through manifest fields before configured guessed paths. */
+export function resolveVerticalPreviewMediaUrls(
+  entry: BackgroundPreviewManifestEntry | undefined,
+  fallbackId: string,
+) {
+  const variant = entry?.variants?.vertical
+  return {
+    videoUrl: resolvePreviewMediaUrl(
+      variant?.previewMediaUrl
+        ?? entry?.previewVerticalVideoUrl
+        ?? entry?.previewMediaUrl
+        ?? `/chimer/background-previews/${fallbackId}-vertical.webm`,
+    ),
+    posterUrl: resolvePreviewMediaUrl(
+      variant?.previewPosterUrl
+        ?? entry?.previewVerticalImageUrl
+        ?? entry?.previewImageUrl
+        ?? `/chimer/background-previews/${fallbackId}-vertical.webp`,
+    ),
+  }
 }
 
 function resolvePreviewManifestVariants(variants: BackgroundPreviewManifestEntry["variants"]) {

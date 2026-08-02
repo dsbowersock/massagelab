@@ -6,6 +6,8 @@ import assert from "node:assert/strict"
  * intentionally does not parse regular-expression literals or JSX structure.
  * An unpaired apostrophe in JSX text keeps quote state until the next newline,
  * so a same-line trailing comment is not masked; full JSX parsing is out of scope.
+ * Template literals are treated as one flat backtick-quoted region; interpolation
+ * is not parsed, so nested backticks, quotes, or comments can affect scanning.
  */
 function scanSource(source, { maskQuotedText }) {
   const characters = source.split("")

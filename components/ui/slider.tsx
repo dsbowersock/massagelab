@@ -99,6 +99,7 @@ const Slider = React.forwardRef<
         <SliderPrimitive.Track className={cn("ml-slider-track relative w-full grow overflow-hidden", trackClassName)}>
           <SliderPrimitive.Range className={cn("ml-slider-range absolute h-full", rangeClassName)} />
         </SliderPrimitive.Track>
+        {/* ARIA naming belongs on the focusable role="slider" Thumb, not the inert Root. */}
         <SliderPrimitive.Thumb
           aria-label={ariaLabel}
           aria-labelledby={ariaLabelledBy}

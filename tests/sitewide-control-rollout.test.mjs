@@ -6,6 +6,7 @@ import { resolveAccessibleBackgroundDefinition } from "../components/backgrounds
 import { resolveBackgroundEffectProps } from "../components/backgrounds/resolveBackgroundEffectProps.ts"
 import { resolveDnaTwistedCubesBackgroundHostProps } from "../lib/dna-twisted-cubes-background-host.js"
 import { resolveImmersiveDisplayContext } from "../lib/immersive-display.js"
+import { FEATURE_KEYS } from "../lib/membership.js"
 import { COMPUTED_CONSUMER_CONTRACTS } from "./browser/dna-twisted-cubes-consumer-contract.mjs"
 import { maskSourceComments } from "./helpers/source-structure.mjs"
 
@@ -404,12 +405,13 @@ test("DNA and Twisted Cubes share compact options and host-owned responsive moti
   ])
   const dnaExecutableSource = maskSourceComments(dnaEffect)
   const cubesExecutableSource = maskSourceComments(cubesEffect)
+  const runningExecutableSource = maskSourceComments(runningSource)
 
   assert.match(runningSource, /getDnaBackgroundOptionsFromChimerSettings/)
   assert.match(runningSource, /getTwistedCubesBackgroundOptionsFromChimerSettings/)
   assert.match(runningSource, /resolveDnaTwistedCubesBackgroundHostProps/)
   assert.match(runningSource, /\{\.\.\.effectiveDnaTwistedCubesHostProps\}/)
-  assert.doesNotMatch(runningSource, /massageLabDnaStrandCount=|massageLabTwistedCubesLayerCount=/)
+  assert.doesNotMatch(runningExecutableSource, /massageLabDnaStrandCount=|massageLabTwistedCubesLayerCount=/)
   assert.match(hostSource, /useMediaQuery\("\(max-width: 479px\), \(max-height: 479px\)"\)/)
   assert.match(mediaQuerySource, /window\.matchMedia\(query\)/)
   assert.match(mediaQuerySource, /removeEventListener\("change", handleChange\)/)
@@ -475,7 +477,7 @@ test("actual Chimer, ordinary Clock, Music, and ambient Host plumbing resolves a
     outlineThickness: 0.01,
   }
   const access = {
-    featureKeys: ["premium_backgrounds"],
+    featureKeys: [FEATURE_KEYS.premiumBackgrounds],
     ownedBackgroundIds: [],
   }
   const contexts = [

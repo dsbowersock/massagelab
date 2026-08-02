@@ -111,6 +111,23 @@ describe("background preview media", () => {
     assert.match(manifestGeneratorSource, /resolvePreviewMediaUrl\(variant\.previewPosterUrl\)/)
   })
 
+  it("routes guessed vertical preview fallbacks through the configured media base", async () => {
+    const originalBaseUrl = process.env.NEXT_PUBLIC_CHIMER_PREVIEW_MEDIA_BASE_URL
+    process.env.NEXT_PUBLIC_CHIMER_PREVIEW_MEDIA_BASE_URL = "https://media.example.test/previews"
+    try {
+      const { resolveVerticalPreviewMediaUrls } = await import(
+        `../components/backgrounds/backgroundPreviewManifest.ts?fallback-base=${Date.now()}`
+      )
+      assert.deepEqual(resolveVerticalPreviewMediaUrls(undefined, "missing-preview"), {
+        videoUrl: "https://media.example.test/previews/missing-preview-vertical.webm",
+        posterUrl: "https://media.example.test/previews/missing-preview-vertical.webp",
+      })
+    } finally {
+      if (originalBaseUrl === undefined) delete process.env.NEXT_PUBLIC_CHIMER_PREVIEW_MEDIA_BASE_URL
+      else process.env.NEXT_PUBLIC_CHIMER_PREVIEW_MEDIA_BASE_URL = originalBaseUrl
+    }
+  })
+
   it("normalizes every copied manifest URL back to the raw local preview prefix", () => {
     assert.match(renderSource, /\.map\(\(entry\) => normalizeGeneratedPreviewManifestItem\(\{/)
     assert.match(manifestGeneratorSource, /const normalizedFallbackVariants = normalizeGeneratedPreviewManifestItem\(\{/)

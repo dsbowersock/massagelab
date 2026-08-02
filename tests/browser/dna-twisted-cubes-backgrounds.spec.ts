@@ -868,6 +868,9 @@ async function expectExactComputedConsumer({
   const viewExpected = await normalizeComputedConsumer(host, {
     transform: `rotateX(${properties.massageLabTwistedCubesViewAngleX}deg) rotateY(${properties.massageLabTwistedCubesViewAngleY}deg)`,
   })
+  const firstLayerExpected = await normalizeComputedConsumer(host, {
+    transform: `translateZ(${(count - 1) * properties.massageLabTwistedCubesLayerDepthSpacing}vmin)`,
+  })
   const secondLayerExpected = await normalizeComputedConsumer(host, {
     transform: `translateZ(${(count - 2) * properties.massageLabTwistedCubesLayerDepthSpacing}vmin)`,
   })
@@ -928,6 +931,8 @@ async function expectExactComputedConsumer({
     case "massageLabTwistedCubesLayerCount":
       expect(after.layerCount).toBe(count)
       expect(after.edgeCount).toBe(count * 12)
+      expect(after.firstLayerTransform).toBe(firstLayerExpected.transform)
+      expect(after.secondLayerTransform).toBe(secondLayerExpected.transform)
       {
         const delayExpected = await normalizeComputedConsumer(host, {
           "animation-delay": `${firstCubeDelaySeconds}s`,
@@ -944,6 +949,7 @@ async function expectExactComputedConsumer({
       expect(after.edgeHeight).toBe(firstEdgeSizeExpected.height)
       break
     case "massageLabTwistedCubesLayerDepthSpacing":
+      expect(after.firstLayerTransform).toBe(firstLayerExpected.transform)
       expect(after.secondLayerTransform).toBe(secondLayerExpected.transform)
       break
     case "massageLabTwistedCubesScale":

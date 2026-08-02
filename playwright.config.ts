@@ -58,10 +58,19 @@ export function matchesDevelopmentPaletteReviewArgument(argument: string) {
 
   try {
     const filter = new RegExp(argument)
-    return developmentPaletteReviewSpecs.some((spec) => {
+    const regexMatches = developmentPaletteReviewSpecs.filter((spec) => {
       const absoluteSpec = path.resolve(spec)
-      return filter.test(absoluteSpec) || filter.test(absoluteSpec.replaceAll("\\", "/"))
+      const absoluteFormats = new Set([
+        absoluteSpec,
+        absoluteSpec.replaceAll("\\", "/"),
+        absoluteSpec.replaceAll("/", "\\"),
+      ])
+      return [...absoluteFormats].some((candidate) => {
+        filter.lastIndex = 0
+        return filter.test(candidate)
+      })
     })
+    return regexMatches.length === 1
   } catch {
     return false
   }

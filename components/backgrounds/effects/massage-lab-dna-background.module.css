@@ -91,6 +91,7 @@
   animation-direction: reverse;
 }
 
+/* Keep transform and translate separate to combine crossover motion with the z-axis lift. */
 @keyframes mlDnaNodeCrossover {
   0%,
   100% {

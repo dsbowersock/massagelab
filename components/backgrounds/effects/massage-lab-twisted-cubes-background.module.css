@@ -59,6 +59,8 @@
   transform-origin: center;
 }
 
+/* Axis chooses the edge direction; first/second side map to the two remaining
+   coordinate variables. Keep this convention aligned with CUBE_EDGES. */
 .edge[data-axis="x"][data-first-side="negative"] {
   --ml-twisted-cubes-edge-y: calc(0px - var(--ml-twisted-cubes-half-size));
 }
