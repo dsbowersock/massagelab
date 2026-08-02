@@ -315,6 +315,8 @@ async function captureControlRenderState(host: Locator, id: typeof EFFECTS[numbe
 async function captureComputedConsumerState(
   host: Locator,
   id: typeof EFFECTS[number]["id"],
+  // Layer-depth assertions opt into this layout read to prove that the
+  // transform-scale projection changes rendered geometry, not only CSS text.
   includeProjectedGeometry = false,
 ) {
   const root = effectRoot(host)
