@@ -1278,16 +1278,22 @@ async function expectExactReducedEffectState(
         x: sceneStyle.getPropertyValue("--ml-twisted-cubes-position-x"),
         y: sceneStyle.getPropertyValue("--ml-twisted-cubes-position-y"),
       },
-      layers: layers.map((layer) => ({
-        outline: layer.style.getPropertyValue("--ml-twisted-cubes-outline"),
-        alpha: layer.style.getPropertyValue("--ml-twisted-cubes-alpha"),
-        delay: layer.style.getPropertyValue("--ml-twisted-cubes-delay"),
-        depth: layer.style.getPropertyValue("--ml-twisted-cubes-depth"),
-        size: layer.style.getPropertyValue("--ml-twisted-cubes-size"),
-        thickness: layer.style.getPropertyValue("--ml-twisted-cubes-outline-thickness"),
-        animation: getComputedStyle(layer.firstElementChild?.firstElementChild as HTMLElement).animationName,
-        edgeCount: layer.querySelectorAll(":scope > span > span > span > span").length,
-      })),
+      layers: layers.map((layer) => {
+        const cube = layer.firstElementChild?.firstElementChild
+        if (!(cube instanceof HTMLElement)) {
+          throw new Error("The Twisted Cubes reduced-state cube element is missing.")
+        }
+        return {
+          outline: layer.style.getPropertyValue("--ml-twisted-cubes-outline"),
+          alpha: layer.style.getPropertyValue("--ml-twisted-cubes-alpha"),
+          delay: layer.style.getPropertyValue("--ml-twisted-cubes-delay"),
+          depth: layer.style.getPropertyValue("--ml-twisted-cubes-depth"),
+          size: layer.style.getPropertyValue("--ml-twisted-cubes-size"),
+          thickness: layer.style.getPropertyValue("--ml-twisted-cubes-outline-thickness"),
+          animation: getComputedStyle(cube).animationName,
+          edgeCount: layer.querySelectorAll(":scope > span > span > span > span").length,
+        }
+      }),
     }
   })
   expect(actual.root).toEqual({

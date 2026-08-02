@@ -185,6 +185,10 @@ function ensureFfmpeg() {
   if (result.status !== 0) {
     throw new Error("FFmpeg is required to render Chimer preview assets. Install FFmpeg or add it to PATH.")
   }
+  const encoders = spawnSync("ffmpeg", ["-hide_banner", "-encoders"], { encoding: "utf8" })
+  if (encoders.status !== 0 || !/\blibwebp\b/.test(`${encoders.stdout ?? ""}\n${encoders.stderr ?? ""}`)) {
+    throw new Error("FFmpeg must include the libwebp encoder to render Chimer preview posters.")
+  }
 }
 
 async function waitForServer(baseUrl, timeoutMs = 120_000) {

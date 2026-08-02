@@ -132,6 +132,7 @@ describe("Twisted Cubes background domain rules", () => {
   })
 
   it("scales the complete layer progression and fills the viewport at the approved default", () => {
+    // Size is oneBasedIndex * 20 * scale vmax, with scale 0 retaining the 20vmax minimum.
     assert.ok(Math.abs(getTwistedCubeLayerSizeVmax({
       oneBasedIndex: 1,
       count: 20,

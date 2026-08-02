@@ -122,7 +122,7 @@ export const MassageLabTwistedCubesBackground = memo(function MassageLabTwistedC
         "--ml-twisted-cubes-depth": `${(renderLayerCount - oneBasedIndex) * layerDepthSpacing}vmin`,
         "--ml-twisted-cubes-size": `${layerSizeVmax}vmax`,
         "--ml-twisted-cubes-half-size": `${layerSizeVmax / 2}vmax`,
-        "--ml-twisted-cubes-outline-thickness": outlineThickness,
+        "--ml-twisted-cubes-outline-thickness": String(outlineThickness),
         zIndex: renderLayerCount - oneBasedIndex,
       } as CSSProperties,
     }

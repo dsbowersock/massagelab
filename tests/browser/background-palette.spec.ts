@@ -622,6 +622,7 @@ test.describe("shared background palette review matrix", () => {
       })
     })
 
+    let primaryFailure = false
     try {
       await openPaletteGallery(page)
       const fixture = page.getByTestId("background-preview-media-review")
@@ -700,11 +701,18 @@ test.describe("shared background palette review matrix", () => {
         await readPreviewMediaProbe(page)
       ).visibilityListenerCount).toBe(baselineListeners)
       await fixture.getByRole("button", { name: "Unmount preview" }).click()
+    } catch (error) {
+      primaryFailure = true
+      throw error
     } finally {
-      await page.evaluate(() => {
-        const restore = Reflect.get(window, "__restorePreviewMediaProbe")
-        if (typeof restore === "function") restore()
-      })
+      try {
+        await page.evaluate(() => {
+          const restore = Reflect.get(window, "__restorePreviewMediaProbe")
+          if (typeof restore === "function") restore()
+        })
+      } catch (cleanupError) {
+        if (!primaryFailure) throw cleanupError
+      }
     }
   })
 })

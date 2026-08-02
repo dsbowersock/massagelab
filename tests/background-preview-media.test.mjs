@@ -69,6 +69,7 @@ describe("background preview media", () => {
   })
 
   it("generates quality-78 WebP posters one-third through each actual encoded video", () => {
+    const ffmpegCapabilitySource = sourceBetween(renderSource, "function ensureFfmpeg", "async function waitForServer", "FFmpeg capability check")
     const durationProbeSource = sourceBetween(renderSource, "function probeVideoDurationSeconds", "async function encodePoster", "video duration probe")
     const posterEncoderSource = sourceBetween(renderSource, "async function encodePoster", "function hashFile", "poster encoder")
     const dimensionProbeSource = sourceBetween(renderSource, "function probeVariantDimensions", "function mediaMatchesVariant", "dimension probe")
@@ -77,6 +78,9 @@ describe("background preview media", () => {
     const captureVariantSource = sourceBetween(renderSource, "async function captureVariant", "async function captureBackground", "variant capture")
 
     assert.match(durationProbeSource, /"-show_entries", "format=duration"/)
+    assert.match(ffmpegCapabilitySource, /"-encoders"/)
+    assert.match(ffmpegCapabilitySource, /\\blibwebp\\b/)
+    assert.match(ffmpegCapabilitySource, /must include the libwebp encoder/)
     assert.match(posterEncoderSource, /const seekSeconds = probeVideoDurationSeconds\(videoPath, fallbackDurationMs\) \/ 3/)
     assert.match(posterEncoderSource, /"-c:v", "libwebp"/)
     assert.match(posterEncoderSource, /"-quality", "78"/)

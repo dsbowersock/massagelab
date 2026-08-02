@@ -6,7 +6,7 @@
 - Branch: `codex/track4b-dna-twisted-cubes`
 - Exact base: `4971109bdd598f7afa719af8e52aa388c80283b4`
 - Commit message: `test: add dna and cubes review coverage`
-- Post-commit hash recorded during the final implementer handoff: `abf4bfaf4fd3da5dc19451e4906f1299956cb62b`. The hash was not available while this report was being authored as part of that commit.
+- Post-commit hash recorded during the final implementer handoff: `abf4bfaf4fd3da5dc19451e4906f1299956cb62b`. This line was added to the report after that commit so the handoff record retains its exact provenance.
 
 The primary checkout was read only. Package/lock files, Prisma sources, `docs/roadmap.md`, and `TODO.md` were not changed. No media was uploaded and no external mutation was performed.
 

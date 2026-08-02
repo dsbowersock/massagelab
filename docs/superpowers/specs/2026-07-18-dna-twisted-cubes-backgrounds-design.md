@@ -398,7 +398,7 @@ Update the preview manifest and source ledger only after generated files validat
 - Invalid or missing properties fall back through the registry sanitizer to source defaults.
 - Invalid role colors fall back through Track 4A to adapter source values.
 - Invalid mappings fall back to curated mappings.
-- Random values are normalized into the inclusive-lower/exclusive-upper `[0, 1)` interval before selecting one of the four complementary-pair variants: negative finite values select the first pair, `1` and larger finite values select the fourth pair, and `NaN` or either infinity fall back to `0` and the first pair.
+- Random values are normalized into the inclusive-lower/exclusive-upper `[0, 1)` interval before selecting one of four complementary-pair variants: `[0, 0.25)` selects A/T, `[0.25, 0.5)` selects T/A, `[0.5, 0.75)` selects G/C, and `[0.75, 1)` selects C/G. Negative finite values select the first pair, `1` and larger finite values select the fourth pair, and `NaN` or either infinity fall back to `0` and the first pair.
 - Layer or strand counts are integers within their approved limits.
 - Invalid speed values never produce zero, negative, infinite, or `NaN` durations.
 - Invalid viewport measurements use centered saved values and source scale.
@@ -412,7 +412,8 @@ Update the preview manifest and source ledger only after generated files validat
 
 - Every source-derived property default equals its corresponding source value except the explicit post-implementation visual-QA overrides recorded above.
 - Every Track 4B-only property default, including `Show base letters` and the position controls, equals the explicit default in the visual property table.
-- Every property sanitizer clamps invalid, fractional, negative, excessive, and non-finite input.
+- Numeric property sanitizers clamp, floor, or default invalid, fractional, negative, excessive, and non-finite input as applicable.
+- `showBaseLetters` accepts booleans and defaults to `false` for invalid input.
 - Responsive transforms clamp effective output without mutating saved values.
 - DNA assignment returns exactly `strandCount` valid complementary pairs and derives both palette roles from each nucleotide identity.
 - Injected randomness produces deterministic test assignments.

@@ -188,6 +188,18 @@ describe("DNA background domain and shared layout rules", () => {
       { startBase: "C", endBase: "G", startRole: 3, endRole: 2 },
     ])
     for (const [value, expectedPair] of [
+      [0, { startBase: "A", endBase: "T", startRole: 0, endRole: 1 }],
+      [0.25 - Number.EPSILON, { startBase: "A", endBase: "T", startRole: 0, endRole: 1 }],
+      [0.25, { startBase: "T", endBase: "A", startRole: 1, endRole: 0 }],
+      [0.5 - Number.EPSILON, { startBase: "T", endBase: "A", startRole: 1, endRole: 0 }],
+      [0.5, { startBase: "G", endBase: "C", startRole: 2, endRole: 3 }],
+      [0.75 - Number.EPSILON, { startBase: "G", endBase: "C", startRole: 2, endRole: 3 }],
+      [0.75, { startBase: "C", endBase: "G", startRole: 3, endRole: 2 }],
+      [1 - Number.EPSILON, { startBase: "C", endBase: "G", startRole: 3, endRole: 2 }],
+    ]) {
+      assert.deepEqual(createDnaStrandAssignments(1, () => value), [expectedPair], String(value))
+    }
+    for (const [value, expectedPair] of [
       [-1, { startBase: "A", endBase: "T", startRole: 0, endRole: 1 }],
       [1, { startBase: "C", endBase: "G", startRole: 3, endRole: 2 }],
       [2, { startBase: "C", endBase: "G", startRole: 3, endRole: 2 }],

@@ -5,10 +5,10 @@ import { memo, useEffect, useMemo, useState } from "react"
 import { BackgroundHost } from "@/components/backgrounds/BackgroundHost"
 import { BackgroundPreviewMedia } from "@/components/backgrounds/BackgroundPreviewMedia"
 import {
-  AMBIENT_REDUCED_MOTION_QUERY,
   BACKGROUND_COMPACT_VIEWPORT_QUERY,
   useMediaQuery,
 } from "@/components/backgrounds/use-media-query"
+import { useAmbientReducedMotion } from "@/components/backgrounds/use-ambient-reduced-motion"
 import {
   backgroundPreviewManifest,
   resolveVerticalPreviewMediaUrls,
@@ -45,6 +45,7 @@ import { AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Notice } from "@/components/ui/notice"
 import { useMusic } from "@/components/providers/music-provider"
+import { useSettings } from "@/components/providers/settings-provider"
 import { FEATURE_KEYS } from "@/lib/membership"
 import { BackgroundPreviewMediaReview } from "./background-preview-media-review"
 import { TRACK_4B_CUSTOM_SWATCHES } from "./background-palette-review-fixtures"
@@ -635,7 +636,8 @@ export function BackgroundPaletteGallery() {
   const [mappingsByBackground, setMappingsByBackground] = useState<
     Partial<Record<BackgroundId, BackgroundColorMapping>>
   >({})
-  const reducedMotion = useMediaQuery(AMBIENT_REDUCED_MOTION_QUERY, true)
+  const { settings } = useSettings()
+  const reducedMotion = useAmbientReducedMotion(settings.ambientMotionMode)
 
   const selectedBackground = useMemo(
     () => enabledBackgrounds.find((entry) => entry.id === selectedId) ?? initialBackground,

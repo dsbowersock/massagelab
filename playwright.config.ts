@@ -135,6 +135,13 @@ export function isDevelopmentPaletteReviewInvocation(argv: readonly string[]) {
     .some(matchesDevelopmentPaletteReviewArgument)
 }
 
+/** Resolves development-only review exclusions from explicit Playwright arguments. */
+export function resolveDevelopmentPaletteReviewIgnoreGlobs(argv: readonly string[]) {
+  return isDevelopmentPaletteReviewInvocation(argv)
+    ? []
+    : [...developmentPaletteReviewIgnoreGlobs]
+}
+
 const runsDevelopmentPaletteReview = isDevelopmentPaletteReviewInvocation(process.argv.slice(2))
 const defaultWebServerCommand = runsDevelopmentPaletteReview
   ? `npm run dev -- -p ${browserQaPort}`
@@ -145,9 +152,7 @@ export default defineConfig({
   // The palette gallery is development-only. Ordinary production-server QA
   // excludes it, while an exact-spec invocation flips the dev server on and
   // keeps the review matrix runnable.
-  testIgnore: runsDevelopmentPaletteReview
-    ? []
-    : developmentPaletteReviewIgnoreGlobs,
+  testIgnore: resolveDevelopmentPaletteReviewIgnoreGlobs(process.argv.slice(2)),
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,

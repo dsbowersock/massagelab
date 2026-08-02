@@ -296,6 +296,7 @@ test("Track 4B gallery exposes controls, state scenarios, and preview evidence",
   assert.match(gallery, /backgroundPreviewManifest/)
   assert.match(gallery, /<BackgroundPreviewMedia/)
   assert.match(gallery, /useMediaQuery\(BACKGROUND_COMPACT_VIEWPORT_QUERY\)/)
+  assert.match(gallery, /useAmbientReducedMotion\(settings\.ambientMotionMode\)/)
   assert.doesNotMatch(gallery, /window\.matchMedia/)
   assert.match(gallery, /data-track-4b-preview/)
   assert.match(gallery, /mapping: adapter \? defaultMapping\(adapter\) : \{\}/)

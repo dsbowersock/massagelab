@@ -121,6 +121,8 @@ export function maskCssComments(source) {
 /**
  * Extracts one exported interface body without matching later declarations.
  * Non-exported interfaces are intentionally reported as undeclared.
+ * Structural scanning masks comments, but the returned body preserves the
+ * original source so callers can choose whether comments belong to their assertion.
  */
 export function extractInterfaceBody(source, name, label = `${name} interface source`) {
   const code = maskNonCode(source, label)

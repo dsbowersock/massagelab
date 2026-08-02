@@ -10,6 +10,7 @@ const previewDir = path.join(repoRoot, "public/chimer/background-previews")
 const backgroundIds = ["massage-lab-dna", "massage-lab-twisted-cubes"]
 const suffixes = ["", "-square", "-vertical"]
 const dryRunSummaryPrefix = "MASSAGELAB_R2_DRY_RUN_SUMMARY="
+const expectedCacheControl = "public, max-age=300, must-revalidate"
 const expectedMedia = backgroundIds.flatMap((id) => (
   suffixes.flatMap((suffix) => [`${id}${suffix}.webm`, `${id}${suffix}.webp`])
 ))
@@ -30,6 +31,7 @@ describe("Chimer preview R2 uploader", () => {
         ...process.env,
         MASSAGELAB_PUBLIC_MEDIA_R2_ACCESS_KEY_ID: "",
         MASSAGELAB_PUBLIC_MEDIA_R2_SECRET_ACCESS_KEY: "",
+        MASSAGELAB_PUBLIC_MEDIA_METADATA_CACHE_CONTROL: expectedCacheControl,
       },
     })
 
@@ -67,11 +69,11 @@ describe("Chimer preview R2 uploader", () => {
       assert.equal(contentTypes[name], name.endsWith(".webp") ? "image/webp" : "video/webm")
       assert.equal(
         cacheControls[name],
-        "public, max-age=300, must-revalidate",
+        expectedCacheControl,
       )
     }
     assert.equal(contentTypes["index.json"], "application/json; charset=utf-8")
-    assert.equal(cacheControls["index.json"], "public, max-age=300, must-revalidate")
+    assert.equal(cacheControls["index.json"], expectedCacheControl)
     assert.doesNotMatch(result.stdout, /Uploaded/)
   })
 })
