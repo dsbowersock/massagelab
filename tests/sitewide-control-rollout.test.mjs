@@ -159,8 +159,14 @@ test("Visual draft actions live in the responsive panel header while sync status
   )
   assert.match(
     visualStatus,
-    /className=\{styles\.visualDraftStatusRow\}[\s\S]*variant="cta" onClick=\{onRetryBackgroundVisualPreferences\}[\s\S]*Retry sync/,
+    /className=\{styles\.visualDraftStatusRow\}[\s\S]*variant="cta"[^>]*data-chimer-control="true"[^>]*onClick=\{onRetryBackgroundVisualPreferences\}[\s\S]*Retry sync/,
   )
+  for (const label of ["Undo", "Redo", "Cancel", "Apply"]) {
+    assert.match(
+      headerControls,
+      new RegExp(`<Button[^>]*aria-label="${label}"[^>]*data-chimer-control="true"`),
+    )
+  }
   assert.match(
     headerControls,
     /aria-label="Undo"[\s\S]*aria-label="Redo"[\s\S]*variant="destructive" aria-label="Cancel"/,

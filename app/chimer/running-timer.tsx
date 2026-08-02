@@ -83,7 +83,10 @@ function clampNumber(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
 }
 
-/** Resolves the saved-state message without coupling the JSX to sync precedence. */
+/**
+ * Resolves the saved-state message with dirty drafts taking precedence over
+ * storage loading/unavailability, then stale/pending account sync, and Saved.
+ */
 function getVisualDraftStatusText({
   dirty,
   storageStatus,
@@ -13309,19 +13312,19 @@ export function RunningTimer({
                 </div>
               ) : null}
               <div className={styles.visualHeaderDraftActions} role="group" aria-label="Visual draft actions">
-                <Button type="button" size="compact" variant="ghost" aria-label="Undo" title="Undo" disabled={!visualDraft?.undoStack.length} hapticsEnabled={hapticsEnabled} onClick={() => dispatchVisualDraft({ type: "undo" })}>
+                <Button type="button" size="compact" variant="ghost" aria-label="Undo" title="Undo" data-chimer-control="true" disabled={!visualDraft?.undoStack.length} hapticsEnabled={hapticsEnabled} onClick={() => dispatchVisualDraft({ type: "undo" })}>
                   <Undo2 aria-hidden="true" />
                   <span className={styles.visualHeaderDraftButtonLabel}>Undo</span>
                 </Button>
-                <Button type="button" size="compact" variant="ghost" aria-label="Redo" title="Redo" disabled={!visualDraft?.redoStack.length} hapticsEnabled={hapticsEnabled} onClick={() => dispatchVisualDraft({ type: "redo" })}>
+                <Button type="button" size="compact" variant="ghost" aria-label="Redo" title="Redo" data-chimer-control="true" disabled={!visualDraft?.redoStack.length} hapticsEnabled={hapticsEnabled} onClick={() => dispatchVisualDraft({ type: "redo" })}>
                   <Redo2 aria-hidden="true" />
                   <span className={styles.visualHeaderDraftButtonLabel}>Redo</span>
                 </Button>
-                <Button type="button" size="compact" variant="destructive" aria-label="Cancel" title="Cancel changes" disabled={!visualDraft?.dirty} hapticsEnabled={hapticsEnabled} onClick={() => dispatchVisualDraft({ type: "cancel" })}>
+                <Button type="button" size="compact" variant="destructive" aria-label="Cancel" title="Cancel changes" data-chimer-control="true" disabled={!visualDraft?.dirty} hapticsEnabled={hapticsEnabled} onClick={() => dispatchVisualDraft({ type: "cancel" })}>
                   <X aria-hidden="true" />
                   <span className={styles.visualHeaderDraftButtonLabel}>Cancel</span>
                 </Button>
-                <Button type="button" size="compact" variant="success" aria-label="Apply" title="Apply changes" disabled={!visualDraft?.dirty} hapticsEnabled={hapticsEnabled} onClick={commitVisualDraft}>
+                <Button type="button" size="compact" variant="success" aria-label="Apply" title="Apply changes" data-chimer-control="true" disabled={!visualDraft?.dirty} hapticsEnabled={hapticsEnabled} onClick={commitVisualDraft}>
                   <Check aria-hidden="true" />
                   <span className={styles.visualHeaderDraftButtonLabel}>Apply</span>
                 </Button>
@@ -13816,7 +13819,7 @@ export function RunningTimer({
                     {!visualDraft?.dirty
                       && mode.storageStatus === "available"
                       && backgroundPreferenceSyncStatus === "stale" ? (
-                      <Button type="button" size="compact" variant="cta" onClick={onRetryBackgroundVisualPreferences}>
+                      <Button type="button" size="compact" variant="cta" data-chimer-control="true" onClick={onRetryBackgroundVisualPreferences}>
                         Retry sync
                       </Button>
                     ) : null}
