@@ -1394,7 +1394,8 @@ test("all DNA and Twisted Cubes keys execute the complete shared Visual draft li
   for (const { backgroundId, changedProperties } of TRACK4B_VISUAL_CASES) {
     const adapter = backgroundPaletteRegistry[backgroundId]
     assert.ok(adapter, `${backgroundId} is missing from backgroundPaletteRegistry`)
-    const sourceProperties = adapter.sourceVisualProperties
+    const sourceProperties = structuredClone(adapter.sourceVisualProperties)
+    const expectedSourceProperties = structuredClone(adapter.sourceVisualProperties)
     const entries = Object.entries(changedProperties)
     assert.deepEqual(
       Object.keys(changedProperties).sort(),
@@ -1402,10 +1403,10 @@ test("all DNA and Twisted Cubes keys execute the complete shared Visual draft li
       `${backgroundId} fixture keys must match adapter.visualPropertyKeys`,
     )
     for (const key of adapter.visualPropertyKeys) {
-      assert.notEqual(sourceProperties[key], undefined, `${backgroundId}:${key} source value`)
+      assert.notEqual(expectedSourceProperties[key], undefined, `${backgroundId}:${key} source value`)
       assert.notDeepEqual(
         changedProperties[key],
-        sourceProperties[key],
+        expectedSourceProperties[key],
         `${backgroundId}:${key} fixture must differ from the source value`,
       )
     }
@@ -1447,9 +1448,9 @@ test("all DNA and Twisted Cubes keys execute the complete shared Visual draft li
     let history = edited
     for (const [key] of [...entries].reverse()) {
       history = reduce(history, { type: "undo" })
-      assert.equal(history.currentSnapshot.properties[key], sourceProperties[key])
+      assert.equal(history.currentSnapshot.properties[key], expectedSourceProperties[key])
     }
-    assert.deepEqual(history.currentSnapshot.properties, sourceProperties)
+    assert.deepEqual(history.currentSnapshot.properties, expectedSourceProperties)
     for (const [key, value] of entries) {
       history = reduce(history, { type: "redo" })
       assert.equal(history.currentSnapshot.properties[key], value)
@@ -1461,8 +1462,8 @@ test("all DNA and Twisted Cubes keys execute the complete shared Visual draft li
       properties: sourceProperties,
       mapping: {},
     })
-    assert.deepEqual(reset.currentSnapshot.properties, sourceProperties)
-    assert.deepEqual(reduce(edited, { type: "cancel" }).currentSnapshot.properties, sourceProperties)
+    assert.deepEqual(reset.currentSnapshot.properties, expectedSourceProperties)
+    assert.deepEqual(reduce(edited, { type: "cancel" }).currentSnapshot.properties, expectedSourceProperties)
 
     let presetState = createBackgroundVisualDraft(opening)
     presetState = reduce(presetState, {

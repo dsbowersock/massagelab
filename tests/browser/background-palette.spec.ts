@@ -274,7 +274,6 @@ async function startActiveChimer(page: Page) {
   })
   await installPremiumAccount(page)
   await page.goto("/chimer", { waitUntil: "domcontentloaded" })
-  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined)
   const increaseMinutesButton = page.getByRole("button", { name: /^Increase minutes$/i })
   await expect(increaseMinutesButton).toBeEnabled()
   await increaseMinutesButton.click()
@@ -705,7 +704,7 @@ test.describe("shared background palette review matrix", () => {
       await page.evaluate(() => {
         const restore = Reflect.get(window, "__restorePreviewMediaProbe")
         if (typeof restore === "function") restore()
-      }).catch(() => undefined)
+      })
     }
   })
 })

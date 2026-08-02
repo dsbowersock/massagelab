@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process"
 import path from "node:path"
 
 /** Returns trimmed FFprobe output after preserving spawn and decoder diagnostics. */
@@ -36,6 +37,18 @@ export function parseProbeDimensions(result, filePath) {
   }
 
   return { width, height }
+}
+
+/** Invokes FFprobe once for decoded media dimensions and preserves its diagnostics. */
+export function probeMediaDimensions(filePath) {
+  const result = spawnSync("ffprobe", [
+    "-v", "error",
+    "-select_streams", "v:0",
+    "-show_entries", "stream=width,height",
+    "-of", "csv=s=x:p=0",
+    filePath,
+  ], { encoding: "utf8" })
+  return parseProbeDimensions(result, filePath)
 }
 
 /** Parses a positive video duration in seconds for bounded poster-frame seeking. */

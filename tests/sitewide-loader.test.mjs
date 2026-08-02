@@ -124,7 +124,10 @@ describe("Sitewide loader", () => {
     assert.match(backgroundCarouselCardSource, /posterUrl=\{previewPosterUrl\}/)
     assert.match(backgroundPreviewMediaSource, /poster=\{posterUrl\}/)
     assert.match(backgroundPreviewMediaSource, /preload="metadata"/)
-    assert.match(backgroundPreviewMediaSource, /style=\{fallbackStyle \?\? \{ background: BACKGROUND_PREVIEW_FALLBACK_COLOR \}\}/)
+    assert.match(
+      backgroundPreviewMediaSource,
+      /style=\{\s*fallbackStyle\s*\?\?\s*\{\s*background:\s*BACKGROUND_PREVIEW_FALLBACK_COLOR\s*\}\s*\}/,
+    )
   })
 
   it("shows the approved loader in the dev gallery and true indeterminate waits", () => {

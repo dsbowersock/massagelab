@@ -10,7 +10,11 @@ import {
   maskSourceComments,
   NON_INTERACTIVE_BACKGROUND_SOURCE_PATTERNS,
 } from "./helpers/source-structure.mjs"
-import { DNA_BASE_ROLE_INDEX, DNA_OPTION_BOUNDS } from "../lib/dna-background.js"
+import {
+  DEFAULT_DNA_BACKGROUND_OPTIONS,
+  DNA_BASE_ROLE_INDEX,
+  DNA_OPTION_BOUNDS,
+} from "../lib/dna-background.js"
 
 const testsDirectory = path.dirname(fileURLToPath(import.meta.url))
 const rootDirectory = path.resolve(testsDirectory, "..")
@@ -29,6 +33,12 @@ test("the DNA renderer stays a scoped, non-interactive CSS DOM effect", () => {
 
   assert.equal(DNA_OPTION_BOUNDS.strandCount.maximum, 81)
   assert.deepEqual(DNA_BASE_ROLE_INDEX, { A: 0, T: 1, G: 2, C: 3 })
+  const sanitizedDestructuring = /const \{([\s\S]*?)\} = sanitizeDnaBackgroundOptions\(massageLabDna\)/.exec(componentCode)
+  assert.notEqual(sanitizedDestructuring, null, "the renderer destructures sanitized DNA options")
+  for (const optionName of Object.keys(DEFAULT_DNA_BACKGROUND_OPTIONS).filter((name) => name !== "strandCount")) {
+    assert.match(sanitizedDestructuring[1], new RegExp(`\\b${optionName}\\b`), optionName)
+  }
+  assert.match(componentCode, /const \{[\s\S]*?\bstrandCount\b[\s\S]*?\} = massageLabDna/)
   assert.match(componentCode, /const renderStrandCount = resolveRenderCount\([\s\S]*?strandCount,[\s\S]*?DNA_OPTION_BOUNDS\.strandCount\.maximum,[\s\S]*?\)/)
   assert.match(componentCode, /createDnaStrandAssignments\(renderStrandCount\)/)
   assert.match(componentCode, /const \[previousStrandCount, setPreviousStrandCount\] = useState\(renderStrandCount\)[\s\S]*?if \(previousStrandCount !== renderStrandCount\) \{[\s\S]*?setStrandAssignments\(createDnaStrandAssignments\(renderStrandCount\)\)/)

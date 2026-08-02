@@ -22,7 +22,7 @@ import {
   buildGeneratedPreviewManifestItem,
   mergeGeneratedPreviewManifestItem,
 } from "./manifest-item-merge.mjs"
-import { parseProbeDimensions, resolveProbeDurationSeconds } from "./probe-result.mjs"
+import { probeMediaDimensions, resolveProbeDurationSeconds } from "./probe-result.mjs"
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const defaultOutputDir = path.join(repoRoot, "public/chimer/background-previews")
@@ -366,14 +366,7 @@ function hashFile(filePath) {
 
 /** Reads decoded dimensions while preserving the original FFprobe diagnostic. */
 function probeVariantDimensions(filePath) {
-  const result = spawnSync("ffprobe", [
-    "-v", "error",
-    "-select_streams", "v:0",
-    "-show_entries", "stream=width,height",
-    "-of", "csv=s=x:p=0",
-    filePath,
-  ], { encoding: "utf8" })
-  return parseProbeDimensions(result, filePath)
+  return probeMediaDimensions(filePath)
 }
 
 /** Verifies that reusable media is readable at the declared variant size. */

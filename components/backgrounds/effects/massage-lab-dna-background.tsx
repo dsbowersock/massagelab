@@ -12,6 +12,7 @@ import {
   getDnaNodeCycleSeconds,
   getDnaStrandDelaySeconds,
   getDnaStrandRotationSeconds,
+  sanitizeDnaBackgroundOptions,
 } from "@/lib/dna-background"
 import {
   resolveRenderCount,
@@ -38,6 +39,12 @@ function MassageLabDnaRenderer({
 }: MassageLabDnaRendererProps) {
   const {
     strandCount,
+    backgroundColor = DNA_SOURCE_BACKGROUND_COLOR,
+    nodeRoleColors,
+    connectorColor = DNA_SOURCE_CONNECTOR_COLOR,
+    outlineColor = DNA_SOURCE_OUTLINE_COLOR,
+  } = massageLabDna
+  const {
     showBaseLetters,
     nodeMotionSpeed,
     strandRotationSpeed,
@@ -49,11 +56,7 @@ function MassageLabDnaRenderer({
     connectorWidth,
     connectorThickness,
     outlineThickness,
-    backgroundColor = DNA_SOURCE_BACKGROUND_COLOR,
-    nodeRoleColors,
-    connectorColor = DNA_SOURCE_CONNECTOR_COLOR,
-    outlineColor = DNA_SOURCE_OUTLINE_COLOR,
-  } = massageLabDna
+  } = sanitizeDnaBackgroundOptions(massageLabDna)
   const resolvedNodeRoleColors = DNA_SOURCE_NODE_ROLE_COLORS.map((sourceColor, index) => (
     nodeRoleColors?.[index] ?? sourceColor
   ))

@@ -316,14 +316,17 @@ async function captureComputedConsumerState(host: Locator, id: typeof EFFECTS[nu
   if (id === "massage-lab-dna") {
     return root.evaluate((element) => {
       const rootElement = element as HTMLElement
-      const scene = rootElement.firstElementChild as HTMLElement
+      const scene = rootElement.firstElementChild
+      if (!(scene instanceof HTMLElement)) {
+        throw new Error("The DNA render-state scene element is missing.")
+      }
       const strands = Array.from(rootElement.querySelectorAll<HTMLElement>('[style*="--ml-dna-start-color"]'))
       const first = strands[0]
       const last = strands.at(-1)
       const connector = first?.children[0] as HTMLElement
       const startNode = first?.querySelector<HTMLElement>('[data-side="start"]')
       const endNode = first?.querySelector<HTMLElement>('[data-side="end"]')
-      if (!scene || !scene.firstElementChild || !first || !last || !connector || !startNode || !endNode) {
+      if (!scene.firstElementChild || !first || !last || !connector || !startNode || !endNode) {
         throw new Error("DNA consumer fixture is missing its scene, composition, strands, connector, or node elements")
       }
       for (const animation of rootElement.getAnimations({ subtree: true })) {
@@ -392,14 +395,17 @@ async function captureComputedConsumerState(host: Locator, id: typeof EFFECTS[nu
 
   return root.evaluate((element) => {
     const rootElement = element as HTMLElement
-    const scene = rootElement.firstElementChild as HTMLElement
+    const scene = rootElement.firstElementChild
+    if (!(scene instanceof HTMLElement)) {
+      throw new Error("The Twisted Cubes render-state scene element is missing.")
+    }
     const layers = Array.from(rootElement.querySelectorAll<HTMLElement>('[style*="--ml-twisted-cubes-outline"]'))
     const firstLayer = layers[0]
     const secondLayer = layers[1]
     const view = firstLayer?.firstElementChild as HTMLElement
     const firstCube = view?.firstElementChild as HTMLElement
     const firstEdge = firstLayer?.querySelector<HTMLElement>(":scope > span > span > span > span")
-    if (!scene || !firstLayer || !secondLayer || !view || !firstCube || !firstEdge) {
+    if (!firstLayer || !secondLayer || !view || !firstCube || !firstEdge) {
       throw new Error("Twisted Cubes consumer fixture is missing its scene, first two layers, cube, or edge")
     }
     const cubeAnimation = firstCube.getAnimations()[0]
@@ -1067,7 +1073,11 @@ async function expectExactReducedEffectState(
     const actual = await root.evaluate((element) => {
       const rootElement = element as HTMLElement
       const style = rootElement.style
-      const sceneStyle = (rootElement.firstElementChild as HTMLElement).style
+      const sceneElement = rootElement.firstElementChild
+      if (!(sceneElement instanceof HTMLElement)) {
+        throw new Error("The DNA render-state scene element is missing.")
+      }
+      const sceneStyle = sceneElement.style
       const strands = Array.from(rootElement.querySelectorAll<HTMLElement>('[style*="--ml-dna-start-color"]'))
       return {
         root: {
@@ -1251,7 +1261,11 @@ async function expectExactReducedEffectState(
   const actual = await root.evaluate((element) => {
     const rootElement = element as HTMLElement
     const style = rootElement.style
-    const sceneStyle = (rootElement.firstElementChild as HTMLElement).style
+    const sceneElement = rootElement.firstElementChild
+    if (!(sceneElement instanceof HTMLElement)) {
+      throw new Error("The Twisted Cubes render-state scene element is missing.")
+    }
+    const sceneStyle = sceneElement.style
     const layers = Array.from(rootElement.querySelectorAll<HTMLElement>('[style*="--ml-twisted-cubes-outline"]'))
     return {
       root: {

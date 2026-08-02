@@ -1,5 +1,4 @@
 import { createHash } from "node:crypto"
-import { spawnSync } from "node:child_process"
 import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
@@ -9,7 +8,7 @@ import {
   LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL,
   normalizeGeneratedPreviewManifestItem,
 } from "./manifest-url-normalization.mjs"
-import { parseProbeDimensions } from "./probe-result.mjs"
+import { probeMediaDimensions } from "./probe-result.mjs"
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const outputDir = path.join(repoRoot, "public/chimer/background-previews")
@@ -44,14 +43,7 @@ function hashFile(filePath) {
 
 /** Uses FFprobe to reject corrupt or incorrectly sized generated media before publishing metadata. */
 function validateDimensions(filePath, expectedWidth, expectedHeight) {
-  const result = spawnSync("ffprobe", [
-    "-v", "error",
-    "-select_streams", "v:0",
-    "-show_entries", "stream=width,height",
-    "-of", "csv=s=x:p=0",
-    filePath,
-  ], { encoding: "utf8" })
-  const { width, height } = parseProbeDimensions(result, filePath)
+  const { width, height } = probeMediaDimensions(filePath)
   if (width !== expectedWidth || height !== expectedHeight) {
     throw new Error(`${path.basename(filePath)} must decode at ${expectedWidth}x${expectedHeight}.`)
   }
