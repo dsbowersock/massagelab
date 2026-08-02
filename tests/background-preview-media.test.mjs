@@ -70,11 +70,12 @@ describe("background preview media", () => {
     assert.match(renderSource, /"-quality", "78"/)
     assert.match(renderSource, /!existsSync\(posterPath\) \|\| statSync\(posterPath\)\.size <= 0/)
     assert.match(renderSource, /is empty after poster encoding/)
-    assert.match(renderSource, /function mediaMatchesVariant\(filePath, variant\)[\s\S]*parseProbeDimensions[\s\S]*variant\.outputWidth[\s\S]*variant\.outputHeight/)
+    assert.match(renderSource, /function probeVariantDimensions\(filePath\)[\s\S]*parseProbeDimensions\(result, filePath\)/)
+    assert.match(renderSource, /function mediaMatchesVariant\(filePath, variant\)[\s\S]*probeVariantDimensions\(filePath\)[\s\S]*variant\.outputWidth[\s\S]*variant\.outputHeight/)
     assert.match(renderSource, /const videoIsUsable = mediaMatchesVariant\(outputPath, variant\)/)
     assert.match(renderSource, /const posterIsUsable = mediaMatchesVariant\(posterPath, variant\)[\s\S]*?if \(videoIsUsable && posterIsUsable && !options\.force\) \{[\s\S]*?skipped: true/)
     assert.match(renderSource, /if \(videoIsUsable && !options\.force\) \{[\s\S]*?await encodePoster\(outputPath, posterPath, options\.durationMs\)/)
-    assert.match(renderSource, /function assertVariantMedia\(outputPath, posterPath, variant\)[\s\S]*captureVariant[\s\S]*assertVariantMedia\(outputPath, posterPath, variant\)/)
+    assert.match(renderSource, /function assertVariantMedia\(outputPath, posterPath, variant\)[\s\S]*probeVariantDimensions\(filePath\)[\s\S]*captureVariant[\s\S]*assertVariantMedia\(outputPath, posterPath, variant\)/)
   })
 
   it("offers a deterministic missing-video fixture while retaining a valid poster", () => {

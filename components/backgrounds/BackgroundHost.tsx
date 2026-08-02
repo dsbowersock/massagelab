@@ -12,7 +12,10 @@ import {
   userCanUseBackground,
 } from "@/components/backgrounds/backgroundRegistry"
 import { backgroundPaletteRegistry } from "@/components/backgrounds/backgroundPaletteRegistry"
-import { useMediaQuery } from "@/components/backgrounds/use-media-query"
+import {
+  BACKGROUND_COMPACT_VIEWPORT_QUERY,
+  useMediaQuery,
+} from "@/components/backgrounds/use-media-query"
 import {
   createBackgroundHostDiagnosticSnapshot,
   type BackgroundHostLoadStatus,
@@ -60,7 +63,7 @@ interface BackgroundHostProps extends BackgroundEffectProps {
 
 /** Reports compact rendering when either viewport dimension is at most 479px. */
 function useCompactBackgroundViewport() {
-  return useMediaQuery("(max-width: 479px), (max-height: 479px)")
+  return useMediaQuery(BACKGROUND_COMPACT_VIEWPORT_QUERY)
 }
 
 export function BackgroundHost(props: BackgroundHostProps) {
@@ -447,8 +450,8 @@ export function BackgroundHost(props: BackgroundHostProps) {
         shouldLoadEffect && !BackgroundComponent ? "true" : "false"
       }
       data-background-motion={motionEnabled ? "playing" : "paused"}
-      data-background-review-mount-requested={diagnosticSnapshot && forceEffectMount ? "true" : undefined}
-      data-background-review-motion-forced={diagnosticSnapshot && allowAmbientMotionForReview && motionEnabled ? "true" : undefined}
+      data-background-review-mount-requested={diagnostics && forceEffectMount ? "true" : undefined}
+      data-background-review-motion-forced={diagnostics && allowAmbientMotionForReview && motionEnabled ? "true" : undefined}
       data-background-provider={entry.provider}
       data-background-diagnostic-requested-id={diagnosticSnapshot?.requestedId}
       data-background-diagnostic-loaded-id={diagnosticSnapshot?.loadedId ?? undefined}

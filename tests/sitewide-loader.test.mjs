@@ -121,6 +121,7 @@ describe("Sitewide loader", () => {
     assert.match(chimerLoaderSource, /export type \{ LoaderProps \}/)
     assert.match(runningTimerSource, /BackgroundCarousel/)
     assert.match(backgroundCarouselCardSource, /from "@\/components\/backgrounds\/BackgroundPreviewMedia"/)
+    assert.match(backgroundCarouselCardSource, /posterUrl=\{previewPosterUrl\}/)
     assert.match(backgroundPreviewMediaSource, /poster=\{posterUrl\}/)
     assert.match(backgroundPreviewMediaSource, /preload="metadata"/)
     assert.match(backgroundPreviewMediaSource, /fallbackStyle/)

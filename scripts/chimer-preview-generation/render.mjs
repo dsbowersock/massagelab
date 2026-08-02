@@ -360,9 +360,8 @@ function hashFile(filePath) {
   return createHash("sha256").update(readFileSync(filePath)).digest("hex")
 }
 
-/** Verifies that a reusable video or poster is readable at the declared variant size. */
-function mediaMatchesVariant(filePath, variant) {
-  if (!existsSync(filePath) || statSync(filePath).size <= 0) return false
+/** Reads decoded dimensions while preserving the original FFprobe diagnostic. */
+function probeVariantDimensions(filePath) {
   const result = spawnSync("ffprobe", [
     "-v", "error",
     "-select_streams", "v:0",
@@ -370,8 +369,14 @@ function mediaMatchesVariant(filePath, variant) {
     "-of", "csv=s=x:p=0",
     filePath,
   ], { encoding: "utf8" })
+  return parseProbeDimensions(result, filePath)
+}
+
+/** Verifies that reusable media is readable at the declared variant size. */
+function mediaMatchesVariant(filePath, variant) {
+  if (!existsSync(filePath) || statSync(filePath).size <= 0) return false
   try {
-    const dimensions = parseProbeDimensions(result, filePath)
+    const dimensions = probeVariantDimensions(filePath)
     return dimensions.width === variant.outputWidth
       && dimensions.height === variant.outputHeight
   } catch {
@@ -381,11 +386,14 @@ function mediaMatchesVariant(filePath, variant) {
 
 /** Prevents invalid media from being published into the generated manifest. */
 function assertVariantMedia(outputPath, posterPath, variant) {
-  if (!mediaMatchesVariant(outputPath, variant)) {
-    throw new Error(`${path.basename(outputPath)} is not valid ${variant.outputWidth}x${variant.outputHeight} video.`)
-  }
-  if (!mediaMatchesVariant(posterPath, variant)) {
-    throw new Error(`${path.basename(posterPath)} is not valid ${variant.outputWidth}x${variant.outputHeight} poster.`)
+  for (const [filePath, kind] of [[outputPath, "video"], [posterPath, "poster"]]) {
+    if (!existsSync(filePath) || statSync(filePath).size <= 0) {
+      throw new Error(`${path.basename(filePath)} is missing or empty.`)
+    }
+    const dimensions = probeVariantDimensions(filePath)
+    if (dimensions.width !== variant.outputWidth || dimensions.height !== variant.outputHeight) {
+      throw new Error(`${path.basename(filePath)} is not valid ${variant.outputWidth}x${variant.outputHeight} ${kind}.`)
+    }
   }
 }
 

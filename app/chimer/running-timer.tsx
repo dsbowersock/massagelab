@@ -13788,6 +13788,9 @@ export function RunningTimer({
                       <span>Selected Background Properties</span>
                       <span className={styles.settingsPill}>Visual tuning</span>
                     </div>
+                    {/* The open Visual draft intentionally hides the legacy display-color
+                        rows for every background; these editors own the visible Track 4B
+                        properties and receive the same access disable decision directly. */}
                     {visualEditorBackgroundId === "massage-lab-dna" ? (
                       <DnaBackgroundControls
                         value={visualEditorDnaOptions}

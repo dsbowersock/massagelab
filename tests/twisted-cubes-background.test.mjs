@@ -167,6 +167,32 @@ describe("Twisted Cubes background domain rules", () => {
       interpolateTwistedCubeOutline({ anchors, sourceAnchors, oneBasedIndex: 5, count: 20 }),
       "rgb(38 48 64)",
     )
+    const hslSourceAnchors = [
+      "hsl(180 80% 60%)",
+      "hsl(212 80% 60%)",
+      "hsl(244 80% 60%)",
+      "hsl(276 80% 60%)",
+      "hsl(308 80% 60%)",
+      "hsl(340 80% 60%)",
+    ]
+    assert.equal(
+      interpolateTwistedCubeOutline({
+        anchors: ["invalid", ...anchors.slice(1)],
+        sourceAnchors: hslSourceAnchors,
+        oneBasedIndex: 1,
+        count: 6,
+      }),
+      hslSourceAnchors[0],
+    )
+    assert.equal(
+      interpolateTwistedCubeOutline({
+        anchors: [anchors[0], "invalid", ...anchors.slice(2)],
+        sourceAnchors: hslSourceAnchors,
+        oneBasedIndex: 2,
+        count: 6,
+      }),
+      "rgb(71 148 235)",
+    )
   })
 
   it("maps flat Chimer preferences into sanitized Twisted Cubes options", () => {

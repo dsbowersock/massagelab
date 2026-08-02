@@ -279,6 +279,8 @@ test("Track 4B gallery exposes controls, state scenarios, and preview evidence",
   assert.match(gallery, /BackgroundPreviewMediaReview/)
   assert.match(gallery, /backgroundPreviewManifest/)
   assert.match(gallery, /<BackgroundPreviewMedia/)
+  assert.match(gallery, /useMediaQuery\(BACKGROUND_COMPACT_VIEWPORT_QUERY\)/)
+  assert.doesNotMatch(gallery, /window\.matchMedia/)
   assert.match(gallery, /data-track-4b-preview/)
   assert.match(gallery, /mapping: adapter \? defaultMapping\(adapter\) : \{\}/)
   assert.match(gallery, /const nextDraft = createTrack4BReviewDraft\(nextId\)/)
@@ -395,10 +397,11 @@ test("shared background access and palette resolver inputs stay authoritative an
 })
 
 test("DNA and Twisted Cubes share compact options and host-owned responsive motion context", async () => {
-  const [runningSource, hostSource, mediaQuerySource, dnaEffect, cubesEffect, styles] = await Promise.all([
+  const [runningSource, hostSource, mediaQuerySource, ambientMotionSource, dnaEffect, cubesEffect, styles] = await Promise.all([
     read("app/chimer/running-timer.tsx"),
     read("components/backgrounds/BackgroundHost.tsx"),
     read("components/backgrounds/use-media-query.ts"),
+    read("components/backgrounds/use-ambient-reduced-motion.ts"),
     read("components/backgrounds/effects/massage-lab-dna-background.tsx"),
     read("components/backgrounds/effects/massage-lab-twisted-cubes-background.tsx"),
     read("app/chimer/running-timer.module.css"),
@@ -412,9 +415,11 @@ test("DNA and Twisted Cubes share compact options and host-owned responsive moti
   assert.match(runningSource, /resolveDnaTwistedCubesBackgroundHostProps/)
   assert.match(runningSource, /\{\.\.\.effectiveDnaTwistedCubesHostProps\}/)
   assert.doesNotMatch(runningExecutableSource, /massageLabDnaStrandCount=|massageLabTwistedCubesLayerCount=/)
-  assert.match(hostSource, /useMediaQuery\("\(max-width: 479px\), \(max-height: 479px\)"\)/)
+  assert.match(hostSource, /useMediaQuery\(BACKGROUND_COMPACT_VIEWPORT_QUERY\)/)
+  assert.match(mediaQuerySource, /export const BACKGROUND_COMPACT_VIEWPORT_QUERY = "\(max-width: 479px\), \(max-height: 479px\)"/)
   assert.match(mediaQuerySource, /window\.matchMedia\(query\)/)
   assert.match(mediaQuerySource, /removeEventListener\("change", handleChange\)/)
+  assert.match(ambientMotionSource, /useMediaQuery\(AMBIENT_REDUCED_MOTION_QUERY, true\)/)
   assert.match(hostSource, /entry\.supportsReducedMotionStatic/)
   assert.match(hostSource, /reduceMotion,[\s\S]*compactViewport,/)
   assert.doesNotMatch(dnaExecutableSource, /\bdocument\b|\bwindow\b|addEventListener|requestAnimationFrame/)

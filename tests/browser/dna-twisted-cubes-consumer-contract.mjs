@@ -1,7 +1,9 @@
 /**
  * Runtime-owned acceptance map from each real slider to its concrete CSS
- * consumer. Browser tests use the coupling list as their only exception set;
- * the Node source contract asserts this entire table exactly. The boolean
+ * consumer. `target` and `properties` are report descriptions only; executable
+ * selectors and assertions remain in the browser suite. Browser tests use the
+ * coupling list as their only exception set; the Node source contract asserts
+ * this entire table exactly. The boolean
  * Show base letters control is intentionally outside this numeric slider map;
  * its add/remove label behavior is asserted directly in the browser matrix.
  */

@@ -9,6 +9,12 @@ import {
   getDnaStrandRotationSeconds,
 } from "@/lib/dna-background"
 import { resolveResponsiveBackgroundTransform } from "@/lib/background-effect-layout"
+import {
+  DNA_SOURCE_BACKGROUND_COLOR,
+  DNA_SOURCE_CONNECTOR_COLOR,
+  DNA_SOURCE_NODE_ROLE_COLORS,
+  DNA_SOURCE_OUTLINE_COLOR,
+} from "@/lib/dna-background"
 import type { BackgroundEffectProps, MassageLabDnaOptions } from "./css-backgrounds"
 import styles from "./massage-lab-dna-background.module.css"
 
@@ -40,11 +46,14 @@ export const MassageLabDnaBackground = memo(function MassageLabDnaBackground({
     connectorWidth,
     connectorThickness,
     outlineThickness,
-    backgroundColor,
+    backgroundColor = DNA_SOURCE_BACKGROUND_COLOR,
     nodeRoleColors,
-    connectorColor,
-    outlineColor,
+    connectorColor = DNA_SOURCE_CONNECTOR_COLOR,
+    outlineColor = DNA_SOURCE_OUTLINE_COLOR,
   } = massageLabDna
+  const resolvedNodeRoleColors = DNA_SOURCE_NODE_ROLE_COLORS.map((sourceColor, index) => (
+    nodeRoleColors?.[index] ?? sourceColor
+  ))
   // Persisted options enforce the product minimum; malformed direct host input
   // fails closed to inert DOM instead of fabricating the minimum render load.
   const renderStrandCount = Number.isFinite(strandCount)
@@ -72,10 +81,10 @@ export const MassageLabDnaBackground = memo(function MassageLabDnaBackground({
   const strandRotationSeconds = getDnaStrandRotationSeconds(strandRotationSpeed)
   const rootStyle = {
     "--ml-dna-background-color": backgroundColor,
-    "--ml-dna-node-color-0": nodeRoleColors[0],
-    "--ml-dna-node-color-1": nodeRoleColors[1],
-    "--ml-dna-node-color-2": nodeRoleColors[2],
-    "--ml-dna-node-color-3": nodeRoleColors[3],
+    "--ml-dna-node-color-0": resolvedNodeRoleColors[0],
+    "--ml-dna-node-color-1": resolvedNodeRoleColors[1],
+    "--ml-dna-node-color-2": resolvedNodeRoleColors[2],
+    "--ml-dna-node-color-3": resolvedNodeRoleColors[3],
     "--ml-dna-connector-color": connectorColor,
     "--ml-dna-outline-color": outlineColor,
     "--ml-dna-strand-angle": `${strandAngle}deg`,

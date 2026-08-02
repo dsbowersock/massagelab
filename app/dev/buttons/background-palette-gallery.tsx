@@ -5,6 +5,11 @@ import { memo, useEffect, useMemo, useState } from "react"
 import { BackgroundHost } from "@/components/backgrounds/BackgroundHost"
 import { BackgroundPreviewMedia } from "@/components/backgrounds/BackgroundPreviewMedia"
 import {
+  AMBIENT_REDUCED_MOTION_QUERY,
+  BACKGROUND_COMPACT_VIEWPORT_QUERY,
+  useMediaQuery,
+} from "@/components/backgrounds/use-media-query"
+import {
   backgroundPreviewManifest,
   resolveVerticalPreviewMediaUrls,
 } from "@/components/backgrounds/backgroundPreviewManifest"
@@ -330,7 +335,7 @@ function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) 
   const [draft, setDraft] = useState(() => createTrack4BReviewDraft("massage-lab-dna"))
   const [appliedSnapshot, setAppliedSnapshot] = useState(() => draft.openingSnapshot)
   const [activePreviewId, setActivePreviewId] = useState<Track4BBackgroundId | null>(null)
-  const [compactViewport, setCompactViewport] = useState(false)
+  const compactViewport = useMediaQuery(BACKGROUND_COMPACT_VIEWPORT_QUERY)
   const adapter = backgroundPaletteRegistry[selectedId]
   const snapshot = draft.currentSnapshot
   const dnaOptions = getDnaBackgroundOptionsFromChimerSettings(
@@ -350,13 +355,6 @@ function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) 
       ? TRACK_4B_OWNER_ACCESS
       : TRACK_4B_LOCKED_ACCESS
 
-  useEffect(() => {
-    const query = window.matchMedia("(max-width: 479px), (max-height: 479px)")
-    const update = () => setCompactViewport(query.matches)
-    update()
-    query.addEventListener("change", update)
-    return () => query.removeEventListener("change", update)
-  }, [])
   const resolvedRoleColors = adapter?.status === "supported"
     ? resolveBackgroundRoleColors({
       palette: snapshot.palette,
@@ -423,6 +421,19 @@ function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) 
 
   if (!adapter || adapter.status !== "supported") return null
 
+  const specimens: ReadonlyArray<readonly [string, boolean]> = [
+    ["Source", snapshot.palette.mode === "source"],
+    ["Custom", snapshot.palette.mode === "custom"],
+    ["Harmony", snapshot.palette.mode === "harmony"],
+    ["Reduced motion", reducedMotion],
+    ["Compact viewport", compactViewport],
+    ["Subscriber access", accessMode === "subscriber"],
+    ["Permanent owner", accessMode === "owner"],
+    ["Access locked", accessMode === "locked"],
+    ["Dirty draft", draft.dirty],
+    ["Applied state", !draft.dirty],
+  ]
+
   return (
     <section
       className="space-y-4"
@@ -454,23 +465,12 @@ function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) 
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Track 4B review states">
-        {[
-          ["Source", snapshot.palette.mode === "source"],
-          ["Custom", snapshot.palette.mode === "custom"],
-          ["Harmony", snapshot.palette.mode === "harmony"],
-          ["Reduced motion", reducedMotion],
-          ["Compact viewport", compactViewport],
-          ["Subscriber access", accessMode === "subscriber"],
-          ["Permanent owner", accessMode === "owner"],
-          ["Access locked", accessMode === "locked"],
-          ["Dirty draft", draft.dirty],
-          ["Applied state", !draft.dirty],
-        ].map(([label, active]) => (
+        {specimens.map(([label, active]) => (
           <div
             className="rounded-lg border border-border bg-muted/30 p-3 text-sm"
-            data-track-4b-specimen={String(label).toLowerCase().replaceAll(" ", "-")}
+            data-track-4b-specimen={label.toLowerCase().replaceAll(" ", "-")}
             data-active={String(active)}
-            key={String(label)}
+            key={label}
           >
             {label}
           </div>
@@ -634,15 +634,7 @@ export function BackgroundPaletteGallery() {
   const [mappingsByBackground, setMappingsByBackground] = useState<
     Partial<Record<BackgroundId, BackgroundColorMapping>>
   >({})
-  const [reducedMotion, setReducedMotion] = useState(false)
-
-  useEffect(() => {
-    const query = window.matchMedia("(prefers-reduced-motion: reduce)")
-    const update = () => setReducedMotion(query.matches)
-    update()
-    query.addEventListener("change", update)
-    return () => query.removeEventListener("change", update)
-  }, [])
+  const reducedMotion = useMediaQuery(AMBIENT_REDUCED_MOTION_QUERY, true)
 
   const selectedBackground = useMemo(
     () => enabledBackgrounds.find((entry) => entry.id === selectedId) ?? initialBackground,

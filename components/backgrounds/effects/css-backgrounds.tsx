@@ -7,17 +7,29 @@ import { cn } from "@/lib/utils"
 import styles from "@/components/backgrounds/BackgroundHost.module.css"
 
 export interface MassageLabDnaOptions {
+  /** Integer strand count, 7-81. */
   strandCount: number
+  /** Presentation-only base-letter visibility. */
   showBaseLetters: boolean
+  /** Node-cycle speed multiplier, 0.01-3. */
   nodeMotionSpeed: number
+  /** Composition-rotation speed multiplier, 0.01-3. */
   strandRotationSpeed: number
+  /** Composition angle in degrees, -180 to 180. */
   strandAngle: number
+  /** Render scale factor, 0.4-1.2. */
   scale: number
+  /** Horizontal position offset percent, -35 to 35. */
   positionX: number
+  /** Vertical position offset percent, -35 to 35. */
   positionY: number
+  /** Grid row spacing in vmin, 0-2. */
   strandSpacing: number
+  /** Connector width percent, 60-100. */
   connectorWidth: number
+  /** Connector thickness percent, 10-60. */
   connectorThickness: number
+  /** Outline thickness in vmin, 0-1.5. */
   outlineThickness: number
   backgroundColor: string
   nodeRoleColors: readonly [string, string, string, string]
@@ -26,16 +38,27 @@ export interface MassageLabDnaOptions {
 }
 
 export interface MassageLabTwistedCubesOptions {
+  /** Integer wireframe-layer count, 6-30. */
   layerCount: number
+  /** Cube-cycle speed multiplier, 0.01-3. */
   rotationSpeed: number
+  /** Per-layer animation stagger in seconds, 0-0.3. */
   layerStagger: number
+  /** X-axis view angle in degrees, -80 to 80. */
   viewAngleX: number
+  /** Y-axis view angle in degrees, -80 to 80. */
   viewAngleY: number
+  /** Render scale factor, 0.1-1.2. */
   scale: number
+  /** Horizontal position offset percent, -35 to 35. */
   positionX: number
+  /** Vertical position offset percent, -35 to 35. */
   positionY: number
+  /** Distance between adjacent layers in vmin, 10-70. */
   layerDepthSpacing: number
+  /** Count-relative opacity falloff ratio, 0-0.95. */
   opacityFalloff: number
+  /** Edge thickness factor multiplied by 50vmin, 0.0025-0.02. */
   outlineThickness: number
   paletteMode: "source" | "resolved"
   backgroundColor: string

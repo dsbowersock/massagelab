@@ -96,6 +96,7 @@ function hexHue(value: string) {
   return Math.round((sector * 60 + 360) % 360)
 }
 
+/** Parses six-digit hex or hsl() input and returns a hue normalized to 0-359 degrees. */
 function colorHue(value: string) {
   if (value.startsWith("#")) return hexHue(value)
   const hsl = /^hsl\(\s*([+-]?\d+(?:\.\d+)?)/i.exec(value)
@@ -103,6 +104,7 @@ function colorHue(value: string) {
   return ((Number(hsl[1]) % 360) + 360) % 360
 }
 
+/** Compares hue numbers, general CSS colors, rgba channels, or exact color strings. */
 async function expectTargetColor(
   page: Page,
   actual: unknown,
@@ -134,6 +136,7 @@ async function expectTargetColor(
   expect(actual, target).toBe(expectedColor)
 }
 
+/** Reads the addInitScript-installed __previewMediaProbe global as a stable snapshot. */
 async function readPreviewMediaProbe(page: Page): Promise<PreviewMediaProbeSnapshot> {
   return page.evaluate(() => {
     const rawProbe = Reflect.get(window, "__previewMediaProbe")
@@ -631,7 +634,8 @@ test.describe("shared background palette review matrix", () => {
       })
     })
 
-    await openPaletteGallery(page)
+    try {
+      await openPaletteGallery(page)
     const fixture = page.getByTestId("background-preview-media-review")
     const video = fixture.getByTestId("carousel-background-video")
     const poster = fixture.getByTestId("background-preview-poster")
@@ -707,6 +711,11 @@ test.describe("shared background palette review matrix", () => {
       await readPreviewMediaProbe(page)
     ).visibilityListenerCount).toBe(baselineListeners)
     await fixture.getByRole("button", { name: "Unmount preview" }).click()
-    await page.evaluate(() => Reflect.get(window, "__restorePreviewMediaProbe")())
+    } finally {
+      await page.evaluate(() => {
+        const restore = Reflect.get(window, "__restorePreviewMediaProbe")
+        if (typeof restore === "function") restore()
+      })
+    }
   })
 })

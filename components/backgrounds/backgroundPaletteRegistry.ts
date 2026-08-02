@@ -5,6 +5,18 @@ import {
   DEFAULT_CHIMER_SETTINGS,
   sanitizeChimerSettings,
 } from "../../lib/chimer-timer.js"
+import {
+  DNA_SOURCE_BACKGROUND_COLOR,
+  DNA_SOURCE_CONNECTOR_COLOR,
+  DNA_SOURCE_NODE_ROLE_COLORS,
+  DNA_SOURCE_OUTLINE_COLOR,
+} from "../../lib/dna-background.js"
+export {
+  DNA_SOURCE_BACKGROUND_COLOR,
+  DNA_SOURCE_CONNECTOR_COLOR,
+  DNA_SOURCE_NODE_ROLE_COLORS,
+  DNA_SOURCE_OUTLINE_COLOR,
+} from "../../lib/dna-background.js"
 import type {
   BackgroundEffectProps,
   CssDomPaletteBackgroundId,
@@ -63,18 +75,7 @@ export interface BackgroundPaletteModeOverride {
   customValue?: unknown
 }
 
-export const DNA_SOURCE_BACKGROUND_COLOR = "hsl(210 80% 12%)"
-export const DNA_SOURCE_CONNECTOR_COLOR = "#ffffff"
-export const DNA_SOURCE_OUTLINE_COLOR = "#000000"
 export const TWISTED_CUBES_SOURCE_BACKGROUND_COLOR = "hsl(210 20% 12%)"
-export const DNA_SOURCE_NODE_ROLE_COLORS = Object.freeze([
-  "hsl(44 98% 60%)",
-  "hsl(197 50% 44%)",
-  // The source renderer intentionally uses 100% lightness here: Guanine is
-  // the approved white role, not a magenta reinterpretation of the hue.
-  "hsl(300 100% 100%)",
-  "hsl(331 76% 50%)",
-] as const)
 export const TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS = Object.freeze([
   "hsl(180 80% 60%)",
   "hsl(212 80% 60%)",
