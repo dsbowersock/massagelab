@@ -6,6 +6,27 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-02 — Security dependency Fix Wave 1 PR #162
+
+- Triaged all 42 open default-branch Dependabot alerts against the installed
+  dependency paths and current runtime configuration. Two findings were
+  directly reachable: the Next.js App Router Server Action CPU
+  denial-of-service and unauthenticated Server Function endpoint-ID disclosure.
+  The remaining 40 alerts lack their advisory-specific runtime preconditions;
+  they remain tracked for dependency cleanup rather than application
+  workarounds.
+- Ready PR #162 upgrades `next` and `eslint-config-next` to `16.2.11`,
+  `next-auth` to `5.0.0-beta.32`, and `@auth/prisma-adapter` to `2.11.3`,
+  deduplicating `@auth/core` at patched version `0.41.3`. A focused
+  dependency-security test prevents those framework and authentication
+  packages from falling below the patched floors.
+- Focused dependency/authentication coverage passes 24/24; Prisma generation,
+  typecheck, lint, all 1,899 unit tests, the 101-page Production build, two
+  focused desktop Chromium runtime/auth smokes, and `git diff --check` pass.
+  GitHub CodeQL, Vercel, and CodeRabbit passed the first PR head, with CodeRabbit
+  reporting no actionable comments. Remaining advisory families are reserved
+  for Fix Wave 2, and merge remains a separate user action.
+
 ## 2026-08-02 — July 18 numbered-program Production closure
 
 - PR #160 merged Track 4B to `main` as `3ababd8d3754419ecd7d3cc076fe69b8604dc246`, and the exact merge commit completed its Vercel Production deployment successfully.
