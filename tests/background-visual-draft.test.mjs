@@ -1293,13 +1293,23 @@ test("globe coordinate inputs keep string drafts and clock font changes remeasur
 
 test("DNA and Twisted Cubes controls emit only draft property patches with exact bounded sliders", () => {
   const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-  /** Keeps each ordered prop match inside one self-closing StyledRangeControl element. */
+  /** Validates every required prop inside one self-closing slider element. */
   const assertSlider = (source, label, property, minimum, maximum, step) => {
-    const withinSlider = "(?:(?!\\/>)[\\s\\S])*?"
     const [safeLabel, safeProperty, safeMinimum, safeMaximum, safeStep] = [
       label, property, minimum, maximum, step,
     ].map(escapeRegExp)
-    assert.match(source, new RegExp(`<StyledRangeControl${withinSlider}label="${safeLabel}"${withinSlider}value=\\{value\\.${safeProperty}\\}${withinSlider}min=\\{${safeMinimum}\\}${withinSlider}max=\\{${safeMaximum}\\}${withinSlider}step=\\{${safeStep}\\}${withinSlider}onChange=\\{\\(nextValue\\) => onChange\\(\\{ ${safeProperty}: nextValue \\}\\)\\}${withinSlider}\\/>`))
+    const elements = source.match(/<StyledRangeControl(?:(?!\/>)[\s\S])*?\/>/g) ?? []
+    const element = elements.find((candidate) => new RegExp(`\\blabel="${safeLabel}"`).test(candidate))
+    assert.ok(element, `${label} slider element exists`)
+    for (const [attributeName, pattern] of [
+      ["value", new RegExp(`\\bvalue=\\{value\\.${safeProperty}\\}`)],
+      ["min", new RegExp(`\\bmin=\\{${safeMinimum}\\}`)],
+      ["max", new RegExp(`\\bmax=\\{${safeMaximum}\\}`)],
+      ["step", new RegExp(`\\bstep=\\{${safeStep}\\}`)],
+      ["onChange", new RegExp(`\\bonChange=\\{\\(nextValue\\) => onChange\\(\\{ ${safeProperty}: nextValue \\}\\)\\}`)],
+    ]) {
+      assert.match(element, pattern, `${label} slider ${attributeName} attribute`)
+    }
   }
 
   const dnaSliders = [

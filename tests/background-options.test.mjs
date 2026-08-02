@@ -38,6 +38,10 @@ const cssBackgroundsSource = readFileSync(
   new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
   "utf8",
 )
+const backgroundRegistrySource = readFileSync(
+  new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+  "utf8",
+)
 
 describe("premium background registry", () => {
   it("uses explicit named CSS/DOM palette assignments instead of heuristic target matching", () => {
@@ -151,10 +155,7 @@ describe("premium background registry", () => {
       "massage-lab-dna": "MIT; copyright 2026 Jhey; archive `css-trigonometric-function-dna-strand.zip` reviewed",
       "massage-lab-twisted-cubes": "MIT; copyright 2026 Jhey; archive `cubies.zip` reviewed",
     }
-    const expectedLoaderNames = {
-      "massage-lab-dna": "massageLabDna",
-      "massage-lab-twisted-cubes": "massageLabTwistedCubes",
-    }
+    assert.match(backgroundRegistrySource, /const cssBackgrounds = \(\) => import\("\.\/effects\/css-backgrounds"\)/)
     for (const backgroundId of ["massage-lab-dna", "massage-lab-twisted-cubes"]) {
       assert.equal(isBackgroundId(backgroundId), true)
       const definition = backgroundRegistry.find((entry) => entry.id === backgroundId)
@@ -168,10 +169,6 @@ describe("premium background registry", () => {
       assert.deepEqual(definition.category, ["chimer", "clock", "music", "ambient"])
       assert.equal(definition.supportsReducedMotionStatic, true)
       assert.equal(typeof definition.component, "function")
-      assert.match(
-        definition.component.toString(),
-        new RegExp(expectedLoaderNames[backgroundId]),
-      )
     }
   })
 

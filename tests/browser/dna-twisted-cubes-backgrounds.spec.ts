@@ -1746,7 +1746,6 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
     expect(harmony).toEqual(expectedHarmony)
     expect(harmony[0]).toBe(harmonyAnchors[0])
     expect(harmony.at(-1)).toBe(harmonyAnchors.at(-1))
-    expect(harmony[9]).toBe(expectedHarmony[9])
     expectHealthy(health)
   })
 

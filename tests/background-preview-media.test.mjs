@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { randomUUID } from "node:crypto"
 import { readFileSync } from "node:fs"
 import { describe, it } from "node:test"
 
@@ -135,7 +136,7 @@ describe("background preview media", () => {
     process.env.NEXT_PUBLIC_CHIMER_PREVIEW_MEDIA_BASE_URL = "https://media.example.test/previews"
     try {
       const { resolveVerticalPreviewMediaUrls } = await import(
-        `../components/backgrounds/backgroundPreviewManifest.ts?fallback-base=${Date.now()}`
+        `../components/backgrounds/backgroundPreviewManifest.ts?fallback-base=${randomUUID()}`
       )
       assert.deepEqual(resolveVerticalPreviewMediaUrls(undefined, "missing-preview"), {
         videoUrl: "https://media.example.test/previews/missing-preview-vertical.webm",

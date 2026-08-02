@@ -41,7 +41,7 @@ function matchesExactDevelopmentPaletteReviewSpec(normalizedArgument: string) {
   ))
 }
 
-function matchesUniqueDevelopmentPaletteReviewSubstring(normalizedArgument: string) {
+function matchesDevelopmentPaletteReviewSubstring(normalizedArgument: string) {
   const argumentBasename = path.posix.basename(normalizedArgument)
   const isStandaloneFilter = normalizedArgument === argumentBasename && argumentBasename.length > 0
   const substringMatches = !isStandaloneFilter
@@ -51,10 +51,10 @@ function matchesUniqueDevelopmentPaletteReviewSubstring(normalizedArgument: stri
     : developmentPaletteReviewSpecs.filter((spec) => (
       path.posix.basename(spec).includes(argumentBasename)
     ))
-  return substringMatches.length === 1
+  return substringMatches.length > 0
 }
 
-function matchesUniqueDevelopmentPaletteReviewRegex(argument: string) {
+function matchesDevelopmentPaletteReviewRegex(argument: string) {
   try {
     const filter = new RegExp(argument)
     const regexMatches = developmentPaletteReviewSpecs.filter((spec) => {
@@ -66,7 +66,7 @@ function matchesUniqueDevelopmentPaletteReviewRegex(argument: string) {
       ])
       return [...absoluteFormats].some((candidate) => filter.test(candidate))
     })
-    return regexMatches.length === 1
+    return regexMatches.length > 0
   } catch {
     return false
   }
@@ -78,10 +78,10 @@ export function matchesDevelopmentPaletteReviewArgument(argument: string) {
     .replaceAll("\\", "/")
     .replace(/:\d+(?::\d+)?$/, "")
   if (matchesExactDevelopmentPaletteReviewSpec(normalizedArgument)) return true
-  // Only unique substrings select the development server. Ambiguous or absent
-  // substring matches fall through to Playwright's absolute-path regex model.
-  if (matchesUniqueDevelopmentPaletteReviewSubstring(normalizedArgument)) return true
-  return matchesUniqueDevelopmentPaletteReviewRegex(argument)
+  // Any selected review spec requires the development server, including one
+  // substring or regex filter that intentionally selects both review specs.
+  if (matchesDevelopmentPaletteReviewSubstring(normalizedArgument)) return true
+  return matchesDevelopmentPaletteReviewRegex(argument)
 }
 
 const playwrightOptionsWithSeparateValues = new Set([
