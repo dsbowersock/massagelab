@@ -41,6 +41,8 @@ test("development review spec matching accepts Playwright line and column suffix
   assert.equal(matchesDevelopmentPaletteReviewArgument("spec"), true)
   assert.equal(matchesDevelopmentPaletteReviewArgument("tests/browser"), true)
   assert.equal(matchesDevelopmentPaletteReviewArgument(String.raw`tests[\\/]browser[\\/]`), true)
+  assert.equal(matchesDevelopmentPaletteReviewArgument(`dna${".*".repeat(300)}cubes`), false)
+  assert.equal(matchesDevelopmentPaletteReviewArgument("dna-(twisted|cubes)"), false)
   assert.equal(matchesDevelopmentPaletteReviewArgument("not-a-review-spec"), false)
   assert.equal(matchesDevelopmentPaletteReviewArgument("tests/browser/public-routes.spec.ts:42"), false)
   assert.equal(matchesDevelopmentPaletteReviewArgument("prefix-tests/browser/background-palette.spec.ts"), false)
@@ -159,6 +161,7 @@ test("browser QA harness is wired for public smoke, PWA, and local-first checks"
   assert.match(config, /const skipWebServer = parseBooleanEnv\(process\.env\.PLAYWRIGHT_SKIP_WEB_SERVER\)/)
   assert.match(config, /webServer: skipWebServer/)
   assert.match(config, /runsDevelopmentPaletteReview/)
+  assert.doesNotMatch(config, /new RegExp\(argument\)/)
   assert.match(
     config,
     /developmentPaletteReviewSpecs[\s\S]*tests\/browser\/background-palette\.spec\.ts[\s\S]*tests\/browser\/dna-twisted-cubes-backgrounds\.spec\.ts/,

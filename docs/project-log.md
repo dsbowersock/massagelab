@@ -6,6 +6,11 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-02 — Track 4B PR #160 review loop
+
+- Opened ready PR #160 for `codex/track4b-dna-twisted-cubes` after the user explicitly waived the missing final local CodeRabbit-clean artifact. The waiver was limited to the truncated, unpersisted local CLI result; GitHub QA, CodeQL, Vercel, CodeRabbit, Codex, issue comments, and review threads remain required gates, and merge remains a separate user action.
+- The first GitHub CodeQL scan identified one valid branch-owned regular-expression injection path in the Playwright development-review selector. The configuration no longer compiles a positional command-line argument with `RegExp`; it recognizes the required bounded filter subset through literal normalization and ordered fragment matching, rejects oversized or unsupported patterns, and has direct regression coverage. The focused harness passes 10/10, typecheck and lint pass, and the exact-head GitHub checks will rerun after the fix is pushed.
+
 ## 2026-08-01 — Track 4B final visual acceptance and PR-loop authorization
 
 - The user completed the final local visual pass after the Cube performance correction, accepted the current DNA and Twisted Cubes result, and explicitly authorized the PR loop. Merge remains a separate user action.

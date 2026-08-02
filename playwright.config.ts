@@ -56,23 +56,40 @@ function matchesDevelopmentPaletteReviewSubstring(normalizedArgument: string) {
   return substringMatches.length > 0
 }
 
-/** Tests a raw regex against each review spec's absolute native and alternate-separator paths. */
-function matchesDevelopmentPaletteReviewRegex(argument: string) {
-  try {
-    const filter = new RegExp(argument)
-    const regexMatches = developmentPaletteReviewSpecs.filter((spec) => {
-      const absoluteSpec = path.resolve(spec)
-      const absoluteFormats = new Set([
-        absoluteSpec,
-        absoluteSpec.replaceAll("\\", "/"),
-        absoluteSpec.replaceAll("/", "\\"),
-      ])
-      return [...absoluteFormats].some((candidate) => filter.test(candidate))
-    })
-    return regexMatches.length > 0
-  } catch {
-    return false
-  }
+/**
+ * Matches the bounded regex-like subset used by Playwright file filters without
+ * compiling command-line input as a regular expression.
+ */
+function matchesDevelopmentPaletteReviewPattern(argument: string) {
+  if (argument.length === 0 || argument.length > 512) return false
+
+  let normalizedPattern = argument
+    .replaceAll(String.raw`[\\/]`, "/")
+    .replaceAll(String.raw`[/\\]`, "/")
+    .replaceAll(String.raw`\/`, "/")
+    .replaceAll(String.raw`\\`, "/")
+    .replaceAll(String.raw`\.`, ".")
+    .replaceAll(String.raw`\-`, "-")
+  const requiresStart = normalizedPattern.startsWith("^")
+  const requiresEnd = normalizedPattern.endsWith("$")
+  if (requiresStart) normalizedPattern = normalizedPattern.slice(1)
+  if (requiresEnd) normalizedPattern = normalizedPattern.slice(0, -1)
+
+  const fragments = normalizedPattern.split(/\.\*|\.\+/)
+  if (fragments.some((fragment) => /[\[\]{}()|?*+^$]/.test(fragment))) return false
+
+  return developmentPaletteReviewSpecs.some((spec) => {
+    const candidate = path.resolve(spec).replaceAll("\\", "/")
+    let searchFrom = 0
+    for (const fragment of fragments) {
+      if (!fragment) continue
+      const fragmentIndex = candidate.indexOf(fragment, searchFrom)
+      if (fragmentIndex === -1) return false
+      if (requiresStart && searchFrom === 0 && fragmentIndex !== 0) return false
+      searchFrom = fragmentIndex + fragment.length
+    }
+    return !requiresEnd || searchFrom === candidate.length
+  })
 }
 
 /** Matches exact development-review specs plus Playwright substring and regex filters. */
@@ -84,7 +101,7 @@ export function matchesDevelopmentPaletteReviewArgument(argument: string) {
   // Any selected review spec requires the development server, including one
   // substring or regex filter that intentionally selects both review specs.
   if (matchesDevelopmentPaletteReviewSubstring(normalizedArgument)) return true
-  return matchesDevelopmentPaletteReviewRegex(argument)
+  return matchesDevelopmentPaletteReviewPattern(argument)
 }
 
 const playwrightOptionsWithSeparateValues = new Set([
