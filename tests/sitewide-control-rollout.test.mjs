@@ -150,7 +150,7 @@ test("Visual draft actions live in the responsive panel header while sync status
   const visualStatus = sourceBetween(
     runningTimer,
     "visualContent={",
-    "{!isClockMode && mode.context",
+    "backgroundContent={",
     "Visual status content",
   )
   assert.match(
