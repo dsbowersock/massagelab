@@ -41,7 +41,10 @@ describe("Chimer preview R2 uploader", () => {
     )
     const summaryLine = result.stdout.split(/\r?\n/)
       .find((line) => line.startsWith(dryRunSummaryPrefix))
-    assert.ok(summaryLine, result.stdout)
+    assert.ok(
+      summaryLine,
+      `missing "${dryRunSummaryPrefix}" line. stdout: ${result.stdout || "<empty>"}`,
+    )
     const summary = JSON.parse(summaryLine.slice(dryRunSummaryPrefix.length))
     assert.equal(summary.dryRun, true)
     const selectedObjects = summary.objects.filter(({ objectKey }) => {

@@ -45,6 +45,7 @@ const musicMiniPlayerSource = await read("components/providers/music-mini-player
 const runningTimerStyles = await read("app/chimer/running-timer.module.css")
 const dnaControlsSource = await read("components/chimer-controls/DnaBackgroundControls.tsx")
 const twistedCubesControlsSource = await read("components/chimer-controls/TwistedCubesBackgroundControls.tsx")
+const backgroundPropertyGroupSource = await read("components/chimer-controls/BackgroundPropertyGroup.tsx")
 const runningTimerExecutableSource = maskSourceComments(runningTimerSource)
 const navigationGuardExecutableSource = maskSourceComments(navigationGuardSource)
 const unsavedDialogExecutableSource = maskSourceComments(unsavedDialogSource)
@@ -1358,6 +1359,11 @@ test("DNA and Twisted Cubes controls emit only draft property patches with exact
   }
   assert.match(dnaControlsSource, /displayValue=\{`\$\{value\.outlineThickness\.toFixed\(2\)\}vmin`\}/)
   assert.match(twistedCubesControlsSource, /displayValue=\{`\$\{\(value\.outlineThickness \* 100\)\.toFixed\(2\)\}%`\}/)
+  assert.match(backgroundPropertyGroupSource, /<fieldset className=\{styles\.backgroundPropertyGroup\}>[\s\S]*<legend>\{label\}<\/legend>/)
+  assert.match(dnaControlsSource, /<BackgroundPropertyGroup label="Motion">/)
+  assert.match(twistedCubesControlsSource, /<BackgroundPropertyGroup label="Motion">/)
+  assert.doesNotMatch(dnaControlsExecutableSource, /<fieldset|<legend>/)
+  assert.doesNotMatch(twistedCubesControlsExecutableSource, /<fieldset|<legend>/)
 })
 
 test("selected-background properties share the existing Visual draft lifecycle", () => {

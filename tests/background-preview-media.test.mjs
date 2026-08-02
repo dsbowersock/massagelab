@@ -8,6 +8,7 @@ import {
   resolveProbeDurationSeconds,
 } from "../scripts/chimer-preview-generation/probe-result.mjs"
 import { normalizeGeneratedPreviewManifestItem } from "../scripts/chimer-preview-generation/manifest-url-normalization.mjs"
+import { mergeGeneratedPreviewManifestItem } from "../scripts/chimer-preview-generation/manifest-item-merge.mjs"
 
 const componentSource = readFileSync(
   new URL("../components/backgrounds/BackgroundPreviewMedia.tsx", import.meta.url),
@@ -194,6 +195,43 @@ describe("background preview media", () => {
       },
     })
     assert.doesNotMatch(JSON.stringify(normalized), /https?:\/\/|custom\.example|media\.massagelab/)
+  })
+
+  it("preserves untouched aspect-ratio variants when a partial render replaces one variant", () => {
+    const previous = {
+      id: "preview",
+      label: "Preview",
+      provider: "MassageLab",
+      variants: {
+        landscape: { previewMediaUrl: "/preview.webm", previewPosterUrl: "/preview.webp" },
+        square: { previewMediaUrl: "/preview-square-old.webm", previewPosterUrl: "/preview-square-old.webp" },
+        vertical: { previewMediaUrl: "/preview-vertical.webm", previewPosterUrl: "/preview-vertical.webp" },
+      },
+    }
+    const incoming = {
+      id: "preview",
+      label: "Preview",
+      provider: "MassageLab",
+      variants: {
+        square: { previewMediaUrl: "/preview-square.webm", previewPosterUrl: "/preview-square.webp" },
+      },
+    }
+
+    assert.deepEqual(mergeGeneratedPreviewManifestItem(previous, incoming), {
+      ...previous,
+      previewMediaType: "video",
+      previewMediaUrl: "/preview.webm",
+      previewVideoUrl: "/preview.webm",
+      previewImageUrl: "/preview.webp",
+      previewSquareVideoUrl: "/preview-square.webm",
+      previewSquareImageUrl: "/preview-square.webp",
+      previewVerticalVideoUrl: "/preview-vertical.webm",
+      previewVerticalImageUrl: "/preview-vertical.webp",
+      variants: {
+        ...previous.variants,
+        square: incoming.variants.square,
+      },
+    })
   })
 
   it("reports FFprobe spawn and decoder failures before parsing dimensions", () => {

@@ -485,6 +485,7 @@ async function normalizeComputedConsumer(
   }, { styles, dimensions, containingBlock })
 }
 
+/** Normalizes an authored transform through a non-animated clone in the target's containing block. */
 async function normalizeTransformForTarget(target: Locator, transform: string) {
   return target.evaluate((element, expectedTransform) => {
     const specimen = element.cloneNode(false) as HTMLElement

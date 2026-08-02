@@ -121,7 +121,7 @@ Both entries are:
 
 DNA generates strand markup from the sanitized strand count. React assigns stable random complementary base-pair records for the current mounted count. Each base identity has one deterministic palette role, so A, T, G, and C remain visually teachable while every rung remains A-T, T-A, G-C, or C-G. CSS performs the node crossover, connector scaling, and whole-strand rotation.
 
-Twisted Cubes generates one wrapper, cube, cuboid, and twelve thin CSS edges per sanitized layer. CSS performs staggered rotations and 3D transforms. The component calculates each layer's outline color and alpha from the resolved palette roles and current layer index.
+Twisted Cubes generates one wrapper, cube, cuboid, and twelve thin CSS edges per sanitized layer. CSS performs staggered rotations and 3D transforms. In Source mode, the component calculates each layer's outline color from the continuous HSL formula; in Custom and Harmony modes, it interpolates the resolved palette anchors. Alpha always uses the current layer index.
 
 Neither component uses an iframe, Canvas, WebGL, external animation library, or runtime network request.
 

@@ -46,4 +46,15 @@ describe("computed matrix parsing", () => {
       /6 finite computed matrix values/,
     )
   })
+
+  it("rejects matrices with the wrong argument count", () => {
+    assert.throws(
+      () => parseComputedMatrix("matrix(1, 0, 0, 1, 12)"),
+      /6 finite computed matrix values/,
+    )
+    assert.throws(
+      () => parseComputedMatrix("matrix3d(1, 0, 0, 1)"),
+      /16 finite computed matrix values/,
+    )
+  })
 })

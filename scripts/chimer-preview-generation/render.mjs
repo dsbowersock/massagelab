@@ -18,6 +18,10 @@ import {
   LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL,
   normalizeGeneratedPreviewManifestItem,
 } from "./manifest-url-normalization.mjs"
+import {
+  buildGeneratedPreviewManifestItem,
+  mergeGeneratedPreviewManifestItem,
+} from "./manifest-item-merge.mjs"
 import { parseProbeDimensions, resolveProbeDurationSeconds } from "./probe-result.mjs"
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
@@ -492,7 +496,7 @@ async function captureBackground(browser, entry, options, variants, tempVideoDir
 
   return {
     skipped,
-    item: buildManifestItem(entry, variantItems),
+    item: buildGeneratedPreviewManifestItem(entry, variantItems),
   }
 }
 
@@ -512,25 +516,6 @@ function buildVariantManifest(entry, outputPath, posterPath, options, variant) {
     sha256: hashFile(outputPath),
     posterBytes: posterStats.size,
     posterSha256: hashFile(posterPath),
-  }
-}
-
-function buildManifestItem(entry, variants) {
-  const primary = variants.landscape ?? Object.values(variants)[0]
-
-  return {
-    id: entry.id,
-    label: entry.label,
-    provider: entry.provider,
-    previewMediaType: "video",
-    previewMediaUrl: primary.previewMediaUrl,
-    previewVideoUrl: primary.previewMediaUrl,
-    previewImageUrl: primary.previewPosterUrl,
-    previewSquareVideoUrl: variants.square?.previewMediaUrl,
-    previewSquareImageUrl: variants.square?.previewPosterUrl,
-    previewVerticalVideoUrl: variants.vertical?.previewMediaUrl,
-    previewVerticalImageUrl: variants.vertical?.previewPosterUrl,
-    variants,
   }
 }
 
@@ -562,7 +547,12 @@ function writeManifest(items, options) {
   }
   const existingItems = existingSources.map(normalizeGeneratedPreviewManifestItem)
   const mergedItems = new Map(existingItems.map((item) => [item.id, item]))
-  for (const item of items) mergedItems.set(item.id, item)
+  for (const item of items) {
+    mergedItems.set(
+      item.id,
+      mergeGeneratedPreviewManifestItem(mergedItems.get(item.id), item),
+    )
+  }
 
   const manifest = {
     generatedAt: new Date().toISOString(),
