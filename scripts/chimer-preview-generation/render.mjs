@@ -524,26 +524,32 @@ function writeManifest(items, options) {
   // The checked-in manifest is the authoritative merge base for partial runs
   // because it includes generator-only poster sizes and hashes. A fresh output
   // directory falls back to registry media until the first complete manifest.
-  const existingSources = existsSync(manifestPath)
-    ? JSON.parse(readFileSync(manifestPath, "utf8"))?.items
-    : getBackgroundOptionsForCategory(options.category)
-      .filter((entry) => entry.previewVariants && Object.keys(entry.previewVariants).length > 0)
-      .map((entry) => ({
-        id: entry.id,
-        label: entry.label,
-        provider: entry.provider,
-        previewMediaType: "video",
-        previewMediaUrl: entry.previewVideoUrl ?? entry.previewMediaUrl,
-        previewVideoUrl: entry.previewVideoUrl ?? entry.previewMediaUrl,
-        previewImageUrl: entry.previewImageUrl,
-        previewSquareVideoUrl: entry.previewSquareVideoUrl,
-        previewSquareImageUrl: entry.previewSquareImageUrl,
-        previewVerticalVideoUrl: entry.previewVerticalVideoUrl,
-        previewVerticalImageUrl: entry.previewVerticalImageUrl,
-        variants: entry.previewVariants,
-      }))
-  if (!Array.isArray(existingSources)) {
-    throw new Error(`${manifestPath} must contain an items array.`)
+  const registrySources = () => getBackgroundOptionsForCategory(options.category)
+    .filter((entry) => entry.previewVariants && Object.keys(entry.previewVariants).length > 0)
+    .map((entry) => ({
+      id: entry.id,
+      label: entry.label,
+      provider: entry.provider,
+      previewMediaType: "video",
+      previewMediaUrl: entry.previewVideoUrl ?? entry.previewMediaUrl,
+      previewVideoUrl: entry.previewVideoUrl ?? entry.previewMediaUrl,
+      previewImageUrl: entry.previewImageUrl,
+      previewSquareVideoUrl: entry.previewSquareVideoUrl,
+      previewSquareImageUrl: entry.previewSquareImageUrl,
+      previewVerticalVideoUrl: entry.previewVerticalVideoUrl,
+      previewVerticalImageUrl: entry.previewVerticalImageUrl,
+      variants: entry.previewVariants,
+    }))
+  let existingSources = registrySources()
+  if (existsSync(manifestPath)) {
+    try {
+      const parsedItems = JSON.parse(readFileSync(manifestPath, "utf8"))?.items
+      if (!Array.isArray(parsedItems)) throw new Error("manifest items must be an array")
+      existingSources = parsedItems
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error)
+      console.warn(`Unable to reuse ${manifestPath}; merging onto registry sources. ${reason}`)
+    }
   }
   const existingItems = existingSources.map(normalizeGeneratedPreviewManifestItem)
   const mergedItems = new Map(existingItems.map((item) => [item.id, item]))

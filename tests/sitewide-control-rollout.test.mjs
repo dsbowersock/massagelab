@@ -13,6 +13,7 @@ import { maskSourceComments } from "./helpers/source-structure.mjs"
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8")
 
+/** Returns the source from the included start marker up to the excluded end marker. */
 function sourceBetween(source, startMarker, endMarker, label) {
   const start = source.indexOf(startMarker)
   assert.notEqual(start, -1, `${label} retains its start marker`)

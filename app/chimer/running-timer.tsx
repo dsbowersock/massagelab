@@ -9,7 +9,6 @@ import { BackgroundAcquisitionDialog } from "@/components/backgrounds/Background
 import { BackgroundCarousel } from "@/components/backgrounds/background-carousel"
 import { useBackgroundCreditStatus } from "@/components/backgrounds/BackgroundCommerceProvider"
 import { BackgroundHost } from "@/components/backgrounds/BackgroundHost"
-import type { MassageLabDnaOptions, MassageLabTwistedCubesOptions } from "@/components/backgrounds/effects/css-backgrounds"
 import { BACKGROUND_PALETTE_METADATA_SUFFIXES, backgroundPaletteRegistry } from "@/components/backgrounds/backgroundPaletteRegistry"
 import { canUseBackgroundId, getBackgroundOptionsForCategory, mergeBackgroundAccessOwnership, resolveAccessibleBackgroundDefinition, type BackgroundAccessSnapshot, type BackgroundId, type BackgroundDefinition, userCanUseBackground } from "@/components/backgrounds/backgroundRegistry"
 import { triggerHapticFeedback } from "@/lib/haptics"
@@ -18,8 +17,8 @@ import { StyledRangeControl } from "@/components/chimer-controls/StyledRangeCont
 import { StyledToggleControl } from "@/components/chimer-controls/StyledToggleControl"
 import { BackgroundPaletteEditor } from "@/components/chimer-controls/BackgroundPaletteEditor"
 import { BackgroundColorPresetManager, BackgroundVisualPresetManager, type BackgroundPresetDraftAction } from "@/components/chimer-controls/BackgroundPresetManager"
-import { DnaBackgroundControls } from "@/components/chimer-controls/DnaBackgroundControls"
-import { TwistedCubesBackgroundControls } from "@/components/chimer-controls/TwistedCubesBackgroundControls"
+import { DnaBackgroundControls, type DnaBackgroundControlOptions } from "@/components/chimer-controls/DnaBackgroundControls"
+import { TwistedCubesBackgroundControls, type TwistedCubesBackgroundControlOptions } from "@/components/chimer-controls/TwistedCubesBackgroundControls"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import type { MusicVisualizerState } from "@/components/providers/music-provider"
@@ -1579,12 +1578,14 @@ export function RunningTimer({
     () => ({ ...committedSettings, ...(currentVisualEditorSnapshot?.properties ?? {}) }),
     [committedSettings, currentVisualEditorSnapshot],
   )
+  // The JS sanitizers build every declared control key from their canonical
+  // option inventories; bridge that runtime contract to these narrower UI types.
   const visualEditorDnaOptions = useMemo(
-    () => getDnaBackgroundOptionsFromChimerSettings(effectiveVisualEditorSettings) as MassageLabDnaOptions,
+    () => getDnaBackgroundOptionsFromChimerSettings(effectiveVisualEditorSettings) as unknown as DnaBackgroundControlOptions,
     [effectiveVisualEditorSettings],
   )
   const visualEditorTwistedCubesOptions = useMemo(
-    () => getTwistedCubesBackgroundOptionsFromChimerSettings(effectiveVisualEditorSettings) as MassageLabTwistedCubesOptions,
+    () => getTwistedCubesBackgroundOptionsFromChimerSettings(effectiveVisualEditorSettings) as unknown as TwistedCubesBackgroundControlOptions,
     [effectiveVisualEditorSettings],
   )
   const visualEditorBackgroundDefinition = useMemo(

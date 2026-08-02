@@ -246,7 +246,7 @@ DNA declares seven stable roles:
 | `background` | Background | `hsl(210 80% 12%)`   |              4 |
 | `node-one`   | Adenine (A) | `hsl(44 98% 60%)`    |      1 Primary |
 | `node-two`   | Thymine (T) | `hsl(197 50% 44%)`   |              2 |
-| `node-three` | Guanine (G) | `hsl(300 100% 100%)` |              3 |
+| `node-three` | Guanine (G) | `hsl(0 0% 100%)`       |              3 |
 | `node-four`  | Cytosine (C) | `hsl(331 76% 50%)`   |              6 |
 | `connector`  | Connector  | `#ffffff`            |              5 |
 | `outline`    | Outline    | `#000000`            |              7 |

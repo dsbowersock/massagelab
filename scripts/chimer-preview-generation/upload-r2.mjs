@@ -75,13 +75,9 @@ async function runUpload(rawArgs) {
 
   const objects = selectedFiles.map((file) => {
     const objectKey = `${env.objectPrefix}/${file.name}`
-    // Preview filenames are stable across regenerations, so every manifest,
-    // video, and poster object must revalidate instead of claiming immutability.
-    const cacheControl = file.name === "index.json"
-      || file.name.endsWith(".webm")
-      || file.name.endsWith(".webp")
-      ? env.metadataCacheControl
-      : env.cacheControl
+    // collectPreviewFiles accepts only the mutable manifest, videos, and
+    // posters, so every selected object must revalidate.
+    const cacheControl = env.metadataCacheControl
     return {
       objectKey,
       publicUrl: publicUrlForR2Object(env.publicBaseUrl, objectKey),

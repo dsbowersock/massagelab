@@ -613,7 +613,7 @@ describe("background palette adapter registry", () => {
         { id: "background", label: "Background", sourceColor: "hsl(210 80% 12%)", defaultSwatch: 3, rendererTarget: "massageLabDna.backgroundColor" },
         { id: "node-one", label: "Adenine (A)", sourceColor: "hsl(44 98% 60%)", defaultSwatch: 0, rendererTarget: "massageLabDna.nodeRoleColors[0]" },
         { id: "node-two", label: "Thymine (T)", sourceColor: "hsl(197 50% 44%)", defaultSwatch: 1, rendererTarget: "massageLabDna.nodeRoleColors[1]" },
-        { id: "node-three", label: "Guanine (G)", sourceColor: "hsl(300 100% 100%)", defaultSwatch: 2, rendererTarget: "massageLabDna.nodeRoleColors[2]" },
+        { id: "node-three", label: "Guanine (G)", sourceColor: "hsl(0 0% 100%)", defaultSwatch: 2, rendererTarget: "massageLabDna.nodeRoleColors[2]" },
         { id: "node-four", label: "Cytosine (C)", sourceColor: "hsl(331 76% 50%)", defaultSwatch: 5, rendererTarget: "massageLabDna.nodeRoleColors[3]" },
         { id: "connector", label: "Connector", sourceColor: "#ffffff", defaultSwatch: 4, rendererTarget: "massageLabDna.connectorColor" },
         { id: "outline", label: "Outline", sourceColor: "#000000", defaultSwatch: 6, rendererTarget: "massageLabDna.outlineColor" },

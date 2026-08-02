@@ -18,8 +18,6 @@ This is the read-first source of truth for MassageLab's current project state. U
 - Product posture: clinical notes, intake forms, journals, therapist ROM sessions, transcripts, and other therapist professional-record workflows remain local-first. Therapist note-taking tools are visible but creating or viewing professional-record content requires the `therapist_documentation_tools` entitlement from an active Therapist or Team/Practice membership. SOAP, intake, journal, and therapist ROM now use one passphrase-unlocked encrypted browser vault before viewing or saving documents. Signed-in `/wellness` entries, reminder schedules, and pattern reports are client-owned self-tracking records in a separate consumer-health domain; anonymous users can practice logging, body-sensation tracking, ROM, reminder setup, and in-session pattern review in memory only. Hosted clinical sync remains gated and unimplemented until compliance requirements are met. The privacy architecture separates account/contact/booking data, client-owned wellness data, therapist professional records, and a future consent-based sharing bridge.
 - Public `/roadmap` route: product-facing copy only. Internal operating state lives here and in `docs/project-log.md`.
 
-- The final Track 4B pedagogical DNA refinement gives every rendered rung a biologically valid A-T/T-A/G-C/C-G pair and maps each nucleotide identity to one stable swatch role. A saved Show base letters toggle defaults Off and can reveal A/G/T/C inside the colored nodes without changing pairing, node colors, geometry, or palette behavior.
-
 ## Database State
 
 - Database stack: Prisma with Neon/Postgres.

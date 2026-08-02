@@ -142,6 +142,7 @@ describe("background preview media", () => {
 
   it("normalizes every copied manifest URL back to the raw local preview prefix", () => {
     assert.match(renderSource, /existsSync\(manifestPath\)[\s\S]*readFileSync\(manifestPath, "utf8"\)[\s\S]*existingSources\.map\(normalizeGeneratedPreviewManifestItem\)/)
+    assert.match(renderSource, /let existingSources = registrySources\(\)[\s\S]*try \{[\s\S]*if \(!Array\.isArray\(parsedItems\)\)[\s\S]*catch \(error\) \{[\s\S]*merging onto registry sources/)
     assert.match(manifestGeneratorSource, /const normalizedFallbackVariants = normalizeGeneratedPreviewManifestItem\(\{/)
     const normalized = normalizeGeneratedPreviewManifestItem({
       previewMediaUrl: "https://media.massagelab.app/chimer/background-previews/main.webm?cache=1",

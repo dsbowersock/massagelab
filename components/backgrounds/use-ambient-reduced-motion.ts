@@ -1,3 +1,5 @@
+"use client"
+
 import type { AmbientMotionMode } from "@/components/providers/settings-provider"
 import {
   AMBIENT_REDUCED_MOTION_QUERY,

@@ -60,6 +60,14 @@ describe("DNA background domain and shared layout rules", () => {
       clampBoundedBackgroundOption(Number.NaN, { minimum: 1, maximum: 7 }, 3),
       3,
     )
+    assert.equal(
+      clampBoundedBackgroundOption(Number.NaN, { minimum: 1, maximum: 7, integer: true }, 9.8),
+      7,
+    )
+    assert.equal(
+      clampBoundedBackgroundOption(Number.NaN, { minimum: 1, maximum: 7, integer: true }, 4.8),
+      4,
+    )
     assert.equal(resolveRenderCount(12.9, 10), 10)
     assert.equal(resolveRenderCount(-4, 10), 0)
     assert.equal(resolveRenderCount(Number.NaN, 10), 0)
