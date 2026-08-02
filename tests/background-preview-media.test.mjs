@@ -126,6 +126,13 @@ describe("background preview media", () => {
         videoUrl: "https://media.example.test/previews/missing-preview-vertical.webm",
         posterUrl: "https://media.example.test/previews/missing-preview-vertical.webp",
       })
+      assert.deepEqual(resolveVerticalPreviewMediaUrls({
+        previewMediaUrl: "/chimer/background-previews/landscape.webm",
+        previewImageUrl: "/chimer/background-previews/landscape.webp",
+      }, "missing-preview"), {
+        videoUrl: "https://media.example.test/previews/missing-preview-vertical.webm",
+        posterUrl: "https://media.example.test/previews/missing-preview-vertical.webp",
+      })
     } finally {
       if (originalBaseUrl === undefined) delete process.env.NEXT_PUBLIC_CHIMER_PREVIEW_MEDIA_BASE_URL
       else process.env.NEXT_PUBLIC_CHIMER_PREVIEW_MEDIA_BASE_URL = originalBaseUrl
@@ -133,7 +140,7 @@ describe("background preview media", () => {
   })
 
   it("normalizes every copied manifest URL back to the raw local preview prefix", () => {
-    assert.match(renderSource, /\.map\(\(entry\) => normalizeGeneratedPreviewManifestItem\(\{/)
+    assert.match(renderSource, /existsSync\(manifestPath\)[\s\S]*readFileSync\(manifestPath, "utf8"\)[\s\S]*existingSources\.map\(normalizeGeneratedPreviewManifestItem\)/)
     assert.match(manifestGeneratorSource, /const normalizedFallbackVariants = normalizeGeneratedPreviewManifestItem\(\{/)
     const normalized = normalizeGeneratedPreviewManifestItem({
       previewMediaUrl: "https://media.massagelab.app/chimer/background-previews/main.webm?cache=1",
@@ -143,6 +150,8 @@ describe("background preview media", () => {
       previewSquareImageUrl: "https://custom.example.test/assets/main-square.webp",
       previewVerticalVideoUrl: "https://custom.example.test/assets/main-vertical.webm",
       previewVerticalImageUrl: "https://custom.example.test/assets/main-vertical.webp",
+      posterBytes: 123,
+      posterSha256: "poster-hash",
       variants: {
         landscape: {
           key: "landscape",
@@ -167,6 +176,8 @@ describe("background preview media", () => {
       previewSquareImageUrl: "/chimer/background-previews/main-square.webp",
       previewVerticalVideoUrl: "/chimer/background-previews/main-vertical.webm",
       previewVerticalImageUrl: "/chimer/background-previews/main-vertical.webp",
+      posterBytes: 123,
+      posterSha256: "poster-hash",
       variants: {
         landscape: {
           key: "landscape",

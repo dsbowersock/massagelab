@@ -90,7 +90,11 @@ export function maskSourceComments(source, label = "source") {
   return scanSource(source, { maskQuotedText: false, label })
 }
 
-/** Masks CSS block comments while preserving strings and `//` URL segments. */
+/**
+ * Masks CSS block comments while preserving source offsets and `//` URL text.
+ * This focused regex does not parse quoted CSS strings, so callers must keep
+ * its source contracts bounded to inputs without comment tokens in strings.
+ */
 export function maskCssComments(source) {
   return source.replace(/\/\*[\s\S]*?\*\//g, (comment) => (
     comment.replace(/[^\r\n]/g, " ")

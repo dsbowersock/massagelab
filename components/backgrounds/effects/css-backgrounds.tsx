@@ -32,6 +32,7 @@ export interface MassageLabDnaOptions {
   /** Outline thickness in vmin, 0-1.5. */
   outlineThickness: number
   backgroundColor: string
+  /** Resolved nucleotide-role colors in Adenine, Thymine, Guanine, Cytosine order. */
   nodeRoleColors: readonly [string, string, string, string]
   connectorColor: string
   outlineColor: string
@@ -60,8 +61,10 @@ export interface MassageLabTwistedCubesOptions {
   opacityFalloff: number
   /** Edge thickness factor multiplied by 50vmin, 0.0025-0.02. */
   outlineThickness: number
+  /** Source HSL interpolation or palette-resolved six-anchor interpolation. */
   paletteMode: "source" | "resolved"
   backgroundColor: string
+  /** Wireframe outline anchors ordered by source hue from 180deg through 340deg. */
   outlineAnchors: readonly [string, string, string, string, string, string]
 }
 

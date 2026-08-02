@@ -46,14 +46,12 @@ export function resolveVerticalPreviewMediaUrls(
     videoUrl: resolvePreviewMediaUrl(
       variant?.previewMediaUrl
         ?? entry?.previewVerticalVideoUrl
-        ?? entry?.previewMediaUrl
-        ?? `/chimer/background-previews/${fallbackId}-vertical.webm`,
+        ?? `${LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL}/${fallbackId}-vertical.webm`,
     ),
     posterUrl: resolvePreviewMediaUrl(
       variant?.previewPosterUrl
         ?? entry?.previewVerticalImageUrl
-        ?? entry?.previewImageUrl
-        ?? `/chimer/background-previews/${fallbackId}-vertical.webp`,
+        ?? `${LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL}/${fallbackId}-vertical.webp`,
     ),
   }
 }

@@ -309,7 +309,9 @@ test("Track 4B gallery exposes controls, state scenarios, and preview evidence",
   assert.match(gallery, /mapping: adapter \? defaultMapping\(adapter\) : \{\}/)
   assert.match(gallery, /const nextDraft = createTrack4BReviewDraft\(nextId\)/)
   assert.match(gallery, /setDraft\(nextDraft\)/)
-  assert.match(gallery, /setAppliedSnapshot\(nextDraft\.openingSnapshot\)/)
+  assert.match(gallery, /if \(!applyRequested\) return[\s\S]*getCommittedBackgroundVisualSnapshot\(draft\)/)
+  assert.match(gallery, /setDraft\(\(current\) => reduceBackgroundVisualDraft\(current, \{ type: "apply" \}\)\)[\s\S]*setApplyRequested\(true\)/)
+  assert.match(gallery, /data-applied-properties=\{JSON\.stringify\(draft\.openingSnapshot\.properties\)\}/)
   assert.match(gallery, /data-current-palette/)
   assert.match(gallery, /data-current-mapping/)
 })
@@ -440,10 +442,10 @@ test("DNA and Twisted Cubes share compact options and host-owned responsive moti
   const cubesExecutableSource = maskSourceComments(cubesEffect)
   const runningExecutableSource = maskSourceComments(runningSource)
 
-  assert.match(runningSource, /getDnaBackgroundOptionsFromChimerSettings/)
-  assert.match(runningSource, /getTwistedCubesBackgroundOptionsFromChimerSettings/)
-  assert.match(runningSource, /resolveDnaTwistedCubesBackgroundHostProps/)
-  assert.match(runningSource, /\{\.\.\.effectiveDnaTwistedCubesHostProps\}/)
+  assert.match(runningExecutableSource, /getDnaBackgroundOptionsFromChimerSettings/)
+  assert.match(runningExecutableSource, /getTwistedCubesBackgroundOptionsFromChimerSettings/)
+  assert.match(runningExecutableSource, /resolveDnaTwistedCubesBackgroundHostProps/)
+  assert.match(runningExecutableSource, /\{\.\.\.effectiveDnaTwistedCubesHostProps\}/)
   assert.doesNotMatch(runningExecutableSource, /massageLabDnaStrandCount=|massageLabTwistedCubesLayerCount=/)
   assert.match(hostSource, /useMediaQuery\(BACKGROUND_COMPACT_VIEWPORT_QUERY\)/)
   assert.match(mediaQuerySource, /export const BACKGROUND_COMPACT_VIEWPORT_QUERY = "\(max-width: 479px\), \(max-height: 479px\)"/)
@@ -542,13 +544,14 @@ test("actual Chimer, ordinary Clock, Music, and ambient Host plumbing resolves a
     },
   ]
   const runningSource = await read("app/chimer/running-timer.tsx")
+  const runningExecutableSource = maskSourceComments(runningSource)
 
   assert.match(
-    runningSource,
+    runningExecutableSource,
     /resolveDnaTwistedCubesBackgroundHostProps\(\{[^}]*settings: effectiveLiveBackgroundSettings,[^}]*category: backgroundCategory,[^}]*\}\)/,
   )
   assert.match(
-    runningSource,
+    runningExecutableSource,
     /<BackgroundHost(?:(?!\/>)[\s\S])*?\{\.\.\.effectiveDnaTwistedCubesHostProps\}(?:(?!\/>)[\s\S])*?\/>/,
   )
 

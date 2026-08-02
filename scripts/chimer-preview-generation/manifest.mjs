@@ -68,13 +68,16 @@ function buildVariant(entry, variant) {
   if (bytes <= 0) throw new Error(`${path.basename(filePath)} is empty.`)
   validateDimensions(filePath, variant.width, variant.height)
 
+  let posterUrl = {}
   let posterMetadata = {}
   if (existsSync(posterPath)) {
     const posterBytes = statSync(posterPath).size
     if (posterBytes <= 0) throw new Error(`${path.basename(posterPath)} is empty.`)
     validateDimensions(posterPath, variant.width, variant.height)
-    posterMetadata = {
+    posterUrl = {
       previewPosterUrl: `${LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL}/${entry.id}${variant.suffix}.webp`,
+    }
+    posterMetadata = {
       posterBytes,
       posterSha256: hashFile(posterPath),
     }
@@ -84,6 +87,7 @@ function buildVariant(entry, variant) {
     key: variant.key,
     previewMediaType: "video",
     previewMediaUrl: `${LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL}/${entry.id}${variant.suffix}.webm`,
+    ...posterUrl,
     width: variant.width,
     height: variant.height,
     durationMs: defaultDurationMs,
@@ -211,14 +215,12 @@ const lines = [
   "    videoUrl: resolvePreviewMediaUrl(",
   "      variant?.previewMediaUrl",
   "        ?? entry?.previewVerticalVideoUrl",
-  "        ?? entry?.previewMediaUrl",
-  "        ?? `/chimer/background-previews/${fallbackId}-vertical.webm`,",
+  "        ?? `${LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL}/${fallbackId}-vertical.webm`,",
   "    ),",
   "    posterUrl: resolvePreviewMediaUrl(",
   "      variant?.previewPosterUrl",
   "        ?? entry?.previewVerticalImageUrl",
-  "        ?? entry?.previewImageUrl",
-  "        ?? `/chimer/background-previews/${fallbackId}-vertical.webp`,",
+  "        ?? `${LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL}/${fallbackId}-vertical.webp`,",
   "    ),",
   "  }",
   "}",

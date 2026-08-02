@@ -75,9 +75,11 @@ async function runUpload(rawArgs) {
 
   const objects = selectedFiles.map((file) => {
     const objectKey = `${env.objectPrefix}/${file.name}`
-    // Poster keys are stable across regenerations, so they must revalidate like
-    // the manifest instead of inheriting the immutable video cache contract.
-    const cacheControl = file.name === "index.json" || file.name.endsWith(".webp")
+    // Preview filenames are stable across regenerations, so every manifest,
+    // video, and poster object must revalidate instead of claiming immutability.
+    const cacheControl = file.name === "index.json"
+      || file.name.endsWith(".webm")
+      || file.name.endsWith(".webp")
       ? env.metadataCacheControl
       : env.cacheControl
     return {

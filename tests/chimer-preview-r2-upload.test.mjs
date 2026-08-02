@@ -34,7 +34,11 @@ describe("Chimer preview R2 uploader", () => {
     })
 
     assert.equal(result.error, undefined, `uploader failed to run: ${result.error?.message}`)
-    assert.equal(result.status, 0, `uploader exited non-zero. stderr: ${result.stderr ?? "<empty>"}`)
+    assert.equal(
+      result.status,
+      0,
+      `uploader exited non-zero (signal: ${result.signal ?? "none"}). stderr: ${result.stderr ?? "<empty>"}`,
+    )
     const summaryLine = result.stdout.split(/\r?\n/)
       .find((line) => line.startsWith(dryRunSummaryPrefix))
     assert.ok(summaryLine, result.stdout)
@@ -60,9 +64,7 @@ describe("Chimer preview R2 uploader", () => {
       assert.equal(contentTypes[name], name.endsWith(".webp") ? "image/webp" : "video/webm")
       assert.equal(
         cacheControls[name],
-        name.endsWith(".webp")
-          ? "public, max-age=300, must-revalidate"
-          : "public, max-age=31536000, immutable",
+        "public, max-age=300, must-revalidate",
       )
     }
     assert.equal(contentTypes["index.json"], "application/json; charset=utf-8")

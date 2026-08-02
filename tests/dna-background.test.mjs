@@ -16,6 +16,7 @@ import {
   toDnaChimerSettingsPatch,
 } from "../lib/dna-background.js"
 import {
+  clampBoundedBackgroundOption,
   clampEffectiveValue,
   resolveResponsiveBackgroundTransform,
 } from "../lib/background-effect-layout.js"
@@ -50,6 +51,14 @@ describe("DNA background domain and shared layout rules", () => {
   it("clamps invalid responsive values through the same bounded fallback path", () => {
     assert.equal(clampEffectiveValue(Number.NaN, 0.1, 1, 99), 1)
     assert.equal(clampEffectiveValue(Number.POSITIVE_INFINITY, -20, 20, -99), -20)
+    assert.equal(
+      clampBoundedBackgroundOption(8.9, { minimum: 1, maximum: 7, integer: true }, 3),
+      7,
+    )
+    assert.equal(
+      clampBoundedBackgroundOption(Number.NaN, { minimum: 1, maximum: 7 }, 3),
+      3,
+    )
   })
 
   it("sanitizes every DNA property to its approved stored range", () => {

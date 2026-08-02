@@ -1765,7 +1765,7 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
         const before = await parsedAttribute<Record<string, number>>(review, "data-current-properties")
         const beforeRender = await captureControlRenderState(host, effect.id)
         const beforeComputed = await captureComputedConsumerState(host, effect.id)
-        // Outline thickness and Scale start at a bound, so one forward step would not change them.
+        // Outline thickness uses End and Scale uses Home so each step moves to a deterministic bound.
         const keypressByKey: Record<string, string> = { massageLabDnaOutlineThickness: "End" }
         const keypress = keypressByKey[key] ?? (key.endsWith("Scale") ? "Home" : "ArrowRight")
         await slider.press(keypress)

@@ -337,7 +337,7 @@ function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) 
   const [accessMode, setAccessMode] = useState<"subscriber" | "owner" | "locked">("subscriber")
   const [reviewMotionEnabled, setReviewMotionEnabled] = useState(true)
   const [draft, setDraft] = useState(() => createTrack4BReviewDraft("massage-lab-dna"))
-  const [appliedSnapshot, setAppliedSnapshot] = useState(() => draft.openingSnapshot)
+  const [applyRequested, setApplyRequested] = useState(false)
   const [activePreviewId, setActivePreviewId] = useState<Track4BBackgroundId | null>(null)
   const compactViewport = useMediaQuery(BACKGROUND_COMPACT_VIEWPORT_QUERY)
   const adapter = backgroundPaletteRegistry[selectedId]
@@ -367,6 +367,27 @@ function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) 
       canCustomize: accessMode !== "locked",
     })
     : {}
+
+  useEffect(() => {
+    if (!applyRequested) return
+
+    const committedSnapshot = getCommittedBackgroundVisualSnapshot(draft)
+    const persisted = buildCommittedBackgroundVisualPreferences({
+      preferences: {},
+      backgroundId: selectedId,
+      snapshot: committedSnapshot,
+    })
+    try {
+      window.localStorage.setItem(
+        "massage-lab:dev:track-4b-review-applied",
+        JSON.stringify(persisted),
+      )
+    } catch {
+      // Storage can be unavailable in hardened review browsers; applying the
+      // in-memory specimen must remain usable because this route is dev-only.
+    }
+    setApplyRequested(false)
+  }, [applyRequested, draft, selectedId])
 
   function replaceSnapshot(
     patch: Partial<typeof snapshot> | ((current: typeof snapshot) => Partial<typeof snapshot>),
@@ -400,27 +421,12 @@ function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) 
     const nextDraft = createTrack4BReviewDraft(nextId)
     setSelectedId(nextId)
     setDraft(nextDraft)
-    setAppliedSnapshot(nextDraft.openingSnapshot)
+    setApplyRequested(false)
   }
 
   function applyDraft() {
-    const committedSnapshot = getCommittedBackgroundVisualSnapshot(draft)
-    const persisted = buildCommittedBackgroundVisualPreferences({
-      preferences: {},
-      backgroundId: selectedId,
-      snapshot: committedSnapshot,
-    })
-    try {
-      window.localStorage.setItem(
-        "massage-lab:dev:track-4b-review-applied",
-        JSON.stringify(persisted),
-      )
-    } catch {
-      // Storage can be unavailable in hardened review browsers; applying the
-      // in-memory specimen must remain usable because this route is dev-only.
-    }
-    setAppliedSnapshot(committedSnapshot)
     setDraft((current) => reduceBackgroundVisualDraft(current, { type: "apply" }))
+    setApplyRequested(true)
   }
 
   if (!adapter || adapter.status !== "supported") return null
@@ -454,8 +460,8 @@ function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) 
       data-current-properties={JSON.stringify(snapshot.properties)}
       data-opening-properties={JSON.stringify(draft.openingSnapshot.properties)}
       data-opening-mapping={JSON.stringify(draft.openingSnapshot.mapping)}
-      data-applied-properties={JSON.stringify(appliedSnapshot.properties)}
-      data-applied-palette={JSON.stringify(appliedSnapshot.palette)}
+      data-applied-properties={JSON.stringify(draft.openingSnapshot.properties)}
+      data-applied-palette={JSON.stringify(draft.openingSnapshot.palette)}
       data-preview-contract="BackgroundPreviewMediaReview"
     >
       <div>

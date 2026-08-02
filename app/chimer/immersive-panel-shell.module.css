@@ -398,7 +398,7 @@
 }
 
 @media (max-width: 48rem) {
-  .dock[data-immersive-panel="visual"] .dockHeader {
+  .dock:not([data-immersive-layout="side"])[data-immersive-panel="visual"] .dockHeader {
     display: grid;
     grid-template-areas:
       "title visibility spacer close"
@@ -407,19 +407,19 @@
     gap: 0.45rem 0.5rem;
   }
 
-  .dock[data-immersive-panel="visual"] .dockHeader h2 {
+  .dock:not([data-immersive-layout="side"])[data-immersive-panel="visual"] .dockHeader h2 {
     grid-area: title;
   }
 
-  .dock[data-immersive-panel="visual"] .dockHeaderAction {
+  .dock:not([data-immersive-layout="side"])[data-immersive-panel="visual"] .dockHeaderAction {
     grid-area: visibility;
   }
 
-  .dock[data-immersive-panel="visual"] .dockHeaderCenterAction {
+  .dock:not([data-immersive-layout="side"])[data-immersive-panel="visual"] .dockHeaderCenterAction {
     grid-area: controls;
   }
 
-  .dock[data-immersive-panel="visual"] .dockHeaderClose {
+  .dock:not([data-immersive-layout="side"])[data-immersive-panel="visual"] .dockHeaderClose {
     grid-area: close;
     margin-left: 0;
   }

@@ -535,24 +535,32 @@ function buildManifestItem(entry, variants) {
 }
 
 function writeManifest(items, options) {
-  // Registry entries are re-read and normalized so partial --only runs retain
-  // untouched media, while freshly rendered items overwrite matching IDs.
-  const existingItems = getBackgroundOptionsForCategory(options.category)
-    .filter((entry) => entry.previewVariants && Object.keys(entry.previewVariants).length > 0)
-    .map((entry) => normalizeGeneratedPreviewManifestItem({
-      id: entry.id,
-      label: entry.label,
-      provider: entry.provider,
-      previewMediaType: "video",
-      previewMediaUrl: entry.previewVideoUrl ?? entry.previewMediaUrl,
-      previewVideoUrl: entry.previewVideoUrl ?? entry.previewMediaUrl,
-      previewImageUrl: entry.previewImageUrl,
-      previewSquareVideoUrl: entry.previewSquareVideoUrl,
-      previewSquareImageUrl: entry.previewSquareImageUrl,
-      previewVerticalVideoUrl: entry.previewVerticalVideoUrl,
-      previewVerticalImageUrl: entry.previewVerticalImageUrl,
-      variants: entry.previewVariants,
-    }))
+  const manifestPath = path.join(options.outputDir, "index.json")
+  // The checked-in manifest is the authoritative merge base for partial runs
+  // because it includes generator-only poster sizes and hashes. A fresh output
+  // directory falls back to registry media until the first complete manifest.
+  const existingSources = existsSync(manifestPath)
+    ? JSON.parse(readFileSync(manifestPath, "utf8"))?.items
+    : getBackgroundOptionsForCategory(options.category)
+      .filter((entry) => entry.previewVariants && Object.keys(entry.previewVariants).length > 0)
+      .map((entry) => ({
+        id: entry.id,
+        label: entry.label,
+        provider: entry.provider,
+        previewMediaType: "video",
+        previewMediaUrl: entry.previewVideoUrl ?? entry.previewMediaUrl,
+        previewVideoUrl: entry.previewVideoUrl ?? entry.previewMediaUrl,
+        previewImageUrl: entry.previewImageUrl,
+        previewSquareVideoUrl: entry.previewSquareVideoUrl,
+        previewSquareImageUrl: entry.previewSquareImageUrl,
+        previewVerticalVideoUrl: entry.previewVerticalVideoUrl,
+        previewVerticalImageUrl: entry.previewVerticalImageUrl,
+        variants: entry.previewVariants,
+      }))
+  if (!Array.isArray(existingSources)) {
+    throw new Error(`${manifestPath} must contain an items array.`)
+  }
+  const existingItems = existingSources.map(normalizeGeneratedPreviewManifestItem)
   const mergedItems = new Map(existingItems.map((item) => [item.id, item]))
   for (const item of items) mergedItems.set(item.id, item)
 
@@ -565,7 +573,7 @@ function writeManifest(items, options) {
   }
 
   writeFileSync(
-    path.join(options.outputDir, "index.json"),
+    manifestPath,
     `${JSON.stringify(manifest, null, 2)}\n`,
   )
 
