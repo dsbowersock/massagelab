@@ -1249,15 +1249,15 @@ test("dirty navigation guard covers eligible app links, history, and native unlo
   assert.match(unsavedDialogSource, /resolveExplicitOutcome\(onKeepEditing\)/)
   assert.match(runningTimerSource, /className=\{styles\.visualDraftStatus\}[\s\S]*role="status"[\s\S]*aria-live="polite"/)
   assert.match(
-    runningTimerSource,
+    runningTimerExecutableSource,
     /function getVisualDraftStatusText[\s\S]*?if \(dirty\)[\s\S]*?storageStatus === "loading"[\s\S]*?storageStatus !== "available"[\s\S]*?syncStatus === "stale"/,
   )
-  assert.match(runningTimerSource, /Changes active for this visit/)
+  assert.match(runningTimerExecutableSource, /Changes active for this visit/)
   assert.match(
-    runningTimerSource,
+    runningTimerExecutableSource,
     /!visualDraft\?\.dirty[\s\S]*?mode\.storageStatus === "available"[\s\S]*?backgroundPreferenceSyncStatus === "stale" \? \([\s\S]*?Retry sync/,
   )
-  const headerActionGroupOpeningTag = runningTimerSource.match(
+  const headerActionGroupOpeningTag = runningTimerExecutableSource.match(
     /<div\s+className=\{styles\.visualHeaderDraftActions\}[^>]*>/,
   )?.[0]
   assert.ok(headerActionGroupOpeningTag)

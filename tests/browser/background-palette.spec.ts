@@ -559,6 +559,8 @@ test.describe("shared background palette review matrix", () => {
   })
 
   test("preview media uses posters, playback, fallbacks, and listener cleanup", async ({ page }) => {
+    // Patch playback and visibility-listener prototypes only for the carousel
+    // preview video; __restorePreviewMediaProbe must restore them afterward.
     await page.addInitScript(() => {
       type PreviewMediaProbe = {
         playCalls: number

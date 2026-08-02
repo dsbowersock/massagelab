@@ -7,6 +7,16 @@ export const NON_INTERACTIVE_BACKGROUND_SOURCE_PATTERNS = Object.freeze([
   /\b(?:button|input|select|textarea|tabIndex|onClick|onPointer|onDrag|onTouch|cursor)\b/,
 ])
 
+/** Returns one named source region while proving both markers exist in order. */
+export function sourceBetween(source, startMarker, endMarker, label) {
+  const start = source.indexOf(startMarker)
+  assert.notEqual(start, -1, `${label} start marker exists`)
+  const end = source.indexOf(endMarker, start + startMarker.length)
+  assert.notEqual(end, -1, `${label} end marker exists`)
+  assert.ok(end > start, `${label} markers stay ordered`)
+  return source.slice(start, end)
+}
+
 /**
  * Scans comments and quoted text without changing source offsets. Callers
  * choose whether quoted text is masked or preserved; this focused scanner

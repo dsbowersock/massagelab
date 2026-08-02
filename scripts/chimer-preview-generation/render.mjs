@@ -521,10 +521,12 @@ function buildVariantManifest(entry, outputPath, posterPath, options, variant) {
 
 function writeManifest(items, options) {
   const manifestPath = path.join(options.outputDir, "index.json")
+  const registryEntries = getBackgroundOptionsForCategory(options.category)
+  const registryIds = new Set(registryEntries.map((entry) => entry.id))
   // The checked-in manifest is the authoritative merge base for partial runs
   // because it includes generator-only poster sizes and hashes. A fresh output
   // directory falls back to registry media until the first complete manifest.
-  const registrySources = () => getBackgroundOptionsForCategory(options.category)
+  const registrySources = () => registryEntries
     .filter((entry) => entry.previewVariants && Object.keys(entry.previewVariants).length > 0)
     .map((entry) => ({
       id: entry.id,
@@ -565,7 +567,9 @@ function writeManifest(items, options) {
     category: options.category,
     durationMs: options.durationMs,
     fps: options.fps,
-    items: [...mergedItems.values()].sort((left, right) => left.id.localeCompare(right.id)),
+    items: [...mergedItems.values()]
+      .filter((item) => registryIds.has(item.id))
+      .sort((left, right) => left.id.localeCompare(right.id)),
   }
 
   writeFileSync(

@@ -17,17 +17,7 @@ import {
   buildVisualPresetDraftAction,
   getBackgroundPresetLimit,
 } from "../components/chimer-controls/background-palette-controls.ts"
-import { maskSourceComments } from "./helpers/source-structure.mjs"
-
-/** Returns one named source region so assertions cannot match repeated fragments later in the file. */
-function sourceBetween(source, startMarker, endMarker, label) {
-  const start = source.indexOf(startMarker)
-  assert.notEqual(start, -1, `${label} start marker exists`)
-  const end = source.indexOf(endMarker, start + startMarker.length)
-  assert.notEqual(end, -1, `${label} end marker exists`)
-  assert.ok(end > start, `${label} markers stay ordered`)
-  return source.slice(start, end)
-}
+import { maskSourceComments, sourceBetween } from "./helpers/source-structure.mjs"
 
 const editorSource = await readFile(
   new URL("../components/chimer-controls/BackgroundPaletteEditor.tsx", import.meta.url),

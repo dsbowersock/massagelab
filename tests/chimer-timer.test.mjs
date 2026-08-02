@@ -3231,11 +3231,11 @@ describe("Chimer timer helpers", () => {
       expectedDefaults,
     )
 
-    const minimums = sanitizeChimerSettings(Object.fromEntries(
+    const nonFiniteFallbacks = sanitizeChimerSettings(Object.fromEntries(
       Object.keys(expectedDefaults).map((key) => [key, -Infinity]),
     ))
     assert.deepEqual(
-      projectTrack4BSettings(minimums),
+      projectTrack4BSettings(nonFiniteFallbacks),
       expectedDefaults,
     )
 

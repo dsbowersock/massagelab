@@ -18,6 +18,8 @@ import {
   getTwistedCubeLayerSizeVmax,
   getTwistedCubeSourceOutline,
   interpolateTwistedCubeOutline,
+  TWISTED_CUBES_SOURCE_BACKGROUND_COLOR,
+  TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS,
 } from "../../lib/twisted-cubes-background.js"
 import { COMPUTED_CONSUMER_CONTRACTS } from "./dna-twisted-cubes-consumer-contract.mjs"
 import { parseComputedMatrix } from "../helpers/computed-matrix"
@@ -29,9 +31,6 @@ const DNA_COMPUTED_CONSUMER_CONTRACTS = COMPUTED_CONSUMER_CONTRACTS.filter(
 const TWISTED_CUBES_COMPUTED_CONSUMER_CONTRACTS = COMPUTED_CONSUMER_CONTRACTS.filter(
   ({ effectId }) => effectId === "massage-lab-twisted-cubes",
 )
-if (DNA_COMPUTED_CONSUMER_CONTRACTS.length !== 11 || TWISTED_CUBES_COMPUTED_CONSUMER_CONTRACTS.length !== 11) {
-  throw new Error("Track 4B requires exactly 11 computed-consumer contracts per renderer.")
-}
 const DNA_SOURCE_WIDTH = `${DNA_SOURCE_GEOMETRY.widthVmin}vmin`
 const DNA_SOURCE_HEIGHT = `max(${DNA_SOURCE_GEOMETRY.minimumHeightVmin}vmin, ${DNA_SOURCE_GEOMETRY.viewportHeightVmax}vmax)`
 const DNA_START_NODE_TRANSLATION = `translateX(calc(${DNA_SOURCE_WIDTH} - 100%))`
@@ -83,6 +82,11 @@ const EFFECTS = [
     },
   },
 ] as const
+
+test("Track 4B retains exactly 11 computed-consumer contracts per renderer", () => {
+  expect(DNA_COMPUTED_CONSUMER_CONTRACTS, "DNA computed-consumer contracts").toHaveLength(11)
+  expect(TWISTED_CUBES_COMPUTED_CONSUMER_CONTRACTS, "Twisted Cubes computed-consumer contracts").toHaveLength(11)
+})
 
 function isCompactBackgroundViewport(host: Locator) {
   return host.evaluate((_element, query) => window.matchMedia(query).matches, BACKGROUND_COMPACT_VIEWPORT_QUERY)
@@ -1473,7 +1477,7 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
     const layers = cubeRoot.locator('[style*="--ml-twisted-cubes-outline"]')
     expect(await cubeRoot.evaluate((element) => (
       (element as HTMLElement).style.getPropertyValue("--ml-twisted-cubes-background-color")
-    ))).toBe("hsl(210 20% 12%)")
+    ))).toBe(TWISTED_CUBES_SOURCE_BACKGROUND_COLOR)
     expect(await layers.count()).toBe(DEFAULT_TWISTED_CUBES_BACKGROUND_OPTIONS.layerCount)
     const edgeCount = await layers.locator(":scope > span > span > span > span").count()
     expect(edgeCount).toBe((await layers.count()) * 12)
@@ -1706,8 +1710,8 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
 
     const source = await cubeOutlines(host)
     expect(source).toHaveLength(DEFAULT_TWISTED_CUBES_BACKGROUND_OPTIONS.layerCount)
-    expect(source[0]).toBe("hsl(180 80% 60%)")
-    expect(source.at(-1)).toBe("hsl(340 80% 60%)")
+    expect(source[0]).toBe(TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS[0])
+    expect(source.at(-1)).toBe(TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS.at(-1))
     expect(new Set(source).size).toBe(source.length)
 
     await review.getByRole("button", { name: "Custom", exact: true }).click()

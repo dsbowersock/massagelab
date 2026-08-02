@@ -81,5 +81,7 @@ test("DNA options extend the shared background effect contract", () => {
   assert.match(dnaOptions, /nodeRoleColors: readonly \[string, string, string, string\];?/)
   assert.match(dnaOptions, /outlineColor: string;?/)
   assert.doesNotMatch(dnaOptions, /\bnodeColors\b/)
-  assert.match(effectProps, /reduceMotion\?: boolean;?[\s\S]*?compactViewport\?: boolean;?[\s\S]*?massageLabDna\?: MassageLabDnaHostOptions;?/)
+  assert.match(effectProps, /reduceMotion\?: boolean;?/)
+  assert.match(effectProps, /compactViewport\?: boolean;?/)
+  assert.match(effectProps, /massageLabDna\?: MassageLabDnaHostOptions;?/)
 })

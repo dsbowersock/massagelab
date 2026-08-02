@@ -1578,14 +1578,12 @@ export function RunningTimer({
     () => ({ ...committedSettings, ...(currentVisualEditorSnapshot?.properties ?? {}) }),
     [committedSettings, currentVisualEditorSnapshot],
   )
-  // The JS sanitizers build every declared control key from their canonical
-  // option inventories; bridge that runtime contract to these narrower UI types.
-  const visualEditorDnaOptions = useMemo(
-    () => getDnaBackgroundOptionsFromChimerSettings(effectiveVisualEditorSettings) as unknown as DnaBackgroundControlOptions,
+  const visualEditorDnaOptions = useMemo<DnaBackgroundControlOptions>(
+    () => getDnaBackgroundOptionsFromChimerSettings(effectiveVisualEditorSettings),
     [effectiveVisualEditorSettings],
   )
-  const visualEditorTwistedCubesOptions = useMemo(
-    () => getTwistedCubesBackgroundOptionsFromChimerSettings(effectiveVisualEditorSettings) as unknown as TwistedCubesBackgroundControlOptions,
+  const visualEditorTwistedCubesOptions = useMemo<TwistedCubesBackgroundControlOptions>(
+    () => getTwistedCubesBackgroundOptionsFromChimerSettings(effectiveVisualEditorSettings),
     [effectiveVisualEditorSettings],
   )
   const visualEditorBackgroundDefinition = useMemo(

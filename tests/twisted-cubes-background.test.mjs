@@ -118,11 +118,13 @@ describe("Twisted Cubes background domain rules", () => {
       4 / DEFAULT_TWISTED_CUBES_BACKGROUND_OPTIONS.rotationSpeed,
     )
 
+    // Delay follows (-(count - 2) + oneBasedIndex) * stagger.
     assert.ok(Math.abs(getTwistedCubeDelaySeconds({ oneBasedIndex: 1, count: 20, stagger: 0.1 }) + 1.7) < 1e-12)
     assert.ok(Math.abs(getTwistedCubeDelaySeconds({ oneBasedIndex: 20, count: 20, stagger: 0.1 }) - 0.2) < 1e-12)
     assert.equal(getTwistedCubeDelaySeconds({ oneBasedIndex: 3, count: 10, stagger: 0.2 }), -1)
     assert.ok(Number.isFinite(getTwistedCubeDelaySeconds({ oneBasedIndex: 1, count: 0, stagger: 0.1 })))
 
+    // Alpha follows clamp(1 - (falloff / count) * oneBasedIndex, 0, 1).
     assert.equal(getTwistedCubeAlpha({ oneBasedIndex: 1, count: 20, opacityFalloff: 0.85 }), 0.9575)
     assert.ok(Math.abs(getTwistedCubeAlpha({ oneBasedIndex: 20, count: 20, opacityFalloff: 0.85 }) - 0.15) < 1e-12)
     assert.ok(Math.abs(getTwistedCubeAlpha({ oneBasedIndex: 30, count: 6, opacityFalloff: 0.95 }) - 0.05) < 1e-12)

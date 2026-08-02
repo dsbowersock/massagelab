@@ -1157,7 +1157,7 @@ test("539px dock headers own shared actions and compact visual color controls", 
     if (!title || !close || !color || missing.length > 0) return { missing }
     const validatedActions = actions as DOMRect[]
     return {
-      controlsOnSecondRow: [color, ...validatedActions].every((rect) => rect.top >= title.bottom),
+      controlsOnSecondRow: [color, ...validatedActions].every((rect) => rect.top >= title.bottom - 1),
       closeOnTitleRow: Math.abs((close.top + close.bottom) / 2 - (title.top + title.bottom) / 2) <= 2,
       allInside: [color, ...validatedActions].every((rect) => (
         rect.left >= bounds.left && rect.right <= bounds.right

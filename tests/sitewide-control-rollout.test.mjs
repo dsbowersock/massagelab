@@ -9,19 +9,9 @@ import { DNA_SOURCE_GEOMETRY } from "../lib/dna-background.js"
 import { resolveImmersiveDisplayContext } from "../lib/immersive-display.js"
 import { FEATURE_KEYS } from "../lib/membership.js"
 import { COMPUTED_CONSUMER_CONTRACTS } from "./browser/dna-twisted-cubes-consumer-contract.mjs"
-import { maskSourceComments } from "./helpers/source-structure.mjs"
+import { maskSourceComments, sourceBetween } from "./helpers/source-structure.mjs"
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8")
-
-/** Returns the source from the included start marker up to the excluded end marker. */
-function sourceBetween(source, startMarker, endMarker, label) {
-  const start = source.indexOf(startMarker)
-  assert.notEqual(start, -1, `${label} retains its start marker`)
-  const end = source.indexOf(endMarker, start + startMarker.length)
-  assert.notEqual(end, -1, `${label} retains its end marker`)
-  assert.ok(end > start, `${label} markers remain ordered`)
-  return source.slice(start, end)
-}
 
 test("S6 ordinary action routes delegate to the shared Button family", async () => {
   const [chimer, pricing, anatomimeAlias] = await Promise.all([
