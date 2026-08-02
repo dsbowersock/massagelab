@@ -7,7 +7,9 @@ import {
   resolveAdaptiveCarouselViewportProfile,
 } from "@/components/carousels/adaptive-carousel-model"
 import { BackgroundCarouselCard } from "@/components/backgrounds/background-carousel-card"
+import { useAmbientReducedMotion } from "@/components/backgrounds/use-ambient-reduced-motion"
 import { useBackgroundCommerce } from "@/components/backgrounds/BackgroundCommerceProvider"
+import { useSettings } from "@/components/providers/settings-provider"
 import {
   type BackgroundAccessSnapshot,
   type BackgroundDefinition,
@@ -61,17 +63,12 @@ export function BackgroundCarousel({
   const hostRef = useRef<HTMLDivElement | null>(null)
   const [profile, setProfile] =
     useState<BackgroundViewportProfile>("compact-desktop")
-  const [reducedMotion, setReducedMotion] = useState(false)
+  const { settings } = useSettings()
   const { state: commerceClientState, signedIn } = useBackgroundCommerce()
   const snapshot = commerceClientState.snapshot
 
-  useEffect(() => {
-    const query = window.matchMedia("(prefers-reduced-motion: reduce)")
-    const update = () => setReducedMotion(query.matches)
-    update()
-    query.addEventListener("change", update)
-    return () => query.removeEventListener("change", update)
-  }, [])
+  // Keep the carousel, preview cards, and host on the shared ambient-motion source of truth.
+  const reducedMotion = useAmbientReducedMotion(settings.ambientMotionMode)
 
   useEffect(() => {
     const host = hostRef.current
@@ -159,12 +156,13 @@ export function BackgroundCarousel({
         }}
         onEffectiveLoopChange={onEffectiveLoopChange}
         onNavigate={onNavigate}
-        renderItem={(option, { detailLevel }) => (
+        renderItem={(option, { centered, detailLevel }) => (
           <BackgroundCarouselCard
             option={option}
             detailLevel={detailLevel}
             commerceState={option.commerceState}
             selected={selectedId === option.id}
+            centered={centered}
             saved={savedIds.includes(option.id)}
             active={active}
             signedIn={signedIn}

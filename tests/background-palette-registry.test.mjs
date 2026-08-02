@@ -10,6 +10,9 @@ import {
 } from "../lib/background-source-color-defaults.js"
 import {
   BACKGROUND_PALETTE_METADATA_SUFFIXES,
+  DNA_SOURCE_NODE_ROLE_COLORS,
+  TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS,
+  applyCssDomPaletteRoleColors,
   backgroundPaletteRegistry,
 } from "../components/backgrounds/backgroundPaletteRegistry.ts"
 import {
@@ -29,6 +32,7 @@ import {
 } from "../lib/background-palette.js"
 
 const HEX_COLOR = /^#[0-9a-f]{6}$/i
+const CSS_COLOR = /^(?:#[0-9a-f]{6}|hsl\([\d.]+ [\d.]+% [\d.]+%\))$/i
 const VALID_STATUSES = new Set(["supported", "unsupported"])
 const VALID_RENDERER_FAMILIES = new Set(["css-dom", "canvas", "webgl"])
 const sanitizedDefaults = sanitizeChimerSettings(DEFAULT_CHIMER_SETTINGS)
@@ -147,6 +151,44 @@ const cssDomFixtures = {
       speed: 37,
       density: 0.72,
       factor: 0.014,
+    },
+  },
+  "massage-lab-dna": {
+    massageLabDna: {
+      strandCount: 70,
+      showBaseLetters: false,
+      nodeMotionSpeed: 0.06,
+      strandRotationSpeed: 0.02,
+      strandAngle: 30,
+      scale: 0.5,
+      positionX: 0,
+      positionY: 0,
+      strandSpacing: 0.5,
+      connectorWidth: 94,
+      connectorThickness: 15,
+      outlineThickness: 0.1,
+      backgroundColor: "#010101",
+      nodeRoleColors: ["#020202", "#030303", "#040404", "#050505"],
+      connectorColor: "#060606",
+      outlineColor: "#070707",
+    },
+  },
+  "massage-lab-twisted-cubes": {
+    massageLabTwistedCubes: {
+      layerCount: 20,
+      rotationSpeed: 0.25,
+      layerStagger: 0.1,
+      viewAngleX: -35,
+      viewAngleY: -45,
+      scale: 0.3,
+      positionX: 0,
+      positionY: 0,
+      layerDepthSpacing: 50,
+      opacityFalloff: 0.85,
+      outlineThickness: 0.0075,
+      paletteMode: "source",
+      backgroundColor: "#010101",
+      outlineAnchors: ["#020202", "#030303", "#040404", "#050505", "#060606", "#070707"],
     },
   },
 }
@@ -361,14 +403,20 @@ describe("background palette adapter registry", () => {
           false,
           `${backgroundId}:${role.sourceSettingKey}`,
         )
-        assert.match(role.sourceColor, HEX_COLOR, `${backgroundId}:${role.id}`)
+        const sourceColorPattern = adapter.rendererFamily === "css-dom" ? CSS_COLOR : HEX_COLOR
+        assert.match(role.sourceColor, sourceColorPattern, `${backgroundId}:${role.id}`)
+        assert.equal(
+          role.sourceColorFormat,
+          HEX_COLOR.test(role.sourceColor) ? "hex" : "css",
+          `${backgroundId}:${role.id}`,
+        )
         assert.ok(Number.isInteger(role.defaultSwatch) && role.defaultSwatch >= 0 && role.defaultSwatch <= 6)
         assert.ok(role.rendererTarget.trim().length > 0, backgroundId)
         sourceRoleColors[role.id] = role.sourceColor
         roleColors[role.id] = `#${(index + 1).toString(16).padStart(6, "0")}`
       }
 
-      const before = adapter.applyRoleColors({}, sourceRoleColors)
+      const before = adapter.applyRoleColors(fixtureForAdapter(adapter), sourceRoleColors)
       const after = adapter.applyRoleColors(before, roleColors)
       assert.deepEqual(
         [...changedLeafPaths(before, after)].sort(),
@@ -545,6 +593,154 @@ describe("background palette adapter registry", () => {
       backgroundPaletteRegistry["massage-lab-tile-grid"].sourceBehavior,
       "automatic",
     )
+    assert.equal(backgroundPaletteRegistry["massage-lab-dna"].sourceBehavior, "fixed")
+    assert.equal(backgroundPaletteRegistry["massage-lab-twisted-cubes"].sourceBehavior, "automatic")
+  })
+
+  it("declares the exact DNA roles and preserves non-color DNA options", () => {
+    const adapter = backgroundPaletteRegistry["massage-lab-dna"]
+    assert.equal(adapter.status, "supported")
+    assert.equal(adapter.rendererFamily, "css-dom")
+    assert.deepEqual(
+      adapter.roles.map(({ id, label, sourceColor, defaultSwatch, rendererTarget }) => ({
+        id,
+        label,
+        sourceColor,
+        defaultSwatch,
+        rendererTarget,
+      })),
+      [
+        { id: "background", label: "Background", sourceColor: "hsl(210 80% 12%)", defaultSwatch: 3, rendererTarget: "massageLabDna.backgroundColor" },
+        { id: "node-one", label: "Adenine (A)", sourceColor: "hsl(44 98% 60%)", defaultSwatch: 0, rendererTarget: "massageLabDna.nodeRoleColors[0]" },
+        { id: "node-two", label: "Thymine (T)", sourceColor: "hsl(197 50% 44%)", defaultSwatch: 1, rendererTarget: "massageLabDna.nodeRoleColors[1]" },
+        { id: "node-three", label: "Guanine (G)", sourceColor: "hsl(0 0% 100%)", defaultSwatch: 2, rendererTarget: "massageLabDna.nodeRoleColors[2]" },
+        { id: "node-four", label: "Cytosine (C)", sourceColor: "hsl(331 76% 50%)", defaultSwatch: 5, rendererTarget: "massageLabDna.nodeRoleColors[3]" },
+        { id: "connector", label: "Connector", sourceColor: "#ffffff", defaultSwatch: 4, rendererTarget: "massageLabDna.connectorColor" },
+        { id: "outline", label: "Outline", sourceColor: "#000000", defaultSwatch: 6, rendererTarget: "massageLabDna.outlineColor" },
+      ],
+    )
+    assert.deepEqual(adapter.visualPropertyKeys, [
+      "massageLabDnaStrandCount",
+      "massageLabDnaShowBaseLetters",
+      "massageLabDnaNodeMotionSpeed",
+      "massageLabDnaStrandRotationSpeed",
+      "massageLabDnaStrandAngle",
+      "massageLabDnaScale",
+      "massageLabDnaPositionX",
+      "massageLabDnaPositionY",
+      "massageLabDnaStrandSpacing",
+      "massageLabDnaConnectorWidth",
+      "massageLabDnaConnectorThickness",
+      "massageLabDnaOutlineThickness",
+    ])
+    const fixture = cssDomFixtures["massage-lab-dna"]
+    const original = structuredClone(fixture)
+    const applied = adapter.applyRoleColors(fixture, Object.fromEntries(
+      adapter.roles.map((role, index) => [role.id, CUSTOM_SWATCHES[index]]),
+    ))
+    assert.deepEqual(
+      [...changedLeafPaths(fixture, applied)].sort(),
+      adapter.roles.map((role) => role.rendererTarget).sort(),
+    )
+    assert.deepEqual(fixture, original)
+    assert.equal(applied.massageLabDna.strandCount, 70)
+    assert.equal(applied.massageLabDna.showBaseLetters, false)
+    assert.equal(applied.massageLabDna.connectorWidth, 94)
+  })
+
+  it("keeps Twisted Cubes continuous in Source and resolves exactly six Custom/Harmony anchors", () => {
+    const adapter = backgroundPaletteRegistry["massage-lab-twisted-cubes"]
+    assert.equal(adapter.status, "supported")
+    assert.deepEqual(
+      adapter.roles.map(({ id, label, sourceColor, defaultSwatch, rendererTarget }) => ({
+        id,
+        label,
+        sourceColor,
+        defaultSwatch,
+        rendererTarget,
+      })),
+      [
+        { id: "background", label: "Background", sourceColor: "hsl(210 20% 12%)", defaultSwatch: 3, rendererTarget: "massageLabTwistedCubes.backgroundColor" },
+        { id: "outline-one", label: "Outline 1", sourceColor: "hsl(180 80% 60%)", defaultSwatch: 0, rendererTarget: "massageLabTwistedCubes.outlineAnchors[0]" },
+        { id: "outline-two", label: "Outline 2", sourceColor: "hsl(212 80% 60%)", defaultSwatch: 1, rendererTarget: "massageLabTwistedCubes.outlineAnchors[1]" },
+        { id: "outline-three", label: "Outline 3", sourceColor: "hsl(244 80% 60%)", defaultSwatch: 2, rendererTarget: "massageLabTwistedCubes.outlineAnchors[2]" },
+        { id: "outline-four", label: "Outline 4", sourceColor: "hsl(276 80% 60%)", defaultSwatch: 4, rendererTarget: "massageLabTwistedCubes.outlineAnchors[3]" },
+        { id: "outline-five", label: "Outline 5", sourceColor: "hsl(308 80% 60%)", defaultSwatch: 5, rendererTarget: "massageLabTwistedCubes.outlineAnchors[4]" },
+        { id: "outline-six", label: "Outline 6", sourceColor: "hsl(340 80% 60%)", defaultSwatch: 6, rendererTarget: "massageLabTwistedCubes.outlineAnchors[5]" },
+      ],
+    )
+    assert.equal(new Set(adapter.roles.map((role) => role.rendererTarget)).size, 7)
+
+    const fixture = cssDomFixtures["massage-lab-twisted-cubes"]
+    const originalFixture = structuredClone(fixture)
+    const custom = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-twisted-cubes",
+      effectProps: fixture,
+      palette: paletteForMode("custom"),
+      canCustomize: true,
+    })
+    assert.equal(custom.massageLabTwistedCubes.paletteMode, "resolved")
+    assert.deepEqual(custom.massageLabTwistedCubes.outlineAnchors, [
+      CUSTOM_SWATCHES[0], CUSTOM_SWATCHES[1], CUSTOM_SWATCHES[2],
+      CUSTOM_SWATCHES[4], CUSTOM_SWATCHES[5], CUSTOM_SWATCHES[6],
+    ])
+    assert.equal(custom.massageLabTwistedCubes.layerCount, 20)
+
+    const harmony = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-twisted-cubes",
+      effectProps: fixture,
+      palette: paletteForMode("harmony"),
+      canCustomize: true,
+    })
+    assert.equal(harmony.massageLabTwistedCubes.paletteMode, "resolved")
+    assert.equal(harmony.massageLabTwistedCubes.outlineAnchors.length, 6)
+    assert.equal(new Set(harmony.massageLabTwistedCubes.outlineAnchors).size, 6)
+    assert.notDeepEqual(
+      harmony.massageLabTwistedCubes.outlineAnchors,
+      TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS,
+    )
+
+    const source = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-twisted-cubes",
+      effectProps: fixture,
+      palette: paletteForMode("source"),
+      canCustomize: true,
+    })
+    assert.equal(source.massageLabTwistedCubes.paletteMode, "source")
+    assert.equal(source.massageLabTwistedCubes.backgroundColor, "hsl(210 20% 12%)")
+
+    const denied = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-twisted-cubes",
+      effectProps: { ...fixture, massageLabTwistedCubes: { ...fixture.massageLabTwistedCubes, paletteMode: "resolved" } },
+      palette: paletteForMode("custom"),
+      canCustomize: false,
+    })
+    assert.equal(denied.massageLabTwistedCubes.paletteMode, "source")
+    assert.deepEqual(fixture, originalFixture)
+  })
+
+  it("completes DNA and Twisted Cubes role arrays from source fallbacks", () => {
+    const dnaFixture = structuredClone(cssDomFixtures["massage-lab-dna"])
+    delete dnaFixture.massageLabDna.nodeRoleColors
+    const dna = applyCssDomPaletteRoleColors("massage-lab-dna", dnaFixture, {
+      "node-one": "#123456",
+    })
+    assert.deepEqual(dna.massageLabDna.nodeRoleColors, [
+      "#123456",
+      ...DNA_SOURCE_NODE_ROLE_COLORS.slice(1),
+    ])
+
+    const cubesFixture = structuredClone(cssDomFixtures["massage-lab-twisted-cubes"])
+    cubesFixture.massageLabTwistedCubes.outlineAnchors = ["#abcdef"]
+    const cubes = applyCssDomPaletteRoleColors("massage-lab-twisted-cubes", cubesFixture, {
+      "outline-three": "#654321",
+    })
+    assert.deepEqual(cubes.massageLabTwistedCubes.outlineAnchors, [
+      "#abcdef",
+      TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS[1],
+      "#654321",
+      ...TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS.slice(3),
+    ])
   })
 
   it("completes every CSS/DOM adapter and changes only named renderer targets in every palette mode", () => {

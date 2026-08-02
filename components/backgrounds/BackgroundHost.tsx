@@ -3,7 +3,6 @@
 import type { ComponentType, CSSProperties } from "react"
 import { useEffect, useMemo, useState } from "react"
 import { useSettings } from "@/components/providers/settings-provider"
-import { shouldReduceAmbientMotion } from "@/lib/motion-preferences"
 import { cn } from "@/lib/utils"
 import {
   resolveAccessibleBackgroundDefinition,
@@ -14,6 +13,10 @@ import {
 } from "@/components/backgrounds/backgroundRegistry"
 import { backgroundPaletteRegistry } from "@/components/backgrounds/backgroundPaletteRegistry"
 import {
+  BACKGROUND_COMPACT_VIEWPORT_QUERY,
+  useMediaQuery,
+} from "@/components/backgrounds/use-media-query"
+import {
   createBackgroundHostDiagnosticSnapshot,
   type BackgroundHostLoadStatus,
 } from "@/components/backgrounds/backgroundHostDiagnostics"
@@ -21,6 +24,7 @@ import type {
   BackgroundEffectProps,
 } from "@/components/backgrounds/effects/css-backgrounds"
 import { resolveBackgroundEffectProps, resolveBackgroundFallbackStyle } from "@/components/backgrounds/resolveBackgroundEffectProps"
+import { useAmbientReducedMotion } from "@/components/backgrounds/use-ambient-reduced-motion"
 import { canCustomizeBackgroundColors } from "@/lib/background-palette"
 import styles from "@/components/backgrounds/BackgroundHost.module.css"
 
@@ -44,29 +48,22 @@ interface BackgroundHostProps extends BackgroundEffectProps {
   style?: CSSProperties
   /** Renders the static representative while avoiding animated effect work. */
   motionEnabled?: boolean
-  /**
-   * Guarded review surfaces may mount the real renderer even when ambient
-   * motion preferences would otherwise leave only its fallback visible.
-   */
+  /** Records guarded review intent without bypassing pause or reduced motion. */
   forceEffectMount?: boolean
+  /**
+   * Development-only review aid that bypasses ambient reduced-motion settings
+   * while preserving an explicit `motionEnabled={false}` pause. Production
+   * builds always ignore this override.
+   */
+  forceAmbientMotionForReview?: boolean
   testId?: string
   /** Exposes actual lazy-load and post-adapter props on data attributes for guarded QA surfaces. */
   diagnostics?: boolean
 }
 
-function usePrefersReducedMotion() {
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
-
-  useEffect(() => {
-    const query = window.matchMedia("(prefers-reduced-motion: reduce)")
-    const handleChange = () => setPrefersReducedMotion(query.matches)
-
-    handleChange()
-    query.addEventListener("change", handleChange)
-    return () => query.removeEventListener("change", handleChange)
-  }, [])
-
-  return prefersReducedMotion
+/** Reports compact rendering when either viewport dimension is at most 479px. */
+function useCompactBackgroundViewport() {
+  return useMediaQuery(BACKGROUND_COMPACT_VIEWPORT_QUERY)
 }
 
 export function BackgroundHost(props: BackgroundHostProps) {
@@ -79,6 +76,7 @@ export function BackgroundHost(props: BackgroundHostProps) {
     style,
     motionEnabled = true,
     forceEffectMount = false,
+    forceAmbientMotionForReview = false,
     testId = "background-host",
     diagnostics = false,
     ...effectPropsInput
@@ -155,6 +153,8 @@ export function BackgroundHost(props: BackgroundHostProps) {
     massageLab3DGlobe,
     massageLabRetroGrid,
     massageLabAerialRays,
+    massageLabDna,
+    massageLabTwistedCubes,
     backgroundLines,
     shootingStars,
     canvasRevealDots,
@@ -168,7 +168,8 @@ export function BackgroundHost(props: BackgroundHostProps) {
     auroraBars,
   } = stableEffectPropsInput
   const { settings } = useSettings()
-  const prefersReducedMotion = usePrefersReducedMotion()
+  const ambientReducedMotion = useAmbientReducedMotion(settings.ambientMotionMode)
+  const compactViewport = useCompactBackgroundViewport()
   const entry = useMemo(
     () => resolveAccessibleBackgroundDefinition(selectedId, access, category),
     [access, category, selectedId],
@@ -176,10 +177,11 @@ export function BackgroundHost(props: BackgroundHostProps) {
   const canCustomize = canCustomizeBackgroundColors({
     hasBackgroundAccess: userCanUseBackground(entry, access),
   })
-  const reduceMotion = shouldReduceAmbientMotion({
-    prefersReducedMotion,
-    ambientMotionMode: settings.ambientMotionMode,
-  })
+  // An explicit pause uses the same resolved renderer contract as ambient
+  // reduced motion. Static-capable effects still mount, but pause internally.
+  const allowAmbientMotionForReview = process.env.NODE_ENV !== "production"
+    && forceAmbientMotionForReview
+  const reduceMotion = !motionEnabled || (!allowAmbientMotionForReview && ambientReducedMotion)
   const [loadedEffect, setLoadedEffect] = useState<{
     id: string
     component: ComponentType<BackgroundEffectProps>
@@ -187,11 +189,8 @@ export function BackgroundHost(props: BackgroundHostProps) {
   const [loadStatus, setLoadStatus] = useState<BackgroundHostLoadStatus>("idle")
   const [loadError, setLoadError] = useState<string | null>(null)
   const shouldLoadEffect = Boolean(
-    entry.component
-    && (
-      entry.motionIntensity === "static"
-      || (motionEnabled && (forceEffectMount || !reduceMotion))
-    ),
+    entry.component &&
+      (!reduceMotion || entry.motionIntensity === "static" || entry.supportsReducedMotionStatic),
   )
   const { baseEffectProps, effectProps } = useMemo(() => {
     const baseEffectProps = {
@@ -258,6 +257,10 @@ export function BackgroundHost(props: BackgroundHostProps) {
     massageLab3DGlobe,
     massageLabRetroGrid,
     massageLabAerialRays,
+    massageLabDna,
+    massageLabTwistedCubes,
+    reduceMotion,
+    compactViewport,
     backgroundLines,
     shootingStars,
     canvasRevealDots,
@@ -346,6 +349,10 @@ export function BackgroundHost(props: BackgroundHostProps) {
     massageLab3DGlobe,
     massageLabRetroGrid,
     massageLabAerialRays,
+    massageLabDna,
+    massageLabTwistedCubes,
+    reduceMotion,
+    compactViewport,
     backgroundLines,
     shootingStars,
     canvasRevealDots,
@@ -414,6 +421,12 @@ export function BackgroundHost(props: BackgroundHostProps) {
       : entry.fallbackStyle),
     [backgroundPalette, canCustomize, entry.fallbackStyle, entry.id],
   )
+  const fallbackRemountKey = useMemo(
+    // The full resolved style signature is intentional: legacy fallbacks mix
+    // shorthand and longhands, so palette edits must not retain stale families.
+    () => `${entry.id}:${backgroundPalette?.palette.mode ?? "source"}:${canCustomize}:${JSON.stringify(fallbackStyle ?? null)}`,
+    [backgroundPalette?.palette.mode, canCustomize, entry.id, fallbackStyle],
+  )
   const diagnosticSnapshot = diagnostics && adapter
     ? createBackgroundHostDiagnosticSnapshot({
         requestedId: entry.id,
@@ -437,6 +450,8 @@ export function BackgroundHost(props: BackgroundHostProps) {
         shouldLoadEffect && !BackgroundComponent ? "true" : "false"
       }
       data-background-motion={motionEnabled ? "playing" : "paused"}
+      data-background-review-mount-requested={diagnostics && forceEffectMount ? "true" : undefined}
+      data-background-review-motion-forced={diagnostics && allowAmbientMotionForReview && ambientReducedMotion && motionEnabled ? "true" : undefined}
       data-background-provider={entry.provider}
       data-background-diagnostic-requested-id={diagnosticSnapshot?.requestedId}
       data-background-diagnostic-loaded-id={diagnosticSnapshot?.loadedId ?? undefined}
@@ -466,6 +481,10 @@ export function BackgroundHost(props: BackgroundHostProps) {
       style={style}
     >
       <div
+        // Registry fallbacks mix legacy background shorthand and longhands.
+        // Remounting this decorative layer prevents React from reconciling
+        // conflicting style families when the complete resolved style changes.
+        key={fallbackRemountKey}
         className={cn(styles.fallback, entry.fallbackClassName)}
         style={fallbackStyle}
       />

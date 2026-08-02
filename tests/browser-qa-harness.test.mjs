@@ -2,6 +2,13 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 
+import {
+  getPlaywrightFileFilterArguments,
+  isDevelopmentPaletteReviewInvocation,
+  matchesDevelopmentPaletteReviewArgument,
+  resolveDevelopmentPaletteReviewIgnoreGlobs,
+} from "../playwright.config.ts"
+
 async function readProjectFile(path) {
   return readFile(new URL(`../${path}`, import.meta.url), "utf8")
 }
@@ -14,6 +21,120 @@ function assertWorkflowStepBefore(workflow, firstStep, secondStep) {
   assert.notEqual(secondIndex, -1, `Expected workflow to include ${secondStep}`)
   assert.ok(firstIndex < secondIndex, `Expected ${firstStep} before ${secondStep}`)
 }
+
+test("development review spec matching accepts Playwright line and column suffixes", () => {
+  for (const spec of [
+    "tests/browser/background-palette.spec.ts",
+    "tests/browser/dna-twisted-cubes-backgrounds.spec.ts",
+  ]) {
+    assert.equal(matchesDevelopmentPaletteReviewArgument(spec), true)
+    assert.equal(matchesDevelopmentPaletteReviewArgument(`${spec}:42`), true)
+    assert.equal(matchesDevelopmentPaletteReviewArgument(`C:\\repo\\${spec.replaceAll("/", "\\")}:42:7`), true)
+    assert.equal(matchesDevelopmentPaletteReviewArgument(spec.split("/").at(-1)), true)
+  }
+  assert.equal(matchesDevelopmentPaletteReviewArgument("dna-twisted"), true)
+  assert.equal(matchesDevelopmentPaletteReviewArgument("browser/dna-twisted"), true)
+  assert.equal(matchesDevelopmentPaletteReviewArgument("background-palette"), true)
+  assert.equal(matchesDevelopmentPaletteReviewArgument(String.raw`dna.*cubes-backgrounds\.spec\.ts`), true)
+  assert.equal(matchesDevelopmentPaletteReviewArgument(String.raw`[\\/]tests[\\/]browser[\\/]dna-twisted-cubes-backgrounds\.spec\.ts$`), true)
+  assert.equal(matchesDevelopmentPaletteReviewArgument(String.raw`^.*background-palette`), true)
+  assert.equal(matchesDevelopmentPaletteReviewArgument(String.raw`background-palette.*$`), true)
+  assert.equal(matchesDevelopmentPaletteReviewArgument("[invalid"), false)
+  assert.equal(matchesDevelopmentPaletteReviewArgument("spec"), true)
+  assert.equal(matchesDevelopmentPaletteReviewArgument("tests/browser"), true)
+  assert.equal(matchesDevelopmentPaletteReviewArgument(String.raw`tests[\\/]browser[\\/]`), true)
+  assert.equal(matchesDevelopmentPaletteReviewArgument(`dna${".*".repeat(300)}cubes`), false)
+  assert.equal(matchesDevelopmentPaletteReviewArgument("dna-(twisted|cubes)"), false)
+  assert.equal(matchesDevelopmentPaletteReviewArgument("not-a-review-spec"), false)
+  assert.equal(matchesDevelopmentPaletteReviewArgument("tests/browser/public-routes.spec.ts:42"), false)
+  assert.equal(matchesDevelopmentPaletteReviewArgument("prefix-tests/browser/background-palette.spec.ts"), false)
+})
+
+test("development review invocation ignores the leading Playwright subcommand", () => {
+  assert.equal(isDevelopmentPaletteReviewInvocation(["test"]), false)
+  assert.equal(isDevelopmentPaletteReviewInvocation(["test", "tests/browser/public-routes.spec.ts"]), false)
+  assert.equal(isDevelopmentPaletteReviewInvocation(["test", "--grep", "dna-twisted"]), false)
+  assert.equal(isDevelopmentPaletteReviewInvocation(["test", "--repeat-each", "background-palette"]), false)
+  assert.equal(isDevelopmentPaletteReviewInvocation(["test", "dna-twisted"]), true)
+})
+
+test("Playwright file filters skip separate option values", () => {
+  assert.deepEqual(
+    getPlaywrightFileFilterArguments([
+      "test",
+      "--project", "desktop-chromium",
+      "--grep", "dna-twisted",
+      "tests/browser/public-routes.spec.ts",
+    ]),
+    ["test", "tests/browser/public-routes.spec.ts"],
+  )
+})
+
+test("Playwright file filters consume the grep-invert short-option value", () => {
+  assert.deepEqual(
+    getPlaywrightFileFilterArguments(["test", "-G", "tests/browser/background-palette.spec.ts"]),
+    ["test"],
+  )
+})
+
+test("Playwright file filters consume optional refs and every variadic project name", () => {
+  assert.deepEqual(
+    getPlaywrightFileFilterArguments([
+      "test",
+      "--only-changed", "origin/main",
+      "--project", "desktop-chromium", "mobile-chromium",
+      "--grep", "dna-twisted",
+      "tests/browser/public-routes.spec.ts",
+    ]),
+    ["test", "tests/browser/public-routes.spec.ts"],
+  )
+})
+
+test("Playwright file filters require an option terminator after variadic projects", () => {
+  assert.deepEqual(
+    getPlaywrightFileFilterArguments([
+      "test",
+      "--project", "desktop-chromium",
+      "--",
+      "tests/browser/public-routes.spec.ts",
+    ]),
+    ["test", "tests/browser/public-routes.spec.ts"],
+  )
+})
+
+test("Playwright file filters retain positional shorthand after inline options", () => {
+  assert.deepEqual(
+    getPlaywrightFileFilterArguments(["test", "--grep=dna-twisted", "dna-twisted"]),
+    ["test", "dna-twisted"],
+  )
+})
+
+test("Playwright file filters skip every supported option with a separate value", () => {
+  assert.deepEqual(
+    getPlaywrightFileFilterArguments([
+      "test",
+      "--trace", "on-first-retry",
+      "--repeat-each", "dna-twisted",
+      "--tsconfig", "background-palette",
+      "--browser", "chromium",
+      "--last-failed-file", ".last-run.json",
+      "--test-list", "tests.txt",
+      "--test-list-invert", "excluded-tests.txt",
+      "--ui-host", "127.0.0.1",
+      "--ui-port", "9323",
+      "--update-source-method", "patch",
+      "tests/browser/public-routes.spec.ts",
+    ]),
+    ["test", "tests/browser/public-routes.spec.ts"],
+  )
+})
+
+test("Playwright file filters tolerate trailing options and an empty terminator", () => {
+  assert.deepEqual(getPlaywrightFileFilterArguments(["test", "--grep"]), ["test"])
+  assert.deepEqual(getPlaywrightFileFilterArguments(["test", "--only-changed"]), ["test"])
+  assert.deepEqual(getPlaywrightFileFilterArguments(["test", "--project"]), ["test"])
+  assert.deepEqual(getPlaywrightFileFilterArguments(["test", "--"]), ["test"])
+})
 
 test("browser QA harness is wired for public smoke, PWA, and local-first checks", async () => {
   const [packageJson, config, publicRoutesSpec, pwaSpec, localFirstSpec, ciWorkflow] = await Promise.all([
@@ -42,9 +163,19 @@ test("browser QA harness is wired for public smoke, PWA, and local-first checks"
   assert.match(config, /const skipWebServer = parseBooleanEnv\(process\.env\.PLAYWRIGHT_SKIP_WEB_SERVER\)/)
   assert.match(config, /webServer: skipWebServer/)
   assert.match(config, /runsDevelopmentPaletteReview/)
+  assert.doesNotMatch(config, /new RegExp\(argument\)/)
   assert.match(
     config,
-    /testIgnore:\s*runsDevelopmentPaletteReview\s*\?\s*\[\]\s*:\s*\["\*\*\/background-palette\.spec\.ts"\]/,
+    /developmentPaletteReviewSpecs[\s\S]*tests\/browser\/background-palette\.spec\.ts[\s\S]*tests\/browser\/dna-twisted-cubes-backgrounds\.spec\.ts/,
+  )
+  const reviewIgnoreGlobs = [
+    "**/background-palette.spec.ts",
+    "**/dna-twisted-cubes-backgrounds.spec.ts",
+  ]
+  assert.deepEqual(resolveDevelopmentPaletteReviewIgnoreGlobs(["test"]), reviewIgnoreGlobs)
+  assert.deepEqual(
+    resolveDevelopmentPaletteReviewIgnoreGlobs(["test", "tests/browser/background-palette.spec.ts"]),
+    [],
   )
 
   for (const route of ["/", "/notes", "/notes/soap", "/chimer", "/calendar", "/anatomime"]) {

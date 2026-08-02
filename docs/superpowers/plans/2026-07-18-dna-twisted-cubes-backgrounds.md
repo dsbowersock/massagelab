@@ -10,6 +10,8 @@
 
 **Approved design:** `docs/superpowers/specs/2026-07-18-dna-twisted-cubes-backgrounds-design.md`
 
+**Current status (2026-08-01):** Tasks 1-9 are implemented and the final local visual result is accepted. Canonical completion evidence lives in `docs/project-state.md` and `docs/project-log.md`; the original unchecked execution boxes below remain historical plan structure rather than current-state truth. The authorized PR loop is in progress and must stop before merge.
+
 ## Global Constraints
 
 - Start only after Tracks 1, 2, and 4A are merged into refreshed `main`; suggested branch: `codex/dna-twisted-cubes-backgrounds`.
@@ -17,7 +19,7 @@
 - Preserve the user-owned `TODO.md` modification and exclude it from every commit.
 - Use the attached MIT archives only as source references. Do not copy global `body`, `:root`, universal-selector, font, minimum-height, or `touch-action` rules.
 - Add no iframe, Canvas, WebGL, animation library, pointer-drag behavior, runtime dependency, public source artifact, shuffle-colors action, Prisma migration, or Roadmap entry.
-- Keep source colors and source property defaults until the user changes them. All property changes remain Track 4A draft operations and persist only on Apply.
+- Keep source colors until the user changes them. The post-implementation visual pass approved slower, denser DNA defaults and a slower Twisted Cubes rotation default; all later property changes remain Track 4A draft operations and persist only on Apply.
 - Use the canonical `premium_backgrounds` entitlement/permanent-ownership resolution. The renderers receive access-safe props and never inspect sessions, plan labels, carts, credits, or billing records.
 - Keep one committed configuration across active Chimer, ordinary `/clock`, `/clock?source=music`, and ambient hosts.
 
@@ -50,7 +52,7 @@
 
 **Consumes:** Plain numeric Chimer settings and an injected random function.
 
-**Produces:** Sanitized DNA options, duration/delay/phase calculations, setting conversion helpers, random role-index assignments, and viewport-only effective transform bounds.
+**Produces:** Sanitized DNA options, duration/delay/phase calculations, setting conversion helpers, random complementary-pair assignments with identity-derived roles, and viewport-only effective transform bounds.
 
 - [ ] **Step 1: Write failing sanitizer and timing tests**
 
@@ -58,22 +60,24 @@ Cover source defaults, every minimum/maximum, integer strand count, invalid nume
 
 ```js
 export const DEFAULT_DNA_BACKGROUND_OPTIONS = Object.freeze({
-  strandCount: 13,
-  nodeMotionSpeed: 1,
-  strandRotationSpeed: 1,
+  strandCount: 70,
+  showBaseLetters: false,
+  nodeMotionSpeed: 0.06,
+  strandRotationSpeed: 0.02,
   strandAngle: 30,
-  scale: 1,
+  scale: 0.5,
   positionX: 0,
   positionY: 0,
   strandSpacing: 0.5,
   connectorWidth: 94,
-  connectorThickness: 30,
-  outlineThickness: 0.5,
+  connectorThickness: 15,
+  outlineThickness: 0.1,
 });
 
 export const DNA_SOURCE_GEOMETRY = Object.freeze({
-  heightVmin: 65,
-  aspectRatio: "2 / 5",
+  widthVmin: 26,
+  minimumHeightVmin: 240,
+  viewportHeightVmax: 230,
 });
 
 export function sanitizeDnaBackgroundOptions(value) {}
@@ -83,18 +87,18 @@ export function getDnaStrandDelaySeconds({ oneBasedIndex, total, speed }) {}
 export function getDnaStrandPhase({ oneBasedIndex, total }) {}
 ```
 
-Assert defaults produce `2` and `14` second durations. `getDnaStrandPhase` must calculate with `Math.sin`, not return a CSS `sin()` expression. `DNA_SOURCE_GEOMETRY` is fixed renderer metadata—not persisted user options—and tests/render-source assertions require exactly `65vmin` height with CSS `aspect-ratio: 2 / 5`.
+Assert the approved defaults produce `2 / 0.06` and `14 / 0.02` second durations. `getDnaStrandPhase` must calculate with `Math.sin`, not return a CSS `sin()` expression. `DNA_SOURCE_GEOMETRY` is fixed renderer metadata—not persisted user options—and tests/render-source assertions require a `26vmin`-wide scene whose height is `max(240vmin, 230vmax)`. At the approved 50% default this retains the prior off-screen envelope, while 70 strands preserve the reviewed node density and keep both ends beyond the viewport during horizontal rotation. The repeated-edit browser fixture intentionally uses 25 DNA strands (50 nodes) to stay within its interaction cap; the separate default-render fixture proves 70 strands (140 nodes), and domain tests retain the 81-strand (162-node) upper-bound coverage outside that repeated-edit cap.
 
 Run: `node --test tests/dna-background.test.mjs`
 
 Expected: FAIL because the modules do not exist.
 
-- [ ] **Step 2: Add failing random-assignment and responsive-bound tests**
+- [ ] **Step 2: Add failing complementary-pair assignment and responsive-bound tests**
 
 Define:
 
 ```js
-export function createDnaNodeRoleAssignments(nodeCount, random = Math.random) {}
+export function createDnaStrandAssignments(strandCount, random = Math.random) {}
 export function resolveResponsiveBackgroundTransform({
   scale,
   positionX,
@@ -103,7 +107,7 @@ export function resolveResponsiveBackgroundTransform({
 }) {}
 ```
 
-Require two role assignments per strand, values limited to integers `0..3`, deterministic injected randomness, and invalid random results handled explicitly: `NaN`, `Infinity`, and `-Infinity` fall back to `0` before floor/clamp, while finite values clamp into the range. Add exact cases for every non-finite input. For the layout helper, use this exact rendering-only rule:
+Require every strand assignment to contain a valid `A-T`, `T-A`, `G-C`, or `C-G` pair. Derive its role assignments deterministically from base identity using `A: 0`, `T: 1`, `G: 2`, and `C: 3`; letter visibility must not affect this mapping. Require deterministic injected randomness for pair selection, and handle invalid random results explicitly: `NaN`, `Infinity`, and `-Infinity` fall back to `0` before floor/clamp, while finite values clamp into the range. Add exact cases for every non-finite input. For the layout helper, use this exact rendering-only rule:
 
 - shortest viewport edge below `480px`: effective scale maximum `1`, X/Y maximum magnitude `20%`;
 - otherwise: effective scale maximum `1.2`, X/Y maximum magnitude `35%`.
@@ -118,6 +122,7 @@ Use the exact flat preference keys:
 
 ```js
 massageLabDnaStrandCount
+massageLabDnaShowBaseLetters
 massageLabDnaNodeMotionSpeed
 massageLabDnaStrandRotationSpeed
 massageLabDnaStrandAngle
@@ -165,7 +170,7 @@ git commit -m "feat: define dna background behavior"
 
 **Consumes:** Sanitized `MassageLabDnaOptions`, seven named role colors, `reduceMotion`, and the shared responsive layout helper.
 
-**Produces:** One decorative, non-interactive DNA effect root with at most 25 strands and 50 nodes.
+**Produces:** One decorative, non-interactive DNA effect root with at most 81 strands and 162 nodes.
 
 - [ ] **Step 1: Write failing type and source-isolation tests**
 
@@ -174,6 +179,7 @@ Add this exact option shape to `BackgroundEffectProps`:
 ```ts
 export interface MassageLabDnaOptions {
   strandCount: number;
+  showBaseLetters: boolean;
   nodeMotionSpeed: number;
   strandRotationSpeed: number;
   strandAngle: number;
@@ -185,7 +191,7 @@ export interface MassageLabDnaOptions {
   connectorThickness: number;
   outlineThickness: number;
   backgroundColor: string;
-  nodeColors: readonly [string, string, string, string];
+  nodeRoleColors: readonly [string, string, string, string];
   connectorColor: string;
   outlineColor: string;
 }
@@ -210,7 +216,7 @@ Expected: FAIL because the renderer does not exist.
 
 - [ ] **Step 2: Implement stable mount-time assignments**
 
-Initialize assignment state from `createDnaNodeRoleAssignments(strandCount * 2)`. Regenerate only when `strandCount` changes; ordinary palette, geometry, position, scale, and speed renders retain the current array. A remount gets a new real-random distribution.
+Initialize assignment state from `createDnaStrandAssignments(strandCount)`. Regenerate only when `strandCount` changes; ordinary palette, geometry, position, scale, and speed renders retain the current array. A remount gets a new real-random distribution.
 
 Render this scoped structure:
 
@@ -273,11 +279,11 @@ Use this public contract:
 ```js
 export const DEFAULT_TWISTED_CUBES_BACKGROUND_OPTIONS = Object.freeze({
   layerCount: 20,
-  rotationSpeed: 1,
+  rotationSpeed: 0.25,
   layerStagger: 0.1,
   viewAngleX: -35,
   viewAngleY: -45,
-  scale: 1,
+  scale: 0.3,
   positionX: 0,
   positionY: 0,
   layerDepthSpacing: 50,
@@ -351,7 +357,7 @@ git commit -m "feat: define twisted cubes behavior"
 
 **Consumes:** Sanitized `MassageLabTwistedCubesOptions`, palette mode, one background color, six outline anchors, and `reduceMotion`.
 
-**Produces:** One decorative 3D CSS scene with at most 30 layers and 180 faces.
+**Produces:** One decorative 3D CSS scene with at most 30 layers and 360 thin edges.
 
 - [ ] **Step 1: Write failing type, structure, and isolation tests**
 
@@ -376,7 +382,7 @@ export interface MassageLabTwistedCubesOptions {
 }
 ```
 
-Require scoped CSS only, no pointer/touch/cursor listeners or drag state, no iframe/Canvas/WebGL/runtime request, and exactly six face elements per generated layer.
+Require scoped CSS only, no pointer/touch/cursor listeners or drag state, no iframe/Canvas/WebGL/runtime request, and exactly twelve thin edge elements per generated layer.
 
 Run: `node --experimental-strip-types --test tests/twisted-cubes-background-component.test.mjs`
 
@@ -384,11 +390,11 @@ Expected: FAIL because the renderer does not exist.
 
 - [ ] **Step 2: Implement calculated per-layer variables**
 
-Generate one wrapper/cube/cuboid plus six faces per sanitized layer. For each layer, choose `getTwistedCubeSourceOutline` when `paletteMode === "source"`; otherwise call `interpolateTwistedCubeOutline`. Pass outline color, alpha, negative delay, depth, and relative outline thickness as CSS variables.
+Generate one wrapper/cube/cuboid plus twelve edges per sanitized layer. For each layer, choose `getTwistedCubeSourceOutline` when `paletteMode === "source"`; otherwise call `interpolateTwistedCubeOutline`. Pass outline color, alpha, negative delay, depth, bounded orthographic depth projection, and relative outline thickness as CSS variables.
 
 - [ ] **Step 3: Recreate source 3D motion and static state**
 
-Scope the four-stage X/Y/Z source rotation and cubic-bezier timing. Apply X/Y viewing angle, scene scale, X/Y position, depth spacing, face fill, falloff, and outline thickness independently. At reduced motion, pause animation at a representative middle phase while retaining every configured property and the resolved gradient.
+Scope the four-stage X/Y/Z source rotation and cubic-bezier timing. Apply X/Y viewing angle, scene scale, X/Y position, depth spacing, root fill, falloff, and edge thickness independently. At reduced motion, pause animation at a representative middle phase while retaining every configured property and the resolved gradient.
 
 - [ ] **Step 4: Run focused tests and commit**
 
@@ -421,7 +427,7 @@ git commit -m "feat: add twisted cubes renderer"
 
 - [ ] **Step 1: Add failing setting and registry tests**
 
-Add all 22 keys from Tasks 1 and 3 to `DEFAULT_CHIMER_SETTINGS` and `sanitizeChimerSettings`. Assert exact source defaults and approved clamps. Add stable IDs to `BackgroundId`:
+Add all 23 new keys from Tasks 1 and 3 to `DEFAULT_CHIMER_SETTINGS` and `sanitizeChimerSettings`. Assert exact source defaults and approved clamps. Add stable IDs to `BackgroundId`:
 
 ```ts
 | "massage-lab-dna"
@@ -446,16 +452,16 @@ Declare exactly these roles and zero-based swatch indexes:
 ```ts
 [
   { id: "background", label: "Background", sourceColor: "hsl(210 80% 12%)", defaultSwatch: 3, rendererTarget: "massageLabDna.backgroundColor" },
-  { id: "node-one", label: "Node 1", sourceColor: "hsl(44 98% 60%)", defaultSwatch: 0, rendererTarget: "massageLabDna.nodeRoleColors[0]" },
-  { id: "node-two", label: "Node 2", sourceColor: "hsl(197 50% 44%)", defaultSwatch: 1, rendererTarget: "massageLabDna.nodeRoleColors[1]" },
-  { id: "node-three", label: "Node 3", sourceColor: "hsl(300 100% 100%)", defaultSwatch: 2, rendererTarget: "massageLabDna.nodeRoleColors[2]" },
-  { id: "node-four", label: "Node 4", sourceColor: "hsl(331 76% 50%)", defaultSwatch: 5, rendererTarget: "massageLabDna.nodeRoleColors[3]" },
+  { id: "node-one", label: "Adenine (A)", sourceColor: "hsl(44 98% 60%)", defaultSwatch: 0, rendererTarget: "massageLabDna.nodeRoleColors[0]" },
+  { id: "node-two", label: "Thymine (T)", sourceColor: "hsl(197 50% 44%)", defaultSwatch: 1, rendererTarget: "massageLabDna.nodeRoleColors[1]" },
+  { id: "node-three", label: "Guanine (G)", sourceColor: "hsl(0 0% 100%)", defaultSwatch: 2, rendererTarget: "massageLabDna.nodeRoleColors[2]" },
+  { id: "node-four", label: "Cytosine (C)", sourceColor: "hsl(331 76% 50%)", defaultSwatch: 5, rendererTarget: "massageLabDna.nodeRoleColors[3]" },
   { id: "connector", label: "Connector", sourceColor: "#ffffff", defaultSwatch: 4, rendererTarget: "massageLabDna.connectorColor" },
   { id: "outline", label: "Outline", sourceColor: "#000000", defaultSwatch: 6, rendererTarget: "massageLabDna.outlineColor" },
 ]
 ```
 
-Set renderer family `css-dom`, status `supported`, and source behavior `fixed`. List all 11 DNA setting keys in `visualPropertyKeys` and source defaults in `sourceVisualProperties`. `applyRoleColors` must update only `massageLabDna` colors and preserve its non-color options.
+Set renderer family `css-dom`, status `supported`, and source behavior `fixed`. List all 12 DNA setting keys in `visualPropertyKeys` and source defaults in `sourceVisualProperties`. `applyRoleColors` must update only `massageLabDna` colors and preserve its non-color options.
 
 - [ ] **Step 3: Add the Twisted Cubes adapter**
 
@@ -515,18 +521,18 @@ Require these exact control groups and ranges:
 
 | DNA group | Controls |
 | --- | --- |
-| Motion | Node motion speed `0.25..3 step .05`; Strand rotation speed `0.1..3 step .05` |
-| Geometry | Strand count `7..25 step 1`; angle `-180..180 step 1`; spacing `0..2 step .05` |
-| Position and scale | scale `.4..1.2 step .01`; X/Y `-35..35 step 1` |
+| Motion | Node motion speed `0.01..3 step .01` (default `0.06`); Strand rotation speed `0.01..3 step .01` (default `0.02`) |
+| Geometry | Strand count `7..81 step 1` (default `70`); Show base letters toggle (default Off); angle `-180..180 step 1`; spacing `0..2 step .05` |
+| Position and scale | scale `.4..1.2 step .01` (default `.5`); X/Y `-35..35 step 1` |
 | Connector | width `60..100 step 1`; thickness `10..60 step 1` |
 | Outline | thickness `0..1.5 step .05` |
 
 | Twisted Cubes group | Controls |
 | --- | --- |
-| Motion | Rotation speed `.25..3 step .05`; Layer stagger `0..0.3 step .01` |
+| Motion | Rotation speed `.01..3 step .01` (default `.25`); Layer stagger `0..0.3 step .01` |
 | View angles | X/Y `-80..80 step 1` |
 | Geometry and depth | Layer count `6..30 step 1`; depth `10..70 step 1` |
-| Position and scale | scale `.4..1.2 step .01`; X/Y `-35..35 step 1` |
+| Position and scale | scale `.1..1.2 step .01` (default `.3`); X/Y `-35..35 step 1` |
 | Fade | falloff `0..0.95 step .01` |
 | Outline | relative thickness `.0025..0.02 step .0005` |
 
@@ -575,7 +581,7 @@ Pass `reduceMotion` in resolved effect props. Both renderers pause internally, w
 
 - [ ] **Step 5: Verify persistence and context sharing**
 
-Test local/account Apply, save retry, presets, invalid-value sanitization, cancellation retention, Chimer-to-Clock navigation, ordinary Clock, and `/clock?source=music`. Assert DNA random assignments and Twisted derived colors/alpha never enter the payload.
+Test local/account Apply, save retry, presets, invalid-value sanitization, cancellation retention, Chimer-to-Clock navigation, ordinary Clock, and `/clock?source=music`. Assert DNA complementary-pair assignments and Twisted derived colors/alpha never enter the payload.
 
 - [ ] **Step 6: Run focused tests and commit**
 
@@ -642,13 +648,14 @@ Expected: FAIL because poster fields and the media component do not exist.
 
 - [ ] **Step 2: Extend render and manifest generation**
 
-After each WebM encode, extract a representative frame at one-third of the clip:
+After each WebM encode, probe its actual duration and extract a representative frame at one-third of the available clip. This keeps the reuse path safe when an existing video was encoded with a different requested duration:
 
 ```js
-async function encodePoster(videoPath, posterPath, durationMs) {
+async function encodePoster(videoPath, posterPath) {
+  const durationSeconds = probeVideoDurationSeconds(videoPath)
   await runProcess("ffmpeg", [
     "-y",
-    "-ss", (durationMs / 3000).toFixed(3),
+    "-ss", (durationSeconds / 3).toFixed(3),
     "-i", videoPath,
     "-frames:v", "1",
     "-c:v", "libwebp",
@@ -706,14 +713,14 @@ Require DNA and Twisted Cubes specimens in Source, Custom, Harmony, reduced moti
 
 - [ ] **Step 2: Build review specimens**
 
-Show source-default and edited-property cases, all seven dynamic role labels, smooth Twisted anchor interpolation, and preview video/poster behavior. Keep the route development-only. DNA's live specimens use production randomness; deterministic assignment assertions stay in the injected pure-helper tests.
+Show source-default and edited-property cases, all seven dynamic role labels, smooth Twisted anchor interpolation, and preview video/poster behavior. Keep the route development-only. DNA's live specimens use production randomness for complementary-pair selection; deterministic assignment assertions stay in the injected pure-helper tests.
 
 - [ ] **Step 3: Write Playwright acceptance tests**
 
 Cover desktop, phone portrait, short landscape, 200% zoom, and reduced motion. Assert:
 
 - source defaults mount without unexpected fallback or console/page errors;
-- DNA role assignments stay stable across palette/property edits and change after count change/remount;
+- DNA complementary-pair assignments stay stable across palette/property edits and change after count change/remount, while nucleotide roles remain identity-derived;
 - Custom/Harmony recolor DNA without reshuffling;
 - Twisted Source is continuous HSL while Custom/Harmony uses exact endpoint anchors and smooth intermediate colors;
 - every slider updates the live draft, Undo/Redo works, Cancel restores, and Apply persists;
@@ -727,7 +734,7 @@ Cover desktop, phone portrait, short landscape, 200% zoom, and reduced motion. A
 
 - [ ] **Step 4: Add bounded-DOM and lifecycle checks**
 
-Require at most 25 DNA strands/50 nodes and 30 Twisted layers/180 faces. During repeated property edits, assert only the selected effect remains mounted and no document/window/listener/animation-frame API is introduced by either component.
+Keep the browser-review fixture bounded at 25 DNA strands/50 nodes and 30 Twisted Cubes layers with twelve thin CSS edges per layer during repeated property edits. Cover the production DNA ceiling of 81 strands/162 nodes separately in the domain and renderer source contracts. Assert only the selected effect remains mounted and no document/window/listener/animation-frame API is introduced by either component.
 
 - [ ] **Step 5: Run review tests and commit**
 
@@ -754,7 +761,7 @@ git commit -m "test: add dna and cubes review coverage"
 
 - [ ] **Step 1: Perform source-default comparison**
 
-Run the supplied archives locally and compare DNA crossover geometry, phase, connector collapse, strand rotation, default composition, and Twisted four-stage 3D rotation, default angles, delay, depth, fade, face fill, and hue progression. Fix only deviations from the approved adaptation; document intentional responsive/static differences.
+Run the supplied archives locally and compare DNA crossover geometry, phase, connector collapse, strand rotation, default composition, and Twisted four-stage 3D rotation, default angles, delay, depth, fade, root fill, nested outline, and hue progression. Fix only deviations from the approved adaptation; document intentional responsive/static differences.
 
 - [ ] **Step 2: Run the complete automated gate**
 
@@ -795,7 +802,7 @@ Before committing, verify `git status --short` still contains the user-owned `TO
 - DNA and Twisted Cubes are enabled premium backgrounds in Chimer, Clock, Music, and ambient categories.
 - Both use native React plus scoped CSS Modules and add no runtime dependency, iframe, Canvas, WebGL, pointer drag, or shuffle action.
 - Source colors and source property values remain visible until edited.
-- DNA renders 7-25 strands, keeps mount-stable random four-role node assignment, uses React sine phases, and exposes separate node/strand speeds.
+- DNA renders 7-81 strands, keeps mount-stable valid complementary base pairs with deterministic A/T/G/C-specific node colors, optionally shows A/G/T/C letters without changing those colors, uses React sine phases, and exposes separate node/strand speeds.
 - Twisted Cubes renders 6-30 layers, preserves continuous Source HSL, smoothly interpolates six Custom/Harmony anchors, and exposes separate speed/stagger.
 - Both support bounded scale/X/Y controls without mutating stored values.
 - Track 4A owns every color, role mapping, draft, Undo/Redo, Apply/Cancel, Color preset, and Visual preset behavior; no duplicate color fields exist.

@@ -263,7 +263,8 @@
   padding-inline: 0.75rem;
 }
 
-.dock[data-immersive-layout="side"][data-immersive-panel="clock"] .dockHeader {
+.dock[data-immersive-layout="side"][data-immersive-panel="clock"] .dockHeader,
+.dock[data-immersive-layout="side"][data-immersive-panel="visual"] .dockHeader {
   display: grid;
   grid-template-areas:
     "title visibility close"
@@ -271,21 +272,25 @@
   grid-template-columns: max-content max-content minmax(0, 1fr);
 }
 
-.dock[data-immersive-layout="side"][data-immersive-panel="clock"] .dockHeader h2 {
+.dock[data-immersive-layout="side"][data-immersive-panel="clock"] .dockHeader h2,
+.dock[data-immersive-layout="side"][data-immersive-panel="visual"] .dockHeader h2 {
   grid-area: title;
   margin-right: 0;
 }
 
-.dock[data-immersive-layout="side"][data-immersive-panel="clock"] .dockHeaderAction {
+.dock[data-immersive-layout="side"][data-immersive-panel="clock"] .dockHeaderAction,
+.dock[data-immersive-layout="side"][data-immersive-panel="visual"] .dockHeaderAction {
   grid-area: visibility;
 }
 
-.dock[data-immersive-layout="side"][data-immersive-panel="clock"] .dockHeaderCenterAction {
+.dock[data-immersive-layout="side"][data-immersive-panel="clock"] .dockHeaderCenterAction,
+.dock[data-immersive-layout="side"][data-immersive-panel="visual"] .dockHeaderCenterAction {
   grid-area: controls;
   width: 100%;
 }
 
-.dock[data-immersive-layout="side"][data-immersive-panel="clock"] .dockHeaderClose {
+.dock[data-immersive-layout="side"][data-immersive-panel="clock"] .dockHeaderClose,
+.dock[data-immersive-layout="side"][data-immersive-panel="visual"] .dockHeaderClose {
   grid-area: close;
   justify-self: end;
   margin-left: 0;
@@ -361,6 +366,9 @@
   }
 }
 
+/* Clock wraps only at phone width; Visual needs the same grid earlier because
+   its Undo/Redo/Cancel/Apply cluster is materially wider. Keep the separate
+   breakpoints even though the grid-area declarations intentionally match. */
 @media (max-width: 420px) {
   .dock[data-immersive-panel="clock"] .dockHeader {
     display: grid;
@@ -384,6 +392,34 @@
   }
 
   .dock[data-immersive-panel="clock"] .dockHeaderClose {
+    grid-area: close;
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 48rem) {
+  .dock:not([data-immersive-layout="side"])[data-immersive-panel="visual"] .dockHeader {
+    display: grid;
+    grid-template-areas:
+      "title visibility spacer close"
+      "controls controls controls controls";
+    grid-template-columns: auto auto 1fr auto;
+    gap: 0.45rem 0.5rem;
+  }
+
+  .dock:not([data-immersive-layout="side"])[data-immersive-panel="visual"] .dockHeader h2 {
+    grid-area: title;
+  }
+
+  .dock:not([data-immersive-layout="side"])[data-immersive-panel="visual"] .dockHeaderAction {
+    grid-area: visibility;
+  }
+
+  .dock:not([data-immersive-layout="side"])[data-immersive-panel="visual"] .dockHeaderCenterAction {
+    grid-area: controls;
+  }
+
+  .dock:not([data-immersive-layout="side"])[data-immersive-panel="visual"] .dockHeaderClose {
     grid-area: close;
     margin-left: 0;
   }

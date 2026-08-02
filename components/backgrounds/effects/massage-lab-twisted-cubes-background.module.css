@@ -1,0 +1,142 @@
+.root {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  isolation: isolate;
+  contain: layout paint style;
+  pointer-events: none;
+  background: var(--ml-twisted-cubes-background-color);
+}
+
+.scene {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  transform: translate(var(--ml-twisted-cubes-position-x), var(--ml-twisted-cubes-position-y));
+  transform-origin: center;
+}
+
+.view,
+.layer,
+.cube,
+.cuboid {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+.view {
+  transform: scale(var(--ml-twisted-cubes-depth-scale)) rotateX(var(--ml-twisted-cubes-view-angle-x)) rotateY(var(--ml-twisted-cubes-view-angle-y));
+}
+
+.cube {
+  inset: auto;
+  top: 50%;
+  left: 50%;
+  width: var(--ml-twisted-cubes-size);
+  height: var(--ml-twisted-cubes-size);
+  transform: translate(-50%, -50%) rotateZ(0deg) rotateX(0deg) rotateZ(0deg);
+  animation: mlTwistedCubesRotate var(--ml-twisted-cubes-cycle) cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite;
+  animation-delay: var(--ml-twisted-cubes-delay);
+}
+
+.edge {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  box-sizing: border-box;
+  width: var(--ml-twisted-cubes-size);
+  height: calc(var(--ml-twisted-cubes-outline-thickness) * 50vmin);
+  opacity: var(--ml-twisted-cubes-alpha);
+  background: var(--ml-twisted-cubes-outline);
+  border-radius: 999px;
+  transform-origin: center;
+}
+
+/* Axis chooses the edge direction; first/second side map to the two remaining
+   coordinate variables. Keep this convention aligned with CUBE_EDGES. */
+.edge[data-axis="x"][data-first-side="negative"] {
+  --ml-twisted-cubes-edge-y: calc(0px - var(--ml-twisted-cubes-half-size));
+}
+
+.edge[data-axis="x"][data-first-side="positive"] {
+  --ml-twisted-cubes-edge-y: var(--ml-twisted-cubes-half-size);
+}
+
+.edge[data-axis="x"][data-second-side="negative"] {
+  --ml-twisted-cubes-edge-z: calc(0px - var(--ml-twisted-cubes-half-size));
+}
+
+.edge[data-axis="x"][data-second-side="positive"] {
+  --ml-twisted-cubes-edge-z: var(--ml-twisted-cubes-half-size);
+}
+
+.edge[data-axis="x"] {
+  transform: translate(-50%, -50%) translate3d(0, var(--ml-twisted-cubes-edge-y), var(--ml-twisted-cubes-edge-z));
+}
+
+.edge[data-axis="y"][data-first-side="negative"] {
+  --ml-twisted-cubes-edge-x: calc(0px - var(--ml-twisted-cubes-half-size));
+}
+
+.edge[data-axis="y"][data-first-side="positive"] {
+  --ml-twisted-cubes-edge-x: var(--ml-twisted-cubes-half-size);
+}
+
+.edge[data-axis="y"][data-second-side="negative"] {
+  --ml-twisted-cubes-edge-z: calc(0px - var(--ml-twisted-cubes-half-size));
+}
+
+.edge[data-axis="y"][data-second-side="positive"] {
+  --ml-twisted-cubes-edge-z: var(--ml-twisted-cubes-half-size);
+}
+
+.edge[data-axis="y"] {
+  transform: translate(-50%, -50%) translate3d(var(--ml-twisted-cubes-edge-x), 0, var(--ml-twisted-cubes-edge-z)) rotateZ(90deg);
+}
+
+.edge[data-axis="z"][data-first-side="negative"] {
+  --ml-twisted-cubes-edge-x: calc(0px - var(--ml-twisted-cubes-half-size));
+}
+
+.edge[data-axis="z"][data-first-side="positive"] {
+  --ml-twisted-cubes-edge-x: var(--ml-twisted-cubes-half-size);
+}
+
+.edge[data-axis="z"][data-second-side="negative"] {
+  --ml-twisted-cubes-edge-y: calc(0px - var(--ml-twisted-cubes-half-size));
+}
+
+.edge[data-axis="z"][data-second-side="positive"] {
+  --ml-twisted-cubes-edge-y: var(--ml-twisted-cubes-half-size);
+}
+
+.edge[data-axis="z"] {
+  transform: translate(-50%, -50%) translate3d(var(--ml-twisted-cubes-edge-x), var(--ml-twisted-cubes-edge-y), 0) rotateY(90deg);
+}
+
+@keyframes mlTwistedCubesRotate {
+  0% {
+    transform: translate(-50%, -50%) rotateZ(0deg) rotateX(0deg) rotateZ(0deg);
+  }
+
+  33% {
+    transform: translate(-50%, -50%) rotateZ(90deg) rotateX(0deg) rotateZ(0deg);
+  }
+
+  66% {
+    transform: translate(-50%, -50%) rotateZ(90deg) rotateX(90deg) rotateZ(0deg);
+  }
+
+  100% {
+    transform: translate(-50%, -50%) rotateZ(90deg) rotateX(90deg) rotateZ(90deg);
+  }
+}
+
+.root[data-reduce-motion] .cube {
+  /* Animation transforms override author transforms, so remove them first. */
+  animation: none;
+  transform: translate(-50%, -50%) rotateZ(90deg) rotateX(90deg) rotateZ(0deg);
+}

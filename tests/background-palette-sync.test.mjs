@@ -11,14 +11,22 @@ import {
   resolveEffectiveBackgroundPaletteMode,
 } from "../lib/background-palette.js"
 import {
+  DEFAULT_CHIMER_SETTINGS,
   normalizeChimerBackgroundVisualPreferences,
   sanitizeChimerSettings,
 } from "../lib/chimer-timer.js"
-import { buildUserPreferencePayload } from "../lib/account-preferences.js"
+import {
+  buildUserPreferencePayload,
+  createChimerPreferenceSyncRequest,
+  createChimerPreferenceSyncRetry,
+  resolveChimerPreferenceSyncRequest,
+} from "../lib/account-preferences.js"
 import {
   backgroundPaletteRegistry,
   backgroundPreferenceNormalizationOptions,
 } from "../components/backgrounds/backgroundPaletteRegistry.ts"
+import { DNA_OPTION_BOUNDS } from "../lib/dna-background.js"
+import { TWISTED_CUBES_OPTION_BOUNDS } from "../lib/twisted-cubes-background.js"
 
 const sanitizeWithRegistry = (value) => sanitizeChimerSettings(value, {
   backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
@@ -242,5 +250,110 @@ describe("Shared background preference access and retry wiring", () => {
     assert.match(source, /body:\s*request\.requestBody/)
     assert.match(source, /setBackgroundPreferenceSync\(\(currentRequest\)\s*=>/)
     assert.doesNotMatch(source, /canCustomizeBackgroundColors/)
+  })
+})
+
+describe("DNA and Twisted Cubes non-color persistence", () => {
+  const boundedProperties = (prefix, bounds) => Object.fromEntries(
+    Object.entries(bounds).map(([key, bound], index) => {
+      const invalid = index % 2 === 0 ? 999 : -999
+      const settingKey = `${prefix}${key[0].toUpperCase()}${key.slice(1)}`
+      return [settingKey, {
+        invalid,
+        expected: invalid > 0 ? bound.maximum : bound.minimum,
+      }]
+    }),
+  )
+  const cases = [
+    {
+      backgroundId: "massage-lab-dna",
+      presetId: "dna",
+      properties: {
+        ...boundedProperties("massageLabDna", DNA_OPTION_BOUNDS),
+        massageLabDnaShowBaseLetters: {
+          invalid: "yes",
+          expected: DEFAULT_CHIMER_SETTINGS.massageLabDnaShowBaseLetters,
+        },
+      },
+    },
+    {
+      backgroundId: "massage-lab-twisted-cubes",
+      presetId: "cubes",
+      properties: boundedProperties("massageLabTwistedCubes", TWISTED_CUBES_OPTION_BOUNDS),
+    },
+  ]
+
+  it("sanitizes every key through local, account Apply, preset/default, and exact retry payloads", () => {
+    const invalidProperties = Object.fromEntries(cases.flatMap(({ properties }) => (
+      Object.entries(properties).map(([key, value]) => [key, value.invalid])
+    )))
+    const expectedProperties = Object.fromEntries(cases.flatMap(({ properties }) => (
+      Object.entries(properties).map(([key, value]) => [key, value.expected])
+    )))
+    const raw = {
+      ...invalidProperties,
+      backgroundVisualPreferences: {
+        visualPresetsByBackground: {
+          ...Object.fromEntries(cases.map(({ backgroundId, presetId, properties }) => [
+            backgroundId,
+            [{
+              id: presetId,
+              name: presetId,
+              properties: Object.fromEntries(Object.entries(properties).map(([key, value]) => [key, value.invalid])),
+              mapping: {},
+            }],
+          ])),
+        },
+        defaultVisualPresetByBackground: Object.fromEntries(
+          cases.map(({ backgroundId, presetId }) => [backgroundId, presetId]),
+        ),
+      },
+      nodeRoleAssignments: [0, 1],
+      outlineAnchors: ["#ffffff"],
+      derivedAlpha: 0.5,
+    }
+    const locallySanitized = sanitizeWithRegistry(raw)
+    const applyRequest = createChimerPreferenceSyncRequest(raw, {
+      backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
+      requestId: 41,
+    })
+    const accountSettings = JSON.parse(applyRequest.requestBody).chimerSettings
+    // Turn the failed in-flight Apply request into the stale state consumed by retry.
+    const stale = resolveChimerPreferenceSyncRequest(applyRequest, applyRequest, false)
+    const retry = createChimerPreferenceSyncRetry(stale, 42)
+    const retrySettings = JSON.parse(retry.requestBody).chimerSettings
+    const payload = buildUserPreferencePayload({ chimerSettings: locallySanitized }, {
+      backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
+    })
+    const serialized = JSON.stringify(payload)
+
+    for (const [key, expected] of Object.entries(expectedProperties)) {
+      assert.equal(locallySanitized[key], expected, `local ${key}`)
+      assert.equal(accountSettings[key], expected, `account Apply ${key}`)
+      assert.equal(retrySettings[key], expected, `account retry ${key}`)
+    }
+    for (const { backgroundId, presetId, properties } of cases) {
+      const expectedPresetProperties = Object.fromEntries(
+        Object.entries(properties).map(([key, value]) => [key, value.expected]),
+      )
+      for (const settings of [locallySanitized, accountSettings, retrySettings]) {
+        assert.deepEqual(
+          settings.backgroundVisualPreferences.visualPresetsByBackground[backgroundId][0].properties,
+          expectedPresetProperties,
+        )
+        assert.equal(
+          settings.backgroundVisualPreferences.defaultVisualPresetByBackground[backgroundId],
+          presetId,
+        )
+      }
+    }
+    assert.equal(retry.status, "pending")
+    assert.equal(retry.requestId, 42)
+    assert.equal(retry.requestBody, applyRequest.requestBody)
+    const transientRendererFields = /nodeRoleAssignments|outlineAnchors|derivedAlpha/
+    assert.doesNotMatch(JSON.stringify(locallySanitized), transientRendererFields)
+    assert.doesNotMatch(JSON.stringify(accountSettings), transientRendererFields)
+    assert.doesNotMatch(JSON.stringify(retrySettings), transientRendererFields)
+    assert.doesNotMatch(serialized, transientRendererFields)
   })
 })

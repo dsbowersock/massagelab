@@ -1027,7 +1027,8 @@ test("539px dock headers own shared actions and compact visual color controls", 
   })
   await expectHitTestable(page, closeClock)
   await closeClock.click()
-  await page.setViewportSize({ width: 539, height: 597 })
+  // Keep the Visual panel just above its single-column breakpoint while preserving the compact header layout.
+  await page.setViewportSize({ width: 807, height: 597 })
   await page.waitForTimeout(500)
 
   await page.getByRole("button", { name: "Visual", exact: true }).click()
@@ -1038,8 +1039,8 @@ test("539px dock headers own shared actions and compact visual color controls", 
   await expect(visualHeader.getByRole("heading", { name: "Visual background" })).toBeVisible()
   await expect(visualBackground).toHaveCount(1)
   await expect.soft(visualHeader.getByText("Visual background", { exact: true })).toHaveCount(1)
-  expect.soft(await visualHeader.evaluate((header, toggle) => header.contains(toggle), await visualBackground.elementHandle())).toBe(true)
-  expect.soft(await visualScroller.evaluate((scroller, toggle) => scroller.contains(toggle), await visualBackground.elementHandle())).toBe(false)
+  await expect.soft(visualHeader.getByRole("switch", { name: /^Background animation:/ })).toHaveCount(1)
+  await expect.soft(visualScroller.getByRole("switch", { name: /^Background animation:/ })).toHaveCount(0)
   const renderedBackground = page.getByTestId("chimer-premium-background")
   await expect(renderedBackground).toHaveCount(1)
   await visualBackground.press("Space")
@@ -1051,8 +1052,23 @@ test("539px dock headers own shared actions and compact visual color controls", 
   await expect(renderedBackground).toHaveAttribute("data-background-motion", "playing")
   const clockColor = visualPanel.getByRole("button", { name: "Clock color picker" })
   await expect(clockColor).toHaveCount(1)
-  expect.soft(await visualHeader.evaluate((header, picker) => header.contains(picker), await clockColor.elementHandle())).toBe(true)
-  expect.soft(await visualScroller.evaluate((scroller, picker) => scroller.contains(picker), await clockColor.elementHandle())).toBe(false)
+  await expect.soft(visualHeader.getByRole("button", { name: "Clock color picker" })).toHaveCount(1)
+  await expect.soft(visualScroller.getByRole("button", { name: "Clock color picker" })).toHaveCount(0)
+
+  const undoVisual = visualPanel.getByRole("button", { name: "Undo", exact: true })
+  const redoVisual = visualPanel.getByRole("button", { name: "Redo", exact: true })
+  const cancelVisual = visualPanel.getByRole("button", { name: "Cancel", exact: true })
+  const applyVisual = visualPanel.getByRole("button", { name: "Apply", exact: true })
+  for (const [name, action] of [
+    ["Undo", undoVisual],
+    ["Redo", redoVisual],
+    ["Cancel", cancelVisual],
+    ["Apply", applyVisual],
+  ] as const) {
+    await expect(action).toHaveCount(1)
+    await expect.soft(visualHeader.getByRole("button", { name, exact: true }), `${name} in header`).toHaveCount(1)
+    await expect.soft(visualScroller.getByRole("button", { name, exact: true }), `${name} outside scroller`).toHaveCount(0)
+  }
 
   const closeVisual = visualPanel.getByRole("button", { name: "Close Visual panel" })
   await expect.soft(closeVisual).toHaveClass(/ml-button-destructive/)
@@ -1061,41 +1077,121 @@ test("539px dock headers own shared actions and compact visual color controls", 
     const toggle = header.querySelector<HTMLElement>("[role='switch']")?.getBoundingClientRect()
     const swatch = header.querySelector<HTMLElement>("[aria-label='Clock color picker']")?.getBoundingClientRect()
     const colorControl = header.querySelector<HTMLElement>("[aria-label='Clock color picker']")?.parentElement?.parentElement?.getBoundingClientRect()
+    const undo = header.querySelector<HTMLElement>("[aria-label='Undo']")
+    const redo = header.querySelector<HTMLElement>("[aria-label='Redo']")
+    const cancel = header.querySelector<HTMLElement>("[aria-label='Cancel']")
+    const apply = header.querySelector<HTMLElement>("[aria-label='Apply']")
+    const actions = [
+      ["Undo", undo],
+      ["Redo", redo],
+      ["Cancel", cancel],
+      ["Apply", apply],
+    ] as const
+    const actionElements = actions.map(([, element]) => element)
+    const actionRects = actionElements.map((element) => element?.getBoundingClientRect())
     const close = header.querySelector<HTMLElement>("[aria-label='Close Visual panel']")?.getBoundingClientRect()
     const bounds = header.getBoundingClientRect()
-    if (!title || !toggle || !swatch || !colorControl || !close) return null
-    const availableCenter = (toggle.right + close.left) / 2
-    const colorCenter = (colorControl.left + colorControl.right) / 2
+    const missing = [
+      ["title", title], ["toggle", toggle], ["swatch", swatch],
+      ["colorControl", colorControl], ["close", close],
+      ...actions,
+    ].filter(([, value]) => !value).map(([name]) => name)
+    if (!title || !toggle || !swatch || !colorControl || !close
+      || missing.length > 0 || actionRects.some((rect) => !rect)) return { missing }
+    const validatedActionRects = actionRects as DOMRect[]
+    const ordered = [
+      header.querySelector<HTMLElement>("[aria-label='Clock color picker']"),
+      undo,
+      redo,
+      cancel,
+      apply,
+      header.querySelector<HTMLElement>("[aria-label='Close Visual panel']"),
+    ]
+    const orderedElements = ordered.filter((element): element is HTMLElement => Boolean(element))
+    const actionLeft = Math.min(...validatedActionRects.map((rect) => rect.left))
+    const actionRight = Math.max(...validatedActionRects.map((rect) => rect.right))
     return {
       titleReadable: title.width > 0 && title.height > 0,
       toggleImmediatelyAfterTitle: toggle.left >= title.right && toggle.left - title.right <= 24,
-      colorBetweenClusters: colorControl.left >= toggle.right && colorControl.right <= close.left,
-      colorCenteredInAvailableSpace: Math.abs(colorCenter - availableCenter) <= 2,
+      actionsBetweenColorAndClose: colorControl.right <= actionLeft && actionRight <= close.left,
+      controlsOrdered: orderedElements.length === ordered.length
+        && orderedElements.every((element, index) => index === 0 || Boolean(
+          orderedElements[index - 1]!.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING,
+        )),
+      allActionsInside: validatedActionRects.every((rect) => (
+        rect.left >= bounds.left && rect.right <= bounds.right
+      )),
       swatchWidth: Math.round(swatch.width),
       swatchHeight: Math.round(swatch.height),
       closeInside: close.left >= bounds.left && close.right <= bounds.right
         && close.top >= bounds.top && close.bottom <= bounds.bottom,
+      noHorizontalOverflow: header.scrollWidth <= header.clientWidth + 1,
     }
   })
   expect.soft(headerGeometry).toEqual({
     titleReadable: true,
     toggleImmediatelyAfterTitle: true,
-    colorBetweenClusters: true,
-    colorCenteredInAvailableSpace: true,
+    actionsBetweenColorAndClose: true,
+    controlsOrdered: true,
+    allActionsInside: true,
     swatchWidth: 32,
     swatchHeight: 32,
     closeInside: true,
+    noHorizontalOverflow: true,
   })
   await expectHitTestable(page, closeVisual)
+
+  await page.setViewportSize({ width: 584, height: 597 })
+  const compactVisualHeader = await visualHeader.evaluate((header) => {
+    const title = header.querySelector<HTMLElement>("h2")?.getBoundingClientRect()
+    const close = header.querySelector<HTMLElement>("[aria-label='Close Visual panel']")?.getBoundingClientRect()
+    const color = header.querySelector<HTMLElement>("[aria-label='Clock color picker']")?.getBoundingClientRect()
+    const actions = ["Undo", "Redo", "Cancel", "Apply"].map((label) => (
+      header.querySelector<HTMLElement>(`[aria-label='${label}']`)?.getBoundingClientRect()
+    ))
+    const bounds = header.getBoundingClientRect()
+    const missing = [
+      ["title", title], ["close", close], ["color", color],
+      ...actions.map((action, index) => [`action-${index}`, action] as const),
+    ].filter(([, value]) => !value).map(([name]) => name)
+    if (!title || !close || !color || missing.length > 0) return { missing }
+    const validatedActions = actions as DOMRect[]
+    return {
+      controlsOnSecondRow: [color, ...validatedActions].every((rect) => rect.top >= title.bottom - 1),
+      closeOnTitleRow: Math.abs((close.top + close.bottom) / 2 - (title.top + title.bottom) / 2) <= 2,
+      allInside: [color, ...validatedActions].every((rect) => (
+        rect.left >= bounds.left && rect.right <= bounds.right
+      )),
+      noHorizontalOverflow: header.scrollWidth <= header.clientWidth + 1,
+    }
+  })
+  expect.soft(compactVisualHeader).toEqual({
+    controlsOnSecondRow: true,
+    closeOnTitleRow: true,
+    allInside: true,
+    noHorizontalOverflow: true,
+  })
 
   await page.setViewportSize({ width: 319, height: 823 })
   const narrowHeaderGeometry = await visualHeader.evaluate((header) => {
     const title = header.querySelector("h2")?.getBoundingClientRect()
     const toggle = header.querySelector<HTMLElement>("[role='switch']")?.getBoundingClientRect()
-    const action = header.querySelector<HTMLElement>("[aria-label='Clock color picker']")?.getBoundingClientRect()
+    const actionElements = [
+      header.querySelector<HTMLElement>("[aria-label='Clock color picker']"),
+      header.querySelector<HTMLElement>("[aria-label='Undo']"),
+      header.querySelector<HTMLElement>("[aria-label='Redo']"),
+      header.querySelector<HTMLElement>("[aria-label='Cancel']"),
+      header.querySelector<HTMLElement>("[aria-label='Apply']"),
+    ]
+    const actions = actionElements.map((element) => element?.getBoundingClientRect())
     const close = header.querySelector<HTMLElement>("[aria-label='Close Visual panel']")?.getBoundingClientRect()
     const bounds = header.getBoundingClientRect()
-    if (!title || !toggle || !action || !close) return null
+    const missing = [
+      ["title", title], ["toggle", toggle], ["close", close],
+      ...actions.map((action, index) => [`action-${index}`, action] as const),
+    ].filter(([, value]) => !value).map(([name]) => name)
+    if (!title || !toggle || !close || missing.length > 0) return { missing }
+    const validatedActions = actions as DOMRect[]
     const overlaps = (first: DOMRect, second: DOMRect) => !(
       first.right <= second.left
       || second.right <= first.left
@@ -1104,22 +1200,29 @@ test("539px dock headers own shared actions and compact visual color controls", 
     )
     return {
       titleReadable: title.width > 0 && title.height > 0,
-      toggleInside: toggle.left >= bounds.left && toggle.right <= bounds.right,
-      actionInside: action.left >= bounds.left && action.right <= bounds.right,
-      closeInside: close.left >= bounds.left && close.right <= bounds.right,
-      actionClearOfClose: !overlaps(action, close),
+      toggleInside: toggle.left >= bounds.left && toggle.right <= bounds.right
+        && toggle.top >= bounds.top && toggle.bottom <= bounds.bottom,
+      actionsInside: validatedActions.every((action) => (
+        action.left >= bounds.left && action.right <= bounds.right
+          && action.top >= bounds.top && action.bottom <= bounds.bottom
+      )),
+      closeInside: close.left >= bounds.left && close.right <= bounds.right
+        && close.top >= bounds.top && close.bottom <= bounds.bottom,
+      actionsClearOfClose: validatedActions.every((action) => !overlaps(action, close)),
       titleClearOfToggle: !overlaps(title, toggle),
-      toggleClearOfAction: !overlaps(toggle, action),
+      toggleClearOfActions: validatedActions.every((action) => !overlaps(toggle, action)),
+      noHorizontalOverflow: header.scrollWidth <= header.clientWidth + 1,
     }
   })
   expect.soft(narrowHeaderGeometry).toEqual({
     titleReadable: true,
     toggleInside: true,
-    actionInside: true,
+    actionsInside: true,
     closeInside: true,
-    actionClearOfClose: true,
+    actionsClearOfClose: true,
     titleClearOfToggle: true,
-    toggleClearOfAction: true,
+    toggleClearOfActions: true,
+    noHorizontalOverflow: true,
   })
   await expectHitTestable(page, closeVisual)
 

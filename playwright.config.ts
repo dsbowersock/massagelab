@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test"
+import path from "node:path"
 
 const defaultBrowserQaPort = 3010
 const defaultBrowserQaBaseUrl = "http://localhost:3010"
@@ -27,9 +28,140 @@ const browserQaPort = parseBrowserQaPort(process.env.PLAYWRIGHT_PORT)
 const browserQaBaseUrl = process.env.PLAYWRIGHT_BASE_URL
   ?? (browserQaPort === defaultBrowserQaPort ? defaultBrowserQaBaseUrl : `http://localhost:${browserQaPort}`)
 const skipWebServer = parseBooleanEnv(process.env.PLAYWRIGHT_SKIP_WEB_SERVER)
-const runsDevelopmentPaletteReview = process.argv.some((argument) => (
-  argument.replaceAll("\\", "/").endsWith("tests/browser/background-palette.spec.ts")
-))
+const developmentPaletteReviewSpecs = [
+  "tests/browser/background-palette.spec.ts",
+  "tests/browser/dna-twisted-cubes-backgrounds.spec.ts",
+]
+const developmentPaletteReviewIgnoreGlobs = developmentPaletteReviewSpecs
+  .map((spec) => `**/${path.posix.basename(spec)}`)
+
+/** Matches an exact normalized review-spec path or the same path with a leading directory. */
+function matchesExactDevelopmentPaletteReviewSpec(normalizedArgument: string) {
+  return developmentPaletteReviewSpecs.some((spec) => (
+    normalizedArgument === spec || normalizedArgument.endsWith(`/${spec}`)
+  ))
+}
+
+/** Matches a bare filename against basenames, or a partial path against full review-spec paths. */
+function matchesDevelopmentPaletteReviewSubstring(normalizedArgument: string) {
+  const argumentBasename = path.posix.basename(normalizedArgument)
+  const isStandaloneFilter = normalizedArgument === argumentBasename && argumentBasename.length > 0
+  const substringMatches = !isStandaloneFilter
+    ? developmentPaletteReviewSpecs.filter((spec) => (
+      spec.includes(normalizedArgument)
+    ))
+    : developmentPaletteReviewSpecs.filter((spec) => (
+      path.posix.basename(spec).includes(argumentBasename)
+    ))
+  return substringMatches.length > 0
+}
+
+/**
+ * Matches the bounded regex-like subset used by Playwright file filters without
+ * compiling command-line input as a regular expression.
+ */
+function matchesDevelopmentPaletteReviewPattern(argument: string) {
+  if (argument.length === 0 || argument.length > 512) return false
+
+  let normalizedPattern = argument
+    .replaceAll(String.raw`[\\/]`, "/")
+    .replaceAll(String.raw`[/\\]`, "/")
+    .replaceAll(String.raw`\/`, "/")
+    .replaceAll(String.raw`\\`, "/")
+    .replaceAll(String.raw`\.`, ".")
+    .replaceAll(String.raw`\-`, "-")
+  const requiresStart = normalizedPattern.startsWith("^")
+  const requiresEnd = normalizedPattern.endsWith("$")
+  if (requiresStart) normalizedPattern = normalizedPattern.slice(1)
+  if (requiresEnd) normalizedPattern = normalizedPattern.slice(0, -1)
+
+  const startsWithWildcard = /^(?:\.\*|\.\+)/.test(normalizedPattern)
+  const endsWithWildcard = /(?:\.\*|\.\+)$/.test(normalizedPattern)
+  const fragments = normalizedPattern.split(/\.\*|\.\+/)
+  if (fragments.some((fragment) => /[\[\]{}()|?*+^$]/.test(fragment))) return false
+
+  return developmentPaletteReviewSpecs.some((spec) => {
+    const candidate = path.resolve(spec).replaceAll("\\", "/")
+    let searchFrom = 0
+    for (const fragment of fragments) {
+      if (!fragment) continue
+      const fragmentIndex = candidate.indexOf(fragment, searchFrom)
+      if (fragmentIndex === -1) return false
+      if (requiresStart && !startsWithWildcard && searchFrom === 0 && fragmentIndex !== 0) return false
+      searchFrom = fragmentIndex + fragment.length
+    }
+    return !requiresEnd || endsWithWildcard || searchFrom === candidate.length
+  })
+}
+
+/** Matches exact development-review specs plus Playwright substring and regex filters. */
+export function matchesDevelopmentPaletteReviewArgument(argument: string) {
+  const normalizedArgument = argument
+    .replaceAll("\\", "/")
+    .replace(/:\d+(?::\d+)?$/, "")
+  if (matchesExactDevelopmentPaletteReviewSpec(normalizedArgument)) return true
+  // Any selected review spec requires the development server, including one
+  // substring or regex filter that intentionally selects both review specs.
+  if (matchesDevelopmentPaletteReviewSubstring(normalizedArgument)) return true
+  return matchesDevelopmentPaletteReviewPattern(argument)
+}
+
+const playwrightOptionsWithSeparateValues = new Set([
+  "-c", "--config", "-g", "--grep", "-G", "--grep-invert", "-j", "--workers",
+  "--reporter", "--retries", "--timeout", "--global-timeout",
+  "--max-failures", "--output", "--shard", "--trace", "--repeat-each", "--tsconfig",
+  "--browser", "--last-failed-file", "--test-list", "--test-list-invert",
+  "--ui-host", "--ui-port", "--update-source-method",
+])
+const playwrightOptionsWithOptionalSeparateValues = new Set(["--only-changed"])
+const playwrightOptionsWithVariadicValues = new Set(["--project"])
+
+/** Returns only positional Playwright arguments, excluding option names and their values. */
+export function getPlaywrightFileFilterArguments(argv: readonly string[]) {
+  const positionalArguments: string[] = []
+  for (let index = 0; index < argv.length; index += 1) {
+    const argument = argv[index]
+    if (argument === "--") {
+      positionalArguments.push(...argv.slice(index + 1))
+      break
+    }
+    if (playwrightOptionsWithSeparateValues.has(argument)) {
+      index += 1
+      continue
+    }
+    if (playwrightOptionsWithOptionalSeparateValues.has(argument)) {
+      if (argv[index + 1] && !argv[index + 1].startsWith("-")) index += 1
+      continue
+    }
+    if (playwrightOptionsWithVariadicValues.has(argument)) {
+      // Playwright greedily treats following non-option operands as project names;
+      // callers must use `--` before a positional file filter after `--project`.
+      while (argv[index + 1] && !argv[index + 1].startsWith("-")) index += 1
+      continue
+    }
+    if (argument.startsWith("-")) continue
+    positionalArguments.push(argument)
+  }
+  return positionalArguments
+}
+
+const playwrightSubcommands = new Set(["test", "show-report", "codegen", "install"])
+
+/** Detects review-spec filters without treating a Playwright subcommand as a file filter. */
+export function isDevelopmentPaletteReviewInvocation(argv: readonly string[]) {
+  return getPlaywrightFileFilterArguments(argv)
+    .filter((argument, index) => index !== 0 || !playwrightSubcommands.has(argument))
+    .some(matchesDevelopmentPaletteReviewArgument)
+}
+
+/** Resolves development-only review exclusions from explicit Playwright arguments. */
+export function resolveDevelopmentPaletteReviewIgnoreGlobs(argv: readonly string[]) {
+  return isDevelopmentPaletteReviewInvocation(argv)
+    ? []
+    : [...developmentPaletteReviewIgnoreGlobs]
+}
+
+const runsDevelopmentPaletteReview = isDevelopmentPaletteReviewInvocation(process.argv.slice(2))
 const defaultWebServerCommand = runsDevelopmentPaletteReview
   ? `npm run dev -- -p ${browserQaPort}`
   : `npm run start -- -p ${browserQaPort}`
@@ -39,7 +171,7 @@ export default defineConfig({
   // The palette gallery is development-only. Ordinary production-server QA
   // excludes it, while an exact-spec invocation flips the dev server on and
   // keeps the review matrix runnable.
-  testIgnore: runsDevelopmentPaletteReview ? [] : ["**/background-palette.spec.ts"],
+  testIgnore: resolveDevelopmentPaletteReviewIgnoreGlobs(process.argv.slice(2)),
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,

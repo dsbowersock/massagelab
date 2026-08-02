@@ -14,6 +14,15 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { getBackgroundOptionsForCategory } from "../../components/backgrounds/backgroundRegistry.ts"
+import {
+  LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL,
+  normalizeGeneratedPreviewManifestItem,
+} from "./manifest-url-normalization.mjs"
+import {
+  buildGeneratedPreviewManifestItem,
+  mergeGeneratedPreviewManifestItem,
+} from "./manifest-item-merge.mjs"
+import { probeMediaDimensions, resolveProbeDurationSeconds } from "./probe-result.mjs"
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const defaultOutputDir = path.join(repoRoot, "public/chimer/background-previews")
@@ -176,6 +185,10 @@ function ensureFfmpeg() {
   if (result.status !== 0) {
     throw new Error("FFmpeg is required to render Chimer preview assets. Install FFmpeg or add it to PATH.")
   }
+  const encoders = spawnSync("ffmpeg", ["-hide_banner", "-encoders"], { encoding: "utf8" })
+  if (encoders.status !== 0 || !/\blibwebp\b/.test(`${encoders.stdout ?? ""}\n${encoders.stderr ?? ""}`)) {
+    throw new Error("FFmpeg must include the libwebp encoder to render Chimer preview posters.")
+  }
 }
 
 async function waitForServer(baseUrl, timeoutMs = 120_000) {
@@ -184,7 +197,12 @@ async function waitForServer(baseUrl, timeoutMs = 120_000) {
 
   while (Date.now() - startedAt < timeoutMs) {
     try {
-      const response = await fetch(url, { cache: "no-store" })
+      const response = await fetch(url, {
+        cache: "no-store",
+        // A dev server can accept the connection while its first route compile
+        // stalls. Bound each probe so the outer startup timeout remains real.
+        signal: AbortSignal.timeout(5000),
+      })
       if (response.ok) {
         return
       }
@@ -203,6 +221,7 @@ async function disableNextDevIndicator(baseUrl) {
     await fetch(new URL("/__nextjs_disable_dev_indicator", baseUrl), {
       method: "POST",
       cache: "no-store",
+      signal: AbortSignal.timeout(5000),
     })
   } catch {
     // Production servers do not expose the dev indicator endpoint.
@@ -311,17 +330,95 @@ async function encodeWebm(sourcePath, outputPath, options, variant) {
   }
 }
 
+/**
+ * Reads the encoded asset duration so reused videos cannot seek past their
+ * actual end. A successful probe with no usable duration may fall back to the
+ * capture duration already known by this generator; process failures still
+ * surface their original diagnostic.
+ */
+function probeVideoDurationSeconds(videoPath, fallbackDurationMs) {
+  const result = spawnSync("ffprobe", [
+    "-v", "error",
+    "-show_entries", "format=duration",
+    "-of", "default=noprint_wrappers=1:nokey=1",
+    videoPath,
+  ], { encoding: "utf8" })
+  return resolveProbeDurationSeconds(result, videoPath, fallbackDurationMs)
+}
+
+/** Extracts a stable representative frame one-third through the encoded video. */
+async function encodePoster(videoPath, posterPath, fallbackDurationMs) {
+  const seekSeconds = probeVideoDurationSeconds(videoPath, fallbackDurationMs) / 3
+  await runProcess("ffmpeg", [
+    "-y",
+    "-ss", seekSeconds.toFixed(3),
+    "-i", videoPath,
+    "-frames:v", "1",
+    "-c:v", "libwebp",
+    "-quality", "78",
+    posterPath,
+  ])
+
+  if (!existsSync(posterPath) || statSync(posterPath).size <= 0) {
+    throw new Error(`${path.basename(posterPath)} is empty after poster encoding.`)
+  }
+}
+
 function hashFile(filePath) {
   return createHash("sha256").update(readFileSync(filePath)).digest("hex")
 }
 
+/** Reads decoded dimensions while preserving the original FFprobe diagnostic. */
+function probeVariantDimensions(filePath) {
+  return probeMediaDimensions(filePath)
+}
+
+/** Verifies that reusable media is readable at the declared variant size. */
+function mediaMatchesVariant(filePath, variant) {
+  if (!existsSync(filePath) || statSync(filePath).size <= 0) return false
+  try {
+    const dimensions = probeVariantDimensions(filePath)
+    return dimensions.width === variant.outputWidth
+      && dimensions.height === variant.outputHeight
+  } catch {
+    return false
+  }
+}
+
+/** Prevents invalid media from being published into the generated manifest. */
+function assertVariantMedia(outputPath, posterPath, variant) {
+  for (const [filePath, kind] of [[outputPath, "video"], [posterPath, "poster"]]) {
+    if (!existsSync(filePath) || statSync(filePath).size <= 0) {
+      throw new Error(`${path.basename(filePath)} is missing or empty.`)
+    }
+    const dimensions = probeVariantDimensions(filePath)
+    if (dimensions.width !== variant.outputWidth || dimensions.height !== variant.outputHeight) {
+      throw new Error(`${path.basename(filePath)} is not valid ${variant.outputWidth}x${variant.outputHeight} ${kind}.`)
+    }
+  }
+}
+
 async function captureVariant(browser, entry, options, variant, tempVideoDir) {
   const outputPath = path.join(options.outputDir, `${entry.id}${variant.suffix}.webm`)
+  const posterPath = path.join(options.outputDir, `${entry.id}${variant.suffix}.webp`)
 
-  if (existsSync(outputPath) && !options.force) {
+  const videoIsUsable = mediaMatchesVariant(outputPath, variant)
+  const posterIsUsable = mediaMatchesVariant(posterPath, variant)
+  if (videoIsUsable && posterIsUsable && !options.force) {
     return {
       skipped: true,
-      variant: buildVariantManifest(entry, outputPath, options, variant),
+      variant: buildVariantManifest(entry, outputPath, posterPath, options, variant),
+    }
+  }
+
+  // A prior interrupted run may have a valid video but no poster. Complete the
+  // pair without paying the browser-recording cost again unless --force is set.
+  if (videoIsUsable && !options.force) {
+    await encodePoster(outputPath, posterPath, options.durationMs)
+    assertVariantMedia(outputPath, posterPath, variant)
+    return {
+      skipped: false,
+      variant: buildVariantManifest(entry, outputPath, posterPath, options, variant),
     }
   }
 
@@ -355,6 +452,12 @@ async function captureVariant(browser, entry, options, variant, tempVideoDir) {
       undefined,
       { timeout: 10_000 },
     )
+    // Next's development indicator is injected after hydration. Keep that
+    // tooling chrome out of generated product media even when capture reuses
+    // an already-running local dev server.
+    await page.addStyleTag({
+      content: "nextjs-portal { display: none !important; }",
+    })
     await page.waitForTimeout(options.warmupMs + options.durationMs + 600)
 
     const video = page.video()
@@ -366,9 +469,11 @@ async function captureVariant(browser, entry, options, variant, tempVideoDir) {
 
     const sourcePath = await video.path()
     await encodeWebm(sourcePath, outputPath, options, variant)
+    await encodePoster(outputPath, posterPath, options.durationMs)
+    assertVariantMedia(outputPath, posterPath, variant)
     return {
       skipped: false,
-      variant: buildVariantManifest(entry, outputPath, options, variant),
+      variant: buildVariantManifest(entry, outputPath, posterPath, options, variant),
     }
   } catch (error) {
     await context.close().catch(() => undefined)
@@ -388,52 +493,86 @@ async function captureBackground(browser, entry, options, variants, tempVideoDir
 
   return {
     skipped,
-    item: buildManifestItem(entry, variantItems),
+    item: buildGeneratedPreviewManifestItem(entry, variantItems),
   }
 }
 
-function buildVariantManifest(entry, outputPath, options, variant) {
+function buildVariantManifest(entry, outputPath, posterPath, options, variant) {
   const stats = statSync(outputPath)
+  const posterStats = statSync(posterPath)
   return {
     key: variant.key,
     previewMediaType: "video",
-    previewMediaUrl: `/chimer/background-previews/${entry.id}${variant.suffix}.webm`,
+    previewMediaUrl: `${LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL}/${entry.id}${variant.suffix}.webm`,
+    previewPosterUrl: `${LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL}/${entry.id}${variant.suffix}.webp`,
     width: variant.outputWidth,
     height: variant.outputHeight,
     durationMs: options.durationMs,
     fps: options.fps,
     bytes: stats.size,
     sha256: hashFile(outputPath),
-  }
-}
-
-function buildManifestItem(entry, variants) {
-  const primary = variants.landscape ?? Object.values(variants)[0]
-
-  return {
-    id: entry.id,
-    label: entry.label,
-    provider: entry.provider,
-    previewMediaType: "video",
-    previewMediaUrl: primary.previewMediaUrl,
-    previewVideoUrl: primary.previewMediaUrl,
-    previewSquareVideoUrl: variants.square?.previewMediaUrl,
-    previewVerticalVideoUrl: variants.vertical?.previewMediaUrl,
-    variants,
+    posterBytes: posterStats.size,
+    posterSha256: hashFile(posterPath),
   }
 }
 
 function writeManifest(items, options) {
+  const manifestPath = path.join(options.outputDir, "index.json")
+  const registryEntries = getBackgroundOptionsForCategory(options.category)
+  const registryIds = new Set(registryEntries.map((entry) => entry.id))
+  // The checked-in manifest is the authoritative merge base for partial runs
+  // because it includes generator-only poster sizes and hashes. A fresh output
+  // directory falls back to registry media until the first complete manifest.
+  const registrySources = () => registryEntries
+    .filter((entry) => entry.previewVariants && Object.keys(entry.previewVariants).length > 0)
+    .map((entry) => ({
+      id: entry.id,
+      label: entry.label,
+      provider: entry.provider,
+      previewMediaType: "video",
+      previewMediaUrl: entry.previewVideoUrl ?? entry.previewMediaUrl,
+      previewVideoUrl: entry.previewVideoUrl ?? entry.previewMediaUrl,
+      previewImageUrl: entry.previewImageUrl,
+      previewSquareVideoUrl: entry.previewSquareVideoUrl,
+      previewSquareImageUrl: entry.previewSquareImageUrl,
+      previewVerticalVideoUrl: entry.previewVerticalVideoUrl,
+      previewVerticalImageUrl: entry.previewVerticalImageUrl,
+      variants: entry.previewVariants,
+    }))
+  let existingSources = registrySources()
+  if (existsSync(manifestPath)) {
+    try {
+      const parsedItems = JSON.parse(readFileSync(manifestPath, "utf8"))?.items
+      if (!Array.isArray(parsedItems)) throw new Error("manifest items must be an array")
+      existingSources = parsedItems
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error)
+      console.warn(`Unable to reuse ${manifestPath}; merging onto registry sources. ${reason}`)
+    }
+  }
+  const existingItems = existingSources
+    .filter((item) => typeof item?.id === "string" && item.id.length > 0)
+    .map(normalizeGeneratedPreviewManifestItem)
+  const mergedItems = new Map(existingItems.map((item) => [item.id, item]))
+  for (const item of items) {
+    mergedItems.set(
+      item.id,
+      mergeGeneratedPreviewManifestItem(mergedItems.get(item.id), item),
+    )
+  }
+
   const manifest = {
     generatedAt: new Date().toISOString(),
     category: options.category,
     durationMs: options.durationMs,
     fps: options.fps,
-    items: items.sort((left, right) => left.id.localeCompare(right.id)),
+    items: [...mergedItems.values()]
+      .filter((item) => registryIds.has(item.id))
+      .sort((left, right) => left.id.localeCompare(right.id)),
   }
 
   writeFileSync(
-    path.join(options.outputDir, "index.json"),
+    manifestPath,
     `${JSON.stringify(manifest, null, 2)}\n`,
   )
 
@@ -444,8 +583,11 @@ function writeManifest(items, options) {
         previewMediaUrl: item.previewMediaUrl,
         previewMediaType: item.previewMediaType,
         previewVideoUrl: item.previewVideoUrl,
+        ...(item.previewImageUrl ? { previewImageUrl: item.previewImageUrl } : {}),
         ...(item.previewSquareVideoUrl ? { previewSquareVideoUrl: item.previewSquareVideoUrl } : {}),
+        ...(item.previewSquareImageUrl ? { previewSquareImageUrl: item.previewSquareImageUrl } : {}),
         ...(item.previewVerticalVideoUrl ? { previewVerticalVideoUrl: item.previewVerticalVideoUrl } : {}),
+        ...(item.previewVerticalImageUrl ? { previewVerticalImageUrl: item.previewVerticalImageUrl } : {}),
         variants: item.variants,
       },
     ]),
@@ -457,6 +599,7 @@ function writeManifest(items, options) {
     "export type BackgroundPreviewVariant = {",
     "  key: BackgroundPreviewVariantName",
     "  previewMediaUrl: string",
+    "  previewPosterUrl?: string",
     "  previewMediaType: \"video\"",
     "  width: number",
     "  height: number",
@@ -464,18 +607,23 @@ function writeManifest(items, options) {
     "  fps: number",
     "  bytes: number",
     "  sha256: string",
+    "  posterBytes?: number",
+    "  posterSha256?: string",
     "}",
     "",
     "export type BackgroundPreviewManifestEntry = {",
     "  previewMediaUrl: string",
     "  previewMediaType: \"image\" | \"video\"",
     "  previewVideoUrl?: string",
+    "  previewImageUrl?: string",
     "  previewSquareVideoUrl?: string",
+    "  previewSquareImageUrl?: string",
     "  previewVerticalVideoUrl?: string",
+    "  previewVerticalImageUrl?: string",
     "  variants?: Partial<Record<BackgroundPreviewVariantName, BackgroundPreviewVariant>>",
     "}",
     "",
-    "const LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL = \"/chimer/background-previews\"",
+    `const LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL = ${JSON.stringify(LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL)}`,
     "const HOSTED_CHIMER_PREVIEW_MEDIA_BASE_URL = \"https://media.massagelab.app/chimer/background-previews\"",
     "const CHIMER_PREVIEW_MEDIA_BASE_URL = (process.env.NEXT_PUBLIC_CHIMER_PREVIEW_MEDIA_BASE_URL || (process.env.NODE_ENV === \"production\" ? HOSTED_CHIMER_PREVIEW_MEDIA_BASE_URL : LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL)).replace(/\\/+$/, \"\")",
     "",
@@ -496,6 +644,7 @@ function writeManifest(items, options) {
     "      resolved[key] = {",
     "        ...variant,",
     "        previewMediaUrl: resolvePreviewMediaUrl(variant.previewMediaUrl),",
+    "        previewPosterUrl: variant.previewPosterUrl ? resolvePreviewMediaUrl(variant.previewPosterUrl) : undefined,",
     "      }",
     "    }",
     "  }",
@@ -508,8 +657,11 @@ function writeManifest(items, options) {
     "    ...entry,",
     "    previewMediaUrl: resolvePreviewMediaUrl(entry.previewMediaUrl),",
     "    previewVideoUrl: entry.previewVideoUrl ? resolvePreviewMediaUrl(entry.previewVideoUrl) : undefined,",
+    "    previewImageUrl: entry.previewImageUrl ? resolvePreviewMediaUrl(entry.previewImageUrl) : undefined,",
     "    previewSquareVideoUrl: entry.previewSquareVideoUrl ? resolvePreviewMediaUrl(entry.previewSquareVideoUrl) : undefined,",
+    "    previewSquareImageUrl: entry.previewSquareImageUrl ? resolvePreviewMediaUrl(entry.previewSquareImageUrl) : undefined,",
     "    previewVerticalVideoUrl: entry.previewVerticalVideoUrl ? resolvePreviewMediaUrl(entry.previewVerticalVideoUrl) : undefined,",
+    "    previewVerticalImageUrl: entry.previewVerticalImageUrl ? resolvePreviewMediaUrl(entry.previewVerticalImageUrl) : undefined,",
     "    variants: resolvePreviewManifestVariants(entry.variants),",
     "  }",
     "}",

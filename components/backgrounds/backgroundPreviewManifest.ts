@@ -3,6 +3,7 @@ export type BackgroundPreviewVariantName = "landscape" | "square" | "vertical"
 export type BackgroundPreviewVariant = {
   key: BackgroundPreviewVariantName
   previewMediaUrl: string
+  previewPosterUrl?: string
   previewMediaType: "video"
   width: number
   height: number
@@ -10,14 +11,19 @@ export type BackgroundPreviewVariant = {
   fps: number
   bytes: number
   sha256: string
+  posterBytes?: number
+  posterSha256?: string
 }
 
 export type BackgroundPreviewManifestEntry = {
   previewMediaUrl: string
   previewMediaType: "image" | "video"
   previewVideoUrl?: string
+  previewImageUrl?: string
   previewSquareVideoUrl?: string
+  previewSquareImageUrl?: string
   previewVerticalVideoUrl?: string
+  previewVerticalImageUrl?: string
   variants?: Partial<Record<BackgroundPreviewVariantName, BackgroundPreviewVariant>>
 }
 
@@ -28,6 +34,26 @@ const CHIMER_PREVIEW_MEDIA_BASE_URL = (process.env.NEXT_PUBLIC_CHIMER_PREVIEW_ME
 function resolvePreviewMediaUrl(url: string) {
   const prefix = `${LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL}/`
   return url.startsWith(prefix) ? `${CHIMER_PREVIEW_MEDIA_BASE_URL}/${url.slice(prefix.length)}` : url
+}
+
+/** Resolves vertical preview assets through manifest fields before configured guessed paths. */
+export function resolveVerticalPreviewMediaUrls(
+  entry: BackgroundPreviewManifestEntry | undefined,
+  fallbackId: string,
+) {
+  const variant = entry?.variants?.vertical
+  return {
+    videoUrl: resolvePreviewMediaUrl(
+      variant?.previewMediaUrl
+        ?? entry?.previewVerticalVideoUrl
+        ?? `${LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL}/${fallbackId}-vertical.webm`,
+    ),
+    posterUrl: resolvePreviewMediaUrl(
+      variant?.previewPosterUrl
+        ?? entry?.previewVerticalImageUrl
+        ?? `${LOCAL_CHIMER_PREVIEW_MEDIA_BASE_URL}/${fallbackId}-vertical.webp`,
+    ),
+  }
 }
 
 function resolvePreviewManifestVariants(variants: BackgroundPreviewManifestEntry["variants"]) {
@@ -42,6 +68,7 @@ function resolvePreviewManifestVariants(variants: BackgroundPreviewManifestEntry
       resolved[key] = {
         ...variant,
         previewMediaUrl: resolvePreviewMediaUrl(variant.previewMediaUrl),
+        previewPosterUrl: variant.previewPosterUrl ? resolvePreviewMediaUrl(variant.previewPosterUrl) : undefined,
       }
     }
   }
@@ -54,8 +81,11 @@ function resolvePreviewManifestEntry(entry: BackgroundPreviewManifestEntry): Bac
     ...entry,
     previewMediaUrl: resolvePreviewMediaUrl(entry.previewMediaUrl),
     previewVideoUrl: entry.previewVideoUrl ? resolvePreviewMediaUrl(entry.previewVideoUrl) : undefined,
+    previewImageUrl: entry.previewImageUrl ? resolvePreviewMediaUrl(entry.previewImageUrl) : undefined,
     previewSquareVideoUrl: entry.previewSquareVideoUrl ? resolvePreviewMediaUrl(entry.previewSquareVideoUrl) : undefined,
+    previewSquareImageUrl: entry.previewSquareImageUrl ? resolvePreviewMediaUrl(entry.previewSquareImageUrl) : undefined,
     previewVerticalVideoUrl: entry.previewVerticalVideoUrl ? resolvePreviewMediaUrl(entry.previewVerticalVideoUrl) : undefined,
+    previewVerticalImageUrl: entry.previewVerticalImageUrl ? resolvePreviewMediaUrl(entry.previewVerticalImageUrl) : undefined,
     variants: resolvePreviewManifestVariants(entry.variants),
   }
 }
@@ -730,6 +760,60 @@ const rawBackgroundPreviewManifest = {
         "fps": 12,
         "bytes": 12485,
         "sha256": "5d484b0482037a58813c19e47449dcf528e45e044f7827acd8cba4eff3da5ffd"
+      }
+    }
+  },
+  "massage-lab-dna": {
+    "previewMediaUrl": "/chimer/background-previews/massage-lab-dna.webm",
+    "previewMediaType": "video",
+    "previewVideoUrl": "/chimer/background-previews/massage-lab-dna.webm",
+    "previewImageUrl": "/chimer/background-previews/massage-lab-dna.webp",
+    "previewSquareVideoUrl": "/chimer/background-previews/massage-lab-dna-square.webm",
+    "previewSquareImageUrl": "/chimer/background-previews/massage-lab-dna-square.webp",
+    "previewVerticalVideoUrl": "/chimer/background-previews/massage-lab-dna-vertical.webm",
+    "previewVerticalImageUrl": "/chimer/background-previews/massage-lab-dna-vertical.webp",
+    "variants": {
+      "landscape": {
+        "key": "landscape",
+        "previewMediaType": "video",
+        "previewMediaUrl": "/chimer/background-previews/massage-lab-dna.webm",
+        "previewPosterUrl": "/chimer/background-previews/massage-lab-dna.webp",
+        "width": 384,
+        "height": 216,
+        "durationMs": 6000,
+        "fps": 12,
+        "bytes": 13953,
+        "sha256": "7c9a1d328e395d98fae3d137af3ebba729341f7490adb1c788e0fe7565dbb5fd",
+        "posterBytes": 3674,
+        "posterSha256": "7fdb64c18550bf4ac07eaa9924eb399114dc73042110b54199191014f4792b93"
+      },
+      "square": {
+        "key": "square",
+        "previewMediaType": "video",
+        "previewMediaUrl": "/chimer/background-previews/massage-lab-dna-square.webm",
+        "previewPosterUrl": "/chimer/background-previews/massage-lab-dna-square.webp",
+        "width": 384,
+        "height": 384,
+        "durationMs": 6000,
+        "fps": 12,
+        "bytes": 20361,
+        "sha256": "918c746d65065500af3a8390709fa76f71070a2fc6d3658b33f756f4fdf8295d",
+        "posterBytes": 4784,
+        "posterSha256": "5fc626040af1bb9655c0089e1485711fa14312cf193610341dee6bd52acc3cd8"
+      },
+      "vertical": {
+        "key": "vertical",
+        "previewMediaType": "video",
+        "previewMediaUrl": "/chimer/background-previews/massage-lab-dna-vertical.webm",
+        "previewPosterUrl": "/chimer/background-previews/massage-lab-dna-vertical.webp",
+        "width": 216,
+        "height": 384,
+        "durationMs": 6000,
+        "fps": 12,
+        "bytes": 21647,
+        "sha256": "359acad62708f8e2b6af3a61d0fc53d8967faf3d0986c9c05091335b57a438b8",
+        "posterBytes": 4988,
+        "posterSha256": "36fa42afbd2f4409f0c89d9bb875d00b686e457f094a46c379eb7bf386355035"
       }
     }
   },
@@ -3250,6 +3334,60 @@ const rawBackgroundPreviewManifest = {
         "fps": 12,
         "bytes": 19936,
         "sha256": "ec099b231fbe74b3a1e65269dfc7791e44acd7838b3927e59f79147d03844874"
+      }
+    }
+  },
+  "massage-lab-twisted-cubes": {
+    "previewMediaUrl": "/chimer/background-previews/massage-lab-twisted-cubes.webm",
+    "previewMediaType": "video",
+    "previewVideoUrl": "/chimer/background-previews/massage-lab-twisted-cubes.webm",
+    "previewImageUrl": "/chimer/background-previews/massage-lab-twisted-cubes.webp",
+    "previewSquareVideoUrl": "/chimer/background-previews/massage-lab-twisted-cubes-square.webm",
+    "previewSquareImageUrl": "/chimer/background-previews/massage-lab-twisted-cubes-square.webp",
+    "previewVerticalVideoUrl": "/chimer/background-previews/massage-lab-twisted-cubes-vertical.webm",
+    "previewVerticalImageUrl": "/chimer/background-previews/massage-lab-twisted-cubes-vertical.webp",
+    "variants": {
+      "landscape": {
+        "key": "landscape",
+        "previewMediaType": "video",
+        "previewMediaUrl": "/chimer/background-previews/massage-lab-twisted-cubes.webm",
+        "previewPosterUrl": "/chimer/background-previews/massage-lab-twisted-cubes.webp",
+        "width": 384,
+        "height": 216,
+        "durationMs": 6000,
+        "fps": 12,
+        "bytes": 56317,
+        "sha256": "2cfeed1d0f457f8710d28d7b6513784dca7a14108cf57682f663cea66d0cc71f",
+        "posterBytes": 3938,
+        "posterSha256": "39d3ab8d2e2d82dea8dc3a238d625031b2fbe6feb24164996e48f2b7eceae932"
+      },
+      "square": {
+        "key": "square",
+        "previewMediaType": "video",
+        "previewMediaUrl": "/chimer/background-previews/massage-lab-twisted-cubes-square.webm",
+        "previewPosterUrl": "/chimer/background-previews/massage-lab-twisted-cubes-square.webp",
+        "width": 384,
+        "height": 384,
+        "durationMs": 6000,
+        "fps": 12,
+        "bytes": 140758,
+        "sha256": "7eae77878833c9195924ce123de32676b79b8c90af93915e92d83edfcdaf1e7a",
+        "posterBytes": 11992,
+        "posterSha256": "c6dfeab11b4d91e9370668db438d9afe03db244f1fcbec450a96100fb8009ac9"
+      },
+      "vertical": {
+        "key": "vertical",
+        "previewMediaType": "video",
+        "previewMediaUrl": "/chimer/background-previews/massage-lab-twisted-cubes-vertical.webm",
+        "previewPosterUrl": "/chimer/background-previews/massage-lab-twisted-cubes-vertical.webp",
+        "width": 216,
+        "height": 384,
+        "durationMs": 6000,
+        "fps": 12,
+        "bytes": 56574,
+        "sha256": "23e8248aba2ca87a130156e83e37a057dfaa83bd32bd568cb4731dfcc1afba0b",
+        "posterBytes": 4106,
+        "posterSha256": "b57e8cde4664d7e15d2258d1507e1d798a29ae72d2f0cf08b20e7bffd0384e86"
       }
     }
   },

@@ -20,6 +20,7 @@ config()
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const defaultInputDir = path.join(repoRoot, "public/chimer/background-previews")
 const defaultObjectPrefix = "chimer/background-previews"
+const dryRunSummaryPrefix = "MASSAGELAB_R2_DRY_RUN_SUMMARY="
 
 const command = process.argv[2]
 const args = process.argv.slice(3)
@@ -74,29 +75,36 @@ async function runUpload(rawArgs) {
 
   const objects = selectedFiles.map((file) => {
     const objectKey = `${env.objectPrefix}/${file.name}`
+    // collectPreviewFiles accepts only the mutable manifest, videos, and
+    // posters, so every selected object must revalidate.
+    const cacheControl = env.metadataCacheControl
     return {
       objectKey,
       publicUrl: publicUrlForR2Object(env.publicBaseUrl, objectKey),
       contentType: contentTypeForFile(file.name),
-      cacheControl: file.name === "index.json" ? env.metadataCacheControl : env.cacheControl,
+      cacheControl,
       file,
     }
   })
 
   if (options.dryRun) {
-    console.log(JSON.stringify({
+    const summary = {
       dryRun: true,
       bucket: env.bucket,
       publicBaseUrl: env.publicBaseUrl,
       objectPrefix: env.objectPrefix,
       objectCount: objects.length,
       totalBytes: selectedFiles.reduce((total, file) => total + file.bytes, 0),
-      firstObjects: objects.slice(0, 5).map((object) => ({
+      objects: objects.map((object) => ({
         objectKey: object.objectKey,
         publicUrl: object.publicUrl,
+        uploaded: false,
+        contentType: object.contentType,
+        cacheControl: object.cacheControl,
         bytes: object.file.bytes,
       })),
-    }, null, 2))
+    }
+    console.log(`${dryRunSummaryPrefix}${JSON.stringify(summary)}`)
     return
   }
 
@@ -185,7 +193,7 @@ async function collectPreviewFiles(inputDir) {
       continue
     }
 
-    if (!entry.name.endsWith(".webm") && entry.name !== "index.json") {
+    if (!entry.name.endsWith(".webm") && !entry.name.endsWith(".webp") && entry.name !== "index.json") {
       continue
     }
 
@@ -204,6 +212,9 @@ async function collectPreviewFiles(inputDir) {
 function contentTypeForFile(fileName) {
   if (fileName.endsWith(".webm")) {
     return "video/webm"
+  }
+  if (fileName.endsWith(".webp")) {
+    return "image/webp"
   }
   if (fileName.endsWith(".json")) {
     return "application/json; charset=utf-8"

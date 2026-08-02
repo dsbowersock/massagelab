@@ -2,6 +2,15 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import test from "node:test"
 
+import { resolveAccessibleBackgroundDefinition } from "../components/backgrounds/backgroundRegistry.ts"
+import { resolveBackgroundEffectProps } from "../components/backgrounds/resolveBackgroundEffectProps.ts"
+import { resolveDnaTwistedCubesBackgroundHostProps } from "../lib/dna-twisted-cubes-background-host.js"
+import { DNA_SOURCE_GEOMETRY } from "../lib/dna-background.js"
+import { resolveImmersiveDisplayContext } from "../lib/immersive-display.js"
+import { FEATURE_KEYS } from "../lib/membership.js"
+import { COMPUTED_CONSUMER_CONTRACTS } from "./browser/dna-twisted-cubes-consumer-contract.mjs"
+import { maskCssComments, maskSourceComments, sourceBetween } from "./helpers/source-structure.mjs"
+
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8")
 
 test("S6 ordinary action routes delegate to the shared Button family", async () => {
@@ -122,26 +131,49 @@ test("immersive display panels delegate toolbar actions to shared controls", asy
   assert.match(shell, /Clock[\s\S]*Visual[\s\S]*Background/)
 })
 
-test("Visual draft actions stay sticky and usable at compact viewport sizes", async () => {
-  const [styles, runningTimer] = await Promise.all([
+test("Visual draft actions live in the responsive panel header while sync status stays in flow", async () => {
+  const [styles, runningTimerSource] = await Promise.all([
     read("app/chimer/running-timer.module.css"),
     read("app/chimer/running-timer.tsx"),
   ])
+  const runningTimer = maskSourceComments(runningTimerSource)
 
-  assert.match(styles, /\.visualDraftActions[\s\S]*position:\s*sticky/)
-  assert.match(styles, /@media \(max-width:\s*36rem\)[\s\S]*\.visualDraftActions/)
-  assert.match(styles, /@media \(max-height:\s*32rem\)[\s\S]*\.visualDraftActions/)
-  assert.match(
+  assert.doesNotMatch(styles, /\.visualDraftActions\s*\{[^}]*position:\s*sticky/)
+  assert.match(styles, /\.immersiveVisualHeaderControls,\s*\.visualHeaderDraftActions\s*\{/)
+  assert.match(styles, /:global\(\[data-immersive-layout="side"\]\) \.visualHeaderDraftButtonLabel\s*\{[^}]*display:\s*none/)
+  const headerControls = sourceBetween(
     runningTimer,
-    /variant="cta" onClick=\{onRetryBackgroundVisualPreferences\}[\s\S]*Retry sync/,
+    "visualHeaderCenterAction={",
+    "clockContent={",
+    "Visual header controls",
+  )
+  const visualStatus = sourceBetween(
+    runningTimer,
+    "visualContent={",
+    "backgroundContent={",
+    "Visual status content",
   )
   assert.match(
-    runningTimer,
-    /variant="destructive" disabled=\{!visualDraft\?\.dirty\}[\s\S]*Cancel/,
+    headerControls,
+    /className=\{styles\.immersiveVisualHeaderControls\}[\s\S]*aria-label="Visual draft actions"/,
   )
   assert.match(
-    runningTimer,
-    /variant="success" disabled=\{!visualDraft\?\.dirty\}[\s\S]*Apply/,
+    visualStatus,
+    /className=\{styles\.visualDraftStatusRow\}[\s\S]*variant="cta"[^>]*data-chimer-control="true"[^>]*onClick=\{onRetryBackgroundVisualPreferences\}[\s\S]*Retry sync/,
+  )
+  const headerActionButtons = Array.from(headerControls.matchAll(/<Button\b[^>]*>/g), (match) => match[0])
+  for (const label of ["Undo", "Redo", "Cancel", "Apply"]) {
+    const actionButton = headerActionButtons.find((tag) => tag.includes(`aria-label="${label}"`))
+    assert.ok(actionButton, `Expected a ${label} Button in the Visual draft action group`)
+    assert.match(actionButton, /\bdata-chimer-control="true"/)
+  }
+  assert.match(
+    headerControls,
+    /aria-label="Undo"[\s\S]*aria-label="Redo"[\s\S]*variant="destructive" aria-label="Cancel"/,
+  )
+  assert.match(
+    headerControls,
+    /variant="success" aria-label="Apply"[\s\S]*onClick=\{commitVisualDraft\}/,
   )
 })
 
@@ -159,6 +191,8 @@ test("development review exposes the complete shared background palette matrix",
   assert.match(gallery, /backgroundPaletteRegistry/)
   assert.match(gallery, /backgroundRegistry/)
   assert.match(gallery, /<BackgroundHost/)
+  assert.match(gallery, /const TRACK_4B_DEVELOPMENT_HOST_PROPS = resolveDnaTwistedCubesBackgroundHostProps/)
+  assert.match(gallery, /<BackgroundHost[\s\S]*\{\.\.\.TRACK_4B_DEVELOPMENT_HOST_PROPS\}/)
   assert.match(gallery, /FEATURE_KEYS\.premiumBackgrounds/)
   assert.doesNotMatch(gallery, /FEATURE_KEYS\.chimerCustomColors/)
   assert.match(gallery, /Source[\s\S]*Custom[\s\S]*Harmony/)
@@ -193,6 +227,153 @@ test("development review exposes the complete shared background palette matrix",
   assert.match(gallery, /window\.setInterval\(update,\s*500\)/)
   assert.doesNotMatch(gallery, /requestAnimationFrame\(update\)/)
   assert.match(gallery, /process\.env\.NODE_ENV/)
+})
+
+test("Track 4B computed-consumer contracts project the complete acceptance matrix", async () => {
+  const browserSource = maskSourceComments(
+    await read("tests/browser/dna-twisted-cubes-backgrounds.spec.ts"),
+  )
+
+  // This literal projection intentionally duplicates the runtime contract as a
+  // change detector; update both tables together when a consumer changes.
+  const computedConsumerProjection = COMPUTED_CONSUMER_CONTRACTS.map((entry) => [
+    entry.effectId,
+    entry.label,
+    entry.key,
+    entry.target,
+    entry.properties.join("|"),
+    entry.allowedRenderChanges.join("|"),
+    entry.allowedCouplings.join("|"),
+  ])
+  assert.equal(COMPUTED_CONSUMER_CONTRACTS.length, 22)
+  assert.equal(new Set(COMPUTED_CONSUMER_CONTRACTS.map(({ key }) => key)).size, 22)
+  assert.equal(
+    COMPUTED_CONSUMER_CONTRACTS.some(({ key }) => key === "massageLabDnaShowBaseLetters"),
+    false,
+    "the boolean base-letter toggle has a direct add/remove DOM assertion instead of a numeric computed-style contract",
+  )
+  assert.match(browserSource, /baseLetterToggle[\s\S]*DEFAULT_DNA_BACKGROUND_OPTIONS\.strandCount \* 2/)
+  assert.ok(COMPUTED_CONSUMER_CONTRACTS.every(({ allowedRenderChanges }) => (
+    Object.isFrozen(allowedRenderChanges) && allowedRenderChanges.length > 0
+  )))
+  assert.deepEqual(computedConsumerProjection, [
+    ["massage-lab-dna", "Node motion speed", "massageLabDnaNodeMotionSpeed", "strand > connector + [data-side]", "animationDuration|animationDelay|transform", "firstNodeDuration|firstNodeDelay", "connectorTransform|startNodeTransform|endNodeTransform|connectorDuration|connectorDelay|startNodeDuration|startNodeDelay|endNodeDuration|endNodeDelay"],
+    ["massage-lab-dna", "Strand rotation speed", "massageLabDnaStrandRotationSpeed", ".scene > .composition", "animationDuration", "rotationDuration", "sceneDuration"],
+    ["massage-lab-dna", "Strand count", "massageLabDnaStrandCount", ".scene grid + [data-side]", "count|height|animationDelay|transform", "strandCount|firstNodeDelay", "strandCount|nodeCount|strandHeight|connectorHeight|startNodeWidth|startNodeHeight|endNodeWidth|endNodeHeight|connectorDelay|startNodeDelay|endNodeDelay|connectorTransform|startNodeTransform|endNodeTransform"],
+    ["massage-lab-dna", "Strand angle", "massageLabDnaStrandAngle", ".scene > .composition", "rotate", "strandAngle", "sceneRotate"],
+    ["massage-lab-dna", "Strand spacing", "massageLabDnaStrandSpacing", ".scene > .composition", "rowGap|height|transform", "strandSpacing", "sceneRowGap|strandHeight|connectorHeight|startNodeWidth|startNodeHeight|endNodeWidth|endNodeHeight|connectorTransform|startNodeTransform|endNodeTransform"],
+    ["massage-lab-dna", "Scale", "massageLabDnaScale", ":scope > .scene", "transform", "scale", "sceneTransform"],
+    ["massage-lab-dna", "Position X", "massageLabDnaPositionX", ":scope > .scene", "transform", "positionX", "sceneTransform"],
+    ["massage-lab-dna", "Position Y", "massageLabDnaPositionY", ":scope > .scene", "transform", "positionY", "sceneTransform"],
+    ["massage-lab-dna", "Connector width", "massageLabDnaConnectorWidth", "strand > connector", "width|transform", "connectorWidth", "connectorWidth|connectorTransform"],
+    ["massage-lab-dna", "Connector thickness", "massageLabDnaConnectorThickness", "strand > connector", "height|transform", "connectorThickness", "connectorHeight|connectorTransform"],
+    ["massage-lab-dna", "Outline thickness", "massageLabDnaOutlineThickness", "connector + [data-side]", "borderTopWidth|size|transform", "outlineThickness", "connectorBorderWidth|startNodeBorderWidth|endNodeBorderWidth|connectorHeight|startNodeWidth|startNodeHeight|endNodeWidth|endNodeHeight|connectorTransform|startNodeTransform|endNodeTransform"],
+    ["massage-lab-twisted-cubes", "Rotation speed", "massageLabTwistedCubesRotationSpeed", "[style*='--ml-twisted-cubes-outline'] > .view > .cube", "animationDuration|transform", "cycle", "cubeTransform|cubeDuration"],
+    ["massage-lab-twisted-cubes", "Layer stagger", "massageLabTwistedCubesLayerStagger", "[style*='--ml-twisted-cubes-outline'] > .view > .cube", "animationDelay|transform", "firstDelay", "cubeTransform|cubeDelay"],
+    ["massage-lab-twisted-cubes", "View angle X", "massageLabTwistedCubesViewAngleX", ".layer > .view", "transform", "viewAngleX", "viewTransform|secondViewTransform"],
+    ["massage-lab-twisted-cubes", "View angle Y", "massageLabTwistedCubesViewAngleY", ".layer > .view", "transform", "viewAngleY", "viewTransform|secondViewTransform"],
+    ["massage-lab-twisted-cubes", "Layer count", "massageLabTwistedCubesLayerCount", "[style*='--ml-twisted-cubes-outline'] > .view > .cube > .cuboid > .edge", "count|depth|size|animationDelay|transform|opacity", "layerCount|middleOutline|firstAlpha|firstDelay|firstSize|secondDepth", "layerCount|edgeCount|viewTransform|secondViewTransform|cubeTransform|cubeDelay|edgeWidth|edgeHeight|edgeOpacity"],
+    ["massage-lab-twisted-cubes", "Layer depth", "massageLabTwistedCubesLayerDepthSpacing", ".layer > .view", "transform|projectedSize", "secondDepth", "viewTransform|secondViewTransform|edgeRenderedWidth"],
+    ["massage-lab-twisted-cubes", "Scale", "massageLabTwistedCubesScale", "cube wireframe edges", "size|transform", "firstSize", "cubeTransform|edgeWidth|edgeHeight"],
+    ["massage-lab-twisted-cubes", "Position X", "massageLabTwistedCubesPositionX", ":scope > .scene", "transform", "positionX", "sceneTransform"],
+    ["massage-lab-twisted-cubes", "Position Y", "massageLabTwistedCubesPositionY", ":scope > .scene", "transform", "positionY", "sceneTransform"],
+    ["massage-lab-twisted-cubes", "Fade falloff", "massageLabTwistedCubesOpacityFalloff", "first .edge", "opacity", "firstAlpha", "edgeOpacity"],
+    ["massage-lab-twisted-cubes", "Relative outline thickness", "massageLabTwistedCubesOutlineThickness", "first .edge", "height", "firstOutlineThickness", "edgeHeight"],
+  ])
+})
+
+test("Track 4B gallery exposes controls, state scenarios, and preview evidence", async () => {
+  const gallery = maskSourceComments(
+    await read("app/dev/buttons/background-palette-gallery.tsx"),
+  )
+
+  assert.match(gallery, /DnaBackgroundControls/)
+  assert.match(gallery, /TwistedCubesBackgroundControls/)
+  assert.match(gallery, /createBackgroundVisualDraft/)
+  assert.match(gallery, /reduceBackgroundVisualDraft/)
+  assert.match(gallery, /data-track-4b-review/)
+  assert.match(gallery, /Source[\s\S]*Custom[\s\S]*Harmony/)
+  assert.match(gallery, /Subscriber access[\s\S]*Permanent owner[\s\S]*Access locked/)
+  assert.match(gallery, /Dirty draft[\s\S]*Applied state/)
+  assert.match(gallery, /data-track-4b-context="chimer"/)
+  assert.match(gallery, /data-track-4b-context="clock"/)
+  assert.match(gallery, /data-track-4b-context="music"/)
+  assert.match(gallery, /BackgroundPreviewMediaReview/)
+  assert.match(gallery, /backgroundPreviewManifest/)
+  assert.match(gallery, /<BackgroundPreviewMedia/)
+  assert.match(gallery, /useMediaQuery\(BACKGROUND_COMPACT_VIEWPORT_QUERY\)/)
+  assert.match(gallery, /useAmbientReducedMotion\(settings\.ambientMotionMode\)/)
+  assert.doesNotMatch(gallery, /window\.matchMedia/)
+  assert.match(gallery, /data-track-4b-preview/)
+  assert.match(gallery, /mapping: adapter \? defaultMapping\(adapter\) : \{\}/)
+  assert.match(gallery, /const nextDraft = createTrack4BReviewDraft\(nextId\)/)
+  assert.match(gallery, /setDraft\(nextDraft\)/)
+  assert.match(gallery, /if \(!applyRequested\) return[\s\S]*getCommittedBackgroundVisualSnapshot\(draft\)/)
+  assert.match(gallery, /setDraft\(\(current\) => reduceBackgroundVisualDraft\(current, \{ type: "apply" \}\)\)[\s\S]*setApplyRequested\(true\)/)
+  assert.match(gallery, /const appliedSnapshot = getCommittedBackgroundVisualSnapshot\(draft\)/)
+  assert.match(gallery, /data-applied-properties=\{JSON\.stringify\(appliedSnapshot\.properties\)\}/)
+  assert.match(gallery, /data-current-palette/)
+  assert.match(gallery, /data-current-mapping/)
+})
+
+test("Track 4B browser review covers geometry, motion, and diagnostics", async () => {
+  const [browserSource, playwrightConfig] = await Promise.all([
+    read("tests/browser/dna-twisted-cubes-backgrounds.spec.ts").then(maskSourceComments),
+    read("playwright.config.ts"),
+  ])
+
+  assert.match(browserSource, /desktop[\s\S]*phone portrait[\s\S]*short landscape/i)
+  assert.match(browserSource, /reducedMotion/)
+  assert.match(browserSource, /200% page scale/i)
+  assert.match(browserSource, /data-track-4b-review/)
+  assert.match(browserSource, /data-background-diagnostic-status/)
+  assert.match(browserSource, /data-background-palette-music-continuity/)
+  assert.match(browserSource, /scrollWidth/)
+  assert.match(browserSource, /Emulation\.setPageScaleFactor/)
+  assert.match(browserSource, /massage-lab-dna[\s\S]*massage-lab-twisted-cubes/)
+  assert.match(browserSource, /interpolateTwistedCubeOutline/)
+  assert.doesNotMatch(browserSource, /ALLOWED_RENDER_CHANGES/)
+  assert.match(browserSource, /COMPUTED_CONSUMER_CONTRACTS\.filter/)
+  assert.match(browserSource, /new Set\(allowedRenderChanges\)/)
+  assert.match(browserSource, /new Set\(contract\.allowedCouplings\)/)
+  assert.match(browserSource, /expectExactControlRender/)
+  assert.match(browserSource, /expectExactReducedEffectState/)
+  assert.match(browserSource, /getDnaStrandDelaySeconds/)
+  assert.match(browserSource, /getTwistedCubeAlpha/)
+  assert.match(browserSource, /captureComputedConsumerState/)
+  assert.match(browserSource, /getComputedStyle\(connector\)/)
+  assert.match(browserSource, /querySelector<HTMLElement>\('\[data-side="start"\]'\)/)
+  assert.match(browserSource, /viewTransform/)
+  assert.match(browserSource, /edgeHeight/)
+  assert.match(browserSource, /scenePerspective:\s*"none"/)
+  assert.match(browserSource, /strandAnimationName:\s*"none"[\s\S]*strandDuration:\s*"0s"[\s\S]*strandDelay:\s*"0s"/)
+  assert.match(browserSource, /connectorAnimationName:\s*"none"[\s\S]*connectorDuration:\s*"0s"[\s\S]*connectorDelay:\s*"0s"/)
+  assert.match(browserSource, /startNodeAnimationName:\s*"none"[\s\S]*startNodeDuration:\s*"0s"[\s\S]*startNodeDelay:\s*"0s"/)
+  assert.match(browserSource, /endNodeAnimationName:\s*"none"[\s\S]*endNodeDuration:\s*"0s"[\s\S]*endNodeDelay:\s*"0s"/)
+  assert.match(browserSource, /cubeAnimationName:\s*"none"[\s\S]*cubeDuration:\s*"0s"[\s\S]*cubeDelay:\s*"0s"/)
+  assert.deepEqual(DNA_SOURCE_GEOMETRY, {
+    widthVmin: 26,
+    minimumHeightVmin: 240,
+    viewportHeightVmax: 230,
+  })
+  assert.match(browserSource, /const DNA_SOURCE_WIDTH = `\$\{DNA_SOURCE_GEOMETRY\.widthVmin\}vmin`/)
+  assert.match(browserSource, /const DNA_SOURCE_HEIGHT = `max\(\$\{DNA_SOURCE_GEOMETRY\.minimumHeightVmin\}vmin, \$\{DNA_SOURCE_GEOMETRY\.viewportHeightVmax\}vmax\)`/)
+  assert.match(browserSource, /width:\s*"0px"[\s\S]*height:\s*"0px"/)
+  assert.doesNotMatch(browserSource, /test\.skip\(/)
+  assert.match(playwrightConfig, /dna-twisted-cubes-backgrounds\.spec\.ts/)
+})
+
+test("Track 4B shared sliders preserve accessible labeling", async () => {
+  const [sliderSource, colorSliderSource] = await Promise.all([
+    read("components/ui/slider.tsx"),
+    read("components/chimer-controls/ColorSlider.tsx"),
+  ])
+
+  assert.match(sliderSource, /<SliderPrimitive\.Thumb[\s\S]*aria-label=\{ariaLabel\}/)
+  assert.match(sliderSource, /aria-labelledby=\{ariaLabelledBy\}/)
+  assert.match(sliderSource, /aria-describedby=\{ariaDescribedBy\}/)
+  assert.match(colorSliderSource, /label=\{label\}/)
+  assert.doesNotMatch(colorSliderSource, /aria-label=\{label\}/)
 })
 
 test("slider gallery copy and layout match the remaining color controls", async () => {
@@ -245,4 +426,236 @@ test("shared background access and palette resolver inputs stay authoritative an
   assert.doesNotMatch(runningSource, /resolvePaletteDrivenColor|globalColors|globalPalette/)
   assert.doesNotMatch(pickerSource, /export function GlobalColorPicker|GlobalColorValues/)
   assert.doesNotMatch(indexSource, /\bGlobalColorPicker\b(?=\s*[},])/)
+})
+
+test("DNA and Twisted Cubes share compact options and host-owned responsive motion context", async () => {
+  const [runningSource, hostSource, mediaQuerySource, ambientMotionSource, dnaEffect, cubesEffect, propertyGroupStyles] = await Promise.all([
+    read("app/chimer/running-timer.tsx"),
+    read("components/backgrounds/BackgroundHost.tsx"),
+    read("components/backgrounds/use-media-query.ts"),
+    read("components/backgrounds/use-ambient-reduced-motion.ts"),
+    read("components/backgrounds/effects/massage-lab-dna-background.tsx"),
+    read("components/backgrounds/effects/massage-lab-twisted-cubes-background.tsx"),
+    read("components/chimer-controls/BackgroundPropertyGroup.module.css"),
+  ])
+  const dnaExecutableSource = maskSourceComments(dnaEffect)
+  const cubesExecutableSource = maskSourceComments(cubesEffect)
+  const runningExecutableSource = maskSourceComments(runningSource)
+  const hostExecutableSource = maskSourceComments(hostSource)
+  const propertyGroupExecutableStyles = maskCssComments(propertyGroupStyles)
+
+  assert.match(runningExecutableSource, /getDnaBackgroundOptionsFromChimerSettings/)
+  assert.match(runningExecutableSource, /getTwistedCubesBackgroundOptionsFromChimerSettings/)
+  assert.match(runningExecutableSource, /resolveDnaTwistedCubesBackgroundHostProps/)
+  assert.match(runningExecutableSource, /\{\.\.\.effectiveDnaTwistedCubesHostProps\}/)
+  assert.doesNotMatch(runningExecutableSource, /massageLabDnaStrandCount=|massageLabTwistedCubesLayerCount=/)
+  assert.match(hostExecutableSource, /useMediaQuery\(BACKGROUND_COMPACT_VIEWPORT_QUERY\)/)
+  assert.match(mediaQuerySource, /export const BACKGROUND_COMPACT_VIEWPORT_QUERY = "\(max-width: 479px\), \(max-height: 479px\)"/)
+  assert.match(mediaQuerySource, /window\.matchMedia\(query\)/)
+  assert.match(mediaQuerySource, /removeEventListener\("change", handleChange\)/)
+  assert.match(ambientMotionSource, /useMediaQuery\(AMBIENT_REDUCED_MOTION_QUERY, true\)/)
+  assert.match(hostExecutableSource, /entry\.supportsReducedMotionStatic/)
+  assert.match(hostExecutableSource, /reduceMotion,[\s\S]*?compactViewport,/)
+  assert.doesNotMatch(dnaExecutableSource, /\b(?:globalThis|document|window)\b|addEventListener|requestAnimationFrame/)
+  assert.doesNotMatch(cubesExecutableSource, /\b(?:globalThis|document|window)\b|addEventListener|requestAnimationFrame/)
+  assert.match(propertyGroupExecutableStyles, /\.backgroundPropertyGroups\s*\{[^}]*\bmin-width:\s*0/)
+  assert.match(propertyGroupExecutableStyles, /\.backgroundPropertyGroup\s*\{[^}]*\bmin-width:\s*0/)
+})
+
+test("actual Chimer, ordinary Clock, Music, and ambient Host plumbing resolves all 23 values", async () => {
+  const settings = {
+    massageLabDnaStrandCount: 15,
+    massageLabDnaShowBaseLetters: true,
+    massageLabDnaNodeMotionSpeed: 1.25,
+    massageLabDnaStrandRotationSpeed: 1.5,
+    massageLabDnaStrandAngle: 45,
+    massageLabDnaScale: 0.9,
+    massageLabDnaPositionX: 5,
+    massageLabDnaPositionY: -5,
+    massageLabDnaStrandSpacing: 0.75,
+    massageLabDnaConnectorWidth: 88,
+    massageLabDnaConnectorThickness: 35,
+    massageLabDnaOutlineThickness: 0.75,
+    massageLabTwistedCubesLayerCount: 18,
+    massageLabTwistedCubesRotationSpeed: 1.25,
+    massageLabTwistedCubesLayerStagger: 0.15,
+    massageLabTwistedCubesViewAngleX: -20,
+    massageLabTwistedCubesViewAngleY: 20,
+    massageLabTwistedCubesScale: 0.85,
+    massageLabTwistedCubesPositionX: 8,
+    massageLabTwistedCubesPositionY: -8,
+    massageLabTwistedCubesLayerDepthSpacing: 42,
+    massageLabTwistedCubesOpacityFalloff: 0.6,
+    massageLabTwistedCubesOutlineThickness: 0.01,
+  }
+  const expectedDna = {
+    strandCount: 15,
+    showBaseLetters: true,
+    nodeMotionSpeed: 1.25,
+    strandRotationSpeed: 1.5,
+    strandAngle: 45,
+    scale: 0.9,
+    positionX: 5,
+    positionY: -5,
+    strandSpacing: 0.75,
+    connectorWidth: 88,
+    connectorThickness: 35,
+    outlineThickness: 0.75,
+  }
+  const expectedCubes = {
+    layerCount: 18,
+    rotationSpeed: 1.25,
+    layerStagger: 0.15,
+    viewAngleX: -20,
+    viewAngleY: 20,
+    scale: 0.85,
+    positionX: 8,
+    positionY: -8,
+    layerDepthSpacing: 42,
+    opacityFalloff: 0.6,
+    outlineThickness: 0.01,
+  }
+  const access = {
+    featureKeys: [FEATURE_KEYS.premiumBackgrounds],
+    ownedBackgroundIds: [],
+  }
+  const contexts = [
+    {
+      label: "active Chimer",
+      category: "chimer",
+      route: { pathname: "/chimer", source: null },
+      immersiveContext: "chimer",
+    },
+    {
+      label: "ordinary Clock",
+      category: "clock",
+      route: { pathname: "/clock", source: null },
+      immersiveContext: "clock",
+    },
+    {
+      label: "Music visualizer",
+      category: "music",
+      route: { pathname: "/clock", source: "music" },
+      immersiveContext: "musicVisualizer",
+    },
+    {
+      label: "ambient Host",
+      category: "ambient",
+      route: null,
+      immersiveContext: "chimer",
+    },
+  ]
+  const runningSource = await read("app/chimer/running-timer.tsx")
+  const runningExecutableSource = maskSourceComments(runningSource)
+  const hostPropsResolutionBlock = sourceBetween(
+    runningExecutableSource,
+    "const effectiveDnaTwistedCubesHostProps",
+    "const effectiveVisualEditorSettings",
+    "immersive Track 4B Host props",
+  )
+
+  assert.match(hostPropsResolutionBlock, /settings: effectiveLiveBackgroundSettings/)
+  assert.match(hostPropsResolutionBlock, /category: backgroundCategory/)
+  assert.match(
+    runningExecutableSource,
+    /<BackgroundHost(?:(?!\/>)[\s\S])*?\{\.\.\.effectiveDnaTwistedCubesHostProps\}(?:(?!\/>)[\s\S])*?\/>/,
+  )
+
+  for (const { label, category, route, immersiveContext } of contexts) {
+    assert.equal(resolveImmersiveDisplayContext(route ?? undefined), immersiveContext, label)
+
+    const hostProps = resolveDnaTwistedCubesBackgroundHostProps({ settings, category })
+    assert.deepEqual(hostProps, {
+      massageLabDna: expectedDna,
+      massageLabTwistedCubes: expectedCubes,
+    }, label)
+
+    const dnaDefinition = resolveAccessibleBackgroundDefinition("massage-lab-dna", access, category)
+    assert.ok(dnaDefinition, `${label} resolves the DNA background definition`)
+    assert.equal(dnaDefinition.id, "massage-lab-dna", label)
+    const cubesDefinition = resolveAccessibleBackgroundDefinition("massage-lab-twisted-cubes", access, category)
+    assert.ok(cubesDefinition, `${label} resolves the Twisted Cubes background definition`)
+    assert.equal(cubesDefinition.id, "massage-lab-twisted-cubes", label)
+    const resolvedDna = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-dna",
+      effectProps: hostProps,
+      palette: null,
+      mapping: {},
+      canCustomize: false,
+    })
+    const resolvedCubes = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-twisted-cubes",
+      effectProps: hostProps,
+      palette: null,
+      mapping: {},
+      canCustomize: false,
+    })
+    const customPalette = {
+      mode: "custom",
+      primaryColor: "#112233",
+      harmony: "analogous",
+      swatches: ["#112233", "#223344", "#334455", "#445566", "#556677", "#667788", "#778899"],
+    }
+    const customDna = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-dna",
+      effectProps: hostProps,
+      palette: customPalette,
+      mapping: {
+        background: 0,
+        "node-one": 1,
+        "node-two": 2,
+        "node-three": 3,
+        "node-four": 4,
+        connector: 5,
+        outline: 6,
+      },
+      canCustomize: true,
+    })
+    const customCubes = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-twisted-cubes",
+      effectProps: hostProps,
+      palette: customPalette,
+      mapping: {
+        background: 0,
+        "outline-one": 1,
+        "outline-two": 2,
+        "outline-three": 3,
+        "outline-four": 4,
+        "outline-five": 5,
+        "outline-six": 6,
+      },
+      canCustomize: true,
+    })
+
+    assert.deepEqual(
+      Object.fromEntries(Object.keys(expectedDna).map((key) => [key, resolvedDna.massageLabDna?.[key]])),
+      expectedDna,
+      `${label} DNA Host prop`,
+    )
+    assert.deepEqual(
+      Object.fromEntries(Object.keys(expectedCubes).map((key) => [key, resolvedCubes.massageLabTwistedCubes?.[key]])),
+      expectedCubes,
+      `${label} Twisted Cubes Host prop`,
+    )
+    assert.deepEqual(
+      Object.fromEntries(Object.keys(expectedDna).map((key) => [key, customDna.massageLabDna?.[key]])),
+      expectedDna,
+      `${label} custom DNA geometry and motion`,
+    )
+    assert.equal(customDna.massageLabDna?.backgroundColor, "#112233", label)
+    assert.deepEqual(customDna.massageLabDna?.nodeRoleColors, ["#223344", "#334455", "#445566", "#556677"], label)
+    assert.equal(customDna.massageLabDna?.connectorColor, "#667788", label)
+    assert.equal(customDna.massageLabDna?.outlineColor, "#778899", label)
+    assert.deepEqual(
+      Object.fromEntries(Object.keys(expectedCubes).map((key) => [key, customCubes.massageLabTwistedCubes?.[key]])),
+      expectedCubes,
+      `${label} custom Twisted Cubes geometry and motion`,
+    )
+    assert.equal(customCubes.massageLabTwistedCubes?.backgroundColor, "#112233", label)
+    assert.deepEqual(
+      customCubes.massageLabTwistedCubes?.outlineAnchors,
+      ["#223344", "#334455", "#445566", "#556677", "#667788", "#778899"],
+      label,
+    )
+  }
 })

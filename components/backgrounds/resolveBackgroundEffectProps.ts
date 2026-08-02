@@ -49,12 +49,23 @@ export function resolveBackgroundEffectProps({
     savedMode: normalizedPalette.mode,
     canCustomize,
   })
-  const roleColors = resolveBackgroundRoleColors({
+  const resolvedRoleColors = resolveBackgroundRoleColors({
     palette: normalizedPalette,
     adapter,
     mapping,
     canCustomize,
   })
+  // Source colors are renderer metadata rather than persisted swatches. Keep
+  // non-hex CSS source values such as DNA/Twisted HSL anchors exact without
+  // changing Track 4A's canonical normalization of its existing hex sources.
+  const roleColors = mode === "source"
+    ? Object.fromEntries(adapter.roles.map((role) => [
+      role.id,
+      role.sourceColorFormat === "hex"
+        ? resolvedRoleColors[role.id]
+        : role.sourceColor,
+    ]))
+    : resolvedRoleColors
   return adapter.applyRoleColors(effectProps, roleColors, mode)
 }
 

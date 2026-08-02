@@ -1,16 +1,15 @@
 "use client"
 
-import Image from "next/image"
-import { useEffect, useId, useRef, useState } from "react"
+import { useId } from "react"
 import { Crown, DollarSign, Lock } from "lucide-react"
 import type { AdaptiveCarouselDetailLevel } from "@/components/carousels/adaptive-carousel-stage"
 import type { BackgroundDefinition } from "@/components/backgrounds/backgroundRegistry"
-import { Loader } from "@/components/chimer-controls/Loader"
+import { BackgroundPreviewMedia } from "@/components/backgrounds/BackgroundPreviewMedia"
 import { Button } from "@/components/ui/button"
 import { purpleGlowClassName } from "@/components/ui/carousel-button-classes"
 import { MetalFavoriteIcon } from "@/components/ui/metal-favorite-icon"
 import {
-  getBackgroundPreviewMedia,
+  getBackgroundPreviewAssets,
   getBackgroundVisualTags,
 } from "@/lib/background-catalog"
 import { hasActivePermanentOwnership } from "@/lib/background-commerce-client.js"
@@ -31,6 +30,7 @@ interface BackgroundCarouselCardProps {
   detailLevel: AdaptiveCarouselDetailLevel
   commerceState: BackgroundCardCommerceState
   selected: boolean
+  centered: boolean
   saved: boolean
   active: boolean
   signedIn: boolean
@@ -70,6 +70,7 @@ export function BackgroundCarouselCard({
   detailLevel,
   commerceState,
   selected,
+  centered,
   saved,
   active,
   signedIn,
@@ -79,14 +80,7 @@ export function BackgroundCarouselCard({
   onKeepPermanently,
   onToggleSaved,
 }: BackgroundCarouselCardProps) {
-  const videoRef = useRef<HTMLVideoElement | null>(null)
-  const [videoReady, setVideoReady] = useState(false)
-  const media = getBackgroundPreviewMedia(option, "landscape")
-  const showVideo =
-    active
-    && detailLevel !== "shell"
-    && !reducedMotion
-    && media?.type === "video"
+  const { videoUrl: previewVideoUrl, posterUrl: previewPosterUrl } = getBackgroundPreviewAssets(option, "vertical")
   const previewTags = getBackgroundVisualTags(option)
     .filter((tag) => !["shader", "video"].includes(tag.toLowerCase()))
     .slice(0, 4)
@@ -105,28 +99,6 @@ export function BackgroundCarouselCard({
     ? "Use a credit, buy for $1, or unlock all premium backgrounds."
     : "Add this background now, then sign in or create an account at checkout."
 
-  useEffect(() => {
-    setVideoReady(false)
-  }, [media?.source, showVideo])
-
-  useEffect(() => {
-    const video = videoRef.current
-    if (!video) return
-    const syncPlayback = () => {
-      if (!showVideo || document.visibilityState !== "visible") {
-        video.pause()
-        return
-      }
-      void video.play().catch(() => undefined)
-    }
-    syncPlayback()
-    document.addEventListener("visibilitychange", syncPlayback)
-    return () => {
-      document.removeEventListener("visibilitychange", syncPlayback)
-      video.pause()
-    }
-  }, [showVideo])
-
   return (
     <article
       className="relative grid aspect-[5/7] h-full overflow-hidden rounded-2xl border border-white/20 bg-black text-white shadow-2xl"
@@ -138,46 +110,13 @@ export function BackgroundCarouselCard({
         className="absolute inset-0 overflow-hidden rounded-[inherit]"
         data-carousel-artwork
       >
-        {showVideo ? (
-          <video
-            ref={videoRef}
-            data-testid="carousel-background-video"
-            src={media.source}
-            muted
-            loop
-            playsInline
-            preload="metadata"
-            onCanPlay={() => setVideoReady(true)}
-            onLoadedData={() => setVideoReady(true)}
-            className="size-full object-cover"
-            aria-hidden="true"
-          />
-        ) : media?.type === "image" || option.previewImageUrl ? (
-          <Image
-            src={media?.type === "image" ? media.source : option.previewImageUrl ?? ""}
-            alt=""
-            fill
-            sizes="(max-width: 640px) 70vw, 280px"
-            className="object-cover"
-            unoptimized
-            aria-hidden="true"
-          />
-        ) : (
-          <div
-            className="size-full"
-            style={option.fallbackStyle ?? { background: "#0f172a" }}
-            aria-hidden="true"
-          />
-        )}
-        {showVideo && !videoReady ? (
-          <div className="absolute inset-0 grid place-items-center bg-black/45">
-            <Loader
-              size={26}
-              label="Loading preview"
-              aria-hidden={detailLevel !== "full"}
-            />
-          </div>
-        ) : null}
+        <BackgroundPreviewMedia
+          videoUrl={previewVideoUrl}
+          posterUrl={previewPosterUrl}
+          fallbackStyle={option.fallbackStyle}
+          active={active && centered && detailLevel !== "shell"}
+          reducedMotion={reducedMotion}
+        />
       </div>
 
       {detailLevel === "full" ? (

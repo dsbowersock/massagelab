@@ -9,6 +9,8 @@ import {
 import {
   resolveBackgroundRoleColors,
 } from "../../lib/background-palette.js"
+import { TRACK_4B_CUSTOM_SWATCHES as CUSTOM_SWATCHES } from "../../app/dev/buttons/background-palette-review-fixtures"
+import { normalizeBrowserColor } from "../helpers/browser-color"
 
 type AdapterInventoryRow = {
   id: string
@@ -16,17 +18,14 @@ type AdapterInventoryRow = {
   family: "css-dom" | "canvas" | "webgl"
 }
 
+type PreviewMediaProbeSnapshot = {
+  playCalls: number
+  pauseCalls: number
+  visibilityListenerCount: number
+}
+
 const MODES = ["source", "custom", "harmony"] as const
-const EXPECTED_ENABLED_BACKGROUND_COUNT = 81
-const CUSTOM_SWATCHES = [
-  "#ff5119",
-  "#fbbf24",
-  "#22c55e",
-  "#06b6d4",
-  "#3b82f6",
-  "#8b5cf6",
-  "#ec4899",
-] as const
+const EXPECTED_ENABLED_BACKGROUND_COUNT = 83
 const enabledRegistryEntries = backgroundRegistry.filter((entry) => entry.enabled)
 
 function captureRuntimeErrors(page: Page) {
@@ -90,22 +89,67 @@ function hexHue(value: string) {
   return Math.round((sector * 60 + 360) % 360)
 }
 
-function expectTargetColor(actual: unknown, expectedHex: string, target: string) {
+/** Parses six-digit hex or hsl() input and returns a hue normalized to 0-359 degrees. */
+function colorHue(value: string) {
+  if (value.startsWith("#")) return hexHue(value)
+  const hsl = /^hsl\(\s*([+-]?\d+(?:\.\d+)?)/i.exec(value)
+  if (!hsl) throw new Error(`Cannot derive a hue from ${value}.`)
+  return ((Number(hsl[1]) % 360) + 360) % 360
+}
+
+/**
+ * Compares hue numbers, general CSS colors, rgba channels, or exact strings.
+ * The rgba-channel branch is reached only when the expected color is six-digit hex.
+ */
+async function expectTargetColor(
+  page: Page,
+  actual: unknown,
+  expectedColor: string,
+  target: string,
+) {
   if (typeof actual === "number") {
-    expect(actual, target).toBe(hexHue(expectedHex))
+    expect(actual, target).toBe(colorHue(expectedColor))
     return
   }
-  if (typeof actual === "string" && actual.startsWith("rgba(")) {
+  if (!/^#[\da-f]{6}$/i.test(expectedColor) && typeof actual === "string") {
+    const [resolvedTargetColor, declaredColor] = await Promise.all([
+      normalizeBrowserColor(page, actual),
+      normalizeBrowserColor(page, expectedColor),
+    ])
+    expect(resolvedTargetColor, target).toBe(declaredColor)
+    return
+  }
+  if (typeof actual === "string" && /^rgba?\(/.test(actual)) {
     const expectedRgb = [
-      Number.parseInt(expectedHex.slice(1, 3), 16),
-      Number.parseInt(expectedHex.slice(3, 5), 16),
-      Number.parseInt(expectedHex.slice(5, 7), 16),
+      Number.parseInt(expectedColor.slice(1, 3), 16),
+      Number.parseInt(expectedColor.slice(3, 5), 16),
+      Number.parseInt(expectedColor.slice(5, 7), 16),
     ]
     const actualRgb = actual.match(/[\d.]+/g)?.slice(0, 3).map(Number)
     expect(actualRgb, target).toEqual(expectedRgb)
     return
   }
-  expect(actual, target).toBe(expectedHex)
+  expect(actual, target).toBe(expectedColor)
+}
+
+/** Reads the addInitScript-installed __previewMediaProbe global as a stable snapshot. */
+async function readPreviewMediaProbe(page: Page): Promise<PreviewMediaProbeSnapshot> {
+  return page.evaluate(() => {
+    const rawProbe = Reflect.get(window, "__previewMediaProbe")
+    if (
+      !rawProbe
+      || typeof rawProbe.playCalls !== "number"
+      || typeof rawProbe.pauseCalls !== "number"
+      || !(rawProbe.visibilityListeners instanceof Set)
+    ) {
+      throw new Error("Preview media probe was not initialized.")
+    }
+    return {
+      playCalls: rawProbe.playCalls,
+      pauseCalls: rawProbe.pauseCalls,
+      visibilityListenerCount: rawProbe.visibilityListeners.size,
+    }
+  })
 }
 
 async function expectLoadedPaletteMode(
@@ -174,9 +218,13 @@ async function expectLoadedPaletteMode(
     if (replacingOverride) {
       continue
     }
-    expectTargetColor(
+    const expectedTargetColor = mode === "source" && role.sourceColorFormat === "css"
+      ? role.sourceColor
+      : expectedRoleColors[role.id]
+    await expectTargetColor(
+      page,
       actualTargets[role.rendererTarget],
-      expectedRoleColors[role.id],
+      expectedTargetColor,
       `${id}:${mode}:${role.rendererTarget}`,
     )
   }
@@ -226,9 +274,13 @@ async function startActiveChimer(page: Page) {
   })
   await installPremiumAccount(page)
   await page.goto("/chimer", { waitUntil: "domcontentloaded" })
-  await page.getByRole("button", { name: /^Increase minutes$/i }).click()
+  const increaseMinutesButton = page.getByRole("button", { name: /^Increase minutes$/i })
+  await expect(increaseMinutesButton).toBeEnabled()
+  await increaseMinutesButton.click()
   for (let step = 0; step < 4; step += 1) {
-    await page.getByRole("button", { name: /^Continue$/i }).click()
+    const continueButton = page.getByRole("button", { name: /^Continue$/i })
+    await expect(continueButton).toBeEnabled()
+    await continueButton.click()
   }
   await page.getByRole("button", { name: /^Start Chimer$/i }).click()
   await expect(page.getByLabel("Running Chimer timer")).toBeVisible()
@@ -286,31 +338,37 @@ test.describe("shared background palette review matrix", () => {
     await expect(page.getByTestId("background-palette-live-host")).toHaveCount(1)
   })
 
-  test("mounts the selected real effect for review even with reduced motion", async ({ page }) => {
+  test("animates the selected real effect for development review even with ambient reduced motion", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" })
     await openPaletteGallery(page)
-    await selectBackground(page, "massage-lab-gradient-animation")
-    await expectLoadedPaletteMode(page, "massage-lab-gradient-animation", "supported", "custom")
+    await selectBackground(page, "massage-lab-dna")
+    await expectLoadedPaletteMode(page, "massage-lab-dna", "supported", "custom")
 
     const host = page.getByTestId("background-palette-live-host")
-    await expect(host).toHaveAttribute("data-background-diagnostic-reduced-motion", "true")
+    await expect(host).toHaveAttribute("data-background-diagnostic-reduced-motion", "false")
+    await expect(host).toHaveAttribute("data-background-review-motion-forced", "true")
     await expect(host).toHaveAttribute("data-background-fallback-only", "false")
 
-    const effectLayer = host.locator(":scope > div").nth(1)
+    const effectLayer = host.locator('[style*="--ml-dna-background-color"]')
     await expect(effectLayer).toBeVisible()
     const effectBounds = await effectLayer.boundingBox()
     expect(effectBounds?.width).toBeGreaterThan(0)
     expect(effectBounds?.height).toBeGreaterThan(0)
-    expect(await effectLayer.evaluate((element) => ({
-      start: (element as HTMLElement).style
-        .getPropertyValue("--ml-gradient-background-start").toLowerCase(),
-      end: (element as HTMLElement).style
-        .getPropertyValue("--ml-gradient-background-end").toLowerCase(),
-      first: (element as HTMLElement).style.getPropertyValue("--ml-gradient-first-color"),
-    }))).toEqual({
-      start: CUSTOM_SWATCHES[0],
-      end: CUSTOM_SWATCHES[1],
-      first: "34, 197, 94",
+    expect(await effectLayer.evaluate((element) => {
+      const root = element as HTMLElement
+      const composition = root.querySelector('[data-testid="massage-lab-dna-composition"]')
+      if (!(composition instanceof HTMLElement)) {
+        throw new Error("The DNA review composition element is missing.")
+      }
+      return {
+        background: root.style.getPropertyValue("--ml-dna-background-color"),
+        nodeOne: root.style.getPropertyValue("--ml-dna-node-color-0"),
+        animation: getComputedStyle(composition).animationName,
+      }
+    })).toEqual({
+      background: CUSTOM_SWATCHES[3],
+      nodeOne: CUSTOM_SWATCHES[0],
+      animation: expect.stringContaining("mlDnaStrandRotate"),
     })
   })
 
@@ -370,7 +428,7 @@ test.describe("shared background palette review matrix", () => {
       throw new Error("Retro Grid must remain a supported palette adapter.")
     }
     for (const role of adapter.roles) {
-      expectTargetColor(sourceTargets[role.rendererTarget], role.sourceColor, role.rendererTarget)
+      await expectTargetColor(page, sourceTargets[role.rendererTarget], role.sourceColor, role.rendererTarget)
     }
   })
 
@@ -483,11 +541,178 @@ test.describe("shared background palette review matrix", () => {
       await expectLoadedPaletteMode(page, "static-gradient", "unsupported", mode)
     }
     const host = page.getByTestId("background-palette-live-host")
-    await expect(host).toHaveAttribute("data-background-diagnostic-reduced-motion", "true")
+    await expect(host).toHaveAttribute("data-background-diagnostic-reduced-motion", "false")
     await expect(host).toHaveAttribute("data-background-diagnostic-loaded-id", "static-gradient")
     expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1))
       .toBe(false)
     expect(health.pageErrors).toEqual([])
     expect(health.consoleErrors).toEqual([])
+  })
+
+  test("preview media uses posters, playback, fallbacks, and listener cleanup", async ({ page }) => {
+    // Patch playback and visibility-listener prototypes for this test. The post-mount
+    // baseline isolates the carousel listener; __restorePreviewMediaProbe restores both.
+    await page.addInitScript(() => {
+      type PreviewMediaProbe = {
+        playCalls: number
+        pauseCalls: number
+        rejectPlayAs: "AbortError" | "NotAllowedError" | null
+        visibilityListeners: Set<EventListenerOrEventListenerObject>
+      }
+      const probe: PreviewMediaProbe = {
+        playCalls: 0,
+        pauseCalls: 0,
+        rejectPlayAs: null,
+        visibilityListeners: new Set(),
+      }
+      Reflect.set(window, "__previewMediaProbe", probe)
+
+      const playOriginal = HTMLMediaElement.prototype.play
+      const pauseOriginal = HTMLMediaElement.prototype.pause
+      HTMLMediaElement.prototype.play = function play() {
+        if (this.dataset.testid === "carousel-background-video") {
+          probe.playCalls += 1
+          if (probe.rejectPlayAs) {
+            return Promise.reject(new DOMException("Preview playback rejected", probe.rejectPlayAs))
+          }
+          return Promise.resolve()
+        }
+        return playOriginal.call(this)
+      }
+      HTMLMediaElement.prototype.pause = function pause() {
+        if (this.dataset.testid === "carousel-background-video") probe.pauseCalls += 1
+        return pauseOriginal.call(this)
+      }
+
+      const addEventListener = Document.prototype.addEventListener as (
+        this: Document,
+        type: string,
+        listener: EventListenerOrEventListenerObject,
+        options?: boolean | AddEventListenerOptions,
+      ) => void
+      const removeEventListener = Document.prototype.removeEventListener as (
+        this: Document,
+        type: string,
+        listener: EventListenerOrEventListenerObject,
+        options?: boolean | EventListenerOptions,
+      ) => void
+      Document.prototype.addEventListener = function add(
+        this: Document,
+        type: string,
+        listener: EventListenerOrEventListenerObject,
+        options?: boolean | AddEventListenerOptions,
+      ) {
+        if (type === "visibilitychange") probe.visibilityListeners.add(listener)
+        return addEventListener.call(this, type, listener, options)
+      } as Document["addEventListener"]
+      Document.prototype.removeEventListener = function remove(
+        this: Document,
+        type: string,
+        listener: EventListenerOrEventListenerObject,
+        options?: boolean | EventListenerOptions,
+      ) {
+        if (type === "visibilitychange") probe.visibilityListeners.delete(listener)
+        return removeEventListener.call(this, type, listener, options)
+      } as Document["removeEventListener"]
+      Reflect.set(window, "__restorePreviewMediaProbe", () => {
+        HTMLMediaElement.prototype.play = playOriginal
+        HTMLMediaElement.prototype.pause = pauseOriginal
+        Document.prototype.addEventListener = addEventListener
+        Document.prototype.removeEventListener = removeEventListener
+      })
+    })
+
+    let primaryFailure = false
+    try {
+      await openPaletteGallery(page)
+      const fixture = page.getByTestId("background-preview-media-review")
+      const video = fixture.getByTestId("carousel-background-video")
+      const poster = fixture.getByTestId("background-preview-poster")
+      const fallback = fixture.getByTestId("background-preview-fallback")
+      await expect(fixture).toBeVisible()
+      await expect(poster).toBeVisible()
+      await expect(video).toHaveCount(0)
+      const baselineListeners = (await readPreviewMediaProbe(page)).visibilityListenerCount
+
+      await fixture.getByRole("button", { name: "Activate preview" }).click()
+      await expect(video).toBeVisible()
+      await expect(video).toHaveAttribute("poster", /massage-lab-dna-vertical\.webp$/)
+      await expect.poll(async () => (await readPreviewMediaProbe(page)).playCalls).toBeGreaterThan(0)
+      await expect.poll(async () => (
+        await readPreviewMediaProbe(page)
+      ).visibilityListenerCount).toBe(baselineListeners + 1)
+
+      const playsBeforeSourceSwap = (await readPreviewMediaProbe(page)).playCalls
+      await fixture.getByRole("button", { name: "Swap preview source" }).click()
+      await expect(video).toHaveAttribute("src", /massage-lab-twisted-cubes-vertical\.webm$/)
+      await expect(video).toHaveAttribute("poster", /massage-lab-twisted-cubes-vertical\.webp$/)
+      await expect.poll(async () => (await readPreviewMediaProbe(page)).playCalls)
+        .toBeGreaterThan(playsBeforeSourceSwap)
+
+      const pausesBeforeHidden = (await readPreviewMediaProbe(page)).pauseCalls
+      await page.evaluate(() => {
+        Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" })
+        document.dispatchEvent(new Event("visibilitychange"))
+      })
+      await expect.poll(async () => (await readPreviewMediaProbe(page)).pauseCalls)
+        .toBeGreaterThan(pausesBeforeHidden)
+      await page.evaluate(() => {
+        Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" })
+        document.dispatchEvent(new Event("visibilitychange"))
+      })
+
+      await video.dispatchEvent("error")
+      await expect(video).toHaveCount(0)
+      await expect(poster).toBeVisible()
+      await expect.poll(async () => (
+        await readPreviewMediaProbe(page)
+      ).visibilityListenerCount).toBe(baselineListeners)
+
+      await poster.dispatchEvent("error")
+      await expect(poster).toHaveCount(0)
+      await expect(fallback).toHaveCSS("background-color", "rgb(18, 52, 86)")
+
+      await fixture.getByRole("button", { name: "Unmount preview" }).click()
+      await fixture.getByRole("button", { name: "Mount preview" }).click()
+      await expect(video).toBeVisible()
+      await expect.poll(async () => (
+        await readPreviewMediaProbe(page)
+      ).visibilityListenerCount).toBe(baselineListeners + 1)
+      await fixture.getByRole("button", { name: "Unmount preview" }).click()
+      await expect(video).toHaveCount(0)
+      await expect.poll(async () => (
+        await readPreviewMediaProbe(page)
+      ).visibilityListenerCount).toBe(baselineListeners)
+
+      await page.evaluate(() => {
+        Reflect.get(window, "__previewMediaProbe").rejectPlayAs = "AbortError"
+      })
+      await fixture.getByRole("button", { name: "Mount preview" }).click()
+      await expect(video).toBeVisible()
+      await fixture.getByRole("button", { name: "Unmount preview" }).click()
+
+      await page.evaluate(() => {
+        Reflect.get(window, "__previewMediaProbe").rejectPlayAs = "NotAllowedError"
+      })
+      await fixture.getByRole("button", { name: "Mount preview" }).click()
+      await expect(video).toHaveCount(0)
+      await expect(poster).toBeVisible()
+      await expect.poll(async () => (
+        await readPreviewMediaProbe(page)
+      ).visibilityListenerCount).toBe(baselineListeners)
+      await fixture.getByRole("button", { name: "Unmount preview" }).click()
+    } catch (error) {
+      primaryFailure = true
+      throw error
+    } finally {
+      try {
+        await page.evaluate(() => {
+          const restore = Reflect.get(window, "__restorePreviewMediaProbe")
+          if (typeof restore === "function") restore()
+        })
+      } catch (cleanupError) {
+        if (!primaryFailure) throw cleanupError
+      }
+    }
   })
 })

@@ -17,7 +17,7 @@ Add two enabled premium backgrounds adapted from the supplied MIT-licensed CodeP
 
 Implement both as native React components with scoped CSS. Preserve each source effect's visual character while exposing a curated, responsive set of geometry and motion controls. Integrate colors exclusively through Track 4A's shared Source/Custom/Harmony palette adapter, role mapping, draft editing, and Visual preset system.
 
-DNA keeps random node-color assignment on every mount. Twisted Cubes keeps its layered 3D rotation and uses a smooth six-anchor outline gradient in Custom and Harmony modes. Both share one saved configuration across Chimer, Clock, and the Music visualizer.
+DNA chooses a mount-stable random sequence of biologically valid complementary A-T/T-A/G-C/C-G rungs, maps each A/T/G/C identity to its stable palette role, and can optionally show the base letter inside each node. Twisted Cubes keeps its layered 3D rotation and uses a smooth six-anchor outline gradient in Custom and Harmony modes. Both share one saved configuration across Chimer, Clock, and the Music visualizer.
 
 ## Dependencies
 
@@ -55,7 +55,7 @@ No source download, reusable component package, or implementation-oriented artif
 ## Goals
 
 - Ship DNA and Twisted Cubes as enabled premium backgrounds.
-- Preserve source defaults until a user changes visual properties or colors.
+- Preserve source colors until a user changes them. The post-implementation visual pass approved new MassageLab property defaults for DNA density/motion and Twisted Cubes rotation/scale. Twisted Cubes viewport extent remains render-only, derived from layer index, the `20vmax` step, and scale; it is never persisted as a `viewportExtent` preference.
 - Use native React-generated markup plus scoped CSS Modules.
 - Use Track 4A palette roles instead of new per-background color fields.
 - Expose approved, responsive, bounded visual controls.
@@ -70,7 +70,7 @@ No source download, reusable component package, or implementation-oriented artif
 - Adding purchase, credit, cart, refund, chargeback, or ownership storage.
 - Adding pointer drag, touch rotation, cursor response, or shuffle-colors actions.
 - Adding route-specific settings copies.
-- Making DNA's random node-role assignment a saved preference.
+- Making DNA's transient complementary-pair sequence a saved preference.
 - Persisting Twisted Cubes' computed intermediate colors.
 - Reproducing the source archives' global `body`, universal selector, font, or `touch-action` rules.
 - Replacing the Background picker carousel.
@@ -119,9 +119,9 @@ Both entries are:
 
 ### Rendering approach
 
-DNA generates strand markup from the sanitized strand count. React assigns stable random node-role indexes for the current mounted count. CSS performs the node crossover, connector scaling, and whole-strand rotation.
+DNA generates strand markup from the sanitized strand count. React assigns stable random complementary base-pair records for the current mounted count. Each base identity has one deterministic palette role, so A, T, G, and C remain visually teachable while every rung remains A-T, T-A, G-C, or C-G. CSS performs the node crossover, connector scaling, and whole-strand rotation.
 
-Twisted Cubes generates one wrapper, cube, cuboid, and six faces per sanitized layer. CSS performs staggered rotations and 3D transforms. The component calculates each layer's outline color and alpha from the resolved palette roles and current layer index.
+Twisted Cubes generates one wrapper, cube, cuboid, and twelve thin CSS edges per sanitized layer. CSS performs staggered rotations and 3D transforms. In Source mode, the component calculates each layer's outline color from the continuous HSL formula; in Custom and Harmony modes, it interpolates the resolved palette anchors. Alpha always uses the current layer index.
 
 Neither component uses an iframe, Canvas, WebGL, external animation library, or runtime network request.
 
@@ -139,25 +139,30 @@ The source defaults are:
 - 30% connector thickness;
 - 0.5vmin outlines;
 - dark blue background;
-- yellow, blue, white, and pink random node colors;
+- yellow Adenine, blue Thymine, white Guanine, and pink Cytosine nodes;
 - white connectors; and
 - black outlines.
 
 MassageLab preserves the crossover geometry, phase relationship, opposite node animation directions, connector collapse timing, and overall rotation.
 
-### Random node assignments
+The accepted full-bleed composition uses a fixed render-only scene width of `26vmin` and a scene height of `max(240vmin, 230vmax)`. This recorded visual-QA override replaces the source's 65vmin height and 2:5 aspect ratio so the dense strand field covers supported wide and compact viewports without changing the stored scale or position contracts.
 
-Each node receives one of four role IDs through a pure helper comparable to:
+### Complementary bases and base-specific node colors
+
+Each strand receives one valid complementary base pair and derives both role IDs from the bases through a side-effect-free helper with injectable randomness comparable to:
 
 ```ts
-createDnaNodeRoleAssignments(nodeCount, (random = Math.random));
+function createDnaStrandAssignments(
+  strandCount: number,
+  random: () => number = Math.random,
+): readonly DnaStrandAssignment[];
 ```
 
 Production uses real randomness. Tests inject a deterministic random function.
 
-Assignments are created when the client-mounted component initializes. They remain stable while the mounted background changes palette, position, scale, or motion settings. Changing strand count regenerates a valid assignment set for the new node count. Unmounting and remounting creates a new distribution.
+Assignments are created when the client-mounted component initializes. They remain stable for every mounted edit except `strandCount`, including palette, position, scale, motion, geometry, connector, outline, and `showBaseLetters` changes. Changing strand count regenerates a valid assignment set for the new strand count. Unmounting and remounting creates a new distribution.
 
-Random assignments operate in Source, Custom, and Harmony modes. The assignment indexes are transient runtime data: they are never placed in local storage, account preferences, presets, or draft history.
+Base-pair assignments operate in Source, Custom, and Harmony modes. The pair sequence is transient runtime data: it is never placed in local storage, account preferences, presets, or draft history. The A/T/G/C-to-role mapping is a stable renderer contract in every palette mode. The saved `Show base letters` boolean controls only whether A/G/T/C appears inside each colored node; it defaults Off and does not change pair identity, geometry, or color.
 
 ### Cross-browser phase calculation
 
@@ -176,48 +181,51 @@ The source defaults are:
 - 50vmin source layer depth spacing;
 - 0.85 opacity falloff;
 - relative outline thickness of 0.0075 of scene size;
-- dark blue-gray background and face fill; and
+- dark blue-gray root background with the nested outlines visible through the layer stack; and
 - a continuous 180-to-340-degree HSL outline range at 80% saturation and 60% lightness.
 
-MassageLab preserves the four-stage X/Y/Z rotation sequence and its cubic-bezier timing. It does not add pointer or touch rotation. Viewing angles change only through Visual-panel sliders.
+MassageLab preserves the four-stage X/Y/Z rotation sequence and its cubic-bezier timing. The accepted renderer uses twelve thin CSS edges per layer instead of viewport-sized transparent faces, preserving the full-bleed nested outline without the rejected raster cost. It does not add pointer or touch rotation. Viewing angles change only through Visual-panel sliders.
 
 For adjustable layer counts, the negative animation delay is normalized as a count-relative form of the source `(-18 + index) * 0.1s` expression, preserving the default phase at 20 layers while retaining a coherent traveling sequence at other counts.
 
 ## Visual Property Contract
 
-All properties use Track 4A's registry visual-property sanitizer and Visual preset contract. Defaults are source values.
+All properties use Track 4A's registry visual-property sanitizer and Visual preset contract. Defaults are source values except the recorded visual-QA overrides: DNA uses 70 strands, 50% scale, `0.06x` node motion, `0.02x` strand rotation, 15% connector thickness, and `0.10vmin` outlines; Twisted Cubes uses 30% scale and `0.25x` rotation. The renderer's derived full-bleed layout is described below.
 
 ### DNA properties
 
 | Property              |      Stored range | Default | UI behavior                        |
 | --------------------- | ----------------: | ------: | ---------------------------------- |
-| Strand count          |      integer 7-25 |      13 | Bounded count control              |
-| Node motion speed     |          0.25x-3x |      1x | Renderer duration is `2s / speed`  |
-| Strand rotation speed |           0.1x-3x |      1x | Renderer duration is `14s / speed` |
+| Strand count          |      integer 7-81 |      70 | Bounded count control              |
+| Show base letters     |        Off or On |     Off | Displays A/G/T/C inside nodes      |
+| Node motion speed     |          0.01x-3x |   0.06x | Renderer duration is `2s / speed`  |
+| Strand rotation speed |          0.01x-3x |   0.02x | Renderer duration is `14s / speed` |
 | Strand angle          | -180deg to 180deg |   30deg | Degree slider                      |
-| Scale                 |           0.4-1.2 |       1 | Responsive percentage display      |
+| Scale                 |           0.4-1.2 |     0.5 | Responsive percentage display      |
 | Horizontal position   |       -35% to 35% |      0% | Center-relative slider             |
 | Vertical position     |       -35% to 35% |      0% | Center-relative slider             |
 | Strand spacing        |           0-2vmin | 0.5vmin | Formatted spacing control          |
 | Connector width       |          60%-100% |     94% | Percentage slider                  |
-| Connector thickness   |           10%-60% |     30% | Percentage slider                  |
-| Outline thickness     |         0-1.5vmin | 0.5vmin | Allows zero outline                |
+| Connector thickness   |           10%-60% |     15% | Percentage slider                  |
+| Outline thickness     |         0-1.5vmin | 0.1vmin | Allows zero outline                |
 
 ### Twisted Cubes properties
 
 | Property            |    Stored range | Default | UI behavior                         |
 | ------------------- | --------------: | ------: | ----------------------------------- |
 | Layer count         |    integer 6-30 |      20 | Bounded count control               |
-| Rotation speed      |        0.25x-3x |      1x | Renderer duration is `4s / speed`   |
+| Rotation speed      |        0.01x-3x |   0.25x | Renderer duration is `4s / speed`   |
 | Layer stagger       |          0-0.3s |    0.1s | Independent delay control           |
 | X viewing angle     | -80deg to 80deg |  -35deg | Slider only                         |
 | Y viewing angle     | -80deg to 80deg |  -45deg | Slider only                         |
-| Scale               |         0.4-1.2 |       1 | Responsive percentage display       |
+| Scale               |         0.1-1.2 |     0.3 | Responsive percentage display       |
 | Horizontal position |     -35% to 35% |      0% | Center-relative slider              |
 | Vertical position   |     -35% to 35% |      0% | Center-relative slider              |
 | Layer depth spacing |       10-70vmin |  50vmin | Bounded depth control               |
 | Opacity falloff     |          0-0.95 |    0.85 | Retains source fade by default      |
 | Outline thickness   |     0.0025-0.02 |  0.0075 | Displayed as relative scene percent |
+
+Each layer's viewport extent is derived from its one-based index, the `20vmax` layer step, and the sanitized Scale value; no separate extent is persisted in local/account settings or Visual presets. This extent controls wireframe size only. Layer depth spacing projects the count-relative vmin depth into a bounded centered scale so the control stays visibly independent without adding perspective distortion to the approved orthographic composition. At the approved 20-layer, 30% default, the outer wireframe reaches `120vmax` before that depth projection. Changing Scale uniformly shrinks or grows the complete count-relative progression.
 
 ### Responsive bounds
 
@@ -236,16 +244,16 @@ DNA declares seven stable roles:
 | Role ID      | Label      | Source value         | Curated swatch |
 | ------------ | ---------- | -------------------- | -------------: |
 | `background` | Background | `hsl(210 80% 12%)`   |              4 |
-| `node-one`   | Node 1     | `hsl(44 98% 60%)`    |      1 Primary |
-| `node-two`   | Node 2     | `hsl(197 50% 44%)`   |              2 |
-| `node-three` | Node 3     | `hsl(300 100% 100%)` |              3 |
-| `node-four`  | Node 4     | `hsl(331 76% 50%)`   |              6 |
+| `node-one`   | Adenine (A) | `hsl(44 98% 60%)`    |      1 Primary |
+| `node-two`   | Thymine (T) | `hsl(197 50% 44%)`   |              2 |
+| `node-three` | Guanine (G) | `hsl(0 0% 100%)`       |              3 |
+| `node-four`  | Cytosine (C) | `hsl(331 76% 50%)`   |              6 |
 | `connector`  | Connector  | `#ffffff`            |              5 |
 | `outline`    | Outline    | `#000000`            |              7 |
 
-Source mode uses the source values directly and keeps random assignment among the four Node roles.
+Source mode uses the source values directly and maps A/T/G/C to the four roles in order.
 
-Custom and Harmony resolve the same roles through the active per-background mapping. Random assignment still selects among Node 1-4; palette changes recolor existing role assignments without reshuffling them.
+Custom and Harmony resolve the same roles through the active per-background mapping. Palette changes recolor each base consistently without changing the complementary sequence or base-to-role identity.
 
 ### Twisted Cubes roles
 
@@ -253,7 +261,7 @@ Twisted Cubes declares seven stable roles:
 
 | Role ID         | Label      | Source behavior                         | Curated swatch |
 | --------------- | ---------- | --------------------------------------- | -------------: |
-| `background`    | Background | Dark blue-gray background and face fill |              4 |
+| `background`    | Background | Dark blue-gray root background           |              4 |
 | `outline-one`   | Outline 1  | Start of source hue range               |      1 Primary |
 | `outline-two`   | Outline 2  | Source-derived anchor                   |              2 |
 | `outline-three` | Outline 3  | Source-derived anchor                   |              3 |
@@ -310,7 +318,7 @@ Changing context does not duplicate, translate, or reset the configuration. A dr
 
 Derived runtime data is excluded from persistence:
 
-- DNA random role assignments;
+- DNA transient complementary-pair assignments;
 - DNA calculated sine phases;
 - Twisted Cubes per-layer interpolated colors;
 - Twisted Cubes per-layer alpha;
@@ -336,7 +344,7 @@ Both effects honor the existing ambient-motion resolver and host lifecycle.
 
 ### DNA static state
 
-Reduced motion renders the configured strand count, angle, scale, position, spacing, connector geometry, outlines, and current role colors at a representative crossover phase. Node and strand animations are paused. Random role assignments still provide the approved multicolor composition.
+Reduced motion renders the configured strand count, angle, scale, position, spacing, connector geometry, outlines, and current role colors at a representative crossover phase. Node and strand animations are paused. Mount-stable random complementary-pair assignments still provide the approved multicolor composition.
 
 ### Twisted Cubes static state
 
@@ -361,10 +369,10 @@ Visual controls retain Track 4A labels, keyboard behavior, value formatting, dir
 ## Lifecycle And Performance
 
 - `BackgroundHost` lazy-loads only the selected component.
-- DNA renders at most 25 strands and 50 nodes.
-- Twisted Cubes renders at most 30 layers and 180 faces.
+- DNA renders at most 81 strands and 162 nodes.
+- Twisted Cubes renders at most 30 layers and 360 thin CSS edges.
 - Palette or property changes update the mounted component without mounting other backgrounds.
-- DNA role assignments do not reshuffle on ordinary palette/property changes.
+- DNA complementary-pair assignments do not reshuffle on palette or non-count property changes. Changing strand count regenerates assignments for the new count; nucleotide-to-role mapping remains fixed.
 - CSS animations stop when the component unmounts.
 - No window, document, pointer, touch, animation-frame, or resize listeners are required inside either effect.
 - The existing host continues to own reduced-motion fallback and component cleanup.
@@ -381,7 +389,7 @@ Use the existing Chimer preview generation workflow to create:
 - a short looping preview video for Twisted Cubes; and
 - a poster fallback for Twisted Cubes.
 
-Previews use source defaults and a representative source-color composition. DNA's generated preview records one acceptable random distribution; preview rendering does not make production assignments deterministic.
+Previews use the user-approved MassageLab defaults and a representative source-color composition. DNA's generated preview records one acceptable random complementary-pair distribution; preview rendering does not make production pair selection deterministic.
 
 Update the preview manifest and source ledger only after generated files validate. Runtime selection never generates or downloads preview assets dynamically.
 
@@ -390,7 +398,7 @@ Update the preview manifest and source ledger only after generated files validat
 - Invalid or missing properties fall back through the registry sanitizer to source defaults.
 - Invalid role colors fall back through Track 4A to adapter source values.
 - Invalid mappings fall back to curated mappings.
-- An invalid random value is clamped into one of the four DNA role indexes.
+- Random values are normalized into the inclusive-lower/exclusive-upper `[0, 1)` interval before selecting one of four complementary-pair variants: `[0, 0.25)` selects A/T, `[0.25, 0.5)` selects T/A, `[0.5, 0.75)` selects G/C, and `[0.75, 1)` selects C/G. Negative finite values select the first pair, `1` and larger finite values select the fourth pair, and `NaN` or either infinity fall back to `0` and the first pair.
 - Layer or strand counts are integers within their approved limits.
 - Invalid speed values never produce zero, negative, infinite, or `NaN` durations.
 - Invalid viewport measurements use centered saved values and source scale.
@@ -402,10 +410,12 @@ Update the preview manifest and source ledger only after generated files validat
 
 ### Pure tests
 
-- Every property default equals the supplied source value.
-- Every property sanitizer clamps invalid, fractional, negative, excessive, and non-finite input.
+- Every source-derived property default equals its corresponding source value except the explicit post-implementation visual-QA overrides recorded above.
+- Every Track 4B-only property default, including `Show base letters` and the position controls, equals the explicit default in the visual property table.
+- Numeric property sanitizers clamp, floor, or default invalid, fractional, negative, excessive, and non-finite input as applicable.
+- `showBaseLetters` accepts booleans and defaults to `false` for invalid input.
 - Responsive transforms clamp effective output without mutating saved values.
-- DNA assignment returns exactly `strandCount * 2` valid role indexes.
+- DNA assignment returns exactly `strandCount` valid complementary pairs and derives both palette roles from each nucleotide identity.
 - Injected randomness produces deterministic test assignments.
 - DNA phase calculation matches the source sine expression.
 - DNA duration helpers preserve independent node and strand speeds.
@@ -441,7 +451,7 @@ For both backgrounds:
 - one configuration remains consistent across contexts;
 - every approved property previews, applies, cancels, undoes, redoes, resets, and participates in Visual presets;
 - Source/Custom/Harmony and role remapping work through Track 4A;
-- DNA does not reshuffle during palette/property edits but does after remount;
+- DNA does not reshuffle during palette and non-count property edits but does regenerate assignments after a strand-count change or remount;
 - Twisted Cubes changes gradients smoothly without discrete repeating bands;
 - permanent ownership and subscription access produce the approved result;
 - timer state and Music playback continue during edits;
@@ -471,15 +481,16 @@ For both backgrounds:
 - Use one shared configuration across all contexts.
 - Use generated short videos plus poster fallbacks.
 - Use representative static reduced-motion states.
-- Keep DNA's node assignment truly random on every mount.
-- Apply DNA randomness in Source, Custom, and Harmony.
+- Keep DNA's complementary-pair selection truly random on every mount.
+- Preserve each mounted complementary-pair sequence across Source, Custom, and Harmony.
 - Give DNA separate node-motion and whole-strand-rotation speed controls.
-- Make DNA strand count adjustable from 7 to 25 with source default 13.
+- Make DNA strand count adjustable from 7 to 81 with the visually approved default 70 and 50% scale.
+- Keep every DNA rung biologically valid (A-T or G-C in either orientation), map each base identity to one stable swatch role, and provide a saved Show base letters toggle that defaults Off.
 - Use DNA roles for Background, four Node colors, Connector, and Outline.
 - Give Twisted Cubes sliders only; do not add drag interaction.
 - Smoothly interpolate Twisted Cubes colors instead of repeating discrete swatches.
 - Use one Twisted Cubes Background role plus six Outline anchors.
-- Make Twisted Cubes layer count adjustable from 6 to 30 with source default 20.
+- Make Twisted Cubes layer count adjustable from 6 to 30 with source default 20 and use the visually approved 30% scale and `0.25x` rotation defaults.
 - Give Twisted Cubes separate rotation-speed and layer-stagger controls.
 - Add adjustable opacity falloff with the source value as default.
 - Include bounded X/Y position controls for both effects.

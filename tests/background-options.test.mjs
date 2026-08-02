@@ -38,6 +38,10 @@ const cssBackgroundsSource = readFileSync(
   new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
   "utf8",
 )
+const backgroundRegistrySource = readFileSync(
+  new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+  "utf8",
+)
 
 describe("premium background registry", () => {
   it("uses explicit named CSS/DOM palette assignments instead of heuristic target matching", () => {
@@ -46,6 +50,8 @@ describe("premium background registry", () => {
     for (const backgroundId of [
       "massage-lab-moving-gradient",
       "massage-lab-aerial-rays",
+      "massage-lab-dna",
+      "massage-lab-twisted-cubes",
       "massage-lab-grid-motion",
       "massage-lab-gradient-animation",
       "massage-lab-shooting-stars",
@@ -142,6 +148,91 @@ describe("premium background registry", () => {
     assert.equal(canUseBackgroundId(DEFAULT_BACKGROUND_ID, []), true)
     assert.equal(canUseBackgroundId("static-gradient", []), true)
     assert.equal(resolveAccessibleBackgroundDefinition("unknown", []).id, DEFAULT_BACKGROUND_ID)
+  })
+
+  it("registers DNA and Twisted Cubes as static-capable premium CSS backgrounds", () => {
+    const expectedLicenses = {
+      "massage-lab-dna": "MIT; copyright 2026 Jhey; archive `css-trigonometric-function-dna-strand.zip` reviewed",
+      "massage-lab-twisted-cubes": "MIT; copyright 2026 Jhey; archive `cubies.zip` reviewed",
+    }
+    assert.match(backgroundRegistrySource, /const cssBackgrounds = \(\) => import\("\.\/effects\/css-backgrounds"\)/)
+    for (const backgroundId of ["massage-lab-dna", "massage-lab-twisted-cubes"]) {
+      assert.equal(isBackgroundId(backgroundId), true)
+      const definition = backgroundRegistry.find((entry) => entry.id === backgroundId)
+      assert.ok(definition)
+      assert.equal(definition.enabled, true)
+      assert.equal(definition.requiresSubscription, true)
+      assert.equal(definition.licenseStatus, "verified")
+      assert.equal(definition.license, expectedLicenses[backgroundId])
+      assert.equal(definition.motionIntensity, "medium")
+      assert.equal(definition.performanceCost, "medium")
+      assert.deepEqual(definition.category, ["chimer", "clock", "music", "ambient"])
+      assert.equal(definition.supportsReducedMotionStatic, true)
+      assert.equal(typeof definition.component, "function")
+    }
+  })
+
+  it("merges generated video and aspect-specific poster fields into Track 4B registry entries", () => {
+    const expectedDimensions = {
+      landscape: [384, 216],
+      square: [384, 384],
+      vertical: [216, 384],
+    }
+    for (const backgroundId of ["massage-lab-dna", "massage-lab-twisted-cubes"]) {
+      const definition = backgroundRegistry.find((entry) => entry.id === backgroundId)
+      assert.ok(definition?.previewVideoUrl?.endsWith(`${backgroundId}.webm`))
+      assert.ok(definition?.previewImageUrl?.endsWith(`${backgroundId}.webp`))
+      assert.ok(definition?.previewSquareVideoUrl?.endsWith(`${backgroundId}-square.webm`))
+      assert.ok(definition?.previewSquareImageUrl?.endsWith(`${backgroundId}-square.webp`))
+      assert.ok(definition?.previewVerticalVideoUrl?.endsWith(`${backgroundId}-vertical.webm`))
+      assert.ok(definition?.previewVerticalImageUrl?.endsWith(`${backgroundId}-vertical.webp`))
+
+      for (const variant of ["landscape", "square", "vertical"]) {
+        const preview = definition?.previewVariants?.[variant]
+        assert.ok(preview)
+        assert.deepEqual([preview.width, preview.height], expectedDimensions[variant])
+        assert.equal(preview.bytes > 0, true)
+        assert.equal(preview.posterBytes > 0, true)
+        assert.match(preview.sha256, /^[a-f0-9]{64}$/)
+        assert.match(preview.posterSha256, /^[a-f0-9]{64}$/)
+      }
+    }
+  })
+
+  it("uses canonical subscription and authoritative ownership access for Track 4B backgrounds", () => {
+    for (const backgroundId of ["massage-lab-dna", "massage-lab-twisted-cubes"]) {
+      assert.equal(canUseBackgroundId(backgroundId, [FEATURE_KEYS.premiumBackgrounds]), true)
+      assert.equal(canUseBackgroundId(backgroundId, { featureKeys: [], ownedBackgroundIds: [backgroundId] }), true)
+      assert.equal(resolveAccessibleBackgroundDefinition(backgroundId, []).id, DEFAULT_BACKGROUND_ID)
+      assert.equal(
+        resolveAccessibleBackgroundDefinition(backgroundId, [FEATURE_KEYS.premiumBackgrounds]).id,
+        backgroundId,
+      )
+      assert.equal(
+        resolveAccessibleBackgroundDefinition(backgroundId, {
+          featureKeys: [],
+          ownedBackgroundIds: [backgroundId],
+        }).id,
+        backgroundId,
+      )
+      assert.equal(
+        resolveAccessibleBackgroundDefinition(backgroundId, [FEATURE_KEYS.chimerCustomColors]).id,
+        DEFAULT_BACKGROUND_ID,
+      )
+
+      const retainedWhileHydrating = resolveAuthoritativeBackgroundOwnership([backgroundId], undefined)
+      assert.equal(canUseBackgroundId(backgroundId, { featureKeys: [], ownedBackgroundIds: retainedWhileHydrating }), true)
+
+      const removedAfterRefundOrChargeback = resolveAuthoritativeBackgroundOwnership([backgroundId], [])
+      assert.deepEqual(removedAfterRefundOrChargeback, [])
+      assert.equal(
+        resolveAccessibleBackgroundDefinition(backgroundId, {
+          featureKeys: [],
+          ownedBackgroundIds: removedAfterRefundOrChargeback,
+        }).id,
+        DEFAULT_BACKGROUND_ID,
+      )
+    }
   })
 
   it("requires explicit known IDs before applying Music category eligibility", () => {

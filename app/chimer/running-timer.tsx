@@ -1,7 +1,7 @@
 "use client"
 
 import { type CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
-import { Maximize2, Minimize2, Minus, Pause, Play, Plus, X } from "lucide-react"
+import { Check, Maximize2, Minimize2, Minus, Pause, Play, Plus, Redo2, Undo2, X } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { BACKGROUND_VISUAL_FILTERS, matchesBackgroundVisualFilter, readSavedBackgroundIds, writeSavedBackgroundIds } from "@/lib/background-catalog"
 import { DEFAULT_BACKGROUND_ID } from "@/lib/background-options"
@@ -17,6 +17,8 @@ import { StyledRangeControl } from "@/components/chimer-controls/StyledRangeCont
 import { StyledToggleControl } from "@/components/chimer-controls/StyledToggleControl"
 import { BackgroundPaletteEditor } from "@/components/chimer-controls/BackgroundPaletteEditor"
 import { BackgroundColorPresetManager, BackgroundVisualPresetManager, type BackgroundPresetDraftAction } from "@/components/chimer-controls/BackgroundPresetManager"
+import { DnaBackgroundControls, type DnaBackgroundControlOptions } from "@/components/chimer-controls/DnaBackgroundControls"
+import { TwistedCubesBackgroundControls, type TwistedCubesBackgroundControlOptions } from "@/components/chimer-controls/TwistedCubesBackgroundControls"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import type { MusicVisualizerState } from "@/components/providers/music-provider"
@@ -25,6 +27,9 @@ import { canCustomizeBackgroundColors } from "@/lib/background-palette"
 import { buildBackgroundVisualOpeningSnapshot, buildBackgroundVisualPendingCommit, createBackgroundVisualDraft, getCommittedBackgroundVisualSnapshot, partitionBackgroundVisualSettingChange, reduceBackgroundVisualDraft, resolveBackgroundVisualPendingOutcome } from "@/lib/background-visual-draft"
 import { getConnectedVisualFocusTarget } from "@/lib/visual-draft-navigation"
 import { normalizeBackgroundColorMapping } from "@/lib/background-palette"
+import { resolveDnaTwistedCubesBackgroundHostProps } from "@/lib/dna-twisted-cubes-background-host"
+import { getDnaBackgroundOptionsFromChimerSettings, toDnaChimerSettingsPatch } from "@/lib/dna-background"
+import { getTwistedCubesBackgroundOptionsFromChimerSettings, toTwistedCubesChimerSettingsPatch } from "@/lib/twisted-cubes-background"
 import { MASSAGE_LAB_ASTRAL_FLOW_DISPLAY_SPEED_MAX, MASSAGE_LAB_ASTRAL_FLOW_DISPLAY_SPEED_MIN, MASSAGE_LAB_ASTRAL_FLOW_DISPLAY_SPEED_STEP, MASSAGE_LAB_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MAX, MASSAGE_LAB_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MIN, MASSAGE_LAB_DEEP_SPACE_NEBULA_DISPLAY_SPEED_STEP, MASSAGE_LAB_GRID_BLOOM_DISPLAY_SPEED_MAX, MASSAGE_LAB_GRID_BLOOM_DISPLAY_SPEED_MIN, MASSAGE_LAB_GRID_BLOOM_DISPLAY_SPEED_STEP, MASSAGE_LAB_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MAX, MASSAGE_LAB_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MIN, MASSAGE_LAB_LIQUID_CHROME_DISPLAY_FLOW_SPEED_STEP, MASSAGE_LAB_LIQUID_CHROME_DISPLAY_TIME_SCALE_MAX, MASSAGE_LAB_LIQUID_CHROME_DISPLAY_TIME_SCALE_MIN, MASSAGE_LAB_LIQUID_CHROME_DISPLAY_TIME_SCALE_STEP, MASSAGE_LAB_WAVES_DISPLAY_SPEED_MAX, MASSAGE_LAB_WAVES_DISPLAY_SPEED_MIN, MASSAGE_LAB_WAVES_DISPLAY_SPEED_STEP, MASSAGE_LAB_SYNTHESIS_DISPLAY_SPEED_MAX, MASSAGE_LAB_SYNTHESIS_DISPLAY_SPEED_MIN, MASSAGE_LAB_SYNTHESIS_DISPLAY_SPEED_STEP, MASSAGE_LAB_NOVATRIX_DISPLAY_AMPLITUDE_MAX, MASSAGE_LAB_NOVATRIX_DISPLAY_AMPLITUDE_MIN, MASSAGE_LAB_NOVATRIX_DISPLAY_AMPLITUDE_STEP, MASSAGE_LAB_NOVATRIX_DISPLAY_SPEED_MAX, MASSAGE_LAB_NOVATRIX_DISPLAY_SPEED_MIN, MASSAGE_LAB_NOVATRIX_DISPLAY_SPEED_STEP, MASSAGE_LAB_HACKER_DISPLAY_SPEED_MAX, MASSAGE_LAB_HACKER_DISPLAY_SPEED_MIN, MASSAGE_LAB_HACKER_DISPLAY_SPEED_STEP, MASSAGE_LAB_PHOTON_BEAM_DISPLAY_SPEED_MAX, MASSAGE_LAB_PHOTON_BEAM_DISPLAY_SPEED_MIN, MASSAGE_LAB_PHOTON_BEAM_DISPLAY_SPEED_STEP, getMassageLabAstralFlowDisplaySpeed, getMassageLabAstralFlowSourceSpeed, getMassageLabDeepSpaceNebulaDisplaySpeed, getMassageLabDeepSpaceNebulaSourceSpeed, getMassageLabGridBloomDisplaySpeed, getMassageLabGridBloomSourceSpeed, getMassageLabChromeFlowDisplayFlowSpeed, getMassageLabChromeFlowDisplayTimeScale, getMassageLabChromeFlowSourceFlowSpeed, getMassageLabChromeFlowSourceTimeScale, getMassageLabWaveCurrentDisplaySpeed, getMassageLabWaveCurrentSourceSpeed, getMassageLabSynthesisDisplaySpeed, getMassageLabSynthesisSourceSpeed, getMassageLabNovatrixDisplayAmplitude, getMassageLabNovatrixDisplaySpeed, getMassageLabNovatrixSourceAmplitude, getMassageLabNovatrixSourceSpeed, getMassageLabMatrixRainDisplaySpeed, getMassageLabMatrixRainSourceSpeed, getMassageLab3DGlobeScaleDisplayPercent, getMassageLab3DGlobeScaleFromDisplayPercent, getMassageLabPhotonBeamDisplaySpeed, getMassageLabPhotonBeamSourceSpeed, type MassageLabPrismAnimationType, type MassageLabLightPillarBlendMode, type MassageLabFloatingLinesBlendMode, type MassageLabSideRaysOrigin, type MassageLabLightRaysOrigin, type MassageLabPixelBlastVariant, type MassageLabPlasmaDirection, type MassageLabGradientBlindsBlendMode, type MassageLabGradientBlindsShineDirection, type MassageLabGridScanDirection, type MassageLabGridScanLineStyle, type MassageLabPixelSnowVariant, type MassageLabPrismaticBurstAnimationType, type MassageLabPrismaticBurstMixBlendMode, type MassageLabLightPillarQuality, type ChimerSettings } from "./set-timer"
 import styles from "./running-timer.module.css"
 import { ImmersivePanelShell, type ImmersivePanelId } from "./immersive-panel-shell"
@@ -76,6 +81,27 @@ const HEX_COLOR_PATTERN = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i
 
 function clampNumber(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
+}
+
+/**
+ * Resolves the saved-state message with dirty drafts taking precedence over
+ * storage loading/unavailability, then stale/pending account sync, and Saved.
+ */
+function getVisualDraftStatusText({
+  dirty,
+  storageStatus,
+  syncStatus,
+}: {
+  dirty: boolean
+  storageStatus: RunningTimerProps["mode"]["storageStatus"]
+  syncStatus: RunningTimerProps["backgroundPreferenceSyncStatus"]
+}) {
+  if (dirty) return "Unsaved changes"
+  if (storageStatus === "loading") return "Loading saved preferences…"
+  if (storageStatus !== "available") return "Changes active for this visit"
+  if (syncStatus === "stale") return "Saved on this device. Account sync failed."
+  if (syncStatus === "pending") return "Applied on this device. Syncing account…"
+  return "Saved"
 }
 
 function normalizeHexColor(value: string, fallback: string) {
@@ -1537,6 +1563,31 @@ export function RunningTimer({
   const currentVisualEditorSnapshot = useMemo(
     () => (visualDraft && visualDraftBackgroundId === visualEditorBackgroundId ? getCommittedBackgroundVisualSnapshot(visualDraft) : null),
     [visualDraft, visualDraftBackgroundId, visualEditorBackgroundId],
+  )
+  // One committed-or-draft settings projection feeds every immersive context;
+  // the compact option objects keep the Host boundary from growing 22 props.
+  const effectiveLiveBackgroundSettings = useMemo(
+    () => ({ ...committedSettings, ...(currentVisualSnapshot?.properties ?? {}) }),
+    [committedSettings, currentVisualSnapshot],
+  )
+  const effectiveDnaTwistedCubesHostProps = useMemo(
+    () => resolveDnaTwistedCubesBackgroundHostProps({
+      settings: effectiveLiveBackgroundSettings,
+      category: backgroundCategory,
+    }),
+    [backgroundCategory, effectiveLiveBackgroundSettings],
+  )
+  const effectiveVisualEditorSettings = useMemo(
+    () => ({ ...committedSettings, ...(currentVisualEditorSnapshot?.properties ?? {}) }),
+    [committedSettings, currentVisualEditorSnapshot],
+  )
+  const visualEditorDnaOptions = useMemo<DnaBackgroundControlOptions>(
+    () => getDnaBackgroundOptionsFromChimerSettings(effectiveVisualEditorSettings),
+    [effectiveVisualEditorSettings],
+  )
+  const visualEditorTwistedCubesOptions = useMemo<TwistedCubesBackgroundControlOptions>(
+    () => getTwistedCubesBackgroundOptionsFromChimerSettings(effectiveVisualEditorSettings),
+    [effectiveVisualEditorSettings],
   )
   const visualEditorBackgroundDefinition = useMemo(
     () => getBackgroundOptionsForCategory(backgroundCategory).find(
@@ -12401,6 +12452,7 @@ export function RunningTimer({
           access={effectiveBackgroundAccess}
           category={backgroundCategory}
           backgroundPalette={effectiveBackgroundPalette}
+          {...effectiveDnaTwistedCubesHostProps}
           sparkles={{
             maxSize: sparklesMaxSize,
             minSize: sparklesMinSize,
@@ -13252,12 +13304,32 @@ export function RunningTimer({
           visualHeaderTitle="Visual background"
           visualHeaderAction={<Switch className={styles.immersiveHeaderSwitch} checked={movingBackgroundEnabled} size="compact" aria-label={`Background animation: ${movingBackgroundEnabled ? "On" : "Off"}`} title={movingBackgroundEnabled ? "Pause background animation" : "Resume background animation"} hapticsEnabled={hapticsEnabled} onCheckedChange={(value) => handleSettingsChange({ movingBackgroundEnabled: value })} />}
           visualHeaderCenterAction={
-            isClockMode ? (
-              <div className={`${styles.immersiveHeaderColorControl} ${styles.immersiveVisualHeaderColorControl}`} title={accountColorDisabledHint}>
-                <span>Clock color</span>
-                <ColorPickerSwatch label="Clock color" value={resolvedClockModeFontColor} fallback={DEFAULT_CLOCK_MODE_FONT_COLOR} disabled={!canUseCoreColorControls} onChange={(nextColor) => handleSettingsChange({ clockModeFontColor: nextColor })} className={styles.colorSwatchPicker} buttonClassName={styles.immersiveHeaderColorSwatchButton} />
+            <div className={styles.immersiveVisualHeaderControls}>
+              {isClockMode ? (
+                <div className={`${styles.immersiveHeaderColorControl} ${styles.immersiveVisualHeaderColorControl}`} title={accountColorDisabledHint}>
+                  <span>Clock color</span>
+                  <ColorPickerSwatch label="Clock color" value={resolvedClockModeFontColor} fallback={DEFAULT_CLOCK_MODE_FONT_COLOR} disabled={!canUseCoreColorControls} onChange={(nextColor) => handleSettingsChange({ clockModeFontColor: nextColor })} className={styles.colorSwatchPicker} buttonClassName={styles.immersiveHeaderColorSwatchButton} />
+                </div>
+              ) : null}
+              <div className={styles.visualHeaderDraftActions} role="group" aria-label="Visual draft actions">
+                <Button type="button" size="compact" variant="ghost" aria-label="Undo" title="Undo" data-chimer-control="true" disabled={!visualDraft?.undoStack.length} hapticsEnabled={hapticsEnabled} onClick={() => dispatchVisualDraft({ type: "undo" })}>
+                  <Undo2 aria-hidden="true" />
+                  <span className={styles.visualHeaderDraftButtonLabel}>Undo</span>
+                </Button>
+                <Button type="button" size="compact" variant="ghost" aria-label="Redo" title="Redo" data-chimer-control="true" disabled={!visualDraft?.redoStack.length} hapticsEnabled={hapticsEnabled} onClick={() => dispatchVisualDraft({ type: "redo" })}>
+                  <Redo2 aria-hidden="true" />
+                  <span className={styles.visualHeaderDraftButtonLabel}>Redo</span>
+                </Button>
+                <Button type="button" size="compact" variant="destructive" aria-label="Cancel" title="Cancel changes" data-chimer-control="true" disabled={!visualDraft?.dirty} hapticsEnabled={hapticsEnabled} onClick={() => dispatchVisualDraft({ type: "cancel" })}>
+                  <X aria-hidden="true" />
+                  <span className={styles.visualHeaderDraftButtonLabel}>Cancel</span>
+                </Button>
+                <Button type="button" size="compact" variant="success" aria-label="Apply" title="Apply changes" data-chimer-control="true" disabled={!visualDraft?.dirty} hapticsEnabled={hapticsEnabled} onClick={commitVisualDraft}>
+                  <Check aria-hidden="true" />
+                  <span className={styles.visualHeaderDraftButtonLabel}>Apply</span>
+                </Button>
               </div>
-            ) : null
+            </div>
           }
           clockContent={
             <div className={`${styles.settingsTabContent} ${styles.immersiveSettingsTabContent}`}>
@@ -13680,6 +13752,7 @@ export function RunningTimer({
                     <Button
                       type="button"
                       variant="ghost"
+                      data-chimer-control="true"
                       disabled={!canCustomizeSelectedBackground || currentVisualEditorSnapshot.palette.mode === "source"}
                       onClick={() =>
                         dispatchVisualDraft({
@@ -13701,11 +13774,27 @@ export function RunningTimer({
                       <span>Selected Background Properties</span>
                       <span className={styles.settingsPill}>Visual tuning</span>
                     </div>
-                    {renderBackgroundControls(visualEditorBackgroundDefinition)}
+                    {/* The open Visual draft intentionally hides the legacy display-color
+                        rows for every background; these editors own the visible Track 4B
+                        properties and receive the same access disable decision directly. */}
+                    {visualEditorBackgroundId === "massage-lab-dna" ? (
+                      <DnaBackgroundControls
+                        value={visualEditorDnaOptions}
+                        disabled={!canCustomizeSelectedBackground}
+                        onChange={(patch) => handleSettingsChange(toDnaChimerSettingsPatch(patch))}
+                      />
+                    ) : visualEditorBackgroundId === "massage-lab-twisted-cubes" ? (
+                      <TwistedCubesBackgroundControls
+                        value={visualEditorTwistedCubesOptions}
+                        disabled={!canCustomizeSelectedBackground}
+                        onChange={(patch) => handleSettingsChange(toTwistedCubesChimerSettingsPatch(patch))}
+                      />
+                    ) : renderBackgroundControls(visualEditorBackgroundDefinition)}
                     <div className={styles.visualDraftSecondaryAction}>
                       <Button
                         type="button"
                         variant="ghost"
+                        data-chimer-control="true"
                         disabled={!canCustomizeSelectedBackground}
                         onClick={() =>
                           dispatchVisualDraft({
@@ -13721,30 +13810,23 @@ export function RunningTimer({
                   </div>
                   <BackgroundVisualPresetManager presets={currentVisualEditorSnapshot.visualPresets as never} currentProperties={currentVisualEditorSnapshot.properties} currentMapping={currentVisualEditorSnapshot.mapping} backgroundName={visualEditorBackgroundDefinition.label} defaultPresetId={currentVisualEditorSnapshot.defaultVisualPresetId} roleLabels={selectedRoleLabels} disabled={!canCustomizeSelectedBackground} onDraftAction={(action: BackgroundPresetDraftAction) => dispatchVisualDraft(action)} />
 
-                  <div className={styles.visualDraftActions}>
+                  <div className={styles.visualDraftStatusRow}>
                     <span className={styles.visualDraftStatus} role="status" aria-live="polite" aria-atomic="true">
-                      {backgroundPreferenceSyncStatus === "stale" ? "Saved on this device. Account sync failed." : backgroundPreferenceSyncStatus === "pending" ? "Applied on this device. Syncing account…" : visualDraft?.dirty ? "Unsaved changes" : "Saved"}
+                      {getVisualDraftStatusText({
+                        dirty: Boolean(visualDraft?.dirty),
+                        storageStatus: mode.storageStatus,
+                        syncStatus: backgroundPreferenceSyncStatus,
+                      })}
                     </span>
-                    <div className={styles.visualDraftActionButtons}>
-                      <Button type="button" variant="ghost" disabled={!visualDraft?.undoStack.length} onClick={() => dispatchVisualDraft({ type: "undo" })}>
-                        Undo
+                    {!visualDraft?.dirty
+                      && mode.storageStatus === "available"
+                      && backgroundPreferenceSyncStatus === "stale" ? (
+                      <Button type="button" size="compact" variant="cta" data-chimer-control="true" onClick={onRetryBackgroundVisualPreferences}>
+                        Retry sync
                       </Button>
-                      <Button type="button" variant="ghost" disabled={!visualDraft?.redoStack.length} onClick={() => dispatchVisualDraft({ type: "redo" })}>
-                        Redo
-                      </Button>
-                      {backgroundPreferenceSyncStatus === "stale" ? (
-                        <Button type="button" variant="cta" onClick={onRetryBackgroundVisualPreferences}>
-                          Retry sync
-                        </Button>
-                      ) : null}
-                      <Button type="button" variant="destructive" disabled={!visualDraft?.dirty} onClick={() => dispatchVisualDraft({ type: "cancel" })}>
-                        Cancel
-                      </Button>
-                      <Button type="button" variant="success" disabled={!visualDraft?.dirty} onClick={commitVisualDraft}>
-                        Apply
-                      </Button>
-                    </div>
+                    ) : null}
                   </div>
+
                 </>
               ) : null}
             </div>

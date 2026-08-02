@@ -3196,4 +3196,98 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.canvasRevealDotsOpacity, DEFAULT_CHIMER_SETTINGS.canvasRevealDotsOpacity)
     assert.equal(settings.canvasRevealDotsShowGradient, DEFAULT_CHIMER_SETTINGS.canvasRevealDotsShowGradient)
   })
+
+  it("sanitizes the exact DNA and Twisted Cubes flat visual settings", () => {
+    const expectedDefaults = {
+      massageLabDnaStrandCount: 70,
+      massageLabDnaShowBaseLetters: false,
+      massageLabDnaNodeMotionSpeed: 0.06,
+      massageLabDnaStrandRotationSpeed: 0.02,
+      massageLabDnaStrandAngle: 30,
+      massageLabDnaScale: 0.5,
+      massageLabDnaPositionX: 0,
+      massageLabDnaPositionY: 0,
+      massageLabDnaStrandSpacing: 0.5,
+      massageLabDnaConnectorWidth: 94,
+      massageLabDnaConnectorThickness: 15,
+      massageLabDnaOutlineThickness: 0.1,
+      massageLabTwistedCubesLayerCount: 20,
+      massageLabTwistedCubesRotationSpeed: 0.25,
+      massageLabTwistedCubesLayerStagger: 0.1,
+      massageLabTwistedCubesViewAngleX: -35,
+      massageLabTwistedCubesViewAngleY: -45,
+      massageLabTwistedCubesScale: 0.3,
+      massageLabTwistedCubesPositionX: 0,
+      massageLabTwistedCubesPositionY: 0,
+      massageLabTwistedCubesLayerDepthSpacing: 50,
+      massageLabTwistedCubesOpacityFalloff: 0.85,
+      massageLabTwistedCubesOutlineThickness: 0.0075,
+    }
+    const projectTrack4BSettings = (settings) => Object.fromEntries(
+      Object.keys(expectedDefaults).map((key) => [key, settings[key]]),
+    )
+    assert.deepEqual(
+      projectTrack4BSettings(DEFAULT_CHIMER_SETTINGS),
+      expectedDefaults,
+    )
+
+    const nonFiniteFallbacks = sanitizeChimerSettings(Object.fromEntries(
+      Object.keys(expectedDefaults).map((key) => [key, -Infinity]),
+    ))
+    assert.deepEqual(
+      projectTrack4BSettings(nonFiniteFallbacks),
+      expectedDefaults,
+    )
+
+    const clamped = sanitizeChimerSettings({
+      massageLabDnaStrandCount: 99.8,
+      massageLabDnaShowBaseLetters: true,
+      massageLabDnaNodeMotionSpeed: 0,
+      massageLabDnaStrandRotationSpeed: 9,
+      massageLabDnaStrandAngle: -999,
+      massageLabDnaScale: 9,
+      massageLabDnaPositionX: -99,
+      massageLabDnaPositionY: 99,
+      massageLabDnaStrandSpacing: -1,
+      massageLabDnaConnectorWidth: 2,
+      massageLabDnaConnectorThickness: 99,
+      massageLabDnaOutlineThickness: 9,
+      massageLabTwistedCubesLayerCount: 99.8,
+      massageLabTwistedCubesRotationSpeed: 0,
+      massageLabTwistedCubesLayerStagger: 9,
+      massageLabTwistedCubesViewAngleX: -999,
+      massageLabTwistedCubesViewAngleY: 999,
+      massageLabTwistedCubesScale: 0,
+      massageLabTwistedCubesPositionX: -99,
+      massageLabTwistedCubesPositionY: 99,
+      massageLabTwistedCubesLayerDepthSpacing: 0,
+      massageLabTwistedCubesOpacityFalloff: 9,
+      massageLabTwistedCubesOutlineThickness: 9,
+    })
+    assert.deepEqual(projectTrack4BSettings(clamped), {
+      massageLabDnaStrandCount: 81,
+      massageLabDnaShowBaseLetters: true,
+      massageLabDnaNodeMotionSpeed: 0.01,
+      massageLabDnaStrandRotationSpeed: 3,
+      massageLabDnaStrandAngle: -180,
+      massageLabDnaScale: 1.2,
+      massageLabDnaPositionX: -35,
+      massageLabDnaPositionY: 35,
+      massageLabDnaStrandSpacing: 0,
+      massageLabDnaConnectorWidth: 60,
+      massageLabDnaConnectorThickness: 60,
+      massageLabDnaOutlineThickness: 1.5,
+      massageLabTwistedCubesLayerCount: 30,
+      massageLabTwistedCubesRotationSpeed: 0.01,
+      massageLabTwistedCubesLayerStagger: 0.3,
+      massageLabTwistedCubesViewAngleX: -80,
+      massageLabTwistedCubesViewAngleY: 80,
+      massageLabTwistedCubesScale: 0.1,
+      massageLabTwistedCubesPositionX: -35,
+      massageLabTwistedCubesPositionY: 35,
+      massageLabTwistedCubesLayerDepthSpacing: 10,
+      massageLabTwistedCubesOpacityFalloff: 0.95,
+      massageLabTwistedCubesOutlineThickness: 0.02,
+    })
+  })
 })

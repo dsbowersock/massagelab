@@ -19,6 +19,8 @@ export type BackgroundId =
   | "massage-lab-animated-grid-draft"
   | "massage-lab-retro-grid"
   | "massage-lab-aerial-rays"
+  | "massage-lab-dna"
+  | "massage-lab-twisted-cubes"
   | "massage-lab-wave-current"
   | "massage-lab-electric-mist"
   | "massage-lab-astral-flow"
@@ -124,11 +126,15 @@ export interface BackgroundDefinition {
   previewImageUrl?: string
   previewVideoUrl?: string
   previewSquareVideoUrl?: string
+  previewSquareImageUrl?: string
   previewVerticalVideoUrl?: string
+  previewVerticalImageUrl?: string
   previewVariants?: BackgroundPreviewManifestEntry["variants"]
   component?: BackgroundComponentLoader
   fallbackClassName?: string
   fallbackStyle?: CSSProperties
+  /** Host-only capability: reduced motion can retain a representative static scene. */
+  supportsReducedMotionStatic?: boolean
   /** Authoritative shared-palette migration contract for enabled renderers. */
   paletteAdapter?: BackgroundPaletteAdapter
 }
@@ -245,10 +251,13 @@ const massageLabPixelLiquid = () => import("./effects/massage-lab-pixel-liquid-b
 const massageLabTileGrid = () => import("./effects/massage-lab-tile-grid-background")
 const massageLabHexGrid = () => import("./effects/massage-lab-hex-grid-background")
 const massageLabAuroraBars = () => import("./effects/massage-lab-aurora-bars-background")
+const massageLabDna = () => import("./effects/massage-lab-dna-background")
+const massageLabTwistedCubes = () => import("./effects/massage-lab-twisted-cubes-background")
 
 const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
   {
     id: "massage-lab-moving-gradient",
+    // Established product label; canonical source docs and tests intentionally preserve this spelling.
     label: "MassageLaba Lamp",
     provider: "MassageLab",
     sourceUrl: "internal",
@@ -413,7 +422,55 @@ const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
     },
   },
   {
+    id: "massage-lab-dna",
+    label: "DNA",
+    provider: "Jhey / CodePen",
+    sourceUrl: "https://codepen.io/jh3y/pen/GRBVNJE",
+    license: "MIT; copyright 2026 Jhey; archive `css-trigonometric-function-dna-strand.zip` reviewed",
+    licenseStatus: "verified",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium source-preserving DNA strand background for Chimer, Clock, Music, and ambient surfaces.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    supportsReducedMotionStatic: true,
+    customizationSummary: "Source/Custom/Harmony role colors plus bounded strand motion, geometry, scale, position, connector, and outline controls.",
+    component: () => massageLabDna().then((module) => ({
+      // BackgroundHost supplies the selected adapter's required option object.
+      default: module.MassageLabDnaBackground as ComponentType<BackgroundEffectProps>,
+    })),
+    fallbackStyle: {
+      background: "radial-gradient(circle at 50% 45%, hsl(197 50% 24%), transparent 55%), hsl(210 80% 12%)",
+    },
+  },
+  {
+    id: "massage-lab-twisted-cubes",
+    label: "Twisted Cubes",
+    provider: "Jhey / CodePen",
+    sourceUrl: "https://codepen.io/jh3y/pen/qBoGJQj",
+    license: "MIT; copyright 2026 Jhey; archive `cubies.zip` reviewed",
+    licenseStatus: "verified",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium layered CSS cube background for Chimer, Clock, Music, and ambient surfaces.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    supportsReducedMotionStatic: true,
+    customizationSummary: "Continuous Source HSL or resolved Custom/Harmony anchors plus bounded layer, rotation, view, depth, fade, position, scale, and outline controls.",
+    component: () => massageLabTwistedCubes().then((module) => ({
+      // BackgroundHost supplies the selected adapter's required option object.
+      default: module.MassageLabTwistedCubesBackground as ComponentType<BackgroundEffectProps>,
+    })),
+    fallbackStyle: {
+      background: "radial-gradient(circle at 50% 45%, hsl(244 45% 20%), transparent 58%), hsl(210 20% 12%)",
+    },
+  },
+  {
     id: "massage-lab-wave-current",
+    // Duplicate display copy is intentionally retained pending a separate
+    // product naming decision; stable IDs distinguish the two effects.
     label: "Wave Current",
     provider: "MassageLab",
     sourceUrl: "internal",
@@ -1302,6 +1359,8 @@ const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
   },
   {
     id: "massage-lab-waves",
+    // Keep this approved duplicate label pending a separate catalog naming
+    // decision; stable IDs continue to distinguish the two effects.
     label: "Wave Current",
     provider: "MassageLab",
     sourceUrl: "internal",
@@ -2027,9 +2086,11 @@ function withGeneratedPreview(entry: BackgroundDefinition): BackgroundDefinition
     previewMediaType: preview.previewMediaType,
     previewVideoUrl: preview.previewVideoUrl ?? (preview.previewMediaType === "video" ? preview.previewMediaUrl : entry.previewVideoUrl),
     previewSquareVideoUrl: preview.previewSquareVideoUrl ?? entry.previewSquareVideoUrl,
+    previewSquareImageUrl: preview.previewSquareImageUrl ?? entry.previewSquareImageUrl,
     previewVerticalVideoUrl: preview.previewVerticalVideoUrl ?? entry.previewVerticalVideoUrl,
+    previewVerticalImageUrl: preview.previewVerticalImageUrl ?? entry.previewVerticalImageUrl,
     previewVariants: preview.variants ?? entry.previewVariants,
-    previewImageUrl: preview.previewMediaType === "image" ? preview.previewMediaUrl : entry.previewImageUrl,
+    previewImageUrl: preview.previewImageUrl ?? (preview.previewMediaType === "image" ? preview.previewMediaUrl : entry.previewImageUrl),
   }
 }
 
