@@ -107,7 +107,10 @@ for (const [roleIds, sourceFallbacks] of [
   [AURORA_BAR_ROLE_IDS, AURORA_BARS_SOURCE_COLORS],
 ] as const) {
   if (roleIds.length !== sourceFallbacks.length) {
-    throw new Error("Positional palette role and source fallback counts must match")
+    throw new Error(
+      `Positional palette role and source fallback counts must match for "${roleIds[0]}": `
+      + `${roleIds.length} roles, ${sourceFallbacks.length} fallbacks`,
+    )
   }
 }
 

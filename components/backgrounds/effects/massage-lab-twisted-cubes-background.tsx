@@ -8,6 +8,7 @@ import {
   getTwistedCubeLayerSizeVmax,
   getTwistedCubeSourceOutline,
   interpolateTwistedCubeOutline,
+  sanitizeTwistedCubesBackgroundOptions,
   TWISTED_CUBES_OPTION_BOUNDS,
   TWISTED_CUBES_SOURCE_BACKGROUND_COLOR,
   TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS,
@@ -50,9 +51,16 @@ export const MassageLabTwistedCubesBackground = memo(function MassageLabTwistedC
   reduceMotion = false,
   compactViewport = false,
 }: MassageLabTwistedCubesBackgroundProps) {
+  // This wrapper currently calls no React hooks, so the absent-options guard
+  // is safe before renderer calculations. Split a hooked renderer if that changes.
   if (!massageLabTwistedCubes) return null
   const {
     layerCount,
+    paletteMode = "source",
+    backgroundColor = TWISTED_CUBES_SOURCE_BACKGROUND_COLOR,
+    outlineAnchors = TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS,
+  } = massageLabTwistedCubes
+  const {
     rotationSpeed,
     layerStagger,
     viewAngleX,
@@ -63,10 +71,7 @@ export const MassageLabTwistedCubesBackground = memo(function MassageLabTwistedC
     layerDepthSpacing,
     opacityFalloff,
     outlineThickness,
-    paletteMode = "source",
-    backgroundColor = TWISTED_CUBES_SOURCE_BACKGROUND_COLOR,
-    outlineAnchors = TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS,
-  } = massageLabTwistedCubes
+  } = sanitizeTwistedCubesBackgroundOptions(massageLabTwistedCubes)
   // Persisted options enforce the product minimum; malformed direct host input
   // fails closed to inert DOM instead of fabricating the minimum render load.
   const renderLayerCount = resolveRenderCount(

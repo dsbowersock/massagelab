@@ -547,11 +547,15 @@ test("actual Chimer, ordinary Clock, Music, and ambient Host plumbing resolves a
   ]
   const runningSource = await read("app/chimer/running-timer.tsx")
   const runningExecutableSource = maskSourceComments(runningSource)
-
-  assert.match(
+  const hostPropsResolutionBlock = sourceBetween(
     runningExecutableSource,
-    /resolveDnaTwistedCubesBackgroundHostProps\(\{[^}]*settings: effectiveLiveBackgroundSettings,[^}]*category: backgroundCategory,[^}]*\}\)/,
+    "const effectiveDnaTwistedCubesHostProps",
+    "const effectiveVisualEditorSettings",
+    "immersive Track 4B Host props",
   )
+
+  assert.match(hostPropsResolutionBlock, /settings: effectiveLiveBackgroundSettings/)
+  assert.match(hostPropsResolutionBlock, /category: backgroundCategory/)
   assert.match(
     runningExecutableSource,
     /<BackgroundHost(?:(?!\/>)[\s\S])*?\{\.\.\.effectiveDnaTwistedCubesHostProps\}(?:(?!\/>)[\s\S])*?\/>/,
@@ -586,6 +590,42 @@ test("actual Chimer, ordinary Clock, Music, and ambient Host plumbing resolves a
       mapping: {},
       canCustomize: false,
     })
+    const customPalette = {
+      mode: "custom",
+      primaryColor: "#112233",
+      harmony: "analogous",
+      swatches: ["#112233", "#223344", "#334455", "#445566", "#556677", "#667788", "#778899"],
+    }
+    const customDna = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-dna",
+      effectProps: hostProps,
+      palette: customPalette,
+      mapping: {
+        background: 0,
+        "node-one": 1,
+        "node-two": 2,
+        "node-three": 3,
+        "node-four": 4,
+        connector: 5,
+        outline: 6,
+      },
+      canCustomize: true,
+    })
+    const customCubes = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-twisted-cubes",
+      effectProps: hostProps,
+      palette: customPalette,
+      mapping: {
+        background: 0,
+        "outline-one": 1,
+        "outline-two": 2,
+        "outline-three": 3,
+        "outline-four": 4,
+        "outline-five": 5,
+        "outline-six": 6,
+      },
+      canCustomize: true,
+    })
 
     assert.deepEqual(
       Object.fromEntries(Object.keys(expectedDna).map((key) => [key, resolvedDna.massageLabDna?.[key]])),
@@ -596,6 +636,26 @@ test("actual Chimer, ordinary Clock, Music, and ambient Host plumbing resolves a
       Object.fromEntries(Object.keys(expectedCubes).map((key) => [key, resolvedCubes.massageLabTwistedCubes?.[key]])),
       expectedCubes,
       `${label} Twisted Cubes Host prop`,
+    )
+    assert.deepEqual(
+      Object.fromEntries(Object.keys(expectedDna).map((key) => [key, customDna.massageLabDna?.[key]])),
+      expectedDna,
+      `${label} custom DNA geometry and motion`,
+    )
+    assert.equal(customDna.massageLabDna?.backgroundColor, "#112233", label)
+    assert.deepEqual(customDna.massageLabDna?.nodeRoleColors, ["#223344", "#334455", "#445566", "#556677"], label)
+    assert.equal(customDna.massageLabDna?.connectorColor, "#667788", label)
+    assert.equal(customDna.massageLabDna?.outlineColor, "#778899", label)
+    assert.deepEqual(
+      Object.fromEntries(Object.keys(expectedCubes).map((key) => [key, customCubes.massageLabTwistedCubes?.[key]])),
+      expectedCubes,
+      `${label} custom Twisted Cubes geometry and motion`,
+    )
+    assert.equal(customCubes.massageLabTwistedCubes?.backgroundColor, "#112233", label)
+    assert.deepEqual(
+      customCubes.massageLabTwistedCubes?.outlineAnchors,
+      ["#223344", "#334455", "#445566", "#556677", "#667788", "#778899"],
+      label,
     )
   }
 })

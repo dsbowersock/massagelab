@@ -35,16 +35,15 @@ const developmentPaletteReviewSpecs = [
 const developmentPaletteReviewIgnoreGlobs = developmentPaletteReviewSpecs
   .map((spec) => `**/${path.posix.basename(spec)}`)
 
-/** Matches exact development-review specs plus Playwright substring and regex filters. */
-export function matchesDevelopmentPaletteReviewArgument(argument: string) {
-  const normalizedArgument = argument
-    .replaceAll("\\", "/")
-    .replace(/:\d+(?::\d+)?$/, "")
+function matchesExactDevelopmentPaletteReviewSpec(normalizedArgument: string) {
+  return developmentPaletteReviewSpecs.some((spec) => (
+    normalizedArgument === spec || normalizedArgument.endsWith(`/${spec}`)
+  ))
+}
+
+function matchesUniqueDevelopmentPaletteReviewSubstring(normalizedArgument: string) {
   const argumentBasename = path.posix.basename(normalizedArgument)
   const isStandaloneFilter = normalizedArgument === argumentBasename && argumentBasename.length > 0
-  if (developmentPaletteReviewSpecs.some((spec) => (
-    normalizedArgument === spec || normalizedArgument.endsWith(`/${spec}`)
-  ))) return true
   const substringMatches = !isStandaloneFilter
     ? developmentPaletteReviewSpecs.filter((spec) => (
       spec.includes(normalizedArgument)
@@ -52,10 +51,10 @@ export function matchesDevelopmentPaletteReviewArgument(argument: string) {
     : developmentPaletteReviewSpecs.filter((spec) => (
       path.posix.basename(spec).includes(argumentBasename)
     ))
-  // Only unique substrings select the development server. Ambiguous or absent
-  // substring matches fall through to Playwright's absolute-path regex model.
-  if (substringMatches.length === 1) return true
+  return substringMatches.length === 1
+}
 
+function matchesUniqueDevelopmentPaletteReviewRegex(argument: string) {
   try {
     const filter = new RegExp(argument)
     const regexMatches = developmentPaletteReviewSpecs.filter((spec) => {
@@ -71,6 +70,18 @@ export function matchesDevelopmentPaletteReviewArgument(argument: string) {
   } catch {
     return false
   }
+}
+
+/** Matches exact development-review specs plus Playwright substring and regex filters. */
+export function matchesDevelopmentPaletteReviewArgument(argument: string) {
+  const normalizedArgument = argument
+    .replaceAll("\\", "/")
+    .replace(/:\d+(?::\d+)?$/, "")
+  if (matchesExactDevelopmentPaletteReviewSpec(normalizedArgument)) return true
+  // Only unique substrings select the development server. Ambiguous or absent
+  // substring matches fall through to Playwright's absolute-path regex model.
+  if (matchesUniqueDevelopmentPaletteReviewSubstring(normalizedArgument)) return true
+  return matchesUniqueDevelopmentPaletteReviewRegex(argument)
 }
 
 const playwrightOptionsWithSeparateValues = new Set([

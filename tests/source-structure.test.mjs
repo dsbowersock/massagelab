@@ -1,7 +1,12 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { extractInterfaceBody, maskCssComments, maskSourceComments } from "./helpers/source-structure.mjs"
+import {
+  extractInterfaceBody,
+  maskCssComments,
+  maskSourceComments,
+  NON_INTERACTIVE_BACKGROUND_SOURCE_PATTERNS,
+} from "./helpers/source-structure.mjs"
 
 test("comment masking preserves quoted program text and JSX apostrophes", () => {
   const source = `
@@ -19,10 +24,23 @@ test("comment masking preserves quoted program text and JSX apostrophes", () => 
   assert.match(masked, /"\/\/ executable"/)
   assert.match(masked, /'\/\* executable \*\/'/)
   assert.match(masked, /`\/\/ executable template`/)
-  assert.match(masked, /executable regex/)
+  assert.ok(masked.includes("const pattern = /executable regex/;"))
   assert.ok(masked.includes(String.raw`const urlPattern = /https?:\/\/example\.test\/path/;`))
   assert.match(masked, /DNA isn't random by color/)
   assert.doesNotMatch(masked, /masked line comment|masked block comment/)
+})
+
+test("passive background source guards detect each forbidden construct family", () => {
+  assert.ok(NON_INTERACTIVE_BACKGROUND_SOURCE_PATTERNS.length > 0)
+  const forbiddenSources = [
+    "window.addEventListener('resize', render)",
+    "const registry = account.storage",
+    "<button onClick={handleClick}>Interactive</button>",
+  ]
+  assert.equal(forbiddenSources.length, NON_INTERACTIVE_BACKGROUND_SOURCE_PATTERNS.length)
+  NON_INTERACTIVE_BACKGROUND_SOURCE_PATTERNS.forEach((pattern, index) => {
+    assert.match(forbiddenSources[index], pattern)
+  })
 })
 
 test("interface extraction ignores braces in comments and quoted types", () => {

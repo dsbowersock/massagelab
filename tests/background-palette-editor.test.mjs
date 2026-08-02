@@ -151,7 +151,11 @@ test("revoked background access makes palette, property, and preset editing read
   )
   assert.match(
     runningTimerSource,
-    /variant="destructive"[\s\S]*disabled=\{!visualDraft\?\.dirty\}[\s\S]*Cancel[\s\S]*variant="success"[\s\S]*disabled=\{!visualDraft\?\.dirty\}[\s\S]*Apply/,
+    /<Button(?:(?!<\/Button>)[\s\S])*?variant="destructive"(?:(?!<\/Button>)[\s\S])*?disabled=\{!visualDraft\?\.dirty\}(?:(?!<\/Button>)[\s\S])*?Cancel(?:(?!<\/Button>)[\s\S])*?<\/Button>/,
+  )
+  assert.match(
+    runningTimerSource,
+    /<Button(?:(?!<\/Button>)[\s\S])*?variant="success"(?:(?!<\/Button>)[\s\S])*?disabled=\{!visualDraft\?\.dirty\}(?:(?!<\/Button>)[\s\S])*?Apply(?:(?!<\/Button>)[\s\S])*?<\/Button>/,
   )
   assert.match(
     presetSource,

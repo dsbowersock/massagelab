@@ -160,7 +160,7 @@ function createDnaStrandAssignments(
 
 Production uses real randomness. Tests inject a deterministic random function.
 
-Assignments are created when the client-mounted component initializes. They remain stable while the mounted background changes palette, position, scale, or motion settings. Changing strand count regenerates a valid assignment set for the new node count. Unmounting and remounting creates a new distribution.
+Assignments are created when the client-mounted component initializes. They remain stable for every mounted edit except `strandCount`, including palette, position, scale, motion, geometry, connector, outline, and `showBaseLetters` changes. Changing strand count regenerates a valid assignment set for the new node count. Unmounting and remounting creates a new distribution.
 
 Base-pair assignments operate in Source, Custom, and Harmony modes. The pair sequence is transient runtime data: it is never placed in local storage, account preferences, presets, or draft history. The A/T/G/C-to-role mapping is a stable renderer contract in every palette mode. The saved `Show base letters` boolean controls only whether A/G/T/C appears inside each colored node; it defaults Off and does not change pair identity, geometry, or color.
 

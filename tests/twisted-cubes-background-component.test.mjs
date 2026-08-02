@@ -36,6 +36,7 @@ test("the Twisted Cubes renderer stays a scoped, non-interactive CSS DOM effect"
   assert.match(componentCode, /aria-hidden="true"/)
   assert.match(componentCode, /data-reduce-motion=\{reduceMotion \|\| undefined\}/)
   assert.match(componentCode, /if \(!massageLabTwistedCubes\) return null/)
+  assert.match(componentCode, /const \{[\s\S]*?rotationSpeed,[\s\S]*?viewAngleX,[\s\S]*?layerDepthSpacing,[\s\S]*?outlineThickness,[\s\S]*?\} = sanitizeTwistedCubesBackgroundOptions\(massageLabTwistedCubes\)/)
   assert.equal(TWISTED_CUBES_OPTION_BOUNDS.layerCount.maximum, 30)
   assert.match(componentCode, /const renderLayerCount = resolveRenderCount\([\s\S]*?layerCount,[\s\S]*?TWISTED_CUBES_OPTION_BOUNDS\.layerCount\.maximum,[\s\S]*?\)/)
   assert.match(componentCode, /const CUBE_EDGES = \[/)

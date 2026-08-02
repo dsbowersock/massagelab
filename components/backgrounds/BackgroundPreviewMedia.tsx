@@ -12,6 +12,8 @@ interface BackgroundPreviewMediaProps {
   className?: string
 }
 
+const BACKGROUND_PREVIEW_FALLBACK_COLOR = "#0f172a"
+
 /**
  * Keeps a registry-owned fallback behind optional preview assets and only
  * starts video playback when the owning picker card is explicitly active.
@@ -67,7 +69,7 @@ export function BackgroundPreviewMedia({
       <div
         data-testid="background-preview-fallback"
         className="absolute inset-0"
-        style={fallbackStyle ?? { background: "#0f172a" }}
+        style={fallbackStyle ?? { background: BACKGROUND_PREVIEW_FALLBACK_COLOR }}
       />
       {showVideo ? (
         <video
