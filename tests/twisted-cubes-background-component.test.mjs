@@ -67,6 +67,8 @@ test("the Twisted Cubes renderer stays a scoped, non-interactive CSS DOM effect"
   assert.match(stylesheetCode, /\.root\s*\{[^}]*?pointer-events:\s*none;/)
   assert.doesNotMatch(stylesheetCode, /perspective:/)
   assert.match(stylesheetCode, /\.scene\s*\{[^}]*?width:\s*0;[^}]*?height:\s*0;/)
+  assert.match(stylesheetCode, /\.view\s*\{[^}]*?transform:\s*rotateX\(var\(--ml-twisted-cubes-view-angle-x\)\) rotateY\(var\(--ml-twisted-cubes-view-angle-y\)\) translateZ\(var\(--ml-twisted-cubes-depth\)\);/)
+  assert.doesNotMatch(stylesheetCode, /\.layer\s*\{[^}]*?transform:/)
   assert.match(stylesheetCode, /\.edge\s*\{[^}]*?height:\s*calc\(var\(--ml-twisted-cubes-outline-thickness\) \* 50vmin\);/)
   assert.match(stylesheetCode, /\.edge\s*\{[^}]*?background:\s*var\(--ml-twisted-cubes-outline\);/)
   assert.match(stylesheetCode, /transform-style:\s*preserve-3d/)

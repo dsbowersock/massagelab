@@ -404,9 +404,10 @@ async function captureComputedConsumerState(host: Locator, id: typeof EFFECTS[nu
     const firstLayer = layers[0]
     const secondLayer = layers[1]
     const view = firstLayer?.firstElementChild as HTMLElement
+    const secondView = secondLayer?.firstElementChild as HTMLElement
     const firstCube = view?.firstElementChild as HTMLElement
     const firstEdge = firstLayer?.querySelector<HTMLElement>(":scope > span > span > span > span")
-    if (!firstLayer || !secondLayer || !view || !firstCube || !firstEdge) {
+    if (!firstLayer || !secondLayer || !view || !secondView || !firstCube || !firstEdge) {
       throw new Error("Twisted Cubes consumer fixture is missing its scene, first two layers, cube, or edge")
     }
     const cubeAnimation = firstCube.getAnimations()[0]
@@ -417,8 +418,7 @@ async function captureComputedConsumerState(host: Locator, id: typeof EFFECTS[nu
     const rootCss = getComputedStyle(rootElement)
     const sceneCss = getComputedStyle(scene)
     const viewCss = getComputedStyle(view)
-    const firstLayerCss = getComputedStyle(firstLayer)
-    const secondLayerCss = getComputedStyle(secondLayer)
+    const secondViewCss = getComputedStyle(secondView)
     const cubeCss = getComputedStyle(firstCube)
     const edgeCss = getComputedStyle(firstEdge)
     return {
@@ -428,10 +428,9 @@ async function captureComputedConsumerState(host: Locator, id: typeof EFFECTS[nu
       sceneWidth: sceneCss.width,
       sceneHeight: sceneCss.height,
       viewTransform: viewCss.transform,
+      secondViewTransform: secondViewCss.transform,
       layerCount: layers.length,
       edgeCount: rootElement.querySelectorAll('[style*="--ml-twisted-cubes-outline"] > span > span > span > span').length,
-      firstLayerTransform: firstLayerCss.transform,
-      secondLayerTransform: secondLayerCss.transform,
       cubeTransform: cubeCss.transform,
       cubeAnimationName: cubeCss.animationName,
       cubeDuration: cubeCss.animationDuration,
@@ -716,19 +715,16 @@ async function resolveTwistedCubeGeometryOracle({
     compactViewport,
   })
   const firstLayerSize = getTwistedCubeLayerSizeVmax({ oneBasedIndex: 1, count, scale: transform.scale })
-  const [sceneExpected, viewExpected, firstLayerExpected, secondLayerExpected, firstEdgeSizeExpected] = await Promise.all([
+  const [sceneExpected, viewExpected, secondViewExpected, firstEdgeSizeExpected] = await Promise.all([
     normalizeTransformForTarget(
       effectRoot(host).locator(":scope > div"),
       `translate(${transform.positionX}vw, ${transform.positionY}vh)`,
     ),
     normalizeComputedConsumer(host, {
-      transform: `rotateX(${properties.massageLabTwistedCubesViewAngleX}deg) rotateY(${properties.massageLabTwistedCubesViewAngleY}deg)`,
+      transform: `rotateX(${properties.massageLabTwistedCubesViewAngleX}deg) rotateY(${properties.massageLabTwistedCubesViewAngleY}deg) translateZ(${(count - 1) * properties.massageLabTwistedCubesLayerDepthSpacing}vmin)`,
     }),
     normalizeComputedConsumer(host, {
-      transform: `translateZ(${(count - 1) * properties.massageLabTwistedCubesLayerDepthSpacing}vmin)`,
-    }),
-    normalizeComputedConsumer(host, {
-      transform: `translateZ(${(count - 2) * properties.massageLabTwistedCubesLayerDepthSpacing}vmin)`,
+      transform: `rotateX(${properties.massageLabTwistedCubesViewAngleX}deg) rotateY(${properties.massageLabTwistedCubesViewAngleY}deg) translateZ(${(count - 2) * properties.massageLabTwistedCubesLayerDepthSpacing}vmin)`,
     }),
     normalizeComputedConsumer(host, {}, {
       width: `${firstLayerSize}vmax`,
@@ -741,8 +737,7 @@ async function resolveTwistedCubeGeometryOracle({
     firstLayerSize,
     sceneExpected,
     viewExpected,
-    firstLayerExpected,
-    secondLayerExpected,
+    secondViewExpected,
     firstEdgeSizeExpected,
   }
 }
@@ -931,8 +926,7 @@ async function expectExactComputedConsumer({
     count,
     sceneExpected,
     viewExpected,
-    firstLayerExpected,
-    secondLayerExpected,
+    secondViewExpected,
     firstEdgeSizeExpected,
   } = await resolveTwistedCubeGeometryOracle({ host, properties, compactViewport })
   const cubeDurationSeconds = getTwistedCubeCycleSeconds(properties.massageLabTwistedCubesRotationSpeed)
@@ -983,12 +977,13 @@ async function expectExactComputedConsumer({
     case "massageLabTwistedCubesViewAngleX":
     case "massageLabTwistedCubesViewAngleY":
       expect(after.viewTransform).toBe(viewExpected.transform)
+      expect(after.secondViewTransform).toBe(secondViewExpected.transform)
       break
     case "massageLabTwistedCubesLayerCount":
       expect(after.layerCount).toBe(count)
       expect(after.edgeCount).toBe(count * 12)
-      expect(after.firstLayerTransform).toBe(firstLayerExpected.transform)
-      expect(after.secondLayerTransform).toBe(secondLayerExpected.transform)
+      expect(after.viewTransform).toBe(viewExpected.transform)
+      expect(after.secondViewTransform).toBe(secondViewExpected.transform)
       {
         const delayExpected = await normalizeComputedConsumer(host, {
           "animation-delay": `${firstCubeDelaySeconds}s`,
@@ -1005,8 +1000,20 @@ async function expectExactComputedConsumer({
       expect(after.edgeHeight).toBe(firstEdgeSizeExpected.height)
       break
     case "massageLabTwistedCubesLayerDepthSpacing":
-      expect(after.firstLayerTransform).toBe(firstLayerExpected.transform)
-      expect(after.secondLayerTransform).toBe(secondLayerExpected.transform)
+      expect(after.viewTransform).toBe(viewExpected.transform)
+      expect(after.secondViewTransform).toBe(secondViewExpected.transform)
+      {
+        const beforeMatrix = parseComputedMatrix(String(before.viewTransform))
+        const afterMatrix = parseComputedMatrix(String(after.viewTransform))
+        const translationOffset = beforeMatrix.length === 16 ? 12 : 4
+        expect(
+          Math.hypot(
+            afterMatrix[translationOffset] - beforeMatrix[translationOffset],
+            afterMatrix[translationOffset + 1] - beforeMatrix[translationOffset + 1],
+          ),
+          "Layer depth changes projected view translation",
+        ).toBeGreaterThan(0.5)
+      }
       break
     case "massageLabTwistedCubesScale":
       expect(after.edgeWidth).toBe(firstEdgeSizeExpected.width)
@@ -1245,8 +1252,7 @@ async function expectExactReducedEffectState(
     firstLayerSize,
     sceneExpected,
     viewExpected,
-    firstLayerExpected,
-    secondLayerExpected,
+    secondViewExpected,
     firstEdgeSizeExpected,
   } = await resolveTwistedCubeGeometryOracle({ host, properties, compactViewport })
   const outlineRoleNames = ["one", "two", "three", "four", "five", "six"]
@@ -1346,10 +1352,9 @@ async function expectExactReducedEffectState(
     sceneWidth: sceneGeometryExpected.width,
     sceneHeight: sceneGeometryExpected.height,
     viewTransform: viewExpected.transform,
+    secondViewTransform: secondViewExpected.transform,
     layerCount: count,
     edgeCount: count * 12,
-    firstLayerTransform: firstLayerExpected.transform,
-    secondLayerTransform: secondLayerExpected.transform,
     cubeTransform: cubeExpected.transform,
     cubeAnimationName: "none",
     cubeDuration: "0s",

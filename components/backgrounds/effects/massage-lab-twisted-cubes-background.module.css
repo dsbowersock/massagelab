@@ -27,12 +27,10 @@
   transform-style: preserve-3d;
 }
 
-.layer {
-  transform: translateZ(var(--ml-twisted-cubes-depth));
-}
-
 .view {
-  transform: rotateX(var(--ml-twisted-cubes-view-angle-x)) rotateY(var(--ml-twisted-cubes-view-angle-y));
+  /* Translate on the rotated local Z axis so depth has visible orthographic
+     X/Y projection without the extreme near-plane behavior of perspective. */
+  transform: rotateX(var(--ml-twisted-cubes-view-angle-x)) rotateY(var(--ml-twisted-cubes-view-angle-y)) translateZ(var(--ml-twisted-cubes-depth));
 }
 
 .cube {
