@@ -142,7 +142,7 @@ function MassageLabDnaRenderer({
       aria-hidden="true"
     >
       <div className={styles.scene} style={sceneStyle}>
-        <div className={styles.composition}>
+        <div className={styles.composition} data-testid="massage-lab-dna-composition">
           {strands.map((strand) => (
             <span className={styles.strand} style={strand.style} key={strand.index}>
               <span className={styles.connector} />

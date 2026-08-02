@@ -31,10 +31,10 @@ const controlsSource = await readFile(
   new URL("../components/chimer-controls/background-palette-controls.ts", import.meta.url),
   "utf8",
 )
-const runningTimerSource = await readFile(
+const runningTimerSource = maskSourceComments(await readFile(
   new URL("../app/chimer/running-timer.tsx", import.meta.url),
   "utf8",
-)
+))
 const backgroundHostSource = maskSourceComments(await readFile(
   new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
   "utf8",

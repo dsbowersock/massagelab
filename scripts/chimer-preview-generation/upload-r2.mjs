@@ -98,6 +98,7 @@ async function runUpload(rawArgs) {
       objects: objects.map((object) => ({
         objectKey: object.objectKey,
         publicUrl: object.publicUrl,
+        uploaded: false,
         contentType: object.contentType,
         cacheControl: object.cacheControl,
         bytes: object.file.bytes,

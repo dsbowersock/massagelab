@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { purpleGlowClassName } from "@/components/ui/carousel-button-classes"
 import { MetalFavoriteIcon } from "@/components/ui/metal-favorite-icon"
 import {
-  getBackgroundPreviewMedia,
+  getBackgroundPreviewAssets,
   getBackgroundVisualTags,
 } from "@/lib/background-catalog"
 import { hasActivePermanentOwnership } from "@/lib/background-commerce-client.js"
@@ -80,13 +80,7 @@ export function BackgroundCarouselCard({
   onKeepPermanently,
   onToggleSaved,
 }: BackgroundCarouselCardProps) {
-  const media = getBackgroundPreviewMedia(option, "vertical")
-  const previewVideoUrl = media?.type === "video" ? media.source : undefined
-  // The 5:7 portrait card prefers authored vertical art, then square art,
-  // before falling back to the catalog's general landscape poster.
-  const previewPosterUrl = option.previewVerticalImageUrl
-    ?? option.previewSquareImageUrl
-    ?? option.previewImageUrl
+  const { videoUrl: previewVideoUrl, posterUrl: previewPosterUrl } = getBackgroundPreviewAssets(option, "vertical")
   const previewTags = getBackgroundVisualTags(option)
     .filter((tag) => !["shader", "video"].includes(tag.toLowerCase()))
     .slice(0, 4)

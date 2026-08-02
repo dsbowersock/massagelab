@@ -130,7 +130,7 @@ describe("background preview media", () => {
     assert.match(manifestGeneratorSource, /previewVerticalImageUrl/)
     assert.match(manifestGeneratorSource, /probeMediaDimensions\(filePath\)/)
     assert.match(manifestGeneratorSource, /validateDimensions\(posterPath, variant\.width, variant\.height\)/)
-    assert.match(manifestGeneratorSource, /resolvePreviewMediaUrl\(variant\.previewPosterUrl, mediaBaseUrl\)/)
+    assert.match(manifestGeneratorSource, /resolvePreviewMediaUrl\(variant\.previewPosterUrl\)/)
     assert.match(manifestGeneratorSource, /export function resolveVerticalPreviewMediaUrls\(/)
     assert.match(manifestGeneratorSource, /\$\{fallbackId\}-vertical\.webm/)
     assert.match(manifestGeneratorSource, /\$\{fallbackId\}-vertical\.webp/)
@@ -160,14 +160,14 @@ describe("background preview media", () => {
     }
   })
 
-  it("keeps bundled Track 4B previews same-origin in production", async () => {
+  it("uses the verified hosted base for Track 4B previews in production", async () => {
     const originalNodeEnv = process.env.NODE_ENV
     const originalBaseUrl = process.env.NEXT_PUBLIC_CHIMER_PREVIEW_MEDIA_BASE_URL
     process.env.NODE_ENV = "production"
     delete process.env.NEXT_PUBLIC_CHIMER_PREVIEW_MEDIA_BASE_URL
     try {
       const { backgroundPreviewManifest } = await import(
-        `../components/backgrounds/backgroundPreviewManifest.ts?bundled-base=${randomUUID()}`
+        `../components/backgrounds/backgroundPreviewManifest.ts?hosted-base=${randomUUID()}`
       )
       for (const id of ["massage-lab-dna", "massage-lab-twisted-cubes"]) {
         const entry = backgroundPreviewManifest[id]
@@ -184,13 +184,9 @@ describe("background preview media", () => {
             variant.previewPosterUrl,
           ]),
         ]) {
-          assert.match(value, /^\/chimer\/background-previews\//)
+          assert.match(value, /^https:\/\/media\.massagelab\.app\/chimer\/background-previews\//)
         }
       }
-      assert.match(
-        backgroundPreviewManifest["massage-lab-3d-globe"].previewMediaUrl,
-        /^https:\/\/media\.massagelab\.app\/chimer\/background-previews\//,
-      )
     } finally {
       if (originalNodeEnv === undefined) delete process.env.NODE_ENV
       else process.env.NODE_ENV = originalNodeEnv

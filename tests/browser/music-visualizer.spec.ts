@@ -1200,11 +1200,14 @@ test("539px dock headers own shared actions and compact visual color controls", 
     )
     return {
       titleReadable: title.width > 0 && title.height > 0,
-      toggleInside: toggle.left >= bounds.left && toggle.right <= bounds.right,
+      toggleInside: toggle.left >= bounds.left && toggle.right <= bounds.right
+        && toggle.top >= bounds.top && toggle.bottom <= bounds.bottom,
       actionsInside: validatedActions.every((action) => (
         action.left >= bounds.left && action.right <= bounds.right
+          && action.top >= bounds.top && action.bottom <= bounds.bottom
       )),
-      closeInside: close.left >= bounds.left && close.right <= bounds.right,
+      closeInside: close.left >= bounds.left && close.right <= bounds.right
+        && close.top >= bounds.top && close.bottom <= bounds.bottom,
       actionsClearOfClose: validatedActions.every((action) => !overlaps(action, close)),
       titleClearOfToggle: !overlaps(title, toggle),
       toggleClearOfActions: validatedActions.every((action) => !overlaps(toggle, action)),

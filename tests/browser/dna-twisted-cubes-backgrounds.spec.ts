@@ -317,6 +317,7 @@ async function captureComputedConsumerState(host: Locator, id: typeof EFFECTS[nu
     return root.evaluate((element) => {
       const rootElement = element as HTMLElement
       const scene = rootElement.firstElementChild
+      const composition = rootElement.querySelector<HTMLElement>('[data-testid="massage-lab-dna-composition"]')
       if (!(scene instanceof HTMLElement)) {
         throw new Error("The DNA render-state scene element is missing.")
       }
@@ -326,7 +327,7 @@ async function captureComputedConsumerState(host: Locator, id: typeof EFFECTS[nu
       const connector = first?.children[0] as HTMLElement
       const startNode = first?.querySelector<HTMLElement>('[data-side="start"]')
       const endNode = first?.querySelector<HTMLElement>('[data-side="end"]')
-      if (!scene.firstElementChild || !first || !last || !connector || !startNode || !endNode) {
+      if (!composition || !first || !last || !connector || !startNode || !endNode) {
         throw new Error("DNA consumer fixture is missing its scene, composition, strands, connector, or node elements")
       }
       for (const animation of rootElement.getAnimations({ subtree: true })) {
@@ -335,7 +336,7 @@ async function captureComputedConsumerState(host: Locator, id: typeof EFFECTS[nu
       }
       const rootCss = getComputedStyle(rootElement)
       const sceneCss = getComputedStyle(scene)
-      const compositionCss = getComputedStyle(scene.firstElementChild as HTMLElement)
+      const compositionCss = getComputedStyle(composition)
       const strandCss = getComputedStyle(first as HTMLElement)
       const lastCss = getComputedStyle(last as HTMLElement)
       const connectorCss = getComputedStyle(connector)
@@ -448,14 +449,12 @@ async function normalizeComputedConsumer(
   host: Locator,
   styles: Record<string, string>,
   dimensions?: { width: string; height: string },
-  containingBlock?: { width: string; height: string },
 ) {
   return host.evaluate((_, input: {
     styles: Record<string, string>
     dimensions?: { width: string; height: string }
-    containingBlock?: { width: string; height: string }
   }) => {
-    const { styles: inputStyles, dimensions: inputDimensions, containingBlock: inputContainingBlock } = input
+    const { styles: inputStyles, dimensions: inputDimensions } = input
     const specimen = document.createElement("span")
     specimen.style.position = "fixed"
     specimen.style.display = "block"
@@ -463,17 +462,13 @@ async function normalizeComputedConsumer(
       specimen.style.width = inputDimensions.width
       specimen.style.height = inputDimensions.height
     }
-    for (const [name, value] of Object.entries(inputStyles)) specimen.style.setProperty(name, value)
-    const container = inputContainingBlock ? document.createElement("div") : null
-    if (container && inputContainingBlock) {
-      container.style.position = "fixed"
-      container.style.width = inputContainingBlock.width
-      container.style.height = inputContainingBlock.height
-      container.append(specimen)
-      document.body.append(container)
-    } else {
-      document.body.append(specimen)
+    for (const [name, value] of Object.entries(inputStyles)) {
+      specimen.style.setProperty(name, value)
+      if (specimen.style.getPropertyValue(name) === "") {
+        throw new Error(`Computed-style oracle rejected ${name}: ${value}`)
+      }
     }
+    document.body.append(specimen)
     const css = getComputedStyle(specimen)
     const normalized = {
       transform: css.transform,
@@ -483,17 +478,15 @@ async function normalizeComputedConsumer(
       opacity: css.opacity,
       animationDuration: css.animationDuration,
       animationDelay: css.animationDelay,
-      top: css.top,
       width: css.width,
       height: css.height,
       perspective: css.perspective,
       rotate: css.rotate,
       rowGap: css.rowGap,
     }
-    if (container) container.remove()
-    else specimen.remove()
+    specimen.remove()
     return normalized
-  }, { styles, dimensions, containingBlock })
+  }, { styles, dimensions })
 }
 
 /** Normalizes an authored transform through a non-animated clone in the target's containing block. */

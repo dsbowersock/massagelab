@@ -9,7 +9,7 @@ import { DNA_SOURCE_GEOMETRY } from "../lib/dna-background.js"
 import { resolveImmersiveDisplayContext } from "../lib/immersive-display.js"
 import { FEATURE_KEYS } from "../lib/membership.js"
 import { COMPUTED_CONSUMER_CONTRACTS } from "./browser/dna-twisted-cubes-consumer-contract.mjs"
-import { maskSourceComments, sourceBetween } from "./helpers/source-structure.mjs"
+import { maskCssComments, maskSourceComments, sourceBetween } from "./helpers/source-structure.mjs"
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8")
 
@@ -435,23 +435,25 @@ test("DNA and Twisted Cubes share compact options and host-owned responsive moti
   const dnaExecutableSource = maskSourceComments(dnaEffect)
   const cubesExecutableSource = maskSourceComments(cubesEffect)
   const runningExecutableSource = maskSourceComments(runningSource)
+  const hostExecutableSource = maskSourceComments(hostSource)
+  const propertyGroupExecutableStyles = maskCssComments(propertyGroupStyles)
 
   assert.match(runningExecutableSource, /getDnaBackgroundOptionsFromChimerSettings/)
   assert.match(runningExecutableSource, /getTwistedCubesBackgroundOptionsFromChimerSettings/)
   assert.match(runningExecutableSource, /resolveDnaTwistedCubesBackgroundHostProps/)
   assert.match(runningExecutableSource, /\{\.\.\.effectiveDnaTwistedCubesHostProps\}/)
   assert.doesNotMatch(runningExecutableSource, /massageLabDnaStrandCount=|massageLabTwistedCubesLayerCount=/)
-  assert.match(hostSource, /useMediaQuery\(BACKGROUND_COMPACT_VIEWPORT_QUERY\)/)
+  assert.match(hostExecutableSource, /useMediaQuery\(BACKGROUND_COMPACT_VIEWPORT_QUERY\)/)
   assert.match(mediaQuerySource, /export const BACKGROUND_COMPACT_VIEWPORT_QUERY = "\(max-width: 479px\), \(max-height: 479px\)"/)
   assert.match(mediaQuerySource, /window\.matchMedia\(query\)/)
   assert.match(mediaQuerySource, /removeEventListener\("change", handleChange\)/)
   assert.match(ambientMotionSource, /useMediaQuery\(AMBIENT_REDUCED_MOTION_QUERY, true\)/)
-  assert.match(hostSource, /entry\.supportsReducedMotionStatic/)
-  assert.match(hostSource, /reduceMotion,[\s\S]*compactViewport,/)
+  assert.match(hostExecutableSource, /entry\.supportsReducedMotionStatic/)
+  assert.match(hostExecutableSource, /reduceMotion,[\s\S]*compactViewport,/)
   assert.doesNotMatch(dnaExecutableSource, /\b(?:globalThis|document|window)\b|addEventListener|requestAnimationFrame/)
   assert.doesNotMatch(cubesExecutableSource, /\b(?:globalThis|document|window)\b|addEventListener|requestAnimationFrame/)
-  assert.match(propertyGroupStyles, /\.backgroundPropertyGroups\s*\{[^}]*\bmin-width:\s*0/)
-  assert.match(propertyGroupStyles, /\.backgroundPropertyGroup\s*\{[^}]*\bmin-width:\s*0/)
+  assert.match(propertyGroupExecutableStyles, /\.backgroundPropertyGroups\s*\{[^}]*\bmin-width:\s*0/)
+  assert.match(propertyGroupExecutableStyles, /\.backgroundPropertyGroup\s*\{[^}]*\bmin-width:\s*0/)
 })
 
 test("actual Chimer, ordinary Clock, Music, and ambient Host plumbing resolves all 23 values", async () => {

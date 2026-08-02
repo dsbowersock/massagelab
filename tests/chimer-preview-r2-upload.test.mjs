@@ -49,6 +49,7 @@ describe("Chimer preview R2 uploader", () => {
     )
     const summary = JSON.parse(summaryLine.slice(dryRunSummaryPrefix.length))
     assert.equal(summary.dryRun, true)
+    assert.equal(summary.publicBaseUrl, "https://media.example.test")
     const selectedObjects = summary.objects.filter(({ objectKey }) => {
       const name = path.basename(objectKey)
       return name === "index.json" || backgroundIds.some((id) => name.startsWith(id))
@@ -74,6 +75,9 @@ describe("Chimer preview R2 uploader", () => {
     }
     assert.equal(contentTypes["index.json"], "application/json; charset=utf-8")
     assert.equal(cacheControls["index.json"], expectedCacheControl)
-    assert.doesNotMatch(result.stdout, /Uploaded/)
+    for (const object of selectedObjects) {
+      assert.equal(object.publicUrl, `https://media.example.test/${object.objectKey}`)
+      assert.equal(object.uploaded, false)
+    }
   })
 })

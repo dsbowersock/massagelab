@@ -25,6 +25,8 @@ import {
   backgroundPaletteRegistry,
   backgroundPreferenceNormalizationOptions,
 } from "../components/backgrounds/backgroundPaletteRegistry.ts"
+import { DNA_OPTION_BOUNDS } from "../lib/dna-background.js"
+import { TWISTED_CUBES_OPTION_BOUNDS } from "../lib/twisted-cubes-background.js"
 
 const sanitizeWithRegistry = (value) => sanitizeChimerSettings(value, {
   backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
@@ -252,44 +254,32 @@ describe("Shared background preference access and retry wiring", () => {
 })
 
 describe("DNA and Twisted Cubes non-color persistence", () => {
+  const boundedProperties = (prefix, bounds) => Object.fromEntries(
+    Object.entries(bounds).map(([key, bound], index) => {
+      const invalid = index % 2 === 0 ? 999 : -999
+      const settingKey = `${prefix}${key[0].toUpperCase()}${key.slice(1)}`
+      return [settingKey, {
+        invalid,
+        expected: invalid > 0 ? bound.maximum : bound.minimum,
+      }]
+    }),
+  )
   const cases = [
     {
       backgroundId: "massage-lab-dna",
       presetId: "dna",
       properties: {
-        massageLabDnaStrandCount: { invalid: 999, expected: 81 },
+        ...boundedProperties("massageLabDna", DNA_OPTION_BOUNDS),
         massageLabDnaShowBaseLetters: {
           invalid: "yes",
           expected: DEFAULT_CHIMER_SETTINGS.massageLabDnaShowBaseLetters,
         },
-        massageLabDnaNodeMotionSpeed: { invalid: -999, expected: 0.01 },
-        massageLabDnaStrandRotationSpeed: { invalid: 999, expected: 3 },
-        massageLabDnaStrandAngle: { invalid: -999, expected: -180 },
-        massageLabDnaScale: { invalid: 999, expected: 1.2 },
-        massageLabDnaPositionX: { invalid: -999, expected: -35 },
-        massageLabDnaPositionY: { invalid: 999, expected: 35 },
-        massageLabDnaStrandSpacing: { invalid: -999, expected: 0 },
-        massageLabDnaConnectorWidth: { invalid: 999, expected: 100 },
-        massageLabDnaConnectorThickness: { invalid: -999, expected: 10 },
-        massageLabDnaOutlineThickness: { invalid: 999, expected: 1.5 },
       },
     },
     {
       backgroundId: "massage-lab-twisted-cubes",
       presetId: "cubes",
-      properties: {
-        massageLabTwistedCubesLayerCount: { invalid: -999, expected: 6 },
-        massageLabTwistedCubesRotationSpeed: { invalid: 999, expected: 3 },
-        massageLabTwistedCubesLayerStagger: { invalid: -999, expected: 0 },
-        massageLabTwistedCubesViewAngleX: { invalid: 999, expected: 80 },
-        massageLabTwistedCubesViewAngleY: { invalid: -999, expected: -80 },
-        massageLabTwistedCubesScale: { invalid: -999, expected: 0.1 },
-        massageLabTwistedCubesPositionX: { invalid: 999, expected: 35 },
-        massageLabTwistedCubesPositionY: { invalid: -999, expected: -35 },
-        massageLabTwistedCubesLayerDepthSpacing: { invalid: 999, expected: 70 },
-        massageLabTwistedCubesOpacityFalloff: { invalid: -999, expected: 0 },
-        massageLabTwistedCubesOutlineThickness: { invalid: 999, expected: 0.02 },
-      },
+      properties: boundedProperties("massageLabTwistedCubes", TWISTED_CUBES_OPTION_BOUNDS),
     },
   ]
 
@@ -361,6 +351,7 @@ describe("DNA and Twisted Cubes non-color persistence", () => {
     assert.equal(retry.requestId, 42)
     assert.equal(retry.requestBody, applyRequest.requestBody)
     const transientRendererFields = /nodeRoleAssignments|outlineAnchors|derivedAlpha/
+    assert.doesNotMatch(JSON.stringify(locallySanitized), transientRendererFields)
     assert.doesNotMatch(JSON.stringify(accountSettings), transientRendererFields)
     assert.doesNotMatch(JSON.stringify(retrySettings), transientRendererFields)
     assert.doesNotMatch(serialized, transientRendererFields)

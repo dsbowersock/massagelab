@@ -51,6 +51,7 @@ const navigationGuardExecutableSource = maskSourceComments(navigationGuardSource
 const unsavedDialogExecutableSource = maskSourceComments(unsavedDialogSource)
 const dnaControlsExecutableSource = maskSourceComments(dnaControlsSource)
 const twistedCubesControlsExecutableSource = maskSourceComments(twistedCubesControlsSource)
+const backgroundPropertyGroupExecutableSource = maskSourceComments(backgroundPropertyGroupSource)
 
 const openingSnapshot = {
   palette: { mode: "custom", primaryColor: "#123456", harmony: "triadic", swatches: ["#123456", "#234567", "#345678", "#456789", "#56789a", "#6789ab", "#789abc"] },
@@ -1241,13 +1242,13 @@ test("dirty navigation guard covers eligible app links, history, and native unlo
   assert.match(unsavedDialogExecutableSource, /Keep editing/)
   assert.match(unsavedDialogExecutableSource, /onCloseAutoFocus/)
   assert.doesNotMatch(unsavedDialogExecutableSource, /document\.activeElement/)
-  assert.match(unsavedDialogSource, /restoreFocusTarget/)
-  assert.match(unsavedDialogSource, /explicitOutcomeRef/)
-  assert.match(unsavedDialogSource, /useEffect\(\(\) => \{[\s\S]*if \(!open\)[\s\S]*explicitOutcomeRef\.current = false/)
-  assert.match(unsavedDialogSource, /resolveExplicitOutcome\(onApply\)/)
-  assert.match(unsavedDialogSource, /resolveExplicitOutcome\(onDiscard\)/)
-  assert.match(unsavedDialogSource, /resolveExplicitOutcome\(onKeepEditing\)/)
-  assert.match(runningTimerSource, /className=\{styles\.visualDraftStatus\}[\s\S]*role="status"[\s\S]*aria-live="polite"/)
+  assert.match(unsavedDialogExecutableSource, /restoreFocusTarget/)
+  assert.match(unsavedDialogExecutableSource, /explicitOutcomeRef/)
+  assert.match(unsavedDialogExecutableSource, /useEffect\(\(\) => \{[\s\S]*?if \(!open\)[\s\S]*?explicitOutcomeRef\.current = false/)
+  assert.match(unsavedDialogExecutableSource, /resolveExplicitOutcome\(onApply\)/)
+  assert.match(unsavedDialogExecutableSource, /resolveExplicitOutcome\(onDiscard\)/)
+  assert.match(unsavedDialogExecutableSource, /resolveExplicitOutcome\(onKeepEditing\)/)
+  assert.match(runningTimerExecutableSource, /className=\{styles\.visualDraftStatus\}[\s\S]*?role="status"[\s\S]*?aria-live="polite"/)
   assert.match(
     runningTimerExecutableSource,
     /function getVisualDraftStatusText[\s\S]*?if \(dirty\)[\s\S]*?storageStatus === "loading"[\s\S]*?storageStatus !== "available"[\s\S]*?syncStatus === "stale"/,
@@ -1369,7 +1370,7 @@ test("DNA and Twisted Cubes controls emit only draft property patches with exact
   }
   assert.match(dnaControlsExecutableSource, /displayValue=\{`\$\{value\.outlineThickness\.toFixed\(2\)\}vmin`\}/)
   assert.match(twistedCubesControlsExecutableSource, /displayValue=\{`\$\{\(value\.outlineThickness \* 100\)\.toFixed\(2\)\}%`\}/)
-  assert.match(backgroundPropertyGroupSource, /<fieldset className=\{styles\.backgroundPropertyGroup\}>[\s\S]*<legend>\{label\}<\/legend>/)
+  assert.match(backgroundPropertyGroupExecutableSource, /<fieldset className=\{styles\.backgroundPropertyGroup\}>[\s\S]*?<legend>\{label\}<\/legend>/)
   assert.match(dnaControlsExecutableSource, /<BackgroundPropertyGroup label="Motion">/)
   assert.match(twistedCubesControlsExecutableSource, /<BackgroundPropertyGroup label="Motion">/)
   assert.doesNotMatch(dnaControlsExecutableSource, /<fieldset|<legend>/)

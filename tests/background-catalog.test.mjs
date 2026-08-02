@@ -3,6 +3,7 @@ import { describe, it } from "node:test"
 import {
   BACKGROUND_SAVED_IDS_STORAGE_KEY,
   BACKGROUND_VISUAL_FILTERS,
+  getBackgroundPreviewAssets,
   getBackgroundPreviewMedia,
   getBackgroundVisualTags,
   matchesBackgroundVisualFilter,
@@ -42,6 +43,37 @@ describe("Background catalog helpers", () => {
     assert.deepEqual(getBackgroundVisualTags(videoBackground), [
       "Animated", "Interactive", "Shader", "Image", "Premium",
     ])
+  })
+
+  it("pairs preview videos with posters from the same aspect variant", () => {
+    const variants = {
+      ...videoBackground,
+      previewImageUrl: "/landscape.webp",
+      previewSquareVideoUrl: "/square.webm",
+      previewSquareImageUrl: "/square.webp",
+      previewVerticalVideoUrl: "/vertical.webm",
+      previewVerticalImageUrl: "/vertical.webp",
+    }
+    assert.deepEqual(getBackgroundPreviewAssets(variants, "vertical"), {
+      videoUrl: "/vertical.webm",
+      posterUrl: "/vertical.webp",
+    })
+    assert.deepEqual(getBackgroundPreviewAssets(variants, "square"), {
+      videoUrl: "/square.webm",
+      posterUrl: "/square.webp",
+    })
+    assert.deepEqual(getBackgroundPreviewAssets({ previewImageUrl: "/still.webp" }), {
+      videoUrl: undefined,
+      posterUrl: "/still.webp",
+    })
+    assert.deepEqual(getBackgroundPreviewAssets({
+      previewMediaType: "video",
+      previewMediaUrl: "/generic.webm",
+      previewImageUrl: "/generic.webp",
+    }), {
+      videoUrl: "/generic.webm",
+      posterUrl: "/generic.webp",
+    })
   })
 
   it("parses only unique string ids from storage", () => {
