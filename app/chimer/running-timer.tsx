@@ -13752,6 +13752,7 @@ export function RunningTimer({
                     <Button
                       type="button"
                       variant="ghost"
+                      data-chimer-control="true"
                       disabled={!canCustomizeSelectedBackground || currentVisualEditorSnapshot.palette.mode === "source"}
                       onClick={() =>
                         dispatchVisualDraft({
@@ -13793,6 +13794,7 @@ export function RunningTimer({
                       <Button
                         type="button"
                         variant="ghost"
+                        data-chimer-control="true"
                         disabled={!canCustomizeSelectedBackground}
                         onClick={() =>
                           dispatchVisualDraft({

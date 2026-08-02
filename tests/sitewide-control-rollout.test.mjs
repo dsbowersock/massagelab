@@ -161,11 +161,11 @@ test("Visual draft actions live in the responsive panel header while sync status
     visualStatus,
     /className=\{styles\.visualDraftStatusRow\}[\s\S]*variant="cta"[^>]*data-chimer-control="true"[^>]*onClick=\{onRetryBackgroundVisualPreferences\}[\s\S]*Retry sync/,
   )
+  const headerActionButtons = Array.from(headerControls.matchAll(/<Button\b[^>]*>/g), (match) => match[0])
   for (const label of ["Undo", "Redo", "Cancel", "Apply"]) {
-    assert.match(
-      headerControls,
-      new RegExp(`<Button[^>]*aria-label="${label}"[^>]*data-chimer-control="true"`),
-    )
+    const actionButton = headerActionButtons.find((tag) => tag.includes(`aria-label="${label}"`))
+    assert.ok(actionButton, `Expected a ${label} Button in the Visual draft action group`)
+    assert.match(actionButton, /\bdata-chimer-control="true"/)
   }
   assert.match(
     headerControls,
