@@ -13686,23 +13686,6 @@ export function RunningTimer({
                 </div>
               ) : null}
 
-              <div className={styles.visualDraftStatusRow}>
-                <span className={styles.visualDraftStatus} role="status" aria-live="polite" aria-atomic="true">
-                  {getVisualDraftStatusText({
-                    dirty: Boolean(visualDraft?.dirty),
-                    storageStatus: mode.storageStatus,
-                    syncStatus: backgroundPreferenceSyncStatus,
-                  })}
-                </span>
-                {!visualDraft?.dirty
-                  && mode.storageStatus === "available"
-                  && backgroundPreferenceSyncStatus === "stale" ? (
-                  <Button type="button" size="compact" variant="cta" onClick={onRetryBackgroundVisualPreferences}>
-                    Retry sync
-                  </Button>
-                ) : null}
-              </div>
-
               {!isClockMode && mode.context === "chimer" ? (
                 <div className={styles.switchRow}>
                   <StyledToggleControl label="Keep timer screen awake" checked={keepTimerScreenAwake} valueLabel={keepTimerScreenAwake ? "On" : "Off"} hapticsEnabled={hapticsEnabled} onCheckedChange={(value) => handleSettingsChange({ keepTimerScreenAwake: value })} />
@@ -13821,6 +13804,23 @@ export function RunningTimer({
                     </div>
                   </div>
                   <BackgroundVisualPresetManager presets={currentVisualEditorSnapshot.visualPresets as never} currentProperties={currentVisualEditorSnapshot.properties} currentMapping={currentVisualEditorSnapshot.mapping} backgroundName={visualEditorBackgroundDefinition.label} defaultPresetId={currentVisualEditorSnapshot.defaultVisualPresetId} roleLabels={selectedRoleLabels} disabled={!canCustomizeSelectedBackground} onDraftAction={(action: BackgroundPresetDraftAction) => dispatchVisualDraft(action)} />
+
+                  <div className={styles.visualDraftStatusRow}>
+                    <span className={styles.visualDraftStatus} role="status" aria-live="polite" aria-atomic="true">
+                      {getVisualDraftStatusText({
+                        dirty: Boolean(visualDraft?.dirty),
+                        storageStatus: mode.storageStatus,
+                        syncStatus: backgroundPreferenceSyncStatus,
+                      })}
+                    </span>
+                    {!visualDraft?.dirty
+                      && mode.storageStatus === "available"
+                      && backgroundPreferenceSyncStatus === "stale" ? (
+                      <Button type="button" size="compact" variant="cta" onClick={onRetryBackgroundVisualPreferences}>
+                        Retry sync
+                      </Button>
+                    ) : null}
+                  </div>
 
                 </>
               ) : null}
