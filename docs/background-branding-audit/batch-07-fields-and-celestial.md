@@ -4,31 +4,31 @@
 - **ID:** `massage-lab-grainient`
 - **Current name:** Grainient
 - **Decision:** rename
-- **Alternatives:** Analog Violet; Powdered Spectrum
-- **Visual descriptor:** Grainy pink and violet colors drifting softly
+- **Alternatives:** Analog Grain; Powdered Spectrum
+- **Visual descriptor:** Grainy color field drifting softly
 - **Signature original eligible:** No
-- **Rationale:** Velvet Grain replaces a difficult portmanteau with a tactile, pronounceable title for the smooth color field and its visible granular texture.
+- **Rationale:** Velvet Grain replaces a difficult portmanteau with a tactile, pronounceable title for the smooth field and its visible granular texture without fixing the configurable palette.
 - **Collision notes:** The fine grain separates it from Drift's broad bands, Dithered Smoke's halftone dots, and Color Drift's clean gradient clouds.
 
 ## Orb
 - **ID:** `massage-lab-orb`
 - **Current name:** Orb
 - **Decision:** keep
-- **Alternatives:** Violet Eclipse; Glass Halo
-- **Visual descriptor:** Glowing violet ring orbiting a shaded sphere
+- **Alternatives:** Halo Eclipse; Glass Halo
+- **Visual descriptor:** Luminous ring surrounding a shaded sphere
 - **Signature original eligible:** No
-- **Rationale:** Orb is concise and visually exact for the dark sphere, colored rim, and gentle rotational response, making elaboration unnecessary.
+- **Rationale:** Orb is concise and visually exact for the shaded sphere, luminous rim, and default cursor-responsive rotation, making elaboration unnecessary.
 - **Collision notes:** A single shaded sphere with a halo differs from Ember Iris' flames, Turning Globe's mapped Earth, and Deep Search's flat rings.
 
 ## Color Drift
 - **ID:** `massage-lab-gradient-animation`
 - **Current name:** Animated gradient
 - **Decision:** rename
-- **Alternatives:** Chromatic Exhale; Blue-Violet Weather
-- **Visual descriptor:** Blue and violet gradient clouds slowly roaming
+- **Alternatives:** Chromatic Exhale; Gradient Weather
+- **Visual descriptor:** Gradient clouds slowly roaming
 - **Signature original eligible:** No
-- **Rationale:** Color Drift removes the generic Animated prefix and names the quiet cloudlike movement that users can actually see at the passive default.
-- **Collision notes:** Its soft roaming clouds should be compared with Colorfield Drift's saturated sweep and Still Gradient's motionless haze.
+- **Rationale:** Color Drift removes the generic Animated prefix and names the quiet cloudlike movement that users can actually see at the passive default without fixing its configurable palette.
+- **Collision notes:** Its soft roaming clouds should be compared with Colorfield Drift's layered sweep and Still Gradient's motionless haze.
 
 ## Star Lattice
 - **ID:** `massage-lab-glowing-stars`
@@ -65,9 +65,9 @@
 - **Current name:** 3D Globe
 - **Decision:** rename
 - **Alternatives:** Atlas in Motion; Sunlit Sphere
-- **Visual descriptor:** Illuminated Earth rotating beside a location marker
+- **Visual descriptor:** Illuminated mapped globe rotating beside an optional marker
 - **Signature original eligible:** No
-- **Rationale:** Turning Globe replaces a technical dimension label with the passive action users see while retaining the renderer's clear geographic identity.
+- **Rationale:** Turning Globe replaces a technical dimension label with the passive action users see while retaining the renderer's geographic identity without fixing its configurable colors.
 - **Collision notes:** Mapped continents and the optional marker keep it separate from Orb's abstract sphere and every unstructured celestial field.
 
 ## Aurora Bars
@@ -75,20 +75,20 @@
 - **Current name:** Aurora bars
 - **Decision:** rename
 - **Alternatives:** Polar Equalizer; Ribbon Columns
-- **Visual descriptor:** Pink vertical bars rising in rolling waves
+- **Visual descriptor:** Luminous vertical bars rising in rolling waves
 - **Signature original eligible:** No
-- **Rationale:** Aurora Bars remains the clearest identity with consistent title casing, accurately covering both its ambient column motion and optional music response.
+- **Rationale:** Aurora Bars remains the clearest identity with consistent title casing, accurately covering its passive column motion; Music can optionally activate visualizer response without changing the default behavior or palette.
 - **Collision notes:** Discrete vertical columns distinguish it from Interstellar's blended curtains, Polar Aurora's horizon band, and Slats' strips.
 
 ## Bubble Field
 - **ID:** `massage-lab-bubble`
 - **Current name:** Bubble field
 - **Decision:** rename
-- **Alternatives:** Color Buoyancy; Blurred Planets
-- **Visual descriptor:** Blurred color bubbles floating through a dark wash
+- **Alternatives:** Soft Buoyancy; Blurred Planets
+- **Visual descriptor:** Blurred bubbles floating through a dark wash
 - **Signature original eligible:** No
 - **Rationale:** Bubble Field keeps the friendly literal name with consistent capitalization and truthfully reflects the passive five-bubble composition after the cursor-following source bubble was omitted.
-- **Collision notes:** Multiple blurred colored circles differ from Orb's single rimmed sphere, Charged Foam's cellular material, and the gradient-only fields.
+- **Collision notes:** Multiple blurred circles differ from Orb's single rimmed sphere, Charged Foam's cellular material, and the gradient-only fields.
 
 ## Drifting Starfield
 - **ID:** `massage-lab-stars`
@@ -97,7 +97,7 @@
 - **Alternatives:** Threefold Sky; Parallax Night
 - **Visual descriptor:** Three star layers gliding above a dark horizon
 - **Signature original eligible:** No
-- **Rationale:** Drifting Starfield adds the source adaptation's layered motion to an otherwise indistinct Stars label and remains serene in ordinary use.
+- **Rationale:** Drifting Starfield adds the source adaptation's layered motion to an otherwise indistinct Stars label; its three layers glide passively and shift subtly with the cursor.
 - **Collision notes:** Its three lateral layers distinguish it from Constellations' central rotation, Star Lattice's grid, and Shooting Stars' intermittent streaks.
 
 ## Depth Well
