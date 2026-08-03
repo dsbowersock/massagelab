@@ -29,7 +29,7 @@
       "alternatives": ["Vanishing Horizon", "Receding Plane"],
       "visualDescriptor": "Perspective grid scrolling toward the horizon",
       "rationale": "Endless Perspective emphasizes the receding wire plane and sustained horizon motion without overpromising a futuristic experience.",
-      "collisionNotes": "Its horizon scroll distinguishes it from Grid Scan's tunnel, Ripple Grid's center wave, and the flat tile systems.",
+      "collisionNotes": "Its horizon scroll distinguishes it from Neon Survey's tunnel, Ripple Grid's center wave, and the flat tile systems.",
       "signatureOriginalEligible": false
     },
     {
@@ -79,7 +79,7 @@
       "alternatives": ["Hexagonal Rhythm", "Faceted Calm"],
       "visualDescriptor": "Raised hexagons softly fading in sequence",
       "rationale": "Honeycomb Glow gives the original internal hex field an approachable sensory image and remains faithful to its softly illuminated cells.",
-      "collisionNotes": "The six-sided cell pattern keeps it visually distinct from Quiet Mosaic's squares and Grid Bloom's warped line mesh.",
+      "collisionNotes": "The six-sided cell pattern keeps it visually distinct from Quiet Mosaic's squares and Connective Pulse's warped line mesh.",
       "signatureOriginalEligible": true
     },
     {
@@ -119,7 +119,7 @@
       "alternatives": ["Luminous Pinfield", "Quiet Pointillism"],
       "visualDescriptor": "Tiny dots shimmering across darkness",
       "rationale": "Speckled Veil describes the passive dot matrix actually shown, avoiding the interaction promise implied by the former catalog label while retaining a soft sensory voice.",
-      "collisionNotes": "Its dense all-screen matrix remains separate from Pinpoint Shimmer's sparse points, Dot Field's warped points, and Dot Grid's even rows.",
+      "collisionNotes": "Its dense all-screen matrix remains separate from Pinpoint Shimmer's sparse points, Dot Field's ordered points, and Pegboard's even rows.",
       "signatureOriginalEligible": false
     },
     {
@@ -359,67 +359,67 @@
       "alternatives": ["Spectrum Triangle", "Refracted Glow"],
       "visualDescriptor": "Glowing triangular prism refracting spectral light",
       "rationale": "Prismatic is the clearest possible label for the central triangular volume and its refracted light, with no unnecessary futuristic embellishment.",
-      "collisionNotes": "The bounded triangle keeps this singular form distinct from Kaleidoscope Rays' fan and Prismatic Slats' repeated strips.",
+      "collisionNotes": "The bounded triangle keeps this singular form distinct from Kaleidoscope Rays' fan and Slats' repeated strips.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-grid-bloom",
-      "decision": "keep",
-      "recommendedName": "Grid Bloom",
+      "decision": "rename",
+      "recommendedName": "Connective Pulse",
       "alternatives": ["Lattice Interference", "Mesh Pulse"],
       "visualDescriptor": "Grid waves pulsing through interference",
-      "rationale": "Grid Bloom is an apt sensory name for the lattice as interference pulses swell and recede across its warped surface.",
+      "rationale": "Connective Pulse is an apt sensory name for the lattice as interference pulses swell and recede across its warped surface.",
       "collisionNotes": "The continuous mesh and interference bloom separate it from Ripple Grid's central square wave and Honeycomb Glow's discrete cells.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-pixel-blast",
       "decision": "rename",
-      "recommendedName": "Pixel Scatter",
+      "recommendedName": "Nomad",
       "alternatives": ["Digital Stipple", "Point Cloud Bloom"],
       "visualDescriptor": "Dithered pixels gathering into shifting shapes",
-      "rationale": "Pixel Scatter describes both dispersion and re-formation while softening Blast, which overstates the reviewed default's patterned motion.",
-      "collisionNotes": "Shape-forming dithered points distinguish it from Pixel Snow's falling blocks, Pinpoint Shimmer, and Particle Drift.",
+      "rationale": "Nomad describes both dispersion and re-formation while replacing Blast, which overstates the reviewed default's patterned motion.",
+      "collisionNotes": "Shape-forming dithered points distinguish it from Snowglobe's falling blocks, Pinpoint Shimmer, and Particle Drift.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-gradient-blinds",
       "decision": "rename",
-      "recommendedName": "Prismatic Slats",
+      "recommendedName": "Slats",
       "alternatives": ["Radiant Portal", "Striped Radiance"],
       "visualDescriptor": "Gradient slats opening around a spotlight",
-      "rationale": "Prismatic Slats replaces the household-fixture phrase with a more polished title while staying literal about the repeated luminous strips.",
+      "rationale": "Slats replaces the household-fixture phrase with a more polished title while staying literal about the repeated luminous strips.",
       "collisionNotes": "Parallel slats are distinct from Prismatic's triangle, Kaleidoscope Rays' radial fan, and Spotlight's unsegmented cones.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-grid-scan",
-      "decision": "keep",
-      "recommendedName": "Grid Scan",
-      "alternatives": ["Neon Survey", "Receding Matrix"],
+      "decision": "rename",
+      "recommendedName": "Neon Survey",
+      "alternatives": ["Perspective Sweep", "Receding Matrix"],
       "visualDescriptor": "Perspective grid sweeping through a dark tunnel",
-      "rationale": "Grid Scan is concise and accurate for the scanner-like illumination traveling through the source-shaped perspective line field.",
+      "rationale": "Neon Survey is concise and accurate for the scanner-like illumination traveling through the source-shaped perspective line field.",
       "collisionNotes": "The tunnel perspective and moving scan distinguish it from Retro Grid's open horizon and Ripple Grid's frontal plane.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-pixel-snow",
-      "decision": "keep",
-      "recommendedName": "Pixel Snow",
-      "alternatives": ["Digital Snowglobe", "Depth Confetti"],
+      "decision": "rename",
+      "recommendedName": "Snowglobe",
+      "alternatives": ["Square Flurry", "Depth Confetti"],
       "visualDescriptor": "Blocky flakes drifting through deep space",
-      "rationale": "Pixel Snow is friendly, pronounceable, and literal for the many depth-layered square flakes without pretending the scene is realistic weather.",
-      "collisionNotes": "Falling blocks keep it separate from Pixel Scatter's assembled shapes, Meteors' streaks, and Particle Drift's points.",
+      "rationale": "Snowglobe is friendly, pronounceable, and literal for the many depth-layered square flakes without pretending the scene is realistic weather.",
+      "collisionNotes": "Falling blocks keep it separate from Nomad's assembled shapes, Meteors' streaks, and Particle Drift's points.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-dither",
       "decision": "rename",
-      "recommendedName": "Dithered Waves",
+      "recommendedName": "Dithered Smoke",
       "alternatives": ["Printed Current", "Halftone Vapor"],
       "visualDescriptor": "Wave clouds rendered as coarse dots",
-      "rationale": "Dithered Waves tells users what the terse rendering term does: it shapes a soft moving wave field from visible dots.",
-      "collisionNotes": "The cloudy halftone surface differs from Pixel Scatter's discrete shape, Velvet Grain's color texture, and Currents' contours.",
+      "rationale": "Dithered Smoke tells users what the terse rendering term does: it shapes a soft moving cloud field from visible dots.",
+      "collisionNotes": "The cloudy halftone surface differs from Nomad's discrete shape, Velvet Grain's color texture, and Currents' contours.",
       "signatureOriginalEligible": false
     },
     {
@@ -429,7 +429,7 @@
       "alternatives": ["Resonance Floor", "Kinetic Topography"],
       "visualDescriptor": "Square grid rippling from the center",
       "rationale": "Ripple Grid directly names the centered deformation traveling through the square line plane and remains calmer than a more technical shader title.",
-      "collisionNotes": "Its central wave contrasts with Grid Bloom's interference mesh and Grid Scan's receding tunnel.",
+      "collisionNotes": "Its central wave contrasts with Connective Pulse's interference mesh and Neon Survey's receding tunnel.",
       "signatureOriginalEligible": false
     },
     {
@@ -439,16 +439,16 @@
       "alternatives": ["Fine Point Fabric", "Quiet Point Array"],
       "visualDescriptor": "Tiny dots arranged in even rows",
       "rationale": "Dot Field is suitably literal for the broad canvas of small points arranged in a passive, orderly array; wave and sparkle are optional controls.",
-      "collisionNotes": "Its fine, passive array differs from Dot Grid's larger reactive points and Speckled Veil's dense matrix shimmer.",
+      "collisionNotes": "Its fine, passive array differs from Pegboard's larger reactive points and Speckled Veil's dense matrix shimmer.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-dot-grid",
-      "decision": "keep",
-      "recommendedName": "Dot Grid",
-      "alternatives": ["Ordered Pegboard", "Ordered Constellation"],
+      "decision": "rename",
+      "recommendedName": "Pegboard",
+      "alternatives": ["Point Array", "Ordered Constellation"],
       "visualDescriptor": "Dots resting in evenly spaced rows",
-      "rationale": "Dot Grid accurately describes the passive default's orderly point array; its spring and shock behavior remains optional rather than implied by the title.",
+      "rationale": "Pegboard accurately describes the passive default's orderly point array; its spring and shock behavior remains optional rather than implied by the title.",
       "collisionNotes": "The regular rows contrast with Dot Field's ambient bends, Pinpoint Shimmer's microglow, and Speckled Veil's dense matrix.",
       "signatureOriginalEligible": false
     },
@@ -459,16 +459,16 @@
       "alternatives": ["Tiled Refraction", "Digital Patchwork"],
       "visualDescriptor": "Mosaic blocks bending in soft waves",
       "rationale": "Mosaic Warp names the generated texture as well as its deformation, making the effect more tangible than the current engineering phrase.",
-      "collisionNotes": "Large blended blocks distinguish it from Quiet Mosaic's small independently fading tiles and Word Drift's word-bearing panels.",
+      "collisionNotes": "Large blended blocks distinguish it from Quiet Mosaic's small independently fading tiles and Mantra Drift's word-bearing panels.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-grid-motion",
       "decision": "rename",
-      "recommendedName": "Word Drift",
-      "alternatives": ["Calm Vocabulary", "Responsive Mantras"],
+      "recommendedName": "Mantra Drift",
+      "alternatives": ["Calm Vocabulary", "Responsive Rows"],
       "visualDescriptor": "Offset word rows resting in place",
-      "rationale": "Word Drift foregrounds the visible calm vocabulary and offset row layout; lateral shifting responds to the cursor rather than playing by default.",
+      "rationale": "Mantra Drift foregrounds the visible calm vocabulary and offset row layout; lateral shifting responds to the cursor rather than playing by default.",
       "collisionNotes": "Readable word tiles make it unmistakable beside Geometric Current's empty cells, Glyph Shift's character noise, and Glyph Rain's columns.",
       "signatureOriginalEligible": false
     },
@@ -479,7 +479,7 @@
       "alternatives": ["Outline Parade", "Kinetic Drafting"],
       "visualDescriptor": "Outlined square cells sliding across a field",
       "rationale": "Geometric Current gives the moving canvas forms a softer directional identity while remaining broad enough for the source's selectable shapes.",
-      "collisionNotes": "Outlined moving cells distinguish this renderer from Word Drift's text panels and Quiet Mosaic's independently fading filled squares.",
+      "collisionNotes": "Outlined moving cells distinguish this renderer from Mantra Drift's text panels and Quiet Mosaic's independently fading filled squares.",
       "signatureOriginalEligible": false
     },
     {
@@ -669,7 +669,7 @@
       "alternatives": ["Code Confetti", "Letter Weather"],
       "visualDescriptor": "Colored character grid flickering through random substitutions",
       "rationale": "Glyph Shift is compact and lightly experimental, describing the actual character changes without framing their intended motion as a malfunction.",
-      "collisionNotes": "A full randomized character grid differs from Glyph Rain's descending columns, Terminal Static's CRT texture, and Word Drift's readable tiles.",
+      "collisionNotes": "A full randomized character grid differs from Glyph Rain's descending columns, Terminal Static's CRT texture, and Mantra Drift's readable tiles.",
       "signatureOriginalEligible": false
     },
     {
@@ -699,7 +699,7 @@
       "alternatives": ["Green Cascade", "Cipher Curtain"],
       "visualDescriptor": "Green character columns cascading over black",
       "rationale": "Glyph Rain retains the familiar visual metaphor while removing a film-specific reference and naming the actual falling character forms.",
-      "collisionNotes": "Vertical green columns distinguish it from Glyph Shift's full-screen substitutions and Word Drift's horizontal phrase rows.",
+      "collisionNotes": "Vertical green columns distinguish it from Glyph Shift's full-screen substitutions and Mantra Drift's horizontal phrase rows.",
       "signatureOriginalEligible": false
     },
     {
@@ -709,7 +709,7 @@
       "alternatives": ["Teal Simulation", "Cubist Fluid"],
       "visualDescriptor": "Teal pixel fluid swirling through a dark field",
       "rationale": "Pixel Current gives the high-motion canvas adaptation a directional, pronounceable title while retaining its defining blocky fluid texture.",
-      "collisionNotes": "Teal pixel fluid differs from Pixel Scatter's shape assembly, Mosaic Warp's large blocks, and Tidal Glass' smooth shader surface.",
+      "collisionNotes": "Teal pixel fluid differs from Nomad's shape assembly, Mosaic Warp's large blocks, and Tidal Glass' smooth shader surface.",
       "signatureOriginalEligible": false
     },
     {
@@ -729,7 +729,7 @@
       "alternatives": ["Analog Violet", "Powdered Spectrum"],
       "visualDescriptor": "Grainy pink and violet colors drifting softly",
       "rationale": "Velvet Grain replaces a difficult portmanteau with a tactile, pronounceable title for the smooth color field and its visible granular texture.",
-      "collisionNotes": "The fine grain separates it from Pastel Drift's broad bands, Dithered Waves' monochrome dots, and Color Drift's clean gradient clouds.",
+      "collisionNotes": "The fine grain separates it from Pastel Drift's broad bands, Dithered Smoke's halftone dots, and Color Drift's clean gradient clouds.",
       "signatureOriginalEligible": false
     },
     {
@@ -769,7 +769,7 @@
       "alternatives": ["Ember Transit", "Diagonal Signals"],
       "visualDescriptor": "Diagonal meteor streaks crossing a dark sky",
       "rationale": "Meteors is simple and truthful for the repeated diagonal bodies and tails, preserving a familiar title that scans quickly.",
-      "collisionNotes": "A steady field of diagonal trails differs from Shooting Stars' sparse events, Pixel Snow's blocks, and Lightfall's curved descent.",
+      "collisionNotes": "A steady field of diagonal trails differs from Shooting Stars' sparse events, Snowglobe's blocks, and Lightfall's curved descent.",
       "signatureOriginalEligible": false
     },
     {
@@ -799,7 +799,7 @@
       "alternatives": ["Polar Equalizer", "Ribbon Columns"],
       "visualDescriptor": "Pink vertical bars rising in rolling waves",
       "rationale": "Aurora Bars remains the clearest identity with consistent title casing, accurately covering both its ambient column motion and optional music response.",
-      "collisionNotes": "Discrete vertical columns distinguish it from Aurora Wash's blended curtains, Soft Aurora's horizon band, and Prismatic Slats' strips.",
+      "collisionNotes": "Discrete vertical columns distinguish it from Aurora Wash's blended curtains, Soft Aurora's horizon band, and Slats' strips.",
       "signatureOriginalEligible": false
     },
     {
@@ -829,7 +829,7 @@
       "alternatives": ["Radial Abyss", "Lattice Descent"],
       "visualDescriptor": "Radiant wire grid flowing into a dark center",
       "rationale": "Depth Well preserves the established visual concept with consistent title casing and directly expresses the grid's inward sense of depth.",
-      "collisionNotes": "The inward-falling radial lattice differs from Retro Grid's horizon plane, Grid Scan's tunnel, and Particle Vortex's spiral points.",
+      "collisionNotes": "The inward-falling radial lattice differs from Retro Grid's horizon plane, Neon Survey's tunnel, and Particle Vortex's spiral points.",
       "signatureOriginalEligible": false
     }
   ]

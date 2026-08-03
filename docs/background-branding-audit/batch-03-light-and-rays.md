@@ -118,4 +118,4 @@
 - **Visual descriptor:** Glowing triangular prism refracting spectral light
 - **Signature original eligible:** No
 - **Rationale:** Prismatic is the clearest possible label for the central triangular volume and its refracted light, with no unnecessary futuristic embellishment.
-- **Collision notes:** The bounded triangle keeps this singular form distinct from Kaleidoscope Rays' fan and Prismatic Slats' repeated strips.
+- **Collision notes:** The bounded triangle keeps this singular form distinct from Kaleidoscope Rays' fan and Slats' repeated strips.

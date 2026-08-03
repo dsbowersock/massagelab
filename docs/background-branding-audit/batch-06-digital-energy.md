@@ -68,7 +68,7 @@
 - **Visual descriptor:** Colored character grid flickering through random substitutions
 - **Signature original eligible:** No
 - **Rationale:** Glyph Shift is compact and lightly experimental, describing the actual character changes without framing their intended motion as a malfunction.
-- **Collision notes:** A full randomized character grid differs from Glyph Rain's descending columns, Terminal Static's CRT texture, and Word Drift's readable tiles.
+- **Collision notes:** A full randomized character grid differs from Glyph Rain's descending columns, Terminal Static's CRT texture, and Mantra Drift's readable tiles.
 
 ## Chromatic Swirl
 - **ID:** `massage-lab-balatro`
@@ -98,7 +98,7 @@
 - **Visual descriptor:** Green character columns cascading over black
 - **Signature original eligible:** No
 - **Rationale:** Glyph Rain retains the familiar visual metaphor while removing a film-specific reference and naming the actual falling character forms.
-- **Collision notes:** Vertical green columns distinguish it from Glyph Shift's full-screen substitutions and Word Drift's horizontal phrase rows.
+- **Collision notes:** Vertical green columns distinguish it from Glyph Shift's full-screen substitutions and Mantra Drift's horizontal phrase rows.
 
 ## Pixel Current
 - **ID:** `massage-lab-pixel-liquid`
@@ -108,7 +108,7 @@
 - **Visual descriptor:** Teal pixel fluid swirling through a dark field
 - **Signature original eligible:** No
 - **Rationale:** Pixel Current gives the high-motion canvas adaptation a directional, pronounceable title while retaining its defining blocky fluid texture.
-- **Collision notes:** Teal pixel fluid differs from Pixel Scatter's shape assembly, Mosaic Warp's large blocks, and Tidal Glass' smooth shader surface.
+- **Collision notes:** Teal pixel fluid differs from Nomad's shape assembly, Mosaic Warp's large blocks, and Tidal Glass' smooth shader surface.
 
 ## Particle Vortex
 - **ID:** `massage-lab-vortex`

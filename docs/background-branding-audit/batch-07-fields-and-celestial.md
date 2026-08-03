@@ -8,7 +8,7 @@
 - **Visual descriptor:** Grainy pink and violet colors drifting softly
 - **Signature original eligible:** No
 - **Rationale:** Velvet Grain replaces a difficult portmanteau with a tactile, pronounceable title for the smooth color field and its visible granular texture.
-- **Collision notes:** The fine grain separates it from Pastel Drift's broad bands, Dithered Waves' monochrome dots, and Color Drift's clean gradient clouds.
+- **Collision notes:** The fine grain separates it from Pastel Drift's broad bands, Dithered Smoke's halftone dots, and Color Drift's clean gradient clouds.
 
 ## Orb
 - **ID:** `massage-lab-orb`
@@ -48,7 +48,7 @@
 - **Visual descriptor:** Diagonal meteor streaks crossing a dark sky
 - **Signature original eligible:** No
 - **Rationale:** Meteors is simple and truthful for the repeated diagonal bodies and tails, preserving a familiar title that scans quickly.
-- **Collision notes:** A steady field of diagonal trails differs from Shooting Stars' sparse events, Pixel Snow's blocks, and Lightfall's curved descent.
+- **Collision notes:** A steady field of diagonal trails differs from Shooting Stars' sparse events, Snowglobe's blocks, and Lightfall's curved descent.
 
 ## Shooting Stars
 - **ID:** `massage-lab-shooting-stars`
@@ -78,7 +78,7 @@
 - **Visual descriptor:** Pink vertical bars rising in rolling waves
 - **Signature original eligible:** No
 - **Rationale:** Aurora Bars remains the clearest identity with consistent title casing, accurately covering both its ambient column motion and optional music response.
-- **Collision notes:** Discrete vertical columns distinguish it from Aurora Wash's blended curtains, Soft Aurora's horizon band, and Prismatic Slats' strips.
+- **Collision notes:** Discrete vertical columns distinguish it from Aurora Wash's blended curtains, Soft Aurora's horizon band, and Slats' strips.
 
 ## Bubble Field
 - **ID:** `massage-lab-bubble`
@@ -108,4 +108,4 @@
 - **Visual descriptor:** Radiant wire grid flowing into a dark center
 - **Signature original eligible:** No
 - **Rationale:** Depth Well preserves the established visual concept with consistent title casing and directly expresses the grid's inward sense of depth.
-- **Collision notes:** The inward-falling radial lattice differs from Retro Grid's horizon plane, Grid Scan's tunnel, and Particle Vortex's spiral points.
+- **Collision notes:** The inward-falling radial lattice differs from Retro Grid's horizon plane, Neon Survey's tunnel, and Particle Vortex's spiral points.

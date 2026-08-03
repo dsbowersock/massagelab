@@ -28,7 +28,7 @@
 - **Visual descriptor:** Perspective grid scrolling toward the horizon
 - **Signature original eligible:** No
 - **Rationale:** Endless Perspective emphasizes the receding wire plane and sustained horizon motion without overpromising a futuristic experience.
-- **Collision notes:** Its horizon scroll distinguishes it from Grid Scan's tunnel, Ripple Grid's center wave, and the flat tile systems.
+- **Collision notes:** Its horizon scroll distinguishes it from Neon Survey's tunnel, Ripple Grid's center wave, and the flat tile systems.
 
 ## Skybreak
 - **ID:** `massage-lab-aerial-rays`
@@ -78,7 +78,7 @@
 - **Visual descriptor:** Raised hexagons softly fading in sequence
 - **Signature original eligible:** Yes
 - **Rationale:** Honeycomb Glow gives the original internal hex field an approachable sensory image and remains faithful to its softly illuminated cells.
-- **Collision notes:** The six-sided cell pattern keeps it visually distinct from Quiet Mosaic's squares and Grid Bloom's warped line mesh.
+- **Collision notes:** The six-sided cell pattern keeps it visually distinct from Quiet Mosaic's squares and Connective Pulse's warped line mesh.
 
 ## Colorfield Drift
 - **ID:** `massage-lab-gradient`
@@ -118,4 +118,4 @@
 - **Visual descriptor:** Tiny dots shimmering across darkness
 - **Signature original eligible:** No
 - **Rationale:** Speckled Veil describes the passive dot matrix actually shown, avoiding the interaction promise implied by the former catalog label while retaining a soft sensory voice.
-- **Collision notes:** Its dense all-screen matrix remains separate from Pinpoint Shimmer's sparse points, Dot Field's warped points, and Dot Grid's even rows.
+- **Collision notes:** Its dense all-screen matrix remains separate from Pinpoint Shimmer's sparse points, Dot Field's ordered points, and Pegboard's even rows.

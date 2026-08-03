@@ -1,64 +1,64 @@
 # Background Branding Audit: Grids, pixels, and geometry
 
-## Grid Bloom
+## Connective Pulse
 - **ID:** `massage-lab-grid-bloom`
 - **Current name:** Grid Bloom
-- **Decision:** keep
+- **Decision:** rename
 - **Alternatives:** Lattice Interference; Mesh Pulse
 - **Visual descriptor:** Grid waves pulsing through interference
 - **Signature original eligible:** No
-- **Rationale:** Grid Bloom is an apt sensory name for the lattice as interference pulses swell and recede across its warped surface.
+- **Rationale:** Connective Pulse is an apt sensory name for the lattice as interference pulses swell and recede across its warped surface.
 - **Collision notes:** The continuous mesh and interference bloom separate it from Ripple Grid's central square wave and Honeycomb Glow's discrete cells.
 
-## Pixel Scatter
+## Nomad
 - **ID:** `massage-lab-pixel-blast`
 - **Current name:** Pixel Blast
 - **Decision:** rename
 - **Alternatives:** Digital Stipple; Point Cloud Bloom
 - **Visual descriptor:** Dithered pixels gathering into shifting shapes
 - **Signature original eligible:** No
-- **Rationale:** Pixel Scatter describes both dispersion and re-formation while softening Blast, which overstates the reviewed default's patterned motion.
-- **Collision notes:** Shape-forming dithered points distinguish it from Pixel Snow's falling blocks, Pinpoint Shimmer, and Particle Drift.
+- **Rationale:** Nomad describes both dispersion and re-formation while replacing Blast, which overstates the reviewed default's patterned motion.
+- **Collision notes:** Shape-forming dithered points distinguish it from Snowglobe's falling blocks, Pinpoint Shimmer, and Particle Drift.
 
-## Prismatic Slats
+## Slats
 - **ID:** `massage-lab-gradient-blinds`
 - **Current name:** Gradient Blinds
 - **Decision:** rename
 - **Alternatives:** Radiant Portal; Striped Radiance
 - **Visual descriptor:** Gradient slats opening around a spotlight
 - **Signature original eligible:** No
-- **Rationale:** Prismatic Slats replaces the household-fixture phrase with a more polished title while staying literal about the repeated luminous strips.
+- **Rationale:** Slats replaces the household-fixture phrase with a more polished title while staying literal about the repeated luminous strips.
 - **Collision notes:** Parallel slats are distinct from Prismatic's triangle, Kaleidoscope Rays' radial fan, and Spotlight's unsegmented cones.
 
-## Grid Scan
+## Neon Survey
 - **ID:** `massage-lab-grid-scan`
 - **Current name:** Grid Scan
-- **Decision:** keep
-- **Alternatives:** Neon Survey; Receding Matrix
+- **Decision:** rename
+- **Alternatives:** Perspective Sweep; Receding Matrix
 - **Visual descriptor:** Perspective grid sweeping through a dark tunnel
 - **Signature original eligible:** No
-- **Rationale:** Grid Scan is concise and accurate for the scanner-like illumination traveling through the source-shaped perspective line field.
+- **Rationale:** Neon Survey is concise and accurate for the scanner-like illumination traveling through the source-shaped perspective line field.
 - **Collision notes:** The tunnel perspective and moving scan distinguish it from Retro Grid's open horizon and Ripple Grid's frontal plane.
 
-## Pixel Snow
+## Snowglobe
 - **ID:** `massage-lab-pixel-snow`
 - **Current name:** Pixel Snow
-- **Decision:** keep
-- **Alternatives:** Digital Snowglobe; Depth Confetti
+- **Decision:** rename
+- **Alternatives:** Square Flurry; Depth Confetti
 - **Visual descriptor:** Blocky flakes drifting through deep space
 - **Signature original eligible:** No
-- **Rationale:** Pixel Snow is friendly, pronounceable, and literal for the many depth-layered square flakes without pretending the scene is realistic weather.
-- **Collision notes:** Falling blocks keep it separate from Pixel Scatter's assembled shapes, Meteors' streaks, and Particle Drift's points.
+- **Rationale:** Snowglobe is friendly, pronounceable, and literal for the many depth-layered square flakes without pretending the scene is realistic weather.
+- **Collision notes:** Falling blocks keep it separate from Nomad's assembled shapes, Meteors' streaks, and Particle Drift's points.
 
-## Dithered Waves
+## Dithered Smoke
 - **ID:** `massage-lab-dither`
 - **Current name:** Dither
 - **Decision:** rename
 - **Alternatives:** Printed Current; Halftone Vapor
 - **Visual descriptor:** Wave clouds rendered as coarse dots
 - **Signature original eligible:** No
-- **Rationale:** Dithered Waves tells users what the terse rendering term does: it shapes a soft moving wave field from visible dots.
-- **Collision notes:** The cloudy halftone surface differs from Pixel Scatter's discrete shape, Velvet Grain's color texture, and Currents' contours.
+- **Rationale:** Dithered Smoke tells users what the terse rendering term does: it shapes a soft moving cloud field from visible dots.
+- **Collision notes:** The cloudy halftone surface differs from Nomad's discrete shape, Velvet Grain's color texture, and Currents' contours.
 
 ## Ripple Grid
 - **ID:** `massage-lab-ripple-grid`
@@ -68,7 +68,7 @@
 - **Visual descriptor:** Square grid rippling from the center
 - **Signature original eligible:** No
 - **Rationale:** Ripple Grid directly names the centered deformation traveling through the square line plane and remains calmer than a more technical shader title.
-- **Collision notes:** Its central wave contrasts with Grid Bloom's interference mesh and Grid Scan's receding tunnel.
+- **Collision notes:** Its central wave contrasts with Connective Pulse's interference mesh and Neon Survey's receding tunnel.
 
 ## Dot Field
 - **ID:** `massage-lab-dot-field`
@@ -78,16 +78,16 @@
 - **Visual descriptor:** Tiny dots arranged in even rows
 - **Signature original eligible:** No
 - **Rationale:** Dot Field is suitably literal for the broad canvas of small points arranged in a passive, orderly array; wave and sparkle are optional controls.
-- **Collision notes:** Its fine, passive array differs from Dot Grid's larger reactive points and Speckled Veil's dense matrix shimmer.
+- **Collision notes:** Its fine, passive array differs from Pegboard's larger reactive points and Speckled Veil's dense matrix shimmer.
 
-## Dot Grid
+## Pegboard
 - **ID:** `massage-lab-dot-grid`
 - **Current name:** Dot Grid
-- **Decision:** keep
-- **Alternatives:** Ordered Pegboard; Ordered Constellation
+- **Decision:** rename
+- **Alternatives:** Point Array; Ordered Constellation
 - **Visual descriptor:** Dots resting in evenly spaced rows
 - **Signature original eligible:** No
-- **Rationale:** Dot Grid accurately describes the passive default's orderly point array; its spring and shock behavior remains optional rather than implied by the title.
+- **Rationale:** Pegboard accurately describes the passive default's orderly point array; its spring and shock behavior remains optional rather than implied by the title.
 - **Collision notes:** The regular rows contrast with Dot Field's ambient bends, Pinpoint Shimmer's microglow, and Speckled Veil's dense matrix.
 
 ## Mosaic Warp
@@ -98,16 +98,16 @@
 - **Visual descriptor:** Mosaic blocks bending in soft waves
 - **Signature original eligible:** No
 - **Rationale:** Mosaic Warp names the generated texture as well as its deformation, making the effect more tangible than the current engineering phrase.
-- **Collision notes:** Large blended blocks distinguish it from Quiet Mosaic's small independently fading tiles and Word Drift's word-bearing panels.
+- **Collision notes:** Large blended blocks distinguish it from Quiet Mosaic's small independently fading tiles and Mantra Drift's word-bearing panels.
 
-## Word Drift
+## Mantra Drift
 - **ID:** `massage-lab-grid-motion`
 - **Current name:** Grid Motion
 - **Decision:** rename
-- **Alternatives:** Calm Vocabulary; Responsive Mantras
+- **Alternatives:** Calm Vocabulary; Responsive Rows
 - **Visual descriptor:** Offset word rows resting in place
 - **Signature original eligible:** No
-- **Rationale:** Word Drift foregrounds the visible calm vocabulary and offset row layout; lateral shifting responds to the cursor rather than playing by default.
+- **Rationale:** Mantra Drift foregrounds the visible calm vocabulary and offset row layout; lateral shifting responds to the cursor rather than playing by default.
 - **Collision notes:** Readable word tiles make it unmistakable beside Geometric Current's empty cells, Glyph Shift's character noise, and Glyph Rain's columns.
 
 ## Geometric Current
@@ -118,4 +118,4 @@
 - **Visual descriptor:** Outlined square cells sliding across a field
 - **Signature original eligible:** No
 - **Rationale:** Geometric Current gives the moving canvas forms a softer directional identity while remaining broad enough for the source's selectable shapes.
-- **Collision notes:** Outlined moving cells distinguish this renderer from Word Drift's text panels and Quiet Mosaic's independently fading filled squares.
+- **Collision notes:** Outlined moving cells distinguish this renderer from Mantra Drift's text panels and Quiet Mosaic's independently fading filled squares.
