@@ -28,7 +28,7 @@
 - **Visual descriptor:** Violet gradient slats opening around a spotlight
 - **Signature original eligible:** No
 - **Rationale:** Prismatic Slats replaces the household-fixture phrase with a more polished title while staying literal about the repeated luminous strips.
-- **Collision notes:** Parallel slats are distinct from Prism's triangle, Prismatic Burst's radial fan, and Spotlight's unsegmented cones.
+- **Collision notes:** Parallel slats are distinct from Prismatic's triangle, Kaleidoscope Rays' radial fan, and Spotlight's unsegmented cones.
 
 ## Grid Scan
 - **ID:** `massage-lab-grid-scan`

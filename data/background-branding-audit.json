@@ -199,7 +199,7 @@
       "alternatives": ["Band Fold", "Chromatic Bend"],
       "visualDescriptor": "Separated bands bending across a field",
       "rationale": "Prismatic Ribbons replaces an awkward verb phrase with a pronounceable image that describes the shader's separated bands and flexible curvature.",
-      "collisionNotes": "The continuous bending bands differ from Prismatic Burst's radial rays, Prism's triangle, and Soapfilm's blended wash.",
+      "collisionNotes": "The continuous bending bands differ from Kaleidoscope Rays' radial fan, Prismatic's triangle, and Soapfilm's blended wash.",
       "signatureOriginalEligible": false
     },
     {
@@ -245,11 +245,11 @@
     {
       "id": "massage-lab-light-speed",
       "decision": "rename",
-      "recommendedName": "Radiant Passage",
-      "alternatives": ["Velocity Rush", "Starlight Corridor"],
+      "recommendedName": "Starlight",
+      "alternatives": ["Velocity Rush", "Luminous Corridor"],
       "visualDescriptor": "Luminous streaks rushing toward a center",
-      "rationale": "Radiant Passage keeps the tunnel's exhilarating depth while replacing a hard science-fiction cliché with a gentler, image-led title.",
-      "collisionNotes": "The viewer-facing rush separates it from Photon Beam's horizontal signal, Lightfall's descent, and Prismatic Burst's outward rays.",
+      "rationale": "Starlight keeps the tunnel's exhilarating depth while replacing a hard science-fiction cliché with a gentler, image-led title.",
+      "collisionNotes": "The viewer-facing rush separates it from Convergence's horizontal signal, Lightfall's descent, and Kaleidoscope Rays' outward fan.",
       "signatureOriginalEligible": false
     },
     {
@@ -259,17 +259,17 @@
       "alternatives": ["Streak Canopy", "Luminous Curtain"],
       "visualDescriptor": "Luminous streaks descending around a central glow",
       "rationale": "Lightfall is graceful, memorable, and faithful to the many luminous streaks falling past a central bloom.",
-      "collisionNotes": "Its numerous curved streaks should not be confused with Landing Beams' discrete impacts or Meteors' diagonal sky trails.",
+      "collisionNotes": "Its numerous curved streaks should not be confused with Firework Dust's discrete impacts or Meteors' diagonal sky trails.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-light-pillar",
-      "decision": "keep",
-      "recommendedName": "Light Pillar",
+      "decision": "rename",
+      "recommendedName": "Monolight",
       "alternatives": ["Axis of Light", "Beacon Monolith"],
       "visualDescriptor": "Vertical light column flickering through haze",
-      "rationale": "Light Pillar is direct and contemplative, accurately describing the tall raymarched column without importing an unsupported symbolic meaning.",
-      "collisionNotes": "The single vertical column stands apart from Stacked Lumens' multiple planes, Lamp Glow's canopy, and the spreading ray fields.",
+      "rationale": "Monolight is direct and contemplative, accurately describing the tall raymarched column without importing an unsupported symbolic meaning.",
+      "collisionNotes": "The single vertical column stands apart from Rising Monoliths' multiple planes, Lamp Glow's canopy, and the spreading ray fields.",
       "signatureOriginalEligible": false
     },
     {
@@ -279,7 +279,7 @@
       "alternatives": ["Horizon Fan", "Oblique Glow"],
       "visualDescriptor": "Soft rays entering from the screen edge",
       "rationale": "Lateral Rays preserves the source effect's defining side origin in smoother catalog language and remains truthful as its tilt and spread change.",
-      "collisionNotes": "Side entry is the review cue separating it from Aerial Rays above, Cascading Rays across the field, and centered Photon Beam.",
+      "collisionNotes": "Side entry is the review cue separating it from Aerial Rays above, Cascading Rays across the field, and centered Convergence.",
       "signatureOriginalEligible": false
     },
     {
@@ -295,30 +295,30 @@
     {
       "id": "massage-lab-beams",
       "decision": "rename",
-      "recommendedName": "Stacked Lumens",
-      "alternatives": ["Rising Monoliths", "Light Architecture"],
+      "recommendedName": "Rising Monoliths",
+      "alternatives": ["Lumen Columns", "Light Architecture"],
       "visualDescriptor": "Tall light planes rising in staggered rows",
-      "rationale": "Stacked Lumens identifies the unusual layered plane geometry that the single generic word Beams leaves unexplained.",
-      "collisionNotes": "The rectilinear standing planes are visually unlike Gradient Arcs' SVG paths and Landing Beams' falling streaks.",
+      "rationale": "Rising Monoliths identifies the unusual layered plane geometry that the single generic word Beams leaves unexplained.",
+      "collisionNotes": "The rectilinear standing planes are visually unlike Roaming Sweep's SVG paths and Firework Dust's falling streaks.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-background-beams",
       "decision": "rename",
-      "recommendedName": "Gradient Arcs",
-      "alternatives": ["Luminous Filigree", "Roaming Sweep"],
+      "recommendedName": "Roaming Sweep",
+      "alternatives": ["Luminous Filigree", "Arc Relay"],
       "visualDescriptor": "Fifty hairline arcs lit by roaming gradients",
-      "rationale": "Gradient Arcs names the renderer's fifty fixed, 0.6-pixel parallel curves and roaming gradients, making the motion mechanism and fine structure explicit.",
-      "collisionNotes": "Unlike Signal Comets' forty-two thicker dash marks that sweep and fade along paths, these fifty hairline curves stay fixed while their gradients roam; Stacked Lumens uses broad planes.",
+      "rationale": "Roaming Sweep names the renderer's fifty fixed, 0.6-pixel parallel curves and roaming gradients, making the motion mechanism and fine structure explicit.",
+      "collisionNotes": "Unlike Signal Comets' forty-two thicker dash marks that sweep and fade along paths, these fifty hairline curves stay fixed while their gradients roam; Rising Monoliths uses broad planes.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-collision-beams",
       "decision": "rename",
-      "recommendedName": "Landing Beams",
+      "recommendedName": "Firework Dust",
       "alternatives": ["Falling Signals", "Spark Threshold"],
       "visualDescriptor": "Slender beams falling into brief flares",
-      "rationale": "Landing Beams keeps the visible arrival-and-flare behavior but replaces the harsher collision wording with a calmer action.",
+      "rationale": "Firework Dust keeps the visible arrival-and-flare behavior but replaces the harsher collision wording with a calmer action.",
       "collisionNotes": "Brief contact flares distinguish this option from Lightfall's continuous streak shower and Lightning's branching flashes.",
       "signatureOriginalEligible": false
     },
@@ -329,37 +329,38 @@
       "alternatives": ["Signal Routes", "Dash Relay"],
       "visualDescriptor": "Forty-two luminous dashes sweeping along radial paths",
       "rationale": "Signal Comets reflects the twenty-one radial paths rendered twice as 2.3-pixel rounded dashes that sweep, fade, and repeat on independent cycles.",
-      "collisionNotes": "Unlike Gradient Arcs' fifty fixed hairline curves illuminated by roaming gradients, these forty-two thicker dash marks travel and fade along their paths; Threads uses organic strands.",
+      "collisionNotes": "Unlike Roaming Sweep's fifty fixed hairline curves illuminated by roaming gradients, these forty-two thicker dash marks travel and fade along their paths; Threads uses organic strands.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-photon-beam",
       "decision": "keep",
-      "recommendedName": "Photon Beam",
-      "alternatives": ["Particle Lance", "Signal Convergence"],
+      "decision": "rename",
+      "recommendedName": "Convergence",
+      "alternatives": ["Particle Lance", "Focused Trail"],
       "visualDescriptor": "Light particles converging into a focused trail",
-      "rationale": "Photon Beam is lightly experimental yet easy to say, and precisely fits the focused trail assembled from surrounding signal points.",
-      "collisionNotes": "The horizontal particle convergence is unique among the beam family and should not inherit Radiant Passage's tunnel language.",
+      "rationale": "Convergence is compact and precisely fits the focused trail assembled from surrounding signal points.",
+      "collisionNotes": "The horizontal particle convergence is unique among the beam family and should not inherit Starlight's tunnel language.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-prismatic-burst",
-      "decision": "keep",
-      "recommendedName": "Prismatic Burst",
-      "alternatives": ["Radiant Aperture", "Kaleidoscope Rays"],
+      "decision": "rename",
+      "recommendedName": "Kaleidoscope Rays",
+      "alternatives": ["Radiant Aperture", "Spectral Fan"],
       "visualDescriptor": "Spectral rays bursting from a dark center",
-      "rationale": "Prismatic Burst already combines the renderer's multi-channel light behavior with its unmistakable radial expansion in two readable words.",
-      "collisionNotes": "The outward full-field ray fan differs from Prism's bounded triangle and Prismatic Ribbons' lateral bands.",
+      "rationale": "Kaleidoscope Rays combines the renderer's persistent multi-channel light behavior with its unmistakable radial expansion in two readable words.",
+      "collisionNotes": "The outward full-field ray fan differs from Prismatic's bounded triangle and Prismatic Ribbons' lateral bands.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-prism",
-      "decision": "keep",
-      "recommendedName": "Prism",
+      "decision": "rename",
+      "recommendedName": "Prismatic",
       "alternatives": ["Spectrum Triangle", "Refracted Glow"],
       "visualDescriptor": "Glowing triangular prism refracting spectral light",
-      "rationale": "Prism is the clearest possible label for the central triangular volume and its refracted color, with no unnecessary futuristic embellishment.",
-      "collisionNotes": "The bounded triangle keeps this singular title distinct from Prismatic Burst's rays and Prismatic Slats' repeated strips.",
+      "rationale": "Prismatic is the clearest possible label for the central triangular volume and its refracted light, with no unnecessary futuristic embellishment.",
+      "collisionNotes": "The bounded triangle keeps this singular form distinct from Kaleidoscope Rays' fan and Prismatic Slats' repeated strips.",
       "signatureOriginalEligible": false
     },
     {
@@ -389,7 +390,7 @@
       "alternatives": ["Violet Portal", "Striped Radiance"],
       "visualDescriptor": "Violet gradient slats opening around a spotlight",
       "rationale": "Prismatic Slats replaces the household-fixture phrase with a more polished title while staying literal about the repeated luminous strips.",
-      "collisionNotes": "Parallel slats are distinct from Prism's triangle, Prismatic Burst's radial fan, and Spotlight's unsegmented cones.",
+      "collisionNotes": "Parallel slats are distinct from Prismatic's triangle, Kaleidoscope Rays' radial fan, and Spotlight's unsegmented cones.",
       "signatureOriginalEligible": false
     },
     {
@@ -649,7 +650,7 @@
       "alternatives": ["Electric Fracture", "Storm Thread"],
       "visualDescriptor": "Bright branching bolts flashing against black",
       "rationale": "Lightning is the plainest truthful label for the isolated branching shader and avoids dressing a deliberately high-energy effect in misleading calm language.",
-      "collisionNotes": "Discrete bolt flashes keep it separate from Electric Mist's continuous turbulence and Landing Beams' straight falling streaks.",
+      "collisionNotes": "Discrete bolt flashes keep it separate from Electric Mist's continuous turbulence and Firework Dust's straight falling streaks.",
       "signatureOriginalEligible": false
     },
     {
@@ -719,7 +720,7 @@
       "alternatives": ["Violet Choreography", "Orbiting Dust"],
       "visualDescriptor": "Purple particles spiraling through a dark tunnel",
       "rationale": "Particle Vortex makes the canvas material explicit and honestly names its high-motion spiral instead of ending on the vague word field.",
-      "collisionNotes": "Discrete purple particles separate it from Chromatic Swirl's broad ink, Galaxy's stars, and Radiant Passage's straight tunnel streaks.",
+      "collisionNotes": "Discrete purple particles separate it from Chromatic Swirl's broad ink, Galaxy's stars, and Starlight's straight tunnel streaks.",
       "signatureOriginalEligible": false
     },
     {

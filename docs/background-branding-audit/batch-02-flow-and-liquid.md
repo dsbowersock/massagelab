@@ -78,7 +78,7 @@
 - **Visual descriptor:** Separated bands bending across a field
 - **Signature original eligible:** No
 - **Rationale:** Prismatic Ribbons replaces an awkward verb phrase with a pronounceable image that describes the shader's separated bands and flexible curvature.
-- **Collision notes:** The continuous bending bands differ from Prismatic Burst's radial rays, Prism's triangle, and Soapfilm's blended wash.
+- **Collision notes:** The continuous bending bands differ from Kaleidoscope Rays' radial fan, Prismatic's triangle, and Soapfilm's blended wash.
 
 ## Fluid Infusion
 - **ID:** `massage-lab-liquid-ether`

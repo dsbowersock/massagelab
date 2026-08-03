@@ -48,7 +48,7 @@
 - **Visual descriptor:** Bright branching bolts flashing against black
 - **Signature original eligible:** No
 - **Rationale:** Lightning is the plainest truthful label for the isolated branching shader and avoids dressing a deliberately high-energy effect in misleading calm language.
-- **Collision notes:** Discrete bolt flashes keep it separate from Electric Mist's continuous turbulence and Landing Beams' straight falling streaks.
+- **Collision notes:** Discrete bolt flashes keep it separate from Electric Mist's continuous turbulence and Firework Dust's straight falling streaks.
 
 ## Terminal Static
 - **ID:** `massage-lab-faulty-terminal`
@@ -118,4 +118,4 @@
 - **Visual descriptor:** Purple particles spiraling through a dark tunnel
 - **Signature original eligible:** No
 - **Rationale:** Particle Vortex makes the canvas material explicit and honestly names its high-motion spiral instead of ending on the vague word field.
-- **Collision notes:** Discrete purple particles separate it from Chromatic Swirl's broad ink, Galaxy's stars, and Radiant Passage's straight tunnel streaks.
+- **Collision notes:** Discrete purple particles separate it from Chromatic Swirl's broad ink, Galaxy's stars, and Starlight's straight tunnel streaks.
