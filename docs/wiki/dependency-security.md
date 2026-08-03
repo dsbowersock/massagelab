@@ -1,10 +1,11 @@
 # Dependency Security Notes
 
-Last reviewed: August 2, 2026.
+Last reviewed: August 3, 2026.
 
-Security Fix Wave 1 is merged. Fix Wave 2 is in ready PR #164 but is not yet
-merged or rescanned on GitHub's default branch, so the dependency inventory is
-not recorded as clean.
+Security Fix Waves 1 and 2 are merged. The post-Wave-2 default-branch rescan
+leaves one development-only alert, and the focused closure moves its exact
+lockfile copy to the first patched release. The inventory is not recorded as
+clean until that closure lands and GitHub rescans the default branch.
 
 ## Current Findings
 
@@ -23,7 +24,7 @@ not recorded as clean.
   account mailer, whose private boundary accepts only fixed text fields and
   disables file and URL access.
 - Prisma `7.9.1` removes the former Prisma Hono path. shadcn's development-only
-  Hono paths resolve through `hono@4.12.27` and `@hono/node-server@2.0.5`.
+  Hono paths resolve through `hono@4.12.27` and `@hono/node-server@2.0.10`.
   Reviewed `brace-expansion`, `fast-uri`, and `@babel/core` copies are also
   pinned above their patched floors.
 
@@ -42,26 +43,32 @@ not recorded as clean.
   `4.7.0` to `4.16.1`, and replaces the vulnerable Nodemailer 7 runtime with
   the patched Nodemailer 9 alias. Narrow overrides cover remaining reviewed
   transitive copies without broad dependency cleanup.
+- The post-merge closure raises the development-only `@hono/node-server` copy
+  from `2.0.5` to `2.0.10` for GHSA-9mqv-5hh9-4cgg. MassageLab does not import
+  Hono or expose the advisory's WebSocket upgrade route.
 
 ## Current Audit Count
 
-A fresh exact-lock Fix Wave 2 install currently reports:
+A fresh exact-lock closure install currently reports:
 
 - Low: 1
-- Moderate: 2
+- Moderate: 0
 - High: 9
 - Critical: 0
 
 These are aggregate npm install counts, not a clean result. A standalone
-detailed audit was unavailable under the agent environment's security policy,
-and GitHub's default-branch inventory cannot rescan this lockfile before merge.
-The regression test independently verifies that every package family in the
-27-alert post-Wave 1 Dependabot inventory resolves above its reviewed patched
-floor.
+detailed audit is unavailable because the agent environment does not authorize
+uploading the repository dependency graph to npm. The optional AgentOps
+security-gate scripts are also absent. The regression test independently
+verifies that every reviewed package family resolves above its patched floor,
+and GitHub's public advisory catalog reports no advisory affecting the warned
+development-only `glob@10.5.0` copy. Default-branch Dependabot rescan remains
+the final inventory check after merge.
 
 ## Local Checks
 
 ```bash
+# Run only where sharing the dependency graph with npm is authorized.
 npm audit --json
 npm ls nodemailer nodemailer-v9 postcss next prisma @hono/node-server hono \
   brace-expansion fast-uri sharp @babel/core @auth/core --depth=8
