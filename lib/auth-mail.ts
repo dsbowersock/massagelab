@@ -1,4 +1,4 @@
-import nodemailer from "nodemailer"
+import nodemailer from "nodemailer-v9"
 import { getSiteUrl } from "@/lib/auth-env"
 import { buildVerificationEmailUrl } from "@/lib/auth-registration"
 
@@ -11,6 +11,12 @@ function hasSmtpConfig() {
   return Boolean(process.env.SMTP_HOST && process.env.SMTP_FROM && (!process.env.SMTP_USER || process.env.SMTP_PASSWORD))
 }
 
+/**
+ * Delivers a fixed-field text message without exposing Nodemailer's raw message
+ * or attachment-loading options to callers. This boundary is intentional while
+ * Auth.js does not enable its optional email provider, so MassageLab loads the
+ * patched Nodemailer 9 runtime through an alias without falsifying that peer.
+ */
 async function sendMail(to: string, subject: string, text: string): Promise<MailResult> {
   if (!hasSmtpConfig()) {
     return { delivered: false } satisfies MailResult
@@ -20,6 +26,8 @@ async function sendMail(to: string, subject: string, text: string): Promise<Mail
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT ?? 587),
     secure: Number(process.env.SMTP_PORT ?? 587) === 465,
+    disableFileAccess: true,
+    disableUrlAccess: true,
     auth: process.env.SMTP_USER
       ? {
           user: process.env.SMTP_USER,
