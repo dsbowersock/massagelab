@@ -334,7 +334,6 @@
     },
     {
       "id": "massage-lab-photon-beam",
-      "decision": "keep",
       "decision": "rename",
       "recommendedName": "Convergence",
       "alternatives": ["Particle Lance", "Focused Trail"],
