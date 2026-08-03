@@ -436,10 +436,10 @@
       "id": "massage-lab-dot-field",
       "decision": "keep",
       "recommendedName": "Dot Field",
-      "alternatives": ["Firefly Fabric", "Luminous Topography"],
-      "visualDescriptor": "Tiny luminous dots bending into gentle waves",
-      "rationale": "Dot Field is suitably literal for the broad canvas of small points, whose ambient wave and sparkle behavior provide the defining motion.",
-      "collisionNotes": "Organic wave deformation differentiates this field from Dot Grid's even rows and Speckled Veil's uniform matrix shimmer.",
+      "alternatives": ["Fine Point Fabric", "Quiet Point Array"],
+      "visualDescriptor": "Tiny dots arranged in even rows",
+      "rationale": "Dot Field is suitably literal for the broad canvas of small points arranged in a passive, orderly array; wave and sparkle are optional controls.",
+      "collisionNotes": "Its fine, passive array differs from Dot Grid's larger reactive points and Speckled Veil's dense matrix shimmer.",
       "signatureOriginalEligible": false
     },
     {
@@ -466,9 +466,9 @@
       "id": "massage-lab-grid-motion",
       "decision": "rename",
       "recommendedName": "Word Drift",
-      "alternatives": ["Calm Vocabulary", "Sliding Mantras"],
-      "visualDescriptor": "Word tiles gliding in offset rows",
-      "rationale": "Word Drift foregrounds the visible calm vocabulary and lateral row movement instead of using a generic animation-oriented label.",
+      "alternatives": ["Calm Vocabulary", "Responsive Mantras"],
+      "visualDescriptor": "Offset word rows resting in place",
+      "rationale": "Word Drift foregrounds the visible calm vocabulary and offset row layout; lateral shifting responds to the cursor rather than playing by default.",
       "collisionNotes": "Readable word tiles make it unmistakable beside Geometric Current's empty cells, Glyph Shift's character noise, and Glyph Rain's columns.",
       "signatureOriginalEligible": false
     },

@@ -74,11 +74,11 @@
 - **ID:** `massage-lab-dot-field`
 - **Current name:** Dot Field
 - **Decision:** keep
-- **Alternatives:** Firefly Fabric; Luminous Topography
-- **Visual descriptor:** Tiny luminous dots bending into gentle waves
+- **Alternatives:** Fine Point Fabric; Quiet Point Array
+- **Visual descriptor:** Tiny dots arranged in even rows
 - **Signature original eligible:** No
-- **Rationale:** Dot Field is suitably literal for the broad canvas of small points, whose ambient wave and sparkle behavior provide the defining motion.
-- **Collision notes:** Organic wave deformation differentiates this field from Dot Grid's even rows and Speckled Veil's uniform matrix shimmer.
+- **Rationale:** Dot Field is suitably literal for the broad canvas of small points arranged in a passive, orderly array; wave and sparkle are optional controls.
+- **Collision notes:** Its fine, passive array differs from Dot Grid's larger reactive points and Speckled Veil's dense matrix shimmer.
 
 ## Dot Grid
 - **ID:** `massage-lab-dot-grid`
@@ -104,10 +104,10 @@
 - **ID:** `massage-lab-grid-motion`
 - **Current name:** Grid Motion
 - **Decision:** rename
-- **Alternatives:** Calm Vocabulary; Sliding Mantras
-- **Visual descriptor:** Word tiles gliding in offset rows
+- **Alternatives:** Calm Vocabulary; Responsive Mantras
+- **Visual descriptor:** Offset word rows resting in place
 - **Signature original eligible:** No
-- **Rationale:** Word Drift foregrounds the visible calm vocabulary and lateral row movement instead of using a generic animation-oriented label.
+- **Rationale:** Word Drift foregrounds the visible calm vocabulary and offset row layout; lateral shifting responds to the cursor rather than playing by default.
 - **Collision notes:** Readable word tiles make it unmistakable beside Geometric Current's empty cells, Glyph Shift's character noise, and Glyph Rain's columns.
 
 ## Geometric Current
