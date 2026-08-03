@@ -6,6 +6,8 @@ import {
   validateAuditCoverage,
   validateAuditEntry,
 } from "../scripts/background-branding/audit-model.mjs"
+import { backgroundRegistry } from "../components/backgrounds/backgroundRegistry.ts"
+import { BACKGROUND_BRANDING_AUDIT_BATCHES } from "../scripts/background-branding/audit-batches.mjs"
 
 const validAuditEntry = {
   decision: "rename",
@@ -21,6 +23,18 @@ const massageLabBrandReservationError =
   "Massage Lab-branded recommendations are reserved for the internal massage-lab-moving-gradient background named Massage Laba Lamp"
 
 describe("background branding audit", () => {
+  it("covers all 83 enabled backgrounds exactly once in review-sized batches", () => {
+    const enabled = backgroundRegistry.filter(({ enabled }) => enabled)
+    assert.equal(enabled.length, 83)
+    assert.deepEqual(
+      validateAuditCoverage({ backgrounds: enabled, entries: enabled.map(({ id }) => ({ id })), batches: BACKGROUND_BRANDING_AUDIT_BATCHES }),
+      [],
+    )
+    for (const batch of BACKGROUND_BRANDING_AUDIT_BATCHES) {
+      assert.ok(batch.ids.length >= 10 && batch.ids.length <= 15)
+    }
+  })
+
   it("normalizes names for case and punctuation collision checks", () => {
     assert.equal(normalizeBrandName(" Quiet-Current! "), "quiet current")
   })
