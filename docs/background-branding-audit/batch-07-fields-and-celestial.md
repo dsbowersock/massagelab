@@ -4,7 +4,7 @@
 - **ID:** `massage-lab-grainient`
 - **Current name:** Grainient
 - **Decision:** rename
-- **Alternatives:** Textured Colorfield; Granular Glow
+- **Alternatives:** Analog Violet; Powdered Spectrum
 - **Visual descriptor:** Grainy pink and violet colors drifting softly
 - **Signature original eligible:** No
 - **Rationale:** Velvet Grain replaces a difficult portmanteau with a tactile, pronounceable title for the smooth color field and its visible granular texture.
@@ -14,7 +14,7 @@
 - **ID:** `massage-lab-orb`
 - **Current name:** Orb
 - **Decision:** keep
-- **Alternatives:** Halo Sphere; Luminous Orb
+- **Alternatives:** Violet Eclipse; Glass Halo
 - **Visual descriptor:** Glowing violet ring orbiting a shaded sphere
 - **Signature original eligible:** No
 - **Rationale:** Orb is concise and visually exact for the dark sphere, colored rim, and gentle rotational response, making elaboration unnecessary.
@@ -24,7 +24,7 @@
 - **ID:** `massage-lab-gradient-animation`
 - **Current name:** Animated gradient
 - **Decision:** rename
-- **Alternatives:** Chromatic Exhale; Gradient Motion
+- **Alternatives:** Chromatic Exhale; Blue-Violet Weather
 - **Visual descriptor:** Blue and violet gradient clouds slowly roaming
 - **Signature original eligible:** No
 - **Rationale:** Color Drift removes the generic Animated prefix and names the quiet cloudlike movement that users can actually see at the passive default.
@@ -34,7 +34,7 @@
 - **ID:** `massage-lab-glowing-stars`
 - **Current name:** Glowing stars
 - **Decision:** rename
-- **Alternatives:** Constellation Grid; Luminous Starfield
+- **Alternatives:** Ordered Night; Fivefold Twinkle
 - **Visual descriptor:** Small stars brightening across an ordered grid
 - **Signature original eligible:** No
 - **Rationale:** Star Lattice highlights the source effect's structured arrangement, a more useful distinction than the broad current phrase Glowing stars.
@@ -44,7 +44,7 @@
 - **ID:** `massage-lab-meteors`
 - **Current name:** Meteors
 - **Decision:** keep
-- **Alternatives:** Meteor Drift; Falling Trails
+- **Alternatives:** Ember Transit; Diagonal Signals
 - **Visual descriptor:** Diagonal meteor streaks crossing a dark sky
 - **Signature original eligible:** No
 - **Rationale:** Meteors is simple and truthful for the repeated diagonal bodies and tails, preserving a familiar title that scans quickly.
@@ -64,7 +64,7 @@
 - **ID:** `massage-lab-3d-globe`
 - **Current name:** 3D Globe
 - **Decision:** rename
-- **Alternatives:** Orbiting Earth; Worldlight
+- **Alternatives:** Atlas in Motion; Sunlit Sphere
 - **Visual descriptor:** Illuminated Earth rotating beside a location marker
 - **Signature original eligible:** No
 - **Rationale:** Turning Globe replaces a technical dimension label with the passive action users see while retaining the renderer's clear geographic identity.
@@ -84,7 +84,7 @@
 - **ID:** `massage-lab-bubble`
 - **Current name:** Bubble field
 - **Decision:** rename
-- **Alternatives:** Soft Orbs; Ambient Bubbles
+- **Alternatives:** Color Buoyancy; Blurred Planets
 - **Visual descriptor:** Blurred color bubbles floating through a dark wash
 - **Signature original eligible:** No
 - **Rationale:** Bubble Field keeps the friendly literal name with consistent capitalization and truthfully reflects the passive five-bubble composition after the cursor-following source bubble was omitted.
@@ -94,7 +94,7 @@
 - **ID:** `massage-lab-stars`
 - **Current name:** Star field
 - **Decision:** rename
-- **Alternatives:** Night Drift; Layered Stars
+- **Alternatives:** Threefold Sky; Parallax Night
 - **Visual descriptor:** Three star layers gliding above a dark horizon
 - **Signature original eligible:** No
 - **Rationale:** Drifting Starfield adds the source adaptation's layered motion to an otherwise indistinct Stars label and remains serene in ordinary use.
@@ -104,7 +104,7 @@
 - **ID:** `massage-lab-hole`
 - **Current name:** Depth well
 - **Decision:** rename
-- **Alternatives:** Gravity Well; Lattice Descent
+- **Alternatives:** Radial Abyss; Lattice Descent
 - **Visual descriptor:** Radiant wire grid flowing into a dark center
 - **Signature original eligible:** No
 - **Rationale:** Depth Well preserves the established visual concept with consistent title casing and directly expresses the grid's inward sense of depth.

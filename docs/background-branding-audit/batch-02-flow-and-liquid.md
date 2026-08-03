@@ -4,7 +4,7 @@
 - **ID:** `massage-lab-wave-current`
 - **Current name:** Wave Current
 - **Decision:** rename
-- **Alternatives:** Subsurface Tide; Azure Undercurrent
+- **Alternatives:** Blue Cellscape; Subsurface Tide
 - **Visual descriptor:** Blue liquid contours flowing beneath shadow
 - **Signature original eligible:** No
 - **Rationale:** Tidal Glass captures the glossy blue shader surface and its smooth directional movement while resolving the catalog's duplicate Wave Current label.
@@ -14,7 +14,7 @@
 - **ID:** `massage-lab-waves`
 - **Current name:** Wave Current
 - **Decision:** rename
-- **Alternatives:** Contour Drift; Threaded Tide
+- **Alternatives:** White Topography; Parallel Murmur
 - **Visual descriptor:** Fine parallel lines undulating across white
 - **Signature original eligible:** No
 - **Rationale:** Line Current resolves the duplicate current name by foregrounding the source-shaped canvas strands and their coordinated wave motion.
@@ -24,7 +24,7 @@
 - **ID:** `massage-lab-wavy-background`
 - **Current name:** Wave flow
 - **Decision:** rename
-- **Alternatives:** Velvet Current; Softwave Ribbon
+- **Alternatives:** Velvet Roll; Cyan Lull
 - **Visual descriptor:** Blurred cyan ribbons rolling across darkness
 - **Signature original eligible:** No
 - **Rationale:** Ribbon Tide gives the soft canvas waves a tactile, restorative identity that reflects their wide blurred bands rather than a generic flow label.
@@ -34,7 +34,7 @@
 - **ID:** `massage-lab-silk`
 - **Current name:** Silk
 - **Decision:** keep
-- **Alternatives:** Satin Drift; Moonlit Fabric
+- **Alternatives:** Silver Fold; Moonlit Undulation
 - **Visual descriptor:** Silver silk folds rippling in darkness
 - **Signature original eligible:** No
 - **Rationale:** Silk is short, sensory, and exact for the shader's fabric-like folds, making the established source name unusually well aligned with the desired voice.
@@ -44,7 +44,7 @@
 - **ID:** `massage-lab-floating-lines`
 - **Current name:** Floating Lines
 - **Decision:** keep
-- **Alternatives:** Levitation Lines; Arc Current
+- **Alternatives:** Violet Suspension; Arc Current
 - **Visual descriptor:** Layered violet lines sweeping in arcs
 - **Signature original eligible:** No
 - **Rationale:** Floating Lines plainly names the multiple elevated bands and their slow suspended travel without adding a stronger energy cue than the default shows.
@@ -54,7 +54,7 @@
 - **ID:** `massage-lab-line-waves`
 - **Current name:** Line Waves
 - **Decision:** rename
-- **Alternatives:** Woven Current; Striated Flow
+- **Alternatives:** Luminous Weave; White Harmonics
 - **Visual descriptor:** Dense white filaments folding like waves
 - **Signature original eligible:** No
 - **Rationale:** Filament Waves is more tactile and specific than the existing Line Waves phrase, matching the luminous bundle of many hair-thin shader lines.
@@ -64,7 +64,7 @@
 - **ID:** `massage-lab-threads`
 - **Current name:** Threads
 - **Decision:** keep
-- **Alternatives:** Drifting Fibers; Fiber Murmur
+- **Alternatives:** White Wander; Delicate Weave
 - **Visual descriptor:** Fine white threads wandering through darkness
 - **Signature original eligible:** No
 - **Rationale:** Threads is compact and truthful to the restrained Perlin line field, whose delicate paths need no more elaborate promise.
@@ -74,7 +74,7 @@
 - **ID:** `massage-lab-color-bends`
 - **Current name:** Color Bends
 - **Decision:** rename
-- **Alternatives:** Spectrum Fold; Chromatic Bend
+- **Alternatives:** Spectrum Fold; Rainbow Transit
 - **Visual descriptor:** Rainbow bands bending across a dark field
 - **Signature original eligible:** No
 - **Rationale:** Prismatic Ribbons replaces an awkward verb phrase with a pronounceable image that describes the shader's separated RGB bands and flexible curvature.
@@ -84,7 +84,7 @@
 - **ID:** `massage-lab-liquid-ether`
 - **Current name:** Liquid Ether
 - **Decision:** keep
-- **Alternatives:** Violet Infusion; Fluid Aura
+- **Alternatives:** Violet Infusion; Weightless Plume
 - **Visual descriptor:** Violet fluid plumes curling through shadow
 - **Signature original eligible:** No
 - **Rationale:** Liquid Ether is memorable and lightly experimental while accurately evoking the simulation's weightless plumes and translucent dark volume.
@@ -94,7 +94,7 @@
 - **ID:** `massage-lab-liquid-chrome`
 - **Current name:** Chrome Flow
 - **Decision:** rename
-- **Alternatives:** Liquid Silver; Chrome Spiral
+- **Alternatives:** Silver Whirlpool; Reflective Bloom
 - **Visual descriptor:** Silver liquid spiraling into a dark center
 - **Signature original eligible:** No
 - **Rationale:** Molten Mirror describes the high-contrast reflective whirl directly and avoids colliding with the other catalog entry currently called Chrome Flow.
@@ -114,7 +114,7 @@
 - **ID:** `massage-lab-iridescence`
 - **Current name:** Iridescence
 - **Decision:** keep
-- **Alternatives:** Pearl Current; Opaline Drift
+- **Alternatives:** Soapfilm Light; Opaline Drift
 - **Visual descriptor:** Pastel light folding like pearlescent fabric
 - **Signature original eligible:** No
 - **Rationale:** Iridescence already expresses the defining color-shifting quality and gives the soft shader wash a calm, sensory, single-word title.

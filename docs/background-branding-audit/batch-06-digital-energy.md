@@ -4,7 +4,7 @@
 - **ID:** `massage-lab-chrome-flow`
 - **Current name:** Chrome Flow
 - **Decision:** rename
-- **Alternatives:** Silver Currents; Metallic Veins
+- **Alternatives:** Silver Currents; Liquid Geology
 - **Visual descriptor:** Silver marbling folding through broad liquid currents
 - **Signature original eligible:** No
 - **Rationale:** Chrome Marbling reflects the wide grey metallic folds and resolves the second duplicate Chrome Flow label without borrowing the other renderer's spiral identity.
@@ -14,7 +14,7 @@
 - **ID:** `massage-lab-evil-eye`
 - **Current name:** Evil Eye
 - **Decision:** rename
-- **Alternatives:** Solar Iris; Flame Aperture
+- **Alternatives:** Solar Aperture; Firewheel
 - **Visual descriptor:** Fiery iris flickering around a dark pupil
 - **Signature original eligible:** No
 - **Rationale:** Ember Iris keeps the unmistakable eye form and flame texture while removing the adversarial tone of the current source title.
@@ -24,7 +24,7 @@
 - **ID:** `massage-lab-radar`
 - **Current name:** Radar
 - **Decision:** keep
-- **Alternatives:** Signal Circle; Scanning Rings
+- **Alternatives:** Purple Sweep; Echo Dial
 - **Visual descriptor:** Purple sweep rotating across concentric rings
 - **Signature original eligible:** No
 - **Rationale:** Radar is instantly legible and truthfully describes the rotating sweep, spokes, and ring display without requiring a longer experimental name.
@@ -34,7 +34,7 @@
 - **ID:** `massage-lab-synthesis`
 - **Current name:** Synthesis
 - **Decision:** rename
-- **Alternatives:** Ambient Fusion; Spectral Assembly
+- **Alternatives:** Blue Morphology; Cosmic Emulsion
 - **Visual descriptor:** Blue luminous forms blending through soft focus
 - **Signature original eligible:** No
 - **Rationale:** Luminous Synthesis adds a visual anchor to an abstract source name and suits the softly merged cosmic forms at the reviewed defaults.
@@ -54,7 +54,7 @@
 - **ID:** `massage-lab-faulty-terminal`
 - **Current name:** Faulty Terminal
 - **Decision:** rename
-- **Alternatives:** CRT Drift; Signal Noise
+- **Alternatives:** Scanline Chamber; Broken Broadcast
 - **Visual descriptor:** Dithered terminal glow flickering behind scanlines
 - **Signature original eligible:** No
 - **Rationale:** Terminal Static preserves the CRT and glitch character but removes Faulty, a negative quality judgment that does not fit the collection voice.
@@ -64,7 +64,7 @@
 - **ID:** `massage-lab-letter-glitch`
 - **Current name:** Letter Glitch
 - **Decision:** rename
-- **Alternatives:** Letter Scatter; Typographic Drift
+- **Alternatives:** Code Confetti; Letter Weather
 - **Visual descriptor:** Colored character grid flickering through random substitutions
 - **Signature original eligible:** No
 - **Rationale:** Glyph Shift is compact and lightly experimental, describing the actual character changes without framing their intended motion as a malfunction.
@@ -74,7 +74,7 @@
 - **ID:** `massage-lab-balatro`
 - **Current name:** Balatro
 - **Decision:** rename
-- **Alternatives:** Color Vortex; Marbled Spin
+- **Alternatives:** Ink Duet; Dancing Pigments
 - **Visual descriptor:** Red and blue currents spiraling like marbled ink
 - **Signature original eligible:** No
 - **Rationale:** Chromatic Swirl replaces an opaque source-specific label with the clearest account of the shader's rotating two-color marbling.
@@ -84,7 +84,7 @@
 - **ID:** `massage-lab-novatrix`
 - **Current name:** Novatrix Field
 - **Decision:** rename
-- **Alternatives:** Soft Spectrum; Luminous Wash
+- **Alternatives:** Sorbet Weather; Prism Daydream
 - **Visual descriptor:** Pastel color bands drifting through a grainy field
 - **Signature original eligible:** No
 - **Rationale:** Pastel Drift replaces the invented Novatrix term with an approachable description of the soft spectral bands and passive shader movement.
@@ -94,7 +94,7 @@
 - **ID:** `massage-lab-matrix-rain`
 - **Current name:** Matrix Rain
 - **Decision:** rename
-- **Alternatives:** Codefall; Digital Drizzle
+- **Alternatives:** Green Cascade; Cipher Curtain
 - **Visual descriptor:** Green character columns cascading over black
 - **Signature original eligible:** No
 - **Rationale:** Glyph Rain retains the familiar visual metaphor while removing a film-specific reference and naming the actual falling character forms.
@@ -104,7 +104,7 @@
 - **ID:** `massage-lab-pixel-liquid`
 - **Current name:** Pixel liquid
 - **Decision:** rename
-- **Alternatives:** Dithered Liquid; Blockwave Flow
+- **Alternatives:** Teal Simulation; Cubist Fluid
 - **Visual descriptor:** Teal pixel fluid swirling through a dark field
 - **Signature original eligible:** No
 - **Rationale:** Pixel Current gives the high-motion canvas adaptation a directional, pronounceable title while retaining its defining blocky fluid texture.
@@ -114,7 +114,7 @@
 - **ID:** `massage-lab-vortex`
 - **Current name:** Vortex field
 - **Decision:** rename
-- **Alternatives:** Spiral Field; Orbiting Dust
+- **Alternatives:** Violet Choreography; Orbiting Dust
 - **Visual descriptor:** Purple particles spiraling through a dark tunnel
 - **Signature original eligible:** No
 - **Rationale:** Particle Vortex makes the canvas material explicit and honestly names its high-motion spiral instead of ending on the vague word field.

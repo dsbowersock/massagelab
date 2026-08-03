@@ -4,7 +4,7 @@
 - **ID:** `massage-lab-electric-mist`
 - **Current name:** Electric Mist
 - **Decision:** keep
-- **Alternatives:** Ion Haze; Charged Fog
+- **Alternatives:** Violet Discharge; Thunderhead Glow
 - **Visual descriptor:** Violet electrical veins churning through smoky texture
 - **Signature original eligible:** No
 - **Rationale:** Electric Mist is vivid but truthful: the default combines luminous branching energy with a dense, cloudlike field rather than a simple lightning bolt.
@@ -14,7 +14,7 @@
 - **ID:** `massage-lab-astral-flow`
 - **Current name:** Astral Flow
 - **Decision:** keep
-- **Alternatives:** Celestial Breath; Orbital Current
+- **Alternatives:** Celestial Breath; Radial Bloom
 - **Visual descriptor:** Dark radial wisps breathing around a center
 - **Signature original eligible:** No
 - **Rationale:** Astral Flow suits the slowly breathing radial shader and carries a lightly experimental cosmic tone without promising any wellness outcome.
@@ -24,7 +24,7 @@
 - **ID:** `massage-lab-deep-space-nebula`
 - **Current name:** Deep Space Nebula
 - **Decision:** keep
-- **Alternatives:** Far Nebula; Cosmic Vapor
+- **Alternatives:** Aqua Expanse; Clouded Cosmos
 - **Visual descriptor:** Aqua nebula clouds billowing through deep shadow
 - **Signature original eligible:** No
 - **Rationale:** Deep Space Nebula is longer than most titles but remains easy to scan and precisely conveys the domain-warped cloud depth in the passive scene.
@@ -34,7 +34,7 @@
 - **ID:** `massage-lab-dark-veil`
 - **Current name:** Dark Veil
 - **Decision:** keep
-- **Alternatives:** Midnight Veil; Shadow Current
+- **Alternatives:** Neural Dusk; Violet Undertow
 - **Visual descriptor:** Violet neural ribbons drifting across black
 - **Signature original eligible:** No
 - **Rationale:** Dark Veil is restrained and sensory, matching the low-light neural texture and folded violet band without leaning on its shader implementation.
@@ -44,7 +44,7 @@
 - **ID:** `massage-lab-soft-aurora`
 - **Current name:** Soft Aurora
 - **Decision:** keep
-- **Alternatives:** Gentle Aurora; Polar Hush
+- **Alternatives:** Horizon Ribbon; Polar Hush
 - **Visual descriptor:** Pink and blue aurora band glowing at horizon
 - **Signature original eligible:** No
 - **Rationale:** Soft Aurora already communicates the subdued horizon band, its gentle two-color blend, and the catalog's wellness-first intensity.
@@ -54,7 +54,7 @@
 - **ID:** `massage-lab-plasma`
 - **Current name:** Plasma
 - **Decision:** keep
-- **Alternatives:** Plasma Bloom; Ion Cloud
+- **Alternatives:** Silver Cells; Charged Foam
 - **Visual descriptor:** Silver plasma cells swelling and dissolving
 - **Signature original eligible:** No
 - **Rationale:** Plasma is a familiar scientific word that truthfully fits the raymarched luminous cells and their continuous merging motion.
@@ -64,7 +64,7 @@
 - **ID:** `massage-lab-plasma-wave`
 - **Current name:** Plasma Wave
 - **Decision:** rename
-- **Alternatives:** Charged Current; Ion Wave
+- **Alternatives:** Electric Braids; Dual-Color Fold
 - **Visual descriptor:** Cyan and pink plasma ribbons curling together
 - **Signature original eligible:** No
 - **Rationale:** Plasma Ribbons identifies the two-color folded form that makes this shader visually different from the single-color Plasma entry.
@@ -74,7 +74,7 @@
 - **ID:** `massage-lab-particles`
 - **Current name:** Particles
 - **Decision:** rename
-- **Alternatives:** Suspended Points; Floating Specks
+- **Alternatives:** Quiet Point Cloud; Blue Suspension
 - **Visual descriptor:** White particles drifting through a spacious black field
 - **Signature original eligible:** No
 - **Rationale:** Particle Drift adds the defining quiet motion to an overly broad source label and suits the sparse point-cloud default.
@@ -84,7 +84,7 @@
 - **ID:** `massage-lab-galaxy`
 - **Current name:** Galaxy
 - **Decision:** keep
-- **Alternatives:** Spiral Starfield; Celestial Swirl
+- **Alternatives:** Focal Constellation; Deep Orbit
 - **Visual descriptor:** Dense stars rotating around a luminous center
 - **Signature original eligible:** No
 - **Rationale:** Galaxy remains the clearest name for the layered star shader's focal center, rotation, glow, and deep spatial density.
@@ -94,7 +94,7 @@
 - **ID:** `massage-lab-aurora`
 - **Current name:** Aurora field
 - **Decision:** rename
-- **Alternatives:** Polar Colorfield; Northern Haze
+- **Alternatives:** Boreal Canvas; Chromatic Drapery
 - **Visual descriptor:** Blurred vertical color curtains slowly shifting
 - **Signature original eligible:** No
 - **Rationale:** Aurora Wash describes the soft full-screen color treatment more faithfully than Aurora Field and reduces confusion within the three aurora options.
@@ -104,7 +104,7 @@
 - **ID:** `massage-lab-dotted-glow`
 - **Current name:** Dotted glow
 - **Decision:** rename
-- **Alternatives:** Dotted Radiance; Microglow Field
+- **Alternatives:** Cyan Stipple; Night Microstars
 - **Visual descriptor:** Tiny cyan dots twinkling over deep blue
 - **Signature original eligible:** No
 - **Rationale:** Pinpoint Shimmer gives the subtle canvas effect a distinctive scale and motion, avoiding another generic use of field or glow.
@@ -114,7 +114,7 @@
 - **ID:** `massage-lab-sparkles`
 - **Current name:** Sparkles
 - **Decision:** rename
-- **Alternatives:** Glittering Haze; Ambient Twinkle
+- **Alternatives:** Glittering Haze; Colorfield Fireflies
 - **Visual descriptor:** White sparkles drifting across colored ambient haze
 - **Signature original eligible:** No
 - **Rationale:** Prismatic Sparkles retains the friendly source idea while acknowledging the colored background glows that define this version's passive scene.

@@ -4,7 +4,7 @@
 - **ID:** `massage-lab-light-speed`
 - **Current name:** Light Speed
 - **Decision:** rename
-- **Alternatives:** Starlight Corridor; Luminous Transit
+- **Alternatives:** Violet Rush; Starlight Corridor
 - **Visual descriptor:** Purple light streaks rushing toward a center
 - **Signature original eligible:** No
 - **Rationale:** Radiant Passage keeps the tunnel's exhilarating depth while replacing a hard science-fiction cliché with a gentler, image-led title.
@@ -14,7 +14,7 @@
 - **ID:** `massage-lab-lightfall`
 - **Current name:** Lightfall
 - **Decision:** keep
-- **Alternatives:** Falling Lumens; Luminous Rain
+- **Alternatives:** Blue Streak Canopy; Cerulean Curtain
 - **Visual descriptor:** White light streaks descending around blue glow
 - **Signature original eligible:** No
 - **Rationale:** Lightfall is graceful, memorable, and faithful to the many luminous streaks falling past a cool central bloom.
@@ -24,7 +24,7 @@
 - **ID:** `massage-lab-light-pillar`
 - **Current name:** Light Pillar
 - **Decision:** keep
-- **Alternatives:** Violet Column; Standing Radiance
+- **Alternatives:** Violet Axis; Beacon Monolith
 - **Visual descriptor:** Vertical violet column flickering with light
 - **Signature original eligible:** No
 - **Rationale:** Light Pillar is direct and contemplative, accurately describing the tall raymarched column without importing an unsupported symbolic meaning.
@@ -34,7 +34,7 @@
 - **ID:** `massage-lab-side-rays`
 - **Current name:** Side Rays
 - **Decision:** rename
-- **Alternatives:** Edge Illumination; Sideborne Light
+- **Alternatives:** Horizon Fan; Oblique Glow
 - **Visual descriptor:** Soft rays entering from the screen edge
 - **Signature original eligible:** No
 - **Rationale:** Lateral Rays preserves the source effect's defining side origin in smoother catalog language and remains truthful as its tilt and spread change.
@@ -44,7 +44,7 @@
 - **ID:** `massage-lab-light-rays`
 - **Current name:** Light Rays
 - **Decision:** rename
-- **Alternatives:** Gentle Radiance; Drifting Sunbeams
+- **Alternatives:** Haze Fan; Cloudbreak Light
 - **Visual descriptor:** Soft white rays spreading through dark haze
 - **Signature original eligible:** No
 - **Rationale:** Cascading Rays adds motion and softness to an overly generic current label while matching the broad, layered light shader at rest.
@@ -54,47 +54,47 @@
 - **ID:** `massage-lab-beams`
 - **Current name:** Beams
 - **Decision:** rename
-- **Alternatives:** Layered Beams; Illuminated Planes
+- **Alternatives:** Rising Monoliths; Light Architecture
 - **Visual descriptor:** Tall light planes rising in staggered rows
 - **Signature original eligible:** No
 - **Rationale:** Stacked Lumens identifies the unusual layered plane geometry that the single generic word Beams leaves unexplained.
 - **Collision notes:** The rectilinear standing planes are visually unlike Drifting Beams' SVG paths and Landing Beams' falling streaks.
 
-## Drifting Beams
+## Gradient Arcs
 - **ID:** `massage-lab-background-beams`
 - **Current name:** Beam field
 - **Decision:** rename
-- **Alternatives:** Luminous Pathways; Passing Arcs
-- **Visual descriptor:** Fine luminous paths drifting across deep blue
+- **Alternatives:** Chromatic Filigree; Aurora Sweep
+- **Visual descriptor:** Fifty hairline arcs lit by roaming cyan-violet gradients
 - **Signature original eligible:** No
-- **Rationale:** Drifting Beams replaces the generic field suffix and reflects the source-matched SVG paths' restrained travel.
-- **Collision notes:** Review the fine curving paths against Luminous Traces, while keeping them separate from Stacked Lumens' broad planes.
+- **Rationale:** Gradient Arcs names the renderer's fifty fixed, 0.6-pixel parallel curves and roaming cyan-to-violet gradients, making the motion mechanism and fine structure explicit.
+- **Collision notes:** Unlike Signal Comets' forty-two thicker multicolor dashes that sweep and fade along paths, these fifty hairline curves stay fixed while their cyan-violet gradients roam; Stacked Lumens uses broad planes.
 
 ## Landing Beams
 - **ID:** `massage-lab-collision-beams`
 - **Current name:** Collision beams
 - **Decision:** rename
-- **Alternatives:** Falling Signals; Luminous Impacts
+- **Alternatives:** Falling Signals; Spark Threshold
 - **Visual descriptor:** Slender beams falling into brief flares
 - **Signature original eligible:** No
 - **Rationale:** Landing Beams keeps the visible arrival-and-flare behavior but replaces the harsher collision wording with a calmer action.
 - **Collision notes:** Brief contact flares distinguish this option from Lightfall's continuous streak shower and Lightning's branching flashes.
 
-## Luminous Traces
+## Signal Comets
 - **ID:** `massage-lab-background-lines`
 - **Current name:** Light lines
 - **Decision:** rename
-- **Alternatives:** Drifting Trajectories; Quiet Lightpaths
-- **Visual descriptor:** Thin colored paths traveling across darkness
+- **Alternatives:** Chromatic Routes; Dash Relay
+- **Visual descriptor:** Forty-two color dashes sweeping along radial paths
 - **Signature original eligible:** No
-- **Rationale:** Luminous Traces turns a generic implementation label into a visual name for the deterministic SVG paths and their measured travel.
-- **Collision notes:** Its sparse colored trajectories need comparison with Drifting Beams' beamlike paths and Threads' organic white strands.
+- **Rationale:** Signal Comets reflects the twenty-one radial paths rendered twice as 2.3-pixel rounded, multicolor dashes that sweep, fade, and repeat on independent cycles.
+- **Collision notes:** Unlike Gradient Arcs' fifty fixed hairline curves illuminated by moving cyan-violet gradients, these forty-two thicker dash marks travel and fade along their paths; Threads uses organic white strands.
 
 ## Photon Beam
 - **ID:** `massage-lab-photon-beam`
 - **Current name:** Photon Beam
 - **Decision:** keep
-- **Alternatives:** Signal Stream; Luminous Vector
+- **Alternatives:** Particle Lance; Cyan Convergence
 - **Visual descriptor:** Cyan particles converging into a light trail
 - **Signature original eligible:** No
 - **Rationale:** Photon Beam is lightly experimental yet easy to say, and precisely fits the focused cyan trail assembled from surrounding signal points.
@@ -104,7 +104,7 @@
 - **ID:** `massage-lab-prismatic-burst`
 - **Current name:** Prismatic Burst
 - **Decision:** keep
-- **Alternatives:** Spectrum Radiance; Chromatic Emanation
+- **Alternatives:** Rainbow Aperture; Kaleidoscope Rays
 - **Visual descriptor:** Spectral rays bursting from a dark center
 - **Signature original eligible:** No
 - **Rationale:** Prismatic Burst already combines the renderer's many-color light behavior with its unmistakable radial expansion in two readable words.
