@@ -7,6 +7,19 @@ import {
   validateAuditEntry,
 } from "../scripts/background-branding/audit-model.mjs"
 
+const validAuditEntry = {
+  decision: "rename",
+  recommendedName: "Current Drift",
+  alternatives: ["Quiet Current", "Gentle Current"],
+  visualDescriptor: "soft flowing gradient field",
+  rationale: "Keeps the visual concept distinct.",
+  collisionNotes: "No known collision.",
+  signatureOriginalEligible: false,
+}
+
+const massageLabBrandReservationError =
+  "Massage Lab-branded recommendations are reserved for the internal massage-lab-moving-gradient background named Massage Laba Lamp"
+
 describe("background branding audit", () => {
   it("normalizes names for case and punctuation collision checks", () => {
     assert.equal(normalizeBrandName(" Quiet-Current! "), "quiet current")
@@ -25,5 +38,64 @@ describe("background branding audit", () => {
       "one: collisionNotes is required",
       "one: signatureOriginalEligible must be boolean",
     ])
+  })
+
+  it("allows the reserved Massage Laba Lamp recommendation only for its internal background", () => {
+    const errors = validateAuditEntry({
+      ...validAuditEntry,
+      recommendedName: "Massage Laba Lamp",
+    }, {
+      id: "massage-lab-moving-gradient",
+      label: "Old",
+      provider: "MassageLab",
+      sourceUrl: "internal",
+      enabled: true,
+    })
+
+    assert.deepEqual(errors, [])
+  })
+
+  it("rejects the reserved recommendation for another internal background", () => {
+    const errors = validateAuditEntry({
+      ...validAuditEntry,
+      recommendedName: "Massage Laba Lamp",
+    }, {
+      id: "another-internal-background",
+      label: "Old",
+      provider: "MassageLab",
+      sourceUrl: "internal",
+      enabled: true,
+    })
+
+    assert.deepEqual(errors, [`another-internal-background: ${massageLabBrandReservationError}`])
+  })
+
+  it("rejects the reserved recommendation when its source is external", () => {
+    const errors = validateAuditEntry({
+      ...validAuditEntry,
+      recommendedName: "Massage Laba Lamp",
+    }, {
+      id: "massage-lab-moving-gradient",
+      label: "Old",
+      provider: "MassageLab",
+      sourceUrl: "https://example.com/source",
+      enabled: true,
+    })
+
+    assert.deepEqual(errors, [`massage-lab-moving-gradient: ${massageLabBrandReservationError}`])
+  })
+
+  it("rejects Massage Lab spacing, punctuation, and case variants on other backgrounds", () => {
+    for (const recommendedName of ["Massage Lab Tide", "MassageLab Tide", "Massage-Lab Tide"]) {
+      const errors = validateAuditEntry({ ...validAuditEntry, recommendedName }, {
+        id: "another-internal-background",
+        label: "Old",
+        provider: "MassageLab",
+        sourceUrl: "internal",
+        enabled: true,
+      })
+
+      assert.deepEqual(errors, [`another-internal-background: ${massageLabBrandReservationError}`])
+    }
   })
 })

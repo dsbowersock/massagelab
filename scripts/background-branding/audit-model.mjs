@@ -1,4 +1,9 @@
 const DECISIONS = new Set(["keep", "rename"])
+const MASSAGE_LAB_BRAND_COMPACT = "massagelab"
+const RESERVED_MASSAGE_LAB_BACKGROUND_ID = "massage-lab-moving-gradient"
+const RESERVED_MASSAGE_LAB_RECOMMENDATION = "Massage Laba Lamp"
+const MASSAGE_LAB_RESERVATION_ERROR =
+  "Massage Lab-branded recommendations are reserved for the internal massage-lab-moving-gradient background named Massage Laba Lamp"
 
 /**
  * Normalizes visible names for exact collision comparisons without merging
@@ -13,6 +18,17 @@ export function normalizeBrandName(value) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .trim()
+}
+
+/**
+ * Detects MassageLab branding after separator removal so audit authors cannot
+ * assign the reserved brand to another ID using spacing, punctuation, or case.
+ *
+ * @param {unknown} value Candidate display name.
+ * @returns {boolean} Whether the name contains the MassageLab brand.
+ */
+function containsMassageLabBrand(value) {
+  return normalizeBrandName(value).replaceAll(" ", "").includes(MASSAGE_LAB_BRAND_COMPACT)
 }
 
 /**
@@ -44,6 +60,13 @@ export function validateAuditEntry(entry, background) {
   }
   if (entry?.signatureOriginalEligible && background.sourceUrl !== "internal") {
     errors.push(`${prefix} only internally conceived sources may be signature originals`)
+  }
+  if (containsMassageLabBrand(entry?.recommendedName) && (
+    background.id !== RESERVED_MASSAGE_LAB_BACKGROUND_ID
+    || background.sourceUrl !== "internal"
+    || String(entry.recommendedName).trim() !== RESERVED_MASSAGE_LAB_RECOMMENDATION
+  )) {
+    errors.push(`${prefix} ${MASSAGE_LAB_RESERVATION_ERROR}`)
   }
   return errors
 }
