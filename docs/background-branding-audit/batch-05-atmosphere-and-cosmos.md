@@ -48,7 +48,7 @@
 - **Visual descriptor:** Aurora band glowing at horizon
 - **Signature original eligible:** No
 - **Rationale:** Polar Aurora already communicates the subdued horizon band, its gentle layered blend, and the catalog's wellness-first intensity.
-- **Collision notes:** The low horizontal band contrasts with Interstellar's tall curtains and Aurora Bars' discrete vertical columns.
+- **Collision notes:** The low horizontal band contrasts with Interstellar's tall curtains and Equalizer's discrete vertical columns.
 
 ## Charged Foam
 - **ID:** `massage-lab-plasma`
@@ -88,7 +88,7 @@
 - **Visual descriptor:** Dense stars rotating around a luminous center
 - **Signature original eligible:** No
 - **Rationale:** Constellations names the layered star shader's focal center, rotation, glow, and deep spatial density.
-- **Collision notes:** Central rotation differentiates it from Drifting Starfield's lateral layers, Shooting Stars' occasional trails, and Particle Drift.
+- **Collision notes:** Central rotation differentiates it from Drifting Starfield's lateral layers, Wish's occasional trails, and Particle Drift.
 
 ## Interstellar
 - **ID:** `massage-lab-aurora`
@@ -98,7 +98,7 @@
 - **Visual descriptor:** Blurred vertical color curtains slowly shifting
 - **Signature original eligible:** No
 - **Rationale:** Interstellar gives the soft full-screen field a concise cosmic label while retaining its tall blended curtains.
-- **Collision notes:** Use its tall blended curtains to distinguish it from Polar Aurora's horizon band and Aurora Bars' separated columns.
+- **Collision notes:** Use its tall blended curtains to distinguish it from Polar Aurora's horizon band and Equalizer's separated columns.
 
 ## Shimmer
 - **ID:** `massage-lab-dotted-glow`

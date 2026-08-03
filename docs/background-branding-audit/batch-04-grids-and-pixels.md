@@ -48,7 +48,7 @@
 - **Visual descriptor:** Blocky flakes drifting through deep space
 - **Signature original eligible:** No
 - **Rationale:** Snowglobe is friendly, pronounceable, and literal for the many depth-layered square flakes without pretending the scene is realistic weather.
-- **Collision notes:** Falling blocks keep it separate from Nomad's assembled shapes, Meteors' streaks, and Particle Drift's points.
+- **Collision notes:** Falling blocks keep it separate from Nomad's assembled shapes, Falling Sky's streaks, and Particle Drift's points.
 
 ## Dithered Smoke
 - **ID:** `massage-lab-dither`

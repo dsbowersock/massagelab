@@ -259,7 +259,7 @@
       "alternatives": ["Streak Canopy", "Luminous Curtain"],
       "visualDescriptor": "Luminous streaks descending around a central glow",
       "rationale": "Lightfall is graceful, memorable, and faithful to the many luminous streaks falling past a central bloom.",
-      "collisionNotes": "Its numerous curved streaks should not be confused with Firework Dust's discrete impacts or Meteors' diagonal sky trails.",
+      "collisionNotes": "Its numerous curved streaks should not be confused with Firework Dust's discrete impacts or Falling Sky's diagonal sky trails.",
       "signatureOriginalEligible": false
     },
     {
@@ -409,7 +409,7 @@
       "alternatives": ["Square Flurry", "Depth Confetti"],
       "visualDescriptor": "Blocky flakes drifting through deep space",
       "rationale": "Snowglobe is friendly, pronounceable, and literal for the many depth-layered square flakes without pretending the scene is realistic weather.",
-      "collisionNotes": "Falling blocks keep it separate from Nomad's assembled shapes, Meteors' streaks, and Particle Drift's points.",
+      "collisionNotes": "Falling blocks keep it separate from Nomad's assembled shapes, Falling Sky's streaks, and Particle Drift's points.",
       "signatureOriginalEligible": false
     },
     {
@@ -529,7 +529,7 @@
       "alternatives": ["Horizon Ribbon", "Horizon Hush"],
       "visualDescriptor": "Aurora band glowing at horizon",
       "rationale": "Polar Aurora already communicates the subdued horizon band, its gentle layered blend, and the catalog's wellness-first intensity.",
-      "collisionNotes": "The low horizontal band contrasts with Interstellar's tall curtains and Aurora Bars' discrete vertical columns.",
+      "collisionNotes": "The low horizontal band contrasts with Interstellar's tall curtains and Equalizer's discrete vertical columns.",
       "signatureOriginalEligible": false
     },
     {
@@ -569,7 +569,7 @@
       "alternatives": ["Central Orbit", "Deep Orbit"],
       "visualDescriptor": "Dense stars rotating around a luminous center",
       "rationale": "Constellations names the layered star shader's focal center, rotation, glow, and deep spatial density.",
-      "collisionNotes": "Central rotation differentiates it from Drifting Starfield's lateral layers, Shooting Stars' occasional trails, and Particle Drift.",
+      "collisionNotes": "Central rotation differentiates it from Drifting Starfield's lateral layers, Wish's occasional trails, and Particle Drift.",
       "signatureOriginalEligible": false
     },
     {
@@ -579,7 +579,7 @@
       "alternatives": ["Boreal Canvas", "Chromatic Drapery"],
       "visualDescriptor": "Blurred vertical color curtains slowly shifting",
       "rationale": "Interstellar gives the soft full-screen field a concise cosmic label while retaining its tall blended curtains.",
-      "collisionNotes": "Use its tall blended curtains to distinguish it from Polar Aurora's horizon band and Aurora Bars' separated columns.",
+      "collisionNotes": "Use its tall blended curtains to distinguish it from Polar Aurora's horizon band and Equalizer's separated columns.",
       "signatureOriginalEligible": false
     },
     {
@@ -619,7 +619,7 @@
       "alternatives": ["Solar Aperture", "Firewheel"],
       "visualDescriptor": "Luminous iris flickering around a dark pupil",
       "rationale": "Ember Iris keeps the unmistakable eye form and animated radial texture while removing the adversarial tone of the current source title; the reviewed passive default does not follow the pointer.",
-      "collisionNotes": "The central pupil and radial flame make this visually unique; avoid conflating it with Orb's halo or Deep Search's concentric rings.",
+      "collisionNotes": "The central pupil and radial flame make this visually unique; avoid conflating it with Halo's rim or Deep Search's concentric rings.",
       "signatureOriginalEligible": false
     },
     {
@@ -629,7 +629,7 @@
       "alternatives": ["Rotating Sweep", "Echo Dial"],
       "visualDescriptor": "Luminous sweep rotating across concentric rings",
       "rationale": "Deep Search gives the passive rotating sweep, spokes, and ring display a more atmospheric identity without implying optional pointer interaction.",
-      "collisionNotes": "Its instrument-like rings distinguish it from Ember Iris' organic pupil, Ripple Grid's square wave, and Orb's luminous rim.",
+      "collisionNotes": "Its instrument-like rings distinguish it from Ember Iris' organic pupil, Ripple Grid's square wave, and Halo's luminous rim.",
       "signatureOriginalEligible": false
     },
     {
@@ -734,12 +734,12 @@
     },
     {
       "id": "massage-lab-orb",
-      "decision": "keep",
-      "recommendedName": "Orb",
-      "alternatives": ["Halo Eclipse", "Glass Halo"],
+      "decision": "rename",
+      "recommendedName": "Halo",
+      "alternatives": ["Glass Eclipse", "Glass Orb"],
       "visualDescriptor": "Luminous ring surrounding a shaded sphere",
-      "rationale": "Orb is concise and visually exact for the shaded sphere, luminous rim, and default cursor-responsive rotation, making elaboration unnecessary.",
-      "collisionNotes": "A single shaded sphere with a halo differs from Ember Iris' flames, Turning Globe's mapped Earth, and Deep Search's flat rings.",
+      "rationale": "Halo is concise and visually exact for the shaded sphere, luminous rim, and default cursor-responsive rotation, making elaboration unnecessary.",
+      "collisionNotes": "A single shaded sphere with a halo differs from Ember Iris' flames, Pale Blue Dot's mapped Earth, and Deep Search's flat rings.",
       "signatureOriginalEligible": false
     },
     {
@@ -759,57 +759,57 @@
       "alternatives": ["Ordered Night", "Fivefold Twinkle"],
       "visualDescriptor": "Small stars brightening across an ordered grid",
       "rationale": "Star Lattice highlights the source effect's structured arrangement, a more useful distinction than the broad current phrase Glowing stars.",
-      "collisionNotes": "The ordered star grid is unlike Drifting Starfield's layered sky, Constellations' rotating density, and Shooting Stars' bright trails.",
+      "collisionNotes": "The ordered star grid is unlike Drifting Starfield's layered sky, Constellations' rotating density, and Wish's bright trails.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-meteors",
-      "decision": "keep",
-      "recommendedName": "Meteors",
+      "decision": "rename",
+      "recommendedName": "Falling Sky",
       "alternatives": ["Ember Transit", "Diagonal Signals"],
       "visualDescriptor": "Diagonal meteor streaks crossing a dark sky",
-      "rationale": "Meteors is simple and truthful for the repeated diagonal bodies and tails, preserving a familiar title that scans quickly.",
-      "collisionNotes": "A steady field of diagonal trails differs from Shooting Stars' sparse events, Snowglobe's blocks, and Lightfall's curved descent.",
+      "rationale": "Falling Sky names the repeated diagonal bodies and tails while preserving a clear account of the visible motion.",
+      "collisionNotes": "A steady field of diagonal trails differs from Wish's sparse events, Snowglobe's blocks, and Lightfall's curved descent.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-shooting-stars",
       "decision": "rename",
-      "recommendedName": "Shooting Stars",
-      "alternatives": ["Wishlight Sky", "Starlight Passage"],
+      "recommendedName": "Wish",
+      "alternatives": ["Transit Sky", "Starlight Passage"],
       "visualDescriptor": "Sparse stars twinkling between occasional bright streaks",
-      "rationale": "Shooting Stars is worth retaining with consistent title casing because the occasional bright transit is the scene's defining event.",
-      "collisionNotes": "Event frequency separates it from Meteors' continual diagonal field, Star Lattice's ordered points, and Drifting Starfield's layers.",
+      "rationale": "Wish gives the sparse sky and occasional bright transit a concise, image-led identity while retaining the scene's defining event.",
+      "collisionNotes": "Event frequency separates it from Falling Sky's continual diagonal field, Star Lattice's ordered points, and Drifting Starfield's layers.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-3d-globe",
       "decision": "rename",
-      "recommendedName": "Turning Globe",
+      "recommendedName": "Pale Blue Dot",
       "alternatives": ["Atlas in Motion", "Sunlit Sphere"],
       "visualDescriptor": "Mapped globe with built-in Massage Lab marker",
-      "rationale": "Turning Globe replaces a technical dimension label with the passive action users see while retaining the renderer's geographic identity without fixing its configurable colors; the built-in Massage Lab marker is always present, while the separate user marker remains optional.",
-      "collisionNotes": "Mapped continents and the built-in Massage Lab marker keep it separate from Orb's abstract sphere and every unstructured celestial field.",
+      "rationale": "Pale Blue Dot gives the renderer's geographic identity an image-led title without fixing its configurable colors; the built-in Massage Lab marker is always present, while the separate user marker remains optional.",
+      "collisionNotes": "Mapped continents and the built-in Massage Lab marker keep it separate from Halo's abstract sphere and every unstructured celestial field.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-aurora-bars",
       "decision": "rename",
-      "recommendedName": "Aurora Bars",
-      "alternatives": ["Polar Equalizer", "Ribbon Columns"],
+      "recommendedName": "Equalizer",
+      "alternatives": ["Polar Columns", "Ribbon Columns"],
       "visualDescriptor": "Luminous vertical bars rising in rolling waves",
-      "rationale": "Aurora Bars remains the clearest identity with consistent title casing, accurately covering its passive column motion; Music can optionally activate visualizer response without changing the default behavior or palette.",
+      "rationale": "Equalizer captures the bar form and passive column motion; Music can optionally activate visualizer response without changing the default behavior or palette.",
       "collisionNotes": "Discrete vertical columns distinguish it from Interstellar's blended curtains, Polar Aurora's horizon band, and Slats' strips.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-bubble",
       "decision": "rename",
-      "recommendedName": "Bubble Field",
+      "recommendedName": "Bubbles",
       "alternatives": ["Soft Buoyancy", "Blurred Planets"],
       "visualDescriptor": "Blurred bubbles floating through a dark wash",
-      "rationale": "Bubble Field keeps the friendly literal name with consistent capitalization and truthfully reflects the passive five-bubble composition after the cursor-following source bubble was omitted.",
-      "collisionNotes": "Multiple blurred circles differ from Orb's single rimmed sphere, Charged Foam's cellular material, and the gradient-only fields.",
+      "rationale": "Bubbles keeps the friendly literal identity while truthfully reflecting the passive five-bubble composition after the cursor-following source bubble was omitted.",
+      "collisionNotes": "Multiple blurred circles differ from Halo's single rimmed sphere, Charged Foam's cellular material, and the gradient-only fields.",
       "signatureOriginalEligible": false
     },
     {
@@ -819,16 +819,16 @@
       "alternatives": ["Threefold Sky", "Parallax Night"],
       "visualDescriptor": "Three star layers gliding above a dark horizon",
       "rationale": "Drifting Starfield adds the source adaptation's layered motion to an otherwise indistinct Stars label; its three layers glide passively and shift subtly with the cursor.",
-      "collisionNotes": "Its three lateral layers distinguish it from Constellations' central rotation, Star Lattice's grid, and Shooting Stars' intermittent streaks.",
+      "collisionNotes": "Its three lateral layers distinguish it from Constellations' central rotation, Star Lattice's grid, and Wish's intermittent streaks.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-hole",
       "decision": "rename",
-      "recommendedName": "Depth Well",
-      "alternatives": ["Radial Abyss", "Lattice Descent"],
+      "recommendedName": "Descent",
+      "alternatives": ["Radial Abyss", "Lattice Well"],
       "visualDescriptor": "Radiant wire grid flowing into a dark center",
-      "rationale": "Depth Well preserves the established visual concept with consistent title casing and directly expresses the grid's inward sense of depth.",
+      "rationale": "Descent directly expresses the grid's inward sense of depth while preserving the established visual concept.",
       "collisionNotes": "The inward-falling radial lattice differs from Retro Grid's horizon plane, Neon Survey's tunnel, and Orbits' particle streaks.",
       "signatureOriginalEligible": false
     }

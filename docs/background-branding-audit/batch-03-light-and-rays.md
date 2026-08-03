@@ -18,7 +18,7 @@
 - **Visual descriptor:** Luminous streaks descending around a central glow
 - **Signature original eligible:** No
 - **Rationale:** Lightfall is graceful, memorable, and faithful to the many luminous streaks falling past a central bloom.
-- **Collision notes:** Its numerous curved streaks should not be confused with Firework Dust's discrete impacts or Meteors' diagonal sky trails.
+- **Collision notes:** Its numerous curved streaks should not be confused with Firework Dust's discrete impacts or Falling Sky's diagonal sky trails.
 
 ## Monolight
 - **ID:** `massage-lab-light-pillar`

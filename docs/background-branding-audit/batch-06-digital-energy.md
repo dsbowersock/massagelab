@@ -18,7 +18,7 @@
 - **Visual descriptor:** Luminous iris flickering around a dark pupil
 - **Signature original eligible:** No
 - **Rationale:** Ember Iris keeps the unmistakable eye form and animated radial texture while removing the adversarial tone of the current source title; the reviewed passive default does not follow the pointer.
-- **Collision notes:** The central pupil and radial flame make this visually unique; avoid conflating it with Orb's halo or Deep Search's concentric rings.
+- **Collision notes:** The central pupil and radial flame make this visually unique; avoid conflating it with Halo's rim or Deep Search's concentric rings.
 
 ## Deep Search
 - **ID:** `massage-lab-radar`
@@ -28,7 +28,7 @@
 - **Visual descriptor:** Luminous sweep rotating across concentric rings
 - **Signature original eligible:** No
 - **Rationale:** Deep Search gives the passive rotating sweep, spokes, and ring display a more atmospheric identity without implying optional pointer interaction.
-- **Collision notes:** Its instrument-like rings distinguish it from Ember Iris' organic pupil, Ripple Grid's square wave, and Orb's luminous rim.
+- **Collision notes:** Its instrument-like rings distinguish it from Ember Iris' organic pupil, Ripple Grid's square wave, and Halo's luminous rim.
 
 ## Emulsion
 - **ID:** `massage-lab-synthesis`
