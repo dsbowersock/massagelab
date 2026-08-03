@@ -126,30 +126,30 @@
       "id": "massage-lab-wave-current",
       "decision": "rename",
       "recommendedName": "Tidal Glass",
-      "alternatives": ["Subsurface Cells", "Glass Tide"],
+      "alternatives": ["Subsurface Cells", "Liquid Cartography"],
       "visualDescriptor": "Layered liquid contours moving with directional flow",
       "rationale": "Tidal Glass captures the glossy shader surface and its smooth directional movement while resolving the catalog's duplicate Wave Current label.",
-      "collisionNotes": "Judge its broad liquid cells against Line Current's fine contours and Ribbon Tide's blurred bands, not against the similarly named legacy entry.",
+      "collisionNotes": "Judge Tidal Glass's broad liquid cells against Currents' fine contours and Ribbons' blurred bands, not against the similarly named legacy entry.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-waves",
       "decision": "rename",
-      "recommendedName": "Line Current",
+      "recommendedName": "Currents",
       "alternatives": ["Fine Topography", "Parallel Murmur"],
       "visualDescriptor": "Fine parallel lines undulating as an ordered field",
-      "rationale": "Line Current resolves the duplicate current name by foregrounding the source-shaped canvas strands and their coordinated wave motion.",
-      "collisionNotes": "Its many narrow parallel paths distinguish it from Filament Waves, Floating Lines, and Tidal Glass's broad liquid cells.",
+      "rationale": "Currents foregrounds the source-shaped canvas strands and their coordinated wave motion with a concise, flowing identity.",
+      "collisionNotes": "Its many narrow parallel paths distinguish Currents from Filament Waves, Arc Currant, and Tidal Glass's broad liquid cells.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-wavy-background",
       "decision": "rename",
-      "recommendedName": "Ribbon Tide",
+      "recommendedName": "Ribbons",
       "alternatives": ["Velvet Roll", "Soft Lull"],
       "visualDescriptor": "Blurred ribbons rolling across an open field",
-      "rationale": "Ribbon Tide gives the soft canvas waves a tactile, restorative identity that reflects their wide blurred bands rather than a generic flow label.",
-      "collisionNotes": "Its few broad blurred ribbons contrast with Floating Lines' layered arcs and Line Current's dense ordered contours.",
+      "rationale": "Ribbons gives the soft canvas waves a tactile, restorative identity that reflects their wide blurred bands rather than a generic flow label.",
+      "collisionNotes": "Ribbons' few broad blurred bands contrast with Arc Currant's layered arcs and Currents' dense ordered contours.",
       "signatureOriginalEligible": false
     },
     {
@@ -159,17 +159,17 @@
       "alternatives": ["Fabric Fold", "Luminous Undulation"],
       "visualDescriptor": "Silk-like folds rippling through a field",
       "rationale": "Silk is short, sensory, and exact for the shader's fabric-like folds, making the established source name unusually well aligned with the desired voice.",
-      "collisionNotes": "The textile surface separates Silk from Iridescence's reflective wash and Prismatic Ribbons' discrete bands.",
+      "collisionNotes": "The textile surface separates Silk from Soapfilm's reflective wash and Prismatic Ribbons' discrete bands.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-floating-lines",
-      "decision": "keep",
-      "recommendedName": "Floating Lines",
-      "alternatives": ["Suspended Lines", "Arc Current"],
+      "decision": "rename",
+      "recommendedName": "Arc Currant",
+      "alternatives": ["Suspended Lines", "Layered Sweep"],
       "visualDescriptor": "Layered lines sweeping in arcs",
-      "rationale": "Floating Lines plainly names the multiple elevated bands and their slow suspended travel without adding a stronger energy cue than the default shows.",
-      "collisionNotes": "Layered arcs distinguish this renderer from the single fine Threads field and Filament Waves' dense bundle.",
+      "rationale": "Arc Currant names the multiple elevated bands and their slow suspended travel without adding a stronger energy cue than the default shows.",
+      "collisionNotes": "Arc Currant's layered arcs distinguish this renderer from the single fine Threads field and Filament Waves' dense bundle.",
       "signatureOriginalEligible": false
     },
     {
@@ -179,37 +179,37 @@
       "alternatives": ["Luminous Weave", "Fine Harmonics"],
       "visualDescriptor": "Dense filaments folding like waves",
       "rationale": "Filament Waves is more tactile and specific than the existing Line Waves phrase, matching the dense bundle of many hair-thin shader lines.",
-      "collisionNotes": "Density is the key separator from Threads' sparse strands, Line Current's evenly spaced contours, and Floating Lines' layered bands.",
+      "collisionNotes": "Density is the key separator from Threads' sparse strands, Currents' evenly spaced contours, and Arc Currant's layered bands.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-threads",
       "decision": "keep",
       "recommendedName": "Threads",
-      "alternatives": ["Wandering Threads", "Delicate Weave"],
+      "alternatives": ["Delicate Weave", "Perlin Drift"],
       "visualDescriptor": "Fine threads wandering through a field",
       "rationale": "Threads is compact and truthful to the restrained Perlin line field, whose delicate paths need no more elaborate promise.",
-      "collisionNotes": "Use the sparse thread count to keep this title distinct from Filament Waves' thick bundle and Line Current's ordered sheet.",
+      "collisionNotes": "Use the sparse thread count to keep Threads distinct from Filament Waves' thick bundle and Currents' ordered sheet.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-color-bends",
       "decision": "rename",
       "recommendedName": "Prismatic Ribbons",
-      "alternatives": ["Band Fold", "Ribbon Transit"],
+      "alternatives": ["Band Fold", "Chromatic Bend"],
       "visualDescriptor": "Separated bands bending across a field",
       "rationale": "Prismatic Ribbons replaces an awkward verb phrase with a pronounceable image that describes the shader's separated bands and flexible curvature.",
-      "collisionNotes": "The continuous bending bands differ from Prismatic Burst's radial rays, Prism's triangle, and Iridescence's blended wash.",
+      "collisionNotes": "The continuous bending bands differ from Prismatic Burst's radial rays, Prism's triangle, and Soapfilm's blended wash.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-liquid-ether",
-      "decision": "keep",
-      "recommendedName": "Liquid Ether",
-      "alternatives": ["Fluid Infusion", "Weightless Plume"],
+      "decision": "rename",
+      "recommendedName": "Fluid Infusion",
+      "alternatives": ["Luminous Suspension", "Weightless Plume"],
       "visualDescriptor": "Fluid plumes curling through a translucent volume",
-      "rationale": "Liquid Ether is memorable and lightly experimental while accurately evoking the simulation's weightless plumes and translucent volume.",
-      "collisionNotes": "Its diffuse plume behavior is separate from Molten Mirror's reflective spiral and Ferrofluid's outlined cellular contours.",
+      "rationale": "Fluid Infusion is memorable and lightly experimental while accurately evoking the simulation's weightless plumes and translucent volume.",
+      "collisionNotes": "Fluid Infusion's diffuse plume behavior is separate from Molten Mirror's reflective spiral and Fluid Filament's outlined cellular contours.",
       "signatureOriginalEligible": false
     },
     {
@@ -224,22 +224,22 @@
     },
     {
       "id": "massage-lab-ferrofluid",
-      "decision": "keep",
-      "recommendedName": "Ferrofluid",
-      "alternatives": ["Magnetic Bloom", "Fluid Filaments"],
+      "decision": "rename",
+      "recommendedName": "Fluid Filament",
+      "alternatives": ["Magnetic Bloom", "Cellular Contours"],
       "visualDescriptor": "Liquid contours clustering and separating",
-      "rationale": "Ferrofluid is a precise, pronounceable material reference for the rim-lit cellular forms and preserves a strong source name without a medical implication.",
-      "collisionNotes": "Outlined droplet contours distinguish it from Liquid Ether's cloudy plumes, Plasma's rounded cells, and the mirrorlike chrome effects.",
+      "rationale": "Fluid Filament gives the rim-lit cellular forms a precise, pronounceable identity without a medical implication.",
+      "collisionNotes": "Fluid Filament's outlined droplet contours distinguish it from Fluid Infusion's cloudy plumes, Plasma's rounded cells, and the mirrorlike chrome effects.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-iridescence",
-      "decision": "keep",
-      "recommendedName": "Iridescence",
-      "alternatives": ["Soapfilm Light", "Opaline Drift"],
+      "decision": "rename",
+      "recommendedName": "Soapfilm",
+      "alternatives": ["Pearl Sheen", "Opaline Drift"],
       "visualDescriptor": "Reflective light folding across a fabric-like surface",
-      "rationale": "Iridescence already expresses the renderer's defining color-shifting behavior and gives the soft shader wash a calm, sensory, single-word title.",
-      "collisionNotes": "Its blended reflective surface is distinct from Silk's textile folds, a grainy banded field, and Aurora Wash's vertical curtains.",
+      "rationale": "Soapfilm expresses the renderer's defining color-shifting behavior and gives the soft shader wash a calm, sensory, single-word title.",
+      "collisionNotes": "Soapfilm's blended reflective surface is distinct from Silk's textile folds, a grainy banded field, and Aurora Wash's vertical curtains.",
       "signatureOriginalEligible": false
     },
     {
@@ -419,7 +419,7 @@
       "alternatives": ["Printed Current", "Monochrome Vapor"],
       "visualDescriptor": "Monochrome wave clouds rendered as coarse dots",
       "rationale": "Dithered Waves tells users what the terse rendering term does: it shapes a soft moving wave field from visible black-and-white dots.",
-      "collisionNotes": "The cloudy halftone surface differs from Pixel Scatter's discrete shape, Velvet Grain's color texture, and Line Current's contours.",
+      "collisionNotes": "The cloudy halftone surface differs from Pixel Scatter's discrete shape, Velvet Grain's color texture, and Currents' contours.",
       "signatureOriginalEligible": false
     },
     {
@@ -519,7 +519,7 @@
       "alternatives": ["Neural Dusk", "Violet Undertow"],
       "visualDescriptor": "Violet neural ribbons drifting across black",
       "rationale": "Dark Veil is restrained and sensory, matching the low-light neural texture and folded violet band without leaning on its shader implementation.",
-      "collisionNotes": "The continuous shadowed ribbon should remain distinct from Speckled Veil's cyan dot matrix and Ribbon Tide's brighter canvas bands.",
+      "collisionNotes": "The continuous shadowed ribbon should remain distinct from Speckled Veil's cyan dot matrix and Ribbons' brighter canvas bands.",
       "signatureOriginalEligible": false
     },
     {
@@ -539,7 +539,7 @@
       "alternatives": ["Silver Cells", "Charged Foam"],
       "visualDescriptor": "Silver plasma cells swelling and dissolving",
       "rationale": "Plasma is a familiar scientific word that truthfully fits the raymarched luminous cells and their continuous merging motion.",
-      "collisionNotes": "The monochrome rounded cells are distinct from Plasma Ribbons' paired colors and Ferrofluid's crisp glowing rims.",
+      "collisionNotes": "The monochrome rounded cells are distinct from Plasma Ribbons' paired colors and Fluid Filament's crisp glowing rims.",
       "signatureOriginalEligible": false
     },
     {
@@ -549,7 +549,7 @@
       "alternatives": ["Electric Braids", "Dual-Color Fold"],
       "visualDescriptor": "Cyan and pink plasma ribbons curling together",
       "rationale": "Plasma Ribbons identifies the two-color folded form that makes this shader visually different from the single-color Plasma entry.",
-      "collisionNotes": "Paired cyan and pink curls separate it from Plasma's silver cells, Prismatic Ribbons' full spectrum, and Ribbon Tide's blurred bands.",
+      "collisionNotes": "Paired cyan and pink curls separate it from Plasma's silver cells, Prismatic Ribbons' full spectrum, and Ribbons' blurred bands.",
       "signatureOriginalEligible": false
     },
     {
@@ -609,7 +609,7 @@
       "alternatives": ["Silver Currents", "Liquid Geology"],
       "visualDescriptor": "Silver marbling folding through broad liquid currents",
       "rationale": "Chrome Marbling reflects the wide grey metallic folds and resolves the second duplicate Chrome Flow label without borrowing the other renderer's spiral identity.",
-      "collisionNotes": "Reserve this for broad silver marbling; Molten Mirror names the black-and-white spiral, and Ferrofluid retains cellular rims.",
+      "collisionNotes": "Reserve this for broad silver marbling; Molten Mirror names the black-and-white spiral, and Fluid Filament retains cellular rims.",
       "signatureOriginalEligible": false
     },
     {
@@ -689,7 +689,7 @@
       "alternatives": ["Sorbet Weather", "Prism Daydream"],
       "visualDescriptor": "Pastel color bands drifting through a grainy field",
       "rationale": "Pastel Drift replaces the invented Novatrix term with an approachable description of the soft spectral bands and passive shader movement.",
-      "collisionNotes": "Its grainy pastel bands sit between Iridescence's pearly folds and Aurora Wash's vertical curtains without duplicating either form.",
+      "collisionNotes": "Its grainy pastel bands sit between Soapfilm's pearly folds and Aurora Wash's vertical curtains without duplicating either form.",
       "signatureOriginalEligible": false
     },
     {

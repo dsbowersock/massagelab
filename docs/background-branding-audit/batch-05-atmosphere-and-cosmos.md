@@ -38,7 +38,7 @@
 - **Visual descriptor:** Violet neural ribbons drifting across black
 - **Signature original eligible:** No
 - **Rationale:** Dark Veil is restrained and sensory, matching the low-light neural texture and folded violet band without leaning on its shader implementation.
-- **Collision notes:** The continuous shadowed ribbon should remain distinct from Speckled Veil's cyan dot matrix and Ribbon Tide's brighter canvas bands.
+- **Collision notes:** The continuous shadowed ribbon should remain distinct from Speckled Veil's cyan dot matrix and Ribbons' brighter canvas bands.
 
 ## Soft Aurora
 - **ID:** `massage-lab-soft-aurora`
@@ -58,7 +58,7 @@
 - **Visual descriptor:** Silver plasma cells swelling and dissolving
 - **Signature original eligible:** No
 - **Rationale:** Plasma is a familiar scientific word that truthfully fits the raymarched luminous cells and their continuous merging motion.
-- **Collision notes:** The monochrome rounded cells are distinct from Plasma Ribbons' paired colors and Ferrofluid's crisp glowing rims.
+- **Collision notes:** The monochrome rounded cells are distinct from Plasma Ribbons' paired colors and Fluid Filament's crisp glowing rims.
 
 ## Plasma Ribbons
 - **ID:** `massage-lab-plasma-wave`
@@ -68,7 +68,7 @@
 - **Visual descriptor:** Cyan and pink plasma ribbons curling together
 - **Signature original eligible:** No
 - **Rationale:** Plasma Ribbons identifies the two-color folded form that makes this shader visually different from the single-color Plasma entry.
-- **Collision notes:** Paired cyan and pink curls separate it from Plasma's silver cells, Prismatic Ribbons' full spectrum, and Ribbon Tide's blurred bands.
+- **Collision notes:** Paired cyan and pink curls separate it from Plasma's silver cells, Prismatic Ribbons' full spectrum, and Ribbons' blurred bands.
 
 ## Particle Drift
 - **ID:** `massage-lab-particles`

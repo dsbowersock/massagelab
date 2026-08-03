@@ -58,7 +58,7 @@
 - **Visual descriptor:** Monochrome wave clouds rendered as coarse dots
 - **Signature original eligible:** No
 - **Rationale:** Dithered Waves tells users what the terse rendering term does: it shapes a soft moving wave field from visible black-and-white dots.
-- **Collision notes:** The cloudy halftone surface differs from Pixel Scatter's discrete shape, Velvet Grain's color texture, and Line Current's contours.
+- **Collision notes:** The cloudy halftone surface differs from Pixel Scatter's discrete shape, Velvet Grain's color texture, and Currents' contours.
 
 ## Ripple Grid
 - **ID:** `massage-lab-ripple-grid`

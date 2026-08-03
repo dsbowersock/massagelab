@@ -8,7 +8,7 @@
 - **Visual descriptor:** Silver marbling folding through broad liquid currents
 - **Signature original eligible:** No
 - **Rationale:** Chrome Marbling reflects the wide grey metallic folds and resolves the second duplicate Chrome Flow label without borrowing the other renderer's spiral identity.
-- **Collision notes:** Reserve this for broad silver marbling; Molten Mirror names the black-and-white spiral, and Ferrofluid retains cellular rims.
+- **Collision notes:** Reserve this for broad silver marbling; Molten Mirror names the black-and-white spiral, and Fluid Filament retains cellular rims.
 
 ## Ember Iris
 - **ID:** `massage-lab-evil-eye`
@@ -88,7 +88,7 @@
 - **Visual descriptor:** Pastel color bands drifting through a grainy field
 - **Signature original eligible:** No
 - **Rationale:** Pastel Drift replaces the invented Novatrix term with an approachable description of the soft spectral bands and passive shader movement.
-- **Collision notes:** Its grainy pastel bands sit between Iridescence's pearly folds and Aurora Wash's vertical curtains without duplicating either form.
+- **Collision notes:** Its grainy pastel bands sit between Soapfilm's pearly folds and Aurora Wash's vertical curtains without duplicating either form.
 
 ## Glyph Rain
 - **ID:** `massage-lab-matrix-rain`
