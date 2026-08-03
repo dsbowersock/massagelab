@@ -38,7 +38,7 @@
 - **Visual descriptor:** Small stars brightening across an ordered grid
 - **Signature original eligible:** No
 - **Rationale:** Star Lattice highlights the source effect's structured arrangement, a more useful distinction than the broad current phrase Glowing stars.
-- **Collision notes:** The ordered star grid is unlike Drifting Starfield's layered sky, Galaxy's rotating density, and Shooting Stars' bright trails.
+- **Collision notes:** The ordered star grid is unlike Drifting Starfield's layered sky, Constellations' rotating density, and Shooting Stars' bright trails.
 
 ## Meteors
 - **ID:** `massage-lab-meteors`
@@ -78,7 +78,7 @@
 - **Visual descriptor:** Pink vertical bars rising in rolling waves
 - **Signature original eligible:** No
 - **Rationale:** Aurora Bars remains the clearest identity with consistent title casing, accurately covering both its ambient column motion and optional music response.
-- **Collision notes:** Discrete vertical columns distinguish it from Aurora Wash's blended curtains, Soft Aurora's horizon band, and Slats' strips.
+- **Collision notes:** Discrete vertical columns distinguish it from Interstellar's blended curtains, Polar Aurora's horizon band, and Slats' strips.
 
 ## Bubble Field
 - **ID:** `massage-lab-bubble`
@@ -88,7 +88,7 @@
 - **Visual descriptor:** Blurred color bubbles floating through a dark wash
 - **Signature original eligible:** No
 - **Rationale:** Bubble Field keeps the friendly literal name with consistent capitalization and truthfully reflects the passive five-bubble composition after the cursor-following source bubble was omitted.
-- **Collision notes:** Multiple blurred colored circles differ from Orb's single rimmed sphere, Plasma's cellular material, and the gradient-only fields.
+- **Collision notes:** Multiple blurred colored circles differ from Orb's single rimmed sphere, Charged Foam's cellular material, and the gradient-only fields.
 
 ## Drifting Starfield
 - **ID:** `massage-lab-stars`
@@ -98,7 +98,7 @@
 - **Visual descriptor:** Three star layers gliding above a dark horizon
 - **Signature original eligible:** No
 - **Rationale:** Drifting Starfield adds the source adaptation's layered motion to an otherwise indistinct Stars label and remains serene in ordinary use.
-- **Collision notes:** Its three lateral layers distinguish it from Galaxy's central rotation, Star Lattice's grid, and Shooting Stars' intermittent streaks.
+- **Collision notes:** Its three lateral layers distinguish it from Constellations' central rotation, Star Lattice's grid, and Shooting Stars' intermittent streaks.
 
 ## Depth Well
 - **ID:** `massage-lab-hole`

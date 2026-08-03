@@ -108,7 +108,7 @@
 - **Visual descriptor:** Liquid contours clustering and separating
 - **Signature original eligible:** No
 - **Rationale:** Fluid Filament gives the rim-lit cellular forms a precise, pronounceable identity without a medical implication.
-- **Collision notes:** Fluid Filament's outlined droplet contours distinguish it from Fluid Infusion's cloudy plumes, Plasma's rounded cells, and the mirrorlike chrome effects.
+- **Collision notes:** Fluid Filament's outlined droplet contours distinguish it from Fluid Infusion's cloudy plumes, Charged Foam's rounded cells, and the mirrorlike chrome effects.
 
 ## Soapfilm
 - **ID:** `massage-lab-iridescence`
@@ -118,4 +118,4 @@
 - **Visual descriptor:** Reflective light folding across a fabric-like surface
 - **Signature original eligible:** No
 - **Rationale:** Soapfilm expresses the renderer's defining color-shifting behavior and gives the soft shader wash a calm, sensory, single-word title.
-- **Collision notes:** Soapfilm's blended reflective surface is distinct from Silk's textile folds, a grainy banded field, and Aurora Wash's vertical curtains.
+- **Collision notes:** Soapfilm's blended reflective surface is distinct from Silk's textile folds, a grainy banded field, and Interstellar's vertical curtains.

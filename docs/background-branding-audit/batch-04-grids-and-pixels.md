@@ -18,7 +18,7 @@
 - **Visual descriptor:** Dithered pixels gathering into shifting shapes
 - **Signature original eligible:** No
 - **Rationale:** Nomad describes both dispersion and re-formation while replacing Blast, which overstates the reviewed default's patterned motion.
-- **Collision notes:** Shape-forming dithered points distinguish it from Snowglobe's falling blocks, Pinpoint Shimmer, and Particle Drift.
+- **Collision notes:** Shape-forming dithered points distinguish it from Snowglobe's falling blocks, Shimmer, and Particle Drift.
 
 ## Slats
 - **ID:** `massage-lab-gradient-blinds`
@@ -88,7 +88,7 @@
 - **Visual descriptor:** Dots resting in evenly spaced rows
 - **Signature original eligible:** No
 - **Rationale:** Pegboard accurately describes the passive default's orderly point array; its spring and shock behavior remains optional rather than implied by the title.
-- **Collision notes:** Pegboard's larger reactive points contrast with Dot Field's fine, passive ordered array, Pinpoint Shimmer's microglow, and Speckled Veil's dense matrix.
+- **Collision notes:** Pegboard's larger reactive points contrast with Dot Field's fine, passive ordered array, Shimmer's microglow, and Speckled Veil's dense matrix.
 
 ## Mosaic Warp
 - **ID:** `massage-lab-grid-distortion`

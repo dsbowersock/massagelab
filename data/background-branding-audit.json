@@ -119,7 +119,7 @@
       "alternatives": ["Luminous Pinfield", "Quiet Pointillism"],
       "visualDescriptor": "Tiny dots shimmering across darkness",
       "rationale": "Speckled Veil describes the passive dot matrix actually shown, avoiding the interaction promise implied by the former catalog label while retaining a soft sensory voice.",
-      "collisionNotes": "Its dense all-screen matrix remains separate from Pinpoint Shimmer's sparse points, Dot Field's ordered points, and Pegboard's even rows.",
+      "collisionNotes": "Its dense all-screen matrix remains separate from Shimmer's sparse points, Dot Field's ordered points, and Pegboard's even rows.",
       "signatureOriginalEligible": false
     },
     {
@@ -229,7 +229,7 @@
       "alternatives": ["Magnetic Bloom", "Cellular Contours"],
       "visualDescriptor": "Liquid contours clustering and separating",
       "rationale": "Fluid Filament gives the rim-lit cellular forms a precise, pronounceable identity without a medical implication.",
-      "collisionNotes": "Fluid Filament's outlined droplet contours distinguish it from Fluid Infusion's cloudy plumes, Plasma's rounded cells, and the mirrorlike chrome effects.",
+      "collisionNotes": "Fluid Filament's outlined droplet contours distinguish it from Fluid Infusion's cloudy plumes, Charged Foam's rounded cells, and the mirrorlike chrome effects.",
       "signatureOriginalEligible": false
     },
     {
@@ -239,7 +239,7 @@
       "alternatives": ["Pearl Sheen", "Opaline Drift"],
       "visualDescriptor": "Reflective light folding across a fabric-like surface",
       "rationale": "Soapfilm expresses the renderer's defining color-shifting behavior and gives the soft shader wash a calm, sensory, single-word title.",
-      "collisionNotes": "Soapfilm's blended reflective surface is distinct from Silk's textile folds, a grainy banded field, and Aurora Wash's vertical curtains.",
+      "collisionNotes": "Soapfilm's blended reflective surface is distinct from Silk's textile folds, a grainy banded field, and Interstellar's vertical curtains.",
       "signatureOriginalEligible": false
     },
     {
@@ -379,7 +379,7 @@
       "alternatives": ["Digital Stipple", "Point Cloud Bloom"],
       "visualDescriptor": "Dithered pixels gathering into shifting shapes",
       "rationale": "Nomad describes both dispersion and re-formation while replacing Blast, which overstates the reviewed default's patterned motion.",
-      "collisionNotes": "Shape-forming dithered points distinguish it from Snowglobe's falling blocks, Pinpoint Shimmer, and Particle Drift.",
+      "collisionNotes": "Shape-forming dithered points distinguish it from Snowglobe's falling blocks, Shimmer, and Particle Drift.",
       "signatureOriginalEligible": false
     },
     {
@@ -449,7 +449,7 @@
       "alternatives": ["Point Array", "Ordered Constellation"],
       "visualDescriptor": "Dots resting in evenly spaced rows",
       "rationale": "Pegboard accurately describes the passive default's orderly point array; its spring and shock behavior remains optional rather than implied by the title.",
-      "collisionNotes": "Pegboard's larger reactive points contrast with Dot Field's fine, passive ordered array, Pinpoint Shimmer's microglow, and Speckled Veil's dense matrix.",
+      "collisionNotes": "Pegboard's larger reactive points contrast with Dot Field's fine, passive ordered array, Shimmer's microglow, and Speckled Veil's dense matrix.",
       "signatureOriginalEligible": false
     },
     {
@@ -484,72 +484,72 @@
     },
     {
       "id": "massage-lab-electric-mist",
-      "decision": "keep",
-      "recommendedName": "Electric Mist",
+      "decision": "rename",
+      "recommendedName": "Electric Glow",
       "alternatives": ["Charged Discharge", "Thunderhead Glow"],
       "visualDescriptor": "Electrical veins churning through smoky texture",
-      "rationale": "Electric Mist is vivid but truthful: the default combines luminous branching energy with a dense, cloudlike field rather than a simple lightning bolt.",
-      "collisionNotes": "The turbulent mist texture differentiates it from Lightning's isolated branches, Deep Space Nebula's soft clouds, and Plasma's rounded cells.",
+      "rationale": "Electric Glow is vivid but truthful: the default combines luminous branching energy with a dense, cloudlike field rather than a simple lightning bolt.",
+      "collisionNotes": "The turbulent mist texture differentiates it from Lightning's isolated branches, Clouded Cosmos' soft clouds, and Charged Foam's rounded cells.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-astral-flow",
-      "decision": "keep",
-      "recommendedName": "Astral Flow",
-      "alternatives": ["Celestial Breath", "Radial Bloom"],
+      "decision": "rename",
+      "recommendedName": "Celestial Breath",
+      "alternatives": ["Radial Bloom", "Orbital Bloom"],
       "visualDescriptor": "Dark radial wisps breathing around a center",
-      "rationale": "Astral Flow suits the slowly breathing radial shader and carries a lightly experimental cosmic tone without promising any wellness outcome.",
-      "collisionNotes": "Its inward floral symmetry separates it from Galaxy's stars, Luminous Synthesis' soft forms, and Particle Vortex's spiral trail.",
+      "rationale": "Celestial Breath suits the slowly breathing radial shader and carries a lightly experimental cosmic tone without promising any wellness outcome.",
+      "collisionNotes": "Its inward floral symmetry separates it from Constellations' stars, Luminous Synthesis' soft forms, and Particle Vortex's spiral trail.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-deep-space-nebula",
-      "decision": "keep",
-      "recommendedName": "Deep Space Nebula",
-      "alternatives": ["Boundless Expanse", "Clouded Cosmos"],
+      "decision": "rename",
+      "recommendedName": "Clouded Cosmos",
+      "alternatives": ["Vapor Expanse", "Boundless Expanse"],
       "visualDescriptor": "Nebula clouds billowing through deep shadow",
-      "rationale": "Deep Space Nebula is longer than most titles but remains easy to scan and precisely conveys the domain-warped cloud depth in the passive scene.",
-      "collisionNotes": "Its broad vapor differs from Electric Mist's charged veins, Aurora Wash's vertical curtains, and Galaxy's distinct stars.",
+      "rationale": "Clouded Cosmos is easy to scan and precisely conveys the domain-warped cloud depth in the passive scene.",
+      "collisionNotes": "Its broad vapor differs from Electric Glow's charged veins, Interstellar's vertical curtains, and Constellations' distinct stars.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-dark-veil",
-      "decision": "keep",
-      "recommendedName": "Dark Veil",
-      "alternatives": ["Neural Dusk", "Shadow Undertow"],
+      "decision": "rename",
+      "recommendedName": "Shadows",
+      "alternatives": ["Neural Dusk", "Veiled Current"],
       "visualDescriptor": "Neural ribbons drifting through shadow",
-      "rationale": "Dark Veil is restrained and sensory, matching the low-light neural texture and folded ribbon without leaning on its shader implementation.",
+      "rationale": "Shadows is restrained and sensory, matching the low-light neural texture and folded ribbon without leaning on its shader implementation.",
       "collisionNotes": "The continuous shadowed ribbon should remain distinct from Speckled Veil's dot matrix and Ribbons' brighter canvas bands.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-soft-aurora",
-      "decision": "keep",
-      "recommendedName": "Soft Aurora",
-      "alternatives": ["Horizon Ribbon", "Polar Hush"],
+      "decision": "rename",
+      "recommendedName": "Polar Aurora",
+      "alternatives": ["Horizon Ribbon", "Horizon Hush"],
       "visualDescriptor": "Aurora band glowing at horizon",
-      "rationale": "Soft Aurora already communicates the subdued horizon band, its gentle layered blend, and the catalog's wellness-first intensity.",
-      "collisionNotes": "The low horizontal band contrasts with Aurora Wash's tall curtains and Aurora Bars' discrete vertical columns.",
+      "rationale": "Polar Aurora already communicates the subdued horizon band, its gentle layered blend, and the catalog's wellness-first intensity.",
+      "collisionNotes": "The low horizontal band contrasts with Interstellar's tall curtains and Aurora Bars' discrete vertical columns.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-plasma",
-      "decision": "keep",
-      "recommendedName": "Plasma",
-      "alternatives": ["Luminous Cells", "Charged Foam"],
+      "decision": "rename",
+      "recommendedName": "Charged Foam",
+      "alternatives": ["Luminous Cells", "Cellular Current"],
       "visualDescriptor": "Plasma cells swelling and dissolving",
-      "rationale": "Plasma is a familiar scientific word that truthfully fits the raymarched luminous cells and their continuous merging motion.",
-      "collisionNotes": "The rounded cells are distinct from Plasma Ribbons' folded current and Fluid Filament's crisp glowing rims.",
+      "rationale": "Charged Foam truthfully fits the raymarched luminous cells and their continuous merging motion.",
+      "collisionNotes": "The rounded cells are distinct from Folded Plasma's flowing ribbons and Fluid Filament's crisp glowing rims.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-plasma-wave",
       "decision": "rename",
-      "recommendedName": "Plasma Ribbons",
-      "alternatives": ["Electric Braids", "Folded Current"],
+      "recommendedName": "Folded Plasma",
+      "alternatives": ["Electric Braids", "Wave Weave"],
       "visualDescriptor": "Plasma ribbons curling together",
-      "rationale": "Plasma Ribbons identifies the folded form that makes this shader visually different from Plasma's cellular entry.",
-      "collisionNotes": "Folded ribbons separate it from Plasma's cells, Prismatic Ribbons' separated bands, and Ribbons' blurred bands.",
+      "rationale": "Folded Plasma identifies the folded form that makes this shader visually different from Charged Foam's cellular entry.",
+      "collisionNotes": "Folded ribbons separate it from Charged Foam's cells, Prismatic Ribbons' separated bands, and Ribbons' blurred bands.",
       "signatureOriginalEligible": false
     },
     {
@@ -559,47 +559,47 @@
       "alternatives": ["Quiet Point Cloud", "Quiet Suspension"],
       "visualDescriptor": "Sparse particles drifting through a spacious field",
       "rationale": "Particle Drift adds the defining quiet motion to an overly broad source label and suits the sparse point-cloud default.",
-      "collisionNotes": "The spacious point cloud differs from Galaxy's rotating star density, Prismatic Sparkles' ambient haze, and Particle Vortex's spiral.",
+      "collisionNotes": "The spacious point cloud differs from Constellations' rotating star density, Shimmer's ambient haze, and Particle Vortex's spiral.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-galaxy",
-      "decision": "keep",
-      "recommendedName": "Galaxy",
-      "alternatives": ["Focal Constellation", "Deep Orbit"],
+      "decision": "rename",
+      "recommendedName": "Constellations",
+      "alternatives": ["Central Orbit", "Deep Orbit"],
       "visualDescriptor": "Dense stars rotating around a luminous center",
-      "rationale": "Galaxy remains the clearest name for the layered star shader's focal center, rotation, glow, and deep spatial density.",
+      "rationale": "Constellations names the layered star shader's focal center, rotation, glow, and deep spatial density.",
       "collisionNotes": "Central rotation differentiates it from Drifting Starfield's lateral layers, Shooting Stars' occasional trails, and Particle Drift.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-aurora",
       "decision": "rename",
-      "recommendedName": "Aurora Wash",
+      "recommendedName": "Interstellar",
       "alternatives": ["Boreal Canvas", "Chromatic Drapery"],
       "visualDescriptor": "Blurred vertical color curtains slowly shifting",
-      "rationale": "Aurora Wash describes the soft full-screen color treatment more faithfully than Aurora Field and reduces confusion within the three aurora options.",
-      "collisionNotes": "Use its tall blended curtains to distinguish it from Soft Aurora's horizon band and Aurora Bars' separated columns.",
+      "rationale": "Interstellar gives the soft full-screen field a concise cosmic label while retaining its tall blended curtains.",
+      "collisionNotes": "Use its tall blended curtains to distinguish it from Polar Aurora's horizon band and Aurora Bars' separated columns.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-dotted-glow",
       "decision": "rename",
-      "recommendedName": "Pinpoint Shimmer",
+      "recommendedName": "Shimmer",
       "alternatives": ["Cyan Stipple", "Night Microstars"],
       "visualDescriptor": "Tiny cyan dots twinkling over deep blue",
-      "rationale": "Pinpoint Shimmer gives the subtle canvas effect a distinctive scale and motion, avoiding another generic use of field or glow.",
-      "collisionNotes": "Its sparse cyan micro-lights differ from Speckled Veil's dense matrix, Dot Field's fine passive array, and Prismatic Sparkles' larger stars.",
+      "rationale": "Shimmer gives the subtle canvas effect a distinctive scale and motion, avoiding another generic use of field or glow.",
+      "collisionNotes": "Its sparse cyan micro-lights differ from Speckled Veil's dense matrix, Dot Field's fine passive array, and Fireflies' larger stars.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-sparkles",
       "decision": "rename",
-      "recommendedName": "Prismatic Sparkles",
-      "alternatives": ["Glittering Haze", "Firefly Haze"],
+      "recommendedName": "Fireflies",
+      "alternatives": ["Glittering Haze", "Haze Lanterns"],
       "visualDescriptor": "Sparkles pulsing across ambient haze",
-      "rationale": "Prismatic Sparkles retains the friendly source idea while acknowledging the background glows that define this version's passive scene.",
-      "collisionNotes": "Ambient haze and larger twinkles set it apart from Pinpoint Shimmer, Particle Drift, and the structured Star Lattice.",
+      "rationale": "Fireflies retains the friendly source idea while acknowledging the background glows that define this version's passive scene.",
+      "collisionNotes": "Ambient haze and larger twinkles set it apart from Shimmer, Particle Drift, and the structured Star Lattice.",
       "signatureOriginalEligible": false
     },
     {
@@ -639,7 +639,7 @@
       "alternatives": ["Blue Morphology", "Cosmic Emulsion"],
       "visualDescriptor": "Blue luminous forms blending through soft focus",
       "rationale": "Luminous Synthesis adds a visual anchor to an abstract source name and suits the softly merged cosmic forms at the reviewed defaults.",
-      "collisionNotes": "The blurred blue fusion differs from Astral Flow's radial symmetry, Pastel Drift's grainy bands, and Aurora Wash's curtains.",
+      "collisionNotes": "The blurred blue fusion differs from Celestial Breath's radial symmetry, Pastel Drift's grainy bands, and Interstellar's curtains.",
       "signatureOriginalEligible": false
     },
     {
@@ -649,7 +649,7 @@
       "alternatives": ["Electric Fracture", "Storm Thread"],
       "visualDescriptor": "Bright branching bolts flashing against black",
       "rationale": "Lightning is the plainest truthful label for the isolated branching shader and avoids dressing a deliberately high-energy effect in misleading calm language.",
-      "collisionNotes": "Discrete bolt flashes keep it separate from Electric Mist's continuous turbulence and Firework Dust's straight falling streaks.",
+      "collisionNotes": "Discrete bolt flashes keep it separate from Electric Glow's continuous turbulence and Firework Dust's straight falling streaks.",
       "signatureOriginalEligible": false
     },
     {
@@ -679,7 +679,7 @@
       "alternatives": ["Ink Duet", "Dancing Pigments"],
       "visualDescriptor": "Red and blue currents spiraling like marbled ink",
       "rationale": "Chromatic Swirl replaces an opaque source-specific label with the clearest account of the shader's rotating two-color marbling.",
-      "collisionNotes": "Broad red-blue ink currents distinguish it from Particle Vortex's points, Molten Mirror's silver spiral, and Plasma Ribbons.",
+      "collisionNotes": "Broad red-blue ink currents distinguish it from Particle Vortex's points, Molten Mirror's silver spiral, and Folded Plasma.",
       "signatureOriginalEligible": false
     },
     {
@@ -689,7 +689,7 @@
       "alternatives": ["Sorbet Weather", "Prism Daydream"],
       "visualDescriptor": "Pastel color bands drifting through a grainy field",
       "rationale": "Pastel Drift replaces the invented Novatrix term with an approachable description of the soft spectral bands and passive shader movement.",
-      "collisionNotes": "Its grainy pastel bands sit between Soapfilm's pearly folds and Aurora Wash's vertical curtains without duplicating either form.",
+      "collisionNotes": "Its grainy pastel bands sit between Soapfilm's pearly folds and Interstellar's vertical curtains without duplicating either form.",
       "signatureOriginalEligible": false
     },
     {
@@ -719,7 +719,7 @@
       "alternatives": ["Violet Choreography", "Orbiting Dust"],
       "visualDescriptor": "Purple particles spiraling through a dark tunnel",
       "rationale": "Particle Vortex makes the canvas material explicit and honestly names its high-motion spiral instead of ending on the vague word field.",
-      "collisionNotes": "Discrete purple particles separate it from Chromatic Swirl's broad ink, Galaxy's stars, and Starlight's straight tunnel streaks.",
+      "collisionNotes": "Discrete purple particles separate it from Chromatic Swirl's broad ink, Constellations' stars, and Starlight's straight tunnel streaks.",
       "signatureOriginalEligible": false
     },
     {
@@ -759,7 +759,7 @@
       "alternatives": ["Ordered Night", "Fivefold Twinkle"],
       "visualDescriptor": "Small stars brightening across an ordered grid",
       "rationale": "Star Lattice highlights the source effect's structured arrangement, a more useful distinction than the broad current phrase Glowing stars.",
-      "collisionNotes": "The ordered star grid is unlike Drifting Starfield's layered sky, Galaxy's rotating density, and Shooting Stars' bright trails.",
+      "collisionNotes": "The ordered star grid is unlike Drifting Starfield's layered sky, Constellations' rotating density, and Shooting Stars' bright trails.",
       "signatureOriginalEligible": false
     },
     {
@@ -799,7 +799,7 @@
       "alternatives": ["Polar Equalizer", "Ribbon Columns"],
       "visualDescriptor": "Pink vertical bars rising in rolling waves",
       "rationale": "Aurora Bars remains the clearest identity with consistent title casing, accurately covering both its ambient column motion and optional music response.",
-      "collisionNotes": "Discrete vertical columns distinguish it from Aurora Wash's blended curtains, Soft Aurora's horizon band, and Slats' strips.",
+      "collisionNotes": "Discrete vertical columns distinguish it from Interstellar's blended curtains, Polar Aurora's horizon band, and Slats' strips.",
       "signatureOriginalEligible": false
     },
     {
@@ -809,7 +809,7 @@
       "alternatives": ["Color Buoyancy", "Blurred Planets"],
       "visualDescriptor": "Blurred color bubbles floating through a dark wash",
       "rationale": "Bubble Field keeps the friendly literal name with consistent capitalization and truthfully reflects the passive five-bubble composition after the cursor-following source bubble was omitted.",
-      "collisionNotes": "Multiple blurred colored circles differ from Orb's single rimmed sphere, Plasma's cellular material, and the gradient-only fields.",
+      "collisionNotes": "Multiple blurred colored circles differ from Orb's single rimmed sphere, Charged Foam's cellular material, and the gradient-only fields.",
       "signatureOriginalEligible": false
     },
     {
@@ -819,7 +819,7 @@
       "alternatives": ["Threefold Sky", "Parallax Night"],
       "visualDescriptor": "Three star layers gliding above a dark horizon",
       "rationale": "Drifting Starfield adds the source adaptation's layered motion to an otherwise indistinct Stars label and remains serene in ordinary use.",
-      "collisionNotes": "Its three lateral layers distinguish it from Galaxy's central rotation, Star Lattice's grid, and Shooting Stars' intermittent streaks.",
+      "collisionNotes": "Its three lateral layers distinguish it from Constellations' central rotation, Star Lattice's grid, and Shooting Stars' intermittent streaks.",
       "signatureOriginalEligible": false
     },
     {

@@ -118,4 +118,4 @@
 - **Visual descriptor:** Tiny dots shimmering across darkness
 - **Signature original eligible:** No
 - **Rationale:** Speckled Veil describes the passive dot matrix actually shown, avoiding the interaction promise implied by the former catalog label while retaining a soft sensory voice.
-- **Collision notes:** Its dense all-screen matrix remains separate from Pinpoint Shimmer's sparse points, Dot Field's ordered points, and Pegboard's even rows.
+- **Collision notes:** Its dense all-screen matrix remains separate from Shimmer's sparse points, Dot Field's ordered points, and Pegboard's even rows.

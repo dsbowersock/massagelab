@@ -38,7 +38,7 @@
 - **Visual descriptor:** Blue luminous forms blending through soft focus
 - **Signature original eligible:** No
 - **Rationale:** Luminous Synthesis adds a visual anchor to an abstract source name and suits the softly merged cosmic forms at the reviewed defaults.
-- **Collision notes:** The blurred blue fusion differs from Astral Flow's radial symmetry, Pastel Drift's grainy bands, and Aurora Wash's curtains.
+- **Collision notes:** The blurred blue fusion differs from Celestial Breath's radial symmetry, Pastel Drift's grainy bands, and Interstellar's curtains.
 
 ## Lightning
 - **ID:** `massage-lab-lightning`
@@ -48,7 +48,7 @@
 - **Visual descriptor:** Bright branching bolts flashing against black
 - **Signature original eligible:** No
 - **Rationale:** Lightning is the plainest truthful label for the isolated branching shader and avoids dressing a deliberately high-energy effect in misleading calm language.
-- **Collision notes:** Discrete bolt flashes keep it separate from Electric Mist's continuous turbulence and Firework Dust's straight falling streaks.
+- **Collision notes:** Discrete bolt flashes keep it separate from Electric Glow's continuous turbulence and Firework Dust's straight falling streaks.
 
 ## Terminal Static
 - **ID:** `massage-lab-faulty-terminal`
@@ -78,7 +78,7 @@
 - **Visual descriptor:** Red and blue currents spiraling like marbled ink
 - **Signature original eligible:** No
 - **Rationale:** Chromatic Swirl replaces an opaque source-specific label with the clearest account of the shader's rotating two-color marbling.
-- **Collision notes:** Broad red-blue ink currents distinguish it from Particle Vortex's points, Molten Mirror's silver spiral, and Plasma Ribbons.
+- **Collision notes:** Broad red-blue ink currents distinguish it from Particle Vortex's points, Molten Mirror's silver spiral, and Folded Plasma.
 
 ## Pastel Drift
 - **ID:** `massage-lab-novatrix`
@@ -88,7 +88,7 @@
 - **Visual descriptor:** Pastel color bands drifting through a grainy field
 - **Signature original eligible:** No
 - **Rationale:** Pastel Drift replaces the invented Novatrix term with an approachable description of the soft spectral bands and passive shader movement.
-- **Collision notes:** Its grainy pastel bands sit between Soapfilm's pearly folds and Aurora Wash's vertical curtains without duplicating either form.
+- **Collision notes:** Its grainy pastel bands sit between Soapfilm's pearly folds and Interstellar's vertical curtains without duplicating either form.
 
 ## Glyph Rain
 - **ID:** `massage-lab-matrix-rain`
@@ -118,4 +118,4 @@
 - **Visual descriptor:** Purple particles spiraling through a dark tunnel
 - **Signature original eligible:** No
 - **Rationale:** Particle Vortex makes the canvas material explicit and honestly names its high-motion spiral instead of ending on the vague word field.
-- **Collision notes:** Discrete purple particles separate it from Chromatic Swirl's broad ink, Galaxy's stars, and Starlight's straight tunnel streaks.
+- **Collision notes:** Discrete purple particles separate it from Chromatic Swirl's broad ink, Constellations' stars, and Starlight's straight tunnel streaks.
