@@ -47,7 +47,8 @@
     "stripe:readiness": "node scripts/stripe-readiness-check.mjs --",
     "stripe:migrate-supporter-membership": "node scripts/stripe-supporter-membership-migration.mjs",
     "commerce:backfill-credits": "node scripts/background-credit-backfill.mjs",
-    "commerce:reconcile": "node scripts/commerce-reconcile.mjs"
+    "commerce:reconcile": "node scripts/commerce-reconcile.mjs",
+    "backgrounds:branding:audit": "node --experimental-strip-types scripts/background-branding/render-audit.mjs"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.3",

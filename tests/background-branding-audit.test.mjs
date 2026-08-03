@@ -8,6 +8,7 @@ import {
 } from "../scripts/background-branding/audit-model.mjs"
 import { backgroundRegistry } from "../components/backgrounds/backgroundRegistry.ts"
 import { BACKGROUND_BRANDING_AUDIT_BATCHES } from "../scripts/background-branding/audit-batches.mjs"
+import { renderAuditBatch } from "../scripts/background-branding/render-audit.mjs"
 
 const validAuditEntry = {
   decision: "rename",
@@ -111,5 +112,25 @@ describe("background branding audit", () => {
 
       assert.deepEqual(errors, [`another-internal-background: ${massageLabBrandReservationError}`])
     }
+  })
+
+  it("renders the current name, decision, recommendation, alternatives, descriptor, and rationale", () => {
+    const markdown = renderAuditBatch({
+      batch: { slug: "sample", title: "Sample", ids: ["one"] },
+      backgroundsById: new Map([["one", { id: "one", label: "Old Name" }]]),
+      entriesById: new Map([["one", {
+        id: "one", decision: "rename", recommendedName: "Quiet Current",
+        alternatives: ["Restful Current", "Gentle Flow"],
+        visualDescriptor: "Layered lines drifting in soft waves",
+        rationale: "Fits the restorative voice while describing the motion.",
+        collisionNotes: "Distinct from all current recommendations.",
+        signatureOriginalEligible: true,
+      }]]),
+    })
+
+    assert.match(markdown, /## Quiet Current/)
+    assert.match(markdown, /Current name:\*\* Old Name/)
+    assert.match(markdown, /Restful Current.*Gentle Flow/s)
+    assert.match(markdown, /Layered lines drifting in soft waves/)
   })
 })
