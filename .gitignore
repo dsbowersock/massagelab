@@ -29,6 +29,7 @@
 /.codex-dev/
 /.codex-dev-server.*
 /.codex-remote-attachments/
+/.worktrees/
 /graphify-out/
 /output/
 
