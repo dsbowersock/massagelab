@@ -65,10 +65,10 @@
 - **Current name:** 3D Globe
 - **Decision:** rename
 - **Alternatives:** Atlas in Motion; Sunlit Sphere
-- **Visual descriptor:** Illuminated mapped globe rotating beside an optional marker
+- **Visual descriptor:** Mapped globe with built-in Massage Lab marker
 - **Signature original eligible:** No
-- **Rationale:** Turning Globe replaces a technical dimension label with the passive action users see while retaining the renderer's geographic identity without fixing its configurable colors.
-- **Collision notes:** Mapped continents and the optional marker keep it separate from Orb's abstract sphere and every unstructured celestial field.
+- **Rationale:** Turning Globe replaces a technical dimension label with the passive action users see while retaining the renderer's geographic identity without fixing its configurable colors; the built-in Massage Lab marker is always present, while the separate user marker remains optional.
+- **Collision notes:** Mapped continents and the built-in Massage Lab marker keep it separate from Orb's abstract sphere and every unstructured celestial field.
 
 ## Aurora Bars
 - **ID:** `massage-lab-aurora-bars`
