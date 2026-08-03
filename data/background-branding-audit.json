@@ -449,7 +449,7 @@
       "alternatives": ["Point Array", "Ordered Constellation"],
       "visualDescriptor": "Dots resting in evenly spaced rows",
       "rationale": "Pegboard accurately describes the passive default's orderly point array; its spring and shock behavior remains optional rather than implied by the title.",
-      "collisionNotes": "The regular rows contrast with Dot Field's ambient bends, Pinpoint Shimmer's microglow, and Speckled Veil's dense matrix.",
+      "collisionNotes": "Pegboard's larger reactive points contrast with Dot Field's fine, passive ordered array, Pinpoint Shimmer's microglow, and Speckled Veil's dense matrix.",
       "signatureOriginalEligible": false
     },
     {

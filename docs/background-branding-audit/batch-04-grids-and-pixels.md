@@ -88,7 +88,7 @@
 - **Visual descriptor:** Dots resting in evenly spaced rows
 - **Signature original eligible:** No
 - **Rationale:** Pegboard accurately describes the passive default's orderly point array; its spring and shock behavior remains optional rather than implied by the title.
-- **Collision notes:** The regular rows contrast with Dot Field's ambient bends, Pinpoint Shimmer's microglow, and Speckled Veil's dense matrix.
+- **Collision notes:** Pegboard's larger reactive points contrast with Dot Field's fine, passive ordered array, Pinpoint Shimmer's microglow, and Speckled Veil's dense matrix.
 
 ## Mosaic Warp
 - **ID:** `massage-lab-grid-distortion`
