@@ -70,70 +70,119 @@ function collectAuditErrors({ backgrounds, entries, batches }) {
   const backgroundsById = new Map(backgrounds.map((background) => [background.id, background]))
   const errors = []
 
-  for (const entry of entries) {
-    const background = backgroundsById.get(entry.id)
-    if (background) errors.push(...validateAuditEntry(entry, background))
-  }
+  entries.forEach((entry, index) => {
+    const hasValidId = typeof entry.id === "string" && entry.id.trim().length > 0
+    const background = backgroundsById.get(entry.id) ?? {
+      id: hasValidId ? entry.id : `audit entry ${index + 1}`,
+      sourceUrl: undefined,
+    }
+    errors.push(...validateAuditEntry(entry, background))
+  })
 
-  errors.push(...validateAuditCoverage({ backgrounds, entries, batches }))
-  for (const collision of findRecommendedNameCollisions(entries)) {
+  const entriesWithValidIds = entries.filter((entry) => (
+    typeof entry.id === "string" && entry.id.trim().length > 0
+  ))
+  errors.push(...validateAuditCoverage({
+    backgrounds,
+    entries: entriesWithValidIds,
+    batches,
+  }))
+  for (const collision of findRecommendedNameCollisions(entriesWithValidIds)) {
     errors.push(`recommended name collision \"${collision.normalized}\": ${collision.ids.join(", ")}`)
   }
   return errors
 }
 
-async function readAuditEntries() {
-  try {
-    const audit = JSON.parse(await readFile(AUDIT_DATA_URL, "utf8"))
-    if (!Array.isArray(audit?.entries)) {
-      return { entries: [], errors: ["audit data: entries must be an array"] }
-    }
-    if (audit.entries.some((entry) => !entry || typeof entry !== "object" || Array.isArray(entry))) {
-      return {
-        entries: audit.entries.map((entry) => (
-          entry && typeof entry === "object" && !Array.isArray(entry) ? entry : {}
-        )),
-        errors: ["audit data: every entry must be an object"],
-      }
-    }
-    return { entries: audit.entries, errors: [] }
-  } catch (error) {
-    return { entries: [], errors: [`audit data: ${error.message}`] }
+function validateAuditDocument(audit) {
+  const isObject = Boolean(audit) && typeof audit === "object" && !Array.isArray(audit)
+  const root = isObject ? audit : {}
+  const errors = []
+
+  if (!isObject) errors.push("audit data: root must be an object")
+  if (root.schemaVersion !== 1) errors.push("audit data: schemaVersion must be 1")
+  if (root.voice !== "restorative-laboratory-wellness-leaning") {
+    errors.push("audit data: voice must be restorative-laboratory-wellness-leaning")
   }
+  if (!Array.isArray(root.entries)) {
+    errors.push("audit data: entries must be an array")
+    return { entries: [], errors }
+  }
+
+  const entries = []
+  root.entries.forEach((entry, index) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      errors.push(`audit data: entry ${index + 1} must be an object`)
+      return
+    }
+    entries.push(entry)
+  })
+  return { entries, errors }
 }
 
 /**
- * Generates every review file only after the complete registry, proposal, and
- * batch set validates, preventing partial Markdown from failed audit input.
+ * Validates a raw audit document, renders the complete deterministic output
+ * set, and invokes the injected writer only after every detectable error has
+ * been aggregated. This is the fail-closed boundary shared by tests and CLI.
  *
- * @returns {Promise<void>} Resolves after all eight complete Markdown files are written.
+ * @param {{ audit: unknown, backgrounds: Array<Record<string, unknown>>, batches: Array<{ slug: string, title: string, ids: string[] }>, writeOutputs: (outputs: Array<[string, string]>) => Promise<void> }} options Raw audit inputs and an all-at-once output writer.
+ * @returns {Promise<{ errors: string[], outputs: Array<[string, string]> }>} Stable errors with no outputs, or the complete written output set.
  */
-async function main() {
-  const { entries, errors: dataErrors } = await readAuditEntries()
-  const backgrounds = backgroundRegistry.filter(({ enabled }) => enabled)
+export async function generateAuditFiles({ audit, backgrounds, batches, writeOutputs }) {
+  const { entries, errors: dataErrors } = validateAuditDocument(audit)
   const errors = [
     ...dataErrors,
-    ...collectAuditErrors({ backgrounds, entries, batches: BACKGROUND_BRANDING_AUDIT_BATCHES }),
+    ...collectAuditErrors({ backgrounds, entries, batches }),
   ]
 
   if (errors.length) {
-    console.error(["Background branding audit validation failed:", ...errors.map((error) => `- ${error}`)].join("\n"))
-    process.exitCode = 1
-    return
+    return { errors, outputs: [] }
   }
 
   const backgroundsById = new Map(backgrounds.map((background) => [background.id, background]))
   const entriesById = new Map(entries.map((entry) => [entry.id, entry]))
   const outputs = [
-    ["index.md", renderAuditIndex({ batches: BACKGROUND_BRANDING_AUDIT_BATCHES })],
-    ...BACKGROUND_BRANDING_AUDIT_BATCHES.map((batch) => [
+    ["index.md", renderAuditIndex({ batches })],
+    ...batches.map((batch) => [
       `batch-${batch.slug}.md`,
       renderAuditBatch({ batch, entriesById, backgroundsById }),
     ]),
   ]
 
+  await writeOutputs(outputs)
+  return { errors: [], outputs }
+}
+
+async function writeAuditOutputs(outputs) {
   await mkdir(AUDIT_OUTPUT_URL, { recursive: true })
-  await Promise.all(outputs.map(([filename, markdown]) => writeFile(new URL(filename, AUDIT_OUTPUT_URL), markdown, "utf8")))
+  await Promise.all(outputs.map(([filename, markdown]) => (
+    writeFile(new URL(filename, AUDIT_OUTPUT_URL), markdown, "utf8")
+  )))
+}
+
+async function main() {
+  let audit
+  try {
+    audit = JSON.parse(await readFile(AUDIT_DATA_URL, "utf8"))
+  } catch (error) {
+    console.error(["Background branding audit validation failed:", `- audit data: ${error.message}`].join("\n"))
+    process.exitCode = 1
+    return
+  }
+
+  const result = await generateAuditFiles({
+    audit,
+    backgrounds: backgroundRegistry.filter(({ enabled }) => enabled),
+    batches: BACKGROUND_BRANDING_AUDIT_BATCHES,
+    writeOutputs: writeAuditOutputs,
+  })
+
+  if (result.errors.length) {
+    console.error([
+      "Background branding audit validation failed:",
+      ...result.errors.map((error) => `- ${error}`),
+    ].join("\n"))
+    process.exitCode = 1
+  }
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

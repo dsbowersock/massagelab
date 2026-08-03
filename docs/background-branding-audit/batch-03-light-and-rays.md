@@ -58,7 +58,7 @@
 - **Visual descriptor:** Tall light planes rising in staggered rows
 - **Signature original eligible:** No
 - **Rationale:** Stacked Lumens identifies the unusual layered plane geometry that the single generic word Beams leaves unexplained.
-- **Collision notes:** The rectilinear standing planes are visually unlike Drifting Beams' SVG paths and Landing Beams' falling streaks.
+- **Collision notes:** The rectilinear standing planes are visually unlike Gradient Arcs' SVG paths and Landing Beams' falling streaks.
 
 ## Gradient Arcs
 - **ID:** `massage-lab-background-beams`

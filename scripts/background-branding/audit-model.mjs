@@ -5,6 +5,10 @@ const RESERVED_MASSAGE_LAB_RECOMMENDATION = "Massage Laba Lamp"
 const MASSAGE_LAB_RESERVATION_ERROR =
   "Massage Lab-branded recommendations are reserved for the internal massage-lab-moving-gradient background named Massage Laba Lamp"
 
+function isNonemptyString(value) {
+  return typeof value === "string" && value.trim().length > 0
+}
+
 /**
  * Normalizes visible names for exact collision comparisons without merging
  * separate words that may be distinguished only by punctuation or casing.
@@ -42,26 +46,37 @@ function containsMassageLabBrand(value) {
 export function validateAuditEntry(entry, background) {
   const errors = []
   const prefix = `${background.id}:`
+  if (!isNonemptyString(entry?.id)) errors.push(`${prefix} id is required`)
   if (!DECISIONS.has(entry?.decision)) errors.push(`${prefix} decision must be keep or rename`)
-  if (!String(entry?.recommendedName ?? "").trim()) errors.push(`${prefix} recommendedName is required`)
+  if (!isNonemptyString(entry?.recommendedName)) errors.push(`${prefix} recommendedName is required`)
   const alternatives = Array.isArray(entry?.alternatives) ? entry.alternatives : []
-  const uniqueAlternatives = new Set(alternatives.map(normalizeBrandName).filter(Boolean))
-  if (alternatives.length < 2 || alternatives.length > 3 || uniqueAlternatives.size !== alternatives.length) {
+  const alternativesAreStrings = alternatives.every(isNonemptyString)
+  const uniqueAlternatives = new Set(
+    alternativesAreStrings ? alternatives.map(normalizeBrandName) : [],
+  )
+  if (
+    alternatives.length < 2
+    || alternatives.length > 3
+    || !alternativesAreStrings
+    || uniqueAlternatives.size !== alternatives.length
+  ) {
     errors.push(`${prefix} two or three unique alternatives are required`)
   }
-  const descriptorWords = String(entry?.visualDescriptor ?? "").trim().split(/\s+/).filter(Boolean)
-  if (descriptorWords.length < 3 || descriptorWords.length > 8) {
+  const descriptorWords = isNonemptyString(entry?.visualDescriptor)
+    ? entry.visualDescriptor.trim().split(/\s+/)
+    : []
+  if (!isNonemptyString(entry?.visualDescriptor) || descriptorWords.length < 3 || descriptorWords.length > 8) {
     errors.push(`${prefix} visualDescriptor must contain 3-8 words`)
   }
-  if (!String(entry?.rationale ?? "").trim()) errors.push(`${prefix} rationale is required`)
-  if (!String(entry?.collisionNotes ?? "").trim()) errors.push(`${prefix} collisionNotes is required`)
+  if (!isNonemptyString(entry?.rationale)) errors.push(`${prefix} rationale is required`)
+  if (!isNonemptyString(entry?.collisionNotes)) errors.push(`${prefix} collisionNotes is required`)
   if (typeof entry?.signatureOriginalEligible !== "boolean") {
     errors.push(`${prefix} signatureOriginalEligible must be boolean`)
   }
   if (entry?.signatureOriginalEligible && background.sourceUrl !== "internal") {
     errors.push(`${prefix} only internally conceived sources may be signature originals`)
   }
-  if (containsMassageLabBrand(entry?.recommendedName) && (
+  if (isNonemptyString(entry?.recommendedName) && containsMassageLabBrand(entry.recommendedName) && (
     background.id !== RESERVED_MASSAGE_LAB_BACKGROUND_ID
     || background.sourceUrl !== "internal"
     || String(entry.recommendedName).trim() !== RESERVED_MASSAGE_LAB_RECOMMENDATION
