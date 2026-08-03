@@ -55,10 +55,10 @@
 - **Current name:** Faulty Terminal
 - **Decision:** rename
 - **Alternatives:** Scanline Chamber; Broken Broadcast
-- **Visual descriptor:** Dithered terminal texture moving behind scanlines
+- **Visual descriptor:** Pixelated terminal glyph grid moving behind scanlines
 - **Signature original eligible:** No
-- **Rationale:** Terminal Static preserves the CRT and glitch character but removes Faulty, a negative quality judgment that does not fit the collection voice; the default includes both ambient motion and a subtle pointer response.
-- **Collision notes:** Scanlines, curvature, and dither distinguish it from Glyph Shift's character substitutions and Glyph Rain's falling columns.
+- **Rationale:** Terminal Static preserves the CRT and glyph-grid character but removes Faulty, a negative quality judgment that does not fit the collection voice; the default includes both ambient motion and a subtle pointer response.
+- **Collision notes:** Scanlines, curvature, and the pixelated glyph grid distinguish it from Glyph Shift's character substitutions and Glyph Rain's falling columns.
 
 ## Glyph Shift
 - **ID:** `massage-lab-letter-glitch`
