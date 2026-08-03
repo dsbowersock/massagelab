@@ -98,7 +98,7 @@
 - **Visual descriptor:** Reflective liquid spiraling into a central void
 - **Signature original eligible:** No
 - **Rationale:** Molten Mirror describes the high-contrast reflective whirl directly and avoids colliding with the other catalog entry currently called Chrome Flow.
-- **Collision notes:** Reserve this name for the central reflective spiral; Chrome Marbling describes the broader flow shader in Batch 6.
+- **Collision notes:** Reserve this name for the central reflective spiral; Reflective Currents describes the broader flow shader in Batch 6.
 
 ## Fluid Filament
 - **ID:** `massage-lab-ferrofluid`

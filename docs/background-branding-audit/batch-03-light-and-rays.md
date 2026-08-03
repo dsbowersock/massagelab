@@ -78,7 +78,7 @@
 - **Visual descriptor:** Slender beams falling into brief flares
 - **Signature original eligible:** No
 - **Rationale:** Firework Dust keeps the visible arrival-and-flare behavior but replaces the harsher collision wording with a calmer action.
-- **Collision notes:** Brief contact flares distinguish this option from Lightfall's continuous streak shower and Lightning's branching flashes.
+- **Collision notes:** Brief contact flares distinguish this option from Lightfall's continuous streak shower and Electric Storm's branching flashes.
 
 ## Signal Comets
 - **ID:** `massage-lab-background-lines`

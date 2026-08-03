@@ -108,7 +108,7 @@
 - **Visual descriptor:** Offset word rows resting in place
 - **Signature original eligible:** No
 - **Rationale:** Mantra Drift foregrounds the visible calm vocabulary and offset row layout; lateral shifting responds to the cursor rather than playing by default.
-- **Collision notes:** Readable word tiles make it unmistakable beside Geometric Current's empty cells, Glyph Shift's character noise, and Glyph Rain's columns.
+- **Collision notes:** Readable word tiles make it unmistakable beside Geometric Current's empty cells, Code Confetti's character noise, and Encrypted's columns.
 
 ## Geometric Current
 - **ID:** `massage-lab-shape-grid`

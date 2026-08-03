@@ -219,7 +219,7 @@
       "alternatives": ["Mirror Whirlpool", "Reflective Bloom"],
       "visualDescriptor": "Reflective liquid spiraling into a central void",
       "rationale": "Molten Mirror describes the high-contrast reflective whirl directly and avoids colliding with the other catalog entry currently called Chrome Flow.",
-      "collisionNotes": "Reserve this name for the central reflective spiral; Chrome Marbling describes the broader flow shader in Batch 6.",
+      "collisionNotes": "Reserve this name for the central reflective spiral; Reflective Currents describes the broader flow shader in Batch 6.",
       "signatureOriginalEligible": false
     },
     {
@@ -319,7 +319,7 @@
       "alternatives": ["Falling Signals", "Spark Threshold"],
       "visualDescriptor": "Slender beams falling into brief flares",
       "rationale": "Firework Dust keeps the visible arrival-and-flare behavior but replaces the harsher collision wording with a calmer action.",
-      "collisionNotes": "Brief contact flares distinguish this option from Lightfall's continuous streak shower and Lightning's branching flashes.",
+      "collisionNotes": "Brief contact flares distinguish this option from Lightfall's continuous streak shower and Electric Storm's branching flashes.",
       "signatureOriginalEligible": false
     },
     {
@@ -469,7 +469,7 @@
       "alternatives": ["Calm Vocabulary", "Responsive Rows"],
       "visualDescriptor": "Offset word rows resting in place",
       "rationale": "Mantra Drift foregrounds the visible calm vocabulary and offset row layout; lateral shifting responds to the cursor rather than playing by default.",
-      "collisionNotes": "Readable word tiles make it unmistakable beside Geometric Current's empty cells, Glyph Shift's character noise, and Glyph Rain's columns.",
+      "collisionNotes": "Readable word tiles make it unmistakable beside Geometric Current's empty cells, Code Confetti's character noise, and Encrypted's columns.",
       "signatureOriginalEligible": false
     },
     {
@@ -489,7 +489,7 @@
       "alternatives": ["Charged Discharge", "Thunderhead Glow"],
       "visualDescriptor": "Electrical veins churning through smoky texture",
       "rationale": "Electric Glow is vivid but truthful: the default combines luminous branching energy with a dense, cloudlike field rather than a simple lightning bolt.",
-      "collisionNotes": "The turbulent mist texture differentiates it from Lightning's isolated branches, Clouded Cosmos' soft clouds, and Charged Foam's rounded cells.",
+      "collisionNotes": "The turbulent mist texture differentiates it from Electric Storm's isolated branches, Clouded Cosmos' soft clouds, and Charged Foam's rounded cells.",
       "signatureOriginalEligible": false
     },
     {
@@ -499,7 +499,7 @@
       "alternatives": ["Radial Bloom", "Orbital Bloom"],
       "visualDescriptor": "Dark radial wisps breathing around a center",
       "rationale": "Celestial Breath suits the slowly breathing radial shader and carries a lightly experimental cosmic tone without promising any wellness outcome.",
-      "collisionNotes": "Its inward floral symmetry separates it from Constellations' stars, Luminous Synthesis' soft forms, and Particle Vortex's spiral trail.",
+      "collisionNotes": "Its inward floral symmetry separates it from Constellations' stars, Emulsion's soft forms, and Orbits' particle streaks.",
       "signatureOriginalEligible": false
     },
     {
@@ -559,7 +559,7 @@
       "alternatives": ["Quiet Point Cloud", "Quiet Suspension"],
       "visualDescriptor": "Sparse particles drifting through a spacious field",
       "rationale": "Particle Drift adds the defining quiet motion to an overly broad source label and suits the sparse point-cloud default.",
-      "collisionNotes": "The spacious point cloud differs from Constellations' rotating star density, Shimmer's ambient haze, and Particle Vortex's spiral.",
+      "collisionNotes": "The spacious point cloud differs from Constellations' rotating star density, Shimmer's ambient haze, and Orbits' particle streaks.",
       "signatureOriginalEligible": false
     },
     {
@@ -605,10 +605,10 @@
     {
       "id": "massage-lab-chrome-flow",
       "decision": "rename",
-      "recommendedName": "Chrome Marbling",
-      "alternatives": ["Reflective Currents", "Liquid Geology"],
+      "recommendedName": "Reflective Currents",
+      "alternatives": ["Liquid Folds", "Liquid Geology"],
       "visualDescriptor": "Reflective marbling folding through broad liquid currents",
-      "rationale": "Chrome Marbling reflects the wide metallic folds and resolves the second duplicate Chrome Flow label without borrowing the other renderer's spiral identity or fixing the customizable palette.",
+      "rationale": "Reflective Currents names the wide metallic folds without borrowing the other renderer's spiral identity or fixing the customizable palette.",
       "collisionNotes": "Reserve this for broad reflective marbling; Molten Mirror names the high-contrast spiral, and Fluid Filament retains cellular rims.",
       "signatureOriginalEligible": false
     },
@@ -619,57 +619,57 @@
       "alternatives": ["Solar Aperture", "Firewheel"],
       "visualDescriptor": "Luminous iris flickering around a dark pupil",
       "rationale": "Ember Iris keeps the unmistakable eye form and animated radial texture while removing the adversarial tone of the current source title; the reviewed passive default does not follow the pointer.",
-      "collisionNotes": "The central pupil and radial flame make this visually unique; avoid conflating it with Orb's halo or Radar's concentric rings.",
+      "collisionNotes": "The central pupil and radial flame make this visually unique; avoid conflating it with Orb's halo or Deep Search's concentric rings.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-radar",
-      "decision": "keep",
-      "recommendedName": "Radar",
+      "decision": "rename",
+      "recommendedName": "Deep Search",
       "alternatives": ["Rotating Sweep", "Echo Dial"],
       "visualDescriptor": "Luminous sweep rotating across concentric rings",
-      "rationale": "Radar is instantly legible and truthfully describes the passive default's rotating sweep, spokes, and ring display without requiring a longer experimental name or implying optional pointer interaction.",
+      "rationale": "Deep Search gives the passive rotating sweep, spokes, and ring display a more atmospheric identity without implying optional pointer interaction.",
       "collisionNotes": "Its instrument-like rings distinguish it from Ember Iris' organic pupil, Ripple Grid's square wave, and Orb's luminous rim.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-synthesis",
       "decision": "rename",
-      "recommendedName": "Luminous Synthesis",
-      "alternatives": ["Soft Morphology", "Cosmic Emulsion"],
+      "recommendedName": "Emulsion",
+      "alternatives": ["Soft Morphology", "Soft Fusion"],
       "visualDescriptor": "Luminous forms blending through soft focus",
-      "rationale": "Luminous Synthesis adds a visual anchor to an abstract source name and suits the softly merged forms at the reviewed defaults without fixing the configurable palette.",
-      "collisionNotes": "The blurred soft-focus fusion differs from Celestial Breath's radial symmetry, Pastel Drift's grainy bands, and Interstellar's curtains.",
+      "rationale": "Emulsion names the softly merged forms at the reviewed defaults without fixing the configurable palette.",
+      "collisionNotes": "The blurred soft-focus fusion differs from Celestial Breath's radial symmetry, Drift's grainy bands, and Interstellar's curtains.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-lightning",
-      "decision": "keep",
-      "recommendedName": "Lightning",
-      "alternatives": ["Electric Fracture", "Storm Thread"],
+      "decision": "rename",
+      "recommendedName": "Electric Storm",
+      "alternatives": ["Branching Fracture", "Storm Thread"],
       "visualDescriptor": "Bright branching bolts flashing across a dark field",
-      "rationale": "Lightning is the plainest truthful label for the isolated branching shader and avoids dressing a deliberately high-energy effect in misleading calm language.",
+      "rationale": "Electric Storm names the isolated branching shader without dressing a deliberately high-energy effect in misleading calm language.",
       "collisionNotes": "Discrete bolt flashes keep it separate from Electric Glow's continuous turbulence and Firework Dust's straight falling streaks.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-faulty-terminal",
       "decision": "rename",
-      "recommendedName": "Terminal Static",
-      "alternatives": ["Scanline Chamber", "Broken Broadcast"],
+      "recommendedName": "Scanline",
+      "alternatives": ["Signal Chamber", "Broken Broadcast"],
       "visualDescriptor": "Pixelated terminal glyph grid moving behind scanlines",
-      "rationale": "Terminal Static preserves the CRT and glyph-grid character but removes Faulty, a negative quality judgment that does not fit the collection voice; the default includes both ambient motion and a subtle pointer response.",
-      "collisionNotes": "Scanlines, curvature, and the pixelated glyph grid distinguish it from Glyph Shift's character substitutions and Glyph Rain's falling columns.",
+      "rationale": "Scanline preserves the CRT and glyph-grid character while removing Faulty, a negative quality judgment that does not fit the collection voice; the default includes both ambient motion and a subtle pointer response.",
+      "collisionNotes": "Scanlines, curvature, and the pixelated glyph grid distinguish it from Code Confetti's character substitutions and Encrypted's falling columns.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-letter-glitch",
       "decision": "rename",
-      "recommendedName": "Glyph Shift",
-      "alternatives": ["Code Confetti", "Letter Weather"],
+      "recommendedName": "Code Confetti",
+      "alternatives": ["Character Mosaic", "Letter Weather"],
       "visualDescriptor": "Character grid flickering through randomized substitutions",
-      "rationale": "Glyph Shift is compact and lightly experimental, describing the passive default's character changes without framing their intended motion as a malfunction or fixing its configurable colors.",
-      "collisionNotes": "A full randomized character grid differs from Glyph Rain's descending columns, Terminal Static's CRT texture, and Mantra Drift's readable tiles.",
+      "rationale": "Code Confetti is compact and lightly experimental, describing the passive default's character changes without framing their intended motion as a malfunction or fixing its configurable colors.",
+      "collisionNotes": "A full randomized character grid differs from Encrypted's descending columns, Scanline's CRT texture, and Mantra Drift's readable tiles.",
       "signatureOriginalEligible": false
     },
     {
@@ -679,46 +679,46 @@
       "alternatives": ["Ink Current", "Dancing Pigments"],
       "visualDescriptor": "Layered currents spiraling like marbled ink",
       "rationale": "Chromatic Swirl replaces an opaque source-specific label with the clearest account of the shader's palette-configurable marbling and default pointer response.",
-      "collisionNotes": "Broad marbled-ink currents distinguish it from Particle Vortex's points, Molten Mirror's high-contrast spiral, and Folded Plasma.",
+      "collisionNotes": "Broad marbled-ink currents distinguish it from Orbits' particle streaks, Molten Mirror's high-contrast spiral, and Folded Plasma.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-novatrix",
       "decision": "rename",
-      "recommendedName": "Pastel Drift",
+      "recommendedName": "Drift",
       "alternatives": ["Sorbet Weather", "Prism Daydream"],
       "visualDescriptor": "Soft color bands drifting through a grainy field",
-      "rationale": "Pastel Drift replaces the invented Novatrix term with an approachable description of the soft bands and passive shader movement without committing the customizable visual to a particular palette.",
+      "rationale": "Drift replaces the invented Novatrix term with an approachable description of the soft bands and passive shader movement without committing the customizable visual to a particular palette.",
       "collisionNotes": "Its grainy pastel bands sit between Soapfilm's pearly folds and Interstellar's vertical curtains without duplicating either form.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-matrix-rain",
       "decision": "rename",
-      "recommendedName": "Glyph Rain",
+      "recommendedName": "Encrypted",
       "alternatives": ["Glyph Cascade", "Cipher Curtain"],
       "visualDescriptor": "Character columns cascading over a dark field",
-      "rationale": "Glyph Rain retains the familiar visual metaphor while removing a film-specific reference and naming the passive default's falling character forms without fixing their configurable color.",
-      "collisionNotes": "Vertical character columns distinguish it from Glyph Shift's full-screen substitutions and Mantra Drift's horizontal phrase rows.",
+      "rationale": "Encrypted gives the passive falling character forms a concise digital framing without claiming an interaction or fixing their configurable color.",
+      "collisionNotes": "Vertical character columns distinguish it from Code Confetti's full-screen substitutions and Mantra Drift's horizontal phrase rows.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-pixel-liquid",
       "decision": "rename",
-      "recommendedName": "Pixel Current",
-      "alternatives": ["Pixel Simulation", "Cubist Fluid"],
+      "recommendedName": "Simulation",
+      "alternatives": ["Pixel Field", "Cubist Fluid"],
       "visualDescriptor": "Pixelated fluid shifting through a dark field",
-      "rationale": "Pixel Current gives the automatically driven canvas adaptation a directional, pronounceable title while retaining its defining blocky fluid texture without fixing its configurable palette.",
+      "rationale": "Simulation gives the automatically driven canvas adaptation a concise digital identity while retaining its defining blocky fluid texture without fixing its configurable palette.",
       "collisionNotes": "Pixelated fluid differs from Nomad's shape assembly, Mosaic Warp's large blocks, and Tidal Glass' smooth shader surface.",
       "signatureOriginalEligible": false
     },
     {
       "id": "massage-lab-vortex",
       "decision": "rename",
-      "recommendedName": "Particle Vortex",
-      "alternatives": ["Particle Choreography", "Orbiting Dust"],
+      "recommendedName": "Orbits",
+      "alternatives": ["Particle Choreography", "Swirling Dust"],
       "visualDescriptor": "Particles drifting through a swirling current",
-      "rationale": "Particle Vortex makes the canvas material explicit and honestly names the default's flowing particle motion instead of ending on the vague word field or fixing the adjustable hue.",
+      "rationale": "Orbits gives the flowing particle field a concise cosmic label while the passive default remains a flow of particle streaks rather than a pointer response or fixed hue.",
       "collisionNotes": "Discrete particle streaks separate it from Chromatic Swirl's broad ink, Constellations' stars, and Starlight's straight tunnel streaks.",
       "signatureOriginalEligible": false
     },
@@ -729,7 +729,7 @@
       "alternatives": ["Analog Violet", "Powdered Spectrum"],
       "visualDescriptor": "Grainy pink and violet colors drifting softly",
       "rationale": "Velvet Grain replaces a difficult portmanteau with a tactile, pronounceable title for the smooth color field and its visible granular texture.",
-      "collisionNotes": "The fine grain separates it from Pastel Drift's broad bands, Dithered Smoke's halftone dots, and Color Drift's clean gradient clouds.",
+      "collisionNotes": "The fine grain separates it from Drift's broad bands, Dithered Smoke's halftone dots, and Color Drift's clean gradient clouds.",
       "signatureOriginalEligible": false
     },
     {
@@ -739,7 +739,7 @@
       "alternatives": ["Violet Eclipse", "Glass Halo"],
       "visualDescriptor": "Glowing violet ring orbiting a shaded sphere",
       "rationale": "Orb is concise and visually exact for the dark sphere, colored rim, and gentle rotational response, making elaboration unnecessary.",
-      "collisionNotes": "A single shaded sphere with a halo differs from Ember Iris' flames, Turning Globe's mapped Earth, and Radar's flat rings.",
+      "collisionNotes": "A single shaded sphere with a halo differs from Ember Iris' flames, Turning Globe's mapped Earth, and Deep Search's flat rings.",
       "signatureOriginalEligible": false
     },
     {
@@ -829,7 +829,7 @@
       "alternatives": ["Radial Abyss", "Lattice Descent"],
       "visualDescriptor": "Radiant wire grid flowing into a dark center",
       "rationale": "Depth Well preserves the established visual concept with consistent title casing and directly expresses the grid's inward sense of depth.",
-      "collisionNotes": "The inward-falling radial lattice differs from Retro Grid's horizon plane, Neon Survey's tunnel, and Particle Vortex's spiral points.",
+      "collisionNotes": "The inward-falling radial lattice differs from Retro Grid's horizon plane, Neon Survey's tunnel, and Orbits' particle streaks.",
       "signatureOriginalEligible": false
     }
   ]

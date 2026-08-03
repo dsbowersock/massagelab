@@ -8,7 +8,7 @@
 - **Visual descriptor:** Grainy pink and violet colors drifting softly
 - **Signature original eligible:** No
 - **Rationale:** Velvet Grain replaces a difficult portmanteau with a tactile, pronounceable title for the smooth color field and its visible granular texture.
-- **Collision notes:** The fine grain separates it from Pastel Drift's broad bands, Dithered Smoke's halftone dots, and Color Drift's clean gradient clouds.
+- **Collision notes:** The fine grain separates it from Drift's broad bands, Dithered Smoke's halftone dots, and Color Drift's clean gradient clouds.
 
 ## Orb
 - **ID:** `massage-lab-orb`
@@ -18,7 +18,7 @@
 - **Visual descriptor:** Glowing violet ring orbiting a shaded sphere
 - **Signature original eligible:** No
 - **Rationale:** Orb is concise and visually exact for the dark sphere, colored rim, and gentle rotational response, making elaboration unnecessary.
-- **Collision notes:** A single shaded sphere with a halo differs from Ember Iris' flames, Turning Globe's mapped Earth, and Radar's flat rings.
+- **Collision notes:** A single shaded sphere with a halo differs from Ember Iris' flames, Turning Globe's mapped Earth, and Deep Search's flat rings.
 
 ## Color Drift
 - **ID:** `massage-lab-gradient-animation`
@@ -108,4 +108,4 @@
 - **Visual descriptor:** Radiant wire grid flowing into a dark center
 - **Signature original eligible:** No
 - **Rationale:** Depth Well preserves the established visual concept with consistent title casing and directly expresses the grid's inward sense of depth.
-- **Collision notes:** The inward-falling radial lattice differs from Retro Grid's horizon plane, Neon Survey's tunnel, and Particle Vortex's spiral points.
+- **Collision notes:** The inward-falling radial lattice differs from Retro Grid's horizon plane, Neon Survey's tunnel, and Orbits' particle streaks.

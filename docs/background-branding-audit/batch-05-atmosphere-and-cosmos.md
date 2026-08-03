@@ -8,7 +8,7 @@
 - **Visual descriptor:** Electrical veins churning through smoky texture
 - **Signature original eligible:** No
 - **Rationale:** Electric Glow is vivid but truthful: the default combines luminous branching energy with a dense, cloudlike field rather than a simple lightning bolt.
-- **Collision notes:** The turbulent mist texture differentiates it from Lightning's isolated branches, Clouded Cosmos' soft clouds, and Charged Foam's rounded cells.
+- **Collision notes:** The turbulent mist texture differentiates it from Electric Storm's isolated branches, Clouded Cosmos' soft clouds, and Charged Foam's rounded cells.
 
 ## Celestial Breath
 - **ID:** `massage-lab-astral-flow`
@@ -18,7 +18,7 @@
 - **Visual descriptor:** Dark radial wisps breathing around a center
 - **Signature original eligible:** No
 - **Rationale:** Celestial Breath suits the slowly breathing radial shader and carries a lightly experimental cosmic tone without promising any wellness outcome.
-- **Collision notes:** Its inward floral symmetry separates it from Constellations' stars, Luminous Synthesis' soft forms, and Particle Vortex's spiral trail.
+- **Collision notes:** Its inward floral symmetry separates it from Constellations' stars, Emulsion's soft forms, and Orbits' particle streaks.
 
 ## Clouded Cosmos
 - **ID:** `massage-lab-deep-space-nebula`
@@ -78,7 +78,7 @@
 - **Visual descriptor:** Sparse particles drifting through a spacious field
 - **Signature original eligible:** No
 - **Rationale:** Particle Drift adds the defining quiet motion to an overly broad source label and suits the sparse point-cloud default.
-- **Collision notes:** The spacious point cloud differs from Constellations' rotating star density, Shimmer's ambient haze, and Particle Vortex's spiral.
+- **Collision notes:** The spacious point cloud differs from Constellations' rotating star density, Shimmer's ambient haze, and Orbits' particle streaks.
 
 ## Constellations
 - **ID:** `massage-lab-galaxy`
