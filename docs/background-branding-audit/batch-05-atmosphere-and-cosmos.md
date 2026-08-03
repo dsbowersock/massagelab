@@ -4,8 +4,8 @@
 - **ID:** `massage-lab-electric-mist`
 - **Current name:** Electric Mist
 - **Decision:** keep
-- **Alternatives:** Violet Discharge; Thunderhead Glow
-- **Visual descriptor:** Violet electrical veins churning through smoky texture
+- **Alternatives:** Charged Discharge; Thunderhead Glow
+- **Visual descriptor:** Electrical veins churning through smoky texture
 - **Signature original eligible:** No
 - **Rationale:** Electric Mist is vivid but truthful: the default combines luminous branching energy with a dense, cloudlike field rather than a simple lightning bolt.
 - **Collision notes:** The turbulent mist texture differentiates it from Lightning's isolated branches, Deep Space Nebula's soft clouds, and Plasma's rounded cells.
@@ -18,67 +18,67 @@
 - **Visual descriptor:** Dark radial wisps breathing around a center
 - **Signature original eligible:** No
 - **Rationale:** Astral Flow suits the slowly breathing radial shader and carries a lightly experimental cosmic tone without promising any wellness outcome.
-- **Collision notes:** Its inward floral symmetry separates it from Galaxy's stars, Luminous Synthesis' soft blue forms, and Particle Vortex's spiral trail.
+- **Collision notes:** Its inward floral symmetry separates it from Galaxy's stars, Luminous Synthesis' soft forms, and Particle Vortex's spiral trail.
 
 ## Deep Space Nebula
 - **ID:** `massage-lab-deep-space-nebula`
 - **Current name:** Deep Space Nebula
 - **Decision:** keep
-- **Alternatives:** Aqua Expanse; Clouded Cosmos
-- **Visual descriptor:** Aqua nebula clouds billowing through deep shadow
+- **Alternatives:** Boundless Expanse; Clouded Cosmos
+- **Visual descriptor:** Nebula clouds billowing through deep shadow
 - **Signature original eligible:** No
 - **Rationale:** Deep Space Nebula is longer than most titles but remains easy to scan and precisely conveys the domain-warped cloud depth in the passive scene.
-- **Collision notes:** Its broad aqua vapor differs from Electric Mist's charged veins, Aurora Wash's vertical curtains, and Galaxy's distinct stars.
+- **Collision notes:** Its broad vapor differs from Electric Mist's charged veins, Aurora Wash's vertical curtains, and Galaxy's distinct stars.
 
 ## Dark Veil
 - **ID:** `massage-lab-dark-veil`
 - **Current name:** Dark Veil
 - **Decision:** keep
-- **Alternatives:** Neural Dusk; Violet Undertow
-- **Visual descriptor:** Violet neural ribbons drifting across black
+- **Alternatives:** Neural Dusk; Shadow Undertow
+- **Visual descriptor:** Neural ribbons drifting through shadow
 - **Signature original eligible:** No
-- **Rationale:** Dark Veil is restrained and sensory, matching the low-light neural texture and folded violet band without leaning on its shader implementation.
-- **Collision notes:** The continuous shadowed ribbon should remain distinct from Speckled Veil's cyan dot matrix and Ribbons' brighter canvas bands.
+- **Rationale:** Dark Veil is restrained and sensory, matching the low-light neural texture and folded ribbon without leaning on its shader implementation.
+- **Collision notes:** The continuous shadowed ribbon should remain distinct from Speckled Veil's dot matrix and Ribbons' brighter canvas bands.
 
 ## Soft Aurora
 - **ID:** `massage-lab-soft-aurora`
 - **Current name:** Soft Aurora
 - **Decision:** keep
 - **Alternatives:** Horizon Ribbon; Polar Hush
-- **Visual descriptor:** Pink and blue aurora band glowing at horizon
+- **Visual descriptor:** Aurora band glowing at horizon
 - **Signature original eligible:** No
-- **Rationale:** Soft Aurora already communicates the subdued horizon band, its gentle two-color blend, and the catalog's wellness-first intensity.
+- **Rationale:** Soft Aurora already communicates the subdued horizon band, its gentle layered blend, and the catalog's wellness-first intensity.
 - **Collision notes:** The low horizontal band contrasts with Aurora Wash's tall curtains and Aurora Bars' discrete vertical columns.
 
 ## Plasma
 - **ID:** `massage-lab-plasma`
 - **Current name:** Plasma
 - **Decision:** keep
-- **Alternatives:** Silver Cells; Charged Foam
-- **Visual descriptor:** Silver plasma cells swelling and dissolving
+- **Alternatives:** Luminous Cells; Charged Foam
+- **Visual descriptor:** Plasma cells swelling and dissolving
 - **Signature original eligible:** No
 - **Rationale:** Plasma is a familiar scientific word that truthfully fits the raymarched luminous cells and their continuous merging motion.
-- **Collision notes:** The monochrome rounded cells are distinct from Plasma Ribbons' paired colors and Fluid Filament's crisp glowing rims.
+- **Collision notes:** The rounded cells are distinct from Plasma Ribbons' folded current and Fluid Filament's crisp glowing rims.
 
 ## Plasma Ribbons
 - **ID:** `massage-lab-plasma-wave`
 - **Current name:** Plasma Wave
 - **Decision:** rename
-- **Alternatives:** Electric Braids; Dual-Color Fold
-- **Visual descriptor:** Cyan and pink plasma ribbons curling together
+- **Alternatives:** Electric Braids; Folded Current
+- **Visual descriptor:** Plasma ribbons curling together
 - **Signature original eligible:** No
-- **Rationale:** Plasma Ribbons identifies the two-color folded form that makes this shader visually different from the single-color Plasma entry.
-- **Collision notes:** Paired cyan and pink curls separate it from Plasma's silver cells, Prismatic Ribbons' full spectrum, and Ribbons' blurred bands.
+- **Rationale:** Plasma Ribbons identifies the folded form that makes this shader visually different from Plasma's cellular entry.
+- **Collision notes:** Folded ribbons separate it from Plasma's cells, Prismatic Ribbons' separated bands, and Ribbons' blurred bands.
 
 ## Particle Drift
 - **ID:** `massage-lab-particles`
 - **Current name:** Particles
 - **Decision:** rename
-- **Alternatives:** Quiet Point Cloud; Blue Suspension
-- **Visual descriptor:** White particles drifting through a spacious black field
+- **Alternatives:** Quiet Point Cloud; Quiet Suspension
+- **Visual descriptor:** Sparse particles drifting through a spacious field
 - **Signature original eligible:** No
 - **Rationale:** Particle Drift adds the defining quiet motion to an overly broad source label and suits the sparse point-cloud default.
-- **Collision notes:** The spacious white points differ from Galaxy's rotating star density, Prismatic Sparkles' colored haze, and Particle Vortex's spiral.
+- **Collision notes:** The spacious point cloud differs from Galaxy's rotating star density, Prismatic Sparkles' ambient haze, and Particle Vortex's spiral.
 
 ## Galaxy
 - **ID:** `massage-lab-galaxy`
@@ -108,14 +108,14 @@
 - **Visual descriptor:** Tiny cyan dots twinkling over deep blue
 - **Signature original eligible:** No
 - **Rationale:** Pinpoint Shimmer gives the subtle canvas effect a distinctive scale and motion, avoiding another generic use of field or glow.
-- **Collision notes:** Its sparse cyan micro-lights differ from Speckled Veil's dense matrix, Dot Field's bending points, and Prismatic Sparkles' larger stars.
+- **Collision notes:** Its sparse cyan micro-lights differ from Speckled Veil's dense matrix, Dot Field's fine passive array, and Prismatic Sparkles' larger stars.
 
 ## Prismatic Sparkles
 - **ID:** `massage-lab-sparkles`
 - **Current name:** Sparkles
 - **Decision:** rename
-- **Alternatives:** Glittering Haze; Colorfield Fireflies
-- **Visual descriptor:** White sparkles drifting across colored ambient haze
+- **Alternatives:** Glittering Haze; Firefly Haze
+- **Visual descriptor:** Sparkles pulsing across ambient haze
 - **Signature original eligible:** No
-- **Rationale:** Prismatic Sparkles retains the friendly source idea while acknowledging the colored background glows that define this version's passive scene.
-- **Collision notes:** Colored haze and larger twinkles set it apart from Pinpoint Shimmer, Particle Drift, and the structured Star Lattice.
+- **Rationale:** Prismatic Sparkles retains the friendly source idea while acknowledging the background glows that define this version's passive scene.
+- **Collision notes:** Ambient haze and larger twinkles set it apart from Pinpoint Shimmer, Particle Drift, and the structured Star Lattice.
