@@ -4,8 +4,8 @@
 - **ID:** `massage-lab-light-speed`
 - **Current name:** Light Speed
 - **Decision:** rename
-- **Alternatives:** Violet Rush; Starlight Corridor
-- **Visual descriptor:** Purple light streaks rushing toward a center
+- **Alternatives:** Velocity Rush; Starlight Corridor
+- **Visual descriptor:** Luminous streaks rushing toward a center
 - **Signature original eligible:** No
 - **Rationale:** Radiant Passage keeps the tunnel's exhilarating depth while replacing a hard science-fiction cliché with a gentler, image-led title.
 - **Collision notes:** The viewer-facing rush separates it from Photon Beam's horizontal signal, Lightfall's descent, and Prismatic Burst's outward rays.
@@ -14,18 +14,18 @@
 - **ID:** `massage-lab-lightfall`
 - **Current name:** Lightfall
 - **Decision:** keep
-- **Alternatives:** Blue Streak Canopy; Cerulean Curtain
-- **Visual descriptor:** White light streaks descending around blue glow
+- **Alternatives:** Streak Canopy; Luminous Curtain
+- **Visual descriptor:** Luminous streaks descending around a central glow
 - **Signature original eligible:** No
-- **Rationale:** Lightfall is graceful, memorable, and faithful to the many luminous streaks falling past a cool central bloom.
+- **Rationale:** Lightfall is graceful, memorable, and faithful to the many luminous streaks falling past a central bloom.
 - **Collision notes:** Its numerous curved streaks should not be confused with Landing Beams' discrete impacts or Meteors' diagonal sky trails.
 
 ## Light Pillar
 - **ID:** `massage-lab-light-pillar`
 - **Current name:** Light Pillar
 - **Decision:** keep
-- **Alternatives:** Violet Axis; Beacon Monolith
-- **Visual descriptor:** Vertical violet column flickering with light
+- **Alternatives:** Axis of Light; Beacon Monolith
+- **Visual descriptor:** Vertical light column flickering through haze
 - **Signature original eligible:** No
 - **Rationale:** Light Pillar is direct and contemplative, accurately describing the tall raymarched column without importing an unsupported symbolic meaning.
 - **Collision notes:** The single vertical column stands apart from Stacked Lumens' multiple planes, Lamp Glow's canopy, and the spreading ray fields.
@@ -45,10 +45,10 @@
 - **Current name:** Light Rays
 - **Decision:** rename
 - **Alternatives:** Haze Fan; Cloudbreak Light
-- **Visual descriptor:** Soft white rays spreading through dark haze
+- **Visual descriptor:** Soft rays spreading through dark haze
 - **Signature original eligible:** No
 - **Rationale:** Cascading Rays adds motion and softness to an overly generic current label while matching the broad, layered light shader at rest.
-- **Collision notes:** The dispersed white fan differs from Lateral Rays' edge source, Aerial Rays' overhead wash, and Spotlight's mirrored cones.
+- **Collision notes:** The dispersed fan differs from Lateral Rays' edge source, Aerial Rays' overhead wash, and Spotlight's mirrored cones.
 
 ## Stacked Lumens
 - **ID:** `massage-lab-beams`
@@ -64,11 +64,11 @@
 - **ID:** `massage-lab-background-beams`
 - **Current name:** Beam field
 - **Decision:** rename
-- **Alternatives:** Chromatic Filigree; Aurora Sweep
-- **Visual descriptor:** Fifty hairline arcs lit by roaming cyan-violet gradients
+- **Alternatives:** Luminous Filigree; Roaming Sweep
+- **Visual descriptor:** Fifty hairline arcs lit by roaming gradients
 - **Signature original eligible:** No
-- **Rationale:** Gradient Arcs names the renderer's fifty fixed, 0.6-pixel parallel curves and roaming cyan-to-violet gradients, making the motion mechanism and fine structure explicit.
-- **Collision notes:** Unlike Signal Comets' forty-two thicker multicolor dashes that sweep and fade along paths, these fifty hairline curves stay fixed while their cyan-violet gradients roam; Stacked Lumens uses broad planes.
+- **Rationale:** Gradient Arcs names the renderer's fifty fixed, 0.6-pixel parallel curves and roaming gradients, making the motion mechanism and fine structure explicit.
+- **Collision notes:** Unlike Signal Comets' forty-two thicker dash marks that sweep and fade along paths, these fifty hairline curves stay fixed while their gradients roam; Stacked Lumens uses broad planes.
 
 ## Landing Beams
 - **ID:** `massage-lab-collision-beams`
@@ -84,30 +84,30 @@
 - **ID:** `massage-lab-background-lines`
 - **Current name:** Light lines
 - **Decision:** rename
-- **Alternatives:** Chromatic Routes; Dash Relay
-- **Visual descriptor:** Forty-two color dashes sweeping along radial paths
+- **Alternatives:** Signal Routes; Dash Relay
+- **Visual descriptor:** Forty-two luminous dashes sweeping along radial paths
 - **Signature original eligible:** No
-- **Rationale:** Signal Comets reflects the twenty-one radial paths rendered twice as 2.3-pixel rounded, multicolor dashes that sweep, fade, and repeat on independent cycles.
-- **Collision notes:** Unlike Gradient Arcs' fifty fixed hairline curves illuminated by moving cyan-violet gradients, these forty-two thicker dash marks travel and fade along their paths; Threads uses organic white strands.
+- **Rationale:** Signal Comets reflects the twenty-one radial paths rendered twice as 2.3-pixel rounded dashes that sweep, fade, and repeat on independent cycles.
+- **Collision notes:** Unlike Gradient Arcs' fifty fixed hairline curves illuminated by roaming gradients, these forty-two thicker dash marks travel and fade along their paths; Threads uses organic strands.
 
 ## Photon Beam
 - **ID:** `massage-lab-photon-beam`
 - **Current name:** Photon Beam
 - **Decision:** keep
-- **Alternatives:** Particle Lance; Cyan Convergence
-- **Visual descriptor:** Cyan particles converging into a light trail
+- **Alternatives:** Particle Lance; Signal Convergence
+- **Visual descriptor:** Light particles converging into a focused trail
 - **Signature original eligible:** No
-- **Rationale:** Photon Beam is lightly experimental yet easy to say, and precisely fits the focused cyan trail assembled from surrounding signal points.
+- **Rationale:** Photon Beam is lightly experimental yet easy to say, and precisely fits the focused trail assembled from surrounding signal points.
 - **Collision notes:** The horizontal particle convergence is unique among the beam family and should not inherit Radiant Passage's tunnel language.
 
 ## Prismatic Burst
 - **ID:** `massage-lab-prismatic-burst`
 - **Current name:** Prismatic Burst
 - **Decision:** keep
-- **Alternatives:** Rainbow Aperture; Kaleidoscope Rays
+- **Alternatives:** Radiant Aperture; Kaleidoscope Rays
 - **Visual descriptor:** Spectral rays bursting from a dark center
 - **Signature original eligible:** No
-- **Rationale:** Prismatic Burst already combines the renderer's many-color light behavior with its unmistakable radial expansion in two readable words.
+- **Rationale:** Prismatic Burst already combines the renderer's multi-channel light behavior with its unmistakable radial expansion in two readable words.
 - **Collision notes:** The outward full-field ray fan differs from Prism's bounded triangle and Prismatic Ribbons' lateral bands.
 
 ## Prism
