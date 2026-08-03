@@ -33,9 +33,12 @@ Catalog naming note: `MassageLaba Lamp` is the established catalog label for the
   from that scanner.
 - The clean install summary is reduced to 12 aggregate findings (1 low,
   2 moderate, 9 high), but a standalone detailed npm audit was unavailable
-  under the environment security policy and GitHub has not rescanned the local
-  unpushed lockfile. The branch therefore does not claim a clean dependency
-  inventory yet. Nothing is pushed and no PR is open.
+  under the environment security policy and GitHub's default-branch inventory
+  cannot rescan the new lockfile before merge. The branch therefore does not
+  claim a clean dependency inventory yet. Ready PR #164 is open at exact head
+  `066cd60cdd6bd6962367983a695c90cdf8e279dc`; QA, CodeQL, Vercel,
+  CodeRabbit, and exact-head Codex review pass with no review threads. Merge
+  remains a separate user action.
 
 ## 2026-08-02 — Security dependency Fix Wave 1 PR #162
 

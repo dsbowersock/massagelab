@@ -2,9 +2,9 @@
 
 Last reviewed: August 2, 2026.
 
-Security Fix Wave 1 is merged. Fix Wave 2 is implemented locally but is not yet
-pushed or rescanned by GitHub, so the dependency inventory is not recorded as
-clean.
+Security Fix Wave 1 is merged. Fix Wave 2 is in ready PR #164 but is not yet
+merged or rescanned on GitHub's default branch, so the dependency inventory is
+not recorded as clean.
 
 ## Current Findings
 
@@ -54,9 +54,10 @@ A fresh exact-lock Fix Wave 2 install currently reports:
 
 These are aggregate npm install counts, not a clean result. A standalone
 detailed audit was unavailable under the agent environment's security policy,
-and GitHub cannot rescan this lockfile until it is pushed. The regression test
-independently verifies that every package family in the 27-alert post-Wave 1
-Dependabot inventory resolves above its reviewed patched floor.
+and GitHub's default-branch inventory cannot rescan this lockfile before merge.
+The regression test independently verifies that every package family in the
+27-alert post-Wave 1 Dependabot inventory resolves above its reviewed patched
+floor.
 
 ## Local Checks
 
