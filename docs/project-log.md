@@ -6,6 +6,14 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-03 — Background branding audit readiness
+
+- All 83 enabled backgrounds have complete branding proposals in seven review
+  batches, and the focused audit/catalog/registry tests, typecheck, and lint
+  validation pass. No product labels changed. Batch 1 is the next user-review
+  gate; the audit remains proposal evidence only, with no catalog rollout,
+  media generation, or preview-runtime completion claimed.
+
 ## 2026-08-03 — Security dependency closure after PR #164
 
 - Verified PR #164 merged Fix Wave 2 as
