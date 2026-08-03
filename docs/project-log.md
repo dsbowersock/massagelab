@@ -6,6 +6,26 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-03 — Security dependency closure after PR #164
+
+- Verified PR #164 merged Fix Wave 2 as
+  `b7dbe6a36b13005b3748fa46e5c6a064355bddf2`. GitHub's post-merge rescan
+  reduced the open inventory from 27 alerts to one medium, development-only
+  `@hono/node-server` alert in shadcn's MCP toolchain.
+- The closure raises the reviewed override, exact lockfile copy, and regression
+  floor from `2.0.5` to the first patched release, `2.0.10`. MassageLab has no
+  Hono import or WebSocket upgrade route, so the vulnerable public handshake
+  path is not present in the deployed application.
+- Exact installation, focused dependency tests (4/4), Prisma generation and
+  validation, the shadcn CLI smoke, typecheck, lint, all 1,902 unit tests, and
+  the 101-page Production build pass. npm's install summary reports 10
+  aggregate findings (1 low, 9 high), but detailed mapping is unavailable
+  because this environment does not authorize uploading the repository
+  dependency graph to npm. The optional AgentOps security-gate scripts are
+  absent and remain a scanner coverage gap. GitHub's public advisory catalog
+  reports no advisory affecting the warned development-only `glob@10.5.0`
+  copy. Default-branch Dependabot rescan remains the closure proof after merge.
+
 ## 2026-08-02 — Security dependency Fix Wave 2 local implementation
 
 - Verified PR #162 merged Fix Wave 1 to `main` as

@@ -75,7 +75,7 @@ test("framework and authentication dependencies stay above the patched security 
   assertLockedVersionsAtLeast(lock, "@auth/core", "0.41.3")
 })
 
-test("Wave 2 dependency copies stay above their patched security floors", async () => {
+test("reviewed dependency copies stay above their patched security floors", async () => {
   const [packageJson, lock] = await Promise.all([
     readProjectJson("package.json"),
     readProjectJson("package-lock.json"),
@@ -92,7 +92,7 @@ test("Wave 2 dependency copies stay above their patched security floors", async 
 
   const fixedVersionFloors = new Map([
     ["@babel/core", "7.29.6"],
-    ["@hono/node-server", "2.0.5"],
+    ["@hono/node-server", "2.0.10"],
     ["fast-uri", "3.1.4"],
     ["hono", "4.12.27"],
     ["nodemailer-v9", "9.0.1"],
