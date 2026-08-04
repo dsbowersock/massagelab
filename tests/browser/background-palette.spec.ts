@@ -739,12 +739,21 @@ test.describe("shared background palette review matrix", () => {
 
     const addMantra = page.getByRole("button", { name: "Add mantra" })
     await expect(addMantra).toBeDisabled()
-    await page.getByRole("button", { name: /^Remove mantra 2:/ }).click()
+    const secondMantra = page.getByRole("textbox", { name: "Mantra 2", exact: true })
+    await secondMantra.fill("I am calm")
+    await secondMantra.blur()
+    await expect(secondMantra).toHaveValue("I am calm")
+    await page.getByRole("button", { name: /^Remove mantra 3:/ }).click()
     await expect(page.getByRole("textbox", { name: /^Mantra / })).toHaveCount(9)
     await expect(addMantra).toBeEnabled()
     await addMantra.click()
     await expect(page.getByRole("textbox", { name: /^Mantra / })).toHaveCount(10)
+    await expect(page.getByRole("textbox", { name: "Mantra 10", exact: true })).toHaveValue("I am grounded")
     await expect(addMantra).toBeDisabled()
+
+    await page.getByRole("button", { name: "Remount Grid Motion" }).click()
+    await expect(page.getByRole("textbox", { name: /^Mantra / })).toHaveCount(10)
+    await expect(host.getByText("I am grounded", { exact: true }).first()).toBeVisible()
     for (let remaining = 10; remaining > 1; remaining -= 1) {
       await page.getByRole("button", { name: /^Remove mantra 2:/ }).click()
     }

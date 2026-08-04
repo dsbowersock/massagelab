@@ -7,6 +7,7 @@ import {
   GRID_MOTION_MANTRA_CHARACTER_LIMIT,
   GRID_MOTION_MANTRA_LIMIT,
   GRID_MOTION_MANTRA_WORD_LIMIT,
+  getGridMotionMantraAddSeed,
   normalizeGridMotionMantra,
 } from "@/lib/grid-motion-mantras"
 
@@ -87,7 +88,8 @@ export function GridMotionMantraEditor({ value, onChange }: GridMotionMantraEdit
       return
     }
 
-    const next = [...value, "I am calm"]
+    const seed = getGridMotionMantraAddSeed(value)
+    const next = [...value, seed]
     setDrafts(next)
     onChange(next)
   }

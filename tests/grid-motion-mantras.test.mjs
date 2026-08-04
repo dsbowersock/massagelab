@@ -6,6 +6,7 @@ import {
   GRID_MOTION_MANTRA_CHARACTER_LIMIT,
   GRID_MOTION_MANTRA_LIMIT,
   GRID_MOTION_MANTRA_WORD_LIMIT,
+  getGridMotionMantraAddSeed,
   normalizeGridMotionMantra,
   normalizeGridMotionMantras,
 } from "../lib/grid-motion-mantras.js"
@@ -95,5 +96,23 @@ describe("Grid Motion mantra domain", () => {
 
     assert.deepEqual(DEFAULT_GRID_MOTION_MANTRAS, EXACT_STARTERS)
     assert.deepEqual(fallback, ["Fallback phrase"])
+  })
+
+  it("chooses the first valid case-insensitive nonduplicate Add seed", () => {
+    assert.equal(getGridMotionMantraAddSeed(["I am calm"]), "I am grounded")
+    assert.equal(
+      getGridMotionMantraAddSeed(["i AM calm", "I AM GROUNDED"]),
+      "I choose ease",
+    )
+
+    const nineUsedCandidates = ["I AM CALM", ...EXACT_STARTERS.slice(0, 8)]
+    const seed = getGridMotionMantraAddSeed(nineUsedCandidates)
+
+    assert.equal(seed, "My body knows")
+    assert.equal(normalizeGridMotionMantra(seed), seed)
+    assert.equal(
+      nineUsedCandidates.some((entry) => entry.toLowerCase() === seed.toLowerCase()),
+      false,
+    )
   })
 })

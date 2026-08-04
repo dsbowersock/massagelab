@@ -65,6 +65,19 @@ test("focused drafts preserve typable spaces without publishing blank values", (
   assert.doesNotMatch(editorSource, /value=\{value\[index\]\}/)
 })
 
+test("Add uses the shared nonduplicate mantra seed", () => {
+  assert.match(
+    editorSource,
+    /getGridMotionMantraAddSeed/,
+  )
+  assert.match(
+    editorSource,
+    /const seed = getGridMotionMantraAddSeed\(value\)/,
+  )
+  assert.match(editorSource, /const next = \[\.\.\.value, seed\]/)
+  assert.doesNotMatch(editorSource, /const next = \[\.\.\.value, "I am calm"\]/)
+})
+
 test("setup and running Visual controls reuse the same editor", () => {
   for (const source of [setupSource, runningSource]) {
     assert.match(

@@ -35,12 +35,12 @@
 - Test: `tests/chimer-entitlements.test.mjs`
 
 **Interfaces:**
-- Produces: `GRID_MOTION_MANTRA_LIMIT = 10`, `GRID_MOTION_MANTRA_WORD_LIMIT = 3`, `GRID_MOTION_MANTRA_CHARACTER_LIMIT = 28`, frozen `DEFAULT_GRID_MOTION_MANTRAS`, `normalizeGridMotionMantra(value): string`, and `normalizeGridMotionMantras(value, fallback?): string[]`.
+- Produces: `GRID_MOTION_MANTRA_LIMIT = 10`, `GRID_MOTION_MANTRA_WORD_LIMIT = 3`, `GRID_MOTION_MANTRA_CHARACTER_LIMIT = 28`, frozen `DEFAULT_GRID_MOTION_MANTRAS`, `normalizeGridMotionMantra(value): string`, `normalizeGridMotionMantras(value, fallback?): string[]`, and `getGridMotionMantraAddSeed(value): string`.
 - Produces: `ChimerSettings.massageLabGridMotionMantras: string[]`, passed through setup, running timer, reset/entitlement sanitization, and renderer props.
 
 - [ ] **Step 1: Write failing pure-domain tests**
 
-Create table-driven tests covering: whitespace collapse; 28-character cap without splitting a surrogate pair; first-three-word cap; empty rejection; case-insensitive duplicate removal; order preservation; ten-entry cap; fallback to all ten exact starters for `undefined`, non-array input, and all-invalid input; and a defensive returned copy that cannot mutate the frozen starters.
+Create table-driven tests covering: whitespace collapse; 28-character cap without splitting a surrogate pair; first-three-word cap; empty rejection; case-insensitive duplicate removal; order preservation; ten-entry cap; fallback to all ten exact starters for `undefined`, non-array input, and all-invalid input; a defensive returned copy that cannot mutate the frozen starters; and deterministic Add seeds that start with `I am calm`, then choose the first unused starter case-insensitively.
 
 Example assertions:
 
@@ -61,7 +61,7 @@ Expected: FAIL because the module does not exist.
 
 - [ ] **Step 3: Implement the pure mantra contract**
 
-Use JSDoc to document the user-content boundary. Normalize each candidate by `String(value)` only when `typeof value === "string"`, apply Unicode-safe character limiting with `Array.from(...)`, collapse whitespace, then retain at most three nonempty words. Apply the 28-character limit before a final trim; never append ellipsis. `normalizeGridMotionMantras` must return a new array and accept an optional already-normalized fallback for the settings sanitizer.
+Use JSDoc to document the user-content boundary. Normalize each candidate by `String(value)` only when `typeof value === "string"`, apply Unicode-safe character limiting with `Array.from(...)`, collapse whitespace, then retain at most three nonempty words. Apply the 28-character limit before a final trim; never append ellipsis. `normalizeGridMotionMantras` must return a new array and accept an optional already-normalized fallback for the settings sanitizer. The pure Add-seed helper compares the current normalized list case-insensitively against `I am calm` followed by the exact starters, returning the first unused valid phrase.
 
 - [ ] **Step 4: Add the failing settings/persistence tests**
 
@@ -179,7 +179,7 @@ git commit -m "fix: make Grid Motion responsive and autonomous"
 - Test: `tests/grid-motion-mantra-editor.test.mjs`
 
 **Interfaces:**
-- Consumes: normalized `string[]`, `GRID_MOTION_MANTRA_LIMIT`, `GRID_MOTION_MANTRA_WORD_LIMIT`, `GRID_MOTION_MANTRA_CHARACTER_LIMIT`, and `normalizeGridMotionMantra`.
+- Consumes: normalized `string[]`, `GRID_MOTION_MANTRA_LIMIT`, `GRID_MOTION_MANTRA_WORD_LIMIT`, `GRID_MOTION_MANTRA_CHARACTER_LIMIT`, `normalizeGridMotionMantra`, and `getGridMotionMantraAddSeed`.
 - Produces: `GridMotionMantraEditor({ value, onChange }: { value: string[]; onChange(value: string[]): void })` shared by both Visual-control surfaces.
 
 - [ ] **Step 1: Write the failing shared-editor source test**
@@ -194,7 +194,7 @@ Expected: FAIL because the shared editor does not exist.
 
 - [ ] **Step 3: Implement controlled editing without a blank-slate state**
 
-Render a compact fieldset-like group under the existing Grid Motion motion controls. For each entry, render a text input without native `maxLength`, give the input an indexed accessible name such as "Mantra 1", and give the compact destructive/ghost Remove `Button` a unique indexed and phrase-specific accessible name such as "Remove mantra 1: I am grounded". On change, bound the local draft with `Array.from(...)` before passing `normalizeGridMotionMantra(...)` into a copied array; a fourth word is discarded and overlong input is capped at 28 Unicode code points. Add appends `"I am calm"` only when fewer than ten entries exist. Remove is disabled at one entry. Call `onChange` only with 1-10 normalized entries.
+Render a compact fieldset-like group under the existing Grid Motion motion controls. For each entry, render a text input without native `maxLength`, give the input an indexed accessible name such as "Mantra 1", and give the compact destructive/ghost Remove `Button` a unique indexed and phrase-specific accessible name such as "Remove mantra 1: I am grounded". On change, bound the local draft with `Array.from(...)` before passing `normalizeGridMotionMantra(...)` into a copied array; a fourth word is discarded and overlong input is capped at 28 Unicode code points. When fewer than ten entries exist, Add appends the first case-insensitive nonduplicate seed returned by `getGridMotionMantraAddSeed(value)`. Remove is disabled at one entry. Call `onChange` only with 1-10 normalized entries.
 
 - [ ] **Step 4: Integrate the same component in both control surfaces**
 
@@ -256,7 +256,7 @@ git commit -m "feat: add shared Grid Motion mantra editor"
 
 Add one test named `fills phone viewports and persists editable Grid Motion mantras`. At `390x844`, select the real Grid Motion renderer and assert: at least 12 rows, exactly 7 tiles per row, the rendered layer covers the host bounds, and two host screenshots `700ms` apart differ without dispatching pointer events. Verify starter text includes `I am grounded` and `Breathe and release`. At `844x390`, assert at least 6 rows and no uncovered host strip.
 
-Open the production-equivalent Visual controls in the fixture, change the first mantra to `Move with ease`, verify a fourth word is not stored, remove one entry, add one entry, and verify the list never exceeds ten. Remount the selected background and assert `Move with ease` remains visible. Under `reducedMotion: "reduce"`, require two screenshots `400ms` apart to match exactly.
+Open the production-equivalent Visual controls in the fixture, change the first mantra to `Move with ease`, verify a fourth word is not stored, set another entry to `I am calm`, remove one entry, then add and verify the list grows with the first unused nonduplicate seed and never exceeds ten. Remount the selected background and assert both the edit and added seed remain visible. Under `reducedMotion: "reduce"`, require two screenshots `400ms` apart to match exactly.
 
 - [ ] **Step 2: Run the browser test and confirm the current implementation fails**
 
