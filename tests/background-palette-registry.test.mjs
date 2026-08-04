@@ -48,6 +48,19 @@ const CUSTOM_SWATCHES = [
 const HARMONY_PRIMARY = "#2A6F97"
 
 const cssDomFixtures = {
+  "static-gradient": {
+    staticGradient: {
+      type: "linear",
+      colorCount: 7,
+      angle: 145,
+      centerX: 50,
+      centerY: 50,
+      radialShape: "ellipse",
+      radialSize: "farthest-corner",
+      stopPositions: [0, 17, 33, 50, 67, 83, 100],
+      colors: ["#010101", "#020202", "#030303", "#040404", "#050505", "#060606", "#070707"],
+    },
+  },
   "massage-lab-moving-gradient": {
     className: "moving-gradient-fixture",
     mainColor: "#010101",
@@ -994,7 +1007,7 @@ describe("background palette adapter registry", () => {
     }
 
     assert.equal(
-      resolveBackgroundEffectProps({ ...input, selectedId: "static-gradient" }),
+      resolveBackgroundEffectProps({ ...input, selectedId: "massage-lab-prism" }),
       effectProps,
     )
     assert.equal(

@@ -1824,10 +1824,11 @@ test("signed-in defaults, device precedence, failed save, retry, and unrelated s
   ).toHaveCount(0)
   await expect(
     signedInSharedColors.getByText(/Colors are unavailable for Static gradient/i),
-  ).toBeVisible()
-  await expect(signedInSharedColors.getByRole("radio", { name: "Custom" })).toBeDisabled()
-  await expect(signedInColorPresets.getByRole("textbox", { name: "New color preset name" })).toBeDisabled()
-  await expect(signedInColorPresets.getByRole("button", { name: "Save as new" })).toBeDisabled()
+  ).toHaveCount(0)
+  await expect(signedInSharedColors.getByRole("radio", { name: "Custom" })).toBeEnabled()
+  await signedInSharedColors.getByRole("radio", { name: "Custom" }).click()
+  await expect(signedInColorPresets.getByRole("textbox", { name: "New color preset name" })).toBeEnabled()
+  await expect(signedInColorPresets.getByRole("button", { name: "Save as new" })).toBeEnabled()
   await page.getByRole("button", { name: "Restore account default", exact: true }).click()
   await expect(page.getByTestId("chimer-premium-background")).toBeVisible()
   await page.getByRole("button", { name: "Close Visual panel" }).click()

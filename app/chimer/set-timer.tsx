@@ -459,6 +459,14 @@ export interface ChimerSettings {
   sparklesSpeed: number
   gradientAnimationSpeed: number
   gradientAnimationSize: number
+  staticGradientType: "linear" | "radial"
+  staticGradientColorCount: number
+  staticGradientAngle: number
+  staticGradientCenterX: number
+  staticGradientCenterY: number
+  staticGradientRadialShape: "circle" | "ellipse"
+  staticGradientRadialSize: "closest-side" | "farthest-side" | "closest-corner" | "farthest-corner"
+  staticGradientStopPositions: number[]
   massageLabGradientOpacity: number
   massageLabStarsSpeed: number
   massageLabStarsDensity: number

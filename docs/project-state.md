@@ -1,12 +1,13 @@
 # MassageLab Project State
 
-Verified: 2026-08-03
+Verified: 2026-08-04
 
 This is the read-first source of truth for MassageLab's current project state. Use it before `docs/project-log.md`, `docs/roadmap.md`, `TODO.md`, audits, or wiki pages when deciding what is active now.
 
 ## Current Snapshot
 
 - Status: private alpha.
+- Current background-review slice: the auth-free development-only `/dev/clock` surface is available for Device Toolbar review. Static Gradient now uses a real low-cost CSS renderer with two to seven active shared-palette colors, linear/radial geometry, direction or radial shape/reach/center controls, and ordered color-stop positions; its existing `static-gradient` ID and entitlement behavior are unchanged.
 - Security dependency Fix Waves 1 and 2 are merged through PRs #162 and #164;
   Wave 2's merge commit is `b7dbe6a36b13005b3748fa46e5c6a064355bddf2`.
   The post-merge Dependabot rescan leaves one medium, development-only alert:

@@ -1106,7 +1106,7 @@ test.describe("shared background palette review matrix", () => {
     await openPaletteGallery(page)
     await selectBackground(page, "static-gradient")
     for (const mode of MODES) {
-      await expectLoadedPaletteMode(page, "static-gradient", "unsupported", mode)
+      await expectLoadedPaletteMode(page, "static-gradient", "supported", mode)
     }
     const host = page.getByTestId("background-palette-live-host")
     await expect(host).toHaveAttribute("data-background-diagnostic-reduced-motion", "false")

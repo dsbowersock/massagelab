@@ -3,8 +3,26 @@
 import { type CSSProperties, useEffect, useId, useMemo, useRef, useState } from "react"
 import { MovingBackground } from "@/components/moving-background"
 import { shouldAnimateAmbientBackground } from "@/lib/motion-preferences"
+import {
+  buildStaticGradientCss,
+  getStaticGradientBackgroundOptionsFromChimerSettings,
+  STATIC_GRADIENT_SOURCE_COLORS,
+} from "@/lib/static-gradient-background"
 import { cn } from "@/lib/utils"
 import styles from "@/components/backgrounds/BackgroundHost.module.css"
+
+export interface StaticGradientOptions {
+  type?: "linear" | "radial"
+  colorCount?: number
+  angle?: number
+  centerX?: number
+  centerY?: number
+  radialShape?: "circle" | "ellipse"
+  radialSize?: "closest-side" | "farthest-side" | "closest-corner" | "farthest-corner"
+  stopPositions?: readonly number[]
+  /** Palette-resolved colors ordered from the first through seventh stop. */
+  colors?: readonly string[]
+}
 
 export interface MassageLabDnaOptions {
   /** Integer strand count, 7-81. */
@@ -99,6 +117,8 @@ export interface BackgroundRendererLifecycleProps {
 export interface BackgroundEffectProps extends BackgroundRendererLifecycleProps {
   reduceMotion?: boolean
   compactViewport?: boolean
+  /** Host geometry is completed with the selected adapter's resolved stop colors. */
+  staticGradient?: StaticGradientOptions
   /** Host input is completed with the selected adapter's resolved role colors. */
   massageLabDna?: MassageLabDnaHostOptions
   /** Host input is completed with the selected adapter's resolved role colors. */
@@ -186,6 +206,7 @@ export interface BackgroundEffectProps extends BackgroundRendererLifecycleProps 
  * resolve to the same prop contract consumed by the actual effect component.
  */
 export interface CssDomPaletteEffectPropsById {
+  "static-gradient": Pick<BackgroundEffectProps, "staticGradient">
   "massage-lab-moving-gradient": Pick<BackgroundEffectProps, "className" | "mainColor" | "orbColor">
   "massage-lab-aerial-rays": Pick<BackgroundEffectProps, "massageLabAerialRays">
   "massage-lab-grid-motion": Pick<BackgroundEffectProps, "massageLabGridMotion">
@@ -1460,8 +1481,31 @@ export function MassageLabMovingGradientBackground({
   )
 }
 
-export function StaticGradientBackground({ className }: BackgroundEffectProps) {
-  return <div className={cn(styles.effectLayer, className)} />
+export function StaticGradientBackground({ className, staticGradient }: BackgroundEffectProps) {
+  const geometry = getStaticGradientBackgroundOptionsFromChimerSettings({
+    staticGradientType: staticGradient?.type,
+    staticGradientColorCount: staticGradient?.colorCount,
+    staticGradientAngle: staticGradient?.angle,
+    staticGradientCenterX: staticGradient?.centerX,
+    staticGradientCenterY: staticGradient?.centerY,
+    staticGradientRadialShape: staticGradient?.radialShape,
+    staticGradientRadialSize: staticGradient?.radialSize,
+    staticGradientStopPositions: staticGradient?.stopPositions,
+  })
+  const background = buildStaticGradientCss({
+    ...geometry,
+    colors: staticGradient?.colors ?? STATIC_GRADIENT_SOURCE_COLORS,
+  })
+
+  return (
+    <div
+      className={cn(styles.effectLayer, className)}
+      style={{ background }}
+      data-static-gradient-type={geometry.type}
+      data-static-gradient-color-count={geometry.colorCount}
+      aria-hidden="true"
+    />
+  )
 }
 
 export function MassageLabParticlesDraftBackground({ className }: BackgroundEffectProps) {

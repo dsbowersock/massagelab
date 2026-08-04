@@ -18,6 +18,7 @@ import { StyledToggleControl } from "@/components/chimer-controls/StyledToggleCo
 import { BackgroundPaletteEditor } from "@/components/chimer-controls/BackgroundPaletteEditor"
 import { BackgroundColorPresetManager, BackgroundVisualPresetManager, type BackgroundPresetDraftAction } from "@/components/chimer-controls/BackgroundPresetManager"
 import { DnaBackgroundControls, type DnaBackgroundControlOptions } from "@/components/chimer-controls/DnaBackgroundControls"
+import { StaticGradientControls, type StaticGradientControlOptions } from "@/components/chimer-controls/StaticGradientControls"
 import { TwistedCubesBackgroundControls, type TwistedCubesBackgroundControlOptions } from "@/components/chimer-controls/TwistedCubesBackgroundControls"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
@@ -30,6 +31,7 @@ import { normalizeBackgroundColorMapping } from "@/lib/background-palette"
 import { resolveDnaTwistedCubesBackgroundHostProps } from "@/lib/dna-twisted-cubes-background-host"
 import { getDnaBackgroundOptionsFromChimerSettings, toDnaChimerSettingsPatch } from "@/lib/dna-background"
 import { getTwistedCubesBackgroundOptionsFromChimerSettings, toTwistedCubesChimerSettingsPatch } from "@/lib/twisted-cubes-background"
+import { getStaticGradientBackgroundOptionsFromChimerSettings, toStaticGradientChimerSettingsPatch } from "@/lib/static-gradient-background"
 import { MASSAGE_LAB_ASTRAL_FLOW_DISPLAY_SPEED_MAX, MASSAGE_LAB_ASTRAL_FLOW_DISPLAY_SPEED_MIN, MASSAGE_LAB_ASTRAL_FLOW_DISPLAY_SPEED_STEP, MASSAGE_LAB_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MAX, MASSAGE_LAB_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MIN, MASSAGE_LAB_DEEP_SPACE_NEBULA_DISPLAY_SPEED_STEP, MASSAGE_LAB_GRID_BLOOM_DISPLAY_SPEED_MAX, MASSAGE_LAB_GRID_BLOOM_DISPLAY_SPEED_MIN, MASSAGE_LAB_GRID_BLOOM_DISPLAY_SPEED_STEP, MASSAGE_LAB_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MAX, MASSAGE_LAB_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MIN, MASSAGE_LAB_LIQUID_CHROME_DISPLAY_FLOW_SPEED_STEP, MASSAGE_LAB_LIQUID_CHROME_DISPLAY_TIME_SCALE_MAX, MASSAGE_LAB_LIQUID_CHROME_DISPLAY_TIME_SCALE_MIN, MASSAGE_LAB_LIQUID_CHROME_DISPLAY_TIME_SCALE_STEP, MASSAGE_LAB_WAVES_DISPLAY_SPEED_MAX, MASSAGE_LAB_WAVES_DISPLAY_SPEED_MIN, MASSAGE_LAB_WAVES_DISPLAY_SPEED_STEP, MASSAGE_LAB_SYNTHESIS_DISPLAY_SPEED_MAX, MASSAGE_LAB_SYNTHESIS_DISPLAY_SPEED_MIN, MASSAGE_LAB_SYNTHESIS_DISPLAY_SPEED_STEP, MASSAGE_LAB_NOVATRIX_DISPLAY_AMPLITUDE_MAX, MASSAGE_LAB_NOVATRIX_DISPLAY_AMPLITUDE_MIN, MASSAGE_LAB_NOVATRIX_DISPLAY_AMPLITUDE_STEP, MASSAGE_LAB_NOVATRIX_DISPLAY_SPEED_MAX, MASSAGE_LAB_NOVATRIX_DISPLAY_SPEED_MIN, MASSAGE_LAB_NOVATRIX_DISPLAY_SPEED_STEP, MASSAGE_LAB_HACKER_DISPLAY_SPEED_MAX, MASSAGE_LAB_HACKER_DISPLAY_SPEED_MIN, MASSAGE_LAB_HACKER_DISPLAY_SPEED_STEP, MASSAGE_LAB_PHOTON_BEAM_DISPLAY_SPEED_MAX, MASSAGE_LAB_PHOTON_BEAM_DISPLAY_SPEED_MIN, MASSAGE_LAB_PHOTON_BEAM_DISPLAY_SPEED_STEP, getMassageLabAstralFlowDisplaySpeed, getMassageLabAstralFlowSourceSpeed, getMassageLabDeepSpaceNebulaDisplaySpeed, getMassageLabDeepSpaceNebulaSourceSpeed, getMassageLabGridBloomDisplaySpeed, getMassageLabGridBloomSourceSpeed, getMassageLabChromeFlowDisplayFlowSpeed, getMassageLabChromeFlowDisplayTimeScale, getMassageLabChromeFlowSourceFlowSpeed, getMassageLabChromeFlowSourceTimeScale, getMassageLabWaveCurrentDisplaySpeed, getMassageLabWaveCurrentSourceSpeed, getMassageLabSynthesisDisplaySpeed, getMassageLabSynthesisSourceSpeed, getMassageLabNovatrixDisplayAmplitude, getMassageLabNovatrixDisplaySpeed, getMassageLabNovatrixSourceAmplitude, getMassageLabNovatrixSourceSpeed, getMassageLabMatrixRainDisplaySpeed, getMassageLabMatrixRainSourceSpeed, getMassageLab3DGlobeScaleDisplayPercent, getMassageLab3DGlobeScaleFromDisplayPercent, getMassageLabPhotonBeamDisplaySpeed, getMassageLabPhotonBeamSourceSpeed, type MassageLabPrismAnimationType, type MassageLabLightPillarBlendMode, type MassageLabFloatingLinesBlendMode, type MassageLabSideRaysOrigin, type MassageLabLightRaysOrigin, type MassageLabPixelBlastVariant, type MassageLabPlasmaDirection, type MassageLabGradientBlindsBlendMode, type MassageLabGradientBlindsShineDirection, type MassageLabGridScanDirection, type MassageLabGridScanLineStyle, type MassageLabPixelSnowVariant, type MassageLabPrismaticBurstAnimationType, type MassageLabPrismaticBurstMixBlendMode, type MassageLabLightPillarQuality, type ChimerSettings } from "./set-timer"
 import styles from "./running-timer.module.css"
 import { GridMotionMantraEditor } from "./grid-motion-mantra-editor"
@@ -1584,6 +1586,10 @@ export function RunningTimer({
     }),
     [backgroundCategory, effectiveLiveBackgroundSettings],
   )
+  const effectiveStaticGradientOptions = useMemo<StaticGradientControlOptions>(
+    () => getStaticGradientBackgroundOptionsFromChimerSettings(effectiveLiveBackgroundSettings),
+    [effectiveLiveBackgroundSettings],
+  )
   const effectiveVisualEditorSettings = useMemo(
     () => ({ ...committedSettings, ...(currentVisualEditorSnapshot?.properties ?? {}) }),
     [committedSettings, currentVisualEditorSnapshot],
@@ -1594,6 +1600,10 @@ export function RunningTimer({
   )
   const visualEditorTwistedCubesOptions = useMemo<TwistedCubesBackgroundControlOptions>(
     () => getTwistedCubesBackgroundOptionsFromChimerSettings(effectiveVisualEditorSettings),
+    [effectiveVisualEditorSettings],
+  )
+  const visualEditorStaticGradientOptions = useMemo<StaticGradientControlOptions>(
+    () => getStaticGradientBackgroundOptionsFromChimerSettings(effectiveVisualEditorSettings),
     [effectiveVisualEditorSettings],
   )
   const visualEditorBackgroundDefinition = useMemo(
@@ -12466,6 +12476,7 @@ export function RunningTimer({
           access={effectiveBackgroundAccess}
           category={backgroundCategory}
           backgroundPalette={effectiveBackgroundPalette}
+          staticGradient={effectiveStaticGradientOptions}
           {...effectiveDnaTwistedCubesHostProps}
           sparkles={{
             maxSize: sparklesMaxSize,
@@ -13793,7 +13804,15 @@ export function RunningTimer({
                     {/* The open Visual draft intentionally hides the legacy display-color
                         rows for every background; these editors own the visible Track 4B
                         properties and receive the same access disable decision directly. */}
-                    {visualEditorBackgroundId === "massage-lab-dna" ? (
+                    {visualEditorBackgroundId === "static-gradient" ? (
+                      <StaticGradientControls
+                        value={visualEditorStaticGradientOptions}
+                        disabled={!canCustomizeSelectedBackground}
+                        onChange={(patch) => handleSettingsChange(
+                          toStaticGradientChimerSettingsPatch(patch),
+                        )}
+                      />
+                    ) : visualEditorBackgroundId === "massage-lab-dna" ? (
                       <DnaBackgroundControls
                         value={visualEditorDnaOptions}
                         disabled={!canCustomizeSelectedBackground}

@@ -289,10 +289,11 @@ const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
     performanceCost: "low",
     requiresSubscription: false,
     enabled: true,
+    customizationSummary: "Two to seven colors with linear or radial geometry and adjustable color stops.",
     component: () => cssBackgrounds().then((module) => ({ default: module.StaticGradientBackground })),
     fallbackStyle: {
       background:
-        "radial-gradient(circle at 18% 12%, rgba(255,122,26,0.26), transparent 34%), radial-gradient(circle at 78% 18%, rgba(65,105,225,0.22), transparent 34%), linear-gradient(145deg, #050505 0%, #101318 58%, #050505 100%)",
+        "linear-gradient(145deg, #050505 0%, #26140A 17%, #FF7A1A 33%, #101318 50%, #4169E1 67%, #10182B 83%, #050505 100%)",
     },
   },
   {

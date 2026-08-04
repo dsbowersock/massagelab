@@ -6,6 +6,10 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-04 — Static Gradient visual controls
+
+- Static Gradient is now a real low-cost CSS renderer with two to seven active colors, seven shared palette roles, linear and radial modes, linear direction, radial circle/ellipse shape and reach, movable radial center, and individually adjustable ordered color stops. The geometry persists through the existing per-background Visual draft without changing the background ID, and the auth-free `/dev/clock` surface exposes the same controls for Device Toolbar review.
+
 ## 2026-08-04 — Auth-free development Clock review surface
 
 - `/dev/clock` now renders the production Clock and background controls in local development with the canonical `premium_backgrounds` and `chimer_custom_colors` feature keys. It skips session and account-preference requests, persists review changes only under a separate local development key, and returns 404 in production. This gives Device Toolbar review the subscribed-user visual experience without login, account data, or copied environment files while leaving `/clock` behavior and stored preferences unchanged.

@@ -15,6 +15,7 @@ import {
   TWISTED_CUBES_SOURCE_BACKGROUND_COLOR,
   TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS,
 } from "../../lib/twisted-cubes-background.js"
+import { STATIC_GRADIENT_SOURCE_COLORS } from "../../lib/static-gradient-background.js"
 export {
   DNA_SOURCE_BACKGROUND_COLOR,
   DNA_SOURCE_CONNECTOR_COLOR,
@@ -100,8 +101,13 @@ const TWISTED_CUBES_OUTLINE_ROLE_IDS = Object.freeze([
 const AURORA_BAR_ROLE_IDS = Object.freeze([
   "bar-1", "bar-2", "bar-3", "bar-4", "bar-5",
 ] as const)
+const STATIC_GRADIENT_ROLE_IDS = Object.freeze([
+  "color-one", "color-two", "color-three", "color-four",
+  "color-five", "color-six", "color-seven",
+] as const)
 
 for (const [roleIds, sourceFallbacks] of [
+  [STATIC_GRADIENT_ROLE_IDS, STATIC_GRADIENT_SOURCE_COLORS],
   [DNA_NODE_ROLE_IDS, DNA_SOURCE_NODE_ROLE_COLORS],
   [TWISTED_CUBES_OUTLINE_ROLE_IDS, TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS],
   [AURORA_BAR_ROLE_IDS, AURORA_BARS_SOURCE_COLORS],
@@ -346,6 +352,19 @@ export function applyCssDomPaletteRoleColors<
   colors: Readonly<Record<string, string>>,
 ): BackgroundEffectProps {
   switch (backgroundId) {
+    case "static-gradient":
+      return {
+        ...props,
+        staticGradient: {
+          ...props.staticGradient,
+          colors: roleColorArray(
+            props.staticGradient?.colors,
+            STATIC_GRADIENT_ROLE_IDS,
+            colors,
+            STATIC_GRADIENT_SOURCE_COLORS,
+          ),
+        },
+      } satisfies BackgroundEffectProps
     case "massage-lab-moving-gradient":
       return {
         ...props,
@@ -588,6 +607,20 @@ function unsupported(spec: UnsupportedSpec): UnsupportedBackgroundPaletteAdapter
 }
 
 const SUPPORTED_SPECS: readonly SupportedSpec[] = [
+  {
+    id: "static-gradient",
+    family: "css-dom",
+    prefixes: ["staticGradient"],
+    roles: [
+      role("color-one", "Color 1", "staticGradientColorOne", "staticGradient.colors[0]"),
+      role("color-two", "Color 2", "staticGradientColorTwo", "staticGradient.colors[1]"),
+      role("color-three", "Color 3", "staticGradientColorThree", "staticGradient.colors[2]"),
+      role("color-four", "Color 4", "staticGradientColorFour", "staticGradient.colors[3]"),
+      role("color-five", "Color 5", "staticGradientColorFive", "staticGradient.colors[4]"),
+      role("color-six", "Color 6", "staticGradientColorSix", "staticGradient.colors[5]"),
+      role("color-seven", "Color 7", "staticGradientColorSeven", "staticGradient.colors[6]"),
+    ],
+  },
   { id: "massage-lab-moving-gradient", family: "css-dom", prefixes: ["movingBackground"], roles: [role("main", "Main light", "movingBackgroundMainColor", "mainColor"), role("orb", "Orb light", "movingBackgroundOrbColor", "orbColor")] },
   { id: "massage-lab-retro-grid", family: "webgl", prefixes: ["massageLabRetroGrid"], roles: [role("background", "Background", "massageLabRetroGridBackgroundColor", "massageLabRetroGrid.backgroundColor"), role("light-lines", "Light grid lines", "massageLabRetroGridLightLineColor", "massageLabRetroGrid.lightLineColor"), role("dark-lines", "Dark grid lines", "massageLabRetroGridDarkLineColor", "massageLabRetroGrid.darkLineColor")] },
   { id: "massage-lab-aerial-rays", family: "css-dom", prefixes: ["massageLabAerialRays"], roles: [role("background", "Background", "massageLabAerialRaysBackgroundColor", "massageLabAerialRays.backgroundColor"), role("rays", "Rays", "massageLabAerialRaysColor", "massageLabAerialRays.color")] },
@@ -767,7 +800,6 @@ const SUPPORTED_SPECS: readonly SupportedSpec[] = [
 ]
 
 const UNSUPPORTED_SPECS: readonly UnsupportedSpec[] = [
-  { id: "static-gradient", family: "css-dom" },
   { id: "massage-lab-prism", family: "webgl", prefixes: ["massageLabPrism"], reason: "Prism exposes spectral and hue controls rather than a concrete color target, so its source rendering remains unchanged during adapter migration." },
   { id: "massage-lab-dark-veil", family: "webgl", prefixes: ["massageLabDarkVeil"], reason: "Dark Veil exposes a hue shift rather than a concrete color target, so its source rendering remains unchanged during adapter migration." },
   { id: "massage-lab-aurora", family: "css-dom" },

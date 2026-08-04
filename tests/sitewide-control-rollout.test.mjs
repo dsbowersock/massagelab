@@ -107,7 +107,7 @@ test("review fixes preserve live route controls and interaction cleanup", async 
   assert.match(backgroundHost, /resolveBackgroundEffectProps/)
   assert.match(backgroundHost, /backgroundPalette/)
   assert.doesNotMatch(backgroundHost, /applyPaletteToBackgroundEffects/)
-  assert.match(backgroundHost, /<BackgroundComponent \{\.\.\.effectProps\} \/>/)
+  assert.match(backgroundHost, /<BackgroundComponent\s+\{\.\.\.effectProps\}/)
   assert.doesNotMatch(backgroundHost, /<BackgroundComponent\s+mainColor=/)
   assert.equal((controlCss.match(/^\.harmonyList \{/gm) ?? []).length, 1)
   assert.equal((controlCss.match(/^\.globalColorGrid \{/gm) ?? []).length, 1)

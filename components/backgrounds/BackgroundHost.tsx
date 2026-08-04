@@ -106,6 +106,7 @@ export function BackgroundHost(props: BackgroundHostProps) {
     [effectPropsInputSignature],
   )
   const {
+    staticGradient,
     mainColor,
     orbColor,
     sparkles,
@@ -215,6 +216,7 @@ export function BackgroundHost(props: BackgroundHostProps) {
   )
   const { baseEffectProps, effectProps } = useMemo(() => {
     const baseEffectProps = {
+    staticGradient,
     mainColor,
     orbColor,
     sparkles,
@@ -307,6 +309,7 @@ export function BackgroundHost(props: BackgroundHostProps) {
       }),
     }
   }, [
+    staticGradient,
     mainColor,
     orbColor,
     sparkles,
