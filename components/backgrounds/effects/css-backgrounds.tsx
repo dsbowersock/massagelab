@@ -85,7 +85,18 @@ export type MassageLabTwistedCubesHostOptions = Omit<
   "paletteMode" | "backgroundColor" | "outlineAnchors"
 >>
 
-export interface BackgroundEffectProps {
+/**
+ * Host-owned renderer lifecycle seam for duplicate-underlay suppression.
+ * `true` is reported only after a completed frame; initialization failure,
+ * teardown, and context loss report `false` so the Host restores its fallback.
+ */
+export interface BackgroundRendererLifecycleProps {
+  onRenderReadyChange?: (ready: boolean) => void
+  /** Narrow development-only failure seam supplied by guarded review fixtures. */
+  forceContextFailureForReview?: boolean
+}
+
+export interface BackgroundEffectProps extends BackgroundRendererLifecycleProps {
   reduceMotion?: boolean
   compactViewport?: boolean
   /** Host input is completed with the selected adapter's resolved role colors. */

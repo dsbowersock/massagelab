@@ -54,6 +54,8 @@ const OFFSCREEN_POINTER = -9999
 export default function MassageLabDotGridBackground({
   className,
   massageLabDotGrid,
+  onRenderReadyChange,
+  forceContextFailureForReview = false,
 }: BackgroundEffectProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const dotsRef = useRef<DotGridDot[]>([])
@@ -117,7 +119,19 @@ export default function MassageLabDotGridBackground({
 
   useEffect(() => {
     const canvas = canvasRef.current
-    const context = canvas?.getContext("2d", { alpha: true })
+    let reportedReadiness: boolean | null = null
+    const reportRenderReadiness = (ready: boolean) => {
+      if (reportedReadiness !== ready) {
+        reportedReadiness = ready
+        onRenderReadyChange?.(ready)
+      }
+    }
+    reportRenderReadiness(false)
+    const forceContextFailure = process.env.NODE_ENV !== "production"
+      && forceContextFailureForReview
+    const context = forceContextFailure
+      ? null
+      : canvas?.getContext("2d", { alpha: true })
 
     if (!canvas || !context) {
       return undefined
@@ -289,6 +303,7 @@ export default function MassageLabDotGridBackground({
         context.arc(dot.cx + dot.xOffset, dot.cy + dot.yOffset, options.dotSize / 2, 0, Math.PI * 2)
         context.fill()
       }
+      reportRenderReadiness(true)
 
       if (animate && !disposed) {
         frame = window.requestAnimationFrame(draw)
@@ -321,6 +336,7 @@ export default function MassageLabDotGridBackground({
 
     return () => {
       disposed = true
+      reportRenderReadiness(false)
       window.cancelAnimationFrame(frame)
       resizeObserver.disconnect()
       window.removeEventListener("resize", buildGrid)
@@ -334,7 +350,7 @@ export default function MassageLabDotGridBackground({
       canvas.width = 1
       canvas.height = 1
     }
-  }, [options])
+  }, [forceContextFailureForReview, onRenderReadyChange, options])
 
   return (
     <div className={cn(styles.massageLabDotGrid, className)} aria-hidden="true">

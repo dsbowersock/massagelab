@@ -415,9 +415,20 @@ test.describe("shared background palette review matrix", () => {
       await openPaletteGallery(page)
       const host = page.getByTestId("background-palette-live-host")
 
+      await page.getByLabel("Force live renderer context failure").check()
+      await selectBackground(page, "massage-lab-ripple-grid")
+      await expect(host).toHaveAttribute("data-background-effect-mounted", "true")
+      await expect(host).toHaveAttribute("data-background-effect-ready", "false")
+      await expect(host).toHaveAttribute("data-background-underlay", "visible")
+      expect(await host.locator(":scope > *").count(), `${viewport.name}:forced-failure`).toBe(2)
+      await page.getByLabel("Force live renderer context failure").uncheck()
+      await expect(host).toHaveAttribute("data-background-effect-ready", "true")
+      await expect(host).toHaveAttribute("data-background-underlay", "suppressed")
+
       for (const id of PATTERNED_ACTIVE_RENDERER_IDS) {
         await selectBackground(page, id)
         await expect(host).toHaveAttribute("data-background-effect-mounted", "true")
+        await expect(host).toHaveAttribute("data-background-effect-ready", "true")
         await expect(host).toHaveAttribute("data-background-underlay", "suppressed")
         expect(await host.locator(":scope > *").count(), `${viewport.name}:${id}`).toBe(1)
       }
@@ -445,6 +456,27 @@ test.describe("shared background palette review matrix", () => {
         body: await host.screenshot(),
         contentType: "image/png",
       })
+
+      const contextLossSupported = await rippleCanvas.evaluate((element) => {
+        const gl = (element as HTMLCanvasElement).getContext("webgl")
+        const extension = gl?.getExtension("WEBGL_lose_context")
+        if (!extension) return false
+        Reflect.set(window, "__rippleContextLossExtension", extension)
+        extension.loseContext()
+        return true
+      })
+      expect(contextLossSupported, `${viewport.name}:ripple:context-loss-extension`).toBe(true)
+      await expect(host).toHaveAttribute("data-background-effect-ready", "false")
+      await expect(host).toHaveAttribute("data-background-underlay", "visible")
+      await page.evaluate(() => {
+        const extension = Reflect.get(window, "__rippleContextLossExtension")
+        if (!extension || typeof extension.restoreContext !== "function") {
+          throw new Error("Ripple Grid context-loss extension was not retained for restore.")
+        }
+        extension.restoreContext()
+      })
+      await expect(host).toHaveAttribute("data-background-effect-ready", "true")
+      await expect(host).toHaveAttribute("data-background-underlay", "suppressed")
 
       await selectBackground(page, "massage-lab-dark-veil")
       const darkVeilCanvas = host.locator("canvas")
@@ -500,6 +532,7 @@ test.describe("shared background palette review matrix", () => {
     const host = page.getByTestId("background-palette-live-host")
     await expect(host).toHaveAttribute("data-background-diagnostic-reduced-motion", "true")
     await expect(host).toHaveAttribute("data-background-effect-mounted", "false")
+    await expect(host).toHaveAttribute("data-background-effect-ready", "false")
     await expect(host).toHaveAttribute("data-background-underlay", "visible")
     expect(health.pageErrors).toEqual([])
     expect(health.consoleErrors).toEqual([])

@@ -30,6 +30,8 @@ const DEFAULT_MASSAGELAB_SHAPE_GRID: ResolvedShapeGridOptions = {
 export default function MassageLabShapeGridBackground({
   className,
   massageLabShapeGrid,
+  onRenderReadyChange,
+  forceContextFailureForReview = false,
 }: BackgroundEffectProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const gridOffsetRef = useRef({ x: 0, y: 0 })
@@ -43,7 +45,19 @@ export default function MassageLabShapeGridBackground({
 
   useEffect(() => {
     const canvas = canvasRef.current
-    const context = canvas?.getContext("2d", { alpha: true })
+    let reportedReadiness: boolean | null = null
+    const reportRenderReadiness = (ready: boolean) => {
+      if (reportedReadiness !== ready) {
+        reportedReadiness = ready
+        onRenderReadyChange?.(ready)
+      }
+    }
+    reportRenderReadiness(false)
+    const forceContextFailure = process.env.NODE_ENV !== "production"
+      && forceContextFailureForReview
+    const context = forceContextFailure
+      ? null
+      : canvas?.getContext("2d", { alpha: true })
 
     if (!canvas || !context) {
       return undefined
@@ -345,6 +359,7 @@ export default function MassageLabShapeGridBackground({
 
       updateCellOpacities()
       drawGrid()
+      reportRenderReadiness(true)
       if (animate && !disposed) {
         animationFrame = window.requestAnimationFrame(updateAnimation)
       }
@@ -373,6 +388,7 @@ export default function MassageLabShapeGridBackground({
 
     return () => {
       disposed = true
+      reportRenderReadiness(false)
       window.cancelAnimationFrame(animationFrame)
       resizeObserver.disconnect()
       window.removeEventListener("resize", resize)
@@ -388,7 +404,7 @@ export default function MassageLabShapeGridBackground({
       canvas.width = 1
       canvas.height = 1
     }
-  }, [options])
+  }, [forceContextFailureForReview, onRenderReadyChange, options])
 
   return (
     <canvas

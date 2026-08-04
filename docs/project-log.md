@@ -8,7 +8,7 @@ Catalog naming note: `MassageLaba Lamp` is the established catalog label for the
 
 ## 2026-08-04 — Background layering and framing remediation
 
-- Active Ripple Grid, Dot Field, Dot Grid, and Shape Grid now remove only their duplicate patterned fallback after mount; non-mounted loading, error, and reduced-motion fallbacks remain. Ripple Grid has bounded non-transparent edge coverage, and Dark Veil uses drawing-buffer resolution. Focused contracts, the desktop-Chromium phone visual gate at 390×844 and 844×390 (initial/later frames, runtime health, reduced motion, overflow, underlay, edge alpha, and Dark Veil framing), typecheck, lint, build, and diff checks passed.
+- Active Ripple Grid, Dot Field, Dot Grid, and Shape Grid now remove only their duplicate patterned fallback after the current renderer completes a frame. Initial paint, lazy import, initialization failure, WebGL context loss, and reduced-motion non-mounts retain the fallback; Ripple Grid rebuilds after context restore before suppressing it again. Ripple Grid also has bounded non-transparent edge coverage, and Dark Veil uses drawing-buffer resolution. Focused contracts, the desktop-Chromium phone visual gate at 390×844 and 844×390 (forced failure, first-draw transition, context loss/restore, initial/later frames, runtime health, reduced motion, overflow, underlay, edge alpha, and Dark Veil framing), typecheck, lint, build, and diff checks passed.
 
 ## 2026-08-03 — Background branding audit readiness
 

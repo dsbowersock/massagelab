@@ -1,7 +1,7 @@
 /**
  * These renderers paint their own patterned field. Their registry fallback is
- * useful before lazy mount, but duplicates the visible active renderer after it
- * mounts, including when that renderer is static for reduced motion.
+ * useful through lazy import and renderer initialization, but duplicates the
+ * active renderer after that renderer has completed its first frame.
  */
 export const PATTERNED_ACTIVE_RENDERER_IDS: ReadonlySet<string> = new Set([
   "massage-lab-ripple-grid",
@@ -10,13 +10,48 @@ export const PATTERNED_ACTIVE_RENDERER_IDS: ReadonlySet<string> = new Set([
   "massage-lab-shape-grid",
 ])
 
-/** Preserves non-mounted fallbacks and limits underlay suppression to proven duplicate patterns. */
+export interface BackgroundRendererAttempt {
+  backgroundId: string
+  loadGeneration: number
+}
+
+export type BackgroundRendererReadinessAction = {
+  attempt: BackgroundRendererAttempt
+  ready: boolean
+}
+
+function isSameRendererAttempt(
+  left: BackgroundRendererAttempt | null,
+  right: BackgroundRendererAttempt,
+): boolean {
+  return left?.backgroundId === right.backgroundId
+    && left.loadGeneration === right.loadGeneration
+}
+
+/**
+ * Tracks the exact lazy-load generation that completed a frame. A stale
+ * renderer cleanup cannot clear a newer attempt for the same background ID.
+ */
+export function reduceBackgroundRendererReadiness(
+  currentReadyAttempt: BackgroundRendererAttempt | null,
+  { attempt, ready }: BackgroundRendererReadinessAction,
+): BackgroundRendererAttempt | null {
+  if (ready) {
+    return attempt
+  }
+
+  return isSameRendererAttempt(currentReadyAttempt, attempt)
+    ? null
+    : currentReadyAttempt
+}
+
+/** Preserves fallbacks until a proven duplicate renderer completes a frame. */
 export function shouldRenderBackgroundFallbackUnderlay({
   backgroundId,
-  effectMounted,
+  effectReady,
 }: {
   backgroundId: string
-  effectMounted: boolean
+  effectReady: boolean
 }): boolean {
-  return !effectMounted || !PATTERNED_ACTIVE_RENDERER_IDS.has(backgroundId)
+  return !effectReady || !PATTERNED_ACTIVE_RENDERER_IDS.has(backgroundId)
 }

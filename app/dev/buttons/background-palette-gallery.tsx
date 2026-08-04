@@ -637,6 +637,7 @@ export function BackgroundPaletteGallery() {
     Partial<Record<BackgroundId, BackgroundColorMapping>>
   >({})
   const [forceLiveReviewAnimation, setForceLiveReviewAnimation] = useState(true)
+  const [forceLiveRendererContextFailure, setForceLiveRendererContextFailure] = useState(false)
   const { settings } = useSettings()
   const reducedMotion = useAmbientReducedMotion(settings.ambientMotionMode)
 
@@ -905,6 +906,15 @@ export function BackgroundPaletteGallery() {
           />
           Force live review animation
         </label>
+        <label className="flex items-center gap-2 text-sm font-medium">
+          <input
+            type="checkbox"
+            checked={forceLiveRendererContextFailure}
+            onChange={(event) => setForceLiveRendererContextFailure(event.currentTarget.checked)}
+            aria-label="Force live renderer context failure"
+          />
+          Force live renderer context failure
+        </label>
 
         {adapter && selectedBackground ? (
           <>
@@ -1002,6 +1012,7 @@ export function BackgroundPaletteGallery() {
                   motionEnabled
                   forceEffectMount
                   forceAmbientMotionForReview={forceLiveReviewAnimation}
+                  forceRendererContextFailureForReview={forceLiveRendererContextFailure}
                   testId="background-palette-live-host"
                   diagnostics
                 />

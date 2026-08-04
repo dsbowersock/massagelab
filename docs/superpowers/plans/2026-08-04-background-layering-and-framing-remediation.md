@@ -4,15 +4,15 @@
 
 **Goal:** Remove four proven duplicate patterned underlays, make Ripple Grid visibly cover the full viewport, and keep Dark Veil framed at every supported resolution scale.
 
-**Architecture:** Keep fallback ownership in `BackgroundHost`, with a small typed policy that suppresses a fallback only when the matching live renderer is visibly mounted. The policy is independent of whether that mounted renderer is animated, paused, or reduced-motion static. Ripple Grid retains its aspect and palette math but changes edge falloff from transparency to bounded brightness. Dark Veil gives its shader drawing-buffer dimensions, the same coordinate space used by `gl_FragCoord`.
+**Architecture:** Keep fallback ownership in `BackgroundHost`, with a typed, generation-keyed readiness handshake that suppresses a fallback only after the matching live renderer completes its first frame. Lazy import and React mount remain separate diagnostics, while initialization failure, teardown, and WebGL context loss reset readiness and restore the fallback. The handshake is an optional callback on the existing renderer props, not a global event bus. Ripple Grid retains its aspect and palette math but changes edge falloff from transparency to bounded brightness. Dark Veil gives its shader drawing-buffer dimensions, the same coordinate space used by `gl_FragCoord`.
 
 **Tech Stack:** Next.js 16, React 19, TypeScript, raw WebGL, Canvas 2D, Node `node:test`, Playwright desktop Chromium with phone-sized viewports.
 
 ## Global Constraints
 
 - Scope is exactly Ripple Grid, Dot Field, Dot Grid, Shape Grid, Dark Veil, and the shared host seam necessary for their layering.
-- Suppress only the four proven patterned fallbacks after their matching live effect mounts. Retain fallbacks for initial paint, loading, errors, and every non-mounted renderer.
-- A visibly mounted static or reduced-motion effect also suppresses its duplicate underlay; do not preserve a duplicate merely because motion is paused or reduced.
+- Suppress only the four proven patterned fallbacks after their matching live effect completes a successful frame. Retain fallbacks for initial paint, lazy import, mounted-but-not-drawn initialization, failures, context loss, and every non-mounted renderer.
+- A static or reduced-motion effect that successfully paints a representative frame suppresses its duplicate underlay; a reduced-motion non-mount retains it.
 - Do not alter other or transparent-effect fallback behavior.
 - Ripple Grid retains current responsive aspect behavior, source/rainbow/custom/harmony palette behavior, option names/bounds, and cursor behavior.
 - Dark Veil retains its `0.25..1` resolution-scale range, controls, and persistence contract.
@@ -29,12 +29,37 @@
 - Create `components/backgrounds/backgroundUnderlayPolicy.ts`: pure typed decision for the Host fallback element.
 - Create `tests/background-underlay-policy.test.mjs`: mount, static/reduced mount, loading/error, and unrelated-effect unit coverage.
 - Modify `components/backgrounds/BackgroundHost.tsx`: consume the policy and expose its resolved state to diagnostics.
+- Modify `components/backgrounds/effects/css-backgrounds.tsx`: add the Host-owned typed renderer lifecycle props.
+- Modify exactly `massage-lab-ripple-grid-background.tsx`, `massage-lab-dot-field-background.tsx`, `massage-lab-dot-grid-background.tsx`, and `massage-lab-shape-grid-background.tsx`: report failure/reset and first-frame readiness.
 - Modify `components/backgrounds/effects/massage-lab-ripple-grid-background.tsx`: full-frame opaque edge coverage.
 - Modify `components/backgrounds/effects/massage-lab-dark-veil-background.tsx`: drawing-buffer shader resolution.
 - Modify `tests/background-options.test.mjs`: source contracts for both shader invariants.
 - Modify `app/dev/buttons/background-palette-gallery.tsx`: dev-only force-motion control and deterministic Dark Veil minimum-scale fixture.
 - Modify `tests/browser/background-palette.spec.ts`: real-renderer responsive, visual, and reduced-motion proof.
+- Create `tests/background-renderer-readiness.test.mjs`: Host/renderer lifecycle source contracts.
 - Modify `docs/project-log.md`: factual completion record after all checks pass.
+
+## Approved final-review amendment — first-successful-frame readiness
+
+This amendment is authoritative and supersedes the original Task 1 wording below that equates an imported or mounted `BackgroundComponent` with a visible renderer.
+
+### Amended interfaces
+
+- `BackgroundRendererLifecycleProps` adds optional `onRenderReadyChange(ready: boolean)` and a guarded development-only null-context seam. `BackgroundHostProps` omits those renderer-owned fields so production callers cannot supply the lifecycle callback.
+- `BackgroundHost` gives every lazy-load attempt a monotonically increasing generation and stores the exact `{ backgroundId, loadGeneration }` that reported a successful frame. A stale cleanup from an older generation cannot clear a newer ready attempt.
+- `shouldRenderBackgroundFallbackUnderlay({ backgroundId, effectReady })` suppresses only the exact four proven patterned underlays, and only while their current generation is ready.
+- `data-background-effect-mounted` continues to describe import/mount state. New `data-background-effect-ready` describes first-frame state for the exact four readiness-aware renderers.
+- Ripple Grid, Dot Field, Dot Grid, and Shape Grid report `false` before initialization and during cleanup, and `true` immediately after a completed draw. Null Canvas/WebGL initialization therefore retains the fallback.
+- Ripple Grid prevents default WebGL context-loss disposal, cancels drawing, reports `false`, rebuilds resources on `webglcontextrestored`, and reports `true` only after the restored context draws.
+
+### Final-review fix task
+
+- [x] Add failing unit/source contracts for initial, imported-not-drawn, first-draw, failure/reset, stale-generation, and WebGL loss/restore semantics.
+- [x] Implement the typed generation-keyed Host/renderer callback without state updates during render or unstable callback dependencies.
+- [x] Add a development-gallery checkbox that forces null context only when diagnostics are enabled and `NODE_ENV !== "production"`.
+- [x] Extend the real browser gate to prove forced initialization failure keeps the fallback, removing the force leads to first-draw suppression, Ripple context loss restores the fallback, context restore draws before suppression, and reduced-motion non-mount remains visible.
+- [x] Run focused Node contracts, typecheck, lint, build, the exact isolated-port browser gate, and `git diff --check`; inspect any persisted screenshots.
+- [x] Record exact receipts in the SDD ledger/report and leave the final verdict pending scoped re-review.
 
 ### Task 1: Add a typed, mount-aware fallback-underlay policy
 
@@ -328,7 +353,7 @@ git commit -m "Fix Dark Veil resolution-scale framing"
 **Interfaces:**
 
 - Consumes: existing guarded `/dev/buttons` review fixture and `BackgroundHost` diagnostics.
-- Produces: a development-only `Force live review animation` checkbox (default `true`) and deterministic `massageLabDarkVeil={{ resolutionScale: 0.25, speed: 1 }}` fixture props.
+- Produces: development-only `Force live review animation` (default `true`) and `Force live renderer context failure` (default `false`) checkboxes plus deterministic `massageLabDarkVeil={{ resolutionScale: 0.25, speed: 1 }}` fixture props.
 - Produces: attached Playwright output images only; no committed image/media asset. Its Ripple Grid fixture uses non-default `opacity: 0.5` so stored corner alpha and browser-visible compositing can prove the corrected linear, bounded premultiplied-alpha contract.
 - Uses: existing `desktop-chromium` project with explicit phone-sized viewports.
 
@@ -499,7 +524,7 @@ Expected: no output and exit code 0.
 
 - [ ] **Step 4: Add the factual project-log entry**
 
-Add `## 2026-08-04 — Background layering and framing remediation` and one bullet stating: active Ripple Grid, Dot Field, Dot Grid, and Shape Grid now remove only their duplicate patterned fallback after mount; non-mounted loading/error/reduced-motion fallbacks remain; Ripple Grid has bounded non-transparent edge coverage; and Dark Veil uses drawing-buffer resolution. Include the exact phone viewport and validation coverage. Do not mention preview/media/adaptive-runtime work, catalog work, or unrelated renderers.
+Add `## 2026-08-04 — Background layering and framing remediation` and one bullet stating: active Ripple Grid, Dot Field, Dot Grid, and Shape Grid now remove only their duplicate patterned fallback after the current renderer completes a frame; loading, initialization failure, context loss, and reduced-motion non-mounts retain it; Ripple Grid has bounded non-transparent edge coverage; and Dark Veil uses drawing-buffer resolution. Include the exact phone viewport and validation coverage. Do not mention preview/media/adaptive-runtime work, catalog work, or unrelated renderers.
 
 - [ ] **Step 5: Re-run documentation-sensitive focused contracts**
 
@@ -520,8 +545,8 @@ git commit -m "Document background layering remediation"
 
 ## Self-Review
 
-- Spec coverage: Task 1 is targeted to exactly four fallback IDs and explicitly handles mounted static/reduced state; Task 2 preserves Ripple Grid's aspect/palette/options while ending transparent edges; Task 3 fixes Dark Veil's full-frame coordinate mismatch at every existing scale; Task 4 provides portrait, landscape, initial/later-frame, runtime-health, visual, and reduced-motion evidence; Task 5 runs the required validation gates.
-- Type consistency: Task 1 defines and Host consumes the exact `{ backgroundId, effectMounted }` signature. Browser assertions use exactly `visible` and `suppressed`, which Task 1 writes. Source assertions in Tasks 2 and 3 match their implementation snippets.
+- Spec coverage: the amended Task 1 is targeted to exactly four fallback IDs and explicitly covers import, successful static/animated frames, initialization failure, teardown, stale generation, reduced-motion non-mount, and WebGL context loss/restore; Task 2 preserves Ripple Grid's aspect/palette/options while ending transparent edges; Task 3 fixes Dark Veil's full-frame coordinate mismatch at every existing scale; Task 4 provides portrait, landscape, initial/later-frame, runtime-health, visual, and reduced-motion evidence; Task 5 runs the required validation gates.
+- Type consistency: the amended Task 1 defines and Host consumes the exact `{ backgroundId, effectReady }` policy signature plus the renderer-owned readiness callback. Browser assertions use exactly `visible` and `suppressed`, which Task 1 writes. Source assertions in Tasks 2 and 3 match their implementation snippets.
 - Placeholder scan: no TBD, TODO, “implement later”, undefined helper, or generic test instruction remains. Each task has exact paths, code, commands, expected results, and a commit boundary.
 
 ## Execution Handoff
