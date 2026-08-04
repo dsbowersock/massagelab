@@ -176,7 +176,8 @@ export default function MassageLabRippleGridBackground({
       antialias: false,
       depth: false,
       powerPreference: "high-performance",
-      premultipliedAlpha: false,
+      // Shader output and blending are premultiplied so browser composition applies opacity once.
+      premultipliedAlpha: true,
       preserveDrawingBuffer: false,
       stencil: false,
     })

@@ -4138,6 +4138,8 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /float alpha = length\(color\) \* finalFade \* opacity;/)
     assert.match(effectSource, /gl\.blendFunc\(gl\.ONE, gl\.ONE_MINUS_SRC_ALPHA\)/)
     assert.doesNotMatch(effectSource, /gl\.blendFunc\(gl\.SRC_ALPHA, gl\.ONE_MINUS_SRC_ALPHA\)/)
+    assert.match(effectSource, /premultipliedAlpha:\s*true/)
+    assert.doesNotMatch(effectSource, /premultipliedAlpha:\s*false/)
 
     assert.match(stylesSource, /massageLabRippleGridCanvas/)
     assert.match(hostSource, /massageLabRippleGrid/)
