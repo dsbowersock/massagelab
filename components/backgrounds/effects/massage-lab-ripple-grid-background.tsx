@@ -149,7 +149,9 @@ void main() {
 
     // Edge controls shape grid brightness but must not reveal the Host underlay.
     float edgeCoverage = mix(0.72, 1.0, radialFade * vignette);
-    gl_FragColor = vec4(color * t * edgeCoverage * opacity, opacity);
+    // Bound straight RGB before premultiplication so each channel remains at or below alpha.
+    vec3 straightColor = clamp(color * t * edgeCoverage, 0.0, 1.0);
+    gl_FragColor = vec4(straightColor * opacity, opacity);
 }
 `
 

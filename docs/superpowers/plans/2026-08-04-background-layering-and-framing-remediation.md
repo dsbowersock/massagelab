@@ -190,7 +190,7 @@ git commit -m "Fix duplicate patterned background underlays"
 
 - Consumes: existing `iResolution`, `gridColor`, `enableRainbow`, `fadeDistance`, `vignetteStrength`, and `opacity` uniforms.
 - Preserves: `MassageLabRippleGridBackground`, `ResolvedRippleGridOptions`, aspect correction, palette adaptation, pointer behavior, resize/DPR handling, and all option bounds.
-- Produces: nonzero alpha at all four corners when `opacity > 0`; fade/vignette shape brightness rather than revealing the Host underlay. The fragment shader emits premultiplied RGB multiplied once by `opacity` and alpha equal to `opacity`; WebGL uses `gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)` and the context declares `premultipliedAlpha: true`, so drawing-buffer and browser-visible alpha remain linear rather than squared or re-multiplied.
+- Produces: nonzero alpha at all four corners when `opacity > 0`; fade/vignette shape brightness rather than revealing the Host underlay. The fragment shader clamps straight RGB to `0..1` before multiplying it once by `opacity`, and emits alpha equal to `opacity`; WebGL uses `gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)` and the context declares `premultipliedAlpha: true`, so drawing-buffer and browser-visible alpha remain linear, bounded, and never squared or re-multiplied.
 
 - [ ] **Step 1: Add failing source-contract assertions**
 
@@ -199,7 +199,9 @@ In the existing Ripple Grid test in `tests/background-options.test.mjs`, add:
 ```js
     assert.match(effectSource, /float radialFade = exp\(-2\.0 \* clamp\(pow\(dist, fadeDistance\), 0\.0, 1\.0\)\);/)
     assert.match(effectSource, /float edgeCoverage = mix\(0\.72, 1\.0, radialFade \* vignette\);/)
-    assert.match(effectSource, /gl_FragColor = vec4\(color \* t \* edgeCoverage \* opacity, opacity\);/)
+    assert.match(effectSource, /vec3 straightColor = clamp\(color \* t \* edgeCoverage, 0\.0, 1\.0\);/)
+    assert.match(effectSource, /gl_FragColor = vec4\(straightColor \* opacity, opacity\);/)
+    assert.doesNotMatch(effectSource, /gl_FragColor = vec4\(color \* t \* edgeCoverage \* opacity, opacity\);/)
     assert.doesNotMatch(effectSource, /float alpha = length\(color\) \* finalFade \* opacity;/)
     assert.match(effectSource, /gl\.blendFunc\(gl\.ONE, gl\.ONE_MINUS_SRC_ALPHA\)/)
     assert.doesNotMatch(effectSource, /gl\.blendFunc\(gl\.SRC_ALPHA, gl\.ONE_MINUS_SRC_ALPHA\)/)
@@ -231,10 +233,11 @@ Immediately before output, use:
 ```glsl
     // Edge controls shape grid brightness but must not reveal the Host underlay.
     float edgeCoverage = mix(0.72, 1.0, radialFade * vignette);
-    gl_FragColor = vec4(color * t * edgeCoverage * opacity, opacity);
+    vec3 straightColor = clamp(color * t * edgeCoverage, 0.0, 1.0);
+    gl_FragColor = vec4(straightColor * opacity, opacity);
 ```
 
-Use `gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)` and `premultipliedAlpha: true` for the premultiplied shader output; `SRC_ALPHA` would square the stored alpha and a straight-alpha context could re-multiply RGB during browser composition. Do not alter `uv.x *= iResolution.x / iResolution.y`, rotation, ripple/cursor calculations, palette branch, uniforms, or options. The explicit `0.72` minimum keeps corners visibly patterned while alpha remains full-buffer `opacity`.
+Clamp the straight RGB to `0..1` before premultiplication so every RGB channel remains bounded by alpha. Use `gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)` and `premultipliedAlpha: true` for the premultiplied shader output; `SRC_ALPHA` would square the stored alpha and a straight-alpha context could re-multiply RGB during browser composition. Do not alter `uv.x *= iResolution.x / iResolution.y`, rotation, ripple/cursor calculations, palette branch, uniforms, or options. The explicit `0.72` minimum keeps corners visibly patterned while alpha remains full-buffer `opacity`.
 
 - [ ] **Step 4: Run focused source and palette tests**
 
@@ -326,7 +329,7 @@ git commit -m "Fix Dark Veil resolution-scale framing"
 
 - Consumes: existing guarded `/dev/buttons` review fixture and `BackgroundHost` diagnostics.
 - Produces: a development-only `Force live review animation` checkbox (default `true`) and deterministic `massageLabDarkVeil={{ resolutionScale: 0.25, speed: 1 }}` fixture props.
-- Produces: attached Playwright output images only; no committed image/media asset. Its Ripple Grid fixture uses non-default `opacity: 0.5` so stored corner alpha and browser-visible compositing can prove the corrected linear premultiplied-alpha contract.
+- Produces: attached Playwright output images only; no committed image/media asset. Its Ripple Grid fixture uses non-default `opacity: 0.5` so stored corner alpha and browser-visible compositing can prove the corrected linear, bounded premultiplied-alpha contract.
 - Uses: existing `desktop-chromium` project with explicit phone-sized viewports.
 
 - [ ] **Step 1: Add the failing browser test**
