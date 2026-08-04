@@ -133,7 +133,6 @@ export function GridMotionMantraEditor({ value, onChange }: GridMotionMantraEdit
               className={styles.input}
               type="text"
               value={drafts[index] ?? mantra}
-              maxLength={GRID_MOTION_MANTRA_CHARACTER_LIMIT}
               aria-label={`Mantra ${index + 1}`}
               onFocus={() => {
                 focusedIndexRef.current = index
@@ -146,6 +145,7 @@ export function GridMotionMantraEditor({ value, onChange }: GridMotionMantraEdit
               variant="ghost"
               size="compact"
               className={styles.removeButton}
+              aria-label={`Remove mantra ${index + 1}: ${mantra}`}
               onClick={() => removeMantra(index)}
               disabled={value.length === 1}
             >Remove mantra</Button>

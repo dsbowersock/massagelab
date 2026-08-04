@@ -184,7 +184,7 @@ git commit -m "fix: make Grid Motion responsive and autonomous"
 
 - [ ] **Step 1: Write the failing shared-editor source test**
 
-Require the component to render the exact heading/helper/add/remove copy from Global Constraints, `maxLength={GRID_MOTION_MANTRA_CHARACTER_LIMIT}`, one explicitly labeled input per item, an Add button disabled at ten, and Remove disabled when one item remains. Require both `set-timer.tsx` and `running-timer.tsx` to import and render the shared component rather than duplicate input markup.
+Require the component to render the exact heading/helper/add/remove copy from Global Constraints, one explicitly labeled input per item, an Add button disabled at ten, and Remove disabled when one item remains. Require the in-focus draft limiter to enforce `GRID_MOTION_MANTRA_CHARACTER_LIMIT` with Unicode code points and require the input to omit native `maxLength`, which would preempt astral characters because HTML counts UTF-16 code units. Require each visible Remove button to have a unique indexed and phrase-specific accessible label. Require both `set-timer.tsx` and `running-timer.tsx` to import and render the shared component rather than duplicate input markup.
 
 - [ ] **Step 2: Run the focused editor test and confirm it fails**
 
@@ -194,7 +194,7 @@ Expected: FAIL because the shared editor does not exist.
 
 - [ ] **Step 3: Implement controlled editing without a blank-slate state**
 
-Render a compact fieldset-like group under the existing Grid Motion motion controls. For each entry, render a text input with `maxLength={28}`, `aria-label={`Mantra ${index + 1}`}`, and a remove `Button` using the established compact destructive/ghost treatment. On change, pass `normalizeGridMotionMantra(event.target.value)` into a copied array; a fourth word is discarded and overlong input is capped. Add appends `"I am calm"` only when fewer than ten entries exist. Remove is disabled at one entry. Call `onChange` only with 1-10 normalized entries.
+Render a compact fieldset-like group under the existing Grid Motion motion controls. For each entry, render a text input without native `maxLength`, give the input an indexed accessible name such as "Mantra 1", and give the compact destructive/ghost Remove `Button` a unique indexed and phrase-specific accessible name such as "Remove mantra 1: I am grounded". On change, bound the local draft with `Array.from(...)` before passing `normalizeGridMotionMantra(...)` into a copied array; a fourth word is discarded and overlong input is capped at 28 Unicode code points. Add appends `"I am calm"` only when fewer than ten entries exist. Remove is disabled at one entry. Call `onChange` only with 1-10 normalized entries.
 
 - [ ] **Step 4: Integrate the same component in both control surfaces**
 

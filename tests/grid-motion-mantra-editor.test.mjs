@@ -2,6 +2,8 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import test from "node:test"
 
+import { normalizeGridMotionMantra } from "../lib/grid-motion-mantras.js"
+
 const editorSource = await readFile(
   new URL("../app/chimer/grid-motion-mantra-editor.tsx", import.meta.url),
   "utf8",
@@ -28,10 +30,25 @@ test("shared editor exposes the approved accessible controls and limits", () => 
   )
   assert.match(editorSource, />Add mantra</)
   assert.match(editorSource, />Remove mantra</)
-  assert.match(editorSource, /maxLength=\{GRID_MOTION_MANTRA_CHARACTER_LIMIT\}/)
   assert.match(editorSource, /aria-label=\{`Mantra \$\{index \+ 1\}`\}/)
+  assert.match(
+    editorSource,
+    /aria-label=\{`Remove mantra \$\{index \+ 1\}: \$\{mantra\}`\}/,
+  )
   assert.match(editorSource, /disabled=\{value\.length >= GRID_MOTION_MANTRA_LIMIT\}/)
   assert.match(editorSource, /disabled=\{value\.length === 1\}/)
+})
+
+test("astral drafts can reach 28 Unicode code points without native preemption", () => {
+  const twentyEightAstralCharacters = "🪷".repeat(28)
+
+  assert.equal(normalizeGridMotionMantra(twentyEightAstralCharacters), twentyEightAstralCharacters)
+  assert.equal(Array.from(twentyEightAstralCharacters).length, 28)
+  assert.match(
+    editorSource,
+    /Array\.from\(value\)[\s\S]*?\.slice\(0, GRID_MOTION_MANTRA_CHARACTER_LIMIT\)/,
+  )
+  assert.doesNotMatch(editorSource, /\bmaxLength=/)
 })
 
 test("focused drafts preserve typable spaces without publishing blank values", () => {
