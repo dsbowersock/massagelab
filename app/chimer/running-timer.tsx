@@ -1513,6 +1513,7 @@ export function RunningTimer({
 }: RunningTimerProps) {
   const router = useRouter()
   const creditStatus = useBackgroundCreditStatus()
+  const [activePanel, setActivePanel] = useState<ImmersivePanelId>(null)
   const effectiveBackgroundAccess = backgroundAccess
   const isPaused = status === "paused"
   const isComplete = status === "complete"
@@ -1525,6 +1526,10 @@ export function RunningTimer({
   const visualBackgroundId = selectedBackgroundDefinition.id
   const isLiveBackgroundSession = status === "running" || status === "paused" || status === "clock"
   const shouldRenderLiveBackground = mode.selectedBackgroundId !== null && (isLiveBackgroundSession || !canUseBackgroundId(backgroundId, effectiveBackgroundAccess, backgroundCategory))
+  // Background is an opaque full-screen modal, so retain no hidden canvas/WebGL
+  // renderer beneath it. The selected ID and all render settings remain in this
+  // parent and are passed unchanged when closing remounts the host.
+  const shouldSuspendCoveredLiveBackground = activePanel === "background"
   const astralFlowDisplaySpeed = getMassageLabAstralFlowDisplaySpeed(massageLabAstralFlowSpeed)
   const deepSpaceNebulaDisplaySpeed = getMassageLabDeepSpaceNebulaDisplaySpeed(massageLabDeepSpaceNebulaSpeed)
   const gridBloomDisplaySpeed = getMassageLabGridBloomDisplaySpeed(massageLabGridBloomSpeed)
@@ -1538,7 +1543,6 @@ export function RunningTimer({
   const photonBeamSpeed = getMassageLabPhotonBeamDisplaySpeed(massageLabPhotonBeamSpeedGlobal)
   const synthesisDisplaySpeed = getMassageLabSynthesisDisplaySpeed(massageLabSynthesisSpeed)
   const [primaryDisplay, setPrimaryDisplay] = useState<PrimaryDisplay>(isClockMode ? "currentTime" : "timer")
-  const [activePanel, setActivePanel] = useState<ImmersivePanelId>(null)
   const [visualDraft, setVisualDraft] = useState<ReturnType<typeof createBackgroundVisualDraft> | null>(null)
   const [pendingVisualIntent, setPendingVisualIntent] = useState<PendingVisualIntent | null>(null)
   const [deferredVisualRebase, setDeferredVisualRebase] = useState<VisualAccessRebaseIntent | null>(null)
@@ -12442,7 +12446,7 @@ export function RunningTimer({
 
   return (
     <section className={`${styles.container} ${isClockMode ? styles.clockMode : ""} ${isAlerting ? styles.alerting : ""}`} aria-label={mode.context === "musicVisualizer" ? "Music visualizer" : isClockMode ? "Chimer clock" : "Running Chimer timer"} style={containerStyle} data-immersive-stage>
-      {shouldRenderLiveBackground && (
+      {shouldRenderLiveBackground && !shouldSuspendCoveredLiveBackground && (
         <BackgroundHost
           key={`${mode.context}:${backgroundId}`}
           className={premiumBackgroundClassName}

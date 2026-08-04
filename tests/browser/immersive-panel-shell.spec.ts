@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test"
 
+const CHIMER_STORAGE_KEY = "massagelab-chimer-settings"
 const VISUAL_PANEL_OPENED_STORAGE_KEY = "massagelab.chimer.visual-panel-opened.v1"
 
 async function waitForStageReservation(page: Page) {
@@ -374,6 +375,35 @@ test("Background is modal, restores focus, and uses outside dismissal only when 
   await page.getByRole("button", { name: "Close Background panel" }).press("Enter")
   await expect(background).toHaveCount(0)
   await expect(backgroundControl).toBeFocused()
+})
+
+test("mobile Background picker releases and safely remounts the covered live host", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "phone-first renderer lifecycle regression")
+  await page.addInitScript((key) => {
+    localStorage.setItem(key, JSON.stringify({
+      backgroundId: "massage-lab-moving-gradient",
+      movingBackgroundEnabled: true,
+    }))
+  }, CHIMER_STORAGE_KEY)
+  await openClock(page)
+
+  const host = page.locator('[data-background-id][aria-hidden="true"]')
+  const selectedId = await host.getAttribute("data-background-id")
+  expect(selectedId).toBeTruthy()
+
+  await page.getByRole("button", { name: "Background", exact: true }).click()
+  const picker = page.getByRole("dialog", { name: "Background" })
+  await expect(picker).toBeVisible()
+  await expect(host).toHaveCount(0)
+  // Some legacy cards retain paused video frames when no authored poster exists;
+  // the active centered card remains the carousel's single playing preview.
+  await expect.poll(async () => picker.getByTestId("carousel-background-video").evaluateAll(
+    (videos) => videos.filter((video) => !video.paused).length,
+  )).toBe(1)
+
+  await page.keyboard.press("Escape")
+  await expect(picker).toHaveCount(0)
+  await expect(host).toHaveAttribute("data-background-id", selectedId!)
 })
 
 test("an available Background selection closes immediately and gives the first Visual hint", async ({ page }) => {
