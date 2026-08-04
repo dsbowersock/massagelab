@@ -103,8 +103,8 @@ git commit -m "feat: persist Grid Motion mantras"
 Require:
 
 ```js
-assert.equal(resolveGridMotionRowCount(390), 6)
-assert.equal(resolveGridMotionRowCount(844), 12)
+assert.equal(resolveGridMotionRowCount(390), 7)
+assert.equal(resolveGridMotionRowCount(844), 13)
 assert.equal(resolveGridMotionRowCount(1200), 14)
 ```
 
@@ -290,4 +290,3 @@ Expected: all commands PASS; the production build completes all configured route
 git add tests/browser/background-palette.spec.ts docs/project-log.md
 git commit -m "test: prove responsive Grid Motion mantras"
 ```
-

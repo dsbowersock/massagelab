@@ -920,22 +920,23 @@
 .massageLabGridMotionContainer {
   display: flex;
   width: min(130vw, 1800px);
-  height: min(92vh, 960px);
+  height: auto;
+  min-height: 112%;
   flex-direction: column;
   justify-content: center;
-  gap: clamp(0.75rem, 2vw, 1.6rem);
+  gap: clamp(0.45rem, 1.2vw, 1rem);
   transform: rotate(-12deg) scale(1.05);
 }
 
 .massageLabGridMotionRow {
   display: grid;
   grid-template-columns: repeat(7, minmax(8rem, 1fr));
-  gap: clamp(0.75rem, 2vw, 1.6rem);
+  grid-auto-rows: clamp(3.4rem, 7.2vh, 5.8rem);
+  gap: clamp(0.45rem, 1.2vw, 1rem);
   will-change: transform;
 }
 
 .massageLabGridMotionItem {
-  aspect-ratio: 1.35;
   min-width: 0;
 }
 
