@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 import styles from "@/components/backgrounds/BackgroundHost.module.css"
 import type { BackgroundEffectProps, MassageLabGridMotionOptions } from "./css-backgrounds"
 
-type ResolvedGridMotionOptions = Required<MassageLabGridMotionOptions>
+type ResolvedGridMotionOptions = Required<Omit<MassageLabGridMotionOptions, "mantras">>
 
 const DEFAULT_MASSAGELAB_GRID_MOTION: ResolvedGridMotionOptions = {
   gradientColor: "#000000",

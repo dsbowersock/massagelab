@@ -900,6 +900,7 @@ export interface ChimerSettings {
   massageLabGridMotionMaxMoveAmount: number
   massageLabGridMotionBaseDuration: number
   massageLabGridMotionCursorInteraction: boolean
+  massageLabGridMotionMantras: string[]
   massageLabShapeGridDirection: "right" | "left" | "up" | "down" | "diagonal"
   massageLabShapeGridSpeed: number
   massageLabShapeGridSquareSize: number

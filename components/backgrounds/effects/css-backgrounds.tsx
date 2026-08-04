@@ -899,6 +899,7 @@ export interface MassageLabGridMotionOptions {
   maxMoveAmount?: number
   baseDuration?: number
   cursorInteraction?: boolean
+  mantras?: string[]
 }
 
 export interface MassageLabShapeGridOptions {

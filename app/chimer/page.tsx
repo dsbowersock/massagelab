@@ -1955,6 +1955,7 @@ export default function ChimerPage() {
             massageLabGridMotionMaxMoveAmount={settings.massageLabGridMotionMaxMoveAmount}
             massageLabGridMotionBaseDuration={settings.massageLabGridMotionBaseDuration}
             massageLabGridMotionCursorInteraction={settings.massageLabGridMotionCursorInteraction}
+            massageLabGridMotionMantras={settings.massageLabGridMotionMantras}
             massageLabShapeGridDirection={settings.massageLabShapeGridDirection}
             massageLabShapeGridSpeed={settings.massageLabShapeGridSpeed}
             massageLabShapeGridSquareSize={settings.massageLabShapeGridSquareSize}

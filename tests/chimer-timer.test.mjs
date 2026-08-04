@@ -25,6 +25,7 @@ import {
   splitTileGridFadeSeconds,
   TILE_GRID_FADE_SECONDS_MAX,
 } from "../lib/tile-grid-background.js"
+import { DEFAULT_GRID_MOTION_MANTRAS } from "../lib/grid-motion-mantras.js"
 
 const novatrixPreferenceOptions = {
   isKnownBackgroundId: (backgroundId) => backgroundId === "massage-lab-novatrix",
@@ -37,6 +38,43 @@ const novatrixPreferenceOptions = {
 }
 
 describe("Chimer timer helpers", () => {
+  it("normalizes and round-trips persisted Grid Motion mantras", () => {
+    const normalized = sanitizeChimerSettings({
+      massageLabGridMotionMantras: [
+        "  I   choose   ease  now ",
+        "I CHOOSE EASE",
+        "Breathe and release",
+        ...Array.from({ length: 12 }, (_, index) => `Phrase ${index + 1}`),
+      ],
+    })
+
+    assert.deepEqual(normalized.massageLabGridMotionMantras, [
+      "I choose ease",
+      "Breathe and release",
+      "Phrase 1",
+      "Phrase 2",
+      "Phrase 3",
+      "Phrase 4",
+      "Phrase 5",
+      "Phrase 6",
+      "Phrase 7",
+      "Phrase 8",
+    ])
+    assert.deepEqual(
+      sanitizeChimerSettings(normalized).massageLabGridMotionMantras,
+      normalized.massageLabGridMotionMantras,
+    )
+    assert.deepEqual(
+      sanitizeChimerSettings({ massageLabGridMotionMantras: ["", "   "] })
+        .massageLabGridMotionMantras,
+      [...DEFAULT_GRID_MOTION_MANTRAS],
+    )
+    assert.notStrictEqual(
+      normalized.massageLabGridMotionMantras,
+      DEFAULT_CHIMER_SETTINGS.massageLabGridMotionMantras,
+    )
+  })
+
   it("commits globe coordinate drafts only when finite and in range", () => {
     assert.equal(parseGlobeCoordinateDraft("40.1234", -90, 90), 40.1234)
     assert.equal(parseGlobeCoordinateDraft("-180", -180, 180), -180)

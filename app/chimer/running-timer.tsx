@@ -728,6 +728,7 @@ interface RunningTimerProps {
   massageLabGridMotionMaxMoveAmount: number
   massageLabGridMotionBaseDuration: number
   massageLabGridMotionCursorInteraction: boolean
+  massageLabGridMotionMantras: string[]
   massageLabShapeGridDirection: ChimerSettings["massageLabShapeGridDirection"]
   massageLabShapeGridSpeed: number
   massageLabShapeGridSquareSize: number
@@ -1363,6 +1364,7 @@ export function RunningTimer({
   massageLabGridMotionMaxMoveAmount,
   massageLabGridMotionBaseDuration,
   massageLabGridMotionCursorInteraction,
+  massageLabGridMotionMantras,
   massageLabShapeGridDirection,
   massageLabShapeGridSpeed,
   massageLabShapeGridSquareSize,
@@ -13004,6 +13006,7 @@ export function RunningTimer({
             maxMoveAmount: massageLabGridMotionMaxMoveAmount,
             baseDuration: massageLabGridMotionBaseDuration,
             cursorInteraction: massageLabGridMotionCursorInteraction,
+            mantras: massageLabGridMotionMantras,
           }}
           massageLabShapeGrid={{
             direction: massageLabShapeGridDirection,

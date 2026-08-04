@@ -4711,6 +4711,7 @@ describe("premium background registry", () => {
           "massageLabGridMotionMaxMoveAmount",
           "massageLabGridMotionBaseDuration",
           "massageLabGridMotionCursorInteraction",
+          "massageLabGridMotionMantras",
         ],
       },
       {

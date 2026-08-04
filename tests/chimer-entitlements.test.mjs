@@ -9,8 +9,31 @@ import {
   canCustomizeBackgroundColors,
   resolveEffectiveBackgroundPaletteMode,
 } from "../lib/background-palette.js"
+import { DEFAULT_GRID_MOTION_MANTRAS } from "../lib/grid-motion-mantras.js"
 
 describe("Chimer entitlement-aware settings", () => {
+  it("resets Grid Motion mantras to a defensive starter copy when access is absent", () => {
+    const customMantras = ["Move with ease", "I can recover"]
+    const lockedSettings = sanitizeChimerSettingsForEntitlements({
+      backgroundId: "massage-lab-grid-motion",
+      massageLabGridMotionMantras: customMantras,
+    }, [])
+    const premiumSettings = sanitizeChimerSettingsForEntitlements({
+      backgroundId: "massage-lab-grid-motion",
+      massageLabGridMotionMantras: customMantras,
+    }, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.deepEqual(lockedSettings.massageLabGridMotionMantras, [...DEFAULT_GRID_MOTION_MANTRAS])
+    assert.notStrictEqual(
+      lockedSettings.massageLabGridMotionMantras,
+      DEFAULT_CHIMER_SETTINGS.massageLabGridMotionMantras,
+    )
+    lockedSettings.massageLabGridMotionMantras[0] = "Changed"
+    assert.equal(DEFAULT_GRID_MOTION_MANTRAS[0], "I am grounded")
+    assert.deepEqual(premiumSettings.massageLabGridMotionMantras, customMantras)
+    assert.notStrictEqual(premiumSettings.massageLabGridMotionMantras, customMantras)
+  })
+
   it("keeps Track 4B customization access feature- and ownership-based with Source fallback", () => {
     assert.equal(canCustomizeBackgroundColors({ hasBackgroundAccess: true }), true)
     assert.equal(resolveEffectiveBackgroundPaletteMode({
