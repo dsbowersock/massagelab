@@ -4132,6 +4132,11 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /from "three"/)
     assert.doesNotMatch(effectSource, /@react-three/)
 
+    assert.match(effectSource, /float radialFade = exp\(-2\.0 \* clamp\(pow\(dist, fadeDistance\), 0\.0, 1\.0\)\);/)
+    assert.match(effectSource, /float edgeCoverage = mix\(0\.72, 1\.0, radialFade \* vignette\);/)
+    assert.match(effectSource, /gl_FragColor = vec4\(color \* t \* edgeCoverage \* opacity, opacity\);/)
+    assert.doesNotMatch(effectSource, /float alpha = length\(color\) \* finalFade \* opacity;/)
+
     assert.match(stylesSource, /massageLabRippleGridCanvas/)
     assert.match(hostSource, /massageLabRippleGrid/)
     assert.match(cssEffectsSource, /MassageLabRippleGridOptions/)

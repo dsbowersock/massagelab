@@ -129,7 +129,7 @@ void main() {
         color += glowIntensity * exp(-gridThickness * 0.5 * smoothB.y);
     }
 
-    float ddd = exp(-2.0 * clamp(pow(dist, fadeDistance), 0.0, 1.0));
+    float radialFade = exp(-2.0 * clamp(pow(dist, fadeDistance), 0.0, 1.0));
 
     vec2 vignetteCoords = vUv - 0.5;
     float vignetteDistance = length(vignetteCoords);
@@ -147,9 +147,9 @@ void main() {
         t = gridColor;
     }
 
-    float finalFade = ddd * vignette;
-    float alpha = length(color) * finalFade * opacity;
-    gl_FragColor = vec4(color * t * finalFade * opacity, alpha);
+    // Edge controls shape grid brightness but must not reveal the Host underlay.
+    float edgeCoverage = mix(0.72, 1.0, radialFade * vignette);
+    gl_FragColor = vec4(color * t * edgeCoverage * opacity, opacity);
 }
 `
 
