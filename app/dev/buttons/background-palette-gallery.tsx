@@ -636,6 +636,7 @@ export function BackgroundPaletteGallery() {
   const [mappingsByBackground, setMappingsByBackground] = useState<
     Partial<Record<BackgroundId, BackgroundColorMapping>>
   >({})
+  const [forceLiveReviewAnimation, setForceLiveReviewAnimation] = useState(true)
   const { settings } = useSettings()
   const reducedMotion = useAmbientReducedMotion(settings.ambientMotionMode)
 
@@ -895,6 +896,15 @@ export function BackgroundPaletteGallery() {
           </select>
         </label>
         <ProductionMusicContinuityProbe />
+        <label className="flex items-center gap-2 text-sm font-medium">
+          <input
+            type="checkbox"
+            checked={forceLiveReviewAnimation}
+            onChange={(event) => setForceLiveReviewAnimation(event.currentTarget.checked)}
+            aria-label="Force live review animation"
+          />
+          Force live review animation
+        </label>
 
         {adapter && selectedBackground ? (
           <>
@@ -946,12 +956,13 @@ export function BackgroundPaletteGallery() {
                     bloomStrength: 0,
                     bloomRadius: 0,
                   }}
+                  massageLabDarkVeil={{ resolutionScale: 0.25, speed: 1 }}
                   massageLabRippleGrid={{
                     gridColor: "#ffffff",
                     enableRainbow: true,
                     gridSize: 17,
                     rippleIntensity: 0.17,
-                    opacity: 0.63,
+                    opacity: 0.5,
                     mouseInteraction: false,
                   }}
                   auroraBars={{
@@ -990,7 +1001,7 @@ export function BackgroundPaletteGallery() {
                   className="absolute inset-0"
                   motionEnabled
                   forceEffectMount
-                  forceAmbientMotionForReview
+                  forceAmbientMotionForReview={forceLiveReviewAnimation}
                   testId="background-palette-live-host"
                   diagnostics
                 />

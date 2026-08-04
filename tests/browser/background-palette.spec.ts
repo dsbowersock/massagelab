@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test"
+import { expect, test, type Locator, type Page } from "@playwright/test"
 
 import {
   backgroundPaletteRegistry,
@@ -25,6 +25,12 @@ type PreviewMediaProbeSnapshot = {
 }
 
 const MODES = ["source", "custom", "harmony"] as const
+const PATTERNED_ACTIVE_RENDERER_IDS = [
+  "massage-lab-ripple-grid",
+  "massage-lab-dot-field",
+  "massage-lab-dot-grid",
+  "massage-lab-shape-grid",
+] as const
 const EXPECTED_ENABLED_BACKGROUND_COUNT = 83
 const enabledRegistryEntries = backgroundRegistry.filter((entry) => entry.enabled)
 
@@ -243,6 +249,30 @@ async function selectBackground(page: Page, id: string) {
     .toHaveAttribute("data-background-id", id)
 }
 
+/** Reads the stored alpha at each drawing-buffer corner from Ripple Grid's real WebGL canvas. */
+async function readWebGlCornerAlphas(canvas: Locator) {
+  return canvas.evaluate(async (element) => {
+    // Ripple intentionally avoids preserveDrawingBuffer. Queue this read after
+    // its already-scheduled animation callback so Chromium has not discarded
+    // the just-rendered buffer after compositing yet.
+    return new Promise<number[]>((resolve, reject) => {
+      requestAnimationFrame(() => {
+        const gl = (element as HTMLCanvasElement).getContext("webgl")
+        if (!gl) {
+          reject(new Error("Ripple Grid review canvas did not expose WebGL."))
+          return
+        }
+        const { width, height } = element as HTMLCanvasElement
+        resolve([[0, 0], [width - 1, 0], [0, height - 1], [width - 1, height - 1]].map(([x, y]) => {
+          const pixel = new Uint8Array(4)
+          gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel)
+          return pixel[3]
+        }))
+      })
+    })
+  })
+}
+
 async function installPremiumAccount(page: Page) {
   await page.route("**/api/auth/session", async (route) => {
     await route.fulfill({
@@ -370,6 +400,111 @@ test.describe("shared background palette review matrix", () => {
       nodeOne: CUSTOM_SWATCHES[0],
       animation: expect.stringContaining("mlDnaStrandRotate"),
     })
+  })
+
+  test("keeps patterned live renderers unlayered and framed on phone viewports", async ({ page }, testInfo) => {
+    test.setTimeout(120_000)
+    const health = captureRuntimeErrors(page)
+    const viewports = [
+      { name: "phone-portrait", width: 390, height: 844 },
+      { name: "short-landscape", width: 844, height: 390 },
+    ] as const
+
+    for (const viewport of viewports) {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height })
+      await openPaletteGallery(page)
+      const host = page.getByTestId("background-palette-live-host")
+
+      for (const id of PATTERNED_ACTIVE_RENDERER_IDS) {
+        await selectBackground(page, id)
+        await expect(host).toHaveAttribute("data-background-effect-mounted", "true")
+        await expect(host).toHaveAttribute("data-background-underlay", "suppressed")
+        expect(await host.locator(":scope > *").count(), `${viewport.name}:${id}`).toBe(1)
+      }
+
+      await selectBackground(page, "massage-lab-ripple-grid")
+      const rippleCanvas = host.locator("canvas")
+      await expect(rippleCanvas).toBeVisible()
+      const initialCornerAlphas = await readWebGlCornerAlphas(rippleCanvas)
+      for (const alpha of initialCornerAlphas) {
+        expect(alpha, `${viewport.name}:ripple:initial:nonzero`).toBeGreaterThan(0)
+        expect(Math.abs(alpha - 128), `${viewport.name}:ripple:initial:stored-alpha`).toBeLessThanOrEqual(2)
+      }
+      await testInfo.attach(`${viewport.name}-ripple-initial`, {
+        body: await host.screenshot(),
+        contentType: "image/png",
+      })
+
+      await page.waitForTimeout(350)
+      const laterCornerAlphas = await readWebGlCornerAlphas(rippleCanvas)
+      for (const alpha of laterCornerAlphas) {
+        expect(alpha, `${viewport.name}:ripple:later:nonzero`).toBeGreaterThan(0)
+        expect(Math.abs(alpha - 128), `${viewport.name}:ripple:later:stored-alpha`).toBeLessThanOrEqual(2)
+      }
+      await testInfo.attach(`${viewport.name}-ripple-later`, {
+        body: await host.screenshot(),
+        contentType: "image/png",
+      })
+
+      await selectBackground(page, "massage-lab-dark-veil")
+      const darkVeilCanvas = host.locator("canvas")
+      await expect(darkVeilCanvas).toBeVisible()
+      const framing = await darkVeilCanvas.evaluate((element) => {
+        const canvas = element as HTMLCanvasElement
+        const hostElement = canvas.closest('[data-testid="background-palette-live-host"]')
+        if (!(hostElement instanceof HTMLElement)) {
+          throw new Error("Dark Veil review canvas did not have its expected Host.")
+        }
+        const canvasRect = canvas.getBoundingClientRect()
+        const hostRect = hostElement.getBoundingClientRect()
+        return {
+          cssWidth: canvasRect.width,
+          cssHeight: canvasRect.height,
+          hostWidth: hostRect.width,
+          hostHeight: hostRect.height,
+          leftOffset: canvasRect.left - hostRect.left,
+          topOffset: canvasRect.top - hostRect.top,
+          bufferWidth: canvas.width,
+          bufferHeight: canvas.height,
+          dpr: window.devicePixelRatio,
+        }
+      })
+      expect(framing.cssWidth).toBeCloseTo(framing.hostWidth, 0)
+      expect(framing.cssHeight).toBeCloseTo(framing.hostHeight, 0)
+      expect(framing.leftOffset).toBeCloseTo(0, 0)
+      expect(framing.topOffset).toBeCloseTo(0, 0)
+      expect(framing.bufferWidth).toBe(
+        Math.max(1, Math.floor(framing.cssWidth * Math.min(2, Math.max(1, framing.dpr)) * 0.25)),
+      )
+      expect(framing.bufferHeight).toBe(
+        Math.max(1, Math.floor(framing.cssHeight * Math.min(2, Math.max(1, framing.dpr)) * 0.25)),
+      )
+      await testInfo.attach(`${viewport.name}-dark-veil-initial`, {
+        body: await host.screenshot(),
+        contentType: "image/png",
+      })
+      await page.waitForTimeout(350)
+      await testInfo.attach(`${viewport.name}-dark-veil-later`, {
+        body: await host.screenshot(),
+        contentType: "image/png",
+      })
+
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1))
+        .toBe(true)
+    }
+
+    await page.emulateMedia({ reducedMotion: "reduce" })
+    await openPaletteGallery(page)
+    await page.getByLabel("Force live review animation").uncheck()
+    await selectBackground(page, "massage-lab-ripple-grid")
+    const host = page.getByTestId("background-palette-live-host")
+    await expect(host).toHaveAttribute("data-background-diagnostic-reduced-motion", "true")
+    await expect(host).toHaveAttribute("data-background-effect-mounted", "false")
+    await expect(host).toHaveAttribute("data-background-underlay", "visible")
+    expect(health.pageErrors).toEqual([])
+    expect(health.consoleErrors).toEqual([])
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1))
+      .toBe(true)
   })
 
   test("reports Canvas-backed Dotted Glow truthfully in every palette mode", async ({ page }) => {
