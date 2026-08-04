@@ -6,6 +6,10 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-04 — Background layering and framing remediation
+
+- Active Ripple Grid, Dot Field, Dot Grid, and Shape Grid now remove only their duplicate patterned fallback after mount; non-mounted loading, error, and reduced-motion fallbacks remain. Ripple Grid has bounded non-transparent edge coverage, and Dark Veil uses drawing-buffer resolution. Focused contracts, the desktop-Chromium phone visual gate at 390×844 and 844×390 (initial/later frames, runtime health, reduced motion, overflow, underlay, edge alpha, and Dark Veil framing), typecheck, lint, build, and diff checks passed.
+
 ## 2026-08-03 — Background branding audit readiness
 
 - All 83 enabled backgrounds have complete branding proposals in seven review
