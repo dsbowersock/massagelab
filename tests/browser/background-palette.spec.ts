@@ -363,6 +363,30 @@ async function expectPixelSnowCentralRegionToVary(page: Page, screenshot: Buffer
     .toBe(false)
 }
 
+const GRID_DISTORTION_SEED_SETTLE_FRAMES = 160
+
+/** Waits until Grid Distortion's seeded pointer displacement is visually negligible. */
+async function waitForGridDistortionSeedToSettle(page: Page) {
+  await page.evaluate((frameCount) => new Promise<void>((resolve, reject) => {
+    let completedFrames = 0
+    let frameRequest = 0
+    const timeout = window.setTimeout(() => {
+      window.cancelAnimationFrame(frameRequest)
+      reject(new Error(`Grid Distortion did not complete ${frameCount} settling frames within 60 seconds.`))
+    }, 60_000)
+    const onFrame = () => {
+      completedFrames += 1
+      if (completedFrames >= frameCount) {
+        window.clearTimeout(timeout)
+        resolve()
+        return
+      }
+      frameRequest = window.requestAnimationFrame(onFrame)
+    }
+    frameRequest = window.requestAnimationFrame(onFrame)
+  }), GRID_DISTORTION_SEED_SETTLE_FRAMES)
+}
+
 async function proveAutonomousPhoneMotion(
   page: Page,
   id: typeof AUTONOMOUS_PHONE_BACKGROUND_IDS[number],
@@ -374,6 +398,9 @@ async function proveAutonomousPhoneMotion(
   await page.evaluate(() => document.body.classList.remove("chimer-running"))
   const host = await waitForLiveBackground(page, id)
   await normalizeAutonomyProofHostChrome(host)
+  if (id === "massage-lab-grid-distortion") {
+    await waitForGridDistortionSeedToSettle(page)
+  }
   const movingInitial = await host.screenshot({
     path: testInfo.outputPath(`${id}-no-preference-initial.png`),
     scale: "css",
@@ -466,7 +493,7 @@ async function proveCompactPhoneMotion(
     .toBeLessThanOrEqual(Math.ceil(compactSizing.hostWidth) + 1)
 
   if (id === "massage-lab-grid-distortion") {
-    await page.waitForTimeout(1_200)
+    await waitForGridDistortionSeedToSettle(page)
   }
   const compactInitial = await host.screenshot({
     path: testInfo.outputPath(`${id}-compact-no-preference-initial.png`),

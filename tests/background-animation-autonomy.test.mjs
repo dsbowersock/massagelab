@@ -122,9 +122,26 @@ test("autonomy proofs write named screenshots directly to Playwright test output
     [...proofHelpers.matchAll(/await normalizeAutonomyProofHostChrome\(host\)/g)].length,
     3,
   )
+  assert.equal(
+    [...proofHelpers.matchAll(/await waitForGridDistortionSeedToSettle\(page\)/g)].length,
+    2,
+  )
+  assert.doesNotMatch(proofHelpers, /waitForTimeout\(1_200\)/)
   assert.match(
     browserPaletteSource,
     /fixtureCard\.style\.setProperty\("border-radius", "0px", "important"\)/,
+  )
+  assert.match(
+    browserPaletteSource,
+    /const GRID_DISTORTION_SEED_SETTLE_FRAMES = 160/,
+  )
+  assert.match(
+    browserPaletteSource,
+    /completedFrames >= frameCount/,
+  )
+  assert.match(
+    browserPaletteSource,
+    /Grid Distortion did not complete.*within 60 seconds[\s\S]*?60_000/,
   )
   for (const suffix of [
     "no-preference-initial.png",
