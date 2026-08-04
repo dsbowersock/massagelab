@@ -274,6 +274,34 @@ test("Clock and Visual switch one active panel and honor dismissal focus", async
   await expect(page.getByRole("dialog", { name: "Clock controls" })).toHaveCount(0)
 })
 
+test("mobile dirty Visual confirmation owns Escape and returns focus to the close control", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "phone-first Visual dialog regression")
+  await openClock(page)
+
+  const visualControl = page.getByRole("button", { name: "Visual", exact: true })
+  await visualControl.click()
+  const visual = page.getByRole("dialog", { name: "Visual controls" })
+  await visual.getByRole("radio", { name: "Custom", exact: true }).click()
+  const closeVisual = page.getByRole("button", { name: "Close Visual panel" })
+  await closeVisual.click()
+
+  const confirmation = page.getByRole("alertdialog", { name: "Save Visual changes?" })
+  await expect(confirmation).toBeVisible()
+  await expect.poll(() => page.evaluate(() => {
+    const alert = document.querySelector('[role="alertdialog"]')
+    const shell = document.querySelector('[data-immersive-shell]')
+    return {
+      alertZ: Number.parseInt(getComputedStyle(alert!).zIndex, 10),
+      shellZ: Number.parseInt(getComputedStyle(shell!).zIndex, 10),
+    }
+  })).toEqual({ alertZ: 10060, shellZ: 10030 })
+
+  await page.keyboard.press("Escape")
+  await expect(confirmation).toHaveCount(0)
+  await expect(visual).toBeVisible()
+  await expect(closeVisual).toBeFocused()
+})
+
 test("Escape in a portaled color picker closes only the picker", async ({ page }) => {
   await page.route("**/api/auth/session", async (route) => {
     await route.fulfill({

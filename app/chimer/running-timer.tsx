@@ -13258,6 +13258,7 @@ export function RunningTimer({
           activePanel={activePanel}
           onActivePanelChange={handleActivePanelChange}
           onRequestActivePanelChange={handlePanelChangeRequest}
+          modalInterlockActive={Boolean(pendingVisualIntent)}
           protectedDisplayRef={protectedDisplayRef}
           hapticsEnabled={hapticsEnabled}
           chromeVisibility={controlState}

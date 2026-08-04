@@ -40,6 +40,7 @@ const runningTimerSource = await read("app/chimer/running-timer.tsx")
 const setTimerSource = await read("app/chimer/set-timer.tsx")
 const navigationGuardSource = await read("app/chimer/visual-draft-navigation-guard.tsx")
 const unsavedDialogSource = await read("app/chimer/unsaved-visual-changes-dialog.tsx")
+const alertDialogSource = await read("components/ui/alert-dialog.tsx")
 const pageSource = await read("app/chimer/page.tsx")
 const musicMiniPlayerSource = await read("components/providers/music-mini-player.tsx")
 const runningTimerStyles = await read("app/chimer/running-timer.module.css")
@@ -1265,6 +1266,15 @@ test("dirty navigation guard covers eligible app links, history, and native unlo
   assert.match(headerActionGroupOpeningTag, /\brole="group"/)
   assert.match(headerActionGroupOpeningTag, /\baria-label="Visual draft actions"/)
   assert.doesNotMatch(runningTimerExecutableSource, /className=\{styles\.visualDraftActions\}/)
+})
+
+test("unsaved Visual confirmation raises both dialog layers above immersive chrome", () => {
+  assert.match(alertDialogSource, /type AlertDialogContentProps =[\s\S]*overlayClassName\?: string/)
+  assert.match(alertDialogSource, /<AlertDialogOverlay className=\{overlayClassName\} \/>/)
+  assert.match(unsavedDialogSource, /overlayClassName="z-\[10060\]"/)
+  assert.match(unsavedDialogSource, /className="z-\[10060\]"/)
+  assert.match(unsavedDialogSource, /onCloseAutoFocus/)
+  assert.match(unsavedDialogSource, /getConnectedVisualFocusTarget\(restoreFocusTarget\)\?\.focus\(\)/)
 })
 
 test("globe coordinate inputs keep string drafts and clock font changes remeasure", () => {
