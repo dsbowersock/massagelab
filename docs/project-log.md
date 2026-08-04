@@ -6,6 +6,10 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-04 — Grid Motion responsive mantras remediation
+
+- Grid Motion now fills phone viewports with 6-14 responsive rows of seven tiles and moves continuously without pointer input while retaining cursor response as an additive option. Setup and running Visual controls reuse one editor with ten wellness-first starter affirmations and the persisted 1-3-word, 28-Unicode-character, 1-10-entry contract, so users can personalize the background without starting from a blank slate. Real 390×844 and 844×390 browser proofs cover layout, autonomous motion, starter presentation, normalization, add/remove limits, remount persistence, and exact reduced-motion stability with the production `chimer-running` route class; Grid Motion joins the existing narrowly scoped route-owned fallback freeze. Background IDs, palette roles, entitlements, and preview media are unchanged.
+
 ## 2026-08-04 — Phone background animation autonomy remediation
 
 - Gradient Blinds now moves both its gradient and blinds, Pixel Snow animates from a representative nonzero scene time at compact DPR, Faulty Terminal has visible autonomous defaults, and Grid Distortion combines ambient and pointer deformation. Real-browser phone captures prove motion at 390×844, exact-threshold motion at 360×780 for Faulty Terminal and Grid Distortion, and exact reduced-motion stability for all four renderers even with the production `chimer-running` route class present. Both Grid Distortion moving proofs wait 160 browser frames after readiness so seeded displacement has decayed and their 700ms pixel delta isolates autonomous time-driven movement. Preview generation remains deferred until the remaining live-background audit is resolved.

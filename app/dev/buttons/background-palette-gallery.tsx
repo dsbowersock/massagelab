@@ -44,9 +44,11 @@ import {
 import { AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Notice } from "@/components/ui/notice"
+import { GridMotionMantraEditor } from "@/app/chimer/grid-motion-mantra-editor"
 import { useMusic } from "@/components/providers/music-provider"
 import { useSettings } from "@/components/providers/settings-provider"
 import { FEATURE_KEYS } from "@/lib/membership"
+import { DEFAULT_GRID_MOTION_MANTRAS } from "@/lib/grid-motion-mantras"
 import { BackgroundPreviewMediaReview } from "./background-preview-media-review"
 import { TRACK_4B_CUSTOM_SWATCHES } from "./background-palette-review-fixtures"
 import {
@@ -638,6 +640,10 @@ export function BackgroundPaletteGallery() {
   >({})
   const [forceLiveReviewAnimation, setForceLiveReviewAnimation] = useState(true)
   const [forceLiveRendererContextFailure, setForceLiveRendererContextFailure] = useState(false)
+  const [gridMotionMantras, setGridMotionMantras] = useState<string[]>(
+    () => [...DEFAULT_GRID_MOTION_MANTRAS],
+  )
+  const [gridMotionMountVersion, setGridMotionMountVersion] = useState(0)
   const { settings } = useSettings()
   const reducedMotion = useAmbientReducedMotion(settings.ambientMotionMode)
 
@@ -916,6 +922,18 @@ export function BackgroundPaletteGallery() {
           Force live renderer context failure
         </label>
 
+        {selectedId === "massage-lab-grid-motion" ? (
+          <AppSurface title="Production Grid Motion controls" variant="inset">
+            <GridMotionMantraEditor value={gridMotionMantras} onChange={setGridMotionMantras} />
+            <Button
+              className="mt-3"
+              size="compact"
+              variant="secondary"
+              onClick={() => setGridMotionMountVersion((current) => current + 1)}
+            >Remount Grid Motion</Button>
+          </AppSurface>
+        ) : null}
+
         {adapter && selectedBackground ? (
           <>
             <div data-live-palette-controls>
@@ -949,8 +967,12 @@ export function BackgroundPaletteGallery() {
               data-role-count={adapter.status === "supported" ? adapter.roles.length : 0}
               data-reduced-motion={reducedMotion ? "true" : "false"}
             >
-              <div className="relative min-h-80 overflow-hidden rounded-2xl border border-border bg-black">
+              <div
+                className="relative min-h-80 overflow-hidden rounded-2xl border border-border bg-black"
+                style={selectedId === "massage-lab-grid-motion" ? { height: "100dvh" } : undefined}
+              >
                 <BackgroundHost
+                  key={`live-${selectedId === "massage-lab-grid-motion" ? gridMotionMountVersion : 0}`}
                   {...TRACK_4B_DEVELOPMENT_HOST_PROPS}
                   selectedId={selectedId}
                   access={DEVELOPMENT_REVIEW_ACCESS}
@@ -967,6 +989,7 @@ export function BackgroundPaletteGallery() {
                     bloomRadius: 0,
                   }}
                   massageLabDarkVeil={{ resolutionScale: 0.25, speed: 1 }}
+                  massageLabGridMotion={{ mantras: gridMotionMantras }}
                   massageLabRippleGrid={{
                     gridColor: "#ffffff",
                     enableRainbow: true,

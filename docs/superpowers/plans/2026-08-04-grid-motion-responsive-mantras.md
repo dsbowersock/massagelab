@@ -241,7 +241,10 @@ git commit -m "feat: add shared Grid Motion mantra editor"
 ### Task 4: Prove portrait coverage, autonomous motion, editing, and persistence
 
 **Files:**
+- Modify: `app/dev/buttons/background-palette-gallery.tsx`
+- Modify: `app/globals.css`
 - Modify: `tests/browser/background-palette.spec.ts`
+- Modify: `tests/background-animation-autonomy.test.mjs`
 - Modify: `docs/project-log.md`
 - Test: `tests/browser/background-palette.spec.ts`
 

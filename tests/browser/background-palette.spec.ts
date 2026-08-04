@@ -684,6 +684,115 @@ test.describe("shared background palette review matrix", () => {
     })
   }
 
+  test("fills phone viewports and persists editable Grid Motion mantras", async ({ page }, testInfo) => {
+    test.setTimeout(180_000)
+    const health = captureRuntimeErrors(page)
+
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.emulateMedia({ reducedMotion: "no-preference" })
+    await openPaletteGallery(page)
+    await selectBackground(page, "massage-lab-grid-motion")
+
+    const host = page.getByTestId("background-palette-live-host")
+    await expect(host).toHaveAttribute("data-background-diagnostic-status", "loaded")
+    await normalizeAutonomyProofHostChrome(host)
+    const rows = host.locator('[class*="massageLabGridMotionRow"]')
+    await expect.poll(() => rows.count()).toBeGreaterThanOrEqual(12)
+    expect(
+      (await rows.evaluateAll((elements) => elements.map((element) => element.children.length)))
+        .every((tileCount) => tileCount === 7),
+      "Every portrait Grid Motion row must contain exactly seven tiles.",
+    ).toBe(true)
+    const portraitCoverage = await host.evaluate((element) => {
+      const effect = element.querySelector('[class*="massageLabGridMotion"]')
+      if (!(effect instanceof HTMLElement)) throw new Error("Grid Motion effect root is missing.")
+      const hostBounds = element.getBoundingClientRect()
+      const effectBounds = effect.getBoundingClientRect()
+      return {
+        left: effectBounds.left <= hostBounds.left,
+        top: effectBounds.top <= hostBounds.top,
+        right: effectBounds.right >= hostBounds.right,
+        bottom: effectBounds.bottom >= hostBounds.bottom,
+      }
+    })
+    expect(portraitCoverage).toEqual({ left: true, top: true, right: true, bottom: true })
+    await expect(host.getByText("I am grounded", { exact: true }).first()).toBeVisible()
+    await expect(host.getByText("Breathe and release", { exact: true }).first()).toBeVisible()
+
+    const portraitInitial = await host.screenshot({
+      path: testInfo.outputPath("grid-motion-portrait-no-preference-initial.png"),
+      scale: "css",
+    })
+    await page.waitForTimeout(700)
+    const portraitLater = await host.screenshot({
+      path: testInfo.outputPath("grid-motion-portrait-no-preference-later.png"),
+      scale: "css",
+    })
+    expect(portraitLater.equals(portraitInitial), "Grid Motion must move without pointer input.")
+      .toBe(false)
+
+    const firstMantra = page.getByRole("textbox", { name: "Mantra 1", exact: true })
+    await firstMantra.fill("Move with ease now")
+    await firstMantra.blur()
+    await expect(firstMantra).toHaveValue("Move with ease")
+    await expect(host.getByText("Move with ease", { exact: true }).first()).toBeVisible()
+
+    const addMantra = page.getByRole("button", { name: "Add mantra" })
+    await expect(addMantra).toBeDisabled()
+    await page.getByRole("button", { name: /^Remove mantra 2:/ }).click()
+    await expect(page.getByRole("textbox", { name: /^Mantra / })).toHaveCount(9)
+    await expect(addMantra).toBeEnabled()
+    await addMantra.click()
+    await expect(page.getByRole("textbox", { name: /^Mantra / })).toHaveCount(10)
+    await expect(addMantra).toBeDisabled()
+    for (let remaining = 10; remaining > 1; remaining -= 1) {
+      await page.getByRole("button", { name: /^Remove mantra 2:/ }).click()
+    }
+    await expect(page.getByRole("textbox", { name: /^Mantra / })).toHaveCount(1)
+    await expect(page.getByRole("button", { name: /^Remove mantra 1:/ })).toBeDisabled()
+
+    await page.getByRole("button", { name: "Remount Grid Motion" }).click()
+    await expect(host.getByText("Move with ease", { exact: true }).first()).toBeVisible()
+
+    await page.setViewportSize({ width: 844, height: 390 })
+    await expect.poll(() => rows.count()).toBeLessThanOrEqual(8)
+    await expect.poll(() => rows.count()).toBeGreaterThanOrEqual(6)
+    expect(
+      (await rows.evaluateAll((elements) => elements.map((element) => element.children.length)))
+        .every((tileCount) => tileCount === 7),
+      "Every landscape Grid Motion row must contain exactly seven tiles.",
+    ).toBe(true)
+    const landscapeCoverage = await host.evaluate((element) => {
+      const effect = element.querySelector('[class*="massageLabGridMotion"]')
+      if (!(effect instanceof HTMLElement)) throw new Error("Grid Motion effect root is missing.")
+      const hostBounds = element.getBoundingClientRect()
+      const effectBounds = effect.getBoundingClientRect()
+      return effectBounds.left <= hostBounds.left
+        && effectBounds.top <= hostBounds.top
+        && effectBounds.right >= hostBounds.right
+        && effectBounds.bottom >= hostBounds.bottom
+    })
+    expect(landscapeCoverage, "Grid Motion must leave no uncovered landscape host strip.").toBe(true)
+
+    await page.emulateMedia({ reducedMotion: "reduce" })
+    await page.evaluate(() => document.body.classList.add("chimer-running"))
+    const reducedInitial = await host.screenshot({
+      path: testInfo.outputPath("grid-motion-reduced-chimer-running-initial.png"),
+      scale: "css",
+    })
+    await page.waitForTimeout(400)
+    const reducedLater = await host.screenshot({
+      path: testInfo.outputPath("grid-motion-reduced-chimer-running-later.png"),
+      scale: "css",
+    })
+    expect(reducedLater.equals(reducedInitial), "Grid Motion must be pixel-stable for reduced motion.")
+      .toBe(true)
+    await page.evaluate(() => document.body.classList.remove("chimer-running"))
+
+    expect(health.pageErrors).toEqual([])
+    expect(health.consoleErrors).toEqual([])
+  })
+
   test("keeps patterned live renderers unlayered and framed on phone viewports", async ({ page }, testInfo) => {
     test.setTimeout(120_000)
     const health = captureRuntimeErrors(page)

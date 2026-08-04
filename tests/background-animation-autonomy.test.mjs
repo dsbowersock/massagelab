@@ -89,7 +89,7 @@ test("Faulty Terminal and Grid Distortion opt in to compact viewport animation",
   }
 })
 
-test("route-owned reduced motion freezes the fallback for exactly the four repaired backgrounds", () => {
+test("route-owned reduced motion freezes the fallback for the five explicitly repaired backgrounds", () => {
   const scopedRule = globalStylesSource.match(
     /body:is\(\.chimer-running, \.chimer-alerting, \.chimer-preview-capture\)\s+:is\([\s\S]*?\) \.massagelab-background-fallback\s*\{[\s\S]*?\}/,
   )?.[0]
@@ -101,6 +101,7 @@ test("route-owned reduced motion freezes the fallback for exactly the four repai
       "massage-lab-pixel-snow",
       "massage-lab-faulty-terminal",
       "massage-lab-grid-distortion",
+      "massage-lab-grid-motion",
     ],
   )
   assert.match(scopedRule, /animation:\s*none;/)

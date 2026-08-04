@@ -2958,7 +2958,8 @@ html[data-theme-transition-fallback="toggle-light"]::before {
     [data-background-id="massage-lab-gradient-blinds"],
     [data-background-id="massage-lab-pixel-snow"],
     [data-background-id="massage-lab-faulty-terminal"],
-    [data-background-id="massage-lab-grid-distortion"]
+    [data-background-id="massage-lab-grid-distortion"],
+    [data-background-id="massage-lab-grid-motion"]
   ) .massagelab-background-fallback {
     animation: none;
   }
