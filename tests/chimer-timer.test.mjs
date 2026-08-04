@@ -2396,6 +2396,10 @@ describe("Chimer timer helpers", () => {
         .massageLabFaultyTerminalPageLoadAnimation,
       DEFAULT_CHIMER_SETTINGS.massageLabFaultyTerminalPageLoadAnimation,
     )
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabFaultyTerminalNoiseAmp, 0.24)
+    assert.equal(sanitizeChimerSettings({}).massageLabFaultyTerminalNoiseAmp, 0.24)
+    assert.equal(sanitizeChimerSettings({ massageLabFaultyTerminalNoiseAmp: "loud" }).massageLabFaultyTerminalNoiseAmp, 0.24)
+    assert.equal(sanitizeChimerSettings({ massageLabFaultyTerminalNoiseAmp: 0 }).massageLabFaultyTerminalNoiseAmp, 0)
     assert.equal(sanitizeChimerSettings({ massageLabFaultyTerminalScale: 0 }).massageLabFaultyTerminalScale, 0.25)
     assert.equal(sanitizeChimerSettings({ massageLabFaultyTerminalDigitSize: 0 }).massageLabFaultyTerminalDigitSize, 0.5)
     assert.equal(sanitizeChimerSettings({ massageLabFaultyTerminalBrightness: 0 }).massageLabFaultyTerminalBrightness, 0.1)

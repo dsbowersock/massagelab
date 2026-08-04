@@ -10,6 +10,11 @@ const source = await readFile(
   new URL("../components/backgrounds/effects/massage-lab-pixel-snow-background.tsx", import.meta.url),
   "utf8",
 )
+const faultyTerminalRendererSource = await readFile(
+  new URL("../components/backgrounds/effects/massage-lab-faulty-terminal-background.tsx", import.meta.url),
+  "utf8",
+)
+const chimerSettingsSource = await readFile(new URL("../lib/chimer-timer.js", import.meta.url), "utf8")
 
 test("Gradient Blinds animates its gradient and blind phase", () => {
   assert.match(gradientBlindsSource, /const float GRADIENT_DRIFT_RATE = 0\.11;/)
@@ -23,4 +28,11 @@ test("Pixel Snow animates compact viewports and avoids the time-zero singular fr
   assert.match(source, /allowCompactViewport:\s*true/)
   assert.match(source, /PIXEL_SNOW_SCENE_TIME_OFFSET \+ \(timestamp - startTime\) \* 0\.001/)
   assert.doesNotMatch(source, /const time = animate \? \(timestamp - startTime\) \* 0\.001 : 0/)
+})
+
+test("Faulty Terminal has autonomous structure with optional pointer enhancement", () => {
+  assert.match(faultyTerminalRendererSource, /noiseAmp:\s*0\.24/)
+  assert.match(chimerSettingsSource, /massageLabFaultyTerminalNoiseAmp:\s*0\.24/)
+  assert.match(faultyTerminalRendererSource, /float amp = 0\.5 \* uNoiseAmp;/)
+  assert.match(faultyTerminalRendererSource, /if\(uUseMouse > 0\.5\)/)
 })
