@@ -53,31 +53,11 @@ export function UnsavedVisualChangesDialog({
     outcome()
   }
 
-  useEffect(() => {
-    if (!open) {
-      return
-    }
-
-    // The confirmation owns Escape while the nonmodal Visual dock yields its
-    // document listener, so Escape keeps the draft and restores its close control.
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") {
-        return
-      }
-
-      event.preventDefault()
-      event.stopPropagation()
-      resolveExplicitOutcome(onKeepEditing)
-      window.requestAnimationFrame(() => {
-        getConnectedVisualFocusTarget(restoreFocusTarget)?.focus()
-      })
-    }
-
-    window.addEventListener("keydown", handleEscape, true)
-    return () => {
-      window.removeEventListener("keydown", handleEscape, true)
-    }
-  }, [onKeepEditing, open, restoreFocusTarget])
+  const restoreVisualFocus = () => {
+    window.requestAnimationFrame(() => {
+      getConnectedVisualFocusTarget(restoreFocusTarget)?.focus()
+    })
+  }
 
   return (
     <AlertDialog
@@ -95,11 +75,24 @@ export function UnsavedVisualChangesDialog({
       <AlertDialogContent
         className="z-[10060]"
         overlayClassName="z-[10060]"
+        onEscapeKeyDown={(event) => {
+          event.preventDefault()
+          resolveExplicitOutcome(onKeepEditing)
+          restoreVisualFocus()
+        }}
+        onKeyDownCapture={(event) => {
+          if (event.key !== "Escape" || explicitOutcomeRef.current) {
+            return
+          }
+
+          event.preventDefault()
+          event.stopPropagation()
+          resolveExplicitOutcome(onKeepEditing)
+          restoreVisualFocus()
+        }}
         onCloseAutoFocus={(event) => {
           event.preventDefault()
-          window.requestAnimationFrame(() => {
-            getConnectedVisualFocusTarget(restoreFocusTarget)?.focus()
-          })
+          restoreVisualFocus()
         }}
       >
         <AlertDialogHeader>

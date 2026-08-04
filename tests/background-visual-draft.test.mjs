@@ -1273,8 +1273,11 @@ test("unsaved Visual confirmation raises both dialog layers above immersive chro
   assert.match(alertDialogSource, /<AlertDialogOverlay className=\{overlayClassName\} \/>/)
   assert.match(unsavedDialogSource, /overlayClassName="z-\[10060\]"/)
   assert.match(unsavedDialogSource, /className="z-\[10060\]"/)
+  assert.match(unsavedDialogSource, /onEscapeKeyDown/)
+  assert.match(unsavedDialogSource, /onKeyDownCapture/)
   assert.match(unsavedDialogSource, /onCloseAutoFocus/)
   assert.match(unsavedDialogSource, /getConnectedVisualFocusTarget\(restoreFocusTarget\)\?\.focus\(\)/)
+  assert.doesNotMatch(unsavedDialogSource, /window\.addEventListener\("keydown"/)
 })
 
 test("globe coordinate inputs keep string drafts and clock font changes remeasure", () => {
