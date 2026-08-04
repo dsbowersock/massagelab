@@ -107,6 +107,9 @@ const fragmentShaderSource = `
 
   varying vec2 vUv;
 
+  const float GRADIENT_DRIFT_RATE = 0.11;
+  const float BLIND_DRIFT_RATE = 0.18;
+
   float rand(vec2 co) {
     return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
   }
@@ -159,7 +162,8 @@ const fragmentShaderSource = `
       uvMod.x += sin(a) * w;
       uvMod.y += cos(b) * w;
     }
-    float t = uvMod.x;
+    float gradientDrift = sin(iTime * GRADIENT_DRIFT_RATE) * 0.12;
+    float t = clamp(uvMod.x + gradientDrift, 0.0, 1.0);
     if (uMirror > 0.5) {
       t = 1.0 - abs(1.0 - 2.0 * fract(t));
     }
@@ -171,7 +175,8 @@ const fragmentShaderSource = `
     float dn = d / r;
     float spot = (1.0 - 2.0 * pow(dn, uSpotlightSoftness)) * uSpotlightOpacity;
     vec3 cir = vec3(spot);
-    float stripe = fract(uvMod.x * max(uBlindCount, 1.0));
+    float blindCoordinate = uvMod.x + iTime * BLIND_DRIFT_RATE;
+    float stripe = fract(blindCoordinate * max(uBlindCount, 1.0));
     if (uShineFlip > 0.5) stripe = 1.0 - stripe;
     vec3 ran = vec3(stripe);
 
