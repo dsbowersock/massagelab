@@ -25,6 +25,7 @@ type GridDistortionResources = {
     dataTexture: WebGLUniformLocation
     resolution: WebGLUniformLocation
     time: WebGLUniformLocation
+    strength: WebGLUniformLocation
   }
 }
 
@@ -69,12 +70,18 @@ uniform sampler2D uDataTexture;
 uniform sampler2D uTexture;
 uniform vec4 resolution;
 uniform float time;
+uniform float uStrength;
 varying vec2 vUv;
 
 void main() {
   vec2 uv = vUv + vec2(time, resolution.x) * 0.000000001;
-  vec4 offset = texture2D(uDataTexture, vUv);
-  gl_FragColor = texture2D(uTexture, uv - 0.02 * offset.rg);
+  vec2 offset = texture2D(uDataTexture, vUv).rg;
+  vec2 ambientOffset = vec2(
+    sin(uv.y * 9.0 + time * 0.73),
+    cos(uv.x * 7.0 - time * 0.61)
+  ) * (0.012 * uStrength);
+  vec2 newUV = uv - offset * 0.02 + ambientOffset;
+  gl_FragColor = texture2D(uTexture, newUV);
 }`
 
 // MassageLab Grid Distortion uses a Three.js plane, image texture, and float
@@ -244,6 +251,7 @@ export default function MassageLabGridDistortionBackground({
       gl.clear(gl.COLOR_BUFFER_BIT)
       gl.useProgram(resources.program)
       gl.uniform1f(resources.uniforms.time, time * 0.0008)
+      gl.uniform1f(resources.uniforms.strength, options.strength)
       gl.activeTexture(gl.TEXTURE0)
       gl.bindTexture(gl.TEXTURE_2D, resources.imageTexture)
       gl.uniform1i(resources.uniforms.imageTexture, 0)
@@ -365,6 +373,7 @@ function createGridDistortionResources(
       dataTexture: getUniformLocation(context, program, "uDataTexture"),
       resolution: getUniformLocation(context, program, "resolution"),
       time: getUniformLocation(context, program, "time"),
+      strength: getUniformLocation(context, program, "uStrength"),
     },
   }
 }
