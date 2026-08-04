@@ -190,7 +190,7 @@ git commit -m "Fix duplicate patterned background underlays"
 
 - Consumes: existing `iResolution`, `gridColor`, `enableRainbow`, `fadeDistance`, `vignetteStrength`, and `opacity` uniforms.
 - Preserves: `MassageLabRippleGridBackground`, `ResolvedRippleGridOptions`, aspect correction, palette adaptation, pointer behavior, resize/DPR handling, and all option bounds.
-- Produces: nonzero alpha at all four corners when `opacity > 0`; fade/vignette shape brightness rather than revealing the Host underlay.
+- Produces: nonzero alpha at all four corners when `opacity > 0`; fade/vignette shape brightness rather than revealing the Host underlay. The fragment shader emits premultiplied RGB multiplied once by `opacity` and alpha equal to `opacity`; WebGL uses `gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)` so drawing-buffer alpha remains linear rather than squared.
 
 - [ ] **Step 1: Add failing source-contract assertions**
 
@@ -201,6 +201,8 @@ In the existing Ripple Grid test in `tests/background-options.test.mjs`, add:
     assert.match(effectSource, /float edgeCoverage = mix\(0\.72, 1\.0, radialFade \* vignette\);/)
     assert.match(effectSource, /gl_FragColor = vec4\(color \* t \* edgeCoverage \* opacity, opacity\);/)
     assert.doesNotMatch(effectSource, /float alpha = length\(color\) \* finalFade \* opacity;/)
+    assert.match(effectSource, /gl\.blendFunc\(gl\.ONE, gl\.ONE_MINUS_SRC_ALPHA\)/)
+    assert.doesNotMatch(effectSource, /gl\.blendFunc\(gl\.SRC_ALPHA, gl\.ONE_MINUS_SRC_ALPHA\)/)
 ```
 
 - [ ] **Step 2: Verify the contract fails**
@@ -230,7 +232,7 @@ Immediately before output, use:
     gl_FragColor = vec4(color * t * edgeCoverage * opacity, opacity);
 ```
 
-Do not alter `uv.x *= iResolution.x / iResolution.y`, rotation, ripple/cursor calculations, palette branch, uniforms, or options. The explicit `0.72` minimum keeps corners visibly patterned while alpha remains full-buffer `opacity`.
+Use `gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)` for the premultiplied shader output; `SRC_ALPHA` would square the stored alpha. Do not alter `uv.x *= iResolution.x / iResolution.y`, rotation, ripple/cursor calculations, palette branch, uniforms, or options. The explicit `0.72` minimum keeps corners visibly patterned while alpha remains full-buffer `opacity`.
 
 - [ ] **Step 4: Run focused source and palette tests**
 
@@ -322,7 +324,7 @@ git commit -m "Fix Dark Veil resolution-scale framing"
 
 - Consumes: existing guarded `/dev/buttons` review fixture and `BackgroundHost` diagnostics.
 - Produces: a development-only `Force live review animation` checkbox (default `true`) and deterministic `massageLabDarkVeil={{ resolutionScale: 0.25, speed: 1 }}` fixture props.
-- Produces: attached Playwright output images only; no committed image/media asset.
+- Produces: attached Playwright output images only; no committed image/media asset. Its Ripple Grid fixture uses non-default `opacity: 0.5` so stored corner alpha can prove the corrected linear blend contract.
 - Uses: existing `desktop-chromium` project with explicit phone-sized viewports.
 
 - [ ] **Step 1: Add the failing browser test**
@@ -346,7 +348,7 @@ await expect(host).toHaveAttribute("data-background-underlay", "suppressed")
 expect(await host.locator(":scope > *").count(), `${viewport.name}:${id}`).toBe(1)
 ```
 
-Add this helper and use it against Ripple Grid's real canvas before and after `await page.waitForTimeout(350)`; every returned corner alpha must be greater than zero:
+Add this helper and use it against Ripple Grid's real canvas before and after `await page.waitForTimeout(350)`; every returned corner alpha must be greater than zero. With the deterministic `opacity: 0.5` fixture, each returned corner alpha must also be near 128, using a small 8-bit storage tolerance (for example, `Math.abs(alpha - 128) <= 2`):
 
 ```ts
 async function readWebGlCornerAlphas(canvas: Locator) {
@@ -410,6 +412,12 @@ Add this bounded prop beside the existing review renderer props:
 
 ```tsx
 massageLabDarkVeil={{ resolutionScale: 0.25, speed: 1 }}
+```
+
+Add the bounded Ripple Grid review prop beside it:
+
+```tsx
+massageLabRippleGrid={{ opacity: 0.5 }}
 ```
 
 Do not add production settings, persistence, preview components, or preview media changes.
@@ -517,4 +525,3 @@ Plan complete and saved to `docs/superpowers/plans/2026-08-04-background-layerin
 
 1. **Subagent-Driven (recommended)** — dispatch a fresh subagent per task and review between tasks.
 2. **Inline Execution** — execute the tasks in this session with checkpoints.
-

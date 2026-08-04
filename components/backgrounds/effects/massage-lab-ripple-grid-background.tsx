@@ -194,7 +194,8 @@ export default function MassageLabRippleGridBackground({
     gl.disable(gl.DEPTH_TEST)
     gl.disable(gl.CULL_FACE)
     gl.enable(gl.BLEND)
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+    // The fragment shader emits premultiplied RGB and linear opacity alpha.
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
 
     const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)")
     const compactViewportQuery = window.matchMedia("(max-width: 360px), (max-height: 360px)")

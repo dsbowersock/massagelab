@@ -4136,6 +4136,8 @@ describe("premium background registry", () => {
     assert.match(effectSource, /float edgeCoverage = mix\(0\.72, 1\.0, radialFade \* vignette\);/)
     assert.match(effectSource, /gl_FragColor = vec4\(color \* t \* edgeCoverage \* opacity, opacity\);/)
     assert.doesNotMatch(effectSource, /float alpha = length\(color\) \* finalFade \* opacity;/)
+    assert.match(effectSource, /gl\.blendFunc\(gl\.ONE, gl\.ONE_MINUS_SRC_ALPHA\)/)
+    assert.doesNotMatch(effectSource, /gl\.blendFunc\(gl\.SRC_ALPHA, gl\.ONE_MINUS_SRC_ALPHA\)/)
 
     assert.match(stylesSource, /massageLabRippleGridCanvas/)
     assert.match(hostSource, /massageLabRippleGrid/)
