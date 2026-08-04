@@ -242,6 +242,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 } satisfies NextAuthConfig)
 
 export function getCurrentSession() {
+  // Local visual-review routes must remain usable without copying account
+  // secrets into disposable worktrees. Production still always invokes Auth.js.
+  if (process.env.NODE_ENV !== "production" && !getAuthSecret()) {
+    return Promise.resolve(null)
+  }
+
   return auth()
 }
 

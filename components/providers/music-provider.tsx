@@ -225,7 +225,13 @@ const defaultMusicContext: MusicContextType = {
 
 const MusicContext = createContext<MusicContextType>(defaultMusicContext)
 
-export function MusicProvider({ children }: { children: ReactNode }) {
+export function MusicProvider({
+  children,
+  accountSyncEnabled = true,
+}: {
+  children: ReactNode
+  accountSyncEnabled?: boolean
+}) {
   const [activeStationId, setActiveStationId] = useState<string | null>(null)
   const [activeStationTitle, setActiveStationTitle] = useState<string | null>(null)
   const [activeStationArtist, setActiveStationArtist] = useState<string | null>(null)
@@ -494,8 +500,22 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       return
     }
 
+    if (!accountSyncEnabled) {
+      accountAbortControllerRef.current?.abort()
+      accountSyncVerifiedRef.current = false
+      accountPreferencesHydratedRef.current = false
+      accountDefaultBackgroundIdRef.current = null
+      pendingAccountDefaultBackgroundIdRef.current = null
+      failedAccountPayloadRef.current = null
+      setAccountDefaultBackgroundId(null)
+      setAccountStatus("anonymous")
+      setAccountError(null)
+      setAccountSignedIn(false)
+      return
+    }
+
     void syncVisualizerAccountPreferences()
-  }, [storageHydrated, syncVisualizerAccountPreferences])
+  }, [accountSyncEnabled, storageHydrated, syncVisualizerAccountPreferences])
 
   // Keep the active Tone graph in sync with saved volume changes without
   // restarting the station or creating a second audio context.

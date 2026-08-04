@@ -6,6 +6,10 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-04 — Auth-free development Clock review surface
+
+- `/dev/clock` now renders the production Clock and background controls in local development with the canonical `premium_backgrounds` and `chimer_custom_colors` feature keys. It skips session and account-preference requests, persists review changes only under a separate local development key, and returns 404 in production. This gives Device Toolbar review the subscribed-user visual experience without login, account data, or copied environment files while leaving `/clock` behavior and stored preferences unchanged.
+
 ## 2026-08-04 — Grid Motion responsive mantras remediation
 
 - Grid Motion now fills phone viewports with 6-14 responsive rows of seven tiles and moves continuously without pointer input while retaining cursor response as an additive option. Setup and running Visual controls reuse one editor with ten wellness-first starter affirmations and the persisted 1-3-word, 28-Unicode-character, 1-10-entry contract, so users can personalize the background without starting from a blank slate; Add deterministically selects the first unused valid seed even when `I am calm` already exists. Real 390×844 and 844×390 browser proofs cover layout, autonomous motion, starter presentation, normalization, collision-safe add/remove limits, remount persistence, and exact reduced-motion stability with the production `chimer-running` route class; Grid Motion joins the existing narrowly scoped route-owned fallback freeze. Background IDs, palette roles, entitlements, and preview media are unchanged.

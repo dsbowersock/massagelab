@@ -239,7 +239,7 @@ describe("Shared background preference access and retry wiring", () => {
     const source = await readFile(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
 
     assert.match(source, /prepareChimerBackgroundPreferenceMigration/)
-    assert.match(source, /localStorage\.setItem\(CHIMER_STORAGE_KEY/)
+    assert.match(source, /localStorage\.setItem\(storageKey/)
     assert.match(source, /legacyKeysToRemove/)
     assert.match(source, /const immersiveMode: ImmersiveDisplayMode = immersiveContext === "musicVisualizer"[\s\S]*selectedBackgroundId: selectedMusicBackgroundId,[\s\S]*selectedBackgroundId: settings\.backgroundId/)
     assert.match(source, /const backgroundAccess = useMemo<BackgroundAccessSnapshot>[\s\S]*featureKeys,[\s\S]*resolveAuthoritativeBackgroundOwnership\([\s\S]*permanentlyOwnedBackgroundIds,[\s\S]*commerceOwnedBackgroundIds/)

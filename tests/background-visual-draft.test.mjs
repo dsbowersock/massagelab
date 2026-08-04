@@ -977,7 +977,7 @@ test("Visual Apply updates the live settings snapshot before delayed account hyd
   assert.notEqual(applyEnd, -1)
   assert.match(
     applySource,
-    /const committedSettings = request\.sanitizedSettings[\s\S]*settingsRef\.current = committedSettings\s+setSettings\(committedSettings\)[\s\S]*localStorage\.setItem\(CHIMER_STORAGE_KEY, JSON\.stringify\(committedSettings\)\)/,
+    /const committedSettings = request\.sanitizedSettings[\s\S]*settingsRef\.current = committedSettings\s+setSettings\(committedSettings\)[\s\S]*localStorage\.setItem\(storageKey, JSON\.stringify\(committedSettings\)\)/,
   )
 })
 
