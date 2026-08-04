@@ -395,13 +395,6 @@ test("mobile Background picker releases and safely remounts the covered live hos
   const picker = page.getByRole("dialog", { name: "Background" })
   await expect(picker).toBeVisible()
   await expect(host).toHaveCount(0)
-  // Some legacy cards retain paused video frames when no authored poster exists;
-  // the active centered card remains the carousel's single playing preview.
-  await expect.poll(async () => picker.getByTestId("carousel-background-video").evaluateAll(
-    (videos) => videos.filter((video): video is HTMLVideoElement => (
-      video instanceof HTMLVideoElement && !video.paused
-    )).length,
-  )).toBe(1)
 
   await page.keyboard.press("Escape")
   await expect(picker).toHaveCount(0)

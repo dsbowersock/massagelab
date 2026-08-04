@@ -14,7 +14,7 @@
 - Preserve the approved naming audit; do not change background names, IDs, catalog order, selected IDs, or persisted visual settings.
 - Phone-first browser coverage is required, including the configured `mobile-chromium` Playwright project.
 - Preserve reduced-motion behavior and the existing accessible focus contracts.
-- Only one picker preview video may be active at a time; this remains an invariant and is not redesigned in this slice.
+- This slice leaves the picker’s current preview playback implementation unchanged. A later adaptive preview runtime owns the approved playback contract: the center preview plus the two positions on either side may play (five positions total).
 - Keep the Background picker’s existing visual design and full-screen behavior unchanged.
 - Add useful JSDoc/comments for non-obvious shared helpers and modal/lifecycle decisions; do not add comments that merely restate JSX or CSS.
 - Do not add a Prisma migration, storage version, dependency, route, entitlement change, account-preference write, or media manifest change.
@@ -257,7 +257,7 @@ No preview-media component, carousel component, catalog/registry, asset director
 
 - Consumes: `activePanel: ImmersivePanelId`, `shouldRenderLiveBackground: boolean`, and the existing parent-owned `backgroundId`, `effectiveBackgroundPalette`, `effectiveDnaTwistedCubesHostProps`, and all renderer props.
 - Produces: `shouldSuspendCoveredLiveBackground: boolean`, defined exactly as `activePanel === "background"`; `BackgroundHost` is absent only while the opaque full-screen picker is active, then remounts with the same `key={`${mode.context}:${backgroundId}`}` and existing props.
-- Behavioral contract: opening Background must release the live DOM/canvas/WebGL renderer rather than merely setting `motionEnabled={false}`. Selecting a card, closing with the close button/Escape, reduced motion, background access, settings persistence, and the carousel’s single-active-preview policy keep their existing behavior.
+- Behavioral contract: opening Background must release the live DOM/canvas/WebGL renderer rather than merely setting `motionEnabled={false}`. Selecting a card, closing with the close button/Escape, reduced motion, background access, settings persistence, and the current picker preview playback implementation keep their existing behavior in this slice; the later adaptive runtime owns the approved center-plus-two-on-each-side playback contract.
 
 - [ ] **Step 1: Add failing source-contract coverage for the renderer suspension boundary**
 
@@ -281,7 +281,7 @@ No preview-media component, carousel component, catalog/registry, asset director
   })
   ```
 
-  The final assertion guards the pre-existing picker-preview activation boundary: this task must not change it or create a second active preview.
+  The final assertion guards the existing picker activation prop: this task must not redesign preview playback.
 
 - [ ] **Step 2: Run the focused test and verify it fails before implementation**
 
@@ -328,7 +328,7 @@ No preview-media component, carousel component, catalog/registry, asset director
   node --test tests/immersive-panel-shell.test.mjs tests/music-visualizer-integration.test.mjs tests/background-preview-media.test.mjs
   ```
 
-  Expected: PASS. The shared Music renderer remains owned by `RunningTimer`, and the preview-media test continues to assert that inactive cards do not play.
+  Expected: PASS. The shared Music renderer remains owned by `RunningTimer`, and the preview-media test continues to cover the current preview implementation without this slice asserting a playback count or position set.
 
 - [ ] **Step 5: Add a phone-first browser remount and selected-ID regression**
 
@@ -347,15 +347,13 @@ No preview-media component, carousel component, catalog/registry, asset director
     const picker = page.getByRole("dialog", { name: "Background" })
     await expect(picker).toBeVisible()
     await expect(host).toHaveCount(0)
-    await expect(picker.getByTestId("carousel-background-video")).toHaveCount(1)
-
     await page.keyboard.press("Escape")
     await expect(picker).toHaveCount(0)
     await expect(host).toHaveAttribute("data-background-id", selectedId!)
   })
   ```
 
-  This test intentionally closes without selecting a card. It proves the renderer remounts after the picker releases coverage and the chosen ID survived; it does not attempt to inspect WebGL internals or mutate local/account settings. The existing `BackgroundPreviewMedia` unit contract remains the authoritative assertion that only the active centered preview plays.
+  This test intentionally closes without selecting a card. It proves the renderer remounts after the picker releases coverage and the chosen ID survived; it does not inspect WebGL internals, mutate local/account settings, or specify picker playback. The later adaptive preview runtime owns the approved five-playing-position behavior: center plus two positions on either side.
 
 - [ ] **Step 6: Run the exact browser regression on the configured phone project**
 
@@ -365,7 +363,7 @@ No preview-media component, carousel component, catalog/registry, asset director
   npm run test:browser -- --project mobile-chromium -- tests/browser/immersive-panel-shell.spec.ts
   ```
 
-  Expected: PASS. While the full-screen picker is open there is no `[data-testid="background-host"]`; after Escape the same selected ID remounts and the carousel still mounts only its active preview video.
+  Expected: PASS. While the full-screen picker is open there is no `[data-testid="background-host"]`; after Escape the same selected ID remounts. This lifecycle slice does not assert the number of mounted or playing picker previews.
 
 - [ ] **Step 7: Commit the renderer lifecycle remediation**
 
@@ -451,7 +449,7 @@ No preview-media component, carousel component, catalog/registry, asset director
 
 ## Self-Review Performed
 
-- **Spec coverage:** Task 1 covers hidden confirmation layering, pointer isolation, Escape isolation, and captured-focus restoration. Task 2 covers unmounting the covered selected renderer, retaining its parent-owned ID/settings, and safe remount after picker close. Tasks 1–3 cover phone-first browser execution, reduced-motion preservation, and the existing one-preview-active invariant.
+- **Spec coverage:** Task 1 covers hidden confirmation layering, pointer isolation, Escape isolation, and captured-focus restoration. Task 2 covers unmounting the covered selected renderer, retaining its parent-owned ID/settings, and safe remount after picker close. Tasks 1–3 cover phone-first browser execution and reduced-motion preservation while leaving picker preview playback unchanged; the later adaptive runtime owns the approved five-playing positions (center plus two on each side).
 - **Scope check:** The dialog and renderer are separate implementation units, but both are confined to the same `RunningTimer`/immersive-panel user flow and can be delivered as independently testable commits. No background visual-quality, tuning-control, naming, preview, or asset work enters this slice.
 - **Placeholder scan:** The prohibited planning-marker scan is clean. Every implementation action names an exact file, prop/function, code shape, command, and expected result.
 - **Type consistency:** `modalInterlockActive?: boolean` is declared on `ImmersivePanelShellProps`, defaulted in the shell, and passed as `Boolean(pendingVisualIntent)`. `overlayClassName?: string` is declared on `AlertDialogContentProps`, consumed by `AlertDialogOverlay`, and passed only by `UnsavedVisualChangesDialog`. `shouldSuspendCoveredLiveBackground` stays a local boolean and does not alter the `BackgroundHost` public props.
