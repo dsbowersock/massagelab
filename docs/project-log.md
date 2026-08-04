@@ -6,6 +6,10 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-04 — Phone background animation autonomy remediation
+
+- Gradient Blinds now moves both its gradient and blinds, Pixel Snow animates from a representative nonzero scene time at compact DPR, Faulty Terminal has visible autonomous defaults, and Grid Distortion combines ambient and pointer deformation. Real-browser phone captures prove motion at 390×844 and exact reduced-motion stability for all four renderers. Preview generation remains deferred until the remaining live-background audit is resolved.
+
 ## 2026-08-04 — Background layering and framing remediation
 
 - Active Ripple Grid, Dot Field, Dot Grid, and Shape Grid now remove only their duplicate patterned fallback after the current renderer completes a frame. Initial paint, lazy import, initialization failure, WebGL context loss, and reduced-motion non-mounts retain the fallback; Ripple Grid rebuilds after context restore before suppressing it again. Ripple Grid also has bounded non-transparent edge coverage, and Dark Veil uses drawing-buffer resolution. Focused contracts, the desktop-Chromium phone visual gate at 390×844 and 844×390 (forced failure, first-draw transition, context loss/restore, initial/later frames, runtime health, reduced motion, overflow, underlay, edge alpha, and Dark Veil framing), typecheck, lint, build, and diff checks passed.

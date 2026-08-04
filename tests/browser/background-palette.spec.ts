@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test"
+import sharp from "sharp"
 
 import {
   backgroundPaletteRegistry,
@@ -30,6 +31,12 @@ const PATTERNED_ACTIVE_RENDERER_IDS = [
   "massage-lab-dot-field",
   "massage-lab-dot-grid",
   "massage-lab-shape-grid",
+] as const
+const AUTONOMOUS_PHONE_BACKGROUND_IDS = [
+  "massage-lab-gradient-blinds",
+  "massage-lab-pixel-snow",
+  "massage-lab-faulty-terminal",
+  "massage-lab-grid-distortion",
 ] as const
 const EXPECTED_ENABLED_BACKGROUND_COUNT = 83
 const enabledRegistryEntries = backgroundRegistry.filter((entry) => entry.enabled)
@@ -249,6 +256,38 @@ async function selectBackground(page: Page, id: string) {
     .toHaveAttribute("data-background-id", id)
 }
 
+/** Waits for the fixture's real BackgroundHost to finish loading the selected effect. */
+async function waitForLiveBackground(page: Page, id: typeof AUTONOMOUS_PHONE_BACKGROUND_IDS[number]) {
+  await selectBackground(page, id)
+  await expectLoadedPaletteMode(page, id, "supported", "source")
+  const host = page.getByTestId("background-palette-live-host")
+  await expect(host).toHaveAttribute("data-background-effect-mounted", "true")
+  await expect(host).toHaveAttribute("data-background-diagnostic-status", "loaded")
+  await expect(host).toHaveAttribute("data-background-diagnostic-fallback", "false")
+  return host
+}
+
+/** Rejects the compact-DPR Pixel Snow regression where the visible scene is one opaque color. */
+async function expectPixelSnowCentralRegionToVary(screenshot: Buffer) {
+  const metadata = await sharp(screenshot).metadata()
+  const width = Math.max(1, Math.floor((metadata.width ?? 1) * 0.2))
+  const height = Math.max(1, Math.floor((metadata.height ?? 1) * 0.2))
+  const left = Math.max(0, Math.floor(((metadata.width ?? width) - width) / 2))
+  const top = Math.max(0, Math.floor(((metadata.height ?? height) - height) / 2))
+  const { data } = await sharp(screenshot)
+    .extract({ left, top, width, height })
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true })
+  const [red, green, blue, alpha] = data
+  const isUniformOpaqueSquare = alpha === 255 && data.every((channel, index) => (
+    channel === [red, green, blue, alpha][index % 4]
+  ))
+
+  expect(isUniformOpaqueSquare, "Pixel Snow central 20% must contain a decoded scene, not one opaque square.")
+    .toBe(false)
+}
+
 /** Reads the stored alpha at each drawing-buffer corner from Ripple Grid's real WebGL canvas. */
 async function readWebGlCornerAlphas(canvas: Locator) {
   return canvas.evaluate(async (element) => {
@@ -400,6 +439,52 @@ test.describe("shared background palette review matrix", () => {
       nodeOne: CUSTOM_SWATCHES[0],
       animation: expect.stringContaining("mlDnaStrandRotate"),
     })
+  })
+
+  test("keeps repaired backgrounds autonomous on phones and stable for reduced motion", async ({ page }, testInfo) => {
+    // Eight fresh fixture loads deliberately cover both media preferences for
+    // four lazy renderers; allow initial development compilation to finish.
+    test.setTimeout(180_000)
+    await page.setViewportSize({ width: 390, height: 844 })
+
+    for (const id of AUTONOMOUS_PHONE_BACKGROUND_IDS) {
+      await page.emulateMedia({ reducedMotion: "no-preference" })
+      await openPaletteGallery(page)
+      const host = await waitForLiveBackground(page, id)
+      const movingInitial = await host.screenshot()
+      await testInfo.attach(`${id}-no-preference-initial`, {
+        body: movingInitial,
+        contentType: "image/png",
+      })
+      if (id === "massage-lab-pixel-snow") {
+        await expectPixelSnowCentralRegionToVary(movingInitial)
+      }
+
+      await page.waitForTimeout(700)
+      const movingLater = await host.screenshot()
+      await testInfo.attach(`${id}-no-preference-later`, {
+        body: movingLater,
+        contentType: "image/png",
+      })
+      expect(movingLater, `${id} should autonomously change pixels on a phone.`).not.toEqual(movingInitial)
+
+      await page.emulateMedia({ reducedMotion: "reduce" })
+      await openPaletteGallery(page)
+      const reducedHost = await waitForLiveBackground(page, id)
+      const reducedInitial = await reducedHost.screenshot()
+      await testInfo.attach(`${id}-reduce-initial`, {
+        body: reducedInitial,
+        contentType: "image/png",
+      })
+
+      await page.waitForTimeout(400)
+      const reducedLater = await reducedHost.screenshot()
+      await testInfo.attach(`${id}-reduce-later`, {
+        body: reducedLater,
+        contentType: "image/png",
+      })
+      expect(reducedLater, `${id} should have exactly stable reduced-motion pixels.`).toEqual(reducedInitial)
+    }
   })
 
   test("keeps patterned live renderers unlayered and framed on phone viewports", async ({ page }, testInfo) => {
