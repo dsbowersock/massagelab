@@ -20,6 +20,7 @@ import {
   createBackgroundHostDiagnosticSnapshot,
   type BackgroundHostLoadStatus,
 } from "@/components/backgrounds/backgroundHostDiagnostics"
+import { shouldRenderBackgroundFallbackUnderlay } from "@/components/backgrounds/backgroundUnderlayPolicy"
 import type {
   BackgroundEffectProps,
 } from "@/components/backgrounds/effects/css-backgrounds"
@@ -408,6 +409,10 @@ export function BackgroundHost(props: BackgroundHostProps) {
   const BackgroundComponent = loadedEffect?.id === entry.id
     ? loadedEffect.component
     : null
+  const shouldRenderFallbackUnderlay = shouldRenderBackgroundFallbackUnderlay({
+    backgroundId: entry.id,
+    effectMounted: Boolean(BackgroundComponent),
+  })
   const adapter = backgroundPaletteRegistry[entry.id]
   const fallbackStyle = useMemo(
     () => (backgroundPalette
@@ -446,6 +451,7 @@ export function BackgroundHost(props: BackgroundHostProps) {
       className={cn(styles.host, !className && styles.hostDefault, className)}
       data-background-id={entry.id}
       data-background-effect-mounted={BackgroundComponent ? "true" : "false"}
+      data-background-underlay={shouldRenderFallbackUnderlay ? "visible" : "suppressed"}
       data-background-fallback-only={
         shouldLoadEffect && !BackgroundComponent ? "true" : "false"
       }
@@ -480,14 +486,15 @@ export function BackgroundHost(props: BackgroundHostProps) {
       data-testid={testId}
       style={style}
     >
-      <div
-        // Registry fallbacks mix legacy background shorthand and longhands.
-        // Remounting this decorative layer prevents React from reconciling
-        // conflicting style families when the complete resolved style changes.
-        key={fallbackRemountKey}
-        className={cn(styles.fallback, entry.fallbackClassName)}
-        style={fallbackStyle}
-      />
+      {shouldRenderFallbackUnderlay ? (
+        <div
+          // Registry fallbacks mix legacy background shorthand and longhands.
+          // Remounting this decorative layer avoids stale style-family reconciliation.
+          key={fallbackRemountKey}
+          className={cn(styles.fallback, entry.fallbackClassName)}
+          style={fallbackStyle}
+        />
+      ) : null}
       {BackgroundComponent ? (
         <BackgroundComponent {...effectProps} />
       ) : null}
