@@ -293,11 +293,11 @@ const autonomousIds = [
 
 At viewport `390x844` and `reducedMotion: "no-preference"`, take a clipped host screenshot, wait `700ms`, take another, and require that the buffers differ. For Pixel Snow, also sample the central 20% of the first screenshot and assert it is not a single uniform opaque square. Then switch to `reducedMotion: "reduce"`, reload/select the same ID, take two screenshots `400ms` apart, and require exact equality. Attach every first/later image to the Playwright report with an ID/motion-specific name.
 
-- [ ] **Step 2: Run the browser test and confirm at least one current renderer fails**
+- [ ] **Step 2: Run the integrated browser proof on the remediated branch**
 
 Run: `npm run test:browser -- tests/browser/background-palette.spec.ts --project=mobile-chromium --grep "keeps repaired backgrounds autonomous"`
 
-Expected: FAIL on the pre-remediation baseline because Pixel Snow is frozen on compact screens and Grid Distortion has no autonomous deformation.
+Expected: PASS on the integrated branch. Tasks 1-4 already preserve their individual RED evidence against the pre-remediation renderer contracts; do not rewrite branch history or create a second worktree merely to reproduce an obsolete browser baseline here.
 
 - [ ] **Step 3: Make the fixture/test timing deterministic without adding a production-only seam**
 
@@ -328,4 +328,3 @@ Expected: all commands PASS; the production build completes all configured route
 git add tests/browser/background-palette.spec.ts docs/project-log.md
 git commit -m "test: prove autonomous phone backgrounds"
 ```
-
