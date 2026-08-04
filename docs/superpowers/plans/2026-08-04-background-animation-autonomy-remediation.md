@@ -272,15 +272,16 @@ git commit -m "fix: add ambient Grid Distortion motion"
 - Modify: `tests/browser/background-palette.spec.ts`
 - Modify: `docs/project-log.md`
 - Test: `tests/background-animation-autonomy.test.mjs`
+- Test: `tests/background-options.test.mjs`
 - Test: `tests/browser/background-palette.spec.ts`
 
 **Interfaces:**
 - Consumes: the existing `/dev/buttons` background palette fixture and its helpers for selecting a real effect.
 - Produces: Playwright evidence that all four real renderers change on a 390x844 phone and remain stable under reduced motion.
 
-- [ ] **Step 1: Add a failing browser test with decoded visual evidence**
+- [ ] **Step 1: Add failing parameterized browser tests with decoded visual evidence**
 
-Add one focused test named `keeps repaired backgrounds autonomous on phones and stable for reduced motion`. For each ID below, select the real renderer in the existing fixture:
+Add separate fresh-context no-preference and reduced-motion parameterized cases per renderer whose titles begin `keeps repaired backgrounds autonomous on phones and stable for reduced motion`. For each ID below, select the real renderer in the existing fixture:
 
 ```ts
 const autonomousIds = [
@@ -291,17 +292,21 @@ const autonomousIds = [
 ] as const
 ```
 
-At viewport `390x844` and `reducedMotion: "no-preference"`, take a clipped host screenshot, wait `700ms`, take another, and require that the buffers differ. For Pixel Snow, also sample the central 20% of the first screenshot and assert it is not a single uniform opaque square. Then switch to `reducedMotion: "reduce"`, reload/select the same ID, take two screenshots `400ms` apart, and require exact equality. Attach every first/later image to the Playwright report with an ID/motion-specific name.
+At viewport `390x844` and `reducedMotion: "no-preference"`, take a clipped host screenshot, wait `700ms`, take another, and require exact `Buffer.equals(...) === false`. For Pixel Snow, also sample the central 20% of the first screenshot and assert it is not a single uniform opaque square. In a separate fresh context, start with `reducedMotion: "reduce"`, add the production `chimer-running` class after the first fixture load, select the same ID, take two named screenshots `400ms` apart, and require exact `Buffer.equals(...) === true`. Write every first/later screenshot directly to a named `testInfo.outputPath(...)` image with an ID/motion-specific filename while retaining the returned buffers for assertions; compare the boolean result so assertion reporting never formats an enormous byte-by-byte Buffer diff. Capture the full host composite with Playwright `scale: "css"` and normalize only the enclosing review fixture card to square corners before capture. This removes nondeterministic fixture-only rounded-edge rasterization without excluding or changing the `BackgroundHost`, fallback, label overlap, or product/background pixels.
+
+Add one additional fresh-context compact case for Faulty Terminal and one for Grid Distortion at `360x780`, preserving the compact drawing-buffer cap, pointer-free Grid Distortion settle, `700ms` exact Buffer inequality, and first/later named test-output images. Run all ten cases serially so Chromium releases each renderer/motion-mode context before the next case.
 
 - [ ] **Step 2: Run the integrated browser proof on the remediated branch**
 
-Run: `npm run test:browser -- tests/browser/background-palette.spec.ts --project=mobile-chromium --grep "keeps repaired backgrounds autonomous"`
+Run: `npm run test:browser -- tests/browser/background-palette.spec.ts --project=mobile-chromium --grep "keeps repaired backgrounds autonomous" --workers=1`
 
 Expected: PASS on the integrated branch. Tasks 1-4 already preserve their individual RED evidence against the pre-remediation renderer contracts; do not rewrite branch history or create a second worktree merely to reproduce an obsolete browser baseline here.
 
 - [ ] **Step 3: Make the fixture/test timing deterministic without adding a production-only seam**
 
-Use the existing real renderer fixture, wait for its existing ready state before the first capture, and mask only fixture controls that are outside the background host. Do not mock canvas/WebGL, do not assert data attributes in place of pixels, and do not change preview media. If screenshot equality is affected by the fixture rather than the renderer, narrow the screenshot locator to the real `BackgroundHost` effect layer.
+Use the existing real renderer fixture, a fresh browser context per parameterized case, and the completed-draw helper before the first capture. Mask only fixture controls that are outside the background host. Do not mock canvas/WebGL, do not assert data attributes in place of pixels, and do not change preview media. If screenshot equality is affected only by nondeterministic rounded-edge rasterization, normalize that fixture-only ancestor while retaining the complete real `BackgroundHost` composite.
+
+The integrated contract test may reconcile only its stale pointer-only Grid Distortion assertion; do not broaden that edit into unrelated background-option contracts.
 
 - [ ] **Step 4: Record the completed remediation in the chronological project log**
 
@@ -325,6 +330,6 @@ Expected: all commands PASS; the production build completes all configured route
 - [ ] **Step 6: Commit**
 
 ```bash
-git add tests/browser/background-palette.spec.ts docs/project-log.md
+git add tests/browser/background-palette.spec.ts tests/background-options.test.mjs docs/project-log.md
 git commit -m "test: prove autonomous phone backgrounds"
 ```

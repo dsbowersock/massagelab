@@ -10,7 +10,7 @@ const pixelSnowSource = await readFile(
   new URL("../components/backgrounds/effects/massage-lab-pixel-snow-background.tsx", import.meta.url),
   "utf8",
 )
-const source = await readFile(
+const gridDistortionSource = await readFile(
   new URL("../components/backgrounds/effects/massage-lab-grid-distortion-background.tsx", import.meta.url),
   "utf8",
 )
@@ -19,6 +19,17 @@ const faultyTerminalRendererSource = await readFile(
   "utf8",
 )
 const chimerSettingsSource = await readFile(new URL("../lib/chimer-timer.js", import.meta.url), "utf8")
+const globalStylesSource = await readFile(new URL("../app/globals.css", import.meta.url), "utf8")
+const browserPaletteSource = await readFile(
+  new URL("./browser/background-palette.spec.ts", import.meta.url),
+  "utf8",
+)
+
+function readAnimationPolicyBlock(rendererSource, rendererLabel) {
+  const block = rendererSource.match(/shouldAnimateAmbientBackground\(\{[\s\S]*?\}\)/)?.[0]
+  assert.ok(block, `${rendererLabel} must call the shared ambient-animation policy.`)
+  return block
+}
 
 test("Gradient Blinds animates its gradient and blind phase", () => {
   assert.match(gradientBlindsSource, /const float GRADIENT_DRIFT_RATE = 0\.11;/)
@@ -42,10 +53,90 @@ test("Faulty Terminal has autonomous structure with optional pointer enhancement
 })
 
 test("Grid Distortion combines ambient drift with pointer deformation", () => {
-  assert.match(source, /uniform float uStrength;/)
-  assert.match(source, /vec2 ambientOffset = vec2\(/)
-  assert.match(source, /sin\(uv\.y \* 9\.0 \+ time \* 0\.73\)/)
-  assert.match(source, /cos\(uv\.x \* 7\.0 - time \* 0\.61\)/)
-  assert.match(source, /newUV = uv - offset \* 0\.02 \+ ambientOffset/)
-  assert.match(source, /uniform1f\(resources\.uniforms\.strength, options\.strength\)/)
+  assert.match(gridDistortionSource, /uniform float uStrength;/)
+  assert.match(gridDistortionSource, /vec2 ambientOffset = vec2\(/)
+  assert.match(gridDistortionSource, /sin\(uv\.y \* 9\.0 \+ time \* 0\.73\)/)
+  assert.match(gridDistortionSource, /cos\(uv\.x \* 7\.0 - time \* 0\.61\)/)
+  assert.match(gridDistortionSource, /newUV = uv - offset \* 0\.02 \+ ambientOffset/)
+  assert.match(gridDistortionSource, /uniform1f\(resources\.uniforms\.strength, options\.strength\)/)
+})
+
+test("all four repaired renderers opt in to scoped system reduced-motion precedence", () => {
+  for (const [label, rendererSource] of [
+    ["Gradient Blinds", gradientBlindsSource],
+    ["Pixel Snow", pixelSnowSource],
+    ["Faulty Terminal", faultyTerminalRendererSource],
+    ["Grid Distortion", gridDistortionSource],
+  ]) {
+    assert.match(
+      readAnimationPolicyBlock(rendererSource, label),
+      /respectSystemReducedMotion:\s*true/,
+      `${label} must preserve a static system-reduced-motion frame on route-owned surfaces.`,
+    )
+  }
+})
+
+test("Faulty Terminal and Grid Distortion opt in to compact viewport animation", () => {
+  for (const [label, rendererSource] of [
+    ["Faulty Terminal", faultyTerminalRendererSource],
+    ["Grid Distortion", gridDistortionSource],
+  ]) {
+    assert.match(
+      readAnimationPolicyBlock(rendererSource, label),
+      /allowCompactViewport:\s*true/,
+      `${label} must keep its RAF active at the exact 360px compact threshold.`,
+    )
+  }
+})
+
+test("route-owned reduced motion freezes the fallback for exactly the four repaired backgrounds", () => {
+  const scopedRule = globalStylesSource.match(
+    /body:is\(\.chimer-running, \.chimer-alerting, \.chimer-preview-capture\)\s+:is\([\s\S]*?\) \.massagelab-background-fallback\s*\{[\s\S]*?\}/,
+  )?.[0]
+  assert.ok(scopedRule, "The exact route-owned fallback reduced-motion rule must remain present.")
+  assert.deepEqual(
+    [...scopedRule.matchAll(/data-background-id="([^"]+)"/g)].map((match) => match[1]),
+    [
+      "massage-lab-gradient-blinds",
+      "massage-lab-pixel-snow",
+      "massage-lab-faulty-terminal",
+      "massage-lab-grid-distortion",
+    ],
+  )
+  assert.match(scopedRule, /animation:\s*none;/)
+})
+
+test("autonomy proofs write named screenshots directly to Playwright test output", () => {
+  const start = browserPaletteSource.indexOf("async function proveAutonomousPhoneMotion")
+  const end = browserPaletteSource.indexOf("/** Reads the stored alpha", start)
+  assert.notEqual(start, -1, "The autonomous phone proof helpers must remain present.")
+  assert.notEqual(end, -1, "The proof helper boundary must remain present.")
+  const proofHelpers = browserPaletteSource.slice(start, end)
+
+  assert.doesNotMatch(proofHelpers, /testInfo\.attach/)
+  assert.doesNotMatch(proofHelpers, /\.toEqual\((?:moving|reduced|compact)Initial\)/)
+  assert.equal([...proofHelpers.matchAll(/testInfo\.outputPath\(/g)].length, 6)
+  assert.equal([...proofHelpers.matchAll(/Later\.equals\([^)]*Initial\)/g)].length, 3)
+  assert.equal([...proofHelpers.matchAll(/scale:\s*"css"/g)].length, 6)
+  assert.equal(
+    [...proofHelpers.matchAll(/await normalizeAutonomyProofHostChrome\(host\)/g)].length,
+    3,
+  )
+  assert.match(
+    browserPaletteSource,
+    /fixtureCard\.style\.setProperty\("border-radius", "0px", "important"\)/,
+  )
+  for (const suffix of [
+    "no-preference-initial.png",
+    "no-preference-later.png",
+    "reduce-initial.png",
+    "reduce-later.png",
+    "compact-no-preference-initial.png",
+    "compact-no-preference-later.png",
+  ]) {
+    assert.ok(
+      proofHelpers.includes("testInfo.outputPath(`${id}-" + suffix + "`)"),
+      `${suffix} must be written directly to the current Playwright test output.`,
+    )
+  }
 })

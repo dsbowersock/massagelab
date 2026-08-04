@@ -2954,6 +2954,15 @@ html[data-theme-transition-fallback="toggle-light"]::before {
     animation: none;
   }
 
+  body:is(.chimer-running, .chimer-alerting, .chimer-preview-capture) :is(
+    [data-background-id="massage-lab-gradient-blinds"],
+    [data-background-id="massage-lab-pixel-snow"],
+    [data-background-id="massage-lab-faulty-terminal"],
+    [data-background-id="massage-lab-grid-distortion"]
+  ) .massagelab-background-fallback {
+    animation: none;
+  }
+
   .ml-route-wordmark {
     transition: none;
   }

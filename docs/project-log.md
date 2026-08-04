@@ -8,7 +8,7 @@ Catalog naming note: `MassageLaba Lamp` is the established catalog label for the
 
 ## 2026-08-04 — Phone background animation autonomy remediation
 
-- Gradient Blinds now moves both its gradient and blinds, Pixel Snow animates from a representative nonzero scene time at compact DPR, Faulty Terminal has visible autonomous defaults, and Grid Distortion combines ambient and pointer deformation. Real-browser phone captures prove motion at 390×844 and exact reduced-motion stability for all four renderers. Preview generation remains deferred until the remaining live-background audit is resolved.
+- Gradient Blinds now moves both its gradient and blinds, Pixel Snow animates from a representative nonzero scene time at compact DPR, Faulty Terminal has visible autonomous defaults, and Grid Distortion combines ambient and pointer deformation. Real-browser phone captures prove motion at 390×844, exact-threshold motion at 360×780 for Faulty Terminal and Grid Distortion, and exact reduced-motion stability for all four renderers even with the production `chimer-running` route class present. Preview generation remains deferred until the remaining live-background audit is resolved.
 
 ## 2026-08-04 — Background layering and framing remediation
 

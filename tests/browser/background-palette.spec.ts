@@ -1,5 +1,4 @@
-import { expect, test, type Locator, type Page } from "@playwright/test"
-import sharp from "sharp"
+import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test"
 
 import {
   backgroundPaletteRegistry,
@@ -256,8 +255,11 @@ async function selectBackground(page: Page, id: string) {
     .toHaveAttribute("data-background-id", id)
 }
 
-/** Waits for the fixture's real BackgroundHost to finish loading the selected effect. */
-async function waitForLiveBackground(page: Page, id: typeof AUTONOMOUS_PHONE_BACKGROUND_IDS[number]) {
+/** Selects the real effect and waits for the fixture's existing loaded diagnostics. */
+async function selectAndWaitForLiveBackgroundReady(
+  page: Page,
+  id: typeof AUTONOMOUS_PHONE_BACKGROUND_IDS[number],
+) {
   await selectBackground(page, id)
   await expectLoadedPaletteMode(page, id, "supported", "source")
   const host = page.getByTestId("background-palette-live-host")
@@ -267,25 +269,220 @@ async function waitForLiveBackground(page: Page, id: typeof AUTONOMOUS_PHONE_BAC
   return host
 }
 
+/** Waits for the real effect canvas to allocate and complete two browser frames. */
+async function waitForCompletedBackgroundDraw(
+  host: Locator,
+  id: typeof AUTONOMOUS_PHONE_BACKGROUND_IDS[number],
+) {
+  const canvas = host.locator("canvas").last()
+  await expect(canvas).toBeVisible()
+  await expect.poll(
+    () => canvas.evaluate((element) => {
+      const effectCanvas = element as HTMLCanvasElement
+      return effectCanvas.width > 1 && effectCanvas.height > 1
+    }),
+    { message: `${id} must allocate its real effect drawing buffer before capture.` },
+  ).toBe(true)
+  await canvas.evaluate(() => new Promise<void>((resolve, reject) => {
+    let firstFrame = 0
+    let secondFrame = 0
+    const timeout = window.setTimeout(() => {
+      window.cancelAnimationFrame(firstFrame)
+      window.cancelAnimationFrame(secondFrame)
+      reject(new Error("The real effect canvas did not complete two browser frames within 5 seconds."))
+    }, 5_000)
+    firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => {
+        window.clearTimeout(timeout)
+        resolve()
+      })
+    })
+  }))
+}
+
+/** Waits for the fixture's real BackgroundHost to load and complete a draw. */
+async function waitForLiveBackground(page: Page, id: typeof AUTONOMOUS_PHONE_BACKGROUND_IDS[number]) {
+  const host = await selectAndWaitForLiveBackgroundReady(page, id)
+  await waitForCompletedBackgroundDraw(host, id)
+  return host
+}
+
+/** Removes only the review fixture's nondeterministic rounded-edge rasterization. */
+async function normalizeAutonomyProofHostChrome(host: Locator) {
+  await host.evaluate((element) => {
+    const fixtureCard = element.parentElement
+    if (!(fixtureCard instanceof HTMLElement)) {
+      throw new Error("Autonomy proof could not locate the live fixture card.")
+    }
+    fixtureCard.style.setProperty("border-radius", "0px", "important")
+  })
+}
+
 /** Rejects the compact-DPR Pixel Snow regression where the visible scene is one opaque color. */
-async function expectPixelSnowCentralRegionToVary(screenshot: Buffer) {
-  const metadata = await sharp(screenshot).metadata()
-  const width = Math.max(1, Math.floor((metadata.width ?? 1) * 0.2))
-  const height = Math.max(1, Math.floor((metadata.height ?? 1) * 0.2))
-  const left = Math.max(0, Math.floor(((metadata.width ?? width) - width) / 2))
-  const top = Math.max(0, Math.floor(((metadata.height ?? height) - height) / 2))
-  const { data } = await sharp(screenshot)
-    .extract({ left, top, width, height })
-    .ensureAlpha()
-    .raw()
-    .toBuffer({ resolveWithObject: true })
-  const [red, green, blue, alpha] = data
-  const isUniformOpaqueSquare = alpha === 255 && data.every((channel, index) => (
-    channel === [red, green, blue, alpha][index % 4]
-  ))
+async function expectPixelSnowCentralRegionToVary(page: Page, screenshot: Buffer) {
+  const isUniformOpaqueSquare = await page.evaluate(async (base64Png) => {
+    const response = await fetch(`data:image/png;base64,${base64Png}`)
+    if (!response.ok) {
+      throw new Error(`Pixel Snow screenshot decode failed with HTTP ${response.status}.`)
+    }
+
+    const objectUrl = URL.createObjectURL(await response.blob())
+    let bitmap: ImageBitmap | undefined
+    let canvas: HTMLCanvasElement | undefined
+    try {
+      const objectResponse = await fetch(objectUrl)
+      bitmap = await createImageBitmap(await objectResponse.blob())
+      const width = Math.max(1, Math.floor(bitmap.width * 0.2))
+      const height = Math.max(1, Math.floor(bitmap.height * 0.2))
+      const left = Math.max(0, Math.floor((bitmap.width - width) / 2))
+      const top = Math.max(0, Math.floor((bitmap.height - height) / 2))
+      canvas = document.createElement("canvas")
+      canvas.width = width
+      canvas.height = height
+      const context = canvas.getContext("2d", { willReadFrequently: true })
+      if (!context) {
+        throw new Error("Pixel Snow screenshot decode did not expose a 2D canvas context.")
+      }
+      context.drawImage(bitmap, left, top, width, height, 0, 0, width, height)
+      const pixels = context.getImageData(0, 0, width, height).data
+      const [red, green, blue, alpha] = pixels
+      return alpha === 255 && pixels.every((channel, index) => (
+        channel === [red, green, blue, alpha][index % 4]
+      ))
+    } finally {
+      bitmap?.close()
+      if (canvas) {
+        canvas.width = 0
+        canvas.height = 0
+      }
+      URL.revokeObjectURL(objectUrl)
+    }
+  }, screenshot.toString("base64"))
 
   expect(isUniformOpaqueSquare, "Pixel Snow central 20% must contain a decoded scene, not one opaque square.")
     .toBe(false)
+}
+
+async function proveAutonomousPhoneMotion(
+  page: Page,
+  id: typeof AUTONOMOUS_PHONE_BACKGROUND_IDS[number],
+  testInfo: TestInfo,
+) {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.emulateMedia({ reducedMotion: "no-preference" })
+  await openPaletteGallery(page)
+  await page.evaluate(() => document.body.classList.remove("chimer-running"))
+  const host = await waitForLiveBackground(page, id)
+  await normalizeAutonomyProofHostChrome(host)
+  const movingInitial = await host.screenshot({
+    path: testInfo.outputPath(`${id}-no-preference-initial.png`),
+    scale: "css",
+    timeout: 15_000,
+  })
+  if (id === "massage-lab-pixel-snow") {
+    await expectPixelSnowCentralRegionToVary(page, movingInitial)
+  }
+
+  await page.waitForTimeout(700)
+  const movingLater = await host.screenshot({
+    path: testInfo.outputPath(`${id}-no-preference-later.png`),
+    scale: "css",
+    timeout: 15_000,
+  })
+  expect(
+    movingLater.equals(movingInitial),
+    `${id} should autonomously change pixels on a phone.`,
+  ).toBe(false)
+}
+
+async function proveReducedPhoneStability(
+  page: Page,
+  id: typeof AUTONOMOUS_PHONE_BACKGROUND_IDS[number],
+  testInfo: TestInfo,
+) {
+  await test.step("emulate reduced motion and open fixture", async () => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.emulateMedia({ reducedMotion: "reduce" })
+    await openPaletteGallery(page)
+  })
+
+  await test.step("add chimer-running class", async () => {
+    await page.evaluate(() => document.body.classList.add("chimer-running"))
+  })
+
+  const host = await test.step("select renderer and wait for loaded diagnostics", () => (
+    selectAndWaitForLiveBackgroundReady(page, id)
+  ))
+  await normalizeAutonomyProofHostChrome(host)
+
+  await test.step("wait for completed renderer draw", () => waitForCompletedBackgroundDraw(host, id))
+
+  const reducedInitial = await test.step(
+    "capture first reduced host screenshot",
+    () => host.screenshot({
+      path: testInfo.outputPath(`${id}-reduce-initial.png`),
+      scale: "css",
+      timeout: 15_000,
+    }),
+  )
+
+  await page.waitForTimeout(400)
+  const reducedLater = await host.screenshot({
+    path: testInfo.outputPath(`${id}-reduce-later.png`),
+    scale: "css",
+    timeout: 15_000,
+  })
+  expect(
+    reducedLater.equals(reducedInitial),
+    `${id} should have exactly stable reduced-motion pixels.`,
+  ).toBe(true)
+  await page.evaluate(() => document.body.classList.remove("chimer-running"))
+}
+
+async function proveCompactPhoneMotion(
+  page: Page,
+  id: "massage-lab-faulty-terminal" | "massage-lab-grid-distortion",
+  testInfo: TestInfo,
+) {
+  await page.setViewportSize({ width: 360, height: 780 })
+  await page.emulateMedia({ reducedMotion: "no-preference" })
+  await openPaletteGallery(page)
+  const host = await waitForLiveBackground(page, id)
+  await normalizeAutonomyProofHostChrome(host)
+  const canvas = host.locator("canvas").last()
+  const compactSizing = await canvas.evaluate((element) => {
+    const effectCanvas = element as HTMLCanvasElement
+    const hostElement = effectCanvas.closest('[data-testid="background-palette-live-host"]')
+    if (!(hostElement instanceof HTMLElement)) {
+      throw new Error("Compact animation proof could not locate the live BackgroundHost.")
+    }
+    return {
+      bufferWidth: effectCanvas.width,
+      hostWidth: hostElement.getBoundingClientRect().width,
+    }
+  })
+  expect(compactSizing.hostWidth, `${id} compact host width`).toBeLessThanOrEqual(360)
+  expect(compactSizing.bufferWidth, `${id} compact DPR drawing-buffer cap`)
+    .toBeLessThanOrEqual(Math.ceil(compactSizing.hostWidth) + 1)
+
+  if (id === "massage-lab-grid-distortion") {
+    await page.waitForTimeout(1_200)
+  }
+  const compactInitial = await host.screenshot({
+    path: testInfo.outputPath(`${id}-compact-no-preference-initial.png`),
+    scale: "css",
+    timeout: 15_000,
+  })
+  await page.waitForTimeout(700)
+  const compactLater = await host.screenshot({
+    path: testInfo.outputPath(`${id}-compact-no-preference-later.png`),
+    scale: "css",
+    timeout: 15_000,
+  })
+  expect(
+    compactLater.equals(compactInitial),
+    `${id} should change pixels at the exact compact threshold.`,
+  ).toBe(false)
 }
 
 /** Reads the stored alpha at each drawing-buffer corner from Ripple Grid's real WebGL canvas. */
@@ -441,51 +638,24 @@ test.describe("shared background palette review matrix", () => {
     })
   })
 
-  test("keeps repaired backgrounds autonomous on phones and stable for reduced motion", async ({ page }, testInfo) => {
-    // Eight fresh fixture loads deliberately cover both media preferences for
-    // four lazy renderers; allow initial development compilation to finish.
-    test.setTimeout(180_000)
-    await page.setViewportSize({ width: 390, height: 844 })
+  for (const id of AUTONOMOUS_PHONE_BACKGROUND_IDS) {
+    test(`keeps repaired backgrounds autonomous on phones and stable for reduced motion: ${id} no preference`, async ({ page }, testInfo) => {
+      test.setTimeout(90_000)
+      await proveAutonomousPhoneMotion(page, id, testInfo)
+    })
 
-    for (const id of AUTONOMOUS_PHONE_BACKGROUND_IDS) {
-      await page.emulateMedia({ reducedMotion: "no-preference" })
-      await openPaletteGallery(page)
-      const host = await waitForLiveBackground(page, id)
-      const movingInitial = await host.screenshot()
-      await testInfo.attach(`${id}-no-preference-initial`, {
-        body: movingInitial,
-        contentType: "image/png",
-      })
-      if (id === "massage-lab-pixel-snow") {
-        await expectPixelSnowCentralRegionToVary(movingInitial)
-      }
+    test(`keeps repaired backgrounds autonomous on phones and stable for reduced motion: ${id} reduced with chimer-running`, async ({ page }, testInfo) => {
+      test.setTimeout(90_000)
+      await proveReducedPhoneStability(page, id, testInfo)
+    })
+  }
 
-      await page.waitForTimeout(700)
-      const movingLater = await host.screenshot()
-      await testInfo.attach(`${id}-no-preference-later`, {
-        body: movingLater,
-        contentType: "image/png",
-      })
-      expect(movingLater, `${id} should autonomously change pixels on a phone.`).not.toEqual(movingInitial)
-
-      await page.emulateMedia({ reducedMotion: "reduce" })
-      await openPaletteGallery(page)
-      const reducedHost = await waitForLiveBackground(page, id)
-      const reducedInitial = await reducedHost.screenshot()
-      await testInfo.attach(`${id}-reduce-initial`, {
-        body: reducedInitial,
-        contentType: "image/png",
-      })
-
-      await page.waitForTimeout(400)
-      const reducedLater = await reducedHost.screenshot()
-      await testInfo.attach(`${id}-reduce-later`, {
-        body: reducedLater,
-        contentType: "image/png",
-      })
-      expect(reducedLater, `${id} should have exactly stable reduced-motion pixels.`).toEqual(reducedInitial)
-    }
-  })
+  for (const id of ["massage-lab-faulty-terminal", "massage-lab-grid-distortion"] as const) {
+    test(`keeps repaired backgrounds autonomous on phones and stable for reduced motion: ${id} exact compact threshold`, async ({ page }, testInfo) => {
+      test.setTimeout(90_000)
+      await proveCompactPhoneMotion(page, id, testInfo)
+    })
+  }
 
   test("keeps patterned live renderers unlayered and framed on phone viewports", async ({ page }, testInfo) => {
     test.setTimeout(120_000)

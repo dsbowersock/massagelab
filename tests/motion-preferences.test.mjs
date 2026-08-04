@@ -78,54 +78,50 @@ test("app low-motion setting still wins over explicit route-owned motion", () =>
   }), false)
 })
 
-test("Chimer running route class counts as route-owned motion", () => {
-  const previousDocument = globalThis.document
+for (const routeClass of ["chimer-running", "chimer-alerting", "chimer-preview-capture"]) {
+  test(`${routeClass} keeps the default route-owned override but allows scoped system reduction`, () => {
+    const previousDocument = globalThis.document
 
-  try {
-    globalThis.document = {
-      body: {
-        classList: {
-          contains: (className) => className === "chimer-running",
+    try {
+      globalThis.document = {
+        body: {
+          classList: {
+            contains: (className) => className === routeClass,
+          },
         },
-      },
-    }
+      }
 
-    assert.equal(shouldAnimateAmbientBackground({
-      prefersReducedMotion: true,
-      compactViewport: false,
-      documentHidden: false,
-    }), true)
-  } finally {
-    if (previousDocument === undefined) {
-      delete globalThis.document
-    } else {
-      globalThis.document = previousDocument
+      assert.equal(shouldReduceAmbientMotion({
+        prefersReducedMotion: true,
+      }), false)
+      assert.equal(shouldAnimateAmbientBackground({
+        prefersReducedMotion: true,
+        compactViewport: false,
+        documentHidden: false,
+      }), true)
+      assert.equal(shouldReduceAmbientMotion({
+        prefersReducedMotion: true,
+        respectSystemReducedMotion: true,
+      }), true)
+      assert.equal(shouldAnimateAmbientBackground({
+        prefersReducedMotion: true,
+        compactViewport: false,
+        documentHidden: false,
+        respectSystemReducedMotion: true,
+      }), false)
+      assert.equal(shouldAnimateAmbientBackground({
+        prefersReducedMotion: true,
+        compactViewport: false,
+        documentHidden: false,
+        forceMotion: true,
+        respectSystemReducedMotion: true,
+      }), false)
+    } finally {
+      if (previousDocument === undefined) {
+        delete globalThis.document
+      } else {
+        globalThis.document = previousDocument
+      }
     }
-  }
-})
-
-test("Chimer alerting route class counts as route-owned motion", () => {
-  const previousDocument = globalThis.document
-
-  try {
-    globalThis.document = {
-      body: {
-        classList: {
-          contains: (className) => className === "chimer-alerting",
-        },
-      },
-    }
-
-    assert.equal(shouldAnimateAmbientBackground({
-      prefersReducedMotion: true,
-      compactViewport: false,
-      documentHidden: false,
-    }), true)
-  } finally {
-    if (previousDocument === undefined) {
-      delete globalThis.document
-    } else {
-      globalThis.document = previousDocument
-    }
-  }
-})
+  })
+}

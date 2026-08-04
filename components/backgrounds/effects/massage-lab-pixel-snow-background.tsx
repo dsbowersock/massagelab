@@ -256,6 +256,7 @@ export default function MassageLabPixelSnowBackground({
       compactViewport: compactViewportQuery.matches,
       allowCompactViewport: true,
       documentHidden: document.visibilityState !== "visible",
+      respectSystemReducedMotion: true,
     })
 
     const resize = () => {

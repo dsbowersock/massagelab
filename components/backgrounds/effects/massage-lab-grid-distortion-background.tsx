@@ -142,7 +142,9 @@ export default function MassageLabGridDistortionBackground({
     const shouldAnimate = () => shouldAnimateAmbientBackground({
       prefersReducedMotion: reducedMotionQuery.matches,
       compactViewport: compactViewportQuery.matches,
+      allowCompactViewport: true,
       documentHidden: document.visibilityState !== "visible",
+      respectSystemReducedMotion: true,
     })
 
     try {

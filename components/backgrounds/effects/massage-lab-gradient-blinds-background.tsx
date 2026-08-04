@@ -246,6 +246,7 @@ export default function MassageLabGradientBlindsBackground({
         compactViewport: Math.min(bounds.width, bounds.height) < 360 || compactViewportQuery.matches,
         allowCompactViewport: true,
         documentHidden: document.hidden,
+        respectSystemReducedMotion: true,
       })
     }
 

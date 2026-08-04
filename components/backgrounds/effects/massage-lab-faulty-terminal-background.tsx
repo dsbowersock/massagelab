@@ -317,7 +317,9 @@ export default function MassageLabFaultyTerminalBackground({
     const shouldAnimate = () => shouldAnimateAmbientBackground({
       prefersReducedMotion: reducedMotionQuery.matches,
       compactViewport: compactViewportQuery.matches,
+      allowCompactViewport: true,
       documentHidden: document.visibilityState !== "visible",
+      respectSystemReducedMotion: true,
     })
 
     const resize = () => {
