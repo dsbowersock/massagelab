@@ -1,0 +1,95 @@
+.editor {
+  display: grid;
+  min-width: 0;
+  max-width: 100%;
+  gap: 0.65rem;
+  padding-top: 0.2rem;
+}
+
+.headingRow {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.copy {
+  min-width: 0;
+}
+
+.heading {
+  margin: 0;
+  color: hsl(var(--foreground));
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.helper {
+  margin: 0.18rem 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.74rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.list {
+  display: grid;
+  min-width: 0;
+  gap: 0.45rem;
+}
+
+.row {
+  display: grid;
+  min-width: 0;
+  max-width: 100%;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.input {
+  width: 100%;
+  min-width: 0;
+  height: 2rem;
+  border: 1px solid hsl(var(--border) / 0.82);
+  border-radius: 0.5rem;
+  background: hsl(var(--background) / 0.72);
+  padding: 0 0.65rem;
+  color: hsl(var(--foreground));
+  font: inherit;
+  font-size: 0.8rem;
+  outline: none;
+}
+
+.input:focus-visible {
+  border-color: hsl(var(--ring));
+  box-shadow: 0 0 0 2px hsl(var(--ring) / 0.34);
+}
+
+.removeButton {
+  min-width: 0;
+  padding-inline: 0.55rem;
+  color: hsl(var(--destructive));
+}
+
+@media (max-width: 360px) {
+  .headingRow {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .headingRow > button {
+    justify-self: start;
+    align-self: flex-start;
+  }
+
+  .row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .removeButton {
+    justify-self: start;
+  }
+}

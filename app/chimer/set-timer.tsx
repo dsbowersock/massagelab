@@ -18,6 +18,7 @@ import { getMassageLab3DGlobeScaleDisplayPercent, getMassageLab3DGlobeScaleFromD
 import { normalizeSharedBackgroundVisualPreferences } from "@/lib/background-palette"
 import { buildBackgroundVisualOpeningSnapshot, buildBackgroundVisualPendingCommit } from "@/lib/background-visual-draft"
 import styles from "./set-timer.module.css"
+import { GridMotionMantraEditor } from "./grid-motion-mantra-editor"
 import { TileGridFadeTimeControl } from "./tile-grid-fade-time-control"
 
 export { getMassageLab3DGlobeScaleDisplayPercent, getMassageLab3DGlobeScaleFromDisplayPercent }
@@ -9879,6 +9880,13 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
               aria-label="MassageLab Grid Motion base duration"
             />
           </label>
+
+          <GridMotionMantraEditor
+            value={settings.massageLabGridMotionMantras}
+            onChange={(massageLabGridMotionMantras) =>
+              onSettingsChange({ massageLabGridMotionMantras })
+            }
+          />
         </div>
       )
     }
