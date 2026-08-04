@@ -7,7 +7,7 @@ This is the read-first source of truth for MassageLab's current project state. U
 ## Current Snapshot
 
 - Status: private alpha.
-- Current background-review slice: the auth-free development-only `/dev/clock` surface is available for Device Toolbar review. Static Gradient now uses a real low-cost CSS renderer with two to seven active shared-palette colors, linear/radial geometry, direction or radial shape/reach/center controls, and ordered color-stop positions; its existing `static-gradient` ID and entitlement behavior are unchanged.
+- Current background-review slice: the auth-free development-only `/dev/clock` surface is available for Device Toolbar review. Static Gradient now uses a real low-cost CSS renderer with two to seven active shared-palette colors, linear/radial geometry, direction or radial shape/reach/center controls, and ordered color-stop positions; its existing `static-gradient` ID and entitlement behavior are unchanged. Retro Grid now consumes the Host's resolved motion contract for both its WebGL frame loop and CSS fallback, so explicit animation remains active without a second browser-media-query veto and resolved reduced motion remains static.
 - Security dependency Fix Waves 1 and 2 are merged through PRs #162 and #164;
   Wave 2's merge commit is `b7dbe6a36b13005b3748fa46e5c6a064355bddf2`.
   The post-merge Dependabot rescan leaves one medium, development-only alert:

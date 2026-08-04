@@ -183,6 +183,7 @@ interface ProgramInfo {
 export default function MassageLabRetroGridBackground({
   className,
   massageLabRetroGrid,
+  reduceMotion = false,
 }: BackgroundEffectProps) {
   const {
     angle,
@@ -230,7 +231,6 @@ export default function MassageLabRetroGridBackground({
       return undefined
     }
 
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)")
     const colorScheme = window.matchMedia("(prefers-color-scheme: dark)")
     let animationFrameId: number | null = null
     let currentWidth = 0
@@ -358,7 +358,7 @@ export default function MassageLabRetroGridBackground({
       gl.uniform2f(programInfo.uniforms.containerSize, currentWidth, currentHeight)
       gl.uniform1f(programInfo.uniforms.devicePixelRatio, currentDevicePixelRatio)
       gl.uniform4fv(programInfo.uniforms.lineColor, lineColor)
-      gl.uniform1f(programInfo.uniforms.time, reducedMotion.matches ? 0 : timestamp / 1000)
+      gl.uniform1f(programInfo.uniforms.time, reduceMotion ? 0 : timestamp / 1000)
       gl.uniform2f(programInfo.uniforms.viewportSize, window.innerWidth, window.innerHeight)
       gl.drawArrays(gl.TRIANGLES, 0, 3)
     }
@@ -373,7 +373,7 @@ export default function MassageLabRetroGridBackground({
     const frame = (timestamp: number) => {
       draw(timestamp)
 
-      if (!reducedMotion.matches && isVisible) {
+      if (!reduceMotion && isVisible) {
         animationFrameId = requestAnimationFrame(frame)
         return
       }
@@ -407,7 +407,7 @@ export default function MassageLabRetroGridBackground({
       draw(performance.now())
       setIsWebGlReady(true)
 
-      if (reducedMotion.matches || !isVisible) {
+      if (reduceMotion || !isVisible) {
         stopAnimation()
         return
       }
@@ -451,7 +451,6 @@ export default function MassageLabRetroGridBackground({
       stopAnimation()
     }
     const handleWindowResize = () => syncScene()
-    const handleMotionChange = () => syncScene()
     const handleColorSchemeChange = () => syncScene()
     const handleContextLost = (event: Event) => {
       event.preventDefault()
@@ -465,7 +464,6 @@ export default function MassageLabRetroGridBackground({
       syncScene()
     }
 
-    reducedMotion.addEventListener("change", handleMotionChange)
     colorScheme.addEventListener("change", handleColorSchemeChange)
     document.addEventListener("visibilitychange", handleVisibilityChange)
     window.addEventListener("resize", handleWindowResize)
@@ -478,7 +476,6 @@ export default function MassageLabRetroGridBackground({
       resizeObserver.disconnect()
       intersectionObserver.disconnect()
       themeObserver.disconnect()
-      reducedMotion.removeEventListener("change", handleMotionChange)
       colorScheme.removeEventListener("change", handleColorSchemeChange)
       document.removeEventListener("visibilitychange", handleVisibilityChange)
       window.removeEventListener("resize", handleWindowResize)
@@ -489,7 +486,7 @@ export default function MassageLabRetroGridBackground({
       canvas.width = 1
       canvas.height = 1
     }
-  }, [])
+  }, [reduceMotion])
 
   const wrapperStyle = {
     "--ml-retro-grid-background": resolved.backgroundColor,
@@ -514,7 +511,13 @@ export default function MassageLabRetroGridBackground({
       {!isWebGlReady ? (
         <div className={styles.massageLabRetroGridFallbackPerspective}>
           <div className={styles.massageLabRetroGridFallbackRotation} style={fallbackRotationStyle}>
-            <div className={styles.massageLabRetroGridFallbackGrid} style={fallbackGridStyle} />
+            <div
+              className={cn(
+                styles.massageLabRetroGridFallbackGrid,
+                reduceMotion && styles.massageLabRetroGridFallbackPaused,
+              )}
+              style={fallbackGridStyle}
+            />
           </div>
         </div>
       ) : null}

@@ -1062,11 +1062,9 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .massageLabRetroGridFallbackGrid {
-    animation: none;
-    transform: translateY(-50%);
-  }
+.massageLabRetroGridFallbackPaused {
+  animation: none;
+  transform: translateY(-50%);
 }
 
 .massageLabAerialRaysBackground {

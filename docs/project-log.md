@@ -6,6 +6,10 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-04 — Retro Grid motion-contract remediation
+
+- Retro Grid now uses the shared Background Host `reduceMotion` decision instead of independently re-reading `prefers-reduced-motion`. Its WebGL frame loop and CSS fallback therefore agree with the Visual panel's background-animation state and the app's resolved ambient-motion setting. The focused Retro Grid contract test, typecheck, lint, dev-route HTTP check, and whitespace check pass; browser frame comparison remains blocked by the in-app browser's admin policy.
+
 ## 2026-08-04 — Static Gradient visual controls
 
 - Static Gradient is now a real low-cost CSS renderer with two to seven active colors, seven shared palette roles, linear and radial modes, linear direction, radial circle/ellipse shape and reach, movable radial center, and individually adjustable ordered color stops. The geometry persists through the existing per-background Visual draft without changing the background ID, and the auth-free `/dev/clock` surface exposes the same controls for Device Toolbar review.
