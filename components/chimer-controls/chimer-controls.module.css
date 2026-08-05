@@ -864,9 +864,35 @@
   background: hsl(var(--foreground) / 0.035);
 }
 
+/* Role assignment is distinct from the current Source/Custom editability.
+ * Reuse the Visual header action palettes so the cue stays recognizable in
+ * every palette mode without introducing background-specific color tokens. */
+.backgroundPaletteSwatch[data-background-role-state="assigned"] {
+  border-color: hsl(var(--button-calendar-leaf-bright) / 0.5);
+  background:
+    linear-gradient(
+      122deg,
+      hsl(var(--button-calendar-leaf-bright) / 0.28) 0%,
+      hsl(var(--button-calendar-leaf) / 0.2) 72%,
+      hsl(var(--button-calendar-moss) / 0.16) 100%
+    );
+  box-shadow: inset 0 1px 0 hsl(var(--foreground) / 0.08);
+}
+
+.backgroundPaletteSwatch[data-background-role-state="unused"] {
+  border-color: hsl(var(--button-danger-start) / 0.48);
+  background:
+    linear-gradient(
+      122deg,
+      hsl(var(--button-danger-start) / 0.24) 0%,
+      hsl(var(--button-danger-mid) / 0.18) 78%,
+      hsl(var(--button-danger-end) / 0.15) 100%
+    );
+  box-shadow: inset 0 1px 0 hsl(var(--foreground) / 0.07);
+}
+
 .backgroundPaletteSwatchUnused {
   border-style: dashed;
-  background: hsl(var(--muted) / 0.28);
 }
 
 .backgroundPaletteSwatchLabel {

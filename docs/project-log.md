@@ -6,6 +6,11 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-05 — Selected-background swatch availability cues
+
+- The shared seven-swatch editor now marks each swatch with semantic assigned/unused state derived from the selected background's active role mapping. Assigned swatches reuse the Visual header Apply action's leaf-green token family; unused swatches reuse the destructive action's red token family and retain their dashed border. The tint remains a redundant visual cue alongside the existing role names and `Not used by this background` labels, and follows the existing 7/4/2-column responsive layouts in Source, Custom, and Harmony modes without changing editability, palette behavior, mappings, saved settings, or background IDs.
+- The focused palette contract, all 1,978 repository tests, typecheck, lint, `git diff --check`, the 102-page Production build, and the restarted localhost-only `/dev/clock` HTTP check pass. Direct rendered automation remains blocked because the in-app browser's administrator-enforced localhost policy could not be verified, so final tint judgment remains in the user's Device Toolbar review.
+
 ## 2026-08-05 — Dotted Glow independent background, colors, and tuning
 
 - Promoted Dotted Glow from an unsupported canvas palette adapter to three concrete roles. Source preserves the authored background, dot, and glow colors. Custom maps Dots to Swatch 1, Glow to Swatch 2, and Background to Swatch 7; Harmony regenerates only the dot and glow colors while the saved Swatch 7 background remains visible and editable.

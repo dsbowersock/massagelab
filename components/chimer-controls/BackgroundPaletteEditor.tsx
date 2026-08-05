@@ -186,6 +186,7 @@ export function BackgroundPaletteEditor({
         {swatches.map((swatch) => (
           <div
             key={swatch.index}
+            data-background-role-state={swatch.unused ? "unused" : "assigned"}
             className={cn(
               styles.backgroundPaletteSwatch,
               swatch.unused && styles.backgroundPaletteSwatchUnused,

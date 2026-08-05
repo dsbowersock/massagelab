@@ -23,6 +23,10 @@ const editorSource = await readFile(
   new URL("../components/chimer-controls/BackgroundPaletteEditor.tsx", import.meta.url),
   "utf8",
 )
+const editorStyles = await readFile(
+  new URL("../components/chimer-controls/chimer-controls.module.css", import.meta.url),
+  "utf8",
+)
 const presetSource = await readFile(
   new URL("../components/chimer-controls/BackgroundPresetManager.tsx", import.meta.url),
   "utf8",
@@ -463,6 +467,18 @@ test("palette editor view models and changes are pure, indexed, and mapping-awar
     accent: 2,
   })
   assert.deepEqual({ palette, mapping }, before)
+})
+
+test("shared swatches reuse header action colors to distinguish assigned and unused roles", () => {
+  assert.match(editorSource, /data-background-role-state=\{swatch\.unused \? "unused" : "assigned"\}/)
+  assert.match(
+    editorStyles,
+    /\.backgroundPaletteSwatch\[data-background-role-state="assigned"\][\s\S]*var\(--button-calendar-leaf-bright\)/,
+  )
+  assert.match(
+    editorStyles,
+    /\.backgroundPaletteSwatch\[data-background-role-state="unused"\][\s\S]*var\(--button-danger-start\)/,
+  )
 })
 
 test("Harmony keeps a saved-swatch role editable and independent from generated colors", () => {
