@@ -75,7 +75,7 @@ const EFFECTS = [
     positionYKey: "massageLabTwistedCubesPositionY",
     maxScale: 1.2,
     endValues: {
-      massageLabTwistedCubesRotationSpeed: 3,
+      massageLabTwistedCubesRotationSpeed: 2,
       massageLabTwistedCubesLayerStagger: 0.3,
       massageLabTwistedCubesViewAngleX: 80,
       massageLabTwistedCubesViewAngleY: 80,
@@ -995,10 +995,8 @@ async function expectExactComputedConsumer({
     .first()
     .locator(":scope > span > span")
   const expectedCubeTransform = async () => normalizeAnimatedTransformForTarget(firstCube, [
-    { transform: "translate(-50%, -50%) rotateZ(0deg) rotateX(0deg) rotateZ(0deg)", offset: 0, easing: "cubic-bezier(0.5, 0.1, 0.5, 0.9)" },
-    { transform: "translate(-50%, -50%) rotateZ(90deg) rotateX(0deg) rotateZ(0deg)", offset: 0.33, easing: "cubic-bezier(0.5, 0.1, 0.5, 0.9)" },
-    { transform: "translate(-50%, -50%) rotateZ(90deg) rotateX(90deg) rotateZ(0deg)", offset: 0.66, easing: "cubic-bezier(0.5, 0.1, 0.5, 0.9)" },
-    { transform: "translate(-50%, -50%) rotateZ(90deg) rotateX(90deg) rotateZ(90deg)", offset: 1 },
+    { transform: "translate(-50%, -50%) rotate3d(1, 1, 1, 0deg)", offset: 0, easing: "linear" },
+    { transform: "translate(-50%, -50%) rotate3d(1, 1, 1, 360deg)", offset: 1 },
   ], {
     duration: cubeDurationSeconds * 1000,
     delay: firstCubeDelaySeconds * 1000,
@@ -1277,7 +1275,6 @@ async function expectExactReducedEffectState(
       connectorBackground: connectorExpected.backgroundColor,
       startNodeWidth: dnaGeometryExpected.nodeWidth,
       startNodeHeight: dnaGeometryExpected.nodeHeight,
-      startNodeTransform: startNodeExpected.transform,
       startNodeAnimationName: "none",
       startNodeDuration: "0s",
       startNodeDelay: "0s",
@@ -1285,13 +1282,23 @@ async function expectExactReducedEffectState(
       startNodeBorderColor: startNodeExpected.borderTopColor,
       endNodeWidth: dnaGeometryExpected.nodeWidth,
       endNodeHeight: dnaGeometryExpected.nodeHeight,
-      endNodeTransform: endNodeExpected.transform,
       endNodeAnimationName: "none",
       endNodeDuration: "0s",
       endNodeDelay: "0s",
       endNodeBorderWidth: endNodeExpected.borderTopWidth,
       endNodeBorderColor: endNodeExpected.borderTopColor,
     })
+    for (const [actualTransform, expectedTransform] of [
+      [String(computed.startNodeTransform), startNodeExpected.transform],
+      [String(computed.endNodeTransform), endNodeExpected.transform],
+    ]) {
+      const actualMatrix = parseComputedMatrix(actualTransform)
+      const expectedMatrix = parseComputedMatrix(expectedTransform)
+      expect(actualMatrix).toHaveLength(expectedMatrix.length)
+      for (const [index, actualValue] of actualMatrix.entries()) {
+        expect(Math.abs(actualValue - expectedMatrix[index])).toBeLessThan(0.05)
+      }
+    }
     expect(firstNodeEvidence.startBackground).toBe(startNodeExpected.backgroundColor)
     expect(firstNodeEvidence.endBackground).toBe(endNodeExpected.backgroundColor)
     return
@@ -1960,6 +1967,7 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
     await page.emulateMedia({ reducedMotion: "reduce" })
     const review = await openTrack4BReview(page)
     const host = review.getByTestId("track-4b-live-host")
+    const compactState = review.locator('[data-track-4b-specimen="compact-viewport"]')
     await review.getByRole("button", { name: "Pause review animation" }).click()
     const cdp = await page.context().newCDPSession(page)
     try {
@@ -1980,6 +1988,11 @@ test.describe("DNA and Twisted Cubes development acceptance", () => {
           { name: "short landscape", width: 844, height: 390 },
         ]) {
           await page.setViewportSize({ width: viewport.width, height: viewport.height })
+          const expectedCompactState = await page.evaluate(
+            (query) => String(window.matchMedia(query).matches),
+            BACKGROUND_COMPACT_VIEWPORT_QUERY,
+          )
+          await expect(compactState).toHaveAttribute("data-active", expectedCompactState)
           const current = await parsedAttribute<Record<string, number>>(review, "data-current-properties")
           expect(current[effect.scaleKey], viewport.name).toBe(effect.maxScale)
           expect(current[effect.positionXKey], viewport.name).toBe(35)

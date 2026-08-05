@@ -261,7 +261,7 @@ test("Track 4B computed-consumer contracts project the complete acceptance matri
     ["massage-lab-dna", "Strand rotation speed", "massageLabDnaStrandRotationSpeed", ".scene > .composition", "animationDuration", "rotationDuration", "sceneDuration"],
     ["massage-lab-dna", "Strand count", "massageLabDnaStrandCount", ".scene grid + [data-side]", "count|height|animationDelay|translate|transform", "strandCount|firstNodeDelay|firstStrandOffset|lastStrandOffset", "strandCount|nodeCount|strandHeight|connectorHeight|startNodeWidth|startNodeHeight|endNodeWidth|endNodeHeight|firstStrandTranslate|lastStrandTranslate|connectorDelay|startNodeDelay|endNodeDelay|connectorTransform|startNodeTransform|endNodeTransform"],
     ["massage-lab-dna", "Strand angle", "massageLabDnaStrandAngle", ".scene > .composition", "rotate", "strandAngle", "sceneRotate"],
-    ["massage-lab-dna", "Node size", "massageLabDnaNodeSize", "strand > [data-side]", "width|height", "nodeSize", "startNodeWidth|startNodeHeight|endNodeWidth|endNodeHeight"],
+    ["massage-lab-dna", "Node size", "massageLabDnaNodeSize", "strand > [data-side]", "width|height|transform", "nodeSize", "startNodeWidth|startNodeHeight|endNodeWidth|endNodeHeight|startNodeTransform|endNodeTransform"],
     ["massage-lab-dna", "Strand spacing", "massageLabDnaStrandSpacing", ".scene > strand", "translate", "strandSpacing|firstStrandOffset|lastStrandOffset", "firstStrandTranslate|lastStrandTranslate"],
     ["massage-lab-dna", "Scale", "massageLabDnaScale", ":scope > .scene", "transform", "scale", "sceneTransform"],
     ["massage-lab-dna", "Position X", "massageLabDnaPositionX", ":scope > .scene", "transform", "positionX", "sceneTransform"],

@@ -6,6 +6,12 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-04 — Twisted Cubes depth and motion remediation
+
+- Rotation speed is now bounded at `0.01x-2x`. Layer depth uses a stronger bounded orthographic projection that changes the rendered layer scale noticeably without adding perspective or reducing the approved layer count and wireframe quality.
+- The former staged cubic-bezier sequence ended at a transform that was not equivalent to its start, creating a loop-boundary snap and repeated acceleration/deceleration that read as jitter or lag. Twisted Cubes now follows one continuous linear `rotate3d` turn with equivalent start/end geometry and no persistent `will-change` allocation.
+- Focused domain, renderer, preference, controls, and palette contracts pass; the configured desktop-Chromium acceptance matrix passes 13/13 after correcting its DNA percentage-translation and compact-viewport test races; typecheck, lint, the 102-page Production build, and `git diff --check` pass. The in-app browser can claim the open `/dev/clock` tab but cannot inspect localhost because its admin policy is unavailable, so final visual judgment remains in the user's Device Toolbar review.
+
 ## 2026-08-04 — DNA control semantics and geometry remediation
 
 - DNA preserves the reviewed authored raw defaults (`0.06` node speed, `0.02` rotation speed, and `0.5` scale) while presenting them as `1.0x`, `1.0x`, and `100%`. Node and rotation speeds now use bounded `0.1x-2.0x` user-facing controls, and scale uses a real `1%-100%` range with a DNA-specific responsive floor so every position remains visually distinct.

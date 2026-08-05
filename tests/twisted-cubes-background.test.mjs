@@ -34,10 +34,11 @@ describe("Twisted Cubes background domain rules", () => {
       outlineThickness: 0.0075,
     })
     assert.equal(TWISTED_CUBES_LAYER_STEP_VMAX, 20)
-    assert.equal(TWISTED_CUBES_DEPTH_PROJECTION_DIVISOR, 10000)
+    assert.equal(TWISTED_CUBES_DEPTH_PROJECTION_DIVISOR, 4000)
     assert.equal(Object.isFrozen(DEFAULT_TWISTED_CUBES_BACKGROUND_OPTIONS), true)
     assert.equal(Object.isFrozen(TWISTED_CUBES_OPTION_BOUNDS), true)
     assert.equal(TWISTED_CUBES_OPTION_BOUNDS.layerCount.maximum, 30)
+    assert.equal(TWISTED_CUBES_OPTION_BOUNDS.rotationSpeed.maximum, 2)
   })
 
   it("sanitizes every Twisted Cubes property to its approved stored range", () => {
@@ -86,7 +87,7 @@ describe("Twisted Cubes background domain rules", () => {
       }),
       {
         layerCount: 30,
-        rotationSpeed: 3,
+        rotationSpeed: 2,
         layerStagger: 0.3,
         viewAngleX: 80,
         viewAngleY: 80,
@@ -149,11 +150,20 @@ describe("Twisted Cubes background domain rules", () => {
 
   it("projects layer depth visibly without introducing perspective distortion", () => {
     assert.equal(getTwistedCubeDepthScale({ oneBasedIndex: 20, count: 20, layerDepthSpacing: 50 }), 1)
-    assert.equal(getTwistedCubeDepthScale({ oneBasedIndex: 1, count: 20, layerDepthSpacing: 50 }), 1.095)
-    assert.equal(getTwistedCubeDepthScale({ oneBasedIndex: 1, count: 30, layerDepthSpacing: 70 }), 1.203)
+    assert.equal(getTwistedCubeDepthScale({ oneBasedIndex: 1, count: 20, layerDepthSpacing: 50 }), 1.2375)
+    assert.ok(
+      Math.abs(getTwistedCubeDepthScale({ oneBasedIndex: 1, count: 30, layerDepthSpacing: 70 }) - 1.5075)
+        < 1e-12,
+    )
     assert.ok(
       getTwistedCubeDepthScale({ oneBasedIndex: 1, count: 20, layerDepthSpacing: 51 })
         > getTwistedCubeDepthScale({ oneBasedIndex: 1, count: 20, layerDepthSpacing: 50 }),
+    )
+    assert.ok(
+      getTwistedCubeDepthScale({ oneBasedIndex: 2, count: 20, layerDepthSpacing: 70 })
+        - getTwistedCubeDepthScale({ oneBasedIndex: 2, count: 20, layerDepthSpacing: 10 })
+        >= 0.27,
+      "the full slider range must produce a noticeable projected-size change",
     )
   })
 
