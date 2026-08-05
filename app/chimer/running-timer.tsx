@@ -823,6 +823,10 @@ interface RunningTimerProps {
   massageLabDottedGlowDotSpacing: number
   massageLabDottedGlowOpacity: number
   massageLabDottedGlowGlowStrength: number
+  massageLabBackgroundBeamsSpeed: number
+  massageLabBackgroundBeamsIntensity: number
+  massageLabBackgroundBeamsBeamWidth: number
+  massageLabBackgroundBeamsGlowStrength: number
   backgroundLinesDuration: number
   shootingStarsDensity: number
   shootingStarsTwinkle: boolean
@@ -1472,6 +1476,10 @@ export function RunningTimer({
   massageLabDottedGlowDotSpacing,
   massageLabDottedGlowOpacity,
   massageLabDottedGlowGlowStrength,
+  massageLabBackgroundBeamsSpeed,
+  massageLabBackgroundBeamsIntensity,
+  massageLabBackgroundBeamsBeamWidth,
+  massageLabBackgroundBeamsGlowStrength,
   backgroundLinesDuration,
   shootingStarsDensity,
   shootingStarsTwinkle,
@@ -11505,6 +11513,27 @@ export function RunningTimer({
         </>
       )}
 
+      {option.id === "massage-lab-background-beams" && (
+        <>
+          <label className={styles.rangeRow}>
+            <span>Motion speed ({massageLabBackgroundBeamsSpeed.toFixed(2)}x)</span>
+            <input type="range" min="0.25" max="2" step="0.05" value={massageLabBackgroundBeamsSpeed} onChange={(event) => handleSettingsChange({ massageLabBackgroundBeamsSpeed: Number(event.target.value) })} aria-label="Beam Field motion speed" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Intensity ({Math.round(massageLabBackgroundBeamsIntensity * 100)}%)</span>
+            <input type="range" min="0.1" max="1" step="0.05" value={massageLabBackgroundBeamsIntensity} onChange={(event) => handleSettingsChange({ massageLabBackgroundBeamsIntensity: Number(event.target.value) })} aria-label="Beam Field intensity" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Beam width ({massageLabBackgroundBeamsBeamWidth.toFixed(1)})</span>
+            <input type="range" min="0.2" max="2" step="0.1" value={massageLabBackgroundBeamsBeamWidth} onChange={(event) => handleSettingsChange({ massageLabBackgroundBeamsBeamWidth: Number(event.target.value) })} aria-label="Beam Field beam width" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Glow strength ({massageLabBackgroundBeamsGlowStrength}px)</span>
+            <input type="range" min="0" max="20" step="0.5" value={massageLabBackgroundBeamsGlowStrength} onChange={(event) => handleSettingsChange({ massageLabBackgroundBeamsGlowStrength: Number(event.target.value) })} aria-label="Beam Field glow strength" />
+          </label>
+        </>
+      )}
+
       {option.id === "massage-lab-background-lines" && (
         <label className={styles.rangeRow}>
           <span>Line duration</span>
@@ -13248,6 +13277,12 @@ export function RunningTimer({
             dotSpacing: massageLabDottedGlowDotSpacing,
             opacity: massageLabDottedGlowOpacity,
             glowStrength: massageLabDottedGlowGlowStrength,
+          }}
+          massageLabBackgroundBeams={{
+            speed: massageLabBackgroundBeamsSpeed,
+            intensity: massageLabBackgroundBeamsIntensity,
+            beamWidth: massageLabBackgroundBeamsBeamWidth,
+            glowStrength: massageLabBackgroundBeamsGlowStrength,
           }}
           backgroundLines={{
             duration: backgroundLinesDuration,

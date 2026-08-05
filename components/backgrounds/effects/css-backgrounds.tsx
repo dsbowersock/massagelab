@@ -194,6 +194,7 @@ export interface BackgroundEffectProps extends BackgroundRendererLifecycleProps 
   massageLabAerialRays?: MassageLabAerialRaysOptions
   massageLabAurora?: MassageLabAuroraOptions
   massageLabDottedGlow?: MassageLabDottedGlowOptions
+  massageLabBackgroundBeams?: MassageLabBackgroundBeamsOptions
   massageLab3DGlobe?: MassageLab3DGlobeOptions
   backgroundLines?: BackgroundLinesOptions
   shootingStars?: ShootingStarsBackgroundOptions
@@ -218,6 +219,7 @@ export interface CssDomPaletteEffectPropsById {
   "massage-lab-moving-gradient": Pick<BackgroundEffectProps, "className" | "mainColor" | "orbColor">
   "massage-lab-aerial-rays": Pick<BackgroundEffectProps, "massageLabAerialRays">
   "massage-lab-aurora": Pick<BackgroundEffectProps, "massageLabAurora">
+  "massage-lab-background-beams": Pick<BackgroundEffectProps, "massageLabBackgroundBeams">
   "massage-lab-grid-motion": Pick<BackgroundEffectProps, "massageLabGridMotion">
   "massage-lab-gradient-animation": Pick<BackgroundEffectProps, "gradientAnimation">
   "massage-lab-shooting-stars": Pick<BackgroundEffectProps, "shootingStars">
@@ -1107,6 +1109,22 @@ export interface MassageLabDottedGlowOptions {
   glowStrength?: number
 }
 
+export interface MassageLabBackgroundBeamsOptions {
+  /** Source retains the authored compound backdrop; resolved uses the saved background swatch. */
+  paletteMode?: "source" | "resolved"
+  backgroundColor?: string
+  /** Three ordered colors used by the traveling SVG beam gradients. */
+  colors?: readonly string[]
+  /** Multiplies the authored 11-18 second gradient cycles. */
+  speed?: number
+  /** Overall SVG field opacity from 0.1 through 1. */
+  intensity?: number
+  /** Beam path stroke width in SVG units. */
+  beamWidth?: number
+  /** Beam drop-shadow blur radius in CSS pixels. */
+  glowStrength?: number
+}
+
 export interface ShootingStarsBackgroundOptions {
   starColor?: string
   trailColor?: string
@@ -1766,6 +1784,19 @@ const DEFAULT_MASSAGE_LAB_DOTTED_GLOW = Object.freeze({
   glowStrength: 6,
 })
 
+const MASSAGE_LAB_BACKGROUND_BEAMS_SOURCE_BACKGROUND =
+  "radial-gradient(circle at 52% 46%, rgba(24, 204, 252, 0.12), transparent 34%), radial-gradient(circle at 70% 22%, rgba(174, 72, 255, 0.12), transparent 30%), linear-gradient(145deg, #050505, #0a0e18)"
+
+const DEFAULT_MASSAGE_LAB_BACKGROUND_BEAMS = Object.freeze({
+  paletteMode: "source" as const,
+  backgroundColor: "#050505",
+  colors: Object.freeze(["#18CCFC", "#6344F5", "#AE48FF"]),
+  speed: 1,
+  intensity: 0.82,
+  beamWidth: 0.6,
+  glowStrength: 10,
+})
+
 // MassageLab Aurora Field by Manu Arora, adapted as an internal MassageLab premium visual effect.
 export function MassageLabAuroraBackground({
   className,
@@ -2092,12 +2123,30 @@ export function MassageLabGradientAnimationBackground({
 }
 
 // MassageLab Beam Field by Manu Arora, adapted as an internal MassageLab premium visual effect.
-export function MassageLabBackgroundBeams({ className }: BackgroundEffectProps) {
+export function MassageLabBackgroundBeams({
+  className,
+  massageLabBackgroundBeams,
+}: BackgroundEffectProps) {
   const generatedId = useId()
   const gradientIdPrefix = `ml-background-beams-${generatedId.replace(/[^a-zA-Z0-9_-]/g, "")}`
+  const resolved = resolveMassageLabBackgroundBeamsOptions(massageLabBackgroundBeams)
+  const [colorOne, colorTwo, colorThree] = resolved.colors
+  const style = {
+    "--ml-background-beams-background": resolved.paletteMode === "source"
+      ? MASSAGE_LAB_BACKGROUND_BEAMS_SOURCE_BACKGROUND
+      : resolved.backgroundColor,
+    "--ml-background-beams-opacity": resolved.intensity,
+    "--ml-background-beams-stroke-width": resolved.beamWidth,
+    "--ml-background-beams-glow-strength": `${resolved.glowStrength}px`,
+    "--ml-background-beams-glow-color": hexColorWithAlpha(colorOne, 0.12),
+  } as CSSProperties
 
   return (
-    <div className={cn(styles.effectLayer, styles.massageLabBackgroundBeams, className)} aria-hidden="true">
+    <div
+      className={cn(styles.effectLayer, styles.massageLabBackgroundBeams, className)}
+      style={style}
+      aria-hidden="true"
+    >
       <svg
         className={styles.backgroundBeamsSvg}
         viewBox="0 0 696 316"
@@ -2120,36 +2169,36 @@ export function MassageLabBackgroundBeams({ className }: BackgroundEffectProps) 
                 y2="100%"
                 gradientUnits="userSpaceOnUse"
               >
-                <stop stopColor="#18CCFC" stopOpacity="0" />
-                <stop offset="14%" stopColor="#18CCFC" stopOpacity="0.78" />
-                <stop offset="32.5%" stopColor="#6344F5" stopOpacity="0.72" />
-                <stop offset="100%" stopColor="#AE48FF" stopOpacity="0" />
+                <stop stopColor={colorOne} stopOpacity="0" />
+                <stop offset="14%" stopColor={colorOne} stopOpacity="0.78" />
+                <stop offset="32.5%" stopColor={colorTwo} stopOpacity="0.72" />
+                <stop offset="100%" stopColor={colorThree} stopOpacity="0" />
                 <animate
                   attributeName="x1"
                   values="-20%;100%;-20%"
-                  dur={`${duration}s`}
-                  begin={`${delay}s`}
+                  dur={`${duration / resolved.speed}s`}
+                  begin={`${delay / resolved.speed}s`}
                   repeatCount="indefinite"
                 />
                 <animate
                   attributeName="y1"
                   values="0%;100%;0%"
-                  dur={`${duration}s`}
-                  begin={`${delay}s`}
+                  dur={`${duration / resolved.speed}s`}
+                  begin={`${delay / resolved.speed}s`}
                   repeatCount="indefinite"
                 />
                 <animate
                   attributeName="x2"
                   values="20%;120%;20%"
-                  dur={`${duration}s`}
-                  begin={`${delay}s`}
+                  dur={`${duration / resolved.speed}s`}
+                  begin={`${delay / resolved.speed}s`}
                   repeatCount="indefinite"
                 />
                 <animate
                   attributeName="y2"
                   values="20%;120%;20%"
-                  dur={`${duration}s`}
-                  begin={`${delay}s`}
+                  dur={`${duration / resolved.speed}s`}
+                  begin={`${delay / resolved.speed}s`}
                   repeatCount="indefinite"
                 />
               </linearGradient>
@@ -3479,6 +3528,27 @@ function resolveMassageLabDottedGlowOptions(
     dotSpacing: clampNumber(dottedGlow?.dotSpacing, DEFAULT_MASSAGE_LAB_DOTTED_GLOW.dotSpacing, 8, 28),
     opacity: clampNumber(dottedGlow?.opacity, DEFAULT_MASSAGE_LAB_DOTTED_GLOW.opacity, 0.1, 1),
     glowStrength: clampNumber(dottedGlow?.glowStrength, DEFAULT_MASSAGE_LAB_DOTTED_GLOW.glowStrength, 0, 12),
+  }
+}
+
+function resolveMassageLabBackgroundBeamsOptions(
+  beams: MassageLabBackgroundBeamsOptions | undefined,
+): Required<MassageLabBackgroundBeamsOptions> {
+  const colors = DEFAULT_MASSAGE_LAB_BACKGROUND_BEAMS.colors.map((fallback, index) => (
+    normalizeHexColor(beams?.colors?.[index], fallback)
+  ))
+
+  return {
+    paletteMode: beams?.paletteMode === "resolved" ? "resolved" : "source",
+    backgroundColor: normalizeHexColor(
+      beams?.backgroundColor,
+      DEFAULT_MASSAGE_LAB_BACKGROUND_BEAMS.backgroundColor,
+    ),
+    colors,
+    speed: clampNumber(beams?.speed, DEFAULT_MASSAGE_LAB_BACKGROUND_BEAMS.speed, 0.25, 2),
+    intensity: clampNumber(beams?.intensity, DEFAULT_MASSAGE_LAB_BACKGROUND_BEAMS.intensity, 0.1, 1),
+    beamWidth: clampNumber(beams?.beamWidth, DEFAULT_MASSAGE_LAB_BACKGROUND_BEAMS.beamWidth, 0.2, 2),
+    glowStrength: clampNumber(beams?.glowStrength, DEFAULT_MASSAGE_LAB_BACKGROUND_BEAMS.glowStrength, 0, 20),
   }
 }
 

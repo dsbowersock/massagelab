@@ -51,12 +51,24 @@ describe("BackgroundHost diagnostics", () => {
     )
   })
 
-  it("reports unsupported effects truthfully without claiming target mutation", () => {
+  it("reports Beam Field's supported palette targets", () => {
     const adapter = backgroundPaletteRegistry["massage-lab-background-beams"]
     const baseEffectProps = {
-      className: "fixed-media",
-      media: { src: "/backgrounds/source.mp4" },
+      massageLabBackgroundBeams: {
+        paletteMode: "source",
+        speed: 1.4,
+      },
     }
+    const appliedEffectProps = adapter.applyRoleColors(
+      baseEffectProps,
+      {
+        background: "#010101",
+        "beam-1": "#020202",
+        "beam-2": "#030303",
+        "beam-3": "#040404",
+      },
+      "custom",
+    )
 
     assert.deepEqual(
       createBackgroundHostDiagnosticSnapshot({
@@ -65,17 +77,23 @@ describe("BackgroundHost diagnostics", () => {
         loadStatus: "loaded",
         adapter,
         baseEffectProps,
-        appliedEffectProps: baseEffectProps,
+        appliedEffectProps,
         reducedMotion: false,
         error: null,
       }),
       {
         requestedId: "massage-lab-background-beams",
         loadedId: "massage-lab-background-beams",
-        status: "unsupported",
+        status: "loaded",
         rendererFamily: "css-dom",
-        resolvedRendererTargets: {},
-        applicationChanged: false,
+        resolvedRendererTargets: {
+          "massageLabBackgroundBeams.backgroundColor": "#010101",
+          "massageLabBackgroundBeams.colors[0]": "#020202",
+          "massageLabBackgroundBeams.colors[1]": "#030303",
+          "massageLabBackgroundBeams.colors[2]": "#040404",
+          "massageLabBackgroundBeams.paletteMode": "resolved",
+        },
+        applicationChanged: true,
         fallback: false,
         reducedMotion: false,
         error: null,

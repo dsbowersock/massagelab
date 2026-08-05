@@ -87,6 +87,17 @@ const cssDomFixtures = {
       reach: 82,
     },
   },
+  "massage-lab-background-beams": {
+    massageLabBackgroundBeams: {
+      paletteMode: "source",
+      backgroundColor: "#010101",
+      colors: ["#020202", "#030303", "#040404"],
+      speed: 1.4,
+      intensity: 0.64,
+      beamWidth: 0.9,
+      glowStrength: 7,
+    },
+  },
   "massage-lab-grid-motion": {
     massageLabGridMotion: {
       gradientColor: "#010101",
@@ -1594,6 +1605,58 @@ describe("background palette adapter registry", () => {
         glowStrength: resolved.massageLabDottedGlow.glowStrength,
       },
       effectProps.massageLabDottedGlow,
+    )
+  })
+
+  it("keeps Beam Field's Swatch 7 background independent from Harmony", () => {
+    const adapter = backgroundPaletteRegistry["massage-lab-background-beams"]
+    assert.deepEqual(
+      Object.fromEntries(adapter.roles.map((role) => [role.id, {
+        defaultSwatch: role.defaultSwatch,
+        harmonyColorSource: role.harmonyColorSource,
+      }])),
+      {
+        background: { defaultSwatch: 6, harmonyColorSource: "saved-swatch" },
+        "beam-1": { defaultSwatch: 0, harmonyColorSource: "generated" },
+        "beam-2": { defaultSwatch: 1, harmonyColorSource: "generated" },
+        "beam-3": { defaultSwatch: 2, harmonyColorSource: "generated" },
+      },
+    )
+
+    const effectProps = cssDomFixtures["massage-lab-background-beams"]
+    const sourceResolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-background-beams",
+      effectProps,
+      palette: paletteForMode("source"),
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.equal(sourceResolved.massageLabBackgroundBeams.paletteMode, "source")
+
+    const harmonyResolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-background-beams",
+      effectProps,
+      palette: paletteForMode("harmony"),
+      mapping: {},
+      canCustomize: true,
+    })
+    const harmonySwatches = generateBackgroundHarmonySwatches(HARMONY_PRIMARY, "triadic")
+    assert.equal(harmonyResolved.massageLabBackgroundBeams.paletteMode, "resolved")
+    assert.equal(harmonyResolved.massageLabBackgroundBeams.backgroundColor, CUSTOM_SWATCHES[6])
+    assert.deepEqual(harmonyResolved.massageLabBackgroundBeams.colors, harmonySwatches.slice(0, 3))
+    assert.deepEqual(
+      {
+        speed: harmonyResolved.massageLabBackgroundBeams.speed,
+        intensity: harmonyResolved.massageLabBackgroundBeams.intensity,
+        beamWidth: harmonyResolved.massageLabBackgroundBeams.beamWidth,
+        glowStrength: harmonyResolved.massageLabBackgroundBeams.glowStrength,
+      },
+      {
+        speed: effectProps.massageLabBackgroundBeams.speed,
+        intensity: effectProps.massageLabBackgroundBeams.intensity,
+        beamWidth: effectProps.massageLabBackgroundBeams.beamWidth,
+        glowStrength: effectProps.massageLabBackgroundBeams.glowStrength,
+      },
     )
   })
 

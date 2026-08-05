@@ -3202,6 +3202,28 @@ describe("Chimer timer helpers", () => {
     assert.equal(sanitizeChimerSettings({ massageLabDottedGlowGlowStrength: -1 }).massageLabDottedGlowGlowStrength, 0)
   })
 
+  it("normalizes MassageLab Beam Field visual controls", () => {
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabBackgroundBeamsSpeed, 1)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabBackgroundBeamsIntensity, 0.82)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabBackgroundBeamsBeamWidth, 0.6)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabBackgroundBeamsGlowStrength, 10)
+
+    const settings = sanitizeChimerSettings({
+      massageLabBackgroundBeamsSpeed: 99,
+      massageLabBackgroundBeamsIntensity: -1,
+      massageLabBackgroundBeamsBeamWidth: 99,
+      massageLabBackgroundBeamsGlowStrength: 99,
+    })
+    assert.equal(settings.massageLabBackgroundBeamsSpeed, 2)
+    assert.equal(settings.massageLabBackgroundBeamsIntensity, 0.1)
+    assert.equal(settings.massageLabBackgroundBeamsBeamWidth, 2)
+    assert.equal(settings.massageLabBackgroundBeamsGlowStrength, 20)
+    assert.equal(sanitizeChimerSettings({ massageLabBackgroundBeamsSpeed: 0 }).massageLabBackgroundBeamsSpeed, 0.25)
+    assert.equal(sanitizeChimerSettings({ massageLabBackgroundBeamsIntensity: 2 }).massageLabBackgroundBeamsIntensity, 1)
+    assert.equal(sanitizeChimerSettings({ massageLabBackgroundBeamsBeamWidth: 0 }).massageLabBackgroundBeamsBeamWidth, 0.2)
+    assert.equal(sanitizeChimerSettings({ massageLabBackgroundBeamsGlowStrength: -1 }).massageLabBackgroundBeamsGlowStrength, 0)
+  })
+
   it("normalizes MassageLab Synthesis background controls", () => {
     const settings = sanitizeChimerSettings({
       massageLabSynthesisPaletteMode: "harmony",

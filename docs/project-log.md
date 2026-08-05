@@ -6,6 +6,12 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-05 — Beam Field independent background, colors, and tuning
+
+- Promoted Beam Field from an unsupported CSS/DOM palette adapter to four concrete roles. Source preserves the authored compound background and three traveling SVG gradient colors. Custom maps Beam 1-3 to Swatches 1-3 and Background to Swatch 7; Harmony regenerates only the three beam colors while keeping the saved Swatch 7 background visible and editable.
+- Added persisted Motion speed (`0.25x`-`2.00x`), Intensity (`10%`-`100%`), Beam width (`0.2`-`2.0` SVG units), and Glow strength (`0`-`20px`) controls to both Visual panels, preserving the authored `1.00x`, `82%`, `0.6`, and `10px` defaults. The renderer applies these controls directly to native SVG timing, field opacity, path stroke width, and drop-shadow blur. The `massage-lab-background-beams` ID and entitlement behavior are unchanged.
+- The focused renderer, role-mapping, Harmony-isolation, settings, entitlement, UI-contract, and diagnostics tests pass; all 1,982 repository tests, typecheck, lint, `git diff --check`, the 102-page Production build, and the restarted localhost-only `/dev/clock` HTTP check pass. Final visual judgment remains in the user's Device Toolbar review.
+
 ## 2026-08-05 — Selected-background swatch availability cues
 
 - The shared seven-swatch editor now marks each swatch with semantic assigned/unused state derived from the selected background's active role mapping. Assigned swatches reuse the Visual header Apply action's leaf-green token family; unused swatches reuse the destructive action's red token family and retain their dashed border. The tint remains a redundant visual cue alongside the existing role names and `Not used by this background` labels, and follows the existing 7/4/2-column responsive layouts in Source, Custom, and Harmony modes without changing editability, palette behavior, mappings, saved settings, or background IDs.

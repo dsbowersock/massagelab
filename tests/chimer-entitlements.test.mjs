@@ -2721,6 +2721,30 @@ describe("Chimer entitlement-aware settings", () => {
     }
   })
 
+  it("resets MassageLab Beam Field controls without premium background access", () => {
+    const input = {
+      backgroundId: "massage-lab-background-beams",
+      massageLabBackgroundBeamsSpeed: 1.75,
+      massageLabBackgroundBeamsIntensity: 0.9,
+      massageLabBackgroundBeamsBeamWidth: 1.4,
+      massageLabBackgroundBeamsGlowStrength: 16,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+    assert.equal(premiumSettings.backgroundId, "massage-lab-background-beams")
+    for (const key of [
+      "massageLabBackgroundBeamsSpeed",
+      "massageLabBackgroundBeamsIntensity",
+      "massageLabBackgroundBeamsBeamWidth",
+      "massageLabBackgroundBeamsGlowStrength",
+    ]) {
+      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+      assert.equal(premiumSettings[key], input[key])
+    }
+  })
+
   it("strips custom colors for users without the Chimer custom colors feature", () => {
     const settings = sanitizeChimerSettingsForEntitlements({
       primaryFontColor: "#000000",

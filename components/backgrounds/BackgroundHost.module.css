@@ -1335,10 +1335,12 @@
 
 .massageLabBackgroundBeams {
   overflow: hidden;
-  background:
+  background: var(
+    --ml-background-beams-background,
     radial-gradient(circle at 52% 46%, rgba(24, 204, 252, 0.12), transparent 34%),
     radial-gradient(circle at 70% 22%, rgba(174, 72, 255, 0.12), transparent 30%),
-    linear-gradient(145deg, #050505, #0a0e18);
+    linear-gradient(145deg, #050505, #0a0e18)
+  );
 }
 
 .backgroundBeamsSvg {
@@ -1346,15 +1348,18 @@
   inset: -8%;
   width: 116%;
   height: 116%;
-  opacity: 0.82;
+  opacity: var(--ml-background-beams-opacity, 0.82);
   mask-image: radial-gradient(ellipse at center, black 0%, black 42%, transparent 82%);
 }
 
 .backgroundBeamPath {
   fill: none;
-  stroke-width: 0.6;
+  stroke-width: var(--ml-background-beams-stroke-width, 0.6);
   stroke-opacity: 0.42;
-  filter: drop-shadow(0 0 10px rgba(24, 204, 252, 0.12));
+  filter: drop-shadow(
+    0 0 var(--ml-background-beams-glow-strength, 10px)
+    var(--ml-background-beams-glow-color, rgba(24, 204, 252, 0.12))
+  );
 }
 
 .massageLabBackgroundBeamsCollision {

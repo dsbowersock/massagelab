@@ -5622,6 +5622,49 @@ describe("premium background registry", () => {
     assert.match(runningSource, /massageLabDottedGlow=\{\{/)
   })
 
+  it("exposes Beam Field palette roles and visual tuning in both Visual panels", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const paletteSource = readFileSync(
+      new URL("../components/backgrounds/backgroundPaletteRegistry.ts", import.meta.url),
+      "utf8",
+    )
+
+    assert.match(effectSource, /MassageLabBackgroundBeamsOptions/)
+    assert.match(effectSource, /massageLabBackgroundBeams/)
+    assert.match(effectSource, /--ml-background-beams-opacity/)
+    assert.match(effectSource, /--ml-background-beams-stroke-width/)
+    assert.match(effectSource, /--ml-background-beams-glow-strength/)
+    assert.match(stylesSource, /var\(--ml-background-beams-opacity, 0\.82\)/)
+    assert.match(stylesSource, /var\(--ml-background-beams-stroke-width, 0\.6\)/)
+    assert.match(stylesSource, /var\(--ml-background-beams-glow-strength, 10px\)/)
+    assert.match(paletteSource, /id: "massage-lab-background-beams"/)
+    assert.match(paletteSource, /role\("background", "Background", "massageLabBackgroundBeamsBackgroundColor"/)
+    for (const key of [
+      "massageLabBackgroundBeamsSpeed",
+      "massageLabBackgroundBeamsIntensity",
+      "massageLabBackgroundBeamsBeamWidth",
+      "massageLabBackgroundBeamsGlowStrength",
+    ]) {
+      assert.match(setupSource, new RegExp(key))
+      assert.match(runningSource, new RegExp(key))
+    }
+    assert.match(hostSource, /massageLabBackgroundBeams/)
+    assert.match(runningSource, /massageLabBackgroundBeams=\{\{/)
+  })
+
   it("keeps MassageLab Synthesis source-shaped, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
       new URL("../components/backgrounds/effects/massage-lab-synthesis-background.tsx", import.meta.url),

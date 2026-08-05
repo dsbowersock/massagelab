@@ -1684,7 +1684,7 @@ const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
     performanceCost: "low",
     requiresSubscription: true,
     enabled: true,
-    customizationSummary: "Source-matched SVG paths adapted with native gradient animation and no added Motion dependency.",
+    customizationSummary: "Source-matched SVG paths with three shared beam colors, an independent background swatch, and motion speed, intensity, width, and glow controls.",
     component: () => cssBackgrounds().then((module) => ({ default: module.MassageLabBackgroundBeams })),
     fallbackStyle: {
       background:
