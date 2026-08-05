@@ -72,7 +72,7 @@ test("shared palette editor presents one accessible mode choice and seven indexe
 
 test("Source and Harmony are contextual views that preserve dormant saved swatches", () => {
   assert.match(controlsSource, /effectiveMode === "source"/)
-  assert.match(controlsSource, /readOnly: isSource \|\| \(isHarmony && index > 0\)/)
+  assert.match(controlsSource, /readOnly: !supportsSharedPalette \|\| isSource \|\| \(isHarmony && index > 0\)/)
   assert.match(controlsSource, /generateBackgroundHarmonySwatches/)
   assert.match(editorSource, /HarmonyToggleGroup/)
   assert.match(editorSource, /Unlock \{backgroundName\} with a credit, purchase, or membership/)
@@ -384,6 +384,34 @@ test("palette editor view models and changes are pure, indexed, and mapping-awar
   assert.equal(denied.effectiveMode, "source")
   assert.equal(denied.modeOptions.find((option) => option.value === "source").disabled, false)
   assert.equal(denied.modeOptions.find((option) => option.value === "custom").disabled, true)
+
+  const transformOnlyAdapter = {
+    status: "unsupported",
+    unsupportedReason: "This background uses a dedicated hue transform.",
+  }
+  const transformOnly = buildBackgroundPaletteEditorViewModel({
+    palette,
+    adapter: transformOnlyAdapter,
+    canCustomize: true,
+    hasCustomControls: true,
+  })
+  assert.equal(transformOnly.effectiveMode, "custom")
+  assert.equal(transformOnly.unavailableReason, null)
+  assert.equal(transformOnly.modeOptions.find((option) => option.value === "custom").disabled, false)
+  assert.equal(transformOnly.modeOptions.find((option) => option.value === "harmony").disabled, true)
+  assert.equal(transformOnly.swatches.every((swatch) => swatch.readOnly), true)
+  assert.deepEqual(buildBackgroundPaletteModeChange({
+    palette: { ...palette, mode: "source" },
+    adapter: transformOnlyAdapter,
+    canCustomize: true,
+    hasCustomControls: true,
+  }, "custom"), { ...palette, mode: "custom" })
+  assert.equal(buildBackgroundPaletteModeChange({
+    palette,
+    adapter: transformOnlyAdapter,
+    canCustomize: true,
+    hasCustomControls: true,
+  }, "harmony"), null)
 
   assert.deepEqual(buildBackgroundPaletteModeChange({
     palette,

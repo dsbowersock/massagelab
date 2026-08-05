@@ -373,6 +373,8 @@ test("Track 4B shared sliders preserve accessible labeling", async () => {
   assert.match(sliderSource, /<SliderPrimitive\.Thumb[\s\S]*aria-label=\{ariaLabel\}/)
   assert.match(sliderSource, /aria-labelledby=\{ariaLabelledBy\}/)
   assert.match(sliderSource, /aria-describedby=\{ariaDescribedBy\}/)
+  assert.match(colorSliderSource, /--ml-slider-hue-track/)
+  assert.match(colorSliderSource, /huePreviewOffset/)
   assert.match(colorSliderSource, /label=\{label\}/)
   assert.doesNotMatch(colorSliderSource, /aria-label=\{label\}/)
 })

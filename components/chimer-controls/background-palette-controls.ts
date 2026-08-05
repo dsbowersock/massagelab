@@ -137,11 +137,14 @@ export function buildBackgroundPaletteEditorViewModel({
   adapter,
   mapping,
   canCustomize,
+  hasCustomControls = false,
 }: {
   palette: BackgroundPaletteEditorValue
   adapter: BackgroundPaletteAdapter
   mapping?: BackgroundColorMapping
   canCustomize: boolean
+  /** Allows a transform-only background to expose Custom without claiming shared-swatch support. */
+  hasCustomControls?: boolean
 }): BackgroundPaletteEditorViewModel {
   const normalizedPalette = normalizeBackgroundPaletteState(palette) as BackgroundPaletteEditorValue
   const roles = adapter.status === "supported" ? adapter.roles : []
@@ -153,9 +156,13 @@ export function buildBackgroundPaletteEditorViewModel({
     {},
     adapter,
   ) as BackgroundColorMapping
-  const effectiveMode: BackgroundPaletteMode = canCustomize && adapter.status === "supported"
-    ? normalizedPalette.mode
-    : "source"
+  const supportsSharedPalette = adapter.status === "supported"
+  const supportsCustomMode = canCustomize && (supportsSharedPalette || hasCustomControls)
+  const effectiveMode: BackgroundPaletteMode = normalizedPalette.mode === "custom" && supportsCustomMode
+    ? "custom"
+    : normalizedPalette.mode === "harmony" && canCustomize && supportsSharedPalette
+      ? "harmony"
+      : "source"
   const isSource = effectiveMode === "source"
   const isHarmony = effectiveMode === "harmony"
   const activeMapping = isSource ? sourceMapping : normalizedMapping
@@ -189,7 +196,7 @@ export function buildBackgroundPaletteEditorViewModel({
           primaryLabel,
           usageLabel,
         ].filter(Boolean).join(", "),
-        readOnly: isSource || (isHarmony && index > 0),
+        readOnly: !supportsSharedPalette || isSource || (isHarmony && index > 0),
         unused: swatchRoles.length === 0,
         roles: swatchRoles,
       }
@@ -207,10 +214,13 @@ export function buildBackgroundPaletteEditorViewModel({
     swatches,
     modeOptions: PALETTE_MODE_OPTIONS.map((option) => ({
       ...option,
-      disabled: option.value !== "source"
-        && (!canCustomize || adapter.status === "unsupported"),
+      disabled: option.value === "source"
+        ? false
+        : option.value === "custom"
+          ? !supportsCustomMode
+          : !canCustomize || !supportsSharedPalette,
     })),
-    unavailableReason: adapter.status === "unsupported"
+    unavailableReason: adapter.status === "unsupported" && !hasCustomControls
       ? adapter.unsupportedReason
       : null,
     displayedHarmony: normalizedPalette.harmony === "triadic"
@@ -227,18 +237,21 @@ export function buildBackgroundPaletteModeChange(
     palette: BackgroundPaletteEditorValue
     adapter: BackgroundPaletteAdapter
     canCustomize: boolean
+    hasCustomControls?: boolean
     disabled?: boolean
   },
   nextMode: string,
 ): BackgroundPaletteEditorValue | null {
   const normalized = normalizeBackgroundPaletteState(input.palette) as BackgroundPaletteEditorValue
+  const supportsSharedPalette = input.adapter.status === "supported"
+  const canSelectCustom = input.canCustomize
+    && (supportsSharedPalette || input.hasCustomControls === true)
+  const canSelectHarmony = input.canCustomize && supportsSharedPalette
   if (
     input.disabled
     || !["source", "custom", "harmony"].includes(nextMode)
-    || (
-      nextMode !== "source"
-      && (!input.canCustomize || input.adapter.status === "unsupported")
-    )
+    || (nextMode === "custom" && !canSelectCustom)
+    || (nextMode === "harmony" && !canSelectHarmony)
   ) {
     return null
   }

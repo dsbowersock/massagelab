@@ -3,6 +3,10 @@
 import { ColorSlider } from "@/components/chimer-controls/ColorSlider"
 import { StyledRangeControl } from "@/components/chimer-controls/StyledRangeControl"
 
+// The source shader's dominant saturated region is warm orange. A signed hue
+// shift therefore needs a rotated ramp so 0° previews the authored color.
+const DARK_VEIL_HUE_PREVIEW_OFFSET = 220
+
 export interface DarkVeilControlProps {
   value: number
   onChange: (value: number) => void
@@ -21,7 +25,8 @@ export function DarkVeilHueShiftControl({ value, onChange, disabled }: DarkVeilC
       max={180}
       step={1}
       unit="°"
-      description="Rotates Dark Veil's rendered colors without changing your shared swatches."
+      huePreviewOffset={DARK_VEIL_HUE_PREVIEW_OFFSET}
+      description="Rotates Dark Veil's rendered colors; the slider previews its dominant resulting hue."
       disabled={disabled}
       onChange={onChange}
     />

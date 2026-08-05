@@ -8,9 +8,9 @@ Catalog naming note: `MassageLaba Lamp` is the established catalog label for the
 
 ## 2026-08-04 — Dark Veil color and resolution controls
 
-- Dark Veil Hue shift now uses the shared color-channel slider. In the immersive Visual panel it appears directly beneath the seven swatches only while Custom colors are selected, participates in the existing draft/apply history, and stays absent from Source and Harmony modes.
+- Dark Veil Hue shift now uses the shared color-channel slider. Its transform-only adapter can enter Custom mode without falsely enabling Harmony or editable shared swatches; in the immersive Visual panel the slider appears directly beneath the seven read-only reference swatches only while Custom is selected, participates in the existing draft/apply history, and stays absent from Source. Its hue ramp is rotated around the shader's dominant authored hue so the thumb and track preview the resulting veil color instead of misrepresenting the signed offset as an absolute hue.
 - Resolution scale now presents the stored `0.25-1` range as `25%-100%`. Reduced drawing buffers retain nearest-neighbor pixels so the quality/performance tradeoff is visible, while the CSS canvas remains full-viewport and the shader resolution continues matching the real drawing buffer.
-- Validation passed: 187 focused background/palette/timer tests, the full 1,965-test suite, typecheck, lint, production build, diff check, and an HTTP 200 response from the restarted localhost-only `/dev/clock` server. Direct in-app-browser interaction remained unavailable because its administrator-enforced localhost security check could not be verified.
+- Validation passed after the Custom-mode and hue-preview corrections: 110 focused background/palette/shared-control tests, the full 1,965-test suite, typecheck, lint, production build, diff check, and an HTTP 200 response from the restarted localhost-only `/dev/clock` server. The user's Device Toolbar screenshot supplied the pre-fix visual mismatch; direct automated in-app-browser interaction remained unavailable because its administrator-enforced localhost security check could not be verified.
 
 ## 2026-08-04 — Liquid Ether control-label cleanup
 

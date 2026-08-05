@@ -62,14 +62,17 @@ export function BackgroundPaletteEditor({
   disabled = false,
 }: BackgroundPaletteEditorProps) {
   const componentId = useId()
+  const hasCustomControls = customControlsAfterSwatches !== null
+    && customControlsAfterSwatches !== undefined
   const viewModel = useMemo(
     () => buildBackgroundPaletteEditorViewModel({
       palette,
       adapter,
       mapping,
       canCustomize,
+      hasCustomControls,
     }),
-    [adapter, canCustomize, mapping, palette],
+    [adapter, canCustomize, hasCustomControls, mapping, palette],
   )
   const {
     palette: normalizedPalette,
@@ -94,7 +97,7 @@ export function BackgroundPaletteEditor({
 
   function changeMode(nextMode: string) {
     const nextPalette = buildBackgroundPaletteModeChange(
-      { palette: normalizedPalette, adapter, canCustomize, disabled },
+      { palette: normalizedPalette, adapter, canCustomize, hasCustomControls, disabled },
       nextMode,
     )
     if (nextPalette) {
@@ -163,7 +166,7 @@ export function BackgroundPaletteEditor({
       ) : isSource ? (
         <p className={styles.paletteAccessMessage}>
           Source shows the original {backgroundName} colors as read-only context. Your saved Custom
-          and Harmony values stay unchanged.
+          {adapter.status === "supported" ? " and Harmony values stay unchanged." : " value stays unchanged."}
         </p>
       ) : null}
 
@@ -206,9 +209,13 @@ export function BackgroundPaletteEditor({
         ))}
       </div>
 
-      {effectiveMode === "custom" && canCustomize && adapter.status === "supported"
-        ? customControlsAfterSwatches
-        : null}
+      {effectiveMode === "custom" && canCustomize && adapter.status === "unsupported" && hasCustomControls ? (
+        <p className={styles.paletteAccessMessage}>
+          Shared swatches are reference-only for {backgroundName}; use its color control below.
+        </p>
+      ) : null}
+
+      {effectiveMode === "custom" && canCustomize ? customControlsAfterSwatches : null}
 
       {roles.length > 0 ? (
         <fieldset className={styles.backgroundPaletteMapping}>
