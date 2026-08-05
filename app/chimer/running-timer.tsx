@@ -814,6 +814,10 @@ interface RunningTimerProps {
   massageLabSynthesisDistortion: number
   massageLabSynthesisGlowIntensity: number
   massageLabSynthesisFlowFrequency: number
+  massageLabAuroraSpeed: number
+  massageLabAuroraIntensity: number
+  massageLabAuroraBlur: number
+  massageLabAuroraReach: number
   backgroundLinesDuration: number
   shootingStarsDensity: number
   shootingStarsTwinkle: boolean
@@ -1454,6 +1458,10 @@ export function RunningTimer({
   massageLabSynthesisDistortion,
   massageLabSynthesisGlowIntensity,
   massageLabSynthesisFlowFrequency,
+  massageLabAuroraSpeed,
+  massageLabAuroraIntensity,
+  massageLabAuroraBlur,
+  massageLabAuroraReach,
   backgroundLinesDuration,
   shootingStarsDensity,
   shootingStarsTwinkle,
@@ -11441,6 +11449,27 @@ export function RunningTimer({
         </>
       )}
 
+      {option.id === "massage-lab-aurora" && (
+        <>
+          <label className={styles.rangeRow}>
+            <span>Motion speed ({massageLabAuroraSpeed.toFixed(2)}x)</span>
+            <input type="range" min="0.25" max="2" step="0.05" value={massageLabAuroraSpeed} onChange={(event) => handleSettingsChange({ massageLabAuroraSpeed: Number(event.target.value) })} aria-label="Aurora Field motion speed" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Intensity ({Math.round(massageLabAuroraIntensity * 100)}%)</span>
+            <input type="range" min="0.1" max="1" step="0.05" value={massageLabAuroraIntensity} onChange={(event) => handleSettingsChange({ massageLabAuroraIntensity: Number(event.target.value) })} aria-label="Aurora Field intensity" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Blur ({massageLabAuroraBlur}px)</span>
+            <input type="range" min="0" max="30" step="1" value={massageLabAuroraBlur} onChange={(event) => handleSettingsChange({ massageLabAuroraBlur: Number(event.target.value) })} aria-label="Aurora Field blur" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Field reach ({massageLabAuroraReach}%)</span>
+            <input type="range" min="30" max="100" step="1" value={massageLabAuroraReach} onChange={(event) => handleSettingsChange({ massageLabAuroraReach: Number(event.target.value) })} aria-label="Aurora Field reach" />
+          </label>
+        </>
+      )}
+
       {option.id === "massage-lab-background-lines" && (
         <label className={styles.rangeRow}>
           <span>Line duration</span>
@@ -13171,6 +13200,12 @@ export function RunningTimer({
             distortion: massageLabSynthesisDistortion,
             glowIntensity: massageLabSynthesisGlowIntensity,
             flowFrequency: massageLabSynthesisFlowFrequency,
+          }}
+          massageLabAurora={{
+            speed: massageLabAuroraSpeed,
+            intensity: massageLabAuroraIntensity,
+            blur: massageLabAuroraBlur,
+            reach: massageLabAuroraReach,
           }}
           backgroundLines={{
             duration: backgroundLinesDuration,

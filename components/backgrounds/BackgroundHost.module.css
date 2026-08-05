@@ -1187,7 +1187,7 @@
     #000 16%
   );
   overflow: hidden;
-  background: #09090b;
+  background: var(--ml-aurora-background, #09090b);
 }
 
 .massageLabAuroraField {
@@ -1197,11 +1197,12 @@
   background-image: var(--massage-lab-dark-gradient), var(--massage-lab-aurora);
   background-position: 50% 50%, 50% 50%;
   background-size: 300%, 200%;
-  filter: blur(10px);
-  mask-image: radial-gradient(ellipse at 100% 0%, black 10%, transparent 70%);
-  opacity: 0.5;
+  filter: blur(var(--ml-aurora-blur, 10px));
+  mask-image: radial-gradient(ellipse at 100% 0%, black 10%, transparent var(--ml-aurora-reach, 70%));
+  -webkit-mask-image: radial-gradient(ellipse at 100% 0%, black 10%, transparent var(--ml-aurora-reach, 70%));
+  opacity: var(--ml-aurora-opacity, 0.5);
   will-change: background-position;
-  animation: mlBackgroundMassageLabAurora 60s linear infinite;
+  animation: mlBackgroundMassageLabAurora var(--ml-aurora-animation-duration, 60s) linear infinite;
 }
 
 .massageLabAuroraField::after {

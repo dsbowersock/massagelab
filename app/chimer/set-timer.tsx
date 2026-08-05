@@ -1018,6 +1018,10 @@ export interface ChimerSettings {
   massageLabSynthesisDistortion: number
   massageLabSynthesisGlowIntensity: number
   massageLabSynthesisFlowFrequency: number
+  massageLabAuroraSpeed: number
+  massageLabAuroraIntensity: number
+  massageLabAuroraBlur: number
+  massageLabAuroraReach: number
   backgroundLinesDuration: number
   shootingStarsDensity: number
   shootingStarsTwinkle: boolean
@@ -1665,6 +1669,29 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
               }
               aria-label="Sparkles particle size"
             />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "massage-lab-aurora") {
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.rangeRow}>
+            <span>Motion speed ({settings.massageLabAuroraSpeed.toFixed(2)}x)</span>
+            <input type="range" min="0.25" max="2" step="0.05" value={settings.massageLabAuroraSpeed} onChange={(event) => onSettingsChange({ massageLabAuroraSpeed: Number(event.target.value) })} aria-label="Aurora Field motion speed" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Intensity ({Math.round(settings.massageLabAuroraIntensity * 100)}%)</span>
+            <input type="range" min="0.1" max="1" step="0.05" value={settings.massageLabAuroraIntensity} onChange={(event) => onSettingsChange({ massageLabAuroraIntensity: Number(event.target.value) })} aria-label="Aurora Field intensity" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Blur ({settings.massageLabAuroraBlur}px)</span>
+            <input type="range" min="0" max="30" step="1" value={settings.massageLabAuroraBlur} onChange={(event) => onSettingsChange({ massageLabAuroraBlur: Number(event.target.value) })} aria-label="Aurora Field blur" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Field reach ({settings.massageLabAuroraReach}%)</span>
+            <input type="range" min="30" max="100" step="1" value={settings.massageLabAuroraReach} onChange={(event) => onSettingsChange({ massageLabAuroraReach: Number(event.target.value) })} aria-label="Aurora Field reach" />
           </label>
         </div>
       )

@@ -5546,6 +5546,46 @@ describe("premium background registry", () => {
     }
   })
 
+  it("exposes Aurora Field palette roles and visual tuning in both Visual panels", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const paletteSource = readFileSync(
+      new URL("../components/backgrounds/backgroundPaletteRegistry.ts", import.meta.url),
+      "utf8",
+    )
+
+    assert.match(effectSource, /MassageLabAuroraOptions/)
+    assert.match(effectSource, /massageLabAurora/)
+    assert.match(effectSource, /--ml-aurora-animation-duration/)
+    assert.match(effectSource, /--ml-aurora-opacity/)
+    assert.match(effectSource, /--ml-aurora-blur/)
+    assert.match(effectSource, /--ml-aurora-reach/)
+    assert.match(stylesSource, /var\(--ml-aurora-animation-duration, 60s\)/)
+    assert.match(stylesSource, /var\(--ml-aurora-opacity, 0\.5\)/)
+    assert.match(stylesSource, /var\(--ml-aurora-blur, 10px\)/)
+    assert.match(stylesSource, /var\(--ml-aurora-reach, 70%\)/)
+    assert.match(paletteSource, /id: "massage-lab-aurora"/)
+    assert.match(paletteSource, /role\("background", "Background", "massageLabAuroraBackgroundColor"/)
+    for (const key of [
+      "massageLabAuroraSpeed",
+      "massageLabAuroraIntensity",
+      "massageLabAuroraBlur",
+      "massageLabAuroraReach",
+    ]) {
+      assert.match(setupSource, new RegExp(key))
+      assert.match(runningSource, new RegExp(key))
+    }
+    assert.match(runningSource, /massageLabAurora=\{\{/)
+  })
+
   it("keeps MassageLab Synthesis source-shaped, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
       new URL("../components/backgrounds/effects/massage-lab-synthesis-background.tsx", import.meta.url),

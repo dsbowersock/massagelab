@@ -91,6 +91,13 @@ const AURORA_BARS_SOURCE_COLORS = Object.freeze([
   "#FF2D78",
   "#000000",
 ] as const)
+const AURORA_FIELD_SOURCE_COLORS = Object.freeze([
+  "#3B82F6",
+  "#A5B4FC",
+  "#93C5FD",
+  "#DDD6FE",
+  "#60A5FA",
+] as const)
 const DNA_NODE_ROLE_IDS = Object.freeze([
   "node-one", "node-two", "node-three", "node-four",
 ] as const)
@@ -100,6 +107,9 @@ const TWISTED_CUBES_OUTLINE_ROLE_IDS = Object.freeze([
 ] as const)
 const AURORA_BAR_ROLE_IDS = Object.freeze([
   "bar-1", "bar-2", "bar-3", "bar-4", "bar-5",
+] as const)
+const AURORA_FIELD_ROLE_IDS = Object.freeze([
+  "aurora-1", "aurora-2", "aurora-3", "aurora-4", "aurora-5",
 ] as const)
 const STATIC_GRADIENT_ROLE_IDS = Object.freeze([
   "color-one", "color-two", "color-three", "color-four",
@@ -111,6 +121,7 @@ for (const [roleIds, sourceFallbacks] of [
   [DNA_NODE_ROLE_IDS, DNA_SOURCE_NODE_ROLE_COLORS],
   [TWISTED_CUBES_OUTLINE_ROLE_IDS, TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS],
   [AURORA_BAR_ROLE_IDS, AURORA_BARS_SOURCE_COLORS],
+  [AURORA_FIELD_ROLE_IDS, AURORA_FIELD_SOURCE_COLORS],
 ] as const) {
   if (roleIds.length !== sourceFallbacks.length) {
     throw new Error(
@@ -384,6 +395,24 @@ export function applyCssDomPaletteRoleColors<
           color: roleColor(colors, "rays", props.massageLabAerialRays?.color),
         },
       }
+    case "massage-lab-aurora":
+      return {
+        ...props,
+        massageLabAurora: {
+          ...props.massageLabAurora,
+          backgroundColor: roleColor(
+            colors,
+            "background",
+            props.massageLabAurora?.backgroundColor,
+          ),
+          colors: roleColorArray(
+            props.massageLabAurora?.colors,
+            AURORA_FIELD_ROLE_IDS,
+            colors,
+            AURORA_FIELD_SOURCE_COLORS,
+          ),
+        },
+      }
     case "massage-lab-dna":
       if (!props.massageLabDna) return props
       return {
@@ -625,6 +654,19 @@ const SUPPORTED_SPECS: readonly SupportedSpec[] = [
   { id: "massage-lab-retro-grid", family: "webgl", prefixes: ["massageLabRetroGrid"], roles: [role("background", "Background", "massageLabRetroGridBackgroundColor", "massageLabRetroGrid.backgroundColor"), role("light-lines", "Light grid lines", "massageLabRetroGridLightLineColor", "massageLabRetroGrid.lightLineColor"), role("dark-lines", "Dark grid lines", "massageLabRetroGridDarkLineColor", "massageLabRetroGrid.darkLineColor")] },
   { id: "massage-lab-aerial-rays", family: "css-dom", prefixes: ["massageLabAerialRays"], roles: [role("background", "Background", "massageLabAerialRaysBackgroundColor", "massageLabAerialRays.backgroundColor"), role("rays", "Rays", "massageLabAerialRaysColor", "massageLabAerialRays.color")] },
   {
+    id: "massage-lab-aurora",
+    family: "css-dom",
+    prefixes: ["massageLabAurora"],
+    roles: [
+      role("background", "Background", "massageLabAuroraBackgroundColor", "massageLabAurora.backgroundColor", undefined, undefined, 6),
+      role("aurora-1", "Aurora 1", "massageLabAuroraColorOne", "massageLabAurora.colors[0]", undefined, undefined, 0),
+      role("aurora-2", "Aurora 2", "massageLabAuroraColorTwo", "massageLabAurora.colors[1]", undefined, undefined, 1),
+      role("aurora-3", "Aurora 3", "massageLabAuroraColorThree", "massageLabAurora.colors[2]", undefined, undefined, 2),
+      role("aurora-4", "Aurora 4", "massageLabAuroraColorFour", "massageLabAurora.colors[3]", undefined, undefined, 3),
+      role("aurora-5", "Aurora 5", "massageLabAuroraColorFive", "massageLabAurora.colors[4]", undefined, undefined, 4),
+    ],
+  },
+  {
     id: "massage-lab-dna",
     family: "css-dom",
     prefixes: ["massageLabDna"],
@@ -802,7 +844,6 @@ const SUPPORTED_SPECS: readonly SupportedSpec[] = [
 const UNSUPPORTED_SPECS: readonly UnsupportedSpec[] = [
   { id: "massage-lab-prism", family: "webgl", prefixes: ["massageLabPrism"], reason: "Prism exposes spectral and hue controls rather than a concrete color target, so its source rendering remains unchanged during adapter migration." },
   { id: "massage-lab-dark-veil", family: "webgl", prefixes: ["massageLabDarkVeil"], reason: "Dark Veil exposes a hue shift rather than a concrete color target, so its source rendering remains unchanged during adapter migration." },
-  { id: "massage-lab-aurora", family: "css-dom" },
   { id: "massage-lab-dotted-glow", family: "canvas" },
   { id: "massage-lab-background-beams", family: "css-dom" },
   { id: "massage-lab-collision-beams", family: "css-dom" },

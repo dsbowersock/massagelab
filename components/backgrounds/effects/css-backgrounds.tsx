@@ -192,6 +192,7 @@ export interface BackgroundEffectProps extends BackgroundRendererLifecycleProps 
   massageLabPhotonBeam?: MassageLabPhotonBeamOptions
   massageLabRetroGrid?: MassageLabRetroGridOptions
   massageLabAerialRays?: MassageLabAerialRaysOptions
+  massageLabAurora?: MassageLabAuroraOptions
   massageLab3DGlobe?: MassageLab3DGlobeOptions
   backgroundLines?: BackgroundLinesOptions
   shootingStars?: ShootingStarsBackgroundOptions
@@ -215,6 +216,7 @@ export interface CssDomPaletteEffectPropsById {
   "static-gradient": Pick<BackgroundEffectProps, "staticGradient">
   "massage-lab-moving-gradient": Pick<BackgroundEffectProps, "className" | "mainColor" | "orbColor">
   "massage-lab-aerial-rays": Pick<BackgroundEffectProps, "massageLabAerialRays">
+  "massage-lab-aurora": Pick<BackgroundEffectProps, "massageLabAurora">
   "massage-lab-grid-motion": Pick<BackgroundEffectProps, "massageLabGridMotion">
   "massage-lab-gradient-animation": Pick<BackgroundEffectProps, "gradientAnimation">
   "massage-lab-shooting-stars": Pick<BackgroundEffectProps, "shootingStars">
@@ -1074,6 +1076,20 @@ export interface BackgroundLinesOptions {
   duration?: number
 }
 
+export interface MassageLabAuroraOptions {
+  backgroundColor?: string
+  /** Palette-resolved aurora bands ordered across the authored five stops. */
+  colors?: readonly string[]
+  /** Motion multiplier; 1 preserves the authored 60-second cycle. */
+  speed?: number
+  /** Field opacity from 0.1 through 1. */
+  intensity?: number
+  /** Field blur radius in CSS pixels. */
+  blur?: number
+  /** Radial-mask fade endpoint as a viewport percentage. */
+  reach?: number
+}
+
 export interface ShootingStarsBackgroundOptions {
   starColor?: string
   trailColor?: string
@@ -1713,10 +1729,37 @@ export function MassageLabElectricMistBackground({ className }: BackgroundEffect
   return <div className={cn(styles.effectLayer, styles.electricMist, className)} aria-hidden="true" />
 }
 
+const DEFAULT_MASSAGE_LAB_AURORA = Object.freeze({
+  backgroundColor: "#09090B",
+  colors: Object.freeze(["#3B82F6", "#A5B4FC", "#93C5FD", "#DDD6FE", "#60A5FA"]),
+  speed: 1,
+  intensity: 0.5,
+  blur: 10,
+  reach: 70,
+})
+
 // MassageLab Aurora Field by Manu Arora, adapted as an internal MassageLab premium visual effect.
-export function MassageLabAuroraBackground({ className }: BackgroundEffectProps) {
+export function MassageLabAuroraBackground({
+  className,
+  massageLabAurora,
+}: BackgroundEffectProps) {
+  const resolved = resolveMassageLabAuroraOptions(massageLabAurora)
+  const [colorOne, colorTwo, colorThree, colorFour, colorFive] = resolved.colors
+  const style = {
+    "--ml-aurora-background": resolved.backgroundColor,
+    "--massage-lab-aurora": `repeating-linear-gradient(100deg, ${colorOne} 10%, ${colorTwo} 15%, ${colorThree} 20%, ${colorFour} 25%, ${colorFive} 30%)`,
+    "--ml-aurora-animation-duration": `${60 / resolved.speed}s`,
+    "--ml-aurora-opacity": resolved.intensity,
+    "--ml-aurora-blur": `${resolved.blur}px`,
+    "--ml-aurora-reach": `${resolved.reach}%`,
+  } as CSSProperties
+
   return (
-    <div className={cn(styles.effectLayer, styles.massageLabAurora, className)} aria-hidden="true">
+    <div
+      className={cn(styles.effectLayer, styles.massageLabAurora, className)}
+      style={style}
+      aria-hidden="true"
+    >
       <div className={styles.massageLabAuroraField} />
     </div>
   )
@@ -3375,6 +3418,26 @@ function resolveLampSectionOptions(lamp: LampSectionOptions | undefined): Requir
     glowWidth: clampNumber(lamp?.glowWidth, DEFAULT_LAMP_SECTION.glowWidth, 180, 900),
     verticalOffset: clampNumber(lamp?.verticalOffset, DEFAULT_LAMP_SECTION.verticalOffset, -320, 160),
     pulseSpeed: clampNumber(lamp?.pulseSpeed, DEFAULT_LAMP_SECTION.pulseSpeed, 4, 18),
+  }
+}
+
+function resolveMassageLabAuroraOptions(
+  aurora: MassageLabAuroraOptions | undefined,
+): Required<MassageLabAuroraOptions> {
+  const colors = DEFAULT_MASSAGE_LAB_AURORA.colors.map((fallback, index) => (
+    normalizeHexColor(aurora?.colors?.[index], fallback)
+  ))
+
+  return {
+    backgroundColor: normalizeHexColor(
+      aurora?.backgroundColor,
+      DEFAULT_MASSAGE_LAB_AURORA.backgroundColor,
+    ),
+    colors,
+    speed: clampNumber(aurora?.speed, DEFAULT_MASSAGE_LAB_AURORA.speed, 0.25, 2),
+    intensity: clampNumber(aurora?.intensity, DEFAULT_MASSAGE_LAB_AURORA.intensity, 0.1, 1),
+    blur: clampNumber(aurora?.blur, DEFAULT_MASSAGE_LAB_AURORA.blur, 0, 30),
+    reach: clampNumber(aurora?.reach, DEFAULT_MASSAGE_LAB_AURORA.reach, 30, 100),
   }
 }
 

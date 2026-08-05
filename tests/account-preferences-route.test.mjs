@@ -141,14 +141,14 @@ function unownedSettings() {
   return {
     ...ownedOnlySettings(),
     backgroundId: unownedBackgroundId,
-    massageLabAuroraSpeed: 88,
+    massageLabAuroraUnsupportedControl: 88,
   }
 }
 
 function assertUnownedFallback(settings) {
   assert.equal(settings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
   assert.equal(
-    Object.hasOwn(settings, "massageLabAuroraSpeed"),
+    Object.hasOwn(settings, "massageLabAuroraUnsupportedControl"),
     false,
     "unowned renderer settings must not survive sanitization",
   )

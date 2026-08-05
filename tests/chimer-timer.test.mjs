@@ -3154,6 +3154,28 @@ describe("Chimer timer helpers", () => {
     assert.equal(sanitizeChimerSettings({ massageLabAerialRaysOpacity: 9 }).massageLabAerialRaysOpacity, 1)
   })
 
+  it("normalizes MassageLab Aurora Field visual controls", () => {
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabAuroraSpeed, 1)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabAuroraIntensity, 0.5)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabAuroraBlur, 10)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabAuroraReach, 70)
+
+    const settings = sanitizeChimerSettings({
+      massageLabAuroraSpeed: 99,
+      massageLabAuroraIntensity: -1,
+      massageLabAuroraBlur: 99,
+      massageLabAuroraReach: 10,
+    })
+    assert.equal(settings.massageLabAuroraSpeed, 2)
+    assert.equal(settings.massageLabAuroraIntensity, 0.1)
+    assert.equal(settings.massageLabAuroraBlur, 30)
+    assert.equal(settings.massageLabAuroraReach, 30)
+    assert.equal(sanitizeChimerSettings({ massageLabAuroraSpeed: 0 }).massageLabAuroraSpeed, 0.25)
+    assert.equal(sanitizeChimerSettings({ massageLabAuroraIntensity: 2 }).massageLabAuroraIntensity, 1)
+    assert.equal(sanitizeChimerSettings({ massageLabAuroraBlur: -5 }).massageLabAuroraBlur, 0)
+    assert.equal(sanitizeChimerSettings({ massageLabAuroraReach: 999 }).massageLabAuroraReach, 100)
+  })
+
   it("normalizes MassageLab Synthesis background controls", () => {
     const settings = sanitizeChimerSettings({
       massageLabSynthesisPaletteMode: "harmony",

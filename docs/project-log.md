@@ -6,6 +6,12 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-05 — Aurora Field visual tuning and shared colors
+
+- Added Aurora Field controls to both Chimer/Clock Visual panels for Motion speed (`0.25x`-`2.00x`), Intensity (`10%`-`100%`), Blur (`0`-`30px`), and Field reach (`30%`-`100%`), retaining the source-matched `1.00x`, `50%`, `10px`, and `70%` defaults.
+- Promoted Aurora Field from an unsupported color adapter to six concrete shared-palette roles: its background and five aurora bands. Source mode preserves the authored blue/violet palette. Custom and Harmony map the bands to Swatches 1-5 and reserve Swatch 7 for the background so it remains independent from the primary harmony color; Swatch 6 remains available and unused by default. The `massage-lab-aurora` ID, entitlement behavior, and source defaults are unchanged.
+- The focused Aurora renderer, role-mapping, settings, entitlement, UI-contract, and account-persistence tests pass; all 1,971 repository tests, typecheck, lint, `git diff --check`, the 102-page Production build, and the restarted localhost-only `/dev/clock` HTTP check pass. Direct rendered automation remains blocked by the unresolved administrator-enforced in-app-browser localhost policy, so the user's Device Toolbar review remains the visual acceptance path.
+
 ## 2026-08-05 — Photon Beam moderate defaults
 
 - Reduced Photon Beam's new/reset and direct-renderer defaults from 80 lines and 94 signals to 12 lines and 12 signals for a calmer phone presentation. A versioned exact-default migration updates only the untouched former 80/94 pair; customized saved densities retain their authored values. Control ranges, colors, motion, bloom, entitlement behavior, and background ID are unchanged.

@@ -2673,6 +2673,30 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.massageLabAerialRaysOpacity, 0.82)
   })
 
+  it("resets MassageLab Aurora Field controls without premium background access", () => {
+    const input = {
+      backgroundId: "massage-lab-aurora",
+      massageLabAuroraSpeed: 1.75,
+      massageLabAuroraIntensity: 0.85,
+      massageLabAuroraBlur: 24,
+      massageLabAuroraReach: 92,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    assert.equal(freeSettings.massageLabAuroraSpeed, DEFAULT_CHIMER_SETTINGS.massageLabAuroraSpeed)
+    assert.equal(freeSettings.massageLabAuroraIntensity, DEFAULT_CHIMER_SETTINGS.massageLabAuroraIntensity)
+    assert.equal(freeSettings.massageLabAuroraBlur, DEFAULT_CHIMER_SETTINGS.massageLabAuroraBlur)
+    assert.equal(freeSettings.massageLabAuroraReach, DEFAULT_CHIMER_SETTINGS.massageLabAuroraReach)
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+    assert.equal(premiumSettings.backgroundId, "massage-lab-aurora")
+    assert.equal(premiumSettings.massageLabAuroraSpeed, 1.75)
+    assert.equal(premiumSettings.massageLabAuroraIntensity, 0.85)
+    assert.equal(premiumSettings.massageLabAuroraBlur, 24)
+    assert.equal(premiumSettings.massageLabAuroraReach, 92)
+  })
+
   it("strips custom colors for users without the Chimer custom colors feature", () => {
     const settings = sanitizeChimerSettingsForEntitlements({
       primaryFontColor: "#000000",

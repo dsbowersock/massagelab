@@ -162,8 +162,8 @@ const movingGradientAdapter = backgroundPaletteRegistry["massage-lab-moving-grad
 const sharedRoleMapping: BackgroundColorMapping = movingGradientAdapter
   ? { main: 0, orb: 0 }
   : {}
-const unsupportedAdapter = backgroundPaletteRegistry["massage-lab-aurora"]
-  ?? Object.values(backgroundPaletteRegistry).find((entry) => entry.status === "unsupported")
+const unsupportedAdapter = Object.values(backgroundPaletteRegistry)
+  .find((entry) => entry.status === "unsupported")
 const representativeEntries = (["css-dom", "canvas", "webgl"] as const)
   .map(representativeByFamily)
   .filter((entry): entry is BackgroundDefinition => Boolean(entry))

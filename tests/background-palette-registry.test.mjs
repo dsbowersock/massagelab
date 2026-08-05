@@ -77,6 +77,16 @@ const cssDomFixtures = {
       opacity: 0.42,
     },
   },
+  "massage-lab-aurora": {
+    massageLabAurora: {
+      backgroundColor: "#010101",
+      colors: ["#020202", "#030303", "#040404", "#050505", "#060606"],
+      speed: 1.4,
+      intensity: 0.64,
+      blur: 17,
+      reach: 82,
+    },
+  },
   "massage-lab-grid-motion": {
     massageLabGridMotion: {
       gradientColor: "#010101",
@@ -1503,6 +1513,31 @@ describe("background palette adapter registry", () => {
       speed: 1.7,
       size: 63,
     })
+  })
+
+  it("reserves Swatch 7 for Aurora Field's background", () => {
+    const adapter = backgroundPaletteRegistry["massage-lab-aurora"]
+    assert.deepEqual(
+      Object.fromEntries(adapter.roles.map((role) => [role.id, role.defaultSwatch])),
+      {
+        background: 6,
+        "aurora-1": 0,
+        "aurora-2": 1,
+        "aurora-3": 2,
+        "aurora-4": 3,
+        "aurora-5": 4,
+      },
+    )
+
+    const resolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-aurora",
+      effectProps: cssDomFixtures["massage-lab-aurora"],
+      palette: paletteForMode("custom"),
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.equal(resolved.massageLabAurora.backgroundColor, CUSTOM_SWATCHES[6])
+    assert.deepEqual(resolved.massageLabAurora.colors, CUSTOM_SWATCHES.slice(0, 5))
   })
 
   it("preserves Ripple Grid rainbow and Aurora Bars/Tile Grid automatic Source controls", () => {
