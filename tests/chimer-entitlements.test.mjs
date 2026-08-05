@@ -195,6 +195,7 @@ describe("Chimer entitlement-aware settings", () => {
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
     assert.equal(freeSettings.massageLabPhotonBeamLineCount, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamLineCount)
+    assert.equal(freeSettings.massageLabPhotonBeamDefaultsVersion, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamDefaultsVersion)
     assert.equal(freeSettings.massageLabPhotonBeamSpreadHeight, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamSpreadHeight)
     assert.equal(freeSettings.massageLabPhotonBeamSpreadDepth, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamSpreadDepth)
     assert.equal(freeSettings.massageLabPhotonBeamCurveLength, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamCurveLength)

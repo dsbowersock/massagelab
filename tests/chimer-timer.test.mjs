@@ -2907,6 +2907,10 @@ describe("Chimer timer helpers", () => {
   })
 
   it("normalizes MassageLab Photon Beam background controls", () => {
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamLineCount, 12)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamSignalCount, 12)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamDefaultsVersion, 1)
+
     const settings = sanitizeChimerSettings({
       massageLabPhotonBeamPaletteMode: "harmony",
       massageLabPhotonBeamPrimaryColor: "#00d4ff",
@@ -2950,6 +2954,29 @@ describe("Chimer timer helpers", () => {
       sanitizeChimerSettings({ massageLabPhotonBeamSpeedGlobal: "fast" }).massageLabPhotonBeamSpeedGlobal,
       DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamSpeedGlobal,
     )
+
+    const migratedDefaults = sanitizeChimerSettings({
+      massageLabPhotonBeamLineCount: 80,
+      massageLabPhotonBeamSignalCount: 94,
+    })
+    assert.equal(migratedDefaults.massageLabPhotonBeamLineCount, 12)
+    assert.equal(migratedDefaults.massageLabPhotonBeamSignalCount, 12)
+    assert.equal(migratedDefaults.massageLabPhotonBeamDefaultsVersion, 1)
+
+    const customizedLegacySettings = sanitizeChimerSettings({
+      massageLabPhotonBeamLineCount: 24,
+      massageLabPhotonBeamSignalCount: 30,
+    })
+    assert.equal(customizedLegacySettings.massageLabPhotonBeamLineCount, 24)
+    assert.equal(customizedLegacySettings.massageLabPhotonBeamSignalCount, 30)
+
+    const currentVersionSettings = sanitizeChimerSettings({
+      massageLabPhotonBeamLineCount: 80,
+      massageLabPhotonBeamSignalCount: 94,
+      massageLabPhotonBeamDefaultsVersion: 1,
+    })
+    assert.equal(currentVersionSettings.massageLabPhotonBeamLineCount, 80)
+    assert.equal(currentVersionSettings.massageLabPhotonBeamSignalCount, 94)
   })
 
   it("normalizes MassageLab 3D Globe background controls", () => {

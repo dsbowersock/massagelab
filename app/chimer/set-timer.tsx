@@ -967,6 +967,7 @@ export interface ChimerSettings {
   massageLabMatrixRainSpeed: number
   massageLabMatrixRainFontSize: number
   massageLabPhotonBeamLineCount: number
+  massageLabPhotonBeamDefaultsVersion: number
   massageLabPhotonBeamSpreadHeight: number
   massageLabPhotonBeamSpreadDepth: number
   massageLabPhotonBeamCurveLength: number
