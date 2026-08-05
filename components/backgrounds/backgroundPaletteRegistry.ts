@@ -445,6 +445,30 @@ export function applyCssDomPaletteRoleColors<
           ),
         },
       }
+    case "massage-lab-collision-beams":
+      return {
+        ...props,
+        massageLabCollisionBeams: {
+          ...props.massageLabCollisionBeams,
+          backgroundColor: roleColor(
+            colors,
+            "background",
+            props.massageLabCollisionBeams?.backgroundColor,
+          ),
+          beamColor: roleColor(colors, "beam", props.massageLabCollisionBeams?.beamColor),
+          accentColor: roleColor(colors, "accent", props.massageLabCollisionBeams?.accentColor),
+          particleColor: roleColor(
+            colors,
+            "particles",
+            props.massageLabCollisionBeams?.particleColor,
+          ),
+          surfaceColor: roleColor(
+            colors,
+            "surface",
+            props.massageLabCollisionBeams?.surfaceColor,
+          ),
+        },
+      }
     case "massage-lab-dna":
       if (!props.massageLabDna) return props
       return {
@@ -727,6 +751,23 @@ const SUPPORTED_SPECS: readonly SupportedSpec[] = [
     }],
   },
   {
+    id: "massage-lab-collision-beams",
+    family: "css-dom",
+    prefixes: ["massageLabCollisionBeams"],
+    roles: [
+      role("background", "Background", "massageLabCollisionBeamsBackgroundColor", "massageLabCollisionBeams.backgroundColor", undefined, "#050505", 6, "saved-swatch"),
+      role("beam", "Beam", "massageLabCollisionBeamsBeamColor", "massageLabCollisionBeams.beamColor", undefined, "#6366F1", 0),
+      role("accent", "Accent", "massageLabCollisionBeamsAccentColor", "massageLabCollisionBeams.accentColor", undefined, "#A855F7", 1),
+      role("particles", "Particles", "massageLabCollisionBeamsParticleColor", "massageLabCollisionBeams.particleColor", undefined, "#818CF8", 2),
+      role("surface", "Impact surface", "massageLabCollisionBeamsSurfaceColor", "massageLabCollisionBeams.surfaceColor", undefined, "#E2E8F0", 3),
+    ],
+    modeOverrides: [{
+      rendererTarget: "massageLabCollisionBeams.paletteMode",
+      sourceValue: "source",
+      customValue: "resolved",
+    }],
+  },
+  {
     id: "massage-lab-dna",
     family: "css-dom",
     prefixes: ["massageLabDna"],
@@ -904,7 +945,6 @@ const SUPPORTED_SPECS: readonly SupportedSpec[] = [
 const UNSUPPORTED_SPECS: readonly UnsupportedSpec[] = [
   { id: "massage-lab-prism", family: "webgl", prefixes: ["massageLabPrism"], reason: "Prism exposes spectral and hue controls rather than a concrete color target, so its source rendering remains unchanged during adapter migration." },
   { id: "massage-lab-dark-veil", family: "webgl", prefixes: ["massageLabDarkVeil"], reason: "Dark Veil exposes a hue shift rather than a concrete color target, so its source rendering remains unchanged during adapter migration." },
-  { id: "massage-lab-collision-beams", family: "css-dom" },
   { id: "massage-lab-background-lines", family: "css-dom", prefixes: ["backgroundLines"] },
   { id: "massage-lab-glowing-stars", family: "css-dom" },
   { id: "massage-lab-meteors", family: "css-dom" },

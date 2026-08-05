@@ -1364,10 +1364,19 @@
 
 .massageLabBackgroundBeamsCollision {
   overflow: hidden;
-  background:
+  background: var(
+    --ml-collision-background,
     radial-gradient(circle at 52% 46%, rgba(99, 102, 241, 0.14), transparent 34%),
     radial-gradient(circle at 70% 22%, rgba(168, 85, 247, 0.12), transparent 30%),
-    linear-gradient(180deg, #050505 0%, #080b13 56%, #111827 100%);
+    linear-gradient(180deg, #050505 0%, #080b13 56%, #111827 100%)
+  );
+}
+
+.collisionEffects {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: var(--ml-collision-intensity, 1);
 }
 
 .collisionBeamsLayer {
@@ -1381,13 +1390,18 @@
   position: absolute;
   top: 0;
   left: var(--ml-collision-beam-x);
-  width: 1px;
+  width: var(--ml-collision-beam-width, 1px);
   height: var(--ml-collision-beam-height);
   border-radius: 999px;
-  background: linear-gradient(to top, #6366f1 0%, #a855f7 44%, transparent 100%);
+  background: linear-gradient(
+    to top,
+    var(--ml-collision-beam-color, #6366f1) 0%,
+    var(--ml-collision-accent-color, #a855f7) 44%,
+    transparent 100%
+  );
   box-shadow:
-    0 0 14px rgba(99, 102, 241, 0.42),
-    0 0 30px rgba(168, 85, 247, 0.22);
+    0 0 14px var(--ml-collision-beam-glow, rgba(99, 102, 241, 0.42)),
+    0 0 30px var(--ml-collision-accent-glow, rgba(168, 85, 247, 0.22));
   opacity: 0;
   transform: translateY(-32vh) rotate(var(--ml-collision-beam-rotate));
   animation: mlCollisionBeamFall var(--ml-collision-beam-cycle) linear infinite;
@@ -1402,11 +1416,16 @@
   left: 0;
   height: 1px;
   pointer-events: none;
-  background: linear-gradient(to right, transparent, rgba(226, 232, 240, 0.66), transparent);
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--ml-collision-surface-line, rgba(226, 232, 240, 0.66)),
+    transparent
+  );
   box-shadow:
-    0 0 24px rgba(99, 102, 241, 0.22),
-    0 -16px 68px rgba(168, 85, 247, 0.12),
-    0 1px 0 rgba(255, 255, 255, 0.08) inset;
+    0 0 24px var(--ml-collision-beam-glow-soft, rgba(99, 102, 241, 0.22)),
+    0 -16px 68px var(--ml-collision-accent-glow-soft, rgba(168, 85, 247, 0.12)),
+    0 1px 0 var(--ml-collision-surface-inset, rgba(255, 255, 255, 0.08)) inset;
 }
 
 .collisionExplosion {
@@ -1418,6 +1437,7 @@
   height: 4px;
   pointer-events: none;
   opacity: 0;
+  scale: var(--ml-collision-burst-scale, 1);
   transform: translate(-50%, -50%);
   animation: mlCollisionExplosionCycle var(--ml-collision-beam-cycle) linear infinite;
   animation-delay: var(--ml-collision-beam-delay);
@@ -1430,7 +1450,12 @@
   width: 5rem;
   height: 0.5rem;
   border-radius: 999px;
-  background: linear-gradient(to right, transparent, rgba(99, 102, 241, 0.82), transparent);
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--ml-collision-beam-color, #6366f1),
+    transparent
+  );
   filter: blur(5px);
   transform: translateX(-50%);
 }
@@ -1442,8 +1467,12 @@
   width: 3px;
   height: 3px;
   border-radius: 999px;
-  background: linear-gradient(to bottom, #818cf8, #a855f7);
-  box-shadow: 0 0 10px rgba(129, 140, 248, 0.42);
+  background: linear-gradient(
+    to bottom,
+    var(--ml-collision-particle-color, #818cf8),
+    var(--ml-collision-accent-color, #a855f7)
+  );
+  box-shadow: 0 0 10px var(--ml-collision-particle-glow, rgba(129, 140, 248, 0.42));
   opacity: 0;
   transform: translate(0, 0);
   animation: mlCollisionParticleCycle var(--ml-collision-beam-cycle) ease-out infinite;

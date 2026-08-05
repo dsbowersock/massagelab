@@ -195,6 +195,7 @@ export interface BackgroundEffectProps extends BackgroundRendererLifecycleProps 
   massageLabAurora?: MassageLabAuroraOptions
   massageLabDottedGlow?: MassageLabDottedGlowOptions
   massageLabBackgroundBeams?: MassageLabBackgroundBeamsOptions
+  massageLabCollisionBeams?: MassageLabCollisionBeamsOptions
   massageLab3DGlobe?: MassageLab3DGlobeOptions
   backgroundLines?: BackgroundLinesOptions
   shootingStars?: ShootingStarsBackgroundOptions
@@ -220,6 +221,7 @@ export interface CssDomPaletteEffectPropsById {
   "massage-lab-aerial-rays": Pick<BackgroundEffectProps, "massageLabAerialRays">
   "massage-lab-aurora": Pick<BackgroundEffectProps, "massageLabAurora">
   "massage-lab-background-beams": Pick<BackgroundEffectProps, "massageLabBackgroundBeams">
+  "massage-lab-collision-beams": Pick<BackgroundEffectProps, "massageLabCollisionBeams">
   "massage-lab-grid-motion": Pick<BackgroundEffectProps, "massageLabGridMotion">
   "massage-lab-gradient-animation": Pick<BackgroundEffectProps, "gradientAnimation">
   "massage-lab-shooting-stars": Pick<BackgroundEffectProps, "shootingStars">
@@ -1125,6 +1127,24 @@ export interface MassageLabBackgroundBeamsOptions {
   glowStrength?: number
 }
 
+export interface MassageLabCollisionBeamsOptions {
+  /** Source retains the authored compound backdrop; resolved uses the saved background swatch. */
+  paletteMode?: "source" | "resolved"
+  backgroundColor?: string
+  beamColor?: string
+  accentColor?: string
+  particleColor?: string
+  surfaceColor?: string
+  /** Multiplies the authored falling-beam and burst cycles. */
+  speed?: number
+  /** Opacity applied to the complete beam, impact, and particle layer. */
+  intensity?: number
+  /** Falling-beam width in CSS pixels. */
+  beamWidth?: number
+  /** Multiplier for the impact glow and particle footprint. */
+  burstSize?: number
+}
+
 export interface ShootingStarsBackgroundOptions {
   starColor?: string
   trailColor?: string
@@ -1797,6 +1817,22 @@ const DEFAULT_MASSAGE_LAB_BACKGROUND_BEAMS = Object.freeze({
   glowStrength: 10,
 })
 
+const MASSAGE_LAB_COLLISION_BEAMS_SOURCE_BACKGROUND =
+  "radial-gradient(circle at 52% 46%, rgba(99, 102, 241, 0.14), transparent 34%), radial-gradient(circle at 70% 22%, rgba(168, 85, 247, 0.12), transparent 30%), linear-gradient(180deg, #050505 0%, #080b13 56%, #111827 100%)"
+
+const DEFAULT_MASSAGE_LAB_COLLISION_BEAMS = Object.freeze({
+  paletteMode: "source" as const,
+  backgroundColor: "#050505",
+  beamColor: "#6366F1",
+  accentColor: "#A855F7",
+  particleColor: "#818CF8",
+  surfaceColor: "#E2E8F0",
+  speed: 1,
+  intensity: 1,
+  beamWidth: 1,
+  burstSize: 1,
+})
+
 // MassageLab Aurora Field by Manu Arora, adapted as an internal MassageLab premium visual effect.
 export function MassageLabAuroraBackground({
   className,
@@ -2219,54 +2255,84 @@ export function MassageLabBackgroundBeams({
 }
 
 // MassageLab Collision Beams by Manu Arora, adapted as an internal MassageLab premium visual effect.
-export function MassageLabBackgroundBeamsWithCollision({ className }: BackgroundEffectProps) {
+export function MassageLabBackgroundBeamsWithCollision({
+  className,
+  massageLabCollisionBeams: collisionBeamOptions,
+}: BackgroundEffectProps) {
+  const resolved = resolveMassageLabCollisionBeamsOptions(collisionBeamOptions)
+  const rootStyle = {
+    "--ml-collision-background": resolved.paletteMode === "source"
+      ? MASSAGE_LAB_COLLISION_BEAMS_SOURCE_BACKGROUND
+      : resolved.backgroundColor,
+    "--ml-collision-beam-color": resolved.beamColor,
+    "--ml-collision-accent-color": resolved.accentColor,
+    "--ml-collision-particle-color": resolved.particleColor,
+    "--ml-collision-surface-color": resolved.surfaceColor,
+    "--ml-collision-beam-glow": hexColorWithAlpha(resolved.beamColor, 0.42),
+    "--ml-collision-beam-glow-soft": hexColorWithAlpha(resolved.beamColor, 0.22),
+    "--ml-collision-accent-glow": hexColorWithAlpha(resolved.accentColor, 0.22),
+    "--ml-collision-accent-glow-soft": hexColorWithAlpha(resolved.accentColor, 0.12),
+    "--ml-collision-particle-glow": hexColorWithAlpha(resolved.particleColor, 0.42),
+    "--ml-collision-surface-line": hexColorWithAlpha(resolved.surfaceColor, 0.66),
+    "--ml-collision-surface-inset": hexColorWithAlpha(resolved.surfaceColor, 0.08),
+    "--ml-collision-intensity": resolved.intensity,
+    "--ml-collision-beam-width": `${resolved.beamWidth}px`,
+    "--ml-collision-burst-scale": resolved.burstSize,
+  } as CSSProperties
+
   return (
-    <div className={cn(styles.effectLayer, styles.massageLabBackgroundBeamsCollision, className)} aria-hidden="true">
-      <div className={styles.collisionBeamsLayer}>
-        {massageLabCollisionBeams.map((beam) => {
-          const cycle = beam.duration + beam.repeatDelay
+    <div
+      className={cn(styles.effectLayer, styles.massageLabBackgroundBeamsCollision, className)}
+      style={rootStyle}
+      aria-hidden="true"
+    >
+      <div className={styles.collisionEffects}>
+        <div className={styles.collisionBeamsLayer}>
+          {massageLabCollisionBeams.map((beam) => {
+            const cycle = (beam.duration + beam.repeatDelay) / resolved.speed
+            const beamX = `${Math.min(98, Math.max(2, (beam.x / 1200) * 100))}%`
+            const style = {
+              "--ml-collision-beam-x": beamX,
+              "--ml-collision-beam-height": `${beam.height}px`,
+              "--ml-collision-beam-cycle": `${cycle}s`,
+              "--ml-collision-beam-delay": `${beam.delay / resolved.speed}s`,
+              "--ml-collision-beam-rotate": `${beam.rotate}deg`,
+            } as CSSProperties
+
+            return (
+              <span key={`${beam.x}-${beam.duration}`} className={styles.collisionBeam} style={style} />
+            )
+          })}
+        </div>
+
+        {massageLabCollisionBeams.map((beam, beamIndex) => {
+          const cycle = (beam.duration + beam.repeatDelay) / resolved.speed
           const beamX = `${Math.min(98, Math.max(2, (beam.x / 1200) * 100))}%`
           const style = {
             "--ml-collision-beam-x": beamX,
-            "--ml-collision-beam-height": `${beam.height}px`,
             "--ml-collision-beam-cycle": `${cycle}s`,
-            "--ml-collision-beam-delay": `${beam.delay}s`,
-            "--ml-collision-beam-rotate": `${beam.rotate}deg`,
+            "--ml-collision-beam-delay": `${beam.delay / resolved.speed}s`,
           } as CSSProperties
 
           return (
-            <span key={`${beam.x}-${beam.duration}`} className={styles.collisionBeam} style={style} />
+            <span key={`${beam.x}-collision`} className={styles.collisionExplosion} style={style}>
+              <span className={styles.collisionExplosionGlow} />
+              {massageLabCollisionParticles.map(([x, y], particleIndex) => (
+                <span
+                  key={`${beamIndex}-${particleIndex}`}
+                  className={styles.collisionParticle}
+                  style={{
+                    "--ml-collision-particle-x": `${x}px`,
+                    "--ml-collision-particle-y": `${y}px`,
+                  } as CSSProperties}
+                />
+              ))}
+            </span>
           )
         })}
+
+        <div className={styles.collisionSurface} />
       </div>
-
-      {massageLabCollisionBeams.map((beam, beamIndex) => {
-        const cycle = beam.duration + beam.repeatDelay
-        const beamX = `${Math.min(98, Math.max(2, (beam.x / 1200) * 100))}%`
-        const style = {
-          "--ml-collision-beam-x": beamX,
-          "--ml-collision-beam-cycle": `${cycle}s`,
-          "--ml-collision-beam-delay": `${beam.delay}s`,
-        } as CSSProperties
-
-        return (
-          <span key={`${beam.x}-collision`} className={styles.collisionExplosion} style={style}>
-            <span className={styles.collisionExplosionGlow} />
-            {massageLabCollisionParticles.map(([x, y], particleIndex) => (
-              <span
-                key={`${beamIndex}-${particleIndex}`}
-                className={styles.collisionParticle}
-                style={{
-                  "--ml-collision-particle-x": `${x}px`,
-                  "--ml-collision-particle-y": `${y}px`,
-                } as CSSProperties}
-              />
-            ))}
-          </span>
-        )
-      })}
-
-      <div className={styles.collisionSurface} />
     </div>
   )
 }
@@ -3549,6 +3615,23 @@ function resolveMassageLabBackgroundBeamsOptions(
     intensity: clampNumber(beams?.intensity, DEFAULT_MASSAGE_LAB_BACKGROUND_BEAMS.intensity, 0.1, 1),
     beamWidth: clampNumber(beams?.beamWidth, DEFAULT_MASSAGE_LAB_BACKGROUND_BEAMS.beamWidth, 0.2, 2),
     glowStrength: clampNumber(beams?.glowStrength, DEFAULT_MASSAGE_LAB_BACKGROUND_BEAMS.glowStrength, 0, 20),
+  }
+}
+
+function resolveMassageLabCollisionBeamsOptions(
+  beams: MassageLabCollisionBeamsOptions | undefined,
+): Required<MassageLabCollisionBeamsOptions> {
+  return {
+    paletteMode: beams?.paletteMode === "resolved" ? "resolved" : "source",
+    backgroundColor: normalizeHexColor(beams?.backgroundColor, DEFAULT_MASSAGE_LAB_COLLISION_BEAMS.backgroundColor),
+    beamColor: normalizeHexColor(beams?.beamColor, DEFAULT_MASSAGE_LAB_COLLISION_BEAMS.beamColor),
+    accentColor: normalizeHexColor(beams?.accentColor, DEFAULT_MASSAGE_LAB_COLLISION_BEAMS.accentColor),
+    particleColor: normalizeHexColor(beams?.particleColor, DEFAULT_MASSAGE_LAB_COLLISION_BEAMS.particleColor),
+    surfaceColor: normalizeHexColor(beams?.surfaceColor, DEFAULT_MASSAGE_LAB_COLLISION_BEAMS.surfaceColor),
+    speed: clampNumber(beams?.speed, DEFAULT_MASSAGE_LAB_COLLISION_BEAMS.speed, 0.25, 2),
+    intensity: clampNumber(beams?.intensity, DEFAULT_MASSAGE_LAB_COLLISION_BEAMS.intensity, 0.1, 1),
+    beamWidth: clampNumber(beams?.beamWidth, DEFAULT_MASSAGE_LAB_COLLISION_BEAMS.beamWidth, 0.5, 4),
+    burstSize: clampNumber(beams?.burstSize, DEFAULT_MASSAGE_LAB_COLLISION_BEAMS.burstSize, 0.5, 2),
   }
 }
 

@@ -2745,6 +2745,30 @@ describe("Chimer entitlement-aware settings", () => {
     }
   })
 
+  it("resets MassageLab Collision Beams controls without premium background access", () => {
+    const input = {
+      backgroundId: "massage-lab-collision-beams",
+      massageLabCollisionBeamsSpeed: 1.75,
+      massageLabCollisionBeamsIntensity: 0.9,
+      massageLabCollisionBeamsBeamWidth: 2.5,
+      massageLabCollisionBeamsBurstSize: 1.6,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+    assert.equal(premiumSettings.backgroundId, "massage-lab-collision-beams")
+    for (const key of [
+      "massageLabCollisionBeamsSpeed",
+      "massageLabCollisionBeamsIntensity",
+      "massageLabCollisionBeamsBeamWidth",
+      "massageLabCollisionBeamsBurstSize",
+    ]) {
+      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+      assert.equal(premiumSettings[key], input[key])
+    }
+  })
+
   it("strips custom colors for users without the Chimer custom colors feature", () => {
     const settings = sanitizeChimerSettingsForEntitlements({
       primaryFontColor: "#000000",

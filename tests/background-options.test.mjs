@@ -5665,6 +5665,49 @@ describe("premium background registry", () => {
     assert.match(runningSource, /massageLabBackgroundBeams=\{\{/)
   })
 
+  it("exposes Collision Beams palette roles and visual tuning in both Visual panels", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const paletteSource = readFileSync(
+      new URL("../components/backgrounds/backgroundPaletteRegistry.ts", import.meta.url),
+      "utf8",
+    )
+
+    assert.match(effectSource, /MassageLabCollisionBeamsOptions/)
+    assert.match(effectSource, /massageLabCollisionBeams/)
+    assert.match(effectSource, /--ml-collision-intensity/)
+    assert.match(effectSource, /--ml-collision-beam-width/)
+    assert.match(effectSource, /--ml-collision-burst-scale/)
+    assert.match(stylesSource, /var\(--ml-collision-intensity, 1\)/)
+    assert.match(stylesSource, /var\(--ml-collision-beam-width, 1px\)/)
+    assert.match(stylesSource, /var\(--ml-collision-burst-scale, 1\)/)
+    assert.match(paletteSource, /id: "massage-lab-collision-beams"/)
+    assert.match(paletteSource, /role\("background", "Background", "massageLabCollisionBeamsBackgroundColor"/)
+    for (const key of [
+      "massageLabCollisionBeamsSpeed",
+      "massageLabCollisionBeamsIntensity",
+      "massageLabCollisionBeamsBeamWidth",
+      "massageLabCollisionBeamsBurstSize",
+    ]) {
+      assert.match(setupSource, new RegExp(key))
+      assert.match(runningSource, new RegExp(key))
+    }
+    assert.match(hostSource, /massageLabCollisionBeams/)
+    assert.match(runningSource, /massageLabCollisionBeams=\{\{/)
+  })
+
   it("keeps MassageLab Synthesis source-shaped, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
       new URL("../components/backgrounds/effects/massage-lab-synthesis-background.tsx", import.meta.url),

@@ -1704,7 +1704,7 @@ const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
     performanceCost: "medium",
     requiresSubscription: true,
     enabled: true,
-    customizationSummary: "Source beam/collision behavior adapted with CSS animation and no added Motion dependency.",
+    customizationSummary: "Source beam/collision behavior with shared beam, accent, particle, and impact colors, an independent background swatch, and motion, intensity, width, and burst controls.",
     component: () => cssBackgrounds().then((module) => ({ default: module.MassageLabBackgroundBeamsWithCollision })),
     fallbackStyle: {
       background:

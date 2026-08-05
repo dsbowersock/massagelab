@@ -3224,6 +3224,28 @@ describe("Chimer timer helpers", () => {
     assert.equal(sanitizeChimerSettings({ massageLabBackgroundBeamsGlowStrength: -1 }).massageLabBackgroundBeamsGlowStrength, 0)
   })
 
+  it("normalizes MassageLab Collision Beams visual controls", () => {
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabCollisionBeamsSpeed, 1)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabCollisionBeamsIntensity, 1)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabCollisionBeamsBeamWidth, 1)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabCollisionBeamsBurstSize, 1)
+
+    const settings = sanitizeChimerSettings({
+      massageLabCollisionBeamsSpeed: 99,
+      massageLabCollisionBeamsIntensity: -1,
+      massageLabCollisionBeamsBeamWidth: 99,
+      massageLabCollisionBeamsBurstSize: 99,
+    })
+    assert.equal(settings.massageLabCollisionBeamsSpeed, 2)
+    assert.equal(settings.massageLabCollisionBeamsIntensity, 0.1)
+    assert.equal(settings.massageLabCollisionBeamsBeamWidth, 4)
+    assert.equal(settings.massageLabCollisionBeamsBurstSize, 2)
+    assert.equal(sanitizeChimerSettings({ massageLabCollisionBeamsSpeed: 0 }).massageLabCollisionBeamsSpeed, 0.25)
+    assert.equal(sanitizeChimerSettings({ massageLabCollisionBeamsIntensity: 2 }).massageLabCollisionBeamsIntensity, 1)
+    assert.equal(sanitizeChimerSettings({ massageLabCollisionBeamsBeamWidth: 0 }).massageLabCollisionBeamsBeamWidth, 0.5)
+    assert.equal(sanitizeChimerSettings({ massageLabCollisionBeamsBurstSize: 0 }).massageLabCollisionBeamsBurstSize, 0.5)
+  })
+
   it("normalizes MassageLab Synthesis background controls", () => {
     const settings = sanitizeChimerSettings({
       massageLabSynthesisPaletteMode: "harmony",

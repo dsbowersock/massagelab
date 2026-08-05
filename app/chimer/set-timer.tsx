@@ -1031,6 +1031,10 @@ export interface ChimerSettings {
   massageLabBackgroundBeamsIntensity: number
   massageLabBackgroundBeamsBeamWidth: number
   massageLabBackgroundBeamsGlowStrength: number
+  massageLabCollisionBeamsSpeed: number
+  massageLabCollisionBeamsIntensity: number
+  massageLabCollisionBeamsBeamWidth: number
+  massageLabCollisionBeamsBurstSize: number
   backgroundLinesDuration: number
   shootingStarsDensity: number
   shootingStarsTwinkle: boolean
@@ -1751,6 +1755,29 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
           <label className={styles.rangeRow}>
             <span>Glow strength ({settings.massageLabBackgroundBeamsGlowStrength}px)</span>
             <input type="range" min="0" max="20" step="0.5" value={settings.massageLabBackgroundBeamsGlowStrength} onChange={(event) => onSettingsChange({ massageLabBackgroundBeamsGlowStrength: Number(event.target.value) })} aria-label="Beam Field glow strength" />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "massage-lab-collision-beams") {
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.rangeRow}>
+            <span>Motion speed ({settings.massageLabCollisionBeamsSpeed.toFixed(2)}x)</span>
+            <input type="range" min="0.25" max="2" step="0.05" value={settings.massageLabCollisionBeamsSpeed} onChange={(event) => onSettingsChange({ massageLabCollisionBeamsSpeed: Number(event.target.value) })} aria-label="Collision Beams motion speed" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Intensity ({Math.round(settings.massageLabCollisionBeamsIntensity * 100)}%)</span>
+            <input type="range" min="0.1" max="1" step="0.05" value={settings.massageLabCollisionBeamsIntensity} onChange={(event) => onSettingsChange({ massageLabCollisionBeamsIntensity: Number(event.target.value) })} aria-label="Collision Beams intensity" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Beam width ({settings.massageLabCollisionBeamsBeamWidth.toFixed(1)}px)</span>
+            <input type="range" min="0.5" max="4" step="0.1" value={settings.massageLabCollisionBeamsBeamWidth} onChange={(event) => onSettingsChange({ massageLabCollisionBeamsBeamWidth: Number(event.target.value) })} aria-label="Collision Beams beam width" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Burst size ({Math.round(settings.massageLabCollisionBeamsBurstSize * 100)}%)</span>
+            <input type="range" min="0.5" max="2" step="0.05" value={settings.massageLabCollisionBeamsBurstSize} onChange={(event) => onSettingsChange({ massageLabCollisionBeamsBurstSize: Number(event.target.value) })} aria-label="Collision Beams burst size" />
           </label>
         </div>
       )

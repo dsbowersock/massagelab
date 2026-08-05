@@ -98,6 +98,20 @@ const cssDomFixtures = {
       glowStrength: 7,
     },
   },
+  "massage-lab-collision-beams": {
+    massageLabCollisionBeams: {
+      paletteMode: "source",
+      backgroundColor: "#010101",
+      beamColor: "#020202",
+      accentColor: "#030303",
+      particleColor: "#040404",
+      surfaceColor: "#050505",
+      speed: 1.4,
+      intensity: 0.64,
+      beamWidth: 1.5,
+      burstSize: 1.2,
+    },
+  },
   "massage-lab-grid-motion": {
     massageLabGridMotion: {
       gradientColor: "#010101",
@@ -1656,6 +1670,62 @@ describe("background palette adapter registry", () => {
         intensity: effectProps.massageLabBackgroundBeams.intensity,
         beamWidth: effectProps.massageLabBackgroundBeams.beamWidth,
         glowStrength: effectProps.massageLabBackgroundBeams.glowStrength,
+      },
+    )
+  })
+
+  it("keeps Collision Beams' Swatch 7 background independent from Harmony", () => {
+    const adapter = backgroundPaletteRegistry["massage-lab-collision-beams"]
+    assert.deepEqual(
+      Object.fromEntries(adapter.roles.map((role) => [role.id, {
+        defaultSwatch: role.defaultSwatch,
+        harmonyColorSource: role.harmonyColorSource,
+      }])),
+      {
+        background: { defaultSwatch: 6, harmonyColorSource: "saved-swatch" },
+        beam: { defaultSwatch: 0, harmonyColorSource: "generated" },
+        accent: { defaultSwatch: 1, harmonyColorSource: "generated" },
+        particles: { defaultSwatch: 2, harmonyColorSource: "generated" },
+        surface: { defaultSwatch: 3, harmonyColorSource: "generated" },
+      },
+    )
+
+    const effectProps = cssDomFixtures["massage-lab-collision-beams"]
+    const sourceResolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-collision-beams",
+      effectProps,
+      palette: paletteForMode("source"),
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.equal(sourceResolved.massageLabCollisionBeams.paletteMode, "source")
+
+    const harmonyResolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-collision-beams",
+      effectProps,
+      palette: paletteForMode("harmony"),
+      mapping: {},
+      canCustomize: true,
+    })
+    const harmonySwatches = generateBackgroundHarmonySwatches(HARMONY_PRIMARY, "triadic")
+    assert.equal(harmonyResolved.massageLabCollisionBeams.paletteMode, "resolved")
+    assert.equal(harmonyResolved.massageLabCollisionBeams.backgroundColor, CUSTOM_SWATCHES[6])
+    assert.equal(harmonyResolved.massageLabCollisionBeams.beamColor, harmonySwatches[0])
+    assert.equal(harmonyResolved.massageLabCollisionBeams.accentColor, harmonySwatches[1])
+    assert.equal(harmonyResolved.massageLabCollisionBeams.particleColor, harmonySwatches[2])
+    assert.equal(harmonyResolved.massageLabCollisionBeams.surfaceColor, harmonySwatches[3])
+    assert.deepEqual(
+      {
+        speed: harmonyResolved.massageLabCollisionBeams.speed,
+        intensity: harmonyResolved.massageLabCollisionBeams.intensity,
+        beamWidth: harmonyResolved.massageLabCollisionBeams.beamWidth,
+        burstSize: harmonyResolved.massageLabCollisionBeams.burstSize,
+      },
+      {
+        speed: effectProps.massageLabCollisionBeams.speed,
+        intensity: effectProps.massageLabCollisionBeams.intensity,
+        beamWidth: effectProps.massageLabCollisionBeams.beamWidth,
+        burstSize: effectProps.massageLabCollisionBeams.burstSize,
       },
     )
   })

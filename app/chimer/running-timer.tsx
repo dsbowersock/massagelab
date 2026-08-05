@@ -827,6 +827,10 @@ interface RunningTimerProps {
   massageLabBackgroundBeamsIntensity: number
   massageLabBackgroundBeamsBeamWidth: number
   massageLabBackgroundBeamsGlowStrength: number
+  massageLabCollisionBeamsSpeed: number
+  massageLabCollisionBeamsIntensity: number
+  massageLabCollisionBeamsBeamWidth: number
+  massageLabCollisionBeamsBurstSize: number
   backgroundLinesDuration: number
   shootingStarsDensity: number
   shootingStarsTwinkle: boolean
@@ -1480,6 +1484,10 @@ export function RunningTimer({
   massageLabBackgroundBeamsIntensity,
   massageLabBackgroundBeamsBeamWidth,
   massageLabBackgroundBeamsGlowStrength,
+  massageLabCollisionBeamsSpeed,
+  massageLabCollisionBeamsIntensity,
+  massageLabCollisionBeamsBeamWidth,
+  massageLabCollisionBeamsBurstSize,
   backgroundLinesDuration,
   shootingStarsDensity,
   shootingStarsTwinkle,
@@ -11534,6 +11542,27 @@ export function RunningTimer({
         </>
       )}
 
+      {option.id === "massage-lab-collision-beams" && (
+        <>
+          <label className={styles.rangeRow}>
+            <span>Motion speed ({massageLabCollisionBeamsSpeed.toFixed(2)}x)</span>
+            <input type="range" min="0.25" max="2" step="0.05" value={massageLabCollisionBeamsSpeed} onChange={(event) => handleSettingsChange({ massageLabCollisionBeamsSpeed: Number(event.target.value) })} aria-label="Collision Beams motion speed" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Intensity ({Math.round(massageLabCollisionBeamsIntensity * 100)}%)</span>
+            <input type="range" min="0.1" max="1" step="0.05" value={massageLabCollisionBeamsIntensity} onChange={(event) => handleSettingsChange({ massageLabCollisionBeamsIntensity: Number(event.target.value) })} aria-label="Collision Beams intensity" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Beam width ({massageLabCollisionBeamsBeamWidth.toFixed(1)}px)</span>
+            <input type="range" min="0.5" max="4" step="0.1" value={massageLabCollisionBeamsBeamWidth} onChange={(event) => handleSettingsChange({ massageLabCollisionBeamsBeamWidth: Number(event.target.value) })} aria-label="Collision Beams beam width" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Burst size ({Math.round(massageLabCollisionBeamsBurstSize * 100)}%)</span>
+            <input type="range" min="0.5" max="2" step="0.05" value={massageLabCollisionBeamsBurstSize} onChange={(event) => handleSettingsChange({ massageLabCollisionBeamsBurstSize: Number(event.target.value) })} aria-label="Collision Beams burst size" />
+          </label>
+        </>
+      )}
+
       {option.id === "massage-lab-background-lines" && (
         <label className={styles.rangeRow}>
           <span>Line duration</span>
@@ -13283,6 +13312,12 @@ export function RunningTimer({
             intensity: massageLabBackgroundBeamsIntensity,
             beamWidth: massageLabBackgroundBeamsBeamWidth,
             glowStrength: massageLabBackgroundBeamsGlowStrength,
+          }}
+          massageLabCollisionBeams={{
+            speed: massageLabCollisionBeamsSpeed,
+            intensity: massageLabCollisionBeamsIntensity,
+            beamWidth: massageLabCollisionBeamsBeamWidth,
+            burstSize: massageLabCollisionBeamsBurstSize,
           }}
           backgroundLines={{
             duration: backgroundLinesDuration,

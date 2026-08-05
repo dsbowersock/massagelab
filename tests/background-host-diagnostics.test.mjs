@@ -101,6 +101,49 @@ describe("BackgroundHost diagnostics", () => {
     )
   })
 
+  it("reports Collision Beams' supported palette targets", () => {
+    const adapter = backgroundPaletteRegistry["massage-lab-collision-beams"]
+    const baseEffectProps = {
+      massageLabCollisionBeams: {
+        paletteMode: "source",
+        speed: 1.4,
+      },
+    }
+    const appliedEffectProps = adapter.applyRoleColors(
+      baseEffectProps,
+      {
+        background: "#010101",
+        beam: "#020202",
+        accent: "#030303",
+        particles: "#040404",
+        surface: "#050505",
+      },
+      "custom",
+    )
+
+    const snapshot = createBackgroundHostDiagnosticSnapshot({
+      requestedId: "massage-lab-collision-beams",
+      loadedId: "massage-lab-collision-beams",
+      loadStatus: "loaded",
+      adapter,
+      baseEffectProps,
+      appliedEffectProps,
+      reducedMotion: false,
+      error: null,
+    })
+
+    assert.equal(snapshot.status, "loaded")
+    assert.equal(snapshot.applicationChanged, true)
+    assert.deepEqual(snapshot.resolvedRendererTargets, {
+      "massageLabCollisionBeams.accentColor": "#030303",
+      "massageLabCollisionBeams.backgroundColor": "#010101",
+      "massageLabCollisionBeams.beamColor": "#020202",
+      "massageLabCollisionBeams.paletteMode": "resolved",
+      "massageLabCollisionBeams.particleColor": "#040404",
+      "massageLabCollisionBeams.surfaceColor": "#050505",
+    })
+  })
+
   it("fails closed for stale loads and exposes reduced-motion fallback", () => {
     const adapter = backgroundPaletteRegistry["massage-lab-retro-grid"]
     const baseEffectProps = { massageLabRetroGrid: { backgroundColor: "#000000" } }

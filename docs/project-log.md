@@ -6,6 +6,12 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-05 — Collision Beams independent background, colors, and tuning
+
+- Promoted Collision Beams from an unsupported CSS/DOM palette adapter to five concrete roles. Source preserves the authored layered background and beam, accent, particle, and impact-surface colors. Custom maps Beam, Accent, Particles, and Impact surface to Swatches 1-4 and Background to Swatch 7; Harmony regenerates only the four foreground colors while keeping the saved Swatch 7 background visible and editable. Swatches 5-6 remain unused by default.
+- Added persisted Motion speed (`0.25x`-`2.00x`), Intensity (`10%`-`100%`), Beam width (`0.5px`-`4.0px`), and Burst size (`50%`-`200%`) controls to both Visual panels, preserving the authored `1.00x`, `100%`, `1px`, and `100%` defaults. The renderer applies those controls to the complete beam/collision cycle, foreground layer opacity, beam geometry, and composed explosion/particle scale. The `massage-lab-collision-beams` ID and entitlement behavior are unchanged.
+- The focused renderer, role-mapping, Harmony-isolation, settings, entitlement, UI-contract, and diagnostics tests pass; all 1,987 repository tests, typecheck, lint, `git diff --check`, the 102-page Production build, and the restarted localhost-only `/dev/clock` HTTP check pass. Final visual judgment remains in the user's Device Toolbar review.
+
 ## 2026-08-05 — Beam Field independent background, colors, and tuning
 
 - Promoted Beam Field from an unsupported CSS/DOM palette adapter to four concrete roles. Source preserves the authored compound background and three traveling SVG gradient colors. Custom maps Beam 1-3 to Swatches 1-3 and Background to Swatch 7; Harmony regenerates only the three beam colors while keeping the saved Swatch 7 background visible and editable.
