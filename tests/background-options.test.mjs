@@ -5586,6 +5586,42 @@ describe("premium background registry", () => {
     assert.match(runningSource, /massageLabAurora=\{\{/)
   })
 
+  it("exposes Dotted Glow palette roles and visual tuning in both Visual panels", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const paletteSource = readFileSync(
+      new URL("../components/backgrounds/backgroundPaletteRegistry.ts", import.meta.url),
+      "utf8",
+    )
+
+    assert.match(effectSource, /MassageLabDottedGlowOptions/)
+    assert.match(effectSource, /massageLabDottedGlow/)
+    const dottedGlowImplementation = effectSource.slice(
+      effectSource.indexOf("export function MassageLabDottedGlowBackground"),
+      effectSource.indexOf("\nexport function ", effectSource.indexOf("export function MassageLabDottedGlowBackground") + 1),
+    )
+    assert.doesNotMatch(dottedGlowImplementation, /createRadialGradient/)
+    assert.match(paletteSource, /id: "massage-lab-dotted-glow"/)
+    assert.match(paletteSource, /role\("background", "Background", "massageLabDottedGlowBackgroundColor"/)
+    assert.match(paletteSource, /role\("dots", "Dots", "massageLabDottedGlowDotColor"/)
+    assert.match(paletteSource, /role\("glow", "Glow", "massageLabDottedGlowGlowColor"/)
+    for (const key of [
+      "massageLabDottedGlowSpeed",
+      "massageLabDottedGlowDotSize",
+      "massageLabDottedGlowDotSpacing",
+      "massageLabDottedGlowOpacity",
+      "massageLabDottedGlowGlowStrength",
+    ]) {
+      assert.match(setupSource, new RegExp(key))
+      assert.match(runningSource, new RegExp(key))
+    }
+    assert.match(runningSource, /massageLabDottedGlow=\{\{/)
+  })
+
   it("keeps MassageLab Synthesis source-shaped, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
       new URL("../components/backgrounds/effects/massage-lab-synthesis-background.tsx", import.meta.url),

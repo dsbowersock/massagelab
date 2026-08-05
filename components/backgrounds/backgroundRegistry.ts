@@ -1625,11 +1625,10 @@ const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
     performanceCost: "medium",
     requiresSubscription: true,
     enabled: true,
-    customizationSummary: "Source-matched canvas shimmer adapted for MassageLab surfaces.",
+    customizationSummary: "Source and Custom dot/glow colors, Harmony-driven dots, an independent background color, and visual tuning.",
     component: () => cssBackgrounds().then((module) => ({ default: module.MassageLabDottedGlowBackground })),
     fallbackStyle: {
-      background:
-        "radial-gradient(circle at 50% 42%, rgba(0,170,255,0.12), transparent 38%), radial-gradient(circle at center, rgba(255,255,255,0.08), transparent 34%), linear-gradient(145deg, #050505, #101012)",
+      background: "#050505",
     },
   },
   {

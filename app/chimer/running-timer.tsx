@@ -818,6 +818,11 @@ interface RunningTimerProps {
   massageLabAuroraIntensity: number
   massageLabAuroraBlur: number
   massageLabAuroraReach: number
+  massageLabDottedGlowSpeed: number
+  massageLabDottedGlowDotSize: number
+  massageLabDottedGlowDotSpacing: number
+  massageLabDottedGlowOpacity: number
+  massageLabDottedGlowGlowStrength: number
   backgroundLinesDuration: number
   shootingStarsDensity: number
   shootingStarsTwinkle: boolean
@@ -1462,6 +1467,11 @@ export function RunningTimer({
   massageLabAuroraIntensity,
   massageLabAuroraBlur,
   massageLabAuroraReach,
+  massageLabDottedGlowSpeed,
+  massageLabDottedGlowDotSize,
+  massageLabDottedGlowDotSpacing,
+  massageLabDottedGlowOpacity,
+  massageLabDottedGlowGlowStrength,
   backgroundLinesDuration,
   shootingStarsDensity,
   shootingStarsTwinkle,
@@ -11470,6 +11480,31 @@ export function RunningTimer({
         </>
       )}
 
+      {option.id === "massage-lab-dotted-glow" && (
+        <>
+          <label className={styles.rangeRow}>
+            <span>Motion speed ({massageLabDottedGlowSpeed.toFixed(2)}x)</span>
+            <input type="range" min="0.25" max="2" step="0.05" value={massageLabDottedGlowSpeed} onChange={(event) => handleSettingsChange({ massageLabDottedGlowSpeed: Number(event.target.value) })} aria-label="Dotted Glow motion speed" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Dot size ({massageLabDottedGlowDotSize.toFixed(1)}px)</span>
+            <input type="range" min="0.5" max="4" step="0.1" value={massageLabDottedGlowDotSize} onChange={(event) => handleSettingsChange({ massageLabDottedGlowDotSize: Number(event.target.value) })} aria-label="Dotted Glow dot size" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Dot spacing ({massageLabDottedGlowDotSpacing}px)</span>
+            <input type="range" min="8" max="28" step="1" value={massageLabDottedGlowDotSpacing} onChange={(event) => handleSettingsChange({ massageLabDottedGlowDotSpacing: Number(event.target.value) })} aria-label="Dotted Glow dot spacing" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Dot opacity ({Math.round(massageLabDottedGlowOpacity * 100)}%)</span>
+            <input type="range" min="0.1" max="1" step="0.05" value={massageLabDottedGlowOpacity} onChange={(event) => handleSettingsChange({ massageLabDottedGlowOpacity: Number(event.target.value) })} aria-label="Dotted Glow dot opacity" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Glow strength ({massageLabDottedGlowGlowStrength}px)</span>
+            <input type="range" min="0" max="12" step="0.5" value={massageLabDottedGlowGlowStrength} onChange={(event) => handleSettingsChange({ massageLabDottedGlowGlowStrength: Number(event.target.value) })} aria-label="Dotted Glow glow strength" />
+          </label>
+        </>
+      )}
+
       {option.id === "massage-lab-background-lines" && (
         <label className={styles.rangeRow}>
           <span>Line duration</span>
@@ -13206,6 +13241,13 @@ export function RunningTimer({
             intensity: massageLabAuroraIntensity,
             blur: massageLabAuroraBlur,
             reach: massageLabAuroraReach,
+          }}
+          massageLabDottedGlow={{
+            speed: massageLabDottedGlowSpeed,
+            dotSize: massageLabDottedGlowDotSize,
+            dotSpacing: massageLabDottedGlowDotSpacing,
+            opacity: massageLabDottedGlowOpacity,
+            glowStrength: massageLabDottedGlowGlowStrength,
           }}
           backgroundLines={{
             duration: backgroundLinesDuration,

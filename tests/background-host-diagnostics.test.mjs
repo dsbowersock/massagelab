@@ -52,7 +52,7 @@ describe("BackgroundHost diagnostics", () => {
   })
 
   it("reports unsupported effects truthfully without claiming target mutation", () => {
-    const adapter = backgroundPaletteRegistry["massage-lab-dotted-glow"]
+    const adapter = backgroundPaletteRegistry["massage-lab-background-beams"]
     const baseEffectProps = {
       className: "fixed-media",
       media: { src: "/backgrounds/source.mp4" },
@@ -60,8 +60,8 @@ describe("BackgroundHost diagnostics", () => {
 
     assert.deepEqual(
       createBackgroundHostDiagnosticSnapshot({
-        requestedId: "massage-lab-dotted-glow",
-        loadedId: "massage-lab-dotted-glow",
+        requestedId: "massage-lab-background-beams",
+        loadedId: "massage-lab-background-beams",
         loadStatus: "loaded",
         adapter,
         baseEffectProps,
@@ -70,10 +70,10 @@ describe("BackgroundHost diagnostics", () => {
         error: null,
       }),
       {
-        requestedId: "massage-lab-dotted-glow",
-        loadedId: "massage-lab-dotted-glow",
+        requestedId: "massage-lab-background-beams",
+        loadedId: "massage-lab-background-beams",
         status: "unsupported",
-        rendererFamily: "canvas",
+        rendererFamily: "css-dom",
         resolvedRendererTargets: {},
         applicationChanged: false,
         fallback: false,

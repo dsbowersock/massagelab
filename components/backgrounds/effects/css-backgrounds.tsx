@@ -193,6 +193,7 @@ export interface BackgroundEffectProps extends BackgroundRendererLifecycleProps 
   massageLabRetroGrid?: MassageLabRetroGridOptions
   massageLabAerialRays?: MassageLabAerialRaysOptions
   massageLabAurora?: MassageLabAuroraOptions
+  massageLabDottedGlow?: MassageLabDottedGlowOptions
   massageLab3DGlobe?: MassageLab3DGlobeOptions
   backgroundLines?: BackgroundLinesOptions
   shootingStars?: ShootingStarsBackgroundOptions
@@ -1090,6 +1091,22 @@ export interface MassageLabAuroraOptions {
   reach?: number
 }
 
+export interface MassageLabDottedGlowOptions {
+  backgroundColor?: string
+  dotColor?: string
+  glowColor?: string
+  /** Multiplies the authored per-dot pulse speed. */
+  speed?: number
+  /** Dot radius in CSS pixels. */
+  dotSize?: number
+  /** Distance between dot centers in CSS pixels. */
+  dotSpacing?: number
+  /** Overall dot opacity from 0.1 through 1. */
+  opacity?: number
+  /** Maximum per-dot shadow blur in CSS pixels. */
+  glowStrength?: number
+}
+
 export interface ShootingStarsBackgroundOptions {
   starColor?: string
   trailColor?: string
@@ -1738,6 +1755,17 @@ const DEFAULT_MASSAGE_LAB_AURORA = Object.freeze({
   reach: 70,
 })
 
+const DEFAULT_MASSAGE_LAB_DOTTED_GLOW = Object.freeze({
+  backgroundColor: "#050505",
+  dotColor: "#E6EEFF",
+  glowColor: "#00AAFF",
+  speed: 1,
+  dotSize: 1.7,
+  dotSpacing: 14,
+  opacity: 0.58,
+  glowStrength: 6,
+})
+
 // MassageLab Aurora Field by Manu Arora, adapted as an internal MassageLab premium visual effect.
 export function MassageLabAuroraBackground({
   className,
@@ -1766,9 +1794,13 @@ export function MassageLabAuroraBackground({
 }
 
 // MassageLab Dotted Glow by Manu Arora, adapted as an internal MassageLab premium visual effect.
-export function MassageLabDottedGlowBackground({ className }: BackgroundEffectProps) {
+export function MassageLabDottedGlowBackground({
+  className,
+  massageLabDottedGlow,
+}: BackgroundEffectProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const resolved = resolveMassageLabDottedGlowOptions(massageLabDottedGlow)
 
   useEffect(() => {
     const container = containerRef.current
@@ -1780,11 +1812,13 @@ export function MassageLabDottedGlowBackground({ className }: BackgroundEffectPr
 
     const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)")
     const compactViewportQuery = window.matchMedia("(max-width: 767px)")
-    const gap = 14
-    const radius = 1.7
-    const opacity = 0.58
-    const baseColor = "rgba(230, 238, 255, 0.74)"
-    const glowColor = "rgba(0, 170, 255, 0.86)"
+    const gap = resolved.dotSpacing
+    const radius = resolved.dotSize
+    const opacity = resolved.opacity
+    // Keep the source renderer's internal color alpha while allowing the
+    // shared palette to replace each concrete RGB role.
+    const baseColor = hexColorWithAlpha(resolved.dotColor, 0.74)
+    const glowColor = hexColorWithAlpha(resolved.glowColor, 0.86)
     let animationFrame = 0
     let resizeRetryFrame = 0
     let dots: DottedGlowDot[] = []
@@ -1879,21 +1913,8 @@ export function MassageLabDottedGlowBackground({ className }: BackgroundEffectPr
       const height = canvasHeight || canvas.height / pixelRatio
       context.clearRect(0, 0, width, height)
 
-      const depthGradient = context.createRadialGradient(
-        width * 0.5,
-        height * 0.38,
-        Math.min(width, height) * 0.08,
-        width * 0.5,
-        height * 0.5,
-        Math.max(width, height) * 0.7,
-      )
-      depthGradient.addColorStop(0, "rgba(0,0,0,0)")
-      depthGradient.addColorStop(1, "rgba(0,0,0,0.34)")
-      context.fillStyle = depthGradient
-      context.fillRect(0, 0, width, height)
-
       context.fillStyle = baseColor
-      const time = now / 1000
+      const time = (now / 1000) * resolved.speed
 
       dots.forEach((dot) => {
         const phase = (time * dot.speed + dot.phase) % 2
@@ -1903,7 +1924,7 @@ export function MassageLabDottedGlowBackground({ className }: BackgroundEffectPr
         context.globalAlpha = alpha * opacity
         if (alpha > 0.58) {
           context.shadowColor = glowColor
-          context.shadowBlur = 6 * ((alpha - 0.58) / 0.42)
+          context.shadowBlur = resolved.glowStrength * ((alpha - 0.58) / 0.42)
         } else {
           context.shadowColor = "transparent"
           context.shadowBlur = 0
@@ -1996,10 +2017,15 @@ export function MassageLabDottedGlowBackground({ className }: BackgroundEffectPr
       compactViewportQuery.removeEventListener("change", updateAnimationState)
       document.removeEventListener("visibilitychange", updateAnimationState)
     }
-  }, [])
+  }, [resolved.dotColor, resolved.dotSize, resolved.dotSpacing, resolved.glowColor, resolved.glowStrength, resolved.opacity, resolved.speed])
 
   return (
-    <div ref={containerRef} className={cn(styles.effectLayer, styles.dottedGlowLayer, className)} aria-hidden="true">
+    <div
+      ref={containerRef}
+      className={cn(styles.effectLayer, styles.dottedGlowLayer, className)}
+      style={{ backgroundColor: resolved.backgroundColor }}
+      aria-hidden="true"
+    >
       <canvas ref={canvasRef} className={styles.dottedGlowCanvas} />
     </div>
   )
@@ -3441,8 +3467,30 @@ function resolveMassageLabAuroraOptions(
   }
 }
 
+function resolveMassageLabDottedGlowOptions(
+  dottedGlow: MassageLabDottedGlowOptions | undefined,
+): Required<MassageLabDottedGlowOptions> {
+  return {
+    backgroundColor: normalizeHexColor(dottedGlow?.backgroundColor, DEFAULT_MASSAGE_LAB_DOTTED_GLOW.backgroundColor),
+    dotColor: normalizeHexColor(dottedGlow?.dotColor, DEFAULT_MASSAGE_LAB_DOTTED_GLOW.dotColor),
+    glowColor: normalizeHexColor(dottedGlow?.glowColor, DEFAULT_MASSAGE_LAB_DOTTED_GLOW.glowColor),
+    speed: clampNumber(dottedGlow?.speed, DEFAULT_MASSAGE_LAB_DOTTED_GLOW.speed, 0.25, 2),
+    dotSize: clampNumber(dottedGlow?.dotSize, DEFAULT_MASSAGE_LAB_DOTTED_GLOW.dotSize, 0.5, 4),
+    dotSpacing: clampNumber(dottedGlow?.dotSpacing, DEFAULT_MASSAGE_LAB_DOTTED_GLOW.dotSpacing, 8, 28),
+    opacity: clampNumber(dottedGlow?.opacity, DEFAULT_MASSAGE_LAB_DOTTED_GLOW.opacity, 0.1, 1),
+    glowStrength: clampNumber(dottedGlow?.glowStrength, DEFAULT_MASSAGE_LAB_DOTTED_GLOW.glowStrength, 0, 12),
+  }
+}
+
 function normalizeHexColor(value: string | undefined, fallback: string) {
   return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value) ? value.toUpperCase() : fallback
+}
+
+function hexColorWithAlpha(value: string, alpha: number) {
+  const red = Number.parseInt(value.slice(1, 3), 16)
+  const green = Number.parseInt(value.slice(3, 5), 16)
+  const blue = Number.parseInt(value.slice(5, 7), 16)
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`
 }
 
 function clampNumber(value: unknown, fallback: number, min: number, max: number) {

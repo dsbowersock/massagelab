@@ -3176,6 +3176,32 @@ describe("Chimer timer helpers", () => {
     assert.equal(sanitizeChimerSettings({ massageLabAuroraReach: 999 }).massageLabAuroraReach, 100)
   })
 
+  it("normalizes MassageLab Dotted Glow visual controls", () => {
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabDottedGlowSpeed, 1)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabDottedGlowDotSize, 1.7)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabDottedGlowDotSpacing, 14)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabDottedGlowOpacity, 0.58)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabDottedGlowGlowStrength, 6)
+
+    const settings = sanitizeChimerSettings({
+      massageLabDottedGlowSpeed: 99,
+      massageLabDottedGlowDotSize: -1,
+      massageLabDottedGlowDotSpacing: 99,
+      massageLabDottedGlowOpacity: -1,
+      massageLabDottedGlowGlowStrength: 99,
+    })
+    assert.equal(settings.massageLabDottedGlowSpeed, 2)
+    assert.equal(settings.massageLabDottedGlowDotSize, 0.5)
+    assert.equal(settings.massageLabDottedGlowDotSpacing, 28)
+    assert.equal(settings.massageLabDottedGlowOpacity, 0.1)
+    assert.equal(settings.massageLabDottedGlowGlowStrength, 12)
+    assert.equal(sanitizeChimerSettings({ massageLabDottedGlowSpeed: 0 }).massageLabDottedGlowSpeed, 0.25)
+    assert.equal(sanitizeChimerSettings({ massageLabDottedGlowDotSize: 99 }).massageLabDottedGlowDotSize, 4)
+    assert.equal(sanitizeChimerSettings({ massageLabDottedGlowDotSpacing: 0 }).massageLabDottedGlowDotSpacing, 8)
+    assert.equal(sanitizeChimerSettings({ massageLabDottedGlowOpacity: 9 }).massageLabDottedGlowOpacity, 1)
+    assert.equal(sanitizeChimerSettings({ massageLabDottedGlowGlowStrength: -1 }).massageLabDottedGlowGlowStrength, 0)
+  })
+
   it("normalizes MassageLab Synthesis background controls", () => {
     const settings = sanitizeChimerSettings({
       massageLabSynthesisPaletteMode: "harmony",

@@ -674,6 +674,16 @@ const SUPPORTED_SPECS: readonly SupportedSpec[] = [
     ],
   },
   {
+    id: "massage-lab-dotted-glow",
+    family: "canvas",
+    prefixes: ["massageLabDottedGlow"],
+    roles: [
+      role("background", "Background", "massageLabDottedGlowBackgroundColor", "massageLabDottedGlow.backgroundColor", undefined, undefined, 6, "saved-swatch"),
+      role("dots", "Dots", "massageLabDottedGlowDotColor", "massageLabDottedGlow.dotColor", undefined, undefined, 0),
+      role("glow", "Glow", "massageLabDottedGlowGlowColor", "massageLabDottedGlow.glowColor", undefined, undefined, 1),
+    ],
+  },
+  {
     id: "massage-lab-dna",
     family: "css-dom",
     prefixes: ["massageLabDna"],
@@ -851,7 +861,6 @@ const SUPPORTED_SPECS: readonly SupportedSpec[] = [
 const UNSUPPORTED_SPECS: readonly UnsupportedSpec[] = [
   { id: "massage-lab-prism", family: "webgl", prefixes: ["massageLabPrism"], reason: "Prism exposes spectral and hue controls rather than a concrete color target, so its source rendering remains unchanged during adapter migration." },
   { id: "massage-lab-dark-veil", family: "webgl", prefixes: ["massageLabDarkVeil"], reason: "Dark Veil exposes a hue shift rather than a concrete color target, so its source rendering remains unchanged during adapter migration." },
-  { id: "massage-lab-dotted-glow", family: "canvas" },
   { id: "massage-lab-background-beams", family: "css-dom" },
   { id: "massage-lab-collision-beams", family: "css-dom" },
   { id: "massage-lab-background-lines", family: "css-dom", prefixes: ["backgroundLines"] },

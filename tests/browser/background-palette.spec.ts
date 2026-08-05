@@ -948,7 +948,7 @@ test.describe("shared background palette review matrix", () => {
     await expect(dottedGlowRow).toHaveAttribute("data-renderer-family", "canvas")
     await selectBackground(page, "massage-lab-dotted-glow")
     for (const mode of MODES) {
-      await expectLoadedPaletteMode(page, "massage-lab-dotted-glow", "unsupported", mode)
+      await expectLoadedPaletteMode(page, "massage-lab-dotted-glow", "supported", mode)
     }
   })
 

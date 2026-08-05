@@ -1022,6 +1022,11 @@ export interface ChimerSettings {
   massageLabAuroraIntensity: number
   massageLabAuroraBlur: number
   massageLabAuroraReach: number
+  massageLabDottedGlowSpeed: number
+  massageLabDottedGlowDotSize: number
+  massageLabDottedGlowDotSpacing: number
+  massageLabDottedGlowOpacity: number
+  massageLabDottedGlowGlowStrength: number
   backgroundLinesDuration: number
   shootingStarsDensity: number
   shootingStarsTwinkle: boolean
@@ -1692,6 +1697,33 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
           <label className={styles.rangeRow}>
             <span>Field reach ({settings.massageLabAuroraReach}%)</span>
             <input type="range" min="30" max="100" step="1" value={settings.massageLabAuroraReach} onChange={(event) => onSettingsChange({ massageLabAuroraReach: Number(event.target.value) })} aria-label="Aurora Field reach" />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "massage-lab-dotted-glow") {
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.rangeRow}>
+            <span>Motion speed ({settings.massageLabDottedGlowSpeed.toFixed(2)}x)</span>
+            <input type="range" min="0.25" max="2" step="0.05" value={settings.massageLabDottedGlowSpeed} onChange={(event) => onSettingsChange({ massageLabDottedGlowSpeed: Number(event.target.value) })} aria-label="Dotted Glow motion speed" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Dot size ({settings.massageLabDottedGlowDotSize.toFixed(1)}px)</span>
+            <input type="range" min="0.5" max="4" step="0.1" value={settings.massageLabDottedGlowDotSize} onChange={(event) => onSettingsChange({ massageLabDottedGlowDotSize: Number(event.target.value) })} aria-label="Dotted Glow dot size" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Dot spacing ({settings.massageLabDottedGlowDotSpacing}px)</span>
+            <input type="range" min="8" max="28" step="1" value={settings.massageLabDottedGlowDotSpacing} onChange={(event) => onSettingsChange({ massageLabDottedGlowDotSpacing: Number(event.target.value) })} aria-label="Dotted Glow dot spacing" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Dot opacity ({Math.round(settings.massageLabDottedGlowOpacity * 100)}%)</span>
+            <input type="range" min="0.1" max="1" step="0.05" value={settings.massageLabDottedGlowOpacity} onChange={(event) => onSettingsChange({ massageLabDottedGlowOpacity: Number(event.target.value) })} aria-label="Dotted Glow dot opacity" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Glow strength ({settings.massageLabDottedGlowGlowStrength}px)</span>
+            <input type="range" min="0" max="12" step="0.5" value={settings.massageLabDottedGlowGlowStrength} onChange={(event) => onSettingsChange({ massageLabDottedGlowGlowStrength: Number(event.target.value) })} aria-label="Dotted Glow glow strength" />
           </label>
         </div>
       )

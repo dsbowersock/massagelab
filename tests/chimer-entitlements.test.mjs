@@ -2697,6 +2697,30 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.massageLabAuroraReach, 92)
   })
 
+  it("resets MassageLab Dotted Glow controls without premium background access", () => {
+    const input = {
+      backgroundId: "massage-lab-dotted-glow",
+      massageLabDottedGlowSpeed: 1.75,
+      massageLabDottedGlowDotSize: 3.4,
+      massageLabDottedGlowDotSpacing: 24,
+      massageLabDottedGlowOpacity: 0.9,
+      massageLabDottedGlowGlowStrength: 10,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    for (const key of [
+      "massageLabDottedGlowSpeed",
+      "massageLabDottedGlowDotSize",
+      "massageLabDottedGlowDotSpacing",
+      "massageLabDottedGlowOpacity",
+      "massageLabDottedGlowGlowStrength",
+    ]) {
+      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+      assert.equal(sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])[key], input[key])
+    }
+  })
+
   it("strips custom colors for users without the Chimer custom colors feature", () => {
     const settings = sanitizeChimerSettingsForEntitlements({
       primaryFontColor: "#000000",

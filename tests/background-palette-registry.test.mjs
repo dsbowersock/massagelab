@@ -1551,6 +1551,52 @@ describe("background palette adapter registry", () => {
     assert.deepEqual(harmonyResolved.massageLabAurora.colors, harmonySwatches.slice(0, 5))
   })
 
+  it("keeps Dotted Glow's Swatch 7 background independent from Harmony", () => {
+    const adapter = backgroundPaletteRegistry["massage-lab-dotted-glow"]
+    assert.deepEqual(
+      Object.fromEntries(adapter.roles.map((role) => [role.id, {
+        defaultSwatch: role.defaultSwatch,
+        harmonyColorSource: role.harmonyColorSource,
+      }])),
+      {
+        background: { defaultSwatch: 6, harmonyColorSource: "saved-swatch" },
+        dots: { defaultSwatch: 0, harmonyColorSource: "generated" },
+        glow: { defaultSwatch: 1, harmonyColorSource: "generated" },
+      },
+    )
+
+    const effectProps = {
+      massageLabDottedGlow: {
+        speed: 1.3,
+        dotSize: 2.2,
+        dotSpacing: 18,
+        opacity: 0.66,
+        glowStrength: 5,
+      },
+    }
+    const resolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-dotted-glow",
+      effectProps,
+      palette: paletteForMode("harmony"),
+      mapping: {},
+      canCustomize: true,
+    })
+    const harmonySwatches = generateBackgroundHarmonySwatches(HARMONY_PRIMARY, "triadic")
+    assert.equal(resolved.massageLabDottedGlow.backgroundColor, CUSTOM_SWATCHES[6])
+    assert.equal(resolved.massageLabDottedGlow.dotColor, harmonySwatches[0])
+    assert.equal(resolved.massageLabDottedGlow.glowColor, harmonySwatches[1])
+    assert.deepEqual(
+      {
+        speed: resolved.massageLabDottedGlow.speed,
+        dotSize: resolved.massageLabDottedGlow.dotSize,
+        dotSpacing: resolved.massageLabDottedGlow.dotSpacing,
+        opacity: resolved.massageLabDottedGlow.opacity,
+        glowStrength: resolved.massageLabDottedGlow.glowStrength,
+      },
+      effectProps.massageLabDottedGlow,
+    )
+  })
+
   it("preserves Ripple Grid rainbow and Aurora Bars/Tile Grid automatic Source controls", () => {
     const rippleAdapter = backgroundPaletteRegistry["massage-lab-ripple-grid"]
     const rippleFixture = {
