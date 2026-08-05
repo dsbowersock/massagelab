@@ -4374,10 +4374,14 @@ describe("premium background registry", () => {
     assert.match(effectSource, /speedTrigger/)
     assert.match(effectSource, /shockStrength/)
     assert.match(effectSource, /returnDuration/)
+    assert.match(effectSource, /updateSimulatedPointer/)
+    assert.match(effectSource, /simulateCursorInteraction/)
+    assert.match(effectSource, /simulationSpeed/)
     assert.match(effectSource, /getContext\("2d"/)
     assert.match(effectSource, /requestAnimationFrame/)
     assert.match(effectSource, /ResizeObserver/)
     assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /allowCompactViewport:\s*true/)
     assert.match(effectSource, /window\.addEventListener\("pointermove"/)
     assert.match(effectSource, /window\.removeEventListener\("pointermove"/)
     assert.doesNotMatch(effectSource, /from "gsap"/)
@@ -4394,6 +4398,10 @@ describe("premium background registry", () => {
     assert.match(docsSource, /DotGrid\.jsx/)
     assert.match(docsSource, /DotGrid\.css/)
     assert.match(docsSource, /GSAP InertiaPlugin/)
+    assert.match(setupSource, /Simulate cursor interaction/)
+    assert.match(setupSource, /Fake cursor speed/)
+    assert.match(runningSource, /Simulate cursor interaction/)
+    assert.match(runningSource, /Fake cursor speed/)
 
     for (const settingKey of [
       "massageLabDotGridDotSize",
@@ -4406,6 +4414,8 @@ describe("premium background registry", () => {
       "massageLabDotGridResistance",
       "massageLabDotGridReturnDuration",
       "massageLabDotGridCursorInteraction",
+      "massageLabDotGridSimulateCursorInteraction",
+      "massageLabDotGridSimulationSpeed",
       "massageLabDotGridClickShock",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))

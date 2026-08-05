@@ -878,6 +878,8 @@ export interface ChimerSettings {
   massageLabDotGridResistance: number
   massageLabDotGridReturnDuration: number
   massageLabDotGridCursorInteraction: boolean
+  massageLabDotGridSimulateCursorInteraction: boolean
+  massageLabDotGridSimulationSpeed: number
   massageLabDotGridClickShock: boolean
   massageLabThreadsAmplitude: number
   massageLabThreadsDistance: number
@@ -9135,6 +9137,39 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
               aria-label="MassageLab Dot Grid cursor interaction"
             />
           </label>
+
+          <label className={styles.switchRow}>
+            <span>Simulate cursor interaction</span>
+            <input
+              type="checkbox"
+              checked={settings.massageLabDotGridSimulateCursorInteraction}
+              onChange={(event) =>
+                onSettingsChange({
+                  massageLabDotGridSimulateCursorInteraction: event.target.checked,
+                })
+              }
+              aria-label="MassageLab Dot Grid simulate cursor interaction"
+            />
+          </label>
+
+          {settings.massageLabDotGridSimulateCursorInteraction ? (
+            <label className={styles.rangeRow}>
+              <span>Fake cursor speed ({settings.massageLabDotGridSimulationSpeed.toFixed(1)}x)</span>
+              <input
+                type="range"
+                min="0.3"
+                max="2"
+                step="0.1"
+                value={settings.massageLabDotGridSimulationSpeed}
+                onChange={(event) =>
+                  onSettingsChange({
+                    massageLabDotGridSimulationSpeed: Number(event.target.value),
+                  })
+                }
+                aria-label="MassageLab Dot Grid fake cursor speed"
+              />
+            </label>
+          ) : null}
 
           <label className={styles.switchRow}>
             <span>Click shock</span>

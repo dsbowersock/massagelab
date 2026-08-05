@@ -2594,6 +2594,8 @@ describe("Chimer timer helpers", () => {
       massageLabDotGridResistance: 9999,
       massageLabDotGridReturnDuration: 99,
       massageLabDotGridCursorInteraction: false,
+      massageLabDotGridSimulateCursorInteraction: true,
+      massageLabDotGridSimulationSpeed: 99,
       massageLabDotGridClickShock: false,
     })
 
@@ -2607,12 +2609,17 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabDotGridResistance, 1600)
     assert.equal(settings.massageLabDotGridReturnDuration, 4)
     assert.equal(settings.massageLabDotGridCursorInteraction, false)
+    assert.equal(settings.massageLabDotGridSimulateCursorInteraction, true)
+    assert.equal(settings.massageLabDotGridSimulationSpeed, 2)
     assert.equal(settings.massageLabDotGridClickShock, false)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabDotGridSimulateCursorInteraction, false)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabDotGridSimulationSpeed, 1)
     assert.equal(sanitizeChimerSettings({ massageLabDotGridDotSize: 0 }).massageLabDotGridDotSize, 2)
     assert.equal(sanitizeChimerSettings({ massageLabDotGridGap: 0 }).massageLabDotGridGap, 4)
     assert.equal(sanitizeChimerSettings({ massageLabDotGridProximity: 0 }).massageLabDotGridProximity, 40)
     assert.equal(sanitizeChimerSettings({ massageLabDotGridShockStrength: -1 }).massageLabDotGridShockStrength, 0)
     assert.equal(sanitizeChimerSettings({ massageLabDotGridReturnDuration: 0 }).massageLabDotGridReturnDuration, 0.1)
+    assert.equal(sanitizeChimerSettings({ massageLabDotGridSimulationSpeed: 0 }).massageLabDotGridSimulationSpeed, 0.3)
   })
 
   it("normalizes MassageLab Threads background controls", () => {

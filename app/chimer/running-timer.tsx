@@ -697,6 +697,8 @@ interface RunningTimerProps {
   massageLabDotGridResistance: number
   massageLabDotGridReturnDuration: number
   massageLabDotGridCursorInteraction: boolean
+  massageLabDotGridSimulateCursorInteraction: boolean
+  massageLabDotGridSimulationSpeed: number
   massageLabDotGridClickShock: boolean
   massageLabThreadsAmplitude: number
   massageLabThreadsDistance: number
@@ -1333,6 +1335,8 @@ export function RunningTimer({
   massageLabDotGridResistance,
   massageLabDotGridReturnDuration,
   massageLabDotGridCursorInteraction,
+  massageLabDotGridSimulateCursorInteraction,
+  massageLabDotGridSimulationSpeed,
   massageLabDotGridClickShock,
   massageLabThreadsAmplitude,
   massageLabThreadsDistance,
@@ -9878,6 +9882,37 @@ export function RunningTimer({
             />
           </label>
           <label className={styles.switchRow}>
+            <span>Simulate cursor interaction</span>
+            <input
+              type="checkbox"
+              checked={massageLabDotGridSimulateCursorInteraction}
+              onChange={(event) =>
+                handleSettingsChange({
+                  massageLabDotGridSimulateCursorInteraction: event.target.checked,
+                })
+              }
+              aria-label="MassageLab Dot Grid simulate cursor interaction"
+            />
+          </label>
+          {massageLabDotGridSimulateCursorInteraction ? (
+            <label className={styles.rangeRow}>
+              <span>Fake cursor speed ({massageLabDotGridSimulationSpeed.toFixed(1)}x)</span>
+              <input
+                type="range"
+                min="0.3"
+                max="2"
+                step="0.1"
+                value={massageLabDotGridSimulationSpeed}
+                onChange={(event) =>
+                  handleSettingsChange({
+                    massageLabDotGridSimulationSpeed: Number(event.target.value),
+                  })
+                }
+                aria-label="MassageLab Dot Grid fake cursor speed"
+              />
+            </label>
+          ) : null}
+          <label className={styles.switchRow}>
             <span>Click shock</span>
             <input
               type="checkbox"
@@ -12949,6 +12984,8 @@ export function RunningTimer({
             resistance: massageLabDotGridResistance,
             returnDuration: massageLabDotGridReturnDuration,
             cursorInteraction: massageLabDotGridCursorInteraction,
+            simulateCursorInteraction: massageLabDotGridSimulateCursorInteraction,
+            simulationSpeed: massageLabDotGridSimulationSpeed,
             clickShock: massageLabDotGridClickShock,
           }}
           massageLabThreads={{

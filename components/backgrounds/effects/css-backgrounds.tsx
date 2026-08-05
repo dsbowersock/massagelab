@@ -855,6 +855,8 @@ export interface MassageLabDotGridOptions {
   resistance?: number
   returnDuration?: number
   cursorInteraction?: boolean
+  simulateCursorInteraction?: boolean
+  simulationSpeed?: number
   clickShock?: boolean
 }
 

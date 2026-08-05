@@ -2236,6 +2236,8 @@ describe("Chimer entitlement-aware settings", () => {
       massageLabDotGridResistance: 680,
       massageLabDotGridReturnDuration: 1.2,
       massageLabDotGridCursorInteraction: false,
+      massageLabDotGridSimulateCursorInteraction: true,
+      massageLabDotGridSimulationSpeed: 1.6,
       massageLabDotGridClickShock: false,
     }
 
@@ -2258,6 +2260,8 @@ describe("Chimer entitlement-aware settings", () => {
       "massageLabDotGridResistance",
       "massageLabDotGridReturnDuration",
       "massageLabDotGridCursorInteraction",
+      "massageLabDotGridSimulateCursorInteraction",
+      "massageLabDotGridSimulationSpeed",
       "massageLabDotGridClickShock",
     ]) {
       assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
@@ -2276,6 +2280,8 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.massageLabDotGridResistance, 680)
     assert.equal(premiumSettings.massageLabDotGridReturnDuration, 1.2)
     assert.equal(premiumSettings.massageLabDotGridCursorInteraction, false)
+    assert.equal(premiumSettings.massageLabDotGridSimulateCursorInteraction, true)
+    assert.equal(premiumSettings.massageLabDotGridSimulationSpeed, 1.6)
     assert.equal(premiumSettings.massageLabDotGridClickShock, false)
   })
 

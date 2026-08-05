@@ -6,6 +6,10 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-05 — Dot Grid simulated cursor controls
+
+- Added an opt-in Simulate cursor interaction toggle and a persisted `0.3x-2.0x` Fake cursor speed control with a `1.0x` default to both setup and running Visual panels. The dependency-free canvas renderer feeds a smooth viewport-relative passive path through the same proximity and inertia physics as real pointer movement, temporarily yields to genuine pointer input, does not synthesize click shocks, and remains enabled at compact viewports using the existing reduced-DPR path. Real cursor interaction, click shock, existing Dot Grid controls, colors, entitlement behavior, and background ID remain unchanged; simulation is off by default.
+
 ## 2026-08-05 — Dot Field authored defaults
 
 - Updated Dot Field's new/reset presentation to use Sparkle on, a `4.0` dot radius, and `6.0` dot spacing in both the shared Chimer/Clock settings defaults and the renderer's direct fallback. The exact former `1.5` / `14` / Sparkle-off tuple migrates once so untouched persisted settings receive the new presentation; any customized saved tuple remains unchanged. Sanitization ranges, controls, colors, cursor behavior, and background ID are unchanged.
