@@ -6,6 +6,11 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-04 — Liquid Ether control-label cleanup
+
+- Liquid Ether now labels its autonomous animation controls Motion, Speed, Intensity, Resume, and Ramp in both setup and running Visual panels. Matching accessible names also omit the redundant `Auto` prefix; internal persisted keys and renderer behavior are unchanged.
+- The focused 79-test background contract, all 1,965 repository tests, typecheck, lint, `git diff --check`, and the auth-free `/dev/clock` HTTP check pass. The in-app browser remains unable to inspect localhost because its admin policy is unavailable, so final rendered confirmation remains in the user's Device Toolbar review.
+
 ## 2026-08-04 — Electric Mist speed-scale normalization
 
 - Electric Mist animation speed now uses a bounded `1%-100%` user-facing scale. The original authored `100%` pace remains the default and is displayed as `50%`; the new `100%` endpoint renders at the requested authored `200%` maximum.

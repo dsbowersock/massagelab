@@ -4188,7 +4188,7 @@ export function RunningTimer({
           )}
 
           <label className={styles.switchRow}>
-            <span>Auto demo motion</span>
+            <span>Motion</span>
             <input
               type="checkbox"
               checked={massageLabLiquidEtherAutoDemo}
@@ -4197,14 +4197,14 @@ export function RunningTimer({
                   massageLabLiquidEtherAutoDemo: event.target.checked,
                 })
               }
-              aria-label="Liquid Ether auto demo motion"
+              aria-label="Liquid Ether motion"
             />
           </label>
 
           {massageLabLiquidEtherAutoDemo && (
             <>
               <label className={styles.rangeRow}>
-                <span>Auto speed ({massageLabLiquidEtherAutoSpeed.toFixed(2)}x)</span>
+                <span>Speed ({massageLabLiquidEtherAutoSpeed.toFixed(2)}x)</span>
                 <input
                   type="range"
                   min="0.05"
@@ -4216,12 +4216,12 @@ export function RunningTimer({
                       massageLabLiquidEtherAutoSpeed: Number(event.target.value),
                     })
                   }
-                  aria-label="Liquid Ether auto speed"
+                  aria-label="Liquid Ether speed"
                 />
               </label>
 
               <label className={styles.rangeRow}>
-                <span>Auto intensity ({massageLabLiquidEtherAutoIntensity.toFixed(1)})</span>
+                <span>Intensity ({massageLabLiquidEtherAutoIntensity.toFixed(1)})</span>
                 <input
                   type="range"
                   min="0"
@@ -4233,12 +4233,12 @@ export function RunningTimer({
                       massageLabLiquidEtherAutoIntensity: Number(event.target.value),
                     })
                   }
-                  aria-label="Liquid Ether auto intensity"
+                  aria-label="Liquid Ether intensity"
                 />
               </label>
 
               <label className={styles.rangeRow}>
-                <span>Auto resume ({(massageLabLiquidEtherAutoResumeDelay / 1000).toFixed(1)}s)</span>
+                <span>Resume ({(massageLabLiquidEtherAutoResumeDelay / 1000).toFixed(1)}s)</span>
                 <input
                   type="range"
                   min="250"
@@ -4250,13 +4250,13 @@ export function RunningTimer({
                       massageLabLiquidEtherAutoResumeDelay: Number(event.target.value),
                     })
                   }
-                  aria-label="Liquid Ether auto resume delay"
+                  aria-label="Liquid Ether resume delay"
                 />
               </label>
 
               <label className={styles.rangeRow}>
                 <span>
-                  Auto ramp ({massageLabLiquidEtherAutoRampDuration.toFixed(1)}
+                  Ramp ({massageLabLiquidEtherAutoRampDuration.toFixed(1)}
                   s)
                 </span>
                 <input
@@ -4270,7 +4270,7 @@ export function RunningTimer({
                       massageLabLiquidEtherAutoRampDuration: Number(event.target.value),
                     })
                   }
-                  aria-label="Liquid Ether auto ramp duration"
+                  aria-label="Liquid Ether ramp duration"
                 />
               </label>
             </>

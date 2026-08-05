@@ -3544,7 +3544,7 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
           )}
 
           <label className={styles.switchRow}>
-            <span>Auto demo motion</span>
+            <span>Motion</span>
             <input
               type="checkbox"
               checked={settings.massageLabLiquidEtherAutoDemo}
@@ -3553,14 +3553,14 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
                   massageLabLiquidEtherAutoDemo: event.target.checked,
                 })
               }
-              aria-label="Liquid Ether auto demo motion"
+              aria-label="Liquid Ether motion"
             />
           </label>
 
           {settings.massageLabLiquidEtherAutoDemo && (
             <>
               <label className={styles.rangeRow}>
-                <span>Auto speed ({settings.massageLabLiquidEtherAutoSpeed.toFixed(2)}x)</span>
+                <span>Speed ({settings.massageLabLiquidEtherAutoSpeed.toFixed(2)}x)</span>
                 <input
                   type="range"
                   min="0.05"
@@ -3572,12 +3572,12 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
                       massageLabLiquidEtherAutoSpeed: Number(event.target.value),
                     })
                   }
-                  aria-label="Liquid Ether auto speed"
+                  aria-label="Liquid Ether speed"
                 />
               </label>
 
               <label className={styles.rangeRow}>
-                <span>Auto intensity ({settings.massageLabLiquidEtherAutoIntensity.toFixed(1)})</span>
+                <span>Intensity ({settings.massageLabLiquidEtherAutoIntensity.toFixed(1)})</span>
                 <input
                   type="range"
                   min="0"
@@ -3589,13 +3589,13 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
                       massageLabLiquidEtherAutoIntensity: Number(event.target.value),
                     })
                   }
-                  aria-label="Liquid Ether auto intensity"
+                  aria-label="Liquid Ether intensity"
                 />
               </label>
 
               <label className={styles.rangeRow}>
                 <span>
-                  Auto resume ({(settings.massageLabLiquidEtherAutoResumeDelay / 1000).toFixed(1)}
+                  Resume ({(settings.massageLabLiquidEtherAutoResumeDelay / 1000).toFixed(1)}
                   s)
                 </span>
                 <input
@@ -3609,12 +3609,12 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
                       massageLabLiquidEtherAutoResumeDelay: Number(event.target.value),
                     })
                   }
-                  aria-label="Liquid Ether auto resume delay"
+                  aria-label="Liquid Ether resume delay"
                 />
               </label>
 
               <label className={styles.rangeRow}>
-                <span>Auto ramp ({settings.massageLabLiquidEtherAutoRampDuration.toFixed(1)}s)</span>
+                <span>Ramp ({settings.massageLabLiquidEtherAutoRampDuration.toFixed(1)}s)</span>
                 <input
                   type="range"
                   min="0"
@@ -3626,7 +3626,7 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
                       massageLabLiquidEtherAutoRampDuration: Number(event.target.value),
                     })
                   }
-                  aria-label="Liquid Ether auto ramp duration"
+                  aria-label="Liquid Ether ramp duration"
                 />
               </label>
             </>

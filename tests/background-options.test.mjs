@@ -1624,6 +1624,15 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /@react-three/)
     assert.doesNotMatch(effectSource, /postprocessing/)
     assert.doesNotMatch(effectSource, /mousemove/)
+    for (const controlSource of [setupSource, runningSource]) {
+      assert.match(controlSource, /<span>Motion<\/span>/)
+      assert.match(controlSource, /<span>Speed \(/)
+      assert.match(controlSource, /<span>Intensity \(/)
+      assert.match(controlSource, /Resume \(/)
+      assert.match(controlSource, /Ramp \(/)
+      assert.doesNotMatch(controlSource, />Auto (?:demo motion|speed|intensity|resume|ramp)/)
+      assert.doesNotMatch(controlSource, /aria-label="Liquid Ether auto /)
+    }
     for (const settingKey of [
       "massageLabLiquidEtherCursorEnabled",
       "massageLabLiquidEtherMouseForce",
