@@ -903,6 +903,8 @@ export interface ChimerSettings {
   massageLabGridDistortionStrength: number
   massageLabGridDistortionRelaxation: number
   massageLabGridDistortionCursorInteraction: boolean
+  massageLabGridDistortionSimulateCursorInteraction: boolean
+  massageLabGridDistortionSimulationSpeed: number
   massageLabOrbHoverIntensity: number
   massageLabOrbRotateOnHover: boolean
   massageLabOrbForceHoverState: boolean
@@ -9646,6 +9648,39 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
               aria-label="MassageLab Grid Distortion cursor interaction"
             />
           </label>
+
+          <label className={styles.switchRow}>
+            <span>Simulate cursor interaction</span>
+            <input
+              type="checkbox"
+              checked={settings.massageLabGridDistortionSimulateCursorInteraction}
+              onChange={(event) =>
+                onSettingsChange({
+                  massageLabGridDistortionSimulateCursorInteraction: event.target.checked,
+                })
+              }
+              aria-label="MassageLab Grid Distortion simulate cursor interaction"
+            />
+          </label>
+
+          {settings.massageLabGridDistortionSimulateCursorInteraction ? (
+            <label className={styles.rangeRow}>
+              <span>Fake cursor speed ({settings.massageLabGridDistortionSimulationSpeed.toFixed(1)}x)</span>
+              <input
+                type="range"
+                min="0.3"
+                max="2"
+                step="0.1"
+                value={settings.massageLabGridDistortionSimulationSpeed}
+                onChange={(event) =>
+                  onSettingsChange({
+                    massageLabGridDistortionSimulationSpeed: Number(event.target.value),
+                  })
+                }
+                aria-label="MassageLab Grid Distortion fake cursor speed"
+              />
+            </label>
+          ) : null}
 
           <label className={styles.rangeRow}>
             <span>Grid ({settings.massageLabGridDistortionGrid.toFixed(0)})</span>

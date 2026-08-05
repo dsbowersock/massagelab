@@ -37,6 +37,7 @@ type MouseState = {
   vX: number
   vY: number
   active: boolean
+  lastManualMove: number
 }
 
 const DEFAULT_MASSAGELAB_GRID_DISTORTION: ResolvedGridDistortionOptions = {
@@ -48,6 +49,8 @@ const DEFAULT_MASSAGELAB_GRID_DISTORTION: ResolvedGridDistortionOptions = {
   colorTwo: "#5B7CFA",
   colorThree: "#F7B7D2",
   cursorInteraction: true,
+  simulateCursorInteraction: false,
+  simulationSpeed: 1,
 }
 
 const vertexShaderSource = `
@@ -124,7 +127,16 @@ export default function MassageLabGridDistortionBackground({
     const compactViewportQuery = window.matchMedia("(max-width: 360px), (max-height: 360px)")
     const size = Math.max(2, Math.round(options.grid))
     const data = new Float32Array(4 * size * size)
-    const mouseState: MouseState = { x: 0, y: 0, prevX: 0, prevY: 0, vX: 0, vY: 0, active: false }
+    const mouseState: MouseState = {
+      x: 0,
+      y: 0,
+      prevX: 0,
+      prevY: 0,
+      vX: 0,
+      vY: 0,
+      active: false,
+      lastManualMove: Number.NEGATIVE_INFINITY,
+    }
     let animationFrame = 0
     let resizeFrame = 0
     let disposed = false
@@ -132,6 +144,7 @@ export default function MassageLabGridDistortionBackground({
     let height = 1
     let offsetLeft = 0
     let offsetTop = 0
+    let simulatedPointerInitialized = false
     let resources: GridDistortionResources | null = null
 
     for (let index = 0; index < size * size; index += 1) {
@@ -198,6 +211,8 @@ export default function MassageLabGridDistortionBackground({
       mouseState.prevX = x
       mouseState.prevY = y
       mouseState.active = true
+      mouseState.lastManualMove = performance.now()
+      simulatedPointerInitialized = false
     }
 
     const handlePointerLeave = () => {
@@ -210,13 +225,40 @@ export default function MassageLabGridDistortionBackground({
       mouseState.active = false
     }
 
+    // Feed the same normalized pointer displacement path as real input while
+    // yielding briefly after genuine pointer movement to preserve user control.
+    const updateSimulatedPointer = (timestamp: number) => {
+      if (!options.simulateCursorInteraction || timestamp - mouseState.lastManualMove < 1500) {
+        simulatedPointerInitialized = false
+        return
+      }
+
+      const phase = (timestamp / 1000) * options.simulationSpeed
+      const nextX = 0.5 + 0.38 * Math.sin(phase * 0.68)
+      const nextY = 0.5 + 0.34 * Math.sin(phase * 0.91 + Math.PI / 2)
+
+      if (!simulatedPointerInitialized) {
+        mouseState.prevX = nextX
+        mouseState.prevY = nextY
+        simulatedPointerInitialized = true
+      }
+
+      mouseState.vX = nextX - mouseState.prevX
+      mouseState.vY = nextY - mouseState.prevY
+      mouseState.x = nextX
+      mouseState.y = nextY
+      mouseState.prevX = nextX
+      mouseState.prevY = nextY
+      mouseState.active = true
+    }
+
     const updateDataTexture = () => {
       for (let index = 0; index < size * size; index += 1) {
         data[index * 4] *= options.relaxation
         data[index * 4 + 1] *= options.relaxation
       }
 
-      if (options.cursorInteraction && mouseState.active) {
+      if ((options.cursorInteraction || options.simulateCursorInteraction) && mouseState.active) {
         const gridMouseX = size * mouseState.x
         const gridMouseY = size * mouseState.y
         const maxDist = size * options.mouse
@@ -246,6 +288,7 @@ export default function MassageLabGridDistortionBackground({
 
       const animate = shouldAnimate()
       if (animate) {
+        updateSimulatedPointer(time)
         updateDataTexture()
       }
 
@@ -465,6 +508,14 @@ function resolveGridDistortionOptions(options?: MassageLabGridDistortionOptions)
     colorTwo: resolveHex(options?.colorTwo, DEFAULT_MASSAGELAB_GRID_DISTORTION.colorTwo),
     colorThree: resolveHex(options?.colorThree, DEFAULT_MASSAGELAB_GRID_DISTORTION.colorThree),
     cursorInteraction: options?.cursorInteraction ?? DEFAULT_MASSAGELAB_GRID_DISTORTION.cursorInteraction,
+    simulateCursorInteraction:
+      options?.simulateCursorInteraction ?? DEFAULT_MASSAGELAB_GRID_DISTORTION.simulateCursorInteraction,
+    simulationSpeed: resolveNumber(
+      options?.simulationSpeed,
+      DEFAULT_MASSAGELAB_GRID_DISTORTION.simulationSpeed,
+      0.3,
+      2,
+    ),
   }
 }
 

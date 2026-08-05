@@ -2430,6 +2430,8 @@ describe("Chimer entitlement-aware settings", () => {
       massageLabGridDistortionStrength: 0.48,
       massageLabGridDistortionRelaxation: 0.83,
       massageLabGridDistortionCursorInteraction: false,
+      massageLabGridDistortionSimulateCursorInteraction: true,
+      massageLabGridDistortionSimulationSpeed: 1.6,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
@@ -2447,6 +2449,8 @@ describe("Chimer entitlement-aware settings", () => {
       "massageLabGridDistortionStrength",
       "massageLabGridDistortionRelaxation",
       "massageLabGridDistortionCursorInteraction",
+      "massageLabGridDistortionSimulateCursorInteraction",
+      "massageLabGridDistortionSimulationSpeed",
     ]) {
       assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
     }
@@ -2459,6 +2463,8 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.massageLabGridDistortionStrength, 0.48)
     assert.equal(premiumSettings.massageLabGridDistortionRelaxation, 0.83)
     assert.equal(premiumSettings.massageLabGridDistortionCursorInteraction, false)
+    assert.equal(premiumSettings.massageLabGridDistortionSimulateCursorInteraction, true)
+    assert.equal(premiumSettings.massageLabGridDistortionSimulationSpeed, 1.6)
   })
 
   it("resets the latest MassageLab background controls without premium background access", () => {

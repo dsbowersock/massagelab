@@ -2711,6 +2711,8 @@ describe("Chimer timer helpers", () => {
       massageLabGridDistortionStrength: 999,
       massageLabGridDistortionRelaxation: 999,
       massageLabGridDistortionCursorInteraction: false,
+      massageLabGridDistortionSimulateCursorInteraction: true,
+      massageLabGridDistortionSimulationSpeed: 99,
     })
 
     assert.equal(settings.massageLabGridDistortionGrid, 40)
@@ -2718,10 +2720,15 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabGridDistortionStrength, 0.6)
     assert.equal(settings.massageLabGridDistortionRelaxation, 0.99)
     assert.equal(settings.massageLabGridDistortionCursorInteraction, false)
+    assert.equal(settings.massageLabGridDistortionSimulateCursorInteraction, true)
+    assert.equal(settings.massageLabGridDistortionSimulationSpeed, 2)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabGridDistortionSimulateCursorInteraction, false)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabGridDistortionSimulationSpeed, 1)
     assert.equal(sanitizeChimerSettings({ massageLabGridDistortionGrid: 0 }).massageLabGridDistortionGrid, 4)
     assert.equal(sanitizeChimerSettings({ massageLabGridDistortionMouse: 0 }).massageLabGridDistortionMouse, 0.02)
     assert.equal(sanitizeChimerSettings({ massageLabGridDistortionStrength: -1 }).massageLabGridDistortionStrength, 0)
     assert.equal(sanitizeChimerSettings({ massageLabGridDistortionRelaxation: 0 }).massageLabGridDistortionRelaxation, 0.75)
+    assert.equal(sanitizeChimerSettings({ massageLabGridDistortionSimulationSpeed: 0 }).massageLabGridDistortionSimulationSpeed, 0.3)
   })
 
   it("normalizes the latest MassageLab background controls", () => {

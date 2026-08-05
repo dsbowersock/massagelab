@@ -722,6 +722,8 @@ interface RunningTimerProps {
   massageLabGridDistortionStrength: number
   massageLabGridDistortionRelaxation: number
   massageLabGridDistortionCursorInteraction: boolean
+  massageLabGridDistortionSimulateCursorInteraction: boolean
+  massageLabGridDistortionSimulationSpeed: number
   massageLabOrbHoverIntensity: number
   massageLabOrbRotateOnHover: boolean
   massageLabOrbForceHoverState: boolean
@@ -1360,6 +1362,8 @@ export function RunningTimer({
   massageLabGridDistortionStrength,
   massageLabGridDistortionRelaxation,
   massageLabGridDistortionCursorInteraction,
+  massageLabGridDistortionSimulateCursorInteraction,
+  massageLabGridDistortionSimulationSpeed,
   massageLabOrbHoverIntensity,
   massageLabOrbRotateOnHover,
   massageLabOrbForceHoverState,
@@ -10379,6 +10383,37 @@ export function RunningTimer({
               aria-label="MassageLab Grid Distortion cursor interaction"
             />
           </label>
+          <label className={styles.switchRow}>
+            <span>Simulate cursor interaction</span>
+            <input
+              type="checkbox"
+              checked={massageLabGridDistortionSimulateCursorInteraction}
+              onChange={(event) =>
+                handleSettingsChange({
+                  massageLabGridDistortionSimulateCursorInteraction: event.target.checked,
+                })
+              }
+              aria-label="MassageLab Grid Distortion simulate cursor interaction"
+            />
+          </label>
+          {massageLabGridDistortionSimulateCursorInteraction ? (
+            <label className={styles.rangeRow}>
+              <span>Fake cursor speed ({massageLabGridDistortionSimulationSpeed.toFixed(1)}x)</span>
+              <input
+                type="range"
+                min="0.3"
+                max="2"
+                step="0.1"
+                value={massageLabGridDistortionSimulationSpeed}
+                onChange={(event) =>
+                  handleSettingsChange({
+                    massageLabGridDistortionSimulationSpeed: Number(event.target.value),
+                  })
+                }
+                aria-label="MassageLab Grid Distortion fake cursor speed"
+              />
+            </label>
+          ) : null}
 
           <label className={styles.rangeRow}>
             <span>Grid ({massageLabGridDistortionGrid.toFixed(0)})</span>
@@ -13017,6 +13052,8 @@ export function RunningTimer({
             strength: massageLabGridDistortionStrength,
             relaxation: massageLabGridDistortionRelaxation,
             cursorInteraction: massageLabGridDistortionCursorInteraction,
+            simulateCursorInteraction: massageLabGridDistortionSimulateCursorInteraction,
+            simulationSpeed: massageLabGridDistortionSimulationSpeed,
           }}
           massageLabOrb={{
             hoverIntensity: massageLabOrbHoverIntensity,

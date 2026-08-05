@@ -6,6 +6,10 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-05 — Grid Distortion simulated cursor controls
+
+- Added an opt-in Simulate cursor interaction toggle and persisted `0.3x-2.0x` Fake cursor speed control with a `1.0x` default to both Visual panels. The passive path feeds Grid Distortion's existing normalized pointer/data-texture displacement model, yields briefly after genuine pointer movement, and remains additive to the already-approved continuous ambient drift; simulation is off by default and existing controls, colors, entitlement behavior, reduced-motion handling, and background ID remain unchanged.
+
 ## 2026-08-05 — Dot Grid simulated cursor controls
 
 - Added an opt-in Simulate cursor interaction toggle and a persisted `0.3x-2.0x` Fake cursor speed control with a `1.0x` default to both setup and running Visual panels. The dependency-free canvas renderer feeds a smooth viewport-relative passive path through the same proximity and inertia physics as real pointer movement, temporarily yields to genuine pointer input, does not synthesize click shocks, and remains enabled at compact viewports using the existing reduced-DPR path. Real cursor interaction, click shock, existing Dot Grid controls, colors, entitlement behavior, and background ID remain unchanged; simulation is off by default.

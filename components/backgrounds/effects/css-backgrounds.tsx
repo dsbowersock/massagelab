@@ -899,6 +899,8 @@ export interface MassageLabGridDistortionOptions {
   colorTwo?: string
   colorThree?: string
   cursorInteraction?: boolean
+  simulateCursorInteraction?: boolean
+  simulationSpeed?: number
 }
 
 export interface MassageLabOrbOptions {

@@ -4671,6 +4671,8 @@ describe("premium background registry", () => {
     assert.match(effectSource, /shouldAnimateAmbientBackground/)
     assert.match(effectSource, /window\.addEventListener\("pointermove"/)
     assert.match(effectSource, /window\.removeEventListener\("pointermove"/)
+    assert.match(effectSource, /updateSimulatedPointer/)
+    assert.match(effectSource, /lastManualMove/)
     assert.doesNotMatch(effectSource, /from "three"/)
     assert.doesNotMatch(effectSource, /from "ogl"/)
     assert.doesNotMatch(effectSource, /@react-three/)
@@ -4686,6 +4688,10 @@ describe("premium background registry", () => {
     assert.match(docsSource, /GridDistortion\.jsx/)
     assert.match(docsSource, /GridDistortion\.css/)
     assert.match(docsSource, /DataTexture|data texture/)
+    assert.match(setupSource, /Simulate cursor interaction/)
+    assert.match(setupSource, /Fake cursor speed/)
+    assert.match(runningSource, /Simulate cursor interaction/)
+    assert.match(runningSource, /Fake cursor speed/)
 
     for (const settingKey of [
       "massageLabGridDistortionGrid",
@@ -4693,6 +4699,8 @@ describe("premium background registry", () => {
       "massageLabGridDistortionStrength",
       "massageLabGridDistortionRelaxation",
       "massageLabGridDistortionCursorInteraction",
+      "massageLabGridDistortionSimulateCursorInteraction",
+      "massageLabGridDistortionSimulationSpeed",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
