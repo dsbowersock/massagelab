@@ -4,8 +4,9 @@
  * selectors and assertions remain in the browser suite. Browser tests use the
  * coupling list as their only exception set; the Node source contract asserts
  * this entire table exactly. The boolean
- * Show base letters control is intentionally outside this numeric slider map;
- * its add/remove label behavior is asserted directly in the browser matrix.
+ * Show base letters, strand rotation, and rotation direction are intentionally
+ * outside this numeric slider map; their DOM and animation behavior is asserted
+ * directly in the browser matrix.
  */
 const freezeConsumerContract = (entry) => Object.freeze({
   ...entry,
@@ -17,9 +18,10 @@ const freezeConsumerContract = (entry) => Object.freeze({
 export const COMPUTED_CONSUMER_CONTRACTS = Object.freeze([
   { effectId: "massage-lab-dna", label: "Node motion speed", key: "massageLabDnaNodeMotionSpeed", target: "strand > connector + [data-side]", properties: ["animationDuration", "animationDelay", "transform"], allowedRenderChanges: ["firstNodeDuration", "firstNodeDelay"], allowedCouplings: ["connectorTransform", "startNodeTransform", "endNodeTransform", "connectorDuration", "connectorDelay", "startNodeDuration", "startNodeDelay", "endNodeDuration", "endNodeDelay"] },
   { effectId: "massage-lab-dna", label: "Strand rotation speed", key: "massageLabDnaStrandRotationSpeed", target: ".scene > .composition", properties: ["animationDuration"], allowedRenderChanges: ["rotationDuration"], allowedCouplings: ["sceneDuration"] },
-  { effectId: "massage-lab-dna", label: "Strand count", key: "massageLabDnaStrandCount", target: ".scene grid + [data-side]", properties: ["count", "height", "animationDelay", "transform"], allowedRenderChanges: ["strandCount", "firstNodeDelay"], allowedCouplings: ["strandCount", "nodeCount", "strandHeight", "connectorHeight", "startNodeWidth", "startNodeHeight", "endNodeWidth", "endNodeHeight", "connectorDelay", "startNodeDelay", "endNodeDelay", "connectorTransform", "startNodeTransform", "endNodeTransform"] },
+  { effectId: "massage-lab-dna", label: "Strand count", key: "massageLabDnaStrandCount", target: ".scene grid + [data-side]", properties: ["count", "height", "animationDelay", "translate", "transform"], allowedRenderChanges: ["strandCount", "firstNodeDelay", "firstStrandOffset", "lastStrandOffset"], allowedCouplings: ["strandCount", "nodeCount", "strandHeight", "connectorHeight", "startNodeWidth", "startNodeHeight", "endNodeWidth", "endNodeHeight", "firstStrandTranslate", "lastStrandTranslate", "connectorDelay", "startNodeDelay", "endNodeDelay", "connectorTransform", "startNodeTransform", "endNodeTransform"] },
   { effectId: "massage-lab-dna", label: "Strand angle", key: "massageLabDnaStrandAngle", target: ".scene > .composition", properties: ["rotate"], allowedRenderChanges: ["strandAngle"], allowedCouplings: ["sceneRotate"] },
-  { effectId: "massage-lab-dna", label: "Strand spacing", key: "massageLabDnaStrandSpacing", target: ".scene > .composition", properties: ["rowGap", "height", "transform"], allowedRenderChanges: ["strandSpacing"], allowedCouplings: ["sceneRowGap", "strandHeight", "connectorHeight", "startNodeWidth", "startNodeHeight", "endNodeWidth", "endNodeHeight", "connectorTransform", "startNodeTransform", "endNodeTransform"] },
+  { effectId: "massage-lab-dna", label: "Node size", key: "massageLabDnaNodeSize", target: "strand > [data-side]", properties: ["width", "height"], allowedRenderChanges: ["nodeSize"], allowedCouplings: ["startNodeWidth", "startNodeHeight", "endNodeWidth", "endNodeHeight"] },
+  { effectId: "massage-lab-dna", label: "Strand spacing", key: "massageLabDnaStrandSpacing", target: ".scene > strand", properties: ["translate"], allowedRenderChanges: ["strandSpacing", "firstStrandOffset", "lastStrandOffset"], allowedCouplings: ["firstStrandTranslate", "lastStrandTranslate"] },
   { effectId: "massage-lab-dna", label: "Scale", key: "massageLabDnaScale", target: ":scope > .scene", properties: ["transform"], allowedRenderChanges: ["scale"], allowedCouplings: ["sceneTransform"] },
   { effectId: "massage-lab-dna", label: "Position X", key: "massageLabDnaPositionX", target: ":scope > .scene", properties: ["transform"], allowedRenderChanges: ["positionX"], allowedCouplings: ["sceneTransform"] },
   { effectId: "massage-lab-dna", label: "Position Y", key: "massageLabDnaPositionY", target: ":scope > .scene", properties: ["transform"], allowedRenderChanges: ["positionY"], allowedCouplings: ["sceneTransform"] },

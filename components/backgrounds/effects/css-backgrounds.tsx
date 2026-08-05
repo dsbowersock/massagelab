@@ -29,20 +29,26 @@ export interface MassageLabDnaOptions {
   strandCount: number
   /** Presentation-only base-letter visibility. */
   showBaseLetters: boolean
-  /** Node-cycle speed multiplier, 0.01-3. */
+  /** Persisted node-cycle source speed, 0.006-0.12 (shown as 0.1x-2x). */
   nodeMotionSpeed: number
-  /** Composition-rotation speed multiplier, 0.01-3. */
+  /** Whether the whole strand composition rotates. */
+  strandRotationEnabled: boolean
+  /** Persisted rotation source speed, 0.002-0.04 (shown as 0.1x-2x). */
   strandRotationSpeed: number
+  /** Direction of whole-strand rotation. */
+  strandRotationDirection: "clockwise" | "counterclockwise"
   /** Composition angle in degrees, -180 to 180. */
   strandAngle: number
-  /** Render scale factor, 0.4-1.2. */
+  /** Render scale factor, 0.005-0.5 (shown as 1%-100%). */
   scale: number
   /** Horizontal position offset percent, -35 to 35. */
   positionX: number
   /** Vertical position offset percent, -35 to 35. */
   positionY: number
-  /** Grid row spacing in vmin, 0-2. */
+  /** Additional centered distance between strands in vmin, 0-2. */
   strandSpacing: number
+  /** Node diameter relative to the authored size, 25%-200%. */
+  nodeSize: number
   /** Connector width percent, 60-100. */
   connectorWidth: number
   /** Connector thickness percent, 10-60. */

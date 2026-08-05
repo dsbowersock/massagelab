@@ -6,6 +6,12 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-04 — DNA control semantics and geometry remediation
+
+- DNA preserves the reviewed authored raw defaults (`0.06` node speed, `0.02` rotation speed, and `0.5` scale) while presenting them as `1.0x`, `1.0x`, and `100%`. Node and rotation speeds now use bounded `0.1x-2.0x` user-facing controls, and scale uses a real `1%-100%` range with a DNA-specific responsive floor so every position remains visually distinct.
+- Whole-strand rotation now has persisted on/off and clockwise/counterclockwise controls. Node size has its own persisted `25%-200%` control. Strand spacing now applies centered per-strand offsets over a gap-free grid, so changing spacing no longer changes row height or node diameter.
+- The palette adapter, shared Visual draft, local/account settings sanitizer, all four Host contexts, reduced-motion behavior, and computed-consumer acceptance matrix cover the three new settings and normalized values. Typecheck, lint, all 1,965 unit/source-contract tests, the 102-page Production build, `git diff --check`, and the auth-free `/dev/clock` HTTP check pass. The local server remains available at port 3000 for Device Toolbar review; automated in-app-browser rendering remains unavailable because the admin policy could not verify localhost access.
+
 ## 2026-08-04 — Retro Grid motion-contract remediation
 
 - Retro Grid now uses the shared Background Host `reduceMotion` decision instead of independently re-reading `prefers-reduced-motion`. Its WebGL frame loop and CSS fallback therefore agree with the Visual panel's background-animation state and the app's resolved ambient-motion setting. The focused Retro Grid contract test, typecheck, lint, dev-route HTTP check, and whitespace check pass; browser frame comparison remains blocked by the in-app browser's admin policy.

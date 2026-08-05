@@ -5,12 +5,21 @@ import {
   DNA_BASE_PAIRS,
   DNA_BASE_ROLE_INDEX,
   DNA_OPTION_BOUNDS,
+  DNA_SCALE_PERCENT_BOUNDS,
+  DNA_SPEED_MULTIPLIER_BOUNDS,
+  DNA_STRAND_ROTATION_DIRECTIONS,
   DNA_SOURCE_GEOMETRY,
   createDnaStrandAssignments,
   getDnaBackgroundOptionsFromChimerSettings,
+  getDnaNodeMotionDisplaySpeed,
+  getDnaNodeMotionSourceSpeed,
   getDnaNodeCycleSeconds,
+  getDnaScaleDisplayPercent,
+  getDnaScaleFromDisplayPercent,
   getDnaStrandDelaySeconds,
   getDnaStrandPhase,
+  getDnaStrandRotationDisplaySpeed,
+  getDnaStrandRotationSourceSpeed,
   getDnaStrandRotationSeconds,
   sanitizeDnaBackgroundOptions,
   toDnaChimerSettingsPatch,
@@ -28,12 +37,15 @@ describe("DNA background domain and shared layout rules", () => {
       strandCount: 70,
       showBaseLetters: false,
       nodeMotionSpeed: 0.06,
+      strandRotationEnabled: true,
       strandRotationSpeed: 0.02,
+      strandRotationDirection: "clockwise",
       strandAngle: 30,
       scale: 0.5,
       positionX: 0,
       positionY: 0,
       strandSpacing: 0.5,
+      nodeSize: 100,
       connectorWidth: 94,
       connectorThickness: 15,
       outlineThickness: 0.1,
@@ -46,6 +58,9 @@ describe("DNA background domain and shared layout rules", () => {
     assert.equal(Object.isFrozen(DEFAULT_DNA_BACKGROUND_OPTIONS), true)
     assert.equal(Object.isFrozen(DNA_OPTION_BOUNDS), true)
     assert.equal(DNA_OPTION_BOUNDS.strandCount.maximum, 81)
+    assert.deepEqual(DNA_SPEED_MULTIPLIER_BOUNDS, { minimum: 0.1, maximum: 2, step: 0.1 })
+    assert.deepEqual(DNA_SCALE_PERCENT_BOUNDS, { minimum: 1, maximum: 100, step: 1 })
+    assert.deepEqual(DNA_STRAND_ROTATION_DIRECTIONS, ["clockwise", "counterclockwise"])
     assert.equal(Object.isFrozen(DNA_SOURCE_GEOMETRY), true)
   })
 
@@ -78,13 +93,16 @@ describe("DNA background domain and shared layout rules", () => {
     assert.deepEqual(
       sanitizeDnaBackgroundOptions({
         strandCount: 0,
+        strandRotationEnabled: "false",
         nodeMotionSpeed: 0,
         strandRotationSpeed: 0,
+        strandRotationDirection: "sideways",
         strandAngle: -999,
         scale: 0,
         positionX: -999,
         positionY: -999,
         strandSpacing: -1,
+        nodeSize: 0,
         connectorWidth: 0,
         connectorThickness: 0,
         outlineThickness: -1,
@@ -92,13 +110,16 @@ describe("DNA background domain and shared layout rules", () => {
       {
         strandCount: 7,
         showBaseLetters: false,
-        nodeMotionSpeed: 0.01,
-        strandRotationSpeed: 0.01,
+        nodeMotionSpeed: 0.006,
+        strandRotationEnabled: true,
+        strandRotationSpeed: 0.002,
+        strandRotationDirection: "clockwise",
         strandAngle: -180,
-        scale: 0.4,
+        scale: 0.005,
         positionX: -35,
         positionY: -35,
         strandSpacing: 0,
+        nodeSize: 25,
         connectorWidth: 60,
         connectorThickness: 10,
         outlineThickness: 0,
@@ -107,13 +128,16 @@ describe("DNA background domain and shared layout rules", () => {
     assert.deepEqual(
       sanitizeDnaBackgroundOptions({
         strandCount: 99.9,
+        strandRotationEnabled: false,
         nodeMotionSpeed: 99,
         strandRotationSpeed: 99,
+        strandRotationDirection: "counterclockwise",
         strandAngle: 999,
         scale: 99,
         positionX: 999,
         positionY: 999,
         strandSpacing: 99,
+        nodeSize: 999,
         connectorWidth: 999,
         connectorThickness: 999,
         outlineThickness: 99,
@@ -121,13 +145,16 @@ describe("DNA background domain and shared layout rules", () => {
       {
         strandCount: 81,
         showBaseLetters: false,
-        nodeMotionSpeed: 3,
-        strandRotationSpeed: 3,
+        nodeMotionSpeed: 0.12,
+        strandRotationEnabled: false,
+        strandRotationSpeed: 0.04,
+        strandRotationDirection: "counterclockwise",
         strandAngle: 180,
-        scale: 1.2,
+        scale: 0.5,
         positionX: 35,
         positionY: 35,
         strandSpacing: 2,
+        nodeSize: 200,
         connectorWidth: 100,
         connectorThickness: 60,
         outlineThickness: 1.5,
@@ -150,12 +177,12 @@ describe("DNA background domain and shared layout rules", () => {
   })
 
   it("uses independent inverse speed durations and the source sine phase", () => {
-    assert.equal(getDnaNodeCycleSeconds(1), 2)
-    assert.equal(getDnaStrandRotationSeconds(1), 14)
-    assert.equal(getDnaNodeCycleSeconds(2), 1)
-    assert.equal(getDnaStrandRotationSeconds(2), 7)
-    assert.equal(getDnaNodeCycleSeconds(0), 200)
-    assert.equal(getDnaStrandRotationSeconds(0), 1400)
+    assert.equal(getDnaNodeCycleSeconds(0.06), 2 / 0.06)
+    assert.equal(getDnaStrandRotationSeconds(0.02), 14 / 0.02)
+    assert.equal(getDnaNodeCycleSeconds(0.12), 2 / 0.12)
+    assert.equal(getDnaStrandRotationSeconds(0.04), 14 / 0.04)
+    assert.equal(getDnaNodeCycleSeconds(0), 2 / 0.006)
+    assert.equal(getDnaStrandRotationSeconds(0), 14 / 0.002)
     assert.equal(getDnaNodeCycleSeconds(Number.NaN), 2 / DEFAULT_DNA_BACKGROUND_OPTIONS.nodeMotionSpeed)
     assert.equal(
       getDnaStrandRotationSeconds(Infinity),
@@ -165,13 +192,27 @@ describe("DNA background domain and shared layout rules", () => {
     const phase = Math.sin((Math.PI / 180) * 45 * (3 / 13))
     assert.equal(getDnaStrandPhase({ oneBasedIndex: 3, total: 13 }), phase)
     assert.equal(
-      getDnaStrandDelaySeconds({ oneBasedIndex: 3, total: 13, speed: 1 }),
-      -phase * 2,
+      getDnaStrandDelaySeconds({ oneBasedIndex: 3, total: 13, speed: 0.06 }),
+      -phase * (2 / 0.06),
     )
     assert.equal(
-      getDnaStrandDelaySeconds({ oneBasedIndex: 3, total: 13, speed: 2 }),
-      -phase,
+      getDnaStrandDelaySeconds({ oneBasedIndex: 3, total: 13, speed: 0.12 }),
+      -phase * (2 / 0.12),
     )
+  })
+
+  it("maps source values to the approved speed and scale labels without changing defaults", () => {
+    assert.equal(getDnaNodeMotionDisplaySpeed(0.06), 1)
+    assert.equal(getDnaNodeMotionSourceSpeed(1), 0.06)
+    assert.equal(getDnaNodeMotionSourceSpeed(0.1), 0.006)
+    assert.equal(getDnaNodeMotionSourceSpeed(2), 0.12)
+    assert.equal(getDnaStrandRotationDisplaySpeed(0.02), 1)
+    assert.equal(getDnaStrandRotationSourceSpeed(1), 0.02)
+    assert.equal(getDnaStrandRotationSourceSpeed(0.1), 0.002)
+    assert.equal(getDnaStrandRotationSourceSpeed(2), 0.04)
+    assert.equal(getDnaScaleDisplayPercent(0.5), 100)
+    assert.equal(getDnaScaleFromDisplayPercent(100), 0.5)
+    assert.equal(getDnaScaleFromDisplayPercent(1), 0.005)
   })
 
   it("creates biologically valid base pairs with nucleotide-specific swatch roles", () => {
@@ -227,6 +268,16 @@ describe("DNA background domain and shared layout rules", () => {
       stored,
     )
     assert.deepEqual(stored, { scale: 1.2, positionX: 35, positionY: -35 })
+    assert.deepEqual(
+      resolveResponsiveBackgroundTransform({
+        scale: DNA_OPTION_BOUNDS.scale.minimum,
+        positionX: 0,
+        positionY: 0,
+        compactViewport: true,
+        minimumScale: DNA_OPTION_BOUNDS.scale.minimum,
+      }),
+      { scale: 0.005, positionX: 0, positionY: 0 },
+    )
   })
 
   it("maps flat Chimer preferences into sanitized DNA options", () => {
@@ -234,13 +285,16 @@ describe("DNA background domain and shared layout rules", () => {
       getDnaBackgroundOptionsFromChimerSettings({
         massageLabDnaStrandCount: 24.6,
         massageLabDnaShowBaseLetters: true,
-        massageLabDnaNodeMotionSpeed: 2,
-        massageLabDnaStrandRotationSpeed: 0.5,
+        massageLabDnaNodeMotionSpeed: 0.12,
+        massageLabDnaStrandRotationEnabled: false,
+        massageLabDnaStrandRotationSpeed: 0.04,
+        massageLabDnaStrandRotationDirection: "counterclockwise",
         massageLabDnaStrandAngle: -40,
-        massageLabDnaScale: 0.8,
+        massageLabDnaScale: 0.4,
         massageLabDnaPositionX: 4,
         massageLabDnaPositionY: -5,
         massageLabDnaStrandSpacing: 1.1,
+        massageLabDnaNodeSize: 140,
         massageLabDnaConnectorWidth: 80,
         massageLabDnaConnectorThickness: 44,
         massageLabDnaOutlineThickness: 1,
@@ -248,13 +302,16 @@ describe("DNA background domain and shared layout rules", () => {
       {
         strandCount: 24,
         showBaseLetters: true,
-        nodeMotionSpeed: 2,
-        strandRotationSpeed: 0.5,
+        nodeMotionSpeed: 0.12,
+        strandRotationEnabled: false,
+        strandRotationSpeed: 0.04,
+        strandRotationDirection: "counterclockwise",
         strandAngle: -40,
-        scale: 0.8,
+        scale: 0.4,
         positionX: 4,
         positionY: -5,
         strandSpacing: 1.1,
+        nodeSize: 140,
         connectorWidth: 80,
         connectorThickness: 44,
         outlineThickness: 1,
@@ -267,13 +324,23 @@ describe("DNA background domain and shared layout rules", () => {
       toDnaChimerSettingsPatch({
         strandCount: 8,
         showBaseLetters: true,
+        strandRotationEnabled: false,
+        strandRotationDirection: "counterclockwise",
+        nodeSize: 125,
         positionX: 12,
         backgroundColor: "#123456",
         nodeRoles: [1, 2],
         computedPhase: 0.2,
         unrelated: true,
       }),
-      { massageLabDnaStrandCount: 8, massageLabDnaShowBaseLetters: true, massageLabDnaPositionX: 12 },
+      {
+        massageLabDnaStrandCount: 8,
+        massageLabDnaShowBaseLetters: true,
+        massageLabDnaStrandRotationEnabled: false,
+        massageLabDnaStrandRotationDirection: "counterclockwise",
+        massageLabDnaPositionX: 12,
+        massageLabDnaNodeSize: 125,
+      },
     )
   })
 })

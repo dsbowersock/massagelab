@@ -28,10 +28,11 @@
   display: grid;
   width: 100%;
   height: 100%;
-  gap: var(--ml-dna-strand-spacing);
+  gap: 0;
   transform-style: preserve-3d;
   rotate: var(--ml-dna-strand-angle);
   animation: mlDnaStrandRotate var(--ml-dna-rotation-duration) linear infinite;
+  animation-direction: var(--ml-dna-rotation-direction);
 }
 
 .strand {
@@ -39,7 +40,9 @@
   display: flex;
   width: 100%;
   min-block-size: 0;
+  align-items: center;
   justify-content: space-between;
+  translate: 0 var(--ml-dna-strand-offset);
   transform-style: preserve-3d;
 }
 
@@ -62,7 +65,7 @@
   position: relative;
   display: grid;
   place-items: center;
-  height: 100%;
+  height: var(--ml-dna-node-size);
   aspect-ratio: 1;
   border: var(--ml-dna-outline-thickness) solid var(--ml-dna-outline-color);
   border-radius: 50%;
@@ -136,6 +139,11 @@
   to {
     rotate: calc(var(--ml-dna-strand-angle) + 360deg);
   }
+}
+
+.root[data-strand-rotation-disabled] .composition {
+  animation: none;
+  rotate: var(--ml-dna-strand-angle);
 }
 
 .root[data-reduce-motion] .composition,
