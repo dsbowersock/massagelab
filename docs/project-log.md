@@ -6,6 +6,11 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-05 — Shape Grid speed scale
+
+- Changed Shape Grid's authored speed default from `1.0` to `0.25`, corrected its renderer and sanitizer range to `0.0-2.0`, and presented that raw range as a true `0%-100%` slider in both Visual panels. The default appears as `12.5%`, while the `0%` endpoint now leaves the grid stationary instead of silently applying a `0.1` motion floor. A versioned exact-default migration moves only untouched former `1.0` settings to `0.25`; customized legacy speeds retain their meaning and are clamped only when outside the corrected range. Direction, cell size, shape, trail, cursor behavior, colors, entitlement behavior, and background ID are unchanged.
+- The focused Shape Grid/default/entitlement contracts pass, all 1,966 repository tests pass, and typecheck, lint, `git diff --check`, the 102-page Production build, and the restarted localhost-only `/dev/clock` HTTP check pass. Direct rendered automation remains blocked by the unresolved administrator-enforced in-app-browser localhost policy, so the user's Device Toolbar review remains the visual acceptance path.
+
 ## 2026-08-05 — Grid Distortion simulated cursor controls
 
 - Added an opt-in Simulate cursor interaction toggle and persisted `0.3x-2.0x` Fake cursor speed control with a `1.0x` default to both Visual panels. The passive path feeds Grid Distortion's existing normalized pointer/data-texture displacement model, yields briefly after genuine pointer movement, and remains additive to the already-approved continuous ambient drift; simulation is off by default and existing controls, colors, entitlement behavior, reduced-motion handling, and background ID remain unchanged.

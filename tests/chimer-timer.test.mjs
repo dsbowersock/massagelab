@@ -7,6 +7,8 @@ import {
   formatDurationParts,
   getMassageLab3DGlobeScaleDisplayPercent,
   getMassageLab3DGlobeScaleFromDisplayPercent,
+  getMassageLabShapeGridSpeedDisplayPercent,
+  getMassageLabShapeGridSpeedFromDisplayPercent,
   getActiveTimerAlertSchedule,
   getIntervalMs,
   getTotalTimerMs,
@@ -2769,6 +2771,7 @@ describe("Chimer timer helpers", () => {
       massageLabShapeGridHoverFillColor: "#040506",
       massageLabShapeGridDirection: "diagonal",
       massageLabShapeGridSpeed: 99,
+      massageLabShapeGridSpeedVersion: 1,
       massageLabShapeGridSquareSize: 0,
       massageLabShapeGridShape: "hexagon",
       massageLabShapeGridHoverTrailAmount: 99,
@@ -2814,7 +2817,8 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabGridMotionBaseDuration, 2)
     assert.equal(settings.massageLabGridMotionCursorInteraction, false)
     assert.equal(settings.massageLabShapeGridDirection, "diagonal")
-    assert.equal(settings.massageLabShapeGridSpeed, 8)
+    assert.equal(settings.massageLabShapeGridSpeed, 2)
+    assert.equal(settings.massageLabShapeGridSpeedVersion, 1)
     assert.equal(settings.massageLabShapeGridSquareSize, 12)
     assert.equal(settings.massageLabShapeGridShape, "hexagon")
     assert.equal(settings.massageLabShapeGridHoverTrailAmount, 24)
@@ -2839,6 +2843,19 @@ describe("Chimer timer helpers", () => {
       sanitizeChimerSettings({ massageLabShapeGridDirection: "sideways" }).massageLabShapeGridDirection,
       DEFAULT_CHIMER_SETTINGS.massageLabShapeGridDirection,
     )
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabShapeGridSpeed, 0.25)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabShapeGridSpeedVersion, 1)
+    assert.equal(sanitizeChimerSettings({ massageLabShapeGridSpeed: 1 }).massageLabShapeGridSpeed, 0.25)
+    assert.equal(sanitizeChimerSettings({ massageLabShapeGridSpeed: 0.5 }).massageLabShapeGridSpeed, 0.5)
+    assert.equal(sanitizeChimerSettings({
+      massageLabShapeGridSpeed: 1,
+      massageLabShapeGridSpeedVersion: 1,
+    }).massageLabShapeGridSpeed, 1)
+    assert.equal(sanitizeChimerSettings({ massageLabShapeGridSpeed: -1 }).massageLabShapeGridSpeed, 0)
+    assert.equal(getMassageLabShapeGridSpeedDisplayPercent(0.25), 12.5)
+    assert.equal(getMassageLabShapeGridSpeedDisplayPercent(2), 100)
+    assert.equal(getMassageLabShapeGridSpeedFromDisplayPercent(0), 0)
+    assert.equal(getMassageLabShapeGridSpeedFromDisplayPercent(100), 2)
   })
 
   it("normalizes MassageLab Novatrix background controls", () => {

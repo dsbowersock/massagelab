@@ -15,14 +15,14 @@ import { NumberField } from "@/components/chimer-controls/NumberField"
 import { StyledRangeControl } from "@/components/chimer-controls/StyledRangeControl"
 import { StyledToggleControl } from "@/components/chimer-controls/StyledToggleControl"
 import { DarkVeilResolutionScaleControl } from "@/components/chimer-controls/DarkVeilBackgroundControls"
-import { getMassageLab3DGlobeScaleDisplayPercent, getMassageLab3DGlobeScaleFromDisplayPercent, parseGlobeCoordinateDraft, sanitizeChimerSettings } from "@/lib/chimer-timer"
+import { getMassageLab3DGlobeScaleDisplayPercent, getMassageLab3DGlobeScaleFromDisplayPercent, getMassageLabShapeGridSpeedDisplayPercent, getMassageLabShapeGridSpeedFromDisplayPercent, parseGlobeCoordinateDraft, sanitizeChimerSettings } from "@/lib/chimer-timer"
 import { normalizeSharedBackgroundVisualPreferences } from "@/lib/background-palette"
 import { buildBackgroundVisualOpeningSnapshot, buildBackgroundVisualPendingCommit } from "@/lib/background-visual-draft"
 import styles from "./set-timer.module.css"
 import { GridMotionMantraEditor } from "./grid-motion-mantra-editor"
 import { TileGridFadeTimeControl } from "./tile-grid-fade-time-control"
 
-export { getMassageLab3DGlobeScaleDisplayPercent, getMassageLab3DGlobeScaleFromDisplayPercent }
+export { getMassageLab3DGlobeScaleDisplayPercent, getMassageLab3DGlobeScaleFromDisplayPercent, getMassageLabShapeGridSpeedDisplayPercent, getMassageLabShapeGridSpeedFromDisplayPercent }
 
 const CHIMER_SETUP_PRESETS_STORAGE_KEY = "chimer-setup-presets-v1"
 const CHIMER_LAST_SETUP_STORAGE_KEY = "chimer-last-setup-v1"
@@ -920,6 +920,7 @@ export interface ChimerSettings {
   massageLabGridMotionMantras: string[]
   massageLabShapeGridDirection: "right" | "left" | "up" | "down" | "diagonal"
   massageLabShapeGridSpeed: number
+  massageLabShapeGridSpeedVersion: number
   massageLabShapeGridSquareSize: number
   massageLabShapeGridShape: "square" | "circle" | "triangle" | "hexagon"
   massageLabShapeGridHoverTrailAmount: number
@@ -9999,19 +10000,19 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Speed ({settings.massageLabShapeGridSpeed.toFixed(2)})</span>
+            <span>Speed ({getMassageLabShapeGridSpeedDisplayPercent(settings.massageLabShapeGridSpeed)}%)</span>
             <input
               type="range"
               min="0"
-              max="4"
-              step="0.05"
-              value={settings.massageLabShapeGridSpeed}
+              max="100"
+              step="2.5"
+              value={getMassageLabShapeGridSpeedDisplayPercent(settings.massageLabShapeGridSpeed)}
               onChange={(event) =>
                 onSettingsChange({
-                  massageLabShapeGridSpeed: Number(event.target.value),
+                  massageLabShapeGridSpeed: getMassageLabShapeGridSpeedFromDisplayPercent(Number(event.target.value)),
                 })
               }
-              aria-label="MassageLab Shape Grid speed"
+              aria-label="MassageLab Shape Grid speed percentage"
             />
           </label>
 

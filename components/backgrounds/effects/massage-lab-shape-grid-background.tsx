@@ -16,7 +16,7 @@ type ResolvedShapeGridOptions = Required<MassageLabShapeGridOptions> & {
 
 const DEFAULT_MASSAGELAB_SHAPE_GRID: ResolvedShapeGridOptions = {
   direction: "right",
-  speed: 1,
+  speed: 0.25,
   borderColor: "#999999",
   squareSize: 40,
   hoverFillColor: "#222222",
@@ -331,7 +331,7 @@ export default function MassageLabShapeGridBackground({
     const updateAnimation = () => {
       const animate = shouldAnimate()
       if (animate) {
-        const effectiveSpeed = Math.max(options.speed, 0.1)
+        const effectiveSpeed = options.speed
         const wrapX = isHex ? hexHoriz * 2 : options.squareSize
         const wrapY = isHex ? hexVert : isTri ? options.squareSize * 2 : options.squareSize
 
@@ -418,7 +418,7 @@ export default function MassageLabShapeGridBackground({
 function resolveShapeGridOptions(options?: MassageLabShapeGridOptions): ResolvedShapeGridOptions {
   return {
     direction: resolveDirection(options?.direction),
-    speed: resolveNumber(options?.speed, DEFAULT_MASSAGELAB_SHAPE_GRID.speed, 0.1, 8),
+    speed: resolveNumber(options?.speed, DEFAULT_MASSAGELAB_SHAPE_GRID.speed, 0, 2),
     borderColor: resolveHex(options?.borderColor, DEFAULT_MASSAGELAB_SHAPE_GRID.borderColor),
     squareSize: resolveNumber(options?.squareSize, DEFAULT_MASSAGELAB_SHAPE_GRID.squareSize, 12, 96),
     hoverFillColor: resolveHex(options?.hoverFillColor, DEFAULT_MASSAGELAB_SHAPE_GRID.hoverFillColor),

@@ -4940,6 +4940,24 @@ describe("premium background registry", () => {
     }
   })
 
+  it("presents Shape Grid speed as a zero-to-one-hundred-percent scale", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/massage-lab-shape-grid-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+
+    assert.match(effectSource, /speed: 0\.25/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_SHAPE_GRID\.speed, 0, 2/)
+    assert.doesNotMatch(effectSource, /Math\.max\(options\.speed, 0\.1\)/)
+    for (const source of [setupSource, runningSource]) {
+      assert.match(source, /getMassageLabShapeGridSpeedDisplayPercent/)
+      assert.match(source, /getMassageLabShapeGridSpeedFromDisplayPercent/)
+      assert.match(source, /Shape Grid speed percentage/)
+    }
+  })
+
   it("keeps MassageLab Novatrix source-shaped, passive, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
       new URL("../components/backgrounds/effects/massage-lab-novatrix-background.tsx", import.meta.url),
