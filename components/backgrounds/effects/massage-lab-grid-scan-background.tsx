@@ -106,7 +106,9 @@ const fragmentShaderSource = `
   varying vec2 vUv;
 
   const int MAX_SCANS = 8;
-  const float TUNNEL_HALF_EXTENT = 0.5;
+  const float TUNNEL_HALF_HEIGHT = 0.5;
+  const float TUNNEL_FADE_START = 3.2;
+  const float TUNNEL_FAR_DEPTH = 4.0;
 
   float smoother01(float a, float b, float x) {
     float t = clamp((x - a) / max(1e-5, (b - a)), 0.0, 1.0);
@@ -133,13 +135,16 @@ const fragmentShaderSource = `
     float gridScale = max(1e-5, uGridScale);
     float fadeStrength = 2.0;
     vec2 gridUV = vec2(0.0);
+    float viewportAspect = iResolution.x / max(iResolution.y, 1.0);
+    float tunnelHalfWidth = TUNNEL_HALF_HEIGHT * viewportAspect;
 
     float hitIsY = 1.0;
     for (int i = 0; i < 4; i++) {
       float isY = float(i < 2);
-      // All four planes share one camera-relative extent so the ceiling and
-      // floor carry the same depth scale and vanishing point as the walls.
-      float pos = mix(-TUNNEL_HALF_EXTENT, TUNNEL_HALF_EXTENT, mod(float(i), 2.0));
+      // Scaling the width from the live viewport aspect keeps the distant
+      // opening geometrically similar to the screen at every tunnel depth.
+      float planeHalfExtent = mix(tunnelHalfWidth, TUNNEL_HALF_HEIGHT, isY);
+      float pos = mix(-planeHalfExtent, planeHalfExtent, mod(float(i), 2.0));
       float num = pos - (isY * ro.y + (1.0 - isY) * ro.x);
       float den = isY * rd.y + (1.0 - isY) * rd.x;
       float t = num / den;
@@ -156,6 +161,7 @@ const fragmentShaderSource = `
 
     vec3 hit = ro + rd * minT;
     float dist = length(hit - ro);
+    float surfaceDepth = max(0.0, hit.z);
 
     float jitterAmt = clamp(uLineJitter, 0.0, 1.0);
     if (jitterAmt > 0.0) {
@@ -249,14 +255,17 @@ const fragmentShaderSource = `
     }
 
     float altMask = max(lineX2, lineY2);
-    float edgeDistX = min(abs(hit.x + TUNNEL_HALF_EXTENT), abs(hit.x - TUNNEL_HALF_EXTENT));
-    float edgeDistY = min(abs(hit.y + TUNNEL_HALF_EXTENT), abs(hit.y - TUNNEL_HALF_EXTENT));
+    float edgeDistX = min(abs(hit.x + tunnelHalfWidth), abs(hit.x - tunnelHalfWidth));
+    float edgeDistY = min(abs(hit.y + TUNNEL_HALF_HEIGHT), abs(hit.y - TUNNEL_HALF_HEIGHT));
     float edgeDist = mix(edgeDistY, edgeDistX, hitIsY);
     float edgeGate = 1.0 - smoothstep(gridScale * 0.5, gridScale * 2.0, edgeDist);
     altMask *= edgeGate;
 
     float lineMask = max(primaryMask, altMask);
-    float fade = exp(-dist * fadeStrength);
+    // A shared z-depth cutoff makes every plane reach the same far end even
+    // though the viewport-shaped tunnel uses different horizontal/vertical extents.
+    float depthVisibility = 1.0 - smoothstep(TUNNEL_FADE_START, TUNNEL_FAR_DEPTH, surfaceDepth);
+    float fade = exp(-dist * fadeStrength) * depthVisibility;
 
     float dur = max(0.05, uScanDuration);
     float del = max(0.0, uScanDelay);
@@ -313,7 +322,7 @@ const fragmentShaderSource = `
       combinedAura += (auraBandI * 0.25) * phaseWindowI * clamp(uScanOpacity, 0.0, 1.0);
     }
 
-    float lineVis = lineMask;
+    float lineVis = lineMask * depthVisibility;
     vec3 gridCol = uLinesColor * lineVis * fade;
     vec3 scanCol = uScanColor * combinedPulse;
     vec3 scanAura = uScanColor * combinedAura;
