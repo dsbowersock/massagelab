@@ -4,7 +4,7 @@
 
 **Goal:** Make Gradient Blinds, Pixel Snow, Faulty Terminal, and Grid Distortion visibly animate as autonomous backgrounds on phones without requiring pointer input or showing a broken initial frame.
 
-> **2026-08-05 amendment:** The user rejected Task 1's translated gradient and blind phase. Gradient Blinds now keeps both coordinates fixed and achieves autonomy through a slow damped passive spotlight sweep with spatially stable noise. The 2026-08-05 project-log entry and current renderer/test contract supersede Task 1's earlier motion specification; Tasks 2-5 remain unchanged.
+> **2026-08-05 amendment:** The user rejected Task 1's translated gradient and blind phase. Gradient Blinds now keeps its gradient and blind-cell boundaries fixed, preserves a visible floor for every slat, and achieves autonomy through a slow damped passive spotlight whose breeze-like flex is confined inside each cell; noise remains spatially stable. The 2026-08-05 project-log entry and current renderer/test contract supersede Task 1's earlier motion specification; Tasks 2-5 remain unchanged.
 
 **Architecture:** Keep each existing renderer and stored-settings surface intact, and repair motion at the renderer boundary. Time-based motion must remain deterministic for a given timestamp, pointer input remains additive where supported, compact phones may animate at their existing reduced DPR, and reduced-motion/hidden-document states render one representative static frame.
 

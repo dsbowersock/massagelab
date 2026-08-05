@@ -84,6 +84,9 @@ const vertexShaderSource = `
 const fragmentShaderSource = `
   precision mediump float;
 
+  const float MINIMUM_BLIND_VISIBILITY = 0.34;
+  const float BREEZE_FLEX = 0.09;
+
   uniform vec3 iResolution;
   uniform vec2 iMouse;
 
@@ -169,15 +172,25 @@ const fragmentShaderSource = `
     vec2 offset = vec2(iMouse.x / iResolution.x, iMouse.y / iResolution.y);
     float d = length(uv0 - offset);
     float r = max(uSpotlightRadius, 1e-4);
-    float dn = d / r;
-    float spot = (1.0 - 2.0 * pow(dn, uSpotlightSoftness)) * uSpotlightOpacity;
-    vec3 cir = vec3(spot);
-    float fixedBlindCoordinate = uvMod.x * max(uBlindCount, 1.0);
-    float stripe = fract(fixedBlindCoordinate);
-    if (uShineFlip > 0.5) stripe = 1.0 - stripe;
-    vec3 ran = vec3(stripe);
+    float spotlightDistance = smoothstep(0.0, 1.0, clamp(d / r, 0.0, 1.0));
+    float spot = (1.0 - pow(spotlightDistance, max(uSpotlightSoftness, 1e-4))) * uSpotlightOpacity;
 
-    vec3 col = cir + base - ran;
+    float blindCount = max(uBlindCount, 1.0);
+    float fixedBlindCoordinate = uvMod.x * blindCount;
+    float blindIndex = floor(fixedBlindCoordinate);
+    float stripe = fract(fixedBlindCoordinate);
+    float blindCenter = (blindIndex + 0.5) / blindCount;
+    float flexEnvelope = sin(3.14159265 * stripe);
+    float breezePush = sin((blindCenter - offset.x) * 6.2831853) * BREEZE_FLEX;
+    float flexedStripe = clamp(stripe + breezePush * flexEnvelope, 0.0, 1.0);
+    if (uShineFlip > 0.5) flexedStripe = 1.0 - flexedStripe;
+
+    // Every slat retains a readable share of its source color. The moving light
+    // brightens it, while the flex envelope keeps both cell edges stationary.
+    float blindVisibility = mix(MINIMUM_BLIND_VISIBILITY, 1.0, 1.0 - flexedStripe);
+    vec3 filteredLight = mix(base, vec3(1.0), 0.28);
+    vec3 col = base * blindVisibility;
+    col += filteredLight * spot * (0.16 + 0.24 * (1.0 - flexedStripe));
     col += (rand(gl_FragCoord.xy) - 0.5) * uNoise;
 
     fragColor = vec4(col, 1.0);
