@@ -6,6 +6,12 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-04 — Dark Veil color and resolution controls
+
+- Dark Veil Hue shift now uses the shared color-channel slider. In the immersive Visual panel it appears directly beneath the seven swatches only while Custom colors are selected, participates in the existing draft/apply history, and stays absent from Source and Harmony modes.
+- Resolution scale now presents the stored `0.25-1` range as `25%-100%`. Reduced drawing buffers retain nearest-neighbor pixels so the quality/performance tradeoff is visible, while the CSS canvas remains full-viewport and the shader resolution continues matching the real drawing buffer.
+- Validation passed: 187 focused background/palette/timer tests, the full 1,965-test suite, typecheck, lint, production build, diff check, and an HTTP 200 response from the restarted localhost-only `/dev/clock` server. Direct in-app-browser interaction remained unavailable because its administrator-enforced localhost security check could not be verified.
+
 ## 2026-08-04 — Liquid Ether control-label cleanup
 
 - Liquid Ether now labels its autonomous animation controls Motion, Speed, Intensity, Resume, and Ramp in both setup and running Visual panels. Matching accessible names also omit the redundant `Auto` prefix; internal persisted keys and renderer behavior are unchanged.

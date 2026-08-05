@@ -1786,6 +1786,14 @@ describe("premium background registry", () => {
     const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+    const controlSource = readFileSync(
+      new URL("../components/chimer-controls/DarkVeilBackgroundControls.tsx", import.meta.url),
+      "utf8",
+    )
+    const paletteEditorSource = readFileSync(
+      new URL("../components/chimer-controls/BackgroundPaletteEditor.tsx", import.meta.url),
+      "utf8",
+    )
 
     assert.match(registrySource, /massage-lab-dark-veil/)
     assert.match(registrySource, /Dark Veil/)
@@ -1802,6 +1810,7 @@ describe("premium background registry", () => {
     assert.match(effectSource, /resolutionScale: 1/)
     assert.match(effectSource, /canvas\.width = Math\.max\(1, Math\.floor\(width \* dpr \* options\.resolutionScale\)\)/)
     assert.match(effectSource, /canvas\.height = Math\.max\(1, Math\.floor\(height \* dpr \* options\.resolutionScale\)\)/)
+    assert.match(effectSource, /canvas\.style\.imageRendering = options\.resolutionScale < 1 \? "pixelated" : "auto"/)
     assert.match(effectSource, /resolution\[0\] = canvas\.width/)
     assert.match(effectSource, /resolution\[1\] = canvas\.height/)
     assert.doesNotMatch(effectSource, /resolution\[0\] = width/)
@@ -1846,6 +1855,24 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /postprocessing/)
     assert.doesNotMatch(effectSource, /mousemove/)
     assert.doesNotMatch(effectSource, /pointermove/)
+    assert.match(controlSource, /DarkVeilHueShiftControl/)
+    assert.match(controlSource, /channel="hue"/)
+    assert.match(controlSource, /min=\{-180\}/)
+    assert.match(controlSource, /max=\{180\}/)
+    assert.match(controlSource, /DarkVeilResolutionScaleControl/)
+    assert.match(controlSource, /value=\{displayPercent\}/)
+    assert.match(controlSource, /min=\{25\}/)
+    assert.match(controlSource, /max=\{100\}/)
+    assert.match(controlSource, /onChange=\{\(nextPercent\) => onChange\(nextPercent \/ 100\)\}/)
+    assert.match(paletteEditorSource, /customControlsAfterSwatches/)
+    assert.match(paletteEditorSource, /effectiveMode === "custom"/)
+    assert.doesNotMatch(setupSource, /<DarkVeilHueShiftControl/)
+    assert.match(setupSource, /<DarkVeilResolutionScaleControl/)
+    assert.match(runningSource, /visualEditorBackgroundId === "massage-lab-dark-veil"/)
+    assert.match(runningSource, /customControlsAfterSwatches=/)
+    assert.match(runningSource, /<DarkVeilHueShiftControl/)
+    assert.match(runningSource, /<DarkVeilResolutionScaleControl/)
+    assert.doesNotMatch(runningSource, /<span>Hue shift \(\{massageLabDarkVeilHueShift/)
     for (const settingKey of [
       "massageLabDarkVeilHueShift",
       "massageLabDarkVeilNoiseIntensity",

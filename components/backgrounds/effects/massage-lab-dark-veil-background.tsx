@@ -230,6 +230,10 @@ export default function MassageLabDarkVeilBackground({
       canvas.height = Math.max(1, Math.floor(height * dpr * options.resolutionScale))
       canvas.style.width = `${width}px`
       canvas.style.height = `${height}px`
+      // A reduced drawing buffer is a performance/quality choice. Nearest-neighbor
+      // presentation keeps that lower resolution visible instead of smoothing it
+      // back into an apparently unchanged full-resolution image.
+      canvas.style.imageRendering = options.resolutionScale < 1 ? "pixelated" : "auto"
       // gl_FragCoord is drawing-buffer pixels, including DPR and resolutionScale.
       // Matching uResolution prevents the CPPN from cropping at sub-1 scales.
       resolution[0] = canvas.width

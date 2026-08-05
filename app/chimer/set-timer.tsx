@@ -14,6 +14,7 @@ import { MetalAttentionRing } from "@/components/ui/metal-attention-button"
 import { NumberField } from "@/components/chimer-controls/NumberField"
 import { StyledRangeControl } from "@/components/chimer-controls/StyledRangeControl"
 import { StyledToggleControl } from "@/components/chimer-controls/StyledToggleControl"
+import { DarkVeilResolutionScaleControl } from "@/components/chimer-controls/DarkVeilBackgroundControls"
 import { getMassageLab3DGlobeScaleDisplayPercent, getMassageLab3DGlobeScaleFromDisplayPercent, parseGlobeCoordinateDraft, sanitizeChimerSettings } from "@/lib/chimer-timer"
 import { normalizeSharedBackgroundVisualPreferences } from "@/lib/background-palette"
 import { buildBackgroundVisualOpeningSnapshot, buildBackgroundVisualPendingCommit } from "@/lib/background-visual-draft"
@@ -4050,23 +4051,6 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
       return (
         <div className={styles.backgroundCardControls}>
           <label className={styles.rangeRow}>
-            <span>Hue shift ({settings.massageLabDarkVeilHueShift.toFixed(0)} deg)</span>
-            <input
-              type="range"
-              min="-180"
-              max="180"
-              step="1"
-              value={settings.massageLabDarkVeilHueShift}
-              onChange={(event) =>
-                onSettingsChange({
-                  massageLabDarkVeilHueShift: Number(event.target.value),
-                })
-              }
-              aria-label="Dark Veil hue shift"
-            />
-          </label>
-
-          <label className={styles.rangeRow}>
             <span>Animation speed ({settings.massageLabDarkVeilSpeed.toFixed(2)}x)</span>
             <input
               type="range"
@@ -4151,22 +4135,10 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
             />
           </label>
 
-          <label className={styles.rangeRow}>
-            <span>Resolution scale ({settings.massageLabDarkVeilResolutionScale.toFixed(2)})</span>
-            <input
-              type="range"
-              min="0.25"
-              max="1"
-              step="0.05"
-              value={settings.massageLabDarkVeilResolutionScale}
-              onChange={(event) =>
-                onSettingsChange({
-                  massageLabDarkVeilResolutionScale: Number(event.target.value),
-                })
-              }
-              aria-label="Dark Veil resolution scale"
-            />
-          </label>
+          <DarkVeilResolutionScaleControl
+            value={settings.massageLabDarkVeilResolutionScale}
+            onChange={(value) => onSettingsChange({ massageLabDarkVeilResolutionScale: value })}
+          />
         </div>
       )
     }

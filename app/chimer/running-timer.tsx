@@ -18,6 +18,7 @@ import { StyledToggleControl } from "@/components/chimer-controls/StyledToggleCo
 import { BackgroundPaletteEditor } from "@/components/chimer-controls/BackgroundPaletteEditor"
 import { BackgroundColorPresetManager, BackgroundVisualPresetManager, type BackgroundPresetDraftAction } from "@/components/chimer-controls/BackgroundPresetManager"
 import { DnaBackgroundControls, type DnaBackgroundControlOptions } from "@/components/chimer-controls/DnaBackgroundControls"
+import { DarkVeilHueShiftControl, DarkVeilResolutionScaleControl } from "@/components/chimer-controls/DarkVeilBackgroundControls"
 import { StaticGradientControls, type StaticGradientControlOptions } from "@/components/chimer-controls/StaticGradientControls"
 import { TwistedCubesBackgroundControls, type TwistedCubesBackgroundControlOptions } from "@/components/chimer-controls/TwistedCubesBackgroundControls"
 import { Button } from "@/components/ui/button"
@@ -4687,23 +4688,6 @@ export function RunningTimer({
       {option.id === "massage-lab-dark-veil" && (
         <>
           <label className={styles.rangeRow}>
-            <span>Hue shift ({massageLabDarkVeilHueShift.toFixed(0)} deg)</span>
-            <input
-              type="range"
-              min="-180"
-              max="180"
-              step="1"
-              value={massageLabDarkVeilHueShift}
-              onChange={(event) =>
-                handleSettingsChange({
-                  massageLabDarkVeilHueShift: Number(event.target.value),
-                })
-              }
-              aria-label="Dark Veil hue shift"
-            />
-          </label>
-
-          <label className={styles.rangeRow}>
             <span>Animation speed ({massageLabDarkVeilSpeed.toFixed(2)}x)</span>
             <input
               type="range"
@@ -4788,22 +4772,11 @@ export function RunningTimer({
             />
           </label>
 
-          <label className={styles.rangeRow}>
-            <span>Resolution scale ({massageLabDarkVeilResolutionScale.toFixed(2)})</span>
-            <input
-              type="range"
-              min="0.25"
-              max="1"
-              step="0.05"
-              value={massageLabDarkVeilResolutionScale}
-              onChange={(event) =>
-                handleSettingsChange({
-                  massageLabDarkVeilResolutionScale: Number(event.target.value),
-                })
-              }
-              aria-label="Dark Veil resolution scale"
-            />
-          </label>
+          <DarkVeilResolutionScaleControl
+            value={massageLabDarkVeilResolutionScale}
+            hapticsEnabled={hapticsEnabled}
+            onChange={(value) => handleSettingsChange({ massageLabDarkVeilResolutionScale: value })}
+          />
         </>
       )}
 
@@ -13773,6 +13746,18 @@ export function RunningTimer({
                         type: "replace",
                         snapshot: { ...currentVisualEditorSnapshot, mapping },
                       })
+                    }
+                    customControlsAfterSwatches={
+                      visualEditorBackgroundId === "massage-lab-dark-veil" ? (
+                        <DarkVeilHueShiftControl
+                          value={Number(
+                            currentVisualEditorSnapshot.properties.massageLabDarkVeilHueShift
+                              ?? massageLabDarkVeilHueShift,
+                          )}
+                          disabled={!canCustomizeSelectedBackground}
+                          onChange={(value) => handleSettingsChange({ massageLabDarkVeilHueShift: value })}
+                        />
+                      ) : null
                     }
                   />
                   <div className={styles.visualDraftSecondaryAction}>

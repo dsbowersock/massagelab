@@ -1,6 +1,6 @@
 "use client"
 
-import { useId, useMemo } from "react"
+import { type ReactNode, useId, useMemo } from "react"
 
 import { type BackgroundPaletteAdapter } from "@/components/backgrounds/backgroundPaletteRegistry"
 import { ColorPickerSwatch } from "@/components/chimer-controls/GlobalColorPicker"
@@ -36,6 +36,7 @@ export interface BackgroundPaletteEditorProps {
   canCustomize: boolean
   onPaletteChange: (palette: BackgroundPaletteEditorValue) => void
   onMappingChange: (mapping: BackgroundColorMapping) => void
+  customControlsAfterSwatches?: ReactNode
   backgroundName?: string
   className?: string
   disabled?: boolean
@@ -45,8 +46,8 @@ const HARMONY_OPTIONS = CHIMER_HARMONY_OPTIONS.filter((option) => option.value !
 
 /**
  * Presents the shared seven-swatch palette and the selected adapter's mapping.
- * All callbacks are draft-only value transitions; persistence stays with the
- * future Visual editor integration boundary.
+ * An optional background-specific color transform can sit directly after the
+ * swatches in Custom mode. All callbacks remain draft-only value transitions.
  */
 export function BackgroundPaletteEditor({
   palette,
@@ -55,6 +56,7 @@ export function BackgroundPaletteEditor({
   canCustomize,
   onPaletteChange,
   onMappingChange,
+  customControlsAfterSwatches,
   backgroundName = "selected background",
   className,
   disabled = false,
@@ -203,6 +205,10 @@ export function BackgroundPaletteEditor({
           </div>
         ))}
       </div>
+
+      {effectiveMode === "custom" && canCustomize && adapter.status === "supported"
+        ? customControlsAfterSwatches
+        : null}
 
       {roles.length > 0 ? (
         <fieldset className={styles.backgroundPaletteMapping}>
