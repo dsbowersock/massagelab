@@ -26,7 +26,6 @@ type GradientBlindsResources = {
   uniforms: {
     resolution: WebGLUniformLocation
     mouse: WebGLUniformLocation
-    time: WebGLUniformLocation
     angle: WebGLUniformLocation
     noise: WebGLUniformLocation
     blindCount: WebGLUniformLocation
@@ -49,6 +48,9 @@ type GradientBlindsResources = {
 }
 
 const MAX_COLORS = 8
+const PASSIVE_LIGHT_SWEEP_RATE = 0.22
+const PASSIVE_LIGHT_HORIZONTAL_TRAVEL = 0.38
+const PASSIVE_LIGHT_VERTICAL_TRAVEL = 0.08
 
 const DEFAULT_MASSAGELAB_GRADIENT_BLINDS: ResolvedGradientBlindsOptions = {
   dpr: 1,
@@ -84,7 +86,6 @@ const fragmentShaderSource = `
 
   uniform vec3 iResolution;
   uniform vec2 iMouse;
-  uniform float iTime;
 
   uniform float uAngle;
   uniform float uNoise;
@@ -106,9 +107,6 @@ const fragmentShaderSource = `
   uniform int uColorCount;
 
   varying vec2 vUv;
-
-  const float GRADIENT_DRIFT_RATE = 0.11;
-  const float BLIND_DRIFT_RATE = 0.18;
 
   float rand(vec2 co) {
     return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
@@ -162,8 +160,7 @@ const fragmentShaderSource = `
       uvMod.x += sin(a) * w;
       uvMod.y += cos(b) * w;
     }
-    float gradientDrift = sin(iTime * GRADIENT_DRIFT_RATE) * 0.12;
-    float t = clamp(uvMod.x + gradientDrift, 0.0, 1.0);
+    float t = clamp(uvMod.x, 0.0, 1.0);
     if (uMirror > 0.5) {
       t = 1.0 - abs(1.0 - 2.0 * fract(t));
     }
@@ -175,13 +172,13 @@ const fragmentShaderSource = `
     float dn = d / r;
     float spot = (1.0 - 2.0 * pow(dn, uSpotlightSoftness)) * uSpotlightOpacity;
     vec3 cir = vec3(spot);
-    float blindCoordinate = uvMod.x + iTime * BLIND_DRIFT_RATE;
-    float stripe = fract(blindCoordinate * max(uBlindCount, 1.0));
+    float fixedBlindCoordinate = uvMod.x * max(uBlindCount, 1.0);
+    float stripe = fract(fixedBlindCoordinate);
     if (uShineFlip > 0.5) stripe = 1.0 - stripe;
     vec3 ran = vec3(stripe);
 
     vec3 col = cir + base - ran;
-    col += (rand(gl_FragCoord.xy + iTime) - 0.5) * uNoise;
+    col += (rand(gl_FragCoord.xy) - 0.5) * uNoise;
 
     fragColor = vec4(col, 1.0);
   }
@@ -232,6 +229,7 @@ export default function MassageLabGradientBlindsBackground({
     const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)")
     const compactViewportQuery = window.matchMedia("(max-width: 640px)")
     const colors = prepareStops(options.gradientColors)
+    const motionStartTime = performance.now()
     let frame = 0
     let lastTime = performance.now()
     let width = 1
@@ -288,6 +286,17 @@ export default function MassageLabGradientBlindsBackground({
       const delta = (now - lastTime) / 1000
       lastTime = now
 
+      if (!options.enableMouseInteraction) {
+        const sceneTime = Math.max(0, (now - motionStartTime) / 1000)
+        mouseRef.current.targetX = width * (
+          0.5 + Math.sin(sceneTime * PASSIVE_LIGHT_SWEEP_RATE) * PASSIVE_LIGHT_HORIZONTAL_TRAVEL
+        )
+        mouseRef.current.targetY = height * (
+          0.5
+          + Math.sin(sceneTime * PASSIVE_LIGHT_SWEEP_RATE * 0.64) * PASSIVE_LIGHT_VERTICAL_TRAVEL
+        )
+      }
+
       if (options.mouseDampening > 0) {
         const factor = Math.min(1, 1 - Math.exp(-delta / Math.max(0.0001, options.mouseDampening)))
         mouseRef.current.x += (mouseRef.current.targetX - mouseRef.current.x) * factor
@@ -307,7 +316,6 @@ export default function MassageLabGradientBlindsBackground({
         getEffectiveBlindCount(),
         mouseRef.current.x,
         mouseRef.current.y,
-        now * 0.001,
       )
 
       if (shouldAnimate) {
@@ -434,7 +442,6 @@ function createGradientBlindsResources(gl: WebGLRenderingContext): GradientBlind
     uniforms: {
       resolution: getUniformLocation(gl, program, "iResolution"),
       mouse: getUniformLocation(gl, program, "iMouse"),
-      time: getUniformLocation(gl, program, "iTime"),
       angle: getUniformLocation(gl, program, "uAngle"),
       noise: getUniformLocation(gl, program, "uNoise"),
       blindCount: getUniformLocation(gl, program, "uBlindCount"),
@@ -467,7 +474,6 @@ function renderGradientBlinds(
   blindCount: number,
   mouseX: number,
   mouseY: number,
-  time: number,
 ) {
   gl.clearColor(0, 0, 0, 0)
   gl.clear(gl.COLOR_BUFFER_BIT)
@@ -478,7 +484,6 @@ function renderGradientBlinds(
 
   gl.uniform3f(resources.uniforms.resolution, width, height, 1)
   gl.uniform2f(resources.uniforms.mouse, mouseX, mouseY)
-  gl.uniform1f(resources.uniforms.time, time)
   gl.uniform1f(resources.uniforms.angle, (options.angle * Math.PI) / 180)
   gl.uniform1f(resources.uniforms.noise, options.noise)
   gl.uniform1f(resources.uniforms.blindCount, blindCount)

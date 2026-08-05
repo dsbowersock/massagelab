@@ -6,6 +6,11 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-05 — Gradient Blinds fixed-slat light motion
+
+- Superseded the earlier autonomous-motion choice that translated Gradient Blinds' gradient and stripe phase. The gradient and blind coordinates are now time-independent, preserving the position of every slat, while the existing spotlight follows a slow damped sinusoidal path in passive mode so illumination moves gracefully through the fixed structure. Enabling cursor interaction still hands the spotlight back to the pointer, and the shader noise is now spatially stable instead of flickering frame to frame. Reduced motion continues to render one stable representative frame.
+- The focused renderer/catalog/settings contracts pass 182/182, all 1,965 repository tests pass, and typecheck, lint, the 102-page Production build, and the restarted localhost-only `/dev/clock` HTTP check pass. Direct rendered automation remains blocked because the in-app browser's administrator-enforced localhost policy could not be verified, so final motion judgment remains in the user's Device Toolbar review.
+
 ## 2026-08-04 — Dark Veil color and resolution controls
 
 - Dark Veil Hue shift now uses the shared color-channel slider. Its transform-only adapter can enter Custom mode without falsely enabling Harmony or editable shared swatches; in the immersive Visual panel the slider appears directly beneath the seven read-only reference swatches only while Custom is selected, participates in the existing draft/apply history, and stays absent from Source. The renderer's clipped YIQ transform produces a reverse, nonlinear hue response rather than a rotated HSL wheel, so the thumb and track now use an unwrapped calibration curve measured from nine Device Toolbar screenshots across `-180°` through `166°`, with the periodic `180°` endpoint joined back to the same rendered hue as `-180°`.
@@ -53,7 +58,7 @@ Catalog naming note: `MassageLaba Lamp` is the established catalog label for the
 
 ## 2026-08-04 — Phone background animation autonomy remediation
 
-- Gradient Blinds now moves both its gradient and blinds, Pixel Snow animates from a representative nonzero scene time at compact DPR, Faulty Terminal has visible autonomous defaults, and Grid Distortion combines ambient and pointer deformation. Real-browser phone captures prove motion at 390×844, exact-threshold motion at 360×780 for Faulty Terminal and Grid Distortion, and exact reduced-motion stability for all four renderers even with the production `chimer-running` route class present. Both Grid Distortion moving proofs wait 160 browser frames after readiness so seeded displacement has decayed and their 700ms pixel delta isolates autonomous time-driven movement. Preview generation remains deferred until the remaining live-background audit is resolved.
+- Gradient Blinds originally moved both its gradient and blinds in this remediation; the 2026-08-05 correction above supersedes that motion design with fixed slats and moving illumination. Pixel Snow animates from a representative nonzero scene time at compact DPR, Faulty Terminal has visible autonomous defaults, and Grid Distortion combines ambient and pointer deformation. Real-browser phone captures prove motion at 390×844, exact-threshold motion at 360×780 for Faulty Terminal and Grid Distortion, and exact reduced-motion stability for all four renderers even with the production `chimer-running` route class present. Both Grid Distortion moving proofs wait 160 browser frames after readiness so seeded displacement has decayed and their 700ms pixel delta isolates autonomous time-driven movement. Preview generation remains deferred until the remaining live-background audit is resolved.
 
 ## 2026-08-04 — Background layering and framing remediation
 

@@ -31,11 +31,17 @@ function readAnimationPolicyBlock(rendererSource, rendererLabel) {
   return block
 }
 
-test("Gradient Blinds animates its gradient and blind phase", () => {
-  assert.match(gradientBlindsSource, /const float GRADIENT_DRIFT_RATE = 0\.11;/)
-  assert.match(gradientBlindsSource, /const float BLIND_DRIFT_RATE = 0\.18;/)
-  assert.match(gradientBlindsSource, /sin\(iTime \* GRADIENT_DRIFT_RATE\) \* 0\.12/)
-  assert.match(gradientBlindsSource, /uvMod\.x \+ iTime \* BLIND_DRIFT_RATE/)
+test("Gradient Blinds keeps its slats fixed while passive light moves through them", () => {
+  assert.match(gradientBlindsSource, /const PASSIVE_LIGHT_SWEEP_RATE = 0\.22/)
+  assert.match(gradientBlindsSource, /const PASSIVE_LIGHT_HORIZONTAL_TRAVEL = 0\.38/)
+  assert.match(gradientBlindsSource, /Math\.sin\(sceneTime \* PASSIVE_LIGHT_SWEEP_RATE\)/)
+  assert.match(gradientBlindsSource, /float t = clamp\(uvMod\.x, 0\.0, 1\.0\);/)
+  assert.match(gradientBlindsSource, /float fixedBlindCoordinate = uvMod\.x \* max\(uBlindCount, 1\.0\);/)
+  assert.match(gradientBlindsSource, /float stripe = fract\(fixedBlindCoordinate\);/)
+  assert.match(gradientBlindsSource, /rand\(gl_FragCoord\.xy\)/)
+  assert.doesNotMatch(gradientBlindsSource, /GRADIENT_DRIFT_RATE|BLIND_DRIFT_RATE/)
+  assert.doesNotMatch(gradientBlindsSource, /uvMod\.x \+ iTime/)
+  assert.doesNotMatch(gradientBlindsSource, /rand\(gl_FragCoord\.xy \+ iTime\)/)
 })
 
 test("Pixel Snow animates compact viewports and avoids the time-zero singular frame", () => {
