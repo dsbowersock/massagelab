@@ -106,6 +106,7 @@ const fragmentShaderSource = `
   varying vec2 vUv;
 
   const int MAX_SCANS = 8;
+  const float TUNNEL_HALF_EXTENT = 0.5;
 
   float smoother01(float a, float b, float x) {
     float t = clamp((x - a) / max(1e-5, (b - a)), 0.0, 1.0);
@@ -136,7 +137,9 @@ const fragmentShaderSource = `
     float hitIsY = 1.0;
     for (int i = 0; i < 4; i++) {
       float isY = float(i < 2);
-      float pos = mix(-0.2, 0.2, float(i)) * isY + mix(-0.5, 0.5, float(i - 2)) * (1.0 - isY);
+      // All four planes share one camera-relative extent so the ceiling and
+      // floor carry the same depth scale and vanishing point as the walls.
+      float pos = mix(-TUNNEL_HALF_EXTENT, TUNNEL_HALF_EXTENT, mod(float(i), 2.0));
       float num = pos - (isY * ro.y + (1.0 - isY) * ro.x);
       float den = isY * rd.y + (1.0 - isY) * rd.x;
       float t = num / den;
@@ -246,8 +249,8 @@ const fragmentShaderSource = `
     }
 
     float altMask = max(lineX2, lineY2);
-    float edgeDistX = min(abs(hit.x - (-0.5)), abs(hit.x - 0.5));
-    float edgeDistY = min(abs(hit.y - (-0.2)), abs(hit.y - 0.2));
+    float edgeDistX = min(abs(hit.x + TUNNEL_HALF_EXTENT), abs(hit.x - TUNNEL_HALF_EXTENT));
+    float edgeDistY = min(abs(hit.y + TUNNEL_HALF_EXTENT), abs(hit.y - TUNNEL_HALF_EXTENT));
     float edgeDist = mix(edgeDistY, edgeDistX, hitIsY);
     float edgeGate = 1.0 - smoothstep(gridScale * 0.5, gridScale * 2.0, edgeDist);
     altMask *= edgeGate;

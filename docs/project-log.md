@@ -6,6 +6,10 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-05 — Grid Scan shared tunnel depth
+
+- Corrected Grid Scan's perspective room so its ceiling, floor, and both walls use the same camera-relative half extent and corner-edge calculation. The former `0.2` ceiling/floor extent made those planes represent a shallower depth than the walls' `0.5` extent, which was especially apparent in phone portrait as the horizontal planes ending before the side walls. The shared `0.5` extent now carries all four planes toward one consistent distant opening without changing saved settings, controls, colors, scanning motion, or pointer behavior.
+
 ## 2026-08-05 — Gradient Blinds fixed-slat light motion
 
 - Superseded the earlier autonomous-motion choice that translated Gradient Blinds' gradient and stripe phase. The gradient and blind cell boundaries are now time-independent, preserving the position of every slat. Every slat retains a source-color visibility floor, the spotlight is bounded so it only illuminates rather than darkening areas outside its reach, and its slow damped passive path gently flexes the shading inside each fixed cell like a light breeze. Enabling cursor interaction still hands that light and internal flex to the pointer, and the shader noise is spatially stable instead of flickering frame to frame. Reduced motion continues to render one stable representative frame.
