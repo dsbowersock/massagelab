@@ -1,11 +1,27 @@
 "use client"
 
-import { ColorSlider } from "@/components/chimer-controls/ColorSlider"
+import {
+  ColorSlider,
+  type HuePreviewStop,
+} from "@/components/chimer-controls/ColorSlider"
 import { StyledRangeControl } from "@/components/chimer-controls/StyledRangeControl"
 
-// The source shader's dominant saturated region is warm orange. A signed hue
-// shift therefore needs a rotated ramp so 0° previews the authored color.
-const DARK_VEIL_HUE_PREVIEW_OFFSET = 220
+// Dark Veil rotates its CPPN output through a clipped YIQ transform, so its
+// visible hue runs counter to a normal HSL wheel and becomes nonlinear around
+// green. These unwrapped hues are calibrated from the live renderer; keeping
+// them unwrapped makes the shared slider interpolate in the same direction.
+const DARK_VEIL_HUE_PREVIEW_STOPS: readonly HuePreviewStop[] = [
+  { value: -180, hue: 87 },
+  { value: -144, hue: 29 },
+  { value: -108, hue: -16 },
+  { value: -71, hue: -50 },
+  { value: -31, hue: -82 },
+  { value: 18, hue: -122 },
+  { value: 74, hue: -227 },
+  { value: 122, hue: -239 },
+  { value: 166, hue: -256 },
+  { value: 180, hue: -273 },
+]
 
 export interface DarkVeilControlProps {
   value: number
@@ -25,8 +41,8 @@ export function DarkVeilHueShiftControl({ value, onChange, disabled }: DarkVeilC
       max={180}
       step={1}
       unit="°"
-      huePreviewOffset={DARK_VEIL_HUE_PREVIEW_OFFSET}
-      description="Rotates Dark Veil's rendered colors; the slider previews its dominant resulting hue."
+      huePreviewStops={DARK_VEIL_HUE_PREVIEW_STOPS}
+      description="Rotates Dark Veil's rendered colors; the slider is calibrated to its dominant resulting hue."
       disabled={disabled}
       onChange={onChange}
     />

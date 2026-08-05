@@ -1859,8 +1859,23 @@ describe("premium background registry", () => {
     assert.match(controlSource, /channel="hue"/)
     assert.match(controlSource, /min=\{-180\}/)
     assert.match(controlSource, /max=\{180\}/)
-    assert.match(controlSource, /DARK_VEIL_HUE_PREVIEW_OFFSET = 220/)
-    assert.match(controlSource, /huePreviewOffset=\{DARK_VEIL_HUE_PREVIEW_OFFSET\}/)
+    assert.match(controlSource, /DARK_VEIL_HUE_PREVIEW_STOPS/)
+    for (const [value, hue] of [
+      [-180, 87],
+      [-144, 29],
+      [-108, -16],
+      [-71, -50],
+      [-31, -82],
+      [18, -122],
+      [74, -227],
+      [122, -239],
+      [166, -256],
+      [180, -273],
+    ]) {
+      assert.match(controlSource, new RegExp(`value: ${value}, hue: ${hue}`))
+    }
+    assert.match(controlSource, /huePreviewStops=\{DARK_VEIL_HUE_PREVIEW_STOPS\}/)
+    assert.doesNotMatch(controlSource, /DARK_VEIL_HUE_PREVIEW_OFFSET/)
     assert.match(controlSource, /DarkVeilResolutionScaleControl/)
     assert.match(controlSource, /value=\{displayPercent\}/)
     assert.match(controlSource, /min=\{25\}/)
