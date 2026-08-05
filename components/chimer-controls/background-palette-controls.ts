@@ -128,6 +128,19 @@ function swatchUsageLabel(roles: readonly BackgroundPaletteRole[]) {
   return roles.map((role) => role.label).join(" + ")
 }
 
+/** Finds saved swatches that remain user-controlled while Harmony derives sibling roles. */
+function savedHarmonySwatchIndexes(
+  roles: readonly BackgroundPaletteRole[],
+  mapping: BackgroundColorMapping,
+) {
+  return new Set(
+    roles
+      .filter((role) => role.harmonyColorSource === "saved-swatch")
+      .map((role) => mapping[role.id])
+      .filter((index): index is number => Number.isInteger(index)),
+  )
+}
+
 /**
  * Builds every dynamic palette label and editability decision without touching
  * React state, browser storage, account sync, or renderer instances.
@@ -167,6 +180,7 @@ export function buildBackgroundPaletteEditorViewModel({
   const isHarmony = effectiveMode === "harmony"
   const activeMapping = isSource ? sourceMapping : normalizedMapping
   const groupedRoles = rolesBySwatch(roles, activeMapping)
+  const savedHarmonyIndexes = savedHarmonySwatchIndexes(roles, activeMapping)
   const displayColors = isSource
     ? Array.from({ length: BACKGROUND_PALETTE_SWATCH_COUNT }, (_, index) => (
       groupedRoles[index]?.[0]?.sourceColor
@@ -177,7 +191,11 @@ export function buildBackgroundPaletteEditorViewModel({
       ? generateBackgroundHarmonySwatches(
         normalizedPalette.primaryColor,
         normalizedPalette.harmony,
-      )
+      ).map((color: string, index: number) => (
+        savedHarmonyIndexes.has(index)
+          ? normalizedPalette.swatches[index] ?? color
+          : color
+      ))
       : normalizedPalette.swatches
   const swatches = Array.from(
     { length: BACKGROUND_PALETTE_SWATCH_COUNT },
@@ -196,7 +214,9 @@ export function buildBackgroundPaletteEditorViewModel({
           primaryLabel,
           usageLabel,
         ].filter(Boolean).join(", "),
-        readOnly: !supportsSharedPalette || isSource || (isHarmony && index > 0),
+        readOnly: !supportsSharedPalette
+          || isSource
+          || (isHarmony && index > 0 && !savedHarmonyIndexes.has(index)),
         unused: swatchRoles.length === 0,
         roles: swatchRoles,
       }
@@ -266,6 +286,7 @@ export function buildBackgroundPaletteSwatchChange(
   input: {
     palette: BackgroundPaletteEditorValue
     adapter: BackgroundPaletteAdapter
+    mapping?: BackgroundColorMapping
     canCustomize: boolean
     disabled?: boolean
   },
@@ -275,12 +296,19 @@ export function buildBackgroundPaletteSwatchChange(
   const normalized = normalizeBackgroundPaletteState(input.palette) as BackgroundPaletteEditorValue
   const isSource = normalized.mode === "source"
   const isHarmony = normalized.mode === "harmony"
+  const normalizedMapping = normalizeBackgroundColorMapping(
+    input.mapping,
+    input.adapter,
+  ) as BackgroundColorMapping
+  const savedHarmonyIndexes = input.adapter.status === "supported"
+    ? savedHarmonySwatchIndexes(input.adapter.roles, normalizedMapping)
+    : new Set<number>()
   if (
     input.disabled
     || input.adapter.status === "unsupported"
     || !input.canCustomize
     || isSource
-    || (isHarmony && index > 0)
+    || (isHarmony && index > 0 && !savedHarmonyIndexes.has(index))
     || !Number.isInteger(index)
     || index < 0
     || index >= BACKGROUND_PALETTE_SWATCH_COUNT

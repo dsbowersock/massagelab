@@ -48,6 +48,8 @@ export interface BackgroundPaletteRole {
   /** Distinguishes normalized hex sources from authored CSS color syntax. */
   sourceColorFormat: "hex" | "css"
   defaultSwatch: 0 | 1 | 2 | 3 | 4 | 5 | 6
+  /** Selects whether Harmony derives this role or retains its saved shared swatch. */
+  harmonyColorSource: "generated" | "saved-swatch"
   rendererTarget: string
 }
 
@@ -140,6 +142,7 @@ type RoleSpec = readonly [
   transform?: RoleTransform,
   sourceColorOverride?: string,
   defaultSwatchOverride?: BackgroundPaletteRole["defaultSwatch"],
+  harmonyColorSourceOverride?: BackgroundPaletteRole["harmonyColorSource"],
 ]
 type SupportedSpec = {
   id: string
@@ -179,6 +182,7 @@ const role = (
   transform?: RoleTransform,
   sourceColorOverride?: string,
   defaultSwatchOverride?: BackgroundPaletteRole["defaultSwatch"],
+  harmonyColorSourceOverride?: BackgroundPaletteRole["harmonyColorSource"],
 ): RoleSpec => [
   id,
   label,
@@ -187,6 +191,7 @@ const role = (
   transform,
   sourceColorOverride,
   defaultSwatchOverride,
+  harmonyColorSourceOverride,
 ]
 
 /**
@@ -569,6 +574,7 @@ function supported(spec: SupportedSpec): SupportedBackgroundPaletteAdapter {
     ,
     sourceColorOverride,
     defaultSwatchOverride,
+    harmonyColorSourceOverride,
   ], index) => {
     const sourceDefault = CHIMER_BACKGROUND_SOURCE_COLOR_DEFAULTS[sourceSettingKey]
     if (sourceColorOverride === undefined && typeof sourceDefault !== "string") {
@@ -583,6 +589,7 @@ function supported(spec: SupportedSpec): SupportedBackgroundPaletteAdapter {
       sourceColorFormat: /^#[0-9a-f]{6}$/i.test(sourceColor) ? "hex" as const : "css" as const,
       defaultSwatch: defaultSwatchOverride
         ?? (index % 7) as BackgroundPaletteRole["defaultSwatch"],
+      harmonyColorSource: harmonyColorSourceOverride ?? "generated",
       rendererTarget,
     }
   })
@@ -658,7 +665,7 @@ const SUPPORTED_SPECS: readonly SupportedSpec[] = [
     family: "css-dom",
     prefixes: ["massageLabAurora"],
     roles: [
-      role("background", "Background", "massageLabAuroraBackgroundColor", "massageLabAurora.backgroundColor", undefined, undefined, 6),
+      role("background", "Background", "massageLabAuroraBackgroundColor", "massageLabAurora.backgroundColor", undefined, undefined, 6, "saved-swatch"),
       role("aurora-1", "Aurora 1", "massageLabAuroraColorOne", "massageLabAurora.colors[0]", undefined, undefined, 0),
       role("aurora-2", "Aurora 2", "massageLabAuroraColorTwo", "massageLabAurora.colors[1]", undefined, undefined, 1),
       role("aurora-3", "Aurora 3", "massageLabAuroraColorThree", "massageLabAurora.colors[2]", undefined, undefined, 2),

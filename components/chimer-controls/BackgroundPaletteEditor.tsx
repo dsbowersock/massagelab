@@ -107,7 +107,7 @@ export function BackgroundPaletteEditor({
 
   function changeSwatch(index: number, color: string) {
     const nextPalette = buildBackgroundPaletteSwatchChange(
-      { palette: normalizedPalette, adapter, canCustomize, disabled },
+      { palette: normalizedPalette, adapter, mapping: normalizedMapping, canCustomize, disabled },
       index,
       color,
     )

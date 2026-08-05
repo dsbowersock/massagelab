@@ -1605,7 +1605,7 @@ const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
     performanceCost: "low",
     requiresSubscription: true,
     enabled: true,
-    customizationSummary: "Source, Custom, and Harmony colors with motion, intensity, blur, and field-reach controls.",
+    customizationSummary: "Source and Custom colors, Harmony-driven bands, an independent background color, and visual tuning.",
     component: () => cssBackgrounds().then((module) => ({ default: module.MassageLabAuroraBackground })),
     fallbackStyle: {
       background:

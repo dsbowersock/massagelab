@@ -1538,6 +1538,17 @@ describe("background palette adapter registry", () => {
     })
     assert.equal(resolved.massageLabAurora.backgroundColor, CUSTOM_SWATCHES[6])
     assert.deepEqual(resolved.massageLabAurora.colors, CUSTOM_SWATCHES.slice(0, 5))
+
+    const harmonyResolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-aurora",
+      effectProps: cssDomFixtures["massage-lab-aurora"],
+      palette: paletteForMode("harmony"),
+      mapping: {},
+      canCustomize: true,
+    })
+    const harmonySwatches = generateBackgroundHarmonySwatches(HARMONY_PRIMARY, "triadic")
+    assert.equal(harmonyResolved.massageLabAurora.backgroundColor, CUSTOM_SWATCHES[6])
+    assert.deepEqual(harmonyResolved.massageLabAurora.colors, harmonySwatches.slice(0, 5))
   })
 
   it("preserves Ripple Grid rainbow and Aurora Bars/Tile Grid automatic Source controls", () => {

@@ -72,7 +72,8 @@ test("shared palette editor presents one accessible mode choice and seven indexe
 
 test("Source and Harmony are contextual views that preserve dormant saved swatches", () => {
   assert.match(controlsSource, /effectiveMode === "source"/)
-  assert.match(controlsSource, /readOnly: !supportsSharedPalette \|\| isSource \|\| \(isHarmony && index > 0\)/)
+  assert.match(controlsSource, /savedHarmonySwatchIndexes/)
+  assert.match(controlsSource, /isHarmony && index > 0 && !savedHarmonyIndexes\.has\(index\)/)
   assert.match(controlsSource, /generateBackgroundHarmonySwatches/)
   assert.match(editorSource, /HarmonyToggleGroup/)
   assert.match(editorSource, /Unlock \{backgroundName\} with a credit, purchase, or membership/)
@@ -462,4 +463,45 @@ test("palette editor view models and changes are pure, indexed, and mapping-awar
     accent: 2,
   })
   assert.deepEqual({ palette, mapping }, before)
+})
+
+test("Harmony keeps a saved-swatch role editable and independent from generated colors", () => {
+  const adapter = {
+    status: "supported",
+    roles: [
+      { id: "band", label: "Aurora band", sourceColor: "#010203", defaultSwatch: 0 },
+      {
+        id: "background",
+        label: "Background",
+        sourceColor: "#040506",
+        defaultSwatch: 6,
+        harmonyColorSource: "saved-swatch",
+      },
+    ],
+  }
+  const palette = {
+    mode: "harmony",
+    primaryColor: "#ff0000",
+    harmony: "triad",
+    swatches: ["#111111", "#222222", "#333333", "#444444", "#555555", "#666666", "#123456"],
+  }
+  const viewModel = buildBackgroundPaletteEditorViewModel({
+    palette,
+    adapter,
+    mapping: {},
+    canCustomize: true,
+  })
+
+  assert.equal(viewModel.swatches[0].color, "#ff0000")
+  assert.equal(viewModel.swatches[6].color, "#123456")
+  assert.equal(viewModel.swatches[6].readOnly, false)
+  assert.deepEqual(buildBackgroundPaletteSwatchChange({
+    palette,
+    adapter,
+    mapping: {},
+    canCustomize: true,
+  }, 6, "#abcdef"), {
+    ...palette,
+    swatches: ["#ff0000", "#222222", "#333333", "#444444", "#555555", "#666666", "#abcdef"],
+  })
 })

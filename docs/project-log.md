@@ -6,6 +6,11 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-05 — Aurora Field independent Harmony background
+
+- Corrected Aurora Field's Swatch 7 role semantics after Device Toolbar review: Harmony now generates colors only for the five aurora bands. The background resolves from the saved Swatch 7 value, remains visibly editable while Harmony is active, and no longer changes when the user changes the primary color or harmony choice. Other backgrounds retain their existing generated Harmony behavior.
+- The focused palette resolver, adapter, and editor contracts pass; all 1,973 repository tests, typecheck, lint, `git diff --check`, the 102-page Production build, and the restarted localhost-only `/dev/clock` HTTP check pass. Direct rendered automation remains blocked by the unresolved administrator-enforced in-app-browser localhost policy, so the user's Device Toolbar review remains the visual acceptance path.
+
 ## 2026-08-05 — Aurora Field visual tuning and shared colors
 
 - Added Aurora Field controls to both Chimer/Clock Visual panels for Motion speed (`0.25x`-`2.00x`), Intensity (`10%`-`100%`), Blur (`0`-`30px`), and Field reach (`30%`-`100%`), retaining the source-matched `1.00x`, `50%`, `10px`, and `70%` defaults.
