@@ -995,8 +995,10 @@ async function expectExactComputedConsumer({
     .first()
     .locator(":scope > span > span")
   const expectedCubeTransform = async () => normalizeAnimatedTransformForTarget(firstCube, [
-    { transform: "translate(-50%, -50%) rotate3d(1, 1, 1, 0deg)", offset: 0, easing: "linear" },
-    { transform: "translate(-50%, -50%) rotate3d(1, 1, 1, 360deg)", offset: 1 },
+    { transform: "translate(-50%, -50%) rotateZ(0deg) rotateX(0deg) rotateZ(0deg)", offset: 0, easing: "cubic-bezier(0.5, 0.1, 0.5, 0.9)" },
+    { transform: "translate(-50%, -50%) rotateZ(90deg) rotateX(0deg) rotateZ(0deg)", offset: 0.33, easing: "cubic-bezier(0.5, 0.1, 0.5, 0.9)" },
+    { transform: "translate(-50%, -50%) rotateZ(90deg) rotateX(90deg) rotateZ(0deg)", offset: 0.66, easing: "cubic-bezier(0.5, 0.1, 0.5, 0.9)" },
+    { transform: "translate(-50%, -50%) rotateZ(90deg) rotateX(90deg) rotateZ(90deg)", offset: 1 },
   ], {
     duration: cubeDurationSeconds * 1000,
     delay: firstCubeDelaySeconds * 1000,

@@ -76,20 +76,19 @@ test("the Twisted Cubes renderer stays a scoped, non-interactive CSS DOM effect"
   assert.match(stylesheetCode, /@keyframes\s+mlTwistedCubesRotate/)
   assert.doesNotMatch(stylesheetCode, /backface-visibility/)
   assert.doesNotMatch(stylesheetCode, /scale\(var\(--ml-twisted-cubes-scale\)\)/)
-  assert.doesNotMatch(stylesheetCode, /cubic-bezier/)
   assert.doesNotMatch(stylesheetCode, /will-change/)
+  assert.match(stylesheetCode, /cubic-bezier\(0\.5, 0\.1, 0\.5, 0\.9\)/)
   assert.match(
     stylesheetCode,
-    /\.cube\s*\{[^}]*transform:\s*translate\(-50%, -50%\) rotate3d\(1, 1, 1, 0deg\);[^}]*animation:\s*mlTwistedCubesRotate var\(--ml-twisted-cubes-cycle\) linear infinite;/,
+    /\.cube\s*\{[^}]*transform:\s*translate\(-50%, -50%\) rotateZ\(0deg\) rotateX\(0deg\) rotateZ\(0deg\);[^}]*animation:/,
   )
   assert.match(
     stylesheetCode,
-    /from\s*\{[^}]*transform:\s*translate\(-50%, -50%\) rotate3d\(1, 1, 1, 0deg\);/,
+    /0%\s*\{[^}]*transform:\s*translate\(-50%, -50%\) rotateZ\(0deg\) rotateX\(0deg\) rotateZ\(0deg\);/,
   )
-  assert.match(
-    stylesheetCode,
-    /to\s*\{[^}]*transform:\s*translate\(-50%, -50%\) rotate3d\(1, 1, 1, 360deg\);/,
-  )
+  for (const stage of ["0%", "33%", "66%", "100%"]) {
+    assert.match(stylesheetCode, new RegExp(`(?:^|\\n)\\s*${stage}\\s*\\{`))
+  }
   for (const axis of ["x", "y", "z"]) {
     assert.match(stylesheetCode, new RegExp(`\\.edge\\[data-axis="${axis}"\\]`))
   }
