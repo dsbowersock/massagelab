@@ -196,6 +196,9 @@ export type MassageLabPixelSnowVariant = "square" | "round" | "snowflake"
 export type MassageLabPrismaticBurstAnimationType = "rotate" | "rotate3d" | "hover"
 export type MassageLabPrismaticBurstMixBlendMode = "lighten" | "screen" | "none"
 
+export const MASSAGE_LAB_ELECTRIC_MIST_DISPLAY_SPEED_MIN = 1
+export const MASSAGE_LAB_ELECTRIC_MIST_DISPLAY_SPEED_MAX = 100
+export const MASSAGE_LAB_ELECTRIC_MIST_DISPLAY_SPEED_STEP = 1
 export const MASSAGE_LAB_ASTRAL_FLOW_SOURCE_SPEED_MIN = 0.1
 export const MASSAGE_LAB_ASTRAL_FLOW_SOURCE_SPEED_MAX = 3
 export const MASSAGE_LAB_ASTRAL_FLOW_DISPLAY_SPEED_MIN = 10
@@ -2137,9 +2140,9 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
             <span>Animation speed ({Math.round(settings.massageLabElectricMistSpeed)}%)</span>
             <input
               type="range"
-              min="1"
-              max="400"
-              step="1"
+              min={MASSAGE_LAB_ELECTRIC_MIST_DISPLAY_SPEED_MIN}
+              max={MASSAGE_LAB_ELECTRIC_MIST_DISPLAY_SPEED_MAX}
+              step={MASSAGE_LAB_ELECTRIC_MIST_DISPLAY_SPEED_STEP}
               value={settings.massageLabElectricMistSpeed}
               onChange={(event) =>
                 onSettingsChange({

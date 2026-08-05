@@ -2692,8 +2692,8 @@ describe("Chimer entitlement-aware settings", () => {
       massageLabLightSpeedRadius: 42,
       massageLabLightSpeedCylinderLength: 220,
       massageLabElectricMistColor: "#33B2FF",
-      massageLabElectricMistSpeed: 250,
-      massageLabElectricMistControlVersion: 2,
+      massageLabElectricMistSpeed: 80,
+      massageLabElectricMistControlVersion: 3,
       massageLabElectricMistDetail: 2.4,
       massageLabElectricMistDistortion: 5.5,
       massageLabElectricMistBrightness: 80,
@@ -2987,8 +2987,8 @@ describe("Chimer entitlement-aware settings", () => {
       massageLabLightSpeedRadius: 42,
       massageLabLightSpeedCylinderLength: 220,
       massageLabElectricMistColor: "#33B2FF",
-      massageLabElectricMistSpeed: 250,
-      massageLabElectricMistControlVersion: 2,
+      massageLabElectricMistSpeed: 80,
+      massageLabElectricMistControlVersion: 3,
       massageLabElectricMistDetail: 2.4,
       massageLabElectricMistDistortion: 5.5,
       massageLabElectricMistBrightness: 80,
@@ -3150,7 +3150,7 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(settings.massageLabLightSpeedIntensity, 4.5)
     assert.equal(settings.massageLabLightSpeedRadius, 42)
     assert.equal(settings.massageLabLightSpeedCylinderLength, 220)
-    assert.equal(settings.massageLabElectricMistSpeed, 250)
+    assert.equal(settings.massageLabElectricMistSpeed, 80)
     assert.equal(settings.massageLabElectricMistDetail, 2.4)
     assert.equal(settings.massageLabElectricMistDistortion, 5.5)
     assert.equal(settings.massageLabElectricMistBrightness, 80)
@@ -3256,8 +3256,8 @@ describe("Chimer entitlement-aware settings", () => {
       massageLabLightSpeedRadius: 42,
       massageLabLightSpeedCylinderLength: 220,
       massageLabElectricMistColor: "#33B2FF",
-      massageLabElectricMistSpeed: 250,
-      massageLabElectricMistControlVersion: 2,
+      massageLabElectricMistSpeed: 80,
+      massageLabElectricMistControlVersion: 3,
       massageLabElectricMistDetail: 2.4,
       massageLabElectricMistDistortion: 5.5,
       massageLabElectricMistBrightness: 80,
@@ -3385,7 +3385,7 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(settings.massageLabLightSpeedIntensity, 4.5)
     assert.equal(settings.massageLabLightSpeedRadius, 42)
     assert.equal(settings.massageLabLightSpeedCylinderLength, 220)
-    assert.equal(settings.massageLabElectricMistSpeed, 250)
+    assert.equal(settings.massageLabElectricMistSpeed, 80)
     assert.equal(settings.massageLabElectricMistDetail, 2.4)
     assert.equal(settings.massageLabElectricMistDistortion, 5.5)
     assert.equal(settings.massageLabElectricMistBrightness, 80)

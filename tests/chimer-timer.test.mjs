@@ -660,23 +660,34 @@ describe("Chimer timer helpers", () => {
     const settings = sanitizeChimerSettings({
       massageLabElectricMistColor: "#33b2ff",
       massageLabElectricMistSpeed: 999,
-      massageLabElectricMistControlVersion: 2,
+      massageLabElectricMistControlVersion: 3,
       massageLabElectricMistDetail: 0,
       massageLabElectricMistDistortion: 99,
       massageLabElectricMistBrightness: 0,
     })
 
-    assert.equal(settings.massageLabElectricMistSpeed, 400)
-    assert.equal(settings.massageLabElectricMistControlVersion, 2)
+    assert.equal(settings.massageLabElectricMistSpeed, 100)
+    assert.equal(settings.massageLabElectricMistControlVersion, 3)
     assert.equal(settings.massageLabElectricMistDetail, 0.5)
     assert.equal(settings.massageLabElectricMistDistortion, 8)
     assert.equal(settings.massageLabElectricMistBrightness, 1)
     const legacySettings = sanitizeChimerSettings({
-      massageLabElectricMistSpeed: 3.5,
+      massageLabElectricMistSpeed: 1,
       massageLabElectricMistBrightness: 0.5,
     })
-    assert.equal(legacySettings.massageLabElectricMistSpeed, 350)
+    assert.equal(legacySettings.massageLabElectricMistSpeed, 50)
     assert.equal(legacySettings.massageLabElectricMistBrightness, 50)
+    assert.equal(
+      sanitizeChimerSettings({
+        massageLabElectricMistControlVersion: 2,
+        massageLabElectricMistSpeed: 100,
+      }).massageLabElectricMistSpeed,
+      50,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ massageLabElectricMistSpeed: 3.5 }).massageLabElectricMistSpeed,
+      100,
+    )
     assert.equal(
       sanitizeChimerSettings({
         massageLabElectricMistControlVersion: 2,
@@ -706,13 +717,14 @@ describe("Chimer timer helpers", () => {
     const first = sanitizeChimerSettings({
       massageLabLightSpeedWarpSpeed: 0.4,
       massageLabLightSpeedWarpSpeedVersion: 2,
-      massageLabElectricMistSpeed: 275,
+      massageLabElectricMistSpeed: 150,
       massageLabElectricMistControlVersion: 2,
     })
     const second = sanitizeChimerSettings(first)
 
     assert.equal(first.massageLabLightSpeedWarpSpeedVersion, 2)
-    assert.equal(first.massageLabElectricMistControlVersion, 2)
+    assert.equal(first.massageLabElectricMistSpeed, 75)
+    assert.equal(first.massageLabElectricMistControlVersion, 3)
     assert.deepEqual(second, first)
   })
 

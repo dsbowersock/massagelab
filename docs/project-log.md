@@ -6,6 +6,12 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-04 — Electric Mist speed-scale normalization
+
+- Electric Mist animation speed now uses a bounded `1%-100%` user-facing scale. The original authored `100%` pace remains the default and is displayed as `50%`; the new `100%` endpoint renders at the requested authored `200%` maximum.
+- A versioned settings migration halves previously saved direct-percent values so their rendered pace remains unchanged, clamps only values above the new authored ceiling, and leaves the existing brightness percentage semantics intact.
+- Focused migration/renderer/entitlement contracts, all 1,965 repository tests, typecheck, lint, the 102-page Production build, and `git diff --check` pass. The in-app browser can claim the open `/dev/clock` tab but cannot inspect localhost because its admin policy is unavailable, so final visual judgment remains in the user's Device Toolbar review.
+
 ## 2026-08-04 — Twisted Cubes depth and rotation follow-up
 
 - Rotation speed is now bounded at `0.01x-2x`. Layer depth uses a stronger bounded orthographic projection that changes the rendered layer scale noticeably without adding perspective or reducing the approved layer count and wireframe quality.
