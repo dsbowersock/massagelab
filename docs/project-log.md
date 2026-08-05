@@ -8,7 +8,7 @@ Catalog naming note: `MassageLaba Lamp` is the established catalog label for the
 
 ## 2026-08-05 — Grid Scan shared tunnel depth
 
-- Corrected Grid Scan's perspective room so its ceiling, floor, and both walls use proportional camera-relative extents, matching corner-edge calculations, and one shared far-depth fade. The former fixed `0.2` ceiling/floor versus `0.5` wall extents produced mismatched depth, while the first equal-extent correction forced a square distant opening. Grid Scan now keeps a `0.5` half-height, derives the half-width from the live render width/height, and terminates every plane at the same camera depth, so the opening and full tunnel cross-section match the user's viewport aspect ratio without any pair of surfaces appearing shorter in portrait, landscape, resize, or rotation states. Saved settings, controls, colors, scanning motion, and pointer behavior are unchanged.
+- Corrected Grid Scan's perspective room so its ceiling, floor, and both walls use proportional camera-relative extents, matching corner-edge calculations, and one shared far-depth fade into an opaque black cap. The former fixed `0.2` ceiling/floor versus `0.5` wall extents produced mismatched depth, while the first equal-extent correction forced a square distant opening. Grid Scan now keeps a `0.5` half-height, derives the half-width from the live render width/height, and terminates every plane at the same camera depth, so the black opening and full tunnel cross-section match the user's viewport aspect ratio without any pair of surfaces appearing shorter in portrait, landscape, resize, or rotation states. Saved settings, controls, colors, scanning motion, and pointer behavior are unchanged.
 
 ## 2026-08-05 — Gradient Blinds fixed-slat light motion
 

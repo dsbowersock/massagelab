@@ -265,6 +265,7 @@ const fragmentShaderSource = `
     // A shared z-depth cutoff makes every plane reach the same far end even
     // though the viewport-shaped tunnel uses different horizontal/vertical extents.
     float depthVisibility = 1.0 - smoothstep(TUNNEL_FADE_START, TUNNEL_FAR_DEPTH, surfaceDepth);
+    float farVoid = 1.0 - depthVisibility;
     float fade = exp(-dist * fadeStrength) * depthVisibility;
 
     float dur = max(0.05, uScanDuration);
@@ -337,6 +338,10 @@ const fragmentShaderSource = `
     float gy = 1.0 - smoothstep(ty * 2.0, ty * 2.0 + aay * 2.0, ay);
     float halo = max(gx, gy) * fade;
     alpha = max(alpha, halo * clamp(uBloomOpacity, 0.0, 1.0));
+    // The far end is a real opaque black cap. Without this alpha restoration,
+    // the shared page backdrop shows through wherever the tunnel grid fades out.
+    color = mix(color, vec3(0.0), farVoid);
+    alpha = max(alpha, farVoid);
     fragColor = vec4(color, alpha);
   }
 
