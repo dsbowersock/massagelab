@@ -4288,6 +4288,9 @@ describe("premium background registry", () => {
 
     assert.match(effectSource, /MassageLabDotFieldBackground/)
     assert.match(effectSource, /DEFAULT_MASSAGELAB_DOT_FIELD/)
+    assert.match(effectSource, /dotRadius:\s*4,/)
+    assert.match(effectSource, /dotSpacing:\s*6,/)
+    assert.match(effectSource, /sparkle:\s*true,/)
     assert.match(effectSource, /buildDots/)
     assert.match(effectSource, /cursorForce/)
     assert.match(effectSource, /bulgeStrength/)

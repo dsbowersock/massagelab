@@ -30,14 +30,14 @@ type ResolvedDotFieldOptions = Required<MassageLabDotFieldOptions>
 const TWO_PI = Math.PI * 2
 const OFFSCREEN_MOUSE = -9999
 const DEFAULT_MASSAGELAB_DOT_FIELD: ResolvedDotFieldOptions = {
-  dotRadius: 1.5,
-  dotSpacing: 14,
+  dotRadius: 4,
+  dotSpacing: 6,
   cursorRadius: 500,
   cursorForce: 0.1,
   bulgeOnly: true,
   bulgeStrength: 67,
   glowRadius: 160,
-  sparkle: false,
+  sparkle: true,
   waveAmplitude: 0,
   gradientFrom: "rgba(168, 85, 247, 0.35)",
   gradientTo: "rgba(180, 151, 207, 0.25)",

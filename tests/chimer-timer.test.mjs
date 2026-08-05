@@ -2504,6 +2504,11 @@ describe("Chimer timer helpers", () => {
   })
 
   it("normalizes MassageLab Dot Field background controls", () => {
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabDotFieldDotRadius, 4)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabDotFieldDotSpacing, 6)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabDotFieldSparkle, true)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabDotFieldDefaultsVersion, 1)
+
     const settings = sanitizeChimerSettings({
       massageLabDotFieldPaletteMode: "harmony",
       massageLabDotFieldPrimaryColor: "#abcdef",
@@ -2533,6 +2538,24 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabDotFieldSparkle, true)
     assert.equal(settings.massageLabDotFieldWaveAmplitude, 48)
     assert.equal(settings.massageLabDotFieldCursorInteraction, false)
+    const migratedDefaults = sanitizeChimerSettings({
+      massageLabDotFieldDotRadius: 1.5,
+      massageLabDotFieldDotSpacing: 14,
+      massageLabDotFieldSparkle: false,
+    })
+    assert.equal(migratedDefaults.massageLabDotFieldDotRadius, 4)
+    assert.equal(migratedDefaults.massageLabDotFieldDotSpacing, 6)
+    assert.equal(migratedDefaults.massageLabDotFieldSparkle, true)
+    assert.equal(migratedDefaults.massageLabDotFieldDefaultsVersion, 1)
+    const customizedLegacySettings = sanitizeChimerSettings({
+      massageLabDotFieldDotRadius: 2,
+      massageLabDotFieldDotSpacing: 14,
+      massageLabDotFieldSparkle: false,
+    })
+    assert.equal(customizedLegacySettings.massageLabDotFieldDotRadius, 2)
+    assert.equal(customizedLegacySettings.massageLabDotFieldDotSpacing, 14)
+    assert.equal(customizedLegacySettings.massageLabDotFieldSparkle, false)
+    assert.deepEqual(sanitizeChimerSettings(customizedLegacySettings), customizedLegacySettings)
     assert.equal(
       sanitizeChimerSettings({ massageLabDotFieldBulgeOnly: "yes" }).massageLabDotFieldBulgeOnly,
       DEFAULT_CHIMER_SETTINGS.massageLabDotFieldBulgeOnly,
