@@ -6,6 +6,12 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-05 — Chrome Flow speed correction
+
+- A Device Toolbar screenshot disambiguated two currently duplicate Chrome Flow catalog labels. The requested control was the React Bits renderer at ID `massage-lab-liquid-chrome`, identifiable by Speed, Amplitude, Frequency X/Y, and Cursor interaction—not the Chamaac renderer at ID `massage-lab-chrome-flow`, which exposes Flow speed and Time scale. The first pass changed the latter and is fully reverted here.
+- The screenshot-matched Chrome Flow now stores raw Speed from `0.001` to `3.0` while both Visual panels present it as `0.1%-100%` with `0.1%` steps. Its raw `0.2` default, amplitude, frequencies, cursor interaction, color behavior, entitlement behavior, and background ID are unchanged.
+- The four focused exact-ID, renderer, control, and sanitizer contracts pass, all 1,967 repository tests pass, and typecheck, lint, `git diff --check`, the 102-page Production build, and the restarted localhost-only `/dev/clock` HTTP check pass. Direct rendered automation remains blocked by the unresolved administrator-enforced in-app-browser localhost policy, so the user's Device Toolbar review remains the visual acceptance path.
+
 ## 2026-08-05 — Shape Grid speed scale
 
 - Changed Shape Grid's authored speed default from `1.0` to `0.25`, corrected its renderer and sanitizer range to `0.0-2.0`, and presented that raw range as a true `0%-100%` slider in both Visual panels. The default appears as `12.5%`, while the `0%` endpoint now leaves the grid stationary instead of silently applying a `0.1` motion floor. A versioned exact-default migration moves only untouched former `1.0` settings to `0.25`; customized legacy speeds retain their meaning and are clamped only when outside the corrected range. Direction, cell size, shape, trail, cursor behavior, colors, entitlement behavior, and background ID are unchanged.

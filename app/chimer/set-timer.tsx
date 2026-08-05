@@ -220,6 +220,11 @@ export const MASSAGE_LAB_LIQUID_CHROME_SOURCE_FLOW_SPEED_MAX = 2
 export const MASSAGE_LAB_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MIN = 1
 export const MASSAGE_LAB_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MAX = 100
 export const MASSAGE_LAB_LIQUID_CHROME_DISPLAY_FLOW_SPEED_STEP = 1
+export const MASSAGE_LAB_CATALOG_CHROME_FLOW_SOURCE_SPEED_MIN = 0.001
+export const MASSAGE_LAB_CATALOG_CHROME_FLOW_SOURCE_SPEED_MAX = 3
+export const MASSAGE_LAB_CATALOG_CHROME_FLOW_DISPLAY_SPEED_MIN = 0.1
+export const MASSAGE_LAB_CATALOG_CHROME_FLOW_DISPLAY_SPEED_MAX = 100
+export const MASSAGE_LAB_CATALOG_CHROME_FLOW_DISPLAY_SPEED_STEP = 0.1
 export const MASSAGE_LAB_LIQUID_CHROME_SOURCE_TIME_SCALE_MIN = 0.001
 export const MASSAGE_LAB_LIQUID_CHROME_SOURCE_TIME_SCALE_MAX = 1
 export const MASSAGE_LAB_LIQUID_CHROME_DISPLAY_TIME_SCALE_MIN = 1
@@ -315,6 +320,22 @@ export function getMassageLabChromeFlowSourceFlowSpeed(displaySpeed: number) {
   const sourceRange = MASSAGE_LAB_LIQUID_CHROME_SOURCE_FLOW_SPEED_MAX - MASSAGE_LAB_LIQUID_CHROME_SOURCE_FLOW_SPEED_MIN
   const displayRange = MASSAGE_LAB_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MAX - MASSAGE_LAB_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MIN
   return Math.round((MASSAGE_LAB_LIQUID_CHROME_SOURCE_FLOW_SPEED_MIN + ((clampedDisplay - MASSAGE_LAB_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MIN) / displayRange) * sourceRange) * 1000) / 1000
+}
+
+// The catalog's Chrome Flow is the separate React Bits liquid-chrome renderer.
+// A tenth-percent display scale makes its sub-0.01 source speeds selectable.
+export function getMassageLabCatalogChromeFlowDisplaySpeed(sourceSpeed: number) {
+  const clampedSpeed = Math.min(MASSAGE_LAB_CATALOG_CHROME_FLOW_SOURCE_SPEED_MAX, Math.max(MASSAGE_LAB_CATALOG_CHROME_FLOW_SOURCE_SPEED_MIN, sourceSpeed))
+  const sourceRange = MASSAGE_LAB_CATALOG_CHROME_FLOW_SOURCE_SPEED_MAX - MASSAGE_LAB_CATALOG_CHROME_FLOW_SOURCE_SPEED_MIN
+  const displayRange = MASSAGE_LAB_CATALOG_CHROME_FLOW_DISPLAY_SPEED_MAX - MASSAGE_LAB_CATALOG_CHROME_FLOW_DISPLAY_SPEED_MIN
+  return Math.round((MASSAGE_LAB_CATALOG_CHROME_FLOW_DISPLAY_SPEED_MIN + ((clampedSpeed - MASSAGE_LAB_CATALOG_CHROME_FLOW_SOURCE_SPEED_MIN) / sourceRange) * displayRange) * 10) / 10
+}
+
+export function getMassageLabCatalogChromeFlowSourceSpeed(displaySpeed: number) {
+  const clampedDisplay = Math.min(MASSAGE_LAB_CATALOG_CHROME_FLOW_DISPLAY_SPEED_MAX, Math.max(MASSAGE_LAB_CATALOG_CHROME_FLOW_DISPLAY_SPEED_MIN, displaySpeed))
+  const sourceRange = MASSAGE_LAB_CATALOG_CHROME_FLOW_SOURCE_SPEED_MAX - MASSAGE_LAB_CATALOG_CHROME_FLOW_SOURCE_SPEED_MIN
+  const displayRange = MASSAGE_LAB_CATALOG_CHROME_FLOW_DISPLAY_SPEED_MAX - MASSAGE_LAB_CATALOG_CHROME_FLOW_DISPLAY_SPEED_MIN
+  return Math.round((MASSAGE_LAB_CATALOG_CHROME_FLOW_SOURCE_SPEED_MIN + ((clampedDisplay - MASSAGE_LAB_CATALOG_CHROME_FLOW_DISPLAY_SPEED_MIN) / displayRange) * sourceRange) * 1000) / 1000
 }
 
 export function getMassageLabChromeFlowDisplayTimeScale(sourceTimeScale: number) {
@@ -10054,6 +10075,8 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
     }
 
     if (option.id === "massage-lab-liquid-chrome") {
+      const liquidChromeDisplaySpeed = getMassageLabCatalogChromeFlowDisplaySpeed(settings.massageLabLiquidChromeSpeed)
+
       return (
         <div className={styles.backgroundCardControls}>
           <label className={styles.switchRow}>
@@ -10071,19 +10094,19 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Speed ({settings.massageLabLiquidChromeSpeed.toFixed(2)})</span>
+            <span>Speed ({liquidChromeDisplaySpeed}%)</span>
             <input
               type="range"
-              min="0"
-              max="3"
-              step="0.01"
-              value={settings.massageLabLiquidChromeSpeed}
+              min={MASSAGE_LAB_CATALOG_CHROME_FLOW_DISPLAY_SPEED_MIN}
+              max={MASSAGE_LAB_CATALOG_CHROME_FLOW_DISPLAY_SPEED_MAX}
+              step={MASSAGE_LAB_CATALOG_CHROME_FLOW_DISPLAY_SPEED_STEP}
+              value={liquidChromeDisplaySpeed}
               onChange={(event) =>
                 onSettingsChange({
-                  massageLabLiquidChromeSpeed: Number(event.target.value),
+                  massageLabLiquidChromeSpeed: getMassageLabCatalogChromeFlowSourceSpeed(Number(event.target.value)),
                 })
               }
-              aria-label="MassageLab Liquid Chrome speed"
+              aria-label="Chrome Flow speed percentage"
             />
           </label>
 

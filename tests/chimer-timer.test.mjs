@@ -2828,6 +2828,7 @@ describe("Chimer timer helpers", () => {
     assert.equal(settings.massageLabLiquidChromeFrequencyX, 12)
     assert.equal(settings.massageLabLiquidChromeFrequencyY, 0.1)
     assert.equal(settings.massageLabLiquidChromeInteractive, false)
+    assert.equal(sanitizeChimerSettings({ massageLabLiquidChromeSpeed: 0 }).massageLabLiquidChromeSpeed, 0.001)
     assert.equal(settings.massageLabBalatroSpinRotation, 8)
     assert.equal(settings.massageLabBalatroSpinSpeed, 14)
     assert.equal(settings.massageLabBalatroOffsetX, -1)

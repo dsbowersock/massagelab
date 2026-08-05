@@ -4958,6 +4958,25 @@ describe("premium background registry", () => {
     }
   })
 
+  it("presents the catalog Chrome Flow speed as a precise lower percentage scale", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/massage-lab-liquid-chrome-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_LIQUID_CHROME\.speed, 0\.001, 3/)
+    assert.match(setupSource, /MASSAGE_LAB_CATALOG_CHROME_FLOW_SOURCE_SPEED_MIN = 0\.001/)
+    assert.match(setupSource, /MASSAGE_LAB_CATALOG_CHROME_FLOW_DISPLAY_SPEED_MIN = 0\.1/)
+    assert.match(setupSource, /MASSAGE_LAB_CATALOG_CHROME_FLOW_DISPLAY_SPEED_STEP = 0\.1/)
+    for (const source of [setupSource, runningSource]) {
+      assert.match(source, /getMassageLabCatalogChromeFlowDisplaySpeed/)
+      assert.match(source, /getMassageLabCatalogChromeFlowSourceSpeed/)
+      assert.match(source, /Chrome Flow speed percentage/)
+    }
+  })
+
   it("keeps MassageLab Novatrix source-shaped, passive, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
       new URL("../components/backgrounds/effects/massage-lab-novatrix-background.tsx", import.meta.url),
