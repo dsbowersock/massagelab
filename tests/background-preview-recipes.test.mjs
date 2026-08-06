@@ -118,4 +118,16 @@ describe("background preview recipes", () => {
       /stable background ID and revision/,
     )
   })
+
+  it("keeps pilot output explicit and refuses the production preview directory", () => {
+    const source = readFileSync(new URL(
+      "../scripts/chimer-preview-generation/render-pilot.mjs",
+      import.meta.url,
+    ), "utf8")
+    assert.match(source, /--output-dir/)
+    assert.match(source, /output directory is required/i)
+    assert.match(source, /public[\\/]chimer[\\/]background-previews/)
+    assert.match(source, /refusing production preview directory/i)
+    assert.doesNotMatch(source, /backgroundPreviewManifest\.ts/)
+  })
 })
