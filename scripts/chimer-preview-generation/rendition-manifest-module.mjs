@@ -1,3 +1,5 @@
+import { FULL_CATALOG_BACKGROUND_IDS } from "./preview-recipes.mjs"
+
 const ASPECT_ORDER = Object.freeze(["landscape", "square", "vertical"])
 const QUALITY_ORDER = Object.freeze(["low", "standard", "high"])
 const CODEC_ORDER = Object.freeze(["vp9", "h264"])
@@ -51,6 +53,45 @@ export function normalizeRenditionManifestEntries(entries) {
 
 export function serializeRenditionManifest(entries) {
   return `${JSON.stringify({ schemaVersion: 2, entries: normalizeRenditionManifestEntries(entries) }, null, 2)}\n`
+}
+
+/**
+ * Compacts and orders mixed animated/static catalog metadata without emitting
+ * thousands of generated TypeScript lines. Publication may require approval;
+ * local review manifests intentionally retain candidate rows.
+ */
+export function normalizeCatalogRenditionManifestEntries(entries, { requireApproved = false } = {}) {
+  const order = new Map(FULL_CATALOG_BACKGROUND_IDS.map((id, index) => [id, index]))
+  return [...entries]
+    .sort((left, right) => order.get(left.backgroundId) - order.get(right.backgroundId))
+    .map((entry) => {
+      if (!order.has(entry.backgroundId)) throw new Error(`${entry.backgroundId}: unknown catalog background`)
+      if (requireApproved && entry.reviewStatus !== "approved") {
+        throw new Error(`${entry.backgroundId}: publication manifest requires an approved recipe`)
+      }
+      return {
+        backgroundId: entry.backgroundId,
+        recipeRevision: entry.recipeRevision,
+        mediaKind: entry.mediaKind,
+        reviewStatus: entry.reviewStatus,
+        batchSlug: entry.batchSlug,
+        loopStrategy: entry.loopStrategy,
+        loopBoundaryMs: entry.loopBoundaryMs,
+        renditions: orderedRenditions(entry.renditions).map(compactRendition),
+        posters: Object.fromEntries(ASPECT_ORDER.map((aspect) => [aspect, compactPoster(entry.posters[aspect])])),
+      }
+    })
+}
+
+export function serializeCatalogRenditionManifest(entries, {
+  catalogRevision = "catalog-candidate-1",
+  requireApproved = false,
+} = {}) {
+  return `${JSON.stringify({
+    schemaVersion: 3,
+    catalogRevision,
+    entries: normalizeCatalogRenditionManifestEntries(entries, { requireApproved }),
+  }, null, 2)}\n`
 }
 
 /** Renders the checked-in typed sidecar without importing production v1 data. */

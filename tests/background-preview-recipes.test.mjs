@@ -23,7 +23,9 @@ import {
   buildPilotManifestEntry,
   buildPreviewAssetRelativePath,
 } from "../scripts/chimer-preview-generation/rendition-plan.mjs"
+import { serializeCatalogRenditionManifest } from "../scripts/chimer-preview-generation/rendition-manifest-module.mjs"
 import { backgroundRegistry } from "../components/backgrounds/backgroundRegistry.ts"
+import { validateCatalogManifest } from "../scripts/chimer-preview-generation/media-validation.mjs"
 
 describe("background preview recipes", () => {
   it("covers every enabled background exactly once in the approved batches", () => {
@@ -196,6 +198,42 @@ describe("background preview recipes", () => {
     assert.match(source, /export type BackgroundPreviewCodec = "vp9" \| "h264"/)
     assert.match(source, /renditions: readonly BackgroundPreviewRendition\[\]/)
     assert.match(source, /posters: Record<BackgroundPreviewAspect, BackgroundPreviewPoster>/)
+  })
+
+  it("serializes the exact mixed full-catalog cardinality", () => {
+    const entries = FULL_CATALOG_BACKGROUND_IDS.map((id) => {
+      const recipe = getBackgroundPreviewRecipe(id)
+      const posters = Object.fromEntries(PREVIEW_ASPECTS.map((aspect) => [aspect, {
+        url: `${id}/${recipe.recipeRevision}/${aspect}/poster.webp`,
+        width: 1,
+        height: 1,
+        bytes: 1,
+        sha256: "a".repeat(64),
+      }]))
+      const renditions = buildBackgroundRenditionPlan(recipe).map((item) => ({
+        ...item,
+        url: item.relativePath,
+        durationMs: recipe.durationMs,
+        bytes: 1,
+        sha256: "b".repeat(64),
+      }))
+      return {
+        backgroundId: id,
+        recipeRevision: recipe.recipeRevision,
+        mediaKind: recipe.mediaKind,
+        reviewStatus: recipe.reviewStatus,
+        batchSlug: FULL_CATALOG_BATCHES.find(({ ids }) => ids.includes(id)).slug,
+        loopStrategy: recipe.loopStrategy,
+        loopBoundaryMs: recipe.durationMs,
+        renditions,
+        posters,
+      }
+    })
+    assert.deepEqual(validateCatalogManifest(entries), [])
+    const manifest = JSON.parse(serializeCatalogRenditionManifest(entries))
+    assert.equal(manifest.entries.length, 84)
+    assert.equal(manifest.entries.flatMap((entry) => entry.renditions).length, 1476)
+    assert.equal(manifest.entries.flatMap((entry) => Object.values(entry.posters)).length, 252)
   })
 
   it("keeps the pilot review route development-only", () => {

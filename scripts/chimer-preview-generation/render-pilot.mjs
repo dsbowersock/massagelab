@@ -46,6 +46,7 @@ import {
 } from "./generation-checkpoint.mjs"
 import {
   renderRenditionManifestModule,
+  serializeCatalogRenditionManifest,
   serializeRenditionManifest,
 } from "./rendition-manifest-module.mjs"
 
@@ -537,44 +538,6 @@ function buildCatalogManifestEntry({ recipe, renditions, posters }) {
   }
 }
 
-const aspectOrder = Object.freeze(["landscape", "square", "vertical"])
-const qualityOrder = Object.freeze(["low", "standard", "high"])
-const codecOrder = Object.freeze(["vp9", "h264"])
-
-function compactCatalogEntry(entry) {
-  const renditions = [...entry.renditions]
-    .sort((left, right) => aspectOrder.indexOf(left.aspect) - aspectOrder.indexOf(right.aspect)
-      || qualityOrder.indexOf(left.quality) - qualityOrder.indexOf(right.quality)
-      || codecOrder.indexOf(left.codec) - codecOrder.indexOf(right.codec))
-    .map((item) => ({
-      aspect: item.aspect,
-      quality: item.quality,
-      codec: item.codec,
-      url: item.url,
-      mimeType: item.mimeType,
-      width: item.width,
-      height: item.height,
-      durationMs: item.durationMs,
-      fps: item.fps,
-      bytes: item.bytes,
-      sha256: item.sha256,
-    }))
-  const posters = Object.fromEntries(aspectOrder.map((aspect) => [aspect, entry.posters[aspect]]))
-  return { ...entry, renditions, posters }
-}
-
-function serializeCatalogManifest(entries) {
-  const order = new Map(FULL_CATALOG_BACKGROUND_IDS.map((id, index) => [id, index]))
-  const normalized = [...entries]
-    .sort((left, right) => order.get(left.backgroundId) - order.get(right.backgroundId))
-    .map(compactCatalogEntry)
-  return `${JSON.stringify({
-    schemaVersion: 3,
-    catalogRevision: "catalog-candidate-1",
-    entries: normalized,
-  }, null, 2)}\n`
-}
-
 function readManifest(outputDir, catalogMode = false) {
   const manifestPath = path.join(outputDir, "index.json")
   if (!existsSync(manifestPath)) return { schemaVersion: catalogMode ? 3 : 2, entries: [] }
@@ -590,7 +553,7 @@ function writeManifest(options, entries) {
   const errors = options.catalogMode ? validateCatalogManifest(entries) : validatePilotManifest(entries)
   if (errors.length) throw new Error(errors.join("\n"))
   writeFileSync(path.join(options.outputDir, "index.json"), options.catalogMode
-    ? serializeCatalogManifest(entries)
+    ? serializeCatalogRenditionManifest(entries)
     : serializeRenditionManifest(entries))
   if (options.writeModule) writeFileSync(options.writeModule, renderRenditionManifestModule(entries))
   return readManifest(options.outputDir, options.catalogMode)

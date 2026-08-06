@@ -42,6 +42,7 @@
 /public/chimer/background-preview-catalog/**/*.rgb
 /public/chimer/background-preview-catalog/**/*.master.*
 /public/chimer/background-preview-catalog/**/validation.json
+/public/chimer/background-preview-catalog/generation-state.json
 
 # local Codex workspace artifacts
 /.codex/
