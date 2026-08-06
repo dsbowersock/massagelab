@@ -3,21 +3,37 @@ import { readFileSync } from "node:fs"
 import { describe, it } from "node:test"
 
 import {
+  ANIMATED_BACKGROUND_IDS,
+  FULL_CATALOG_BACKGROUND_IDS,
+  FULL_CATALOG_BATCHES,
   PILOT_BACKGROUND_IDS,
   PREVIEW_ASPECTS,
   PREVIEW_CODECS,
   PREVIEW_QUALITIES,
   PREVIEW_RENDITION_LADDER,
+  STATIC_BACKGROUND_IDS,
   getBackgroundPreviewRecipe,
   validateBackgroundPreviewRecipe,
 } from "../scripts/chimer-preview-generation/preview-recipes.mjs"
 import {
+  buildBackgroundPosterPlan,
   buildBackgroundRenditionPlan,
   buildPilotManifestEntry,
   buildPreviewAssetRelativePath,
 } from "../scripts/chimer-preview-generation/rendition-plan.mjs"
+import { backgroundRegistry } from "../components/backgrounds/backgroundRegistry.ts"
 
 describe("background preview recipes", () => {
+  it("covers every enabled background exactly once in the approved batches", () => {
+    const enabledIds = backgroundRegistry.filter(({ enabled }) => enabled).map(({ id }) => id).sort()
+    assert.deepEqual([...FULL_CATALOG_BACKGROUND_IDS].sort(), enabledIds)
+    assert.equal(FULL_CATALOG_BATCHES.length, 7)
+    assert.equal(FULL_CATALOG_BACKGROUND_IDS.length, 84)
+    assert.equal(new Set(FULL_CATALOG_BACKGROUND_IDS).size, 84)
+    assert.equal(ANIMATED_BACKGROUND_IDS.length, 82)
+    assert.deepEqual(STATIC_BACKGROUND_IDS, ["solid-color", "static-gradient"])
+  })
+
   it("locks the approved pilot and three-by-three rendition ladder", () => {
     assert.equal(PILOT_BACKGROUND_IDS.length, 8)
     assert.deepEqual(PREVIEW_ASPECTS, ["landscape", "square", "vertical"])
@@ -43,6 +59,7 @@ describe("background preview recipes", () => {
   it("reports ordered recipe diagnostics", () => {
     assert.deepEqual(validateBackgroundPreviewRecipe({
       backgroundId: "unknown",
+      mediaKind: "animated",
       recipeRevision: "latest",
       warmupMs: -1,
       durationMs: 1000,
@@ -53,14 +70,14 @@ describe("background preview recipes", () => {
       passiveCaptureState: "pointer",
       framing: { landscape: null },
     }), [
-      "unknown: background is not in the approved pilot",
+      "unknown: background is not in the enabled preview catalog",
       "unknown: recipe revision must match recipe-<number>",
       "unknown: warmup must be a non-negative integer",
-      "unknown: duration must be between 6000ms and 18000ms",
-      "unknown: poster time must be within the authored duration",
-      "unknown: loop strategy must be natural or crossfade",
+      "unknown: duration must be zero for poster-only or 6000-18000ms for animated media",
+      "unknown: poster time must be zero for poster-only or within the authored duration",
+      "unknown: loop strategy must match the media kind",
       "unknown: crossfade must be zero for natural loops or 250-2000ms for crossfade loops",
-      "unknown: fps must be 24 or 30",
+      "unknown: fps must be zero for poster-only or 24 or 30 for animated media",
       "unknown: capture state must be passive default",
       "unknown: framing must define landscape, square, and vertical",
     ])
@@ -80,6 +97,14 @@ describe("background preview recipes", () => {
     const plan = buildBackgroundRenditionPlan(getBackgroundPreviewRecipe("massage-lab-silk"))
     assert.equal(plan.length, 18)
     assert.equal(new Set(plan.map(({ relativePath }) => relativePath)).size, 18)
+  })
+
+  it("keeps truthful static backgrounds poster-only", () => {
+    const recipe = getBackgroundPreviewRecipe("solid-color")
+    assert.equal(recipe.mediaKind, "poster-only")
+    assert.deepEqual(validateBackgroundPreviewRecipe(recipe), [])
+    assert.equal(buildBackgroundRenditionPlan(recipe).length, 0)
+    assert.deepEqual(buildBackgroundPosterPlan(recipe).map(({ aspect }) => aspect), PREVIEW_ASPECTS)
   })
 
   it("rejects incomplete and display-name-coupled manifest entries", () => {

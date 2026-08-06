@@ -55,6 +55,7 @@ export function buildPreviewPosterRelativePath({ backgroundId, recipeRevision, a
 export function buildBackgroundRenditionPlan(recipe) {
   const diagnostics = validateBackgroundPreviewRecipe(recipe)
   if (diagnostics.length) throw new Error(diagnostics.join("\n"))
+  if (recipe.mediaKind === "poster-only") return []
   return PREVIEW_ASPECTS.flatMap((aspect) => PREVIEW_QUALITIES.flatMap((quality) =>
     PREVIEW_CODECS.map((codec) => ({
       backgroundId: recipe.backgroundId,
@@ -70,6 +71,23 @@ export function buildBackgroundRenditionPlan(recipe) {
   ))
 }
 
+/**
+ * Plans one independently framed high-dimension poster for every aspect.
+ * Poster-only backgrounds use this plan without creating synthetic motion.
+ */
+export function buildBackgroundPosterPlan(recipe) {
+  const diagnostics = validateBackgroundPreviewRecipe(recipe)
+  if (diagnostics.length) throw new Error(diagnostics.join("\n"))
+  return PREVIEW_ASPECTS.map((aspect) => ({
+    backgroundId: recipe.backgroundId,
+    recipeRevision: recipe.recipeRevision,
+    aspect,
+    ...PREVIEW_RENDITION_LADDER[aspect].high,
+    relativePath: buildPreviewPosterRelativePath({ ...recipe, aspect }),
+    mimeType: "image/webp",
+  }))
+}
+
 function renditionKey(item) {
   return `${item.aspect}:${item.quality}:${item.codec}`
 }
@@ -81,6 +99,9 @@ function renditionKey(item) {
 export function buildPilotManifestEntry({ recipe, renditions, posters }) {
   const recipeErrors = validateBackgroundPreviewRecipe(recipe)
   if (recipeErrors.length) throw new Error(recipeErrors.join("\n"))
+  if (recipe.mediaKind !== "animated") {
+    throw new Error(`${recipe.backgroundId}: pilot manifest entries must be animated`)
+  }
   const expectedPlan = buildBackgroundRenditionPlan(recipe)
   const expectedKeys = new Set(expectedPlan.map(renditionKey))
   const actualKeys = new Set((renditions ?? []).map(renditionKey))

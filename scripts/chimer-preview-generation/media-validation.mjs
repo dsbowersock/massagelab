@@ -141,3 +141,44 @@ export function validatePilotManifest(entries) {
   }
   return errors
 }
+
+/**
+ * Validates mixed animated and poster-only catalog entries without weakening
+ * the frozen v2 animated contract. Static visuals must never contain videos.
+ */
+export function validateCatalogManifest(entries) {
+  if (!Array.isArray(entries)) return ["catalog manifest entries must be an array"]
+  const errors = []
+  const animatedEntries = []
+  const seenIds = new Set()
+  for (const entry of entries) {
+    const id = entry?.backgroundId ?? "unknown"
+    if (seenIds.has(id)) errors.push(`${id}: duplicate catalog manifest entry`)
+    seenIds.add(id)
+    if (entry?.mediaKind === "animated") {
+      animatedEntries.push(entry)
+      continue
+    }
+    if (entry?.mediaKind !== "poster-only") {
+      errors.push(`${id}: media kind must be animated or poster-only`)
+      continue
+    }
+    if (!/^recipe-\d+$/.test(entry?.recipeRevision ?? "")) errors.push(`${id}: invalid recipe revision`)
+    if (entry?.loopStrategy !== "static") errors.push(`${id}: poster-only loop strategy must be static`)
+    if (entry?.loopBoundaryMs !== 0) errors.push(`${id}: poster-only loop boundary must be zero`)
+    if (!Array.isArray(entry?.renditions) || entry.renditions.length !== 0) {
+      errors.push(`${id}: poster-only entry must not contain video renditions`)
+    }
+    const root = `${id}/${entry?.recipeRevision}/`
+    const posters = entry?.posters
+    if (!posters || Object.keys(posters).length !== 3 || !PREVIEW_ASPECTS.every((aspect) => posters[aspect])) {
+      errors.push(`${id}: expected exactly three posters`)
+      continue
+    }
+    for (const aspect of PREVIEW_ASPECTS) {
+      errors.push(...mediaFileErrors(posters[aspect], `${root}${aspect}/`, `${id}:${aspect}:poster`))
+    }
+  }
+  errors.push(...validatePilotManifest(animatedEntries))
+  return errors
+}

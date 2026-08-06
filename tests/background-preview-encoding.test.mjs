@@ -10,6 +10,7 @@ import {
   parseMediaProbe,
   validateAnimatedFrameVariation,
   validateLoopSeam,
+  validateCatalogManifest,
   validatePilotManifest,
   validateRenditionMetadata,
 } from "../scripts/chimer-preview-generation/media-validation.mjs"
@@ -165,5 +166,28 @@ describe("background preview media validation", () => {
     assert.match(validatePilotManifest([{ ...entry, renditions: renditions.map((item, index) => index === 0
       ? { ...item, sha256: "bad", bytes: 0 }
       : item) }]).join("\n"), /positive bytes/)
+  })
+
+  it("accepts poster-only catalog entries without fabricated videos", () => {
+    const backgroundId = "solid-color"
+    const recipeRevision = "recipe-1"
+    const posters = Object.fromEntries(["landscape", "square", "vertical"].map((aspect) => [aspect, {
+      url: `${backgroundId}/${recipeRevision}/${aspect}/poster.webp`,
+      width: 1,
+      height: 1,
+      bytes: 1,
+      sha256: "b".repeat(64),
+    }]))
+    const entry = {
+      backgroundId,
+      recipeRevision,
+      mediaKind: "poster-only",
+      loopStrategy: "static",
+      loopBoundaryMs: 0,
+      renditions: [],
+      posters,
+    }
+    assert.deepEqual(validateCatalogManifest([entry]), [])
+    assert.match(validateCatalogManifest([{ ...entry, renditions: [{}] }]).join("\n"), /must not contain video renditions/)
   })
 })
