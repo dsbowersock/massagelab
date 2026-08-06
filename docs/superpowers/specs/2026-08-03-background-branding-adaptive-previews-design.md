@@ -1,6 +1,6 @@
 # Background Branding and Adaptive Preview Design
 
-Date: 2026-08-03  
+Date: 2026-08-03
 Status: Approved design; implementation planning has not started
 
 ## Summary

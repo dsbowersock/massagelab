@@ -108,4 +108,3 @@ export function validateBackgroundPreviewRecipe(value) {
   }
   return errors
 }
-
