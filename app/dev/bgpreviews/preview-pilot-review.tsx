@@ -110,7 +110,9 @@ export function PreviewPilotReview({ entries }: { entries: readonly ReviewEntry[
           {renditions.map((rendition, index) => (
             <article key={`${rendition.quality}:${rendition.codec}`} className={styles.card}>
               <h3>{CODEC_LABELS[rendition.codec]} · {QUALITY_LABELS[rendition.quality]}</h3>
+              {/* A changed <source> does not reload an existing media element, so selection changes must remount it. */}
               <video
+                key={`${entry.backgroundId}:${aspect}:${rendition.quality}:${rendition.codec}`}
                 ref={(node) => { videoRefs.current[index] = node }}
                 muted
                 loop
