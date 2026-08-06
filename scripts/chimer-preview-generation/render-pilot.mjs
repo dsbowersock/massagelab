@@ -33,9 +33,14 @@ import {
   buildPilotManifestEntry,
   buildPreviewPosterRelativePath,
 } from "./rendition-plan.mjs"
+import {
+  renderRenditionManifestModule,
+  serializeRenditionManifest,
+} from "./rendition-manifest-module.mjs"
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const productionPreviewDir = path.join(repoRoot, "public/chimer/background-previews")
+const sidecarModulePath = path.join(repoRoot, "components/backgrounds/backgroundPreviewRenditionManifest.ts")
 const defaultPreviewId = "massage-lab-moving-gradient"
 
 function parseArgs(argv) {
@@ -75,6 +80,9 @@ function parseArgs(argv) {
   options.ids = options.ids.length ? [...new Set(options.ids)] : [...PILOT_BACKGROUND_IDS]
   if (!options.ids.length) throw new Error("At least one pilot background ID is required.")
   if (!Number.isInteger(options.port) || options.port < 1 || options.port > 65535) throw new Error("Pilot port is invalid.")
+  if (options.writeModule && options.writeModule !== sidecarModulePath) {
+    throw new Error("--write-module may target only components/backgrounds/backgroundPreviewRenditionManifest.ts")
+  }
   options.baseUrl ||= `http://127.0.0.1:${options.port}`
   return options
 }
@@ -353,12 +361,12 @@ function readManifest(outputDir) {
   return manifest
 }
 
-function writeManifest(outputDir, entries) {
+function writeManifest(options, entries) {
   const errors = validatePilotManifest(entries)
   if (errors.length) throw new Error(errors.join("\n"))
-  const manifest = { schemaVersion: 2, entries: [...entries].sort((left, right) => left.backgroundId.localeCompare(right.backgroundId)) }
-  writeFileSync(path.join(outputDir, "index.json"), `${JSON.stringify(manifest, null, 2)}\n`)
-  return manifest
+  writeFileSync(path.join(options.outputDir, "index.json"), serializeRenditionManifest(entries))
+  if (options.writeModule) writeFileSync(options.writeModule, renderRenditionManifestModule(entries))
+  return readManifest(options.outputDir)
 }
 
 function validateExistingOutput(options) {
@@ -398,6 +406,7 @@ async function main() {
   mkdirSync(options.outputDir, { recursive: true })
   if (options.validateOnly) {
     const manifest = validateExistingOutput(options)
+    if (options.writeModule) writeManifest(options, manifest.entries)
     console.log(`Validated ${manifest.entries.length} complete pilot entries.`)
     return
   }
@@ -418,7 +427,7 @@ async function main() {
         posters[aspect] = result.poster
       }
       entriesById.set(id, buildPilotManifestEntry({ recipe, renditions, posters }))
-      writeManifest(options.outputDir, [...entriesById.values()])
+      writeManifest(options, [...entriesById.values()])
     }
     const manifest = validateExistingOutput(options)
     console.log(`Rendered and validated ${manifest.entries.length} complete pilot entries.`)
@@ -433,4 +442,3 @@ main().catch((error) => {
   console.error(error instanceof Error ? error.message : error)
   process.exitCode = 1
 })
-

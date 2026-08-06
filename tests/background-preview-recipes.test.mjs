@@ -130,4 +130,15 @@ describe("background preview recipes", () => {
     assert.match(source, /refusing production preview directory/i)
     assert.doesNotMatch(source, /backgroundPreviewManifest\.ts/)
   })
+
+  it("generates a v2 sidecar without replacing the production manifest", () => {
+    const source = readFileSync(new URL(
+      "../components/backgrounds/backgroundPreviewRenditionManifest.ts",
+      import.meta.url,
+    ), "utf8")
+    assert.match(source, /export type BackgroundPreviewQuality = "low" \| "standard" \| "high"/)
+    assert.match(source, /export type BackgroundPreviewCodec = "vp9" \| "h264"/)
+    assert.match(source, /renditions: readonly BackgroundPreviewRendition\[\]/)
+    assert.match(source, /posters: Record<BackgroundPreviewAspect, BackgroundPreviewPoster>/)
+  })
 })

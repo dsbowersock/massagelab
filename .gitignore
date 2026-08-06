@@ -24,6 +24,16 @@
 /public/chimer/background-previews/*.webm
 /public/chimer/background-previews/index.json
 
+# generated local adaptive-preview pilot media; keep its small text manifest
+/public/chimer/background-preview-pilot/**/*.webm
+/public/chimer/background-preview-pilot/**/*.mp4
+/public/chimer/background-preview-pilot/**/*.webp
+/public/chimer/background-preview-pilot/**/*.png
+/public/chimer/background-preview-pilot/**/*.rgb
+/public/chimer/background-preview-pilot/**/*.master.*
+/public/chimer/background-preview-pilot/validation.json
+/public/chimer/background-preview-pilot/**/validation.json
+
 # local Codex workspace artifacts
 /.codex/
 /.codex-dev/
