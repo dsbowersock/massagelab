@@ -57,6 +57,8 @@ export interface SupportedBackgroundPaletteAdapter {
   status: "supported"
   rendererFamily: BackgroundRendererFamily
   roles: readonly BackgroundPaletteRole[]
+  /** False when the renderer exposes a continuous hue control instead of discrete harmony roles. */
+  supportsHarmony: boolean
   sourceBehavior?: "fixed" | "rainbow" | "automatic"
   visualPropertyKeys: readonly string[]
   sourceVisualProperties: Readonly<Record<string, unknown>>
@@ -170,6 +172,7 @@ type SupportedSpec = {
   family: BackgroundRendererFamily
   prefixes: readonly string[]
   roles: readonly RoleSpec[]
+  supportsHarmony?: boolean
   sourceBehavior?: SupportedBackgroundPaletteAdapter["sourceBehavior"]
   modeOverrides?: readonly BackgroundPaletteModeOverride[]
 }
@@ -723,6 +726,7 @@ function supported(spec: SupportedSpec): SupportedBackgroundPaletteAdapter {
     status: "supported",
     rendererFamily: spec.family,
     roles: Object.freeze(roles),
+    supportsHarmony: spec.supportsHarmony !== false,
     ...(spec.sourceBehavior ? { sourceBehavior: spec.sourceBehavior } : {}),
     ...(spec.modeOverrides
       ? { modeOverrides: Object.freeze(spec.modeOverrides.map((override) => Object.freeze(override))) }
@@ -1043,10 +1047,12 @@ const SUPPORTED_SPECS: readonly SupportedSpec[] = [
     family: "canvas",
     prefixes: ["vortex"],
     roles: [
-      role("background", "Background", "vortexBackgroundColor", "vortex.backgroundColor"),
-      // Source strokes are hsla(220, 100%, 60%); #3377FF is that exact opaque HSL color.
-      role("particles", "Particles", "vortexBaseHue", "vortex.baseHue", "hex-hue", "#3377FF"),
+      role("background", "Background", "vortexBackgroundColor", "vortex.backgroundColor", undefined, undefined, 6, "saved-swatch"),
     ],
+    // Vortex owns a continuous 100-degree particle range. A dedicated hue
+    // slider controls its starting hue more truthfully than discrete Harmony roles.
+    supportsHarmony: false,
+    modeOverrides: [{ rendererTarget: "vortex.baseHue", sourceValue: 220 }],
   },
   { id: "massage-lab-pixel-liquid", family: "canvas", prefixes: ["pixelLiquid"], roles: [role("background", "Background", "pixelLiquidBackgroundColor", "pixelLiquid.backgroundColor"), role("base", "Base", "pixelLiquidBaseColor", "pixelLiquid.baseColor"), role("accent", "Accent", "pixelLiquidAccentColor", "pixelLiquid.accentColor"), role("highlight", "Highlight", "pixelLiquidHighlightColor", "pixelLiquid.highlightColor")] },
   {

@@ -45,12 +45,15 @@ export function resolveBackgroundEffectProps({
   }
 
   const normalizedPalette = normalizeBackgroundPaletteState(palette)
+  const adapterPalette = normalizedPalette.mode === "harmony" && adapter.supportsHarmony === false
+    ? { ...normalizedPalette, mode: "source" }
+    : normalizedPalette
   const mode = resolveEffectiveBackgroundPaletteMode({
-    savedMode: normalizedPalette.mode,
+    savedMode: adapterPalette.mode,
     canCustomize,
   })
   const resolvedRoleColors = resolveBackgroundRoleColors({
-    palette: normalizedPalette,
+    palette: adapterPalette,
     adapter,
     mapping,
     canCustomize,
@@ -87,8 +90,11 @@ export function resolveBackgroundFallbackStyle({
   }
 
   const normalizedPalette = normalizeBackgroundPaletteState(palette)
+  const adapterPalette = normalizedPalette.mode === "harmony" && adapter.supportsHarmony === false
+    ? { ...normalizedPalette, mode: "source" }
+    : normalizedPalette
   const mode = resolveEffectiveBackgroundPaletteMode({
-    savedMode: normalizedPalette.mode,
+    savedMode: adapterPalette.mode,
     canCustomize,
   })
   if (mode === "source") {
@@ -96,7 +102,7 @@ export function resolveBackgroundFallbackStyle({
   }
 
   const roleColors = resolveBackgroundRoleColors({
-    palette: normalizedPalette,
+    palette: adapterPalette,
     adapter,
     mapping,
     canCustomize,

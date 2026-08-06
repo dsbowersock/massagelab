@@ -2127,6 +2127,7 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
             lampGlowWidth={settings.lampGlowWidth}
             lampVerticalOffset={settings.lampVerticalOffset}
             lampPulseSpeed={settings.lampPulseSpeed}
+            vortexBaseHue={settings.vortexBaseHue}
             vortexParticleCount={settings.vortexParticleCount}
             vortexRangeY={settings.vortexRangeY}
             vortexBaseSpeed={settings.vortexBaseSpeed}

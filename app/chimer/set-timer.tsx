@@ -1072,6 +1072,7 @@ export interface ChimerSettings {
   lampGlowWidth: number
   lampVerticalOffset: number
   lampPulseSpeed: number
+  vortexBaseHue: number
   vortexParticleCount: number
   vortexRangeY: number
   vortexBaseSpeed: number

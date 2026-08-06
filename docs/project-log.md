@@ -6,6 +6,12 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-05 — Vortex independent background and procedural hue control
+
+- Changed Vortex's shared-color contract so its background is independently owned by Swatch 7 in Custom mode. The particle field retains the source renderer's continuous 100-degree HSL span instead of flattening it into discrete swatch colors.
+- Added a persisted `0°-360°` Particle hue slider directly below the Custom swatches to control the start of that continuous range. Harmony is disabled for Vortex because a discrete harmony choice cannot truthfully describe the procedural field; stale saved Harmony mode resolves safely to Source. The existing `massage-lab-vortex` ID, entitlement behavior, particle geometry, motion, and other tuning controls are unchanged.
+- The focused palette/editor/renderer contracts, all 2,002 repository tests, typecheck, lint, `git diff --check`, the 102-page Production build, and the localhost-only `/dev/clock` HTTP check pass. Final visual judgment remains in the user's Device Toolbar review.
+
 ## 2026-08-05 — Reveal Dots visible distributed motion
 
 - Corrected Reveal Dots after Device Toolbar review showed that its former `0.86x-1.10x` randomly phased opacity shimmer was technically repainting but visually static at phone scale. Individual anchored dots now brighten and dim smoothly on their existing seeded phases and speeds across a wider `0.65x-1.45x` opacity multiplier, so the field visibly twinkles without relying on pointer input.

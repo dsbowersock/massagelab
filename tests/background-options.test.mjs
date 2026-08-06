@@ -1761,6 +1761,33 @@ describe("premium background registry", () => {
     }
   })
 
+  it("keeps Vortex's continuous hue field and edits its starting hue below the shared swatches", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/massage-lab-vortex-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const controlSource = readFileSync(
+      new URL("../components/chimer-controls/VortexBackgroundControls.tsx", import.meta.url),
+      "utf8",
+    )
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+
+    assert.match(effectSource, /const RANGE_HUE = 100/)
+    assert.match(effectSource, /const hue = resolved\.baseHue \+ rand\(RANGE_HUE\)/)
+    assert.match(effectSource, /`hsla\(\$\{hue\},100%,60%,\$\{fadeInOut\(life, ttl\)\}\)`/)
+    assert.doesNotMatch(effectSource, /paletteMode|resolvedParticleRgb|VORTEX_SOURCE_PARTICLE_COLORS/)
+    assert.match(controlSource, /VortexParticleHueControl/)
+    assert.match(controlSource, /label="Particle hue"/)
+    assert.match(controlSource, /channel="hue"/)
+    assert.match(controlSource, /min=\{0\}/)
+    assert.match(controlSource, /max=\{360\}/)
+    assert.match(controlSource, /continuous 100° particle range/)
+    assert.match(runningSource, /customControlsAfterSwatches=/)
+    assert.match(runningSource, /visualEditorBackgroundId === "massage-lab-vortex"/)
+    assert.match(runningSource, /<VortexParticleHueControl/)
+    assert.match(runningSource, /onChange=\{\(value\) => handleSettingsChange\(\{ vortexBaseHue: value \}\)\}/)
+  })
+
   it("keeps MassageLab Dark Veil source-shaped, raw WebGL, and dependency-free", () => {
     const effectSource = readFileSync(
       new URL("../components/backgrounds/effects/massage-lab-dark-veil-background.tsx", import.meta.url),

@@ -170,10 +170,11 @@ export function buildBackgroundPaletteEditorViewModel({
     adapter,
   ) as BackgroundColorMapping
   const supportsSharedPalette = adapter.status === "supported"
+  const supportsHarmonyMode = supportsSharedPalette && adapter.supportsHarmony !== false
   const supportsCustomMode = canCustomize && (supportsSharedPalette || hasCustomControls)
   const effectiveMode: BackgroundPaletteMode = normalizedPalette.mode === "custom" && supportsCustomMode
     ? "custom"
-    : normalizedPalette.mode === "harmony" && canCustomize && supportsSharedPalette
+    : normalizedPalette.mode === "harmony" && canCustomize && supportsHarmonyMode
       ? "harmony"
       : "source"
   const isSource = effectiveMode === "source"
@@ -238,7 +239,7 @@ export function buildBackgroundPaletteEditorViewModel({
         ? false
         : option.value === "custom"
           ? !supportsCustomMode
-          : !canCustomize || !supportsSharedPalette,
+          : !canCustomize || !supportsHarmonyMode,
     })),
     unavailableReason: adapter.status === "unsupported" && !hasCustomControls
       ? adapter.unsupportedReason
@@ -264,9 +265,11 @@ export function buildBackgroundPaletteModeChange(
 ): BackgroundPaletteEditorValue | null {
   const normalized = normalizeBackgroundPaletteState(input.palette) as BackgroundPaletteEditorValue
   const supportsSharedPalette = input.adapter.status === "supported"
+  const supportsHarmonyMode = input.adapter.status === "supported"
+    && input.adapter.supportsHarmony !== false
   const canSelectCustom = input.canCustomize
     && (supportsSharedPalette || input.hasCustomControls === true)
-  const canSelectHarmony = input.canCustomize && supportsSharedPalette
+  const canSelectHarmony = input.canCustomize && supportsHarmonyMode
   if (
     input.disabled
     || !["source", "custom", "harmony"].includes(nextMode)
@@ -346,6 +349,7 @@ export function buildBackgroundPaletteHarmonyChange(
   if (
     input.disabled
     || input.adapter.status === "unsupported"
+    || input.adapter.supportsHarmony === false
     || !input.canCustomize
     || normalized.mode !== "harmony"
     || !requestedHarmony

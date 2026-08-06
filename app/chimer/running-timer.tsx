@@ -19,6 +19,7 @@ import { BackgroundPaletteEditor } from "@/components/chimer-controls/Background
 import { BackgroundColorPresetManager, BackgroundVisualPresetManager, type BackgroundPresetDraftAction } from "@/components/chimer-controls/BackgroundPresetManager"
 import { DnaBackgroundControls, type DnaBackgroundControlOptions } from "@/components/chimer-controls/DnaBackgroundControls"
 import { DarkVeilHueShiftControl, DarkVeilResolutionScaleControl } from "@/components/chimer-controls/DarkVeilBackgroundControls"
+import { VortexParticleHueControl } from "@/components/chimer-controls/VortexBackgroundControls"
 import { StaticGradientControls, type StaticGradientControlOptions } from "@/components/chimer-controls/StaticGradientControls"
 import { TwistedCubesBackgroundControls, type TwistedCubesBackgroundControlOptions } from "@/components/chimer-controls/TwistedCubesBackgroundControls"
 import { Button } from "@/components/ui/button"
@@ -868,6 +869,7 @@ interface RunningTimerProps {
   lampGlowWidth: number
   lampVerticalOffset: number
   lampPulseSpeed: number
+  vortexBaseHue: number
   vortexParticleCount: number
   vortexRangeY: number
   vortexBaseSpeed: number
@@ -1539,6 +1541,7 @@ export function RunningTimer({
   lampGlowWidth,
   lampVerticalOffset,
   lampPulseSpeed,
+  vortexBaseHue,
   vortexParticleCount,
   vortexRangeY,
   vortexBaseSpeed,
@@ -13455,6 +13458,7 @@ export function RunningTimer({
             pulseSpeed: lampPulseSpeed,
           }}
           vortex={{
+            baseHue: vortexBaseHue,
             particleCount: vortexParticleCount,
             rangeY: vortexRangeY,
             baseSpeed: vortexBaseSpeed,
@@ -14080,6 +14084,15 @@ export function RunningTimer({
                           )}
                           disabled={!canCustomizeSelectedBackground}
                           onChange={(value) => handleSettingsChange({ massageLabDarkVeilHueShift: value })}
+                        />
+                      ) : visualEditorBackgroundId === "massage-lab-vortex" ? (
+                        <VortexParticleHueControl
+                          value={Number(
+                            currentVisualEditorSnapshot.properties.vortexBaseHue
+                              ?? vortexBaseHue,
+                          )}
+                          disabled={!canCustomizeSelectedBackground}
+                          onChange={(value) => handleSettingsChange({ vortexBaseHue: value })}
                         />
                       ) : null
                     }

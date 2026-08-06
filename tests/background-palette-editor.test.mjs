@@ -521,3 +521,47 @@ test("Harmony keeps a saved-swatch role editable and independent from generated 
     swatches: ["#ff0000", "#222222", "#333333", "#444444", "#555555", "#666666", "#abcdef"],
   })
 })
+
+test("procedural hue adapters expose Custom while disabling misleading Harmony controls", () => {
+  const adapter = {
+    status: "supported",
+    supportsHarmony: false,
+    roles: [
+      {
+        id: "background",
+        label: "Background",
+        sourceColor: "#000000",
+        defaultSwatch: 6,
+        harmonyColorSource: "saved-swatch",
+      },
+    ],
+  }
+  const palette = {
+    mode: "harmony",
+    primaryColor: "#ff0000",
+    harmony: "triad",
+    swatches: ["#111111", "#222222", "#333333", "#444444", "#555555", "#666666", "#123456"],
+  }
+  const viewModel = buildBackgroundPaletteEditorViewModel({
+    palette,
+    adapter,
+    mapping: {},
+    canCustomize: true,
+    hasCustomControls: true,
+  })
+
+  assert.equal(viewModel.effectiveMode, "source")
+  assert.equal(viewModel.modeOptions.find((option) => option.value === "custom").disabled, false)
+  assert.equal(viewModel.modeOptions.find((option) => option.value === "harmony").disabled, true)
+  assert.equal(buildBackgroundPaletteModeChange({
+    palette: { ...palette, mode: "source" },
+    adapter,
+    canCustomize: true,
+    hasCustomControls: true,
+  }, "harmony"), null)
+  assert.equal(buildBackgroundPaletteHarmonyChange({
+    palette,
+    adapter,
+    canCustomize: true,
+  }, "complementary"), null)
+})

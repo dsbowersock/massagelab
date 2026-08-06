@@ -1905,7 +1905,7 @@ const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
     performanceCost: "high",
     requiresSubscription: true,
     enabled: true,
-    customizationSummary: "Particle count, hue, speed, vertical spread, radius, and background color for Chimer and Clock.",
+    customizationSummary: "Independent background color, continuous particle hue, count, speed, vertical spread, and radius for Chimer and Clock.",
     component: () => massageLabVortex().then((module) => ({ default: module.default })),
     fallbackStyle: {
       background:

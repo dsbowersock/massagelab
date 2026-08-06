@@ -6,9 +6,6 @@ import {
   sanitizeChimerSettings,
 } from "../lib/chimer-timer.js"
 import {
-  CHIMER_BACKGROUND_SOURCE_COLOR_DEFAULTS,
-} from "../lib/background-source-color-defaults.js"
-import {
   BACKGROUND_PALETTE_METADATA_SUFFIXES,
   DNA_SOURCE_NODE_ROLE_COLORS,
   TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS,
@@ -604,15 +601,17 @@ describe("background palette adapter registry", () => {
     }
   })
 
-  it("models Vortex background and hue-driven particle colors as exact roles", () => {
+  it("models Vortex with an independent Swatch 7 background and procedural particle hue", () => {
     const adapter = backgroundPaletteRegistry["massage-lab-vortex"]
     assert.notEqual(adapter.status, "unsupported")
+    assert.equal(adapter.supportsHarmony, false)
     assert.deepEqual(
-      adapter.roles.map(({ id, label, sourceColor, defaultSwatch, rendererTarget }) => ({
+      adapter.roles.map(({ id, label, sourceColor, defaultSwatch, harmonyColorSource, rendererTarget }) => ({
         id,
         label,
         sourceColor,
         defaultSwatch,
+        harmonyColorSource,
         rendererTarget,
       })),
       [
@@ -620,54 +619,69 @@ describe("background palette adapter registry", () => {
           id: "background",
           label: "Background",
           sourceColor: "#000000",
-          defaultSwatch: 0,
+          defaultSwatch: 6,
+          harmonyColorSource: "saved-swatch",
           rendererTarget: "vortex.backgroundColor",
-        },
-        {
-          id: "particles",
-          label: "Particles",
-          sourceColor: "#3377FF",
-          defaultSwatch: 1,
-          rendererTarget: "vortex.baseHue",
         },
       ],
     )
-    assert.equal(adapter.visualPropertyKeys.includes("vortexBaseHue"), false)
+    assert.equal(adapter.visualPropertyKeys.includes("vortexBaseHue"), true)
 
     const before = {
       vortex: {
         backgroundColor: "#000000",
-        baseHue: 220,
+        baseHue: 300,
         particleCount: sanitizedDefaults.vortexParticleCount,
       },
     }
     const after = adapter.applyRoleColors(before, {
       background: "#112233",
-      particles: "#336699",
-    })
+    }, "custom")
     assert.equal(after.vortex.backgroundColor, "#112233")
-    assert.equal(after.vortex.baseHue, 210)
+    assert.equal(after.vortex.baseHue, 300)
     assert.equal(after.vortex.particleCount, before.vortex.particleCount)
-    assert.deepEqual(
-      [...changedLeafPaths(before, after)].sort(),
-      ["vortex.backgroundColor", "vortex.baseHue"],
-    )
+    assert.deepEqual([...changedLeafPaths(before, after)], ["vortex.backgroundColor"])
   })
 
-  it("round-trips Vortex's declared particle source color to its sanitized source hue", () => {
-    const adapter = backgroundPaletteRegistry["massage-lab-vortex"]
-    assert.notEqual(adapter.status, "unsupported")
-    const particleRole = adapter.roles.find((role) => role.id === "particles")
-    assert.ok(particleRole)
+  it("keeps Vortex's authored hue range and rejects stale Harmony rendering", () => {
+    const effectProps = {
+      vortex: {
+        backgroundColor: "#000000",
+        baseHue: 300,
+        particleCount: 420,
+        rangeY: 120,
+      },
+    }
+    const sourceResolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-vortex",
+      effectProps,
+      palette: paletteForMode("source"),
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.equal(sourceResolved.vortex.baseHue, 220)
 
-    const applied = adapter.applyRoleColors(
-      { vortex: { baseHue: 0 } },
-      { particles: particleRole.sourceColor },
-    )
-    assert.equal(
-      applied.vortex.baseHue,
-      CHIMER_BACKGROUND_SOURCE_COLOR_DEFAULTS.vortexBaseHue,
-    )
+    const customResolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-vortex",
+      effectProps,
+      palette: paletteForMode("custom"),
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.equal(customResolved.vortex.backgroundColor, CUSTOM_SWATCHES[6])
+    assert.equal(customResolved.vortex.baseHue, 300)
+
+    const staleHarmonyResolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-vortex",
+      effectProps,
+      palette: paletteForMode("harmony"),
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.equal(staleHarmonyResolved.vortex.backgroundColor, "#000000")
+    assert.equal(staleHarmonyResolved.vortex.baseHue, 220)
+    assert.equal(staleHarmonyResolved.vortex.particleCount, effectProps.vortex.particleCount)
+    assert.equal(staleHarmonyResolved.vortex.rangeY, effectProps.vortex.rangeY)
   })
 
   it("records the approved exhaustive and special Source behaviors", () => {
