@@ -11,6 +11,11 @@ import {
   getBackgroundPreviewRecipe,
   validateBackgroundPreviewRecipe,
 } from "../scripts/chimer-preview-generation/preview-recipes.mjs"
+import {
+  buildBackgroundRenditionPlan,
+  buildPilotManifestEntry,
+  buildPreviewAssetRelativePath,
+} from "../scripts/chimer-preview-generation/rendition-plan.mjs"
 
 describe("background preview recipes", () => {
   it("locks the approved pilot and three-by-three rendition ladder", () => {
@@ -60,5 +65,57 @@ describe("background preview recipes", () => {
       "unknown: framing must define landscape, square, and vertical",
     ])
   })
-})
 
+  it("uses stable IDs and recipe revisions in asset paths", () => {
+    assert.equal(buildPreviewAssetRelativePath({
+      backgroundId: "massage-lab-wave-current",
+      recipeRevision: "recipe-2",
+      aspect: "vertical",
+      quality: "high",
+      codec: "vp9",
+    }), "massage-lab-wave-current/recipe-2/vertical/high.webm")
+  })
+
+  it("plans eighteen video renditions per recipe", () => {
+    const plan = buildBackgroundRenditionPlan(getBackgroundPreviewRecipe("massage-lab-silk"))
+    assert.equal(plan.length, 18)
+    assert.equal(new Set(plan.map(({ relativePath }) => relativePath)).size, 18)
+  })
+
+  it("rejects incomplete and display-name-coupled manifest entries", () => {
+    const recipe = getBackgroundPreviewRecipe("massage-lab-silk")
+    const renditions = buildBackgroundRenditionPlan(recipe).map((item) => ({
+      ...item,
+      durationMs: recipe.durationMs - recipe.crossfadeMs,
+      bytes: 1,
+      sha256: "a".repeat(64),
+    }))
+    const posters = Object.fromEntries(PREVIEW_ASPECTS.map((aspect) => [aspect, {
+      aspect,
+      url: `${recipe.backgroundId}/${recipe.recipeRevision}/${aspect}/poster.webp`,
+      ...PREVIEW_RENDITION_LADDER[aspect].high,
+      bytes: 1,
+      sha256: "b".repeat(64),
+    }]))
+
+    assert.equal(buildPilotManifestEntry({ recipe, renditions, posters }).renditions.length, 18)
+    assert.throws(
+      () => buildPilotManifestEntry({ recipe, renditions: renditions.slice(1), posters }),
+      /exactly 18 unique renditions/,
+    )
+    assert.throws(
+      () => buildPilotManifestEntry({ recipe, renditions, posters: { ...posters, vertical: undefined } }),
+      /poster for every aspect/,
+    )
+    assert.throws(
+      () => buildPilotManifestEntry({
+        recipe,
+        renditions: renditions.map((item, index) => index === 0
+          ? { ...item, relativePath: "Silk/recipe-1/landscape/low.webm" }
+          : item),
+        posters,
+      }),
+      /stable background ID and revision/,
+    )
+  })
+})
