@@ -824,6 +824,11 @@ interface RunningTimerProps {
   massageLabDottedGlowDotSpacing: number
   massageLabDottedGlowOpacity: number
   massageLabDottedGlowGlowStrength: number
+  massageLabBubbleSpeed: number
+  massageLabBubbleIntensity: number
+  massageLabBubbleSize: number
+  massageLabBubbleBlur: number
+  massageLabBubbleBlendStrength: number
   massageLabBackgroundBeamsSpeed: number
   massageLabBackgroundBeamsIntensity: number
   massageLabBackgroundBeamsBeamWidth: number
@@ -1496,6 +1501,11 @@ export function RunningTimer({
   massageLabDottedGlowDotSpacing,
   massageLabDottedGlowOpacity,
   massageLabDottedGlowGlowStrength,
+  massageLabBubbleSpeed,
+  massageLabBubbleIntensity,
+  massageLabBubbleSize,
+  massageLabBubbleBlur,
+  massageLabBubbleBlendStrength,
   massageLabBackgroundBeamsSpeed,
   massageLabBackgroundBeamsIntensity,
   massageLabBackgroundBeamsBeamWidth,
@@ -11552,6 +11562,31 @@ export function RunningTimer({
         </>
       )}
 
+      {option.id === "massage-lab-bubble" && (
+        <>
+          <label className={styles.rangeRow}>
+            <span>Motion speed ({massageLabBubbleSpeed.toFixed(2)}x)</span>
+            <input type="range" min="0.25" max="2" step="0.05" value={massageLabBubbleSpeed} onChange={(event) => handleSettingsChange({ massageLabBubbleSpeed: Number(event.target.value) })} aria-label="Bubble Field motion speed" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Intensity ({Math.round(massageLabBubbleIntensity * 100)}%)</span>
+            <input type="range" min="0.1" max="1" step="0.05" value={massageLabBubbleIntensity} onChange={(event) => handleSettingsChange({ massageLabBubbleIntensity: Number(event.target.value) })} aria-label="Bubble Field intensity" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Bubble size ({Math.round(massageLabBubbleSize * 100)}%)</span>
+            <input type="range" min="0.5" max="2" step="0.05" value={massageLabBubbleSize} onChange={(event) => handleSettingsChange({ massageLabBubbleSize: Number(event.target.value) })} aria-label="Bubble Field bubble size" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Blur ({Math.round(massageLabBubbleBlur)}px)</span>
+            <input type="range" min="0" max="80" step="1" value={massageLabBubbleBlur} onChange={(event) => handleSettingsChange({ massageLabBubbleBlur: Number(event.target.value) })} aria-label="Bubble Field blur" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Blend strength ({Math.round(massageLabBubbleBlendStrength)})</span>
+            <input type="range" min="10" max="30" step="1" value={massageLabBubbleBlendStrength} onChange={(event) => handleSettingsChange({ massageLabBubbleBlendStrength: Number(event.target.value) })} aria-label="Bubble Field blend strength" />
+          </label>
+        </>
+      )}
+
       {option.id === "massage-lab-background-beams" && (
         <>
           <label className={styles.rangeRow}>
@@ -13393,6 +13428,13 @@ export function RunningTimer({
             dotSpacing: massageLabDottedGlowDotSpacing,
             opacity: massageLabDottedGlowOpacity,
             glowStrength: massageLabDottedGlowGlowStrength,
+          }}
+          massageLabBubble={{
+            speed: massageLabBubbleSpeed,
+            intensity: massageLabBubbleIntensity,
+            size: massageLabBubbleSize,
+            blur: massageLabBubbleBlur,
+            blendStrength: massageLabBubbleBlendStrength,
           }}
           massageLabBackgroundBeams={{
             speed: massageLabBackgroundBeamsSpeed,

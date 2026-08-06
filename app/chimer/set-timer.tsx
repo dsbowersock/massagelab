@@ -1027,6 +1027,11 @@ export interface ChimerSettings {
   massageLabDottedGlowDotSpacing: number
   massageLabDottedGlowOpacity: number
   massageLabDottedGlowGlowStrength: number
+  massageLabBubbleSpeed: number
+  massageLabBubbleIntensity: number
+  massageLabBubbleSize: number
+  massageLabBubbleBlur: number
+  massageLabBubbleBlendStrength: number
   massageLabBackgroundBeamsSpeed: number
   massageLabBackgroundBeamsIntensity: number
   massageLabBackgroundBeamsBeamWidth: number
@@ -1747,6 +1752,33 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
           <label className={styles.rangeRow}>
             <span>Glow strength ({settings.massageLabDottedGlowGlowStrength}px)</span>
             <input type="range" min="0" max="12" step="0.5" value={settings.massageLabDottedGlowGlowStrength} onChange={(event) => onSettingsChange({ massageLabDottedGlowGlowStrength: Number(event.target.value) })} aria-label="Dotted Glow glow strength" />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "massage-lab-bubble") {
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.rangeRow}>
+            <span>Motion speed ({settings.massageLabBubbleSpeed.toFixed(2)}x)</span>
+            <input type="range" min="0.25" max="2" step="0.05" value={settings.massageLabBubbleSpeed} onChange={(event) => onSettingsChange({ massageLabBubbleSpeed: Number(event.target.value) })} aria-label="Bubble Field motion speed" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Intensity ({Math.round(settings.massageLabBubbleIntensity * 100)}%)</span>
+            <input type="range" min="0.1" max="1" step="0.05" value={settings.massageLabBubbleIntensity} onChange={(event) => onSettingsChange({ massageLabBubbleIntensity: Number(event.target.value) })} aria-label="Bubble Field intensity" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Bubble size ({Math.round(settings.massageLabBubbleSize * 100)}%)</span>
+            <input type="range" min="0.5" max="2" step="0.05" value={settings.massageLabBubbleSize} onChange={(event) => onSettingsChange({ massageLabBubbleSize: Number(event.target.value) })} aria-label="Bubble Field bubble size" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Blur ({Math.round(settings.massageLabBubbleBlur)}px)</span>
+            <input type="range" min="0" max="80" step="1" value={settings.massageLabBubbleBlur} onChange={(event) => onSettingsChange({ massageLabBubbleBlur: Number(event.target.value) })} aria-label="Bubble Field blur" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Blend strength ({Math.round(settings.massageLabBubbleBlendStrength)})</span>
+            <input type="range" min="10" max="30" step="1" value={settings.massageLabBubbleBlendStrength} onChange={(event) => onSettingsChange({ massageLabBubbleBlendStrength: Number(event.target.value) })} aria-label="Bubble Field blend strength" />
           </label>
         </div>
       )

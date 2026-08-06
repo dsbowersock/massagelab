@@ -2005,7 +2005,7 @@ const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
     performanceCost: "low",
     requiresSubscription: true,
     enabled: true,
-    customizationSummary: "Source bubble colors and motion adapted with native CSS; cursor interactivity and the sixth mouse-following bubble are intentionally omitted.",
+    customizationSummary: "Source bubble colors and motion adapted with native CSS; shared colors keep the background independent from Harmony, tuning covers speed, intensity, size, blur, and blend strength, and cursor interactivity and the sixth mouse-following bubble are intentionally omitted.",
     component: () => cssBackgrounds().then((module) => ({ default: module.MassageLabBubbleBackground })),
     fallbackStyle: {
       background:

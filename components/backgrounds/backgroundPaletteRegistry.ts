@@ -107,6 +107,13 @@ const BACKGROUND_BEAMS_SOURCE_COLORS = Object.freeze([
   "#6344F5",
   "#AE48FF",
 ] as const)
+const BUBBLE_FIELD_SOURCE_COLORS = Object.freeze([
+  "#1271FF",
+  "#DD4AFF",
+  "#00DCFF",
+  "#C83232",
+  "#B4B432",
+] as const)
 const BACKGROUND_LINES_SOURCE_COLORS = Object.freeze([
   "#46A5CA",
   "#8C2F2F",
@@ -131,6 +138,9 @@ const AURORA_FIELD_ROLE_IDS = Object.freeze([
 const BACKGROUND_BEAMS_ROLE_IDS = Object.freeze([
   "beam-1", "beam-2", "beam-3",
 ] as const)
+const BUBBLE_FIELD_ROLE_IDS = Object.freeze([
+  "bubble-1", "bubble-2", "bubble-3", "bubble-4", "bubble-5",
+] as const)
 const BACKGROUND_LINES_ROLE_IDS = Object.freeze([
   "line-1", "line-2", "line-3", "line-4", "line-5", "line-6",
 ] as const)
@@ -146,6 +156,7 @@ for (const [roleIds, sourceFallbacks] of [
   [AURORA_BAR_ROLE_IDS, AURORA_BARS_SOURCE_COLORS],
   [AURORA_FIELD_ROLE_IDS, AURORA_FIELD_SOURCE_COLORS],
   [BACKGROUND_BEAMS_ROLE_IDS, BACKGROUND_BEAMS_SOURCE_COLORS],
+  [BUBBLE_FIELD_ROLE_IDS, BUBBLE_FIELD_SOURCE_COLORS],
   [BACKGROUND_LINES_ROLE_IDS, BACKGROUND_LINES_SOURCE_COLORS],
 ] as const) {
   if (roleIds.length !== sourceFallbacks.length) {
@@ -457,6 +468,24 @@ export function applyCssDomPaletteRoleColors<
             BACKGROUND_BEAMS_ROLE_IDS,
             colors,
             BACKGROUND_BEAMS_SOURCE_COLORS,
+          ),
+        },
+      }
+    case "massage-lab-bubble":
+      return {
+        ...props,
+        massageLabBubble: {
+          ...props.massageLabBubble,
+          backgroundColor: roleColor(
+            colors,
+            "background",
+            props.massageLabBubble?.backgroundColor,
+          ),
+          colors: roleColorArray(
+            props.massageLabBubble?.colors,
+            BUBBLE_FIELD_ROLE_IDS,
+            colors,
+            BUBBLE_FIELD_SOURCE_COLORS,
           ),
         },
       }
@@ -816,6 +845,24 @@ const SUPPORTED_SPECS: readonly SupportedSpec[] = [
     ],
   },
   {
+    id: "massage-lab-bubble",
+    family: "css-dom",
+    prefixes: ["massageLabBubble"],
+    roles: [
+      role("background", "Background", "massageLabBubbleBackgroundColor", "massageLabBubble.backgroundColor", undefined, undefined, 6, "saved-swatch"),
+      role("bubble-1", "Bubble 1", "massageLabBubbleColorOne", "massageLabBubble.colors[0]", undefined, BUBBLE_FIELD_SOURCE_COLORS[0], 0),
+      role("bubble-2", "Bubble 2", "massageLabBubbleColorTwo", "massageLabBubble.colors[1]", undefined, BUBBLE_FIELD_SOURCE_COLORS[1], 1),
+      role("bubble-3", "Bubble 3", "massageLabBubbleColorThree", "massageLabBubble.colors[2]", undefined, BUBBLE_FIELD_SOURCE_COLORS[2], 2),
+      role("bubble-4", "Bubble 4", "massageLabBubbleColorFour", "massageLabBubble.colors[3]", undefined, BUBBLE_FIELD_SOURCE_COLORS[3], 3),
+      role("bubble-5", "Bubble 5", "massageLabBubbleColorFive", "massageLabBubble.colors[4]", undefined, BUBBLE_FIELD_SOURCE_COLORS[4], 4),
+    ],
+    modeOverrides: [{
+      rendererTarget: "massageLabBubble.paletteMode",
+      sourceValue: "source",
+      customValue: "resolved",
+    }],
+  },
+  {
     id: "massage-lab-background-beams",
     family: "css-dom",
     prefixes: ["massageLabBackgroundBeams"],
@@ -1082,7 +1129,6 @@ const SUPPORTED_SPECS: readonly SupportedSpec[] = [
 const UNSUPPORTED_SPECS: readonly UnsupportedSpec[] = [
   { id: "massage-lab-prism", family: "webgl", prefixes: ["massageLabPrism"], reason: "Prism exposes spectral and hue controls rather than a concrete color target, so its source rendering remains unchanged during adapter migration." },
   { id: "massage-lab-dark-veil", family: "webgl", prefixes: ["massageLabDarkVeil"], reason: "Dark Veil exposes a hue shift rather than a concrete color target, so its source rendering remains unchanged during adapter migration." },
-  { id: "massage-lab-bubble", family: "css-dom" },
 ]
 
 const SETTING_NAMESPACE_OWNERS = Object.freeze([

@@ -6,6 +6,12 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-05 — Bubble Field independent background, colors, and tuning
+
+- Promoted Bubble Field from an unsupported CSS/DOM palette adapter to six concrete roles. Source preserves its authored compound background and five bubble colors. Custom maps Bubble 1-5 to Swatches 1-5 and Background to Swatch 7; Harmony regenerates only the five bubble colors while keeping the saved Swatch 7 background visible, editable, and independent.
+- Added persisted Motion speed (`0.25x`-`2.00x`), Intensity (`10%`-`100%`), Bubble size (`50%`-`200%`), Blur (`0`-`80px`), and Blend strength (`10`-`30`) controls to both Visual panels, preserving the authored `1.00x`, `100%`, `100%`, `40px`, and `18` defaults. The renderer applies them to the full animation cycle, field opacity, bubble geometry, gooey blur, and color-matrix blend. Cursor interaction and the sixth mouse-following bubble remain intentionally omitted so Bubble Field stays a passive background. The `massage-lab-bubble` ID and entitlement behavior are unchanged.
+- The focused renderer, role-mapping, Harmony-isolation, settings, entitlement, and UI-contract tests pass; all 2,008 repository tests, typecheck, lint, `git diff --check`, the 102-page Production build, and the localhost-only `/dev/clock` HTTP check pass. Direct rendered automation remains blocked because the in-app Browser's administrator policy cannot verify localhost access, so final visual judgment remains in the user's Device Toolbar review.
+
 ## 2026-08-05 — Tile Grid and Hex Grid fade sliders
 
 - Replaced the shared Tile Grid and Hex Grid Fade time hour/minute/second inputs with the standard Visual-panel range control in both setup and running-timer surfaces. One logarithmic `0-100` presentation preserves useful control over short fades while still reaching the existing `0.25s` through `23h 59m 59.9s` domain; the value label reports the resulting real duration.

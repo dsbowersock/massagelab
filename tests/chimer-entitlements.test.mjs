@@ -2721,6 +2721,32 @@ describe("Chimer entitlement-aware settings", () => {
     }
   })
 
+  it("resets MassageLab Bubble Field controls without premium background access", () => {
+    const input = {
+      backgroundId: "massage-lab-bubble",
+      massageLabBubbleSpeed: 1.75,
+      massageLabBubbleIntensity: 0.8,
+      massageLabBubbleSize: 1.4,
+      massageLabBubbleBlur: 52,
+      massageLabBubbleBlendStrength: 24,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+    assert.equal(premiumSettings.backgroundId, "massage-lab-bubble")
+    for (const key of [
+      "massageLabBubbleSpeed",
+      "massageLabBubbleIntensity",
+      "massageLabBubbleSize",
+      "massageLabBubbleBlur",
+      "massageLabBubbleBlendStrength",
+    ]) {
+      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+      assert.equal(premiumSettings[key], input[key])
+    }
+  })
+
   it("resets MassageLab Beam Field controls without premium background access", () => {
     const input = {
       backgroundId: "massage-lab-background-beams",

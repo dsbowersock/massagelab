@@ -2257,7 +2257,7 @@
 
 .massageLabBubble {
   overflow: hidden;
-  background: linear-gradient(135deg, #2e1065 0%, #1e3a8a 100%);
+  background: var(--ml-bubble-background, linear-gradient(135deg, #2e1065 0%, #1e3a8a 100%));
 }
 
 .bubbleFilterSvg {
@@ -2274,65 +2274,65 @@
   inset: -12%;
   pointer-events: none;
   filter: var(--ml-bubble-filter);
+  opacity: var(--ml-bubble-intensity, 1);
 }
 
 .bubbleOrb {
   position: absolute;
   display: block;
-  width: 80%;
+  width: var(--ml-bubble-size, 80%);
   aspect-ratio: 1;
   border-radius: 999px;
   mix-blend-mode: hard-light;
   opacity: 0.78;
-  background:
-    radial-gradient(circle at center, rgba(var(--ml-bubble-color), 0.8) 0%, rgba(var(--ml-bubble-color), 0) 50%);
+  background: radial-gradient(circle at center, var(--ml-bubble-color) 0%, transparent 50%);
   transform: translate3d(0, 0, 0);
   will-change: transform;
 }
 
 .bubbleOrbOne {
-  --ml-bubble-color: 18, 113, 255;
+  --ml-bubble-color: var(--ml-bubble-color-one, rgba(18, 113, 255, 0.8));
 
   left: 10%;
   top: 10%;
-  animation: mlBubbleFloatY 30s ease-in-out infinite;
+  animation: mlBubbleFloatY var(--ml-bubble-float-y-duration, 30s) ease-in-out infinite;
 }
 
 .bubbleOrbTwo {
-  --ml-bubble-color: 221, 74, 255;
+  --ml-bubble-color: var(--ml-bubble-color-two, rgba(221, 74, 255, 0.8));
 
   left: 10%;
   top: 10%;
   transform-origin: calc(50% - 400px) 50%;
-  animation: mlBubbleRotate 20s linear infinite;
+  animation: mlBubbleRotate var(--ml-bubble-rotate-fast-duration, 20s) linear infinite;
 }
 
 .bubbleOrbThree {
-  --ml-bubble-color: 0, 220, 255;
+  --ml-bubble-color: var(--ml-bubble-color-three, rgba(0, 220, 255, 0.8));
 
   left: calc(50% - 500px);
   top: calc(50% + 200px);
   transform-origin: calc(50% + 400px) 50%;
-  animation: mlBubbleRotate 40s linear infinite;
+  animation: mlBubbleRotate var(--ml-bubble-rotate-slow-duration, 40s) linear infinite;
 }
 
 .bubbleOrbFour {
-  --ml-bubble-color: 200, 50, 50;
+  --ml-bubble-color: var(--ml-bubble-color-four, rgba(200, 50, 50, 0.8));
 
   left: 10%;
   top: 10%;
   opacity: 0.68;
-  animation: mlBubbleFloatX 40s ease-in-out infinite;
+  animation: mlBubbleFloatX var(--ml-bubble-float-x-duration, 40s) ease-in-out infinite;
 }
 
 .bubbleOrbFive {
-  --ml-bubble-color: 180, 180, 50;
+  --ml-bubble-color: var(--ml-bubble-color-five, rgba(180, 180, 50, 0.8));
 
-  left: calc(50% - 80%);
-  top: calc(50% - 80%);
-  width: 160%;
+  left: calc(50% - var(--ml-bubble-size, 80%));
+  top: calc(50% - var(--ml-bubble-size, 80%));
+  width: calc(var(--ml-bubble-size, 80%) + var(--ml-bubble-size, 80%));
   transform-origin: calc(50% - 800px) calc(50% + 200px);
-  animation: mlBubbleRotate 20s linear infinite reverse;
+  animation: mlBubbleRotate var(--ml-bubble-rotate-fast-duration, 20s) linear infinite reverse;
 }
 
 .bubbleVignette {

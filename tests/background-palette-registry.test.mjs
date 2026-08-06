@@ -96,6 +96,18 @@ const cssDomFixtures = {
       reach: 82,
     },
   },
+  "massage-lab-bubble": {
+    massageLabBubble: {
+      paletteMode: "source",
+      backgroundColor: "#010101",
+      colors: ["#020202", "#030303", "#040404", "#050505", "#060606"],
+      speed: 1.4,
+      intensity: 0.64,
+      size: 1.3,
+      blur: 27,
+      blendStrength: 22,
+    },
+  },
   "massage-lab-background-beams": {
     massageLabBackgroundBeams: {
       paletteMode: "source",
@@ -1740,6 +1752,62 @@ describe("background palette adapter registry", () => {
         glowStrength: resolved.massageLabDottedGlow.glowStrength,
       },
       effectProps.massageLabDottedGlow,
+    )
+  })
+
+  it("keeps Bubble Field's Swatch 7 background independent from Harmony", () => {
+    const adapter = backgroundPaletteRegistry["massage-lab-bubble"]
+    assert.deepEqual(
+      Object.fromEntries(adapter.roles.map((role) => [role.id, {
+        defaultSwatch: role.defaultSwatch,
+        harmonyColorSource: role.harmonyColorSource,
+      }])),
+      {
+        background: { defaultSwatch: 6, harmonyColorSource: "saved-swatch" },
+        "bubble-1": { defaultSwatch: 0, harmonyColorSource: "generated" },
+        "bubble-2": { defaultSwatch: 1, harmonyColorSource: "generated" },
+        "bubble-3": { defaultSwatch: 2, harmonyColorSource: "generated" },
+        "bubble-4": { defaultSwatch: 3, harmonyColorSource: "generated" },
+        "bubble-5": { defaultSwatch: 4, harmonyColorSource: "generated" },
+      },
+    )
+
+    const effectProps = cssDomFixtures["massage-lab-bubble"]
+    const sourceResolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-bubble",
+      effectProps,
+      palette: paletteForMode("source"),
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.equal(sourceResolved.massageLabBubble.paletteMode, "source")
+
+    const harmonyResolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-bubble",
+      effectProps,
+      palette: paletteForMode("harmony"),
+      mapping: {},
+      canCustomize: true,
+    })
+    const harmonySwatches = generateBackgroundHarmonySwatches(HARMONY_PRIMARY, "triadic")
+    assert.equal(harmonyResolved.massageLabBubble.paletteMode, "resolved")
+    assert.equal(harmonyResolved.massageLabBubble.backgroundColor, CUSTOM_SWATCHES[6])
+    assert.deepEqual(harmonyResolved.massageLabBubble.colors, harmonySwatches.slice(0, 5))
+    assert.deepEqual(
+      {
+        speed: harmonyResolved.massageLabBubble.speed,
+        intensity: harmonyResolved.massageLabBubble.intensity,
+        size: harmonyResolved.massageLabBubble.size,
+        blur: harmonyResolved.massageLabBubble.blur,
+        blendStrength: harmonyResolved.massageLabBubble.blendStrength,
+      },
+      {
+        speed: effectProps.massageLabBubble.speed,
+        intensity: effectProps.massageLabBubble.intensity,
+        size: effectProps.massageLabBubble.size,
+        blur: effectProps.massageLabBubble.blur,
+        blendStrength: effectProps.massageLabBubble.blendStrength,
+      },
     )
   })
 

@@ -195,6 +195,7 @@ export interface BackgroundEffectProps extends BackgroundRendererLifecycleProps 
   massageLabAerialRays?: MassageLabAerialRaysOptions
   massageLabAurora?: MassageLabAuroraOptions
   massageLabDottedGlow?: MassageLabDottedGlowOptions
+  massageLabBubble?: MassageLabBubbleOptions
   massageLabBackgroundBeams?: MassageLabBackgroundBeamsOptions
   massageLabCollisionBeams?: MassageLabCollisionBeamsOptions
   massageLabGlowingStars?: MassageLabGlowingStarsOptions
@@ -223,6 +224,7 @@ export interface CssDomPaletteEffectPropsById {
   "massage-lab-moving-gradient": Pick<BackgroundEffectProps, "className" | "mainColor" | "orbColor">
   "massage-lab-aerial-rays": Pick<BackgroundEffectProps, "massageLabAerialRays">
   "massage-lab-aurora": Pick<BackgroundEffectProps, "massageLabAurora">
+  "massage-lab-bubble": Pick<BackgroundEffectProps, "massageLabBubble">
   "massage-lab-background-beams": Pick<BackgroundEffectProps, "massageLabBackgroundBeams">
   "massage-lab-background-lines": Pick<BackgroundEffectProps, "backgroundLines">
   "massage-lab-collision-beams": Pick<BackgroundEffectProps, "massageLabCollisionBeams">
@@ -1131,6 +1133,24 @@ export interface MassageLabDottedGlowOptions {
   glowStrength?: number
 }
 
+export interface MassageLabBubbleOptions {
+  /** Source retains the authored gradient; resolved uses the saved background swatch. */
+  paletteMode?: "source" | "resolved"
+  backgroundColor?: string
+  /** Five ordered colors assigned to the authored bubble layers. */
+  colors?: readonly string[]
+  /** Multiplies the authored 20-40 second bubble cycles. */
+  speed?: number
+  /** Opacity applied to the complete blended bubble field. */
+  intensity?: number
+  /** Multiplier applied to every authored bubble diameter. */
+  size?: number
+  /** Final field blur radius in CSS pixels. */
+  blur?: number
+  /** SVG alpha contrast that controls how strongly neighboring bubbles merge. */
+  blendStrength?: number
+}
+
 export interface MassageLabBackgroundBeamsOptions {
   /** Source retains the authored compound backdrop; resolved uses the saved background swatch. */
   paletteMode?: "source" | "resolved"
@@ -1871,6 +1891,20 @@ const DEFAULT_MASSAGE_LAB_DOTTED_GLOW = Object.freeze({
   dotSpacing: 14,
   opacity: 0.58,
   glowStrength: 6,
+})
+
+const MASSAGE_LAB_BUBBLE_SOURCE_BACKGROUND =
+  "linear-gradient(135deg, #2e1065 0%, #1e3a8a 100%)"
+
+const DEFAULT_MASSAGE_LAB_BUBBLE = Object.freeze({
+  paletteMode: "source" as const,
+  backgroundColor: "#2E1065",
+  colors: Object.freeze(["#1271FF", "#DD4AFF", "#00DCFF", "#C83232", "#B4B432"]),
+  speed: 1,
+  intensity: 1,
+  size: 1,
+  blur: 40,
+  blendStrength: 18,
 })
 
 const MASSAGE_LAB_BACKGROUND_BEAMS_SOURCE_BACKGROUND =
@@ -2628,11 +2662,37 @@ export function MassageLabMeteorsBackground({ className, massageLabMeteors }: Ba
 
 // MassageLab Bubble Field adapted as an internal MassageLab premium effect.
 // Cursor interaction from the source component is intentionally omitted.
-export function MassageLabBubbleBackground({ className }: BackgroundEffectProps) {
+export function MassageLabBubbleBackground({
+  className,
+  massageLabBubble,
+}: BackgroundEffectProps) {
   const filterId = `ml-bubble-goo-${useId().replace(/:/g, "")}`
+  const resolved = resolveMassageLabBubbleOptions(massageLabBubble)
+  const [colorOne, colorTwo, colorThree, colorFour, colorFive] = resolved.colors
+  const rootStyle = {
+    "--ml-bubble-background": resolved.paletteMode === "source"
+      ? MASSAGE_LAB_BUBBLE_SOURCE_BACKGROUND
+      : resolved.backgroundColor,
+    "--ml-bubble-color-one": hexColorWithAlpha(colorOne, 0.8),
+    "--ml-bubble-color-two": hexColorWithAlpha(colorTwo, 0.8),
+    "--ml-bubble-color-three": hexColorWithAlpha(colorThree, 0.8),
+    "--ml-bubble-color-four": hexColorWithAlpha(colorFour, 0.8),
+    "--ml-bubble-color-five": hexColorWithAlpha(colorFive, 0.8),
+    "--ml-bubble-float-y-duration": `${30 / resolved.speed}s`,
+    "--ml-bubble-rotate-fast-duration": `${20 / resolved.speed}s`,
+    "--ml-bubble-rotate-slow-duration": `${40 / resolved.speed}s`,
+    "--ml-bubble-float-x-duration": `${40 / resolved.speed}s`,
+    "--ml-bubble-intensity": resolved.intensity,
+    "--ml-bubble-size": `${80 * resolved.size}%`,
+    "--ml-bubble-filter": `url(#${filterId}) blur(${resolved.blur}px)`,
+  } as CSSProperties
 
   return (
-    <div className={cn(styles.effectLayer, styles.massageLabBubble, className)} aria-hidden="true">
+    <div
+      className={cn(styles.effectLayer, styles.massageLabBubble, className)}
+      style={rootStyle}
+      aria-hidden="true"
+    >
       <svg className={styles.bubbleFilterSvg} xmlns="http://www.w3.org/2000/svg">
         <defs>
           <filter id={filterId}>
@@ -2640,17 +2700,14 @@ export function MassageLabBubbleBackground({ className }: BackgroundEffectProps)
             <feColorMatrix
               in="blur"
               mode="matrix"
-              values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -8"
+              values={`1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 ${resolved.blendStrength} ${10 - resolved.blendStrength}`}
               result="goo"
             />
             <feBlend in="SourceGraphic" in2="goo" />
           </filter>
         </defs>
       </svg>
-      <div
-        className={styles.bubbleGooLayer}
-        style={{ "--ml-bubble-filter": `url(#${filterId}) blur(40px)` } as CSSProperties}
-      >
+      <div className={styles.bubbleGooLayer}>
         <span className={cn(styles.bubbleOrb, styles.bubbleOrbOne)} />
         <span className={cn(styles.bubbleOrb, styles.bubbleOrbTwo)} />
         <span className={cn(styles.bubbleOrb, styles.bubbleOrbThree)} />
@@ -3778,6 +3835,25 @@ function resolveMassageLabDottedGlowOptions(
     dotSpacing: clampNumber(dottedGlow?.dotSpacing, DEFAULT_MASSAGE_LAB_DOTTED_GLOW.dotSpacing, 8, 28),
     opacity: clampNumber(dottedGlow?.opacity, DEFAULT_MASSAGE_LAB_DOTTED_GLOW.opacity, 0.1, 1),
     glowStrength: clampNumber(dottedGlow?.glowStrength, DEFAULT_MASSAGE_LAB_DOTTED_GLOW.glowStrength, 0, 12),
+  }
+}
+
+function resolveMassageLabBubbleOptions(
+  bubble: MassageLabBubbleOptions | undefined,
+): Required<MassageLabBubbleOptions> {
+  const colors = DEFAULT_MASSAGE_LAB_BUBBLE.colors.map((fallback, index) => (
+    normalizeHexColor(bubble?.colors?.[index], fallback)
+  ))
+
+  return {
+    paletteMode: bubble?.paletteMode === "resolved" ? "resolved" : "source",
+    backgroundColor: normalizeHexColor(bubble?.backgroundColor, DEFAULT_MASSAGE_LAB_BUBBLE.backgroundColor),
+    colors,
+    speed: clampNumber(bubble?.speed, DEFAULT_MASSAGE_LAB_BUBBLE.speed, 0.25, 2),
+    intensity: clampNumber(bubble?.intensity, DEFAULT_MASSAGE_LAB_BUBBLE.intensity, 0.1, 1),
+    size: clampNumber(bubble?.size, DEFAULT_MASSAGE_LAB_BUBBLE.size, 0.5, 2),
+    blur: clampNumber(bubble?.blur, DEFAULT_MASSAGE_LAB_BUBBLE.blur, 0, 80),
+    blendStrength: clampNumber(bubble?.blendStrength, DEFAULT_MASSAGE_LAB_BUBBLE.blendStrength, 10, 30),
   }
 }
 

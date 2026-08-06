@@ -5973,6 +5973,20 @@ describe("premium background registry", () => {
       new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
       "utf8",
     )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const paletteSource = readFileSync(
+      new URL("../components/backgrounds/backgroundPaletteRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
 
     assert.match(registrySource, /massage-lab-bubble/)
     assert.match(registrySource, /cursor interactivity and the sixth mouse-following bubble are intentionally omitted/)
@@ -5980,6 +5994,27 @@ describe("premium background registry", () => {
     assert.match(effectSource, /Cursor interaction from the source component is intentionally omitted/)
     assert.match(effectSource, /ml-bubble-goo/)
     assert.match(effectSource, /bubbleOrbFive/)
+    assert.match(effectSource, /MassageLabBubbleOptions/)
+    assert.match(effectSource, /--ml-bubble-background/)
+    assert.match(effectSource, /--ml-bubble-intensity/)
+    assert.match(effectSource, /--ml-bubble-size/)
+    assert.match(stylesSource, /var\(--ml-bubble-background/)
+    assert.match(stylesSource, /var\(--ml-bubble-intensity, 1\)/)
+    assert.match(stylesSource, /var\(--ml-bubble-size, 80%\)/)
+    assert.match(paletteSource, /id: "massage-lab-bubble"/)
+    assert.match(paletteSource, /role\("background", "Background", "massageLabBubbleBackgroundColor"/)
+    for (const key of [
+      "massageLabBubbleSpeed",
+      "massageLabBubbleIntensity",
+      "massageLabBubbleSize",
+      "massageLabBubbleBlur",
+      "massageLabBubbleBlendStrength",
+    ]) {
+      assert.match(setupSource, new RegExp(key))
+      assert.match(runningSource, new RegExp(key))
+    }
+    assert.match(hostSource, /massageLabBubble/)
+    assert.match(runningSource, /massageLabBubble=\{\{/)
     assert.doesNotMatch(effectSource, /motion\/react/)
     assert.doesNotMatch(effectSource, /from "motion"/)
     assert.doesNotMatch(effectSource, /mousemove/)
