@@ -62,6 +62,7 @@ test("Harmony buttons preview every generated palette from the current Primary",
 
 test("shared palette editor presents one accessible mode choice and seven indexed swatches", () => {
   assert.match(editorSource, /SegmentedToggleGroup/)
+  assert.match(editorSource, /Children\.toArray\(customControlsAfterSwatches\)\.length > 0/)
   assert.match(editorSource, /label="Color source"/)
   assert.match(editorSource, /buildBackgroundPaletteEditorViewModel/)
   assert.match(controlsSource, /\{ value: "source", label: "Source" \}/)

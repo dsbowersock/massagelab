@@ -512,6 +512,9 @@ export function MusicProvider({
     }
 
     if (!accountSyncEnabled) {
+      // Aborting transport is not enough: invalidate every continuation that
+      // already passed an abort boundary before local-only mode took effect.
+      accountRequestIdRef.current += 1
       accountAbortControllerRef.current?.abort()
       accountSyncVerifiedRef.current = false
       accountPreferencesHydratedRef.current = false

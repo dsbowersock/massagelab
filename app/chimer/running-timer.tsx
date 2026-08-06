@@ -10898,7 +10898,7 @@ export function RunningTimer({
                   massageLabLiquidChromeAmplitude: Number(event.target.value),
                 })
               }
-              aria-label="MassageLab Liquid Chrome amplitude"
+              aria-label="Molten Mirror amplitude"
             />
           </label>
 
@@ -10915,7 +10915,7 @@ export function RunningTimer({
                   massageLabLiquidChromeFrequencyX: Number(event.target.value),
                 })
               }
-              aria-label="MassageLab Liquid Chrome frequency X"
+              aria-label="Molten Mirror frequency X"
             />
           </label>
 
@@ -10932,7 +10932,7 @@ export function RunningTimer({
                   massageLabLiquidChromeFrequencyY: Number(event.target.value),
                 })
               }
-              aria-label="MassageLab Liquid Chrome frequency Y"
+              aria-label="Molten Mirror frequency Y"
             />
           </label>
         </>

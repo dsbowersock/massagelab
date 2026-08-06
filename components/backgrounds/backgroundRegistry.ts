@@ -160,6 +160,21 @@ type BackgroundBrandingEntry = {
   signatureOriginal: boolean
 }
 
+/** Rejects malformed checked-in branding rows before they reach registry copy. */
+function isBackgroundBrandingEntry(value: unknown): value is BackgroundBrandingEntry {
+  if (!value || typeof value !== "object") {
+    return false
+  }
+
+  const entry = value as Record<string, unknown>
+  return typeof entry.id === "string"
+    && typeof entry.label === "string"
+    && typeof entry.visualDescriptor === "string"
+    && Array.isArray(entry.legacyLabels)
+    && entry.legacyLabels.every((label) => typeof label === "string")
+    && typeof entry.signatureOriginal === "boolean"
+}
+
 export type BackgroundAccessSnapshot = {
   featureKeys: readonly string[]
   ownedBackgroundIds: readonly string[]
@@ -2114,7 +2129,9 @@ const rawBackgroundRegistry: readonly RawBackgroundDefinition[] = [
 ] as const
 
 const backgroundBrandingById = new Map(
-  (backgroundBrandingCatalog.entries as BackgroundBrandingEntry[]).map((entry) => [entry.id, entry]),
+  backgroundBrandingCatalog.entries
+    .filter(isBackgroundBrandingEntry)
+    .map((entry) => [entry.id, entry]),
 )
 
 /**

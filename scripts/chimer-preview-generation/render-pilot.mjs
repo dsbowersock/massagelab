@@ -32,6 +32,7 @@ import {
   buildBackgroundRenditionPlan,
   buildPilotManifestEntry,
   buildPreviewPosterRelativePath,
+  getPreviewRenditionMimeType,
 } from "./rendition-plan.mjs"
 import {
   renderRenditionManifestModule,
@@ -51,6 +52,7 @@ function parseArgs(argv) {
     outputDir: "",
     port: 3020,
     skipServer: false,
+    refreshMetadata: false,
     validateOnly: false,
     writeModule: "",
   }
@@ -64,6 +66,7 @@ function parseArgs(argv) {
       case "--output-dir": options.outputDir = next ? path.resolve(repoRoot, next) : ""; index += 1; break
       case "--port": options.port = Number(next); index += 1; break
       case "--skip-server": options.skipServer = true; break
+      case "--refresh-metadata": options.refreshMetadata = true; break
       case "--validate-only": options.validateOnly = true; break
       case "--write-module": options.writeModule = next ? path.resolve(repoRoot, next) : ""; index += 1; break
       default:
@@ -87,12 +90,14 @@ function parseArgs(argv) {
   return options
 }
 
-function ensureFfmpeg() {
-  const result = spawnSync("ffmpeg", ["-hide_banner", "-encoders"], { encoding: "utf8", maxBuffer: 8 * 1024 * 1024 })
-  const output = `${result.stdout ?? ""}\n${result.stderr ?? ""}`
-  if (result.status !== 0) throw new Error("FFmpeg is required to render the preview pilot.")
-  for (const encoder of ["libvpx-vp9", "libx264", "libwebp"]) {
-    if (!new RegExp(`\\b${encoder}\\b`).test(output)) throw new Error(`FFmpeg must include ${encoder}.`)
+function ensureMediaTools({ requireEncoders = true } = {}) {
+  if (requireEncoders) {
+    const result = spawnSync("ffmpeg", ["-hide_banner", "-encoders"], { encoding: "utf8", maxBuffer: 8 * 1024 * 1024 })
+    const output = `${result.stdout ?? ""}\n${result.stderr ?? ""}`
+    if (result.status !== 0) throw new Error("FFmpeg is required to render the preview pilot.")
+    for (const encoder of ["libvpx-vp9", "libx264", "libwebp"]) {
+      if (!new RegExp(`\\b${encoder}\\b`).test(output)) throw new Error(`FFmpeg must include ${encoder}.`)
+    }
   }
   const probe = spawnSync("ffprobe", ["-version"], { encoding: "utf8" })
   if (probe.status !== 0) throw new Error("FFprobe is required to validate the preview pilot.")
@@ -369,6 +374,17 @@ function writeManifest(options, entries) {
   return readManifest(options.outputDir)
 }
 
+/** Rebuilds derived MIME metadata without recapturing or re-encoding media. */
+function refreshManifestMetadata(entries) {
+  return entries.map((entry) => ({
+    ...entry,
+    renditions: entry.renditions.map((rendition) => ({
+      ...rendition,
+      mimeType: getPreviewRenditionMimeType(rendition.codec, rendition.quality),
+    })),
+  }))
+}
+
 function validateExistingOutput(options) {
   const manifest = readManifest(options.outputDir)
   const errors = validatePilotManifest(manifest.entries)
@@ -402,8 +418,16 @@ function validateExistingOutput(options) {
 
 async function main() {
   const options = parseArgs(process.argv.slice(2))
-  ensureFfmpeg()
+  // Metadata refreshes and validation decode existing files but never encode.
+  ensureMediaTools({ requireEncoders: !options.validateOnly && !options.refreshMetadata })
   mkdirSync(options.outputDir, { recursive: true })
+  if (options.refreshMetadata) {
+    const current = readManifest(options.outputDir)
+    const refreshed = writeManifest(options, refreshManifestMetadata(current.entries))
+    validateExistingOutput(options)
+    console.log(`Refreshed and validated metadata for ${refreshed.entries.length} complete pilot entries.`)
+    return
+  }
   if (options.validateOnly) {
     const manifest = validateExistingOutput(options)
     if (options.writeModule) writeManifest(options, manifest.entries)

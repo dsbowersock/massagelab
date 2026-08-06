@@ -183,6 +183,8 @@ interface ProgramInfo {
 export default function MassageLabRetroGridBackground({
   className,
   massageLabRetroGrid,
+  // BackgroundHost resolves the system and app policy for every registry render;
+  // the fallback keeps isolated renderer tests deterministic.
   reduceMotion = false,
 }: BackgroundEffectProps) {
   const {

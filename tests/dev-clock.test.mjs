@@ -56,6 +56,10 @@ describe("development Clock review route", () => {
     )
     assert.match(
       musicProviderSource,
+      /if \(!accountSyncEnabled\) \{[\s\S]*accountRequestIdRef\.current \+= 1[\s\S]*accountAbortControllerRef\.current\?\.abort\(\)/,
+    )
+    assert.match(
+      musicProviderSource,
       /const persistVisualizerAccountPreferences = useCallback\([\s\S]*?if \(!accountSyncEnabled\) \{[\s\S]*?return[\s\S]*?\}/,
     )
     assert.match(

@@ -228,6 +228,7 @@ export default function MassageLabShapeGridBackground({
 
     const updateCellOpacities = () => {
       const targets = new Map<string, number>()
+      let needsAnotherFrame = false
       if (hoveredCellRef.current) {
         targets.set(`${hoveredCellRef.current.x},${hoveredCellRef.current.y}`, 1)
       }
@@ -253,10 +254,15 @@ export default function MassageLabShapeGridBackground({
         const next = opacity + (target - opacity) * 0.15
         if (next < 0.005) {
           cellOpacities.delete(key)
+        } else if (Math.abs(target - next) < 0.005) {
+          cellOpacities.set(key, target)
         } else {
           cellOpacities.set(key, next)
+          needsAnotherFrame = true
         }
       }
+
+      return needsAnotherFrame
     }
 
     const pushTrail = (cell: GridCell | null) => {
@@ -287,6 +293,7 @@ export default function MassageLabShapeGridBackground({
       if (mouseX < 0 || mouseY < 0 || mouseX > width || mouseY > height) {
         pushTrail(hoveredCellRef.current)
         hoveredCellRef.current = null
+        render()
         return
       }
 
@@ -297,6 +304,7 @@ export default function MassageLabShapeGridBackground({
         const col = Math.round(adjustedX / hexHoriz)
         const rowOffset = (col + colShift) % 2 !== 0 ? hexVert / 2 : 0
         setHoveredCell({ x: col, y: Math.round((adjustedY - rowOffset) / hexVert) })
+        render()
         return
       }
 
@@ -308,6 +316,7 @@ export default function MassageLabShapeGridBackground({
           x: Math.round(adjustedX / halfW),
           y: Math.floor(adjustedY / options.squareSize),
         })
+        render()
         return
       }
 
@@ -323,11 +332,13 @@ export default function MassageLabShapeGridBackground({
             y: Math.floor(adjustedY / options.squareSize),
           }
       setHoveredCell(cell)
+      render()
     }
 
     const handlePointerLeave = () => {
       pushTrail(hoveredCellRef.current)
       hoveredCellRef.current = null
+      render()
     }
 
     const updateAnimation = () => {
@@ -359,10 +370,10 @@ export default function MassageLabShapeGridBackground({
         }
       }
 
-      updateCellOpacities()
+      const opacityTransitionActive = updateCellOpacities()
       drawGrid()
       reportRenderReadiness(true)
-      if (animate && !disposed) {
+      if (animate && !disposed && (options.speed > 0 || opacityTransitionActive)) {
         animationFrame = window.requestAnimationFrame(updateAnimation)
       }
     }

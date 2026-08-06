@@ -887,6 +887,7 @@ export interface ChimerSettings {
   massageLabDotFieldBulgeStrength: number
   massageLabDotFieldGlowRadius: number
   massageLabDotFieldSparkle: boolean
+  massageLabDotFieldDefaultsVersion: number
   massageLabDotFieldWaveAmplitude: number
   massageLabDotFieldCursorInteraction: boolean
   massageLabDotGridDotSize: number
@@ -1100,6 +1101,7 @@ export interface ChimerSettings {
   tileGridTileSize: number
   tileGridJointSize: number
   tileGridChangeFrequency: number
+  massageLabGridFadeDefaultsVersion: number
   tileGridActivePercent: number
   tileGridOpacity: number
   hexGridHexSize: number
@@ -10354,7 +10356,7 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
                   massageLabLiquidChromeAmplitude: Number(event.target.value),
                 })
               }
-              aria-label="MassageLab Liquid Chrome amplitude"
+              aria-label="Molten Mirror amplitude"
             />
           </label>
 
@@ -10371,7 +10373,7 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
                   massageLabLiquidChromeFrequencyX: Number(event.target.value),
                 })
               }
-              aria-label="MassageLab Liquid Chrome frequency X"
+              aria-label="Molten Mirror frequency X"
             />
           </label>
 
@@ -10388,7 +10390,7 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
                   massageLabLiquidChromeFrequencyY: Number(event.target.value),
                 })
               }
-              aria-label="MassageLab Liquid Chrome frequency Y"
+              aria-label="Molten Mirror frequency Y"
             />
           </label>
         </div>

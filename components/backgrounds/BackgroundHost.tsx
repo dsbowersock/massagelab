@@ -471,6 +471,8 @@ export function BackgroundHost(props: BackgroundHostProps) {
       && readyRendererAttempt?.backgroundId === activeRendererAttempt.backgroundId
       && readyRendererAttempt.loadGeneration === activeRendererAttempt.loadGeneration,
   )
+  // Capture both identities so a stale lazy renderer cannot mark a newer
+  // background or retry generation ready after it has been replaced.
   const handleRenderReadyChange = useCallback((ready: boolean) => {
     if (activeRendererBackgroundId === null || activeRendererLoadGeneration === null) {
       return

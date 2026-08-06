@@ -96,12 +96,12 @@ export type BackgroundPreviewRenditionEntry = {
 export const backgroundPreviewRenditionManifest: Readonly<Record<string, BackgroundPreviewRenditionEntry>> = Object.freeze(${JSON.stringify(record, null, 2)})
 
 /**
- * Leaves absolute, protocol-relative, and root-relative URLs unchanged. Other values are
- * normalized below the fixed /chimer/background-preview-pilot/ base after leading slashes are removed.
+ * Leaves absolute, protocol-relative, and root-relative URLs unchanged. Every
+ * other value is resolved below the fixed /chimer/background-preview-pilot/ base.
  */
 export function resolvePreviewRenditionUrl(url: string): string {
   if (/^(?:https?:)?\\/\\//.test(url) || url.startsWith("/")) return url
-  return \`/chimer/background-preview-pilot/\${url.replace(/^\\/+/, "")}\`
+  return \`/chimer/background-preview-pilot/\${url}\`
 }
 `
 }

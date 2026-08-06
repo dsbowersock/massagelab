@@ -7,9 +7,23 @@ import {
 } from "./preview-recipes.mjs"
 
 const CODEC_OUTPUT = Object.freeze({
-  vp9: Object.freeze({ extension: "webm", mimeType: "video/webm; codecs=vp9" }),
-  h264: Object.freeze({ extension: "mp4", mimeType: "video/mp4; codecs=avc1.42E01E" }),
+  vp9: Object.freeze({ extension: "webm" }),
+  h264: Object.freeze({ extension: "mp4" }),
 })
+
+// FFmpeg encodes the approved MP4 ladder with High profile and chooses these
+// levels for the low, standard, and high dimension tiers respectively.
+const H264_MIME_BY_QUALITY = Object.freeze({
+  low: "video/mp4; codecs=avc1.64000D",
+  standard: "video/mp4; codecs=avc1.64001E",
+  high: "video/mp4; codecs=avc1.64001F",
+})
+
+/** Returns the RFC 6381 MIME declaration that matches one encoded tier. */
+export function getPreviewRenditionMimeType(codec, quality) {
+  if (codec === "vp9") return "video/webm; codecs=vp9"
+  return codec === "h264" ? H264_MIME_BY_QUALITY[quality] : undefined
+}
 
 function assertPathPart(value, label, pattern) {
   if (typeof value !== "string" || !pattern.test(value)) {
@@ -51,7 +65,7 @@ export function buildBackgroundRenditionPlan(recipe) {
       ...PREVIEW_RENDITION_LADDER[aspect][quality],
       fps: recipe.fps,
       relativePath: buildPreviewAssetRelativePath({ ...recipe, aspect, quality, codec }),
-      mimeType: CODEC_OUTPUT[codec].mimeType,
+      mimeType: getPreviewRenditionMimeType(codec, quality),
     })),
   ))
 }
@@ -111,4 +125,3 @@ export function buildPilotManifestEntry({ recipe, renditions, posters }) {
     posters,
   }
 }
-

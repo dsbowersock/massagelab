@@ -42,6 +42,7 @@
     "atmosphere:samples:web-audio:r2:upload": "node scripts/atmosphere-upload-web-audio-format-r2.mjs upload",
     "chimer:preview:render": "node --experimental-strip-types scripts/chimer-preview-generation/render.mjs",
     "chimer:preview:pilot": "node --experimental-strip-types scripts/chimer-preview-generation/render-pilot.mjs",
+    "chimer:preview:pilot:refresh-metadata": "node scripts/chimer-preview-generation/render-pilot.mjs --refresh-metadata --output-dir public/chimer/background-preview-pilot --write-module components/backgrounds/backgroundPreviewRenditionManifest.ts",
     "chimer:preview:pilot:validate": "node scripts/chimer-preview-generation/render-pilot.mjs --validate-only",
     "chimer:preview:manifest": "node --experimental-strip-types scripts/chimer-preview-generation/manifest.mjs",
     "chimer:preview:r2:check": "node scripts/chimer-preview-generation/upload-r2.mjs check",

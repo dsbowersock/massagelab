@@ -36,9 +36,37 @@ export default function MassageLabGridMotionBackground({
   const mouseXRef = useRef(0.5)
   const currentOffsetsRef = useRef<number[]>(Array.from({ length: 6 }, () => 0))
   const [rowCount, setRowCount] = useState(6)
+  const {
+    gradientColor,
+    tileColor,
+    textColor,
+    maxMoveAmount,
+    baseDuration,
+    cursorInteraction,
+    mantras: requestedMantras,
+  } = massageLabGridMotion ?? {}
+  const mantraDependency = Array.isArray(requestedMantras)
+    ? requestedMantras.join("\u0000")
+    : null
   const options = useMemo(
-    () => resolveGridMotionOptions(massageLabGridMotion),
-    [massageLabGridMotion],
+    () => resolveGridMotionOptions({
+      gradientColor,
+      tileColor,
+      textColor,
+      maxMoveAmount,
+      baseDuration,
+      cursorInteraction,
+      mantras: mantraDependency?.split("\u0000"),
+    }),
+    [
+      baseDuration,
+      cursorInteraction,
+      gradientColor,
+      mantraDependency,
+      maxMoveAmount,
+      textColor,
+      tileColor,
+    ],
   )
   const { mantras } = options
 

@@ -203,14 +203,17 @@ describe("DNA background domain and shared layout rules", () => {
 
   it("maps source values to the approved speed and scale labels without changing defaults", () => {
     assert.equal(getDnaNodeMotionDisplaySpeed(0.06), 1)
+    assert.equal(getDnaNodeMotionDisplaySpeed(0.01998), 0.3)
     assert.equal(getDnaNodeMotionSourceSpeed(1), 0.06)
     assert.equal(getDnaNodeMotionSourceSpeed(0.1), 0.006)
     assert.equal(getDnaNodeMotionSourceSpeed(2), 0.12)
     assert.equal(getDnaStrandRotationDisplaySpeed(0.02), 1)
+    assert.equal(getDnaStrandRotationDisplaySpeed(0.0252), 1.3)
     assert.equal(getDnaStrandRotationSourceSpeed(1), 0.02)
     assert.equal(getDnaStrandRotationSourceSpeed(0.1), 0.002)
     assert.equal(getDnaStrandRotationSourceSpeed(2), 0.04)
     assert.equal(getDnaScaleDisplayPercent(0.5), 100)
+    assert.equal(getDnaScaleDisplayPercent(0.12345), 25)
     assert.equal(getDnaScaleFromDisplayPercent(100), 0.5)
     assert.equal(getDnaScaleFromDisplayPercent(1), 0.005)
   })

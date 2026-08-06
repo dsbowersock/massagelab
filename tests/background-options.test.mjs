@@ -5024,6 +5024,8 @@ describe("premium background registry", () => {
     assert.match(effectSource, /speed: 0\.25/)
     assert.match(effectSource, /DEFAULT_MASSAGELAB_SHAPE_GRID\.speed, 0, 2/)
     assert.doesNotMatch(effectSource, /Math\.max\(options\.speed, 0\.1\)/)
+    assert.match(effectSource, /options\.speed > 0 \|\| opacityTransitionActive/)
+    assert.match(effectSource, /const opacityTransitionActive = updateCellOpacities\(\)/)
     for (const source of [setupSource, runningSource]) {
       assert.match(source, /getMassageLabShapeGridSpeedDisplayPercent/)
       assert.match(source, /getMassageLabShapeGridSpeedFromDisplayPercent/)

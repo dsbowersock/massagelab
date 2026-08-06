@@ -1,6 +1,6 @@
 "use client"
 
-import { type ReactNode, useId, useMemo } from "react"
+import { Children, type ReactNode, useId, useMemo } from "react"
 
 import { type BackgroundPaletteAdapter } from "@/components/backgrounds/backgroundPaletteRegistry"
 import { ColorPickerSwatch } from "@/components/chimer-controls/GlobalColorPicker"
@@ -62,8 +62,7 @@ export function BackgroundPaletteEditor({
   disabled = false,
 }: BackgroundPaletteEditorProps) {
   const componentId = useId()
-  const hasCustomControls = customControlsAfterSwatches !== null
-    && customControlsAfterSwatches !== undefined
+  const hasCustomControls = Children.toArray(customControlsAfterSwatches).length > 0
   const viewModel = useMemo(
     () => buildBackgroundPaletteEditorViewModel({
       palette,

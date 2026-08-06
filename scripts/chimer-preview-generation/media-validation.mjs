@@ -1,10 +1,7 @@
 import { PREVIEW_ASPECTS, PREVIEW_CODECS, PREVIEW_QUALITIES } from "./preview-recipes.mjs"
+import { getPreviewRenditionMimeType } from "./rendition-plan.mjs"
 
 const SHA256_PATTERN = /^[a-f0-9]{64}$/
-const MIME_BY_CODEC = Object.freeze({
-  vp9: "video/webm; codecs=vp9",
-  h264: "video/mp4; codecs=avc1.42E01E",
-})
 
 function parseFrameRate(value) {
   const [numerator, denominator] = String(value ?? "0/0").split("/").map(Number)
@@ -118,7 +115,9 @@ export function validatePilotManifest(entries) {
     for (const item of renditions) {
       const label = `${id}:${item.aspect}:${item.quality}:${item.codec}`
       errors.push(...mediaFileErrors(item, root, label))
-      if (MIME_BY_CODEC[item.codec] !== item.mimeType) errors.push(`${label}: MIME type does not match codec`)
+      if (getPreviewRenditionMimeType(item.codec, item.quality) !== item.mimeType) {
+        errors.push(`${label}: MIME type does not match encoded codec profile and tier`)
+      }
       if (!PREVIEW_ASPECTS.includes(item.aspect) || !PREVIEW_QUALITIES.includes(item.quality)
         || !PREVIEW_CODECS.includes(item.codec)) errors.push(`${label}: unsupported rendition key`)
       if (!Number.isInteger(item.durationMs) || item.durationMs <= 0) errors.push(`${label}: duration must be positive`)
@@ -142,4 +141,3 @@ export function validatePilotManifest(entries) {
   }
   return errors
 }
-

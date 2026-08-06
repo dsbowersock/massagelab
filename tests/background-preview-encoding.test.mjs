@@ -13,8 +13,16 @@ import {
   validatePilotManifest,
   validateRenditionMetadata,
 } from "../scripts/chimer-preview-generation/media-validation.mjs"
+import { getPreviewRenditionMimeType } from "../scripts/chimer-preview-generation/rendition-plan.mjs"
 
 describe("background preview encoding plans", () => {
+  it("declares the encoded High-profile H.264 level for each quality tier", () => {
+    assert.equal(getPreviewRenditionMimeType("h264", "low"), "video/mp4; codecs=avc1.64000D")
+    assert.equal(getPreviewRenditionMimeType("h264", "standard"), "video/mp4; codecs=avc1.64001E")
+    assert.equal(getPreviewRenditionMimeType("h264", "high"), "video/mp4; codecs=avc1.64001F")
+    assert.equal(getPreviewRenditionMimeType("vp9", "high"), "video/webm; codecs=vp9")
+  })
+
   it("builds bounded VP9 output with Lanczos scaling", () => {
     const args = buildRenditionEncodeArgs({
       inputPath: "master.webm",
@@ -128,14 +136,14 @@ describe("background preview media validation", () => {
     const recipeRevision = "recipe-1"
     const renditions = ["landscape", "square", "vertical"].flatMap((aspect) =>
       ["low", "standard", "high"].flatMap((quality) => [
-        { codec: "vp9", extension: "webm", mimeType: "video/webm; codecs=vp9" },
-        { codec: "h264", extension: "mp4", mimeType: "video/mp4; codecs=avc1.42E01E" },
-      ].map(({ codec, extension, mimeType }) => ({
+        { codec: "vp9", extension: "webm" },
+        { codec: "h264", extension: "mp4" },
+      ].map(({ codec, extension }) => ({
         aspect,
         quality,
         codec,
         url: `${backgroundId}/${recipeRevision}/${aspect}/${quality}.${extension}`,
-        mimeType,
+        mimeType: getPreviewRenditionMimeType(codec, quality),
         width: 1,
         height: 1,
         durationMs: 9200,
