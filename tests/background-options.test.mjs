@@ -4450,6 +4450,7 @@ describe("premium background registry", () => {
     assert.match(effectSource, /updateSimulatedPointer/)
     assert.match(effectSource, /simulateCursorInteraction/)
     assert.match(effectSource, /simulationSpeed/)
+    assert.match(effectSource, /lastManualMove: Number\.NEGATIVE_INFINITY/)
     assert.match(effectSource, /getContext\("2d"/)
     assert.match(effectSource, /requestAnimationFrame/)
     assert.match(effectSource, /ResizeObserver/)

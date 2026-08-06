@@ -72,7 +72,9 @@ export default function MassageLabDotGridBackground({
     lastX: 0,
     lastY: 0,
     lastMove: 0,
-    lastManualMove: 0,
+    // Let the fake cursor begin on the first frame; real movement updates this
+    // timestamp and temporarily yields simulation for the intended 1.5 seconds.
+    lastManualMove: Number.NEGATIVE_INFINITY,
   })
   const dotSize = massageLabDotGrid?.dotSize
   const gap = massageLabDotGrid?.gap
