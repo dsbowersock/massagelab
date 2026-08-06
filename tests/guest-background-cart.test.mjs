@@ -39,7 +39,7 @@ describe("guest background intent cart", () => {
     const snapshot = createGuestBackgroundCommerceSnapshot(ids)
     assert.equal(snapshot.creditBalance, 0)
     assert.equal(snapshot.ownedBackgroundIds.length, 0)
-    assert.equal(snapshot.cart.items[0].displayName, "Aurora field")
+    assert.equal(snapshot.cart.items[0].displayName, "Interstellar")
     assert.equal(snapshot.cart.subtotalAmount, 100)
     assert.equal("userId" in snapshot, false)
   })
