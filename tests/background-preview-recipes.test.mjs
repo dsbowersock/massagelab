@@ -178,6 +178,15 @@ describe("background preview recipes", () => {
     assert.match(source, /FFmpeg is required to decode and validate the preview pilot/)
   })
 
+  it("requires an explicit safe catalog output and supports resumable batches", () => {
+    const source = readFileSync(new URL("../scripts/chimer-preview-generation/render-catalog.mjs", import.meta.url), "utf8")
+    assert.match(source, /--output-dir/)
+    assert.match(source, /--batch/)
+    assert.match(source, /--resume/)
+    assert.match(source, /refusing production preview directory/i)
+    assert.doesNotMatch(source, /upload-r2/)
+  })
+
   it("generates a v2 sidecar without replacing the production manifest", () => {
     const source = readFileSync(new URL(
       "../components/backgrounds/backgroundPreviewRenditionManifest.ts",

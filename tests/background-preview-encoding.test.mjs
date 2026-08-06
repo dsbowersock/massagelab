@@ -14,6 +14,10 @@ import {
   validatePilotManifest,
   validateRenditionMetadata,
 } from "../scripts/chimer-preview-generation/media-validation.mjs"
+import {
+  readGenerationCheckpoint,
+  updateGenerationCheckpoint,
+} from "../scripts/chimer-preview-generation/generation-checkpoint.mjs"
 import { getPreviewRenditionMimeType } from "../scripts/chimer-preview-generation/rendition-plan.mjs"
 
 describe("background preview encoding plans", () => {
@@ -189,5 +193,18 @@ describe("background preview media validation", () => {
     }
     assert.deepEqual(validateCatalogManifest([entry]), [])
     assert.match(validateCatalogManifest([{ ...entry, renditions: [{}] }]).join("\n"), /must not contain video renditions/)
+  })
+
+  it("updates generation checkpoints atomically by background and aspect", () => {
+    const writes = []
+    const io = {
+      exists: () => false,
+      read: () => "",
+      writeAtomic: (path, value) => writes.push([path, value]),
+    }
+    assert.deepEqual(readGenerationCheckpoint("catalog", io), { schemaVersion: 1, aspects: {} })
+    updateGenerationCheckpoint("catalog", "massage-lab-dna", "vertical", { status: "complete" }, io)
+    assert.equal(writes.length, 1)
+    assert.equal(JSON.parse(writes[0][1]).aspects["massage-lab-dna:vertical"].status, "complete")
   })
 })

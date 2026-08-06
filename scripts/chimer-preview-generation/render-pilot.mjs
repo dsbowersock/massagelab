@@ -5,6 +5,8 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from "node:fs"
@@ -18,22 +20,30 @@ import {
   calculateFrameVariation,
   parseMediaProbe,
   validateAnimatedFrameVariation,
+  validateCatalogManifest,
   validateLoopSeam,
   validatePilotManifest,
   validateRenditionMetadata,
 } from "./media-validation.mjs"
 import {
+  FULL_CATALOG_BACKGROUND_IDS,
+  FULL_CATALOG_BATCHES,
   PILOT_BACKGROUND_IDS,
   PREVIEW_ASPECTS,
   PREVIEW_RENDITION_LADDER,
   getBackgroundPreviewRecipe,
 } from "./preview-recipes.mjs"
 import {
+  buildBackgroundPosterPlan,
   buildBackgroundRenditionPlan,
   buildPilotManifestEntry,
   buildPreviewPosterRelativePath,
   getPreviewRenditionMimeType,
 } from "./rendition-plan.mjs"
+import {
+  sanitizeGenerationError,
+  updateGenerationCheckpoint,
+} from "./generation-checkpoint.mjs"
 import {
   renderRenditionManifestModule,
   serializeRenditionManifest,
@@ -41,18 +51,48 @@ import {
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const productionPreviewDir = path.join(repoRoot, "public/chimer/background-previews")
+const pilotPreviewDir = path.join(repoRoot, "public/chimer/background-preview-pilot")
+const catalogPreviewDir = path.join(repoRoot, "public/chimer/background-preview-catalog")
 const sidecarModulePath = path.join(repoRoot, "components/backgrounds/backgroundPreviewRenditionManifest.ts")
 const defaultPreviewId = "massage-lab-moving-gradient"
+
+/** Prefer WinGet's full GPL build on Windows because the LGPL build lacks x264. */
+function resolveMediaTool(command) {
+  const configuredBin = process.env.MASSAGELAB_FFMPEG_BIN
+  if (configuredBin) {
+    const configuredPath = path.join(configuredBin, `${command}${process.platform === "win32" ? ".exe" : ""}`)
+    if (existsSync(configuredPath)) return configuredPath
+  }
+  if (process.platform === "win32" && process.env.LOCALAPPDATA) {
+    const packageRoot = path.join(
+      process.env.LOCALAPPDATA,
+      "Microsoft/WinGet/Packages/Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe",
+    )
+    if (existsSync(packageRoot)) {
+      const versionDir = readdirSync(packageRoot, { withFileTypes: true })
+        .find((entry) => entry.isDirectory() && entry.name.startsWith("ffmpeg-"))
+      const executable = versionDir && path.join(packageRoot, versionDir.name, "bin", `${command}.exe`)
+      if (executable && existsSync(executable)) return executable
+    }
+  }
+  return command
+}
+
+const ffmpegCommand = resolveMediaTool("ffmpeg")
+const ffprobeCommand = resolveMediaTool("ffprobe")
 
 function parseArgs(argv) {
   const options = {
     baseUrl: "",
+    batchSlug: "",
+    catalogMode: false,
     force: false,
     ids: [],
     outputDir: "",
     port: 3020,
     skipServer: false,
     refreshMetadata: false,
+    resume: false,
     validateOnly: false,
     writeModule: "",
   }
@@ -61,38 +101,52 @@ function parseArgs(argv) {
     const next = argv[index + 1]
     switch (arg) {
       case "--base-url": options.baseUrl = next ?? ""; index += 1; break
+      case "--batch-slug": options.batchSlug = next ?? ""; index += 1; break
+      case "--catalog-mode": options.catalogMode = true; break
       case "--force": options.force = true; break
       case "--ids": options.ids = (next ?? "").split(",").map((value) => value.trim()).filter(Boolean); index += 1; break
       case "--output-dir": options.outputDir = next ? path.resolve(repoRoot, next) : ""; index += 1; break
       case "--port": options.port = Number(next); index += 1; break
       case "--skip-server": options.skipServer = true; break
       case "--refresh-metadata": options.refreshMetadata = true; break
+      case "--resume": options.resume = true; break
       case "--validate-only": options.validateOnly = true; break
       case "--write-module": options.writeModule = next ? path.resolve(repoRoot, next) : ""; index += 1; break
       default:
         if (arg.startsWith("--")) throw new Error(`Unknown option: ${arg}`)
     }
   }
-  if (!options.outputDir) throw new Error("Pilot output directory is required; pass --output-dir <path>.")
+  if (!options.outputDir) throw new Error("Preview output directory is required; pass --output-dir <path>.")
   const relativeToProduction = path.relative(productionPreviewDir, options.outputDir)
   if (relativeToProduction === "" || (!relativeToProduction.startsWith("..") && !path.isAbsolute(relativeToProduction))) {
     throw new Error("Refusing production preview directory public/chimer/background-previews; use the pilot directory.")
   }
-  const unknownIds = options.ids.filter((id) => !PILOT_BACKGROUND_IDS.includes(id))
-  if (unknownIds.length) throw new Error(`Unknown pilot background IDs: ${unknownIds.join(", ")}`)
-  options.ids = options.ids.length ? [...new Set(options.ids)] : [...PILOT_BACKGROUND_IDS]
-  if (!options.ids.length) throw new Error("At least one pilot background ID is required.")
+  if (options.catalogMode && path.resolve(options.outputDir) !== catalogPreviewDir) {
+    throw new Error("Catalog mode may target only public/chimer/background-preview-catalog.")
+  }
+  if (options.catalogMode && path.resolve(options.outputDir) === pilotPreviewDir) {
+    throw new Error("Catalog mode refuses the approved pilot directory.")
+  }
+  const allowedIds = options.catalogMode ? FULL_CATALOG_BACKGROUND_IDS : PILOT_BACKGROUND_IDS
+  const unknownIds = options.ids.filter((id) => !allowedIds.includes(id))
+  if (unknownIds.length) throw new Error(`Unknown preview background IDs: ${unknownIds.join(", ")}`)
+  options.ids = options.ids.length ? [...new Set(options.ids)] : [...allowedIds]
+  if (!options.ids.length) throw new Error("At least one preview background ID is required.")
   if (!Number.isInteger(options.port) || options.port < 1 || options.port > 65535) throw new Error("Pilot port is invalid.")
+  if (options.catalogMode && options.writeModule) {
+    throw new Error("Catalog mode writes JSON only; --write-module is pilot-only.")
+  }
   if (options.writeModule && options.writeModule !== sidecarModulePath) {
     throw new Error("--write-module may target only components/backgrounds/backgroundPreviewRenditionManifest.ts")
   }
-  options.baseUrl ||= `http://127.0.0.1:${options.port}`
+  // Match the dev server's own origin so Next.js permits hydration resources.
+  options.baseUrl ||= `http://localhost:${options.port}`
   return options
 }
 
 function ensureMediaTools({ requireEncoders = true } = {}) {
   const ffmpegArgs = requireEncoders ? ["-hide_banner", "-encoders"] : ["-version"]
-  const result = spawnSync("ffmpeg", ffmpegArgs, { encoding: "utf8", maxBuffer: 8 * 1024 * 1024 })
+  const result = spawnSync(ffmpegCommand, ffmpegArgs, { encoding: "utf8", maxBuffer: 8 * 1024 * 1024 })
   if (result.status !== 0) {
     throw new Error(requireEncoders
       ? "FFmpeg is required to render the preview pilot."
@@ -104,7 +158,7 @@ function ensureMediaTools({ requireEncoders = true } = {}) {
       if (!new RegExp(`\\b${encoder}\\b`).test(output)) throw new Error(`FFmpeg must include ${encoder}.`)
     }
   }
-  const probe = spawnSync("ffprobe", ["-version"], { encoding: "utf8" })
+  const probe = spawnSync(ffprobeCommand, ["-version"], { encoding: "utf8" })
   if (probe.status !== 0) throw new Error("FFprobe is required to validate the preview pilot.")
 }
 
@@ -147,11 +201,11 @@ async function startServer(options) {
   } catch {
     // Start one isolated Next development server below.
   }
-  const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm"
-  const server = spawn(npmCommand, ["run", "dev", "--", "-p", String(options.port)], {
+  const nextCommand = path.join(repoRoot, "node_modules/next/dist/bin/next")
+  const server = spawn(process.execPath, [nextCommand, "dev", "-p", String(options.port)], {
     cwd: repoRoot,
     env: { ...process.env, BROWSER: "none", NEXT_TELEMETRY_DISABLED: "1" },
-    shell: process.platform === "win32",
+    shell: false,
     stdio: ["ignore", "pipe", "pipe"],
   })
   server.stdout.on("data", (chunk) => process.stdout.write(`[preview-server] ${chunk}`))
@@ -160,10 +214,27 @@ async function startServer(options) {
     await waitForServer(options.baseUrl)
     await disableNextDevIndicator(options.baseUrl)
   } catch (error) {
-    server.kill()
+    await stopServer(server)
     throw error
   }
   return server
+}
+
+/** Stops the exact locally spawned Next process tree, including Windows children. */
+async function stopServer(server) {
+  if (!server?.pid) return
+  if (process.platform === "win32") {
+    spawnSync("taskkill", ["/PID", String(server.pid), "/T", "/F"], { stdio: "ignore" })
+    return
+  }
+  server.kill("SIGTERM")
+}
+
+function attachCaptureDiagnostics(page, backgroundId, aspect) {
+  page.on("pageerror", (error) => console.error(`[capture:${backgroundId}:${aspect}] ${error.message}`))
+  page.on("console", (message) => {
+    if (message.type() === "error") console.error(`[capture:${backgroundId}:${aspect}] ${message.text()}`)
+  })
 }
 
 function runProcess(command, args, { captureStdout = false } = {}) {
@@ -185,7 +256,7 @@ function sha256File(filePath) {
 }
 
 function probeMedia(filePath) {
-  const result = spawnSync("ffprobe", [
+  const result = spawnSync(ffprobeCommand, [
     "-v", "error", "-show_streams", "-show_format", "-of", "json", filePath,
   ], { encoding: "utf8", maxBuffer: 4 * 1024 * 1024 })
   if (result.status !== 0) throw new Error(`${filePath}: ${result.stderr?.trim() || "FFprobe failed"}`)
@@ -197,7 +268,7 @@ function rawCaptureDurationMs(filePath) {
 }
 
 function decodeRgbSample(filePath, timeMs) {
-  const result = spawnSync("ffmpeg", [
+  const result = spawnSync(ffmpegCommand, [
     "-v", "error", "-ss", (timeMs / 1000).toFixed(3), "-i", filePath,
     "-frames:v", "1", "-vf", "scale=64:64:flags=area,format=rgb24",
     "-f", "rawvideo", "pipe:1",
@@ -236,7 +307,7 @@ function validateDecodedRendition({ filePath, backgroundId, loopStrategy, durati
 
 async function writeFrameStrip(filePath, outputPath, durationMs) {
   const interval = (durationMs / 5000).toFixed(6)
-  await runProcess("ffmpeg", [
+  await runProcess(ffmpegCommand, [
     "-y", "-v", "error", "-i", filePath,
     "-vf", `fps=1/${interval},scale=160:-1:flags=lanczos,tile=5x1`,
     "-frames:v", "1", outputPath,
@@ -257,6 +328,7 @@ async function captureMaster(browser, recipe, aspect, options, tempVideoDir) {
     viewport: dimensions,
   })
   const page = await context.newPage()
+  attachCaptureDiagnostics(page, recipe.backgroundId, aspect)
   try {
     const previewUrl = new URL(`/chimer/background-preview/${recipe.backgroundId}`, options.baseUrl)
     await page.goto(previewUrl.href, { waitUntil: "domcontentloaded", timeout: 45_000 })
@@ -264,7 +336,7 @@ async function captureMaster(browser, recipe, aspect, options, tempVideoDir) {
       `[data-testid="chimer-preview-background"][data-background-id="${recipe.backgroundId}"]`,
       { timeout: 45_000 },
     )
-    await page.waitForFunction(() => document.body.classList.contains("chimer-preview-capture"), undefined, { timeout: 10_000 })
+    await page.waitForSelector('[data-preview-ready="true"]', { timeout: 15_000 })
     await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" })
     await page.waitForTimeout(recipe.warmupMs)
     const captureDurationMs = recipe.durationMs + recipe.crossfadeMs
@@ -275,7 +347,7 @@ async function captureMaster(browser, recipe, aspect, options, tempVideoDir) {
     const rawPath = await video.path()
     const rawDurationMs = rawCaptureDurationMs(rawPath)
     const trimStartMs = Math.max(0, rawDurationMs - captureDurationMs - 150)
-    await runProcess("ffmpeg", [
+    await runProcess(ffmpegCommand, [
       "-y", "-ss", (trimStartMs / 1000).toFixed(3), "-i", rawPath,
       "-t", (captureDurationMs / 1000).toFixed(3), "-an",
       "-vf", `fps=${recipe.fps},scale=${dimensions.width}:${dimensions.height}:flags=lanczos,format=yuv420p`,
@@ -289,11 +361,49 @@ async function captureMaster(browser, recipe, aspect, options, tempVideoDir) {
   }
 }
 
+/** Captures a truthful static poster without fabricating a video timeline. */
+async function captureStaticPoster(browser, recipe, aspect, options) {
+  const dimensions = PREVIEW_RENDITION_LADDER[aspect].high
+  const plan = buildBackgroundPosterPlan(recipe).find((item) => item.aspect === aspect)
+  const posterPath = path.join(options.outputDir, plan.relativePath)
+  mkdirSync(path.dirname(posterPath), { recursive: true })
+  if (existsSync(posterPath) && statSync(posterPath).size > 0 && !options.force) return posterPath
+  const pngPath = `${posterPath}.${process.pid}.png`
+  const context = await browser.newContext({
+    colorScheme: "dark",
+    deviceScaleFactor: 1,
+    reducedMotion: "no-preference",
+    viewport: dimensions,
+  })
+  const page = await context.newPage()
+  attachCaptureDiagnostics(page, recipe.backgroundId, aspect)
+  try {
+    const previewUrl = new URL(`/chimer/background-preview/${recipe.backgroundId}`, options.baseUrl)
+    await page.goto(previewUrl.href, { waitUntil: "domcontentloaded", timeout: 45_000 })
+    await page.waitForSelector(
+      `[data-testid="chimer-preview-background"][data-background-id="${recipe.backgroundId}"]`,
+      { timeout: 45_000 },
+    )
+    await page.waitForSelector('[data-preview-ready="true"]', { timeout: 15_000 })
+    await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" })
+    await page.waitForTimeout(recipe.warmupMs)
+    await page.screenshot({ path: pngPath, type: "png" })
+    await runProcess(ffmpegCommand, [
+      "-y", "-v", "error", "-i", pngPath,
+      "-frames:v", "1", "-c:v", "libwebp", "-quality", "84", posterPath,
+    ])
+    return posterPath
+  } finally {
+    await context.close().catch(() => undefined)
+    rmSync(pngPath, { force: true })
+  }
+}
+
 async function encodeAndValidateRendition(item, recipe, masterPath, options) {
   const outputPath = path.join(options.outputDir, item.relativePath)
   mkdirSync(path.dirname(outputPath), { recursive: true })
   if (options.force || !existsSync(outputPath) || statSync(outputPath).size <= 0) {
-    await runProcess("ffmpeg", buildRenditionEncodeArgs({
+    await runProcess(ffmpegCommand, buildRenditionEncodeArgs({
       inputPath: masterPath,
       outputPath,
       codec: item.codec,
@@ -343,12 +453,32 @@ async function encodeAndValidateRendition(item, recipe, masterPath, options) {
 }
 
 async function renderAspect(browser, recipe, aspect, options, tempVideoDir) {
+  if (recipe.mediaKind === "poster-only") {
+    const posterPath = await captureStaticPoster(browser, recipe, aspect, options)
+    const high = PREVIEW_RENDITION_LADDER[aspect].high
+    const posterRelativePath = buildPreviewPosterRelativePath({ ...recipe, aspect })
+    const poster = {
+      url: posterRelativePath,
+      width: high.width,
+      height: high.height,
+      bytes: statSync(posterPath).size,
+      sha256: sha256File(posterPath),
+    }
+    writeFileSync(path.join(path.dirname(posterPath), "validation.json"), `${JSON.stringify({
+      backgroundId: recipe.backgroundId,
+      aspect,
+      mediaKind: "poster-only",
+      recipeRevision: recipe.recipeRevision,
+      poster,
+    }, null, 2)}\n`)
+    return { renditions: [], poster }
+  }
   const masterPath = await captureMaster(browser, recipe, aspect, options, tempVideoDir)
   const high = PREVIEW_RENDITION_LADDER[aspect].high
   const posterRelativePath = buildPreviewPosterRelativePath({ ...recipe, aspect })
   const posterPath = path.join(options.outputDir, posterRelativePath)
   if (options.force || !existsSync(posterPath) || statSync(posterPath).size <= 0) {
-    await runProcess("ffmpeg", buildPosterArgs({
+    await runProcess(ffmpegCommand, buildPosterArgs({
       inputPath: masterPath,
       outputPath: posterPath,
       width: high.width,
@@ -377,20 +507,93 @@ async function renderAspect(browser, recipe, aspect, options, tempVideoDir) {
   return { renditions, poster }
 }
 
-function readManifest(outputDir) {
+function catalogBatchSlug(backgroundId) {
+  return FULL_CATALOG_BATCHES.find(({ ids }) => ids.includes(backgroundId))?.slug ?? "unknown"
+}
+
+/** Builds the mixed schema-v3 entry used only by the local full catalog. */
+function buildCatalogManifestEntry({ recipe, renditions, posters }) {
+  if (recipe.mediaKind === "animated") {
+    return {
+      ...buildPilotManifestEntry({ recipe, renditions, posters }),
+      mediaKind: "animated",
+      reviewStatus: recipe.reviewStatus,
+      batchSlug: catalogBatchSlug(recipe.backgroundId),
+    }
+  }
+  if (!PREVIEW_ASPECTS.every((aspect) => posters?.[aspect]) || renditions.length !== 0) {
+    throw new Error(`${recipe.backgroundId}: poster-only manifest requires three posters and no videos`)
+  }
+  return {
+    backgroundId: recipe.backgroundId,
+    recipeRevision: recipe.recipeRevision,
+    mediaKind: "poster-only",
+    reviewStatus: recipe.reviewStatus,
+    batchSlug: catalogBatchSlug(recipe.backgroundId),
+    loopStrategy: "static",
+    loopBoundaryMs: 0,
+    renditions: [],
+    posters,
+  }
+}
+
+const aspectOrder = Object.freeze(["landscape", "square", "vertical"])
+const qualityOrder = Object.freeze(["low", "standard", "high"])
+const codecOrder = Object.freeze(["vp9", "h264"])
+
+function compactCatalogEntry(entry) {
+  const renditions = [...entry.renditions]
+    .sort((left, right) => aspectOrder.indexOf(left.aspect) - aspectOrder.indexOf(right.aspect)
+      || qualityOrder.indexOf(left.quality) - qualityOrder.indexOf(right.quality)
+      || codecOrder.indexOf(left.codec) - codecOrder.indexOf(right.codec))
+    .map((item) => ({
+      aspect: item.aspect,
+      quality: item.quality,
+      codec: item.codec,
+      url: item.url,
+      mimeType: item.mimeType,
+      width: item.width,
+      height: item.height,
+      durationMs: item.durationMs,
+      fps: item.fps,
+      bytes: item.bytes,
+      sha256: item.sha256,
+    }))
+  const posters = Object.fromEntries(aspectOrder.map((aspect) => [aspect, entry.posters[aspect]]))
+  return { ...entry, renditions, posters }
+}
+
+function serializeCatalogManifest(entries) {
+  const order = new Map(FULL_CATALOG_BACKGROUND_IDS.map((id, index) => [id, index]))
+  const normalized = [...entries]
+    .sort((left, right) => order.get(left.backgroundId) - order.get(right.backgroundId))
+    .map(compactCatalogEntry)
+  return `${JSON.stringify({
+    schemaVersion: 3,
+    catalogRevision: "catalog-candidate-1",
+    entries: normalized,
+  }, null, 2)}\n`
+}
+
+function readManifest(outputDir, catalogMode = false) {
   const manifestPath = path.join(outputDir, "index.json")
-  if (!existsSync(manifestPath)) return { schemaVersion: 2, entries: [] }
+  if (!existsSync(manifestPath)) return { schemaVersion: catalogMode ? 3 : 2, entries: [] }
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"))
-  if (manifest?.schemaVersion !== 2 || !Array.isArray(manifest.entries)) throw new Error("Pilot index.json is not a v2 manifest.")
+  const expectedSchema = catalogMode ? 3 : 2
+  if (manifest?.schemaVersion !== expectedSchema || !Array.isArray(manifest.entries)) {
+    throw new Error(`Preview index.json is not a v${expectedSchema} manifest.`)
+  }
   return manifest
 }
 
 function writeManifest(options, entries) {
-  const errors = validatePilotManifest(entries)
+  const errors = options.catalogMode ? validateCatalogManifest(entries) : validatePilotManifest(entries)
   if (errors.length) throw new Error(errors.join("\n"))
-  writeFileSync(path.join(options.outputDir, "index.json"), serializeRenditionManifest(entries))
+  writeFileSync(path.join(options.outputDir, "index.json"), options.catalogMode
+    ? serializeCatalogManifest(entries)
+    : serializeRenditionManifest(entries))
   if (options.writeModule) writeFileSync(options.writeModule, renderRenditionManifestModule(entries))
-  return readManifest(options.outputDir)
+  return readManifest(options.outputDir, options.catalogMode)
 }
 
 /** Rebuilds derived MIME metadata without recapturing or re-encoding media. */
@@ -405,8 +608,8 @@ function refreshManifestMetadata(entries) {
 }
 
 function validateExistingOutput(options) {
-  const manifest = readManifest(options.outputDir)
-  const errors = validatePilotManifest(manifest.entries)
+  const manifest = readManifest(options.outputDir, options.catalogMode)
+  const errors = options.catalogMode ? validateCatalogManifest(manifest.entries) : validatePilotManifest(manifest.entries)
   for (const entry of manifest.entries) {
     for (const media of [...entry.renditions, ...Object.values(entry.posters)]) {
       const filePath = path.join(options.outputDir, media.url)
@@ -440,9 +643,28 @@ function validateExistingOutput(options) {
       }
     }
   }
+  if (options.catalogMode && options.validateOnly) {
+    const renditionCount = manifest.entries.reduce((sum, entry) => sum + entry.renditions.length, 0)
+    const posterCount = manifest.entries.reduce((sum, entry) => sum + Object.keys(entry.posters).length, 0)
+    if (manifest.entries.length !== 84) errors.push(`catalog: expected 84 entries, received ${manifest.entries.length}`)
+    if (renditionCount !== 1476) errors.push(`catalog: expected 1476 videos, received ${renditionCount}`)
+    if (posterCount !== 252) errors.push(`catalog: expected 252 posters, received ${posterCount}`)
+  }
   if (errors.length) throw new Error(errors.join("\n"))
   writeFileSync(path.join(options.outputDir, "validation.json"), `${JSON.stringify({ valid: true, entries: manifest.entries.length }, null, 2)}\n`)
   return manifest
+}
+
+/** Resume only trusts a complete manifest entry whose immutable files still match. */
+function canResumeEntry(entry, options) {
+  const diagnostics = options.catalogMode ? validateCatalogManifest([entry]) : validatePilotManifest([entry])
+  if (diagnostics.length) return false
+  return [...entry.renditions, ...Object.values(entry.posters)].every((media) => {
+    const filePath = path.join(options.outputDir, media.url)
+    return existsSync(filePath)
+      && statSync(filePath).size === media.bytes
+      && sha256File(filePath) === media.sha256
+  })
 }
 
 async function main() {
@@ -451,42 +673,68 @@ async function main() {
   ensureMediaTools({ requireEncoders: !options.validateOnly && !options.refreshMetadata })
   mkdirSync(options.outputDir, { recursive: true })
   if (options.refreshMetadata) {
-    const current = readManifest(options.outputDir)
+    const current = readManifest(options.outputDir, options.catalogMode)
     const refreshed = writeManifest(options, refreshManifestMetadata(current.entries))
     validateExistingOutput(options)
-    console.log(`Refreshed and validated metadata for ${refreshed.entries.length} complete pilot entries.`)
+    console.log(`Refreshed and validated metadata for ${refreshed.entries.length} complete ${options.catalogMode ? "catalog" : "pilot"} entries.`)
     return
   }
   if (options.validateOnly) {
     const manifest = validateExistingOutput(options)
     if (options.writeModule) writeManifest(options, manifest.entries)
-    console.log(`Validated ${manifest.entries.length} complete pilot entries.`)
+    console.log(`Validated ${manifest.entries.length} complete ${options.catalogMode ? "catalog" : "pilot"} entries.`)
     return
   }
   const server = await startServer(options)
   const browser = await chromium.launch({ headless: true })
   const tempVideoDir = await mkdtemp(path.join(tmpdir(), "massagelab-preview-pilot-"))
   try {
-    const existing = readManifest(options.outputDir)
+    const existing = readManifest(options.outputDir, options.catalogMode)
     const entriesById = new Map(existing.entries.map((entry) => [entry.backgroundId, entry]))
     for (const id of options.ids) {
       const recipe = getBackgroundPreviewRecipe(id)
+      const currentEntry = entriesById.get(id)
+      if (options.resume && currentEntry && canResumeEntry(currentEntry, options)) {
+        console.log(`Resuming past validated ${id}.`)
+        continue
+      }
       const renditions = []
       const posters = {}
       for (const aspect of PREVIEW_ASPECTS) {
         console.log(`Rendering ${id} ${aspect}...`)
-        const result = await renderAspect(browser, recipe, aspect, options, tempVideoDir)
-        renditions.push(...result.renditions)
-        posters[aspect] = result.poster
+        try {
+          const result = await renderAspect(browser, recipe, aspect, options, tempVideoDir)
+          renditions.push(...result.renditions)
+          posters[aspect] = result.poster
+          if (options.catalogMode) {
+            updateGenerationCheckpoint(options.outputDir, id, aspect, {
+              status: "complete",
+              mediaKind: recipe.mediaKind,
+              recipeRevision: recipe.recipeRevision,
+              renditionCount: result.renditions.length,
+              poster: result.poster,
+            })
+          }
+        } catch (error) {
+          if (options.catalogMode) {
+            updateGenerationCheckpoint(options.outputDir, id, aspect, {
+              status: "failed",
+              diagnostic: sanitizeGenerationError(error),
+            })
+          }
+          throw error
+        }
       }
-      entriesById.set(id, buildPilotManifestEntry({ recipe, renditions, posters }))
+      entriesById.set(id, options.catalogMode
+        ? buildCatalogManifestEntry({ recipe, renditions, posters })
+        : buildPilotManifestEntry({ recipe, renditions, posters }))
       writeManifest(options, [...entriesById.values()])
     }
     const manifest = validateExistingOutput(options)
-    console.log(`Rendered and validated ${manifest.entries.length} complete pilot entries.`)
+    console.log(`Rendered and validated ${manifest.entries.length} complete ${options.catalogMode ? "catalog" : "pilot"} entries.`)
   } finally {
     await browser.close().catch(() => undefined)
-    server?.kill()
+    await stopServer(server)
     await rm(tempVideoDir, { recursive: true, force: true })
   }
 }
