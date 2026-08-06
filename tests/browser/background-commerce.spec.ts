@@ -4,6 +4,7 @@ import { centerCarouselItem } from "./carousel-test-helpers"
 
 const USER_ID = "background-commerce-browser-user"
 const AURORA_ID = "massage-lab-aurora"
+const AURORA_NAME = "Interstellar"
 const DOTTED_GLOW_ID = "massage-lab-dotted-glow"
 const RETURN_STORAGE_KEY = "massagelab-background-checkout-return-v1"
 
@@ -41,7 +42,7 @@ const PRODUCTS: Record<string, CartItem> = {
   [AURORA_ID]: {
     productType: "background",
     productKey: AURORA_ID,
-    displayName: "Aurora field",
+    displayName: AURORA_NAME,
     unitAmount: 100,
     currency: "usd",
     availableForPurchase: true,
@@ -376,7 +377,7 @@ test("guest cart persists locally and requires an account only at checkout", asy
   const backgroundPanel = page.getByRole("dialog", { name: "Background" })
   const guestAurora = await centerPremium(page, AURORA_ID)
 
-  const guestUnlock = backgroundPanel.getByRole("button", { name: "Unlock Aurora field background" })
+  const guestUnlock = backgroundPanel.getByRole("button", { name: `Unlock ${AURORA_NAME} background` })
   await expect(guestUnlock).toBeEnabled()
   await expect(guestUnlock).toHaveAttribute(
     "title",
@@ -386,7 +387,7 @@ test("guest cart persists locally and requires an account only at checkout", asy
     "Add now; sign in or create an account at checkout.",
   )
   await guestUnlock.click()
-  const acquisition = page.getByRole("dialog", { name: "Unlock Aurora field" })
+  const acquisition = page.getByRole("dialog", { name: `Unlock ${AURORA_NAME}` })
   await expect(acquisition.getByRole("button", { name: "Use free credit" })).toBeDisabled()
   await expect(acquisition).toContainText(
     "Sign in at checkout to use account credits. You can still add this background to your cart now.",
@@ -394,7 +395,7 @@ test("guest cart persists locally and requires an account only at checkout", asy
   await acquisition.getByRole("button", { name: "Buy for $1" }).click()
 
   const compactCart = backgroundPanel.getByRole("region", { name: "MassageLab cart" })
-  await expect(compactCart).toContainText("Aurora field")
+  await expect(compactCart).toContainText(AURORA_NAME)
   await expect(compactCart.getByRole("button", { name: "Review checkout" })).toHaveCount(0)
   const signInLink = compactCart.getByRole("link", { name: "Sign in to checkout" })
   const registerLink = compactCart.getByRole("link", { name: "Create account" })
@@ -414,7 +415,7 @@ test("guest cart persists locally and requires an account only at checkout", asy
   await trigger.click()
   const cartDialog = page.getByRole("dialog", { name: "MassageLab cart" })
   await expect(cartDialog).toContainText("This cart is saved in this browser until you sign in.")
-  await expect(cartDialog).toContainText("Aurora field")
+  await expect(cartDialog).toContainText(AURORA_NAME)
   await expect(cartDialog.getByRole("link", { name: "Sign in to checkout" })).toHaveAttribute(
     "href",
     "/login?callbackUrl=%2Fmusic%3FcommerceCart%3Dopen",
@@ -469,14 +470,14 @@ test("Clock redeems one explicit permanent credit and keeps the nested dialog fo
   const aurora = await centerPremium(page, AURORA_ID)
   await expect(accessCard(aurora)).toHaveAttribute("data-background-access-state", "locked-credit-available")
 
-  await backgroundPanel.getByRole("button", { name: "Unlock Aurora field background" }).click()
-  const acquisition = page.getByRole("dialog", { name: "Unlock Aurora field" })
+  await backgroundPanel.getByRole("button", { name: `Unlock ${AURORA_NAME} background` }).click()
+  const acquisition = page.getByRole("dialog", { name: `Unlock ${AURORA_NAME}` })
   await expect(acquisition.getByRole("button", { name: "Use free credit" })).toBeVisible()
   await expect(acquisition.getByRole("button", { name: "Buy for $1" })).toBeVisible()
   await expect(acquisition.getByRole("link", { name: "Unlock all" })).toBeVisible()
 
   await acquisition.getByRole("button", { name: "Use free credit" }).click()
-  const confirmation = page.getByRole("dialog", { name: "Keep Aurora field permanently" })
+  const confirmation = page.getByRole("dialog", { name: `Keep ${AURORA_NAME} permanently` })
   await expect(confirmation).toBeVisible()
   await page.keyboard.press("Escape")
   await expect(confirmation).toHaveCount(0)
@@ -495,10 +496,10 @@ test("Clock redeems one explicit permanent credit and keeps the nested dialog fo
   await expect(accessCard(ownedAurora)).toHaveAttribute("data-background-access-state", "owned-credit")
   await expect(accessCard(ownedAurora).getByText("Owned")).toBeVisible()
   await expect(accessCard(ownedAurora).getByRole("img", {
-    name: "Aurora field is permanently owned",
+    name: `${AURORA_NAME} is permanently owned`,
   })).toBeVisible()
   await expect(accessCard(ownedAurora).getByRole("button", {
-    name: "Selected Aurora field background",
+    name: `Selected ${AURORA_NAME} background`,
   })).toBeVisible()
 })
 
@@ -509,8 +510,8 @@ test("Chimer selects a newly redeemed background before account ownership reload
   await page.getByRole("button", { name: "Background", exact: true }).click()
   const panel = page.getByRole("dialog", { name: "Background" })
   await centerPremium(page, AURORA_ID)
-  await panel.getByRole("button", { name: "Unlock Aurora field background" }).click()
-  await page.getByRole("dialog", { name: "Unlock Aurora field" })
+  await panel.getByRole("button", { name: `Unlock ${AURORA_NAME} background` }).click()
+  await page.getByRole("dialog", { name: `Unlock ${AURORA_NAME}` })
     .getByRole("button", { name: "Use free credit" })
     .click()
   await page.getByRole("checkbox", { name: /permanent, non-swappable/i }).check()
@@ -524,7 +525,7 @@ test("Chimer selects a newly redeemed background before account ownership reload
   await page.getByRole("button", { name: "Background", exact: true }).click()
   const ownedAurora = await centerPremium(page, AURORA_ID)
   await expect(accessCard(ownedAurora).getByRole("button", {
-    name: "Selected Aurora field background",
+    name: `Selected ${AURORA_NAME} background`,
   })).toBeVisible()
 })
 
@@ -543,8 +544,8 @@ test("pre-timer Chimer setup selects a newly redeemed background when ownership 
   }
 
   const aurora = await centerPremium(page, AURORA_ID)
-  await accessCard(aurora).getByRole("button", { name: "Unlock Aurora field background" }).click()
-  await page.getByRole("dialog", { name: "Unlock Aurora field" })
+  await accessCard(aurora).getByRole("button", { name: `Unlock ${AURORA_NAME} background` }).click()
+  await page.getByRole("dialog", { name: `Unlock ${AURORA_NAME}` })
     .getByRole("button", { name: "Use free credit" })
     .click()
   await page.getByRole("checkbox", { name: /permanent, non-swappable/i }).check()
@@ -552,7 +553,7 @@ test("pre-timer Chimer setup selects a newly redeemed background when ownership 
 
   const selectedAurora = await centerPremium(page, AURORA_ID)
   await expect(accessCard(selectedAurora).getByRole("button", {
-    name: "Selected Aurora field background",
+    name: `Selected ${AURORA_NAME} background`,
   })).toBeVisible()
   await page.getByRole("button", { name: /^Continue$/i }).click()
   await page.getByRole("button", { name: /^Start Chimer$/i }).click()
@@ -569,8 +570,8 @@ test("Music selects a newly redeemed background before account ownership reloads
   await openMusicBackground(page)
   const panel = page.getByRole("dialog", { name: "Background" })
   await centerPremium(page, AURORA_ID)
-  await panel.getByRole("button", { name: "Unlock Aurora field background" }).click()
-  await page.getByRole("dialog", { name: "Unlock Aurora field" })
+  await panel.getByRole("button", { name: `Unlock ${AURORA_NAME} background` }).click()
+  await page.getByRole("dialog", { name: `Unlock ${AURORA_NAME}` })
     .getByRole("button", { name: "Use free credit" })
     .click()
   await page.getByRole("checkbox", { name: /permanent, non-swappable/i }).check()
@@ -584,7 +585,7 @@ test("Music selects a newly redeemed background before account ownership reloads
   await page.getByRole("button", { name: "Background", exact: true }).click()
   const ownedAurora = await centerPremium(page, AURORA_ID)
   await expect(accessCard(ownedAurora).getByRole("button", {
-    name: "Selected Aurora field background",
+    name: `Selected ${AURORA_NAME} background`,
   })).toBeVisible()
 })
 
@@ -660,7 +661,7 @@ test("cancel return reopens the originating Background panel with the account ca
   })
   const panel = page.getByRole("dialog", { name: "Background" })
   await expect(panel).toBeVisible()
-  await expect(panel.getByRole("region", { name: "Account cart" })).toContainText("Aurora field")
+  await expect(panel.getByRole("region", { name: "Account cart" })).toContainText(AURORA_NAME)
   await expect(page.getByRole("dialog", { name: "Returning to your cart..." })).toHaveCount(0)
 })
 
@@ -694,7 +695,7 @@ test("subscriber and purchased ownership stay distinct in active Chimer", async 
   const responsiveCard = accessCard(responsiveAurora)
   const favorite = responsiveCard.locator("[data-carousel-favorite-action]")
   const permanentPurchase = responsiveCard.getByRole("button", {
-    name: "Open permanent ownership options for Aurora field",
+    name: `Open permanent ownership options for ${AURORA_NAME}`,
   })
   await expect(favorite).toBeVisible()
   await expect(permanentPurchase).toBeVisible()
@@ -720,7 +721,7 @@ test("subscriber and purchased ownership stay distinct in active Chimer", async 
     expect(controlBox.y + controlBox.height).toBeLessThanOrEqual(cardBox!.y + cardBox!.height + 1)
   }
   await permanentPurchase.click()
-  const keep = page.getByRole("dialog", { name: "Keep Aurora field permanently" })
+  const keep = page.getByRole("dialog", { name: `Keep ${AURORA_NAME} permanently` })
   await expect(keep).toContainText("even if you later cancel")
   await expect(keep.getByRole("button", { name: "Buy permanently for $1" })).toBeVisible()
   await expect(keep.getByRole("link", { name: "Unlock all" })).toHaveCount(0)
@@ -775,11 +776,11 @@ test("Music visualizer keeps the shared account cart through minimize and restor
   const panel = page.getByRole("dialog", { name: "Background" })
   await expect(panel).toBeVisible()
   await centerPremium(page, AURORA_ID)
-  await panel.getByRole("button", { name: "Unlock Aurora field background" }).click()
-  await page.getByRole("dialog", { name: "Unlock Aurora field" })
+  await panel.getByRole("button", { name: `Unlock ${AURORA_NAME} background` }).click()
+  await page.getByRole("dialog", { name: `Unlock ${AURORA_NAME}` })
     .getByRole("button", { name: "Buy for $1" })
     .click()
-  await expect(panel.getByRole("region", { name: "Account cart" })).toContainText("Aurora field")
+  await expect(panel.getByRole("region", { name: "Account cart" })).toContainText(AURORA_NAME)
 
   await panel.getByRole("button", { name: "Close Background panel" }).click()
   await page.getByRole("button", { name: /^Minimize visualizer$/i }).last().click()
@@ -790,7 +791,7 @@ test("Music visualizer keeps the shared account cart through minimize and restor
   await page.getByTestId("music-player-toolbar").getByRole("link", { name: /^Background$/i }).click()
   await expect(page).toHaveURL(/\/clock\?[^#]*source=music/)
   const restoredPanel = page.getByRole("dialog", { name: "Background" })
-  await expect(restoredPanel.getByRole("region", { name: "Account cart" })).toContainText("Aurora field")
+  await expect(restoredPanel.getByRole("region", { name: "Account cart" })).toContainText(AURORA_NAME)
 })
 
 test("global account cart is discoverable off Calendar and opens the shared cart", async ({ context, page }, testInfo) => {
@@ -815,7 +816,7 @@ test("global account cart is discoverable off Calendar and opens the shared cart
   await expect(trigger).toHaveAccessibleName("Open account cart with 1 item")
   await trigger.click()
   const cartDialog = page.getByRole("dialog", { name: "Account cart" })
-  await expect(cartDialog).toContainText("Aurora field")
+  await expect(cartDialog).toContainText(AURORA_NAME)
   await page.keyboard.press("Escape")
   await expect(cartDialog).toHaveCount(0)
 
