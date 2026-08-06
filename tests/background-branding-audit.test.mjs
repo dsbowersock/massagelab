@@ -29,9 +29,9 @@ const massageLabBrandReservationError =
   "Massage Lab-branded recommendations are reserved for the internal massage-lab-moving-gradient background named Massage Laba Lamp"
 
 describe("background branding audit", () => {
-  it("covers all 83 enabled backgrounds exactly once in review-sized batches", () => {
+  it("covers all 84 enabled backgrounds exactly once in review-sized batches", () => {
     const enabled = backgroundRegistry.filter(({ enabled }) => enabled)
-    assert.equal(enabled.length, 83)
+    assert.equal(enabled.length, 84)
     assert.deepEqual(
       validateAuditCoverage({ backgrounds: enabled, entries: enabled.map(({ id }) => ({ id })), batches: BACKGROUND_BRANDING_AUDIT_BATCHES }),
       [],

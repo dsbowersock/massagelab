@@ -13,6 +13,7 @@ import {
 export type BackgroundId =
   | "massage-lab-moving-gradient"
   | "static-gradient"
+  | "solid-color"
   | "massage-lab-particles-draft"
   | "massage-lab-noise-texture-draft"
   | "massage-lab-grid-pattern-draft"
@@ -294,6 +295,25 @@ const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "linear-gradient(145deg, #050505 0%, #26140A 17%, #FF7A1A 33%, #101318 50%, #4169E1 67%, #10182B 83%, #050505 100%)",
+    },
+  },
+  {
+    id: "solid-color",
+    label: "Solid Color",
+    provider: "MassageLab",
+    sourceUrl: "internal",
+    license: "MassageLab internal implementation",
+    licenseStatus: "verified",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Free single-color background for Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "static",
+    performanceCost: "low",
+    requiresSubscription: false,
+    enabled: true,
+    customizationSummary: "One full-screen color with no motion or visual tuning controls.",
+    component: () => cssBackgrounds().then((module) => ({ default: module.SolidColorBackground })),
+    fallbackStyle: {
+      background: "#FF7A1A",
     },
   },
   {

@@ -49,6 +49,7 @@ describe("premium background registry", () => {
     assert.match(paletteRegistrySource, /export function applyCssDomPaletteRoleColors/)
     for (const backgroundId of [
       "massage-lab-moving-gradient",
+      "solid-color",
       "massage-lab-aerial-rays",
       "massage-lab-dna",
       "massage-lab-twisted-cubes",
@@ -147,7 +148,31 @@ describe("premium background registry", () => {
     assert.equal(BACKGROUND_STORAGE_KEYS.music, "massagelab.music.background")
     assert.equal(canUseBackgroundId(DEFAULT_BACKGROUND_ID, []), true)
     assert.equal(canUseBackgroundId("static-gradient", []), true)
+    assert.equal(canUseBackgroundId("solid-color", []), true)
     assert.equal(resolveAccessibleBackgroundDefinition("unknown", []).id, DEFAULT_BACKGROUND_ID)
+  })
+
+  it("registers Solid Color as a free static one-swatch background without tuning controls", () => {
+    assert.equal(isBackgroundId("solid-color"), true)
+    const definition = backgroundRegistry.find((entry) => entry.id === "solid-color")
+    assert.ok(definition)
+    assert.equal(definition.enabled, true)
+    assert.equal(definition.requiresSubscription, false)
+    assert.equal(definition.motionIntensity, "static")
+    assert.equal(definition.performanceCost, "low")
+    assert.deepEqual(definition.category, ["chimer", "clock", "music", "ambient"])
+    assert.equal(definition.fallbackStyle?.background, "#FF7A1A")
+    assert.equal(typeof definition.component, "function")
+
+    const adapter = definition.paletteAdapter
+    assert.ok(adapter)
+    assert.equal(adapter.status, "supported")
+    assert.equal(adapter.roles.length, 1)
+    assert.equal(adapter.roles[0]?.label, "Color")
+    assert.equal(adapter.supportsHarmony, false)
+    assert.deepEqual(adapter.visualPropertyKeys, [])
+    assert.doesNotMatch(setTimerSource, /option\.id === "solid-color"/)
+    assert.doesNotMatch(runningTimerSource, /option\.id === "solid-color"/)
   })
 
   it("registers DNA and Twisted Cubes as static-capable premium CSS backgrounds", () => {

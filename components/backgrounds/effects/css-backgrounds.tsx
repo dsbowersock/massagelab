@@ -124,6 +124,8 @@ export interface BackgroundRendererLifecycleProps {
 export interface BackgroundEffectProps extends BackgroundRendererLifecycleProps {
   reduceMotion?: boolean
   compactViewport?: boolean
+  /** Full-canvas color supplied by the Solid Color palette adapter. */
+  solidColor?: string
   /** Host geometry is completed with the selected adapter's resolved stop colors. */
   staticGradient?: StaticGradientOptions
   /** Host input is completed with the selected adapter's resolved role colors. */
@@ -220,6 +222,7 @@ export interface BackgroundEffectProps extends BackgroundRendererLifecycleProps 
  * resolve to the same prop contract consumed by the actual effect component.
  */
 export interface CssDomPaletteEffectPropsById {
+  "solid-color": Pick<BackgroundEffectProps, "solidColor">
   "static-gradient": Pick<BackgroundEffectProps, "staticGradient">
   "massage-lab-moving-gradient": Pick<BackgroundEffectProps, "className" | "mainColor" | "orbColor">
   "massage-lab-aerial-rays": Pick<BackgroundEffectProps, "massageLabAerialRays">
@@ -1673,6 +1676,17 @@ export function StaticGradientBackground({ className, staticGradient }: Backgrou
       style={{ background }}
       data-static-gradient-type={geometry.type}
       data-static-gradient-color-count={geometry.colorCount}
+      aria-hidden="true"
+    />
+  )
+}
+
+export function SolidColorBackground({ className, solidColor = "#FF7A1A" }: BackgroundEffectProps) {
+  return (
+    <div
+      className={cn(styles.effectLayer, className)}
+      style={{ background: solidColor }}
+      data-solid-color={solidColor}
       aria-hidden="true"
     />
   )

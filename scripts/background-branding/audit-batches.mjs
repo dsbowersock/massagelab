@@ -1,6 +1,6 @@
 export const BACKGROUND_BRANDING_AUDIT_BATCHES = Object.freeze([
   { slug: "01-foundations", title: "Foundations and signature forms", ids: [
-    "massage-lab-moving-gradient", "static-gradient", "massage-lab-retro-grid", "massage-lab-aerial-rays",
+    "massage-lab-moving-gradient", "static-gradient", "solid-color", "massage-lab-retro-grid", "massage-lab-aerial-rays",
     "massage-lab-dna", "massage-lab-twisted-cubes", "massage-lab-tile-grid", "massage-lab-hex-grid",
     "massage-lab-gradient", "massage-lab-lamp-effect", "massage-lab-spotlight", "massage-lab-reveal-dots",
   ] },

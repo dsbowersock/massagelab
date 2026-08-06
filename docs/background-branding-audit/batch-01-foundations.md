@@ -20,6 +20,16 @@
 - **Rationale:** In Transition gives the motionless internal fallback an intentional, contemplative identity without treating it as a technical state.
 - **Collision notes:** Its fixed layered field separates it from Massage Laba Lamp's drifting orbs and Colorfield Drift's motion.
 
+## Solid Color
+- **ID:** `solid-color`
+- **Current name:** Solid Color
+- **Decision:** keep
+- **Alternatives:** Full Color; Color Wash
+- **Visual descriptor:** Single uninterrupted full-screen color field
+- **Signature original eligible:** No
+- **Rationale:** Solid Color is the clearest truthful name for a utility background with one editable color and no motion or tuning.
+- **Collision notes:** Its single flat field is distinct from In Transition's multi-stop gradient and every animated color field.
+
 ## Endless Perspective
 - **ID:** `massage-lab-retro-grid`
 - **Current name:** Retro Grid

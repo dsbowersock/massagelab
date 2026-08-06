@@ -6,6 +6,12 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-05 — Solid Color background
+
+- Added the free `solid-color` background to Chimer, Clock, Music, and Ambient as a low-cost static option. Its full-screen renderer and registry fallback preview both default to MassageLab orange (`#FF7A1A`), with no authored video required.
+- The shared palette adapter exposes one Color role at Swatch 1. Source preserves the authored orange, Custom uses the saved first swatch, Swatches 2-7 remain unused, and Harmony is unavailable because a single color has no inter-role relationship to generate. The option has no background-specific tuning controls or special persistence branch.
+- The focused registry, palette, entitlement, UI-contract, and 84-background branding-audit tests pass; all 2,010 repository tests, typecheck, lint, `git diff --check`, the 102-page Production build, and the localhost-only `/dev/clock` HTTP check pass. Direct rendered automation remains blocked because the in-app Browser's administrator policy cannot verify localhost access, so final visual judgment remains in the user's Device Toolbar review.
+
 ## 2026-08-05 — Bubble Field independent background, colors, and tuning
 
 - Promoted Bubble Field from an unsupported CSS/DOM palette adapter to six concrete roles. Source preserves its authored compound background and five bubble colors. Custom maps Bubble 1-5 to Swatches 1-5 and Background to Swatch 7; Harmony regenerates only the five bubble colors while keeping the saved Swatch 7 background visible, editable, and independent.

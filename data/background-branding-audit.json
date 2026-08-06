@@ -23,6 +23,16 @@
       "signatureOriginalEligible": true
     },
     {
+      "id": "solid-color",
+      "decision": "keep",
+      "recommendedName": "Solid Color",
+      "alternatives": ["Full Color", "Color Wash"],
+      "visualDescriptor": "Single uninterrupted full-screen color field",
+      "rationale": "Solid Color is the clearest truthful name for a utility background with one editable color and no motion or tuning.",
+      "collisionNotes": "Its single flat field is distinct from In Transition's multi-stop gradient and every animated color field.",
+      "signatureOriginalEligible": false
+    },
+    {
       "id": "massage-lab-retro-grid",
       "decision": "rename",
       "recommendedName": "Endless Perspective",

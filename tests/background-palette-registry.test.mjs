@@ -57,6 +57,9 @@ const SWATCH_SEVEN_BACKGROUND_IDS = [
 ]
 
 const cssDomFixtures = {
+  "solid-color": {
+    solidColor: "#010101",
+  },
   "static-gradient": {
     staticGradient: {
       type: "linear",
@@ -552,6 +555,56 @@ describe("background palette adapter registry", () => {
       ))
 
     assert.deepEqual(swatchOneBackgrounds, [])
+  })
+
+  it("keeps Solid Color to one truthful custom swatch without Harmony", () => {
+    const adapter = backgroundPaletteRegistry["solid-color"]
+    assert.equal(adapter.status, "supported")
+    assert.equal(adapter.supportsHarmony, false)
+    assert.deepEqual(adapter.visualPropertyKeys, [])
+    assert.deepEqual(
+      adapter.roles.map((role) => ({
+        id: role.id,
+        label: role.label,
+        sourceColor: role.sourceColor,
+        defaultSwatch: role.defaultSwatch,
+        rendererTarget: role.rendererTarget,
+      })),
+      [{
+        id: "color",
+        label: "Color",
+        sourceColor: "#FF7A1A",
+        defaultSwatch: 0,
+        rendererTarget: "solidColor",
+      }],
+    )
+
+    const sourceResolved = resolveBackgroundEffectProps({
+      selectedId: "solid-color",
+      effectProps: { solidColor: "#010101" },
+      palette: paletteForMode("source"),
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.equal(sourceResolved.solidColor.toLowerCase(), "#ff7a1a")
+
+    const customResolved = resolveBackgroundEffectProps({
+      selectedId: "solid-color",
+      effectProps: { solidColor: "#010101" },
+      palette: paletteForMode("custom"),
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.equal(customResolved.solidColor, CUSTOM_SWATCHES[0])
+
+    const harmonyResolved = resolveBackgroundEffectProps({
+      selectedId: "solid-color",
+      effectProps: { solidColor: "#010101" },
+      palette: paletteForMode("harmony"),
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.equal(harmonyResolved.solidColor.toLowerCase(), "#ff7a1a")
   })
 
   it("keeps audited Swatch 7 backgrounds independent from Harmony", () => {

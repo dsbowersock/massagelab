@@ -403,6 +403,11 @@ export function applyCssDomPaletteRoleColors<
   colors: Readonly<Record<string, string>>,
 ): BackgroundEffectProps {
   switch (backgroundId) {
+    case "solid-color":
+      return {
+        ...props,
+        solidColor: roleColor(colors, "color", props.solidColor),
+      }
     case "static-gradient":
       return {
         ...props,
@@ -802,6 +807,14 @@ function unsupported(spec: UnsupportedSpec): UnsupportedBackgroundPaletteAdapter
 }
 
 const SUPPORTED_SPECS: readonly SupportedSpec[] = [
+  {
+    id: "solid-color",
+    family: "css-dom",
+    prefixes: ["solidColor"],
+    roles: [role("color", "Color", "solidColorValue", "solidColor")],
+    // A single color has no inter-role relationship for Harmony to generate.
+    supportsHarmony: false,
+  },
   {
     id: "static-gradient",
     family: "css-dom",
