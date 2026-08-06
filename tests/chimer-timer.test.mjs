@@ -3246,6 +3246,56 @@ describe("Chimer timer helpers", () => {
     assert.equal(sanitizeChimerSettings({ massageLabCollisionBeamsBurstSize: 0 }).massageLabCollisionBeamsBurstSize, 0.5)
   })
 
+  it("normalizes MassageLab Glowing Stars visual controls", () => {
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabGlowingStarsSpeed, 1)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabGlowingStarsIntensity, 0.94)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabGlowingStarsActiveStars, 5)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabGlowingStarsStarSize, 1)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabGlowingStarsGlowStrength, 1)
+
+    const settings = sanitizeChimerSettings({
+      massageLabGlowingStarsSpeed: 99,
+      massageLabGlowingStarsIntensity: -1,
+      massageLabGlowingStarsActiveStars: 99,
+      massageLabGlowingStarsStarSize: 99,
+      massageLabGlowingStarsGlowStrength: 99,
+    })
+    assert.equal(settings.massageLabGlowingStarsSpeed, 2)
+    assert.equal(settings.massageLabGlowingStarsIntensity, 0.1)
+    assert.equal(settings.massageLabGlowingStarsActiveStars, 18)
+    assert.equal(settings.massageLabGlowingStarsStarSize, 3)
+    assert.equal(settings.massageLabGlowingStarsGlowStrength, 2)
+    assert.equal(sanitizeChimerSettings({ massageLabGlowingStarsSpeed: 0 }).massageLabGlowingStarsSpeed, 0.25)
+    assert.equal(sanitizeChimerSettings({ massageLabGlowingStarsActiveStars: 0 }).massageLabGlowingStarsActiveStars, 1)
+    assert.equal(sanitizeChimerSettings({ massageLabGlowingStarsStarSize: 0 }).massageLabGlowingStarsStarSize, 0.5)
+    assert.equal(sanitizeChimerSettings({ massageLabGlowingStarsGlowStrength: -1 }).massageLabGlowingStarsGlowStrength, 0)
+  })
+
+  it("normalizes MassageLab Meteors visual controls", () => {
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabMeteorsSpeed, 1)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabMeteorsIntensity, 0.82)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabMeteorsCount, 28)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabMeteorsSize, 2)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.massageLabMeteorsTailLength, 50)
+
+    const settings = sanitizeChimerSettings({
+      massageLabMeteorsSpeed: 99,
+      massageLabMeteorsIntensity: -1,
+      massageLabMeteorsCount: 99,
+      massageLabMeteorsSize: 99,
+      massageLabMeteorsTailLength: 999,
+    })
+    assert.equal(settings.massageLabMeteorsSpeed, 2)
+    assert.equal(settings.massageLabMeteorsIntensity, 0.1)
+    assert.equal(settings.massageLabMeteorsCount, 48)
+    assert.equal(settings.massageLabMeteorsSize, 5)
+    assert.equal(settings.massageLabMeteorsTailLength, 140)
+    assert.equal(sanitizeChimerSettings({ massageLabMeteorsSpeed: 0 }).massageLabMeteorsSpeed, 0.25)
+    assert.equal(sanitizeChimerSettings({ massageLabMeteorsCount: 0 }).massageLabMeteorsCount, 4)
+    assert.equal(sanitizeChimerSettings({ massageLabMeteorsSize: 0 }).massageLabMeteorsSize, 0.5)
+    assert.equal(sanitizeChimerSettings({ massageLabMeteorsTailLength: 0 }).massageLabMeteorsTailLength, 15)
+  })
+
   it("normalizes MassageLab Synthesis background controls", () => {
     const settings = sanitizeChimerSettings({
       massageLabSynthesisPaletteMode: "harmony",

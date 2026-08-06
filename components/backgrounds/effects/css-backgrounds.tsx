@@ -196,6 +196,8 @@ export interface BackgroundEffectProps extends BackgroundRendererLifecycleProps 
   massageLabDottedGlow?: MassageLabDottedGlowOptions
   massageLabBackgroundBeams?: MassageLabBackgroundBeamsOptions
   massageLabCollisionBeams?: MassageLabCollisionBeamsOptions
+  massageLabGlowingStars?: MassageLabGlowingStarsOptions
+  massageLabMeteors?: MassageLabMeteorsOptions
   massageLab3DGlobe?: MassageLab3DGlobeOptions
   backgroundLines?: BackgroundLinesOptions
   shootingStars?: ShootingStarsBackgroundOptions
@@ -222,6 +224,8 @@ export interface CssDomPaletteEffectPropsById {
   "massage-lab-aurora": Pick<BackgroundEffectProps, "massageLabAurora">
   "massage-lab-background-beams": Pick<BackgroundEffectProps, "massageLabBackgroundBeams">
   "massage-lab-collision-beams": Pick<BackgroundEffectProps, "massageLabCollisionBeams">
+  "massage-lab-glowing-stars": Pick<BackgroundEffectProps, "massageLabGlowingStars">
+  "massage-lab-meteors": Pick<BackgroundEffectProps, "massageLabMeteors">
   "massage-lab-grid-motion": Pick<BackgroundEffectProps, "massageLabGridMotion">
   "massage-lab-gradient-animation": Pick<BackgroundEffectProps, "gradientAnimation">
   "massage-lab-shooting-stars": Pick<BackgroundEffectProps, "shootingStars">
@@ -1145,6 +1149,47 @@ export interface MassageLabCollisionBeamsOptions {
   burstSize?: number
 }
 
+export interface MassageLabGlowingStarsOptions {
+  /** Source retains the authored compound backdrop; resolved uses the saved background swatch. */
+  paletteMode?: "source" | "resolved"
+  backgroundColor?: string
+  starColor?: string
+  peakColor?: string
+  afterglowColor?: string
+  glowCoreColor?: string
+  glowAuraColor?: string
+  /** Multiplies the authored three-second star selection and two-second pulse cycles. */
+  speed?: number
+  /** Opacity applied to the complete star grid. */
+  intensity?: number
+  /** Number of stars selected for each pulse cycle. */
+  activeStars?: number
+  /** Diameter of each resting star in CSS pixels. */
+  starSize?: number
+  /** Multiplier for the authored glow footprint. */
+  glowStrength?: number
+}
+
+export interface MassageLabMeteorsOptions {
+  /** Source retains the authored compound backdrop; resolved uses the saved background swatch. */
+  paletteMode?: "source" | "resolved"
+  backgroundColor?: string
+  meteorColor?: string
+  tailColor?: string
+  glowColor?: string
+  edgeColor?: string
+  /** Multiplies each authored nine-to-fourteen-second meteor cycle. */
+  speed?: number
+  /** Opacity applied to the complete meteor layer. */
+  intensity?: number
+  /** Number of evenly distributed meteor streaks. */
+  count?: number
+  /** Diameter of each meteor head in CSS pixels. */
+  size?: number
+  /** Length of each meteor tail in CSS pixels. */
+  tailLength?: number
+}
+
 export interface ShootingStarsBackgroundOptions {
   starColor?: string
   trailColor?: string
@@ -1414,12 +1459,6 @@ const glowingStarsCount = 216
 const glowingStarsColumns = 18
 const glowingStarsRows = 12
 const glowingStarIndexes = Array.from({ length: glowingStarsCount }, (_, index) => index)
-const meteorCount = 28
-const massageLabMeteors = Array.from({ length: meteorCount }, (_, index) => ({
-  left: `${((index + 0.5) / meteorCount) * 100}%`,
-  delay: `-${((index * 0.73) % 12).toFixed(2)}s`,
-  duration: `${9 + ((index * 7) % 6)}s`,
-}))
 
 const massageLabBeamPaths = [
   "M-380 -189C-380 -189 -312 216 152 343C616 470 684 875 684 875",
@@ -1831,6 +1870,41 @@ const DEFAULT_MASSAGE_LAB_COLLISION_BEAMS = Object.freeze({
   intensity: 1,
   beamWidth: 1,
   burstSize: 1,
+})
+
+const MASSAGE_LAB_GLOWING_STARS_SOURCE_BACKGROUND =
+  "radial-gradient(circle at 52% 42%, rgba(59, 130, 246, 0.11), transparent 34%), radial-gradient(circle at 24% 82%, rgba(255, 122, 26, 0.07), transparent 30%), linear-gradient(110deg, #141414 0.6%, #050505 100%)"
+
+const DEFAULT_MASSAGE_LAB_GLOWING_STARS = Object.freeze({
+  paletteMode: "source" as const,
+  backgroundColor: "#050505",
+  starColor: "#666666",
+  peakColor: "#FFFFFF",
+  afterglowColor: "#EAF6FF",
+  glowCoreColor: "#3B82F6",
+  glowAuraColor: "#60A5FA",
+  speed: 1,
+  intensity: 0.94,
+  activeStars: 5,
+  starSize: 1,
+  glowStrength: 1,
+})
+
+const MASSAGE_LAB_METEORS_SOURCE_BACKGROUND =
+  "radial-gradient(circle at 50% 38%, rgba(100, 116, 139, 0.14), transparent 34%), radial-gradient(circle at 22% 78%, rgba(255, 122, 26, 0.08), transparent 30%), linear-gradient(145deg, #050505, #081018 62%, #050505)"
+
+const DEFAULT_MASSAGE_LAB_METEORS = Object.freeze({
+  paletteMode: "source" as const,
+  backgroundColor: "#050505",
+  meteorColor: "#64748B",
+  tailColor: "#64748B",
+  glowColor: "#94A3B8",
+  edgeColor: "#FFFFFF",
+  speed: 1,
+  intensity: 0.82,
+  count: 28,
+  size: 2,
+  tailLength: 50,
 })
 
 // MassageLab Aurora Field by Manu Arora, adapted as an internal MassageLab premium visual effect.
@@ -2381,27 +2455,53 @@ export function MassageLabBackgroundLines({
 }
 
 // MassageLab Glowing Stars by Manu Arora, adapted as an internal MassageLab premium visual effect.
-export function MassageLabGlowingStarsBackground({ className }: BackgroundEffectProps) {
-  const [glowingStars, setGlowingStars] = useState<number[]>([])
+export function MassageLabGlowingStarsBackground({
+  className,
+  massageLabGlowingStars,
+}: BackgroundEffectProps) {
+  const resolved = resolveMassageLabGlowingStarsOptions(massageLabGlowingStars)
+  const [glowingStars, setGlowingStars] = useState<ReadonlySet<number>>(() => new Set())
 
   useEffect(() => {
     const selectGlowingStars = () => {
       const selected = new Set<number>()
 
-      while (selected.size < 5) {
+      while (selected.size < resolved.activeStars) {
         selected.add(Math.floor(Math.random() * glowingStarsCount))
       }
 
-      setGlowingStars([...selected])
+      setGlowingStars(selected)
     }
 
     selectGlowingStars()
-    const interval = window.setInterval(selectGlowingStars, 3000)
+    const interval = window.setInterval(selectGlowingStars, 3000 / resolved.speed)
     return () => window.clearInterval(interval)
-  }, [])
+  }, [resolved.activeStars, resolved.speed])
+
+  const rootStyle = {
+    "--ml-glowing-stars-background": resolved.paletteMode === "source"
+      ? MASSAGE_LAB_GLOWING_STARS_SOURCE_BACKGROUND
+      : resolved.backgroundColor,
+    "--ml-glowing-stars-star-color": resolved.starColor,
+    "--ml-glowing-stars-peak-color": resolved.peakColor,
+    "--ml-glowing-stars-afterglow-color": resolved.afterglowColor,
+    "--ml-glowing-stars-glow-core": resolved.glowCoreColor,
+    "--ml-glowing-stars-glow-aura-near": hexColorWithAlpha(resolved.glowAuraColor, 0.8),
+    "--ml-glowing-stars-glow-aura-far": hexColorWithAlpha(resolved.glowAuraColor, 0.35),
+    "--ml-glowing-stars-intensity": resolved.intensity,
+    "--ml-glowing-stars-star-size": `${resolved.starSize}px`,
+    "--ml-glowing-stars-cycle": `${2 / resolved.speed}s`,
+    "--ml-glowing-stars-glow-size": `${4 * resolved.glowStrength}px`,
+    "--ml-glowing-stars-glow-near": `${18 * resolved.glowStrength}px`,
+    "--ml-glowing-stars-glow-far": `${42 * resolved.glowStrength}px`,
+  } as CSSProperties
 
   return (
-    <div className={cn(styles.effectLayer, styles.massageLabGlowingStars, className)} aria-hidden="true">
+    <div
+      className={cn(styles.effectLayer, styles.massageLabGlowingStars, className)}
+      style={rootStyle}
+      aria-hidden="true"
+    >
       <div
         className={styles.glowingStarsGrid}
         style={{
@@ -2410,8 +2510,8 @@ export function MassageLabGlowingStarsBackground({ className }: BackgroundEffect
         } as CSSProperties}
       >
         {glowingStarIndexes.map((index) => {
-          const isGlowing = glowingStars.includes(index)
-          const delay = (index % 10) * 0.1
+          const isGlowing = glowingStars.has(index)
+          const delay = ((index % 10) * 0.1) / resolved.speed
 
           return (
             <span key={index} className={styles.glowingStarsCell}>
@@ -2434,11 +2534,34 @@ export function MassageLabGlowingStarsBackground({ className }: BackgroundEffect
 }
 
 // MassageLab Meteors by Manu Arora, adapted as an internal MassageLab premium visual effect.
-export function MassageLabMeteorsBackground({ className }: BackgroundEffectProps) {
+export function MassageLabMeteorsBackground({ className, massageLabMeteors }: BackgroundEffectProps) {
+  const resolved = resolveMassageLabMeteorsOptions(massageLabMeteors)
+  const meteors = Array.from({ length: resolved.count }, (_, index) => ({
+    left: `${((index + 0.5) / resolved.count) * 100}%`,
+    delay: `-${(((index * 0.73) % 12) / resolved.speed).toFixed(2)}s`,
+    duration: `${(9 + ((index * 7) % 6)) / resolved.speed}s`,
+  }))
+  const rootStyle = {
+    "--ml-meteors-background": resolved.paletteMode === "source"
+      ? MASSAGE_LAB_METEORS_SOURCE_BACKGROUND
+      : resolved.backgroundColor,
+    "--ml-meteor-color": resolved.meteorColor,
+    "--ml-meteor-tail-color": resolved.tailColor,
+    "--ml-meteor-glow": hexColorWithAlpha(resolved.glowColor, 0.34),
+    "--ml-meteor-edge": hexColorWithAlpha(resolved.edgeColor, 0.06),
+    "--ml-meteors-intensity": resolved.intensity,
+    "--ml-meteor-size": `${resolved.size}px`,
+    "--ml-meteor-tail-length": `${resolved.tailLength}px`,
+  } as CSSProperties
+
   return (
-    <div className={cn(styles.effectLayer, styles.massageLabMeteors, className)} aria-hidden="true">
+    <div
+      className={cn(styles.effectLayer, styles.massageLabMeteors, className)}
+      style={rootStyle}
+      aria-hidden="true"
+    >
       <div className={styles.meteorsLayer}>
-        {massageLabMeteors.map((meteor, index) => (
+        {meteors.map((meteor, index) => (
           <span
             key={`meteor-${index}`}
             className={styles.meteor}
@@ -3632,6 +3755,43 @@ function resolveMassageLabCollisionBeamsOptions(
     intensity: clampNumber(beams?.intensity, DEFAULT_MASSAGE_LAB_COLLISION_BEAMS.intensity, 0.1, 1),
     beamWidth: clampNumber(beams?.beamWidth, DEFAULT_MASSAGE_LAB_COLLISION_BEAMS.beamWidth, 0.5, 4),
     burstSize: clampNumber(beams?.burstSize, DEFAULT_MASSAGE_LAB_COLLISION_BEAMS.burstSize, 0.5, 2),
+  }
+}
+
+function resolveMassageLabGlowingStarsOptions(
+  stars: MassageLabGlowingStarsOptions | undefined,
+): Required<MassageLabGlowingStarsOptions> {
+  return {
+    paletteMode: stars?.paletteMode === "resolved" ? "resolved" : "source",
+    backgroundColor: normalizeHexColor(stars?.backgroundColor, DEFAULT_MASSAGE_LAB_GLOWING_STARS.backgroundColor),
+    starColor: normalizeHexColor(stars?.starColor, DEFAULT_MASSAGE_LAB_GLOWING_STARS.starColor),
+    peakColor: normalizeHexColor(stars?.peakColor, DEFAULT_MASSAGE_LAB_GLOWING_STARS.peakColor),
+    afterglowColor: normalizeHexColor(stars?.afterglowColor, DEFAULT_MASSAGE_LAB_GLOWING_STARS.afterglowColor),
+    glowCoreColor: normalizeHexColor(stars?.glowCoreColor, DEFAULT_MASSAGE_LAB_GLOWING_STARS.glowCoreColor),
+    glowAuraColor: normalizeHexColor(stars?.glowAuraColor, DEFAULT_MASSAGE_LAB_GLOWING_STARS.glowAuraColor),
+    speed: clampNumber(stars?.speed, DEFAULT_MASSAGE_LAB_GLOWING_STARS.speed, 0.25, 2),
+    intensity: clampNumber(stars?.intensity, DEFAULT_MASSAGE_LAB_GLOWING_STARS.intensity, 0.1, 1),
+    activeStars: Math.round(clampNumber(stars?.activeStars, DEFAULT_MASSAGE_LAB_GLOWING_STARS.activeStars, 1, 18)),
+    starSize: clampNumber(stars?.starSize, DEFAULT_MASSAGE_LAB_GLOWING_STARS.starSize, 0.5, 3),
+    glowStrength: clampNumber(stars?.glowStrength, DEFAULT_MASSAGE_LAB_GLOWING_STARS.glowStrength, 0, 2),
+  }
+}
+
+function resolveMassageLabMeteorsOptions(
+  meteors: MassageLabMeteorsOptions | undefined,
+): Required<MassageLabMeteorsOptions> {
+  return {
+    paletteMode: meteors?.paletteMode === "resolved" ? "resolved" : "source",
+    backgroundColor: normalizeHexColor(meteors?.backgroundColor, DEFAULT_MASSAGE_LAB_METEORS.backgroundColor),
+    meteorColor: normalizeHexColor(meteors?.meteorColor, DEFAULT_MASSAGE_LAB_METEORS.meteorColor),
+    tailColor: normalizeHexColor(meteors?.tailColor, DEFAULT_MASSAGE_LAB_METEORS.tailColor),
+    glowColor: normalizeHexColor(meteors?.glowColor, DEFAULT_MASSAGE_LAB_METEORS.glowColor),
+    edgeColor: normalizeHexColor(meteors?.edgeColor, DEFAULT_MASSAGE_LAB_METEORS.edgeColor),
+    speed: clampNumber(meteors?.speed, DEFAULT_MASSAGE_LAB_METEORS.speed, 0.25, 2),
+    intensity: clampNumber(meteors?.intensity, DEFAULT_MASSAGE_LAB_METEORS.intensity, 0.1, 1),
+    count: Math.round(clampNumber(meteors?.count, DEFAULT_MASSAGE_LAB_METEORS.count, 4, 48)),
+    size: clampNumber(meteors?.size, DEFAULT_MASSAGE_LAB_METEORS.size, 0.5, 5),
+    tailLength: clampNumber(meteors?.tailLength, DEFAULT_MASSAGE_LAB_METEORS.tailLength, 15, 140),
   }
 }
 

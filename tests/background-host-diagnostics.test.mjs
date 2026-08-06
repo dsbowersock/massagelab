@@ -144,6 +144,73 @@ describe("BackgroundHost diagnostics", () => {
     })
   })
 
+  it("reports Glowing Stars' and Meteors' supported palette targets", () => {
+    const cases = [
+      {
+        backgroundId: "massage-lab-glowing-stars",
+        propName: "massageLabGlowingStars",
+        base: { paletteMode: "source", speed: 1.4 },
+        colors: {
+          background: "#010101",
+          stars: "#020202",
+          peak: "#030303",
+          afterglow: "#040404",
+          "glow-core": "#050505",
+          "glow-aura": "#060606",
+        },
+        expected: {
+          "massageLabGlowingStars.afterglowColor": "#040404",
+          "massageLabGlowingStars.backgroundColor": "#010101",
+          "massageLabGlowingStars.glowAuraColor": "#060606",
+          "massageLabGlowingStars.glowCoreColor": "#050505",
+          "massageLabGlowingStars.paletteMode": "resolved",
+          "massageLabGlowingStars.peakColor": "#030303",
+          "massageLabGlowingStars.starColor": "#020202",
+        },
+      },
+      {
+        backgroundId: "massage-lab-meteors",
+        propName: "massageLabMeteors",
+        base: { paletteMode: "source", speed: 1.4 },
+        colors: {
+          background: "#010101",
+          meteors: "#020202",
+          tails: "#030303",
+          glow: "#040404",
+          edge: "#050505",
+        },
+        expected: {
+          "massageLabMeteors.backgroundColor": "#010101",
+          "massageLabMeteors.edgeColor": "#050505",
+          "massageLabMeteors.glowColor": "#040404",
+          "massageLabMeteors.meteorColor": "#020202",
+          "massageLabMeteors.paletteMode": "resolved",
+          "massageLabMeteors.tailColor": "#030303",
+        },
+      },
+    ]
+
+    for (const { backgroundId, propName, base, colors, expected } of cases) {
+      const adapter = backgroundPaletteRegistry[backgroundId]
+      const baseEffectProps = { [propName]: base }
+      const appliedEffectProps = adapter.applyRoleColors(baseEffectProps, colors, "custom")
+      const snapshot = createBackgroundHostDiagnosticSnapshot({
+        requestedId: backgroundId,
+        loadedId: backgroundId,
+        loadStatus: "loaded",
+        adapter,
+        baseEffectProps,
+        appliedEffectProps,
+        reducedMotion: false,
+        error: null,
+      })
+
+      assert.equal(snapshot.status, "loaded")
+      assert.equal(snapshot.applicationChanged, true)
+      assert.deepEqual(snapshot.resolvedRendererTargets, expected)
+    }
+  })
+
   it("fails closed for stale loads and exposes reduced-motion fallback", () => {
     const adapter = backgroundPaletteRegistry["massage-lab-retro-grid"]
     const baseEffectProps = { massageLabRetroGrid: { backgroundColor: "#000000" } }

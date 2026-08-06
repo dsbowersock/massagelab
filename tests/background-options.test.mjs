@@ -5708,6 +5708,58 @@ describe("premium background registry", () => {
     assert.match(runningSource, /massageLabCollisionBeams=\{\{/)
   })
 
+  it("exposes Glowing Stars and Meteors palette roles and visual tuning in both Visual panels", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const paletteSource = readFileSync(
+      new URL("../components/backgrounds/backgroundPaletteRegistry.ts", import.meta.url),
+      "utf8",
+    )
+
+    assert.match(effectSource, /MassageLabGlowingStarsOptions/)
+    assert.match(effectSource, /MassageLabMeteorsOptions/)
+    assert.match(stylesSource, /var\(--ml-glowing-stars-intensity, 0\.94\)/)
+    assert.match(stylesSource, /var\(--ml-glowing-stars-star-size, 1px\)/)
+    assert.match(stylesSource, /var\(--ml-meteors-intensity, 0\.82\)/)
+    assert.match(stylesSource, /var\(--ml-meteor-size, 2px\)/)
+    assert.match(stylesSource, /var\(--ml-meteor-tail-length, 50px\)/)
+    assert.match(paletteSource, /id: "massage-lab-glowing-stars"/)
+    assert.match(paletteSource, /id: "massage-lab-meteors"/)
+    assert.match(paletteSource, /role\("background", "Background", "massageLabGlowingStarsBackgroundColor"/)
+    assert.match(paletteSource, /role\("background", "Background", "massageLabMeteorsBackgroundColor"/)
+    for (const key of [
+      "massageLabGlowingStarsSpeed",
+      "massageLabGlowingStarsIntensity",
+      "massageLabGlowingStarsActiveStars",
+      "massageLabGlowingStarsStarSize",
+      "massageLabGlowingStarsGlowStrength",
+      "massageLabMeteorsSpeed",
+      "massageLabMeteorsIntensity",
+      "massageLabMeteorsCount",
+      "massageLabMeteorsSize",
+      "massageLabMeteorsTailLength",
+    ]) {
+      assert.match(setupSource, new RegExp(key))
+      assert.match(runningSource, new RegExp(key))
+    }
+    assert.match(hostSource, /massageLabGlowingStars/)
+    assert.match(hostSource, /massageLabMeteors/)
+    assert.match(runningSource, /massageLabGlowingStars=\{\{/)
+    assert.match(runningSource, /massageLabMeteors=\{\{/)
+  })
+
   it("keeps MassageLab Synthesis source-shaped, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
       new URL("../components/backgrounds/effects/massage-lab-synthesis-background.tsx", import.meta.url),

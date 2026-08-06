@@ -112,6 +112,37 @@ const cssDomFixtures = {
       burstSize: 1.2,
     },
   },
+  "massage-lab-glowing-stars": {
+    massageLabGlowingStars: {
+      paletteMode: "source",
+      backgroundColor: "#010101",
+      starColor: "#020202",
+      peakColor: "#030303",
+      afterglowColor: "#040404",
+      glowCoreColor: "#050505",
+      glowAuraColor: "#060606",
+      speed: 1.4,
+      intensity: 0.64,
+      activeStars: 9,
+      starSize: 1.5,
+      glowStrength: 1.2,
+    },
+  },
+  "massage-lab-meteors": {
+    massageLabMeteors: {
+      paletteMode: "source",
+      backgroundColor: "#010101",
+      meteorColor: "#020202",
+      tailColor: "#030303",
+      glowColor: "#040404",
+      edgeColor: "#050505",
+      speed: 1.4,
+      intensity: 0.64,
+      count: 19,
+      size: 2.5,
+      tailLength: 72,
+    },
+  },
   "massage-lab-grid-motion": {
     massageLabGridMotion: {
       gradientColor: "#010101",
@@ -1726,6 +1757,124 @@ describe("background palette adapter registry", () => {
         intensity: effectProps.massageLabCollisionBeams.intensity,
         beamWidth: effectProps.massageLabCollisionBeams.beamWidth,
         burstSize: effectProps.massageLabCollisionBeams.burstSize,
+      },
+    )
+  })
+
+  it("keeps Glowing Stars' Swatch 7 background independent from Harmony", () => {
+    const adapter = backgroundPaletteRegistry["massage-lab-glowing-stars"]
+    assert.deepEqual(
+      Object.fromEntries(adapter.roles.map((role) => [role.id, {
+        defaultSwatch: role.defaultSwatch,
+        harmonyColorSource: role.harmonyColorSource,
+      }])),
+      {
+        background: { defaultSwatch: 6, harmonyColorSource: "saved-swatch" },
+        stars: { defaultSwatch: 0, harmonyColorSource: "generated" },
+        peak: { defaultSwatch: 1, harmonyColorSource: "generated" },
+        afterglow: { defaultSwatch: 2, harmonyColorSource: "generated" },
+        "glow-core": { defaultSwatch: 3, harmonyColorSource: "generated" },
+        "glow-aura": { defaultSwatch: 4, harmonyColorSource: "generated" },
+      },
+    )
+
+    const effectProps = cssDomFixtures["massage-lab-glowing-stars"]
+    const sourceResolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-glowing-stars",
+      effectProps,
+      palette: paletteForMode("source"),
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.equal(sourceResolved.massageLabGlowingStars.paletteMode, "source")
+
+    const harmonyResolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-glowing-stars",
+      effectProps,
+      palette: paletteForMode("harmony"),
+      mapping: {},
+      canCustomize: true,
+    })
+    const harmonySwatches = generateBackgroundHarmonySwatches(HARMONY_PRIMARY, "triadic")
+    assert.equal(harmonyResolved.massageLabGlowingStars.paletteMode, "resolved")
+    assert.equal(harmonyResolved.massageLabGlowingStars.backgroundColor, CUSTOM_SWATCHES[6])
+    assert.equal(harmonyResolved.massageLabGlowingStars.starColor, harmonySwatches[0])
+    assert.equal(harmonyResolved.massageLabGlowingStars.peakColor, harmonySwatches[1])
+    assert.equal(harmonyResolved.massageLabGlowingStars.afterglowColor, harmonySwatches[2])
+    assert.equal(harmonyResolved.massageLabGlowingStars.glowCoreColor, harmonySwatches[3])
+    assert.equal(harmonyResolved.massageLabGlowingStars.glowAuraColor, harmonySwatches[4])
+    assert.deepEqual(
+      {
+        speed: harmonyResolved.massageLabGlowingStars.speed,
+        intensity: harmonyResolved.massageLabGlowingStars.intensity,
+        activeStars: harmonyResolved.massageLabGlowingStars.activeStars,
+        starSize: harmonyResolved.massageLabGlowingStars.starSize,
+        glowStrength: harmonyResolved.massageLabGlowingStars.glowStrength,
+      },
+      {
+        speed: effectProps.massageLabGlowingStars.speed,
+        intensity: effectProps.massageLabGlowingStars.intensity,
+        activeStars: effectProps.massageLabGlowingStars.activeStars,
+        starSize: effectProps.massageLabGlowingStars.starSize,
+        glowStrength: effectProps.massageLabGlowingStars.glowStrength,
+      },
+    )
+  })
+
+  it("keeps Meteors' Swatch 7 background independent from Harmony", () => {
+    const adapter = backgroundPaletteRegistry["massage-lab-meteors"]
+    assert.deepEqual(
+      Object.fromEntries(adapter.roles.map((role) => [role.id, {
+        defaultSwatch: role.defaultSwatch,
+        harmonyColorSource: role.harmonyColorSource,
+      }])),
+      {
+        background: { defaultSwatch: 6, harmonyColorSource: "saved-swatch" },
+        meteors: { defaultSwatch: 0, harmonyColorSource: "generated" },
+        tails: { defaultSwatch: 1, harmonyColorSource: "generated" },
+        glow: { defaultSwatch: 2, harmonyColorSource: "generated" },
+        edge: { defaultSwatch: 3, harmonyColorSource: "generated" },
+      },
+    )
+
+    const effectProps = cssDomFixtures["massage-lab-meteors"]
+    const sourceResolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-meteors",
+      effectProps,
+      palette: paletteForMode("source"),
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.equal(sourceResolved.massageLabMeteors.paletteMode, "source")
+
+    const harmonyResolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-meteors",
+      effectProps,
+      palette: paletteForMode("harmony"),
+      mapping: {},
+      canCustomize: true,
+    })
+    const harmonySwatches = generateBackgroundHarmonySwatches(HARMONY_PRIMARY, "triadic")
+    assert.equal(harmonyResolved.massageLabMeteors.paletteMode, "resolved")
+    assert.equal(harmonyResolved.massageLabMeteors.backgroundColor, CUSTOM_SWATCHES[6])
+    assert.equal(harmonyResolved.massageLabMeteors.meteorColor, harmonySwatches[0])
+    assert.equal(harmonyResolved.massageLabMeteors.tailColor, harmonySwatches[1])
+    assert.equal(harmonyResolved.massageLabMeteors.glowColor, harmonySwatches[2])
+    assert.equal(harmonyResolved.massageLabMeteors.edgeColor, harmonySwatches[3])
+    assert.deepEqual(
+      {
+        speed: harmonyResolved.massageLabMeteors.speed,
+        intensity: harmonyResolved.massageLabMeteors.intensity,
+        count: harmonyResolved.massageLabMeteors.count,
+        size: harmonyResolved.massageLabMeteors.size,
+        tailLength: harmonyResolved.massageLabMeteors.tailLength,
+      },
+      {
+        speed: effectProps.massageLabMeteors.speed,
+        intensity: effectProps.massageLabMeteors.intensity,
+        count: effectProps.massageLabMeteors.count,
+        size: effectProps.massageLabMeteors.size,
+        tailLength: effectProps.massageLabMeteors.tailLength,
       },
     )
   })

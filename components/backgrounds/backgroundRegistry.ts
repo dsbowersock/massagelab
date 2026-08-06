@@ -1744,7 +1744,7 @@ const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
     performanceCost: "low",
     requiresSubscription: true,
     enabled: true,
-    customizationSummary: "Source star/glow cycle adapted without adding the source Motion dependency.",
+    customizationSummary: "Source star/glow cycle with shared base, peak, afterglow, core, and aura colors, an independent background swatch, and motion, intensity, count, size, and glow controls.",
     component: () => cssBackgrounds().then((module) => ({ default: module.MassageLabGlowingStarsBackground })),
     fallbackStyle: {
       background:
@@ -1764,7 +1764,7 @@ const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
     performanceCost: "low",
     requiresSubscription: true,
     enabled: true,
-    customizationSummary: "Source meteor direction and tail behavior adapted with deterministic CSS animation and no added Motion dependency.",
+    customizationSummary: "Source meteor direction and tail behavior with shared head, tail, glow, and edge colors, an independent background swatch, and motion, intensity, count, size, and tail controls.",
     component: () => cssBackgrounds().then((module) => ({ default: module.MassageLabMeteorsBackground })),
     fallbackStyle: {
       background:

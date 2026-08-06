@@ -469,6 +469,51 @@ export function applyCssDomPaletteRoleColors<
           ),
         },
       }
+    case "massage-lab-glowing-stars":
+      return {
+        ...props,
+        massageLabGlowingStars: {
+          ...props.massageLabGlowingStars,
+          backgroundColor: roleColor(
+            colors,
+            "background",
+            props.massageLabGlowingStars?.backgroundColor,
+          ),
+          starColor: roleColor(colors, "stars", props.massageLabGlowingStars?.starColor),
+          peakColor: roleColor(colors, "peak", props.massageLabGlowingStars?.peakColor),
+          afterglowColor: roleColor(
+            colors,
+            "afterglow",
+            props.massageLabGlowingStars?.afterglowColor,
+          ),
+          glowCoreColor: roleColor(
+            colors,
+            "glow-core",
+            props.massageLabGlowingStars?.glowCoreColor,
+          ),
+          glowAuraColor: roleColor(
+            colors,
+            "glow-aura",
+            props.massageLabGlowingStars?.glowAuraColor,
+          ),
+        },
+      }
+    case "massage-lab-meteors":
+      return {
+        ...props,
+        massageLabMeteors: {
+          ...props.massageLabMeteors,
+          backgroundColor: roleColor(
+            colors,
+            "background",
+            props.massageLabMeteors?.backgroundColor,
+          ),
+          meteorColor: roleColor(colors, "meteors", props.massageLabMeteors?.meteorColor),
+          tailColor: roleColor(colors, "tails", props.massageLabMeteors?.tailColor),
+          glowColor: roleColor(colors, "glow", props.massageLabMeteors?.glowColor),
+          edgeColor: roleColor(colors, "edge", props.massageLabMeteors?.edgeColor),
+        },
+      }
     case "massage-lab-dna":
       if (!props.massageLabDna) return props
       return {
@@ -768,6 +813,41 @@ const SUPPORTED_SPECS: readonly SupportedSpec[] = [
     }],
   },
   {
+    id: "massage-lab-glowing-stars",
+    family: "css-dom",
+    prefixes: ["massageLabGlowingStars"],
+    roles: [
+      role("background", "Background", "massageLabGlowingStarsBackgroundColor", "massageLabGlowingStars.backgroundColor", undefined, "#050505", 6, "saved-swatch"),
+      role("stars", "Base stars", "massageLabGlowingStarsStarColor", "massageLabGlowingStars.starColor", undefined, "#666666", 0),
+      role("peak", "Peak stars", "massageLabGlowingStarsPeakColor", "massageLabGlowingStars.peakColor", undefined, "#FFFFFF", 1),
+      role("afterglow", "Afterglow", "massageLabGlowingStarsAfterglowColor", "massageLabGlowingStars.afterglowColor", undefined, "#EAF6FF", 2),
+      role("glow-core", "Glow core", "massageLabGlowingStarsGlowCoreColor", "massageLabGlowingStars.glowCoreColor", undefined, "#3B82F6", 3),
+      role("glow-aura", "Glow aura", "massageLabGlowingStarsGlowAuraColor", "massageLabGlowingStars.glowAuraColor", undefined, "#60A5FA", 4),
+    ],
+    modeOverrides: [{
+      rendererTarget: "massageLabGlowingStars.paletteMode",
+      sourceValue: "source",
+      customValue: "resolved",
+    }],
+  },
+  {
+    id: "massage-lab-meteors",
+    family: "css-dom",
+    prefixes: ["massageLabMeteors"],
+    roles: [
+      role("background", "Background", "massageLabMeteorsBackgroundColor", "massageLabMeteors.backgroundColor", undefined, "#050505", 6, "saved-swatch"),
+      role("meteors", "Meteor heads", "massageLabMeteorsMeteorColor", "massageLabMeteors.meteorColor", undefined, "#64748B", 0),
+      role("tails", "Meteor tails", "massageLabMeteorsTailColor", "massageLabMeteors.tailColor", undefined, "#64748B", 1),
+      role("glow", "Meteor glow", "massageLabMeteorsGlowColor", "massageLabMeteors.glowColor", undefined, "#94A3B8", 2),
+      role("edge", "Meteor edge", "massageLabMeteorsEdgeColor", "massageLabMeteors.edgeColor", undefined, "#FFFFFF", 3),
+    ],
+    modeOverrides: [{
+      rendererTarget: "massageLabMeteors.paletteMode",
+      sourceValue: "source",
+      customValue: "resolved",
+    }],
+  },
+  {
     id: "massage-lab-dna",
     family: "css-dom",
     prefixes: ["massageLabDna"],
@@ -946,8 +1026,6 @@ const UNSUPPORTED_SPECS: readonly UnsupportedSpec[] = [
   { id: "massage-lab-prism", family: "webgl", prefixes: ["massageLabPrism"], reason: "Prism exposes spectral and hue controls rather than a concrete color target, so its source rendering remains unchanged during adapter migration." },
   { id: "massage-lab-dark-veil", family: "webgl", prefixes: ["massageLabDarkVeil"], reason: "Dark Veil exposes a hue shift rather than a concrete color target, so its source rendering remains unchanged during adapter migration." },
   { id: "massage-lab-background-lines", family: "css-dom", prefixes: ["backgroundLines"] },
-  { id: "massage-lab-glowing-stars", family: "css-dom" },
-  { id: "massage-lab-meteors", family: "css-dom" },
   { id: "massage-lab-bubble", family: "css-dom" },
 ]
 

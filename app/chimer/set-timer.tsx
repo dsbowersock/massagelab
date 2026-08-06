@@ -1035,6 +1035,16 @@ export interface ChimerSettings {
   massageLabCollisionBeamsIntensity: number
   massageLabCollisionBeamsBeamWidth: number
   massageLabCollisionBeamsBurstSize: number
+  massageLabGlowingStarsSpeed: number
+  massageLabGlowingStarsIntensity: number
+  massageLabGlowingStarsActiveStars: number
+  massageLabGlowingStarsStarSize: number
+  massageLabGlowingStarsGlowStrength: number
+  massageLabMeteorsSpeed: number
+  massageLabMeteorsIntensity: number
+  massageLabMeteorsCount: number
+  massageLabMeteorsSize: number
+  massageLabMeteorsTailLength: number
   backgroundLinesDuration: number
   shootingStarsDensity: number
   shootingStarsTwinkle: boolean
@@ -1778,6 +1788,60 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
           <label className={styles.rangeRow}>
             <span>Burst size ({Math.round(settings.massageLabCollisionBeamsBurstSize * 100)}%)</span>
             <input type="range" min="0.5" max="2" step="0.05" value={settings.massageLabCollisionBeamsBurstSize} onChange={(event) => onSettingsChange({ massageLabCollisionBeamsBurstSize: Number(event.target.value) })} aria-label="Collision Beams burst size" />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "massage-lab-glowing-stars") {
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.rangeRow}>
+            <span>Motion speed ({settings.massageLabGlowingStarsSpeed.toFixed(2)}x)</span>
+            <input type="range" min="0.25" max="2" step="0.05" value={settings.massageLabGlowingStarsSpeed} onChange={(event) => onSettingsChange({ massageLabGlowingStarsSpeed: Number(event.target.value) })} aria-label="Glowing Stars motion speed" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Intensity ({Math.round(settings.massageLabGlowingStarsIntensity * 100)}%)</span>
+            <input type="range" min="0.1" max="1" step="0.05" value={settings.massageLabGlowingStarsIntensity} onChange={(event) => onSettingsChange({ massageLabGlowingStarsIntensity: Number(event.target.value) })} aria-label="Glowing Stars intensity" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Active stars ({settings.massageLabGlowingStarsActiveStars})</span>
+            <input type="range" min="1" max="18" step="1" value={settings.massageLabGlowingStarsActiveStars} onChange={(event) => onSettingsChange({ massageLabGlowingStarsActiveStars: Number(event.target.value) })} aria-label="Glowing Stars active stars" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Star size ({settings.massageLabGlowingStarsStarSize.toFixed(1)}px)</span>
+            <input type="range" min="0.5" max="3" step="0.1" value={settings.massageLabGlowingStarsStarSize} onChange={(event) => onSettingsChange({ massageLabGlowingStarsStarSize: Number(event.target.value) })} aria-label="Glowing Stars star size" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Glow strength ({Math.round(settings.massageLabGlowingStarsGlowStrength * 100)}%)</span>
+            <input type="range" min="0" max="2" step="0.05" value={settings.massageLabGlowingStarsGlowStrength} onChange={(event) => onSettingsChange({ massageLabGlowingStarsGlowStrength: Number(event.target.value) })} aria-label="Glowing Stars glow strength" />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "massage-lab-meteors") {
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.rangeRow}>
+            <span>Motion speed ({settings.massageLabMeteorsSpeed.toFixed(2)}x)</span>
+            <input type="range" min="0.25" max="2" step="0.05" value={settings.massageLabMeteorsSpeed} onChange={(event) => onSettingsChange({ massageLabMeteorsSpeed: Number(event.target.value) })} aria-label="Meteors motion speed" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Intensity ({Math.round(settings.massageLabMeteorsIntensity * 100)}%)</span>
+            <input type="range" min="0.1" max="1" step="0.05" value={settings.massageLabMeteorsIntensity} onChange={(event) => onSettingsChange({ massageLabMeteorsIntensity: Number(event.target.value) })} aria-label="Meteors intensity" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Meteor count ({settings.massageLabMeteorsCount})</span>
+            <input type="range" min="4" max="48" step="1" value={settings.massageLabMeteorsCount} onChange={(event) => onSettingsChange({ massageLabMeteorsCount: Number(event.target.value) })} aria-label="Meteors count" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Meteor size ({settings.massageLabMeteorsSize.toFixed(1)}px)</span>
+            <input type="range" min="0.5" max="5" step="0.1" value={settings.massageLabMeteorsSize} onChange={(event) => onSettingsChange({ massageLabMeteorsSize: Number(event.target.value) })} aria-label="Meteors size" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Tail length ({Math.round(settings.massageLabMeteorsTailLength)}px)</span>
+            <input type="range" min="15" max="140" step="1" value={settings.massageLabMeteorsTailLength} onChange={(event) => onSettingsChange({ massageLabMeteorsTailLength: Number(event.target.value) })} aria-label="Meteors tail length" />
           </label>
         </div>
       )

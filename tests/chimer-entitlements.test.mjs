@@ -2769,6 +2769,46 @@ describe("Chimer entitlement-aware settings", () => {
     }
   })
 
+  it("resets Glowing Stars and Meteors controls without premium background access", () => {
+    const cases = [
+      {
+        backgroundId: "massage-lab-glowing-stars",
+        values: {
+          massageLabGlowingStarsSpeed: 1.75,
+          massageLabGlowingStarsIntensity: 0.8,
+          massageLabGlowingStarsActiveStars: 11,
+          massageLabGlowingStarsStarSize: 1.8,
+          massageLabGlowingStarsGlowStrength: 1.4,
+        },
+      },
+      {
+        backgroundId: "massage-lab-meteors",
+        values: {
+          massageLabMeteorsSpeed: 1.75,
+          massageLabMeteorsIntensity: 0.8,
+          massageLabMeteorsCount: 36,
+          massageLabMeteorsSize: 3,
+          massageLabMeteorsTailLength: 90,
+        },
+      },
+    ]
+
+    for (const { backgroundId, values } of cases) {
+      const input = { backgroundId, ...values }
+      const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+      assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+      const premiumSettings = sanitizeChimerSettingsForEntitlements(
+        input,
+        [FEATURE_KEYS.premiumBackgrounds],
+      )
+      assert.equal(premiumSettings.backgroundId, backgroundId)
+      for (const [key, value] of Object.entries(values)) {
+        assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+        assert.equal(premiumSettings[key], value)
+      }
+    }
+  })
+
   it("strips custom colors for users without the Chimer custom colors feature", () => {
     const settings = sanitizeChimerSettingsForEntitlements({
       primaryFontColor: "#000000",
