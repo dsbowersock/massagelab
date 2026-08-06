@@ -110,6 +110,7 @@ export function ColorSlider({
   const safeValue = clampValue(value, min, max)
   const displayValue = formatRangeValue(safeValue, unit, valueFormatter)
   const normalizedHueDegrees = max === min ? 0 : ((safeValue - min) / (max - min)) * 360
+  // These lightness values calibrate only the visible hue ramp; stored hue values stay unchanged.
   const standardHuePreviewStops = HUE_RAMP_STOPS.map((degrees, index) => ({
     value: min + ((max - min) * degrees) / 360,
     hue: degrees + huePreviewOffset,

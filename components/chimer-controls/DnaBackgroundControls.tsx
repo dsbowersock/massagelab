@@ -45,6 +45,8 @@ export function DnaBackgroundControls({
   disabled = false,
   onChange,
 }: BackgroundPropertyControlsProps<DnaBackgroundControlOptions>) {
+  // Motion values remain stored in renderer/source units and are converted to user-facing
+  // multipliers here. Rotation speed and direction are inactive while strand rotation is off.
   return (
     <div className={styles.backgroundPropertyGroups}>
       <BackgroundPropertyGroup label="Motion">

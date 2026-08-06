@@ -68,7 +68,8 @@ interface BackgroundHostProps extends Omit<
   forceAmbientMotionForReview?: boolean
   /**
    * Development diagnostics only: makes the four readiness-aware renderers
-   * take their null-context path without changing production behavior.
+   * take their null-context path only when diagnostics and renderer-readiness
+   * requirements are enabled, without changing production behavior.
    */
   forceRendererContextFailureForReview?: boolean
   testId?: string

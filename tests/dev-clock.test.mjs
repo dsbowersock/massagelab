@@ -54,6 +54,14 @@ describe("development Clock review route", () => {
       musicProviderSource,
       /if \(!accountSyncEnabled\) \{[\s\S]*setAccountStatus\("anonymous"\)[\s\S]*return[\s\S]*void syncVisualizerAccountPreferences\(\)/,
     )
+    assert.match(
+      musicProviderSource,
+      /const persistVisualizerAccountPreferences = useCallback\([\s\S]*?if \(!accountSyncEnabled\) \{[\s\S]*?return[\s\S]*?\}/,
+    )
+    assert.match(
+      musicProviderSource,
+      /const syncVisualizerAccountPreferences = useCallback\([\s\S]*?if \(!accountSyncEnabled\) \{[\s\S]*?return[\s\S]*?\}/,
+    )
     assert.match(wrapperSource, /pathname === "\/dev\/clock"/)
   })
 })

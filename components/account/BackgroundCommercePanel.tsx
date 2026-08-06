@@ -4,7 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { History, ImageIcon, ShoppingCart, WalletCards } from "lucide-react"
 import { useBackgroundCommerce } from "@/components/backgrounds/BackgroundCommerceProvider"
-import { backgroundRegistry, findBackgroundDefinition } from "@/components/backgrounds/backgroundRegistry"
+import { backgroundRegistry } from "@/components/backgrounds/backgroundRegistry"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatCommerceAmount } from "@/lib/background-commerce-client.js"
@@ -314,7 +314,7 @@ export function BackgroundCommercePanel({
                   {order.items.map((item) => (
                     <li key={item.backgroundId} className="flex flex-wrap justify-between gap-2">
                       <span>
-                        {findBackgroundDefinition(item.backgroundId)?.label ?? item.displayName}
+                        {item.displayName}
                         {item.refundedAmount > 0 ? (
                           <span className="ml-2 text-xs text-muted-foreground">
                             Refunded {formatCommerceAmount(item.refundedAmount, order.currency)}

@@ -251,6 +251,7 @@ export default function MassageLabPixelSnowBackground({
     let width = 1
     let height = 1
 
+    // Pixel Snow stays lightweight enough to preserve its ambient motion on compact viewports.
     const shouldAnimate = () => shouldAnimateAmbientBackground({
       prefersReducedMotion: reducedMotionQuery.matches,
       compactViewport: compactViewportQuery.matches,

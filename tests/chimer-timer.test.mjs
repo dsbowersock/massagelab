@@ -3540,6 +3540,9 @@ describe("Chimer timer helpers", () => {
     assert.equal(getTileGridFadeSliderValue(TILE_GRID_FADE_SECONDS_MAX), 100)
     assert.equal(getTileGridFadeSecondsFromSlider(0), TILE_GRID_FADE_SECONDS_MIN)
     assert.equal(getTileGridFadeSecondsFromSlider(100), TILE_GRID_FADE_SECONDS_MAX)
+    assert.equal(getTileGridFadeSecondsFromSlider(Number.NaN), TILE_GRID_FADE_SECONDS_MIN)
+    assert.equal(getTileGridFadeSecondsFromSlider(Number.POSITIVE_INFINITY), TILE_GRID_FADE_SECONDS_MIN)
+    assert.equal(getTileGridFadeSecondsFromSlider(Number.NEGATIVE_INFINITY), TILE_GRID_FADE_SECONDS_MIN)
 
     for (const seconds of [1.2, 10, 60, 600, 3600, 21_600]) {
       const roundTrip = getTileGridFadeSecondsFromSlider(getTileGridFadeSliderValue(seconds))

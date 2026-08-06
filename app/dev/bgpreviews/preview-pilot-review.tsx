@@ -23,6 +23,7 @@ function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
 }
 
+/** Derives the sibling decoded-frame evidence image from a WebM or MP4 rendition basename. */
 function frameStripUrl(url: string) {
   return resolvePreviewRenditionUrl(url.replace(/\.(webm|mp4)$/i, ".frames.png"))
 }

@@ -45,6 +45,7 @@ export function resolveBackgroundEffectProps({
   }
 
   const normalizedPalette = normalizeBackgroundPaletteState(palette)
+  // Persisted Harmony falls back to Source when this renderer exposes no Harmony contract.
   const adapterPalette = normalizedPalette.mode === "harmony" && adapter.supportsHarmony === false
     ? { ...normalizedPalette, mode: "source" }
     : normalizedPalette
@@ -90,6 +91,7 @@ export function resolveBackgroundFallbackStyle({
   }
 
   const normalizedPalette = normalizeBackgroundPaletteState(palette)
+  // Fallback underlays mirror the renderer by treating unsupported persisted Harmony as Source.
   const adapterPalette = normalizedPalette.mode === "harmony" && adapter.supportsHarmony === false
     ? { ...normalizedPalette, mode: "source" }
     : normalizedPalette

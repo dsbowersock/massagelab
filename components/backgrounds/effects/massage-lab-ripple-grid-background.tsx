@@ -175,6 +175,7 @@ export default function MassageLabRippleGridBackground({
 
   useEffect(() => {
     const canvas = canvasRef.current
+    // Start unready and notify the host only when WebGL readiness actually changes.
     let reportedReadiness: boolean | null = null
     const reportRenderReadiness = (ready: boolean) => {
       if (reportedReadiness !== ready) {
@@ -183,6 +184,7 @@ export default function MassageLabRippleGridBackground({
       }
     }
     reportRenderReadiness(false)
+    // Non-production review surfaces may force the fallback path; production always requests WebGL.
     const forceContextFailure = process.env.NODE_ENV !== "production"
       && forceContextFailureForReview
     const gl = forceContextFailure

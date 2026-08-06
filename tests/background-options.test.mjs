@@ -38,12 +38,30 @@ const cssBackgroundsSource = readFileSync(
   new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
   "utf8",
 )
+const dnaBackgroundStyles = readFileSync(
+  new URL("../components/backgrounds/effects/massage-lab-dna-background.module.css", import.meta.url),
+  "utf8",
+)
 const backgroundRegistrySource = readFileSync(
   new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
   "utf8",
 )
 
 describe("premium background registry", () => {
+  it("keeps runtime identifiers, stable keys, rotation precedence, and branded labels safe", () => {
+    assert.match(cssBackgroundsSource, /useId\(\)\.replace\(\/\[\^a-zA-Z0-9_-\]\/g, ""\)/)
+    assert.match(cssBackgroundsSource, /key=\{`beam-\$\{beamIndex\}`\}/)
+    assert.match(cssBackgroundsSource, /key=\{`collision-\$\{beamIndex\}`\}/)
+    assert.match(
+      dnaBackgroundStyles,
+      /\[data-reduce-motion\]\[data-strand-rotation-disabled\] \.composition \{[\s\S]*rotate: var\(--ml-dna-strand-angle\)/,
+    )
+    assert.match(setTimerSource, /aria-label="Molten Mirror speed percentage"/)
+    assert.match(runningTimerSource, /aria-label="Molten Mirror speed percentage"/)
+    assert.doesNotMatch(setTimerSource, /aria-label="Chrome Flow speed percentage"/)
+    assert.doesNotMatch(runningTimerSource, /aria-label="Chrome Flow speed percentage"/)
+  })
+
   it("uses explicit named CSS/DOM palette assignments instead of heuristic target matching", () => {
     assert.match(cssBackgroundsSource, /export interface CssDomPaletteEffectPropsById/)
     assert.match(paletteRegistrySource, /export function applyCssDomPaletteRoleColors/)
@@ -5028,7 +5046,7 @@ describe("premium background registry", () => {
     for (const source of [setupSource, runningSource]) {
       assert.match(source, /getMassageLabCatalogChromeFlowDisplaySpeed/)
       assert.match(source, /getMassageLabCatalogChromeFlowSourceSpeed/)
-      assert.match(source, /Chrome Flow speed percentage/)
+      assert.match(source, /Molten Mirror speed percentage/)
     }
   })
 

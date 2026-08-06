@@ -169,6 +169,9 @@ export function buildBackgroundPaletteEditorViewModel({
     {},
     adapter,
   ) as BackgroundColorMapping
+  // Custom may use either the shared palette or background-specific controls, while Harmony
+  // derives shared role colors and therefore requires shared-palette customization support.
+  // Source reads sourceMapping; Custom and Harmony read the persisted normalizedMapping.
   const supportsSharedPalette = adapter.status === "supported"
   const supportsHarmonyMode = supportsSharedPalette && adapter.supportsHarmony !== false
   const supportsCustomMode = canCustomize && (supportsSharedPalette || hasCustomControls)

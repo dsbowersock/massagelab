@@ -979,6 +979,24 @@ describe("background palette adapter registry", () => {
     ])
   })
 
+  it("preserves Static Gradient's configured two-to-seven color count", () => {
+    const adapter = backgroundPaletteRegistry["static-gradient"]
+    assert.equal(adapter.status, "supported")
+    const roleColors = Object.fromEntries(
+      adapter.roles.map((role, index) => [role.id, CUSTOM_SWATCHES[index]]),
+    )
+
+    for (const colorCount of [2, 4, 7]) {
+      const fixture = structuredClone(cssDomFixtures["static-gradient"])
+      fixture.staticGradient.colorCount = colorCount
+      fixture.staticGradient.colors = fixture.staticGradient.colors.slice(0, colorCount)
+      const resolved = applyCssDomPaletteRoleColors("static-gradient", fixture, roleColors)
+
+      assert.equal(resolved.staticGradient.colors.length, colorCount)
+      assert.deepEqual(resolved.staticGradient.colors, CUSTOM_SWATCHES.slice(0, colorCount))
+    }
+  })
+
   it("completes every CSS/DOM adapter and changes only named renderer targets in every palette mode", () => {
     const cssDomEntries = Object.entries(backgroundPaletteRegistry).filter(([, adapter]) => (
       adapter.status !== "unsupported" && adapter.rendererFamily === "css-dom"

@@ -925,6 +925,7 @@ export function BackgroundPaletteGallery() {
         {selectedId === "massage-lab-grid-motion" ? (
           <AppSurface title="Production Grid Motion controls" variant="inset">
             <GridMotionMantraEditor value={gridMotionMantras} onChange={setGridMotionMantras} />
+            {/* Grid Motion reads its mantra list during renderer setup, so review changes require a remount. */}
             <Button
               className="mt-3"
               size="compact"

@@ -408,19 +408,24 @@ export function applyCssDomPaletteRoleColors<
         ...props,
         solidColor: roleColor(colors, "color", props.solidColor),
       }
-    case "static-gradient":
+    case "static-gradient": {
+      const colorCount = Math.min(
+        STATIC_GRADIENT_ROLE_IDS.length,
+        Math.max(2, props.staticGradient?.colors?.length ?? STATIC_GRADIENT_SOURCE_COLORS.length),
+      )
       return {
         ...props,
         staticGradient: {
           ...props.staticGradient,
           colors: roleColorArray(
             props.staticGradient?.colors,
-            STATIC_GRADIENT_ROLE_IDS,
+            STATIC_GRADIENT_ROLE_IDS.slice(0, colorCount),
             colors,
-            STATIC_GRADIENT_SOURCE_COLORS,
+            STATIC_GRADIENT_SOURCE_COLORS.slice(0, colorCount),
           ),
         },
       } satisfies BackgroundEffectProps
+    }
     case "massage-lab-moving-gradient":
       return {
         ...props,

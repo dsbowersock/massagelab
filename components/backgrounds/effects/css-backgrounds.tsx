@@ -2440,7 +2440,7 @@ export function MassageLabBackgroundBeamsWithCollision({
     >
       <div className={styles.collisionEffects}>
         <div className={styles.collisionBeamsLayer}>
-          {massageLabCollisionBeams.map((beam) => {
+          {massageLabCollisionBeams.map((beam, beamIndex) => {
             const cycle = (beam.duration + beam.repeatDelay) / resolved.speed
             const beamX = `${Math.min(98, Math.max(2, (beam.x / 1200) * 100))}%`
             const style = {
@@ -2452,7 +2452,7 @@ export function MassageLabBackgroundBeamsWithCollision({
             } as CSSProperties
 
             return (
-              <span key={`${beam.x}-${beam.duration}`} className={styles.collisionBeam} style={style} />
+              <span key={`beam-${beamIndex}`} className={styles.collisionBeam} style={style} />
             )
           })}
         </div>
@@ -2467,7 +2467,7 @@ export function MassageLabBackgroundBeamsWithCollision({
           } as CSSProperties
 
           return (
-            <span key={`${beam.x}-collision`} className={styles.collisionExplosion} style={style}>
+            <span key={`collision-${beamIndex}`} className={styles.collisionExplosion} style={style}>
               <span className={styles.collisionExplosionGlow} />
               {massageLabCollisionParticles.map(([x, y], particleIndex) => (
                 <span
@@ -2680,7 +2680,7 @@ export function MassageLabBubbleBackground({
   className,
   massageLabBubble,
 }: BackgroundEffectProps) {
-  const filterId = `ml-bubble-goo-${useId().replace(/:/g, "")}`
+  const filterId = `ml-bubble-goo-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`
   const resolved = resolveMassageLabBubbleOptions(massageLabBubble)
   const [colorOne, colorTwo, colorThree, colorFour, colorFive] = resolved.colors
   const rootStyle = {
@@ -3946,10 +3946,12 @@ function resolveMassageLabMeteorsOptions(
   }
 }
 
+/** Accepts six-digit hex only and returns the renderer-safe fallback for every other format. */
 function normalizeHexColor(value: string | undefined, fallback: string) {
   return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value) ? value.toUpperCase() : fallback
 }
 
+/** Converts an already-normalized six-digit hex value to rgba with the requested alpha. */
 function hexColorWithAlpha(value: string, alpha: number) {
   const red = Number.parseInt(value.slice(1, 3), 16)
   const green = Number.parseInt(value.slice(3, 5), 16)

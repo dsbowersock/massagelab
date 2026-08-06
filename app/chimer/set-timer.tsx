@@ -10337,7 +10337,7 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
                   massageLabLiquidChromeSpeed: getMassageLabCatalogChromeFlowSourceSpeed(Number(event.target.value)),
                 })
               }
-              aria-label="Chrome Flow speed percentage"
+              aria-label="Molten Mirror speed percentage"
             />
           </label>
 

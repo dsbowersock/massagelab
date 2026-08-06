@@ -114,5 +114,6 @@ describe("Grid Motion mantra domain", () => {
       nineUsedCandidates.some((entry) => entry.toLowerCase() === seed.toLowerCase()),
       false,
     )
+    assert.equal(getGridMotionMantraAddSeed(EXACT_STARTERS.slice(0, GRID_MOTION_MANTRA_LIMIT)), "")
   })
 })

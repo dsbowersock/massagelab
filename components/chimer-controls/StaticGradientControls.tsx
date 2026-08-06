@@ -36,6 +36,7 @@ export function StaticGradientControls({
   disabled = false,
   onChange,
 }: BackgroundPropertyControlsProps<StaticGradientControlOptions>) {
+  /** Prevents an edited stop from crossing its neighbors, preserving nondecreasing positions. */
   const changeStop = (index: number, nextValue: number) => {
     const previousStop = index > 0 ? value.stopPositions[index - 1] : 0
     const nextStop = index < value.colorCount - 1 ? value.stopPositions[index + 1] : 100

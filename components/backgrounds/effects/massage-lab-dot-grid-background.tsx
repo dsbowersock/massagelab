@@ -129,6 +129,7 @@ export default function MassageLabDotGridBackground({
 
   useEffect(() => {
     const canvas = canvasRef.current
+    // Start unready and suppress repeated readiness values until the canvas completes a draw.
     let reportedReadiness: boolean | null = null
     const reportRenderReadiness = (ready: boolean) => {
       if (reportedReadiness !== ready) {
@@ -137,6 +138,7 @@ export default function MassageLabDotGridBackground({
       }
     }
     reportRenderReadiness(false)
+    // Non-production review surfaces may force the host fallback; production always requests a real context.
     const forceContextFailure = process.env.NODE_ENV !== "production"
       && forceContextFailureForReview
     const context = forceContextFailure

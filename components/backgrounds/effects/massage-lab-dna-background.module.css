@@ -157,6 +157,11 @@
   rotate: calc(var(--ml-dna-strand-angle) + 180deg);
 }
 
+.root[data-reduce-motion][data-strand-rotation-disabled] .composition {
+  animation: none;
+  rotate: var(--ml-dna-strand-angle);
+}
+
 .root[data-reduce-motion] .connector {
   transform: translate3d(-50%, -50%, -2px) scaleX(1);
 }
