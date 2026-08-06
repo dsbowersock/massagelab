@@ -48,7 +48,9 @@ describe("background preview encoding plans", () => {
     })
     assert.ok(args.includes("libx264"))
     assert.ok(args.includes("+faststart"))
-    assert.match(args[args.indexOf("-filter_complex") + 1], /xfade=transition=fade:duration=0\.800:offset=9\.200/)
+    const filter = args[args.indexOf("-filter_complex") + 1]
+    assert.match(filter, /xfade=transition=fade:duration=0\.800:offset=9\.200/)
+    assert.match(filter, /format=yuv420p\[outv\]$/)
   })
 
   it("extracts one high-dimension WebP poster at the authored time", () => {

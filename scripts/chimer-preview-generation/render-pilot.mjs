@@ -347,7 +347,7 @@ async function renderAspect(browser, recipe, aspect, options, tempVideoDir) {
     backgroundId: recipe.backgroundId,
     aspect,
     recipeRevision: recipe.recipeRevision,
-    renditions: renditions.map(({ aspect: _aspect, quality, codec, evidence: itemEvidence }) => ({ quality, codec, ...itemEvidence })),
+    renditions: renditions.map(({ quality, codec, evidence: itemEvidence }) => ({ quality, codec, ...itemEvidence })),
   }
   writeFileSync(path.join(path.dirname(posterPath), "validation.json"), `${JSON.stringify(evidence, null, 2)}\n`)
   return { renditions, poster }

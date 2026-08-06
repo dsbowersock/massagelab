@@ -60,7 +60,7 @@ export function buildCrossfadeVideoArgs(input) {
     `[0:v]${baseFilter(input)},split=2[bodySource][headSource]`,
     `[bodySource]trim=start=0:end=${duration},setpts=PTS-STARTPTS[body]`,
     `[headSource]trim=start=0:end=${fade},setpts=PTS-STARTPTS[head]`,
-    `[body][head]xfade=transition=fade:duration=${fade}:offset=${offset}[outv]`,
+    `[body][head]xfade=transition=fade:duration=${fade}:offset=${offset},format=yuv420p[outv]`,
   ].join(";")
   return [
     "-y", "-i", input.inputPath,
