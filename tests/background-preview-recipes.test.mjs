@@ -141,4 +141,11 @@ describe("background preview recipes", () => {
     assert.match(source, /renditions: readonly BackgroundPreviewRendition\[\]/)
     assert.match(source, /posters: Record<BackgroundPreviewAspect, BackgroundPreviewPoster>/)
   })
+
+  it("keeps the pilot review route development-only", () => {
+    const source = readFileSync(new URL("../app/dev/bgpreviews/page.tsx", import.meta.url), "utf8")
+    assert.match(source, /process\.env\.NODE_ENV === "production"/)
+    assert.match(source, /notFound\(\)/)
+    assert.match(source, /robots:\s*\{[\s\S]*index:\s*false[\s\S]*follow:\s*false/)
+  })
 })
