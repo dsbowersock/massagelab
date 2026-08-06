@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs"
 import { describe, it } from "node:test"
 
 import {
+  APPROVED_PILOT_RECIPES,
   ANIMATED_BACKGROUND_IDS,
   FULL_CATALOG_BACKGROUND_IDS,
   FULL_CATALOG_BATCHES,
@@ -12,6 +13,7 @@ import {
   PREVIEW_QUALITIES,
   PREVIEW_RENDITION_LADDER,
   STATIC_BACKGROUND_IDS,
+  backgroundPreviewRecipes,
   getBackgroundPreviewRecipe,
   validateBackgroundPreviewRecipe,
 } from "../scripts/chimer-preview-generation/preview-recipes.mjs"
@@ -61,6 +63,7 @@ describe("background preview recipes", () => {
       backgroundId: "unknown",
       mediaKind: "animated",
       recipeRevision: "latest",
+      reviewStatus: "candidate",
       warmupMs: -1,
       durationMs: 1000,
       posterTimeMs: 1001,
@@ -105,6 +108,22 @@ describe("background preview recipes", () => {
     assert.deepEqual(validateBackgroundPreviewRecipe(recipe), [])
     assert.equal(buildBackgroundRenditionPlan(recipe).length, 0)
     assert.deepEqual(buildBackgroundPosterPlan(recipe).map(({ aspect }) => aspect), PREVIEW_ASPECTS)
+  })
+
+  it("materializes an independent recipe for every enabled ID", () => {
+    assert.equal(Object.keys(backgroundPreviewRecipes).length, 84)
+    for (const id of FULL_CATALOG_BACKGROUND_IDS) {
+      const recipe = getBackgroundPreviewRecipe(id)
+      assert.equal(recipe.backgroundId, id)
+      assert.deepEqual(validateBackgroundPreviewRecipe(recipe), [])
+      assert.ok(["candidate", "approved"].includes(recipe.reviewStatus))
+    }
+  })
+
+  it("preserves every approved pilot recipe byte-for-byte", () => {
+    for (const [id, expected] of Object.entries(APPROVED_PILOT_RECIPES)) {
+      assert.deepEqual(getBackgroundPreviewRecipe(id), expected)
+    }
   })
 
   it("rejects incomplete and display-name-coupled manifest entries", () => {

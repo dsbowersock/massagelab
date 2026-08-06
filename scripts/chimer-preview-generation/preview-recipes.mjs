@@ -1,4 +1,8 @@
 import { BACKGROUND_BRANDING_AUDIT_BATCHES } from "../background-branding/audit-batches.mjs"
+import recipeCatalog from "../../data/background-preview-recipes.json" with { type: "json" }
+import { APPROVED_PILOT_RECIPES } from "./approved-pilot-recipes.mjs"
+
+export { APPROVED_PILOT_RECIPES }
 
 export const PREVIEW_ASPECTS = Object.freeze(["landscape", "square", "vertical"])
 export const PREVIEW_QUALITIES = Object.freeze(["low", "standard", "high"])
@@ -22,16 +26,7 @@ export const PREVIEW_RENDITION_LADDER = Object.freeze({
   }),
 })
 
-export const PILOT_BACKGROUND_IDS = Object.freeze([
-  "massage-lab-moving-gradient",
-  "massage-lab-silk",
-  "massage-lab-wave-current",
-  "massage-lab-dna",
-  "massage-lab-twisted-cubes",
-  "massage-lab-galaxy",
-  "massage-lab-faulty-terminal",
-  "massage-lab-tile-grid",
-])
+export const PILOT_BACKGROUND_IDS = Object.freeze(Object.keys(APPROVED_PILOT_RECIPES))
 
 /**
  * Reuses the approved visual-character batches as the only full-catalog
@@ -55,55 +50,22 @@ export const ANIMATED_BACKGROUND_IDS = Object.freeze(
 )
 
 /**
- * Defines one passive capture recipe. A recipe owns the authored timeline for
- * all qualities/codecs of an aspect; encoders may compress it but may not
- * invent interaction, reverse motion, or change the loop boundary.
+ * Freezes the checked-in recipe rows so callers cannot mutate capture truth in
+ * memory. Candidate timing is materialized by the seeder, never inferred here.
  */
-function recipe(backgroundId, durationMs, posterTimeMs, loopStrategy, crossfadeMs, fps) {
-  return Object.freeze({
-    backgroundId,
-    mediaKind: "animated",
-    recipeRevision: "recipe-1",
-    warmupMs: 2200,
-    durationMs,
-    posterTimeMs,
-    loopStrategy,
-    crossfadeMs,
-    fps,
-    passiveCaptureState: "default",
-    framing: Object.freeze({ landscape: null, square: null, vertical: null }),
-  })
+function freezeRecipe(value) {
+  return Object.freeze({ ...value, framing: Object.freeze({ ...value.framing }) })
 }
 
-/** Static visuals receive authored posters without inventing video motion. */
-function posterOnlyRecipe(backgroundId) {
-  return Object.freeze({
-    backgroundId,
-    mediaKind: "poster-only",
-    recipeRevision: "recipe-1",
-    warmupMs: 2200,
-    durationMs: 0,
-    posterTimeMs: 0,
-    loopStrategy: "static",
-    crossfadeMs: 0,
-    fps: 0,
-    passiveCaptureState: "default",
-    framing: Object.freeze({ landscape: null, square: null, vertical: null }),
-  })
-}
+export const backgroundPreviewRecipes = Object.freeze(Object.fromEntries(
+  Object.entries(recipeCatalog).map(([id, value]) => [id, freezeRecipe(value)]),
+))
 
-export const backgroundPreviewRecipes = Object.freeze({
-  "static-gradient": posterOnlyRecipe("static-gradient"),
-  "solid-color": posterOnlyRecipe("solid-color"),
-  "massage-lab-moving-gradient": recipe("massage-lab-moving-gradient", 12000, 4000, "crossfade", 900, 24),
-  "massage-lab-silk": recipe("massage-lab-silk", 10000, 3333, "crossfade", 800, 24),
-  "massage-lab-wave-current": recipe("massage-lab-wave-current", 10000, 3333, "crossfade", 800, 24),
-  "massage-lab-dna": recipe("massage-lab-dna", 18000, 6000, "crossfade", 1000, 24),
-  "massage-lab-twisted-cubes": recipe("massage-lab-twisted-cubes", 12000, 4000, "natural", 0, 24),
-  "massage-lab-galaxy": recipe("massage-lab-galaxy", 12000, 4000, "crossfade", 900, 30),
-  "massage-lab-faulty-terminal": recipe("massage-lab-faulty-terminal", 8000, 2667, "crossfade", 600, 30),
-  "massage-lab-tile-grid": recipe("massage-lab-tile-grid", 12000, 4000, "crossfade", 900, 24),
-})
+for (const [id, approved] of Object.entries(APPROVED_PILOT_RECIPES)) {
+  if (JSON.stringify(backgroundPreviewRecipes[id]) !== JSON.stringify(approved)) {
+    throw new Error(`${id}: checked-in recipe no longer matches the approved pilot.`)
+  }
+}
 
 export function getBackgroundPreviewRecipe(backgroundId) {
   const value = backgroundPreviewRecipes[backgroundId]
@@ -120,6 +82,9 @@ export function validateBackgroundPreviewRecipe(value) {
   }
   if (!/^recipe-\d+$/.test(value?.recipeRevision ?? "")) {
     errors.push(`${recipeId}: recipe revision must match recipe-<number>`)
+  }
+  if (!["candidate", "approved"].includes(value?.reviewStatus)) {
+    errors.push(`${recipeId}: review status must be candidate or approved`)
   }
   if (!Number.isInteger(value?.warmupMs) || value.warmupMs < 0) {
     errors.push(`${recipeId}: warmup must be a non-negative integer`)
