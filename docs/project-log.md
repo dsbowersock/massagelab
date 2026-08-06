@@ -6,6 +6,12 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-05 — Tile Grid and Hex Grid fade sliders
+
+- Replaced the shared Tile Grid and Hex Grid Fade time hour/minute/second inputs with the standard Visual-panel range control in both setup and running-timer surfaces. One logarithmic `0-100` presentation preserves useful control over short fades while still reaching the existing `0.25s` through `23h 59m 59.9s` domain; the value label reports the resulting real duration.
+- Both backgrounds now default to a `20s` fade. A versioned exact-default migration updates only untouched former `1.2s` values; customized saved fade times retain their authored values. The renderer and persistence boundary remain seconds, including exact minimum and maximum endpoints. Colors, density controls, background IDs, and entitlement behavior are unchanged.
+- The focused slider/settings/entitlement contracts pass; all 2,005 repository tests, typecheck, lint, `git diff --check`, and the 102-page Production build pass. Direct rendered automation remains blocked because the in-app Browser's administrator policy cannot verify localhost access, so final slider feel remains in the user's `/dev/clock` Device Toolbar review.
+
 ## 2026-08-05 — Swatch 7 background-role audit
 
 - Audited every enabled shared-palette adapter whose literal full-canvas `Background` role still defaulted to Swatch 1. Retro Grid, Aerial Rays, Wave Current, Photon Beam, Reveal Dots, 3D Globe, Lamp Glow, Wave flow, Pixel liquid, and Aurora bars now reserve Swatch 7 for that saved backdrop. Their visual roles shift into Swatches 1-6 in renderer order; 3D Globe's Wireframe moves from Swatch 7 to Swatch 6 to avoid a collision.

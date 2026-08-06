@@ -1,85 +1,37 @@
 "use client"
 
 import {
-  combineTileGridFadeParts,
   formatTileGridFadeDuration,
-  splitTileGridFadeSeconds,
-  TILE_GRID_FADE_SECONDS_MAX,
+  getTileGridFadeSecondsFromSlider,
+  getTileGridFadeSliderValue,
+  TILE_GRID_FADE_SLIDER_MAX,
+  TILE_GRID_FADE_SLIDER_MIN,
+  TILE_GRID_FADE_SLIDER_STEP,
 } from "@/lib/tile-grid-background"
+import { StyledRangeControl } from "@/components/chimer-controls/StyledRangeControl"
 
 type TileGridFadeTimeControlProps = {
   fadeSeconds: number
   onFadeSecondsChange: (fadeSeconds: number) => void
-  rowClassName: string
-  pickerClassName: string
-  fieldClassName: string
 }
 
 /**
- * Edits a bounded tile-grid fade duration as clock-like parts while preserving
- * the last valid total when one partial field would exceed the fade limit.
+ * Presents the shared tile/hex fade duration as one usable nonlinear slider
+ * while retaining seconds as the renderer and persistence boundary.
  */
 export function TileGridFadeTimeControl({
   fadeSeconds,
   onFadeSecondsChange,
-  rowClassName,
-  pickerClassName,
-  fieldClassName,
 }: TileGridFadeTimeControlProps) {
-  const parts = splitTileGridFadeSeconds(fadeSeconds)
-
-  const updatePart = (part: "hours" | "minutes" | "seconds", value: string) => {
-    if (value.trim() === "") {
-      return
-    }
-
-    onFadeSecondsChange(combineTileGridFadeParts({
-      ...parts,
-      [part]: Number(value),
-    }, fadeSeconds))
-  }
-
   return (
-    <div className={rowClassName}>
-      <span>Fade time ({formatTileGridFadeDuration(fadeSeconds)})</span>
-      <div className={pickerClassName} role="group" aria-label="Tile grid fade time">
-        <label className={fieldClassName}>
-          <span>H</span>
-          <input
-            type="number"
-            min="0"
-            max="23"
-            step="1"
-            value={parts.hours}
-            onChange={(event) => updatePart("hours", event.target.value)}
-            aria-label="Tile grid fade hours"
-          />
-        </label>
-        <label className={fieldClassName}>
-          <span>M</span>
-          <input
-            type="number"
-            min="0"
-            max="59"
-            step="1"
-            value={parts.minutes}
-            onChange={(event) => updatePart("minutes", event.target.value)}
-            aria-label="Tile grid fade minutes"
-          />
-        </label>
-        <label className={fieldClassName}>
-          <span>S</span>
-          <input
-            type="number"
-            min="0"
-            max="59.9"
-            step="0.1"
-            value={parts.seconds}
-            onChange={(event) => updatePart("seconds", event.target.value)}
-            aria-label={`Tile grid fade seconds, maximum total fade ${formatTileGridFadeDuration(TILE_GRID_FADE_SECONDS_MAX)}`}
-          />
-        </label>
-      </div>
-    </div>
+    <StyledRangeControl
+      label="Fade time"
+      value={getTileGridFadeSliderValue(fadeSeconds)}
+      min={TILE_GRID_FADE_SLIDER_MIN}
+      max={TILE_GRID_FADE_SLIDER_MAX}
+      step={TILE_GRID_FADE_SLIDER_STEP}
+      displayValue={formatTileGridFadeDuration(fadeSeconds)}
+      onChange={(value) => onFadeSecondsChange(getTileGridFadeSecondsFromSlider(value))}
+    />
   )
 }

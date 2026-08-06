@@ -24,8 +24,11 @@ import {
 import {
   combineTileGridFadeParts,
   formatTileGridFadeDuration,
+  getTileGridFadeSecondsFromSlider,
+  getTileGridFadeSliderValue,
   splitTileGridFadeSeconds,
   TILE_GRID_FADE_SECONDS_MAX,
+  TILE_GRID_FADE_SECONDS_MIN,
 } from "../lib/tile-grid-background.js"
 import { DEFAULT_GRID_MOTION_MANTRAS } from "../lib/grid-motion-mantras.js"
 
@@ -3445,6 +3448,18 @@ describe("Chimer timer helpers", () => {
       sanitizeChimerSettings({ tileGridChangeFrequency: 900_000 }).tileGridChangeFrequency,
       TILE_GRID_FADE_SECONDS_MAX,
     )
+    assert.equal(DEFAULT_CHIMER_SETTINGS.tileGridChangeFrequency, 20)
+    assert.equal(
+      sanitizeChimerSettings({ tileGridChangeFrequency: 1.2 }).tileGridChangeFrequency,
+      20,
+    )
+    assert.equal(
+      sanitizeChimerSettings({
+        tileGridChangeFrequency: 1.2,
+        massageLabGridFadeDefaultsVersion: 1,
+      }).tileGridChangeFrequency,
+      1.2,
+    )
   })
 
   it("normalizes MassageLab Hex Grid background controls", () => {
@@ -3468,6 +3483,18 @@ describe("Chimer timer helpers", () => {
       sanitizeChimerSettings({ hexGridChangeFrequency: 900_000 }).hexGridChangeFrequency,
       TILE_GRID_FADE_SECONDS_MAX,
     )
+    assert.equal(DEFAULT_CHIMER_SETTINGS.hexGridChangeFrequency, 20)
+    assert.equal(
+      sanitizeChimerSettings({ hexGridChangeFrequency: 1.2 }).hexGridChangeFrequency,
+      20,
+    )
+    assert.equal(
+      sanitizeChimerSettings({
+        hexGridChangeFrequency: 1.2,
+        massageLabGridFadeDefaultsVersion: 1,
+      }).hexGridChangeFrequency,
+      1.2,
+    )
   })
 
   it("formats and combines MassageLab Tile Grid fade durations", () => {
@@ -3480,6 +3507,18 @@ describe("Chimer timer helpers", () => {
     assert.equal(formatTileGridFadeDuration(1.2), "1.2s")
     assert.equal(formatTileGridFadeDuration(125), "2m 5s")
     assert.equal(formatTileGridFadeDuration(3661.5), "1h 01m 1.5s")
+  })
+
+  it("maps the shared Tile Grid and Hex Grid fade slider across the full duration range", () => {
+    assert.equal(getTileGridFadeSliderValue(TILE_GRID_FADE_SECONDS_MIN), 0)
+    assert.equal(getTileGridFadeSliderValue(TILE_GRID_FADE_SECONDS_MAX), 100)
+    assert.equal(getTileGridFadeSecondsFromSlider(0), TILE_GRID_FADE_SECONDS_MIN)
+    assert.equal(getTileGridFadeSecondsFromSlider(100), TILE_GRID_FADE_SECONDS_MAX)
+
+    for (const seconds of [1.2, 10, 60, 600, 3600, 21_600]) {
+      const roundTrip = getTileGridFadeSecondsFromSlider(getTileGridFadeSliderValue(seconds))
+      assert.ok(Math.abs(roundTrip - seconds) / seconds < 0.01, `${seconds}s -> ${roundTrip}s`)
+    }
   })
 
   it("migrates the first Canvas reveal dot-grid defaults to the source-matched defaults", () => {

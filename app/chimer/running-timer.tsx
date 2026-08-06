@@ -12413,7 +12413,7 @@ export function RunningTimer({
             />
           </label>
 
-          <TileGridFadeTimeControl fadeSeconds={tileGridChangeFrequency} onFadeSecondsChange={(tileGridChangeFrequency) => handleSettingsChange({ tileGridChangeFrequency })} rowClassName={styles.durationRow} pickerClassName={styles.durationPicker} fieldClassName={styles.durationField} />
+          <TileGridFadeTimeControl fadeSeconds={tileGridChangeFrequency} onFadeSecondsChange={(tileGridChangeFrequency) => handleSettingsChange({ tileGridChangeFrequency })} />
 
           <label className={styles.rangeRow}>
             <span>Active tiles ({tileGridActivePercent}%)</span>
@@ -12487,7 +12487,7 @@ export function RunningTimer({
             />
           </label>
 
-          <TileGridFadeTimeControl fadeSeconds={hexGridChangeFrequency} onFadeSecondsChange={(hexGridChangeFrequency) => handleSettingsChange({ hexGridChangeFrequency })} rowClassName={styles.durationRow} pickerClassName={styles.durationPicker} fieldClassName={styles.durationField} />
+          <TileGridFadeTimeControl fadeSeconds={hexGridChangeFrequency} onFadeSecondsChange={(hexGridChangeFrequency) => handleSettingsChange({ hexGridChangeFrequency })} />
 
           <label className={styles.rangeRow}>
             <span>Active hexes ({hexGridActivePercent}%)</span>

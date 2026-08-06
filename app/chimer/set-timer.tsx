@@ -2187,7 +2187,7 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
               aria-label="Tile grid joint size"
             />
           </label>
-          <TileGridFadeTimeControl fadeSeconds={settings.tileGridChangeFrequency} onFadeSecondsChange={(tileGridChangeFrequency) => onSettingsChange({ tileGridChangeFrequency })} rowClassName={styles.durationRow} pickerClassName={styles.durationPicker} fieldClassName={styles.durationField} />
+          <TileGridFadeTimeControl fadeSeconds={settings.tileGridChangeFrequency} onFadeSecondsChange={(tileGridChangeFrequency) => onSettingsChange({ tileGridChangeFrequency })} />
           <label className={styles.rangeRow}>
             <span>Active tiles ({settings.tileGridActivePercent}%)</span>
             <input
@@ -2247,7 +2247,7 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
               aria-label="Hex grid joint size"
             />
           </label>
-          <TileGridFadeTimeControl fadeSeconds={settings.hexGridChangeFrequency} onFadeSecondsChange={(hexGridChangeFrequency) => onSettingsChange({ hexGridChangeFrequency })} rowClassName={styles.durationRow} pickerClassName={styles.durationPicker} fieldClassName={styles.durationField} />
+          <TileGridFadeTimeControl fadeSeconds={settings.hexGridChangeFrequency} onFadeSecondsChange={(hexGridChangeFrequency) => onSettingsChange({ hexGridChangeFrequency })} />
           <label className={styles.rangeRow}>
             <span>Active hexes ({settings.hexGridActivePercent}%)</span>
             <input
