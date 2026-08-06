@@ -4,7 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { History, ImageIcon, ShoppingCart, WalletCards } from "lucide-react"
 import { useBackgroundCommerce } from "@/components/backgrounds/BackgroundCommerceProvider"
-import { backgroundRegistry } from "@/components/backgrounds/backgroundRegistry"
+import { backgroundRegistry, findBackgroundDefinition } from "@/components/backgrounds/backgroundRegistry"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatCommerceAmount } from "@/lib/background-commerce-client.js"
@@ -163,6 +163,7 @@ function OwnershipCard({ ownership }: { ownership: Ownership }) {
           <h3 className="font-semibold">{background.label}</h3>
           <span className="rounded-full border px-2 py-0.5 text-xs">{ownershipStatus(ownership.status)}</span>
         </div>
+        <p className="text-sm text-muted-foreground">{background.visualDescriptor}</p>
         <p className="text-xs text-muted-foreground">
           {sourceLabel(ownership.source)} on {dateLabel(ownership.acquiredAt)}
         </p>
@@ -313,7 +314,7 @@ export function BackgroundCommercePanel({
                   {order.items.map((item) => (
                     <li key={item.backgroundId} className="flex flex-wrap justify-between gap-2">
                       <span>
-                        {item.displayName}
+                        {findBackgroundDefinition(item.backgroundId)?.label ?? item.displayName}
                         {item.refundedAmount > 0 ? (
                           <span className="ml-2 text-xs text-muted-foreground">
                             Refunded {formatCommerceAmount(item.refundedAmount, order.currency)}

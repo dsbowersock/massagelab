@@ -90,6 +90,7 @@ export function BackgroundAcquisitionDialog({
           <DialogHeader>
             <DialogTitle>{mode === "keep-permanently" ? `Keep ${background.label} permanently` : `Unlock ${background.label}`}</DialogTitle>
             <DialogDescription>
+              <span className="mb-2 block text-foreground">{background.visualDescriptor}</span>
               {mode === "keep-permanently"
                 ? "Your membership includes this background while it is active. Buy it for $1 or use a background credit to keep it on your account even if you later cancel."
                 : "Choose how you want to access this premium background."}

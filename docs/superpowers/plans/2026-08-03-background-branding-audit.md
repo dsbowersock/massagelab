@@ -359,7 +359,7 @@ git commit -m "Add background branding audit renderer"
     {
       "id": "massage-lab-moving-gradient",
       "decision": "keep",
-      "recommendedName": "MassageLaba Lamp",
+      "recommendedName": "Massage Laba Lamp",
       "alternatives": ["Ambient Lamp", "Restorative Glow"],
       "visualDescriptor": "Soft color fields drifting across the screen",
       "rationale": "The recommendation records whether the established signature name should remain after visual and source review.",

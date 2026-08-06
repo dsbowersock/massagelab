@@ -5,6 +5,7 @@ import { backgroundPreviewManifest } from "./backgroundPreviewManifest.ts"
 import type { BackgroundPreviewManifestEntry } from "./backgroundPreviewManifest.ts"
 import type { BackgroundEffectProps } from "./effects/css-backgrounds"
 import type { BackgroundAccessDecision } from "../../lib/commerce/background-access.ts"
+import backgroundBrandingCatalog from "../../data/background-branding-catalog.json" with { type: "json" }
 import {
   backgroundPaletteRegistry,
   type BackgroundPaletteAdapter,
@@ -110,6 +111,12 @@ type BackgroundComponentLoader = () => Promise<{ default: ComponentType<Backgrou
 export interface BackgroundDefinition {
   id: BackgroundId
   label: string
+  /** Literal, palette-neutral description shown beside the canonical name. */
+  visualDescriptor: string
+  /** Prior public names retained for search and support context only. */
+  legacyLabels: readonly string[]
+  /** True only for internally conceived MassageLab signature visuals. */
+  signatureOriginal: boolean
   provider: string
   sourceUrl: string
   license: string
@@ -138,6 +145,19 @@ export interface BackgroundDefinition {
   supportsReducedMotionStatic?: boolean
   /** Authoritative shared-palette migration contract for enabled renderers. */
   paletteAdapter?: BackgroundPaletteAdapter
+}
+
+type RawBackgroundDefinition = Omit<
+  BackgroundDefinition,
+  "visualDescriptor" | "legacyLabels" | "signatureOriginal"
+>
+
+type BackgroundBrandingEntry = {
+  id: string
+  label: string
+  visualDescriptor: string
+  legacyLabels: string[]
+  signatureOriginal: boolean
 }
 
 export type BackgroundAccessSnapshot = {
@@ -255,7 +275,7 @@ const massageLabAuroraBars = () => import("./effects/massage-lab-aurora-bars-bac
 const massageLabDna = () => import("./effects/massage-lab-dna-background")
 const massageLabTwistedCubes = () => import("./effects/massage-lab-twisted-cubes-background")
 
-const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
+const rawBackgroundRegistry: readonly RawBackgroundDefinition[] = [
   {
     id: "massage-lab-moving-gradient",
     // Established product label; canonical source docs and tests intentionally preserve this spelling.
@@ -2093,6 +2113,34 @@ const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
   },
 ] as const
 
+const backgroundBrandingById = new Map(
+  (backgroundBrandingCatalog.entries as BackgroundBrandingEntry[]).map((entry) => [entry.id, entry]),
+)
+
+/**
+ * Applies reviewed user-facing copy at the catalog boundary while leaving the
+ * raw registry's immutable IDs, attribution, access, and renderer data intact.
+ */
+function withApprovedBranding(entry: RawBackgroundDefinition): BackgroundDefinition {
+  const branding = backgroundBrandingById.get(entry.id)
+  if (!branding) {
+    return {
+      ...entry,
+      visualDescriptor: entry.label,
+      legacyLabels: [],
+      signatureOriginal: false,
+    }
+  }
+
+  return {
+    ...entry,
+    label: branding.label,
+    visualDescriptor: branding.visualDescriptor,
+    legacyLabels: branding.legacyLabels,
+    signatureOriginal: branding.signatureOriginal,
+  }
+}
+
 function withGeneratedPreview(entry: BackgroundDefinition): BackgroundDefinition {
   const preview = backgroundPreviewManifest[entry.id as keyof typeof backgroundPreviewManifest]
 
@@ -2115,6 +2163,7 @@ function withGeneratedPreview(entry: BackgroundDefinition): BackgroundDefinition
 }
 
 export const backgroundRegistry: readonly BackgroundDefinition[] = rawBackgroundRegistry
+  .map(withApprovedBranding)
   .map(withGeneratedPreview)
   .map((entry) => ({
     ...entry,
@@ -2125,6 +2174,11 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = rawBackground
 
 export function getBackgroundDefinition(id: unknown) {
   return backgroundRegistry.find((entry) => entry.id === id) ?? backgroundRegistry[0]
+}
+
+/** Returns no fallback so historical and commerce surfaces can retain unknown items honestly. */
+export function findBackgroundDefinition(id: unknown) {
+  return backgroundRegistry.find((entry) => entry.id === id)
 }
 
 export function getBackgroundOptionsForCategory(category: BackgroundCategory) {

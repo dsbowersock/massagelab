@@ -4,7 +4,13 @@ This is the canonical chronological planning and progress log for MassageLab. Us
 
 Existing plans, audits, roadmaps, and checklists remain source evidence. Keep them for context, but mirror meaningful progress, plan changes, and priority changes in [project-state.md](project-state.md) and here.
 
-Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
+Catalog naming note: `Massage Laba Lamp` is the approved catalog label for the original free moving-gradient default. `MassageLaba Lamp` and general prose that says `MassageLab Lamp` are legacy references to that same stable `massage-lab-moving-gradient` entry, not separate backgrounds.
+
+## 2026-08-06 — Approved background catalog naming layer
+
+- Applied the seven reviewed naming batches to all 84 enabled backgrounds through a compact generated branding catalog while preserving every existing background ID, renderer, entitlement, preference, and commerce key. The runtime registry now exposes the canonical label, literal visual descriptor, hidden legacy search aliases, and internally conceived signature-original status from one source rather than coupling preview paths or stored state to display names.
+- Added descriptor context to the background carousel, acquisition and credit confirmation dialogs, and account ownership cards. Historical order rows resolve their current catalog label and descriptor by stable ID while retaining the stored display name as a compatibility fallback. Legacy labels participate in catalog search but are not rendered as ordinary labels.
+- Updated current user-facing accessibility and browser contracts for `Massage Laba Lamp`, `In Transition`, `Endless Perspective`, and `Hypercube`. Focused branding, audit, catalog, and registry coverage passes 114/114. The representative local-only preview pilot remains the next review-gated slice; no generated pilot media, production manifest, R2 object, or hosted runtime has changed.
 
 ## 2026-08-05 — Solid Color background
 

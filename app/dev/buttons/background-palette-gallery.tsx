@@ -108,7 +108,7 @@ const TRACK_4B_LOCKED_ACCESS = Object.freeze({
 })
 const TRACK_4B_LABELS: Readonly<Record<Track4BBackgroundId, string>> = Object.freeze({
   "massage-lab-dna": "DNA",
-  "massage-lab-twisted-cubes": "Twisted Cubes",
+  "massage-lab-twisted-cubes": "Hypercube",
 })
 const TRACK_4B_PREVIEWS = TRACK_4B_IDS.map((id) => {
   const entry = backgroundPreviewManifest[id]
@@ -460,7 +460,7 @@ function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) 
     >
       <div>
         <h3 id="track-4b-review-heading" className="text-xl font-semibold">
-          DNA and Twisted Cubes acceptance matrix
+          DNA and Hypercube acceptance matrix
         </h3>
         <p className="text-sm text-muted-foreground">
           Source, Custom, Harmony, reduced motion, compact viewport, access, draft,
@@ -490,7 +490,7 @@ function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) 
             className="h-10 rounded-md border border-input bg-background px-3"
           >
             <option value="massage-lab-dna">DNA</option>
-            <option value="massage-lab-twisted-cubes">Twisted Cubes</option>
+            <option value="massage-lab-twisted-cubes">Hypercube</option>
           </select>
         </label>
         <label className="grid gap-1 text-sm font-medium">

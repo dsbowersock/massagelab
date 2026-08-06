@@ -236,11 +236,11 @@ Failures are remembered for the current visit so broken assets do not retry cont
 
 The local-only pilot covers approximately eight backgrounds representing materially different capture and compression behavior. The initial candidate set is:
 
-- MassageLaba Lamp: signature original and slow gradient motion
+- Massage Laba Lamp: signature original and slow gradient motion
 - Silk: slow shader motion
 - Wave Current: continuous directional flow
 - DNA: structured CSS animation
-- Twisted Cubes: cyclic CSS animation and fine edges
+- Hypercube: cyclic CSS animation and fine edges
 - Galaxy: high-entropy particles
 - Faulty Terminal: rapid detail and glitch motion
 - MassageLab Tile Grid: internally conceived canvas animation

@@ -556,7 +556,7 @@ test("Atmosphere visualizer action retains selected station across client routes
   const backgroundDialog = page.getByRole("dialog", { name: "Background" })
   await expect(backgroundDialog).toBeVisible()
   await centerCarouselItem(page, "static-gradient", "Next background")
-  await backgroundDialog.getByRole("button", { name: "Select Static gradient background" }).click()
+  await backgroundDialog.getByRole("button", { name: "Select In Transition background" }).click()
   await expect(backgroundDialog).toHaveCount(0)
   await page.getByRole("button", { name: /^Minimize visualizer$/i }).last().click()
   await expect(page).toHaveURL(/\/music\?task8=public-route$/)
@@ -923,7 +923,7 @@ test("Music background selection and account default actions preserve playback a
   })
 
   await centerCarouselItem(page, "static-gradient", "Next background")
-  await page.getByRole("button", { name: "Select Static gradient background" }).click()
+  await page.getByRole("button", { name: "Select In Transition background" }).click()
   await expect(page.getByTestId("chimer-premium-background")).toHaveAttribute(
     "data-background-id",
     "static-gradient",

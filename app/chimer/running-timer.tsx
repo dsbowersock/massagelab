@@ -3616,7 +3616,7 @@ export function RunningTimer({
                   massageLabRetroGridAngle: Number(event.target.value),
                 })
               }
-              aria-label="Retro Grid angle"
+              aria-label="Endless Perspective angle"
             />
           </label>
 
@@ -3633,7 +3633,7 @@ export function RunningTimer({
                   massageLabRetroGridCellSize: Number(event.target.value),
                 })
               }
-              aria-label="Retro Grid cell size"
+              aria-label="Endless Perspective cell size"
             />
           </label>
 
@@ -3650,7 +3650,7 @@ export function RunningTimer({
                   massageLabRetroGridOpacity: Number(event.target.value),
                 })
               }
-              aria-label="Retro Grid opacity"
+              aria-label="Endless Perspective opacity"
             />
           </label>
         </>

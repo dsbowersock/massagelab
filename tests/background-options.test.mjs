@@ -143,7 +143,7 @@ describe("premium background registry", () => {
 
   it("keeps the default background free and the Music key available for legacy reads", () => {
     assert.equal(DEFAULT_BACKGROUND_ID, "massage-lab-moving-gradient")
-    assert.equal(backgroundRegistry.find((entry) => entry.id === DEFAULT_BACKGROUND_ID)?.label, "MassageLaba Lamp")
+    assert.equal(backgroundRegistry.find((entry) => entry.id === DEFAULT_BACKGROUND_ID)?.label, "Massage Laba Lamp")
     assert.equal(BACKGROUND_STORAGE_KEYS.chimer, "massagelab.chimer.background")
     assert.equal(BACKGROUND_STORAGE_KEYS.music, "massagelab.music.background")
     assert.equal(canUseBackgroundId(DEFAULT_BACKGROUND_ID, []), true)

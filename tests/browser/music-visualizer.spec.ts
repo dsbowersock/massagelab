@@ -109,7 +109,7 @@ async function selectStaticGradient(page: Page) {
   const dialog = page.getByRole("dialog", { name: "Background" })
   await expect(dialog).toBeVisible()
   await centerCarouselItem(page, "static-gradient", "Next background")
-  await dialog.getByRole("button", { name: "Select Static gradient background" }).click()
+  await dialog.getByRole("button", { name: "Select In Transition background" }).click()
   await expect(dialog).toHaveCount(0)
   await expect(page.getByTestId("chimer-premium-background")).toHaveAttribute(
     "data-background-id",
@@ -1823,7 +1823,7 @@ test("signed-in defaults, device precedence, failed save, retry, and unrelated s
     signedInVisual.getByText(/Unlock .* with a credit, purchase, or membership/i),
   ).toHaveCount(0)
   await expect(
-    signedInSharedColors.getByText(/Colors are unavailable for Static gradient/i),
+    signedInSharedColors.getByText(/Colors are unavailable for In Transition/i),
   ).toHaveCount(0)
   await expect(signedInSharedColors.getByRole("radio", { name: "Custom" })).toBeEnabled()
   await signedInSharedColors.getByRole("radio", { name: "Custom" }).click()

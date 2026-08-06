@@ -2727,7 +2727,7 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
                   massageLabRetroGridAngle: Number(event.target.value),
                 })
               }
-              aria-label="Retro Grid angle"
+              aria-label="Endless Perspective angle"
             />
           </label>
 
@@ -2744,7 +2744,7 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
                   massageLabRetroGridCellSize: Number(event.target.value),
                 })
               }
-              aria-label="Retro Grid cell size"
+              aria-label="Endless Perspective cell size"
             />
           </label>
 
@@ -2761,7 +2761,7 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
                   massageLabRetroGridOpacity: Number(event.target.value),
                 })
               }
-              aria-label="Retro Grid opacity"
+              aria-label="Endless Perspective opacity"
             />
           </label>
         </div>
