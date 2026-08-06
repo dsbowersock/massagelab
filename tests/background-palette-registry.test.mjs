@@ -43,6 +43,18 @@ const CUSTOM_SWATCHES = [
   "#770077",
 ]
 const HARMONY_PRIMARY = "#2A6F97"
+const SWATCH_SEVEN_BACKGROUND_IDS = [
+  "massage-lab-retro-grid",
+  "massage-lab-aerial-rays",
+  "massage-lab-wave-current",
+  "massage-lab-photon-beam",
+  "massage-lab-reveal-dots",
+  "massage-lab-3d-globe",
+  "massage-lab-lamp-effect",
+  "massage-lab-wavy-background",
+  "massage-lab-pixel-liquid",
+  "massage-lab-aurora-bars",
+]
 
 const cssDomFixtures = {
   "static-gradient": {
@@ -514,6 +526,54 @@ describe("background palette adapter registry", () => {
         adapter.roles.map((role) => role.rendererTarget).sort(),
         backgroundId,
       )
+    }
+  })
+
+  it("keeps every literal Background role out of Swatch 1", () => {
+    const swatchOneBackgrounds = Object.entries(backgroundPaletteRegistry)
+      .flatMap(([backgroundId, adapter]) => (
+        adapter.status === "supported"
+          ? adapter.roles
+            .filter((role) => role.label === "Background" && role.defaultSwatch === 0)
+            .map(() => backgroundId)
+          : []
+      ))
+
+    assert.deepEqual(swatchOneBackgrounds, [])
+  })
+
+  it("keeps audited Swatch 7 backgrounds independent from Harmony", () => {
+    const harmonySwatches = generateBackgroundHarmonySwatches(HARMONY_PRIMARY, "triadic")
+
+    for (const backgroundId of SWATCH_SEVEN_BACKGROUND_IDS) {
+      const adapter = backgroundPaletteRegistry[backgroundId]
+      assert.equal(adapter.status, "supported", backgroundId)
+      const backgroundRole = adapter.roles.find((role) => role.label === "Background")
+      const visualRoles = adapter.roles.filter((role) => role !== backgroundRole)
+
+      assert.ok(backgroundRole, backgroundId)
+      assert.equal(backgroundRole.defaultSwatch, 6, backgroundId)
+      assert.equal(backgroundRole.harmonyColorSource, "saved-swatch", backgroundId)
+      assert.deepEqual(
+        visualRoles.map((role) => role.defaultSwatch),
+        visualRoles.map((_, index) => index),
+        backgroundId,
+      )
+
+      const sourceColors = roleColorsForMode(adapter, "source")
+      const customColors = roleColorsForMode(adapter, "custom")
+      const harmonyColors = roleColorsForMode(adapter, "harmony")
+      assert.equal(
+        sourceColors.background.toLowerCase(),
+        backgroundRole.sourceColor.toLowerCase(),
+        backgroundId,
+      )
+      assert.equal(customColors.background, CUSTOM_SWATCHES[6], backgroundId)
+      assert.equal(harmonyColors.background, CUSTOM_SWATCHES[6], backgroundId)
+      for (const [index, visualRole] of visualRoles.entries()) {
+        assert.equal(customColors[visualRole.id], CUSTOM_SWATCHES[index], `${backgroundId}:${visualRole.id}`)
+        assert.equal(harmonyColors[visualRole.id], harmonySwatches[index], `${backgroundId}:${visualRole.id}`)
+      }
     }
   })
 
@@ -1438,9 +1498,11 @@ describe("background palette adapter registry", () => {
       canCustomize: true,
     })
     assert.equal(auroraCustom.auroraBars.paletteMode, "custom")
-    assert.deepEqual(auroraCustom.auroraBars.colors, CUSTOM_SWATCHES.slice(1, 6))
+    assert.equal(auroraCustom.auroraBars.background, CUSTOM_SWATCHES[6])
+    assert.deepEqual(auroraCustom.auroraBars.colors, CUSTOM_SWATCHES.slice(0, 5))
     assert.equal(auroraHarmony.auroraBars.paletteMode, "custom")
-    assert.deepEqual(auroraHarmony.auroraBars.colors, harmonyColors.slice(1, 6))
+    assert.equal(auroraHarmony.auroraBars.background, CUSTOM_SWATCHES[6])
+    assert.deepEqual(auroraHarmony.auroraBars.colors, harmonyColors.slice(0, 5))
     assert.equal(auroraSource.auroraBars.paletteMode, "auto")
     assert.equal(auroraSource.auroraBars.barCount, 31)
     assert.equal(auroraSource.auroraBars.audioLevel, 0.61)
@@ -1531,12 +1593,14 @@ describe("background palette adapter registry", () => {
     })
     assert.equal(photonCustom.massageLabPhotonBeam.useColor2, true)
     assert.equal(photonCustom.massageLabPhotonBeam.useColor3, true)
-    assert.equal(photonCustom.massageLabPhotonBeam.colorSignal2, CUSTOM_SWATCHES[3])
-    assert.equal(photonCustom.massageLabPhotonBeam.colorSignal3, CUSTOM_SWATCHES[4])
+    assert.equal(photonCustom.massageLabPhotonBeam.colorBg, CUSTOM_SWATCHES[6])
+    assert.equal(photonCustom.massageLabPhotonBeam.colorSignal2, CUSTOM_SWATCHES[2])
+    assert.equal(photonCustom.massageLabPhotonBeam.colorSignal3, CUSTOM_SWATCHES[3])
     assert.equal(photonHarmony.massageLabPhotonBeam.useColor2, true)
     assert.equal(photonHarmony.massageLabPhotonBeam.useColor3, true)
-    assert.equal(photonHarmony.massageLabPhotonBeam.colorSignal2, harmonyColors[3])
-    assert.equal(photonHarmony.massageLabPhotonBeam.colorSignal3, harmonyColors[4])
+    assert.equal(photonHarmony.massageLabPhotonBeam.colorBg, CUSTOM_SWATCHES[6])
+    assert.equal(photonHarmony.massageLabPhotonBeam.colorSignal2, harmonyColors[2])
+    assert.equal(photonHarmony.massageLabPhotonBeam.colorSignal3, harmonyColors[3])
     assert.equal(photonSource.massageLabPhotonBeam.useColor2, false)
     assert.equal(photonSource.massageLabPhotonBeam.useColor3, false)
     assert.equal(photonSource.massageLabPhotonBeam.lineCount, 80)
@@ -2030,8 +2094,8 @@ describe("background palette adapter registry", () => {
       )),
     )
     assert.equal(auroraCustom.auroraBars.paletteMode, "auto")
-    assert.equal(auroraCustom.auroraBars.background, CUSTOM_SWATCHES[0])
-    assert.deepEqual(auroraCustom.auroraBars.colors, CUSTOM_SWATCHES.slice(1, 6))
+    assert.equal(auroraCustom.auroraBars.background, CUSTOM_SWATCHES[6])
+    assert.deepEqual(auroraCustom.auroraBars.colors, CUSTOM_SWATCHES.slice(0, 5))
 
     const tileAdapter = backgroundPaletteRegistry["massage-lab-tile-grid"]
     const tileFixture = {

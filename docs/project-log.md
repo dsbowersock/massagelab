@@ -6,6 +6,12 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-05 — Swatch 7 background-role audit
+
+- Audited every enabled shared-palette adapter whose literal full-canvas `Background` role still defaulted to Swatch 1. Retro Grid, Aerial Rays, Wave Current, Photon Beam, Reveal Dots, 3D Globe, Lamp Glow, Wave flow, Pixel liquid, and Aurora bars now reserve Swatch 7 for that saved backdrop. Their visual roles shift into Swatches 1-6 in renderer order; 3D Globe's Wireframe moves from Swatch 7 to Swatch 6 to avoid a collision.
+- Harmony now regenerates only the foreground, line, ray, wave, signal, globe, lamp, liquid, and bar roles while retaining the user's saved Swatch 7 backdrop. Source colors, renderer behavior, user-authored role remaps, background IDs, and entitlement behavior are unchanged. A registry-wide contract prevents any enabled literal `Background` role from returning to Swatch 1.
+- The focused palette registry contracts, all 2,004 repository tests, typecheck, lint, `git diff --check`, and the 102-page Production build pass. Final visual judgment remains in the user's `/dev/clock` Device Toolbar review.
+
 ## 2026-08-05 — Vortex independent background and procedural hue control
 
 - Changed Vortex's shared-color contract so its background is independently owned by Swatch 7 in Custom mode. The particle field retains the source renderer's continuous 100-degree HSL span instead of flattening it into discrete swatch colors.
