@@ -4,6 +4,7 @@ import { centerCarouselItem } from "./carousel-test-helpers"
 
 const USER_ID = "background-commerce-browser-user"
 const AURORA_ID = "massage-lab-aurora"
+// Commerce keeps the stable ID while accessible-name assertions follow the approved branding catalog.
 const AURORA_NAME = "Interstellar"
 const DOTTED_GLOW_ID = "massage-lab-dotted-glow"
 const RETURN_STORAGE_KEY = "massagelab-background-checkout-return-v1"
