@@ -29,7 +29,9 @@ export function LayoutWrapper({
   const isCalendarOperatorRoute = pathname === "/calendar" || pathname.startsWith("/calendar/")
   const isCalendarWorkspaceRoute = pathname === "/calendar"
   const isPublicBookingRoute = pathname.startsWith("/book/")
-  const isChimerRoute = pathname.startsWith("/chimer") || pathname.startsWith("/clock")
+  const isChimerRoute = pathname.startsWith("/chimer")
+    || pathname.startsWith("/clock")
+    || pathname === "/dev/clock"
   const routeOwnsBackground = isChimerRoute
     || pathname.startsWith("/anatomime")
   // Active Chimer and Clock views hide global bars with body classes; clear stale classes after route changes.

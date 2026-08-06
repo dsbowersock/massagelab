@@ -920,22 +920,23 @@
 .massageLabGridMotionContainer {
   display: flex;
   width: min(130vw, 1800px);
-  height: min(92vh, 960px);
+  height: auto;
+  min-height: 112%;
   flex-direction: column;
   justify-content: center;
-  gap: clamp(0.75rem, 2vw, 1.6rem);
+  gap: clamp(0.45rem, 1.2vw, 1rem);
   transform: rotate(-12deg) scale(1.05);
 }
 
 .massageLabGridMotionRow {
   display: grid;
   grid-template-columns: repeat(7, minmax(8rem, 1fr));
-  gap: clamp(0.75rem, 2vw, 1.6rem);
+  grid-auto-rows: clamp(3.4rem, 7.2vh, 5.8rem);
+  gap: clamp(0.45rem, 1.2vw, 1rem);
   will-change: transform;
 }
 
 .massageLabGridMotionItem {
-  aspect-ratio: 1.35;
   min-width: 0;
 }
 
@@ -1061,11 +1062,9 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .massageLabRetroGridFallbackGrid {
-    animation: none;
-    transform: translateY(-50%);
-  }
+.massageLabRetroGridFallbackPaused {
+  animation: none;
+  transform: translateY(-50%);
 }
 
 .massageLabAerialRaysBackground {
@@ -1188,7 +1187,7 @@
     #000 16%
   );
   overflow: hidden;
-  background: #09090b;
+  background: var(--ml-aurora-background, #09090b);
 }
 
 .massageLabAuroraField {
@@ -1198,11 +1197,12 @@
   background-image: var(--massage-lab-dark-gradient), var(--massage-lab-aurora);
   background-position: 50% 50%, 50% 50%;
   background-size: 300%, 200%;
-  filter: blur(10px);
-  mask-image: radial-gradient(ellipse at 100% 0%, black 10%, transparent 70%);
-  opacity: 0.5;
+  filter: blur(var(--ml-aurora-blur, 10px));
+  mask-image: radial-gradient(ellipse at 100% 0%, black 10%, transparent var(--ml-aurora-reach, 70%));
+  -webkit-mask-image: radial-gradient(ellipse at 100% 0%, black 10%, transparent var(--ml-aurora-reach, 70%));
+  opacity: var(--ml-aurora-opacity, 0.5);
   will-change: background-position;
-  animation: mlBackgroundMassageLabAurora 60s linear infinite;
+  animation: mlBackgroundMassageLabAurora var(--ml-aurora-animation-duration, 60s) linear infinite;
 }
 
 .massageLabAuroraField::after {
@@ -1335,10 +1335,12 @@
 
 .massageLabBackgroundBeams {
   overflow: hidden;
-  background:
+  background: var(
+    --ml-background-beams-background,
     radial-gradient(circle at 52% 46%, rgba(24, 204, 252, 0.12), transparent 34%),
     radial-gradient(circle at 70% 22%, rgba(174, 72, 255, 0.12), transparent 30%),
-    linear-gradient(145deg, #050505, #0a0e18);
+    linear-gradient(145deg, #050505, #0a0e18)
+  );
 }
 
 .backgroundBeamsSvg {
@@ -1346,23 +1348,35 @@
   inset: -8%;
   width: 116%;
   height: 116%;
-  opacity: 0.82;
+  opacity: var(--ml-background-beams-opacity, 0.82);
   mask-image: radial-gradient(ellipse at center, black 0%, black 42%, transparent 82%);
 }
 
 .backgroundBeamPath {
   fill: none;
-  stroke-width: 0.6;
+  stroke-width: var(--ml-background-beams-stroke-width, 0.6);
   stroke-opacity: 0.42;
-  filter: drop-shadow(0 0 10px rgba(24, 204, 252, 0.12));
+  filter: drop-shadow(
+    0 0 var(--ml-background-beams-glow-strength, 10px)
+    var(--ml-background-beams-glow-color, rgba(24, 204, 252, 0.12))
+  );
 }
 
 .massageLabBackgroundBeamsCollision {
   overflow: hidden;
-  background:
+  background: var(
+    --ml-collision-background,
     radial-gradient(circle at 52% 46%, rgba(99, 102, 241, 0.14), transparent 34%),
     radial-gradient(circle at 70% 22%, rgba(168, 85, 247, 0.12), transparent 30%),
-    linear-gradient(180deg, #050505 0%, #080b13 56%, #111827 100%);
+    linear-gradient(180deg, #050505 0%, #080b13 56%, #111827 100%)
+  );
+}
+
+.collisionEffects {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: var(--ml-collision-intensity, 1);
 }
 
 .collisionBeamsLayer {
@@ -1376,13 +1390,18 @@
   position: absolute;
   top: 0;
   left: var(--ml-collision-beam-x);
-  width: 1px;
+  width: var(--ml-collision-beam-width, 1px);
   height: var(--ml-collision-beam-height);
   border-radius: 999px;
-  background: linear-gradient(to top, #6366f1 0%, #a855f7 44%, transparent 100%);
+  background: linear-gradient(
+    to top,
+    var(--ml-collision-beam-color, #6366f1) 0%,
+    var(--ml-collision-accent-color, #a855f7) 44%,
+    transparent 100%
+  );
   box-shadow:
-    0 0 14px rgba(99, 102, 241, 0.42),
-    0 0 30px rgba(168, 85, 247, 0.22);
+    0 0 14px var(--ml-collision-beam-glow, rgba(99, 102, 241, 0.42)),
+    0 0 30px var(--ml-collision-accent-glow, rgba(168, 85, 247, 0.22));
   opacity: 0;
   transform: translateY(-32vh) rotate(var(--ml-collision-beam-rotate));
   animation: mlCollisionBeamFall var(--ml-collision-beam-cycle) linear infinite;
@@ -1397,11 +1416,16 @@
   left: 0;
   height: 1px;
   pointer-events: none;
-  background: linear-gradient(to right, transparent, rgba(226, 232, 240, 0.66), transparent);
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--ml-collision-surface-line, rgba(226, 232, 240, 0.66)),
+    transparent
+  );
   box-shadow:
-    0 0 24px rgba(99, 102, 241, 0.22),
-    0 -16px 68px rgba(168, 85, 247, 0.12),
-    0 1px 0 rgba(255, 255, 255, 0.08) inset;
+    0 0 24px var(--ml-collision-beam-glow-soft, rgba(99, 102, 241, 0.22)),
+    0 -16px 68px var(--ml-collision-accent-glow-soft, rgba(168, 85, 247, 0.12)),
+    0 1px 0 var(--ml-collision-surface-inset, rgba(255, 255, 255, 0.08)) inset;
 }
 
 .collisionExplosion {
@@ -1413,6 +1437,7 @@
   height: 4px;
   pointer-events: none;
   opacity: 0;
+  scale: var(--ml-collision-burst-scale, 1);
   transform: translate(-50%, -50%);
   animation: mlCollisionExplosionCycle var(--ml-collision-beam-cycle) linear infinite;
   animation-delay: var(--ml-collision-beam-delay);
@@ -1425,7 +1450,12 @@
   width: 5rem;
   height: 0.5rem;
   border-radius: 999px;
-  background: linear-gradient(to right, transparent, rgba(99, 102, 241, 0.82), transparent);
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--ml-collision-beam-color, #6366f1),
+    transparent
+  );
   filter: blur(5px);
   transform: translateX(-50%);
 }
@@ -1437,8 +1467,12 @@
   width: 3px;
   height: 3px;
   border-radius: 999px;
-  background: linear-gradient(to bottom, #818cf8, #a855f7);
-  box-shadow: 0 0 10px rgba(129, 140, 248, 0.42);
+  background: linear-gradient(
+    to bottom,
+    var(--ml-collision-particle-color, #818cf8),
+    var(--ml-collision-accent-color, #a855f7)
+  );
+  box-shadow: 0 0 10px var(--ml-collision-particle-glow, rgba(129, 140, 248, 0.42));
   opacity: 0;
   transform: translate(0, 0);
   animation: mlCollisionParticleCycle var(--ml-collision-beam-cycle) ease-out infinite;
@@ -1447,10 +1481,12 @@
 
 .massageLabBackgroundLines {
   overflow: hidden;
-  background:
+  background: var(
+    --ml-background-lines-background,
     radial-gradient(circle at 52% 45%, rgba(36, 122, 251, 0.12), transparent 36%),
-    radial-gradient(circle at 25% 78%, rgba(214, 89, 12, 0.1), transparent 32%),
-    linear-gradient(145deg, #050505, #080b12 60%, #050505);
+      radial-gradient(circle at 25% 78%, rgba(214, 89, 12, 0.1), transparent 32%),
+      linear-gradient(145deg, #050505, #080b12 60%, #050505)
+  );
 }
 
 .backgroundLinesSvg {
@@ -1458,19 +1494,19 @@
   inset: -4%;
   width: 108%;
   height: 108%;
-  opacity: 0.68;
+  opacity: var(--ml-background-lines-intensity, 0.68);
   mask-image: radial-gradient(ellipse at center, black 0%, black 48%, transparent 86%);
 }
 
 .backgroundLinePath {
   fill: none;
   stroke: var(--ml-background-line-color);
-  stroke-width: 2.3;
+  stroke-width: var(--ml-background-line-width, 2.3);
   stroke-linecap: round;
   stroke-dasharray: 50 800;
   stroke-dashoffset: 800;
   opacity: 0;
-  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--ml-background-line-color), transparent 55%));
+  filter: drop-shadow(0 0 var(--ml-background-line-glow, 10px) color-mix(in srgb, var(--ml-background-line-color), transparent 55%));
   animation: mlBackgroundLineSweep var(--ml-background-line-cycle, 12s) linear infinite;
   animation-delay: var(--ml-background-line-delay, 0s);
   will-change: stroke-dashoffset, opacity;
@@ -1478,10 +1514,12 @@
 
 .massageLabGlowingStars {
   overflow: hidden;
-  background:
+  background: var(
+    --ml-glowing-stars-background,
     radial-gradient(circle at 52% 42%, rgba(59, 130, 246, 0.11), transparent 34%),
-    radial-gradient(circle at 24% 82%, rgba(255, 122, 26, 0.07), transparent 30%),
-    linear-gradient(110deg, #141414 0.6%, #050505 100%);
+      radial-gradient(circle at 24% 82%, rgba(255, 122, 26, 0.07), transparent 30%),
+      linear-gradient(110deg, #141414 0.6%, #050505 100%)
+  );
 }
 
 .glowingStarsGrid {
@@ -1492,7 +1530,7 @@
   grid-template-rows: repeat(var(--ml-glowing-stars-rows, 12), minmax(0, 1fr));
   gap: 1px;
   padding: clamp(3rem, 8vw, 7rem) clamp(2.5rem, 7vw, 6rem);
-  opacity: 0.94;
+  opacity: var(--ml-glowing-stars-intensity, 0.94);
   mask-image: radial-gradient(ellipse at center, black 0%, black 62%, transparent 90%);
 }
 
@@ -1508,15 +1546,15 @@
 .glowingStarsStar {
   position: relative;
   z-index: 2;
-  width: 1px;
-  height: 1px;
+  width: var(--ml-glowing-stars-star-size, 1px);
+  height: var(--ml-glowing-stars-star-size, 1px);
   border-radius: 999px;
-  background: #666;
+  background: var(--ml-glowing-stars-star-color, #666);
   opacity: 0.72;
 }
 
 .glowingStarsStarActive {
-  animation: mlGlowingStarPulse 2s ease-in-out var(--ml-glowing-star-delay, 0s) both;
+  animation: mlGlowingStarPulse var(--ml-glowing-stars-cycle, 2s) ease-in-out var(--ml-glowing-star-delay, 0s) both;
 }
 
 .glowingStarsGlow {
@@ -1524,31 +1562,33 @@
   top: 50%;
   left: 50%;
   z-index: 1;
-  width: 4px;
-  height: 4px;
+  width: var(--ml-glowing-stars-glow-size, 4px);
+  height: var(--ml-glowing-stars-glow-size, 4px);
   border-radius: 999px;
-  background: #3b82f6;
+  background: var(--ml-glowing-stars-glow-core, #3b82f6);
   filter: blur(1px);
   opacity: 0;
   box-shadow:
-    0 0 18px rgba(96, 165, 250, 0.8),
-    0 0 42px rgba(96, 165, 250, 0.35);
+    0 0 var(--ml-glowing-stars-glow-near, 18px) var(--ml-glowing-stars-glow-aura-near, rgba(96, 165, 250, 0.8)),
+    0 0 var(--ml-glowing-stars-glow-far, 42px) var(--ml-glowing-stars-glow-aura-far, rgba(96, 165, 250, 0.35));
   transform: translate(-50%, -50%);
-  animation: mlGlowingStarGlow 2s ease-in-out var(--ml-glowing-star-delay, 0s) both;
+  animation: mlGlowingStarGlow var(--ml-glowing-stars-cycle, 2s) ease-in-out var(--ml-glowing-star-delay, 0s) both;
 }
 
 .massageLabMeteors {
   overflow: hidden;
-  background:
+  background: var(
+    --ml-meteors-background,
     radial-gradient(circle at 50% 38%, rgba(100, 116, 139, 0.14), transparent 34%),
-    radial-gradient(circle at 22% 78%, rgba(255, 122, 26, 0.08), transparent 30%),
-    linear-gradient(145deg, #050505, #081018 62%, #050505);
+      radial-gradient(circle at 22% 78%, rgba(255, 122, 26, 0.08), transparent 30%),
+      linear-gradient(145deg, #050505, #081018 62%, #050505)
+  );
 }
 
 .meteorsLayer {
   position: absolute;
   inset: -12% -8% -12%;
-  opacity: 0.82;
+  opacity: var(--ml-meteors-intensity, 0.82);
   mask-image: radial-gradient(ellipse at center, black 0%, black 68%, transparent 94%);
 }
 
@@ -1557,13 +1597,13 @@
   top: -40px;
   left: var(--ml-meteor-left);
   --ml-meteor-travel: -180vmax;
-  width: 2px;
-  height: 2px;
+  width: var(--ml-meteor-size, 2px);
+  height: var(--ml-meteor-size, 2px);
   border-radius: 9999px;
-  background: #64748b;
+  background: var(--ml-meteor-color, #64748b);
   box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.06),
-    0 0 16px rgba(148, 163, 184, 0.34);
+    0 0 0 1px var(--ml-meteor-edge, rgba(255, 255, 255, 0.06)),
+    0 0 16px var(--ml-meteor-glow, rgba(148, 163, 184, 0.34));
   opacity: 0;
   transform: rotate(215deg) translateX(0);
   animation: mlMeteorEffect var(--ml-meteor-duration, 7s) linear infinite;
@@ -1575,9 +1615,9 @@
   content: "";
   position: absolute;
   top: 50%;
-  width: 50px;
+  width: var(--ml-meteor-tail-length, 50px);
   height: 1px;
-  background: linear-gradient(to right, #64748b, transparent);
+  background: linear-gradient(to right, var(--ml-meteor-tail-color, #64748b), transparent);
   transform: translateY(-50%);
 }
 
@@ -2217,7 +2257,7 @@
 
 .massageLabBubble {
   overflow: hidden;
-  background: linear-gradient(135deg, #2e1065 0%, #1e3a8a 100%);
+  background: var(--ml-bubble-background, linear-gradient(135deg, #2e1065 0%, #1e3a8a 100%));
 }
 
 .bubbleFilterSvg {
@@ -2234,65 +2274,65 @@
   inset: -12%;
   pointer-events: none;
   filter: var(--ml-bubble-filter);
+  opacity: var(--ml-bubble-intensity, 1);
 }
 
 .bubbleOrb {
   position: absolute;
   display: block;
-  width: 80%;
+  width: var(--ml-bubble-size, 80%);
   aspect-ratio: 1;
   border-radius: 999px;
   mix-blend-mode: hard-light;
   opacity: 0.78;
-  background:
-    radial-gradient(circle at center, rgba(var(--ml-bubble-color), 0.8) 0%, rgba(var(--ml-bubble-color), 0) 50%);
+  background: radial-gradient(circle at center, var(--ml-bubble-color) 0%, transparent 50%);
   transform: translate3d(0, 0, 0);
   will-change: transform;
 }
 
 .bubbleOrbOne {
-  --ml-bubble-color: 18, 113, 255;
+  --ml-bubble-color: var(--ml-bubble-color-one, rgba(18, 113, 255, 0.8));
 
   left: 10%;
   top: 10%;
-  animation: mlBubbleFloatY 30s ease-in-out infinite;
+  animation: mlBubbleFloatY var(--ml-bubble-float-y-duration, 30s) ease-in-out infinite;
 }
 
 .bubbleOrbTwo {
-  --ml-bubble-color: 221, 74, 255;
+  --ml-bubble-color: var(--ml-bubble-color-two, rgba(221, 74, 255, 0.8));
 
   left: 10%;
   top: 10%;
   transform-origin: calc(50% - 400px) 50%;
-  animation: mlBubbleRotate 20s linear infinite;
+  animation: mlBubbleRotate var(--ml-bubble-rotate-fast-duration, 20s) linear infinite;
 }
 
 .bubbleOrbThree {
-  --ml-bubble-color: 0, 220, 255;
+  --ml-bubble-color: var(--ml-bubble-color-three, rgba(0, 220, 255, 0.8));
 
   left: calc(50% - 500px);
   top: calc(50% + 200px);
   transform-origin: calc(50% + 400px) 50%;
-  animation: mlBubbleRotate 40s linear infinite;
+  animation: mlBubbleRotate var(--ml-bubble-rotate-slow-duration, 40s) linear infinite;
 }
 
 .bubbleOrbFour {
-  --ml-bubble-color: 200, 50, 50;
+  --ml-bubble-color: var(--ml-bubble-color-four, rgba(200, 50, 50, 0.8));
 
   left: 10%;
   top: 10%;
   opacity: 0.68;
-  animation: mlBubbleFloatX 40s ease-in-out infinite;
+  animation: mlBubbleFloatX var(--ml-bubble-float-x-duration, 40s) ease-in-out infinite;
 }
 
 .bubbleOrbFive {
-  --ml-bubble-color: 180, 180, 50;
+  --ml-bubble-color: var(--ml-bubble-color-five, rgba(180, 180, 50, 0.8));
 
-  left: calc(50% - 80%);
-  top: calc(50% - 80%);
-  width: 160%;
+  left: calc(50% - var(--ml-bubble-size, 80%));
+  top: calc(50% - var(--ml-bubble-size, 80%));
+  width: calc(var(--ml-bubble-size, 80%) + var(--ml-bubble-size, 80%));
   transform-origin: calc(50% - 800px) calc(50% + 200px);
-  animation: mlBubbleRotate 20s linear infinite reverse;
+  animation: mlBubbleRotate var(--ml-bubble-rotate-fast-duration, 20s) linear infinite reverse;
 }
 
 .bubbleVignette {
@@ -2573,31 +2613,31 @@
 
 @keyframes mlGlowingStarPulse {
   0% {
-    background: #666;
+    background: var(--ml-glowing-stars-star-color, #666);
     opacity: 0.72;
     transform: scale(1);
   }
 
   18% {
-    background: #fff;
+    background: var(--ml-glowing-stars-peak-color, #fff);
     opacity: 1;
     transform: scale(1.2);
   }
 
   44% {
-    background: #fff;
+    background: var(--ml-glowing-stars-peak-color, #fff);
     opacity: 1;
     transform: scale(2.5);
   }
 
   70% {
-    background: #fff;
+    background: var(--ml-glowing-stars-peak-color, #fff);
     opacity: 0.92;
     transform: scale(2.2);
   }
 
   100% {
-    background: #eaf6ff;
+    background: var(--ml-glowing-stars-afterglow-color, #eaf6ff);
     opacity: 0.82;
     transform: scale(1.5);
   }

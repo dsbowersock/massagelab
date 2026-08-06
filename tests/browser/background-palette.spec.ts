@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test"
+import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test"
 
 import {
   backgroundPaletteRegistry,
@@ -25,6 +25,18 @@ type PreviewMediaProbeSnapshot = {
 }
 
 const MODES = ["source", "custom", "harmony"] as const
+const PATTERNED_ACTIVE_RENDERER_IDS = [
+  "massage-lab-ripple-grid",
+  "massage-lab-dot-field",
+  "massage-lab-dot-grid",
+  "massage-lab-shape-grid",
+] as const
+const AUTONOMOUS_PHONE_BACKGROUND_IDS = [
+  "massage-lab-gradient-blinds",
+  "massage-lab-pixel-snow",
+  "massage-lab-faulty-terminal",
+  "massage-lab-grid-distortion",
+] as const
 const EXPECTED_ENABLED_BACKGROUND_COUNT = 83
 const enabledRegistryEntries = backgroundRegistry.filter((entry) => entry.enabled)
 
@@ -243,6 +255,287 @@ async function selectBackground(page: Page, id: string) {
     .toHaveAttribute("data-background-id", id)
 }
 
+/** Selects the real effect and waits for the fixture's existing loaded diagnostics. */
+async function selectAndWaitForLiveBackgroundReady(
+  page: Page,
+  id: typeof AUTONOMOUS_PHONE_BACKGROUND_IDS[number],
+) {
+  await selectBackground(page, id)
+  await expectLoadedPaletteMode(page, id, "supported", "source")
+  const host = page.getByTestId("background-palette-live-host")
+  await expect(host).toHaveAttribute("data-background-effect-mounted", "true")
+  await expect(host).toHaveAttribute("data-background-diagnostic-status", "loaded")
+  await expect(host).toHaveAttribute("data-background-diagnostic-fallback", "false")
+  return host
+}
+
+/** Waits for the real effect canvas to allocate and complete two browser frames. */
+async function waitForCompletedBackgroundDraw(
+  host: Locator,
+  id: typeof AUTONOMOUS_PHONE_BACKGROUND_IDS[number],
+) {
+  const canvas = host.locator("canvas").last()
+  await expect(canvas).toBeVisible()
+  await expect.poll(
+    () => canvas.evaluate((element) => {
+      const effectCanvas = element as HTMLCanvasElement
+      return effectCanvas.width > 1 && effectCanvas.height > 1
+    }),
+    { message: `${id} must allocate its real effect drawing buffer before capture.` },
+  ).toBe(true)
+  await canvas.evaluate(() => new Promise<void>((resolve, reject) => {
+    let firstFrame = 0
+    let secondFrame = 0
+    const timeout = window.setTimeout(() => {
+      window.cancelAnimationFrame(firstFrame)
+      window.cancelAnimationFrame(secondFrame)
+      reject(new Error("The real effect canvas did not complete two browser frames within 5 seconds."))
+    }, 5_000)
+    firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => {
+        window.clearTimeout(timeout)
+        resolve()
+      })
+    })
+  }))
+}
+
+/** Waits for the fixture's real BackgroundHost to load and complete a draw. */
+async function waitForLiveBackground(page: Page, id: typeof AUTONOMOUS_PHONE_BACKGROUND_IDS[number]) {
+  const host = await selectAndWaitForLiveBackgroundReady(page, id)
+  await waitForCompletedBackgroundDraw(host, id)
+  return host
+}
+
+/** Removes only the review fixture's nondeterministic rounded-edge rasterization. */
+async function normalizeAutonomyProofHostChrome(host: Locator) {
+  await host.evaluate((element) => {
+    const fixtureCard = element.parentElement
+    if (!(fixtureCard instanceof HTMLElement)) {
+      throw new Error("Autonomy proof could not locate the live fixture card.")
+    }
+    fixtureCard.style.setProperty("border-radius", "0px", "important")
+  })
+}
+
+/** Rejects the compact-DPR Pixel Snow regression where the visible scene is one opaque color. */
+async function expectPixelSnowCentralRegionToVary(page: Page, screenshot: Buffer) {
+  const isUniformOpaqueSquare = await page.evaluate(async (base64Png) => {
+    const response = await fetch(`data:image/png;base64,${base64Png}`)
+    if (!response.ok) {
+      throw new Error(`Pixel Snow screenshot decode failed with HTTP ${response.status}.`)
+    }
+
+    const objectUrl = URL.createObjectURL(await response.blob())
+    let bitmap: ImageBitmap | undefined
+    let canvas: HTMLCanvasElement | undefined
+    try {
+      const objectResponse = await fetch(objectUrl)
+      bitmap = await createImageBitmap(await objectResponse.blob())
+      const width = Math.max(1, Math.floor(bitmap.width * 0.2))
+      const height = Math.max(1, Math.floor(bitmap.height * 0.2))
+      const left = Math.max(0, Math.floor((bitmap.width - width) / 2))
+      const top = Math.max(0, Math.floor((bitmap.height - height) / 2))
+      canvas = document.createElement("canvas")
+      canvas.width = width
+      canvas.height = height
+      const context = canvas.getContext("2d", { willReadFrequently: true })
+      if (!context) {
+        throw new Error("Pixel Snow screenshot decode did not expose a 2D canvas context.")
+      }
+      context.drawImage(bitmap, left, top, width, height, 0, 0, width, height)
+      const pixels = context.getImageData(0, 0, width, height).data
+      const [red, green, blue, alpha] = pixels
+      return alpha === 255 && pixels.every((channel, index) => (
+        channel === [red, green, blue, alpha][index % 4]
+      ))
+    } finally {
+      bitmap?.close()
+      if (canvas) {
+        canvas.width = 0
+        canvas.height = 0
+      }
+      URL.revokeObjectURL(objectUrl)
+    }
+  }, screenshot.toString("base64"))
+
+  expect(isUniformOpaqueSquare, "Pixel Snow central 20% must contain a decoded scene, not one opaque square.")
+    .toBe(false)
+}
+
+const GRID_DISTORTION_SEED_SETTLE_FRAMES = 160
+
+/** Waits until Grid Distortion's seeded pointer displacement is visually negligible. */
+async function waitForGridDistortionSeedToSettle(page: Page) {
+  await page.evaluate((frameCount) => new Promise<void>((resolve, reject) => {
+    let completedFrames = 0
+    let frameRequest = 0
+    const timeout = window.setTimeout(() => {
+      window.cancelAnimationFrame(frameRequest)
+      reject(new Error(`Grid Distortion did not complete ${frameCount} settling frames within 60 seconds.`))
+    }, 60_000)
+    const onFrame = () => {
+      completedFrames += 1
+      if (completedFrames >= frameCount) {
+        window.clearTimeout(timeout)
+        resolve()
+        return
+      }
+      frameRequest = window.requestAnimationFrame(onFrame)
+    }
+    frameRequest = window.requestAnimationFrame(onFrame)
+  }), GRID_DISTORTION_SEED_SETTLE_FRAMES)
+}
+
+async function proveAutonomousPhoneMotion(
+  page: Page,
+  id: typeof AUTONOMOUS_PHONE_BACKGROUND_IDS[number],
+  testInfo: TestInfo,
+) {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.emulateMedia({ reducedMotion: "no-preference" })
+  await openPaletteGallery(page)
+  await page.evaluate(() => document.body.classList.remove("chimer-running"))
+  const host = await waitForLiveBackground(page, id)
+  await normalizeAutonomyProofHostChrome(host)
+  if (id === "massage-lab-grid-distortion") {
+    await waitForGridDistortionSeedToSettle(page)
+  }
+  const movingInitial = await host.screenshot({
+    path: testInfo.outputPath(`${id}-no-preference-initial.png`),
+    scale: "css",
+    timeout: 15_000,
+  })
+  if (id === "massage-lab-pixel-snow") {
+    await expectPixelSnowCentralRegionToVary(page, movingInitial)
+  }
+
+  await page.waitForTimeout(700)
+  const movingLater = await host.screenshot({
+    path: testInfo.outputPath(`${id}-no-preference-later.png`),
+    scale: "css",
+    timeout: 15_000,
+  })
+  expect(
+    movingLater.equals(movingInitial),
+    `${id} should autonomously change pixels on a phone.`,
+  ).toBe(false)
+}
+
+async function proveReducedPhoneStability(
+  page: Page,
+  id: typeof AUTONOMOUS_PHONE_BACKGROUND_IDS[number],
+  testInfo: TestInfo,
+) {
+  await test.step("emulate reduced motion and open fixture", async () => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.emulateMedia({ reducedMotion: "reduce" })
+    await openPaletteGallery(page)
+  })
+
+  await test.step("add chimer-running class", async () => {
+    await page.evaluate(() => document.body.classList.add("chimer-running"))
+  })
+
+  const host = await test.step("select renderer and wait for loaded diagnostics", () => (
+    selectAndWaitForLiveBackgroundReady(page, id)
+  ))
+  await normalizeAutonomyProofHostChrome(host)
+
+  await test.step("wait for completed renderer draw", () => waitForCompletedBackgroundDraw(host, id))
+
+  const reducedInitial = await test.step(
+    "capture first reduced host screenshot",
+    () => host.screenshot({
+      path: testInfo.outputPath(`${id}-reduce-initial.png`),
+      scale: "css",
+      timeout: 15_000,
+    }),
+  )
+
+  await page.waitForTimeout(400)
+  const reducedLater = await host.screenshot({
+    path: testInfo.outputPath(`${id}-reduce-later.png`),
+    scale: "css",
+    timeout: 15_000,
+  })
+  expect(
+    reducedLater.equals(reducedInitial),
+    `${id} should have exactly stable reduced-motion pixels.`,
+  ).toBe(true)
+  await page.evaluate(() => document.body.classList.remove("chimer-running"))
+}
+
+async function proveCompactPhoneMotion(
+  page: Page,
+  id: "massage-lab-faulty-terminal" | "massage-lab-grid-distortion",
+  testInfo: TestInfo,
+) {
+  await page.setViewportSize({ width: 360, height: 780 })
+  await page.emulateMedia({ reducedMotion: "no-preference" })
+  await openPaletteGallery(page)
+  const host = await waitForLiveBackground(page, id)
+  await normalizeAutonomyProofHostChrome(host)
+  const canvas = host.locator("canvas").last()
+  const compactSizing = await canvas.evaluate((element) => {
+    const effectCanvas = element as HTMLCanvasElement
+    const hostElement = effectCanvas.closest('[data-testid="background-palette-live-host"]')
+    if (!(hostElement instanceof HTMLElement)) {
+      throw new Error("Compact animation proof could not locate the live BackgroundHost.")
+    }
+    return {
+      bufferWidth: effectCanvas.width,
+      hostWidth: hostElement.getBoundingClientRect().width,
+    }
+  })
+  expect(compactSizing.hostWidth, `${id} compact host width`).toBeLessThanOrEqual(360)
+  expect(compactSizing.bufferWidth, `${id} compact DPR drawing-buffer cap`)
+    .toBeLessThanOrEqual(Math.ceil(compactSizing.hostWidth) + 1)
+
+  if (id === "massage-lab-grid-distortion") {
+    await waitForGridDistortionSeedToSettle(page)
+  }
+  const compactInitial = await host.screenshot({
+    path: testInfo.outputPath(`${id}-compact-no-preference-initial.png`),
+    scale: "css",
+    timeout: 15_000,
+  })
+  await page.waitForTimeout(700)
+  const compactLater = await host.screenshot({
+    path: testInfo.outputPath(`${id}-compact-no-preference-later.png`),
+    scale: "css",
+    timeout: 15_000,
+  })
+  expect(
+    compactLater.equals(compactInitial),
+    `${id} should change pixels at the exact compact threshold.`,
+  ).toBe(false)
+}
+
+/** Reads the stored alpha at each drawing-buffer corner from Ripple Grid's real WebGL canvas. */
+async function readWebGlCornerAlphas(canvas: Locator) {
+  return canvas.evaluate(async (element) => {
+    // Ripple intentionally avoids preserveDrawingBuffer. Queue this read after
+    // its already-scheduled animation callback so Chromium has not discarded
+    // the just-rendered buffer after compositing yet.
+    return new Promise<number[]>((resolve, reject) => {
+      requestAnimationFrame(() => {
+        const gl = (element as HTMLCanvasElement).getContext("webgl")
+        if (!gl) {
+          reject(new Error("Ripple Grid review canvas did not expose WebGL."))
+          return
+        }
+        const { width, height } = element as HTMLCanvasElement
+        resolve([[0, 0], [width - 1, 0], [0, height - 1], [width - 1, height - 1]].map(([x, y]) => {
+          const pixel = new Uint8Array(4)
+          gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel)
+          return pixel[3]
+        }))
+      })
+    })
+  })
+}
+
 async function installPremiumAccount(page: Page) {
   await page.route("**/api/auth/session", async (route) => {
     await route.fulfill({
@@ -372,6 +665,281 @@ test.describe("shared background palette review matrix", () => {
     })
   })
 
+  for (const id of AUTONOMOUS_PHONE_BACKGROUND_IDS) {
+    test(`keeps repaired backgrounds autonomous on phones and stable for reduced motion: ${id} no preference`, async ({ page }, testInfo) => {
+      test.setTimeout(90_000)
+      await proveAutonomousPhoneMotion(page, id, testInfo)
+    })
+
+    test(`keeps repaired backgrounds autonomous on phones and stable for reduced motion: ${id} reduced with chimer-running`, async ({ page }, testInfo) => {
+      test.setTimeout(90_000)
+      await proveReducedPhoneStability(page, id, testInfo)
+    })
+  }
+
+  for (const id of ["massage-lab-faulty-terminal", "massage-lab-grid-distortion"] as const) {
+    test(`keeps repaired backgrounds autonomous on phones and stable for reduced motion: ${id} exact compact threshold`, async ({ page }, testInfo) => {
+      test.setTimeout(90_000)
+      await proveCompactPhoneMotion(page, id, testInfo)
+    })
+  }
+
+  test("fills phone viewports and persists editable Grid Motion mantras", async ({ page }, testInfo) => {
+    test.setTimeout(180_000)
+    const health = captureRuntimeErrors(page)
+
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.emulateMedia({ reducedMotion: "no-preference" })
+    await openPaletteGallery(page)
+    await selectBackground(page, "massage-lab-grid-motion")
+
+    const host = page.getByTestId("background-palette-live-host")
+    await expect(host).toHaveAttribute("data-background-diagnostic-status", "loaded")
+    await normalizeAutonomyProofHostChrome(host)
+    const rows = host.locator('[class*="massageLabGridMotionRow"]')
+    await expect.poll(() => rows.count()).toBeGreaterThanOrEqual(12)
+    expect(
+      (await rows.evaluateAll((elements) => elements.map((element) => element.children.length)))
+        .every((tileCount) => tileCount === 7),
+      "Every portrait Grid Motion row must contain exactly seven tiles.",
+    ).toBe(true)
+    const portraitCoverage = await host.evaluate((element) => {
+      const effect = element.querySelector('[class*="massageLabGridMotion"]')
+      if (!(effect instanceof HTMLElement)) throw new Error("Grid Motion effect root is missing.")
+      const hostBounds = element.getBoundingClientRect()
+      const effectBounds = effect.getBoundingClientRect()
+      return {
+        left: effectBounds.left <= hostBounds.left,
+        top: effectBounds.top <= hostBounds.top,
+        right: effectBounds.right >= hostBounds.right,
+        bottom: effectBounds.bottom >= hostBounds.bottom,
+      }
+    })
+    expect(portraitCoverage).toEqual({ left: true, top: true, right: true, bottom: true })
+    await expect(host.getByText("I am grounded", { exact: true }).first()).toBeVisible()
+    await expect(host.getByText("Breathe and release", { exact: true }).first()).toBeVisible()
+
+    const portraitInitial = await host.screenshot({
+      path: testInfo.outputPath("grid-motion-portrait-no-preference-initial.png"),
+      scale: "css",
+    })
+    await page.waitForTimeout(700)
+    const portraitLater = await host.screenshot({
+      path: testInfo.outputPath("grid-motion-portrait-no-preference-later.png"),
+      scale: "css",
+    })
+    expect(portraitLater.equals(portraitInitial), "Grid Motion must move without pointer input.")
+      .toBe(false)
+
+    const firstMantra = page.getByRole("textbox", { name: "Mantra 1", exact: true })
+    await firstMantra.fill("Move with ease now")
+    await firstMantra.blur()
+    await expect(firstMantra).toHaveValue("Move with ease")
+    await expect(host.getByText("Move with ease", { exact: true }).first()).toBeVisible()
+
+    const addMantra = page.getByRole("button", { name: "Add mantra" })
+    await expect(addMantra).toBeDisabled()
+    const secondMantra = page.getByRole("textbox", { name: "Mantra 2", exact: true })
+    await secondMantra.fill("I am calm")
+    await secondMantra.blur()
+    await expect(secondMantra).toHaveValue("I am calm")
+    await page.getByRole("button", { name: /^Remove mantra 3:/ }).click()
+    await expect(page.getByRole("textbox", { name: /^Mantra / })).toHaveCount(9)
+    await expect(addMantra).toBeEnabled()
+    await addMantra.click()
+    await expect(page.getByRole("textbox", { name: /^Mantra / })).toHaveCount(10)
+    await expect(page.getByRole("textbox", { name: "Mantra 10", exact: true })).toHaveValue("I am grounded")
+    await expect(addMantra).toBeDisabled()
+
+    await page.getByRole("button", { name: "Remount Grid Motion" }).click()
+    await expect(page.getByRole("textbox", { name: /^Mantra / })).toHaveCount(10)
+    await expect(host.getByText("I am grounded", { exact: true }).first()).toBeVisible()
+    for (let remaining = 10; remaining > 1; remaining -= 1) {
+      await page.getByRole("button", { name: /^Remove mantra 2:/ }).click()
+    }
+    await expect(page.getByRole("textbox", { name: /^Mantra / })).toHaveCount(1)
+    await expect(page.getByRole("button", { name: /^Remove mantra 1:/ })).toBeDisabled()
+
+    await page.getByRole("button", { name: "Remount Grid Motion" }).click()
+    await expect(host.getByText("Move with ease", { exact: true }).first()).toBeVisible()
+
+    await page.setViewportSize({ width: 844, height: 390 })
+    await expect.poll(() => rows.count()).toBeLessThanOrEqual(8)
+    await expect.poll(() => rows.count()).toBeGreaterThanOrEqual(6)
+    expect(
+      (await rows.evaluateAll((elements) => elements.map((element) => element.children.length)))
+        .every((tileCount) => tileCount === 7),
+      "Every landscape Grid Motion row must contain exactly seven tiles.",
+    ).toBe(true)
+    const landscapeCoverage = await host.evaluate((element) => {
+      const effect = element.querySelector('[class*="massageLabGridMotion"]')
+      if (!(effect instanceof HTMLElement)) throw new Error("Grid Motion effect root is missing.")
+      const hostBounds = element.getBoundingClientRect()
+      const effectBounds = effect.getBoundingClientRect()
+      return effectBounds.left <= hostBounds.left
+        && effectBounds.top <= hostBounds.top
+        && effectBounds.right >= hostBounds.right
+        && effectBounds.bottom >= hostBounds.bottom
+    })
+    expect(landscapeCoverage, "Grid Motion must leave no uncovered landscape host strip.").toBe(true)
+
+    await page.emulateMedia({ reducedMotion: "reduce" })
+    await page.evaluate(() => document.body.classList.add("chimer-running"))
+    const reducedInitial = await host.screenshot({
+      path: testInfo.outputPath("grid-motion-reduced-chimer-running-initial.png"),
+      scale: "css",
+    })
+    await page.waitForTimeout(400)
+    const reducedLater = await host.screenshot({
+      path: testInfo.outputPath("grid-motion-reduced-chimer-running-later.png"),
+      scale: "css",
+    })
+    expect(reducedLater.equals(reducedInitial), "Grid Motion must be pixel-stable for reduced motion.")
+      .toBe(true)
+    await page.evaluate(() => document.body.classList.remove("chimer-running"))
+
+    expect(health.pageErrors).toEqual([])
+    expect(health.consoleErrors).toEqual([])
+  })
+
+  test("keeps patterned live renderers unlayered and framed on phone viewports", async ({ page }, testInfo) => {
+    test.setTimeout(120_000)
+    const health = captureRuntimeErrors(page)
+    const viewports = [
+      { name: "phone-portrait", width: 390, height: 844 },
+      { name: "short-landscape", width: 844, height: 390 },
+    ] as const
+
+    for (const viewport of viewports) {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height })
+      await openPaletteGallery(page)
+      const host = page.getByTestId("background-palette-live-host")
+
+      await page.getByLabel("Force live renderer context failure").check()
+      await selectBackground(page, "massage-lab-ripple-grid")
+      await expect(host).toHaveAttribute("data-background-effect-mounted", "true")
+      await expect(host).toHaveAttribute("data-background-effect-ready", "false")
+      await expect(host).toHaveAttribute("data-background-underlay", "visible")
+      expect(await host.locator(":scope > *").count(), `${viewport.name}:forced-failure`).toBe(2)
+      await page.getByLabel("Force live renderer context failure").uncheck()
+      await expect(host).toHaveAttribute("data-background-effect-ready", "true")
+      await expect(host).toHaveAttribute("data-background-underlay", "suppressed")
+
+      for (const id of PATTERNED_ACTIVE_RENDERER_IDS) {
+        await selectBackground(page, id)
+        await expect(host).toHaveAttribute("data-background-effect-mounted", "true")
+        await expect(host).toHaveAttribute("data-background-effect-ready", "true")
+        await expect(host).toHaveAttribute("data-background-underlay", "suppressed")
+        expect(await host.locator(":scope > *").count(), `${viewport.name}:${id}`).toBe(1)
+      }
+
+      await selectBackground(page, "massage-lab-ripple-grid")
+      const rippleCanvas = host.locator("canvas")
+      await expect(rippleCanvas).toBeVisible()
+      const initialCornerAlphas = await readWebGlCornerAlphas(rippleCanvas)
+      for (const alpha of initialCornerAlphas) {
+        expect(alpha, `${viewport.name}:ripple:initial:nonzero`).toBeGreaterThan(0)
+        expect(Math.abs(alpha - 128), `${viewport.name}:ripple:initial:stored-alpha`).toBeLessThanOrEqual(2)
+      }
+      await testInfo.attach(`${viewport.name}-ripple-initial`, {
+        body: await host.screenshot(),
+        contentType: "image/png",
+      })
+
+      await page.waitForTimeout(350)
+      const laterCornerAlphas = await readWebGlCornerAlphas(rippleCanvas)
+      for (const alpha of laterCornerAlphas) {
+        expect(alpha, `${viewport.name}:ripple:later:nonzero`).toBeGreaterThan(0)
+        expect(Math.abs(alpha - 128), `${viewport.name}:ripple:later:stored-alpha`).toBeLessThanOrEqual(2)
+      }
+      await testInfo.attach(`${viewport.name}-ripple-later`, {
+        body: await host.screenshot(),
+        contentType: "image/png",
+      })
+
+      const contextLossSupported = await rippleCanvas.evaluate((element) => {
+        const gl = (element as HTMLCanvasElement).getContext("webgl")
+        const extension = gl?.getExtension("WEBGL_lose_context")
+        if (!extension) return false
+        Reflect.set(window, "__rippleContextLossExtension", extension)
+        extension.loseContext()
+        return true
+      })
+      expect(contextLossSupported, `${viewport.name}:ripple:context-loss-extension`).toBe(true)
+      await expect(host).toHaveAttribute("data-background-effect-ready", "false")
+      await expect(host).toHaveAttribute("data-background-underlay", "visible")
+      await page.evaluate(() => {
+        const extension = Reflect.get(window, "__rippleContextLossExtension")
+        if (!extension || typeof extension.restoreContext !== "function") {
+          throw new Error("Ripple Grid context-loss extension was not retained for restore.")
+        }
+        extension.restoreContext()
+      })
+      await expect(host).toHaveAttribute("data-background-effect-ready", "true")
+      await expect(host).toHaveAttribute("data-background-underlay", "suppressed")
+
+      await selectBackground(page, "massage-lab-dark-veil")
+      const darkVeilCanvas = host.locator("canvas")
+      await expect(darkVeilCanvas).toBeVisible()
+      const framing = await darkVeilCanvas.evaluate((element) => {
+        const canvas = element as HTMLCanvasElement
+        const hostElement = canvas.closest('[data-testid="background-palette-live-host"]')
+        if (!(hostElement instanceof HTMLElement)) {
+          throw new Error("Dark Veil review canvas did not have its expected Host.")
+        }
+        const canvasRect = canvas.getBoundingClientRect()
+        const hostRect = hostElement.getBoundingClientRect()
+        return {
+          cssWidth: canvasRect.width,
+          cssHeight: canvasRect.height,
+          hostWidth: hostRect.width,
+          hostHeight: hostRect.height,
+          leftOffset: canvasRect.left - hostRect.left,
+          topOffset: canvasRect.top - hostRect.top,
+          bufferWidth: canvas.width,
+          bufferHeight: canvas.height,
+          dpr: window.devicePixelRatio,
+        }
+      })
+      expect(framing.cssWidth).toBeCloseTo(framing.hostWidth, 0)
+      expect(framing.cssHeight).toBeCloseTo(framing.hostHeight, 0)
+      expect(framing.leftOffset).toBeCloseTo(0, 0)
+      expect(framing.topOffset).toBeCloseTo(0, 0)
+      expect(framing.bufferWidth).toBe(
+        Math.max(1, Math.floor(framing.cssWidth * Math.min(2, Math.max(1, framing.dpr)) * 0.25)),
+      )
+      expect(framing.bufferHeight).toBe(
+        Math.max(1, Math.floor(framing.cssHeight * Math.min(2, Math.max(1, framing.dpr)) * 0.25)),
+      )
+      await testInfo.attach(`${viewport.name}-dark-veil-initial`, {
+        body: await host.screenshot(),
+        contentType: "image/png",
+      })
+      await page.waitForTimeout(350)
+      await testInfo.attach(`${viewport.name}-dark-veil-later`, {
+        body: await host.screenshot(),
+        contentType: "image/png",
+      })
+
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1))
+        .toBe(true)
+    }
+
+    await page.emulateMedia({ reducedMotion: "reduce" })
+    await openPaletteGallery(page)
+    await page.getByLabel("Force live review animation").uncheck()
+    await selectBackground(page, "massage-lab-ripple-grid")
+    const host = page.getByTestId("background-palette-live-host")
+    await expect(host).toHaveAttribute("data-background-diagnostic-reduced-motion", "true")
+    await expect(host).toHaveAttribute("data-background-effect-mounted", "false")
+    await expect(host).toHaveAttribute("data-background-effect-ready", "false")
+    await expect(host).toHaveAttribute("data-background-underlay", "visible")
+    expect(health.pageErrors).toEqual([])
+    expect(health.consoleErrors).toEqual([])
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1))
+      .toBe(true)
+  })
+
   test("reports Canvas-backed Dotted Glow truthfully in every palette mode", async ({ page }) => {
     await openPaletteGallery(page)
     const dottedGlowRow = page.locator(
@@ -380,7 +948,7 @@ test.describe("shared background palette review matrix", () => {
     await expect(dottedGlowRow).toHaveAttribute("data-renderer-family", "canvas")
     await selectBackground(page, "massage-lab-dotted-glow")
     for (const mode of MODES) {
-      await expectLoadedPaletteMode(page, "massage-lab-dotted-glow", "unsupported", mode)
+      await expectLoadedPaletteMode(page, "massage-lab-dotted-glow", "supported", mode)
     }
   })
 
@@ -538,7 +1106,7 @@ test.describe("shared background palette review matrix", () => {
     await openPaletteGallery(page)
     await selectBackground(page, "static-gradient")
     for (const mode of MODES) {
-      await expectLoadedPaletteMode(page, "static-gradient", "unsupported", mode)
+      await expectLoadedPaletteMode(page, "static-gradient", "supported", mode)
     }
     const host = page.getByTestId("background-palette-live-host")
     await expect(host).toHaveAttribute("data-background-diagnostic-reduced-motion", "false")

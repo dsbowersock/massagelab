@@ -53,6 +53,12 @@ export function UnsavedVisualChangesDialog({
     outcome()
   }
 
+  const restoreVisualFocus = () => {
+    window.requestAnimationFrame(() => {
+      getConnectedVisualFocusTarget(restoreFocusTarget)?.focus()
+    })
+  }
+
   return (
     <AlertDialog
       open={open}
@@ -67,11 +73,26 @@ export function UnsavedVisualChangesDialog({
       }}
     >
       <AlertDialogContent
+        className="z-[10060]"
+        overlayClassName="z-[10060]"
+        onEscapeKeyDown={(event) => {
+          event.preventDefault()
+          resolveExplicitOutcome(onKeepEditing)
+          restoreVisualFocus()
+        }}
+        onKeyDownCapture={(event) => {
+          if (event.key !== "Escape" || explicitOutcomeRef.current) {
+            return
+          }
+
+          event.preventDefault()
+          event.stopPropagation()
+          resolveExplicitOutcome(onKeepEditing)
+          restoreVisualFocus()
+        }}
         onCloseAutoFocus={(event) => {
           event.preventDefault()
-          window.requestAnimationFrame(() => {
-            getConnectedVisualFocusTarget(restoreFocusTarget)?.focus()
-          })
+          restoreVisualFocus()
         }}
       >
         <AlertDialogHeader>

@@ -5,6 +5,7 @@ import { backgroundPreviewManifest } from "./backgroundPreviewManifest.ts"
 import type { BackgroundPreviewManifestEntry } from "./backgroundPreviewManifest.ts"
 import type { BackgroundEffectProps } from "./effects/css-backgrounds"
 import type { BackgroundAccessDecision } from "../../lib/commerce/background-access.ts"
+import backgroundBrandingCatalog from "../../data/background-branding-catalog.json" with { type: "json" }
 import {
   backgroundPaletteRegistry,
   type BackgroundPaletteAdapter,
@@ -13,6 +14,7 @@ import {
 export type BackgroundId =
   | "massage-lab-moving-gradient"
   | "static-gradient"
+  | "solid-color"
   | "massage-lab-particles-draft"
   | "massage-lab-noise-texture-draft"
   | "massage-lab-grid-pattern-draft"
@@ -109,6 +111,12 @@ type BackgroundComponentLoader = () => Promise<{ default: ComponentType<Backgrou
 export interface BackgroundDefinition {
   id: BackgroundId
   label: string
+  /** Literal, palette-neutral description shown beside the canonical name. */
+  visualDescriptor: string
+  /** Prior public names retained for search and support context only. */
+  legacyLabels: readonly string[]
+  /** True only for internally conceived MassageLab signature visuals. */
+  signatureOriginal: boolean
   provider: string
   sourceUrl: string
   license: string
@@ -137,6 +145,34 @@ export interface BackgroundDefinition {
   supportsReducedMotionStatic?: boolean
   /** Authoritative shared-palette migration contract for enabled renderers. */
   paletteAdapter?: BackgroundPaletteAdapter
+}
+
+type RawBackgroundDefinition = Omit<
+  BackgroundDefinition,
+  "visualDescriptor" | "legacyLabels" | "signatureOriginal"
+>
+
+type BackgroundBrandingEntry = {
+  id: string
+  label: string
+  visualDescriptor: string
+  legacyLabels: string[]
+  signatureOriginal: boolean
+}
+
+/** Rejects malformed checked-in branding rows before they reach registry copy. */
+function isBackgroundBrandingEntry(value: unknown): value is BackgroundBrandingEntry {
+  if (!value || typeof value !== "object") {
+    return false
+  }
+
+  const entry = value as Record<string, unknown>
+  return typeof entry.id === "string"
+    && typeof entry.label === "string"
+    && typeof entry.visualDescriptor === "string"
+    && Array.isArray(entry.legacyLabels)
+    && entry.legacyLabels.every((label) => typeof label === "string")
+    && typeof entry.signatureOriginal === "boolean"
 }
 
 export type BackgroundAccessSnapshot = {
@@ -254,7 +290,7 @@ const massageLabAuroraBars = () => import("./effects/massage-lab-aurora-bars-bac
 const massageLabDna = () => import("./effects/massage-lab-dna-background")
 const massageLabTwistedCubes = () => import("./effects/massage-lab-twisted-cubes-background")
 
-const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
+const rawBackgroundRegistry: readonly RawBackgroundDefinition[] = [
   {
     id: "massage-lab-moving-gradient",
     // Established product label; canonical source docs and tests intentionally preserve this spelling.
@@ -289,10 +325,30 @@ const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
     performanceCost: "low",
     requiresSubscription: false,
     enabled: true,
+    customizationSummary: "Two to seven colors with linear or radial geometry and adjustable color stops.",
     component: () => cssBackgrounds().then((module) => ({ default: module.StaticGradientBackground })),
     fallbackStyle: {
       background:
-        "radial-gradient(circle at 18% 12%, rgba(255,122,26,0.26), transparent 34%), radial-gradient(circle at 78% 18%, rgba(65,105,225,0.22), transparent 34%), linear-gradient(145deg, #050505 0%, #101318 58%, #050505 100%)",
+        "linear-gradient(145deg, #050505 0%, #26140A 17%, #FF7A1A 33%, #101318 50%, #4169E1 67%, #10182B 83%, #050505 100%)",
+    },
+  },
+  {
+    id: "solid-color",
+    label: "Solid Color",
+    provider: "MassageLab",
+    sourceUrl: "internal",
+    license: "MassageLab internal implementation",
+    licenseStatus: "verified",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Free single-color background for Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "static",
+    performanceCost: "low",
+    requiresSubscription: false,
+    enabled: true,
+    customizationSummary: "One full-screen color with no motion or visual tuning controls.",
+    component: () => cssBackgrounds().then((module) => ({ default: module.SolidColorBackground })),
+    fallbackStyle: {
+      background: "#FF7A1A",
     },
   },
   {
@@ -1604,7 +1660,7 @@ const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
     performanceCost: "low",
     requiresSubscription: true,
     enabled: true,
-    customizationSummary: "Source-matched CSS aurora adapted for MassageLab surfaces.",
+    customizationSummary: "Source and Custom colors, Harmony-driven bands, an independent background color, and visual tuning.",
     component: () => cssBackgrounds().then((module) => ({ default: module.MassageLabAuroraBackground })),
     fallbackStyle: {
       background:
@@ -1624,11 +1680,10 @@ const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
     performanceCost: "medium",
     requiresSubscription: true,
     enabled: true,
-    customizationSummary: "Source-matched canvas shimmer adapted for MassageLab surfaces.",
+    customizationSummary: "Source and Custom dot/glow colors, Harmony-driven dots, an independent background color, and visual tuning.",
     component: () => cssBackgrounds().then((module) => ({ default: module.MassageLabDottedGlowBackground })),
     fallbackStyle: {
-      background:
-        "radial-gradient(circle at 50% 42%, rgba(0,170,255,0.12), transparent 38%), radial-gradient(circle at center, rgba(255,255,255,0.08), transparent 34%), linear-gradient(145deg, #050505, #101012)",
+      background: "#050505",
     },
   },
   {
@@ -1684,7 +1739,7 @@ const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
     performanceCost: "low",
     requiresSubscription: true,
     enabled: true,
-    customizationSummary: "Source-matched SVG paths adapted with native gradient animation and no added Motion dependency.",
+    customizationSummary: "Source-matched SVG paths with three shared beam colors, an independent background swatch, and motion speed, intensity, width, and glow controls.",
     component: () => cssBackgrounds().then((module) => ({ default: module.MassageLabBackgroundBeams })),
     fallbackStyle: {
       background:
@@ -1704,7 +1759,7 @@ const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
     performanceCost: "medium",
     requiresSubscription: true,
     enabled: true,
-    customizationSummary: "Source beam/collision behavior adapted with CSS animation and no added Motion dependency.",
+    customizationSummary: "Source beam/collision behavior with shared beam, accent, particle, and impact colors, an independent background swatch, and motion, intensity, width, and burst controls.",
     component: () => cssBackgrounds().then((module) => ({ default: module.MassageLabBackgroundBeamsWithCollision })),
     fallbackStyle: {
       background:
@@ -1724,7 +1779,7 @@ const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
     performanceCost: "medium",
     requiresSubscription: true,
     enabled: true,
-    customizationSummary: "Source SVG paths adapted with deterministic CSS path animation, duration control, and no added Motion dependency.",
+    customizationSummary: "Source preserves the authored 21-color SVG field and compound background; Custom/Harmony use six line colors plus an independent saved background, with duration, intensity, count, width, and glow controls.",
     component: () => cssBackgrounds().then((module) => ({ default: module.MassageLabBackgroundLines })),
     fallbackStyle: {
       background:
@@ -1744,7 +1799,7 @@ const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
     performanceCost: "low",
     requiresSubscription: true,
     enabled: true,
-    customizationSummary: "Source star/glow cycle adapted without adding the source Motion dependency.",
+    customizationSummary: "Source star/glow cycle with shared base, peak, afterglow, core, and aura colors, an independent background swatch, and motion, intensity, count, size, and glow controls.",
     component: () => cssBackgrounds().then((module) => ({ default: module.MassageLabGlowingStarsBackground })),
     fallbackStyle: {
       background:
@@ -1764,7 +1819,7 @@ const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
     performanceCost: "low",
     requiresSubscription: true,
     enabled: true,
-    customizationSummary: "Source meteor direction and tail behavior adapted with deterministic CSS animation and no added Motion dependency.",
+    customizationSummary: "Source meteor direction and tail behavior with shared head, tail, glow, and edge colors, an independent background swatch, and motion, intensity, count, size, and tail controls.",
     component: () => cssBackgrounds().then((module) => ({ default: module.MassageLabMeteorsBackground })),
     fallbackStyle: {
       background:
@@ -1905,7 +1960,7 @@ const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
     performanceCost: "high",
     requiresSubscription: true,
     enabled: true,
-    customizationSummary: "Particle count, hue, speed, vertical spread, radius, and background color for Chimer and Clock.",
+    customizationSummary: "Independent background color, continuous particle hue, count, speed, vertical spread, and radius for Chimer and Clock.",
     component: () => massageLabVortex().then((module) => ({ default: module.default })),
     fallbackStyle: {
       background:
@@ -2005,7 +2060,7 @@ const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
     performanceCost: "low",
     requiresSubscription: true,
     enabled: true,
-    customizationSummary: "Source bubble colors and motion adapted with native CSS; cursor interactivity and the sixth mouse-following bubble are intentionally omitted.",
+    customizationSummary: "Source bubble colors and motion adapted with native CSS; shared colors keep the background independent from Harmony, tuning covers speed, intensity, size, blur, and blend strength, and cursor interactivity and the sixth mouse-following bubble are intentionally omitted.",
     component: () => cssBackgrounds().then((module) => ({ default: module.MassageLabBubbleBackground })),
     fallbackStyle: {
       background:
@@ -2073,6 +2128,36 @@ const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
   },
 ] as const
 
+const backgroundBrandingById = new Map(
+  backgroundBrandingCatalog.entries
+    .filter(isBackgroundBrandingEntry)
+    .map((entry) => [entry.id, entry]),
+)
+
+/**
+ * Applies reviewed user-facing copy at the catalog boundary while leaving the
+ * raw registry's immutable IDs, attribution, access, and renderer data intact.
+ */
+function withApprovedBranding(entry: RawBackgroundDefinition): BackgroundDefinition {
+  const branding = backgroundBrandingById.get(entry.id)
+  if (!branding) {
+    return {
+      ...entry,
+      visualDescriptor: entry.label,
+      legacyLabels: [],
+      signatureOriginal: false,
+    }
+  }
+
+  return {
+    ...entry,
+    label: branding.label,
+    visualDescriptor: branding.visualDescriptor,
+    legacyLabels: branding.legacyLabels,
+    signatureOriginal: branding.signatureOriginal,
+  }
+}
+
 function withGeneratedPreview(entry: BackgroundDefinition): BackgroundDefinition {
   const preview = backgroundPreviewManifest[entry.id as keyof typeof backgroundPreviewManifest]
 
@@ -2095,6 +2180,7 @@ function withGeneratedPreview(entry: BackgroundDefinition): BackgroundDefinition
 }
 
 export const backgroundRegistry: readonly BackgroundDefinition[] = rawBackgroundRegistry
+  .map(withApprovedBranding)
   .map(withGeneratedPreview)
   .map((entry) => ({
     ...entry,
@@ -2105,6 +2191,11 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = rawBackground
 
 export function getBackgroundDefinition(id: unknown) {
   return backgroundRegistry.find((entry) => entry.id === id) ?? backgroundRegistry[0]
+}
+
+/** Returns no fallback so historical and commerce surfaces can retain unknown items honestly. */
+export function findBackgroundDefinition(id: unknown) {
+  return backgroundRegistry.find((entry) => entry.id === id)
 }
 
 export function getBackgroundOptionsForCategory(category: BackgroundCategory) {

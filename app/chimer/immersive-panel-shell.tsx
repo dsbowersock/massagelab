@@ -29,6 +29,11 @@ interface ImmersivePanelShellProps {
   activePanel: ImmersivePanelId
   onActivePanelChange: (panel: ImmersivePanelId) => void
   onRequestActivePanelChange?: (panel: ImmersivePanelId) => boolean
+  /**
+   * Temporarily yields document-level nonmodal dismissal to a child modal
+   * while its owner resolves a protected Visual draft action.
+   */
+  modalInterlockActive?: boolean
   protectedDisplayRef: RefObject<HTMLElement | null>
   clockContent: ReactNode
   visualContent: ReactNode
@@ -149,6 +154,7 @@ export function ImmersivePanelShell({
   activePanel,
   onActivePanelChange,
   onRequestActivePanelChange,
+  modalInterlockActive = false,
   protectedDisplayRef,
   clockContent,
   visualContent,
@@ -457,7 +463,7 @@ export function ImmersivePanelShell({
   }, [nonmodalPanel, nonmodalPanelUsesSideSheet, protectedDisplayRef])
 
   useLayoutEffect(() => {
-    if (!nonmodalPanel) {
+    if (!nonmodalPanel || modalInterlockActive) {
       return
     }
 
@@ -493,7 +499,7 @@ export function ImmersivePanelShell({
       document.removeEventListener("pointerdown", handlePointerDown)
       document.removeEventListener("keydown", handleKeyDown)
     }
-  }, [closeNonmodalPanel, nonmodalPanel])
+  }, [closeNonmodalPanel, modalInterlockActive, nonmodalPanel])
 
   const handleBackgroundCloseAutoFocus = (event: Event) => {
     event.preventDefault()

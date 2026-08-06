@@ -61,6 +61,37 @@ test("every harmony creates seven valid colors and role resolution retains unuse
   assert.deepEqual(resolveBackgroundRoleColors({ palette, adapter, mapping: {}, canCustomize: false }), { main: "#112233", accent: "#445566" })
 })
 
+test("Harmony can preserve a role's saved swatch while generating the other roles", () => {
+  const harmonyAdapter = {
+    roles: [
+      { id: "band", sourceColor: "#112233", defaultSwatch: 0 },
+      {
+        id: "background",
+        sourceColor: "#445566",
+        defaultSwatch: 6,
+        harmonyColorSource: "saved-swatch",
+      },
+    ],
+  }
+  const palette = normalizeBackgroundPaletteState({
+    mode: "harmony",
+    primaryColor: "#123456",
+    harmony: "triadic",
+    swatches: ["#111111", "#222222", "#333333", "#444444", "#555555", "#666666", "#abcdef"],
+  })
+  const harmonySwatches = generateBackgroundHarmonySwatches("#123456", "triadic")
+
+  assert.deepEqual(resolveBackgroundRoleColors({
+    palette,
+    adapter: harmonyAdapter,
+    mapping: {},
+    canCustomize: true,
+  }), {
+    band: harmonySwatches[0],
+    background: "#abcdef",
+  })
+})
+
 test("mapping invalid values fall back to curated adapter defaults and Source does not mutate dormant state", () => {
   assert.deepEqual(normalizeBackgroundColorMapping({ main: 99, accent: "no" }, adapter), { main: 0, accent: 1 })
   assert.deepEqual(normalizeBackgroundColorMapping({}, { roles: [{ id: "main", defaultSwatch: 99 }] }), { main: 0 })

@@ -249,7 +249,10 @@ describe("App settings helpers", () => {
     const layoutSource = readFileSync(new URL("../components/layout-wrapper.tsx", import.meta.url), "utf8")
     const globalsSource = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
 
-    assert.match(layoutSource, /const isChimerRoute = pathname\.startsWith\("\/chimer"\) \|\| pathname\.startsWith\("\/clock"\)/)
+    assert.match(
+      layoutSource,
+      /const isChimerRoute = pathname\.startsWith\("\/chimer"\)[\s\S]*pathname\.startsWith\("\/clock"\)[\s\S]*pathname === "\/dev\/clock"/,
+    )
     assert.match(layoutSource, /if \(!isChimerRoute\) \{[\s\S]*document\.body\.classList\.remove\("chimer-running", "chimer-alerting"\)/)
     assert.match(layoutSource, /pathname\.startsWith\("\/anatomime"\)/)
     assert.match(globalsSource, /body\.chimer-running \.ml-app-topbar/)

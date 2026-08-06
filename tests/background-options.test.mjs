@@ -38,17 +38,36 @@ const cssBackgroundsSource = readFileSync(
   new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
   "utf8",
 )
+const dnaBackgroundStyles = readFileSync(
+  new URL("../components/backgrounds/effects/massage-lab-dna-background.module.css", import.meta.url),
+  "utf8",
+)
 const backgroundRegistrySource = readFileSync(
   new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
   "utf8",
 )
 
 describe("premium background registry", () => {
+  it("keeps runtime identifiers, stable keys, rotation precedence, and branded labels safe", () => {
+    assert.match(cssBackgroundsSource, /useId\(\)\.replace\(\/\[\^a-zA-Z0-9_-\]\/g, ""\)/)
+    assert.match(cssBackgroundsSource, /key=\{`beam-\$\{beamIndex\}`\}/)
+    assert.match(cssBackgroundsSource, /key=\{`collision-\$\{beamIndex\}`\}/)
+    assert.match(
+      dnaBackgroundStyles,
+      /\[data-reduce-motion\]\[data-strand-rotation-disabled\] \.composition \{[\s\S]*rotate: var\(--ml-dna-strand-angle\)/,
+    )
+    assert.match(setTimerSource, /aria-label="Molten Mirror speed percentage"/)
+    assert.match(runningTimerSource, /aria-label="Molten Mirror speed percentage"/)
+    assert.doesNotMatch(setTimerSource, /aria-label="Chrome Flow speed percentage"/)
+    assert.doesNotMatch(runningTimerSource, /aria-label="Chrome Flow speed percentage"/)
+  })
+
   it("uses explicit named CSS/DOM palette assignments instead of heuristic target matching", () => {
     assert.match(cssBackgroundsSource, /export interface CssDomPaletteEffectPropsById/)
     assert.match(paletteRegistrySource, /export function applyCssDomPaletteRoleColors/)
     for (const backgroundId of [
       "massage-lab-moving-gradient",
+      "solid-color",
       "massage-lab-aerial-rays",
       "massage-lab-dna",
       "massage-lab-twisted-cubes",
@@ -142,12 +161,36 @@ describe("premium background registry", () => {
 
   it("keeps the default background free and the Music key available for legacy reads", () => {
     assert.equal(DEFAULT_BACKGROUND_ID, "massage-lab-moving-gradient")
-    assert.equal(backgroundRegistry.find((entry) => entry.id === DEFAULT_BACKGROUND_ID)?.label, "MassageLaba Lamp")
+    assert.equal(backgroundRegistry.find((entry) => entry.id === DEFAULT_BACKGROUND_ID)?.label, "Massage Laba Lamp")
     assert.equal(BACKGROUND_STORAGE_KEYS.chimer, "massagelab.chimer.background")
     assert.equal(BACKGROUND_STORAGE_KEYS.music, "massagelab.music.background")
     assert.equal(canUseBackgroundId(DEFAULT_BACKGROUND_ID, []), true)
     assert.equal(canUseBackgroundId("static-gradient", []), true)
+    assert.equal(canUseBackgroundId("solid-color", []), true)
     assert.equal(resolveAccessibleBackgroundDefinition("unknown", []).id, DEFAULT_BACKGROUND_ID)
+  })
+
+  it("registers Solid Color as a free static one-swatch background without tuning controls", () => {
+    assert.equal(isBackgroundId("solid-color"), true)
+    const definition = backgroundRegistry.find((entry) => entry.id === "solid-color")
+    assert.ok(definition)
+    assert.equal(definition.enabled, true)
+    assert.equal(definition.requiresSubscription, false)
+    assert.equal(definition.motionIntensity, "static")
+    assert.equal(definition.performanceCost, "low")
+    assert.deepEqual(definition.category, ["chimer", "clock", "music", "ambient"])
+    assert.equal(definition.fallbackStyle?.background, "#FF7A1A")
+    assert.equal(typeof definition.component, "function")
+
+    const adapter = definition.paletteAdapter
+    assert.ok(adapter)
+    assert.equal(adapter.status, "supported")
+    assert.equal(adapter.roles.length, 1)
+    assert.equal(adapter.roles[0]?.label, "Color")
+    assert.equal(adapter.supportsHarmony, false)
+    assert.deepEqual(adapter.visualPropertyKeys, [])
+    assert.doesNotMatch(setTimerSource, /option\.id === "solid-color"/)
+    assert.doesNotMatch(runningTimerSource, /option\.id === "solid-color"/)
   })
 
   it("registers DNA and Twisted Cubes as static-capable premium CSS backgrounds", () => {
@@ -797,10 +840,11 @@ describe("premium background registry", () => {
     assert.match(source, /const cycleDuration = fadeDuration \/ activeFraction/)
     assert.match(setupSource, /TileGridFadeTimeControl/)
     assert.match(runningSource, /TileGridFadeTimeControl/)
-    assert.match(fadeControlSource, /Fade time \(/)
-    assert.match(fadeControlSource, /Tile grid fade hours/)
-    assert.match(fadeControlSource, /Tile grid fade minutes/)
-    assert.match(fadeControlSource, /Tile grid fade seconds/)
+    assert.match(fadeControlSource, /StyledRangeControl/)
+    assert.match(fadeControlSource, /label="Fade time"/)
+    assert.match(fadeControlSource, /getTileGridFadeSliderValue/)
+    assert.match(fadeControlSource, /getTileGridFadeSecondsFromSlider/)
+    assert.doesNotMatch(fadeControlSource, /type="number"/)
     assert.doesNotMatch(setupSource, /Change interval/)
     assert.doesNotMatch(runningSource, /Change interval/)
   })
@@ -823,6 +867,8 @@ describe("premium background registry", () => {
     assert.match(source, /const cycleDuration = fadeDuration \/ activeFraction/)
     assert.match(setupSource, /hexGridChangeFrequency/)
     assert.match(runningSource, /hexGridChangeFrequency/)
+    assert.match(setupSource, /TileGridFadeTimeControl fadeSeconds=\{settings\.hexGridChangeFrequency\}/)
+    assert.match(runningSource, /TileGridFadeTimeControl fadeSeconds=\{hexGridChangeFrequency\}/)
     assert.match(runningSource, /hexGrid=\{\{/)
   })
 
@@ -946,13 +992,16 @@ describe("premium background registry", () => {
     assert.match(registrySource, /MIT; copyright 2026 Amarnath/)
     assert.match(effectSource, /MassageLabElectricMistBackground/)
     assert.match(effectSource, /color: "#191970"/)
-    assert.match(effectSource, /speed: 100/)
+    assert.match(effectSource, /ELECTRIC_MIST_DISPLAY_SPEED_DEFAULT = 50/)
     assert.match(effectSource, /detail: 1\.5/)
     assert.match(effectSource, /distortion: 3/)
     assert.match(effectSource, /brightness: 100/)
     assert.match(effectSource, /electricMask/)
-    assert.match(effectSource, /options\.speed \/ 100/)
+    assert.match(effectSource, /options\.speed \/ ELECTRIC_MIST_DISPLAY_SPEED_TO_SOURCE_DIVISOR/)
+    assert.match(effectSource, /options\.speed, DEFAULT_MASSAGE_LAB_ELECTRIC_MIST\.speed, 1, 100/)
     assert.match(effectSource, /options\.brightness \/ 100/)
+    assert.match(setupSource, /max=\{MASSAGE_LAB_ELECTRIC_MIST_DISPLAY_SPEED_MAX\}[\s\S]{0,400}aria-label="Electric Mist animation speed"/)
+    assert.match(runningSource, /max="100"[\s\S]{0,400}aria-label="Electric Mist animation speed"/)
     assert.doesNotMatch(effectSource, /sin\(bp\.x/)
     assert.match(effectSource, /getContext\("webgl"/)
     assert.match(effectSource, /fragmentShaderSource/)
@@ -1621,6 +1670,15 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /@react-three/)
     assert.doesNotMatch(effectSource, /postprocessing/)
     assert.doesNotMatch(effectSource, /mousemove/)
+    for (const controlSource of [setupSource, runningSource]) {
+      assert.match(controlSource, /<span>Motion<\/span>/)
+      assert.match(controlSource, /<span>Speed \(/)
+      assert.match(controlSource, /<span>Intensity \(/)
+      assert.match(controlSource, /Resume \(/)
+      assert.match(controlSource, /Ramp \(/)
+      assert.doesNotMatch(controlSource, />Auto (?:demo motion|speed|intensity|resume|ramp)/)
+      assert.doesNotMatch(controlSource, /aria-label="Liquid Ether auto /)
+    }
     for (const settingKey of [
       "massageLabLiquidEtherCursorEnabled",
       "massageLabLiquidEtherMouseForce",
@@ -1749,6 +1807,33 @@ describe("premium background registry", () => {
     }
   })
 
+  it("keeps Vortex's continuous hue field and edits its starting hue below the shared swatches", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/massage-lab-vortex-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const controlSource = readFileSync(
+      new URL("../components/chimer-controls/VortexBackgroundControls.tsx", import.meta.url),
+      "utf8",
+    )
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+
+    assert.match(effectSource, /const RANGE_HUE = 100/)
+    assert.match(effectSource, /const hue = resolved\.baseHue \+ rand\(RANGE_HUE\)/)
+    assert.match(effectSource, /`hsla\(\$\{hue\},100%,60%,\$\{fadeInOut\(life, ttl\)\}\)`/)
+    assert.doesNotMatch(effectSource, /paletteMode|resolvedParticleRgb|VORTEX_SOURCE_PARTICLE_COLORS/)
+    assert.match(controlSource, /VortexParticleHueControl/)
+    assert.match(controlSource, /label="Particle hue"/)
+    assert.match(controlSource, /channel="hue"/)
+    assert.match(controlSource, /min=\{0\}/)
+    assert.match(controlSource, /max=\{360\}/)
+    assert.match(controlSource, /continuous 100° particle range/)
+    assert.match(runningSource, /customControlsAfterSwatches=/)
+    assert.match(runningSource, /visualEditorBackgroundId === "massage-lab-vortex"/)
+    assert.match(runningSource, /<VortexParticleHueControl/)
+    assert.match(runningSource, /onChange=\{\(value\) => handleSettingsChange\(\{ vortexBaseHue: value \}\)\}/)
+  })
+
   it("keeps MassageLab Dark Veil source-shaped, raw WebGL, and dependency-free", () => {
     const effectSource = readFileSync(
       new URL("../components/backgrounds/effects/massage-lab-dark-veil-background.tsx", import.meta.url),
@@ -1774,6 +1859,14 @@ describe("premium background registry", () => {
     const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+    const controlSource = readFileSync(
+      new URL("../components/chimer-controls/DarkVeilBackgroundControls.tsx", import.meta.url),
+      "utf8",
+    )
+    const paletteEditorSource = readFileSync(
+      new URL("../components/chimer-controls/BackgroundPaletteEditor.tsx", import.meta.url),
+      "utf8",
+    )
 
     assert.match(registrySource, /massage-lab-dark-veil/)
     assert.match(registrySource, /Dark Veil/)
@@ -1788,6 +1881,13 @@ describe("premium background registry", () => {
     assert.match(effectSource, /scanlineFrequency: 0/)
     assert.match(effectSource, /warpAmount: 0/)
     assert.match(effectSource, /resolutionScale: 1/)
+    assert.match(effectSource, /canvas\.width = Math\.max\(1, Math\.floor\(width \* dpr \* options\.resolutionScale\)\)/)
+    assert.match(effectSource, /canvas\.height = Math\.max\(1, Math\.floor\(height \* dpr \* options\.resolutionScale\)\)/)
+    assert.match(effectSource, /canvas\.style\.imageRendering = options\.resolutionScale < 1 \? "pixelated" : "auto"/)
+    assert.match(effectSource, /resolution\[0\] = canvas\.width/)
+    assert.match(effectSource, /resolution\[1\] = canvas\.height/)
+    assert.doesNotMatch(effectSource, /resolution\[0\] = width/)
+    assert.doesNotMatch(effectSource, /resolution\[1\] = height/)
     assert.match(effectSource, /cppn_fn/)
     assert.match(effectSource, /hueShiftRGB/)
     assert.match(effectSource, /rgb2yiq/)
@@ -1828,6 +1928,43 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /postprocessing/)
     assert.doesNotMatch(effectSource, /mousemove/)
     assert.doesNotMatch(effectSource, /pointermove/)
+    assert.match(controlSource, /DarkVeilHueShiftControl/)
+    assert.match(controlSource, /channel="hue"/)
+    assert.match(controlSource, /min=\{-180\}/)
+    assert.match(controlSource, /max=\{180\}/)
+    assert.match(controlSource, /DARK_VEIL_HUE_PREVIEW_STOPS/)
+    for (const [value, hue] of [
+      [-180, 87],
+      [-144, 29],
+      [-108, -16],
+      [-71, -50],
+      [-31, -82],
+      [18, -122],
+      [74, -227],
+      [122, -239],
+      [166, -256],
+      [180, -273],
+    ]) {
+      assert.match(controlSource, new RegExp(`value: ${value}, hue: ${hue}`))
+    }
+    assert.match(controlSource, /huePreviewStops=\{DARK_VEIL_HUE_PREVIEW_STOPS\}/)
+    assert.doesNotMatch(controlSource, /DARK_VEIL_HUE_PREVIEW_OFFSET/)
+    assert.match(controlSource, /DarkVeilResolutionScaleControl/)
+    assert.match(controlSource, /value=\{displayPercent\}/)
+    assert.match(controlSource, /min=\{25\}/)
+    assert.match(controlSource, /max=\{100\}/)
+    assert.match(controlSource, /onChange=\{\(nextPercent\) => onChange\(nextPercent \/ 100\)\}/)
+    assert.match(paletteEditorSource, /customControlsAfterSwatches/)
+    assert.match(paletteEditorSource, /effectiveMode === "custom"/)
+    assert.match(paletteEditorSource, /hasCustomControls/)
+    assert.match(paletteEditorSource, /Shared swatches are reference-only/)
+    assert.doesNotMatch(setupSource, /<DarkVeilHueShiftControl/)
+    assert.match(setupSource, /<DarkVeilResolutionScaleControl/)
+    assert.match(runningSource, /visualEditorBackgroundId === "massage-lab-dark-veil"/)
+    assert.match(runningSource, /customControlsAfterSwatches=/)
+    assert.match(runningSource, /<DarkVeilHueShiftControl/)
+    assert.match(runningSource, /<DarkVeilResolutionScaleControl/)
+    assert.doesNotMatch(runningSource, /<span>Hue shift \(\{massageLabDarkVeilHueShift/)
     for (const settingKey of [
       "massageLabDarkVeilHueShift",
       "massageLabDarkVeilNoiseIntensity",
@@ -3436,6 +3573,22 @@ describe("premium background registry", () => {
     assert.match(effectSource, /uScanCount/)
     assert.match(effectSource, /uLineThickness/)
     assert.match(effectSource, /uScanGlow/)
+    assert.match(effectSource, /const float TUNNEL_HALF_HEIGHT = 0\.5;/)
+    assert.match(effectSource, /const float TUNNEL_FADE_START = 3\.2;/)
+    assert.match(effectSource, /const float TUNNEL_FAR_DEPTH = 4\.0;/)
+    assert.match(effectSource, /float viewportAspect = iResolution\.x \/ max\(iResolution\.y, 1\.0\);/)
+    assert.match(effectSource, /float tunnelHalfWidth = TUNNEL_HALF_HEIGHT \* viewportAspect;/)
+    assert.match(effectSource, /float planeHalfExtent = mix\(tunnelHalfWidth, TUNNEL_HALF_HEIGHT, isY\);/)
+    assert.match(effectSource, /float pos = mix\(-planeHalfExtent, planeHalfExtent, mod\(float\(i\), 2\.0\)\);/)
+    assert.match(effectSource, /abs\(hit\.x \+ tunnelHalfWidth\)/)
+    assert.match(effectSource, /abs\(hit\.y \+ TUNNEL_HALF_HEIGHT\)/)
+    assert.match(effectSource, /float surfaceDepth = max\(0\.0, hit\.z\);/)
+    assert.match(effectSource, /float depthVisibility = 1\.0 - smoothstep\(TUNNEL_FADE_START, TUNNEL_FAR_DEPTH, surfaceDepth\);/)
+    assert.match(effectSource, /float farVoid = 1\.0 - depthVisibility;/)
+    assert.match(effectSource, /float lineVis = lineMask \* depthVisibility;/)
+    assert.match(effectSource, /color = mix\(color, vec3\(0\.0\), farVoid\);/)
+    assert.match(effectSource, /alpha = max\(alpha, farVoid\);/)
+    assert.doesNotMatch(effectSource, /mix\(-0\.2, 0\.2/)
     assert.match(effectSource, /sensitivity:\s*0\.55/)
     assert.match(effectSource, /lineThickness:\s*1/)
     assert.match(effectSource, /gridScale:\s*0\.1/)
@@ -4132,6 +4285,17 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /from "three"/)
     assert.doesNotMatch(effectSource, /@react-three/)
 
+    assert.match(effectSource, /float radialFade = exp\(-2\.0 \* clamp\(pow\(dist, fadeDistance\), 0\.0, 1\.0\)\);/)
+    assert.match(effectSource, /float edgeCoverage = mix\(0\.72, 1\.0, radialFade \* vignette\);/)
+    assert.match(effectSource, /vec3 straightColor = clamp\(color \* t \* edgeCoverage, 0\.0, 1\.0\);/)
+    assert.match(effectSource, /gl_FragColor = vec4\(straightColor \* opacity, opacity\);/)
+    assert.doesNotMatch(effectSource, /gl_FragColor = vec4\(color \* t \* edgeCoverage \* opacity, opacity\);/)
+    assert.doesNotMatch(effectSource, /float alpha = length\(color\) \* finalFade \* opacity;/)
+    assert.match(effectSource, /gl\.blendFunc\(gl\.ONE, gl\.ONE_MINUS_SRC_ALPHA\)/)
+    assert.doesNotMatch(effectSource, /gl\.blendFunc\(gl\.SRC_ALPHA, gl\.ONE_MINUS_SRC_ALPHA\)/)
+    assert.match(effectSource, /premultipliedAlpha:\s*true/)
+    assert.doesNotMatch(effectSource, /premultipliedAlpha:\s*false/)
+
     assert.match(stylesSource, /massageLabRippleGridCanvas/)
     assert.match(hostSource, /massageLabRippleGrid/)
     assert.match(cssEffectsSource, /MassageLabRippleGridOptions/)
@@ -4197,6 +4361,9 @@ describe("premium background registry", () => {
 
     assert.match(effectSource, /MassageLabDotFieldBackground/)
     assert.match(effectSource, /DEFAULT_MASSAGELAB_DOT_FIELD/)
+    assert.match(effectSource, /dotRadius:\s*4,/)
+    assert.match(effectSource, /dotSpacing:\s*6,/)
+    assert.match(effectSource, /sparkle:\s*true,/)
     assert.match(effectSource, /buildDots/)
     assert.match(effectSource, /cursorForce/)
     assert.match(effectSource, /bulgeStrength/)
@@ -4280,10 +4447,15 @@ describe("premium background registry", () => {
     assert.match(effectSource, /speedTrigger/)
     assert.match(effectSource, /shockStrength/)
     assert.match(effectSource, /returnDuration/)
+    assert.match(effectSource, /updateSimulatedPointer/)
+    assert.match(effectSource, /simulateCursorInteraction/)
+    assert.match(effectSource, /simulationSpeed/)
+    assert.match(effectSource, /lastManualMove: Number\.NEGATIVE_INFINITY/)
     assert.match(effectSource, /getContext\("2d"/)
     assert.match(effectSource, /requestAnimationFrame/)
     assert.match(effectSource, /ResizeObserver/)
     assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /allowCompactViewport:\s*true/)
     assert.match(effectSource, /window\.addEventListener\("pointermove"/)
     assert.match(effectSource, /window\.removeEventListener\("pointermove"/)
     assert.doesNotMatch(effectSource, /from "gsap"/)
@@ -4300,6 +4472,10 @@ describe("premium background registry", () => {
     assert.match(docsSource, /DotGrid\.jsx/)
     assert.match(docsSource, /DotGrid\.css/)
     assert.match(docsSource, /GSAP InertiaPlugin/)
+    assert.match(setupSource, /Simulate cursor interaction/)
+    assert.match(setupSource, /Fake cursor speed/)
+    assert.match(runningSource, /Simulate cursor interaction/)
+    assert.match(runningSource, /Fake cursor speed/)
 
     for (const settingKey of [
       "massageLabDotGridDotSize",
@@ -4312,6 +4488,8 @@ describe("premium background registry", () => {
       "massageLabDotGridResistance",
       "massageLabDotGridReturnDuration",
       "massageLabDotGridCursorInteraction",
+      "massageLabDotGridSimulateCursorInteraction",
+      "massageLabDotGridSimulationSpeed",
       "massageLabDotGridClickShock",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
@@ -4557,7 +4735,8 @@ describe("premium background registry", () => {
     assert.match(effectSource, /OES_texture_float/)
     assert.match(effectSource, /uDataTexture/)
     assert.match(effectSource, /uTexture/)
-    assert.match(effectSource, /texture2D\(uTexture, uv - 0\.02 \* offset\.rg\)/)
+    assert.match(effectSource, /vec2 newUV = uv - offset \* 0\.02 \+ ambientOffset;/)
+    assert.match(effectSource, /texture2D\(uTexture, newUV\)/)
     assert.match(effectSource, /texSubImage2D/)
     assert.match(effectSource, /strength \* 100/)
     assert.match(effectSource, /relaxation/)
@@ -4566,6 +4745,8 @@ describe("premium background registry", () => {
     assert.match(effectSource, /shouldAnimateAmbientBackground/)
     assert.match(effectSource, /window\.addEventListener\("pointermove"/)
     assert.match(effectSource, /window\.removeEventListener\("pointermove"/)
+    assert.match(effectSource, /updateSimulatedPointer/)
+    assert.match(effectSource, /lastManualMove/)
     assert.doesNotMatch(effectSource, /from "three"/)
     assert.doesNotMatch(effectSource, /from "ogl"/)
     assert.doesNotMatch(effectSource, /@react-three/)
@@ -4581,6 +4762,10 @@ describe("premium background registry", () => {
     assert.match(docsSource, /GridDistortion\.jsx/)
     assert.match(docsSource, /GridDistortion\.css/)
     assert.match(docsSource, /DataTexture|data texture/)
+    assert.match(setupSource, /Simulate cursor interaction/)
+    assert.match(setupSource, /Fake cursor speed/)
+    assert.match(runningSource, /Simulate cursor interaction/)
+    assert.match(runningSource, /Fake cursor speed/)
 
     for (const settingKey of [
       "massageLabGridDistortionGrid",
@@ -4588,6 +4773,8 @@ describe("premium background registry", () => {
       "massageLabGridDistortionStrength",
       "massageLabGridDistortionRelaxation",
       "massageLabGridDistortionCursorInteraction",
+      "massageLabGridDistortionSimulateCursorInteraction",
+      "massageLabGridDistortionSimulationSpeed",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
@@ -4693,6 +4880,7 @@ describe("premium background registry", () => {
           "massageLabGridMotionMaxMoveAmount",
           "massageLabGridMotionBaseDuration",
           "massageLabGridMotionCursorInteraction",
+          "massageLabGridMotionMantras",
         ],
       },
       {
@@ -4823,6 +5011,45 @@ describe("premium background registry", () => {
         assert.match(runningSource, new RegExp(settingKey))
         assert.match(pageSource, new RegExp(settingKey))
       }
+    }
+  })
+
+  it("presents Shape Grid speed as a zero-to-one-hundred-percent scale", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/massage-lab-shape-grid-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+
+    assert.match(effectSource, /speed: 0\.25/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_SHAPE_GRID\.speed, 0, 2/)
+    assert.doesNotMatch(effectSource, /Math\.max\(options\.speed, 0\.1\)/)
+    assert.match(effectSource, /options\.speed > 0 \|\| opacityTransitionActive/)
+    assert.match(effectSource, /const opacityTransitionActive = updateCellOpacities\(\)/)
+    for (const source of [setupSource, runningSource]) {
+      assert.match(source, /getMassageLabShapeGridSpeedDisplayPercent/)
+      assert.match(source, /getMassageLabShapeGridSpeedFromDisplayPercent/)
+      assert.match(source, /Shape Grid speed percentage/)
+    }
+  })
+
+  it("presents the catalog Chrome Flow speed as a precise lower percentage scale", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/massage-lab-liquid-chrome-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_LIQUID_CHROME\.speed, 0\.001, 3/)
+    assert.match(setupSource, /MASSAGE_LAB_CATALOG_CHROME_FLOW_SOURCE_SPEED_MIN = 0\.001/)
+    assert.match(setupSource, /MASSAGE_LAB_CATALOG_CHROME_FLOW_DISPLAY_SPEED_MIN = 0\.1/)
+    assert.match(setupSource, /MASSAGE_LAB_CATALOG_CHROME_FLOW_DISPLAY_SPEED_STEP = 0\.1/)
+    for (const source of [setupSource, runningSource]) {
+      assert.match(source, /getMassageLabCatalogChromeFlowDisplaySpeed/)
+      assert.match(source, /getMassageLabCatalogChromeFlowSourceSpeed/)
+      assert.match(source, /Molten Mirror speed percentage/)
     }
   })
 
@@ -5009,7 +5236,7 @@ describe("premium background registry", () => {
     assert.match(effectSource, /colorSignal2: "#00FFFF"/)
     assert.match(effectSource, /useColor3: false/)
     assert.match(effectSource, /colorSignal3: "#00B8D4"/)
-    assert.match(effectSource, /lineCount: 80/)
+    assert.match(effectSource, /lineCount: 12/)
     assert.match(effectSource, /spreadHeight: 30\.33/)
     assert.match(effectSource, /spreadDepth: 0/)
     assert.match(effectSource, /curveLength: 50/)
@@ -5018,7 +5245,7 @@ describe("premium background registry", () => {
     assert.match(effectSource, /waveSpeed: 2\.48/)
     assert.match(effectSource, /waveHeight: 0\.145/)
     assert.match(effectSource, /lineOpacity: 0\.557/)
-    assert.match(effectSource, /signalCount: 94/)
+    assert.match(effectSource, /signalCount: 12/)
     assert.match(effectSource, /speedGlobal: 0\.345/)
     assert.match(effectSource, /trailLength: 3/)
     assert.match(effectSource, /bloomStrength: 3/)
@@ -5286,12 +5513,16 @@ describe("premium background registry", () => {
     assert.match(effectSource, /fwidth\(patternPosition\)/)
     assert.match(effectSource, /requestAnimationFrame/)
     assert.match(effectSource, /cancelAnimationFrame/)
+    assert.match(effectSource, /reduceMotion = false/)
+    assert.match(effectSource, /reduceMotion \? 0 : timestamp \/ 1000/)
+    assert.doesNotMatch(effectSource, /prefers-reduced-motion/)
     assert.match(effectSource, /ResizeObserver/)
     assert.match(effectSource, /IntersectionObserver/)
     assert.match(effectSource, /MutationObserver/)
     assert.match(stylesSource, /massageLabRetroGridBackground/)
     assert.match(stylesSource, /massageLabRetroGridCanvas/)
     assert.match(stylesSource, /massageLabRetroGridFallbackGrid/)
+    assert.match(stylesSource, /massageLabRetroGridFallbackPaused/)
     assert.match(stylesSource, /pointer-events: none/)
     assert.match(hostSource, /massageLabRetroGrid/)
     assert.match(cssEffectsSource, /MassageLabRetroGridOptions/)
@@ -5389,6 +5620,298 @@ describe("premium background registry", () => {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
     }
+  })
+
+  it("exposes Aurora Field palette roles and visual tuning in both Visual panels", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const paletteSource = readFileSync(
+      new URL("../components/backgrounds/backgroundPaletteRegistry.ts", import.meta.url),
+      "utf8",
+    )
+
+    assert.match(effectSource, /MassageLabAuroraOptions/)
+    assert.match(effectSource, /massageLabAurora/)
+    assert.match(effectSource, /--ml-aurora-animation-duration/)
+    assert.match(effectSource, /--ml-aurora-opacity/)
+    assert.match(effectSource, /--ml-aurora-blur/)
+    assert.match(effectSource, /--ml-aurora-reach/)
+    assert.match(stylesSource, /var\(--ml-aurora-animation-duration, 60s\)/)
+    assert.match(stylesSource, /var\(--ml-aurora-opacity, 0\.5\)/)
+    assert.match(stylesSource, /var\(--ml-aurora-blur, 10px\)/)
+    assert.match(stylesSource, /var\(--ml-aurora-reach, 70%\)/)
+    assert.match(paletteSource, /id: "massage-lab-aurora"/)
+    assert.match(paletteSource, /role\("background", "Background", "massageLabAuroraBackgroundColor"/)
+    for (const key of [
+      "massageLabAuroraSpeed",
+      "massageLabAuroraIntensity",
+      "massageLabAuroraBlur",
+      "massageLabAuroraReach",
+    ]) {
+      assert.match(setupSource, new RegExp(key))
+      assert.match(runningSource, new RegExp(key))
+    }
+    assert.match(runningSource, /massageLabAurora=\{\{/)
+  })
+
+  it("exposes Dotted Glow palette roles and visual tuning in both Visual panels", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const paletteSource = readFileSync(
+      new URL("../components/backgrounds/backgroundPaletteRegistry.ts", import.meta.url),
+      "utf8",
+    )
+
+    assert.match(effectSource, /MassageLabDottedGlowOptions/)
+    assert.match(effectSource, /massageLabDottedGlow/)
+    const dottedGlowImplementation = effectSource.slice(
+      effectSource.indexOf("export function MassageLabDottedGlowBackground"),
+      effectSource.indexOf("\nexport function ", effectSource.indexOf("export function MassageLabDottedGlowBackground") + 1),
+    )
+    assert.doesNotMatch(dottedGlowImplementation, /createRadialGradient/)
+    assert.match(paletteSource, /id: "massage-lab-dotted-glow"/)
+    assert.match(paletteSource, /role\("background", "Background", "massageLabDottedGlowBackgroundColor"/)
+    assert.match(paletteSource, /role\("dots", "Dots", "massageLabDottedGlowDotColor"/)
+    assert.match(paletteSource, /role\("glow", "Glow", "massageLabDottedGlowGlowColor"/)
+    for (const key of [
+      "massageLabDottedGlowSpeed",
+      "massageLabDottedGlowDotSize",
+      "massageLabDottedGlowDotSpacing",
+      "massageLabDottedGlowOpacity",
+      "massageLabDottedGlowGlowStrength",
+    ]) {
+      assert.match(setupSource, new RegExp(key))
+      assert.match(runningSource, new RegExp(key))
+    }
+    assert.match(runningSource, /massageLabDottedGlow=\{\{/)
+  })
+
+  it("exposes Beam Field palette roles and visual tuning in both Visual panels", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const paletteSource = readFileSync(
+      new URL("../components/backgrounds/backgroundPaletteRegistry.ts", import.meta.url),
+      "utf8",
+    )
+
+    assert.match(effectSource, /MassageLabBackgroundBeamsOptions/)
+    assert.match(effectSource, /massageLabBackgroundBeams/)
+    assert.match(effectSource, /--ml-background-beams-opacity/)
+    assert.match(effectSource, /--ml-background-beams-stroke-width/)
+    assert.match(effectSource, /--ml-background-beams-glow-strength/)
+    assert.match(stylesSource, /var\(--ml-background-beams-opacity, 0\.82\)/)
+    assert.match(stylesSource, /var\(--ml-background-beams-stroke-width, 0\.6\)/)
+    assert.match(stylesSource, /var\(--ml-background-beams-glow-strength, 10px\)/)
+    assert.match(paletteSource, /id: "massage-lab-background-beams"/)
+    assert.match(paletteSource, /role\("background", "Background", "massageLabBackgroundBeamsBackgroundColor"/)
+    for (const key of [
+      "massageLabBackgroundBeamsSpeed",
+      "massageLabBackgroundBeamsIntensity",
+      "massageLabBackgroundBeamsBeamWidth",
+      "massageLabBackgroundBeamsGlowStrength",
+    ]) {
+      assert.match(setupSource, new RegExp(key))
+      assert.match(runningSource, new RegExp(key))
+    }
+    assert.match(hostSource, /massageLabBackgroundBeams/)
+    assert.match(runningSource, /massageLabBackgroundBeams=\{\{/)
+  })
+
+  it("exposes Collision Beams palette roles and visual tuning in both Visual panels", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const paletteSource = readFileSync(
+      new URL("../components/backgrounds/backgroundPaletteRegistry.ts", import.meta.url),
+      "utf8",
+    )
+
+    assert.match(effectSource, /MassageLabCollisionBeamsOptions/)
+    assert.match(effectSource, /massageLabCollisionBeams/)
+    assert.match(effectSource, /--ml-collision-intensity/)
+    assert.match(effectSource, /--ml-collision-beam-width/)
+    assert.match(effectSource, /--ml-collision-burst-scale/)
+    assert.match(stylesSource, /var\(--ml-collision-intensity, 1\)/)
+    assert.match(stylesSource, /var\(--ml-collision-beam-width, 1px\)/)
+    assert.match(stylesSource, /var\(--ml-collision-burst-scale, 1\)/)
+    assert.match(paletteSource, /id: "massage-lab-collision-beams"/)
+    assert.match(paletteSource, /role\("background", "Background", "massageLabCollisionBeamsBackgroundColor"/)
+    for (const key of [
+      "massageLabCollisionBeamsSpeed",
+      "massageLabCollisionBeamsIntensity",
+      "massageLabCollisionBeamsBeamWidth",
+      "massageLabCollisionBeamsBurstSize",
+    ]) {
+      assert.match(setupSource, new RegExp(key))
+      assert.match(runningSource, new RegExp(key))
+    }
+    assert.match(hostSource, /massageLabCollisionBeams/)
+    assert.match(runningSource, /massageLabCollisionBeams=\{\{/)
+  })
+
+  it("exposes Glowing Stars and Meteors palette roles and visual tuning in both Visual panels", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const paletteSource = readFileSync(
+      new URL("../components/backgrounds/backgroundPaletteRegistry.ts", import.meta.url),
+      "utf8",
+    )
+
+    assert.match(effectSource, /MassageLabGlowingStarsOptions/)
+    assert.match(effectSource, /MassageLabMeteorsOptions/)
+    assert.match(stylesSource, /var\(--ml-glowing-stars-intensity, 0\.94\)/)
+    assert.match(stylesSource, /var\(--ml-glowing-stars-star-size, 1px\)/)
+    assert.match(stylesSource, /var\(--ml-meteors-intensity, 0\.82\)/)
+    assert.match(stylesSource, /var\(--ml-meteor-size, 2px\)/)
+    assert.match(stylesSource, /var\(--ml-meteor-tail-length, 50px\)/)
+    assert.match(paletteSource, /id: "massage-lab-glowing-stars"/)
+    assert.match(paletteSource, /id: "massage-lab-meteors"/)
+    assert.match(paletteSource, /role\("background", "Background", "massageLabGlowingStarsBackgroundColor"/)
+    assert.match(paletteSource, /role\("background", "Background", "massageLabMeteorsBackgroundColor"/)
+    for (const key of [
+      "massageLabGlowingStarsSpeed",
+      "massageLabGlowingStarsIntensity",
+      "massageLabGlowingStarsActiveStars",
+      "massageLabGlowingStarsStarSize",
+      "massageLabGlowingStarsGlowStrength",
+      "massageLabMeteorsSpeed",
+      "massageLabMeteorsIntensity",
+      "massageLabMeteorsCount",
+      "massageLabMeteorsSize",
+      "massageLabMeteorsTailLength",
+    ]) {
+      assert.match(setupSource, new RegExp(key))
+      assert.match(runningSource, new RegExp(key))
+    }
+    assert.match(hostSource, /massageLabGlowingStars/)
+    assert.match(hostSource, /massageLabMeteors/)
+    assert.match(runningSource, /massageLabGlowingStars=\{\{/)
+    assert.match(runningSource, /massageLabMeteors=\{\{/)
+  })
+
+  it("exposes Light Lines palette roles and expanded visual tuning in both Visual panels", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const paletteSource = readFileSync(
+      new URL("../components/backgrounds/backgroundPaletteRegistry.ts", import.meta.url),
+      "utf8",
+    )
+
+    assert.match(effectSource, /interface BackgroundLinesOptions/)
+    assert.match(effectSource, /--ml-background-lines-intensity/)
+    assert.match(effectSource, /--ml-background-line-width/)
+    assert.match(effectSource, /--ml-background-line-glow/)
+    assert.match(stylesSource, /var\(--ml-background-lines-intensity, 0\.68\)/)
+    assert.match(stylesSource, /var\(--ml-background-line-width, 2\.3\)/)
+    assert.match(stylesSource, /var\(--ml-background-line-glow, 10px\)/)
+    assert.match(paletteSource, /id: "massage-lab-background-lines"/)
+    assert.match(paletteSource, /role\("background", "Background", "backgroundLinesBackgroundColor"/)
+    for (const key of [
+      "backgroundLinesDuration",
+      "backgroundLinesIntensity",
+      "backgroundLinesCount",
+      "backgroundLinesWidth",
+      "backgroundLinesGlowStrength",
+    ]) {
+      assert.match(setupSource, new RegExp(key))
+      assert.match(runningSource, new RegExp(key))
+    }
+    assert.match(runningSource, /backgroundLines=\{\{/)
+  })
+
+  it("gives Reveal Dots visible distributed twinkles and a stable reduced-motion frame", async () => {
+    const { resolveCanvasRevealDotTwinkle } = await import(
+      "../components/backgrounds/effects/canvas-reveal-dots-motion.ts"
+    )
+    const dot = {
+      phase: -Math.PI / 2,
+      speed: 1,
+    }
+    const dimFrame = resolveCanvasRevealDotTwinkle({
+      ...dot,
+      timeSeconds: 0,
+      animate: true,
+    })
+    const brightFrame = resolveCanvasRevealDotTwinkle({
+      ...dot,
+      timeSeconds: Math.PI / 1.55,
+      animate: true,
+    })
+    const offsetDotFrame = resolveCanvasRevealDotTwinkle({
+      ...dot,
+      phase: Math.PI / 2,
+      timeSeconds: 0,
+      animate: true,
+    })
+    const reducedFrameA = resolveCanvasRevealDotTwinkle({
+      ...dot,
+      timeSeconds: 0,
+      animate: false,
+    })
+    const reducedFrameB = resolveCanvasRevealDotTwinkle({
+      ...dot,
+      timeSeconds: 100,
+      animate: false,
+    })
+
+    assert.ok(brightFrame.alphaMultiplier - dimFrame.alphaMultiplier >= 0.8)
+    assert.ok(offsetDotFrame.alphaMultiplier - dimFrame.alphaMultiplier >= 0.8)
+    assert.deepEqual(reducedFrameA, reducedFrameB)
   })
 
   it("keeps MassageLab Synthesis source-shaped, customizable, and dependency-free", () => {
@@ -5496,6 +6019,20 @@ describe("premium background registry", () => {
       new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
       "utf8",
     )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const paletteSource = readFileSync(
+      new URL("../components/backgrounds/backgroundPaletteRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
 
     assert.match(registrySource, /massage-lab-bubble/)
     assert.match(registrySource, /cursor interactivity and the sixth mouse-following bubble are intentionally omitted/)
@@ -5503,6 +6040,27 @@ describe("premium background registry", () => {
     assert.match(effectSource, /Cursor interaction from the source component is intentionally omitted/)
     assert.match(effectSource, /ml-bubble-goo/)
     assert.match(effectSource, /bubbleOrbFive/)
+    assert.match(effectSource, /MassageLabBubbleOptions/)
+    assert.match(effectSource, /--ml-bubble-background/)
+    assert.match(effectSource, /--ml-bubble-intensity/)
+    assert.match(effectSource, /--ml-bubble-size/)
+    assert.match(stylesSource, /var\(--ml-bubble-background/)
+    assert.match(stylesSource, /var\(--ml-bubble-intensity, 1\)/)
+    assert.match(stylesSource, /var\(--ml-bubble-size, 80%\)/)
+    assert.match(paletteSource, /id: "massage-lab-bubble"/)
+    assert.match(paletteSource, /role\("background", "Background", "massageLabBubbleBackgroundColor"/)
+    for (const key of [
+      "massageLabBubbleSpeed",
+      "massageLabBubbleIntensity",
+      "massageLabBubbleSize",
+      "massageLabBubbleBlur",
+      "massageLabBubbleBlendStrength",
+    ]) {
+      assert.match(setupSource, new RegExp(key))
+      assert.match(runningSource, new RegExp(key))
+    }
+    assert.match(hostSource, /massageLabBubble/)
+    assert.match(runningSource, /massageLabBubble=\{\{/)
     assert.doesNotMatch(effectSource, /motion\/react/)
     assert.doesNotMatch(effectSource, /from "motion"/)
     assert.doesNotMatch(effectSource, /mousemove/)

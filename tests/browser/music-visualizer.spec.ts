@@ -109,7 +109,7 @@ async function selectStaticGradient(page: Page) {
   const dialog = page.getByRole("dialog", { name: "Background" })
   await expect(dialog).toBeVisible()
   await centerCarouselItem(page, "static-gradient", "Next background")
-  await dialog.getByRole("button", { name: "Select Static gradient background" }).click()
+  await dialog.getByRole("button", { name: "Select In Transition background" }).click()
   await expect(dialog).toHaveCount(0)
   await expect(page.getByTestId("chimer-premium-background")).toHaveAttribute(
     "data-background-id",
@@ -1823,11 +1823,12 @@ test("signed-in defaults, device precedence, failed save, retry, and unrelated s
     signedInVisual.getByText(/Unlock .* with a credit, purchase, or membership/i),
   ).toHaveCount(0)
   await expect(
-    signedInSharedColors.getByText(/Colors are unavailable for Static gradient/i),
-  ).toBeVisible()
-  await expect(signedInSharedColors.getByRole("radio", { name: "Custom" })).toBeDisabled()
-  await expect(signedInColorPresets.getByRole("textbox", { name: "New color preset name" })).toBeDisabled()
-  await expect(signedInColorPresets.getByRole("button", { name: "Save as new" })).toBeDisabled()
+    signedInSharedColors.getByText(/Colors are unavailable for In Transition/i),
+  ).toHaveCount(0)
+  await expect(signedInSharedColors.getByRole("radio", { name: "Custom" })).toBeEnabled()
+  await signedInSharedColors.getByRole("radio", { name: "Custom" }).click()
+  await expect(signedInColorPresets.getByRole("textbox", { name: "New color preset name" })).toBeEnabled()
+  await expect(signedInColorPresets.getByRole("button", { name: "Save as new" })).toBeEnabled()
   await page.getByRole("button", { name: "Restore account default", exact: true }).click()
   await expect(page.getByTestId("chimer-premium-background")).toBeVisible()
   await page.getByRole("button", { name: "Close Visual panel" }).click()

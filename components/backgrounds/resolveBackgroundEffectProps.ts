@@ -45,12 +45,16 @@ export function resolveBackgroundEffectProps({
   }
 
   const normalizedPalette = normalizeBackgroundPaletteState(palette)
+  // Persisted Harmony falls back to Source when this renderer exposes no Harmony contract.
+  const adapterPalette = normalizedPalette.mode === "harmony" && adapter.supportsHarmony === false
+    ? { ...normalizedPalette, mode: "source" }
+    : normalizedPalette
   const mode = resolveEffectiveBackgroundPaletteMode({
-    savedMode: normalizedPalette.mode,
+    savedMode: adapterPalette.mode,
     canCustomize,
   })
   const resolvedRoleColors = resolveBackgroundRoleColors({
-    palette: normalizedPalette,
+    palette: adapterPalette,
     adapter,
     mapping,
     canCustomize,
@@ -87,8 +91,12 @@ export function resolveBackgroundFallbackStyle({
   }
 
   const normalizedPalette = normalizeBackgroundPaletteState(palette)
+  // Fallback underlays mirror the renderer by treating unsupported persisted Harmony as Source.
+  const adapterPalette = normalizedPalette.mode === "harmony" && adapter.supportsHarmony === false
+    ? { ...normalizedPalette, mode: "source" }
+    : normalizedPalette
   const mode = resolveEffectiveBackgroundPaletteMode({
-    savedMode: normalizedPalette.mode,
+    savedMode: adapterPalette.mode,
     canCustomize,
   })
   if (mode === "source") {
@@ -96,7 +104,7 @@ export function resolveBackgroundFallbackStyle({
   }
 
   const roleColors = resolveBackgroundRoleColors({
-    palette: normalizedPalette,
+    palette: adapterPalette,
     adapter,
     mapping,
     canCustomize,

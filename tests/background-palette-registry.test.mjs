@@ -6,9 +6,6 @@ import {
   sanitizeChimerSettings,
 } from "../lib/chimer-timer.js"
 import {
-  CHIMER_BACKGROUND_SOURCE_COLOR_DEFAULTS,
-} from "../lib/background-source-color-defaults.js"
-import {
   BACKGROUND_PALETTE_METADATA_SUFFIXES,
   DNA_SOURCE_NODE_ROLE_COLORS,
   TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS,
@@ -46,8 +43,36 @@ const CUSTOM_SWATCHES = [
   "#770077",
 ]
 const HARMONY_PRIMARY = "#2A6F97"
+const SWATCH_SEVEN_BACKGROUND_IDS = [
+  "massage-lab-retro-grid",
+  "massage-lab-aerial-rays",
+  "massage-lab-wave-current",
+  "massage-lab-photon-beam",
+  "massage-lab-reveal-dots",
+  "massage-lab-3d-globe",
+  "massage-lab-lamp-effect",
+  "massage-lab-wavy-background",
+  "massage-lab-pixel-liquid",
+  "massage-lab-aurora-bars",
+]
 
 const cssDomFixtures = {
+  "solid-color": {
+    solidColor: "#010101",
+  },
+  "static-gradient": {
+    staticGradient: {
+      type: "linear",
+      colorCount: 7,
+      angle: 145,
+      centerX: 50,
+      centerY: 50,
+      radialShape: "ellipse",
+      radialSize: "farthest-corner",
+      stopPositions: [0, 17, 33, 50, 67, 83, 100],
+      colors: ["#010101", "#020202", "#030303", "#040404", "#050505", "#060606", "#070707"],
+    },
+  },
   "massage-lab-moving-gradient": {
     className: "moving-gradient-fixture",
     mainColor: "#010101",
@@ -62,6 +87,96 @@ const cssDomFixtures = {
       speed: 9,
       length: 83,
       opacity: 0.42,
+    },
+  },
+  "massage-lab-aurora": {
+    massageLabAurora: {
+      backgroundColor: "#010101",
+      colors: ["#020202", "#030303", "#040404", "#050505", "#060606"],
+      speed: 1.4,
+      intensity: 0.64,
+      blur: 17,
+      reach: 82,
+    },
+  },
+  "massage-lab-bubble": {
+    massageLabBubble: {
+      paletteMode: "source",
+      backgroundColor: "#010101",
+      colors: ["#020202", "#030303", "#040404", "#050505", "#060606"],
+      speed: 1.4,
+      intensity: 0.64,
+      size: 1.3,
+      blur: 27,
+      blendStrength: 22,
+    },
+  },
+  "massage-lab-background-beams": {
+    massageLabBackgroundBeams: {
+      paletteMode: "source",
+      backgroundColor: "#010101",
+      colors: ["#020202", "#030303", "#040404"],
+      speed: 1.4,
+      intensity: 0.64,
+      beamWidth: 0.9,
+      glowStrength: 7,
+    },
+  },
+  "massage-lab-collision-beams": {
+    massageLabCollisionBeams: {
+      paletteMode: "source",
+      backgroundColor: "#010101",
+      beamColor: "#020202",
+      accentColor: "#030303",
+      particleColor: "#040404",
+      surfaceColor: "#050505",
+      speed: 1.4,
+      intensity: 0.64,
+      beamWidth: 1.5,
+      burstSize: 1.2,
+    },
+  },
+  "massage-lab-glowing-stars": {
+    massageLabGlowingStars: {
+      paletteMode: "source",
+      backgroundColor: "#010101",
+      starColor: "#020202",
+      peakColor: "#030303",
+      afterglowColor: "#040404",
+      glowCoreColor: "#050505",
+      glowAuraColor: "#060606",
+      speed: 1.4,
+      intensity: 0.64,
+      activeStars: 9,
+      starSize: 1.5,
+      glowStrength: 1.2,
+    },
+  },
+  "massage-lab-meteors": {
+    massageLabMeteors: {
+      paletteMode: "source",
+      backgroundColor: "#010101",
+      meteorColor: "#020202",
+      tailColor: "#030303",
+      glowColor: "#040404",
+      edgeColor: "#050505",
+      speed: 1.4,
+      intensity: 0.64,
+      count: 19,
+      size: 2.5,
+      tailLength: 72,
+    },
+  },
+  "massage-lab-background-lines": {
+    backgroundLines: {
+      paletteMode: "source",
+      backgroundColor: "#010101",
+      colors: ["#020202", "#030303", "#040404", "#050505", "#060606", "#070707"],
+      duration: 14,
+      intensity: 0.74,
+      count: 18,
+      lineWidth: 3.2,
+      glowStrength: 13,
     },
   },
   "massage-lab-grid-motion": {
@@ -158,12 +273,15 @@ const cssDomFixtures = {
       strandCount: 70,
       showBaseLetters: false,
       nodeMotionSpeed: 0.06,
+      strandRotationEnabled: true,
       strandRotationSpeed: 0.02,
+      strandRotationDirection: "clockwise",
       strandAngle: 30,
       scale: 0.5,
       positionX: 0,
       positionY: 0,
       strandSpacing: 0.5,
+      nodeSize: 100,
       connectorWidth: 94,
       connectorThickness: 15,
       outlineThickness: 0.1,
@@ -426,6 +544,104 @@ describe("background palette adapter registry", () => {
     }
   })
 
+  it("keeps every literal Background role out of Swatch 1", () => {
+    const swatchOneBackgrounds = Object.entries(backgroundPaletteRegistry)
+      .flatMap(([backgroundId, adapter]) => (
+        adapter.status === "supported"
+          ? adapter.roles
+            .filter((role) => role.label === "Background" && role.defaultSwatch === 0)
+            .map(() => backgroundId)
+          : []
+      ))
+
+    assert.deepEqual(swatchOneBackgrounds, [])
+  })
+
+  it("keeps Solid Color to one truthful custom swatch without Harmony", () => {
+    const adapter = backgroundPaletteRegistry["solid-color"]
+    assert.equal(adapter.status, "supported")
+    assert.equal(adapter.supportsHarmony, false)
+    assert.deepEqual(adapter.visualPropertyKeys, [])
+    assert.deepEqual(
+      adapter.roles.map((role) => ({
+        id: role.id,
+        label: role.label,
+        sourceColor: role.sourceColor,
+        defaultSwatch: role.defaultSwatch,
+        rendererTarget: role.rendererTarget,
+      })),
+      [{
+        id: "color",
+        label: "Color",
+        sourceColor: "#FF7A1A",
+        defaultSwatch: 0,
+        rendererTarget: "solidColor",
+      }],
+    )
+
+    const sourceResolved = resolveBackgroundEffectProps({
+      selectedId: "solid-color",
+      effectProps: { solidColor: "#010101" },
+      palette: paletteForMode("source"),
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.equal(sourceResolved.solidColor.toLowerCase(), "#ff7a1a")
+
+    const customResolved = resolveBackgroundEffectProps({
+      selectedId: "solid-color",
+      effectProps: { solidColor: "#010101" },
+      palette: paletteForMode("custom"),
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.equal(customResolved.solidColor, CUSTOM_SWATCHES[0])
+
+    const harmonyResolved = resolveBackgroundEffectProps({
+      selectedId: "solid-color",
+      effectProps: { solidColor: "#010101" },
+      palette: paletteForMode("harmony"),
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.equal(harmonyResolved.solidColor.toLowerCase(), "#ff7a1a")
+  })
+
+  it("keeps audited Swatch 7 backgrounds independent from Harmony", () => {
+    const harmonySwatches = generateBackgroundHarmonySwatches(HARMONY_PRIMARY, "triadic")
+
+    for (const backgroundId of SWATCH_SEVEN_BACKGROUND_IDS) {
+      const adapter = backgroundPaletteRegistry[backgroundId]
+      assert.equal(adapter.status, "supported", backgroundId)
+      const backgroundRole = adapter.roles.find((role) => role.label === "Background")
+      const visualRoles = adapter.roles.filter((role) => role !== backgroundRole)
+
+      assert.ok(backgroundRole, backgroundId)
+      assert.equal(backgroundRole.defaultSwatch, 6, backgroundId)
+      assert.equal(backgroundRole.harmonyColorSource, "saved-swatch", backgroundId)
+      assert.deepEqual(
+        visualRoles.map((role) => role.defaultSwatch),
+        visualRoles.map((_, index) => index),
+        backgroundId,
+      )
+
+      const sourceColors = roleColorsForMode(adapter, "source")
+      const customColors = roleColorsForMode(adapter, "custom")
+      const harmonyColors = roleColorsForMode(adapter, "harmony")
+      assert.equal(
+        sourceColors.background.toLowerCase(),
+        backgroundRole.sourceColor.toLowerCase(),
+        backgroundId,
+      )
+      assert.equal(customColors.background, CUSTOM_SWATCHES[6], backgroundId)
+      assert.equal(harmonyColors.background, CUSTOM_SWATCHES[6], backgroundId)
+      for (const [index, visualRole] of visualRoles.entries()) {
+        assert.equal(customColors[visualRole.id], CUSTOM_SWATCHES[index], `${backgroundId}:${visualRole.id}`)
+        assert.equal(harmonyColors[visualRole.id], harmonySwatches[index], `${backgroundId}:${visualRole.id}`)
+      }
+    }
+  })
+
   it("grounds unsupported renderer families in their actual implementations", async () => {
     const cssBackgroundSource = await readFile(
       new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
@@ -510,15 +726,17 @@ describe("background palette adapter registry", () => {
     }
   })
 
-  it("models Vortex background and hue-driven particle colors as exact roles", () => {
+  it("models Vortex with an independent Swatch 7 background and procedural particle hue", () => {
     const adapter = backgroundPaletteRegistry["massage-lab-vortex"]
     assert.notEqual(adapter.status, "unsupported")
+    assert.equal(adapter.supportsHarmony, false)
     assert.deepEqual(
-      adapter.roles.map(({ id, label, sourceColor, defaultSwatch, rendererTarget }) => ({
+      adapter.roles.map(({ id, label, sourceColor, defaultSwatch, harmonyColorSource, rendererTarget }) => ({
         id,
         label,
         sourceColor,
         defaultSwatch,
+        harmonyColorSource,
         rendererTarget,
       })),
       [
@@ -526,54 +744,69 @@ describe("background palette adapter registry", () => {
           id: "background",
           label: "Background",
           sourceColor: "#000000",
-          defaultSwatch: 0,
+          defaultSwatch: 6,
+          harmonyColorSource: "saved-swatch",
           rendererTarget: "vortex.backgroundColor",
-        },
-        {
-          id: "particles",
-          label: "Particles",
-          sourceColor: "#3377FF",
-          defaultSwatch: 1,
-          rendererTarget: "vortex.baseHue",
         },
       ],
     )
-    assert.equal(adapter.visualPropertyKeys.includes("vortexBaseHue"), false)
+    assert.equal(adapter.visualPropertyKeys.includes("vortexBaseHue"), true)
 
     const before = {
       vortex: {
         backgroundColor: "#000000",
-        baseHue: 220,
+        baseHue: 300,
         particleCount: sanitizedDefaults.vortexParticleCount,
       },
     }
     const after = adapter.applyRoleColors(before, {
       background: "#112233",
-      particles: "#336699",
-    })
+    }, "custom")
     assert.equal(after.vortex.backgroundColor, "#112233")
-    assert.equal(after.vortex.baseHue, 210)
+    assert.equal(after.vortex.baseHue, 300)
     assert.equal(after.vortex.particleCount, before.vortex.particleCount)
-    assert.deepEqual(
-      [...changedLeafPaths(before, after)].sort(),
-      ["vortex.backgroundColor", "vortex.baseHue"],
-    )
+    assert.deepEqual([...changedLeafPaths(before, after)], ["vortex.backgroundColor"])
   })
 
-  it("round-trips Vortex's declared particle source color to its sanitized source hue", () => {
-    const adapter = backgroundPaletteRegistry["massage-lab-vortex"]
-    assert.notEqual(adapter.status, "unsupported")
-    const particleRole = adapter.roles.find((role) => role.id === "particles")
-    assert.ok(particleRole)
+  it("keeps Vortex's authored hue range and rejects stale Harmony rendering", () => {
+    const effectProps = {
+      vortex: {
+        backgroundColor: "#000000",
+        baseHue: 300,
+        particleCount: 420,
+        rangeY: 120,
+      },
+    }
+    const sourceResolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-vortex",
+      effectProps,
+      palette: paletteForMode("source"),
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.equal(sourceResolved.vortex.baseHue, 220)
 
-    const applied = adapter.applyRoleColors(
-      { vortex: { baseHue: 0 } },
-      { particles: particleRole.sourceColor },
-    )
-    assert.equal(
-      applied.vortex.baseHue,
-      CHIMER_BACKGROUND_SOURCE_COLOR_DEFAULTS.vortexBaseHue,
-    )
+    const customResolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-vortex",
+      effectProps,
+      palette: paletteForMode("custom"),
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.equal(customResolved.vortex.backgroundColor, CUSTOM_SWATCHES[6])
+    assert.equal(customResolved.vortex.baseHue, 300)
+
+    const staleHarmonyResolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-vortex",
+      effectProps,
+      palette: paletteForMode("harmony"),
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.equal(staleHarmonyResolved.vortex.backgroundColor, "#000000")
+    assert.equal(staleHarmonyResolved.vortex.baseHue, 220)
+    assert.equal(staleHarmonyResolved.vortex.particleCount, effectProps.vortex.particleCount)
+    assert.equal(staleHarmonyResolved.vortex.rangeY, effectProps.vortex.rangeY)
   })
 
   it("records the approved exhaustive and special Source behaviors", () => {
@@ -623,12 +856,15 @@ describe("background palette adapter registry", () => {
       "massageLabDnaStrandCount",
       "massageLabDnaShowBaseLetters",
       "massageLabDnaNodeMotionSpeed",
+      "massageLabDnaStrandRotationEnabled",
       "massageLabDnaStrandRotationSpeed",
+      "massageLabDnaStrandRotationDirection",
       "massageLabDnaStrandAngle",
       "massageLabDnaScale",
       "massageLabDnaPositionX",
       "massageLabDnaPositionY",
       "massageLabDnaStrandSpacing",
+      "massageLabDnaNodeSize",
       "massageLabDnaConnectorWidth",
       "massageLabDnaConnectorThickness",
       "massageLabDnaOutlineThickness",
@@ -741,6 +977,24 @@ describe("background palette adapter registry", () => {
       "#654321",
       ...TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS.slice(3),
     ])
+  })
+
+  it("preserves Static Gradient's configured two-to-seven color count", () => {
+    const adapter = backgroundPaletteRegistry["static-gradient"]
+    assert.equal(adapter.status, "supported")
+    const roleColors = Object.fromEntries(
+      adapter.roles.map((role, index) => [role.id, CUSTOM_SWATCHES[index]]),
+    )
+
+    for (const colorCount of [2, 4, 7]) {
+      const fixture = structuredClone(cssDomFixtures["static-gradient"])
+      fixture.staticGradient.colorCount = colorCount
+      fixture.staticGradient.colors = fixture.staticGradient.colors.slice(0, colorCount)
+      const resolved = applyCssDomPaletteRoleColors("static-gradient", fixture, roleColors)
+
+      assert.equal(resolved.staticGradient.colors.length, colorCount)
+      assert.deepEqual(resolved.staticGradient.colors, CUSTOM_SWATCHES.slice(0, colorCount))
+    }
   })
 
   it("completes every CSS/DOM adapter and changes only named renderer targets in every palette mode", () => {
@@ -994,7 +1248,7 @@ describe("background palette adapter registry", () => {
     }
 
     assert.equal(
-      resolveBackgroundEffectProps({ ...input, selectedId: "static-gradient" }),
+      resolveBackgroundEffectProps({ ...input, selectedId: "massage-lab-prism" }),
       effectProps,
     )
     assert.equal(
@@ -1327,9 +1581,11 @@ describe("background palette adapter registry", () => {
       canCustomize: true,
     })
     assert.equal(auroraCustom.auroraBars.paletteMode, "custom")
-    assert.deepEqual(auroraCustom.auroraBars.colors, CUSTOM_SWATCHES.slice(1, 6))
+    assert.equal(auroraCustom.auroraBars.background, CUSTOM_SWATCHES[6])
+    assert.deepEqual(auroraCustom.auroraBars.colors, CUSTOM_SWATCHES.slice(0, 5))
     assert.equal(auroraHarmony.auroraBars.paletteMode, "custom")
-    assert.deepEqual(auroraHarmony.auroraBars.colors, harmonyColors.slice(1, 6))
+    assert.equal(auroraHarmony.auroraBars.background, CUSTOM_SWATCHES[6])
+    assert.deepEqual(auroraHarmony.auroraBars.colors, harmonyColors.slice(0, 5))
     assert.equal(auroraSource.auroraBars.paletteMode, "auto")
     assert.equal(auroraSource.auroraBars.barCount, 31)
     assert.equal(auroraSource.auroraBars.audioLevel, 0.61)
@@ -1420,12 +1676,14 @@ describe("background palette adapter registry", () => {
     })
     assert.equal(photonCustom.massageLabPhotonBeam.useColor2, true)
     assert.equal(photonCustom.massageLabPhotonBeam.useColor3, true)
-    assert.equal(photonCustom.massageLabPhotonBeam.colorSignal2, CUSTOM_SWATCHES[3])
-    assert.equal(photonCustom.massageLabPhotonBeam.colorSignal3, CUSTOM_SWATCHES[4])
+    assert.equal(photonCustom.massageLabPhotonBeam.colorBg, CUSTOM_SWATCHES[6])
+    assert.equal(photonCustom.massageLabPhotonBeam.colorSignal2, CUSTOM_SWATCHES[2])
+    assert.equal(photonCustom.massageLabPhotonBeam.colorSignal3, CUSTOM_SWATCHES[3])
     assert.equal(photonHarmony.massageLabPhotonBeam.useColor2, true)
     assert.equal(photonHarmony.massageLabPhotonBeam.useColor3, true)
-    assert.equal(photonHarmony.massageLabPhotonBeam.colorSignal2, harmonyColors[3])
-    assert.equal(photonHarmony.massageLabPhotonBeam.colorSignal3, harmonyColors[4])
+    assert.equal(photonHarmony.massageLabPhotonBeam.colorBg, CUSTOM_SWATCHES[6])
+    assert.equal(photonHarmony.massageLabPhotonBeam.colorSignal2, harmonyColors[2])
+    assert.equal(photonHarmony.massageLabPhotonBeam.colorSignal3, harmonyColors[3])
     assert.equal(photonSource.massageLabPhotonBeam.useColor2, false)
     assert.equal(photonSource.massageLabPhotonBeam.useColor3, false)
     assert.equal(photonSource.massageLabPhotonBeam.lineCount, 80)
@@ -1484,6 +1742,427 @@ describe("background palette adapter registry", () => {
       speed: 1.7,
       size: 63,
     })
+  })
+
+  it("reserves Swatch 7 for Aurora Field's background", () => {
+    const adapter = backgroundPaletteRegistry["massage-lab-aurora"]
+    assert.deepEqual(
+      Object.fromEntries(adapter.roles.map((role) => [role.id, role.defaultSwatch])),
+      {
+        background: 6,
+        "aurora-1": 0,
+        "aurora-2": 1,
+        "aurora-3": 2,
+        "aurora-4": 3,
+        "aurora-5": 4,
+      },
+    )
+
+    const resolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-aurora",
+      effectProps: cssDomFixtures["massage-lab-aurora"],
+      palette: paletteForMode("custom"),
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.equal(resolved.massageLabAurora.backgroundColor, CUSTOM_SWATCHES[6])
+    assert.deepEqual(resolved.massageLabAurora.colors, CUSTOM_SWATCHES.slice(0, 5))
+
+    const harmonyResolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-aurora",
+      effectProps: cssDomFixtures["massage-lab-aurora"],
+      palette: paletteForMode("harmony"),
+      mapping: {},
+      canCustomize: true,
+    })
+    const harmonySwatches = generateBackgroundHarmonySwatches(HARMONY_PRIMARY, "triadic")
+    assert.equal(harmonyResolved.massageLabAurora.backgroundColor, CUSTOM_SWATCHES[6])
+    assert.deepEqual(harmonyResolved.massageLabAurora.colors, harmonySwatches.slice(0, 5))
+  })
+
+  it("keeps Dotted Glow's Swatch 7 background independent from Harmony", () => {
+    const adapter = backgroundPaletteRegistry["massage-lab-dotted-glow"]
+    assert.deepEqual(
+      Object.fromEntries(adapter.roles.map((role) => [role.id, {
+        defaultSwatch: role.defaultSwatch,
+        harmonyColorSource: role.harmonyColorSource,
+      }])),
+      {
+        background: { defaultSwatch: 6, harmonyColorSource: "saved-swatch" },
+        dots: { defaultSwatch: 0, harmonyColorSource: "generated" },
+        glow: { defaultSwatch: 1, harmonyColorSource: "generated" },
+      },
+    )
+
+    const effectProps = {
+      massageLabDottedGlow: {
+        speed: 1.3,
+        dotSize: 2.2,
+        dotSpacing: 18,
+        opacity: 0.66,
+        glowStrength: 5,
+      },
+    }
+    const resolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-dotted-glow",
+      effectProps,
+      palette: paletteForMode("harmony"),
+      mapping: {},
+      canCustomize: true,
+    })
+    const harmonySwatches = generateBackgroundHarmonySwatches(HARMONY_PRIMARY, "triadic")
+    assert.equal(resolved.massageLabDottedGlow.backgroundColor, CUSTOM_SWATCHES[6])
+    assert.equal(resolved.massageLabDottedGlow.dotColor, harmonySwatches[0])
+    assert.equal(resolved.massageLabDottedGlow.glowColor, harmonySwatches[1])
+    assert.deepEqual(
+      {
+        speed: resolved.massageLabDottedGlow.speed,
+        dotSize: resolved.massageLabDottedGlow.dotSize,
+        dotSpacing: resolved.massageLabDottedGlow.dotSpacing,
+        opacity: resolved.massageLabDottedGlow.opacity,
+        glowStrength: resolved.massageLabDottedGlow.glowStrength,
+      },
+      effectProps.massageLabDottedGlow,
+    )
+  })
+
+  it("keeps Bubble Field's Swatch 7 background independent from Harmony", () => {
+    const adapter = backgroundPaletteRegistry["massage-lab-bubble"]
+    assert.deepEqual(
+      Object.fromEntries(adapter.roles.map((role) => [role.id, {
+        defaultSwatch: role.defaultSwatch,
+        harmonyColorSource: role.harmonyColorSource,
+      }])),
+      {
+        background: { defaultSwatch: 6, harmonyColorSource: "saved-swatch" },
+        "bubble-1": { defaultSwatch: 0, harmonyColorSource: "generated" },
+        "bubble-2": { defaultSwatch: 1, harmonyColorSource: "generated" },
+        "bubble-3": { defaultSwatch: 2, harmonyColorSource: "generated" },
+        "bubble-4": { defaultSwatch: 3, harmonyColorSource: "generated" },
+        "bubble-5": { defaultSwatch: 4, harmonyColorSource: "generated" },
+      },
+    )
+
+    const effectProps = cssDomFixtures["massage-lab-bubble"]
+    const sourceResolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-bubble",
+      effectProps,
+      palette: paletteForMode("source"),
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.equal(sourceResolved.massageLabBubble.paletteMode, "source")
+
+    const harmonyResolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-bubble",
+      effectProps,
+      palette: paletteForMode("harmony"),
+      mapping: {},
+      canCustomize: true,
+    })
+    const harmonySwatches = generateBackgroundHarmonySwatches(HARMONY_PRIMARY, "triadic")
+    assert.equal(harmonyResolved.massageLabBubble.paletteMode, "resolved")
+    assert.equal(harmonyResolved.massageLabBubble.backgroundColor, CUSTOM_SWATCHES[6])
+    assert.deepEqual(harmonyResolved.massageLabBubble.colors, harmonySwatches.slice(0, 5))
+    assert.deepEqual(
+      {
+        speed: harmonyResolved.massageLabBubble.speed,
+        intensity: harmonyResolved.massageLabBubble.intensity,
+        size: harmonyResolved.massageLabBubble.size,
+        blur: harmonyResolved.massageLabBubble.blur,
+        blendStrength: harmonyResolved.massageLabBubble.blendStrength,
+      },
+      {
+        speed: effectProps.massageLabBubble.speed,
+        intensity: effectProps.massageLabBubble.intensity,
+        size: effectProps.massageLabBubble.size,
+        blur: effectProps.massageLabBubble.blur,
+        blendStrength: effectProps.massageLabBubble.blendStrength,
+      },
+    )
+  })
+
+  it("keeps Beam Field's Swatch 7 background independent from Harmony", () => {
+    const adapter = backgroundPaletteRegistry["massage-lab-background-beams"]
+    assert.deepEqual(
+      Object.fromEntries(adapter.roles.map((role) => [role.id, {
+        defaultSwatch: role.defaultSwatch,
+        harmonyColorSource: role.harmonyColorSource,
+      }])),
+      {
+        background: { defaultSwatch: 6, harmonyColorSource: "saved-swatch" },
+        "beam-1": { defaultSwatch: 0, harmonyColorSource: "generated" },
+        "beam-2": { defaultSwatch: 1, harmonyColorSource: "generated" },
+        "beam-3": { defaultSwatch: 2, harmonyColorSource: "generated" },
+      },
+    )
+
+    const effectProps = cssDomFixtures["massage-lab-background-beams"]
+    const sourceResolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-background-beams",
+      effectProps,
+      palette: paletteForMode("source"),
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.equal(sourceResolved.massageLabBackgroundBeams.paletteMode, "source")
+
+    const harmonyResolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-background-beams",
+      effectProps,
+      palette: paletteForMode("harmony"),
+      mapping: {},
+      canCustomize: true,
+    })
+    const harmonySwatches = generateBackgroundHarmonySwatches(HARMONY_PRIMARY, "triadic")
+    assert.equal(harmonyResolved.massageLabBackgroundBeams.paletteMode, "resolved")
+    assert.equal(harmonyResolved.massageLabBackgroundBeams.backgroundColor, CUSTOM_SWATCHES[6])
+    assert.deepEqual(harmonyResolved.massageLabBackgroundBeams.colors, harmonySwatches.slice(0, 3))
+    assert.deepEqual(
+      {
+        speed: harmonyResolved.massageLabBackgroundBeams.speed,
+        intensity: harmonyResolved.massageLabBackgroundBeams.intensity,
+        beamWidth: harmonyResolved.massageLabBackgroundBeams.beamWidth,
+        glowStrength: harmonyResolved.massageLabBackgroundBeams.glowStrength,
+      },
+      {
+        speed: effectProps.massageLabBackgroundBeams.speed,
+        intensity: effectProps.massageLabBackgroundBeams.intensity,
+        beamWidth: effectProps.massageLabBackgroundBeams.beamWidth,
+        glowStrength: effectProps.massageLabBackgroundBeams.glowStrength,
+      },
+    )
+  })
+
+  it("keeps Collision Beams' Swatch 7 background independent from Harmony", () => {
+    const adapter = backgroundPaletteRegistry["massage-lab-collision-beams"]
+    assert.deepEqual(
+      Object.fromEntries(adapter.roles.map((role) => [role.id, {
+        defaultSwatch: role.defaultSwatch,
+        harmonyColorSource: role.harmonyColorSource,
+      }])),
+      {
+        background: { defaultSwatch: 6, harmonyColorSource: "saved-swatch" },
+        beam: { defaultSwatch: 0, harmonyColorSource: "generated" },
+        accent: { defaultSwatch: 1, harmonyColorSource: "generated" },
+        particles: { defaultSwatch: 2, harmonyColorSource: "generated" },
+        surface: { defaultSwatch: 3, harmonyColorSource: "generated" },
+      },
+    )
+
+    const effectProps = cssDomFixtures["massage-lab-collision-beams"]
+    const sourceResolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-collision-beams",
+      effectProps,
+      palette: paletteForMode("source"),
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.equal(sourceResolved.massageLabCollisionBeams.paletteMode, "source")
+
+    const harmonyResolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-collision-beams",
+      effectProps,
+      palette: paletteForMode("harmony"),
+      mapping: {},
+      canCustomize: true,
+    })
+    const harmonySwatches = generateBackgroundHarmonySwatches(HARMONY_PRIMARY, "triadic")
+    assert.equal(harmonyResolved.massageLabCollisionBeams.paletteMode, "resolved")
+    assert.equal(harmonyResolved.massageLabCollisionBeams.backgroundColor, CUSTOM_SWATCHES[6])
+    assert.equal(harmonyResolved.massageLabCollisionBeams.beamColor, harmonySwatches[0])
+    assert.equal(harmonyResolved.massageLabCollisionBeams.accentColor, harmonySwatches[1])
+    assert.equal(harmonyResolved.massageLabCollisionBeams.particleColor, harmonySwatches[2])
+    assert.equal(harmonyResolved.massageLabCollisionBeams.surfaceColor, harmonySwatches[3])
+    assert.deepEqual(
+      {
+        speed: harmonyResolved.massageLabCollisionBeams.speed,
+        intensity: harmonyResolved.massageLabCollisionBeams.intensity,
+        beamWidth: harmonyResolved.massageLabCollisionBeams.beamWidth,
+        burstSize: harmonyResolved.massageLabCollisionBeams.burstSize,
+      },
+      {
+        speed: effectProps.massageLabCollisionBeams.speed,
+        intensity: effectProps.massageLabCollisionBeams.intensity,
+        beamWidth: effectProps.massageLabCollisionBeams.beamWidth,
+        burstSize: effectProps.massageLabCollisionBeams.burstSize,
+      },
+    )
+  })
+
+  it("keeps Glowing Stars' Swatch 7 background independent from Harmony", () => {
+    const adapter = backgroundPaletteRegistry["massage-lab-glowing-stars"]
+    assert.deepEqual(
+      Object.fromEntries(adapter.roles.map((role) => [role.id, {
+        defaultSwatch: role.defaultSwatch,
+        harmonyColorSource: role.harmonyColorSource,
+      }])),
+      {
+        background: { defaultSwatch: 6, harmonyColorSource: "saved-swatch" },
+        stars: { defaultSwatch: 0, harmonyColorSource: "generated" },
+        peak: { defaultSwatch: 1, harmonyColorSource: "generated" },
+        afterglow: { defaultSwatch: 2, harmonyColorSource: "generated" },
+        "glow-core": { defaultSwatch: 3, harmonyColorSource: "generated" },
+        "glow-aura": { defaultSwatch: 4, harmonyColorSource: "generated" },
+      },
+    )
+
+    const effectProps = cssDomFixtures["massage-lab-glowing-stars"]
+    const sourceResolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-glowing-stars",
+      effectProps,
+      palette: paletteForMode("source"),
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.equal(sourceResolved.massageLabGlowingStars.paletteMode, "source")
+
+    const harmonyResolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-glowing-stars",
+      effectProps,
+      palette: paletteForMode("harmony"),
+      mapping: {},
+      canCustomize: true,
+    })
+    const harmonySwatches = generateBackgroundHarmonySwatches(HARMONY_PRIMARY, "triadic")
+    assert.equal(harmonyResolved.massageLabGlowingStars.paletteMode, "resolved")
+    assert.equal(harmonyResolved.massageLabGlowingStars.backgroundColor, CUSTOM_SWATCHES[6])
+    assert.equal(harmonyResolved.massageLabGlowingStars.starColor, harmonySwatches[0])
+    assert.equal(harmonyResolved.massageLabGlowingStars.peakColor, harmonySwatches[1])
+    assert.equal(harmonyResolved.massageLabGlowingStars.afterglowColor, harmonySwatches[2])
+    assert.equal(harmonyResolved.massageLabGlowingStars.glowCoreColor, harmonySwatches[3])
+    assert.equal(harmonyResolved.massageLabGlowingStars.glowAuraColor, harmonySwatches[4])
+    assert.deepEqual(
+      {
+        speed: harmonyResolved.massageLabGlowingStars.speed,
+        intensity: harmonyResolved.massageLabGlowingStars.intensity,
+        activeStars: harmonyResolved.massageLabGlowingStars.activeStars,
+        starSize: harmonyResolved.massageLabGlowingStars.starSize,
+        glowStrength: harmonyResolved.massageLabGlowingStars.glowStrength,
+      },
+      {
+        speed: effectProps.massageLabGlowingStars.speed,
+        intensity: effectProps.massageLabGlowingStars.intensity,
+        activeStars: effectProps.massageLabGlowingStars.activeStars,
+        starSize: effectProps.massageLabGlowingStars.starSize,
+        glowStrength: effectProps.massageLabGlowingStars.glowStrength,
+      },
+    )
+  })
+
+  it("keeps Meteors' Swatch 7 background independent from Harmony", () => {
+    const adapter = backgroundPaletteRegistry["massage-lab-meteors"]
+    assert.deepEqual(
+      Object.fromEntries(adapter.roles.map((role) => [role.id, {
+        defaultSwatch: role.defaultSwatch,
+        harmonyColorSource: role.harmonyColorSource,
+      }])),
+      {
+        background: { defaultSwatch: 6, harmonyColorSource: "saved-swatch" },
+        meteors: { defaultSwatch: 0, harmonyColorSource: "generated" },
+        tails: { defaultSwatch: 1, harmonyColorSource: "generated" },
+        glow: { defaultSwatch: 2, harmonyColorSource: "generated" },
+        edge: { defaultSwatch: 3, harmonyColorSource: "generated" },
+      },
+    )
+
+    const effectProps = cssDomFixtures["massage-lab-meteors"]
+    const sourceResolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-meteors",
+      effectProps,
+      palette: paletteForMode("source"),
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.equal(sourceResolved.massageLabMeteors.paletteMode, "source")
+
+    const harmonyResolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-meteors",
+      effectProps,
+      palette: paletteForMode("harmony"),
+      mapping: {},
+      canCustomize: true,
+    })
+    const harmonySwatches = generateBackgroundHarmonySwatches(HARMONY_PRIMARY, "triadic")
+    assert.equal(harmonyResolved.massageLabMeteors.paletteMode, "resolved")
+    assert.equal(harmonyResolved.massageLabMeteors.backgroundColor, CUSTOM_SWATCHES[6])
+    assert.equal(harmonyResolved.massageLabMeteors.meteorColor, harmonySwatches[0])
+    assert.equal(harmonyResolved.massageLabMeteors.tailColor, harmonySwatches[1])
+    assert.equal(harmonyResolved.massageLabMeteors.glowColor, harmonySwatches[2])
+    assert.equal(harmonyResolved.massageLabMeteors.edgeColor, harmonySwatches[3])
+    assert.deepEqual(
+      {
+        speed: harmonyResolved.massageLabMeteors.speed,
+        intensity: harmonyResolved.massageLabMeteors.intensity,
+        count: harmonyResolved.massageLabMeteors.count,
+        size: harmonyResolved.massageLabMeteors.size,
+        tailLength: harmonyResolved.massageLabMeteors.tailLength,
+      },
+      {
+        speed: effectProps.massageLabMeteors.speed,
+        intensity: effectProps.massageLabMeteors.intensity,
+        count: effectProps.massageLabMeteors.count,
+        size: effectProps.massageLabMeteors.size,
+        tailLength: effectProps.massageLabMeteors.tailLength,
+      },
+    )
+  })
+
+  it("keeps Light Lines' Swatch 7 background independent from Harmony", () => {
+    const adapter = backgroundPaletteRegistry["massage-lab-background-lines"]
+    assert.deepEqual(
+      Object.fromEntries(adapter.roles.map((role) => [role.id, {
+        defaultSwatch: role.defaultSwatch,
+        harmonyColorSource: role.harmonyColorSource,
+      }])),
+      {
+        background: { defaultSwatch: 6, harmonyColorSource: "saved-swatch" },
+        "line-1": { defaultSwatch: 0, harmonyColorSource: "generated" },
+        "line-2": { defaultSwatch: 1, harmonyColorSource: "generated" },
+        "line-3": { defaultSwatch: 2, harmonyColorSource: "generated" },
+        "line-4": { defaultSwatch: 3, harmonyColorSource: "generated" },
+        "line-5": { defaultSwatch: 4, harmonyColorSource: "generated" },
+        "line-6": { defaultSwatch: 5, harmonyColorSource: "generated" },
+      },
+    )
+
+    const effectProps = cssDomFixtures["massage-lab-background-lines"]
+    const sourceResolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-background-lines",
+      effectProps,
+      palette: paletteForMode("source"),
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.equal(sourceResolved.backgroundLines.paletteMode, "source")
+
+    const harmonyResolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-background-lines",
+      effectProps,
+      palette: paletteForMode("harmony"),
+      mapping: {},
+      canCustomize: true,
+    })
+    const harmonySwatches = generateBackgroundHarmonySwatches(HARMONY_PRIMARY, "triadic")
+    assert.equal(harmonyResolved.backgroundLines.paletteMode, "resolved")
+    assert.equal(harmonyResolved.backgroundLines.backgroundColor, CUSTOM_SWATCHES[6])
+    assert.deepEqual(harmonyResolved.backgroundLines.colors, harmonySwatches.slice(0, 6))
+    assert.deepEqual(
+      {
+        duration: harmonyResolved.backgroundLines.duration,
+        intensity: harmonyResolved.backgroundLines.intensity,
+        count: harmonyResolved.backgroundLines.count,
+        lineWidth: harmonyResolved.backgroundLines.lineWidth,
+        glowStrength: harmonyResolved.backgroundLines.glowStrength,
+      },
+      {
+        duration: effectProps.backgroundLines.duration,
+        intensity: effectProps.backgroundLines.intensity,
+        count: effectProps.backgroundLines.count,
+        lineWidth: effectProps.backgroundLines.lineWidth,
+        glowStrength: effectProps.backgroundLines.glowStrength,
+      },
+    )
   })
 
   it("preserves Ripple Grid rainbow and Aurora Bars/Tile Grid automatic Source controls", () => {
@@ -1554,8 +2233,8 @@ describe("background palette adapter registry", () => {
       )),
     )
     assert.equal(auroraCustom.auroraBars.paletteMode, "auto")
-    assert.equal(auroraCustom.auroraBars.background, CUSTOM_SWATCHES[0])
-    assert.deepEqual(auroraCustom.auroraBars.colors, CUSTOM_SWATCHES.slice(1, 6))
+    assert.equal(auroraCustom.auroraBars.background, CUSTOM_SWATCHES[6])
+    assert.deepEqual(auroraCustom.auroraBars.colors, CUSTOM_SWATCHES.slice(0, 5))
 
     const tileAdapter = backgroundPaletteRegistry["massage-lab-tile-grid"]
     const tileFixture = {

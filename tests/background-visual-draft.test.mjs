@@ -40,6 +40,7 @@ const runningTimerSource = await read("app/chimer/running-timer.tsx")
 const setTimerSource = await read("app/chimer/set-timer.tsx")
 const navigationGuardSource = await read("app/chimer/visual-draft-navigation-guard.tsx")
 const unsavedDialogSource = await read("app/chimer/unsaved-visual-changes-dialog.tsx")
+const alertDialogSource = await read("components/ui/alert-dialog.tsx")
 const pageSource = await read("app/chimer/page.tsx")
 const musicMiniPlayerSource = await read("components/providers/music-mini-player.tsx")
 const runningTimerStyles = await read("app/chimer/running-timer.module.css")
@@ -68,13 +69,16 @@ const TRACK4B_VISUAL_CASES = [
     changedProperties: {
       massageLabDnaStrandCount: 15,
       massageLabDnaShowBaseLetters: true,
-      massageLabDnaNodeMotionSpeed: 1.25,
-      massageLabDnaStrandRotationSpeed: 1.5,
+      massageLabDnaNodeMotionSpeed: 0.12,
+      massageLabDnaStrandRotationEnabled: false,
+      massageLabDnaStrandRotationSpeed: 0.04,
+      massageLabDnaStrandRotationDirection: "counterclockwise",
       massageLabDnaStrandAngle: 45,
-      massageLabDnaScale: 0.9,
+      massageLabDnaScale: 0.4,
       massageLabDnaPositionX: 5,
       massageLabDnaPositionY: -5,
       massageLabDnaStrandSpacing: 0.75,
+      massageLabDnaNodeSize: 140,
       massageLabDnaConnectorWidth: 88,
       massageLabDnaConnectorThickness: 35,
       massageLabDnaOutlineThickness: 0.75,
@@ -976,7 +980,7 @@ test("Visual Apply updates the live settings snapshot before delayed account hyd
   assert.notEqual(applyEnd, -1)
   assert.match(
     applySource,
-    /const committedSettings = request\.sanitizedSettings[\s\S]*settingsRef\.current = committedSettings\s+setSettings\(committedSettings\)[\s\S]*localStorage\.setItem\(CHIMER_STORAGE_KEY, JSON\.stringify\(committedSettings\)\)/,
+    /const committedSettings = request\.sanitizedSettings[\s\S]*settingsRef\.current = committedSettings\s+setSettings\(committedSettings\)[\s\S]*localStorage\.setItem\(storageKey, JSON\.stringify\(committedSettings\)\)/,
   )
 })
 
@@ -1267,6 +1271,18 @@ test("dirty navigation guard covers eligible app links, history, and native unlo
   assert.doesNotMatch(runningTimerExecutableSource, /className=\{styles\.visualDraftActions\}/)
 })
 
+test("unsaved Visual confirmation raises both dialog layers above immersive chrome", () => {
+  assert.match(alertDialogSource, /type AlertDialogContentProps =[\s\S]*overlayClassName\?: string/)
+  assert.match(alertDialogSource, /<AlertDialogOverlay className=\{overlayClassName\} \/>/)
+  assert.match(unsavedDialogSource, /overlayClassName="z-\[10060\]"/)
+  assert.match(unsavedDialogSource, /className="z-\[10060\]"/)
+  assert.match(unsavedDialogSource, /onEscapeKeyDown/)
+  assert.match(unsavedDialogSource, /onKeyDownCapture/)
+  assert.match(unsavedDialogSource, /onCloseAutoFocus/)
+  assert.match(unsavedDialogSource, /getConnectedVisualFocusTarget\(restoreFocusTarget\)\?\.focus\(\)/)
+  assert.doesNotMatch(unsavedDialogSource, /window\.addEventListener\("keydown"/)
+})
+
 test("globe coordinate inputs keep string drafts and clock font changes remeasure", () => {
   for (const source of [setTimerSource, runningTimerSource]) {
     assert.match(source, /globeMarkerDraft/)
@@ -1313,26 +1329,29 @@ test("DNA and Twisted Cubes controls emit only draft property patches with exact
     }
   }
 
-  const dnaSliders = [
-    ["Node motion speed", "nodeMotionSpeed", "0.01"],
-    ["Strand rotation speed", "strandRotationSpeed", "0.01"],
+  const directDnaSliders = [
     ["Strand count", "strandCount", "1"],
     ["Strand angle", "strandAngle", "1"],
+    ["Node size", "nodeSize", "1"],
     ["Strand spacing", "strandSpacing", "0.05"],
-    ["Scale", "scale", "0.01"],
     ["Position X", "positionX", "1"],
     ["Position Y", "positionY", "1"],
     ["Connector width", "connectorWidth", "1"],
     ["Connector thickness", "connectorThickness", "1"],
     ["Outline thickness", "outlineThickness", "0.05"],
   ]
-  // DNA also exposes the non-slider Show base letters toggle.
+  // DNA also exposes three normalized sliders, two toggles, and one select.
   assert.equal(
-    dnaSliders.length + 1,
+    directDnaSliders.length + 3 + 3,
     backgroundPaletteRegistry["massage-lab-dna"].visualPropertyKeys.length,
   )
-  for (const [label, property, step] of dnaSliders) assertSlider(dnaControlsExecutableSource, label, property, `DNA_OPTION_BOUNDS.${property}.minimum`, `DNA_OPTION_BOUNDS.${property}.maximum`, step)
+  for (const [label, property, step] of directDnaSliders) assertSlider(dnaControlsExecutableSource, label, property, `DNA_OPTION_BOUNDS.${property}.minimum`, `DNA_OPTION_BOUNDS.${property}.maximum`, step)
+  assert.match(dnaControlsExecutableSource, /label="Node motion speed"[\s\S]*?value=\{getDnaNodeMotionDisplaySpeed\(value\.nodeMotionSpeed\)\}[\s\S]*?min=\{DNA_SPEED_MULTIPLIER_BOUNDS\.minimum\}[\s\S]*?max=\{DNA_SPEED_MULTIPLIER_BOUNDS\.maximum\}[\s\S]*?step=\{DNA_SPEED_MULTIPLIER_BOUNDS\.step\}[\s\S]*?onChange=\{\(nextValue\) => onChange\(\{ nodeMotionSpeed: getDnaNodeMotionSourceSpeed\(nextValue\) \}\)\}/)
+  assert.match(dnaControlsExecutableSource, /label="Strand rotation speed"[\s\S]*?value=\{getDnaStrandRotationDisplaySpeed\(value\.strandRotationSpeed\)\}[\s\S]*?disabled=\{disabled \|\| !value\.strandRotationEnabled\}[\s\S]*?onChange=\{\(nextValue\) => onChange\(\{ strandRotationSpeed: getDnaStrandRotationSourceSpeed\(nextValue\) \}\)\}/)
+  assert.match(dnaControlsExecutableSource, /label="Scale"[\s\S]*?value=\{getDnaScaleDisplayPercent\(value\.scale\)\}[\s\S]*?min=\{DNA_SCALE_PERCENT_BOUNDS\.minimum\}[\s\S]*?max=\{DNA_SCALE_PERCENT_BOUNDS\.maximum\}[\s\S]*?onChange=\{\(nextValue\) => onChange\(\{ scale: getDnaScaleFromDisplayPercent\(nextValue\) \}\)\}/)
   assert.match(dnaControlsExecutableSource, /<StyledToggleControl[\s\S]*?label="Show base letters"[\s\S]*?checked=\{value\.showBaseLetters\}[\s\S]*?onCheckedChange=\{\(nextValue\) => onChange\(\{ showBaseLetters: nextValue \}\)\}/)
+  assert.match(dnaControlsExecutableSource, /<StyledToggleControl[\s\S]*?label="Strand rotation"[\s\S]*?checked=\{value\.strandRotationEnabled\}[\s\S]*?onCheckedChange=\{\(nextValue\) => onChange\(\{ strandRotationEnabled: nextValue \}\)\}/)
+  assert.match(dnaControlsExecutableSource, /<SelectField[\s\S]*?label="Strand rotation direction"[\s\S]*?value=\{value\.strandRotationDirection\}[\s\S]*?strandRotationDirection: event\.currentTarget\.value/)
 
   const twistedCubesSliders = [
     ["Rotation speed", "rotationSpeed", "0.01"],

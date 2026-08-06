@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test"
 
+const CHIMER_STORAGE_KEY = "massagelab-chimer-settings"
 const VISUAL_PANEL_OPENED_STORAGE_KEY = "massagelab.chimer.visual-panel-opened.v1"
 
 async function waitForStageReservation(page: Page) {
@@ -274,6 +275,34 @@ test("Clock and Visual switch one active panel and honor dismissal focus", async
   await expect(page.getByRole("dialog", { name: "Clock controls" })).toHaveCount(0)
 })
 
+test("mobile dirty Visual confirmation owns Escape and returns focus to the close control", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "phone-first Visual dialog regression")
+  await openClock(page)
+
+  const visualControl = page.getByRole("button", { name: "Visual", exact: true })
+  await visualControl.click()
+  const visual = page.getByRole("dialog", { name: "Visual controls" })
+  await visual.getByRole("radio", { name: "Custom", exact: true }).click()
+  const closeVisual = page.getByRole("button", { name: "Close Visual panel" })
+  await closeVisual.click()
+
+  const confirmation = page.getByRole("alertdialog", { name: "Save Visual changes?" })
+  await expect(confirmation).toBeVisible()
+  await expect.poll(() => page.evaluate(() => {
+    const alert = document.querySelector('[role="alertdialog"]')
+    const shell = document.querySelector('[data-immersive-shell]')
+    return {
+      alertZ: Number.parseInt(getComputedStyle(alert!).zIndex, 10),
+      shellZ: Number.parseInt(getComputedStyle(shell!).zIndex, 10),
+    }
+  })).toEqual({ alertZ: 10060, shellZ: 10030 })
+
+  await page.keyboard.press("Escape")
+  await expect(confirmation).toHaveCount(0)
+  await expect(visual).toBeVisible()
+  await expect(closeVisual).toBeFocused()
+})
+
 test("Escape in a portaled color picker closes only the picker", async ({ page }) => {
   await page.route("**/api/auth/session", async (route) => {
     await route.fulfill({
@@ -346,6 +375,30 @@ test("Background is modal, restores focus, and uses outside dismissal only when 
   await page.getByRole("button", { name: "Close Background panel" }).press("Enter")
   await expect(background).toHaveCount(0)
   await expect(backgroundControl).toBeFocused()
+})
+
+test("mobile Background picker releases and safely remounts the covered live host", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "phone-first renderer lifecycle regression")
+  await page.addInitScript((key) => {
+    localStorage.setItem(key, JSON.stringify({
+      backgroundId: "massage-lab-moving-gradient",
+      movingBackgroundEnabled: true,
+    }))
+  }, CHIMER_STORAGE_KEY)
+  await openClock(page)
+
+  const host = page.locator('[data-background-id][aria-hidden="true"]')
+  const selectedId = await host.getAttribute("data-background-id")
+  expect(selectedId).toBeTruthy()
+
+  await page.getByRole("button", { name: "Background", exact: true }).click()
+  const picker = page.getByRole("dialog", { name: "Background" })
+  await expect(picker).toBeVisible()
+  await expect(host).toHaveCount(0)
+
+  await page.keyboard.press("Escape")
+  await expect(picker).toHaveCount(0)
+  await expect(host).toHaveAttribute("data-background-id", selectedId!)
 })
 
 test("an available Background selection closes immediately and gives the first Visual hint", async ({ page }) => {

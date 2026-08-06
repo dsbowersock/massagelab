@@ -47,7 +47,7 @@ const DEFAULT_MASSAGELAB_FAULTY_TERMINAL: ResolvedFaultyTerminalOptions = {
   scanlineIntensity: 0.3,
   glitchAmount: 1,
   flickerAmount: 1,
-  noiseAmp: 0,
+  noiseAmp: 0.24,
   chromaticAberration: 0,
   dither: 0,
   curvature: 0.2,
@@ -317,7 +317,9 @@ export default function MassageLabFaultyTerminalBackground({
     const shouldAnimate = () => shouldAnimateAmbientBackground({
       prefersReducedMotion: reducedMotionQuery.matches,
       compactViewport: compactViewportQuery.matches,
+      allowCompactViewport: true,
       documentHidden: document.visibilityState !== "visible",
+      respectSystemReducedMotion: true,
     })
 
     const resize = () => {

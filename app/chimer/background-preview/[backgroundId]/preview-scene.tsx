@@ -56,6 +56,9 @@ export function ChimerBackgroundPreviewScene({
         selectedId={backgroundId}
         access={PREVIEW_ACCESS}
         category="chimer"
+        massageLabGridMotion={{
+          mantras: [...DEFAULT_CHIMER_SETTINGS.massageLabGridMotionMantras],
+        }}
         className={styles.background}
         testId="chimer-preview-background"
       />

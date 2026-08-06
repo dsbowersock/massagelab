@@ -1,6 +1,6 @@
 "use client"
 
-import { useId, useMemo } from "react"
+import { Children, type ReactNode, useId, useMemo } from "react"
 
 import { type BackgroundPaletteAdapter } from "@/components/backgrounds/backgroundPaletteRegistry"
 import { ColorPickerSwatch } from "@/components/chimer-controls/GlobalColorPicker"
@@ -36,6 +36,7 @@ export interface BackgroundPaletteEditorProps {
   canCustomize: boolean
   onPaletteChange: (palette: BackgroundPaletteEditorValue) => void
   onMappingChange: (mapping: BackgroundColorMapping) => void
+  customControlsAfterSwatches?: ReactNode
   backgroundName?: string
   className?: string
   disabled?: boolean
@@ -45,8 +46,8 @@ const HARMONY_OPTIONS = CHIMER_HARMONY_OPTIONS.filter((option) => option.value !
 
 /**
  * Presents the shared seven-swatch palette and the selected adapter's mapping.
- * All callbacks are draft-only value transitions; persistence stays with the
- * future Visual editor integration boundary.
+ * An optional background-specific color transform can sit directly after the
+ * swatches in Custom mode. All callbacks remain draft-only value transitions.
  */
 export function BackgroundPaletteEditor({
   palette,
@@ -55,19 +56,22 @@ export function BackgroundPaletteEditor({
   canCustomize,
   onPaletteChange,
   onMappingChange,
+  customControlsAfterSwatches,
   backgroundName = "selected background",
   className,
   disabled = false,
 }: BackgroundPaletteEditorProps) {
   const componentId = useId()
+  const hasCustomControls = Children.toArray(customControlsAfterSwatches).length > 0
   const viewModel = useMemo(
     () => buildBackgroundPaletteEditorViewModel({
       palette,
       adapter,
       mapping,
       canCustomize,
+      hasCustomControls,
     }),
-    [adapter, canCustomize, mapping, palette],
+    [adapter, canCustomize, hasCustomControls, mapping, palette],
   )
   const {
     palette: normalizedPalette,
@@ -92,7 +96,7 @@ export function BackgroundPaletteEditor({
 
   function changeMode(nextMode: string) {
     const nextPalette = buildBackgroundPaletteModeChange(
-      { palette: normalizedPalette, adapter, canCustomize, disabled },
+      { palette: normalizedPalette, adapter, canCustomize, hasCustomControls, disabled },
       nextMode,
     )
     if (nextPalette) {
@@ -102,7 +106,7 @@ export function BackgroundPaletteEditor({
 
   function changeSwatch(index: number, color: string) {
     const nextPalette = buildBackgroundPaletteSwatchChange(
-      { palette: normalizedPalette, adapter, canCustomize, disabled },
+      { palette: normalizedPalette, adapter, mapping: normalizedMapping, canCustomize, disabled },
       index,
       color,
     )
@@ -161,7 +165,7 @@ export function BackgroundPaletteEditor({
       ) : isSource ? (
         <p className={styles.paletteAccessMessage}>
           Source shows the original {backgroundName} colors as read-only context. Your saved Custom
-          and Harmony values stay unchanged.
+          {adapter.status === "supported" ? " and Harmony values stay unchanged." : " value stays unchanged."}
         </p>
       ) : null}
 
@@ -181,6 +185,7 @@ export function BackgroundPaletteEditor({
         {swatches.map((swatch) => (
           <div
             key={swatch.index}
+            data-background-role-state={swatch.unused ? "unused" : "assigned"}
             className={cn(
               styles.backgroundPaletteSwatch,
               swatch.unused && styles.backgroundPaletteSwatchUnused,
@@ -203,6 +208,14 @@ export function BackgroundPaletteEditor({
           </div>
         ))}
       </div>
+
+      {effectiveMode === "custom" && canCustomize && adapter.status === "unsupported" && hasCustomControls ? (
+        <p className={styles.paletteAccessMessage}>
+          Shared swatches are reference-only for {backgroundName}; use its color control below.
+        </p>
+      ) : null}
+
+      {effectiveMode === "custom" && canCustomize ? customControlsAfterSwatches : null}
 
       {roles.length > 0 ? (
         <fieldset className={styles.backgroundPaletteMapping}>

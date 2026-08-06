@@ -61,6 +61,7 @@ export function BackgroundCreditConfirmationDialog({
         <DialogHeader>
           <DialogTitle>Keep {background.label} permanently</DialogTitle>
           <DialogDescription>
+            <span className="mb-2 block text-foreground">{background.visualDescriptor}</span>
             {background.label} becomes permanently owned, one free credit is spent,
             and this choice cannot be swapped for another background.
           </DialogDescription>

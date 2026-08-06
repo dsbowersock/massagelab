@@ -23,6 +23,10 @@ const editorSource = await readFile(
   new URL("../components/chimer-controls/BackgroundPaletteEditor.tsx", import.meta.url),
   "utf8",
 )
+const editorStyles = await readFile(
+  new URL("../components/chimer-controls/chimer-controls.module.css", import.meta.url),
+  "utf8",
+)
 const presetSource = await readFile(
   new URL("../components/chimer-controls/BackgroundPresetManager.tsx", import.meta.url),
   "utf8",
@@ -58,6 +62,7 @@ test("Harmony buttons preview every generated palette from the current Primary",
 
 test("shared palette editor presents one accessible mode choice and seven indexed swatches", () => {
   assert.match(editorSource, /SegmentedToggleGroup/)
+  assert.match(editorSource, /Children\.toArray\(customControlsAfterSwatches\)\.length > 0/)
   assert.match(editorSource, /label="Color source"/)
   assert.match(editorSource, /buildBackgroundPaletteEditorViewModel/)
   assert.match(controlsSource, /\{ value: "source", label: "Source" \}/)
@@ -72,7 +77,8 @@ test("shared palette editor presents one accessible mode choice and seven indexe
 
 test("Source and Harmony are contextual views that preserve dormant saved swatches", () => {
   assert.match(controlsSource, /effectiveMode === "source"/)
-  assert.match(controlsSource, /readOnly: isSource \|\| \(isHarmony && index > 0\)/)
+  assert.match(controlsSource, /savedHarmonySwatchIndexes/)
+  assert.match(controlsSource, /isHarmony && index > 0 && !savedHarmonyIndexes\.has\(index\)/)
   assert.match(controlsSource, /generateBackgroundHarmonySwatches/)
   assert.match(editorSource, /HarmonyToggleGroup/)
   assert.match(editorSource, /Unlock \{backgroundName\} with a credit, purchase, or membership/)
@@ -385,6 +391,34 @@ test("palette editor view models and changes are pure, indexed, and mapping-awar
   assert.equal(denied.modeOptions.find((option) => option.value === "source").disabled, false)
   assert.equal(denied.modeOptions.find((option) => option.value === "custom").disabled, true)
 
+  const transformOnlyAdapter = {
+    status: "unsupported",
+    unsupportedReason: "This background uses a dedicated hue transform.",
+  }
+  const transformOnly = buildBackgroundPaletteEditorViewModel({
+    palette,
+    adapter: transformOnlyAdapter,
+    canCustomize: true,
+    hasCustomControls: true,
+  })
+  assert.equal(transformOnly.effectiveMode, "custom")
+  assert.equal(transformOnly.unavailableReason, null)
+  assert.equal(transformOnly.modeOptions.find((option) => option.value === "custom").disabled, false)
+  assert.equal(transformOnly.modeOptions.find((option) => option.value === "harmony").disabled, true)
+  assert.equal(transformOnly.swatches.every((swatch) => swatch.readOnly), true)
+  assert.deepEqual(buildBackgroundPaletteModeChange({
+    palette: { ...palette, mode: "source" },
+    adapter: transformOnlyAdapter,
+    canCustomize: true,
+    hasCustomControls: true,
+  }, "custom"), { ...palette, mode: "custom" })
+  assert.equal(buildBackgroundPaletteModeChange({
+    palette,
+    adapter: transformOnlyAdapter,
+    canCustomize: true,
+    hasCustomControls: true,
+  }, "harmony"), null)
+
   assert.deepEqual(buildBackgroundPaletteModeChange({
     palette,
     adapter,
@@ -434,4 +468,101 @@ test("palette editor view models and changes are pure, indexed, and mapping-awar
     accent: 2,
   })
   assert.deepEqual({ palette, mapping }, before)
+})
+
+test("shared swatches reuse header action colors to distinguish assigned and unused roles", () => {
+  assert.match(editorSource, /data-background-role-state=\{swatch\.unused \? "unused" : "assigned"\}/)
+  assert.match(
+    editorStyles,
+    /\.backgroundPaletteSwatch\[data-background-role-state="assigned"\][\s\S]*var\(--button-calendar-leaf-bright\)/,
+  )
+  assert.match(
+    editorStyles,
+    /\.backgroundPaletteSwatch\[data-background-role-state="unused"\][\s\S]*var\(--button-danger-start\)/,
+  )
+})
+
+test("Harmony keeps a saved-swatch role editable and independent from generated colors", () => {
+  const adapter = {
+    status: "supported",
+    roles: [
+      { id: "band", label: "Aurora band", sourceColor: "#010203", defaultSwatch: 0 },
+      {
+        id: "background",
+        label: "Background",
+        sourceColor: "#040506",
+        defaultSwatch: 6,
+        harmonyColorSource: "saved-swatch",
+      },
+    ],
+  }
+  const palette = {
+    mode: "harmony",
+    primaryColor: "#ff0000",
+    harmony: "triad",
+    swatches: ["#111111", "#222222", "#333333", "#444444", "#555555", "#666666", "#123456"],
+  }
+  const viewModel = buildBackgroundPaletteEditorViewModel({
+    palette,
+    adapter,
+    mapping: {},
+    canCustomize: true,
+  })
+
+  assert.equal(viewModel.swatches[0].color, "#ff0000")
+  assert.equal(viewModel.swatches[6].color, "#123456")
+  assert.equal(viewModel.swatches[6].readOnly, false)
+  assert.deepEqual(buildBackgroundPaletteSwatchChange({
+    palette,
+    adapter,
+    mapping: {},
+    canCustomize: true,
+  }, 6, "#abcdef"), {
+    ...palette,
+    swatches: ["#ff0000", "#222222", "#333333", "#444444", "#555555", "#666666", "#abcdef"],
+  })
+})
+
+test("procedural hue adapters expose Custom while disabling misleading Harmony controls", () => {
+  const adapter = {
+    status: "supported",
+    supportsHarmony: false,
+    roles: [
+      {
+        id: "background",
+        label: "Background",
+        sourceColor: "#000000",
+        defaultSwatch: 6,
+        harmonyColorSource: "saved-swatch",
+      },
+    ],
+  }
+  const palette = {
+    mode: "harmony",
+    primaryColor: "#ff0000",
+    harmony: "triad",
+    swatches: ["#111111", "#222222", "#333333", "#444444", "#555555", "#666666", "#123456"],
+  }
+  const viewModel = buildBackgroundPaletteEditorViewModel({
+    palette,
+    adapter,
+    mapping: {},
+    canCustomize: true,
+    hasCustomControls: true,
+  })
+
+  assert.equal(viewModel.effectiveMode, "source")
+  assert.equal(viewModel.modeOptions.find((option) => option.value === "custom").disabled, false)
+  assert.equal(viewModel.modeOptions.find((option) => option.value === "harmony").disabled, true)
+  assert.equal(buildBackgroundPaletteModeChange({
+    palette: { ...palette, mode: "source" },
+    adapter,
+    canCustomize: true,
+    hasCustomControls: true,
+  }, "harmony"), null)
+  assert.equal(buildBackgroundPaletteHarmonyChange({
+    palette,
+    adapter,
+    canCustomize: true,
+  }, "complementary"), null)
 })

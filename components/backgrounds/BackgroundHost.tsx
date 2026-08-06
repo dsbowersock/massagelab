@@ -1,7 +1,7 @@
 "use client"
 
 import type { ComponentType, CSSProperties } from "react"
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useSettings } from "@/components/providers/settings-provider"
 import { cn } from "@/lib/utils"
 import {
@@ -20,15 +20,25 @@ import {
   createBackgroundHostDiagnosticSnapshot,
   type BackgroundHostLoadStatus,
 } from "@/components/backgrounds/backgroundHostDiagnostics"
+import {
+  PATTERNED_ACTIVE_RENDERER_IDS,
+  reduceBackgroundRendererReadiness,
+  shouldRenderBackgroundFallbackUnderlay,
+  type BackgroundRendererAttempt,
+} from "@/components/backgrounds/backgroundUnderlayPolicy"
 import type {
   BackgroundEffectProps,
+  BackgroundRendererLifecycleProps,
 } from "@/components/backgrounds/effects/css-backgrounds"
 import { resolveBackgroundEffectProps, resolveBackgroundFallbackStyle } from "@/components/backgrounds/resolveBackgroundEffectProps"
 import { useAmbientReducedMotion } from "@/components/backgrounds/use-ambient-reduced-motion"
 import { canCustomizeBackgroundColors } from "@/lib/background-palette"
 import styles from "@/components/backgrounds/BackgroundHost.module.css"
 
-interface BackgroundHostProps extends BackgroundEffectProps {
+interface BackgroundHostProps extends Omit<
+  BackgroundEffectProps,
+  keyof BackgroundRendererLifecycleProps
+> {
   selectedId?: BackgroundId | string | null
   access: BackgroundAccessSnapshot
   category?: BackgroundCategory
@@ -56,6 +66,12 @@ interface BackgroundHostProps extends BackgroundEffectProps {
    * builds always ignore this override.
    */
   forceAmbientMotionForReview?: boolean
+  /**
+   * Development diagnostics only: makes the four readiness-aware renderers
+   * take their null-context path only when diagnostics and renderer-readiness
+   * requirements are enabled, without changing production behavior.
+   */
+  forceRendererContextFailureForReview?: boolean
   testId?: string
   /** Exposes actual lazy-load and post-adapter props on data attributes for guarded QA surfaces. */
   diagnostics?: boolean
@@ -77,6 +93,7 @@ export function BackgroundHost(props: BackgroundHostProps) {
     motionEnabled = true,
     forceEffectMount = false,
     forceAmbientMotionForReview = false,
+    forceRendererContextFailureForReview = false,
     testId = "background-host",
     diagnostics = false,
     ...effectPropsInput
@@ -90,6 +107,8 @@ export function BackgroundHost(props: BackgroundHostProps) {
     [effectPropsInputSignature],
   )
   const {
+    solidColor,
+    staticGradient,
     mainColor,
     orbColor,
     sparkles,
@@ -153,6 +172,13 @@ export function BackgroundHost(props: BackgroundHostProps) {
     massageLab3DGlobe,
     massageLabRetroGrid,
     massageLabAerialRays,
+    massageLabAurora,
+    massageLabDottedGlow,
+    massageLabBubble,
+    massageLabBackgroundBeams,
+    massageLabCollisionBeams,
+    massageLabGlowingStars,
+    massageLabMeteors,
     massageLabDna,
     massageLabTwistedCubes,
     backgroundLines,
@@ -184,8 +210,13 @@ export function BackgroundHost(props: BackgroundHostProps) {
   const reduceMotion = !motionEnabled || (!allowAmbientMotionForReview && ambientReducedMotion)
   const [loadedEffect, setLoadedEffect] = useState<{
     id: string
+    loadGeneration: number
     component: ComponentType<BackgroundEffectProps>
   } | null>(null)
+  const loadGenerationRef = useRef(0)
+  const [readyRendererAttempt, setReadyRendererAttempt] = useState<
+    BackgroundRendererAttempt | null
+  >(null)
   const [loadStatus, setLoadStatus] = useState<BackgroundHostLoadStatus>("idle")
   const [loadError, setLoadError] = useState<string | null>(null)
   const shouldLoadEffect = Boolean(
@@ -194,6 +225,8 @@ export function BackgroundHost(props: BackgroundHostProps) {
   )
   const { baseEffectProps, effectProps } = useMemo(() => {
     const baseEffectProps = {
+    solidColor,
+    staticGradient,
     mainColor,
     orbColor,
     sparkles,
@@ -257,6 +290,13 @@ export function BackgroundHost(props: BackgroundHostProps) {
     massageLab3DGlobe,
     massageLabRetroGrid,
     massageLabAerialRays,
+    massageLabAurora,
+    massageLabDottedGlow,
+    massageLabBubble,
+    massageLabBackgroundBeams,
+    massageLabCollisionBeams,
+    massageLabGlowingStars,
+    massageLabMeteors,
     massageLabDna,
     massageLabTwistedCubes,
     reduceMotion,
@@ -286,6 +326,8 @@ export function BackgroundHost(props: BackgroundHostProps) {
       }),
     }
   }, [
+    solidColor,
+    staticGradient,
     mainColor,
     orbColor,
     sparkles,
@@ -349,6 +391,13 @@ export function BackgroundHost(props: BackgroundHostProps) {
     massageLab3DGlobe,
     massageLabRetroGrid,
     massageLabAerialRays,
+    massageLabAurora,
+    massageLabDottedGlow,
+    massageLabBubble,
+    massageLabBackgroundBeams,
+    massageLabCollisionBeams,
+    massageLabGlowingStars,
+    massageLabMeteors,
     massageLabDna,
     massageLabTwistedCubes,
     reduceMotion,
@@ -371,6 +420,8 @@ export function BackgroundHost(props: BackgroundHostProps) {
 
   useEffect(() => {
     let mounted = true
+    const loadGeneration = loadGenerationRef.current + 1
+    loadGenerationRef.current = loadGeneration
     setLoadedEffect(null)
     setLoadError(null)
 
@@ -387,6 +438,7 @@ export function BackgroundHost(props: BackgroundHostProps) {
         if (mounted) {
           setLoadedEffect({
             id: entry.id,
+            loadGeneration,
             component: module.default,
           })
           setLoadStatus("loaded")
@@ -408,6 +460,42 @@ export function BackgroundHost(props: BackgroundHostProps) {
   const BackgroundComponent = loadedEffect?.id === entry.id
     ? loadedEffect.component
     : null
+  const requiresRendererReadiness = PATTERNED_ACTIVE_RENDERER_IDS.has(entry.id)
+  const activeRendererAttempt = BackgroundComponent && loadedEffect
+    ? { backgroundId: entry.id, loadGeneration: loadedEffect.loadGeneration }
+    : null
+  const activeRendererBackgroundId = activeRendererAttempt?.backgroundId ?? null
+  const activeRendererLoadGeneration = activeRendererAttempt?.loadGeneration ?? null
+  const effectReady = Boolean(
+    activeRendererAttempt
+      && readyRendererAttempt?.backgroundId === activeRendererAttempt.backgroundId
+      && readyRendererAttempt.loadGeneration === activeRendererAttempt.loadGeneration,
+  )
+  // Capture both identities so a stale lazy renderer cannot mark a newer
+  // background or retry generation ready after it has been replaced.
+  const handleRenderReadyChange = useCallback((ready: boolean) => {
+    if (activeRendererBackgroundId === null || activeRendererLoadGeneration === null) {
+      return
+    }
+    setReadyRendererAttempt((currentReadyAttempt) => reduceBackgroundRendererReadiness(
+      currentReadyAttempt,
+      {
+        attempt: {
+          backgroundId: activeRendererBackgroundId,
+          loadGeneration: activeRendererLoadGeneration,
+        },
+        ready,
+      },
+    ))
+  }, [activeRendererBackgroundId, activeRendererLoadGeneration])
+  const forceRendererContextFailure = process.env.NODE_ENV !== "production"
+    && diagnostics
+    && requiresRendererReadiness
+    && forceRendererContextFailureForReview
+  const shouldRenderFallbackUnderlay = shouldRenderBackgroundFallbackUnderlay({
+    backgroundId: entry.id,
+    effectReady,
+  })
   const adapter = backgroundPaletteRegistry[entry.id]
   const fallbackStyle = useMemo(
     () => (backgroundPalette
@@ -446,6 +534,8 @@ export function BackgroundHost(props: BackgroundHostProps) {
       className={cn(styles.host, !className && styles.hostDefault, className)}
       data-background-id={entry.id}
       data-background-effect-mounted={BackgroundComponent ? "true" : "false"}
+      data-background-effect-ready={requiresRendererReadiness ? String(effectReady) : undefined}
+      data-background-underlay={shouldRenderFallbackUnderlay ? "visible" : "suppressed"}
       data-background-fallback-only={
         shouldLoadEffect && !BackgroundComponent ? "true" : "false"
       }
@@ -480,16 +570,25 @@ export function BackgroundHost(props: BackgroundHostProps) {
       data-testid={testId}
       style={style}
     >
-      <div
-        // Registry fallbacks mix legacy background shorthand and longhands.
-        // Remounting this decorative layer prevents React from reconciling
-        // conflicting style families when the complete resolved style changes.
-        key={fallbackRemountKey}
-        className={cn(styles.fallback, entry.fallbackClassName)}
-        style={fallbackStyle}
-      />
+      {shouldRenderFallbackUnderlay ? (
+        <div
+          // Registry fallbacks mix legacy background shorthand and longhands.
+          // Remounting this decorative layer avoids stale style-family reconciliation.
+          key={fallbackRemountKey}
+          className={cn(styles.fallback, entry.fallbackClassName)}
+          style={fallbackStyle}
+        />
+      ) : null}
       {BackgroundComponent ? (
-        <BackgroundComponent {...effectProps} />
+        <BackgroundComponent
+          {...effectProps}
+          {...(requiresRendererReadiness
+            ? {
+                onRenderReadyChange: handleRenderReadyChange,
+                forceContextFailureForReview: forceRendererContextFailure,
+              }
+            : {})}
+        />
       ) : null}
     </div>
   )

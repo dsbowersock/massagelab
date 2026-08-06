@@ -47,12 +47,15 @@ function MassageLabDnaRenderer({
   const {
     showBaseLetters,
     nodeMotionSpeed,
+    strandRotationEnabled,
     strandRotationSpeed,
+    strandRotationDirection,
     strandAngle,
     scale,
     positionX,
     positionY,
     strandSpacing,
+    nodeSize,
     connectorWidth,
     connectorThickness,
     outlineThickness,
@@ -83,6 +86,7 @@ function MassageLabDnaRenderer({
     positionX,
     positionY,
     compactViewport,
+    minimumScale: DNA_OPTION_BOUNDS.scale.minimum,
   })
   const nodeCycleSeconds = getDnaNodeCycleSeconds(nodeMotionSpeed)
   const strandRotationSeconds = getDnaStrandRotationSeconds(strandRotationSpeed)
@@ -98,10 +102,12 @@ function MassageLabDnaRenderer({
     "--ml-dna-scene-height": `max(${DNA_SOURCE_GEOMETRY.minimumHeightVmin}vmin, ${DNA_SOURCE_GEOMETRY.viewportHeightVmax}vmax)`,
     "--ml-dna-strand-angle": `${strandAngle}deg`,
     "--ml-dna-strand-spacing": `${strandSpacing}vmin`,
+    "--ml-dna-node-size": `${nodeSize}%`,
     "--ml-dna-connector-width": `${connectorWidth}%`,
     "--ml-dna-connector-thickness": `${connectorThickness}%`,
     "--ml-dna-outline-thickness": `${outlineThickness}vmin`,
     "--ml-dna-rotation-duration": `${strandRotationSeconds}s`,
+    "--ml-dna-rotation-direction": strandRotationDirection === "counterclockwise" ? "reverse" : "normal",
   } as CSSProperties
   const sceneStyle = {
     "--ml-dna-scale": responsiveTransform.scale,
@@ -126,6 +132,7 @@ function MassageLabDnaRenderer({
       index,
       ...assignment,
       style: {
+        "--ml-dna-strand-offset": `${(index - ((renderStrandCount - 1) / 2)) * strandSpacing}vmin`,
         "--ml-dna-node-duration": `${nodeCycleSeconds}s`,
         "--ml-dna-node-delay": `${delaySeconds}s`,
         "--ml-dna-start-color": `var(--ml-dna-node-color-${assignment.startRole})`,
@@ -139,6 +146,7 @@ function MassageLabDnaRenderer({
       className={styles.root}
       style={rootStyle}
       data-reduce-motion={reduceMotion || undefined}
+      data-strand-rotation-disabled={!strandRotationEnabled || undefined}
       aria-hidden="true"
     >
       <div className={styles.scene} style={sceneStyle}>

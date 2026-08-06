@@ -1132,15 +1132,18 @@
   }
 
   .ml-slider-hue .ml-slider-track {
-    background: linear-gradient(
-      90deg,
-      hsl(0 100% 50%) 0%,
-      hsl(60 100% 50%) 16.66%,
-      hsl(120 100% 45%) 33.33%,
-      hsl(180 100% 48%) 50%,
-      hsl(240 100% 58%) 66.66%,
-      hsl(300 100% 52%) 83.33%,
-      hsl(360 100% 50%) 100%
+    background: var(
+      --ml-slider-hue-track,
+      linear-gradient(
+        90deg,
+        hsl(0 100% 50%) 0%,
+        hsl(60 100% 50%) 16.66%,
+        hsl(120 100% 45%) 33.33%,
+        hsl(180 100% 48%) 50%,
+        hsl(240 100% 58%) 66.66%,
+        hsl(300 100% 52%) 83.33%,
+        hsl(360 100% 50%) 100%
+      )
     );
     -webkit-mask-image: linear-gradient(
       90deg,
@@ -2951,6 +2954,16 @@ html[data-theme-transition-fallback="toggle-light"]::before {
 
 @media (prefers-reduced-motion: reduce) {
   body:not(.chimer-running):not(.chimer-alerting):not(.chimer-preview-capture) .massagelab-background-fallback {
+    animation: none;
+  }
+
+  body:is(.chimer-running, .chimer-alerting, .chimer-preview-capture) :is(
+    [data-background-id="massage-lab-gradient-blinds"],
+    [data-background-id="massage-lab-pixel-snow"],
+    [data-background-id="massage-lab-faulty-terminal"],
+    [data-background-id="massage-lab-grid-distortion"],
+    [data-background-id="massage-lab-grid-motion"]
+  ) .massagelab-background-fallback {
     animation: none;
   }
 

@@ -209,6 +209,9 @@ export function BackgroundCarouselCard({
         </div>
         <div>
           <h3 className="font-semibold">{option.label}</h3>
+          <p className="mt-1 text-xs leading-4 text-white/80">
+            {option.visualDescriptor}
+          </p>
           {previewTags.length > 0 ? (
             <p className="mt-1 text-xs text-white/70">
               {previewTags.join(" - ")}

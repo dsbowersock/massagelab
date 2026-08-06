@@ -51,6 +51,9 @@ const DEFAULT_MASSAGELAB_PIXEL_SNOW: ResolvedPixelSnowOptions = {
   direction: 125,
 }
 
+// A stable nonzero frame prevents the ray-marched scene's sparse time-zero first paint.
+const PIXEL_SNOW_SCENE_TIME_OFFSET = 11.7
+
 const vertexShaderSource = `#version 300 es
   in vec2 aPosition;
 
@@ -248,10 +251,13 @@ export default function MassageLabPixelSnowBackground({
     let width = 1
     let height = 1
 
+    // Pixel Snow stays lightweight enough to preserve its ambient motion on compact viewports.
     const shouldAnimate = () => shouldAnimateAmbientBackground({
       prefersReducedMotion: reducedMotionQuery.matches,
       compactViewport: compactViewportQuery.matches,
+      allowCompactViewport: true,
       documentHidden: document.visibilityState !== "visible",
+      respectSystemReducedMotion: true,
     })
 
     const resize = () => {
@@ -276,7 +282,9 @@ export default function MassageLabPixelSnowBackground({
       }
 
       const animate = shouldAnimate()
-      const time = animate ? (timestamp - startTime) * 0.001 : 0
+      const time = animate
+        ? PIXEL_SNOW_SCENE_TIME_OFFSET + (timestamp - startTime) * 0.001
+        : PIXEL_SNOW_SCENE_TIME_OFFSET
       renderPixelSnow(gl, resources, options, color, width, height, time)
 
       if (animate && options.speed > 1e-6) {

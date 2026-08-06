@@ -30,6 +30,7 @@ const browserQaBaseUrl = process.env.PLAYWRIGHT_BASE_URL
 const skipWebServer = parseBooleanEnv(process.env.PLAYWRIGHT_SKIP_WEB_SERVER)
 const developmentPaletteReviewSpecs = [
   "tests/browser/background-palette.spec.ts",
+  "tests/browser/background-preview-pilot.spec.ts",
   "tests/browser/dna-twisted-cubes-backgrounds.spec.ts",
 ]
 const developmentPaletteReviewIgnoreGlobs = developmentPaletteReviewSpecs

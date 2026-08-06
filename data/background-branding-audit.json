@@ -1,0 +1,846 @@
+{
+  "schemaVersion": 1,
+  "voice": "restorative-laboratory-wellness-leaning",
+  "entries": [
+    {
+      "id": "massage-lab-moving-gradient",
+      "decision": "rename",
+      "recommendedName": "Massage Laba Lamp",
+      "alternatives": ["Orbital Drift", "Floating Forms"],
+      "visualDescriptor": "Soft orbs drifting through a dark field",
+      "rationale": "The spaced signature treatment gives the internally conceived free default a pronounceable identity while describing its drifting orb motion.",
+      "collisionNotes": "Reserve this sole branded title for the original moving gradient; Lamp Glow is centered and Colorfield Drift uses broad shifting layers.",
+      "signatureOriginalEligible": true
+    },
+    {
+      "id": "static-gradient",
+      "decision": "rename",
+      "recommendedName": "In Transition",
+      "alternatives": ["Held Field", "Quiet Gradient"],
+      "visualDescriptor": "Fixed layered gradient field at rest",
+      "rationale": "In Transition gives the motionless internal fallback an intentional, contemplative identity without treating it as a technical state.",
+      "collisionNotes": "Its fixed layered field separates it from Massage Laba Lamp's drifting orbs and Colorfield Drift's motion.",
+      "signatureOriginalEligible": true
+    },
+    {
+      "id": "solid-color",
+      "decision": "keep",
+      "recommendedName": "Solid Color",
+      "alternatives": ["Full Color", "Color Wash"],
+      "visualDescriptor": "Single uninterrupted full-screen color field",
+      "rationale": "Solid Color is the clearest truthful name for a utility background with one editable color and no motion or tuning.",
+      "collisionNotes": "Its single flat field is distinct from In Transition's multi-stop gradient and every animated color field.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-retro-grid",
+      "decision": "rename",
+      "recommendedName": "Endless Perspective",
+      "alternatives": ["Vanishing Horizon", "Receding Plane"],
+      "visualDescriptor": "Perspective grid scrolling toward the horizon",
+      "rationale": "Endless Perspective emphasizes the receding wire plane and sustained horizon motion without overpromising a futuristic experience.",
+      "collisionNotes": "Its horizon scroll distinguishes it from Neon Survey's tunnel, Ripple Grid's center wave, and the flat tile systems.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-aerial-rays",
+      "decision": "rename",
+      "recommendedName": "Skybreak",
+      "alternatives": ["Overhead Descent", "Softlight Descent"],
+      "visualDescriptor": "Diffuse light rays descending from above",
+      "rationale": "Skybreak gives the passive top-down shafts a calm sense of height while remaining faithful to their diffuse overhead form.",
+      "collisionNotes": "The overhead diffuse origin keeps it apart from Lateral Rays, Cascading Rays, Spotlight, and Lamp Glow.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-dna",
+      "decision": "keep",
+      "recommendedName": "DNA",
+      "alternatives": ["Helix Rhythm", "Genetic Geometry"],
+      "visualDescriptor": "Double helices rotating in depth",
+      "rationale": "DNA is the most truthful and scannable name for the reviewed paired-base helix, while remaining descriptive rather than making a health claim.",
+      "collisionNotes": "The biological base-pair structure is unique; Hypercube also rotates in depth but has no organic or educational form.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-twisted-cubes",
+      "decision": "rename",
+      "recommendedName": "Hypercube",
+      "alternatives": ["Turning Lattice", "Nested Geometry"],
+      "visualDescriptor": "Nested wireframe cubes rotating in sequence",
+      "rationale": "Hypercube gives the source-shaped stack of outlined forms a concise geometric identity while remaining faithful to its count-relative progression.",
+      "collisionNotes": "Its nested three-dimensional frames separate it from Shape Grid, Endless Perspective, and DNA's rotating helix.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-tile-grid",
+      "decision": "rename",
+      "recommendedName": "Quiet Mosaic",
+      "alternatives": ["Tiled Rhythm", "Mosaic Fade"],
+      "visualDescriptor": "Raised square tiles fading independently",
+      "rationale": "Quiet Mosaic softens the utilitarian catalog wording while honoring the internally conceived square tiles that ease in and out.",
+      "collisionNotes": "Square geometry and independent fades distinguish it from Honeycomb Glow, Mosaic Warp, and the perspective grid effects.",
+      "signatureOriginalEligible": true
+    },
+    {
+      "id": "massage-lab-hex-grid",
+      "decision": "rename",
+      "recommendedName": "Honeycomb Glow",
+      "alternatives": ["Hexagonal Rhythm", "Faceted Calm"],
+      "visualDescriptor": "Raised hexagons softly fading in sequence",
+      "rationale": "Honeycomb Glow gives the original internal hex field an approachable sensory image and remains faithful to its softly illuminated cells.",
+      "collisionNotes": "The six-sided cell pattern keeps it visually distinct from Quiet Mosaic's squares and Connective Pulse's warped line mesh.",
+      "signatureOriginalEligible": true
+    },
+    {
+      "id": "massage-lab-gradient",
+      "decision": "rename",
+      "recommendedName": "Colorfield Drift",
+      "alternatives": ["Layered Weather", "Spectrum Breathing"],
+      "visualDescriptor": "Broad layered forms slowly shifting across screen",
+      "rationale": "Colorfield Drift names the expansive layered form and its restrained motion more memorably than the current generic field label.",
+      "collisionNotes": "Its broad shifting layers differ from Massage Laba Lamp's orbs and In Transition's fixed field.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-lamp-effect",
+      "decision": "keep",
+      "recommendedName": "Lamp Glow",
+      "alternatives": ["Centered Canopy", "Quiet Beacon"],
+      "visualDescriptor": "Centered lamp glow softly pulsing",
+      "rationale": "Lamp Glow is warm, pronounceable, and visually precise for the centered conic beams, slim light line, and gentle pulse.",
+      "collisionNotes": "Keep it unbranded and premium; its centered canopy differs from Massage Laba Lamp's drifting orbs and mirrored Spotlight.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-spotlight",
+      "decision": "keep",
+      "recommendedName": "Spotlight",
+      "alternatives": ["Twin Illumination", "Theater Sweep"],
+      "visualDescriptor": "Mirrored light cones sweeping through darkness",
+      "rationale": "Spotlight is a familiar, readable term for the paired theatrical cones and needs no decorative wording to fit the restorative collection.",
+      "collisionNotes": "The mirrored cones distinguish this option from Lamp Glow's centered canopy and Skybreak's soft overhead wash.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-reveal-dots",
+      "decision": "rename",
+      "recommendedName": "Speckled Veil",
+      "alternatives": ["Luminous Pinfield", "Quiet Pointillism"],
+      "visualDescriptor": "Tiny dots shimmering across darkness",
+      "rationale": "Speckled Veil describes the passive dot matrix actually shown, avoiding the interaction promise implied by the former catalog label while retaining a soft sensory voice.",
+      "collisionNotes": "Its dense all-screen matrix remains separate from Shimmer's sparse points, Dot Field's ordered points, and Pegboard's even rows.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-wave-current",
+      "decision": "rename",
+      "recommendedName": "Tidal Glass",
+      "alternatives": ["Subsurface Cells", "Liquid Cartography"],
+      "visualDescriptor": "Layered liquid contours moving with directional flow",
+      "rationale": "Tidal Glass captures the glossy shader surface and its smooth directional movement while resolving the catalog's duplicate Wave Current label.",
+      "collisionNotes": "Judge Tidal Glass's broad liquid cells against Currents' fine contours and Ribbons' blurred bands, not against the similarly named legacy entry.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-waves",
+      "decision": "rename",
+      "recommendedName": "Currents",
+      "alternatives": ["Fine Topography", "Parallel Murmur"],
+      "visualDescriptor": "Fine parallel lines undulating as an ordered field",
+      "rationale": "Currents foregrounds the source-shaped canvas strands and their coordinated wave motion with a concise, flowing identity.",
+      "collisionNotes": "Its many narrow parallel paths distinguish Currents from Filament Waves, Arc Currant, and Tidal Glass's broad liquid cells.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-wavy-background",
+      "decision": "rename",
+      "recommendedName": "Ribbons",
+      "alternatives": ["Velvet Roll", "Soft Lull"],
+      "visualDescriptor": "Blurred ribbons rolling across an open field",
+      "rationale": "Ribbons gives the soft canvas waves a tactile, restorative identity that reflects their wide blurred bands rather than a generic flow label.",
+      "collisionNotes": "Ribbons' few broad blurred bands contrast with Arc Currant's layered arcs and Currents' dense ordered contours.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-silk",
+      "decision": "keep",
+      "recommendedName": "Silk",
+      "alternatives": ["Fabric Fold", "Luminous Undulation"],
+      "visualDescriptor": "Silk-like folds rippling through a field",
+      "rationale": "Silk is short, sensory, and exact for the shader's fabric-like folds, making the established source name unusually well aligned with the desired voice.",
+      "collisionNotes": "The textile surface separates Silk from Soapfilm's reflective wash and Prismatic Ribbons' discrete bands.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-floating-lines",
+      "decision": "rename",
+      "recommendedName": "Arc Currant",
+      "alternatives": ["Suspended Lines", "Layered Sweep"],
+      "visualDescriptor": "Layered lines sweeping in arcs",
+      "rationale": "Arc Currant names the multiple elevated bands and their slow suspended travel without adding a stronger energy cue than the default shows.",
+      "collisionNotes": "Arc Currant's layered arcs distinguish this renderer from the single fine Threads field and Filament Waves' dense bundle.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-line-waves",
+      "decision": "rename",
+      "recommendedName": "Filament Waves",
+      "alternatives": ["Luminous Weave", "Fine Harmonics"],
+      "visualDescriptor": "Dense filaments folding like waves",
+      "rationale": "Filament Waves is more tactile and specific than the existing Line Waves phrase, matching the dense bundle of many hair-thin shader lines.",
+      "collisionNotes": "Density is the key separator from Threads' sparse strands, Currents' evenly spaced contours, and Arc Currant's layered bands.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-threads",
+      "decision": "keep",
+      "recommendedName": "Threads",
+      "alternatives": ["Delicate Weave", "Perlin Drift"],
+      "visualDescriptor": "Fine threads wandering through a field",
+      "rationale": "Threads is compact and truthful to the restrained Perlin line field, whose delicate paths need no more elaborate promise.",
+      "collisionNotes": "Use the sparse thread count to keep Threads distinct from Filament Waves' thick bundle and Currents' ordered sheet.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-color-bends",
+      "decision": "rename",
+      "recommendedName": "Prismatic Ribbons",
+      "alternatives": ["Band Fold", "Chromatic Bend"],
+      "visualDescriptor": "Separated bands bending across a field",
+      "rationale": "Prismatic Ribbons replaces an awkward verb phrase with a pronounceable image that describes the shader's separated bands and flexible curvature.",
+      "collisionNotes": "The continuous bending bands differ from Kaleidoscope Rays' radial fan, Prismatic's triangle, and Soapfilm's blended wash.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-liquid-ether",
+      "decision": "rename",
+      "recommendedName": "Fluid Infusion",
+      "alternatives": ["Luminous Suspension", "Weightless Plume"],
+      "visualDescriptor": "Fluid plumes curling through a translucent volume",
+      "rationale": "Fluid Infusion is memorable and lightly experimental while accurately evoking the simulation's weightless plumes and translucent volume.",
+      "collisionNotes": "Fluid Infusion's diffuse plume behavior is separate from Molten Mirror's reflective spiral and Fluid Filament's outlined cellular contours.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-liquid-chrome",
+      "decision": "rename",
+      "recommendedName": "Molten Mirror",
+      "alternatives": ["Mirror Whirlpool", "Reflective Bloom"],
+      "visualDescriptor": "Reflective liquid spiraling into a central void",
+      "rationale": "Molten Mirror describes the high-contrast reflective whirl directly and avoids colliding with the other catalog entry currently called Chrome Flow.",
+      "collisionNotes": "Reserve this name for the central reflective spiral; Reflective Currents describes the broader flow shader in Batch 6.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-ferrofluid",
+      "decision": "rename",
+      "recommendedName": "Fluid Filament",
+      "alternatives": ["Magnetic Bloom", "Cellular Contours"],
+      "visualDescriptor": "Liquid contours clustering and separating",
+      "rationale": "Fluid Filament gives the rim-lit cellular forms a precise, pronounceable identity without a medical implication.",
+      "collisionNotes": "Fluid Filament's outlined droplet contours distinguish it from Fluid Infusion's cloudy plumes, Charged Foam's rounded cells, and the mirrorlike chrome effects.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-iridescence",
+      "decision": "rename",
+      "recommendedName": "Soapfilm",
+      "alternatives": ["Pearl Sheen", "Opaline Drift"],
+      "visualDescriptor": "Reflective light folding across a fabric-like surface",
+      "rationale": "Soapfilm expresses the renderer's defining color-shifting behavior and gives the soft shader wash a calm, sensory, single-word title.",
+      "collisionNotes": "Soapfilm's blended reflective surface is distinct from Silk's textile folds, a grainy banded field, and Interstellar's vertical curtains.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-light-speed",
+      "decision": "rename",
+      "recommendedName": "Starlight",
+      "alternatives": ["Velocity Rush", "Luminous Corridor"],
+      "visualDescriptor": "Luminous streaks rushing toward a center",
+      "rationale": "Starlight keeps the tunnel's exhilarating depth while replacing a hard science-fiction cliché with a gentler, image-led title.",
+      "collisionNotes": "The viewer-facing rush separates it from Convergence's horizontal signal, Lightfall's descent, and Kaleidoscope Rays' outward fan.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-lightfall",
+      "decision": "keep",
+      "recommendedName": "Lightfall",
+      "alternatives": ["Streak Canopy", "Luminous Curtain"],
+      "visualDescriptor": "Luminous streaks descending around a central glow",
+      "rationale": "Lightfall is graceful, memorable, and faithful to the many luminous streaks falling past a central bloom.",
+      "collisionNotes": "Its numerous curved streaks should not be confused with Firework Dust's discrete impacts or Falling Sky's diagonal sky trails.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-light-pillar",
+      "decision": "rename",
+      "recommendedName": "Monolight",
+      "alternatives": ["Axis of Light", "Beacon Monolith"],
+      "visualDescriptor": "Vertical light column flickering through haze",
+      "rationale": "Monolight is direct and contemplative, accurately describing the tall raymarched column without importing an unsupported symbolic meaning.",
+      "collisionNotes": "The single vertical column stands apart from Rising Monoliths' multiple planes, Lamp Glow's canopy, and the spreading ray fields.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-side-rays",
+      "decision": "rename",
+      "recommendedName": "Lateral Rays",
+      "alternatives": ["Horizon Fan", "Oblique Glow"],
+      "visualDescriptor": "Soft rays entering from the screen edge",
+      "rationale": "Lateral Rays preserves the source effect's defining side origin in smoother catalog language and remains truthful as its tilt and spread change.",
+      "collisionNotes": "Side entry is the review cue separating it from Aerial Rays above, Cascading Rays across the field, and centered Convergence.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-light-rays",
+      "decision": "rename",
+      "recommendedName": "Cascading Rays",
+      "alternatives": ["Haze Fan", "Cloudbreak Light"],
+      "visualDescriptor": "Soft rays spreading through dark haze",
+      "rationale": "Cascading Rays adds motion and softness to an overly generic current label while matching the broad, layered light shader at rest.",
+      "collisionNotes": "The dispersed fan differs from Lateral Rays' edge source, Aerial Rays' overhead wash, and Spotlight's mirrored cones.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-beams",
+      "decision": "rename",
+      "recommendedName": "Rising Monoliths",
+      "alternatives": ["Lumen Columns", "Light Architecture"],
+      "visualDescriptor": "Tall light planes rising in staggered rows",
+      "rationale": "Rising Monoliths identifies the unusual layered plane geometry that the single generic word Beams leaves unexplained.",
+      "collisionNotes": "The rectilinear standing planes are visually unlike Roaming Sweep's SVG paths and Firework Dust's falling streaks.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-background-beams",
+      "decision": "rename",
+      "recommendedName": "Roaming Sweep",
+      "alternatives": ["Luminous Filigree", "Arc Relay"],
+      "visualDescriptor": "Fifty hairline arcs lit by roaming gradients",
+      "rationale": "Roaming Sweep names the renderer's fifty fixed, 0.6-pixel parallel curves and roaming gradients, making the motion mechanism and fine structure explicit.",
+      "collisionNotes": "Unlike Signal Comets' forty-two thicker dash marks that sweep and fade along paths, these fifty hairline curves stay fixed while their gradients roam; Rising Monoliths uses broad planes.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-collision-beams",
+      "decision": "rename",
+      "recommendedName": "Firework Dust",
+      "alternatives": ["Falling Signals", "Spark Threshold"],
+      "visualDescriptor": "Slender beams falling into brief flares",
+      "rationale": "Firework Dust keeps the visible arrival-and-flare behavior but replaces the harsher collision wording with a calmer action.",
+      "collisionNotes": "Brief contact flares distinguish this option from Lightfall's continuous streak shower and Electric Storm's branching flashes.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-background-lines",
+      "decision": "rename",
+      "recommendedName": "Signal Comets",
+      "alternatives": ["Signal Routes", "Dash Relay"],
+      "visualDescriptor": "Forty-two luminous dashes sweeping along radial paths",
+      "rationale": "Signal Comets reflects the twenty-one radial paths rendered twice as 2.3-pixel rounded dashes that sweep, fade, and repeat on independent cycles.",
+      "collisionNotes": "Unlike Roaming Sweep's fifty fixed hairline curves illuminated by roaming gradients, these forty-two thicker dash marks travel and fade along their paths; Threads uses organic strands.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-photon-beam",
+      "decision": "rename",
+      "recommendedName": "Convergence",
+      "alternatives": ["Particle Lance", "Focused Trail"],
+      "visualDescriptor": "Light particles converging into a focused trail",
+      "rationale": "Convergence is compact and precisely fits the focused trail assembled from surrounding signal points.",
+      "collisionNotes": "The horizontal particle convergence is unique among the beam family and should not inherit Starlight's tunnel language.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-prismatic-burst",
+      "decision": "rename",
+      "recommendedName": "Kaleidoscope Rays",
+      "alternatives": ["Radiant Aperture", "Spectral Fan"],
+      "visualDescriptor": "Spectral rays bursting from a dark center",
+      "rationale": "Kaleidoscope Rays combines the renderer's persistent multi-channel light behavior with its unmistakable radial expansion in two readable words.",
+      "collisionNotes": "The outward full-field ray fan differs from Prismatic's bounded triangle and Prismatic Ribbons' lateral bands.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-prism",
+      "decision": "rename",
+      "recommendedName": "Prismatic",
+      "alternatives": ["Spectrum Triangle", "Refracted Glow"],
+      "visualDescriptor": "Glowing triangular prism refracting spectral light",
+      "rationale": "Prismatic is the clearest possible label for the central triangular volume and its refracted light, with no unnecessary futuristic embellishment.",
+      "collisionNotes": "The bounded triangle keeps this singular form distinct from Kaleidoscope Rays' fan and Slats' repeated strips.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-grid-bloom",
+      "decision": "rename",
+      "recommendedName": "Connective Pulse",
+      "alternatives": ["Lattice Interference", "Mesh Pulse"],
+      "visualDescriptor": "Grid waves pulsing through interference",
+      "rationale": "Connective Pulse is an apt sensory name for the lattice as interference pulses swell and recede across its warped surface.",
+      "collisionNotes": "The continuous mesh and interference bloom separate it from Ripple Grid's central square wave and Honeycomb Glow's discrete cells.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-pixel-blast",
+      "decision": "rename",
+      "recommendedName": "Nomad",
+      "alternatives": ["Digital Stipple", "Point Cloud Bloom"],
+      "visualDescriptor": "Dithered pixels gathering into shifting shapes",
+      "rationale": "Nomad describes both dispersion and re-formation while replacing Blast, which overstates the reviewed default's patterned motion.",
+      "collisionNotes": "Shape-forming dithered points distinguish it from Snowglobe's falling blocks, Shimmer, and Particle Drift.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-gradient-blinds",
+      "decision": "rename",
+      "recommendedName": "Slats",
+      "alternatives": ["Radiant Portal", "Striped Radiance"],
+      "visualDescriptor": "Gradient slats opening around a spotlight",
+      "rationale": "Slats replaces the household-fixture phrase with a more polished title while staying literal about the repeated luminous strips.",
+      "collisionNotes": "Parallel slats are distinct from Prismatic's triangle, Kaleidoscope Rays' radial fan, and Spotlight's unsegmented cones.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-grid-scan",
+      "decision": "rename",
+      "recommendedName": "Neon Survey",
+      "alternatives": ["Perspective Sweep", "Receding Matrix"],
+      "visualDescriptor": "Perspective grid sweeping through a dark tunnel",
+      "rationale": "Neon Survey is concise and accurate for the scanner-like illumination traveling through the source-shaped perspective line field.",
+      "collisionNotes": "The tunnel perspective and moving scan distinguish it from Retro Grid's open horizon and Ripple Grid's frontal plane.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-pixel-snow",
+      "decision": "rename",
+      "recommendedName": "Snowglobe",
+      "alternatives": ["Square Flurry", "Depth Confetti"],
+      "visualDescriptor": "Blocky flakes drifting through deep space",
+      "rationale": "Snowglobe is friendly, pronounceable, and literal for the many depth-layered square flakes without pretending the scene is realistic weather.",
+      "collisionNotes": "Falling blocks keep it separate from Nomad's assembled shapes, Falling Sky's streaks, and Particle Drift's points.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-dither",
+      "decision": "rename",
+      "recommendedName": "Dithered Smoke",
+      "alternatives": ["Printed Current", "Halftone Vapor"],
+      "visualDescriptor": "Wave clouds rendered as coarse dots",
+      "rationale": "Dithered Smoke tells users what the terse rendering term does: it shapes a soft moving cloud field from visible dots.",
+      "collisionNotes": "The cloudy halftone surface differs from Nomad's discrete shape, Velvet Grain's color texture, and Currents' contours.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-ripple-grid",
+      "decision": "keep",
+      "recommendedName": "Ripple Grid",
+      "alternatives": ["Resonance Floor", "Kinetic Topography"],
+      "visualDescriptor": "Square grid rippling from the center",
+      "rationale": "Ripple Grid directly names the centered deformation traveling through the square line plane and remains calmer than a more technical shader title.",
+      "collisionNotes": "Its central wave contrasts with Connective Pulse's interference mesh and Neon Survey's receding tunnel.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-dot-field",
+      "decision": "keep",
+      "recommendedName": "Dot Field",
+      "alternatives": ["Fine Point Fabric", "Quiet Point Array"],
+      "visualDescriptor": "Tiny dots arranged in even rows",
+      "rationale": "Dot Field is suitably literal for the broad canvas of small points arranged in a passive, orderly array; wave and sparkle are optional controls.",
+      "collisionNotes": "Its fine, passive array differs from Pegboard's larger reactive points and Speckled Veil's dense matrix shimmer.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-dot-grid",
+      "decision": "rename",
+      "recommendedName": "Pegboard",
+      "alternatives": ["Point Array", "Ordered Constellation"],
+      "visualDescriptor": "Dots resting in evenly spaced rows",
+      "rationale": "Pegboard accurately describes the passive default's orderly point array; its spring and shock behavior remains optional rather than implied by the title.",
+      "collisionNotes": "Pegboard's larger reactive points contrast with Dot Field's fine, passive ordered array, Shimmer's microglow, and Speckled Veil's dense matrix.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-grid-distortion",
+      "decision": "rename",
+      "recommendedName": "Mosaic Warp",
+      "alternatives": ["Tiled Refraction", "Digital Patchwork"],
+      "visualDescriptor": "Mosaic blocks bending in soft waves",
+      "rationale": "Mosaic Warp names the generated texture as well as its deformation, making the effect more tangible than the current engineering phrase.",
+      "collisionNotes": "Large blended blocks distinguish it from Quiet Mosaic's small independently fading tiles and Mantra Drift's word-bearing panels.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-grid-motion",
+      "decision": "rename",
+      "recommendedName": "Mantra Drift",
+      "alternatives": ["Calm Vocabulary", "Responsive Rows"],
+      "visualDescriptor": "Offset word rows resting in place",
+      "rationale": "Mantra Drift foregrounds the visible calm vocabulary and offset row layout; lateral shifting responds to the cursor rather than playing by default.",
+      "collisionNotes": "Readable word tiles make it unmistakable beside Geometric Current's empty cells, Code Confetti's character noise, and Encrypted's columns.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-shape-grid",
+      "decision": "rename",
+      "recommendedName": "Geometric Current",
+      "alternatives": ["Outline Parade", "Kinetic Drafting"],
+      "visualDescriptor": "Outlined square cells sliding across a field",
+      "rationale": "Geometric Current gives the moving canvas forms a softer directional identity while remaining broad enough for the source's selectable shapes.",
+      "collisionNotes": "Outlined moving cells distinguish this renderer from Mantra Drift's text panels and Quiet Mosaic's independently fading filled squares.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-electric-mist",
+      "decision": "rename",
+      "recommendedName": "Electric Glow",
+      "alternatives": ["Charged Discharge", "Thunderhead Glow"],
+      "visualDescriptor": "Electrical veins churning through smoky texture",
+      "rationale": "Electric Glow is vivid but truthful: the default combines luminous branching energy with a dense, cloudlike field rather than a simple lightning bolt.",
+      "collisionNotes": "The turbulent mist texture differentiates it from Electric Storm's isolated branches, Clouded Cosmos' soft clouds, and Charged Foam's rounded cells.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-astral-flow",
+      "decision": "rename",
+      "recommendedName": "Celestial Breath",
+      "alternatives": ["Radial Bloom", "Orbital Bloom"],
+      "visualDescriptor": "Dark radial wisps breathing around a center",
+      "rationale": "Celestial Breath suits the slowly breathing radial shader and carries a lightly experimental cosmic tone without promising any wellness outcome.",
+      "collisionNotes": "Its inward floral symmetry separates it from Constellations' stars, Emulsion's soft forms, and Orbits' particle streaks.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-deep-space-nebula",
+      "decision": "rename",
+      "recommendedName": "Clouded Cosmos",
+      "alternatives": ["Vapor Expanse", "Boundless Expanse"],
+      "visualDescriptor": "Nebula clouds billowing through deep shadow",
+      "rationale": "Clouded Cosmos is easy to scan and precisely conveys the domain-warped cloud depth in the passive scene.",
+      "collisionNotes": "Its broad vapor differs from Electric Glow's charged veins, Interstellar's vertical curtains, and Constellations' distinct stars.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-dark-veil",
+      "decision": "rename",
+      "recommendedName": "Shadows",
+      "alternatives": ["Neural Dusk", "Veiled Current"],
+      "visualDescriptor": "Neural ribbons drifting through shadow",
+      "rationale": "Shadows is restrained and sensory, matching the low-light neural texture and folded ribbon without leaning on its shader implementation.",
+      "collisionNotes": "The continuous shadowed ribbon should remain distinct from Speckled Veil's dot matrix and Ribbons' brighter canvas bands.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-soft-aurora",
+      "decision": "rename",
+      "recommendedName": "Polar Aurora",
+      "alternatives": ["Horizon Ribbon", "Horizon Hush"],
+      "visualDescriptor": "Aurora band glowing at horizon",
+      "rationale": "Polar Aurora already communicates the subdued horizon band, its gentle layered blend, and the catalog's wellness-first intensity.",
+      "collisionNotes": "The low horizontal band contrasts with Interstellar's tall curtains and Equalizer's discrete vertical columns.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-plasma",
+      "decision": "rename",
+      "recommendedName": "Charged Foam",
+      "alternatives": ["Luminous Cells", "Cellular Current"],
+      "visualDescriptor": "Plasma cells swelling and dissolving",
+      "rationale": "Charged Foam truthfully fits the raymarched luminous cells and their continuous merging motion.",
+      "collisionNotes": "The rounded cells are distinct from Folded Plasma's flowing ribbons and Fluid Filament's crisp glowing rims.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-plasma-wave",
+      "decision": "rename",
+      "recommendedName": "Folded Plasma",
+      "alternatives": ["Electric Braids", "Wave Weave"],
+      "visualDescriptor": "Plasma ribbons curling together",
+      "rationale": "Folded Plasma identifies the folded form that makes this shader visually different from Charged Foam's cellular entry.",
+      "collisionNotes": "Folded ribbons separate it from Charged Foam's cells, Prismatic Ribbons' separated bands, and Ribbons' blurred bands.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-particles",
+      "decision": "rename",
+      "recommendedName": "Particle Drift",
+      "alternatives": ["Quiet Point Cloud", "Quiet Suspension"],
+      "visualDescriptor": "Sparse particles drifting through a spacious field",
+      "rationale": "Particle Drift adds the defining quiet motion to an overly broad source label and suits the sparse point-cloud default.",
+      "collisionNotes": "The spacious point cloud differs from Constellations' rotating star density, Shimmer's ambient haze, and Orbits' particle streaks.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-galaxy",
+      "decision": "rename",
+      "recommendedName": "Constellations",
+      "alternatives": ["Central Orbit", "Deep Orbit"],
+      "visualDescriptor": "Dense stars rotating around a luminous center",
+      "rationale": "Constellations names the layered star shader's focal center, rotation, glow, and deep spatial density.",
+      "collisionNotes": "Central rotation differentiates it from Drifting Starfield's lateral layers, Wish's occasional trails, and Particle Drift.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-aurora",
+      "decision": "rename",
+      "recommendedName": "Interstellar",
+      "alternatives": ["Boreal Canvas", "Chromatic Drapery"],
+      "visualDescriptor": "Blurred vertical color curtains slowly shifting",
+      "rationale": "Interstellar gives the soft full-screen field a concise cosmic label while retaining its tall blended curtains.",
+      "collisionNotes": "Use its tall blended curtains to distinguish it from Polar Aurora's horizon band and Equalizer's separated columns.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-dotted-glow",
+      "decision": "rename",
+      "recommendedName": "Shimmer",
+      "alternatives": ["Cyan Stipple", "Night Microstars"],
+      "visualDescriptor": "Tiny cyan dots twinkling over deep blue",
+      "rationale": "Shimmer gives the subtle canvas effect a distinctive scale and motion, avoiding another generic use of field or glow.",
+      "collisionNotes": "Its sparse cyan micro-lights differ from Speckled Veil's dense matrix, Dot Field's fine passive array, and Fireflies' larger stars.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-sparkles",
+      "decision": "rename",
+      "recommendedName": "Fireflies",
+      "alternatives": ["Glittering Haze", "Haze Lanterns"],
+      "visualDescriptor": "Sparkles pulsing across ambient haze",
+      "rationale": "Fireflies retains the friendly source idea while acknowledging the background glows that define this version's passive scene.",
+      "collisionNotes": "Ambient haze and larger twinkles set it apart from Shimmer, Particle Drift, and the structured Star Lattice.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-chrome-flow",
+      "decision": "rename",
+      "recommendedName": "Reflective Currents",
+      "alternatives": ["Liquid Folds", "Liquid Geology"],
+      "visualDescriptor": "Reflective marbling folding through broad liquid currents",
+      "rationale": "Reflective Currents names the wide metallic folds without borrowing the other renderer's spiral identity or fixing the customizable palette.",
+      "collisionNotes": "Reserve this for broad reflective marbling; Molten Mirror names the high-contrast spiral, and Fluid Filament retains cellular rims.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-evil-eye",
+      "decision": "rename",
+      "recommendedName": "Ember Iris",
+      "alternatives": ["Solar Aperture", "Firewheel"],
+      "visualDescriptor": "Luminous iris flickering around a dark pupil",
+      "rationale": "Ember Iris keeps the unmistakable eye form and animated radial texture while removing the adversarial tone of the current source title; the reviewed passive default does not follow the pointer.",
+      "collisionNotes": "The central pupil and radial flame make this visually unique; avoid conflating it with Halo's rim or Deep Search's concentric rings.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-radar",
+      "decision": "rename",
+      "recommendedName": "Deep Search",
+      "alternatives": ["Rotating Sweep", "Echo Dial"],
+      "visualDescriptor": "Luminous sweep rotating across concentric rings",
+      "rationale": "Deep Search gives the passive rotating sweep, spokes, and ring display a more atmospheric identity without implying optional pointer interaction.",
+      "collisionNotes": "Its instrument-like rings distinguish it from Ember Iris' organic pupil, Ripple Grid's square wave, and Halo's luminous rim.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-synthesis",
+      "decision": "rename",
+      "recommendedName": "Emulsion",
+      "alternatives": ["Soft Morphology", "Soft Fusion"],
+      "visualDescriptor": "Luminous forms blending through soft focus",
+      "rationale": "Emulsion names the softly merged forms at the reviewed defaults without fixing the configurable palette.",
+      "collisionNotes": "The blurred soft-focus fusion differs from Celestial Breath's radial symmetry, Drift's grainy bands, and Interstellar's curtains.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-lightning",
+      "decision": "rename",
+      "recommendedName": "Electric Storm",
+      "alternatives": ["Branching Fracture", "Storm Thread"],
+      "visualDescriptor": "Bright branching bolts flashing across a dark field",
+      "rationale": "Electric Storm names the isolated branching shader without dressing a deliberately high-energy effect in misleading calm language.",
+      "collisionNotes": "Discrete bolt flashes keep it separate from Electric Glow's continuous turbulence and Firework Dust's straight falling streaks.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-faulty-terminal",
+      "decision": "rename",
+      "recommendedName": "Scanline",
+      "alternatives": ["Signal Chamber", "Broken Broadcast"],
+      "visualDescriptor": "Pixelated terminal glyph grid moving behind scanlines",
+      "rationale": "Scanline preserves the CRT and glyph-grid character while removing Faulty, a negative quality judgment that does not fit the collection voice; the default includes both ambient motion and a subtle pointer response.",
+      "collisionNotes": "Scanlines, curvature, and the pixelated glyph grid distinguish it from Code Confetti's character substitutions and Encrypted's falling columns.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-letter-glitch",
+      "decision": "rename",
+      "recommendedName": "Code Confetti",
+      "alternatives": ["Character Mosaic", "Letter Weather"],
+      "visualDescriptor": "Character grid flickering through randomized substitutions",
+      "rationale": "Code Confetti is compact and lightly experimental, describing the passive default's character changes without framing their intended motion as a malfunction or fixing its configurable colors.",
+      "collisionNotes": "A full randomized character grid differs from Encrypted's descending columns, Scanline's CRT texture, and Mantra Drift's readable tiles.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-balatro",
+      "decision": "rename",
+      "recommendedName": "Chromatic Swirl",
+      "alternatives": ["Ink Current", "Dancing Pigments"],
+      "visualDescriptor": "Layered currents spiraling like marbled ink",
+      "rationale": "Chromatic Swirl replaces an opaque source-specific label with the clearest account of the shader's palette-configurable marbling and default pointer response.",
+      "collisionNotes": "Broad marbled-ink currents distinguish it from Orbits' particle streaks, Molten Mirror's high-contrast spiral, and Folded Plasma.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-novatrix",
+      "decision": "rename",
+      "recommendedName": "Drift",
+      "alternatives": ["Sorbet Weather", "Prism Daydream"],
+      "visualDescriptor": "Soft color bands drifting through a grainy field",
+      "rationale": "Drift replaces the invented Novatrix term with an approachable description of the soft bands and passive shader movement without committing the customizable visual to a particular palette.",
+      "collisionNotes": "Its grainy pastel bands sit between Soapfilm's pearly folds and Interstellar's vertical curtains without duplicating either form.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-matrix-rain",
+      "decision": "rename",
+      "recommendedName": "Encrypted",
+      "alternatives": ["Glyph Cascade", "Cipher Curtain"],
+      "visualDescriptor": "Character columns cascading over a dark field",
+      "rationale": "Encrypted gives the passive falling character forms a concise digital framing without claiming an interaction or fixing their configurable color.",
+      "collisionNotes": "Vertical character columns distinguish it from Code Confetti's full-screen substitutions and Mantra Drift's horizontal phrase rows.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-pixel-liquid",
+      "decision": "rename",
+      "recommendedName": "Simulation",
+      "alternatives": ["Pixel Field", "Cubist Fluid"],
+      "visualDescriptor": "Pixelated fluid shifting through a dark field",
+      "rationale": "Simulation gives the automatically driven canvas adaptation a concise digital identity while retaining its defining blocky fluid texture without fixing its configurable palette.",
+      "collisionNotes": "Pixelated fluid differs from Nomad's shape assembly, Mosaic Warp's large blocks, and Tidal Glass' smooth shader surface.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-vortex",
+      "decision": "rename",
+      "recommendedName": "Orbits",
+      "alternatives": ["Particle Choreography", "Swirling Dust"],
+      "visualDescriptor": "Particles drifting through a swirling current",
+      "rationale": "Orbits gives the flowing particle field a concise cosmic label while the passive default remains a flow of particle streaks rather than a pointer response or fixed hue.",
+      "collisionNotes": "Discrete particle streaks separate it from Chromatic Swirl's broad ink, Constellations' stars, and Starlight's straight tunnel streaks.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-grainient",
+      "decision": "rename",
+      "recommendedName": "Velvet Grain",
+      "alternatives": ["Analog Grain", "Powdered Spectrum"],
+      "visualDescriptor": "Grainy color field drifting softly",
+      "rationale": "Velvet Grain replaces a difficult portmanteau with a tactile, pronounceable title for the smooth field and its visible granular texture without fixing the configurable palette.",
+      "collisionNotes": "The fine grain separates it from Drift's broad bands, Dithered Smoke's halftone dots, and Color Drift's clean gradient clouds.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-orb",
+      "decision": "rename",
+      "recommendedName": "Halo",
+      "alternatives": ["Glass Eclipse", "Glass Orb"],
+      "visualDescriptor": "Luminous ring surrounding a shaded sphere",
+      "rationale": "Halo is concise and visually exact for the shaded sphere, luminous rim, and default cursor-responsive rotation, making elaboration unnecessary.",
+      "collisionNotes": "A single shaded sphere with a halo differs from Ember Iris' flames, Pale Blue Dot's mapped Earth, and Deep Search's flat rings.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-gradient-animation",
+      "decision": "rename",
+      "recommendedName": "Color Drift",
+      "alternatives": ["Chromatic Exhale", "Gradient Weather"],
+      "visualDescriptor": "Gradient clouds slowly roaming",
+      "rationale": "Color Drift removes the generic Animated prefix and names the quiet cloudlike movement that users can actually see at the passive default without fixing its configurable palette.",
+      "collisionNotes": "Its soft roaming clouds should be compared with Colorfield Drift's layered sweep and Still Gradient's motionless haze.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-glowing-stars",
+      "decision": "rename",
+      "recommendedName": "Star Lattice",
+      "alternatives": ["Ordered Night", "Fivefold Twinkle"],
+      "visualDescriptor": "Small stars brightening across an ordered grid",
+      "rationale": "Star Lattice highlights the source effect's structured arrangement, a more useful distinction than the broad current phrase Glowing stars.",
+      "collisionNotes": "The ordered star grid is unlike Drifting Starfield's layered sky, Constellations' rotating density, and Wish's bright trails.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-meteors",
+      "decision": "rename",
+      "recommendedName": "Falling Sky",
+      "alternatives": ["Ember Transit", "Diagonal Signals"],
+      "visualDescriptor": "Diagonal meteor streaks crossing a dark sky",
+      "rationale": "Falling Sky names the repeated diagonal bodies and tails while preserving a clear account of the visible motion.",
+      "collisionNotes": "A steady field of diagonal trails differs from Wish's sparse events, Snowglobe's blocks, and Lightfall's curved descent.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-shooting-stars",
+      "decision": "rename",
+      "recommendedName": "Wish",
+      "alternatives": ["Transit Sky", "Starlight Passage"],
+      "visualDescriptor": "Sparse stars twinkling between occasional bright streaks",
+      "rationale": "Wish gives the sparse sky and occasional bright transit a concise, image-led identity while retaining the scene's defining event.",
+      "collisionNotes": "Event frequency separates it from Falling Sky's continual diagonal field, Star Lattice's ordered points, and Drifting Starfield's layers.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-3d-globe",
+      "decision": "rename",
+      "recommendedName": "Pale Blue Dot",
+      "alternatives": ["Atlas in Motion", "Sunlit Sphere"],
+      "visualDescriptor": "Mapped globe with built-in Massage Lab marker",
+      "rationale": "Pale Blue Dot gives the renderer's geographic identity an image-led title without fixing its configurable colors; the built-in Massage Lab marker is always present, while the separate user marker remains optional.",
+      "collisionNotes": "Mapped continents and the built-in Massage Lab marker keep it separate from Halo's abstract sphere and every unstructured celestial field.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-aurora-bars",
+      "decision": "rename",
+      "recommendedName": "Equalizer",
+      "alternatives": ["Polar Columns", "Ribbon Columns"],
+      "visualDescriptor": "Luminous vertical bars rising in rolling waves",
+      "rationale": "Equalizer captures the bar form and passive column motion; Music can optionally activate visualizer response without changing the default behavior or palette.",
+      "collisionNotes": "Discrete vertical columns distinguish it from Interstellar's blended curtains, Polar Aurora's horizon band, and Slats' strips.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-bubble",
+      "decision": "rename",
+      "recommendedName": "Bubbles",
+      "alternatives": ["Soft Buoyancy", "Blurred Planets"],
+      "visualDescriptor": "Blurred bubbles floating through a dark wash",
+      "rationale": "Bubbles keeps the friendly literal identity while truthfully reflecting the passive five-bubble composition after the cursor-following source bubble was omitted.",
+      "collisionNotes": "Multiple blurred circles differ from Halo's single rimmed sphere, Charged Foam's cellular material, and the gradient-only fields.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-stars",
+      "decision": "rename",
+      "recommendedName": "Drifting Starfield",
+      "alternatives": ["Threefold Sky", "Parallax Night"],
+      "visualDescriptor": "Three star layers gliding above a dark horizon",
+      "rationale": "Drifting Starfield adds the source adaptation's layered motion to an otherwise indistinct Stars label; its three layers glide passively and shift subtly with the cursor.",
+      "collisionNotes": "Its three lateral layers distinguish it from Constellations' central rotation, Star Lattice's grid, and Wish's intermittent streaks.",
+      "signatureOriginalEligible": false
+    },
+    {
+      "id": "massage-lab-hole",
+      "decision": "rename",
+      "recommendedName": "Descent",
+      "alternatives": ["Radial Abyss", "Lattice Well"],
+      "visualDescriptor": "Radiant wire grid flowing into a dark center",
+      "rationale": "Descent directly expresses the grid's inward sense of depth while preserving the established visual concept.",
+      "collisionNotes": "The inward-falling radial lattice differs from Retro Grid's horizon plane, Neon Survey's tunnel, and Orbits' particle streaks.",
+      "signatureOriginalEligible": false
+    }
+  ]
+}

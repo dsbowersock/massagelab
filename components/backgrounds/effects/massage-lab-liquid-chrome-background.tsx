@@ -321,7 +321,7 @@ function getUniformLocation(gl: WebGLRenderingContext, program: WebGLProgram, na
 function resolveLiquidChromeOptions(options?: MassageLabLiquidChromeOptions): ResolvedLiquidChromeOptions {
   return {
     baseColor: resolveHex(options?.baseColor, DEFAULT_MASSAGELAB_LIQUID_CHROME.baseColor),
-    speed: resolveNumber(options?.speed, DEFAULT_MASSAGELAB_LIQUID_CHROME.speed, 0, 3),
+    speed: resolveNumber(options?.speed, DEFAULT_MASSAGELAB_LIQUID_CHROME.speed, 0.001, 3),
     amplitude: resolveNumber(options?.amplitude, DEFAULT_MASSAGELAB_LIQUID_CHROME.amplitude, 0, 1),
     frequencyX: resolveNumber(options?.frequencyX, DEFAULT_MASSAGELAB_LIQUID_CHROME.frequencyX, 0.1, 12),
     frequencyY: resolveNumber(options?.frequencyY, DEFAULT_MASSAGELAB_LIQUID_CHROME.frequencyY, 0.1, 12),

@@ -108,6 +108,8 @@ describe("Account background commerce panel", () => {
     assert.match(source, /return \[\.\.\.currentOrders, \.\.\.olderItemizedOrders\]/)
     assert.match(source, /Item details appear after refresh\./)
     assert.match(source, /\{active \? \([\s\S]*Open in Background picker/)
+    assert.match(source, /\{item\.displayName\}/)
+    assert.doesNotMatch(source, /findBackgroundDefinition\(item\.backgroundId\)\?\.label/)
   })
 
   it("activates the Account Orders and purchases tab", async () => {

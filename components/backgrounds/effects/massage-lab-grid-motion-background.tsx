@@ -1,14 +1,17 @@
 "use client"
 
-import { useEffect, useMemo, useRef, type CSSProperties } from "react"
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
+import { normalizeGridMotionMantras } from "@/lib/grid-motion-mantras"
 import { shouldAnimateAmbientBackground } from "@/lib/motion-preferences"
 import { cn } from "@/lib/utils"
 import styles from "@/components/backgrounds/BackgroundHost.module.css"
 import type { BackgroundEffectProps, MassageLabGridMotionOptions } from "./css-backgrounds"
 
-type ResolvedGridMotionOptions = Required<MassageLabGridMotionOptions>
+type ResolvedGridMotionOptions = Required<Omit<MassageLabGridMotionOptions, "mantras">> & {
+  mantras: string[]
+}
 
-const DEFAULT_MASSAGELAB_GRID_MOTION: ResolvedGridMotionOptions = {
+const DEFAULT_MASSAGELAB_GRID_MOTION: Omit<ResolvedGridMotionOptions, "mantras"> = {
   gradientColor: "#000000",
   tileColor: "#111111",
   textColor: "#F8FAFC",
@@ -17,39 +20,13 @@ const DEFAULT_MASSAGELAB_GRID_MOTION: ResolvedGridMotionOptions = {
   cursorInteraction: true,
 }
 
-const DEFAULT_ITEMS = [
-  "focus",
-  "breathe",
-  "release",
-  "restore",
-  "quiet",
-  "flow",
-  "center",
-  "pause",
-  "warmth",
-  "balance",
-  "calm",
-  "depth",
-  "soft",
-  "reset",
-  "ease",
-  "length",
-  "still",
-  "drift",
-  "glow",
-  "space",
-  "slow",
-  "ground",
-  "unwind",
-  "exhale",
-  "open",
-  "settle",
-  "melt",
-  "rest",
-]
+/** Returns enough rows to overfill a rotated phone viewport without over-rendering. */
+export function resolveGridMotionRowCount(height: number): number {
+  return Math.min(14, Math.max(6, Math.ceil(height / 76) + 1))
+}
 
-// MassageLab Grid Motion uses GSAP to slide four rows from cursor X. This
-// keeps the same row layout and inertia feel with local RAF smoothing.
+// Grid Motion keeps the original alternating-row inertia while adding a slow,
+// continuous ambient drift so pointer input remains an optional enhancement.
 export default function MassageLabGridMotionBackground({
   className,
   massageLabGridMotion,
@@ -57,11 +34,77 @@ export default function MassageLabGridMotionBackground({
   const containerRef = useRef<HTMLDivElement | null>(null)
   const rowRefs = useRef<Array<HTMLDivElement | null>>([])
   const mouseXRef = useRef(0.5)
-  const currentOffsetsRef = useRef([0, 0, 0, 0])
+  const currentOffsetsRef = useRef<number[]>(Array.from({ length: 6 }, () => 0))
+  const [rowCount, setRowCount] = useState(6)
+  const {
+    gradientColor,
+    tileColor,
+    textColor,
+    maxMoveAmount,
+    baseDuration,
+    cursorInteraction,
+    mantras: requestedMantras,
+  } = massageLabGridMotion ?? {}
+  const mantraDependency = Array.isArray(requestedMantras)
+    ? requestedMantras.join("\u0000")
+    : null
   const options = useMemo(
-    () => resolveGridMotionOptions(massageLabGridMotion),
-    [massageLabGridMotion],
+    () => resolveGridMotionOptions({
+      gradientColor,
+      tileColor,
+      textColor,
+      maxMoveAmount,
+      baseDuration,
+      cursorInteraction,
+      mantras: mantraDependency?.split("\u0000"),
+    }),
+    [
+      baseDuration,
+      cursorInteraction,
+      gradientColor,
+      mantraDependency,
+      maxMoveAmount,
+      textColor,
+      tileColor,
+    ],
   )
+  const { mantras } = options
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) {
+      return undefined
+    }
+
+    const publishRowCount = (height: number) => {
+      const nextRowCount = resolveGridMotionRowCount(height)
+      currentOffsetsRef.current = Array.from(
+        { length: nextRowCount },
+        (_, index) => currentOffsetsRef.current[index] ?? 0,
+      )
+      rowRefs.current.length = nextRowCount
+      setRowCount((currentRowCount) => (
+        currentRowCount === nextRowCount ? currentRowCount : nextRowCount
+      ))
+    }
+
+    publishRowCount(container.getBoundingClientRect().height)
+    if (typeof ResizeObserver === "undefined") {
+      return undefined
+    }
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0]
+      if (entry) {
+        publishRowCount(entry.contentRect.height)
+      }
+    })
+    observer.observe(container)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [])
 
   useEffect(() => {
     const container = containerRef.current
@@ -74,11 +117,14 @@ export default function MassageLabGridMotionBackground({
     const inertiaFactors = [0.6, 0.4, 0.3, 0.2]
     let animationFrame = 0
     let disposed = false
+    let startTimestamp: number | null = null
 
     const shouldAnimate = () => shouldAnimateAmbientBackground({
       prefersReducedMotion: reducedMotionQuery.matches,
       compactViewport: compactViewportQuery.matches,
       documentHidden: document.visibilityState !== "visible",
+      allowCompactViewport: true,
+      respectSystemReducedMotion: true,
     })
 
     const handlePointerMove = (event: PointerEvent) => {
@@ -90,18 +136,32 @@ export default function MassageLabGridMotionBackground({
       mouseXRef.current = Math.min(1, Math.max(0, (event.clientX - bounds.left) / Math.max(bounds.width, 1)))
     }
 
-    const updateMotion = () => {
+    const updateMotion = (timestamp: number) => {
       const animate = shouldAnimate()
+      startTimestamp ??= timestamp
+      const elapsedSeconds = animate
+        ? (timestamp - startTimestamp) / 1_000
+        : 0
+
       rowRefs.current.forEach((row, index) => {
         if (!row) {
           return
         }
 
         const direction = index % 2 === 0 ? 1 : -1
-        const target = ((mouseXRef.current * options.maxMoveAmount) - options.maxMoveAmount / 2) * direction
+        const ambientPhase = elapsedSeconds * 0.32 + index * 0.58
+        const ambientTarget = Math.sin(ambientPhase) * options.maxMoveAmount * 0.34 * direction
+        const pointerTarget = options.cursorInteraction
+          ? (mouseXRef.current - 0.5) * options.maxMoveAmount * 0.66 * direction
+          : 0
+        const target = ambientTarget + pointerTarget
         const duration = options.baseDuration + inertiaFactors[index % inertiaFactors.length]
-        const smoothing = animate ? Math.min(0.32, 1 / Math.max(8, duration * 60)) : 1
-        currentOffsetsRef.current[index] += (target - currentOffsetsRef.current[index]) * smoothing
+        if (animate) {
+          const smoothing = Math.min(0.32, 1 / Math.max(8, duration * 60))
+          currentOffsetsRef.current[index] += (target - currentOffsetsRef.current[index]) * smoothing
+        } else {
+          currentOffsetsRef.current[index] = target
+        }
         row.style.transform = `translate3d(${currentOffsetsRef.current[index].toFixed(2)}px, 0, 0)`
       })
 
@@ -112,7 +172,8 @@ export default function MassageLabGridMotionBackground({
 
     const render = () => {
       window.cancelAnimationFrame(animationFrame)
-      updateMotion()
+      startTimestamp = null
+      updateMotion(window.performance.now())
     }
 
     if (options.cursorInteraction) {
@@ -130,9 +191,8 @@ export default function MassageLabGridMotionBackground({
       document.removeEventListener("visibilitychange", render)
       reducedMotionQuery.removeEventListener("change", render)
       compactViewportQuery.removeEventListener("change", render)
-      rowRefs.current = []
     }
-  }, [options])
+  }, [options, rowCount])
 
   return (
     <div
@@ -147,7 +207,7 @@ export default function MassageLabGridMotionBackground({
     >
       <section className={styles.massageLabGridMotionIntro}>
         <div className={styles.massageLabGridMotionContainer}>
-          {Array.from({ length: 4 }).map((_, rowIndex) => (
+          {Array.from({ length: rowCount }).map((_, rowIndex) => (
             <div
               className={styles.massageLabGridMotionRow}
               key={rowIndex}
@@ -156,11 +216,14 @@ export default function MassageLabGridMotionBackground({
               }}
             >
               {Array.from({ length: 7 }).map((__, itemIndex) => {
-                const item = DEFAULT_ITEMS[rowIndex * 7 + itemIndex] ?? ""
+                const text = mantras[(rowIndex * 7 + itemIndex) % mantras.length]
                 return (
-                  <div className={styles.massageLabGridMotionItem} key={item}>
+                  <div
+                    className={styles.massageLabGridMotionItem}
+                    key={`${rowIndex}-${itemIndex}-${text}`}
+                  >
                     <div className={styles.massageLabGridMotionItemInner}>
-                      <span>{item}</span>
+                      <span>{text}</span>
                     </div>
                   </div>
                 )
@@ -181,6 +244,7 @@ function resolveGridMotionOptions(options?: MassageLabGridMotionOptions): Resolv
     maxMoveAmount: resolveNumber(options?.maxMoveAmount, DEFAULT_MASSAGELAB_GRID_MOTION.maxMoveAmount, 0, 600),
     baseDuration: resolveNumber(options?.baseDuration, DEFAULT_MASSAGELAB_GRID_MOTION.baseDuration, 0.1, 2),
     cursorInteraction: options?.cursorInteraction ?? DEFAULT_MASSAGELAB_GRID_MOTION.cursorInteraction,
+    mantras: normalizeGridMotionMantras(options?.mantras),
   }
 }
 

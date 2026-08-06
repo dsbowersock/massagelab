@@ -15,6 +15,7 @@ import {
   TWISTED_CUBES_SOURCE_BACKGROUND_COLOR,
   TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS,
 } from "../../lib/twisted-cubes-background.js"
+import { STATIC_GRADIENT_SOURCE_COLORS } from "../../lib/static-gradient-background.js"
 export {
   DNA_SOURCE_BACKGROUND_COLOR,
   DNA_SOURCE_CONNECTOR_COLOR,
@@ -47,6 +48,8 @@ export interface BackgroundPaletteRole {
   /** Distinguishes normalized hex sources from authored CSS color syntax. */
   sourceColorFormat: "hex" | "css"
   defaultSwatch: 0 | 1 | 2 | 3 | 4 | 5 | 6
+  /** Selects whether Harmony derives this role or retains its saved shared swatch. */
+  harmonyColorSource: "generated" | "saved-swatch"
   rendererTarget: string
 }
 
@@ -54,6 +57,8 @@ export interface SupportedBackgroundPaletteAdapter {
   status: "supported"
   rendererFamily: BackgroundRendererFamily
   roles: readonly BackgroundPaletteRole[]
+  /** False when the renderer exposes a continuous hue control instead of discrete harmony roles. */
+  supportsHarmony: boolean
   sourceBehavior?: "fixed" | "rainbow" | "automatic"
   visualPropertyKeys: readonly string[]
   sourceVisualProperties: Readonly<Record<string, unknown>>
@@ -90,6 +95,33 @@ const AURORA_BARS_SOURCE_COLORS = Object.freeze([
   "#FF2D78",
   "#000000",
 ] as const)
+const AURORA_FIELD_SOURCE_COLORS = Object.freeze([
+  "#3B82F6",
+  "#A5B4FC",
+  "#93C5FD",
+  "#DDD6FE",
+  "#60A5FA",
+] as const)
+const BACKGROUND_BEAMS_SOURCE_COLORS = Object.freeze([
+  "#18CCFC",
+  "#6344F5",
+  "#AE48FF",
+] as const)
+const BUBBLE_FIELD_SOURCE_COLORS = Object.freeze([
+  "#1271FF",
+  "#DD4AFF",
+  "#00DCFF",
+  "#C83232",
+  "#B4B432",
+] as const)
+const BACKGROUND_LINES_SOURCE_COLORS = Object.freeze([
+  "#46A5CA",
+  "#8C2F2F",
+  "#4FAE4D",
+  "#D6590C",
+  "#811010",
+  "#247AFB",
+] as const)
 const DNA_NODE_ROLE_IDS = Object.freeze([
   "node-one", "node-two", "node-three", "node-four",
 ] as const)
@@ -100,11 +132,32 @@ const TWISTED_CUBES_OUTLINE_ROLE_IDS = Object.freeze([
 const AURORA_BAR_ROLE_IDS = Object.freeze([
   "bar-1", "bar-2", "bar-3", "bar-4", "bar-5",
 ] as const)
+const AURORA_FIELD_ROLE_IDS = Object.freeze([
+  "aurora-1", "aurora-2", "aurora-3", "aurora-4", "aurora-5",
+] as const)
+const BACKGROUND_BEAMS_ROLE_IDS = Object.freeze([
+  "beam-1", "beam-2", "beam-3",
+] as const)
+const BUBBLE_FIELD_ROLE_IDS = Object.freeze([
+  "bubble-1", "bubble-2", "bubble-3", "bubble-4", "bubble-5",
+] as const)
+const BACKGROUND_LINES_ROLE_IDS = Object.freeze([
+  "line-1", "line-2", "line-3", "line-4", "line-5", "line-6",
+] as const)
+const STATIC_GRADIENT_ROLE_IDS = Object.freeze([
+  "color-one", "color-two", "color-three", "color-four",
+  "color-five", "color-six", "color-seven",
+] as const)
 
 for (const [roleIds, sourceFallbacks] of [
+  [STATIC_GRADIENT_ROLE_IDS, STATIC_GRADIENT_SOURCE_COLORS],
   [DNA_NODE_ROLE_IDS, DNA_SOURCE_NODE_ROLE_COLORS],
   [TWISTED_CUBES_OUTLINE_ROLE_IDS, TWISTED_CUBES_SOURCE_OUTLINE_ANCHORS],
   [AURORA_BAR_ROLE_IDS, AURORA_BARS_SOURCE_COLORS],
+  [AURORA_FIELD_ROLE_IDS, AURORA_FIELD_SOURCE_COLORS],
+  [BACKGROUND_BEAMS_ROLE_IDS, BACKGROUND_BEAMS_SOURCE_COLORS],
+  [BUBBLE_FIELD_ROLE_IDS, BUBBLE_FIELD_SOURCE_COLORS],
+  [BACKGROUND_LINES_ROLE_IDS, BACKGROUND_LINES_SOURCE_COLORS],
 ] as const) {
   if (roleIds.length !== sourceFallbacks.length) {
     throw new Error(
@@ -123,12 +176,14 @@ type RoleSpec = readonly [
   transform?: RoleTransform,
   sourceColorOverride?: string,
   defaultSwatchOverride?: BackgroundPaletteRole["defaultSwatch"],
+  harmonyColorSourceOverride?: BackgroundPaletteRole["harmonyColorSource"],
 ]
 type SupportedSpec = {
   id: string
   family: BackgroundRendererFamily
   prefixes: readonly string[]
   roles: readonly RoleSpec[]
+  supportsHarmony?: boolean
   sourceBehavior?: SupportedBackgroundPaletteAdapter["sourceBehavior"]
   modeOverrides?: readonly BackgroundPaletteModeOverride[]
 }
@@ -162,6 +217,7 @@ const role = (
   transform?: RoleTransform,
   sourceColorOverride?: string,
   defaultSwatchOverride?: BackgroundPaletteRole["defaultSwatch"],
+  harmonyColorSourceOverride?: BackgroundPaletteRole["harmonyColorSource"],
 ): RoleSpec => [
   id,
   label,
@@ -170,6 +226,7 @@ const role = (
   transform,
   sourceColorOverride,
   defaultSwatchOverride,
+  harmonyColorSourceOverride,
 ]
 
 /**
@@ -346,6 +403,29 @@ export function applyCssDomPaletteRoleColors<
   colors: Readonly<Record<string, string>>,
 ): BackgroundEffectProps {
   switch (backgroundId) {
+    case "solid-color":
+      return {
+        ...props,
+        solidColor: roleColor(colors, "color", props.solidColor),
+      }
+    case "static-gradient": {
+      const colorCount = Math.min(
+        STATIC_GRADIENT_ROLE_IDS.length,
+        Math.max(2, props.staticGradient?.colors?.length ?? STATIC_GRADIENT_SOURCE_COLORS.length),
+      )
+      return {
+        ...props,
+        staticGradient: {
+          ...props.staticGradient,
+          colors: roleColorArray(
+            props.staticGradient?.colors,
+            STATIC_GRADIENT_ROLE_IDS.slice(0, colorCount),
+            colors,
+            STATIC_GRADIENT_SOURCE_COLORS.slice(0, colorCount),
+          ),
+        },
+      } satisfies BackgroundEffectProps
+    }
     case "massage-lab-moving-gradient":
       return {
         ...props,
@@ -363,6 +443,147 @@ export function applyCssDomPaletteRoleColors<
             props.massageLabAerialRays?.backgroundColor,
           ),
           color: roleColor(colors, "rays", props.massageLabAerialRays?.color),
+        },
+      }
+    case "massage-lab-aurora":
+      return {
+        ...props,
+        massageLabAurora: {
+          ...props.massageLabAurora,
+          backgroundColor: roleColor(
+            colors,
+            "background",
+            props.massageLabAurora?.backgroundColor,
+          ),
+          colors: roleColorArray(
+            props.massageLabAurora?.colors,
+            AURORA_FIELD_ROLE_IDS,
+            colors,
+            AURORA_FIELD_SOURCE_COLORS,
+          ),
+        },
+      }
+    case "massage-lab-background-beams":
+      return {
+        ...props,
+        massageLabBackgroundBeams: {
+          ...props.massageLabBackgroundBeams,
+          backgroundColor: roleColor(
+            colors,
+            "background",
+            props.massageLabBackgroundBeams?.backgroundColor,
+          ),
+          colors: roleColorArray(
+            props.massageLabBackgroundBeams?.colors,
+            BACKGROUND_BEAMS_ROLE_IDS,
+            colors,
+            BACKGROUND_BEAMS_SOURCE_COLORS,
+          ),
+        },
+      }
+    case "massage-lab-bubble":
+      return {
+        ...props,
+        massageLabBubble: {
+          ...props.massageLabBubble,
+          backgroundColor: roleColor(
+            colors,
+            "background",
+            props.massageLabBubble?.backgroundColor,
+          ),
+          colors: roleColorArray(
+            props.massageLabBubble?.colors,
+            BUBBLE_FIELD_ROLE_IDS,
+            colors,
+            BUBBLE_FIELD_SOURCE_COLORS,
+          ),
+        },
+      }
+    case "massage-lab-background-lines":
+      return {
+        ...props,
+        backgroundLines: {
+          ...props.backgroundLines,
+          backgroundColor: roleColor(
+            colors,
+            "background",
+            props.backgroundLines?.backgroundColor,
+          ),
+          colors: roleColorArray(
+            props.backgroundLines?.colors,
+            BACKGROUND_LINES_ROLE_IDS,
+            colors,
+            BACKGROUND_LINES_SOURCE_COLORS,
+          ),
+        },
+      }
+    case "massage-lab-collision-beams":
+      return {
+        ...props,
+        massageLabCollisionBeams: {
+          ...props.massageLabCollisionBeams,
+          backgroundColor: roleColor(
+            colors,
+            "background",
+            props.massageLabCollisionBeams?.backgroundColor,
+          ),
+          beamColor: roleColor(colors, "beam", props.massageLabCollisionBeams?.beamColor),
+          accentColor: roleColor(colors, "accent", props.massageLabCollisionBeams?.accentColor),
+          particleColor: roleColor(
+            colors,
+            "particles",
+            props.massageLabCollisionBeams?.particleColor,
+          ),
+          surfaceColor: roleColor(
+            colors,
+            "surface",
+            props.massageLabCollisionBeams?.surfaceColor,
+          ),
+        },
+      }
+    case "massage-lab-glowing-stars":
+      return {
+        ...props,
+        massageLabGlowingStars: {
+          ...props.massageLabGlowingStars,
+          backgroundColor: roleColor(
+            colors,
+            "background",
+            props.massageLabGlowingStars?.backgroundColor,
+          ),
+          starColor: roleColor(colors, "stars", props.massageLabGlowingStars?.starColor),
+          peakColor: roleColor(colors, "peak", props.massageLabGlowingStars?.peakColor),
+          afterglowColor: roleColor(
+            colors,
+            "afterglow",
+            props.massageLabGlowingStars?.afterglowColor,
+          ),
+          glowCoreColor: roleColor(
+            colors,
+            "glow-core",
+            props.massageLabGlowingStars?.glowCoreColor,
+          ),
+          glowAuraColor: roleColor(
+            colors,
+            "glow-aura",
+            props.massageLabGlowingStars?.glowAuraColor,
+          ),
+        },
+      }
+    case "massage-lab-meteors":
+      return {
+        ...props,
+        massageLabMeteors: {
+          ...props.massageLabMeteors,
+          backgroundColor: roleColor(
+            colors,
+            "background",
+            props.massageLabMeteors?.backgroundColor,
+          ),
+          meteorColor: roleColor(colors, "meteors", props.massageLabMeteors?.meteorColor),
+          tailColor: roleColor(colors, "tails", props.massageLabMeteors?.tailColor),
+          glowColor: roleColor(colors, "glow", props.massageLabMeteors?.glowColor),
+          edgeColor: roleColor(colors, "edge", props.massageLabMeteors?.edgeColor),
         },
       }
     case "massage-lab-dna":
@@ -521,6 +742,7 @@ function supported(spec: SupportedSpec): SupportedBackgroundPaletteAdapter {
     ,
     sourceColorOverride,
     defaultSwatchOverride,
+    harmonyColorSourceOverride,
   ], index) => {
     const sourceDefault = CHIMER_BACKGROUND_SOURCE_COLOR_DEFAULTS[sourceSettingKey]
     if (sourceColorOverride === undefined && typeof sourceDefault !== "string") {
@@ -535,6 +757,7 @@ function supported(spec: SupportedSpec): SupportedBackgroundPaletteAdapter {
       sourceColorFormat: /^#[0-9a-f]{6}$/i.test(sourceColor) ? "hex" as const : "css" as const,
       defaultSwatch: defaultSwatchOverride
         ?? (index % 7) as BackgroundPaletteRole["defaultSwatch"],
+      harmonyColorSource: harmonyColorSourceOverride ?? "generated",
       rendererTarget,
     }
   })
@@ -542,6 +765,7 @@ function supported(spec: SupportedSpec): SupportedBackgroundPaletteAdapter {
     status: "supported",
     rendererFamily: spec.family,
     roles: Object.freeze(roles),
+    supportsHarmony: spec.supportsHarmony !== false,
     ...(spec.sourceBehavior ? { sourceBehavior: spec.sourceBehavior } : {}),
     ...(spec.modeOverrides
       ? { modeOverrides: Object.freeze(spec.modeOverrides.map((override) => Object.freeze(override))) }
@@ -588,9 +812,161 @@ function unsupported(spec: UnsupportedSpec): UnsupportedBackgroundPaletteAdapter
 }
 
 const SUPPORTED_SPECS: readonly SupportedSpec[] = [
+  {
+    id: "solid-color",
+    family: "css-dom",
+    prefixes: ["solidColor"],
+    roles: [role("color", "Color", "solidColorValue", "solidColor")],
+    // A single color has no inter-role relationship for Harmony to generate.
+    supportsHarmony: false,
+  },
+  {
+    id: "static-gradient",
+    family: "css-dom",
+    prefixes: ["staticGradient"],
+    roles: [
+      role("color-one", "Color 1", "staticGradientColorOne", "staticGradient.colors[0]"),
+      role("color-two", "Color 2", "staticGradientColorTwo", "staticGradient.colors[1]"),
+      role("color-three", "Color 3", "staticGradientColorThree", "staticGradient.colors[2]"),
+      role("color-four", "Color 4", "staticGradientColorFour", "staticGradient.colors[3]"),
+      role("color-five", "Color 5", "staticGradientColorFive", "staticGradient.colors[4]"),
+      role("color-six", "Color 6", "staticGradientColorSix", "staticGradient.colors[5]"),
+      role("color-seven", "Color 7", "staticGradientColorSeven", "staticGradient.colors[6]"),
+    ],
+  },
   { id: "massage-lab-moving-gradient", family: "css-dom", prefixes: ["movingBackground"], roles: [role("main", "Main light", "movingBackgroundMainColor", "mainColor"), role("orb", "Orb light", "movingBackgroundOrbColor", "orbColor")] },
-  { id: "massage-lab-retro-grid", family: "webgl", prefixes: ["massageLabRetroGrid"], roles: [role("background", "Background", "massageLabRetroGridBackgroundColor", "massageLabRetroGrid.backgroundColor"), role("light-lines", "Light grid lines", "massageLabRetroGridLightLineColor", "massageLabRetroGrid.lightLineColor"), role("dark-lines", "Dark grid lines", "massageLabRetroGridDarkLineColor", "massageLabRetroGrid.darkLineColor")] },
-  { id: "massage-lab-aerial-rays", family: "css-dom", prefixes: ["massageLabAerialRays"], roles: [role("background", "Background", "massageLabAerialRaysBackgroundColor", "massageLabAerialRays.backgroundColor"), role("rays", "Rays", "massageLabAerialRaysColor", "massageLabAerialRays.color")] },
+  // A full-canvas background belongs to the saved seventh swatch so Harmony
+  // can regenerate the visual colors without tinting the chosen backdrop.
+  { id: "massage-lab-retro-grid", family: "webgl", prefixes: ["massageLabRetroGrid"], roles: [role("background", "Background", "massageLabRetroGridBackgroundColor", "massageLabRetroGrid.backgroundColor", undefined, undefined, 6, "saved-swatch"), role("light-lines", "Light grid lines", "massageLabRetroGridLightLineColor", "massageLabRetroGrid.lightLineColor", undefined, undefined, 0), role("dark-lines", "Dark grid lines", "massageLabRetroGridDarkLineColor", "massageLabRetroGrid.darkLineColor", undefined, undefined, 1)] },
+  { id: "massage-lab-aerial-rays", family: "css-dom", prefixes: ["massageLabAerialRays"], roles: [role("background", "Background", "massageLabAerialRaysBackgroundColor", "massageLabAerialRays.backgroundColor", undefined, undefined, 6, "saved-swatch"), role("rays", "Rays", "massageLabAerialRaysColor", "massageLabAerialRays.color", undefined, undefined, 0)] },
+  {
+    id: "massage-lab-aurora",
+    family: "css-dom",
+    prefixes: ["massageLabAurora"],
+    roles: [
+      role("background", "Background", "massageLabAuroraBackgroundColor", "massageLabAurora.backgroundColor", undefined, undefined, 6, "saved-swatch"),
+      role("aurora-1", "Aurora 1", "massageLabAuroraColorOne", "massageLabAurora.colors[0]", undefined, undefined, 0),
+      role("aurora-2", "Aurora 2", "massageLabAuroraColorTwo", "massageLabAurora.colors[1]", undefined, undefined, 1),
+      role("aurora-3", "Aurora 3", "massageLabAuroraColorThree", "massageLabAurora.colors[2]", undefined, undefined, 2),
+      role("aurora-4", "Aurora 4", "massageLabAuroraColorFour", "massageLabAurora.colors[3]", undefined, undefined, 3),
+      role("aurora-5", "Aurora 5", "massageLabAuroraColorFive", "massageLabAurora.colors[4]", undefined, undefined, 4),
+    ],
+  },
+  {
+    id: "massage-lab-dotted-glow",
+    family: "canvas",
+    prefixes: ["massageLabDottedGlow"],
+    roles: [
+      role("background", "Background", "massageLabDottedGlowBackgroundColor", "massageLabDottedGlow.backgroundColor", undefined, undefined, 6, "saved-swatch"),
+      role("dots", "Dots", "massageLabDottedGlowDotColor", "massageLabDottedGlow.dotColor", undefined, undefined, 0),
+      role("glow", "Glow", "massageLabDottedGlowGlowColor", "massageLabDottedGlow.glowColor", undefined, undefined, 1),
+    ],
+  },
+  {
+    id: "massage-lab-bubble",
+    family: "css-dom",
+    prefixes: ["massageLabBubble"],
+    roles: [
+      role("background", "Background", "massageLabBubbleBackgroundColor", "massageLabBubble.backgroundColor", undefined, undefined, 6, "saved-swatch"),
+      role("bubble-1", "Bubble 1", "massageLabBubbleColorOne", "massageLabBubble.colors[0]", undefined, BUBBLE_FIELD_SOURCE_COLORS[0], 0),
+      role("bubble-2", "Bubble 2", "massageLabBubbleColorTwo", "massageLabBubble.colors[1]", undefined, BUBBLE_FIELD_SOURCE_COLORS[1], 1),
+      role("bubble-3", "Bubble 3", "massageLabBubbleColorThree", "massageLabBubble.colors[2]", undefined, BUBBLE_FIELD_SOURCE_COLORS[2], 2),
+      role("bubble-4", "Bubble 4", "massageLabBubbleColorFour", "massageLabBubble.colors[3]", undefined, BUBBLE_FIELD_SOURCE_COLORS[3], 3),
+      role("bubble-5", "Bubble 5", "massageLabBubbleColorFive", "massageLabBubble.colors[4]", undefined, BUBBLE_FIELD_SOURCE_COLORS[4], 4),
+    ],
+    modeOverrides: [{
+      rendererTarget: "massageLabBubble.paletteMode",
+      sourceValue: "source",
+      customValue: "resolved",
+    }],
+  },
+  {
+    id: "massage-lab-background-beams",
+    family: "css-dom",
+    prefixes: ["massageLabBackgroundBeams"],
+    roles: [
+      role("background", "Background", "massageLabBackgroundBeamsBackgroundColor", "massageLabBackgroundBeams.backgroundColor", undefined, "#050505", 6, "saved-swatch"),
+      role("beam-1", "Beam 1", "massageLabBackgroundBeamsColorOne", "massageLabBackgroundBeams.colors[0]", undefined, BACKGROUND_BEAMS_SOURCE_COLORS[0], 0),
+      role("beam-2", "Beam 2", "massageLabBackgroundBeamsColorTwo", "massageLabBackgroundBeams.colors[1]", undefined, BACKGROUND_BEAMS_SOURCE_COLORS[1], 1),
+      role("beam-3", "Beam 3", "massageLabBackgroundBeamsColorThree", "massageLabBackgroundBeams.colors[2]", undefined, BACKGROUND_BEAMS_SOURCE_COLORS[2], 2),
+    ],
+    modeOverrides: [{
+      rendererTarget: "massageLabBackgroundBeams.paletteMode",
+      sourceValue: "source",
+      customValue: "resolved",
+    }],
+  },
+  {
+    id: "massage-lab-background-lines",
+    family: "css-dom",
+    prefixes: ["backgroundLines"],
+    roles: [
+      role("background", "Background", "backgroundLinesBackgroundColor", "backgroundLines.backgroundColor", undefined, "#050505", 6, "saved-swatch"),
+      role("line-1", "Line 1", "backgroundLinesColorOne", "backgroundLines.colors[0]", undefined, BACKGROUND_LINES_SOURCE_COLORS[0], 0),
+      role("line-2", "Line 2", "backgroundLinesColorTwo", "backgroundLines.colors[1]", undefined, BACKGROUND_LINES_SOURCE_COLORS[1], 1),
+      role("line-3", "Line 3", "backgroundLinesColorThree", "backgroundLines.colors[2]", undefined, BACKGROUND_LINES_SOURCE_COLORS[2], 2),
+      role("line-4", "Line 4", "backgroundLinesColorFour", "backgroundLines.colors[3]", undefined, BACKGROUND_LINES_SOURCE_COLORS[3], 3),
+      role("line-5", "Line 5", "backgroundLinesColorFive", "backgroundLines.colors[4]", undefined, BACKGROUND_LINES_SOURCE_COLORS[4], 4),
+      role("line-6", "Line 6", "backgroundLinesColorSix", "backgroundLines.colors[5]", undefined, BACKGROUND_LINES_SOURCE_COLORS[5], 5),
+    ],
+    modeOverrides: [{
+      rendererTarget: "backgroundLines.paletteMode",
+      sourceValue: "source",
+      customValue: "resolved",
+    }],
+  },
+  {
+    id: "massage-lab-collision-beams",
+    family: "css-dom",
+    prefixes: ["massageLabCollisionBeams"],
+    roles: [
+      role("background", "Background", "massageLabCollisionBeamsBackgroundColor", "massageLabCollisionBeams.backgroundColor", undefined, "#050505", 6, "saved-swatch"),
+      role("beam", "Beam", "massageLabCollisionBeamsBeamColor", "massageLabCollisionBeams.beamColor", undefined, "#6366F1", 0),
+      role("accent", "Accent", "massageLabCollisionBeamsAccentColor", "massageLabCollisionBeams.accentColor", undefined, "#A855F7", 1),
+      role("particles", "Particles", "massageLabCollisionBeamsParticleColor", "massageLabCollisionBeams.particleColor", undefined, "#818CF8", 2),
+      role("surface", "Impact surface", "massageLabCollisionBeamsSurfaceColor", "massageLabCollisionBeams.surfaceColor", undefined, "#E2E8F0", 3),
+    ],
+    modeOverrides: [{
+      rendererTarget: "massageLabCollisionBeams.paletteMode",
+      sourceValue: "source",
+      customValue: "resolved",
+    }],
+  },
+  {
+    id: "massage-lab-glowing-stars",
+    family: "css-dom",
+    prefixes: ["massageLabGlowingStars"],
+    roles: [
+      role("background", "Background", "massageLabGlowingStarsBackgroundColor", "massageLabGlowingStars.backgroundColor", undefined, "#050505", 6, "saved-swatch"),
+      role("stars", "Base stars", "massageLabGlowingStarsStarColor", "massageLabGlowingStars.starColor", undefined, "#666666", 0),
+      role("peak", "Peak stars", "massageLabGlowingStarsPeakColor", "massageLabGlowingStars.peakColor", undefined, "#FFFFFF", 1),
+      role("afterglow", "Afterglow", "massageLabGlowingStarsAfterglowColor", "massageLabGlowingStars.afterglowColor", undefined, "#EAF6FF", 2),
+      role("glow-core", "Glow core", "massageLabGlowingStarsGlowCoreColor", "massageLabGlowingStars.glowCoreColor", undefined, "#3B82F6", 3),
+      role("glow-aura", "Glow aura", "massageLabGlowingStarsGlowAuraColor", "massageLabGlowingStars.glowAuraColor", undefined, "#60A5FA", 4),
+    ],
+    modeOverrides: [{
+      rendererTarget: "massageLabGlowingStars.paletteMode",
+      sourceValue: "source",
+      customValue: "resolved",
+    }],
+  },
+  {
+    id: "massage-lab-meteors",
+    family: "css-dom",
+    prefixes: ["massageLabMeteors"],
+    roles: [
+      role("background", "Background", "massageLabMeteorsBackgroundColor", "massageLabMeteors.backgroundColor", undefined, "#050505", 6, "saved-swatch"),
+      role("meteors", "Meteor heads", "massageLabMeteorsMeteorColor", "massageLabMeteors.meteorColor", undefined, "#64748B", 0),
+      role("tails", "Meteor tails", "massageLabMeteorsTailColor", "massageLabMeteors.tailColor", undefined, "#64748B", 1),
+      role("glow", "Meteor glow", "massageLabMeteorsGlowColor", "massageLabMeteors.glowColor", undefined, "#94A3B8", 2),
+      role("edge", "Meteor edge", "massageLabMeteorsEdgeColor", "massageLabMeteors.edgeColor", undefined, "#FFFFFF", 3),
+    ],
+    modeOverrides: [{
+      rendererTarget: "massageLabMeteors.paletteMode",
+      sourceValue: "source",
+      customValue: "resolved",
+    }],
+  },
   {
     id: "massage-lab-dna",
     family: "css-dom",
@@ -626,7 +1002,7 @@ const SUPPORTED_SPECS: readonly SupportedSpec[] = [
       customValue: "resolved",
     }],
   },
-  { id: "massage-lab-wave-current", family: "webgl", prefixes: ["massageLabWaveCurrent"], roles: [role("background", "Background", "massageLabWaveCurrentBackgroundColor", "massageLabWaveCurrent.backgroundColor"), role("wave-1", "Wave 1", "massageLabWaveCurrentColorOne", "massageLabWaveCurrent.waveColor1"), role("wave-2", "Wave 2", "massageLabWaveCurrentColorTwo", "massageLabWaveCurrent.waveColor2"), role("wave-3", "Wave 3", "massageLabWaveCurrentColorThree", "massageLabWaveCurrent.waveColor3")] },
+  { id: "massage-lab-wave-current", family: "webgl", prefixes: ["massageLabWaveCurrent"], roles: [role("background", "Background", "massageLabWaveCurrentBackgroundColor", "massageLabWaveCurrent.backgroundColor", undefined, undefined, 6, "saved-swatch"), role("wave-1", "Wave 1", "massageLabWaveCurrentColorOne", "massageLabWaveCurrent.waveColor1", undefined, undefined, 0), role("wave-2", "Wave 2", "massageLabWaveCurrentColorTwo", "massageLabWaveCurrent.waveColor2", undefined, undefined, 1), role("wave-3", "Wave 3", "massageLabWaveCurrentColorThree", "massageLabWaveCurrent.waveColor3", undefined, undefined, 2)] },
   { id: "massage-lab-electric-mist", family: "webgl", prefixes: ["massageLabElectricMist"], roles: [role("mist", "Mist", "massageLabElectricMistColor", "massageLabElectricMist.color")] },
   { id: "massage-lab-astral-flow", family: "webgl", prefixes: ["massageLabAstralFlow"], roles: [role("space", "Deep space", "massageLabAstralFlowColorOne", "massageLabAstralFlow.color1"), role("flow", "Flow", "massageLabAstralFlowColorTwo", "massageLabAstralFlow.color2"), role("highlight", "Highlight", "massageLabAstralFlowColorThree", "massageLabAstralFlow.color3")] },
   { id: "massage-lab-deep-space-nebula", family: "webgl", prefixes: ["massageLabDeepSpaceNebula"], roles: [role("glow", "Nebula glow", "massageLabDeepSpaceNebulaColorOne", "massageLabDeepSpaceNebula.color1"), role("cloud", "Nebula cloud", "massageLabDeepSpaceNebulaColorTwo", "massageLabDeepSpaceNebula.color2"), role("space", "Deep space", "massageLabDeepSpaceNebulaColorThree", "massageLabDeepSpaceNebula.color3")] },
@@ -717,7 +1093,7 @@ const SUPPORTED_SPECS: readonly SupportedSpec[] = [
     id: "massage-lab-photon-beam",
     family: "canvas",
     prefixes: ["massageLabPhotonBeam"],
-    roles: [role("background", "Background", "massageLabPhotonBeamColorBg", "massageLabPhotonBeam.colorBg"), role("lines", "Beam lines", "massageLabPhotonBeamColorLine", "massageLabPhotonBeam.colorLine"), role("signal-1", "Signal 1", "massageLabPhotonBeamColorSignal", "massageLabPhotonBeam.colorSignal"), role("signal-2", "Signal 2", "massageLabPhotonBeamColorSignal2", "massageLabPhotonBeam.colorSignal2"), role("signal-3", "Signal 3", "massageLabPhotonBeamColorSignal3", "massageLabPhotonBeam.colorSignal3")],
+    roles: [role("background", "Background", "massageLabPhotonBeamColorBg", "massageLabPhotonBeam.colorBg", undefined, undefined, 6, "saved-swatch"), role("lines", "Beam lines", "massageLabPhotonBeamColorLine", "massageLabPhotonBeam.colorLine", undefined, undefined, 0), role("signal-1", "Signal 1", "massageLabPhotonBeamColorSignal", "massageLabPhotonBeam.colorSignal", undefined, undefined, 1), role("signal-2", "Signal 2", "massageLabPhotonBeamColorSignal2", "massageLabPhotonBeam.colorSignal2", undefined, undefined, 2), role("signal-3", "Signal 3", "massageLabPhotonBeamColorSignal3", "massageLabPhotonBeam.colorSignal3", undefined, undefined, 3)],
     // Source retains the authored single-signal behavior. Mapped palettes opt
     // into all three signal channels so every exposed role reaches the canvas.
     modeOverrides: [
@@ -728,22 +1104,24 @@ const SUPPORTED_SPECS: readonly SupportedSpec[] = [
   { id: "massage-lab-sparkles", family: "canvas", prefixes: ["sparkles"], roles: [role("particles", "Particles", "sparklesParticleColor", "sparkles.particleColor")] },
   { id: "massage-lab-gradient-animation", family: "css-dom", prefixes: ["gradientAnimation"], roles: [role("backdrop-start", "Backdrop start", "gradientAnimationBackgroundStartColor", "gradientAnimation.backgroundStartColor"), role("backdrop-end", "Backdrop end", "gradientAnimationBackgroundEndColor", "gradientAnimation.backgroundEndColor"), role("gradient-1", "Gradient 1", "gradientAnimationFirstColor", "gradientAnimation.firstColor"), role("gradient-2", "Gradient 2", "gradientAnimationSecondColor", "gradientAnimation.secondColor"), role("gradient-3", "Gradient 3", "gradientAnimationThirdColor", "gradientAnimation.thirdColor"), role("gradient-4", "Gradient 4", "gradientAnimationFourthColor", "gradientAnimation.fourthColor"), role("gradient-5", "Gradient 5", "gradientAnimationFifthColor", "gradientAnimation.fifthColor")] },
   { id: "massage-lab-shooting-stars", family: "css-dom", prefixes: ["shootingStars"], roles: [role("stars", "Stars", "shootingStarsStarColor", "shootingStars.starColor"), role("trails", "Trails", "shootingStarsTrailColor", "shootingStars.trailColor"), role("shooting-stars", "Shooting stars", "shootingStarsShootingStarColor", "shootingStars.shootingStarColor")] },
-  { id: "massage-lab-reveal-dots", family: "canvas", prefixes: ["canvasRevealDots"], roles: [role("background", "Background", "canvasRevealDotsBackgroundColor", "canvasRevealDots.backgroundColor"), role("dots", "Dots", "canvasRevealDotsDotColor", "canvasRevealDots.dotColor"), role("accent", "Accent", "canvasRevealDotsAccentColor", "canvasRevealDots.accentColor")] },
-  { id: "massage-lab-3d-globe", family: "webgl", prefixes: ["massageLab3DGlobe"], roles: [role("background", "Background", "massageLab3DGlobeBackgroundColor", "massageLab3DGlobe.backgroundColor"), role("globe", "Globe", "massageLab3DGlobeGlobeColor", "massageLab3DGlobe.globeColor"), role("map", "Map", "massageLab3DGlobeGraphicMapColor", "massageLab3DGlobe.graphicMapColor"), role("map-glow", "Map glow", "massageLab3DGlobeGraphicGlowColor", "massageLab3DGlobe.graphicGlowColor"), role("marker", "Marker", "massageLab3DGlobeGraphicMarkerColor", "massageLab3DGlobe.graphicMarkerColor"), role("atmosphere", "Atmosphere", "massageLab3DGlobeAtmosphereColor", "massageLab3DGlobe.atmosphereColor"), role("wireframe", "Wireframe", "massageLab3DGlobeWireframeColor", "massageLab3DGlobe.wireframeColor")] },
+  { id: "massage-lab-reveal-dots", family: "canvas", prefixes: ["canvasRevealDots"], roles: [role("background", "Background", "canvasRevealDotsBackgroundColor", "canvasRevealDots.backgroundColor", undefined, undefined, 6, "saved-swatch"), role("dots", "Dots", "canvasRevealDotsDotColor", "canvasRevealDots.dotColor", undefined, undefined, 0), role("accent", "Accent", "canvasRevealDotsAccentColor", "canvasRevealDots.accentColor", undefined, undefined, 1)] },
+  { id: "massage-lab-3d-globe", family: "webgl", prefixes: ["massageLab3DGlobe"], roles: [role("background", "Background", "massageLab3DGlobeBackgroundColor", "massageLab3DGlobe.backgroundColor", undefined, undefined, 6, "saved-swatch"), role("globe", "Globe", "massageLab3DGlobeGlobeColor", "massageLab3DGlobe.globeColor", undefined, undefined, 0), role("map", "Map", "massageLab3DGlobeGraphicMapColor", "massageLab3DGlobe.graphicMapColor", undefined, undefined, 1), role("map-glow", "Map glow", "massageLab3DGlobeGraphicGlowColor", "massageLab3DGlobe.graphicGlowColor", undefined, undefined, 2), role("marker", "Marker", "massageLab3DGlobeGraphicMarkerColor", "massageLab3DGlobe.graphicMarkerColor", undefined, undefined, 3), role("atmosphere", "Atmosphere", "massageLab3DGlobeAtmosphereColor", "massageLab3DGlobe.atmosphereColor", undefined, undefined, 4), role("wireframe", "Wireframe", "massageLab3DGlobeWireframeColor", "massageLab3DGlobe.wireframeColor", undefined, undefined, 5)] },
   { id: "massage-lab-spotlight", family: "css-dom", prefixes: ["spotlight"], roles: [role("spotlight", "Spotlight", "spotlightColor", "spotlight.color")] },
-  { id: "massage-lab-lamp-effect", family: "css-dom", prefixes: ["lamp"], roles: [role("background", "Background", "lampBackgroundColor", "lamp.backgroundColor"), role("lamp", "Lamp", "lampColor", "lamp.color")] },
-  { id: "massage-lab-wavy-background", family: "canvas", prefixes: ["wavy"], roles: [role("background", "Background", "wavyBackgroundFill", "wavy.backgroundFill"), role("wave-1", "Wave 1", "wavyColorOne", "wavy.colors[0]"), role("wave-2", "Wave 2", "wavyColorTwo", "wavy.colors[1]"), role("wave-3", "Wave 3", "wavyColorThree", "wavy.colors[2]"), role("wave-4", "Wave 4", "wavyColorFour", "wavy.colors[3]"), role("wave-5", "Wave 5", "wavyColorFive", "wavy.colors[4]")] },
+  { id: "massage-lab-lamp-effect", family: "css-dom", prefixes: ["lamp"], roles: [role("background", "Background", "lampBackgroundColor", "lamp.backgroundColor", undefined, undefined, 6, "saved-swatch"), role("lamp", "Lamp", "lampColor", "lamp.color", undefined, undefined, 0)] },
+  { id: "massage-lab-wavy-background", family: "canvas", prefixes: ["wavy"], roles: [role("background", "Background", "wavyBackgroundFill", "wavy.backgroundFill", undefined, undefined, 6, "saved-swatch"), role("wave-1", "Wave 1", "wavyColorOne", "wavy.colors[0]", undefined, undefined, 0), role("wave-2", "Wave 2", "wavyColorTwo", "wavy.colors[1]", undefined, undefined, 1), role("wave-3", "Wave 3", "wavyColorThree", "wavy.colors[2]", undefined, undefined, 2), role("wave-4", "Wave 4", "wavyColorFour", "wavy.colors[3]", undefined, undefined, 3), role("wave-5", "Wave 5", "wavyColorFive", "wavy.colors[4]", undefined, undefined, 4)] },
   {
     id: "massage-lab-vortex",
     family: "canvas",
     prefixes: ["vortex"],
     roles: [
-      role("background", "Background", "vortexBackgroundColor", "vortex.backgroundColor"),
-      // Source strokes are hsla(220, 100%, 60%); #3377FF is that exact opaque HSL color.
-      role("particles", "Particles", "vortexBaseHue", "vortex.baseHue", "hex-hue", "#3377FF"),
+      role("background", "Background", "vortexBackgroundColor", "vortex.backgroundColor", undefined, undefined, 6, "saved-swatch"),
     ],
+    // Vortex owns a continuous 100-degree particle range. A dedicated hue
+    // slider controls its starting hue more truthfully than discrete Harmony roles.
+    supportsHarmony: false,
+    modeOverrides: [{ rendererTarget: "vortex.baseHue", sourceValue: 220 }],
   },
-  { id: "massage-lab-pixel-liquid", family: "canvas", prefixes: ["pixelLiquid"], roles: [role("background", "Background", "pixelLiquidBackgroundColor", "pixelLiquid.backgroundColor"), role("base", "Base", "pixelLiquidBaseColor", "pixelLiquid.baseColor"), role("accent", "Accent", "pixelLiquidAccentColor", "pixelLiquid.accentColor"), role("highlight", "Highlight", "pixelLiquidHighlightColor", "pixelLiquid.highlightColor")] },
+  { id: "massage-lab-pixel-liquid", family: "canvas", prefixes: ["pixelLiquid"], roles: [role("background", "Background", "pixelLiquidBackgroundColor", "pixelLiquid.backgroundColor", undefined, undefined, 6, "saved-swatch"), role("base", "Base", "pixelLiquidBaseColor", "pixelLiquid.baseColor", undefined, undefined, 0), role("accent", "Accent", "pixelLiquidAccentColor", "pixelLiquid.accentColor", undefined, undefined, 1), role("highlight", "Highlight", "pixelLiquidHighlightColor", "pixelLiquid.highlightColor", undefined, undefined, 2)] },
   {
     id: "massage-lab-tile-grid",
     family: "canvas",
@@ -758,7 +1136,7 @@ const SUPPORTED_SPECS: readonly SupportedSpec[] = [
     family: "css-dom",
     prefixes: ["auroraBars"],
     sourceBehavior: "automatic",
-    roles: [role("background", "Background", "auroraBarsBackgroundColor", "auroraBars.background"), role("bar-1", "Bar 1", "auroraBarsColorOne", "auroraBars.colors[0]"), role("bar-2", "Bar 2", "auroraBarsColorTwo", "auroraBars.colors[1]"), role("bar-3", "Bar 3", "auroraBarsColorThree", "auroraBars.colors[2]"), role("bar-4", "Bar 4", "auroraBarsColorFour", "auroraBars.colors[3]"), role("bar-5", "Bar 5", "auroraBarsColorFive", "auroraBars.colors[4]")],
+    roles: [role("background", "Background", "auroraBarsBackgroundColor", "auroraBars.background", undefined, undefined, 6, "saved-swatch"), role("bar-1", "Bar 1", "auroraBarsColorOne", "auroraBars.colors[0]", undefined, undefined, 0), role("bar-2", "Bar 2", "auroraBarsColorTwo", "auroraBars.colors[1]", undefined, undefined, 1), role("bar-3", "Bar 3", "auroraBarsColorThree", "auroraBars.colors[2]", undefined, undefined, 2), role("bar-4", "Bar 4", "auroraBarsColorFour", "auroraBars.colors[3]", undefined, undefined, 3), role("bar-5", "Bar 5", "auroraBarsColorFive", "auroraBars.colors[4]", undefined, undefined, 4)],
     modeOverrides: [{ rendererTarget: "auroraBars.paletteMode", sourceValue: "auto", customValue: "custom" }],
   },
   { id: "massage-lab-gradient", family: "css-dom", prefixes: ["massageLabGradient"], roles: [role("primary", "Gradient primary", "massageLabGradientPrimaryColor", "massageLabGradient.primaryColor")] },
@@ -767,17 +1145,8 @@ const SUPPORTED_SPECS: readonly SupportedSpec[] = [
 ]
 
 const UNSUPPORTED_SPECS: readonly UnsupportedSpec[] = [
-  { id: "static-gradient", family: "css-dom" },
   { id: "massage-lab-prism", family: "webgl", prefixes: ["massageLabPrism"], reason: "Prism exposes spectral and hue controls rather than a concrete color target, so its source rendering remains unchanged during adapter migration." },
   { id: "massage-lab-dark-veil", family: "webgl", prefixes: ["massageLabDarkVeil"], reason: "Dark Veil exposes a hue shift rather than a concrete color target, so its source rendering remains unchanged during adapter migration." },
-  { id: "massage-lab-aurora", family: "css-dom" },
-  { id: "massage-lab-dotted-glow", family: "canvas" },
-  { id: "massage-lab-background-beams", family: "css-dom" },
-  { id: "massage-lab-collision-beams", family: "css-dom" },
-  { id: "massage-lab-background-lines", family: "css-dom", prefixes: ["backgroundLines"] },
-  { id: "massage-lab-glowing-stars", family: "css-dom" },
-  { id: "massage-lab-meteors", family: "css-dom" },
-  { id: "massage-lab-bubble", family: "css-dom" },
 ]
 
 const SETTING_NAMESPACE_OWNERS = Object.freeze([

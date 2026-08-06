@@ -94,6 +94,28 @@ test("asks the owner before closing or changing Visual only", () => {
   assert.match(runningTimerSource, /onRequestActivePanelChange=\{handlePanelChangeRequest\}/)
 })
 
+test("defers Visual dock pointer and Escape dismissal while its owner has a modal intent", () => {
+  assert.match(shellSource, /modalInterlockActive\?: boolean/)
+  assert.match(shellSource, /if \(!nonmodalPanel \|\| modalInterlockActive\) \{\s*return\s*\}/)
+  assert.match(runningTimerSource, /modalInterlockActive=\{Boolean\(pendingVisualIntent\)\}/)
+})
+
+test("Background picker unmounts only the live renderer it fully covers", () => {
+  assert.match(
+    runningTimerSource,
+    /const shouldSuspendCoveredLiveBackground = activePanel === "background"/,
+  )
+  assert.match(
+    runningTimerSource,
+    /shouldRenderLiveBackground && !shouldSuspendCoveredLiveBackground && \(\s*<BackgroundHost/,
+  )
+  assert.match(
+    runningTimerSource,
+    /key=\{`\$\{mode\.context\}:\$\{backgroundId\}`\}/,
+  )
+  assert.match(runningTimerSource, /active=\{activePanel === "background"\}/)
+})
+
 test("uses a full-screen Radix modal for Background with default outside dismissal", () => {
   assert.match(shellSource, /@radix-ui\/react-dialog/)
   assert.match(shellSource, /data-immersive-panel="background"/)

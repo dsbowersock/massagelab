@@ -4,7 +4,200 @@ This is the canonical chronological planning and progress log for MassageLab. Us
 
 Existing plans, audits, roadmaps, and checklists remain source evidence. Keep them for context, but mirror meaningful progress, plan changes, and priority changes in [project-state.md](project-state.md) and here.
 
-Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
+Catalog naming note: `Massage Laba Lamp` is the approved catalog label for the original free moving-gradient default. `MassageLaba Lamp` and general prose that says `MassageLab Lamp` are legacy references to that same stable `massage-lab-moving-gradient` entry, not separate backgrounds.
+
+## 2026-08-06 — Approved adaptive background preview pilot
+
+- Completed and received explicit user visual approval for the local-only eight-background adaptive-preview pilot. The frozen `recipe-1` passive captures are: Massage Laba Lamp (`12s`, poster `4s`, `0.9s` crossfade, 24 fps), Silk (`10s`, poster `3.333s`, `0.8s` crossfade, 24 fps), Tidal Glass (`10s`, poster `3.333s`, `0.8s` crossfade, 24 fps), DNA (`18s`, poster `6s`, `1s` crossfade, 24 fps), Hypercube (`12s`, poster `4s`, natural loop, 24 fps), Constellations (`12s`, poster `4s`, `0.9s` crossfade, 30 fps), Scanline (`8s`, poster `2.667s`, `0.6s` crossfade, 30 fps), and Quiet Mosaic (`12s`, poster `4s`, `0.9s` crossfade, 24 fps). Every capture uses the production renderer's passive default state after a `2.2s` warmup; no pointer, hover, tap, reverse, ping-pong, morph, or speed-ramp motion is introduced.
+- Froze three aspect-specific low/standard/high ladders: landscape `384×216`, `640×360`, `960×540`; square `256×256`, `512×512`, `768×768`; vertical `216×384`, `360×640`, `540×960`. Each aspect is captured independently and emits VP9/WebM plus H.264/MP4 at every tier and one high-dimension WebP poster. VP9 uses `libvpx-vp9 -deadline good -cpu-used 2 -crf 30 -b:v 0`; H.264 uses `libx264 -preset slow -crf 21 -profile:v high -pix_fmt yuv420p -movflags +faststart`. Both paths use Lanczos scaling, `yuv420p`, and no audio; posters use WebP quality 84.
+- Full validation accepts exactly 8 complete entries, 144 final videos, and 24 posters. FFprobe metadata, SHA-256 hashes, decoded-frame variation, dimensions, durations, stream counts, codecs, `yuv420p`, and first/last seam evidence all pass; natural loops reject normalized seam differences above `0.080` and crossfades reject values above `0.120`. Desktop and mobile Chromium review-route coverage also proves that background/aspect changes reload all six comparison players instead of retaining stale sources. The final repository checks pass all 2,030 tests, typecheck, lint, and `git diff --check`. The frozen v2 JSON/TypeScript sidecars and generated binaries remain local pilot evidence under `/chimer/background-preview-pilot`; production preview v1, R2, and the hosted runtime remain untouched. Full-catalog recipe authoring, generation, adaptive runtime integration, publication, and upgrade/downgrade behavior remain future gated work.
+
+## 2026-08-06 — Approved background catalog naming layer
+
+- Applied the seven reviewed naming batches to all 84 enabled backgrounds through a compact generated branding catalog while preserving every existing background ID, renderer, entitlement, preference, and commerce key. The runtime registry now exposes the canonical label, literal visual descriptor, hidden legacy search aliases, and internally conceived signature-original status from one source rather than coupling preview paths or stored state to display names.
+- Added descriptor context to the background carousel, acquisition and credit confirmation dialogs, and account ownership cards. Historical order rows resolve their current catalog label and descriptor by stable ID while retaining the stored display name as a compatibility fallback. Legacy labels participate in catalog search but are not rendered as ordinary labels.
+- Updated current user-facing accessibility and browser contracts for `Massage Laba Lamp`, `In Transition`, `Endless Perspective`, and `Hypercube`. Focused branding, audit, catalog, and registry coverage passes 114/114. The representative local-only preview pilot remains the next review-gated slice; no generated pilot media, production manifest, R2 object, or hosted runtime has changed.
+
+## 2026-08-05 — Solid Color background
+
+- Added the free `solid-color` background to Chimer, Clock, Music, and Ambient as a low-cost static option. Its full-screen renderer and registry fallback preview both default to MassageLab orange (`#FF7A1A`), with no authored video required.
+- The shared palette adapter exposes one Color role at Swatch 1. Source preserves the authored orange, Custom uses the saved first swatch, Swatches 2-7 remain unused, and Harmony is unavailable because a single color has no inter-role relationship to generate. The option has no background-specific tuning controls or special persistence branch.
+- The focused registry, palette, entitlement, UI-contract, and 84-background branding-audit tests pass; all 2,010 repository tests, typecheck, lint, `git diff --check`, the 102-page Production build, and the localhost-only `/dev/clock` HTTP check pass. Direct rendered automation remains blocked because the in-app Browser's administrator policy cannot verify localhost access, so final visual judgment remains in the user's Device Toolbar review.
+
+## 2026-08-05 — Bubble Field independent background, colors, and tuning
+
+- Promoted Bubble Field from an unsupported CSS/DOM palette adapter to six concrete roles. Source preserves its authored compound background and five bubble colors. Custom maps Bubble 1-5 to Swatches 1-5 and Background to Swatch 7; Harmony regenerates only the five bubble colors while keeping the saved Swatch 7 background visible, editable, and independent.
+- Added persisted Motion speed (`0.25x`-`2.00x`), Intensity (`10%`-`100%`), Bubble size (`50%`-`200%`), Blur (`0`-`80px`), and Blend strength (`10`-`30`) controls to both Visual panels, preserving the authored `1.00x`, `100%`, `100%`, `40px`, and `18` defaults. The renderer applies them to the full animation cycle, field opacity, bubble geometry, gooey blur, and color-matrix blend. Cursor interaction and the sixth mouse-following bubble remain intentionally omitted so Bubble Field stays a passive background. The `massage-lab-bubble` ID and entitlement behavior are unchanged.
+- The focused renderer, role-mapping, Harmony-isolation, settings, entitlement, and UI-contract tests pass; all 2,008 repository tests, typecheck, lint, `git diff --check`, the 102-page Production build, and the localhost-only `/dev/clock` HTTP check pass. Direct rendered automation remains blocked because the in-app Browser's administrator policy cannot verify localhost access, so final visual judgment remains in the user's Device Toolbar review.
+
+## 2026-08-05 — Tile Grid and Hex Grid fade sliders
+
+- Replaced the shared Tile Grid and Hex Grid Fade time hour/minute/second inputs with the standard Visual-panel range control in both setup and running-timer surfaces. One logarithmic `0-100` presentation preserves useful control over short fades while still reaching the existing `0.25s` through `23h 59m 59.9s` domain; the value label reports the resulting real duration.
+- Both backgrounds now default to a `20s` fade. A versioned exact-default migration updates only untouched former `1.2s` values; customized saved fade times retain their authored values. The renderer and persistence boundary remain seconds, including exact minimum and maximum endpoints. Colors, density controls, background IDs, and entitlement behavior are unchanged.
+- The focused slider/settings/entitlement contracts pass; all 2,005 repository tests, typecheck, lint, `git diff --check`, and the 102-page Production build pass. Direct rendered automation remains blocked because the in-app Browser's administrator policy cannot verify localhost access, so final slider feel remains in the user's `/dev/clock` Device Toolbar review.
+
+## 2026-08-05 — Swatch 7 background-role audit
+
+- Audited every enabled shared-palette adapter whose literal full-canvas `Background` role still defaulted to Swatch 1. Retro Grid, Aerial Rays, Wave Current, Photon Beam, Reveal Dots, 3D Globe, Lamp Glow, Wave flow, Pixel liquid, and Aurora bars now reserve Swatch 7 for that saved backdrop. Their visual roles shift into Swatches 1-6 in renderer order; 3D Globe's Wireframe moves from Swatch 7 to Swatch 6 to avoid a collision.
+- Harmony now regenerates only the foreground, line, ray, wave, signal, globe, lamp, liquid, and bar roles while retaining the user's saved Swatch 7 backdrop. Source colors, renderer behavior, user-authored role remaps, background IDs, and entitlement behavior are unchanged. A registry-wide contract prevents any enabled literal `Background` role from returning to Swatch 1.
+- The focused palette registry contracts, all 2,004 repository tests, typecheck, lint, `git diff --check`, and the 102-page Production build pass. Final visual judgment remains in the user's `/dev/clock` Device Toolbar review.
+
+## 2026-08-05 — Vortex independent background and procedural hue control
+
+- Changed Vortex's shared-color contract so its background is independently owned by Swatch 7 in Custom mode. The particle field retains the source renderer's continuous 100-degree HSL span instead of flattening it into discrete swatch colors.
+- Added a persisted `0°-360°` Particle hue slider directly below the Custom swatches to control the start of that continuous range. Harmony is disabled for Vortex because a discrete harmony choice cannot truthfully describe the procedural field; stale saved Harmony mode resolves safely to Source. The existing `massage-lab-vortex` ID, entitlement behavior, particle geometry, motion, and other tuning controls are unchanged.
+- The focused palette/editor/renderer contracts, all 2,002 repository tests, typecheck, lint, `git diff --check`, the 102-page Production build, and the localhost-only `/dev/clock` HTTP check pass. Final visual judgment remains in the user's Device Toolbar review.
+
+## 2026-08-05 — Reveal Dots visible distributed motion
+
+- Corrected Reveal Dots after Device Toolbar review showed that its former `0.86x-1.10x` randomly phased opacity shimmer was technically repainting but visually static at phone scale. Individual anchored dots now brighten and dim smoothly on their existing seeded phases and speeds across a wider `0.65x-1.45x` opacity multiplier, so the field visibly twinkles without relying on pointer input.
+- Removed the first coherent-wave attempt after direct review showed that its screen-wide sweep changed the background's intended character. The final renderer keeps the source-like grid, dot positions, dot sizes, colors, spacing, gradient choice, settings, entitlement behavior, and `massage-lab-reveal-dots` ID unchanged. Reduced motion returns the authored steady frame.
+- The focused motion regression, all 2,000 repository tests, typecheck, lint, the 102-page Production build, and the localhost-only `/dev/clock` HTTP check pass. Final visual judgment remains in the user's Device Toolbar review.
+
+## 2026-08-05 — Light Lines independent background, colors, and expanded tuning
+
+- Promoted Light Lines from an unsupported CSS/DOM palette adapter to seven concrete roles. Source preserves the authored compound background and complete 21-color line cycle. Custom/Harmony repeat six foreground colors from Swatches 1-6 across the SVG paths while keeping the saved Swatch 7 background independent and editable.
+- Retained the existing persisted Line duration control (`4s`-`18s`, default `10s`) and added Intensity (`10%`-`100%`, default `68%`), Line count (`6`-`26`, default `26`), Line width (`0.5`-`6.0`, default `2.3` SVG units), and Glow strength (`0`-`24px`, default `10px`) in both Visual panels. The renderer applies them directly to the complete SVG field opacity, actual rendered path count, stroke geometry, and drop-shadow blur. The `massage-lab-background-lines` ID and entitlement behavior are unchanged.
+- The focused renderer, role-mapping, Harmony-isolation, settings, entitlement, UI-contract, and diagnostics tests pass; all 1,999 repository tests, typecheck, lint, `git diff --check`, the 102-page Production build, and the restarted localhost-only `/dev/clock` HTTP check pass. Direct rendered automation remains blocked because the in-app Browser's administrator policy cannot verify localhost access, so final visual judgment remains in the user's Device Toolbar review.
+
+## 2026-08-05 — Glowing Stars and Meteors independent backgrounds, colors, and tuning
+
+- Promoted Glowing Stars and Meteors from unsupported CSS/DOM palette adapters to concrete renderer roles. Glowing Stars Source preserves its authored compound background and base-star, peak-star, afterglow, glow-core, and glow-aura colors; Custom/Harmony map those five foreground roles to Swatches 1-5 while keeping the saved Swatch 7 background independent. Meteors Source preserves its authored compound background and meteor-head, tail, glow, and edge colors; Custom/Harmony map those four foreground roles to Swatches 1-4 while keeping the saved Swatch 7 background independent. Unassigned swatches remain visibly marked as unused.
+- Added persisted Glowing Stars controls for Motion speed (`0.25x`-`2.00x`, default `1.00x`), Intensity (`10%`-`100%`, default `94%`), Active stars (`1`-`18`, default `5`), Star size (`0.5px`-`3.0px`, default `1.0px`), and Glow strength (`0%`-`200%`, default `100%`). The renderer applies them directly to its three-second selection interval, two-second pulse/glow cycle, grid opacity, selected-star count, and star/glow geometry.
+- Added persisted Meteors controls for Motion speed (`0.25x`-`2.00x`, default `1.00x`), Intensity (`10%`-`100%`, default `82%`), Meteor count (`4`-`48`, default `28`), Meteor size (`0.5px`-`5.0px`, default `2.0px`), and Tail length (`15px`-`140px`, default `50px`). The renderer applies them directly to its authored nine-to-fourteen-second cycles, full meteor-layer opacity, deterministic full-width streak distribution, head geometry, and tail geometry. The `massage-lab-glowing-stars` and `massage-lab-meteors` IDs and entitlement behavior are unchanged.
+- The focused renderer, role-mapping, Harmony-isolation, settings, entitlement, UI-contract, and diagnostics tests pass; all 1,994 repository tests, typecheck, lint, `git diff --check`, the 102-page Production build, and the restarted localhost-only `/dev/clock` HTTP check pass. Direct rendered automation remains blocked because the in-app Browser's administrator URL policy rejects localhost, so final visual judgment remains in the user's Device Toolbar review.
+
+## 2026-08-05 — Collision Beams independent background, colors, and tuning
+
+- Promoted Collision Beams from an unsupported CSS/DOM palette adapter to five concrete roles. Source preserves the authored layered background and beam, accent, particle, and impact-surface colors. Custom maps Beam, Accent, Particles, and Impact surface to Swatches 1-4 and Background to Swatch 7; Harmony regenerates only the four foreground colors while keeping the saved Swatch 7 background visible and editable. Swatches 5-6 remain unused by default.
+- Added persisted Motion speed (`0.25x`-`2.00x`), Intensity (`10%`-`100%`), Beam width (`0.5px`-`4.0px`), and Burst size (`50%`-`200%`) controls to both Visual panels, preserving the authored `1.00x`, `100%`, `1px`, and `100%` defaults. The renderer applies those controls to the complete beam/collision cycle, foreground layer opacity, beam geometry, and composed explosion/particle scale. The `massage-lab-collision-beams` ID and entitlement behavior are unchanged.
+- The focused renderer, role-mapping, Harmony-isolation, settings, entitlement, UI-contract, and diagnostics tests pass; all 1,987 repository tests, typecheck, lint, `git diff --check`, the 102-page Production build, and the restarted localhost-only `/dev/clock` HTTP check pass. Final visual judgment remains in the user's Device Toolbar review.
+
+## 2026-08-05 — Beam Field independent background, colors, and tuning
+
+- Promoted Beam Field from an unsupported CSS/DOM palette adapter to four concrete roles. Source preserves the authored compound background and three traveling SVG gradient colors. Custom maps Beam 1-3 to Swatches 1-3 and Background to Swatch 7; Harmony regenerates only the three beam colors while keeping the saved Swatch 7 background visible and editable.
+- Added persisted Motion speed (`0.25x`-`2.00x`), Intensity (`10%`-`100%`), Beam width (`0.2`-`2.0` SVG units), and Glow strength (`0`-`20px`) controls to both Visual panels, preserving the authored `1.00x`, `82%`, `0.6`, and `10px` defaults. The renderer applies these controls directly to native SVG timing, field opacity, path stroke width, and drop-shadow blur. The `massage-lab-background-beams` ID and entitlement behavior are unchanged.
+- The focused renderer, role-mapping, Harmony-isolation, settings, entitlement, UI-contract, and diagnostics tests pass; all 1,982 repository tests, typecheck, lint, `git diff --check`, the 102-page Production build, and the restarted localhost-only `/dev/clock` HTTP check pass. Final visual judgment remains in the user's Device Toolbar review.
+
+## 2026-08-05 — Selected-background swatch availability cues
+
+- The shared seven-swatch editor now marks each swatch with semantic assigned/unused state derived from the selected background's active role mapping. Assigned swatches reuse the Visual header Apply action's leaf-green token family; unused swatches reuse the destructive action's red token family and retain their dashed border. The tint remains a redundant visual cue alongside the existing role names and `Not used by this background` labels, and follows the existing 7/4/2-column responsive layouts in Source, Custom, and Harmony modes without changing editability, palette behavior, mappings, saved settings, or background IDs.
+- The focused palette contract, all 1,978 repository tests, typecheck, lint, `git diff --check`, the 102-page Production build, and the restarted localhost-only `/dev/clock` HTTP check pass. Direct rendered automation remains blocked because the in-app browser's administrator-enforced localhost policy could not be verified, so final tint judgment remains in the user's Device Toolbar review.
+
+## 2026-08-05 — Dotted Glow independent background, colors, and tuning
+
+- Promoted Dotted Glow from an unsupported canvas palette adapter to three concrete roles. Source preserves the authored background, dot, and glow colors. Custom maps Dots to Swatch 1, Glow to Swatch 2, and Background to Swatch 7; Harmony regenerates only the dot and glow colors while the saved Swatch 7 background remains visible and editable.
+- Added persisted Motion speed (`0.25x`-`2.00x`), Dot size (`0.5px`-`4.0px`), Dot spacing (`8px`-`28px`), Dot opacity (`10%`-`100%`), and Glow strength (`0`-`12px`) controls to both Visual panels, preserving the authored defaults. Removed the fixed center radial depth/cloud layer and the radial fallback flare so the field stays even and only individual pulsing dots glow. The `massage-lab-dotted-glow` ID and entitlement behavior are unchanged.
+- The focused renderer, role-mapping, Harmony-isolation, settings, entitlement, UI-contract, and diagnostic tests pass; all 1,977 repository tests, typecheck, lint, `git diff --check`, the 102-page Production build, and the restarted localhost-only `/dev/clock` HTTP check pass. Direct rendered automation remains blocked by the unresolved administrator-enforced in-app-browser localhost policy, so the user's Device Toolbar review remains the visual acceptance path.
+
+## 2026-08-05 — Aurora Field independent Harmony background
+
+- Corrected Aurora Field's Swatch 7 role semantics after Device Toolbar review: Harmony now generates colors only for the five aurora bands. The background resolves from the saved Swatch 7 value, remains visibly editable while Harmony is active, and no longer changes when the user changes the primary color or harmony choice. Other backgrounds retain their existing generated Harmony behavior.
+- The focused palette resolver, adapter, and editor contracts pass; all 1,973 repository tests, typecheck, lint, `git diff --check`, the 102-page Production build, and the restarted localhost-only `/dev/clock` HTTP check pass. Direct rendered automation remains blocked by the unresolved administrator-enforced in-app-browser localhost policy, so the user's Device Toolbar review remains the visual acceptance path.
+
+## 2026-08-05 — Aurora Field visual tuning and shared colors
+
+- Added Aurora Field controls to both Chimer/Clock Visual panels for Motion speed (`0.25x`-`2.00x`), Intensity (`10%`-`100%`), Blur (`0`-`30px`), and Field reach (`30%`-`100%`), retaining the source-matched `1.00x`, `50%`, `10px`, and `70%` defaults.
+- Promoted Aurora Field from an unsupported color adapter to six concrete shared-palette roles: its background and five aurora bands. Source mode preserves the authored blue/violet palette. Custom and Harmony map the bands to Swatches 1-5 and reserve Swatch 7 for the background so it remains independent from the primary harmony color; Swatch 6 remains available and unused by default. The `massage-lab-aurora` ID, entitlement behavior, and source defaults are unchanged.
+- The focused Aurora renderer, role-mapping, settings, entitlement, UI-contract, and account-persistence tests pass; all 1,971 repository tests, typecheck, lint, `git diff --check`, the 102-page Production build, and the restarted localhost-only `/dev/clock` HTTP check pass. Direct rendered automation remains blocked by the unresolved administrator-enforced in-app-browser localhost policy, so the user's Device Toolbar review remains the visual acceptance path.
+
+## 2026-08-05 — Photon Beam moderate defaults
+
+- Reduced Photon Beam's new/reset and direct-renderer defaults from 80 lines and 94 signals to 12 lines and 12 signals for a calmer phone presentation. A versioned exact-default migration updates only the untouched former 80/94 pair; customized saved densities retain their authored values. Control ranges, colors, motion, bloom, entitlement behavior, and background ID are unchanged.
+- The focused Photon Beam renderer, sanitizer, migration, and entitlement contracts pass, all 1,967 repository tests pass, and typecheck, lint, `git diff --check`, the 102-page Production build, and the restarted localhost-only `/dev/clock` HTTP check pass. Direct rendered automation remains blocked by the unresolved administrator-enforced in-app-browser localhost policy, so the user's Device Toolbar review remains the visual acceptance path.
+
+## 2026-08-05 — Chrome Flow speed correction
+
+- A Device Toolbar screenshot disambiguated two currently duplicate Chrome Flow catalog labels. The requested control was the React Bits renderer at ID `massage-lab-liquid-chrome`, identifiable by Speed, Amplitude, Frequency X/Y, and Cursor interaction—not the Chamaac renderer at ID `massage-lab-chrome-flow`, which exposes Flow speed and Time scale. The first pass changed the latter and is fully reverted here.
+- The screenshot-matched Chrome Flow now stores raw Speed from `0.001` to `3.0` while both Visual panels present it as `0.1%-100%` with `0.1%` steps. Its raw `0.2` default, amplitude, frequencies, cursor interaction, color behavior, entitlement behavior, and background ID are unchanged.
+- The four focused exact-ID, renderer, control, and sanitizer contracts pass, all 1,967 repository tests pass, and typecheck, lint, `git diff --check`, the 102-page Production build, and the restarted localhost-only `/dev/clock` HTTP check pass. Direct rendered automation remains blocked by the unresolved administrator-enforced in-app-browser localhost policy, so the user's Device Toolbar review remains the visual acceptance path.
+
+## 2026-08-05 — Shape Grid speed scale
+
+- Changed Shape Grid's authored speed default from `1.0` to `0.25`, corrected its renderer and sanitizer range to `0.0-2.0`, and presented that raw range as a true `0%-100%` slider in both Visual panels. The default appears as `12.5%`, while the `0%` endpoint now leaves the grid stationary instead of silently applying a `0.1` motion floor. A versioned exact-default migration moves only untouched former `1.0` settings to `0.25`; customized legacy speeds retain their meaning and are clamped only when outside the corrected range. Direction, cell size, shape, trail, cursor behavior, colors, entitlement behavior, and background ID are unchanged.
+- The focused Shape Grid/default/entitlement contracts pass, all 1,966 repository tests pass, and typecheck, lint, `git diff --check`, the 102-page Production build, and the restarted localhost-only `/dev/clock` HTTP check pass. Direct rendered automation remains blocked by the unresolved administrator-enforced in-app-browser localhost policy, so the user's Device Toolbar review remains the visual acceptance path.
+
+## 2026-08-05 — Grid Distortion simulated cursor controls
+
+- Added an opt-in Simulate cursor interaction toggle and persisted `0.3x-2.0x` Fake cursor speed control with a `1.0x` default to both Visual panels. The passive path feeds Grid Distortion's existing normalized pointer/data-texture displacement model, yields briefly after genuine pointer movement, and remains additive to the already-approved continuous ambient drift; simulation is off by default and existing controls, colors, entitlement behavior, reduced-motion handling, and background ID remain unchanged.
+
+## 2026-08-05 — Dot Grid simulated cursor controls
+
+- Added an opt-in Simulate cursor interaction toggle and a persisted `0.3x-2.0x` Fake cursor speed control with a `1.0x` default to both setup and running Visual panels. The dependency-free canvas renderer feeds a smooth viewport-relative passive path through the same proximity and inertia physics as real pointer movement, temporarily yields to genuine pointer input, does not synthesize click shocks, and remains enabled at compact viewports using the existing reduced-DPR path. Real cursor interaction, click shock, existing Dot Grid controls, colors, entitlement behavior, and background ID remain unchanged; simulation is off by default.
+
+## 2026-08-05 — Dot Field authored defaults
+
+- Updated Dot Field's new/reset presentation to use Sparkle on, a `4.0` dot radius, and `6.0` dot spacing in both the shared Chimer/Clock settings defaults and the renderer's direct fallback. The exact former `1.5` / `14` / Sparkle-off tuple migrates once so untouched persisted settings receive the new presentation; any customized saved tuple remains unchanged. Sanitization ranges, controls, colors, cursor behavior, and background ID are unchanged.
+
+## 2026-08-05 — Grid Scan shared tunnel depth
+
+- Corrected Grid Scan's perspective room so its ceiling, floor, and both walls use proportional camera-relative extents, matching corner-edge calculations, and one shared far-depth fade into an opaque black cap. The former fixed `0.2` ceiling/floor versus `0.5` wall extents produced mismatched depth, while the first equal-extent correction forced a square distant opening. Grid Scan now keeps a `0.5` half-height, derives the half-width from the live render width/height, and terminates every plane at the same camera depth, so the black opening and full tunnel cross-section match the user's viewport aspect ratio without any pair of surfaces appearing shorter in portrait, landscape, resize, or rotation states. Saved settings, controls, colors, scanning motion, and pointer behavior are unchanged.
+
+## 2026-08-05 — Gradient Blinds fixed-slat light motion
+
+- Superseded the earlier autonomous-motion choice that translated Gradient Blinds' gradient and stripe phase. The gradient and blind cell boundaries are now time-independent, preserving the position of every slat. Every slat retains a source-color visibility floor, the spotlight is bounded so it only illuminates rather than darkening areas outside its reach, and its slow damped passive path gently flexes the shading inside each fixed cell like a light breeze. Enabling cursor interaction still hands that light and internal flex to the pointer, and the shader noise is spatially stable instead of flickering frame to frame. Reduced motion continues to render one stable representative frame.
+- The focused renderer/catalog/settings contracts pass 182/182, all 1,965 repository tests pass, and typecheck, lint, the 102-page Production build, and the restarted localhost-only `/dev/clock` HTTP check pass. Direct rendered automation remains blocked because the in-app browser's administrator-enforced localhost policy could not be verified, so final motion judgment remains in the user's Device Toolbar review.
+
+## 2026-08-04 — Dark Veil color and resolution controls
+
+- Dark Veil Hue shift now uses the shared color-channel slider. Its transform-only adapter can enter Custom mode without falsely enabling Harmony or editable shared swatches; in the immersive Visual panel the slider appears directly beneath the seven read-only reference swatches only while Custom is selected, participates in the existing draft/apply history, and stays absent from Source. The renderer's clipped YIQ transform produces a reverse, nonlinear hue response rather than a rotated HSL wheel, so the thumb and track now use an unwrapped calibration curve measured from nine Device Toolbar screenshots across `-180°` through `166°`, with the periodic `180°` endpoint joined back to the same rendered hue as `-180°`.
+- Resolution scale now presents the stored `0.25-1` range as `25%-100%`. Reduced drawing buffers retain nearest-neighbor pixels so the quality/performance tradeoff is visible, while the CSS canvas remains full-viewport and the shader resolution continues matching the real drawing buffer.
+- Validation passed after the Custom-mode and initial hue-control corrections: 110 focused background/palette/shared-control tests, the full 1,965-test suite, typecheck, lint, production build, diff check, and an HTTP 200 response from the restarted localhost-only `/dev/clock` server. The subsequent renderer-calibrated curve also passed its focused Dark Veil/shared-slider contracts, the full 1,965-test suite, typecheck, lint, production build, and an HTTP 200 response from the restarted localhost-only `/dev/clock` server; the user's nine Device Toolbar screenshots supply the multi-point visual calibration because direct automated in-app-browser interaction remains unavailable while its administrator-enforced localhost security check cannot be verified.
+
+## 2026-08-04 — Liquid Ether control-label cleanup
+
+- Liquid Ether now labels its autonomous animation controls Motion, Speed, Intensity, Resume, and Ramp in both setup and running Visual panels. Matching accessible names also omit the redundant `Auto` prefix; internal persisted keys and renderer behavior are unchanged.
+- The focused 79-test background contract, all 1,965 repository tests, typecheck, lint, `git diff --check`, and the auth-free `/dev/clock` HTTP check pass. The in-app browser remains unable to inspect localhost because its admin policy is unavailable, so final rendered confirmation remains in the user's Device Toolbar review.
+
+## 2026-08-04 — Electric Mist speed-scale normalization
+
+- Electric Mist animation speed now uses a bounded `1%-100%` user-facing scale. The original authored `100%` pace remains the default and is displayed as `50%`; the new `100%` endpoint renders at the requested authored `200%` maximum.
+- A versioned settings migration halves previously saved direct-percent values so their rendered pace remains unchanged, clamps only values above the new authored ceiling, and leaves the existing brightness percentage semantics intact.
+- Focused migration/renderer/entitlement contracts, all 1,965 repository tests, typecheck, lint, the 102-page Production build, and `git diff --check` pass. The in-app browser can claim the open `/dev/clock` tab but cannot inspect localhost because its admin policy is unavailable, so final visual judgment remains in the user's Device Toolbar review.
+
+## 2026-08-04 — Twisted Cubes depth and rotation follow-up
+
+- Rotation speed is now bounded at `0.01x-2x`. Layer depth uses a stronger bounded orthographic projection that changes the rendered layer scale noticeably without adding perspective or reducing the approved layer count and wireframe quality.
+- An initial continuous linear `rotate3d` experiment was rejected during user review. The exact staged three-axis sequence and cubic-bezier easing are restored; the observed lag and jitter occurred while the review machine was under unusually heavy load and are not treated as a confirmed renderer defect. Rotation retains no persistent `will-change` allocation.
+- Focused domain, renderer, preference, controls, and palette contracts pass; the configured desktop-Chromium acceptance matrix passes 13/13 after correcting its DNA percentage-translation and compact-viewport test races; typecheck, lint, the 102-page Production build, and `git diff --check` pass. The in-app browser can claim the open `/dev/clock` tab but cannot inspect localhost because its admin policy is unavailable, so final visual judgment remains in the user's Device Toolbar review.
+
+## 2026-08-04 — DNA control semantics and geometry remediation
+
+- DNA preserves the reviewed authored raw defaults (`0.06` node speed, `0.02` rotation speed, and `0.5` scale) while presenting them as `1.0x`, `1.0x`, and `100%`. Node and rotation speeds now use bounded `0.1x-2.0x` user-facing controls, and scale uses a real `1%-100%` range with a DNA-specific responsive floor so every position remains visually distinct.
+- Whole-strand rotation now has persisted on/off and clockwise/counterclockwise controls. Node size has its own persisted `25%-200%` control. Strand spacing now applies centered per-strand offsets over a gap-free grid, so changing spacing no longer changes row height or node diameter.
+- The palette adapter, shared Visual draft, local/account settings sanitizer, all four Host contexts, reduced-motion behavior, and computed-consumer acceptance matrix cover the three new settings and normalized values. Typecheck, lint, all 1,965 unit/source-contract tests, the 102-page Production build, `git diff --check`, and the auth-free `/dev/clock` HTTP check pass. The local server remains available at port 3000 for Device Toolbar review; automated in-app-browser rendering remains unavailable because the admin policy could not verify localhost access.
+
+## 2026-08-04 — Retro Grid motion-contract remediation
+
+- Retro Grid now uses the shared Background Host `reduceMotion` decision instead of independently re-reading `prefers-reduced-motion`. Its WebGL frame loop and CSS fallback therefore agree with the Visual panel's background-animation state and the app's resolved ambient-motion setting. The focused Retro Grid contract test, typecheck, lint, dev-route HTTP check, and whitespace check pass; browser frame comparison remains blocked by the in-app browser's admin policy.
+
+## 2026-08-04 — Static Gradient visual controls
+
+- Static Gradient is now a real low-cost CSS renderer with two to seven active colors, seven shared palette roles, linear and radial modes, linear direction, radial circle/ellipse shape and reach, movable radial center, and individually adjustable ordered color stops. The geometry persists through the existing per-background Visual draft without changing the background ID, and the auth-free `/dev/clock` surface exposes the same controls for Device Toolbar review.
+
+## 2026-08-04 — Auth-free development Clock review surface
+
+- `/dev/clock` now renders the production Clock and background controls in local development with the canonical `premium_backgrounds` and `chimer_custom_colors` feature keys. It skips session and account-preference requests, persists review changes only under a separate local development key, and returns 404 in production. This gives Device Toolbar review the subscribed-user visual experience without login, account data, or copied environment files while leaving `/clock` behavior and stored preferences unchanged.
+
+## 2026-08-04 — Grid Motion responsive mantras remediation
+
+- Grid Motion now fills phone viewports with 6-14 responsive rows of seven tiles and moves continuously without pointer input while retaining cursor response as an additive option. Setup and running Visual controls reuse one editor with ten wellness-first starter affirmations and the persisted 1-3-word, 28-Unicode-character, 1-10-entry contract, so users can personalize the background without starting from a blank slate; Add deterministically selects the first unused valid seed even when `I am calm` already exists. Real 390×844 and 844×390 browser proofs cover layout, autonomous motion, starter presentation, normalization, collision-safe add/remove limits, remount persistence, and exact reduced-motion stability with the production `chimer-running` route class; Grid Motion joins the existing narrowly scoped route-owned fallback freeze. Background IDs, palette roles, entitlements, and preview media are unchanged.
+
+## 2026-08-04 — Phone background animation autonomy remediation
+
+- Gradient Blinds originally moved both its gradient and blinds in this remediation; the 2026-08-05 correction above supersedes that motion design with fixed slats and moving illumination. Pixel Snow animates from a representative nonzero scene time at compact DPR, Faulty Terminal has visible autonomous defaults, and Grid Distortion combines ambient and pointer deformation. Real-browser phone captures prove motion at 390×844, exact-threshold motion at 360×780 for Faulty Terminal and Grid Distortion, and exact reduced-motion stability for all four renderers even with the production `chimer-running` route class present. Both Grid Distortion moving proofs wait 160 browser frames after readiness so seeded displacement has decayed and their 700ms pixel delta isolates autonomous time-driven movement. Preview generation remains deferred until the remaining live-background audit is resolved.
+
+## 2026-08-04 — Background layering and framing remediation
+
+- Active Ripple Grid, Dot Field, Dot Grid, and Shape Grid now remove only their duplicate patterned fallback after the current renderer completes a frame. Initial paint, lazy import, initialization failure, WebGL context loss, and reduced-motion non-mounts retain the fallback; Ripple Grid rebuilds after context restore before suppressing it again. Ripple Grid also has bounded non-transparent edge coverage, and Dark Veil uses drawing-buffer resolution. Focused contracts, the desktop-Chromium phone visual gate at 390×844 and 844×390 (forced failure, first-draw transition, context loss/restore, initial/later frames, runtime health, reduced motion, overflow, underlay, edge alpha, and Dark Veil framing), typecheck, lint, build, and diff checks passed.
+
+## 2026-08-03 — Background branding audit readiness
+
+- All 83 enabled backgrounds have complete branding proposals in seven review
+  batches, and the focused audit/catalog/registry tests, typecheck, lint, and
+  `git diff --check` all pass. No product labels changed. Batch 1 is the next
+  user-review gate; the audit remains proposal evidence only, with no catalog
+  rollout, media generation, or preview-runtime completion claimed.
 
 ## 2026-08-03 — Security dependency closure after PR #164
 

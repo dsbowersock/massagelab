@@ -41,13 +41,18 @@
     "atmosphere:samples:web-audio:r2:check": "node scripts/atmosphere-upload-web-audio-format-r2.mjs check",
     "atmosphere:samples:web-audio:r2:upload": "node scripts/atmosphere-upload-web-audio-format-r2.mjs upload",
     "chimer:preview:render": "node --experimental-strip-types scripts/chimer-preview-generation/render.mjs",
+    "chimer:preview:pilot": "node --experimental-strip-types scripts/chimer-preview-generation/render-pilot.mjs",
+    "chimer:preview:pilot:refresh-metadata": "node scripts/chimer-preview-generation/render-pilot.mjs --refresh-metadata --output-dir public/chimer/background-preview-pilot --write-module components/backgrounds/backgroundPreviewRenditionManifest.ts",
+    "chimer:preview:pilot:validate": "node scripts/chimer-preview-generation/render-pilot.mjs --validate-only",
     "chimer:preview:manifest": "node --experimental-strip-types scripts/chimer-preview-generation/manifest.mjs",
     "chimer:preview:r2:check": "node scripts/chimer-preview-generation/upload-r2.mjs check",
     "chimer:preview:r2:upload": "node scripts/chimer-preview-generation/upload-r2.mjs upload",
     "stripe:readiness": "node scripts/stripe-readiness-check.mjs --",
     "stripe:migrate-supporter-membership": "node scripts/stripe-supporter-membership-migration.mjs",
     "commerce:backfill-credits": "node scripts/background-credit-backfill.mjs",
-    "commerce:reconcile": "node scripts/commerce-reconcile.mjs"
+    "commerce:reconcile": "node scripts/commerce-reconcile.mjs",
+    "backgrounds:branding:audit": "node --experimental-strip-types scripts/background-branding/render-audit.mjs",
+    "backgrounds:branding:catalog": "node --experimental-strip-types scripts/background-branding/render-catalog.mjs"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.3",

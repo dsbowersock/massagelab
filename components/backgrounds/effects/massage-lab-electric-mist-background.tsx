@@ -13,6 +13,10 @@ type ResolvedElectricMistOptions = Required<MassageLabElectricMistOptions>
 // 60 * Math.PI intentionally bounds shader time before float precision drift can
 // show while avoiding a visible loop snap in the mist animation.
 const TIME_LOOP_SECONDS = 60 * Math.PI
+// Electric Mist stores a user-facing 1–100 speed. Its 100% endpoint represents
+// the authored 200% speed, so 50% preserves the original default motion.
+const ELECTRIC_MIST_DISPLAY_SPEED_DEFAULT = 50
+const ELECTRIC_MIST_DISPLAY_SPEED_TO_SOURCE_DIVISOR = 50
 
 type ElectricMistWebGlResources = {
   program: WebGLProgram
@@ -34,7 +38,7 @@ type ElectricMistWebGlResources = {
 
 const DEFAULT_MASSAGE_LAB_ELECTRIC_MIST: ResolvedElectricMistOptions = {
   color: "#191970",
-  speed: 100,
+  speed: ELECTRIC_MIST_DISPLAY_SPEED_DEFAULT,
   detail: 1.5,
   distortion: 3,
   brightness: 100,
@@ -201,7 +205,9 @@ export default function MassageLabElectricMistBackground({
         return
       }
 
-      const time = animate ? ((timestamp / 1000) * (options.speed / 100)) % TIME_LOOP_SECONDS : 0
+      const time = animate
+        ? ((timestamp / 1000) * (options.speed / ELECTRIC_MIST_DISPLAY_SPEED_TO_SOURCE_DIVISOR)) % TIME_LOOP_SECONDS
+        : 0
 
       context.viewport(0, 0, canvas.width, canvas.height)
       context.useProgram(resources.program)
@@ -455,7 +461,7 @@ function getUniformLocation(context: WebGLRenderingContext, program: WebGLProgra
 function resolveElectricMistOptions(options: MassageLabElectricMistOptions): ResolvedElectricMistOptions {
   return {
     color: normalizeHexColor(options.color, DEFAULT_MASSAGE_LAB_ELECTRIC_MIST.color),
-    speed: clampNumber(options.speed, DEFAULT_MASSAGE_LAB_ELECTRIC_MIST.speed, 1, 400),
+    speed: clampNumber(options.speed, DEFAULT_MASSAGE_LAB_ELECTRIC_MIST.speed, 1, 100),
     detail: clampNumber(options.detail, DEFAULT_MASSAGE_LAB_ELECTRIC_MIST.detail, 0.5, 4),
     distortion: clampNumber(options.distortion, DEFAULT_MASSAGE_LAB_ELECTRIC_MIST.distortion, 0, 8),
     brightness: clampNumber(options.brightness, DEFAULT_MASSAGE_LAB_ELECTRIC_MIST.brightness, 1, 100),

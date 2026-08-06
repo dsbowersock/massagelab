@@ -1,0 +1,743 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "id": "massage-lab-moving-gradient",
+      "label": "Massage Laba Lamp",
+      "visualDescriptor": "Soft orbs drifting through a dark field",
+      "legacyLabels": [
+        "MassageLaba Lamp"
+      ],
+      "signatureOriginal": true
+    },
+    {
+      "id": "static-gradient",
+      "label": "In Transition",
+      "visualDescriptor": "Fixed layered gradient field at rest",
+      "legacyLabels": [
+        "Static gradient"
+      ],
+      "signatureOriginal": true
+    },
+    {
+      "id": "solid-color",
+      "label": "Solid Color",
+      "visualDescriptor": "Single uninterrupted full-screen color field",
+      "legacyLabels": [],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-retro-grid",
+      "label": "Endless Perspective",
+      "visualDescriptor": "Perspective grid scrolling toward the horizon",
+      "legacyLabels": [
+        "Retro Grid"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-aerial-rays",
+      "label": "Skybreak",
+      "visualDescriptor": "Diffuse light rays descending from above",
+      "legacyLabels": [
+        "Aerial Rays"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-dna",
+      "label": "DNA",
+      "visualDescriptor": "Double helices rotating in depth",
+      "legacyLabels": [],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-twisted-cubes",
+      "label": "Hypercube",
+      "visualDescriptor": "Nested wireframe cubes rotating in sequence",
+      "legacyLabels": [
+        "Twisted Cubes"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-tile-grid",
+      "label": "Quiet Mosaic",
+      "visualDescriptor": "Raised square tiles fading independently",
+      "legacyLabels": [
+        "MassageLab tile grid"
+      ],
+      "signatureOriginal": true
+    },
+    {
+      "id": "massage-lab-hex-grid",
+      "label": "Honeycomb Glow",
+      "visualDescriptor": "Raised hexagons softly fading in sequence",
+      "legacyLabels": [
+        "MassageLab hex grid"
+      ],
+      "signatureOriginal": true
+    },
+    {
+      "id": "massage-lab-gradient",
+      "label": "Colorfield Drift",
+      "visualDescriptor": "Broad layered forms slowly shifting across screen",
+      "legacyLabels": [
+        "Gradient field"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-lamp-effect",
+      "label": "Lamp Glow",
+      "visualDescriptor": "Centered lamp glow softly pulsing",
+      "legacyLabels": [],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-spotlight",
+      "label": "Spotlight",
+      "visualDescriptor": "Mirrored light cones sweeping through darkness",
+      "legacyLabels": [],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-reveal-dots",
+      "label": "Speckled Veil",
+      "visualDescriptor": "Tiny dots shimmering across darkness",
+      "legacyLabels": [
+        "Reveal dots"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-wave-current",
+      "label": "Tidal Glass",
+      "visualDescriptor": "Layered liquid contours moving with directional flow",
+      "legacyLabels": [
+        "Wave Current"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-waves",
+      "label": "Currents",
+      "visualDescriptor": "Fine parallel lines undulating as an ordered field",
+      "legacyLabels": [
+        "Wave Current"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-wavy-background",
+      "label": "Ribbons",
+      "visualDescriptor": "Blurred ribbons rolling across an open field",
+      "legacyLabels": [
+        "Wave flow"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-silk",
+      "label": "Silk",
+      "visualDescriptor": "Silk-like folds rippling through a field",
+      "legacyLabels": [],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-floating-lines",
+      "label": "Arc Currant",
+      "visualDescriptor": "Layered lines sweeping in arcs",
+      "legacyLabels": [
+        "Floating Lines"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-line-waves",
+      "label": "Filament Waves",
+      "visualDescriptor": "Dense filaments folding like waves",
+      "legacyLabels": [
+        "Line Waves"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-threads",
+      "label": "Threads",
+      "visualDescriptor": "Fine threads wandering through a field",
+      "legacyLabels": [],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-color-bends",
+      "label": "Prismatic Ribbons",
+      "visualDescriptor": "Separated bands bending across a field",
+      "legacyLabels": [
+        "Color Bends"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-liquid-ether",
+      "label": "Fluid Infusion",
+      "visualDescriptor": "Fluid plumes curling through a translucent volume",
+      "legacyLabels": [
+        "Liquid Ether"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-liquid-chrome",
+      "label": "Molten Mirror",
+      "visualDescriptor": "Reflective liquid spiraling into a central void",
+      "legacyLabels": [
+        "Chrome Flow"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-ferrofluid",
+      "label": "Fluid Filament",
+      "visualDescriptor": "Liquid contours clustering and separating",
+      "legacyLabels": [
+        "Ferrofluid"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-iridescence",
+      "label": "Soapfilm",
+      "visualDescriptor": "Reflective light folding across a fabric-like surface",
+      "legacyLabels": [
+        "Iridescence"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-light-speed",
+      "label": "Starlight",
+      "visualDescriptor": "Luminous streaks rushing toward a center",
+      "legacyLabels": [
+        "Light Speed"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-lightfall",
+      "label": "Lightfall",
+      "visualDescriptor": "Luminous streaks descending around a central glow",
+      "legacyLabels": [],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-light-pillar",
+      "label": "Monolight",
+      "visualDescriptor": "Vertical light column flickering through haze",
+      "legacyLabels": [
+        "Light Pillar"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-side-rays",
+      "label": "Lateral Rays",
+      "visualDescriptor": "Soft rays entering from the screen edge",
+      "legacyLabels": [
+        "Side Rays"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-light-rays",
+      "label": "Cascading Rays",
+      "visualDescriptor": "Soft rays spreading through dark haze",
+      "legacyLabels": [
+        "Light Rays"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-beams",
+      "label": "Rising Monoliths",
+      "visualDescriptor": "Tall light planes rising in staggered rows",
+      "legacyLabels": [
+        "Beams"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-background-beams",
+      "label": "Roaming Sweep",
+      "visualDescriptor": "Fifty hairline arcs lit by roaming gradients",
+      "legacyLabels": [
+        "Beam field"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-collision-beams",
+      "label": "Firework Dust",
+      "visualDescriptor": "Slender beams falling into brief flares",
+      "legacyLabels": [
+        "Collision beams"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-background-lines",
+      "label": "Signal Comets",
+      "visualDescriptor": "Forty-two luminous dashes sweeping along radial paths",
+      "legacyLabels": [
+        "Light lines"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-photon-beam",
+      "label": "Convergence",
+      "visualDescriptor": "Light particles converging into a focused trail",
+      "legacyLabels": [
+        "Photon Beam"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-prismatic-burst",
+      "label": "Kaleidoscope Rays",
+      "visualDescriptor": "Spectral rays bursting from a dark center",
+      "legacyLabels": [
+        "Prismatic Burst"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-prism",
+      "label": "Prismatic",
+      "visualDescriptor": "Glowing triangular prism refracting spectral light",
+      "legacyLabels": [
+        "Prism"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-grid-bloom",
+      "label": "Connective Pulse",
+      "visualDescriptor": "Grid waves pulsing through interference",
+      "legacyLabels": [
+        "Grid Bloom"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-pixel-blast",
+      "label": "Nomad",
+      "visualDescriptor": "Dithered pixels gathering into shifting shapes",
+      "legacyLabels": [
+        "Pixel Blast"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-gradient-blinds",
+      "label": "Slats",
+      "visualDescriptor": "Gradient slats opening around a spotlight",
+      "legacyLabels": [
+        "Gradient Blinds"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-grid-scan",
+      "label": "Neon Survey",
+      "visualDescriptor": "Perspective grid sweeping through a dark tunnel",
+      "legacyLabels": [
+        "Grid Scan"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-pixel-snow",
+      "label": "Snowglobe",
+      "visualDescriptor": "Blocky flakes drifting through deep space",
+      "legacyLabels": [
+        "Pixel Snow"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-dither",
+      "label": "Dithered Smoke",
+      "visualDescriptor": "Wave clouds rendered as coarse dots",
+      "legacyLabels": [
+        "Dither"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-ripple-grid",
+      "label": "Ripple Grid",
+      "visualDescriptor": "Square grid rippling from the center",
+      "legacyLabels": [],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-dot-field",
+      "label": "Dot Field",
+      "visualDescriptor": "Tiny dots arranged in even rows",
+      "legacyLabels": [],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-dot-grid",
+      "label": "Pegboard",
+      "visualDescriptor": "Dots resting in evenly spaced rows",
+      "legacyLabels": [
+        "Dot Grid"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-grid-distortion",
+      "label": "Mosaic Warp",
+      "visualDescriptor": "Mosaic blocks bending in soft waves",
+      "legacyLabels": [
+        "Grid Distortion"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-grid-motion",
+      "label": "Mantra Drift",
+      "visualDescriptor": "Offset word rows resting in place",
+      "legacyLabels": [
+        "Grid Motion"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-shape-grid",
+      "label": "Geometric Current",
+      "visualDescriptor": "Outlined square cells sliding across a field",
+      "legacyLabels": [
+        "Shape Grid"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-electric-mist",
+      "label": "Electric Glow",
+      "visualDescriptor": "Electrical veins churning through smoky texture",
+      "legacyLabels": [
+        "Electric Mist"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-astral-flow",
+      "label": "Celestial Breath",
+      "visualDescriptor": "Dark radial wisps breathing around a center",
+      "legacyLabels": [
+        "Astral Flow"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-deep-space-nebula",
+      "label": "Clouded Cosmos",
+      "visualDescriptor": "Nebula clouds billowing through deep shadow",
+      "legacyLabels": [
+        "Deep Space Nebula"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-dark-veil",
+      "label": "Shadows",
+      "visualDescriptor": "Neural ribbons drifting through shadow",
+      "legacyLabels": [
+        "Dark Veil"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-soft-aurora",
+      "label": "Polar Aurora",
+      "visualDescriptor": "Aurora band glowing at horizon",
+      "legacyLabels": [
+        "Soft Aurora"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-plasma",
+      "label": "Charged Foam",
+      "visualDescriptor": "Plasma cells swelling and dissolving",
+      "legacyLabels": [
+        "Plasma"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-plasma-wave",
+      "label": "Folded Plasma",
+      "visualDescriptor": "Plasma ribbons curling together",
+      "legacyLabels": [
+        "Plasma Wave"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-particles",
+      "label": "Particle Drift",
+      "visualDescriptor": "Sparse particles drifting through a spacious field",
+      "legacyLabels": [
+        "Particles"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-galaxy",
+      "label": "Constellations",
+      "visualDescriptor": "Dense stars rotating around a luminous center",
+      "legacyLabels": [
+        "Galaxy"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-aurora",
+      "label": "Interstellar",
+      "visualDescriptor": "Blurred vertical color curtains slowly shifting",
+      "legacyLabels": [
+        "Aurora field"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-dotted-glow",
+      "label": "Shimmer",
+      "visualDescriptor": "Tiny cyan dots twinkling over deep blue",
+      "legacyLabels": [
+        "Dotted glow"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-sparkles",
+      "label": "Fireflies",
+      "visualDescriptor": "Sparkles pulsing across ambient haze",
+      "legacyLabels": [
+        "Sparkles"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-chrome-flow",
+      "label": "Reflective Currents",
+      "visualDescriptor": "Reflective marbling folding through broad liquid currents",
+      "legacyLabels": [
+        "Chrome Flow"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-evil-eye",
+      "label": "Ember Iris",
+      "visualDescriptor": "Luminous iris flickering around a dark pupil",
+      "legacyLabels": [
+        "Evil Eye"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-radar",
+      "label": "Deep Search",
+      "visualDescriptor": "Luminous sweep rotating across concentric rings",
+      "legacyLabels": [
+        "Radar"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-synthesis",
+      "label": "Emulsion",
+      "visualDescriptor": "Luminous forms blending through soft focus",
+      "legacyLabels": [
+        "Synthesis"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-lightning",
+      "label": "Electric Storm",
+      "visualDescriptor": "Bright branching bolts flashing across a dark field",
+      "legacyLabels": [
+        "Lightning"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-faulty-terminal",
+      "label": "Scanline",
+      "visualDescriptor": "Pixelated terminal glyph grid moving behind scanlines",
+      "legacyLabels": [
+        "Faulty Terminal"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-letter-glitch",
+      "label": "Code Confetti",
+      "visualDescriptor": "Character grid flickering through randomized substitutions",
+      "legacyLabels": [
+        "Letter Glitch"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-balatro",
+      "label": "Chromatic Swirl",
+      "visualDescriptor": "Layered currents spiraling like marbled ink",
+      "legacyLabels": [
+        "Balatro"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-novatrix",
+      "label": "Drift",
+      "visualDescriptor": "Soft color bands drifting through a grainy field",
+      "legacyLabels": [
+        "Novatrix Field"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-matrix-rain",
+      "label": "Encrypted",
+      "visualDescriptor": "Character columns cascading over a dark field",
+      "legacyLabels": [
+        "Matrix Rain"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-pixel-liquid",
+      "label": "Simulation",
+      "visualDescriptor": "Pixelated fluid shifting through a dark field",
+      "legacyLabels": [
+        "Pixel liquid"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-vortex",
+      "label": "Orbits",
+      "visualDescriptor": "Particles drifting through a swirling current",
+      "legacyLabels": [
+        "Vortex field"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-grainient",
+      "label": "Velvet Grain",
+      "visualDescriptor": "Grainy color field drifting softly",
+      "legacyLabels": [
+        "Grainient"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-orb",
+      "label": "Halo",
+      "visualDescriptor": "Luminous ring surrounding a shaded sphere",
+      "legacyLabels": [
+        "Orb"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-gradient-animation",
+      "label": "Color Drift",
+      "visualDescriptor": "Gradient clouds slowly roaming",
+      "legacyLabels": [
+        "Animated gradient"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-glowing-stars",
+      "label": "Star Lattice",
+      "visualDescriptor": "Small stars brightening across an ordered grid",
+      "legacyLabels": [
+        "Glowing stars"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-meteors",
+      "label": "Falling Sky",
+      "visualDescriptor": "Diagonal meteor streaks crossing a dark sky",
+      "legacyLabels": [
+        "Meteors"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-shooting-stars",
+      "label": "Wish",
+      "visualDescriptor": "Sparse stars twinkling between occasional bright streaks",
+      "legacyLabels": [
+        "Shooting stars"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-3d-globe",
+      "label": "Pale Blue Dot",
+      "visualDescriptor": "Mapped globe with built-in Massage Lab marker",
+      "legacyLabels": [
+        "3D Globe"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-aurora-bars",
+      "label": "Equalizer",
+      "visualDescriptor": "Luminous vertical bars rising in rolling waves",
+      "legacyLabels": [
+        "Aurora bars"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-bubble",
+      "label": "Bubbles",
+      "visualDescriptor": "Blurred bubbles floating through a dark wash",
+      "legacyLabels": [
+        "Bubble field"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-stars",
+      "label": "Drifting Starfield",
+      "visualDescriptor": "Three star layers gliding above a dark horizon",
+      "legacyLabels": [
+        "Star field"
+      ],
+      "signatureOriginal": false
+    },
+    {
+      "id": "massage-lab-hole",
+      "label": "Descent",
+      "visualDescriptor": "Radiant wire grid flowing into a dark center",
+      "legacyLabels": [
+        "Depth well"
+      ],
+      "signatureOriginal": false
+    }
+  ]
+}

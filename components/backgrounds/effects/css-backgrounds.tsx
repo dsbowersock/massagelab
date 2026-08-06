@@ -3,28 +3,53 @@
 import { type CSSProperties, useEffect, useId, useMemo, useRef, useState } from "react"
 import { MovingBackground } from "@/components/moving-background"
 import { shouldAnimateAmbientBackground } from "@/lib/motion-preferences"
+import {
+  buildStaticGradientCss,
+  getStaticGradientBackgroundOptionsFromChimerSettings,
+  STATIC_GRADIENT_SOURCE_COLORS,
+} from "@/lib/static-gradient-background"
 import { cn } from "@/lib/utils"
 import styles from "@/components/backgrounds/BackgroundHost.module.css"
+import { resolveCanvasRevealDotTwinkle } from "./canvas-reveal-dots-motion"
+
+export interface StaticGradientOptions {
+  type?: "linear" | "radial"
+  colorCount?: number
+  angle?: number
+  centerX?: number
+  centerY?: number
+  radialShape?: "circle" | "ellipse"
+  radialSize?: "closest-side" | "farthest-side" | "closest-corner" | "farthest-corner"
+  stopPositions?: readonly number[]
+  /** Palette-resolved colors ordered from the first through seventh stop. */
+  colors?: readonly string[]
+}
 
 export interface MassageLabDnaOptions {
   /** Integer strand count, 7-81. */
   strandCount: number
   /** Presentation-only base-letter visibility. */
   showBaseLetters: boolean
-  /** Node-cycle speed multiplier, 0.01-3. */
+  /** Persisted node-cycle source speed, 0.006-0.12 (shown as 0.1x-2x). */
   nodeMotionSpeed: number
-  /** Composition-rotation speed multiplier, 0.01-3. */
+  /** Whether the whole strand composition rotates. */
+  strandRotationEnabled: boolean
+  /** Persisted rotation source speed, 0.002-0.04 (shown as 0.1x-2x). */
   strandRotationSpeed: number
+  /** Direction of whole-strand rotation. */
+  strandRotationDirection: "clockwise" | "counterclockwise"
   /** Composition angle in degrees, -180 to 180. */
   strandAngle: number
-  /** Render scale factor, 0.4-1.2. */
+  /** Render scale factor, 0.005-0.5 (shown as 1%-100%). */
   scale: number
   /** Horizontal position offset percent, -35 to 35. */
   positionX: number
   /** Vertical position offset percent, -35 to 35. */
   positionY: number
-  /** Grid row spacing in vmin, 0-2. */
+  /** Additional centered distance between strands in vmin, 0-2. */
   strandSpacing: number
+  /** Node diameter relative to the authored size, 25%-200%. */
+  nodeSize: number
   /** Connector width percent, 60-100. */
   connectorWidth: number
   /** Connector thickness percent, 10-60. */
@@ -85,9 +110,24 @@ export type MassageLabTwistedCubesHostOptions = Omit<
   "paletteMode" | "backgroundColor" | "outlineAnchors"
 >>
 
-export interface BackgroundEffectProps {
+/**
+ * Host-owned renderer lifecycle seam for duplicate-underlay suppression.
+ * `true` is reported only after a completed frame; initialization failure,
+ * teardown, and context loss report `false` so the Host restores its fallback.
+ */
+export interface BackgroundRendererLifecycleProps {
+  onRenderReadyChange?: (ready: boolean) => void
+  /** Narrow development-only failure seam supplied by guarded review fixtures. */
+  forceContextFailureForReview?: boolean
+}
+
+export interface BackgroundEffectProps extends BackgroundRendererLifecycleProps {
   reduceMotion?: boolean
   compactViewport?: boolean
+  /** Full-canvas color supplied by the Solid Color palette adapter. */
+  solidColor?: string
+  /** Host geometry is completed with the selected adapter's resolved stop colors. */
+  staticGradient?: StaticGradientOptions
   /** Host input is completed with the selected adapter's resolved role colors. */
   massageLabDna?: MassageLabDnaHostOptions
   /** Host input is completed with the selected adapter's resolved role colors. */
@@ -155,6 +195,13 @@ export interface BackgroundEffectProps {
   massageLabPhotonBeam?: MassageLabPhotonBeamOptions
   massageLabRetroGrid?: MassageLabRetroGridOptions
   massageLabAerialRays?: MassageLabAerialRaysOptions
+  massageLabAurora?: MassageLabAuroraOptions
+  massageLabDottedGlow?: MassageLabDottedGlowOptions
+  massageLabBubble?: MassageLabBubbleOptions
+  massageLabBackgroundBeams?: MassageLabBackgroundBeamsOptions
+  massageLabCollisionBeams?: MassageLabCollisionBeamsOptions
+  massageLabGlowingStars?: MassageLabGlowingStarsOptions
+  massageLabMeteors?: MassageLabMeteorsOptions
   massageLab3DGlobe?: MassageLab3DGlobeOptions
   backgroundLines?: BackgroundLinesOptions
   shootingStars?: ShootingStarsBackgroundOptions
@@ -175,8 +222,17 @@ export interface BackgroundEffectProps {
  * resolve to the same prop contract consumed by the actual effect component.
  */
 export interface CssDomPaletteEffectPropsById {
+  "solid-color": Pick<BackgroundEffectProps, "solidColor">
+  "static-gradient": Pick<BackgroundEffectProps, "staticGradient">
   "massage-lab-moving-gradient": Pick<BackgroundEffectProps, "className" | "mainColor" | "orbColor">
   "massage-lab-aerial-rays": Pick<BackgroundEffectProps, "massageLabAerialRays">
+  "massage-lab-aurora": Pick<BackgroundEffectProps, "massageLabAurora">
+  "massage-lab-bubble": Pick<BackgroundEffectProps, "massageLabBubble">
+  "massage-lab-background-beams": Pick<BackgroundEffectProps, "massageLabBackgroundBeams">
+  "massage-lab-background-lines": Pick<BackgroundEffectProps, "backgroundLines">
+  "massage-lab-collision-beams": Pick<BackgroundEffectProps, "massageLabCollisionBeams">
+  "massage-lab-glowing-stars": Pick<BackgroundEffectProps, "massageLabGlowingStars">
+  "massage-lab-meteors": Pick<BackgroundEffectProps, "massageLabMeteors">
   "massage-lab-grid-motion": Pick<BackgroundEffectProps, "massageLabGridMotion">
   "massage-lab-gradient-animation": Pick<BackgroundEffectProps, "gradientAnimation">
   "massage-lab-shooting-stars": Pick<BackgroundEffectProps, "shootingStars">
@@ -817,6 +873,8 @@ export interface MassageLabDotGridOptions {
   resistance?: number
   returnDuration?: number
   cursorInteraction?: boolean
+  simulateCursorInteraction?: boolean
+  simulationSpeed?: number
   clickShock?: boolean
 }
 
@@ -859,6 +917,8 @@ export interface MassageLabGridDistortionOptions {
   colorTwo?: string
   colorThree?: string
   cursorInteraction?: boolean
+  simulateCursorInteraction?: boolean
+  simulationSpeed?: number
 }
 
 export interface MassageLabOrbOptions {
@@ -888,6 +948,7 @@ export interface MassageLabGridMotionOptions {
   maxMoveAmount?: number
   baseDuration?: number
   cursorInteraction?: boolean
+  mantras?: string[]
 }
 
 export interface MassageLabShapeGridOptions {
@@ -1028,7 +1089,144 @@ export type ColorHarmony =
 export type MassageLabGradientHarmony = ColorHarmony
 
 export interface BackgroundLinesOptions {
+  /** Source retains the authored compound backdrop; resolved uses the saved background swatch. */
+  paletteMode?: "source" | "resolved"
+  backgroundColor?: string
+  /** Six colors repeated across the SVG path field in Custom and Harmony modes. */
+  colors?: readonly string[]
+  /** Base sweep duration in seconds before each path's authored repeat delay. */
   duration?: number
+  /** Opacity applied to the complete SVG line field. */
+  intensity?: number
+  /** Number of visible paths across the two authored passes. */
+  count?: number
+  /** Path stroke width in SVG units. */
+  lineWidth?: number
+  /** Path drop-shadow blur radius in CSS pixels. */
+  glowStrength?: number
+}
+
+export interface MassageLabAuroraOptions {
+  backgroundColor?: string
+  /** Palette-resolved aurora bands ordered across the authored five stops. */
+  colors?: readonly string[]
+  /** Motion multiplier; 1 preserves the authored 60-second cycle. */
+  speed?: number
+  /** Field opacity from 0.1 through 1. */
+  intensity?: number
+  /** Field blur radius in CSS pixels. */
+  blur?: number
+  /** Radial-mask fade endpoint as a viewport percentage. */
+  reach?: number
+}
+
+export interface MassageLabDottedGlowOptions {
+  backgroundColor?: string
+  dotColor?: string
+  glowColor?: string
+  /** Multiplies the authored per-dot pulse speed. */
+  speed?: number
+  /** Dot radius in CSS pixels. */
+  dotSize?: number
+  /** Distance between dot centers in CSS pixels. */
+  dotSpacing?: number
+  /** Overall dot opacity from 0.1 through 1. */
+  opacity?: number
+  /** Maximum per-dot shadow blur in CSS pixels. */
+  glowStrength?: number
+}
+
+export interface MassageLabBubbleOptions {
+  /** Source retains the authored gradient; resolved uses the saved background swatch. */
+  paletteMode?: "source" | "resolved"
+  backgroundColor?: string
+  /** Five ordered colors assigned to the authored bubble layers. */
+  colors?: readonly string[]
+  /** Multiplies the authored 20-40 second bubble cycles. */
+  speed?: number
+  /** Opacity applied to the complete blended bubble field. */
+  intensity?: number
+  /** Multiplier applied to every authored bubble diameter. */
+  size?: number
+  /** Final field blur radius in CSS pixels. */
+  blur?: number
+  /** SVG alpha contrast that controls how strongly neighboring bubbles merge. */
+  blendStrength?: number
+}
+
+export interface MassageLabBackgroundBeamsOptions {
+  /** Source retains the authored compound backdrop; resolved uses the saved background swatch. */
+  paletteMode?: "source" | "resolved"
+  backgroundColor?: string
+  /** Three ordered colors used by the traveling SVG beam gradients. */
+  colors?: readonly string[]
+  /** Multiplies the authored 11-18 second gradient cycles. */
+  speed?: number
+  /** Overall SVG field opacity from 0.1 through 1. */
+  intensity?: number
+  /** Beam path stroke width in SVG units. */
+  beamWidth?: number
+  /** Beam drop-shadow blur radius in CSS pixels. */
+  glowStrength?: number
+}
+
+export interface MassageLabCollisionBeamsOptions {
+  /** Source retains the authored compound backdrop; resolved uses the saved background swatch. */
+  paletteMode?: "source" | "resolved"
+  backgroundColor?: string
+  beamColor?: string
+  accentColor?: string
+  particleColor?: string
+  surfaceColor?: string
+  /** Multiplies the authored falling-beam and burst cycles. */
+  speed?: number
+  /** Opacity applied to the complete beam, impact, and particle layer. */
+  intensity?: number
+  /** Falling-beam width in CSS pixels. */
+  beamWidth?: number
+  /** Multiplier for the impact glow and particle footprint. */
+  burstSize?: number
+}
+
+export interface MassageLabGlowingStarsOptions {
+  /** Source retains the authored compound backdrop; resolved uses the saved background swatch. */
+  paletteMode?: "source" | "resolved"
+  backgroundColor?: string
+  starColor?: string
+  peakColor?: string
+  afterglowColor?: string
+  glowCoreColor?: string
+  glowAuraColor?: string
+  /** Multiplies the authored three-second star selection and two-second pulse cycles. */
+  speed?: number
+  /** Opacity applied to the complete star grid. */
+  intensity?: number
+  /** Number of stars selected for each pulse cycle. */
+  activeStars?: number
+  /** Diameter of each resting star in CSS pixels. */
+  starSize?: number
+  /** Multiplier for the authored glow footprint. */
+  glowStrength?: number
+}
+
+export interface MassageLabMeteorsOptions {
+  /** Source retains the authored compound backdrop; resolved uses the saved background swatch. */
+  paletteMode?: "source" | "resolved"
+  backgroundColor?: string
+  meteorColor?: string
+  tailColor?: string
+  glowColor?: string
+  edgeColor?: string
+  /** Multiplies each authored nine-to-fourteen-second meteor cycle. */
+  speed?: number
+  /** Opacity applied to the complete meteor layer. */
+  intensity?: number
+  /** Number of evenly distributed meteor streaks. */
+  count?: number
+  /** Diameter of each meteor head in CSS pixels. */
+  size?: number
+  /** Length of each meteor tail in CSS pixels. */
+  tailLength?: number
 }
 
 export interface ShootingStarsBackgroundOptions {
@@ -1247,9 +1445,23 @@ const massageLabGradientHarmonies = new Set<MassageLabGradientHarmony>([
   "monochromatic",
 ])
 
-const DEFAULT_BACKGROUND_LINES: Required<BackgroundLinesOptions> = {
+const BACKGROUND_LINES_SOURCE_COLORS = Object.freeze([
+  "#46A5CA", "#8C2F2F", "#4FAE4D", "#D6590C", "#811010", "#247AFB",
+] as const)
+
+const MASSAGE_LAB_BACKGROUND_LINES_SOURCE_BACKGROUND =
+  "radial-gradient(circle at 52% 45%, rgba(36, 122, 251, 0.12), transparent 36%), radial-gradient(circle at 25% 78%, rgba(214, 89, 12, 0.1), transparent 32%), linear-gradient(145deg, #050505, #080b12 60%, #050505)"
+
+const DEFAULT_BACKGROUND_LINES = Object.freeze({
+  paletteMode: "source" as const,
+  backgroundColor: "#050505",
+  colors: BACKGROUND_LINES_SOURCE_COLORS,
   duration: 10,
-}
+  intensity: 0.68,
+  count: 26,
+  lineWidth: 2.3,
+  glowStrength: 10,
+})
 
 const DEFAULT_CANVAS_REVEAL_DOTS: Required<CanvasRevealDotsOptions> = {
   backgroundColor: "#020617",
@@ -1300,12 +1512,6 @@ const glowingStarsCount = 216
 const glowingStarsColumns = 18
 const glowingStarsRows = 12
 const glowingStarIndexes = Array.from({ length: glowingStarsCount }, (_, index) => index)
-const meteorCount = 28
-const massageLabMeteors = Array.from({ length: meteorCount }, (_, index) => ({
-  left: `${((index + 0.5) / meteorCount) * 100}%`,
-  delay: `-${((index * 0.73) % 12).toFixed(2)}s`,
-  duration: `${9 + ((index * 7) % 6)}s`,
-}))
 
 const massageLabBeamPaths = [
   "M-380 -189C-380 -189 -312 216 152 343C616 470 684 875 684 875",
@@ -1448,8 +1654,42 @@ export function MassageLabMovingGradientBackground({
   )
 }
 
-export function StaticGradientBackground({ className }: BackgroundEffectProps) {
-  return <div className={cn(styles.effectLayer, className)} />
+export function StaticGradientBackground({ className, staticGradient }: BackgroundEffectProps) {
+  const geometry = getStaticGradientBackgroundOptionsFromChimerSettings({
+    staticGradientType: staticGradient?.type,
+    staticGradientColorCount: staticGradient?.colorCount,
+    staticGradientAngle: staticGradient?.angle,
+    staticGradientCenterX: staticGradient?.centerX,
+    staticGradientCenterY: staticGradient?.centerY,
+    staticGradientRadialShape: staticGradient?.radialShape,
+    staticGradientRadialSize: staticGradient?.radialSize,
+    staticGradientStopPositions: staticGradient?.stopPositions,
+  })
+  const background = buildStaticGradientCss({
+    ...geometry,
+    colors: staticGradient?.colors ?? STATIC_GRADIENT_SOURCE_COLORS,
+  })
+
+  return (
+    <div
+      className={cn(styles.effectLayer, className)}
+      style={{ background }}
+      data-static-gradient-type={geometry.type}
+      data-static-gradient-color-count={geometry.colorCount}
+      aria-hidden="true"
+    />
+  )
+}
+
+export function SolidColorBackground({ className, solidColor = "#FF7A1A" }: BackgroundEffectProps) {
+  return (
+    <div
+      className={cn(styles.effectLayer, className)}
+      style={{ background: solidColor }}
+      data-solid-color={solidColor}
+      aria-hidden="true"
+    />
+  )
 }
 
 export function MassageLabParticlesDraftBackground({ className }: BackgroundEffectProps) {
@@ -1647,19 +1887,139 @@ export function MassageLabElectricMistBackground({ className }: BackgroundEffect
   return <div className={cn(styles.effectLayer, styles.electricMist, className)} aria-hidden="true" />
 }
 
+const DEFAULT_MASSAGE_LAB_AURORA = Object.freeze({
+  backgroundColor: "#09090B",
+  colors: Object.freeze(["#3B82F6", "#A5B4FC", "#93C5FD", "#DDD6FE", "#60A5FA"]),
+  speed: 1,
+  intensity: 0.5,
+  blur: 10,
+  reach: 70,
+})
+
+const DEFAULT_MASSAGE_LAB_DOTTED_GLOW = Object.freeze({
+  backgroundColor: "#050505",
+  dotColor: "#E6EEFF",
+  glowColor: "#00AAFF",
+  speed: 1,
+  dotSize: 1.7,
+  dotSpacing: 14,
+  opacity: 0.58,
+  glowStrength: 6,
+})
+
+const MASSAGE_LAB_BUBBLE_SOURCE_BACKGROUND =
+  "linear-gradient(135deg, #2e1065 0%, #1e3a8a 100%)"
+
+const DEFAULT_MASSAGE_LAB_BUBBLE = Object.freeze({
+  paletteMode: "source" as const,
+  backgroundColor: "#2E1065",
+  colors: Object.freeze(["#1271FF", "#DD4AFF", "#00DCFF", "#C83232", "#B4B432"]),
+  speed: 1,
+  intensity: 1,
+  size: 1,
+  blur: 40,
+  blendStrength: 18,
+})
+
+const MASSAGE_LAB_BACKGROUND_BEAMS_SOURCE_BACKGROUND =
+  "radial-gradient(circle at 52% 46%, rgba(24, 204, 252, 0.12), transparent 34%), radial-gradient(circle at 70% 22%, rgba(174, 72, 255, 0.12), transparent 30%), linear-gradient(145deg, #050505, #0a0e18)"
+
+const DEFAULT_MASSAGE_LAB_BACKGROUND_BEAMS = Object.freeze({
+  paletteMode: "source" as const,
+  backgroundColor: "#050505",
+  colors: Object.freeze(["#18CCFC", "#6344F5", "#AE48FF"]),
+  speed: 1,
+  intensity: 0.82,
+  beamWidth: 0.6,
+  glowStrength: 10,
+})
+
+const MASSAGE_LAB_COLLISION_BEAMS_SOURCE_BACKGROUND =
+  "radial-gradient(circle at 52% 46%, rgba(99, 102, 241, 0.14), transparent 34%), radial-gradient(circle at 70% 22%, rgba(168, 85, 247, 0.12), transparent 30%), linear-gradient(180deg, #050505 0%, #080b13 56%, #111827 100%)"
+
+const DEFAULT_MASSAGE_LAB_COLLISION_BEAMS = Object.freeze({
+  paletteMode: "source" as const,
+  backgroundColor: "#050505",
+  beamColor: "#6366F1",
+  accentColor: "#A855F7",
+  particleColor: "#818CF8",
+  surfaceColor: "#E2E8F0",
+  speed: 1,
+  intensity: 1,
+  beamWidth: 1,
+  burstSize: 1,
+})
+
+const MASSAGE_LAB_GLOWING_STARS_SOURCE_BACKGROUND =
+  "radial-gradient(circle at 52% 42%, rgba(59, 130, 246, 0.11), transparent 34%), radial-gradient(circle at 24% 82%, rgba(255, 122, 26, 0.07), transparent 30%), linear-gradient(110deg, #141414 0.6%, #050505 100%)"
+
+const DEFAULT_MASSAGE_LAB_GLOWING_STARS = Object.freeze({
+  paletteMode: "source" as const,
+  backgroundColor: "#050505",
+  starColor: "#666666",
+  peakColor: "#FFFFFF",
+  afterglowColor: "#EAF6FF",
+  glowCoreColor: "#3B82F6",
+  glowAuraColor: "#60A5FA",
+  speed: 1,
+  intensity: 0.94,
+  activeStars: 5,
+  starSize: 1,
+  glowStrength: 1,
+})
+
+const MASSAGE_LAB_METEORS_SOURCE_BACKGROUND =
+  "radial-gradient(circle at 50% 38%, rgba(100, 116, 139, 0.14), transparent 34%), radial-gradient(circle at 22% 78%, rgba(255, 122, 26, 0.08), transparent 30%), linear-gradient(145deg, #050505, #081018 62%, #050505)"
+
+const DEFAULT_MASSAGE_LAB_METEORS = Object.freeze({
+  paletteMode: "source" as const,
+  backgroundColor: "#050505",
+  meteorColor: "#64748B",
+  tailColor: "#64748B",
+  glowColor: "#94A3B8",
+  edgeColor: "#FFFFFF",
+  speed: 1,
+  intensity: 0.82,
+  count: 28,
+  size: 2,
+  tailLength: 50,
+})
+
 // MassageLab Aurora Field by Manu Arora, adapted as an internal MassageLab premium visual effect.
-export function MassageLabAuroraBackground({ className }: BackgroundEffectProps) {
+export function MassageLabAuroraBackground({
+  className,
+  massageLabAurora,
+}: BackgroundEffectProps) {
+  const resolved = resolveMassageLabAuroraOptions(massageLabAurora)
+  const [colorOne, colorTwo, colorThree, colorFour, colorFive] = resolved.colors
+  const style = {
+    "--ml-aurora-background": resolved.backgroundColor,
+    "--massage-lab-aurora": `repeating-linear-gradient(100deg, ${colorOne} 10%, ${colorTwo} 15%, ${colorThree} 20%, ${colorFour} 25%, ${colorFive} 30%)`,
+    "--ml-aurora-animation-duration": `${60 / resolved.speed}s`,
+    "--ml-aurora-opacity": resolved.intensity,
+    "--ml-aurora-blur": `${resolved.blur}px`,
+    "--ml-aurora-reach": `${resolved.reach}%`,
+  } as CSSProperties
+
   return (
-    <div className={cn(styles.effectLayer, styles.massageLabAurora, className)} aria-hidden="true">
+    <div
+      className={cn(styles.effectLayer, styles.massageLabAurora, className)}
+      style={style}
+      aria-hidden="true"
+    >
       <div className={styles.massageLabAuroraField} />
     </div>
   )
 }
 
 // MassageLab Dotted Glow by Manu Arora, adapted as an internal MassageLab premium visual effect.
-export function MassageLabDottedGlowBackground({ className }: BackgroundEffectProps) {
+export function MassageLabDottedGlowBackground({
+  className,
+  massageLabDottedGlow,
+}: BackgroundEffectProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const resolved = resolveMassageLabDottedGlowOptions(massageLabDottedGlow)
 
   useEffect(() => {
     const container = containerRef.current
@@ -1671,11 +2031,13 @@ export function MassageLabDottedGlowBackground({ className }: BackgroundEffectPr
 
     const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)")
     const compactViewportQuery = window.matchMedia("(max-width: 767px)")
-    const gap = 14
-    const radius = 1.7
-    const opacity = 0.58
-    const baseColor = "rgba(230, 238, 255, 0.74)"
-    const glowColor = "rgba(0, 170, 255, 0.86)"
+    const gap = resolved.dotSpacing
+    const radius = resolved.dotSize
+    const opacity = resolved.opacity
+    // Keep the source renderer's internal color alpha while allowing the
+    // shared palette to replace each concrete RGB role.
+    const baseColor = hexColorWithAlpha(resolved.dotColor, 0.74)
+    const glowColor = hexColorWithAlpha(resolved.glowColor, 0.86)
     let animationFrame = 0
     let resizeRetryFrame = 0
     let dots: DottedGlowDot[] = []
@@ -1770,21 +2132,8 @@ export function MassageLabDottedGlowBackground({ className }: BackgroundEffectPr
       const height = canvasHeight || canvas.height / pixelRatio
       context.clearRect(0, 0, width, height)
 
-      const depthGradient = context.createRadialGradient(
-        width * 0.5,
-        height * 0.38,
-        Math.min(width, height) * 0.08,
-        width * 0.5,
-        height * 0.5,
-        Math.max(width, height) * 0.7,
-      )
-      depthGradient.addColorStop(0, "rgba(0,0,0,0)")
-      depthGradient.addColorStop(1, "rgba(0,0,0,0.34)")
-      context.fillStyle = depthGradient
-      context.fillRect(0, 0, width, height)
-
       context.fillStyle = baseColor
-      const time = now / 1000
+      const time = (now / 1000) * resolved.speed
 
       dots.forEach((dot) => {
         const phase = (time * dot.speed + dot.phase) % 2
@@ -1794,7 +2143,7 @@ export function MassageLabDottedGlowBackground({ className }: BackgroundEffectPr
         context.globalAlpha = alpha * opacity
         if (alpha > 0.58) {
           context.shadowColor = glowColor
-          context.shadowBlur = 6 * ((alpha - 0.58) / 0.42)
+          context.shadowBlur = resolved.glowStrength * ((alpha - 0.58) / 0.42)
         } else {
           context.shadowColor = "transparent"
           context.shadowBlur = 0
@@ -1887,10 +2236,15 @@ export function MassageLabDottedGlowBackground({ className }: BackgroundEffectPr
       compactViewportQuery.removeEventListener("change", updateAnimationState)
       document.removeEventListener("visibilitychange", updateAnimationState)
     }
-  }, [])
+  }, [resolved.dotColor, resolved.dotSize, resolved.dotSpacing, resolved.glowColor, resolved.glowStrength, resolved.opacity, resolved.speed])
 
   return (
-    <div ref={containerRef} className={cn(styles.effectLayer, styles.dottedGlowLayer, className)} aria-hidden="true">
+    <div
+      ref={containerRef}
+      className={cn(styles.effectLayer, styles.dottedGlowLayer, className)}
+      style={{ backgroundColor: resolved.backgroundColor }}
+      aria-hidden="true"
+    >
       <canvas ref={canvasRef} className={styles.dottedGlowCanvas} />
     </div>
   )
@@ -1957,12 +2311,30 @@ export function MassageLabGradientAnimationBackground({
 }
 
 // MassageLab Beam Field by Manu Arora, adapted as an internal MassageLab premium visual effect.
-export function MassageLabBackgroundBeams({ className }: BackgroundEffectProps) {
+export function MassageLabBackgroundBeams({
+  className,
+  massageLabBackgroundBeams,
+}: BackgroundEffectProps) {
   const generatedId = useId()
   const gradientIdPrefix = `ml-background-beams-${generatedId.replace(/[^a-zA-Z0-9_-]/g, "")}`
+  const resolved = resolveMassageLabBackgroundBeamsOptions(massageLabBackgroundBeams)
+  const [colorOne, colorTwo, colorThree] = resolved.colors
+  const style = {
+    "--ml-background-beams-background": resolved.paletteMode === "source"
+      ? MASSAGE_LAB_BACKGROUND_BEAMS_SOURCE_BACKGROUND
+      : resolved.backgroundColor,
+    "--ml-background-beams-opacity": resolved.intensity,
+    "--ml-background-beams-stroke-width": resolved.beamWidth,
+    "--ml-background-beams-glow-strength": `${resolved.glowStrength}px`,
+    "--ml-background-beams-glow-color": hexColorWithAlpha(colorOne, 0.12),
+  } as CSSProperties
 
   return (
-    <div className={cn(styles.effectLayer, styles.massageLabBackgroundBeams, className)} aria-hidden="true">
+    <div
+      className={cn(styles.effectLayer, styles.massageLabBackgroundBeams, className)}
+      style={style}
+      aria-hidden="true"
+    >
       <svg
         className={styles.backgroundBeamsSvg}
         viewBox="0 0 696 316"
@@ -1985,36 +2357,36 @@ export function MassageLabBackgroundBeams({ className }: BackgroundEffectProps) 
                 y2="100%"
                 gradientUnits="userSpaceOnUse"
               >
-                <stop stopColor="#18CCFC" stopOpacity="0" />
-                <stop offset="14%" stopColor="#18CCFC" stopOpacity="0.78" />
-                <stop offset="32.5%" stopColor="#6344F5" stopOpacity="0.72" />
-                <stop offset="100%" stopColor="#AE48FF" stopOpacity="0" />
+                <stop stopColor={colorOne} stopOpacity="0" />
+                <stop offset="14%" stopColor={colorOne} stopOpacity="0.78" />
+                <stop offset="32.5%" stopColor={colorTwo} stopOpacity="0.72" />
+                <stop offset="100%" stopColor={colorThree} stopOpacity="0" />
                 <animate
                   attributeName="x1"
                   values="-20%;100%;-20%"
-                  dur={`${duration}s`}
-                  begin={`${delay}s`}
+                  dur={`${duration / resolved.speed}s`}
+                  begin={`${delay / resolved.speed}s`}
                   repeatCount="indefinite"
                 />
                 <animate
                   attributeName="y1"
                   values="0%;100%;0%"
-                  dur={`${duration}s`}
-                  begin={`${delay}s`}
+                  dur={`${duration / resolved.speed}s`}
+                  begin={`${delay / resolved.speed}s`}
                   repeatCount="indefinite"
                 />
                 <animate
                   attributeName="x2"
                   values="20%;120%;20%"
-                  dur={`${duration}s`}
-                  begin={`${delay}s`}
+                  dur={`${duration / resolved.speed}s`}
+                  begin={`${delay / resolved.speed}s`}
                   repeatCount="indefinite"
                 />
                 <animate
                   attributeName="y2"
                   values="20%;120%;20%"
-                  dur={`${duration}s`}
-                  begin={`${delay}s`}
+                  dur={`${duration / resolved.speed}s`}
+                  begin={`${delay / resolved.speed}s`}
                   repeatCount="indefinite"
                 />
               </linearGradient>
@@ -2035,54 +2407,84 @@ export function MassageLabBackgroundBeams({ className }: BackgroundEffectProps) 
 }
 
 // MassageLab Collision Beams by Manu Arora, adapted as an internal MassageLab premium visual effect.
-export function MassageLabBackgroundBeamsWithCollision({ className }: BackgroundEffectProps) {
+export function MassageLabBackgroundBeamsWithCollision({
+  className,
+  massageLabCollisionBeams: collisionBeamOptions,
+}: BackgroundEffectProps) {
+  const resolved = resolveMassageLabCollisionBeamsOptions(collisionBeamOptions)
+  const rootStyle = {
+    "--ml-collision-background": resolved.paletteMode === "source"
+      ? MASSAGE_LAB_COLLISION_BEAMS_SOURCE_BACKGROUND
+      : resolved.backgroundColor,
+    "--ml-collision-beam-color": resolved.beamColor,
+    "--ml-collision-accent-color": resolved.accentColor,
+    "--ml-collision-particle-color": resolved.particleColor,
+    "--ml-collision-surface-color": resolved.surfaceColor,
+    "--ml-collision-beam-glow": hexColorWithAlpha(resolved.beamColor, 0.42),
+    "--ml-collision-beam-glow-soft": hexColorWithAlpha(resolved.beamColor, 0.22),
+    "--ml-collision-accent-glow": hexColorWithAlpha(resolved.accentColor, 0.22),
+    "--ml-collision-accent-glow-soft": hexColorWithAlpha(resolved.accentColor, 0.12),
+    "--ml-collision-particle-glow": hexColorWithAlpha(resolved.particleColor, 0.42),
+    "--ml-collision-surface-line": hexColorWithAlpha(resolved.surfaceColor, 0.66),
+    "--ml-collision-surface-inset": hexColorWithAlpha(resolved.surfaceColor, 0.08),
+    "--ml-collision-intensity": resolved.intensity,
+    "--ml-collision-beam-width": `${resolved.beamWidth}px`,
+    "--ml-collision-burst-scale": resolved.burstSize,
+  } as CSSProperties
+
   return (
-    <div className={cn(styles.effectLayer, styles.massageLabBackgroundBeamsCollision, className)} aria-hidden="true">
-      <div className={styles.collisionBeamsLayer}>
-        {massageLabCollisionBeams.map((beam) => {
-          const cycle = beam.duration + beam.repeatDelay
+    <div
+      className={cn(styles.effectLayer, styles.massageLabBackgroundBeamsCollision, className)}
+      style={rootStyle}
+      aria-hidden="true"
+    >
+      <div className={styles.collisionEffects}>
+        <div className={styles.collisionBeamsLayer}>
+          {massageLabCollisionBeams.map((beam, beamIndex) => {
+            const cycle = (beam.duration + beam.repeatDelay) / resolved.speed
+            const beamX = `${Math.min(98, Math.max(2, (beam.x / 1200) * 100))}%`
+            const style = {
+              "--ml-collision-beam-x": beamX,
+              "--ml-collision-beam-height": `${beam.height}px`,
+              "--ml-collision-beam-cycle": `${cycle}s`,
+              "--ml-collision-beam-delay": `${beam.delay / resolved.speed}s`,
+              "--ml-collision-beam-rotate": `${beam.rotate}deg`,
+            } as CSSProperties
+
+            return (
+              <span key={`beam-${beamIndex}`} className={styles.collisionBeam} style={style} />
+            )
+          })}
+        </div>
+
+        {massageLabCollisionBeams.map((beam, beamIndex) => {
+          const cycle = (beam.duration + beam.repeatDelay) / resolved.speed
           const beamX = `${Math.min(98, Math.max(2, (beam.x / 1200) * 100))}%`
           const style = {
             "--ml-collision-beam-x": beamX,
-            "--ml-collision-beam-height": `${beam.height}px`,
             "--ml-collision-beam-cycle": `${cycle}s`,
-            "--ml-collision-beam-delay": `${beam.delay}s`,
-            "--ml-collision-beam-rotate": `${beam.rotate}deg`,
+            "--ml-collision-beam-delay": `${beam.delay / resolved.speed}s`,
           } as CSSProperties
 
           return (
-            <span key={`${beam.x}-${beam.duration}`} className={styles.collisionBeam} style={style} />
+            <span key={`collision-${beamIndex}`} className={styles.collisionExplosion} style={style}>
+              <span className={styles.collisionExplosionGlow} />
+              {massageLabCollisionParticles.map(([x, y], particleIndex) => (
+                <span
+                  key={`${beamIndex}-${particleIndex}`}
+                  className={styles.collisionParticle}
+                  style={{
+                    "--ml-collision-particle-x": `${x}px`,
+                    "--ml-collision-particle-y": `${y}px`,
+                  } as CSSProperties}
+                />
+              ))}
+            </span>
           )
         })}
+
+        <div className={styles.collisionSurface} />
       </div>
-
-      {massageLabCollisionBeams.map((beam, beamIndex) => {
-        const cycle = beam.duration + beam.repeatDelay
-        const beamX = `${Math.min(98, Math.max(2, (beam.x / 1200) * 100))}%`
-        const style = {
-          "--ml-collision-beam-x": beamX,
-          "--ml-collision-beam-cycle": `${cycle}s`,
-          "--ml-collision-beam-delay": `${beam.delay}s`,
-        } as CSSProperties
-
-        return (
-          <span key={`${beam.x}-collision`} className={styles.collisionExplosion} style={style}>
-            <span className={styles.collisionExplosionGlow} />
-            {massageLabCollisionParticles.map(([x, y], particleIndex) => (
-              <span
-                key={`${beamIndex}-${particleIndex}`}
-                className={styles.collisionParticle}
-                style={{
-                  "--ml-collision-particle-x": `${x}px`,
-                  "--ml-collision-particle-y": `${y}px`,
-                } as CSSProperties}
-              />
-            ))}
-          </span>
-        )
-      })}
-
-      <div className={styles.collisionSurface} />
     </div>
   )
 }
@@ -2093,13 +2495,26 @@ export function MassageLabBackgroundLines({
   backgroundLines,
 }: BackgroundEffectProps) {
   const resolved = resolveBackgroundLinesOptions(backgroundLines)
+  const lineColors = resolved.paletteMode === "source"
+    ? massageLabBackgroundLineColors
+    : resolved.colors
+  const rootStyle = {
+    "--ml-background-lines-background": resolved.paletteMode === "source"
+      ? MASSAGE_LAB_BACKGROUND_LINES_SOURCE_BACKGROUND
+      : resolved.backgroundColor,
+    "--ml-background-lines-intensity": resolved.intensity,
+    "--ml-background-line-width": resolved.lineWidth,
+    "--ml-background-line-glow": `${resolved.glowStrength}px`,
+  } as CSSProperties
 
   const renderPaths = (pass: 0 | 1) => (
     massageLabBackgroundLinePaths.map((path, index) => {
+      const ordinal = pass * massageLabBackgroundLinePaths.length + index
+      if (ordinal >= resolved.count) return null
       const repeatDelay = 2 + ((index * 5 + pass * 3) % 10)
       const delay = (index * 3 + pass * 5) % 10
       const style = {
-        "--ml-background-line-color": massageLabBackgroundLineColors[index % massageLabBackgroundLineColors.length],
+        "--ml-background-line-color": lineColors[ordinal % lineColors.length],
         "--ml-background-line-cycle": `${resolved.duration + repeatDelay}s`,
         "--ml-background-line-delay": `${delay}s`,
       } as CSSProperties
@@ -2116,7 +2531,11 @@ export function MassageLabBackgroundLines({
   )
 
   return (
-    <div className={cn(styles.effectLayer, styles.massageLabBackgroundLines, className)} aria-hidden="true">
+    <div
+      className={cn(styles.effectLayer, styles.massageLabBackgroundLines, className)}
+      style={rootStyle}
+      aria-hidden="true"
+    >
       <svg
         className={styles.backgroundLinesSvg}
         viewBox="0 0 1440 900"
@@ -2131,27 +2550,53 @@ export function MassageLabBackgroundLines({
 }
 
 // MassageLab Glowing Stars by Manu Arora, adapted as an internal MassageLab premium visual effect.
-export function MassageLabGlowingStarsBackground({ className }: BackgroundEffectProps) {
-  const [glowingStars, setGlowingStars] = useState<number[]>([])
+export function MassageLabGlowingStarsBackground({
+  className,
+  massageLabGlowingStars,
+}: BackgroundEffectProps) {
+  const resolved = resolveMassageLabGlowingStarsOptions(massageLabGlowingStars)
+  const [glowingStars, setGlowingStars] = useState<ReadonlySet<number>>(() => new Set())
 
   useEffect(() => {
     const selectGlowingStars = () => {
       const selected = new Set<number>()
 
-      while (selected.size < 5) {
+      while (selected.size < resolved.activeStars) {
         selected.add(Math.floor(Math.random() * glowingStarsCount))
       }
 
-      setGlowingStars([...selected])
+      setGlowingStars(selected)
     }
 
     selectGlowingStars()
-    const interval = window.setInterval(selectGlowingStars, 3000)
+    const interval = window.setInterval(selectGlowingStars, 3000 / resolved.speed)
     return () => window.clearInterval(interval)
-  }, [])
+  }, [resolved.activeStars, resolved.speed])
+
+  const rootStyle = {
+    "--ml-glowing-stars-background": resolved.paletteMode === "source"
+      ? MASSAGE_LAB_GLOWING_STARS_SOURCE_BACKGROUND
+      : resolved.backgroundColor,
+    "--ml-glowing-stars-star-color": resolved.starColor,
+    "--ml-glowing-stars-peak-color": resolved.peakColor,
+    "--ml-glowing-stars-afterglow-color": resolved.afterglowColor,
+    "--ml-glowing-stars-glow-core": resolved.glowCoreColor,
+    "--ml-glowing-stars-glow-aura-near": hexColorWithAlpha(resolved.glowAuraColor, 0.8),
+    "--ml-glowing-stars-glow-aura-far": hexColorWithAlpha(resolved.glowAuraColor, 0.35),
+    "--ml-glowing-stars-intensity": resolved.intensity,
+    "--ml-glowing-stars-star-size": `${resolved.starSize}px`,
+    "--ml-glowing-stars-cycle": `${2 / resolved.speed}s`,
+    "--ml-glowing-stars-glow-size": `${4 * resolved.glowStrength}px`,
+    "--ml-glowing-stars-glow-near": `${18 * resolved.glowStrength}px`,
+    "--ml-glowing-stars-glow-far": `${42 * resolved.glowStrength}px`,
+  } as CSSProperties
 
   return (
-    <div className={cn(styles.effectLayer, styles.massageLabGlowingStars, className)} aria-hidden="true">
+    <div
+      className={cn(styles.effectLayer, styles.massageLabGlowingStars, className)}
+      style={rootStyle}
+      aria-hidden="true"
+    >
       <div
         className={styles.glowingStarsGrid}
         style={{
@@ -2160,8 +2605,8 @@ export function MassageLabGlowingStarsBackground({ className }: BackgroundEffect
         } as CSSProperties}
       >
         {glowingStarIndexes.map((index) => {
-          const isGlowing = glowingStars.includes(index)
-          const delay = (index % 10) * 0.1
+          const isGlowing = glowingStars.has(index)
+          const delay = ((index % 10) * 0.1) / resolved.speed
 
           return (
             <span key={index} className={styles.glowingStarsCell}>
@@ -2184,11 +2629,34 @@ export function MassageLabGlowingStarsBackground({ className }: BackgroundEffect
 }
 
 // MassageLab Meteors by Manu Arora, adapted as an internal MassageLab premium visual effect.
-export function MassageLabMeteorsBackground({ className }: BackgroundEffectProps) {
+export function MassageLabMeteorsBackground({ className, massageLabMeteors }: BackgroundEffectProps) {
+  const resolved = resolveMassageLabMeteorsOptions(massageLabMeteors)
+  const meteors = Array.from({ length: resolved.count }, (_, index) => ({
+    left: `${((index + 0.5) / resolved.count) * 100}%`,
+    delay: `-${(((index * 0.73) % 12) / resolved.speed).toFixed(2)}s`,
+    duration: `${(9 + ((index * 7) % 6)) / resolved.speed}s`,
+  }))
+  const rootStyle = {
+    "--ml-meteors-background": resolved.paletteMode === "source"
+      ? MASSAGE_LAB_METEORS_SOURCE_BACKGROUND
+      : resolved.backgroundColor,
+    "--ml-meteor-color": resolved.meteorColor,
+    "--ml-meteor-tail-color": resolved.tailColor,
+    "--ml-meteor-glow": hexColorWithAlpha(resolved.glowColor, 0.34),
+    "--ml-meteor-edge": hexColorWithAlpha(resolved.edgeColor, 0.06),
+    "--ml-meteors-intensity": resolved.intensity,
+    "--ml-meteor-size": `${resolved.size}px`,
+    "--ml-meteor-tail-length": `${resolved.tailLength}px`,
+  } as CSSProperties
+
   return (
-    <div className={cn(styles.effectLayer, styles.massageLabMeteors, className)} aria-hidden="true">
+    <div
+      className={cn(styles.effectLayer, styles.massageLabMeteors, className)}
+      style={rootStyle}
+      aria-hidden="true"
+    >
       <div className={styles.meteorsLayer}>
-        {massageLabMeteors.map((meteor, index) => (
+        {meteors.map((meteor, index) => (
           <span
             key={`meteor-${index}`}
             className={styles.meteor}
@@ -2208,11 +2676,37 @@ export function MassageLabMeteorsBackground({ className }: BackgroundEffectProps
 
 // MassageLab Bubble Field adapted as an internal MassageLab premium effect.
 // Cursor interaction from the source component is intentionally omitted.
-export function MassageLabBubbleBackground({ className }: BackgroundEffectProps) {
-  const filterId = `ml-bubble-goo-${useId().replace(/:/g, "")}`
+export function MassageLabBubbleBackground({
+  className,
+  massageLabBubble,
+}: BackgroundEffectProps) {
+  const filterId = `ml-bubble-goo-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`
+  const resolved = resolveMassageLabBubbleOptions(massageLabBubble)
+  const [colorOne, colorTwo, colorThree, colorFour, colorFive] = resolved.colors
+  const rootStyle = {
+    "--ml-bubble-background": resolved.paletteMode === "source"
+      ? MASSAGE_LAB_BUBBLE_SOURCE_BACKGROUND
+      : resolved.backgroundColor,
+    "--ml-bubble-color-one": hexColorWithAlpha(colorOne, 0.8),
+    "--ml-bubble-color-two": hexColorWithAlpha(colorTwo, 0.8),
+    "--ml-bubble-color-three": hexColorWithAlpha(colorThree, 0.8),
+    "--ml-bubble-color-four": hexColorWithAlpha(colorFour, 0.8),
+    "--ml-bubble-color-five": hexColorWithAlpha(colorFive, 0.8),
+    "--ml-bubble-float-y-duration": `${30 / resolved.speed}s`,
+    "--ml-bubble-rotate-fast-duration": `${20 / resolved.speed}s`,
+    "--ml-bubble-rotate-slow-duration": `${40 / resolved.speed}s`,
+    "--ml-bubble-float-x-duration": `${40 / resolved.speed}s`,
+    "--ml-bubble-intensity": resolved.intensity,
+    "--ml-bubble-size": `${80 * resolved.size}%`,
+    "--ml-bubble-filter": `url(#${filterId}) blur(${resolved.blur}px)`,
+  } as CSSProperties
 
   return (
-    <div className={cn(styles.effectLayer, styles.massageLabBubble, className)} aria-hidden="true">
+    <div
+      className={cn(styles.effectLayer, styles.massageLabBubble, className)}
+      style={rootStyle}
+      aria-hidden="true"
+    >
       <svg className={styles.bubbleFilterSvg} xmlns="http://www.w3.org/2000/svg">
         <defs>
           <filter id={filterId}>
@@ -2220,17 +2714,14 @@ export function MassageLabBubbleBackground({ className }: BackgroundEffectProps)
             <feColorMatrix
               in="blur"
               mode="matrix"
-              values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -8"
+              values={`1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 ${resolved.blendStrength} ${10 - resolved.blendStrength}`}
               result="goo"
             />
             <feBlend in="SourceGraphic" in2="goo" />
           </filter>
         </defs>
       </svg>
-      <div
-        className={styles.bubbleGooLayer}
-        style={{ "--ml-bubble-filter": `url(#${filterId}) blur(40px)` } as CSSProperties}
-      >
+      <div className={styles.bubbleGooLayer}>
         <span className={cn(styles.bubbleOrb, styles.bubbleOrbOne)} />
         <span className={cn(styles.bubbleOrb, styles.bubbleOrbTwo)} />
         <span className={cn(styles.bubbleOrb, styles.bubbleOrbThree)} />
@@ -2906,10 +3397,13 @@ export function MassageLabCanvasRevealDotsBackground({
       const dotPixelSize = Math.max(1, dotSize)
 
       for (const dot of dots) {
-        const shimmer = animate
-          ? 0.86 + ((Math.sin(time * dot.speed * 2.2 + dot.phase) + 1) / 2) * 0.24
-          : 1
-        const alpha = Math.min(1, Math.max(0.02, dot.opacity * opacity * shimmer))
+        const motion = resolveCanvasRevealDotTwinkle({
+          phase: dot.phase,
+          speed: dot.speed,
+          timeSeconds: time,
+          animate,
+        })
+        const alpha = Math.min(1, Math.max(0.02, dot.opacity * opacity * motion.alphaMultiplier))
         const color = palette[dot.colorIndex] ?? palette[0]
         const size = dotPixelSize * dot.sizeFactor
 
@@ -3282,8 +3776,19 @@ function resolveCanvasRevealDotsOptions(
 function resolveBackgroundLinesOptions(
   backgroundLines: BackgroundLinesOptions | undefined,
 ): Required<BackgroundLinesOptions> {
+  const colors = DEFAULT_BACKGROUND_LINES.colors.map((fallback, index) => (
+    normalizeHexColor(backgroundLines?.colors?.[index], fallback)
+  ))
+
   return {
+    paletteMode: backgroundLines?.paletteMode === "resolved" ? "resolved" : "source",
+    backgroundColor: normalizeHexColor(backgroundLines?.backgroundColor, DEFAULT_BACKGROUND_LINES.backgroundColor),
+    colors,
     duration: clampNumber(backgroundLines?.duration, DEFAULT_BACKGROUND_LINES.duration, 4, 18),
+    intensity: clampNumber(backgroundLines?.intensity, DEFAULT_BACKGROUND_LINES.intensity, 0.1, 1),
+    count: Math.round(clampNumber(backgroundLines?.count, DEFAULT_BACKGROUND_LINES.count, 6, 26)),
+    lineWidth: clampNumber(backgroundLines?.lineWidth, DEFAULT_BACKGROUND_LINES.lineWidth, 0.5, 6),
+    glowStrength: clampNumber(backgroundLines?.glowStrength, DEFAULT_BACKGROUND_LINES.glowStrength, 0, 24),
   }
 }
 
@@ -3312,8 +3817,146 @@ function resolveLampSectionOptions(lamp: LampSectionOptions | undefined): Requir
   }
 }
 
+function resolveMassageLabAuroraOptions(
+  aurora: MassageLabAuroraOptions | undefined,
+): Required<MassageLabAuroraOptions> {
+  const colors = DEFAULT_MASSAGE_LAB_AURORA.colors.map((fallback, index) => (
+    normalizeHexColor(aurora?.colors?.[index], fallback)
+  ))
+
+  return {
+    backgroundColor: normalizeHexColor(
+      aurora?.backgroundColor,
+      DEFAULT_MASSAGE_LAB_AURORA.backgroundColor,
+    ),
+    colors,
+    speed: clampNumber(aurora?.speed, DEFAULT_MASSAGE_LAB_AURORA.speed, 0.25, 2),
+    intensity: clampNumber(aurora?.intensity, DEFAULT_MASSAGE_LAB_AURORA.intensity, 0.1, 1),
+    blur: clampNumber(aurora?.blur, DEFAULT_MASSAGE_LAB_AURORA.blur, 0, 30),
+    reach: clampNumber(aurora?.reach, DEFAULT_MASSAGE_LAB_AURORA.reach, 30, 100),
+  }
+}
+
+function resolveMassageLabDottedGlowOptions(
+  dottedGlow: MassageLabDottedGlowOptions | undefined,
+): Required<MassageLabDottedGlowOptions> {
+  return {
+    backgroundColor: normalizeHexColor(dottedGlow?.backgroundColor, DEFAULT_MASSAGE_LAB_DOTTED_GLOW.backgroundColor),
+    dotColor: normalizeHexColor(dottedGlow?.dotColor, DEFAULT_MASSAGE_LAB_DOTTED_GLOW.dotColor),
+    glowColor: normalizeHexColor(dottedGlow?.glowColor, DEFAULT_MASSAGE_LAB_DOTTED_GLOW.glowColor),
+    speed: clampNumber(dottedGlow?.speed, DEFAULT_MASSAGE_LAB_DOTTED_GLOW.speed, 0.25, 2),
+    dotSize: clampNumber(dottedGlow?.dotSize, DEFAULT_MASSAGE_LAB_DOTTED_GLOW.dotSize, 0.5, 4),
+    dotSpacing: clampNumber(dottedGlow?.dotSpacing, DEFAULT_MASSAGE_LAB_DOTTED_GLOW.dotSpacing, 8, 28),
+    opacity: clampNumber(dottedGlow?.opacity, DEFAULT_MASSAGE_LAB_DOTTED_GLOW.opacity, 0.1, 1),
+    glowStrength: clampNumber(dottedGlow?.glowStrength, DEFAULT_MASSAGE_LAB_DOTTED_GLOW.glowStrength, 0, 12),
+  }
+}
+
+function resolveMassageLabBubbleOptions(
+  bubble: MassageLabBubbleOptions | undefined,
+): Required<MassageLabBubbleOptions> {
+  const colors = DEFAULT_MASSAGE_LAB_BUBBLE.colors.map((fallback, index) => (
+    normalizeHexColor(bubble?.colors?.[index], fallback)
+  ))
+
+  return {
+    paletteMode: bubble?.paletteMode === "resolved" ? "resolved" : "source",
+    backgroundColor: normalizeHexColor(bubble?.backgroundColor, DEFAULT_MASSAGE_LAB_BUBBLE.backgroundColor),
+    colors,
+    speed: clampNumber(bubble?.speed, DEFAULT_MASSAGE_LAB_BUBBLE.speed, 0.25, 2),
+    intensity: clampNumber(bubble?.intensity, DEFAULT_MASSAGE_LAB_BUBBLE.intensity, 0.1, 1),
+    size: clampNumber(bubble?.size, DEFAULT_MASSAGE_LAB_BUBBLE.size, 0.5, 2),
+    blur: clampNumber(bubble?.blur, DEFAULT_MASSAGE_LAB_BUBBLE.blur, 0, 80),
+    blendStrength: clampNumber(bubble?.blendStrength, DEFAULT_MASSAGE_LAB_BUBBLE.blendStrength, 10, 30),
+  }
+}
+
+function resolveMassageLabBackgroundBeamsOptions(
+  beams: MassageLabBackgroundBeamsOptions | undefined,
+): Required<MassageLabBackgroundBeamsOptions> {
+  const colors = DEFAULT_MASSAGE_LAB_BACKGROUND_BEAMS.colors.map((fallback, index) => (
+    normalizeHexColor(beams?.colors?.[index], fallback)
+  ))
+
+  return {
+    paletteMode: beams?.paletteMode === "resolved" ? "resolved" : "source",
+    backgroundColor: normalizeHexColor(
+      beams?.backgroundColor,
+      DEFAULT_MASSAGE_LAB_BACKGROUND_BEAMS.backgroundColor,
+    ),
+    colors,
+    speed: clampNumber(beams?.speed, DEFAULT_MASSAGE_LAB_BACKGROUND_BEAMS.speed, 0.25, 2),
+    intensity: clampNumber(beams?.intensity, DEFAULT_MASSAGE_LAB_BACKGROUND_BEAMS.intensity, 0.1, 1),
+    beamWidth: clampNumber(beams?.beamWidth, DEFAULT_MASSAGE_LAB_BACKGROUND_BEAMS.beamWidth, 0.2, 2),
+    glowStrength: clampNumber(beams?.glowStrength, DEFAULT_MASSAGE_LAB_BACKGROUND_BEAMS.glowStrength, 0, 20),
+  }
+}
+
+function resolveMassageLabCollisionBeamsOptions(
+  beams: MassageLabCollisionBeamsOptions | undefined,
+): Required<MassageLabCollisionBeamsOptions> {
+  return {
+    paletteMode: beams?.paletteMode === "resolved" ? "resolved" : "source",
+    backgroundColor: normalizeHexColor(beams?.backgroundColor, DEFAULT_MASSAGE_LAB_COLLISION_BEAMS.backgroundColor),
+    beamColor: normalizeHexColor(beams?.beamColor, DEFAULT_MASSAGE_LAB_COLLISION_BEAMS.beamColor),
+    accentColor: normalizeHexColor(beams?.accentColor, DEFAULT_MASSAGE_LAB_COLLISION_BEAMS.accentColor),
+    particleColor: normalizeHexColor(beams?.particleColor, DEFAULT_MASSAGE_LAB_COLLISION_BEAMS.particleColor),
+    surfaceColor: normalizeHexColor(beams?.surfaceColor, DEFAULT_MASSAGE_LAB_COLLISION_BEAMS.surfaceColor),
+    speed: clampNumber(beams?.speed, DEFAULT_MASSAGE_LAB_COLLISION_BEAMS.speed, 0.25, 2),
+    intensity: clampNumber(beams?.intensity, DEFAULT_MASSAGE_LAB_COLLISION_BEAMS.intensity, 0.1, 1),
+    beamWidth: clampNumber(beams?.beamWidth, DEFAULT_MASSAGE_LAB_COLLISION_BEAMS.beamWidth, 0.5, 4),
+    burstSize: clampNumber(beams?.burstSize, DEFAULT_MASSAGE_LAB_COLLISION_BEAMS.burstSize, 0.5, 2),
+  }
+}
+
+function resolveMassageLabGlowingStarsOptions(
+  stars: MassageLabGlowingStarsOptions | undefined,
+): Required<MassageLabGlowingStarsOptions> {
+  return {
+    paletteMode: stars?.paletteMode === "resolved" ? "resolved" : "source",
+    backgroundColor: normalizeHexColor(stars?.backgroundColor, DEFAULT_MASSAGE_LAB_GLOWING_STARS.backgroundColor),
+    starColor: normalizeHexColor(stars?.starColor, DEFAULT_MASSAGE_LAB_GLOWING_STARS.starColor),
+    peakColor: normalizeHexColor(stars?.peakColor, DEFAULT_MASSAGE_LAB_GLOWING_STARS.peakColor),
+    afterglowColor: normalizeHexColor(stars?.afterglowColor, DEFAULT_MASSAGE_LAB_GLOWING_STARS.afterglowColor),
+    glowCoreColor: normalizeHexColor(stars?.glowCoreColor, DEFAULT_MASSAGE_LAB_GLOWING_STARS.glowCoreColor),
+    glowAuraColor: normalizeHexColor(stars?.glowAuraColor, DEFAULT_MASSAGE_LAB_GLOWING_STARS.glowAuraColor),
+    speed: clampNumber(stars?.speed, DEFAULT_MASSAGE_LAB_GLOWING_STARS.speed, 0.25, 2),
+    intensity: clampNumber(stars?.intensity, DEFAULT_MASSAGE_LAB_GLOWING_STARS.intensity, 0.1, 1),
+    activeStars: Math.round(clampNumber(stars?.activeStars, DEFAULT_MASSAGE_LAB_GLOWING_STARS.activeStars, 1, 18)),
+    starSize: clampNumber(stars?.starSize, DEFAULT_MASSAGE_LAB_GLOWING_STARS.starSize, 0.5, 3),
+    glowStrength: clampNumber(stars?.glowStrength, DEFAULT_MASSAGE_LAB_GLOWING_STARS.glowStrength, 0, 2),
+  }
+}
+
+function resolveMassageLabMeteorsOptions(
+  meteors: MassageLabMeteorsOptions | undefined,
+): Required<MassageLabMeteorsOptions> {
+  return {
+    paletteMode: meteors?.paletteMode === "resolved" ? "resolved" : "source",
+    backgroundColor: normalizeHexColor(meteors?.backgroundColor, DEFAULT_MASSAGE_LAB_METEORS.backgroundColor),
+    meteorColor: normalizeHexColor(meteors?.meteorColor, DEFAULT_MASSAGE_LAB_METEORS.meteorColor),
+    tailColor: normalizeHexColor(meteors?.tailColor, DEFAULT_MASSAGE_LAB_METEORS.tailColor),
+    glowColor: normalizeHexColor(meteors?.glowColor, DEFAULT_MASSAGE_LAB_METEORS.glowColor),
+    edgeColor: normalizeHexColor(meteors?.edgeColor, DEFAULT_MASSAGE_LAB_METEORS.edgeColor),
+    speed: clampNumber(meteors?.speed, DEFAULT_MASSAGE_LAB_METEORS.speed, 0.25, 2),
+    intensity: clampNumber(meteors?.intensity, DEFAULT_MASSAGE_LAB_METEORS.intensity, 0.1, 1),
+    count: Math.round(clampNumber(meteors?.count, DEFAULT_MASSAGE_LAB_METEORS.count, 4, 48)),
+    size: clampNumber(meteors?.size, DEFAULT_MASSAGE_LAB_METEORS.size, 0.5, 5),
+    tailLength: clampNumber(meteors?.tailLength, DEFAULT_MASSAGE_LAB_METEORS.tailLength, 15, 140),
+  }
+}
+
+/** Accepts six-digit hex only and returns the renderer-safe fallback for every other format. */
 function normalizeHexColor(value: string | undefined, fallback: string) {
   return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value) ? value.toUpperCase() : fallback
+}
+
+/** Converts an already-normalized six-digit hex value to rgba with the requested alpha. */
+function hexColorWithAlpha(value: string, alpha: number) {
+  const red = Number.parseInt(value.slice(1, 3), 16)
+  const green = Number.parseInt(value.slice(3, 5), 16)
+  const blue = Number.parseInt(value.slice(5, 7), 16)
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`
 }
 
 function clampNumber(value: unknown, fallback: number, min: number, max: number) {

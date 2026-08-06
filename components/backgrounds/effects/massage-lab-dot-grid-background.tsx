@@ -27,6 +27,7 @@ type PointerState = {
   lastX: number
   lastY: number
   lastMove: number
+  lastManualMove: number
 }
 
 type ResolvedDotGridOptions = Required<MassageLabDotGridOptions>
@@ -44,6 +45,8 @@ const DEFAULT_MASSAGELAB_DOT_GRID: ResolvedDotGridOptions = {
   resistance: 750,
   returnDuration: 1.5,
   cursorInteraction: true,
+  simulateCursorInteraction: false,
+  simulationSpeed: 1,
   clickShock: true,
 }
 
@@ -54,6 +57,8 @@ const OFFSCREEN_POINTER = -9999
 export default function MassageLabDotGridBackground({
   className,
   massageLabDotGrid,
+  onRenderReadyChange,
+  forceContextFailureForReview = false,
 }: BackgroundEffectProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const dotsRef = useRef<DotGridDot[]>([])
@@ -67,6 +72,9 @@ export default function MassageLabDotGridBackground({
     lastX: 0,
     lastY: 0,
     lastMove: 0,
+    // Let the fake cursor begin on the first frame; real movement updates this
+    // timestamp and temporarily yields simulation for the intended 1.5 seconds.
+    lastManualMove: Number.NEGATIVE_INFINITY,
   })
   const dotSize = massageLabDotGrid?.dotSize
   const gap = massageLabDotGrid?.gap
@@ -80,6 +88,8 @@ export default function MassageLabDotGridBackground({
   const resistance = massageLabDotGrid?.resistance
   const returnDuration = massageLabDotGrid?.returnDuration
   const cursorInteraction = massageLabDotGrid?.cursorInteraction
+  const simulateCursorInteraction = massageLabDotGrid?.simulateCursorInteraction
+  const simulationSpeed = massageLabDotGrid?.simulationSpeed
   const clickShock = massageLabDotGrid?.clickShock
   const options = useMemo(
     () =>
@@ -96,6 +106,8 @@ export default function MassageLabDotGridBackground({
         resistance,
         returnDuration,
         cursorInteraction,
+        simulateCursorInteraction,
+        simulationSpeed,
         clickShock,
       }),
     [
@@ -109,6 +121,8 @@ export default function MassageLabDotGridBackground({
       proximity,
       resistance,
       returnDuration,
+      simulateCursorInteraction,
+      simulationSpeed,
       shockRadius,
       shockStrength,
       speedTrigger,
@@ -117,7 +131,21 @@ export default function MassageLabDotGridBackground({
 
   useEffect(() => {
     const canvas = canvasRef.current
-    const context = canvas?.getContext("2d", { alpha: true })
+    // Start unready and suppress repeated readiness values until the canvas completes a draw.
+    let reportedReadiness: boolean | null = null
+    const reportRenderReadiness = (ready: boolean) => {
+      if (reportedReadiness !== ready) {
+        reportedReadiness = ready
+        onRenderReadyChange?.(ready)
+      }
+    }
+    reportRenderReadiness(false)
+    // Non-production review surfaces may force the host fallback; production always requests a real context.
+    const forceContextFailure = process.env.NODE_ENV !== "production"
+      && forceContextFailureForReview
+    const context = forceContextFailure
+      ? null
+      : canvas?.getContext("2d", { alpha: true })
 
     if (!canvas || !context) {
       return undefined
@@ -132,10 +160,15 @@ export default function MassageLabDotGridBackground({
     let width = 1
     let height = 1
     let lastFrame = performance.now()
+    let lastSimulatedImpulse = 0
+    let lastSimulatedTime = 0
+    let lastSimulatedX = 0
+    let lastSimulatedY = 0
 
     const shouldAnimate = () => shouldAnimateAmbientBackground({
       prefersReducedMotion: reducedMotionQuery.matches,
       compactViewport: compactViewportQuery.matches,
+      allowCompactViewport: true,
       documentHidden: document.visibilityState !== "visible",
     })
 
@@ -215,6 +248,7 @@ export default function MassageLabDotGridBackground({
 
       pointer.lastTime = now
       pointer.lastMove = now
+      pointer.lastManualMove = now
       pointer.lastX = event.clientX
       pointer.lastY = event.clientY
       pointer.vx = vx
@@ -225,6 +259,50 @@ export default function MassageLabDotGridBackground({
 
       if (speed > options.speedTrigger) {
         applyImpulse(pointer.x, pointer.y, vx, vy, options.proximity, 1)
+      }
+    }
+
+    // Drive the same proximity and inertia model as a real pointer while
+    // yielding briefly whenever the user supplies genuine pointer movement.
+    const updateSimulatedPointer = (timestamp: number) => {
+      const pointer = pointerRef.current
+      if (!options.simulateCursorInteraction || timestamp - pointer.lastManualMove < 1500) {
+        lastSimulatedTime = 0
+        return
+      }
+
+      const phase = (timestamp / 1000) * options.simulationSpeed
+      const nextX = width * (0.5 + 0.38 * Math.sin(phase * 0.68))
+      const nextY = height * (0.5 + 0.34 * Math.sin(phase * 0.91 + Math.PI / 2))
+      if (!lastSimulatedTime) {
+        lastSimulatedTime = timestamp
+        lastSimulatedX = nextX
+        lastSimulatedY = nextY
+      }
+
+      const elapsed = Math.max(1, timestamp - lastSimulatedTime)
+      let vx = ((nextX - lastSimulatedX) / elapsed) * 1000
+      let vy = ((nextY - lastSimulatedY) / elapsed) * 1000
+      let speed = Math.hypot(vx, vy)
+      if (speed > options.maxSpeed) {
+        const scale = options.maxSpeed / speed
+        vx *= scale
+        vy *= scale
+        speed = options.maxSpeed
+      }
+
+      pointer.x = nextX
+      pointer.y = nextY
+      pointer.vx = vx
+      pointer.vy = vy
+      pointer.speed = speed
+      lastSimulatedTime = timestamp
+      lastSimulatedX = nextX
+      lastSimulatedY = nextY
+
+      if (timestamp - lastSimulatedImpulse >= 50 && speed > options.speedTrigger) {
+        lastSimulatedImpulse = timestamp
+        applyImpulse(nextX, nextY, vx, vy, options.proximity, 1)
       }
     }
 
@@ -251,6 +329,14 @@ export default function MassageLabDotGridBackground({
       context.clearRect(0, 0, width, height)
 
       const pointer = pointerRef.current
+      if (options.simulateCursorInteraction) {
+        if (animate) {
+          updateSimulatedPointer(timestamp)
+        } else {
+          pointer.x = width / 2
+          pointer.y = height / 2
+        }
+      }
       const proximitySq = options.proximity * options.proximity
       const damping = Math.pow(Math.max(0.82, 1 - 60 / options.resistance), delta * 60)
       const spring = options.returnDuration > 0 ? 0.14 / options.returnDuration : 0.18
@@ -275,7 +361,7 @@ export default function MassageLabDotGridBackground({
         const distanceSq = dx * dx + dy * dy
         let fill = options.baseColor
 
-        if (distanceSq <= proximitySq && options.cursorInteraction) {
+        if (distanceSq <= proximitySq && (options.cursorInteraction || options.simulateCursorInteraction)) {
           const distance = Math.sqrt(distanceSq)
           const influence = 1 - distance / options.proximity
           const red = Math.round(baseRgb.r + (activeRgb.r - baseRgb.r) * influence)
@@ -289,6 +375,7 @@ export default function MassageLabDotGridBackground({
         context.arc(dot.cx + dot.xOffset, dot.cy + dot.yOffset, options.dotSize / 2, 0, Math.PI * 2)
         context.fill()
       }
+      reportRenderReadiness(true)
 
       if (animate && !disposed) {
         frame = window.requestAnimationFrame(draw)
@@ -321,6 +408,7 @@ export default function MassageLabDotGridBackground({
 
     return () => {
       disposed = true
+      reportRenderReadiness(false)
       window.cancelAnimationFrame(frame)
       resizeObserver.disconnect()
       window.removeEventListener("resize", buildGrid)
@@ -334,7 +422,7 @@ export default function MassageLabDotGridBackground({
       canvas.width = 1
       canvas.height = 1
     }
-  }, [options])
+  }, [forceContextFailureForReview, onRenderReadyChange, options])
 
   return (
     <div className={cn(styles.massageLabDotGrid, className)} aria-hidden="true">
@@ -357,6 +445,8 @@ function resolveDotGridOptions(options: MassageLabDotGridOptions | undefined): R
     resistance: resolveNumber(options?.resistance, DEFAULT_MASSAGELAB_DOT_GRID.resistance, 120, 1600),
     returnDuration: resolveNumber(options?.returnDuration, DEFAULT_MASSAGELAB_DOT_GRID.returnDuration, 0.1, 4),
     cursorInteraction: options?.cursorInteraction ?? DEFAULT_MASSAGELAB_DOT_GRID.cursorInteraction,
+    simulateCursorInteraction: options?.simulateCursorInteraction ?? DEFAULT_MASSAGELAB_DOT_GRID.simulateCursorInteraction,
+    simulationSpeed: resolveNumber(options?.simulationSpeed, DEFAULT_MASSAGELAB_DOT_GRID.simulationSpeed, 0.3, 2),
     clickShock: options?.clickShock ?? DEFAULT_MASSAGELAB_DOT_GRID.clickShock,
   }
 }

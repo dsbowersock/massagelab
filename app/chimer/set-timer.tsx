@@ -14,13 +14,15 @@ import { MetalAttentionRing } from "@/components/ui/metal-attention-button"
 import { NumberField } from "@/components/chimer-controls/NumberField"
 import { StyledRangeControl } from "@/components/chimer-controls/StyledRangeControl"
 import { StyledToggleControl } from "@/components/chimer-controls/StyledToggleControl"
-import { getMassageLab3DGlobeScaleDisplayPercent, getMassageLab3DGlobeScaleFromDisplayPercent, parseGlobeCoordinateDraft, sanitizeChimerSettings } from "@/lib/chimer-timer"
+import { DarkVeilResolutionScaleControl } from "@/components/chimer-controls/DarkVeilBackgroundControls"
+import { getMassageLab3DGlobeScaleDisplayPercent, getMassageLab3DGlobeScaleFromDisplayPercent, getMassageLabShapeGridSpeedDisplayPercent, getMassageLabShapeGridSpeedFromDisplayPercent, parseGlobeCoordinateDraft, sanitizeChimerSettings } from "@/lib/chimer-timer"
 import { normalizeSharedBackgroundVisualPreferences } from "@/lib/background-palette"
 import { buildBackgroundVisualOpeningSnapshot, buildBackgroundVisualPendingCommit } from "@/lib/background-visual-draft"
 import styles from "./set-timer.module.css"
+import { GridMotionMantraEditor } from "./grid-motion-mantra-editor"
 import { TileGridFadeTimeControl } from "./tile-grid-fade-time-control"
 
-export { getMassageLab3DGlobeScaleDisplayPercent, getMassageLab3DGlobeScaleFromDisplayPercent }
+export { getMassageLab3DGlobeScaleDisplayPercent, getMassageLab3DGlobeScaleFromDisplayPercent, getMassageLabShapeGridSpeedDisplayPercent, getMassageLabShapeGridSpeedFromDisplayPercent }
 
 const CHIMER_SETUP_PRESETS_STORAGE_KEY = "chimer-setup-presets-v1"
 const CHIMER_LAST_SETUP_STORAGE_KEY = "chimer-last-setup-v1"
@@ -195,6 +197,9 @@ export type MassageLabPixelSnowVariant = "square" | "round" | "snowflake"
 export type MassageLabPrismaticBurstAnimationType = "rotate" | "rotate3d" | "hover"
 export type MassageLabPrismaticBurstMixBlendMode = "lighten" | "screen" | "none"
 
+export const MASSAGE_LAB_ELECTRIC_MIST_DISPLAY_SPEED_MIN = 1
+export const MASSAGE_LAB_ELECTRIC_MIST_DISPLAY_SPEED_MAX = 100
+export const MASSAGE_LAB_ELECTRIC_MIST_DISPLAY_SPEED_STEP = 1
 export const MASSAGE_LAB_ASTRAL_FLOW_SOURCE_SPEED_MIN = 0.1
 export const MASSAGE_LAB_ASTRAL_FLOW_SOURCE_SPEED_MAX = 3
 export const MASSAGE_LAB_ASTRAL_FLOW_DISPLAY_SPEED_MIN = 10
@@ -215,6 +220,11 @@ export const MASSAGE_LAB_LIQUID_CHROME_SOURCE_FLOW_SPEED_MAX = 2
 export const MASSAGE_LAB_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MIN = 1
 export const MASSAGE_LAB_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MAX = 100
 export const MASSAGE_LAB_LIQUID_CHROME_DISPLAY_FLOW_SPEED_STEP = 1
+export const MASSAGE_LAB_CATALOG_CHROME_FLOW_SOURCE_SPEED_MIN = 0.001
+export const MASSAGE_LAB_CATALOG_CHROME_FLOW_SOURCE_SPEED_MAX = 3
+export const MASSAGE_LAB_CATALOG_CHROME_FLOW_DISPLAY_SPEED_MIN = 0.1
+export const MASSAGE_LAB_CATALOG_CHROME_FLOW_DISPLAY_SPEED_MAX = 100
+export const MASSAGE_LAB_CATALOG_CHROME_FLOW_DISPLAY_SPEED_STEP = 0.1
 export const MASSAGE_LAB_LIQUID_CHROME_SOURCE_TIME_SCALE_MIN = 0.001
 export const MASSAGE_LAB_LIQUID_CHROME_SOURCE_TIME_SCALE_MAX = 1
 export const MASSAGE_LAB_LIQUID_CHROME_DISPLAY_TIME_SCALE_MIN = 1
@@ -310,6 +320,22 @@ export function getMassageLabChromeFlowSourceFlowSpeed(displaySpeed: number) {
   const sourceRange = MASSAGE_LAB_LIQUID_CHROME_SOURCE_FLOW_SPEED_MAX - MASSAGE_LAB_LIQUID_CHROME_SOURCE_FLOW_SPEED_MIN
   const displayRange = MASSAGE_LAB_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MAX - MASSAGE_LAB_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MIN
   return Math.round((MASSAGE_LAB_LIQUID_CHROME_SOURCE_FLOW_SPEED_MIN + ((clampedDisplay - MASSAGE_LAB_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MIN) / displayRange) * sourceRange) * 1000) / 1000
+}
+
+// The catalog's Chrome Flow is the separate React Bits liquid-chrome renderer.
+// A tenth-percent display scale makes its sub-0.01 source speeds selectable.
+export function getMassageLabCatalogChromeFlowDisplaySpeed(sourceSpeed: number) {
+  const clampedSpeed = Math.min(MASSAGE_LAB_CATALOG_CHROME_FLOW_SOURCE_SPEED_MAX, Math.max(MASSAGE_LAB_CATALOG_CHROME_FLOW_SOURCE_SPEED_MIN, sourceSpeed))
+  const sourceRange = MASSAGE_LAB_CATALOG_CHROME_FLOW_SOURCE_SPEED_MAX - MASSAGE_LAB_CATALOG_CHROME_FLOW_SOURCE_SPEED_MIN
+  const displayRange = MASSAGE_LAB_CATALOG_CHROME_FLOW_DISPLAY_SPEED_MAX - MASSAGE_LAB_CATALOG_CHROME_FLOW_DISPLAY_SPEED_MIN
+  return Math.round((MASSAGE_LAB_CATALOG_CHROME_FLOW_DISPLAY_SPEED_MIN + ((clampedSpeed - MASSAGE_LAB_CATALOG_CHROME_FLOW_SOURCE_SPEED_MIN) / sourceRange) * displayRange) * 10) / 10
+}
+
+export function getMassageLabCatalogChromeFlowSourceSpeed(displaySpeed: number) {
+  const clampedDisplay = Math.min(MASSAGE_LAB_CATALOG_CHROME_FLOW_DISPLAY_SPEED_MAX, Math.max(MASSAGE_LAB_CATALOG_CHROME_FLOW_DISPLAY_SPEED_MIN, displaySpeed))
+  const sourceRange = MASSAGE_LAB_CATALOG_CHROME_FLOW_SOURCE_SPEED_MAX - MASSAGE_LAB_CATALOG_CHROME_FLOW_SOURCE_SPEED_MIN
+  const displayRange = MASSAGE_LAB_CATALOG_CHROME_FLOW_DISPLAY_SPEED_MAX - MASSAGE_LAB_CATALOG_CHROME_FLOW_DISPLAY_SPEED_MIN
+  return Math.round((MASSAGE_LAB_CATALOG_CHROME_FLOW_SOURCE_SPEED_MIN + ((clampedDisplay - MASSAGE_LAB_CATALOG_CHROME_FLOW_DISPLAY_SPEED_MIN) / displayRange) * sourceRange) * 1000) / 1000
 }
 
 export function getMassageLabChromeFlowDisplayTimeScale(sourceTimeScale: number) {
@@ -458,6 +484,14 @@ export interface ChimerSettings {
   sparklesSpeed: number
   gradientAnimationSpeed: number
   gradientAnimationSize: number
+  staticGradientType: "linear" | "radial"
+  staticGradientColorCount: number
+  staticGradientAngle: number
+  staticGradientCenterX: number
+  staticGradientCenterY: number
+  staticGradientRadialShape: "circle" | "ellipse"
+  staticGradientRadialSize: "closest-side" | "farthest-side" | "closest-corner" | "farthest-corner"
+  staticGradientStopPositions: number[]
   massageLabGradientOpacity: number
   massageLabStarsSpeed: number
   massageLabStarsDensity: number
@@ -853,6 +887,7 @@ export interface ChimerSettings {
   massageLabDotFieldBulgeStrength: number
   massageLabDotFieldGlowRadius: number
   massageLabDotFieldSparkle: boolean
+  massageLabDotFieldDefaultsVersion: number
   massageLabDotFieldWaveAmplitude: number
   massageLabDotFieldCursorInteraction: boolean
   massageLabDotGridDotSize: number
@@ -865,6 +900,8 @@ export interface ChimerSettings {
   massageLabDotGridResistance: number
   massageLabDotGridReturnDuration: number
   massageLabDotGridCursorInteraction: boolean
+  massageLabDotGridSimulateCursorInteraction: boolean
+  massageLabDotGridSimulationSpeed: number
   massageLabDotGridClickShock: boolean
   massageLabThreadsAmplitude: number
   massageLabThreadsDistance: number
@@ -888,6 +925,8 @@ export interface ChimerSettings {
   massageLabGridDistortionStrength: number
   massageLabGridDistortionRelaxation: number
   massageLabGridDistortionCursorInteraction: boolean
+  massageLabGridDistortionSimulateCursorInteraction: boolean
+  massageLabGridDistortionSimulationSpeed: number
   massageLabOrbHoverIntensity: number
   massageLabOrbRotateOnHover: boolean
   massageLabOrbForceHoverState: boolean
@@ -900,8 +939,10 @@ export interface ChimerSettings {
   massageLabGridMotionMaxMoveAmount: number
   massageLabGridMotionBaseDuration: number
   massageLabGridMotionCursorInteraction: boolean
+  massageLabGridMotionMantras: string[]
   massageLabShapeGridDirection: "right" | "left" | "up" | "down" | "diagonal"
   massageLabShapeGridSpeed: number
+  massageLabShapeGridSpeedVersion: number
   massageLabShapeGridSquareSize: number
   massageLabShapeGridShape: "square" | "circle" | "triangle" | "hexagon"
   massageLabShapeGridHoverTrailAmount: number
@@ -927,6 +968,7 @@ export interface ChimerSettings {
   massageLabMatrixRainSpeed: number
   massageLabMatrixRainFontSize: number
   massageLabPhotonBeamLineCount: number
+  massageLabPhotonBeamDefaultsVersion: number
   massageLabPhotonBeamSpreadHeight: number
   massageLabPhotonBeamSpreadDepth: number
   massageLabPhotonBeamCurveLength: number
@@ -977,7 +1019,43 @@ export interface ChimerSettings {
   massageLabSynthesisDistortion: number
   massageLabSynthesisGlowIntensity: number
   massageLabSynthesisFlowFrequency: number
+  massageLabAuroraSpeed: number
+  massageLabAuroraIntensity: number
+  massageLabAuroraBlur: number
+  massageLabAuroraReach: number
+  massageLabDottedGlowSpeed: number
+  massageLabDottedGlowDotSize: number
+  massageLabDottedGlowDotSpacing: number
+  massageLabDottedGlowOpacity: number
+  massageLabDottedGlowGlowStrength: number
+  massageLabBubbleSpeed: number
+  massageLabBubbleIntensity: number
+  massageLabBubbleSize: number
+  massageLabBubbleBlur: number
+  massageLabBubbleBlendStrength: number
+  massageLabBackgroundBeamsSpeed: number
+  massageLabBackgroundBeamsIntensity: number
+  massageLabBackgroundBeamsBeamWidth: number
+  massageLabBackgroundBeamsGlowStrength: number
+  massageLabCollisionBeamsSpeed: number
+  massageLabCollisionBeamsIntensity: number
+  massageLabCollisionBeamsBeamWidth: number
+  massageLabCollisionBeamsBurstSize: number
+  massageLabGlowingStarsSpeed: number
+  massageLabGlowingStarsIntensity: number
+  massageLabGlowingStarsActiveStars: number
+  massageLabGlowingStarsStarSize: number
+  massageLabGlowingStarsGlowStrength: number
+  massageLabMeteorsSpeed: number
+  massageLabMeteorsIntensity: number
+  massageLabMeteorsCount: number
+  massageLabMeteorsSize: number
+  massageLabMeteorsTailLength: number
   backgroundLinesDuration: number
+  backgroundLinesIntensity: number
+  backgroundLinesCount: number
+  backgroundLinesWidth: number
+  backgroundLinesGlowStrength: number
   shootingStarsDensity: number
   shootingStarsTwinkle: boolean
   shootingStarsTwinkleSpeed: number
@@ -1000,6 +1078,7 @@ export interface ChimerSettings {
   lampGlowWidth: number
   lampVerticalOffset: number
   lampPulseSpeed: number
+  vortexBaseHue: number
   vortexParticleCount: number
   vortexRangeY: number
   vortexBaseSpeed: number
@@ -1022,6 +1101,7 @@ export interface ChimerSettings {
   tileGridTileSize: number
   tileGridJointSize: number
   tileGridChangeFrequency: number
+  massageLabGridFadeDefaultsVersion: number
   tileGridActivePercent: number
   tileGridOpacity: number
   hexGridHexSize: number
@@ -1629,11 +1709,188 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
       )
     }
 
+    if (option.id === "massage-lab-aurora") {
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.rangeRow}>
+            <span>Motion speed ({settings.massageLabAuroraSpeed.toFixed(2)}x)</span>
+            <input type="range" min="0.25" max="2" step="0.05" value={settings.massageLabAuroraSpeed} onChange={(event) => onSettingsChange({ massageLabAuroraSpeed: Number(event.target.value) })} aria-label="Aurora Field motion speed" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Intensity ({Math.round(settings.massageLabAuroraIntensity * 100)}%)</span>
+            <input type="range" min="0.1" max="1" step="0.05" value={settings.massageLabAuroraIntensity} onChange={(event) => onSettingsChange({ massageLabAuroraIntensity: Number(event.target.value) })} aria-label="Aurora Field intensity" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Blur ({settings.massageLabAuroraBlur}px)</span>
+            <input type="range" min="0" max="30" step="1" value={settings.massageLabAuroraBlur} onChange={(event) => onSettingsChange({ massageLabAuroraBlur: Number(event.target.value) })} aria-label="Aurora Field blur" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Field reach ({settings.massageLabAuroraReach}%)</span>
+            <input type="range" min="30" max="100" step="1" value={settings.massageLabAuroraReach} onChange={(event) => onSettingsChange({ massageLabAuroraReach: Number(event.target.value) })} aria-label="Aurora Field reach" />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "massage-lab-dotted-glow") {
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.rangeRow}>
+            <span>Motion speed ({settings.massageLabDottedGlowSpeed.toFixed(2)}x)</span>
+            <input type="range" min="0.25" max="2" step="0.05" value={settings.massageLabDottedGlowSpeed} onChange={(event) => onSettingsChange({ massageLabDottedGlowSpeed: Number(event.target.value) })} aria-label="Dotted Glow motion speed" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Dot size ({settings.massageLabDottedGlowDotSize.toFixed(1)}px)</span>
+            <input type="range" min="0.5" max="4" step="0.1" value={settings.massageLabDottedGlowDotSize} onChange={(event) => onSettingsChange({ massageLabDottedGlowDotSize: Number(event.target.value) })} aria-label="Dotted Glow dot size" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Dot spacing ({settings.massageLabDottedGlowDotSpacing}px)</span>
+            <input type="range" min="8" max="28" step="1" value={settings.massageLabDottedGlowDotSpacing} onChange={(event) => onSettingsChange({ massageLabDottedGlowDotSpacing: Number(event.target.value) })} aria-label="Dotted Glow dot spacing" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Dot opacity ({Math.round(settings.massageLabDottedGlowOpacity * 100)}%)</span>
+            <input type="range" min="0.1" max="1" step="0.05" value={settings.massageLabDottedGlowOpacity} onChange={(event) => onSettingsChange({ massageLabDottedGlowOpacity: Number(event.target.value) })} aria-label="Dotted Glow dot opacity" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Glow strength ({settings.massageLabDottedGlowGlowStrength}px)</span>
+            <input type="range" min="0" max="12" step="0.5" value={settings.massageLabDottedGlowGlowStrength} onChange={(event) => onSettingsChange({ massageLabDottedGlowGlowStrength: Number(event.target.value) })} aria-label="Dotted Glow glow strength" />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "massage-lab-bubble") {
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.rangeRow}>
+            <span>Motion speed ({settings.massageLabBubbleSpeed.toFixed(2)}x)</span>
+            <input type="range" min="0.25" max="2" step="0.05" value={settings.massageLabBubbleSpeed} onChange={(event) => onSettingsChange({ massageLabBubbleSpeed: Number(event.target.value) })} aria-label="Bubble Field motion speed" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Intensity ({Math.round(settings.massageLabBubbleIntensity * 100)}%)</span>
+            <input type="range" min="0.1" max="1" step="0.05" value={settings.massageLabBubbleIntensity} onChange={(event) => onSettingsChange({ massageLabBubbleIntensity: Number(event.target.value) })} aria-label="Bubble Field intensity" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Bubble size ({Math.round(settings.massageLabBubbleSize * 100)}%)</span>
+            <input type="range" min="0.5" max="2" step="0.05" value={settings.massageLabBubbleSize} onChange={(event) => onSettingsChange({ massageLabBubbleSize: Number(event.target.value) })} aria-label="Bubble Field bubble size" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Blur ({Math.round(settings.massageLabBubbleBlur)}px)</span>
+            <input type="range" min="0" max="80" step="1" value={settings.massageLabBubbleBlur} onChange={(event) => onSettingsChange({ massageLabBubbleBlur: Number(event.target.value) })} aria-label="Bubble Field blur" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Blend strength ({Math.round(settings.massageLabBubbleBlendStrength)})</span>
+            <input type="range" min="10" max="30" step="1" value={settings.massageLabBubbleBlendStrength} onChange={(event) => onSettingsChange({ massageLabBubbleBlendStrength: Number(event.target.value) })} aria-label="Bubble Field blend strength" />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "massage-lab-background-beams") {
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.rangeRow}>
+            <span>Motion speed ({settings.massageLabBackgroundBeamsSpeed.toFixed(2)}x)</span>
+            <input type="range" min="0.25" max="2" step="0.05" value={settings.massageLabBackgroundBeamsSpeed} onChange={(event) => onSettingsChange({ massageLabBackgroundBeamsSpeed: Number(event.target.value) })} aria-label="Beam Field motion speed" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Intensity ({Math.round(settings.massageLabBackgroundBeamsIntensity * 100)}%)</span>
+            <input type="range" min="0.1" max="1" step="0.05" value={settings.massageLabBackgroundBeamsIntensity} onChange={(event) => onSettingsChange({ massageLabBackgroundBeamsIntensity: Number(event.target.value) })} aria-label="Beam Field intensity" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Beam width ({settings.massageLabBackgroundBeamsBeamWidth.toFixed(1)})</span>
+            <input type="range" min="0.2" max="2" step="0.1" value={settings.massageLabBackgroundBeamsBeamWidth} onChange={(event) => onSettingsChange({ massageLabBackgroundBeamsBeamWidth: Number(event.target.value) })} aria-label="Beam Field beam width" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Glow strength ({settings.massageLabBackgroundBeamsGlowStrength}px)</span>
+            <input type="range" min="0" max="20" step="0.5" value={settings.massageLabBackgroundBeamsGlowStrength} onChange={(event) => onSettingsChange({ massageLabBackgroundBeamsGlowStrength: Number(event.target.value) })} aria-label="Beam Field glow strength" />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "massage-lab-collision-beams") {
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.rangeRow}>
+            <span>Motion speed ({settings.massageLabCollisionBeamsSpeed.toFixed(2)}x)</span>
+            <input type="range" min="0.25" max="2" step="0.05" value={settings.massageLabCollisionBeamsSpeed} onChange={(event) => onSettingsChange({ massageLabCollisionBeamsSpeed: Number(event.target.value) })} aria-label="Collision Beams motion speed" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Intensity ({Math.round(settings.massageLabCollisionBeamsIntensity * 100)}%)</span>
+            <input type="range" min="0.1" max="1" step="0.05" value={settings.massageLabCollisionBeamsIntensity} onChange={(event) => onSettingsChange({ massageLabCollisionBeamsIntensity: Number(event.target.value) })} aria-label="Collision Beams intensity" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Beam width ({settings.massageLabCollisionBeamsBeamWidth.toFixed(1)}px)</span>
+            <input type="range" min="0.5" max="4" step="0.1" value={settings.massageLabCollisionBeamsBeamWidth} onChange={(event) => onSettingsChange({ massageLabCollisionBeamsBeamWidth: Number(event.target.value) })} aria-label="Collision Beams beam width" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Burst size ({Math.round(settings.massageLabCollisionBeamsBurstSize * 100)}%)</span>
+            <input type="range" min="0.5" max="2" step="0.05" value={settings.massageLabCollisionBeamsBurstSize} onChange={(event) => onSettingsChange({ massageLabCollisionBeamsBurstSize: Number(event.target.value) })} aria-label="Collision Beams burst size" />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "massage-lab-glowing-stars") {
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.rangeRow}>
+            <span>Motion speed ({settings.massageLabGlowingStarsSpeed.toFixed(2)}x)</span>
+            <input type="range" min="0.25" max="2" step="0.05" value={settings.massageLabGlowingStarsSpeed} onChange={(event) => onSettingsChange({ massageLabGlowingStarsSpeed: Number(event.target.value) })} aria-label="Glowing Stars motion speed" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Intensity ({Math.round(settings.massageLabGlowingStarsIntensity * 100)}%)</span>
+            <input type="range" min="0.1" max="1" step="0.05" value={settings.massageLabGlowingStarsIntensity} onChange={(event) => onSettingsChange({ massageLabGlowingStarsIntensity: Number(event.target.value) })} aria-label="Glowing Stars intensity" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Active stars ({settings.massageLabGlowingStarsActiveStars})</span>
+            <input type="range" min="1" max="18" step="1" value={settings.massageLabGlowingStarsActiveStars} onChange={(event) => onSettingsChange({ massageLabGlowingStarsActiveStars: Number(event.target.value) })} aria-label="Glowing Stars active stars" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Star size ({settings.massageLabGlowingStarsStarSize.toFixed(1)}px)</span>
+            <input type="range" min="0.5" max="3" step="0.1" value={settings.massageLabGlowingStarsStarSize} onChange={(event) => onSettingsChange({ massageLabGlowingStarsStarSize: Number(event.target.value) })} aria-label="Glowing Stars star size" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Glow strength ({Math.round(settings.massageLabGlowingStarsGlowStrength * 100)}%)</span>
+            <input type="range" min="0" max="2" step="0.05" value={settings.massageLabGlowingStarsGlowStrength} onChange={(event) => onSettingsChange({ massageLabGlowingStarsGlowStrength: Number(event.target.value) })} aria-label="Glowing Stars glow strength" />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "massage-lab-meteors") {
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.rangeRow}>
+            <span>Motion speed ({settings.massageLabMeteorsSpeed.toFixed(2)}x)</span>
+            <input type="range" min="0.25" max="2" step="0.05" value={settings.massageLabMeteorsSpeed} onChange={(event) => onSettingsChange({ massageLabMeteorsSpeed: Number(event.target.value) })} aria-label="Meteors motion speed" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Intensity ({Math.round(settings.massageLabMeteorsIntensity * 100)}%)</span>
+            <input type="range" min="0.1" max="1" step="0.05" value={settings.massageLabMeteorsIntensity} onChange={(event) => onSettingsChange({ massageLabMeteorsIntensity: Number(event.target.value) })} aria-label="Meteors intensity" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Meteor count ({settings.massageLabMeteorsCount})</span>
+            <input type="range" min="4" max="48" step="1" value={settings.massageLabMeteorsCount} onChange={(event) => onSettingsChange({ massageLabMeteorsCount: Number(event.target.value) })} aria-label="Meteors count" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Meteor size ({settings.massageLabMeteorsSize.toFixed(1)}px)</span>
+            <input type="range" min="0.5" max="5" step="0.1" value={settings.massageLabMeteorsSize} onChange={(event) => onSettingsChange({ massageLabMeteorsSize: Number(event.target.value) })} aria-label="Meteors size" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Tail length ({Math.round(settings.massageLabMeteorsTailLength)}px)</span>
+            <input type="range" min="15" max="140" step="1" value={settings.massageLabMeteorsTailLength} onChange={(event) => onSettingsChange({ massageLabMeteorsTailLength: Number(event.target.value) })} aria-label="Meteors tail length" />
+          </label>
+        </div>
+      )
+    }
+
     if (option.id === "massage-lab-background-lines") {
       return (
         <div className={styles.backgroundCardControls}>
           <label className={styles.rangeRow}>
-            <span>Line duration</span>
+            <span>Line duration ({Math.round(settings.backgroundLinesDuration)}s)</span>
             <input
               type="range"
               min="4"
@@ -1647,6 +1904,22 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
               }
               aria-label="Light lines animation duration"
             />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Intensity ({Math.round(settings.backgroundLinesIntensity * 100)}%)</span>
+            <input type="range" min="0.1" max="1" step="0.05" value={settings.backgroundLinesIntensity} onChange={(event) => onSettingsChange({ backgroundLinesIntensity: Number(event.target.value) })} aria-label="Light Lines intensity" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Line count ({settings.backgroundLinesCount})</span>
+            <input type="range" min="6" max="26" step="1" value={settings.backgroundLinesCount} onChange={(event) => onSettingsChange({ backgroundLinesCount: Number(event.target.value) })} aria-label="Light Lines count" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Line width ({settings.backgroundLinesWidth.toFixed(1)})</span>
+            <input type="range" min="0.5" max="6" step="0.1" value={settings.backgroundLinesWidth} onChange={(event) => onSettingsChange({ backgroundLinesWidth: Number(event.target.value) })} aria-label="Light Lines width" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Glow strength ({Math.round(settings.backgroundLinesGlowStrength)}px)</span>
+            <input type="range" min="0" max="24" step="1" value={settings.backgroundLinesGlowStrength} onChange={(event) => onSettingsChange({ backgroundLinesGlowStrength: Number(event.target.value) })} aria-label="Light Lines glow strength" />
           </label>
         </div>
       )
@@ -1948,7 +2221,7 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
               aria-label="Tile grid joint size"
             />
           </label>
-          <TileGridFadeTimeControl fadeSeconds={settings.tileGridChangeFrequency} onFadeSecondsChange={(tileGridChangeFrequency) => onSettingsChange({ tileGridChangeFrequency })} rowClassName={styles.durationRow} pickerClassName={styles.durationPicker} fieldClassName={styles.durationField} />
+          <TileGridFadeTimeControl fadeSeconds={settings.tileGridChangeFrequency} onFadeSecondsChange={(tileGridChangeFrequency) => onSettingsChange({ tileGridChangeFrequency })} />
           <label className={styles.rangeRow}>
             <span>Active tiles ({settings.tileGridActivePercent}%)</span>
             <input
@@ -2008,7 +2281,7 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
               aria-label="Hex grid joint size"
             />
           </label>
-          <TileGridFadeTimeControl fadeSeconds={settings.hexGridChangeFrequency} onFadeSecondsChange={(hexGridChangeFrequency) => onSettingsChange({ hexGridChangeFrequency })} rowClassName={styles.durationRow} pickerClassName={styles.durationPicker} fieldClassName={styles.durationField} />
+          <TileGridFadeTimeControl fadeSeconds={settings.hexGridChangeFrequency} onFadeSecondsChange={(hexGridChangeFrequency) => onSettingsChange({ hexGridChangeFrequency })} />
           <label className={styles.rangeRow}>
             <span>Active hexes ({settings.hexGridActivePercent}%)</span>
             <input
@@ -2127,9 +2400,9 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
             <span>Animation speed ({Math.round(settings.massageLabElectricMistSpeed)}%)</span>
             <input
               type="range"
-              min="1"
-              max="400"
-              step="1"
+              min={MASSAGE_LAB_ELECTRIC_MIST_DISPLAY_SPEED_MIN}
+              max={MASSAGE_LAB_ELECTRIC_MIST_DISPLAY_SPEED_MAX}
+              step={MASSAGE_LAB_ELECTRIC_MIST_DISPLAY_SPEED_STEP}
               value={settings.massageLabElectricMistSpeed}
               onChange={(event) =>
                 onSettingsChange({
@@ -2456,7 +2729,7 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
                   massageLabRetroGridAngle: Number(event.target.value),
                 })
               }
-              aria-label="Retro Grid angle"
+              aria-label="Endless Perspective angle"
             />
           </label>
 
@@ -2473,7 +2746,7 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
                   massageLabRetroGridCellSize: Number(event.target.value),
                 })
               }
-              aria-label="Retro Grid cell size"
+              aria-label="Endless Perspective cell size"
             />
           </label>
 
@@ -2490,7 +2763,7 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
                   massageLabRetroGridOpacity: Number(event.target.value),
                 })
               }
-              aria-label="Retro Grid opacity"
+              aria-label="Endless Perspective opacity"
             />
           </label>
         </div>
@@ -3531,7 +3804,7 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
           )}
 
           <label className={styles.switchRow}>
-            <span>Auto demo motion</span>
+            <span>Motion</span>
             <input
               type="checkbox"
               checked={settings.massageLabLiquidEtherAutoDemo}
@@ -3540,14 +3813,14 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
                   massageLabLiquidEtherAutoDemo: event.target.checked,
                 })
               }
-              aria-label="Liquid Ether auto demo motion"
+              aria-label="Liquid Ether motion"
             />
           </label>
 
           {settings.massageLabLiquidEtherAutoDemo && (
             <>
               <label className={styles.rangeRow}>
-                <span>Auto speed ({settings.massageLabLiquidEtherAutoSpeed.toFixed(2)}x)</span>
+                <span>Speed ({settings.massageLabLiquidEtherAutoSpeed.toFixed(2)}x)</span>
                 <input
                   type="range"
                   min="0.05"
@@ -3559,12 +3832,12 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
                       massageLabLiquidEtherAutoSpeed: Number(event.target.value),
                     })
                   }
-                  aria-label="Liquid Ether auto speed"
+                  aria-label="Liquid Ether speed"
                 />
               </label>
 
               <label className={styles.rangeRow}>
-                <span>Auto intensity ({settings.massageLabLiquidEtherAutoIntensity.toFixed(1)})</span>
+                <span>Intensity ({settings.massageLabLiquidEtherAutoIntensity.toFixed(1)})</span>
                 <input
                   type="range"
                   min="0"
@@ -3576,13 +3849,13 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
                       massageLabLiquidEtherAutoIntensity: Number(event.target.value),
                     })
                   }
-                  aria-label="Liquid Ether auto intensity"
+                  aria-label="Liquid Ether intensity"
                 />
               </label>
 
               <label className={styles.rangeRow}>
                 <span>
-                  Auto resume ({(settings.massageLabLiquidEtherAutoResumeDelay / 1000).toFixed(1)}
+                  Resume ({(settings.massageLabLiquidEtherAutoResumeDelay / 1000).toFixed(1)}
                   s)
                 </span>
                 <input
@@ -3596,12 +3869,12 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
                       massageLabLiquidEtherAutoResumeDelay: Number(event.target.value),
                     })
                   }
-                  aria-label="Liquid Ether auto resume delay"
+                  aria-label="Liquid Ether resume delay"
                 />
               </label>
 
               <label className={styles.rangeRow}>
-                <span>Auto ramp ({settings.massageLabLiquidEtherAutoRampDuration.toFixed(1)}s)</span>
+                <span>Ramp ({settings.massageLabLiquidEtherAutoRampDuration.toFixed(1)}s)</span>
                 <input
                   type="range"
                   min="0"
@@ -3613,7 +3886,7 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
                       massageLabLiquidEtherAutoRampDuration: Number(event.target.value),
                     })
                   }
-                  aria-label="Liquid Ether auto ramp duration"
+                  aria-label="Liquid Ether ramp duration"
                 />
               </label>
             </>
@@ -4037,23 +4310,6 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
       return (
         <div className={styles.backgroundCardControls}>
           <label className={styles.rangeRow}>
-            <span>Hue shift ({settings.massageLabDarkVeilHueShift.toFixed(0)} deg)</span>
-            <input
-              type="range"
-              min="-180"
-              max="180"
-              step="1"
-              value={settings.massageLabDarkVeilHueShift}
-              onChange={(event) =>
-                onSettingsChange({
-                  massageLabDarkVeilHueShift: Number(event.target.value),
-                })
-              }
-              aria-label="Dark Veil hue shift"
-            />
-          </label>
-
-          <label className={styles.rangeRow}>
             <span>Animation speed ({settings.massageLabDarkVeilSpeed.toFixed(2)}x)</span>
             <input
               type="range"
@@ -4138,22 +4394,10 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
             />
           </label>
 
-          <label className={styles.rangeRow}>
-            <span>Resolution scale ({settings.massageLabDarkVeilResolutionScale.toFixed(2)})</span>
-            <input
-              type="range"
-              min="0.25"
-              max="1"
-              step="0.05"
-              value={settings.massageLabDarkVeilResolutionScale}
-              onChange={(event) =>
-                onSettingsChange({
-                  massageLabDarkVeilResolutionScale: Number(event.target.value),
-                })
-              }
-              aria-label="Dark Veil resolution scale"
-            />
-          </label>
+          <DarkVeilResolutionScaleControl
+            value={settings.massageLabDarkVeilResolutionScale}
+            onChange={(value) => onSettingsChange({ massageLabDarkVeilResolutionScale: value })}
+          />
         </div>
       )
     }
@@ -9152,6 +9396,39 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
           </label>
 
           <label className={styles.switchRow}>
+            <span>Simulate cursor interaction</span>
+            <input
+              type="checkbox"
+              checked={settings.massageLabDotGridSimulateCursorInteraction}
+              onChange={(event) =>
+                onSettingsChange({
+                  massageLabDotGridSimulateCursorInteraction: event.target.checked,
+                })
+              }
+              aria-label="MassageLab Dot Grid simulate cursor interaction"
+            />
+          </label>
+
+          {settings.massageLabDotGridSimulateCursorInteraction ? (
+            <label className={styles.rangeRow}>
+              <span>Fake cursor speed ({settings.massageLabDotGridSimulationSpeed.toFixed(1)}x)</span>
+              <input
+                type="range"
+                min="0.3"
+                max="2"
+                step="0.1"
+                value={settings.massageLabDotGridSimulationSpeed}
+                onChange={(event) =>
+                  onSettingsChange({
+                    massageLabDotGridSimulationSpeed: Number(event.target.value),
+                  })
+                }
+                aria-label="MassageLab Dot Grid fake cursor speed"
+              />
+            </label>
+          ) : null}
+
+          <label className={styles.switchRow}>
             <span>Click shock</span>
             <input
               type="checkbox"
@@ -9627,6 +9904,39 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
             />
           </label>
 
+          <label className={styles.switchRow}>
+            <span>Simulate cursor interaction</span>
+            <input
+              type="checkbox"
+              checked={settings.massageLabGridDistortionSimulateCursorInteraction}
+              onChange={(event) =>
+                onSettingsChange({
+                  massageLabGridDistortionSimulateCursorInteraction: event.target.checked,
+                })
+              }
+              aria-label="MassageLab Grid Distortion simulate cursor interaction"
+            />
+          </label>
+
+          {settings.massageLabGridDistortionSimulateCursorInteraction ? (
+            <label className={styles.rangeRow}>
+              <span>Fake cursor speed ({settings.massageLabGridDistortionSimulationSpeed.toFixed(1)}x)</span>
+              <input
+                type="range"
+                min="0.3"
+                max="2"
+                step="0.1"
+                value={settings.massageLabGridDistortionSimulationSpeed}
+                onChange={(event) =>
+                  onSettingsChange({
+                    massageLabGridDistortionSimulationSpeed: Number(event.target.value),
+                  })
+                }
+                aria-label="MassageLab Grid Distortion fake cursor speed"
+              />
+            </label>
+          ) : null}
+
           <label className={styles.rangeRow}>
             <span>Grid ({settings.massageLabGridDistortionGrid.toFixed(0)})</span>
             <input
@@ -9878,6 +10188,13 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
               aria-label="MassageLab Grid Motion base duration"
             />
           </label>
+
+          <GridMotionMantraEditor
+            value={settings.massageLabGridMotionMantras}
+            onChange={(massageLabGridMotionMantras) =>
+              onSettingsChange({ massageLabGridMotionMantras })
+            }
+          />
         </div>
       )
     }
@@ -9937,19 +10254,19 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Speed ({settings.massageLabShapeGridSpeed.toFixed(2)})</span>
+            <span>Speed ({getMassageLabShapeGridSpeedDisplayPercent(settings.massageLabShapeGridSpeed)}%)</span>
             <input
               type="range"
               min="0"
-              max="4"
-              step="0.05"
-              value={settings.massageLabShapeGridSpeed}
+              max="100"
+              step="2.5"
+              value={getMassageLabShapeGridSpeedDisplayPercent(settings.massageLabShapeGridSpeed)}
               onChange={(event) =>
                 onSettingsChange({
-                  massageLabShapeGridSpeed: Number(event.target.value),
+                  massageLabShapeGridSpeed: getMassageLabShapeGridSpeedFromDisplayPercent(Number(event.target.value)),
                 })
               }
-              aria-label="MassageLab Shape Grid speed"
+              aria-label="MassageLab Shape Grid speed percentage"
             />
           </label>
 
@@ -9991,6 +10308,8 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
     }
 
     if (option.id === "massage-lab-liquid-chrome") {
+      const liquidChromeDisplaySpeed = getMassageLabCatalogChromeFlowDisplaySpeed(settings.massageLabLiquidChromeSpeed)
+
       return (
         <div className={styles.backgroundCardControls}>
           <label className={styles.switchRow}>
@@ -10008,19 +10327,19 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Speed ({settings.massageLabLiquidChromeSpeed.toFixed(2)})</span>
+            <span>Speed ({liquidChromeDisplaySpeed}%)</span>
             <input
               type="range"
-              min="0"
-              max="3"
-              step="0.01"
-              value={settings.massageLabLiquidChromeSpeed}
+              min={MASSAGE_LAB_CATALOG_CHROME_FLOW_DISPLAY_SPEED_MIN}
+              max={MASSAGE_LAB_CATALOG_CHROME_FLOW_DISPLAY_SPEED_MAX}
+              step={MASSAGE_LAB_CATALOG_CHROME_FLOW_DISPLAY_SPEED_STEP}
+              value={liquidChromeDisplaySpeed}
               onChange={(event) =>
                 onSettingsChange({
-                  massageLabLiquidChromeSpeed: Number(event.target.value),
+                  massageLabLiquidChromeSpeed: getMassageLabCatalogChromeFlowSourceSpeed(Number(event.target.value)),
                 })
               }
-              aria-label="MassageLab Liquid Chrome speed"
+              aria-label="Molten Mirror speed percentage"
             />
           </label>
 
@@ -10037,7 +10356,7 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
                   massageLabLiquidChromeAmplitude: Number(event.target.value),
                 })
               }
-              aria-label="MassageLab Liquid Chrome amplitude"
+              aria-label="Molten Mirror amplitude"
             />
           </label>
 
@@ -10054,7 +10373,7 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
                   massageLabLiquidChromeFrequencyX: Number(event.target.value),
                 })
               }
-              aria-label="MassageLab Liquid Chrome frequency X"
+              aria-label="Molten Mirror frequency X"
             />
           </label>
 
@@ -10071,7 +10390,7 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
                   massageLabLiquidChromeFrequencyY: Number(event.target.value),
                 })
               }
-              aria-label="MassageLab Liquid Chrome frequency Y"
+              aria-label="Molten Mirror frequency Y"
             />
           </label>
         </div>

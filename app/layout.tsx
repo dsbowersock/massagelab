@@ -60,7 +60,7 @@ export default async function RootLayout({
         <PwaInstallProvider>
           <SettingsProvider syncEnabled={canSyncAccountSettings}>
             <TherapistSettingsProvider syncEnabled={canSyncAccountSettings}>
-              <MusicProvider>
+              <MusicProvider accountSyncEnabled={canSyncAccountSettings}>
                 <SidebarProvider className="h-[100dvh] min-h-0 overflow-hidden bg-background">
                   <SidebarCalendarProvider enabled={Boolean(user)}>
                     <AppSidebarClient user={user} navigation={navigation} />

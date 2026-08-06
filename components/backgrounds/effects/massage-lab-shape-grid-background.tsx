@@ -16,7 +16,7 @@ type ResolvedShapeGridOptions = Required<MassageLabShapeGridOptions> & {
 
 const DEFAULT_MASSAGELAB_SHAPE_GRID: ResolvedShapeGridOptions = {
   direction: "right",
-  speed: 1,
+  speed: 0.25,
   borderColor: "#999999",
   squareSize: 40,
   hoverFillColor: "#222222",
@@ -30,6 +30,8 @@ const DEFAULT_MASSAGELAB_SHAPE_GRID: ResolvedShapeGridOptions = {
 export default function MassageLabShapeGridBackground({
   className,
   massageLabShapeGrid,
+  onRenderReadyChange,
+  forceContextFailureForReview = false,
 }: BackgroundEffectProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const gridOffsetRef = useRef({ x: 0, y: 0 })
@@ -43,7 +45,21 @@ export default function MassageLabShapeGridBackground({
 
   useEffect(() => {
     const canvas = canvasRef.current
-    const context = canvas?.getContext("2d", { alpha: true })
+    // Start unready and suppress repeated readiness values until the canvas completes a draw.
+    let reportedReadiness: boolean | null = null
+    const reportRenderReadiness = (ready: boolean) => {
+      if (reportedReadiness !== ready) {
+        reportedReadiness = ready
+        onRenderReadyChange?.(ready)
+      }
+    }
+    reportRenderReadiness(false)
+    // Non-production review surfaces may force the host fallback; production always requests a real context.
+    const forceContextFailure = process.env.NODE_ENV !== "production"
+      && forceContextFailureForReview
+    const context = forceContextFailure
+      ? null
+      : canvas?.getContext("2d", { alpha: true })
 
     if (!canvas || !context) {
       return undefined
@@ -212,6 +228,7 @@ export default function MassageLabShapeGridBackground({
 
     const updateCellOpacities = () => {
       const targets = new Map<string, number>()
+      let needsAnotherFrame = false
       if (hoveredCellRef.current) {
         targets.set(`${hoveredCellRef.current.x},${hoveredCellRef.current.y}`, 1)
       }
@@ -237,10 +254,15 @@ export default function MassageLabShapeGridBackground({
         const next = opacity + (target - opacity) * 0.15
         if (next < 0.005) {
           cellOpacities.delete(key)
+        } else if (Math.abs(target - next) < 0.005) {
+          cellOpacities.set(key, target)
         } else {
           cellOpacities.set(key, next)
+          needsAnotherFrame = true
         }
       }
+
+      return needsAnotherFrame
     }
 
     const pushTrail = (cell: GridCell | null) => {
@@ -271,6 +293,7 @@ export default function MassageLabShapeGridBackground({
       if (mouseX < 0 || mouseY < 0 || mouseX > width || mouseY > height) {
         pushTrail(hoveredCellRef.current)
         hoveredCellRef.current = null
+        render()
         return
       }
 
@@ -281,6 +304,7 @@ export default function MassageLabShapeGridBackground({
         const col = Math.round(adjustedX / hexHoriz)
         const rowOffset = (col + colShift) % 2 !== 0 ? hexVert / 2 : 0
         setHoveredCell({ x: col, y: Math.round((adjustedY - rowOffset) / hexVert) })
+        render()
         return
       }
 
@@ -292,6 +316,7 @@ export default function MassageLabShapeGridBackground({
           x: Math.round(adjustedX / halfW),
           y: Math.floor(adjustedY / options.squareSize),
         })
+        render()
         return
       }
 
@@ -307,17 +332,19 @@ export default function MassageLabShapeGridBackground({
             y: Math.floor(adjustedY / options.squareSize),
           }
       setHoveredCell(cell)
+      render()
     }
 
     const handlePointerLeave = () => {
       pushTrail(hoveredCellRef.current)
       hoveredCellRef.current = null
+      render()
     }
 
     const updateAnimation = () => {
       const animate = shouldAnimate()
       if (animate) {
-        const effectiveSpeed = Math.max(options.speed, 0.1)
+        const effectiveSpeed = options.speed
         const wrapX = isHex ? hexHoriz * 2 : options.squareSize
         const wrapY = isHex ? hexVert : isTri ? options.squareSize * 2 : options.squareSize
 
@@ -343,9 +370,10 @@ export default function MassageLabShapeGridBackground({
         }
       }
 
-      updateCellOpacities()
+      const opacityTransitionActive = updateCellOpacities()
       drawGrid()
-      if (animate && !disposed) {
+      reportRenderReadiness(true)
+      if (animate && !disposed && (options.speed > 0 || opacityTransitionActive)) {
         animationFrame = window.requestAnimationFrame(updateAnimation)
       }
     }
@@ -373,6 +401,7 @@ export default function MassageLabShapeGridBackground({
 
     return () => {
       disposed = true
+      reportRenderReadiness(false)
       window.cancelAnimationFrame(animationFrame)
       resizeObserver.disconnect()
       window.removeEventListener("resize", resize)
@@ -388,7 +417,7 @@ export default function MassageLabShapeGridBackground({
       canvas.width = 1
       canvas.height = 1
     }
-  }, [options])
+  }, [forceContextFailureForReview, onRenderReadyChange, options])
 
   return (
     <canvas
@@ -402,7 +431,7 @@ export default function MassageLabShapeGridBackground({
 function resolveShapeGridOptions(options?: MassageLabShapeGridOptions): ResolvedShapeGridOptions {
   return {
     direction: resolveDirection(options?.direction),
-    speed: resolveNumber(options?.speed, DEFAULT_MASSAGELAB_SHAPE_GRID.speed, 0.1, 8),
+    speed: resolveNumber(options?.speed, DEFAULT_MASSAGELAB_SHAPE_GRID.speed, 0, 2),
     borderColor: resolveHex(options?.borderColor, DEFAULT_MASSAGELAB_SHAPE_GRID.borderColor),
     squareSize: resolveNumber(options?.squareSize, DEFAULT_MASSAGELAB_SHAPE_GRID.squareSize, 12, 96),
     hoverFillColor: resolveHex(options?.hoverFillColor, DEFAULT_MASSAGELAB_SHAPE_GRID.hoverFillColor),

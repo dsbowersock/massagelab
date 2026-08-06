@@ -30,14 +30,14 @@ type ResolvedDotFieldOptions = Required<MassageLabDotFieldOptions>
 const TWO_PI = Math.PI * 2
 const OFFSCREEN_MOUSE = -9999
 const DEFAULT_MASSAGELAB_DOT_FIELD: ResolvedDotFieldOptions = {
-  dotRadius: 1.5,
-  dotSpacing: 14,
+  dotRadius: 4,
+  dotSpacing: 6,
   cursorRadius: 500,
   cursorForce: 0.1,
   bulgeOnly: true,
   bulgeStrength: 67,
   glowRadius: 160,
-  sparkle: false,
+  sparkle: true,
   waveAmplitude: 0,
   gradientFrom: "rgba(168, 85, 247, 0.35)",
   gradientTo: "rgba(180, 151, 207, 0.25)",
@@ -50,6 +50,8 @@ const DEFAULT_MASSAGELAB_DOT_FIELD: ResolvedDotFieldOptions = {
 export default function MassageLabDotFieldBackground({
   className,
   massageLabDotField,
+  onRenderReadyChange,
+  forceContextFailureForReview = false,
 }: BackgroundEffectProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const glowRef = useRef<SVGCircleElement | null>(null)
@@ -118,7 +120,21 @@ export default function MassageLabDotFieldBackground({
 
   useEffect(() => {
     const canvas = canvasRef.current
-    const context = canvas?.getContext("2d", { alpha: true })
+    // Start unready and suppress repeated readiness values until the canvas completes a draw.
+    let reportedReadiness: boolean | null = null
+    const reportRenderReadiness = (ready: boolean) => {
+      if (reportedReadiness !== ready) {
+        reportedReadiness = ready
+        onRenderReadyChange?.(ready)
+      }
+    }
+    reportRenderReadiness(false)
+    // Non-production review surfaces may force the host fallback; production always requests a real context.
+    const forceContextFailure = process.env.NODE_ENV !== "production"
+      && forceContextFailureForReview
+    const context = forceContextFailure
+      ? null
+      : canvas?.getContext("2d", { alpha: true })
     const glow = glowRef.current
 
     if (!canvas || !context) {
@@ -295,6 +311,7 @@ export default function MassageLabDotFieldBackground({
       }
 
       context.fill()
+      reportRenderReadiness(true)
 
       if (animate && !disposed) {
         animationFrame = window.requestAnimationFrame(draw)
@@ -321,6 +338,7 @@ export default function MassageLabDotFieldBackground({
 
     return () => {
       disposed = true
+      reportRenderReadiness(false)
       window.cancelAnimationFrame(animationFrame)
       window.clearInterval(speedInterval)
       window.clearTimeout(resizeTimer)
@@ -335,7 +353,7 @@ export default function MassageLabDotFieldBackground({
       canvas.width = 1
       canvas.height = 1
     }
-  }, [options])
+  }, [forceContextFailureForReview, onRenderReadyChange, options])
 
   return (
     <div className={cn(styles.massageLabDotField, className)} aria-hidden="true">

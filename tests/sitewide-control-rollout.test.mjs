@@ -107,7 +107,7 @@ test("review fixes preserve live route controls and interaction cleanup", async 
   assert.match(backgroundHost, /resolveBackgroundEffectProps/)
   assert.match(backgroundHost, /backgroundPalette/)
   assert.doesNotMatch(backgroundHost, /applyPaletteToBackgroundEffects/)
-  assert.match(backgroundHost, /<BackgroundComponent \{\.\.\.effectProps\} \/>/)
+  assert.match(backgroundHost, /<BackgroundComponent\s+\{\.\.\.effectProps\}/)
   assert.doesNotMatch(backgroundHost, /<BackgroundComponent\s+mainColor=/)
   assert.equal((controlCss.match(/^\.harmonyList \{/gm) ?? []).length, 1)
   assert.equal((controlCss.match(/^\.globalColorGrid \{/gm) ?? []).length, 1)
@@ -245,8 +245,8 @@ test("Track 4B computed-consumer contracts project the complete acceptance matri
     entry.allowedRenderChanges.join("|"),
     entry.allowedCouplings.join("|"),
   ])
-  assert.equal(COMPUTED_CONSUMER_CONTRACTS.length, 22)
-  assert.equal(new Set(COMPUTED_CONSUMER_CONTRACTS.map(({ key }) => key)).size, 22)
+  assert.equal(COMPUTED_CONSUMER_CONTRACTS.length, 23)
+  assert.equal(new Set(COMPUTED_CONSUMER_CONTRACTS.map(({ key }) => key)).size, 23)
   assert.equal(
     COMPUTED_CONSUMER_CONTRACTS.some(({ key }) => key === "massageLabDnaShowBaseLetters"),
     false,
@@ -259,9 +259,10 @@ test("Track 4B computed-consumer contracts project the complete acceptance matri
   assert.deepEqual(computedConsumerProjection, [
     ["massage-lab-dna", "Node motion speed", "massageLabDnaNodeMotionSpeed", "strand > connector + [data-side]", "animationDuration|animationDelay|transform", "firstNodeDuration|firstNodeDelay", "connectorTransform|startNodeTransform|endNodeTransform|connectorDuration|connectorDelay|startNodeDuration|startNodeDelay|endNodeDuration|endNodeDelay"],
     ["massage-lab-dna", "Strand rotation speed", "massageLabDnaStrandRotationSpeed", ".scene > .composition", "animationDuration", "rotationDuration", "sceneDuration"],
-    ["massage-lab-dna", "Strand count", "massageLabDnaStrandCount", ".scene grid + [data-side]", "count|height|animationDelay|transform", "strandCount|firstNodeDelay", "strandCount|nodeCount|strandHeight|connectorHeight|startNodeWidth|startNodeHeight|endNodeWidth|endNodeHeight|connectorDelay|startNodeDelay|endNodeDelay|connectorTransform|startNodeTransform|endNodeTransform"],
+    ["massage-lab-dna", "Strand count", "massageLabDnaStrandCount", ".scene grid + [data-side]", "count|height|animationDelay|translate|transform", "strandCount|firstNodeDelay|firstStrandOffset|lastStrandOffset", "strandCount|nodeCount|strandHeight|connectorHeight|startNodeWidth|startNodeHeight|endNodeWidth|endNodeHeight|firstStrandTranslate|lastStrandTranslate|connectorDelay|startNodeDelay|endNodeDelay|connectorTransform|startNodeTransform|endNodeTransform"],
     ["massage-lab-dna", "Strand angle", "massageLabDnaStrandAngle", ".scene > .composition", "rotate", "strandAngle", "sceneRotate"],
-    ["massage-lab-dna", "Strand spacing", "massageLabDnaStrandSpacing", ".scene > .composition", "rowGap|height|transform", "strandSpacing", "sceneRowGap|strandHeight|connectorHeight|startNodeWidth|startNodeHeight|endNodeWidth|endNodeHeight|connectorTransform|startNodeTransform|endNodeTransform"],
+    ["massage-lab-dna", "Node size", "massageLabDnaNodeSize", "strand > [data-side]", "width|height|transform", "nodeSize", "startNodeWidth|startNodeHeight|endNodeWidth|endNodeHeight|startNodeTransform|endNodeTransform"],
+    ["massage-lab-dna", "Strand spacing", "massageLabDnaStrandSpacing", ".scene > strand", "translate", "strandSpacing|firstStrandOffset|lastStrandOffset", "firstStrandTranslate|lastStrandTranslate"],
     ["massage-lab-dna", "Scale", "massageLabDnaScale", ":scope > .scene", "transform", "scale", "sceneTransform"],
     ["massage-lab-dna", "Position X", "massageLabDnaPositionX", ":scope > .scene", "transform", "positionX", "sceneTransform"],
     ["massage-lab-dna", "Position Y", "massageLabDnaPositionY", ":scope > .scene", "transform", "positionY", "sceneTransform"],
@@ -372,6 +373,9 @@ test("Track 4B shared sliders preserve accessible labeling", async () => {
   assert.match(sliderSource, /<SliderPrimitive\.Thumb[\s\S]*aria-label=\{ariaLabel\}/)
   assert.match(sliderSource, /aria-labelledby=\{ariaLabelledBy\}/)
   assert.match(sliderSource, /aria-describedby=\{ariaDescribedBy\}/)
+  assert.match(colorSliderSource, /--ml-slider-hue-track/)
+  assert.match(colorSliderSource, /huePreviewStops/)
+  assert.match(colorSliderSource, /interpolateHuePreview/)
   assert.match(colorSliderSource, /label=\{label\}/)
   assert.doesNotMatch(colorSliderSource, /aria-label=\{label\}/)
 })
@@ -462,17 +466,20 @@ test("DNA and Twisted Cubes share compact options and host-owned responsive moti
   assert.match(propertyGroupExecutableStyles, /\.backgroundPropertyGroup\s*\{[^}]*\bmin-width:\s*0/)
 })
 
-test("actual Chimer, ordinary Clock, Music, and ambient Host plumbing resolves all 23 values", async () => {
+test("actual Chimer, ordinary Clock, Music, and ambient Host plumbing resolves all 26 values", async () => {
   const settings = {
     massageLabDnaStrandCount: 15,
     massageLabDnaShowBaseLetters: true,
-    massageLabDnaNodeMotionSpeed: 1.25,
-    massageLabDnaStrandRotationSpeed: 1.5,
+    massageLabDnaNodeMotionSpeed: 0.12,
+    massageLabDnaStrandRotationEnabled: false,
+    massageLabDnaStrandRotationSpeed: 0.04,
+    massageLabDnaStrandRotationDirection: "counterclockwise",
     massageLabDnaStrandAngle: 45,
-    massageLabDnaScale: 0.9,
+    massageLabDnaScale: 0.4,
     massageLabDnaPositionX: 5,
     massageLabDnaPositionY: -5,
     massageLabDnaStrandSpacing: 0.75,
+    massageLabDnaNodeSize: 140,
     massageLabDnaConnectorWidth: 88,
     massageLabDnaConnectorThickness: 35,
     massageLabDnaOutlineThickness: 0.75,
@@ -491,13 +498,16 @@ test("actual Chimer, ordinary Clock, Music, and ambient Host plumbing resolves a
   const expectedDna = {
     strandCount: 15,
     showBaseLetters: true,
-    nodeMotionSpeed: 1.25,
-    strandRotationSpeed: 1.5,
+    nodeMotionSpeed: 0.12,
+    strandRotationEnabled: false,
+    strandRotationSpeed: 0.04,
+    strandRotationDirection: "counterclockwise",
     strandAngle: 45,
-    scale: 0.9,
+    scale: 0.4,
     positionX: 5,
     positionY: -5,
     strandSpacing: 0.75,
+    nodeSize: 140,
     connectorWidth: 88,
     connectorThickness: 35,
     outlineThickness: 0.75,

@@ -225,7 +225,13 @@ const defaultMusicContext: MusicContextType = {
 
 const MusicContext = createContext<MusicContextType>(defaultMusicContext)
 
-export function MusicProvider({ children }: { children: ReactNode }) {
+export function MusicProvider({
+  children,
+  accountSyncEnabled = true,
+}: {
+  children: ReactNode
+  accountSyncEnabled?: boolean
+}) {
   const [activeStationId, setActiveStationId] = useState<string | null>(null)
   const [activeStationTitle, setActiveStationTitle] = useState<string | null>(null)
   const [activeStationArtist, setActiveStationArtist] = useState<string | null>(null)
@@ -306,6 +312,12 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const persistVisualizerAccountPreferences = useCallback(async (
     preferences: MusicVisualizerAccountPreferences,
   ) => {
+    // Local-only routes disable account sync, which must block account-backed writes
+    // even when a public provider callback is invoked after the route changes.
+    if (!accountSyncEnabled) {
+      return
+    }
+
     if (!accountSyncVerifiedRef.current) {
       setAccountStatus("anonymous")
       setAccountError("Sign in to save a Music visualizer default.")
@@ -359,9 +371,14 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       setAccountStatus("error")
       setAccountError("Music visualizer preferences could not be saved. Try again.")
     }
-  }, [beginAccountRequest])
+  }, [accountSyncEnabled, beginAccountRequest])
 
   const syncVisualizerAccountPreferences = useCallback(async () => {
+    // Local-only routes must not perform either the session read or preferences read.
+    if (!accountSyncEnabled) {
+      return
+    }
+
     const { controller, requestId } = beginAccountRequest()
     accountSyncVerifiedRef.current = false
     accountPreferencesHydratedRef.current = false
@@ -437,7 +454,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       setAccountStatus("error")
       setAccountError("Music visualizer preferences could not be loaded. Try again.")
     }
-  }, [beginAccountRequest])
+  }, [accountSyncEnabled, beginAccountRequest])
 
   // Keep the provider mounted globally for route-persistent playback, but load
   // the audio catalog/runtime only after a user plays or prewarms a station.
@@ -494,8 +511,25 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       return
     }
 
+    if (!accountSyncEnabled) {
+      // Aborting transport is not enough: invalidate every continuation that
+      // already passed an abort boundary before local-only mode took effect.
+      accountRequestIdRef.current += 1
+      accountAbortControllerRef.current?.abort()
+      accountSyncVerifiedRef.current = false
+      accountPreferencesHydratedRef.current = false
+      accountDefaultBackgroundIdRef.current = null
+      pendingAccountDefaultBackgroundIdRef.current = null
+      failedAccountPayloadRef.current = null
+      setAccountDefaultBackgroundId(null)
+      setAccountStatus("anonymous")
+      setAccountError(null)
+      setAccountSignedIn(false)
+      return
+    }
+
     void syncVisualizerAccountPreferences()
-  }, [storageHydrated, syncVisualizerAccountPreferences])
+  }, [accountSyncEnabled, storageHydrated, syncVisualizerAccountPreferences])
 
   // Keep the active Tone graph in sync with saved volume changes without
   // restarting the station or creating a second audio context.

@@ -129,7 +129,7 @@ void main() {
         color += glowIntensity * exp(-gridThickness * 0.5 * smoothB.y);
     }
 
-    float ddd = exp(-2.0 * clamp(pow(dist, fadeDistance), 0.0, 1.0));
+    float radialFade = exp(-2.0 * clamp(pow(dist, fadeDistance), 0.0, 1.0));
 
     vec2 vignetteCoords = vUv - 0.5;
     float vignetteDistance = length(vignetteCoords);
@@ -147,9 +147,11 @@ void main() {
         t = gridColor;
     }
 
-    float finalFade = ddd * vignette;
-    float alpha = length(color) * finalFade * opacity;
-    gl_FragColor = vec4(color * t * finalFade * opacity, alpha);
+    // Edge controls shape grid brightness but must not reveal the Host underlay.
+    float edgeCoverage = mix(0.72, 1.0, radialFade * vignette);
+    // Bound straight RGB before premultiplication so each channel remains at or below alpha.
+    vec3 straightColor = clamp(color * t * edgeCoverage, 0.0, 1.0);
+    gl_FragColor = vec4(straightColor * opacity, opacity);
 }
 `
 
@@ -158,6 +160,8 @@ void main() {
 export default function MassageLabRippleGridBackground({
   className,
   massageLabRippleGrid,
+  onRenderReadyChange,
+  forceContextFailureForReview = false,
 }: BackgroundEffectProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const targetMouseRef = useRef<[number, number]>([0.5, 0.5])
@@ -171,34 +175,39 @@ export default function MassageLabRippleGridBackground({
 
   useEffect(() => {
     const canvas = canvasRef.current
-    const gl = canvas?.getContext("webgl", {
-      alpha: true,
-      antialias: false,
-      depth: false,
-      powerPreference: "high-performance",
-      premultipliedAlpha: false,
-      preserveDrawingBuffer: false,
-      stencil: false,
-    })
+    // Start unready and notify the host only when WebGL readiness actually changes.
+    let reportedReadiness: boolean | null = null
+    const reportRenderReadiness = (ready: boolean) => {
+      if (reportedReadiness !== ready) {
+        reportedReadiness = ready
+        onRenderReadyChange?.(ready)
+      }
+    }
+    reportRenderReadiness(false)
+    // Non-production review surfaces may force the fallback path; production always requests WebGL.
+    const forceContextFailure = process.env.NODE_ENV !== "production"
+      && forceContextFailureForReview
+    const gl = forceContextFailure
+      ? null
+      : canvas?.getContext("webgl", {
+          alpha: true,
+          antialias: false,
+          depth: false,
+          powerPreference: "high-performance",
+          // Shader output and blending are premultiplied so browser composition applies opacity once.
+          premultipliedAlpha: true,
+          preserveDrawingBuffer: false,
+          stencil: false,
+        })
 
     if (!canvas || !gl) {
       return undefined
     }
 
-    const resources = createRippleGridResources(gl)
-    if (!resources) {
-      return undefined
-    }
-
-    gl.clearColor(0, 0, 0, 0)
-    gl.disable(gl.DEPTH_TEST)
-    gl.disable(gl.CULL_FACE)
-    gl.enable(gl.BLEND)
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
-
     const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)")
     const compactViewportQuery = window.matchMedia("(max-width: 360px), (max-height: 360px)")
     const startTime = performance.now()
+    let resources: RippleGridResources | null = null
     let frame = 0
     let disposed = false
     let width = 1
@@ -211,6 +220,9 @@ export default function MassageLabRippleGridBackground({
     })
 
     const resize = () => {
+      if (gl.isContextLost()) {
+        return
+      }
       const bounds = canvas.getBoundingClientRect()
       const cssWidth = Math.max(1, Math.floor(bounds.width))
       const cssHeight = Math.max(1, Math.floor(bounds.height))
@@ -227,7 +239,8 @@ export default function MassageLabRippleGridBackground({
     }
 
     const draw = (timestamp: number) => {
-      if (disposed) {
+      const activeResources = resources
+      if (disposed || !activeResources || gl.isContextLost()) {
         return
       }
 
@@ -242,7 +255,17 @@ export default function MassageLabRippleGridBackground({
         smoothInfluenceRef.current += (targetInfluenceRef.current - smoothInfluenceRef.current) * 0.05
       }
 
-      renderRippleGrid(gl, resources, width, height, time, smoothMouseRef.current, smoothInfluenceRef.current, options)
+      renderRippleGrid(
+        gl,
+        activeResources,
+        width,
+        height,
+        time,
+        smoothMouseRef.current,
+        smoothInfluenceRef.current,
+        options,
+      )
+      reportRenderReadiness(true)
 
       if (animate) {
         frame = window.requestAnimationFrame(draw)
@@ -253,6 +276,48 @@ export default function MassageLabRippleGridBackground({
       window.cancelAnimationFrame(frame)
       resize()
       draw(performance.now())
+    }
+
+    const initializeResources = () => {
+      reportRenderReadiness(false)
+      if (disposed || gl.isContextLost()) {
+        return false
+      }
+
+      let nextResources: RippleGridResources | null = null
+      try {
+        nextResources = createRippleGridResources(gl)
+      } catch (error) {
+        console.error("MassageLab Ripple Grid initialization failed", error)
+      }
+      if (!nextResources) {
+        return false
+      }
+
+      resources = nextResources
+      gl.clearColor(0, 0, 0, 0)
+      gl.disable(gl.DEPTH_TEST)
+      gl.disable(gl.CULL_FACE)
+      gl.enable(gl.BLEND)
+      // The fragment shader emits premultiplied RGB and linear opacity alpha.
+      gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
+      render()
+      return true
+    }
+
+    const handleContextLost = (event: Event) => {
+      // Cancelling the default loss lets Chromium restore the same canvas.
+      event.preventDefault()
+      window.cancelAnimationFrame(frame)
+      frame = 0
+      resources = null
+      reportRenderReadiness(false)
+    }
+
+    const handleContextRestored = () => {
+      if (!disposed) {
+        initializeResources()
+      }
     }
 
     const handlePointerMove = (event: PointerEvent) => {
@@ -270,6 +335,19 @@ export default function MassageLabRippleGridBackground({
       }
     }
 
+    canvas.addEventListener("webglcontextlost", handleContextLost)
+    canvas.addEventListener("webglcontextrestored", handleContextRestored)
+    if (!initializeResources()) {
+      return () => {
+        disposed = true
+        canvas.removeEventListener("webglcontextlost", handleContextLost)
+        canvas.removeEventListener("webglcontextrestored", handleContextRestored)
+        reportRenderReadiness(false)
+        canvas.width = 1
+        canvas.height = 1
+      }
+    }
+
     const resizeObserver = new ResizeObserver(render)
     resizeObserver.observe(canvas)
     window.addEventListener("resize", render, { passive: true })
@@ -279,22 +357,27 @@ export default function MassageLabRippleGridBackground({
     if (options.mouseInteraction) {
       window.addEventListener("pointermove", handlePointerMove, { passive: true })
     }
-    render()
 
     return () => {
       disposed = true
+      reportRenderReadiness(false)
       window.cancelAnimationFrame(frame)
       resizeObserver.disconnect()
+      canvas.removeEventListener("webglcontextlost", handleContextLost)
+      canvas.removeEventListener("webglcontextrestored", handleContextRestored)
       window.removeEventListener("resize", render)
       document.removeEventListener("visibilitychange", render)
       reducedMotionQuery.removeEventListener("change", render)
       compactViewportQuery.removeEventListener("change", render)
       window.removeEventListener("pointermove", handlePointerMove)
-      disposeRippleGridResources(gl, resources)
+      if (resources && !gl.isContextLost()) {
+        disposeRippleGridResources(gl, resources)
+      }
+      resources = null
       canvas.width = 1
       canvas.height = 1
     }
-  }, [options])
+  }, [forceContextFailureForReview, onRenderReadyChange, options])
 
   return (
     <canvas

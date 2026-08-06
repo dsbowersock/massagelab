@@ -163,6 +163,7 @@ function OwnershipCard({ ownership }: { ownership: Ownership }) {
           <h3 className="font-semibold">{background.label}</h3>
           <span className="rounded-full border px-2 py-0.5 text-xs">{ownershipStatus(ownership.status)}</span>
         </div>
+        <p className="text-sm text-muted-foreground">{background.visualDescriptor}</p>
         <p className="text-xs text-muted-foreground">
           {sourceLabel(ownership.source)} on {dateLabel(ownership.acquiredAt)}
         </p>

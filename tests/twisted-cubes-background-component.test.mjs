@@ -76,6 +76,7 @@ test("the Twisted Cubes renderer stays a scoped, non-interactive CSS DOM effect"
   assert.match(stylesheetCode, /@keyframes\s+mlTwistedCubesRotate/)
   assert.doesNotMatch(stylesheetCode, /backface-visibility/)
   assert.doesNotMatch(stylesheetCode, /scale\(var\(--ml-twisted-cubes-scale\)\)/)
+  assert.doesNotMatch(stylesheetCode, /will-change/)
   assert.match(stylesheetCode, /cubic-bezier\(0\.5, 0\.1, 0\.5, 0\.9\)/)
   assert.match(
     stylesheetCode,

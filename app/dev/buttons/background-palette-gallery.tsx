@@ -44,9 +44,11 @@ import {
 import { AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Notice } from "@/components/ui/notice"
+import { GridMotionMantraEditor } from "@/app/chimer/grid-motion-mantra-editor"
 import { useMusic } from "@/components/providers/music-provider"
 import { useSettings } from "@/components/providers/settings-provider"
 import { FEATURE_KEYS } from "@/lib/membership"
+import { DEFAULT_GRID_MOTION_MANTRAS } from "@/lib/grid-motion-mantras"
 import { BackgroundPreviewMediaReview } from "./background-preview-media-review"
 import { TRACK_4B_CUSTOM_SWATCHES } from "./background-palette-review-fixtures"
 import {
@@ -106,7 +108,7 @@ const TRACK_4B_LOCKED_ACCESS = Object.freeze({
 })
 const TRACK_4B_LABELS: Readonly<Record<Track4BBackgroundId, string>> = Object.freeze({
   "massage-lab-dna": "DNA",
-  "massage-lab-twisted-cubes": "Twisted Cubes",
+  "massage-lab-twisted-cubes": "Hypercube",
 })
 const TRACK_4B_PREVIEWS = TRACK_4B_IDS.map((id) => {
   const entry = backgroundPreviewManifest[id]
@@ -160,8 +162,8 @@ const movingGradientAdapter = backgroundPaletteRegistry["massage-lab-moving-grad
 const sharedRoleMapping: BackgroundColorMapping = movingGradientAdapter
   ? { main: 0, orb: 0 }
   : {}
-const unsupportedAdapter = backgroundPaletteRegistry["massage-lab-aurora"]
-  ?? Object.values(backgroundPaletteRegistry).find((entry) => entry.status === "unsupported")
+const unsupportedAdapter = Object.values(backgroundPaletteRegistry)
+  .find((entry) => entry.status === "unsupported")
 const representativeEntries = (["css-dom", "canvas", "webgl"] as const)
   .map(representativeByFamily)
   .filter((entry): entry is BackgroundDefinition => Boolean(entry))
@@ -458,7 +460,7 @@ function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) 
     >
       <div>
         <h3 id="track-4b-review-heading" className="text-xl font-semibold">
-          DNA and Twisted Cubes acceptance matrix
+          DNA and Hypercube acceptance matrix
         </h3>
         <p className="text-sm text-muted-foreground">
           Source, Custom, Harmony, reduced motion, compact viewport, access, draft,
@@ -488,7 +490,7 @@ function Track4BBackgroundReview({ reducedMotion }: { reducedMotion: boolean }) 
             className="h-10 rounded-md border border-input bg-background px-3"
           >
             <option value="massage-lab-dna">DNA</option>
-            <option value="massage-lab-twisted-cubes">Twisted Cubes</option>
+            <option value="massage-lab-twisted-cubes">Hypercube</option>
           </select>
         </label>
         <label className="grid gap-1 text-sm font-medium">
@@ -636,6 +638,12 @@ export function BackgroundPaletteGallery() {
   const [mappingsByBackground, setMappingsByBackground] = useState<
     Partial<Record<BackgroundId, BackgroundColorMapping>>
   >({})
+  const [forceLiveReviewAnimation, setForceLiveReviewAnimation] = useState(true)
+  const [forceLiveRendererContextFailure, setForceLiveRendererContextFailure] = useState(false)
+  const [gridMotionMantras, setGridMotionMantras] = useState<string[]>(
+    () => [...DEFAULT_GRID_MOTION_MANTRAS],
+  )
+  const [gridMotionMountVersion, setGridMotionMountVersion] = useState(0)
   const { settings } = useSettings()
   const reducedMotion = useAmbientReducedMotion(settings.ambientMotionMode)
 
@@ -895,6 +903,37 @@ export function BackgroundPaletteGallery() {
           </select>
         </label>
         <ProductionMusicContinuityProbe />
+        <label className="flex items-center gap-2 text-sm font-medium">
+          <input
+            type="checkbox"
+            checked={forceLiveReviewAnimation}
+            onChange={(event) => setForceLiveReviewAnimation(event.currentTarget.checked)}
+            aria-label="Force live review animation"
+          />
+          Force live review animation
+        </label>
+        <label className="flex items-center gap-2 text-sm font-medium">
+          <input
+            type="checkbox"
+            checked={forceLiveRendererContextFailure}
+            onChange={(event) => setForceLiveRendererContextFailure(event.currentTarget.checked)}
+            aria-label="Force live renderer context failure"
+          />
+          Force live renderer context failure
+        </label>
+
+        {selectedId === "massage-lab-grid-motion" ? (
+          <AppSurface title="Production Grid Motion controls" variant="inset">
+            <GridMotionMantraEditor value={gridMotionMantras} onChange={setGridMotionMantras} />
+            {/* Grid Motion reads its mantra list during renderer setup, so review changes require a remount. */}
+            <Button
+              className="mt-3"
+              size="compact"
+              variant="secondary"
+              onClick={() => setGridMotionMountVersion((current) => current + 1)}
+            >Remount Grid Motion</Button>
+          </AppSurface>
+        ) : null}
 
         {adapter && selectedBackground ? (
           <>
@@ -929,8 +968,12 @@ export function BackgroundPaletteGallery() {
               data-role-count={adapter.status === "supported" ? adapter.roles.length : 0}
               data-reduced-motion={reducedMotion ? "true" : "false"}
             >
-              <div className="relative min-h-80 overflow-hidden rounded-2xl border border-border bg-black">
+              <div
+                className="relative min-h-80 overflow-hidden rounded-2xl border border-border bg-black"
+                style={selectedId === "massage-lab-grid-motion" ? { height: "100dvh" } : undefined}
+              >
                 <BackgroundHost
+                  key={`live-${selectedId === "massage-lab-grid-motion" ? gridMotionMountVersion : 0}`}
                   {...TRACK_4B_DEVELOPMENT_HOST_PROPS}
                   selectedId={selectedId}
                   access={DEVELOPMENT_REVIEW_ACCESS}
@@ -946,12 +989,14 @@ export function BackgroundPaletteGallery() {
                     bloomStrength: 0,
                     bloomRadius: 0,
                   }}
+                  massageLabDarkVeil={{ resolutionScale: 0.25, speed: 1 }}
+                  massageLabGridMotion={{ mantras: gridMotionMantras }}
                   massageLabRippleGrid={{
                     gridColor: "#ffffff",
                     enableRainbow: true,
                     gridSize: 17,
                     rippleIntensity: 0.17,
-                    opacity: 0.63,
+                    opacity: 0.5,
                     mouseInteraction: false,
                   }}
                   auroraBars={{
@@ -990,7 +1035,8 @@ export function BackgroundPaletteGallery() {
                   className="absolute inset-0"
                   motionEnabled
                   forceEffectMount
-                  forceAmbientMotionForReview
+                  forceAmbientMotionForReview={forceLiveReviewAnimation}
+                  forceRendererContextFailureForReview={forceLiveRendererContextFailure}
                   testId="background-palette-live-host"
                   diagnostics
                 />
