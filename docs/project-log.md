@@ -6,6 +6,12 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-05 — Reveal Dots visible distributed motion
+
+- Corrected Reveal Dots after Device Toolbar review showed that its former `0.86x-1.10x` randomly phased opacity shimmer was technically repainting but visually static at phone scale. Individual anchored dots now brighten and dim smoothly on their existing seeded phases and speeds across a wider `0.65x-1.45x` opacity multiplier, so the field visibly twinkles without relying on pointer input.
+- Removed the first coherent-wave attempt after direct review showed that its screen-wide sweep changed the background's intended character. The final renderer keeps the source-like grid, dot positions, dot sizes, colors, spacing, gradient choice, settings, entitlement behavior, and `massage-lab-reveal-dots` ID unchanged. Reduced motion returns the authored steady frame.
+- The focused motion regression, all 2,000 repository tests, typecheck, lint, the 102-page Production build, and the localhost-only `/dev/clock` HTTP check pass. Final visual judgment remains in the user's Device Toolbar review.
+
 ## 2026-08-05 — Light Lines independent background, colors, and expanded tuning
 
 - Promoted Light Lines from an unsupported CSS/DOM palette adapter to seven concrete roles. Source preserves the authored compound background and complete 21-color line cycle. Custom/Harmony repeat six foreground colors from Swatches 1-6 across the SVG paths while keeping the saved Swatch 7 background independent and editable.

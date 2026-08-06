@@ -5798,6 +5798,46 @@ describe("premium background registry", () => {
     assert.match(runningSource, /backgroundLines=\{\{/)
   })
 
+  it("gives Reveal Dots visible distributed twinkles and a stable reduced-motion frame", async () => {
+    const { resolveCanvasRevealDotTwinkle } = await import(
+      "../components/backgrounds/effects/canvas-reveal-dots-motion.ts"
+    )
+    const dot = {
+      phase: -Math.PI / 2,
+      speed: 1,
+    }
+    const dimFrame = resolveCanvasRevealDotTwinkle({
+      ...dot,
+      timeSeconds: 0,
+      animate: true,
+    })
+    const brightFrame = resolveCanvasRevealDotTwinkle({
+      ...dot,
+      timeSeconds: Math.PI / 1.55,
+      animate: true,
+    })
+    const offsetDotFrame = resolveCanvasRevealDotTwinkle({
+      ...dot,
+      phase: Math.PI / 2,
+      timeSeconds: 0,
+      animate: true,
+    })
+    const reducedFrameA = resolveCanvasRevealDotTwinkle({
+      ...dot,
+      timeSeconds: 0,
+      animate: false,
+    })
+    const reducedFrameB = resolveCanvasRevealDotTwinkle({
+      ...dot,
+      timeSeconds: 100,
+      animate: false,
+    })
+
+    assert.ok(brightFrame.alphaMultiplier - dimFrame.alphaMultiplier >= 0.8)
+    assert.ok(offsetDotFrame.alphaMultiplier - dimFrame.alphaMultiplier >= 0.8)
+    assert.deepEqual(reducedFrameA, reducedFrameB)
+  })
+
   it("keeps MassageLab Synthesis source-shaped, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
       new URL("../components/backgrounds/effects/massage-lab-synthesis-background.tsx", import.meta.url),

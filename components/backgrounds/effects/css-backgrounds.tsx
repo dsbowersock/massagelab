@@ -10,6 +10,7 @@ import {
 } from "@/lib/static-gradient-background"
 import { cn } from "@/lib/utils"
 import styles from "@/components/backgrounds/BackgroundHost.module.css"
+import { resolveCanvasRevealDotTwinkle } from "./canvas-reveal-dots-motion"
 
 export interface StaticGradientOptions {
   type?: "linear" | "radial"
@@ -3325,10 +3326,13 @@ export function MassageLabCanvasRevealDotsBackground({
       const dotPixelSize = Math.max(1, dotSize)
 
       for (const dot of dots) {
-        const shimmer = animate
-          ? 0.86 + ((Math.sin(time * dot.speed * 2.2 + dot.phase) + 1) / 2) * 0.24
-          : 1
-        const alpha = Math.min(1, Math.max(0.02, dot.opacity * opacity * shimmer))
+        const motion = resolveCanvasRevealDotTwinkle({
+          phase: dot.phase,
+          speed: dot.speed,
+          timeSeconds: time,
+          animate,
+        })
+        const alpha = Math.min(1, Math.max(0.02, dot.opacity * opacity * motion.alphaMultiplier))
         const color = palette[dot.colorIndex] ?? palette[0]
         const size = dotPixelSize * dot.sizeFactor
 
