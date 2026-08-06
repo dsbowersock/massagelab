@@ -223,6 +223,7 @@ export interface CssDomPaletteEffectPropsById {
   "massage-lab-aerial-rays": Pick<BackgroundEffectProps, "massageLabAerialRays">
   "massage-lab-aurora": Pick<BackgroundEffectProps, "massageLabAurora">
   "massage-lab-background-beams": Pick<BackgroundEffectProps, "massageLabBackgroundBeams">
+  "massage-lab-background-lines": Pick<BackgroundEffectProps, "backgroundLines">
   "massage-lab-collision-beams": Pick<BackgroundEffectProps, "massageLabCollisionBeams">
   "massage-lab-glowing-stars": Pick<BackgroundEffectProps, "massageLabGlowingStars">
   "massage-lab-meteors": Pick<BackgroundEffectProps, "massageLabMeteors">
@@ -1082,7 +1083,21 @@ export type ColorHarmony =
 export type MassageLabGradientHarmony = ColorHarmony
 
 export interface BackgroundLinesOptions {
+  /** Source retains the authored compound backdrop; resolved uses the saved background swatch. */
+  paletteMode?: "source" | "resolved"
+  backgroundColor?: string
+  /** Six colors repeated across the SVG path field in Custom and Harmony modes. */
+  colors?: readonly string[]
+  /** Base sweep duration in seconds before each path's authored repeat delay. */
   duration?: number
+  /** Opacity applied to the complete SVG line field. */
+  intensity?: number
+  /** Number of visible paths across the two authored passes. */
+  count?: number
+  /** Path stroke width in SVG units. */
+  lineWidth?: number
+  /** Path drop-shadow blur radius in CSS pixels. */
+  glowStrength?: number
 }
 
 export interface MassageLabAuroraOptions {
@@ -1406,9 +1421,23 @@ const massageLabGradientHarmonies = new Set<MassageLabGradientHarmony>([
   "monochromatic",
 ])
 
-const DEFAULT_BACKGROUND_LINES: Required<BackgroundLinesOptions> = {
+const BACKGROUND_LINES_SOURCE_COLORS = Object.freeze([
+  "#46A5CA", "#8C2F2F", "#4FAE4D", "#D6590C", "#811010", "#247AFB",
+] as const)
+
+const MASSAGE_LAB_BACKGROUND_LINES_SOURCE_BACKGROUND =
+  "radial-gradient(circle at 52% 45%, rgba(36, 122, 251, 0.12), transparent 36%), radial-gradient(circle at 25% 78%, rgba(214, 89, 12, 0.1), transparent 32%), linear-gradient(145deg, #050505, #080b12 60%, #050505)"
+
+const DEFAULT_BACKGROUND_LINES = Object.freeze({
+  paletteMode: "source" as const,
+  backgroundColor: "#050505",
+  colors: BACKGROUND_LINES_SOURCE_COLORS,
   duration: 10,
-}
+  intensity: 0.68,
+  count: 26,
+  lineWidth: 2.3,
+  glowStrength: 10,
+})
 
 const DEFAULT_CANVAS_REVEAL_DOTS: Required<CanvasRevealDotsOptions> = {
   backgroundColor: "#020617",
@@ -2417,13 +2446,26 @@ export function MassageLabBackgroundLines({
   backgroundLines,
 }: BackgroundEffectProps) {
   const resolved = resolveBackgroundLinesOptions(backgroundLines)
+  const lineColors = resolved.paletteMode === "source"
+    ? massageLabBackgroundLineColors
+    : resolved.colors
+  const rootStyle = {
+    "--ml-background-lines-background": resolved.paletteMode === "source"
+      ? MASSAGE_LAB_BACKGROUND_LINES_SOURCE_BACKGROUND
+      : resolved.backgroundColor,
+    "--ml-background-lines-intensity": resolved.intensity,
+    "--ml-background-line-width": resolved.lineWidth,
+    "--ml-background-line-glow": `${resolved.glowStrength}px`,
+  } as CSSProperties
 
   const renderPaths = (pass: 0 | 1) => (
     massageLabBackgroundLinePaths.map((path, index) => {
+      const ordinal = pass * massageLabBackgroundLinePaths.length + index
+      if (ordinal >= resolved.count) return null
       const repeatDelay = 2 + ((index * 5 + pass * 3) % 10)
       const delay = (index * 3 + pass * 5) % 10
       const style = {
-        "--ml-background-line-color": massageLabBackgroundLineColors[index % massageLabBackgroundLineColors.length],
+        "--ml-background-line-color": lineColors[ordinal % lineColors.length],
         "--ml-background-line-cycle": `${resolved.duration + repeatDelay}s`,
         "--ml-background-line-delay": `${delay}s`,
       } as CSSProperties
@@ -2440,7 +2482,11 @@ export function MassageLabBackgroundLines({
   )
 
   return (
-    <div className={cn(styles.effectLayer, styles.massageLabBackgroundLines, className)} aria-hidden="true">
+    <div
+      className={cn(styles.effectLayer, styles.massageLabBackgroundLines, className)}
+      style={rootStyle}
+      aria-hidden="true"
+    >
       <svg
         className={styles.backgroundLinesSvg}
         viewBox="0 0 1440 900"
@@ -3655,8 +3701,19 @@ function resolveCanvasRevealDotsOptions(
 function resolveBackgroundLinesOptions(
   backgroundLines: BackgroundLinesOptions | undefined,
 ): Required<BackgroundLinesOptions> {
+  const colors = DEFAULT_BACKGROUND_LINES.colors.map((fallback, index) => (
+    normalizeHexColor(backgroundLines?.colors?.[index], fallback)
+  ))
+
   return {
+    paletteMode: backgroundLines?.paletteMode === "resolved" ? "resolved" : "source",
+    backgroundColor: normalizeHexColor(backgroundLines?.backgroundColor, DEFAULT_BACKGROUND_LINES.backgroundColor),
+    colors,
     duration: clampNumber(backgroundLines?.duration, DEFAULT_BACKGROUND_LINES.duration, 4, 18),
+    intensity: clampNumber(backgroundLines?.intensity, DEFAULT_BACKGROUND_LINES.intensity, 0.1, 1),
+    count: Math.round(clampNumber(backgroundLines?.count, DEFAULT_BACKGROUND_LINES.count, 6, 26)),
+    lineWidth: clampNumber(backgroundLines?.lineWidth, DEFAULT_BACKGROUND_LINES.lineWidth, 0.5, 6),
+    glowStrength: clampNumber(backgroundLines?.glowStrength, DEFAULT_BACKGROUND_LINES.glowStrength, 0, 24),
   }
 }
 

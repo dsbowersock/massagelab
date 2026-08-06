@@ -3296,6 +3296,31 @@ describe("Chimer timer helpers", () => {
     assert.equal(sanitizeChimerSettings({ massageLabMeteorsTailLength: 0 }).massageLabMeteorsTailLength, 15)
   })
 
+  it("normalizes Light Lines visual controls", () => {
+    assert.equal(DEFAULT_CHIMER_SETTINGS.backgroundLinesDuration, 10)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.backgroundLinesIntensity, 0.68)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.backgroundLinesCount, 26)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.backgroundLinesWidth, 2.3)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.backgroundLinesGlowStrength, 10)
+
+    const settings = sanitizeChimerSettings({
+      backgroundLinesDuration: 99,
+      backgroundLinesIntensity: -1,
+      backgroundLinesCount: 99,
+      backgroundLinesWidth: 99,
+      backgroundLinesGlowStrength: 99,
+    })
+    assert.equal(settings.backgroundLinesDuration, 18)
+    assert.equal(settings.backgroundLinesIntensity, 0.1)
+    assert.equal(settings.backgroundLinesCount, 26)
+    assert.equal(settings.backgroundLinesWidth, 6)
+    assert.equal(settings.backgroundLinesGlowStrength, 24)
+    assert.equal(sanitizeChimerSettings({ backgroundLinesDuration: 0 }).backgroundLinesDuration, 4)
+    assert.equal(sanitizeChimerSettings({ backgroundLinesCount: 0 }).backgroundLinesCount, 6)
+    assert.equal(sanitizeChimerSettings({ backgroundLinesWidth: 0 }).backgroundLinesWidth, 0.5)
+    assert.equal(sanitizeChimerSettings({ backgroundLinesGlowStrength: -1 }).backgroundLinesGlowStrength, 0)
+  })
+
   it("normalizes MassageLab Synthesis background controls", () => {
     const settings = sanitizeChimerSettings({
       massageLabSynthesisPaletteMode: "harmony",

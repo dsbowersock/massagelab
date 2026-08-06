@@ -105,6 +105,14 @@ const BACKGROUND_BEAMS_SOURCE_COLORS = Object.freeze([
   "#6344F5",
   "#AE48FF",
 ] as const)
+const BACKGROUND_LINES_SOURCE_COLORS = Object.freeze([
+  "#46A5CA",
+  "#8C2F2F",
+  "#4FAE4D",
+  "#D6590C",
+  "#811010",
+  "#247AFB",
+] as const)
 const DNA_NODE_ROLE_IDS = Object.freeze([
   "node-one", "node-two", "node-three", "node-four",
 ] as const)
@@ -121,6 +129,9 @@ const AURORA_FIELD_ROLE_IDS = Object.freeze([
 const BACKGROUND_BEAMS_ROLE_IDS = Object.freeze([
   "beam-1", "beam-2", "beam-3",
 ] as const)
+const BACKGROUND_LINES_ROLE_IDS = Object.freeze([
+  "line-1", "line-2", "line-3", "line-4", "line-5", "line-6",
+] as const)
 const STATIC_GRADIENT_ROLE_IDS = Object.freeze([
   "color-one", "color-two", "color-three", "color-four",
   "color-five", "color-six", "color-seven",
@@ -133,6 +144,7 @@ for (const [roleIds, sourceFallbacks] of [
   [AURORA_BAR_ROLE_IDS, AURORA_BARS_SOURCE_COLORS],
   [AURORA_FIELD_ROLE_IDS, AURORA_FIELD_SOURCE_COLORS],
   [BACKGROUND_BEAMS_ROLE_IDS, BACKGROUND_BEAMS_SOURCE_COLORS],
+  [BACKGROUND_LINES_ROLE_IDS, BACKGROUND_LINES_SOURCE_COLORS],
 ] as const) {
   if (roleIds.length !== sourceFallbacks.length) {
     throw new Error(
@@ -442,6 +454,24 @@ export function applyCssDomPaletteRoleColors<
             BACKGROUND_BEAMS_ROLE_IDS,
             colors,
             BACKGROUND_BEAMS_SOURCE_COLORS,
+          ),
+        },
+      }
+    case "massage-lab-background-lines":
+      return {
+        ...props,
+        backgroundLines: {
+          ...props.backgroundLines,
+          backgroundColor: roleColor(
+            colors,
+            "background",
+            props.backgroundLines?.backgroundColor,
+          ),
+          colors: roleColorArray(
+            props.backgroundLines?.colors,
+            BACKGROUND_LINES_ROLE_IDS,
+            colors,
+            BACKGROUND_LINES_SOURCE_COLORS,
           ),
         },
       }
@@ -796,6 +826,25 @@ const SUPPORTED_SPECS: readonly SupportedSpec[] = [
     }],
   },
   {
+    id: "massage-lab-background-lines",
+    family: "css-dom",
+    prefixes: ["backgroundLines"],
+    roles: [
+      role("background", "Background", "backgroundLinesBackgroundColor", "backgroundLines.backgroundColor", undefined, "#050505", 6, "saved-swatch"),
+      role("line-1", "Line 1", "backgroundLinesColorOne", "backgroundLines.colors[0]", undefined, BACKGROUND_LINES_SOURCE_COLORS[0], 0),
+      role("line-2", "Line 2", "backgroundLinesColorTwo", "backgroundLines.colors[1]", undefined, BACKGROUND_LINES_SOURCE_COLORS[1], 1),
+      role("line-3", "Line 3", "backgroundLinesColorThree", "backgroundLines.colors[2]", undefined, BACKGROUND_LINES_SOURCE_COLORS[2], 2),
+      role("line-4", "Line 4", "backgroundLinesColorFour", "backgroundLines.colors[3]", undefined, BACKGROUND_LINES_SOURCE_COLORS[3], 3),
+      role("line-5", "Line 5", "backgroundLinesColorFive", "backgroundLines.colors[4]", undefined, BACKGROUND_LINES_SOURCE_COLORS[4], 4),
+      role("line-6", "Line 6", "backgroundLinesColorSix", "backgroundLines.colors[5]", undefined, BACKGROUND_LINES_SOURCE_COLORS[5], 5),
+    ],
+    modeOverrides: [{
+      rendererTarget: "backgroundLines.paletteMode",
+      sourceValue: "source",
+      customValue: "resolved",
+    }],
+  },
+  {
     id: "massage-lab-collision-beams",
     family: "css-dom",
     prefixes: ["massageLabCollisionBeams"],
@@ -1025,7 +1074,6 @@ const SUPPORTED_SPECS: readonly SupportedSpec[] = [
 const UNSUPPORTED_SPECS: readonly UnsupportedSpec[] = [
   { id: "massage-lab-prism", family: "webgl", prefixes: ["massageLabPrism"], reason: "Prism exposes spectral and hue controls rather than a concrete color target, so its source rendering remains unchanged during adapter migration." },
   { id: "massage-lab-dark-veil", family: "webgl", prefixes: ["massageLabDarkVeil"], reason: "Dark Veil exposes a hue shift rather than a concrete color target, so its source rendering remains unchanged during adapter migration." },
-  { id: "massage-lab-background-lines", family: "css-dom", prefixes: ["backgroundLines"] },
   { id: "massage-lab-bubble", family: "css-dom" },
 ]
 

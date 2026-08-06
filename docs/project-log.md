@@ -6,6 +6,12 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `MassageLaba Lamp` is the established catalog label for the original free moving-gradient default; general prose that says `MassageLab Lamp` refers to that same entry, not a separate background.
 
+## 2026-08-05 — Light Lines independent background, colors, and expanded tuning
+
+- Promoted Light Lines from an unsupported CSS/DOM palette adapter to seven concrete roles. Source preserves the authored compound background and complete 21-color line cycle. Custom/Harmony repeat six foreground colors from Swatches 1-6 across the SVG paths while keeping the saved Swatch 7 background independent and editable.
+- Retained the existing persisted Line duration control (`4s`-`18s`, default `10s`) and added Intensity (`10%`-`100%`, default `68%`), Line count (`6`-`26`, default `26`), Line width (`0.5`-`6.0`, default `2.3` SVG units), and Glow strength (`0`-`24px`, default `10px`) in both Visual panels. The renderer applies them directly to the complete SVG field opacity, actual rendered path count, stroke geometry, and drop-shadow blur. The `massage-lab-background-lines` ID and entitlement behavior are unchanged.
+- The focused renderer, role-mapping, Harmony-isolation, settings, entitlement, UI-contract, and diagnostics tests pass; all 1,999 repository tests, typecheck, lint, `git diff --check`, the 102-page Production build, and the restarted localhost-only `/dev/clock` HTTP check pass. Direct rendered automation remains blocked because the in-app Browser's administrator policy cannot verify localhost access, so final visual judgment remains in the user's Device Toolbar review.
+
 ## 2026-08-05 — Glowing Stars and Meteors independent backgrounds, colors, and tuning
 
 - Promoted Glowing Stars and Meteors from unsupported CSS/DOM palette adapters to concrete renderer roles. Glowing Stars Source preserves its authored compound background and base-star, peak-star, afterglow, glow-core, and glow-aura colors; Custom/Harmony map those five foreground roles to Swatches 1-5 while keeping the saved Swatch 7 background independent. Meteors Source preserves its authored compound background and meteor-head, tail, glow, and edge colors; Custom/Harmony map those four foreground roles to Swatches 1-4 while keeping the saved Swatch 7 background independent. Unassigned swatches remain visibly marked as unused.

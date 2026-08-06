@@ -1481,10 +1481,12 @@
 
 .massageLabBackgroundLines {
   overflow: hidden;
-  background:
+  background: var(
+    --ml-background-lines-background,
     radial-gradient(circle at 52% 45%, rgba(36, 122, 251, 0.12), transparent 36%),
-    radial-gradient(circle at 25% 78%, rgba(214, 89, 12, 0.1), transparent 32%),
-    linear-gradient(145deg, #050505, #080b12 60%, #050505);
+      radial-gradient(circle at 25% 78%, rgba(214, 89, 12, 0.1), transparent 32%),
+      linear-gradient(145deg, #050505, #080b12 60%, #050505)
+  );
 }
 
 .backgroundLinesSvg {
@@ -1492,19 +1494,19 @@
   inset: -4%;
   width: 108%;
   height: 108%;
-  opacity: 0.68;
+  opacity: var(--ml-background-lines-intensity, 0.68);
   mask-image: radial-gradient(ellipse at center, black 0%, black 48%, transparent 86%);
 }
 
 .backgroundLinePath {
   fill: none;
   stroke: var(--ml-background-line-color);
-  stroke-width: 2.3;
+  stroke-width: var(--ml-background-line-width, 2.3);
   stroke-linecap: round;
   stroke-dasharray: 50 800;
   stroke-dashoffset: 800;
   opacity: 0;
-  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--ml-background-line-color), transparent 55%));
+  filter: drop-shadow(0 0 var(--ml-background-line-glow, 10px) color-mix(in srgb, var(--ml-background-line-color), transparent 55%));
   animation: mlBackgroundLineSweep var(--ml-background-line-cycle, 12s) linear infinite;
   animation-delay: var(--ml-background-line-delay, 0s);
   will-change: stroke-dashoffset, opacity;

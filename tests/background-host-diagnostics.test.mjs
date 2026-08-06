@@ -211,6 +211,51 @@ describe("BackgroundHost diagnostics", () => {
     }
   })
 
+  it("reports Light Lines' supported palette targets", () => {
+    const adapter = backgroundPaletteRegistry["massage-lab-background-lines"]
+    const baseEffectProps = {
+      backgroundLines: {
+        paletteMode: "source",
+        duration: 14,
+      },
+    }
+    const appliedEffectProps = adapter.applyRoleColors(
+      baseEffectProps,
+      {
+        background: "#010101",
+        "line-1": "#020202",
+        "line-2": "#030303",
+        "line-3": "#040404",
+        "line-4": "#050505",
+        "line-5": "#060606",
+        "line-6": "#070707",
+      },
+      "custom",
+    )
+    const snapshot = createBackgroundHostDiagnosticSnapshot({
+      requestedId: "massage-lab-background-lines",
+      loadedId: "massage-lab-background-lines",
+      loadStatus: "loaded",
+      adapter,
+      baseEffectProps,
+      appliedEffectProps,
+      reducedMotion: false,
+      error: null,
+    })
+    assert.equal(snapshot.status, "loaded")
+    assert.equal(snapshot.applicationChanged, true)
+    assert.deepEqual(snapshot.resolvedRendererTargets, {
+      "backgroundLines.backgroundColor": "#010101",
+      "backgroundLines.colors[0]": "#020202",
+      "backgroundLines.colors[1]": "#030303",
+      "backgroundLines.colors[2]": "#040404",
+      "backgroundLines.colors[3]": "#050505",
+      "backgroundLines.colors[4]": "#060606",
+      "backgroundLines.colors[5]": "#070707",
+      "backgroundLines.paletteMode": "resolved",
+    })
+  })
+
   it("fails closed for stale loads and exposes reduced-motion fallback", () => {
     const adapter = backgroundPaletteRegistry["massage-lab-retro-grid"]
     const baseEffectProps = { massageLabRetroGrid: { backgroundColor: "#000000" } }

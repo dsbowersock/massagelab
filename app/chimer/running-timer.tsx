@@ -842,6 +842,10 @@ interface RunningTimerProps {
   massageLabMeteorsSize: number
   massageLabMeteorsTailLength: number
   backgroundLinesDuration: number
+  backgroundLinesIntensity: number
+  backgroundLinesCount: number
+  backgroundLinesWidth: number
+  backgroundLinesGlowStrength: number
   shootingStarsDensity: number
   shootingStarsTwinkle: boolean
   shootingStarsTwinkleSpeed: number
@@ -1509,6 +1513,10 @@ export function RunningTimer({
   massageLabMeteorsSize,
   massageLabMeteorsTailLength,
   backgroundLinesDuration,
+  backgroundLinesIntensity,
+  backgroundLinesCount,
+  backgroundLinesWidth,
+  backgroundLinesGlowStrength,
   shootingStarsDensity,
   shootingStarsTwinkle,
   shootingStarsTwinkleSpeed,
@@ -11634,22 +11642,28 @@ export function RunningTimer({
       )}
 
       {option.id === "massage-lab-background-lines" && (
-        <label className={styles.rangeRow}>
-          <span>Line duration</span>
-          <input
-            type="range"
-            min="4"
-            max="18"
-            step="1"
-            value={backgroundLinesDuration}
-            onChange={(event) =>
-              handleSettingsChange({
-                backgroundLinesDuration: Number(event.target.value),
-              })
-            }
-            aria-label="Light lines animation duration"
-          />
-        </label>
+        <>
+          <label className={styles.rangeRow}>
+            <span>Line duration ({Math.round(backgroundLinesDuration)}s)</span>
+            <input type="range" min="4" max="18" step="1" value={backgroundLinesDuration} onChange={(event) => handleSettingsChange({ backgroundLinesDuration: Number(event.target.value) })} aria-label="Light lines animation duration" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Intensity ({Math.round(backgroundLinesIntensity * 100)}%)</span>
+            <input type="range" min="0.1" max="1" step="0.05" value={backgroundLinesIntensity} onChange={(event) => handleSettingsChange({ backgroundLinesIntensity: Number(event.target.value) })} aria-label="Light Lines intensity" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Line count ({backgroundLinesCount})</span>
+            <input type="range" min="6" max="26" step="1" value={backgroundLinesCount} onChange={(event) => handleSettingsChange({ backgroundLinesCount: Number(event.target.value) })} aria-label="Light Lines count" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Line width ({backgroundLinesWidth.toFixed(1)})</span>
+            <input type="range" min="0.5" max="6" step="0.1" value={backgroundLinesWidth} onChange={(event) => handleSettingsChange({ backgroundLinesWidth: Number(event.target.value) })} aria-label="Light Lines width" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Glow strength ({Math.round(backgroundLinesGlowStrength)}px)</span>
+            <input type="range" min="0" max="24" step="1" value={backgroundLinesGlowStrength} onChange={(event) => handleSettingsChange({ backgroundLinesGlowStrength: Number(event.target.value) })} aria-label="Light Lines glow strength" />
+          </label>
+        </>
       )}
 
       {option.id === "massage-lab-shooting-stars" && (
@@ -13405,6 +13419,10 @@ export function RunningTimer({
           }}
           backgroundLines={{
             duration: backgroundLinesDuration,
+            intensity: backgroundLinesIntensity,
+            count: backgroundLinesCount,
+            lineWidth: backgroundLinesWidth,
+            glowStrength: backgroundLinesGlowStrength,
           }}
           shootingStars={{
             starDensity: shootingStarsDensity,

@@ -1724,7 +1724,7 @@ const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
     performanceCost: "medium",
     requiresSubscription: true,
     enabled: true,
-    customizationSummary: "Source SVG paths adapted with deterministic CSS path animation, duration control, and no added Motion dependency.",
+    customizationSummary: "Source preserves the authored 21-color SVG field and compound background; Custom/Harmony use six line colors plus an independent saved background, with duration, intensity, count, width, and glow controls.",
     component: () => cssBackgrounds().then((module) => ({ default: module.MassageLabBackgroundLines })),
     fallbackStyle: {
       background:

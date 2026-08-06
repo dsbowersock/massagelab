@@ -143,6 +143,18 @@ const cssDomFixtures = {
       tailLength: 72,
     },
   },
+  "massage-lab-background-lines": {
+    backgroundLines: {
+      paletteMode: "source",
+      backgroundColor: "#010101",
+      colors: ["#020202", "#030303", "#040404", "#050505", "#060606", "#070707"],
+      duration: 14,
+      intensity: 0.74,
+      count: 18,
+      lineWidth: 3.2,
+      glowStrength: 13,
+    },
+  },
   "massage-lab-grid-motion": {
     massageLabGridMotion: {
       gradientColor: "#010101",
@@ -1875,6 +1887,63 @@ describe("background palette adapter registry", () => {
         count: effectProps.massageLabMeteors.count,
         size: effectProps.massageLabMeteors.size,
         tailLength: effectProps.massageLabMeteors.tailLength,
+      },
+    )
+  })
+
+  it("keeps Light Lines' Swatch 7 background independent from Harmony", () => {
+    const adapter = backgroundPaletteRegistry["massage-lab-background-lines"]
+    assert.deepEqual(
+      Object.fromEntries(adapter.roles.map((role) => [role.id, {
+        defaultSwatch: role.defaultSwatch,
+        harmonyColorSource: role.harmonyColorSource,
+      }])),
+      {
+        background: { defaultSwatch: 6, harmonyColorSource: "saved-swatch" },
+        "line-1": { defaultSwatch: 0, harmonyColorSource: "generated" },
+        "line-2": { defaultSwatch: 1, harmonyColorSource: "generated" },
+        "line-3": { defaultSwatch: 2, harmonyColorSource: "generated" },
+        "line-4": { defaultSwatch: 3, harmonyColorSource: "generated" },
+        "line-5": { defaultSwatch: 4, harmonyColorSource: "generated" },
+        "line-6": { defaultSwatch: 5, harmonyColorSource: "generated" },
+      },
+    )
+
+    const effectProps = cssDomFixtures["massage-lab-background-lines"]
+    const sourceResolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-background-lines",
+      effectProps,
+      palette: paletteForMode("source"),
+      mapping: {},
+      canCustomize: true,
+    })
+    assert.equal(sourceResolved.backgroundLines.paletteMode, "source")
+
+    const harmonyResolved = resolveBackgroundEffectProps({
+      selectedId: "massage-lab-background-lines",
+      effectProps,
+      palette: paletteForMode("harmony"),
+      mapping: {},
+      canCustomize: true,
+    })
+    const harmonySwatches = generateBackgroundHarmonySwatches(HARMONY_PRIMARY, "triadic")
+    assert.equal(harmonyResolved.backgroundLines.paletteMode, "resolved")
+    assert.equal(harmonyResolved.backgroundLines.backgroundColor, CUSTOM_SWATCHES[6])
+    assert.deepEqual(harmonyResolved.backgroundLines.colors, harmonySwatches.slice(0, 6))
+    assert.deepEqual(
+      {
+        duration: harmonyResolved.backgroundLines.duration,
+        intensity: harmonyResolved.backgroundLines.intensity,
+        count: harmonyResolved.backgroundLines.count,
+        lineWidth: harmonyResolved.backgroundLines.lineWidth,
+        glowStrength: harmonyResolved.backgroundLines.glowStrength,
+      },
+      {
+        duration: effectProps.backgroundLines.duration,
+        intensity: effectProps.backgroundLines.intensity,
+        count: effectProps.backgroundLines.count,
+        lineWidth: effectProps.backgroundLines.lineWidth,
+        glowStrength: effectProps.backgroundLines.glowStrength,
       },
     )
   })

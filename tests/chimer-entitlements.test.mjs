@@ -2809,6 +2809,34 @@ describe("Chimer entitlement-aware settings", () => {
     }
   })
 
+  it("resets Light Lines controls without premium background access", () => {
+    const input = {
+      backgroundId: "massage-lab-background-lines",
+      backgroundLinesDuration: 15,
+      backgroundLinesIntensity: 0.8,
+      backgroundLinesCount: 20,
+      backgroundLinesWidth: 3.5,
+      backgroundLinesGlowStrength: 14,
+    }
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(
+      input,
+      [FEATURE_KEYS.premiumBackgrounds],
+    )
+    assert.equal(premiumSettings.backgroundId, "massage-lab-background-lines")
+    for (const key of [
+      "backgroundLinesDuration",
+      "backgroundLinesIntensity",
+      "backgroundLinesCount",
+      "backgroundLinesWidth",
+      "backgroundLinesGlowStrength",
+    ]) {
+      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+      assert.equal(premiumSettings[key], input[key])
+    }
+  })
+
   it("strips custom colors for users without the Chimer custom colors feature", () => {
     const settings = sanitizeChimerSettingsForEntitlements({
       primaryFontColor: "#000000",

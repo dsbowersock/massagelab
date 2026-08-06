@@ -1046,6 +1046,10 @@ export interface ChimerSettings {
   massageLabMeteorsSize: number
   massageLabMeteorsTailLength: number
   backgroundLinesDuration: number
+  backgroundLinesIntensity: number
+  backgroundLinesCount: number
+  backgroundLinesWidth: number
+  backgroundLinesGlowStrength: number
   shootingStarsDensity: number
   shootingStarsTwinkle: boolean
   shootingStarsTwinkleSpeed: number
@@ -1851,7 +1855,7 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
       return (
         <div className={styles.backgroundCardControls}>
           <label className={styles.rangeRow}>
-            <span>Line duration</span>
+            <span>Line duration ({Math.round(settings.backgroundLinesDuration)}s)</span>
             <input
               type="range"
               min="4"
@@ -1865,6 +1869,22 @@ export function SetTimer({ settings, totalDurationMs, error, syncStatus, suppres
               }
               aria-label="Light lines animation duration"
             />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Intensity ({Math.round(settings.backgroundLinesIntensity * 100)}%)</span>
+            <input type="range" min="0.1" max="1" step="0.05" value={settings.backgroundLinesIntensity} onChange={(event) => onSettingsChange({ backgroundLinesIntensity: Number(event.target.value) })} aria-label="Light Lines intensity" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Line count ({settings.backgroundLinesCount})</span>
+            <input type="range" min="6" max="26" step="1" value={settings.backgroundLinesCount} onChange={(event) => onSettingsChange({ backgroundLinesCount: Number(event.target.value) })} aria-label="Light Lines count" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Line width ({settings.backgroundLinesWidth.toFixed(1)})</span>
+            <input type="range" min="0.5" max="6" step="0.1" value={settings.backgroundLinesWidth} onChange={(event) => onSettingsChange({ backgroundLinesWidth: Number(event.target.value) })} aria-label="Light Lines width" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Glow strength ({Math.round(settings.backgroundLinesGlowStrength)}px)</span>
+            <input type="range" min="0" max="24" step="1" value={settings.backgroundLinesGlowStrength} onChange={(event) => onSettingsChange({ backgroundLinesGlowStrength: Number(event.target.value) })} aria-label="Light Lines glow strength" />
           </label>
         </div>
       )

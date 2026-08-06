@@ -5760,6 +5760,44 @@ describe("premium background registry", () => {
     assert.match(runningSource, /massageLabMeteors=\{\{/)
   })
 
+  it("exposes Light Lines palette roles and expanded visual tuning in both Visual panels", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const paletteSource = readFileSync(
+      new URL("../components/backgrounds/backgroundPaletteRegistry.ts", import.meta.url),
+      "utf8",
+    )
+
+    assert.match(effectSource, /interface BackgroundLinesOptions/)
+    assert.match(effectSource, /--ml-background-lines-intensity/)
+    assert.match(effectSource, /--ml-background-line-width/)
+    assert.match(effectSource, /--ml-background-line-glow/)
+    assert.match(stylesSource, /var\(--ml-background-lines-intensity, 0\.68\)/)
+    assert.match(stylesSource, /var\(--ml-background-line-width, 2\.3\)/)
+    assert.match(stylesSource, /var\(--ml-background-line-glow, 10px\)/)
+    assert.match(paletteSource, /id: "massage-lab-background-lines"/)
+    assert.match(paletteSource, /role\("background", "Background", "backgroundLinesBackgroundColor"/)
+    for (const key of [
+      "backgroundLinesDuration",
+      "backgroundLinesIntensity",
+      "backgroundLinesCount",
+      "backgroundLinesWidth",
+      "backgroundLinesGlowStrength",
+    ]) {
+      assert.match(setupSource, new RegExp(key))
+      assert.match(runningSource, new RegExp(key))
+    }
+    assert.match(runningSource, /backgroundLines=\{\{/)
+  })
+
   it("keeps MassageLab Synthesis source-shaped, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
       new URL("../components/backgrounds/effects/massage-lab-synthesis-background.tsx", import.meta.url),
