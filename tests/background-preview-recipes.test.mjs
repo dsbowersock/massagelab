@@ -129,6 +129,9 @@ describe("background preview recipes", () => {
     assert.match(source, /public[\\/]chimer[\\/]background-previews/)
     assert.match(source, /refusing production preview directory/i)
     assert.doesNotMatch(source, /backgroundPreviewManifest\.ts/)
+    assert.match(source, /function validateDecodedRendition/)
+    assert.match(source, /function validateExistingOutput[\s\S]*validateDecodedRendition\(\{/)
+    assert.match(source, /FFmpeg is required to decode and validate the preview pilot/)
   })
 
   it("generates a v2 sidecar without replacing the production manifest", () => {

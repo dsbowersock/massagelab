@@ -91,10 +91,15 @@ function parseArgs(argv) {
 }
 
 function ensureMediaTools({ requireEncoders = true } = {}) {
+  const ffmpegArgs = requireEncoders ? ["-hide_banner", "-encoders"] : ["-version"]
+  const result = spawnSync("ffmpeg", ffmpegArgs, { encoding: "utf8", maxBuffer: 8 * 1024 * 1024 })
+  if (result.status !== 0) {
+    throw new Error(requireEncoders
+      ? "FFmpeg is required to render the preview pilot."
+      : "FFmpeg is required to decode and validate the preview pilot.")
+  }
   if (requireEncoders) {
-    const result = spawnSync("ffmpeg", ["-hide_banner", "-encoders"], { encoding: "utf8", maxBuffer: 8 * 1024 * 1024 })
     const output = `${result.stdout ?? ""}\n${result.stderr ?? ""}`
-    if (result.status !== 0) throw new Error("FFmpeg is required to render the preview pilot.")
     for (const encoder of ["libvpx-vp9", "libx264", "libwebp"]) {
       if (!new RegExp(`\\b${encoder}\\b`).test(output)) throw new Error(`FFmpeg must include ${encoder}.`)
     }
@@ -210,6 +215,25 @@ function normalizedPixelDifference(left, right) {
   return sum / (left.length * 255)
 }
 
+/** Decodes independent frame evidence so generation and later validation apply identical quality gates. */
+function validateDecodedRendition({ filePath, backgroundId, loopStrategy, durationMs, fps }) {
+  const frameStep = Math.max(100, Math.ceil(1000 / fps) * 2)
+  const sampleTimes = [0, 0.25, 0.5, 0.75, 1].map((portion) =>
+    Math.min(durationMs - frameStep, Math.round((durationMs - frameStep) * portion)))
+  const samples = sampleTimes.map((timeMs) => decodeRgbSample(filePath, timeMs))
+  const frameHashes = samples.map((sample) => createHash("sha256").update(sample).digest("hex"))
+  const seamDifference = normalizedPixelDifference(samples[0], samples.at(-1))
+  return {
+    errors: [
+      ...validateAnimatedFrameVariation({ backgroundId, motionIntensity: "medium", frameHashes }),
+      ...validateLoopSeam({ strategy: loopStrategy, normalizedDifference: seamDifference }),
+    ],
+    frameHashes,
+    frameVariation: calculateFrameVariation(frameHashes),
+    seamDifference,
+  }
+}
+
 async function writeFrameStrip(filePath, outputPath, durationMs) {
   const interval = (durationMs / 5000).toFixed(6)
   await runProcess("ffmpeg", [
@@ -292,19 +316,14 @@ async function encodeAndValidateRendition(item, recipe, masterPath, options) {
     durationMs: expectedDurationMs,
     streamCount: 1,
   })
-  const frameStep = Math.max(100, Math.ceil(1000 / item.fps) * 2)
-  const sampleTimes = [0, 0.25, 0.5, 0.75, 1].map((portion) =>
-    Math.min(expectedDurationMs - frameStep, Math.round((expectedDurationMs - frameStep) * portion)))
-  const samples = sampleTimes.map((timeMs) => decodeRgbSample(outputPath, timeMs))
-  const frameHashes = samples.map((sample) => createHash("sha256").update(sample).digest("hex"))
-  const variationErrors = validateAnimatedFrameVariation({
+  const decoded = validateDecodedRendition({
+    filePath: outputPath,
     backgroundId: recipe.backgroundId,
-    motionIntensity: "medium",
-    frameHashes,
+    loopStrategy: recipe.loopStrategy,
+    durationMs: expectedDurationMs,
+    fps: item.fps,
   })
-  const seamDifference = normalizedPixelDifference(samples[0], samples.at(-1))
-  const seamErrors = validateLoopSeam({ strategy: recipe.loopStrategy, normalizedDifference: seamDifference })
-  const errors = [...metadataErrors, ...variationErrors, ...seamErrors]
+  const errors = [...metadataErrors, ...decoded.errors]
   const frameStripPath = outputPath.replace(/\.(webm|mp4)$/i, ".frames.png")
   await writeFrameStrip(outputPath, frameStripPath, expectedDurationMs)
   if (errors.length) throw new Error(errors.join("\n"))
@@ -315,10 +334,10 @@ async function encodeAndValidateRendition(item, recipe, masterPath, options) {
     bytes: statSync(outputPath).size,
     sha256: sha256File(outputPath),
     evidence: {
-      frameHashes,
-      frameVariation: calculateFrameVariation(frameHashes),
+      frameHashes: decoded.frameHashes,
+      frameVariation: decoded.frameVariation,
       frameStripUrl: path.relative(options.outputDir, frameStripPath).replaceAll("\\", "/"),
-      seamDifference,
+      seamDifference: decoded.seamDifference,
     },
   }
 }
@@ -399,7 +418,7 @@ function validateExistingOutput(options) {
       if (sha256File(filePath) !== media.sha256) errors.push(`${entry.backgroundId}: hash mismatch for ${media.url}`)
       if ("codec" in media) {
         const actual = probeMedia(filePath)
-        errors.push(...validateRenditionMetadata(actual, {
+        const metadataErrors = validateRenditionMetadata(actual, {
           codec: media.codec === "h264" ? "h264" : "vp9",
           pixelFormat: "yuv420p",
           width: media.width,
@@ -407,7 +426,17 @@ function validateExistingOutput(options) {
           fps: media.fps,
           durationMs: media.durationMs,
           streamCount: 1,
-        }))
+        })
+        errors.push(...metadataErrors)
+        if (metadataErrors.length === 0) {
+          errors.push(...validateDecodedRendition({
+            filePath,
+            backgroundId: entry.backgroundId,
+            loopStrategy: entry.loopStrategy,
+            durationMs: media.durationMs,
+            fps: media.fps,
+          }).errors)
+        }
       }
     }
   }
