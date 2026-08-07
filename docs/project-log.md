@@ -6,6 +6,12 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `Massage Laba Lamp` is the approved catalog label for the original free moving-gradient default. `MassageLaba Lamp` and general prose that says `MassageLab Lamp` are legacy references to that same stable `massage-lab-moving-gradient` entry, not separate backgrounds.
 
+## 2026-08-07 — Full-catalog visual approval
+
+- The user completed visual review and approved every one of the 84 local full-catalog background previews. All catalog recipes and serialized entries now use `approved` review status, and the serializer emits `catalog-approved-1` while failing closed if any candidate entry is supplied.
+- The published catalog references exactly 1,728 immutable media objects: 1,476 videos and 252 posters totaling 862,078,635 bytes (822.1 MiB). The remaining 577.5 MiB of the 1.367 GiB local catalog directory is generation and validation material, not publishable payload.
+- This approval changes catalog metadata only; all recipe settings, rendition URLs, hashes, and approved media bytes remain preserved. Production preview v1, R2, hosted runtime activation, and adaptive upgrade/downgrade integration remain separately gated.
+
 ## 2026-08-07 — Complete local adaptive background preview catalog
 
 - Completed local generation for all 84 enabled background IDs using the approved manifest-driven rendition ladder and stable ID plus recipe-revision paths. The catalog contains exactly 1,476 videos and 252 WebP posters (about 1.367 GiB): 82 animated backgrounds each provide independently captured landscape, square, and vertical compositions with low/standard/high VP9 and H.264 renditions, while Static Gradient and Solid Color truthfully provide three posters and no fabricated video timeline.

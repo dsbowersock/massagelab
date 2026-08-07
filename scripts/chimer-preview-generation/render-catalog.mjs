@@ -40,6 +40,9 @@ function parseArgs(argv) {
       default: if (arg.startsWith("--")) throw new Error(`Unknown option: ${arg}`)
     }
   }
+  // The package validation command is read-only and may safely target only
+  // the fixed checked-in catalog root; generation still requires an explicit path.
+  if (options.validateOnly && !options.outputDir) options.outputDir = catalogRoot
   if (!options.outputDir) throw new Error("Catalog output directory is required; pass --output-dir <path>.")
   if ([productionRoot, pilotRoot].includes(options.outputDir)) {
     throw new Error("Refusing production preview directory or approved pilot directory.")

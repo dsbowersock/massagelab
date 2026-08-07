@@ -114,11 +114,12 @@ describe("background preview recipes", () => {
 
   it("materializes an independent recipe for every enabled ID", () => {
     assert.equal(Object.keys(backgroundPreviewRecipes).length, 84)
+    assert.equal(Object.values(backgroundPreviewRecipes).filter(({ reviewStatus }) => reviewStatus === "approved").length, 84)
     for (const id of FULL_CATALOG_BACKGROUND_IDS) {
       const recipe = getBackgroundPreviewRecipe(id)
       assert.equal(recipe.backgroundId, id)
       assert.deepEqual(validateBackgroundPreviewRecipe(recipe), [])
-      assert.ok(["candidate", "approved"].includes(recipe.reviewStatus))
+      assert.equal(recipe.reviewStatus, "approved")
     }
   })
 
@@ -231,9 +232,34 @@ describe("background preview recipes", () => {
     })
     assert.deepEqual(validateCatalogManifest(entries), [])
     const manifest = JSON.parse(serializeCatalogRenditionManifest(entries))
+    assert.equal(manifest.catalogRevision, "catalog-approved-1")
     assert.equal(manifest.entries.length, 84)
     assert.equal(manifest.entries.flatMap((entry) => entry.renditions).length, 1476)
     assert.equal(manifest.entries.flatMap((entry) => Object.values(entry.posters)).length, 252)
+    assert.throws(
+      () => serializeCatalogRenditionManifest(entries.map((entry, index) => index === 0
+        ? { ...entry, reviewStatus: "candidate" }
+        : entry)),
+      /publication manifest requires an approved recipe/,
+    )
+  })
+
+  it("locks the approved catalog's exact published object inventory", () => {
+    const catalog = JSON.parse(readFileSync(new URL(
+      "../public/chimer/background-preview-catalog/index.json",
+      import.meta.url,
+    ), "utf8"))
+    const media = catalog.entries.flatMap((entry) => [...entry.renditions, ...Object.values(entry.posters)])
+
+    assert.equal(catalog.catalogRevision, "catalog-approved-1")
+    assert.equal(catalog.entries.length, 84)
+    assert.equal(catalog.entries.filter(({ reviewStatus }) => reviewStatus === "approved").length, 84)
+    assert.equal(catalog.entries.filter(({ mediaKind }) => mediaKind === "animated").length, 82)
+    assert.equal(catalog.entries.filter(({ mediaKind }) => mediaKind === "poster-only").length, 2)
+    assert.equal(catalog.entries.flatMap((entry) => entry.renditions).length, 1476)
+    assert.equal(catalog.entries.flatMap((entry) => Object.values(entry.posters)).length, 252)
+    assert.equal(media.length, 1728)
+    assert.equal(media.reduce((total, item) => total + item.bytes, 0), 862_078_635)
   })
 
   it("keeps the pilot review route development-only", () => {

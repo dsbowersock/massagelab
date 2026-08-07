@@ -57,8 +57,8 @@ export function serializeRenditionManifest(entries) {
 
 /**
  * Compacts and orders mixed animated/static catalog metadata without emitting
- * thousands of generated TypeScript lines. Publication may require approval;
- * local review manifests intentionally retain candidate rows.
+ * thousands of generated TypeScript lines. The checked-in publication catalog
+ * fails closed unless every recipe has completed visual approval.
  */
 export function normalizeCatalogRenditionManifestEntries(entries, { requireApproved = false } = {}) {
   const order = new Map(FULL_CATALOG_BACKGROUND_IDS.map((id, index) => [id, index]))
@@ -84,8 +84,8 @@ export function normalizeCatalogRenditionManifestEntries(entries, { requireAppro
 }
 
 export function serializeCatalogRenditionManifest(entries, {
-  catalogRevision = "catalog-candidate-1",
-  requireApproved = false,
+  catalogRevision = "catalog-approved-1",
+  requireApproved = true,
 } = {}) {
   return `${JSON.stringify({
     schemaVersion: 3,

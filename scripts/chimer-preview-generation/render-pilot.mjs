@@ -559,10 +559,14 @@ function writeManifest(options, entries) {
   return readManifest(options.outputDir, options.catalogMode)
 }
 
-/** Rebuilds derived MIME metadata without recapturing or re-encoding media. */
-function refreshManifestMetadata(entries) {
+/**
+ * Rebuilds derived metadata from the canonical recipe catalog without
+ * recapturing or re-encoding any approved media.
+ */
+function refreshManifestMetadata(entries, { catalogMode }) {
   return entries.map((entry) => ({
     ...entry,
+    ...(catalogMode ? { reviewStatus: getBackgroundPreviewRecipe(entry.backgroundId).reviewStatus } : {}),
     renditions: entry.renditions.map((rendition) => ({
       ...rendition,
       mimeType: getPreviewRenditionMimeType(rendition.codec, rendition.quality),
@@ -652,7 +656,7 @@ async function main() {
   mkdirSync(options.outputDir, { recursive: true })
   if (options.refreshMetadata) {
     const current = readManifest(options.outputDir, options.catalogMode)
-    const refreshed = writeManifest(options, refreshManifestMetadata(current.entries))
+    const refreshed = writeManifest(options, refreshManifestMetadata(current.entries, options))
     validateExistingOutput(options)
     console.log(`Refreshed and validated metadata for ${refreshed.entries.length} complete ${options.catalogMode ? "catalog" : "pilot"} entries.`)
     return
