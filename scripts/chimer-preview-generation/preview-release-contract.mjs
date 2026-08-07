@@ -1,5 +1,8 @@
+/** @type {readonly ["landscape", "square", "vertical"]} */
 export const CATALOG_PREVIEW_ASPECTS = Object.freeze(["landscape", "square", "vertical"])
+/** @type {readonly ["low", "standard", "high"]} */
 export const CATALOG_PREVIEW_QUALITIES = Object.freeze(["low", "standard", "high"])
+/** @type {readonly ["vp9", "h264"]} */
 export const CATALOG_PREVIEW_CODECS = Object.freeze(["vp9", "h264"])
 
 /** Immutable cardinality contract for the approved local publication release. */

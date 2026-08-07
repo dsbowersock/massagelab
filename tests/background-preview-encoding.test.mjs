@@ -20,6 +20,11 @@ import {
   updateGenerationCheckpoint,
 } from "../scripts/chimer-preview-generation/generation-checkpoint.mjs"
 import { getPreviewRenditionMimeType } from "../scripts/chimer-preview-generation/rendition-plan.mjs"
+import {
+  CATALOG_PREVIEW_ASPECTS,
+  CATALOG_PREVIEW_CODECS,
+  CATALOG_PREVIEW_QUALITIES,
+} from "../scripts/chimer-preview-generation/preview-release-contract.mjs"
 import { assertCatalogManifest } from "../components/backgrounds/backgroundPreviewCatalogManifest.ts"
 
 function catalogManifestFixture(mediaKind = "animated") {
@@ -30,19 +35,22 @@ function catalogManifestFixture(mediaKind = "animated") {
     bytes: 1,
     sha256: "a".repeat(64),
   }]))
-  const rendition = {
-    aspect: "landscape",
-    quality: "low",
-    codec: "vp9",
-    url: "fixture/recipe-1/landscape/low.webm",
-    mimeType: "video/webm; codecs=vp9",
-    width: 384,
-    height: 216,
-    durationMs: 10_000,
-    fps: 24,
-    bytes: 1,
-    sha256: "b".repeat(64),
-  }
+  const renditions = CATALOG_PREVIEW_ASPECTS.flatMap((aspect) =>
+    CATALOG_PREVIEW_QUALITIES.flatMap((quality) =>
+      CATALOG_PREVIEW_CODECS.map((codec) => ({
+        aspect,
+        quality,
+        codec,
+        url: `fixture/recipe-1/${aspect}/${quality}.${codec === "vp9" ? "webm" : "mp4"}`,
+        mimeType: getPreviewRenditionMimeType(codec, quality),
+        width: 384,
+        height: 216,
+        durationMs: 10_000,
+        fps: 24,
+        bytes: 1,
+        sha256: "b".repeat(64),
+      }))),
+  )
   return {
     schemaVersion: 3,
     catalogRevision: "catalog-approved-1",
@@ -54,7 +62,7 @@ function catalogManifestFixture(mediaKind = "animated") {
       mediaKind,
       loopStrategy: mediaKind === "animated" ? "natural" : "static",
       loopBoundaryMs: mediaKind === "animated" ? 10_000 : 0,
-      renditions: mediaKind === "animated" ? [rendition] : [],
+      renditions: mediaKind === "animated" ? renditions : [],
       posters,
     }],
   }
@@ -286,6 +294,24 @@ describe("background preview media validation", () => {
   it("accepts complete animated and poster-only catalog descriptors", () => {
     assert.doesNotThrow(() => assertCatalogManifest(catalogManifestFixture("animated")))
     assert.doesNotThrow(() => assertCatalogManifest(catalogManifestFixture("poster-only")))
+  })
+
+  it("requires the complete unique three-by-three-by-two animated rendition matrix", () => {
+    const cases = [
+      ["17-of-18 missing identity", (entry) => { entry.renditions.pop() }, /complete 18-rendition identity matrix; missing/],
+      ["18-item replacement duplicate", (entry) => {
+        entry.renditions[entry.renditions.length - 1] = structuredClone(entry.renditions[0])
+      }, /duplicate rendition identity/],
+      ["19-item extra duplicate", (entry) => {
+        entry.renditions.push(structuredClone(entry.renditions[0]))
+      }, /duplicate rendition identity/],
+    ]
+
+    for (const [label, mutate, expected] of cases) {
+      const manifest = catalogManifestFixture("animated")
+      mutate(manifest.entries[0])
+      assert.throws(() => assertCatalogManifest(manifest), expected, label)
+    }
   })
 
   it("fails closed for every required catalog field and descriptor contract", () => {

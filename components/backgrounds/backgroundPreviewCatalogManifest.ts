@@ -1,10 +1,15 @@
 import catalogJson from "../../public/chimer/background-preview-catalog/index.json" with { type: "json" }
+import {
+  CATALOG_PREVIEW_ASPECTS,
+  CATALOG_PREVIEW_CODECS,
+  CATALOG_PREVIEW_QUALITIES,
+} from "../../scripts/chimer-preview-generation/preview-release-contract.mjs"
 
 export { resolveCatalogPreviewUrl } from "./backgroundPreviewCatalogUrl.ts"
 
-export type BackgroundPreviewCatalogAspect = "landscape" | "square" | "vertical"
-export type BackgroundPreviewCatalogQuality = "low" | "standard" | "high"
-export type BackgroundPreviewCatalogCodec = "vp9" | "h264"
+export type BackgroundPreviewCatalogAspect = (typeof CATALOG_PREVIEW_ASPECTS)[number]
+export type BackgroundPreviewCatalogQuality = (typeof CATALOG_PREVIEW_QUALITIES)[number]
+export type BackgroundPreviewCatalogCodec = (typeof CATALOG_PREVIEW_CODECS)[number]
 
 export type BackgroundPreviewCatalogRendition = {
   aspect: BackgroundPreviewCatalogAspect
@@ -54,9 +59,19 @@ export type BackgroundPreviewCatalogManifest = {
   entries: readonly BackgroundPreviewCatalogEntry[]
 }
 
-const catalogAspects = ["landscape", "square", "vertical"] as const
-const catalogQualities = ["low", "standard", "high"] as const
-const catalogCodecs = ["vp9", "h264"] as const
+/** Makes accidental tuple widening a compile-time error in this TS consumer. */
+function requireLiteralTuple<const Values extends readonly string[]>(
+  values: string extends Values[number] ? never : Values,
+): Values {
+  return values
+}
+
+const catalogAspects = requireLiteralTuple(CATALOG_PREVIEW_ASPECTS)
+const catalogQualities = requireLiteralTuple(CATALOG_PREVIEW_QUALITIES)
+const catalogCodecs = requireLiteralTuple(CATALOG_PREVIEW_CODECS)
+const expectedRenditionIdentities = catalogAspects.flatMap((aspect) =>
+  catalogQualities.flatMap((quality) =>
+    catalogCodecs.map((codec) => `${aspect}/${quality}/${codec}`)))
 const renditionDescriptorKeys = [
   "aspect", "quality", "codec", "url", "mimeType", "width", "height",
   "durationMs", "fps", "bytes", "sha256",
@@ -111,11 +126,11 @@ function requirePosterDescriptor(value: unknown, label: string): void {
   requireSha256(value.sha256, `${label} sha256`)
 }
 
-function requireRenditionDescriptor(value: unknown, label: string): void {
+function requireRenditionDescriptor(value: unknown, label: string): string {
   requireRecord(value, label)
   requireExactKeys(value, renditionDescriptorKeys, label)
-  requireEnum(value.aspect, catalogAspects, `${label} aspect`)
-  requireEnum(value.quality, catalogQualities, `${label} quality`)
+  const aspect = requireEnum(value.aspect, catalogAspects, `${label} aspect`)
+  const quality = requireEnum(value.quality, catalogQualities, `${label} quality`)
   const codec = requireEnum(value.codec, catalogCodecs, `${label} codec`)
   requireNonemptyString(value.url, `${label} URL`)
   const mimeType = requireNonemptyString(value.mimeType, `${label} MIME type`)
@@ -129,6 +144,7 @@ function requireRenditionDescriptor(value: unknown, label: string): void {
   requirePositiveInteger(value.fps, `${label} fps`)
   requirePositiveInteger(value.bytes, `${label} bytes`)
   requireSha256(value.sha256, `${label} sha256`)
+  return `${aspect}/${quality}/${codec}`
 }
 
 /** Fail closed if checked-in local review metadata drifts from schema v3. */
@@ -162,9 +178,24 @@ export function assertCatalogManifest(value: unknown): asserts value is Backgrou
         throw new Error(`${label}: poster-only catalog entry requires static looping, a zero boundary, and no video renditions.`)
       }
     }
+    const seenRenditionIdentities = new Set<string>()
     entry.renditions.forEach((rendition, renditionIndex) => {
-      requireRenditionDescriptor(rendition, `${label} rendition ${renditionIndex}`)
+      const identity = requireRenditionDescriptor(rendition, `${label} rendition ${renditionIndex}`)
+      if (seenRenditionIdentities.has(identity)) {
+        throw new Error(`${label}: duplicate rendition identity ${identity}.`)
+      }
+      seenRenditionIdentities.add(identity)
     })
+    if (mediaKind === "animated") {
+      const missingIdentities = expectedRenditionIdentities.filter(
+        (identity) => !seenRenditionIdentities.has(identity),
+      )
+      if (missingIdentities.length || seenRenditionIdentities.size !== expectedRenditionIdentities.length) {
+        throw new Error(
+          `${label}: animated catalog entry requires the complete ${expectedRenditionIdentities.length}-rendition identity matrix; missing ${missingIdentities.join(", ") || "none"}.`,
+        )
+      }
+    }
 
     requireRecord(entry.posters, `${label} posters`)
     requireExactKeys(entry.posters, catalogAspects, `${label} posters`)
