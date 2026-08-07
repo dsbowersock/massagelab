@@ -25,7 +25,7 @@
 - Initial quality policy: Save-Data, `slow-2g`, or `2g` selects low; `3g` selects standard; `4g` selects high; unavailable Network Information selects standard.
 - Prefer VP9 when `canPlayType` reports support, otherwise H.264; if neither works, remain on the poster. An asset error may try the other codec for the same aspect/quality, then fall back to the poster.
 - Connection changes while playing update only a pending quality. Remove native `loop`; apply the pending rendition on `ended`, or restart the same rendition at that boundary. A brief poster while the new rendition starts is acceptable and avoids preloading a second video.
-- Reduced motion, an inactive panel, a hidden document, Pause Previews, or absent hosted catalog configuration must remain poster-only.
+- Reduced motion, an inactive panel, a hidden document, or Pause Previews must remain poster-only. Before hosted opt-in, absent catalog configuration must never request catalog media: the carousel stays poster/fallback-only until Play Preview, when it may use the existing v1 vertical video.
 - Add focused JSDoc/comments for approval promotion, manifest-only selection, immutable publication boundaries, connection-quality mapping, codec selection, and loop-boundary switching.
 - Preserve unrelated local work and generated binaries. Do not run a live R2 upload or mutate Vercel/Production in this plan without explicit user authorization at the publication gate.
 

@@ -62,15 +62,16 @@ describe("production adaptive carousel", () => {
   })
 
   it("offers one accessible carousel-wide preview toggle above the unchanged stage", () => {
-    const toggleIndex = backgroundCarouselSource.indexOf('aria-pressed={playPreviews}')
+    const toggleIndex = backgroundCarouselSource.indexOf('aria-pressed={previewPlaybackActive}')
     const stageIndex = backgroundCarouselSource.indexOf("<AdaptiveCarouselStage")
 
     assert.notEqual(toggleIndex, -1)
     assert.ok(toggleIndex < stageIndex, "the preview toggle is rendered above the stage")
     assert.match(backgroundCarouselSource, /onClick=\{\(\) => setPlayPreviews\(\(current\) => !current\)\}/)
-    assert.match(backgroundCarouselSource, /playPreviews \? "Pause Previews" : "Play Preview"/)
-    assert.match(backgroundCarouselSource, /aria-pressed=\{playPreviews\}/)
-    assert.match(backgroundCarouselSource, /playPreviews=\{playPreviews && active && !reducedMotion\}/)
+    assert.match(backgroundCarouselSource, /aria-pressed=\{previewPlaybackActive\}/)
+    assert.match(backgroundCarouselSource, /disabled=\{reducedMotion\}/)
+    assert.match(backgroundCarouselSource, /"Previews off \(reduced motion\)"/)
+    assert.match(backgroundCarouselSource, /playPreviews=\{previewPlaybackActive\}/)
   })
 
   it("bounds non-looping renderers at the collection edges", () => {

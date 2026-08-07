@@ -43,6 +43,10 @@ const reviewFixtureSource = readFileSync(
   new URL("../app/dev/buttons/background-preview-media-review.tsx", import.meta.url),
   "utf8",
 )
+const catalogReviewSource = readFileSync(
+  new URL("../app/dev/bgpreviews/preview-pilot-review.tsx", import.meta.url),
+  "utf8",
+)
 
 describe("background preview media", () => {
   it("renders a decorative video with a WebP poster over the registry fallback", () => {
@@ -65,7 +69,7 @@ describe("background preview media", () => {
     assert.match(cardSource, /strictCatalog/)
     assert.doesNotMatch(cardSource, /\bcentered\b/)
     assert.match(carouselSource, /const \[playPreviews, setPlayPreviews\] = useState\(false\)/)
-    assert.match(carouselSource, /playPreviews=\{playPreviews && active && !reducedMotion\}/)
+    assert.match(carouselSource, /playPreviews=\{previewPlaybackActive\}/)
     assert.doesNotMatch(cardSource, /<video/)
   })
 
@@ -112,7 +116,7 @@ describe("background preview media", () => {
     )
 
     assert.match(recoveryHandler, /currentRendition\.codec === "vp9" \? "h264" : "vp9"/)
-    assert.match(recoveryHandler, /supportedCodecsRef\.current\.has\(alternateCodec\)/)
+    assert.match(recoveryHandler, /supportedRenditionsRef\.current\.has\(alternateAttemptKey\)/)
     assert.match(recoveryHandler, /attemptedRenditionsRef\.current\.has\(alternateAttemptKey\)/)
     assert.match(recoveryHandler, /selectPublishedPreviewRendition\(\{[\s\S]*?aspect: currentRendition\.aspect[\s\S]*?quality: currentRendition\.quality[\s\S]*?codec: alternateCodec/)
     assert.match(recoveryHandler, /activeSourceUrlRef\.current = alternateRendition\.url[\s\S]*?setCurrentRendition\(alternateRendition\)/)
@@ -122,7 +126,8 @@ describe("background preview media", () => {
       3,
       "media error, boundary replay rejection, and ordinary play rejection share recovery",
     )
-    assert.match(componentSource, /codecSupportByMimeType = new Map[\s\S]*?codecProbe\.canPlayType/)
+    assert.match(componentSource, /probePreviewRenditionCandidates[\s\S]*?codecProbe\.canPlayType/)
+    assert.match(componentSource, /rendition\.aspect === "vertical" && rendition\.quality === initialQuality/)
     assert.match(componentSource, /attemptedRenditionsRef\.current = new Set\(\)/)
     assert.doesNotMatch(componentSource, /<source\b/)
   })
@@ -131,6 +136,22 @@ describe("background preview media", () => {
     // This source contract intentionally keeps both inputs in the replay effect;
     // browser coverage exercises the resulting media restart behavior.
     assert.match(componentSource, /\}, \[(?=[^\]]*\bshouldPlayVideo\b)(?=[^\]]*\bresolvedVideoUrl\b)[^\]]*\]\)/)
+  })
+
+  it("pauses and resets the full-catalog comparison players before adjacent navigation", () => {
+    const navigationHandler = sourceBetween(
+      catalogReviewSource,
+      "function navigateToBackground",
+      "if (!entry)",
+      "catalog review navigation handler",
+    )
+
+    assert.match(navigationHandler, /pauseAll\(\)[\s\S]*restartAll\(\)[\s\S]*setBackgroundId/)
+    assert.equal(
+      catalogReviewSource.match(/onClick=\{\(\) => navigateToBackground\(/g)?.length,
+      2,
+      "Previous and Next share the playback reset boundary",
+    )
   })
 
   it("generates quality-78 WebP posters one-third through each actual encoded video", () => {

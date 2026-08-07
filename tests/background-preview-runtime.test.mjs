@@ -157,17 +157,46 @@ test("connection information maps deterministically to one initial quality", () 
 
 test("codec choice prefers supported VP9, falls back to H.264, and otherwise returns null", () => {
   const renditions = [
-    { codec: "h264", mimeType: "video/mp4; codecs=avc1.64001E" },
-    { codec: "vp9", mimeType: "video/webm; codecs=vp9" },
+    { aspect: "vertical", quality: "low", codec: "h264", mimeType: "video/mp4; codecs=avc1.64000D" },
+    { aspect: "vertical", quality: "standard", codec: "h264", mimeType: "video/mp4; codecs=avc1.64001E" },
+    { aspect: "vertical", quality: "standard", codec: "vp9", mimeType: "video/webm; codecs=vp9" },
   ]
+  const chooseStandardCodec = (canPlayType) => chooseSupportedPreviewCodec({
+    renditions,
+    aspect: "vertical",
+    quality: "standard",
+    canPlayType,
+  })
 
-  assert.equal(chooseSupportedPreviewCodec(renditions, () => "probably"), "vp9")
+  assert.equal(chooseStandardCodec(() => "probably"), "vp9")
   assert.equal(
-    chooseSupportedPreviewCodec(renditions, (mimeType) => mimeType.startsWith("video/mp4") ? "maybe" : ""),
+    chooseStandardCodec((mimeType) => mimeType === "video/mp4; codecs=avc1.64001E" ? "maybe" : ""),
     "h264",
   )
-  assert.equal(chooseSupportedPreviewCodec(renditions, () => ""), null)
-  assert.equal(chooseSupportedPreviewCodec(renditions, undefined), null)
+  assert.equal(chooseStandardCodec(() => ""), null)
+  assert.equal(chooseStandardCodec(undefined), null)
+})
+
+test("codec choice never infers target-tier H.264 support from another profile level", () => {
+  const renditions = [
+    { aspect: "vertical", quality: "low", codec: "h264", mimeType: "video/mp4; codecs=avc1.64000D" },
+    { aspect: "vertical", quality: "high", codec: "h264", mimeType: "video/mp4; codecs=avc1.64001F" },
+    { aspect: "vertical", quality: "high", codec: "vp9", mimeType: "video/webm; codecs=vp9" },
+  ]
+  const mixedTierSupport = (mimeType) => mimeType === "video/mp4; codecs=avc1.64000D" ? "probably" : ""
+
+  assert.equal(chooseSupportedPreviewCodec({
+    renditions,
+    aspect: "vertical",
+    quality: "high",
+    canPlayType: mixedTierSupport,
+  }), null)
+  assert.equal(chooseSupportedPreviewCodec({
+    renditions,
+    aspect: "vertical",
+    quality: "low",
+    canPlayType: mixedTierSupport,
+  }), "h264")
 })
 
 test("poster and rendition selection expose one resolved URL and no alternates", async () => {

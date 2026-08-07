@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { spawnSync } from "node:child_process"
 import { createHash } from "node:crypto"
-import { existsSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import fs from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
@@ -21,7 +21,29 @@ import {
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const uploaderPath = path.join(repoRoot, "scripts/chimer-preview-generation/catalog-r2-upload.mjs")
 const realCatalogPath = path.join(repoRoot, "public/chimer/background-preview-catalog/index.json")
-const realCatalogAvailable = existsSync(realCatalogPath)
+
+/**
+ * The tracked catalog index is not proof that its 862 MB ignored media payload
+ * exists. CI must never infer this publication gate from metadata alone.
+ */
+function realCatalogMediaAvailable() {
+  if (!existsSync(realCatalogPath)) return false
+  try {
+    const catalog = JSON.parse(readFileSync(realCatalogPath, "utf8"))
+    const referencedUrls = catalog.entries.flatMap((entry) => [
+      ...entry.renditions.map((rendition) => rendition.url),
+      ...Object.values(entry.posters).map((poster) => poster.url),
+    ])
+    return referencedUrls.length === 1_728 && referencedUrls.every((relativePath) =>
+      typeof relativePath === "string"
+        && existsSync(path.join(path.dirname(realCatalogPath), ...relativePath.split("/"))))
+  } catch {
+    return false
+  }
+}
+
+const runRealCatalogDryRun = process.env.MASSAGELAB_RUN_REAL_CATALOG_R2_DRY_RUN === "1"
+  && realCatalogMediaAvailable()
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex")
@@ -82,6 +104,8 @@ describe("Chimer catalog R2 publication planner", () => {
       publicBaseUrl: "https://media.example.test",
     })
 
+    assert.equal(CATALOG_R2_RELEASE_PREFIX, "chimer/background-preview-catalog/catalog-approved-1")
+    assert.equal(CATALOG_R2_MEDIA_CACHE_CONTROL, "public, max-age=31536000, immutable")
     assert.equal(objects.length, 3)
     assert.deepEqual(
       objects.map(({ objectKey }) => objectKey),
@@ -233,7 +257,7 @@ describe("Chimer catalog R2 publication planner", () => {
   })
 
   it("runs the exact credential-free dry run when the ignored catalog is available", {
-    skip: !realCatalogAvailable,
+    skip: !runRealCatalogDryRun,
   }, () => {
     const result = spawnSync(process.execPath, [
       uploaderPath,

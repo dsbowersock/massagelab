@@ -71,6 +71,12 @@ export function BackgroundCarousel({
 
   // Keep the carousel, preview cards, and host on the shared ambient-motion source of truth.
   const reducedMotion = useAmbientReducedMotion(settings.ambientMotionMode)
+  const previewPlaybackActive = playPreviews && active && !reducedMotion
+
+  useEffect(() => {
+    // Do not silently resume previews if reduced motion is later turned off.
+    if (reducedMotion) setPlayPreviews(false)
+  }, [reducedMotion])
 
   useEffect(() => {
     const host = hostRef.current
@@ -147,10 +153,15 @@ export function BackgroundCarousel({
           type="button"
           size="sm"
           variant="outline"
-          aria-pressed={playPreviews}
+          aria-pressed={previewPlaybackActive}
+          disabled={reducedMotion}
           onClick={() => setPlayPreviews((current) => !current)}
         >
-          {playPreviews ? "Pause Previews" : "Play Preview"}
+          {reducedMotion
+            ? "Previews off (reduced motion)"
+            : playPreviews
+              ? "Pause Previews"
+              : "Play Preview"}
         </Button>
       </div>
       <AdaptiveCarouselStage
@@ -177,7 +188,7 @@ export function BackgroundCarousel({
             selected={selectedId === option.id}
             saved={savedIds.includes(option.id)}
             active={active}
-            playPreviews={playPreviews && active && !reducedMotion}
+            playPreviews={previewPlaybackActive}
             signedIn={signedIn}
             reducedMotion={reducedMotion}
             onSelect={() => onSelect(option.id)}

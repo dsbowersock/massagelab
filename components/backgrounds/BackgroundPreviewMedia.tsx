@@ -43,9 +43,37 @@ function getPreviewConnection() {
   return (navigator as PreviewNavigator).connection
 }
 
-/** Distinguishes sequential attempts without retaining or preloading a source. */
+/** Distinguishes exact MIME/rendition attempts without retaining a second source. */
 function renditionAttemptKey(rendition: BackgroundPreviewPublishedRendition) {
-  return `${rendition.aspect}:${rendition.quality}:${rendition.codec}`
+  return `${rendition.aspect}:${rendition.quality}:${rendition.codec}:${rendition.mimeType}`
+}
+
+/**
+ * Probes only the candidates for one requested tier and records support by
+ * exact rendition. H.264's profile/level MIME changes between quality tiers.
+ */
+function probePreviewRenditionCandidates(
+  renditions: readonly BackgroundPreviewPublishedRendition[],
+) {
+  const codecProbe = document.createElement("video")
+  const supportByMimeType = new Map<string, CanPlayTypeResult>()
+  const supportedRenditionKeys = new Set<string>()
+  for (const rendition of renditions) {
+    let support = supportByMimeType.get(rendition.mimeType)
+    if (support === undefined) {
+      support = ""
+      try {
+        support = codecProbe.canPlayType(rendition.mimeType)
+      } catch {
+        // A throwing probe is equivalent to no declared support for this MIME.
+      }
+      supportByMimeType.set(rendition.mimeType, support)
+    }
+    if (support === "probably" || support === "maybe") {
+      supportedRenditionKeys.add(renditionAttemptKey(rendition))
+    }
+  }
+  return { supportByMimeType, supportedRenditionKeys }
 }
 
 /**
@@ -66,7 +94,7 @@ export function BackgroundPreviewMedia({
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const pendingQualityRef = useRef<BackgroundPreviewPublishedQuality | null>(null)
   const attemptedRenditionsRef = useRef<Set<string>>(new Set())
-  const supportedCodecsRef = useRef<Set<BackgroundPreviewPublishedCodec>>(new Set())
+  const supportedRenditionsRef = useRef<Set<string>>(new Set())
   const activeSourceUrlRef = useRef<string | null>(null)
   const [videoFailed, setVideoFailed] = useState(false)
   const [posterFailed, setPosterFailed] = useState(false)
@@ -110,7 +138,7 @@ export function BackgroundPreviewMedia({
 
     pendingQualityRef.current = null
     attemptedRenditionsRef.current = new Set()
-    supportedCodecsRef.current = new Set()
+    supportedRenditionsRef.current = new Set()
     activeSourceUrlRef.current = null
     setCurrentRendition(null)
     setLegacyVideoSelected(false)
@@ -127,25 +155,17 @@ export function BackgroundPreviewMedia({
 
     const connection = getPreviewConnection()
     const initialQuality = qualityForPreviewConnection(connection)
-    const codecProbe = document.createElement("video")
-    const codecSupportByMimeType = new Map<string, CanPlayTypeResult>()
-    for (const rendition of publishedEntry.renditions) {
-      if (codecSupportByMimeType.has(rendition.mimeType)) continue
-      let support: CanPlayTypeResult = ""
-      try {
-        support = codecProbe.canPlayType(rendition.mimeType)
-      } catch {
-        // A throwing probe is equivalent to no declared support for this MIME.
-      }
-      codecSupportByMimeType.set(rendition.mimeType, support)
-      if (support === "probably" || support === "maybe") {
-        supportedCodecsRef.current.add(rendition.codec)
-      }
-    }
-    const codec = chooseSupportedPreviewCodec(
-      publishedEntry.renditions,
-      (mimeType: string) => codecSupportByMimeType.get(mimeType) ?? "",
-    )
+    const targetRenditions = publishedEntry.renditions.filter((rendition) =>
+      rendition.aspect === "vertical" && rendition.quality === initialQuality)
+    const { supportByMimeType, supportedRenditionKeys } =
+      probePreviewRenditionCandidates(targetRenditions)
+    supportedRenditionsRef.current = supportedRenditionKeys
+    const codec = chooseSupportedPreviewCodec({
+      renditions: targetRenditions,
+      aspect: "vertical",
+      quality: initialQuality,
+      canPlayType: (mimeType: string) => supportByMimeType.get(mimeType) ?? "",
+    })
     if (!codec) {
       setVideoFailed(true)
       return
@@ -206,18 +226,18 @@ export function BackgroundPreviewMedia({
     if (currentRendition && publishedCatalogBaseUrl) {
       const alternateCodec: BackgroundPreviewPublishedCodec =
         currentRendition.codec === "vp9" ? "h264" : "vp9"
-      const alternateAttemptKey = `${currentRendition.aspect}:${currentRendition.quality}:${alternateCodec}`
-      if (supportedCodecsRef.current.has(alternateCodec)
-        && !attemptedRenditionsRef.current.has(alternateAttemptKey)) {
-        attemptedRenditionsRef.current.add(alternateAttemptKey)
-        const alternateRendition = selectPublishedPreviewRendition({
-          entry: publishedEntry,
-          aspect: currentRendition.aspect,
-          quality: currentRendition.quality,
-          codec: alternateCodec,
-          catalogBaseUrl: publishedCatalogBaseUrl,
-        }) as BackgroundPreviewPublishedRendition | null
-        if (alternateRendition) {
+      const alternateRendition = selectPublishedPreviewRendition({
+        entry: publishedEntry,
+        aspect: currentRendition.aspect,
+        quality: currentRendition.quality,
+        codec: alternateCodec,
+        catalogBaseUrl: publishedCatalogBaseUrl,
+      }) as BackgroundPreviewPublishedRendition | null
+      if (alternateRendition) {
+        const alternateAttemptKey = renditionAttemptKey(alternateRendition)
+        if (supportedRenditionsRef.current.has(alternateAttemptKey)
+          && !attemptedRenditionsRef.current.has(alternateAttemptKey)) {
+          attemptedRenditionsRef.current.add(alternateAttemptKey)
           activeSourceUrlRef.current = alternateRendition.url
           setCurrentRendition(alternateRendition)
           return
@@ -235,6 +255,12 @@ export function BackgroundPreviewMedia({
 
     const pendingQuality = pendingQualityRef.current
     pendingQualityRef.current = null
+    if (currentRendition && pendingQuality && publishedEntry?.renditions) {
+      const pendingCandidates = publishedEntry.renditions.filter((rendition) =>
+        rendition.aspect === currentRendition.aspect && rendition.quality === pendingQuality)
+      const { supportedRenditionKeys } = probePreviewRenditionCandidates(pendingCandidates)
+      for (const key of supportedRenditionKeys) supportedRenditionsRef.current.add(key)
+    }
     const pendingRendition = currentRendition && pendingQuality && publishedCatalogBaseUrl
       ? resolvePendingPreviewRendition({
           entry: publishedEntry,
@@ -243,7 +269,9 @@ export function BackgroundPreviewMedia({
           catalogBaseUrl: publishedCatalogBaseUrl,
         }) as BackgroundPreviewPublishedRendition | null
       : null
-    if (pendingRendition && pendingRendition.url !== currentRendition?.url) {
+    if (pendingRendition
+      && supportedRenditionsRef.current.has(renditionAttemptKey(pendingRendition))
+      && pendingRendition.url !== currentRendition?.url) {
       attemptedRenditionsRef.current.add(renditionAttemptKey(pendingRendition))
       activeSourceUrlRef.current = pendingRendition.url
       setCurrentRendition(pendingRendition)

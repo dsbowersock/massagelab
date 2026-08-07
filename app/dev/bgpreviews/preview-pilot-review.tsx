@@ -83,6 +83,13 @@ export function PreviewPilotReview({
     setPlaying(false)
   }
 
+  /** Prevents the next review matrix from inheriting a stale playing state. */
+  function navigateToBackground(nextBackgroundId: string) {
+    pauseAll()
+    restartAll()
+    setBackgroundId(nextBackgroundId)
+  }
+
   if (!entry) {
     return (
       <div data-testid={mode === "catalog" ? "background-preview-catalog-review" : "background-preview-pilot-review"}>
@@ -134,8 +141,8 @@ export function PreviewPilotReview({
             <Button type="button" variant="outline" onClick={restartAll}>Restart at loop boundary</Button>
             {mode === "catalog" ? (
               <>
-                <Button type="button" variant="outline" disabled={visibleEntries.indexOf(entry) <= 0} onClick={() => setBackgroundId(visibleEntries[visibleEntries.indexOf(entry) - 1].backgroundId)}>Previous</Button>
-                <Button type="button" variant="outline" disabled={visibleEntries.indexOf(entry) >= visibleEntries.length - 1} onClick={() => setBackgroundId(visibleEntries[visibleEntries.indexOf(entry) + 1].backgroundId)}>Next</Button>
+                <Button type="button" variant="outline" disabled={visibleEntries.indexOf(entry) <= 0} onClick={() => navigateToBackground(visibleEntries[visibleEntries.indexOf(entry) - 1].backgroundId)}>Previous</Button>
+                <Button type="button" variant="outline" disabled={visibleEntries.indexOf(entry) >= visibleEntries.length - 1} onClick={() => navigateToBackground(visibleEntries[visibleEntries.indexOf(entry) + 1].backgroundId)}>Next</Button>
               </>
             ) : null}
           </div>

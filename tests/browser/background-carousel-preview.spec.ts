@@ -3,15 +3,24 @@ import { expect, test, type Page } from "@playwright/test"
 type PreviewRuntimeProbe = {
   playCalls: number
   pauseCalls: number
+  rejectedPlayCalls: number
+}
+
+type PreviewRuntimeProbeOptions = {
+  rejectOnceForSource?: string
 }
 
 /**
  * Makes connection, playback, and visibility boundaries deterministic while
  * keeping rendition selection inside the production preview component.
  */
-async function installPreviewRuntimeProbe(page: Page) {
-  await page.addInitScript(() => {
-    const probe = { playCalls: 0, pauseCalls: 0 }
+async function installPreviewRuntimeProbe(
+  page: Page,
+  options: PreviewRuntimeProbeOptions = {},
+) {
+  await page.addInitScript(({ rejectOnceForSource }) => {
+    const probe = { playCalls: 0, pauseCalls: 0, rejectedPlayCalls: 0 }
+    let rejectedMatchingPlay = false
     const connection = new EventTarget() as EventTarget & {
       effectiveType: string
       saveData: boolean
@@ -42,6 +51,23 @@ async function installPreviewRuntimeProbe(page: Page) {
     HTMLMediaElement.prototype.play = function play() {
       if (this.dataset.testid === "carousel-background-video") {
         probe.playCalls += 1
+        const source = this.getAttribute("src") ?? ""
+        if (rejectOnceForSource
+          && source.includes(rejectOnceForSource)
+          && !rejectedMatchingPlay) {
+          rejectedMatchingPlay = true
+          probe.rejectedPlayCalls += 1
+          return Promise.reject(new DOMException("Synthetic reject-once preview failure", "NotAllowedError"))
+        }
+        queueMicrotask(() => {
+          if (!this.isConnected || this.getAttribute("src") !== source) return
+          // Source-specific markers prove that a replacement reached the
+          // component's loaded/playing path rather than inheriting old events.
+          this.dataset.probeLoadedDataSource = source
+          this.dispatchEvent(new Event("loadeddata"))
+          this.dataset.probePlayingSource = source
+          this.dispatchEvent(new Event("playing"))
+        })
         return Promise.resolve()
       }
       return originalPlay.call(this)
@@ -54,7 +80,7 @@ async function installPreviewRuntimeProbe(page: Page) {
       if (type.includes("codecs=vp9") || type.includes("codecs=avc1")) return "probably"
       return originalCanPlayType.call(this, type)
     }
-  })
+  }, options)
 }
 
 /** Opens the real production Clock caller with its Background panel active. */
@@ -70,7 +96,11 @@ async function openProductionBackgroundCarousel(page: Page) {
 async function readPreviewRuntimeProbe(page: Page): Promise<PreviewRuntimeProbe> {
   return page.evaluate(() => {
     const probe = Reflect.get(window, "__previewRuntimeProbe") as PreviewRuntimeProbe
-    return { playCalls: probe.playCalls, pauseCalls: probe.pauseCalls }
+    return {
+      playCalls: probe.playCalls,
+      pauseCalls: probe.pauseCalls,
+      rejectedPlayCalls: probe.rejectedPlayCalls,
+    }
   })
 }
 
@@ -96,6 +126,28 @@ test("production carousel stays within its request budget and changes rendition 
     await expect(card.getByTestId("carousel-background-video")).toHaveCount(0)
     await expect(card.getByTestId("background-preview-poster")).toBeVisible()
   }
+
+  const mountedSlides = panel.locator(
+    '[data-carousel-slide][data-detail-level="full"], [data-carousel-slide][data-detail-level="summary"]',
+  )
+  const mountedContracts = await mountedSlides.evaluateAll((slides) => slides.map((slide) => {
+    const card = slide.querySelector<HTMLElement>("[data-background-id]")
+    return {
+      backgroundId: card?.dataset.backgroundId ?? null,
+      videoCount: card?.querySelectorAll('video[data-testid="carousel-background-video"]').length ?? 0,
+    }
+  }))
+  expect(mountedContracts.length).toBeGreaterThan(0)
+  expect(mountedContracts.length).toBeLessThanOrEqual(5)
+  for (const contract of mountedContracts) {
+    expect(contract.backgroundId).not.toBeNull()
+    expect(contract.videoCount).toBe(
+      contract.backgroundId && ["static-gradient", "solid-color"].includes(contract.backgroundId) ? 0 : 1,
+    )
+  }
+  await expect(
+    panel.locator('[data-carousel-slide][data-detail-level="shell"] video[data-testid="carousel-background-video"]'),
+  ).toHaveCount(0)
 
   const sourceContracts = await videos.evaluateAll((players) => players.map((player) => {
     const video = player as HTMLVideoElement
@@ -154,6 +206,15 @@ test("production carousel stays within its request budget and changes rendition 
   await expect(video).toHaveAttribute("data-preview-codec", "h264")
   await expect(video).toHaveAttribute("data-preview-quality", "high")
   await expect(video).toHaveAttribute("src", /\/vertical\/high\.mp4$/)
+  await expect(video).toHaveAttribute("data-probe-loaded-data-source", /\/vertical\/high\.mp4$/)
+  await expect(video).toHaveAttribute("data-probe-playing-source", /\/vertical\/high\.mp4$/)
+  await expect(animatedCard.getByTestId("carousel-background-video")).toHaveCount(1)
+
+  await panel.getByRole("button", { name: "Pause Previews" }).click()
+  await expect(panel.getByRole("button", { name: "Play Preview" })).toHaveAttribute("aria-pressed", "false")
+  await expect(videos).toHaveCount(0)
+  await panel.getByRole("button", { name: "Play Preview" }).click()
+  await expect.poll(() => videos.count()).toBeGreaterThan(0)
 
   const pausesBeforeHidden = (await readPreviewRuntimeProbe(page)).pauseCalls
   await page.evaluate(() => {
@@ -180,6 +241,24 @@ test("production carousel stays within its request budget and changes rendition 
     .toBeGreaterThan(pausesBeforeInactive)
 })
 
+test("a rejected play retries the exact same tier with H.264 and keeps the player mounted", async ({ page }) => {
+  await installPreviewRuntimeProbe(page, {
+    rejectOnceForSource: "massage-lab-moving-gradient",
+  })
+  const panel = await openProductionBackgroundCarousel(page)
+  const animatedCard = panel.locator('[data-background-id="massage-lab-moving-gradient"]')
+
+  await panel.getByRole("button", { name: "Play Preview" }).click()
+  const video = animatedCard.getByTestId("carousel-background-video")
+  await expect.poll(async () => (await readPreviewRuntimeProbe(page)).rejectedPlayCalls).toBe(1)
+  await expect(video).toHaveCount(1)
+  await expect(video).toHaveAttribute("data-preview-quality", "standard")
+  await expect(video).toHaveAttribute("data-preview-codec", "h264")
+  await expect(video).toHaveAttribute("src", /\/vertical\/standard\.mp4$/)
+  await expect(video).toHaveAttribute("data-probe-loaded-data-source", /\/vertical\/standard\.mp4$/)
+  await expect(video).toHaveAttribute("data-probe-playing-source", /\/vertical\/standard\.mp4$/)
+})
+
 test("production carousel remains poster-only when reduced motion is requested", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.addInitScript(() => {
@@ -189,8 +268,9 @@ test("production carousel remains poster-only when reduced motion is requested",
   const videos = panel.getByTestId("carousel-background-video")
 
   await expect(videos).toHaveCount(0)
-  await panel.getByRole("button", { name: "Play Preview" }).click()
-  await expect(panel.getByRole("button", { name: "Pause Previews" })).toHaveAttribute("aria-pressed", "true")
+  const reducedMotionStatus = panel.getByRole("button", { name: "Previews off (reduced motion)" })
+  await expect(reducedMotionStatus).toBeDisabled()
+  await expect(reducedMotionStatus).toHaveAttribute("aria-pressed", "false")
   await expect(videos).toHaveCount(0)
   await expect(panel.getByTestId("background-preview-poster").first()).toBeVisible()
 })
