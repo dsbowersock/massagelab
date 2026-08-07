@@ -53,7 +53,7 @@ export type BackgroundPreviewCatalogManifest = {
 }
 
 /** Fail closed if checked-in local review metadata drifts from schema v3. */
-function assertCatalogManifest(value: unknown): asserts value is BackgroundPreviewCatalogManifest {
+export function assertCatalogManifest(value: unknown): asserts value is BackgroundPreviewCatalogManifest {
   if (!value || typeof value !== "object") throw new Error("Background preview catalog must be an object.")
   const manifest = value as Record<string, unknown>
   if (manifest.schemaVersion !== 3 || typeof manifest.catalogRevision !== "string" || !Array.isArray(manifest.entries)) {
@@ -63,7 +63,7 @@ function assertCatalogManifest(value: unknown): asserts value is BackgroundPrevi
   for (const rawEntry of manifest.entries) {
     if (!rawEntry || typeof rawEntry !== "object") throw new Error("Background preview catalog entry must be an object.")
     const entry = rawEntry as Record<string, unknown>
-    if (typeof entry.backgroundId !== "string" || ids.has(entry.backgroundId)) {
+    if (typeof entry.backgroundId !== "string" || !entry.backgroundId.trim() || ids.has(entry.backgroundId)) {
       throw new Error("Background preview catalog IDs must be nonempty and unique.")
     }
     ids.add(entry.backgroundId)

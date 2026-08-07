@@ -5,7 +5,6 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
-  readdirSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -26,13 +25,17 @@ import {
   validateRenditionMetadata,
 } from "./media-validation.mjs"
 import {
-  FULL_CATALOG_BACKGROUND_IDS,
   FULL_CATALOG_BATCHES,
-  PILOT_BACKGROUND_IDS,
   PREVIEW_ASPECTS,
   PREVIEW_RENDITION_LADDER,
   getBackgroundPreviewRecipe,
 } from "./preview-recipes.mjs"
+import {
+  resolveWinGetMediaTool,
+  selectRenderPilotIds,
+  stopPreviewServer,
+  withPreviewResources,
+} from "./render-pilot-helpers.mjs"
 import {
   buildBackgroundPosterPlan,
   buildBackgroundRenditionPlan,
@@ -69,12 +72,8 @@ function resolveMediaTool(command) {
       process.env.LOCALAPPDATA,
       "Microsoft/WinGet/Packages/Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe",
     )
-    if (existsSync(packageRoot)) {
-      const versionDir = readdirSync(packageRoot, { withFileTypes: true })
-        .find((entry) => entry.isDirectory() && entry.name.startsWith("ffmpeg-"))
-      const executable = versionDir && path.join(packageRoot, versionDir.name, "bin", `${command}.exe`)
-      if (executable && existsSync(executable)) return executable
-    }
+    const executable = resolveWinGetMediaTool(packageRoot, command)
+    if (executable) return executable
   }
   return command
 }
@@ -102,7 +101,11 @@ function parseArgs(argv) {
     const next = argv[index + 1]
     switch (arg) {
       case "--base-url": options.baseUrl = next ?? ""; index += 1; break
-      case "--batch-slug": options.batchSlug = next ?? ""; index += 1; break
+      case "--batch":
+        if (!next || next.startsWith("--")) throw new Error("--batch requires a catalog batch slug.")
+        options.batchSlug = next
+        index += 1
+        break
       case "--catalog-mode": options.catalogMode = true; break
       case "--force": options.force = true; break
       case "--ids": options.ids = (next ?? "").split(",").map((value) => value.trim()).filter(Boolean); index += 1; break
@@ -128,10 +131,11 @@ function parseArgs(argv) {
   if (options.catalogMode && path.resolve(options.outputDir) === pilotPreviewDir) {
     throw new Error("Catalog mode refuses the approved pilot directory.")
   }
-  const allowedIds = options.catalogMode ? FULL_CATALOG_BACKGROUND_IDS : PILOT_BACKGROUND_IDS
-  const unknownIds = options.ids.filter((id) => !allowedIds.includes(id))
-  if (unknownIds.length) throw new Error(`Unknown preview background IDs: ${unknownIds.join(", ")}`)
-  options.ids = options.ids.length ? [...new Set(options.ids)] : [...allowedIds]
+  options.ids = selectRenderPilotIds({
+    catalogMode: options.catalogMode,
+    batchSlug: options.batchSlug,
+    ids: options.ids,
+  })
   if (!options.ids.length) throw new Error("At least one preview background ID is required.")
   if (!Number.isInteger(options.port) || options.port < 1 || options.port > 65535) throw new Error("Pilot port is invalid.")
   if (options.catalogMode && options.writeModule) {
@@ -223,12 +227,7 @@ async function startServer(options) {
 
 /** Stops the exact locally spawned Next process tree, including Windows children. */
 async function stopServer(server) {
-  if (!server?.pid) return
-  if (process.platform === "win32") {
-    spawnSync("taskkill", ["/PID", String(server.pid), "/T", "/F"], { stdio: "ignore" })
-    return
-  }
-  server.kill("SIGTERM")
+  await stopPreviewServer(server)
 }
 
 function attachCaptureDiagnostics(page, backgroundId, aspect) {
@@ -667,10 +666,14 @@ async function main() {
     console.log(`Validated ${manifest.entries.length} complete ${options.catalogMode ? "catalog" : "pilot"} entries.`)
     return
   }
-  const server = await startServer(options)
-  const browser = await chromium.launch({ headless: true })
-  const tempVideoDir = await mkdtemp(path.join(tmpdir(), "massagelab-preview-pilot-"))
-  try {
+  await withPreviewResources({
+    startServer: () => startServer(options),
+    launchBrowser: () => chromium.launch({ headless: true }),
+    createTempVideoDir: () => mkdtemp(path.join(tmpdir(), "massagelab-preview-pilot-")),
+    closeBrowser: (browser) => browser.close(),
+    stopServer,
+    removeTempVideoDir: (tempVideoDir) => rm(tempVideoDir, { recursive: true, force: true }),
+  }, async ({ browser, tempVideoDir }) => {
     const existing = readManifest(options.outputDir, options.catalogMode)
     const entriesById = new Map(existing.entries.map((entry) => [entry.backgroundId, entry]))
     for (const id of options.ids) {
@@ -715,11 +718,7 @@ async function main() {
     }
     const manifest = validateExistingOutput(options)
     console.log(`Rendered and validated ${manifest.entries.length} complete ${options.catalogMode ? "catalog" : "pilot"} entries.`)
-  } finally {
-    await browser.close().catch(() => undefined)
-    await stopServer(server)
-    await rm(tempVideoDir, { recursive: true, force: true })
-  }
+  })
 }
 
 main().catch((error) => {

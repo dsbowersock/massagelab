@@ -4,6 +4,7 @@ import { backgroundPreviewRenditionManifest } from "@/components/backgrounds/bac
 import { backgroundPreviewCatalogManifest } from "@/components/backgrounds/backgroundPreviewCatalogManifest"
 import { findBackgroundDefinition } from "@/components/backgrounds/backgroundRegistry"
 import { AppPageShell } from "@/components/ui/app-surface"
+import { FULL_CATALOG_BATCHES } from "@/scripts/chimer-preview-generation/preview-recipes.mjs"
 import { PreviewPilotReview } from "./preview-pilot-review"
 
 export const metadata = {
@@ -14,15 +15,7 @@ export const metadata = {
   },
 }
 
-const CATALOG_BATCHES = [
-  { slug: "01-foundations", title: "Foundations and signature forms" },
-  { slug: "02-flow-and-liquid", title: "Flow and liquid motion" },
-  { slug: "03-light-and-rays", title: "Light, rays, and beams" },
-  { slug: "04-grids-and-pixels", title: "Grids, pixels, and geometry" },
-  { slug: "05-atmosphere-and-cosmos", title: "Atmosphere and cosmos" },
-  { slug: "06-digital-energy", title: "Digital and high-energy effects" },
-  { slug: "07-fields-and-celestial", title: "Fields and celestial motion" },
-] as const
+const CATALOG_BATCHES = FULL_CATALOG_BATCHES.map(({ slug, title }) => ({ slug, title }))
 
 export default async function BackgroundPreviewPilotPage({
   searchParams,

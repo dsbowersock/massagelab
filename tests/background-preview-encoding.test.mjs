@@ -16,9 +16,11 @@ import {
 } from "../scripts/chimer-preview-generation/media-validation.mjs"
 import {
   readGenerationCheckpoint,
+  sanitizeGenerationError,
   updateGenerationCheckpoint,
 } from "../scripts/chimer-preview-generation/generation-checkpoint.mjs"
 import { getPreviewRenditionMimeType } from "../scripts/chimer-preview-generation/rendition-plan.mjs"
+import { assertCatalogManifest } from "../components/backgrounds/backgroundPreviewCatalogManifest.ts"
 
 describe("background preview encoding plans", () => {
   it("declares the encoded High-profile H.264 level for each quality tier", () => {
@@ -206,5 +208,45 @@ describe("background preview media validation", () => {
     updateGenerationCheckpoint("catalog", "massage-lab-dna", "vertical", { status: "complete" }, io)
     assert.equal(writes.length, 1)
     assert.equal(JSON.parse(writes[0][1]).aspects["massage-lab-dna:vertical"].status, "complete")
+  })
+
+  it("redacts Windows, POSIX, and file URL paths without erasing command diagnostics", () => {
+    assert.equal(
+      sanitizeGenerationError(new Error("C:\\Users\\derri\\capture\\high.webm failed: ffmpeg -v error")),
+      "<local-path> failed: ffmpeg -v error",
+    )
+    assert.equal(
+      sanitizeGenerationError(new Error("/home/derri/catalog/high.webm failed: ffprobe -version")),
+      "<local-path> failed: ffprobe -version",
+    )
+    assert.equal(
+      sanitizeGenerationError(new Error("/tmp/massagelab-preview/raw.webm failed: encoder unavailable")),
+      "<local-path> failed: encoder unavailable",
+    )
+    assert.equal(
+      sanitizeGenerationError(new Error("file:///home/derri/catalog/index.json: invalid manifest")),
+      "<local-path>: invalid manifest",
+    )
+  })
+
+  it("rejects empty, whitespace-only, and duplicate catalog background IDs", () => {
+    const entry = (backgroundId) => ({
+      backgroundId,
+      mediaKind: "poster-only",
+      recipeRevision: "recipe-1",
+      reviewStatus: "approved",
+      batchSlug: "01-foundations",
+      loopStrategy: "static",
+      loopBoundaryMs: 0,
+      renditions: [],
+      posters: Object.fromEntries(["landscape", "square", "vertical"].map((aspect) => [aspect, {
+        url: `${aspect}/poster.webp`, width: 1, height: 1, bytes: 1, sha256: "a".repeat(64),
+      }])),
+    })
+    const manifest = (entries) => ({ schemaVersion: 3, catalogRevision: "catalog-approved-1", entries })
+
+    assert.throws(() => assertCatalogManifest(manifest([entry("")])), /nonempty and unique/)
+    assert.throws(() => assertCatalogManifest(manifest([entry("   ")])), /nonempty and unique/)
+    assert.throws(() => assertCatalogManifest(manifest([entry("same"), entry("same")])), /nonempty and unique/)
   })
 })

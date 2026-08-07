@@ -37,7 +37,7 @@ function parseArgs(argv) {
       case "--resume": options.resume = true; break
       case "--skip-server": options.skipServer = true; break
       case "--validate-only": options.validateOnly = true; break
-      default: if (arg.startsWith("--")) throw new Error(`Unknown option: ${arg}`)
+      default: throw new Error(`Unknown option or positional argument: ${arg}`)
     }
   }
   // The package validation command is read-only and may safely target only

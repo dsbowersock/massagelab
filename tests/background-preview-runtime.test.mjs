@@ -3,7 +3,10 @@ import { readFile } from "node:fs/promises"
 import test from "node:test"
 
 import {
+  PUBLISHED_CATALOG_REVISION,
+  PUBLISHED_RUNTIME_SCHEMA_VERSION,
   buildPublishedRuntimeManifest,
+  renderPublishedRuntimeManifestModule,
   serializePublishedRuntimeManifest,
 } from "../scripts/chimer-preview-generation/published-runtime-manifest.mjs"
 import {
@@ -111,6 +114,12 @@ test("the checked-in runtime artifact is generated from the approved catalog", a
     JSON.stringify(checkedInManifest),
     JSON.stringify(buildPublishedRuntimeManifest(approvedCatalog)),
   )
+})
+
+test("the generated typed wrapper renders schema and revision constants", () => {
+  const source = renderPublishedRuntimeManifestModule()
+  assert.match(source, new RegExp(`readonly schemaVersion: ${PUBLISHED_RUNTIME_SCHEMA_VERSION}`))
+  assert.match(source, new RegExp(`readonly catalogRevision: "${PUBLISHED_CATALOG_REVISION}"`))
 })
 
 test("catalog base resolution fails closed in Production and supports the local development prefix", () => {

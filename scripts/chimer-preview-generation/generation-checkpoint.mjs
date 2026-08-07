@@ -43,5 +43,11 @@ export function updateGenerationCheckpoint(outputDir, backgroundId, aspect, resu
 /** Prevents local paths and long process output from leaking into checkpoints. */
 export function sanitizeGenerationError(error) {
   const message = error instanceof Error ? error.message : String(error)
-  return message.replace(/[A-Z]:\\[^\n]+/gi, "<local-path>").slice(0, 2000)
+  return message
+    .replace(/(["'])file:\/\/\/[^"'\r\n]+\1/gi, "<local-path>")
+    .replace(/(["'])(?:[A-Z]:[\\/]|\/(?:home|tmp|Users|private|var|opt|mnt)\/)[^"'\r\n]+\1/gi, "<local-path>")
+    .replace(/\bfile:\/\/\/(?:[A-Z]:\/)?[^\s"'<>|,:;!?)]+/gi, "<local-path>")
+    .replace(/\b[A-Z]:[\\/][^\s"'<>|,:;!?)]+/gi, "<local-path>")
+    .replace(/(?<![\w:])\/(?:home|tmp|Users|private|var|opt|mnt)\/[^\s"'<>|,:;!?)]+/g, "<local-path>")
+    .slice(0, 2000)
 }

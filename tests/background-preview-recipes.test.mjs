@@ -13,6 +13,7 @@ import {
   PREVIEW_QUALITIES,
   PREVIEW_RENDITION_LADDER,
   STATIC_BACKGROUND_IDS,
+  assertApprovedPilotRecipesMatch,
   backgroundPreviewRecipes,
   getBackgroundPreviewRecipe,
   validateBackgroundPreviewRecipe,
@@ -127,6 +128,20 @@ describe("background preview recipes", () => {
     for (const [id, expected] of Object.entries(APPROVED_PILOT_RECIPES)) {
       assert.deepEqual(getBackgroundPreviewRecipe(id), expected)
     }
+  })
+
+  it("compares approved pilot recipes semantically and reports missing rows explicitly", () => {
+    const approved = {
+      pilot: { backgroundId: "pilot", warmupMs: 100, framing: { landscape: "center" } },
+    }
+    const reordered = {
+      pilot: { framing: { landscape: "center" }, warmupMs: 100, backgroundId: "pilot" },
+    }
+    assert.doesNotThrow(() => assertApprovedPilotRecipesMatch(reordered, approved))
+    assert.throws(
+      () => assertApprovedPilotRecipesMatch({}, approved),
+      /approved pilot recipe is missing from the checked-in catalog/,
+    )
   })
 
   it("rejects incomplete and display-name-coupled manifest entries", () => {
@@ -267,5 +282,26 @@ describe("background preview recipes", () => {
     assert.match(source, /process\.env\.NODE_ENV === "production"/)
     assert.match(source, /notFound\(\)/)
     assert.match(source, /robots:\s*\{[\s\S]*index:\s*false[\s\S]*follow:\s*false/)
+  })
+
+  it("derives review batch order from the canonical catalog while preserving review titles", () => {
+    const source = readFileSync(new URL("../app/dev/bgpreviews/page.tsx", import.meta.url), "utf8")
+    assert.match(source, /FULL_CATALOG_BATCHES\.map\(\(\{ slug, title \}\) => \(\{ slug, title \}\)\)/)
+    assert.doesNotMatch(source, /01-foundations/)
+    assert.deepEqual(FULL_CATALOG_BATCHES.map(({ title }) => title), [
+      "Foundations and signature forms",
+      "Flow and liquid motion",
+      "Light, rays, and beams",
+      "Grids, pixels, and geometry",
+      "Atmosphere and cosmos",
+      "Digital and high-energy effects",
+      "Fields and celestial motion",
+    ])
+  })
+
+  it("labels empty pilot and catalog review surfaces independently", () => {
+    const source = readFileSync(new URL("../app/dev/bgpreviews/preview-pilot-review.tsx", import.meta.url), "utf8")
+    assert.match(source, /mode === "catalog" \? "Catalog evidence unavailable" : "Pilot evidence unavailable"/)
+    assert.match(source, /<AppSurface title=\{emptyTitle\}/)
   })
 })

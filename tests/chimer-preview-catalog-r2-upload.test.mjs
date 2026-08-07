@@ -21,6 +21,22 @@ import {
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const uploaderPath = path.join(repoRoot, "scripts/chimer-preview-generation/catalog-r2-upload.mjs")
 const realCatalogPath = path.join(repoRoot, "public/chimer/background-preview-catalog/index.json")
+const CHILD_UPLOADER_PUBLIC_MEDIA_ENV_KEYS = [
+  "CLOUDFLARE_ACCOUNT_ID",
+  "R2_ACCESS_KEY_ID",
+  "R2_SECRET_ACCESS_KEY",
+  "MASSAGELAB_PUBLIC_MEDIA_R2_ENDPOINT",
+  "MASSAGELAB_R2_ENDPOINT",
+  "MASSAGELAB_PUBLIC_MEDIA_PUBLIC_BASE_URL",
+  "MASSAGELAB_PUBLIC_MEDIA_BUCKET",
+]
+
+/** Clears every inherited public-media setting before a child uploader test. */
+function childUploaderEnv(overrides = {}, inheritedEnv = process.env) {
+  const env = { ...inheritedEnv }
+  for (const key of CHILD_UPLOADER_PUBLIC_MEDIA_ENV_KEYS) delete env[key]
+  return { ...env, ...overrides }
+}
 
 /**
  * The tracked catalog index is not proof that its 862 MB ignored media payload
@@ -57,6 +73,8 @@ async function createFixture(testContext) {
     ["massage-lab-example/recipe-1/landscape/low.webm", Buffer.from("webm media")],
     ["massage-lab-example/recipe-1/landscape/low.mp4", Buffer.from("mp4 media")],
     ["massage-lab-example/recipe-1/landscape/poster.webp", Buffer.from("webp poster")],
+    ["massage-lab-example/recipe-1/square/poster.webp", Buffer.from("square webp poster")],
+    ["massage-lab-example/recipe-1/vertical/poster.webp", Buffer.from("vertical webp poster")],
   ])
 
   for (const [relativePath, body] of fileBodies) {
@@ -87,6 +105,8 @@ async function createFixture(testContext) {
       ],
       posters: {
         landscape: metadata("massage-lab-example/recipe-1/landscape/poster.webp"),
+        square: metadata("massage-lab-example/recipe-1/square/poster.webp"),
+        vertical: metadata("massage-lab-example/recipe-1/vertical/poster.webp"),
       },
     }],
   }
@@ -106,18 +126,20 @@ describe("Chimer catalog R2 publication planner", () => {
 
     assert.equal(CATALOG_R2_RELEASE_PREFIX, "chimer/background-preview-catalog/catalog-approved-1")
     assert.equal(CATALOG_R2_MEDIA_CACHE_CONTROL, "public, max-age=31536000, immutable")
-    assert.equal(objects.length, 3)
+    assert.equal(objects.length, 5)
     assert.deepEqual(
       objects.map(({ objectKey }) => objectKey),
       [
         `${CATALOG_R2_RELEASE_PREFIX}/massage-lab-example/recipe-1/landscape/low.mp4`,
         `${CATALOG_R2_RELEASE_PREFIX}/massage-lab-example/recipe-1/landscape/low.webm`,
         `${CATALOG_R2_RELEASE_PREFIX}/massage-lab-example/recipe-1/landscape/poster.webp`,
+        `${CATALOG_R2_RELEASE_PREFIX}/massage-lab-example/recipe-1/square/poster.webp`,
+        `${CATALOG_R2_RELEASE_PREFIX}/massage-lab-example/recipe-1/vertical/poster.webp`,
       ],
     )
     assert.deepEqual(
       objects.map(({ contentType }) => contentType),
-      ["video/mp4", "video/webm", "image/webp"],
+      ["video/mp4", "video/webm", "image/webp", "image/webp", "image/webp"],
     )
     assert.ok(objects.every(({ cacheControl }) => cacheControl === CATALOG_R2_MEDIA_CACHE_CONTROL))
     assert.ok(objects.every(({ publicUrl, objectKey }) => publicUrl === `https://media.example.test/${objectKey}`))
@@ -134,6 +156,9 @@ describe("Chimer catalog R2 publication planner", () => {
       ["backslashes", (value) => { value.entries[0].renditions[0].url = "nested\\low.webm" }, /backslashes/],
       ["unknown extension", (value) => { value.entries[0].renditions[0].url = "nested/low.json" }, /unsupported extension/],
       ["duplicate paths", (value) => { value.entries[0].renditions[1].url = value.entries[0].renditions[0].url }, /duplicate media path/],
+      ["missing poster", (value) => { delete value.entries[0].posters.square }, /exactly landscape, square, and vertical posters/],
+      ["extra poster", (value) => { value.entries[0].posters.wide = value.entries[0].posters.square }, /exactly landscape, square, and vertical posters/],
+      ["renamed poster", (value) => { value.entries[0].posters.portrait = value.entries[0].posters.vertical; delete value.entries[0].posters.vertical }, /exactly landscape, square, and vertical posters/],
     ]
 
     for (const [label, mutate, expectedError] of cases) {
@@ -207,11 +232,7 @@ describe("Chimer catalog R2 publication planner", () => {
       cwd: repoRoot,
       encoding: "utf8",
       timeout: 30_000,
-      env: {
-        ...process.env,
-        R2_ACCESS_KEY_ID: "",
-        R2_SECRET_ACCESS_KEY: "",
-      },
+      env: childUploaderEnv(),
     })
 
     assert.equal(result.error, undefined, `uploader failed to run: ${result.error?.message}`)
@@ -238,22 +259,22 @@ describe("Chimer catalog R2 publication planner", () => {
         cwd: repoRoot,
         encoding: "utf8",
         timeout: 30_000,
-        env: {
-          ...process.env,
-          CLOUDFLARE_ACCOUNT_ID: "",
-          R2_ACCESS_KEY_ID: "",
-          R2_SECRET_ACCESS_KEY: "",
-          MASSAGELAB_PUBLIC_MEDIA_R2_ENDPOINT: "",
-          MASSAGELAB_R2_ENDPOINT: "",
-          MASSAGELAB_PUBLIC_MEDIA_PUBLIC_BASE_URL: "",
-          ...extraEnv,
-        },
+        env: childUploaderEnv(extraEnv),
       })
 
       assert.equal(result.error, undefined, `${label}: uploader failed to run: ${result.error?.message}`)
       assert.equal(result.status, 1, `${label}: stdout: ${result.stdout}`)
       assert.match(result.stderr, expectedError, `${label}: stderr: ${result.stderr}`)
     }
+  })
+
+  it("clears an inherited hostile bucket before asserting the uploader dry-run default", () => {
+    const env = childUploaderEnv({}, {
+      PATH: process.env.PATH,
+      MASSAGELAB_PUBLIC_MEDIA_BUCKET: "hostile-inherited-bucket",
+    })
+    assert.equal(env.MASSAGELAB_PUBLIC_MEDIA_BUCKET, undefined)
+    assert.equal(env.PATH, process.env.PATH)
   })
 
   it("runs the exact credential-free dry run when the ignored catalog is available", {
@@ -269,15 +290,10 @@ describe("Chimer catalog R2 publication planner", () => {
       cwd: repoRoot,
       encoding: "utf8",
       timeout: 60_000,
-      env: {
+      env: childUploaderEnv({}, {
         ...process.env,
-        CLOUDFLARE_ACCOUNT_ID: "",
-        R2_ACCESS_KEY_ID: "",
-        R2_SECRET_ACCESS_KEY: "",
-        MASSAGELAB_PUBLIC_MEDIA_R2_ENDPOINT: "",
-        MASSAGELAB_R2_ENDPOINT: "",
-        MASSAGELAB_PUBLIC_MEDIA_PUBLIC_BASE_URL: "",
-      },
+        MASSAGELAB_PUBLIC_MEDIA_BUCKET: "hostile-inherited-bucket",
+      }),
     })
 
     assert.equal(result.error, undefined, `uploader failed to run: ${result.error?.message}`)

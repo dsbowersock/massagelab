@@ -15,6 +15,7 @@ const CONTENT_TYPES = Object.freeze({
   ".mp4": "video/mp4",
   ".webp": "image/webp",
 })
+const POSTER_ASPECTS = Object.freeze(["landscape", "square", "vertical"])
 
 /**
  * Builds the publish allowlist exclusively from schema-v3 rendition and poster
@@ -53,6 +54,11 @@ export function buildCatalogMediaAllowlist(catalog) {
     if (!entry.posters || typeof entry.posters !== "object" || Array.isArray(entry.posters)) {
       throw new Error(`${entryLabel}: catalog entry must include poster metadata.`)
     }
+    const posterAspects = Object.keys(entry.posters)
+    if (posterAspects.length !== POSTER_ASPECTS.length
+      || !POSTER_ASPECTS.every((aspect) => Object.hasOwn(entry.posters, aspect))) {
+      throw new Error(`${entryLabel}: catalog entry requires exactly landscape, square, and vertical posters.`)
+    }
 
     for (const [renditionIndex, rendition] of entry.renditions.entries()) {
       media.push(createCatalogMediaReference({
@@ -61,7 +67,8 @@ export function buildCatalogMediaAllowlist(catalog) {
         seenPaths,
       }))
     }
-    for (const [aspect, poster] of Object.entries(entry.posters)) {
+    for (const aspect of POSTER_ASPECTS) {
+      const poster = entry.posters[aspect]
       media.push(createCatalogMediaReference({
         descriptor: poster,
         label: `${entryLabel} ${aspect} poster`,

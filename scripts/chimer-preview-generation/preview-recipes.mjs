@@ -1,5 +1,6 @@
 import { BACKGROUND_BRANDING_AUDIT_BATCHES } from "../background-branding/audit-batches.mjs"
 import recipeCatalog from "../../data/background-preview-recipes.json" with { type: "json" }
+import { isDeepStrictEqual } from "node:util"
 import { APPROVED_PILOT_RECIPES } from "./approved-pilot-recipes.mjs"
 
 export { APPROVED_PILOT_RECIPES }
@@ -61,11 +62,20 @@ export const backgroundPreviewRecipes = Object.freeze(Object.fromEntries(
   Object.entries(recipeCatalog).map(([id, value]) => [id, freezeRecipe(value)]),
 ))
 
-for (const [id, approved] of Object.entries(APPROVED_PILOT_RECIPES)) {
-  if (JSON.stringify(backgroundPreviewRecipes[id]) !== JSON.stringify(approved)) {
-    throw new Error(`${id}: checked-in recipe no longer matches the approved pilot.`)
+/** Compares approved pilot recipes semantically so harmless key order cannot fail startup. */
+export function assertApprovedPilotRecipesMatch(recipes, approvedRecipes) {
+  for (const [id, approved] of Object.entries(approvedRecipes)) {
+    const recipe = recipes[id]
+    if (!recipe) {
+      throw new Error(`${id}: approved pilot recipe is missing from the checked-in catalog.`)
+    }
+    if (!isDeepStrictEqual(recipe, approved)) {
+      throw new Error(`${id}: checked-in recipe no longer matches the approved pilot.`)
+    }
   }
 }
+
+assertApprovedPilotRecipesMatch(backgroundPreviewRecipes, APPROVED_PILOT_RECIPES)
 
 export function getBackgroundPreviewRecipe(backgroundId) {
   const value = backgroundPreviewRecipes[backgroundId]

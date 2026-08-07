@@ -62,16 +62,16 @@ export function buildPublishedRuntimeManifest(catalog) {
     0,
   )
   if (animatedCount !== PUBLISHED_CATALOG_ANIMATED_COUNT) {
-    throw new Error(`${PUBLISHED_CATALOG_REVISION} must contain exactly 82 animated entries.`)
+    throw new Error(`${PUBLISHED_CATALOG_REVISION} must contain exactly ${PUBLISHED_CATALOG_ANIMATED_COUNT} animated entries.`)
   }
   if (posterOnlyCount !== PUBLISHED_CATALOG_POSTER_ONLY_COUNT) {
-    throw new Error(`${PUBLISHED_CATALOG_REVISION} must contain exactly 2 poster-only entries.`)
+    throw new Error(`${PUBLISHED_CATALOG_REVISION} must contain exactly ${PUBLISHED_CATALOG_POSTER_ONLY_COUNT} poster-only entries.`)
   }
   if (renditionCount !== PUBLISHED_CATALOG_RENDITION_COUNT) {
-    throw new Error(`${PUBLISHED_CATALOG_REVISION} must contain exactly 1,476 renditions.`)
+    throw new Error(`${PUBLISHED_CATALOG_REVISION} must contain exactly ${PUBLISHED_CATALOG_RENDITION_COUNT.toLocaleString("en-US")} renditions.`)
   }
   if (posterCount !== PUBLISHED_CATALOG_POSTER_COUNT) {
-    throw new Error(`${PUBLISHED_CATALOG_REVISION} must contain exactly 252 posters.`)
+    throw new Error(`${PUBLISHED_CATALOG_REVISION} must contain exactly ${PUBLISHED_CATALOG_POSTER_COUNT} posters.`)
   }
 
   const entriesById = new Map()
@@ -87,7 +87,7 @@ export function buildPublishedRuntimeManifest(catalog) {
 
   const expectedIds = new Set(FULL_CATALOG_BACKGROUND_IDS)
   if (expectedIds.size !== PUBLISHED_CATALOG_ENTRY_COUNT) {
-    throw new Error("The full-catalog stable-ID contract must contain exactly 84 unique IDs.")
+    throw new Error(`The full-catalog stable-ID contract must contain exactly ${PUBLISHED_CATALOG_ENTRY_COUNT} unique IDs.`)
   }
   for (const backgroundId of entriesById.keys()) {
     if (!expectedIds.has(backgroundId)) {
@@ -144,8 +144,8 @@ export type BackgroundPreviewPublishedEntry = {
 }
 
 export type BackgroundPreviewPublishedManifest = {
-  readonly schemaVersion: 1
-  readonly catalogRevision: "catalog-approved-1"
+  readonly schemaVersion: ${PUBLISHED_RUNTIME_SCHEMA_VERSION}
+  readonly catalogRevision: "${PUBLISHED_CATALOG_REVISION}"
   readonly entries: Readonly<Record<string, BackgroundPreviewPublishedEntry>>
 }
 

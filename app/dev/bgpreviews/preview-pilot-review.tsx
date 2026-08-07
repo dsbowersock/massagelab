@@ -91,9 +91,10 @@ export function PreviewPilotReview({
   }
 
   if (!entry) {
+    const emptyTitle = mode === "catalog" ? "Catalog evidence unavailable" : "Pilot evidence unavailable"
     return (
       <div data-testid={mode === "catalog" ? "background-preview-catalog-review" : "background-preview-pilot-review"}>
-        <AppSurface title="Pilot evidence unavailable" variant="inset">
+        <AppSurface title={emptyTitle} variant="inset">
           <div className={styles.emptyState}>
             <h2>No validated {mode === "catalog" ? "catalog" : "pilot"} media is loaded</h2>
             <p>
