@@ -7,6 +7,7 @@ import {
   resolveAdaptiveCarouselViewportProfile,
 } from "@/components/carousels/adaptive-carousel-model"
 import { BackgroundCarouselCard } from "@/components/backgrounds/background-carousel-card"
+import { Button } from "@/components/ui/button"
 import { useAmbientReducedMotion } from "@/components/backgrounds/use-ambient-reduced-motion"
 import { useBackgroundCommerce } from "@/components/backgrounds/BackgroundCommerceProvider"
 import { useSettings } from "@/components/providers/settings-provider"
@@ -63,6 +64,7 @@ export function BackgroundCarousel({
   const hostRef = useRef<HTMLDivElement | null>(null)
   const [profile, setProfile] =
     useState<BackgroundViewportProfile>("compact-desktop")
+  const [playPreviews, setPlayPreviews] = useState(false)
   const { settings } = useSettings()
   const { state: commerceClientState, signedIn } = useBackgroundCommerce()
   const snapshot = commerceClientState.snapshot
@@ -140,6 +142,17 @@ export function BackgroundCarousel({
 
   return (
     <div ref={hostRef} className="min-w-0" data-background-carousel>
+      <div className="mb-2 flex justify-end">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          aria-pressed={playPreviews}
+          onClick={() => setPlayPreviews((current) => !current)}
+        >
+          {playPreviews ? "Pause Previews" : "Play Preview"}
+        </Button>
+      </div>
       <AdaptiveCarouselStage
         key={items.map(({ id }) => id).join("|")}
         items={items}
@@ -156,15 +169,15 @@ export function BackgroundCarousel({
         }}
         onEffectiveLoopChange={onEffectiveLoopChange}
         onNavigate={onNavigate}
-        renderItem={(option, { centered, detailLevel }) => (
+        renderItem={(option, { detailLevel }) => (
           <BackgroundCarouselCard
             option={option}
             detailLevel={detailLevel}
             commerceState={option.commerceState}
             selected={selectedId === option.id}
-            centered={centered}
             saved={savedIds.includes(option.id)}
             active={active}
+            playPreviews={playPreviews && active && !reducedMotion}
             signedIn={signedIn}
             reducedMotion={reducedMotion}
             onSelect={() => onSelect(option.id)}

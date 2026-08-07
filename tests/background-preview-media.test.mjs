@@ -23,6 +23,10 @@ const cardSource = readFileSync(
   new URL("../components/backgrounds/background-carousel-card.tsx", import.meta.url),
   "utf8",
 )
+const carouselSource = readFileSync(
+  new URL("../components/backgrounds/background-carousel.tsx", import.meta.url),
+  "utf8",
+)
 const manifestGeneratorSource = readFileSync(
   new URL("../scripts/chimer-preview-generation/manifest.mjs", import.meta.url),
   "utf8",
@@ -46,7 +50,7 @@ describe("background preview media", () => {
     assert.ok(videoMarkup, "decorative preview video markup exists")
     assert.match(videoMarkup, /poster=\{posterUrl\}/)
     assert.match(videoMarkup, /\bmuted\b/)
-    assert.match(videoMarkup, /\bloop\b/)
+    assert.match(videoMarkup, /loop=\{!strictCatalog\}/)
     assert.match(videoMarkup, /\bplaysInline\b/)
     assert.match(videoMarkup, /preload="metadata"/)
     assert.match(videoMarkup, /aria-hidden="true"/)
@@ -54,21 +58,55 @@ describe("background preview media", () => {
     assert.match(componentSource, /fallbackStyle/)
   })
 
-  it("keeps inactive cards on posters or paused legacy video frames and limits playback to the active centered card", () => {
+  it("keeps the carousel poster-first and sends play intent to every non-shell card", () => {
     assert.match(cardSource, /<BackgroundPreviewMedia/)
-    assert.match(cardSource, /active=\{active && centered && detailLevel !== "shell"\}/)
+    assert.match(cardSource, /active=\{active && playPreviews && detailLevel !== "shell"\}/)
     assert.match(cardSource, /reducedMotion=\{reducedMotion\}/)
-    assert.match(componentSource, /const shouldPlayVideo = active && !reducedMotion/)
-    assert.match(componentSource, /const showPoster = Boolean\(posterUrl\).*?!shouldPlayVideo/)
-    assert.match(componentSource, /const showVideo = Boolean\(videoUrl\).*?!showPoster \|\| shouldPlayVideo/)
-    assert.match(componentSource, /if \(!shouldPlayVideo \|\| document\.visibilityState !== "visible"\)/)
+    assert.match(cardSource, /strictCatalog/)
+    assert.doesNotMatch(cardSource, /\bcentered\b/)
+    assert.match(carouselSource, /const \[playPreviews, setPlayPreviews\] = useState\(false\)/)
+    assert.match(carouselSource, /playPreviews=\{playPreviews && active && !reducedMotion\}/)
     assert.doesNotMatch(cardSource, /<video/)
+  })
+
+  it("selects one published vertical source on activation and never mounts video for static entries", () => {
+    assert.match(cardSource, /backgroundPreviewPublishedManifest\.entries\[option\.id\]/)
+    assert.match(cardSource, /getVerticalPublishedPreviewPosterUrl/)
+    assert.match(cardSource, /publishedPreviewCatalogBaseUrl/)
+    assert.match(componentSource, /chooseSupportedPreviewCodec/)
+    assert.match(componentSource, /qualityForPreviewConnection/)
+    assert.match(componentSource, /selectPublishedPreviewRendition\(\{[\s\S]*?aspect: "vertical"/)
+    assert.match(componentSource, /publishedEntry\?\.mediaKind === "poster-only"/)
+    assert.match(componentSource, /const showVideo = strictCatalog[\s\S]*?strictVideoUrl/)
+  })
+
+  it("keeps connection changes pending until ended and cleans up the relevant listener", () => {
+    const connectionChangeHandler = sourceBetween(
+      componentSource,
+      "const handleConnectionChange = () =>",
+      "connection.addEventListener",
+      "preview connection change handler",
+    )
+    const endedHandler = sourceBetween(
+      componentSource,
+      "const handleStrictEnded = () =>",
+      "const shouldPlayVideo",
+      "strict preview ended handler",
+    )
+
+    assert.match(connectionChangeHandler, /pendingQualityRef\.current = qualityForPreviewConnection\(connection\)/)
+    assert.doesNotMatch(connectionChangeHandler, /setCurrentRendition/)
+    assert.match(componentSource, /connection\.addEventListener\("change", handleConnectionChange\)/)
+    assert.match(componentSource, /connection\.removeEventListener\("change", handleConnectionChange\)/)
+    assert.match(endedHandler, /resolvePendingPreviewRendition/)
+    assert.match(endedHandler, /setCurrentRendition\(pendingRendition\)/)
+    assert.match(endedHandler, /video\.currentTime = 0/)
   })
 
   it("resynchronizes playback when an active preview swaps to another nonempty source", () => {
     // This source contract intentionally keeps both inputs in the replay effect;
     // browser coverage exercises the resulting media restart behavior.
-    assert.match(componentSource, /\}, \[(?=[^\]]*\bshouldPlayVideo\b)(?=[^\]]*\bvideoUrl\b)[^\]]*\]\)/)
+    assert.match(componentSource, /\}, \[(?=[^\]]*\bshouldPlayVideo\b)(?=[^\]]*\bresolvedVideoUrl\b)[^\]]*\]\)/)
   })
 
   it("generates quality-78 WebP posters one-third through each actual encoded video", () => {

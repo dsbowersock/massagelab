@@ -5,6 +5,7 @@ import { Crown, DollarSign, Lock } from "lucide-react"
 import type { AdaptiveCarouselDetailLevel } from "@/components/carousels/adaptive-carousel-stage"
 import type { BackgroundDefinition } from "@/components/backgrounds/backgroundRegistry"
 import { BackgroundPreviewMedia } from "@/components/backgrounds/BackgroundPreviewMedia"
+import { backgroundPreviewPublishedManifest } from "@/components/backgrounds/backgroundPreviewPublishedManifest"
 import { Button } from "@/components/ui/button"
 import { purpleGlowClassName } from "@/components/ui/carousel-button-classes"
 import { MetalFavoriteIcon } from "@/components/ui/metal-favorite-icon"
@@ -13,6 +14,10 @@ import {
   getBackgroundVisualTags,
 } from "@/lib/background-catalog"
 import { hasActivePermanentOwnership } from "@/lib/background-commerce-client.js"
+import {
+  getVerticalPublishedPreviewPosterUrl,
+  publishedPreviewCatalogBaseUrl,
+} from "@/lib/background-preview-runtime.js"
 import { cn } from "@/lib/utils"
 
 type BackgroundCardCommerceState = {
@@ -30,9 +35,9 @@ interface BackgroundCarouselCardProps {
   detailLevel: AdaptiveCarouselDetailLevel
   commerceState: BackgroundCardCommerceState
   selected: boolean
-  centered: boolean
   saved: boolean
   active: boolean
+  playPreviews: boolean
   signedIn: boolean
   reducedMotion: boolean
   onSelect: () => void
@@ -70,9 +75,9 @@ export function BackgroundCarouselCard({
   detailLevel,
   commerceState,
   selected,
-  centered,
   saved,
   active,
+  playPreviews,
   signedIn,
   reducedMotion,
   onSelect,
@@ -81,6 +86,11 @@ export function BackgroundCarouselCard({
   onToggleSaved,
 }: BackgroundCarouselCardProps) {
   const { videoUrl: previewVideoUrl, posterUrl: previewPosterUrl } = getBackgroundPreviewAssets(option, "vertical")
+  const publishedEntry = backgroundPreviewPublishedManifest.entries[option.id]
+  const publishedPosterUrl = getVerticalPublishedPreviewPosterUrl(
+    publishedEntry,
+    publishedPreviewCatalogBaseUrl,
+  )
   const previewTags = getBackgroundVisualTags(option)
     .filter((tag) => !["shader", "video"].includes(tag.toLowerCase()))
     .slice(0, 4)
@@ -112,10 +122,13 @@ export function BackgroundCarouselCard({
       >
         <BackgroundPreviewMedia
           videoUrl={previewVideoUrl}
-          posterUrl={previewPosterUrl}
+          posterUrl={publishedPosterUrl ?? previewPosterUrl}
           fallbackStyle={option.fallbackStyle}
-          active={active && centered && detailLevel !== "shell"}
+          active={active && playPreviews && detailLevel !== "shell"}
           reducedMotion={reducedMotion}
+          strictCatalog
+          publishedEntry={publishedEntry}
+          publishedCatalogBaseUrl={publishedPreviewCatalogBaseUrl}
         />
       </div>
 

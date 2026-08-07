@@ -14,6 +14,10 @@ const stageStyles = readFileSync(
   new URL("../components/carousels/adaptive-carousel-stage.module.css", import.meta.url),
   "utf8",
 )
+const backgroundCarouselSource = readFileSync(
+  new URL("../components/backgrounds/background-carousel.tsx", import.meta.url),
+  "utf8",
+)
 
 describe("production adaptive carousel", () => {
   it("locks the approved Background winner to radius two across every responsive profile", () => {
@@ -55,6 +59,18 @@ describe("production adaptive carousel", () => {
       [...getMountedAdaptiveCarouselItemIds(items, "d", 2, true)],
       ["b", "c", "d", "e", "f"],
     )
+  })
+
+  it("offers one accessible carousel-wide preview toggle above the unchanged stage", () => {
+    const toggleIndex = backgroundCarouselSource.indexOf('aria-pressed={playPreviews}')
+    const stageIndex = backgroundCarouselSource.indexOf("<AdaptiveCarouselStage")
+
+    assert.notEqual(toggleIndex, -1)
+    assert.ok(toggleIndex < stageIndex, "the preview toggle is rendered above the stage")
+    assert.match(backgroundCarouselSource, /onClick=\{\(\) => setPlayPreviews\(\(current\) => !current\)\}/)
+    assert.match(backgroundCarouselSource, /playPreviews \? "Pause Previews" : "Play Preview"/)
+    assert.match(backgroundCarouselSource, /aria-pressed=\{playPreviews\}/)
+    assert.match(backgroundCarouselSource, /playPreviews=\{playPreviews && active && !reducedMotion\}/)
   })
 
   it("bounds non-looping renderers at the collection edges", () => {
