@@ -48,6 +48,7 @@
     "chimer:preview:catalog:validate": "node --experimental-strip-types scripts/chimer-preview-generation/render-catalog.mjs --validate-only",
     "chimer:preview:catalog:r2:check": "node scripts/chimer-preview-generation/catalog-r2-upload.mjs check",
     "chimer:preview:catalog:r2:upload": "node scripts/chimer-preview-generation/catalog-r2-upload.mjs upload",
+    "chimer:preview:catalog:runtime-manifest": "node scripts/chimer-preview-generation/published-runtime-manifest.mjs",
     "chimer:preview:manifest": "node --experimental-strip-types scripts/chimer-preview-generation/manifest.mjs",
     "chimer:preview:r2:check": "node scripts/chimer-preview-generation/upload-r2.mjs check",
     "chimer:preview:r2:upload": "node scripts/chimer-preview-generation/upload-r2.mjs upload",
