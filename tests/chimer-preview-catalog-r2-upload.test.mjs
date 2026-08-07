@@ -247,6 +247,10 @@ describe("Chimer catalog R2 publication planner", () => {
       ["r2.dev apex", ["--public-base-url", "https://r2.dev"], {}, /r2\.dev/i],
       ["r2.dev subdomain", ["--public-base-url", "https://preview.r2.dev"], {}, /r2\.dev/i],
       ["r2.dev trailing-dot subdomain", ["--public-base-url", "https://preview.r2.dev."], {}, /r2\.dev/i],
+      ["custom trailing-dot host", ["--public-base-url", "https://media.massagelab.app."], {}, /trailing-dot/i],
+      ["localhost", ["--public-base-url", "https://localhost"], {}, /localhost/i],
+      ["IPv4", ["--public-base-url", "https://127.0.0.1"], {}, /IP/i],
+      ["IPv6", ["--public-base-url", "https://[::1]"], {}, /IP/i],
     ]
 
     for (const [label, extraArgs, extraEnv, expectedError] of cases) {
@@ -266,6 +270,33 @@ describe("Chimer catalog R2 publication planner", () => {
       assert.equal(result.status, 1, `${label}: stdout: ${result.stdout}`)
       assert.match(result.stderr, expectedError, `${label}: stderr: ${result.stderr}`)
     }
+  })
+
+  it("rejects an invalid live-upload base before catalog access or remote mutation", () => {
+    const result = spawnSync(process.execPath, [
+      uploaderPath,
+      "upload",
+      "--confirm-live-upload",
+      "--catalog-path",
+      path.join(os.tmpdir(), "catalog-that-must-not-be-read.json"),
+      "--public-base-url",
+      "https://127.0.0.1",
+    ], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      timeout: 30_000,
+      env: childUploaderEnv({
+        CLOUDFLARE_ACCOUNT_ID: "must-not-be-used",
+        R2_ACCESS_KEY_ID: "must-not-be-used",
+        R2_SECRET_ACCESS_KEY: "must-not-be-used",
+        MASSAGELAB_PUBLIC_MEDIA_R2_ENDPOINT: "https://must-not-be-contacted.invalid",
+      }),
+    })
+
+    assert.equal(result.error, undefined, `uploader failed to run: ${result.error?.message}`)
+    assert.equal(result.status, 1, `stdout: ${result.stdout}`)
+    assert.match(result.stderr, /valid absolute HTTPS custom-domain URL/)
+    assert.doesNotMatch(result.stderr, /ENOENT|catalog-that-must-not-be-read|fetch failed/i)
   })
 
   it("builds a credential-free child environment before asserting the catalog uploader default", () => {

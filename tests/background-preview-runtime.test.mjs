@@ -10,6 +10,7 @@ import {
   serializePublishedRuntimeManifest,
 } from "../scripts/chimer-preview-generation/published-runtime-manifest.mjs"
 import { resolveCatalogPreviewUrl } from "../components/backgrounds/backgroundPreviewCatalogUrl.ts"
+import { normalizePublishedPreviewCustomDomainBaseUrl } from "../lib/background-preview-catalog-base-url.js"
 import {
   chooseSupportedPreviewCodec,
   getVerticalPublishedPreviewPosterUrl,
@@ -148,31 +149,58 @@ test("development catalog URL resolution stays JSON-free at the client boundary"
   assert.doesNotMatch(clientSource, /import \{ resolveCatalogPreviewUrl \} from "@\/components\/backgrounds\/backgroundPreviewCatalogManifest"/)
 })
 
-test("catalog base resolution fails closed in Production and supports the local development prefix", () => {
-  assert.equal(resolvePublishedPreviewCatalogBaseUrl({ nodeEnv: "production" }), null)
-  assert.equal(
-    resolvePublishedPreviewCatalogBaseUrl({
-      nodeEnv: "production",
-      configuredBaseUrl: "https://media.massagelab.app/chimer/background-preview-catalog/catalog-approved-1/",
-    }),
-    "https://media.massagelab.app/chimer/background-preview-catalog/catalog-approved-1",
+test("catalog publisher and runtime share the exact HTTPS custom-domain contract", async () => {
+  const { normalizeCatalogPublicBaseUrl } = await import(
+    "../scripts/chimer-preview-generation/catalog-r2-public-base-url.mjs"
   )
-  for (const configuredBaseUrl of [
-    "http://media.massagelab.app/catalog",
-    "https://catalog.r2.dev/release",
-    "https://sub.catalog.r2.dev/release",
-    "https://localhost/catalog",
-    "https://127.0.0.1/catalog",
-    "https://user:secret@media.massagelab.app/catalog",
-    "https://media.massagelab.app/catalog?revision=1",
-    "https://media.massagelab.app/catalog#revision",
-  ]) {
+  const cases = [
+    ["approved custom domain", "https://media.massagelab.app", "https://media.massagelab.app"],
+    [
+      "approved release path",
+      "https://media.massagelab.app/chimer/background-preview-catalog/catalog-approved-1/",
+      "https://media.massagelab.app/chimer/background-preview-catalog/catalog-approved-1",
+    ],
+    ["explicit HTTPS port", "https://media.massagelab.app:8443/catalog/", "https://media.massagelab.app:8443/catalog"],
+    ["malformed URL", "not a URL", null],
+    ["non-HTTPS scheme", "http://media.massagelab.app/catalog", null],
+    ["trailing-dot host", "https://media.massagelab.app./catalog", null],
+    ["single-label localhost", "https://localhost/catalog", null],
+    ["IPv4 host", "https://127.0.0.1/catalog", null],
+    ["abbreviated IPv4 host", "https://127.1/catalog", null],
+    ["IPv6 host", "https://[::1]/catalog", null],
+    ["r2.dev apex", "https://r2.dev/catalog", null],
+    ["r2.dev subdomain", "https://catalog.r2.dev/release", null],
+    ["username", "https://user@media.massagelab.app/catalog", null],
+    ["credentials", "https://user:secret@media.massagelab.app/catalog", null],
+    ["query string", "https://media.massagelab.app/catalog?revision=1", null],
+    ["fragment", "https://media.massagelab.app/catalog#revision", null],
+  ]
+
+  for (const [label, configuredBaseUrl, expected] of cases) {
+    assert.equal(
+      normalizePublishedPreviewCustomDomainBaseUrl(configuredBaseUrl),
+      expected,
+      `${label}: shared contract`,
+    )
     assert.equal(
       resolvePublishedPreviewCatalogBaseUrl({ nodeEnv: "production", configuredBaseUrl }),
-      null,
-      configuredBaseUrl,
+      expected,
+      `${label}: runtime`,
     )
+    if (expected) {
+      assert.equal(normalizeCatalogPublicBaseUrl(configuredBaseUrl), expected, `${label}: uploader`)
+    } else {
+      assert.throws(
+        () => normalizeCatalogPublicBaseUrl(configuredBaseUrl),
+        /valid absolute HTTPS custom-domain URL/,
+        `${label}: uploader`,
+      )
+    }
   }
+})
+
+test("catalog base resolution fails closed in Production and supports the local development prefix", () => {
+  assert.equal(resolvePublishedPreviewCatalogBaseUrl({ nodeEnv: "production" }), null)
   assert.equal(
     resolvePublishedPreviewCatalogBaseUrl({ nodeEnv: "development" }),
     "/chimer/background-preview-catalog",

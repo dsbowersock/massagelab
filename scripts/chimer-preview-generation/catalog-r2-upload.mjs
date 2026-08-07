@@ -11,6 +11,7 @@ import {
   loadCatalogR2PublicationPlan,
   readCatalogMediaSnapshot,
 } from "./catalog-r2-publication.mjs"
+import { normalizeCatalogPublicBaseUrl } from "./catalog-r2-public-base-url.mjs"
 import {
   missingAtmosphereR2UploadEnv,
   putAtmosphereObjectToR2,
@@ -126,34 +127,6 @@ function r2EnvForOptions(options) {
     ...baseEnv,
     publicBaseUrl: normalizeCatalogPublicBaseUrl(options.publicBaseUrl ?? baseEnv.publicBaseUrl),
   }
-}
-
-/**
- * Limits catalog delivery to a configured HTTPS custom domain. Direct R2
- * development URLs are intentionally excluded from both dry and live modes.
- *
- * @param {string | undefined} value
- */
-function normalizeCatalogPublicBaseUrl(value) {
-  if (!value) return undefined
-
-  let publicBaseUrl
-  try {
-    publicBaseUrl = new URL(value)
-  } catch {
-    throw new Error("Catalog public base URL must be a valid absolute HTTPS URL.")
-  }
-  if (publicBaseUrl.protocol !== "https:") {
-    throw new Error("Catalog public base URL must use https:.")
-  }
-  const hostname = publicBaseUrl.hostname.toLowerCase().replace(/\.$/, "")
-  if (hostname === "r2.dev" || hostname.endsWith(".r2.dev")) {
-    throw new Error("Catalog public base URL must not use r2.dev or an r2.dev subdomain.")
-  }
-  if (publicBaseUrl.username || publicBaseUrl.password || publicBaseUrl.search || publicBaseUrl.hash) {
-    throw new Error("Catalog public base URL must not include credentials, a query string, or a fragment.")
-  }
-  return publicBaseUrl.href.replace(/\/+$/, "")
 }
 
 function parseArgs(rawArgs) {
