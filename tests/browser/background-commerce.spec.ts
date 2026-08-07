@@ -88,6 +88,7 @@ async function installCommerceFixture({
   featureKeys = [],
   fulfillAfterReads,
   failRedemptionRefresh = false,
+  startPreferenceAccessUnavailable = false,
 }: {
   context: BrowserContext
   page: Page
@@ -96,6 +97,7 @@ async function installCommerceFixture({
   featureKeys?: string[]
   fulfillAfterReads?: number
   failRedemptionRefresh?: boolean
+  startPreferenceAccessUnavailable?: boolean
 }) {
   await installSignedInSessionCookie(context, baseURL, {
     id: USER_ID,
@@ -106,6 +108,9 @@ async function installCommerceFixture({
   let snapshotReads = 0
   let redemptionRefreshPending = false
   let redemptionRefreshFailures = 0
+  let preferenceAccessFailures = 0
+  let preferenceAccessSuccesses = 0
+  let preferenceAccessUnavailable = startPreferenceAccessUnavailable
   const checkoutBodies: Array<Record<string, unknown>> = []
 
   // Signed-in shell links may prefetch Account routes, whose server loaders are
@@ -124,6 +129,13 @@ async function installCommerceFixture({
   })
   await page.route("**/api/account/preferences", async (route) => {
     const request = route.request()
+    if (request.method() === "GET") {
+      if (preferenceAccessUnavailable) {
+        await route.fulfill({ status: 503, contentType: "application/json", body: "{}" })
+        preferenceAccessFailures += 1
+        return
+      }
+    }
     const chimerSettings = request.method() === "PUT"
       ? ((await request.postDataJSON()) as { chimerSettings?: unknown }).chimerSettings ?? {}
       : {}
@@ -142,6 +154,7 @@ async function installCommerceFixture({
         appSettings: {},
       }),
     })
+    if (request.method() === "GET") preferenceAccessSuccesses += 1
   })
   await page.route("**/api/calendar/sidebar-context", async (route) => {
     await route.fulfill({
@@ -247,6 +260,9 @@ async function installCommerceFixture({
     checkoutBodies,
     getSnapshotReads: () => snapshotReads,
     getRedemptionRefreshFailures: () => redemptionRefreshFailures,
+    getPreferenceAccessFailures: () => preferenceAccessFailures,
+    getPreferenceAccessSuccesses: () => preferenceAccessSuccesses,
+    restorePreferenceAccess: () => { preferenceAccessUnavailable = false },
   }
 }
 
@@ -714,6 +730,40 @@ test("subscriber and purchased ownership stay distinct in active Chimer", async 
   await accessCard(purchased).getByRole("button", { name: `Select ${DOTTED_GLOW_NAME} background` }).click()
   await expect(panel).toHaveCount(0)
   await expect(page.getByLabel("Running Chimer timer")).toBeVisible()
+})
+
+test("returning signed-in Clock retries subscription access after a wake-time preference failure", async ({ context, page }, testInfo) => {
+  const baseURL = String(testInfo.project.use.baseURL)
+  const fixture = await installCommerceFixture({
+    context,
+    page,
+    baseURL,
+    featureKeys: ["premium_backgrounds"],
+    startPreferenceAccessUnavailable: true,
+  })
+
+  await openClockBackground(page)
+  const aurora = await centerPremium(page, AURORA_ID)
+  await expect(accessCard(aurora)).toHaveAttribute(
+    "data-background-access-state",
+    "locked-credit-available",
+  )
+
+  await expect.poll(fixture.getPreferenceAccessFailures).toBeGreaterThan(0)
+  const failuresBeforeFocus = fixture.getPreferenceAccessFailures()
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")))
+  await expect.poll(fixture.getPreferenceAccessFailures).toBeGreaterThan(failuresBeforeFocus)
+
+  const successesBeforeWake = fixture.getPreferenceAccessSuccesses()
+  fixture.restorePreferenceAccess()
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")))
+
+  await expect.poll(fixture.getPreferenceAccessSuccesses).toBeGreaterThan(successesBeforeWake)
+  const refreshedAurora = await centerPremium(page, AURORA_ID)
+  await expect(accessCard(refreshedAurora)).toHaveAttribute(
+    "data-background-access-state",
+    "included-subscription",
+  )
 })
 
 test("Music visualizer keeps the shared account cart through minimize and restore", async ({ context, page }, testInfo) => {
