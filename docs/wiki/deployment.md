@@ -297,6 +297,23 @@ npm run atmosphere:samples:r2:check
 npm run atmosphere:samples:r2:upload -- "<audio-sample-root>" --dry-run --public-base-url "<public-media-base-url>"
 ```
 
+The approved Chimer full-catalog preview release uses the same public-media R2
+credentials but has a fixed, immutable object prefix:
+`chimer/background-preview-catalog/catalog-approved-1`. Its planner derives
+the 1,728-object allowlist only from the approved schema-v3 catalog's rendition
+and poster URLs; it never scans local directories, so generation checkpoints
+and validation artifacts cannot be published. It validates every referenced
+local file's byte count and SHA-256 before either a dry run or a live upload.
+
+```bash
+npm run chimer:preview:catalog:r2:check
+npm run chimer:preview:catalog:r2:upload -- --dry-run --public-base-url https://media.massagelab.app
+```
+
+The dry run is credential-free and emits an exact no-upload summary. A live
+upload is intentionally separately gated with `--confirm-live-upload`, must be
+explicitly authorized, and cannot override the catalog release prefix.
+
 ## Production Migrations
 
 Run migrations as a deploy step before serving new code:
