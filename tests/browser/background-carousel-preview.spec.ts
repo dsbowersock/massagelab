@@ -79,16 +79,23 @@ test("production carousel stays within its request budget and changes rendition 
   const panel = await openProductionBackgroundCarousel(page)
   const videos = panel.getByTestId("carousel-background-video")
   const animatedCard = panel.locator('[data-background-id="massage-lab-moving-gradient"]')
-  const staticCard = panel.locator('[data-background-id="solid-color"]')
+  const posterOnlyCards = ["static-gradient", "solid-color"].map((backgroundId) => (
+    panel.locator(`[data-background-id="${backgroundId}"]`)
+  ))
 
   await expect(videos).toHaveCount(0)
-  await expect(staticCard.getByTestId("background-preview-poster")).toHaveCount(1)
+  for (const card of posterOnlyCards) {
+    await expect(card.getByTestId("background-preview-poster")).toBeVisible()
+  }
 
   await panel.getByRole("button", { name: "Play Preview" }).click()
   await expect.poll(() => videos.count()).toBeGreaterThan(0)
   const playingCount = await videos.count()
   expect(playingCount).toBeLessThanOrEqual(5)
-  await expect(staticCard.getByTestId("carousel-background-video")).toHaveCount(0)
+  for (const card of posterOnlyCards) {
+    await expect(card.getByTestId("carousel-background-video")).toHaveCount(0)
+    await expect(card.getByTestId("background-preview-poster")).toBeVisible()
+  }
 
   const sourceContracts = await videos.evaluateAll((players) => players.map((player) => {
     const video = player as HTMLVideoElement
@@ -118,6 +125,9 @@ test("production carousel stays within its request budget and changes rendition 
     if (typeof updateConnection !== "function") throw new Error("Preview connection probe is unavailable")
     updateConnection("4g")
   })
+  // Allow a bounded event-loop/render settling interval before proving that
+  // the connection event cannot replace a source mid-loop.
+  await page.waitForTimeout(100)
   await expect(video).toHaveAttribute("src", initialSource!)
   await expect(video).toHaveAttribute("data-preview-quality", "standard")
 
