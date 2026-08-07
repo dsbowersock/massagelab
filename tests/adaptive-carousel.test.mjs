@@ -68,7 +68,7 @@ describe("production adaptive carousel", () => {
 
     assert.notEqual(toggleIndex, -1)
     assert.equal(
-      backgroundCarouselSource.match(new RegExp(toggleContract.replace(/[{}]/g, "\\$&"), "g"))?.length,
+      backgroundCarouselSource.split(toggleContract).length - 1,
       1,
       "the Background carousel renders exactly one carousel-wide preview toggle",
     )
