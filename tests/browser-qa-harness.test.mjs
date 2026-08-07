@@ -170,12 +170,17 @@ test("browser QA harness is wired for public smoke, PWA, and local-first checks"
   )
   const reviewIgnoreGlobs = [
     "**/background-palette.spec.ts",
+    "**/background-carousel-preview.spec.ts",
     "**/background-preview-pilot.spec.ts",
     "**/dna-twisted-cubes-backgrounds.spec.ts",
   ]
   assert.deepEqual(resolveDevelopmentPaletteReviewIgnoreGlobs(["test"]), reviewIgnoreGlobs)
   assert.deepEqual(
     resolveDevelopmentPaletteReviewIgnoreGlobs(["test", "tests/browser/background-palette.spec.ts"]),
+    [],
+  )
+  assert.deepEqual(
+    resolveDevelopmentPaletteReviewIgnoreGlobs(["test", "tests/browser/background-carousel-preview.spec.ts"]),
     [],
   )
   assert.deepEqual(
