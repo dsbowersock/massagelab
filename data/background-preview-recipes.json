@@ -379,7 +379,7 @@
   },
   "massage-lab-liquid-ether": {
     "backgroundId": "massage-lab-liquid-ether",
-    "recipeRevision": "recipe-1",
+    "recipeRevision": "recipe-3",
     "reviewStatus": "candidate",
     "warmupMs": 2200,
     "passiveCaptureState": "default",
@@ -391,7 +391,7 @@
     "mediaKind": "animated",
     "durationMs": 10000,
     "posterTimeMs": 3333,
-    "crossfadeMs": 800,
+    "crossfadeMs": 2000,
     "fps": 24,
     "loopStrategy": "crossfade"
   },

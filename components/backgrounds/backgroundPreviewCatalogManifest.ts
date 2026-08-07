@@ -84,7 +84,7 @@ function assertCatalogManifest(value: unknown): asserts value is BackgroundPrevi
 }
 
 assertCatalogManifest(catalogJson)
-export const backgroundPreviewCatalogManifest = Object.freeze(catalogJson)
+export const backgroundPreviewCatalogManifest: Readonly<BackgroundPreviewCatalogManifest> = Object.freeze(catalogJson)
 
 /** Resolves local review media without changing the production v1 manifest. */
 export function resolveCatalogPreviewUrl(url: string): string {

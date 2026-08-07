@@ -630,6 +630,21 @@ function canResumeEntry(entry, options) {
   })
 }
 
+/**
+ * Removes only the current immutable recipe revision before rebuilding an
+ * incomplete catalog entry. A manifest entry is the trust boundary for resume;
+ * leftover encoder files from an interrupted process must never be reused.
+ */
+function resetIncompleteCatalogRecipe(recipe, options) {
+  if (!options.catalogMode || !options.resume) return
+  const recipeOutputDir = path.join(options.outputDir, recipe.backgroundId, recipe.recipeRevision)
+  const relative = path.relative(options.outputDir, recipeOutputDir)
+  if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw new Error(`Refusing to reset unsafe recipe output: ${recipeOutputDir}`)
+  }
+  rmSync(recipeOutputDir, { recursive: true, force: true })
+}
+
 async function main() {
   const options = parseArgs(process.argv.slice(2))
   // Metadata refreshes and validation decode existing files but never encode.
@@ -661,6 +676,7 @@ async function main() {
         console.log(`Resuming past validated ${id}.`)
         continue
       }
+      resetIncompleteCatalogRecipe(recipe, options)
       const renditions = []
       const posters = {}
       for (const aspect of PREVIEW_ASPECTS) {
