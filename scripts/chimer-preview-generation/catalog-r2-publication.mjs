@@ -276,7 +276,10 @@ function normalizeCatalogRelativePath(value, label) {
 function resolveCatalogMediaPath(catalogDir, sourceRelativePath) {
   const sourcePath = path.resolve(catalogDir, ...sourceRelativePath.split("/"))
   const relativeToCatalog = path.relative(catalogDir, sourcePath)
-  if (!relativeToCatalog || relativeToCatalog.startsWith(`..${path.sep}`) || path.isAbsolute(relativeToCatalog)) {
+  if (!relativeToCatalog
+    || relativeToCatalog === ".."
+    || relativeToCatalog.startsWith(`..${path.sep}`)
+    || path.isAbsolute(relativeToCatalog)) {
     throw new Error(`${sourceRelativePath}: local media path escapes the catalog directory.`)
   }
   return sourcePath

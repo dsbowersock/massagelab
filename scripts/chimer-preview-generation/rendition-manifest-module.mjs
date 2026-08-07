@@ -68,6 +68,9 @@ function assertCatalogEntryContracts(entries, order) {
     }
     seenBackgroundIds.add(backgroundId)
 
+    if (!Array.isArray(entry.renditions)) {
+      throw new Error(`${backgroundId}: renditions must be an array`)
+    }
     if (!entry.posters || typeof entry.posters !== "object" || Array.isArray(entry.posters)) {
       throw new Error(`${backgroundId}: posters must be a record with exactly landscape, square, and vertical`)
     }

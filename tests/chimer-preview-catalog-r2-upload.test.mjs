@@ -152,7 +152,7 @@ describe("Chimer catalog R2 publication planner", () => {
       ["candidate entry", (value) => { value.entries[0].reviewStatus = "candidate" }, /not approved/],
       ["non-approved revision", (value) => { value.catalogRevision = "catalog-candidate-1" }, /catalog-approved-1/],
       ["absolute URL", (value) => { value.entries[0].renditions[0].url = "https://example.test/low.webm" }, /relative POSIX path/],
-      ["traversal", (value) => { value.entries[0].renditions[0].url = "nested/..\/low.webm" }, /traversal/],
+      ["traversal", (value) => { value.entries[0].renditions[0].url = "nested/../low.webm" }, /traversal/],
       ["backslashes", (value) => { value.entries[0].renditions[0].url = "nested\\low.webm" }, /backslashes/],
       ["unknown extension", (value) => { value.entries[0].renditions[0].url = "nested/low.json" }, /unsupported extension/],
       ["duplicate paths", (value) => { value.entries[0].renditions[1].url = value.entries[0].renditions[0].url }, /duplicate media path/],
@@ -268,7 +268,7 @@ describe("Chimer catalog R2 publication planner", () => {
     }
   })
 
-  it("clears an inherited hostile bucket before asserting the uploader dry-run default", () => {
+  it("builds a credential-free child environment before asserting the catalog uploader default", () => {
     const env = childUploaderEnv({}, {
       PATH: process.env.PATH,
       MASSAGELAB_PUBLIC_MEDIA_BUCKET: "hostile-inherited-bucket",

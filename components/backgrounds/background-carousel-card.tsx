@@ -120,6 +120,7 @@ export function BackgroundCarouselCard({
         className="absolute inset-0 overflow-hidden rounded-[inherit]"
         data-carousel-artwork
       >
+        {/* Prefer the approved catalog poster; the v1 poster remains the rollback fallback. */}
         <BackgroundPreviewMedia
           videoUrl={previewVideoUrl}
           posterUrl={publishedPosterUrl ?? previewPosterUrl}

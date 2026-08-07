@@ -52,10 +52,10 @@ import {
   serializeCatalogRenditionManifest,
   serializeRenditionManifest,
 } from "./rendition-manifest-module.mjs"
+import { APPROVED_CATALOG_RELEASE_CONTRACT } from "./preview-release-contract.mjs"
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const productionPreviewDir = path.join(repoRoot, "public/chimer/background-previews")
-const pilotPreviewDir = path.join(repoRoot, "public/chimer/background-preview-pilot")
 const catalogPreviewDir = path.join(repoRoot, "public/chimer/background-preview-catalog")
 const sidecarModulePath = path.join(repoRoot, "components/backgrounds/backgroundPreviewRenditionManifest.ts")
 const defaultPreviewId = "massage-lab-moving-gradient"
@@ -127,9 +127,6 @@ function parseArgs(argv) {
   }
   if (options.catalogMode && path.resolve(options.outputDir) !== catalogPreviewDir) {
     throw new Error("Catalog mode may target only public/chimer/background-preview-catalog.")
-  }
-  if (options.catalogMode && path.resolve(options.outputDir) === pilotPreviewDir) {
-    throw new Error("Catalog mode refuses the approved pilot directory.")
   }
   options.ids = selectRenderPilotIds({
     catalogMode: options.catalogMode,
@@ -612,9 +609,15 @@ function validateExistingOutput(options) {
   if (options.catalogMode && options.validateOnly) {
     const renditionCount = manifest.entries.reduce((sum, entry) => sum + entry.renditions.length, 0)
     const posterCount = manifest.entries.reduce((sum, entry) => sum + Object.keys(entry.posters).length, 0)
-    if (manifest.entries.length !== 84) errors.push(`catalog: expected 84 entries, received ${manifest.entries.length}`)
-    if (renditionCount !== 1476) errors.push(`catalog: expected 1476 videos, received ${renditionCount}`)
-    if (posterCount !== 252) errors.push(`catalog: expected 252 posters, received ${posterCount}`)
+    if (manifest.entries.length !== APPROVED_CATALOG_RELEASE_CONTRACT.entryCount) {
+      errors.push(`catalog: expected ${APPROVED_CATALOG_RELEASE_CONTRACT.entryCount} entries, received ${manifest.entries.length}`)
+    }
+    if (renditionCount !== APPROVED_CATALOG_RELEASE_CONTRACT.renditionCount) {
+      errors.push(`catalog: expected ${APPROVED_CATALOG_RELEASE_CONTRACT.renditionCount} videos, received ${renditionCount}`)
+    }
+    if (posterCount !== APPROVED_CATALOG_RELEASE_CONTRACT.posterCount) {
+      errors.push(`catalog: expected ${APPROVED_CATALOG_RELEASE_CONTRACT.posterCount} posters, received ${posterCount}`)
+    }
   }
   if (errors.length) throw new Error(errors.join("\n"))
   writeFileSync(path.join(options.outputDir, "validation.json"), `${JSON.stringify({ valid: true, entries: manifest.entries.length }, null, 2)}\n`)

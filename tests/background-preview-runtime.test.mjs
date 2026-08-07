@@ -123,6 +123,9 @@ test("the generated typed wrapper renders schema and revision constants", () => 
   const source = renderPublishedRuntimeManifestModule()
   assert.match(source, new RegExp(`readonly schemaVersion: ${PUBLISHED_RUNTIME_SCHEMA_VERSION}`))
   assert.match(source, new RegExp(`readonly catalogRevision: "${PUBLISHED_CATALOG_REVISION}"`))
+  assert.match(source, /BackgroundPreviewPublishedAspect = "landscape" \| "square" \| "vertical"/)
+  assert.match(source, /BackgroundPreviewPublishedQuality = "low" \| "standard" \| "high"/)
+  assert.match(source, /BackgroundPreviewPublishedCodec = "vp9" \| "h264"/)
 })
 
 test("development catalog URL resolution stays JSON-free at the client boundary", async () => {

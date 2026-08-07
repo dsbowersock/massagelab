@@ -2,12 +2,17 @@ import { BACKGROUND_BRANDING_AUDIT_BATCHES } from "../background-branding/audit-
 import recipeCatalog from "../../data/background-preview-recipes.json" with { type: "json" }
 import { isDeepStrictEqual } from "node:util"
 import { APPROVED_PILOT_RECIPES } from "./approved-pilot-recipes.mjs"
+import {
+  CATALOG_PREVIEW_ASPECTS,
+  CATALOG_PREVIEW_CODECS,
+  CATALOG_PREVIEW_QUALITIES,
+} from "./preview-release-contract.mjs"
 
 export { APPROVED_PILOT_RECIPES }
 
-export const PREVIEW_ASPECTS = Object.freeze(["landscape", "square", "vertical"])
-export const PREVIEW_QUALITIES = Object.freeze(["low", "standard", "high"])
-export const PREVIEW_CODECS = Object.freeze(["vp9", "h264"])
+export const PREVIEW_ASPECTS = CATALOG_PREVIEW_ASPECTS
+export const PREVIEW_QUALITIES = CATALOG_PREVIEW_QUALITIES
+export const PREVIEW_CODECS = CATALOG_PREVIEW_CODECS
 
 export const PREVIEW_RENDITION_LADDER = Object.freeze({
   landscape: Object.freeze({
@@ -46,6 +51,16 @@ if (new Set(FULL_CATALOG_BACKGROUND_IDS).size !== FULL_CATALOG_BACKGROUND_IDS.le
 }
 
 export const STATIC_BACKGROUND_IDS = Object.freeze(["solid-color", "static-gradient"])
+/** Ensures every static renderer remains part of the enabled preview catalog. */
+export function assertStaticBackgroundIdsSubset(staticIds, catalogIds) {
+  const catalogIdSet = new Set(catalogIds)
+  const unknownStaticIds = staticIds.filter((id) => !catalogIdSet.has(id))
+  if (unknownStaticIds.length) {
+    throw new Error(`Static preview background IDs are outside the full catalog: ${unknownStaticIds.join(", ")}`)
+  }
+}
+
+assertStaticBackgroundIdsSubset(STATIC_BACKGROUND_IDS, FULL_CATALOG_BACKGROUND_IDS)
 export const ANIMATED_BACKGROUND_IDS = Object.freeze(
   FULL_CATALOG_BACKGROUND_IDS.filter((id) => !STATIC_BACKGROUND_IDS.includes(id)),
 )
@@ -61,6 +76,20 @@ function freezeRecipe(value) {
 export const backgroundPreviewRecipes = Object.freeze(Object.fromEntries(
   Object.entries(recipeCatalog).map(([id, value]) => [id, freezeRecipe(value)]),
 ))
+
+/** Requires the recipe catalog to cover every enabled ID with no stray rows. */
+export function assertRecipeCatalogCoverage(recipes, catalogIds) {
+  const recipeIds = Object.keys(recipes)
+  const recipeIdSet = new Set(recipeIds)
+  const catalogIdSet = new Set(catalogIds)
+  const missing = catalogIds.filter((id) => !recipeIdSet.has(id))
+  const extra = recipeIds.filter((id) => !catalogIdSet.has(id))
+  if (missing.length || extra.length) {
+    throw new Error(`Background preview recipe catalog coverage mismatch; missing: ${missing.join(", ") || "none"}; extra: ${extra.join(", ") || "none"}.`)
+  }
+}
+
+assertRecipeCatalogCoverage(backgroundPreviewRecipes, FULL_CATALOG_BACKGROUND_IDS)
 
 /** Compares approved pilot recipes semantically so harmless key order cannot fail startup. */
 export function assertApprovedPilotRecipesMatch(recipes, approvedRecipes) {
@@ -115,7 +144,7 @@ export function validateBackgroundPreviewRecipe(value) {
     ? value?.loopStrategy === "static"
     : ["natural", "crossfade"].includes(value?.loopStrategy)
   if (!validLoopStrategy) errors.push(`${recipeId}: loop strategy must match the media kind`)
-  const validCrossfade = posterOnly || value?.loopStrategy === "natural"
+  const validCrossfade = (posterOnly || value?.loopStrategy === "natural")
     ? value?.crossfadeMs === 0
     : value?.loopStrategy === "crossfade" && Number.isInteger(value?.crossfadeMs)
       && value.crossfadeMs >= 250 && value.crossfadeMs <= 2000 && value.crossfadeMs < value.durationMs

@@ -22,6 +22,44 @@ import {
 import { getPreviewRenditionMimeType } from "../scripts/chimer-preview-generation/rendition-plan.mjs"
 import { assertCatalogManifest } from "../components/backgrounds/backgroundPreviewCatalogManifest.ts"
 
+function catalogManifestFixture(mediaKind = "animated") {
+  const posters = Object.fromEntries(["landscape", "square", "vertical"].map((aspect) => [aspect, {
+    url: `fixture/recipe-1/${aspect}/poster.webp`,
+    width: 1,
+    height: 1,
+    bytes: 1,
+    sha256: "a".repeat(64),
+  }]))
+  const rendition = {
+    aspect: "landscape",
+    quality: "low",
+    codec: "vp9",
+    url: "fixture/recipe-1/landscape/low.webm",
+    mimeType: "video/webm; codecs=vp9",
+    width: 384,
+    height: 216,
+    durationMs: 10_000,
+    fps: 24,
+    bytes: 1,
+    sha256: "b".repeat(64),
+  }
+  return {
+    schemaVersion: 3,
+    catalogRevision: "catalog-approved-1",
+    entries: [{
+      backgroundId: "fixture-background",
+      recipeRevision: "recipe-1",
+      reviewStatus: "approved",
+      batchSlug: "01-foundations",
+      mediaKind,
+      loopStrategy: mediaKind === "animated" ? "natural" : "static",
+      loopBoundaryMs: mediaKind === "animated" ? 10_000 : 0,
+      renditions: mediaKind === "animated" ? [rendition] : [],
+      posters,
+    }],
+  }
+}
+
 describe("background preview encoding plans", () => {
   it("declares the encoded High-profile H.264 level for each quality tier", () => {
     assert.equal(getPreviewRenditionMimeType("h264", "low"), "video/mp4; codecs=avc1.64000D")
@@ -227,22 +265,77 @@ describe("background preview media validation", () => {
       sanitizeGenerationError(new Error("file:///home/derri/catalog/index.json: invalid manifest")),
       "<local-path>: invalid manifest",
     )
+    assert.equal(
+      sanitizeGenerationError(new Error("/workspace/catalog/high.webm failed: ffmpeg -v error")),
+      "<local-path> failed: ffmpeg -v error",
+    )
+    assert.equal(
+      sanitizeGenerationError(new Error("'/srv/render/output.webm': decoder unavailable")),
+      "<local-path>: decoder unavailable",
+    )
+    assert.equal(
+      sanitizeGenerationError(new Error("fetch https://media.example.test/workspace/high.webm failed")),
+      "fetch https://media.example.test/workspace/high.webm failed",
+    )
+    assert.equal(
+      sanitizeGenerationError(new Error('curl "https://media.example.test/srv/high.webm" --fail')),
+      'curl "https://media.example.test/srv/high.webm" --fail',
+    )
+  })
+
+  it("accepts complete animated and poster-only catalog descriptors", () => {
+    assert.doesNotThrow(() => assertCatalogManifest(catalogManifestFixture("animated")))
+    assert.doesNotThrow(() => assertCatalogManifest(catalogManifestFixture("poster-only")))
+  })
+
+  it("fails closed for every required catalog field and descriptor contract", () => {
+    const mutations = [
+      ["schema", (manifest) => { manifest.schemaVersion = 2 }, /schema version 3/],
+      ["revision", (manifest) => { manifest.catalogRevision = "   " }, /revision must be a nonempty string/],
+      ["entries", (manifest) => { manifest.entries = null }, /entries must be an array/],
+      ["recipe revision", (manifest) => { manifest.entries[0].recipeRevision = "" }, /recipeRevision must be a nonempty string/],
+      ["review status", (manifest) => { manifest.entries[0].reviewStatus = "published" }, /reviewStatus is unsupported/],
+      ["batch slug", (manifest) => { manifest.entries[0].batchSlug = " " }, /batchSlug must be a nonempty string/],
+      ["media kind", (manifest) => { manifest.entries[0].mediaKind = "video" }, /mediaKind is unsupported/],
+      ["loop strategy", (manifest) => { manifest.entries[0].loopStrategy = "static" }, /loopStrategy is unsupported/],
+      ["loop boundary", (manifest) => { manifest.entries[0].loopBoundaryMs = 0 }, /loopBoundaryMs must be a positive safe integer/],
+      ["renditions collection", (manifest) => { manifest.entries[0].renditions = {} }, /renditions must be an array/],
+      ["animated rendition", (manifest) => { manifest.entries[0].renditions = [] }, /requires video renditions/],
+      ["poster-only rules", (manifest) => { manifest.entries[0].mediaKind = "poster-only" }, /requires static looping, a zero boundary, and no video renditions/],
+      ["rendition missing field", (manifest) => { delete manifest.entries[0].renditions[0].width }, /rendition 0 must contain exactly/],
+      ["rendition extra field", (manifest) => { manifest.entries[0].renditions[0].extra = true }, /rendition 0 must contain exactly/],
+      ["rendition aspect", (manifest) => { manifest.entries[0].renditions[0].aspect = "panorama" }, /aspect is unsupported/],
+      ["rendition quality", (manifest) => { manifest.entries[0].renditions[0].quality = "ultra" }, /quality is unsupported/],
+      ["rendition codec", (manifest) => { manifest.entries[0].renditions[0].codec = "av1" }, /codec is unsupported/],
+      ["rendition URL", (manifest) => { manifest.entries[0].renditions[0].url = "" }, /URL must be a nonempty string/],
+      ["rendition MIME", (manifest) => { manifest.entries[0].renditions[0].mimeType = "video/mp4" }, /MIME type is unsupported for vp9/],
+      ["rendition width", (manifest) => { manifest.entries[0].renditions[0].width = 0 }, /width must be a positive safe integer/],
+      ["rendition height", (manifest) => { manifest.entries[0].renditions[0].height = 1.5 }, /height must be a positive safe integer/],
+      ["rendition duration", (manifest) => { manifest.entries[0].renditions[0].durationMs = 0 }, /durationMs must be a positive safe integer/],
+      ["rendition fps", (manifest) => { manifest.entries[0].renditions[0].fps = 0 }, /fps must be a positive safe integer/],
+      ["rendition bytes", (manifest) => { manifest.entries[0].renditions[0].bytes = -1 }, /bytes must be a positive safe integer/],
+      ["rendition hash", (manifest) => { manifest.entries[0].renditions[0].sha256 = "bad" }, /SHA-256 hex digest/],
+      ["posters collection", (manifest) => { manifest.entries[0].posters = [] }, /posters must be an object/],
+      ["missing poster aspect", (manifest) => { delete manifest.entries[0].posters.square }, /posters must contain exactly/],
+      ["extra poster aspect", (manifest) => { manifest.entries[0].posters.panorama = manifest.entries[0].posters.landscape }, /posters must contain exactly/],
+      ["poster missing field", (manifest) => { delete manifest.entries[0].posters.landscape.bytes }, /landscape poster must contain exactly/],
+      ["poster extra field", (manifest) => { manifest.entries[0].posters.landscape.extra = true }, /landscape poster must contain exactly/],
+      ["poster URL", (manifest) => { manifest.entries[0].posters.landscape.url = "" }, /poster URL must be a nonempty string/],
+      ["poster width", (manifest) => { manifest.entries[0].posters.landscape.width = 0 }, /poster width must be a positive safe integer/],
+      ["poster height", (manifest) => { manifest.entries[0].posters.landscape.height = 0 }, /poster height must be a positive safe integer/],
+      ["poster bytes", (manifest) => { manifest.entries[0].posters.landscape.bytes = 0 }, /poster bytes must be a positive safe integer/],
+      ["poster hash", (manifest) => { manifest.entries[0].posters.landscape.sha256 = "bad" }, /SHA-256 hex digest/],
+    ]
+
+    for (const [label, mutate, expected] of mutations) {
+      const manifest = catalogManifestFixture("animated")
+      mutate(manifest)
+      assert.throws(() => assertCatalogManifest(manifest), expected, label)
+    }
   })
 
   it("rejects empty, whitespace-only, and duplicate catalog background IDs", () => {
-    const entry = (backgroundId) => ({
-      backgroundId,
-      mediaKind: "poster-only",
-      recipeRevision: "recipe-1",
-      reviewStatus: "approved",
-      batchSlug: "01-foundations",
-      loopStrategy: "static",
-      loopBoundaryMs: 0,
-      renditions: [],
-      posters: Object.fromEntries(["landscape", "square", "vertical"].map((aspect) => [aspect, {
-        url: `${aspect}/poster.webp`, width: 1, height: 1, bytes: 1, sha256: "a".repeat(64),
-      }])),
-    })
+    const entry = (backgroundId) => ({ ...catalogManifestFixture("poster-only").entries[0], backgroundId })
     const manifest = (entries) => ({ schemaVersion: 3, catalogRevision: "catalog-approved-1", entries })
 
     assert.throws(() => assertCatalogManifest(manifest([entry("")])), /nonempty and unique/)

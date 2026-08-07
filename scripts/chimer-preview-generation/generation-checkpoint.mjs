@@ -43,11 +43,18 @@ export function updateGenerationCheckpoint(outputDir, backgroundId, aspect, resu
 /** Prevents local paths and long process output from leaking into checkpoints. */
 export function sanitizeGenerationError(error) {
   const message = error instanceof Error ? error.message : String(error)
-  return message
+  const protectedUrls = []
+  const messageWithoutHttpUrls = message.replace(/\bhttps?:\/\/[^\s"'<>]+/gi, (url) => {
+    const token = `__MASSAGELAB_HTTP_URL_${protectedUrls.length}__`
+    protectedUrls.push(url)
+    return token
+  })
+  return messageWithoutHttpUrls
     .replace(/(["'])file:\/\/\/[^"'\r\n]+\1/gi, "<local-path>")
-    .replace(/(["'])(?:[A-Z]:[\\/]|\/(?:home|tmp|Users|private|var|opt|mnt)\/)[^"'\r\n]+\1/gi, "<local-path>")
+    .replace(/(["'])(?:[A-Z]:[\\/]|\/(?!\/))[^"'\r\n]+\1/gi, "<local-path>")
     .replace(/\bfile:\/\/\/(?:[A-Z]:\/)?[^\s"'<>|,:;!?)]+/gi, "<local-path>")
     .replace(/\b[A-Z]:[\\/][^\s"'<>|,:;!?)]+/gi, "<local-path>")
-    .replace(/(?<![\w:])\/(?:home|tmp|Users|private|var|opt|mnt)\/[^\s"'<>|,:;!?)]+/g, "<local-path>")
+    .replace(/(?<![\w:/])\/(?!\/)[^\s"'<>|,:;!?)]+/g, "<local-path>")
+    .replace(/__MASSAGELAB_HTTP_URL_(\d+)__/g, (_token, index) => protectedUrls[Number(index)])
     .slice(0, 2000)
 }

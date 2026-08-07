@@ -54,33 +54,122 @@ export type BackgroundPreviewCatalogManifest = {
   entries: readonly BackgroundPreviewCatalogEntry[]
 }
 
+const catalogAspects = ["landscape", "square", "vertical"] as const
+const catalogQualities = ["low", "standard", "high"] as const
+const catalogCodecs = ["vp9", "h264"] as const
+const renditionDescriptorKeys = [
+  "aspect", "quality", "codec", "url", "mimeType", "width", "height",
+  "durationMs", "fps", "bytes", "sha256",
+] as const
+const posterDescriptorKeys = ["url", "width", "height", "bytes", "sha256"] as const
+
+function requireRecord(value: unknown, label: string): asserts value is Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${label} must be an object.`)
+  }
+}
+
+function requireExactKeys(value: Record<string, unknown>, keys: readonly string[], label: string): void {
+  const actualKeys = Object.keys(value)
+  if (actualKeys.length !== keys.length || !keys.every((key) => Object.hasOwn(value, key))) {
+    throw new Error(`${label} must contain exactly ${keys.join(", ")}.`)
+  }
+}
+
+function requireNonemptyString(value: unknown, label: string): string {
+  if (typeof value !== "string" || !value.trim()) throw new Error(`${label} must be a nonempty string.`)
+  return value
+}
+
+function requireEnum<T extends string>(value: unknown, supported: readonly T[], label: string): T {
+  if (typeof value !== "string" || !supported.some((candidate) => candidate === value)) {
+    throw new Error(`${label} is unsupported.`)
+  }
+  return value as T
+}
+
+function requirePositiveInteger(value: unknown, label: string): number {
+  if (!Number.isSafeInteger(value) || (value as number) <= 0) {
+    throw new Error(`${label} must be a positive safe integer.`)
+  }
+  return value as number
+}
+
+function requireSha256(value: unknown, label: string): void {
+  if (typeof value !== "string" || !/^[a-f0-9]{64}$/i.test(value)) {
+    throw new Error(`${label} must be a SHA-256 hex digest.`)
+  }
+}
+
+function requirePosterDescriptor(value: unknown, label: string): void {
+  requireRecord(value, label)
+  requireExactKeys(value, posterDescriptorKeys, label)
+  requireNonemptyString(value.url, `${label} URL`)
+  requirePositiveInteger(value.width, `${label} width`)
+  requirePositiveInteger(value.height, `${label} height`)
+  requirePositiveInteger(value.bytes, `${label} bytes`)
+  requireSha256(value.sha256, `${label} sha256`)
+}
+
+function requireRenditionDescriptor(value: unknown, label: string): void {
+  requireRecord(value, label)
+  requireExactKeys(value, renditionDescriptorKeys, label)
+  requireEnum(value.aspect, catalogAspects, `${label} aspect`)
+  requireEnum(value.quality, catalogQualities, `${label} quality`)
+  const codec = requireEnum(value.codec, catalogCodecs, `${label} codec`)
+  requireNonemptyString(value.url, `${label} URL`)
+  const mimeType = requireNonemptyString(value.mimeType, `${label} MIME type`)
+  const mimeMatchesCodec = codec === "vp9"
+    ? mimeType === "video/webm; codecs=vp9"
+    : /^video\/mp4; codecs=avc1\.[a-f0-9]{6}$/i.test(mimeType)
+  if (!mimeMatchesCodec) throw new Error(`${label} MIME type is unsupported for ${codec}.`)
+  requirePositiveInteger(value.width, `${label} width`)
+  requirePositiveInteger(value.height, `${label} height`)
+  requirePositiveInteger(value.durationMs, `${label} durationMs`)
+  requirePositiveInteger(value.fps, `${label} fps`)
+  requirePositiveInteger(value.bytes, `${label} bytes`)
+  requireSha256(value.sha256, `${label} sha256`)
+}
+
 /** Fail closed if checked-in local review metadata drifts from schema v3. */
 export function assertCatalogManifest(value: unknown): asserts value is BackgroundPreviewCatalogManifest {
-  if (!value || typeof value !== "object") throw new Error("Background preview catalog must be an object.")
-  const manifest = value as Record<string, unknown>
-  if (manifest.schemaVersion !== 3 || typeof manifest.catalogRevision !== "string" || !Array.isArray(manifest.entries)) {
-    throw new Error("Background preview catalog must use schema version 3.")
-  }
+  requireRecord(value, "Background preview catalog")
+  const manifest = value
+  if (manifest.schemaVersion !== 3) throw new Error("Background preview catalog must use schema version 3.")
+  requireNonemptyString(manifest.catalogRevision, "Background preview catalog revision")
+  if (!Array.isArray(manifest.entries)) throw new Error("Background preview catalog entries must be an array.")
   const ids = new Set<string>()
-  for (const rawEntry of manifest.entries) {
-    if (!rawEntry || typeof rawEntry !== "object") throw new Error("Background preview catalog entry must be an object.")
-    const entry = rawEntry as Record<string, unknown>
+  for (const [entryIndex, rawEntry] of manifest.entries.entries()) {
+    requireRecord(rawEntry, `Background preview catalog entry ${entryIndex}`)
+    const entry = rawEntry
     if (typeof entry.backgroundId !== "string" || !entry.backgroundId.trim() || ids.has(entry.backgroundId)) {
       throw new Error("Background preview catalog IDs must be nonempty and unique.")
     }
     ids.add(entry.backgroundId)
-    if (!Array.isArray(entry.renditions) || !entry.posters || typeof entry.posters !== "object") {
-      throw new Error(`${entry.backgroundId}: catalog media collections are malformed.`)
+    const label = entry.backgroundId
+    requireNonemptyString(entry.recipeRevision, `${label} recipeRevision`)
+    requireEnum(entry.reviewStatus, ["candidate", "approved"], `${label} reviewStatus`)
+    requireNonemptyString(entry.batchSlug, `${label} batchSlug`)
+    const mediaKind = requireEnum(entry.mediaKind, ["animated", "poster-only"], `${label} mediaKind`)
+    if (!Array.isArray(entry.renditions)) throw new Error(`${label} renditions must be an array.`)
+
+    if (mediaKind === "animated") {
+      requireEnum(entry.loopStrategy, ["natural", "crossfade"], `${label} loopStrategy`)
+      requirePositiveInteger(entry.loopBoundaryMs, `${label} loopBoundaryMs`)
+      if (entry.renditions.length === 0) throw new Error(`${label}: animated catalog entry requires video renditions.`)
+    } else {
+      if (entry.loopStrategy !== "static" || entry.loopBoundaryMs !== 0 || entry.renditions.length !== 0) {
+        throw new Error(`${label}: poster-only catalog entry requires static looping, a zero boundary, and no video renditions.`)
+      }
     }
-    const posters = entry.posters as Record<string, unknown>
-    if (!(["landscape", "square", "vertical"] as const).every((aspect) => posters[aspect])) {
-      throw new Error(`${entry.backgroundId}: catalog requires three posters.`)
-    }
-    if (entry.mediaKind === "poster-only" && (entry.renditions.length !== 0 || entry.loopStrategy !== "static")) {
-      throw new Error(`${entry.backgroundId}: static catalog entry cannot contain video.`)
-    }
-    if (entry.mediaKind !== "poster-only" && entry.mediaKind !== "animated") {
-      throw new Error(`${entry.backgroundId}: unsupported catalog media kind.`)
+    entry.renditions.forEach((rendition, renditionIndex) => {
+      requireRenditionDescriptor(rendition, `${label} rendition ${renditionIndex}`)
+    })
+
+    requireRecord(entry.posters, `${label} posters`)
+    requireExactKeys(entry.posters, catalogAspects, `${label} posters`)
+    for (const aspect of catalogAspects) {
+      requirePosterDescriptor(entry.posters[aspect], `${label} ${aspect} poster`)
     }
   }
 }

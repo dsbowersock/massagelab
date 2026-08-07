@@ -1,4 +1,13 @@
-import { copyFileSync, existsSync, mkdirSync, statSync } from "node:fs"
+import { createHash } from "node:crypto"
+import {
+  closeSync,
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  openSync,
+  readSync,
+  statSync,
+} from "node:fs"
 import path from "node:path"
 
 /** Rejects any pilot media URL that is not one canonical relative POSIX path. */
@@ -50,15 +59,32 @@ export function resolveApprovedPilotContainedPath(rootDir, relativeUrl, label) {
   return resolvedPath
 }
 
-function createContainedCopyPlan({ sourceDir, outputDir, relativeUrl, label, bytes, required }) {
+function createContainedCopyPlan({ sourceDir, outputDir, relativeUrl, label, bytes, sha256, required }) {
   return {
     relativeUrl,
     sourcePath: resolveApprovedPilotContainedPath(sourceDir, relativeUrl, `${label} source`),
     outputPath: resolveApprovedPilotContainedPath(outputDir, relativeUrl, `${label} output`),
     bytes,
+    sha256,
     required,
     label,
   }
+}
+
+/** Hashes large approved media incrementally so integrity checks stay bounded. */
+function sha256File(filePath) {
+  const hash = createHash("sha256")
+  const descriptor = openSync(filePath, "r")
+  const buffer = Buffer.allocUnsafe(1024 * 1024)
+  try {
+    let bytesRead
+    while ((bytesRead = readSync(descriptor, buffer, 0, buffer.length, null)) > 0) {
+      hash.update(buffer.subarray(0, bytesRead))
+    }
+  } finally {
+    closeSync(descriptor)
+  }
+  return hash.digest("hex")
 }
 
 /** Derives and revalidates the optional decoded-frame evidence path. */
@@ -94,6 +120,7 @@ export function planApprovedPilotMediaCopies(entries, { sourceDir, outputDir }) 
         relativeUrl,
         label,
         bytes: media?.bytes,
+        sha256: media?.sha256,
         required: true,
       }))
       if (media && typeof media === "object" && Object.hasOwn(media, "codec")) {
@@ -104,6 +131,7 @@ export function planApprovedPilotMediaCopies(entries, { sourceDir, outputDir }) 
           relativeUrl: frameStripUrl,
           label: `${label} frame strip`,
           bytes: null,
+          sha256: null,
           required: false,
         }))
       }
@@ -121,8 +149,12 @@ export function copyApprovedPilotMedia(entries, { sourceDir, outputDir }) {
       if (!plan.required) continue
       throw new Error(`${plan.label}: approved media is missing or has changed: ${plan.relativeUrl}`)
     }
-    if (plan.required && statSync(plan.sourcePath).size !== plan.bytes) {
-      throw new Error(`${plan.label}: approved media is missing or has changed: ${plan.relativeUrl}`)
+    if (plan.required) {
+      const sizeMatches = statSync(plan.sourcePath).size === plan.bytes
+      const hashMatches = typeof plan.sha256 === "string" && sha256File(plan.sourcePath) === plan.sha256
+      if (!sizeMatches || !hashMatches) {
+        throw new Error(`${plan.label}: approved media is missing or has changed: ${plan.relativeUrl}`)
+      }
     }
     copies.push(plan)
   }

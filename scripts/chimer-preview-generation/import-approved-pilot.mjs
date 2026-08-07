@@ -22,6 +22,16 @@ if (sourceManifest.entries.length !== PILOT_BACKGROUND_IDS.length
   throw new Error("Approved pilot manifest does not contain the frozen eight-background set.")
 }
 
+const importedEntries = sourceManifest.entries.map((entry) => {
+  const batch = FULL_CATALOG_BATCHES.find(({ ids }) => ids.includes(entry.backgroundId))
+  if (!batch) throw new Error(`${entry.backgroundId}: approved pilot entry has no catalog batch.`)
+  return {
+    ...entry,
+    mediaKind: "animated",
+    reviewStatus: "approved",
+    batchSlug: batch.slug,
+  }
+})
 copyApprovedPilotMedia(sourceManifest.entries, { sourceDir, outputDir })
 mkdirSync(outputDir, { recursive: true })
 const currentPath = path.join(outputDir, "index.json")
@@ -29,13 +39,8 @@ const current = existsSync(currentPath)
   ? JSON.parse(readFileSync(currentPath, "utf8"))
   : { schemaVersion: 3, entries: [] }
 const entriesById = new Map(current.entries.map((entry) => [entry.backgroundId, entry]))
-for (const entry of sourceManifest.entries) {
-  entriesById.set(entry.backgroundId, {
-    ...entry,
-    mediaKind: "animated",
-    reviewStatus: "approved",
-    batchSlug: FULL_CATALOG_BATCHES.find(({ ids }) => ids.includes(entry.backgroundId))?.slug,
-  })
+for (const entry of importedEntries) {
+  entriesById.set(entry.backgroundId, entry)
 }
 writeFileSync(currentPath, serializeCatalogRenditionManifest([...entriesById.values()]), "utf8")
 console.log(`Imported ${sourceManifest.entries.length} approved pilot entries into the local catalog.`)

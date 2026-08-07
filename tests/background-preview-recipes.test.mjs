@@ -14,10 +14,16 @@ import {
   PREVIEW_RENDITION_LADDER,
   STATIC_BACKGROUND_IDS,
   assertApprovedPilotRecipesMatch,
+  assertRecipeCatalogCoverage,
+  assertStaticBackgroundIdsSubset,
   backgroundPreviewRecipes,
   getBackgroundPreviewRecipe,
   validateBackgroundPreviewRecipe,
 } from "../scripts/chimer-preview-generation/preview-recipes.mjs"
+import {
+  APPROVED_CATALOG_RELEASE_CONTRACT,
+  assertPublishedCatalogCountArithmetic,
+} from "../scripts/chimer-preview-generation/preview-release-contract.mjs"
 import {
   buildBackgroundPosterPlan,
   buildBackgroundRenditionPlan,
@@ -40,6 +46,50 @@ describe("background preview recipes", () => {
     assert.equal(new Set(FULL_CATALOG_BACKGROUND_IDS).size, 84)
     assert.equal(ANIMATED_BACKGROUND_IDS.length, 82)
     assert.deepEqual(STATIC_BACKGROUND_IDS, ["solid-color", "static-gradient"])
+  })
+
+  it("fails fast if a static preview ID escapes the enabled catalog", () => {
+    assert.doesNotThrow(() => assertStaticBackgroundIdsSubset(["solid-color"], ["solid-color", "animated"]))
+    assert.throws(
+      () => assertStaticBackgroundIdsSubset(["solid-color", "missing-static"], ["solid-color", "animated"]),
+      /outside the full catalog: missing-static/,
+    )
+  })
+
+  it("requires exact recipe-catalog key coverage", () => {
+    assert.doesNotThrow(() => assertRecipeCatalogCoverage({ first: {}, second: {} }, ["first", "second"]))
+    assert.throws(
+      () => assertRecipeCatalogCoverage({ first: {} }, ["first", "second"]),
+      /missing: second; extra: none/,
+    )
+    assert.throws(
+      () => assertRecipeCatalogCoverage({ first: {}, stray: {} }, ["first"]),
+      /missing: none; extra: stray/,
+    )
+  })
+
+  it("locks fail-fast approved release count arithmetic", () => {
+    assert.deepEqual(APPROVED_CATALOG_RELEASE_CONTRACT, {
+      catalogRevision: "catalog-approved-1",
+      entryCount: 84,
+      animatedCount: 82,
+      posterOnlyCount: 2,
+      renditionCount: 1_476,
+      posterCount: 252,
+    })
+    assert.doesNotThrow(() => assertPublishedCatalogCountArithmetic())
+    assert.throws(
+      () => assertPublishedCatalogCountArithmetic({ ...APPROVED_CATALOG_RELEASE_CONTRACT, entryCount: 83 }),
+      /entry count must equal animated plus poster-only/,
+    )
+    assert.throws(
+      () => assertPublishedCatalogCountArithmetic({ ...APPROVED_CATALOG_RELEASE_CONTRACT, renditionCount: 1_475 }),
+      /rendition count must equal animated entries times the full rendition matrix/,
+    )
+    assert.throws(
+      () => assertPublishedCatalogCountArithmetic({ ...APPROVED_CATALOG_RELEASE_CONTRACT, posterCount: 251 }),
+      /poster count must equal entries times required poster aspects/,
+    )
   })
 
   it("locks the approved pilot and three-by-three rendition ladder", () => {
@@ -197,6 +247,10 @@ describe("background preview recipes", () => {
     assert.match(source, /function validateDecodedRendition/)
     assert.match(source, /function validateExistingOutput[\s\S]*validateDecodedRendition\(\{/)
     assert.match(source, /FFmpeg is required to decode and validate the preview pilot/)
+    assert.match(source, /APPROVED_CATALOG_RELEASE_CONTRACT\.entryCount/)
+    assert.match(source, /APPROVED_CATALOG_RELEASE_CONTRACT\.renditionCount/)
+    assert.match(source, /APPROVED_CATALOG_RELEASE_CONTRACT\.posterCount/)
+    assert.doesNotMatch(source, /expected 1476 videos|expected 252 posters/)
   })
 
   it("requires an explicit safe catalog output and supports resumable batches", () => {
@@ -205,6 +259,8 @@ describe("background preview recipes", () => {
     assert.match(source, /--batch/)
     assert.match(source, /--resume/)
     assert.match(source, /refusing production preview directory/i)
+    assert.match(source, /terminated without an exit code/)
+    assert.match(source, /result\.signal/)
     assert.doesNotMatch(source, /upload-r2/)
   })
 
@@ -307,6 +363,13 @@ describe("background preview recipes", () => {
       }]),
       new RegExp(`${backgroundId}: unexpected poster aspect panorama`),
     )
+    for (const invalidRenditions of [undefined, {}, "not-an-array"]) {
+      assert.throws(
+        () => normalizeCatalogRenditionManifestEntries([{ ...entry, renditions: invalidRenditions }]),
+        new RegExp(`${backgroundId}: renditions must be an array`),
+      )
+    }
+    assert.doesNotThrow(() => normalizeCatalogRenditionManifestEntries([entry]))
   })
 
   it("locks the approved catalog's exact published object inventory", () => {

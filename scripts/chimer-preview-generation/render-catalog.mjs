@@ -80,6 +80,9 @@ function main() {
   if (options.validateOnly) args.push("--validate-only")
   const result = spawnSync(process.execPath, args, { cwd: repoRoot, stdio: "inherit" })
   if (result.error) throw result.error
+  if (result.status === null) {
+    throw new Error(`Catalog renderer terminated without an exit code${result.signal ? ` after signal ${result.signal}` : ""}.`)
+  }
   if (result.status !== 0) process.exitCode = result.status ?? 1
 }
 
