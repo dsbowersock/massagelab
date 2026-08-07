@@ -1,8 +1,9 @@
 "use client"
 
-import { type CSSProperties, useEffect, useRef, useState } from "react"
+import { type CSSProperties, useCallback, useEffect, useRef, useState } from "react"
 import type {
   BackgroundPreviewPublishedEntry,
+  BackgroundPreviewPublishedCodec,
   BackgroundPreviewPublishedQuality,
   BackgroundPreviewPublishedRendition,
 } from "@/components/backgrounds/backgroundPreviewPublishedManifest"
@@ -42,6 +43,11 @@ function getPreviewConnection() {
   return (navigator as PreviewNavigator).connection
 }
 
+/** Distinguishes sequential attempts without retaining or preloading a source. */
+function renditionAttemptKey(rendition: BackgroundPreviewPublishedRendition) {
+  return `${rendition.aspect}:${rendition.quality}:${rendition.codec}`
+}
+
 /**
  * Keeps legacy development callers unchanged while giving the production
  * carousel an opt-in, poster-first path with one vertical source per card.
@@ -59,6 +65,9 @@ export function BackgroundPreviewMedia({
 }: BackgroundPreviewMediaProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const pendingQualityRef = useRef<BackgroundPreviewPublishedQuality | null>(null)
+  const attemptedRenditionsRef = useRef<Set<string>>(new Set())
+  const supportedCodecsRef = useRef<Set<BackgroundPreviewPublishedCodec>>(new Set())
+  const activeSourceUrlRef = useRef<string | null>(null)
   const [videoFailed, setVideoFailed] = useState(false)
   const [posterFailed, setPosterFailed] = useState(false)
   const [documentVisible, setDocumentVisible] = useState(true)
@@ -100,6 +109,9 @@ export function BackgroundPreviewMedia({
     if (!strictCatalog) return
 
     pendingQualityRef.current = null
+    attemptedRenditionsRef.current = new Set()
+    supportedCodecsRef.current = new Set()
+    activeSourceUrlRef.current = null
     setCurrentRendition(null)
     setLegacyVideoSelected(false)
     if (!strictPlaybackEligible) return
@@ -107,6 +119,7 @@ export function BackgroundPreviewMedia({
     // Production deliberately falls back to the existing v1 vertical URL only
     // while the published catalog base is unavailable.
     if (!publishedCatalogBaseUrl) {
+      activeSourceUrlRef.current = videoUrl ?? null
       setLegacyVideoSelected(Boolean(videoUrl))
       return
     }
@@ -115,9 +128,23 @@ export function BackgroundPreviewMedia({
     const connection = getPreviewConnection()
     const initialQuality = qualityForPreviewConnection(connection)
     const codecProbe = document.createElement("video")
+    const codecSupportByMimeType = new Map<string, CanPlayTypeResult>()
+    for (const rendition of publishedEntry.renditions) {
+      if (codecSupportByMimeType.has(rendition.mimeType)) continue
+      let support: CanPlayTypeResult = ""
+      try {
+        support = codecProbe.canPlayType(rendition.mimeType)
+      } catch {
+        // A throwing probe is equivalent to no declared support for this MIME.
+      }
+      codecSupportByMimeType.set(rendition.mimeType, support)
+      if (support === "probably" || support === "maybe") {
+        supportedCodecsRef.current.add(rendition.codec)
+      }
+    }
     const codec = chooseSupportedPreviewCodec(
       publishedEntry.renditions,
-      codecProbe.canPlayType.bind(codecProbe),
+      (mimeType: string) => codecSupportByMimeType.get(mimeType) ?? "",
     )
     if (!codec) {
       setVideoFailed(true)
@@ -134,6 +161,8 @@ export function BackgroundPreviewMedia({
       setVideoFailed(true)
       return
     }
+    attemptedRenditionsRef.current.add(renditionAttemptKey(initialRendition))
+    activeSourceUrlRef.current = initialRendition.url
     setCurrentRendition(initialRendition)
 
     if (!connection) return
@@ -165,6 +194,40 @@ export function BackgroundPreviewMedia({
     : legacyShowPoster
   const resolvedVideoUrl = strictCatalog ? strictVideoUrl : videoUrl
 
+  const handleStrictPlaybackFailure = useCallback((failedSourceUrl?: string) => {
+    if (!strictCatalog) {
+      setVideoFailed(true)
+      return
+    }
+    // An error and a rejected play promise can report the same old source.
+    // Once a replacement is scheduled, ignore that stale duplicate signal.
+    if (failedSourceUrl !== activeSourceUrlRef.current) return
+
+    if (currentRendition && publishedCatalogBaseUrl) {
+      const alternateCodec: BackgroundPreviewPublishedCodec =
+        currentRendition.codec === "vp9" ? "h264" : "vp9"
+      const alternateAttemptKey = `${currentRendition.aspect}:${currentRendition.quality}:${alternateCodec}`
+      if (supportedCodecsRef.current.has(alternateCodec)
+        && !attemptedRenditionsRef.current.has(alternateAttemptKey)) {
+        attemptedRenditionsRef.current.add(alternateAttemptKey)
+        const alternateRendition = selectPublishedPreviewRendition({
+          entry: publishedEntry,
+          aspect: currentRendition.aspect,
+          quality: currentRendition.quality,
+          codec: alternateCodec,
+          catalogBaseUrl: publishedCatalogBaseUrl,
+        }) as BackgroundPreviewPublishedRendition | null
+        if (alternateRendition) {
+          activeSourceUrlRef.current = alternateRendition.url
+          setCurrentRendition(alternateRendition)
+          return
+        }
+      }
+    }
+
+    setVideoFailed(true)
+  }, [currentRendition, publishedCatalogBaseUrl, publishedEntry, strictCatalog])
+
   const handleStrictEnded = () => {
     if (!strictCatalog || !strictPlaybackEligible) return
     const video = videoRef.current
@@ -181,6 +244,8 @@ export function BackgroundPreviewMedia({
         }) as BackgroundPreviewPublishedRendition | null
       : null
     if (pendingRendition && pendingRendition.url !== currentRendition?.url) {
+      attemptedRenditionsRef.current.add(renditionAttemptKey(pendingRendition))
+      activeSourceUrlRef.current = pendingRendition.url
       setCurrentRendition(pendingRendition)
       return
     }
@@ -188,7 +253,7 @@ export function BackgroundPreviewMedia({
     video.currentTime = 0
     void video.play().catch((error: unknown) => {
       if (error instanceof DOMException && error.name === "AbortError") return
-      setVideoFailed(true)
+      handleStrictPlaybackFailure(resolvedVideoUrl)
     })
   }
 
@@ -208,7 +273,7 @@ export function BackgroundPreviewMedia({
         // pause(), source replacement, and unmount may abort an in-flight play
         // without indicating that the preview asset itself failed.
         if (error instanceof DOMException && error.name === "AbortError") return
-        setVideoFailed(true)
+        handleStrictPlaybackFailure(resolvedVideoUrl)
       })
     }
     syncPlayback()
@@ -219,7 +284,7 @@ export function BackgroundPreviewMedia({
       video.pause()
     }
     // A nonempty source can change while playback stays active, so resync after the browser reloads it.
-  }, [resolvedVideoUrl, shouldPlayVideo, strictCatalog])
+  }, [handleStrictPlaybackFailure, resolvedVideoUrl, shouldPlayVideo, strictCatalog])
 
   return (
     <div className={cn("relative size-full overflow-hidden", className)} aria-hidden="true">
@@ -244,7 +309,7 @@ export function BackgroundPreviewMedia({
           className="absolute inset-0 size-full object-cover"
           aria-hidden="true"
           onEnded={handleStrictEnded}
-          onError={() => setVideoFailed(true)}
+          onError={() => handleStrictPlaybackFailure(resolvedVideoUrl)}
         />
       ) : showPoster ? (
         // Native img lets a failed poster reveal the already-mounted registry fallback.

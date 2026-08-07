@@ -54,7 +54,7 @@ describe("background preview media", () => {
     assert.match(videoMarkup, /\bplaysInline\b/)
     assert.match(videoMarkup, /preload="metadata"/)
     assert.match(videoMarkup, /aria-hidden="true"/)
-    assert.match(videoMarkup, /onError=\{\(\) => setVideoFailed\(true\)\}/)
+    assert.match(videoMarkup, /onError=\{\(\) => handleStrictPlaybackFailure\(resolvedVideoUrl\)\}/)
     assert.match(componentSource, /fallbackStyle/)
   })
 
@@ -101,6 +101,30 @@ describe("background preview media", () => {
     assert.match(endedHandler, /resolvePendingPreviewRendition/)
     assert.match(endedHandler, /setCurrentRendition\(pendingRendition\)/)
     assert.match(endedHandler, /video\.currentTime = 0/)
+  })
+
+  it("retries one supported same-tier codec before revealing the poster", () => {
+    const recoveryHandler = sourceBetween(
+      componentSource,
+      "const handleStrictPlaybackFailure = useCallback",
+      "const handleStrictEnded = () =>",
+      "strict codec recovery handler",
+    )
+
+    assert.match(recoveryHandler, /currentRendition\.codec === "vp9" \? "h264" : "vp9"/)
+    assert.match(recoveryHandler, /supportedCodecsRef\.current\.has\(alternateCodec\)/)
+    assert.match(recoveryHandler, /attemptedRenditionsRef\.current\.has\(alternateAttemptKey\)/)
+    assert.match(recoveryHandler, /selectPublishedPreviewRendition\(\{[\s\S]*?aspect: currentRendition\.aspect[\s\S]*?quality: currentRendition\.quality[\s\S]*?codec: alternateCodec/)
+    assert.match(recoveryHandler, /activeSourceUrlRef\.current = alternateRendition\.url[\s\S]*?setCurrentRendition\(alternateRendition\)/)
+    assert.match(recoveryHandler, /setVideoFailed\(true\)/)
+    assert.equal(
+      componentSource.match(/handleStrictPlaybackFailure\(resolvedVideoUrl\)/g)?.length,
+      3,
+      "media error, boundary replay rejection, and ordinary play rejection share recovery",
+    )
+    assert.match(componentSource, /codecSupportByMimeType = new Map[\s\S]*?codecProbe\.canPlayType/)
+    assert.match(componentSource, /attemptedRenditionsRef\.current = new Set\(\)/)
+    assert.doesNotMatch(componentSource, /<source\b/)
   })
 
   it("resynchronizes playback when an active preview swaps to another nonempty source", () => {
