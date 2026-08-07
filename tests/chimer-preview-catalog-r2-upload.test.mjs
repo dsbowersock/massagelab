@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import { spawnSync } from "node:child_process"
 import { createHash } from "node:crypto"
+import { existsSync } from "node:fs"
 import fs from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
@@ -13,11 +14,14 @@ import {
   buildCatalogMediaAllowlist,
   createCatalogR2Objects,
   loadCatalogR2PublicationPlan,
+  readCatalogMediaSnapshot,
   validateCatalogMediaFiles,
 } from "../scripts/chimer-preview-generation/catalog-r2-publication.mjs"
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const uploaderPath = path.join(repoRoot, "scripts/chimer-preview-generation/catalog-r2-upload.mjs")
+const realCatalogPath = path.join(repoRoot, "public/chimer/background-preview-catalog/index.json")
+const realCatalogAvailable = existsSync(realCatalogPath)
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex")
@@ -140,6 +144,23 @@ describe("Chimer catalog R2 publication planner", () => {
     )
   })
 
+  it("reads the exact manifest-hashed bytes that a live uploader can send", async (testContext) => {
+    const { catalog, catalogDir } = await createFixture(testContext)
+    const [validatedMedia] = await validateCatalogMediaFiles({
+      catalogDir,
+      media: buildCatalogMediaAllowlist(catalog),
+    })
+
+    const snapshot = await readCatalogMediaSnapshot(validatedMedia)
+    assert.equal(sha256(snapshot), validatedMedia.sha256)
+
+    await fs.writeFile(validatedMedia.sourcePath, "different bytes after preflight")
+    await assert.rejects(
+      readCatalogMediaSnapshot(validatedMedia),
+      /byte mismatch|SHA-256 mismatch/,
+    )
+  })
+
   it("enforces the exact release object contract before local upload validation", async (testContext) => {
     const { catalog, catalogDir } = await createFixture(testContext)
     const catalogPath = path.join(catalogDir, "index.json")
@@ -172,5 +193,87 @@ describe("Chimer catalog R2 publication planner", () => {
     assert.equal(result.error, undefined, `uploader failed to run: ${result.error?.message}`)
     assert.equal(result.status, 1)
     assert.match(result.stderr, /catalog release prefix is fixed/i)
+  })
+
+  it("rejects insecure and direct R2 public base URLs before any upload action", () => {
+    const cases = [
+      ["http CLI option", ["--public-base-url", "http://media.example.test"], {}, /https/i],
+      ["http environment", [], { MASSAGELAB_PUBLIC_MEDIA_PUBLIC_BASE_URL: "http://media.example.test" }, /https/i],
+      ["r2.dev apex", ["--public-base-url", "https://r2.dev"], {}, /r2\.dev/i],
+      ["r2.dev subdomain", ["--public-base-url", "https://preview.r2.dev"], {}, /r2\.dev/i],
+      ["r2.dev trailing-dot subdomain", ["--public-base-url", "https://preview.r2.dev."], {}, /r2\.dev/i],
+    ]
+
+    for (const [label, extraArgs, extraEnv, expectedError] of cases) {
+      const result = spawnSync(process.execPath, [
+        uploaderPath,
+        "upload",
+        "--dry-run",
+        ...extraArgs,
+      ], {
+        cwd: repoRoot,
+        encoding: "utf8",
+        timeout: 30_000,
+        env: {
+          ...process.env,
+          CLOUDFLARE_ACCOUNT_ID: "",
+          R2_ACCESS_KEY_ID: "",
+          R2_SECRET_ACCESS_KEY: "",
+          MASSAGELAB_PUBLIC_MEDIA_R2_ENDPOINT: "",
+          MASSAGELAB_R2_ENDPOINT: "",
+          MASSAGELAB_PUBLIC_MEDIA_PUBLIC_BASE_URL: "",
+          ...extraEnv,
+        },
+      })
+
+      assert.equal(result.error, undefined, `${label}: uploader failed to run: ${result.error?.message}`)
+      assert.equal(result.status, 1, `${label}: stdout: ${result.stdout}`)
+      assert.match(result.stderr, expectedError, `${label}: stderr: ${result.stderr}`)
+    }
+  })
+
+  it("runs the exact credential-free dry run when the ignored catalog is available", {
+    skip: !realCatalogAvailable,
+  }, () => {
+    const result = spawnSync(process.execPath, [
+      uploaderPath,
+      "upload",
+      "--dry-run",
+      "--public-base-url",
+      "https://media.massagelab.app",
+    ], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      timeout: 60_000,
+      env: {
+        ...process.env,
+        CLOUDFLARE_ACCOUNT_ID: "",
+        R2_ACCESS_KEY_ID: "",
+        R2_SECRET_ACCESS_KEY: "",
+        MASSAGELAB_PUBLIC_MEDIA_R2_ENDPOINT: "",
+        MASSAGELAB_R2_ENDPOINT: "",
+        MASSAGELAB_PUBLIC_MEDIA_PUBLIC_BASE_URL: "",
+      },
+    })
+
+    assert.equal(result.error, undefined, `uploader failed to run: ${result.error?.message}`)
+    assert.equal(result.status, 0, `dry run failed: ${result.stderr}`)
+    const summaryLine = result.stdout.split(/\r?\n/)
+      .find((line) => line.startsWith("MASSAGELAB_CATALOG_R2_DRY_RUN_SUMMARY="))
+    assert.ok(summaryLine, `missing dry-run summary: ${result.stdout}`)
+    assert.deepEqual(
+      JSON.parse(summaryLine.slice("MASSAGELAB_CATALOG_R2_DRY_RUN_SUMMARY=".length)),
+      {
+        dryRun: true,
+        catalogRevision: "catalog-approved-1",
+        bucket: "massagelab-public-media",
+        publicBaseUrl: "https://media.massagelab.app",
+        objectPrefix: CATALOG_R2_RELEASE_PREFIX,
+        objectCount: 1_728,
+        totalBytes: 862_078_635,
+        cacheControl: CATALOG_R2_MEDIA_CACHE_CONTROL,
+        uploaded: false,
+      },
+    )
   })
 })

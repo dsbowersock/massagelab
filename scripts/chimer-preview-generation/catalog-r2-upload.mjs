@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import fs from "node:fs/promises"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -10,6 +9,7 @@ import {
   CATALOG_R2_MEDIA_CACHE_CONTROL,
   CATALOG_R2_RELEASE_PREFIX,
   loadCatalogR2PublicationPlan,
+  readCatalogMediaSnapshot,
 } from "./catalog-r2-publication.mjs"
 import {
   missingAtmosphereR2UploadEnv,
@@ -104,7 +104,9 @@ async function runUpload(rawArgs) {
   }
 
   for (const [index, object] of plan.objects.entries()) {
-    const body = await fs.readFile(object.sourcePath)
+    // The same verified Buffer is hashed and then sent, preventing source-file
+    // changes after preflight from publishing unapproved bytes.
+    const body = await readCatalogMediaSnapshot(object)
     await putAtmosphereObjectToR2(env, {
       objectKey: object.objectKey,
       body,
@@ -122,8 +124,36 @@ function r2EnvForOptions(options) {
   const baseEnv = readAtmospherePublicMediaR2Env()
   return {
     ...baseEnv,
-    publicBaseUrl: options.publicBaseUrl ?? baseEnv.publicBaseUrl,
+    publicBaseUrl: normalizeCatalogPublicBaseUrl(options.publicBaseUrl ?? baseEnv.publicBaseUrl),
   }
+}
+
+/**
+ * Limits catalog delivery to a configured HTTPS custom domain. Direct R2
+ * development URLs are intentionally excluded from both dry and live modes.
+ *
+ * @param {string | undefined} value
+ */
+function normalizeCatalogPublicBaseUrl(value) {
+  if (!value) return undefined
+
+  let publicBaseUrl
+  try {
+    publicBaseUrl = new URL(value)
+  } catch {
+    throw new Error("Catalog public base URL must be a valid absolute HTTPS URL.")
+  }
+  if (publicBaseUrl.protocol !== "https:") {
+    throw new Error("Catalog public base URL must use https:.")
+  }
+  const hostname = publicBaseUrl.hostname.toLowerCase().replace(/\.$/, "")
+  if (hostname === "r2.dev" || hostname.endsWith(".r2.dev")) {
+    throw new Error("Catalog public base URL must not use r2.dev or an r2.dev subdomain.")
+  }
+  if (publicBaseUrl.username || publicBaseUrl.password || publicBaseUrl.search || publicBaseUrl.hash) {
+    throw new Error("Catalog public base URL must not include credentials, a query string, or a fragment.")
+  }
+  return publicBaseUrl.href.replace(/\/+$/, "")
 }
 
 function parseArgs(rawArgs) {
@@ -142,7 +172,7 @@ function parseArgs(rawArgs) {
         index += 1
         break
       case "--public-base-url":
-        options.publicBaseUrl = requiredValue(rawArgs, index, arg).replace(/\/+$/, "")
+        options.publicBaseUrl = requiredValue(rawArgs, index, arg)
         index += 1
         break
       case "--dry-run":

@@ -96,13 +96,36 @@ export async function validateCatalogMediaFiles({ catalogDir, media }) {
     if (stat.size !== reference.bytes) {
       throw new Error(`${reference.sourceRelativePath}: byte mismatch (catalog ${reference.bytes}, local ${stat.size}).`)
     }
-    const actualSha256 = createHash("sha256").update(await fs.readFile(sourcePath)).digest("hex")
-    if (actualSha256 !== reference.sha256) {
-      throw new Error(`${reference.sourceRelativePath}: SHA-256 mismatch.`)
-    }
-    validatedMedia.push({ ...reference, sourcePath })
+    const validatedReference = { ...reference, sourcePath }
+    await readCatalogMediaSnapshot(validatedReference)
+    validatedMedia.push(validatedReference)
   }
   return validatedMedia
+}
+
+/**
+ * Reads a catalog media file into an in-memory byte snapshot and verifies that
+ * exact snapshot against the approved manifest. Live upload callers must send
+ * the returned bytes rather than rereading the source path after preflight.
+ *
+ * @param {CatalogMediaReferenceWithPath} reference
+ * @returns {Promise<Buffer>}
+ */
+export async function readCatalogMediaSnapshot(reference) {
+  const body = await fs.readFile(reference.sourcePath).catch((error) => {
+    if (error && error.code === "ENOENT") {
+      throw new Error(`${reference.sourceRelativePath}: missing local media file.`)
+    }
+    throw error
+  })
+  if (body.length !== reference.bytes) {
+    throw new Error(`${reference.sourceRelativePath}: byte mismatch (catalog ${reference.bytes}, local ${body.length}).`)
+  }
+  const actualSha256 = createHash("sha256").update(body).digest("hex")
+  if (actualSha256 !== reference.sha256) {
+    throw new Error(`${reference.sourceRelativePath}: SHA-256 mismatch.`)
+  }
+  return body
 }
 
 /**
