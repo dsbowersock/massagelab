@@ -66,7 +66,7 @@ Expected: FAIL because the full-catalog exports and poster-only plan do not exis
 
 - [ ] **Step 3: Add the complete batch inventory and schema extension**
 
-Import the existing `BACKGROUND_BRANDING_AUDIT_BATCHES`, freeze copied `{ slug, title, ids }` rows, flatten them into `FULL_CATALOG_BACKGROUND_IDS`, and fail module initialization if the flattened IDs contain duplicates. Extend recipes with `mediaKind`. `poster-only` requires `durationMs: 0`, `fps: 0`, `loopStrategy: "static"`, `crossfadeMs: 0`, and an in-range `posterTimeMs` used only as capture warmup timing.
+Import the existing `BACKGROUND_BRANDING_AUDIT_BATCHES`, freeze copied `{ slug, title, ids }` rows, flatten them into `FULL_CATALOG_BACKGROUND_IDS`, and fail module initialization if the flattened IDs contain duplicates. Extend recipes with `mediaKind`. `poster-only` requires `durationMs: 0`, `fps: 0`, `loopStrategy: "static"`, `crossfadeMs: 0`, and `posterTimeMs: 0`; poster-only capture timing comes from `warmupMs`.
 
 - [ ] **Step 4: Extend planning and validation without weakening animated checks**
 
@@ -195,7 +195,7 @@ Reuse the pilot server readiness, shellless capture route, Next-indicator suppre
 
 ```json
 "chimer:preview:catalog": "node --experimental-strip-types scripts/chimer-preview-generation/render-catalog.mjs",
-"chimer:preview:catalog:validate": "node scripts/chimer-preview-generation/render-catalog.mjs --validate-only"
+"chimer:preview:catalog:validate": "node --experimental-strip-types scripts/chimer-preview-generation/render-catalog.mjs --validate-only"
 ```
 
 Ignore `public/chimer/background-preview-catalog/**/*.webm`, `*.mp4`, `*.webp`, `*.png`, `*.rgb`, `*.master.*`, and temporary directories while retaining `index.json`, `validation.json`, and `generation-state.json` for local evidence.

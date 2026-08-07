@@ -157,7 +157,13 @@ export function PreviewPilotReview({
         </dl>
       </AppSurface>
 
-      <AppSurface title={`${entry.label} · ${aspect}`} description="One poster and six independently encoded renditions from the same authored timeline." variant="card">
+      <AppSurface
+        title={`${entry.label} · ${aspect}`}
+        description={entry.mediaKind === "poster-only"
+          ? "Three aspect-specific posters for a truthful static preview with no fabricated motion."
+          : "One poster and six independently encoded renditions from the same authored timeline."}
+        variant="card"
+      >
         {entry.mediaKind !== "poster-only" ? <div className={styles.posterRow}>
           {/* The poster is evidence, not decorative content. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}

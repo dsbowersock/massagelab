@@ -1,11 +1,12 @@
-import { writeFileSync } from "node:fs"
+import { existsSync, writeFileSync } from "node:fs"
+import path from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { backgroundRegistry } from "../../components/backgrounds/backgroundRegistry.ts"
 import { BACKGROUND_BRANDING_AUDIT_BATCHES } from "../background-branding/audit-batches.mjs"
 import { APPROVED_PILOT_RECIPES } from "./approved-pilot-recipes.mjs"
 
-const OUTPUT_URL = new URL("../../data/background-preview-recipes.json", import.meta.url)
+const OUTPUT_PATH = fileURLToPath(new URL("../../data/background-preview-recipes.json", import.meta.url))
 const ORDERED_IDS = BACKGROUND_BRANDING_AUDIT_BATCHES.flatMap(({ ids }) => ids)
 const STATIC_IDS = new Set(["solid-color", "static-gradient"])
 
@@ -51,11 +52,21 @@ if (ORDERED_IDS.length !== enabledById.size || new Set(ORDERED_IDS).size !== ORD
   throw new Error(`Expected one ordered recipe ID for each of ${enabledById.size} enabled backgrounds.`)
 }
 
-const rows = Object.fromEntries(ORDERED_IDS.map((id) => {
-  const definition = enabledById.get(id)
-  if (!definition) throw new Error(`${id}: approved batch ID is not enabled in the canonical registry.`)
-  return [id, APPROVED_PILOT_RECIPES[id] ?? candidateRecipe(definition)]
-}))
+/** Writes initial review candidates only when overwrite intent is explicit. */
+export function seedCatalogRecipes({ outputPath = OUTPUT_PATH, force = false } = {}) {
+  if (existsSync(outputPath) && !force) {
+    throw new Error(`${outputPath}: recipe catalog already exists; pass --force to replace reviewed state.`)
+  }
+  const rows = Object.fromEntries(ORDERED_IDS.map((id) => {
+    const definition = enabledById.get(id)
+    if (!definition) throw new Error(`${id}: approved batch ID is not enabled in the canonical registry.`)
+    return [id, APPROVED_PILOT_RECIPES[id] ?? candidateRecipe(definition)]
+  }))
 
-writeFileSync(OUTPUT_URL, `${JSON.stringify(rows, null, 2)}\n`, "utf8")
-console.log(`Wrote ${Object.keys(rows).length} explicit background preview recipes to ${fileURLToPath(OUTPUT_URL)}.`)
+  writeFileSync(outputPath, `${JSON.stringify(rows, null, 2)}\n`, "utf8")
+  console.log(`Wrote ${Object.keys(rows).length} explicit background preview recipes to ${outputPath}.`)
+  return rows
+}
+
+const directInvocation = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+if (directInvocation) seedCatalogRecipes({ force: process.argv.slice(2).includes("--force") })

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { createHash } from "node:crypto"
-import { existsSync } from "node:fs"
+import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import fs from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
@@ -11,6 +11,8 @@ import {
   copyApprovedPilotMedia,
   resolveApprovedPilotContainedPath,
 } from "../scripts/chimer-preview-generation/approved-pilot-import-paths.mjs"
+import { prepareApprovedPilotCatalogEntries } from "../scripts/chimer-preview-generation/approved-pilot-import-entries.mjs"
+import { PILOT_BACKGROUND_IDS } from "../scripts/chimer-preview-generation/preview-recipes.mjs"
 
 async function createImportFixture(testContext) {
   const fixtureRoot = await fs.mkdtemp(path.join(os.tmpdir(), "massagelab-pilot-import-"))
@@ -93,6 +95,23 @@ describe("approved pilot media import paths", () => {
     assert.equal(existsSync(outputDir), false, "corruption must fail before any copy starts")
   })
 
+  it("writes the exact verified snapshot if the source changes after it is read", async (testContext) => {
+    const { fixtureRoot, sourceDir } = await createImportFixture(testContext)
+    const outputDir = path.join(fixtureRoot, "output-snapshot")
+    const sourcePath = path.join(sourceDir, "safe", "clip.webm")
+
+    copyApprovedPilotMedia(entryWithUrls(["safe/clip.webm"]), { sourceDir, outputDir }, {
+      readFile(filePath) {
+        const body = readFileSync(filePath)
+        if (filePath === sourcePath) writeFileSync(filePath, "changed after!")
+        return body
+      },
+    })
+
+    assert.equal(readFileSync(sourcePath, "utf8"), "changed after!")
+    assert.equal(readFileSync(path.join(outputDir, "safe", "clip.webm"), "utf8"), "approved media")
+  })
+
   it("rejects an escaping derived frame-strip path before an outside write", async (testContext) => {
     const { fixtureRoot } = await createImportFixture(testContext)
     const outputDir = path.join(fixtureRoot, "output-frame-strip")
@@ -109,16 +128,13 @@ describe("approved pilot media import paths", () => {
     assert.equal(existsSync(outsideFrameStrip), false)
   })
 
-  it("fails explicitly when an approved pilot entry has no canonical catalog batch", async () => {
-    const importerSource = await fs.readFile(
-      new URL("../scripts/chimer-preview-generation/import-approved-pilot.mjs", import.meta.url),
-      "utf8",
-    )
-    assert.match(importerSource, /const batch = FULL_CATALOG_BATCHES\.find/)
-    assert.match(importerSource, /if \(!batch\) throw new Error\(`\$\{entry\.backgroundId\}: approved pilot entry has no catalog batch\.`\)/)
-    assert.ok(
-      importerSource.indexOf("if (!batch)") < importerSource.indexOf("copyApprovedPilotMedia(sourceManifest.entries"),
-      "batch membership fails before media copying",
+  it("fails behaviorally when an approved pilot entry has no canonical catalog batch", () => {
+    const [prepared] = prepareApprovedPilotCatalogEntries([{ backgroundId: PILOT_BACKGROUND_IDS[0] }])
+    assert.equal(prepared.reviewStatus, "approved")
+    assert.equal(typeof prepared.batchSlug, "string")
+    assert.throws(
+      () => prepareApprovedPilotCatalogEntries([{ backgroundId: "missing-background" }]),
+      /missing-background: approved pilot entry has no catalog batch/,
     )
   })
 })

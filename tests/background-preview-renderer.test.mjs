@@ -29,6 +29,18 @@ describe("background preview renderer contracts", () => {
     assert.match(result.stderr, /Unknown option or positional argument: unexpected-positional/)
   })
 
+  it("rejects a render-catalog option whose next token is another flag", () => {
+    const result = spawnSync(process.execPath, [renderCatalogPath, "--batch", "--force"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      timeout: 30_000,
+    })
+
+    assert.equal(result.error, undefined, `render-catalog failed to start: ${result.error?.message}`)
+    assert.equal(result.status, 1)
+    assert.match(result.stderr, /--batch requires a value/)
+  })
+
   it("selects exactly one known catalog batch and rejects invalid selection semantics", () => {
     const batch = FULL_CATALOG_BATCHES[2]
     assert.deepEqual(
@@ -82,6 +94,40 @@ describe("background preview renderer contracts", () => {
       /temp failed/,
     )
     assert.deepEqual(cleanup, ["browser", "server"])
+  })
+
+  it("aggregates cleanup failures after a successful render", async () => {
+    const cleanupErrors = [new Error("browser cleanup"), new Error("server cleanup"), new Error("temp cleanup")]
+    await assert.rejects(
+      withPreviewResources({
+        startServer: async () => ({ pid: 123 }),
+        launchBrowser: async () => ({}),
+        createTempVideoDir: async () => "temp",
+        closeBrowser: async () => { throw cleanupErrors[0] },
+        stopServer: async () => { throw cleanupErrors[1] },
+        removeTempVideoDir: async () => { throw cleanupErrors[2] },
+      }, async () => "rendered"),
+      (error) => {
+        assert.equal(error instanceof AggregateError, true)
+        assert.deepEqual(error.errors, cleanupErrors)
+        return true
+      },
+    )
+  })
+
+  it("preserves the render failure when cleanup also fails", async () => {
+    const renderError = new Error("render failed")
+    await assert.rejects(
+      withPreviewResources({
+        startServer: async () => ({ pid: 123 }),
+        launchBrowser: async () => ({}),
+        createTempVideoDir: async () => "temp",
+        closeBrowser: async () => { throw new Error("browser cleanup") },
+        stopServer: async () => { throw new Error("server cleanup") },
+        removeTempVideoDir: async () => { throw new Error("temp cleanup") },
+      }, async () => { throw renderError }),
+      (error) => error === renderError,
+    )
   })
 
   it("selects the newest usable WinGet FFmpeg candidate independent of directory order", () => {

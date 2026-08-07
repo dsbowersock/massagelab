@@ -3,11 +3,13 @@ import fs from "node:fs/promises"
 import path from "node:path"
 
 import { publicUrlForR2Object } from "../../lib/atmosphere/r2-sample-hosting.js"
+import { APPROVED_CATALOG_RELEASE_CONTRACT } from "./preview-release-contract.mjs"
 
-export const CATALOG_R2_RELEASE_REVISION = "catalog-approved-1"
-export const CATALOG_R2_RELEASE_PREFIX = "chimer/background-preview-catalog/catalog-approved-1"
+export const CATALOG_R2_RELEASE_REVISION = APPROVED_CATALOG_RELEASE_CONTRACT.catalogRevision
+export const CATALOG_R2_RELEASE_PREFIX = `chimer/background-preview-catalog/${CATALOG_R2_RELEASE_REVISION}`
 export const CATALOG_R2_MEDIA_CACHE_CONTROL = "public, max-age=31536000, immutable"
-export const CATALOG_R2_RELEASE_OBJECT_COUNT = 1_728
+export const CATALOG_R2_RELEASE_OBJECT_COUNT = APPROVED_CATALOG_RELEASE_CONTRACT.renditionCount
+  + APPROVED_CATALOG_RELEASE_CONTRACT.posterCount
 export const CATALOG_R2_RELEASE_TOTAL_BYTES = 862_078_635
 
 const CONTENT_TYPES = Object.freeze({

@@ -1,5 +1,8 @@
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
+import fs from "node:fs/promises"
+import os from "node:os"
+import path from "node:path"
 import { describe, it } from "node:test"
 
 import {
@@ -36,6 +39,7 @@ import {
 } from "../scripts/chimer-preview-generation/rendition-manifest-module.mjs"
 import { backgroundRegistry } from "../components/backgrounds/backgroundRegistry.ts"
 import { validateCatalogManifest } from "../scripts/chimer-preview-generation/media-validation.mjs"
+import { seedCatalogRecipes } from "../scripts/chimer-preview-generation/seed-catalog-recipes.mjs"
 
 describe("background preview recipes", () => {
   it("covers every enabled background exactly once in the approved batches", () => {
@@ -175,6 +179,24 @@ describe("background preview recipes", () => {
       assert.deepEqual(validateBackgroundPreviewRecipe(recipe), [])
       assert.equal(recipe.reviewStatus, "approved")
     }
+  })
+
+  it("refuses to overwrite reviewed recipe state without explicit force", async (testContext) => {
+    const fixtureDir = await fs.mkdtemp(path.join(os.tmpdir(), "massagelab-preview-recipes-"))
+    testContext.after(() => fs.rm(fixtureDir, { recursive: true, force: true }))
+    const outputPath = path.join(fixtureDir, "background-preview-recipes.json")
+    const reviewedState = '{"reviewStatus":"approved"}\n'
+    await fs.writeFile(outputPath, reviewedState)
+
+    assert.throws(
+      () => seedCatalogRecipes({ outputPath }),
+      /recipe catalog already exists; pass --force/,
+    )
+    assert.equal(await fs.readFile(outputPath, "utf8"), reviewedState)
+
+    const regenerated = seedCatalogRecipes({ outputPath, force: true })
+    assert.equal(Object.keys(regenerated).length, 84)
+    assert.equal(Object.values(regenerated).filter(({ reviewStatus }) => reviewStatus === "approved").length, 8)
   })
 
   it("preserves every approved pilot recipe byte-for-byte", () => {

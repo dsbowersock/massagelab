@@ -48,7 +48,12 @@ export default async function BackgroundPreviewPilotPage({
           {" "}This sidecar is local-only and does not replace the production preview manifest.
         </p>
       </header>
-      <PreviewPilotReview entries={entries} mode={catalogMode ? "catalog" : "pilot"} batches={catalogMode ? CATALOG_BATCHES : []} />
+      <PreviewPilotReview
+        key={catalogMode ? "catalog" : "pilot"}
+        entries={entries}
+        mode={catalogMode ? "catalog" : "pilot"}
+        batches={catalogMode ? CATALOG_BATCHES : []}
+      />
     </AppPageShell>
   )
 }

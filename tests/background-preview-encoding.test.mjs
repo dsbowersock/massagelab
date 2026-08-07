@@ -254,6 +254,15 @@ describe("background preview media validation", () => {
     updateGenerationCheckpoint("catalog", "massage-lab-dna", "vertical", { status: "complete" }, io)
     assert.equal(writes.length, 1)
     assert.equal(JSON.parse(writes[0][1]).aspects["massage-lab-dna:vertical"].status, "complete")
+
+    assert.throws(
+      () => readGenerationCheckpoint("catalog", { ...io, exists: () => true, read: () => "{" }),
+      (error) => {
+        assert.match(error.message, /catalog.*generation-state\.json: invalid generation checkpoint/)
+        assert.equal(error.cause instanceof SyntaxError, true)
+        return true
+      },
+    )
   })
 
   it("redacts Windows, POSIX, and file URL paths without erasing command diagnostics", () => {

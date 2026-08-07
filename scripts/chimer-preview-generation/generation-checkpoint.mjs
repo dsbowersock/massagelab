@@ -18,7 +18,12 @@ function defaultIo() {
 export function readGenerationCheckpoint(outputDir, io = defaultIo()) {
   const filePath = path.join(outputDir, "generation-state.json")
   if (!io.exists(filePath)) return { schemaVersion: 1, aspects: {} }
-  const value = JSON.parse(io.read(filePath))
+  let value
+  try {
+    value = JSON.parse(io.read(filePath))
+  } catch (error) {
+    throw new Error(`${filePath}: invalid generation checkpoint`, { cause: error })
+  }
   if (value?.schemaVersion !== 1 || !value.aspects || typeof value.aspects !== "object") {
     throw new Error(`${filePath}: invalid generation checkpoint`)
   }

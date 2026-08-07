@@ -103,12 +103,12 @@ export function BackgroundPreviewMedia({
     useState<BackgroundPreviewPublishedRendition | null>(null)
   const [legacyVideoSelected, setLegacyVideoSelected] = useState(false)
   const strictPosterOnly = publishedEntry?.mediaKind === "poster-only"
-  const strictPlaybackEligible = strictCatalog
+  const strictSourceEligible = strictCatalog
     && active
     && !reducedMotion
-    && documentVisible
     && !videoFailed
     && !strictPosterOnly
+  const strictPlaybackEligible = strictSourceEligible && documentVisible
 
   useEffect(() => {
     setVideoFailed(false)
@@ -142,7 +142,7 @@ export function BackgroundPreviewMedia({
     activeSourceUrlRef.current = null
     setCurrentRendition(null)
     setLegacyVideoSelected(false)
-    if (!strictPlaybackEligible) return
+    if (!strictSourceEligible) return
 
     // Production deliberately falls back to the existing v1 vertical URL only
     // while the published catalog base is unavailable.
@@ -187,6 +187,9 @@ export function BackgroundPreviewMedia({
 
     if (!connection) return
     const handleConnectionChange = () => {
+      // Hidden documents keep their active and pending rendition history but
+      // do not adapt to network changes until visible playback resumes.
+      if (document.visibilityState !== "visible") return
       pendingQualityRef.current = qualityForPreviewConnection(connection)
     }
     connection.addEventListener("change", handleConnectionChange)
@@ -195,7 +198,7 @@ export function BackgroundPreviewMedia({
     publishedCatalogBaseUrl,
     publishedEntry,
     strictCatalog,
-    strictPlaybackEligible,
+    strictSourceEligible,
     videoUrl,
   ])
 

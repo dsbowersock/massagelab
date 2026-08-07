@@ -1,12 +1,10 @@
 import { createHash } from "node:crypto"
 import {
-  closeSync,
   copyFileSync,
   existsSync,
   mkdirSync,
-  openSync,
-  readSync,
-  statSync,
+  readFileSync,
+  writeFileSync,
 } from "node:fs"
 import path from "node:path"
 
@@ -71,20 +69,15 @@ function createContainedCopyPlan({ sourceDir, outputDir, relativeUrl, label, byt
   }
 }
 
-/** Hashes large approved media incrementally so integrity checks stay bounded. */
-function sha256File(filePath) {
-  const hash = createHash("sha256")
-  const descriptor = openSync(filePath, "r")
-  const buffer = Buffer.allocUnsafe(1024 * 1024)
-  try {
-    let bytesRead
-    while ((bytesRead = readSync(descriptor, buffer, 0, buffer.length, null)) > 0) {
-      hash.update(buffer.subarray(0, bytesRead))
-    }
-  } finally {
-    closeSync(descriptor)
+function copyIo(overrides = {}) {
+  return {
+    exists: existsSync,
+    readFile: readFileSync,
+    mkdir: (directory) => mkdirSync(directory, { recursive: true }),
+    writeFile: writeFileSync,
+    copyFile: copyFileSync,
+    ...overrides,
   }
-  return hash.digest("hex")
 }
 
 /** Derives and revalidates the optional decoded-frame evidence path. */
@@ -140,26 +133,31 @@ export function planApprovedPilotMediaCopies(entries, { sourceDir, outputDir }) 
   return plans
 }
 
-/** Copies only paths from the complete preflight plan after required media matches. */
-export function copyApprovedPilotMedia(entries, { sourceDir, outputDir }) {
+/** Copies the exact approved byte snapshots only after every required file matches. */
+export function copyApprovedPilotMedia(entries, { sourceDir, outputDir }, ioOverrides = {}) {
+  const io = copyIo(ioOverrides)
   const plans = planApprovedPilotMediaCopies(entries, { sourceDir, outputDir })
   const copies = []
   for (const plan of plans) {
-    if (!existsSync(plan.sourcePath)) {
+    if (!io.exists(plan.sourcePath)) {
       if (!plan.required) continue
       throw new Error(`${plan.label}: approved media is missing or has changed: ${plan.relativeUrl}`)
     }
     if (plan.required) {
-      const sizeMatches = statSync(plan.sourcePath).size === plan.bytes
-      const hashMatches = typeof plan.sha256 === "string" && sha256File(plan.sourcePath) === plan.sha256
-      if (!sizeMatches || !hashMatches) {
+      const body = io.readFile(plan.sourcePath)
+      const hashMatches = typeof plan.sha256 === "string"
+        && createHash("sha256").update(body).digest("hex") === plan.sha256
+      if (body.length !== plan.bytes || !hashMatches) {
         throw new Error(`${plan.label}: approved media is missing or has changed: ${plan.relativeUrl}`)
       }
+      copies.push({ ...plan, body })
+      continue
     }
     copies.push(plan)
   }
   for (const plan of copies) {
-    mkdirSync(path.dirname(plan.outputPath), { recursive: true })
-    copyFileSync(plan.sourcePath, plan.outputPath)
+    io.mkdir(path.dirname(plan.outputPath))
+    if (plan.required) io.writeFile(plan.outputPath, plan.body)
+    else io.copyFile(plan.sourcePath, plan.outputPath)
   }
 }

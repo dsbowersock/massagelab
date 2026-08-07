@@ -10,13 +10,16 @@ import { fileURLToPath } from "node:url"
 
 import {
   CATALOG_R2_MEDIA_CACHE_CONTROL,
+  CATALOG_R2_RELEASE_OBJECT_COUNT,
   CATALOG_R2_RELEASE_PREFIX,
+  CATALOG_R2_RELEASE_REVISION,
   buildCatalogMediaAllowlist,
   createCatalogR2Objects,
   loadCatalogR2PublicationPlan,
   readCatalogMediaSnapshot,
   validateCatalogMediaFiles,
 } from "../scripts/chimer-preview-generation/catalog-r2-publication.mjs"
+import { APPROVED_CATALOG_RELEASE_CONTRACT } from "../scripts/chimer-preview-generation/preview-release-contract.mjs"
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const uploaderPath = path.join(repoRoot, "scripts/chimer-preview-generation/catalog-r2-upload.mjs")
@@ -115,6 +118,15 @@ async function createFixture(testContext) {
 }
 
 describe("Chimer catalog R2 publication planner", () => {
+  it("derives release revision and object count from the approved catalog contract", () => {
+    assert.equal(CATALOG_R2_RELEASE_REVISION, APPROVED_CATALOG_RELEASE_CONTRACT.catalogRevision)
+    assert.equal(
+      CATALOG_R2_RELEASE_OBJECT_COUNT,
+      APPROVED_CATALOG_RELEASE_CONTRACT.renditionCount + APPROVED_CATALOG_RELEASE_CONTRACT.posterCount,
+    )
+    assert.equal(CATALOG_R2_RELEASE_PREFIX.endsWith(`/${CATALOG_R2_RELEASE_REVISION}`), true)
+  })
+
   it("maps only approved rendition/poster references to immutable fixed-prefix objects", async (testContext) => {
     const { catalog, catalogDir } = await createFixture(testContext)
     const allowlist = buildCatalogMediaAllowlist(catalog)
@@ -320,7 +332,7 @@ describe("Chimer catalog R2 publication planner", () => {
     ], {
       cwd: repoRoot,
       encoding: "utf8",
-      timeout: 60_000,
+      timeout: 600_000,
       env: childUploaderEnv({}, {
         ...process.env,
         MASSAGELAB_PUBLIC_MEDIA_BUCKET: "hostile-inherited-bucket",

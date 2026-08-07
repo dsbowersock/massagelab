@@ -47,6 +47,10 @@ const catalogReviewSource = readFileSync(
   new URL("../app/dev/bgpreviews/preview-pilot-review.tsx", import.meta.url),
   "utf8",
 )
+const catalogReviewPageSource = readFileSync(
+  new URL("../app/dev/bgpreviews/page.tsx", import.meta.url),
+  "utf8",
+)
 const runtimeDeclarationSource = readFileSync(
   new URL("../lib/background-preview-runtime.d.ts", import.meta.url),
   "utf8",
@@ -88,6 +92,14 @@ describe("background preview media", () => {
     assert.match(componentSource, /const showVideo = strictCatalog[\s\S]*?strictVideoUrl/)
   })
 
+  it("remounts review state across modes and describes all three static posters truthfully", () => {
+    assert.match(catalogReviewPageSource, /key=\{catalogMode \? "catalog" : "pilot"\}/)
+    assert.match(
+      catalogReviewSource,
+      /entry\.mediaKind === "poster-only"[\s\S]*?Three aspect-specific posters for a truthful static preview with no fabricated motion\./,
+    )
+  })
+
   it("declares every runtime export and consumes nullable rendition results without local casts", () => {
     for (const exportedName of [
       "publishedPreviewCatalogBaseUrl",
@@ -120,12 +132,28 @@ describe("background preview media", () => {
     )
 
     assert.match(connectionChangeHandler, /pendingQualityRef\.current = qualityForPreviewConnection\(connection\)/)
+    assert.match(connectionChangeHandler, /document\.visibilityState !== "visible"/)
     assert.doesNotMatch(connectionChangeHandler, /setCurrentRendition/)
     assert.match(componentSource, /connection\.addEventListener\("change", handleConnectionChange\)/)
     assert.match(componentSource, /connection\.removeEventListener\("change", handleConnectionChange\)/)
     assert.match(endedHandler, /resolvePendingPreviewRendition/)
     assert.match(endedHandler, /setCurrentRendition\(pendingRendition\)/)
     assert.match(endedHandler, /video\.currentTime = 0/)
+  })
+
+  it("keeps strict source state across hidden documents while rendering poster-only", () => {
+    assert.match(componentSource, /const strictSourceEligible = strictCatalog[\s\S]*?const strictPlaybackEligible = strictSourceEligible && documentVisible/)
+    assert.match(componentSource, /if \(!strictSourceEligible\) return/)
+    assert.match(componentSource, /const showVideo = strictCatalog[\s\S]*?strictPlaybackEligible/)
+    assert.doesNotMatch(
+      sourceBetween(
+        componentSource,
+        "useEffect(() => {\n    if (!strictCatalog) return\n\n    pendingQualityRef.current = null",
+        "const strictVideoUrl",
+        "strict source initialization effect",
+      ),
+      /documentVisible/,
+    )
   })
 
   it("retries one supported same-tier codec before revealing the poster", () => {

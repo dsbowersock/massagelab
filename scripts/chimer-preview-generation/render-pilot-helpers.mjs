@@ -114,16 +114,18 @@ export async function withPreviewResources(resources, render) {
   let browser = null
   let tempVideoDir = null
   let operationFailed = false
+  let operationError
+  let result
+  const cleanupErrors = []
   try {
     server = await resources.startServer()
     browser = await resources.launchBrowser()
     tempVideoDir = await resources.createTempVideoDir()
-    return await render({ browser, tempVideoDir })
+    result = await render({ browser, tempVideoDir })
   } catch (error) {
     operationFailed = true
-    throw error
+    operationError = error
   } finally {
-    const cleanupErrors = []
     if (browser) {
       try { await resources.closeBrowser(browser) } catch (error) { cleanupErrors.push(error) }
     }
@@ -133,6 +135,9 @@ export async function withPreviewResources(resources, render) {
     if (tempVideoDir) {
       try { await resources.removeTempVideoDir(tempVideoDir) } catch (error) { cleanupErrors.push(error) }
     }
-    if (!operationFailed && cleanupErrors.length) throw cleanupErrors[0]
   }
+  if (operationFailed) throw operationError
+  if (cleanupErrors.length === 1) throw cleanupErrors[0]
+  if (cleanupErrors.length > 1) throw new AggregateError(cleanupErrors, "Preview renderer cleanup failed.")
+  return result
 }

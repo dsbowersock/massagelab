@@ -62,10 +62,16 @@ describe("production adaptive carousel", () => {
   })
 
   it("offers one accessible carousel-wide preview toggle above the unchanged stage", () => {
-    const toggleIndex = backgroundCarouselSource.indexOf('aria-pressed={previewPlaybackActive}')
+    const toggleContract = 'aria-pressed={previewPlaybackActive}'
+    const toggleIndex = backgroundCarouselSource.indexOf(toggleContract)
     const stageIndex = backgroundCarouselSource.indexOf("<AdaptiveCarouselStage")
 
     assert.notEqual(toggleIndex, -1)
+    assert.equal(
+      backgroundCarouselSource.match(new RegExp(toggleContract.replace(/[{}]/g, "\\$&"), "g"))?.length,
+      1,
+      "the Background carousel renders exactly one carousel-wide preview toggle",
+    )
     assert.notEqual(stageIndex, -1)
     assert.ok(toggleIndex < stageIndex, "the preview toggle is rendered above the stage")
   })

@@ -3,8 +3,9 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { validatePilotManifest } from "./media-validation.mjs"
-import { FULL_CATALOG_BATCHES, PILOT_BACKGROUND_IDS } from "./preview-recipes.mjs"
+import { PILOT_BACKGROUND_IDS } from "./preview-recipes.mjs"
 import { serializeCatalogRenditionManifest } from "./rendition-manifest-module.mjs"
+import { prepareApprovedPilotCatalogEntries } from "./approved-pilot-import-entries.mjs"
 import { copyApprovedPilotMedia } from "./approved-pilot-import-paths.mjs"
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
@@ -22,16 +23,8 @@ if (sourceManifest.entries.length !== PILOT_BACKGROUND_IDS.length
   throw new Error("Approved pilot manifest does not contain the frozen eight-background set.")
 }
 
-const importedEntries = sourceManifest.entries.map((entry) => {
-  const batch = FULL_CATALOG_BATCHES.find(({ ids }) => ids.includes(entry.backgroundId))
-  if (!batch) throw new Error(`${entry.backgroundId}: approved pilot entry has no catalog batch.`)
-  return {
-    ...entry,
-    mediaKind: "animated",
-    reviewStatus: "approved",
-    batchSlug: batch.slug,
-  }
-})
+// Only the frozen, visually reviewed pilot set checked above may be stamped approved.
+const importedEntries = prepareApprovedPilotCatalogEntries(sourceManifest.entries)
 copyApprovedPilotMedia(sourceManifest.entries, { sourceDir, outputDir })
 mkdirSync(outputDir, { recursive: true })
 const currentPath = path.join(outputDir, "index.json")

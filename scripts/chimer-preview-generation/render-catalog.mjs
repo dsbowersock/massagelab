@@ -2,15 +2,18 @@ import { spawnSync } from "node:child_process"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
-import {
-  FULL_CATALOG_BACKGROUND_IDS,
-  FULL_CATALOG_BATCHES,
-} from "./preview-recipes.mjs"
+import { selectRenderPilotIds } from "./render-pilot-helpers.mjs"
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const catalogRoot = path.join(repoRoot, "public/chimer/background-preview-catalog")
 const productionRoot = path.join(repoRoot, "public/chimer/background-previews")
 const pilotRoot = path.join(repoRoot, "public/chimer/background-preview-pilot")
+
+function requiredValue(argv, index, option) {
+  const value = argv[index + 1]
+  if (!value || value.startsWith("--")) throw new Error(`${option} requires a value.`)
+  return value
+}
 
 function parseArgs(argv) {
   const options = {
@@ -26,14 +29,13 @@ function parseArgs(argv) {
   }
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index]
-    const next = argv[index + 1]
     switch (arg) {
-      case "--base-url": options.baseUrl = next ?? ""; index += 1; break
-      case "--batch": options.batch = next ?? ""; index += 1; break
+      case "--base-url": options.baseUrl = requiredValue(argv, index, arg); index += 1; break
+      case "--batch": options.batch = requiredValue(argv, index, arg); index += 1; break
       case "--force": options.force = true; break
-      case "--ids": options.ids = (next ?? "").split(",").map((value) => value.trim()).filter(Boolean); index += 1; break
-      case "--output-dir": options.outputDir = next ? path.resolve(repoRoot, next) : ""; index += 1; break
-      case "--port": options.port = next ?? ""; index += 1; break
+      case "--ids": options.ids = requiredValue(argv, index, arg).split(",").map((value) => value.trim()).filter(Boolean); index += 1; break
+      case "--output-dir": options.outputDir = path.resolve(repoRoot, requiredValue(argv, index, arg)); index += 1; break
+      case "--port": options.port = requiredValue(argv, index, arg); index += 1; break
       case "--resume": options.resume = true; break
       case "--skip-server": options.skipServer = true; break
       case "--validate-only": options.validateOnly = true; break
@@ -50,12 +52,11 @@ function parseArgs(argv) {
   if (options.outputDir !== catalogRoot) {
     throw new Error("Catalog output must be public/chimer/background-preview-catalog.")
   }
-  if (options.batch && options.ids.length) throw new Error("Choose either --batch or --ids, not both.")
-  const batch = options.batch ? FULL_CATALOG_BATCHES.find(({ slug }) => slug === options.batch) : null
-  if (options.batch && !batch) throw new Error(`Unknown catalog batch: ${options.batch}`)
-  const unknownIds = options.ids.filter((id) => !FULL_CATALOG_BACKGROUND_IDS.includes(id))
-  if (unknownIds.length) throw new Error(`Unknown catalog background IDs: ${unknownIds.join(", ")}`)
-  options.ids = batch ? [...batch.ids] : options.ids.length ? [...new Set(options.ids)] : [...FULL_CATALOG_BACKGROUND_IDS]
+  options.ids = selectRenderPilotIds({
+    catalogMode: true,
+    batchSlug: options.batch,
+    ids: options.ids,
+  })
   return options
 }
 

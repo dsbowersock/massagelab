@@ -217,6 +217,14 @@ test("production carousel stays within its request budget and changes rendition 
   await panel.getByRole("button", { name: "Play Preview" }).click()
   await expect.poll(() => videos.count()).toBeGreaterThan(0)
 
+  await page.evaluate(() => {
+    const updateConnection = Reflect.get(window, "__setPreviewEffectiveType")
+    if (typeof updateConnection !== "function") throw new Error("Preview connection probe is unavailable")
+    updateConnection("4g")
+  })
+  const sourceBeforeHidden = await video.getAttribute("src")
+  const qualityBeforeHidden = await video.getAttribute("data-preview-quality")
+  const codecBeforeHidden = await video.getAttribute("data-preview-codec")
   const pausesBeforeHidden = (await readPreviewRuntimeProbe(page)).pauseCalls
   await page.evaluate(() => {
     const updateVisibility = Reflect.get(window, "__setPreviewVisibility")
@@ -228,11 +236,25 @@ test("production carousel stays within its request budget and changes rendition 
   await expect(videos).toHaveCount(0)
 
   await page.evaluate(() => {
+    const updateConnection = Reflect.get(window, "__setPreviewEffectiveType")
+    if (typeof updateConnection !== "function") throw new Error("Preview connection probe is unavailable")
+    updateConnection("2g")
+  })
+
+  await page.evaluate(() => {
     const updateVisibility = Reflect.get(window, "__setPreviewVisibility")
     if (typeof updateVisibility !== "function") throw new Error("Preview visibility probe is unavailable")
     updateVisibility("visible")
   })
   await expect.poll(() => videos.count()).toBeGreaterThan(0)
+  await expect(video).toHaveAttribute("src", sourceBeforeHidden!)
+  await expect(video).toHaveAttribute("data-preview-quality", qualityBeforeHidden!)
+  await expect(video).toHaveAttribute("data-preview-codec", codecBeforeHidden!)
+
+  await video.dispatchEvent("ended")
+  await expect(video).toHaveAttribute("data-preview-quality", "high")
+  await expect(video).toHaveAttribute("data-preview-codec", "vp9")
+  await expect(video).toHaveAttribute("src", /\/vertical\/high\.webm$/)
 
   const pausesBeforeInactive = (await readPreviewRuntimeProbe(page)).pauseCalls
   await panel.getByRole("button", { name: "Close Background panel" }).click()
@@ -258,6 +280,40 @@ test("a rejected play retries the exact same tier with H.264 and keeps the playe
   await expect(video).toHaveAttribute("src", /\/vertical\/standard\.mp4$/)
   await expect(video).toHaveAttribute("data-probe-loaded-data-source", /\/vertical\/standard\.mp4$/)
   await expect(video).toHaveAttribute("data-probe-playing-source", /\/vertical\/standard\.mp4$/)
+})
+
+test("hidden documents retain failed-codec history and never retry the failed source", async ({ page }) => {
+  await installPreviewRuntimeProbe(page)
+  const panel = await openProductionBackgroundCarousel(page)
+  const animatedCard = panel.locator('[data-background-id="massage-lab-moving-gradient"]')
+
+  await panel.getByRole("button", { name: "Play Preview" }).click()
+  const video = animatedCard.getByTestId("carousel-background-video")
+  await expect(video).toHaveAttribute("data-preview-codec", "vp9")
+  await video.dispatchEvent("error")
+  await expect(video).toHaveAttribute("data-preview-codec", "h264")
+  const fallbackSource = await video.getAttribute("src")
+
+  await page.evaluate(() => {
+    const updateVisibility = Reflect.get(window, "__setPreviewVisibility")
+    if (typeof updateVisibility !== "function") throw new Error("Preview visibility probe is unavailable")
+    updateVisibility("hidden")
+  })
+  await expect(video).toHaveCount(0)
+  await page.evaluate(() => {
+    const updateVisibility = Reflect.get(window, "__setPreviewVisibility")
+    if (typeof updateVisibility !== "function") throw new Error("Preview visibility probe is unavailable")
+    updateVisibility("visible")
+  })
+  await expect(video).toHaveAttribute("src", fallbackSource!)
+  await expect(video).toHaveAttribute("data-preview-codec", "h264")
+  await expect(video).toHaveAttribute("data-probe-playing-source", fallbackSource!)
+
+  const playsBeforeExhaustion = (await readPreviewRuntimeProbe(page)).playCalls
+  await video.dispatchEvent("error")
+  await expect(video).toHaveCount(0)
+  await expect(animatedCard.getByTestId("background-preview-poster")).toBeVisible()
+  expect((await readPreviewRuntimeProbe(page)).playCalls).toBe(playsBeforeExhaustion)
 })
 
 test("production carousel remains poster-only when reduced motion is requested", async ({ page }) => {

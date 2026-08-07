@@ -58,6 +58,9 @@ test("full catalog review resets media and keeps static entries poster-only", as
   await expect(review.locator("video")).toHaveCount(6)
   await background.selectOption("solid-color")
   await expect(review.locator("video")).toHaveCount(0)
+  await expect(review.getByText(
+    "Three aspect-specific posters for a truthful static preview with no fabricated motion.",
+  )).toBeVisible()
   await expect(review.getByText(/Static background.*no motion preview required/i)).toBeVisible()
   await expect(review.locator("article img")).toHaveCount(3)
 })

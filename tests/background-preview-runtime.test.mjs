@@ -10,6 +10,9 @@ import {
   serializePublishedRuntimeManifest,
 } from "../scripts/chimer-preview-generation/published-runtime-manifest.mjs"
 import { resolveCatalogPreviewUrl } from "../components/backgrounds/backgroundPreviewCatalogUrl.ts"
+import {
+  assertBackgroundPreviewPublishedManifestIdentity,
+} from "../components/backgrounds/backgroundPreviewPublishedManifest.ts"
 import { normalizePublishedPreviewCustomDomainBaseUrl } from "../lib/background-preview-catalog-base-url.js"
 import {
   chooseSupportedPreviewCodec,
@@ -26,6 +29,10 @@ const approvedCatalogUrl = new URL(
 )
 const publishedManifestUrl = new URL(
   "../data/background-preview-published-manifest.json",
+  import.meta.url,
+)
+const publishedManifestModuleUrl = new URL(
+  "../components/backgrounds/backgroundPreviewPublishedManifest.ts",
   import.meta.url,
 )
 
@@ -120,13 +127,34 @@ test("the checked-in runtime artifact is generated from the approved catalog", a
   )
 })
 
-test("the generated typed wrapper renders schema and revision constants", () => {
+test("the generated typed wrapper matches the checked-in module and validates its identity", async () => {
   const source = renderPublishedRuntimeManifestModule()
+  assert.equal((await readFile(publishedManifestModuleUrl, "utf8")).replace(/\r\n/g, "\n"), source)
   assert.match(source, new RegExp(`readonly schemaVersion: ${PUBLISHED_RUNTIME_SCHEMA_VERSION}`))
   assert.match(source, new RegExp(`readonly catalogRevision: "${PUBLISHED_CATALOG_REVISION}"`))
+  assert.match(source, /assertBackgroundPreviewPublishedManifestIdentity\(manifest\)/)
   assert.match(source, /BackgroundPreviewPublishedAspect = "landscape" \| "square" \| "vertical"/)
   assert.match(source, /BackgroundPreviewPublishedQuality = "low" \| "standard" \| "high"/)
   assert.match(source, /BackgroundPreviewPublishedCodec = "vp9" \| "h264"/)
+})
+
+test("the generated typed wrapper rejects malformed manifest identities", () => {
+  assert.doesNotThrow(() => assertBackgroundPreviewPublishedManifestIdentity({
+    schemaVersion: 1,
+    catalogRevision: "catalog-approved-1",
+  }))
+  for (const malformed of [
+    null,
+    "not a manifest",
+    {},
+    { schemaVersion: 2, catalogRevision: "catalog-approved-1" },
+    { schemaVersion: 1, catalogRevision: "catalog-candidate-1" },
+  ]) {
+    assert.throws(
+      () => assertBackgroundPreviewPublishedManifestIdentity(malformed),
+      /schemaVersion 1 and catalogRevision catalog-approved-1/,
+    )
+  }
 })
 
 test("development catalog URL resolution stays JSON-free at the client boundary", async () => {

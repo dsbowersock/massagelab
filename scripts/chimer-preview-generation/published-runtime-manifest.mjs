@@ -160,6 +160,24 @@ export type BackgroundPreviewPublishedManifest = {
   readonly entries: Readonly<Record<string, BackgroundPreviewPublishedEntry>>
 }
 
+/** Fails at module initialization if the generated JSON identity drifts. */
+export function assertBackgroundPreviewPublishedManifestIdentity(value: unknown): void {
+  if (typeof value !== "object" || value === null) {
+    throw new Error(
+      "Background preview published manifest must use schemaVersion ${PUBLISHED_RUNTIME_SCHEMA_VERSION} and catalogRevision ${PUBLISHED_CATALOG_REVISION}.",
+    )
+  }
+  const candidate = value as { schemaVersion?: unknown; catalogRevision?: unknown }
+  if (candidate.schemaVersion !== ${PUBLISHED_RUNTIME_SCHEMA_VERSION}
+    || candidate.catalogRevision !== "${PUBLISHED_CATALOG_REVISION}") {
+    throw new Error(
+      "Background preview published manifest must use schemaVersion ${PUBLISHED_RUNTIME_SCHEMA_VERSION} and catalogRevision ${PUBLISHED_CATALOG_REVISION}.",
+    )
+  }
+}
+
+assertBackgroundPreviewPublishedManifestIdentity(manifest)
+
 export const backgroundPreviewPublishedManifest = manifest as unknown as BackgroundPreviewPublishedManifest
 `
 }
