@@ -176,7 +176,7 @@ export function BackgroundPreviewMedia({
       quality: initialQuality,
       codec,
       catalogBaseUrl: publishedCatalogBaseUrl,
-    }) as BackgroundPreviewPublishedRendition | null
+    })
     if (!initialRendition) {
       setVideoFailed(true)
       return
@@ -232,7 +232,7 @@ export function BackgroundPreviewMedia({
         quality: currentRendition.quality,
         codec: alternateCodec,
         catalogBaseUrl: publishedCatalogBaseUrl,
-      }) as BackgroundPreviewPublishedRendition | null
+      })
       if (alternateRendition) {
         const alternateAttemptKey = renditionAttemptKey(alternateRendition)
         if (supportedRenditionsRef.current.has(alternateAttemptKey)
@@ -267,7 +267,7 @@ export function BackgroundPreviewMedia({
           currentRendition,
           pendingQuality,
           catalogBaseUrl: publishedCatalogBaseUrl,
-        }) as BackgroundPreviewPublishedRendition | null
+        })
       : null
     if (pendingRendition
       && supportedRenditionsRef.current.has(renditionAttemptKey(pendingRendition))

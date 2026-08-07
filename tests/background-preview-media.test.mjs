@@ -47,6 +47,10 @@ const catalogReviewSource = readFileSync(
   new URL("../app/dev/bgpreviews/preview-pilot-review.tsx", import.meta.url),
   "utf8",
 )
+const runtimeDeclarationSource = readFileSync(
+  new URL("../lib/background-preview-runtime.d.ts", import.meta.url),
+  "utf8",
+)
 
 describe("background preview media", () => {
   it("renders a decorative video with a WebP poster over the registry fallback", () => {
@@ -82,6 +86,23 @@ describe("background preview media", () => {
     assert.match(componentSource, /selectPublishedPreviewRendition\(\{[\s\S]*?aspect: "vertical"/)
     assert.match(componentSource, /publishedEntry\?\.mediaKind === "poster-only"/)
     assert.match(componentSource, /const showVideo = strictCatalog[\s\S]*?strictVideoUrl/)
+  })
+
+  it("declares every runtime export and consumes nullable rendition results without local casts", () => {
+    for (const exportedName of [
+      "publishedPreviewCatalogBaseUrl",
+      "resolvePublishedPreviewCatalogBaseUrl",
+      "qualityForPreviewConnection",
+      "chooseSupportedPreviewCodec",
+      "getVerticalPublishedPreviewPosterUrl",
+      "selectPublishedPreviewRendition",
+      "resolvePendingPreviewRendition",
+    ]) {
+      assert.match(runtimeDeclarationSource, new RegExp(`export (?:const|function) ${exportedName}\\b`))
+    }
+    assert.match(runtimeDeclarationSource, /selectPublishedPreviewRendition[\s\S]*?BackgroundPreviewPublishedRendition \| null/)
+    assert.match(runtimeDeclarationSource, /resolvePendingPreviewRendition[\s\S]*?BackgroundPreviewPublishedRendition \| null/)
+    assert.doesNotMatch(componentSource, /as BackgroundPreviewPublishedRendition \| null/)
   })
 
   it("keeps connection changes pending until ended and cleans up the relevant listener", () => {

@@ -1,5 +1,7 @@
 import catalogJson from "../../public/chimer/background-preview-catalog/index.json" with { type: "json" }
 
+export { resolveCatalogPreviewUrl } from "./backgroundPreviewCatalogUrl.ts"
+
 export type BackgroundPreviewCatalogAspect = "landscape" | "square" | "vertical"
 export type BackgroundPreviewCatalogQuality = "low" | "standard" | "high"
 export type BackgroundPreviewCatalogCodec = "vp9" | "h264"
@@ -85,9 +87,3 @@ export function assertCatalogManifest(value: unknown): asserts value is Backgrou
 
 assertCatalogManifest(catalogJson)
 export const backgroundPreviewCatalogManifest: Readonly<BackgroundPreviewCatalogManifest> = Object.freeze(catalogJson)
-
-/** Resolves local review media without changing the production v1 manifest. */
-export function resolveCatalogPreviewUrl(url: string): string {
-  if (/^(?:https?:)?\/\//.test(url) || url.startsWith("/")) return url
-  return `/chimer/background-preview-catalog/${url}`
-}

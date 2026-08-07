@@ -1,10 +1,11 @@
-import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { validatePilotManifest } from "./media-validation.mjs"
 import { FULL_CATALOG_BATCHES, PILOT_BACKGROUND_IDS } from "./preview-recipes.mjs"
 import { serializeCatalogRenditionManifest } from "./rendition-manifest-module.mjs"
+import { copyApprovedPilotMedia } from "./approved-pilot-import-paths.mjs"
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const outputDir = path.join(repoRoot, "public/chimer/background-preview-catalog")
@@ -21,24 +22,7 @@ if (sourceManifest.entries.length !== PILOT_BACKGROUND_IDS.length
   throw new Error("Approved pilot manifest does not contain the frozen eight-background set.")
 }
 
-/** Copies only hashed publication media plus local decoded-frame review evidence. */
-function copyEntryMedia(entry) {
-  for (const media of [...entry.renditions, ...Object.values(entry.posters)]) {
-    const sourcePath = path.join(sourceDir, media.url)
-    if (!existsSync(sourcePath) || statSync(sourcePath).size !== media.bytes) {
-      throw new Error(`${entry.backgroundId}: approved media is missing or has changed: ${media.url}`)
-    }
-    const outputPath = path.join(outputDir, media.url)
-    mkdirSync(path.dirname(outputPath), { recursive: true })
-    copyFileSync(sourcePath, outputPath)
-    if ("codec" in media) {
-      const frameStrip = media.url.replace(/\.(webm|mp4)$/i, ".frames.png")
-      const sourceStrip = path.join(sourceDir, frameStrip)
-      if (existsSync(sourceStrip)) copyFileSync(sourceStrip, path.join(outputDir, frameStrip))
-    }
-  }
-}
-
+copyApprovedPilotMedia(sourceManifest.entries, { sourceDir, outputDir })
 mkdirSync(outputDir, { recursive: true })
 const currentPath = path.join(outputDir, "index.json")
 const current = existsSync(currentPath)
@@ -46,7 +30,6 @@ const current = existsSync(currentPath)
   : { schemaVersion: 3, entries: [] }
 const entriesById = new Map(current.entries.map((entry) => [entry.backgroundId, entry]))
 for (const entry of sourceManifest.entries) {
-  copyEntryMedia(entry)
   entriesById.set(entry.backgroundId, {
     ...entry,
     mediaKind: "animated",

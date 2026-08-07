@@ -10,7 +10,7 @@ import type {
   BackgroundPreviewCatalogPoster,
   BackgroundPreviewCatalogRendition,
 } from "@/components/backgrounds/backgroundPreviewCatalogManifest"
-import { resolveCatalogPreviewUrl } from "@/components/backgrounds/backgroundPreviewCatalogManifest"
+import { resolveCatalogPreviewUrl } from "@/components/backgrounds/backgroundPreviewCatalogUrl"
 import { Button } from "@/components/ui/button"
 import { AppSurface } from "@/components/ui/app-surface"
 import styles from "./preview-pilot-review.module.css"

@@ -195,8 +195,9 @@ test("production carousel stays within its request budget and changes rendition 
   await video.evaluate((player) => {
     const media = player as HTMLVideoElement
     media.currentTime = 1
-    media.dispatchEvent(new Event("ended", { bubbles: true }))
   })
+  await expect(video).toHaveJSProperty("currentTime", 1)
+  await video.dispatchEvent("ended")
   await expect(video).toHaveAttribute("src", boundarySource!)
   await expect(video).toHaveJSProperty("currentTime", 0)
   await expect.poll(async () => (await readPreviewRuntimeProbe(page)).playCalls)

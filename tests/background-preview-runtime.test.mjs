@@ -9,6 +9,7 @@ import {
   renderPublishedRuntimeManifestModule,
   serializePublishedRuntimeManifest,
 } from "../scripts/chimer-preview-generation/published-runtime-manifest.mjs"
+import { resolveCatalogPreviewUrl } from "../components/backgrounds/backgroundPreviewCatalogUrl.ts"
 import {
   chooseSupportedPreviewCodec,
   getVerticalPublishedPreviewPosterUrl,
@@ -100,7 +101,9 @@ test("runtime generation fails closed for an unapproved or incomplete catalog", 
   )
 
   const encodedTraversalCatalog = structuredClone(approvedCatalog)
-  encodedTraversalCatalog.entries[0].renditions[0].url = "safe/%2e%2e/escaped.webm"
+  const animatedEntry = encodedTraversalCatalog.entries.find((entry) => entry.mediaKind === "animated")
+  assert.ok(animatedEntry, "approved catalog must contain an animated traversal fixture target")
+  animatedEntry.renditions[0].url = "safe/%2e%2e/escaped.webm"
   assert.throws(
     () => buildPublishedRuntimeManifest(encodedTraversalCatalog),
     /must not contain traversal segments/,
@@ -120,6 +123,26 @@ test("the generated typed wrapper renders schema and revision constants", () => 
   const source = renderPublishedRuntimeManifestModule()
   assert.match(source, new RegExp(`readonly schemaVersion: ${PUBLISHED_RUNTIME_SCHEMA_VERSION}`))
   assert.match(source, new RegExp(`readonly catalogRevision: "${PUBLISHED_CATALOG_REVISION}"`))
+})
+
+test("development catalog URL resolution stays JSON-free at the client boundary", async () => {
+  assert.equal(resolveCatalogPreviewUrl("entry/vertical/high.webm"), "/chimer/background-preview-catalog/entry/vertical/high.webm")
+  assert.equal(resolveCatalogPreviewUrl("/already-rooted.webp"), "/already-rooted.webp")
+  assert.equal(resolveCatalogPreviewUrl("https://media.example.test/preview.webm"), "https://media.example.test/preview.webm")
+  assert.equal(resolveCatalogPreviewUrl("//media.example.test/preview.webm"), "//media.example.test/preview.webm")
+
+  const helperSource = await readFile(
+    new URL("../components/backgrounds/backgroundPreviewCatalogUrl.ts", import.meta.url),
+    "utf8",
+  )
+  const clientSource = await readFile(
+    new URL("../app/dev/bgpreviews/preview-pilot-review.tsx", import.meta.url),
+    "utf8",
+  )
+  assert.doesNotMatch(helperSource, /index\.json|backgroundPreviewCatalogManifest/)
+  assert.match(clientSource, /import type \{[\s\S]*?\} from "@\/components\/backgrounds\/backgroundPreviewCatalogManifest"/)
+  assert.match(clientSource, /resolveCatalogPreviewUrl[^\n]+backgroundPreviewCatalogUrl/)
+  assert.doesNotMatch(clientSource, /import \{ resolveCatalogPreviewUrl \} from "@\/components\/backgrounds\/backgroundPreviewCatalogManifest"/)
 })
 
 test("catalog base resolution fails closed in Production and supports the local development prefix", () => {

@@ -24,7 +24,10 @@ import {
   buildPilotManifestEntry,
   buildPreviewAssetRelativePath,
 } from "../scripts/chimer-preview-generation/rendition-plan.mjs"
-import { serializeCatalogRenditionManifest } from "../scripts/chimer-preview-generation/rendition-manifest-module.mjs"
+import {
+  normalizeCatalogRenditionManifestEntries,
+  serializeCatalogRenditionManifest,
+} from "../scripts/chimer-preview-generation/rendition-manifest-module.mjs"
 import { backgroundRegistry } from "../components/backgrounds/backgroundRegistry.ts"
 import { validateCatalogManifest } from "../scripts/chimer-preview-generation/media-validation.mjs"
 
@@ -256,6 +259,53 @@ describe("background preview recipes", () => {
         ? { ...entry, reviewStatus: "candidate" }
         : entry)),
       /publication manifest requires an approved recipe/,
+    )
+  })
+
+  it("preflights catalog IDs and exact poster aspects before ordering entries", () => {
+    const backgroundId = FULL_CATALOG_BACKGROUND_IDS[0]
+    const entry = {
+      backgroundId,
+      recipeRevision: "recipe-1",
+      mediaKind: "poster-only",
+      reviewStatus: "approved",
+      batchSlug: FULL_CATALOG_BATCHES[0].slug,
+      loopStrategy: "static",
+      loopBoundaryMs: 0,
+      renditions: [],
+      posters: Object.fromEntries(PREVIEW_ASPECTS.map((aspect) => [aspect, {
+        url: `${backgroundId}/recipe-1/${aspect}/poster.webp`,
+        width: 1,
+        height: 1,
+        bytes: 1,
+        sha256: "a".repeat(64),
+      }])),
+    }
+
+    assert.throws(
+      () => normalizeCatalogRenditionManifestEntries([{ ...entry, backgroundId: "unknown-background" }]),
+      /catalog entry 0: unknown backgroundId "unknown-background"/,
+    )
+    assert.throws(
+      () => normalizeCatalogRenditionManifestEntries([entry, structuredClone(entry)]),
+      new RegExp(`${backgroundId}: duplicate backgroundId`),
+    )
+    assert.throws(
+      () => normalizeCatalogRenditionManifestEntries([{ ...entry, posters: null }]),
+      new RegExp(`${backgroundId}: posters must be a record`),
+    )
+    const missingSquare = structuredClone(entry)
+    delete missingSquare.posters.square
+    assert.throws(
+      () => normalizeCatalogRenditionManifestEntries([missingSquare]),
+      new RegExp(`${backgroundId}: missing square poster`),
+    )
+    assert.throws(
+      () => normalizeCatalogRenditionManifestEntries([{
+        ...entry,
+        posters: { ...entry.posters, panorama: entry.posters.landscape },
+      }]),
+      new RegExp(`${backgroundId}: unexpected poster aspect panorama`),
     )
   })
 

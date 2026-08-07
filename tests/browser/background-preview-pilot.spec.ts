@@ -52,14 +52,12 @@ test("full catalog review resets media and keeps static entries poster-only", as
   const values = await background.locator("option").evaluateAll((options) =>
     options.map((option) => (option as HTMLOptionElement).value),
   )
-  if (values.includes("massage-lab-dna")) {
-    await background.selectOption("massage-lab-dna")
-    await expect(review.locator("video")).toHaveCount(6)
-  }
-  if (values.includes("solid-color")) {
-    await background.selectOption("solid-color")
-    await expect(review.locator("video")).toHaveCount(0)
-    await expect(review.getByText(/Static background.*no motion preview required/i)).toBeVisible()
-    await expect(review.locator("article img")).toHaveCount(3)
-  }
+  expect(values).toContain("massage-lab-dna")
+  expect(values).toContain("solid-color")
+  await background.selectOption("massage-lab-dna")
+  await expect(review.locator("video")).toHaveCount(6)
+  await background.selectOption("solid-color")
+  await expect(review.locator("video")).toHaveCount(0)
+  await expect(review.getByText(/Static background.*no motion preview required/i)).toBeVisible()
+  await expect(review.locator("article img")).toHaveCount(3)
 })
