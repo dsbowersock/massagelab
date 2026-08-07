@@ -193,6 +193,7 @@ test("catalog publisher and runtime share the exact HTTPS custom-domain contract
     ["non-HTTPS scheme", "http://media.massagelab.app/catalog", null],
     ["trailing-dot host", "https://media.massagelab.app./catalog", null],
     ["single-label localhost", "https://localhost/catalog", null],
+    ["localhost subdomain", "https://preview.localhost/catalog", null],
     ["IPv4 host", "https://127.0.0.1/catalog", null],
     ["abbreviated IPv4 host", "https://127.1/catalog", null],
     ["IPv6 host", "https://[::1]/catalog", null],
