@@ -14,6 +14,10 @@ const stageStyles = readFileSync(
   new URL("../components/carousels/adaptive-carousel-stage.module.css", import.meta.url),
   "utf8",
 )
+const backgroundCarouselSource = readFileSync(
+  new URL("../components/backgrounds/background-carousel.tsx", import.meta.url),
+  "utf8",
+)
 
 describe("production adaptive carousel", () => {
   it("locks the approved Background winner to radius two across every responsive profile", () => {
@@ -55,6 +59,21 @@ describe("production adaptive carousel", () => {
       [...getMountedAdaptiveCarouselItemIds(items, "d", 2, true)],
       ["b", "c", "d", "e", "f"],
     )
+  })
+
+  it("offers one accessible carousel-wide preview toggle above the unchanged stage", () => {
+    const toggleContract = 'aria-pressed={previewPlaybackActive}'
+    const toggleIndex = backgroundCarouselSource.indexOf(toggleContract)
+    const stageIndex = backgroundCarouselSource.indexOf("<AdaptiveCarouselStage")
+
+    assert.notEqual(toggleIndex, -1)
+    assert.equal(
+      backgroundCarouselSource.split(toggleContract).length - 1,
+      1,
+      "the Background carousel renders exactly one carousel-wide preview toggle",
+    )
+    assert.notEqual(stageIndex, -1)
+    assert.ok(toggleIndex < stageIndex, "the preview toggle is rendered above the stage")
   })
 
   it("bounds non-looping renderers at the collection edges", () => {

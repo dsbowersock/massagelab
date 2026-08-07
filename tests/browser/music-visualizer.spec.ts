@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test"
 import { centerCarouselItem } from "./carousel-test-helpers"
+import { installSignedInSessionCookie } from "./signed-in-session-cookie"
 
 const ATMOSPHERE_STORAGE_KEY = "massagelab-atmosphere-v2"
 const CHIMER_STORAGE_KEY = "massagelab-chimer-settings"
@@ -1731,7 +1732,7 @@ test("rotation and forward glow follow the centered display and stop for reduced
   )).toBe("none")
 })
 
-test("signed-in defaults, device precedence, failed save, retry, and unrelated settings coexist", async ({ page }, testInfo) => {
+test("signed-in defaults, device precedence, failed save, retry, and unrelated settings coexist", async ({ context, page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-chromium", "single account preference proof")
   const writes: Array<Record<string, unknown>> = []
   let failNextPut = true
@@ -1748,6 +1749,11 @@ test("signed-in defaults, device precedence, failed save, retry, and unrelated s
     backgroundId: "static-gradient",
     showClock: false,
   })
+  await installSignedInSessionCookie(context, String(testInfo.project.use.baseURL), {
+    id: "task8-user",
+    name: "Task 8 QA",
+    email: "task8@example.com",
+  })
   await page.route("**/api/auth/session", async (route) => {
     await route.fulfill({
       status: 200,
@@ -1761,7 +1767,9 @@ test("signed-in defaults, device precedence, failed save, retry, and unrelated s
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
+          accessAuthoritative: true,
           features: [],
+          ownedBackgroundIds: [],
           chimerSettings: {},
           appSettings: serverAppSettings,
         }),
@@ -1776,7 +1784,9 @@ test("signed-in defaults, device precedence, failed save, retry, and unrelated s
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
+          accessAuthoritative: true,
           features: [],
+          ownedBackgroundIds: [],
           chimerSettings: payload.chimerSettings ?? {},
           appSettings: serverAppSettings,
         }),
@@ -1803,7 +1813,9 @@ test("signed-in defaults, device precedence, failed save, retry, and unrelated s
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
+        accessAuthoritative: true,
         features: [],
+        ownedBackgroundIds: [],
         chimerSettings: {},
         appSettings: serverAppSettings,
       }),
@@ -1830,6 +1842,9 @@ test("signed-in defaults, device precedence, failed save, retry, and unrelated s
   await expect(signedInColorPresets.getByRole("textbox", { name: "New color preset name" })).toBeEnabled()
   await expect(signedInColorPresets.getByRole("button", { name: "Save as new" })).toBeEnabled()
   await page.getByRole("button", { name: "Restore account default", exact: true }).click()
+  const unsavedVisualChanges = page.getByRole("alertdialog", { name: "Save Visual changes?" })
+  await expect(unsavedVisualChanges).toBeVisible()
+  await unsavedVisualChanges.getByRole("button", { name: "Discard changes" }).click()
   await expect(page.getByTestId("chimer-premium-background")).toBeVisible()
   await page.getByRole("button", { name: "Close Visual panel" }).click()
 

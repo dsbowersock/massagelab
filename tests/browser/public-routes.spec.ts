@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page, type Response } from "@playwright/test"
 import { centerCarouselItem } from "./carousel-test-helpers"
+import { installSignedInSessionCookie } from "./signed-in-session-cookie"
 
 const publicRoutes = [
   { path: "/", expectedText: /MassageLab/i },
@@ -844,12 +845,18 @@ test("Music visualizer waits for preference hydration before mounting its saved 
   ))).toEqual(["static-gradient"])
 })
 
-test("Music background selection and account default actions preserve playback and device state", async ({ page }) => {
+test("Music background selection and account default actions preserve playback and device state", async ({ context, page }, testInfo) => {
   const preferenceWrites: Array<Record<string, unknown>> = []
   const accountVisualizer = {
     defaultBackgroundId: null,
     showClock: false,
   }
+
+  await installSignedInSessionCookie(context, String(testInfo.project.use.baseURL), {
+    id: "music-qa-user",
+    name: "Music QA",
+    email: "music-qa@example.com",
+  })
 
   await page.addInitScript(() => {
     localStorage.setItem("massagelab-atmosphere-v2", JSON.stringify({
@@ -880,7 +887,9 @@ test("Music background selection and account default actions preserve playback a
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
+          accessAuthoritative: true,
           features: [],
+          ownedBackgroundIds: [],
           chimerSettings: {},
           appSettings: { musicVisualizer: accountVisualizer },
         }),
@@ -895,7 +904,9 @@ test("Music background selection and account default actions preserve playback a
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
+        accessAuthoritative: true,
         features: [],
+        ownedBackgroundIds: [],
         chimerSettings: payload.chimerSettings ?? {},
         appSettings: {
           musicVisualizer: appSettings?.musicVisualizer ?? accountVisualizer,

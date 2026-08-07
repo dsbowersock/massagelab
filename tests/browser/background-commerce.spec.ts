@@ -1,12 +1,13 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test"
-import { encode } from "next-auth/jwt"
 import { centerCarouselItem } from "./carousel-test-helpers"
+import { installSignedInSessionCookie } from "./signed-in-session-cookie"
 
 const USER_ID = "background-commerce-browser-user"
 const AURORA_ID = "massage-lab-aurora"
 // Commerce keeps the stable ID while accessible-name assertions follow the approved branding catalog.
 const AURORA_NAME = "Interstellar"
 const DOTTED_GLOW_ID = "massage-lab-dotted-glow"
+const DOTTED_GLOW_NAME = "Shimmer"
 const RETURN_STORAGE_KEY = "massagelab-background-checkout-return-v1"
 
 type CartItem = {
@@ -51,7 +52,7 @@ const PRODUCTS: Record<string, CartItem> = {
   [DOTTED_GLOW_ID]: {
     productType: "background",
     productKey: DOTTED_GLOW_ID,
-    displayName: "Dotted glow",
+    displayName: DOTTED_GLOW_NAME,
     unitAmount: 100,
     currency: "usd",
     availableForPurchase: true,
@@ -79,38 +80,6 @@ function recalculateCart(snapshot: CommerceSnapshot) {
   snapshot.cart.subtotalAmount = snapshot.cart.items.reduce((sum, item) => sum + item.unitAmount, 0)
 }
 
-async function installSignedInCookie(context: BrowserContext, baseURL: string) {
-  const secret = process.env.AUTH_SECRET?.trim() || process.env.NEXTAUTH_SECRET?.trim()
-  if (!secret) throw new Error("AUTH_SECRET or NEXTAUTH_SECRET is required for signed-in browser QA")
-  const cookieName = new URL(baseURL).protocol === "https:"
-    ? "__Secure-authjs.session-token"
-    : "authjs.session-token"
-  const value = await encode({
-    token: {
-      id: USER_ID,
-      sub: USER_ID,
-      name: "Commerce QA",
-      email: "commerce-qa@example.invalid",
-      emailVerified: true,
-      role: "USER",
-      roles: ["USER"],
-      roleAssignments: [{ role: "USER", status: "VERIFIED" }],
-    },
-    secret,
-    salt: cookieName,
-    maxAge: 60 * 60,
-  })
-  await context.addCookies([{
-    name: cookieName,
-    value,
-    url: baseURL,
-    httpOnly: true,
-    sameSite: "Lax",
-    // Auth.js __Secure- cookies require Secure so this fixture preserves HTTPS authentication semantics.
-    secure: cookieName.startsWith("__Secure-"),
-  }])
-}
-
 async function installCommerceFixture({
   context,
   page,
@@ -128,7 +97,11 @@ async function installCommerceFixture({
   fulfillAfterReads?: number
   failRedemptionRefresh?: boolean
 }) {
-  await installSignedInCookie(context, baseURL)
+  await installSignedInSessionCookie(context, baseURL, {
+    id: USER_ID,
+    name: "Commerce QA",
+    email: "commerce-qa@example.invalid",
+  })
   const snapshot = structuredClone(initialSnapshot)
   let snapshotReads = 0
   let redemptionRefreshPending = false
@@ -601,15 +574,15 @@ test("zero-credit cart persists across refresh and checkout failure keeps one su
   await openClockBackground(page)
   const panel = page.getByRole("dialog", { name: "Background" })
   await centerPremium(page, DOTTED_GLOW_ID)
-  await panel.getByRole("button", { name: "Unlock Dotted glow background" }).click()
-  const acquisition = page.getByRole("dialog", { name: "Unlock Dotted glow" })
+  await panel.getByRole("button", { name: `Unlock ${DOTTED_GLOW_NAME} background` }).click()
+  const acquisition = page.getByRole("dialog", { name: `Unlock ${DOTTED_GLOW_NAME}` })
   await expect(acquisition.getByRole("button", { name: "Use free credit" })).toBeDisabled()
   await expect(acquisition.getByText(/You have 0 credits\./)).toBeVisible()
   await acquisition.getByRole("button", { name: "Buy for $1" }).click()
 
   const cart = panel.getByRole("region", { name: "Account cart" })
   await expect(cart).toContainText("1 background")
-  await expect(cart).toContainText("Dotted glow")
+  await expect(cart).toContainText(DOTTED_GLOW_NAME)
   await cart.getByRole("button", { name: "Review checkout" }).click()
   const review = page.getByRole("dialog", { name: "Review checkout" })
   await expect(review.getByText("Purchases are U.S. only in this release.")).toBeVisible()
@@ -627,10 +600,10 @@ test("zero-credit cart persists across refresh and checkout failure keeps one su
   })
 
   await review.getByRole("button", { name: "Back to cart" }).click()
-  await expect(cart).toContainText("Dotted glow")
+  await expect(cart).toContainText(DOTTED_GLOW_NAME)
   await page.reload({ waitUntil: "domcontentloaded" })
   await page.getByRole("button", { name: "Background", exact: true }).click()
-  await expect(page.getByRole("region", { name: "Account cart" })).toContainText("Dotted glow")
+  await expect(page.getByRole("region", { name: "Account cart" })).toContainText(DOTTED_GLOW_NAME)
 })
 
 test("cancel return reopens the originating Background panel with the account cart intact", async ({ context, page }, testInfo) => {
@@ -733,12 +706,12 @@ test("subscriber and purchased ownership stay distinct in active Chimer", async 
   await expect(accessCard(purchased)).toHaveAttribute("data-background-access-state", "owned-purchase")
   await expect(accessCard(purchased)).toContainText("Purchased")
   await expect(accessCard(purchased).getByRole("img", {
-    name: "Dotted glow is permanently owned",
+    name: `${DOTTED_GLOW_NAME} is permanently owned`,
   })).toBeVisible()
   await expect(accessCard(purchased).getByRole("button", {
-    name: "Open permanent ownership options for Dotted glow",
+    name: `Open permanent ownership options for ${DOTTED_GLOW_NAME}`,
   })).toHaveCount(0)
-  await accessCard(purchased).getByRole("button", { name: "Select Dotted glow background" }).click()
+  await accessCard(purchased).getByRole("button", { name: `Select ${DOTTED_GLOW_NAME} background` }).click()
   await expect(panel).toHaveCount(0)
   await expect(page.getByLabel("Running Chimer timer")).toBeVisible()
 })

@@ -1,3 +1,5 @@
+import { FULL_CATALOG_BACKGROUND_IDS } from "./preview-recipes.mjs"
+
 const ASPECT_ORDER = Object.freeze(["landscape", "square", "vertical"])
 const QUALITY_ORDER = Object.freeze(["low", "standard", "high"])
 const CODEC_ORDER = Object.freeze(["vp9", "h264"])
@@ -51,6 +53,77 @@ export function normalizeRenditionManifestEntries(entries) {
 
 export function serializeRenditionManifest(entries) {
   return `${JSON.stringify({ schemaVersion: 2, entries: normalizeRenditionManifestEntries(entries) }, null, 2)}\n`
+}
+
+/** Validates catalog identity and poster shape before ordering can obscure bad input. */
+function assertCatalogEntryContracts(entries, order) {
+  const seenBackgroundIds = new Set()
+  for (const [entryIndex, entry] of entries.entries()) {
+    const backgroundId = entry?.backgroundId
+    if (typeof backgroundId !== "string" || !order.has(backgroundId)) {
+      throw new Error(`catalog entry ${entryIndex}: unknown backgroundId ${JSON.stringify(backgroundId)}`)
+    }
+    if (seenBackgroundIds.has(backgroundId)) {
+      throw new Error(`${backgroundId}: duplicate backgroundId in catalog manifest`)
+    }
+    seenBackgroundIds.add(backgroundId)
+
+    if (!Array.isArray(entry.renditions)) {
+      throw new Error(`${backgroundId}: renditions must be an array`)
+    }
+    if (!entry.posters || typeof entry.posters !== "object" || Array.isArray(entry.posters)) {
+      throw new Error(`${backgroundId}: posters must be a record with exactly landscape, square, and vertical`)
+    }
+    for (const aspect of ASPECT_ORDER) {
+      if (!Object.hasOwn(entry.posters, aspect) || !entry.posters[aspect]) {
+        throw new Error(`${backgroundId}: missing ${aspect} poster`)
+      }
+    }
+    const unexpectedAspect = Object.keys(entry.posters).find((aspect) => !ASPECT_ORDER.includes(aspect))
+    if (unexpectedAspect) {
+      throw new Error(`${backgroundId}: unexpected poster aspect ${unexpectedAspect}`)
+    }
+  }
+}
+
+/**
+ * Compacts and orders mixed animated/static catalog metadata without emitting
+ * thousands of generated TypeScript lines. The checked-in publication catalog
+ * fails closed unless every recipe has completed visual approval.
+ */
+export function normalizeCatalogRenditionManifestEntries(entries, { requireApproved = false } = {}) {
+  const order = new Map(FULL_CATALOG_BACKGROUND_IDS.map((id, index) => [id, index]))
+  const inputEntries = [...entries]
+  assertCatalogEntryContracts(inputEntries, order)
+  return inputEntries
+    .sort((left, right) => order.get(left.backgroundId) - order.get(right.backgroundId))
+    .map((entry) => {
+      if (requireApproved && entry.reviewStatus !== "approved") {
+        throw new Error(`${entry.backgroundId}: publication manifest requires an approved recipe`)
+      }
+      return {
+        backgroundId: entry.backgroundId,
+        recipeRevision: entry.recipeRevision,
+        mediaKind: entry.mediaKind,
+        reviewStatus: entry.reviewStatus,
+        batchSlug: entry.batchSlug,
+        loopStrategy: entry.loopStrategy,
+        loopBoundaryMs: entry.loopBoundaryMs,
+        renditions: orderedRenditions(entry.renditions).map(compactRendition),
+        posters: Object.fromEntries(ASPECT_ORDER.map((aspect) => [aspect, compactPoster(entry.posters[aspect])])),
+      }
+    })
+}
+
+export function serializeCatalogRenditionManifest(entries, {
+  catalogRevision = "catalog-approved-1",
+  requireApproved = true,
+} = {}) {
+  return `${JSON.stringify({
+    schemaVersion: 3,
+    catalogRevision,
+    entries: normalizeCatalogRenditionManifestEntries(entries, { requireApproved }),
+  }, null, 2)}\n`
 }
 
 /** Renders the checked-in typed sidecar without importing production v1 data. */

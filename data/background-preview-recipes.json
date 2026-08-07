@@ -1,0 +1,1514 @@
+{
+  "massage-lab-moving-gradient": {
+    "backgroundId": "massage-lab-moving-gradient",
+    "mediaKind": "animated",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "durationMs": 12000,
+    "posterTimeMs": 4000,
+    "loopStrategy": "crossfade",
+    "crossfadeMs": 900,
+    "fps": 24,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    }
+  },
+  "static-gradient": {
+    "backgroundId": "static-gradient",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "poster-only",
+    "durationMs": 0,
+    "posterTimeMs": 0,
+    "loopStrategy": "static",
+    "crossfadeMs": 0,
+    "fps": 0
+  },
+  "solid-color": {
+    "backgroundId": "solid-color",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "poster-only",
+    "durationMs": 0,
+    "posterTimeMs": 0,
+    "loopStrategy": "static",
+    "crossfadeMs": 0,
+    "fps": 0
+  },
+  "massage-lab-retro-grid": {
+    "backgroundId": "massage-lab-retro-grid",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 12000,
+    "posterTimeMs": 4000,
+    "crossfadeMs": 900,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-aerial-rays": {
+    "backgroundId": "massage-lab-aerial-rays",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 12000,
+    "posterTimeMs": 4000,
+    "crossfadeMs": 900,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-dna": {
+    "backgroundId": "massage-lab-dna",
+    "mediaKind": "animated",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "durationMs": 18000,
+    "posterTimeMs": 6000,
+    "loopStrategy": "crossfade",
+    "crossfadeMs": 1000,
+    "fps": 24,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    }
+  },
+  "massage-lab-twisted-cubes": {
+    "backgroundId": "massage-lab-twisted-cubes",
+    "mediaKind": "animated",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "durationMs": 12000,
+    "posterTimeMs": 4000,
+    "loopStrategy": "natural",
+    "crossfadeMs": 0,
+    "fps": 24,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    }
+  },
+  "massage-lab-tile-grid": {
+    "backgroundId": "massage-lab-tile-grid",
+    "mediaKind": "animated",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "durationMs": 12000,
+    "posterTimeMs": 4000,
+    "loopStrategy": "crossfade",
+    "crossfadeMs": 900,
+    "fps": 24,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    }
+  },
+  "massage-lab-hex-grid": {
+    "backgroundId": "massage-lab-hex-grid",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 12000,
+    "posterTimeMs": 4000,
+    "crossfadeMs": 900,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-gradient": {
+    "backgroundId": "massage-lab-gradient",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 12000,
+    "posterTimeMs": 4000,
+    "crossfadeMs": 900,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-lamp-effect": {
+    "backgroundId": "massage-lab-lamp-effect",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 12000,
+    "posterTimeMs": 4000,
+    "crossfadeMs": 900,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-spotlight": {
+    "backgroundId": "massage-lab-spotlight",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 12000,
+    "posterTimeMs": 4000,
+    "crossfadeMs": 900,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-reveal-dots": {
+    "backgroundId": "massage-lab-reveal-dots",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 12000,
+    "posterTimeMs": 4000,
+    "crossfadeMs": 900,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-wave-current": {
+    "backgroundId": "massage-lab-wave-current",
+    "mediaKind": "animated",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "loopStrategy": "crossfade",
+    "crossfadeMs": 800,
+    "fps": 24,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    }
+  },
+  "massage-lab-waves": {
+    "backgroundId": "massage-lab-waves",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-wavy-background": {
+    "backgroundId": "massage-lab-wavy-background",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-silk": {
+    "backgroundId": "massage-lab-silk",
+    "mediaKind": "animated",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "loopStrategy": "crossfade",
+    "crossfadeMs": 800,
+    "fps": 24,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    }
+  },
+  "massage-lab-floating-lines": {
+    "backgroundId": "massage-lab-floating-lines",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-line-waves": {
+    "backgroundId": "massage-lab-line-waves",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-threads": {
+    "backgroundId": "massage-lab-threads",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-color-bends": {
+    "backgroundId": "massage-lab-color-bends",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-liquid-ether": {
+    "backgroundId": "massage-lab-liquid-ether",
+    "recipeRevision": "recipe-3",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 2000,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-liquid-chrome": {
+    "backgroundId": "massage-lab-liquid-chrome",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-ferrofluid": {
+    "backgroundId": "massage-lab-ferrofluid",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-iridescence": {
+    "backgroundId": "massage-lab-iridescence",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-light-speed": {
+    "backgroundId": "massage-lab-light-speed",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 8000,
+    "posterTimeMs": 2667,
+    "crossfadeMs": 600,
+    "fps": 30,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-lightfall": {
+    "backgroundId": "massage-lab-lightfall",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-light-pillar": {
+    "backgroundId": "massage-lab-light-pillar",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-side-rays": {
+    "backgroundId": "massage-lab-side-rays",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-light-rays": {
+    "backgroundId": "massage-lab-light-rays",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-beams": {
+    "backgroundId": "massage-lab-beams",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-background-beams": {
+    "backgroundId": "massage-lab-background-beams",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 12000,
+    "posterTimeMs": 4000,
+    "crossfadeMs": 900,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-collision-beams": {
+    "backgroundId": "massage-lab-collision-beams",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-background-lines": {
+    "backgroundId": "massage-lab-background-lines",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-photon-beam": {
+    "backgroundId": "massage-lab-photon-beam",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-prismatic-burst": {
+    "backgroundId": "massage-lab-prismatic-burst",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 8000,
+    "posterTimeMs": 2667,
+    "crossfadeMs": 600,
+    "fps": 30,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-prism": {
+    "backgroundId": "massage-lab-prism",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-grid-bloom": {
+    "backgroundId": "massage-lab-grid-bloom",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-pixel-blast": {
+    "backgroundId": "massage-lab-pixel-blast",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-gradient-blinds": {
+    "backgroundId": "massage-lab-gradient-blinds",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-grid-scan": {
+    "backgroundId": "massage-lab-grid-scan",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-pixel-snow": {
+    "backgroundId": "massage-lab-pixel-snow",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-dither": {
+    "backgroundId": "massage-lab-dither",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-ripple-grid": {
+    "backgroundId": "massage-lab-ripple-grid",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-dot-field": {
+    "backgroundId": "massage-lab-dot-field",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-dot-grid": {
+    "backgroundId": "massage-lab-dot-grid",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-grid-distortion": {
+    "backgroundId": "massage-lab-grid-distortion",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-grid-motion": {
+    "backgroundId": "massage-lab-grid-motion",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-shape-grid": {
+    "backgroundId": "massage-lab-shape-grid",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-electric-mist": {
+    "backgroundId": "massage-lab-electric-mist",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 8000,
+    "posterTimeMs": 2667,
+    "crossfadeMs": 600,
+    "fps": 30,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-astral-flow": {
+    "backgroundId": "massage-lab-astral-flow",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-deep-space-nebula": {
+    "backgroundId": "massage-lab-deep-space-nebula",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-dark-veil": {
+    "backgroundId": "massage-lab-dark-veil",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-soft-aurora": {
+    "backgroundId": "massage-lab-soft-aurora",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-plasma": {
+    "backgroundId": "massage-lab-plasma",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-plasma-wave": {
+    "backgroundId": "massage-lab-plasma-wave",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-particles": {
+    "backgroundId": "massage-lab-particles",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-galaxy": {
+    "backgroundId": "massage-lab-galaxy",
+    "mediaKind": "animated",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "durationMs": 12000,
+    "posterTimeMs": 4000,
+    "loopStrategy": "crossfade",
+    "crossfadeMs": 900,
+    "fps": 30,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    }
+  },
+  "massage-lab-aurora": {
+    "backgroundId": "massage-lab-aurora",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 12000,
+    "posterTimeMs": 4000,
+    "crossfadeMs": 900,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-dotted-glow": {
+    "backgroundId": "massage-lab-dotted-glow",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 12000,
+    "posterTimeMs": 4000,
+    "crossfadeMs": 900,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-sparkles": {
+    "backgroundId": "massage-lab-sparkles",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 12000,
+    "posterTimeMs": 4000,
+    "crossfadeMs": 900,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-chrome-flow": {
+    "backgroundId": "massage-lab-chrome-flow",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-evil-eye": {
+    "backgroundId": "massage-lab-evil-eye",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-radar": {
+    "backgroundId": "massage-lab-radar",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-synthesis": {
+    "backgroundId": "massage-lab-synthesis",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-lightning": {
+    "backgroundId": "massage-lab-lightning",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 8000,
+    "posterTimeMs": 2667,
+    "crossfadeMs": 600,
+    "fps": 30,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-faulty-terminal": {
+    "backgroundId": "massage-lab-faulty-terminal",
+    "mediaKind": "animated",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "durationMs": 8000,
+    "posterTimeMs": 2667,
+    "loopStrategy": "crossfade",
+    "crossfadeMs": 600,
+    "fps": 30,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    }
+  },
+  "massage-lab-letter-glitch": {
+    "backgroundId": "massage-lab-letter-glitch",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-balatro": {
+    "backgroundId": "massage-lab-balatro",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 8000,
+    "posterTimeMs": 2667,
+    "crossfadeMs": 600,
+    "fps": 30,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-novatrix": {
+    "backgroundId": "massage-lab-novatrix",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-matrix-rain": {
+    "backgroundId": "massage-lab-matrix-rain",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-pixel-liquid": {
+    "backgroundId": "massage-lab-pixel-liquid",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 8000,
+    "posterTimeMs": 2667,
+    "crossfadeMs": 600,
+    "fps": 30,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-vortex": {
+    "backgroundId": "massage-lab-vortex",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 8000,
+    "posterTimeMs": 2667,
+    "crossfadeMs": 600,
+    "fps": 30,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-grainient": {
+    "backgroundId": "massage-lab-grainient",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-orb": {
+    "backgroundId": "massage-lab-orb",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-gradient-animation": {
+    "backgroundId": "massage-lab-gradient-animation",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 12000,
+    "posterTimeMs": 4000,
+    "crossfadeMs": 900,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-glowing-stars": {
+    "backgroundId": "massage-lab-glowing-stars",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 12000,
+    "posterTimeMs": 4000,
+    "crossfadeMs": 900,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-meteors": {
+    "backgroundId": "massage-lab-meteors",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-shooting-stars": {
+    "backgroundId": "massage-lab-shooting-stars",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-3d-globe": {
+    "backgroundId": "massage-lab-3d-globe",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-aurora-bars": {
+    "backgroundId": "massage-lab-aurora-bars",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-bubble": {
+    "backgroundId": "massage-lab-bubble",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-stars": {
+    "backgroundId": "massage-lab-stars",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  },
+  "massage-lab-hole": {
+    "backgroundId": "massage-lab-hole",
+    "recipeRevision": "recipe-1",
+    "reviewStatus": "approved",
+    "warmupMs": 2200,
+    "passiveCaptureState": "default",
+    "framing": {
+      "landscape": null,
+      "square": null,
+      "vertical": null
+    },
+    "mediaKind": "animated",
+    "durationMs": 10000,
+    "posterTimeMs": 3333,
+    "crossfadeMs": 800,
+    "fps": 24,
+    "loopStrategy": "crossfade"
+  }
+}
