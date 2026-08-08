@@ -1,11 +1,14 @@
 import nodemailer from "nodemailer-v9"
-import { getSiteUrl } from "@/lib/auth-env"
-import { buildVerificationEmailUrl } from "@/lib/auth-registration"
+import { getSiteUrl } from "./auth-env.ts"
+import { buildVerificationEmailUrl } from "./auth-registration.js"
 
 type MailResult = {
   delivered: boolean
   devLink?: string
 }
+
+const ACCOUNT_CHANGE_EMAIL_SUBJECT_MAX_LENGTH = 200
+const ACCOUNT_CHANGE_EMAIL_MESSAGE_MAX_LENGTH = 5_000
 
 function hasSmtpConfig() {
   return Boolean(process.env.SMTP_HOST && process.env.SMTP_FROM && (!process.env.SMTP_USER || process.env.SMTP_PASSWORD))
@@ -43,12 +46,33 @@ async function sendMail(to: string, subject: string, text: string): Promise<Mail
       subject,
       text,
     })
-  } catch (error) {
-    console.error("SMTP delivery failed", error)
+  } catch {
+    // Mail providers can include recipient or transport details in their errors.
+    // Callers only need the durable delivery result, never provider diagnostics.
+    console.error("SMTP delivery failed")
     return { delivered: false } satisfies MailResult
   }
 
   return { delivered: true } satisfies MailResult
+}
+
+/**
+ * Sends the bounded, plain-text account-change notification already persisted
+ * by the admin-operation service. This is intentionally not a general mail
+ * API: no HTML, attachments, provider options, or provider error details cross
+ * the account-operation boundary.
+ */
+export async function sendAccountChangeEmail(to: string, subject: string, message: string): Promise<MailResult> {
+  if (!isSafeAccountChangeMailField(to, 320) || !isSafeAccountChangeMailField(subject, ACCOUNT_CHANGE_EMAIL_SUBJECT_MAX_LENGTH)
+    || !isSafeAccountChangeMailField(message, ACCOUNT_CHANGE_EMAIL_MESSAGE_MAX_LENGTH, true)) {
+    return { delivered: false }
+  }
+
+  return sendMail(to, subject, message)
+}
+
+function isSafeAccountChangeMailField(value: string, maxLength: number, allowLineBreaks = false): boolean {
+  return typeof value === "string" && value.length > 0 && value.length <= maxLength && (allowLineBreaks || !/[\r\n]/.test(value))
 }
 
 /**
