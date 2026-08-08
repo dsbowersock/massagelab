@@ -93,6 +93,19 @@ export type SidebarUser = {
   }
 } | null
 
+function ProprietaryCopyrightNotice({ className }: { className?: string }): React.JSX.Element {
+  return (
+    <p
+      className={cn(
+        "px-2 py-1 text-[0.6875rem] leading-relaxed text-sidebar-foreground/60",
+        className,
+      )}
+    >
+      © 2025–2026 Derrick Bowersock, d/b/a Massage Lab. All rights reserved.
+    </p>
+  )
+}
+
 const routeIcons = {
   BadgeDollarSign,
   Brain,
@@ -777,6 +790,7 @@ export function AppSidebarClient({
               <div className="flex flex-col gap-2">
                 <NavSecondary pathname={pathname} secondaryRoutes={navigation.secondaryNavigationRoutes} compact />
                 <AccountMenu accountRoutes={navigation.accountMenuRoutes} user={user} pathname={pathname} compact />
+                <ProprietaryCopyrightNotice />
               </div>
             </div>
           </SidebarContent>
@@ -797,6 +811,7 @@ export function AppSidebarClient({
           <SidebarFooter className={cn(isDrawer && "gap-2 border-t border-sidebar-border")}>
             <NavSecondary pathname={pathname} secondaryRoutes={navigation.secondaryNavigationRoutes} />
             <AccountMenu accountRoutes={navigation.accountMenuRoutes} user={user} pathname={pathname} />
+            <ProprietaryCopyrightNotice className="group-data-[collapsible=icon]:hidden" />
           </SidebarFooter>
         </>
       )}
