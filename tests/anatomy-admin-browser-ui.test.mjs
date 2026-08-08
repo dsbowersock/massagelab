@@ -257,8 +257,8 @@ describe("Anatomy admin browser table UI", () => {
     assert.match(adminSource, /href="\/admin\/anatomy\/media-review"/)
     assert.doesNotMatch(pageSource, /function AnatomyAdminDashboard/)
     assert.match(queueSource, /function AnatomyMediaReviewQueuePage/)
-    assert.match(pageSource, /requireAnatomyAdminUser/)
-    assert.match(queueSource, /requireAnatomyAdminUser/)
+    assert.match(pageSource, /requireAnatomyEditorUser/)
+    assert.match(queueSource, /requireAnatomyReviewerUser/)
     assert.match(queueSource, /Image review queue/)
     assert.match(queueSource, /Approve image/)
     assert.match(queueSource, /Needs better view/)
@@ -311,7 +311,7 @@ describe("Anatomy admin browser table UI", () => {
     assert.match(queueSource, /prisma\.anatomyMediaEntity\.findMany/)
     assert.match(queueSource, /prisma\.anatomyMediaViewRequest\.count/)
     assert.match(actionsSource, /function mediaReviewQueueRedirectPath/)
-    assert.match(actionsSource, /requireAnatomyAdminUser/)
+    assert.match(actionsSource, /requireAnatomyEditorUser/)
     assert.match(actionsSource, /export async function reviewAnatomyMediaQueueDecisionAction/)
     assert.match(actionsSource, /anatomyMediaEntity\.update/)
     assert.match(actionsSource, /create_view_request/)
@@ -335,5 +335,63 @@ describe("Anatomy admin browser table UI", () => {
     assert.match(actionsSource, /usageScope: sourceInput\.usageScope/)
     assert.match(actionsSource, /accessedAt: sourceInput\.accessedAt/)
     assert.match(actionsSource, /notes: sourceInput\.notes/)
+  })
+
+  it("uses reviewer guards only for anatomy review decisions", async () => {
+    const actionsSource = await readFile(new URL("../app/admin/anatomy/actions.ts", import.meta.url), "utf8")
+    const reviewerActions = [
+      "updateAnatomyMediaReviewAction",
+      "reviewAnatomyMediaQueueDecisionAction",
+      "updateCorrectionFlagAction",
+    ]
+    const editorActions = [
+      "createAnatomyTermAction",
+      "linkAnatomyMediaAssetAction",
+      "importBodyParts3dMediaAction",
+      "createAnatomyMediaViewRequestAction",
+      "updateAnatomyTermAction",
+      "createAnatomyAliasAction",
+      "createAnatomyRelationshipAction",
+      "createAnatomyEntityRelationshipAction",
+      "createAnatomySourceAction",
+    ]
+
+    for (const actionName of reviewerActions) {
+      const start = actionsSource.indexOf(`export async function ${actionName}(`)
+      const end = actionsSource.indexOf("\nexport async function ", start + 1)
+      assert.match(actionsSource.slice(start, end === -1 ? actionsSource.length : end), /await requireReviewer\(\)/)
+    }
+    for (const actionName of editorActions) {
+      const start = actionsSource.indexOf(`export async function ${actionName}(`)
+      const end = actionsSource.indexOf("\nexport async function ", start + 1)
+      assert.match(actionsSource.slice(start, end === -1 ? actionsSource.length : end), /await requireEditor\(\)/)
+    }
+
+    const requestUpdateStart = actionsSource.indexOf("export async function updateAnatomyMediaViewRequestAction(")
+    const requestUpdateEnd = actionsSource.indexOf("\nexport async function ", requestUpdateStart + 1)
+    const requestUpdateSource = actionsSource.slice(requestUpdateStart, requestUpdateEnd)
+    const statusGuards = [
+      ["OPEN", "requireReviewer"],
+      ["DISMISSED", "requireReviewer"],
+      ["IMPORTED", "requireEditor"],
+    ]
+
+    for (const [status, guard] of statusGuards) {
+      assert.match(requestUpdateSource, new RegExp(status === "IMPORTED" ? `status === "${status}"[\\s\\S]*${guard}` : `status === "IMPORTED"[\\s\\S]*${guard}`))
+    }
+  })
+
+  it("keeps editor-only review-queue links out of reviewer-only actors", async () => {
+    const queueSource = await readFile(new URL("../app/admin/anatomy/media-review/page.tsx", import.meta.url), "utf8")
+
+    assert.match(queueSource, /const actor = await requireAnatomyReviewerUser\(\)/)
+    assert.match(queueSource, /actor\.canEditAnatomy \? \(/)
+    assert.match(queueSource, /<QueueSummary data=\{data\} canEditAnatomy=\{actor\.canEditAnatomy\}/)
+    assert.match(queueSource, /<ImageReviewCard[\s\S]*canEditAnatomy=\{actor\.canEditAnatomy\}/)
+    assert.match(queueSource, /<EmptyQueue selectedStatus=\{selectedStatus\} canEditAnatomy=\{actor\.canEditAnatomy\}/)
+    assert.match(queueSource, /href=\{canEditAnatomy \? "\/admin\/anatomy\?view=maintenance" : undefined\}/)
+    assert.match(queueSource, /\{canEditAnatomy \? \([\s\S]*Open item/)
+    assert.match(queueSource, /function EmptyQueue\(\{ selectedStatus, canEditAnatomy \}/)
+    assert.match(queueSource, /\{canEditAnatomy \? \([\s\S]*Back to dashboard/)
   })
 })

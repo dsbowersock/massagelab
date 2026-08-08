@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { requireAnatomyAdminUser } from "@/lib/anatomy-admin-access"
+import { requireAnatomyEditorUser } from "@/lib/anatomy-admin-access"
 import { SOURCE_USAGE_SCOPES } from "@/lib/anatomy-admin-source-input"
 import { prisma } from "@/lib/prisma"
 import {
@@ -125,7 +125,7 @@ type DataTableColumn<T> = {
 }
 
 export default async function AnatomyAdminPage({ searchParams }: AnatomyAdminPageProps) {
-  await requireAnatomyAdminUser()
+  await requireAnatomyEditorUser()
 
   const params = await searchParams
   const searchQuery = normalizeAnatomySearchQuery(params?.q ?? "")

@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import type { AnatomyEntityType, AnatomyMediaReviewStatus, AnatomyMediaType, Prisma } from "@prisma/client"
-import { requireAnatomyAdminUser } from "@/lib/anatomy-admin-access"
+import { requireAnatomyReviewerUser } from "@/lib/anatomy-admin-access"
 import {
   ANATOMY_MEDIA_REVIEW_REASONS,
   ANATOMY_MEDIA_VIEW_REQUEST_REASONS,
@@ -129,7 +129,7 @@ const STUDY_CATEGORY_TO_ENTITY_TYPE: Record<string, AnatomyEntityType> = {
 }
 
 export default async function AnatomyMediaReviewQueuePage({ searchParams }: AnatomyMediaReviewQueuePageProps) {
-  await requireAnatomyAdminUser()
+  const actor = await requireAnatomyReviewerUser()
 
   const params = await searchParams
   const filters = parseMediaReviewQueueFilters(params ?? {})
@@ -153,14 +153,16 @@ export default async function AnatomyMediaReviewQueuePage({ searchParams }: Anat
               {data.filteredTotal.toLocaleString()} in this batch / {data.total.toLocaleString()} in {selectedStatus.label.toLowerCase()} queue
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button asChild size="sm" variant="outline">
-              <Link href="/admin">Dashboard</Link>
-            </Button>
-            <Button asChild size="sm">
-              <Link href="/admin/anatomy">Browser</Link>
-            </Button>
-          </div>
+          {actor.canEditAnatomy ? (
+            <div className="flex flex-wrap gap-2">
+              <Button asChild size="sm" variant="outline">
+                <Link href="/admin">Dashboard</Link>
+              </Button>
+              <Button asChild size="sm">
+                <Link href="/admin/anatomy">Browser</Link>
+              </Button>
+            </div>
+          ) : null}
         </div>
         <QueueStatusTabs selectedStatus={selectedStatus} data={data} filters={filters} />
         <QueuePresetLinks filters={filters} />
@@ -169,11 +171,11 @@ export default async function AnatomyMediaReviewQueuePage({ searchParams }: Anat
       </div>
 
       <main className="space-y-3 p-3 sm:p-0">
-        <QueueSummary data={data} />
+        <QueueSummary data={data} canEditAnatomy={actor.canEditAnatomy} />
         {currentRow ? (
-          <ImageReviewCard row={currentRow} filters={filters} upcomingRows={upcomingRows} />
+          <ImageReviewCard row={currentRow} filters={filters} upcomingRows={upcomingRows} canEditAnatomy={actor.canEditAnatomy} />
         ) : (
-          <EmptyQueue selectedStatus={selectedStatus} />
+          <EmptyQueue selectedStatus={selectedStatus} canEditAnatomy={actor.canEditAnatomy} />
         )}
       </main>
     </AppPageShell>
@@ -523,13 +525,13 @@ function QueueAdvancedFilters({ filters }: { filters: ReturnType<typeof parseMed
   )
 }
 
-function QueueSummary({ data }: { data: QueueData }) {
+function QueueSummary({ data, canEditAnatomy }: { data: QueueData; canEditAnatomy: boolean }) {
   return (
     <section className="grid grid-cols-2 gap-2 sm:grid-cols-4">
       <QueueMetric label="Needs review" value={data.needsReviewCount} />
       <QueueMetric label="Rejected" value={data.rejectedCount} />
       <QueueMetric label="Approved" value={data.approvedCount} />
-      <QueueMetric label="Open requests" value={data.openRequestCount} href="/admin/anatomy?view=maintenance" />
+      <QueueMetric label="Open requests" value={data.openRequestCount} href={canEditAnatomy ? "/admin/anatomy?view=maintenance" : undefined} />
     </section>
   )
 }
@@ -557,10 +559,12 @@ function ImageReviewCard({
   row,
   filters,
   upcomingRows,
+  canEditAnatomy,
 }: {
   row: MediaQueueRow
   filters: ReturnType<typeof parseMediaReviewQueueFilters>
   upcomingRows: MediaQueueRow[]
+  canEditAnatomy: boolean
 }) {
   const asset = row.asset
   const previewUrl = mediaPreviewUrl(asset)
@@ -592,9 +596,11 @@ function ImageReviewCard({
             <Button asChild variant="outline" size="sm">
               <Link href={skipHref}>Skip</Link>
             </Button>
-            <Button asChild variant="outline" size="sm">
-              <Link href={browserHref}>Open item</Link>
-            </Button>
+            {canEditAnatomy ? (
+              <Button asChild variant="outline" size="sm">
+                <Link href={browserHref}>Open item</Link>
+              </Button>
+            ) : null}
             {composerUrl ? <ExternalButton href={composerUrl}>BodyParts3D</ExternalButton> : null}
             {sourceUrl ? <ExternalButton href={sourceUrl}>Generated image</ExternalButton> : null}
             {previewUrl && previewUrl !== sourceUrl ? <ExternalButton href={previewUrl}>Stored image</ExternalButton> : null}
@@ -808,16 +814,18 @@ function SelectField({
   )
 }
 
-function EmptyQueue({ selectedStatus }: { selectedStatus: QueueStatusOption }) {
+function EmptyQueue({ selectedStatus, canEditAnatomy }: { selectedStatus: QueueStatusOption; canEditAnatomy: boolean }) {
   return (
     <Card className={appSurfaceClassName}>
       <CardContent className="p-5 text-center">
         <h2 className="text-lg font-semibold">No images in this queue</h2>
         <p className="mt-2 text-sm text-muted-foreground">There are no {selectedStatus.label.toLowerCase()} item-image links to review right now.</p>
         <div className="mt-4 flex flex-wrap justify-center gap-2">
-          <Button asChild>
-            <Link href="/admin">Back to dashboard</Link>
-          </Button>
+          {canEditAnatomy ? (
+            <Button asChild>
+              <Link href="/admin">Back to dashboard</Link>
+            </Button>
+          ) : null}
           <Button asChild variant="outline">
             <Link href={mediaReviewQueueHref({ status: "all" })}>Browse all images</Link>
           </Button>

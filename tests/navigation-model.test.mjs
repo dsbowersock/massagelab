@@ -350,6 +350,14 @@ describe("Navigation IA model", () => {
   })
 
   it("resolves admin navigation only for verified admin-capable roles", () => {
+    const anatomyReviewerNavigation = resolveNavigation({
+      authState: "signed-in",
+      roleAssignments: [{ role: "ANATOMY_REVIEWER", status: "VERIFIED" }],
+    })
+    const anatomyEditorNavigation = resolveNavigation({
+      authState: "signed-in",
+      roleAssignments: [{ role: "ANATOMY_EDITOR", status: "VERIFIED" }],
+    })
     const anatomyAdminNavigation = resolveNavigation({
       authState: "signed-in",
       roleAssignments: [{ role: "ANATOMY_ADMIN", status: "VERIFIED" }],
@@ -363,6 +371,14 @@ describe("Navigation IA model", () => {
       roleAssignments: [{ role: "ADMIN", status: "PENDING" }],
     })
 
+    assert.equal(primaryGroupIds(anatomyReviewerNavigation).includes("admin"), true)
+    assert.equal(primaryHrefs(anatomyReviewerNavigation).includes("/admin"), false)
+    assert.equal(primaryHrefs(anatomyReviewerNavigation).includes("/admin/anatomy"), false)
+    assert.equal(primaryHrefs(anatomyReviewerNavigation).includes("/admin/anatomy/media-review"), true)
+    assert.equal(primaryGroupIds(anatomyEditorNavigation).includes("admin"), true)
+    assert.equal(primaryHrefs(anatomyEditorNavigation).includes("/admin"), true)
+    assert.equal(primaryHrefs(anatomyEditorNavigation).includes("/admin/anatomy"), true)
+    assert.equal(primaryHrefs(anatomyEditorNavigation).includes("/admin/anatomy/media-review"), true)
     assert.equal(primaryGroupIds(anatomyAdminNavigation).includes("admin"), true)
     assert.equal(primaryHrefs(anatomyAdminNavigation).includes("/admin"), true)
     assert.equal(primaryHrefs(anatomyAdminNavigation).includes("/admin/anatomy"), true)
