@@ -3658,6 +3658,42 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(settings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
   })
 
+  it("preserves anonymous free static backgrounds using their canonical access decisions", () => {
+    const canUseSelectedBackground = (backgroundId) => (
+      backgroundId === "static-gradient" || backgroundId === "solid-color"
+    )
+    const options = { canUseSelectedBackground }
+    const staticGradient = sanitizeChimerSettingsForEntitlements({
+      backgroundId: "static-gradient",
+      staticGradientType: "radial",
+      staticGradientColorCount: 3,
+      staticGradientStopPositions: [5, 40, 95],
+    }, [], options)
+    const solidColor = sanitizeChimerSettingsForEntitlements({
+      backgroundId: "solid-color",
+      backgroundVisualPreferences: {
+        palette: {
+          mode: "custom",
+          primaryColor: "#112233",
+          swatches: ["#112233", "#223344", "#334455", "#445566", "#556677", "#667788", "#778899"],
+        },
+      },
+    }, [], options)
+    const lockedPremium = sanitizeChimerSettingsForEntitlements({
+      backgroundId: "massage-lab-silk",
+      massageLabSilkSpeed: 7.5,
+    }, [], options)
+
+    assert.equal(staticGradient.backgroundId, "static-gradient")
+    assert.equal(staticGradient.staticGradientType, "radial")
+    assert.equal(staticGradient.staticGradientColorCount, 3)
+    assert.deepEqual(staticGradient.staticGradientStopPositions, [5, 40, 95, 100, 100, 100, 100])
+    assert.equal(solidColor.backgroundId, "solid-color")
+    assert.equal(solidColor.backgroundVisualPreferences.palette.primaryColor, "#112233")
+    assert.equal(lockedPremium.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    assert.equal(lockedPremium.massageLabSilkSpeed, DEFAULT_CHIMER_SETTINGS.massageLabSilkSpeed)
+  })
+
   it("hydrates one owned-only access snapshot without granting unrelated backgrounds", () => {
     const ownedBackgroundId = "massage-lab-stars"
     const settings = sanitizeChimerSettingsForEntitlements({

@@ -401,6 +401,11 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
         if (!canSyncAccountPreferencesFromSession(session)) {
           const localFreeSettings = sanitizeChimerSettingsForEntitlements(settingsRef.current, EMPTY_BACKGROUND_ACCESS, {
             backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
+            canUseSelectedBackground: (backgroundId: string) => canUseBackgroundId(
+              backgroundId,
+              EMPTY_BACKGROUND_ACCESS,
+              "chimer",
+            ),
           }) as ChimerSettings
           settingsRef.current = localFreeSettings
           setSettings(localFreeSettings)
@@ -968,6 +973,11 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
       accessOverride ?? backgroundAccessRef.current,
       {
         backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
+        canUseSelectedBackground: (backgroundId: string) => canUseBackgroundId(
+          backgroundId,
+          accessOverride ?? backgroundAccessRef.current,
+          startsInClockMode ? "clock" : "chimer",
+        ),
       },
     ) as ChimerSettings
 
@@ -1059,6 +1069,11 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
       backgroundVisualPreferences,
     }, accessOverride ?? backgroundAccessRef.current, {
       backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
+      canUseSelectedBackground: (backgroundId: string) => canUseBackgroundId(
+        backgroundId,
+        accessOverride ?? backgroundAccessRef.current,
+        startsInClockMode ? "clock" : "chimer",
+      ),
     }) as ChimerSettings
     const requestId = backgroundPreferenceRequestIdRef.current + 1
     backgroundPreferenceRequestIdRef.current = requestId
