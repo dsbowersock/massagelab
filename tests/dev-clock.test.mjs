@@ -31,7 +31,7 @@ describe("development Clock review route", () => {
     )
     assert.match(
       source,
-      /if \(developmentSubscriberReview\) \{[\s\S]*setCanSync\(false\)[\s\S]*setAccountSyncStatus\("synced"\)[\s\S]*\} else \{\s*void syncAccountSettings\(\)/,
+      /if \(developmentSubscriberReview\) \{[\s\S]*setCanSync\(false\)[\s\S]*setAccountSyncStatus\("synced"\)[\s\S]*\} else \{\s*requestAccountSync\(\)/,
     )
     assert.match(source, /localStorage\.setItem\(storageKey/)
   })

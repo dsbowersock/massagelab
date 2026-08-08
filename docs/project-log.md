@@ -6,6 +6,12 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `Massage Laba Lamp` is the approved catalog label for the original free moving-gradient default. `MassageLaba Lamp` and general prose that says `MassageLab Lamp` are legacy references to that same stable `massage-lab-moving-gradient` entry, not separate backgrounds.
 
+## 2026-08-07 — Background initiative closeout and returning-tab access recovery
+
+- Consolidated the long-form Chimer snapshot around the shipped stable-ID branding catalog and active immutable R2 preview release. Removed the obsolete MassageLab-prefixed label inventory and the superseded lightweight-WebM description so the canonical state now matches the approved 84-background naming layer, poster-first behavior, five-card motion window, truthful static entries, and loop-boundary adaptation already verified in Production.
+- Corrected the returning-tab access contract in Clock/Chimer. A transient or explicitly non-authoritative session/preferences response no longer erases the last in-memory verified subscription and ownership snapshot, while a fresh mount still starts fail-closed and an authoritative signed-out response still removes premium access. Clock/Chimer now retries the same account-preference synchronization when the page becomes visible, receives focus, comes online, or returns from the browser page cache, with resume bursts coalesced into at most one queued retry.
+- Added a mobile browser regression that starts with an unavailable preference endpoint, restores it, simulates returning focus, and verifies a membership-included background becomes available without navigating through Account. The immutable R2 release, active Production deployment, and retained rollback deployment are unchanged.
+
 ## 2026-08-07 — Approved background preview catalog activated in Production
 
 - After PR #168 merged as `ead19cd3138434f4fa1dcda2ecf2fcf5f1da4670`, uploaded exactly the reviewed 1,728-object allowlist (862,078,635 bytes / 822.1 MiB) to the immutable R2 prefix `massagelab-public-media/chimer/background-preview-catalog/catalog-approved-1`. The 577.5 MiB of local capture, intermediate, and validation material outside the serialized manifest was not uploaded.

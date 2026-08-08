@@ -382,9 +382,24 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
           return
         }
 
-        const session = sessionResponse.ok ? await sessionResponse.json().catch(() => null) : null
+        if (!sessionResponse.ok) {
+          // A waking mobile connection is not authoritative sign-out proof.
+          // Retain the last in-memory access snapshot until a later retry can
+          // distinguish a valid session from an actual signed-out response.
+          setCanSync(false)
+          setAccountSyncStatus("local")
+          return
+        }
+
+        const session = await sessionResponse.json().catch(() => undefined)
 
         if (!isMounted) {
+          return
+        }
+
+        if (session === undefined) {
+          setCanSync(false)
+          setAccountSyncStatus("local")
           return
         }
 
@@ -409,8 +424,9 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
         }
 
         if (!response.ok) {
-          setFeatureKeys([])
-          setPermanentlyOwnedBackgroundIds([])
+          // A transport/server failure is non-authoritative. Fresh mounts are
+          // still fail-closed because their access state starts empty, while a
+          // restored tab keeps its last verified snapshot until the retry.
           setCanSync(false)
           setAccountSyncStatus("local")
           return
@@ -418,10 +434,9 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
 
         const preferences = await response.json()
         if (preferences.accessAuthoritative !== true) {
-          // Access lookup failures are non-authoritative. Keep the last local
-          // snapshot intact while empty access keeps rendering fail-closed.
-          setFeatureKeys([])
-          setPermanentlyOwnedBackgroundIds([])
+          // The server explicitly could not prove a current access decision.
+          // Do not reinterpret that as revocation; the next foreground retry
+          // will replace the snapshot only after an authoritative response.
           setCanSync(false)
           setAccountSyncStatus("local")
           return
@@ -572,11 +587,34 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
         if (!isMounted) {
           return
         }
-        setFeatureKeys([])
-        setPermanentlyOwnedBackgroundIds([])
         setCanSync(false)
         setAccountSyncStatus("local")
       }
+    }
+
+    let accountSyncInFlight = false
+    let accountSyncQueued = false
+
+    /** Coalesces focus/pageshow bursts while guaranteeing one post-wake retry. */
+    function requestAccountSync() {
+      if (!isMounted || developmentSubscriberReview) return
+      if (accountSyncInFlight) {
+        accountSyncQueued = true
+        return
+      }
+
+      accountSyncInFlight = true
+      void syncAccountSettings().finally(() => {
+        accountSyncInFlight = false
+        if (accountSyncQueued && isMounted) {
+          accountSyncQueued = false
+          requestAccountSync()
+        }
+      })
+    }
+
+    const handleAccountResume = () => {
+      if (document.visibilityState === "visible") requestAccountSync()
     }
 
     loadLocalSettings()
@@ -586,11 +624,19 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
       setCanSync(false)
       setAccountSyncStatus("synced")
     } else {
-      void syncAccountSettings()
+      requestAccountSync()
+      window.addEventListener("focus", handleAccountResume)
+      window.addEventListener("online", handleAccountResume)
+      window.addEventListener("pageshow", handleAccountResume)
+      document.addEventListener("visibilitychange", handleAccountResume)
     }
 
     return () => {
       isMounted = false
+      window.removeEventListener("focus", handleAccountResume)
+      window.removeEventListener("online", handleAccountResume)
+      window.removeEventListener("pageshow", handleAccountResume)
+      document.removeEventListener("visibilitychange", handleAccountResume)
     }
   }, [
     captureBackgroundCommerceOwnershipRevision,

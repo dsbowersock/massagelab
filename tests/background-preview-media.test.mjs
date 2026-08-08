@@ -18,7 +18,7 @@ import { sourceBetween } from "./helpers/source-structure.mjs"
 const componentSource = readFileSync(
   new URL("../components/backgrounds/BackgroundPreviewMedia.tsx", import.meta.url),
   "utf8",
-)
+).replace(/\r\n/g, "\n")
 const cardSource = readFileSync(
   new URL("../components/backgrounds/background-carousel-card.tsx", import.meta.url),
   "utf8",
