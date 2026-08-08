@@ -79,8 +79,6 @@ const SWAP_ANIMATION_MS = 360
 const DEFAULT_PRIMARY_FONT_COLOR = "#FFFFFF"
 const DEFAULT_SECONDARY_FONT_COLOR = "#FF7A1A"
 const DEFAULT_CLOCK_MODE_FONT_COLOR = "#FFFFFF"
-const PREMIUM_CUSTOM_COLOR_SETTING_KEYS = new Set(["primaryFontColor", "secondaryFontColor"])
-const ACCOUNT_COLOR_SETTING_KEYS = new Set(["clockModeFontColor"])
 
 const HEX_COLOR_PATTERN = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i
 
@@ -904,8 +902,6 @@ interface RunningTimerProps {
   hexGridChangeFrequency: number
   hexGridActivePercent: number
   hexGridOpacity: number
-  canUseCustomColors: boolean
-  canUseAccountColorControls: boolean
   committedSettings: ChimerSettings
   backgroundVisualPreferences: ChimerSettings["backgroundVisualPreferences"]
   backgroundPreferenceSyncStatus: "local" | "pending" | "stale" | "synced"
@@ -1581,8 +1577,6 @@ export function RunningTimer({
   hexGridChangeFrequency,
   hexGridActivePercent,
   hexGridOpacity,
-  canUseCustomColors,
-  canUseAccountColorControls,
   committedSettings,
   backgroundVisualPreferences,
   backgroundPreferenceSyncStatus,
@@ -2483,19 +2477,7 @@ export function RunningTimer({
     scheduleHideAfterControlAction({ force: true })
   }
 
-  const canUseCoreColorControls = canUseCustomColors || canUseAccountColorControls
-
   const handleSettingsChange = (nextSettings: Partial<ChimerSettings>) => {
-    const settingKeys = Object.keys(nextSettings)
-
-    if (!canUseCustomColors && settingKeys.some((key) => PREMIUM_CUSTOM_COLOR_SETTING_KEYS.has(key))) {
-      return
-    }
-
-    if (!canUseCoreColorControls && settingKeys.some((key) => ACCOUNT_COLOR_SETTING_KEYS.has(key))) {
-      return
-    }
-
     const adapter = backgroundPaletteRegistry[visualEditorBackgroundId]
     const partitioned = partitionBackgroundVisualSettingChange({
       nextSettings,
@@ -2588,16 +2570,16 @@ export function RunningTimer({
   const renderBackgroundControls = (option: BackgroundDefinition) => (
     <fieldset disabled={!canCustomizeSelectedBackground} className={`${styles.backgroundCardControls} ${styles.immersiveSelectedBackgroundControls} ${visualDraft ? `${styles.hideLegacyColorControls} ${styles.hideLegacyPaletteMetadataControls}` : ""} ${option.id === "massage-lab-moving-gradient" ? styles.immersiveLampColorControls : ""}`}>
       {!isClockMode && (
-        <div className={styles.colorRow} title={customColorDisabledHint}>
+        <div className={styles.colorRow}>
           <span>Primary color</span>
-          <ColorPickerSwatch label="Primary display color" value={resolvedPrimaryFontColor} fallback={DEFAULT_PRIMARY_FONT_COLOR} disabled={!canUseCustomColors} onChange={(nextColor) => handleSettingsChange({ primaryFontColor: nextColor })} className={styles.colorSwatchPicker} buttonClassName={styles.colorSwatchButton} />
+          <ColorPickerSwatch label="Primary display color" value={resolvedPrimaryFontColor} fallback={DEFAULT_PRIMARY_FONT_COLOR} onChange={(nextColor) => handleSettingsChange({ primaryFontColor: nextColor })} className={styles.colorSwatchPicker} buttonClassName={styles.colorSwatchButton} />
         </div>
       )}
 
       {!isClockMode ? (
-        <div className={styles.colorRow} title={customColorDisabledHint}>
+        <div className={styles.colorRow}>
           <span>Secondary color</span>
-          <ColorPickerSwatch label="Secondary display color" value={resolvedSecondaryFontColor} fallback={DEFAULT_SECONDARY_FONT_COLOR} disabled={!canUseCustomColors} onChange={(nextColor) => handleSettingsChange({ secondaryFontColor: nextColor })} className={styles.colorSwatchPicker} buttonClassName={styles.colorSwatchButton} />
+          <ColorPickerSwatch label="Secondary display color" value={resolvedSecondaryFontColor} fallback={DEFAULT_SECONDARY_FONT_COLOR} onChange={(nextColor) => handleSettingsChange({ secondaryFontColor: nextColor })} className={styles.colorSwatchPicker} buttonClassName={styles.colorSwatchButton} />
         </div>
       ) : null}
 
@@ -12719,8 +12701,6 @@ export function RunningTimer({
   } as CSSProperties
   const timerSwapClass = swapAnimationTarget ? (swapAnimationTarget === "timer" ? styles.swapToPrimary : styles.swapToSecondary) : ""
   const currentTimeSwapClass = swapAnimationTarget ? (swapAnimationTarget === "currentTime" ? styles.swapToPrimary : styles.swapToSecondary) : ""
-  const accountColorDisabledHint = canUseCoreColorControls ? undefined : "Sign in to set clock and Lamp colors."
-  const customColorDisabledHint = canUseCustomColors ? undefined : "Subscribe to unlock advanced custom color controls."
   const premiumBackgroundClassName = [styles.runningBackground, isFullscreen && backgroundId === "massage-lab-lamp-effect" ? styles.runningLampFullscreenBackground : ""].filter(Boolean).join(" ")
   const fullscreenLampBeamScale = Math.min(4.2, Math.max(2.75, 2.25 + fontSize * 0.03))
   const fullscreenLampGlowScale = Math.min(3.65, Math.max(2.35, 1.95 + fontSize * 0.026))
@@ -13661,9 +13641,9 @@ export function RunningTimer({
           clockHeaderAction={mode.canToggleClock ? <Switch className={styles.immersiveHeaderSwitch} checked={mode.showClock} size="compact" aria-label={`Show clock: ${mode.showClock ? "On" : "Off"}`} hapticsEnabled={hapticsEnabled} onCheckedChange={(value) => mode.onShowClockChange?.(value)} /> : null}
           clockHeaderCenterAction={
             <div className={styles.immersiveClockHeaderControls}>
-              <div className={styles.immersiveHeaderColorControl} title={accountColorDisabledHint}>
+              <div className={styles.immersiveHeaderColorControl}>
                 <span>Color</span>
-                <ColorPickerSwatch label="Clock color" value={resolvedClockModeFontColor} fallback={DEFAULT_CLOCK_MODE_FONT_COLOR} disabled={!canUseCoreColorControls} onChange={(nextColor) => handleSettingsChange({ clockModeFontColor: nextColor })} className={styles.colorSwatchPicker} buttonClassName={styles.immersiveHeaderColorSwatchButton} />
+                <ColorPickerSwatch label="Clock color" value={resolvedClockModeFontColor} fallback={DEFAULT_CLOCK_MODE_FONT_COLOR} onChange={(nextColor) => handleSettingsChange({ clockModeFontColor: nextColor })} className={styles.colorSwatchPicker} buttonClassName={styles.immersiveHeaderColorSwatchButton} />
               </div>
               <div className={styles.immersiveClockHeaderToggle}>
                 <span>Show seconds</span>
@@ -13676,9 +13656,9 @@ export function RunningTimer({
           visualHeaderCenterAction={
             <div className={styles.immersiveVisualHeaderControls}>
               {isClockMode ? (
-                <div className={`${styles.immersiveHeaderColorControl} ${styles.immersiveVisualHeaderColorControl}`} title={accountColorDisabledHint}>
+                <div className={`${styles.immersiveHeaderColorControl} ${styles.immersiveVisualHeaderColorControl}`}>
                   <span>Clock color</span>
-                  <ColorPickerSwatch label="Clock color" value={resolvedClockModeFontColor} fallback={DEFAULT_CLOCK_MODE_FONT_COLOR} disabled={!canUseCoreColorControls} onChange={(nextColor) => handleSettingsChange({ clockModeFontColor: nextColor })} className={styles.colorSwatchPicker} buttonClassName={styles.immersiveHeaderColorSwatchButton} />
+                  <ColorPickerSwatch label="Clock color" value={resolvedClockModeFontColor} fallback={DEFAULT_CLOCK_MODE_FONT_COLOR} onChange={(nextColor) => handleSettingsChange({ clockModeFontColor: nextColor })} className={styles.colorSwatchPicker} buttonClassName={styles.immersiveHeaderColorSwatchButton} />
                 </div>
               ) : null}
               <div className={styles.visualHeaderDraftActions} role="group" aria-label="Visual draft actions">
@@ -13709,11 +13689,10 @@ export function RunningTimer({
                 </div>
               ) : null}
               <div className={styles.clockCompactRow}>
-                <label className={styles.clockCompactField} title={customColorDisabledHint}>
+                <label className={styles.clockCompactField}>
                   <span>Font</span>
                   <select
                     value={clockFontFamily}
-                    disabled={!canUseCustomColors}
                     onChange={(event) =>
                       handleSettingsChange({
                         clockFontFamily: event.target.value as ChimerSettings["clockFontFamily"],
@@ -13769,15 +13748,14 @@ export function RunningTimer({
 
                 {!isClockMode ? (
                   <div className={styles.clockControlGrid}>
-                    <div className={styles.colorRow} title={customColorDisabledHint}>
+                    <div className={styles.colorRow}>
                       <span>Timer color</span>
-                      <ColorPickerInput value={primaryFontColor} disabled={!canUseCustomColors} onValueChange={(nextColor) => handleSettingsChange({ primaryFontColor: nextColor })} label="Timer color" />
+                      <ColorPickerInput value={primaryFontColor} onValueChange={(nextColor) => handleSettingsChange({ primaryFontColor: nextColor })} label="Timer color" />
                     </div>
-                    <div className={styles.colorRow} title={customColorDisabledHint}>
+                    <div className={styles.colorRow}>
                       <span>Secondary color</span>
                       <ColorPickerInput
                         value={secondaryFontColor}
-                        disabled={!canUseCustomColors}
                         onValueChange={(nextColor) =>
                           handleSettingsChange({
                             secondaryFontColor: nextColor,
@@ -13812,8 +13790,8 @@ export function RunningTimer({
                   ) : null}
                 </div>
 
-                <div className={styles.controlGroup} title={customColorDisabledHint}>
-                  <StyledToggleControl label="Clock drop shadow" checked={clockShadowEnabled} valueLabel={clockShadowEnabled ? "On" : "Off"} disabled={!canUseCustomColors} hapticsEnabled={hapticsEnabled} className={styles.controlGroupToggle} onCheckedChange={(value) => handleSettingsChange({ clockShadowEnabled: value })} />
+                <div className={styles.controlGroup}>
+                  <StyledToggleControl label="Clock drop shadow" checked={clockShadowEnabled} valueLabel={clockShadowEnabled ? "On" : "Off"} hapticsEnabled={hapticsEnabled} className={styles.controlGroupToggle} onCheckedChange={(value) => handleSettingsChange({ clockShadowEnabled: value })} />
                   {clockShadowEnabled ? (
                     <div className={styles.controlGroupBody}>
                       <div className={styles.clockControlGrid}>
@@ -13821,7 +13799,6 @@ export function RunningTimer({
                           <span>Shadow color</span>
                           <ColorPickerInput
                             value={clockShadowColor}
-                            disabled={!canUseCustomColors}
                             onValueChange={(nextColor) =>
                               handleSettingsChange({
                                 clockShadowColor: nextColor,
@@ -13830,7 +13807,7 @@ export function RunningTimer({
                             label="Clock shadow color"
                           />
                         </div>
-                        <StyledRangeControl label="Shadow strength" value={clockShadowStrength} min={0} max={1} step={0.05} displayValue={`${Math.round(clockShadowStrength * 100)}%`} disabled={!canUseCustomColors} hapticsEnabled={hapticsEnabled} onChange={(value) => handleSettingsChange({ clockShadowStrength: value })} />
+                        <StyledRangeControl label="Shadow strength" value={clockShadowStrength} min={0} max={1} step={0.05} displayValue={`${Math.round(clockShadowStrength * 100)}%`} hapticsEnabled={hapticsEnabled} onChange={(value) => handleSettingsChange({ clockShadowStrength: value })} />
                         <StyledRangeControl
                           label="Shadow direction"
                           value={clockShadowDirection}
@@ -13838,7 +13815,6 @@ export function RunningTimer({
                           max={360}
                           step={1}
                           displayValue={`${Math.round(clockShadowDirection)}°`}
-                          disabled={!canUseCustomColors}
                           hapticsEnabled={hapticsEnabled}
                           onChange={(value) =>
                             handleSettingsChange({
@@ -13846,15 +13822,15 @@ export function RunningTimer({
                             })
                           }
                         />
-                        <StyledRangeControl label="Shadow distance" value={clockShadowDistance} min={0} max={32} step={1} displayValue={`${Math.round(clockShadowDistance)}px`} disabled={!canUseCustomColors} hapticsEnabled={hapticsEnabled} onChange={(value) => handleSettingsChange({ clockShadowDistance: value })} />
-                        <StyledRangeControl label="Shadow feather" value={clockShadowFeather} min={0} max={32} step={1} displayValue={`${Math.round(clockShadowFeather)}px`} disabled={!canUseCustomColors} hapticsEnabled={hapticsEnabled} onChange={(value) => handleSettingsChange({ clockShadowFeather: value })} />
+                        <StyledRangeControl label="Shadow distance" value={clockShadowDistance} min={0} max={32} step={1} displayValue={`${Math.round(clockShadowDistance)}px`} hapticsEnabled={hapticsEnabled} onChange={(value) => handleSettingsChange({ clockShadowDistance: value })} />
+                        <StyledRangeControl label="Shadow feather" value={clockShadowFeather} min={0} max={32} step={1} displayValue={`${Math.round(clockShadowFeather)}px`} hapticsEnabled={hapticsEnabled} onChange={(value) => handleSettingsChange({ clockShadowFeather: value })} />
                       </div>
                     </div>
                   ) : null}
                 </div>
 
-                <div className={styles.controlGroup} title={customColorDisabledHint}>
-                  <StyledToggleControl label="Clock outer glow" checked={clockGlowEnabled} valueLabel={clockGlowEnabled ? "On" : "Off"} disabled={!canUseCustomColors} hapticsEnabled={hapticsEnabled} className={styles.controlGroupToggle} onCheckedChange={(value) => handleSettingsChange({ clockGlowEnabled: value })} />
+                <div className={styles.controlGroup}>
+                  <StyledToggleControl label="Clock outer glow" checked={clockGlowEnabled} valueLabel={clockGlowEnabled ? "On" : "Off"} hapticsEnabled={hapticsEnabled} className={styles.controlGroupToggle} onCheckedChange={(value) => handleSettingsChange({ clockGlowEnabled: value })} />
                   {clockGlowEnabled ? (
                     <div className={styles.controlGroupBody}>
                       <div className={styles.clockControlGrid}>
@@ -13862,7 +13838,6 @@ export function RunningTimer({
                           <span>Glow color</span>
                           <ColorPickerInput
                             value={clockGlowColor}
-                            disabled={!canUseCustomColors}
                             onValueChange={(nextColor) =>
                               handleSettingsChange({
                                 clockGlowColor: nextColor,
@@ -13871,7 +13846,7 @@ export function RunningTimer({
                             label="Clock outer glow color"
                           />
                         </div>
-                        <StyledRangeControl label="Glow strength" value={clockGlowStrength} min={0} max={1} step={0.05} displayValue={`${Math.round(clockGlowStrength * 100)}%`} disabled={!canUseCustomColors} hapticsEnabled={hapticsEnabled} onChange={(value) => handleSettingsChange({ clockGlowStrength: value })} />
+                        <StyledRangeControl label="Glow strength" value={clockGlowStrength} min={0} max={1} step={0.05} displayValue={`${Math.round(clockGlowStrength * 100)}%`} hapticsEnabled={hapticsEnabled} onChange={(value) => handleSettingsChange({ clockGlowStrength: value })} />
                       </div>
                     </div>
                   ) : null}

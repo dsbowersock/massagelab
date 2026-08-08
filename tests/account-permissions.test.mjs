@@ -71,7 +71,6 @@ describe("Account permission helpers", () => {
         canManageClients: true,
         canRequestCredentials: true,
         canUseLocalClinicalTools: false,
-        canUseChimerCustomColors: false,
         canUsePremiumBackgrounds: false,
         hasActiveMembershipBenefits: false,
         hostedClinicalSyncEnabled: false,
@@ -79,25 +78,18 @@ describe("Account permission helpers", () => {
     )
   })
 
-  it("adds feature-based capabilities without checking plan names in UI code", () => {
-    const customColorCapabilities = buildAccountCapabilities(
-      [{ role: "USER", status: "VERIFIED" }],
-      { features: [FEATURE_KEYS.chimerCustomColors] },
-    )
-    assert.equal(customColorCapabilities.canUseChimerCustomColors, true)
-    assert.equal(customColorCapabilities.canUsePremiumBackgrounds, false)
-    assert.equal(customColorCapabilities.hasActiveMembershipBenefits, true)
-    const premiumBackgroundCapabilities = buildAccountCapabilities(
+  it("derives active membership benefits from premium backgrounds", () => {
+    const capabilities = buildAccountCapabilities(
       [{ role: "USER", status: "VERIFIED" }],
       { features: [FEATURE_KEYS.premiumBackgrounds] },
     )
-    assert.equal(premiumBackgroundCapabilities.canUsePremiumBackgrounds, true)
-    assert.equal(premiumBackgroundCapabilities.canUseChimerCustomColors, false)
-    assert.equal(premiumBackgroundCapabilities.hasActiveMembershipBenefits, true)
+    assert.equal(capabilities.hasActiveMembershipBenefits, true)
+    assert.equal(Object.hasOwn(capabilities, "canUseChimerCustomColors"), false)
+    assert.equal(capabilities.canUsePremiumBackgrounds, true)
     assert.equal(
       buildAccountCapabilities([{ role: "LICENSED_THERAPIST", status: "VERIFIED" }], {
         features: [FEATURE_KEYS.therapistDocumentationTools],
-      }).canUseLocalClinicalTools,
+      }).hasActiveMembershipBenefits,
       true,
     )
   })

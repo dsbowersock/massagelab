@@ -4,6 +4,7 @@ import {
 } from "../components/backgrounds/backgroundPaletteRegistry.ts"
 import {
   backgroundRegistry,
+  canUseBackgroundId,
   userCanUseBackground,
   type BackgroundAccessSnapshot,
 } from "../components/backgrounds/backgroundRegistry.ts"
@@ -22,8 +23,10 @@ export function sanitizeAccessibleChimerSettings(
 ) {
   const candidateSettings = objectRecord(input)
   const options = {
-    canUseAccountColorControls: true,
     backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
+    // Keep server hydration on the same registry-backed use decision as the
+    // Chimer picker, including enabled free backgrounds and owned entries.
+    canUseSelectedBackground: (backgroundId: string) => canUseBackgroundId(backgroundId, access),
   }
   const canonicalSettings = sanitizeChimerSettingsForEntitlements(
     candidateSettings,

@@ -419,8 +419,9 @@ test("shared background access and palette resolver inputs stay authoritative an
   assert.match(runningSource, /const effectiveBackgroundPalette = useMemo/)
   assert.match(
     runningSource,
-    /const ACCOUNT_COLOR_SETTING_KEYS = new Set\(\["clockModeFontColor"\]\)/,
+    /const canCustomizeSelectedBackground = canCustomizeBackgroundColors\(/,
   )
+  assert.doesNotMatch(runningSource, /canUseCustomColors|canUseAccountColorControls/)
   assert.match(hostSource, /access: BackgroundAccessSnapshot/)
   assert.match(hostSource, /resolveAccessibleBackgroundDefinition\(selectedId, access, category\)/)
   assert.match(hostSource, /const effectPropsInputSignature = JSON\.stringify/)

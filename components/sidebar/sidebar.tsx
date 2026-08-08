@@ -158,9 +158,5 @@ function featureKeysFromCapabilities(capabilities?: Record<string, boolean> | nu
     featureKeys.push(FEATURE_KEYS.therapistDocumentationTools)
   }
 
-  if (capabilities?.canUseChimerCustomColors) {
-    featureKeys.push(FEATURE_KEYS.chimerCustomColors)
-  }
-
   return featureKeys
 }

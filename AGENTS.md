@@ -13,7 +13,7 @@ Read these files first, in order:
 - Treat `docs/roadmap.md`, `TODO.md`, audits, and wiki pages as source evidence unless their status is mirrored into the current state or project log.
 - Keep clinical notes, intake forms, journals, ROM sessions, and other PHI-bearing workflows local-first unless hosted clinical storage passes the documented compliance gates.
 - Do not document secrets, database rows, credentials, connection strings, or `.env.local` values.
-- Use feature-key entitlement checks such as `chimer_custom_colors`; do not branch product behavior on displayed plan names.
+- Use feature-key entitlement checks such as `premium_backgrounds`; customization follows the canonical selected-background access decision, never displayed plan names.
 - Prefer targeted, branch-sized changes over broad cleanup.
 - Add detailed implementation plans under `docs/superpowers/plans/` when a task spans multiple subsystems or needs future agent handoff.
 - For every branch, add useful docstrings/JSDoc or focused comments when writing new or changed non-obvious code, especially shared helpers, domain rules, server actions, data adapters, and scripts. Treat this as current branch work, not something to defer entirely to the later repo-wide docstring cleanup. Keep documentation focused on intent, inputs, outputs, and constraints; avoid noisy comments that restate self-explanatory code.

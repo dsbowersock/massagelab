@@ -21,11 +21,22 @@ describe("Membership and entitlement helpers", () => {
 
     assert.equal(entitlements.level, "FREE")
     assert.deepEqual(entitlements.features, [FEATURE_KEYS.calendarBasicScheduling])
-    assert.equal(entitlements.hasFeature(FEATURE_KEYS.chimerCustomColors), false)
     assert.equal(entitlements.hasFeature(FEATURE_KEYS.premiumBackgrounds), false)
     assert.equal(membership.hasPremiumBackgroundAccess(entitlements.features), false)
     assert.equal(entitlements.hasFeature(FEATURE_KEYS.calendarBasicScheduling), true)
     assert.equal(entitlements.hasFeature(FEATURE_KEYS.calendarFullScheduling), false)
+  })
+
+  it("does not issue the retired custom-color entitlement", () => {
+    const active = buildEntitlements({
+      subscriptions: [{ status: "active", membershipLevel: "SUPPORTER" }],
+    })
+
+    assert.deepEqual(active.features, [
+      FEATURE_KEYS.calendarBasicScheduling,
+      FEATURE_KEYS.premiumBackgrounds,
+    ])
+    assert.equal(active.features.includes("chimer_custom_colors"), false)
   })
 
   it("grants documentation tools and calendar scheduling depth to Therapist and Team/Practice memberships", () => {
@@ -53,9 +64,7 @@ describe("Membership and entitlement helpers", () => {
     })
 
     assert.equal(active.level, "THERAPIST")
-    assert.equal(active.hasFeature(FEATURE_KEYS.chimerCustomColors), true)
     assert.equal(active.hasFeature(FEATURE_KEYS.premiumBackgrounds), true)
-    assert.equal(membership.hasPremiumBackgroundAccess([FEATURE_KEYS.chimerCustomColors]), false)
     assert.equal(active.hasFeature(FEATURE_KEYS.therapistDocumentationTools), true)
     assert.equal(active.hasFeature(FEATURE_KEYS.calendarFullScheduling), true)
     assert.equal(active.hasFeature(FEATURE_KEYS.externalCalendarSync), true)
@@ -66,11 +75,9 @@ describe("Membership and entitlement helpers", () => {
     assert.equal(teamPractice.hasFeature(FEATURE_KEYS.calendarTeamScheduling), true)
     assert.equal(pastDue.level, "FREE")
     assert.equal(pastDue.hasFeature(FEATURE_KEYS.therapistDocumentationTools), false)
-    assert.equal(pastDue.hasFeature(FEATURE_KEYS.chimerCustomColors), false)
     assert.equal(pastDue.hasFeature(FEATURE_KEYS.premiumBackgrounds), false)
     assert.equal(canceled.level, "FREE")
     assert.equal(canceled.hasFeature(FEATURE_KEYS.therapistDocumentationTools), false)
-    assert.equal(canceled.hasFeature(FEATURE_KEYS.chimerCustomColors), false)
     assert.equal(isActiveSubscriptionStatus("trialing"), true)
     assert.equal(isActiveSubscriptionStatus("incomplete"), false)
   })
@@ -88,7 +95,6 @@ describe("Membership and entitlement helpers", () => {
       now: new Date("2026-05-15T00:00:00.000Z"),
     })
 
-    assert.equal(supporter.hasFeature(FEATURE_KEYS.chimerCustomColors), true)
     assert.equal(supporter.hasFeature(FEATURE_KEYS.premiumBackgrounds), true)
     for (const featureKey of [
       FEATURE_KEYS.therapistDocumentationTools,

@@ -258,11 +258,6 @@ describe("premium background registry", () => {
         }).id,
         backgroundId,
       )
-      assert.equal(
-        resolveAccessibleBackgroundDefinition(backgroundId, [FEATURE_KEYS.chimerCustomColors]).id,
-        DEFAULT_BACKGROUND_ID,
-      )
-
       const retainedWhileHydrating = resolveAuthoritativeBackgroundOwnership([backgroundId], undefined)
       assert.equal(canUseBackgroundId(backgroundId, { featureKeys: [], ownedBackgroundIds: retainedWhileHydrating }), true)
 
@@ -378,10 +373,6 @@ describe("premium background registry", () => {
         backgroundId,
       )
       assert.equal(
-        resolveAccessibleBackgroundDefinition(backgroundId, [FEATURE_KEYS.chimerCustomColors]).id,
-        DEFAULT_BACKGROUND_ID,
-      )
-      assert.equal(
         resolveAccessibleBackgroundDefinition(backgroundId, {
           ownedBackgroundIds: [backgroundId],
         }).id,
@@ -390,8 +381,8 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps premium use independent from the custom-color feature", () => {
-    assert.equal(hasPremiumBackgroundAccess([FEATURE_KEYS.chimerCustomColors]), false)
+  it("requires premium-background access for premium background use", () => {
+    assert.equal(hasPremiumBackgroundAccess([]), false)
     assert.equal(hasPremiumBackgroundAccess([FEATURE_KEYS.premiumBackgrounds]), true)
   })
 
@@ -5994,6 +5985,7 @@ describe("premium background registry", () => {
   })
 
   it("aligns editor and renderer customization with selected-background access", () => {
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const hostSource = readFileSync(
       new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
       "utf8",
@@ -6003,7 +5995,8 @@ describe("premium background registry", () => {
       runningTimerSource,
       /canCustomizeBackgroundColors\(\{[\s\S]*hasBackgroundAccess:\s*userCanUseBackground\(/,
     )
-    assert.doesNotMatch(runningTimerSource, /<BackgroundHost[\s\S]*canUseAccountColorControls=/)
+    assert.doesNotMatch(runningTimerSource, /canUseCustomColors|canUseAccountColorControls|Subscribe to unlock advanced custom color controls|Sign in to set clock and Lamp colors/)
+    assert.doesNotMatch(pageSource, /canUseCustomColors|canUseAccountColorControls/)
     assert.match(
       hostSource,
       /canCustomizeBackgroundColors\(\{[\s\S]*hasBackgroundAccess:\s*userCanUseBackground\(entry,\s*access\)/,
