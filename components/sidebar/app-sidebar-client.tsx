@@ -93,6 +93,10 @@ export type SidebarUser = {
   }
 } | null
 
+/**
+ * Renders the shared ownership notice for both sidebar footer surfaces.
+ * Callers control collapsed-state visibility through `className`.
+ */
 function ProprietaryCopyrightNotice({ className }: { className?: string }): React.JSX.Element {
   return (
     <p
