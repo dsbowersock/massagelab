@@ -236,6 +236,7 @@ Expected: exit code `0` with no ESLint errors.
 Run:
 
 ```powershell
+git add -N -- LICENSE tests/proprietary-license.test.mjs
 git diff --check
 git status --short
 git diff -- LICENSE README.md package.json components/sidebar/app-sidebar-client.tsx tests/proprietary-license.test.mjs
