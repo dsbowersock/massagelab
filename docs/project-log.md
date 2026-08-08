@@ -6,6 +6,13 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `Massage Laba Lamp` is the approved catalog label for the original free moving-gradient default. `MassageLaba Lamp` and general prose that says `MassageLab Lamp` are legacy references to that same stable `massage-lab-moving-gradient` entry, not separate backgrounds.
 
+## 2026-08-08 — Admin authorization and audit foundation
+
+- Split delegated anatomy authority into `ANATOMY_REVIEWER` and `ANATOMY_EDITOR`, retained `ADMIN` as the only full account/commerce administrator, and normalized the retired `ANATOMY_ADMIN` role to Editor. Administrative access now reloads verified assignments from the database; session claims provide identity but do not grant authority.
+- Added immutable admin-action, target-visible account-activity, and durable account-change email-intent records with target-consistent foreign keys, bounded safe metadata, transactional bundle creation, idempotent replay checks, serialized delivery/retry attempts, and explicit full-Admin retry authorization. Password-reset delivery remains outside this support-email path.
+- Made `/admin` capability-aware: Reviewers receive the anatomy review queue and review metrics, Editors also receive the full anatomy browser and editor metrics, and full Admin receives User-operations status plus Commerce. The page loads one fresh actor and skips metrics for hidden sections; every linked destination still performs its own guard.
+- Added the [Admin user operations](wiki/admin-user-operations.md) runbook. Branch 3's user directory and support actions remain the next serial branch and must start only after this Branch 2 PR merges and a new worktree refreshes from `main`.
+
 ## 2026-08-08 — Source-visible proprietary licensing
 
 - Established MassageLab as source-visible proprietary software, not open-source software, while keeping the repository public for CodeRabbit and source inspection. Public visibility grants no permission to reuse, modify, or redistribute MassageLab-owned source code or assets.

@@ -205,7 +205,10 @@ it("keeps every commerce server action independently authorized and Stripe-free"
   assert.match(detailPage, /requireCommerceAdminUser/)
   assert.doesNotMatch(listPage + detailPage, /"use client"/)
   assert.match(adminPage, /Commerce/)
-  assert.match(adminPage, /canAdministerAccounts|getCommerceAdminUser/)
+  assert.match(adminPage, /loadAdminActor/)
+  assert.match(adminPage, /dashboardSections/)
+  assert.match(adminPage, /visible\.has\("commerce"\)/)
+  assert.match(adminPage, /listCommerceAdminOperations/)
 })
 
 it("returns the reconciliation result only after authorization and revalidation", async () => {
