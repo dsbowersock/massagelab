@@ -59,4 +59,6 @@ See [docs/wiki/local-development.md](docs/wiki/local-development.md) for setup a
 
 ## License
 
-MassageLab is under active private-alpha development. License and contribution terms should be finalized before wider public contribution.
+Copyright © 2025–2026 Derrick Bowersock, doing business as Massage Lab. All rights reserved.
+
+MassageLab is source-visible proprietary software, not open-source software. Public access to this repository does not grant permission to reuse, modify, or redistribute MassageLab-owned source code or assets. See [LICENSE](LICENSE) for the complete terms.

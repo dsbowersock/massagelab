@@ -6,6 +6,12 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `Massage Laba Lamp` is the approved catalog label for the original free moving-gradient default. `MassageLaba Lamp` and general prose that says `MassageLab Lamp` are legacy references to that same stable `massage-lab-moving-gradient` entry, not separate backgrounds.
 
+## 2026-08-08 — Source-visible proprietary licensing
+
+- Established MassageLab as source-visible proprietary software, not open-source software, while keeping the repository public for CodeRabbit and source inspection. Public visibility grants no permission to reuse, modify, or redistribute MassageLab-owned source code or assets.
+- Added the root proprietary `LICENSE` for Copyright © 2025–2026 Derrick Bowersock, doing business as Massage Lab; replaced the provisional README copy; added the compact ownership notice to expanded and drawer sidebar footers; and marked both package manifests `UNLICENSED`.
+- Added a focused repository contract test covering the license terms, canonical README notice, package metadata, and both responsive footer placements. Third-party components remain governed by their own license terms, and no repository-visibility setting changed.
+
 ## 2026-08-07 — Background initiative closeout and returning-tab access recovery
 
 - Consolidated the long-form Chimer snapshot around the shipped stable-ID branding catalog and active immutable R2 preview release. Removed the obsolete MassageLab-prefixed label inventory and the superseded lightweight-WebM description so the canonical state now matches the approved 84-background naming layer, poster-first behavior, five-card motion window, truthful static entries, and loop-boundary adaptation already verified in Production.
