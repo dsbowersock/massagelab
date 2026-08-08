@@ -637,7 +637,7 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
             Membership
           </CardTitle>
           <CardDescription>
-            Free Chimer color controls are available to everyone. Active Supporter membership includes every premium background and Supporter account status.
+            Free Chimer color controls apply to every background you can access. Active Supporter membership includes every premium background and Supporter account status.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

@@ -39,14 +39,14 @@ describe("development Clock review route", () => {
   it("keeps the retired custom-color contract out of runtime sources", async () => {
     const sources = await Promise.all([
       "../app/chimer/page.tsx",
+      "../app/chimer/running-timer.tsx",
       "../app/account/page.tsx",
       "../components/sidebar/sidebar.tsx",
-      "../lib/chimer-timer.js",
       "../auth.ts",
     ].map((path) => readFile(new URL(path, import.meta.url), "utf8")))
 
     for (const source of sources) {
-      assert.doesNotMatch(source, /chimerCustomColors|chimer_custom_colors|canUseChimerCustomColors/)
+      assert.doesNotMatch(source, /chimerCustomColors|chimer_custom_colors|canUseChimerCustomColors|canUseCustomColors|canUseAccountColorControls/)
     }
   })
 

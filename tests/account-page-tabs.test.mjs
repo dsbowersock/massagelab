@@ -221,6 +221,7 @@ describe("Account page tab model", () => {
       (element) => element.type === "status-tile",
     ).map((element) => element.props)
 
+    assert.match(text, /free Chimer color controls apply to every background you can access/i)
     assert.match(text, /every premium background/i)
     assert.ok(statusTiles.some(({ label, value }) => label === "Premium backgrounds" && value === "Included"))
     assert.ok(statusTiles.every(({ label }) => label !== "Saved Chimer colors"))

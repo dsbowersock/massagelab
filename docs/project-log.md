@@ -28,7 +28,7 @@ Catalog naming note: `Massage Laba Lamp` is the approved catalog label for the o
 
 ## 2026-08-08 — Retired custom-color entitlement
 
-- Superseded the former `chimer_custom_colors` gate. Active subscriptions now sell premium-background access only; Chimer's non-background display colors are unrestricted, and free, subscribed, or permanently owned backgrounds expose their supported color controls through the canonical selected-background access decision.
+- Superseded the former `chimer_custom_colors` gate. Active subscriptions now sell premium-background access only; Chimer colors are unrestricted except that free, subscribed, or permanently owned backgrounds expose their supported color controls through the canonical selected-background access decision.
 - Removed the obsolete entitlement and session capability from membership, account, sidebar, Chimer, Clock-review, and preference-sanitization paths. Existing saved palettes and Clock/Lamp settings remain intact; only a selected premium background without current access remains restricted.
 
 ## 2026-08-07 — Background preview publication gate prepared

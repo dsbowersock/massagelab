@@ -5985,6 +5985,7 @@ describe("premium background registry", () => {
   })
 
   it("aligns editor and renderer customization with selected-background access", () => {
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const hostSource = readFileSync(
       new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
       "utf8",
@@ -5994,7 +5995,8 @@ describe("premium background registry", () => {
       runningTimerSource,
       /canCustomizeBackgroundColors\(\{[\s\S]*hasBackgroundAccess:\s*userCanUseBackground\(/,
     )
-    assert.doesNotMatch(runningTimerSource, /<BackgroundHost[\s\S]*canUseAccountColorControls=/)
+    assert.doesNotMatch(runningTimerSource, /canUseCustomColors|canUseAccountColorControls|Subscribe to unlock advanced custom color controls|Sign in to set clock and Lamp colors/)
+    assert.doesNotMatch(pageSource, /canUseCustomColors|canUseAccountColorControls/)
     assert.match(
       hostSource,
       /canCustomizeBackgroundColors\(\{[\s\S]*hasBackgroundAccess:\s*userCanUseBackground\(entry,\s*access\)/,

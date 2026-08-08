@@ -2217,8 +2217,6 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
             hexGridActivePercent={settings.hexGridActivePercent}
             hexGridOpacity={settings.hexGridOpacity}
             {...(visualDraftPropertyOverrides ?? {})}
-            canUseCustomColors
-            canUseAccountColorControls
             committedSettings={settings}
             backgroundVisualPreferences={settings.backgroundVisualPreferences}
             backgroundPreferenceSyncStatus={backgroundPreferenceSync.status}
