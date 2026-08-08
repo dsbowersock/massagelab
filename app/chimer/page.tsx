@@ -247,9 +247,6 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
       transientOwnedBackgroundIds,
     ],
   )
-  const canUseCustomColors = true
-  const canUseAccountColorControls = true
-
   const timerInterval = useRef<ReturnType<typeof setInterval> | null>(null)
   const alertTimeout = useRef<number | null>(null)
   const timerStateRef = useRef(timerState)
@@ -742,7 +739,7 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
         wakeLockRequestRef.current = null
       }
     })
-  }, [])
+  }, [setWakeLockMessage])
 
   useEffect(() => {
     shouldKeepWakeLockRef.current = shouldKeepScreenAwake
@@ -790,7 +787,7 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
       setIsAlerting(false)
       alertTimeout.current = null
     }, 350)
-  }, [])
+  }, [setIsAlerting])
 
   const getAudioContext = useCallback(() => {
     if (audioContextRef.current) {
@@ -866,7 +863,7 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
     secondTone.connect(gain)
     secondTone.start(now + 0.28)
     secondTone.stop(now + 0.9)
-  }, [])
+  }, [setError])
 
   const triggerAlert = useCallback(() => {
     const currentSettings = settingsRef.current
@@ -900,7 +897,7 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
     setTimerState(completedState)
     setRunWithoutAnimatedBackground(false)
     triggerAlert()
-  }, [clearTimerInterval, triggerAlert])
+  }, [clearTimerInterval, setRunWithoutAnimatedBackground, setTimerState, triggerAlert])
 
   const tick = useCallback(() => {
     const state = timerStateRef.current
@@ -939,7 +936,7 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
     if (shouldAlert) {
       triggerAlert()
     }
-  }, [completeActiveTimer, triggerAlert])
+  }, [completeActiveTimer, setTimerState, triggerAlert])
 
   const startTicking = useCallback(() => {
     clearTimerInterval()
@@ -970,7 +967,6 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
       nextSettings,
       accessOverride ?? backgroundAccessRef.current,
       {
-        canUseAccountColorControls,
         backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
       },
     ) as ChimerSettings
@@ -1062,7 +1058,6 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
       visualPropertyKeysByBackground,
       backgroundVisualPreferences,
     }, accessOverride ?? backgroundAccessRef.current, {
-      canUseAccountColorControls,
       backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
     }) as ChimerSettings
     const requestId = backgroundPreferenceRequestIdRef.current + 1
@@ -1103,7 +1098,7 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
     ) as BackgroundPreferenceSyncState
     setBackgroundPreferenceSync(pending)
     accountPreferenceSyncRouter.visualRetry(pending)
-  }, [accountPreferenceSyncRouter, backgroundPreferenceSync])
+  }, [accountPreferenceSyncRouter, backgroundPreferenceSync, setBackgroundPreferenceSync])
 
   const openTimeModal = (unit: "hours" | "minutes") => {
     setSelectedTimeUnit(unit)
@@ -1319,7 +1314,7 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
       setTimerState(resumedState)
       startTicking()
     }
-  }, [clearTimerInterval, startTicking])
+  }, [clearTimerInterval, setTimerState, startTicking])
 
   const getCurrentActiveRemainingMs = (state: TimerState, now: number) => (
     state.status === "running" && state.endsAtMs ? Math.max(0, state.endsAtMs - now) : state.remainingMs
@@ -1361,7 +1356,7 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
 
     timerStateRef.current = nextState
     setTimerState(nextState)
-  }, [completeActiveTimer])
+  }, [completeActiveTimer, setTimerState])
 
   const adjustActiveRemainingMinutes = useCallback((deltaMinutes: number) => {
     const state = timerStateRef.current
@@ -2207,8 +2202,8 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
             hexGridActivePercent={settings.hexGridActivePercent}
             hexGridOpacity={settings.hexGridOpacity}
             {...(visualDraftPropertyOverrides ?? {})}
-            canUseCustomColors={canUseCustomColors}
-            canUseAccountColorControls={canUseAccountColorControls}
+            canUseCustomColors
+            canUseAccountColorControls
             committedSettings={settings}
             backgroundVisualPreferences={settings.backgroundVisualPreferences}
             backgroundPreferenceSyncStatus={backgroundPreferenceSync.status}
