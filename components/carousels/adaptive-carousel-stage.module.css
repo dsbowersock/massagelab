@@ -95,6 +95,36 @@
   flex: 0 0 auto;
 }
 
+.controls {
+  min-width: 0;
+}
+
+.root[data-surface="backgrounds"][data-has-custom-controls="true"] {
+  display: grid;
+  grid-template-areas:
+    "stage"
+    "controls";
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-height: 0;
+  height: 100%;
+}
+
+.root[data-surface="backgrounds"][data-has-custom-controls="true"] .stage {
+  grid-area: stage;
+  align-self: center;
+}
+
+.root[data-surface="backgrounds"][data-has-custom-controls="true"] .controls {
+  grid-area: controls;
+}
+
+.root[data-surface="backgrounds"][data-has-custom-controls="true"][data-carousel-responsive-profile="short-landscape"] {
+  grid-template-areas: "stage controls";
+  grid-template-columns: minmax(0, 1fr) minmax(12.5rem, 17rem);
+  grid-template-rows: minmax(0, 1fr);
+  gap: 0.75rem;
+}
+
 .status {
   position: absolute;
   width: 1px;

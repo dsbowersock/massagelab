@@ -29,11 +29,11 @@ const viewportProfileLabels = Object.freeze({
 })
 
 export const BACKGROUND_CAROUSEL_PROFILE_DEFAULTS = Object.freeze({
-  "phone-portrait": Object.freeze({ cardWidth: 164, cardHeight: 312, spread: 22 }),
-  "short-landscape": Object.freeze({ cardWidth: 200, cardHeight: 240, spread: 26 }),
-  tablet: Object.freeze({ cardWidth: 220, cardHeight: 304, spread: 29 }),
-  "compact-desktop": Object.freeze({ cardWidth: 256, cardHeight: 360, spread: 33 }),
-  "wide-landscape": Object.freeze({ cardWidth: 280, cardHeight: 388, spread: 36 }),
+  "phone-portrait": Object.freeze({ cardWidth: 164, cardHeight: 312, spread: 22, visibleRadius: 2 }),
+  "short-landscape": Object.freeze({ cardWidth: 200, cardHeight: 240, spread: 26, visibleRadius: 1 }),
+  tablet: Object.freeze({ cardWidth: 220, cardHeight: 304, spread: 29, visibleRadius: 2 }),
+  "compact-desktop": Object.freeze({ cardWidth: 256, cardHeight: 360, spread: 33, visibleRadius: 2 }),
+  "wide-landscape": Object.freeze({ cardWidth: 280, cardHeight: 388, spread: 36, visibleRadius: 2 }),
 })
 
 export const BACKGROUND_CAROUSEL_BASE_TUNING = Object.freeze({
@@ -101,7 +101,6 @@ export function getResponsiveBackgroundCarouselTuning(profile, overrides = {}) {
     ...(BACKGROUND_CAROUSEL_PROFILE_DEFAULTS[profile]
       ?? BACKGROUND_CAROUSEL_PROFILE_DEFAULTS["compact-desktop"]),
     gap: 0,
-    visibleRadius: 2,
     radius: 420,
     scaleFalloff: 0.08,
   })
