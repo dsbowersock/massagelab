@@ -5,7 +5,6 @@ export type AccountSurfaceSessionUser = {
   roles?: Array<AccountRole | string> | null
   roleAssignments?: Array<{ role: AccountRole | string; status: VerificationStatus | string }> | null
   capabilities?: {
-    canUseChimerCustomColors?: boolean
     canUsePremiumBackgrounds?: boolean
     hasActiveMembershipBenefits?: boolean
   }
