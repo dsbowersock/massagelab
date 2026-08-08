@@ -76,6 +76,25 @@ function createAccessDatabase({
   return { database, state }
 }
 
+/** Builds the canonical access state for each approved color-access matrix row. */
+function buildAccessDatabase(fixture) {
+  switch (fixture) {
+    case "subscription":
+      return createAccessDatabase({
+        subscriptions: [{ status: "active", membershipLevel: "SUPPORTER", currentPeriodEnd: null }],
+      }).database
+    case "purchase":
+      return createAccessDatabase({ ownership: { status: "ACTIVE", source: "PURCHASE" } }).database
+    case "credit":
+      return createAccessDatabase({ ownership: { status: "ACTIVE", source: "CREDIT_REDEMPTION" } }).database
+    case "locked":
+    case "free":
+      return createAccessDatabase().database
+    default:
+      throw new Error(`Unknown access fixture: ${fixture}`)
+  }
+}
+
 async function resolve(database, backgroundId = PREMIUM_BACKGROUND) {
   return resolveBackgroundAccessForUser({
     prismaClient: database,
@@ -85,6 +104,26 @@ async function resolve(database, backgroundId = PREMIUM_BACKGROUND) {
 }
 
 describe("canonical background access", () => {
+  it("aligns color customization with canonical selected-background access", async () => {
+    const colorAccessMatrix = [
+      { name: "free background", fixture: "free", expected: true },
+      { name: "subscribed premium background", fixture: "subscription", expected: true },
+      { name: "purchased premium background", fixture: "purchase", expected: true },
+      { name: "credit-owned premium background", fixture: "credit", expected: true },
+      { name: "locked premium background", fixture: "locked", expected: false },
+    ]
+
+    for (const entry of colorAccessMatrix) {
+      const decision = await resolveBackgroundAccessForUser({
+        prismaClient: buildAccessDatabase(entry.fixture),
+        userId: "user-1",
+        backgroundId: entry.fixture === "free" ? "static-gradient" : "massage-lab-silk",
+      })
+      assert.equal(decision.canUse, entry.expected, entry.name)
+      assert.equal(decision.canCustomizeColors, entry.expected, entry.name)
+    }
+  })
+
   it("always enables an enabled free background without inventing permanent ownership", async () => {
     const { database } = createAccessDatabase({ balance: 2 })
 

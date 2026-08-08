@@ -22,7 +22,7 @@ describe("development Clock review route", () => {
 
     assert.match(
       source,
-      /const DEV_CLOCK_FEATURE_KEYS = \[\s*FEATURE_KEYS\.premiumBackgrounds,\s*FEATURE_KEYS\.chimerCustomColors,\s*\]/,
+      /const DEV_CLOCK_FEATURE_KEYS = \[\s*FEATURE_KEYS\.premiumBackgrounds,\s*\]/,
     )
     assert.match(source, /const DEV_CLOCK_STORAGE_KEY = "massagelab-dev-clock-settings"/)
     assert.match(
@@ -34,6 +34,20 @@ describe("development Clock review route", () => {
       /if \(developmentSubscriberReview\) \{[\s\S]*setCanSync\(false\)[\s\S]*setAccountSyncStatus\("synced"\)[\s\S]*\} else \{\s*requestAccountSync\(\)/,
     )
     assert.match(source, /localStorage\.setItem\(storageKey/)
+  })
+
+  it("keeps the retired custom-color contract out of runtime sources", async () => {
+    const sources = await Promise.all([
+      "../app/chimer/page.tsx",
+      "../app/chimer/running-timer.tsx",
+      "../app/account/page.tsx",
+      "../components/sidebar/sidebar.tsx",
+      "../auth.ts",
+    ].map((path) => readFile(new URL(path, import.meta.url), "utf8")))
+
+    for (const source of sources) {
+      assert.doesNotMatch(source, /chimerCustomColors|chimer_custom_colors|canUseChimerCustomColors|canUseCustomColors|canUseAccountColorControls/)
+    }
   })
 
   it("uses the Clock shell and stays anonymous when local auth is unconfigured", async () => {

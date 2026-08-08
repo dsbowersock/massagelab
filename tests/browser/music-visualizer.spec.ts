@@ -106,11 +106,19 @@ async function openVisualizerFromPlayer(page: Page) {
   await expect(page.getByLabel("Music visualizer")).toBeVisible()
 }
 
-async function selectStaticGradient(page: Page) {
+/** Selects or confirms the persisted free static-gradient card through its visible picker action. */
+async function selectStaticGradient(page: Page, expectSelected = false) {
   const dialog = page.getByRole("dialog", { name: "Background" })
   await expect(dialog).toBeVisible()
   await centerCarouselItem(page, "static-gradient", "Next background")
-  await dialog.getByRole("button", { name: "Select In Transition background" }).click()
+  const action = dialog.getByRole("button", {
+    name: /^(?:Select|Selected) In Transition background$/,
+  })
+  await expect(action).toHaveAccessibleName(
+    expectSelected ? "Selected In Transition background" : "Select In Transition background",
+  )
+  await expect(action).toBeEnabled()
+  await action.click()
   await expect(dialog).toHaveCount(0)
   await expect(page.getByTestId("chimer-premium-background")).toHaveAttribute(
     "data-background-id",
@@ -637,20 +645,20 @@ test("Visual hint is one-time, pre-seen aware, and resilient to denied storage",
   await page.addInitScript((key) => localStorage.removeItem(key), VISUAL_PANEL_OPENED_STORAGE_KEY)
   await openClock(page)
   await page.getByRole("button", { name: "Background", exact: true }).click()
-  await selectNextAvailableBackground(page)
+  await selectStaticGradient(page)
   await expect(page.getByRole("status", { name: "Customize this background in Visual." })).toBeVisible()
 
   await page.getByRole("button", { name: "Visual", exact: true }).click()
   await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), VISUAL_PANEL_OPENED_STORAGE_KEY)).toBe("1")
   await page.getByRole("button", { name: "Close Visual panel" }).click()
   await page.getByRole("button", { name: "Background", exact: true }).click()
-  await selectNextAvailableBackground(page)
+  await selectStaticGradient(page, true)
   await expect(page.getByText("Customize this background in Visual.")).toHaveCount(0)
 
   await page.evaluate((key) => localStorage.setItem(key, "1"), VISUAL_PANEL_OPENED_STORAGE_KEY)
   await page.reload({ waitUntil: "domcontentloaded" })
   await page.getByRole("button", { name: "Background", exact: true }).click()
-  await selectNextAvailableBackground(page)
+  await selectStaticGradient(page, true)
   await expect(page.getByText("Customize this background in Visual.")).toHaveCount(0)
 })
 

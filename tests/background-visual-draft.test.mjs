@@ -655,7 +655,7 @@ test("owned-only Music Apply retains visual properties without changing canonica
   assert.equal(committed.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
   assert.equal(committed.massageLabStarsSpeed, 72)
   assert.equal(committed.backgroundVisualPreferences.palette.mode, "custom")
-  assert.equal(committed.primaryFontColor, DEFAULT_CHIMER_SETTINGS.primaryFontColor)
+  assert.equal(committed.primaryFontColor, "#040506")
 })
 
 test("setup selection preserves owned source tuning while selecting a free canonical background", () => {

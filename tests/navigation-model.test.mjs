@@ -254,7 +254,7 @@ describe("Navigation IA model", () => {
     const supporterNavigation = resolveNavigation({
       authState: "signed-in",
       roleAssignments: [{ role: "USER", status: "VERIFIED" }],
-      featureKeys: [FEATURE_KEYS.calendarBasicScheduling, FEATURE_KEYS.chimerCustomColors],
+      featureKeys: [FEATURE_KEYS.calendarBasicScheduling],
     })
     const studentNavigation = resolveNavigation({
       authState: "signed-in",

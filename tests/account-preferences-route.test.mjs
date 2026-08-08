@@ -134,7 +134,7 @@ function assertOwnedOnlySnapshot(settings) {
   assert.equal(settings.backgroundId, ownedBackgroundId)
   assert.equal(settings.massageLabStarsSpeed, 72)
   assert.equal(settings.backgroundVisualPreferences.palette.mode, "custom")
-  assert.equal(settings.primaryFontColor, DEFAULT_CHIMER_SETTINGS.primaryFontColor)
+  assert.equal(settings.primaryFontColor, "#010203")
 }
 
 function unownedSettings() {

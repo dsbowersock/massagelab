@@ -86,7 +86,6 @@ const sessionUser = {
   roles: ["USER"],
   roleAssignments: [{ role: "USER", status: "VERIFIED" }],
   capabilities: {
-    canUseChimerCustomColors: false,
     canUsePremiumBackgrounds: false,
     hasActiveMembershipBenefits: false,
   },
@@ -94,12 +93,9 @@ const sessionUser = {
 }
 
 describe("account surface data loader", () => {
-  it("uses legacy feature claims only when the aggregate membership claim is absent", () => {
+  it("uses the legacy premium-background claim only when the aggregate membership claim is absent", () => {
     assert.equal(sessionHasActiveMembershipBenefits({
       capabilities: { canUsePremiumBackgrounds: true },
-    }), true)
-    assert.equal(sessionHasActiveMembershipBenefits({
-      capabilities: { canUseChimerCustomColors: true },
     }), true)
     assert.equal(sessionHasActiveMembershipBenefits({
       capabilities: {
@@ -138,7 +134,6 @@ describe("account surface data loader", () => {
     const legacySessionUser = {
       ...sessionUser,
       capabilities: {
-        canUseChimerCustomColors: false,
         canUsePremiumBackgrounds: true,
       },
     }

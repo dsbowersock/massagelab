@@ -258,7 +258,6 @@ function defaultAccountCapabilities(role: AccountRole): AccountCapabilities {
     canManageClients: false,
     canRequestCredentials: true,
     canUseLocalClinicalTools: false,
-    canUseChimerCustomColors: false,
     canUsePremiumBackgrounds: false,
     hasActiveMembershipBenefits: false,
     hostedClinicalSyncEnabled: false,
