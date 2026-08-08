@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
   loadAdminActor,
+  loadAnatomyReviewerActor,
   requireAnatomyEditorUser,
   requireAnatomyReviewerUser,
   requireFullAdminUser,
@@ -81,6 +82,26 @@ describe("fresh administrative actor access", () => {
           await assert.rejects(operation)
         }
       }
+    }
+  })
+
+  it("returns a nullable reviewer actor for API and public-page authorization", async () => {
+    const database = createDatabase()
+    const cases = [
+      [null, false],
+      ["unverified", false],
+      ["pending", false],
+      ["revoked", false],
+      ["ordinary", false],
+      ["reviewer", true],
+      ["editor", true],
+      ["admin", true],
+    ]
+
+    for (const [userId, allowed] of cases) {
+      const actor = await loadAnatomyReviewerActor({ prismaClient: database, sessionUserId: userId })
+      assert.equal(Boolean(actor), allowed, `${userId ?? "anonymous"} reviewer authorization`)
+      if (allowed) assert.equal(actor.id, userId)
     }
   })
 })

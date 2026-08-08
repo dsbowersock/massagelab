@@ -403,12 +403,12 @@ async function importBodyParts3dMediaForEntity({
         factSlug: assetSlug,
         sourceId: source.id,
         sourceLocator: sourceUrl,
-        citationNote: "BodyParts3D image imported through anatomy admin media review workflow.",
+        citationNote: "BodyParts3D image imported through the Anatomy Editor media workflow.",
         reviewStatus: "REVIEWED",
       },
       update: {
         sourceLocator: sourceUrl,
-        citationNote: "BodyParts3D image imported through anatomy admin media review workflow.",
+        citationNote: "BodyParts3D image imported through the Anatomy Editor media workflow.",
         reviewStatus: "REVIEWED",
       },
     })

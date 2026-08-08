@@ -246,7 +246,7 @@ function AnatomyDatabaseBrowser({
                 <BrowserViewTabRow ariaLabel="General anatomy views" selectedView={selectedView} views={ENTITY_BROWSER_VIEWS} />
                 <BrowserViewTabRow ariaLabel="Body system views" selectedView={selectedView} views={BODY_SYSTEM_BROWSER_VIEWS} />
                 <BrowserViewTabRow ariaLabel="Tissue type views" selectedView={selectedView} views={TISSUE_TYPE_BROWSER_VIEWS} />
-                <BrowserViewTabRow ariaLabel="Anatomy admin views" selectedView={selectedView} views={ADMIN_BROWSER_VIEWS} />
+                <BrowserViewTabRow ariaLabel="Anatomy editor views" selectedView={selectedView} views={ADMIN_BROWSER_VIEWS} />
               </div>
             </>
           )}
@@ -2770,7 +2770,7 @@ function selectedEntityMovementVisualizations(
 
 function AdminShell({ children }: { children: React.ReactNode }) {
   return (
-    <AppPageShell title="Anatomy Admin" className="p-0 sm:p-6 lg:p-8" contentClassName="gap-0 sm:gap-6">
+    <AppPageShell title="Anatomy Browser" className="p-0 sm:p-6 lg:p-8" contentClassName="gap-0 sm:gap-6">
       {children}
     </AppPageShell>
   )

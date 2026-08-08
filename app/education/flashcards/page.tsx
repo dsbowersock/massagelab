@@ -3,6 +3,7 @@ import { Layers3 } from "lucide-react"
 import { getCurrentSession } from "@/auth"
 import { AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
+import { loadAnatomyReviewerActor } from "@/lib/admin/access"
 import {
   FLASHCARD_STATIC_CATEGORIES,
   FLASHCARD_STATIC_PROMPT_TYPE_COUNTS,
@@ -10,6 +11,7 @@ import {
   FLASHCARD_STATIC_STARTER_DECKS,
 } from "@/lib/flashcard-static-metadata"
 import { createPublicPageMetadata } from "@/lib/seo"
+import { prisma } from "@/lib/prisma"
 import { FlashcardDetailsCarousel } from "./flashcard-details-carousel"
 import { FlashcardsClient } from "./flashcards-client"
 
@@ -19,7 +21,10 @@ export const metadata = createPublicPageMetadata("/education/flashcards")
 export default async function EducationFlashcardsPage() {
   const session = await getCurrentSession()
   const isSignedIn = Boolean(session?.user?.id)
-  const canManageAnatomyContent = Boolean(session?.user?.capabilities?.canManageAnatomyContent)
+  const reviewActor = await loadAnatomyReviewerActor({
+    prismaClient: prisma,
+    sessionUserId: session?.user?.id ?? null,
+  })
 
   return (
     <AppPageShell
@@ -58,7 +63,7 @@ export default async function EducationFlashcardsPage() {
           initialDecks={FLASHCARD_STATIC_STARTER_DECKS}
           initialPromptTypeCounts={FLASHCARD_STATIC_PROMPT_TYPE_COUNTS}
           isSignedIn={isSignedIn}
-          canManageAnatomyContent={canManageAnatomyContent}
+          canManageAnatomyContent={Boolean(reviewActor)}
         />
       </AppSurface>
       </section>

@@ -8,6 +8,8 @@ config({ path: ".env.local" })
 config()
 
 const emails = [
+  ...(process.env.ANATOMY_EDITOR_EMAILS ?? "").split(","),
+  // Retain the old environment variable as input compatibility only.
   ...(process.env.ANATOMY_ADMIN_EMAILS ?? "").split(","),
   ...process.argv.slice(2),
 ]
@@ -17,13 +19,13 @@ const emails = [
 const uniqueEmails = [...new Set(emails)]
 
 if (uniqueEmails.length === 0) {
-  throw new Error("Set ANATOMY_ADMIN_EMAILS in .env.local or pass one or more emails to npm run anatomy:grant-admin -- you@example.com")
+  throw new Error("Set ANATOMY_EDITOR_EMAILS in .env.local or pass one or more emails to npm run anatomy:grant-editor -- you@example.com")
 }
 
 const connectionString = process.env.DIRECT_URL ?? process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL
 
 if (!connectionString) {
-  throw new Error("DIRECT_URL, DATABASE_URL_UNPOOLED, or DATABASE_URL is required to grant anatomy admin roles.")
+  throw new Error("DIRECT_URL, DATABASE_URL_UNPOOLED, or DATABASE_URL is required to grant Anatomy Editor roles.")
 }
 
 neonConfig.webSocketConstructor = ws
@@ -58,26 +60,26 @@ async function main() {
       where: {
         userId_role: {
           userId: user.id,
-          role: "ANATOMY_ADMIN",
+          role: "ANATOMY_EDITOR",
         },
       },
       create: {
         userId: user.id,
-        role: "ANATOMY_ADMIN",
+        role: "ANATOMY_EDITOR",
         status: "VERIFIED",
-        source: "anatomy-admin-grant",
+        source: "anatomy-editor-grant",
         verifiedAt: new Date(),
       },
       update: {
         status: "VERIFIED",
-        source: "anatomy-admin-grant",
+        source: "anatomy-editor-grant",
         verifiedAt: new Date(),
         revokedAt: null,
       },
     })
 
     granted += 1
-    console.log(`Granted ANATOMY_ADMIN to ${maskEmail(email)}.`)
+    console.log(`Granted Anatomy Editor to ${maskEmail(email)}.`)
   }
 
   console.log(`Done. Granted: ${granted}. Missing users: ${missing}.`)

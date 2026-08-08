@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 
-describe("Anatomy admin browser table UI", () => {
+describe("Anatomy browser table UI", () => {
   it("exposes top and bottom horizontal scroll tracks with resizable columns", async () => {
     const pageSource = await readFile(new URL("../app/admin/anatomy/page.tsx", import.meta.url), "utf8")
     const scrollSource = await readFile(new URL("../app/admin/anatomy/synced-horizontal-scroll.tsx", import.meta.url), "utf8")
@@ -386,13 +386,32 @@ describe("Anatomy admin browser table UI", () => {
     const queueSource = await readFile(new URL("../app/admin/anatomy/media-review/page.tsx", import.meta.url), "utf8")
 
     assert.match(queueSource, /const actor = await requireAnatomyReviewerUser\(\)/)
-    assert.match(queueSource, /actor\.canEditAnatomy \? \(/)
+    assert.match(queueSource, /<Link href="\/admin">Dashboard<\/Link>/)
+    assert.match(queueSource, /actor\.canEditAnatomy \? \([\s\S]*<Link href="\/admin\/anatomy">Browser<\/Link>/)
     assert.match(queueSource, /<QueueSummary data=\{data\} canEditAnatomy=\{actor\.canEditAnatomy\}/)
     assert.match(queueSource, /<ImageReviewCard[\s\S]*canEditAnatomy=\{actor\.canEditAnatomy\}/)
-    assert.match(queueSource, /<EmptyQueue selectedStatus=\{selectedStatus\} canEditAnatomy=\{actor\.canEditAnatomy\}/)
+    assert.match(queueSource, /<EmptyQueue selectedStatus=\{selectedStatus\}/)
     assert.match(queueSource, /href=\{canEditAnatomy \? "\/admin\/anatomy\?view=maintenance" : undefined\}/)
     assert.match(queueSource, /\{canEditAnatomy \? \([\s\S]*Open item/)
-    assert.match(queueSource, /function EmptyQueue\(\{ selectedStatus, canEditAnatomy \}/)
-    assert.match(queueSource, /\{canEditAnatomy \? \([\s\S]*Back to dashboard/)
+    assert.match(queueSource, /function EmptyQueue\([\s\S]*<Link href="\/admin">Back to dashboard<\/Link>/)
+  })
+
+  it("uses current Anatomy Editor wording while retaining legacy read compatibility", async () => {
+    const pageSource = await readFile(new URL("../app/admin/anatomy/page.tsx", import.meta.url), "utf8")
+    const accountSource = await readFile(new URL("../app/account/page.tsx", import.meta.url), "utf8")
+    const grantSource = await readFile(new URL("../scripts/grant-anatomy-admin.mjs", import.meta.url), "utf8")
+    const packageSource = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"))
+
+    assert.match(pageSource, /title="Anatomy Browser"/)
+    assert.match(accountSource, /Anatomy Editor role/)
+    assert.match(grantSource, /ANATOMY_EDITOR_EMAILS/)
+    assert.match(grantSource, /npm run anatomy:grant-editor --/)
+    assert.doesNotMatch(grantSource, /npm run anatomy:grant-admin --/)
+    assert.match(grantSource, /role: "ANATOMY_EDITOR"/)
+    assert.match(grantSource, /source: "anatomy-editor-grant"/)
+    assert.match(grantSource, /Granted Anatomy Editor/)
+    assert.doesNotMatch(grantSource, /role: "ANATOMY_ADMIN"|Granted ANATOMY_ADMIN/)
+    assert.equal(packageSource.scripts["anatomy:grant-editor"], "node scripts/grant-anatomy-admin.mjs")
+    assert.equal(packageSource.scripts["anatomy:grant-admin"], packageSource.scripts["anatomy:grant-editor"])
   })
 })

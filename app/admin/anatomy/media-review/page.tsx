@@ -153,16 +153,16 @@ export default async function AnatomyMediaReviewQueuePage({ searchParams }: Anat
               {data.filteredTotal.toLocaleString()} in this batch / {data.total.toLocaleString()} in {selectedStatus.label.toLowerCase()} queue
             </p>
           </div>
-          {actor.canEditAnatomy ? (
-            <div className="flex flex-wrap gap-2">
-              <Button asChild size="sm" variant="outline">
-                <Link href="/admin">Dashboard</Link>
-              </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild size="sm" variant="outline">
+              <Link href="/admin">Dashboard</Link>
+            </Button>
+            {actor.canEditAnatomy ? (
               <Button asChild size="sm">
                 <Link href="/admin/anatomy">Browser</Link>
               </Button>
-            </div>
-          ) : null}
+            ) : null}
+          </div>
         </div>
         <QueueStatusTabs selectedStatus={selectedStatus} data={data} filters={filters} />
         <QueuePresetLinks filters={filters} />
@@ -175,7 +175,7 @@ export default async function AnatomyMediaReviewQueuePage({ searchParams }: Anat
         {currentRow ? (
           <ImageReviewCard row={currentRow} filters={filters} upcomingRows={upcomingRows} canEditAnatomy={actor.canEditAnatomy} />
         ) : (
-          <EmptyQueue selectedStatus={selectedStatus} canEditAnatomy={actor.canEditAnatomy} />
+          <EmptyQueue selectedStatus={selectedStatus} />
         )}
       </main>
     </AppPageShell>
@@ -814,18 +814,16 @@ function SelectField({
   )
 }
 
-function EmptyQueue({ selectedStatus, canEditAnatomy }: { selectedStatus: QueueStatusOption; canEditAnatomy: boolean }) {
+function EmptyQueue({ selectedStatus }: { selectedStatus: QueueStatusOption }) {
   return (
     <Card className={appSurfaceClassName}>
       <CardContent className="p-5 text-center">
         <h2 className="text-lg font-semibold">No images in this queue</h2>
         <p className="mt-2 text-sm text-muted-foreground">There are no {selectedStatus.label.toLowerCase()} item-image links to review right now.</p>
         <div className="mt-4 flex flex-wrap justify-center gap-2">
-          {canEditAnatomy ? (
-            <Button asChild>
-              <Link href="/admin">Back to dashboard</Link>
-            </Button>
-          ) : null}
+          <Button asChild>
+            <Link href="/admin">Back to dashboard</Link>
+          </Button>
           <Button asChild variant="outline">
             <Link href={mediaReviewQueueHref({ status: "all" })}>Browse all images</Link>
           </Button>

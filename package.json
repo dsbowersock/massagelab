@@ -21,6 +21,7 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "admin:grant": "node scripts/grant-admin.mjs",
     "anatomy:seed": "node --experimental-strip-types prisma/seed.ts",
+    "anatomy:grant-editor": "node scripts/grant-anatomy-admin.mjs",
     "anatomy:grant-admin": "node scripts/grant-anatomy-admin.mjs",
     "anatomy:media:check": "node --experimental-strip-types scripts/anatomy-r2-media.ts check",
     "anatomy:media:setup-bucket": "node --experimental-strip-types scripts/anatomy-r2-media.ts setup-bucket",

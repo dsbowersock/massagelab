@@ -59,6 +59,19 @@ export async function loadAdminActor(input: {
   }
 }
 
+/**
+ * Loads a fresh actor only when the account has verified anatomy-review
+ * authority. API and public-page callers use this nullable guard so denial can
+ * preserve their own response or rendering contract instead of redirecting.
+ */
+export async function loadAnatomyReviewerActor(input: {
+  prismaClient: Pick<PrismaClient, "user">
+  sessionUserId: string | null
+}): Promise<AdminActor | null> {
+  const actor = await loadAdminActor(input)
+  return actor?.canReviewAnatomy ? actor : null
+}
+
 /** Requires a freshly loaded, verified ADMIN role for account and commerce operations. */
 export async function requireFullAdminUser(input?: AdminAccessInput): Promise<AdminActor> {
   return requireAdminActor(input, "full")

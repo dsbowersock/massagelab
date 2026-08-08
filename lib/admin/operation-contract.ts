@@ -20,6 +20,8 @@ export type AdminSafeValue = string | number | boolean | null | AdminSafeValue[]
 
 export const ADMIN_SAFE_PAYLOAD_MAX_DEPTH = 5
 export const ADMIN_SAFE_PAYLOAD_MAX_ENTRIES = 50
+/** Keys stay short so the small-entry limit cannot hide oversized metadata. */
+export const ADMIN_SAFE_PAYLOAD_MAX_KEY_LENGTH = 100
 export const ADMIN_SAFE_PAYLOAD_MAX_STRING_LENGTH = 500
 
 const FORBIDDEN_ADMIN_PAYLOAD_KEY = /password|token|secret|backup|payment_method|clinical|soap|intake|journal|rom/i
@@ -108,6 +110,7 @@ function snapshotAdminSafeValue(
     if (typeof key !== "string") continue
 
     countAdminPayloadEntry(counter)
+    validateAdminPayloadKeyLength(key)
     if (FORBIDDEN_ADMIN_PAYLOAD_KEY.test(key)) {
       throw new Error("Admin payload contains restricted data.")
     }
@@ -158,8 +161,11 @@ function snapshotAdminSafeArray(
     if (!("value" in descriptor)) {
       throw new Error("Admin payload must contain JSON-compatible values.")
     }
-    if (typeof key === "string" && FORBIDDEN_ADMIN_PAYLOAD_KEY.test(key)) {
-      throw new Error("Admin payload contains restricted data.")
+    if (typeof key === "string") {
+      validateAdminPayloadKeyLength(key)
+      if (FORBIDDEN_ADMIN_PAYLOAD_KEY.test(key)) {
+        throw new Error("Admin payload contains restricted data.")
+      }
     }
     countAdminPayloadEntry(counter)
     snapshotAdminSafeValue(descriptor.value, depth + 1, counter, ancestors)
@@ -167,6 +173,12 @@ function snapshotAdminSafeArray(
 
   ancestors.delete(value)
   return snapshot
+}
+
+function validateAdminPayloadKeyLength(key: string): void {
+  if (key.length > ADMIN_SAFE_PAYLOAD_MAX_KEY_LENGTH) {
+    throw new Error("Admin payload exceeds the supported size.")
+  }
 }
 
 function isArrayIndex(key: PropertyKey, length: number): boolean {

@@ -8,7 +8,8 @@ import {
 export { canEditAnatomyContent, canReviewAnatomyContent } from "@/lib/admin/access"
 
 /**
- * Enforces Anatomy Admin access for server-rendered admin routes and server actions.
+ * Retains the legacy function name while enforcing current Anatomy Editor access
+ * for server-rendered admin routes and server actions.
  * The shared account-permission helpers stay pure so they remain safe for navigation/client imports.
  */
 export async function requireAnatomyAdminUser() {

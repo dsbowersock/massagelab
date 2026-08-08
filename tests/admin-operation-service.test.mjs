@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
   ADMIN_REASON_CODES,
+  ADMIN_SAFE_PAYLOAD_MAX_KEY_LENGTH,
   validateAdminMetadata,
   validateAdminReason,
   validateAdminSafePayload,
@@ -65,6 +66,28 @@ describe("admin operation contract", () => {
         assert.throws(() => validateAdminSafePayload(payload), /supported size/)
       }
     }
+  })
+
+  it("bounds metadata keys at the exact root and nested boundary", () => {
+    const boundaryKey = "k".repeat(ADMIN_SAFE_PAYLOAD_MAX_KEY_LENGTH)
+    const overflowKey = "k".repeat(ADMIN_SAFE_PAYLOAD_MAX_KEY_LENGTH + 1)
+
+    assert.deepEqual(validateAdminSafePayload({ [boundaryKey]: "ok" }), { [boundaryKey]: "ok" })
+    assert.deepEqual(validateAdminSafePayload({ context: { [boundaryKey]: "ok" } }), { context: { [boundaryKey]: "ok" } })
+    assert.throws(() => validateAdminSafePayload({ [overflowKey]: "no" }), /supported size/)
+    assert.throws(() => validateAdminSafePayload({ context: { [overflowKey]: "no" } }), /supported size/)
+
+    let accessorCalls = 0
+    const accessorPayload = {}
+    Object.defineProperty(accessorPayload, overflowKey, {
+      enumerable: true,
+      get: () => {
+        accessorCalls += 1
+        return "should not run"
+      },
+    })
+    assert.throws(() => validateAdminSafePayload(accessorPayload), /JSON-compatible|supported size/)
+    assert.equal(accessorCalls, 0)
   })
 
   it("rejects non-finite, unsupported, cyclic, and accessor-backed values without reading accessors", () => {
