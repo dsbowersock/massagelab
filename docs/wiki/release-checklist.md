@@ -117,7 +117,7 @@ immediate proration invoice or charge. The latest paid invoice remains the
 non-prorated initial $1 subtotal plus $0.07 Ohio tax; the first $2 renewal has
 not occurred, so no completed $2 tax invoice is claimed. Read-only Production
 persistence verification confirms continued Supporter access through the
-`premium_backgrounds` and `chimer_custom_colors` feature keys. The independent
+`premium_backgrounds` feature key. The independent
 `txcd_90000001` one-time-support Automatic Tax contract is implemented. The
 user reverified live Stripe Tax readiness and the collecting Ohio registration,
 all five Production gates are configured, and the exact PR #153 merge commit
@@ -147,7 +147,7 @@ first-cohort Production monitoring remain external invite-readiness gates.
 ## Manual Focus Areas
 
 - Account registration, Google sign-in, Terms/Privacy acceptance, onboarding, verification, password reset, 2FA, and preference sync.
-- Pricing, one-time project support, live membership checkout, signed webhook delivery, customer portal, membership status, and feature entitlement checks such as `chimer_custom_colors` and `therapist_documentation_tools`.
+- Pricing, one-time project support, live membership checkout, signed webhook delivery, customer portal, membership status, premium-background access, accessible-background color controls, and feature entitlement checks such as `therapist_documentation_tools`.
 - Homepage, `/tools`, business planner tools, Education flashcards, Anatomime shared sessions, Chimer, `/clock`, `/music`, `/wellness`, `/notes`, support, roadmap, legal/trust pages, account, security, and settings routes.
 - Calendar practice creation, availability, public booking, waitlist, booking request, and conflict prevention.
 - Local-first notes, intake, journals, ROM import/export, encrypted vault unlock, and plaintext export warnings.

@@ -34,7 +34,7 @@ describe("Chimer entitlement-aware settings", () => {
     assert.notStrictEqual(premiumSettings.massageLabGridMotionMantras, customMantras)
   })
 
-  it("keeps Track 4B customization access feature- and ownership-based with Source fallback", () => {
+  it("keeps Track 4B customization access aligned to the selected background with Source fallback", () => {
     assert.equal(canCustomizeBackgroundColors({ hasBackgroundAccess: true }), true)
     assert.equal(resolveEffectiveBackgroundPaletteMode({
       savedMode: "custom",
@@ -60,7 +60,7 @@ describe("Chimer entitlement-aware settings", () => {
         backgroundId,
         [visualPropertyKey]: editedVisualValue,
         backgroundVisualPreferences: { palette: { mode: "custom" } },
-      }, [FEATURE_KEYS.premiumBackgrounds, FEATURE_KEYS.chimerCustomColors])
+      }, [FEATURE_KEYS.premiumBackgrounds])
       assert.equal(featureSettings.backgroundId, backgroundId, backgroundId)
       assert.equal(featureSettings[visualPropertyKey], editedVisualValue, backgroundId)
       assert.equal(featureSettings.backgroundVisualPreferences.palette.mode, "custom", backgroundId)
@@ -2863,7 +2863,7 @@ describe("Chimer entitlement-aware settings", () => {
     }
   })
 
-  it("strips custom colors for users without the Chimer custom colors feature", () => {
+  it("preserves unrestricted Chimer colors while resetting an unusable premium background", () => {
     const settings = sanitizeChimerSettingsForEntitlements({
       primaryFontColor: "#000000",
       secondaryFontColor: "#123456",
@@ -3041,9 +3041,9 @@ describe("Chimer entitlement-aware settings", () => {
       hexGridOpacity: 0.82,
     }, [])
 
-    assert.equal(settings.primaryFontColor, DEFAULT_CHIMER_SETTINGS.primaryFontColor)
-    assert.equal(settings.secondaryFontColor, DEFAULT_CHIMER_SETTINGS.secondaryFontColor)
-    assert.equal(settings.clockModeFontColor, DEFAULT_CHIMER_SETTINGS.clockModeFontColor)
+    assert.equal(settings.primaryFontColor, "#000000")
+    assert.equal(settings.secondaryFontColor, "#123456")
+    assert.equal(settings.clockModeFontColor, "#654321")
     assert.equal(settings.movingBackgroundEnabled, false)
     assert.equal(settings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
     assert.equal(settings.sparklesParticleDensity, DEFAULT_CHIMER_SETTINGS.sparklesParticleDensity)
@@ -3139,7 +3139,7 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(settings.hexGridOpacity, DEFAULT_CHIMER_SETTINGS.hexGridOpacity)
   })
 
-  it("preserves account-level clock and Lamp colors for signed-in Chimer accounts", () => {
+  it("preserves unrestricted display colors without requiring account access", () => {
     const settings = sanitizeChimerSettingsForEntitlements({
       primaryFontColor: "#000000",
       secondaryFontColor: "#123456",
@@ -3149,12 +3149,12 @@ describe("Chimer entitlement-aware settings", () => {
       movingBackgroundMainColor: "#ABCDEF",
       movingBackgroundOrbColor: "#FEDCBA",
       backgroundId: "massage-lab-aurora",
-    }, [], { canUseAccountColorControls: true })
+    }, [])
 
-    assert.equal(settings.primaryFontColor, DEFAULT_CHIMER_SETTINGS.primaryFontColor)
-    assert.equal(settings.secondaryFontColor, DEFAULT_CHIMER_SETTINGS.secondaryFontColor)
-    assert.equal(settings.clockFontFamily, DEFAULT_CHIMER_SETTINGS.clockFontFamily)
-    assert.equal(settings.clockShadowEnabled, DEFAULT_CHIMER_SETTINGS.clockShadowEnabled)
+    assert.equal(settings.primaryFontColor, "#000000")
+    assert.equal(settings.secondaryFontColor, "#123456")
+    assert.equal(settings.clockFontFamily, "serif")
+    assert.equal(settings.clockShadowEnabled, false)
     assert.equal(settings.clockModeFontColor, "#654321")
     assert.equal(settings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
   })
@@ -3334,7 +3334,7 @@ describe("Chimer entitlement-aware settings", () => {
       hexGridChangeFrequency: 3.5,
       hexGridActivePercent: 28,
       hexGridOpacity: 0.82,
-    }, [FEATURE_KEYS.chimerCustomColors, FEATURE_KEYS.premiumBackgrounds])
+    }, [FEATURE_KEYS.premiumBackgrounds])
 
     assert.equal(settings.primaryFontColor, "#000000")
     assert.equal(settings.secondaryFontColor, "#123456")
@@ -3433,7 +3433,7 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(settings.hexGridOpacity, 0.82)
   })
 
-  it("allows premium background controls without unlocking custom Chimer display colors", () => {
+  it("allows premium background controls alongside unrestricted Chimer display colors", () => {
     const settings = sanitizeChimerSettingsForEntitlements({
       primaryFontColor: "#000000",
       backgroundId: "massage-lab-gradient-animation",
@@ -3574,7 +3574,7 @@ describe("Chimer entitlement-aware settings", () => {
       hexGridOpacity: 0.82,
     }, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(settings.primaryFontColor, DEFAULT_CHIMER_SETTINGS.primaryFontColor)
+    assert.equal(settings.primaryFontColor, "#000000")
     assert.equal(settings.backgroundId, "massage-lab-gradient-animation")
     assert.equal(settings.sparklesParticleDensity, 180)
     assert.equal(settings.gradientAnimationSize, 100)
@@ -3646,13 +3646,13 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(settings.hexGridOpacity, 0.82)
   })
 
-  it("keeps custom Chimer colors independent from premium background access", () => {
+  it("keeps unrestricted Chimer colors independent from premium background access", () => {
     const settings = sanitizeChimerSettingsForEntitlements({
       primaryFontColor: "#000000",
       movingBackgroundMainColor: "#ABCDEF",
       movingBackgroundOrbColor: "#FEDCBA",
       backgroundId: "massage-lab-aurora",
-    }, [FEATURE_KEYS.chimerCustomColors])
+    }, [])
 
     assert.equal(settings.primaryFontColor, "#000000")
     assert.equal(settings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
@@ -3693,12 +3693,12 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(settings.backgroundId, ownedBackgroundId)
     assert.equal(settings.massageLabStarsSpeed, 72)
     assert.equal(settings.backgroundVisualPreferences.palette.mode, "custom")
-    assert.equal(settings.primaryFontColor, DEFAULT_CHIMER_SETTINGS.primaryFontColor)
-    assert.equal(settings.clockFontFamily, DEFAULT_CHIMER_SETTINGS.clockFontFamily)
-    assert.equal(settings.clockShadowEnabled, DEFAULT_CHIMER_SETTINGS.clockShadowEnabled)
-    assert.equal(settings.clockShadowColor, DEFAULT_CHIMER_SETTINGS.clockShadowColor)
-    assert.equal(settings.clockGlowEnabled, DEFAULT_CHIMER_SETTINGS.clockGlowEnabled)
-    assert.equal(settings.clockGlowColor, DEFAULT_CHIMER_SETTINGS.clockGlowColor)
+    assert.equal(settings.primaryFontColor, "#010203")
+    assert.equal(settings.clockFontFamily, "serif")
+    assert.equal(settings.clockShadowEnabled, true)
+    assert.equal(settings.clockShadowColor, "#112233")
+    assert.equal(settings.clockGlowEnabled, true)
+    assert.equal(settings.clockGlowColor, "#445566")
     assert.equal(
       sanitizeChimerSettingsForEntitlements({
         backgroundId: "massage-lab-hole",

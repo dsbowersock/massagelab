@@ -87,7 +87,6 @@ const EMPTY_BACKGROUND_ACCESS: BackgroundAccessSnapshot = {
 const DEV_CLOCK_STORAGE_KEY = "massagelab-dev-clock-settings"
 const DEV_CLOCK_FEATURE_KEYS = [
   FEATURE_KEYS.premiumBackgrounds,
-  FEATURE_KEYS.chimerCustomColors,
 ]
 
 type ChimerPageProps = {
@@ -248,9 +247,8 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
       transientOwnedBackgroundIds,
     ],
   )
-  const canUseCustomColors = featureKeys.includes(FEATURE_KEYS.chimerCustomColors)
-  const hasAccountPreferenceAccess = accountSyncStatus === "synced" || accountSyncStatus === "conflict"
-  const canUseAccountColorControls = canUseCustomColors || hasAccountPreferenceAccess
+  const canUseCustomColors = true
+  const canUseAccountColorControls = true
 
   const timerInterval = useRef<ReturnType<typeof setInterval> | null>(null)
   const alertTimeout = useRef<number | null>(null)

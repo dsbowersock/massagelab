@@ -209,9 +209,9 @@ describe("Account page tab model", () => {
     )
   })
 
-  it("describes current membership benefits instead of leading with Chimer colors", async () => {
+  it("describes premium-background access without presenting color controls as a membership benefit", async () => {
     const active = await renderMembershipTab({
-      features: ["chimer_custom_colors", "premium_backgrounds"],
+      features: ["premium_backgrounds"],
       subscriptions: [subscription("active")],
       stripeCustomer: { stripeCustomerId: "cus_123" },
     })
@@ -223,7 +223,7 @@ describe("Account page tab model", () => {
 
     assert.match(text, /every premium background/i)
     assert.ok(statusTiles.some(({ label, value }) => label === "Premium backgrounds" && value === "Included"))
-    assert.ok(statusTiles.some(({ label, value }) => label === "Saved Chimer colors" && value === "Included"))
+    assert.ok(statusTiles.every(({ label }) => label !== "Saved Chimer colors"))
     assert.match(text, /backgrounds bought for \$1 or claimed with a credit remain permanently available/i)
     assert.doesNotMatch(text, /Paid memberships currently unlock Chimer custom colors/)
     assert.doesNotMatch(text, /Basic Chimer remains free/)
@@ -419,7 +419,6 @@ async function renderMembershipTab({
       CardTitle: Div,
       CreditCard: passThroughElement("credit-card"),
       FEATURE_KEYS: {
-        chimerCustomColors: "chimer_custom_colors",
         premiumBackgrounds: "premium_backgrounds",
       },
       MembershipPricingCards: passThroughElement("membership-pricing-cards"),

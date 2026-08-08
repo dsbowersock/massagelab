@@ -13,7 +13,7 @@ if (user.plan === "Therapist") {
 Use feature checks instead:
 
 ```ts
-if (features.includes("chimer_custom_colors")) {
+if (features.includes("premium_backgrounds")) {
   // ...
 }
 ```
@@ -36,8 +36,9 @@ if (features.includes("chimer_custom_colors")) {
   offered to new subscribers before their differentiated professional features
   are ready for beta.
 - Current Supporter benefits are feature-key driven: `premium_backgrounds`
-  grants premium-background access while membership is active, and
-  `chimer_custom_colors` grants saved custom Chimer colors.
+  grants premium-background access while membership is active. Chimer display
+  colors are available to everyone; each accessible free, subscription-backed,
+  or permanently owned background exposes its supported color controls.
 - Therapist note-taking tools use the `therapist_documentation_tools` feature key and are unlocked only by active Therapist or Practice memberships.
 - External provider calendar sync uses the `external_calendar_sync` feature key and is unlocked only by active Therapist or Practice memberships.
 - Stripe subscription records grant membership only when their Price ID matches
@@ -98,7 +99,6 @@ approved for recreation or new use.
 Current:
 
 - `premium_backgrounds`
-- `chimer_custom_colors`
 - `calendar_basic_scheduling`
 - `calendar_full_scheduling`
 - `calendar_team_scheduling`
@@ -305,8 +305,8 @@ background access. It is separate from memberships and one-time support:
 - a credit redemption or paid order creates permanent database ownership;
 - an active subscription can grant subscription access and does not block a
   separate permanent purchase;
-- `chimer_custom_colors` remains a color-customization feature and is not proof
-  of permanent premium-background ownership; and
+- color controls follow the canonical selected-background access decision and
+  are not proof of permanent premium-background ownership; and
 - browser state, JWT claims, Checkout return URLs, and selected UI cards never
   grant ownership. Signed-in surfaces read the no-store commerce snapshot, and
   purchase returns wait for webhook-backed database ownership before showing

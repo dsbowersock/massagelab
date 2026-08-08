@@ -235,7 +235,6 @@ type AccountSessionUser = {
   roleAssignments?: Array<{ role: AccountRole; status: VerificationStatus }>
   capabilities?: {
     canManageAnatomyContent?: boolean
-    canUseChimerCustomColors?: boolean
     canUsePremiumBackgrounds?: boolean
     hasActiveMembershipBenefits?: boolean
   }
@@ -619,7 +618,6 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
   const membershipSummary = data.membershipSummary
   // Benefit tiles use individual entitlement keys, never displayed plan names
   // or permanent background ownership, which remains a separate access source.
-  const canUseChimerCustomColors = membershipSummary.entitlements.features.includes(FEATURE_KEYS.chimerCustomColors)
   const canUsePremiumBackgrounds = membershipSummary.entitlements.features.includes(FEATURE_KEYS.premiumBackgrounds)
   const subscriptionPricingMode = resolveMembershipPricingMode({
     signedIn: true,
@@ -639,7 +637,7 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
             Membership
           </CardTitle>
           <CardDescription>
-            Free access remains available by default. Active Supporter membership includes every premium background, saved custom Chimer colors, and Supporter account status.
+            Free Chimer color controls are available to everyone. Active Supporter membership includes every premium background and Supporter account status.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -647,7 +645,6 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
             <StatusTile label="Current level" value={formatMembershipLevel(membershipSummary.entitlements.level)} />
             <StatusTile label="Billing profile" value={membershipSummary.stripeCustomer ? "Connected" : "Not started"} />
             <StatusTile label="Premium backgrounds" value={canUsePremiumBackgrounds ? "Included" : "Membership required"} />
-            <StatusTile label="Saved Chimer colors" value={canUseChimerCustomColors ? "Included" : "Membership required"} />
           </div>
 
           <div className="rounded-md border border-primary/50 bg-primary/10 p-3 shadow-sm shadow-primary/10">

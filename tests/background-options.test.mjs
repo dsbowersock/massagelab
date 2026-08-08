@@ -258,11 +258,6 @@ describe("premium background registry", () => {
         }).id,
         backgroundId,
       )
-      assert.equal(
-        resolveAccessibleBackgroundDefinition(backgroundId, [FEATURE_KEYS.chimerCustomColors]).id,
-        DEFAULT_BACKGROUND_ID,
-      )
-
       const retainedWhileHydrating = resolveAuthoritativeBackgroundOwnership([backgroundId], undefined)
       assert.equal(canUseBackgroundId(backgroundId, { featureKeys: [], ownedBackgroundIds: retainedWhileHydrating }), true)
 
@@ -378,10 +373,6 @@ describe("premium background registry", () => {
         backgroundId,
       )
       assert.equal(
-        resolveAccessibleBackgroundDefinition(backgroundId, [FEATURE_KEYS.chimerCustomColors]).id,
-        DEFAULT_BACKGROUND_ID,
-      )
-      assert.equal(
         resolveAccessibleBackgroundDefinition(backgroundId, {
           ownedBackgroundIds: [backgroundId],
         }).id,
@@ -390,8 +381,8 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps premium use independent from the custom-color feature", () => {
-    assert.equal(hasPremiumBackgroundAccess([FEATURE_KEYS.chimerCustomColors]), false)
+  it("requires premium-background access for premium background use", () => {
+    assert.equal(hasPremiumBackgroundAccess([]), false)
     assert.equal(hasPremiumBackgroundAccess([FEATURE_KEYS.premiumBackgrounds]), true)
   })
 
