@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import { requireBrowserAdminFixtureQaAuthorization } from "../lib/admin/browser-qa-authorization.ts"
 import { createBrowserAdminFixtureIdentity } from "../lib/admin/browser-fixture-identity.ts"
+import { removeBrowserAdminFixtureRecords } from "../lib/admin/browser-fixture-cleanup.ts"
 
 describe("admin user operations browser fixture", () => {
   it("fails closed unless the dedicated QA mutation opt-in is explicitly set", () => {
@@ -30,4 +31,27 @@ describe("admin user operations browser fixture", () => {
     assert.notEqual(desktop.target.id, mobile.target.id)
     assert.throws(() => createBrowserAdminFixtureIdentity("desktop chromium"), /safe Playwright project name/)
   })
+
+  it("removes only a project's provisioning rows in FK-safe order before its exact users", async () => {
+    const calls = []
+    await removeBrowserAdminFixtureRecords({
+      prismaClient: cleanupPrisma(calls),
+      projectName: "desktop-chromium",
+      environment: { DATABASE_URL: "postgresql://example.test/not-a-real-database", MASSAGELAB_BROWSER_QA_DATABASE: "1" },
+    })
+
+    const ids = ["browser-admin-operator-desktop-chromium", "browser-admin-target-desktop-chromium"]
+    assert.deepEqual(calls, [
+      ["commerceEvent.deleteMany", { where: { userId: { in: ids } } }],
+      ["backgroundCreditEntry.deleteMany", { where: { userId: { in: ids } } }],
+      ["backgroundCreditWallet.deleteMany", { where: { userId: { in: ids } } }],
+      ["user.deleteMany", { where: { id: { in: ids } } }],
+    ])
+  })
 })
+
+function cleanupPrisma(calls) {
+  return Object.fromEntries(["commerceEvent", "backgroundCreditEntry", "backgroundCreditWallet", "user"].map((model) => [model, {
+    deleteMany: async (args) => { calls.push([`${model}.deleteMany`, args]); return { count: 0 } },
+  }]))
+}

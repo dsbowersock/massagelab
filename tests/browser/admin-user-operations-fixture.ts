@@ -1,6 +1,7 @@
 import type { BrowserContext } from "@playwright/test"
 import { prisma } from "@/lib/prisma"
 import { requireBrowserAdminFixtureQaAuthorization } from "../../lib/admin/browser-qa-authorization"
+import { removeBrowserAdminFixtureRecords } from "../../lib/admin/browser-fixture-cleanup"
 import { createBrowserAdminFixtureIdentity } from "../../lib/admin/browser-fixture-identity"
 import { installSignedInSessionCookie } from "./signed-in-session-cookie"
 
@@ -32,6 +33,5 @@ export async function installAdminUserOperationsFixture(context: BrowserContext,
 /** Removes only the calling project's deterministic fixture Users and cascading test-only roles. */
 export async function removeBrowserAdminFixture(projectName: string) {
   requireBrowserAdminFixtureQaAuthorization()
-  const identity = createBrowserAdminFixtureIdentity(projectName)
-  await prisma.user.deleteMany({ where: { id: { in: [identity.operator.id, identity.target.id] } } })
+  await removeBrowserAdminFixtureRecords({ prismaClient: prisma, projectName })
 }
