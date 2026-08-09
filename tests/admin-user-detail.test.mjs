@@ -38,7 +38,8 @@ describe("admin user detail", () => {
     ])
     assert.deepEqual(result.target, { id: "user-1", name: "Avery", email: "avery@example.test" })
     assert.deepEqual(result.data, {
-      providers: { items: ["google"], total: 30, truncated: true },
+      providers: { items: ["google"], total: null, totalState: "UNKNOWN", truncated: true },
+      connections: { shown: 1, total: 30, truncated: true },
       passwordConfigured: true,
       twoFactorEnabled: true,
       activeSessionCount: 1,
@@ -175,13 +176,76 @@ describe("admin user detail", () => {
         },
         disputes: {
           items: [{ status: "OPEN", amountCents: 107, currency: "usd", reasonCode: "FRAUDULENT", openedAt: "2026-08-08T11:30:00.000Z", closedAt: null }],
+          shown: 1,
           total: 1,
+          lowerBound: 1,
           truncated: false,
         },
       }],
     })
     assert.doesNotMatch(JSON.stringify(result), /stripeCustomerId|stripeSubscriptionId|stripePaymentIntentId|paymentMethod|payload|metadata/i)
     assert.doesNotMatch(JSON.stringify(result), /price_supporter_2_monthly|price_legacy_unknown/i)
+  })
+
+  it("reports reconciliation as unknown when clean sampled refunds or payments are truncated", async () => {
+    const calls = []
+    const billing = detailRow("billing")
+    const baseOrder = billing.commerceOrders[0]
+    const closedRefunds = Array.from({ length: 25 }, (_, index) => ({
+      status: "SUCCEEDED", amountCents: 1, currency: "usd", reasonCode: null, failureCode: null,
+      processedAt: new Date("2026-08-08T11:00:00.000Z"), createdAt: new Date(1_786_186_800_000 - index),
+    }))
+    const cleanPayments = Array.from({ length: 25 }, () => ({ disputes: [], _count: { disputes: 0 } }))
+    billing.commerceOrders = [{
+      ...baseOrder, id: "order-refunds-truncated", status: "COMPLETED", failureCode: null,
+      refunds: closedRefunds, payments: [], _count: { items: 1, refunds: 26, payments: 0 },
+    }, {
+      ...baseOrder, id: "order-payments-truncated", status: "COMPLETED", failureCode: null,
+      refunds: [], payments: cleanPayments, _count: { items: 1, refunds: 0, payments: 26 },
+    }]
+    billing._count.commerceOrders = 2
+
+    const result = await getAdminUserDetailSection({
+      prismaClient: detailPrisma(calls, { sectionRows: { billing } }), userId: "user-1", section: "billing", environment: {},
+    })
+
+    assert.deepEqual(result.data.commerce.recentOrders.map((order) => order.reconciliationState), ["UNKNOWN", "UNKNOWN"])
+    assert.deepEqual(result.data.commerce.recentOrders[1].disputes, {
+      items: [], shown: 0, total: null, lowerBound: 0, truncated: true,
+    })
+  })
+
+  it("keeps an exact dispute total while labeling nested dispute truncation", async () => {
+    const calls = []
+    const billing = detailRow("billing")
+    const order = billing.commerceOrders[0]
+    const sampledDisputes = Array.from({ length: 25 }, (_, index) => ({
+      status: "CLOSED", amountCents: 1, currency: "usd", reasonCode: null,
+      openedAt: new Date(1_786_188_600_000 - index), closedAt: new Date("2026-08-08T12:00:00.000Z"),
+    }))
+    const sampledPayments = [{ disputes: sampledDisputes, _count: { disputes: 26 } }]
+    billing.commerceOrders = [{
+      ...order, status: "COMPLETED", failureCode: null, refunds: [], payments: sampledPayments,
+      _count: { items: 1, refunds: 0, payments: 1 },
+    }]
+    billing._count.commerceOrders = 1
+
+    const result = await getAdminUserDetailSection({
+      prismaClient: detailPrisma(calls, { sectionRows: { billing } }), userId: "user-1", section: "billing", environment: {},
+    })
+
+    assert.deepEqual(result.data.commerce.recentOrders[0].disputes, {
+      items: sampledDisputes.map((dispute) => ({
+        ...dispute,
+        openedAt: dispute.openedAt.toISOString(),
+        closedAt: dispute.closedAt.toISOString(),
+      })),
+      shown: 25,
+      total: 26,
+      lowerBound: 26,
+      truncated: true,
+    })
+    assert.equal(result.data.commerce.recentOrders[0].reconciliationState, "UNKNOWN")
   })
 
   it("loads only the newest fifty safe account activities with linked outcomes and email statuses", async () => {
@@ -213,12 +277,13 @@ describe("admin user detail", () => {
     assert.match(detailPageSource, /Achievement count/)
     assert.match(detailPageSource, /Effective capabilities/)
     assert.match(detailPageSource, /Recent commerce orders/)
+    assert.match(detailPageSource, /Connection rows/)
     assert.match(detailPageSource, /Review order/)
   })
 })
 
 /** Boundary fake mirrors each real selected relation while rejecting accidental loader calls. */
-function detailPrisma(calls, { sessionExpiries = [] } = {}) {
+function detailPrisma(calls, { sessionExpiries = [], sectionRows = {} } = {}) {
   return {
     user: {
       findUnique: async (args) => {
@@ -230,7 +295,7 @@ function detailPrisma(calls, { sessionExpiries = [] } = {}) {
                 : "activity"
         assertSafeSelect(section, select)
         calls.push(`user.findUnique:${section}`)
-        return detailRow(section)
+        return sectionRows[section] ?? detailRow(section)
       },
     },
     session: { count: async (args) => {
@@ -273,6 +338,11 @@ function assertSafeSelect(section, select) {
     assert.equal(select.membershipSubscriptions.take, 25)
     assert.deepEqual(select.commerceOrders.orderBy, [{ createdAt: "desc" }, { id: "desc" }])
     assert.equal(select.commerceOrders.take, 100)
+    assert.deepEqual(select.commerceOrders.select.payments.orderBy, [{ createdAt: "desc" }, { id: "desc" }])
+    assert.equal(select.commerceOrders.select.payments.take, 25)
+    assert.deepEqual(select.commerceOrders.select.payments.select.disputes.orderBy, [{ openedAt: "desc" }, { id: "desc" }])
+    assert.equal(select.commerceOrders.select.payments.select.disputes.take, 25)
+    assert.deepEqual(select.commerceOrders.select._count.select, { items: true, refunds: true, payments: true })
     assert.deepEqual(select._count.select, { membershipSubscriptions: { where: { membershipLevel: "SUPPORTER" } }, commerceOrders: true })
   }
   if (section === "security-summary") {
@@ -326,7 +396,7 @@ function detailRow(section) {
       items: [{ displayName: "MassageLab Silk", fulfillmentStatus: "PENDING", lineTotalCents: 107, currency: "usd" }],
       refunds: [{ status: "PENDING", amountCents: 107, currency: "usd", reasonCode: "DUPLICATE", failureCode: null, processedAt: null, createdAt: new Date("2026-08-08T11:00:00.000Z") }],
       payments: [{ disputes: [{ status: "OPEN", amountCents: 107, currency: "usd", reasonCode: "FRAUDULENT", openedAt: new Date("2026-08-08T11:30:00.000Z"), closedAt: null }], _count: { disputes: 1 } }],
-      _count: { items: 2, refunds: 2 },
+      _count: { items: 2, refunds: 2, payments: 1 },
     }],
     _count: { membershipSubscriptions: 3, commerceOrders: 120 },
   }

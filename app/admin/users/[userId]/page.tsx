@@ -181,7 +181,8 @@ function BillingSection({ detail }: { detail: Record<string, unknown> }) {
 /** Converts the already privacy-bounded loader result into readable operator labels without exposing hidden fields. */
 function detailRows(detail: Record<string, unknown>, section: AdminUserDetailSection): Array<[string, string]> {
   if (section === "security") return [
-    ["Sign-in providers", objectValue(detail.providers)], ["Password configured", yesNo(detail.passwordConfigured)],
+    ["Sign-in provider types", objectValue(detail.providers)], ["Connection rows", objectValue(detail.connections)],
+    ["Password configured", yesNo(detail.passwordConfigured)],
     ["Two-factor authentication", yesNo(detail.twoFactorEnabled)], ["Active sessions", String(detail.activeSessionCount ?? 0)],
   ]
   if (section === "overview") return [

@@ -122,6 +122,8 @@ export async function loadAdminUserBilling(input: { prismaClient: DetailPrismaCl
       truncated: user._count.commerceOrders > user.commerceOrders.length,
       recentOrders: user.commerceOrders.map((order) => {
         const disputes = order.payments.flatMap((payment) => payment.disputes)
+        const sampledDisputeCount = order.payments.reduce((total, payment) => total + payment._count.disputes, 0)
+        const paymentsTruncated = order._count.payments > order.payments.length
         return {
           status: order.status,
           fulfillmentStatus: order.fulfillmentStatus,
@@ -143,7 +145,10 @@ export async function loadAdminUserBilling(input: { prismaClient: DetailPrismaCl
             ...dispute,
             openedAt: dateValue(dispute.openedAt),
             closedAt: dateValue(dispute.closedAt),
-          })), order.payments.reduce((total, payment) => total + payment._count.disputes, 0)),
+          })), paymentsTruncated ? null : sampledDisputeCount, {
+            lowerBound: sampledDisputeCount,
+            truncated: paymentsTruncated || sampledDisputeCount > disputes.length,
+          }),
         }
       }),
     },
@@ -158,8 +163,15 @@ export async function loadAdminUserSecurity(input: { prismaClient: DetailPrismaC
     where: { userId: input.userId, expires: { gt: input.now ?? new Date() } },
   })
   const providerItems = [...new Set(user.accounts.map((account) => account.provider))].sort()
+  const connectionsTruncated = user._count.accounts > user.accounts.length
   return result("security", user, {
-    providers: boundedCollection(providerItems, user._count.accounts),
+    providers: {
+      items: providerItems,
+      total: connectionsTruncated ? null : providerItems.length,
+      totalState: connectionsTruncated ? "UNKNOWN" : "KNOWN",
+      truncated: connectionsTruncated,
+    },
+    connections: { shown: user.accounts.length, total: user._count.accounts, truncated: connectionsTruncated },
     passwordConfigured: Boolean(user.passwordCredential),
     twoFactorEnabled: Boolean(user.twoFactorSecret?.enabledAt),
     activeSessionCount,
@@ -282,7 +294,7 @@ const BILLING_SELECT = {
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: 25,
       },
-      _count: { select: { items: true, refunds: true } },
+      _count: { select: { items: true, refunds: true, payments: true } },
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: 100,
@@ -318,8 +330,18 @@ function withDate<Key extends string>(key: Key) {
   return <Row extends Record<Key, Date>>(row: Row) => ({ ...row, [key]: dateValue(row[key]) })
 }
 
-function boundedCollection<Item>(items: Item[], total: number) {
-  return { items, total, truncated: total > items.length }
+function boundedCollection<Item>(
+  items: Item[],
+  total: number | null,
+  evidence: { lowerBound?: number; truncated?: boolean } = {},
+) {
+  return {
+    items,
+    ...(evidence.lowerBound === undefined ? {} : { shown: items.length }),
+    total,
+    ...(evidence.lowerBound === undefined ? {} : { lowerBound: evidence.lowerBound }),
+    truncated: evidence.truncated ?? (total !== null && total > items.length),
+  }
 }
 
 /** Allows only ordinary web/root-relative image references into the Admin projection. */
@@ -383,16 +405,21 @@ function supporterPricingEvidence(
   }
 }
 
-/** Describes only locally persisted warning evidence; it never claims a processor reconciliation was performed. */
+/** Describes only complete or sampled local warning evidence; truncated clean samples remain explicitly unknown. */
 function commerceReconciliationState(order: {
   status: string
   failureCode: string | null
   refunds: Array<{ status: string }>
-  payments: Array<{ disputes: Array<{ status: string }> }>
+  payments: Array<{ disputes: Array<{ status: string }>; _count: { disputes: number } }>
+  _count: { refunds: number; payments: number }
 }) {
   if (order.status === "REVIEW_REQUIRED") return "REVIEW_REQUIRED"
   if (order.refunds.some((refund) => refund.status === "PENDING")) return "PENDING_REFUND"
   if (order.payments.some((payment) => payment.disputes.some((dispute) => dispute.status === "OPEN"))) return "OPEN_DISPUTE"
   if (order.failureCode) return "FAILURE_RECORDED"
+  const evidenceTruncated = order._count.refunds > order.refunds.length
+    || order._count.payments > order.payments.length
+    || order.payments.some((payment) => payment._count.disputes > payment.disputes.length)
+  if (evidenceTruncated) return "UNKNOWN"
   return "NOT_FLAGGED"
 }
