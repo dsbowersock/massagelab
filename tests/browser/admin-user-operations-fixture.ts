@@ -1,48 +1,37 @@
 import type { BrowserContext } from "@playwright/test"
 import { prisma } from "@/lib/prisma"
 import { requireBrowserAdminFixtureQaAuthorization } from "../../lib/admin/browser-qa-authorization"
+import { createBrowserAdminFixtureIdentity } from "../../lib/admin/browser-fixture-identity"
 import { installSignedInSessionCookie } from "./signed-in-session-cookie"
 
-const FIXTURE_IDS = ["browser-admin-operator", "browser-admin-target"] as const
-
-export const BROWSER_ADMIN_TARGET = {
-  id: "browser-admin-target",
-  name: "Browser Admin Target",
-  email: "browser-admin-target@example.test",
-}
-
-const BROWSER_ADMIN_OPERATOR = {
-  id: "browser-admin-operator",
-  name: "Browser Admin Operator",
-  email: "browser-admin-operator@example.test",
-}
-
 /**
- * Installs a JWT-authenticated, database-verified Admin fixture. Cleanup is
- * ID-bounded so browser QA cannot sweep accounts outside these two identities.
+ * Installs one project's JWT-authenticated, database-verified Admin fixture.
+ * Project-qualified IDs keep parallel browser projects from sharing cleanup.
  */
-export async function installAdminUserOperationsFixture(context: BrowserContext, baseURL: string) {
+export async function installAdminUserOperationsFixture(context: BrowserContext, baseURL: string, projectName: string) {
   requireBrowserAdminFixtureQaAuthorization()
-  await removeBrowserAdminFixture()
+  const identity = createBrowserAdminFixtureIdentity(projectName)
+  await removeBrowserAdminFixture(projectName)
   await prisma.user.create({
     data: {
-      ...BROWSER_ADMIN_OPERATOR,
+      ...identity.operator,
       emailVerified: new Date("2026-08-09T00:00:00.000Z"),
       roles: { create: [{ role: "ADMIN", status: "VERIFIED", source: "browser-admin-fixture", verifiedAt: new Date("2026-08-09T00:00:00.000Z") }] },
     },
   })
   await prisma.user.create({
     data: {
-      ...BROWSER_ADMIN_TARGET,
+      ...identity.target,
       emailVerified: new Date("2026-08-09T00:00:00.000Z"),
       roles: { create: [{ role: "USER", status: "VERIFIED", source: "browser-admin-fixture", verifiedAt: new Date("2026-08-09T00:00:00.000Z") }] },
     },
   })
-  await installSignedInSessionCookie(context, baseURL, BROWSER_ADMIN_OPERATOR)
+  await installSignedInSessionCookie(context, baseURL, identity.operator)
 }
 
-/** Removes only the deterministic fixture Users; their test-only roles cascade with the User rows. */
-export async function removeBrowserAdminFixture() {
+/** Removes only the calling project's deterministic fixture Users and cascading test-only roles. */
+export async function removeBrowserAdminFixture(projectName: string) {
   requireBrowserAdminFixtureQaAuthorization()
-  await prisma.user.deleteMany({ where: { id: { in: [...FIXTURE_IDS] } } })
+  const identity = createBrowserAdminFixtureIdentity(projectName)
+  await prisma.user.deleteMany({ where: { id: { in: [identity.operator.id, identity.target.id] } } })
 }
