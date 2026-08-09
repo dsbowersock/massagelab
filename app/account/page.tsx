@@ -109,6 +109,11 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
             <SignedOutAccountPrompt title="Sign in to verify credentials" />
           </TabsContent>
 
+          <TabsContent value="activity" className="flex flex-col gap-5">
+            <TabPanelIntro tabId="activity" />
+            <SignedOutAccountPrompt title="Sign in to review account activity" />
+          </TabsContent>
+
           <TabsContent value="app-settings" className="flex flex-col gap-5">
             <TabPanelIntro tabId="app-settings" />
             <AccountAppSettingsPanel />
@@ -161,6 +166,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
     profile: "Defaults",
     security: session.user.twoFactorEnabled ? "2FA enabled" : "2FA available",
     credentials: roleSummary,
+    activity: "Account history",
     sync: "Local-first",
     accessibility: "Coming later",
     notifications: "Coming later",
@@ -273,6 +279,10 @@ async function ActiveAccountTab({
 
   if (tabId === "credentials") {
     return <CredentialsTab userId={userId} sessionUser={sessionUser} />
+  }
+
+  if (tabId === "activity") {
+    return <ActivityTab userId={userId} sessionUser={sessionUser} />
   }
 
   if (tabId === "app-settings") {
@@ -613,6 +623,43 @@ async function CredentialsTab({ userId, sessionUser }: { userId: string; session
   )
 }
 
+/** Renders the signed-in account's safe, support-facing change history. */
+async function ActivityTab({ userId, sessionUser }: { userId: string; sessionUser: AccountSessionUser }) {
+  const data = await getAccountSurfaceData("activity", userId, sessionUser)
+
+  return (
+    <TabsContent value="activity" className="space-y-5">
+      <TabPanelIntro tabId="activity" />
+      <Card id="account-activity" className={settingsSurfaceClassName}>
+        <CardHeader>
+          <CardTitle>Account activity</CardTitle>
+          <CardDescription>Changes made to your account and the support updates that explain them.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {data.activity.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No account activity yet.</p>
+          ) : (
+            <ol className="space-y-3">
+              {data.activity.map((entry) => (
+                <li key={entry.id} className={`${settingsInsetClassName} space-y-1 p-3`}>
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                    <p className="font-medium">{entry.title}</p>
+                    <time dateTime={entry.occurredAt} className="text-xs text-muted-foreground">
+                      {new Date(entry.occurredAt).toLocaleString()}
+                    </time>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{entry.explanation}</p>
+                  {entry.effectiveValue ? <p className="text-sm">{entry.effectiveValue}</p> : null}
+                </li>
+              ))}
+            </ol>
+          )}
+        </CardContent>
+      </Card>
+    </TabsContent>
+  )
+}
+
 async function MembershipTab({ userId, sessionUser }: { userId: string; sessionUser: AccountSessionUser }) {
   const data = await getAccountSurfaceData("membership", userId, sessionUser)
   const membershipSummary = data.membershipSummary
@@ -835,6 +882,7 @@ const signedOutAccountItemStatuses = {
   profile: "Sign in",
   security: "Sign in",
   credentials: "Sign in",
+  activity: "Sign in",
   "app-settings": "Available",
   "therapist-defaults": "Local only",
   sync: "Sign in",

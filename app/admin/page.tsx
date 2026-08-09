@@ -1,4 +1,5 @@
 import Link from "next/link"
+import type { ReactNode } from "react"
 import { redirect } from "next/navigation"
 import { getCurrentSession } from "@/auth"
 import { AppPageShell, appInsetClassName, appSurfaceClassName } from "@/components/ui/app-surface"
@@ -6,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { loadAdminActor } from "@/lib/admin/access"
 import { dashboardSections } from "@/lib/admin/dashboard-sections"
+import { getAdminUserMetrics } from "@/lib/admin/user-directory"
 import { listCommerceAdminOperations } from "@/lib/commerce/admin-service"
 import { prisma } from "@/lib/prisma"
 
@@ -33,10 +35,11 @@ export default async function AdminDashboardPage() {
   }
 
   const visible = new Set(sections)
-  const [reviewMetrics, editorMetrics, commerceQueue] = await Promise.all([
+  const [reviewMetrics, editorMetrics, commerceQueue, userMetrics] = await Promise.all([
     visible.has("anatomy-review") ? getAnatomyReviewMetrics() : Promise.resolve(null),
     visible.has("anatomy") ? getAnatomyEditorMetrics() : Promise.resolve(null),
     visible.has("commerce") ? listCommerceAdminOperations({ prismaClient: prisma }) : Promise.resolve(null),
+    visible.has("users") ? getAdminUserMetrics({ prismaClient: prisma }) : Promise.resolve(null),
   ])
 
   return (
@@ -100,11 +103,27 @@ export default async function AdminDashboardPage() {
             </section>
           ) : null}
 
+          {userMetrics ? (
+            <section className="space-y-3">
+              <div>
+                <h2 className="text-lg font-semibold">Account operations</h2>
+                <p className="text-sm text-muted-foreground">Safe aggregate account and support-operation counts.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+                <DashboardStat>{userMetrics.totalAccounts.toLocaleString()} total accounts</DashboardStat>
+                <DashboardStat>{userMetrics.verifiedAccounts.toLocaleString()} verified accounts</DashboardStat>
+                <DashboardStat>{userMetrics.activeSupporters.toLocaleString()} active Supporters</DashboardStat>
+                <DashboardStat>{userMetrics.unresolvedOperations.toLocaleString()} unresolved operations</DashboardStat>
+              </div>
+            </section>
+          ) : null}
+
           <section className="grid gap-3 md:grid-cols-3">
             {visible.has("users") ? (
-              <DashboardNotice
+              <DashboardAction
+                href="/admin/users"
                 title="User operations"
-                description="The authorization, audit, activity, and notification foundation is ready. The user directory and support actions arrive in the next serial branch."
+                description="Search account-operation details with bounded filters, while keeping credentials, payment instruments, metadata, and clinical records out of this surface."
               />
             ) : null}
             {visible.has("anatomy-review") ? (
@@ -141,7 +160,6 @@ export default async function AdminDashboardPage() {
     </AppPageShell>
   )
 }
-
 async function getAnatomyReviewMetrics(): Promise<AnatomyReviewMetrics> {
   const [mediaLinksNeedingReview, rejectedMediaLinks, approvedMediaLinks] = await Promise.all([
     prisma.anatomyMediaEntity.count({ where: { reviewStatus: "NEEDS_REVIEW" } }),
@@ -169,7 +187,9 @@ function DashboardMetric({ label, value, href }: { label: string; value: number;
     </Link>
   )
 }
-
+function DashboardStat({ children }: { children: ReactNode }) {
+  return <p className={`${appInsetClassName} p-3 text-sm font-medium`}>{children}</p>
+}
 function DashboardAction({ href, title, description }: { href: string; title: string; description: string }) {
   return (
     <Button asChild variant="outline" className="h-auto items-start justify-start whitespace-normal p-4 text-left">
@@ -180,14 +200,5 @@ function DashboardAction({ href, title, description }: { href: string; title: st
         </span>
       </Link>
     </Button>
-  )
-}
-
-function DashboardNotice({ title, description }: { title: string; description: string }) {
-  return (
-    <div className={`${appInsetClassName} p-4`}>
-      <p className="text-sm font-medium">{title}</p>
-      <p className="mt-1 text-sm leading-5 text-muted-foreground">{description}</p>
-    </div>
   )
 }

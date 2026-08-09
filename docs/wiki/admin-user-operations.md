@@ -1,6 +1,6 @@
 # Admin User Operations
 
-This page defines the authorization and evidence boundary for MassageLab account support. The current branch supplies roles, guards, audit records, target-visible activity, durable account-change email intents, and a capability-aware Admin dashboard. It does not yet supply the user directory or support-action forms.
+This page defines the authorization and evidence boundary for MassageLab account support. The current branch supplies roles, guards, audit records, target-visible activity, durable account-change email intents, a capability-aware Admin dashboard, and the full-Admin user directory/read-only account detail.
 
 ## Roles and capabilities
 
@@ -29,6 +29,12 @@ The database relations reject cross-target bundles. Exact idempotent replays ret
 
 Email delivery is at-least-once. A process can stop after the provider accepts a message but before the database transaction records delivery, so an authorized retry can send a duplicate. Do not describe this contract as exactly-once.
 
+## Activity surfaces and retry boundary
+
+The signed-in Account Activity tab queries only its own newest fifty `UserAccountActivity` entries. Its payload contains only the entry ID, title, explanation, effective value, and occurrence time. It never includes the operator, internal note, snapshots, email recipient/content, delivery failure details, or other Admin-only fields.
+
+The full-Admin detail Activity section may show the linked email intent's safe kind, delivery state, failure code, attempt count, and last-attempt/delivery times. Retry is an explicit server action only for a `FAILED` non-password intent; it begins with `requireFullAdminUser()` and delegates to `retryAdminEmailIntent()`, which records its own immutable retry audit action without creating target activity or another email intent. This is the only Branch 3 write path from the read-only target detail. Failed password-reset rows display future-action copy only; a fresh-token reset resend is deferred to the separately designed Branch 5 operation.
+
 ## Safe metadata
 
 Before/after snapshots and other admin metadata must be plain JSON-compatible data. The shared validator snapshots caller-owned data, rejects cycles, accessors, non-finite numbers, deep or oversized payloads, strings over 500 characters, more than 50 aggregate entries, and restricted field names matching password, token, secret, backup, payment method, or clinical-record concepts such as SOAP, intake, journal, and ROM.
@@ -37,4 +43,4 @@ Store only the minimum operational facts needed to explain the change. Do not st
 
 ## Serial rollout
 
-Branch 2 is the authorization, audit, activity, email-intent, and dashboard foundation. Branch 3 adds the full-Admin user directory and read-only account detail. It must begin only after the Branch 2 pull request merges and its worktree refreshes from the new `main`; do not develop the two branches concurrently or copy Branch 2 files into a stale Branch 3 base.
+Branch 2 is the foundation owner for authorization, audit, activity, email intents, and capability-aware dashboard access. Branch 3 consumes those owners and has completed Tasks 7-9: the full-Admin directory, bounded read-only account detail, signed-in Account Activity, safe aggregate dashboard metrics, and the existing audited failed-email retry seam. Branch 4 is the next serial gate; it must begin only after the Branch 3 pull request merges and its worktree refreshes from the new `main`. Do not develop serial branches concurrently or copy foundation files into a stale worktree.

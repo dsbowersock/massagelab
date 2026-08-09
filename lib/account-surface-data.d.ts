@@ -45,6 +45,17 @@ export type AccountSecuritySurfaceData = {
   googleLinked: boolean
 }
 
+export type AccountActivitySurfaceData = {
+  surface: "activity"
+  activity: Array<{
+    id: string
+    title: string
+    explanation: string
+    effectiveValue: string | null
+    occurredAt: string
+  }>
+}
+
 export type AccountCredentialsSurfaceData = {
   surface: "credentials"
   roleAssignments: AccountRoleAssignment[]
@@ -189,6 +200,7 @@ export type AccountSurfaceData =
   | AccountOverviewSurfaceData
   | AccountProfileSurfaceData
   | AccountSecuritySurfaceData
+  | AccountActivitySurfaceData
   | AccountCredentialsSurfaceData
   | AccountMembershipSurfaceData
   | AccountBackgroundCommerceSurfaceData
@@ -199,6 +211,7 @@ export type GetAccountSurfaceData = {
   (surface: "overview", userId: string, sessionUser?: AccountSurfaceSessionUser): Promise<AccountOverviewSurfaceData>
   (surface: "profile", userId: string, sessionUser?: AccountSurfaceSessionUser): Promise<AccountProfileSurfaceData>
   (surface: "security", userId: string, sessionUser?: AccountSurfaceSessionUser): Promise<AccountSecuritySurfaceData>
+  (surface: "activity", userId: string, sessionUser?: AccountSurfaceSessionUser): Promise<AccountActivitySurfaceData>
   (surface: "credentials", userId: string, sessionUser?: AccountSurfaceSessionUser): Promise<AccountCredentialsSurfaceData>
   (surface: "membership", userId: string, sessionUser?: AccountSurfaceSessionUser): Promise<AccountMembershipSurfaceData>
   (surface: "orders-invoices", userId: string, sessionUser?: AccountSurfaceSessionUser): Promise<AccountBackgroundCommerceSurfaceData>

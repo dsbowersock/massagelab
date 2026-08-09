@@ -313,6 +313,7 @@ describe("admin operation service", () => {
       () => retryAdminEmailIntent({
         prismaClient: database,
         actorUserId: "user_actor",
+        expectedTargetUserId: "user_target",
         intentId: emailIntentId,
         idempotencyKey: "retry-action-collision",
         sendEmail: async () => {
@@ -350,6 +351,7 @@ describe("admin operation service", () => {
       () => retryAdminEmailIntent({
         prismaClient: crossPathDatabase,
         actorUserId: "user_actor",
+        expectedTargetUserId: "user_target",
         intentId: existingIntent.emailIntentId,
         idempotencyKey: "bundle-retry-collision",
         sendEmail: async () => { sends += 1; return { delivered: true } },
@@ -450,7 +452,7 @@ describe("admin operation service", () => {
     const { emailIntentId } = await recordAdminActionBundle(database, bundleInput())
     database.adminRoles = [{ role: "ANATOMY_EDITOR", status: "VERIFIED" }]
     await assert.rejects(
-      () => retryAdminEmailIntent({ prismaClient: database, actorUserId: "user_actor", intentId: emailIntentId, idempotencyKey: "retry-1" }),
+      () => retryAdminEmailIntent({ prismaClient: database, actorUserId: "user_actor", expectedTargetUserId: "user_target", intentId: emailIntentId, idempotencyKey: "retry-1" }),
       /Full administration requires verified database authority/,
     )
 
@@ -459,6 +461,7 @@ describe("admin operation service", () => {
     const first = await retryAdminEmailIntent({
       prismaClient: database,
       actorUserId: "user_actor",
+      expectedTargetUserId: "user_target",
       intentId: emailIntentId,
       idempotencyKey: "retry-1",
       sendEmail: async () => {
@@ -469,6 +472,7 @@ describe("admin operation service", () => {
     const replayed = await retryAdminEmailIntent({
       prismaClient: database,
       actorUserId: "user_actor",
+      expectedTargetUserId: "user_target",
       intentId: emailIntentId,
       idempotencyKey: "retry-1",
       sendEmail: async () => {
@@ -491,12 +495,38 @@ describe("admin operation service", () => {
     assert.deepEqual(retryAction.afterState, { emailIntentId, status: "DELIVERED", attemptCount: 1 })
   })
 
+  it("rejects a retry whose locked intent belongs to a different route target before transport", async () => {
+    const database = createAdminDatabase()
+    const { emailIntentId } = await recordAdminActionBundle(database, bundleInput())
+    let sends = 0
+
+    await assert.rejects(
+      () => retryAdminEmailIntent({
+        prismaClient: database,
+        actorUserId: "user_actor",
+        expectedTargetUserId: "different_route_target",
+        intentId: emailIntentId,
+        idempotencyKey: "wrong-route-target",
+        sendEmail: async () => {
+          sends += 1
+          return { delivered: true }
+        },
+      }),
+      /target account/i,
+    )
+
+    assert.equal(sends, 0)
+    assert.equal(database.intents[0].attemptCount, 0)
+    assert.equal(database.actions.length, 1)
+  })
+
   it("records a failed retry outcome without exposing provider errors", async () => {
     const database = createAdminDatabase()
     const { emailIntentId } = await recordAdminActionBundle(database, bundleInput())
     const result = await retryAdminEmailIntent({
       prismaClient: database,
       actorUserId: "user_actor",
+      expectedTargetUserId: "user_target",
       intentId: emailIntentId,
       idempotencyKey: "retry-failure",
       sendEmail: async () => { throw new Error("sensitive provider payload") },
@@ -520,6 +550,7 @@ describe("admin operation service", () => {
     const result = await retryAdminEmailIntent({
       prismaClient: database,
       actorUserId: "user_actor",
+      expectedTargetUserId: "user_target",
       intentId: emailIntentId,
       idempotencyKey: "retry-after-delivery-failure",
       sendEmail: async () => ({ delivered: true, providerDiagnostic: "still-do-not-store" }),
@@ -560,6 +591,7 @@ describe("admin operation service", () => {
       await retryAdminEmailIntent({
         prismaClient: database,
         actorUserId: "user_actor",
+        expectedTargetUserId: "user_target",
         intentId: emailIntentId,
         idempotencyKey: "historical-retry",
         sendEmail: async () => ({ delivered: true }),
@@ -570,6 +602,7 @@ describe("admin operation service", () => {
         () => retryAdminEmailIntent({
           prismaClient: database,
           actorUserId: "user_actor",
+          expectedTargetUserId: "user_target",
           intentId: emailIntentId,
           idempotencyKey: "historical-retry",
         }),
@@ -592,7 +625,7 @@ describe("admin operation service", () => {
 
     await assert.rejects(() => deliverAdminEmailIntent({ prismaClient: database, intentId: emailIntentId, sendEmail }), /Password-reset/)
     await assert.rejects(
-      () => retryAdminEmailIntent({ prismaClient: database, actorUserId: "user_actor", intentId: emailIntentId, idempotencyKey: "password-retry", sendEmail }),
+      () => retryAdminEmailIntent({ prismaClient: database, actorUserId: "user_actor", expectedTargetUserId: "user_target", intentId: emailIntentId, idempotencyKey: "password-retry", sendEmail }),
       /Password-reset/,
     )
     assert.equal(calls, 0)
@@ -610,22 +643,23 @@ describe("admin operation service", () => {
     await retryAdminEmailIntent({
       prismaClient: database,
       actorUserId: "user_actor",
+      expectedTargetUserId: "user_target",
       intentId: first.emailIntentId,
       idempotencyKey: "shared-retry-key",
       sendEmail: async () => ({ delivered: true }),
     })
     await assert.rejects(
-      () => retryAdminEmailIntent({ prismaClient: database, actorUserId: "user_actor", intentId: second.emailIntentId, idempotencyKey: "shared-retry-key" }),
+      () => retryAdminEmailIntent({ prismaClient: database, actorUserId: "user_actor", expectedTargetUserId: "user_target", intentId: second.emailIntentId, idempotencyKey: "shared-retry-key" }),
       /incomplete/,
     )
     await assert.rejects(
-      () => retryAdminEmailIntent({ prismaClient: database, actorUserId: "user_actor", intentId: first.emailIntentId, idempotencyKey: "delivered-new-key" }),
+      () => retryAdminEmailIntent({ prismaClient: database, actorUserId: "user_actor", expectedTargetUserId: "user_target", intentId: first.emailIntentId, idempotencyKey: "delivered-new-key" }),
       /cannot be retried/,
     )
     assert.equal(database.actions.length, 3)
   })
 
-  it("serializes concurrent direct delivery and concurrent same-key retries", async () => {
+  it("serializes concurrent direct delivery and concurrent submissions from the same rendered retry form key", async () => {
     const directDatabase = createAdminDatabase()
     const direct = await recordAdminActionBundle(directDatabase, bundleInput())
     let directCalls = 0
@@ -659,6 +693,7 @@ describe("admin operation service", () => {
       retryAdminEmailIntent({
         prismaClient: retryDatabase,
         actorUserId: "user_actor",
+        expectedTargetUserId: "user_target",
         intentId: retry.emailIntentId,
         idempotencyKey: "concurrent-retry",
         sendEmail: async () => {
@@ -670,6 +705,7 @@ describe("admin operation service", () => {
       retryAdminEmailIntent({
         prismaClient: retryDatabase,
         actorUserId: "user_actor",
+        expectedTargetUserId: "user_target",
         intentId: retry.emailIntentId,
         idempotencyKey: "concurrent-retry",
         sendEmail: async () => {
@@ -693,6 +729,7 @@ describe("admin operation service", () => {
       retryAdminEmailIntent({
         prismaClient: differentIntentDatabase,
         actorUserId: "user_actor",
+        expectedTargetUserId: "user_target",
         intentId: firstIntent.emailIntentId,
         idempotencyKey: "shared-concurrent-key",
         sendEmail: async () => {
@@ -704,6 +741,7 @@ describe("admin operation service", () => {
       retryAdminEmailIntent({
         prismaClient: differentIntentDatabase,
         actorUserId: "user_actor",
+        expectedTargetUserId: "user_target",
         intentId: secondIntent.emailIntentId,
         idempotencyKey: "shared-concurrent-key",
         sendEmail: async () => {
@@ -728,6 +766,7 @@ describe("admin operation service", () => {
       retryAdminEmailIntent({
         prismaClient: sharedIntentDatabase,
         actorUserId: "user_actor",
+        expectedTargetUserId: "user_target",
         intentId: sharedIntent.emailIntentId,
         idempotencyKey: "direct-retry-race",
         sendEmail: async () => { sharedSends += 1; return { delivered: true } },
