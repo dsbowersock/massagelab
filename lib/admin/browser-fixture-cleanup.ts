@@ -2,7 +2,18 @@ import type { PrismaClient } from "@prisma/client"
 import { requireBrowserAdminFixtureQaAuthorization } from "./browser-qa-authorization.ts"
 import { createBrowserAdminFixtureIdentity } from "./browser-fixture-identity.ts"
 
-type FixtureCleanupPrismaClient = Pick<PrismaClient, "backgroundCreditEntry" | "backgroundCreditWallet" | "commerceEvent" | "user">
+type FixtureCleanupPrismaClient = Pick<
+  PrismaClient,
+  | "adminAction"
+  | "adminEmailIntent"
+  | "backgroundCreditEntry"
+  | "backgroundCreditWallet"
+  | "commerceEvent"
+  | "session"
+  | "user"
+  | "userAccountActivity"
+  | "userRole"
+>
 type QaEnvironment = Record<string, string | undefined>
 
 /**
@@ -19,6 +30,13 @@ export async function removeBrowserAdminFixtureRecords(input: {
   const identity = createBrowserAdminFixtureIdentity(input.projectName)
   const userIds = [identity.operator.id, identity.target.id]
 
+  await input.prismaClient.adminEmailIntent.deleteMany({ where: { userId: { in: userIds } } })
+  await input.prismaClient.userAccountActivity.deleteMany({ where: { userId: { in: userIds } } })
+  await input.prismaClient.adminAction.deleteMany({
+    where: { OR: [{ actorUserId: { in: userIds } }, { targetUserId: { in: userIds } }] },
+  })
+  await input.prismaClient.session.deleteMany({ where: { userId: { in: userIds } } })
+  await input.prismaClient.userRole.deleteMany({ where: { userId: { in: userIds } } })
   await input.prismaClient.commerceEvent.deleteMany({ where: { userId: { in: userIds } } })
   await input.prismaClient.backgroundCreditEntry.deleteMany({ where: { userId: { in: userIds } } })
   await input.prismaClient.backgroundCreditWallet.deleteMany({ where: { userId: { in: userIds } } })

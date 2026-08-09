@@ -6,6 +6,19 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `Massage Laba Lamp` is the approved catalog label for the original free moving-gradient default. `MassageLaba Lamp` and general prose that says `MassageLab Lamp` are legacy references to that same stable `massage-lab-moving-gradient` entry, not separate backgrounds.
 
+## 2026-08-09 — Confirmed delegated anatomy role controls
+
+- Added full-Admin-only Access-section controls to assign or revoke only `ANATOMY_REVIEWER` and `ANATOMY_EDITOR`. Each form shows exact current and planned state, requires a shared allowlisted support reason plus explicit sign-out confirmation, and reuses one server-generated UUID for idempotency.
+- Role actions bind the route target, reload full-Admin authority, reject stale or unsupported state, and reuse the Branch 4 transaction that writes the role, increments `User.authSessionVersion`, deletes adapter sessions, and creates immutable audit, target activity, and durable email evidence atomically. The increment immediately invalidates existing non-matching tokens; Auth.js signs the user out when one next reaches a successful database-backed refresh. Email delivery starts only after commit; a transport failure is reported as notification failure without falsifying or rolling back the role change.
+- Exact role-action replays now recover a notification left `PENDING` by a post-commit interruption through the same intent advisory lock. The initial-delivery owner never resends `FAILED` or `DELIVERED` intents; only the existing audited Activity action may retry an eligible failure, and replay copy never claims a new role mutation or sign-out.
+- Extended desktop/mobile browser acceptance for the Reviewer matrix, keyboard submission, responsive overflow, and a separate target JWT becoming invalid after the role change. Playwright-owned servers explicitly blank SMTP variables, and fixture cleanup removes only deterministic Admin evidence, sessions, roles, commerce rows, and fixture users in foreign-key-safe order.
+
+## 2026-08-09 — Versioned JWT session invalidation
+
+- Added `User.authSessionVersion` as the canonical Auth.js JWT invalidation owner. New sign-ins adopt the current database version; later requests require an exact match, with legacy unversioned JWTs accepted only while the account remains at version zero. Database refresh outages retain the existing restricted-identity fallback.
+- Delegated anatomy-role changes increment the target version inside the same serializable transaction as the role mutation, adapter-session deletion, immutable audit, target activity, and email intent. Exact and concurrent replay reuse and revalidate the persisted before/after version evidence without incrementing again, while failed evidence creation rolls the increment back.
+- Prisma `Session` deletion remains compatibility-only under the JWT strategy. Deleted-row counts are not active JWT-session counts, and future security-support copy must not describe them that way.
+
 ## 2026-08-09 — Account activity and failed-email retry
 
 - Completed Branch 3 Tasks 7-9 on top of the Branch 2 foundation owner: the full-Admin user directory, bounded read-only account detail, safe dashboard account metrics, and signed-in Account Activity consumer surfaces are implemented. Directory filters and displayed subscription state are Supporter-scoped; retired role values normalize only on persisted reads; and every detail collection has deterministic bounded projection evidence.

@@ -422,11 +422,19 @@ describe("admin operation service", () => {
     }
   })
 
-  it("does not resend delivered or recipient-unavailable intents", async () => {
+  it("initial delivery attempts only pending intents and never resends failed or delivered outcomes", async () => {
     const database = createAdminDatabase()
     const delivered = await recordAdminActionBundle(database, bundleInput())
     database.intents[0].status = "DELIVERED"
     database.intents[0].attemptCount = 4
+    const failed = await recordAdminActionBundle(database, {
+      ...bundleInput(),
+      idempotencyKey: "failed-initial-delivery",
+    })
+    database.intents[1].status = "FAILED"
+    database.intents[1].attemptCount = 1
+    database.intents[1].lastAttemptAt = new Date("2026-08-08T14:00:00.000Z")
+    database.intents[1].failureCode = "DELIVERY_FAILED"
     const unavailable = await recordAdminActionBundle(database, {
       ...bundleInput(),
       idempotencyKey: "recipient-unavailable",
@@ -440,6 +448,9 @@ describe("admin operation service", () => {
 
     assert.deepEqual(await deliverAdminEmailIntent({ prismaClient: database, intentId: delivered.emailIntentId, sendEmail }), {
       status: "DELIVERED", attemptCount: 4, attempted: false,
+    })
+    assert.deepEqual(await deliverAdminEmailIntent({ prismaClient: database, intentId: failed.emailIntentId, sendEmail }), {
+      status: "FAILED", attemptCount: 1, attempted: false,
     })
     assert.deepEqual(await deliverAdminEmailIntent({ prismaClient: database, intentId: unavailable.emailIntentId, sendEmail }), {
       status: "FAILED", attemptCount: 0, attempted: false,

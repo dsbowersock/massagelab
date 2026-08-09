@@ -58,6 +58,11 @@ describe("admin user operations browser fixture", () => {
 
     const ids = ["browser-admin-operator-desktop-chromium", "browser-admin-target-desktop-chromium"]
     assert.deepEqual(calls, [
+      ["adminEmailIntent.deleteMany", { where: { userId: { in: ids } } }],
+      ["userAccountActivity.deleteMany", { where: { userId: { in: ids } } }],
+      ["adminAction.deleteMany", { where: { OR: [{ actorUserId: { in: ids } }, { targetUserId: { in: ids } }] } }],
+      ["session.deleteMany", { where: { userId: { in: ids } } }],
+      ["userRole.deleteMany", { where: { userId: { in: ids } } }],
       ["commerceEvent.deleteMany", { where: { userId: { in: ids } } }],
       ["backgroundCreditEntry.deleteMany", { where: { userId: { in: ids } } }],
       ["backgroundCreditWallet.deleteMany", { where: { userId: { in: ids } } }],
@@ -86,7 +91,10 @@ describe("admin user operations browser fixture", () => {
 })
 
 function cleanupPrisma(calls) {
-  return Object.fromEntries(["commerceEvent", "backgroundCreditEntry", "backgroundCreditWallet", "user"].map((model) => [model, {
+  return Object.fromEntries([
+    "adminEmailIntent", "userAccountActivity", "adminAction", "session", "userRole",
+    "commerceEvent", "backgroundCreditEntry", "backgroundCreditWallet", "user",
+  ].map((model) => [model, {
     deleteMany: async (args) => { calls.push([`${model}.deleteMany`, args]); return { count: 0 } },
   }]))
 }

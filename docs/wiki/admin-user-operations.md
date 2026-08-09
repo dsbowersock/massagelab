@@ -17,6 +17,18 @@ Authentication sessions identify the current user; their role claims do not auth
 
 Do not replace this rule with displayed plan names, stale navigation state, dashboard visibility, or client-provided roles.
 
+## JWT session invalidation
+
+`User.authSessionVersion` is the canonical JWT invalidation owner. Auth.js copies the current database value into a newly issued JWT and requires later requests to present that exact version. A role or security action increments the value in the same transaction as its account mutation and evidence bundle, immediately invalidating every existing non-matching token; Auth.js signs the user out when that token next reaches a successful database-backed refresh. Legacy JWTs without a version remain valid only while the account value is zero.
+
+Prisma `Session` rows are still deleted for adapter compatibility, but that deletion does not revoke JWT cookies and its row count is not an active JWT-session count. MassageLab's stateless JWT strategy cannot report an exact number of active browser sessions, so current and future Admin copy must not present deleted `Session` rows as users or JWT sessions signed out.
+
+## Delegated anatomy role controls
+
+The target account's Access section lets a freshly verified full Admin assign or revoke only Anatomy Reviewer and Anatomy Editor. It shows the stored current state and exact planned state, requires an allowlisted support reason and explicit confirmation that existing sign-in tokens will be invalidated, and submits one server-generated UUID unchanged. Pending or otherwise unsupported assignment evidence renders read-only and must be refreshed or resolved before mutation. Full `ADMIN`, retired `ANATOMY_ADMIN`, and generic `EDITOR` are never grantable from this surface.
+
+The role record, `authSessionVersion` increment, adapter-session deletion, immutable Admin action, target-visible activity, and durable email intent share one transaction. Transport begins only after commit. An exact role replay enters the same intent lock and attempts initial delivery only while the intent remains `PENDING`, which recovers a process stop between commit and transport. A `FAILED` intent is never resent by initial delivery and remains exclusive to the audited Activity retry; a `DELIVERED` intent never resends. Delivery failure therefore reports that the role changed, existing sign-in tokens were invalidated immediately, and the user will be signed out on the next successful database-backed session refresh; it never reports a rollback that did not happen. Replay-specific copy reports the notification outcome without claiming another mutation or sign-out. An unavailable recipient, another non-attempted result, or an unconfirmed transport exception directs Admin to inspect Activity without promising that a retry control exists.
+
 ## Audit, activity, and email boundaries
 
 An account mutation and its evidence bundle belong in one caller-owned database transaction:
@@ -43,4 +55,4 @@ Store only the minimum operational facts needed to explain the change. Do not st
 
 ## Serial rollout
 
-Branch 2 is the foundation owner for authorization, audit, activity, email intents, and capability-aware dashboard access. Branch 3 consumes those owners and has completed Tasks 7-9: the full-Admin directory, bounded read-only account detail, signed-in Account Activity, safe aggregate dashboard metrics, and the existing audited failed-email retry seam. Branch 4 is the next serial gate; it must begin only after the Branch 3 pull request merges and its worktree refreshes from the new `main`. Do not develop serial branches concurrently or copy foundation files into a stale worktree.
+Branch 2 is the foundation owner for authorization, audit, activity, email intents, and capability-aware dashboard access. Branch 3 consumes those owners and completed Tasks 7-9: the full-Admin directory, bounded account detail, signed-in Account Activity, safe aggregate dashboard metrics, and the existing audited failed-email retry seam. Branch 4 owns the completed delegated-role mutation/UI and shared JWT invalidation seam that Branch 5 security actions will reuse. Do not develop serial branches concurrently or copy foundation files into a stale worktree.
