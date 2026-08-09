@@ -672,7 +672,14 @@
 }
 
 .backgroundSettingsTabContent {
+  min-height: 0;
+  height: 100%;
   touch-action: pan-y;
+}
+
+.backgroundSettingsTabContent > :global([data-background-carousel]) {
+  min-height: 0;
+  height: 100%;
 }
 
 .settingsSection {
@@ -2171,10 +2178,6 @@
 
   .secondaryDisplay {
     max-width: calc(100vw - 8rem);
-  }
-
-  .backgroundSettingsTabContent {
-    padding-top: clamp(1.75rem, 7dvh, 3.5rem);
   }
 
   .backgroundCategoryRow {

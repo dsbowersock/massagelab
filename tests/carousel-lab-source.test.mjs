@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { readFileSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import { describe, it } from "node:test"
 import {
   normalizeAdaptiveCarouselItems,
@@ -205,6 +205,19 @@ describe("Carousel Lab source boundaries", () => {
     assert.match(metalIcon, /fill=\{selected \? "hsl\(var\(--button-cta-face\)\)" : "none"\}/)
     assert.match(metalIcon, /animateTransform/)
     assert.match(metalIcon, /selected && !reducedMotion/)
+  })
+
+  it("keeps production Background actions and metadata off the preview artwork", () => {
+    const card = read("components/backgrounds/background-carousel-card.tsx")
+    assert.equal(existsSync(new URL("../components/backgrounds/background-carousel-control-tray.tsx", import.meta.url)), true)
+    const tray = read("components/backgrounds/background-carousel-control-tray.tsx")
+
+    assert.doesNotMatch(card, /data-carousel-primary-action|data-carousel-favorite-action/)
+    assert.doesNotMatch(card, /visualDescriptor|previewTags|acquisitionHint/)
+    assert.match(tray, /data-background-carousel-controls/)
+    assert.match(tray, /data-carousel-primary-action/)
+    assert.match(tray, /data-carousel-favorite-action/)
+    assert.match(tray, /DialogTrigger/)
   })
 
   it("sizes every retained card independently and hides distant shells", () => {

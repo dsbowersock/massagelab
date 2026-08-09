@@ -692,7 +692,7 @@ export function ImmersivePanelShell({
               <p className={styles.unavailableMessage} role="status">{backgroundUnavailableMessage}</p>
             ) : null}
             <BackgroundCommerceCart variant="compact" />
-            <div className={styles.backgroundScroller}>{backgroundContent}</div>
+            <div className={styles.backgroundScroller} data-background-scroller>{backgroundContent}</div>
           </DialogPrimitive.Content>
         </DialogPrimitive.Portal>
       </DialogPrimitive.Root>

@@ -492,7 +492,14 @@
 
 .backgroundScroller {
   flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
   padding-bottom: max(0.875rem, env(safe-area-inset-bottom, 0px));
+}
+
+.backgroundScroller > * {
+  min-height: 0;
+  height: 100%;
 }
 
 .unavailableMessage {

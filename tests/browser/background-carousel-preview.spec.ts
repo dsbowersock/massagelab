@@ -331,3 +331,34 @@ test("production carousel remains poster-only when reduced motion is requested",
   await expect(videos).toHaveCount(0)
   await expect(panel.getByTestId("background-preview-poster").first()).toBeVisible()
 })
+
+test("production Background controls stay off-card and visible in portrait and short landscape", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  const panel = await openProductionBackgroundCarousel(page)
+  const controls = panel.getByTestId("background-carousel-controls")
+  const centeredCard = panel.locator('[data-carousel-slide][data-centered="true"] article')
+
+  await expect(controls).toBeVisible()
+  await expect(centeredCard.locator("h3, [data-carousel-primary-action], [data-carousel-favorite-action]")).toHaveCount(0)
+  await expect(controls.getByRole("button", { name: "Previous background" })).toBeVisible()
+  await expect(controls.getByRole("button", { name: "Next background" })).toBeVisible()
+  const firstName = await controls.getByRole("heading", { level: 3 }).textContent()
+  await controls.getByRole("button", { name: "Next background" }).click()
+  await expect.poll(() => controls.getByRole("heading", { level: 3 }).textContent()).not.toBe(firstName)
+
+  await page.setViewportSize({ width: 844, height: 390 })
+  const root = panel.getByRole("region", { name: "Background carousel" })
+  await expect(root).toHaveAttribute("data-carousel-responsive-profile", "short-landscape")
+  await expect(panel.locator('[data-carousel-slide][data-detail-level="full"], [data-carousel-slide][data-detail-level="summary"]')).toHaveCount(3)
+
+  const [stageBox, trayBox] = await Promise.all([
+    panel.getByTestId("background-carousel-stage").boundingBox(),
+    controls.boundingBox(),
+  ])
+  expect(trayBox?.x ?? 0).toBeGreaterThan((stageBox?.x ?? 0) + (stageBox?.width ?? 0) / 2)
+  expect(await panel.locator("[data-background-scroller]").evaluate((node) => node.scrollHeight <= node.clientHeight + 1)).toBe(true)
+
+  await controls.getByRole("button", { name: /More information about/i }).click()
+  await expect(page.getByRole("dialog").getByRole("heading")).toBeVisible()
+  await page.keyboard.press("Escape")
+})
