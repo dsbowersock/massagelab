@@ -25,6 +25,8 @@ const ROLE_CHANGE_CONFIRMATION = "CONFIRM_ANATOMY_ROLE_CHANGE"
 const DELEGATED_ROLES = new Set<DelegatedAnatomyRole>(["ANATOMY_REVIEWER", "ANATOMY_EDITOR"])
 const ROLE_OPERATIONS = new Set<AnatomyRoleOperation>(["ASSIGN", "REVOKE"])
 const EXPECTED_ROLE_STATUSES = new Set<ExpectedAnatomyRoleStatus>(["ABSENT", "VERIFIED", "REVOKED"])
+// Only these exact service messages are operator-safe; every other error uses
+// the generic response because service failures may expose internal details.
 const SAFE_ROLE_CHANGE_ERRORS = new Set([
   "This role changed since this operation was prepared. Refresh the account and try again.",
   "You cannot change your own delegated anatomy role.",

@@ -90,6 +90,8 @@ describe("JWT session-version integration contract", () => {
     }
     NextAuth.CredentialsSignin = CredentialsSignin
 
+    // Compile auth.ts with dependency doubles so callbacks.jwt is exercised
+    // without loading real authentication providers or infrastructure.
     loadCompiledModule(authSource, "auth.test.ts", {
       "next-auth": NextAuth,
       "next-auth/providers/credentials": (config) => config,
