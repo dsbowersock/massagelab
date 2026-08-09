@@ -4,6 +4,7 @@ import { AppPageShell, appInsetClassName, appSurfaceClassName } from "@/componen
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { requireFullAdminUser } from "@/lib/admin/access"
+import { retryFailedEmailIntentAction } from "./email-actions"
 import {
   ADMIN_USER_DETAIL_SECTIONS,
   getAdminUserDetailSection,
@@ -48,12 +49,72 @@ export default async function AdminUserDetailPage({ params, searchParams }: Admi
 
           <section aria-labelledby={`${section}-heading`} className={`${appInsetClassName} space-y-4 p-4`}>
             <h2 id={`${section}-heading`} className="text-lg font-semibold">{sectionLabel(section)}</h2>
-            <DetailSection detail={detail.data} section={section} />
+            {section === "activity" ? <ActivitySection detail={detail.data} userId={userId} /> : <DetailSection detail={detail.data} section={section} />}
           </section>
         </CardContent>
       </Card>
     </AppPageShell>
   )
+}
+
+type ActivityEmail = {
+  intentId: string
+  kind: string
+  status: string
+  failureCode: string | null
+  attemptCount: number
+  lastAttemptAt: string | null
+  deliveredAt: string | null
+}
+
+type ActivityEntry = {
+  title: string
+  explanation: string
+  effectiveValue: string | null
+  occurredAt: string | null
+  action: { kind: string; outcome: string; occurredAt: string | null }
+  email: ActivityEmail | null
+}
+
+/** Renders the operator-safe activity projection and its single audited retry path. */
+function ActivitySection({ detail, userId }: { detail: Record<string, unknown>; userId: string }) {
+  const entries = Array.isArray(detail.entries) ? detail.entries as ActivityEntry[] : []
+  if (entries.length === 0) return <p className="text-sm text-muted-foreground">No account activity yet.</p>
+
+  return <ol className="space-y-3">{entries.map((entry, index) => {
+    const email = entry.email
+    const canRetry = email?.status === "FAILED" && email.kind !== "PASSWORD_RESET"
+    const failedPasswordReset = email?.status === "FAILED" && email.kind === "PASSWORD_RESET"
+    return (
+      <li key={`${entry.occurredAt ?? "activity"}-${index}`} className="rounded-md border bg-background/60 p-3">
+        <p className="font-medium">{entry.title}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{entry.explanation}</p>
+        {entry.effectiveValue ? <p className="mt-1 text-sm">Effective value: {entry.effectiveValue}</p> : null}
+        <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+          <ActivityValue label="Occurred" value={entry.occurredAt} />
+          <ActivityValue label="Action outcome" value={`${entry.action.kind}: ${entry.action.outcome}`} />
+          {email ? <>
+            <ActivityValue label="Email delivery" value={email.status} />
+            <ActivityValue label="Attempts" value={String(email.attemptCount)} />
+            <ActivityValue label="Last attempt" value={email.lastAttemptAt} />
+            <ActivityValue label="Failure code" value={email.failureCode} />
+          </> : null}
+        </dl>
+        {canRetry ? (
+          <form action={retryFailedEmailIntentAction.bind(null, userId)} className="mt-3">
+            <input type="hidden" name="intentId" value={email.intentId} />
+            <Button type="submit" size="sm">Retry failed email</Button>
+          </form>
+        ) : null}
+        {failedPasswordReset ? <p className="mt-3 text-sm text-muted-foreground">Send a new reset link will be available after the password reset action is added.</p> : null}
+      </li>
+    )
+  })}</ol>
+}
+
+/** Keeps absent optional timestamps and failure codes visibly distinct from stored empty strings. */
+function ActivityValue({ label, value }: { label: string; value: string | null }) {
+  return <div><dt className="text-xs font-medium text-muted-foreground">{label}</dt><dd>{value ?? "None"}</dd></div>
 }
 
 function DetailSection({ detail, section }: { detail: Record<string, unknown>; section: AdminUserDetailSection }) {

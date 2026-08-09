@@ -78,7 +78,15 @@ describe("admin user detail", () => {
       effectiveValue: "Supporter",
       occurredAt: "2026-08-08T12:00:00.000Z",
       action: { kind: "ACCESS_UPDATED", outcome: "SUCCEEDED", occurredAt: "2026-08-08T12:00:00.000Z" },
-      email: { kind: "ACCOUNT_CHANGED", status: "DELIVERED", deliveredAt: "2026-08-08T12:01:00.000Z" },
+      email: {
+        intentId: "intent-1",
+        kind: "ACCOUNT_CHANGED",
+        status: "DELIVERED",
+        failureCode: null,
+        attemptCount: 1,
+        lastAttemptAt: "2026-08-08T12:01:00.000Z",
+        deliveredAt: "2026-08-08T12:01:00.000Z",
+      },
     }])
     assert.doesNotMatch(JSON.stringify(result), /internalNote|beforeState|afterState|recipientEmail|message|metadata/i)
   })
@@ -125,6 +133,9 @@ function assertSafeSelect(section, select) {
   }
   if (section === "activity") {
     assert.doesNotMatch(serialized, /beforeState|afterState|internalNote|recipientEmail|message|metadata/i)
+    assert.deepEqual(select.accountActivities.select.adminAction.select.emailIntent.select, {
+      id: true, kind: true, status: true, failureCode: true, attemptCount: true, lastAttemptAt: true, deliveredAt: true,
+    })
     assert.equal(select.accountActivities.take, 50)
   }
 }
@@ -153,6 +164,6 @@ function detailRow(section) {
   }
   return {
     ...target,
-    accountActivities: [{ title: "Access updated", explanation: "Your account access changed.", effectiveValue: "Supporter", occurredAt: new Date("2026-08-08T12:00:00.000Z"), adminAction: { actionKind: "ACCESS_UPDATED", outcome: "SUCCEEDED", occurredAt: new Date("2026-08-08T12:00:00.000Z"), emailIntent: { kind: "ACCOUNT_CHANGED", status: "DELIVERED", deliveredAt: new Date("2026-08-08T12:01:00.000Z") } } }],
+    accountActivities: [{ title: "Access updated", explanation: "Your account access changed.", effectiveValue: "Supporter", occurredAt: new Date("2026-08-08T12:00:00.000Z"), adminAction: { actionKind: "ACCESS_UPDATED", outcome: "SUCCEEDED", occurredAt: new Date("2026-08-08T12:00:00.000Z"), emailIntent: { id: "intent-1", kind: "ACCOUNT_CHANGED", status: "DELIVERED", failureCode: null, attemptCount: 1, lastAttemptAt: new Date("2026-08-08T12:01:00.000Z"), deliveredAt: new Date("2026-08-08T12:01:00.000Z") } } }],
   }
 }

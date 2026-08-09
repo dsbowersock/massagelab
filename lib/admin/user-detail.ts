@@ -124,8 +124,12 @@ export async function loadAdminUserActivity(input: { prismaClient: DetailPrismaC
         occurredAt: dateValue(activity.adminAction.occurredAt),
       },
       email: activity.adminAction.emailIntent ? {
+        intentId: activity.adminAction.emailIntent.id,
         kind: activity.adminAction.emailIntent.kind,
         status: activity.adminAction.emailIntent.status,
+        failureCode: activity.adminAction.emailIntent.failureCode,
+        attemptCount: activity.adminAction.emailIntent.attemptCount,
+        lastAttemptAt: dateValue(activity.adminAction.emailIntent.lastAttemptAt),
         deliveredAt: dateValue(activity.adminAction.emailIntent.deliveredAt),
       } : null,
     })),
@@ -164,7 +168,7 @@ const ACTIVITY_SELECT = {
   accountActivities: {
     select: {
       title: true, explanation: true, effectiveValue: true, occurredAt: true,
-      adminAction: { select: { actionKind: true, outcome: true, occurredAt: true, emailIntent: { select: { kind: true, status: true, deliveredAt: true } } } },
+      adminAction: { select: { actionKind: true, outcome: true, occurredAt: true, emailIntent: { select: { id: true, kind: true, status: true, failureCode: true, attemptCount: true, lastAttemptAt: true, deliveredAt: true } } } },
     }, orderBy: { occurredAt: "desc" }, take: 50,
   },
 } satisfies Prisma.UserSelect

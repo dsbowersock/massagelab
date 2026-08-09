@@ -6,6 +6,12 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `Massage Laba Lamp` is the approved catalog label for the original free moving-gradient default. `MassageLaba Lamp` and general prose that says `MassageLab Lamp` are legacy references to that same stable `massage-lab-moving-gradient` entry, not separate backgrounds.
 
+## 2026-08-09 — Account activity and failed-email retry
+
+- Added the signed-in Account Activity tab. It reads only the current user's newest fifty target-visible activity entries and renders the title, explanation, optional effective value, and accessible occurrence time; actor, internal-note, and delivery metadata remain absent from the account payload.
+- Extended read-only full-Admin Activity detail with the safe delivery state, failure code, attempt count, and last-attempt timestamp. An explicit retry is available only for already-failed, non-password account-change intents and begins with `requireFullAdminUser()` before using the established `retryAdminEmailIntent()` contract. It does not mutate the target account.
+- Failed password-reset intent rows deliberately show future-action copy only. No password-reset resend action, fresh-token path, or target-account write was introduced in Branch 3.
+
 ## 2026-08-08 — Admin authorization and audit foundation
 
 - Split delegated anatomy authority into `ANATOMY_REVIEWER` and `ANATOMY_EDITOR`, retained `ADMIN` as the only full account/commerce administrator, and normalized the retired `ANATOMY_ADMIN` role to Editor. Administrative access now reloads verified assignments from the database; session claims provide identity but do not grant authority.

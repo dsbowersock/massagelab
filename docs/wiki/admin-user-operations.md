@@ -1,6 +1,6 @@
 # Admin User Operations
 
-This page defines the authorization and evidence boundary for MassageLab account support. The current branch supplies roles, guards, audit records, target-visible activity, durable account-change email intents, and a capability-aware Admin dashboard. It does not yet supply the user directory or support-action forms.
+This page defines the authorization and evidence boundary for MassageLab account support. The current branch supplies roles, guards, audit records, target-visible activity, durable account-change email intents, a capability-aware Admin dashboard, and the full-Admin user directory/read-only account detail.
 
 ## Roles and capabilities
 
@@ -28,6 +28,12 @@ An account mutation and its evidence bundle belong in one caller-owned database 
 The database relations reject cross-target bundles. Exact idempotent replays return the existing record; a reused key with different immutable input fails closed. Delivery and explicit retries serialize per intent, and retry requires a freshly verified full Admin. Password-reset mail uses its separate security flow and cannot be delivered or retried through account-change intents.
 
 Email delivery is at-least-once. A process can stop after the provider accepts a message but before the database transaction records delivery, so an authorized retry can send a duplicate. Do not describe this contract as exactly-once.
+
+## Activity surfaces and retry boundary
+
+The signed-in Account Activity tab queries only its own newest fifty `UserAccountActivity` entries. Its payload contains only the entry ID, title, explanation, effective value, and occurrence time. It never includes the operator, internal note, snapshots, email recipient/content, delivery failure details, or other Admin-only fields.
+
+The full-Admin detail Activity section may show the linked email intent's safe kind, delivery state, failure code, attempt count, and last-attempt/delivery times. Retry is an explicit server action only for a `FAILED` non-password intent; it begins with `requireFullAdminUser()` and delegates to `retryAdminEmailIntent()`, which records its own immutable retry audit action without creating target activity or another email intent. This is the only Branch 3 write path from the read-only target detail. Failed password-reset rows display future-action copy only; a fresh-token reset resend is deferred to the separately designed Branch 5 operation.
 
 ## Safe metadata
 
