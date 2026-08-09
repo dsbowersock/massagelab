@@ -14,9 +14,9 @@ describe("account activity surfaces", () => {
     assert.match(accountPageSource, /<time dateTime=\{entry\.occurredAt\}/)
   })
 
-  it("renders an explicit retry only for failed non-password email intents", () => {
+  it("renders an explicit retry only for service-retryable failed non-password email intents", () => {
     assert.match(adminDetailSource, /Retry failed email/)
-    assert.match(adminDetailSource, /email\?\.status === "FAILED" && email\.kind !== "PASSWORD_RESET"/)
+    assert.match(adminDetailSource, /email\?\.status === "FAILED"[\s\S]*email\.kind !== "PASSWORD_RESET"[\s\S]*email\.failureCode !== "RECIPIENT_UNAVAILABLE"/)
     assert.match(adminDetailSource, /Send a new reset link.*available after the password reset action is added/i)
     assert.doesNotMatch(adminDetailSource, /sendAdminPasswordReset/)
     assert.match(emailActionSource, /"use server"/)

@@ -83,7 +83,9 @@ function ActivitySection({ detail, userId }: { detail: Record<string, unknown>; 
 
   return <ol className="space-y-3">{entries.map((entry, index) => {
     const email = entry.email
-    const canRetry = email?.status === "FAILED" && email.kind !== "PASSWORD_RESET"
+    const canRetry = email?.status === "FAILED"
+      && email.kind !== "PASSWORD_RESET"
+      && email.failureCode !== "RECIPIENT_UNAVAILABLE"
     const failedPasswordReset = email?.status === "FAILED" && email.kind === "PASSWORD_RESET"
     return (
       <li key={`${entry.occurredAt ?? "activity"}-${index}`} className="rounded-md border bg-background/60 p-3">
