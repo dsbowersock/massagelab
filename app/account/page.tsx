@@ -882,6 +882,7 @@ const signedOutAccountItemStatuses = {
   profile: "Sign in",
   security: "Sign in",
   credentials: "Sign in",
+  activity: "Sign in",
   "app-settings": "Available",
   "therapist-defaults": "Local only",
   sync: "Sign in",

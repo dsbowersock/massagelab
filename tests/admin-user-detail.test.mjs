@@ -16,6 +16,13 @@ describe("admin user detail", () => {
     assert.equal(parseAdminUserDetailSection("credentials"), "overview")
   })
 
+  it("rejects boundary-fake selects that match more than one detail section", async () => {
+    await assert.rejects(
+      () => detailPrisma([]).user.findUnique({ select: { accounts: {}, profile: {} } }),
+      /exactly one detail section discriminator/i,
+    )
+  })
+
   it("loads security with its summary projection and a session aggregate only", async () => {
     const calls = []
     const now = new Date("2026-08-09T12:00:00.000Z")
@@ -84,11 +91,12 @@ describe("admin user detail", () => {
 
   it("loads access with roles, feature sources, credit ledger, and ownership summaries only", async () => {
     const calls = []
+    const now = new Date("2026-08-09T00:00:00.000Z")
     const result = await getAdminUserDetailSection({
-      prismaClient: detailPrisma(calls), userId: "user-1", section: "access", now: new Date("2026-08-09T00:00:00.000Z"),
+      prismaClient: detailPrisma(calls, { expectedEntitlementNow: now }), userId: "user-1", section: "access", now,
     })
 
-    assert.deepEqual(calls, ["user.findUnique:access"])
+    assert.deepEqual(calls, ["user.findUnique:access", "membershipSubscription.findMany:entitlements"])
     assert.deepEqual(result.data.features, [
       { key: "calendar_basic_scheduling", source: "FREE", expiresAt: null },
       { key: "premium_backgrounds", source: "SUPPORTER", expiresAt: "2026-09-01T00:00:00.000Z" },
@@ -112,13 +120,49 @@ describe("admin user detail", () => {
       total: 30,
       truncated: true,
     })
-    assert.deepEqual(result.data.wallet, { balance: 3, recentEntries: [{ type: "INITIAL_GRANT", delta: 2, balanceAfter: 2, createdAt: "2026-08-01T00:00:00.000Z" }] })
+    assert.deepEqual(result.data.wallet, {
+      balance: 3,
+      recentEntries: {
+        items: [{ type: "INITIAL_GRANT", delta: 2, balanceAfter: 2, createdAt: "2026-08-01T00:00:00.000Z" }],
+        total: 12,
+        truncated: true,
+      },
+    })
     assert.deepEqual(result.data.ownership, {
       items: [{ backgroundKey: "massage-lab-silk", source: "PURCHASE", status: "ACTIVE", acquiredAt: "2026-08-01T00:00:00.000Z", statusChangedAt: "2026-08-01T00:00:00.000Z" }],
       total: 40,
       truncated: true,
     })
     assert.doesNotMatch(JSON.stringify(result), /credentialNumber|verificationPayload|providerAccountId|paymentMethod|metadata/i)
+  })
+
+  it("derives access from every active subscription candidate, not the capped display slice", async () => {
+    const calls = []
+    const access = detailRow("access")
+    access.membershipSubscriptions = Array.from({ length: 25 }, (_, index) => ({
+      status: "canceled",
+      membershipLevel: "SUPPORTER",
+      currentPeriodEnd: new Date(`2026-08-${String(25 - index).padStart(2, "0")}T00:00:00.000Z`),
+    }))
+    access._count.membershipSubscriptions = 26
+    const now = new Date("2026-08-09T00:00:00.000Z")
+    const result = await getAdminUserDetailSection({
+      prismaClient: detailPrisma(calls, {
+        sectionRows: { access },
+        entitlementSubscriptions: [{ status: "active", membershipLevel: "SUPPORTER", currentPeriodEnd: new Date("2026-09-01T00:00:00.000Z") }],
+        expectedEntitlementNow: now,
+      }),
+      userId: "user-1",
+      section: "access",
+      now,
+    })
+
+    assert.equal(result.data.subscriptions.items.length, 25)
+    assert.equal(result.data.subscriptions.truncated, true)
+    assert.deepEqual(result.data.features.find(({ key }) => key === "premium_backgrounds"), {
+      key: "premium_backgrounds", source: "SUPPORTER", expiresAt: "2026-09-01T00:00:00.000Z",
+    })
+    assert.deepEqual(calls, ["user.findUnique:access", "membershipSubscription.findMany:entitlements"])
   })
 
   it("loads billing local summaries without payment methods or raw processor payloads", async () => {
@@ -195,7 +239,7 @@ describe("admin user detail", () => {
       status: "SUCCEEDED", amountCents: 1, currency: "usd", reasonCode: null, failureCode: null,
       processedAt: new Date("2026-08-08T11:00:00.000Z"), createdAt: new Date(1_786_186_800_000 - index),
     }))
-    const cleanPayments = Array.from({ length: 25 }, () => ({ disputes: [], _count: { disputes: 0 } }))
+    const cleanPayments = Array.from({ length: 10 }, () => ({ disputes: [], _count: { disputes: 0 } }))
     billing.commerceOrders = [{
       ...baseOrder, id: "order-refunds-truncated", status: "COMPLETED", failureCode: null,
       refunds: closedRefunds, payments: [], _count: { items: 1, refunds: 26, payments: 0 },
@@ -219,7 +263,7 @@ describe("admin user detail", () => {
     const calls = []
     const billing = detailRow("billing")
     const order = billing.commerceOrders[0]
-    const sampledDisputes = Array.from({ length: 25 }, (_, index) => ({
+    const sampledDisputes = Array.from({ length: 10 }, (_, index) => ({
       status: "CLOSED", amountCents: 1, currency: "usd", reasonCode: null,
       openedAt: new Date(1_786_188_600_000 - index), closedAt: new Date("2026-08-08T12:00:00.000Z"),
     }))
@@ -240,7 +284,7 @@ describe("admin user detail", () => {
         openedAt: dispute.openedAt.toISOString(),
         closedAt: dispute.closedAt.toISOString(),
       })),
-      shown: 25,
+      shown: 10,
       total: 26,
       lowerBound: 26,
       truncated: true,
@@ -283,19 +327,42 @@ describe("admin user detail", () => {
 })
 
 /** Boundary fake mirrors each real selected relation while rejecting accidental loader calls. */
-function detailPrisma(calls, { sessionExpiries = [], sectionRows = {} } = {}) {
+function detailPrisma(calls, {
+  entitlementSubscriptions = detailRow("access").membershipSubscriptions,
+  expectedEntitlementNow,
+  sessionExpiries = [],
+  sectionRows = {},
+} = {}) {
   return {
     user: {
       findUnique: async (args) => {
         const select = args.select
-        const section = select.accounts ? "security-summary"
-          : select.profile ? "overview"
-            : select.backgroundCreditWallet ? "access"
-              : select.membershipSubscriptions ? "billing"
-                : "activity"
+        const sections = [
+          ["security-summary", Boolean(select.accounts)],
+          ["overview", Boolean(select.profile)],
+          ["access", Boolean(select.backgroundCreditWallet)],
+          ["billing", Boolean(select.commerceOrders)],
+          ["activity", Boolean(select.accountActivities)],
+        ].filter(([, matches]) => matches)
+        assert.equal(sections.length, 1, "Select must match exactly one detail section discriminator.")
+        const section = sections[0][0]
         assertSafeSelect(section, select)
         calls.push(`user.findUnique:${section}`)
         return sectionRows[section] ?? detailRow(section)
+      },
+    },
+    membershipSubscription: {
+      findMany: async (args) => {
+        assert.deepEqual(args.where, {
+          userId: "user-1",
+          status: { in: ["active", "trialing"] },
+          OR: [{ currentPeriodEnd: null }, { currentPeriodEnd: { gt: expectedEntitlementNow } }],
+        })
+        assert.deepEqual(args.select, { status: true, membershipLevel: true, currentPeriodEnd: true })
+        assert.deepEqual(args.orderBy, [{ currentPeriodEnd: "desc" }, { id: "desc" }])
+        assert.equal("take" in args, false)
+        calls.push("membershipSubscription.findMany:entitlements")
+        return entitlementSubscriptions
       },
     },
     session: { count: async (args) => {
@@ -329,6 +396,7 @@ function assertSafeSelect(section, select) {
     assert.equal(select.backgroundOwnerships.take, 25)
     assert.deepEqual(select.backgroundCreditWallet.select.entries.orderBy, [{ createdAt: "desc" }, { id: "desc" }])
     assert.equal(select.backgroundCreditWallet.select.entries.take, 10)
+    assert.deepEqual(select.backgroundCreditWallet.select._count.select, { entries: true })
     assert.deepEqual(select._count.select, { membershipSubscriptions: true, backgroundOwnerships: true })
   }
   if (section === "billing") {
@@ -337,11 +405,11 @@ function assertSafeSelect(section, select) {
     assert.deepEqual(select.membershipSubscriptions.orderBy, [{ updatedAt: "desc" }, { id: "desc" }])
     assert.equal(select.membershipSubscriptions.take, 25)
     assert.deepEqual(select.commerceOrders.orderBy, [{ createdAt: "desc" }, { id: "desc" }])
-    assert.equal(select.commerceOrders.take, 100)
+    assert.equal(select.commerceOrders.take, 25)
     assert.deepEqual(select.commerceOrders.select.payments.orderBy, [{ createdAt: "desc" }, { id: "desc" }])
-    assert.equal(select.commerceOrders.select.payments.take, 25)
+    assert.equal(select.commerceOrders.select.payments.take, 10)
     assert.deepEqual(select.commerceOrders.select.payments.select.disputes.orderBy, [{ openedAt: "desc" }, { id: "desc" }])
-    assert.equal(select.commerceOrders.select.payments.select.disputes.take, 25)
+    assert.equal(select.commerceOrders.select.payments.select.disputes.take, 10)
     assert.deepEqual(select.commerceOrders.select._count.select, { items: true, refunds: true, payments: true })
     assert.deepEqual(select._count.select, { membershipSubscriptions: { where: { membershipLevel: "SUPPORTER" } }, commerceOrders: true })
   }
@@ -381,7 +449,7 @@ function detailRow(section) {
     ],
     membershipSubscriptions: [{ status: "active", membershipLevel: "SUPPORTER", currentPeriodEnd: new Date("2026-09-01T00:00:00.000Z") }],
     studentAccess: null,
-    backgroundCreditWallet: { balance: 3, entries: [{ type: "INITIAL_GRANT", delta: 2, balanceAfter: 2, createdAt: new Date("2026-08-01T00:00:00.000Z") }] },
+    backgroundCreditWallet: { balance: 3, entries: [{ type: "INITIAL_GRANT", delta: 2, balanceAfter: 2, createdAt: new Date("2026-08-01T00:00:00.000Z") }], _count: { entries: 12 } },
     backgroundOwnerships: [{ backgroundKey: "massage-lab-silk", source: "PURCHASE", status: "ACTIVE", acquiredAt: new Date("2026-08-01T00:00:00.000Z"), statusChangedAt: new Date("2026-08-01T00:00:00.000Z") }],
     _count: { membershipSubscriptions: 30, backgroundOwnerships: 40 },
   }

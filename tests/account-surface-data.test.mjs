@@ -186,20 +186,21 @@ describe("account surface data loader", () => {
 
   it("loads only the signed-in user's newest fifty safe activity rows", async () => {
     const calls = []
+    let rows = [{
+      id: "activity-1",
+      title: "Background credits added",
+      explanation: "Support added credits to your account.",
+      effectiveValue: "+5 credits",
+      occurredAt: new Date("2026-08-08T12:00:00.000Z"),
+      internalNote: "must not reach Account",
+      actorUserId: "admin-1",
+    }]
     const loader = createAccountSurfaceDataLoader({
       prismaClient: {
         userAccountActivity: {
           async findMany(args) {
             calls.push(args)
-            return [{
-              id: "activity-1",
-              title: "Background credits added",
-              explanation: "Support added credits to your account.",
-              effectiveValue: "+5 credits",
-              occurredAt: new Date("2026-08-08T12:00:00.000Z"),
-              internalNote: "must not reach Account",
-              actorUserId: "admin-1",
-            }]
+            return rows
           },
         },
       },
@@ -218,10 +219,22 @@ describe("account surface data loader", () => {
     assert.deepEqual(calls, [{
       where: { userId: "user-1" },
       select: { id: true, title: true, explanation: true, effectiveValue: true, occurredAt: true },
-      orderBy: { occurredAt: "desc" },
+      orderBy: [{ occurredAt: "desc" }, { id: "desc" }],
       take: 50,
     }])
     assert.doesNotMatch(JSON.stringify(data), /internalNote|actorUserId|failureCode/)
+
+    rows = [{
+      id: "activity-2",
+      title: "Email delivered",
+      explanation: "A requested email was delivered.",
+      effectiveValue: null,
+      occurredAt: new Date("2026-08-08T12:01:00.000Z"),
+    }, ...rows]
+    const refreshed = await loader.getAccountSurfaceData("activity", "user-1", sessionUser)
+
+    assert.deepEqual(refreshed.activity.map(({ id }) => id), ["activity-2", "activity-1"])
+    assert.equal(calls.length, 2)
   })
 
   it("does not cache session-derived credential roles", async () => {

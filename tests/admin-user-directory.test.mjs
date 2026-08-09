@@ -78,26 +78,27 @@ describe("admin user directory", () => {
             return [{ id: "user_before" }]
           }
           return [
-            userRow("user_1", { name: "Avery", balance: 2, subscriptionStatus: "active", unresolved: 3 }),
-            userRow("user_2", { name: "Avery Two", balance: 0, subscriptionStatus: null, unresolved: 0 }),
+            userRow("user_1", { name: "Avery", balance: 2, subscriptionStatus: "active", unresolvedCommerce: 2, unresolvedEmail: 1 }),
+            userRow("user_2", { name: "Avery Two", balance: 0, subscriptionStatus: null, unresolvedCommerce: 0, unresolvedEmail: 0 }),
           ]
         },
       },
     }
 
+    const parsedQuery = parseUserDirectoryQuery({
+      q: "avery",
+      pageSize: "1",
+      cursor: Buffer.from("user_0").toString("base64url"),
+      emailVerified: "verified",
+      role: "ADMIN",
+      roleStatus: "verified",
+      subscriptionStatus: "active",
+      creditState: "positive",
+      unresolvedIssue: "yes",
+    })
     const page = await listAdminUsers({
       prismaClient,
-      input: {
-        query: "avery",
-        pageSize: 1,
-        cursor: Buffer.from("user_0").toString("base64url"),
-        emailVerified: "verified",
-        role: "ADMIN",
-        roleStatus: "verified",
-        subscriptionStatus: "active",
-        creditState: "positive",
-        unresolvedIssue: "yes",
-      },
+      input: parsedQuery,
     })
 
     assert.deepEqual(Object.keys(page.items[0]).sort(), [
@@ -191,8 +192,8 @@ describe("admin user directory", () => {
             return [{ id: "user_1" }]
           }
           return [
-            userRow("user_3", { name: "Page Three", balance: 0, subscriptionStatus: null, unresolved: 0 }),
-            userRow("user_4", { name: "Page Four", balance: 0, subscriptionStatus: null, unresolved: 0 }),
+            userRow("user_3", { name: "Page Three", balance: 0, subscriptionStatus: null, unresolvedCommerce: 0, unresolvedEmail: 0 }),
+            userRow("user_4", { name: "Page Four", balance: 0, subscriptionStatus: null, unresolvedCommerce: 0, unresolvedEmail: 0 }),
           ]
         },
       },
@@ -221,7 +222,7 @@ describe("admin user directory", () => {
           const supporterRows = persisted
             .filter((subscription) => subscription.membershipLevel === "SUPPORTER")
             .map(({ status }) => ({ status }))
-          return [{ ...userRow("user_mixed", { name: "Mixed", balance: 0, subscriptionStatus: null, unresolved: 0 }), membershipSubscriptions: supporterRows }]
+          return [{ ...userRow("user_mixed", { name: "Mixed", balance: 0, subscriptionStatus: null, unresolvedCommerce: 0, unresolvedEmail: 0 }), membershipSubscriptions: supporterRows }]
         },
       },
     }
@@ -233,6 +234,7 @@ describe("admin user directory", () => {
 
   it("counts the initial account, verification, active-Supporter, and unresolved-operation metrics", async () => {
     const calls = []
+    const now = new Date("2026-08-09T12:00:00.000Z")
     const prismaClient = {
       user: {
         count: async (args) => {
@@ -254,7 +256,7 @@ describe("admin user directory", () => {
       },
     }
 
-    assert.deepEqual(await getAdminUserMetrics({ prismaClient }), {
+    assert.deepEqual(await getAdminUserMetrics({ prismaClient, now }), {
       totalAccounts: 42,
       verifiedAccounts: 35,
       activeSupporters: 7,
@@ -263,7 +265,11 @@ describe("admin user directory", () => {
     assert.deepEqual(calls, [
       ["user", {}],
       ["user", { where: { emailVerified: { not: null } } }],
-      ["user", { where: { membershipSubscriptions: { some: { membershipLevel: "SUPPORTER", status: { in: ["active", "trialing"] } } } } }],
+      ["user", { where: { membershipSubscriptions: { some: {
+        membershipLevel: "SUPPORTER",
+        status: { in: ["active", "trialing"] },
+        OR: [{ currentPeriodEnd: null }, { currentPeriodEnd: { gt: now } }],
+      } } } }],
       ["commerceOrder", { where: { OR: [
         { status: "REVIEW_REQUIRED" },
         { refunds: { some: { status: "PENDING" } } },
@@ -280,7 +286,7 @@ describe("admin user directory", () => {
 })
 
 /** Fixture mirrors the deliberately narrow Prisma select without carrying credentials or payment details. */
-function userRow(id, { name, balance, subscriptionStatus, unresolved }) {
+function userRow(id, { name, balance, subscriptionStatus, unresolvedCommerce, unresolvedEmail }) {
   return {
     id,
     name,
@@ -293,6 +299,6 @@ function userRow(id, { name, balance, subscriptionStatus, unresolved }) {
     ],
     membershipSubscriptions: subscriptionStatus ? [{ status: subscriptionStatus }] : [],
     backgroundCreditWallet: { balance },
-    _count: { commerceOrders: unresolved - 1, adminEmailIntents: 1 },
+    _count: { commerceOrders: unresolvedCommerce, adminEmailIntents: unresolvedEmail },
   }
 }

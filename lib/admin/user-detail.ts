@@ -16,7 +16,7 @@ export type AdminUserDetailSectionResult = {
   data: Record<string, unknown>
 }
 
-type DetailPrismaClient = Pick<PrismaClient, "user" | "session">
+type DetailPrismaClient = Pick<PrismaClient, "user" | "session" | "membershipSubscription">
 
 /** Converts an untrusted detail-tab value into the initial safe section. */
 export function parseAdminUserDetailSection(value: string | undefined): AdminUserDetailSection {
@@ -73,14 +73,31 @@ export async function loadAdminUserOverview(input: { prismaClient: DetailPrismaC
   })
 }
 
-/** Resolves feature keys from persisted sources, while retaining source and expiration evidence for an operator. */
+/**
+ * Loads bounded operator display rows, but resolves feature keys from a
+ * separate complete active-subscription projection using one captured time.
+ * This prevents display truncation from changing effective access or its
+ * source and expiration evidence.
+ */
 export async function loadAdminUserAccess(input: { prismaClient: DetailPrismaClient; userId: string; now?: Date }): Promise<AdminUserDetailSectionResult | null> {
-  const user = await input.prismaClient.user.findUnique({ where: { id: input.userId }, select: ACCESS_SELECT })
+  const now = input.now ?? new Date()
+  const [user, entitlementSubscriptions] = await Promise.all([
+    input.prismaClient.user.findUnique({ where: { id: input.userId }, select: ACCESS_SELECT }),
+    input.prismaClient.membershipSubscription.findMany({
+      where: {
+        userId: input.userId,
+        status: { in: ["active", "trialing"] },
+        OR: [{ currentPeriodEnd: null }, { currentPeriodEnd: { gt: now } }],
+      },
+      select: { status: true, membershipLevel: true, currentPeriodEnd: true },
+      orderBy: [{ currentPeriodEnd: "desc" }, { id: "desc" }],
+    }),
+  ])
   if (!user) return null
   const entitlements = buildEntitlements({
-    subscriptions: user.membershipSubscriptions,
+    subscriptions: entitlementSubscriptions,
     studentAccess: user.studentAccess,
-    now: input.now,
+    now,
   })
   const roles = normalizeRoleEvidence(user.roles)
   const recentEntries = user.backgroundCreditWallet?.entries ?? []
@@ -94,7 +111,13 @@ export async function loadAdminUserAccess(input: { prismaClient: DetailPrismaCli
       status: subscription.status,
       currentPeriodEnd: dateValue(subscription.currentPeriodEnd),
     })), user._count.membershipSubscriptions),
-    wallet: { balance: user.backgroundCreditWallet?.balance ?? 0, recentEntries: recentEntries.map(withDate("createdAt")) },
+    wallet: {
+      balance: user.backgroundCreditWallet?.balance ?? 0,
+      recentEntries: boundedCollection(
+        recentEntries.map(withDate("createdAt")),
+        user.backgroundCreditWallet?._count.entries ?? 0,
+      ),
+    },
     ownership: boundedCollection(user.backgroundOwnerships.map((ownership) => ({
       ...ownership,
       acquiredAt: dateValue(ownership.acquiredAt),
@@ -245,7 +268,11 @@ const ACCESS_SELECT = {
     take: 25,
   },
   studentAccess: { select: { studentStatus: true, studentAccessExpiresAt: true, eligibleForTherapistDiscount: true } },
-  backgroundCreditWallet: { select: { balance: true, entries: { select: { type: true, delta: true, balanceAfter: true, createdAt: true }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 10 } } },
+  backgroundCreditWallet: { select: {
+    balance: true,
+    entries: { select: { type: true, delta: true, balanceAfter: true, createdAt: true }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 10 },
+    _count: { select: { entries: true } },
+  } },
   backgroundOwnerships: {
     select: { backgroundKey: true, source: true, status: true, acquiredAt: true, statusChangedAt: true },
     orderBy: [{ acquiredAt: "desc" }, { id: "desc" }],
@@ -287,17 +314,17 @@ const BILLING_SELECT = {
           disputes: {
             select: { status: true, amountCents: true, currency: true, reasonCode: true, openedAt: true, closedAt: true },
             orderBy: [{ openedAt: "desc" }, { id: "desc" }],
-            take: 25,
+            take: 10,
           },
           _count: { select: { disputes: true } },
         },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-        take: 25,
+        take: 10,
       },
       _count: { select: { items: true, refunds: true, payments: true } },
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    take: 100,
+    take: 25,
   },
   _count: { select: { membershipSubscriptions: { where: { membershipLevel: "SUPPORTER" } }, commerceOrders: true } },
 } satisfies Prisma.UserSelect

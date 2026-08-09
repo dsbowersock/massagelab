@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import {
   FEATURE_KEYS,
@@ -15,7 +16,17 @@ import {
 } from "../lib/membership.js"
 import * as membership from "../lib/membership.js"
 
+const membershipSource = await readFile(new URL("../lib/membership.js", import.meta.url), "utf8")
+
 describe("Membership and entitlement helpers", () => {
+  it("documents the complete-candidate provenance and actual entitlement precedence contract", () => {
+    assert.match(membershipSource, /complete active-subscription candidate set/i)
+    assert.match(membershipSource, /PRACTICE > THERAPIST > SUPPORTER/)
+    assert.match(membershipSource, /FREE baseline feature always reports/i)
+    assert.match(membershipSource, /inherits paid or student provenance/i)
+    assert.match(membershipSource, /@returns[^]*featureDetails/)
+  })
+
   it("keeps free users on basic Chimer while allowing a basic calendar taste", () => {
     const entitlements = buildEntitlements({ subscriptions: [], studentAccess: null })
 

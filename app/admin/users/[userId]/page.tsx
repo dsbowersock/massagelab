@@ -5,7 +5,7 @@ import { AppPageShell, appInsetClassName, appSurfaceClassName } from "@/componen
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { requireFullAdminUser } from "@/lib/admin/access"
-import { retryFailedEmailIntentAction } from "./email-actions"
+import { RetryEmailForm } from "./retry-email-form"
 import {
   ADMIN_USER_DETAIL_SECTIONS,
   getAdminUserDetailSection,
@@ -109,13 +109,9 @@ function ActivitySection({ detail, userId }: { detail: Record<string, unknown>; 
           </> : null}
         </dl>
         {canRetry ? (
-          <form action={retryFailedEmailIntentAction.bind(null, userId)} className="mt-3">
-            <input type="hidden" name="intentId" value={email.intentId} />
-            <input type="hidden" name="operationId" value={operationId} />
-            <Button type="submit" size="sm">Retry failed email</Button>
-          </form>
+          <RetryEmailForm userId={userId} intentId={email.intentId} operationId={operationId} />
         ) : null}
-        {failedPasswordReset ? <p className="mt-3 text-sm text-muted-foreground">Send a new reset link will be available after the password reset action is added.</p> : null}
+        {failedPasswordReset ? <p className="mt-3 text-sm text-muted-foreground">A new reset link will be available after the password reset action is added.</p> : null}
       </li>
     )
   })}</ol>

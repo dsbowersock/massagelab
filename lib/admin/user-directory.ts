@@ -122,14 +122,19 @@ export async function listAdminUsers(input: {
 }
 
 /** Returns only aggregate account-operation counts; no account records are loaded for dashboard summaries. */
-export async function getAdminUserMetrics(input: { prismaClient: DirectoryPrismaClient }) {
+export async function getAdminUserMetrics(input: { prismaClient: DirectoryPrismaClient; now?: Date }) {
+  const now = input.now ?? new Date()
   const [totalAccounts, verifiedAccounts, activeSupporters, unresolvedCommerceOperations, unresolvedEmailOperations] = await Promise.all([
     input.prismaClient.user.count({}),
     input.prismaClient.user.count({ where: { emailVerified: { not: null } } }),
     input.prismaClient.user.count({
       where: {
         membershipSubscriptions: {
-          some: { membershipLevel: "SUPPORTER", status: { in: ACTIVE_SUPPORTER_STATUSES } },
+          some: {
+            membershipLevel: "SUPPORTER",
+            status: { in: ACTIVE_SUPPORTER_STATUSES },
+            OR: [{ currentPeriodEnd: null }, { currentPeriodEnd: { gt: now } }],
+          },
         },
       },
     }),
@@ -256,7 +261,7 @@ function normalizeDirectoryQuery(value: Partial<AdminUserDirectoryQuery>): Admin
   return parseUserDirectoryQuery({
     q: value.query,
     pageSize: value.pageSize === undefined ? undefined : String(value.pageSize),
-    cursor: value.cursor ?? undefined,
+    cursor: value.cursor ? encodeCursor(value.cursor) ?? undefined : undefined,
     emailVerified: value.emailVerified ?? undefined,
     role: value.role ?? undefined,
     roleStatus: value.roleStatus ?? undefined,
