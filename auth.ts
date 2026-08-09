@@ -8,6 +8,7 @@ import { googleProfileEmail, isVerifiedGoogleProfile } from "@/lib/auth-account-
 import { getAuthSecret, getGoogleAuthConfig, getSiteUrl } from "@/lib/auth-env"
 import { assertRateLimit, clearAttempts, rateLimitKey, recordFailedAttempt } from "@/lib/auth-rate-limit"
 import { ensureGoogleUserState, ensureUserRole, getUserAuthState } from "@/lib/auth-users"
+import { decideAuthSessionVersion } from "@/lib/auth-session-version"
 import type { AccountCapabilities, AccountRole, VerificationStatus } from "@/lib/domain-types"
 import {
   decryptSecret,
@@ -179,6 +180,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return true
     },
     async jwt({ token, user, account }) {
+      const isSignIn = Boolean(user?.id)
       if (user?.id) {
         token.id = user.id
       }
@@ -193,6 +195,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           }
 
           const state = await getUserAuthState(userId)
+          const versionDecision = decideAuthSessionVersion({
+            currentVersion: state.authSessionVersion,
+            tokenVersion: token.authSessionVersion,
+            isSignIn,
+          })
+          if (!versionDecision.accepted) return null
+
+          token.authSessionVersion = versionDecision.version
           token.role = state.role
           token.roles = state.roles
           token.roleAssignments = state.roleAssignments

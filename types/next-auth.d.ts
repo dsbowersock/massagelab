@@ -23,6 +23,7 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
   interface JWT {
     id?: string
+    authSessionVersion?: number
     role?: Role
     roles?: Role[]
     roleAssignments?: Array<{ role: Role; status: VerificationStatus }>

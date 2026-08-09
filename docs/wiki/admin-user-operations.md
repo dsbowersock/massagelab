@@ -17,6 +17,12 @@ Authentication sessions identify the current user; their role claims do not auth
 
 Do not replace this rule with displayed plan names, stale navigation state, dashboard visibility, or client-provided roles.
 
+## JWT session invalidation
+
+`User.authSessionVersion` is the canonical JWT invalidation owner. Auth.js copies the current database value into a newly issued JWT and requires later requests to present that exact version. A role or security action increments the value in the same transaction as its account mutation and evidence bundle, so every older JWT fails on its next successful database-backed refresh. Legacy JWTs without a version remain valid only while the account value is zero.
+
+Prisma `Session` rows are still deleted for adapter compatibility, but that deletion does not revoke JWT cookies and its row count is not an active JWT-session count. MassageLab's stateless JWT strategy cannot report an exact number of active browser sessions, so current and future Admin copy must not present deleted `Session` rows as users or JWT sessions signed out.
+
 ## Audit, activity, and email boundaries
 
 An account mutation and its evidence bundle belong in one caller-owned database transaction:
@@ -43,4 +49,4 @@ Store only the minimum operational facts needed to explain the change. Do not st
 
 ## Serial rollout
 
-Branch 2 is the foundation owner for authorization, audit, activity, email intents, and capability-aware dashboard access. Branch 3 consumes those owners and has completed Tasks 7-9: the full-Admin directory, bounded read-only account detail, signed-in Account Activity, safe aggregate dashboard metrics, and the existing audited failed-email retry seam. Branch 4 is the next serial gate; it must begin only after the Branch 3 pull request merges and its worktree refreshes from the new `main`. Do not develop serial branches concurrently or copy foundation files into a stale worktree.
+Branch 2 is the foundation owner for authorization, audit, activity, email intents, and capability-aware dashboard access. Branch 3 consumes those owners and has completed Tasks 7-9: the full-Admin directory, bounded read-only account detail, signed-in Account Activity, safe aggregate dashboard metrics, and the existing audited failed-email retry seam. Branch 4 owns delegated-role mutation and the shared JWT invalidation seam that Branch 5 security actions will reuse. Do not develop serial branches concurrently or copy foundation files into a stale worktree.

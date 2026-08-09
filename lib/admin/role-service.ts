@@ -60,6 +60,7 @@ export async function changeAnatomyRole(input: ChangeAnatomyRoleInput): Promise<
       select: {
         id: true,
         email: true,
+        authSessionVersion: true,
         roles: { select: { role: true, status: true } },
       },
     })
@@ -119,10 +120,17 @@ export async function changeAnatomyRole(input: ChangeAnatomyRoleInput): Promise<
     }
 
     const afterRoles = rolesAfterChange(beforeRoles, input.role, input.operation)
+    const updatedTarget = await tx.user.update({
+      where: { id: input.targetUserId },
+      data: { authSessionVersion: { increment: 1 } },
+      select: { authSessionVersion: true },
+    })
     const { count: revokedSessionCount } = await tx.session.deleteMany({ where: { userId: input.targetUserId } })
     const bundleInput = buildRoleBundle(input, {
       beforeRoles,
       afterRoles,
+      beforeAuthSessionVersion: target.authSessionVersion,
+      afterAuthSessionVersion: updatedTarget.authSessionVersion,
       revokedSessionCount,
       recipientEmail: target.email,
     })
@@ -181,6 +189,8 @@ function rolesAfterChange(beforeRoles: string[], role: DelegatedAnatomyRole, ope
 type BundleFacts = {
   beforeRoles: string[]
   afterRoles: string[]
+  beforeAuthSessionVersion: number
+  afterAuthSessionVersion: number
   revokedSessionCount: number
   recipientEmail: string | null
 }
@@ -201,11 +211,13 @@ function buildRoleBundle(input: ChangeAnatomyRoleInput, facts: BundleFacts): Rec
       roles: facts.beforeRoles,
       delegatedRole: input.role,
       roleStatus: input.expectedStatus,
+      authSessionVersion: facts.beforeAuthSessionVersion,
     },
     afterState: {
       roles: facts.afterRoles,
       delegatedRole: input.role,
       roleStatus: assigning ? "VERIFIED" : "REVOKED",
+      authSessionVersion: facts.afterAuthSessionVersion,
       revokedSessionCount: facts.revokedSessionCount,
     },
     activity: {
@@ -245,6 +257,7 @@ async function replayExistingChange(
     || before.roleStatus !== input.expectedStatus
     || after?.delegatedRole !== input.role
     || after.roleStatus !== expectedNextStatus
+    || after.authSessionVersion !== before.authSessionVersion + 1
     || after.revokedSessionCount === null
     || !existing.emailIntent
   ) {
@@ -254,6 +267,8 @@ async function replayExistingChange(
   const bundle = await recordAdminActionBundle(tx, buildRoleBundle(input, {
     beforeRoles: before.roles,
     afterRoles: after.roles,
+    beforeAuthSessionVersion: before.authSessionVersion,
+    afterAuthSessionVersion: after.authSessionVersion,
     revokedSessionCount: after.revokedSessionCount,
     recipientEmail: existing.emailIntent.recipientEmail,
   }))
@@ -270,6 +285,7 @@ type RoleSnapshot = {
   roles: string[]
   delegatedRole: DelegatedAnatomyRole
   roleStatus: ExpectedAnatomyRoleStatus
+  authSessionVersion: number
   revokedSessionCount: number | null
 }
 
@@ -283,12 +299,15 @@ function readRoleSnapshot(value: Prisma.JsonValue, requireSessionCount = false):
     || !EXPECTED_ROLE_STATUSES.has(snapshot.roleStatus as ExpectedAnatomyRoleStatus)
   ) return null
 
+  const authSessionVersion = snapshot.authSessionVersion
   const count = snapshot.revokedSessionCount
+  if (!Number.isSafeInteger(authSessionVersion) || (authSessionVersion as number) < 0) return null
   if (requireSessionCount && (!Number.isSafeInteger(count) || (count as number) < 0)) return null
   return {
     roles: [...snapshot.roles] as string[],
     delegatedRole: snapshot.delegatedRole as DelegatedAnatomyRole,
     roleStatus: snapshot.roleStatus as ExpectedAnatomyRoleStatus,
+    authSessionVersion: authSessionVersion as number,
     revokedSessionCount: typeof count === "number" ? count : null,
   }
 }

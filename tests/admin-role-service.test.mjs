@@ -32,6 +32,13 @@ describe("delegated anatomy role changes", () => {
     assert.equal(result.revokedSessionCount, 2)
     assert.equal(result.emailIntentId, "intent-1")
     assert.equal(result.replayed, false)
+    assert.deepEqual(Object.keys(result).sort(), [
+      "afterRoles",
+      "beforeRoles",
+      "emailIntentId",
+      "replayed",
+      "revokedSessionCount",
+    ])
     const reviewerAssignment = database.roles.find((assignment) => assignment.userId === TARGET_ID && assignment.role === "ANATOMY_REVIEWER")
     assert.ok(reviewerAssignment.verifiedAt instanceof Date)
     assert.deepEqual({ ...reviewerAssignment, verifiedAt: "recorded" }, {
@@ -51,7 +58,10 @@ describe("delegated anatomy role changes", () => {
     assert.equal(database.activities.length, 1)
     assert.equal(database.intents.length, 1)
     assert.deepEqual(database.actions[0].beforeState.roles, ["USER"])
+    assert.equal(database.actions[0].beforeState.authSessionVersion, 0)
     assert.deepEqual(database.actions[0].afterState.roles, ["ANATOMY_REVIEWER", "USER"])
+    assert.equal(database.actions[0].afterState.authSessionVersion, 1)
+    assert.equal(database.users.find((candidate) => candidate.id === TARGET_ID).authSessionVersion, 1)
   })
 
   it("revokes a verified editor without creating or changing a reviewer assignment", async () => {
@@ -152,6 +162,7 @@ describe("delegated anatomy role changes", () => {
     const replay = await changeAnatomyRole(input)
 
     assert.deepEqual(replay, { ...first, replayed: true })
+    assert.equal(database.users.find((candidate) => candidate.id === TARGET_ID).authSessionVersion, 1)
     assert.equal(database.sessions.length, 1)
     assert.equal(database.actions.length, 1)
     assert.equal(database.activities.length, 1)
@@ -167,6 +178,7 @@ describe("delegated anatomy role changes", () => {
 
     assert.deepEqual(results.map((result) => result.replayed).sort(), [false, true])
     assert.deepEqual(results.map((result) => result.revokedSessionCount), [1, 1])
+    assert.equal(database.users.find((candidate) => candidate.id === TARGET_ID).authSessionVersion, 1)
     assert.equal(database.roles.filter((assignment) => assignment.userId === TARGET_ID && assignment.role === "ANATOMY_REVIEWER").length, 1)
     assert.equal(database.actions.length, 1)
     assert.equal(database.activities.length, 1)
@@ -186,6 +198,7 @@ describe("delegated anatomy role changes", () => {
       () => changeAnatomyRole({ ...input, expectedStatus: "REVOKED" }),
       /operation key is already in use/,
     )
+    assert.equal(database.users.find((candidate) => candidate.id === TARGET_ID).authSessionVersion, 1)
     assert.equal(database.roles.filter((assignment) => assignment.status === "VERIFIED").length, 3)
   })
 
@@ -204,6 +217,7 @@ describe("delegated anatomy role changes", () => {
       { userId: TARGET_ID, role: "USER", status: "VERIFIED" },
     ])
     assert.equal(database.sessions.length, 1)
+    assert.equal(database.users.find((candidate) => candidate.id === TARGET_ID).authSessionVersion, 0)
     assert.equal(database.actions.length, 0)
     assert.equal(database.activities.length, 0)
     assert.equal(database.intents.length, 0)
@@ -230,6 +244,7 @@ function user(id, roles, overrides = {}) {
     name: id === ACTOR_ID ? "Administrator" : "Member",
     email: id === ACTOR_ID ? "admin@example.test" : "member@example.test",
     emailVerified: new Date("2026-08-01T12:00:00.000Z"),
+    authSessionVersion: 0,
     roles,
     ...overrides,
   }
@@ -264,7 +279,7 @@ function createRoleDatabase({
 function makeClient(root, transaction = null) {
   const state = () => transaction?.state ?? root.state
   const client = {}
-  for (const field of ["roles", "sessions", "actions", "activities", "intents"]) {
+  for (const field of ["users", "roles", "sessions", "actions", "activities", "intents"]) {
     Object.defineProperty(client, field, { get: () => state()[field], set: (value) => { state()[field] = value } })
   }
   Object.defineProperty(client, "failIntentCreate", { get: () => root.failIntentCreate, set: (value) => { root.failIntentCreate = value } })
@@ -279,6 +294,14 @@ function makeClient(root, transaction = null) {
     findUnique: async ({ where }) => {
       const record = state().users.find((candidate) => candidate.id === where.id)
       return record ? structuredClone({ ...record, roles: rolesFor(record.id) }) : null
+    },
+    update: async ({ where, data, select }) => {
+      const record = state().users.find((candidate) => candidate.id === where.id)
+      if (!record) throw new Error("User was not found.")
+      const increment = data.authSessionVersion?.increment
+      if (!Number.isSafeInteger(increment)) throw new Error("Expected an auth session version increment.")
+      record.authSessionVersion += increment
+      return structuredClone(project(record, select))
     },
   }
   client.userRole = {

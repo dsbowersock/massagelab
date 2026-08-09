@@ -71,6 +71,7 @@ export async function getUserAuthState(userId: string) {
     select: {
       email: true,
       emailVerified: true,
+      authSessionVersion: true,
       roles: {
         select: { role: true, status: true },
       },
@@ -113,6 +114,7 @@ export async function getUserAuthState(userId: string) {
   }
 
   return {
+    authSessionVersion: user?.authSessionVersion,
     role: highestRole(roleAssignments),
     roles,
     roleAssignments,
