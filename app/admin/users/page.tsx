@@ -151,7 +151,7 @@ function DirectorySelect({ label, name, value, options }: { label: string; name:
 }
 
 function AccountIdentity({ user }: { user: { id: string; name: string | null; email: string | null } }) {
-  return <div><p className="font-medium">{user.name?.trim() || user.email?.trim() || "Unnamed account"}</p><p className="font-mono text-xs text-muted-foreground">{user.email ?? "No email"} · {user.id}</p></div>
+  return <div><Link className="font-medium underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" href={`/admin/users/${encodeURIComponent(user.id)}`}>{user.name?.trim() || user.email?.trim() || "Unnamed account"}</Link><p className="font-mono text-xs text-muted-foreground">{user.email ?? "No email"} · {user.id}</p></div>
 }
 
 function rolesLabel(roles: Array<{ role: string; status: string }>) {
