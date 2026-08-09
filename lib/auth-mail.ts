@@ -9,6 +9,19 @@ type MailResult = {
 
 const ACCOUNT_CHANGE_EMAIL_SUBJECT_MAX_LENGTH = 200
 const ACCOUNT_CHANGE_EMAIL_MESSAGE_MAX_LENGTH = 5_000
+const SMTP_DNS_TIMEOUT_MS = 5_000
+const SMTP_CONNECTION_TIMEOUT_MS = 10_000
+const SMTP_GREETING_TIMEOUT_MS = 10_000
+const SMTP_SOCKET_TIMEOUT_MS = 20_000
+
+/**
+ * Enforced wall-clock deadline for one account-change SMTP attempt. Admin
+ * email transactions use a larger timeout so the durable outcome can commit.
+ */
+export const ACCOUNT_CHANGE_EMAIL_DELIVERY_BUDGET_MS = SMTP_DNS_TIMEOUT_MS
+  + SMTP_CONNECTION_TIMEOUT_MS
+  + SMTP_GREETING_TIMEOUT_MS
+  + SMTP_SOCKET_TIMEOUT_MS
 
 function hasSmtpConfig() {
   return Boolean(process.env.SMTP_HOST && process.env.SMTP_FROM && (!process.env.SMTP_USER || process.env.SMTP_PASSWORD))
@@ -31,6 +44,10 @@ async function sendMail(to: string, subject: string, text: string): Promise<Mail
     secure: Number(process.env.SMTP_PORT ?? 587) === 465,
     disableFileAccess: true,
     disableUrlAccess: true,
+    dnsTimeout: SMTP_DNS_TIMEOUT_MS,
+    connectionTimeout: SMTP_CONNECTION_TIMEOUT_MS,
+    greetingTimeout: SMTP_GREETING_TIMEOUT_MS,
+    socketTimeout: SMTP_SOCKET_TIMEOUT_MS,
     auth: process.env.SMTP_USER
       ? {
           user: process.env.SMTP_USER,
@@ -39,18 +56,34 @@ async function sendMail(to: string, subject: string, text: string): Promise<Mail
       : undefined,
   })
 
+  let deliveryTimer: ReturnType<typeof setTimeout> | undefined
   try {
-    await transporter.sendMail({
+    const delivery = transporter.sendMail({
       from: process.env.SMTP_FROM,
       to,
       subject,
       text,
     })
+    const deadline = new Promise<never>((_resolve, reject) => {
+      deliveryTimer = setTimeout(() => {
+        try {
+          transporter.close()
+        } catch {
+          // Closing is defensive; the generic delivery failure still wins.
+        }
+        reject(new Error("SMTP delivery deadline exceeded."))
+      }, ACCOUNT_CHANGE_EMAIL_DELIVERY_BUDGET_MS)
+    })
+    // Promise.race attaches rejection handlers to delivery, so a late provider
+    // rejection after the deadline cannot become an unhandled rejection.
+    await Promise.race([delivery, deadline])
   } catch {
     // Mail providers can include recipient or transport details in their errors.
     // Callers only need the durable delivery result, never provider diagnostics.
     console.error("SMTP delivery failed")
     return { delivered: false } satisfies MailResult
+  } finally {
+    if (deliveryTimer !== undefined) clearTimeout(deliveryTimer)
   }
 
   return { delivered: true } satisfies MailResult

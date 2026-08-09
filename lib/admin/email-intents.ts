@@ -1,5 +1,5 @@
 import { Prisma, type PrismaClient } from "@prisma/client"
-import { sendAccountChangeEmail } from "../auth-mail.ts"
+import { ACCOUNT_CHANGE_EMAIL_DELIVERY_BUDGET_MS, sendAccountChangeEmail } from "../auth-mail.ts"
 import { requireFullAdminUser } from "./access.ts"
 import { validateAdminSafePayload } from "./operation-contract.ts"
 import { acquireAdminActionIdempotencyLock } from "./operation-service.ts"
@@ -9,11 +9,18 @@ type LockedClient = Prisma.TransactionClient
 
 const EMAIL_INTENT_LOCK_PREFIX = "massagelab:admin-email-intent:"
 
+/** Shared bound for lock acquisition plus one SMTP attempt and its durable update. */
+export const ADMIN_EMAIL_TRANSACTION_OPTIONS = {
+  maxWait: 5_000,
+  timeout: ACCOUNT_CHANGE_EMAIL_DELIVERY_BUDGET_MS + 5_000,
+} as const
+
 /**
  * Serializes a single intent's transport attempt with a transaction-scoped
- * PostgreSQL advisory lock. Delivery remains at-least-once: a process crash
- * after the provider accepts mail but before this transaction commits can be
- * retried, because no provider-independent exactly-once claim exists.
+ * PostgreSQL advisory lock. Delivery remains at-least-once: a timeout or crash
+ * after the provider accepts mail but before confirmation and transaction
+ * commit can be retried, because no provider-independent exactly-once claim
+ * exists.
  */
 export async function deliverAdminEmailIntent(input: {
   prismaClient: PrismaClient
@@ -30,7 +37,7 @@ export async function deliverAdminEmailIntent(input: {
       sendEmail: input.sendEmail,
       now: input.now,
     })
-  })
+  }, ADMIN_EMAIL_TRANSACTION_OPTIONS)
 }
 
 /**
@@ -118,7 +125,7 @@ export async function retryAdminEmailIntent(input: {
     }
 
     return { status: delivery.status, attemptCount: delivery.attemptCount, replayed: false }
-  })
+  }, ADMIN_EMAIL_TRANSACTION_OPTIONS)
 }
 
 /** Performs one transport attempt only after the caller has locked the intent. */
@@ -139,6 +146,8 @@ async function deliverLockedAdminEmailIntent(inputTx: LockedClient, input: {
     const result = await (input.sendEmail ?? sendAccountChangeEmail)(intent.recipientEmail, intent.subject, intent.message)
     delivered = result.delivered === true
   } catch {
+    // Injected senders can throw arbitrary provider details; keep logs generic.
+    console.error("Account-change email delivery failed")
     delivered = false
   }
 

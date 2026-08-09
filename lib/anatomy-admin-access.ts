@@ -11,6 +11,7 @@ export { canEditAnatomyContent, canReviewAnatomyContent } from "@/lib/admin/acce
  * Retains the legacy function name while enforcing current Anatomy Editor access
  * for server-rendered admin routes and server actions.
  * The shared account-permission helpers stay pure so they remain safe for navigation/client imports.
+ * @deprecated Use `requireAnatomyEditorUser` for new editor-only callers.
  */
 export async function requireAnatomyAdminUser() {
   return requireSharedAnatomyEditorUser()

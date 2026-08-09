@@ -126,6 +126,10 @@ function snapshotAdminSafeValue(
   return snapshot
 }
 
+/**
+ * Snapshots indexed array values while screening every enumerable extra
+ * property. Extra properties are validated for safety but are not persisted.
+ */
 function snapshotAdminSafeArray(
   value: unknown[],
   depth: number,

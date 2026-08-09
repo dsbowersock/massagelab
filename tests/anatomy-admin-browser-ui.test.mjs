@@ -371,15 +371,11 @@ describe("Anatomy browser table UI", () => {
     const requestUpdateStart = actionsSource.indexOf("export async function updateAnatomyMediaViewRequestAction(")
     const requestUpdateEnd = actionsSource.indexOf("\nexport async function ", requestUpdateStart + 1)
     const requestUpdateSource = actionsSource.slice(requestUpdateStart, requestUpdateEnd)
-    const statusGuards = [
-      ["OPEN", "requireReviewer"],
-      ["DISMISSED", "requireReviewer"],
-      ["IMPORTED", "requireEditor"],
-    ]
-
-    for (const [status, guard] of statusGuards) {
-      assert.match(requestUpdateSource, new RegExp(status === "IMPORTED" ? `status === "${status}"[\\s\\S]*${guard}` : `status === "IMPORTED"[\\s\\S]*${guard}`))
-    }
+    assert.match(
+      requestUpdateSource,
+      /status === "IMPORTED" \? await requireEditor\(\) : await requireReviewer\(\)/,
+      "IMPORTED requires Editor authority; the validated OPEN and DISMISSED fallback requires Reviewer authority",
+    )
   })
 
   it("keeps editor-only review-queue links out of reviewer-only actors", async () => {

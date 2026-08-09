@@ -112,11 +112,11 @@ function normalizeRecordInput(input: RecordAdminActionInput): NormalizedRecordIn
   validateIdentifier(input.targetUserId, "target")
   validateText(input.actionKind, ADMIN_ACTION_KIND_MAX_LENGTH, "action kind")
   validateIdentifier(input.idempotencyKey, "operation key")
-  validateAdminReason(input.reasonCode, input.internalNote)
 
   if (input.internalNote !== null && typeof input.internalNote !== "string") {
     throw new Error("Internal notes must be text.")
   }
+  validateAdminReason(input.reasonCode, input.internalNote)
 
   validateText(input.activity.title, ADMIN_ACTIVITY_TITLE_MAX_LENGTH, "activity title")
   validateText(input.activity.explanation, ADMIN_ACTIVITY_EXPLANATION_MAX_LENGTH, "activity explanation")
@@ -201,8 +201,8 @@ function isExactBundleReplay(existing: {
     && existing.internalNote === input.internalNote
     && existing.outcome === "SUCCEEDED"
     && existing.failureCode === null
-    && canonicalJson(existing.beforeState) === canonicalJson(input.beforeState)
-    && canonicalJson(existing.afterState) === canonicalJson(input.afterState)
+    && hasSameCanonicalJson(existing.beforeState, input.beforeState)
+    && hasSameCanonicalJson(existing.afterState, input.afterState)
     && activity?.id != null
     && activity.userId === input.targetUserId
     && activity.adminActionId === existing.id
@@ -217,6 +217,13 @@ function isExactBundleReplay(existing: {
     && emailIntent.subject === input.email.subject
     && emailIntent.message === input.email.message
     && hasCoherentEmailIntentState(emailIntent)
+}
+
+/** Serialization failures are mismatches, even when both values fail alike. */
+function hasSameCanonicalJson(left: unknown, right: unknown): boolean {
+  const canonicalLeft = canonicalJson(left)
+  const canonicalRight = canonicalJson(right)
+  return canonicalLeft !== null && canonicalRight !== null && canonicalLeft === canonicalRight
 }
 
 /** Acquires the shared action-key lock used by all writers before idempotency lookup. */

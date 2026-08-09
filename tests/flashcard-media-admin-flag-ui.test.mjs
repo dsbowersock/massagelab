@@ -5,6 +5,8 @@ import { describe, it } from "node:test"
 describe("Flashcard anatomy media reviewer flagging", () => {
   it("uses fresh reviewer authority for image flagging and posts to the anatomy media review endpoint", async () => {
     const pageSource = await readFile(new URL("../app/education/flashcards/page.tsx", import.meta.url), "utf8")
+    const deckListSource = await readFile(new URL("../app/education/flashcards/decks/page.tsx", import.meta.url), "utf8")
+    const deckDetailSource = await readFile(new URL("../app/education/flashcards/decks/[slug]/page.tsx", import.meta.url), "utf8")
     const clientSource = await readFile(new URL("../app/education/flashcards/flashcards-client.tsx", import.meta.url), "utf8")
     const runnerSource = await readFile(new URL("../app/education/flashcards/flashcard-runner.tsx", import.meta.url), "utf8")
     const routeSource = await readFile(new URL("../app/api/admin/anatomy/media-flags/route.ts", import.meta.url), "utf8")
@@ -12,6 +14,12 @@ describe("Flashcard anatomy media reviewer flagging", () => {
     assert.match(pageSource, /loadAnatomyReviewerActor/)
     assert.match(pageSource, /sessionUserId: session\?\.user\?\.id \?\? null/)
     assert.match(pageSource, /canManageAnatomyContent=\{Boolean\(reviewActor\)\}/)
+    for (const routeSource of [deckListSource, deckDetailSource]) {
+      assert.match(routeSource, /loadAnatomyReviewerActor/)
+      assert.match(routeSource, /sessionUserId: (?:session\?\.user\?\.id|viewerUserId) \?\? null/)
+      assert.match(routeSource, /canManageAnatomyContent=\{Boolean\(reviewActor\)\}/)
+      assert.doesNotMatch(routeSource, /session\?\.user\?\.capabilities\?\.canManageAnatomyContent/)
+    }
     assert.match(runnerSource, /canManageAnatomyContent && currentPrompt\.front\.mode === "media"/)
     assert.match(clientSource, /\/api\/admin\/anatomy\/media-flags/)
     assert.match(runnerSource, /Bad match/)

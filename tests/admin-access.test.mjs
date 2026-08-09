@@ -79,7 +79,11 @@ describe("fresh administrative actor access", () => {
           assert.equal(actorFromGuard.id, userId)
           assert.equal(actorFromGuard[`can${capability === "review" ? "ReviewAnatomy" : capability === "edit" ? "EditAnatomy" : "AdministerAccounts"}`], true)
         } else {
-          await assert.rejects(operation)
+          await assert.rejects(operation, {
+            message: capability === "full"
+              ? "Full administration requires verified database authority."
+              : "Anatomy administration requires verified database authority.",
+          })
         }
       }
     }

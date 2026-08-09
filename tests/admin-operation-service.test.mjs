@@ -8,7 +8,12 @@ import {
   validateAdminSafePayload,
 } from "../lib/admin/operation-contract.ts"
 import { recordAdminActionBundle as recordAdminActionBundleDirect } from "../lib/admin/operation-service.ts"
-import { deliverAdminEmailIntent, retryAdminEmailIntent } from "../lib/admin/email-intents.ts"
+import {
+  ADMIN_EMAIL_TRANSACTION_OPTIONS,
+  deliverAdminEmailIntent,
+  retryAdminEmailIntent,
+} from "../lib/admin/email-intents.ts"
+import { ACCOUNT_CHANGE_EMAIL_DELIVERY_BUDGET_MS } from "../lib/auth-mail.ts"
 
 /** All bundle writes use a caller-owned transaction, matching production use. */
 async function recordAdminActionBundle(database, input) {
@@ -154,6 +159,14 @@ describe("admin operation contract", () => {
 })
 
 describe("admin operation service", () => {
+  it("rejects non-text internal notes before validating reason-specific content", async () => {
+    const database = createAdminDatabase()
+    await assert.rejects(
+      () => recordAdminActionBundle(database, { ...bundleInput(), reasonCode: "OTHER", internalNote: 42 }),
+      { message: "Internal notes must be text." },
+    )
+  })
+
   it("creates the immutable security-recovery bundle atomically and replays only an exact duplicate", async () => {
     const database = createAdminDatabase()
     const input = bundleInput()
@@ -211,6 +224,19 @@ describe("admin operation service", () => {
       () => recordAdminActionBundle(database, { ...input, afterState: { activeSessionCount: 1 } }),
       /already in use/,
     )
+  })
+
+  it("fails closed when canonical replay serialization fails on both sides", async () => {
+    const database = createAdminDatabase()
+    const input = bundleInput()
+    await recordAdminActionBundle(database, input)
+    const originalStringify = JSON.stringify
+    JSON.stringify = () => { throw new Error("serialization unavailable") }
+    try {
+      await assert.rejects(() => recordAdminActionBundle(database, input), /already in use/)
+    } finally {
+      JSON.stringify = originalStringify
+    }
   })
 
   it("records recipient-unavailable intents without blocking the audit or activity", async () => {
@@ -356,21 +382,41 @@ describe("admin operation service", () => {
     assert.equal(database.intents[0].lastAttemptAt, when)
     assert.equal(database.intents[0].deliveredAt, when)
     assert.equal(database.intents[0].failureCode, null)
+    assert.deepEqual(database.transactionOptions.at(-1), ADMIN_EMAIL_TRANSACTION_OPTIONS)
+    assert.ok(ADMIN_EMAIL_TRANSACTION_OPTIONS.timeout > ACCOUNT_CHANGE_EMAIL_DELIVERY_BUDGET_MS)
+  })
+
+  it("reports a missing notification intent without a fake projection failure", async () => {
+    const database = createAdminDatabase()
+    await assert.rejects(
+      () => deliverAdminEmailIntent({ prismaClient: database, intentId: "missing-intent" }),
+      { message: "Email notification intent was not found." },
+    )
   })
 
   it("keeps provider failure details out of durable failures", async () => {
-    for (const sendEmail of [
-      async () => ({ delivered: false }),
-      async () => { throw new Error("provider said recipient is suppressed") },
+    for (const [sendEmail, expectedLogs] of [
+      [async () => ({ delivered: false }), []],
+      [async () => { throw new Error("provider said recipient is suppressed") }, ["Account-change email delivery failed"]],
     ]) {
       const database = createAdminDatabase()
       const { emailIntentId } = await recordAdminActionBundle(database, bundleInput())
-      const result = await deliverAdminEmailIntent({ prismaClient: database, intentId: emailIntentId, sendEmail })
+      const logs = []
+      const originalError = console.error
+      console.error = (message) => logs.push(message)
+      let result
+      try {
+        result = await deliverAdminEmailIntent({ prismaClient: database, intentId: emailIntentId, sendEmail })
+      } finally {
+        console.error = originalError
+      }
 
       assert.deepEqual(result, { status: "FAILED", attemptCount: 1, attempted: true })
       assert.equal(database.intents[0].status, "FAILED")
       assert.equal(database.intents[0].failureCode, "DELIVERY_FAILED")
       assert.doesNotMatch(JSON.stringify(database.intents[0]), /suppressed|provider said/i)
+      assert.deepEqual(logs, expectedLogs)
+      assert.doesNotMatch(logs.join(" "), /suppressed|provider said/i)
     }
   })
 
@@ -433,6 +479,7 @@ describe("admin operation service", () => {
 
     assert.deepEqual(first, { status: "DELIVERED", attemptCount: 1, replayed: false })
     assert.deepEqual(replayed, { status: "DELIVERED", attemptCount: 1, replayed: true })
+    assert.deepEqual(database.transactionOptions.at(-1), ADMIN_EMAIL_TRANSACTION_OPTIONS)
     assert.equal(calls, 1)
     assert.equal(database.actions.length, 2)
     assert.equal(database.activities.length, 1)
@@ -459,6 +506,35 @@ describe("admin operation service", () => {
     assert.equal(database.actions.at(-1).outcome, "FAILED")
     assert.equal(database.actions.at(-1).failureCode, "DELIVERY_FAILED")
     assert.doesNotMatch(JSON.stringify(database.actions.at(-1)), /sensitive provider payload/)
+  })
+
+  it("retries a coherent failed delivery and audits the second successful attempt", async () => {
+    const database = createAdminDatabase()
+    const { emailIntentId } = await recordAdminActionBundle(database, bundleInput())
+    await deliverAdminEmailIntent({
+      prismaClient: database,
+      intentId: emailIntentId,
+      sendEmail: async () => ({ delivered: false, providerDiagnostic: "do-not-store" }),
+    })
+
+    const result = await retryAdminEmailIntent({
+      prismaClient: database,
+      actorUserId: "user_actor",
+      intentId: emailIntentId,
+      idempotencyKey: "retry-after-delivery-failure",
+      sendEmail: async () => ({ delivered: true, providerDiagnostic: "still-do-not-store" }),
+    })
+
+    assert.deepEqual(result, { status: "DELIVERED", attemptCount: 2, replayed: false })
+    assert.equal(database.intents[0].status, "DELIVERED")
+    assert.equal(database.intents[0].attemptCount, 2)
+    assert.equal(database.intents[0].failureCode, null)
+    const retryAction = database.actions.at(-1)
+    assert.equal(retryAction.outcome, "SUCCEEDED")
+    assert.equal(retryAction.failureCode, null)
+    assert.deepEqual(retryAction.beforeState, { emailIntentId, status: "FAILED", attemptCount: 1 })
+    assert.deepEqual(retryAction.afterState, { emailIntentId, status: "DELIVERED", attemptCount: 2 })
+    assert.doesNotMatch(JSON.stringify({ intent: database.intents[0], action: retryAction }), /do-not-store/)
   })
 
   it("fails closed on malformed or recursive historical retry actions", async () => {
@@ -698,6 +774,7 @@ function createAdminDatabase() {
     failNextActivityCreate: false,
     failNextIntentCreate: false,
     failNextActionCreate: false,
+    transactionOptions: [],
   }
   return makeFakeClient(root)
 }
@@ -712,7 +789,10 @@ function makeFakeClient(root, transactionState = null) {
   for (const field of ["failNextActivityCreate", "failNextIntentCreate", "failNextActionCreate"]) {
     Object.defineProperty(client, field, { get: () => root[field], set: (value) => { root[field] = value } })
   }
-  const project = (record, select) => !select ? record : Object.fromEntries(Object.keys(select).filter((key) => select[key]).map((key) => [key, record[key]]))
+  Object.defineProperty(client, "transactionOptions", { get: () => root.transactionOptions })
+  const project = (record, select) => record == null || !select
+    ? record
+    : Object.fromEntries(Object.keys(select).filter((key) => select[key]).map((key) => [key, record[key]]))
   client.adminAction = {
     findUnique: async ({ where, include, select }) => {
       const action = state().actions.find((candidate) => candidate.idempotencyKey === where.idempotencyKey)
@@ -766,12 +846,14 @@ function makeFakeClient(root, transactionState = null) {
     return 1
   }
   if (!transactionState) {
-    client.$transaction = async (callback) => {
+    client.$transaction = async (callback, options) => {
+      root.transactionOptions.push(options)
       const snapshot = { value: structuredClone(root._state) }
       const tx = makeFakeClient(root, snapshot)
       tx._heldByTransaction = []
       try {
         const result = await callback(tx)
+        // The fake commits last-writer-wins; advisory locks serialize covered paths.
         root._state = snapshot.value
         return result
       } finally {
