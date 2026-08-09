@@ -2,13 +2,13 @@
 
 **Goal:** Make the approved Admin role and security operations actually invalidate MassageLab's Auth.js JWT sessions instead of deleting only unused database-session rows.
 
-**Architecture:** Add one monotonic `User.authSessionVersion` field. Auth.js stores the current value in each JWT and returns `null` when a later request presents an older version. Admin services increment the target version inside the same transaction as their account mutation and evidence bundle. Existing database `Session` rows remain deleted for adapter compatibility, but the version is the canonical JWT revocation owner.
+**Architecture:** Add one monotonic `User.authSessionVersion` field. Auth.js stores the current value in each JWT and returns `null` unless a later request presents that exact version. New sign-ins adopt the current database version, legacy unversioned JWTs are accepted only while the database version is `0`, and a database-read outage retains restricted identity without privileges. Admin services increment the target version inside the same transaction as their account mutation and evidence bundle. Existing database `Session` rows remain deleted for adapter compatibility, but the version is the canonical JWT revocation owner.
 
 **Tech Stack:** Next.js/Auth.js JWT sessions, Prisma/PostgreSQL, TypeScript, Node test runner.
 
 **Baseline/Authority Refs:** Approved Admin User Operations design Role Management and Security Support; Branch 4 Tasks 10-11; `auth.ts`; `lib/auth-users.ts`; `lib/admin/role-service.ts`; `types/next-auth.d.ts`.
 
-**Compatibility Boundary:** Existing JWTs without a version remain valid only while the account version is `0`. After the first revocation increment, missing or stale versions fail closed. New sign-ins receive the current version. Database outages retain the existing restricted-identity fallback; protected Admin operations independently require fresh database authority.
+**Compatibility Boundary:** Existing JWTs without a version remain valid only while the account version is `0`. Outside new-sign-in adoption and that version-zero legacy exception, missing, stale, newer, malformed, negative, fractional, or unsafe-integer versions fail closed because they cannot prove exact equality. Database outages retain the existing restricted-identity fallback; protected Admin operations independently require fresh database authority.
 
 **TDD Route:**
 - Mode: off
@@ -49,7 +49,7 @@ The approved plan assumed database sessions, while the deployed authentication o
 
 ## Architecture Integrity Lens
 
-- Invariant: any JWT issued before a successful target revocation becomes invalid on its next successful database-backed session refresh.
+- Invariant: incrementing the target version immediately invalidates every non-matching JWT; Auth.js rejects it on the next successful database-backed session refresh.
 - Canonical owner: `User.authSessionVersion`, interpreted by one pure auth helper and the Auth.js JWT callback.
 - Responsibility overlap: services only increment; they do not parse tokens. Auth only compares; it does not perform Admin mutations.
 - Higher-level simplification: switching to database sessions is not viable for the current credentials/JWT setup and would be a broader authentication migration.

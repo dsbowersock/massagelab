@@ -2,8 +2,10 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import { decideAuthSessionVersion } from "../lib/auth-session-version.ts"
+import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8")
+const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 
 describe("JWT session-version decisions", () => {
   it("adopts the current non-negative database version on sign-in", () => {
@@ -68,29 +70,74 @@ describe("JWT session-version integration contract", () => {
     assert.match(schema, /authSessionVersion\s+Int\s+@default\(0\)/)
     assert.match(migration, /ALTER TABLE "User"[\s\S]*ADD COLUMN "authSessionVersion" INTEGER NOT NULL DEFAULT 0;/)
     assert.match(authTypes, /interface JWT \{[\s\S]*authSessionVersion\?: number/)
-    const sessionDeclaration = authTypes.match(/interface Session \{[\s\S]*?^  \}/m)?.[0] ?? ""
+    const sessionDeclarationMatch = authTypes.match(/interface Session \{[\s\S]*?^  \}/m)
+    assert.ok(sessionDeclarationMatch, "Expected the Session interface declaration")
+    const sessionDeclaration = sessionDeclarationMatch[0]
     assert.doesNotMatch(sessionDeclaration, /authSessionVersion/)
   })
 
-  it("loads the database version and rejects stale JWTs before refreshing privileges", async () => {
+  it("returns null without privilege fields when a normal database refresh rejects the JWT version", async () => {
     const [authSource, authUsersSource] = await Promise.all([
       read("auth.ts"),
       read("lib/auth-users.ts"),
     ])
-    const stateLoad = authSource.indexOf("const state = await getUserAuthState(userId)")
-    const decision = authSource.indexOf("const versionDecision = decideAuthSessionVersion")
-    const rejection = authSource.indexOf("if (!versionDecision.accepted) return null")
-    const versionWrite = authSource.indexOf("token.authSessionVersion = versionDecision.version")
-    const privilegeWrite = authSource.indexOf("token.role = state.role")
+    let capturedConfig
+    const authStateCalls = []
+    class CredentialsSignin extends Error {}
+    const NextAuth = (config) => {
+      capturedConfig = config
+      return { handlers: {}, auth() {}, signIn() {}, signOut() {} }
+    }
+    NextAuth.CredentialsSignin = CredentialsSignin
 
-    assert.ok(stateLoad >= 0)
-    assert.ok(stateLoad < decision)
-    assert.ok(decision < rejection)
-    assert.ok(rejection < versionWrite)
-    assert.ok(versionWrite < privilegeWrite)
+    loadCompiledModule(authSource, "auth.test.ts", {
+      "next-auth": NextAuth,
+      "next-auth/providers/credentials": (config) => config,
+      "next-auth/providers/google": (config) => config,
+      "@auth/prisma-adapter": { PrismaAdapter: () => ({}) },
+      "@/lib/prisma": { prisma: {} },
+      "@/lib/auth-account-linking": { googleProfileEmail: () => "", isVerifiedGoogleProfile: () => true },
+      "@/lib/auth-env": {
+        getAuthSecret: () => "test-secret",
+        getGoogleAuthConfig: () => null,
+        getSiteUrl: () => "http://localhost:3000",
+      },
+      "@/lib/auth-rate-limit": {
+        assertRateLimit: async () => {}, clearAttempts: async () => {},
+        rateLimitKey: () => "key", recordFailedAttempt: async () => {},
+      },
+      "@/lib/auth-users": {
+        ensureGoogleUserState: async () => {}, ensureUserRole: async () => {},
+        async getUserAuthState(userId) {
+          authStateCalls.push(userId)
+          return {
+            authSessionVersion: 2,
+            role: "ADMIN",
+            roles: ["ADMIN"],
+            roleAssignments: [{ role: "ADMIN", status: "VERIFIED" }],
+            capabilities: { canAdministerAccounts: true },
+            emailVerified: true,
+            twoFactorEnabled: true,
+          }
+        },
+      },
+      "@/lib/auth-session-version": { decideAuthSessionVersion },
+      "@/lib/auth-security": {
+        decryptSecret: () => "", normalizeEmail: () => "", verifyBackupCode: async () => false,
+        verifyPassword: async () => false, verifyTotpCode: () => false,
+      },
+    })
+
+    const token = { sub: "user-1", authSessionVersion: 1 }
+    const result = await capturedConfig.callbacks.jwt({ token, user: undefined, account: undefined })
+
+    assert.equal(result, null)
+    assert.deepEqual(authStateCalls, ["user-1"])
+    for (const field of ["role", "roles", "roleAssignments", "capabilities", "emailVerified", "twoFactorEnabled"]) {
+      assert.equal(Object.hasOwn(token, field), false, field)
+    }
     assert.match(authUsersSource, /select:\s*\{[\s\S]*authSessionVersion: true/)
     assert.match(authUsersSource, /return \{\s*authSessionVersion: user\?\.authSessionVersion,/)
     assert.doesNotMatch(authUsersSource, /authSessionVersion: user\?\.authSessionVersion\s*\?\?\s*0/)
-    assert.doesNotMatch(authSource, /token\.authSessionVersion\s*=\s*(?:user|account)\./)
   })
 })

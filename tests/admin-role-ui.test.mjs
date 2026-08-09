@@ -6,13 +6,14 @@ import {
   createElement,
   elementText,
   findElement,
+  findElements,
   passThroughElement,
   renderFunctionComponents,
 } from "./helpers/compiled-module.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
-const actionSource = await readFile(new URL("../app/admin/users/[userId]/role-actions.ts", import.meta.url), "utf8").catch(() => "")
-const formSource = await readFile(new URL("../app/admin/users/[userId]/role-change-form.tsx", import.meta.url), "utf8").catch(() => "")
+const actionSource = await readFile(new URL("../app/admin/users/[userId]/role-actions.ts", import.meta.url), "utf8")
+const formSource = await readFile(new URL("../app/admin/users/[userId]/role-change-form.tsx", import.meta.url), "utf8")
 const pageSource = await readFile(new URL("../app/admin/users/[userId]/page.tsx", import.meta.url), "utf8")
 const browserSource = await readFile(new URL("browser/admin-user-operations.spec.ts", import.meta.url), "utf8")
 const playwrightSource = await readFile(new URL("../playwright.config.ts", import.meta.url), "utf8")
@@ -92,10 +93,10 @@ function roleForm(overrides = {}) {
   return formData
 }
 
-function roleUiHarness() {
+function roleUiHarness(actionState = idleState) {
   return loadCompiledModule(formSource, "app/admin/users/[userId]/role-change-form.test.tsx", {
     react: {
-      useActionState: () => [idleState, () => {}, false],
+      useActionState: () => [actionState, () => {}, false],
       useId: () => "test-form",
       useState: (initialValue) => [initialValue, () => {}],
     },
@@ -146,7 +147,10 @@ describe("Admin anatomy role action", () => {
     ]) {
       const harness = roleActionHarness()
       const result = await harness.action("user-1", idleState, roleForm(roleInput))
-      assert.deepEqual(result, { status: "success", message: "The anatomy role changed and the user was signed out. Email notification delivered." })
+      assert.deepEqual(result, {
+        status: "success",
+        message: "The anatomy role changed. Existing sign-in tokens were invalidated; the user will be signed out on their next successful database-backed session refresh. Email notification delivered.",
+      })
       assert.deepEqual(harness.calls[0], ["requireFullAdminUser"])
       assert.deepEqual(harness.calls[1], ["validateAdminReason", roleInput.reasonCode, null])
       const serviceCall = harness.calls[2]
@@ -187,6 +191,36 @@ describe("Admin anatomy role action", () => {
     assert.equal(harness.calls.some(([name]) => name === "revalidatePath"), false)
     assert.deepEqual(logged, [["Admin anatomy role change failed", { code: "safe_failure", role: "ANATOMY_REVIEWER", operation: "ASSIGN" }]])
     assert.doesNotMatch(JSON.stringify(logged), /user-1|sensitive service detail|42b90a0b|internalNote/i)
+  })
+
+  it("preserves only exact stale-state and self-target service guidance", async () => {
+    for (const message of [
+      "This role changed since this operation was prepared. Refresh the account and try again.",
+      "You cannot change your own delegated anatomy role.",
+    ]) {
+      const harness = roleActionHarness({ serviceError: new Error(message) })
+      const originalConsoleError = console.error
+      console.error = () => {}
+      try {
+        assert.deepEqual(await harness.action("user-1", idleState, roleForm()), {
+          status: "error",
+          message,
+        })
+      } finally {
+        console.error = originalConsoleError
+      }
+    }
+
+    const unknown = roleActionHarness({ serviceError: new Error("sensitive database detail") })
+    const originalConsoleError = console.error
+    console.error = () => {}
+    try {
+      const result = await unknown.action("user-1", idleState, roleForm())
+      assert.equal(result.message, "The anatomy role could not be changed. Refresh the account and try again.")
+      assert.doesNotMatch(result.message, /sensitive database detail/)
+    } finally {
+      console.error = originalConsoleError
+    }
   })
 
   it("recovers a pending replay with exactly one initial delivery attempt and no new mutation claim", async () => {
@@ -265,7 +299,7 @@ describe("Admin anatomy role action", () => {
     const result = await harness.action("user-1", idleState, roleForm())
     assert.deepEqual(result, {
       status: "warning",
-      message: "The anatomy role changed and the user was signed out, but the email notification failed. Retry it from Activity.",
+      message: "The anatomy role changed. Existing sign-in tokens were invalidated; the user will be signed out on their next successful database-backed session refresh. The email notification failed. Retry it from Activity.",
     })
     assert.equal(harness.calls.some(([name]) => name === "deliverAdminEmailIntent"), true)
     assert.deepEqual(harness.calls.slice(-2), [
@@ -279,7 +313,7 @@ describe("Admin anatomy role action", () => {
     const result = await harness.action("user-1", idleState, roleForm())
     assert.deepEqual(result, {
       status: "warning",
-      message: "The anatomy role changed and the user was signed out, but no email was sent. Check Activity for the notification status.",
+      message: "The anatomy role changed. Existing sign-in tokens were invalidated; the user will be signed out on their next successful database-backed session refresh. No email was sent. Check Activity for the notification status.",
     })
     assert.doesNotMatch(result.message, /retry/i)
   })
@@ -296,7 +330,7 @@ describe("Admin anatomy role action", () => {
     }
     assert.deepEqual(result, {
       status: "warning",
-      message: "The anatomy role changed and the user was signed out, but email delivery could not be confirmed. Check Activity before retrying.",
+      message: "The anatomy role changed. Existing sign-in tokens were invalidated; the user will be signed out on their next successful database-backed session refresh. Email delivery could not be confirmed. Check Activity before retrying.",
     })
     assert.doesNotMatch(result.message, /Retry it from Activity/)
   })
@@ -324,11 +358,41 @@ describe("Admin anatomy role controls", () => {
     assert.match(formSource, /PENDING/)
     assert.match(formSource, /cannot be changed while its assignment/)
     assert.match(formSource, /useActionState\([\s\S]*changeAnatomyRoleAction\.bind\(null, userId\)/)
-    assert.match(formSource, /role=\{actionState\.status === "error" \? "alert" : "status"\}/)
+    assert.match(formSource, /<section[^>]*aria-labelledby="delegated-role-controls-heading"/)
     const actionConfirmation = actionSource.match(/ROLE_CHANGE_CONFIRMATION = "([^"]+)"/)?.[1]
     const formConfirmation = formSource.match(/ROLE_CHANGE_CONFIRMATION = "([^"]+)"/)?.[1]
     assert.equal(actionConfirmation, "CONFIRM_ANATOMY_ROLE_CHANGE")
     assert.equal(formConfirmation, actionConfirmation)
+  })
+
+  it("keeps distinct success, warning, and error live regions outside remounted fields", () => {
+    const { RoleChangeControls } = roleUiHarness()
+    const controls = RoleChangeControls({
+      userId: "user-1",
+      roles: [],
+      operationIds: {
+        ANATOMY_REVIEWER: "9ed1d8b5-7941-4da6-9456-715cccf4afe4",
+        ANATOMY_EDITOR: "c93e0806-4cbe-4d0b-a80d-93a611661ed8",
+      },
+    })
+    const reviewerOwner = findElement(controls, (element) => (
+      typeof element.type === "function" && element.props.role === "ANATOMY_REVIEWER"
+    ))
+    const reviewerTree = reviewerOwner.type(reviewerOwner.props)
+    const fieldsOwner = findElement(reviewerTree, (element) => (
+      typeof element.type === "function" && element.type.name === "RoleChangeFields"
+    ))
+    assert.equal(Object.hasOwn(fieldsOwner.props, "actionState"), false)
+
+    const liveRegions = findElements(reviewerTree, (element) => (
+      element.type === "p" && (element.props.role === "status" || element.props.role === "alert")
+    ))
+    assert.equal(liveRegions.length, 3)
+    assert.deepEqual(liveRegions.map((region) => region.props.role), ["status", "status", "alert"])
+    assert.deepEqual(liveRegions.map((region) => region.props["aria-live"]), ["polite", "polite", "assertive"])
+    assert.match(liveRegions[0].props.className, /emerald/)
+    assert.match(liveRegions[1].props.className, /amber/)
+    assert.match(liveRegions[2].props.className, /destructive/)
   })
 
   it("renders the post-assignment Revoke operation as a fresh disabled, unconfirmed form", () => {

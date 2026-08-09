@@ -25,7 +25,7 @@ const REASON_LABELS: Record<(typeof ADMIN_REASON_CODES)[number], string> = {
   OTHER: "Other",
 }
 
-type RoleEvidence = {
+export type RoleEvidence = {
   role: string
   status: string
   source?: string
@@ -56,7 +56,7 @@ export function RoleChangeControls({
   operationIds: Record<DelegatedAnatomyRole, string>
 }) {
   return (
-    <div className="space-y-4" aria-labelledby="delegated-role-controls-heading">
+    <section className="space-y-4" aria-labelledby="delegated-role-controls-heading">
       <div className="space-y-1">
         <h3 id="delegated-role-controls-heading" className="font-medium">Delegated anatomy access</h3>
         <p className="text-sm text-muted-foreground">Reviewer can review anatomy content. Editor can review and edit anatomy content.</p>
@@ -73,7 +73,7 @@ export function RoleChangeControls({
           />
         ))}
       </div>
-    </div>
+    </section>
   )
 }
 
@@ -126,10 +126,33 @@ function RoleChangeForm({
           operationId={operationId}
           label={label}
           formAction={formAction}
-          actionState={actionState}
           isPending={isPending}
         />
       )}
+      <p
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className={`text-sm text-emerald-700 dark:text-emerald-300 ${actionState.status === "success" ? "" : "sr-only"}`}
+      >
+        {actionState.status === "success" ? actionState.message : ""}
+      </p>
+      <p
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className={`text-sm text-amber-700 dark:text-amber-300 ${actionState.status === "warning" ? "" : "sr-only"}`}
+      >
+        {actionState.status === "warning" ? actionState.message : ""}
+      </p>
+      <p
+        role="alert"
+        aria-live="assertive"
+        aria-atomic="true"
+        className={`text-sm text-destructive ${actionState.status === "error" ? "" : "sr-only"}`}
+      >
+        {actionState.status === "error" ? actionState.message : ""}
+      </p>
     </article>
   )
 }
@@ -146,7 +169,6 @@ function RoleChangeFields({
   operationId,
   label,
   formAction,
-  actionState,
   isPending,
 }: {
   userId: string
@@ -156,7 +178,6 @@ function RoleChangeFields({
   operationId: string
   label: string
   formAction: (payload: FormData) => void
-  actionState: RoleChangeActionState
   isPending: boolean
 }) {
   const formId = useId()
@@ -221,15 +242,6 @@ function RoleChangeFields({
           <Button type="submit" variant={operation === "REVOKE" ? "destructive" : "default"} disabled={!canSubmit}>
             {isPending ? "Changing role…" : `${operation === "ASSIGN" ? "Assign" : "Revoke"} ${label}`}
           </Button>
-          {actionState.status !== "idle" ? (
-            <p
-              role={actionState.status === "error" ? "alert" : "status"}
-              aria-live={actionState.status === "error" ? "assertive" : "polite"}
-              className="text-sm text-muted-foreground"
-            >
-              {actionState.message}
-            </p>
-          ) : null}
     </form>
   )
 }

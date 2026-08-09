@@ -62,7 +62,7 @@ function matchesDevelopmentPaletteReviewSubstring(normalizedArgument: string) {
  * Matches the bounded regex-like subset used by Playwright file filters without
  * compiling command-line input as a regular expression.
  */
-function matchesDevelopmentPaletteReviewPattern(argument: string) {
+function matchesSpecFilterPattern(argument: string, specs: readonly string[]) {
   if (argument.length === 0 || argument.length > 512) return false
 
   let normalizedPattern = argument
@@ -82,7 +82,7 @@ function matchesDevelopmentPaletteReviewPattern(argument: string) {
   const fragments = normalizedPattern.split(/\.\*|\.\+/)
   if (fragments.some((fragment) => /[\[\]{}()|?*+^$]/.test(fragment))) return false
 
-  return developmentPaletteReviewSpecs.some((spec) => {
+  return specs.some((spec) => {
     const candidate = path.resolve(spec).replaceAll("\\", "/")
     let searchFrom = 0
     for (const fragment of fragments) {
@@ -105,7 +105,7 @@ export function matchesDevelopmentPaletteReviewArgument(argument: string) {
   // Any selected review spec requires the development server, including one
   // substring or regex filter that intentionally selects both review specs.
   if (matchesDevelopmentPaletteReviewSubstring(normalizedArgument)) return true
-  return matchesDevelopmentPaletteReviewPattern(argument)
+  return matchesSpecFilterPattern(argument, developmentPaletteReviewSpecs)
 }
 
 const playwrightOptionsWithSeparateValues = new Set([
@@ -148,12 +148,46 @@ export function getPlaywrightFileFilterArguments(argv: readonly string[]) {
 }
 
 const playwrightSubcommands = new Set(["test", "show-report", "codegen", "install"])
+const adminUserOperationsSpec = "tests/browser/admin-user-operations.spec.ts"
+
+/** Matches the safe Playwright file-filter subset that can select the Admin spec. */
+function matchesAdminUserOperationsArgument(argument: string) {
+  const normalizedArgument = argument
+    .replaceAll("\\", "/")
+    .replace(/:\d+(?::\d+)?$/, "")
+  if (
+    normalizedArgument === adminUserOperationsSpec
+    || normalizedArgument.endsWith(`/${adminUserOperationsSpec}`)
+  ) return true
+
+  const argumentBasename = path.posix.basename(normalizedArgument)
+  const isStandaloneFilter = normalizedArgument === argumentBasename && argumentBasename.length > 0
+  const substringMatches = isStandaloneFilter
+    ? path.posix.basename(adminUserOperationsSpec).includes(argumentBasename)
+    : adminUserOperationsSpec.includes(normalizedArgument)
+  if (substringMatches) return true
+
+  return matchesSpecFilterPattern(argument, [adminUserOperationsSpec])
+}
 
 /** Detects review-spec filters without treating a Playwright subcommand as a file filter. */
 export function isDevelopmentPaletteReviewInvocation(argv: readonly string[]) {
   return getPlaywrightFileFilterArguments(argv)
     .filter((argument, index) => index !== 0 || !playwrightSubcommands.has(argument))
     .some(matchesDevelopmentPaletteReviewArgument)
+}
+
+/**
+ * Identifies runs that can execute Admin account mutations. An invocation with
+ * no file filter includes the Admin spec, so it must receive the same isolated
+ * SMTP-disabled server as an explicit selection of that spec.
+ */
+export function isAdminUserOperationsInvocation(argv: readonly string[]) {
+  const fileFilters = getPlaywrightFileFilterArguments(argv)
+    .filter((argument, index) => index !== 0 || !playwrightSubcommands.has(argument))
+  if (fileFilters.length === 0) return true
+
+  return fileFilters.some(matchesAdminUserOperationsArgument)
 }
 
 /** Resolves development-only review exclusions from explicit Playwright arguments. */
@@ -164,9 +198,7 @@ export function resolveDevelopmentPaletteReviewIgnoreGlobs(argv: readonly string
 }
 
 const runsDevelopmentPaletteReview = isDevelopmentPaletteReviewInvocation(process.argv.slice(2))
-const runsAdminUserOperations = getPlaywrightFileFilterArguments(process.argv.slice(2))
-  .some((argument) => argument.replaceAll("\\", "/").replace(/:\d+(?::\d+)?$/, "")
-    .endsWith("tests/browser/admin-user-operations.spec.ts"))
+const runsAdminUserOperations = isAdminUserOperationsInvocation(process.argv.slice(2))
 const defaultWebServerCommand = runsDevelopmentPaletteReview
   ? `npm run dev -- -p ${browserQaPort}`
   : `npm run start -- -p ${browserQaPort}`

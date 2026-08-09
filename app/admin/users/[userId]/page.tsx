@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { requireFullAdminUser } from "@/lib/admin/access"
 import { RetryEmailForm } from "./retry-email-form"
-import { RoleChangeControls, SelfRoleManagementNotice } from "./role-change-form"
+import { RoleChangeControls, SelfRoleManagementNotice, type RoleEvidence } from "./role-change-form"
 import {
   ADMIN_USER_DETAIL_SECTIONS,
   getAdminUserDetailSection,
@@ -138,14 +138,6 @@ function DetailSection({ detail, section }: { detail: Record<string, unknown>; s
   ))}</dl>
 }
 
-type AccessRoleEvidence = {
-  role: string
-  status: string
-  source?: string
-  verifiedAt?: string | null
-  revokedAt?: string | null
-}
-
 /** Adds bounded mutation controls beneath the existing Access projection. */
 function AccessSection({
   detail,
@@ -173,7 +165,7 @@ function AccessSection({
   )
 }
 
-function isAccessRoleEvidence(value: unknown): value is AccessRoleEvidence {
+function isAccessRoleEvidence(value: unknown): value is RoleEvidence {
   return isRecord(value) && typeof value.role === "string" && typeof value.status === "string"
 }
 

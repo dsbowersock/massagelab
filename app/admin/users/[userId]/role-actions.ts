@@ -25,6 +25,11 @@ const ROLE_CHANGE_CONFIRMATION = "CONFIRM_ANATOMY_ROLE_CHANGE"
 const DELEGATED_ROLES = new Set<DelegatedAnatomyRole>(["ANATOMY_REVIEWER", "ANATOMY_EDITOR"])
 const ROLE_OPERATIONS = new Set<AnatomyRoleOperation>(["ASSIGN", "REVOKE"])
 const EXPECTED_ROLE_STATUSES = new Set<ExpectedAnatomyRoleStatus>(["ABSENT", "VERIFIED", "REVOKED"])
+const SAFE_ROLE_CHANGE_ERRORS = new Set([
+  "This role changed since this operation was prepared. Refresh the account and try again.",
+  "You cannot change your own delegated anatomy role.",
+])
+const SESSION_INVALIDATION_OUTCOME = "Existing sign-in tokens were invalidated; the user will be signed out on their next successful database-backed session refresh."
 
 type ParsedRoleChange = {
   targetUserId: string
@@ -69,7 +74,12 @@ export async function changeAnatomyRoleAction(
       role: parsed.value.role,
       operation: parsed.value.operation,
     })
-    return { status: "error", message: "The anatomy role could not be changed. Refresh the account and try again." }
+    return {
+      status: "error",
+      message: error instanceof Error && SAFE_ROLE_CHANGE_ERRORS.has(error.message)
+        ? error.message
+        : "The anatomy role could not be changed. Refresh the account and try again.",
+    }
   }
 
   let notificationOutcome: { status: "DELIVERED" | "FAILED"; attempted: boolean } | null = null
@@ -114,23 +124,23 @@ export async function changeAnatomyRoleAction(
   }
 
   if (notificationOutcome?.status === "DELIVERED") {
-    return { status: "success", message: "The anatomy role changed and the user was signed out. Email notification delivered." }
+    return { status: "success", message: `The anatomy role changed. ${SESSION_INVALIDATION_OUTCOME} Email notification delivered.` }
   }
   if (notificationOutcome?.status === "FAILED" && notificationOutcome.attempted) {
     return {
         status: "warning",
-        message: "The anatomy role changed and the user was signed out, but the email notification failed. Retry it from Activity.",
+        message: `The anatomy role changed. ${SESSION_INVALIDATION_OUTCOME} The email notification failed. Retry it from Activity.`,
     }
   }
   if (notificationOutcome?.status === "FAILED") {
     return {
       status: "warning",
-      message: "The anatomy role changed and the user was signed out, but no email was sent. Check Activity for the notification status.",
+      message: `The anatomy role changed. ${SESSION_INVALIDATION_OUTCOME} No email was sent. Check Activity for the notification status.`,
     }
   }
   return {
     status: "warning",
-    message: "The anatomy role changed and the user was signed out, but email delivery could not be confirmed. Check Activity before retrying.",
+    message: `The anatomy role changed. ${SESSION_INVALIDATION_OUTCOME} Email delivery could not be confirmed. Check Activity before retrying.`,
   }
 }
 

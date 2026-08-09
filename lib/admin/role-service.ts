@@ -222,14 +222,14 @@ function buildRoleBundle(input: ChangeAnatomyRoleInput, facts: BundleFacts): Rec
     },
     activity: {
       title: `${roleLabel} access ${stateVerb}`,
-      explanation: `${roleLabel} access was ${stateVerb} for your Massage Lab account. Your active sessions were signed out for security.`,
+      explanation: `${roleLabel} access was ${stateVerb} for your Massage Lab account. Existing sign-in tokens were invalidated; you will be signed out on your next successful database-backed session refresh.`,
       effectiveValue: assigning ? roleLabel : "Removed",
     },
     email: {
       kind: assigning ? "ANATOMY_ROLE_ASSIGNED" : "ANATOMY_ROLE_REVOKED",
       recipientEmail: facts.recipientEmail,
       subject: `Your Massage Lab anatomy access was ${stateVerb}`,
-      message: `${roleLabel} access was ${stateVerb} for your Massage Lab account. Your active sessions were signed out. If you did not expect this change, contact Massage Lab support.`,
+      message: `${roleLabel} access was ${stateVerb} for your Massage Lab account. Existing sign-in tokens were invalidated; you will be signed out on your next successful database-backed session refresh. If you did not expect this change, contact Massage Lab support.`,
     },
   }
 }
