@@ -20,9 +20,15 @@ export function createBrowserAdminFixtureIdentity(projectName: string): BrowserA
 
 function browserAdminIdentity(kind: "operator" | "target", projectName: string) {
   const id = `browser-admin-${kind}-${projectName}`
+  const namePrefix = `Browser Admin ${kind === "operator" ? "Operator" : "Target"} ${projectName}`
+  if (id.length > 64 || namePrefix.length > 120) {
+    throw new Error("Browser fixture requires a safe Playwright project name.")
+  }
+  const localPart = id.padEnd(64, "x")
+  const maximumSafeTestDomain = `${"d".repeat(63)}.${"q".repeat(63)}.${"a".repeat(56)}.test`
   return {
     id,
-    name: `Browser Admin ${kind === "operator" ? "Operator" : "Target"} ${projectName}`,
-    email: `${id}@example.test`,
+    name: namePrefix.padEnd(120, "x"),
+    email: `${localPart}@${maximumSafeTestDomain}`,
   }
 }

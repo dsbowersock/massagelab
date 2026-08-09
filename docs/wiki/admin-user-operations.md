@@ -43,4 +43,4 @@ Store only the minimum operational facts needed to explain the change. Do not st
 
 ## Serial rollout
 
-Branch 2 is the authorization, audit, activity, email-intent, and dashboard foundation. Branch 3 adds the full-Admin user directory and read-only account detail. It must begin only after the Branch 2 pull request merges and its worktree refreshes from the new `main`; do not develop the two branches concurrently or copy Branch 2 files into a stale Branch 3 base.
+Branch 2 is the foundation owner for authorization, audit, activity, email intents, and capability-aware dashboard access. Branch 3 consumes those owners and has completed Tasks 7-9: the full-Admin directory, bounded read-only account detail, signed-in Account Activity, safe aggregate dashboard metrics, and the existing audited failed-email retry seam. Branch 4 is the next serial gate; it must begin only after the Branch 3 pull request merges and its worktree refreshes from the new `main`. Do not develop serial branches concurrently or copy foundation files into a stale worktree.

@@ -1,10 +1,13 @@
 import assert from "node:assert/strict"
+import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import {
   getAdminUserMetrics,
   listAdminUsers,
   parseUserDirectoryQuery,
 } from "../lib/admin/user-directory.ts"
+
+const directoryPageSource = await readFile(new URL("../app/admin/users/page.tsx", import.meta.url), "utf8")
 
 describe("admin user directory", () => {
   it("bounds query input and discards unknown filter values", () => {
@@ -61,6 +64,8 @@ describe("admin user directory", () => {
       creditState: null,
       unresolvedIssue: null,
     })
+
+    assert.equal(parseUserDirectoryQuery({ role: "ANATOMY_ADMIN" }).role, null)
   })
 
   it("returns only the bounded account-operation projection and an opaque next cursor", async () => {
@@ -104,7 +109,7 @@ describe("admin user directory", () => {
       name: "Avery",
       email: "avery@example.test",
       emailVerified: true,
-      roles: [{ role: "ADMIN", status: "VERIFIED" }],
+      roles: [{ role: "ANATOMY_EDITOR", status: "VERIFIED" }, { role: "ADMIN", status: "VERIFIED" }],
       subscriptionStatus: "active",
       creditBalance: 2,
       unresolvedIssueCount: 3,
@@ -127,7 +132,7 @@ describe("admin user directory", () => {
         ] },
         { emailVerified: { not: null } },
         { roles: { some: { role: "ADMIN", status: "VERIFIED" } } },
-        { membershipSubscriptions: { some: { status: "active" } } },
+        { membershipSubscriptions: { some: { membershipLevel: "SUPPORTER", status: "active" } } },
         { backgroundCreditWallet: { is: { balance: { gt: 0 } } } },
         { OR: [
           { commerceOrders: { some: { OR: [
@@ -142,6 +147,13 @@ describe("admin user directory", () => {
     assert.deepEqual(Object.keys(query.select).sort(), [
       "_count", "backgroundCreditWallet", "email", "emailVerified", "id", "membershipSubscriptions", "name", "roles",
     ].sort())
+    assert.deepEqual(query.select.roles.orderBy, [{ role: "asc" }, { status: "asc" }])
+    assert.deepEqual(query.select.membershipSubscriptions, {
+      where: { membershipLevel: "SUPPORTER" },
+      select: { status: true },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      take: 1,
+    })
     assert.deepEqual(previousPageQuery, {
       where: {
         AND: [
@@ -152,7 +164,7 @@ describe("admin user directory", () => {
           ] },
           { emailVerified: { not: null } },
           { roles: { some: { role: "ADMIN", status: "VERIFIED" } } },
-          { membershipSubscriptions: { some: { status: "active" } } },
+          { membershipSubscriptions: { some: { membershipLevel: "SUPPORTER", status: "active" } } },
           { backgroundCreditWallet: { is: { balance: { gt: 0 } } } },
           { OR: [
             { commerceOrders: { some: { OR: [
@@ -196,6 +208,29 @@ describe("admin user directory", () => {
     assert.equal(page.hasPreviousPage, true)
   })
 
+  it("scopes displayed state to Supporter when persisted legacy membership levels are mixed", async () => {
+    const persisted = [
+      { id: "legacy_newer", membershipLevel: "THERAPIST", status: "past_due", updatedAt: new Date("2026-08-09T12:00:00.000Z") },
+      { id: "supporter_current", membershipLevel: "SUPPORTER", status: "active", updatedAt: new Date("2026-08-08T12:00:00.000Z") },
+    ]
+    const prismaClient = {
+      user: {
+        findMany: async (args) => {
+          assert.deepEqual(args.select.membershipSubscriptions.where, { membershipLevel: "SUPPORTER" })
+          assert.deepEqual(args.select.membershipSubscriptions.orderBy, [{ updatedAt: "desc" }, { id: "desc" }])
+          const supporterRows = persisted
+            .filter((subscription) => subscription.membershipLevel === "SUPPORTER")
+            .map(({ status }) => ({ status }))
+          return [{ ...userRow("user_mixed", { name: "Mixed", balance: 0, subscriptionStatus: null, unresolved: 0 }), membershipSubscriptions: supporterRows }]
+        },
+      },
+    }
+
+    const page = await listAdminUsers({ prismaClient, input: { pageSize: 25 } })
+
+    assert.equal(page.items[0].subscriptionStatus, "active")
+  })
+
   it("counts the initial account, verification, active-Supporter, and unresolved-operation metrics", async () => {
     const calls = []
     const prismaClient = {
@@ -237,6 +272,11 @@ describe("admin user directory", () => {
       ["adminEmailIntent", { where: { status: { in: ["PENDING", "FAILED"] } } }],
     ])
   })
+
+  it("keeps long directory identity metadata inside mobile cards", () => {
+    assert.match(directoryPageSource, /function AccountIdentity[\s\S]*className="min-w-0"/)
+    assert.match(directoryPageSource, /\[overflow-wrap:anywhere\]/)
+  })
 })
 
 /** Fixture mirrors the deliberately narrow Prisma select without carrying credentials or payment details. */
@@ -246,7 +286,11 @@ function userRow(id, { name, balance, subscriptionStatus, unresolved }) {
     name,
     email: `${name.toLowerCase().replaceAll(" ", ".")}@example.test`,
     emailVerified: new Date("2026-08-08T12:00:00.000Z"),
-    roles: [{ role: "ADMIN", status: "VERIFIED" }],
+    roles: [
+      { role: "ANATOMY_ADMIN", status: "VERIFIED" },
+      { role: "ANATOMY_EDITOR", status: "VERIFIED" },
+      { role: "ADMIN", status: "VERIFIED" },
+    ],
     membershipSubscriptions: subscriptionStatus ? [{ status: subscriptionStatus }] : [],
     backgroundCreditWallet: { balance },
     _count: { commerceOrders: unresolved - 1, adminEmailIntents: 1 },

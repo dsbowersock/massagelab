@@ -1,4 +1,5 @@
 import Link from "next/link"
+import type { ReactNode } from "react"
 import { redirect } from "next/navigation"
 import { getCurrentSession } from "@/auth"
 import { AppPageShell, appInsetClassName, appSurfaceClassName } from "@/components/ui/app-surface"
@@ -6,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { loadAdminActor } from "@/lib/admin/access"
 import { dashboardSections } from "@/lib/admin/dashboard-sections"
+import { getAdminUserMetrics } from "@/lib/admin/user-directory"
 import { listCommerceAdminOperations } from "@/lib/commerce/admin-service"
 import { prisma } from "@/lib/prisma"
 
@@ -33,10 +35,11 @@ export default async function AdminDashboardPage() {
   }
 
   const visible = new Set(sections)
-  const [reviewMetrics, editorMetrics, commerceQueue] = await Promise.all([
+  const [reviewMetrics, editorMetrics, commerceQueue, userMetrics] = await Promise.all([
     visible.has("anatomy-review") ? getAnatomyReviewMetrics() : Promise.resolve(null),
     visible.has("anatomy") ? getAnatomyEditorMetrics() : Promise.resolve(null),
     visible.has("commerce") ? listCommerceAdminOperations({ prismaClient: prisma }) : Promise.resolve(null),
+    visible.has("users") ? getAdminUserMetrics({ prismaClient: prisma }) : Promise.resolve(null),
   ])
 
   return (
@@ -96,6 +99,21 @@ export default async function AdminDashboardPage() {
               <div className="grid grid-cols-2 gap-2">
                 <DashboardMetric label="Open requests" value={editorMetrics.openMediaViewRequests} href="/admin/anatomy?view=maintenance" />
                 <DashboardMetric label="Reusable assets" value={editorMetrics.reviewedReusableAssets} href="/admin/anatomy?view=queries&quick=has-open-media" />
+              </div>
+            </section>
+          ) : null}
+
+          {userMetrics ? (
+            <section className="space-y-3">
+              <div>
+                <h2 className="text-lg font-semibold">Account operations</h2>
+                <p className="text-sm text-muted-foreground">Safe aggregate account and support-operation counts.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+                <DashboardStat>{userMetrics.totalAccounts.toLocaleString()} total accounts</DashboardStat>
+                <DashboardStat>{userMetrics.verifiedAccounts.toLocaleString()} verified accounts</DashboardStat>
+                <DashboardStat>{userMetrics.activeSupporters.toLocaleString()} active Supporters</DashboardStat>
+                <DashboardStat>{userMetrics.unresolvedOperations.toLocaleString()} unresolved operations</DashboardStat>
               </div>
             </section>
           ) : null}
@@ -168,6 +186,9 @@ function DashboardMetric({ label, value, href }: { label: string; value: number;
       <p className="mt-1 text-xl font-semibold">{value.toLocaleString()}</p>
     </Link>
   )
+}
+function DashboardStat({ children }: { children: ReactNode }) {
+  return <p className={`${appInsetClassName} p-3 text-sm font-medium`}>{children}</p>
 }
 function DashboardAction({ href, title, description }: { href: string; title: string; description: string }) {
   return (

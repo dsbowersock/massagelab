@@ -1,10 +1,13 @@
 import assert from "node:assert/strict"
+import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import {
   ADMIN_USER_DETAIL_SECTIONS,
   getAdminUserDetailSection,
   parseAdminUserDetailSection,
 } from "../lib/admin/user-detail.ts"
+
+const detailPageSource = await readFile(new URL("../app/admin/users/[userId]/page.tsx", import.meta.url), "utf8")
 
 describe("admin user detail", () => {
   it("allowlists independently selectable detail sections", () => {
@@ -15,19 +18,30 @@ describe("admin user detail", () => {
 
   it("loads security with its summary projection and a session aggregate only", async () => {
     const calls = []
+    const now = new Date("2026-08-09T12:00:00.000Z")
     const result = await getAdminUserDetailSection({
-      prismaClient: detailPrisma(calls),
+      prismaClient: detailPrisma(calls, {
+        sessionExpiries: [
+          new Date("2026-08-09T11:59:59.999Z"),
+          now,
+          new Date("2026-08-09T12:00:00.001Z"),
+        ],
+      }),
       userId: "user-1",
       section: "security",
+      now,
     })
 
-    assert.deepEqual(calls, ["user.findUnique:security-summary", "session.count"])
+    assert.deepEqual(calls, [
+      "user.findUnique:security-summary",
+      { sessionCount: { where: { userId: "user-1", expires: { gt: now } } } },
+    ])
     assert.deepEqual(result.target, { id: "user-1", name: "Avery", email: "avery@example.test" })
     assert.deepEqual(result.data, {
-      providers: ["google"],
+      providers: { items: ["google"], total: 30, truncated: true },
       passwordConfigured: true,
       twoFactorEnabled: true,
-      activeSessionCount: 2,
+      activeSessionCount: 1,
     })
     assert.doesNotMatch(JSON.stringify(result), /sessionToken|providerAccountId|passwordHash|encryptedSecret|codeHash/)
   })
@@ -37,7 +51,33 @@ describe("admin user detail", () => {
     const result = await getAdminUserDetailSection({ prismaClient: detailPrisma(calls), userId: "user-1", section: "overview" })
 
     assert.deepEqual(calls, ["user.findUnique:overview"])
-    assert.deepEqual(Object.keys(result.data).sort(), ["credentials", "emailVerified", "learning", "practices", "profile"].sort())
+    assert.deepEqual(result.data, {
+      image: "https://images.example.test/avatar.png",
+      emailVerified: true,
+      profile: { displayName: "Avery", therapistName: null, therapistLocation: "Ohio" },
+      practices: {
+        items: [{ role: "THERAPIST", practice: { id: "practice-1", name: "Massage Lab" } }],
+        total: 30,
+        truncated: true,
+      },
+      credentials: {
+        items: [{
+          kind: "MASSAGE_LICENSE",
+          status: "VERIFIED",
+          jurisdictionCode: "OH",
+          credentialNumber: "OH-12345",
+          issuingAuthority: "Ohio board",
+          displayLabel: "Licensed therapist",
+          sourceType: "PUBLIC_REGISTRY",
+          checkedAt: "2026-08-02T00:00:00.000Z",
+          verifiedAt: "2026-08-03T00:00:00.000Z",
+          expiresAt: null,
+        }],
+        total: 26,
+        truncated: true,
+      },
+      learning: { progressCount: 4, studySessionCount: 5, achievementCount: 6 },
+    })
     assert.doesNotMatch(JSON.stringify(result), /stripeCustomerId|paymentMethod|sessionToken|providerAccountId|passwordHash|encryptedSecret|SOAP|intake|journal|ROM/i)
   })
 
@@ -49,22 +89,99 @@ describe("admin user detail", () => {
 
     assert.deepEqual(calls, ["user.findUnique:access"])
     assert.deepEqual(result.data.features, [
-      { key: "calendar_basic_scheduling", source: "SUPPORTER", expiresAt: "2026-09-01T00:00:00.000Z" },
+      { key: "calendar_basic_scheduling", source: "FREE", expiresAt: null },
       { key: "premium_backgrounds", source: "SUPPORTER", expiresAt: "2026-09-01T00:00:00.000Z" },
     ])
+    assert.deepEqual(result.data.roles, [
+      { role: "ANATOMY_EDITOR", status: "VERIFIED", source: "manual", verifiedAt: "2026-08-02T00:00:00.000Z", expiresAt: null, revokedAt: null },
+      { role: "USER", status: "VERIFIED", source: "system", verifiedAt: "2026-08-01T00:00:00.000Z", expiresAt: null, revokedAt: null },
+    ])
+    assert.deepEqual(result.data.capabilities, {
+      canAdministerAccounts: false,
+      canManageAnatomyContent: true,
+      canManageClients: false,
+      canRequestCredentials: true,
+      canUseLocalClinicalTools: false,
+      canUsePremiumBackgrounds: true,
+      hasActiveMembershipBenefits: true,
+      hostedClinicalSyncEnabled: false,
+    })
+    assert.deepEqual(result.data.subscriptions, {
+      items: [{ membershipLevel: "SUPPORTER", status: "active", currentPeriodEnd: "2026-09-01T00:00:00.000Z" }],
+      total: 30,
+      truncated: true,
+    })
     assert.deepEqual(result.data.wallet, { balance: 3, recentEntries: [{ type: "INITIAL_GRANT", delta: 2, balanceAfter: 2, createdAt: "2026-08-01T00:00:00.000Z" }] })
-    assert.deepEqual(result.data.ownership, { total: 1, byStatus: { ACTIVE: 1 } })
+    assert.deepEqual(result.data.ownership, {
+      items: [{ backgroundKey: "massage-lab-silk", source: "PURCHASE", status: "ACTIVE", acquiredAt: "2026-08-01T00:00:00.000Z", statusChangedAt: "2026-08-01T00:00:00.000Z" }],
+      total: 40,
+      truncated: true,
+    })
     assert.doesNotMatch(JSON.stringify(result), /credentialNumber|verificationPayload|providerAccountId|paymentMethod|metadata/i)
   })
 
   it("loads billing local summaries without payment methods or raw processor payloads", async () => {
     const calls = []
-    const result = await getAdminUserDetailSection({ prismaClient: detailPrisma(calls), userId: "user-1", section: "billing" })
+    const result = await getAdminUserDetailSection({
+      prismaClient: detailPrisma(calls),
+      userId: "user-1",
+      section: "billing",
+      environment: { STRIPE_SUPPORTER_2_MONTHLY_PRICE_ID: "price_supporter_2_monthly" },
+    })
 
     assert.deepEqual(calls, ["user.findUnique:billing"])
-    assert.deepEqual(result.data.subscriptions, [{ membershipLevel: "SUPPORTER", status: "active", currentPeriodEnd: "2026-09-01T00:00:00.000Z", cancelAtPeriodEnd: false }])
-    assert.deepEqual(result.data.commerce, { orderCount: 4, totalCents: 1200, byStatus: { PAID: 3, REFUNDED: 1 } })
+    assert.deepEqual(result.data.subscriptions, {
+      items: [{
+        membershipLevel: "SUPPORTER",
+        status: "active",
+        currentPeriodEnd: "2026-09-01T00:00:00.000Z",
+        cancelAtPeriodEnd: false,
+        lastLocalSyncAt: "2026-08-08T12:00:00.000Z",
+        pricing: { state: "KNOWN", amountChoiceId: "support-2", amountCents: 200, interval: "month" },
+      }, {
+        membershipLevel: "SUPPORTER",
+        status: "canceled",
+        currentPeriodEnd: null,
+        cancelAtPeriodEnd: false,
+        lastLocalSyncAt: "2026-08-07T12:00:00.000Z",
+        pricing: { state: "UNAVAILABLE", amountChoiceId: null, amountCents: null, interval: null },
+      }],
+      total: 3,
+      truncated: true,
+    })
+    assert.deepEqual(result.data.commerce, {
+      totalOrderCount: 120,
+      truncated: true,
+      recentOrders: [{
+        status: "REVIEW_REQUIRED",
+        fulfillmentStatus: "PENDING",
+        currency: "usd",
+        subtotalCents: 100,
+        taxCents: 7,
+        totalCents: 107,
+        failureCode: "TAX_REVIEW",
+        createdAt: "2026-08-08T10:00:00.000Z",
+        detailHref: "/admin/commerce/order-1",
+        reconciliationState: "REVIEW_REQUIRED",
+        items: {
+          items: [{ displayName: "MassageLab Silk", fulfillmentStatus: "PENDING", lineTotalCents: 107, currency: "usd" }],
+          total: 2,
+          truncated: true,
+        },
+        refunds: {
+          items: [{ status: "PENDING", amountCents: 107, currency: "usd", reasonCode: "DUPLICATE", failureCode: null, processedAt: null, createdAt: "2026-08-08T11:00:00.000Z" }],
+          total: 2,
+          truncated: true,
+        },
+        disputes: {
+          items: [{ status: "OPEN", amountCents: 107, currency: "usd", reasonCode: "FRAUDULENT", openedAt: "2026-08-08T11:30:00.000Z", closedAt: null }],
+          total: 1,
+          truncated: false,
+        },
+      }],
+    })
     assert.doesNotMatch(JSON.stringify(result), /stripeCustomerId|stripeSubscriptionId|stripePaymentIntentId|paymentMethod|payload|metadata/i)
+    assert.doesNotMatch(JSON.stringify(result), /price_supporter_2_monthly|price_legacy_unknown/i)
   })
 
   it("loads only the newest fifty safe account activities with linked outcomes and email statuses", async () => {
@@ -90,10 +207,18 @@ describe("admin user detail", () => {
     }])
     assert.doesNotMatch(JSON.stringify(result), /internalNote|beforeState|afterState|recipientEmail|message|metadata/i)
   })
+
+  it("renders the approved safe detail summaries and commerce destinations", () => {
+    assert.match(detailPageSource, /Profile image/)
+    assert.match(detailPageSource, /Achievement count/)
+    assert.match(detailPageSource, /Effective capabilities/)
+    assert.match(detailPageSource, /Recent commerce orders/)
+    assert.match(detailPageSource, /Review order/)
+  })
 })
 
 /** Boundary fake mirrors each real selected relation while rejecting accidental loader calls. */
-function detailPrisma(calls) {
+function detailPrisma(calls, { sessionExpiries = [] } = {}) {
   return {
     user: {
       findUnique: async (args) => {
@@ -108,7 +233,13 @@ function detailPrisma(calls) {
         return detailRow(section)
       },
     },
-    session: { count: async () => { calls.push("session.count"); return 2 } },
+    session: { count: async (args) => {
+      calls.push({ sessionCount: args })
+      const boundary = args.where.expires?.gt
+      return boundary
+        ? sessionExpiries.filter((expires) => expires.getTime() > boundary.getTime()).length
+        : sessionExpiries.length
+    } },
   }
 }
 
@@ -118,16 +249,37 @@ function assertSafeSelect(section, select) {
     for (const forbiddenKey of ["membershipSubscriptions", "commerceOrders", "accounts", "sessions", "passwordCredential", "twoFactorSecret", "clinicalArtifactManifests"]) {
       assert.equal(forbiddenKey in select, false)
     }
-    assert.deepEqual(Object.keys(select.credentialVerifications.select).sort(), ["displayLabel", "expiresAt", "issuingAuthority", "jurisdictionCode", "kind", "status"])
+    assert.deepEqual(select.practiceMemberships.orderBy, [{ createdAt: "desc" }, { id: "desc" }])
+    assert.equal(select.practiceMemberships.take, 25)
+    assert.deepEqual(select.credentialVerifications.orderBy, [{ updatedAt: "desc" }, { id: "desc" }])
+    assert.equal(select.credentialVerifications.take, 25)
+    assert.deepEqual(Object.keys(select.credentialVerifications.select).sort(), ["checkedAt", "credentialNumber", "displayLabel", "expiresAt", "issuingAuthority", "jurisdictionCode", "kind", "sourceType", "status", "verifiedAt"])
+    assert.deepEqual(select._count.select, { learningProgress: true, flashcardStudySessions: true, achievements: true, practiceMemberships: true, credentialVerifications: true })
   }
   if (section === "access") {
     assert.doesNotMatch(serialized, /credentialNumber|verificationPayload|accounts|passwordCredential|twoFactorSecret|commerceOrders|metadata/i)
+    assert.deepEqual(select.membershipSubscriptions.orderBy, [{ updatedAt: "desc" }, { id: "desc" }])
+    assert.equal(select.membershipSubscriptions.take, 25)
+    assert.deepEqual(select.backgroundOwnerships.orderBy, [{ acquiredAt: "desc" }, { id: "desc" }])
+    assert.equal(select.backgroundOwnerships.take, 25)
+    assert.deepEqual(select.backgroundCreditWallet.select.entries.orderBy, [{ createdAt: "desc" }, { id: "desc" }])
+    assert.equal(select.backgroundCreditWallet.select.entries.take, 10)
+    assert.deepEqual(select._count.select, { membershipSubscriptions: true, backgroundOwnerships: true })
   }
   if (section === "billing") {
-    assert.doesNotMatch(serialized, /payments|stripe|metadata|paymentMethod|accounts|passwordCredential|twoFactorSecret/i)
+    assert.doesNotMatch(serialized, /stripeCustomerId|stripeSubscriptionId|stripePaymentIntentId|paymentMethod|metadata|accounts|passwordCredential|twoFactorSecret/i)
+    assert.deepEqual(select.membershipSubscriptions.where, { membershipLevel: "SUPPORTER" })
+    assert.deepEqual(select.membershipSubscriptions.orderBy, [{ updatedAt: "desc" }, { id: "desc" }])
+    assert.equal(select.membershipSubscriptions.take, 25)
+    assert.deepEqual(select.commerceOrders.orderBy, [{ createdAt: "desc" }, { id: "desc" }])
+    assert.equal(select.commerceOrders.take, 100)
+    assert.deepEqual(select._count.select, { membershipSubscriptions: { where: { membershipLevel: "SUPPORTER" } }, commerceOrders: true })
   }
   if (section === "security-summary") {
     assert.deepEqual(select.accounts.select, { provider: true })
+    assert.deepEqual(select.accounts.orderBy, [{ provider: "asc" }, { id: "asc" }])
+    assert.equal(select.accounts.take, 25)
+    assert.deepEqual(select._count.select, { accounts: true })
     assert.deepEqual(select.passwordCredential.select, { id: true })
     assert.deepEqual(select.twoFactorSecret.select, { enabledAt: true })
   }
@@ -136,31 +288,47 @@ function assertSafeSelect(section, select) {
     assert.deepEqual(select.accountActivities.select.adminAction.select.emailIntent.select, {
       id: true, kind: true, status: true, failureCode: true, attemptCount: true, lastAttemptAt: true, deliveredAt: true,
     })
+    assert.deepEqual(select.accountActivities.orderBy, [{ occurredAt: "desc" }, { id: "desc" }])
     assert.equal(select.accountActivities.take, 50)
   }
 }
 
 function detailRow(section) {
   const target = { id: "user-1", name: "Avery", email: "avery@example.test" }
-  if (section === "security-summary") return { ...target, accounts: [{ provider: "google" }], passwordCredential: { id: "password-1" }, twoFactorSecret: { enabledAt: new Date("2026-08-01T00:00:00.000Z") } }
+  if (section === "security-summary") return { ...target, accounts: [{ provider: "google" }], passwordCredential: { id: "password-1" }, twoFactorSecret: { enabledAt: new Date("2026-08-01T00:00:00.000Z") }, _count: { accounts: 30 } }
   if (section === "overview") return {
-    ...target, emailVerified: new Date("2026-08-01T00:00:00.000Z"), profile: { displayName: "Avery", therapistName: null, therapistLocation: "Ohio" },
+    ...target, image: "https://images.example.test/avatar.png", emailVerified: new Date("2026-08-01T00:00:00.000Z"), profile: { displayName: "Avery", therapistName: null, therapistLocation: "Ohio" },
     practiceMemberships: [{ role: "THERAPIST", practice: { id: "practice-1", name: "Massage Lab" } }],
-    credentialVerifications: [{ kind: "MASSAGE_LICENSE", status: "VERIFIED", jurisdictionCode: "OH", issuingAuthority: "Ohio board", displayLabel: "Licensed therapist", expiresAt: null }],
-    _count: { learningProgress: 4, flashcardStudySessions: 5 },
+    credentialVerifications: [{ kind: "MASSAGE_LICENSE", status: "VERIFIED", jurisdictionCode: "OH", credentialNumber: "OH-12345", issuingAuthority: "Ohio board", displayLabel: "Licensed therapist", sourceType: "PUBLIC_REGISTRY", checkedAt: new Date("2026-08-02T00:00:00.000Z"), verifiedAt: new Date("2026-08-03T00:00:00.000Z"), expiresAt: null }],
+    _count: { learningProgress: 4, flashcardStudySessions: 5, achievements: 6, practiceMemberships: 30, credentialVerifications: 26 },
   }
   if (section === "access") return {
     ...target,
-    roles: [{ role: "ADMIN", status: "VERIFIED", source: "manual", verifiedAt: new Date("2026-08-01T00:00:00.000Z"), expiresAt: null, revokedAt: null }],
+    roles: [
+      { role: "ANATOMY_ADMIN", status: "VERIFIED", source: "legacy-migration", verifiedAt: new Date("2026-08-01T00:00:00.000Z"), expiresAt: null, revokedAt: null },
+      { role: "ANATOMY_EDITOR", status: "VERIFIED", source: "manual", verifiedAt: new Date("2026-08-02T00:00:00.000Z"), expiresAt: null, revokedAt: null },
+      { role: "USER", status: "VERIFIED", source: "system", verifiedAt: new Date("2026-08-01T00:00:00.000Z"), expiresAt: null, revokedAt: null },
+    ],
     membershipSubscriptions: [{ status: "active", membershipLevel: "SUPPORTER", currentPeriodEnd: new Date("2026-09-01T00:00:00.000Z") }],
     studentAccess: null,
     backgroundCreditWallet: { balance: 3, entries: [{ type: "INITIAL_GRANT", delta: 2, balanceAfter: 2, createdAt: new Date("2026-08-01T00:00:00.000Z") }] },
-    backgroundOwnerships: [{ status: "ACTIVE" }],
+    backgroundOwnerships: [{ backgroundKey: "massage-lab-silk", source: "PURCHASE", status: "ACTIVE", acquiredAt: new Date("2026-08-01T00:00:00.000Z"), statusChangedAt: new Date("2026-08-01T00:00:00.000Z") }],
+    _count: { membershipSubscriptions: 30, backgroundOwnerships: 40 },
   }
   if (section === "billing") return {
     ...target,
-    membershipSubscriptions: [{ membershipLevel: "SUPPORTER", status: "active", currentPeriodEnd: new Date("2026-09-01T00:00:00.000Z"), cancelAtPeriodEnd: false }],
-    commerceOrders: [{ status: "PAID", totalCents: 1000 }, { status: "PAID", totalCents: 100 }, { status: "PAID", totalCents: 100 }, { status: "REFUNDED", totalCents: 0 }],
+    membershipSubscriptions: [
+      { membershipLevel: "SUPPORTER", status: "active", stripePriceId: "price_supporter_2_monthly", currentPeriodEnd: new Date("2026-09-01T00:00:00.000Z"), cancelAtPeriodEnd: false, updatedAt: new Date("2026-08-08T12:00:00.000Z") },
+      { membershipLevel: "SUPPORTER", status: "canceled", stripePriceId: "price_legacy_unknown", currentPeriodEnd: null, cancelAtPeriodEnd: false, updatedAt: new Date("2026-08-07T12:00:00.000Z") },
+    ],
+    commerceOrders: [{
+      id: "order-1", status: "REVIEW_REQUIRED", fulfillmentStatus: "PENDING", currency: "usd", subtotalCents: 100, taxCents: 7, totalCents: 107, failureCode: "TAX_REVIEW", createdAt: new Date("2026-08-08T10:00:00.000Z"),
+      items: [{ displayName: "MassageLab Silk", fulfillmentStatus: "PENDING", lineTotalCents: 107, currency: "usd" }],
+      refunds: [{ status: "PENDING", amountCents: 107, currency: "usd", reasonCode: "DUPLICATE", failureCode: null, processedAt: null, createdAt: new Date("2026-08-08T11:00:00.000Z") }],
+      payments: [{ disputes: [{ status: "OPEN", amountCents: 107, currency: "usd", reasonCode: "FRAUDULENT", openedAt: new Date("2026-08-08T11:30:00.000Z"), closedAt: null }], _count: { disputes: 1 } }],
+      _count: { items: 2, refunds: 2 },
+    }],
+    _count: { membershipSubscriptions: 3, commerceOrders: 120 },
   }
   return {
     ...target,

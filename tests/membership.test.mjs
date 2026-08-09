@@ -27,6 +27,64 @@ describe("Membership and entitlement helpers", () => {
     assert.equal(entitlements.hasFeature(FEATURE_KEYS.calendarFullScheduling), false)
   })
 
+  it("owns FREE baseline feature provenance without an expiry", () => {
+    const entitlements = buildEntitlements({ subscriptions: [], studentAccess: null })
+
+    assert.deepEqual(entitlements.featureDetails, [
+      { key: FEATURE_KEYS.calendarBasicScheduling, source: "FREE", expiresAt: null },
+    ])
+  })
+
+  it("owns Supporter-only feature provenance at the active Supporter source and expiry", () => {
+    const currentPeriodEnd = new Date("2026-09-01T00:00:00.000Z")
+    const entitlements = buildEntitlements({
+      subscriptions: [{ status: "active", membershipLevel: "SUPPORTER", currentPeriodEnd }],
+      now: new Date("2026-08-09T00:00:00.000Z"),
+    })
+
+    assert.deepEqual(entitlements.featureDetails, [
+      { key: FEATURE_KEYS.calendarBasicScheduling, source: "FREE", expiresAt: null },
+      { key: FEATURE_KEYS.premiumBackgrounds, source: "SUPPORTER", expiresAt: currentPeriodEnd },
+    ])
+  })
+
+  it("keeps baseline provenance FREE while active Student status remains separately visible", () => {
+    const entitlements = buildEntitlements({
+      studentAccess: {
+        studentStatus: "ACTIVE",
+        studentAccessExpiresAt: new Date("2027-01-01T00:00:00.000Z"),
+      },
+      now: new Date("2026-08-09T00:00:00.000Z"),
+    })
+
+    assert.equal(entitlements.level, "STUDENT")
+    assert.equal(entitlements.studentStatus, "ACTIVE")
+    assert.deepEqual(entitlements.featureDetails, [
+      { key: FEATURE_KEYS.calendarBasicScheduling, source: "FREE", expiresAt: null },
+    ])
+  })
+
+  it("selects an actual feature-specific source across multiple active paid memberships", () => {
+    const supporterEnd = new Date("2026-10-01T00:00:00.000Z")
+    const therapistEnd = new Date("2026-09-01T00:00:00.000Z")
+    const entitlements = buildEntitlements({
+      subscriptions: [
+        { status: "active", membershipLevel: "SUPPORTER", currentPeriodEnd: supporterEnd },
+        { status: "trialing", membershipLevel: "THERAPIST", currentPeriodEnd: therapistEnd },
+      ],
+      now: new Date("2026-08-09T00:00:00.000Z"),
+    })
+
+    assert.equal(entitlements.paidLevel, "THERAPIST")
+    assert.deepEqual(entitlements.featureDetails, [
+      { key: FEATURE_KEYS.calendarBasicScheduling, source: "FREE", expiresAt: null },
+      { key: FEATURE_KEYS.premiumBackgrounds, source: "SUPPORTER", expiresAt: supporterEnd },
+      { key: FEATURE_KEYS.therapistDocumentationTools, source: "THERAPIST", expiresAt: therapistEnd },
+      { key: FEATURE_KEYS.calendarFullScheduling, source: "THERAPIST", expiresAt: therapistEnd },
+      { key: FEATURE_KEYS.externalCalendarSync, source: "THERAPIST", expiresAt: therapistEnd },
+    ])
+  })
+
   it("does not issue the retired custom-color entitlement", () => {
     const active = buildEntitlements({
       subscriptions: [{ status: "active", membershipLevel: "SUPPORTER" }],

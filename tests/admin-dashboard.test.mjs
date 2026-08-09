@@ -16,6 +16,7 @@ const dashboardSource = await readFile(new URL("../app/admin/page.tsx", import.m
 describe("capability-aware Admin dashboard", () => {
   it("keeps the section policy outside the Next route module export surface", () => {
     assert.match(dashboardSource, /import \{ dashboardSections \} from "@\/lib\/admin\/dashboard-sections"/)
+    assert.match(dashboardSource, /import \{ getAdminUserMetrics \} from "@\/lib\/admin\/user-directory"/)
     assert.doesNotMatch(dashboardSource, /export (?:type AdminDashboardSection|function dashboardSections)/)
     assert.match(dashboardSource, /export default async function AdminDashboardPage/)
   })
@@ -40,6 +41,7 @@ describe("capability-aware Admin dashboard", () => {
       "anatomyMediaEntity:APPROVED",
     ])
     assert.equal(fixture.calls.commerce, 0)
+    assert.equal(fixture.calls.userMetrics, 0)
     assert.match(text, /Anatomy image review/)
     assert.match(text, /Fast image review/)
     assert.doesNotMatch(text, /Full anatomy browser|User operations|Commerce \(/)
@@ -66,6 +68,7 @@ describe("capability-aware Admin dashboard", () => {
       "anatomyMediaAsset:OPEN_REUSE",
     ])
     assert.equal(fixture.calls.commerce, 0)
+    assert.equal(fixture.calls.userMetrics, 0)
     assert.match(text, /Anatomy image review/)
     assert.match(text, /Anatomy editing/)
     assert.match(text, /Full anatomy browser/)
@@ -79,8 +82,13 @@ describe("capability-aware Admin dashboard", () => {
 
     assert.equal(fixture.calls.actor, 1)
     assert.equal(fixture.calls.commerce, 1)
+    assert.equal(fixture.calls.userMetrics, 1)
     assert.equal(fixture.calls.metricModels.length, 5)
     assert.match(text, /User operations/)
+    assert.match(text, /42 total accounts/)
+    assert.match(text, /35 verified accounts/)
+    assert.match(text, /7 active Supporters/)
+    assert.match(text, /5 unresolved operations/)
     assert.match(text, /Search account-operation details with bounded filters/)
     assert.match(text, /Commerce \(2\)/)
     assert.match(text, /Full anatomy browser/)
@@ -105,7 +113,7 @@ describe("capability-aware Admin dashboard", () => {
 })
 
 function loadDashboardModule(actor) {
-  const calls = { actor: 0, commerce: 0, metricModels: [], session: 0 }
+  const calls = { actor: 0, commerce: 0, metricModels: [], session: 0, userMetrics: 0 }
   const prisma = createPrismaFixture(calls)
   const components = {
     AppPageShell: passThroughElement("main"),
@@ -134,6 +142,13 @@ function loadDashboardModule(actor) {
       },
     },
     "@/lib/admin/dashboard-sections": { dashboardSections },
+    "@/lib/admin/user-directory": {
+      getAdminUserMetrics: async ({ prismaClient }) => {
+        calls.userMetrics += 1
+        assert.equal(prismaClient, prisma)
+        return { totalAccounts: 42, verifiedAccounts: 35, activeSupporters: 7, unresolvedOperations: 5 }
+      },
+    },
     "@/lib/commerce/admin-service": {
       listCommerceAdminOperations: async ({ prismaClient }) => {
         calls.commerce += 1

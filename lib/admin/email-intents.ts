@@ -49,11 +49,13 @@ export async function deliverAdminEmailIntent(input: {
 export async function retryAdminEmailIntent(input: {
   prismaClient: PrismaClient
   actorUserId: string
+  expectedTargetUserId: string
   intentId: string
   idempotencyKey: string
   sendEmail?: SendEmail
 }): Promise<{ status: "DELIVERED" | "FAILED"; attemptCount: number; replayed: boolean }> {
   validateIdentifier(input.actorUserId, "administrator")
+  validateIdentifier(input.expectedTargetUserId, "target account")
   validateIdentifier(input.intentId, "notification intent")
   validateIdentifier(input.idempotencyKey, "operation key")
 
@@ -63,7 +65,11 @@ export async function retryAdminEmailIntent(input: {
     await requireFullAdminUser({ prismaClient: tx, sessionUserId: input.actorUserId })
 
     const intent = await loadRetryIntent(tx, input.intentId)
-    if (!intent || !intent.recipientEmail) throw new Error("This notification cannot be retried.")
+    if (!intent) throw new Error("This notification cannot be retried.")
+    if (intent.userId !== input.expectedTargetUserId) {
+      throw new Error("This notification does not belong to the target account.")
+    }
+    if (!intent.recipientEmail) throw new Error("This notification cannot be retried.")
     if (intent.kind === "PASSWORD_RESET") throw new Error("Password-reset notifications cannot be retried here.")
 
     const existing = await tx.adminAction.findUnique({

@@ -1,4 +1,5 @@
 import type { Prisma, PrismaClient, Role, VerificationStatus } from "@prisma/client"
+import { normalizeRoleAssignments } from "../account-permissions.js"
 
 const ROLE_FILTER_VALUES = new Set([
   "USER",
@@ -6,7 +7,6 @@ const ROLE_FILTER_VALUES = new Set([
   "LICENSED_THERAPIST",
   "CLIENT",
   "EDITOR",
-  "ANATOMY_ADMIN",
   "ANATOMY_REVIEWER",
   "ANATOMY_EDITOR",
   "ADMIN",
@@ -150,8 +150,13 @@ const ADMIN_USER_DIRECTORY_SELECT = {
   name: true,
   email: true,
   emailVerified: true,
-  roles: { select: { role: true, status: true } },
-  membershipSubscriptions: { select: { status: true }, orderBy: { updatedAt: "desc" }, take: 1 },
+  roles: { select: { role: true, status: true }, orderBy: [{ role: "asc" }, { status: "asc" }] },
+  membershipSubscriptions: {
+    where: { membershipLevel: "SUPPORTER" },
+    select: { status: true },
+    orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+    take: 1,
+  },
   backgroundCreditWallet: { select: { balance: true } },
   _count: {
     select: {
@@ -176,7 +181,7 @@ function toAdminUserDirectoryRow(row: {
     name: row.name,
     email: row.email,
     emailVerified: Boolean(row.emailVerified),
-    roles: row.roles,
+    roles: normalizeRoleAssignments(row.roles),
     subscriptionStatus: row.membershipSubscriptions[0]?.status ?? null,
     creditBalance: row.backgroundCreditWallet?.balance ?? 0,
     unresolvedIssueCount: row._count.commerceOrders + row._count.adminEmailIntents,
@@ -205,7 +210,7 @@ function directoryWhere(query: AdminUserDirectoryQuery): Prisma.UserWhereInput {
     })
   }
   if (query.subscriptionStatus) {
-    conditions.push({ membershipSubscriptions: { some: { status: query.subscriptionStatus } } })
+    conditions.push({ membershipSubscriptions: { some: { membershipLevel: "SUPPORTER", status: query.subscriptionStatus } } })
   }
   if (query.creditState === "positive") {
     conditions.push({ backgroundCreditWallet: { is: { balance: { gt: 0 } } } })

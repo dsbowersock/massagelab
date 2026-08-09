@@ -8,9 +8,12 @@ Catalog naming note: `Massage Laba Lamp` is the approved catalog label for the o
 
 ## 2026-08-09 — Account activity and failed-email retry
 
+- Completed Branch 3 Tasks 7-9 on top of the Branch 2 foundation owner: the full-Admin user directory, bounded read-only account detail, safe dashboard account metrics, and signed-in Account Activity consumer surfaces are implemented. Directory filters and displayed subscription state are Supporter-scoped; retired role values normalize only on persisted reads; and every detail collection has deterministic bounded projection evidence.
+- Detail access now consumes the canonical membership entitlement resolver's per-feature provenance. Free baseline features remain `FREE` without an expiry, paid-only features identify the actual active paid source, and locally unprovable Supporter pricing or reconciliation facts render as explicitly unavailable/not-flagged rather than being inferred from processor identifiers or raw payloads.
 - Added the signed-in Account Activity tab. It reads only the current user's newest fifty target-visible activity entries and renders the title, explanation, optional effective value, and accessible occurrence time; actor, internal-note, and delivery metadata remain absent from the account payload.
-- Extended read-only full-Admin Activity detail with the safe delivery state, failure code, attempt count, and last-attempt timestamp. An explicit retry is available only for already-failed, non-password account-change intents and begins with `requireFullAdminUser()` before using the established `retryAdminEmailIntent()` contract. It does not mutate the target account.
+- Extended read-only full-Admin Activity detail with the safe delivery state, failure code, attempt count, and last-attempt timestamp. An explicit retry is available only for already-failed, non-password account-change intents and begins with `requireFullAdminUser()` before using the established `retryAdminEmailIntent()` contract. The retry verifies the locked intent belongs to the route target and reuses the stable rendered operation ID as its idempotency key. It does not mutate the target account.
 - Failed password-reset intent rows deliberately show future-action copy only. No password-reset resend action, fresh-token path, or target-account write was introduced in Branch 3.
+- Branch 4 is the next serial gate and must start only after Branch 3 merges and its worktree refreshes from the new `main`.
 
 ## 2026-08-08 — Admin authorization and audit foundation
 

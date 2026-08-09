@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { randomUUID } from "node:crypto"
 import { notFound } from "next/navigation"
 import { AppPageShell, appInsetClassName, appSurfaceClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
@@ -49,7 +50,11 @@ export default async function AdminUserDetailPage({ params, searchParams }: Admi
 
           <section aria-labelledby={`${section}-heading`} className={`${appInsetClassName} space-y-4 p-4`}>
             <h2 id={`${section}-heading`} className="text-lg font-semibold">{sectionLabel(section)}</h2>
-            {section === "activity" ? <ActivitySection detail={detail.data} userId={userId} /> : <DetailSection detail={detail.data} section={section} />}
+            {section === "activity"
+              ? <ActivitySection detail={detail.data} userId={userId} />
+              : section === "billing"
+                ? <BillingSection detail={detail.data} />
+                : <DetailSection detail={detail.data} section={section} />}
           </section>
         </CardContent>
       </Card>
@@ -87,6 +92,7 @@ function ActivitySection({ detail, userId }: { detail: Record<string, unknown>; 
       && email.kind !== "PASSWORD_RESET"
       && email.failureCode !== "RECIPIENT_UNAVAILABLE"
     const failedPasswordReset = email?.status === "FAILED" && email.kind === "PASSWORD_RESET"
+    const operationId = randomUUID()
     return (
       <li key={`${entry.occurredAt ?? "activity"}-${index}`} className="rounded-md border bg-background/60 p-3">
         <p className="font-medium">{entry.title}</p>
@@ -105,6 +111,7 @@ function ActivitySection({ detail, userId }: { detail: Record<string, unknown>; 
         {canRetry ? (
           <form action={retryFailedEmailIntentAction.bind(null, userId)} className="mt-3">
             <input type="hidden" name="intentId" value={email.intentId} />
+            <input type="hidden" name="operationId" value={operationId} />
             <Button type="submit" size="sm">Retry failed email</Button>
           </form>
         ) : null}
@@ -129,21 +136,65 @@ function DetailSection({ detail, section }: { detail: Record<string, unknown>; s
   ))}</dl>
 }
 
+type BillingOrder = {
+  status: string
+  fulfillmentStatus: string
+  totalCents: number
+  currency: string
+  createdAt: string | null
+  reconciliationState: string
+  detailHref: string
+  items: unknown
+  refunds: unknown
+  disputes: unknown
+}
+
+/** Renders bounded local commerce evidence and links to the existing full commerce review owner. */
+function BillingSection({ detail }: { detail: Record<string, unknown> }) {
+  const commerce = isRecord(detail.commerce) ? detail.commerce : {}
+  const orders = Array.isArray(commerce.recentOrders) ? commerce.recentOrders as BillingOrder[] : []
+  return (
+    <div className="space-y-4">
+      <DetailSection detail={{ subscriptions: detail.subscriptions }} section="billing" />
+      <div className="space-y-2">
+        <h3 className="font-medium">Recent commerce orders</h3>
+        <p className="text-xs text-muted-foreground">
+          Showing {orders.length} of {String(commerce.totalOrderCount ?? 0)} local orders{commerce.truncated ? "; older orders are omitted." : "."}
+        </p>
+        {orders.length ? orders.map((order) => (
+          <article key={order.detailHref} className="min-w-0 space-y-2 rounded-md border bg-background/60 p-3 text-sm">
+            <p className="font-medium">{order.status} · {order.fulfillmentStatus}</p>
+            <p className="text-muted-foreground">
+              {formatMoney(order.totalCents, order.currency)} · {order.createdAt ?? "Time unavailable"} · Reconciliation: {order.reconciliationState}
+            </p>
+            <p className="break-words text-muted-foreground">Items: {objectValue(order.items)}</p>
+            <p className="break-words text-muted-foreground">Refunds: {objectValue(order.refunds)}</p>
+            <p className="break-words text-muted-foreground">Disputes: {objectValue(order.disputes)}</p>
+            <Button asChild size="sm" variant="outline"><Link href={order.detailHref}>Review order</Link></Button>
+          </article>
+        )) : <p className="text-sm text-muted-foreground">No commerce orders yet.</p>}
+      </div>
+    </div>
+  )
+}
+
 /** Converts the already privacy-bounded loader result into readable operator labels without exposing hidden fields. */
 function detailRows(detail: Record<string, unknown>, section: AdminUserDetailSection): Array<[string, string]> {
   if (section === "security") return [
-    ["Sign-in providers", listValue(detail.providers)], ["Password configured", yesNo(detail.passwordConfigured)],
+    ["Sign-in providers", objectValue(detail.providers)], ["Password configured", yesNo(detail.passwordConfigured)],
     ["Two-factor authentication", yesNo(detail.twoFactorEnabled)], ["Active sessions", String(detail.activeSessionCount ?? 0)],
   ]
   if (section === "overview") return [
-    ["Email verification", yesNo(detail.emailVerified)], ["Profile", objectValue(detail.profile)],
-    ["Practice relationships", listValue(detail.practices)], ["Credentials", listValue(detail.credentials)], ["Learning", objectValue(detail.learning)],
+    ["Email verification", yesNo(detail.emailVerified)], ["Profile image", String(detail.image ?? "Unavailable")], ["Profile", objectValue(detail.profile)],
+    ["Practice relationships", objectValue(detail.practices)], ["Credentials", objectValue(detail.credentials)],
+    ["Learning", objectValue(detail.learning)], ["Achievement count", nestedValue(detail.learning, "achievementCount")],
   ]
   if (section === "access") return [
     ["Role assignments", listValue(detail.roles)], ["Effective feature keys", listValue(detail.features)],
+    ["Effective capabilities", objectValue(detail.capabilities)], ["Membership sources", objectValue(detail.subscriptions)],
     ["Credit wallet", objectValue(detail.wallet)], ["Background ownership", objectValue(detail.ownership)],
   ]
-  if (section === "billing") return [["Subscriptions", listValue(detail.subscriptions)], ["Commerce summary", objectValue(detail.commerce)]]
+  if (section === "billing") return [["Supporter subscriptions", objectValue(detail.subscriptions)]]
   return [["Account activity", listValue(detail.entries)]]
 }
 
@@ -169,10 +220,24 @@ function listValue(value: unknown): string {
 }
 
 function objectValue(value: unknown): string {
+  if (Array.isArray(value)) return listValue(value)
   if (!value || typeof value !== "object") return String(value ?? "None")
   return Object.entries(value as Record<string, unknown>)
     .map(([key, item]) => `${humanize(key)}: ${typeof item === "object" ? objectValue(item) : String(item ?? "None")}`)
     .join(", ")
+}
+
+function nestedValue(value: unknown, key: string) {
+  return isRecord(value) ? String(value[key] ?? "Unavailable") : "Unavailable"
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value)
+}
+
+function formatMoney(cents: number, currency: string) {
+  if (!Number.isSafeInteger(cents) || !/^[a-z]{3}$/i.test(currency)) return "Amount unavailable"
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: currency.toUpperCase() }).format(cents / 100)
 }
 
 function humanize(value: string): string {

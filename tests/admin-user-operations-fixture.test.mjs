@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import { requireBrowserAdminFixtureQaAuthorization } from "../lib/admin/browser-qa-authorization.ts"
 import { createBrowserAdminFixtureIdentity } from "../lib/admin/browser-fixture-identity.ts"
@@ -7,6 +8,8 @@ import {
   BROWSER_ADMIN_FIXTURE_ADVISORY_LOCK,
   createBrowserAdminFixtureRecords,
 } from "../lib/admin/browser-fixture-provisioning.ts"
+
+const browserSpecSource = await readFile(new URL("browser/admin-user-operations.spec.ts", import.meta.url), "utf8")
 
 describe("admin user operations browser fixture", () => {
   it("fails closed unless the dedicated QA mutation opt-in is explicitly set", () => {
@@ -27,13 +30,22 @@ describe("admin user operations browser fixture", () => {
     const desktop = createBrowserAdminFixtureIdentity("desktop-chromium")
     const mobile = createBrowserAdminFixtureIdentity("mobile-chromium")
 
-    assert.deepEqual(desktop, {
-      operator: { id: "browser-admin-operator-desktop-chromium", name: "Browser Admin Operator desktop-chromium", email: "browser-admin-operator-desktop-chromium@example.test" },
-      target: { id: "browser-admin-target-desktop-chromium", name: "Browser Admin Target desktop-chromium", email: "browser-admin-target-desktop-chromium@example.test" },
-    })
+    assert.equal(desktop.operator.id, "browser-admin-operator-desktop-chromium")
+    assert.equal(desktop.target.id, "browser-admin-target-desktop-chromium")
+    assert.equal(desktop.target.name.length, 120)
+    assert.equal(desktop.target.email.length, 254)
+    assert.match(desktop.target.name, /^Browser Admin Target desktop-chromium/)
+    assert.match(desktop.target.email, /^browser-admin-target-desktop-chromium/)
     assert.notEqual(desktop.operator.id, mobile.operator.id)
     assert.notEqual(desktop.target.id, mobile.target.id)
     assert.throws(() => createBrowserAdminFixtureIdentity("desktop chromium"), /safe Playwright project name/)
+  })
+
+  it("checks directory overflow before navigating and detail overflow afterward", () => {
+    assert.match(browserSpecSource, /const directoryOverflow = await page\.locator\("html"\)\.evaluate/)
+    assert.match(browserSpecSource, /expect\(directoryOverflow\)\.toBe\(false\)/)
+    assert.match(browserSpecSource, /const detailOverflow = await page\.locator\("html"\)\.evaluate/)
+    assert.match(browserSpecSource, /expect\(detailOverflow\)\.toBe\(false\)/)
   })
 
   it("removes only a project's provisioning rows in FK-safe order before its exact users", async () => {
