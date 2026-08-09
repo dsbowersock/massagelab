@@ -72,14 +72,6 @@ export async function changeAnatomyRoleAction(
     return { status: "error", message: "The anatomy role could not be changed. Refresh the account and try again." }
   }
 
-  if (result.replayed) {
-    revalidateRoleSurfaces(userId)
-    return {
-      status: "success",
-      message: "This anatomy role change was already completed. No new notification was sent; check Activity for the recorded outcome.",
-    }
-  }
-
   let notificationOutcome: { status: "DELIVERED" | "FAILED"; attempted: boolean } | null = null
   try {
     const delivery = await deliverAdminEmailIntent({
@@ -96,6 +88,31 @@ export async function changeAnatomyRoleAction(
   }
 
   revalidateRoleSurfaces(userId)
+  if (result.replayed) {
+    if (notificationOutcome?.status === "DELIVERED" && notificationOutcome.attempted) {
+      return { status: "success", message: "This anatomy role change was already completed. The pending email notification was delivered." }
+    }
+    if (notificationOutcome?.status === "DELIVERED") {
+      return { status: "success", message: "This anatomy role change was already completed. The email notification was already delivered; no new send was attempted." }
+    }
+    if (notificationOutcome?.status === "FAILED" && notificationOutcome.attempted) {
+      return {
+        status: "warning",
+        message: "This anatomy role change was already completed. Delivery of its pending email notification failed. Retry it from Activity.",
+      }
+    }
+    if (notificationOutcome?.status === "FAILED") {
+      return {
+        status: "warning",
+        message: "This anatomy role change was already completed. The email notification is recorded as failed; no new send was attempted. Check Activity for the available next step.",
+      }
+    }
+    return {
+      status: "warning",
+      message: "This anatomy role change was already completed, but email delivery could not be confirmed. Check Activity before retrying.",
+    }
+  }
+
   if (notificationOutcome?.status === "DELIVERED") {
     return { status: "success", message: "The anatomy role changed and the user was signed out. Email notification delivered." }
   }

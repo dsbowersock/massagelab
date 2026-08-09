@@ -17,10 +17,11 @@ export const ADMIN_EMAIL_TRANSACTION_OPTIONS = {
 
 /**
  * Serializes a single intent's transport attempt with a transaction-scoped
- * PostgreSQL advisory lock. Delivery remains at-least-once: a timeout or crash
- * after the provider accepts mail but before confirmation and transaction
- * commit can be retried, because no provider-independent exactly-once claim
- * exists.
+ * PostgreSQL advisory lock. This initial-delivery owner attempts only PENDING
+ * intents; FAILED intents require the explicit audited retry owner. Delivery
+ * remains at-least-once: a timeout or crash after the provider accepts mail but
+ * before confirmation and transaction commit can be retried, because no
+ * provider-independent exactly-once claim exists.
  */
 export async function deliverAdminEmailIntent(input: {
   prismaClient: PrismaClient
@@ -34,6 +35,7 @@ export async function deliverAdminEmailIntent(input: {
     await acquireAdvisoryLocks(tx, [`${EMAIL_INTENT_LOCK_PREFIX}${input.intentId}`])
     return deliverLockedAdminEmailIntent(tx, {
       intentId: input.intentId,
+      attemptKind: "INITIAL",
       sendEmail: input.sendEmail,
       now: input.now,
     })
@@ -90,9 +92,10 @@ export async function retryAdminEmailIntent(input: {
     })
     if (existing) return retryReplayOrFail(existing, input, intent)
 
-    if (!isAttemptableIntent(intent)) throw new Error("This notification cannot be retried.")
+    if (!isAttemptableIntent(intent, "RETRY")) throw new Error("This notification cannot be retried.")
     const delivery = await deliverLockedAdminEmailIntent(tx, {
       intentId: intent.id,
+      attemptKind: "RETRY",
       sendEmail: input.sendEmail,
     })
     if (!delivery.attempted) throw new Error("This notification cannot be retried.")
@@ -134,9 +137,10 @@ export async function retryAdminEmailIntent(input: {
   }, ADMIN_EMAIL_TRANSACTION_OPTIONS)
 }
 
-/** Performs one transport attempt only after the caller has locked the intent. */
+/** Evaluates the locked intent and performs at most one eligible transport attempt. */
 async function deliverLockedAdminEmailIntent(inputTx: LockedClient, input: {
   intentId: string
+  attemptKind: "INITIAL" | "RETRY"
   sendEmail?: SendEmail
   now?: Date
 }): Promise<{ status: "DELIVERED" | "FAILED"; attemptCount: number; attempted: boolean }> {
@@ -144,7 +148,7 @@ async function deliverLockedAdminEmailIntent(inputTx: LockedClient, input: {
   if (!intent) throw new Error("Email notification intent was not found.")
   if (intent.kind === "PASSWORD_RESET") throw new Error("Password-reset notifications cannot be delivered here.")
   if (intent.status === "DELIVERED") return { status: "DELIVERED", attemptCount: intent.attemptCount, attempted: false }
-  if (!isAttemptableIntent(intent)) return { status: "FAILED", attemptCount: intent.attemptCount, attempted: false }
+  if (!isAttemptableIntent(intent, input.attemptKind)) return { status: "FAILED", attemptCount: intent.attemptCount, attempted: false }
 
   const now = input.now ?? new Date()
   let delivered = false
@@ -283,12 +287,14 @@ function isRetryResultStatus(status: string): boolean {
   return status === "DELIVERED" || status === "FAILED"
 }
 
+/** Keeps failed-intent transport exclusive to the explicit audited retry path. */
 function isAttemptableIntent(intent: {
   status: string
   recipientEmail: string | null
   failureCode: string | null
-}): intent is { status: "PENDING" | "FAILED"; recipientEmail: string; failureCode: string | null } {
-  return (intent.status === "PENDING" || intent.status === "FAILED")
+}, attemptKind: "INITIAL" | "RETRY"): intent is { status: "PENDING" | "FAILED"; recipientEmail: string; failureCode: string | null } {
+  const allowedStatus = intent.status === "PENDING" || (attemptKind === "RETRY" && intent.status === "FAILED")
+  return allowedStatus
     && intent.failureCode !== "RECIPIENT_UNAVAILABLE"
     && Boolean(intent.recipientEmail)
 }

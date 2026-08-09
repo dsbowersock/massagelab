@@ -189,7 +189,7 @@ describe("Admin anatomy role action", () => {
     assert.doesNotMatch(JSON.stringify(logged), /user-1|sensitive service detail|42b90a0b|internalNote/i)
   })
 
-  it("returns a truthful replay outcome without another delivery attempt or sign-out claim", async () => {
+  it("recovers a pending replay with exactly one initial delivery attempt and no new mutation claim", async () => {
     const harness = roleActionHarness({
       serviceResult: {
         beforeRoles: ["USER"], afterRoles: ["ANATOMY_REVIEWER", "USER"], revokedSessionCount: 0,
@@ -200,14 +200,64 @@ describe("Admin anatomy role action", () => {
 
     assert.deepEqual(result, {
       status: "success",
-      message: "This anatomy role change was already completed. No new notification was sent; check Activity for the recorded outcome.",
+      message: "This anatomy role change was already completed. The pending email notification was delivered.",
     })
-    assert.equal(harness.calls.some(([name]) => name === "deliverAdminEmailIntent"), false)
+    assert.equal(harness.calls.filter(([name]) => name === "deliverAdminEmailIntent").length, 1)
     assert.doesNotMatch(result.message, /signed out|was signed out|new sign-out/i)
     assert.deepEqual(harness.calls.slice(-2), [
       ["revalidatePath", "/admin/users/user-1"],
       ["revalidatePath", "/admin/users"],
     ])
+  })
+
+  it("reports failed and delivered replay records without claiming another send or sign-out", async () => {
+    const replayed = {
+      beforeRoles: ["USER"], afterRoles: ["ANATOMY_REVIEWER", "USER"], revokedSessionCount: 0,
+      emailIntentId: "intent-1", replayed: true,
+    }
+    for (const [deliveryResult, expected] of [
+      [
+        { status: "DELIVERED", attemptCount: 1, attempted: false },
+        { status: "success", message: "This anatomy role change was already completed. The email notification was already delivered; no new send was attempted." },
+      ],
+      [
+        { status: "FAILED", attemptCount: 1, attempted: false },
+        { status: "warning", message: "This anatomy role change was already completed. The email notification is recorded as failed; no new send was attempted. Check Activity for the available next step." },
+      ],
+    ]) {
+      const harness = roleActionHarness({ serviceResult: replayed, deliveryResult })
+      const result = await harness.action("user-1", idleState, roleForm())
+      assert.deepEqual(result, expected)
+      assert.equal(harness.calls.filter(([name]) => name === "deliverAdminEmailIntent").length, 1)
+      assert.doesNotMatch(result.message, /signed out|was signed out|new sign-out/i)
+    }
+  })
+
+  it("reports a failed pending-replay attempt and an unconfirmed replay without a new mutation claim", async () => {
+    const replayed = {
+      beforeRoles: ["USER"], afterRoles: ["ANATOMY_REVIEWER", "USER"], revokedSessionCount: 0,
+      emailIntentId: "intent-1", replayed: true,
+    }
+    const failed = roleActionHarness({
+      serviceResult: replayed,
+      deliveryResult: { status: "FAILED", attemptCount: 1, attempted: true },
+    })
+    assert.deepEqual(await failed.action("user-1", idleState, roleForm()), {
+      status: "warning",
+      message: "This anatomy role change was already completed. Delivery of its pending email notification failed. Retry it from Activity.",
+    })
+
+    const unconfirmed = roleActionHarness({ serviceResult: replayed, deliveryError: new Error("provider detail") })
+    const originalConsoleError = console.error
+    console.error = () => {}
+    try {
+      assert.deepEqual(await unconfirmed.action("user-1", idleState, roleForm()), {
+        status: "warning",
+        message: "This anatomy role change was already completed, but email delivery could not be confirmed. Check Activity before retrying.",
+      })
+    } finally {
+      console.error = originalConsoleError
+    }
   })
 
   it("reports durable notification failure as retryable after the completed local mutation", async () => {
