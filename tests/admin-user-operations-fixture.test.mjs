@@ -3,7 +3,10 @@ import { describe, it } from "node:test"
 import { requireBrowserAdminFixtureQaAuthorization } from "../lib/admin/browser-qa-authorization.ts"
 import { createBrowserAdminFixtureIdentity } from "../lib/admin/browser-fixture-identity.ts"
 import { removeBrowserAdminFixtureRecords } from "../lib/admin/browser-fixture-cleanup.ts"
-import { createBrowserAdminFixtureRecords } from "../lib/admin/browser-fixture-provisioning.ts"
+import {
+  BROWSER_ADMIN_FIXTURE_ADVISORY_LOCK,
+  createBrowserAdminFixtureRecords,
+} from "../lib/admin/browser-fixture-provisioning.ts"
 
 describe("admin user operations browser fixture", () => {
   it("fails closed unless the dedicated QA mutation opt-in is explicitly set", () => {
@@ -50,17 +53,19 @@ describe("admin user operations browser fixture", () => {
     ])
   })
 
-  it("provisions the verified operator before browser authentication can trigger concurrent refreshes", async () => {
+  it("serializes QA fixture creation before provisioning the verified operator", async () => {
     const calls = []
     const identity = createBrowserAdminFixtureIdentity("desktop-chromium")
     await createBrowserAdminFixtureRecords({
-      prismaClient: { user: { create: async ({ data }) => { calls.push(["user.create", data.id]) } } },
+      prismaClient: provisioningPrisma(calls),
       identity,
       environment: { DATABASE_URL: "postgresql://example.test/not-a-real-database", MASSAGELAB_BROWSER_QA_DATABASE: "1" },
       provisionCredits: async (_prismaClient, userId) => { calls.push(["ensureVerifiedUserBackgroundCredits", userId]) },
     })
 
     assert.deepEqual(calls, [
+      ["prisma.$transaction", undefined],
+      ["tx.$executeRaw", "SELECT pg_advisory_xact_lock(?, ?)", [...BROWSER_ADMIN_FIXTURE_ADVISORY_LOCK]],
       ["user.create", identity.operator.id],
       ["user.create", identity.target.id],
       ["ensureVerifiedUserBackgroundCredits", identity.operator.id],
@@ -72,4 +77,17 @@ function cleanupPrisma(calls) {
   return Object.fromEntries(["commerceEvent", "backgroundCreditEntry", "backgroundCreditWallet", "user"].map((model) => [model, {
     deleteMany: async (args) => { calls.push([`${model}.deleteMany`, args]); return { count: 0 } },
   }]))
+}
+
+function provisioningPrisma(calls) {
+  const transaction = {
+    $executeRaw: async (strings, ...values) => { calls.push(["tx.$executeRaw", strings.join("?"), values]) },
+    user: { create: async ({ data }) => { calls.push(["user.create", data.id]) } },
+  }
+  return {
+    $transaction: async (callback, options) => {
+      calls.push(["prisma.$transaction", options])
+      return callback(transaction)
+    },
+  }
 }
