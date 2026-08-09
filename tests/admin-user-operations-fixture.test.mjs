@@ -3,6 +3,7 @@ import { describe, it } from "node:test"
 import { requireBrowserAdminFixtureQaAuthorization } from "../lib/admin/browser-qa-authorization.ts"
 import { createBrowserAdminFixtureIdentity } from "../lib/admin/browser-fixture-identity.ts"
 import { removeBrowserAdminFixtureRecords } from "../lib/admin/browser-fixture-cleanup.ts"
+import { createBrowserAdminFixtureRecords } from "../lib/admin/browser-fixture-provisioning.ts"
 
 describe("admin user operations browser fixture", () => {
   it("fails closed unless the dedicated QA mutation opt-in is explicitly set", () => {
@@ -46,6 +47,23 @@ describe("admin user operations browser fixture", () => {
       ["backgroundCreditEntry.deleteMany", { where: { userId: { in: ids } } }],
       ["backgroundCreditWallet.deleteMany", { where: { userId: { in: ids } } }],
       ["user.deleteMany", { where: { id: { in: ids } } }],
+    ])
+  })
+
+  it("provisions the verified operator before browser authentication can trigger concurrent refreshes", async () => {
+    const calls = []
+    const identity = createBrowserAdminFixtureIdentity("desktop-chromium")
+    await createBrowserAdminFixtureRecords({
+      prismaClient: { user: { create: async ({ data }) => { calls.push(["user.create", data.id]) } } },
+      identity,
+      environment: { DATABASE_URL: "postgresql://example.test/not-a-real-database", MASSAGELAB_BROWSER_QA_DATABASE: "1" },
+      provisionCredits: async (_prismaClient, userId) => { calls.push(["ensureVerifiedUserBackgroundCredits", userId]) },
+    })
+
+    assert.deepEqual(calls, [
+      ["user.create", identity.operator.id],
+      ["user.create", identity.target.id],
+      ["ensureVerifiedUserBackgroundCredits", identity.operator.id],
     ])
   })
 })

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { requireBrowserAdminFixtureQaAuthorization } from "../../lib/admin/browser-qa-authorization"
 import { removeBrowserAdminFixtureRecords } from "../../lib/admin/browser-fixture-cleanup"
 import { createBrowserAdminFixtureIdentity } from "../../lib/admin/browser-fixture-identity"
+import { createBrowserAdminFixtureRecords } from "../../lib/admin/browser-fixture-provisioning"
 import { installSignedInSessionCookie } from "./signed-in-session-cookie"
 
 /**
@@ -13,20 +14,7 @@ export async function installAdminUserOperationsFixture(context: BrowserContext,
   requireBrowserAdminFixtureQaAuthorization()
   const identity = createBrowserAdminFixtureIdentity(projectName)
   await removeBrowserAdminFixture(projectName)
-  await prisma.user.create({
-    data: {
-      ...identity.operator,
-      emailVerified: new Date("2026-08-09T00:00:00.000Z"),
-      roles: { create: [{ role: "ADMIN", status: "VERIFIED", source: "browser-admin-fixture", verifiedAt: new Date("2026-08-09T00:00:00.000Z") }] },
-    },
-  })
-  await prisma.user.create({
-    data: {
-      ...identity.target,
-      emailVerified: new Date("2026-08-09T00:00:00.000Z"),
-      roles: { create: [{ role: "USER", status: "VERIFIED", source: "browser-admin-fixture", verifiedAt: new Date("2026-08-09T00:00:00.000Z") }] },
-    },
-  })
+  await createBrowserAdminFixtureRecords({ prismaClient: prisma, identity })
   await installSignedInSessionCookie(context, baseURL, identity.operator)
 }
 
