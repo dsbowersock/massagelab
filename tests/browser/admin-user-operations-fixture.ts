@@ -1,5 +1,6 @@
 import type { BrowserContext } from "@playwright/test"
 import { prisma } from "@/lib/prisma"
+import { requireBrowserAdminFixtureQaAuthorization } from "../../lib/admin/browser-qa-authorization"
 import { installSignedInSessionCookie } from "./signed-in-session-cookie"
 
 const FIXTURE_IDS = ["browser-admin-operator", "browser-admin-target"] as const
@@ -21,6 +22,7 @@ const BROWSER_ADMIN_OPERATOR = {
  * ID-bounded so browser QA cannot sweep accounts outside these two identities.
  */
 export async function installAdminUserOperationsFixture(context: BrowserContext, baseURL: string) {
+  requireBrowserAdminFixtureQaAuthorization()
   await removeBrowserAdminFixture()
   await prisma.user.create({
     data: {
@@ -41,5 +43,6 @@ export async function installAdminUserOperationsFixture(context: BrowserContext,
 
 /** Removes only the deterministic fixture Users; their test-only roles cascade with the User rows. */
 export async function removeBrowserAdminFixture() {
+  requireBrowserAdminFixtureQaAuthorization()
   await prisma.user.deleteMany({ where: { id: { in: [...FIXTURE_IDS] } } })
 }

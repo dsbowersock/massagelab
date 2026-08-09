@@ -4,19 +4,20 @@ import {
   installAdminUserOperationsFixture,
   removeBrowserAdminFixture,
 } from "./admin-user-operations-fixture"
+import { hasBrowserAdminFixtureQaAuthorization } from "../../lib/admin/browser-qa-authorization"
 
-const configuredDatabase = Boolean(process.env.DATABASE_URL?.trim())
+const configuredQaDatabase = hasBrowserAdminFixtureQaAuthorization()
 
 test.describe("Admin user operations", () => {
   test.beforeEach(async ({ context }, testInfo) => {
-    test.skip(!configuredDatabase, "Admin user operations browser QA requires an explicitly configured DATABASE_URL.")
+    test.skip(!configuredQaDatabase, "Admin user operations browser QA requires DATABASE_URL and MASSAGELAB_BROWSER_QA_DATABASE=1.")
     const baseURL = testInfo.project.use.baseURL
     if (!baseURL) throw new Error("Admin user operations browser QA requires a configured base URL.")
     await installAdminUserOperationsFixture(context, baseURL)
   })
 
   test.afterEach(async () => {
-    if (configuredDatabase) await removeBrowserAdminFixture()
+    if (configuredQaDatabase) await removeBrowserAdminFixture()
   })
 
   test("Admin navigates from the directory to an independently loaded detail section without overflow", async ({ page }) => {
