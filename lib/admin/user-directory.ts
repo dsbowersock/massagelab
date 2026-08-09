@@ -115,6 +115,9 @@ export async function listAdminUsers(input: {
     previousCursor: previousRows.length === query.pageSize
       ? encodeCursor(previousRows.at(-1)?.id ?? null)
       : null,
+    // Page two has no earlier internal ID cursor, but it must still link back
+    // to the cursorless initial page.
+    hasPreviousPage: Boolean(query.cursor),
   }
 }
 

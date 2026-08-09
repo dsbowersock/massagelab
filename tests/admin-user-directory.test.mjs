@@ -171,6 +171,31 @@ describe("admin user directory", () => {
     })
   })
 
+  it("keeps a previous-page navigation target when page two returns to the initial cursorless page", async () => {
+    const prismaClient = {
+      user: {
+        findMany: async (args) => {
+          if (Object.keys(args.select).length === 1 && args.select.id) {
+            return [{ id: "user_1" }]
+          }
+          return [
+            userRow("user_3", { name: "Page Three", balance: 0, subscriptionStatus: null, unresolved: 0 }),
+            userRow("user_4", { name: "Page Four", balance: 0, subscriptionStatus: null, unresolved: 0 }),
+          ]
+        },
+      },
+    }
+
+    const page = await listAdminUsers({
+      prismaClient,
+      input: { pageSize: 2, cursor: Buffer.from("user_2").toString("base64url") },
+    })
+
+    assert.deepEqual(page.items.map((user) => user.id), ["user_3", "user_4"])
+    assert.equal(page.previousCursor, null)
+    assert.equal(page.hasPreviousPage, true)
+  })
+
   it("counts the initial account, verification, active-Supporter, and unresolved-operation metrics", async () => {
     const calls = []
     const prismaClient = {

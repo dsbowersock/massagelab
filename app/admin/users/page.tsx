@@ -112,7 +112,7 @@ export default async function AdminUserDirectoryPage({ searchParams }: UserDirec
           )}
 
           <nav aria-label="Directory pages" className="flex items-center justify-between gap-3">
-            {directory.previousCursor ? (
+            {directory.hasPreviousPage ? (
               <Button asChild variant="outline"><Link href={directoryHref(query, directory.previousCursor)}>Previous</Link></Button>
             ) : <span />}
             {directory.nextCursor ? (
@@ -162,7 +162,7 @@ function toSingleValueQuery(searchParams: Record<string, string | string[] | und
   return Object.fromEntries(Object.entries(searchParams).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]))
 }
 
-function directoryHref(query: AdminUserDirectoryQuery, cursor: string) {
+function directoryHref(query: AdminUserDirectoryQuery, cursor: string | null) {
   const params = new URLSearchParams()
   if (query.query) params.set("q", query.query)
   if (query.emailVerified) params.set("emailVerified", query.emailVerified)
@@ -172,6 +172,6 @@ function directoryHref(query: AdminUserDirectoryQuery, cursor: string) {
   if (query.creditState) params.set("creditState", query.creditState)
   if (query.unresolvedIssue) params.set("unresolvedIssue", query.unresolvedIssue)
   params.set("pageSize", String(query.pageSize))
-  params.set("cursor", cursor)
+  if (cursor) params.set("cursor", cursor)
   return `/admin/users?${params.toString()}`
 }
