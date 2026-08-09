@@ -164,9 +164,27 @@ export function resolveDevelopmentPaletteReviewIgnoreGlobs(argv: readonly string
 }
 
 const runsDevelopmentPaletteReview = isDevelopmentPaletteReviewInvocation(process.argv.slice(2))
+const runsAdminUserOperations = getPlaywrightFileFilterArguments(process.argv.slice(2))
+  .some((argument) => argument.replaceAll("\\", "/").replace(/:\d+(?::\d+)?$/, "")
+    .endsWith("tests/browser/admin-user-operations.spec.ts"))
 const defaultWebServerCommand = runsDevelopmentPaletteReview
   ? `npm run dev -- -p ${browserQaPort}`
   : `npm run start -- -p ${browserQaPort}`
+
+// Playwright owns this spawned server, so it must not inherit a developer's
+// live SMTP transport. Blank values preserve production behavior while making
+// automated account-change delivery fail safely and locally.
+const playwrightWebServerEnvironment: Record<string, string> = {}
+for (const [name, value] of Object.entries(process.env)) {
+  if (value !== undefined) playwrightWebServerEnvironment[name] = value
+}
+Object.assign(playwrightWebServerEnvironment, {
+  SMTP_HOST: "",
+  SMTP_FROM: "",
+  SMTP_USER: "",
+  SMTP_PASSWORD: "",
+  SMTP_PORT: "",
+})
 
 export default defineConfig({
   testDir: "tests/browser",
@@ -210,9 +228,10 @@ export default defineConfig({
     : {
         command: process.env.PLAYWRIGHT_START_COMMAND ?? defaultWebServerCommand,
         url: browserQaBaseUrl,
+        env: playwrightWebServerEnvironment,
         // A stale production server would turn a development review into a
         // misleading 404. Fail on the occupied port instead of reusing it.
-        reuseExistingServer: !process.env.CI && !runsDevelopmentPaletteReview,
+        reuseExistingServer: !process.env.CI && !runsDevelopmentPaletteReview && !runsAdminUserOperations,
         timeout: 120_000,
       },
 })

@@ -6,6 +6,12 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `Massage Laba Lamp` is the approved catalog label for the original free moving-gradient default. `MassageLaba Lamp` and general prose that says `MassageLab Lamp` are legacy references to that same stable `massage-lab-moving-gradient` entry, not separate backgrounds.
 
+## 2026-08-09 — Confirmed delegated anatomy role controls
+
+- Added full-Admin-only Access-section controls to assign or revoke only `ANATOMY_REVIEWER` and `ANATOMY_EDITOR`. Each form shows exact current and planned state, requires a shared allowlisted support reason plus explicit sign-out confirmation, and reuses one server-generated UUID for idempotency.
+- Role actions bind the route target, reload full-Admin authority, reject stale or unsupported state, and reuse the Branch 4 transaction that writes the role, increments `User.authSessionVersion`, deletes adapter sessions, and creates immutable audit, target activity, and durable email evidence atomically. Email delivery starts only after commit; a transport failure is reported as notification failure without falsifying or rolling back the role change.
+- Extended desktop/mobile browser acceptance for the Reviewer matrix, keyboard submission, responsive overflow, and a separate target JWT becoming invalid after the role change. Playwright-owned servers explicitly blank SMTP variables, and fixture cleanup removes only deterministic Admin evidence, sessions, roles, commerce rows, and fixture users in foreign-key-safe order.
+
 ## 2026-08-09 — Versioned JWT session invalidation
 
 - Added `User.authSessionVersion` as the canonical Auth.js JWT invalidation owner. New sign-ins adopt the current database version; later requests require an exact match, with legacy unversioned JWTs accepted only while the account remains at version zero. Database refresh outages retain the existing restricted-identity fallback.

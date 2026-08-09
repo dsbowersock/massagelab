@@ -23,6 +23,12 @@ Do not replace this rule with displayed plan names, stale navigation state, dash
 
 Prisma `Session` rows are still deleted for adapter compatibility, but that deletion does not revoke JWT cookies and its row count is not an active JWT-session count. MassageLab's stateless JWT strategy cannot report an exact number of active browser sessions, so current and future Admin copy must not present deleted `Session` rows as users or JWT sessions signed out.
 
+## Delegated anatomy role controls
+
+The target account's Access section lets a freshly verified full Admin assign or revoke only Anatomy Reviewer and Anatomy Editor. It shows the stored current state and exact planned state, requires an allowlisted support reason and explicit confirmation that existing sign-in tokens will be invalidated, and submits one server-generated UUID unchanged. Pending or otherwise unsupported assignment evidence renders read-only and must be refreshed or resolved before mutation. Full `ADMIN`, retired `ANATOMY_ADMIN`, and generic `EDITOR` are never grantable from this surface.
+
+The role record, `authSessionVersion` increment, adapter-session deletion, immutable Admin action, target-visible activity, and durable email intent share one transaction. Transport begins only after commit. Delivery failure therefore reports that the role changed and sign-in tokens were invalidated; it never reports a rollback that did not happen. Admin Activity offers retry only when a transport attempt produced a retry-eligible failed intent. An unavailable recipient, another non-attempted result, or an unconfirmed transport exception directs Admin to inspect Activity without promising that a retry control exists.
+
 ## Audit, activity, and email boundaries
 
 An account mutation and its evidence bundle belong in one caller-owned database transaction:
@@ -49,4 +55,4 @@ Store only the minimum operational facts needed to explain the change. Do not st
 
 ## Serial rollout
 
-Branch 2 is the foundation owner for authorization, audit, activity, email intents, and capability-aware dashboard access. Branch 3 consumes those owners and has completed Tasks 7-9: the full-Admin directory, bounded read-only account detail, signed-in Account Activity, safe aggregate dashboard metrics, and the existing audited failed-email retry seam. Branch 4 owns delegated-role mutation and the shared JWT invalidation seam that Branch 5 security actions will reuse. Do not develop serial branches concurrently or copy foundation files into a stale worktree.
+Branch 2 is the foundation owner for authorization, audit, activity, email intents, and capability-aware dashboard access. Branch 3 consumes those owners and completed Tasks 7-9: the full-Admin directory, bounded account detail, signed-in Account Activity, safe aggregate dashboard metrics, and the existing audited failed-email retry seam. Branch 4 owns the completed delegated-role mutation/UI and shared JWT invalidation seam that Branch 5 security actions will reuse. Do not develop serial branches concurrently or copy foundation files into a stale worktree.

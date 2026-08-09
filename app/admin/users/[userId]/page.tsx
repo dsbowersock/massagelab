@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { requireFullAdminUser } from "@/lib/admin/access"
 import { RetryEmailForm } from "./retry-email-form"
+import { RoleChangeControls, SelfRoleManagementNotice } from "./role-change-form"
 import {
   ADMIN_USER_DETAIL_SECTIONS,
   getAdminUserDetailSection,
@@ -21,7 +22,7 @@ type AdminUserDetailPageProps = {
 
 /** Server-rendered detail tabs deliberately load one bounded section per request. */
 export default async function AdminUserDetailPage({ params, searchParams }: AdminUserDetailPageProps) {
-  await requireFullAdminUser()
+  const actor = await requireFullAdminUser()
   const { userId } = await params
   const section = parseAdminUserDetailSection(singleValue((await searchParams).section))
   const detail = await getAdminUserDetailSection({ prismaClient: prisma, userId, section })
@@ -54,7 +55,9 @@ export default async function AdminUserDetailPage({ params, searchParams }: Admi
               ? <ActivitySection detail={detail.data} userId={userId} />
               : section === "billing"
                 ? <BillingSection detail={detail.data} />
-                : <DetailSection detail={detail.data} section={section} />}
+                : section === "access"
+                  ? <AccessSection detail={detail.data} userId={userId} canManageRoles={actor.id !== userId} />
+                  : <DetailSection detail={detail.data} section={section} />}
           </section>
         </CardContent>
       </Card>
@@ -133,6 +136,45 @@ function DetailSection({ detail, section }: { detail: Record<string, unknown>; s
       <dd className="mt-1 break-words text-sm">{value}</dd>
     </div>
   ))}</dl>
+}
+
+type AccessRoleEvidence = {
+  role: string
+  status: string
+  source?: string
+  verifiedAt?: string | null
+  revokedAt?: string | null
+}
+
+/** Adds bounded mutation controls beneath the existing Access projection. */
+function AccessSection({
+  detail,
+  userId,
+  canManageRoles,
+}: {
+  detail: Record<string, unknown>
+  userId: string
+  canManageRoles: boolean
+}) {
+  const roles = Array.isArray(detail.roles)
+    ? detail.roles.filter(isAccessRoleEvidence)
+    : []
+  const operationIds = {
+    ANATOMY_REVIEWER: randomUUID(),
+    ANATOMY_EDITOR: randomUUID(),
+  }
+  return (
+    <div className="space-y-5">
+      <DetailSection detail={detail} section="access" />
+      {canManageRoles ? (
+        <RoleChangeControls userId={userId} roles={roles} operationIds={operationIds} />
+      ) : <SelfRoleManagementNotice />}
+    </div>
+  )
+}
+
+function isAccessRoleEvidence(value: unknown): value is AccessRoleEvidence {
+  return isRecord(value) && typeof value.role === "string" && typeof value.status === "string"
 }
 
 type BillingOrder = {
