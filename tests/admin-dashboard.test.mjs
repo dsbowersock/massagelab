@@ -81,23 +81,25 @@ describe("capability-aware Admin dashboard", () => {
     assert.equal(fixture.calls.commerce, 1)
     assert.equal(fixture.calls.metricModels.length, 5)
     assert.match(text, /User operations/)
-    assert.match(text, /The user directory and support actions arrive in the next serial branch/)
+    assert.match(text, /Search account-operation details with bounded filters/)
     assert.match(text, /Commerce \(2\)/)
     assert.match(text, /Full anatomy browser/)
     assert.ok(linkHrefs(tree).includes("/admin/commerce"))
   })
 
   it("keeps capability enforcement at every linked destination", async () => {
-    const [reviewSource, anatomySource, commerceSource, layoutSource] = await Promise.all([
+    const [reviewSource, anatomySource, commerceSource, usersSource, layoutSource] = await Promise.all([
       readFile(new URL("../app/admin/anatomy/media-review/page.tsx", import.meta.url), "utf8"),
       readFile(new URL("../app/admin/anatomy/page.tsx", import.meta.url), "utf8"),
       readFile(new URL("../app/admin/commerce/page.tsx", import.meta.url), "utf8"),
+      readFile(new URL("../app/admin/users/page.tsx", import.meta.url), "utf8"),
       readFile(new URL("../app/admin/layout.tsx", import.meta.url), "utf8"),
     ])
 
     assert.match(reviewSource, /requireAnatomyReviewerUser\(\)/)
     assert.match(anatomySource, /requireAnatomyEditorUser\(\)/)
     assert.match(commerceSource, /requireCommerceAdminUser\(\)/)
+    assert.match(usersSource, /await requireFullAdminUser\(\)/)
     assert.match(layoutSource, /Each destination must reload and[\s\S]*database-backed capability/)
   })
 })

@@ -102,9 +102,10 @@ export default async function AdminDashboardPage() {
 
           <section className="grid gap-3 md:grid-cols-3">
             {visible.has("users") ? (
-              <DashboardNotice
+              <DashboardAction
+                href="/admin/users"
                 title="User operations"
-                description="The authorization, audit, activity, and notification foundation is ready. The user directory and support actions arrive in the next serial branch."
+                description="Search account-operation details with bounded filters, while keeping credentials, payment instruments, metadata, and clinical records out of this surface."
               />
             ) : null}
             {visible.has("anatomy-review") ? (
@@ -141,7 +142,6 @@ export default async function AdminDashboardPage() {
     </AppPageShell>
   )
 }
-
 async function getAnatomyReviewMetrics(): Promise<AnatomyReviewMetrics> {
   const [mediaLinksNeedingReview, rejectedMediaLinks, approvedMediaLinks] = await Promise.all([
     prisma.anatomyMediaEntity.count({ where: { reviewStatus: "NEEDS_REVIEW" } }),
@@ -169,7 +169,6 @@ function DashboardMetric({ label, value, href }: { label: string; value: number;
     </Link>
   )
 }
-
 function DashboardAction({ href, title, description }: { href: string; title: string; description: string }) {
   return (
     <Button asChild variant="outline" className="h-auto items-start justify-start whitespace-normal p-4 text-left">
@@ -180,14 +179,5 @@ function DashboardAction({ href, title, description }: { href: string; title: st
         </span>
       </Link>
     </Button>
-  )
-}
-
-function DashboardNotice({ title, description }: { title: string; description: string }) {
-  return (
-    <div className={`${appInsetClassName} p-4`}>
-      <p className="text-sm font-medium">{title}</p>
-      <p className="mt-1 text-sm leading-5 text-muted-foreground">{description}</p>
-    </div>
   )
 }
