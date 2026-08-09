@@ -1,0 +1,40 @@
+# Admin User Operations
+
+This page defines the authorization and evidence boundary for MassageLab account support. The current branch supplies roles, guards, audit records, target-visible activity, durable account-change email intents, and a capability-aware Admin dashboard. It does not yet supply the user directory or support-action forms.
+
+## Roles and capabilities
+
+- `ADMIN` is the only full administrator. It can access account/user operations, commerce operations, anatomy editing, and anatomy review.
+- `ANATOMY_EDITOR` can edit anatomy content and perform anatomy review. It cannot access account/user or commerce operations.
+- `ANATOMY_REVIEWER` can perform anatomy review only. It cannot edit general anatomy content or access account/user or commerce operations.
+- The retired `ANATOMY_ADMIN` value is migrated and normalized to `ANATOMY_EDITOR`; it is not a separate displayed role.
+
+Dashboard visibility helps operators find permitted work, but it is not an authorization boundary. The review queue, full anatomy browser, commerce page, and future user-operation destinations each enforce their own database-backed guard.
+
+## Fresh database authority
+
+Authentication sessions identify the current user; their role claims do not authorize administrative work. Every administrative page or operation must call the shared Admin access layer, reload the account's verified email and current role assignments from the database, ignore pending or revoked assignments, and then require the specific capability. A role change therefore takes effect on the next guarded request without waiting for a session refresh.
+
+Do not replace this rule with displayed plan names, stale navigation state, dashboard visibility, or client-provided roles.
+
+## Audit, activity, and email boundaries
+
+An account mutation and its evidence bundle belong in one caller-owned database transaction:
+
+1. `AdminAction` is the immutable operator record. It stores actor, target, action kind, support reason, bounded before/after snapshots, outcome, and one idempotency key.
+2. `UserAccountActivity` is the target account's durable, user-visible explanation of what changed. It must reference the same target and action.
+3. `AdminEmailIntent` is the durable account-change notification intent. It must reference the same target and action. Email transport occurs only after the mutation transaction succeeds.
+
+The database relations reject cross-target bundles. Exact idempotent replays return the existing record; a reused key with different immutable input fails closed. Delivery and explicit retries serialize per intent, and retry requires a freshly verified full Admin. Password-reset mail uses its separate security flow and cannot be delivered or retried through account-change intents.
+
+Email delivery is at-least-once. A process can stop after the provider accepts a message but before the database transaction records delivery, so an authorized retry can send a duplicate. Do not describe this contract as exactly-once.
+
+## Safe metadata
+
+Before/after snapshots and other admin metadata must be plain JSON-compatible data. The shared validator snapshots caller-owned data, rejects cycles, accessors, non-finite numbers, deep or oversized payloads, strings over 500 characters, more than 50 aggregate entries, and restricted field names matching password, token, secret, backup, payment method, or clinical-record concepts such as SOAP, intake, journal, and ROM.
+
+Store only the minimum operational facts needed to explain the change. Do not store credentials, authentication artifacts, payment-method details, clinical notes, intake responses, journals, ROM sessions, or other PHI. Internal notes are not a substitute for a clinical or billing-data store.
+
+## Serial rollout
+
+Branch 2 is the authorization, audit, activity, email-intent, and dashboard foundation. Branch 3 adds the full-Admin user directory and read-only account detail. It must begin only after the Branch 2 pull request merges and its worktree refreshes from the new `main`; do not develop the two branches concurrently or copy Branch 2 files into a stale Branch 3 base.

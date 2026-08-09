@@ -803,7 +803,7 @@ function ToolsTab({ sessionUser }: { sessionUser: AccountSessionUser }) {
               Anatomy browser
             </CardTitle>
             <CardDescription>
-              Access is limited to full admins and users with the dedicated anatomy admin role.
+              Access is limited to full Admins and users with the Anatomy Editor role.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-3">

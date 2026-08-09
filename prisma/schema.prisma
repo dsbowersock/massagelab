@@ -14,7 +14,20 @@ enum Role {
   CLIENT
   EDITOR
   ANATOMY_ADMIN
+  ANATOMY_REVIEWER
+  ANATOMY_EDITOR
   ADMIN
+}
+
+enum AdminActionOutcome {
+  SUCCEEDED
+  FAILED
+}
+
+enum AdminEmailIntentStatus {
+  PENDING
+  DELIVERED
+  FAILED
 }
 
 enum AuthAttemptPurpose {
@@ -535,6 +548,73 @@ model User {
   clientWellnessEntries ClientWellnessEntry[]
   clientWellnessPreference ClientWellnessPreference?
   clientWellnessVocabularySuggestions ClientWellnessVocabularySuggestion[]
+  adminActionsAsActor AdminAction[] @relation("AdminActionActor")
+  adminActionsAsTarget AdminAction[] @relation("AdminActionTarget")
+  accountActivities UserAccountActivity[]
+  adminEmailIntents AdminEmailIntent[]
+}
+
+model AdminAction {
+  id             String             @id @default(cuid())
+  actorUserId    String
+  targetUserId   String
+  actionKind     String
+  reasonCode     String
+  internalNote   String?
+  idempotencyKey String             @unique
+  beforeState    Json               @default("{}")
+  afterState     Json               @default("{}")
+  outcome        AdminActionOutcome
+  failureCode    String?
+  occurredAt     DateTime           @default(now())
+  createdAt      DateTime           @default(now())
+  actor          User               @relation("AdminActionActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+  target         User               @relation("AdminActionTarget", fields: [targetUserId], references: [id], onDelete: Restrict)
+  activity       UserAccountActivity?
+  emailIntent    AdminEmailIntent?
+
+  @@index([targetUserId, occurredAt])
+  @@index([actorUserId, occurredAt])
+  @@unique([id, targetUserId])
+}
+
+model UserAccountActivity {
+  id             String      @id @default(cuid())
+  userId         String
+  adminActionId  String      @unique
+  title          String
+  explanation    String
+  effectiveValue String?
+  occurredAt     DateTime    @default(now())
+  createdAt      DateTime    @default(now())
+  user           User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  adminAction    AdminAction @relation(fields: [adminActionId, userId], references: [id, targetUserId], onDelete: Restrict, map: "UserAccountActivity_adminAction_target_consistency_fkey")
+
+  @@index([userId, occurredAt])
+  @@unique([adminActionId, userId])
+}
+
+model AdminEmailIntent {
+  id             String                 @id @default(cuid())
+  userId         String
+  adminActionId  String                 @unique
+  kind           String
+  recipientEmail String?
+  subject        String
+  message        String
+  status         AdminEmailIntentStatus @default(PENDING)
+  attemptCount   Int                    @default(0)
+  lastAttemptAt  DateTime?
+  deliveredAt    DateTime?
+  failureCode    String?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  user           User                   @relation(fields: [userId], references: [id], onDelete: Restrict)
+  adminAction    AdminAction            @relation(fields: [adminActionId, userId], references: [id, targetUserId], onDelete: Restrict, map: "AdminEmailIntent_adminAction_target_consistency_fkey")
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+  @@unique([adminActionId, userId])
 }
 
 model LegalAcceptance {

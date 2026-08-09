@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client"
 import { isAdminEmail } from "@/lib/auth-env"
-import { buildAccountCapabilities } from "@/lib/account-permissions"
+import { buildAccountCapabilities, highestRole as highestAccountRole, normalizeRoleAssignments } from "@/lib/account-permissions"
 import { ensureVerifiedUserBackgroundCredits } from "@/lib/commerce/credit-service"
 import { runCommerceTransaction } from "@/lib/commerce/transactions"
 import { buildEntitlements } from "@/lib/membership"
@@ -9,15 +9,10 @@ import type { AccountRole, VerificationStatus } from "@/lib/domain-types"
 import { prisma } from "@/lib/prisma"
 
 type AuthDatabase = typeof prisma | Prisma.TransactionClient
+type AccountRoleAssignment = { role: AccountRole; status: VerificationStatus }
 
-export function highestRole(roles: AccountRole[]): AccountRole {
-  if (roles.includes("ADMIN")) return "ADMIN"
-  if (roles.includes("ANATOMY_ADMIN")) return "ANATOMY_ADMIN"
-  if (roles.includes("EDITOR")) return "EDITOR"
-  if (roles.includes("LICENSED_THERAPIST")) return "LICENSED_THERAPIST"
-  if (roles.includes("STUDENT")) return "STUDENT"
-  if (roles.includes("CLIENT")) return "CLIENT"
-  return "USER"
+export function highestRole(roles: Array<AccountRole | AccountRoleAssignment>): AccountRole {
+  return highestAccountRole(roles) as AccountRole
 }
 
 async function upsertVerifiedRole(database: AuthDatabase, userId: string, role: AccountRole, source: string) {
@@ -99,7 +94,7 @@ export async function getUserAuthState(userId: string) {
     },
   })
 
-  const roleAssignments = (user?.roles.map((role) => ({
+  const roleAssignments = normalizeRoleAssignments(user?.roles.map((role) => ({
     role: role.role,
     status: role.status,
   })) ?? [{ role: "USER", status: "VERIFIED" }]) as Array<{ role: AccountRole; status: VerificationStatus }>
@@ -118,7 +113,7 @@ export async function getUserAuthState(userId: string) {
   }
 
   return {
-    role: highestRole(roles),
+    role: highestRole(roleAssignments),
     roles,
     roleAssignments,
     capabilities: buildAccountCapabilities(roleAssignments, {

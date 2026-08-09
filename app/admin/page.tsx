@@ -1,26 +1,42 @@
 import Link from "next/link"
-import { requireAnatomyAdminUser } from "@/lib/anatomy-admin-access"
-import { prisma } from "@/lib/prisma"
+import { redirect } from "next/navigation"
+import { getCurrentSession } from "@/auth"
 import { AppPageShell, appInsetClassName, appSurfaceClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { getCommerceAdminUser } from "@/lib/commerce/admin-access"
+import { loadAdminActor } from "@/lib/admin/access"
+import { dashboardSections } from "@/lib/admin/dashboard-sections"
 import { listCommerceAdminOperations } from "@/lib/commerce/admin-service"
+import { prisma } from "@/lib/prisma"
 
-type AdminDashboardMetrics = {
+type AnatomyReviewMetrics = {
   mediaLinksNeedingReview: number
   rejectedMediaLinks: number
   approvedMediaLinks: number
+}
+
+type AnatomyEditorMetrics = {
   openMediaViewRequests: number
   reviewedReusableAssets: number
 }
 
 export default async function AdminDashboardPage() {
-  const anatomyAdmin = await requireAnatomyAdminUser()
-  const commerceAdmin = await getCommerceAdminUser({ sessionUserId: anatomyAdmin.id })
-  const [metrics, commerceQueue] = await Promise.all([
-    getAdminDashboardMetrics(),
-    commerceAdmin ? listCommerceAdminOperations({ prismaClient: prisma }) : Promise.resolve([]),
+  const session = await getCurrentSession()
+  const actor = await loadAdminActor({
+    prismaClient: prisma,
+    sessionUserId: session?.user?.id ?? null,
+  })
+  const sections = dashboardSections(actor ?? { roles: [] })
+
+  if (!actor || sections.length === 0) {
+    redirect(session?.user?.id ? "/account" : "/login")
+  }
+
+  const visible = new Set(sections)
+  const [reviewMetrics, editorMetrics, commerceQueue] = await Promise.all([
+    visible.has("anatomy-review") ? getAnatomyReviewMetrics() : Promise.resolve(null),
+    visible.has("anatomy") ? getAnatomyEditorMetrics() : Promise.resolve(null),
+    visible.has("commerce") ? listCommerceAdminOperations({ prismaClient: prisma }) : Promise.resolve(null),
   ])
 
   return (
@@ -31,17 +47,21 @@ export default async function AdminDashboardPage() {
             <div>
               <h1 className="text-2xl font-semibold leading-tight">Admin dashboard</h1>
               <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                Quick entry points for the admin work that needs attention first.
+                Quick entry points for the work your current administrative roles allow.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button asChild>
-                <Link href="/admin/anatomy/media-review">Review images</Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link href="/admin/anatomy">Anatomy browser</Link>
-              </Button>
-              {commerceAdmin ? (
+              {visible.has("anatomy-review") ? (
+                <Button asChild>
+                  <Link href="/admin/anatomy/media-review">Review images</Link>
+                </Button>
+              ) : null}
+              {visible.has("anatomy") ? (
+                <Button asChild variant="outline">
+                  <Link href="/admin/anatomy">Anatomy browser</Link>
+                </Button>
+              ) : null}
+              {commerceQueue ? (
                 <Button asChild variant="outline">
                   <Link href="/admin/commerce">Commerce ({commerceQueue.length})</Link>
                 </Button>
@@ -49,39 +69,66 @@ export default async function AdminDashboardPage() {
             </div>
           </div>
 
-          <section className="space-y-3">
-            <div>
-              <h2 className="text-lg font-semibold">Anatomy image work</h2>
-              <p className="text-sm text-muted-foreground">
-                Review linked images before they are allowed back into flashcard prompts.
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
-              <DashboardMetric label="Needs review" value={metrics.mediaLinksNeedingReview} href="/admin/anatomy/media-review?status=needs-review" />
-              <DashboardMetric label="Rejected" value={metrics.rejectedMediaLinks} href="/admin/anatomy/media-review?status=rejected" />
-              <DashboardMetric label="Approved" value={metrics.approvedMediaLinks} href="/admin/anatomy/media-review?status=approved" />
-              <DashboardMetric label="Open requests" value={metrics.openMediaViewRequests} href="/admin/anatomy?view=maintenance" />
-              <DashboardMetric label="Reusable assets" value={metrics.reviewedReusableAssets} href="/admin/anatomy?view=queries&quick=has-open-media" />
-            </div>
-          </section>
+          {reviewMetrics ? (
+            <section className="space-y-3">
+              <div>
+                <h2 className="text-lg font-semibold">Anatomy image review</h2>
+                <p className="text-sm text-muted-foreground">
+                  Review linked images before they are allowed back into flashcard prompts.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+                <DashboardMetric label="Needs review" value={reviewMetrics.mediaLinksNeedingReview} href="/admin/anatomy/media-review?status=needs-review" />
+                <DashboardMetric label="Rejected" value={reviewMetrics.rejectedMediaLinks} href="/admin/anatomy/media-review?status=rejected" />
+                <DashboardMetric label="Approved" value={reviewMetrics.approvedMediaLinks} href="/admin/anatomy/media-review?status=approved" />
+              </div>
+            </section>
+          ) : null}
+
+          {editorMetrics ? (
+            <section className="space-y-3">
+              <div>
+                <h2 className="text-lg font-semibold">Anatomy editing</h2>
+                <p className="text-sm text-muted-foreground">
+                  Inspect anatomy content, source records, requests, and reusable assets.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <DashboardMetric label="Open requests" value={editorMetrics.openMediaViewRequests} href="/admin/anatomy?view=maintenance" />
+                <DashboardMetric label="Reusable assets" value={editorMetrics.reviewedReusableAssets} href="/admin/anatomy?view=queries&quick=has-open-media" />
+              </div>
+            </section>
+          ) : null}
 
           <section className="grid gap-3 md:grid-cols-3">
-            <DashboardAction
-              href="/admin/anatomy/media-review"
-              title="Fast image review"
-              description="Approve, reject, or request a better BodyParts3D view from a phone-friendly queue."
-            />
-            <DashboardAction
-              href="/admin/anatomy"
-              title="Full anatomy browser"
-              description="Search and inspect all anatomy data, citations, IDs, media, relationships, and source records."
-            />
-            <DashboardAction
-              href="/admin/anatomy?view=maintenance"
-              title="Maintenance"
-              description="Check correction flags, source records, open media requests, and review-oriented admin lists."
-            />
-            {commerceAdmin ? (
+            {visible.has("users") ? (
+              <DashboardNotice
+                title="User operations"
+                description="The authorization, audit, activity, and notification foundation is ready. The user directory and support actions arrive in the next serial branch."
+              />
+            ) : null}
+            {visible.has("anatomy-review") ? (
+              <DashboardAction
+                href="/admin/anatomy/media-review"
+                title="Fast image review"
+                description="Approve, reject, or request a better BodyParts3D view from a phone-friendly queue."
+              />
+            ) : null}
+            {visible.has("anatomy") ? (
+              <DashboardAction
+                href="/admin/anatomy"
+                title="Full anatomy browser"
+                description="Search and inspect anatomy data, citations, IDs, media, relationships, and source records."
+              />
+            ) : null}
+            {visible.has("anatomy") ? (
+              <DashboardAction
+                href="/admin/anatomy?view=maintenance"
+                title="Maintenance"
+                description="Check correction flags, source records, open media requests, and review-oriented admin lists."
+              />
+            ) : null}
+            {commerceQueue ? (
               <DashboardAction
                 href="/admin/commerce"
                 title={`Commerce (${commerceQueue.length})`}
@@ -95,28 +142,23 @@ export default async function AdminDashboardPage() {
   )
 }
 
-async function getAdminDashboardMetrics(): Promise<AdminDashboardMetrics> {
-  const [
-    mediaLinksNeedingReview,
-    rejectedMediaLinks,
-    approvedMediaLinks,
-    openMediaViewRequests,
-    reviewedReusableAssets,
-  ] = await Promise.all([
+async function getAnatomyReviewMetrics(): Promise<AnatomyReviewMetrics> {
+  const [mediaLinksNeedingReview, rejectedMediaLinks, approvedMediaLinks] = await Promise.all([
     prisma.anatomyMediaEntity.count({ where: { reviewStatus: "NEEDS_REVIEW" } }),
     prisma.anatomyMediaEntity.count({ where: { reviewStatus: "REJECTED" } }),
     prisma.anatomyMediaEntity.count({ where: { reviewStatus: "APPROVED" } }),
+  ])
+
+  return { mediaLinksNeedingReview, rejectedMediaLinks, approvedMediaLinks }
+}
+
+async function getAnatomyEditorMetrics(): Promise<AnatomyEditorMetrics> {
+  const [openMediaViewRequests, reviewedReusableAssets] = await Promise.all([
     prisma.anatomyMediaViewRequest.count({ where: { status: "OPEN" } }),
     prisma.anatomyMediaAsset.count({ where: { usageScope: "OPEN_REUSE", reviewStatus: "REVIEWED" } }),
   ])
 
-  return {
-    mediaLinksNeedingReview,
-    rejectedMediaLinks,
-    approvedMediaLinks,
-    openMediaViewRequests,
-    reviewedReusableAssets,
-  }
+  return { openMediaViewRequests, reviewedReusableAssets }
 }
 
 function DashboardMetric({ label, value, href }: { label: string; value: number; href: string }) {
@@ -138,5 +180,14 @@ function DashboardAction({ href, title, description }: { href: string; title: st
         </span>
       </Link>
     </Button>
+  )
+}
+
+function DashboardNotice({ title, description }: { title: string; description: string }) {
+  return (
+    <div className={`${appInsetClassName} p-4`}>
+      <p className="text-sm font-medium">{title}</p>
+      <p className="mt-1 text-sm leading-5 text-muted-foreground">{description}</p>
+    </div>
   )
 }

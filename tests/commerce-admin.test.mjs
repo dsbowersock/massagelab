@@ -20,30 +20,35 @@ function createAdminDatabase() {
       id: "ordinary",
       name: "Ordinary Account",
       email: "ordinary@example.test",
+      emailVerified: new Date(),
       roles: [{ role: "USER", status: "VERIFIED" }],
     }],
     ["therapist", {
       id: "therapist",
       name: "Therapist Account",
       email: "therapist@example.test",
+      emailVerified: new Date(),
       roles: [{ role: "LICENSED_THERAPIST", status: "VERIFIED" }],
     }],
     ["anatomy-admin", {
       id: "anatomy-admin",
       name: "Anatomy Account",
       email: "anatomy@example.test",
+      emailVerified: new Date(),
       roles: [{ role: "ANATOMY_ADMIN", status: "VERIFIED" }],
     }],
     ["pending-admin", {
       id: "pending-admin",
       name: "Pending Account",
       email: "pending@example.test",
+      emailVerified: new Date(),
       roles: [{ role: "ADMIN", status: "PENDING" }],
     }],
     ["verified-admin", {
       id: "verified-admin",
       name: "Verified Admin",
       email: "full-admin@example.test",
+      emailVerified: new Date(),
       roles: [{ role: "ADMIN", status: "VERIFIED" }],
     }],
   ])
@@ -200,7 +205,10 @@ it("keeps every commerce server action independently authorized and Stripe-free"
   assert.match(detailPage, /requireCommerceAdminUser/)
   assert.doesNotMatch(listPage + detailPage, /"use client"/)
   assert.match(adminPage, /Commerce/)
-  assert.match(adminPage, /canAdministerAccounts|getCommerceAdminUser/)
+  assert.match(adminPage, /loadAdminActor/)
+  assert.match(adminPage, /dashboardSections/)
+  assert.match(adminPage, /visible\.has\("commerce"\)/)
+  assert.match(adminPage, /listCommerceAdminOperations/)
 })
 
 it("returns the reconciliation result only after authorization and revalidation", async () => {

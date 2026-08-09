@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import type { AnatomyEntityType, AnatomyMediaReviewStatus, AnatomyMediaRole, AnatomyMediaViewRequestStatus, Prisma } from "@prisma/client"
-import { requireAnatomyAdminUser } from "@/lib/anatomy-admin-access"
+import { requireAnatomyEditorUser, requireAnatomyReviewerUser } from "@/lib/anatomy-admin-access"
 import { parseAnatomyAdminSourceInput } from "@/lib/anatomy-admin-source-input"
 import {
   ANATOMY_MEDIA_REVIEW_REASONS,
@@ -403,12 +403,12 @@ async function importBodyParts3dMediaForEntity({
         factSlug: assetSlug,
         sourceId: source.id,
         sourceLocator: sourceUrl,
-        citationNote: "BodyParts3D image imported through anatomy admin media review workflow.",
+        citationNote: "BodyParts3D image imported through the Anatomy Editor media workflow.",
         reviewStatus: "REVIEWED",
       },
       update: {
         sourceLocator: sourceUrl,
-        citationNote: "BodyParts3D image imported through anatomy admin media review workflow.",
+        citationNote: "BodyParts3D image imported through the Anatomy Editor media workflow.",
         reviewStatus: "REVIEWED",
       },
     })
@@ -441,7 +441,11 @@ async function importBodyParts3dMediaForEntity({
 }
 
 async function requireEditor() {
-  return requireAnatomyAdminUser()
+  return requireAnatomyEditorUser()
+}
+
+async function requireReviewer() {
+  return requireAnatomyReviewerUser()
 }
 
 export async function createAnatomyTermAction(formData: FormData) {
@@ -472,7 +476,7 @@ export async function createAnatomyTermAction(formData: FormData) {
 }
 
 export async function updateAnatomyMediaReviewAction(formData: FormData) {
-  const user = await requireEditor()
+  const user = await requireReviewer()
   const id = formString(formData, "id")
 
   if (!id) {
@@ -509,7 +513,7 @@ export async function updateAnatomyMediaReviewAction(formData: FormData) {
  * needs are recorded as AnatomyMediaViewRequest rows for the existing import flow.
  */
 export async function reviewAnatomyMediaQueueDecisionAction(formData: FormData) {
-  const user = await requireEditor()
+  const user = await requireReviewer()
   const id = formString(formData, "id")
 
   if (!id) {
@@ -719,13 +723,16 @@ export async function createAnatomyMediaViewRequestAction(formData: FormData) {
 }
 
 export async function updateAnatomyMediaViewRequestAction(formData: FormData) {
-  const user = await requireEditor()
   const id = formString(formData, "id")
   const status = mediaViewRequestStatusValue(formString(formData, "status"))
 
   if (!id) {
     return
   }
+
+  // Imports create media assets and links, so a reviewer can only reopen or
+  // dismiss a request; an editor independently authorizes IMPORTED status.
+  const user = status === "IMPORTED" ? await requireEditor() : await requireReviewer()
 
   await prisma.anatomyMediaViewRequest.update({
     where: { id },
@@ -871,7 +878,7 @@ export async function createAnatomySourceAction(formData: FormData) {
 }
 
 export async function updateCorrectionFlagAction(formData: FormData) {
-  const user = await requireEditor()
+  const user = await requireReviewer()
   const id = formString(formData, "id")
 
   if (!id) {

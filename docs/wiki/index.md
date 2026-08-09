@@ -15,6 +15,7 @@ This directory is the repo-backed project wiki. Keep operational, implementation
 - [Atmosphere audio](atmosphere-audio.md)
 - [Calendar creation flows](calendar-creation-flows.md)
 - [Billing and memberships](billing-memberships.md)
+- [Admin user operations](admin-user-operations.md)
 - [Deployment and environment](deployment.md)
 - [Release checklist](release-checklist.md)
 - [Dependency security notes](dependency-security.md)

@@ -1,31 +1,28 @@
 import "server-only"
 
-import { redirect } from "next/navigation"
-import { getCurrentSession } from "@/auth"
-import { canManageAnatomyContent } from "@/lib/account-permissions"
-import type { AccountRole } from "@/lib/domain-types"
-import { prisma } from "@/lib/prisma"
+import {
+  requireAnatomyEditorUser as requireSharedAnatomyEditorUser,
+  requireAnatomyReviewerUser as requireSharedAnatomyReviewerUser,
+} from "@/lib/admin/access"
+
+export { canEditAnatomyContent, canReviewAnatomyContent } from "@/lib/admin/access"
 
 /**
- * Enforces Anatomy Admin access for server-rendered admin routes and server actions.
+ * Retains the legacy function name while enforcing current Anatomy Editor access
+ * for server-rendered admin routes and server actions.
  * The shared account-permission helpers stay pure so they remain safe for navigation/client imports.
+ * @deprecated Use `requireAnatomyEditorUser` for new editor-only callers.
  */
 export async function requireAnatomyAdminUser() {
-  const session = await getCurrentSession()
+  return requireSharedAnatomyEditorUser()
+}
 
-  if (!session?.user?.id) {
-    redirect("/login")
-  }
+/** Requires fresh reviewer capability for image and correction decisions. */
+export async function requireAnatomyReviewerUser() {
+  return requireSharedAnatomyReviewerUser()
+}
 
-  const roles = await prisma.userRole.findMany({
-    where: { userId: session.user.id },
-    select: { role: true },
-  })
-  const roleValues = (roles as Array<{ role: AccountRole }>).map((roleRow) => roleRow.role)
-
-  if (!canManageAnatomyContent(roleValues)) {
-    redirect("/account")
-  }
-
-  return session.user
+/** Requires editor capability for anatomy content and import mutations. */
+export async function requireAnatomyEditorUser() {
+  return requireSharedAnatomyEditorUser()
 }

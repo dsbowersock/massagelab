@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 
-describe("Anatomy admin browser table UI", () => {
+describe("Anatomy browser table UI", () => {
   it("exposes top and bottom horizontal scroll tracks with resizable columns", async () => {
     const pageSource = await readFile(new URL("../app/admin/anatomy/page.tsx", import.meta.url), "utf8")
     const scrollSource = await readFile(new URL("../app/admin/anatomy/synced-horizontal-scroll.tsx", import.meta.url), "utf8")
@@ -249,7 +249,8 @@ describe("Anatomy admin browser table UI", () => {
     assert.match(accessSource, /import "server-only"/)
     assert.match(accessSource, /export async function requireAnatomyAdminUser/)
     assert.match(adminSource, /function AdminDashboardPage/)
-    assert.match(adminSource, /requireAnatomyAdminUser/)
+    assert.match(adminSource, /loadAdminActor/)
+    assert.equal(adminSource.match(/\bloadAdminActor\(/g)?.length, 1)
     assert.match(adminSource, /Admin dashboard/)
     assert.match(adminSource, /Review images/)
     assert.match(adminSource, /Anatomy browser/)
@@ -257,8 +258,8 @@ describe("Anatomy admin browser table UI", () => {
     assert.match(adminSource, /href="\/admin\/anatomy\/media-review"/)
     assert.doesNotMatch(pageSource, /function AnatomyAdminDashboard/)
     assert.match(queueSource, /function AnatomyMediaReviewQueuePage/)
-    assert.match(pageSource, /requireAnatomyAdminUser/)
-    assert.match(queueSource, /requireAnatomyAdminUser/)
+    assert.match(pageSource, /requireAnatomyEditorUser/)
+    assert.match(queueSource, /requireAnatomyReviewerUser/)
     assert.match(queueSource, /Image review queue/)
     assert.match(queueSource, /Approve image/)
     assert.match(queueSource, /Needs better view/)
@@ -311,7 +312,7 @@ describe("Anatomy admin browser table UI", () => {
     assert.match(queueSource, /prisma\.anatomyMediaEntity\.findMany/)
     assert.match(queueSource, /prisma\.anatomyMediaViewRequest\.count/)
     assert.match(actionsSource, /function mediaReviewQueueRedirectPath/)
-    assert.match(actionsSource, /requireAnatomyAdminUser/)
+    assert.match(actionsSource, /requireAnatomyEditorUser/)
     assert.match(actionsSource, /export async function reviewAnatomyMediaQueueDecisionAction/)
     assert.match(actionsSource, /anatomyMediaEntity\.update/)
     assert.match(actionsSource, /create_view_request/)
@@ -335,5 +336,78 @@ describe("Anatomy admin browser table UI", () => {
     assert.match(actionsSource, /usageScope: sourceInput\.usageScope/)
     assert.match(actionsSource, /accessedAt: sourceInput\.accessedAt/)
     assert.match(actionsSource, /notes: sourceInput\.notes/)
+  })
+
+  it("uses reviewer guards only for anatomy review decisions", async () => {
+    const actionsSource = await readFile(new URL("../app/admin/anatomy/actions.ts", import.meta.url), "utf8")
+    const reviewerActions = [
+      "updateAnatomyMediaReviewAction",
+      "reviewAnatomyMediaQueueDecisionAction",
+      "updateCorrectionFlagAction",
+    ]
+    const editorActions = [
+      "createAnatomyTermAction",
+      "linkAnatomyMediaAssetAction",
+      "importBodyParts3dMediaAction",
+      "createAnatomyMediaViewRequestAction",
+      "updateAnatomyTermAction",
+      "createAnatomyAliasAction",
+      "createAnatomyRelationshipAction",
+      "createAnatomyEntityRelationshipAction",
+      "createAnatomySourceAction",
+    ]
+
+    for (const actionName of reviewerActions) {
+      const start = actionsSource.indexOf(`export async function ${actionName}(`)
+      const end = actionsSource.indexOf("\nexport async function ", start + 1)
+      assert.match(actionsSource.slice(start, end === -1 ? actionsSource.length : end), /await requireReviewer\(\)/)
+    }
+    for (const actionName of editorActions) {
+      const start = actionsSource.indexOf(`export async function ${actionName}(`)
+      const end = actionsSource.indexOf("\nexport async function ", start + 1)
+      assert.match(actionsSource.slice(start, end === -1 ? actionsSource.length : end), /await requireEditor\(\)/)
+    }
+
+    const requestUpdateStart = actionsSource.indexOf("export async function updateAnatomyMediaViewRequestAction(")
+    const requestUpdateEnd = actionsSource.indexOf("\nexport async function ", requestUpdateStart + 1)
+    const requestUpdateSource = actionsSource.slice(requestUpdateStart, requestUpdateEnd)
+    assert.match(
+      requestUpdateSource,
+      /status === "IMPORTED" \? await requireEditor\(\) : await requireReviewer\(\)/,
+      "IMPORTED requires Editor authority; the validated OPEN and DISMISSED fallback requires Reviewer authority",
+    )
+  })
+
+  it("keeps editor-only review-queue links out of reviewer-only actors", async () => {
+    const queueSource = await readFile(new URL("../app/admin/anatomy/media-review/page.tsx", import.meta.url), "utf8")
+
+    assert.match(queueSource, /const actor = await requireAnatomyReviewerUser\(\)/)
+    assert.match(queueSource, /<Link href="\/admin">Dashboard<\/Link>/)
+    assert.match(queueSource, /actor\.canEditAnatomy \? \([\s\S]*<Link href="\/admin\/anatomy">Browser<\/Link>/)
+    assert.match(queueSource, /<QueueSummary data=\{data\} canEditAnatomy=\{actor\.canEditAnatomy\}/)
+    assert.match(queueSource, /<ImageReviewCard[\s\S]*canEditAnatomy=\{actor\.canEditAnatomy\}/)
+    assert.match(queueSource, /<EmptyQueue selectedStatus=\{selectedStatus\}/)
+    assert.match(queueSource, /href=\{canEditAnatomy \? "\/admin\/anatomy\?view=maintenance" : undefined\}/)
+    assert.match(queueSource, /\{canEditAnatomy \? \([\s\S]*Open item/)
+    assert.match(queueSource, /function EmptyQueue\([\s\S]*<Link href="\/admin">Back to dashboard<\/Link>/)
+  })
+
+  it("uses current Anatomy Editor wording while retaining legacy read compatibility", async () => {
+    const pageSource = await readFile(new URL("../app/admin/anatomy/page.tsx", import.meta.url), "utf8")
+    const accountSource = await readFile(new URL("../app/account/page.tsx", import.meta.url), "utf8")
+    const grantSource = await readFile(new URL("../scripts/grant-anatomy-admin.mjs", import.meta.url), "utf8")
+    const packageSource = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"))
+
+    assert.match(pageSource, /title="Anatomy Browser"/)
+    assert.match(accountSource, /Anatomy Editor role/)
+    assert.match(grantSource, /ANATOMY_EDITOR_EMAILS/)
+    assert.match(grantSource, /npm run anatomy:grant-editor --/)
+    assert.doesNotMatch(grantSource, /npm run anatomy:grant-admin --/)
+    assert.match(grantSource, /role: "ANATOMY_EDITOR"/)
+    assert.match(grantSource, /source: "anatomy-editor-grant"/)
+    assert.match(grantSource, /Granted Anatomy Editor/)
+    assert.doesNotMatch(grantSource, /role: "ANATOMY_ADMIN"|Granted ANATOMY_ADMIN/)
+    assert.equal(packageSource.scripts["anatomy:grant-editor"], "node scripts/grant-anatomy-admin.mjs")
+    assert.equal(packageSource.scripts["anatomy:grant-admin"], packageSource.scripts["anatomy:grant-editor"])
   })
 })

@@ -2,7 +2,9 @@ import { notFound } from "next/navigation"
 import { Layers3 } from "lucide-react"
 import { getCurrentSession } from "@/auth"
 import { AppPageShell, AppSurface } from "@/components/ui/app-surface"
+import { loadAnatomyReviewerActor } from "@/lib/admin/access"
 import type { FlashcardDeckSummary } from "@/lib/flashcard-community"
+import { prisma } from "@/lib/prisma"
 import {
   FLASHCARD_STATIC_CATEGORIES,
   FLASHCARD_STATIC_PROMPT_TYPE_COUNTS,
@@ -82,7 +84,10 @@ export default async function FlashcardDeckPage({ params }: { params: Promise<{ 
   const [{ slug }, session] = await Promise.all([params, getCurrentSession()])
   const viewerUserId = session?.user?.id
   const isSignedIn = Boolean(viewerUserId)
-  const canManageAnatomyContent = Boolean(session?.user?.capabilities?.canManageAnatomyContent)
+  const reviewActor = await loadAnatomyReviewerActor({
+    prismaClient: prisma,
+    sessionUserId: viewerUserId ?? null,
+  })
   const deck = getStaticStarterFlashcardDeck(slug) ?? await loadPersistedDeck(slug, viewerUserId)
   if (!deck) notFound()
 
@@ -102,7 +107,7 @@ export default async function FlashcardDeckPage({ params }: { params: Promise<{ 
           initialDecks={FLASHCARD_STATIC_STARTER_DECKS}
           initialPromptTypeCounts={FLASHCARD_STATIC_PROMPT_TYPE_COUNTS}
           isSignedIn={isSignedIn}
-          canManageAnatomyContent={canManageAnatomyContent}
+          canManageAnatomyContent={Boolean(reviewActor)}
           initialDeck={deck}
         />
       </AppSurface>

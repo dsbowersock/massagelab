@@ -7,5 +7,7 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode
 }) {
+  // The shared layout owns metadata only. Each destination must reload and
+  // enforce its own database-backed capability rather than inheriting UI state.
   return children
 }

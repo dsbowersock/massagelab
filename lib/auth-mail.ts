@@ -1,11 +1,27 @@
 import nodemailer from "nodemailer-v9"
-import { getSiteUrl } from "@/lib/auth-env"
-import { buildVerificationEmailUrl } from "@/lib/auth-registration"
+import { getSiteUrl } from "./auth-env.ts"
+import { buildVerificationEmailUrl } from "./auth-registration.js"
 
 type MailResult = {
   delivered: boolean
   devLink?: string
 }
+
+const ACCOUNT_CHANGE_EMAIL_SUBJECT_MAX_LENGTH = 200
+const ACCOUNT_CHANGE_EMAIL_MESSAGE_MAX_LENGTH = 5_000
+const SMTP_DNS_TIMEOUT_MS = 5_000
+const SMTP_CONNECTION_TIMEOUT_MS = 10_000
+const SMTP_GREETING_TIMEOUT_MS = 10_000
+const SMTP_SOCKET_TIMEOUT_MS = 20_000
+
+/**
+ * Enforced wall-clock deadline for one account-change SMTP attempt. Admin
+ * email transactions use a larger timeout so the durable outcome can commit.
+ */
+export const ACCOUNT_CHANGE_EMAIL_DELIVERY_BUDGET_MS = SMTP_DNS_TIMEOUT_MS
+  + SMTP_CONNECTION_TIMEOUT_MS
+  + SMTP_GREETING_TIMEOUT_MS
+  + SMTP_SOCKET_TIMEOUT_MS
 
 function hasSmtpConfig() {
   return Boolean(process.env.SMTP_HOST && process.env.SMTP_FROM && (!process.env.SMTP_USER || process.env.SMTP_PASSWORD))
@@ -28,6 +44,10 @@ async function sendMail(to: string, subject: string, text: string): Promise<Mail
     secure: Number(process.env.SMTP_PORT ?? 587) === 465,
     disableFileAccess: true,
     disableUrlAccess: true,
+    dnsTimeout: SMTP_DNS_TIMEOUT_MS,
+    connectionTimeout: SMTP_CONNECTION_TIMEOUT_MS,
+    greetingTimeout: SMTP_GREETING_TIMEOUT_MS,
+    socketTimeout: SMTP_SOCKET_TIMEOUT_MS,
     auth: process.env.SMTP_USER
       ? {
           user: process.env.SMTP_USER,
@@ -36,19 +56,56 @@ async function sendMail(to: string, subject: string, text: string): Promise<Mail
       : undefined,
   })
 
+  let deliveryTimer: ReturnType<typeof setTimeout> | undefined
   try {
-    await transporter.sendMail({
+    const delivery = transporter.sendMail({
       from: process.env.SMTP_FROM,
       to,
       subject,
       text,
     })
-  } catch (error) {
-    console.error("SMTP delivery failed", error)
+    const deadline = new Promise<never>((_resolve, reject) => {
+      deliveryTimer = setTimeout(() => {
+        try {
+          transporter.close()
+        } catch {
+          // Closing is defensive; the generic delivery failure still wins.
+        }
+        reject(new Error("SMTP delivery deadline exceeded."))
+      }, ACCOUNT_CHANGE_EMAIL_DELIVERY_BUDGET_MS)
+    })
+    // Promise.race attaches rejection handlers to delivery, so a late provider
+    // rejection after the deadline cannot become an unhandled rejection.
+    await Promise.race([delivery, deadline])
+  } catch {
+    // Mail providers can include recipient or transport details in their errors.
+    // Callers only need the durable delivery result, never provider diagnostics.
+    console.error("SMTP delivery failed")
     return { delivered: false } satisfies MailResult
+  } finally {
+    if (deliveryTimer !== undefined) clearTimeout(deliveryTimer)
   }
 
   return { delivered: true } satisfies MailResult
+}
+
+/**
+ * Sends the bounded, plain-text account-change notification already persisted
+ * by the admin-operation service. This is intentionally not a general mail
+ * API: no HTML, attachments, provider options, or provider error details cross
+ * the account-operation boundary.
+ */
+export async function sendAccountChangeEmail(to: string, subject: string, message: string): Promise<MailResult> {
+  if (!isSafeAccountChangeMailField(to, 320) || !isSafeAccountChangeMailField(subject, ACCOUNT_CHANGE_EMAIL_SUBJECT_MAX_LENGTH)
+    || !isSafeAccountChangeMailField(message, ACCOUNT_CHANGE_EMAIL_MESSAGE_MAX_LENGTH, true)) {
+    return { delivered: false }
+  }
+
+  return sendMail(to, subject, message)
+}
+
+function isSafeAccountChangeMailField(value: string, maxLength: number, allowLineBreaks = false): boolean {
+  return typeof value === "string" && value.length > 0 && value.length <= maxLength && (allowLineBreaks || !/[\r\n]/.test(value))
 }
 
 /**
