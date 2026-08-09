@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient, Role, VerificationStatus } from "@prisma/client"
 import { normalizeRoleAssignments } from "../account-permissions.js"
+import { activeMembershipSubscriptionWhere } from "./subscription-activity.ts"
 
 const ROLE_FILTER_VALUES = new Set([
   "USER",
@@ -21,7 +22,6 @@ const SUBSCRIPTION_STATUS_FILTER_VALUES = new Set([
   "incomplete_expired",
   "canceled",
 ])
-const ACTIVE_SUPPORTER_STATUSES = ["active", "trialing"]
 const UNRESOLVED_EMAIL_STATUSES: Array<"PENDING" | "FAILED"> = ["PENDING", "FAILED"]
 
 export type AdminUserDirectoryQuery = {
@@ -121,7 +121,11 @@ export async function listAdminUsers(input: {
   }
 }
 
-/** Returns only aggregate account-operation counts; no account records are loaded for dashboard summaries. */
+/**
+ * Returns only aggregate account-operation counts; no account records are
+ * loaded. The optional `now` makes Supporter activity deterministic: only
+ * active/trialing rows with a null or future period end contribute.
+ */
 export async function getAdminUserMetrics(input: { prismaClient: DirectoryPrismaClient; now?: Date }) {
   const now = input.now ?? new Date()
   const [totalAccounts, verifiedAccounts, activeSupporters, unresolvedCommerceOperations, unresolvedEmailOperations] = await Promise.all([
@@ -132,8 +136,7 @@ export async function getAdminUserMetrics(input: { prismaClient: DirectoryPrisma
         membershipSubscriptions: {
           some: {
             membershipLevel: "SUPPORTER",
-            status: { in: ACTIVE_SUPPORTER_STATUSES },
-            OR: [{ currentPeriodEnd: null }, { currentPeriodEnd: { gt: now } }],
+            ...activeMembershipSubscriptionWhere(now),
           },
         },
       },

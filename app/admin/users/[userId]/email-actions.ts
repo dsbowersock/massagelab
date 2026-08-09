@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { requireFullAdminUser } from "@/lib/admin/access"
 import { retryAdminEmailIntent } from "@/lib/admin/email-intents"
 import { prisma } from "@/lib/prisma"
+import { safeErrorCode } from "@/lib/safe-error-code"
 
 export type RetryEmailActionState =
   | { status: "idle"; message: "" }
@@ -40,7 +41,11 @@ export async function retryFailedEmailIntentAction(
       intentId,
       idempotencyKey: operationId,
     })
-  } catch {
+  } catch (error) {
+    console.error("Admin email retry failed", {
+      intentId,
+      code: safeErrorCode(error),
+    })
     return { status: "error", message: "The email retry could not be completed." }
   }
 

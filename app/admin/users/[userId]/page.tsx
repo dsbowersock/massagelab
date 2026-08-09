@@ -92,6 +92,9 @@ function ActivitySection({ detail, userId }: { detail: Record<string, unknown>; 
       && email.kind !== "PASSWORD_RESET"
       && email.failureCode !== "RECIPIENT_UNAVAILABLE"
     const failedPasswordReset = email?.status === "FAILED" && email.kind === "PASSWORD_RESET"
+    // Each rendered retry form gets one key that useActionState submits
+    // unchanged. A consumed key replays; revalidatePath normally renders a
+    // fresh form with a fresh key after the action completes.
     const operationId = randomUUID()
     return (
       <li key={`${entry.occurredAt ?? "activity"}-${index}`} className="rounded-md border bg-background/60 p-3">

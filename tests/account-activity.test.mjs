@@ -12,7 +12,16 @@ const retryFormSource = await readFile(new URL("../app/admin/users/[userId]/retr
 
 const idleState = { status: "idle", message: "" }
 
-function retryActionHarness({ serviceResult = { status: "DELIVERED", attemptCount: 2, replayed: false }, serviceError } = {}) {
+/**
+ * Compiles the retry action with a delivered result by default. A serviceError
+ * overrides that result; the returned action and ordered calls expose every
+ * authorization, service, safe-code, and revalidation interaction.
+ */
+function retryActionHarness({
+  serviceResult = { status: "DELIVERED", attemptCount: 2, replayed: false },
+  serviceError,
+  safeCode = "provider_error",
+} = {}) {
   const calls = []
   const compiledAction = loadCompiledModule(emailActionSource, "app/admin/users/[userId]/email-actions.test.ts", {
     "next/cache": { revalidatePath(path) { calls.push(["revalidatePath", path]) } },
@@ -25,6 +34,12 @@ function retryActionHarness({ serviceResult = { status: "DELIVERED", attemptCoun
       },
     },
     "@/lib/prisma": { prisma: { marker: "prisma" } },
+    "@/lib/safe-error-code": {
+      safeErrorCode(error) {
+        calls.push(["safeErrorCode", error])
+        return safeCode
+      },
+    },
   })
   return { action: compiledAction.retryFailedEmailIntentAction, calls }
 }
@@ -88,11 +103,23 @@ describe("account activity surfaces", () => {
   })
 
   it("converts service exceptions into a generic retry error without leaking details", async () => {
-    const { action } = retryActionHarness({ serviceError: new Error("provider secret") })
-
-    const result = await action("user-1", idleState, retryForm())
+    const serviceError = new Error("provider secret")
+    const { action, calls } = retryActionHarness({ serviceError })
+    const logged = []
+    const originalConsoleError = console.error
+    console.error = (...args) => logged.push(args)
+    let result
+    try {
+      result = await action("user-1", idleState, retryForm())
+    } finally {
+      console.error = originalConsoleError
+    }
 
     assert.deepEqual(result, { status: "error", message: "The email retry could not be completed." })
     assert.doesNotMatch(result.message, /provider secret/)
+    assert.deepEqual(calls.at(-1), ["safeErrorCode", serviceError])
+    assert.deepEqual(logged, [["Admin email retry failed", { intentId: "intent-1", code: "provider_error" }]])
+    assert.doesNotMatch(JSON.stringify(logged), /provider secret|user-1|b7653eb8|operationId|recipient/i)
+    assert.equal(logged.flat(Infinity).includes(serviceError), false)
   })
 })

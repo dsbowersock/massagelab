@@ -5,6 +5,7 @@ import {
   buildEntitlements,
   getConfiguredMembershipOptions,
 } from "../membership.js"
+import { activeMembershipSubscriptionWhere } from "./subscription-activity.ts"
 
 export const ADMIN_USER_DETAIL_SECTIONS = ["overview", "access", "billing", "security", "activity"] as const
 
@@ -86,8 +87,7 @@ export async function loadAdminUserAccess(input: { prismaClient: DetailPrismaCli
     input.prismaClient.membershipSubscription.findMany({
       where: {
         userId: input.userId,
-        status: { in: ["active", "trialing"] },
-        OR: [{ currentPeriodEnd: null }, { currentPeriodEnd: { gt: now } }],
+        ...activeMembershipSubscriptionWhere(now),
       },
       select: { status: true, membershipLevel: true, currentPeriodEnd: true },
       orderBy: [{ currentPeriodEnd: "desc" }, { id: "desc" }],
