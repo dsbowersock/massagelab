@@ -33,3 +33,10 @@
 - Final contract: positive-only 1–25 grants, truthful missing-wallet `0 -> +2 -> +amount` preview, explicit fresh confirmation after amount changes, stable operation key, one Task 14 service call, locked pending-only delivery/replay recovery, truthful self-target copy, pathname revalidation, and accessible preset state.
 - Real Playwright was not executed because neither `DATABASE_URL` nor `MASSAGELAB_BROWSER_QA_DATABASE=1` is available. The exact disposable-database and SMTP-blank owned-server source/fixture contracts are covered; no real database or email mutation occurred.
 - Coordinator fresh verification: 115/115 focused/adjacent tests, typecheck, full lint, and `git diff --check` passed. Lint emitted only the existing Babel large-file deoptimization note for the Chimer timer.
+- Coordinator commit: `cf4b482d1cf5494b09daaa632bdf35152a4af526` (`feat: add admin background credit controls`); committed status was clean.
+
+## Whole-branch review
+
+- Initial review found two copy/coverage gaps: replay described an immutable historical post-grant balance as current, and `attempted: false` was interpreted as no historical attempt instead of no new attempt by this invocation.
+- Repair RED had 3 expected failures; GREEN was 15/15 and 134/134 adjacent, with typecheck, lint, and diff check passing.
+- Closure re-review passed its focused Branch 6 gate 50/50 and returned READY. Replay copy now reports only the recorded balance transition; failed/no-new-attempt copy distinguishes self-target status guidance from a genuinely available non-self retry.

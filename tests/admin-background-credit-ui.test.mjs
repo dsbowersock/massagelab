@@ -170,7 +170,7 @@ describe("Admin background-credit action", () => {
     })
     assert.deepEqual(await replay.action("user-1", idleState, creditForm()), {
       status: "success",
-      message: "This background-credit grant was already completed. The balance remains 7. The email notification was already delivered; no new send was attempted.",
+      message: "This background-credit grant was already completed. The recorded grant changed the balance from 2 to 7. The email notification was already delivered; this invocation made no new send attempt.",
     })
 
     const failedReplay = creditActionHarness({
@@ -181,7 +181,7 @@ describe("Admin background-credit action", () => {
     })
     assert.deepEqual(await failedReplay.action("user-1", idleState, creditForm()), {
       status: "warning",
-      message: "This background-credit grant was already completed. The balance remains 7. The email notification is recorded as failed; no new send was attempted. Check Activity for the available next step.",
+      message: "This background-credit grant was already completed. The recorded grant changed the balance from 2 to 7. This invocation made no new email attempt because the notification is already recorded as failed. Retry it from Activity.",
     })
 
     const pendingReplay = creditActionHarness({
@@ -191,7 +191,7 @@ describe("Admin background-credit action", () => {
     })
     assert.deepEqual(await pendingReplay.action("user-1", idleState, creditForm()), {
       status: "success",
-      message: "This background-credit grant was already completed. The balance remains 7. Its pending email notification was delivered.",
+      message: "This background-credit grant was already completed. The recorded grant changed the balance from 2 to 7. Its pending email notification was delivered.",
     })
 
     const unconfirmed = creditActionHarness({ deliveryError: new Error("provider recipient detail") })
@@ -209,6 +209,51 @@ describe("Admin background-credit action", () => {
       ["revalidatePath", "/admin/users/user-1"],
       ["revalidatePath", "/admin/users"],
     ])
+  })
+
+  it("uses immutable replay history without claiming the original balance is still current after intervening wallet changes", async () => {
+    const replay = creditActionHarness({
+      serviceResult: {
+        previousBalance: 2,
+        amount: 5,
+        balanceAfter: 7,
+        replayed: true,
+        emailIntentId: "intent-credit",
+        currentBalance: 19,
+      },
+      deliveryResult: { status: "DELIVERED", attemptCount: 1, attempted: false },
+    })
+
+    const result = await replay.action("user-1", idleState, creditForm())
+
+    assert.match(result.message, /recorded grant changed the balance from 2 to 7/i)
+    assert.doesNotMatch(result.message, /balance remains|current balance|balance is now/i)
+  })
+
+  it("treats FAILED attempted:false as this invocation's no-attempt result for fresh and replayed concurrent duplicates", async () => {
+    for (const replayed of [false, true]) {
+      for (const [actorUserId, retryAvailable] of [["admin-1", true], ["user-1", false]]) {
+        const harness = creditActionHarness({
+          actorUserId,
+          serviceResult: {
+            previousBalance: 2, amount: 5, balanceAfter: 7, replayed, emailIntentId: "intent-credit",
+          },
+          deliveryResult: { status: "FAILED", attemptCount: 1, attempted: false },
+        })
+
+        const result = await harness.action("user-1", idleState, creditForm())
+
+        assert.equal(result.status, "warning")
+        assert.match(result.message, /This invocation made no new email attempt because the notification is already recorded as failed\./)
+        assert.doesNotMatch(result.message, /No email was sent\.|no send was attempted/i)
+        if (retryAvailable) {
+          assert.match(result.message, /Retry it from Activity\./)
+        } else {
+          assert.match(result.message, /Check Activity for the recorded notification status\./)
+          assert.doesNotMatch(result.message, /retry/i)
+        }
+      }
+    }
   })
 
   it("records a self-target delivery failure without promising the suppressed Activity retry control", async () => {

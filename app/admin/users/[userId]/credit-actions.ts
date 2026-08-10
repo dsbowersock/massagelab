@@ -141,12 +141,12 @@ function creditGrantOutcome(
   selfTarget: boolean,
 ): CreditGrantActionState {
   if (result.replayed) {
-    const prefix = `This background-credit grant was already completed. The balance remains ${result.balanceAfter}.`
+    const prefix = `This background-credit grant was already completed. The recorded grant changed the balance from ${result.previousBalance} to ${result.balanceAfter}.`
     if (delivery?.status === "DELIVERED" && delivery.attempted) {
       return { status: "success", message: `${prefix} Its pending email notification was delivered.` }
     }
     if (delivery?.status === "DELIVERED") {
-      return { status: "success", message: `${prefix} The email notification was already delivered; no new send was attempted.` }
+      return { status: "success", message: `${prefix} The email notification was already delivered; this invocation made no new send attempt.` }
     }
     if (delivery?.status === "FAILED" && delivery.attempted) {
       return {
@@ -157,7 +157,7 @@ function creditGrantOutcome(
       }
     }
     if (delivery?.status === "FAILED") {
-      return { status: "warning", message: `${prefix} The email notification is recorded as failed; no new send was attempted. Check Activity for the available next step.` }
+      return failedWithoutAttemptOutcome(prefix, selfTarget)
     }
     return {
       status: "warning",
@@ -182,13 +182,27 @@ function creditGrantOutcome(
     }
   }
   if (delivery?.status === "FAILED") {
-    return { status: "warning", message: `${prefix} No email was sent. Check Activity for the notification status.` }
+    return failedWithoutAttemptOutcome(prefix, selfTarget)
   }
   return {
     status: "warning",
     message: selfTarget
       ? `${prefix} Email delivery could not be confirmed. Check Activity for the recorded notification status.`
       : `${prefix} Email delivery could not be confirmed. Check Activity before retrying.`,
+  }
+}
+
+/**
+ * Describes only this invocation's no-attempt result. Another concurrent
+ * request may have made the attempt that persisted the observed FAILED state.
+ */
+function failedWithoutAttemptOutcome(prefix: string, selfTarget: boolean): CreditGrantActionState {
+  const outcome = `${prefix} This invocation made no new email attempt because the notification is already recorded as failed.`
+  return {
+    status: "warning",
+    message: selfTarget
+      ? `${outcome} Check Activity for the recorded notification status.`
+      : `${outcome} Retry it from Activity.`,
   }
 }
 

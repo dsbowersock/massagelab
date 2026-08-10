@@ -18,10 +18,12 @@
 - Completed Task 14 commit: `ea327ef8215c9d310b35864c496e0369e805ba07` (`feat: add admin background credit grants`); committed diff and clean worktree read back.
 - Completed: Task 15 preview/confirmation controls, action/delivery integration, browser contracts, and current docs; both independent review stages approved after focused repairs.
 - Completed: coordinator Task 15 verification passed 115/115 focused/adjacent tests, typecheck, full lint, and diff check.
-- Active slice: Task 15 commit.
-- Pending: whole-branch review; terminal gates; PR loop.
+- Completed Task 15 commit: `cf4b482d1cf5494b09daaa632bdf35152a4af526` (`feat: add admin background credit controls`).
+- Completed: whole-branch review and closure re-review; replay and delivery-outcome copy findings are closed.
+- Active slice: final-fix commit and terminal gates.
+- Pending: PR loop.
 - Blocked on: nothing currently.
-- Next: commit the reviewed Task 15 slice, then begin whole-branch review.
+- Next: commit the reviewed two-file final correction, rerun exact-tree terminal gates, then push and open the PR.
 
 ## ResumeStateHint
 
