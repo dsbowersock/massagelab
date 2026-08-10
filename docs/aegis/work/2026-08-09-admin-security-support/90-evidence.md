@@ -10,10 +10,6 @@
 - Ran focused baseline coverage for Admin access, operation service, role service, user-detail Security projection, auth security, and JWT session version: 68/68 passed.
 - Ran `npm run typecheck`: passed.
 
-## Pending evidence
-
-- Whole-branch and terminal validation.
-
 ## Task 12
 
 - Genuine RED: the focused security-service test failed with `ERR_MODULE_NOT_FOUND` before the production service existed.
@@ -40,3 +36,9 @@
 - Genuine RED: 35/38 focused service/action/UI tests passed; the two injected post-send intent-update failures escaped the service, and the action mislabeled `PENDING` plus attempted delivery as not attempted.
 - GREEN: 38/38 focused tests passed. Successful and failed transport outcomes with a subsequent status-update failure each preserve exactly one token/action/activity/intent, keep durable `PENDING` truth with `deliveryAttempted: true`, and prove static privacy-safe logging. The action revalidates both Admin surfaces and warns Admin to check Activity before creating another request.
 - Fresh terminal verification: 123/123 adjacent Admin/auth tests, typecheck, full lint, all 2,259 unit tests with one existing skip, and the 104-page Production build passed.
+
+## PR #176 review repair
+
+- Genuine RED: 43/45 focused tests passed; transient `P2034` delivery-status persistence returned `PENDING` without retry, and the detail/browser contract lacked stable key/value selectors.
+- GREEN: 45/45 focused and 161/161 adjacent tests passed. The shared serializable transaction owner retries one transient status conflict without resending mail or double-incrementing delivery evidence; nonretryable persistence failures remain durably `PENDING`. Exact unusable QA credential/session sentinels, privacy-safe escaped secret patterns, FK cleanup order, and the stable detail selector are covered or documented at their existing owners.
+- Fresh terminal verification: typecheck, full lint, all 2,260 unit tests with one existing skip, and the 104-page Production build passed. Shared `normalizeEmail`, the confirmation-email placeholder, and the email-action source fallback remain unchanged by the verified review decision.

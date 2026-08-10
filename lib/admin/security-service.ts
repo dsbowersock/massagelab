@@ -579,7 +579,7 @@ async function recordPasswordResetDelivery(
   delivered: boolean,
   now: Date,
 ): Promise<void> {
-  await prismaClient.$transaction(async (tx) => {
+  await runCommerceTransaction(prismaClient, async (tx) => {
     await tx.adminEmailIntent.update({
       where: { id: intentId },
       data: {
@@ -591,7 +591,7 @@ async function recordPasswordResetDelivery(
       },
       select: { id: true },
     })
-  }, { isolationLevel: "Serializable" })
+  })
 }
 
 function validateBaseInput(input: AdminSecurityBaseInput): void {

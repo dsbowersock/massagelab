@@ -109,12 +109,13 @@ function provisioningPrisma(calls) {
     $executeRaw: async (strings, ...values) => { calls.push(["tx.$executeRaw", strings.join("?"), values]) },
     user: { create: async ({ data }) => {
       if (data.id.includes("-target-")) {
-        assert.equal(typeof data.passwordCredential?.create?.passwordHash, "string")
-        assert.equal(typeof data.twoFactorSecret?.create?.encryptedSecret, "string")
+        assert.equal(data.passwordCredential?.create?.passwordHash, "browser-fixture-password-hash-not-for-authentication")
+        assert.equal(data.twoFactorSecret?.create?.encryptedSecret, "browser-fixture-encrypted-secret-not-for-authentication")
         assert.ok(data.twoFactorSecret.create.enabledAt instanceof Date)
-        assert.equal(data.backupCodes?.create?.length, 1)
+        assert.deepEqual(data.backupCodes?.create, [{ codeHash: "browser-fixture-backup-hash-not-for-authentication" }])
         assert.equal(data.sessions?.create?.length, 1)
-        assert.ok(data.sessions.create[0].expires instanceof Date)
+        assert.equal(data.sessions.create[0].sessionToken, `browser-fixture-adapter-session-${data.id}`)
+        assert.equal(data.sessions.create[0].expires.toISOString(), "2099-01-01T00:00:00.000Z")
       }
       calls.push(["user.create", data.id])
     } },

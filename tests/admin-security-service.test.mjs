@@ -253,9 +253,39 @@ describe("Admin security remediation service", () => {
     assertNoSecretDurablePayload(database, result, [rawToken, `reset-password?token=${rawToken}`])
   })
 
+  it("retries one transient password-reset status conflict without resending or double-recording delivery", async () => {
+    const database = createSecurityDatabase()
+    let deliveryCalls = 0
+    database.nextIntentUpdateError = Object.assign(new Error("transient delivery status conflict"), { code: "P2034" })
+
+    const result = await sendAdminPasswordReset(baseInput(database, {
+      idempotencyKey: "password-reset-status-retry-1",
+      now: NOW,
+      generateToken: () => "status-retry-token",
+      sendEmail: async () => {
+        deliveryCalls += 1
+        return { delivered: true }
+      },
+    }))
+
+    assert.deepEqual(result, {
+      emailIntentId: "intent-1",
+      replayed: false,
+      deliveryStatus: "DELIVERED",
+      deliveryAttempted: true,
+    })
+    assert.equal(deliveryCalls, 1)
+    assert.equal(database.intents.length, 1)
+    assert.equal(database.intents[0].attemptCount, 1)
+    assert.equal(database.intents[0].status, "DELIVERED")
+    assert.equal(database.intents[0].deliveredAt.toISOString(), NOW.toISOString())
+    assert.equal(database.transactionOptions.length, 3)
+    assert.equal(database.transactionOptions.every((options) => options.isolationLevel === "Serializable"), true)
+  })
+
   it("records generic password-reset delivery failure without leaking provider details", async () => {
     const database = createSecurityDatabase()
-    const providerSecret = "provider-message-with-user-and-token"
+    const providerSecret = "provider-message-[with]-user+and(token)?"
     const logged = []
     const originalConsoleError = console.error
     console.error = (...values) => logged.push(values.join(" "))
@@ -276,7 +306,7 @@ describe("Admin security remediation service", () => {
       assert.equal(database.intents[0].status, "FAILED")
       assert.equal(database.intents[0].failureCode, "DELIVERY_FAILED")
       assert.deepEqual(logged, ["Password-reset email delivery failed"])
-      assert.doesNotMatch(JSON.stringify({ logged, result, intents: database.intents }), new RegExp(providerSecret))
+      assert.doesNotMatch(JSON.stringify({ logged, result, intents: database.intents }), new RegExp(escapeRegExp(providerSecret)))
     } finally {
       console.error = originalConsoleError
     }
@@ -284,8 +314,8 @@ describe("Admin security remediation service", () => {
 
   it("returns durable pending truth when delivered mail cannot persist its status", async () => {
     const database = createSecurityDatabase()
-    const rawToken = "delivered-token-must-stay-private"
-    const persistenceSecret = "database-error-with-provider-and-token-details"
+    const rawToken = "delivered-token-[must]-stay-private"
+    const persistenceSecret = "database-error+(with-provider).*token?"
     const logged = []
     const originalConsoleError = console.error
     database.nextIntentUpdateError = new Error(persistenceSecret)
@@ -312,7 +342,10 @@ describe("Admin security remediation service", () => {
       assert.equal(database.intents[0].attemptCount, 0)
       assert.deepEqual(logged, ["Password-reset delivery status could not be recorded"])
       assertNoSecretDurablePayload(database, result, [rawToken, persistenceSecret])
-      assert.doesNotMatch(JSON.stringify(logged), new RegExp(`${rawToken}|${persistenceSecret}`))
+      assert.doesNotMatch(
+        JSON.stringify(logged),
+        new RegExp([rawToken, persistenceSecret].map(escapeRegExp).join("|")),
+      )
     } finally {
       console.error = originalConsoleError
     }
@@ -320,8 +353,8 @@ describe("Admin security remediation service", () => {
 
   it("returns durable pending truth when failed mail cannot persist its status", async () => {
     const database = createSecurityDatabase()
-    const providerSecret = "smtp-error-with-recipient-and-token-details"
-    const persistenceSecret = "intent-update-error-with-database-details"
+    const providerSecret = "smtp-error-[with-recipient]+token?"
+    const persistenceSecret = "intent-update-error+(with-database).*details"
     const logged = []
     const originalConsoleError = console.error
     database.nextIntentUpdateError = new Error(persistenceSecret)
@@ -351,7 +384,10 @@ describe("Admin security remediation service", () => {
         "Password-reset delivery status could not be recorded",
       ])
       assertNoSecretDurablePayload(database, result, [providerSecret, persistenceSecret])
-      assert.doesNotMatch(JSON.stringify(logged), new RegExp(`${providerSecret}|${persistenceSecret}`))
+      assert.doesNotMatch(
+        JSON.stringify(logged),
+        new RegExp([providerSecret, persistenceSecret].map(escapeRegExp).join("|")),
+      )
     } finally {
       console.error = originalConsoleError
     }

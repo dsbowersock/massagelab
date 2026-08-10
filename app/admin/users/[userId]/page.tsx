@@ -153,9 +153,9 @@ function ActivityValue({ label, value }: { label: string; value: string | null }
 function DetailSection({ detail, section }: { detail: Record<string, unknown>; section: AdminUserDetailSection }) {
   const rows = detailRows(detail, section)
   return <dl className="grid gap-3 sm:grid-cols-2">{rows.map(([label, value]) => (
-    <div key={label} className="min-w-0 rounded-md border bg-background/60 p-3">
+    <div key={label} data-detail-key={label} className="min-w-0 rounded-md border bg-background/60 p-3">
       <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
-      <dd className="mt-1 break-words text-sm">{value}</dd>
+      <dd data-detail-value="" className="mt-1 break-words text-sm">{value}</dd>
     </div>
   ))}</dl>
 }

@@ -187,6 +187,6 @@ test.describe("Admin user operations", () => {
     await expect(twoFactorButton).toBeEnabled()
     await twoFactorButton.press("Enter")
     await expect(page.getByText(/Two-factor authentication was reset and existing sign-in tokens were invalidated/)).toBeVisible()
-    await expect(page.getByText("Two-factor authentication", { exact: true }).locator("xpath=following-sibling::*[1]")).toHaveText("No")
+    await expect(page.locator('[data-detail-key="Two-factor authentication"] [data-detail-value]')).toHaveText("No")
   })
 })

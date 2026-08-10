@@ -2,7 +2,7 @@
 
 ## TaskStartSnapshot
 
-- Worktree: `C:\Users\derri\code\my_projects\massagelab\.worktrees\admin-security-support`
+- Worktree: `.worktrees/admin-security-support`
 - Branch: `codex/admin-security-support`
 - HEAD/base: `3cab3b03a5fe705cb15949356dbe41ec186af85c`
 - Tracking: exact `origin/main`
