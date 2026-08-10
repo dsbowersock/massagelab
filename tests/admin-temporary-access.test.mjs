@@ -1,0 +1,837 @@
+import assert from "node:assert/strict"
+import { readFile } from "node:fs/promises"
+import { describe, it } from "node:test"
+import * as temporaryAccess from "../lib/admin/temporary-access.ts"
+
+const {
+  ADMIN_GRANTABLE_FEATURE_KEYS,
+  grantTemporaryFeatureAccess,
+  listActiveTemporaryFeatureAccess,
+  revokeTemporaryFeatureAccess,
+} = temporaryAccess
+
+const NOW = new Date("2026-08-10T12:00:00.000Z")
+const DAY_MS = 24 * 60 * 60 * 1_000
+
+function user(id, {
+  email = `${id}@example.com`,
+  emailVerified = true,
+  roles = [{ role: "USER", status: "VERIFIED" }],
+} = {}) {
+  return {
+    id,
+    name: id,
+    email,
+    emailVerified: emailVerified ? new Date("2026-08-01T12:00:00.000Z") : null,
+    roles,
+  }
+}
+
+function createDatabase({
+  grants = [],
+  revocations = [],
+  failWrite = null,
+  grantCreateErrors = [],
+  revocationCreateErrors = [],
+  competingAdminBundleAfterSnapshot = null,
+} = {}) {
+  const users = [
+    user("actor-admin", { roles: [{ role: "ADMIN", status: "VERIFIED" }] }),
+    user("actor-admin-two", { roles: [{ role: "ADMIN", status: "VERIFIED" }] }),
+    user("actor-ordinary"),
+    user("actor-reviewer", { roles: [{ role: "ANATOMY_REVIEWER", status: "VERIFIED" }] }),
+    user("target-user"),
+    user("target-two"),
+    user("target-unverified", { emailVerified: false }),
+    user("target-no-email", { email: null }),
+    user("target-blank-email", { email: "   " }),
+  ]
+  const root = {
+    state: {
+      users: new Map(users.map((record) => [record.id, record])),
+      grants: new Map(grants.map((grant) => [grant.id, structuredClone(grant)])),
+      revocations: new Map(revocations.map((revocation) => [revocation.grantId, structuredClone(revocation)])),
+      actions: new Map(),
+      activities: new Map(),
+      intents: new Map(),
+    },
+    failWrite,
+    grantCreateErrors: [...grantCreateErrors],
+    revocationCreateErrors: [...revocationCreateErrors],
+    competingAdminBundleAfterSnapshot,
+    competingAdminBundleCommitted: false,
+    adminActionCommittedConflicts: 0,
+    nextGrantId: grants.length + 1,
+    nextRevocationId: revocations.length + 1,
+    transactionAttempts: 0,
+    advisoryOwners: new Map(),
+    advisoryWaiters: new Map(),
+    uniqueOwners: new Map(),
+    uniqueWaiters: new Map(),
+  }
+
+  function relationGrant(state, grant) {
+    if (!grant) return null
+    return {
+      ...structuredClone(grant),
+      revocation: structuredClone(state.revocations.get(grant.id) ?? null),
+    }
+  }
+
+  function relationAction(state, action) {
+    if (!action) return null
+    return {
+      ...structuredClone(action),
+      activity: structuredClone(state.activities.get(action.id) ?? null),
+      emailIntent: structuredClone(state.intents.get(action.id) ?? null),
+    }
+  }
+
+  function activeGrants(state, where) {
+    const startsAt = where.startsAt?.lte
+    const expiresAt = where.expiresAt?.gt
+    const allowedKeys = where.featureKey?.in
+    return [...state.grants.values()].filter((grant) => (
+      (!where.userId || grant.userId === where.userId)
+      && (!where.featureKey || typeof where.featureKey === "string"
+        ? grant.featureKey === where.featureKey
+        : allowedKeys.includes(grant.featureKey))
+      && (!startsAt || grant.startsAt.getTime() <= startsAt.getTime())
+      && (!expiresAt || grant.expiresAt.getTime() > expiresAt.getTime())
+      && (where.revocation !== null || !state.revocations.has(grant.id))
+    ))
+  }
+
+  function makeClient(transaction = null) {
+    const state = () => transaction?.state ?? root.state
+    return {
+      async $executeRaw(query) {
+        if (!transaction) throw new Error("Advisory locks require a transaction.")
+        const key = query.values?.[0]
+        if (typeof key !== "string") throw new Error("Expected an advisory lock key.")
+        if (root.competingAdminBundleAfterSnapshot && !root.competingAdminBundleCommitted) {
+          commitCompetingAdminBundle(root, root.competingAdminBundleAfterSnapshot)
+          root.competingAdminBundleCommitted = true
+        }
+        await acquireNamedLock(root.advisoryOwners, root.advisoryWaiters, transaction, key, transaction.advisoryKeys)
+        return 1
+      },
+      user: {
+        async findUnique({ where }) {
+          return structuredClone(state().users.get(where.id) ?? null)
+        },
+      },
+      temporaryFeatureGrant: {
+        async findUnique({ where }) {
+          if (where.id) return relationGrant(state(), state().grants.get(where.id))
+          const grant = [...state().grants.values()].find((candidate) => candidate.idempotencyKey === where.idempotencyKey)
+          return relationGrant(state(), grant)
+        },
+        async findMany({ where, orderBy, take }) {
+          assert.deepEqual(where.startsAt, { lte: where.startsAt.lte })
+          assert.deepEqual(where.expiresAt, { gt: where.expiresAt.gt })
+          assert.equal(where.revocation, null)
+          const records = activeGrants(state(), where).sort((left, right) => {
+            if (Array.isArray(orderBy) && orderBy[0]?.expiresAt) {
+              const expiryDelta = left.expiresAt.getTime() - right.expiresAt.getTime()
+              if (expiryDelta !== 0) return expiryDelta
+            }
+            return left.id.localeCompare(right.id)
+          })
+          return structuredClone(records.slice(0, take ?? records.length))
+        },
+        async create({ data }) {
+          if (root.failWrite === "grant") throw new Error("grant write failed")
+          if (root.grantCreateErrors.length > 0) throw root.grantCreateErrors.shift()
+          await reserveUnique(root, transaction, `TemporaryFeatureGrant:idempotencyKey:${data.idempotencyKey}`)
+          if ([...root.state.grants.values()].some((grant) => grant.idempotencyKey === data.idempotencyKey)) {
+            throw uniqueConstraintError("TemporaryFeatureGrant", ["idempotencyKey"])
+          }
+          const grant = {
+            id: `grant-${root.nextGrantId++}`,
+            ...structuredClone(data),
+            createdAt: new Date(NOW),
+          }
+          state().grants.set(grant.id, grant)
+          return structuredClone(grant)
+        },
+      },
+      temporaryFeatureGrantRevocation: {
+        async findUnique({ where }) {
+          if (where.grantId) return structuredClone(state().revocations.get(where.grantId) ?? null)
+          return structuredClone([...state().revocations.values()].find((candidate) => (
+            candidate.idempotencyKey === where.idempotencyKey
+          )) ?? null)
+        },
+        async create({ data }) {
+          if (root.failWrite === "revocation") throw new Error("revocation write failed")
+          if (root.revocationCreateErrors.length > 0) throw root.revocationCreateErrors.shift()
+          await reserveUnique(root, transaction, `TemporaryFeatureGrantRevocation:idempotencyKey:${data.idempotencyKey}`)
+          await reserveUnique(root, transaction, `TemporaryFeatureGrantRevocation:grantId:${data.grantId}`)
+          if ([...root.state.revocations.values()].some((row) => row.idempotencyKey === data.idempotencyKey)) {
+            throw uniqueConstraintError("TemporaryFeatureGrantRevocation", ["idempotencyKey"])
+          }
+          if (root.state.revocations.has(data.grantId)) {
+            throw uniqueConstraintError("TemporaryFeatureGrantRevocation", ["grantId"])
+          }
+          const revocation = { id: `revocation-${root.nextRevocationId++}`, ...structuredClone(data) }
+          state().revocations.set(data.grantId, revocation)
+          return structuredClone(revocation)
+        },
+      },
+      adminAction: {
+        async findUnique({ where }) {
+          return relationAction(state(), state().actions.get(where.idempotencyKey))
+        },
+        async create({ data }) {
+          if (root.failWrite === "action") throw new Error("action write failed")
+          await reserveUnique(root, transaction, `AdminAction:idempotencyKey:${data.idempotencyKey}`)
+          if (root.state.actions.has(data.idempotencyKey)) {
+            root.adminActionCommittedConflicts += 1
+            throw uniqueConstraintError("AdminAction", ["idempotencyKey"])
+          }
+          const action = {
+            id: `action-${state().actions.size + 1}`,
+            ...structuredClone(data),
+            occurredAt: new Date(NOW),
+            createdAt: new Date(NOW),
+          }
+          state().actions.set(data.idempotencyKey, action)
+          return { id: action.id }
+        },
+      },
+      userAccountActivity: {
+        async create({ data }) {
+          if (root.failWrite === "activity") throw new Error("activity write failed")
+          const activity = { id: `activity-${state().activities.size + 1}`, ...structuredClone(data) }
+          state().activities.set(data.adminActionId, activity)
+          return structuredClone(activity)
+        },
+      },
+      adminEmailIntent: {
+        async create({ data }) {
+          if (root.failWrite === "intent") throw new Error("intent write failed")
+          const intent = {
+            id: `intent-${state().intents.size + 1}`,
+            ...structuredClone(data),
+            attemptCount: 0,
+            lastAttemptAt: null,
+            deliveredAt: null,
+          }
+          state().intents.set(data.adminActionId, intent)
+          return { id: intent.id }
+        },
+      },
+    }
+  }
+
+  const database = {
+    get state() { return root.state },
+    get transactionAttempts() { return root.transactionAttempts },
+    get adminActionCommittedConflicts() { return root.adminActionCommittedConflicts },
+    async $transaction(callback, options) {
+      root.transactionAttempts += 1
+      assert.equal(options?.isolationLevel, "Serializable")
+      const transaction = {
+        state: structuredClone(root.state),
+        advisoryKeys: new Set(),
+        uniqueKeys: new Set(),
+      }
+      try {
+        const result = await callback(makeClient(transaction))
+        root.state = transaction.state
+        return result
+      } finally {
+        for (const key of transaction.uniqueKeys) {
+          releaseNamedLock(root.uniqueOwners, root.uniqueWaiters, transaction, key)
+        }
+        for (const key of transaction.advisoryKeys) {
+          releaseNamedLock(root.advisoryOwners, root.advisoryWaiters, transaction, key)
+        }
+      }
+    },
+    temporaryFeatureGrant: makeClient().temporaryFeatureGrant,
+  }
+
+  return database
+}
+
+function uniqueConstraintError(modelName, target) {
+  return Object.assign(new Error("Unique constraint failed"), {
+    code: "P2002",
+    meta: { modelName, target },
+  })
+}
+
+/** Commits a coherent competing winner after the loser's snapshot is fixed. */
+function commitCompetingAdminBundle(root, { idempotencyKey, actionKind }) {
+  const action = {
+    id: "competing-action-1",
+    actorUserId: "actor-admin-two",
+    targetUserId: "target-user",
+    actionKind,
+    reasonCode: "ADMIN_CORRECTION",
+    internalNote: "A different operation won the shared key.",
+    idempotencyKey,
+    beforeState: { operation: "competing" },
+    afterState: { operation: "committed" },
+    outcome: "SUCCEEDED",
+    failureCode: null,
+    occurredAt: new Date(NOW),
+    createdAt: new Date(NOW),
+  }
+  root.state.actions.set(idempotencyKey, action)
+  root.state.activities.set(action.id, {
+    id: "competing-activity-1",
+    userId: action.targetUserId,
+    adminActionId: action.id,
+    title: "Competing operation committed",
+    explanation: "A different administrative operation committed first.",
+    effectiveValue: null,
+  })
+  root.state.intents.set(action.id, {
+    id: "competing-intent-1",
+    userId: action.targetUserId,
+    adminActionId: action.id,
+    kind: actionKind,
+    recipientEmail: "target-user@example.com",
+    subject: "Competing operation",
+    message: "A different administrative operation committed first.",
+    status: "PENDING",
+    attemptCount: 0,
+    lastAttemptAt: null,
+    deliveredAt: null,
+    failureCode: null,
+  })
+}
+
+async function acquireNamedLock(owners, waitersByKey, transaction, key, heldKeys) {
+  if (owners.get(key) === transaction) return
+  while (owners.has(key)) {
+    await new Promise((resolve) => {
+      const waiters = waitersByKey.get(key) ?? []
+      waiters.push(resolve)
+      waitersByKey.set(key, waiters)
+    })
+  }
+  owners.set(key, transaction)
+  heldKeys.add(key)
+}
+
+async function reserveUnique(root, transaction, key) {
+  if (!transaction) throw new Error("Unique writes require a transaction.")
+  await acquireNamedLock(root.uniqueOwners, root.uniqueWaiters, transaction, key, transaction.uniqueKeys)
+}
+
+function releaseNamedLock(owners, waitersByKey, transaction, key) {
+  if (owners.get(key) !== transaction) return
+  owners.delete(key)
+  waitersByKey.get(key)?.shift()?.()
+}
+
+function grant(database, overrides = {}) {
+  return grantTemporaryFeatureAccess({
+    prismaClient: database,
+    actorUserId: "actor-admin",
+    targetUserId: "target-user",
+    featureKey: "premium_backgrounds",
+    durationDays: 30,
+    expectedActiveGrantIds: [],
+    reasonCode: "ACCESS_REMEDIATION",
+    internalNote: "Temporary access while support reviews the account.",
+    idempotencyKey: "temporary-grant-operation-1",
+    now: NOW,
+    ...overrides,
+  })
+}
+
+function revoke(database, grantId, overrides = {}) {
+  return revokeTemporaryFeatureAccess({
+    prismaClient: database,
+    actorUserId: "actor-admin",
+    targetUserId: "target-user",
+    grantId,
+    expectedActiveGrantIds: [grantId],
+    reasonCode: "ACCESS_REMEDIATION",
+    internalNote: "Temporary access is no longer needed.",
+    idempotencyKey: `temporary-revoke-${grantId}`,
+    now: NOW,
+    ...overrides,
+  })
+}
+
+function counts(state) {
+  return {
+    grants: state.grants.size,
+    revocations: state.revocations.size,
+    actions: state.actions.size,
+    activities: state.activities.size,
+    intents: state.intents.size,
+  }
+}
+
+function seededGrant(id, featureKey = "premium_backgrounds", overrides = {}) {
+  return {
+    id,
+    userId: "target-user",
+    featureKey,
+    startsAt: new Date(NOW),
+    expiresAt: new Date(NOW.getTime() + DAY_MS),
+    grantedById: "actor-admin",
+    reasonCode: "ACCESS_REMEDIATION",
+    internalNote: null,
+    idempotencyKey: `seed-${id}`,
+    createdAt: new Date(NOW),
+    ...overrides,
+  }
+}
+
+function rewriteRevocationEffectiveEvidence(database, operationKey, effective) {
+  const action = database.state.actions.get(operationKey)
+  action.afterState.effective = effective
+  const activity = database.state.activities.get(action.id)
+  activity.explanation = effective
+    ? `Massage Lab support revoked one temporary ${action.afterState.featureKey} grant. Another temporary grant remains active.`
+    : `Massage Lab support revoked temporary ${action.afterState.featureKey} access.`
+  activity.effectiveValue = effective ? `${action.afterState.featureKey} remains active` : "Temporary access removed"
+  database.state.intents.get(action.id).message = effective
+    ? `Massage Lab support revoked one temporary ${action.afterState.featureKey} grant, but another temporary grant remains active. If you did not expect this change, contact Massage Lab support.`
+    : `Massage Lab support revoked temporary ${action.afterState.featureKey} access. If you did not expect this change, contact Massage Lab support.`
+}
+
+describe("Admin temporary feature access", () => {
+  it("exports the exact frozen low-risk feature allowlist", () => {
+    assert.equal(Object.isFrozen(ADMIN_GRANTABLE_FEATURE_KEYS), true)
+    assert.deepEqual(ADMIN_GRANTABLE_FEATURE_KEYS, [
+      "premium_backgrounds",
+      "therapist_documentation_tools",
+      "calendar_basic_scheduling",
+      "calendar_full_scheduling",
+      "external_calendar_sync",
+    ])
+    assert.equal(ADMIN_GRANTABLE_FEATURE_KEYS.includes("chimer_custom_colors"), false)
+    for (const highRisk of ["practice_management", "calendar_team_scheduling", "cloud_storage", "phi_storage_tools"]) {
+      assert.equal(ADMIN_GRANTABLE_FEATURE_KEYS.includes(highRisk), false)
+    }
+    assert.equal(temporaryAccess.PER_FEATURE_ACTIVE_LIMIT, 100)
+    assert.equal(temporaryAccess.TOTAL_ACTIVE_LIMIT, 500)
+  })
+
+  it("defines append-only grant and revocation models plus the exact indexes and Restrict relations", async () => {
+    const schema = await readFile(new URL("../prisma/schema.prisma", import.meta.url), "utf8")
+    const service = await readFile(new URL("../lib/admin/temporary-access.ts", import.meta.url), "utf8")
+    const migration = await readFile(new URL(
+      "../prisma/migrations/20260808100000_admin_temporary_feature_access/migration.sql",
+      import.meta.url,
+    ), "utf8")
+
+    assert.match(schema, /model TemporaryFeatureGrant \{[\s\S]*?idempotencyKey\s+String\s+@unique[\s\S]*?@@index\(\[userId, featureKey, startsAt, expiresAt\]\)[\s\S]*?@@index\(\[expiresAt\]\)[\s\S]*?\n\}/)
+    assert.match(schema, /model TemporaryFeatureGrantRevocation \{[\s\S]*?grantId\s+String\s+@unique[\s\S]*?idempotencyKey\s+String\s+@unique[\s\S]*?\n\}/)
+    assert.match(schema, /TemporaryFeatureGrant[\s\S]*?onDelete: Restrict/)
+    assert.match(schema, /TemporaryFeatureGrantRevocation[\s\S]*?onDelete: Restrict/)
+    assert.match(migration, /CREATE TABLE "TemporaryFeatureGrant"/)
+    assert.match(migration, /CREATE TABLE "TemporaryFeatureGrantRevocation"/)
+    assert.match(migration, /ON DELETE RESTRICT/)
+    assert.doesNotMatch(service, /temporaryFeatureGrant\.(?:update|updateMany|upsert|delete|deleteMany)/)
+    assert.doesNotMatch(service, /temporaryFeatureGrantRevocation\.(?:update|updateMany|upsert|delete|deleteMany)/)
+  })
+
+  it("creates one immediately effective grant and the shared immutable evidence bundle atomically", async () => {
+    const database = createDatabase()
+
+    const result = await grant(database)
+
+    assert.deepEqual(result, {
+      grantId: "grant-1",
+      featureKey: "premium_backgrounds",
+      effective: true,
+      expiresAt: "2026-09-09T12:00:00.000Z",
+      replayed: false,
+      emailIntentId: "intent-1",
+    })
+    const stored = database.state.grants.get(result.grantId)
+    assert.equal(stored.startsAt.toISOString(), NOW.toISOString())
+    assert.equal(stored.expiresAt.toISOString(), result.expiresAt)
+    assert.equal(stored.grantedById, "actor-admin")
+    assert.equal(stored.reasonCode, "ACCESS_REMEDIATION")
+    const action = database.state.actions.get("temporary-grant-operation-1")
+    assert.equal(action.actionKind, "TEMPORARY_FEATURE_ACCESS_GRANTED")
+    assert.deepEqual(action.beforeState.expectedActiveGrantSnapshot.count, 0)
+    assert.match(action.beforeState.expectedActiveGrantSnapshot.digest, /^[a-f0-9]{64}$/)
+    assert.equal(action.afterState.grantId, result.grantId)
+    assert.equal(database.state.activities.get(action.id).userId, "target-user")
+    assert.equal(database.state.intents.get(action.id).status, "PENDING")
+  })
+
+  it("reloads fresh full-Admin authority and a fresh target in the serializable transaction", async () => {
+    for (const actorUserId of ["actor-ordinary", "actor-reviewer"]) {
+      const database = createDatabase()
+      await assert.rejects(() => grant(database, { actorUserId }), /Full administration requires verified database authority/)
+      assert.deepEqual(counts(database.state), { grants: 0, revocations: 0, actions: 0, activities: 0, intents: 0 })
+    }
+
+    const database = createDatabase()
+    await assert.rejects(() => grant(database, { targetUserId: "missing-target" }), /Target account was not found/)
+    assert.deepEqual(counts(database.state), { grants: 0, revocations: 0, actions: 0, activities: 0, intents: 0 })
+  })
+
+  it("requires a fresh verified target with a usable normalized email before mutation or replay", async () => {
+    for (const targetUserId of ["target-unverified", "target-no-email", "target-blank-email"]) {
+      const database = createDatabase()
+      await assert.rejects(
+        () => grant(database, { targetUserId }),
+        /verified target account with an email/i,
+      )
+      assert.deepEqual(counts(database.state), { grants: 0, revocations: 0, actions: 0, activities: 0, intents: 0 })
+    }
+
+    const replayDatabase = createDatabase()
+    await grant(replayDatabase)
+    replayDatabase.state.users.get("target-user").emailVerified = null
+    const replayCounts = counts(replayDatabase.state)
+    await assert.rejects(() => grant(replayDatabase), /verified target account with an email/i)
+    assert.deepEqual(counts(replayDatabase.state), replayCounts)
+
+    const revokeDatabase = createDatabase()
+    const created = await grant(revokeDatabase)
+    revokeDatabase.state.users.get("target-user").email = "   "
+    const revokeCounts = counts(revokeDatabase.state)
+    await assert.rejects(() => revoke(revokeDatabase, created.grantId), /verified target account with an email/i)
+    assert.deepEqual(counts(revokeDatabase.state), revokeCounts)
+  })
+
+  it("rejects excluded keys, invalid days, and malformed snapshots before opening a transaction", async () => {
+    for (const featureKey of ["chimer_custom_colors", "practice_management", "phi_storage_tools", "unknown"]) {
+      const database = createDatabase()
+      await assert.rejects(() => grant(database, { featureKey }), /temporary access feature/i)
+      assert.equal(database.transactionAttempts, 0)
+    }
+    for (const durationDays of [0, 0.5, 366, Number.NaN]) {
+      const database = createDatabase()
+      await assert.rejects(() => grant(database, { durationDays }), /whole number of days from 1 through 365/i)
+      assert.equal(database.transactionAttempts, 0)
+    }
+    for (const expectedActiveGrantIds of ["grant-1", [""], ["grant-1", "grant-1"]]) {
+      const database = createDatabase()
+      await assert.rejects(() => grant(database, { expectedActiveGrantIds }), /active grant snapshot/i)
+      assert.equal(database.transactionAttempts, 0)
+    }
+  })
+
+  it("accepts the inclusive one-day and 365-day grant bounds", async () => {
+    for (const durationDays of [1, 365]) {
+      const database = createDatabase()
+      const result = await grant(database, { durationDays })
+      assert.equal(result.expiresAt, new Date(NOW.getTime() + durationDays * DAY_MS).toISOString())
+    }
+  })
+
+  it("allows the 100th active grant for one feature and rejects the 101st without writes", async () => {
+    for (const activeCount of [99, 100]) {
+      const grants = Array.from({ length: activeCount }, (_, index) => seededGrant(`seed-${String(index).padStart(3, "0")}`))
+      const expectedActiveGrantIds = grants.map(({ id }) => id).sort()
+      const database = createDatabase({ grants })
+      const before = counts(database.state)
+      if (activeCount === 99) {
+        await grant(database, { expectedActiveGrantIds })
+        assert.equal(database.state.grants.size, 100)
+      } else {
+        await assert.rejects(() => grant(database, { expectedActiveGrantIds }), /active grant limit|100/i)
+        assert.deepEqual(counts(database.state), before)
+      }
+    }
+  })
+
+  it("lists the cross-feature maximum without truncation and fails closed on total overflow", async () => {
+    const grants = ADMIN_GRANTABLE_FEATURE_KEYS.flatMap((featureKey) => (
+      Array.from({ length: 100 }, (_, index) => seededGrant(`${featureKey}-${String(index).padStart(3, "0")}`, featureKey))
+    ))
+    const database = createDatabase({ grants })
+    const active = await listActiveTemporaryFeatureAccess({ prismaClient: database, userId: "target-user", now: NOW })
+    assert.equal(active.length, 500)
+    for (const featureKey of ADMIN_GRANTABLE_FEATURE_KEYS) {
+      assert.equal(active.filter((grant) => grant.featureKey === featureKey).length, 100)
+    }
+
+    const overflow = createDatabase({ grants: [...grants, seededGrant("overflow")] })
+    await assert.rejects(
+      () => listActiveTemporaryFeatureAccess({ prismaClient: overflow, userId: "target-user", now: NOW }),
+      /too many active grants|500/i,
+    )
+  })
+
+  it("fails closed when the sorted active-grant snapshot is stale", async () => {
+    const database = createDatabase()
+    const first = await grant(database)
+    const before = counts(database.state)
+
+    await assert.rejects(() => grant(database, {
+      idempotencyKey: "temporary-grant-operation-2",
+      expectedActiveGrantIds: [],
+    }), /temporary access changed since this operation was prepared/i)
+    assert.deepEqual(counts(database.state), before)
+
+    const second = await grant(database, {
+      idempotencyKey: "temporary-grant-operation-2",
+      expectedActiveGrantIds: [first.grantId],
+      durationDays: 45,
+    })
+    assert.equal(second.grantId, "grant-2")
+  })
+
+  it("keeps overlapping grants independently visible in deterministic expiry/id order", async () => {
+    const database = createDatabase()
+    const first = await grant(database, { durationDays: 45 })
+    const second = await grant(database, {
+      idempotencyKey: "temporary-grant-operation-2",
+      durationDays: 15,
+      expectedActiveGrantIds: [first.grantId],
+    })
+
+    const active = await listActiveTemporaryFeatureAccess({
+      prismaClient: database,
+      userId: "target-user",
+      now: NOW,
+    })
+    assert.deepEqual(active, [
+      {
+        grantId: second.grantId,
+        featureKey: "premium_backgrounds",
+        startsAt: NOW.toISOString(),
+        expiresAt: second.expiresAt,
+      },
+      {
+        grantId: first.grantId,
+        featureKey: "premium_backgrounds",
+        startsAt: NOW.toISOString(),
+        expiresAt: first.expiresAt,
+      },
+    ])
+  })
+
+  it("uses startsAt <= now, expiresAt > now, and revocation null as the exact active predicate", async () => {
+    const grants = [
+      { id: "active", userId: "target-user", featureKey: "premium_backgrounds", startsAt: new Date(NOW), expiresAt: new Date(NOW.getTime() + DAY_MS), grantedById: "actor-admin", reasonCode: "ACCESS_REMEDIATION", internalNote: null, idempotencyKey: "seed-active", createdAt: new Date(NOW) },
+      { id: "future", userId: "target-user", featureKey: "premium_backgrounds", startsAt: new Date(NOW.getTime() + 1), expiresAt: new Date(NOW.getTime() + DAY_MS), grantedById: "actor-admin", reasonCode: "ACCESS_REMEDIATION", internalNote: null, idempotencyKey: "seed-future", createdAt: new Date(NOW) },
+      { id: "expired", userId: "target-user", featureKey: "premium_backgrounds", startsAt: new Date(NOW.getTime() - DAY_MS), expiresAt: new Date(NOW), grantedById: "actor-admin", reasonCode: "ACCESS_REMEDIATION", internalNote: null, idempotencyKey: "seed-expired", createdAt: new Date(NOW) },
+      { id: "revoked", userId: "target-user", featureKey: "premium_backgrounds", startsAt: new Date(NOW.getTime() - DAY_MS), expiresAt: new Date(NOW.getTime() + DAY_MS), grantedById: "actor-admin", reasonCode: "ACCESS_REMEDIATION", internalNote: null, idempotencyKey: "seed-revoked", createdAt: new Date(NOW) },
+    ]
+    const database = createDatabase({ grants, revocations: [{ id: "revoke-1", grantId: "revoked", revokedById: "actor-admin", reasonCode: "ACCESS_REMEDIATION", internalNote: null, idempotencyKey: "seed-revocation", revokedAt: new Date(NOW) }] })
+
+    const active = await listActiveTemporaryFeatureAccess({ prismaClient: database, userId: "target-user", now: NOW })
+    assert.deepEqual(active.map((grant) => grant.grantId), ["active"])
+  })
+
+  it("appends a revocation without changing the grant and preserves effective overlap", async () => {
+    const database = createDatabase()
+    const first = await grant(database, { durationDays: 45 })
+    const second = await grant(database, {
+      idempotencyKey: "temporary-grant-operation-2",
+      expectedActiveGrantIds: [first.grantId],
+      durationDays: 15,
+    })
+    const storedBefore = structuredClone(database.state.grants.get(first.grantId))
+
+    const result = await revoke(database, first.grantId, {
+      expectedActiveGrantIds: [second.grantId, first.grantId],
+    })
+
+    assert.deepEqual(result, {
+      grantId: first.grantId,
+      featureKey: "premium_backgrounds",
+      effective: true,
+      expiresAt: first.expiresAt,
+      replayed: false,
+      emailIntentId: "intent-3",
+    })
+    assert.deepEqual(database.state.grants.get(first.grantId), storedBefore)
+    assert.equal(database.state.revocations.get(first.grantId).revokedById, "actor-admin")
+    const active = await listActiveTemporaryFeatureAccess({ prismaClient: database, userId: "target-user", now: NOW })
+    assert.deepEqual(active.map((grant) => grant.grantId), [second.grantId])
+  })
+
+  it("rejects future, expired, already-revoked, wrong-target, and stale revoke requests", async () => {
+    const grants = [
+      { id: "future", userId: "target-user", featureKey: "premium_backgrounds", startsAt: new Date(NOW.getTime() + 1), expiresAt: new Date(NOW.getTime() + DAY_MS), grantedById: "actor-admin", reasonCode: "ACCESS_REMEDIATION", internalNote: null, idempotencyKey: "seed-future", createdAt: new Date(NOW) },
+      { id: "expired", userId: "target-user", featureKey: "premium_backgrounds", startsAt: new Date(NOW.getTime() - DAY_MS), expiresAt: new Date(NOW), grantedById: "actor-admin", reasonCode: "ACCESS_REMEDIATION", internalNote: null, idempotencyKey: "seed-expired", createdAt: new Date(NOW) },
+      { id: "other-target", userId: "target-two", featureKey: "premium_backgrounds", startsAt: new Date(NOW), expiresAt: new Date(NOW.getTime() + DAY_MS), grantedById: "actor-admin", reasonCode: "ACCESS_REMEDIATION", internalNote: null, idempotencyKey: "seed-other", createdAt: new Date(NOW) },
+      { id: "revoked", userId: "target-user", featureKey: "premium_backgrounds", startsAt: new Date(NOW), expiresAt: new Date(NOW.getTime() + DAY_MS), grantedById: "actor-admin", reasonCode: "ACCESS_REMEDIATION", internalNote: null, idempotencyKey: "seed-revoked", createdAt: new Date(NOW) },
+    ]
+    for (const grantId of ["future", "expired", "other-target", "revoked"]) {
+      const selectedGrant = grants.find((grant) => grant.id === grantId)
+      const revocations = grantId === "revoked" ? [{ id: "revoke-seed", grantId, revokedById: "actor-admin", reasonCode: "ACCESS_REMEDIATION", internalNote: null, idempotencyKey: "seed-revoke", revokedAt: new Date(NOW) }] : []
+      const database = createDatabase({ grants: [selectedGrant], revocations })
+      await assert.rejects(() => revoke(database, grantId), /active temporary feature grant|target account|temporary access changed/i)
+      assert.equal(database.state.actions.size, 0)
+    }
+
+    const database = createDatabase({ grants: [grants[0]] })
+    await assert.rejects(() => revoke(database, "future", { expectedActiveGrantIds: ["future", "stale"] }), /temporary access changed since this operation was prepared/i)
+  })
+
+  it("replays only exact immutable grant and revoke inputs without new ledger or evidence rows", async () => {
+    const database = createDatabase()
+    const created = await grant(database)
+    assert.deepEqual(await grant(database), { ...created, replayed: true })
+    assert.deepEqual(counts(database.state), { grants: 1, revocations: 0, actions: 1, activities: 1, intents: 1 })
+
+    for (const mismatch of [
+      { actorUserId: "actor-admin-two" },
+      { targetUserId: "target-two" },
+      { featureKey: "calendar_basic_scheduling" },
+      { durationDays: 31 },
+      { expectedActiveGrantIds: [created.grantId] },
+      { reasonCode: "ADMIN_CORRECTION" },
+      { internalNote: "Different note." },
+    ]) {
+      await assert.rejects(() => grant(database, mismatch), /administrative operation key is already in use/i)
+    }
+
+    const revoked = await revoke(database, created.grantId)
+    assert.deepEqual(await revoke(database, created.grantId), { ...revoked, replayed: true })
+    assert.deepEqual(counts(database.state), { grants: 1, revocations: 1, actions: 2, activities: 2, intents: 2 })
+    await assert.rejects(() => revoke(database, created.grantId, { internalNote: "Different note." }), /administrative operation key is already in use/i)
+  })
+
+  it("requires revoke snapshots to include the grant before opening a transaction", async () => {
+    const database = createDatabase({ grants: [seededGrant("active")] })
+    await assert.rejects(() => revoke(database, "active", { expectedActiveGrantIds: [] }), /snapshot.*grant.*revoked/i)
+    assert.equal(database.transactionAttempts, 0)
+    assert.deepEqual(counts(database.state), { grants: 1, revocations: 0, actions: 0, activities: 0, intents: 0 })
+  })
+
+  it("fails closed on coherently rewritten revocation effectiveness evidence", async () => {
+    for (const overlap of [false, true]) {
+      const database = createDatabase()
+      const first = await grant(database)
+      const expectedActiveGrantIds = [first.grantId]
+      if (overlap) {
+        const second = await grant(database, {
+          idempotencyKey: "temporary-grant-operation-2",
+          expectedActiveGrantIds,
+        })
+        expectedActiveGrantIds.push(second.grantId)
+      }
+      await revoke(database, first.grantId, { expectedActiveGrantIds })
+      rewriteRevocationEffectiveEvidence(database, `temporary-revoke-${first.grantId}`, !overlap)
+      const before = counts(database.state)
+      await assert.rejects(
+        () => revoke(database, first.grantId, { expectedActiveGrantIds }),
+        /administrative operation key is already in use/i,
+      )
+      assert.deepEqual(counts(database.state), before)
+    }
+  })
+
+  it("fails closed when replay evidence says revocation occurred outside the grant interval", async () => {
+    for (const revokedAt of [new Date(NOW.getTime() - 1), new Date(NOW.getTime() + 30 * DAY_MS)]) {
+      const database = createDatabase()
+      const created = await grant(database)
+      await revoke(database, created.grantId)
+      const revocation = database.state.revocations.get(created.grantId)
+      revocation.revokedAt = revokedAt
+      database.state.actions.get(`temporary-revoke-${created.grantId}`).afterState.revokedAt = revokedAt.toISOString()
+      await assert.rejects(() => revoke(database, created.grantId), /administrative operation key is already in use/i)
+    }
+  })
+
+  it("serializes concurrent duplicate operation keys into one exact grant", async () => {
+    const database = createDatabase()
+    const [first, second] = await Promise.all([grant(database), grant(database)])
+
+    assert.equal(first.grantId, second.grantId)
+    assert.deepEqual([first.replayed, second.replayed].sort(), [false, true])
+    assert.deepEqual(counts(database.state), { grants: 1, revocations: 0, actions: 1, activities: 1, intents: 1 })
+  })
+
+  it("serializes concurrent duplicate revocations into one append-only row", async () => {
+    const database = createDatabase()
+    const created = await grant(database)
+    const [first, second] = await Promise.all([
+      revoke(database, created.grantId),
+      revoke(database, created.grantId),
+    ])
+
+    assert.equal(first.grantId, second.grantId)
+    assert.deepEqual([first.replayed, second.replayed].sort(), [false, true])
+    assert.deepEqual(counts(database.state), { grants: 1, revocations: 1, actions: 2, activities: 2, intents: 2 })
+  })
+
+  it("restarts a competing different-key revoke once, then fails on the fresh stale snapshot", async () => {
+    const database = createDatabase()
+    const created = await grant(database)
+    const results = await Promise.allSettled([
+      revoke(database, created.grantId, { idempotencyKey: "competing-revoke-a" }),
+      revoke(database, created.grantId, { idempotencyKey: "competing-revoke-b" }),
+    ])
+
+    assert.equal(results.filter((result) => result.status === "fulfilled").length, 1)
+    const rejected = results.find((result) => result.status === "rejected")
+    assert.match(rejected.reason.message, /temporary access changed since this operation was prepared/i)
+    assert.deepEqual(counts(database.state), { grants: 1, revocations: 1, actions: 2, activities: 2, intents: 2 })
+  })
+
+  it("restarts after a committed AdminAction collision and rejects its mismatched winner evidence", async () => {
+    const database = createDatabase({
+      competingAdminBundleAfterSnapshot: {
+        idempotencyKey: "temporary-grant-operation-1",
+        actionKind: "COMPETING_ADMIN_OPERATION",
+      },
+    })
+
+    await assert.rejects(() => grant(database), /administrative operation key is already in use/i)
+    assert.equal(database.transactionAttempts, 2)
+    assert.equal(database.adminActionCommittedConflicts, 1)
+    assert.deepEqual(counts(database.state), { grants: 0, revocations: 0, actions: 1, activities: 1, intents: 1 })
+    const winner = database.state.actions.get("temporary-grant-operation-1")
+    assert.equal(winner.id, "competing-action-1")
+    assert.equal(winner.actionKind, "COMPETING_ADMIN_OPERATION")
+    assert.equal(database.state.activities.get(winner.id).title, "Competing operation committed")
+    assert.equal(database.state.intents.get(winner.id).kind, "COMPETING_ADMIN_OPERATION")
+  })
+
+  it("rethrows a repeated exact race and never retries unrelated P2002 metadata", async () => {
+    const repeated = createDatabase({
+      grantCreateErrors: [
+        uniqueConstraintError("TemporaryFeatureGrant", ["idempotencyKey"]),
+        uniqueConstraintError("TemporaryFeatureGrant", ["idempotencyKey"]),
+      ],
+    })
+    await assert.rejects(
+      () => grant(repeated),
+      (error) => error.code === "P2002" && error.meta?.modelName === "TemporaryFeatureGrant",
+    )
+    assert.equal(repeated.transactionAttempts, 2)
+    assert.deepEqual(counts(repeated.state), { grants: 0, revocations: 0, actions: 0, activities: 0, intents: 0 })
+
+    for (const error of [
+      uniqueConstraintError("TemporaryFeatureGrant", ["id"]),
+      uniqueConstraintError("UnrelatedModel", ["idempotencyKey"]),
+    ]) {
+      const unrelated = createDatabase({ grantCreateErrors: [error] })
+      await assert.rejects(() => grant(unrelated), (actual) => actual === error)
+      assert.equal(unrelated.transactionAttempts, 1)
+      assert.deepEqual(counts(unrelated.state), { grants: 0, revocations: 0, actions: 0, activities: 0, intents: 0 })
+    }
+  })
+
+  it("rolls back grant, revocation, action, activity, and email-intent failures", async () => {
+    for (const failWrite of ["grant", "action", "activity", "intent"]) {
+      const database = createDatabase({ failWrite })
+      await assert.rejects(() => grant(database), new RegExp(`${failWrite} write failed`))
+      assert.deepEqual(counts(database.state), { grants: 0, revocations: 0, actions: 0, activities: 0, intents: 0 })
+    }
+
+    for (const failWrite of ["revocation", "action", "activity", "intent"]) {
+      const database = createDatabase()
+      const created = await grant(database)
+      database.state.actions = new Map()
+      database.state.activities = new Map()
+      database.state.intents = new Map()
+      const failing = createDatabase({ grants: [...database.state.grants.values()], failWrite })
+      const before = counts(failing.state)
+      await assert.rejects(() => revoke(failing, created.grantId), new RegExp(`${failWrite} write failed`))
+      assert.deepEqual(counts(failing.state), before)
+    }
+  })
+})

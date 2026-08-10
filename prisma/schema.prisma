@@ -553,6 +553,9 @@ model User {
   adminActionsAsTarget AdminAction[] @relation("AdminActionTarget")
   accountActivities UserAccountActivity[]
   adminEmailIntents AdminEmailIntent[]
+  temporaryFeatureGrants TemporaryFeatureGrant[] @relation("TemporaryFeatureGrantUser")
+  temporaryFeatureGrantsGranted TemporaryFeatureGrant[] @relation("TemporaryFeatureGrantGrantedBy")
+  temporaryFeatureGrantRevocations TemporaryFeatureGrantRevocation[] @relation("TemporaryFeatureGrantRevokedBy")
 }
 
 model AdminAction {
@@ -616,6 +619,37 @@ model AdminEmailIntent {
   @@index([status, createdAt])
   @@index([userId, createdAt])
   @@unique([adminActionId, userId])
+}
+
+model TemporaryFeatureGrant {
+  id             String   @id @default(cuid())
+  userId         String
+  featureKey     String
+  startsAt       DateTime
+  expiresAt      DateTime
+  grantedById    String
+  reasonCode     String
+  internalNote   String?
+  idempotencyKey String   @unique
+  createdAt      DateTime @default(now())
+  user           User     @relation("TemporaryFeatureGrantUser", fields: [userId], references: [id], onDelete: Restrict)
+  grantedBy      User     @relation("TemporaryFeatureGrantGrantedBy", fields: [grantedById], references: [id], onDelete: Restrict)
+  revocation     TemporaryFeatureGrantRevocation?
+
+  @@index([userId, featureKey, startsAt, expiresAt])
+  @@index([expiresAt])
+}
+
+model TemporaryFeatureGrantRevocation {
+  id             String                @id @default(cuid())
+  grantId        String                @unique
+  revokedById    String
+  reasonCode     String
+  internalNote   String?
+  idempotencyKey String                @unique
+  revokedAt      DateTime              @default(now())
+  grant          TemporaryFeatureGrant @relation(fields: [grantId], references: [id], onDelete: Restrict)
+  revokedBy      User                  @relation("TemporaryFeatureGrantRevokedBy", fields: [revokedById], references: [id], onDelete: Restrict)
 }
 
 model LegalAcceptance {
