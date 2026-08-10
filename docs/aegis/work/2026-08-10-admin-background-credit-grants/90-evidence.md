@@ -40,3 +40,5 @@
 - Initial review found two copy/coverage gaps: replay described an immutable historical post-grant balance as current, and `attempted: false` was interpreted as no historical attempt instead of no new attempt by this invocation.
 - Repair RED had 3 expected failures; GREEN was 15/15 and 134/134 adjacent, with typecheck, lint, and diff check passing.
 - Closure re-review passed its focused Branch 6 gate 50/50 and returned READY. Replay copy now reports only the recorded balance transition; failed/no-new-attempt copy distinguishes self-target status guidance from a genuinely available non-self retry.
+- Final-fix commit: `1f8b68db` (`fix: clarify background credit replay outcomes`).
+- Terminal exact-tree validation: Branch 6 focused 50/50, typecheck, full lint, full unit 2,290 passed / 0 failed / 1 intentional skip, production build 104/104 pages, and diff checks passed. Lint emitted only the existing Babel large-file deoptimization note.

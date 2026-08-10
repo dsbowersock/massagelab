@@ -20,10 +20,12 @@
 - Completed: coordinator Task 15 verification passed 115/115 focused/adjacent tests, typecheck, full lint, and diff check.
 - Completed Task 15 commit: `cf4b482d1cf5494b09daaa632bdf35152a4af526` (`feat: add admin background credit controls`).
 - Completed: whole-branch review and closure re-review; replay and delivery-outcome copy findings are closed.
-- Active slice: final-fix commit and terminal gates.
-- Pending: PR loop.
+- Completed final-fix commit: `1f8b68db` (`fix: clarify background credit replay outcomes`).
+- Completed terminal gates: Branch 6 focused 50/50, typecheck, full lint, full unit 2,290 passed with one intentional skip, production build 104/104 pages, and diff checks passed.
+- Active slice: PR loop.
+- Pending: push, PR creation, hosted checks, review findings, and merge approval.
 - Blocked on: nothing currently.
-- Next: commit the reviewed two-file final correction, rerun exact-tree terminal gates, then push and open the PR.
+- Next: commit this terminal evidence checkpoint, push, open the PR, and shepherd its checks and review threads.
 
 ## ResumeStateHint
 
