@@ -7,7 +7,7 @@ Complete Branch 6 of the approved Admin User Operations program: add positive-on
 ## Scope and non-goals
 
 - Scope: `grantAdminBackgroundCredits()`, route-local Admin action and controls, bounded Access/Activity refresh, disposable desktop/mobile QA contracts, focused tests, and current Admin operations documentation.
-- Non-goals: subtracting credits, setting an exact balance, changing redemption/ownership semantics, adding a second wallet or audit owner, changing membership entitlements, applying real database mutations, or starting Branch 7.
+- Non-goals: subtracting credits, setting an exact balance, changing redemption/ownership semantics, adding a second wallet or audit owner, changing membership entitlements, performing live database or email mutations during implementation and QA, or starting Branch 7. The production feature itself deliberately persists the granted balance and its immutable evidence.
 - Risk hints: stale-balance concurrency, idempotent replay, atomic wallet/ledger/commerce/audit evidence, fresh full-Admin authority, self-target behavior, and post-commit notification truth.
 
 ## Baseline read set and usage
@@ -46,6 +46,6 @@ The change extends the existing verified-user wallet and immutable Admin evidenc
 - Goal: add previewed, confirmed, full-Admin goodwill controls to Access and Activity.
 - Parent plan/spec: same parent plan, Branch 6 Task 15.
 - Files: route action/form/page, browser spec/fixture only as necessary, focused UI tests, state/log/wiki.
-- Boundary: presets plus integer 1-25 input; no subtract/set-balance control and no real email/database mutation.
+- Boundary: presets plus integer 1-25 input and the production persistence path; no subtract/set-balance control, and tests, documentation checks, and QA do not perform live email or database mutations.
 - Verification: focused UI/commerce tests, browser source contracts or authorized disposable run, typecheck, lint, full unit/build/diff, two-stage review.
 - Stop: PR merge gate before Branch 7.

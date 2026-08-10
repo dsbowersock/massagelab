@@ -9,10 +9,10 @@
 - Ran focused Admin access/operation and background-credit provisioning/redemption tests: 55/55 passed.
 - Ran `npm run typecheck`: passed.
 
-## Pending evidence
+## PR loop
 
-- Coordinator Task 15 commit.
-- Whole-branch review, terminal validation, and PR loop.
+- Task 15, whole-branch review, and terminal validation evidence below were complete before Branch 6 was submitted as PR #177.
+- The only remaining stage is the PR loop: commit and push the validated corrections, obtain clean hosted checks and fresh re-review, resolve the review threads, and stop at the user-controlled merge gate.
 
 ## Task 14
 
@@ -42,3 +42,11 @@
 - Closure re-review passed its focused Branch 6 gate 50/50 and returned READY. Replay copy now reports only the recorded balance transition; failed/no-new-attempt copy distinguishes self-target status guidance from a genuinely available non-self retry.
 - Final-fix commit: `1f8b68db` (`fix: clarify background credit replay outcomes`).
 - Terminal exact-tree validation: Branch 6 focused 50/50, typecheck, full lint, full unit 2,290 passed / 0 failed / 1 intentional skip, production build 104/104 pages, and diff checks passed. Lint emitted only the existing Babel large-file deoptimization note.
+
+## PR #177 hosted-review corrections
+
+- Verified the hosted findings against the current tree and kept the repair within the Admin background-credit slice. The focused RED failed on the missing shared grant-bound exports and the old combined Access eligibility/fallback contract.
+- GREEN centralizes the inclusive 1-25 bounds across the service, replay snapshot validation, action parser, and client controls; imports the canonical initial allocation; normalizes the Access email with the page helper; separates unverified-email guidance from refreshable malformed-wallet evidence; and consolidates only the three retry-available Activity tails while preserving the two distinct delivery-uncertainty messages.
+- Added exact inclusive-boundary coverage, a malformed stored-replay snapshot table with no-second-mutation assertions, exact privacy-safe grant/delivery log assertions, named component-state slots, and the adjacent page-harness dependency double. Removed swallowed source-read failures and unrelated detail-loader assertions while retaining the self-target Activity suppression and credit-control integration checks.
+- Focused GREEN: 30/30. Affected/adjacent GREEN: 108/108. `npm run typecheck` and `npm run lint` passed; lint emitted only the existing Babel large-file deoptimization note for `app/chimer/running-timer.tsx`.
+- Full unit: 2,292 passed, 0 failed, 1 intentional skip. Production build: 104/104 pages generated. `git diff --check` passed with only the repository's line-ending notices. No browser, live database, or email operation was run.

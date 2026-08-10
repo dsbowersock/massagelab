@@ -1,6 +1,11 @@
 import type { Prisma, PrismaClient } from "@prisma/client"
 import { requireFullAdminUser } from "../admin/access.ts"
-import { validateAdminReason, type AdminReasonCode } from "../admin/operation-contract.ts"
+import {
+  ADMIN_BACKGROUND_CREDIT_GRANT_MAX,
+  ADMIN_BACKGROUND_CREDIT_GRANT_MIN,
+  validateAdminReason,
+  type AdminReasonCode,
+} from "../admin/operation-contract.ts"
 import {
   acquireAdminActionIdempotencyLock,
   recordAdminActionBundle,
@@ -343,8 +348,12 @@ function validateAdminGrantContract(input: Parameters<typeof grantAdminBackgroun
       throw new Error(`Provide a valid ${label}.`)
     }
   }
-  if (!Number.isInteger(input.amount) || input.amount < 1 || input.amount > 25) {
-    throw new Error("Background credit grants must be a whole number from 1 through 25.")
+  if (
+    !Number.isInteger(input.amount)
+    || input.amount < ADMIN_BACKGROUND_CREDIT_GRANT_MIN
+    || input.amount > ADMIN_BACKGROUND_CREDIT_GRANT_MAX
+  ) {
+    throw new Error(`Background credit grants must be a whole number from ${ADMIN_BACKGROUND_CREDIT_GRANT_MIN} through ${ADMIN_BACKGROUND_CREDIT_GRANT_MAX}.`)
   }
   if (!Number.isSafeInteger(input.expectedBalance) || input.expectedBalance < 0) {
     throw new Error("Provide a valid prepared balance.")
@@ -441,8 +450,8 @@ function readAdminGrantSnapshot(value: Prisma.JsonValue): { preparedBalance: num
     || !Number.isSafeInteger(snapshot.balance)
     || (snapshot.balance as number) < 0
     || !Number.isInteger(snapshot.amount)
-    || (snapshot.amount as number) < 1
-    || (snapshot.amount as number) > 25
+    || (snapshot.amount as number) < ADMIN_BACKGROUND_CREDIT_GRANT_MIN
+    || (snapshot.amount as number) > ADMIN_BACKGROUND_CREDIT_GRANT_MAX
   ) return null
   return {
     preparedBalance: snapshot.preparedBalance as number,

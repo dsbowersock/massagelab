@@ -1,5 +1,9 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
+import {
+  ADMIN_BACKGROUND_CREDIT_GRANT_MAX,
+  ADMIN_BACKGROUND_CREDIT_GRANT_MIN,
+} from "../lib/admin/operation-contract.ts"
 import { grantAdminBackgroundCredits } from "../lib/commerce/credit-service.ts"
 
 const OPERATION_KEY = "admin-background-credit-grant-1"
@@ -369,10 +373,21 @@ describe("Admin background-credit grant", () => {
   })
 
   it("validates a positive integer amount from one through twenty-five before opening a transaction", async () => {
+    assert.deepEqual(
+      [ADMIN_BACKGROUND_CREDIT_GRANT_MIN, ADMIN_BACKGROUND_CREDIT_GRANT_MAX],
+      [1, 25],
+    )
     for (const amount of [0, -1, 0.5, 26]) {
       const database = createGrantDatabase()
       await assert.rejects(() => grant(database, { amount }), /whole number from 1 through 25/i)
       assert.equal(database.state.transactionAttempts, 0)
+    }
+
+    for (const amount of [ADMIN_BACKGROUND_CREDIT_GRANT_MIN, ADMIN_BACKGROUND_CREDIT_GRANT_MAX]) {
+      const database = createGrantDatabase()
+      const result = await grant(database, { amount })
+      assert.equal(result.amount, amount)
+      assert.equal(result.balanceAfter, 2 + amount)
     }
   })
 
@@ -445,6 +460,28 @@ describe("Admin background-credit grant", () => {
       assert.equal(database.state.entries.size, 4)
       assert.equal(database.state.events.length, 1)
       assert.equal(database.state.actions.size, 1)
+    }
+  })
+
+  it("fails closed for malformed stored replay snapshots without another mutation", async () => {
+    const malformedSnapshots = [
+      null,
+      "not-an-object",
+      { preparedBalance: -1, balance: 2, amount: 5 },
+      { preparedBalance: 2, balance: -1, amount: 5 },
+      { preparedBalance: 2, balance: 2, amount: 0 },
+      { preparedBalance: 2, balance: 2, amount: 26 },
+    ]
+
+    for (const snapshot of malformedSnapshots) {
+      const database = createGrantDatabase()
+      await grant(database)
+      database.state.actions.get(OPERATION_KEY).beforeState = structuredClone(snapshot)
+      const beforeReplay = mutableCounts(database.state)
+
+      await assert.rejects(() => grant(database), /administrative operation key is already in use/i)
+
+      assert.deepEqual(mutableCounts(database.state), beforeReplay)
     }
   })
 

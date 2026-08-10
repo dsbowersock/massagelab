@@ -19,6 +19,7 @@ import {
   parseAdminUserDetailSection,
   type AdminUserDetailSection,
 } from "@/lib/admin/user-detail"
+import { INITIAL_BACKGROUND_CREDIT_COUNT } from "@/lib/commerce/credit-service"
 import { prisma } from "@/lib/prisma"
 
 type AdminUserDetailPageProps = {
@@ -189,8 +190,9 @@ function AccessSection({
     ANATOMY_EDITOR: randomUUID(),
     creditGrant: randomUUID(),
   }
-  const normalizedTargetEmail = targetEmail?.trim() || ""
-  const creditEvidence = detail.emailVerified === true && normalizedTargetEmail
+  const normalizedTargetEmail = normalizeEmail(targetEmail)
+  const hasVerifiedEmail = detail.emailVerified === true && Boolean(normalizedTargetEmail)
+  const creditEvidence = hasVerifiedEmail
     ? readCreditGrantEvidence(detail.wallet)
     : null
   const targetLabel = targetName?.trim()
@@ -210,9 +212,13 @@ function AccessSection({
           automaticInitialCredits={creditEvidence.automaticInitialCredits}
           operationId={operationIds.creditGrant}
         />
+      ) : !hasVerifiedEmail ? (
+        <p className="rounded-md border bg-background/60 p-4 text-sm text-muted-foreground">
+          Background-credit controls are unavailable because this account does not have a verified email.
+        </p>
       ) : (
         <p className="rounded-md border bg-background/60 p-4 text-sm text-muted-foreground">
-          Background-credit controls are unavailable because verified account or wallet evidence is incomplete. Refresh the account before trying again.
+          Background-credit controls are unavailable because the wallet evidence is incomplete or unusable. Refresh the account before trying again.
         </p>
       )}
     </div>
@@ -222,14 +228,14 @@ function AccessSection({
 /** Fails closed unless the Access projection explicitly identifies wallet presence and a safe balance. */
 function readCreditGrantEvidence(value: unknown): {
   preparedBalance: number
-  automaticInitialCredits: 0 | 2
+  automaticInitialCredits: number
 } | null {
   if (!isRecord(value) || !Number.isSafeInteger(value.balance) || (value.balance as number) < 0) return null
   if (value.state === "AVAILABLE") {
     return { preparedBalance: value.balance as number, automaticInitialCredits: 0 }
   }
   if (value.state === "MISSING" && value.balance === 0) {
-    return { preparedBalance: 0, automaticInitialCredits: 2 }
+    return { preparedBalance: 0, automaticInitialCredits: INITIAL_BACKGROUND_CREDIT_COUNT }
   }
   return null
 }

@@ -22,10 +22,12 @@
 - Completed: whole-branch review and closure re-review; replay and delivery-outcome copy findings are closed.
 - Completed final-fix commit: `1f8b68db` (`fix: clarify background credit replay outcomes`).
 - Completed terminal gates: Branch 6 focused 50/50, typecheck, full lint, full unit 2,290 passed with one intentional skip, production build 104/104 pages, and diff checks passed.
-- Active slice: PR loop.
-- Pending: push, PR creation, hosted checks, review findings, and merge approval.
+- Completed: Branch 6 was pushed and opened as PR #177; hosted review found a bounded set of contract, fallback-copy, test-harness, and evidence-record corrections.
+- Completed locally: the verified PR #177 corrections are implemented with focused RED/GREEN, 108/108 affected/adjacent tests, typecheck, lint, full unit, production build, and diff check passing.
+- Active slice: PR #177 review loop.
+- Pending: PR loop only—commit and push the validated corrections, obtain clean hosted checks and fresh re-review, resolve the review threads, and return the merge gate to the user.
 - Blocked on: nothing currently.
-- Next: commit this terminal evidence checkpoint, push, open the PR, and shepherd its checks and review threads.
+- Next: commit and push the validated corrections, then shepherd PR #177 through hosted checks, fresh re-review, and thread resolution before the user merge gate.
 
 ## ResumeStateHint
 
@@ -37,7 +39,7 @@ Resume only from this worktree and checkpoint. Re-read `10-intent.md`, refreshed
 - Scope: Branch 6 only.
 - Compatibility: existing verified-wallet provisioning, redemption, ownership, and membership behavior preserved.
 - New owner/fallback: none.
-- Evidence state: setup, baseline, Task 14 and Task 15 RED/GREEN, both review stages, and coordinator verification present through Task 14.
+- Evidence state: setup, baseline, Task 14 and Task 15 RED/GREEN and reviews, whole-branch closure review, and terminal focused/type/lint/full-unit/build/diff validation are recorded in `90-evidence.md`.
 - Patch shape: the Task 14 commerce service plus focused Admin Access controls, action/form integration, bounded detail evidence, browser contracts, and current docs; no schema, manifest, lockfile, or mail-owner change.
 - Missing-wallet decision: compare the prepared absent state as `0`, provision the canonical verified-account grant to actual balance `2`, then apply the Admin delta atomically; replay binds both prepared and actual balances.
 - Browser gate: source/fixture coverage is present, but real desktop/mobile Playwright remains intentionally unrun because neither the disposable database URL nor its exact opt-in sentinel is configured.

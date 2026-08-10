@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache"
 import { requireFullAdminUser } from "@/lib/admin/access"
 import { deliverAdminEmailIntent } from "@/lib/admin/email-intents"
 import {
+  ADMIN_BACKGROUND_CREDIT_GRANT_MAX,
+  ADMIN_BACKGROUND_CREDIT_GRANT_MIN,
   ADMIN_REASON_CODES,
   validateAdminReason,
   type AdminReasonCode,
@@ -93,11 +95,18 @@ function parseCreditGrantForm(
   }
 
   const operationId = formValue(formData, "operationId")
-  const amount = parseInteger(formValue(formData, "amount"), 1, 25)
+  const amount = parseInteger(
+    formValue(formData, "amount"),
+    ADMIN_BACKGROUND_CREDIT_GRANT_MIN,
+    ADMIN_BACKGROUND_CREDIT_GRANT_MAX,
+  )
   const expectedBalance = parseInteger(formValue(formData, "expectedBalance"), 0, Number.MAX_SAFE_INTEGER)
   const confirmation = formValue(formData, "confirmation")
   if (!operationId || !isUuid(operationId) || amount === null || expectedBalance === null) {
-    return { ok: false, message: "Refresh the account and provide a whole-number credit amount from 1 through 25." }
+    return {
+      ok: false,
+      message: `Refresh the account and provide a whole-number credit amount from ${ADMIN_BACKGROUND_CREDIT_GRANT_MIN} through ${ADMIN_BACKGROUND_CREDIT_GRANT_MAX}.`,
+    }
   }
   if (confirmation !== CREDIT_GRANT_CONFIRMATION) {
     return { ok: false, message: "Confirm the exact positive background-credit grant." }
@@ -151,9 +160,7 @@ function creditGrantOutcome(
     if (delivery?.status === "FAILED" && delivery.attempted) {
       return {
         status: "warning",
-        message: selfTarget
-          ? `${prefix} Delivery of its pending email notification failed. Check Activity for the recorded notification status.`
-          : `${prefix} Delivery of its pending email notification failed. Retry it from Activity.`,
+        message: `${prefix} Delivery of its pending email notification failed. ${activityRetryGuidance(selfTarget)}`,
       }
     }
     if (delivery?.status === "FAILED") {
@@ -176,9 +183,7 @@ function creditGrantOutcome(
   if (delivery?.status === "FAILED" && delivery.attempted) {
     return {
       status: "warning",
-      message: selfTarget
-        ? `${prefix} The email notification failed. Check Activity for the recorded notification status.`
-        : `${prefix} The email notification failed. Retry it from Activity.`,
+      message: `${prefix} The email notification failed. ${activityRetryGuidance(selfTarget)}`,
     }
   }
   if (delivery?.status === "FAILED") {
@@ -200,10 +205,15 @@ function failedWithoutAttemptOutcome(prefix: string, selfTarget: boolean): Credi
   const outcome = `${prefix} This invocation made no new email attempt because the notification is already recorded as failed.`
   return {
     status: "warning",
-    message: selfTarget
-      ? `${outcome} Check Activity for the recorded notification status.`
-      : `${outcome} Retry it from Activity.`,
+    message: `${outcome} ${activityRetryGuidance(selfTarget)}`,
   }
+}
+
+/** Points only to an Activity action that the current operator can actually use. */
+function activityRetryGuidance(selfTarget: boolean): string {
+  return selfTarget
+    ? "Check Activity for the recorded notification status."
+    : "Retry it from Activity."
 }
 
 function parseInteger(value: string | null, minimum: number, maximum: number) {

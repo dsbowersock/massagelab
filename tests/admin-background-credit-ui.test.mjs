@@ -12,10 +12,9 @@ import {
 } from "./helpers/compiled-module.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
-const actionSource = await readFile(new URL("../app/admin/users/[userId]/credit-actions.ts", import.meta.url), "utf8").catch(() => "")
-const formSource = await readFile(new URL("../app/admin/users/[userId]/credit-action-form.tsx", import.meta.url), "utf8").catch(() => "")
+const actionSource = await readFile(new URL("../app/admin/users/[userId]/credit-actions.ts", import.meta.url), "utf8")
+const formSource = await readFile(new URL("../app/admin/users/[userId]/credit-action-form.tsx", import.meta.url), "utf8")
 const pageSource = await readFile(new URL("../app/admin/users/[userId]/page.tsx", import.meta.url), "utf8")
-const detailSource = await readFile(new URL("../lib/admin/user-detail.ts", import.meta.url), "utf8")
 const browserSource = await readFile(new URL("browser/admin-user-operations.spec.ts", import.meta.url), "utf8")
 
 const idleState = { status: "idle", message: "" }
@@ -51,6 +50,8 @@ function creditActionHarness({
       },
     },
     "@/lib/admin/operation-contract": {
+      ADMIN_BACKGROUND_CREDIT_GRANT_MIN: 1,
+      ADMIN_BACKGROUND_CREDIT_GRANT_MAX: 25,
       ADMIN_REASON_CODES: ["BACKGROUND_CREDIT_GOODWILL", "ADMIN_CORRECTION", "OTHER"],
       validateAdminReason(reasonCode, note) {
         calls.push(["validateAdminReason", reasonCode, note])
@@ -97,6 +98,8 @@ function creditUiHarness(actionState = idleState, { useState } = {}) {
     "react/jsx-runtime": { Fragment: "fragment", jsx: createElement, jsxs: createElement },
     "@/components/ui/button": { Button: passThroughElement("button") },
     "@/lib/admin/operation-contract": {
+      ADMIN_BACKGROUND_CREDIT_GRANT_MIN: 1,
+      ADMIN_BACKGROUND_CREDIT_GRANT_MAX: 25,
       ADMIN_REASON_CODES: ["BACKGROUND_CREDIT_GOODWILL", "ADMIN_CORRECTION", "OTHER"],
     },
     "./credit-actions": { grantBackgroundCreditsAction() {}, CreditGrantActionState: {} },
@@ -124,6 +127,25 @@ describe("Admin background-credit action", () => {
       const result = await harness.action("user-1", idleState, creditForm(invalid))
       assert.equal(result.status, "error")
       assert.equal(harness.calls.some(([name]) => name === "grantAdminBackgroundCredits"), false)
+    }
+  })
+
+  it("accepts the shared inclusive grant boundaries", async () => {
+    for (const amount of [1, 25]) {
+      const harness = creditActionHarness({
+        serviceResult: {
+          previousBalance: 2,
+          amount,
+          balanceAfter: 2 + amount,
+          replayed: false,
+          emailIntentId: "intent-credit",
+        },
+      })
+
+      const result = await harness.action("user-1", idleState, creditForm({ amount: String(amount) }))
+
+      assert.equal(result.status, "success")
+      assert.equal(harness.calls.find(([name]) => name === "grantAdminBackgroundCredits")[1].amount, amount)
     }
   })
 
@@ -195,8 +217,9 @@ describe("Admin background-credit action", () => {
     })
 
     const unconfirmed = creditActionHarness({ deliveryError: new Error("provider recipient detail") })
+    const logged = []
     const originalConsoleError = console.error
-    console.error = () => {}
+    console.error = (...args) => logged.push(args)
     try {
       assert.deepEqual(await unconfirmed.action("user-1", idleState, creditForm()), {
         status: "warning",
@@ -209,6 +232,8 @@ describe("Admin background-credit action", () => {
       ["revalidatePath", "/admin/users/user-1"],
       ["revalidatePath", "/admin/users"],
     ])
+    assert.deepEqual(logged, [["Admin background-credit notification failed", { code: "safe_failure" }]])
+    assert.doesNotMatch(JSON.stringify(logged), /provider recipient detail/i)
   })
 
   it("uses immutable replay history without claiming the original balance is still current after intervening wallet changes", async () => {
@@ -319,6 +344,7 @@ describe("Admin background-credit action", () => {
       }
       assert.equal(harness.calls.some(([name]) => name === "deliverAdminEmailIntent"), false)
       assert.equal(harness.calls.some(([name]) => name === "revalidatePath"), false)
+      assert.deepEqual(logged, [["Admin background-credit grant failed", { code: "safe_failure" }]])
       assert.doesNotMatch(JSON.stringify(logged), /user-1|target@example\.test|42b90a0b|database/i)
     }
   })
@@ -327,11 +353,13 @@ describe("Admin background-credit action", () => {
 describe("Admin background-credit controls", () => {
   it("renders only for verified targets with explicit usable wallet evidence and a stable server UUID", () => {
     assert.match(pageSource, /creditGrant:\s*randomUUID\(\)/)
-    assert.match(pageSource, /detail\.emailVerified === true && normalizedTargetEmail/)
+    assert.match(pageSource, /normalizedTargetEmail = normalizeEmail\(targetEmail\)/)
+    assert.match(pageSource, /detail\.emailVerified === true && Boolean\(normalizedTargetEmail\)/)
     assert.match(pageSource, /readCreditGrantEvidence/)
     assert.match(pageSource, /<CreditGrantControls/)
-    assert.match(detailSource, /emailVerified: Boolean\(user\.emailVerified\)/)
-    assert.match(detailSource, /state: user\.backgroundCreditWallet \? "AVAILABLE" : "MISSING"/)
+    assert.match(pageSource, /does not have a verified email/i)
+    assert.match(pageSource, /wallet evidence is incomplete[\s\S]*Refresh the account/i)
+    assert.match(pageSource, /INITIAL_BACKGROUND_CREDIT_COUNT/)
     assert.match(formSource, /type="hidden" name="operationId" value=\{operationId\}/)
     assert.doesNotMatch(`${actionSource}\n${formSource}`, /cannot (?:grant|add).*own account/i)
   })
@@ -363,13 +391,17 @@ describe("Admin background-credit controls", () => {
 
   it("clears confirmation after either a preset or custom amount change", () => {
     const setterCalls = []
-    let hookIndex = 0
-    const values = ["1", "BACKGROUND_CREDIT_GOODWILL", "", true]
+    const stateSlots = new Map([
+      ["amount", "1"],
+      ["reasonCode", "BACKGROUND_CREDIT_GOODWILL"],
+      ["internalNote", ""],
+      ["confirmed", true],
+    ])
+    const slotNames = stateSlots.keys()
     const { CreditGrantControls } = creditUiHarness(idleState, {
       useState(initialValue) {
-        const index = hookIndex
-        hookIndex += 1
-        return [values[index] ?? initialValue, (value) => setterCalls.push([index, value])]
+        const slotName = slotNames.next().value
+        return [stateSlots.get(slotName) ?? initialValue, (value) => setterCalls.push([slotName, value])]
       },
     })
     const tree = renderFunctionComponents(CreditGrantControls({
@@ -381,7 +413,7 @@ describe("Admin background-credit controls", () => {
     fivePreset.props.onClick()
     customAmount.props.onChange({ target: { value: "3" } })
 
-    assert.deepEqual(setterCalls, [[0, "5"], [3, false], [0, "3"], [3, false]])
+    assert.deepEqual(setterCalls, [["amount", "5"], ["confirmed", false], ["amount", "3"], ["confirmed", false]])
     assert.match(formSource, /setConfirmed\(false\)/)
   })
 

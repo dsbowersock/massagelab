@@ -2,7 +2,11 @@
 
 import { useActionState, useId, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { ADMIN_REASON_CODES } from "@/lib/admin/operation-contract"
+import {
+  ADMIN_BACKGROUND_CREDIT_GRANT_MAX,
+  ADMIN_BACKGROUND_CREDIT_GRANT_MIN,
+  ADMIN_REASON_CODES,
+} from "@/lib/admin/operation-contract"
 import { grantBackgroundCreditsAction, type CreditGrantActionState } from "./credit-actions"
 
 const CREDIT_GRANT_CONFIRMATION = "CONFIRM_BACKGROUND_CREDIT_GRANT"
@@ -35,7 +39,7 @@ export function CreditGrantControls({
   userId: string
   targetLabel: string
   preparedBalance: number
-  automaticInitialCredits: 0 | 2
+  automaticInitialCredits: number
   operationId: string
 }) {
   const [actionState, formAction, isPending] = useActionState(
@@ -100,7 +104,7 @@ function CreditGrantFields({
 }: {
   userId: string
   preparedBalance: number
-  automaticInitialCredits: 0 | 2
+  automaticInitialCredits: number
   operationId: string
   formAction: (payload: FormData) => void
   isPending: boolean
@@ -110,7 +114,12 @@ function CreditGrantFields({
   const [reasonCode, setReasonCode] = useState("")
   const [internalNote, setInternalNote] = useState("")
   const [confirmed, setConfirmed] = useState(false)
-  const parsedAmount = /^(?:[1-9]|1\d|2[0-5])$/.test(amount) ? Number(amount) : null
+  const numericAmount = /^(?:0|[1-9]\d*)$/.test(amount) ? Number(amount) : null
+  const parsedAmount = numericAmount !== null
+    && numericAmount >= ADMIN_BACKGROUND_CREDIT_GRANT_MIN
+    && numericAmount <= ADMIN_BACKGROUND_CREDIT_GRANT_MAX
+    ? numericAmount
+    : null
   const startingBalance = preparedBalance + automaticInitialCredits
   const resultingBalance = parsedAmount === null ? null : startingBalance + parsedAmount
   const canSubmit = parsedAmount !== null
@@ -152,8 +161,8 @@ function CreditGrantFields({
             id={`${formId}-amount`}
             name="amount"
             type="number"
-            min={1}
-            max={25}
+            min={ADMIN_BACKGROUND_CREDIT_GRANT_MIN}
+            max={ADMIN_BACKGROUND_CREDIT_GRANT_MAX}
             step={1}
             value={amount}
             onChange={(event) => updateAmount(event.target.value)}
@@ -170,7 +179,9 @@ function CreditGrantFields({
             <p>Automatic verified-account allocation: +{automaticInitialCredits}</p>
           </>
         ) : <p>Current balance: {preparedBalance}</p>}
-        <p>Admin grant: {parsedAmount === null ? "Choose 1 through 25" : `+${parsedAmount}`}</p>
+        <p>Admin grant: {parsedAmount === null
+          ? `Choose ${ADMIN_BACKGROUND_CREDIT_GRANT_MIN} through ${ADMIN_BACKGROUND_CREDIT_GRANT_MAX}`
+          : `+${parsedAmount}`}</p>
         <p className="font-medium">
           Resulting balance: {resultingBalance === null
             ? "Unavailable until the amount is valid"
