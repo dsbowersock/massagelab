@@ -17,10 +17,13 @@
 - Completed baseline: 73/73 focused Admin/operation/membership/account tests and typecheck passed.
 - Completed: Task 16 implementation and both independent review stages; verified-target, Serializable uniqueness-race, bounded-list, and revocation-replay findings are closed.
 - Completed coordinator verification: 112/112 focused/adjacent tests, Prisma generate/validate, typecheck, full lint, and diff checks passed.
-- Active slice: Task 16 commit.
-- Pending: Task 17; Task 18; whole-branch review; terminal gates; PR loop.
+- Completed Task 16 commit: `0bccd681046d8c2661bc2e83c4273a0d63a1e3fd` (`feat: add temporary feature grant ledger`); committed status and diff check were clean.
+- Completed: Task 17 implementation and both independent review stages; bounded authorization-query, invalid-clock, and indistinguishable-source findings are closed.
+- Completed coordinator verification: 86/86 focused/adjacent tests, typecheck, full lint, and diff checks passed.
+- Active slice: Task 17 commit.
+- Pending: Task 18; whole-branch review; terminal gates; PR loop.
 - Blocked on: nothing currently.
-- Next: commit the reviewed Task 16 slice, read back clean Git state, then dispatch a fresh Task 17 implementer.
+- Next: commit the reviewed Task 17 slice, read back clean Git state, then dispatch a fresh Task 18 implementer.
 
 ## ResumeStateHint
 
@@ -29,9 +32,9 @@ Resume only from this worktree and checkpoint. Re-read `10-intent.md`, refreshed
 ## DriftCheckDraft
 
 - Intent: aligned with temporary expiring access.
-- Scope: Branch 7 only; Task 16 is the active slice.
+- Scope: Branch 7 only; Task 17 is the active slice.
 - Compatibility: existing membership/student/ownership/role/credit/security sources are preserved.
 - New owner/fallback: the planned append-only temporary-access ledger is the only new owner; no fallback or scheduler is introduced.
 - Retirement: retired custom-color entitlement remains excluded.
-- Evidence state: setup, baseline, Task 16 RED/GREEN, both review stages, and coordinator verification are present.
+- Evidence state: setup, baseline, Tasks 16-17 RED/GREEN, both review stages, and coordinator verification are present.
 - Decision: continue.

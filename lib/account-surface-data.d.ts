@@ -117,6 +117,14 @@ export type MembershipPricingCatalog = {
   }>
 }
 
+export type EffectiveFeatureAccess = {
+  featureKey: string
+  sources: Array<{
+    source: "membership" | "student" | "temporary"
+    expiresAt: string | null
+  }>
+}
+
 export type AccountMembershipSurfaceData = {
   surface: "membership"
   membershipSummary: {
@@ -132,6 +140,12 @@ export type AccountMembershipSurfaceData = {
       level: string
       paidLevel?: string | null
       features: string[]
+      featureDetails: Array<{
+        key: string
+        source: string
+        expiresAt: Date | null
+      }>
+      featureAccess: EffectiveFeatureAccess[]
     }
   }
   pricingCatalog: MembershipPricingCatalog

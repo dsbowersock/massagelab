@@ -4,6 +4,7 @@ import {
   SUPPORTER_AMOUNT_CHOICES,
   buildEntitlements,
   getConfiguredMembershipOptions,
+  loadActiveTemporaryGrants,
 } from "../membership.js"
 import { activeMembershipSubscriptionWhere } from "./subscription-activity.ts"
 
@@ -17,7 +18,7 @@ export type AdminUserDetailSectionResult = {
   data: Record<string, unknown>
 }
 
-type DetailPrismaClient = Pick<PrismaClient, "user" | "session" | "membershipSubscription">
+type DetailPrismaClient = Pick<PrismaClient, "user" | "session" | "membershipSubscription" | "temporaryFeatureGrant">
 
 /** Converts an untrusted detail-tab value into the initial safe section. */
 export function parseAdminUserDetailSection(value: string | undefined): AdminUserDetailSection {
@@ -82,7 +83,7 @@ export async function loadAdminUserOverview(input: { prismaClient: DetailPrismaC
  */
 export async function loadAdminUserAccess(input: { prismaClient: DetailPrismaClient; userId: string; now?: Date }): Promise<AdminUserDetailSectionResult | null> {
   const now = input.now ?? new Date()
-  const [user, entitlementSubscriptions] = await Promise.all([
+  const [user, entitlementSubscriptions, entitlementTemporaryGrants] = await Promise.all([
     input.prismaClient.user.findUnique({ where: { id: input.userId }, select: ACCESS_SELECT }),
     input.prismaClient.membershipSubscription.findMany({
       where: {
@@ -92,11 +93,13 @@ export async function loadAdminUserAccess(input: { prismaClient: DetailPrismaCli
       select: { status: true, membershipLevel: true, currentPeriodEnd: true },
       orderBy: [{ currentPeriodEnd: "desc" }, { id: "desc" }],
     }),
+    loadActiveTemporaryGrants(input.prismaClient, input.userId, now),
   ])
   if (!user) return null
   const entitlements = buildEntitlements({
     subscriptions: entitlementSubscriptions,
     studentAccess: user.studentAccess,
+    temporaryGrants: entitlementTemporaryGrants,
     now,
   })
   const roles = normalizeRoleEvidence(user.roles)
@@ -106,6 +109,13 @@ export async function loadAdminUserAccess(input: { prismaClient: DetailPrismaCli
     emailVerified: Boolean(user.emailVerified),
     roles,
     features: entitlements.featureDetails.map((feature) => ({ ...feature, expiresAt: dateValue(feature.expiresAt) })),
+    featureAccess: entitlements.featureAccess,
+    temporaryGrants: boundedCollection(entitlementTemporaryGrants.slice(0, 25).map((grant) => ({
+      grantId: grant.id,
+      featureKey: grant.featureKey,
+      startsAt: dateValue(grant.startsAt),
+      expiresAt: dateValue(grant.expiresAt),
+    })), entitlementTemporaryGrants.length),
     capabilities: buildAccountCapabilities(roles, { features: entitlements.features }),
     subscriptions: boundedCollection(user.membershipSubscriptions.map((subscription) => ({
       membershipLevel: subscription.membershipLevel,

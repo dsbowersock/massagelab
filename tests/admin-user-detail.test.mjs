@@ -98,12 +98,36 @@ describe("admin user detail", () => {
       prismaClient: detailPrisma(calls, { expectedEntitlementNow: now }), userId: "user-1", section: "access", now,
     })
 
-    assert.deepEqual(calls, ["user.findUnique:access", "membershipSubscription.findMany:entitlements"])
+    assert.deepEqual(calls, [
+      "user.findUnique:access",
+      "membershipSubscription.findMany:entitlements",
+      "temporaryFeatureGrant.findMany:entitlements",
+    ])
     assert.equal(result.data.emailVerified, true)
     assert.deepEqual(result.data.features, [
       { key: "calendar_basic_scheduling", source: "FREE", expiresAt: null },
       { key: "premium_backgrounds", source: "SUPPORTER", expiresAt: "2026-09-01T00:00:00.000Z" },
     ])
+    assert.deepEqual(result.data.featureAccess, [
+      { featureKey: "calendar_basic_scheduling", sources: [] },
+      {
+        featureKey: "premium_backgrounds",
+        sources: [
+          { source: "membership", expiresAt: "2026-09-01T00:00:00.000Z" },
+          { source: "temporary", expiresAt: "2026-09-15T00:00:00.000Z" },
+        ],
+      },
+    ])
+    assert.deepEqual(result.data.temporaryGrants, {
+      items: [{
+        grantId: "grant-1",
+        featureKey: "premium_backgrounds",
+        startsAt: "2026-08-01T00:00:00.000Z",
+        expiresAt: "2026-09-15T00:00:00.000Z",
+      }],
+      total: 1,
+      truncated: false,
+    })
     assert.deepEqual(result.data.roles, [
       { role: "ANATOMY_EDITOR", status: "VERIFIED", source: "manual", verifiedAt: "2026-08-02T00:00:00.000Z", expiresAt: null, revokedAt: null },
       { role: "USER", status: "VERIFIED", source: "system", verifiedAt: "2026-08-01T00:00:00.000Z", expiresAt: null, revokedAt: null },
@@ -137,7 +161,7 @@ describe("admin user detail", () => {
       total: 40,
       truncated: true,
     })
-    assert.doesNotMatch(JSON.stringify(result), /credentialNumber|verificationPayload|providerAccountId|paymentMethod|metadata/i)
+    assert.doesNotMatch(JSON.stringify(result), /credentialNumber|verificationPayload|providerAccountId|paymentMethod|metadata|grantedById|internalNote|idempotencyKey/i)
   })
 
   it("keeps a verified target's missing wallet distinct from an existing zero balance", async () => {
@@ -186,7 +210,34 @@ describe("admin user detail", () => {
     assert.deepEqual(result.data.features.find(({ key }) => key === "premium_backgrounds"), {
       key: "premium_backgrounds", source: "SUPPORTER", expiresAt: "2026-09-01T00:00:00.000Z",
     })
-    assert.deepEqual(calls, ["user.findUnique:access", "membershipSubscription.findMany:entitlements"])
+    assert.deepEqual(calls, [
+      "user.findUnique:access",
+      "membershipSubscription.findMany:entitlements",
+      "temporaryFeatureGrant.findMany:entitlements",
+    ])
+  })
+
+  it("uses every active temporary grant for entitlements while bounding separate Admin evidence", async () => {
+    const calls = []
+    const now = new Date("2026-08-09T00:00:00.000Z")
+    const entitlementTemporaryGrants = Array.from({ length: 30 }, (_, index) => ({
+      id: `grant-${String(index).padStart(2, "0")}`,
+      featureKey: index === 29 ? "calendar_full_scheduling" : "premium_backgrounds",
+      startsAt: new Date("2026-08-01T00:00:00.000Z"),
+      expiresAt: new Date(`2026-09-${String((index % 20) + 1).padStart(2, "0")}T00:00:00.000Z`),
+    }))
+    const result = await getAdminUserDetailSection({
+      prismaClient: detailPrisma(calls, { entitlementTemporaryGrants, expectedEntitlementNow: now }),
+      userId: "user-1",
+      section: "access",
+      now,
+    })
+
+    assert.equal(result.data.temporaryGrants.items.length, 25)
+    assert.equal(result.data.temporaryGrants.total, 30)
+    assert.equal(result.data.temporaryGrants.truncated, true)
+    assert.equal(result.data.featureAccess.some(({ featureKey }) => featureKey === "calendar_full_scheduling"), true)
+    assert.doesNotMatch(JSON.stringify(result.data.temporaryGrants), /grantedById|internalNote|idempotencyKey|reasonCode/i)
   })
 
   it("loads billing local summaries without payment methods or raw processor payloads", async () => {
@@ -354,6 +405,12 @@ describe("admin user detail", () => {
 /** Boundary fake mirrors each real selected relation while rejecting accidental loader calls. */
 function detailPrisma(calls, {
   entitlementSubscriptions = detailRow("access").membershipSubscriptions,
+  entitlementTemporaryGrants = [{
+    id: "grant-1",
+    featureKey: "premium_backgrounds",
+    startsAt: new Date("2026-08-01T00:00:00.000Z"),
+    expiresAt: new Date("2026-09-15T00:00:00.000Z"),
+  }],
   expectedEntitlementNow,
   sessionExpiries = [],
   sectionRows = {},
@@ -388,6 +445,28 @@ function detailPrisma(calls, {
         assert.equal("take" in args, false)
         calls.push("membershipSubscription.findMany:entitlements")
         return entitlementSubscriptions
+      },
+    },
+    temporaryFeatureGrant: {
+      findMany: async (args) => {
+        assert.deepEqual(args.where, {
+          userId: "user-1",
+          featureKey: { in: [
+            "premium_backgrounds",
+            "therapist_documentation_tools",
+            "calendar_basic_scheduling",
+            "calendar_full_scheduling",
+            "external_calendar_sync",
+          ] },
+          startsAt: { lte: expectedEntitlementNow },
+          expiresAt: { gt: expectedEntitlementNow },
+          revocation: null,
+        })
+        assert.deepEqual(args.select, { id: true, featureKey: true, startsAt: true, expiresAt: true })
+        assert.deepEqual(args.orderBy, [{ expiresAt: "asc" }, { id: "asc" }])
+        assert.equal(args.take, 501)
+        calls.push("temporaryFeatureGrant.findMany:entitlements")
+        return entitlementTemporaryGrants
       },
     },
     session: { count: async (args) => {
