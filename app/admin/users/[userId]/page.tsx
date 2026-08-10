@@ -353,10 +353,12 @@ function humanize(value: string): string {
   return value.replaceAll(/([A-Z])/g, " $1").replace(/^./, (letter) => letter.toUpperCase())
 }
 
+/** Accepts only nonnegative safe integers for optimistic security-state comparisons. */
 function safeCount(value: unknown) {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null
 }
 
+/** Normalizes only the optional client-side comparison value; the server security service remains authoritative. */
 function normalizeEmail(value: string | null) {
   return typeof value === "string" ? value.trim().toLowerCase() : ""
 }

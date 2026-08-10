@@ -130,6 +130,7 @@ function uiHarness(actionState = idleState) {
   })
 }
 
+/** Returns the compiled DetailSection test module; keep its JSX/runtime and module mocks aligned with pageSource imports. */
 function detailPageHarness() {
   return loadCompiledModule(
     `${pageSource}\nexport { DetailSection }\n`,
