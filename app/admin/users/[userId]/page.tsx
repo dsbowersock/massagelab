@@ -8,6 +8,11 @@ import { requireFullAdminUser } from "@/lib/admin/access"
 import { RetryEmailForm } from "./retry-email-form"
 import { RoleChangeControls, SelfRoleManagementNotice, type RoleEvidence } from "./role-change-form"
 import {
+  FreshPasswordResetForm,
+  SecurityActionControls,
+  SelfSecurityManagementNotice,
+} from "./security-action-forms"
+import {
   ADMIN_USER_DETAIL_SECTIONS,
   getAdminUserDetailSection,
   parseAdminUserDetailSection,
@@ -52,12 +57,19 @@ export default async function AdminUserDetailPage({ params, searchParams }: Admi
           <section aria-labelledby={`${section}-heading`} className={`${appInsetClassName} space-y-4 p-4`}>
             <h2 id={`${section}-heading`} className="text-lg font-semibold">{sectionLabel(section)}</h2>
             {section === "activity"
-              ? <ActivitySection detail={detail.data} userId={userId} />
+              ? <ActivitySection detail={detail.data} userId={userId} canMutate={actor.id !== userId} />
               : section === "billing"
                 ? <BillingSection detail={detail.data} />
                 : section === "access"
                   ? <AccessSection detail={detail.data} userId={userId} canManageRoles={actor.id !== userId} />
-                  : <DetailSection detail={detail.data} section={section} />}
+                  : section === "security"
+                    ? <SecuritySection
+                        detail={detail.data}
+                        userId={userId}
+                        targetEmail={detail.target.email}
+                        canManageSecurity={actor.id !== userId}
+                      />
+                    : <DetailSection detail={detail.data} section={section} />}
           </section>
         </CardContent>
       </Card>
@@ -76,6 +88,7 @@ type ActivityEmail = {
 }
 
 type ActivityEntry = {
+  id: string
   title: string
   explanation: string
   effectiveValue: string | null
@@ -84,12 +97,12 @@ type ActivityEntry = {
   email: ActivityEmail | null
 }
 
-/** Renders the operator-safe activity projection and its single audited retry path. */
-function ActivitySection({ detail, userId }: { detail: Record<string, unknown>; userId: string }) {
+/** Renders safe activity plus either audited notification retry or fresh reset creation. */
+function ActivitySection({ detail, userId, canMutate }: { detail: Record<string, unknown>; userId: string; canMutate: boolean }) {
   const entries = Array.isArray(detail.entries) ? detail.entries as ActivityEntry[] : []
   if (entries.length === 0) return <p className="text-sm text-muted-foreground">No account activity yet.</p>
 
-  return <ol className="space-y-3">{entries.map((entry, index) => {
+  return <ol className="space-y-3">{entries.map((entry) => {
     const email = entry.email
     const canRetry = email?.status === "FAILED"
       && email.kind !== "PASSWORD_RESET"
@@ -100,7 +113,7 @@ function ActivitySection({ detail, userId }: { detail: Record<string, unknown>; 
     // fresh form with a fresh key after the action completes.
     const operationId = randomUUID()
     return (
-      <li key={`${entry.occurredAt ?? "activity"}-${index}`} className="rounded-md border bg-background/60 p-3">
+      <li key={entry.id} data-activity-id={entry.id} className="rounded-md border bg-background/60 p-3">
         <p className="font-medium">{entry.title}</p>
         <p className="mt-1 text-sm text-muted-foreground">{entry.explanation}</p>
         {entry.effectiveValue ? <p className="mt-1 text-sm">Effective value: {entry.effectiveValue}</p> : null}
@@ -114,10 +127,19 @@ function ActivitySection({ detail, userId }: { detail: Record<string, unknown>; 
             <ActivityValue label="Failure code" value={email.failureCode} />
           </> : null}
         </dl>
-        {canRetry ? (
+        {canRetry && canMutate ? (
           <RetryEmailForm userId={userId} intentId={email.intentId} operationId={operationId} />
         ) : null}
-        {failedPasswordReset ? <p className="mt-3 text-sm text-muted-foreground">A new reset link will be available after the password reset action is added.</p> : null}
+        {failedPasswordReset && canMutate ? (
+          <FreshPasswordResetForm
+            userId={userId}
+            operationId={operationId}
+            submitLabel="Send a new reset link"
+          />
+        ) : null}
+        {(canRetry || failedPasswordReset) && !canMutate ? (
+          <p className="mt-3 text-sm text-muted-foreground">Self-target account actions are read-only.</p>
+        ) : null}
       </li>
     )
   })}</ol>
@@ -131,9 +153,9 @@ function ActivityValue({ label, value }: { label: string; value: string | null }
 function DetailSection({ detail, section }: { detail: Record<string, unknown>; section: AdminUserDetailSection }) {
   const rows = detailRows(detail, section)
   return <dl className="grid gap-3 sm:grid-cols-2">{rows.map(([label, value]) => (
-    <div key={label} className="min-w-0 rounded-md border bg-background/60 p-3">
+    <div key={label} data-detail-key={label} className="min-w-0 rounded-md border bg-background/60 p-3">
       <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
-      <dd className="mt-1 break-words text-sm">{value}</dd>
+      <dd data-detail-value="" className="mt-1 break-words text-sm">{value}</dd>
     </div>
   ))}</dl>
 }
@@ -161,6 +183,54 @@ function AccessSection({
       {canManageRoles ? (
         <RoleChangeControls userId={userId} roles={roles} operationIds={operationIds} />
       ) : <SelfRoleManagementNotice />}
+    </div>
+  )
+}
+
+/** Adds only bounded remediation controls beneath the safe Security projection. */
+function SecuritySection({
+  detail,
+  userId,
+  targetEmail,
+  canManageSecurity,
+}: {
+  detail: Record<string, unknown>
+  userId: string
+  targetEmail: string | null
+  canManageSecurity: boolean
+}) {
+  const expectedAuthSessionVersion = safeCount(detail.authSessionVersion)
+  const expectedSessionCount = safeCount(detail.compatibilitySessionCount)
+  const normalizedTargetEmail = normalizeEmail(targetEmail)
+  const operationIds = {
+    revokeSessions: randomUUID(),
+    passwordReset: randomUUID(),
+    twoFactorReset: randomUUID(),
+  }
+  const supportedState = expectedAuthSessionVersion !== null && expectedSessionCount !== null
+
+  return (
+    <div className="space-y-5">
+      <DetailSection detail={detail} section="security" />
+      <p className="text-sm text-muted-foreground">
+        User.authSessionVersion is the canonical sign-in-token invalidation owner. A version increment invalidates older tokens immediately; Auth.js observes the mismatch and signs the user out on the next successful database-backed refresh.
+      </p>
+      {!canManageSecurity ? <SelfSecurityManagementNotice /> : supportedState ? (
+        <SecurityActionControls
+          userId={userId}
+          targetEmail={normalizedTargetEmail || null}
+          emailVerified={detail.emailVerified === true}
+          passwordConfigured={detail.passwordConfigured === true}
+          twoFactorEnabled={detail.twoFactorEnabled === true}
+          expectedAuthSessionVersion={expectedAuthSessionVersion}
+          expectedSessionCount={expectedSessionCount}
+          operationIds={operationIds}
+        />
+      ) : (
+        <p className="rounded-md border bg-background/60 p-4 text-sm text-muted-foreground">
+          Security controls are unavailable because the current account state is incomplete. Refresh the account before trying again.
+        </p>
+      )}
     </div>
   )
 }
@@ -213,11 +283,16 @@ function BillingSection({ detail }: { detail: Record<string, unknown> }) {
 
 /** Converts the already privacy-bounded loader result into readable operator labels without exposing hidden fields. */
 function detailRows(detail: Record<string, unknown>, section: AdminUserDetailSection): Array<[string, string]> {
-  if (section === "security") return [
-    ["Sign-in provider types", objectValue(detail.providers)], ["Connection rows", objectValue(detail.connections)],
-    ["Password configured", yesNo(detail.passwordConfigured)],
-    ["Two-factor authentication", yesNo(detail.twoFactorEnabled)], ["Active sessions", String(detail.activeSessionCount ?? 0)],
-  ]
+  if (section === "security") {
+    const compatibilitySessionCount = safeCount(detail.compatibilitySessionCount)
+    return [
+      ["Sign-in provider types", objectValue(detail.providers)], ["Connection rows", objectValue(detail.connections)],
+      ["Password configured", yesNo(detail.passwordConfigured)],
+      ["Verified email", yesNo(detail.emailVerified)],
+      ["Two-factor authentication", yesNo(detail.twoFactorEnabled)],
+      ["Compatibility Session rows", `${compatibilitySessionCount === null ? "Unavailable" : compatibilitySessionCount} (adapter evidence only; not a count of active JWT sessions or users signed out)`],
+    ]
+  }
   if (section === "overview") return [
     ["Email verification", yesNo(detail.emailVerified)], ["Profile image", String(detail.image ?? "Unavailable")], ["Profile", objectValue(detail.profile)],
     ["Practice relationships", objectValue(detail.practices)], ["Credentials", objectValue(detail.credentials)],
@@ -276,4 +351,14 @@ function formatMoney(cents: number, currency: string) {
 
 function humanize(value: string): string {
   return value.replaceAll(/([A-Z])/g, " $1").replace(/^./, (letter) => letter.toUpperCase())
+}
+
+/** Accepts only nonnegative safe integers for optimistic security-state comparisons. */
+function safeCount(value: unknown) {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null
+}
+
+/** Normalizes only the optional client-side comparison value; the server security service remains authoritative. */
+function normalizeEmail(value: string | null) {
+  return typeof value === "string" ? value.trim().toLowerCase() : ""
 }

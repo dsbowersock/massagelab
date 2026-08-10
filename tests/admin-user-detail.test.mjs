@@ -47,9 +47,11 @@ describe("admin user detail", () => {
     assert.deepEqual(result.data, {
       providers: { items: ["google"], total: null, totalState: "UNKNOWN", truncated: true },
       connections: { shown: 1, total: 30, truncated: true },
+      emailVerified: true,
       passwordConfigured: true,
       twoFactorEnabled: true,
-      activeSessionCount: 1,
+      authSessionVersion: 3,
+      compatibilitySessionCount: 1,
     })
     assert.doesNotMatch(JSON.stringify(result), /sessionToken|providerAccountId|passwordHash|encryptedSecret|codeHash/)
   })
@@ -298,6 +300,7 @@ describe("admin user detail", () => {
 
     assert.deepEqual(calls, ["user.findUnique:activity"])
     assert.deepEqual(result.data.entries, [{
+      id: "activity-1",
       title: "Access updated",
       explanation: "Your account access changed.",
       effectiveValue: "Supporter",
@@ -414,6 +417,8 @@ function assertSafeSelect(section, select) {
     assert.deepEqual(select._count.select, { membershipSubscriptions: { where: { membershipLevel: "SUPPORTER" } }, commerceOrders: true })
   }
   if (section === "security-summary") {
+    assert.equal(select.emailVerified, true)
+    assert.equal(select.authSessionVersion, true)
     assert.deepEqual(select.accounts.select, { provider: true })
     assert.deepEqual(select.accounts.orderBy, [{ provider: "asc" }, { id: "asc" }])
     assert.equal(select.accounts.take, 25)
@@ -426,6 +431,7 @@ function assertSafeSelect(section, select) {
     assert.deepEqual(select.accountActivities.select.adminAction.select.emailIntent.select, {
       id: true, kind: true, status: true, failureCode: true, attemptCount: true, lastAttemptAt: true, deliveredAt: true,
     })
+    assert.equal(select.accountActivities.select.id, true)
     assert.deepEqual(select.accountActivities.orderBy, [{ occurredAt: "desc" }, { id: "desc" }])
     assert.equal(select.accountActivities.take, 50)
   }
@@ -433,7 +439,7 @@ function assertSafeSelect(section, select) {
 
 function detailRow(section) {
   const target = { id: "user-1", name: "Avery", email: "avery@example.test" }
-  if (section === "security-summary") return { ...target, accounts: [{ provider: "google" }], passwordCredential: { id: "password-1" }, twoFactorSecret: { enabledAt: new Date("2026-08-01T00:00:00.000Z") }, _count: { accounts: 30 } }
+  if (section === "security-summary") return { ...target, emailVerified: new Date("2026-08-01T00:00:00.000Z"), authSessionVersion: 3, accounts: [{ provider: "google" }], passwordCredential: { id: "password-1" }, twoFactorSecret: { enabledAt: new Date("2026-08-01T00:00:00.000Z") }, _count: { accounts: 30 } }
   if (section === "overview") return {
     ...target, image: "https://images.example.test/avatar.png", emailVerified: new Date("2026-08-01T00:00:00.000Z"), profile: { displayName: "Avery", therapistName: null, therapistLocation: "Ohio" },
     practiceMemberships: [{ role: "THERAPIST", practice: { id: "practice-1", name: "Massage Lab" } }],
@@ -470,6 +476,6 @@ function detailRow(section) {
   }
   return {
     ...target,
-    accountActivities: [{ title: "Access updated", explanation: "Your account access changed.", effectiveValue: "Supporter", occurredAt: new Date("2026-08-08T12:00:00.000Z"), adminAction: { actionKind: "ACCESS_UPDATED", outcome: "SUCCEEDED", occurredAt: new Date("2026-08-08T12:00:00.000Z"), emailIntent: { id: "intent-1", kind: "ACCOUNT_CHANGED", status: "DELIVERED", failureCode: null, attemptCount: 1, lastAttemptAt: new Date("2026-08-08T12:01:00.000Z"), deliveredAt: new Date("2026-08-08T12:01:00.000Z") } } }],
+    accountActivities: [{ id: "activity-1", title: "Access updated", explanation: "Your account access changed.", effectiveValue: "Supporter", occurredAt: new Date("2026-08-08T12:00:00.000Z"), adminAction: { actionKind: "ACCESS_UPDATED", outcome: "SUCCEEDED", occurredAt: new Date("2026-08-08T12:00:00.000Z"), emailIntent: { id: "intent-1", kind: "ACCOUNT_CHANGED", status: "DELIVERED", failureCode: null, attemptCount: 1, lastAttemptAt: new Date("2026-08-08T12:01:00.000Z"), deliveredAt: new Date("2026-08-08T12:01:00.000Z") } } }],
   }
 }

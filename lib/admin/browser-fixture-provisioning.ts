@@ -51,6 +51,19 @@ async function createBrowserAdminFixtureRecordsInTransaction(input: {
       ...input.identity.target,
       emailVerified: verifiedAt,
       roles: { create: [{ role: "USER", status: "VERIFIED", source: "browser-admin-fixture", verifiedAt }] },
+      // Deliberately unusable QA-only sentinels populate the credential projections;
+      // the 2099 row is adapter-compat Session evidence, not a valid JWT or login.
+      passwordCredential: { create: { passwordHash: "browser-fixture-password-hash-not-for-authentication" } },
+      twoFactorSecret: {
+        create: { encryptedSecret: "browser-fixture-encrypted-secret-not-for-authentication", enabledAt: verifiedAt },
+      },
+      backupCodes: { create: [{ codeHash: "browser-fixture-backup-hash-not-for-authentication" }] },
+      sessions: {
+        create: [{
+          sessionToken: `browser-fixture-adapter-session-${input.identity.target.id}`,
+          expires: new Date("2099-01-01T00:00:00.000Z"),
+        }],
+      },
     },
   })
   await (input.provisionCredits ?? ensureVerifiedUserBackgroundCredits)(input.prismaClient, input.identity.operator.id)

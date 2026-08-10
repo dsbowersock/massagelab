@@ -8,8 +8,12 @@ type FixtureCleanupPrismaClient = Pick<
   | "adminEmailIntent"
   | "backgroundCreditEntry"
   | "backgroundCreditWallet"
+  | "backupCode"
   | "commerceEvent"
+  | "passwordCredential"
+  | "passwordResetToken"
   | "session"
+  | "twoFactorSecret"
   | "user"
   | "userAccountActivity"
   | "userRole"
@@ -30,11 +34,17 @@ export async function removeBrowserAdminFixtureRecords(input: {
   const identity = createBrowserAdminFixtureIdentity(input.projectName)
   const userIds = [identity.operator.id, identity.target.id]
 
+  // Restrictive FK order: email intents and activity precede their Admin action,
+  // while credit ledger entries precede the wallet that they reference.
   await input.prismaClient.adminEmailIntent.deleteMany({ where: { userId: { in: userIds } } })
   await input.prismaClient.userAccountActivity.deleteMany({ where: { userId: { in: userIds } } })
   await input.prismaClient.adminAction.deleteMany({
     where: { OR: [{ actorUserId: { in: userIds } }, { targetUserId: { in: userIds } }] },
   })
+  await input.prismaClient.passwordResetToken.deleteMany({ where: { userId: { in: userIds } } })
+  await input.prismaClient.backupCode.deleteMany({ where: { userId: { in: userIds } } })
+  await input.prismaClient.twoFactorSecret.deleteMany({ where: { userId: { in: userIds } } })
+  await input.prismaClient.passwordCredential.deleteMany({ where: { userId: { in: userIds } } })
   await input.prismaClient.session.deleteMany({ where: { userId: { in: userIds } } })
   await input.prismaClient.userRole.deleteMany({ where: { userId: { in: userIds } } })
   await input.prismaClient.commerceEvent.deleteMany({ where: { userId: { in: userIds } } })
