@@ -147,6 +147,8 @@ function detailPageHarness() {
       "./retry-email-form": {},
       "./role-change-form": {},
       "./security-action-forms": {},
+      "./temporary-access-form": {},
+      "@/lib/admin/temporary-access": { ADMIN_GRANTABLE_FEATURE_KEYS: [] },
       "@/lib/admin/user-detail": {},
       "@/lib/commerce/credit-service": { INITIAL_BACKGROUND_CREDIT_COUNT: 2 },
       "@/lib/prisma": {},

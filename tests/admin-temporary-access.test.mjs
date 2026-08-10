@@ -1,7 +1,27 @@
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
+import {
+  createCompiledModuleLoader,
+  createElement,
+  findElement,
+  passThroughElement,
+} from "./helpers/compiled-module.mjs"
 import * as temporaryAccess from "../lib/admin/temporary-access.ts"
+
+const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
+const temporaryActionSource = await readFile(
+  new URL("../app/admin/users/[userId]/temporary-access-actions.ts", import.meta.url),
+  "utf8",
+).catch(() => "")
+const temporaryFormSource = await readFile(
+  new URL("../app/admin/users/[userId]/temporary-access-form.tsx", import.meta.url),
+  "utf8",
+).catch(() => "")
+const adminDetailPageSource = await readFile(
+  new URL("../app/admin/users/[userId]/page.tsx", import.meta.url),
+  "utf8",
+)
 
 const {
   ADMIN_GRANTABLE_FEATURE_KEYS,
@@ -12,6 +32,33 @@ const {
 
 const NOW = new Date("2026-08-10T12:00:00.000Z")
 const DAY_MS = 24 * 60 * 60 * 1_000
+const UI_OPERATION_ID = "42b90a0b-41d5-48f8-b798-b6da77178b67"
+const UI_REVOKE_OPERATION_ID = "e58989e0-af25-44b4-837f-478b425de8cb"
+const UI_IDLE_STATE = { status: "idle", message: "" }
+
+function temporaryAccessUiHarness() {
+  return loadCompiledModule(
+    temporaryFormSource,
+    "app/admin/users/[userId]/temporary-access-form.test.tsx",
+    {
+      react: {
+        useActionState: () => [UI_IDLE_STATE, () => {}, false],
+        useId: () => "temporary-access-form",
+        useState: (initialValue) => [initialValue, () => {}],
+      },
+      "react/jsx-runtime": { Fragment: "fragment", jsx: createElement, jsxs: createElement },
+      "@/components/ui/button": { Button: passThroughElement("button") },
+      "@/lib/admin/operation-contract": {
+        ADMIN_REASON_CODES: ["ACCESS_REMEDIATION", "OTHER"],
+      },
+      "@/lib/admin/temporary-access": {},
+      "./temporary-access-actions": {
+        grantTemporaryAccessAction() {},
+        revokeTemporaryAccessAction() {},
+      },
+    },
+  )
+}
 
 function user(id, {
   email = `${id}@example.com`,
@@ -835,3 +882,357 @@ describe("Admin temporary feature access", () => {
     }
   })
 })
+
+function temporaryActionHarness({
+  actorUserId = "admin-1",
+  grantResult = {
+    grantId: "grant-1",
+    featureKey: "premium_backgrounds",
+    effective: true,
+    expiresAt: "2026-09-09T12:00:00.000Z",
+    replayed: false,
+    emailIntentId: "intent-grant",
+  },
+  revokeResult = {
+    grantId: "grant-1",
+    featureKey: "premium_backgrounds",
+    effective: false,
+    expiresAt: "2026-09-09T12:00:00.000Z",
+    replayed: false,
+    emailIntentId: "intent-revoke",
+  },
+  serviceError,
+  deliveryResult = { status: "DELIVERED", attempted: true },
+  deliveryError,
+} = {}) {
+  const calls = []
+  const compiled = loadCompiledModule(
+    temporaryActionSource,
+    "app/admin/users/[userId]/temporary-access-actions.test.ts",
+    {
+      "next/cache": { revalidatePath(path) { calls.push(["revalidatePath", path]) } },
+      "@/lib/admin/access": {
+        async requireFullAdminUser() {
+          calls.push(["requireFullAdminUser"])
+          return { id: actorUserId }
+        },
+      },
+      "@/lib/admin/email-intents": {
+        async deliverAdminEmailIntent(input) {
+          calls.push(["deliverAdminEmailIntent", input])
+          if (deliveryError) throw deliveryError
+          return deliveryResult
+        },
+      },
+      "@/lib/admin/operation-contract": {
+        ADMIN_REASON_CODES: ["ACCESS_REMEDIATION", "ADMIN_CORRECTION", "OTHER"],
+        validateAdminReason(reasonCode, note) {
+          calls.push(["validateAdminReason", reasonCode, note])
+          if (!["ACCESS_REMEDIATION", "ADMIN_CORRECTION", "OTHER"].includes(reasonCode)) throw new Error("invalid reason")
+          if (note?.length > 500 || (reasonCode === "OTHER" && !note?.trim())) throw new Error("invalid note")
+        },
+      },
+      "@/lib/admin/temporary-access": {
+        ADMIN_GRANTABLE_FEATURE_KEYS,
+        async grantTemporaryFeatureAccess(input) {
+          calls.push(["grantTemporaryFeatureAccess", input])
+          if (serviceError) throw serviceError
+          return grantResult
+        },
+        async revokeTemporaryFeatureAccess(input) {
+          calls.push(["revokeTemporaryFeatureAccess", input])
+          if (serviceError) throw serviceError
+          return revokeResult
+        },
+      },
+      "@/lib/prisma": { prisma: { marker: "prisma" } },
+      "@/lib/safe-error-code": {
+        safeErrorCode() {
+          calls.push(["safeErrorCode"])
+          return "safe_failure"
+        },
+      },
+    },
+  )
+  return {
+    grantAction: compiled.grantTemporaryAccessAction,
+    revokeAction: compiled.revokeTemporaryAccessAction,
+    calls,
+  }
+}
+
+function temporaryGrantForm(overrides = {}) {
+  const { expectedActiveGrantIds = ["grant-a", "grant-b"], ...values } = overrides
+  const formData = new FormData()
+  for (const [key, value] of Object.entries({
+    targetUserId: "user-1",
+    operationId: UI_OPERATION_ID,
+    featureKey: "premium_backgrounds",
+    durationDays: "30",
+    reasonCode: "ACCESS_REMEDIATION",
+    internalNote: "Support access while the account is reviewed.",
+    confirmation: "CONFIRM_TEMPORARY_ACCESS_GRANT",
+    ...values,
+  })) formData.set(key, value)
+  for (const grantId of expectedActiveGrantIds) formData.append("expectedActiveGrantIds", grantId)
+  return formData
+}
+
+function temporaryRevokeForm(overrides = {}) {
+  const { expectedActiveGrantIds = ["grant-a", "grant-b"], ...values } = overrides
+  const formData = new FormData()
+  for (const [key, value] of Object.entries({
+    targetUserId: "user-1",
+    operationId: UI_REVOKE_OPERATION_ID,
+    grantId: "grant-a",
+    reasonCode: "ACCESS_REMEDIATION",
+    internalNote: "The temporary support window has ended.",
+    confirmation: "CONFIRM_TEMPORARY_ACCESS_REVOCATION",
+    ...values,
+  })) formData.set(key, value)
+  for (const grantId of expectedActiveGrantIds) formData.append("expectedActiveGrantIds", grantId)
+  return formData
+}
+
+describe("Admin temporary-access actions and controls", () => {
+  it("authenticates before parsing and rejects route-target tampering without mutation", async () => {
+    assert.match(temporaryActionSource, /^"use server"/)
+    assert.doesNotMatch(temporaryActionSource, /randomUUID/)
+    for (const [actionName, form] of [
+      ["grantAction", temporaryGrantForm({ targetUserId: "user-2" })],
+      ["revokeAction", temporaryRevokeForm({ targetUserId: "user-2" })],
+    ]) {
+      const harness = temporaryActionHarness()
+      const result = await harness[actionName]("user-1", UI_IDLE_STATE, form)
+      assert.equal(result.status, "error")
+      assert.deepEqual(harness.calls, [["requireFullAdminUser"]])
+    }
+  })
+
+  it("strictly parses UUID, feature, whole-day bounds, sorted snapshots, reason, note, and confirmation", async () => {
+    const invalidGrantForms = [
+      { operationId: "not-a-uuid" },
+      { featureKey: "chimer_custom_colors" },
+      { featureKey: "practice_management" },
+      { durationDays: "0" },
+      { durationDays: "366" },
+      { durationDays: "1.5" },
+      { durationDays: "1e2" },
+      { expectedActiveGrantIds: ["grant-b", "grant-a"] },
+      { expectedActiveGrantIds: ["grant-a", "grant-a"] },
+      { expectedActiveGrantIds: [""] },
+      { confirmation: "yes" },
+      { reasonCode: "NOT_ALLOWED" },
+      { reasonCode: "OTHER", internalNote: "" },
+      { internalNote: "x".repeat(501) },
+    ]
+    for (const invalid of invalidGrantForms) {
+      const harness = temporaryActionHarness()
+      const result = await harness.grantAction("user-1", UI_IDLE_STATE, temporaryGrantForm(invalid))
+      assert.equal(result.status, "error")
+      assert.equal(harness.calls.some(([name]) => name === "grantTemporaryFeatureAccess"), false)
+    }
+
+    for (const invalid of [
+      { operationId: "not-a-uuid" },
+      { grantId: "" },
+      { expectedActiveGrantIds: ["grant-b", "grant-a"] },
+      { expectedActiveGrantIds: ["grant-a", "grant-a"] },
+      { expectedActiveGrantIds: ["grant-b"] },
+      { confirmation: "yes" },
+      { reasonCode: "OTHER", internalNote: "" },
+    ]) {
+      const harness = temporaryActionHarness()
+      const result = await harness.revokeAction("user-1", UI_IDLE_STATE, temporaryRevokeForm(invalid))
+      assert.equal(result.status, "error")
+      assert.equal(harness.calls.some(([name]) => name === "revokeTemporaryFeatureAccess"), false)
+    }
+  })
+
+  it("calls exactly one canonical mutation, then locked delivery and every affected revalidation", async () => {
+    const grantHarness = temporaryActionHarness()
+    const grantResult = await grantHarness.grantAction("user-1", UI_IDLE_STATE, temporaryGrantForm())
+    assert.equal(grantResult.status, "success")
+    assert.deepEqual(grantHarness.calls.slice(0, 4), [
+      ["requireFullAdminUser"],
+      ["validateAdminReason", "ACCESS_REMEDIATION", "Support access while the account is reviewed."],
+      ["grantTemporaryFeatureAccess", {
+        prismaClient: { marker: "prisma" },
+        actorUserId: "admin-1",
+        targetUserId: "user-1",
+        featureKey: "premium_backgrounds",
+        durationDays: 30,
+        expectedActiveGrantIds: ["grant-a", "grant-b"],
+        reasonCode: "ACCESS_REMEDIATION",
+        internalNote: "Support access while the account is reviewed.",
+        idempotencyKey: UI_OPERATION_ID,
+      }],
+      ["deliverAdminEmailIntent", { prismaClient: { marker: "prisma" }, intentId: "intent-grant" }],
+    ])
+    assert.equal(grantHarness.calls.filter(([name]) => name === "grantTemporaryFeatureAccess").length, 1)
+    assert.equal(grantHarness.calls.filter(([name]) => name === "revokeTemporaryFeatureAccess").length, 0)
+    assert.deepEqual(grantHarness.calls.slice(4), expectedTemporaryRevalidations())
+
+    const revokeHarness = temporaryActionHarness()
+    const revokeResult = await revokeHarness.revokeAction("user-1", UI_IDLE_STATE, temporaryRevokeForm())
+    assert.equal(revokeResult.status, "success")
+    assert.deepEqual(revokeHarness.calls.slice(0, 4), [
+      ["requireFullAdminUser"],
+      ["validateAdminReason", "ACCESS_REMEDIATION", "The temporary support window has ended."],
+      ["revokeTemporaryFeatureAccess", {
+        prismaClient: { marker: "prisma" },
+        actorUserId: "admin-1",
+        targetUserId: "user-1",
+        grantId: "grant-a",
+        expectedActiveGrantIds: ["grant-a", "grant-b"],
+        reasonCode: "ACCESS_REMEDIATION",
+        internalNote: "The temporary support window has ended.",
+        idempotencyKey: UI_REVOKE_OPERATION_ID,
+      }],
+      ["deliverAdminEmailIntent", { prismaClient: { marker: "prisma" }, intentId: "intent-revoke" }],
+    ])
+    assert.equal(revokeHarness.calls.filter(([name]) => name === "revokeTemporaryFeatureAccess").length, 1)
+    assert.equal(revokeHarness.calls.filter(([name]) => name === "grantTemporaryFeatureAccess").length, 0)
+    assert.deepEqual(revokeHarness.calls.slice(4), expectedTemporaryRevalidations())
+  })
+
+  it("keeps mutation, replay, and locked email outcomes distinct without claiming global feature removal", async () => {
+    const failedGrant = temporaryActionHarness({ deliveryResult: { status: "FAILED", attempted: true } })
+    const failedGrantResult = await failedGrant.grantAction("user-1", UI_IDLE_STATE, temporaryGrantForm())
+    assert.equal(failedGrantResult.status, "warning")
+    assert.match(failedGrantResult.message, /temporary Premium backgrounds access was granted through/i)
+    assert.match(failedGrantResult.message, /email notification failed/i)
+    assert.match(failedGrantResult.message, /Retry it from Activity/i)
+
+    const replayedGrant = temporaryActionHarness({
+      grantResult: {
+        grantId: "grant-1", featureKey: "premium_backgrounds", effective: true,
+        expiresAt: "2026-09-09T12:00:00.000Z", replayed: true, emailIntentId: "intent-grant",
+      },
+      deliveryResult: { status: "DELIVERED", attempted: false },
+    })
+    const replayedGrantResult = await replayedGrant.grantAction("user-1", UI_IDLE_STATE, temporaryGrantForm())
+    assert.match(replayedGrantResult.message, /already completed/i)
+    assert.match(replayedGrantResult.message, /already delivered; this invocation made no new send attempt/i)
+    assert.doesNotMatch(replayedGrantResult.message, /granted again|new grant/i)
+
+    const revoked = temporaryActionHarness()
+    const revokedResult = await revoked.revokeAction("user-1", UI_IDLE_STATE, temporaryRevokeForm())
+    assert.match(revokedResult.message, /one temporary Premium backgrounds grant was revoked/i)
+    assert.match(revokedResult.message, /membership or temporary sources may still keep this feature available/i)
+    assert.doesNotMatch(revokedResult.message, /feature access (?:was|is) removed|no longer has/i)
+  })
+
+  it("never promises the hidden Activity retry control for a self-target delivery failure", async () => {
+    for (const [replayed, attempted] of [[false, true], [true, false]]) {
+      const harness = temporaryActionHarness({
+        actorUserId: "user-1",
+        grantResult: {
+          grantId: "grant-1", featureKey: "premium_backgrounds", effective: true,
+          expiresAt: "2026-09-09T12:00:00.000Z", replayed, emailIntentId: "intent-grant",
+        },
+        deliveryResult: { status: "FAILED", attempted },
+      })
+      const result = await harness.grantAction("user-1", UI_IDLE_STATE, temporaryGrantForm())
+      assert.equal(result.status, "warning")
+      assert.match(result.message, /Check Activity for the recorded notification status/i)
+      assert.doesNotMatch(result.message, /retry/i)
+    }
+  })
+
+  it("renders the exact low-risk labels, presets, custom bounds, one-time preview, and confirmation reset", () => {
+    assert.match(adminDetailPageSource, /const requestNow = new Date\(\)/)
+    assert.match(adminDetailPageSource, /now: requestNow/)
+    assert.match(adminDetailPageSource, /temporaryGrant: randomUUID\(\)/)
+    assert.match(adminDetailPageSource, /revokeOperationId: randomUUID\(\)/)
+    assert.match(adminDetailPageSource, /preparedAt=\{requestNow\.toISOString\(\)\}/)
+    for (const [key, label] of [
+      ["premium_backgrounds", "Premium backgrounds"],
+      ["therapist_documentation_tools", "Therapist documentation tools"],
+      ["calendar_basic_scheduling", "Basic calendar scheduling"],
+      ["calendar_full_scheduling", "Full calendar scheduling"],
+      ["external_calendar_sync", "External calendar sync"],
+    ]) {
+      assert.match(temporaryFormSource, new RegExp(`${key}[^\\n]+${label}`))
+    }
+    for (const days of [7, 30, 90]) assert.match(temporaryFormSource, new RegExp(`\\b${days}\\b`))
+    assert.match(temporaryFormSource, /name="durationDays"[\s\S]*type="number"[\s\S]*min=\{1\}[\s\S]*max=\{365\}[\s\S]*step=\{1\}/)
+    assert.match(temporaryFormSource, /preparedAt[\s\S]*startsAt[\s\S]*expiresAt/)
+    assert.match(temporaryFormSource, /updateFeature[\s\S]*setConfirmed\(false\)/)
+    assert.match(temporaryFormSource, /updateDuration[\s\S]*setConfirmed\(false\)/)
+    assert.match(temporaryFormSource, /aria-live="polite"/)
+    assert.match(temporaryFormSource, /aria-live="assertive"/)
+    assert.doesNotMatch(temporaryFormSource, /chimer_custom_colors|practice_management|calendar_team_scheduling|cloud_storage|phi_storage_tools/)
+  })
+
+  it("shows bounded active grants independently while suppressing sensitive evidence and unsafe controls", () => {
+    assert.match(adminDetailPageSource, /readTemporaryGrantEvidence/)
+    assert.match(adminDetailPageSource, /detail\.emailVerified === true && isUsableEmail\(normalizedTargetEmail\)/)
+    assert.match(adminDetailPageSource, /temporaryGrants\.truncated|evidence\.truncated/)
+    assert.match(adminDetailPageSource, /complete active (?:grant )?snapshot/i)
+    assert.match(adminDetailPageSource, /<TemporaryAccessControls/)
+    assert.match(temporaryFormSource, /Active temporary grants/)
+    assert.match(temporaryFormSource, /Showing \{grants\.length\} of \{totalGrantCount\}/)
+    assert.match(temporaryFormSource, /append-only revocation/i)
+    assert.doesNotMatch(temporaryFormSource, /grantedById|revokedById|idempotencyKey|actorUserId/)
+  })
+
+  it("remounts a surviving revoke form on its fresh server operation key after a sibling revoke", () => {
+    const { TemporaryAccessControls } = temporaryAccessUiHarness()
+    const expectedActiveGrantIds = {
+      premium_backgrounds: ["grant-a", "grant-b"],
+      therapist_documentation_tools: [],
+      calendar_basic_scheduling: [],
+      calendar_full_scheduling: [],
+      external_calendar_sync: [],
+    }
+    const grant = (grantId, revokeOperationId) => ({
+      grantId,
+      featureKey: "premium_backgrounds",
+      startsAt: "2026-08-10T12:00:00.000Z",
+      expiresAt: "2026-08-24T12:00:00.000Z",
+      revokeOperationId,
+    })
+    const props = {
+      userId: "user-1",
+      targetLabel: "Target User",
+      preparedAt: "2026-08-10T12:00:00.000Z",
+      grantOperationId: UI_OPERATION_ID,
+      expectedActiveGrantIds,
+      totalGrantCount: 2,
+      truncated: false,
+      controlsAvailable: true,
+    }
+    const before = TemporaryAccessControls({
+      ...props,
+      grants: [grant("grant-a", "revoke-operation-a-old"), grant("grant-b", "revoke-operation-b")],
+    })
+    const after = TemporaryAccessControls({
+      ...props,
+      expectedActiveGrantIds: { ...expectedActiveGrantIds, premium_backgrounds: ["grant-a"] },
+      grants: [grant("grant-a", "revoke-operation-a-fresh")],
+      totalGrantCount: 1,
+    })
+    const survivingForm = (tree) => findElement(
+      tree,
+      (element) => typeof element.type === "function"
+        && element.type.name === "RevokeGrantForm"
+        && element.props.grant.grantId === "grant-a",
+    )
+
+    assert.equal(survivingForm(before).key, "revoke-operation-a-old")
+    assert.equal(survivingForm(after).key, "revoke-operation-a-fresh")
+    assert.match(temporaryFormSource, /function RevokeGrantForm[\s\S]*const \[reasonCode, setReasonCode\] = useState\(""\)/)
+    assert.match(temporaryFormSource, /function RevokeGrantForm[\s\S]*const \[internalNote, setInternalNote\] = useState\(""\)/)
+    assert.match(temporaryFormSource, /function RevokeGrantForm[\s\S]*const \[confirmed, setConfirmed\] = useState\(false\)/)
+  })
+})
+
+function expectedTemporaryRevalidations() {
+  return [
+    ["revalidatePath", "/admin/users/user-1"],
+    ["revalidatePath", "/admin/users"],
+    ["revalidatePath", "/admin"],
+    ["revalidatePath", "/account"],
+  ]
+}

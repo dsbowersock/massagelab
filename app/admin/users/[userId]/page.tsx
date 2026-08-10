@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { requireFullAdminUser } from "@/lib/admin/access"
 import { RetryEmailForm } from "./retry-email-form"
 import { CreditGrantControls } from "./credit-action-form"
+import { TemporaryAccessControls, type TemporaryGrantPresentation } from "./temporary-access-form"
 import { RoleChangeControls, SelfRoleManagementNotice, type RoleEvidence } from "./role-change-form"
 import {
   FreshPasswordResetForm,
@@ -20,6 +21,10 @@ import {
   type AdminUserDetailSection,
 } from "@/lib/admin/user-detail"
 import { INITIAL_BACKGROUND_CREDIT_COUNT } from "@/lib/commerce/credit-service"
+import {
+  ADMIN_GRANTABLE_FEATURE_KEYS,
+  type AdminGrantableFeatureKey,
+} from "@/lib/admin/temporary-access"
 import { prisma } from "@/lib/prisma"
 
 type AdminUserDetailPageProps = {
@@ -32,7 +37,8 @@ export default async function AdminUserDetailPage({ params, searchParams }: Admi
   const actor = await requireFullAdminUser()
   const { userId } = await params
   const section = parseAdminUserDetailSection(singleValue((await searchParams).section))
-  const detail = await getAdminUserDetailSection({ prismaClient: prisma, userId, section })
+  const requestNow = new Date()
+  const detail = await getAdminUserDetailSection({ prismaClient: prisma, userId, section, now: requestNow })
   if (!detail) notFound()
 
   return (
@@ -69,6 +75,7 @@ export default async function AdminUserDetailPage({ params, searchParams }: Admi
                       targetName={detail.target.name}
                       targetEmail={detail.target.email}
                       canManageRoles={actor.id !== userId}
+                      requestNow={requestNow}
                     />
                   : section === "security"
                     ? <SecuritySection
@@ -175,12 +182,14 @@ function AccessSection({
   targetName,
   targetEmail,
   canManageRoles,
+  requestNow,
 }: {
   detail: Record<string, unknown>
   userId: string
   targetName: string | null
   targetEmail: string | null
   canManageRoles: boolean
+  requestNow: Date
 }) {
   const roles = Array.isArray(detail.roles)
     ? detail.roles.filter(isAccessRoleEvidence)
@@ -189,15 +198,18 @@ function AccessSection({
     ANATOMY_REVIEWER: randomUUID(),
     ANATOMY_EDITOR: randomUUID(),
     creditGrant: randomUUID(),
+    temporaryGrant: randomUUID(),
   }
   const normalizedTargetEmail = normalizeEmail(targetEmail)
   const hasVerifiedEmail = detail.emailVerified === true && Boolean(normalizedTargetEmail)
+  const hasVerifiedUsableEmail = detail.emailVerified === true && isUsableEmail(normalizedTargetEmail)
   const creditEvidence = hasVerifiedEmail
     ? readCreditGrantEvidence(detail.wallet)
     : null
   const targetLabel = targetName?.trim()
     ? `${targetName.trim()} (${normalizedTargetEmail})`
     : normalizedTargetEmail || "Unnamed account"
+  const temporaryEvidence = readTemporaryGrantEvidence(detail)
   return (
     <div className="space-y-5">
       <DetailSection detail={detail} section="access" />
@@ -221,8 +233,84 @@ function AccessSection({
           Background-credit controls are unavailable because the wallet evidence is incomplete or unusable. Refresh the account before trying again.
         </p>
       )}
+      {hasVerifiedUsableEmail && temporaryEvidence ? (
+        <TemporaryAccessControls
+          userId={userId}
+          targetLabel={targetLabel}
+          preparedAt={requestNow.toISOString()}
+          grantOperationId={operationIds.temporaryGrant}
+          expectedActiveGrantIds={temporaryEvidence.expectedActiveGrantIds}
+          grants={temporaryEvidence.grants.map((grant) => ({ ...grant, revokeOperationId: randomUUID() }))}
+          totalGrantCount={temporaryEvidence.total}
+          truncated={temporaryEvidence.truncated}
+          controlsAvailable={temporaryEvidence.complete}
+        />
+      ) : !hasVerifiedUsableEmail ? (
+        <p className="rounded-md border bg-background/60 p-4 text-sm text-muted-foreground">
+          Temporary-access controls are unavailable because this account does not have a verified usable email.
+        </p>
+      ) : (
+        <p className="rounded-md border bg-background/60 p-4 text-sm text-muted-foreground">
+          Temporary-access controls are unavailable because a complete active grant snapshot could not be loaded safely. Refresh the account before trying again.
+        </p>
+      )}
     </div>
   )
+}
+
+/** Accepts only the bounded safe Task 17 projection and exposes no stored operator evidence. */
+function readTemporaryGrantEvidence(detail: Record<string, unknown>): {
+  grants: Omit<TemporaryGrantPresentation, "revokeOperationId">[]
+  expectedActiveGrantIds: Record<AdminGrantableFeatureKey, string[]>
+  total: number
+  truncated: boolean
+  complete: boolean
+} | null {
+  const temporaryGrants = detail.temporaryGrants
+  if (!isRecord(temporaryGrants)
+    || !Array.isArray(temporaryGrants.items)
+    || !Number.isSafeInteger(temporaryGrants.total)
+    || (temporaryGrants.total as number) < temporaryGrants.items.length
+    || typeof temporaryGrants.truncated !== "boolean") return null
+
+  const grants: Omit<TemporaryGrantPresentation, "revokeOperationId">[] = []
+  const seen = new Set<string>()
+  const expectedActiveGrantIds: Record<AdminGrantableFeatureKey, string[]> = {
+    premium_backgrounds: [],
+    therapist_documentation_tools: [],
+    calendar_basic_scheduling: [],
+    calendar_full_scheduling: [],
+    external_calendar_sync: [],
+  }
+  for (const item of temporaryGrants.items) {
+    if (!isRecord(item)
+      || typeof item.grantId !== "string"
+      || !isSafeRecordId(item.grantId)
+      || seen.has(item.grantId)
+      || typeof item.featureKey !== "string"
+      || !isGrantableFeature(item.featureKey)
+      || typeof item.startsAt !== "string"
+      || typeof item.expiresAt !== "string"
+      || !isValidGrantWindow(item.startsAt, item.expiresAt)) return null
+    seen.add(item.grantId)
+    expectedActiveGrantIds[item.featureKey].push(item.grantId)
+    grants.push({
+      grantId: item.grantId,
+      featureKey: item.featureKey,
+      startsAt: item.startsAt,
+      expiresAt: item.expiresAt,
+    })
+  }
+  for (const grantIds of Object.values(expectedActiveGrantIds)) grantIds.sort()
+  const total = temporaryGrants.total as number
+  const truncated = temporaryGrants.truncated
+  return {
+    grants,
+    expectedActiveGrantIds,
+    total,
+    truncated,
+    complete: !truncated && total === grants.length,
+  }
 }
 
 /** Fails closed unless the Access projection explicitly identifies wallet presence and a safe balance. */
@@ -414,4 +502,23 @@ function safeCount(value: unknown) {
 /** Normalizes only the optional client-side comparison value; the server security service remains authoritative. */
 function normalizeEmail(value: string | null) {
   return typeof value === "string" ? value.trim().toLowerCase() : ""
+}
+
+/** Mirrors the service boundary so unusable recipients never receive optimistic mutation controls. */
+function isUsableEmail(value: string) {
+  return value.length > 0 && value.length <= 320 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+}
+
+function isGrantableFeature(value: string): value is AdminGrantableFeatureKey {
+  return ADMIN_GRANTABLE_FEATURE_KEYS.includes(value as AdminGrantableFeatureKey)
+}
+
+function isSafeRecordId(value: string) {
+  return value.length <= 191 && /^[A-Za-z0-9_-]+$/.test(value)
+}
+
+function isValidGrantWindow(startsAt: string, expiresAt: string) {
+  const start = new Date(startsAt).getTime()
+  const expiry = new Date(expiresAt).getTime()
+  return Number.isFinite(start) && Number.isFinite(expiry) && start < expiry
 }

@@ -238,6 +238,48 @@ describe("Account page tab model", () => {
     )
   })
 
+  it("shows every active temporary feature expiration without grant, actor, or note identifiers", async () => {
+    const tree = await renderMembershipTab({
+      features: ["premium_backgrounds", "external_calendar_sync"],
+      featureAccess: [{
+        featureKey: "premium_backgrounds",
+        sources: [
+          { source: "temporary", expiresAt: "2026-09-01T00:00:00.000Z" },
+          { source: "temporary", expiresAt: "2026-10-01T00:00:00.000Z" },
+        ],
+      }, {
+        featureKey: "external_calendar_sync",
+        sources: [{ source: "temporary", expiresAt: "2026-09-15T00:00:00.000Z" }],
+      }],
+      subscriptions: [],
+      stripeCustomer: null,
+    })
+    const text = elementText(tree)
+
+    assert.match(text, /Temporary feature access/i)
+    assert.match(text, /Premium backgrounds/i)
+    assert.match(text, /External calendar sync/i)
+    assert.match(text, /2026-09-01/)
+    assert.match(text, /2026-10-01/)
+    assert.match(text, /2026-09-15/)
+    assert.doesNotMatch(text, /grant-|actor|internal note|idempotency/i)
+    assert.doesNotMatch(accountPageSource, /temporaryAccess.*grantId|temporaryAccess.*grantedById/i)
+  })
+
+  it("omits temporary-access expiration presentation when request-time entitlements have no active temporary source", async () => {
+    const tree = await renderMembershipTab({
+      features: ["premium_backgrounds"],
+      featureAccess: [{
+        featureKey: "premium_backgrounds",
+        sources: [{ source: "membership", expiresAt: null }],
+      }],
+      subscriptions: [subscription("active")],
+      stripeCustomer: { stripeCustomerId: "cus_123" },
+    })
+
+    assert.doesNotMatch(elementText(tree), /Temporary feature access/i)
+  })
+
   it("keeps Account pricing and billing Portal actions independently gated", async () => {
     const terminalWithPortal = await renderMembershipTab({
       subscriptions: [subscription("canceled")],
@@ -370,6 +412,7 @@ function billingPortalForms(tree) {
  */
 async function renderMembershipTab({
   features = [],
+  featureAccess = [],
   subscriptions,
   stripeCustomer,
 }) {
@@ -437,6 +480,7 @@ async function renderMembershipTab({
         membershipSummary: {
           entitlements: {
             features,
+            featureAccess,
             level: "SUPPORTER",
             paidLevel: "SUPPORTER",
           },

@@ -109,11 +109,13 @@ export default async function AdminDashboardPage() {
                 <h2 className="text-lg font-semibold">Account operations</h2>
                 <p className="text-sm text-muted-foreground">Safe aggregate account and support-operation counts.</p>
               </div>
-              <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+              <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
                 <DashboardStat>{userMetrics.totalAccounts.toLocaleString()} total accounts</DashboardStat>
                 <DashboardStat>{userMetrics.verifiedAccounts.toLocaleString()} verified accounts</DashboardStat>
                 <DashboardStat>{userMetrics.activeSupporters.toLocaleString()} active Supporters</DashboardStat>
                 <DashboardStat>{userMetrics.unresolvedOperations.toLocaleString()} unresolved operations</DashboardStat>
+                <DashboardStat>{userMetrics.activeTemporaryGrants.toLocaleString()} active temporary grants</DashboardStat>
+                <DashboardStat>{userMetrics.expiringTemporaryGrants.toLocaleString()} temporary grants expiring within 30 days</DashboardStat>
               </div>
             </section>
           ) : null}

@@ -18,9 +18,10 @@ type UserDirectoryPageProps = {
 export default async function AdminUserDirectoryPage({ searchParams }: UserDirectoryPageProps) {
   await requireFullAdminUser()
   const query = parseUserDirectoryQuery(toSingleValueQuery(await searchParams))
+  const requestNow = new Date()
   const [directory, metrics] = await Promise.all([
-    listAdminUsers({ prismaClient: prisma, input: query }),
-    getAdminUserMetrics({ prismaClient: prisma }),
+    listAdminUsers({ prismaClient: prisma, input: query, now: requestNow }),
+    getAdminUserMetrics({ prismaClient: prisma, now: requestNow }),
   ])
 
   return (
@@ -37,11 +38,13 @@ export default async function AdminUserDirectoryPage({ searchParams }: UserDirec
             <Button asChild variant="outline"><Link href="/admin">Admin dashboard</Link></Button>
           </div>
 
-          <section aria-label="Directory summary" className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+          <section aria-label="Directory summary" className="grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-6">
             <MetricCard label="Accounts" value={metrics.totalAccounts} />
             <MetricCard label="Verified accounts" value={metrics.verifiedAccounts} />
             <MetricCard label="Active Supporters" value={metrics.activeSupporters} />
             <MetricCard label="Unresolved operations" value={metrics.unresolvedOperations} />
+            <MetricCard label="Active temporary grants" value={metrics.activeTemporaryGrants} />
+            <MetricCard label="Temporary grants expiring within 30 days" value={metrics.expiringTemporaryGrants} />
           </section>
 
           <form action="/admin/users" method="get" className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -55,6 +58,7 @@ export default async function AdminUserDirectoryPage({ searchParams }: UserDirec
             <DirectorySelect label="Role status" name="roleStatus" value={query.roleStatus} options={ROLE_STATUS_OPTIONS} />
             <DirectorySelect label="Subscription" name="subscriptionStatus" value={query.subscriptionStatus} options={SUBSCRIPTION_STATUS_OPTIONS} />
             <DirectorySelect label="Operations" name="unresolvedIssue" value={query.unresolvedIssue} options={[["yes", "Unresolved"], ["no", "Clear"]]} />
+            <DirectorySelect label="Temporary access" name="temporaryAccess" value={query.temporaryAccess} options={[["active", "Active"], ["none", "None"]]} />
             <label className="space-y-1">
               <span className="text-xs font-medium text-muted-foreground">Results per page</span>
               <select name="pageSize" defaultValue={String(query.pageSize)} className="h-10 w-full rounded-md border bg-background px-3 text-sm">
@@ -170,6 +174,7 @@ function directoryHref(query: AdminUserDirectoryQuery, cursor: string | null) {
   if (query.roleStatus) params.set("roleStatus", query.roleStatus)
   if (query.subscriptionStatus) params.set("subscriptionStatus", query.subscriptionStatus)
   if (query.creditState) params.set("creditState", query.creditState)
+  if (query.temporaryAccess) params.set("temporaryAccess", query.temporaryAccess)
   if (query.unresolvedIssue) params.set("unresolvedIssue", query.unresolvedIssue)
   params.set("pageSize", String(query.pageSize))
   if (cursor) params.set("cursor", cursor)

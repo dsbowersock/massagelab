@@ -12,8 +12,8 @@
 
 ## Pending evidence
 
-- Task 17 coordinator commit.
-- Task 18, whole-branch review, terminal validation, and PR loop.
+- Task 18 coordinator commit.
+- Whole-branch review, terminal validation, and PR loop.
 
 ## Task 16
 
@@ -34,3 +34,15 @@
 - Final architecture: `lib/membership.js` remains the canonical entitlement owner; additive `featureAccess` preserves deterministic membership/temporary sources while legacy `featureDetails` stays compatible. Auth, entitlement state, uncached Account membership, and Admin Access use the complete active set with one request-time boundary. Admin separately displays at most 25 safe rows with truthful total/truncation evidence.
 - Coordinator fresh verification: 86/86 focused/adjacent tests, typecheck, full lint, and `git diff --check` passed. Lint emitted only the existing Babel large-file deoptimization note.
 - Scope: the seven planned Task 17 files plus the narrowly necessary `lib/admin/user-detail.ts`; no live database, email, browser, schema, manifest, or lockfile mutation.
+- Coordinator commit: `7a56c9544a35233a8b9d8de2283c4553cac9b82a`; committed diff and clean worktree read back.
+
+## Task 18
+
+- Genuine RED: the initial focused 67-test UI/action/Account/directory/dashboard/fixture run had 16 expected missing-feature failures before production edits. A separate verified-usable-email regression recorded one expected failure before its guard was added.
+- Initial GREEN: 67/67 focused, then 200/200 Task 16-18 and adjacent regressions; typecheck, full lint, and diff check passed.
+- Spec review found that remaining revoke forms could preserve confirmation across fresh operation keys and browser QA treated preview time as the authoritative service expiration. Repair RED had the two expected failures; GREEN keyed each revoke form by its fresh operation ID and changed browser evidence to assert the persisted 14-day interval and use the persisted expiration. Spec re-review approved.
+- Quality review found that directory filters and dashboard metrics counted arbitrary stored feature strings instead of the canonical allowlist. Repair RED had three exact-query failures; GREEN added the five-key predicate to active/none cursor queries and active/expiring metric counts while preserving one request time and the exclusive 30-day endpoint. Quality re-review approved.
+- Final UI boundary: full Admin, verified usable recipient, complete optimistic snapshot, exact five feature labels, 7/30/90 plus 1-365-day custom duration, stable operation keys, confirmation reset, append-only revoke controls, post-commit locked email delivery, safe replay/self-target copy, request-time Account expiration, and privacy-safe bounded Admin evidence.
+- Fixture/browser source covers desktop/mobile grant, authoritative expiration, Account visibility, revoke, fresh confirmation, excluded keys, exact disposable database opt-in, SMTP-blank owned server, and FK cleanup from revocations to grants to exact users.
+- Real Playwright was not executed because neither `DATABASE_URL` nor `MASSAGELAB_BROWSER_QA_DATABASE=1` is available. No live database, email, or browser mutation occurred.
+- Coordinator fresh verification: 135/135 focused/adjacent tests, typecheck, full lint, and `git diff --check` passed. Lint emitted only the existing Babel large-file deoptimization note.
