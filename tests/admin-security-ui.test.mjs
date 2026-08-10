@@ -143,6 +143,7 @@ function detailPageHarness() {
       "@/components/ui/button": {},
       "@/components/ui/card": {},
       "@/lib/admin/access": {},
+      "./credit-action-form": {},
       "./retry-email-form": {},
       "./role-change-form": {},
       "./security-action-forms": {},

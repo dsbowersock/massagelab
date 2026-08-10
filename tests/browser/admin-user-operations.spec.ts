@@ -101,6 +101,54 @@ test.describe("Admin user operations", () => {
     }
   })
 
+  test("Admin previews and confirms one positive background-credit goodwill grant", async ({ page }, testInfo) => {
+    const fixture = createBrowserAdminFixtureIdentity(testInfo.project.name)
+    await page.goto(`/admin/users/${encodeURIComponent(fixture.target.id)}?section=access`, { waitUntil: "domcontentloaded" })
+    const creditCard = page.locator("article").filter({
+      has: page.getByRole("heading", { name: "Add background credits" }),
+    })
+    const submitButton = creditCard.getByRole("button", { name: "Add background credits" })
+    await expect(creditCard.getByText("Current persisted balance: 0", { exact: true })).toBeVisible()
+    await expect(creditCard.getByText("Automatic verified-account allocation: +2", { exact: true })).toBeVisible()
+    await expect(submitButton).toBeDisabled()
+
+    const fivePreset = creditCard.getByRole("button", { name: "+5" })
+    await fivePreset.focus()
+    await expect(fivePreset).toBeFocused()
+    await fivePreset.press("Enter")
+    await expect(creditCard.getByText("Admin grant: +5", { exact: true })).toBeVisible()
+    await expect(creditCard.getByText("Resulting balance: 2 + 5 = 7", { exact: true })).toBeVisible()
+
+    const customAmount = creditCard.getByLabel("Custom credit amount")
+    await customAmount.fill("3")
+    await expect(creditCard.getByText("Admin grant: +3", { exact: true })).toBeVisible()
+    await expect(creditCard.getByText("Resulting balance: 2 + 3 = 5", { exact: true })).toBeVisible()
+    await creditCard.getByLabel("Reason").selectOption("BACKGROUND_CREDIT_GOODWILL")
+    const confirmation = creditCard.locator('input[name="confirmation"]')
+    await creditCard.getByLabel(/I confirm that 3 background credits will be added/).check()
+    await expect(submitButton).toBeEnabled()
+    await customAmount.fill("4")
+    await expect(confirmation).toBeChecked({ checked: false })
+    await expect(submitButton).toBeDisabled()
+    await customAmount.fill("3")
+    await creditCard.getByLabel(/I confirm that 3 background credits will be added/).check()
+    await expect(submitButton).toBeEnabled()
+    await submitButton.focus()
+    await expect(submitButton).toBeFocused()
+    await submitButton.press("Enter")
+
+    await expect(creditCard.getByText("Current balance: 5", { exact: true })).toBeVisible()
+    await expect(creditCard.getByText(/3 background credits were added\. The balance changed from 2 to 5\./i)).toBeVisible()
+    const freshConfirmation = creditCard.getByLabel(/I confirm that 1 background credit will be added/)
+    await expect(freshConfirmation).toBeChecked({ checked: false })
+    await expect(submitButton).toBeDisabled()
+
+    await page.getByRole("navigation", { name: "Account detail sections" }).getByRole("link", { name: "Activity" }).click()
+    const activity = page.getByRole("listitem").filter({ hasText: "Background credits added" }).first()
+    await expect(activity).toContainText("Effective value: +3 credits")
+    await expect(activity).toContainText("Email delivery")
+  })
+
   test("Admin confirms sign-in token revocation and the target JWT is rejected on refresh", async ({ page, browser }, testInfo) => {
     const fixture = createBrowserAdminFixtureIdentity(testInfo.project.name)
     const baseURL = String(testInfo.project.use.baseURL)
