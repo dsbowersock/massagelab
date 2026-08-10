@@ -100,4 +100,93 @@ test.describe("Admin user operations", () => {
       await targetContext.close()
     }
   })
+
+  test("Admin confirms sign-in token revocation and the target JWT is rejected on refresh", async ({ page, browser }, testInfo) => {
+    const fixture = createBrowserAdminFixtureIdentity(testInfo.project.name)
+    const baseURL = String(testInfo.project.use.baseURL)
+    const targetContext = await browser.newContext()
+    try {
+      await installSignedInSessionCookie(targetContext, baseURL, fixture.target)
+      const targetPage = await targetContext.newPage()
+      const sessionUrl = new URL("/api/auth/session", baseURL).href
+      const beforeSession = await (await targetPage.request.get(sessionUrl)).json()
+      expect(beforeSession.user?.id).toBe(fixture.target.id)
+
+      await page.goto(`/admin/users/${encodeURIComponent(fixture.target.id)}?section=security`, { waitUntil: "domcontentloaded" })
+      await expect(page.getByText("Compatibility Session rows", { exact: true })).toBeVisible()
+      await expect(page.getByText(/not a count of active JWT sessions or users signed out/i)).toBeVisible()
+      const revokeCard = page.locator("article").filter({
+        has: page.getByRole("heading", { name: "Revoke sign-in tokens and sessions" }),
+      })
+      const revokeButton = revokeCard.getByRole("button", { name: "Revoke sign-in tokens and sessions" })
+      await expect(revokeButton).toBeDisabled()
+      await revokeCard.getByLabel("Reason").selectOption("SECURITY_RECOVERY")
+      await expect(revokeButton).toBeDisabled()
+      await revokeCard.getByLabel(/I confirm that existing sign-in tokens will be invalidated/).check()
+      await expect(revokeButton).toBeEnabled()
+      await revokeButton.focus()
+      await expect(revokeButton).toBeFocused()
+      await revokeButton.press("Enter")
+      await expect(revokeCard.getByText(/Existing sign-in tokens were invalidated/)).toBeVisible()
+
+      await targetPage.reload({ waitUntil: "domcontentloaded" })
+      const afterSession = await (await targetPage.request.get(sessionUrl)).json()
+      expect(afterSession?.user?.id).toBeUndefined()
+    } finally {
+      await targetContext.close()
+    }
+  })
+
+  test("Admin creates a fresh failed reset delivery and uses the fresh-token Activity resend", async ({ page }, testInfo) => {
+    const fixture = createBrowserAdminFixtureIdentity(testInfo.project.name)
+    await page.goto(`/admin/users/${encodeURIComponent(fixture.target.id)}?section=security`, { waitUntil: "domcontentloaded" })
+    const resetCard = page.locator("article").filter({
+      has: page.getByRole("heading", { name: "Send password reset" }),
+    })
+    const resetButton = resetCard.getByRole("button", { name: "Send password reset" })
+    await expect(resetButton).toBeDisabled()
+    await resetCard.getByLabel("Reason").selectOption("LOGIN_SUPPORT")
+    await resetCard.getByLabel(/I confirm this creates a fresh password-reset link/).check()
+    await expect(resetButton).toBeEnabled()
+    await resetButton.press("Enter")
+    await expect(resetCard.getByText(/fresh password-reset link was created, but email delivery failed/i)).toBeVisible()
+
+    await page.getByRole("navigation", { name: "Account detail sections" }).getByRole("link", { name: "Activity" }).click()
+    const failedReset = page.getByRole("listitem").filter({ hasText: "Password reset requested" }).first()
+    const submittedActivityId = await failedReset.getAttribute("data-activity-id")
+    if (!submittedActivityId) throw new Error("Failed password-reset Activity requires a durable row identity.")
+    const submittedFailedReset = page.locator(`[data-activity-id="${submittedActivityId}"]`)
+    const submittedFeedback = submittedFailedReset.getByRole("status")
+    const resendButton = submittedFailedReset.getByRole("button", { name: "Send a new reset link" })
+    await expect(resendButton).toBeDisabled()
+    await submittedFailedReset.getByLabel("Reason").selectOption("LOGIN_SUPPORT")
+    await submittedFailedReset.getByLabel(/I confirm this creates a fresh password-reset link/).check()
+    await expect(resendButton).toBeEnabled()
+    await resendButton.focus()
+    await resendButton.press("Enter")
+    await expect(page.getByRole("listitem").filter({ hasText: "Password reset requested" })).toHaveCount(2)
+    await expect(submittedFailedReset).toBeVisible()
+    await expect(submittedFeedback).toContainText(/fresh password-reset link was created, but email delivery failed/i)
+  })
+
+  test("Admin Security is self-read-only and 2FA reset requires the target confirmation email", async ({ page }, testInfo) => {
+    const fixture = createBrowserAdminFixtureIdentity(testInfo.project.name)
+    await page.goto(`/admin/users/${encodeURIComponent(fixture.operator.id)}?section=security`, { waitUntil: "domcontentloaded" })
+    await expect(page.getByText(/cannot perform security remediation on your own account/i)).toBeVisible()
+    await expect(page.getByRole("button", { name: "Send password reset" })).toHaveCount(0)
+
+    await page.goto(`/admin/users/${encodeURIComponent(fixture.target.id)}?section=security`, { waitUntil: "domcontentloaded" })
+    const twoFactorCard = page.locator("article").filter({
+      has: page.getByRole("heading", { name: "Reset two-factor authentication" }),
+    })
+    const twoFactorButton = twoFactorCard.getByRole("button", { name: "Reset two-factor authentication" })
+    await twoFactorCard.getByLabel("Reason").selectOption("SECURITY_RECOVERY")
+    await twoFactorCard.getByLabel("Confirmation email").fill("mismatch@example.test")
+    await expect(twoFactorButton).toBeDisabled()
+    await twoFactorCard.getByLabel("Confirmation email").fill(fixture.target.email)
+    await expect(twoFactorButton).toBeEnabled()
+    await twoFactorButton.press("Enter")
+    await expect(page.getByText(/Two-factor authentication was reset and existing sign-in tokens were invalidated/)).toBeVisible()
+    await expect(page.getByText("Two-factor authentication", { exact: true }).locator("xpath=following-sibling::*[1]")).toHaveText("No")
+  })
 })

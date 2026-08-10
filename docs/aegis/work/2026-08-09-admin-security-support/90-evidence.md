@@ -12,7 +12,6 @@
 
 ## Pending evidence
 
-- Task 13 focused behavior/browser proof and two-stage review.
 - Whole-branch and terminal validation.
 
 ## Task 12
@@ -25,3 +24,13 @@
 - Stage 2 quality re-review: approved; focused 22/22 plus typecheck passed.
 - Coordinator fresh verification: 75/75 focused/adjacent tests, typecheck, and full lint passed. `git diff --check` and no-index checks reported no whitespace errors; only expected LF-to-CRLF notices appeared for new files.
 - Scope: `lib/admin/security-service.ts` and `tests/admin-security-service.test.mjs`; no schema, package, lockfile, or `lib/auth-mail.ts` change.
+- Coordinator commit: `bc42d87936699cbd5abd51afe2075895360b9076`; exact committed file list and clean status read back, and `git diff --check HEAD^ HEAD` passed.
+
+## Task 13
+
+- Genuine RED: the focused security-UI suite failed 0/12 before the route actions and forms existed.
+- Initial GREEN: 12/12 focused, 113/113 focused/adjacent, and 34/34 final refined tests passed with typecheck, lint, and diff check.
+- Stage 1 spec review found only two canonical-wiki ownership/state wording mismatches. The wording-only correction passed 50/50 focused tests, typecheck, lint, and diff check; spec re-review approved.
+- Stage 2 quality review found Activity rows keyed by display position could remount the submitted password-reset form and discard its live feedback after revalidation. The durable `UserAccountActivity.id` fix recorded a 21/24 RED and 24/24 GREEN, then 114/114 adjacent regressions; quality re-review approved.
+- Browser execution remained intentionally deferred because the worktree has neither an approved disposable `DATABASE_URL` nor `MASSAGELAB_BROWSER_QA_DATABASE=1`. Source/harness contracts require the exact sentinel, an SMTP-blank Playwright-owned server, exact-ID cleanup, desktop/mobile controls, and durable submitted-form feedback.
+- Coordinator fresh verification: Branch 5 gate 43/43, typecheck, full lint, and diff check passed.

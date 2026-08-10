@@ -178,11 +178,11 @@ export async function loadAdminUserBilling(input: { prismaClient: DetailPrismaCl
   })
 }
 
-/** Loads provider labels and state booleans, then counts sessions without reading a session record or token. */
+/** Loads safe authentication evidence plus optimistic state for route-local security actions. */
 export async function loadAdminUserSecurity(input: { prismaClient: DetailPrismaClient; userId: string; now?: Date }): Promise<AdminUserDetailSectionResult | null> {
   const user = await input.prismaClient.user.findUnique({ where: { id: input.userId }, select: SECURITY_SELECT })
   if (!user) return null
-  const activeSessionCount = await input.prismaClient.session.count({
+  const compatibilitySessionCount = await input.prismaClient.session.count({
     where: { userId: input.userId, expires: { gt: input.now ?? new Date() } },
   })
   const providerItems = [...new Set(user.accounts.map((account) => account.provider))].sort()
@@ -195,9 +195,13 @@ export async function loadAdminUserSecurity(input: { prismaClient: DetailPrismaC
       truncated: connectionsTruncated,
     },
     connections: { shown: user.accounts.length, total: user._count.accounts, truncated: connectionsTruncated },
+    emailVerified: Boolean(user.emailVerified),
     passwordConfigured: Boolean(user.passwordCredential),
     twoFactorEnabled: Boolean(user.twoFactorSecret?.enabledAt),
-    activeSessionCount,
+    // Used only as a hidden optimistic-lock field; the page explains the
+    // canonical version contract without displaying the raw version number.
+    authSessionVersion: user.authSessionVersion,
+    compatibilitySessionCount,
   })
 }
 
@@ -207,6 +211,7 @@ export async function loadAdminUserActivity(input: { prismaClient: DetailPrismaC
   if (!user) return null
   return result("activity", user, {
     entries: user.accountActivities.map((activity) => ({
+      id: activity.id,
       title: activity.title,
       explanation: activity.explanation,
       effectiveValue: activity.effectiveValue,
@@ -329,7 +334,7 @@ const BILLING_SELECT = {
   _count: { select: { membershipSubscriptions: { where: { membershipLevel: "SUPPORTER" } }, commerceOrders: true } },
 } satisfies Prisma.UserSelect
 const SECURITY_SELECT = {
-  ...TARGET_SELECT,
+  ...TARGET_SELECT, emailVerified: true, authSessionVersion: true,
   accounts: { select: { provider: true }, orderBy: [{ provider: "asc" }, { id: "asc" }], take: 25 },
   passwordCredential: { select: { id: true } },
   twoFactorSecret: { select: { enabledAt: true } },
@@ -339,7 +344,7 @@ const ACTIVITY_SELECT = {
   ...TARGET_SELECT,
   accountActivities: {
     select: {
-      title: true, explanation: true, effectiveValue: true, occurredAt: true,
+      id: true, title: true, explanation: true, effectiveValue: true, occurredAt: true,
       adminAction: { select: { actionKind: true, outcome: true, occurredAt: true, emailIntent: { select: { id: true, kind: true, status: true, failureCode: true, attemptCount: true, lastAttemptAt: true, deliveredAt: true } } } },
     }, orderBy: [{ occurredAt: "desc" }, { id: "desc" }], take: 50,
   },

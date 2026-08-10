@@ -9,6 +9,7 @@ const accountPageSource = await readFile(new URL("../app/account/page.tsx", impo
 const adminDetailSource = await readFile(new URL("../app/admin/users/[userId]/page.tsx", import.meta.url), "utf8")
 const emailActionSource = await readFile(new URL("../app/admin/users/[userId]/email-actions.ts", import.meta.url), "utf8").catch(() => "")
 const retryFormSource = await readFile(new URL("../app/admin/users/[userId]/retry-email-form.tsx", import.meta.url), "utf8").catch(() => "")
+const securityFormSource = await readFile(new URL("../app/admin/users/[userId]/security-action-forms.tsx", import.meta.url), "utf8").catch(() => "")
 
 const idleState = { status: "idle", message: "" }
 
@@ -63,8 +64,10 @@ describe("account activity surfaces", () => {
   it("renders an explicit retry only for service-retryable failed non-password email intents", () => {
     assert.match(retryFormSource, /Retry failed email/)
     assert.match(adminDetailSource, /email\?\.status === "FAILED"[\s\S]*email\.kind !== "PASSWORD_RESET"[\s\S]*email\.failureCode !== "RECIPIENT_UNAVAILABLE"/)
-    assert.match(adminDetailSource, /A new reset link.*available after the password reset action is added/i)
-    assert.doesNotMatch(adminDetailSource, /sendAdminPasswordReset/)
+    assert.match(adminDetailSource, /failedPasswordReset[\s\S]*FreshPasswordResetForm/)
+    assert.match(securityFormSource, /Send a new reset link/)
+    assert.match(securityFormSource, /sendAdminPasswordResetAction\.bind\(null, userId\)/)
+    assert.doesNotMatch(emailActionSource, /sendAdminPasswordReset/)
     assert.match(emailActionSource, /"use server"/)
     assert.match(emailActionSource, /requireFullAdminUser\(\)/)
     assert.match(emailActionSource, /retryAdminEmailIntent\(/)
