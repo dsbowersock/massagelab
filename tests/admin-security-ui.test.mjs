@@ -186,6 +186,27 @@ describe("Admin security server actions", () => {
     assert.equal(Object.hasOwn(serviceInput, "sendEmail"), false)
   })
 
+  it("revalidates and warns before another request when attempted reset delivery remains pending", async () => {
+    const { compiled, calls } = securityActionHarness({
+      resetResult: {
+        emailIntentId: "intent-reset",
+        replayed: false,
+        deliveryStatus: "PENDING",
+        deliveryAttempted: true,
+      },
+    })
+
+    const result = await compiled.sendAdminPasswordResetAction("user-1", idleState, actionForm("password"))
+
+    assert.equal(result.status, "warning")
+    assert.match(result.message, /delivery was attempted, but its outcome could not be confirmed/i)
+    assert.match(result.message, /check Activity before creating another request/i)
+    assert.deepEqual(calls.slice(-2), [
+      ["revalidatePath", "/admin/users/user-1"],
+      ["revalidatePath", "/admin/users"],
+    ])
+  })
+
   it("passes typed-email confirmation only to the 2FA service and reports the committed mutation separately from delivery", async () => {
     const { compiled, calls } = securityActionHarness({ deliveryResult: { status: "FAILED", attemptCount: 1, attempted: true } })
     const result = await compiled.resetUserTwoFactorAction("user-1", idleState, actionForm("twoFactor"))

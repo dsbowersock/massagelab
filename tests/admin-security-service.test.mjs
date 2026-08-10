@@ -282,6 +282,81 @@ describe("Admin security remediation service", () => {
     }
   })
 
+  it("returns durable pending truth when delivered mail cannot persist its status", async () => {
+    const database = createSecurityDatabase()
+    const rawToken = "delivered-token-must-stay-private"
+    const persistenceSecret = "database-error-with-provider-and-token-details"
+    const logged = []
+    const originalConsoleError = console.error
+    database.nextIntentUpdateError = new Error(persistenceSecret)
+    console.error = (...values) => logged.push(values.join(" "))
+    try {
+      const result = await sendAdminPasswordReset(baseInput(database, {
+        idempotencyKey: "password-reset-delivered-status-failure-1",
+        now: NOW,
+        generateToken: () => rawToken,
+        sendEmail: async () => ({ delivered: true }),
+      }))
+
+      assert.deepEqual(result, {
+        emailIntentId: "intent-1",
+        replayed: false,
+        deliveryStatus: "PENDING",
+        deliveryAttempted: true,
+      })
+      assert.equal(database.resetTokens.length, 1)
+      assert.equal(database.actions.length, 1)
+      assert.equal(database.activities.length, 1)
+      assert.equal(database.intents.length, 1)
+      assert.equal(database.intents[0].status, "PENDING")
+      assert.equal(database.intents[0].attemptCount, 0)
+      assert.deepEqual(logged, ["Password-reset delivery status could not be recorded"])
+      assertNoSecretDurablePayload(database, result, [rawToken, persistenceSecret])
+      assert.doesNotMatch(JSON.stringify(logged), new RegExp(`${rawToken}|${persistenceSecret}`))
+    } finally {
+      console.error = originalConsoleError
+    }
+  })
+
+  it("returns durable pending truth when failed mail cannot persist its status", async () => {
+    const database = createSecurityDatabase()
+    const providerSecret = "smtp-error-with-recipient-and-token-details"
+    const persistenceSecret = "intent-update-error-with-database-details"
+    const logged = []
+    const originalConsoleError = console.error
+    database.nextIntentUpdateError = new Error(persistenceSecret)
+    console.error = (...values) => logged.push(values.join(" "))
+    try {
+      const result = await sendAdminPasswordReset(baseInput(database, {
+        idempotencyKey: "password-reset-failed-status-failure-1",
+        now: NOW,
+        generateToken: () => "failed-status-token-must-stay-private",
+        sendEmail: async () => { throw new Error(providerSecret) },
+      }))
+
+      assert.deepEqual(result, {
+        emailIntentId: "intent-1",
+        replayed: false,
+        deliveryStatus: "PENDING",
+        deliveryAttempted: true,
+      })
+      assert.equal(database.resetTokens.length, 1)
+      assert.equal(database.actions.length, 1)
+      assert.equal(database.activities.length, 1)
+      assert.equal(database.intents.length, 1)
+      assert.equal(database.intents[0].status, "PENDING")
+      assert.equal(database.intents[0].attemptCount, 0)
+      assert.deepEqual(logged, [
+        "Password-reset email delivery failed",
+        "Password-reset delivery status could not be recorded",
+      ])
+      assertNoSecretDurablePayload(database, result, [providerSecret, persistenceSecret])
+      assert.doesNotMatch(JSON.stringify(logged), new RegExp(`${providerSecret}|${persistenceSecret}`))
+    } finally {
+      console.error = originalConsoleError
+    }
+  })
+
   it("uses a new action and fresh token for failed-password-reset resend while exact replay never sends", async () => {
     const database = createSecurityDatabase()
     const tokens = ["fresh-token-1", "fresh-token-2"]
@@ -678,6 +753,7 @@ function createSecurityDatabase({
     failIntentCreate: false,
     nextAdminActionCreateError: null,
     nextPasswordResetTokenCreateError: null,
+    nextIntentUpdateError: null,
     transactionOptions: [],
     lockOwners: new Map(),
     lockWaiters: new Map(),
@@ -695,6 +771,7 @@ function makeClient(root, transaction = null) {
   Object.defineProperty(client, "failIntentCreate", { get: () => root.failIntentCreate, set: (value) => { root.failIntentCreate = value } })
   Object.defineProperty(client, "nextAdminActionCreateError", { get: () => root.nextAdminActionCreateError, set: (value) => { root.nextAdminActionCreateError = value } })
   Object.defineProperty(client, "nextPasswordResetTokenCreateError", { get: () => root.nextPasswordResetTokenCreateError, set: (value) => { root.nextPasswordResetTokenCreateError = value } })
+  Object.defineProperty(client, "nextIntentUpdateError", { get: () => root.nextIntentUpdateError, set: (value) => { root.nextIntentUpdateError = value } })
   Object.defineProperty(client, "transactionOptions", { get: () => root.transactionOptions })
 
   const project = (record, select) => record == null || !select
@@ -786,6 +863,11 @@ function makeClient(root, transaction = null) {
       return structuredClone(project(intent, select))
     },
     update: async ({ where, data, select }) => {
+      if (root.nextIntentUpdateError) {
+        const error = root.nextIntentUpdateError
+        root.nextIntentUpdateError = null
+        throw error
+      }
       const intent = state().intents.find((candidate) => candidate.id === where.id)
       if (!intent) throw new Error("Intent was not found.")
       for (const [key, value] of Object.entries(data)) {

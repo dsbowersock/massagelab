@@ -34,3 +34,9 @@
 - Stage 2 quality review found Activity rows keyed by display position could remount the submitted password-reset form and discard its live feedback after revalidation. The durable `UserAccountActivity.id` fix recorded a 21/24 RED and 24/24 GREEN, then 114/114 adjacent regressions; quality re-review approved.
 - Browser execution remained intentionally deferred because the worktree has neither an approved disposable `DATABASE_URL` nor `MASSAGELAB_BROWSER_QA_DATABASE=1`. Source/harness contracts require the exact sentinel, an SMTP-blank Playwright-owned server, exact-ID cleanup, desktop/mobile controls, and durable submitted-form feedback.
 - Coordinator fresh verification: Branch 5 gate 43/43, typecheck, full lint, and diff check passed.
+
+## Whole-branch review repair
+
+- Genuine RED: 35/38 focused service/action/UI tests passed; the two injected post-send intent-update failures escaped the service, and the action mislabeled `PENDING` plus attempted delivery as not attempted.
+- GREEN: 38/38 focused tests passed. Successful and failed transport outcomes with a subsequent status-update failure each preserve exactly one token/action/activity/intent, keep durable `PENDING` truth with `deliveryAttempted: true`, and prove static privacy-safe logging. The action revalidates both Admin surfaces and warns Admin to check Activity before creating another request.
+- Fresh terminal verification: 123/123 adjacent Admin/auth tests, typecheck, full lint, all 2,259 unit tests with one existing skip, and the 104-page Production build passed.

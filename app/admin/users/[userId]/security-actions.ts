@@ -139,6 +139,9 @@ export async function sendAdminPasswordResetAction(
   if (result.deliveryStatus === "FAILED" && result.deliveryAttempted) {
     return { status: "warning", message: "A fresh password-reset link was created, but email delivery failed. Send a new reset link from Activity." }
   }
+  if (result.deliveryStatus === "PENDING" && result.deliveryAttempted) {
+    return { status: "warning", message: "A fresh password-reset request was created and delivery was attempted, but its outcome could not be confirmed. Check Activity before creating another request." }
+  }
   return { status: "warning", message: "A fresh password-reset request was created, but delivery was not attempted. Check Activity before creating another request." }
 }
 

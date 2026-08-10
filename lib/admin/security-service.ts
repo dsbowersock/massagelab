@@ -200,12 +200,24 @@ export async function sendAdminPasswordReset(input: SendAdminPasswordResetInput)
     console.error("Password-reset email delivery failed")
   }
 
-  await recordPasswordResetDelivery(
-    input.prismaClient,
-    transactionResult.result.emailIntentId,
-    delivered,
-    now,
-  )
+  try {
+    await recordPasswordResetDelivery(
+      input.prismaClient,
+      transactionResult.result.emailIntentId,
+      delivered,
+      now,
+    )
+  } catch {
+    // The provider outcome is uncertain once its separate durable update fails;
+    // never log transport, recipient, token, or persistence error details.
+    console.error("Password-reset delivery status could not be recorded")
+    return {
+      emailIntentId: transactionResult.result.emailIntentId,
+      replayed: false,
+      deliveryStatus: "PENDING",
+      deliveryAttempted: true,
+    }
+  }
   return {
     emailIntentId: transactionResult.result.emailIntentId,
     replayed: false,
