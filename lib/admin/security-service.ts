@@ -573,6 +573,11 @@ async function replayPasswordReset(
   }
 }
 
+/**
+ * Persists only an already-attempted password-reset delivery outcome inside the
+ * bounded transaction retry. Email transport must remain outside this retry
+ * boundary so a transient database conflict can never resend the message.
+ */
 async function recordPasswordResetDelivery(
   prismaClient: PrismaClient,
   intentId: string,

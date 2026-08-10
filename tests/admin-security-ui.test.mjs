@@ -130,6 +130,27 @@ function uiHarness(actionState = idleState) {
   })
 }
 
+function detailPageHarness() {
+  return loadCompiledModule(
+    `${pageSource}\nexport { DetailSection }\n`,
+    "app/admin/users/[userId]/page.test.tsx",
+    {
+      "react/jsx-runtime": { Fragment: "fragment", jsx: createElement, jsxs: createElement },
+      "next/link": {},
+      "next/navigation": {},
+      "@/components/ui/app-surface": {},
+      "@/components/ui/button": {},
+      "@/components/ui/card": {},
+      "@/lib/admin/access": {},
+      "./retry-email-form": {},
+      "./role-change-form": {},
+      "./security-action-forms": {},
+      "@/lib/admin/user-detail": {},
+      "@/lib/prisma": {},
+    },
+  )
+}
+
 describe("Admin security server actions", () => {
   it("defines all three bound server actions without generating submission-time operation keys", () => {
     assert.match(actionSource, /^"use server"/)
@@ -247,6 +268,36 @@ describe("Admin security controls", () => {
     assert.match(pageSource, /Password configured/)
     assert.match(pageSource, /Two-factor authentication/)
     assert.doesNotMatch(pageSource, /sessionToken|passwordHash|encryptedSecret|backupCode|providerAccountId|devLink/)
+  })
+
+  it("renders unavailable compatibility Session evidence without conflating it with a real zero", () => {
+    const { DetailSection } = detailPageHarness()
+    const compatibilityValue = (detail) => {
+      const rendered = renderFunctionComponents(DetailSection({
+        detail,
+        section: "security",
+      }))
+      const row = findElement(rendered, (element) => element.props["data-detail-key"] === "Compatibility Session rows")
+      const value = findElement(row, (element) => Object.hasOwn(element.props, "data-detail-value"))
+      return elementText(value)
+    }
+
+    for (const invalidDetail of [
+      {},
+      { compatibilitySessionCount: null },
+      { compatibilitySessionCount: "0" },
+      { compatibilitySessionCount: -1 },
+      { compatibilitySessionCount: 1.5 },
+    ]) {
+      assert.equal(
+        compatibilityValue(invalidDetail),
+        "Unavailable (adapter evidence only; not a count of active JWT sessions or users signed out)",
+      )
+    }
+    assert.equal(
+      compatibilityValue({ compatibilitySessionCount: 0 }),
+      "0 (adapter evidence only; not a count of active JWT sessions or users signed out)",
+    )
   })
 
   it("uses stable server-rendered UUIDs and exposes failed password resets as fresh-token actions", () => {

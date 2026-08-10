@@ -283,13 +283,16 @@ function BillingSection({ detail }: { detail: Record<string, unknown> }) {
 
 /** Converts the already privacy-bounded loader result into readable operator labels without exposing hidden fields. */
 function detailRows(detail: Record<string, unknown>, section: AdminUserDetailSection): Array<[string, string]> {
-  if (section === "security") return [
-    ["Sign-in provider types", objectValue(detail.providers)], ["Connection rows", objectValue(detail.connections)],
-    ["Password configured", yesNo(detail.passwordConfigured)],
-    ["Verified email", yesNo(detail.emailVerified)],
-    ["Two-factor authentication", yesNo(detail.twoFactorEnabled)],
-    ["Compatibility Session rows", `${String(detail.compatibilitySessionCount ?? 0)} (adapter evidence only; not a count of active JWT sessions or users signed out)`],
-  ]
+  if (section === "security") {
+    const compatibilitySessionCount = safeCount(detail.compatibilitySessionCount)
+    return [
+      ["Sign-in provider types", objectValue(detail.providers)], ["Connection rows", objectValue(detail.connections)],
+      ["Password configured", yesNo(detail.passwordConfigured)],
+      ["Verified email", yesNo(detail.emailVerified)],
+      ["Two-factor authentication", yesNo(detail.twoFactorEnabled)],
+      ["Compatibility Session rows", `${compatibilitySessionCount === null ? "Unavailable" : compatibilitySessionCount} (adapter evidence only; not a count of active JWT sessions or users signed out)`],
+    ]
+  }
   if (section === "overview") return [
     ["Email verification", yesNo(detail.emailVerified)], ["Profile image", String(detail.image ?? "Unavailable")], ["Profile", objectValue(detail.profile)],
     ["Practice relationships", objectValue(detail.practices)], ["Credentials", objectValue(detail.credentials)],
