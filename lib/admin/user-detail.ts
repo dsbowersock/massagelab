@@ -103,6 +103,7 @@ export async function loadAdminUserAccess(input: { prismaClient: DetailPrismaCli
   const recentEntries = user.backgroundCreditWallet?.entries ?? []
 
   return result("access", user, {
+    emailVerified: Boolean(user.emailVerified),
     roles,
     features: entitlements.featureDetails.map((feature) => ({ ...feature, expiresAt: dateValue(feature.expiresAt) })),
     capabilities: buildAccountCapabilities(roles, { features: entitlements.features }),
@@ -112,6 +113,7 @@ export async function loadAdminUserAccess(input: { prismaClient: DetailPrismaCli
       currentPeriodEnd: dateValue(subscription.currentPeriodEnd),
     })), user._count.membershipSubscriptions),
     wallet: {
+      state: user.backgroundCreditWallet ? "AVAILABLE" : "MISSING",
       balance: user.backgroundCreditWallet?.balance ?? 0,
       recentEntries: boundedCollection(
         recentEntries.map(withDate("createdAt")),
@@ -262,7 +264,7 @@ const OVERVIEW_SELECT = {
   _count: { select: { learningProgress: true, flashcardStudySessions: true, achievements: true, practiceMemberships: true, credentialVerifications: true } },
 } satisfies Prisma.UserSelect
 const ACCESS_SELECT = {
-  ...TARGET_SELECT,
+  ...TARGET_SELECT, emailVerified: true,
   roles: {
     select: { role: true, status: true, source: true, verifiedAt: true, expiresAt: true, revokedAt: true },
     orderBy: [{ role: "asc" }, { status: "asc" }],

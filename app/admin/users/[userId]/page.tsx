@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { requireFullAdminUser } from "@/lib/admin/access"
 import { RetryEmailForm } from "./retry-email-form"
+import { CreditGrantControls } from "./credit-action-form"
 import { RoleChangeControls, SelfRoleManagementNotice, type RoleEvidence } from "./role-change-form"
 import {
   FreshPasswordResetForm,
@@ -18,6 +19,7 @@ import {
   parseAdminUserDetailSection,
   type AdminUserDetailSection,
 } from "@/lib/admin/user-detail"
+import { INITIAL_BACKGROUND_CREDIT_COUNT } from "@/lib/commerce/credit-service"
 import { prisma } from "@/lib/prisma"
 
 type AdminUserDetailPageProps = {
@@ -61,7 +63,13 @@ export default async function AdminUserDetailPage({ params, searchParams }: Admi
               : section === "billing"
                 ? <BillingSection detail={detail.data} />
                 : section === "access"
-                  ? <AccessSection detail={detail.data} userId={userId} canManageRoles={actor.id !== userId} />
+                  ? <AccessSection
+                      detail={detail.data}
+                      userId={userId}
+                      targetName={detail.target.name}
+                      targetEmail={detail.target.email}
+                      canManageRoles={actor.id !== userId}
+                    />
                   : section === "security"
                     ? <SecuritySection
                         detail={detail.data}
@@ -164,10 +172,14 @@ function DetailSection({ detail, section }: { detail: Record<string, unknown>; s
 function AccessSection({
   detail,
   userId,
+  targetName,
+  targetEmail,
   canManageRoles,
 }: {
   detail: Record<string, unknown>
   userId: string
+  targetName: string | null
+  targetEmail: string | null
   canManageRoles: boolean
 }) {
   const roles = Array.isArray(detail.roles)
@@ -176,15 +188,56 @@ function AccessSection({
   const operationIds = {
     ANATOMY_REVIEWER: randomUUID(),
     ANATOMY_EDITOR: randomUUID(),
+    creditGrant: randomUUID(),
   }
+  const normalizedTargetEmail = normalizeEmail(targetEmail)
+  const hasVerifiedEmail = detail.emailVerified === true && Boolean(normalizedTargetEmail)
+  const creditEvidence = hasVerifiedEmail
+    ? readCreditGrantEvidence(detail.wallet)
+    : null
+  const targetLabel = targetName?.trim()
+    ? `${targetName.trim()} (${normalizedTargetEmail})`
+    : normalizedTargetEmail || "Unnamed account"
   return (
     <div className="space-y-5">
       <DetailSection detail={detail} section="access" />
       {canManageRoles ? (
         <RoleChangeControls userId={userId} roles={roles} operationIds={operationIds} />
       ) : <SelfRoleManagementNotice />}
+      {creditEvidence ? (
+        <CreditGrantControls
+          userId={userId}
+          targetLabel={targetLabel}
+          preparedBalance={creditEvidence.preparedBalance}
+          automaticInitialCredits={creditEvidence.automaticInitialCredits}
+          operationId={operationIds.creditGrant}
+        />
+      ) : !hasVerifiedEmail ? (
+        <p className="rounded-md border bg-background/60 p-4 text-sm text-muted-foreground">
+          Background-credit controls are unavailable because this account does not have a verified email.
+        </p>
+      ) : (
+        <p className="rounded-md border bg-background/60 p-4 text-sm text-muted-foreground">
+          Background-credit controls are unavailable because the wallet evidence is incomplete or unusable. Refresh the account before trying again.
+        </p>
+      )}
     </div>
   )
+}
+
+/** Fails closed unless the Access projection explicitly identifies wallet presence and a safe balance. */
+function readCreditGrantEvidence(value: unknown): {
+  preparedBalance: number
+  automaticInitialCredits: number
+} | null {
+  if (!isRecord(value) || !Number.isSafeInteger(value.balance) || (value.balance as number) < 0) return null
+  if (value.state === "AVAILABLE") {
+    return { preparedBalance: value.balance as number, automaticInitialCredits: 0 }
+  }
+  if (value.state === "MISSING" && value.balance === 0) {
+    return { preparedBalance: 0, automaticInitialCredits: INITIAL_BACKGROUND_CREDIT_COUNT }
+  }
+  return null
 }
 
 /** Adds only bounded remediation controls beneath the safe Security projection. */

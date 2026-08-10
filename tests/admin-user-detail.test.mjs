@@ -99,6 +99,7 @@ describe("admin user detail", () => {
     })
 
     assert.deepEqual(calls, ["user.findUnique:access", "membershipSubscription.findMany:entitlements"])
+    assert.equal(result.data.emailVerified, true)
     assert.deepEqual(result.data.features, [
       { key: "calendar_basic_scheduling", source: "FREE", expiresAt: null },
       { key: "premium_backgrounds", source: "SUPPORTER", expiresAt: "2026-09-01T00:00:00.000Z" },
@@ -123,6 +124,7 @@ describe("admin user detail", () => {
       truncated: true,
     })
     assert.deepEqual(result.data.wallet, {
+      state: "AVAILABLE",
       balance: 3,
       recentEntries: {
         items: [{ type: "INITIAL_GRANT", delta: 2, balanceAfter: 2, createdAt: "2026-08-01T00:00:00.000Z" }],
@@ -136,6 +138,26 @@ describe("admin user detail", () => {
       truncated: true,
     })
     assert.doesNotMatch(JSON.stringify(result), /credentialNumber|verificationPayload|providerAccountId|paymentMethod|metadata/i)
+  })
+
+  it("keeps a verified target's missing wallet distinct from an existing zero balance", async () => {
+    const calls = []
+    const access = detailRow("access")
+    access.backgroundCreditWallet = null
+    const now = new Date("2026-08-09T00:00:00.000Z")
+    const result = await getAdminUserDetailSection({
+      prismaClient: detailPrisma(calls, { sectionRows: { access }, expectedEntitlementNow: now }),
+      userId: "user-1",
+      section: "access",
+      now,
+    })
+
+    assert.equal(result.data.emailVerified, true)
+    assert.deepEqual(result.data.wallet, {
+      state: "MISSING",
+      balance: 0,
+      recentEntries: { items: [], total: 0, truncated: false },
+    })
   })
 
   it("derives access from every active subscription candidate, not the capped display slice", async () => {
@@ -447,7 +469,7 @@ function detailRow(section) {
     _count: { learningProgress: 4, flashcardStudySessions: 5, achievements: 6, practiceMemberships: 30, credentialVerifications: 26 },
   }
   if (section === "access") return {
-    ...target,
+    ...target, emailVerified: new Date("2026-08-01T00:00:00.000Z"),
     roles: [
       { role: "ANATOMY_ADMIN", status: "VERIFIED", source: "legacy-migration", verifiedAt: new Date("2026-08-01T00:00:00.000Z"), expiresAt: null, revokedAt: null },
       { role: "ANATOMY_EDITOR", status: "VERIFIED", source: "manual", verifiedAt: new Date("2026-08-02T00:00:00.000Z"), expiresAt: null, revokedAt: null },

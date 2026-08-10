@@ -143,10 +143,12 @@ function detailPageHarness() {
       "@/components/ui/button": {},
       "@/components/ui/card": {},
       "@/lib/admin/access": {},
+      "./credit-action-form": {},
       "./retry-email-form": {},
       "./role-change-form": {},
       "./security-action-forms": {},
       "@/lib/admin/user-detail": {},
+      "@/lib/commerce/credit-service": { INITIAL_BACKGROUND_CREDIT_COUNT: 2 },
       "@/lib/prisma": {},
     },
   )

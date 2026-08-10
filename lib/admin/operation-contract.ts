@@ -14,6 +14,10 @@ export const ADMIN_REASON_CODES = [
 
 export type AdminReasonCode = typeof ADMIN_REASON_CODES[number]
 
+/** Inclusive bounds shared by the Admin grant service, action, and controls. */
+export const ADMIN_BACKGROUND_CREDIT_GRANT_MIN = 1
+export const ADMIN_BACKGROUND_CREDIT_GRANT_MAX = 25
+
 /** JSON-safe metadata accepted on admin records after sensitive-key screening. */
 export type AdminSafePayload = Record<string, AdminSafeValue>
 export type AdminSafeValue = string | number | boolean | null | AdminSafeValue[] | { [key: string]: AdminSafeValue }
