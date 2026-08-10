@@ -23,10 +23,13 @@
 - Completed Task 17 commit: `7a56c9544a35233a8b9d8de2283c4553cac9b82a` (`feat: merge temporary access into entitlements`); committed status and diff check were clean.
 - Completed: Task 18 implementation and both independent review stages; revoke-form lifecycle, browser-clock, and allowlisted metric/filter findings are closed.
 - Completed coordinator verification: 135/135 focused/adjacent tests, typecheck, full lint, and diff checks passed.
-- Active slice: Task 18 commit.
-- Pending: whole-branch review; terminal gates; PR loop.
+- Completed Task 18 commit: `9be97fa7a24c5bab3201a3c7b8d4ce8332b839bc` (`feat: add temporary access controls`); committed status and diff check were clean.
+- Completed terminal evidence: full unit 2,342 passed / 0 failed / 1 intentional skip and production build 104/104 pages on the final corrected tree.
+- Completed final review correction: both complete active-grant loaders now fail closed above 100 active rows for any one canonical feature while still accepting 100 for each of all five features and preserving the 501-row total sentinel. Strict RED had the two expected loader failures; focused GREEN reached 63/63 and adjacent GREEN reached 202/202, with typecheck, full lint, Prisma validation, and diff check passing.
+- Active slice: final Task 18 review correction.
+- Pending: coordinator commit for the final correction, then the PR loop.
 - Blocked on: nothing currently.
-- Next: commit the reviewed Task 18 slice, read back clean Git state, then begin the whole-branch review.
+- Next: coordinator commits and reads back the final reviewed correction, then begins the PR loop.
 
 ## ResumeStateHint
 
@@ -39,5 +42,5 @@ Resume only from this worktree and checkpoint. Re-read `10-intent.md`, refreshed
 - Compatibility: existing membership/student/ownership/role/credit/security sources are preserved.
 - New owner/fallback: the planned append-only temporary-access ledger is the only new owner; no fallback or scheduler is introduced.
 - Retirement: retired custom-color entitlement remains excluded.
-- Evidence state: setup, baseline, Tasks 16-18 RED/GREEN, both review stages, and coordinator verification are present.
+- Evidence state: setup, baseline, Tasks 16-18 RED/GREEN, final per-feature loader correction, terminal gates, and coordinator verification are present; the PR loop remains pending.
 - Decision: continue.

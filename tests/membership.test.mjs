@@ -584,12 +584,14 @@ describe("Membership and entitlement helpers", () => {
   it("loads every active temporary candidate through the 500-row boundary with the exact narrow predicate", async () => {
     const calls = []
     const now = new Date("2026-08-08T00:00:00.000Z")
-    const rows = Array.from({ length: 500 }, (_, index) => ({
-      id: `grant-${String(index).padStart(3, "0")}`,
-      featureKey: FEATURE_KEYS.premiumBackgrounds,
-      startsAt: new Date("2026-08-01T00:00:00.000Z"),
-      expiresAt: new Date(`2026-09-${String((index % 20) + 1).padStart(2, "0")}T00:00:00.000Z`),
-    }))
+    const rows = membership.TEMPORARY_ACCESS_FEATURE_KEYS.flatMap((featureKey) => (
+      Array.from({ length: 100 }, (_, index) => ({
+        id: `${featureKey}-${String(index).padStart(3, "0")}`,
+        featureKey,
+        startsAt: new Date("2026-08-01T00:00:00.000Z"),
+        expiresAt: new Date(`2026-09-${String((index % 20) + 1).padStart(2, "0")}T00:00:00.000Z`),
+      }))
+    ))
     const result = await membership.loadActiveTemporaryGrants({
       temporaryFeatureGrant: {
         findMany: async (args) => {
@@ -619,6 +621,24 @@ describe("Membership and entitlement helpers", () => {
       take: 501,
     }])
     assert.equal(result.every((grant) => grant.revocation === null), true)
+    for (const featureKey of membership.TEMPORARY_ACCESS_FEATURE_KEYS) {
+      assert.equal(result.filter((grant) => grant.featureKey === featureKey).length, 100)
+    }
+  })
+
+  it("fails closed when one temporary feature has a 101st active grant below the total sentinel", async () => {
+    const rows = Array.from({ length: 101 }, (_, index) => ({
+      id: `grant-${String(index).padStart(3, "0")}`,
+      featureKey: FEATURE_KEYS.premiumBackgrounds,
+      startsAt: new Date("2026-08-01T00:00:00.000Z"),
+      expiresAt: new Date("2026-09-01T00:00:00.000Z"),
+    }))
+
+    await assert.rejects(() => membership.loadActiveTemporaryGrants({
+      temporaryFeatureGrant: {
+        findMany: async () => rows,
+      },
+    }, "user-1", new Date("2026-08-08T00:00:00.000Z")), /more than 100 active grants for one feature/i)
   })
 
   it("fails closed when the active temporary-grant sentinel returns a 501st row", async () => {

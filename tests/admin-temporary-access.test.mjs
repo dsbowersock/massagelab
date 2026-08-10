@@ -589,7 +589,7 @@ describe("Admin temporary feature access", () => {
     }
   })
 
-  it("lists the cross-feature maximum without truncation and fails closed on total overflow", async () => {
+  it("lists 100 active grants for every allowlisted feature and fails closed on per-feature or total overflow", async () => {
     const grants = ADMIN_GRANTABLE_FEATURE_KEYS.flatMap((featureKey) => (
       Array.from({ length: 100 }, (_, index) => seededGrant(`${featureKey}-${String(index).padStart(3, "0")}`, featureKey))
     ))
@@ -599,6 +599,14 @@ describe("Admin temporary feature access", () => {
     for (const featureKey of ADMIN_GRANTABLE_FEATURE_KEYS) {
       assert.equal(active.filter((grant) => grant.featureKey === featureKey).length, 100)
     }
+
+    const perFeatureOverflow = createDatabase({
+      grants: Array.from({ length: 101 }, (_, index) => seededGrant(`premium-${String(index).padStart(3, "0")}`)),
+    })
+    await assert.rejects(
+      () => listActiveTemporaryFeatureAccess({ prismaClient: perFeatureOverflow, userId: "target-user", now: NOW }),
+      /more than 100 active grants for one feature/i,
+    )
 
     const overflow = createDatabase({ grants: [...grants, seededGrant("overflow")] })
     await assert.rejects(

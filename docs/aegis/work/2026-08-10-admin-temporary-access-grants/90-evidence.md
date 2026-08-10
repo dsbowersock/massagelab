@@ -12,8 +12,8 @@
 
 ## Pending evidence
 
-- Task 18 coordinator commit.
-- Whole-branch review, terminal validation, and PR loop.
+- Coordinator commit/readback for the final Task 18 review correction.
+- PR loop: push, hosted checks, fresh re-review, thread resolution, and the user-controlled merge gate.
 
 ## Task 16
 
@@ -42,7 +42,12 @@
 - Initial GREEN: 67/67 focused, then 200/200 Task 16-18 and adjacent regressions; typecheck, full lint, and diff check passed.
 - Spec review found that remaining revoke forms could preserve confirmation across fresh operation keys and browser QA treated preview time as the authoritative service expiration. Repair RED had the two expected failures; GREEN keyed each revoke form by its fresh operation ID and changed browser evidence to assert the persisted 14-day interval and use the persisted expiration. Spec re-review approved.
 - Quality review found that directory filters and dashboard metrics counted arbitrary stored feature strings instead of the canonical allowlist. Repair RED had three exact-query failures; GREEN added the five-key predicate to active/none cursor queries and active/expiring metric counts while preserving one request time and the exclusive 30-day endpoint. Quality re-review approved.
+- Coordinator Task 18 commit: `9be97fa7a24c5bab3201a3c7b8d4ce8332b839bc` (`feat: add temporary access controls`); committed diff and clean worktree read back.
+- Terminal evidence on the final corrected tree: full unit 2,342 passed / 0 failed / 1 intentional skip and production build 104/104 pages.
+- Final post-commit review found that `listActiveTemporaryFeatureAccess()` and the complete authorization loader `loadActiveTemporaryGrants()` enforced only the 500-row total ceiling, so malformed persistence could return 101-500 active rows for one allowlisted feature despite the canonical 100-per-feature invariant. Strict repair RED was 61/63 with exactly those two missing rejections. Both owners now count returned rows against their canonical five-key allowlist after the exact query, reject a 101st row for any one feature, accept the valid 100-by-five maximum, and retain the existing 501st total sentinel and query predicates.
+- Final correction verification: 63/63 focused loader/UI tests and 202/202 Task 16-18 adjacent tests passed; typecheck, full lint, Prisma validation, and `git diff --check` passed. Lint emitted only the existing Babel large-file deoptimization note.
 - Final UI boundary: full Admin, verified usable recipient, complete optimistic snapshot, exact five feature labels, 7/30/90 plus 1-365-day custom duration, stable operation keys, confirmation reset, append-only revoke controls, post-commit locked email delivery, safe replay/self-target copy, request-time Account expiration, and privacy-safe bounded Admin evidence.
 - Fixture/browser source covers desktop/mobile grant, authoritative expiration, Account visibility, revoke, fresh confirmation, excluded keys, exact disposable database opt-in, SMTP-blank owned server, and FK cleanup from revocations to grants to exact users.
 - Real Playwright was not executed because neither `DATABASE_URL` nor `MASSAGELAB_BROWSER_QA_DATABASE=1` is available. No live database, email, or browser mutation occurred.
 - Coordinator fresh verification: 135/135 focused/adjacent tests, typecheck, full lint, and `git diff --check` passed. Lint emitted only the existing Babel large-file deoptimization note.
+- PR loop remains pending after the coordinator commits and reads back the final correction.

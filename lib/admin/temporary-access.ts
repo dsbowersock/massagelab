@@ -211,8 +211,16 @@ export async function listActiveTemporaryFeatureAccess(input: {
     throw new Error(`Temporary access has more than ${TOTAL_ACTIVE_LIMIT} active grants and cannot be listed safely.`)
   }
 
+  const perFeatureCounts = new Map<AdminGrantableFeatureKey, number>(
+    ADMIN_GRANTABLE_FEATURE_KEYS.map((featureKey) => [featureKey, 0]),
+  )
   return grants.map((grant) => {
     assertGrantableFeatureKey(grant.featureKey)
+    const featureCount = (perFeatureCounts.get(grant.featureKey) ?? 0) + 1
+    if (featureCount > PER_FEATURE_ACTIVE_LIMIT) {
+      throw new Error(`Temporary access has more than ${PER_FEATURE_ACTIVE_LIMIT} active grants for one feature and cannot be listed safely.`)
+    }
+    perFeatureCounts.set(grant.featureKey, featureCount)
     return {
       grantId: grant.id,
       featureKey: grant.featureKey,
