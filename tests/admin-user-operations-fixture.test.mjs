@@ -124,6 +124,17 @@ describe("admin user operations browser fixture", () => {
       ["tx.$executeRaw", "SELECT pg_advisory_xact_lock(?, ?)", [...BROWSER_ADMIN_FIXTURE_ADVISORY_LOCK]],
       ["user.create", identity.operator.id],
       ["user.create", identity.target.id],
+      ["stripeCustomer.create", {
+        userId: identity.target.id,
+        stripeCustomerId: "cus_browserdesktopchromium",
+      }],
+      ["membershipSubscription.create", {
+        userId: identity.target.id,
+        stripeSubscriptionId: "sub_browserdesktopchromium",
+        stripeCustomerId: "cus_browserdesktopchromium",
+        status: "active",
+        membershipLevel: "SUPPORTER",
+      }],
       ["ensureVerifiedUserBackgroundCredits", identity.operator.id],
     ])
   })
@@ -155,6 +166,8 @@ function provisioningPrisma(calls) {
       }
       calls.push(["user.create", data.id])
     } },
+    stripeCustomer: { create: async ({ data }) => { calls.push(["stripeCustomer.create", data]) } },
+    membershipSubscription: { create: async ({ data }) => { calls.push(["membershipSubscription.create", data]) } },
   }
   return {
     $transaction: async (callback, options) => {

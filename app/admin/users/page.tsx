@@ -38,11 +38,12 @@ export default async function AdminUserDirectoryPage({ searchParams }: UserDirec
             <Button asChild variant="outline"><Link href="/admin">Admin dashboard</Link></Button>
           </div>
 
-          <section aria-label="Directory summary" className="grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-6">
+          <section aria-label="Directory summary" className="grid grid-cols-2 gap-2 lg:grid-cols-4 xl:grid-cols-7">
             <MetricCard label="Accounts" value={metrics.totalAccounts} />
             <MetricCard label="Verified accounts" value={metrics.verifiedAccounts} />
             <MetricCard label="Active Supporters" value={metrics.activeSupporters} />
             <MetricCard label="Unresolved operations" value={metrics.unresolvedOperations} />
+            <MetricCard label="Unresolved billing goodwill" value={metrics.unresolvedBillingGoodwillOperations} />
             <MetricCard label="Active temporary grants" value={metrics.activeTemporaryGrants} />
             <MetricCard label="Temporary grants expiring within 30 days" value={metrics.expiringTemporaryGrants} />
           </section>

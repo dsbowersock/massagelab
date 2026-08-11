@@ -8,6 +8,11 @@ import { requireFullAdminUser } from "@/lib/admin/access"
 import { RetryEmailForm } from "./retry-email-form"
 import { CreditGrantControls } from "./credit-action-form"
 import { TemporaryAccessControls, type TemporaryGrantPresentation } from "./temporary-access-form"
+import {
+  BillingGoodwillControls,
+  type BillingGoodwillPresentation,
+  type BillingGoodwillReconciliation,
+} from "./billing-goodwill-form"
 import { RoleChangeControls, SelfRoleManagementNotice, type RoleEvidence } from "./role-change-form"
 import {
   FreshPasswordResetForm,
@@ -30,6 +35,9 @@ import {
   type AdminGrantableFeatureKey,
 } from "@/lib/admin/temporary-access-contract"
 import { prisma } from "@/lib/prisma"
+import { previewInvoiceCredit } from "@/lib/admin/billing-goodwill"
+import { browserBillingGoodwillPreviewClient } from "@/lib/admin/browser-billing-goodwill-preview"
+import { getStripeClient } from "@/lib/stripe-billing"
 
 type AdminUserDetailPageProps = {
   params: Promise<{ userId: string }>
@@ -44,6 +52,9 @@ export default async function AdminUserDetailPage({ params, searchParams }: Admi
   const requestNow = new Date()
   const detail = await getAdminUserDetailSection({ prismaClient: prisma, userId, section, now: requestNow })
   if (!detail) notFound()
+  const billingGoodwill = section === "billing"
+    ? await loadBillingGoodwillPresentation(actor.id, userId, detail.target, detail.data)
+    : null
 
   return (
     <AppPageShell title="Account detail" className="p-3 sm:p-6 lg:p-8" contentClassName="gap-4">
@@ -71,7 +82,7 @@ export default async function AdminUserDetailPage({ params, searchParams }: Admi
             {section === "activity"
               ? <ActivitySection detail={detail.data} userId={userId} canMutate={actor.id !== userId} />
               : section === "billing"
-                ? <BillingSection detail={detail.data} />
+                ? <BillingSection detail={detail.data} userId={userId} billingGoodwill={billingGoodwill} />
                 : section === "access"
                   ? <AccessSection
                       detail={detail.data}
@@ -408,12 +419,25 @@ type BillingOrder = {
 }
 
 /** Renders bounded local commerce evidence and links to the existing full commerce review owner. */
-function BillingSection({ detail }: { detail: Record<string, unknown> }) {
+function BillingSection({
+  detail,
+  userId,
+  billingGoodwill,
+}: {
+  detail: Record<string, unknown>
+  userId: string
+  billingGoodwill: { preview: BillingGoodwillPresentation | null; reconciliations: BillingGoodwillReconciliation[] } | null
+}) {
   const commerce = isRecord(detail.commerce) ? detail.commerce : {}
   const orders = Array.isArray(commerce.recentOrders) ? commerce.recentOrders as BillingOrder[] : []
   return (
     <div className="space-y-4">
       <DetailSection detail={{ subscriptions: detail.subscriptions }} section="billing" />
+      <BillingGoodwillControls
+        userId={userId}
+        preview={billingGoodwill?.preview ?? null}
+        reconciliations={billingGoodwill?.reconciliations ?? []}
+      />
       <div className="space-y-2">
         <h3 className="font-medium">Recent commerce orders</h3>
         <p className="text-xs text-muted-foreground">
@@ -434,6 +458,78 @@ function BillingSection({ detail }: { detail: Record<string, unknown> }) {
       </div>
     </div>
   )
+}
+
+/** Loads read-only provider preview plus bounded local recovery evidence without exposing Stripe identifiers. */
+async function loadBillingGoodwillPresentation(
+  actorUserId: string,
+  targetUserId: string,
+  target: { name: string | null; email: string | null },
+  detail: Record<string, unknown>,
+): Promise<{ preview: BillingGoodwillPresentation | null; reconciliations: BillingGoodwillReconciliation[] }> {
+  const reconciliationRows = await prisma.adminBillingGoodwillOperation.findMany({
+    where: { targetUserId, status: "RECONCILIATION_REQUIRED" },
+    select: {
+      id: true,
+      amountCents: true,
+      startingBalanceCents: true,
+      failureCode: true,
+      createdAt: true,
+    },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: 25,
+  })
+  const targetEmail = normalizeEmail(target.email)
+  const reconciliations = reconciliationRows.map((operation) => ({
+    operationId: operation.id,
+    confirmationNonce: randomUUID(),
+    targetEmail,
+    amountCents: operation.amountCents,
+    startingCreditCents: operation.startingBalanceCents,
+    failureCode: operation.failureCode,
+    createdAt: operation.createdAt.toISOString(),
+  }))
+  if (!isUsableEmail(targetEmail)) return { preview: null, reconciliations }
+
+  try {
+    const stripeClient = browserBillingGoodwillPreviewClient(targetUserId) ?? getStripeClient()
+    const evidence = await previewInvoiceCredit({ prismaClient: prisma, actorUserId, targetUserId, stripeClient })
+    const pricing = readCurrentSupporterPricing(detail.subscriptions)
+    const targetLabel = target.name?.trim() ? `${target.name.trim()} (${targetEmail})` : targetEmail
+    return {
+      preview: {
+        operationId: randomUUID(),
+        targetLabel,
+        targetEmail,
+        subscriptionAmountCents: pricing.amountCents,
+        subscriptionInterval: pricing.interval,
+        subscriptionStatus: evidence.status,
+        currentCreditCents: evidence.currentCreditCents,
+        projectedNextInvoiceCents: evidence.projectedNextInvoiceCents,
+      },
+      reconciliations,
+    }
+  } catch {
+    return { preview: null, reconciliations }
+  }
+}
+
+/** Accepts only the single safe active/trialing Supporter pricing projection. */
+function readCurrentSupporterPricing(value: unknown): { amountCents: number | null; interval: string | null } {
+  if (!isRecord(value) || !Array.isArray(value.items)) return { amountCents: null, interval: null }
+  const eligible = value.items.filter((item) => isRecord(item)
+    && item.membershipLevel === "SUPPORTER"
+    && (item.status === "active" || item.status === "trialing"))
+  if (eligible.length !== 1) return { amountCents: null, interval: null }
+  const pricing = eligible[0].pricing
+  if (!isRecord(pricing)
+    || pricing.state !== "KNOWN"
+    || !Number.isSafeInteger(pricing.amountCents)
+    || (pricing.amountCents as number) < 0
+    || (pricing.interval !== "month" && pricing.interval !== "year")) {
+    return { amountCents: null, interval: null }
+  }
+  return { amountCents: pricing.amountCents as number, interval: pricing.interval }
 }
 
 /** Converts the already privacy-bounded loader result into readable operator labels without exposing hidden fields. */

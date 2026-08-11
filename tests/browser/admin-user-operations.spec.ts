@@ -149,6 +149,46 @@ test.describe("Admin user operations", () => {
     await expect(activity).toContainText("Email delivery")
   })
 
+  test("Admin previews billing goodwill confirmation without creating a Stripe transaction", async ({ page }, testInfo) => {
+    const fixture = createBrowserAdminFixtureIdentity(testInfo.project.name)
+    const matchingPostRequests: string[] = []
+    page.on("request", (request) => {
+      if (request.method() === "POST" && request.url().includes(`/admin/users/${encodeURIComponent(fixture.target.id)}`)) {
+        matchingPostRequests.push(request.url())
+      }
+    })
+    await page.goto(`/admin/users/${encodeURIComponent(fixture.target.id)}?section=billing`, { waitUntil: "domcontentloaded" })
+    await page.evaluate(() => {
+      document.documentElement.dataset.billingGoodwillFormSubmissions = "0"
+      document.addEventListener("submit", () => {
+        const current = Number(document.documentElement.dataset.billingGoodwillFormSubmissions ?? "0")
+        document.documentElement.dataset.billingGoodwillFormSubmissions = String(current + 1)
+      }, { capture: true })
+    })
+    const billingCard = page.locator("article").filter({
+      has: page.getByRole("heading", { name: "Add invoice credit" }),
+    })
+    await expect(billingCard.getByText("Current Stripe credit", { exact: true })).toBeVisible()
+    await expect(billingCard.getByText("Projected next invoice", { exact: true })).toBeVisible()
+    await expect(billingCard.getByText("$0.00", { exact: true })).toBeVisible()
+    await expect(billingCard.getByText("$20.00", { exact: true })).toBeVisible()
+    await expect(billingCard.getByText("active", { exact: true })).toBeVisible()
+    for (const amount of ["$1.00", "$2.00", "$5.00", "$10.00", "$20.00", "$50.00"]) {
+      await expect(billingCard.getByRole("button", { name: amount, exact: true })).toBeVisible()
+    }
+    const submit = billingCard.getByRole("button", { name: "Apply invoice credit" })
+    await expect(submit).toBeDisabled()
+    await billingCard.getByLabel("Reason").selectOption("BILLING_GOODWILL")
+    await billingCard.getByLabel("Confirmation email").fill(fixture.target.email)
+    await billingCard.getByLabel("Exact dollar amount").fill("1.00")
+    await expect(submit).toBeEnabled()
+    const overflow = await page.locator("html").evaluate((element) => element.scrollWidth > element.clientWidth)
+    expect(overflow).toBe(false)
+    const formSubmissionCount = Number(await page.locator("html").getAttribute("data-billing-goodwill-form-submissions"))
+    expect(formSubmissionCount).toBe(0)
+    expect(matchingPostRequests).toEqual([])
+  })
+
   test("Admin grants and append-only revokes one bounded temporary feature with Account expiration evidence", async ({ page, browser }, testInfo) => {
     const fixture = createBrowserAdminFixtureIdentity(testInfo.project.name)
     const baseURL = String(testInfo.project.use.baseURL)

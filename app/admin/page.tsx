@@ -114,6 +114,7 @@ export default async function AdminDashboardPage() {
                 <DashboardStat>{userMetrics.verifiedAccounts.toLocaleString()} verified accounts</DashboardStat>
                 <DashboardStat>{userMetrics.activeSupporters.toLocaleString()} active Supporters</DashboardStat>
                 <DashboardStat>{userMetrics.unresolvedOperations.toLocaleString()} unresolved operations</DashboardStat>
+                <DashboardStat>{userMetrics.unresolvedBillingGoodwillOperations.toLocaleString()} unresolved billing goodwill operations</DashboardStat>
                 <DashboardStat>{userMetrics.activeTemporaryGrants.toLocaleString()} active temporary grants</DashboardStat>
                 <DashboardStat>{userMetrics.expiringTemporaryGrants.toLocaleString()} temporary grants expiring within 30 days</DashboardStat>
               </div>

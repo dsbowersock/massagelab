@@ -94,7 +94,7 @@ describe("admin user directory", () => {
             return [{ id: "user_before" }]
           }
           return [
-            userRow("user_1", { name: "Avery", balance: 2, subscriptionStatus: "active", unresolvedCommerce: 2, unresolvedEmail: 1 }),
+            userRow("user_1", { name: "Avery", balance: 2, subscriptionStatus: "active", unresolvedCommerce: 2, unresolvedEmail: 1, unresolvedBilling: 4 }),
             userRow("user_2", { name: "Avery Two", balance: 0, subscriptionStatus: null, unresolvedCommerce: 0, unresolvedEmail: 0 }),
           ]
         },
@@ -132,7 +132,7 @@ describe("admin user directory", () => {
       roles: [{ role: "ANATOMY_EDITOR", status: "VERIFIED" }, { role: "ADMIN", status: "VERIFIED" }],
       subscriptionStatus: "active",
       creditBalance: 2,
-      unresolvedIssueCount: 3,
+      unresolvedIssueCount: 7,
     }])
     assert.equal(page.nextCursor, Buffer.from("user_1").toString("base64url"))
     assert.equal(page.previousCursor, Buffer.from("user_before").toString("base64url"))
@@ -167,6 +167,7 @@ describe("admin user directory", () => {
             { payments: { some: { disputes: { some: { status: "OPEN" } } } } },
           ] } } },
           { adminEmailIntents: { some: { status: { in: ["PENDING", "FAILED"] } } } },
+          { billingGoodwillOperationsAsTarget: { some: { status: "RECONCILIATION_REQUIRED" } } },
         ] },
       ],
     })
@@ -205,6 +206,7 @@ describe("admin user directory", () => {
               { payments: { some: { disputes: { some: { status: "OPEN" } } } } },
             ] } } },
             { adminEmailIntents: { some: { status: { in: ["PENDING", "FAILED"] } } } },
+            { billingGoodwillOperationsAsTarget: { some: { status: "RECONCILIATION_REQUIRED" } } },
           ] },
           { id: { lt: "user_0" } },
         ],
@@ -285,6 +287,12 @@ describe("admin user directory", () => {
           return 3
         },
       },
+      adminBillingGoodwillOperation: {
+        count: async (args) => {
+          calls.push(["adminBillingGoodwillOperation", args])
+          return 6
+        },
+      },
       temporaryFeatureGrant: {
         count: async (args) => {
           calls.push(["temporaryFeatureGrant", args])
@@ -298,7 +306,8 @@ describe("admin user directory", () => {
       totalAccounts: 42,
       verifiedAccounts: 35,
       activeSupporters: 7,
-      unresolvedOperations: 5,
+      unresolvedOperations: 11,
+      unresolvedBillingGoodwillOperations: 6,
       activeTemporaryGrants: 11,
       expiringTemporaryGrants: 4,
     })
@@ -317,6 +326,7 @@ describe("admin user directory", () => {
         { payments: { some: { disputes: { some: { status: "OPEN" } } } } },
       ] } }],
       ["adminEmailIntent", { where: { status: { in: ["PENDING", "FAILED"] } } }],
+      ["adminBillingGoodwillOperation", { where: { status: "RECONCILIATION_REQUIRED" } }],
       ["temporaryFeatureGrant", { where: {
         startsAt: { lte: now },
         expiresAt: { gt: now },
@@ -386,7 +396,7 @@ describe("admin user directory", () => {
 })
 
 /** Fixture mirrors the deliberately narrow Prisma select without carrying credentials or payment details. */
-function userRow(id, { name, balance, subscriptionStatus, unresolvedCommerce, unresolvedEmail }) {
+function userRow(id, { name, balance, subscriptionStatus, unresolvedCommerce, unresolvedEmail, unresolvedBilling = 0 }) {
   return {
     id,
     name,
@@ -399,6 +409,10 @@ function userRow(id, { name, balance, subscriptionStatus, unresolvedCommerce, un
     ],
     membershipSubscriptions: subscriptionStatus ? [{ status: subscriptionStatus }] : [],
     backgroundCreditWallet: { balance },
-    _count: { commerceOrders: unresolvedCommerce, adminEmailIntents: unresolvedEmail },
+    _count: {
+      commerceOrders: unresolvedCommerce,
+      adminEmailIntents: unresolvedEmail,
+      billingGoodwillOperationsAsTarget: unresolvedBilling,
+    },
   }
 }

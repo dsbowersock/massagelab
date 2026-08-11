@@ -144,6 +144,13 @@ and the existing purpose/webhook contract remains non-entitling. Track 1
 implementation and rollout readiness is complete. Attorney review and
 first-cohort Production monitoring remain external invite-readiness gates.
 
+## Admin billing-goodwill gates
+
+- Automated and browser QA must use injected/test fixtures only; no test may call Stripe balance-transaction creation. The browser acceptance path is presentation-only, instruments zero form submissions and matching POST requests, and its gated preview client's mutation methods must fail closed. Both server actions must also reject the exact opted-in disposable QA identity before entering the service or constructing a real Stripe client; the guard must remain inactive for ordinary tests, non-fixture identities, and Vercel Production.
+- Before the PR is complete, explicitly select one Stripe test Customer with one active/trialing Supporter subscription and authorize the smallest approved test credit. Confirm the returned customer balance transaction is negative USD, its ending balance matches the refreshed Customer, the local operation is `VERIFIED`, Account Activity is present, and the email intent uses the test sink. Record only safe IDs and statuses.
+- Treat every `RECONCILIATION_REQUIRED` operation as possibly committed. Use its single Admin Reconcile action within the supported Stripe idempotency window, freshly confirming the exact normalized target email and stored two-decimal amount; never create a replacement operation or notify the user before `VERIFIED`. If the retry window or identity evidence is ambiguous, stop for manual provider/local evidence review.
+- Keep `ADMIN_BILLING_GOODWILL_LIVE_ENABLED` absent or false during ordinary validation and test-mode proof. A live credit requires Production runtime and separate user authorization that names the controlled account and exact amount. A mistaken live credit has no ordinary debit/reversal control and requires a separately reviewed recovery procedure.
+
 ## Manual Focus Areas
 
 - Account registration, Google sign-in, Terms/Privacy acceptance, onboarding, verification, password reset, 2FA, and preference sync.

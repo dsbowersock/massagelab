@@ -143,6 +143,13 @@ function detailPageHarness() {
       "@/components/ui/button": {},
       "@/components/ui/card": {},
       "@/lib/admin/access": {},
+      "@/lib/admin/billing-goodwill": { previewInvoiceCredit: async () => null },
+      "@/lib/admin/browser-billing-goodwill-preview": { browserBillingGoodwillPreviewClient: () => null },
+      "./billing-goodwill-form": {
+        BillingGoodwillControls: ({ userId, preview, reconciliations }) => (
+          createElement("billing-goodwill-controls", { userId, preview, reconciliations })
+        ),
+      },
       "./credit-action-form": {},
       "./retry-email-form": {},
       "./role-change-form": {},
@@ -171,6 +178,7 @@ function detailPageHarness() {
       "@/lib/admin/user-detail": {},
       "@/lib/commerce/credit-service": { INITIAL_BACKGROUND_CREDIT_COUNT: 2 },
       "@/lib/prisma": {},
+      "@/lib/stripe-billing": { getStripeClient: () => ({}) },
     },
   )
 }

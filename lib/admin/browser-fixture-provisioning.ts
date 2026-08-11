@@ -66,5 +66,20 @@ async function createBrowserAdminFixtureRecordsInTransaction(input: {
       },
     },
   })
+  const projectName = input.identity.target.id.replace("browser-admin-target-", "")
+  const safeProjectName = projectName.replaceAll("-", "")
+  const stripeCustomerId = `cus_browser${safeProjectName}`
+  await input.prismaClient.stripeCustomer.create({
+    data: { userId: input.identity.target.id, stripeCustomerId },
+  })
+  await input.prismaClient.membershipSubscription.create({
+    data: {
+      userId: input.identity.target.id,
+      stripeSubscriptionId: `sub_browser${safeProjectName}`,
+      stripeCustomerId,
+      status: "active",
+      membershipLevel: "SUPPORTER",
+    },
+  })
   await (input.provisionCredits ?? ensureVerifiedUserBackgroundCredits)(input.prismaClient, input.identity.operator.id)
 }

@@ -51,7 +51,7 @@ export type AdminUserDirectoryRow = {
   unresolvedIssueCount: number
 }
 
-type DirectoryPrismaClient = Pick<PrismaClient, "adminEmailIntent" | "commerceOrder" | "temporaryFeatureGrant" | "user">
+type DirectoryPrismaClient = Pick<PrismaClient, "adminBillingGoodwillOperation" | "adminEmailIntent" | "commerceOrder" | "temporaryFeatureGrant" | "user">
 
 /**
  * Normalizes the GET-only directory inputs before they influence a database
@@ -143,6 +143,7 @@ export async function getAdminUserMetrics(input: { prismaClient: DirectoryPrisma
     activeSupporters,
     unresolvedCommerceOperations,
     unresolvedEmailOperations,
+    unresolvedBillingGoodwillOperations,
     activeTemporaryGrants,
     expiringTemporaryGrants,
   ] = await Promise.all([
@@ -160,6 +161,7 @@ export async function getAdminUserMetrics(input: { prismaClient: DirectoryPrisma
     }),
     input.prismaClient.commerceOrder.count({ where: unresolvedCommerceWhere() }),
     input.prismaClient.adminEmailIntent.count({ where: { status: { in: UNRESOLVED_EMAIL_STATUSES } } }),
+    input.prismaClient.adminBillingGoodwillOperation.count({ where: { status: "RECONCILIATION_REQUIRED" } }),
     input.prismaClient.temporaryFeatureGrant.count({ where: activeTemporaryGrantWhere(now) }),
     input.prismaClient.temporaryFeatureGrant.count({
       where: {
@@ -173,7 +175,8 @@ export async function getAdminUserMetrics(input: { prismaClient: DirectoryPrisma
     totalAccounts,
     verifiedAccounts,
     activeSupporters,
-    unresolvedOperations: unresolvedCommerceOperations + unresolvedEmailOperations,
+    unresolvedOperations: unresolvedCommerceOperations + unresolvedEmailOperations + unresolvedBillingGoodwillOperations,
+    unresolvedBillingGoodwillOperations,
     activeTemporaryGrants,
     expiringTemporaryGrants,
   }
@@ -196,6 +199,7 @@ const ADMIN_USER_DIRECTORY_SELECT = {
     select: {
       commerceOrders: { where: unresolvedCommerceWhere() },
       adminEmailIntents: { where: { status: { in: UNRESOLVED_EMAIL_STATUSES } } },
+      billingGoodwillOperationsAsTarget: { where: { status: "RECONCILIATION_REQUIRED" } },
     },
   },
 } satisfies Prisma.UserSelect
@@ -208,7 +212,7 @@ function toAdminUserDirectoryRow(row: {
   roles: Array<{ role: string; status: string }>
   membershipSubscriptions: Array<{ status: string }>
   backgroundCreditWallet: { balance: number } | null
-  _count: { commerceOrders: number; adminEmailIntents: number }
+  _count: { commerceOrders: number; adminEmailIntents: number; billingGoodwillOperationsAsTarget?: number }
 }): AdminUserDirectoryRow {
   return {
     id: row.id,
@@ -218,7 +222,9 @@ function toAdminUserDirectoryRow(row: {
     roles: normalizeRoleAssignments(row.roles),
     subscriptionStatus: row.membershipSubscriptions[0]?.status ?? null,
     creditBalance: row.backgroundCreditWallet?.balance ?? 0,
-    unresolvedIssueCount: row._count.commerceOrders + row._count.adminEmailIntents,
+    unresolvedIssueCount: row._count.commerceOrders
+      + row._count.adminEmailIntents
+      + (row._count.billingGoodwillOperationsAsTarget ?? 0),
   }
 }
 
@@ -281,6 +287,7 @@ function unresolvedUserWhere(): Prisma.UserWhereInput {
     OR: [
       { commerceOrders: { some: unresolvedCommerceWhere() } },
       { adminEmailIntents: { some: { status: { in: UNRESOLVED_EMAIL_STATUSES } } } },
+      { billingGoodwillOperationsAsTarget: { some: { status: "RECONCILIATION_REQUIRED" } } },
     ],
   }
 }

@@ -32,10 +32,22 @@
 - Recovery GREEN: only the PREPARED creator performs the initial provider call; `apply` replays are provider-free; explicit no-ID reconciliation may reuse the exact key only for age `>= 0` and `< 24h`; known transaction IDs always use direct authoritative readback; malformed IDs and identity drift remain safe manual reconciliation; unresolved operations never notify.
 - Independent quality re-review: approved, including coordinated post-commit/pre-provider concurrency evidence and provider-free duplicate behavior.
 - Fresh coordinator validation: Task 20 plus Admin operation/access and Stripe billing tests passed 171/171; typecheck passed; lint passed with only the existing Chimer Babel large-file note; `git diff --check` passed.
+- Task 20 commit/readback: `79e3a9bdfd0d6d277c6bd534a20a299df1609703` (`feat: apply and reconcile invoice credits`); four expected files; post-commit worktree clean and commit diff check passed.
 - No Stripe network call, test/live Stripe mutation, live database mutation, email, or browser action occurred; all provider behavior used injected local stubs.
+
+## Task 21 Admin controls and non-live closure
+
+- Strict RED: `tests/admin-billing-goodwill-ui.test.mjs` failed because the billing server action/form surface did not exist.
+- Initial GREEN added full-Admin preview/apply/reconcile actions, bounded preset/custom confirmations, verified-only locked email delivery, bounded unresolved detail/directory/dashboard evidence, a presentation-only desktop/mobile browser contract, QA-only read preview, and canonical state/log/runbook/release documentation.
+- Spec-review RED/GREEN added fresh exact target-email and stored two-decimal amount confirmation to every reconciliation card and separated exact apply replay copy from newly verified reconciliation copy; spec re-review approved.
+- Quality-review RED/GREEN moved apply/reconcile action-state owners and live regions outside conditionally removed UI, retained per-form pending/fresh confirmation remounts, added exact non-Production browser-QA mutation guards before service/Stripe client construction, and proved zero browser submissions/matching POST requests; quality re-review approved.
+- Full-suite integration RED found one compiled security-page harness missing the new billing import doubles. Test-only GREEN added faithful resolution-only doubles; focused security plus Task 21 tests passed 28/28.
+- Fresh coordinator automated validation: Prisma generate and validate passed; focused/adjacent tests passed 225/225; typecheck passed; lint passed with only the existing Chimer Babel large-file note; full unit suite passed 2,421 with one intentional skip and zero failures; production build generated 104/104 pages; `git diff --check` passed.
+- Real browser QA was correctly skipped because `DATABASE_URL` was absent and `MASSAGELAB_BROWSER_QA_DATABASE` was not `1`. No Stripe network call, balance transaction, live/test database mutation, or email delivery occurred.
 
 ## Pending evidence
 
-- Task 20 commit/readback.
-- Task 21, whole-branch review, terminal validation, and PR loop.
+- Task 21 commit/readback and whole-branch review/corrections.
+- Explicit selection/authorization for the planned Stripe test Customer/subscription integration proof and test sink.
+- Terminal validation and PR loop.
 - Separately authorized live Stripe smoke remains outside the implementation gate.

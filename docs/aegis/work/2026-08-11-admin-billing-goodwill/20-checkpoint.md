@@ -23,9 +23,13 @@
 - Completed Task 20 implementation: prepared local state, one initial provider caller, authoritative readback, bounded same-key reconciliation, live-key gate, and verified-only Admin evidence/email bundle.
 - Completed Task 20 reviews: spec approved after closing the shared AdminAction idempotency namespace; quality approved after hardening concurrency, Stripe idempotency retention, and drift-safe readback.
 - Completed Task 20 coordinator validation: 171/171 focused and adjacent Admin/Stripe tests, typecheck, lint, and diff check passed.
-- Pending: Task 20 commit/readback; Task 21; whole-branch validation; PR loop; user-controlled merge/live-smoke gates.
+- Completed Task 20 commit/readback: `79e3a9bdfd0d6d277c6bd534a20a299df1609703` (`feat: apply and reconcile invoice credits`), four expected files, clean worktree.
+- Completed Task 21 non-live implementation: Admin billing controls/actions, unresolved operation evidence and metrics, presentation-only browser contracts, QA mutation guards, and canonical documentation.
+- Completed Task 21 reviews: spec approved after fresh reconciliation confirmations/truthful outcome copy; quality approved after stabilizing live feedback and connecting server-side QA read-only guards.
+- Completed Task 21 coordinator automated validation: Prisma generate/validate, 225/225 focused/adjacent tests, typecheck, lint, full unit 2,421 passed/one intentional skip, production build 104 pages, and diff check passed.
+- Pending: Task 21 commit/readback; whole-branch review/corrections; explicit Stripe test Customer/subscription input and test-sink authorization; PR loop; user-controlled merge/live-smoke gates.
 - Blocked on: nothing currently.
-- Next: commit/read back Task 20, then dispatch Task 21 UI/metrics/browser/docs closure.
+- Next: commit/read back Task 21, complete a whole-branch review, then stop for explicit test Customer/subscription selection before any Stripe test mutation.
 
 ## ResumeStateHint
 
@@ -34,9 +38,9 @@ Resume only from this worktree and checkpoint. Re-read `10-intent.md`, refreshed
 ## DriftCheckDraft
 
 - Intent: aligned with bounded billing goodwill.
-- Scope: Branch 8 only; Task 20 is active.
+- Scope: Branch 8 only; Task 21 is active.
 - Compatibility: existing billing, entitlement, security, and Admin owners remain preserved.
 - New owner/fallback: the planned billing-goodwill ledger is the only new persistence owner; Stripe remains authoritative and no fallback invents external success.
 - Retirement: retired custom-color entitlement remains excluded.
-- Evidence state: merge/base/worktree, setup/baseline, Task 19 commit, and Task 20 RED/GREEN/reviews/fresh coordinator validation are present.
+- Evidence state: merge/base/worktree, setup/baseline, Tasks 19-20 commits, and Task 21 RED/GREEN/reviews/fresh automated validation are present.
 - Decision: continue.
