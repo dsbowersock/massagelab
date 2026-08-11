@@ -343,6 +343,7 @@ describe("canonical background access", () => {
       },
       select: { id: true, featureKey: true, startsAt: true, expiresAt: true },
       orderBy: [{ expiresAt: "asc" }, { id: "asc" }],
+      // The extra sentinel row detects overflow instead of silently truncating authorization input.
       take: TOTAL_ACTIVE_LIMIT + 1,
     })
 

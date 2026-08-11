@@ -472,6 +472,7 @@ function detailPrisma(calls, {
         })
         assert.deepEqual(args.select, { id: true, featureKey: true, startsAt: true, expiresAt: true })
         assert.deepEqual(args.orderBy, [{ expiresAt: "asc" }, { id: "asc" }])
+        // The extra sentinel row detects overflow instead of silently truncating authorization input.
         assert.equal(args.take, TOTAL_ACTIVE_LIMIT + 1)
         calls.push("temporaryFeatureGrant.findMany:entitlements")
         return entitlementTemporaryGrants
