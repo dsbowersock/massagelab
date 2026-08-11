@@ -28,8 +28,11 @@ describe("admin user operations browser fixture", () => {
 
   it("derives isolated deterministic browser-admin identities for each Playwright project", () => {
     const desktop = createBrowserAdminFixtureIdentity("desktop-chromium")
+    const desktopWithoutSeparator = createBrowserAdminFixtureIdentity("desktopchromium")
     const mobile = createBrowserAdminFixtureIdentity("mobile-chromium")
 
+    assert.equal(desktop.projectSlug, "6465736b746f702d6368726f6d69756d")
+    assert.notEqual(desktop.projectSlug, desktopWithoutSeparator.projectSlug)
     assert.equal(desktop.operator.id, "browser-admin-operator-desktop-chromium")
     assert.equal(desktop.target.id, "browser-admin-target-desktop-chromium")
     assert.equal(desktop.target.name.length, 120)
@@ -126,12 +129,12 @@ describe("admin user operations browser fixture", () => {
       ["user.create", identity.target.id],
       ["stripeCustomer.create", {
         userId: identity.target.id,
-        stripeCustomerId: "cus_browserdesktopchromium",
+        stripeCustomerId: `cus_browser${identity.projectSlug}`,
       }],
       ["membershipSubscription.create", {
         userId: identity.target.id,
-        stripeSubscriptionId: "sub_browserdesktopchromium",
-        stripeCustomerId: "cus_browserdesktopchromium",
+        stripeSubscriptionId: `sub_browser${identity.projectSlug}`,
+        stripeCustomerId: `cus_browser${identity.projectSlug}`,
         status: "active",
         membershipLevel: "SUPPORTER",
       }],

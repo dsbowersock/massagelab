@@ -32,9 +32,12 @@
 - Completed correction validation: implementer full unit 2,427 passed/one intentional skip, build 104 pages, typecheck/lint/Prisma validation/diff check; coordinator focused 250/250 plus typecheck/diff check passed.
 - Completed proof gate: the user selected the subscribed account and authorized the smallest `$0.01` test credit. A disposable Neon clone and disposable Stripe test Customer/active USD subscription produced one `VERIFIED` operation from `0` to `1` cent, authoritative negative-balance readback, Activity, and an unattempted `example.test` email intent. Both disposable resources were deleted and verified absent; production and live Stripe were untouched.
 - Completed terminal validation: typecheck, lint, Prisma validation, full unit `2,427` passed/one intentional skip/zero failed, production build `104/104` pages, and diff check passed.
-- Pending: proof-evidence commit/readback, PR loop, and user-controlled merge/live-smoke gates.
+- Completed PR creation and initial hosted review: PR #179 is open, initial CodeQL/Vercel checks passed, and all 13 current review findings were verified.
+- Completed PR-review correction RED/GREEN: historical readback no longer depends on an unchanged live balance; another current full Admin can reconcile while origin evidence stays immutable; bounded preview logging, collision-free QA sentinels, settled-operation coverage, documentation redaction, and test-safety fixes are present.
+- Completed correction validation: 237/237 affected and adjacent tests, typecheck, lint, full unit 2,431 passed/one intentional skip/zero failed, production build 104 pages, and diff check passed.
+- Pending: correction commit/push, fresh hosted checks and re-review, thread resolution, and the user-controlled merge gate.
 - Blocked on: nothing currently.
-- Next: commit/read back the proof evidence, then push/open the Branch 8 PR and complete the hosted review loop.
+- Next: finish terminal validation, commit/push the review corrections, and complete the hosted review loop through zero unresolved threads.
 
 ## ResumeStateHint
 

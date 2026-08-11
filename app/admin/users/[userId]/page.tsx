@@ -37,6 +37,7 @@ import {
 import { prisma } from "@/lib/prisma"
 import {
   BILLING_GOODWILL_UNRESOLVED_STATUSES,
+  BillingGoodwillPreviewError,
   isBillingGoodwillUnresolvedStatus,
   previewInvoiceCredit,
 } from "@/lib/admin/billing-goodwill"
@@ -526,7 +527,10 @@ async function loadBillingGoodwillPresentation(
       reconciliations,
       reconciliationsTruncated,
     }
-  } catch {
+  } catch (error) {
+    console.error("Admin billing-goodwill preview unavailable", {
+      code: error instanceof BillingGoodwillPreviewError ? error.code : "PREVIEW_UNAVAILABLE",
+    })
     return { preview: null, reconciliations, reconciliationsTruncated }
   }
 }

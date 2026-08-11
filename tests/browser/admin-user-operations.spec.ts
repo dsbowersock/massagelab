@@ -184,8 +184,7 @@ test.describe("Admin user operations", () => {
     await expect(submit).toBeEnabled()
     const overflow = await page.locator("html").evaluate((element) => element.scrollWidth > element.clientWidth)
     expect(overflow).toBe(false)
-    const formSubmissionCount = Number(await page.locator("html").getAttribute("data-billing-goodwill-form-submissions"))
-    expect(formSubmissionCount).toBe(0)
+    await expect(page.locator("html")).toHaveAttribute("data-billing-goodwill-form-submissions", "0")
     expect(matchingPostRequests).toEqual([])
   })
 

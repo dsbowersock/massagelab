@@ -536,6 +536,32 @@ describe("Admin invoice-credit mutation and reconciliation", () => {
     }
   })
 
+  it("verifies an exact historical transaction after later Customer balance activity", async () => {
+    const fixture = createMutationFixture({
+      transactionRetrieveErrorOnce: new Error("initial readback unavailable"),
+      readbackCustomerOverrides: { balance: 250 },
+    })
+    assert.equal((await apply(fixture)).status, "RECONCILIATION_REQUIRED")
+
+    const result = await reconcile(fixture)
+
+    assert.equal(result.status, "VERIFIED")
+    assert.equal(result.endingCreditCents, 800)
+    assert.equal(fixture.stripeRequests.length, 1)
+    assert.equal(fixture.stripeCalls.includes("transactions.retrieve:cus_test:cbtxn_test"), true)
+  })
+
+  it("lets another current full Admin reconcile while preserving the originating actor", async () => {
+    const fixture = createMutationFixture({ transactionRetrieveErrorOnce: new Error("initial readback unavailable") })
+    assert.equal((await apply(fixture)).status, "RECONCILIATION_REQUIRED")
+
+    const result = await reconcile(fixture, { actorUserId: "admin-2" })
+
+    assert.equal(result.status, "VERIFIED")
+    assert.equal(fixture.stripeRequests.length, 1)
+    assert.equal(fixture.state.actions.get("billing-op-1").actorUserId, "admin-1")
+  })
+
   it("never creates again when a persisted transaction identifier is malformed", async () => {
     const fixture = createMutationFixture({ createErrorOnce: new Error("timeout") })
     assert.equal((await apply(fixture)).status, "RECONCILIATION_REQUIRED")
@@ -668,6 +694,22 @@ describe("Admin invoice-credit mutation and reconciliation", () => {
         && error.code === "OPERATION_KEY_IN_USE"
         && !error.message.includes("Stripe"),
     )
+  })
+
+  it("refuses to reconcile an operation that already settled", async () => {
+    const fixture = createMutationFixture({ transactionRetrieveErrorOnce: new Error("initial readback unavailable") })
+    assert.equal((await apply(fixture)).status, "RECONCILIATION_REQUIRED")
+    assert.equal((await reconcile(fixture)).status, "VERIFIED")
+    const requestCount = fixture.stripeRequests.length
+    const actionCount = fixture.state.actions.size
+
+    await assert.rejects(
+      () => reconcile(fixture),
+      (error) => error instanceof BillingGoodwillMutationError
+        && error.code === "OPERATION_NOT_RECONCILABLE",
+    )
+    assert.equal(fixture.stripeRequests.length, requestCount)
+    assert.equal(fixture.state.actions.size, actionCount)
   })
 })
 

@@ -58,14 +58,20 @@
 
 ## Pending evidence
 
-- Proof-evidence commit/readback and PR loop.
+- Commit/push the verified PR-review corrections, complete fresh hosted checks and re-review, resolve every review thread, and stop at the user-controlled merge gate.
 - Separately authorized live Stripe smoke remains outside the implementation gate.
 
 ## Authorized Stripe test-mode integration proof
 
-- The user selected the currently subscribed account and authorized the smallest `$0.01` test credit. Production data was cloned into disposable Neon branch `br-damp-night-aj2732vp`; only the cloned target was changed to the `example.test` sink and disposable Stripe test identity.
+- The user selected the currently subscribed account and authorized the smallest `$0.01` test credit. Production data was cloned into a disposable Neon branch; only the cloned target was changed to the `example.test` sink and disposable Stripe test identity.
 - Read-only preflight proved one non-live Customer with starting balance `0`, one active non-live USD subscription, and one eligible cloned Supporter target. The proof invoked the production `previewInvoiceCredit()` and `applyInvoiceCredit()` service with a fresh idempotency key; no route-local substitute implemented the mutation.
-- Result: operation `cmsp71b1l0000lwnccwswwuov` reached `VERIFIED` for `1` cent, with starting credit `0` and ending credit `1`. Authoritative Stripe readback proved balance transaction `cbtxn_1U3NYOEQLN3By4OZ8vbecxmO`, amount `-1`, currency `usd`, ending balance `-1`, refreshed Customer balance `-1`, and `livemode=false`.
+- Result: one operation reached `VERIFIED` for `1` cent, with starting credit `0` and ending credit `1`. Authoritative Stripe readback proved one exact balance transaction with amount `-1`, currency `usd`, ending balance `-1`, refreshed Customer balance `-1`, and `livemode=false`.
 - Local readback proved one succeeded `BILLING_GOODWILL_CREDIT_VERIFIED` Admin action, one target-visible `Invoice credit added` Activity record, and one sink-bound `BILLING_GOODWILL_CREDIT_VERIFIED` email intent. The intent remained `PENDING` with `attemptCount=0`, no last-attempt or delivery timestamp, and no failure code, so no email was sent.
-- Cleanup: disposable Stripe test Customer `cus_V3UQRMGcMsZrha` was deleted and re-retrieved as deleted, which removed its disposable subscription. Neon branch `br-damp-night-aj2732vp` was deleted; a fresh branch listing contained only the production branch. No live Stripe object or production database row was mutated.
+- Cleanup: the disposable Stripe test Customer was deleted and re-retrieved as deleted, which removed its disposable subscription. The disposable Neon branch was deleted; a fresh branch listing contained only the production branch. No live Stripe object or production database row was mutated.
 - Terminal proof-tree validation passed: `npm run typecheck`; `npm run lint` with only the existing Chimer Babel large-file note; `npm run prisma:validate`; full `npm run test` with `2,427` passed, one intentional skip, and zero failed; `npm run build` with `104/104` pages; and `git diff --check`.
+
+## PR review corrections
+
+- Strict RED recorded two correctness failures: historical transaction verification incorrectly required the Customer's current balance to equal the stored transaction ending balance, and a different current full Admin could not reconcile an orphaned operation. Focused review RED also covered missing bounded preview logging and collision-prone browser-fixture provider sentinels.
+- GREEN validates exact immutable historical transaction evidence while allowing later Customer balance activity; current reconcilers are freshly authorized but the verified evidence bundle retains the originating actor and request. Browser fixtures carry one collision-free project slug, preview failures log only a bounded code, and settled reconciliation plus test-safety boundaries have focused coverage.
+- Correction validation passed: 87/87 initial focused RED/GREEN tests; 237/237 affected and adjacent tests; typecheck; lint with only the existing Chimer Babel large-file note; full unit with 2,431 passed, one intentional skip, and zero failed; production build with 104/104 pages; and diff check.

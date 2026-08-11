@@ -94,7 +94,7 @@ type BillingGoodwillOperation = {
   actorUserId: string
   targetUserId: string
   idempotencyKey: string
-  reasonCode: string
+  reasonCode: AdminReasonCode
   internalNote: string | null
   amountCents: number
   currency: string
@@ -275,6 +275,13 @@ export async function reconcileInvoiceCredit(
   return executeGoodwillRequest(input, { ...prepared, replayed: true }, now)
 }
 
+/**
+ * Prepares or replays one durable goodwill operation under fresh authorization
+ * and the shared idempotency lock. Reconciliation-only calls require an
+ * existing unresolved row. `replayed` identifies an existing operation whose
+ * first provider attempt this caller does not own; `blocked` identifies local
+ * identity drift that prevents the provider boundary from being crossed.
+ */
 async function prepareGoodwillOperation(
   input: BillingGoodwillMutationInput,
   reconciliationOnly: boolean,
@@ -294,14 +301,14 @@ async function prepareGoodwillOperation(
     ])
 
     if (existing) {
-      assertExactOperationReplay(existing, input)
+      assertExactOperationReplay(existing, input, reconciliationOnly)
       if (existing.status === "VERIFIED") {
         assertCoherentVerifiedOperation(existing)
         if (!existingAction) throw operationKeyInUse()
         try {
           await recordAdminActionBundle(
             tx,
-            buildGoodwillBundle(input, target.email, existing.endingBalanceCents as number),
+            buildGoodwillBundle(existing, target.email, existing.endingBalanceCents as number),
           )
         } catch {
           throw operationKeyInUse()
@@ -309,11 +316,11 @@ async function prepareGoodwillOperation(
       } else if (existingAction) {
         throw operationKeyInUse()
       }
-      if (reconciliationOnly && !BILLING_GOODWILL_UNRESOLVED_STATUSES.includes(existing.status as (typeof BILLING_GOODWILL_UNRESOLVED_STATUSES)[number])) {
+      if (reconciliationOnly && !isBillingGoodwillUnresolvedStatus(existing.status)) {
         throw mutationError("OPERATION_NOT_RECONCILABLE", "This billing goodwill operation no longer requires reconciliation.")
       }
       if (reconciliationOnly
-        && BILLING_GOODWILL_UNRESOLVED_STATUSES.includes(existing.status as (typeof BILLING_GOODWILL_UNRESOLVED_STATUSES)[number])
+        && isBillingGoodwillUnresolvedStatus(existing.status)
         && existing.stripeBalanceTransactionId === null) {
         let billing: { customerId: string; subscriptionId: string }
         try {
@@ -507,6 +514,7 @@ async function readbackAndFinalizeGoodwill(
       refreshedCustomer,
       { ...operation, stripeBalanceTransactionId: transactionId },
       expectedLivemode,
+      prepared.replayed,
     )
   } catch (error) {
     const failureCode = error instanceof GoodwillReadbackValidationError
@@ -549,7 +557,7 @@ async function finalizeVerifiedGoodwill(
       where: { idempotencyKey: input.idempotencyKey },
     }) as BillingGoodwillOperation | null
     if (!current) throw mutationError("OPERATION_NOT_FOUND", "The billing goodwill operation was not found.")
-    assertExactOperationReplay(current, input)
+    assertExactOperationReplay(current, input, replayed)
 
     const endingCreditCents = current.status === "VERIFIED"
       ? current.endingBalanceCents
@@ -560,7 +568,7 @@ async function finalizeVerifiedGoodwill(
 
     const bundle = await recordAdminActionBundle(
       tx,
-      buildGoodwillBundle(input, target.email || recipientEmail, endingCreditCents as number),
+      buildGoodwillBundle(current, target.email || recipientEmail, endingCreditCents as number),
     )
 
     if (current.status !== "VERIFIED") {
@@ -660,8 +668,12 @@ async function loadLocalBillingEligibility(tx: Prisma.TransactionClient, targetU
 
 class LocalBillingEligibilityError extends Error {}
 
-function assertExactOperationReplay(operation: BillingGoodwillOperation, input: BillingGoodwillMutationInput): void {
-  if (operation.actorUserId !== input.actorUserId
+function assertExactOperationReplay(
+  operation: BillingGoodwillOperation,
+  input: BillingGoodwillMutationInput,
+  allowDifferentReconciler = false,
+): void {
+  if ((!allowDifferentReconciler && operation.actorUserId !== input.actorUserId)
     || operation.targetUserId !== input.targetUserId
     || operation.idempotencyKey !== input.idempotencyKey
     || operation.reasonCode !== input.reasonCode
@@ -686,37 +698,37 @@ function assertCoherentVerifiedOperation(operation: BillingGoodwillOperation): v
 }
 
 function buildGoodwillBundle(
-  input: BillingGoodwillMutationInput,
+  operation: BillingGoodwillOperation,
   recipientEmail: string,
   endingCreditCents: number,
 ): RecordAdminActionInput {
   return {
-    actorUserId: input.actorUserId,
-    targetUserId: input.targetUserId,
+    actorUserId: operation.actorUserId,
+    targetUserId: operation.targetUserId,
     actionKind: "BILLING_GOODWILL_CREDIT_VERIFIED",
-    reasonCode: input.reasonCode,
-    internalNote: input.internalNote,
-    idempotencyKey: input.idempotencyKey,
+    reasonCode: operation.reasonCode,
+    internalNote: operation.internalNote,
+    idempotencyKey: operation.idempotencyKey,
     beforeState: {
-      startingCreditCents: input.expectedStartingCreditCents,
-      amountCents: input.amountCents,
+      startingCreditCents: operation.startingBalanceCents,
+      amountCents: operation.amountCents,
       currency: "usd",
     },
     afterState: {
       endingCreditCents,
-      amountCents: input.amountCents,
+      amountCents: operation.amountCents,
       currency: "usd",
     },
     activity: {
       title: "Invoice credit added",
-      explanation: `Massage Lab support added a $${formatUsd(input.amountCents)} credit toward future invoices. Your invoice credit is now $${formatUsd(endingCreditCents)}.`,
-      effectiveValue: `+$${formatUsd(input.amountCents)} invoice credit`,
+      explanation: `Massage Lab support added a $${formatUsd(operation.amountCents)} credit toward future invoices. Your invoice credit is now $${formatUsd(endingCreditCents)}.`,
+      effectiveValue: `+$${formatUsd(operation.amountCents)} invoice credit`,
     },
     email: {
       kind: "BILLING_GOODWILL_CREDIT_VERIFIED",
       recipientEmail,
       subject: "A credit was added to your Massage Lab billing account",
-      message: `Massage Lab support added a $${formatUsd(input.amountCents)} credit toward future invoices. Your invoice credit is now $${formatUsd(endingCreditCents)}. If you did not expect this change, contact Massage Lab support.`,
+      message: `Massage Lab support added a $${formatUsd(operation.amountCents)} credit toward future invoices. Your invoice credit is now $${formatUsd(endingCreditCents)}. If you did not expect this change, contact Massage Lab support.`,
     },
   }
 }
@@ -754,6 +766,7 @@ function validateAuthoritativeReadback(
   customer: unknown,
   operation: BillingGoodwillOperation,
   expectedLivemode: boolean,
+  historicalReconciliation: boolean,
 ): number {
   if (!isRecord(transaction)
     || transaction.id !== operation.stripeBalanceTransactionId
@@ -766,18 +779,31 @@ function validateAuthoritativeReadback(
     || transaction.livemode !== expectedLivemode) {
     throw new GoodwillReadbackValidationError("STRIPE_TRANSACTION_INVALID")
   }
-  let customerEvidence: { balance: number; livemode: boolean }
-  try {
-    customerEvidence = parseMutationCustomer(customer, operation.stripeCustomerId, expectedLivemode)
-  } catch {
+  if (!isRecord(customer)
+    || customer.id !== operation.stripeCustomerId
+    || customer.deleted === true
+    || typeof customer.livemode !== "boolean"
+    || customer.livemode !== expectedLivemode) {
     throw new GoodwillReadbackValidationError("STRIPE_CUSTOMER_INVALID")
   }
   const expectedEndingCreditCents = operation.startingBalanceCents + operation.amountCents
   if (!Number.isSafeInteger(expectedEndingCreditCents)
-    || Math.abs(transaction.ending_balance) !== expectedEndingCreditCents
-    || Math.abs(customerEvidence.balance) !== expectedEndingCreditCents
-    || customerEvidence.balance !== transaction.ending_balance) {
+    || Math.abs(transaction.ending_balance) !== expectedEndingCreditCents) {
     throw new GoodwillReadbackValidationError("STRIPE_TRANSACTION_INVALID")
+  }
+  // Initial settlement proves both historical transaction and current Customer
+  // balance. Later reconciliation cannot assume no intervening invoice or balance event.
+  if (!historicalReconciliation) {
+    let customerEvidence: { balance: number; livemode: boolean }
+    try {
+      customerEvidence = parseMutationCustomer(customer, operation.stripeCustomerId, expectedLivemode)
+    } catch {
+      throw new GoodwillReadbackValidationError("STRIPE_CUSTOMER_INVALID")
+    }
+    if (Math.abs(customerEvidence.balance) !== expectedEndingCreditCents
+      || customerEvidence.balance !== transaction.ending_balance) {
+      throw new GoodwillReadbackValidationError("STRIPE_TRANSACTION_INVALID")
+    }
   }
   return expectedEndingCreditCents
 }

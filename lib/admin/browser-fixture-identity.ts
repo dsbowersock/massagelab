@@ -1,4 +1,5 @@
 export type BrowserAdminFixtureIdentity = {
+  projectSlug: string
   operator: { id: string; name: string; email: string }
   target: { id: string; name: string; email: string }
 }
@@ -9,13 +10,20 @@ export type BrowserAdminFixtureIdentity = {
  * from reading or deleting one another's deterministic fixture records.
  */
 export function createBrowserAdminFixtureIdentity(projectName: string): BrowserAdminFixtureIdentity {
-  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(projectName)) {
-    throw new Error("Browser fixture requires a safe Playwright project name.")
-  }
+  const projectSlug = browserAdminFixtureProjectSlug(projectName)
   return {
+    projectSlug,
     operator: browserAdminIdentity("operator", projectName),
     target: browserAdminIdentity("target", projectName),
   }
+}
+
+/** Encodes the safe project name injectively for alphanumeric-only provider sentinels. */
+export function browserAdminFixtureProjectSlug(projectName: string): string {
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(projectName)) {
+    throw new Error("Browser fixture requires a safe Playwright project name.")
+  }
+  return Array.from(projectName, (character) => character.charCodeAt(0).toString(16).padStart(2, "0")).join("")
 }
 
 function browserAdminIdentity(kind: "operator" | "target", projectName: string) {

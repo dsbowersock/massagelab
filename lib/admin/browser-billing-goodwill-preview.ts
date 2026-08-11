@@ -1,5 +1,6 @@
 import type { StripeGoodwillClient } from "./billing-goodwill.ts"
 import { hasBrowserAdminFixtureQaAuthorization } from "./browser-qa-authorization.ts"
+import { browserAdminFixtureProjectSlug } from "./browser-fixture-identity.ts"
 
 /**
  * Supplies read-only Stripe-shaped evidence only for deterministic disposable
@@ -12,8 +13,9 @@ export function browserBillingGoodwillPreviewClient(
 ): StripeGoodwillClient | null {
   if (!isBrowserBillingGoodwillMutationBlocked(targetUserId, environment)) return null
   const suffix = targetUserId.replace("browser-admin-target-", "")
-  const customerId = `cus_browser${suffix.replaceAll("-", "")}`
-  const subscriptionId = `sub_browser${suffix.replaceAll("-", "")}`
+  const projectSlug = browserAdminFixtureProjectSlug(suffix)
+  const customerId = `cus_browser${projectSlug}`
+  const subscriptionId = `sub_browser${projectSlug}`
   return {
     customers: {
       retrieve: async () => ({ id: customerId, balance: 0, livemode: false }),

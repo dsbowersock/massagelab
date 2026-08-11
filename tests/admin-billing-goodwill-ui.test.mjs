@@ -12,6 +12,7 @@ import {
   browserBillingGoodwillPreviewClient,
   isBrowserBillingGoodwillMutationBlocked,
 } from "../lib/admin/browser-billing-goodwill-preview.ts"
+import { createBrowserAdminFixtureIdentity } from "../lib/admin/browser-fixture-identity.ts"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 
@@ -54,6 +55,11 @@ describe("Admin billing-goodwill UI", () => {
     assert.match(actionSource, /reconcileInvoiceCredit/)
   })
 
+  it("logs only a bounded preview failure code before rendering unavailable controls", () => {
+    assert.match(pageSource, /BillingGoodwillPreviewError/)
+    assert.match(pageSource, /catch \(error\)[\s\S]*Admin billing-goodwill preview unavailable[\s\S]*PREVIEW_UNAVAILABLE/)
+  })
+
   it("delivers only verified bundles and exposes one same-key reconciliation action", () => {
     assert.match(actionSource, /result\.status === "VERIFIED"[\s\S]*result\.emailIntentId/)
     assert.match(actionSource, /deliverAdminEmailIntent/)
@@ -93,7 +99,7 @@ describe("Admin billing-goodwill UI", () => {
     assert.match(browserSource, /Current Stripe credit/)
     assert.match(browserSource, /Projected next invoice/)
     assert.match(browserSource, /desktop-chromium|testInfo\.project\.name/)
-    assert.match(browserSource, /formSubmissionCount/)
+    assert.match(browserSource, /toHaveAttribute\("data-billing-goodwill-form-submissions", "0"\)/)
     assert.match(browserSource, /matchingPostRequests/)
     assert.doesNotMatch(browserSource, /createBalanceTransaction/)
   })
@@ -176,12 +182,13 @@ describe("Admin billing-goodwill UI", () => {
     assert.equal(isBrowserBillingGoodwillMutationBlocked(target, { ...authorizedEnvironment, VERCEL_ENV: "production" }), false)
     assert.equal(isBrowserBillingGoodwillMutationBlocked(target, authorizedEnvironment), true)
     const client = browserBillingGoodwillPreviewClient(target, authorizedEnvironment)
+    const identity = createBrowserAdminFixtureIdentity("desktop-chromium")
     assert.ok(client)
-    assert.deepEqual(await client.customers.retrieve("cus_browserdesktopchromium"), {
-      id: "cus_browserdesktopchromium", balance: 0, livemode: false,
+    assert.deepEqual(await client.customers.retrieve(`cus_browser${identity.projectSlug}`), {
+      id: `cus_browser${identity.projectSlug}`, balance: 0, livemode: false,
     })
     await assert.rejects(
-      () => client.customers.createBalanceTransaction("cus_browserdesktopchromium", { amount: -100, currency: "usd" }),
+      () => client.customers.createBalanceTransaction(`cus_browser${identity.projectSlug}`, { amount: -100, currency: "usd" }),
       /must not create Stripe balance transactions/i,
     )
   })
@@ -199,10 +206,13 @@ describe("Admin billing-goodwill UI", () => {
     const result = await accepted.actions.applyBillingGoodwillAction("user-1", idleState, applyForm())
     assert.equal(result.status, "success")
     const serviceCall = accepted.calls.find(([name]) => name === "applyInvoiceCredit")
+    assert.ok(serviceCall, "expected applyInvoiceCredit to be called")
     assert.equal(serviceCall[1].idempotencyKey, operationId)
     assert.equal(serviceCall[1].amountCents, 200)
     assert.equal(serviceCall[1].confirmationEmail, "user@example.test")
-    assert.deepEqual(accepted.calls.find(([name]) => name === "deliverAdminEmailIntent")[1], {
+    const deliveryCall = accepted.calls.find(([name]) => name === "deliverAdminEmailIntent")
+    assert.ok(deliveryCall, "expected deliverAdminEmailIntent to be called")
+    assert.deepEqual(deliveryCall[1], {
       prismaClient: accepted.prisma,
       intentId: "intent-goodwill",
     })
@@ -210,7 +220,9 @@ describe("Admin billing-goodwill UI", () => {
 
   it("rejects inexact confirmation and never notifies an unresolved mutation", async () => {
     for (const invalid of [
-      { amountCents: "0" }, { amountCents: "10001" }, { confirmationAmount: "2" },
+      { amountCents: "0", confirmationAmount: "0.00" },
+      { amountCents: "10001", confirmationAmount: "100.01" },
+      { confirmationAmount: "2" },
       { confirmationAmount: "2.01" }, { confirmationEmail: " USER@EXAMPLE.TEST " },
       { operationId: "not-a-uuid" }, { reasonCode: "INVALID" },
     ]) {
@@ -237,6 +249,7 @@ describe("Admin billing-goodwill UI", () => {
       message: "The invoice credit is verified. The resulting Stripe credit is $5.00. Email notification delivered.",
     })
     const call = harness.calls.find(([name]) => name === "reconcileInvoiceCredit")
+    assert.ok(call, "expected reconcileInvoiceCredit to be called")
     assert.equal(call[1].targetUserId, "user-1")
     assert.equal(call[1].idempotencyKey, "stored-stripe-key")
     assert.equal(harness.calls.filter(([name]) => name === "reconcileInvoiceCredit").length, 1)
@@ -247,7 +260,9 @@ describe("Admin billing-goodwill UI", () => {
       const harness = actionHarness({ operationRow: { status } })
       const result = await harness.actions.reconcileBillingGoodwillAction("user-1", idleState, reconcileForm())
       assert.equal(result.status, "success", status)
-      const query = harness.calls.find(([name]) => name === "findFirst")[1]
+      const queryCall = harness.calls.find(([name]) => name === "findFirst")
+      assert.ok(queryCall, "expected the unresolved operation to be loaded")
+      const query = queryCall[1]
       assert.deepEqual(query.where.status, { in: ["PREPARED", "APPLIED", "RECONCILIATION_REQUIRED"] })
     }
   })
