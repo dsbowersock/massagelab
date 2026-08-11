@@ -99,7 +99,18 @@ describe("admin user detail", () => {
     const calls = []
     const now = new Date("2026-08-09T00:00:00.000Z")
     const result = await getAdminUserDetailSection({
-      prismaClient: detailPrisma(calls, { expectedEntitlementNow: now }), userId: "user-1", section: "access", now,
+      prismaClient: detailPrisma(calls, {
+        entitlementTemporaryGrants: [{
+          id: "grant-1",
+          featureKey: "premium_backgrounds",
+          startsAt: new Date("2026-08-01T00:00:00.000Z"),
+          expiresAt: new Date("2026-09-15T00:00:00.000Z"),
+        }],
+        expectedEntitlementNow: now,
+      }),
+      userId: "user-1",
+      section: "access",
+      now,
     })
 
     assert.deepEqual(calls, [
@@ -419,12 +430,7 @@ describe("admin user detail", () => {
 /** Boundary fake mirrors each real selected relation while rejecting accidental loader calls. */
 function detailPrisma(calls, {
   entitlementSubscriptions = detailRow("access").membershipSubscriptions,
-  entitlementTemporaryGrants = [{
-    id: "grant-1",
-    featureKey: "premium_backgrounds",
-    startsAt: new Date("2026-08-01T00:00:00.000Z"),
-    expiresAt: new Date("2026-09-15T00:00:00.000Z"),
-  }],
+  entitlementTemporaryGrants = [],
   expectedEntitlementNow,
   sessionExpiries = [],
   sectionRows = {},
