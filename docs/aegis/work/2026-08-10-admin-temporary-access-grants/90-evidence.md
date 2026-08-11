@@ -12,8 +12,8 @@
 
 ## Pending evidence
 
-- Coordinator commit/readback for the final Task 18 review correction.
-- PR loop: push, hosted checks, fresh re-review, thread resolution, and the user-controlled merge gate.
+- Coordinator review/commit/readback for the PR #178 Codex correction.
+- PR loop: hosted checks, fresh re-review, thread resolution, and the user-controlled merge gate.
 
 ## Task 16
 
@@ -43,7 +43,7 @@
 - Spec review found that remaining revoke forms could preserve confirmation across fresh operation keys and browser QA treated preview time as the authoritative service expiration. Repair RED had the two expected failures; GREEN keyed each revoke form by its fresh operation ID and changed browser evidence to assert the persisted 14-day interval and use the persisted expiration. Spec re-review approved.
 - Quality review found that directory filters and dashboard metrics counted arbitrary stored feature strings instead of the canonical allowlist. Repair RED had three exact-query failures; GREEN added the five-key predicate to active/none cursor queries and active/expiring metric counts while preserving one request time and the exclusive 30-day endpoint. Quality re-review approved.
 - Coordinator Task 18 commit: `9be97fa7a24c5bab3201a3c7b8d4ce8332b839bc` (`feat: add temporary access controls`); committed diff and clean worktree read back.
-- Terminal evidence on the final corrected tree: full unit 2,342 passed / 0 failed / 1 intentional skip and production build 104/104 pages.
+- Terminal evidence on the final PR-review-corrected tree: full unit 2,349 passed / 0 failed / 1 intentional skip and production build 104/104 pages.
 - Final post-commit review found that `listActiveTemporaryFeatureAccess()` and the complete authorization loader `loadActiveTemporaryGrants()` enforced only the 500-row total ceiling, so malformed persistence could return 101-500 active rows for one allowlisted feature despite the canonical 100-per-feature invariant. Strict repair RED was 61/63 with exactly those two missing rejections. Both owners now count returned rows against their canonical five-key allowlist after the exact query, reject a 101st row for any one feature, accept the valid 100-by-five maximum, and retain the existing 501st total sentinel and query predicates.
 - Final correction verification: 63/63 focused loader/UI tests and 202/202 Task 16-18 adjacent tests passed; typecheck, full lint, Prisma validation, and `git diff --check` passed. Lint emitted only the existing Babel large-file deoptimization note.
 - Final UI boundary: full Admin, verified usable recipient, complete optimistic snapshot, exact five feature labels, 7/30/90 plus 1-365-day custom duration, stable operation keys, confirmation reset, append-only revoke controls, post-commit locked email delivery, safe replay/self-target copy, request-time Account expiration, and privacy-safe bounded Admin evidence.
@@ -51,3 +51,23 @@
 - Real Playwright was not executed because neither `DATABASE_URL` nor `MASSAGELAB_BROWSER_QA_DATABASE=1` is available. No live database, email, or browser mutation occurred.
 - Coordinator fresh verification: 135/135 focused/adjacent tests, typecheck, full lint, and `git diff --check` passed. Lint emitted only the existing Babel large-file deoptimization note.
 - PR loop remains pending after the coordinator commits and reads back the final correction.
+
+## PR #178 Codex review correction
+
+- Review started from exact clean HEAD `52e1f5ab571914a157bfc42d5e4f41f36812ce1c`. The verified finding was that `resolveBackgroundAccessInTransaction()` omitted active temporary grants from its Serializable snapshot and consequently treated every premium entitlement as subscription provenance.
+- Genuine RED: 32/35 passed with exactly three expected failures proving temporary-only premium access remained locked, the canonical temporary-grant query did not run inside the transaction, and the client adapter reduced temporary access to a locked state.
+- The resolver now calls `loadActiveTemporaryGrants(tx, userId, now)` alongside the other snapshot reads, passes the rows and same captured time to `buildEntitlements()`, and reads `featureAccess` provenance with free first, then active ownership, membership, temporary access, and locked fallback.
+- The browser-facing commerce adapter adds the truthful selectable `included-temporary` state and preserves the permanent-acquisition affordance without calling temporary access membership or subscription.
+- Focused GREEN: 35/35 background resolver/client tests passed. Adjacent GREEN: 127/127 membership, Admin temporary-access, Account, API, provider, surface, resolver, and client tests passed. Typecheck, full lint, and `git diff --check` passed; lint emitted only the existing Babel large-file deoptimization note for the Chimer timer.
+- Scope stayed within the resolver, commerce client adapter, their focused tests, and these two requested Aegis records. The existing Chimer carousel still synthesizes premium provenance from its older access input; that separate omission was reported and intentionally not broadened into this narrow review fix. No live database, email, browser, network, or Git lifecycle operation occurred.
+
+## PR #178 consolidated CodeRabbit correction
+
+- Classification: findings `3754089142`, `9094`, and `9107` were valid owner-drift issues and moved the duplicated allowlist/order/labels/bounds/validators/query shape into pure client-safe `lib/admin/temporary-access-contract.ts`; the server service re-exports compatibility symbols. Finding `3754089152` was high correctness: the bounded 25-row display could not serve as complete optimistic mutation evidence, so Access now returns a separate privacy-safe complete `{grantId, featureKey}` snapshot through 500 rows and the page validates count, uniqueness, allowlist, per-feature limits, display membership, and truncation truth before enabling controls.
+- Classification: UI findings `9082`, `9114`, `9120`, and `9210` were valid. Account keys now use stable feature/expiry identity, submitted revoke copy comes from `useFormStatus` while shared pending disables siblings, timestamps render deterministically in labeled UTC, and persisted Admin/Account evidence exposes stable test hooks without IDs or operator metadata.
+- Classification: findings `9147`, `9101`, and `9097` were valid. Customer Activity/email evidence uses shared feature labels and readable UTC while immutable audit JSON retains raw keys/ISO; mutation results are discriminated and revoke reports `featureStillActive`; only typed operator-safe codes map to display copy, while spoofed messages and unexpected/dependency errors remain generic.
+- Test-fidelity findings `9177`, the valid portion of `9202`, `9205`, `9187`, `9200`, and `9214` were addressed with rendered privacy/evidence checks, exact safe-code scenarios, a correct absent-feature fake branch, and a bounded `buildEntitlements({... temporaryGrants, now }).features` source assertion that retains loader/time checks.
+- Strict TDD evidence: contract/complete-snapshot RED was 43/46 with the three expected missing-owner/snapshot failures, then GREEN was 85/85. UI/copy/error RED was 45/51 with six expected failures, then GREEN was 51/51. Final focused/adjacent coverage was 138/138; dashboard/detail/directory/Account/browser-QA adjacency was 53/53. Typecheck, full lint, and Prisma validation passed. Lint emitted only the existing Chimer large-file Babel note.
+- Exact-tree full validation first exposed one stale compiled Admin-page harness dependency; the test-only contract double fixed it. Subsequent re-review tightened adversarial Account/Admin privacy fixtures, rendered control/pending/UTC assertions, exact fail-closed scenario expectations, the 100/101 entitlement-source boundary, and stable persisted/Account browser selectors. Service/data and UI scoped re-reviews both approved, and the final full unit suite passed 2,349 with one intentional skip before the 104/104-page production build passed.
+- Intentionally skipped: `9151` replay-predicate refactoring is optional and the exact replay paths already have strong regression coverage; changing them was unnecessary risk. The docstring coverage metric was not padded because branch comments remain limited to non-obvious intent. The Chimer carousel provenance omission remains separate from these exact findings and was not broadened here.
+- No schema, fixture data, live database, email, browser, network, Git staging, commit, or push operation occurred.

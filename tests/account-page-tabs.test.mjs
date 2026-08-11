@@ -244,7 +244,14 @@ describe("Account page tab model", () => {
       featureAccess: [{
         featureKey: "premium_backgrounds",
         sources: [
-          { source: "temporary", expiresAt: "2026-09-01T00:00:00.000Z" },
+          {
+            source: "temporary",
+            expiresAt: "2026-09-01T00:00:00.000Z",
+            grantId: "privacy-grant-sentinel",
+            grantedById: "privacy-actor-sentinel",
+            internalNote: "privacy-note-sentinel",
+            idempotencyKey: "privacy-operation-sentinel",
+          },
           { source: "temporary", expiresAt: "2026-10-01T00:00:00.000Z" },
         ],
       }, {
@@ -255,6 +262,14 @@ describe("Account page tab model", () => {
       stripeCustomer: null,
     })
     const text = elementText(tree)
+    const temporaryRows = findElements(
+      tree,
+      (element) => element.type === "li" && typeof element.props["data-temporary-feature-key"] === "string",
+    )
+    const temporaryAccessContainer = findElement(
+      tree,
+      (element) => element.props["data-account-temporary-access"] === "active",
+    )
 
     assert.match(text, /Temporary feature access/i)
     assert.match(text, /Premium backgrounds/i)
@@ -262,6 +277,28 @@ describe("Account page tab model", () => {
     assert.match(text, /2026-09-01/)
     assert.match(text, /2026-10-01/)
     assert.match(text, /2026-09-15/)
+    assert.equal(temporaryRows.length, 3)
+    assert.ok(temporaryAccessContainer)
+    assert.deepEqual(temporaryRows.map((row) => ({
+      featureKey: row.props["data-temporary-feature-key"],
+      expiresAt: row.props["data-temporary-expires-at"],
+    })), [
+      { featureKey: "external_calendar_sync", expiresAt: "2026-09-15T00:00:00.000Z" },
+      { featureKey: "premium_backgrounds", expiresAt: "2026-09-01T00:00:00.000Z" },
+      { featureKey: "premium_backgrounds", expiresAt: "2026-10-01T00:00:00.000Z" },
+    ])
+    const serializedTree = JSON.stringify(tree)
+    for (const sentinel of [
+      "privacy-grant-sentinel",
+      "privacy-actor-sentinel",
+      "privacy-note-sentinel",
+      "privacy-operation-sentinel",
+    ]) {
+      assert.doesNotMatch(text, new RegExp(sentinel))
+      assert.doesNotMatch(serializedTree, new RegExp(sentinel))
+    }
+    assert.match(accountPageSource, /key=\{`\$\{access\.featureKey\}:\$\{access\.expiresAt\}`\}/)
+    assert.doesNotMatch(accountPageSource, /temporaryAccess\.map\(\(access, index\)/)
     assert.doesNotMatch(text, /grant-|actor|internal note|idempotency/i)
     assert.doesNotMatch(accountPageSource, /temporaryAccess.*grantId|temporaryAccess.*grantedById/i)
   })

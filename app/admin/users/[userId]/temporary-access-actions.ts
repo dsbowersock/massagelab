@@ -9,12 +9,21 @@ import {
   type AdminReasonCode,
 } from "@/lib/admin/operation-contract"
 import {
-  ADMIN_GRANTABLE_FEATURE_KEYS,
   grantTemporaryFeatureAccess,
   revokeTemporaryFeatureAccess,
-  type AdminGrantableFeatureKey,
-  type TemporaryFeatureAccessMutationResult,
+  TEMPORARY_ACCESS_ERROR_CODES,
+  type GrantTemporaryFeatureAccessResult,
+  type RevokeTemporaryFeatureAccessResult,
 } from "@/lib/admin/temporary-access"
+import {
+  ADMIN_TEMPORARY_ACCESS_FEATURE_LABELS,
+  PER_FEATURE_ACTIVE_LIMIT,
+  TEMPORARY_ACCESS_MAX_DAYS,
+  TEMPORARY_ACCESS_MIN_DAYS,
+  isGrantableFeature,
+  isSafeRecordId,
+  type AdminGrantableFeatureKey,
+} from "@/lib/admin/temporary-access-contract"
 import { prisma } from "@/lib/prisma"
 import { safeErrorCode } from "@/lib/safe-error-code"
 
@@ -24,22 +33,14 @@ export type TemporaryAccessActionState =
 
 const GRANT_CONFIRMATION = "CONFIRM_TEMPORARY_ACCESS_GRANT"
 const REVOCATION_CONFIRMATION = "CONFIRM_TEMPORARY_ACCESS_REVOCATION"
-const MIN_DURATION_DAYS = 1
-const MAX_DURATION_DAYS = 365
-const MAX_ACTIVE_GRANTS_PER_FEATURE = 100
-const FEATURE_LABELS: Record<AdminGrantableFeatureKey, string> = {
-  premium_backgrounds: "Premium backgrounds",
-  therapist_documentation_tools: "Therapist documentation tools",
-  calendar_basic_scheduling: "Basic calendar scheduling",
-  calendar_full_scheduling: "Full calendar scheduling",
-  external_calendar_sync: "External calendar sync",
-}
-const SAFE_MUTATION_ERRORS = new Set([
-  "Temporary access changed since this operation was prepared. Refresh the account and try again.",
-  "Temporary access requires a verified target account with an email.",
-  "Temporary access has too many active grants to change safely.",
-  "Only an active temporary feature grant can be revoked.",
-])
+const SAFE_MUTATION_ERROR_MESSAGES: Readonly<Record<string, string>> = Object.freeze({
+  [TEMPORARY_ACCESS_ERROR_CODES.STALE_ACTIVE_GRANT_SNAPSHOT]: "Temporary access changed since this operation was prepared. Refresh the account and try again.",
+  [TEMPORARY_ACCESS_ERROR_CODES.VERIFIED_TARGET_REQUIRED]: "Temporary access requires a verified target account with an email.",
+  [TEMPORARY_ACCESS_ERROR_CODES.TOO_MANY_ACTIVE_GRANTS]: "Temporary access has too many active grants to change safely.",
+  [TEMPORARY_ACCESS_ERROR_CODES.FEATURE_ACTIVE_GRANT_LIMIT]: `Temporary access has reached the active grant limit of ${PER_FEATURE_ACTIVE_LIMIT} for this feature.`,
+  [TEMPORARY_ACCESS_ERROR_CODES.INACTIVE_GRANT]: "Only an active temporary feature grant can be revoked.",
+  [TEMPORARY_ACCESS_ERROR_CODES.WRONG_TARGET_GRANT]: "The temporary feature grant does not belong to this target account.",
+})
 
 type ParsedCommon = {
   targetUserId: string
@@ -59,7 +60,7 @@ export async function grantTemporaryAccessAction(
   const common = parseCommon(userId, formData)
   if (!common.ok) return common.state
   const featureKey = formValue(formData, "featureKey")
-  const durationDays = parseInteger(formValue(formData, "durationDays"), MIN_DURATION_DAYS, MAX_DURATION_DAYS)
+  const durationDays = parseInteger(formValue(formData, "durationDays"), TEMPORARY_ACCESS_MIN_DAYS, TEMPORARY_ACCESS_MAX_DAYS)
   if (!featureKey || !isGrantableFeature(featureKey) || durationDays === null) {
     return { status: "error", message: "Select an available feature and a whole-number duration from 1 through 365 days." }
   }
@@ -67,7 +68,7 @@ export async function grantTemporaryAccessAction(
     return { status: "error", message: "Confirm this exact temporary-access grant." }
   }
 
-  let result: TemporaryFeatureAccessMutationResult
+  let result: GrantTemporaryFeatureAccessResult
   try {
     result = await grantTemporaryFeatureAccess({
       prismaClient: prisma,
@@ -110,7 +111,7 @@ export async function revokeTemporaryAccessAction(
     return { status: "error", message: "Confirm this exact append-only revocation." }
   }
 
-  let result: TemporaryFeatureAccessMutationResult
+  let result: RevokeTemporaryFeatureAccessResult
   try {
     result = await revokeTemporaryFeatureAccess({
       prismaClient: prisma,
@@ -132,7 +133,7 @@ export async function revokeTemporaryAccessAction(
   const base = result.replayed
     ? `This temporary-access revocation was already completed. The recorded ${featureLabel(result.featureKey)} grant was revoked.`
     : `One temporary ${featureLabel(result.featureKey)} grant was revoked.`
-  const overlap = result.effective ? " Another temporary grant remains active." : ""
+  const overlap = result.featureStillActive ? " Another temporary grant remains active." : ""
   const prefix = `${base}${overlap} Other membership or temporary sources may still keep this feature available.`
   return notificationOutcome(prefix, delivery, result.replayed, actor.id === common.value.targetUserId)
 }
@@ -177,7 +178,7 @@ function parseCommon(
 /** Requires a bounded, unique snapshot already sorted by the service's ordinal contract. */
 function parseExpectedActiveGrantIds(formData: FormData): string[] | null {
   const values = formData.getAll("expectedActiveGrantIds")
-  if (values.length > MAX_ACTIVE_GRANTS_PER_FEATURE || values.some((value) => typeof value !== "string" || !isSafeRecordId(value))) {
+  if (values.length > PER_FEATURE_ACTIVE_LIMIT || values.some((value) => !isSafeRecordId(value))) {
     return null
   }
   const grantIds = values as string[]
@@ -231,14 +232,15 @@ function notificationOutcome(
 }
 
 function activityGuidance(selfTarget: boolean) {
+  // A self-target cannot see the Admin-only retry control on its own Activity surface.
   return selfTarget ? "Check Activity for the recorded notification status." : "Retry it from Activity."
 }
 
 function safeMutationError(error: unknown, fallback: string): TemporaryAccessActionState {
-  const message = error instanceof Error && (
-    SAFE_MUTATION_ERRORS.has(error.message)
-    || /^Temporary access has reached the active grant limit of 100 for this feature\.$/.test(error.message)
-  ) ? error.message : fallback
+  const code = error && typeof error === "object" && "code" in error
+    ? (error as { code?: unknown }).code
+    : null
+  const message = typeof code === "string" ? SAFE_MUTATION_ERROR_MESSAGES[code] ?? fallback : fallback
   return { status: "error", message }
 }
 
@@ -250,7 +252,7 @@ function revalidateTemporaryAccessSurfaces(userId: string) {
 }
 
 function featureLabel(featureKey: AdminGrantableFeatureKey) {
-  return FEATURE_LABELS[featureKey]
+  return ADMIN_TEMPORARY_ACCESS_FEATURE_LABELS[featureKey]
 }
 
 function logMutationFailure(operation: string, error: unknown) {
@@ -266,14 +268,6 @@ function parseInteger(value: string | null, minimum: number, maximum: number) {
 function formValue(formData: FormData, name: string) {
   const value = formData.get(name)
   return typeof value === "string" ? value : null
-}
-
-function isGrantableFeature(value: string): value is AdminGrantableFeatureKey {
-  return ADMIN_GRANTABLE_FEATURE_KEYS.includes(value as AdminGrantableFeatureKey)
-}
-
-function isSafeRecordId(value: string) {
-  return value.length <= 191 && /^[A-Za-z0-9_-]+$/.test(value)
 }
 
 function isUuid(value: string) {

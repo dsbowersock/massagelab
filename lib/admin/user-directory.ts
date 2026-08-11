@@ -1,7 +1,7 @@
 import type { Prisma, PrismaClient, Role, VerificationStatus } from "@prisma/client"
 import { normalizeRoleAssignments } from "../account-permissions.js"
 import { activeMembershipSubscriptionWhere } from "./subscription-activity.ts"
-import { ADMIN_GRANTABLE_FEATURE_KEYS } from "./temporary-access.ts"
+import { ADMIN_GRANTABLE_FEATURE_KEYS } from "./temporary-access-contract.ts"
 
 const ROLE_FILTER_VALUES = new Set([
   "USER",
@@ -253,6 +253,8 @@ function directoryWhere(query: AdminUserDirectoryQuery, now: Date): Prisma.UserW
     conditions.push({ OR: [{ backgroundCreditWallet: { is: null } }, { backgroundCreditWallet: { is: { balance: 0 } } }] })
   }
   if (query.temporaryAccess) {
+    // "none" negates the same half-open allowlisted active predicate; it does
+    // not mean that the account has no historical temporary-grant rows.
     const relationFilter = query.temporaryAccess === "active" ? "some" : "none"
     conditions.push({ temporaryFeatureGrants: { [relationFilter]: activeTemporaryGrantWhere(now) } })
   }

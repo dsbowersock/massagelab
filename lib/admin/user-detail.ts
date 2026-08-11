@@ -116,6 +116,10 @@ export async function loadAdminUserAccess(input: { prismaClient: DetailPrismaCli
       startsAt: dateValue(grant.startsAt),
       expiresAt: dateValue(grant.expiresAt),
     })), entitlementTemporaryGrants.length),
+    temporaryGrantMutationSnapshot: entitlementTemporaryGrants.map((grant) => ({
+      grantId: grant.id,
+      featureKey: grant.featureKey,
+    })),
     capabilities: buildAccountCapabilities(roles, { features: entitlements.features }),
     subscriptions: boundedCollection(user.membershipSubscriptions.map((subscription) => ({
       membershipLevel: subscription.membershipLevel,

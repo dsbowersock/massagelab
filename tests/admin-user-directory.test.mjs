@@ -367,7 +367,7 @@ describe("admin user directory", () => {
         ],
       })
     }
-    assert.match(directorySource, /import \{ ADMIN_GRANTABLE_FEATURE_KEYS \} from "\.\/temporary-access\.ts"/)
+    assert.match(directorySource, /import \{ ADMIN_GRANTABLE_FEATURE_KEYS \} from "\.\/temporary-access-contract\.ts"/)
   })
 
   it("keeps long directory identity metadata inside mobile cards", () => {

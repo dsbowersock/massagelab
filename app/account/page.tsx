@@ -724,7 +724,11 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
       </Card>
 
       {temporaryAccess.length > 0 ? (
-        <Card id="temporary-feature-access" className={settingsSurfaceClassName}>
+        <Card
+          id="temporary-feature-access"
+          data-account-temporary-access="active"
+          className={settingsSurfaceClassName}
+        >
           <CardHeader>
             <CardTitle>Temporary feature access</CardTitle>
             <CardDescription>
@@ -733,8 +737,13 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
           </CardHeader>
           <CardContent>
             <ul className="space-y-2">
-              {temporaryAccess.map((access, index) => (
-                <li key={`${access.featureKey}:${access.expiresAt}:${index}`} className={cn(settingsInsetClassName, "p-3 text-sm")}>
+              {temporaryAccess.map((access) => (
+                <li
+                  key={`${access.featureKey}:${access.expiresAt}`}
+                  data-temporary-feature-key={access.featureKey}
+                  data-temporary-expires-at={access.expiresAt}
+                  className={cn(settingsInsetClassName, "p-3 text-sm")}
+                >
                   <p className="font-medium">{access.label}</p>
                   <p className="text-xs text-muted-foreground">
                     Expires <time dateTime={access.expiresAt}>{access.expiresAt.slice(0, 10)} {access.expiresAt.slice(11, 16)} UTC</time>

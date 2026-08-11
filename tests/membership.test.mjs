@@ -64,7 +64,10 @@ describe("Membership and entitlement helpers", () => {
     assert.match(authUsersSource, /buildEntitlements, loadActiveTemporaryGrants/)
     assert.match(authUsersSource, /const now = new Date\(\)/)
     assert.match(authUsersSource, /loadActiveTemporaryGrants\(prisma, userId, now\)/)
-    assert.match(authUsersSource, /temporaryGrants,[\s\S]*now,/)
+    assert.match(
+      authUsersSource,
+      /features:\s*buildEntitlements\(\{\s*subscriptions:\s*user\?\.membershipSubscriptions \?\? \[\],\s*studentAccess:\s*user\?\.studentAccess \?\? null,\s*temporaryGrants,\s*now,\s*\}\)\.features/,
+    )
     assert.doesNotMatch(authUsersSource, /temporaryFeatureGrant[\s\S]*take:/)
   })
 

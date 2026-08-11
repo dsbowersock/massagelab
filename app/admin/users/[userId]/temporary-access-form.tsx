@@ -1,9 +1,18 @@
 "use client"
 
 import { useActionState, useId, useState } from "react"
+import { useFormStatus } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { ADMIN_REASON_CODES } from "@/lib/admin/operation-contract"
-import type { AdminGrantableFeatureKey } from "@/lib/admin/temporary-access"
+import {
+  ADMIN_GRANTABLE_FEATURE_KEYS,
+  ADMIN_TEMPORARY_ACCESS_FEATURE_LABELS,
+  TEMPORARY_ACCESS_MAX_DAYS,
+  TEMPORARY_ACCESS_MIN_DAYS,
+  formatTemporaryAccessUtc,
+  isGrantableFeature,
+  type AdminGrantableFeatureKey,
+} from "@/lib/admin/temporary-access-contract"
 import {
   grantTemporaryAccessAction,
   revokeTemporaryAccessAction,
@@ -15,14 +24,10 @@ const GRANT_CONFIRMATION = "CONFIRM_TEMPORARY_ACCESS_GRANT"
 const REVOCATION_CONFIRMATION = "CONFIRM_TEMPORARY_ACCESS_REVOCATION"
 const DAY_MS = 24 * 60 * 60 * 1_000
 const DURATION_PRESETS = [7, 30, 90] as const
-const FEATURE_OPTIONS: ReadonlyArray<{ key: AdminGrantableFeatureKey; label: string }> = [
-  { key: "premium_backgrounds", label: "Premium backgrounds" },
-  { key: "therapist_documentation_tools", label: "Therapist documentation tools" },
-  { key: "calendar_basic_scheduling", label: "Basic calendar scheduling" },
-  { key: "calendar_full_scheduling", label: "Full calendar scheduling" },
-  { key: "external_calendar_sync", label: "External calendar sync" },
-]
-const FEATURE_LABELS = Object.fromEntries(FEATURE_OPTIONS.map(({ key, label }) => [key, label])) as Record<AdminGrantableFeatureKey, string>
+const FEATURE_OPTIONS = ADMIN_GRANTABLE_FEATURE_KEYS.map((key) => ({
+  key,
+  label: ADMIN_TEMPORARY_ACCESS_FEATURE_LABELS[key],
+}))
 const REASON_LABELS: Record<(typeof ADMIN_REASON_CODES)[number], string> = {
   USER_REQUEST: "User request",
   LOGIN_SUPPORT: "Login support",
@@ -114,11 +119,17 @@ export function TemporaryAccessControls({
         ) : (
           <div className="grid gap-3 xl:grid-cols-2">
             {grants.map((grant) => (
-              <article key={grant.grantId} data-temporary-grant="active" className="min-w-0 rounded-md border bg-background p-3 text-sm">
-                <h4 className="font-medium">{FEATURE_LABELS[grant.featureKey]}</h4>
+              <article
+                key={grant.grantId}
+                data-temporary-grant="active"
+                data-temporary-starts-at={grant.startsAt}
+                data-temporary-expires-at={grant.expiresAt}
+                className="min-w-0 rounded-md border bg-background p-3 text-sm"
+              >
+                <h4 className="font-medium">{ADMIN_TEMPORARY_ACCESS_FEATURE_LABELS[grant.featureKey]}</h4>
                 <dl className="mt-2 grid gap-2 sm:grid-cols-2">
-                  <DateEvidence label="Starts" value={grant.startsAt} />
-                  <DateEvidence label="Expires" value={grant.expiresAt} />
+                  <DateEvidence label="Starts" value={grant.startsAt} evidence="starts" />
+                  <DateEvidence label="Expires" value={grant.expiresAt} evidence="expires" />
                 </dl>
                 {controlsAvailable ? (
                   <RevokeGrantForm
@@ -127,7 +138,7 @@ export function TemporaryAccessControls({
                     grant={grant}
                     expectedActiveGrantIds={expectedActiveGrantIds[grant.featureKey]}
                     formAction={revokeAction}
-                    isPending={revokePending}
+                    revokePending={revokePending}
                   />
                 ) : null}
               </article>
@@ -218,8 +229,8 @@ function GrantFields({
             id={`${formId}-duration`}
             name="durationDays"
             type="number"
-            min={1}
-            max={365}
+            min={TEMPORARY_ACCESS_MIN_DAYS}
+            max={TEMPORARY_ACCESS_MAX_DAYS}
             step={1}
             value={durationDays}
             onChange={(event) => updateDuration(event.target.value)}
@@ -251,7 +262,7 @@ function GrantFields({
           required
           className="mt-1 size-4"
         />
-        <span>I confirm this exact temporary grant gives {FEATURE_LABELS[featureKey]} access for {parsedDays ?? "the selected number of"} day{parsedDays === 1 ? "" : "s"}.</span>
+        <span>I confirm this exact temporary grant gives {ADMIN_TEMPORARY_ACCESS_FEATURE_LABELS[featureKey]} access for {parsedDays ?? "the selected number of"} day{parsedDays === 1 ? "" : "s"}.</span>
       </label>
       <Button type="submit" disabled={!canSubmit}>
         {isPending ? "Granting temporary access…" : "Grant temporary access"}
@@ -266,19 +277,19 @@ function RevokeGrantForm({
   grant,
   expectedActiveGrantIds,
   formAction,
-  isPending,
+  revokePending,
 }: {
   userId: string
   grant: TemporaryGrantPresentation
   expectedActiveGrantIds: string[]
   formAction: (payload: FormData) => void
-  isPending: boolean
+  revokePending: boolean
 }) {
   const formId = useId()
   const [reasonCode, setReasonCode] = useState("")
   const [internalNote, setInternalNote] = useState("")
   const [confirmed, setConfirmed] = useState(false)
-  const canSubmit = reasonReady(reasonCode, internalNote) && confirmed && !isPending
+  const canSubmit = reasonReady(reasonCode, internalNote) && confirmed && !revokePending
 
   return (
     <form action={formAction} className="mt-4 space-y-3 border-t pt-3">
@@ -306,10 +317,18 @@ function RevokeGrantForm({
         />
         <span>I confirm this append-only revocation ends only this temporary grant. Other membership or temporary sources may keep the feature available.</span>
       </label>
-      <Button type="submit" variant="destructive" disabled={!canSubmit}>
-        {isPending ? "Revoking temporary grant…" : "Revoke this temporary grant"}
-      </Button>
+      <RevokeSubmitButton revokePending={revokePending} canSubmit={canSubmit} />
     </form>
+  )
+}
+
+/** Shows pending copy only inside the submitted form while the shared state disables every sibling. */
+function RevokeSubmitButton({ revokePending, canSubmit }: { revokePending: boolean; canSubmit: boolean }) {
+  const { pending } = useFormStatus()
+  return (
+    <Button type="submit" variant="destructive" disabled={revokePending || !canSubmit}>
+      {pending ? "Revoking temporary grant…" : "Revoke this temporary grant"}
+    </Button>
   )
 }
 
@@ -374,15 +393,17 @@ function DateEvidence({
   label,
   value,
   preview,
+  evidence,
 }: {
   label: string
   value: string | null
   preview?: "starts" | "expires"
+  evidence?: "starts" | "expires"
 }) {
   return (
     <div>
       <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
-      <dd>{value ? <time data-temporary-preview={preview} dateTime={value}>{formatDateTime(value)}</time> : "Unavailable"}</dd>
+      <dd>{value ? <time data-temporary-preview={preview} data-temporary-evidence={evidence} dateTime={value}>{formatDateTime(value)}</time> : "Unavailable"}</dd>
     </div>
   )
 }
@@ -413,11 +434,11 @@ function ActionFeedback({ state }: { state: TemporaryAccessActionState }) {
 function parseDays(value: string) {
   if (!/^[1-9]\d*$/.test(value)) return null
   const days = Number(value)
-  return Number.isSafeInteger(days) && days >= 1 && days <= 365 ? days : null
+  return Number.isSafeInteger(days) && days >= TEMPORARY_ACCESS_MIN_DAYS && days <= TEMPORARY_ACCESS_MAX_DAYS ? days : null
 }
 
 function isFeatureKey(value: string): value is AdminGrantableFeatureKey {
-  return FEATURE_OPTIONS.some((option) => option.key === value)
+  return isGrantableFeature(value)
 }
 
 function reasonReady(reasonCode: string, internalNote: string) {
@@ -425,6 +446,5 @@ function reasonReady(reasonCode: string, internalNote: string) {
 }
 
 function formatDateTime(value: string) {
-  const date = new Date(value)
-  return Number.isFinite(date.getTime()) ? date.toLocaleString() : "Unavailable"
+  return formatTemporaryAccessUtc(value)
 }

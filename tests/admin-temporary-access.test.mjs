@@ -4,10 +4,15 @@ import { describe, it } from "node:test"
 import {
   createCompiledModuleLoader,
   createElement,
+  elementText,
   findElement,
+  findElements,
   passThroughElement,
+  renderFunctionComponents,
 } from "./helpers/compiled-module.mjs"
 import * as temporaryAccess from "../lib/admin/temporary-access.ts"
+import * as temporaryAccessContract from "../lib/admin/temporary-access-contract.ts"
+import { getUserEntitlementState } from "../lib/membership.js"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const temporaryActionSource = await readFile(
@@ -22,6 +27,12 @@ const adminDetailPageSource = await readFile(
   new URL("../app/admin/users/[userId]/page.tsx", import.meta.url),
   "utf8",
 )
+const temporaryAccessContractSource = await readFile(
+  new URL("../lib/admin/temporary-access-contract.ts", import.meta.url),
+  "utf8",
+).catch(() => "")
+const membershipSource = await readFile(new URL("../lib/membership.js", import.meta.url), "utf8")
+const userDirectorySource = await readFile(new URL("../lib/admin/user-directory.ts", import.meta.url), "utf8")
 
 const {
   ADMIN_GRANTABLE_FEATURE_KEYS,
@@ -36,7 +47,7 @@ const UI_OPERATION_ID = "42b90a0b-41d5-48f8-b798-b6da77178b67"
 const UI_REVOKE_OPERATION_ID = "e58989e0-af25-44b4-837f-478b425de8cb"
 const UI_IDLE_STATE = { status: "idle", message: "" }
 
-function temporaryAccessUiHarness() {
+function temporaryAccessUiHarness({ formPending = false } = {}) {
   return loadCompiledModule(
     temporaryFormSource,
     "app/admin/users/[userId]/temporary-access-form.test.tsx",
@@ -46,12 +57,13 @@ function temporaryAccessUiHarness() {
         useId: () => "temporary-access-form",
         useState: (initialValue) => [initialValue, () => {}],
       },
+      "react-dom": { useFormStatus: () => ({ pending: formPending }) },
       "react/jsx-runtime": { Fragment: "fragment", jsx: createElement, jsxs: createElement },
       "@/components/ui/button": { Button: passThroughElement("button") },
       "@/lib/admin/operation-contract": {
         ADMIN_REASON_CODES: ["ACCESS_REMEDIATION", "OTHER"],
       },
-      "@/lib/admin/temporary-access": {},
+      "@/lib/admin/temporary-access-contract": temporaryAccessContract,
       "./temporary-access-actions": {
         grantTemporaryAccessAction() {},
         revokeTemporaryAccessAction() {},
@@ -140,9 +152,11 @@ function createDatabase({
     const allowedKeys = where.featureKey?.in
     return [...state.grants.values()].filter((grant) => (
       (!where.userId || grant.userId === where.userId)
-      && (!where.featureKey || typeof where.featureKey === "string"
-        ? grant.featureKey === where.featureKey
-        : allowedKeys.includes(grant.featureKey))
+      && (!where.featureKey || (
+        typeof where.featureKey === "string"
+          ? grant.featureKey === where.featureKey
+          : Array.isArray(allowedKeys) && allowedKeys.includes(grant.featureKey)
+      ))
       && (!startsAt || grant.startsAt.getTime() <= startsAt.getTime())
       && (!expiresAt || grant.expiresAt.getTime() > expiresAt.getTime())
       && (where.revocation !== null || !state.revocations.has(grant.id))
@@ -437,16 +451,37 @@ function rewriteRevocationEffectiveEvidence(database, operationKey, effective) {
   const action = database.state.actions.get(operationKey)
   action.afterState.effective = effective
   const activity = database.state.activities.get(action.id)
+  const featureLabel = temporaryAccessContract.ADMIN_TEMPORARY_ACCESS_FEATURE_LABELS[action.afterState.featureKey]
   activity.explanation = effective
-    ? `Massage Lab support revoked one temporary ${action.afterState.featureKey} grant. Another temporary grant remains active.`
-    : `Massage Lab support revoked temporary ${action.afterState.featureKey} access.`
-  activity.effectiveValue = effective ? `${action.afterState.featureKey} remains active` : "Temporary access removed"
+    ? `Massage Lab support revoked one temporary ${featureLabel} grant. Another temporary grant remains active.`
+    : `Massage Lab support revoked temporary ${featureLabel} access.`
+  activity.effectiveValue = effective ? `${featureLabel} remains active` : "Temporary access removed"
   database.state.intents.get(action.id).message = effective
-    ? `Massage Lab support revoked one temporary ${action.afterState.featureKey} grant, but another temporary grant remains active. If you did not expect this change, contact Massage Lab support.`
-    : `Massage Lab support revoked temporary ${action.afterState.featureKey} access. If you did not expect this change, contact Massage Lab support.`
+    ? `Massage Lab support revoked one temporary ${featureLabel} grant, but another temporary grant remains active. If you did not expect this change, contact Massage Lab support.`
+    : `Massage Lab support revoked temporary ${featureLabel} access. If you did not expect this change, contact Massage Lab support.`
 }
 
 describe("Admin temporary feature access", () => {
+  it("owns the browser-safe temporary-access contract without server runtime dependencies", () => {
+    assert.match(temporaryAccessContractSource, /export const ADMIN_GRANTABLE_FEATURE_KEYS/)
+    assert.match(temporaryAccessContractSource, /export const ADMIN_TEMPORARY_ACCESS_FEATURE_LABELS/)
+    assert.match(temporaryAccessContractSource, /TEMPORARY_ACCESS_MIN_DAYS\s*=\s*1/)
+    assert.match(temporaryAccessContractSource, /TEMPORARY_ACCESS_MAX_DAYS\s*=\s*365/)
+    assert.match(temporaryAccessContractSource, /PER_FEATURE_ACTIVE_LIMIT\s*=\s*100/)
+    assert.match(temporaryAccessContractSource, /TOTAL_ACTIVE_LIMIT/)
+    assert.match(temporaryAccessContractSource, /export function isGrantableFeature/)
+    assert.match(temporaryAccessContractSource, /export function isSafeRecordId/)
+    assert.doesNotMatch(temporaryAccessContractSource, /@prisma|node:|"use server"|server-only/)
+    assert.match(temporaryFormSource, /@\/lib\/admin\/temporary-access-contract/)
+    assert.doesNotMatch(temporaryFormSource, /@\/lib\/admin\/temporary-access["']/)
+    assert.match(membershipSource, /\.\/admin\/temporary-access-contract\.ts/)
+    assert.match(userDirectorySource, /\.\/temporary-access-contract\.ts/)
+    assert.equal(
+      temporaryAccessContract.formatTemporaryAccessUtc("2026-09-09T12:00:00.000Z"),
+      "Sep 9, 2026, 12:00:00 PM UTC",
+    )
+  })
+
   it("exports the exact frozen low-risk feature allowlist", () => {
     assert.equal(Object.isFrozen(ADMIN_GRANTABLE_FEATURE_KEYS), true)
     assert.deepEqual(ADMIN_GRANTABLE_FEATURE_KEYS, [
@@ -489,9 +524,9 @@ describe("Admin temporary feature access", () => {
     const result = await grant(database)
 
     assert.deepEqual(result, {
+      kind: "grant",
       grantId: "grant-1",
       featureKey: "premium_backgrounds",
-      effective: true,
       expiresAt: "2026-09-09T12:00:00.000Z",
       replayed: false,
       emailIntentId: "intent-1",
@@ -506,6 +541,10 @@ describe("Admin temporary feature access", () => {
     assert.deepEqual(action.beforeState.expectedActiveGrantSnapshot.count, 0)
     assert.match(action.beforeState.expectedActiveGrantSnapshot.digest, /^[a-f0-9]{64}$/)
     assert.equal(action.afterState.grantId, result.grantId)
+    assert.equal(action.afterState.expiresAt, "2026-09-09T12:00:00.000Z")
+    assert.match(database.state.activities.get(action.id).explanation, /Premium backgrounds access through Sep 9, 2026, 12:00:00 PM UTC/)
+    assert.doesNotMatch(database.state.activities.get(action.id).explanation, /premium_backgrounds|2026-09-09T12:00:00\.000Z/)
+    assert.match(database.state.intents.get(action.id).message, /Premium backgrounds access through Sep 9, 2026, 12:00:00 PM UTC/)
     assert.equal(database.state.activities.get(action.id).userId, "target-user")
     assert.equal(database.state.intents.get(action.id).status, "PENDING")
   })
@@ -583,7 +622,11 @@ describe("Admin temporary feature access", () => {
         await grant(database, { expectedActiveGrantIds })
         assert.equal(database.state.grants.size, 100)
       } else {
-        await assert.rejects(() => grant(database, { expectedActiveGrantIds }), /active grant limit|100/i)
+        await assert.rejects(
+          () => grant(database, { expectedActiveGrantIds }),
+          (error) => error.code === "FEATURE_ACTIVE_GRANT_LIMIT"
+            && error.message === "Temporary access has reached the active grant limit of 100 for this feature.",
+        )
         assert.deepEqual(counts(database.state), before)
       }
     }
@@ -605,13 +648,50 @@ describe("Admin temporary feature access", () => {
     })
     await assert.rejects(
       () => listActiveTemporaryFeatureAccess({ prismaClient: perFeatureOverflow, userId: "target-user", now: NOW }),
-      /more than 100 active grants for one feature/i,
+      (error) => error.code === "TOO_MANY_ACTIVE_GRANTS"
+        && /more than 100 active grants for one feature/i.test(error.message),
     )
 
     const overflow = createDatabase({ grants: [...grants, seededGrant("overflow")] })
     await assert.rejects(
       () => listActiveTemporaryFeatureAccess({ prismaClient: overflow, userId: "target-user", now: NOW }),
-      /too many active grants|500/i,
+      (error) => error.code === "TOO_MANY_ACTIVE_GRANTS"
+        && /more than 500 active grants/i.test(error.message),
+    )
+  })
+
+  it("projects at most 100 privacy-safe temporary sources for one feature and fails closed on overflow", async () => {
+    const rows = Array.from({ length: 100 }, (_, index) => ({
+      id: `grant-${String(index).padStart(3, "0")}`,
+      featureKey: "premium_backgrounds",
+      startsAt: new Date(NOW),
+      expiresAt: new Date(NOW.getTime() + (index + 1) * DAY_MS),
+      grantedById: "privacy-actor-sentinel",
+      internalNote: "privacy-note-sentinel",
+      idempotencyKey: "privacy-operation-sentinel",
+    }))
+    const entitlementClient = {
+      membershipSubscription: { findMany: async () => [] },
+      studentAccess: { findUnique: async () => null },
+      temporaryFeatureGrant: { findMany: async () => rows },
+    }
+    const entitlementState = await getUserEntitlementState(entitlementClient, "target-user", NOW)
+    const temporarySources = entitlementState.featureAccess
+      .find(({ featureKey }) => featureKey === "premium_backgrounds")
+      ?.sources.filter(({ source }) => source === "temporary")
+    assert.equal(temporarySources?.length, 100)
+    const serializedProjection = JSON.stringify(entitlementState.featureAccess)
+    for (const sentinel of ["grant-000", "privacy-actor-sentinel", "privacy-note-sentinel", "privacy-operation-sentinel"]) {
+      assert.doesNotMatch(serializedProjection, new RegExp(sentinel))
+    }
+
+    entitlementClient.temporaryFeatureGrant.findMany = async () => [
+      ...rows,
+      { ...rows[0], id: "grant-overflow", expiresAt: new Date(NOW.getTime() + 101 * DAY_MS) },
+    ]
+    await assert.rejects(
+      () => getUserEntitlementState(entitlementClient, "target-user", NOW),
+      (error) => error.message === "Temporary access has more than 100 active grants for one feature and cannot be resolved safely.",
     )
   })
 
@@ -620,10 +700,14 @@ describe("Admin temporary feature access", () => {
     const first = await grant(database)
     const before = counts(database.state)
 
-    await assert.rejects(() => grant(database, {
-      idempotencyKey: "temporary-grant-operation-2",
-      expectedActiveGrantIds: [],
-    }), /temporary access changed since this operation was prepared/i)
+    await assert.rejects(
+      () => grant(database, {
+        idempotencyKey: "temporary-grant-operation-2",
+        expectedActiveGrantIds: [],
+      }),
+      (error) => error.code === "STALE_ACTIVE_GRANT_SNAPSHOT"
+        && error.message === "Temporary access changed since this operation was prepared. Refresh the account and try again.",
+    )
     assert.deepEqual(counts(database.state), before)
 
     const second = await grant(database, {
@@ -692,36 +776,75 @@ describe("Admin temporary feature access", () => {
     })
 
     assert.deepEqual(result, {
+      kind: "revoke",
       grantId: first.grantId,
       featureKey: "premium_backgrounds",
-      effective: true,
+      featureStillActive: true,
       expiresAt: first.expiresAt,
       replayed: false,
       emailIntentId: "intent-3",
     })
     assert.deepEqual(database.state.grants.get(first.grantId), storedBefore)
     assert.equal(database.state.revocations.get(first.grantId).revokedById, "actor-admin")
+    const action = database.state.actions.get(`temporary-revoke-${first.grantId}`)
+    assert.equal(action.afterState.effective, true)
+    assert.match(database.state.activities.get(action.id).explanation, /Premium backgrounds/)
+    assert.doesNotMatch(database.state.activities.get(action.id).explanation, /premium_backgrounds/)
     const active = await listActiveTemporaryFeatureAccess({ prismaClient: database, userId: "target-user", now: NOW })
     assert.deepEqual(active.map((grant) => grant.grantId), [second.grantId])
   })
 
-  it("rejects future, expired, already-revoked, wrong-target, and stale revoke requests", async () => {
+  it("rejects future, expired, already-revoked, wrong-target, and stale revoke requests with exact safe outcomes", async () => {
     const grants = [
       { id: "future", userId: "target-user", featureKey: "premium_backgrounds", startsAt: new Date(NOW.getTime() + 1), expiresAt: new Date(NOW.getTime() + DAY_MS), grantedById: "actor-admin", reasonCode: "ACCESS_REMEDIATION", internalNote: null, idempotencyKey: "seed-future", createdAt: new Date(NOW) },
       { id: "expired", userId: "target-user", featureKey: "premium_backgrounds", startsAt: new Date(NOW.getTime() - DAY_MS), expiresAt: new Date(NOW), grantedById: "actor-admin", reasonCode: "ACCESS_REMEDIATION", internalNote: null, idempotencyKey: "seed-expired", createdAt: new Date(NOW) },
       { id: "other-target", userId: "target-two", featureKey: "premium_backgrounds", startsAt: new Date(NOW), expiresAt: new Date(NOW.getTime() + DAY_MS), grantedById: "actor-admin", reasonCode: "ACCESS_REMEDIATION", internalNote: null, idempotencyKey: "seed-other", createdAt: new Date(NOW) },
       { id: "revoked", userId: "target-user", featureKey: "premium_backgrounds", startsAt: new Date(NOW), expiresAt: new Date(NOW.getTime() + DAY_MS), grantedById: "actor-admin", reasonCode: "ACCESS_REMEDIATION", internalNote: null, idempotencyKey: "seed-revoked", createdAt: new Date(NOW) },
     ]
-    for (const grantId of ["future", "expired", "other-target", "revoked"]) {
+    for (const { grantId, expectedActiveGrantIds, code, message } of [
+      { grantId: "future", expectedActiveGrantIds: ["future"], code: "STALE_ACTIVE_GRANT_SNAPSHOT", message: "Temporary access changed since this operation was prepared. Refresh the account and try again." },
+      { grantId: "expired", expectedActiveGrantIds: ["expired"], code: "STALE_ACTIVE_GRANT_SNAPSHOT", message: "Temporary access changed since this operation was prepared. Refresh the account and try again." },
+      { grantId: "other-target", expectedActiveGrantIds: ["other-target"], code: "WRONG_TARGET_GRANT", message: "The temporary feature grant does not belong to this target account." },
+      { grantId: "revoked", expectedActiveGrantIds: ["revoked"], code: "STALE_ACTIVE_GRANT_SNAPSHOT", message: "Temporary access changed since this operation was prepared. Refresh the account and try again." },
+    ]) {
       const selectedGrant = grants.find((grant) => grant.id === grantId)
       const revocations = grantId === "revoked" ? [{ id: "revoke-seed", grantId, revokedById: "actor-admin", reasonCode: "ACCESS_REMEDIATION", internalNote: null, idempotencyKey: "seed-revoke", revokedAt: new Date(NOW) }] : []
       const database = createDatabase({ grants: [selectedGrant], revocations })
-      await assert.rejects(() => revoke(database, grantId), /active temporary feature grant|target account|temporary access changed/i)
+      await assert.rejects(
+        () => revoke(database, grantId, { expectedActiveGrantIds }),
+        (error) => error.code === code && error.message === message,
+      )
       assert.equal(database.state.actions.size, 0)
     }
 
     const database = createDatabase({ grants: [grants[0]] })
-    await assert.rejects(() => revoke(database, "future", { expectedActiveGrantIds: ["future", "stale"] }), /temporary access changed since this operation was prepared/i)
+    await assert.rejects(
+      () => revoke(database, "future", { expectedActiveGrantIds: ["future", "stale"] }),
+      (error) => error.code === "STALE_ACTIVE_GRANT_SNAPSHOT"
+        && error.message === "Temporary access changed since this operation was prepared. Refresh the account and try again.",
+    )
+  })
+
+  it("assigns stable codes only to operator-safe mutation outcomes", async () => {
+    const verified = createDatabase()
+    await assert.rejects(
+      () => grant(verified, { targetUserId: "target-unverified" }),
+      (error) => error.code === "VERIFIED_TARGET_REQUIRED",
+    )
+
+    const stale = createDatabase()
+    await grant(stale)
+    await assert.rejects(
+      () => grant(stale, { idempotencyKey: "another-operation", expectedActiveGrantIds: [] }),
+      (error) => error.code === "STALE_ACTIVE_GRANT_SNAPSHOT",
+    )
+
+    const wrongTarget = createDatabase({ grants: [seededGrant("other", "premium_backgrounds", { userId: "target-two" })] })
+    await assert.rejects(
+      () => revoke(wrongTarget, "other"),
+      (error) => error.code === "WRONG_TARGET_GRANT",
+    )
+
   })
 
   it("replays only exact immutable grant and revoke inputs without new ledger or evidence rows", async () => {
@@ -894,17 +1017,18 @@ describe("Admin temporary feature access", () => {
 function temporaryActionHarness({
   actorUserId = "admin-1",
   grantResult = {
+    kind: "grant",
     grantId: "grant-1",
     featureKey: "premium_backgrounds",
-    effective: true,
     expiresAt: "2026-09-09T12:00:00.000Z",
     replayed: false,
     emailIntentId: "intent-grant",
   },
   revokeResult = {
+    kind: "revoke",
     grantId: "grant-1",
     featureKey: "premium_backgrounds",
-    effective: false,
+    featureStillActive: false,
     expiresAt: "2026-09-09T12:00:00.000Z",
     replayed: false,
     emailIntentId: "intent-revoke",
@@ -941,7 +1065,7 @@ function temporaryActionHarness({
         },
       },
       "@/lib/admin/temporary-access": {
-        ADMIN_GRANTABLE_FEATURE_KEYS,
+        TEMPORARY_ACCESS_ERROR_CODES: temporaryAccess.TEMPORARY_ACCESS_ERROR_CODES,
         async grantTemporaryFeatureAccess(input) {
           calls.push(["grantTemporaryFeatureAccess", input])
           if (serviceError) throw serviceError
@@ -953,6 +1077,7 @@ function temporaryActionHarness({
           return revokeResult
         },
       },
+      "@/lib/admin/temporary-access-contract": temporaryAccessContract,
       "@/lib/prisma": { prisma: { marker: "prisma" } },
       "@/lib/safe-error-code": {
         safeErrorCode() {
@@ -1057,6 +1182,26 @@ describe("Admin temporary-access actions and controls", () => {
     }
   })
 
+  it("maps only allowlisted service error codes to operator-safe display messages", async () => {
+    const stale = temporaryActionHarness({
+      serviceError: Object.assign(new Error("private stale detail"), { code: "STALE_ACTIVE_GRANT_SNAPSHOT" }),
+    })
+    const staleResult = await stale.grantAction("user-1", UI_IDLE_STATE, temporaryGrantForm())
+    assert.deepEqual(staleResult, {
+      status: "error",
+      message: "Temporary access changed since this operation was prepared. Refresh the account and try again.",
+    })
+
+    const spoofed = temporaryActionHarness({
+      serviceError: new Error("Temporary access changed since this operation was prepared. Refresh the account and try again."),
+    })
+    const spoofedResult = await spoofed.grantAction("user-1", UI_IDLE_STATE, temporaryGrantForm())
+    assert.deepEqual(spoofedResult, {
+      status: "error",
+      message: "Temporary access could not be granted. Refresh the account and try again.",
+    })
+  })
+
   it("calls exactly one canonical mutation, then locked delivery and every affected revalidation", async () => {
     const grantHarness = temporaryActionHarness()
     const grantResult = await grantHarness.grantAction("user-1", UI_IDLE_STATE, temporaryGrantForm())
@@ -1114,7 +1259,7 @@ describe("Admin temporary-access actions and controls", () => {
 
     const replayedGrant = temporaryActionHarness({
       grantResult: {
-        grantId: "grant-1", featureKey: "premium_backgrounds", effective: true,
+        kind: "grant", grantId: "grant-1", featureKey: "premium_backgrounds",
         expiresAt: "2026-09-09T12:00:00.000Z", replayed: true, emailIntentId: "intent-grant",
       },
       deliveryResult: { status: "DELIVERED", attempted: false },
@@ -1136,7 +1281,7 @@ describe("Admin temporary-access actions and controls", () => {
       const harness = temporaryActionHarness({
         actorUserId: "user-1",
         grantResult: {
-          grantId: "grant-1", featureKey: "premium_backgrounds", effective: true,
+          kind: "grant", grantId: "grant-1", featureKey: "premium_backgrounds",
           expiresAt: "2026-09-09T12:00:00.000Z", replayed, emailIntentId: "intent-grant",
         },
         deliveryResult: { status: "FAILED", attempted },
@@ -1161,10 +1306,10 @@ describe("Admin temporary-access actions and controls", () => {
       ["calendar_full_scheduling", "Full calendar scheduling"],
       ["external_calendar_sync", "External calendar sync"],
     ]) {
-      assert.match(temporaryFormSource, new RegExp(`${key}[^\\n]+${label}`))
+      assert.equal(temporaryAccessContract.ADMIN_TEMPORARY_ACCESS_FEATURE_LABELS[key], label)
     }
     for (const days of [7, 30, 90]) assert.match(temporaryFormSource, new RegExp(`\\b${days}\\b`))
-    assert.match(temporaryFormSource, /name="durationDays"[\s\S]*type="number"[\s\S]*min=\{1\}[\s\S]*max=\{365\}[\s\S]*step=\{1\}/)
+    assert.match(temporaryFormSource, /name="durationDays"[\s\S]*type="number"[\s\S]*min=\{TEMPORARY_ACCESS_MIN_DAYS\}[\s\S]*max=\{TEMPORARY_ACCESS_MAX_DAYS\}[\s\S]*step=\{1\}/)
     assert.match(temporaryFormSource, /preparedAt[\s\S]*startsAt[\s\S]*expiresAt/)
     assert.match(temporaryFormSource, /updateFeature[\s\S]*setConfirmed\(false\)/)
     assert.match(temporaryFormSource, /updateDuration[\s\S]*setConfirmed\(false\)/)
@@ -1183,6 +1328,101 @@ describe("Admin temporary-access actions and controls", () => {
     assert.match(temporaryFormSource, /Showing \{grants\.length\} of \{totalGrantCount\}/)
     assert.match(temporaryFormSource, /append-only revocation/i)
     assert.doesNotMatch(temporaryFormSource, /grantedById|revokedById|idempotencyKey|actorUserId/)
+    assert.match(adminDetailPageSource, /temporaryGrantMutationSnapshot/)
+    assert.match(adminDetailPageSource, /complete:\s*true/)
+    assert.doesNotMatch(adminDetailPageSource, /complete:\s*!truncated/)
+
+    const { TemporaryAccessControls } = temporaryAccessUiHarness()
+    const expectedActiveGrantIds = Object.fromEntries(
+      ADMIN_GRANTABLE_FEATURE_KEYS.map((featureKey) => [featureKey, featureKey === "premium_backgrounds" ? ["grant-a"] : []]),
+    )
+    const tree = renderFunctionComponents(TemporaryAccessControls({
+      userId: "user-1",
+      targetLabel: "Target User",
+      preparedAt: NOW.toISOString(),
+      grantOperationId: UI_OPERATION_ID,
+      expectedActiveGrantIds,
+      grants: [{
+        grantId: "grant-a",
+        featureKey: "premium_backgrounds",
+        startsAt: NOW.toISOString(),
+        expiresAt: new Date(NOW.getTime() + DAY_MS).toISOString(),
+        revokeOperationId: UI_REVOKE_OPERATION_ID,
+      }],
+      totalGrantCount: 30,
+      truncated: true,
+      controlsAvailable: true,
+    }))
+    const activeRows = findElements(tree, (element) => element.props["data-temporary-grant"] === "active")
+    const featureOptions = findElements(
+      tree,
+      (element) => element.type === "option" && ADMIN_GRANTABLE_FEATURE_KEYS.includes(element.props.value),
+    )
+    assert.deepEqual(featureOptions.map((option) => [option.props.value, elementText(option)]), [
+      ["premium_backgrounds", "Premium backgrounds"],
+      ["therapist_documentation_tools", "Therapist documentation tools"],
+      ["calendar_basic_scheduling", "Basic calendar scheduling"],
+      ["calendar_full_scheduling", "Full calendar scheduling"],
+      ["external_calendar_sync", "External calendar sync"],
+    ])
+    const presetButtons = findElements(tree, (element) => element.type === "button")
+      .filter((button) => /^(7|30|90) days$/.test(elementText(button)))
+    assert.deepEqual(presetButtons.map((button) => elementText(button)), ["7 days", "30 days", "90 days"])
+    const durationInput = findElement(tree, (element) => element.type === "input" && element.props.name === "durationDays")
+    assert.deepEqual(
+      { min: durationInput?.props.min, max: durationInput?.props.max, step: durationInput?.props.step },
+      { min: 1, max: 365, step: 1 },
+    )
+    assert.match(elementText(tree), /I confirm this exact temporary grant gives Premium backgrounds access for 7 days\./)
+    const previewStarts = findElement(tree, (element) => element.props["data-temporary-preview"] === "starts")
+    const previewExpires = findElement(tree, (element) => element.props["data-temporary-preview"] === "expires")
+    assert.deepEqual(
+      [previewStarts?.props.dateTime, elementText(previewStarts), previewExpires?.props.dateTime, elementText(previewExpires)],
+      [NOW.toISOString(), "Aug 10, 2026, 12:00:00 PM UTC", "2026-08-17T12:00:00.000Z", "Aug 17, 2026, 12:00:00 PM UTC"],
+    )
+    const evidenceStarts = findElement(tree, (element) => element.props["data-temporary-evidence"] === "starts")
+    const evidenceExpires = findElement(tree, (element) => element.props["data-temporary-evidence"] === "expires")
+    assert.deepEqual(
+      [evidenceStarts?.props.dateTime, elementText(evidenceStarts), evidenceExpires?.props.dateTime, elementText(evidenceExpires)],
+      ["2026-08-10T12:00:00.000Z", "Aug 10, 2026, 12:00:00 PM UTC", "2026-08-11T12:00:00.000Z", "Aug 11, 2026, 12:00:00 PM UTC"],
+    )
+    assert.equal(activeRows.length, 1)
+    assert.match(elementText(tree), /Showing 1 of 30 active temporary grants/)
+    assert.doesNotMatch(elementText(tree), /actor|idempotency|granted by|revoked by/i)
+  })
+
+  it("renders stable UTC evidence hooks and labels only the submitted revoke form as pending", () => {
+    assert.match(temporaryFormSource, /useFormStatus/)
+    assert.match(temporaryFormSource, /data-temporary-evidence=\{evidence\}/)
+    assert.match(temporaryFormSource, /data-temporary-starts-at=\{grant\.startsAt\}/)
+    assert.match(temporaryFormSource, /data-temporary-expires-at=\{grant\.expiresAt\}/)
+    assert.match(temporaryFormSource, /disabled=\{revokePending \|\| !canSubmit\}/)
+    assert.match(temporaryFormSource, /pending \? "Revoking temporary grant…" : "Revoke this temporary grant"/)
+    assert.match(temporaryFormSource, /timeZone:\s*"UTC"|formatTemporaryAccessUtc/)
+    assert.doesNotMatch(temporaryFormSource, /\.toLocaleString\(\)/)
+
+    const { TemporaryAccessControls } = temporaryAccessUiHarness({ formPending: true })
+    const pendingTree = renderFunctionComponents(TemporaryAccessControls({
+      userId: "user-1",
+      targetLabel: "Target User",
+      preparedAt: NOW.toISOString(),
+      grantOperationId: UI_OPERATION_ID,
+      expectedActiveGrantIds: Object.fromEntries(
+        ADMIN_GRANTABLE_FEATURE_KEYS.map((featureKey) => [featureKey, featureKey === "premium_backgrounds" ? ["grant-a"] : []]),
+      ),
+      grants: [{
+        grantId: "grant-a",
+        featureKey: "premium_backgrounds",
+        startsAt: NOW.toISOString(),
+        expiresAt: "2026-08-11T12:00:00.000Z",
+        revokeOperationId: UI_REVOKE_OPERATION_ID,
+      }],
+      totalGrantCount: 1,
+      truncated: false,
+      controlsAvailable: true,
+    }))
+    assert.match(elementText(pendingTree), /Revoking temporary grant…/)
+    assert.doesNotMatch(elementText(pendingTree), /Revoke this temporary grant/)
   })
 
   it("remounts a surviving revoke form on its fresh server operation key after a sibling revoke", () => {

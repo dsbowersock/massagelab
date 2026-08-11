@@ -128,6 +128,10 @@ describe("admin user detail", () => {
       total: 1,
       truncated: false,
     })
+    assert.deepEqual(result.data.temporaryGrantMutationSnapshot, [{
+      grantId: "grant-1",
+      featureKey: "premium_backgrounds",
+    }])
     assert.deepEqual(result.data.roles, [
       { role: "ANATOMY_EDITOR", status: "VERIFIED", source: "manual", verifiedAt: "2026-08-02T00:00:00.000Z", expiresAt: null, revokedAt: null },
       { role: "USER", status: "VERIFIED", source: "system", verifiedAt: "2026-08-01T00:00:00.000Z", expiresAt: null, revokedAt: null },
@@ -236,7 +240,13 @@ describe("admin user detail", () => {
     assert.equal(result.data.temporaryGrants.items.length, 25)
     assert.equal(result.data.temporaryGrants.total, 30)
     assert.equal(result.data.temporaryGrants.truncated, true)
+    assert.equal(result.data.temporaryGrantMutationSnapshot.length, 30)
+    assert.deepEqual(result.data.temporaryGrantMutationSnapshot.at(-1), {
+      grantId: "grant-29",
+      featureKey: "calendar_full_scheduling",
+    })
     assert.equal(result.data.featureAccess.some(({ featureKey }) => featureKey === "calendar_full_scheduling"), true)
+    assert.doesNotMatch(JSON.stringify(result.data.temporaryGrantMutationSnapshot), /grantedById|internalNote|idempotencyKey|reasonCode|startsAt|expiresAt/i)
     assert.doesNotMatch(JSON.stringify(result.data.temporaryGrants), /grantedById|internalNote|idempotencyKey|reasonCode/i)
   })
 

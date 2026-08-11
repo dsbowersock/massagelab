@@ -23,8 +23,12 @@ import {
 import { INITIAL_BACKGROUND_CREDIT_COUNT } from "@/lib/commerce/credit-service"
 import {
   ADMIN_GRANTABLE_FEATURE_KEYS,
+  PER_FEATURE_ACTIVE_LIMIT,
+  TOTAL_ACTIVE_LIMIT,
+  isGrantableFeature,
+  isSafeRecordId,
   type AdminGrantableFeatureKey,
-} from "@/lib/admin/temporary-access"
+} from "@/lib/admin/temporary-access-contract"
 import { prisma } from "@/lib/prisma"
 
 type AdminUserDetailPageProps = {
@@ -258,7 +262,7 @@ function AccessSection({
   )
 }
 
-/** Accepts only the bounded safe Task 17 projection and exposes no stored operator evidence. */
+/** Separates bounded display evidence from the complete optimistic mutation snapshot. */
 function readTemporaryGrantEvidence(detail: Record<string, unknown>): {
   grants: Omit<TemporaryGrantPresentation, "revokeOperationId">[]
   expectedActiveGrantIds: Record<AdminGrantableFeatureKey, string[]>
@@ -267,33 +271,43 @@ function readTemporaryGrantEvidence(detail: Record<string, unknown>): {
   complete: boolean
 } | null {
   const temporaryGrants = detail.temporaryGrants
+  const mutationSnapshot = detail.temporaryGrantMutationSnapshot
   if (!isRecord(temporaryGrants)
     || !Array.isArray(temporaryGrants.items)
+    || !Array.isArray(mutationSnapshot)
+    || temporaryGrants.items.length > 25
     || !Number.isSafeInteger(temporaryGrants.total)
     || (temporaryGrants.total as number) < temporaryGrants.items.length
-    || typeof temporaryGrants.truncated !== "boolean") return null
+    || (temporaryGrants.total as number) !== mutationSnapshot.length
+    || mutationSnapshot.length > TOTAL_ACTIVE_LIMIT
+    || typeof temporaryGrants.truncated !== "boolean"
+    || temporaryGrants.truncated !== ((temporaryGrants.total as number) > temporaryGrants.items.length)) return null
 
   const grants: Omit<TemporaryGrantPresentation, "revokeOperationId">[] = []
-  const seen = new Set<string>()
-  const expectedActiveGrantIds: Record<AdminGrantableFeatureKey, string[]> = {
-    premium_backgrounds: [],
-    therapist_documentation_tools: [],
-    calendar_basic_scheduling: [],
-    calendar_full_scheduling: [],
-    external_calendar_sync: [],
+  const snapshotFeatures = new Map<string, AdminGrantableFeatureKey>()
+  const expectedActiveGrantIds = Object.fromEntries(
+    ADMIN_GRANTABLE_FEATURE_KEYS.map((featureKey) => [featureKey, [] as string[]]),
+  ) as unknown as Record<AdminGrantableFeatureKey, string[]>
+  for (const item of mutationSnapshot) {
+    if (!isRecord(item)
+      || !isSafeRecordId(item.grantId)
+      || snapshotFeatures.has(item.grantId)
+      || !isGrantableFeature(item.featureKey)) return null
+    snapshotFeatures.set(item.grantId, item.featureKey)
+    expectedActiveGrantIds[item.featureKey].push(item.grantId)
+    if (expectedActiveGrantIds[item.featureKey].length > PER_FEATURE_ACTIVE_LIMIT) return null
   }
+  const displayedGrantIds = new Set<string>()
   for (const item of temporaryGrants.items) {
     if (!isRecord(item)
-      || typeof item.grantId !== "string"
       || !isSafeRecordId(item.grantId)
-      || seen.has(item.grantId)
-      || typeof item.featureKey !== "string"
+      || displayedGrantIds.has(item.grantId)
       || !isGrantableFeature(item.featureKey)
+      || snapshotFeatures.get(item.grantId) !== item.featureKey
       || typeof item.startsAt !== "string"
       || typeof item.expiresAt !== "string"
       || !isValidGrantWindow(item.startsAt, item.expiresAt)) return null
-    seen.add(item.grantId)
-    expectedActiveGrantIds[item.featureKey].push(item.grantId)
+    displayedGrantIds.add(item.grantId)
     grants.push({
       grantId: item.grantId,
       featureKey: item.featureKey,
@@ -309,7 +323,7 @@ function readTemporaryGrantEvidence(detail: Record<string, unknown>): {
     expectedActiveGrantIds,
     total,
     truncated,
-    complete: !truncated && total === grants.length,
+    complete: true,
   }
 }
 
@@ -507,14 +521,6 @@ function normalizeEmail(value: string | null) {
 /** Mirrors the service boundary so unusable recipients never receive optimistic mutation controls. */
 function isUsableEmail(value: string) {
   return value.length > 0 && value.length <= 320 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
-}
-
-function isGrantableFeature(value: string): value is AdminGrantableFeatureKey {
-  return ADMIN_GRANTABLE_FEATURE_KEYS.includes(value as AdminGrantableFeatureKey)
-}
-
-function isSafeRecordId(value: string) {
-  return value.length <= 191 && /^[A-Za-z0-9_-]+$/.test(value)
 }
 
 function isValidGrantWindow(startsAt: string, expiresAt: string) {
