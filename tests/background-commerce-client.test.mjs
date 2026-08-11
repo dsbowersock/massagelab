@@ -512,6 +512,16 @@ describe("background card commerce states", () => {
     assert.equal(included.canSelect, true)
     assert.equal(included.showKeepPermanently, true)
 
+    const temporary = backgroundCardCommerceState({
+      background: premium,
+      access: { canUse: true, accessSource: "temporary" },
+      snapshot: snapshot(),
+    })
+    assert.equal(temporary.state, "included-temporary")
+    assert.equal(temporary.canSelect, true)
+    assert.equal(temporary.showKeepPermanently, true)
+    assert.doesNotMatch(temporary.state, /subscription|membership/)
+
     const transientlyOwned = backgroundCardCommerceState({
       background: premium,
       access: { canUse: true, accessSource: "ownership" },

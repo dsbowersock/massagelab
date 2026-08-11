@@ -673,6 +673,27 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
   // A stored billing profile keeps invoices and payment management reachable
   // even when terminal subscription history returns pricing to Checkout mode.
   const canOpenBillingPortal = Boolean(membershipSummary.stripeCustomer)
+  const temporaryFeatureLabels: Record<string, string> = {
+    premium_backgrounds: "Premium backgrounds",
+    therapist_documentation_tools: "Therapist documentation tools",
+    calendar_basic_scheduling: "Basic calendar scheduling",
+    calendar_full_scheduling: "Full calendar scheduling",
+    external_calendar_sync: "External calendar sync",
+  }
+  // The uncached membership loader already applies the request-time active
+  // predicate. This surface retains each overlapping expiration independently.
+  const temporaryAccess = Array.isArray(membershipSummary.entitlements.featureAccess)
+    ? membershipSummary.entitlements.featureAccess.flatMap((feature) => {
+      const label = temporaryFeatureLabels[feature.featureKey]
+      if (!label || !Array.isArray(feature.sources)) return []
+      return feature.sources.flatMap((source) => {
+        if (source.source !== "temporary" || typeof source.expiresAt !== "string") return []
+        const expiresAt = new Date(source.expiresAt)
+        if (!Number.isFinite(expiresAt.getTime())) return []
+        return [{ featureKey: feature.featureKey, label, expiresAt: source.expiresAt }]
+      })
+    }).sort((left, right) => left.label.localeCompare(right.label) || left.expiresAt.localeCompare(right.expiresAt))
+    : []
 
   return (
     <TabsContent value="membership" className="space-y-5">
@@ -701,6 +722,38 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
           </div>
         </CardContent>
       </Card>
+
+      {temporaryAccess.length > 0 ? (
+        <Card
+          id="temporary-feature-access"
+          data-account-temporary-access="active"
+          className={settingsSurfaceClassName}
+        >
+          <CardHeader>
+            <CardTitle>Temporary feature access</CardTitle>
+            <CardDescription>
+              Support-provided access expires automatically at request time. Each overlapping temporary source is listed separately.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2">
+              {temporaryAccess.map((access) => (
+                <li
+                  key={`${access.featureKey}:${access.expiresAt}`}
+                  data-temporary-feature-key={access.featureKey}
+                  data-temporary-expires-at={access.expiresAt}
+                  className={cn(settingsInsetClassName, "p-3 text-sm")}
+                >
+                  <p className="font-medium">{access.label}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Expires <time dateTime={access.expiresAt}>{access.expiresAt.slice(0, 10)} {access.expiresAt.slice(11, 16)} UTC</time>
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <SupporterInterestsPanel />
 

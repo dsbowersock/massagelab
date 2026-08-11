@@ -1,13 +1,24 @@
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
-import {
+import * as userDirectory from "../lib/admin/user-directory.ts"
+
+const {
+  ADMIN_TEMPORARY_ACCESS_EXPIRING_WINDOW_DAYS,
   getAdminUserMetrics,
   listAdminUsers,
   parseUserDirectoryQuery,
-} from "../lib/admin/user-directory.ts"
+} = userDirectory
 
 const directoryPageSource = await readFile(new URL("../app/admin/users/page.tsx", import.meta.url), "utf8")
+const directorySource = await readFile(new URL("../lib/admin/user-directory.ts", import.meta.url), "utf8")
+const expectedGrantableFeatureKeys = [
+  "premium_backgrounds",
+  "therapist_documentation_tools",
+  "calendar_basic_scheduling",
+  "calendar_full_scheduling",
+  "external_calendar_sync",
+]
 
 describe("admin user directory", () => {
   it("bounds query input and discards unknown filter values", () => {
@@ -20,6 +31,7 @@ describe("admin user directory", () => {
       roleStatus: null,
       subscriptionStatus: null,
       creditState: null,
+      temporaryAccess: null,
       unresolvedIssue: null,
     })
 
@@ -32,6 +44,7 @@ describe("admin user directory", () => {
       roleStatus: "revoked",
       subscriptionStatus: "past_due",
       creditState: "positive",
+      temporaryAccess: "active",
       unresolvedIssue: "yes",
     }), {
       query: "x".repeat(100),
@@ -42,6 +55,7 @@ describe("admin user directory", () => {
       roleStatus: "revoked",
       subscriptionStatus: "past_due",
       creditState: "positive",
+      temporaryAccess: "active",
       unresolvedIssue: "yes",
     })
 
@@ -52,6 +66,7 @@ describe("admin user directory", () => {
       roleStatus: "expired",
       subscriptionStatus: "made-up",
       creditState: "negative",
+      temporaryAccess: "later",
       unresolvedIssue: "maybe",
     }), {
       query: "",
@@ -62,6 +77,7 @@ describe("admin user directory", () => {
       roleStatus: null,
       subscriptionStatus: null,
       creditState: null,
+      temporaryAccess: null,
       unresolvedIssue: null,
     })
 
@@ -94,11 +110,14 @@ describe("admin user directory", () => {
       roleStatus: "verified",
       subscriptionStatus: "active",
       creditState: "positive",
+      temporaryAccess: "active",
       unresolvedIssue: "yes",
     })
+    const now = new Date("2026-08-10T12:00:00.000Z")
     const page = await listAdminUsers({
       prismaClient,
       input: parsedQuery,
+      now,
     })
 
     assert.deepEqual(Object.keys(page.items[0]).sort(), [
@@ -135,6 +154,12 @@ describe("admin user directory", () => {
         { roles: { some: { role: "ADMIN", status: "VERIFIED" } } },
         { membershipSubscriptions: { some: { membershipLevel: "SUPPORTER", status: "active" } } },
         { backgroundCreditWallet: { is: { balance: { gt: 0 } } } },
+        { temporaryFeatureGrants: { some: {
+          startsAt: { lte: now },
+          expiresAt: { gt: now },
+          revocation: null,
+          featureKey: { in: expectedGrantableFeatureKeys },
+        } } },
         { OR: [
           { commerceOrders: { some: { OR: [
             { status: "REVIEW_REQUIRED" },
@@ -167,6 +192,12 @@ describe("admin user directory", () => {
           { roles: { some: { role: "ADMIN", status: "VERIFIED" } } },
           { membershipSubscriptions: { some: { membershipLevel: "SUPPORTER", status: "active" } } },
           { backgroundCreditWallet: { is: { balance: { gt: 0 } } } },
+          { temporaryFeatureGrants: { some: {
+            startsAt: { lte: now },
+            expiresAt: { gt: now },
+            revocation: null,
+            featureKey: { in: expectedGrantableFeatureKeys },
+          } } },
           { OR: [
             { commerceOrders: { some: { OR: [
               { status: "REVIEW_REQUIRED" },
@@ -232,7 +263,7 @@ describe("admin user directory", () => {
     assert.equal(page.items[0].subscriptionStatus, "active")
   })
 
-  it("counts the initial account, verification, active-Supporter, and unresolved-operation metrics", async () => {
+  it("counts accounts, support state, active temporary grants, and the exclusive 30-day expiry window", async () => {
     const calls = []
     const now = new Date("2026-08-09T12:00:00.000Z")
     const prismaClient = {
@@ -254,14 +285,24 @@ describe("admin user directory", () => {
           return 3
         },
       },
+      temporaryFeatureGrant: {
+        count: async (args) => {
+          calls.push(["temporaryFeatureGrant", args])
+          return calls.filter(([model]) => model === "temporaryFeatureGrant").length === 1 ? 11 : 4
+        },
+      },
     }
 
+    assert.equal(ADMIN_TEMPORARY_ACCESS_EXPIRING_WINDOW_DAYS, 30)
     assert.deepEqual(await getAdminUserMetrics({ prismaClient, now }), {
       totalAccounts: 42,
       verifiedAccounts: 35,
       activeSupporters: 7,
       unresolvedOperations: 5,
+      activeTemporaryGrants: 11,
+      expiringTemporaryGrants: 4,
     })
+    const windowEnd = new Date("2026-09-08T12:00:00.000Z")
     assert.deepEqual(calls, [
       ["user", {}],
       ["user", { where: { emailVerified: { not: null } } }],
@@ -276,12 +317,71 @@ describe("admin user directory", () => {
         { payments: { some: { disputes: { some: { status: "OPEN" } } } } },
       ] } }],
       ["adminEmailIntent", { where: { status: { in: ["PENDING", "FAILED"] } } }],
+      ["temporaryFeatureGrant", { where: {
+        startsAt: { lte: now },
+        expiresAt: { gt: now },
+        revocation: null,
+        featureKey: { in: expectedGrantableFeatureKeys },
+      } }],
+      ["temporaryFeatureGrant", { where: {
+        startsAt: { lte: now },
+        expiresAt: { gt: now, lt: windowEnd },
+        revocation: null,
+        featureKey: { in: expectedGrantableFeatureKeys },
+      } }],
     ])
+  })
+
+  it("parses active and none temporary-access filters with the same stable cursor predicate", async () => {
+    const now = new Date("2026-08-10T12:00:00.000Z")
+    for (const temporaryAccess of ["active", "none"]) {
+      const calls = []
+      const prismaClient = {
+        user: {
+          findMany: async (args) => {
+            calls.push(args)
+            return []
+          },
+        },
+      }
+      const cursor = Buffer.from("user-2").toString("base64url")
+      const parsed = parseUserDirectoryQuery({ temporaryAccess, cursor, pageSize: "10" })
+      assert.equal(parsed.temporaryAccess, temporaryAccess)
+
+      await listAdminUsers({ prismaClient, input: parsed, now })
+
+      const relationFilter = temporaryAccess === "active" ? "some" : "none"
+      const activePredicate = {
+        startsAt: { lte: now },
+        expiresAt: { gt: now },
+        revocation: null,
+        featureKey: { in: expectedGrantableFeatureKeys },
+      }
+      assert.deepEqual(calls[0].where, {
+        AND: [{ temporaryFeatureGrants: { [relationFilter]: activePredicate } }],
+      })
+      assert.deepEqual(calls[1].where, {
+        AND: [
+          { temporaryFeatureGrants: { [relationFilter]: activePredicate } },
+          { id: { lt: "user-2" } },
+        ],
+      })
+    }
+    assert.match(directorySource, /import \{ ADMIN_GRANTABLE_FEATURE_KEYS \} from "\.\/temporary-access-contract\.ts"/)
   })
 
   it("keeps long directory identity metadata inside mobile cards", () => {
     assert.match(directoryPageSource, /function AccountIdentity[\s\S]*className="min-w-0"/)
     assert.match(directoryPageSource, /\[overflow-wrap:anywhere\]/)
+  })
+
+  it("renders the temporary-access filter and grant-count metrics without calling them user counts", () => {
+    assert.match(directoryPageSource, /name="temporaryAccess"/)
+    assert.match(directoryPageSource, /\[\["active", "Active"\], \["none", "None"\]\]/)
+    assert.match(directoryPageSource, /Active temporary grants/)
+    assert.match(directoryPageSource, /Temporary grants expiring within 30 days/)
+    assert.match(directoryPageSource, /query\.temporaryAccess[\s\S]*params\.set\("temporaryAccess"/)
+    assert.doesNotMatch(directoryPageSource, /users with temporary access|accounts expiring/i)
   })
 })
 

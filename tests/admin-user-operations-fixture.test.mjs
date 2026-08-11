@@ -48,6 +48,33 @@ describe("admin user operations browser fixture", () => {
     assert.match(browserSpecSource, /expect\(detailOverflow\)\.toBe\(false\)/)
   })
 
+  it("covers the disposable Admin temporary-access journey at every configured desktop and mobile project", () => {
+    assert.match(browserSpecSource, /Temporary feature access/)
+    assert.match(browserSpecSource, /Premium backgrounds/)
+    assert.match(browserSpecSource, /for \(const days of \[7, 30, 90\]\)/)
+    assert.match(browserSpecSource, /name: `\$\{days\} days`/)
+    assert.match(browserSpecSource, /Custom duration/)
+    assert.match(browserSpecSource, /Starts/)
+    assert.match(browserSpecSource, /Expires/)
+    assert.match(browserSpecSource, /chimer_custom_colors/)
+    assert.match(browserSpecSource, /practice_management/)
+    assert.match(browserSpecSource, /calendar_team_scheduling/)
+    assert.match(browserSpecSource, /cloud_storage/)
+    assert.match(browserSpecSource, /phi_storage_tools/)
+    assert.match(browserSpecSource, /Temporary feature access granted/)
+    assert.match(browserSpecSource, /Temporary feature access revoked/)
+    assert.match(browserSpecSource, /\/account\?tab=membership/)
+    assert.match(browserSpecSource, /installSignedInSessionCookie/)
+    assert.match(browserSpecSource, /time\[data-temporary-evidence="starts"\]/)
+    assert.match(browserSpecSource, /time\[data-temporary-evidence="expires"\]/)
+    assert.doesNotMatch(browserSpecSource, /persistedTimestamps\.nth\([01]\)/)
+    assert.match(browserSpecSource, /new Date\(persistedExpiresAt\)\.getTime\(\) - new Date\(persistedStartsAt\)\.getTime\(\)/)
+    assert.match(browserSpecSource, /accountTemporaryAccess\)\.toContainText\(persistedExpiresAt\.slice\(0, 10\)\)/)
+    assert.match(browserSpecSource, /\[data-account-temporary-access="active"\]/)
+    assert.doesNotMatch(browserSpecSource, /getByRole\("heading", \{ name: "Temporary feature access" \}\)\.locator\("\.\."\)/)
+    assert.doesNotMatch(browserSpecSource, /time\[datetime=.*\$\{expiresAt\}/)
+  })
+
   it("removes only a project's provisioning rows in FK-safe order before its exact users", async () => {
     const calls = []
     await removeBrowserAdminFixtureRecords({
@@ -58,6 +85,14 @@ describe("admin user operations browser fixture", () => {
 
     const ids = ["browser-admin-operator-desktop-chromium", "browser-admin-target-desktop-chromium"]
     assert.deepEqual(calls, [
+      ["temporaryFeatureGrantRevocation.deleteMany", { where: { OR: [
+        { revokedById: { in: ids } },
+        { grant: { is: { OR: [{ userId: { in: ids } }, { grantedById: { in: ids } }] } } },
+      ] } }],
+      ["temporaryFeatureGrant.deleteMany", { where: { OR: [
+        { userId: { in: ids } },
+        { grantedById: { in: ids } },
+      ] } }],
       ["adminEmailIntent.deleteMany", { where: { userId: { in: ids } } }],
       ["userAccountActivity.deleteMany", { where: { userId: { in: ids } } }],
       ["adminAction.deleteMany", { where: { OR: [{ actorUserId: { in: ids } }, { targetUserId: { in: ids } }] } }],
@@ -96,6 +131,7 @@ describe("admin user operations browser fixture", () => {
 
 function cleanupPrisma(calls) {
   return Object.fromEntries([
+    "temporaryFeatureGrantRevocation", "temporaryFeatureGrant",
     "adminEmailIntent", "userAccountActivity", "adminAction", "session", "userRole",
     "passwordResetToken", "backupCode", "twoFactorSecret", "passwordCredential",
     "commerceEvent", "backgroundCreditEntry", "backgroundCreditWallet", "user",

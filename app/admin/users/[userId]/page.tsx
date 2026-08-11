@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { requireFullAdminUser } from "@/lib/admin/access"
 import { RetryEmailForm } from "./retry-email-form"
 import { CreditGrantControls } from "./credit-action-form"
+import { TemporaryAccessControls, type TemporaryGrantPresentation } from "./temporary-access-form"
 import { RoleChangeControls, SelfRoleManagementNotice, type RoleEvidence } from "./role-change-form"
 import {
   FreshPasswordResetForm,
@@ -20,6 +21,14 @@ import {
   type AdminUserDetailSection,
 } from "@/lib/admin/user-detail"
 import { INITIAL_BACKGROUND_CREDIT_COUNT } from "@/lib/commerce/credit-service"
+import {
+  ADMIN_GRANTABLE_FEATURE_KEYS,
+  PER_FEATURE_ACTIVE_LIMIT,
+  TOTAL_ACTIVE_LIMIT,
+  isGrantableFeature,
+  isSafeRecordId,
+  type AdminGrantableFeatureKey,
+} from "@/lib/admin/temporary-access-contract"
 import { prisma } from "@/lib/prisma"
 
 type AdminUserDetailPageProps = {
@@ -32,7 +41,8 @@ export default async function AdminUserDetailPage({ params, searchParams }: Admi
   const actor = await requireFullAdminUser()
   const { userId } = await params
   const section = parseAdminUserDetailSection(singleValue((await searchParams).section))
-  const detail = await getAdminUserDetailSection({ prismaClient: prisma, userId, section })
+  const requestNow = new Date()
+  const detail = await getAdminUserDetailSection({ prismaClient: prisma, userId, section, now: requestNow })
   if (!detail) notFound()
 
   return (
@@ -69,6 +79,7 @@ export default async function AdminUserDetailPage({ params, searchParams }: Admi
                       targetName={detail.target.name}
                       targetEmail={detail.target.email}
                       canManageRoles={actor.id !== userId}
+                      requestNow={requestNow}
                     />
                   : section === "security"
                     ? <SecuritySection
@@ -175,12 +186,14 @@ function AccessSection({
   targetName,
   targetEmail,
   canManageRoles,
+  requestNow,
 }: {
   detail: Record<string, unknown>
   userId: string
   targetName: string | null
   targetEmail: string | null
   canManageRoles: boolean
+  requestNow: Date
 }) {
   const roles = Array.isArray(detail.roles)
     ? detail.roles.filter(isAccessRoleEvidence)
@@ -189,15 +202,18 @@ function AccessSection({
     ANATOMY_REVIEWER: randomUUID(),
     ANATOMY_EDITOR: randomUUID(),
     creditGrant: randomUUID(),
+    temporaryGrant: randomUUID(),
   }
   const normalizedTargetEmail = normalizeEmail(targetEmail)
   const hasVerifiedEmail = detail.emailVerified === true && Boolean(normalizedTargetEmail)
+  const hasVerifiedUsableEmail = detail.emailVerified === true && isUsableEmail(normalizedTargetEmail)
   const creditEvidence = hasVerifiedEmail
     ? readCreditGrantEvidence(detail.wallet)
     : null
   const targetLabel = targetName?.trim()
     ? `${targetName.trim()} (${normalizedTargetEmail})`
     : normalizedTargetEmail || "Unnamed account"
+  const temporaryEvidence = readTemporaryGrantEvidence(detail)
   return (
     <div className="space-y-5">
       <DetailSection detail={detail} section="access" />
@@ -221,8 +237,94 @@ function AccessSection({
           Background-credit controls are unavailable because the wallet evidence is incomplete or unusable. Refresh the account before trying again.
         </p>
       )}
+      {hasVerifiedUsableEmail && temporaryEvidence ? (
+        <TemporaryAccessControls
+          userId={userId}
+          targetLabel={targetLabel}
+          preparedAt={requestNow.toISOString()}
+          grantOperationId={operationIds.temporaryGrant}
+          expectedActiveGrantIds={temporaryEvidence.expectedActiveGrantIds}
+          grants={temporaryEvidence.grants.map((grant) => ({ ...grant, revokeOperationId: randomUUID() }))}
+          totalGrantCount={temporaryEvidence.total}
+          truncated={temporaryEvidence.truncated}
+          controlsAvailable={temporaryEvidence.complete}
+        />
+      ) : !hasVerifiedUsableEmail ? (
+        <p className="rounded-md border bg-background/60 p-4 text-sm text-muted-foreground">
+          Temporary-access controls are unavailable because this account does not have a verified usable email.
+        </p>
+      ) : (
+        <p className="rounded-md border bg-background/60 p-4 text-sm text-muted-foreground">
+          Temporary-access controls are unavailable because a complete active grant snapshot could not be loaded safely. Refresh the account before trying again.
+        </p>
+      )}
     </div>
   )
+}
+
+/** Separates bounded display evidence from the complete optimistic mutation snapshot. */
+function readTemporaryGrantEvidence(detail: Record<string, unknown>): {
+  grants: Omit<TemporaryGrantPresentation, "revokeOperationId">[]
+  expectedActiveGrantIds: Record<AdminGrantableFeatureKey, string[]>
+  total: number
+  truncated: boolean
+  complete: boolean
+} | null {
+  const temporaryGrants = detail.temporaryGrants
+  const mutationSnapshot = detail.temporaryGrantMutationSnapshot
+  if (!isRecord(temporaryGrants)
+    || !Array.isArray(temporaryGrants.items)
+    || !Array.isArray(mutationSnapshot)
+    || temporaryGrants.items.length > 25
+    || !Number.isSafeInteger(temporaryGrants.total)
+    || (temporaryGrants.total as number) < temporaryGrants.items.length
+    || (temporaryGrants.total as number) !== mutationSnapshot.length
+    || mutationSnapshot.length > TOTAL_ACTIVE_LIMIT
+    || typeof temporaryGrants.truncated !== "boolean"
+    || temporaryGrants.truncated !== ((temporaryGrants.total as number) > temporaryGrants.items.length)) return null
+
+  const grants: Omit<TemporaryGrantPresentation, "revokeOperationId">[] = []
+  const snapshotFeatures = new Map<string, AdminGrantableFeatureKey>()
+  const expectedActiveGrantIds = Object.fromEntries(
+    ADMIN_GRANTABLE_FEATURE_KEYS.map((featureKey) => [featureKey, [] as string[]]),
+  ) as unknown as Record<AdminGrantableFeatureKey, string[]>
+  for (const item of mutationSnapshot) {
+    if (!isRecord(item)
+      || !isSafeRecordId(item.grantId)
+      || snapshotFeatures.has(item.grantId)
+      || !isGrantableFeature(item.featureKey)) return null
+    snapshotFeatures.set(item.grantId, item.featureKey)
+    expectedActiveGrantIds[item.featureKey].push(item.grantId)
+    if (expectedActiveGrantIds[item.featureKey].length > PER_FEATURE_ACTIVE_LIMIT) return null
+  }
+  const displayedGrantIds = new Set<string>()
+  for (const item of temporaryGrants.items) {
+    if (!isRecord(item)
+      || !isSafeRecordId(item.grantId)
+      || displayedGrantIds.has(item.grantId)
+      || !isGrantableFeature(item.featureKey)
+      || snapshotFeatures.get(item.grantId) !== item.featureKey
+      || typeof item.startsAt !== "string"
+      || typeof item.expiresAt !== "string"
+      || !isValidGrantWindow(item.startsAt, item.expiresAt)) return null
+    displayedGrantIds.add(item.grantId)
+    grants.push({
+      grantId: item.grantId,
+      featureKey: item.featureKey,
+      startsAt: item.startsAt,
+      expiresAt: item.expiresAt,
+    })
+  }
+  for (const grantIds of Object.values(expectedActiveGrantIds)) grantIds.sort()
+  const total = temporaryGrants.total as number
+  const truncated = temporaryGrants.truncated
+  return {
+    grants,
+    expectedActiveGrantIds,
+    total,
+    truncated,
+    complete: true,
+  }
 }
 
 /** Fails closed unless the Access projection explicitly identifies wallet presence and a safe balance. */
@@ -414,4 +516,15 @@ function safeCount(value: unknown) {
 /** Normalizes only the optional client-side comparison value; the server security service remains authoritative. */
 function normalizeEmail(value: string | null) {
   return typeof value === "string" ? value.trim().toLowerCase() : ""
+}
+
+/** Mirrors the service boundary so unusable recipients never receive optimistic mutation controls. */
+function isUsableEmail(value: string) {
+  return value.length > 0 && value.length <= 320 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+}
+
+function isValidGrantWindow(startsAt: string, expiresAt: string) {
+  const start = new Date(startsAt).getTime()
+  const expiry = new Date(expiresAt).getTime()
+  return Number.isFinite(start) && Number.isFinite(expiry) && start < expiry
 }

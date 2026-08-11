@@ -149,6 +149,106 @@ test.describe("Admin user operations", () => {
     await expect(activity).toContainText("Email delivery")
   })
 
+  test("Admin grants and append-only revokes one bounded temporary feature with Account expiration evidence", async ({ page, browser }, testInfo) => {
+    const fixture = createBrowserAdminFixtureIdentity(testInfo.project.name)
+    const baseURL = String(testInfo.project.use.baseURL)
+    const targetContext = await browser.newContext()
+    try {
+      await installSignedInSessionCookie(targetContext, baseURL, fixture.target)
+      const targetPage = await targetContext.newPage()
+      await page.goto(`/admin/users/${encodeURIComponent(fixture.target.id)}?section=access`, { waitUntil: "domcontentloaded" })
+
+      const temporaryCard = page.locator("article").filter({
+        has: page.getByRole("heading", { name: "Temporary feature access" }),
+      })
+      const feature = temporaryCard.getByLabel("Temporary feature")
+      const allowedOptions = await feature.locator("option").evaluateAll((options) => (
+        options.map((option) => ({ value: (option as HTMLOptionElement).value, label: option.textContent?.trim() }))
+      ))
+      expect(allowedOptions).toEqual([
+        { value: "premium_backgrounds", label: "Premium backgrounds" },
+        { value: "therapist_documentation_tools", label: "Therapist documentation tools" },
+        { value: "calendar_basic_scheduling", label: "Basic calendar scheduling" },
+        { value: "calendar_full_scheduling", label: "Full calendar scheduling" },
+        { value: "external_calendar_sync", label: "External calendar sync" },
+      ])
+      for (const excluded of [
+        "chimer_custom_colors",
+        "practice_management",
+        "calendar_team_scheduling",
+        "cloud_storage",
+        "phi_storage_tools",
+      ]) await expect(feature.locator(`option[value="${excluded}"]`)).toHaveCount(0)
+
+      for (const days of [7, 30, 90]) {
+        await expect(temporaryCard.getByRole("button", { name: `${days} days` })).toBeVisible()
+      }
+      const customDuration = temporaryCard.getByLabel("Custom duration")
+      await expect(customDuration).toHaveAttribute("min", "1")
+      await expect(customDuration).toHaveAttribute("max", "365")
+      await expect(customDuration).toHaveAttribute("step", "1")
+      const confirmation = temporaryCard.getByLabel(/I confirm this exact temporary grant/i)
+      await temporaryCard.getByLabel("Reason").selectOption("ACCESS_REMEDIATION")
+      await confirmation.check()
+      await feature.selectOption("external_calendar_sync")
+      await expect(confirmation).toBeChecked({ checked: false })
+      await feature.selectOption("premium_backgrounds")
+      await confirmation.check()
+      await customDuration.fill("14")
+      await expect(confirmation).toBeChecked({ checked: false })
+      const previewStartsAt = await temporaryCard.locator('time[data-temporary-preview="starts"]').getAttribute("datetime")
+      const previewExpiresAt = await temporaryCard.locator('time[data-temporary-preview="expires"]').getAttribute("datetime")
+      if (!previewStartsAt || !previewExpiresAt) throw new Error("Temporary-access preview requires start and expiration timestamps.")
+      expect(new Date(previewExpiresAt).getTime() - new Date(previewStartsAt).getTime()).toBe(14 * 24 * 60 * 60 * 1_000)
+      await expect(temporaryCard.getByText(/Starts/)).toBeVisible()
+      await expect(temporaryCard.getByText(/Expires/)).toBeVisible()
+      await confirmation.check()
+      const grantButton = temporaryCard.getByRole("button", { name: "Grant temporary access" })
+      await expect(grantButton).toBeEnabled()
+      await grantButton.press("Enter")
+
+      await expect(temporaryCard.getByText(/Temporary Premium backgrounds access was granted through/i)).toBeVisible()
+      await expect(confirmation).toBeChecked({ checked: false })
+      await expect(grantButton).toBeDisabled()
+      const activeGrant = temporaryCard.locator('[data-temporary-grant="active"]').first()
+      await expect(activeGrant).toContainText("Premium backgrounds")
+      await expect(activeGrant).toContainText("Starts")
+      await expect(activeGrant).toContainText("Expires")
+      const persistedStart = activeGrant.locator('time[data-temporary-evidence="starts"]')
+      const persistedExpiry = activeGrant.locator('time[data-temporary-evidence="expires"]')
+      await expect(persistedStart).toHaveCount(1)
+      await expect(persistedExpiry).toHaveCount(1)
+      const persistedStartsAt = await persistedStart.getAttribute("datetime")
+      const persistedExpiresAt = await persistedExpiry.getAttribute("datetime")
+      if (!persistedStartsAt || !persistedExpiresAt) throw new Error("Persisted temporary grant requires start and expiration timestamps.")
+      expect(new Date(persistedExpiresAt).getTime() - new Date(persistedStartsAt).getTime()).toBe(14 * 24 * 60 * 60 * 1_000)
+      const revokeConfirmation = activeGrant.getByLabel(/I confirm this append-only revocation/i)
+      await expect(revokeConfirmation).toBeChecked({ checked: false })
+
+      await targetPage.goto(new URL("/account?tab=membership", baseURL).href, { waitUntil: "domcontentloaded" })
+      const accountTemporaryAccess = targetPage.locator('[data-account-temporary-access="active"]')
+      await expect(accountTemporaryAccess).toContainText("Premium backgrounds")
+      await expect(accountTemporaryAccess).toContainText(persistedExpiresAt.slice(0, 10))
+
+      await activeGrant.getByLabel("Reason").selectOption("ACCESS_REMEDIATION")
+      await revokeConfirmation.check()
+      const revokeButton = activeGrant.getByRole("button", { name: "Revoke this temporary grant" })
+      await expect(revokeButton).toBeEnabled()
+      await revokeButton.press("Enter")
+      await expect(temporaryCard.getByText(/one temporary Premium backgrounds grant was revoked/i)).toBeVisible()
+      await expect(temporaryCard.getByText("No active temporary grants.", { exact: true })).toBeVisible()
+
+      await page.getByRole("navigation", { name: "Account detail sections" }).getByRole("link", { name: "Activity" }).click()
+      await expect(page.getByRole("listitem").filter({ hasText: "Temporary feature access granted" })).toHaveCount(1)
+      await expect(page.getByRole("listitem").filter({ hasText: "Temporary feature access revoked" })).toHaveCount(1)
+
+      await targetPage.reload({ waitUntil: "domcontentloaded" })
+      await expect(targetPage.getByRole("heading", { name: "Temporary feature access" })).toHaveCount(0)
+    } finally {
+      await targetContext.close()
+    }
+  })
+
   test("Admin confirms sign-in token revocation and the target JWT is rejected on refresh", async ({ page, browser }, testInfo) => {
     const fixture = createBrowserAdminFixtureIdentity(testInfo.project.name)
     const baseURL = String(testInfo.project.use.baseURL)

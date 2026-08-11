@@ -177,6 +177,7 @@ function isBackgroundBrandingEntry(value: unknown): value is BackgroundBrandingE
 
 export type BackgroundAccessSnapshot = {
   featureKeys: readonly string[]
+  premiumBackgroundAccessSource?: "subscription" | "temporary" | null
   ownedBackgroundIds: readonly string[]
 }
 
@@ -190,6 +191,7 @@ export function mergeBackgroundAccessOwnership(
 ): BackgroundAccessSnapshot {
   return {
     featureKeys: access.featureKeys,
+    premiumBackgroundAccessSource: access.premiumBackgroundAccessSource ?? null,
     ownedBackgroundIds: [...new Set([
       ...access.ownedBackgroundIds,
       ...liveOwnedBackgroundIds,
@@ -2204,7 +2206,8 @@ export function getBackgroundOptionsForCategory(category: BackgroundCategory) {
 
 /**
  * Adapts a server-resolved decision or owned-ID snapshot for registry filtering.
- * Feature keys express subscription access only; ownership must stay explicit.
+ * Feature keys express aggregate entitlement access; provenance and permanent
+ * ownership stay explicit so presentation does not relabel temporary support.
  */
 export function userCanUseBackground(entry: BackgroundDefinition, access: BackgroundAccessInput = []) {
   if (!entry.enabled) return false
@@ -2215,6 +2218,20 @@ export function userCanUseBackground(entry: BackgroundDefinition, access: Backgr
   const featureKeys = Array.isArray(access) ? access : snapshot.featureKeys ?? []
   const ownedBackgroundIds = Array.isArray(access) ? [] : snapshot.ownedBackgroundIds ?? []
   return hasPremiumBackgroundAccess(featureKeys) || ownedBackgroundIds.includes(entry.id)
+}
+
+/**
+ * Maps aggregate background authorization to the explicit commerce source.
+ * Older snapshots without provenance remain conservatively membership-backed.
+ */
+export function resolveBackgroundCommerceAccessSource(
+  entry: BackgroundDefinition,
+  access: BackgroundAccessSnapshot,
+): "free" | "subscription" | "temporary" | "ownership" | "locked" {
+  if (!userCanUseBackground(entry, access)) return "locked"
+  if (!entry.requiresSubscription) return "free"
+  if (access.ownedBackgroundIds.includes(entry.id)) return "ownership"
+  return access.premiumBackgroundAccessSource === "temporary" ? "temporary" : "subscription"
 }
 
 /**

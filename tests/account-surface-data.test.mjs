@@ -258,7 +258,7 @@ describe("account surface data loader", () => {
     ])
   })
 
-  it("loads billing data only for the membership surface and reuses the short-lived cache", async () => {
+  it("reloads request-time membership access while reusing only the short-lived pricing catalog cache", async () => {
     const calls = []
     const loader = createLoader(calls)
 
@@ -267,7 +267,46 @@ describe("account surface data loader", () => {
 
     assert.equal(first.surface, "membership")
     assert.equal(second.surface, "membership")
-    assert.deepEqual(calls, ["getMembershipSummary", "getPricingCatalog"])
+    assert.deepEqual(calls, ["getMembershipSummary", "getPricingCatalog", "getMembershipSummary"])
+  })
+
+  it("passes one captured request time to the membership summary and exposes only safe feature expiration evidence", async () => {
+    const calls = []
+    const nowMs = Date.parse("2026-08-08T00:00:00.000Z")
+    const loader = createAccountSurfaceDataLoader({
+      prismaClient: {},
+      async getMembershipSummary(_prismaClient, userId, now) {
+        calls.push({ userId, now })
+        return {
+          stripeCustomer: null,
+          subscriptions: [],
+          entitlements: {
+            level: "FREE",
+            paidLevel: null,
+            features: ["calendar_basic_scheduling", "premium_backgrounds"],
+            featureAccess: [{
+              featureKey: "premium_backgrounds",
+              sources: [{ source: "temporary", expiresAt: "2026-09-01T00:00:00.000Z" }],
+            }],
+          },
+        }
+      },
+      async getPricingCatalog() {
+        return { plans: [], intervals: [], defaultInterval: "month" }
+      },
+      now: () => nowMs,
+    })
+
+    const data = await loader.getAccountSurfaceData("membership", "user-1", sessionUser)
+
+    assert.equal(calls.length, 1)
+    assert.equal(calls[0].userId, "user-1")
+    assert.equal(calls[0].now.toISOString(), "2026-08-08T00:00:00.000Z")
+    assert.deepEqual(data.membershipSummary.entitlements.featureAccess, [{
+      featureKey: "premium_backgrounds",
+      sources: [{ source: "temporary", expiresAt: "2026-09-01T00:00:00.000Z" }],
+    }])
+    assert.doesNotMatch(JSON.stringify(data.membershipSummary), /actorUserId|grantedById|internalNote|idempotencyKey/i)
   })
 
   it("loads no database data for local-only app settings surfaces", async () => {

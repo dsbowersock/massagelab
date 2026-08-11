@@ -1,6 +1,7 @@
 import type { Prisma, PrismaClient, Role, VerificationStatus } from "@prisma/client"
 import { normalizeRoleAssignments } from "../account-permissions.js"
 import { activeMembershipSubscriptionWhere } from "./subscription-activity.ts"
+import { ADMIN_GRANTABLE_FEATURE_KEYS } from "./temporary-access-contract.ts"
 
 const ROLE_FILTER_VALUES = new Set([
   "USER",
@@ -23,6 +24,8 @@ const SUBSCRIPTION_STATUS_FILTER_VALUES = new Set([
   "canceled",
 ])
 const UNRESOLVED_EMAIL_STATUSES: Array<"PENDING" | "FAILED"> = ["PENDING", "FAILED"]
+export const ADMIN_TEMPORARY_ACCESS_EXPIRING_WINDOW_DAYS = 30
+const DAY_MS = 24 * 60 * 60 * 1_000
 
 export type AdminUserDirectoryQuery = {
   query: string
@@ -33,6 +36,7 @@ export type AdminUserDirectoryQuery = {
   roleStatus: "verified" | "pending" | "rejected" | "revoked" | null
   subscriptionStatus: string | null
   creditState: "positive" | "zero" | null
+  temporaryAccess: "active" | "none" | null
   unresolvedIssue: "yes" | "no" | null
 }
 
@@ -47,7 +51,7 @@ export type AdminUserDirectoryRow = {
   unresolvedIssueCount: number
 }
 
-type DirectoryPrismaClient = Pick<PrismaClient, "adminEmailIntent" | "commerceOrder" | "user">
+type DirectoryPrismaClient = Pick<PrismaClient, "adminEmailIntent" | "commerceOrder" | "temporaryFeatureGrant" | "user">
 
 /**
  * Normalizes the GET-only directory inputs before they influence a database
@@ -63,6 +67,7 @@ export function parseUserDirectoryQuery(value: Record<string, string | undefined
   const roleStatus = oneOf(value.roleStatus, ["verified", "pending", "rejected", "revoked"] as const)
   const subscriptionStatus = lowerOneOf(value.subscriptionStatus, SUBSCRIPTION_STATUS_FILTER_VALUES)
   const creditState = oneOf(value.creditState, ["positive", "zero"] as const)
+  const temporaryAccess = oneOf(value.temporaryAccess, ["active", "none"] as const)
   const unresolvedIssue = oneOf(value.unresolvedIssue, ["yes", "no"] as const)
 
   return {
@@ -74,6 +79,7 @@ export function parseUserDirectoryQuery(value: Record<string, string | undefined
     roleStatus,
     subscriptionStatus,
     creditState,
+    temporaryAccess,
     unresolvedIssue,
   }
 }
@@ -86,9 +92,11 @@ export function parseUserDirectoryQuery(value: Record<string, string | undefined
 export async function listAdminUsers(input: {
   prismaClient: DirectoryPrismaClient
   input: Partial<AdminUserDirectoryQuery>
+  now?: Date
 }) {
   const query = normalizeDirectoryQuery(input.input)
-  const where = directoryWhere(query)
+  const now = input.now ?? new Date()
+  const where = directoryWhere(query, now)
   const [rows, previousRows] = await Promise.all([
     input.prismaClient.user.findMany({
       where,
@@ -128,7 +136,16 @@ export async function listAdminUsers(input: {
  */
 export async function getAdminUserMetrics(input: { prismaClient: DirectoryPrismaClient; now?: Date }) {
   const now = input.now ?? new Date()
-  const [totalAccounts, verifiedAccounts, activeSupporters, unresolvedCommerceOperations, unresolvedEmailOperations] = await Promise.all([
+  const expiringWindowEnd = new Date(now.getTime() + ADMIN_TEMPORARY_ACCESS_EXPIRING_WINDOW_DAYS * DAY_MS)
+  const [
+    totalAccounts,
+    verifiedAccounts,
+    activeSupporters,
+    unresolvedCommerceOperations,
+    unresolvedEmailOperations,
+    activeTemporaryGrants,
+    expiringTemporaryGrants,
+  ] = await Promise.all([
     input.prismaClient.user.count({}),
     input.prismaClient.user.count({ where: { emailVerified: { not: null } } }),
     input.prismaClient.user.count({
@@ -143,6 +160,13 @@ export async function getAdminUserMetrics(input: { prismaClient: DirectoryPrisma
     }),
     input.prismaClient.commerceOrder.count({ where: unresolvedCommerceWhere() }),
     input.prismaClient.adminEmailIntent.count({ where: { status: { in: UNRESOLVED_EMAIL_STATUSES } } }),
+    input.prismaClient.temporaryFeatureGrant.count({ where: activeTemporaryGrantWhere(now) }),
+    input.prismaClient.temporaryFeatureGrant.count({
+      where: {
+        ...activeTemporaryGrantWhere(now),
+        expiresAt: { gt: now, lt: expiringWindowEnd },
+      },
+    }),
   ])
 
   return {
@@ -150,6 +174,8 @@ export async function getAdminUserMetrics(input: { prismaClient: DirectoryPrisma
     verifiedAccounts,
     activeSupporters,
     unresolvedOperations: unresolvedCommerceOperations + unresolvedEmailOperations,
+    activeTemporaryGrants,
+    expiringTemporaryGrants,
   }
 }
 
@@ -196,7 +222,7 @@ function toAdminUserDirectoryRow(row: {
   }
 }
 
-function directoryWhere(query: AdminUserDirectoryQuery): Prisma.UserWhereInput {
+function directoryWhere(query: AdminUserDirectoryQuery, now: Date): Prisma.UserWhereInput {
   const conditions: Prisma.UserWhereInput[] = []
   if (query.query) {
     conditions.push({
@@ -225,6 +251,12 @@ function directoryWhere(query: AdminUserDirectoryQuery): Prisma.UserWhereInput {
   }
   if (query.creditState === "zero") {
     conditions.push({ OR: [{ backgroundCreditWallet: { is: null } }, { backgroundCreditWallet: { is: { balance: 0 } } }] })
+  }
+  if (query.temporaryAccess) {
+    // "none" negates the same half-open allowlisted active predicate; it does
+    // not mean that the account has no historical temporary-grant rows.
+    const relationFilter = query.temporaryAccess === "active" ? "some" : "none"
+    conditions.push({ temporaryFeatureGrants: { [relationFilter]: activeTemporaryGrantWhere(now) } })
   }
   if (query.unresolvedIssue) {
     const unresolved = unresolvedUserWhere()
@@ -270,8 +302,19 @@ function normalizeDirectoryQuery(value: Partial<AdminUserDirectoryQuery>): Admin
     roleStatus: value.roleStatus ?? undefined,
     subscriptionStatus: value.subscriptionStatus ?? undefined,
     creditState: value.creditState ?? undefined,
+    temporaryAccess: value.temporaryAccess ?? undefined,
     unresolvedIssue: value.unresolvedIssue ?? undefined,
   })
+}
+
+/** Canonical half-open active predicate shared by directory filters and grant-count metrics. */
+function activeTemporaryGrantWhere(now: Date) {
+  return {
+    startsAt: { lte: now },
+    expiresAt: { gt: now },
+    revocation: null,
+    featureKey: { in: [...ADMIN_GRANTABLE_FEATURE_KEYS] },
+  }
 }
 
 function clampPageSize(value: string | undefined) {

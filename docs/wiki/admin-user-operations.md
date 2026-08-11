@@ -1,6 +1,6 @@
 # Admin User Operations
 
-This page defines the authorization and evidence boundary for MassageLab account support. The current branch supplies roles, guards, audit records, target-visible activity, durable account-change email intents, a capability-aware Admin dashboard, the full-Admin user directory, bounded account detail, and explicit confirmed Access/Security controls.
+This page defines the authorization and evidence boundary for MassageLab account support. The current branch supplies roles, guards, audit records, target-visible activity, durable account-change email intents, a capability-aware Admin dashboard, the full-Admin user directory, bounded account detail, and explicit confirmed Access, Security, credit, and temporary-access controls.
 
 ## Roles and capabilities
 
@@ -50,6 +50,26 @@ Before confirmation, the form shows the target, prepared balance, Admin delta, a
 The route-bound action starts with `requireFullAdminUser()`, then validates the hidden target, stable server-rendered UUID, strict integer amount, nonnegative prepared balance, shared allowlisted reason, optional note of at most 500 characters, required `OTHER` note, and explicit confirmation. It delegates exactly one production mutation to `grantAdminBackgroundCredits()`; wallet, immutable credit entry, commerce event, Admin action, target Activity, and email intent stay in the service's serializable transaction. Tests, documentation checks, and source-contract QA do not themselves perform live database or email mutations.
 
 After commit, the route action invokes `deliverAdminEmailIntent()` and revalidates the target Access and Activity views plus `/admin/users`. A replay may recover one initial attempt only while the intent is still `PENDING`; `FAILED` is not automatically retried, and `DELIVERED` never resends. Mutation and notification outcomes use separate copy. The controlled fields remount on fresh operation/balance evidence so a consumed amount, reason, note, or confirmation cannot authorize another grant, while the outer live-result owner remains stable across revalidation.
+
+## Temporary feature access
+
+Temporary access is a full-Admin-only, append-only support source for exactly five low-risk feature keys:
+
+- `premium_backgrounds` — Premium backgrounds
+- `therapist_documentation_tools` — Therapist documentation tools
+- `calendar_basic_scheduling` — Basic calendar scheduling
+- `calendar_full_scheduling` — Full calendar scheduling
+- `external_calendar_sync` — External calendar sync
+
+The grant surface never offers `chimer_custom_colors`, `practice_management`, `calendar_team_scheduling`, `cloud_storage`, `phi_storage_tools`, or any other feature. A target must have a freshly verified usable email and a safe complete active-grant snapshot. Self-target grants are allowed. The form offers `7`, `30`, and `90` day presets plus a custom whole-number duration from `1` through `365`; it derives start and expiration preview from one server request time, uses the shared support reason and optional 500-character note, retains one server-rendered UUID, and requires explicit confirmation. Changing feature or duration clears that confirmation.
+
+Each route action starts with `requireFullAdminUser()` before parsing, binds the submitted target to the route, validates the stable UUID, exact feature or grant, duration, sorted per-feature active-grant IDs, reason/note, and confirmation, then calls exactly one canonical grant or revoke service. The service compares the optimistic snapshot and preserves exact replay evidence. A revocation always appends a `TemporaryFeatureGrantRevocation`; it never updates or deletes the original grant. Overlapping grants stay independently visible and revocable, while membership and other temporary sources continue to contribute to effective access. Operator copy therefore describes one temporary source and never promises global feature removal.
+
+Expiration uses the half-open request-time predicate `startsAt <= now`, `expiresAt > now`, and `revocation: null`. Account and authorization loaders evaluate it on each request, so access disappears automatically at expiration without a scheduler. Account Membership lists every active temporary feature label and expiration without grant IDs, actor IDs, internal notes, or idempotency keys. Admin detail shows only bounded feature/start/expiration evidence, reports the displayed and total counts truthfully, and withholds mutation controls when the bounded rows are truncated or otherwise cannot prove a complete snapshot.
+
+The user directory accepts only `temporaryAccess=active`, `temporaryAccess=none`, or no filter and applies the same active predicate to both forward and previous cursor queries. Full-Admin directory and dashboard metrics count active temporary grants—not users—and separately count grants expiring before the exclusive end of the named 30-day operator window. One captured request time owns both count predicates.
+
+After a committed grant or revocation, the action calls the locked initial `deliverAdminEmailIntent()` owner and revalidates target detail, `/admin/users`, `/admin`, and `/account` even when delivery cannot be confirmed. An exact replay may recover only a still-`PENDING` initial delivery; `FAILED` does not auto-resend and `DELIVERED` never resends. Mutation, replay, and notification copy remain distinct. Self-target delivery messages direct Admin to inspect Activity without promising the retry control that self detail does not render.
 
 ## Security remediation controls
 

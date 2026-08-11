@@ -1,6 +1,6 @@
 import type { BackgroundOwnershipStatus, Prisma, PrismaClient } from "@prisma/client"
 import { backgroundRegistry } from "../../components/backgrounds/backgroundRegistry.ts"
-import { FEATURE_KEYS, buildEntitlements, hasFeature } from "../membership.js"
+import { FEATURE_KEYS, buildEntitlements, loadActiveTemporaryGrants } from "../membership.js"
 import { resolveCommerceProduct } from "./catalog.ts"
 import type { PrismaClientOrTransaction } from "./credit-service.ts"
 import { COMMERCE_ERROR_CODES, CommerceError, asPublicCommerceError } from "./errors.ts"
@@ -9,7 +9,7 @@ import { runCommerceTransaction } from "./transactions.ts"
 export type BackgroundAccessDecision = {
   canUse: boolean
   canCustomizeColors: boolean
-  accessSource: "free" | "subscription" | "ownership" | "locked"
+  accessSource: "free" | "subscription" | "temporary" | "ownership" | "locked"
   isPermanentlyOwned: boolean
   ownershipStatus: BackgroundOwnershipStatus | null
   creditEligibility: { eligible: boolean; disabledReason: string | null }
@@ -102,7 +102,7 @@ async function resolveBackgroundAccessInTransaction(
   }
 
   const now = new Date()
-  const [user, subscriptions, studentAccess, ownership, wallet, reservedOrder] = await Promise.all([
+  const [user, subscriptions, studentAccess, temporaryGrants, ownership, wallet, reservedOrder] = await Promise.all([
     tx.user.findUnique({
       where: { id: userId },
       select: { emailVerified: true },
@@ -112,6 +112,7 @@ async function resolveBackgroundAccessInTransaction(
       orderBy: { updatedAt: "desc" },
     }),
     tx.studentAccess.findUnique({ where: { userId } }),
+    loadActiveTemporaryGrants(tx, userId, now),
     tx.backgroundOwnership.findUnique({
       where: { userId_backgroundKey: { userId, backgroundKey: background.id } },
       select: { status: true, source: true },
@@ -136,10 +137,21 @@ async function resolveBackgroundAccessInTransaction(
     }),
   ])
 
-  const entitlements = buildEntitlements({ subscriptions, studentAccess, now })
+  const entitlements = buildEntitlements({ subscriptions, studentAccess, temporaryGrants, now })
   const ownershipStatus = ownership?.status ?? null
   const isPermanentlyOwned = ownershipStatus === "ACTIVE"
-  const hasSubscriptionAccess = hasFeature(entitlements.features, FEATURE_KEYS.premiumBackgrounds)
+  // Use additive provenance so a simultaneous membership source wins without
+  // collapsing a temporary-only grant into subscription access.
+  const premiumFeatureAccess = entitlements.featureAccess.find(
+    (feature) => feature.featureKey === FEATURE_KEYS.premiumBackgrounds,
+  )
+  const hasMembershipAccess = premiumFeatureAccess?.sources.some(
+    (source) => source.source === "membership",
+  ) ?? false
+  const hasTemporaryAccess = premiumFeatureAccess?.sources.some(
+    (source) => source.source === "temporary",
+  ) ?? false
+  const hasPremiumAccess = hasMembershipAccess || hasTemporaryAccess
   const isFree = !background.requiresSubscription
   const reservation = reservedOrder?.reservationExpiresAt
     ? {
@@ -148,7 +160,7 @@ async function resolveBackgroundAccessInTransaction(
         expiresAt: reservedOrder.reservationExpiresAt.toISOString(),
       }
     : { active: false, orderId: null, expiresAt: null }
-  const canUse = isFree || isPermanentlyOwned || hasSubscriptionAccess
+  const canUse = isFree || isPermanentlyOwned || hasPremiumAccess
   // Background use and customization are one product boundary: every usable
   // background exposes its colors and renderer properties.
   const canCustomizeColors = canUse
@@ -156,8 +168,10 @@ async function resolveBackgroundAccessInTransaction(
     ? "free"
     : isPermanentlyOwned
       ? "ownership"
-      : hasSubscriptionAccess
+      : hasMembershipAccess
         ? "subscription"
+        : hasTemporaryAccess
+          ? "temporary"
         : "locked"
 
   return {

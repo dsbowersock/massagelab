@@ -3,7 +3,7 @@ import { isAdminEmail } from "@/lib/auth-env"
 import { buildAccountCapabilities, highestRole as highestAccountRole, normalizeRoleAssignments } from "@/lib/account-permissions"
 import { ensureVerifiedUserBackgroundCredits } from "@/lib/commerce/credit-service"
 import { runCommerceTransaction } from "@/lib/commerce/transactions"
-import { buildEntitlements } from "@/lib/membership"
+import { buildEntitlements, loadActiveTemporaryGrants } from "@/lib/membership"
 import { isHostedClinicalSyncEnabled } from "@/lib/phi-sync"
 import type { AccountRole, VerificationStatus } from "@/lib/domain-types"
 import { prisma } from "@/lib/prisma"
@@ -66,7 +66,10 @@ export async function ensureGoogleUserState(userId: string, email?: string | nul
 }
 
 export async function getUserAuthState(userId: string) {
-  const user = await prisma.user.findUnique({
+  // Capture one boundary for both the database predicate and defensive pure
+  // resolver so a grant cannot change state midway through one auth refresh.
+  const now = new Date()
+  const [user, temporaryGrants] = await Promise.all([prisma.user.findUnique({
     where: { id: userId },
     select: {
       email: true,
@@ -93,7 +96,7 @@ export async function getUserAuthState(userId: string) {
         select: { enabledAt: true },
       },
     },
-  })
+  }), loadActiveTemporaryGrants(prisma, userId, now)])
 
   const roleAssignments = normalizeRoleAssignments(user?.roles.map((role) => ({
     role: role.role,
@@ -122,6 +125,8 @@ export async function getUserAuthState(userId: string) {
       features: buildEntitlements({
         subscriptions: user?.membershipSubscriptions ?? [],
         studentAccess: user?.studentAccess ?? null,
+        temporaryGrants,
+        now,
       }).features,
       hostedClinicalSyncEnabled: isHostedClinicalSyncEnabled(),
     }),

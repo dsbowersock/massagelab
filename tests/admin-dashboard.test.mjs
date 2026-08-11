@@ -89,6 +89,8 @@ describe("capability-aware Admin dashboard", () => {
     assert.match(text, /35 verified accounts/)
     assert.match(text, /7 active Supporters/)
     assert.match(text, /5 unresolved operations/)
+    assert.match(text, /11 active temporary grants/)
+    assert.match(text, /4 temporary grants expiring within 30 days/)
     assert.match(text, /Search account-operation details with bounded filters/)
     assert.match(text, /Commerce \(2\)/)
     assert.match(text, /Full anatomy browser/)
@@ -146,7 +148,14 @@ function loadDashboardModule(actor) {
       getAdminUserMetrics: async ({ prismaClient }) => {
         calls.userMetrics += 1
         assert.equal(prismaClient, prisma)
-        return { totalAccounts: 42, verifiedAccounts: 35, activeSupporters: 7, unresolvedOperations: 5 }
+        return {
+          totalAccounts: 42,
+          verifiedAccounts: 35,
+          activeSupporters: 7,
+          unresolvedOperations: 5,
+          activeTemporaryGrants: 11,
+          expiringTemporaryGrants: 4,
+        }
       },
     },
     "@/lib/commerce/admin-service": {

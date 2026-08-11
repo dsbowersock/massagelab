@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import {
   backgroundRegistry,
+  resolveBackgroundCommerceAccessSource,
   resolveAccessibleBackgroundControls,
 } from "../components/backgrounds/backgroundRegistry.ts"
 import {
@@ -110,14 +111,46 @@ describe("production background commerce states", () => {
     const selector = await readFile(selectorPath, "utf8")
     assert.match(carousel, /useBackgroundCommerce\(\)/)
     assert.match(carousel, /backgroundCardCommerceState/)
-    assert.match(carousel, /access\.ownedBackgroundIds\.includes\(option\.id\)/)
-    assert.match(carousel, /isOwnedByAccess[\s\S]*"ownership"[\s\S]*"subscription"/)
+    assert.match(carousel, /resolveBackgroundCommerceAccessSource\(option, access\)/)
     assert.match(selector, /useBackgroundCreditStatus/)
     assert.match(selector, /setAcquisition/)
     assert.match(selector, /<BackgroundAcquisitionDialog/)
     assert.match(selector, /onAcquired/)
     assert.match(selector, /resolveAccessibleBackgroundControls/)
     assert.match(selector, /\{selectedControls \? \(/)
+  })
+
+  it("preserves authoritative temporary provenance through the carousel mapper", () => {
+    const background = backgroundRegistry.find((entry) => entry.enabled && entry.requiresSubscription)
+    assert.ok(background, "expected an enabled premium background")
+    const stateFor = (access) => {
+      const accessSource = resolveBackgroundCommerceAccessSource(background, access)
+      return backgroundCardCommerceState({
+        background,
+        access: { canUse: accessSource !== "locked", accessSource },
+        snapshot: snapshot(),
+      }).state
+    }
+
+    assert.equal(stateFor({
+      featureKeys: ["premium_backgrounds"],
+      premiumBackgroundAccessSource: "temporary",
+      ownedBackgroundIds: [],
+    }), "included-temporary")
+    assert.equal(stateFor({
+      featureKeys: ["premium_backgrounds"],
+      premiumBackgroundAccessSource: "subscription",
+      ownedBackgroundIds: [],
+    }), "included-subscription")
+    assert.equal(stateFor({
+      featureKeys: ["premium_backgrounds"],
+      premiumBackgroundAccessSource: "temporary",
+      ownedBackgroundIds: [background.id],
+    }), "owned")
+    assert.equal(stateFor({
+      featureKeys: ["premium_backgrounds"],
+      ownedBackgroundIds: [],
+    }), "included-subscription", "legacy aggregate snapshots remain conservatively membership-backed")
   })
 
   it("renders selected setup controls only for an accessible background", () => {

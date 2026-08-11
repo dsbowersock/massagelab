@@ -40,6 +40,7 @@ import {
   createChimerPreferenceSyncRequest,
   createChimerPreferenceSyncRetry,
   doesChimerPreferenceWriteResponseMatch,
+  normalizePremiumBackgroundAccessSource,
   resolveChimerPreferenceSeedResult,
   resolveChimerPreferenceSyncRequest,
 } from "@/lib/account-preferences"
@@ -82,6 +83,7 @@ const FLASH_ALERT_TYPES = new Set<ChimerSettings["alertType"]>(["flash", "both",
 const HAPTIC_ALERT_TYPES = new Set<ChimerSettings["alertType"]>(["haptic", "chime-haptic", "flash-haptic", "all"])
 const EMPTY_BACKGROUND_ACCESS: BackgroundAccessSnapshot = {
   featureKeys: [],
+  premiumBackgroundAccessSource: null,
   ownedBackgroundIds: [],
 }
 const DEV_CLOCK_STORAGE_KEY = "massagelab-dev-clock-settings"
@@ -218,6 +220,8 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
   const [featureKeys, setFeatureKeys] = useState<string[]>(
     developmentSubscriberReview ? DEV_CLOCK_FEATURE_KEYS : [],
   )
+  const [premiumBackgroundAccessSource, setPremiumBackgroundAccessSource] =
+    useState<BackgroundAccessSnapshot["premiumBackgroundAccessSource"]>(null)
   const [permanentlyOwnedBackgroundIds, setPermanentlyOwnedBackgroundIds] = useState<string[]>([])
   const [transientOwnedBackgroundIds, setTransientOwnedBackgroundIds] = useState<string[]>([])
   const [backgroundPreferenceSync, setBackgroundPreferenceSync] = useState<BackgroundPreferenceSyncState>({
@@ -232,6 +236,7 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
   const backgroundAccess = useMemo<BackgroundAccessSnapshot>(
     () => mergeBackgroundAccessOwnership({
       featureKeys,
+      premiumBackgroundAccessSource,
       // The account-preference response bridges initial hydration. Once the
       // commerce provider has a snapshot, it is authoritative for revocation
       // as well as acquisition and must replace the older ownership list.
@@ -243,6 +248,7 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
     [
       commerceOwnedBackgroundIds,
       featureKeys,
+      premiumBackgroundAccessSource,
       permanentlyOwnedBackgroundIds,
       transientOwnedBackgroundIds,
     ],
@@ -281,6 +287,7 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
         // access before resolving the write so an ordinary preference save
         // cannot leave a revoked background usable until another refresh.
         setFeatureKeys(reconciledWrite.featureKeys)
+        setPremiumBackgroundAccessSource(reconciledWrite.premiumBackgroundAccessSource)
         setPermanentlyOwnedBackgroundIds(reconciledWrite.ownedBackgroundIds)
         void reconcileBackgroundCommerceOwnership(
           reconciledWrite.ownedBackgroundIds,
@@ -411,6 +418,7 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
           setSettings(localFreeSettings)
           window.localStorage.setItem(storageKey, JSON.stringify(localFreeSettings))
           setFeatureKeys([])
+          setPremiumBackgroundAccessSource(null)
           setPermanentlyOwnedBackgroundIds([])
           setCanSync(false)
           setAccountSyncStatus("local")
@@ -449,7 +457,11 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
               (backgroundId: unknown): backgroundId is string => typeof backgroundId === "string",
             ) as string[])]
           : []
+        const nextPremiumBackgroundAccessSource = normalizePremiumBackgroundAccessSource(
+          preferences.premiumBackgroundAccessSource,
+        )
         setFeatureKeys(nextFeatureKeys)
+        setPremiumBackgroundAccessSource(nextPremiumBackgroundAccessSource)
         setPermanentlyOwnedBackgroundIds(nextOwnedBackgroundIds)
 
         if (!isMounted) {
@@ -508,6 +520,7 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
             }) as {
               settings: ChimerSettings
               featureKeys: string[]
+              premiumBackgroundAccessSource: "subscription" | "temporary" | null
               ownedBackgroundIds: string[]
             } | null
           : null
@@ -524,6 +537,7 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
 
         const reconciledSeedSettings = reconciledSeed.settings
         setFeatureKeys(reconciledSeed.featureKeys)
+        setPremiumBackgroundAccessSource(reconciledSeed.premiumBackgroundAccessSource)
         setPermanentlyOwnedBackgroundIds(reconciledSeed.ownedBackgroundIds)
         void reconcileBackgroundCommerceOwnership(
           reconciledSeed.ownedBackgroundIds,
@@ -620,6 +634,7 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
     loadLocalSettings()
     if (developmentSubscriberReview) {
       setFeatureKeys(DEV_CLOCK_FEATURE_KEYS)
+      setPremiumBackgroundAccessSource("subscription")
       setPermanentlyOwnedBackgroundIds([])
       setCanSync(false)
       setAccountSyncStatus("synced")
@@ -1203,11 +1218,12 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
         ? await response.json().catch(() => null)
         : null
       const reconciledWrite = response.ok
-        ? resolveChimerPreferenceSeedResult(responseBody, {
+          ? resolveChimerPreferenceSeedResult(responseBody, {
             backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
           }) as {
             settings: ChimerSettings
             featureKeys: string[]
+            premiumBackgroundAccessSource: "subscription" | "temporary" | null
             ownedBackgroundIds: string[]
           } | null
         : null
@@ -1218,6 +1234,7 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
       }
 
       setFeatureKeys(reconciledWrite.featureKeys)
+      setPremiumBackgroundAccessSource(reconciledWrite.premiumBackgroundAccessSource)
       setPermanentlyOwnedBackgroundIds(reconciledWrite.ownedBackgroundIds)
       void reconcileBackgroundCommerceOwnership(
         reconciledWrite.ownedBackgroundIds,
