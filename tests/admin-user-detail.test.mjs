@@ -6,6 +6,10 @@ import {
   getAdminUserDetailSection,
   parseAdminUserDetailSection,
 } from "../lib/admin/user-detail.ts"
+import {
+  ADMIN_GRANTABLE_FEATURE_KEYS,
+  TOTAL_ACTIVE_LIMIT,
+} from "../lib/admin/temporary-access-contract.ts"
 
 const detailPageSource = await readFile(new URL("../app/admin/users/[userId]/page.tsx", import.meta.url), "utf8")
 
@@ -461,20 +465,14 @@ function detailPrisma(calls, {
       findMany: async (args) => {
         assert.deepEqual(args.where, {
           userId: "user-1",
-          featureKey: { in: [
-            "premium_backgrounds",
-            "therapist_documentation_tools",
-            "calendar_basic_scheduling",
-            "calendar_full_scheduling",
-            "external_calendar_sync",
-          ] },
+          featureKey: { in: [...ADMIN_GRANTABLE_FEATURE_KEYS] },
           startsAt: { lte: expectedEntitlementNow },
           expiresAt: { gt: expectedEntitlementNow },
           revocation: null,
         })
         assert.deepEqual(args.select, { id: true, featureKey: true, startsAt: true, expiresAt: true })
         assert.deepEqual(args.orderBy, [{ expiresAt: "asc" }, { id: "asc" }])
-        assert.equal(args.take, 501)
+        assert.equal(args.take, TOTAL_ACTIVE_LIMIT + 1)
         calls.push("temporaryFeatureGrant.findMany:entitlements")
         return entitlementTemporaryGrants
       },

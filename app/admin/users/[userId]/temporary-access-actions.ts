@@ -236,6 +236,8 @@ function activityGuidance(selfTarget: boolean) {
   return selfTarget ? "Check Activity for the recorded notification status." : "Retry it from Activity."
 }
 
+// Only stable service error codes may expose operator copy; unknown errors and
+// arbitrary thrown messages always use the caller's generic fallback.
 function safeMutationError(error: unknown, fallback: string): TemporaryAccessActionState {
   const code = error && typeof error === "object" && "code" in error
     ? (error as { code?: unknown }).code

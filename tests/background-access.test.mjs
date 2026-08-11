@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import { resolveBackgroundAccessForUser } from "../lib/commerce/background-access.ts"
 import { TEMPORARY_ACCESS_FEATURE_KEYS } from "../lib/membership.js"
+import { TOTAL_ACTIVE_LIMIT } from "../lib/admin/temporary-access-contract.ts"
 
 const PREMIUM_BACKGROUND = "massage-lab-aurora"
 const LATER_PREMIUM_BACKGROUND = "massage-lab-photon-beam"
@@ -342,7 +343,7 @@ describe("canonical background access", () => {
       },
       select: { id: true, featureKey: true, startsAt: true, expiresAt: true },
       orderBy: [{ expiresAt: "asc" }, { id: "asc" }],
-      take: 501,
+      take: TOTAL_ACTIVE_LIMIT + 1,
     })
 
     const readsBeforeFreshSnapshot = state.reads.length
