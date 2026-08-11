@@ -58,7 +58,14 @@
 
 ## Pending evidence
 
-- Whole-branch correction commit/readback.
-- Explicit selection/authorization for the planned Stripe test Customer/subscription integration proof and test sink.
-- Terminal validation and PR loop.
+- Proof-evidence commit/readback and PR loop.
 - Separately authorized live Stripe smoke remains outside the implementation gate.
+
+## Authorized Stripe test-mode integration proof
+
+- The user selected the currently subscribed account and authorized the smallest `$0.01` test credit. Production data was cloned into disposable Neon branch `br-damp-night-aj2732vp`; only the cloned target was changed to the `example.test` sink and disposable Stripe test identity.
+- Read-only preflight proved one non-live Customer with starting balance `0`, one active non-live USD subscription, and one eligible cloned Supporter target. The proof invoked the production `previewInvoiceCredit()` and `applyInvoiceCredit()` service with a fresh idempotency key; no route-local substitute implemented the mutation.
+- Result: operation `cmsp71b1l0000lwnccwswwuov` reached `VERIFIED` for `1` cent, with starting credit `0` and ending credit `1`. Authoritative Stripe readback proved balance transaction `cbtxn_1U3NYOEQLN3By4OZ8vbecxmO`, amount `-1`, currency `usd`, ending balance `-1`, refreshed Customer balance `-1`, and `livemode=false`.
+- Local readback proved one succeeded `BILLING_GOODWILL_CREDIT_VERIFIED` Admin action, one target-visible `Invoice credit added` Activity record, and one sink-bound `BILLING_GOODWILL_CREDIT_VERIFIED` email intent. The intent remained `PENDING` with `attemptCount=0`, no last-attempt or delivery timestamp, and no failure code, so no email was sent.
+- Cleanup: disposable Stripe test Customer `cus_V3UQRMGcMsZrha` was deleted and re-retrieved as deleted, which removed its disposable subscription. Neon branch `br-damp-night-aj2732vp` was deleted; a fresh branch listing contained only the production branch. No live Stripe object or production database row was mutated.
+- Terminal proof-tree validation passed: `npm run typecheck`; `npm run lint` with only the existing Chimer Babel large-file note; `npm run prisma:validate`; full `npm run test` with `2,427` passed, one intentional skip, and zero failed; `npm run build` with `104/104` pages; and `git diff --check`.

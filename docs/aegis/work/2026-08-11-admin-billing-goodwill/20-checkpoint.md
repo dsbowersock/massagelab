@@ -30,9 +30,11 @@
 - Completed Task 21 commit/readback: `17c41a824b873773551213ee8d3be9081ee3ebe8` (`feat: add admin billing goodwill controls`), twenty expected files, clean worktree.
 - Completed whole-branch review and correction: crash-window visibility, pre-create retry margin, Vercel Production live gating, and authoritative USD validation are fixed; scoped re-review returned READY.
 - Completed correction validation: implementer full unit 2,427 passed/one intentional skip, build 104 pages, typecheck/lint/Prisma validation/diff check; coordinator focused 250/250 plus typecheck/diff check passed.
-- Pending: correction commit/readback; explicit Stripe test Customer/subscription input and test-sink authorization; terminal validation; PR loop; user-controlled merge/live-smoke gates.
+- Completed proof gate: the user selected the subscribed account and authorized the smallest `$0.01` test credit. A disposable Neon clone and disposable Stripe test Customer/active USD subscription produced one `VERIFIED` operation from `0` to `1` cent, authoritative negative-balance readback, Activity, and an unattempted `example.test` email intent. Both disposable resources were deleted and verified absent; production and live Stripe were untouched.
+- Completed terminal validation: typecheck, lint, Prisma validation, full unit `2,427` passed/one intentional skip/zero failed, production build `104/104` pages, and diff check passed.
+- Pending: proof-evidence commit/readback, PR loop, and user-controlled merge/live-smoke gates.
 - Blocked on: nothing currently.
-- Next: commit/read back whole-branch corrections, then stop for explicit test Customer/subscription selection before any Stripe test mutation.
+- Next: commit/read back the proof evidence, then push/open the Branch 8 PR and complete the hosted review loop.
 
 ## ResumeStateHint
 
@@ -45,5 +47,5 @@ Resume only from this worktree and checkpoint. Re-read `10-intent.md`, refreshed
 - Compatibility: existing billing, entitlement, security, and Admin owners remain preserved.
 - New owner/fallback: the planned billing-goodwill ledger is the only new persistence owner; Stripe remains authoritative and no fallback invents external success.
 - Retirement: retired custom-color entitlement remains excluded.
-- Evidence state: merge/base/worktree, setup/baseline, Tasks 19-21 commits, whole-branch RED/GREEN corrections, READY re-review, and fresh validation are present.
+- Evidence state: merge/base/worktree, setup/baseline, Tasks 19-21 commits, whole-branch RED/GREEN corrections, READY re-review, fresh validation, authorized test-mode mutation/readback, and disposable-resource cleanup are present.
 - Decision: continue.
