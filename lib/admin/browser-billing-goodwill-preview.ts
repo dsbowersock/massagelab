@@ -3,9 +3,11 @@ import { hasBrowserAdminFixtureQaAuthorization } from "./browser-qa-authorizatio
 import { browserAdminFixtureProjectSlug } from "./browser-fixture-identity.ts"
 
 /**
- * Supplies read-only Stripe-shaped evidence only for deterministic disposable
- * browser identities under the explicit database QA opt-in. Mutation methods
- * throw so presentation coverage can never create a balance transaction.
+ * Returns a synthetic read-only Stripe client only for the exact disposable
+ * target identity under the explicit non-production browser-QA database gate.
+ * The target ID and environment are validated before any adapter is returned;
+ * outside that gate the result is null. Every mutation or transaction-readback
+ * method throws so presentation coverage cannot create or verify a real credit.
  */
 export function browserBillingGoodwillPreviewClient(
   targetUserId: string,

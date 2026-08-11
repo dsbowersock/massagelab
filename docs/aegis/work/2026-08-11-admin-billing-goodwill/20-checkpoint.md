@@ -35,6 +35,7 @@
 - Completed PR creation and initial hosted review: PR #179 is open, initial CodeQL/Vercel checks passed, and all 13 current review findings were verified.
 - Completed PR-review correction RED/GREEN: historical readback no longer depends on an unchanged live balance; another current full Admin can reconcile while origin evidence stays immutable; bounded preview logging, collision-free QA sentinels, settled-operation coverage, documentation redaction, and test-safety fixes are present.
 - Completed correction validation: 237/237 affected and adjacent tests, typecheck, lint, full unit 2,431 passed/one intentional skip/zero failed, production build 104 pages, and diff check passed.
+- Completed fresh incremental-review correction: historical Activity/email copy now labels the stored balance as transaction-time evidence, and the authoritative readback plus QA preview adapter have focused contracts. RED was 63/64; GREEN was 80/80, followed by typecheck, lint, full unit 2,431 passed/one intentional skip/zero failed, and production build 104 pages.
 - Pending: correction commit/push, fresh hosted checks and re-review, thread resolution, and the user-controlled merge gate.
 - Blocked on: nothing currently.
 - Next: finish terminal validation, commit/push the review corrections, and complete the hosted review loop through zero unresolved threads.

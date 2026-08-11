@@ -549,6 +549,10 @@ describe("Admin invoice-credit mutation and reconciliation", () => {
     assert.equal(result.endingCreditCents, 800)
     assert.equal(fixture.stripeRequests.length, 1)
     assert.equal(fixture.stripeCalls.includes("transactions.retrieve:cus_test:cbtxn_test"), true)
+    const action = fixture.state.actions.get("billing-op-1")
+    assert.match(action.activity.explanation, /balance immediately after this credit was \$8\.00/)
+    assert.match(action.emailIntent.message, /balance immediately after this credit was \$8\.00/)
+    assert.doesNotMatch(`${action.activity.explanation} ${action.emailIntent.message}`, /invoice credit is now/i)
   })
 
   it("lets another current full Admin reconcile while preserving the originating actor", async () => {

@@ -493,6 +493,13 @@ async function executeGoodwillRequest(
   )
 }
 
+/**
+ * Reads the exact provider transaction and Customer, then finalizes verified
+ * local evidence or returns a safe unresolved result. Initial settlement must
+ * prove that the current Customer balance still equals the transaction ending
+ * balance; a replayed historical reconciliation validates the immutable
+ * transaction ending balance without assuming later Customer activity stopped.
+ */
 async function readbackAndFinalizeGoodwill(
   input: BillingGoodwillMutationInput,
   prepared: PreparedGoodwill,
@@ -721,14 +728,14 @@ function buildGoodwillBundle(
     },
     activity: {
       title: "Invoice credit added",
-      explanation: `Massage Lab support added a $${formatUsd(operation.amountCents)} credit toward future invoices. Your invoice credit is now $${formatUsd(endingCreditCents)}.`,
+      explanation: `Massage Lab support added a $${formatUsd(operation.amountCents)} credit toward future invoices. The invoice credit balance immediately after this credit was $${formatUsd(endingCreditCents)}.`,
       effectiveValue: `+$${formatUsd(operation.amountCents)} invoice credit`,
     },
     email: {
       kind: "BILLING_GOODWILL_CREDIT_VERIFIED",
       recipientEmail,
       subject: "A credit was added to your Massage Lab billing account",
-      message: `Massage Lab support added a $${formatUsd(operation.amountCents)} credit toward future invoices. Your invoice credit is now $${formatUsd(endingCreditCents)}. If you did not expect this change, contact Massage Lab support.`,
+      message: `Massage Lab support added a $${formatUsd(operation.amountCents)} credit toward future invoices. The invoice credit balance immediately after this credit was $${formatUsd(endingCreditCents)}. If you did not expect this change, contact Massage Lab support.`,
     },
   }
 }
