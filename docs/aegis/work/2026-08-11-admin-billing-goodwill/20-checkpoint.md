@@ -19,9 +19,13 @@
 - Completed Task 19 implementation: ledger schema/migration, read-only Stripe preview, shared Task 20 client interface, and focused privacy/fail-closed coverage.
 - Completed Task 19 reviews: spec review approved after canonical-zero and shared-interface corrections; independent quality review approved with no actionable findings.
 - Completed Task 19 coordinator validation: Prisma generate/validate, 159/159 focused and adjacent tests, typecheck, lint, and diff check passed.
-- Pending: Task 19 commit/readback; Tasks 20-21; whole-branch validation; PR loop; user-controlled merge/live-smoke gates.
+- Completed Task 19 commit/readback: `93dae1389e8af91509df881d6446a4d7fcae1cee` (`feat: add invoice credit preview ledger`), seven expected files, clean worktree.
+- Completed Task 20 implementation: prepared local state, one initial provider caller, authoritative readback, bounded same-key reconciliation, live-key gate, and verified-only Admin evidence/email bundle.
+- Completed Task 20 reviews: spec approved after closing the shared AdminAction idempotency namespace; quality approved after hardening concurrency, Stripe idempotency retention, and drift-safe readback.
+- Completed Task 20 coordinator validation: 171/171 focused and adjacent Admin/Stripe tests, typecheck, lint, and diff check passed.
+- Pending: Task 20 commit/readback; Task 21; whole-branch validation; PR loop; user-controlled merge/live-smoke gates.
 - Blocked on: nothing currently.
-- Next: commit and read back Task 19, then dispatch Task 20 with the exact mutation/reconciliation contract.
+- Next: commit/read back Task 20, then dispatch Task 21 UI/metrics/browser/docs closure.
 
 ## ResumeStateHint
 
@@ -30,9 +34,9 @@ Resume only from this worktree and checkpoint. Re-read `10-intent.md`, refreshed
 ## DriftCheckDraft
 
 - Intent: aligned with bounded billing goodwill.
-- Scope: Branch 8 only; Task 19 is active.
+- Scope: Branch 8 only; Task 20 is active.
 - Compatibility: existing billing, entitlement, security, and Admin owners remain preserved.
 - New owner/fallback: the planned billing-goodwill ledger is the only new persistence owner; Stripe remains authoritative and no fallback invents external success.
 - Retirement: retired custom-color entitlement remains excluded.
-- Evidence state: merge/base/worktree, setup/baseline, Task 19 RED/GREEN, both independent approvals, and fresh coordinator validation are present.
+- Evidence state: merge/base/worktree, setup/baseline, Task 19 commit, and Task 20 RED/GREEN/reviews/fresh coordinator validation are present.
 - Decision: continue.

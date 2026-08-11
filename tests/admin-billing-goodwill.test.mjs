@@ -2,8 +2,11 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import {
+  BillingGoodwillMutationError,
   BillingGoodwillPreviewError,
+  applyInvoiceCredit,
   previewInvoiceCredit,
+  reconcileInvoiceCredit,
 } from "../lib/admin/billing-goodwill.ts"
 
 const schemaSource = await readFile(new URL("../prisma/schema.prisma", import.meta.url), "utf8")
@@ -247,6 +250,674 @@ describe("read-only Admin invoice-credit preview", () => {
     })
   }
 })
+
+describe("Admin invoice-credit mutation and reconciliation", () => {
+  it("applies the inclusive one-cent and ten-thousand-cent boundaries with the exact Stripe request", async () => {
+    for (const amountCents of [1, 10_000]) {
+      const fixture = createMutationFixture({ amountCents })
+      const result = await apply(fixture, { amountCents })
+
+      assert.deepEqual(result, {
+        operationId: "goodwill-1",
+        status: "VERIFIED",
+        amountCents,
+        endingCreditCents: 300 + amountCents,
+        replayed: false,
+        emailIntentId: "intent-1",
+      })
+      assert.deepEqual(fixture.stripeRequests, [{
+        customerId: "cus_test",
+        payload: {
+          amount: -amountCents,
+          currency: "usd",
+          description: "MassageLab billing goodwill",
+          metadata: { operationId: "goodwill-1", targetUserId: "user-1" },
+        },
+        options: { idempotencyKey: "billing-op-1" },
+      }])
+      assert.equal(fixture.state.operations.get("billing-op-1").status, "VERIFIED")
+      assert.equal(fixture.state.actions.size, 1)
+      assert.equal(fixture.state.activities.size, 1)
+      assert.equal(fixture.state.intents.size, 1)
+    }
+  })
+
+  it("rejects zero and ten-thousand-and-one cents before local or Stripe work", async () => {
+    for (const amountCents of [0, 10_001]) {
+      const fixture = createMutationFixture({ amountCents })
+      await assert.rejects(() => apply(fixture, { amountCents }), /whole number of cents from 1 through 10000/i)
+      assert.equal(fixture.state.transactionAttempts, 0)
+      assert.equal(fixture.stripeRequests.length, 0)
+    }
+  })
+
+  it("normalizes the confirmation email and rejects a mismatch before preparation", async () => {
+    const accepted = createMutationFixture()
+    assert.equal((await apply(accepted, { confirmationEmail: "  USER@EXAMPLE.TEST " })).status, "VERIFIED")
+
+    const rejected = createMutationFixture()
+    await assert.rejects(
+      () => apply(rejected, { confirmationEmail: "other@example.test" }),
+      /confirmation email does not match/i,
+    )
+    assert.equal(rejected.state.operations.size, 0)
+    assert.equal(rejected.stripeRequests.length, 0)
+  })
+
+  it("fails a stale refreshed starting credit without calling Stripe", async () => {
+    const fixture = createMutationFixture({ customerBalance: -301 })
+    const result = await apply(fixture)
+
+    assert.deepEqual(result, {
+      operationId: "goodwill-1",
+      status: "FAILED_BEFORE_MUTATION",
+      amountCents: 500,
+      endingCreditCents: null,
+      replayed: false,
+      emailIntentId: null,
+    })
+    assert.equal(fixture.state.operations.get("billing-op-1").failureCode, "STARTING_CREDIT_CHANGED")
+    assert.equal(fixture.stripeRequests.length, 0)
+    assert.equal(fixture.state.intents.size, 0)
+  })
+
+  it("returns an exact VERIFIED duplicate without a second evidence bundle", async () => {
+    const fixture = createMutationFixture()
+    const created = await apply(fixture)
+    const replayed = await apply(fixture)
+
+    assert.deepEqual(replayed, { ...created, replayed: true })
+    assert.equal(fixture.stripeRequests.length, 1)
+    assert.equal(fixture.state.actions.size, 1)
+    assert.equal(fixture.state.activities.size, 1)
+    assert.equal(fixture.state.intents.size, 1)
+  })
+
+  it("serializes concurrent exact duplicates into one local operation and one evidence bundle", async () => {
+    const fixture = createMutationFixture()
+    const results = await Promise.all([apply(fixture), apply(fixture)])
+
+    assert.deepEqual(results.map((result) => result.status), ["VERIFIED", "RECONCILIATION_REQUIRED"])
+    assert.equal(fixture.state.operations.size, 1)
+    assert.equal(fixture.state.actions.size, 1)
+    assert.equal(fixture.state.activities.size, 1)
+    assert.equal(fixture.state.intents.size, 1)
+    assert.equal(fixture.state.operations.get("billing-op-1").endingBalanceCents, 800)
+    assert.equal((await apply(fixture)).status, "VERIFIED")
+    assert.equal(fixture.stripeRequests.length, 1)
+    assert.equal(fixture.stripeRequests.every((request) => request.options.idempotencyKey === "billing-op-1"), true)
+  })
+
+  it("fails closed when an idempotency replay changes any immutable payload field", async () => {
+    for (const mismatch of [
+      { actorUserId: "admin-2" },
+      { targetUserId: "user-2", confirmationEmail: "user-2@example.test" },
+      { amountCents: 501 },
+      { expectedStartingCreditCents: 301 },
+      { reasonCode: "ADMIN_CORRECTION" },
+      { internalNote: "Different immutable note." },
+    ]) {
+      const fixture = createMutationFixture()
+      await apply(fixture)
+      await assert.rejects(() => apply(fixture, mismatch), /operation key is already in use/i)
+      assert.equal(fixture.stripeRequests.length, 1)
+      assert.equal(fixture.state.actions.size, 1)
+    }
+  })
+
+  it("rejects an unrelated shared AdminAction key before preparing or calling Stripe", async () => {
+    const fixture = createMutationFixture({ unrelatedAdminAction: true })
+
+    await assert.rejects(() => apply(fixture), /operation key is already in use/i)
+
+    assert.equal(fixture.state.operations.size, 0)
+    assert.equal(fixture.stripeRequests.length, 0)
+    assert.equal(fixture.state.actions.size, 1)
+    assert.equal(fixture.state.activities.size, 0)
+    assert.equal(fixture.state.intents.size, 0)
+  })
+
+  it("permits VERIFIED replay only when the goodwill row owns a coherent shared bundle", async () => {
+    const fixture = createMutationFixture()
+    await apply(fixture)
+    fixture.state.actions.get("billing-op-1").actionKind = "SECURITY_SESSIONS_REVOKED"
+
+    await assert.rejects(
+      () => apply(fixture),
+      (error) => error instanceof BillingGoodwillMutationError
+        && error.code === "OPERATION_KEY_IN_USE",
+    )
+
+    assert.equal(fixture.stripeRequests.length, 1)
+    assert.equal(fixture.state.operations.size, 1)
+    assert.equal(fixture.state.intents.size, 1)
+  })
+
+  it("marks a definite pre-call provider failure FAILED_BEFORE_MUTATION with a safe code", async () => {
+    const fixture = createMutationFixture({ customerRetrieveError: new Error("sk_live_raw_customer") })
+    const result = await apply(fixture)
+
+    assert.equal(result.status, "FAILED_BEFORE_MUTATION")
+    assert.equal(result.emailIntentId, null)
+    assert.equal(fixture.state.operations.get("billing-op-1").failureCode, "STRIPE_CUSTOMER_INVALID")
+    assert.equal(JSON.stringify(fixture.state.operations.get("billing-op-1")).includes("sk_live"), false)
+    assert.equal(fixture.stripeRequests.length, 0)
+  })
+
+  it("marks an ambiguous create exception RECONCILIATION_REQUIRED without notifying", async () => {
+    const fixture = createMutationFixture({ createErrorOnce: new Error("provider payload secret") })
+    const result = await apply(fixture)
+
+    assert.equal(result.status, "RECONCILIATION_REQUIRED")
+    assert.equal(result.emailIntentId, null)
+    assert.equal(fixture.state.operations.get("billing-op-1").failureCode, "STRIPE_CREATE_OUTCOME_UNKNOWN")
+    assert.equal(JSON.stringify(fixture.state.operations.get("billing-op-1")).includes("secret"), false)
+    assert.equal(fixture.state.intents.size, 0)
+  })
+
+  it("keeps exact apply replays non-mutating while an unresolved operation awaits explicit reconciliation", async () => {
+    const fixture = createMutationFixture({ createErrorOnce: new Error("timeout") })
+    assert.equal((await apply(fixture)).status, "RECONCILIATION_REQUIRED")
+
+    const replay = await apply(fixture)
+
+    assert.equal(replay.status, "RECONCILIATION_REQUIRED")
+    assert.equal(replay.replayed, true)
+    assert.equal(fixture.stripeRequests.length, 1)
+    assert.equal(fixture.state.intents.size, 0)
+  })
+
+  it("lets only the PREPARED creator cross the post-commit provider boundary", async () => {
+    const providerGate = deferred()
+    const providerStarted = deferred()
+    const fixture = createMutationFixture({
+      customerBalance: -301,
+      customerRetrieveGate: providerGate.promise,
+      onCustomerRetrieve: () => providerStarted.resolve(),
+    })
+    const initialPromise = apply(fixture)
+    await providerStarted.promise
+
+    const duplicatePromise = apply(fixture)
+    await new Promise((resolve) => setImmediate(resolve))
+    providerGate.resolve()
+    const [duplicate, initial] = await Promise.all([duplicatePromise, initialPromise])
+    assert.equal(duplicate.status, "RECONCILIATION_REQUIRED")
+    assert.equal(fixture.stripeCalls.filter((call) => call.startsWith("customers.retrieve:")).length, 1)
+    assert.equal(initial.status, "FAILED_BEFORE_MUTATION")
+    assert.equal(fixture.state.operations.get("billing-op-1").status, "FAILED_BEFORE_MUTATION")
+    assert.equal(fixture.stripeRequests.length, 0)
+  })
+
+  it("reissues an ambiguous no-ID request only inside the conservative 24-hour window", async () => {
+    const cases = [
+      { label: "just inside", now: "2026-08-08T23:59:59.999Z", expectedStatus: "VERIFIED", expectedRequests: 2, expectedCode: null },
+      { label: "exact boundary", now: "2026-08-09T00:00:00.000Z", expectedStatus: "RECONCILIATION_REQUIRED", expectedRequests: 1, expectedCode: "IDEMPOTENCY_RETRY_WINDOW_EXPIRED" },
+      { label: "outside", now: "2026-08-09T00:00:00.001Z", expectedStatus: "RECONCILIATION_REQUIRED", expectedRequests: 1, expectedCode: "IDEMPOTENCY_RETRY_WINDOW_EXPIRED" },
+    ]
+
+    for (const testCase of cases) {
+      const fixture = createMutationFixture({ createErrorOnce: new Error("timeout") })
+      assert.equal((await apply(fixture)).status, "RECONCILIATION_REQUIRED")
+
+      const result = await reconcile(fixture, { now: new Date(testCase.now) })
+
+      assert.equal(result.status, testCase.expectedStatus, testCase.label)
+      assert.equal(fixture.stripeRequests.length, testCase.expectedRequests, testCase.label)
+      assert.equal(fixture.state.operations.get("billing-op-1").failureCode, testCase.expectedCode, testCase.label)
+    }
+  })
+
+  it("marks failed authoritative readback RECONCILIATION_REQUIRED without notifying", async () => {
+    const fixture = createMutationFixture({ transactionRetrieveErrorOnce: new Error("raw transaction") })
+    const result = await apply(fixture)
+
+    assert.equal(result.status, "RECONCILIATION_REQUIRED")
+    assert.equal(fixture.state.operations.get("billing-op-1").stripeBalanceTransactionId, "cbtxn_test")
+    assert.equal(fixture.state.operations.get("billing-op-1").failureCode, "STRIPE_READBACK_FAILED")
+    assert.equal(fixture.state.intents.size, 0)
+  })
+
+  it("reconciles a known transaction by persisted identity without another create or current subscription eligibility", async () => {
+    for (const drift of ["canceled", "customer-changed"]) {
+      const fixture = createMutationFixture({ transactionRetrieveErrorOnce: new Error("readback unavailable") })
+      assert.equal((await apply(fixture)).status, "RECONCILIATION_REQUIRED")
+      fixture.billingState.subscriptionStatus = drift === "canceled" ? "canceled" : "active"
+      if (drift === "customer-changed") fixture.billingState.customerId = "cus_other"
+      const subscriptionReadsBefore = fixture.stripeCalls.filter((call) => call.startsWith("subscriptions.retrieve:")).length
+
+      const result = await reconcile(fixture)
+
+      assert.equal(result.status, "VERIFIED", drift)
+      assert.equal(result.endingCreditCents, 800, drift)
+      assert.equal(fixture.stripeRequests.length, 1, drift)
+      assert.equal(fixture.stripeCalls.filter((call) => call.startsWith("subscriptions.retrieve:")).length, subscriptionReadsBefore, drift)
+      assert.equal(fixture.stripeCalls.includes("transactions.retrieve:cus_test:cbtxn_test"), true, drift)
+    }
+  })
+
+  it("never creates again when a persisted transaction identifier is malformed", async () => {
+    const fixture = createMutationFixture({ createErrorOnce: new Error("timeout") })
+    assert.equal((await apply(fixture)).status, "RECONCILIATION_REQUIRED")
+    fixture.state.operations.get("billing-op-1").stripeBalanceTransactionId = "malformed"
+
+    const result = await reconcile(fixture)
+
+    assert.equal(result.status, "RECONCILIATION_REQUIRED")
+    assert.equal(fixture.state.operations.get("billing-op-1").failureCode, "PERSISTED_TRANSACTION_ID_INVALID")
+    assert.equal(fixture.stripeRequests.length, 1)
+    assert.equal(fixture.stripeCalls.filter((call) => call.startsWith("transactions.retrieve:")).length, 0)
+  })
+
+  it("keeps ambiguous no-ID identity drift in manual reconciliation without another mutation", async () => {
+    const fixture = createMutationFixture({ createErrorOnce: new Error("timeout") })
+    assert.equal((await apply(fixture)).status, "RECONCILIATION_REQUIRED")
+    fixture.billingState.subscriptionStatus = "canceled"
+
+    const result = await reconcile(fixture)
+
+    assert.equal(result.status, "RECONCILIATION_REQUIRED")
+    assert.equal(fixture.state.operations.get("billing-op-1").failureCode, "AMBIGUOUS_IDENTITY_CHANGED")
+    assert.equal(fixture.stripeRequests.length, 1)
+    assert.equal(fixture.state.intents.size, 0)
+  })
+
+  it("reconciles with the same request and idempotency key, then creates one evidence bundle", async () => {
+    const fixture = createMutationFixture({ createErrorOnce: new Error("timeout") })
+    assert.equal((await apply(fixture)).status, "RECONCILIATION_REQUIRED")
+
+    const reconciled = await reconcile(fixture)
+    assert.equal(reconciled.status, "VERIFIED")
+    assert.equal(reconciled.replayed, true)
+    assert.equal(reconciled.endingCreditCents, 800)
+    assert.equal(fixture.stripeRequests.length, 2)
+    assert.deepEqual(fixture.stripeRequests.map((request) => request.options.idempotencyKey), ["billing-op-1", "billing-op-1"])
+    assert.deepEqual(fixture.stripeRequests.map((request) => request.payload), [fixture.stripeRequests[0].payload, fixture.stripeRequests[0].payload])
+    assert.equal(fixture.state.actions.size, 1)
+    assert.equal(fixture.state.intents.size, 1)
+  })
+
+  it("requires the returned transaction to be the exact negative USD credit", async () => {
+    for (const transactionOverrides of [
+      { amount: 500 },
+      { amount: -499 },
+      { currency: "eur" },
+    ]) {
+      const fixture = createMutationFixture({ transactionOverrides })
+      const result = await apply(fixture)
+      assert.equal(result.status, "RECONCILIATION_REQUIRED")
+      assert.equal(fixture.state.operations.get("billing-op-1").failureCode, "STRIPE_TRANSACTION_INVALID")
+      assert.equal(fixture.state.intents.size, 0)
+    }
+  })
+
+  it("rejects transaction or customer identity mismatches during authoritative readback", async () => {
+    for (const overrides of [
+      { transactionOverrides: { customer: "cus_other" } },
+      { readbackCustomerOverrides: { id: "cus_other" } },
+    ]) {
+      const fixture = createMutationFixture(overrides)
+      const result = await apply(fixture)
+      assert.equal(result.status, "RECONCILIATION_REQUIRED")
+      assert.equal(fixture.state.intents.size, 0)
+    }
+  })
+
+  it("gates live keys before Stripe unless both production and the explicit flag are present", async () => {
+    for (const env of [
+      { STRIPE_SECRET_KEY: "sk_live_example", NODE_ENV: "development", ADMIN_BILLING_GOODWILL_LIVE_ENABLED: "true" },
+      { STRIPE_SECRET_KEY: "sk_live_example", NODE_ENV: "production" },
+    ]) {
+      const fixture = createMutationFixture()
+      const result = await apply(fixture, { env })
+      assert.equal(result.status, "FAILED_BEFORE_MUTATION")
+      assert.equal(fixture.state.operations.get("billing-op-1").failureCode, "LIVE_STRIPE_DISABLED")
+      assert.equal(fixture.stripeRequests.length, 0)
+    }
+
+    const allowed = createMutationFixture({ livemode: true })
+    const result = await apply(allowed, {
+      env: { STRIPE_SECRET_KEY: "sk_live_example", NODE_ENV: "production", ADMIN_BILLING_GOODWILL_LIVE_ENABLED: "true" },
+    })
+    assert.equal(result.status, "VERIFIED")
+  })
+
+  it("rolls back local preparation failures and retries serializable conflicts without enclosing Stripe", async () => {
+    const failed = createMutationFixture({ failPrepareWrite: true })
+    await assert.rejects(() => apply(failed), /prepare write failed/)
+    assert.equal(failed.state.operations.size, 0)
+    assert.equal(failed.stripeRequests.length, 0)
+
+    const retried = createMutationFixture({ serializationConflictOnce: true })
+    assert.equal((await apply(retried)).status, "VERIFIED")
+    assert.equal(retried.state.transactionAttempts >= 2, true)
+    assert.equal(retried.stripeRequests.length, 1)
+  })
+
+  it("rolls back a late evidence-bundle failure and leaves the external mutation reconcilable", async () => {
+    const fixture = createMutationFixture({ failBundleWrite: true })
+    const result = await apply(fixture)
+
+    assert.equal(result.status, "RECONCILIATION_REQUIRED")
+    assert.equal(result.emailIntentId, null)
+    assert.equal(fixture.state.operations.get("billing-op-1").failureCode, "LOCAL_VERIFICATION_WRITE_FAILED")
+    assert.equal(fixture.stripeRequests.length, 1)
+    assert.equal(fixture.state.actions.size, 0)
+    assert.equal(fixture.state.activities.size, 0)
+    assert.equal(fixture.state.intents.size, 0)
+  })
+
+  it("surfaces safe mutation errors without provider payloads", async () => {
+    const fixture = createMutationFixture()
+    await apply(fixture)
+    await assert.rejects(
+      () => reconcile(fixture, { amountCents: 999 }),
+      (error) => error instanceof BillingGoodwillMutationError
+        && error.code === "OPERATION_KEY_IN_USE"
+        && !error.message.includes("Stripe"),
+    )
+  })
+})
+
+function apply(fixture, overrides = {}) {
+  return applyInvoiceCredit({
+    prismaClient: fixture.prismaClient,
+    actorUserId: "admin-1",
+    targetUserId: "user-1",
+    amountCents: fixture.amountCents,
+    confirmationEmail: "user@example.test",
+    expectedStartingCreditCents: 300,
+    reasonCode: "BILLING_GOODWILL",
+    internalNote: "Courtesy invoice credit after a support review.",
+    idempotencyKey: "billing-op-1",
+    stripeClient: fixture.stripeClient,
+    env: { STRIPE_SECRET_KEY: "sk_test_example" },
+    now: new Date("2026-08-08T00:00:00.000Z"),
+    ...overrides,
+  })
+}
+
+function reconcile(fixture, overrides = {}) {
+  return reconcileInvoiceCredit({
+    prismaClient: fixture.prismaClient,
+    actorUserId: "admin-1",
+    targetUserId: "user-1",
+    amountCents: fixture.amountCents,
+    confirmationEmail: "user@example.test",
+    expectedStartingCreditCents: 300,
+    reasonCode: "BILLING_GOODWILL",
+    internalNote: "Courtesy invoice credit after a support review.",
+    idempotencyKey: "billing-op-1",
+    stripeClient: fixture.stripeClient,
+    env: { STRIPE_SECRET_KEY: "sk_test_example" },
+    now: new Date("2026-08-08T00:00:00.000Z"),
+    ...overrides,
+  })
+}
+
+function createMutationFixture(overrides = {}) {
+  const amountCents = overrides.amountCents ?? 500
+  const state = {
+    operations: new Map(),
+    actions: new Map(),
+    activities: new Map(),
+    intents: new Map(),
+    transactionAttempts: 0,
+  }
+  if (overrides.unrelatedAdminAction) {
+    state.actions.set("billing-op-1", {
+      id: "unrelated-action",
+      actorUserId: "admin-1",
+      targetUserId: "user-1",
+      actionKind: "SECURITY_SESSIONS_REVOKED",
+      reasonCode: "SECURITY_RECOVERY",
+      internalNote: null,
+      idempotencyKey: "billing-op-1",
+      beforeState: {},
+      afterState: {},
+      outcome: "SUCCEEDED",
+      failureCode: null,
+      activity: null,
+      emailIntent: null,
+    })
+  }
+  const stripeRequests = []
+  const stripeCalls = []
+  const billingState = { customerId: "cus_test", subscriptionStatus: "active" }
+  let createAttempts = 0
+  let transactionRetrieveAttempts = 0
+  let preparedConflictUsed = false
+  let created = false
+  let currentBalance = overrides.customerBalance ?? -300
+  const livemode = overrides.livemode ?? false
+  let transactionTail = Promise.resolve()
+
+  const users = new Map([
+    ["admin-1", adminUser("admin-1")],
+    ["admin-2", adminUser("admin-2")],
+    ["user-1", targetUser("user-1", "user@example.test")],
+    ["user-2", targetUser("user-2", "user-2@example.test")],
+  ])
+
+  const database = {
+    state,
+    async $transaction(callback) {
+      const previous = transactionTail
+      let releaseTransaction
+      transactionTail = new Promise((resolve) => { releaseTransaction = resolve })
+      await previous
+      try {
+        state.transactionAttempts += 1
+        const snapshot = structuredClone({
+          operations: state.operations,
+          actions: state.actions,
+          activities: state.activities,
+          intents: state.intents,
+        })
+        if (overrides.serializationConflictOnce && !preparedConflictUsed) {
+          preparedConflictUsed = true
+          const error = new Error("serialization conflict")
+          error.code = "P2034"
+          throw error
+        }
+        try {
+          return await callback(database)
+        } catch (error) {
+          state.operations = snapshot.operations
+          state.actions = snapshot.actions
+          state.activities = snapshot.activities
+          state.intents = snapshot.intents
+          throw error
+        }
+      } finally {
+        releaseTransaction()
+      }
+    },
+    async $executeRaw() {
+      return 1
+    },
+    user: {
+      async findUnique({ where }) {
+        return structuredClone(users.get(where.id) ?? null)
+      },
+    },
+    stripeCustomer: {
+      async findMany({ where, take }) {
+        assert.equal(take, 2)
+        if (!["user-1", "user-2"].includes(where.userId)) return []
+        return [{ stripeCustomerId: where.userId === "user-1" ? billingState.customerId : "cus_other" }]
+      },
+    },
+    membershipSubscription: {
+      async findMany({ where, take }) {
+        assert.equal(take, 2)
+        if (!["user-1", "user-2"].includes(where.userId)) return []
+        const subscription = {
+          stripeSubscriptionId: where.userId === "user-1" ? "sub_test" : "sub_other",
+          stripeCustomerId: where.userId === "user-1" ? billingState.customerId : "cus_other",
+          membershipLevel: "SUPPORTER",
+          status: where.userId === "user-1" ? billingState.subscriptionStatus : "active",
+        }
+        return ["active", "trialing"].includes(subscription.status) ? [subscription] : []
+      },
+    },
+    adminBillingGoodwillOperation: {
+      async findUnique({ where }) {
+        const row = where.id
+          ? [...state.operations.values()].find((operation) => operation.id === where.id)
+          : state.operations.get(where.idempotencyKey)
+        return structuredClone(row ?? null)
+      },
+      async create({ data }) {
+        if (overrides.failPrepareWrite) throw new Error("prepare write failed")
+        if (state.operations.has(data.idempotencyKey)) {
+          const error = new Error("unique conflict")
+          error.code = "P2002"
+          error.meta = { modelName: "AdminBillingGoodwillOperation", target: ["idempotencyKey"] }
+          throw error
+        }
+        const row = {
+          id: "goodwill-1",
+          stripeBalanceTransactionId: null,
+          endingBalanceCents: null,
+          projectedNextInvoiceCents: null,
+          status: "PREPARED",
+          failureCode: null,
+          appliedAt: null,
+          verifiedAt: null,
+          createdAt: new Date("2026-08-08T00:00:00.000Z"),
+          updatedAt: new Date("2026-08-08T00:00:00.000Z"),
+          ...structuredClone(data),
+        }
+        state.operations.set(data.idempotencyKey, row)
+        return structuredClone(row)
+      },
+      async update({ where, data }) {
+        const row = [...state.operations.values()].find((operation) => operation.id === where.id)
+        if (!row) throw new Error("operation missing")
+        Object.assign(row, structuredClone(data))
+        return structuredClone(row)
+      },
+      async updateMany({ where, data }) {
+        const row = [...state.operations.values()].find((operation) => operation.id === where.id)
+        const allowedStatuses = where.status?.in ?? (where.status ? [where.status] : null)
+        if (!row || (allowedStatuses && !allowedStatuses.includes(row.status))) return { count: 0 }
+        Object.assign(row, structuredClone(data))
+        return { count: 1 }
+      },
+    },
+    adminAction: {
+      async findUnique({ where }) {
+        return structuredClone(state.actions.get(where.idempotencyKey) ?? null)
+      },
+      async create({ data }) {
+        const row = { id: "action-1", occurredAt: new Date(), ...structuredClone(data), activity: null, emailIntent: null }
+        state.actions.set(data.idempotencyKey, row)
+        return { id: row.id }
+      },
+    },
+    userAccountActivity: {
+      async create({ data }) {
+        const row = { id: "activity-1", ...structuredClone(data) }
+        state.activities.set(data.adminActionId, row)
+        const action = [...state.actions.values()].find((candidate) => candidate.id === data.adminActionId)
+        if (action) action.activity = row
+        return structuredClone(row)
+      },
+    },
+    adminEmailIntent: {
+      async create({ data }) {
+        if (overrides.failBundleWrite) throw new Error("intent write failed")
+        const row = {
+          id: "intent-1",
+          attemptCount: 0,
+          lastAttemptAt: null,
+          deliveredAt: null,
+          ...structuredClone(data),
+        }
+        state.intents.set(data.adminActionId, row)
+        const action = [...state.actions.values()].find((candidate) => candidate.id === data.adminActionId)
+        if (action) action.emailIntent = row
+        return { id: row.id }
+      },
+    },
+  }
+
+  const stripeClient = {
+    customers: {
+      async retrieve(customerId) {
+        stripeCalls.push(`customers.retrieve:${customerId}`)
+        overrides.onCustomerRetrieve?.()
+        if (overrides.customerRetrieveGate) await overrides.customerRetrieveGate
+        if (overrides.customerRetrieveError) throw overrides.customerRetrieveError
+        return {
+          id: customerId,
+          deleted: false,
+          balance: currentBalance,
+          livemode,
+          ...(created ? overrides.readbackCustomerOverrides : null),
+        }
+      },
+      async createBalanceTransaction(customerId, payload, options) {
+        stripeCalls.push(`transactions.create:${customerId}`)
+        createAttempts += 1
+        stripeRequests.push(structuredClone({ customerId, payload, options }))
+        const firstForKey = !created
+        if (firstForKey) {
+          created = true
+          currentBalance -= amountCents
+        }
+        if (overrides.createErrorOnce && createAttempts === 1) throw overrides.createErrorOnce
+        return { id: "cbtxn_test" }
+      },
+      async retrieveBalanceTransaction(customerId, transactionId) {
+        stripeCalls.push(`transactions.retrieve:${customerId}:${transactionId}`)
+        transactionRetrieveAttempts += 1
+        if (overrides.transactionRetrieveErrorOnce && transactionRetrieveAttempts === 1) {
+          throw overrides.transactionRetrieveErrorOnce
+        }
+        return {
+          id: transactionId,
+          customer: customerId,
+          amount: -amountCents,
+          currency: "usd",
+          ending_balance: currentBalance,
+          livemode,
+          ...overrides.transactionOverrides,
+        }
+      },
+    },
+    subscriptions: {
+      async retrieve(subscriptionId) {
+        stripeCalls.push(`subscriptions.retrieve:${subscriptionId}`)
+        return { id: subscriptionId, customer: "cus_test", status: "active", livemode }
+      },
+    },
+    invoices: { async createPreview() { throw new Error("preview not used") } },
+  }
+
+  return { amountCents, billingState, prismaClient: database, state, stripeClient, stripeCalls, stripeRequests }
+}
+
+function adminUser(id) {
+  return {
+    id,
+    name: "Admin",
+    email: `${id}@example.test`,
+    emailVerified: new Date("2026-08-08T00:00:00.000Z"),
+    roles: [{ role: "ADMIN", status: "VERIFIED" }],
+  }
+}
+
+function targetUser(id, email) {
+  return { id, email, emailVerified: new Date("2026-08-08T00:00:00.000Z"), roles: [] }
+}
+
+function deferred() {
+  let resolve
+  const promise = new Promise((fulfill) => { resolve = fulfill })
+  return { promise, resolve }
+}
 
 async function assertPreviewRejection(fixture, expectedCode) {
   await assert.rejects(
