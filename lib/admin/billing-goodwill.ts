@@ -85,6 +85,8 @@ type BillingGoodwillMutationInput = {
   env?: NodeJS.ProcessEnv | Record<string, string | undefined>
   /** Injectable invocation clock used to enforce the bounded Stripe replay window. */
   now?: Date
+  /** Advancing clock used to recheck the replay margin immediately before mutation. */
+  clock?: () => Date
 }
 
 type BillingGoodwillOperation = {
@@ -123,8 +125,14 @@ type PreparedGoodwill = {
 const BILLING_GOODWILL_MIN_CENTS = 1
 const BILLING_GOODWILL_MAX_CENTS = 10_000
 const BILLING_GOODWILL_DESCRIPTION = "MassageLab billing goodwill"
-const STRIPE_IDEMPOTENCY_RETRY_WINDOW_MS = 24 * 60 * 60 * 1_000
-const RECONCILABLE_STATUSES = ["PREPARED", "APPLIED", "RECONCILIATION_REQUIRED"] as const
+const STRIPE_IDEMPOTENCY_RETRY_WINDOW_MS = (24 * 60 - 5) * 60 * 1_000
+export const BILLING_GOODWILL_UNRESOLVED_STATUSES = ["PREPARED", "APPLIED", "RECONCILIATION_REQUIRED"] as const
+export type BillingGoodwillUnresolvedStatus = (typeof BILLING_GOODWILL_UNRESOLVED_STATUSES)[number]
+
+/** Narrows persisted enum values to the shared operator-recovery state set. */
+export function isBillingGoodwillUnresolvedStatus(value: unknown): value is BillingGoodwillUnresolvedStatus {
+  return BILLING_GOODWILL_UNRESOLVED_STATUSES.includes(value as BillingGoodwillUnresolvedStatus)
+}
 
 type BillingGoodwillPrismaClient = Pick<
   PrismaClient,
@@ -236,7 +244,7 @@ export async function previewInvoiceCredit(input: {
 export async function applyInvoiceCredit(
   input: BillingGoodwillMutationInput,
 ): Promise<BillingGoodwillResult> {
-  const now = captureNow(input.now)
+  const now = readMutationClock(input)
   validateMutationInput(input)
   const prepared = await prepareGoodwillOperation(input, false)
   if (prepared.operation.status === "VERIFIED") {
@@ -260,7 +268,7 @@ export async function applyInvoiceCredit(
 export async function reconcileInvoiceCredit(
   input: BillingGoodwillMutationInput,
 ): Promise<BillingGoodwillResult> {
-  const now = captureNow(input.now)
+  const now = readMutationClock(input)
   validateMutationInput(input)
   const prepared = await prepareGoodwillOperation(input, true)
   if (prepared.blocked) return unresolvedReplayResult(prepared.operation)
@@ -301,11 +309,11 @@ async function prepareGoodwillOperation(
       } else if (existingAction) {
         throw operationKeyInUse()
       }
-      if (reconciliationOnly && !RECONCILABLE_STATUSES.includes(existing.status as (typeof RECONCILABLE_STATUSES)[number])) {
+      if (reconciliationOnly && !BILLING_GOODWILL_UNRESOLVED_STATUSES.includes(existing.status as (typeof BILLING_GOODWILL_UNRESOLVED_STATUSES)[number])) {
         throw mutationError("OPERATION_NOT_RECONCILABLE", "This billing goodwill operation no longer requires reconciliation.")
       }
       if (reconciliationOnly
-        && RECONCILABLE_STATUSES.includes(existing.status as (typeof RECONCILABLE_STATUSES)[number])
+        && BILLING_GOODWILL_UNRESOLVED_STATUSES.includes(existing.status as (typeof BILLING_GOODWILL_UNRESOLVED_STATUSES)[number])
         && existing.stripeBalanceTransactionId === null) {
         let billing: { customerId: string; subscriptionId: string }
         try {
@@ -373,7 +381,7 @@ async function executeGoodwillRequest(
       const unresolved = await persistGoodwillState(input.prismaClient, operation.id, {
         status: "RECONCILIATION_REQUIRED",
         failureCode: "PERSISTED_TRANSACTION_ID_INVALID",
-      }, [...RECONCILABLE_STATUSES])
+      }, [...BILLING_GOODWILL_UNRESOLVED_STATUSES])
       return settlePersistedOutcome(input, unresolved, prepared)
     }
     return readbackAndFinalizeGoodwill(
@@ -388,7 +396,7 @@ async function executeGoodwillRequest(
     const unresolved = await persistGoodwillState(input.prismaClient, operation.id, {
       status: "RECONCILIATION_REQUIRED",
       failureCode: "IDEMPOTENCY_RETRY_WINDOW_EXPIRED",
-    }, [...RECONCILABLE_STATUSES])
+    }, [...BILLING_GOODWILL_UNRESOLVED_STATUSES])
     return settlePersistedOutcome(input, unresolved, prepared)
   }
 
@@ -403,12 +411,13 @@ async function executeGoodwillRequest(
 
   try {
     const rawSubscription = await input.stripeClient.subscriptions.retrieve(operation.stripeSubscriptionId)
-    parseStripeSubscription(
+    const subscription = parseStripeSubscription(
       rawSubscription,
       operation.stripeSubscriptionId,
       operation.stripeCustomerId,
       customer.livemode,
     )
+    if (subscription.currency !== "usd") throw new Error("non-USD subscription")
   } catch {
     const failed = await persistPreCallFailure(input.prismaClient, operation, "STRIPE_SUBSCRIPTION_INVALID", prepared.replayed)
     return settlePersistedOutcome(input, failed, prepared)
@@ -423,6 +432,14 @@ async function executeGoodwillRequest(
     && currentCreditCents !== operation.startingBalanceCents) {
     const failed = await persistPreCallFailure(input.prismaClient, operation, "STARTING_CREDIT_CHANGED", false)
     return settlePersistedOutcome(input, failed, prepared)
+  }
+
+  if (prepared.replayed && !isInsideStripeRetryWindow(operation.createdAt, readMutationClock(input))) {
+    const unresolved = await persistGoodwillState(input.prismaClient, operation.id, {
+      status: "RECONCILIATION_REQUIRED",
+      failureCode: "IDEMPOTENCY_RETRY_WINDOW_EXPIRED",
+    }, [...BILLING_GOODWILL_UNRESOLVED_STATUSES])
+    return settlePersistedOutcome(input, unresolved, prepared)
   }
 
   let createdTransactionId: string
@@ -440,7 +457,7 @@ async function executeGoodwillRequest(
     const unresolved = await persistGoodwillState(input.prismaClient, operation.id, {
       status: "RECONCILIATION_REQUIRED",
       failureCode: "STRIPE_CREATE_OUTCOME_UNKNOWN",
-    }, [...RECONCILABLE_STATUSES])
+    }, [...BILLING_GOODWILL_UNRESOLVED_STATUSES])
     return settlePersistedOutcome(input, unresolved, prepared)
   }
 
@@ -451,12 +468,12 @@ async function executeGoodwillRequest(
       stripeBalanceTransactionId: createdTransactionId,
       failureCode: null,
       appliedAt: new Date(),
-    }, [...RECONCILABLE_STATUSES])
+    }, [...BILLING_GOODWILL_UNRESOLVED_STATUSES])
   } catch {
     const unresolved = await persistGoodwillState(input.prismaClient, operation.id, {
       status: "RECONCILIATION_REQUIRED",
       failureCode: "LOCAL_APPLIED_WRITE_FAILED",
-    }, [...RECONCILABLE_STATUSES])
+    }, [...BILLING_GOODWILL_UNRESOLVED_STATUSES])
     return settlePersistedOutcome(input, unresolved, prepared)
   }
 
@@ -776,7 +793,7 @@ async function persistPreCallFailure(
   return persistGoodwillState(prismaClient, operation.id, {
     status: definitelyNotMutated ? "FAILED_BEFORE_MUTATION" : "RECONCILIATION_REQUIRED",
     failureCode,
-  }, [...RECONCILABLE_STATUSES])
+  }, [...BILLING_GOODWILL_UNRESOLVED_STATUSES])
 }
 
 async function persistGoodwillState(
@@ -845,7 +862,9 @@ function liveGateFailureCode(env: BillingGoodwillMutationInput["env"]): string |
     return "STRIPE_KEY_INVALID"
   }
   if (isLiveSecretKey(secretKey)
-    && (env?.NODE_ENV !== "production" || env?.ADMIN_BILLING_GOODWILL_LIVE_ENABLED !== "true")) {
+    && (env?.NODE_ENV !== "production"
+      || env?.VERCEL_ENV !== "production"
+      || env?.ADMIN_BILLING_GOODWILL_LIVE_ENABLED !== "true")) {
     return "LIVE_STRIPE_DISABLED"
   }
   return null
@@ -859,6 +878,11 @@ function captureNow(value?: Date): Date {
   const now = value === undefined ? new Date() : new Date(value)
   if (!Number.isFinite(now.getTime())) throw new Error("Provide a valid operation time.")
   return now
+}
+
+/** Reads an advancing injected clock when present; fixed `now` remains deterministic for tests. */
+function readMutationClock(input: Pick<BillingGoodwillMutationInput, "clock" | "now">): Date {
+  return captureNow(input.clock ? input.clock() : input.now)
 }
 
 function isInsideStripeRetryWindow(createdAt: Date, now: Date): boolean {
@@ -955,7 +979,10 @@ function parseStripeSubscription(
     || value.livemode !== expectedLivemode) {
     throw previewError("STRIPE_SUBSCRIPTION_INVALID")
   }
-  return { status: value.status }
+  return {
+    status: value.status,
+    currency: typeof value.currency === "string" ? value.currency : null,
+  }
 }
 
 function parseStripeInvoicePreview(value: unknown, expectedCustomerId: string, expectedLivemode: boolean) {

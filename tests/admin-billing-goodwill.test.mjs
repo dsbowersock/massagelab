@@ -4,7 +4,9 @@ import { describe, it } from "node:test"
 import {
   BillingGoodwillMutationError,
   BillingGoodwillPreviewError,
+  BILLING_GOODWILL_UNRESOLVED_STATUSES,
   applyInvoiceCredit,
+  isBillingGoodwillUnresolvedStatus,
   previewInvoiceCredit,
   reconcileInvoiceCredit,
 } from "../lib/admin/billing-goodwill.ts"
@@ -28,6 +30,12 @@ describe("Admin billing-goodwill ledger", () => {
     assert.match(migrationSource, /"idempotencyKey" TEXT NOT NULL/)
     assert.match(migrationSource, /"stripeBalanceTransactionId" TEXT/)
     assert.match(migrationSource, /ON DELETE RESTRICT ON UPDATE CASCADE/g)
+  })
+
+  it("exports one canonical unresolved set for prepared, applied, and reconciliation-required operations", () => {
+    assert.deepEqual(BILLING_GOODWILL_UNRESOLVED_STATUSES, ["PREPARED", "APPLIED", "RECONCILIATION_REQUIRED"])
+    assert.equal(isBillingGoodwillUnresolvedStatus("APPLIED"), true)
+    assert.equal(isBillingGoodwillUnresolvedStatus("VERIFIED"), false)
   })
 })
 
@@ -449,11 +457,11 @@ describe("Admin invoice-credit mutation and reconciliation", () => {
     assert.equal(fixture.stripeRequests.length, 0)
   })
 
-  it("reissues an ambiguous no-ID request only inside the conservative 24-hour window", async () => {
+  it("reissues an ambiguous no-ID request only before the conservative retry margin", async () => {
     const cases = [
-      { label: "just inside", now: "2026-08-08T23:59:59.999Z", expectedStatus: "VERIFIED", expectedRequests: 2, expectedCode: null },
-      { label: "exact boundary", now: "2026-08-09T00:00:00.000Z", expectedStatus: "RECONCILIATION_REQUIRED", expectedRequests: 1, expectedCode: "IDEMPOTENCY_RETRY_WINDOW_EXPIRED" },
-      { label: "outside", now: "2026-08-09T00:00:00.001Z", expectedStatus: "RECONCILIATION_REQUIRED", expectedRequests: 1, expectedCode: "IDEMPOTENCY_RETRY_WINDOW_EXPIRED" },
+      { label: "just inside", now: "2026-08-08T23:54:59.999Z", expectedStatus: "VERIFIED", expectedRequests: 2, expectedCode: null },
+      { label: "exact conservative boundary", now: "2026-08-08T23:55:00.000Z", expectedStatus: "RECONCILIATION_REQUIRED", expectedRequests: 1, expectedCode: "IDEMPOTENCY_RETRY_WINDOW_EXPIRED" },
+      { label: "outside", now: "2026-08-08T23:55:00.001Z", expectedStatus: "RECONCILIATION_REQUIRED", expectedRequests: 1, expectedCode: "IDEMPOTENCY_RETRY_WINDOW_EXPIRED" },
     ]
 
     for (const testCase of cases) {
@@ -466,6 +474,38 @@ describe("Admin invoice-credit mutation and reconciliation", () => {
       assert.equal(fixture.stripeRequests.length, testCase.expectedRequests, testCase.label)
       assert.equal(fixture.state.operations.get("billing-op-1").failureCode, testCase.expectedCode, testCase.label)
     }
+  })
+
+  it("re-reads the clock after provider reads and never creates when the conservative margin expires", async () => {
+    const fixture = createMutationFixture()
+    seedUnresolvedOperation(fixture, { status: "PREPARED", stripeBalanceTransactionId: null })
+    const times = [
+      new Date("2026-08-08T23:54:59.000Z"),
+      new Date("2026-08-08T23:55:00.000Z"),
+    ]
+
+    const result = await reconcile(fixture, { now: undefined, clock: () => times.shift() ?? new Date("2026-08-08T23:55:00.000Z") })
+
+    assert.equal(result.status, "RECONCILIATION_REQUIRED")
+    assert.equal(fixture.state.operations.get("billing-op-1").failureCode, "IDEMPOTENCY_RETRY_WINDOW_EXPIRED")
+    assert.equal(fixture.stripeCalls.includes("customers.retrieve:cus_test"), true)
+    assert.equal(fixture.stripeCalls.includes("subscriptions.retrieve:sub_test"), true)
+    assert.equal(fixture.stripeRequests.length, 0)
+  })
+
+  it("recovers realistic PREPARED and APPLIED crashes through the original operation", async () => {
+    const prepared = createMutationFixture()
+    seedUnresolvedOperation(prepared, { status: "PREPARED", stripeBalanceTransactionId: null })
+    const preparedResult = await reconcile(prepared)
+    assert.equal(preparedResult.status, "VERIFIED")
+    assert.equal(prepared.stripeRequests.length, 1)
+
+    const applied = createMutationFixture({ customerBalance: -800 })
+    seedUnresolvedOperation(applied, { status: "APPLIED", stripeBalanceTransactionId: "cbtxn_test" })
+    const appliedResult = await reconcile(applied)
+    assert.equal(appliedResult.status, "VERIFIED")
+    assert.equal(applied.stripeRequests.length, 0)
+    assert.equal(applied.stripeCalls.includes("transactions.retrieve:cus_test:cbtxn_test"), true)
   })
 
   it("marks failed authoritative readback RECONCILIATION_REQUIRED without notifying", async () => {
@@ -567,6 +607,8 @@ describe("Admin invoice-credit mutation and reconciliation", () => {
     for (const env of [
       { STRIPE_SECRET_KEY: "sk_live_example", NODE_ENV: "development", ADMIN_BILLING_GOODWILL_LIVE_ENABLED: "true" },
       { STRIPE_SECRET_KEY: "sk_live_example", NODE_ENV: "production" },
+      { STRIPE_SECRET_KEY: "sk_live_example", NODE_ENV: "production", VERCEL_ENV: "preview", ADMIN_BILLING_GOODWILL_LIVE_ENABLED: "true" },
+      { STRIPE_SECRET_KEY: "sk_live_example", NODE_ENV: "production", ADMIN_BILLING_GOODWILL_LIVE_ENABLED: "true" },
     ]) {
       const fixture = createMutationFixture()
       const result = await apply(fixture, { env })
@@ -577,9 +619,19 @@ describe("Admin invoice-credit mutation and reconciliation", () => {
 
     const allowed = createMutationFixture({ livemode: true })
     const result = await apply(allowed, {
-      env: { STRIPE_SECRET_KEY: "sk_live_example", NODE_ENV: "production", ADMIN_BILLING_GOODWILL_LIVE_ENABLED: "true" },
+      env: { STRIPE_SECRET_KEY: "sk_live_example", NODE_ENV: "production", VERCEL_ENV: "production", ADMIN_BILLING_GOODWILL_LIVE_ENABLED: "true" },
     })
     assert.equal(result.status, "VERIFIED")
+  })
+
+  it("fails a direct stale-form mutation when the authoritative subscription is not USD", async () => {
+    const fixture = createMutationFixture({ subscriptionCurrency: "eur" })
+
+    const result = await apply(fixture)
+
+    assert.equal(result.status, "FAILED_BEFORE_MUTATION")
+    assert.equal(fixture.state.operations.get("billing-op-1").failureCode, "STRIPE_SUBSCRIPTION_INVALID")
+    assert.equal(fixture.stripeRequests.length, 0)
   })
 
   it("rolls back local preparation failures and retries serializable conflicts without enclosing Stripe", async () => {
@@ -890,13 +942,37 @@ function createMutationFixture(overrides = {}) {
     subscriptions: {
       async retrieve(subscriptionId) {
         stripeCalls.push(`subscriptions.retrieve:${subscriptionId}`)
-        return { id: subscriptionId, customer: "cus_test", status: "active", livemode }
+        return { id: subscriptionId, customer: "cus_test", status: "active", livemode, currency: overrides.subscriptionCurrency ?? "usd" }
       },
     },
     invoices: { async createPreview() { throw new Error("preview not used") } },
   }
 
   return { amountCents, billingState, prismaClient: database, state, stripeClient, stripeCalls, stripeRequests }
+}
+
+function seedUnresolvedOperation(fixture, { status, stripeBalanceTransactionId }) {
+  fixture.state.operations.set("billing-op-1", {
+    id: "goodwill-1",
+    actorUserId: "admin-1",
+    targetUserId: "user-1",
+    idempotencyKey: "billing-op-1",
+    reasonCode: "BILLING_GOODWILL",
+    internalNote: "Courtesy invoice credit after a support review.",
+    amountCents: fixture.amountCents,
+    currency: "usd",
+    stripeCustomerId: "cus_test",
+    stripeSubscriptionId: "sub_test",
+    stripeBalanceTransactionId,
+    startingBalanceCents: 300,
+    endingBalanceCents: null,
+    status,
+    failureCode: null,
+    appliedAt: status === "APPLIED" ? new Date("2026-08-08T00:01:00.000Z") : null,
+    verifiedAt: null,
+    createdAt: new Date("2026-08-08T00:00:00.000Z"),
+    updatedAt: new Date("2026-08-08T00:01:00.000Z"),
+  })
 }
 
 function adminUser(id) {

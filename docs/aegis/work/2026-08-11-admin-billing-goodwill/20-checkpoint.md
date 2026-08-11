@@ -27,9 +27,12 @@
 - Completed Task 21 non-live implementation: Admin billing controls/actions, unresolved operation evidence and metrics, presentation-only browser contracts, QA mutation guards, and canonical documentation.
 - Completed Task 21 reviews: spec approved after fresh reconciliation confirmations/truthful outcome copy; quality approved after stabilizing live feedback and connecting server-side QA read-only guards.
 - Completed Task 21 coordinator automated validation: Prisma generate/validate, 225/225 focused/adjacent tests, typecheck, lint, full unit 2,421 passed/one intentional skip, production build 104 pages, and diff check passed.
-- Pending: Task 21 commit/readback; whole-branch review/corrections; explicit Stripe test Customer/subscription input and test-sink authorization; PR loop; user-controlled merge/live-smoke gates.
+- Completed Task 21 commit/readback: `17c41a824b873773551213ee8d3be9081ee3ebe8` (`feat: add admin billing goodwill controls`), twenty expected files, clean worktree.
+- Completed whole-branch review and correction: crash-window visibility, pre-create retry margin, Vercel Production live gating, and authoritative USD validation are fixed; scoped re-review returned READY.
+- Completed correction validation: implementer full unit 2,427 passed/one intentional skip, build 104 pages, typecheck/lint/Prisma validation/diff check; coordinator focused 250/250 plus typecheck/diff check passed.
+- Pending: correction commit/readback; explicit Stripe test Customer/subscription input and test-sink authorization; terminal validation; PR loop; user-controlled merge/live-smoke gates.
 - Blocked on: nothing currently.
-- Next: commit/read back Task 21, complete a whole-branch review, then stop for explicit test Customer/subscription selection before any Stripe test mutation.
+- Next: commit/read back whole-branch corrections, then stop for explicit test Customer/subscription selection before any Stripe test mutation.
 
 ## ResumeStateHint
 
@@ -42,5 +45,5 @@ Resume only from this worktree and checkpoint. Re-read `10-intent.md`, refreshed
 - Compatibility: existing billing, entitlement, security, and Admin owners remain preserved.
 - New owner/fallback: the planned billing-goodwill ledger is the only new persistence owner; Stripe remains authoritative and no fallback invents external success.
 - Retirement: retired custom-color entitlement remains excluded.
-- Evidence state: merge/base/worktree, setup/baseline, Tasks 19-20 commits, and Task 21 RED/GREEN/reviews/fresh automated validation are present.
+- Evidence state: merge/base/worktree, setup/baseline, Tasks 19-21 commits, whole-branch RED/GREEN corrections, READY re-review, and fresh validation are present.
 - Decision: continue.

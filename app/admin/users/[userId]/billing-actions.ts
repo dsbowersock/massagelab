@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { requireFullAdminUser } from "@/lib/admin/access"
 import {
+  BILLING_GOODWILL_UNRESOLVED_STATUSES,
   applyInvoiceCredit,
   reconcileInvoiceCredit,
   type BillingGoodwillResult,
@@ -139,7 +140,7 @@ export async function reconcileBillingGoodwillAction(
 /** Loads only the stored immutable inputs needed for one route-owned replay. */
 function loadReconciliationOperation(operationId: string, targetUserId: string) {
   return prisma.adminBillingGoodwillOperation.findFirst({
-    where: { id: operationId, targetUserId, status: "RECONCILIATION_REQUIRED" },
+    where: { id: operationId, targetUserId, status: { in: [...BILLING_GOODWILL_UNRESOLVED_STATUSES] } },
     select: {
       id: true,
       targetUserId: true,

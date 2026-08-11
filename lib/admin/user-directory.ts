@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient, Role, VerificationStatus } from "@prisma/client"
 import { normalizeRoleAssignments } from "../account-permissions.js"
+import { BILLING_GOODWILL_UNRESOLVED_STATUSES } from "./billing-goodwill.ts"
 import { activeMembershipSubscriptionWhere } from "./subscription-activity.ts"
 import { ADMIN_GRANTABLE_FEATURE_KEYS } from "./temporary-access-contract.ts"
 
@@ -161,7 +162,9 @@ export async function getAdminUserMetrics(input: { prismaClient: DirectoryPrisma
     }),
     input.prismaClient.commerceOrder.count({ where: unresolvedCommerceWhere() }),
     input.prismaClient.adminEmailIntent.count({ where: { status: { in: UNRESOLVED_EMAIL_STATUSES } } }),
-    input.prismaClient.adminBillingGoodwillOperation.count({ where: { status: "RECONCILIATION_REQUIRED" } }),
+    input.prismaClient.adminBillingGoodwillOperation.count({
+      where: { status: { in: [...BILLING_GOODWILL_UNRESOLVED_STATUSES] } },
+    }),
     input.prismaClient.temporaryFeatureGrant.count({ where: activeTemporaryGrantWhere(now) }),
     input.prismaClient.temporaryFeatureGrant.count({
       where: {
@@ -199,7 +202,9 @@ const ADMIN_USER_DIRECTORY_SELECT = {
     select: {
       commerceOrders: { where: unresolvedCommerceWhere() },
       adminEmailIntents: { where: { status: { in: UNRESOLVED_EMAIL_STATUSES } } },
-      billingGoodwillOperationsAsTarget: { where: { status: "RECONCILIATION_REQUIRED" } },
+      billingGoodwillOperationsAsTarget: {
+        where: { status: { in: [...BILLING_GOODWILL_UNRESOLVED_STATUSES] } },
+      },
     },
   },
 } satisfies Prisma.UserSelect
@@ -287,7 +292,9 @@ function unresolvedUserWhere(): Prisma.UserWhereInput {
     OR: [
       { commerceOrders: { some: unresolvedCommerceWhere() } },
       { adminEmailIntents: { some: { status: { in: UNRESOLVED_EMAIL_STATUSES } } } },
-      { billingGoodwillOperationsAsTarget: { some: { status: "RECONCILIATION_REQUIRED" } } },
+      { billingGoodwillOperationsAsTarget: {
+        some: { status: { in: [...BILLING_GOODWILL_UNRESOLVED_STATUSES] } },
+      } },
     ],
   }
 }

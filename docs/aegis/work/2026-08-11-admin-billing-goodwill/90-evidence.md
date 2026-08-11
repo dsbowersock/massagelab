@@ -44,10 +44,21 @@
 - Full-suite integration RED found one compiled security-page harness missing the new billing import doubles. Test-only GREEN added faithful resolution-only doubles; focused security plus Task 21 tests passed 28/28.
 - Fresh coordinator automated validation: Prisma generate and validate passed; focused/adjacent tests passed 225/225; typecheck passed; lint passed with only the existing Chimer Babel large-file note; full unit suite passed 2,421 with one intentional skip and zero failures; production build generated 104/104 pages; `git diff --check` passed.
 - Real browser QA was correctly skipped because `DATABASE_URL` was absent and `MASSAGELAB_BROWSER_QA_DATABASE` was not `1`. No Stripe network call, balance transaction, live/test database mutation, or email delivery occurred.
+- Task 21 commit/readback: `17c41a824b873773551213ee8d3be9081ee3ebe8` (`feat: add admin billing goodwill controls`); twenty expected files; post-commit worktree clean and commit diff check passed.
+
+## Whole-branch correction review
+
+- Whole-branch review found four Important pre-proof gaps: PREPARED/APPLIED crash states were invisible downstream; the no-ID retry check could age past Stripe's retention boundary before create; Vercel Preview could satisfy the live gate through `NODE_ENV` alone; and mutation-time subscription currency was not revalidated.
+- Strict RED covered the missing canonical unresolved set and PREPARED actionability, advancing-clock retry expiry, missing/preview `VERCEL_ENV` denial, and authoritative EUR subscription rejection.
+- GREEN exports one canonical PREPARED/APPLIED/RECONCILIATION_REQUIRED set used by service/action/detail/directory/dashboard/docs; detail reads 26 and renders the newest 25 with truthful truncation and no Stripe IDs.
+- No-ID reissue now requires age below 23h55m and performs a fresh clock read immediately before create. Live mutation requires `NODE_ENV=production`, `VERCEL_ENV=production`, and the explicit flag. Authoritative mutation subscription currency must be USD before create.
+- Independent whole-branch re-review returned READY. Fresh reviewer evidence: 112/112 focused tests, typecheck, lint, and diff check passed.
+- Implementer validation: relevant 246/246; full unit 2,427 passed with one intentional skip; typecheck, Prisma validation, lint, production build 104 pages, and diff check passed.
+- Fresh coordinator correction validation: 250/250 focused/adjacent tests, typecheck, and diff check passed.
 
 ## Pending evidence
 
-- Task 21 commit/readback and whole-branch review/corrections.
+- Whole-branch correction commit/readback.
 - Explicit selection/authorization for the planned Stripe test Customer/subscription integration proof and test sink.
 - Terminal validation and PR loop.
 - Separately authorized live Stripe smoke remains outside the implementation gate.

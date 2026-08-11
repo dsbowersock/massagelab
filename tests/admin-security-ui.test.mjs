@@ -143,11 +143,15 @@ function detailPageHarness() {
       "@/components/ui/button": {},
       "@/components/ui/card": {},
       "@/lib/admin/access": {},
-      "@/lib/admin/billing-goodwill": { previewInvoiceCredit: async () => null },
+      "@/lib/admin/billing-goodwill": {
+        BILLING_GOODWILL_UNRESOLVED_STATUSES: ["PREPARED", "APPLIED", "RECONCILIATION_REQUIRED"],
+        isBillingGoodwillUnresolvedStatus: (value) => ["PREPARED", "APPLIED", "RECONCILIATION_REQUIRED"].includes(value),
+        previewInvoiceCredit: async () => null,
+      },
       "@/lib/admin/browser-billing-goodwill-preview": { browserBillingGoodwillPreviewClient: () => null },
       "./billing-goodwill-form": {
-        BillingGoodwillControls: ({ userId, preview, reconciliations }) => (
-          createElement("billing-goodwill-controls", { userId, preview, reconciliations })
+        BillingGoodwillControls: ({ userId, preview, reconciliations, reconciliationsTruncated }) => (
+          createElement("billing-goodwill-controls", { userId, preview, reconciliations, reconciliationsTruncated })
         ),
       },
       "./credit-action-form": {},

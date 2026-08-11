@@ -35,7 +35,11 @@ import {
   type AdminGrantableFeatureKey,
 } from "@/lib/admin/temporary-access-contract"
 import { prisma } from "@/lib/prisma"
-import { previewInvoiceCredit } from "@/lib/admin/billing-goodwill"
+import {
+  BILLING_GOODWILL_UNRESOLVED_STATUSES,
+  isBillingGoodwillUnresolvedStatus,
+  previewInvoiceCredit,
+} from "@/lib/admin/billing-goodwill"
 import { browserBillingGoodwillPreviewClient } from "@/lib/admin/browser-billing-goodwill-preview"
 import { getStripeClient } from "@/lib/stripe-billing"
 
@@ -426,7 +430,11 @@ function BillingSection({
 }: {
   detail: Record<string, unknown>
   userId: string
-  billingGoodwill: { preview: BillingGoodwillPresentation | null; reconciliations: BillingGoodwillReconciliation[] } | null
+  billingGoodwill: {
+    preview: BillingGoodwillPresentation | null
+    reconciliations: BillingGoodwillReconciliation[]
+    reconciliationsTruncated: boolean
+  } | null
 }) {
   const commerce = isRecord(detail.commerce) ? detail.commerce : {}
   const orders = Array.isArray(commerce.recentOrders) ? commerce.recentOrders as BillingOrder[] : []
@@ -437,6 +445,7 @@ function BillingSection({
         userId={userId}
         preview={billingGoodwill?.preview ?? null}
         reconciliations={billingGoodwill?.reconciliations ?? []}
+        reconciliationsTruncated={billingGoodwill?.reconciliationsTruncated ?? false}
       />
       <div className="space-y-2">
         <h3 className="font-medium">Recent commerce orders</h3>
@@ -466,30 +475,37 @@ async function loadBillingGoodwillPresentation(
   targetUserId: string,
   target: { name: string | null; email: string | null },
   detail: Record<string, unknown>,
-): Promise<{ preview: BillingGoodwillPresentation | null; reconciliations: BillingGoodwillReconciliation[] }> {
+): Promise<{
+  preview: BillingGoodwillPresentation | null
+  reconciliations: BillingGoodwillReconciliation[]
+  reconciliationsTruncated: boolean
+}> {
   const reconciliationRows = await prisma.adminBillingGoodwillOperation.findMany({
-    where: { targetUserId, status: "RECONCILIATION_REQUIRED" },
+    where: { targetUserId, status: { in: [...BILLING_GOODWILL_UNRESOLVED_STATUSES] } },
     select: {
       id: true,
+      status: true,
       amountCents: true,
       startingBalanceCents: true,
       failureCode: true,
       createdAt: true,
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    take: 25,
+    take: 26,
   })
+  const reconciliationsTruncated = reconciliationRows.length > 25
   const targetEmail = normalizeEmail(target.email)
-  const reconciliations = reconciliationRows.map((operation) => ({
+  const reconciliations = reconciliationRows.slice(0, 25).flatMap((operation) => isBillingGoodwillUnresolvedStatus(operation.status) ? [{
     operationId: operation.id,
     confirmationNonce: randomUUID(),
     targetEmail,
+    status: operation.status,
     amountCents: operation.amountCents,
     startingCreditCents: operation.startingBalanceCents,
     failureCode: operation.failureCode,
     createdAt: operation.createdAt.toISOString(),
-  }))
-  if (!isUsableEmail(targetEmail)) return { preview: null, reconciliations }
+  }] : [])
+  if (!isUsableEmail(targetEmail)) return { preview: null, reconciliations, reconciliationsTruncated }
 
   try {
     const stripeClient = browserBillingGoodwillPreviewClient(targetUserId) ?? getStripeClient()
@@ -508,9 +524,10 @@ async function loadBillingGoodwillPresentation(
         projectedNextInvoiceCents: evidence.projectedNextInvoiceCents,
       },
       reconciliations,
+      reconciliationsTruncated,
     }
   } catch {
-    return { preview: null, reconciliations }
+    return { preview: null, reconciliations, reconciliationsTruncated }
   }
 }
 

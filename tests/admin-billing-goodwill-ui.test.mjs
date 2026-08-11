@@ -68,13 +68,20 @@ describe("Admin billing-goodwill UI", () => {
     assert.match(formSource, /useFormStatus/)
     assert.match(formSource, /const \[applyState, applyAction/)
     assert.match(formSource, /const \[reconcileState, reconcileAction/)
+    assert.match(pageSource, /BILLING_GOODWILL_UNRESOLVED_STATUSES/)
+    assert.match(actionSource, /BILLING_GOODWILL_UNRESOLVED_STATUSES/)
+    assert.match(directorySource, /BILLING_GOODWILL_UNRESOLVED_STATUSES/)
+    assert.match(pageSource, /take: 26/)
+    assert.match(pageSource, /slice\(0, 25\)/)
+    assert.match(formSource, /reconciliationsTruncated/)
+    assert.match(formSource, /Recovery evidence is limited to the newest 25 unresolved operations/)
     assert.match(formSource, /aria-live="polite"/)
     assert.match(formSource, /aria-live="assertive"/)
   })
 
   it("counts unresolved goodwill without exposing Stripe identifiers in directory rows", () => {
     assert.match(directorySource, /adminBillingGoodwillOperation/)
-    assert.match(directorySource, /RECONCILIATION_REQUIRED/)
+    assert.match(directorySource, /BILLING_GOODWILL_UNRESOLVED_STATUSES/)
     assert.match(directorySource, /billingGoodwillOperationsAsTarget/)
     assert.match(directoryPageSource, /Unresolved billing goodwill/)
     assert.match(dashboardSource, /unresolvedBillingGoodwillOperations/)
@@ -117,6 +124,40 @@ describe("Admin billing-goodwill UI", () => {
     }))
     assert.match(elementText(tree), /Apply outcome survived/)
     assert.match(elementText(tree), /Reconcile outcome survived/)
+  })
+
+  it("shows the local recovery state and truthful newest-25 truncation warning without provider identifiers", () => {
+    const compiled = loadCompiledModule(formSource, "app/admin/users/[userId]/billing-goodwill-form.recovery.test.tsx", {
+      react: {
+        useActionState: () => [idleState, () => {}, false],
+        useId: () => "billing-form",
+        useState: (initialValue) => [initialValue, () => {}],
+      },
+      "react-dom": { useFormStatus: () => ({ pending: false }) },
+      "react/jsx-runtime": { Fragment: "fragment", jsx: createElement, jsxs: createElement },
+      "@/components/ui/button": { Button: passThroughElement("button") },
+      "@/lib/admin/operation-contract": { ADMIN_REASON_CODES: ["BILLING_GOODWILL"] },
+      "./billing-actions": { applyBillingGoodwillAction() {}, reconcileBillingGoodwillAction() {} },
+    })
+    const tree = renderFunctionComponents(compiled.BillingGoodwillControls({
+      userId: "user-1",
+      preview: null,
+      reconciliations: [{
+        operationId: "operation-prepared",
+        confirmationNonce: "fresh-nonce",
+        targetEmail: "user@example.test",
+        status: "PREPARED",
+        amountCents: 200,
+        startingCreditCents: 300,
+        failureCode: null,
+        createdAt: "2026-08-08T00:00:00.000Z",
+      }],
+      reconciliationsTruncated: true,
+    }))
+    const text = elementText(tree)
+    assert.match(text, /Recovery statePREPARED/)
+    assert.match(text, /Recovery evidence is limited to the newest 25 unresolved operations/)
+    assert.doesNotMatch(text, /cus_|sub_|cbtxn_/)
   })
 
   it("enables the read-only browser preview only for opted-in disposable identities outside Vercel Production", async () => {
@@ -199,6 +240,16 @@ describe("Admin billing-goodwill UI", () => {
     assert.equal(call[1].targetUserId, "user-1")
     assert.equal(call[1].idempotencyKey, "stored-stripe-key")
     assert.equal(harness.calls.filter(([name]) => name === "reconcileInvoiceCredit").length, 1)
+  })
+
+  it("admits PREPARED, APPLIED, and RECONCILIATION_REQUIRED recovery rows through one canonical query", async () => {
+    for (const status of ["PREPARED", "APPLIED", "RECONCILIATION_REQUIRED"]) {
+      const harness = actionHarness({ operationRow: { status } })
+      const result = await harness.actions.reconcileBillingGoodwillAction("user-1", idleState, reconcileForm())
+      assert.equal(result.status, "success", status)
+      const query = harness.calls.find(([name]) => name === "findFirst")[1]
+      assert.deepEqual(query.where.status, { in: ["PREPARED", "APPLIED", "RECONCILIATION_REQUIRED"] })
+    }
   })
 
   it("requires exact fresh reconciliation email and stored amount confirmation before service invocation", async () => {
@@ -288,13 +339,16 @@ function actionHarness({
     adminBillingGoodwillOperation: {
       async findFirst(input) {
         calls.push(["findFirst", input])
-        return {
+        const row = {
           id: "operation-row",
           targetUserId: "user-1", amountCents: 200, startingBalanceCents: 300,
+          status: "RECONCILIATION_REQUIRED",
           reasonCode: "BILLING_GOODWILL", internalNote: null, idempotencyKey: "stored-stripe-key",
           target: { email: "user@example.test" },
           ...operationRow,
         }
+        const acceptedStatuses = input.where.status?.in ?? [input.where.status]
+        return acceptedStatuses.includes(row.status) ? row : null
       },
     },
   }
@@ -302,6 +356,7 @@ function actionHarness({
     "next/cache": { revalidatePath(path) { calls.push(["revalidatePath", path]) } },
     "@/lib/admin/access": { async requireFullAdminUser() { calls.push(["requireFullAdminUser"]); return { id: "admin-1" } } },
     "@/lib/admin/billing-goodwill": {
+      BILLING_GOODWILL_UNRESOLVED_STATUSES: ["PREPARED", "APPLIED", "RECONCILIATION_REQUIRED"],
       async applyInvoiceCredit(input) { calls.push(["applyInvoiceCredit", input]); return applyResult },
       async reconcileInvoiceCredit(input) { calls.push(["reconcileInvoiceCredit", input]); return reconcileResult },
     },

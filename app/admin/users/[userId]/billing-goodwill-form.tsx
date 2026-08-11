@@ -4,6 +4,7 @@ import { useActionState, useId, useState } from "react"
 import { useFormStatus } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { ADMIN_REASON_CODES } from "@/lib/admin/operation-contract"
+import type { BillingGoodwillUnresolvedStatus } from "@/lib/admin/billing-goodwill"
 import {
   applyBillingGoodwillAction,
   reconcileBillingGoodwillAction,
@@ -34,6 +35,7 @@ export type BillingGoodwillReconciliation = {
   operationId: string
   confirmationNonce: string
   targetEmail: string
+  status: BillingGoodwillUnresolvedStatus
   amountCents: number
   startingCreditCents: number
   failureCode: string | null
@@ -45,10 +47,12 @@ export function BillingGoodwillControls({
   userId,
   preview,
   reconciliations,
+  reconciliationsTruncated = false,
 }: {
   userId: string
   preview: BillingGoodwillPresentation | null
   reconciliations: BillingGoodwillReconciliation[]
+  reconciliationsTruncated?: boolean
 }) {
   const [applyState, applyAction] = useActionState(applyBillingGoodwillAction.bind(null, userId), INITIAL_STATE)
   const [reconcileState, reconcileAction] = useActionState(reconcileBillingGoodwillAction.bind(null, userId), INITIAL_STATE)
@@ -65,6 +69,7 @@ export function BillingGoodwillControls({
       {reconciliations.map((operation) => (
         <ReconciliationCard key={`${operation.operationId}:${operation.confirmationNonce}`} userId={userId} operation={operation} action={reconcileAction} />
       ))}
+      {reconciliationsTruncated ? <p className="text-sm text-amber-700 dark:text-amber-300">Recovery evidence is limited to the newest 25 unresolved operations. Older unresolved operations remain counted in directory and dashboard metrics.</p> : null}
       <ActionFeedback state={applyState} />
       <ActionFeedback state={reconcileState} />
     </div>
@@ -171,7 +176,7 @@ function ReconciliationCard({ userId, operation, action }: {
   return (
     <article className="space-y-3 rounded-md border border-amber-500/40 bg-amber-500/5 p-4" data-billing-reconciliation="required">
       <div><h3 className="font-medium">Billing goodwill requires reconciliation</h3><p className="text-sm text-muted-foreground">The Stripe outcome may be committed. Reconcile reuses this operation&apos;s original key and does not create a blind second credit.</p></div>
-      <dl className="grid gap-2 text-sm sm:grid-cols-2"><Value label="Requested credit" value={formatUsd(operation.amountCents)} /><Value label="Prepared credit" value={formatUsd(operation.startingCreditCents)} /><Value label="Recorded" value={operation.createdAt} /><Value label="Safe failure code" value={operation.failureCode ?? "Unavailable"} /></dl>
+      <dl className="grid gap-2 text-sm sm:grid-cols-2"><Value label="Recovery state" value={operation.status} /><Value label="Requested credit" value={formatUsd(operation.amountCents)} /><Value label="Prepared credit" value={formatUsd(operation.startingCreditCents)} /><Value label="Recorded" value={operation.createdAt} /><Value label="Safe failure code" value={operation.failureCode ?? "Unavailable"} /></dl>
       <form action={action} className="space-y-3">
         <input type="hidden" name="targetUserId" value={userId} />
         <input type="hidden" name="reconcileOperationId" value={operation.operationId} />

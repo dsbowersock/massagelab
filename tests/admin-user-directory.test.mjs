@@ -167,7 +167,7 @@ describe("admin user directory", () => {
             { payments: { some: { disputes: { some: { status: "OPEN" } } } } },
           ] } } },
           { adminEmailIntents: { some: { status: { in: ["PENDING", "FAILED"] } } } },
-          { billingGoodwillOperationsAsTarget: { some: { status: "RECONCILIATION_REQUIRED" } } },
+          { billingGoodwillOperationsAsTarget: { some: { status: { in: ["PREPARED", "APPLIED", "RECONCILIATION_REQUIRED"] } } } },
         ] },
       ],
     })
@@ -206,7 +206,7 @@ describe("admin user directory", () => {
               { payments: { some: { disputes: { some: { status: "OPEN" } } } } },
             ] } } },
             { adminEmailIntents: { some: { status: { in: ["PENDING", "FAILED"] } } } },
-            { billingGoodwillOperationsAsTarget: { some: { status: "RECONCILIATION_REQUIRED" } } },
+            { billingGoodwillOperationsAsTarget: { some: { status: { in: ["PREPARED", "APPLIED", "RECONCILIATION_REQUIRED"] } } } },
           ] },
           { id: { lt: "user_0" } },
         ],
@@ -326,7 +326,7 @@ describe("admin user directory", () => {
         { payments: { some: { disputes: { some: { status: "OPEN" } } } } },
       ] } }],
       ["adminEmailIntent", { where: { status: { in: ["PENDING", "FAILED"] } } }],
-      ["adminBillingGoodwillOperation", { where: { status: "RECONCILIATION_REQUIRED" } }],
+      ["adminBillingGoodwillOperation", { where: { status: { in: ["PREPARED", "APPLIED", "RECONCILIATION_REQUIRED"] } } }],
       ["temporaryFeatureGrant", { where: {
         startsAt: { lte: now },
         expiresAt: { gt: now },
