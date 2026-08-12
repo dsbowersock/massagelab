@@ -101,8 +101,10 @@ export type AdminDirectoryNavigationQuery = {
   queryFingerprint: AdminUserQueryFingerprint
 }
 
-declare const preparedAdminDirectoryNonCursorQueryBrand: unique symbol // module-private; public construction is impossible
-export type PreparedAdminDirectoryNonCursorQuery = object // opaque runtime-authorized handle in a module-private WeakSet
+declare const preparedAdminDirectoryNonCursorQueryBrand: unique symbol // type-only; no exported constructible runtime value
+export type PreparedAdminDirectoryNonCursorQuery = {
+  readonly [preparedAdminDirectoryNonCursorQueryBrand]: true
+} // owner-created nominal handle; payload lives only in a module-private WeakMap
 
 declare const adminUserQueryFingerprintBrand: unique symbol
 export type AdminUserQueryFingerprint = string & {
@@ -115,7 +117,7 @@ export async function computeAdminUserDirectoryQueryFingerprint(
 
 export async function prepareAdminDirectoryNonCursorQuery(
   input: unknown,
-): Promise<PreparedAdminDirectoryNonCursorQuery> // normalizes, fingerprints, rejects every unknown own key including cursor/queryFingerprint, then registers the opaque handle
+): Promise<PreparedAdminDirectoryNonCursorQuery> // registers WeakMap<handle,{normalizedQuery,fingerprint}> after validation
 
 export async function parseUserDirectoryQuery(
   input: URLSearchParams | Readonly<Record<string, string | readonly string[] | undefined>>,
