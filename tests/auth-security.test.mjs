@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import { generateSync } from "otplib"
 import {
@@ -19,6 +20,11 @@ import {
   verifyTotpCode,
 } from "../lib/auth-security.js"
 
+const selfServicePasswordResetRouteSource = await readFile(
+  new URL("../app/api/account/password-reset/request/route.ts", import.meta.url),
+  "utf8",
+)
+
 describe("Auth security helpers", () => {
   it("normalizes emails before auth lookups", () => {
     assert.equal(normalizeEmail("  USER@Example.COM "), "user@example.com")
@@ -36,6 +42,14 @@ describe("Auth security helpers", () => {
     assert.notEqual(token, generateRandomToken())
     assert.equal(hashToken(token), hashToken(token))
     assert.notEqual(hashToken(token), token)
+  })
+
+  it("keeps self-service reset issuance limited to the shared opaque-token schema", () => {
+    assert.match(
+      selfServicePasswordResetRouteSource,
+      /prisma\.passwordResetToken\.create\(\{[\s\S]*?userId: user\.id,[\s\S]*?tokenHash: hashToken\(resetToken\),[\s\S]*?expiresAt:/,
+    )
+    assert.doesNotMatch(selfServicePasswordResetRouteSource, /issuer|emailIntent|adminAction/i)
   })
 
   it("checks token expiry and consumed state", () => {
