@@ -6,6 +6,13 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `Massage Laba Lamp` is the approved catalog label for the original free moving-gradient default. `MassageLaba Lamp` and general prose that says `MassageLab Lamp` are legacy references to that same stable `massage-lab-moving-gradient` entry, not separate backgrounds.
 
+## 2026-08-11 — Atomic password-reset consumption
+
+- Completed the password-reset integrity branch for both ordinary self-service and Admin-requested links. Successful consumption now claims one unexpired unused link and, in the same serializable transaction, changes the password credential, consumes every outstanding reset link for the account, increments `User.authSessionVersion` exactly once, and deletes Prisma `Session` rows for adapter compatibility. A failed transaction leaves all of those effects unchanged, and concurrent submissions cannot produce a second successful password change.
+- Link consumption does not create an Admin action, target Activity entry, or account-change email intent. An Admin-requested reset keeps the immutable evidence created when the request was issued, but successful use of its link creates no second Admin evidence bundle.
+- Existing JWTs become invalid immediately in version terms. Auth.js observes that invalidation when an old token next reaches a successful database-backed refresh. The adapter `Session` delete count remains compatibility evidence only; it is not an active-JWT count or an exact count of users signed out.
+- Branch validation passed Prisma client generation; 69 focused and adjacent password-reset, route, authentication, session-version, and Admin security tests; typecheck; lint with only the existing Babel large-file note; the full 2,447-test suite with 2,446 passes and one intentional skip; the 104-page Production build; and `git diff --check`.
+
 ## 2026-08-11 — Admin billing-goodwill controls and test-mode proof
 
 - Added the Branch 8 Billing-detail surface around the test-first invoice-credit ledger/service. A read-only provider preview supplies the current Stripe credit and projected next invoice, while the existing privacy-bounded local projection supplies the current Supporter amount/interval when safely known. The form offers `$1`, `$2`, `$5`, `$10`, `$20`, and `$50`, a custom `$0.01`-`$100.00` amount, and the projected invoice only when it remains inside the same bounds.
