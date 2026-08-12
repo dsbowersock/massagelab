@@ -4,7 +4,7 @@
 
 **Goal:** Turn existing Admin metrics into privacy-safe actionable queues and preserve validated directory context when an Admin opens and returns from account detail.
 
-**Architecture:** Add a pure browser-safe queue/navigation contract that owns queue, sort, role, and status allowlists, canonical query serialization, and fixed-origin internal return-URL validation. Extend the existing bounded directory query with canonical attention filters, direction-aware cursor traversal, and explicit cursor-usability checks; derive deduplicated per-user dashboard counts and row badges from the same predicates, and carry a signed-by-validation internal return path into detail without treating cursor state as authority.
+**Architecture:** Add a pure browser-safe queue/navigation contract that owns queue, sort, role, and status allowlists, canonical query serialization, and fixed-origin internal return-URL validation. Extend the existing bounded directory query with canonical attention filters and direction-aware cursor traversal; run cursor usability, visible-page, and reverse-lookback reads in one consistent read transaction/snapshot so concurrency cannot mix navigation states. Derive deduplicated per-user dashboard counts and row badges from the same predicates, and carry a signed-by-validation internal return path into detail without treating cursor state as authority.
 
 **Tech Stack:** Next.js App Router, React Server Components, TypeScript, Prisma 7, URLSearchParams, Node test runner, Playwright.
 
@@ -14,6 +14,7 @@
 - Preserve search, supported filters, queue, and page size in return navigation.
 - Preserve the directory's supported deterministic sort. This branch exposes `account_asc` and `account_desc`; forward boundaries, reverse-lookback queries, result reversal, and emitted next/previous cursors must all follow the selected ID direction.
 - A cursor is navigation context only. Before using it in a page query, prove that it decodes to an existing account still matched by the current safe filters. If missing, deleted, or filtered out, fall back once to the first page while retaining safe non-cursor filters.
+- Cursor usability, first/forward page selection, and any previous-page lookback must share one repeatable consistent read snapshot. Concurrent deletion or filter-state changes cannot let validation and page evidence observe different database states.
 - Reject absolute, protocol-relative, encoded-external, malformed, and unsupported return URLs.
 - Canonical queues: billing reconciliation, failed notification, commerce review, temporary access expiring within 30 days, and broader unresolved.
 - Use one captured request time for queue filters and metrics; the temporary-expiry endpoint is exclusive.
@@ -30,7 +31,7 @@
 - Modify `app/admin/users/page.tsx`: queue controls, context-carrying detail links, privacy-safe badges.
 - Modify `app/admin/users/[userId]/page.tsx`: validated return link and section-link context preservation.
 - Modify `app/admin/page.tsx`: metric cards become canonical queue links.
-- Modify `tests/admin-user-directory.test.mjs`, `tests/admin-dashboard.test.mjs`, `tests/admin-user-detail.test.mjs`, `tests/admin-security-ui.test.mjs`, and `tests/browser/admin-user-operations.spec.ts`.
+- Modify `tests/admin-user-directory.test.mjs`, `tests/admin-dashboard.test.mjs`, `tests/admin-user-detail.test.mjs`, `tests/admin-security-ui.test.mjs`, `tests/admin-user-operations-fixture.test.mjs`, and `tests/browser/admin-user-operations.spec.ts`.
 - Modify canonical state/log/Admin runbook/release checklist.
 
 ### Task 1: Define canonical queue and return-URL contracts
@@ -193,7 +194,9 @@ For each queue, assert exact Prisma `where` shape in forward, cursor-usability, 
 
 - `account_asc`: forward rows use `id > cursor` ordered ascending; previous lookback uses `id < cursor` ordered descending, takes at most one page, and derives the earlier forward boundary from that reversed window.
 - `account_desc`: forward rows use `id < cursor` ordered descending; previous lookback uses `id > cursor` ordered ascending, takes at most one page, and derives the earlier forward boundary from that reversed window.
-- Any rows fetched in the opposite direction for previous-page calculation must be reversed before they are exposed or used as visible-page evidence. Next cursors come from the last visible row in the selected forward order. Previous cursors must reproduce the immediately preceding page with no gaps or duplicates; the first page emits no previous cursor.
+- Any rows fetched in the opposite direction for previous-page calculation are private boundary evidence, not a page to expose. Reverse that window into forward order, then derive the earlier forward boundary from it. Keep the established exclusive forward predicates (`>` for ascending, `<` for descending); do not change them to inclusive comparisons. Next cursors come from the last visible row in the selected forward order. Previous cursors must reproduce the immediately preceding page with no gaps or duplicates; the first page emits no previous cursor.
+
+Add an explicit four-page numeric proof with `pageSize=2` and IDs `01` through `08`. Ascending must expose `[01,02]`, `[03,04]`, `[05,06]`, `[07,08]`; page 4's private descending lookback from exclusive cursor `06` is `[05,04]`, which reverses to `[04,05]` and derives earlier forward boundary `04`, so following Previous exposes page 3 `[05,06]` rather than exposing lookback rows. Page 3 similarly derives `02`, and page 2 returns to the cursorless first page. Descending must expose `[08,07]`, `[06,05]`, `[04,03]`, `[02,01]`; page 4's private ascending lookback from exclusive cursor `03` is `[04,05]`, which reverses to `[05,04]` and derives boundary `05`, reproducing page 3 `[04,03]`. Assert all forward and backward targets, and explicitly assert that neither lookback window is returned as visible items.
 
 Make this a complete table-driven matrix across all five queues and both sorts. For every `(queue, sort)` pair, use enough matching deterministic IDs for at least three full pages, traverse forward page 1 -> page 2 -> page 3 using emitted next cursors, then traverse page 3 -> page 2 -> page 1 using emitted previous cursors. Assert each page's exact selected-direction ID order, exact round-trip equality for pages 1 and 2, no gaps, no duplicates, and no previous cursor on the restored first page.
 
@@ -225,7 +228,7 @@ Add relation counts only; do not select operation rows or provider fields. Map m
 
 - [ ] **Step 6: Add explicit cursor-usability checks and stale fallback**
 
-Before passing a supplied decoded ID into any Prisma cursor/boundary operation, issue a bounded identifier-only lookup using the same safe `where` filters and require that exact account to exist and remain matched. A missing/deleted ID or an account excluded by changed filters/queue is unusable even if other rows exist after it. Strip an unusable cursor, run only the first bounded page with the same non-cursor query, and return `cursorReset: true`; do not rely on a thrown Prisma cursor error, recursively retry, or broaden filters. Tests must cover malformed cursors (rejected by parsing), nonexistent IDs, deleted rows, filter-changed rows, valid cursors at both sort directions, and a valid cursor whose following page is legitimately empty.
+Inside one interactive read transaction with a repeatable consistent snapshot, perform the bounded identifier-only cursor-usability lookup, visible-page query, and any previous-page lookback using the same safe `where` filters. Require the decoded account to exist and remain matched before any boundary query. A missing/deleted ID or an account excluded by changed filters/queue is unusable even if other rows exist after it. Strip an unusable cursor, run only the first bounded page in that same snapshot with the same non-cursor query, and return `cursorReset: true`; do not rely on a thrown Prisma cursor error, recursively retry, or broaden filters. Tests must cover malformed cursors (rejected by parsing), nonexistent IDs, deleted rows, filter-changed rows, valid cursors at both sort directions, and a valid cursor whose following page is legitimately empty. Add deterministic concurrency tests that delete the cursor row or change its queue/filter match between the fake lookup and page query; the transaction snapshot must yield one coherent before-state or after-state, never a mixed state, and every read must be asserted against the same transaction client.
 
 ```ts
 return {

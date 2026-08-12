@@ -16,7 +16,8 @@
 - Treat a refreshed Customer balance as a separate current observation and never require it to equal historical evidence during reconciliation.
 - Do not invent a replacement operation, transaction, or Stripe idempotency key.
 - Preserve unresolved state for ambiguous or mismatched provider evidence.
-- Recheck full-Admin database authority immediately before `customers.createBalanceTransaction`.
+- Recheck full-Admin database authority immediately before `customers.createBalanceTransaction`; this prevents creates after revocations visible to that check, while a revocation racing after the successful check remains provider-ambiguous and must retain reconciliation evidence.
+- Only a typed `AdminAuthorityDeniedError` from that final check maps to `ADMIN_AUTHORITY_REVOKED`. Database, adapter, timeout, and unknown failures remain unresolved/retryable and expose only privacy-safe generic errors.
 - Never log Stripe objects, IDs in operator-facing URLs, emails, raw errors, or payment data.
 - Follow Stripe's idempotency boundary: the existing conservative 23h55m reissue margin remains unchanged.
 - Stop at the user-controlled merge gate; any live credit remains separately authorized by exact account and amount.
@@ -26,9 +27,11 @@
 ## File Structure
 
 - Modify `lib/admin/billing-goodwill.ts`: authoritative historical/current balance model and pre-create authority gate.
+- Modify `lib/admin/access.ts`: typed programmatic full-Admin denial that leaves infrastructure errors unchanged.
 - Modify `app/admin/users/[userId]/billing-actions.ts`: truthful historical/current result copy.
 - Modify `app/admin/users/[userId]/billing-goodwill-form.tsx`: labels for current preview versus historical verified result.
 - Modify `tests/admin-billing-goodwill.test.mjs`: provider readback, replay, concurrency, and authority-revocation tests.
+- Modify `tests/admin-access.test.mjs`: typed denial and infrastructure pass-through contract.
 - Modify `tests/admin-billing-goodwill-ui.test.mjs`: result shape and copy contracts.
 - Modify `tests/admin-security-ui.test.mjs`: keep the compiled detail-page dependency double faithful.
 - Modify canonical state/log/Admin runbook/release checklist.
@@ -135,19 +138,24 @@ git commit -m "fix: reconcile exact Stripe goodwill evidence"
 ### Task 2: Recheck Admin authority at the provider boundary
 
 **Files:**
+- Modify: `lib/admin/access.ts`
 - Modify: `lib/admin/billing-goodwill.ts`
+- Modify: `tests/admin-access.test.mjs`
 - Modify: `tests/admin-billing-goodwill.test.mjs`
 
 **Interfaces:**
 - Consumes: existing `requireFullAdminUser({ prismaClient, sessionUserId })`.
-- Produces: a final database-backed authorization check immediately before create.
+- Produces: exported `AdminAuthorityDeniedError` for a database-confirmed programmatic denial and a final database-backed authorization check immediately before create. `requireFullAdminUser` must let Prisma, adapter, timeout, and unknown errors pass through unchanged.
 
 - [ ] **Step 1: Add a gated RED regression**
 
 Prepare the operation as an authorized Admin, pause after Customer/subscription reads and the advancing-clock check, revoke the actor's Admin role in the fake database, then release the gate. Assert:
 
 ```js
-await assert.rejects(operationPromise, /full administrator access/i)
+await assert.rejects(operationPromise, (error) => (
+  error instanceof AdminAuthorityDeniedError
+  && /full administration requires verified database authority/i.test(error.message)
+))
 assert.equal(stripeCalls.createBalanceTransaction, 0)
 assert.equal(fixture.state.operations.get("billing-op-1").status, "FAILED_BEFORE_MUTATION")
 assert.equal(fixture.state.operations.get("billing-op-1").failureCode, "ADMIN_AUTHORITY_REVOKED")
@@ -155,15 +163,17 @@ assert.equal(fixture.state.operations.get("billing-op-1").failureCode, "ADMIN_AU
 
 Also prove that a revoked actor may read/reconcile a known transaction only if the existing reconciliation contract permits a different freshly authorized Admin; the original revoked actor may not create.
 
+Add a table in which the final authority load fails with a database outage, adapter error, timeout, or unrecognized exception. Each case must make zero provider calls, retain the operation in its canonical unresolved/retryable state, avoid `ADMIN_AUTHORITY_REVOKED`, and return or throw only the established privacy-safe generic failure. Add a controlled race in which authority is revoked after the final check succeeds but before/during the provider call; do not claim definite non-mutation or rewrite the operation as `FAILED_BEFORE_MUTATION` because the provider outcome is ambiguous and reconciliation owns recovery.
+
 - [ ] **Step 2: Run focused test and verify RED**
 
-Run: `node --test tests/admin-billing-goodwill.test.mjs --test-name-pattern="revoked before provider creation"`
+Run: `node --test tests/admin-access.test.mjs tests/admin-billing-goodwill.test.mjs --test-name-pattern="typed denial|revoked before provider creation|authority infrastructure"`
 
 Expected: FAIL because the last authority load currently occurs during preparation.
 
 - [ ] **Step 3: Add the final authority check**
 
-Immediately after the final retry-window clock read and before `createBalanceTransaction`:
+Immediately after the final retry-window clock read and before `createBalanceTransaction`, call a typed authority owner:
 
 ```ts
 await requireFullAdminUser({
@@ -172,22 +182,22 @@ await requireFullAdminUser({
 })
 ```
 
-Document why this read is intentionally outside the durable preparation transaction: it closes the authority-revocation window at the irreversible provider boundary.
+In `lib/admin/access.ts`, make the programmatic full-Admin denial throw `AdminAuthorityDeniedError` with the existing safe message only after the fresh database load completes and proves the actor lacks authority. Keep redirect behavior unchanged for no-input page callers, and let Prisma, adapter, timeout, and unknown failures pass through without wrapping. Document why the billing read is intentionally outside the durable preparation transaction: it narrows the authority-revocation window at the irreversible provider boundary, but it cannot eliminate a revocation race after the read succeeds.
 
 - [ ] **Step 4: Handle a denied boundary without provider ambiguity**
 
-If the fresh authority check throws before create, atomically transition `PREPARED -> FAILED_BEFORE_MUTATION` with the static safe code `ADMIN_AUTHORITY_REVOKED` only when this invocation created and still owns that never-attempted operation. The guarded update must still match the operation ID, originating request/idempotency identity, `PREPARED` status, and absent provider transaction ID. An invocation that loaded a pre-existing operation, lost ownership, or could be observing a possibly committed attempt must not make this transition; preserve its canonical unresolved state for reconciliation. Do not expose the thrown error.
+If and only if the fresh authority check throws `AdminAuthorityDeniedError` before create, atomically transition `PREPARED -> FAILED_BEFORE_MUTATION` with the static safe code `ADMIN_AUTHORITY_REVOKED` when this invocation created and still owns that never-attempted operation. The guarded update must still match the operation ID, originating request/idempotency identity, `PREPARED` status, and absent provider transaction ID. Infrastructure or unknown errors, an invocation that loaded a pre-existing operation, lost ownership, or a failure after the check could be observing a possibly committed attempt; preserve the canonical unresolved/retryable state for reconciliation and expose only the static privacy-safe error. Never map those cases to authority revocation or reveal the thrown error.
 
 - [ ] **Step 5: Run focused tests and verify GREEN**
 
-Run: `node --test tests/admin-billing-goodwill.test.mjs`
+Run: `node --test tests/admin-access.test.mjs tests/admin-billing-goodwill.test.mjs`
 
-Expected: PASS with zero provider mutation after revocation and unchanged concurrent/replay semantics.
+Expected: PASS with zero provider mutation for revocation visible at the final check, infrastructure failures kept retryable, post-check races kept ambiguous for reconciliation, and unchanged concurrent/replay semantics.
 
 - [ ] **Step 6: Commit the authority gate**
 
 ```bash
-git add lib/admin/billing-goodwill.ts tests/admin-billing-goodwill.test.mjs
+git add lib/admin/access.ts lib/admin/billing-goodwill.ts tests/admin-access.test.mjs tests/admin-billing-goodwill.test.mjs
 git commit -m "fix: recheck admin authority before Stripe mutation"
 ```
 

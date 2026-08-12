@@ -11,7 +11,11 @@ const routeSource = await readFile(
 )
 
 /** Loads the confirm route with only its public dependencies and records owner handoff ordering. */
-function loadRoute({ eligible = true, result = { status: "UPDATED" } } = {}) {
+function loadRoute({
+  eligible = true,
+  result = { status: "UPDATED" },
+  hashPassword = async () => "password-hash",
+} = {}) {
   const calls = []
   const capturedTimes = {}
   const prisma = new Proxy({}, {
@@ -35,7 +39,7 @@ function loadRoute({ eligible = true, result = { status: "UPDATED" } } = {}) {
         },
         hashPassword: async (password) => {
           calls.push(["hashPassword", password])
-          return "password-hash"
+          return hashPassword(password)
         },
       },
       "@/lib/password-reset-confirmation": {
@@ -52,7 +56,7 @@ function loadRoute({ eligible = true, result = { status: "UPDATED" } } = {}) {
           }])
           assert.equal(input.prismaClient, prisma)
           capturedTimes.confirmation = input.now
-          return result
+          return typeof result === "function" ? result(input) : result
         },
       },
       "@/lib/prisma": { prisma },
@@ -98,7 +102,8 @@ describe("password reset confirmation route", () => {
       ["confirmPasswordReset", { tokenHash: "token-hash", passwordHash: "password-hash" }],
     ])
     assert.equal(capturedTimes.eligibility instanceof Date, true)
-    assert.equal(capturedTimes.confirmation, capturedTimes.eligibility)
+    assert.equal(capturedTimes.confirmation instanceof Date, true)
+    assert.equal(capturedTimes.confirmation >= capturedTimes.eligibility, true)
   })
 
   for (const [article, condition] of [["a", "missing"], ["an", "expired"], ["a", "consumed"]]) {
@@ -139,6 +144,50 @@ describe("password reset confirmation route", () => {
       ["hashPassword", "a-long-new-password"],
       ["confirmPasswordReset", { tokenHash: "token-hash", passwordHash: "password-hash" }],
     ])
+  })
+
+  it("uses a fresh claim time when a token expires while Argon2 hashing is in progress", async () => {
+    const RealDate = globalThis.Date
+    let currentTime = "2026-08-12T12:00:00.000Z"
+    const expiresAt = new RealDate("2026-08-12T12:00:01.000Z")
+    class ControlledDate extends RealDate {
+      constructor(...args) {
+        super(...(args.length === 0 ? [currentTime] : args))
+      }
+    }
+    globalThis.Date = ControlledDate
+
+    try {
+      const { POST, calls, capturedTimes } = loadRoute({
+        hashPassword: async () => {
+          currentTime = "2026-08-12T12:00:02.000Z"
+          return "password-hash"
+        },
+        result: (input) => (
+          input.now < expiresAt ? { status: "UPDATED" } : { status: "INVALID" }
+        ),
+      })
+
+      const response = await POST(resetRequest({
+        token: "raw-reset-token",
+        password: "a-long-new-password",
+      }))
+
+      assert.deepEqual(response, {
+        body: { message: "This reset link is expired or has already been used." },
+        status: 400,
+      })
+      assert.deepEqual(calls, [
+        ["hashToken", "raw-reset-token"],
+        ["isPasswordResetTokenEligible", { tokenHash: "token-hash" }],
+        ["hashPassword", "a-long-new-password"],
+        ["confirmPasswordReset", { tokenHash: "token-hash", passwordHash: "password-hash" }],
+      ])
+      assert.equal(capturedTimes.eligibility.toISOString(), "2026-08-12T12:00:00.000Z")
+      assert.equal(capturedTimes.confirmation.toISOString(), "2026-08-12T12:00:02.000Z")
+    } finally {
+      globalThis.Date = RealDate
+    }
   })
 
   it("does not inspect issuer evidence or write reset rows directly", () => {

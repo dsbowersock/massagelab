@@ -34,10 +34,10 @@ This branch owns reset-token consumption, password replacement, and authenticati
 
 #### Transaction contract
 
-1. Validate the request shape, hash the raw reset token, and capture one request time.
-2. Ask the existing reset-confirmation owner for a lightweight, read-only eligibility lookup using only the token hash, unconsumed/unexpired predicates, the captured time, and an identifier-only projection. If ineligible, return the existing safe expired-or-used response without hashing the password or opening the confirmation transaction.
-3. If eligible, hash the new password outside the database transaction.
-4. Enter a serializable transaction with the same token hash and captured time, then atomically claim the submitted token only when it is still unconsumed and unexpired. This compare-and-set is the sole concurrency authority; the preceding read is only an abuse-cost optimization.
+1. Validate the request shape, hash the raw reset token, and capture an eligibility time.
+2. Ask the existing reset-confirmation owner for a lightweight, read-only eligibility lookup using only the token hash, unconsumed/unexpired predicates, that eligibility time, and an identifier-only projection. If ineligible, return the existing safe expired-or-used response without hashing the password or opening the confirmation transaction.
+3. If eligible, hash the new password outside the database transaction, then immediately capture a fresh confirmation time.
+4. Enter a serializable transaction with the same token hash and the fresh post-Argon2 confirmation time, then atomically claim the submitted token only when it is still unconsumed and unexpired. This compare-and-set is the sole concurrency authority; the preceding read is only an abuse-cost optimization and cannot preserve eligibility across hashing.
 5. If the claim affects no row, return the same safe expired-or-used response without changing the password.
 6. Update or create the target password credential.
 7. Consume every other outstanding reset token for that user in the same transaction.
@@ -80,7 +80,7 @@ The transaction's `ending_balance` is the immediate balance after that provider 
 
 Identity, Customer, currency, mode, amount, malformed readback, or missing-transaction mismatches remain unresolved and fail closed. Reconciliation never invents a replacement operation or new Stripe idempotency key.
 
-The branch must also recheck fresh full-Admin authority immediately before the provider create boundary. Durable preparation still records the originating Admin, while a revoked Admin cannot cross into a new financial provider mutation after revocation becomes visible in the database. When that fresh check denies the invocation that created and still owns a never-attempted `PREPARED` operation, it atomically records `FAILED_BEFORE_MUTATION` with `ADMIN_AUTHORITY_REVOKED`; replays, lost ownership, and possibly committed attempts retain their canonical unresolved state.
+The branch must also recheck fresh full-Admin authority immediately before the provider create boundary. Durable preparation still records the originating Admin, while a revocation visible to that check prevents a new financial provider mutation. Only a typed database-confirmed authority denial may let the invocation that created and still owns a never-attempted `PREPARED` operation atomically record `FAILED_BEFORE_MUTATION` with `ADMIN_AUTHORITY_REVOKED`. Infrastructure, adapter, timeout, and unknown authorization failures remain privacy-safe and unresolved/retryable. A revocation that races after the successful check cannot be classified as definitely before mutation; provider ambiguity and reconciliation rules apply, as they do for replays, lost ownership, and possibly committed attempts.
 
 ### Branch 3: Production activation and browser acceptance
 
@@ -98,16 +98,17 @@ The expected Admin-era migrations are:
 #### Deployment flow
 
 1. Fetch the sanitized Production project ID, branch ID, database name, and direct endpoint hostname from the authenticated Neon console or approved API, then bind the read-only Prisma migration status connection to that independently obtained identity. Never accept the pooled runtime connection or treat values parsed only from a connection string as identity proof.
-2. Compare the complete statefully parsed database migration-status section with the exact migration inventory on merged `main`.
+2. Compare the complete statefully parsed database migration-status section with the exact migration inventory on merged `main`. Accept child exit `0` only with one complete up-to-date section and exit `1` only with one complete allowed pending-suffix section; reject every other code, signal, or code/content pairing.
 3. If all migrations are already applied, record sanitized evidence and do not rerun them.
 4. If any are missing, create an explicitly identified disposable Neon branch cloned from Production.
 5. Require the pending set to be one contiguous terminal suffix of the four expected Admin migrations, then run `prisma migrate deploy` on the clone. A gap, arbitrary subset, older migration, or unrelated pending migration is unexpected drift and stops the flow.
-6. Run schema validation, migration status, focused Admin suites, and read-only schema/data-shape checks against the clone.
+6. Run schema validation, migration status, focused Admin suites, and read-only schema/data-shape checks against the clone. Every status, deploy, validate, and generate command receives database variables through an explicit one-process child-environment wrapper; no database variables are set in the parent shell.
 7. Stop for unexpected drift, an unknown migration, a failed rehearsal, an ambiguous database identity, or a direct/runtime connection mismatch.
-8. If rehearsal is exact and clean, refresh the trusted Production identity and pending suffix, produce a target-specific fingerprint from that identity, exact commit, suffix, and status timestamp, and stop for fresh user authorization naming that fingerprint. Only then run `prisma migrate deploy` once using the direct migration connection scoped to that child process.
-9. Rerun Production migration status and record only sanitized migration names/statuses—never connection strings, credentials, or database rows.
+8. If rehearsal is exact and clean, enter the one approved Production activation wrapper. It opens a dedicated direct connection, acquires a target-scoped cooperative session advisory lock, refreshes trusted Production identity and complete status, and produces a semantic fingerprint from the sanitized target, exact commit, and ordered suffix. Record `checkedAt` separately as freshness evidence; volatile timestamps are not part of the fingerprint.
+9. While the wrapper retains that same session lock, stop for fresh user authorization naming the semantic fingerprint. After authorization, re-fetch the opaque trusted target evidence and complete migration status under the lock, recompute the semantic fingerprint, compare it to the authorized and first locked fingerprints, and validate freshness separately.
+10. Only the unchanged fingerprint authorizes the wrapper to run `prisma migrate deploy` once in a child-scoped environment. The wrapper then reruns complete Production status under the same lock, requires up-to-date state, records only sanitized migration names/statuses, and releases the lock in `finally`. No manual or second Production deploy path is approved; the cooperative lock does not claim to fence arbitrary external SQL clients.
 
-Before creating either disposable branch, check the trusted control plane for orphaned Admin-operations rehearsal/QA branches from an interrupted run. Every disposable lifecycle uses `try/finally`; deletion and trusted control-plane absence verification run after success or failure, and incomplete deletion proof blocks the rollout.
+Before creating either disposable branch, check the trusted control plane for Admin-operations rehearsal/QA names. Every match is a blocking alert. Automatic deletion requires trusted metadata matching the verified run owner/lease plus explicit proof that the lease is stale and its owner cannot still be active; ambiguous ownership or staleness requires operator-reviewed cleanup. Every disposable lifecycle uses `try/finally`; deletion and trusted control-plane absence verification run after success or failure, and resume remains blocked until complete absence is proven.
 
 No seed, reset, development migration, destructive SQL, Prisma Studio session, or broad export belongs in this flow.
 
@@ -128,7 +129,7 @@ Keep `ADMIN_BILLING_GOODWILL_LIVE_ENABLED` absent or false. Do not perform a Pro
 
 1. Create a separately identified QA database with all migrations applied. It must be distinct from Production and from the migration-rehearsal clone; the rehearsal clone is never reused for browser QA.
 2. Populate it only from an approved synthetic or sanitized QA seed whose provenance is recorded. Do not copy or query Production rows to assemble the fixture.
-3. Prove database identity before enabling `MASSAGELAB_BROWSER_QA_DATABASE=1`.
+3. Prove database identity before enabling `MASSAGELAB_BROWSER_QA_DATABASE=1`. The authenticated lookup is asynchronous, and fixture provisioning, cleanup, wrapper/spec gates, billing preview/guards, and their tests must await it before the first transaction, create/delete mutation, or preview-adapter construction; an unresolved Promise never counts as authorization.
 4. Require a Playwright-owned server with SMTP variables blanked.
 5. Run the full Admin User Operations spec in both desktop and mobile Chromium.
 6. Retain the billing fixture's presentation-only Stripe client and server-action mutation guard; assert zero matching form submissions and POST requests for billing goodwill.
@@ -144,7 +145,7 @@ This branch is read-only except for URL and navigation state. It adds no mutatio
 - Carry a validated internal return URL from the directory into account detail.
 - Preserve search, supported filters, sort, and page size.
 - Reject external, malformed, or unsupported return URLs.
-- Treat a cursor as navigation context, never authority. If it is stale, return to the first page while retaining safe non-cursor filters.
+- Treat a cursor as navigation context, never authority. Cursor usability, visible-page selection, and reverse-lookback boundary evidence share one repeatable consistent read snapshot. If the cursor is stale, return to the first page in that snapshot while retaining safe non-cursor filters.
 
 #### Actionable queues
 
@@ -164,8 +165,8 @@ Completed Admin actions revalidate the affected detail, directory, dashboard, Ac
 
 - Password-reset token conflicts return the existing generic expired-or-used response. They do not reveal whether another request consumed the token.
 - Database serialization conflicts use bounded established retry behavior. In addition to the existing top-level retry codes, Prisma adapter `P2039` retries only when `meta.driverAdapterError.cause.originalCode` is exactly `40P01` or `55P03`; other adapter shapes, messages, and uniqueness failures remain terminal.
-- Stripe reconciliation preserves the canonical unresolved state for ambiguous provider evidence. It never downgrades a possibly committed operation to definitely-not-mutated.
-- Migration or database identity ambiguity stops the operational flow before mutation.
+- Stripe reconciliation preserves the canonical unresolved state for ambiguous provider evidence, infrastructure/unknown authority-check failures, and revocation races after a successful pre-provider check. It never downgrades a possibly committed operation to definitely-not-mutated; only the typed database-confirmed denial before any provider attempt maps to `ADMIN_AUTHORITY_REVOKED`.
+- Migration or database identity ambiguity, unexpected status exit/signal, changed post-authorization semantic fingerprint, stale freshness evidence, or unproven orphan ownership/absence stops the operational flow before mutation.
 - Browser QA stops before fixture provisioning when database identity, sentinel, server ownership, or SMTP isolation is unproven.
 - Queue parsing ignores unsupported values and falls back to safe defaults without redirecting to an external URL.
 
@@ -194,7 +195,8 @@ Every implementation branch follows strict RED/GREEN development, focused spec r
 - wrong Customer, amount, currency, mode, transaction, and malformed readback fail closed;
 - exact replay and concurrent reconciliation create no replacement credit;
 - the original evidence bundle remains immutable; and
-- authority revoked before provider creation prevents the create call.
+- authority revocation visible to the final pre-provider check prevents the create call and maps only its typed denial to `ADMIN_AUTHORITY_REVOKED`;
+- infrastructure/unknown authority failures remain retryable and privacy-safe, while a revocation racing after the successful check remains provider-ambiguous for reconciliation.
 
 ### Activation acceptance
 

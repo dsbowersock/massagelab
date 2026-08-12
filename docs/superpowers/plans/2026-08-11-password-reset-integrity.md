@@ -4,7 +4,7 @@
 
 **Goal:** Make every self-service and Admin-requested password-reset link use one atomic consumption path that changes the password once, consumes all outstanding links, and invalidates existing authentication sessions.
 
-**Architecture:** Keep request parsing and raw-token hashing in the existing route, then ask the reset-confirmation owner for a lightweight boolean eligibility read using the token hash and one captured time. Only an eligible request pays the password-hashing cost, still outside the transaction. The same owner then uses the repository's bounded Serializable transaction owner, claims the submitted token with an authoritative compare-and-set update, and performs credential replacement, sibling-token consumption, JWT-version increment, and compatibility Session deletion in one transaction.
+**Architecture:** Keep request parsing and raw-token hashing in the existing route, then ask the reset-confirmation owner for a lightweight boolean eligibility read using the token hash and a captured eligibility time. Only an eligible request pays the password-hashing cost, still outside the transaction. Immediately after hashing, capture a fresh confirmation time for the same owner's bounded Serializable transaction, authoritative compare-and-set claim, credential replacement, sibling-token consumption, JWT-version increment, and compatibility Session deletion.
 
 **Tech Stack:** Next.js App Router, TypeScript, Prisma 7, PostgreSQL/Neon, Auth.js JWT session versioning, Node test runner.
 
@@ -13,7 +13,7 @@
 - Applies identically to ordinary self-service links and links issued by `sendAdminPasswordReset`.
 - Hash the raw token first, perform the read-only non-authoritative eligibility gate, and return the existing generic invalid-link response before password hashing when the gate fails.
 - Hash the password only after eligibility passes and before the database transaction; no expensive password hashing may run while a transaction is open.
-- Pass the same token hash and captured time through the eligibility lookup and confirmation service. The transaction's compare-and-set remains the sole claim authority if state changes after the read.
+- Pass the same token hash through both calls, but capture a fresh confirmation time immediately after password hashing. The transaction's compare-and-set remains the sole claim authority and must reject a token that expires while Argon2 runs.
 - Return the existing generic expired-or-used response for missing, expired, consumed, or concurrently lost tokens.
 - Increment `User.authSessionVersion` exactly once on a successful password replacement.
 - Delete Prisma `Session` rows only as compatibility cleanup; never present that count as active JWTs or people signed out.
@@ -229,12 +229,12 @@ git commit -m "fix: consume password resets atomically"
 - Modify: `tests/admin-security-service.test.mjs`
 
 **Interfaces:**
-- Consumes: `isPasswordResetTokenEligible({ prismaClient, tokenHash, now })` followed, only when eligible, by `confirmPasswordReset({ prismaClient, tokenHash, passwordHash, now })`.
+- Consumes: `isPasswordResetTokenEligible({ prismaClient, tokenHash, now: eligibilityNow })` followed, only when eligible and after hashing, by `confirmPasswordReset({ prismaClient, tokenHash, passwordHash, now: confirmationNow })` using a freshly captured authoritative time.
 - Produces: unchanged public JSON/status messages.
 
 - [ ] **Step 1: Write a compiled route RED test**
 
-Compile the route with doubles for `NextResponse`, `hashToken`, `isPasswordResetTokenEligible`, `hashPassword`, `confirmPasswordReset`, and Prisma. Prove request validation happens first; eligible flow orders raw-token hashing, eligibility, password hashing, and confirmation; and the route never writes reset state directly. Missing, expired, and consumed eligibility failures must not call `hashPassword`, `confirmPasswordReset`, or any direct mutation API.
+Compile the route with doubles for `NextResponse`, `hashToken`, `isPasswordResetTokenEligible`, `hashPassword`, `confirmPasswordReset`, and Prisma. Prove request validation happens first; eligible flow orders raw-token hashing, eligibility, password hashing, and confirmation; and the route never writes reset state directly. Advance the controlled clock during `hashPassword` and prove confirmation receives the later time, reaches the authoritative compare-and-set, and returns the same generic invalid response when the token expired during hashing. Missing, expired, and consumed eligibility failures must not call `hashPassword`, `confirmPasswordReset`, or any direct mutation API.
 
 ```js
 assert.deepEqual(calls, [
@@ -257,12 +257,12 @@ Expected: FAIL because the route still owns direct Prisma mutations.
 
 - [ ] **Step 3: Replace direct route writes with the service**
 
-Keep request shape validation first, then hash the token, capture one time, perform the non-authoritative read-only gate, and only then hash the password before invoking the transactional service:
+Keep request shape validation first, then hash the token, capture the eligibility time, perform the non-authoritative read-only gate, and only then hash the password. Capture a fresh confirmation time immediately after Argon2 and pass that later time to the transactional service:
 
 ```ts
 const tokenHash = hashToken(token)
-const now = new Date()
-const eligible = await isPasswordResetTokenEligible({ prismaClient: prisma, tokenHash, now })
+const eligibilityNow = new Date()
+const eligible = await isPasswordResetTokenEligible({ prismaClient: prisma, tokenHash, now: eligibilityNow })
 if (!eligible) {
   return NextResponse.json(
     { message: "This reset link is expired or has already been used." },
@@ -270,7 +270,13 @@ if (!eligible) {
   )
 }
 const passwordHash = await hashPassword(password)
-const result = await confirmPasswordReset({ prismaClient: prisma, tokenHash, passwordHash, now })
+const confirmationNow = new Date()
+const result = await confirmPasswordReset({
+  prismaClient: prisma,
+  tokenHash,
+  passwordHash,
+  now: confirmationNow,
+})
 if (result.status === "INVALID") {
   return NextResponse.json(
     { message: "This reset link is expired or has already been used." },

@@ -16,24 +16,27 @@ export async function POST(request: Request) {
   }
 
   const tokenHash = hashToken(token)
-  const now = new Date()
+  const eligibilityNow = new Date()
   // This read only avoids unnecessary Argon2 work; confirmPasswordReset's
   // transactional compare-and-set remains the authority on token consumption.
   const eligible = await isPasswordResetTokenEligible({
     prismaClient: prisma,
     tokenHash,
-    now,
+    now: eligibilityNow,
   })
   if (!eligible) {
     return NextResponse.json({ message: "This reset link is expired or has already been used." }, { status: 400 })
   }
 
   const passwordHash = await hashPassword(password)
+  // Capture the authoritative claim time after the deliberately expensive hash
+  // so a token that expires during Argon2 cannot be accepted by a stale clock.
+  const confirmationNow = new Date()
   const result = await confirmPasswordReset({
     prismaClient: prisma,
     tokenHash,
     passwordHash,
-    now,
+    now: confirmationNow,
   })
 
   if (result.status === "INVALID") {
