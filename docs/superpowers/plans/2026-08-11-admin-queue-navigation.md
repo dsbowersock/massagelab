@@ -101,6 +101,9 @@ export type AdminDirectoryNavigationQuery = {
   queryFingerprint: AdminUserQueryFingerprint
 }
 
+declare const preparedAdminDirectoryNonCursorQueryBrand: unique symbol // module-private; public construction is impossible
+export type PreparedAdminDirectoryNonCursorQuery = object // opaque runtime-authorized handle in a module-private WeakSet
+
 declare const adminUserQueryFingerprintBrand: unique symbol
 export type AdminUserQueryFingerprint = string & {
   readonly [adminUserQueryFingerprintBrand]: true
@@ -109,6 +112,10 @@ export type AdminUserQueryFingerprint = string & {
 export async function computeAdminUserDirectoryQueryFingerprint(
   input: Omit<AdminDirectoryNavigationQuery, "cursor" | "queryFingerprint">,
 ): Promise<AdminUserQueryFingerprint>
+
+export async function prepareAdminDirectoryNonCursorQuery(
+  input: unknown,
+): Promise<PreparedAdminDirectoryNonCursorQuery> // normalizes, fingerprints, rejects every unknown own key including cursor/queryFingerprint, then registers the opaque handle
 
 export async function parseUserDirectoryQuery(
   input: URLSearchParams | Readonly<Record<string, string | readonly string[] | undefined>>,
@@ -130,8 +137,8 @@ export function decodeAdminUserCursor(value: {
 }): ParsedAdminUserCursor
 
 export async function buildAdminUserDirectoryHref(
-  query: AdminDirectoryNavigationQuery,
-  cursor?: ParsedAdminUserCursor | null,
+  query: PreparedAdminDirectoryNonCursorQuery,
+  cursor: ParsedAdminUserCursor | null,
 ): Promise<string>
 
 export async function sanitizeAdminUserDirectoryReturnTo(
@@ -141,9 +148,11 @@ export async function sanitizeAdminUserDirectoryReturnTo(
 
 - [ ] **Step 1: Add RED URL tests**
 
-Assert `user-directory-query-contract.ts` is the single source for the parser, normalizers, Web Crypto fingerprint owner, cursor codec, canonical User-ID validator, and form/serializer sort/role/status allowlists. Both `user-directory-navigation.ts` and server-only `user-directory.ts` import that dependency-free contract; the contract/navigation import graph must not contain `node:crypto`, `@prisma/client`, `server-only`, `next/headers`, `lib/prisma`, auth, billing, database adapters, or any transitive Node/server-only module. Add a browser-targeted import/build test that imports the shared contract/navigation graph, supplies browser `globalThis.crypto.subtle`, executes the SHA-256 path, and fails on any Node builtin or server-only dependency. Prisma predicates and database operations remain exclusively in `user-directory.ts`. Add a source/import-graph contract that fails if a Client Component or browser-safe module imports `user-directory.ts`, or if the shared contract gains a forbidden direct/transitive import. Assert the awaited builder produces a stable `/admin/users?...` query preserving all supported non-default fields and page size. Canonical serialization always includes `pageSize`, omits empty fields and the default `sort=account_asc`, emits `sort=account_desc` only when selected, and uses this fixed order: `q`, `emailVerified`, `role`, `roleStatus`, `subscriptionStatus`, `creditState`, `temporaryAccess`, `unresolvedIssue`, `queue`, non-default `sort`, `pageSize`, `cursor`. Assert awaited parse -> build -> parse is idempotent and that no unresolved Promise is accepted as parsed query, sanitized return path, href, or fingerprint.
+Assert `user-directory-query-contract.ts` is the single source for the parser, normalizers, Web Crypto fingerprint owner, cursor codec, canonical User-ID validator, and form/serializer sort/role/status allowlists. Both `user-directory-navigation.ts` and server-only `user-directory.ts` import that dependency-free contract; the contract/navigation import graph must not contain `node:crypto`, `@prisma/client`, `server-only`, `next/headers`, `lib/prisma`, auth, billing, database adapters, or any transitive Node/server-only module. Add a browser-targeted import/build test that imports the shared contract/navigation graph, supplies browser `globalThis.crypto.subtle`, executes the SHA-256 path, and fails on any Node builtin or server-only dependency. Prisma predicates and database operations remain exclusively in `user-directory.ts`. The async preparation owner normalizes/fingerprints raw noncursor input, rejects every unknown own key including `cursor` and `queryFingerprint`, and returns only a module-private-registry-backed `PreparedAdminDirectoryNonCursorQuery`; a plain object, clone/spread, or cast fails runtime verification. The awaited builder accepts only that opaque prepared handle plus one required explicit `ParsedAdminUserCursor | null`. Add `@ts-expect-error`/compile-fail coverage proving a variable typed as full `AdminDirectoryNavigationQuery` cannot satisfy the brand or provide two cursor sources, plus JavaScript/runtime tests rejecting that full object and forged/cloned handles. Canonical order remains `q`, filters, non-default sort, `pageSize`, then exactly one explicit cursor. Assert awaited parse -> prepare noncursor -> build -> parse is idempotent and no unresolved Promise is accepted.
 
 Assert the sanitizer parses against one hard-coded inert origin such as `https://admin-navigation.invalid`, requires the raw input to begin with exactly one `/`, and then requires the parsed origin and `pathname === "/admin/users"` to match. It rejects credentials, host/origin changes, raw C0/DEL control characters, backslashes, encoded separators in the authority/path portion, fragments, duplicate singleton parameters, and every direct/double-encoded form below:
+
+The bounded encoded-separator hazard scan is limited to the raw/decoded authority and pathname layers before `?`/`#`; it never rejects `%2F`, `%3A`, or their canonical encodings merely because they occur inside `q` or another allowlisted query value. Tests accept and round-trip `/admin/users?q=neck%2Fshoulder%3Aleft&pageSize=25` through the shared parser/builder while the same encoded slash/colon in authority or pathname, including double-encoded forms, remains rejected.
 
 ```js
 for (const unsafe of [
@@ -187,7 +196,7 @@ Expected: FAIL because the navigation module and queue field do not exist.
 
 - [ ] **Step 3: Implement stable query serialization**
 
-Use `URLSearchParams`; allow only the fields in `AdminDirectoryNavigationQuery`. Before canonical parsing, perform a bounded hazard inspection of the raw string and at most two successful `decodeURIComponent` layers. At every inspected layer reject malformed percent encoding, `\u0000-\u001f`/`\u007f`, backslashes, credentials, absolute/protocol-relative origins, or a path other than exactly `/admin/users`; after the second layer, reject any remaining percent sequence that could decode into a control, slash, backslash, colon, or authority delimiter. This inspection never turns decoded query text into canonical state: after it passes, parse the original input once against the fixed inert origin, reject any origin/credential/path ambiguity, and round-trip every parameter through the dependency-free shared query parser before rebuilding the canonical URL. Never use a request header or caller-supplied origin as the sanitizer base. Normalize all non-cursor fields first, await the browser Web Crypto query fingerprint, then decode the cursor token exactly once and require the envelope's fingerprint to match. The async canonical builder awaits the same fingerprint owner, uses the documented fixed field order, always emits `pageSize`, omits `account_asc`, includes `account_desc`, and strips unsupported/default values consistently. It receives `ParsedAdminUserCursor | null` and emits only `parsedCursor.token` unchanged, so neither parser nor builder can re-encode the account ID or confuse the transport token with a database boundary. The async sanitizer awaits parse and rebuild before returning; every route, component, server owner, and test caller must await parser, builder, and sanitizer results before use.
+Use `URLSearchParams`; allow only the documented fields. Hazard-inspect at most two decoded layers of authority/path only, stopping at `?`/`#`; reject malformed/control/backslash/origin/path hazards there, but preserve valid encoded slash/colon in allowlisted query values for normal parser normalization and canonical rebuilding. Never turn decoded query text into route authority. Normalize one noncursor value, await its fingerprint, decode one cursor, and call the builder with that noncursor value plus exactly one explicit cursor/null. The builder has no competing cursor field. Every caller awaits parse/preparation/build/sanitize.
 
 - [ ] **Step 4: Implement stale-cursor stripping**
 
