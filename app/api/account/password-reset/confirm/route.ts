@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server"
 import { hashPassword, hashToken } from "@/lib/auth-security"
-import { confirmPasswordReset } from "@/lib/password-reset-confirmation"
+import {
+  confirmPasswordReset,
+  isPasswordResetTokenEligible,
+} from "@/lib/password-reset-confirmation"
 import { prisma } from "@/lib/prisma"
 
 export async function POST(request: Request) {
@@ -13,11 +16,22 @@ export async function POST(request: Request) {
   }
 
   const tokenHash = hashToken(token)
+  const now = new Date()
+  const eligible = await isPasswordResetTokenEligible({
+    prismaClient: prisma,
+    tokenHash,
+    now,
+  })
+  if (!eligible) {
+    return NextResponse.json({ message: "This reset link is expired or has already been used." }, { status: 400 })
+  }
+
   const passwordHash = await hashPassword(password)
   const result = await confirmPasswordReset({
     prismaClient: prisma,
     tokenHash,
     passwordHash,
+    now,
   })
 
   if (result.status === "INVALID") {

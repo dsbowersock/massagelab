@@ -11,13 +11,14 @@ const routeSource = await readFile(
 )
 
 /** Loads the confirm route with only its public dependencies and records owner handoff ordering. */
-function loadRoute({ result = { status: "UPDATED" } } = {}) {
+function loadRoute({ eligible = true, result = { status: "UPDATED" } } = {}) {
   const calls = []
-  const prisma = {
-    unexpectedDatabaseAccess() {
-      throw new Error("The confirm route must delegate reset persistence to confirmPasswordReset.")
+  const capturedTimes = {}
+  const prisma = new Proxy({}, {
+    get(_target, property) {
+      throw new Error(`The confirm route accessed Prisma directly through ${String(property)}.`)
     },
-  }
+  })
   const route = loadCompiledModule(
     routeSource,
     "app/api/account/password-reset/confirm/route.ts",
@@ -38,12 +39,19 @@ function loadRoute({ result = { status: "UPDATED" } } = {}) {
         },
       },
       "@/lib/password-reset-confirmation": {
+        isPasswordResetTokenEligible: async (input) => {
+          calls.push(["isPasswordResetTokenEligible", { tokenHash: input.tokenHash }])
+          assert.equal(input.prismaClient, prisma)
+          capturedTimes.eligibility = input.now
+          return eligible
+        },
         confirmPasswordReset: async (input) => {
           calls.push(["confirmPasswordReset", {
             tokenHash: input.tokenHash,
             passwordHash: input.passwordHash,
           }])
           assert.equal(input.prismaClient, prisma)
+          capturedTimes.confirmation = input.now
           return result
         },
       },
@@ -51,7 +59,7 @@ function loadRoute({ result = { status: "UPDATED" } } = {}) {
     },
   )
 
-  return { POST: route.POST, calls }
+  return { POST: route.POST, calls, capturedTimes }
 }
 
 function resetRequest(body) {
@@ -73,7 +81,7 @@ describe("password reset confirmation route", () => {
     })
     assert.deepEqual(invalid.calls, [])
 
-    const { POST, calls } = loadRoute()
+    const { POST, calls, capturedTimes } = loadRoute()
     const response = await POST(resetRequest({
       token: "raw-reset-token",
       password: "a-long-new-password",
@@ -85,12 +93,35 @@ describe("password reset confirmation route", () => {
     })
     assert.deepEqual(calls, [
       ["hashToken", "raw-reset-token"],
+      ["isPasswordResetTokenEligible", { tokenHash: "token-hash" }],
       ["hashPassword", "a-long-new-password"],
       ["confirmPasswordReset", { tokenHash: "token-hash", passwordHash: "password-hash" }],
     ])
+    assert.equal(capturedTimes.eligibility instanceof Date, true)
+    assert.equal(capturedTimes.confirmation, capturedTimes.eligibility)
   })
 
-  it("preserves the invalid-link response from the shared owner", async () => {
+  for (const [article, condition] of [["a", "missing"], ["an", "expired"], ["a", "consumed"]]) {
+    it(`rejects ${article} ${condition} token before password hashing or mutation handoff`, async () => {
+      const { POST, calls } = loadRoute({ eligible: false })
+
+      const response = await POST(resetRequest({
+        token: "raw-reset-token",
+        password: "a-long-new-password",
+      }))
+
+      assert.deepEqual(response, {
+        body: { message: "This reset link is expired or has already been used." },
+        status: 400,
+      })
+      assert.deepEqual(calls, [
+        ["hashToken", "raw-reset-token"],
+        ["isPasswordResetTokenEligible", { tokenHash: "token-hash" }],
+      ])
+    })
+  }
+
+  it("preserves the invalid-link response when eligibility passes but the transactional claim loses", async () => {
     const { POST, calls } = loadRoute({ result: { status: "INVALID" } })
 
     const response = await POST(resetRequest({
@@ -104,6 +135,7 @@ describe("password reset confirmation route", () => {
     })
     assert.deepEqual(calls, [
       ["hashToken", "raw-reset-token"],
+      ["isPasswordResetTokenEligible", { tokenHash: "token-hash" }],
       ["hashPassword", "a-long-new-password"],
       ["confirmPasswordReset", { tokenHash: "token-hash", passwordHash: "password-hash" }],
     ])
@@ -112,6 +144,9 @@ describe("password reset confirmation route", () => {
   it("does not inspect issuer evidence or write reset rows directly", () => {
     assert.doesNotMatch(routeSource, /passwordResetToken\.(findUnique|update)/)
     assert.doesNotMatch(routeSource, /passwordCredential\.upsert/)
+    assert.doesNotMatch(routeSource, /\$transaction|\.(?:create|updateMany|upsert|deleteMany)\s*\(/)
     assert.doesNotMatch(routeSource, /issuer|emailIntent|adminAction/i)
+    assert.doesNotMatch(routeSource, /\b(?:console|logger)\s*\./)
+    assert.doesNotMatch(routeSource, /\bselect\s*:/)
   })
 })

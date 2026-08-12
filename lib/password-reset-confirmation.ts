@@ -13,6 +13,36 @@ export type ConfirmPasswordResetResult =
   | { status: "UPDATED" }
   | { status: "INVALID" }
 
+export type PasswordResetTokenEligibilityInput = {
+  prismaClient: Pick<PrismaClient, "passwordResetToken">
+  tokenHash: string
+  now?: Date
+}
+
+/**
+ * Checks whether a hashed reset token is currently worth the password-hashing cost.
+ *
+ * This read-only boolean gate projects no account data and is never authoritative:
+ * confirmPasswordReset must still win the transactional compare-and-set claim.
+ */
+export async function isPasswordResetTokenEligible(
+  input: PasswordResetTokenEligibilityInput,
+): Promise<boolean> {
+  const now = captureNow(input.now)
+  validateOpaqueHash(input.tokenHash, "reset token hash")
+
+  const token = await input.prismaClient.passwordResetToken.findFirst({
+    where: {
+      tokenHash: input.tokenHash,
+      consumedAt: null,
+      expiresAt: { gt: now },
+    },
+    select: { id: true },
+  })
+
+  return token !== null
+}
+
 /**
  * Atomically consumes a valid reset link, replaces the password, and revokes sessions.
  *

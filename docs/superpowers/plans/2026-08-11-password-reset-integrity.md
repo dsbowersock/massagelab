@@ -4,21 +4,25 @@
 
 **Goal:** Make every self-service and Admin-requested password-reset link use one atomic consumption path that changes the password once, consumes all outstanding links, and invalidates existing authentication sessions.
 
-**Architecture:** Keep request parsing and password hashing in the existing route, then delegate all database effects to a new domain service. The service uses the repository's bounded Serializable transaction owner, claims the submitted token with a compare-and-set update, and performs credential replacement, sibling-token consumption, JWT-version increment, and compatibility Session deletion in one transaction.
+**Architecture:** Keep request parsing and raw-token hashing in the existing route, then ask the reset-confirmation owner for a lightweight boolean eligibility read using the token hash and one captured time. Only an eligible request pays the password-hashing cost, still outside the transaction. The same owner then uses the repository's bounded Serializable transaction owner, claims the submitted token with an authoritative compare-and-set update, and performs credential replacement, sibling-token consumption, JWT-version increment, and compatibility Session deletion in one transaction.
 
 **Tech Stack:** Next.js App Router, TypeScript, Prisma 7, PostgreSQL/Neon, Auth.js JWT session versioning, Node test runner.
 
 ## Global Constraints
 
 - Applies identically to ordinary self-service links and links issued by `sendAdminPasswordReset`.
-- Hash the password before the database transaction; no expensive password hashing may run while a transaction is open.
+- Hash the raw token first, perform the read-only non-authoritative eligibility gate, and return the existing generic invalid-link response before password hashing when the gate fails.
+- Hash the password only after eligibility passes and before the database transaction; no expensive password hashing may run while a transaction is open.
+- Pass the same token hash and captured time through the eligibility lookup and confirmation service. The transaction's compare-and-set remains the sole claim authority if state changes after the read.
 - Return the existing generic expired-or-used response for missing, expired, consumed, or concurrently lost tokens.
 - Increment `User.authSessionVersion` exactly once on a successful password replacement.
 - Delete Prisma `Session` rows only as compatibility cleanup; never present that count as active JWTs or people signed out.
 - Create no new `AdminAction`, `UserAccountActivity`, or `AdminEmailIntent` when a link is consumed.
 - Use the established bounded Serializable retry owner; keep database-only work inside its callback.
+- Extend that one retry owner only for Prisma adapter `P2039` errors whose exact `meta.driverAdapterError.cause.originalCode` is `40P01` or `55P03`; never retry other adapter shapes or message text.
 - Preserve PHI/privacy boundaries and never log raw reset tokens, hashes, passwords, emails, or database rows.
 - Follow strict RED/GREEN development and stop at the user-controlled merge gate.
+- The approved 2026-08-12 final-review fix wave stops after a verified local commit; pushing, PR creation, GitHub mutation, live database access, and email delivery are outside that wave.
 
 ---
 
@@ -42,6 +46,12 @@
 - Produces:
 
 ```ts
+export async function isPasswordResetTokenEligible(input: {
+  prismaClient: Pick<PrismaClient, "passwordResetToken">
+  tokenHash: string
+  now?: Date
+}): Promise<boolean>
+
 export type ConfirmPasswordResetInput = {
   prismaClient: Pick<PrismaClient, "$transaction">
   tokenHash: string
@@ -104,7 +114,7 @@ function validateOpaqueHash(value: string, label: string): void {
 
 - [ ] **Step 4: Implement the minimal invalid-token transaction**
 
-Use `runCommerceTransaction` and load only `id`, `userId`, `expiresAt`, and `consumedAt`. Return `INVALID` without mutation if the token is absent or ineligible; the compare-and-set claim in Task 2 remains authoritative for races.
+Implement `isPasswordResetTokenEligible` in this same owner as a read-only lookup using `tokenHash`, `consumedAt: null`, `expiresAt: { gt: now }`, and `select: { id: true }`. Validate the opaque hash and time before querying, and return only a boolean. Separately, use `runCommerceTransaction` in `confirmPasswordReset`, load only `id` and `userId`, and return `INVALID` without mutation if the token is absent; the compare-and-set claim in Task 2 remains authoritative for expiration, consumption, and races.
 
 - [ ] **Step 5: Run the focused test and verify GREEN**
 
@@ -123,7 +133,9 @@ git commit -m "test: define atomic password reset consumption"
 
 **Files:**
 - Modify: `lib/password-reset-confirmation.ts`
+- Modify: `lib/commerce/transactions.ts`
 - Modify: `tests/password-reset-confirmation.test.mjs`
+- Modify: `tests/commerce-core.test.mjs`
 
 **Interfaces:**
 - Consumes: the Task 1 `confirmPasswordReset` signature.
@@ -148,15 +160,17 @@ Add a rollback test that throws on the final Session deletion and proves the old
 
 - [ ] **Step 2: Add RED tests for same-token and different-token concurrency**
 
-The fake must retain a fixed Serializable snapshot and enforce committed token/version state. Gate two calls at the claim boundary. Assert exactly one `UPDATED`, one `INVALID`, one password winner, one version increment, and all links consumed.
+The fake must retain a fixed Serializable snapshot and enforce committed token/version state. Gate two calls at the claim boundary. Retain each result together with its contender, identify the sole `UPDATED` result, and assert that the committed password hash belongs to that contender. Assert exactly one `UPDATED`, one `INVALID`, one version increment, and all links consumed without assuming contender A wins.
 
 ```js
-assert.deepEqual(results.map((result) => result.status).sort(), ["INVALID", "UPDATED"])
+assert.deepEqual(resultsByContender.map(({ result }) => result.status).sort(), ["INVALID", "UPDATED"])
+const [updated] = resultsByContender.filter(({ result }) => result.status === "UPDATED")
+assert.equal(database.state.passwordCredential.passwordHash, updated.contender.passwordHash)
 assert.equal(database.state.user.authSessionVersion, 5)
 assert.equal(database.state.passwordResetTokens.every((token) => token.consumedAt), true)
 ```
 
-Repeat with two different token hashes and different password hashes; assert only the first committed password remains.
+Repeat with two different token hashes and different password hashes; correlate the committed password to whichever contender returned `UPDATED` rather than hard-coding a winner.
 
 - [ ] **Step 3: Run focused tests and verify RED**
 
@@ -189,9 +203,9 @@ if (claim.count !== 1) return { status: "INVALID" } as const
 
 Then, in the same callback, upsert `PasswordCredential`, consume remaining unconsumed rows for `userId`, increment `authSessionVersion`, and delete `Session` rows. Do not return the Session delete count.
 
-- [ ] **Step 5: Preserve bounded Serializable retries**
+- [ ] **Step 5: Preserve and extend bounded Serializable retries**
 
-Use `runCommerceTransaction` unchanged. The callback must perform database work only. Add a regression where the first attempt throws `P2034`, the second succeeds, and the committed state still contains one version increment.
+Keep `runCommerceTransaction` as the single shared retry owner and keep database-only work in its callback. Preserve top-level `P2034`, `40P01`, and `55P03` retries. Also recognize only top-level `P2039` with exact nested `meta.driverAdapterError.cause.originalCode` `40P01` or `55P03`; wrong, missing, malformed, message-only, uniqueness, and other adapter cases remain terminal. The different-token contention regression must exercise this adapter-shaped path, while the existing top-level `P2034` regression remains green. Maximum total attempts stays capped at three with full jitter.
 
 - [ ] **Step 6: Run focused tests and verify GREEN**
 
@@ -215,16 +229,17 @@ git commit -m "fix: consume password resets atomically"
 - Modify: `tests/admin-security-service.test.mjs`
 
 **Interfaces:**
-- Consumes: `confirmPasswordReset({ prismaClient, tokenHash, passwordHash })`.
+- Consumes: `isPasswordResetTokenEligible({ prismaClient, tokenHash, now })` followed, only when eligible, by `confirmPasswordReset({ prismaClient, tokenHash, passwordHash, now })`.
 - Produces: unchanged public JSON/status messages.
 
 - [ ] **Step 1: Write a compiled route RED test**
 
-Compile the route with doubles for `NextResponse`, `hashToken`, `hashPassword`, `confirmPasswordReset`, and Prisma. Prove request validation and hashing happen before the service call and that the route no longer reads or updates reset rows directly.
+Compile the route with doubles for `NextResponse`, `hashToken`, `isPasswordResetTokenEligible`, `hashPassword`, `confirmPasswordReset`, and Prisma. Prove request validation happens first; eligible flow orders raw-token hashing, eligibility, password hashing, and confirmation; and the route never writes reset state directly. Missing, expired, and consumed eligibility failures must not call `hashPassword`, `confirmPasswordReset`, or any direct mutation API.
 
 ```js
 assert.deepEqual(calls, [
   ["hashToken", "raw-reset-token"],
+  ["isPasswordResetTokenEligible", { tokenHash: "token-hash" }],
   ["hashPassword", "a-long-new-password"],
   ["confirmPasswordReset", { tokenHash: "token-hash", passwordHash: "password-hash" }],
 ])
@@ -242,12 +257,20 @@ Expected: FAIL because the route still owns direct Prisma mutations.
 
 - [ ] **Step 3: Replace direct route writes with the service**
 
-Keep request shape validation first, then compute both hashes before invoking the service:
+Keep request shape validation first, then hash the token, capture one time, perform the non-authoritative read-only gate, and only then hash the password before invoking the transactional service:
 
 ```ts
 const tokenHash = hashToken(token)
+const now = new Date()
+const eligible = await isPasswordResetTokenEligible({ prismaClient: prisma, tokenHash, now })
+if (!eligible) {
+  return NextResponse.json(
+    { message: "This reset link is expired or has already been used." },
+    { status: 400 },
+  )
+}
 const passwordHash = await hashPassword(password)
-const result = await confirmPasswordReset({ prismaClient: prisma, tokenHash, passwordHash })
+const result = await confirmPasswordReset({ prismaClient: prisma, tokenHash, passwordHash, now })
 if (result.status === "INVALID") {
   return NextResponse.json(
     { message: "This reset link is expired or has already been used." },
@@ -344,7 +367,7 @@ Record that successful consumption atomically changes the password, consumes all
 - [ ] **Step 2: Run focused and adjacent validation**
 
 ```bash
-node --test tests/password-reset-confirmation.test.mjs tests/password-reset-confirm-route.test.mjs tests/auth-security.test.mjs tests/auth-session-version.test.mjs tests/admin-security-service.test.mjs tests/admin-security-ui.test.mjs
+node --test tests/password-reset-confirmation.test.mjs tests/password-reset-confirm-route.test.mjs tests/commerce-core.test.mjs tests/auth-security.test.mjs tests/auth-session-version.test.mjs tests/admin-security-service.test.mjs tests/admin-security-ui.test.mjs
 npm run typecheck
 npm run lint
 ```

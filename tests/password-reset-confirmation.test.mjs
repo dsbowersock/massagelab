@@ -1,9 +1,57 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 
-import { confirmPasswordReset } from "../lib/password-reset-confirmation.ts"
+import {
+  confirmPasswordReset,
+  isPasswordResetTokenEligible,
+} from "../lib/password-reset-confirmation.ts"
 
 const NOW = new Date("2026-08-11T12:00:00.000Z")
+
+describe("isPasswordResetTokenEligible", () => {
+  it("rejects invalid inputs before reading reset-token state", async () => {
+    const prismaClient = createEligibilityClient()
+
+    await assert.rejects(
+      () => isPasswordResetTokenEligible({ prismaClient, tokenHash: "", now: NOW }),
+      /valid reset token hash/,
+    )
+    await assert.rejects(
+      () => isPasswordResetTokenEligible({ prismaClient, tokenHash: "x".repeat(513), now: NOW }),
+      /valid reset token hash/,
+    )
+    await assert.rejects(
+      () => isPasswordResetTokenEligible({
+        prismaClient,
+        tokenHash: "active-token-hash-a",
+        now: new Date("invalid"),
+      }),
+      /valid reset time/,
+    )
+
+    assert.equal(prismaClient.queryCount, 0)
+  })
+
+  it("returns only eligibility from a minimal hashed-token lookup", async () => {
+    const eligibleClient = createEligibilityClient({ eligible: true })
+    const ineligibleClient = createEligibilityClient({ eligible: false })
+
+    assert.equal(await isPasswordResetTokenEligible({
+      prismaClient: eligibleClient,
+      tokenHash: "active-token-hash-a",
+      now: NOW,
+    }), true)
+    assert.equal(await isPasswordResetTokenEligible({
+      prismaClient: ineligibleClient,
+      tokenHash: "missing-token-hash",
+      now: NOW,
+    }), false)
+    assert.equal(eligibleClient.queryCount, 1)
+    assert.equal(ineligibleClient.queryCount, 1)
+    assert.deepEqual(eligibleClient.queriedTokenHashes, ["active-token-hash-a"])
+    assert.deepEqual(ineligibleClient.queriedTokenHashes, ["missing-token-hash"])
+  })
+})
 
 describe("confirmPasswordReset", () => {
   it("rejects invalid opaque hashes before opening a transaction", async () => {
@@ -107,23 +155,24 @@ describe("confirmPasswordReset", () => {
 
   it("allows exactly one same-token concurrent reset to win", async () => {
     const database = createResetDatabase({ claimGate: createClaimGate(2) })
-    const results = await Promise.all([
-      confirmPasswordReset({
+    const contenders = [
+      { name: "B", tokenHash: "active-token-hash-a", passwordHash: "same-token-password-b" },
+      { name: "A", tokenHash: "active-token-hash-a", passwordHash: "same-token-password-a" },
+    ]
+    const resultsByContender = await Promise.all(contenders.map(async (contender) => ({
+      contender,
+      result: await confirmPasswordReset({
         prismaClient: database,
-        tokenHash: "active-token-hash-a",
-        passwordHash: "same-token-password-a",
+        tokenHash: contender.tokenHash,
+        passwordHash: contender.passwordHash,
         now: NOW,
       }),
-      confirmPasswordReset({
-        prismaClient: database,
-        tokenHash: "active-token-hash-a",
-        passwordHash: "same-token-password-b",
-        now: NOW,
-      }),
-    ])
+    })))
+    const updatedResults = resultsByContender.filter(({ result }) => result.status === "UPDATED")
 
-    assert.deepEqual(results.map((result) => result.status).sort(), ["INVALID", "UPDATED"])
-    assert.equal(database.state.passwordCredential.passwordHash, "same-token-password-a")
+    assert.deepEqual(resultsByContender.map(({ result }) => result.status).sort(), ["INVALID", "UPDATED"])
+    assert.equal(updatedResults.length, 1)
+    assert.equal(database.state.passwordCredential.passwordHash, updatedResults[0].contender.passwordHash)
     assert.equal(database.state.user.authSessionVersion, 5)
     assert.equal(database.state.passwordResetTokens
       .filter((token) => token.userId === database.state.user.id)
@@ -132,23 +181,26 @@ describe("confirmPasswordReset", () => {
 
   it("allows exactly one different-token concurrent reset to win", async () => {
     const database = createResetDatabase({ claimGate: createClaimGate(2) })
-    const results = await Promise.all([
-      confirmPasswordReset({
+    const contenders = [
+      { name: "B", tokenHash: "active-token-hash-b", passwordHash: "different-token-password-b" },
+      { name: "A", tokenHash: "active-token-hash-a", passwordHash: "different-token-password-a" },
+    ]
+    const resultsByContender = await Promise.all(contenders.map(async (contender) => ({
+      contender,
+      result: await confirmPasswordReset({
         prismaClient: database,
-        tokenHash: "active-token-hash-a",
-        passwordHash: "different-token-password-a",
+        tokenHash: contender.tokenHash,
+        passwordHash: contender.passwordHash,
         now: NOW,
       }),
-      confirmPasswordReset({
-        prismaClient: database,
-        tokenHash: "active-token-hash-b",
-        passwordHash: "different-token-password-b",
-        now: NOW,
-      }),
-    ])
+    })))
+    const updatedResults = resultsByContender.filter(({ result }) => result.status === "UPDATED")
 
-    assert.deepEqual(results.map((result) => result.status).sort(), ["INVALID", "UPDATED"])
-    assert.equal(database.state.passwordCredential.passwordHash, "different-token-password-a")
+    assert.deepEqual(resultsByContender.map(({ result }) => result.status).sort(), ["INVALID", "UPDATED"])
+    assert.equal(updatedResults.length, 1)
+    assert.equal(database.state.passwordCredential.passwordHash, updatedResults[0].contender.passwordHash)
+    assert.deepEqual(database.contentionRetryCodes, ["40P01"])
+    assert.equal(database.transactionAttempts, 3)
     assert.equal(database.state.user.authSessionVersion, 5)
     assert.equal(database.state.passwordResetTokens
       .filter((token) => token.userId === database.state.user.id)
@@ -173,6 +225,30 @@ describe("confirmPasswordReset", () => {
       .every((token) => token.consumedAt), true)
   })
 })
+
+function createEligibilityClient({ eligible = false } = {}) {
+  let queryCount = 0
+  const queriedTokenHashes = []
+
+  return {
+    get queryCount() {
+      return queryCount
+    },
+    get queriedTokenHashes() {
+      return [...queriedTokenHashes]
+    },
+    passwordResetToken: {
+      async findFirst(query) {
+        queryCount += 1
+        queriedTokenHashes.push(query.where.tokenHash)
+        assert.equal(query.where.consumedAt, null)
+        assert.equal(query.where.expiresAt.gt.getTime(), NOW.getTime())
+        assert.deepEqual(query.select, { id: true })
+        return eligible ? { id: "eligible-reset-token" } : null
+      },
+    },
+  }
+}
 
 function createResetDatabase({
   claimGate = null,
@@ -225,6 +301,7 @@ function createResetDatabase({
   let remainingSerializationConflicts = serializationConflicts
   let nextTransactionId = 1
   const claimedTokenIds = new Map()
+  const contentionRetryCodes = []
 
   return {
     get state() {
@@ -232,6 +309,9 @@ function createResetDatabase({
     },
     get transactionAttempts() {
       return transactionAttempts
+    },
+    get contentionRetryCodes() {
+      return [...contentionRetryCodes]
     },
     async $transaction(callback, options) {
       transactionAttempts += 1
@@ -330,7 +410,8 @@ function createResetDatabase({
             throw Object.assign(new Error("serialization conflict"), { code: "P2034" })
           }
           if (revision !== startRevision) {
-            throw Object.assign(new Error("serialization conflict"), { code: "P2034" })
+            contentionRetryCodes.push("40P01")
+            throw createAdapterTransactionError("40P01")
           }
           state = structuredClone(snapshot)
           revision += 1
@@ -343,6 +424,17 @@ function createResetDatabase({
       }
     },
   }
+}
+
+function createAdapterTransactionError(originalCode) {
+  return Object.assign(new Error("adapter transaction conflict"), {
+    code: "P2039",
+    meta: {
+      driverAdapterError: {
+        cause: { originalCode },
+      },
+    },
+  })
 }
 
 function createClaimGate(expectedArrivals) {

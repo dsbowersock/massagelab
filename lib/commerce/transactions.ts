@@ -6,6 +6,7 @@ type CommerceTransactionOptions = {
 }
 
 const RETRYABLE_TRANSACTION_CODES = new Set(["P2034", "55P03", "40P01"])
+const RETRYABLE_ADAPTER_ORIGINAL_CODES = new Set(["55P03", "40P01"])
 const FULL_JITTER_MS = 35
 const MAX_COMMERCE_TRANSACTION_ATTEMPTS = 3
 
@@ -15,7 +16,32 @@ function isRetryableTransactionError(error: unknown): boolean {
   }
 
   const candidateCode = (error as { code?: unknown }).code
-  return typeof candidateCode === "string" && RETRYABLE_TRANSACTION_CODES.has(candidateCode)
+  if (typeof candidateCode !== "string") {
+    return false
+  }
+  if (RETRYABLE_TRANSACTION_CODES.has(candidateCode)) {
+    return true
+  }
+  if (candidateCode !== "P2039") {
+    return false
+  }
+
+  // Prisma's Neon adapter wraps lock SQLSTATEs at this exact path. Structural
+  // matching avoids retrying arbitrary adapter failures or provider messages.
+  const meta = (error as { meta?: unknown }).meta
+  if (!meta || typeof meta !== "object") {
+    return false
+  }
+  const driverAdapterError = (meta as { driverAdapterError?: unknown }).driverAdapterError
+  if (!driverAdapterError || typeof driverAdapterError !== "object") {
+    return false
+  }
+  const cause = (driverAdapterError as { cause?: unknown }).cause
+  if (!cause || typeof cause !== "object") {
+    return false
+  }
+  const originalCode = (cause as { originalCode?: unknown }).originalCode
+  return typeof originalCode === "string" && RETRYABLE_ADAPTER_ORIGINAL_CODES.has(originalCode)
 }
 
 function jitterMs(attempt: number): number {

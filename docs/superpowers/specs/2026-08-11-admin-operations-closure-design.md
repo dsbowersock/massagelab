@@ -34,14 +34,16 @@ This branch owns reset-token consumption, password replacement, and authenticati
 
 #### Transaction contract
 
-1. Validate the request shape and hash the new password before entering the database transaction.
-2. Enter a serializable transaction and atomically claim the submitted token only when it is unconsumed and unexpired.
-3. If the claim affects no row, return the existing safe expired-or-used response without changing the password.
-4. Update or create the target password credential.
-5. Consume every other outstanding reset token for that user in the same transaction.
-6. Increment `User.authSessionVersion` exactly once.
-7. Delete Prisma `Session` rows for adapter compatibility without presenting their count as active JWT sessions or users signed out.
-8. Commit all effects together. A rollback leaves the prior password, token states, version, and compatibility sessions unchanged.
+1. Validate the request shape, hash the raw reset token, and capture one request time.
+2. Ask the existing reset-confirmation owner for a lightweight, read-only eligibility lookup using only the token hash, unconsumed/unexpired predicates, the captured time, and an identifier-only projection. If ineligible, return the existing safe expired-or-used response without hashing the password or opening the confirmation transaction.
+3. If eligible, hash the new password outside the database transaction.
+4. Enter a serializable transaction with the same token hash and captured time, then atomically claim the submitted token only when it is still unconsumed and unexpired. This compare-and-set is the sole concurrency authority; the preceding read is only an abuse-cost optimization.
+5. If the claim affects no row, return the same safe expired-or-used response without changing the password.
+6. Update or create the target password credential.
+7. Consume every other outstanding reset token for that user in the same transaction.
+8. Increment `User.authSessionVersion` exactly once.
+9. Delete Prisma `Session` rows for adapter compatibility without presenting their count as active JWT sessions or users signed out.
+10. Commit all effects together. A rollback leaves the prior password, token states, version, and compatibility sessions unchanged.
 
 Concurrent submissions of the same token must produce exactly one successful password change. A losing request cannot overwrite the winner. If two different outstanding links race, the first successful transaction consumes the other link before it can change the password.
 
@@ -158,7 +160,7 @@ Completed Admin actions revalidate the affected detail, directory, dashboard, Ac
 ## Error handling
 
 - Password-reset token conflicts return the existing generic expired-or-used response. They do not reveal whether another request consumed the token.
-- Database serialization conflicts use bounded established retry behavior; repeated or unrelated uniqueness failures remain terminal.
+- Database serialization conflicts use bounded established retry behavior. In addition to the existing top-level retry codes, Prisma adapter `P2039` retries only when `meta.driverAdapterError.cause.originalCode` is exactly `40P01` or `55P03`; other adapter shapes, messages, and uniqueness failures remain terminal.
 - Stripe reconciliation preserves the canonical unresolved state for ambiguous provider evidence. It never downgrades a possibly committed operation to definitely-not-mutated.
 - Migration or database identity ambiguity stops the operational flow before mutation.
 - Browser QA stops before fixture provisioning when database identity, sentinel, server ownership, or SMTP isolation is unproven.
@@ -177,6 +179,8 @@ Every implementation branch follows strict RED/GREEN development, focused spec r
 - compatibility sessions are deleted without overclaiming JWT counts;
 - old JWTs fail after the next successful database-backed refresh;
 - expired, already-consumed, missing, and rollback cases remain safe; and
+- missing, expired, and consumed links stop before password hashing, while a post-gate race still receives the identical generic invalid response;
+- Prisma adapter-shaped deadlock and lock failures retry through the one shared bounded owner, including different-token contention;
 - self-service and Admin-requested links use the same consumption owner.
 
 ### Billing acceptance
