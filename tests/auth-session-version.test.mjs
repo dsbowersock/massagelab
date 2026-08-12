@@ -60,6 +60,33 @@ describe("JWT session-version decisions", () => {
 })
 
 describe("JWT session-version integration contract", () => {
+  it("rejects a pre-reset JWT version after reset consumption advances the account version", async () => {
+    const [resetSource] = await Promise.all([
+      read("lib/password-reset-confirmation.ts"),
+    ])
+    const database = createResetConsumptionDatabase()
+    const { confirmPasswordReset } = loadCompiledModule(resetSource, "password-reset-confirmation.test.ts", {
+      "./commerce/transactions.ts": {
+        runCommerceTransaction: (prismaClient, callback) => prismaClient.$transaction(callback),
+      },
+    })
+
+    assert.deepEqual(await confirmPasswordReset({
+      prismaClient: database,
+      tokenHash: "active-reset-token",
+      passwordHash: "new-password-hash",
+      now: new Date("2026-08-11T12:00:00.000Z"),
+    }), { status: "UPDATED" })
+
+    const decision = decideAuthSessionVersion({
+      currentVersion: database.state.user.authSessionVersion,
+      tokenVersion: 4,
+      isSignIn: false,
+    })
+
+    assert.deepEqual(decision, { accepted: false })
+  })
+
   it("declares the additive schema, migration, and server-only JWT field", async () => {
     const [schema, migration, authTypes] = await Promise.all([
       read("prisma/schema.prisma"),
@@ -143,3 +170,68 @@ describe("JWT session-version integration contract", () => {
     assert.doesNotMatch(authUsersSource, /authSessionVersion: user\?\.authSessionVersion\s*\?\?\s*0/)
   })
 })
+
+/**
+ * Provides the smallest successful-reset transaction double needed to connect
+ * reset consumption to JWT invalidation without duplicating race coverage.
+ */
+function createResetConsumptionDatabase() {
+  const state = {
+    user: { id: "user-1", authSessionVersion: 4 },
+    passwordCredential: { userId: "user-1", passwordHash: "old-password-hash" },
+    passwordResetTokens: [{
+      id: "reset-1",
+      userId: "user-1",
+      tokenHash: "active-reset-token",
+      expiresAt: new Date("2026-08-11T12:00:00.001Z"),
+      consumedAt: null,
+    }],
+    sessions: [{ id: "session-1", userId: "user-1" }],
+  }
+
+  return {
+    state,
+    async $transaction(callback) {
+      return callback({
+        passwordResetToken: {
+          async findUnique({ where }) {
+            const token = state.passwordResetTokens.find((candidate) => candidate.tokenHash === where.tokenHash)
+            return token ? { id: token.id, userId: token.userId } : null
+          },
+          async updateMany({ where, data }) {
+            const matchingTokens = state.passwordResetTokens.filter((token) => (
+              token.userId === where.userId
+              && (!where.id || token.id === where.id)
+              && (!Object.hasOwn(where, "consumedAt") || token.consumedAt === where.consumedAt)
+              && (!where.expiresAt || token.expiresAt > where.expiresAt.gt)
+            ))
+            for (const token of matchingTokens) token.consumedAt = data.consumedAt
+            return { count: matchingTokens.length }
+          },
+        },
+        passwordCredential: {
+          async upsert({ create, update }) {
+            state.passwordCredential = {
+              ...state.passwordCredential,
+              passwordHash: state.passwordCredential ? update.passwordHash : create.passwordHash,
+            }
+            return state.passwordCredential
+          },
+        },
+        user: {
+          async update({ data }) {
+            state.user.authSessionVersion += data.authSessionVersion.increment
+            return state.user
+          },
+        },
+        session: {
+          async deleteMany({ where }) {
+            const previousCount = state.sessions.length
+            state.sessions = state.sessions.filter((session) => session.userId !== where.userId)
+            return { count: previousCount - state.sessions.length }
+          },
+        },
+      })
+    },
+  }
+}

@@ -73,6 +73,8 @@ describe("confirmPasswordReset", () => {
 
     const state = database.state
     assert.deepEqual(result, { status: "UPDATED" })
+    assert.equal(Object.hasOwn(result, "sessionCount"), false)
+    assert.equal(Object.hasOwn(result, "deletedSessionCount"), false)
     assert.equal(state.passwordCredential.passwordHash, "new-password-hash")
     assert.equal(state.passwordResetTokens.filter((token) => token.userId === state.user.id)
       .every((token) => token.consumedAt?.getTime() === NOW.getTime()), true)
