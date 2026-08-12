@@ -13,7 +13,7 @@
 - This branch is read-only except for URL/navigation state; it adds no mutation authority.
 - Preserve search, supported filters, queue, and page size in return navigation.
 - Preserve the directory's supported deterministic sort. This branch exposes `account_asc` and `account_desc`; forward boundaries, reverse-lookback queries, result reversal, and emitted next/previous cursors must all follow the selected ID direction.
-- A cursor is navigation context only. `cursor` in parsed input, response fields, and URLs is an opaque canonical base64url token; it is never an account ID. Decode it exactly once into a separately named account ID, reject malformed, non-canonical, or double-encoded values, and use only that decoded ID for existence checks and database comparisons. If the decoded account is missing, deleted, or filtered out, fall back once to the first page while retaining safe non-cursor filters.
+- A cursor is navigation context only. Transport uses one opaque canonical unpadded base64url token that decodes exactly once into a canonical versioned JSON envelope containing `accountId` and the fingerprint of the normalized non-cursor query. Parsing returns one `ParsedAdminUserCursor` object containing both the unchanged token and validated decoded account ID; no API represents either value as an ambiguous bare cursor string. Reject malformed, non-canonical, double-encoded, wrong-version, or query-mismatched tokens before the transaction, and use only `parsedCursor.accountId` for existence checks and database comparisons. If that account is missing, deleted, or filtered out, fall back once to the first page while retaining safe non-cursor filters.
 - Cursor usability, first/forward page selection, and any previous-page lookback must share one repeatable consistent read snapshot. Concurrent deletion or filter-state changes cannot let validation and page evidence observe different database states.
 - Reject absolute, protocol-relative, encoded-external, malformed, and unsupported return URLs.
 - Canonical queues: billing reconciliation, failed notification, commerce review, temporary access expiring within 30 days, and broader unresolved.
@@ -26,8 +26,9 @@
 
 ## File Structure
 
-- Create `lib/admin/user-directory-navigation.ts`: pure browser-safe queue/sort/role/status definitions, URL builder, and fixed-origin return-URL sanitizer.
-- Modify `lib/admin/user-directory.ts`: queue parser/predicates, safe row counts, stale-cursor fallback.
+- Create `lib/admin/user-directory-query-contract.ts`: dependency-free browser-safe allowlists, query normalizer/parser, canonical User-ID grammar, and versioned cursor codec.
+- Create `lib/admin/user-directory-navigation.ts`: browser-safe URL builder and fixed-origin return-URL sanitizer consuming the query contract.
+- Modify `lib/admin/user-directory.ts`: consume the query contract while retaining Prisma predicates, database operations, safe row counts, and stale-cursor fallback.
 - Modify `app/admin/users/page.tsx`: queue controls, context-carrying detail links, privacy-safe badges.
 - Modify `app/admin/users/[userId]/page.tsx`: validated return link and section-link context preservation.
 - Modify `app/admin/page.tsx`: metric cards become canonical queue links.
@@ -37,6 +38,7 @@
 ### Task 1: Define canonical queue and return-URL contracts
 
 **Files:**
+- Create: `lib/admin/user-directory-query-contract.ts`
 - Create: `lib/admin/user-directory-navigation.ts`
 - Modify: `tests/admin-user-directory.test.mjs`
 
@@ -80,10 +82,12 @@ export type AdminUserCreditStateFilter = (typeof ADMIN_USER_CREDIT_STATE_FILTER_
 export type AdminUserTemporaryAccessFilter = (typeof ADMIN_USER_TEMPORARY_ACCESS_FILTER_VALUES)[number]
 export type AdminUserUnresolvedFilter = (typeof ADMIN_USER_UNRESOLVED_FILTER_VALUES)[number]
 
+export type CanonicalAdminUserId = string & { readonly __canonicalAdminUserId: unique symbol }
+
 export type AdminDirectoryNavigationQuery = {
   query: string
   pageSize: number
-  cursor: string | null
+  cursor: ParsedAdminUserCursor | null
   sort: AdminUserSort
   emailVerified: AdminUserEmailVerificationFilter | null
   role: AdminUserRoleFilter | null
@@ -95,12 +99,28 @@ export type AdminDirectoryNavigationQuery = {
   queue: AdminUserQueue | null
 }
 
-export function encodeAdminUserCursor(accountId: string): string
-export function decodeAdminUserCursor(cursorToken: string): string
+export function parseUserDirectoryQuery(
+  input: URLSearchParams | Readonly<Record<string, string | readonly string[] | undefined>>,
+): AdminDirectoryNavigationQuery
+
+export type ParsedAdminUserCursor = {
+  token: string
+  accountId: CanonicalAdminUserId
+  queryFingerprint: string
+}
+
+export function encodeAdminUserCursor(value: {
+  accountId: CanonicalAdminUserId
+  queryFingerprint: string
+}): ParsedAdminUserCursor
+export function decodeAdminUserCursor(value: {
+  token: string
+  expectedQueryFingerprint: string
+}): ParsedAdminUserCursor
 
 export function buildAdminUserDirectoryHref(
   query: AdminDirectoryNavigationQuery,
-  cursor?: string | null,
+  cursor?: ParsedAdminUserCursor | null,
 ): string
 
 export function sanitizeAdminUserDirectoryReturnTo(value: string | null | undefined): string
@@ -108,7 +128,7 @@ export function sanitizeAdminUserDirectoryReturnTo(value: string | null | undefi
 
 - [ ] **Step 1: Add RED URL tests**
 
-Assert the browser-safe contract is the single source for parser, form-option, and serializer sort/role/status values; server-only Prisma code may consume these types but the navigation module must not import `@prisma/client`. Assert the builder produces a stable `/admin/users?...` query preserving all supported non-default fields and page size. Canonical serialization always includes `pageSize`, omits empty fields and the default `sort=account_asc`, emits `sort=account_desc` only when selected, and uses this fixed order: `q`, `emailVerified`, `role`, `roleStatus`, `subscriptionStatus`, `creditState`, `temporaryAccess`, `unresolvedIssue`, `queue`, non-default `sort`, `pageSize`, `cursor`. Assert parse -> build -> parse is idempotent.
+Assert `user-directory-query-contract.ts` is the single source for the parser, normalizers, cursor codec, canonical User-ID validator, and form/serializer sort/role/status allowlists. Both `user-directory-navigation.ts` and server-only `user-directory.ts` import that dependency-free contract; the contract/navigation import graph must not contain `@prisma/client`, `server-only`, `next/headers`, `lib/prisma`, auth, billing, database adapters, or any transitive server-only module. Prisma predicates and database operations remain exclusively in `user-directory.ts`. Add a source/import-graph contract that fails if a Client Component or browser-safe module imports `user-directory.ts`, or if the shared contract gains a forbidden direct/transitive import. Assert the builder produces a stable `/admin/users?...` query preserving all supported non-default fields and page size. Canonical serialization always includes `pageSize`, omits empty fields and the default `sort=account_asc`, emits `sort=account_desc` only when selected, and uses this fixed order: `q`, `emailVerified`, `role`, `roleStatus`, `subscriptionStatus`, `creditState`, `temporaryAccess`, `unresolvedIssue`, `queue`, non-default `sort`, `pageSize`, `cursor`. Assert parse -> build -> parse is idempotent.
 
 Assert the sanitizer parses against one hard-coded inert origin such as `https://admin-navigation.invalid`, requires the raw input to begin with exactly one `/`, and then requires the parsed origin and `pathname === "/admin/users"` to match. It rejects credentials, host/origin changes, raw C0/DEL control characters, backslashes, encoded separators in the authority/path portion, fragments, duplicate singleton parameters, and every direct/double-encoded form below:
 
@@ -142,7 +162,9 @@ for (const codePoint of [...Array.from({ length: 32 }, (_, index) => index), 127
 }
 ```
 
-Assert unsupported queue values are omitted, unsupported sort values become `account_asc`, and cursor may be stripped independently. Cursor tests must prove `encodeAdminUserCursor` emits canonical unpadded base64url exactly once and `decodeAdminUserCursor` decodes exactly once to a validated account ID. Reject invalid base64url, padding, empty or overlong decoded IDs, non-UTF-8 bytes, tokens whose decode/re-encode is not byte-for-byte canonical, a double-encoded token, and any decoded ID outside the account-ID grammar. The builder accepts only the already-canonical opaque token and never re-encodes it.
+Before choosing the ID validator, audit the `User.id` schema declaration, Prisma's actual `cuid()` generator output for the repository-pinned version, every Production creation/Auth-adapter/import path, and a sanitized aggregate of current Production IDs (length/character-class/version counts only; never log IDs). Record the resulting canonical grammar and its compatibility rationale in the Admin runbook. Do not assume that the schema default constrains explicitly supplied IDs or impose an arbitrary CUID regex. Tests include representative generated IDs and every sanitized historical/imported class found by the audit, plus empty, overlong, control/whitespace, invalid-Unicode, and out-of-grammar cases; if current IDs cannot be classified safely, stop for a migration/compatibility decision before cursor validation ships.
+
+Assert unsupported queue values are omitted, unsupported sort values become `account_asc`, and cursor may be stripped independently. Cursor tests must prove the encoder canonicalizes exactly `{ "v": 1, "accountId": ..., "queryFingerprint": ... }` in documented field order to UTF-8 and unpadded base64url once, and returns a `ParsedAdminUserCursor`; `queryFingerprint` is SHA-256 over the documented canonical serialization of every normalized non-cursor filter, sort, and page-size field. The decoder accepts the transport token once, validates canonical re-encoding/version/User-ID/query binding, and returns the same unchanged `token` plus separately named `accountId` and `queryFingerprint`. Reject invalid base64url, padding, empty/overlong payloads, non-UTF-8 bytes, duplicate/unknown JSON fields, noncanonical JSON or re-encoding, a double-encoded token, wrong version, mismatched normalized query fingerprint, and any decoded ID outside the audited Production grammar. The builder accepts only the parsed structure, emits `.token` unchanged, and never re-encodes it; database source/tests may compare only `.accountId`.
 
 - [ ] **Step 2: Run focused tests and verify RED**
 
@@ -152,7 +174,7 @@ Expected: FAIL because the navigation module and queue field do not exist.
 
 - [ ] **Step 3: Implement stable query serialization**
 
-Use `URLSearchParams`; allow only the fields in `AdminDirectoryNavigationQuery`. Before canonical parsing, perform a bounded hazard inspection of the raw string and at most two successful `decodeURIComponent` layers. At every inspected layer reject malformed percent encoding, `\u0000-\u001f`/`\u007f`, backslashes, credentials, absolute/protocol-relative origins, or a path other than exactly `/admin/users`; after the second layer, reject any remaining percent sequence that could decode into a control, slash, backslash, colon, or authority delimiter. This inspection never turns decoded query text into canonical state: after it passes, parse the original input once against the fixed inert origin, reject any origin/credential/path ambiguity, and round-trip every parameter through the shared directory parser before rebuilding the canonical URL. Never use a request header or caller-supplied origin as the sanitizer base. The canonical builder uses the documented fixed field order, always emits `pageSize`, omits `account_asc`, includes `account_desc`, and strips unsupported/default values consistently. Cursor parsing returns both the canonical opaque token for response/URL state and its separately named decoded account ID for the server query; serialization receives the token and emits it unchanged, so neither parser nor builder can accidentally double-encode it.
+Use `URLSearchParams`; allow only the fields in `AdminDirectoryNavigationQuery`. Before canonical parsing, perform a bounded hazard inspection of the raw string and at most two successful `decodeURIComponent` layers. At every inspected layer reject malformed percent encoding, `\u0000-\u001f`/`\u007f`, backslashes, credentials, absolute/protocol-relative origins, or a path other than exactly `/admin/users`; after the second layer, reject any remaining percent sequence that could decode into a control, slash, backslash, colon, or authority delimiter. This inspection never turns decoded query text into canonical state: after it passes, parse the original input once against the fixed inert origin, reject any origin/credential/path ambiguity, and round-trip every parameter through the dependency-free shared query parser before rebuilding the canonical URL. Never use a request header or caller-supplied origin as the sanitizer base. Normalize all non-cursor fields first, compute their canonical query fingerprint, then decode the cursor token exactly once and require the envelope's fingerprint to match. The canonical builder uses the documented fixed field order, always emits `pageSize`, omits `account_asc`, includes `account_desc`, and strips unsupported/default values consistently. It receives `ParsedAdminUserCursor | null` and emits only `parsedCursor.token` unchanged, so neither parser nor builder can re-encode the account ID or confuse the transport token with a database boundary.
 
 - [ ] **Step 4: Implement stale-cursor stripping**
 
@@ -167,7 +189,7 @@ Expected: PASS for safe serialization and external/malformed URL rejection.
 - [ ] **Step 6: Commit the navigation contract**
 
 ```bash
-git add lib/admin/user-directory-navigation.ts tests/admin-user-directory.test.mjs
+git add lib/admin/user-directory-query-contract.ts lib/admin/user-directory-navigation.ts tests/admin-user-directory.test.mjs
 git commit -m "feat: define admin directory queue navigation"
 ```
 
@@ -193,17 +215,17 @@ attention: {
 
 - [ ] **Step 1: Add exact parser and direction-aware query RED tests**
 
-For each queue, assert exact Prisma `where` shape in forward, cursor-usability, and previous-page lookback queries. Run multi-page cases with `account_asc` and `account_desc` and assert actual returned row order plus next/previous navigation targets, not only `orderBy` objects. Test names and fixtures must distinguish `cursorToken` from `decodedCursorAccountId`; assert no Prisma predicate or comparison receives the opaque token. The algorithm is explicit:
+For each queue, assert exact Prisma `where` shape in forward, cursor-usability, and previous-page lookback queries. Run multi-page cases with `account_asc` and `account_desc` and assert actual returned row order plus next/previous navigation targets, not only `orderBy` objects. Transaction input carries `parsedCursor: ParsedAdminUserCursor | null`; test names and fixtures use `parsedCursor.token` and `parsedCursor.accountId`, and assert no Prisma predicate or comparison receives `.token`. The algorithm is explicit:
 
 - `account_asc`: after decoding the transport token once, forward rows use `id > decodedCursorAccountId` ordered ascending; previous lookback uses `id < decodedCursorAccountId` ordered descending, takes at most one page, and derives a separate earlier decoded boundary ID from that reversed window.
 - `account_desc`: after decoding the transport token once, forward rows use `id < decodedCursorAccountId` ordered descending; previous lookback uses `id > decodedCursorAccountId` ordered ascending, takes at most one page, and derives a separate earlier decoded boundary ID from that reversed window.
 - Any rows fetched in the opposite direction for previous-page calculation are private decoded-ID boundary evidence, not a page to expose. Reverse that window into forward order, then derive the earlier decoded boundary ID from it. Keep the established exclusive decoded-ID predicates (`>` for ascending, `<` for descending); do not change them to inclusive comparisons. Encode the last visible decoded row ID exactly once to produce a next-cursor token, and encode a derived previous decoded boundary ID exactly once to produce a previous-cursor token. The opaque token is transport only and never appears in an `id`, `gt`, `lt`, equality, ordering, or boundary comparison. Previous tokens must reproduce the immediately preceding page with no gaps or duplicates; the first page emits no previous token.
 
-Add an explicit four-page numeric proof with `pageSize=2` and decoded account IDs `01` through `08`. Ascending must expose `[01,02]`, `[03,04]`, `[05,06]`, `[07,08]`; page 4 receives opaque token `encode("06")`, decodes it once to `decodedCursorAccountId = "06"`, and its private descending lookback from that exclusive decoded boundary ID is `[05,04]`. Reversing to `[04,05]` derives earlier decoded boundary ID `04`, whose one-time encoding makes the Previous token and reproduces page 3 `[05,06]` rather than exposing lookback rows. Page 3 similarly derives decoded boundary ID `02`, and page 2 returns to the tokenless first page. Descending page 4 receives `encode("03")`, decodes once to `decodedCursorAccountId = "03"`, and its private ascending lookback from that exclusive decoded boundary ID is `[04,05]`; reversing to `[05,04]` derives decoded boundary ID `05`, whose one-time encoding reproduces page 3 `[04,03]`. Assert all forward and backward tokens/decoded boundaries, and explicitly assert that neither lookback window is returned as visible items or compared as an opaque token.
+Add an explicit four-page numeric proof with `pageSize=2` and symbolic labels `01` through `08` mapped to eight lexically ordered representative account IDs that pass the audited Production grammar. Ascending must expose `[01,02]`, `[03,04]`, `[05,06]`, `[07,08]`; page 4 receives opaque token `encode("06")`, decodes it once to `parsedCursor.accountId = ID("06")`, and its private descending lookback from that exclusive decoded boundary ID is `[05,04]`. Reversing to `[04,05]` derives earlier decoded boundary ID `ID("04")`, whose one-time encoding makes the Previous token and reproduces page 3 `[05,06]` rather than exposing lookback rows. Page 3 similarly derives `ID("02")`, and page 2 returns to the tokenless first page. Descending page 4 receives `encode("03")`, decodes once to `parsedCursor.accountId = ID("03")`, and its private ascending lookback from that exclusive decoded boundary ID is `[04,05]`; reversing to `[05,04]` derives `ID("05")`, whose one-time encoding reproduces page 3 `[04,03]`. Assert all forward and backward tokens/decoded boundaries, and explicitly assert that neither lookback window is returned as visible items or compared as an opaque token.
 
 The response and URL contract is exact; notably, `previousCursor: null` is a valid page-2 Previous target rather than evidence that Previous is unavailable:
 
-In this table, visible values are decoded account IDs. Every non-null cursor cell denotes the opaque canonical token `encodeAdminUserCursor("ID")`, not the literal ID; URL assertions contain that base64url token exactly once.
+In this table, visible values are the `01`-`08` aliases for representative validated account IDs. `encode("ID")` is compact notation for `encodeAdminUserCursor({ accountId: ID("ID"), queryFingerprint: currentQueryFingerprint }).token`; every non-null cursor cell is that opaque canonical transport token, never the alias or decoded ID, and URL assertions contain it exactly once.
 
 | Sort | Page | Input cursor token | Visible decoded IDs | `nextCursor` token | `hasPreviousPage` | `previousCursor` token | Previous URL |
 | --- | ---: | --- | --- | --- | --- | --- | --- |
@@ -414,13 +436,13 @@ Expected: PASS after implementation.
 
 - [ ] **Step 4: Run real disposable browser QA**
 
-With Branch 3's exact disposable identity variables and SMTP-blank Playwright-owned server:
+Use Branch 3's pinned browser-acceptance owner with its exact disposable Neon identity gate and SMTP-blank Playwright-owned server:
 
 ```bash
-npx playwright test tests/browser/admin-user-operations.spec.ts --project=desktop-chromium --project=mobile-chromium
+npm run admin:operations:browser-acceptance
 ```
 
-Expected: both projects PASS, fixture cleanup PASS, zero billing-goodwill submissions/POSTs. Delete the disposable database and verify absence.
+Expected: the wrapper runs the exact Admin User Operations spec in desktop/mobile Chromium, both projects PASS, fixture cleanup PASS, and zero billing-goodwill submissions/POSTs. The same owner awaits its complete process tree, deletes the exact disposable Neon branch only after fixture cleanup, and verifies that branch's trusted-control-plane absence; missing exit, cleanup, deletion, or absence proof blocks acceptance.
 
 - [ ] **Step 5: Update canonical docs**
 
