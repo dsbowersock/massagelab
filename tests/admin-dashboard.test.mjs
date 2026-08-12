@@ -88,7 +88,8 @@ describe("capability-aware Admin dashboard", () => {
     assert.match(text, /42 total accounts/)
     assert.match(text, /35 verified accounts/)
     assert.match(text, /7 active Supporters/)
-    assert.match(text, /5 unresolved operations/)
+    assert.match(text, /11 unresolved operations/)
+    assert.match(text, /6 unresolved billing goodwill operations/)
     assert.match(text, /11 active temporary grants/)
     assert.match(text, /4 temporary grants expiring within 30 days/)
     assert.match(text, /Search account-operation details with bounded filters/)
@@ -152,7 +153,8 @@ function loadDashboardModule(actor) {
           totalAccounts: 42,
           verifiedAccounts: 35,
           activeSupporters: 7,
-          unresolvedOperations: 5,
+          unresolvedOperations: 11,
+          unresolvedBillingGoodwillOperations: 6,
           activeTemporaryGrants: 11,
           expiringTemporaryGrants: 4,
         }

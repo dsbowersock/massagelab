@@ -66,5 +66,19 @@ async function createBrowserAdminFixtureRecordsInTransaction(input: {
       },
     },
   })
+  // These collision-free QA sentinels are deliberately unusable as real Stripe objects.
+  const stripeCustomerId = `cus_browser${input.identity.projectSlug}`
+  await input.prismaClient.stripeCustomer.create({
+    data: { userId: input.identity.target.id, stripeCustomerId },
+  })
+  await input.prismaClient.membershipSubscription.create({
+    data: {
+      userId: input.identity.target.id,
+      stripeSubscriptionId: `sub_browser${input.identity.projectSlug}`,
+      stripeCustomerId,
+      status: "active",
+      membershipLevel: "SUPPORTER",
+    },
+  })
   await (input.provisionCredits ?? ensureVerifiedUserBackgroundCredits)(input.prismaClient, input.identity.operator.id)
 }

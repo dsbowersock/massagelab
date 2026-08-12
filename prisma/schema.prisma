@@ -30,6 +30,14 @@ enum AdminEmailIntentStatus {
   FAILED
 }
 
+enum AdminBillingGoodwillStatus {
+  PREPARED
+  APPLIED
+  VERIFIED
+  FAILED_BEFORE_MUTATION
+  RECONCILIATION_REQUIRED
+}
+
 enum AuthAttemptPurpose {
   LOGIN
   REGISTER
@@ -556,6 +564,8 @@ model User {
   temporaryFeatureGrants TemporaryFeatureGrant[] @relation("TemporaryFeatureGrantUser")
   temporaryFeatureGrantsGranted TemporaryFeatureGrant[] @relation("TemporaryFeatureGrantGrantedBy")
   temporaryFeatureGrantRevocations TemporaryFeatureGrantRevocation[] @relation("TemporaryFeatureGrantRevokedBy")
+  billingGoodwillOperationsAsActor AdminBillingGoodwillOperation[] @relation("BillingGoodwillActor")
+  billingGoodwillOperationsAsTarget AdminBillingGoodwillOperation[] @relation("BillingGoodwillTarget")
 }
 
 model AdminAction {
@@ -619,6 +629,34 @@ model AdminEmailIntent {
   @@index([status, createdAt])
   @@index([userId, createdAt])
   @@unique([adminActionId, userId])
+}
+
+model AdminBillingGoodwillOperation {
+  id                         String                     @id @default(cuid())
+  actorUserId                String
+  targetUserId               String
+  idempotencyKey             String                     @unique
+  reasonCode                 String
+  internalNote               String?
+  amountCents                Int
+  currency                   String                     @default("usd")
+  stripeCustomerId           String
+  stripeSubscriptionId       String
+  stripeBalanceTransactionId String?                    @unique
+  startingBalanceCents       Int
+  endingBalanceCents         Int?
+  projectedNextInvoiceCents  Int?
+  status                     AdminBillingGoodwillStatus @default(PREPARED)
+  failureCode                String?
+  appliedAt                  DateTime?
+  verifiedAt                 DateTime?
+  createdAt                  DateTime                   @default(now())
+  updatedAt                  DateTime                   @updatedAt
+  actor                      User                       @relation("BillingGoodwillActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+  target                     User                       @relation("BillingGoodwillTarget", fields: [targetUserId], references: [id], onDelete: Restrict)
+
+  @@index([targetUserId, createdAt])
+  @@index([status, createdAt])
 }
 
 model TemporaryFeatureGrant {
