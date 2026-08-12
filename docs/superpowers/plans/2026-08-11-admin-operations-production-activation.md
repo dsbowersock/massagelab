@@ -4,7 +4,7 @@
 
 **Goal:** Prove the four Admin-era migrations on a disposable Neon clone, deploy only an exact contiguous terminal pending suffix to Production when necessary, and complete read-only Production smoke plus desktop/mobile disposable browser acceptance.
 
-**Architecture:** Add a small fail-closed activation contract that statefully parses complete Prisma migration-status sections, accepts only an empty pending set or a contiguous terminal suffix of the expected inventory, and binds the direct connection to a project/branch/database identity obtained independently from the trusted Neon control plane. A single two-mode Production activation wrapper is the only approved Production status/deploy path. Audit-only mode acquires the cooperative session advisory lock, runs one preliminary trusted status, records sanitized audit evidence, and releases the lock without authorization or deploy capability. After rehearsal, final mode reacquires a new lock and holds it from a fresh final trusted status through authorization, target/status refetch, semantic-fingerprint comparison, deploy, and post-status. Use existing Playwright fixture owners for browser acceptance and an explicit disposable-database identity token so the mutation sentinel cannot be enabled from a connection string alone.
+**Architecture:** Add a small fail-closed activation contract that statefully parses complete Prisma migration-status sections, accepts only an empty pending set or a contiguous terminal suffix of the expected inventory, and binds the direct connection to a project/branch/database identity obtained independently from the trusted Neon control plane. A single two-mode Production activation wrapper is the only approved Production status/deploy path. Audit-only mode obtains the cooperative session advisory lock through bounded cancellation-aware try-lock polling, runs one preliminary trusted status, records allowlist-only sanitized evidence, and releases the lock without authorization or deploy capability. After rehearsal, final mode obtains a new lock with the same bound and holds it from a fresh final trusted status through bounded fresh authorization, target/status refetch, semantic-fingerprint comparison, deploy, and post-status. Use existing Playwright fixture owners for browser acceptance and an explicit disposable-database identity token so the mutation sentinel cannot be enabled from a connection string alone.
 
 **Tech Stack:** Prisma 7 migrations, Neon Postgres branches, Node scripts/tests, Next.js, Playwright Chromium, GitHub/Vercel deployment checks.
 
@@ -21,7 +21,7 @@
 - Migration deployment is authorized only after identity, pending-set, and disposable rehearsal gates pass.
 - Stop for any non-terminal pending subset, ambiguous database identity, failed rehearsal, connection-role mismatch, or changed Production pending set.
 - A Production deploy requires fresh user authorization naming a sanitized semantic fingerprint produced only from the trusted project/branch/database/direct-host binding, exact commit, and exact ordered pending suffix. Keep `checkedAt` as separate freshness evidence; do not hash volatile timestamps into the semantic fingerprint. Authorization for another target, commit, suffix, or fingerprint does not carry forward.
-- `npm run admin:operations:activation:production -- audit` and `npm run admin:operations:activation:production -- final` are the only approved Production status/deploy invocations. Audit mode locks only for its preliminary trusted status and sanitized audit record, then unlocks and cannot authorize or deploy. Final mode starts only after rehearsal, reacquires a new target-scoped session advisory lock, and performs a fresh final status, authorization, target/status refetch, semantic-fingerprint comparison, at most one deploy, and post-status before releasing the lock.
+- `npm run admin:operations:activation:production -- audit` and `npm run admin:operations:activation:production -- final` are the only approved Production status/deploy invocations. Both use 250 ms `pg_try_advisory_lock` polling with a 30-second monotonic acquisition deadline and cancellation. Audit mode locks only for its preliminary trusted status and sanitized audit record, then unlocks and cannot authorize or deploy. Final mode starts only after rehearsal, acquires a new target-scoped session advisory lock, and performs a fresh final status, authorization bounded to 10 minutes, target/status refetch, semantic-fingerprint comparison, at most one deploy, and post-status before releasing the lock.
 - Every status, deploy, validate, and generate command receives database variables through an explicit child-environment wrapper for that one process. Never set or reuse `DATABASE_URL`, `DIRECT_URL`, or activation database variables in the parent shell.
 - Never run `prisma migrate dev`, `prisma migrate reset`, seeds, destructive SQL, Prisma Studio, or broad exports.
 - Keep `ADMIN_BILLING_GOODWILL_LIVE_ENABLED` absent or false; perform no Production Admin mutation, email retry, or Stripe credit.
@@ -62,6 +62,28 @@ export const ADMIN_OPERATIONS_MIGRATIONS = [
   "20260808100000_admin_temporary_feature_access",
   "20260808110000_admin_billing_goodwill",
 ] as const
+
+export const ADMIN_OPERATIONS_EVIDENCE_CHECK_NAMES = [
+  "trusted_identity",
+  "orphan_scan",
+  "migration_status",
+  "migration_deploy",
+  "prisma_validate",
+  "prisma_generate",
+  "focused_tests",
+  "typecheck",
+  "lint",
+  "unit_tests",
+  "build",
+  "production_read_only_smoke",
+  "browser_desktop",
+  "browser_mobile",
+  "fixture_cleanup",
+  "branch_deleted",
+] as const
+
+export type AdminOperationsEvidenceCheckName =
+  (typeof ADMIN_OPERATIONS_EVIDENCE_CHECK_NAMES)[number]
 
 export type TrustedNeonControlPlaneBinding = {
   projectId: string
@@ -176,11 +198,28 @@ git commit -m "feat: add fail-closed admin activation contract"
   - `ADMIN_OPERATIONS_MIGRATION_DIRECT_URL` for the direct connection.
   - `ADMIN_OPERATIONS_NEON_PROJECT_ID`, `ADMIN_OPERATIONS_NEON_BRANCH_ID`, `ADMIN_OPERATIONS_NEON_DATABASE_NAME`, and `ADMIN_OPERATIONS_NEON_DIRECT_HOSTNAME`, populated from a fresh independent trusted-control-plane lookup; never derive these expected values from `ADMIN_OPERATIONS_MIGRATION_DIRECT_URL`.
   - `npx prisma migrate status` output.
-- Produces one JSON object containing only the sanitized `target` project/branch/database identity, `commit`, `expectedMigrations`, `pendingMigrations`, `status`, `checkedAt`, and `authorizationFingerprint`.
+- Produces one allowlist-only evidence object with the exact schema defined below; the same serializer owns status stdout, audit records, checkpoints, and Aegis evidence.
+
+```ts
+type SanitizedActivationEvidence = {
+  schemaVersion: 1
+  mode: "status" | "audit" | "final" | "rehearsal" | "qa"
+  target: { projectId: string; branchId: string; databaseName: string; directHostname: string }
+  commitSha: string
+  migrations: Array<{ name: ExpectedMigrationName; status: "APPLIED" | "PENDING" }>
+  fingerprint: string
+  checkedAt: string
+  completedAt: string | null
+  outcome: "UP_TO_DATE" | "PENDING_SUFFIX" | "DEPLOYED" | "NO_OP" | "BLOCKED" | "FAILED"
+  checks: Array<{ name: AdminOperationsEvidenceCheckName; outcome: "PASS" | "FAIL" | "SKIPPED"; checkedAt: string }>
+}
+```
+
+`mode` identifies only the execution phase that produced the evidence. Checkpoint and Aegis files are document destinations that embed this exact serialized object; they are not additional `mode` values. The serializer copies these fields individually and never spreads control-plane, child-process, Prisma, Stripe, or fixture objects. Add retention tests for all four target fields, commit SHA, ordered migration names/statuses, fingerprint, timestamps, outcomes, and every exact check name above. Add omission tests proving credentials, URLs, rows/row values, emails, raw stdout/stderr, unknown keys, and provider transaction/payment/customer/subscription IDs never appear in serialized status, audit, checkpoint, or Aegis evidence. Reject the complete object rather than silently dropping a check when its name is unknown, including email-like (`operator@example.com`), URL-like (`https://example.com/check`), provider-ID-like (`customer_cus_123`), and database-looking (`DATABASE_URL`) names; assert none of those values is serialized into any destination.
 
 - [ ] **Step 1: Add RED tests for the script boundary**
 
-Compile/import the script helpers without executing Prisma, reading activation environment, printing, or spawning. Assert it rejects trusted-binding mismatch before spawning, sets both `DATABASE_URL` and `DIRECT_URL` only in the Prisma child's environment, leaves the parent environment unchanged, and redacts URLs from stdout/stderr.
+Compile/import the script helpers without executing Prisma, reading activation environment, printing, or spawning. Assert it rejects trusted-binding mismatch before spawning, sets both `DATABASE_URL` and `DIRECT_URL` only in the Prisma child's environment, leaves the parent environment unchanged, and never copies URLs or raw stdout/stderr into evidence. Exercise the shared serializer with a source object containing every retained field plus credentials, URLs, rows, emails, raw command output, unknown fields, and provider transaction/payment/customer/subscription IDs; assert the exact retained object and exact omission of every prohibited field when that object is printed as status/audit output or embedded in checkpoint/Aegis destinations. Separately assert all five execution modes and every allowlisted check name are accepted, while unknown email-, URL-, provider-ID-, and database-looking check names reject serialization.
 
 Drive the status parser from static sanitized fixtures for: exact up-to-date output, one and multiple unapplied migrations, Windows and LF newlines, connection failure, failed migration, divergence, missing migration table, truncated unapplied output, duplicate/contradictory status headings, and migration-looking lines embedded in diagnostics. Include explicit tests named for later-applied-history contradiction: a parsed earlier singleton `[migration 1]` pending while migration 4 is known later in the expected history, and an earlier prefix `[migrations 1, 2]` pending while 3-4 are later in that history. Both must fail as non-terminal pending sets even though every individual name is allowlisted. The parser must be a state machine over a recognized complete status section: it may collect `^\d{14}_[a-z0-9_]+$` lines only between the exact unapplied heading and its recognized terminal guidance/end marker, or accept the exact complete up-to-date marker. Reject incomplete, mixed, repeated, or migration-looking diagnostic output rather than scraping matching lines globally. Assert the child-process contract exactly: exit `0` is accepted only with one complete up-to-date section; exit `1` is accepted only with one complete allowed pending-suffix section; an up-to-date section with exit `1`, a pending section with exit `0`, every other exit code, `null` exit code, or any termination signal is rejected regardless of parseable text.
 
@@ -213,9 +252,9 @@ Inside `main`, require exact `status` mode, validate the trusted control-plane b
 Compile/import `scripts/admin-operations-production-activation.mjs` without side effects. With injected lock connection, trusted lookup, status runner, authorization callback, and deploy runner, first assert audit-only mode's exact order: open the dedicated direct connection, acquire the target-scoped lock, run one preliminary trusted target/status lookup, record only sanitized audit evidence, then unlock/close. Audit mode must reject authorization/deploy inputs and never call either owner. Separately assert final mode's exact order:
 
 ```text
-open dedicated direct connection -> acquire target-scoped session advisory lock
+open dedicated direct connection -> poll target-scoped pg_try_advisory_lock within deadline
 -> final trusted target/status -> emit semantic fingerprint plus separate checkedAt
--> await fresh user authorization naming that fingerprint
+-> await abort-aware fresh user authorization naming that fingerprint within deadline
 -> re-fetch trusted target and status under the same lock
 -> recompute and constant-time compare semantic fingerprint
 -> deploy once when the suffix is nonempty
@@ -223,11 +262,11 @@ open dedicated direct connection -> acquire target-scoped session advisory lock
 -> advisory unlock and close in finally
 ```
 
-Assert the audit lock is released before rehearsal begins and final mode opens a new dedicated connection and reacquires the lock. During final mode, that same connection remains open and owns the cooperative lock throughout. A changed target, commit, pending suffix, malformed/stale `checkedAt`, denied/mismatched authorization, deploy signal/nonzero exit, or nonempty post-status stops safely. `[]` performs no authorization or deploy. Unlock/close run for audit success, final success, denial, exceptions, cancellation, and child failure. Assert no exported helper or documented Production command can invoke Production status or deploy outside these wrapper modes.
+Assert the audit lock is released before rehearsal begins and final mode opens a new dedicated connection and reacquires the lock. Inject a monotonic clock, cancellation-aware sleep, `AbortSignal`, and deadlines. Cover immediate acquisition, contention followed by acquisition, contention through the 30-second deadline, a hung try-lock probe, cancellation during lock polling, delayed authorization that succeeds within 10 minutes, authorization timeout, cancellation while awaiting authorization, and late authorization resolution after timeout. During final mode, that same connection remains open and owns the cooperative lock throughout. A changed target, commit, pending suffix, malformed/stale `checkedAt`, denied/mismatched authorization, deploy signal/nonzero exit, or nonempty post-status stops safely. `[]` performs no authorization or deploy. Assert `pg_advisory_unlock` is called exactly once only after successful acquisition; it is never called on contention/cancellation before acquisition. Close is called exactly once in every case, including contention timeout, hung probe, delayed/denied authorization, cancellation, thrown exceptions, timeout, and deploy-child failure. No timeout/cancellation/late callback may reach deploy. Assert no exported helper or documented Production command can invoke Production status or deploy outside these wrapper modes.
 
 - [ ] **Step 5: Implement the only approved Production path**
 
-The wrapper must require exact `audit` or `final` mode and obtain the direct URL and expected tuple only through its child-scoped environment input. Both modes open a dedicated direct PostgreSQL connection, derive the same stable advisory-lock key from the sanitized Production target, call `pg_advisory_lock`, and release with `pg_advisory_unlock` plus close in `finally`. Audit mode runs one preliminary trusted target/status read, records sanitized audit evidence, then exits; its code path has no authorization or deploy call. Final mode is invoked only after rehearsal and must run a new trusted target/status read after acquiring its new lock. While holding that lock, it emits the semantic fingerprint and status-owned freshness timestamp, awaits the explicit authorization owner, then re-fetches opaque trusted target evidence and reruns complete status. Recompute the semantic fingerprint from the refreshed target, exact commit, and ordered suffix; compare it to the authorized fingerprint and the first final-mode fingerprint. Validate freshness separately. Only then may final mode spawn one child-scoped deploy, followed by a complete up-to-date status. The lock is cooperative: every approved Production operator path uses this wrapper, and the docs must not imply it fences arbitrary external SQL clients.
+The wrapper must require exact `audit` or `final` mode and obtain the direct URL and expected tuple only through its child-scoped environment input. Both modes open a dedicated direct PostgreSQL connection and derive the same stable advisory-lock key from the sanitized Production target. Poll `pg_try_advisory_lock` every 250 ms using an abort-aware injected sleep until acquired or a 30-second monotonic deadline expires; never use blocking `pg_advisory_lock`. Race each database probe against that same `AbortSignal` and remaining deadline so a hung connection cannot make acquisition unbounded; on probe timeout/abort, destroy or close the connection and stop. Set `lockAcquired = true` only from the successful database result. In `finally`, call `pg_advisory_unlock` only when that flag is true, then always close the connection, preserving the original failure if cleanup also fails. Audit mode runs one preliminary trusted target/status read, records sanitized audit evidence, then exits; its code path has no authorization or deploy call. Final mode is invoked only after rehearsal and must run a new trusted target/status read after acquiring its new lock. While holding that lock, it emits the semantic fingerprint and status-owned freshness timestamp and invokes the authorization owner with the fingerprint, an `AbortSignal`, and a 10-minute monotonic deadline. Race the callback against that deadline, signal cancellation to the owner, and permanently ignore any late resolution. Authorization must resolve affirmatively inside that bound and the status-owned `checkedAt` must remain no older than 10 minutes; denial, timeout, abort, or late resolution cannot authorize deploy. It then re-fetches opaque trusted target evidence and reruns complete status. Recompute the semantic fingerprint from the refreshed target, exact commit, and ordered suffix; compare it to the authorized fingerprint and the first final-mode fingerprint. Validate freshness separately. Only then may final mode spawn one child-scoped deploy, followed by a complete up-to-date status. The lock is cooperative: every approved Production operator path uses this wrapper, and the docs must not imply it fences arbitrary external SQL clients.
 
 - [ ] **Step 6: Add the named npm commands**
 
@@ -344,7 +383,7 @@ Invoke-WithScopedEnvironment -Environment $productionActivationEnvironment -Comm
 }
 ```
 
-Audit-only mode acquires its cooperative session advisory lock, performs one preliminary trusted status, records only sanitized target/commit/suffix/status/`checkedAt` evidence, and releases the lock. It has no authorization or deploy capability, and its evidence cannot authorize final mode. If the suffix is empty, record no-op. If it is a contiguous terminal suffix, complete rehearsal before invoking final mode. The document must instruct the operator not to paste secret values into evidence and to stop unless target binding is exact and the pending set is `[]` or one contiguous terminal suffix.
+Audit-only mode obtains its cooperative session advisory lock through the bounded try-lock contract, performs one preliminary trusted status, serializes the exact allowlisted evidence schema, and releases the lock only if acquired. It has no authorization or deploy capability, and its evidence cannot authorize final mode. If the suffix is empty, record no-op. If it is a contiguous terminal suffix, complete rehearsal before invoking final mode. The document must instruct the operator not to paste secret values into evidence and to stop unless target binding is exact and the pending set is `[]` or one contiguous terminal suffix.
 
 - [ ] **Step 2: Document disposable Neon rehearsal**
 
@@ -362,11 +401,11 @@ Invoke-WithScopedEnvironment -Environment $rehearsalPrismaEnvironment -Command {
 Invoke-WithScopedEnvironment -Environment $rehearsalStatusEnvironment -Command { npm run admin:operations:activation:status }
 ```
 
-Run focused Admin suites and read-only smoke queries. Record only sanitized target identity, names/statuses, fingerprints, and pass/fail evidence. The `finally` block covers normal completion and catchable command failures/cancellation, while the next run's mandatory startup orphan check covers cleanup that a hard termination bypassed. Inability to verify branch absence is a blocking result.
+Run focused Admin suites and read-only smoke queries. Record results only through the exact allowlisted evidence serializer. The `finally` block covers normal completion and catchable command failures/cancellation, while the next run's mandatory startup orphan check covers cleanup that a hard termination bypassed. Inability to verify branch absence is a blocking result.
 
 - [ ] **Step 3: Document the authorized Production deploy gate**
 
-After rehearsal and its cleanup/absence gate complete, invoke `npm run admin:operations:activation:production -- final` through the same explicit child-environment wrapper. Final mode opens a new dedicated connection and reacquires the cooperative session lock; it does not reuse audit mode's lock, status, fingerprint, or `checkedAt`. Under that new lock it performs fresh final trusted status, emits the semantic fingerprint plus status-owned freshness timestamp, awaits fresh user authorization naming that fingerprint, re-fetches the trusted target and complete status, recomputes and compares the fingerprint, deploys at most once in a child-scoped environment, and proves complete up-to-date post-status before unlocking. A target, commit, suffix, or fingerprint change denies authorization; stale `checkedAt` independently blocks continuation without changing semantic fingerprint identity. If no migration is pending, record no-op and do not request authorization or deploy. Do not provide a manual Production deploy fallback.
+After rehearsal and its cleanup/absence gate complete, invoke `npm run admin:operations:activation:production -- final` through the same explicit child-environment wrapper. Final mode opens a new dedicated connection and obtains the cooperative session lock through 250 ms cancellation-aware try-lock polling within 30 seconds; it does not reuse audit mode's lock, status, fingerprint, or `checkedAt`. Under that new lock it performs fresh final trusted status, emits the semantic fingerprint plus status-owned freshness timestamp, awaits abort-aware user authorization for at most 10 minutes, re-fetches the trusted target and complete status, recomputes and compares the fingerprint, deploys at most once in a child-scoped environment, and proves complete up-to-date post-status before unlocking. A target, commit, suffix, or fingerprint change, stale `checkedAt`, denial, cancellation, timeout, or late authorization resolution blocks deploy. If no migration is pending, record no-op and do not request authorization or deploy. Unlock only if acquired and always close in `finally`. Do not provide a manual Production deploy fallback.
 
 - [ ] **Step 4: Document read-only Production smoke**
 
@@ -431,7 +470,7 @@ After user merge approval, create a clean activation worktree from refreshed `or
 
 - [ ] **Step 4: Execute the read-only Production audit**
 
-Fetch the fresh trusted project/branch/database binding, then invoke only `npm run admin:operations:activation:production -- audit` through its explicit child environment. Audit-only mode acquires the cooperative session lock, performs one preliminary trusted status, records sanitized audit evidence, and releases the lock; it cannot request authorization or deploy. Its fingerprint and `checkedAt` cannot authorize final mode. If all four migrations are applied, record no-op and proceed to smoke/browser acceptance. If one contiguous terminal suffix is pending, continue to the disposable rehearsal. Otherwise stop and ask the user for direction.
+Fetch the fresh trusted project/branch/database binding, then invoke only `npm run admin:operations:activation:production -- audit` through its explicit child environment. Audit-only mode uses the bounded cancellation-aware try-lock contract, performs one preliminary trusted status, records the exact allowlisted evidence schema, unlocks only if acquired, and always closes; it cannot request authorization or deploy. Its fingerprint and `checkedAt` cannot authorize final mode. If all four migrations are applied, record no-op and proceed to smoke/browser acceptance. If one contiguous terminal suffix is pending, continue to the disposable rehearsal. Otherwise stop and ask the user for direction.
 
 - [ ] **Step 5: Rehearse on the disposable clone**
 
@@ -439,7 +478,7 @@ First perform the blocking trusted-control-plane prefix scan. Treat every match 
 
 - [ ] **Step 6: Deploy the exact terminal pending suffix when needed**
 
-Only after rehearsal and verified disposable cleanup succeed, invoke `npm run admin:operations:activation:production -- final` through its explicit child environment. Final mode opens a new dedicated connection, reacquires the cooperative session lock, performs a fresh trusted target lookup and complete final status, and derives the semantic fingerprint plus `checkedAt` from that exact status result. It does not reuse audit-mode evidence. Never refresh or replace `checkedAt` from the clock without a new complete status. Require the final status to produce the rehearsed ordered suffix and exact commit, then stop for user authorization naming the semantic fingerprint. After authorization, re-fetch the trusted target and complete status under the same lock, recompute and compare the semantic fingerprint, validate the new status-owned `checkedAt` separately, then let final mode run at most one child-scoped deploy and one child-scoped post-status. Stop immediately on any unexpected output; do not release the lock to run a manual command or attempt SQL repair.
+Only after rehearsal and verified disposable cleanup succeed, invoke `npm run admin:operations:activation:production -- final` through its explicit child environment. Final mode opens a new dedicated connection, obtains the cooperative session lock through 250 ms cancellation-aware try-lock polling within 30 seconds, performs a fresh trusted target lookup and complete final status, and derives the semantic fingerprint plus `checkedAt` from that exact status result. It does not reuse audit-mode evidence. Never refresh or replace `checkedAt` from the clock without a new complete status. Require the final status to produce the rehearsed ordered suffix and exact commit, then stop for abort-aware user authorization naming the semantic fingerprint, bounded to 10 minutes and the same status-evidence freshness window. After timely authorization, re-fetch the trusted target and complete status under the same lock, recompute and compare the semantic fingerprint, validate the new status-owned `checkedAt` separately, then let final mode run at most one child-scoped deploy and one child-scoped post-status. Timeout, cancellation, or late resolution cannot deploy. Stop immediately on any unexpected output; unlock only if acquired, always close in `finally`, and do not release the lock to run a manual command or attempt SQL repair.
 
 - [ ] **Step 7: Run Production read-only smoke**
 

@@ -6,7 +6,7 @@ export type ConfirmPasswordResetInput = {
   prismaClient: Pick<PrismaClient, "$transaction">
   tokenHash: string
   passwordHash: string
-  now?: Date
+  clock?: () => Date
 }
 
 export type ConfirmPasswordResetResult =
@@ -52,11 +52,15 @@ export async function isPasswordResetTokenEligible(
 export async function confirmPasswordReset(
   input: ConfirmPasswordResetInput,
 ): Promise<ConfirmPasswordResetResult> {
-  const now = captureNow(input.now)
   validateOpaqueHash(input.tokenHash, "reset token hash")
   validateOpaqueHash(input.passwordHash, "password hash")
+  const clock = input.clock ?? systemResetClock
+  if (typeof clock !== "function") throw new Error("Provide a valid reset clock.")
 
   return runCommerceTransaction(input.prismaClient, async (tx) => {
+    // A retry is a new authoritative attempt. Its expiry predicate must not
+    // inherit a timestamp captured before the retry began.
+    const now = captureClockNow(clock())
     const token = await tx.passwordResetToken.findUnique({
       where: { tokenHash: input.tokenHash },
       select: { id: true, userId: true },
@@ -96,6 +100,16 @@ export async function confirmPasswordReset(
 
     return { status: "UPDATED" }
   })
+}
+
+function systemResetClock(): Date {
+  return new Date()
+}
+
+function captureClockNow(value: Date): Date {
+  const now = new Date(value)
+  if (!Number.isFinite(now.getTime())) throw new Error("Provide a valid reset time.")
+  return now
 }
 
 function captureNow(value?: Date): Date {

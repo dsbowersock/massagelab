@@ -198,6 +198,21 @@ For each queue, assert exact Prisma `where` shape in forward, cursor-usability, 
 
 Add an explicit four-page numeric proof with `pageSize=2` and IDs `01` through `08`. Ascending must expose `[01,02]`, `[03,04]`, `[05,06]`, `[07,08]`; page 4's private descending lookback from exclusive cursor `06` is `[05,04]`, which reverses to `[04,05]` and derives earlier forward boundary `04`, so following Previous exposes page 3 `[05,06]` rather than exposing lookback rows. Page 3 similarly derives `02`, and page 2 returns to the cursorless first page. Descending must expose `[08,07]`, `[06,05]`, `[04,03]`, `[02,01]`; page 4's private ascending lookback from exclusive cursor `03` is `[04,05]`, which reverses to `[05,04]` and derives boundary `05`, reproducing page 3 `[04,03]`. Assert all forward and backward targets, and explicitly assert that neither lookback window is returned as visible items.
 
+The response and URL contract is exact; notably, `previousCursor: null` is a valid page-2 Previous target rather than evidence that Previous is unavailable:
+
+| Sort | Page | Input cursor | Visible IDs | `nextCursor` | `hasPreviousPage` | `previousCursor` | Previous URL |
+| --- | ---: | --- | --- | --- | --- | --- | --- |
+| `account_asc` | 1 | `null` | `01,02` | `02` | `false` | `null` | none; do not render/enable Previous |
+| `account_asc` | 2 | `02` | `03,04` | `04` | `true` | `null` | canonical page-1 URL with the `cursor` parameter omitted |
+| `account_asc` | 3 | `04` | `05,06` | `06` | `true` | `02` | canonical URL with `cursor=02` |
+| `account_asc` | 4 | `06` | `07,08` | `null` | `true` | `04` | canonical URL with `cursor=04` |
+| `account_desc` | 1 | `null` | `08,07` | `07` | `false` | `null` | none; do not render/enable Previous |
+| `account_desc` | 2 | `07` | `06,05` | `05` | `true` | `null` | canonical page-1 URL with the `cursor` parameter omitted |
+| `account_desc` | 3 | `05` | `04,03` | `03` | `true` | `07` | canonical URL with `cursor=07` |
+| `account_desc` | 4 | `03` | `02,01` | `null` | `true` | `05` | canonical URL with `cursor=05` |
+
+The page component decides Previous availability from `hasPreviousPage`, never from truthiness of `previousCursor`. The shared URL builder deletes `cursor` when the chosen cursor is `null`, while retaining the validated queue, search, role, status, sort, and page-size parameters. Tests assert these exact response objects and hrefs for both sorts, including page 1 `false/null` and page 2 `true/null`.
+
 Make this a complete table-driven matrix across all five queues and both sorts. For every `(queue, sort)` pair, use enough matching deterministic IDs for at least three full pages, traverse forward page 1 -> page 2 -> page 3 using emitted next cursors, then traverse page 3 -> page 2 -> page 1 using emitted previous cursors. Assert each page's exact selected-direction ID order, exact round-trip equality for pages 1 and 2, no gaps, no duplicates, and no previous cursor on the restored first page.
 
 - `billing_reconciliation`: `AdminBillingGoodwillOperation.status in PREPARED/APPLIED/RECONCILIATION_REQUIRED`.
@@ -239,6 +254,8 @@ return {
   cursorReset,
 }
 ```
+
+When the visible page is the cursorless first page, return `hasPreviousPage: false` and `previousCursor: null`. When a valid cursor selects page 2, return `hasPreviousPage: true` and `previousCursor: null`; this deliberately means “Previous navigates to cursorless page 1.” Page 3 and later return `hasPreviousPage: true` plus the non-null exclusive boundary from the matrix above.
 
 - [ ] **Step 7: Run focused tests and verify GREEN**
 

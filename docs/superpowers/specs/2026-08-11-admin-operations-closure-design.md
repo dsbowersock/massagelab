@@ -36,8 +36,8 @@ This branch owns reset-token consumption, password replacement, and authenticati
 
 1. Validate the request shape, hash the raw reset token, and capture an eligibility time.
 2. Ask the existing reset-confirmation owner for a lightweight, read-only eligibility lookup using only the token hash, unconsumed/unexpired predicates, that eligibility time, and an identifier-only projection. If ineligible, return the existing safe expired-or-used response without hashing the password or opening the confirmation transaction.
-3. If eligible, hash the new password outside the database transaction, then immediately capture a fresh confirmation time.
-4. Enter a serializable transaction with the same token hash and the fresh post-Argon2 confirmation time, then atomically claim the submitted token only when it is still unconsumed and unexpired. This compare-and-set is the sole concurrency authority; the preceding read is only an abuse-cost optimization and cannot preserve eligibility across hashing.
+3. If eligible, hash the new password outside the database transaction. The route does not capture or pass an authoritative claim time.
+4. Enter a serializable transaction with the same token hash. Every transaction callback attempt captures a fresh authoritative time from the service-owned clock, including retries after serialization/deadlock/lock conflicts, then atomically claims the submitted token only when it is still unconsumed and unexpired at that attempt's time. This compare-and-set is the sole concurrency authority; the preceding read is only an abuse-cost optimization and cannot preserve eligibility across hashing or retries.
 5. If the claim affects no row, return the same safe expired-or-used response without changing the password.
 6. Update or create the target password credential.
 7. Consume every other outstanding reset token for that user in the same transaction.
@@ -104,9 +104,52 @@ The expected Admin-era migrations are:
 5. Require the pending set to be one contiguous terminal suffix of the four expected Admin migrations, then run `prisma migrate deploy` on the clone. A gap, arbitrary subset, older migration, or unrelated pending migration is unexpected drift and stops the flow.
 6. Run schema validation, migration status, focused Admin suites, and read-only schema/data-shape checks against the clone. Every status, deploy, validate, and generate command receives database variables through an explicit one-process child-environment wrapper; no database variables are set in the parent shell.
 7. Stop for unexpected drift, an unknown migration, a failed rehearsal, an ambiguous database identity, or a direct/runtime connection mismatch.
-8. If rehearsal is exact and clean, enter the one approved Production activation wrapper. It opens a dedicated direct connection, acquires a target-scoped cooperative session advisory lock, refreshes trusted Production identity and complete status, and produces a semantic fingerprint from the sanitized target, exact commit, and ordered suffix. Record `checkedAt` separately as freshness evidence; volatile timestamps are not part of the fingerprint.
-9. While the wrapper retains that same session lock, stop for fresh user authorization naming the semantic fingerprint. After authorization, re-fetch the opaque trusted target evidence and complete migration status under the lock, recompute the semantic fingerprint, compare it to the authorized and first locked fingerprints, and validate freshness separately.
-10. Only the unchanged fingerprint authorizes the wrapper to run `prisma migrate deploy` once in a child-scoped environment. The wrapper then reruns complete Production status under the same lock, requires up-to-date state, records only sanitized migration names/statuses, and releases the lock in `finally`. No manual or second Production deploy path is approved; the cooperative lock does not claim to fence arbitrary external SQL clients.
+8. If rehearsal is exact and clean, enter the one approved Production activation wrapper. It opens a dedicated direct connection and polls `pg_try_advisory_lock` with a cancellation-aware 250 ms wait and a 30-second monotonic deadline. Every probe is itself raced against the same abort/deadline; a hung probe causes connection destruction/closure rather than extending the bound. Contention, cancellation, connection loss, or deadline expiry stops before status or deploy. After acquisition it refreshes trusted Production identity and complete status and produces a semantic fingerprint from the sanitized target, exact commit, and ordered suffix. Record `checkedAt` separately as freshness evidence; volatile timestamps are not part of the fingerprint.
+9. While the wrapper retains that same session lock, request fresh user authorization naming the semantic fingerprint through an abort-aware callback with a 10-minute monotonic deadline. Authorization must both arrive before that deadline and name status evidence whose `checkedAt` remains within the same 10-minute freshness bound. Denial, cancellation, timeout, late resolution, or stale evidence stops before deploy. After timely authorization, re-fetch the opaque trusted target evidence and complete migration status under the lock, recompute the semantic fingerprint, compare it to the authorized and first locked fingerprints, and validate freshness separately.
+10. Only the unchanged fingerprint authorizes the wrapper to run `prisma migrate deploy` once in a child-scoped environment. The wrapper then reruns complete Production status under the same lock and requires up-to-date state. A `lockAcquired` flag controls cleanup: call `pg_advisory_unlock` only when this invocation acquired the lock, and always close the dedicated connection in `finally`, including contention, cancellation, authorization timeout, and deploy-child failure. No manual or second Production deploy path is approved; the cooperative lock does not claim to fence arbitrary external SQL clients.
+
+#### Sanitized activation evidence schema
+
+Status output, audit records, checkpoints, and Aegis evidence use one allowlist-only shape:
+
+```ts
+const ADMIN_OPERATIONS_EVIDENCE_CHECK_NAMES = [
+  "trusted_identity",
+  "orphan_scan",
+  "migration_status",
+  "migration_deploy",
+  "prisma_validate",
+  "prisma_generate",
+  "focused_tests",
+  "typecheck",
+  "lint",
+  "unit_tests",
+  "build",
+  "production_read_only_smoke",
+  "browser_desktop",
+  "browser_mobile",
+  "fixture_cleanup",
+  "branch_deleted",
+] as const
+
+type AdminOperationsEvidenceCheckName =
+  (typeof ADMIN_OPERATIONS_EVIDENCE_CHECK_NAMES)[number]
+
+type SanitizedActivationEvidence = {
+  schemaVersion: 1
+  mode: "status" | "audit" | "final" | "rehearsal" | "qa"
+  target: { projectId: string; branchId: string; databaseName: string; directHostname: string }
+  commitSha: string
+  migrations: Array<{ name: ExpectedMigrationName; status: "APPLIED" | "PENDING" }>
+  fingerprint: string
+  checkedAt: string
+  completedAt: string | null
+  outcome: "UP_TO_DATE" | "PENDING_SUFFIX" | "DEPLOYED" | "NO_OP" | "BLOCKED" | "FAILED"
+  checks: Array<{ name: AdminOperationsEvidenceCheckName; outcome: "PASS" | "FAIL" | "SKIPPED"; checkedAt: string }>
+}
+```
+
+`mode` identifies only the execution phase. Checkpoint and Aegis files are destinations that embed the same serialized evidence object, not extra mode values. The serializer constructs this shape field by field and rejects unknown modes, statuses, outcomes, migration names, check names, malformed timestamps, and non-hostname endpoint values. It never spreads source objects. Credentials, connection/direct URLs, database rows or values, emails, raw command output, provider transaction/payment/customer/subscription IDs, and other Stripe identifiers are prohibited even if present in an input object. Tests must prove every allowed field and every exact check name is retained and every prohibited or unknown field is omitted from status/audit output and generated checkpoint/Aegis packets. An unknown check name rejects the complete evidence object; explicit regressions cover email-like (`operator@example.com`), URL-like (`https://example.com/check`), provider-ID-like (`customer_cus_123`), and database-looking (`DATABASE_URL`) values and prove none is serialized.
 
 Before creating either disposable branch, check the trusted control plane for Admin-operations rehearsal/QA names. Every match is a blocking alert. Automatic deletion requires trusted metadata matching the verified run owner/lease plus explicit proof that the lease is stale and its owner cannot still be active; ambiguous ownership or staleness requires operator-reviewed cleanup. Every disposable lifecycle uses `try/finally`; deletion and trusted control-plane absence verification run after success or failure, and resume remains blocked until complete absence is proven.
 
@@ -146,6 +189,8 @@ This branch is read-only except for URL and navigation state. It adds no mutatio
 - Preserve search, supported filters, sort, and page size.
 - Reject external, malformed, or unsupported return URLs.
 - Treat a cursor as navigation context, never authority. Cursor usability, visible-page selection, and reverse-lookback boundary evidence share one repeatable consistent read snapshot. If the cursor is stale, return to the first page in that snapshot while retaining safe non-cursor filters.
+- Cursor pagination separates availability from the boundary value. Cursorless page 1 returns `hasPreviousPage: false` and `previousCursor: null`. Page 2 returns `hasPreviousPage: true` and `previousCursor: null`, meaning Previous uses the canonical cursorless page-1 URL. Page 3 and later return `hasPreviousPage: true` with a non-null exclusive boundary. The UI renders/enables Previous from `hasPreviousPage`, not cursor truthiness, and the shared URL builder omits `cursor` when the selected previous cursor is null.
+- With `pageSize=2` and IDs `01`-`08`, ascending pages are `01,02` / `03,04` / `05,06` / `07,08`, with previous response pairs `false/null`, `true/null`, `true/02`, `true/04`. Descending pages are `08,07` / `06,05` / `04,03` / `02,01`, with previous response pairs `false/null`, `true/null`, `true/07`, `true/05`. Tests assert exact response objects and canonical Previous URLs in both directions.
 
 #### Actionable queues
 
@@ -185,6 +230,7 @@ Every implementation branch follows strict RED/GREEN development, focused spec r
 - expired, already-consumed, missing, and rollback cases remain safe; and
 - missing, expired, and consumed links stop before password hashing, while a post-gate race still receives the identical generic invalid response;
 - Prisma adapter-shaped deadlock and lock failures retry through the one shared bounded owner, including different-token contention;
+- a token that expires between retry attempts cannot be claimed by the later attempt, and the failed retry leaves every reset mutation uncommitted;
 - self-service and Admin-requested links use the same consumption owner; and
 - successful consumption creates exactly zero new `Activity`, `AdminAction`, or email-intent records. For an Admin-requested link, the request-time evidence remains unchanged and consumption creates no second evidence bundle.
 

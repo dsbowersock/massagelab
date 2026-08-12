@@ -75,7 +75,7 @@ describe("JWT session-version integration contract", () => {
       prismaClient: database,
       tokenHash: "active-reset-token",
       passwordHash: "new-password-hash",
-      now: new Date("2026-08-11T12:00:00.000Z"),
+      clock: () => new Date("2026-08-11T12:00:00.000Z"),
     }), { status: "UPDATED" })
 
     const decision = decideAuthSessionVersion({

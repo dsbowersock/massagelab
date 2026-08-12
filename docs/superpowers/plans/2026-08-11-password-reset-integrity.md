@@ -4,7 +4,7 @@
 
 **Goal:** Make every self-service and Admin-requested password-reset link use one atomic consumption path that changes the password once, consumes all outstanding links, and invalidates existing authentication sessions.
 
-**Architecture:** Keep request parsing and raw-token hashing in the existing route, then ask the reset-confirmation owner for a lightweight boolean eligibility read using the token hash and a captured eligibility time. Only an eligible request pays the password-hashing cost, still outside the transaction. Immediately after hashing, capture a fresh confirmation time for the same owner's bounded Serializable transaction, authoritative compare-and-set claim, credential replacement, sibling-token consumption, JWT-version increment, and compatibility Session deletion.
+**Architecture:** Keep request parsing and raw-token hashing in the existing route, then ask the reset-confirmation owner for a lightweight boolean eligibility read using the token hash and a captured eligibility time. Only an eligible request pays the password-hashing cost, still outside the transaction. The route passes no authoritative claim time. The same owner captures a fresh time inside every attempt of its bounded Serializable transaction before the compare-and-set claim, credential replacement, sibling-token consumption, JWT-version increment, and compatibility Session deletion.
 
 **Tech Stack:** Next.js App Router, TypeScript, Prisma 7, PostgreSQL/Neon, Auth.js JWT session versioning, Node test runner.
 
@@ -13,7 +13,7 @@
 - Applies identically to ordinary self-service links and links issued by `sendAdminPasswordReset`.
 - Hash the raw token first, perform the read-only non-authoritative eligibility gate, and return the existing generic invalid-link response before password hashing when the gate fails.
 - Hash the password only after eligibility passes and before the database transaction; no expensive password hashing may run while a transaction is open.
-- Pass the same token hash through both calls, but capture a fresh confirmation time immediately after password hashing. The transaction's compare-and-set remains the sole claim authority and must reject a token that expires while Argon2 runs.
+- Pass the same token hash through both calls, but let the confirmation service capture a fresh authoritative time inside each transaction callback attempt. The compare-and-set remains the sole claim authority and must reject a token that expires while Argon2 runs or between retries.
 - Return the existing generic expired-or-used response for missing, expired, consumed, or concurrently lost tokens.
 - Increment `User.authSessionVersion` exactly once on a successful password replacement.
 - Delete Prisma `Session` rows only as compatibility cleanup; never present that count as active JWTs or people signed out.
@@ -56,7 +56,7 @@ export type ConfirmPasswordResetInput = {
   prismaClient: Pick<PrismaClient, "$transaction">
   tokenHash: string
   passwordHash: string
-  now?: Date
+  clock?: () => Date
 }
 
 export type ConfirmPasswordResetResult =
@@ -70,11 +70,11 @@ export async function confirmPasswordReset(
 
 - [ ] **Step 1: Write the focused failing tests for input and invalid-token behavior**
 
-Add tests that reject blank/oversized hashes before opening a transaction, reject an invalid `now`, return `{ status: "INVALID" }` for missing/expired/consumed tokens, and assert no credential, token, version, or Session mutation occurred.
+Add tests that reject blank/oversized hashes before opening a transaction, reject an invalid Date returned by the injected clock before reading token state, return `{ status: "INVALID" }` for missing/expired/consumed tokens, and assert no credential, token, version, or Session mutation occurred. Deterministic tests inject `clock: () => now`; Production omits it and uses the service-owned system clock.
 
 ```js
 await assert.rejects(
-  () => confirmPasswordReset({ prismaClient: database, tokenHash: "", passwordHash: "hash", now }),
+  () => confirmPasswordReset({ prismaClient: database, tokenHash: "", passwordHash: "hash", clock: () => now }),
   /valid reset token hash/,
 )
 assert.equal(database.transactionAttempts, 0)
@@ -83,7 +83,7 @@ assert.deepEqual(await confirmPasswordReset({
   prismaClient: database,
   tokenHash: "missing-token-hash",
   passwordHash: "new-password-hash",
-  now,
+  clock: () => now,
 }), { status: "INVALID" })
 assert.deepEqual(database.state, before)
 ```
@@ -96,13 +96,17 @@ Expected: FAIL with `ERR_MODULE_NOT_FOUND` for `lib/password-reset-confirmation.
 
 - [ ] **Step 3: Add the typed service shell and pre-transaction validation**
 
-Implement finite-Date capture plus bounded opaque-hash validation. Add JSDoc stating that the return value deliberately reveals no user or token state and that every successful effect is committed atomically.
+Implement finite-Date capture plus bounded opaque-hash validation. Validate the injected clock shape before opening the transaction, but invoke it only inside the transaction callback so every retry captures a new authoritative time. Add JSDoc stating that the return value deliberately reveals no user or token state and that every successful effect is committed atomically.
 
 ```ts
 function captureNow(value?: Date): Date {
   const now = value === undefined ? new Date() : new Date(value)
   if (!Number.isFinite(now.getTime())) throw new Error("Provide a valid reset time.")
   return now
+}
+
+function systemResetClock(): Date {
+  return new Date()
 }
 
 function validateOpaqueHash(value: string, label: string): void {
@@ -172,6 +176,8 @@ assert.equal(database.state.passwordResetTokens.every((token) => token.consumedA
 
 Repeat with two different token hashes and different password hashes; correlate the committed password to whichever contender returned `UPDATED` rather than hard-coding a winner.
 
+Add a retry-expiry regression with an injected clock sequence: attempt 1 observes an unexpired token but ends in a retryable serialization conflict; attempt 2 receives a time after `expiresAt`, returns `INVALID`, and leaves the password, all token rows, `authSessionVersion`, and compatibility Sessions unchanged. Assert the clock was invoked once per transaction attempt so a retry can never reuse attempt 1's time.
+
 - [ ] **Step 3: Run focused tests and verify RED**
 
 Run: `node --test tests/password-reset-confirmation.test.mjs`
@@ -229,12 +235,12 @@ git commit -m "fix: consume password resets atomically"
 - Modify: `tests/admin-security-service.test.mjs`
 
 **Interfaces:**
-- Consumes: `isPasswordResetTokenEligible({ prismaClient, tokenHash, now: eligibilityNow })` followed, only when eligible and after hashing, by `confirmPasswordReset({ prismaClient, tokenHash, passwordHash, now: confirmationNow })` using a freshly captured authoritative time.
+- Consumes: `isPasswordResetTokenEligible({ prismaClient, tokenHash, now: eligibilityNow })` followed, only when eligible and after hashing, by `confirmPasswordReset({ prismaClient, tokenHash, passwordHash })`; the confirmation owner captures authoritative time per transaction attempt.
 - Produces: unchanged public JSON/status messages.
 
 - [ ] **Step 1: Write a compiled route RED test**
 
-Compile the route with doubles for `NextResponse`, `hashToken`, `isPasswordResetTokenEligible`, `hashPassword`, `confirmPasswordReset`, and Prisma. Prove request validation happens first; eligible flow orders raw-token hashing, eligibility, password hashing, and confirmation; and the route never writes reset state directly. Advance the controlled clock during `hashPassword` and prove confirmation receives the later time, reaches the authoritative compare-and-set, and returns the same generic invalid response when the token expired during hashing. Missing, expired, and consumed eligibility failures must not call `hashPassword`, `confirmPasswordReset`, or any direct mutation API.
+Compile the route with doubles for `NextResponse`, `hashToken`, `isPasswordResetTokenEligible`, `hashPassword`, `confirmPasswordReset`, and Prisma. Prove request validation happens first; eligible flow orders raw-token hashing, eligibility, password hashing, and confirmation; and the route never writes reset state directly. Advance the controlled clock during `hashPassword` and prove the route passes neither a frozen `now` nor an injected `clock` to confirmation; the service regression owns the authoritative expiry assertion and the route preserves the same generic invalid response. Missing, expired, and consumed eligibility failures must not call `hashPassword`, `confirmPasswordReset`, or any direct mutation API.
 
 ```js
 assert.deepEqual(calls, [
@@ -257,7 +263,7 @@ Expected: FAIL because the route still owns direct Prisma mutations.
 
 - [ ] **Step 3: Replace direct route writes with the service**
 
-Keep request shape validation first, then hash the token, capture the eligibility time, perform the non-authoritative read-only gate, and only then hash the password. Capture a fresh confirmation time immediately after Argon2 and pass that later time to the transactional service:
+Keep request shape validation first, then hash the token, capture the eligibility time, perform the non-authoritative read-only gate, and only then hash the password. Do not capture an authoritative claim time in the route; the transactional service owns a fresh time for every callback attempt:
 
 ```ts
 const tokenHash = hashToken(token)
@@ -270,12 +276,10 @@ if (!eligible) {
   )
 }
 const passwordHash = await hashPassword(password)
-const confirmationNow = new Date()
 const result = await confirmPasswordReset({
   prismaClient: prisma,
   tokenHash,
   passwordHash,
-  now: confirmationNow,
 })
 if (result.status === "INVALID") {
   return NextResponse.json(

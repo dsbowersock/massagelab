@@ -29,14 +29,12 @@ export async function POST(request: Request) {
   }
 
   const passwordHash = await hashPassword(password)
-  // Capture the authoritative claim time after the deliberately expensive hash
-  // so a token that expires during Argon2 cannot be accepted by a stale clock.
-  const confirmationNow = new Date()
+  // The service captures authoritative time inside every transaction attempt,
+  // including retries after the deliberately expensive hash.
   const result = await confirmPasswordReset({
     prismaClient: prisma,
     tokenHash,
     passwordHash,
-    now: confirmationNow,
   })
 
   if (result.status === "INVALID") {

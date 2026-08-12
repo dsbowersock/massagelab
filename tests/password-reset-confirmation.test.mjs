@@ -58,34 +58,39 @@ describe("confirmPasswordReset", () => {
     const database = createResetDatabase()
 
     await assert.rejects(
-      () => confirmPasswordReset({ prismaClient: database, tokenHash: "", passwordHash: "hash", now: NOW }),
+      () => confirmPasswordReset({ prismaClient: database, tokenHash: "", passwordHash: "hash", clock: () => NOW }),
       /valid reset token hash/,
     )
     await assert.rejects(
-      () => confirmPasswordReset({ prismaClient: database, tokenHash: "token", passwordHash: "", now: NOW }),
+      () => confirmPasswordReset({ prismaClient: database, tokenHash: "token", passwordHash: "", clock: () => NOW }),
       /valid password hash/,
     )
     await assert.rejects(
-      () => confirmPasswordReset({ prismaClient: database, tokenHash: "x".repeat(513), passwordHash: "hash", now: NOW }),
+      () => confirmPasswordReset({ prismaClient: database, tokenHash: "x".repeat(513), passwordHash: "hash", clock: () => NOW }),
       /valid reset token hash/,
     )
     await assert.rejects(
-      () => confirmPasswordReset({ prismaClient: database, tokenHash: "token", passwordHash: "x".repeat(513), now: NOW }),
+      () => confirmPasswordReset({ prismaClient: database, tokenHash: "token", passwordHash: "x".repeat(513), clock: () => NOW }),
       /valid password hash/,
     )
 
     assert.equal(database.transactionAttempts, 0)
   })
 
-  it("rejects an invalid reset time before opening a transaction", async () => {
+  it("rejects an invalid authoritative reset time before reading token state", async () => {
     const database = createResetDatabase()
 
     await assert.rejects(
-      () => confirmPasswordReset({ prismaClient: database, tokenHash: "token", passwordHash: "hash", now: new Date("invalid") }),
+      () => confirmPasswordReset({
+        prismaClient: database,
+        tokenHash: "token",
+        passwordHash: "hash",
+        clock: () => new Date("invalid"),
+      }),
       /valid reset time/,
     )
 
-    assert.equal(database.transactionAttempts, 0)
+    assert.equal(database.transactionAttempts, 1)
   })
 
   for (const [name, tokenHash] of [
@@ -101,7 +106,7 @@ describe("confirmPasswordReset", () => {
         prismaClient: database,
         tokenHash,
         passwordHash: "new-password-hash",
-        now: NOW,
+        clock: () => NOW,
       }), { status: "INVALID" })
 
       assert.deepEqual(database.state, before)
@@ -116,7 +121,7 @@ describe("confirmPasswordReset", () => {
       prismaClient: database,
       tokenHash: "active-token-hash-a",
       passwordHash: "new-password-hash",
-      now: NOW,
+      clock: () => NOW,
     })
 
     const state = database.state
@@ -142,7 +147,7 @@ describe("confirmPasswordReset", () => {
         prismaClient: database,
         tokenHash: "active-token-hash-a",
         passwordHash: "new-password-hash",
-        now: NOW,
+        clock: () => NOW,
       }),
       /session deletion failed/,
     )
@@ -165,7 +170,7 @@ describe("confirmPasswordReset", () => {
         prismaClient: database,
         tokenHash: contender.tokenHash,
         passwordHash: contender.passwordHash,
-        now: NOW,
+        clock: () => NOW,
       }),
     })))
     const updatedResults = resultsByContender.filter(({ result }) => result.status === "UPDATED")
@@ -191,7 +196,7 @@ describe("confirmPasswordReset", () => {
         prismaClient: database,
         tokenHash: contender.tokenHash,
         passwordHash: contender.passwordHash,
-        now: NOW,
+        clock: () => NOW,
       }),
     })))
     const updatedResults = resultsByContender.filter(({ result }) => result.status === "UPDATED")
@@ -214,7 +219,7 @@ describe("confirmPasswordReset", () => {
       prismaClient: database,
       tokenHash: "active-token-hash-a",
       passwordHash: "retried-password-hash",
-      now: NOW,
+      clock: () => NOW,
     }), { status: "UPDATED" })
 
     assert.equal(database.transactionAttempts, 2)
@@ -223,6 +228,30 @@ describe("confirmPasswordReset", () => {
     assert.equal(database.state.passwordResetTokens
       .filter((token) => token.userId === database.state.user.id)
       .every((token) => token.consumedAt), true)
+  })
+
+  it("captures a fresh authoritative time for every transaction retry", async () => {
+    const database = createResetDatabase({ serializationConflicts: 1 })
+    const authoritativeTimes = [
+      NOW,
+      new Date("2026-08-11T12:00:00.002Z"),
+    ]
+
+    assert.deepEqual(await confirmPasswordReset({
+      prismaClient: database,
+      tokenHash: "active-token-hash-a",
+      passwordHash: "must-not-be-committed",
+      clock: () => authoritativeTimes.shift(),
+    }), { status: "INVALID" })
+
+    assert.equal(database.transactionAttempts, 2)
+    assert.equal(authoritativeTimes.length, 0)
+    assert.equal(database.state.passwordCredential.passwordHash, "old-password-hash")
+    assert.equal(database.state.passwordResetTokens
+      .filter((token) => token.userId === database.state.user.id)
+      .every((token) => token.consumedAt === null), true)
+    assert.equal(database.state.user.authSessionVersion, 4)
+    assert.equal(database.state.sessions.length, 2)
   })
 })
 
@@ -334,7 +363,7 @@ function createResetDatabase({
           async updateMany({ where, data }) {
             if (where.id) {
               assert.equal(where.consumedAt, null)
-              assert.equal(where.expiresAt.gt.getTime(), NOW.getTime())
+              assert.equal(where.expiresAt.gt instanceof Date, true)
               await claimGate?.wait()
 
               const committedToken = state.passwordResetTokens.find((candidate) => candidate.id === where.id)

@@ -55,7 +55,7 @@ function loadRoute({
             passwordHash: input.passwordHash,
           }])
           assert.equal(input.prismaClient, prisma)
-          capturedTimes.confirmation = input.now
+          capturedTimes.confirmationInput = input
           return typeof result === "function" ? result(input) : result
         },
       },
@@ -102,8 +102,8 @@ describe("password reset confirmation route", () => {
       ["confirmPasswordReset", { tokenHash: "token-hash", passwordHash: "password-hash" }],
     ])
     assert.equal(capturedTimes.eligibility instanceof Date, true)
-    assert.equal(capturedTimes.confirmation instanceof Date, true)
-    assert.equal(capturedTimes.confirmation >= capturedTimes.eligibility, true)
+    assert.equal(Object.hasOwn(capturedTimes.confirmationInput, "now"), false)
+    assert.equal(Object.hasOwn(capturedTimes.confirmationInput, "clock"), false)
   })
 
   for (const [article, condition] of [["a", "missing"], ["an", "expired"], ["a", "consumed"]]) {
@@ -146,10 +146,9 @@ describe("password reset confirmation route", () => {
     ])
   })
 
-  it("uses a fresh claim time when a token expires while Argon2 hashing is in progress", async () => {
+  it("does not freeze authoritative claim time while Argon2 hashing is in progress", async () => {
     const RealDate = globalThis.Date
     let currentTime = "2026-08-12T12:00:00.000Z"
-    const expiresAt = new RealDate("2026-08-12T12:00:01.000Z")
     class ControlledDate extends RealDate {
       constructor(...args) {
         super(...(args.length === 0 ? [currentTime] : args))
@@ -163,9 +162,11 @@ describe("password reset confirmation route", () => {
           currentTime = "2026-08-12T12:00:02.000Z"
           return "password-hash"
         },
-        result: (input) => (
-          input.now < expiresAt ? { status: "UPDATED" } : { status: "INVALID" }
-        ),
+        result: (input) => {
+          assert.equal(Object.hasOwn(input, "now"), false)
+          assert.equal(Object.hasOwn(input, "clock"), false)
+          return { status: "INVALID" }
+        },
       })
 
       const response = await POST(resetRequest({
@@ -184,7 +185,8 @@ describe("password reset confirmation route", () => {
         ["confirmPasswordReset", { tokenHash: "token-hash", passwordHash: "password-hash" }],
       ])
       assert.equal(capturedTimes.eligibility.toISOString(), "2026-08-12T12:00:00.000Z")
-      assert.equal(capturedTimes.confirmation.toISOString(), "2026-08-12T12:00:02.000Z")
+      assert.equal(Object.hasOwn(capturedTimes.confirmationInput, "now"), false)
+      assert.equal(Object.hasOwn(capturedTimes.confirmationInput, "clock"), false)
     } finally {
       globalThis.Date = RealDate
     }
