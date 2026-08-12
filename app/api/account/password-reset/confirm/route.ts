@@ -17,6 +17,8 @@ export async function POST(request: Request) {
 
   const tokenHash = hashToken(token)
   const now = new Date()
+  // This read only avoids unnecessary Argon2 work; confirmPasswordReset's
+  // transactional compare-and-set remains the authority on token consumption.
   const eligible = await isPasswordResetTokenEligible({
     prismaClient: prisma,
     tokenHash,

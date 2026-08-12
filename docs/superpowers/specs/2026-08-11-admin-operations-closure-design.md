@@ -80,7 +80,7 @@ The transaction's `ending_balance` is the immediate balance after that provider 
 
 Identity, Customer, currency, mode, amount, malformed readback, or missing-transaction mismatches remain unresolved and fail closed. Reconciliation never invents a replacement operation or new Stripe idempotency key.
 
-The branch must also recheck fresh full-Admin authority immediately before the provider create boundary. Durable preparation still records the originating Admin, while a revoked Admin cannot cross into a new financial provider mutation after revocation becomes visible in the database.
+The branch must also recheck fresh full-Admin authority immediately before the provider create boundary. Durable preparation still records the originating Admin, while a revoked Admin cannot cross into a new financial provider mutation after revocation becomes visible in the database. When that fresh check denies the invocation that created and still owns a never-attempted `PREPARED` operation, it atomically records `FAILED_BEFORE_MUTATION` with `ADMIN_AUTHORITY_REVOKED`; replays, lost ownership, and possibly committed attempts retain their canonical unresolved state.
 
 ### Branch 3: Production activation and browser acceptance
 
@@ -97,15 +97,17 @@ The expected Admin-era migrations are:
 
 #### Deployment flow
 
-1. Run read-only Prisma migration status using the Production direct migration connection, never the pooled runtime connection.
-2. Compare the database migration table with the exact migration inventory on merged `main`.
+1. Fetch the sanitized Production project ID, branch ID, database name, and direct endpoint hostname from the authenticated Neon console or approved API, then bind the read-only Prisma migration status connection to that independently obtained identity. Never accept the pooled runtime connection or treat values parsed only from a connection string as identity proof.
+2. Compare the complete statefully parsed database migration-status section with the exact migration inventory on merged `main`.
 3. If all migrations are already applied, record sanitized evidence and do not rerun them.
 4. If any are missing, create an explicitly identified disposable Neon branch cloned from Production.
-5. Require the pending set to be an exact subset of the four expected Admin migrations, then run `prisma migrate deploy` on the clone. An older or unrelated pending migration is unexpected drift and stops the flow.
+5. Require the pending set to be one contiguous terminal suffix of the four expected Admin migrations, then run `prisma migrate deploy` on the clone. A gap, arbitrary subset, older migration, or unrelated pending migration is unexpected drift and stops the flow.
 6. Run schema validation, migration status, focused Admin suites, and read-only schema/data-shape checks against the clone.
 7. Stop for unexpected drift, an unknown migration, a failed rehearsal, an ambiguous database identity, or a direct/runtime connection mismatch.
-8. If rehearsal is exact and clean, confirm the Production pending set is unchanged and still an exact subset of the four expected migrations, then run `prisma migrate deploy` using the direct migration connection.
+8. If rehearsal is exact and clean, refresh the trusted Production identity and pending suffix, produce a target-specific fingerprint from that identity, exact commit, suffix, and status timestamp, and stop for fresh user authorization naming that fingerprint. Only then run `prisma migrate deploy` once using the direct migration connection scoped to that child process.
 9. Rerun Production migration status and record only sanitized migration names/statuses—never connection strings, credentials, or database rows.
+
+Before creating either disposable branch, check the trusted control plane for orphaned Admin-operations rehearsal/QA branches from an interrupted run. Every disposable lifecycle uses `try/finally`; deletion and trusted control-plane absence verification run after success or failure, and incomplete deletion proof blocks the rollout.
 
 No seed, reset, development migration, destructive SQL, Prisma Studio session, or broad export belongs in this flow.
 
@@ -124,13 +126,14 @@ Keep `ADMIN_BILLING_GOODWILL_LIVE_ENABLED` absent or false. Do not perform a Pro
 
 #### Disposable browser acceptance
 
-1. Create a separately identified disposable database with all migrations applied.
-2. Prove database identity before enabling `MASSAGELAB_BROWSER_QA_DATABASE=1`.
-3. Require a Playwright-owned server with SMTP variables blanked.
-4. Run the full Admin User Operations spec in both desktop and mobile Chromium.
-5. Retain the billing fixture's presentation-only Stripe client and server-action mutation guard; assert zero matching form submissions and POST requests for billing goodwill.
-6. Verify exact fixture cleanup in foreign-key-safe order.
-7. Delete the disposable database and verify it is absent.
+1. Create a separately identified QA database with all migrations applied. It must be distinct from Production and from the migration-rehearsal clone; the rehearsal clone is never reused for browser QA.
+2. Populate it only from an approved synthetic or sanitized QA seed whose provenance is recorded. Do not copy or query Production rows to assemble the fixture.
+3. Prove database identity before enabling `MASSAGELAB_BROWSER_QA_DATABASE=1`.
+4. Require a Playwright-owned server with SMTP variables blanked.
+5. Run the full Admin User Operations spec in both desktop and mobile Chromium.
+6. Retain the billing fixture's presentation-only Stripe client and server-action mutation guard; assert zero matching form submissions and POST requests for billing goodwill.
+7. Verify exact fixture cleanup in foreign-key-safe order.
+8. Delete the disposable database and verify through the trusted Neon control plane that it is absent. Missing or inconclusive deletion evidence blocks acceptance rather than becoming a warning.
 
 ### Branch 4: Admin queue navigation
 
@@ -181,7 +184,8 @@ Every implementation branch follows strict RED/GREEN development, focused spec r
 - expired, already-consumed, missing, and rollback cases remain safe; and
 - missing, expired, and consumed links stop before password hashing, while a post-gate race still receives the identical generic invalid response;
 - Prisma adapter-shaped deadlock and lock failures retry through the one shared bounded owner, including different-token contention;
-- self-service and Admin-requested links use the same consumption owner.
+- self-service and Admin-requested links use the same consumption owner; and
+- successful consumption creates exactly zero new `Activity`, `AdminAction`, or email-intent records. For an Admin-requested link, the request-time evidence remains unchanged and consumption creates no second evidence bundle.
 
 ### Billing acceptance
 
@@ -200,7 +204,8 @@ Every implementation branch follows strict RED/GREEN development, focused spec r
 - desktop and mobile Admin browser suites pass against the disposable migrated database;
 - SMTP and billing mutation guards remain closed;
 - fixture cleanup succeeds; and
-- the disposable database is deleted and verified absent.
+- the QA fixture provenance is an approved synthetic or sanitized seed in a separate QA database, with no Production-row copy and no migration-rehearsal-clone reuse; and
+- the disposable database is deleted and verified absent through the trusted control plane, with acceptance blocked until that verification succeeds.
 
 ### Queue acceptance
 
@@ -217,7 +222,7 @@ Each code branch must also pass affected tests, adjacent regressions, typecheck,
 
 ## Documentation and evidence
 
-Each branch updates `docs/project-state.md` and `docs/project-log.md` when its state changes. Stable operational behavior belongs in the Admin runbook and release checklist. Migration deployment records sanitized migration names and results only. Disposable browser evidence records database purpose and cleanup outcome without connection strings, credentials, or copied Production rows.
+Each branch updates `docs/project-state.md` and `docs/project-log.md` when its state changes. Stable operational behavior belongs in the Admin runbook and release checklist. Migration deployment records sanitized migration names and results only. Disposable browser evidence records the approved synthetic/sanitized seed provenance, separate QA-database purpose, and blocking cleanup/deletion outcome without connection strings, credentials, copied Production rows, or reuse of the migration-rehearsal clone.
 
 ## Rollout order and gates
 

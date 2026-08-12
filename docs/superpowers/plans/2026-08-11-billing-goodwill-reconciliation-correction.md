@@ -63,6 +63,8 @@ type ValidatedGoodwillReadback = {
 }
 ```
 
+Add focused JSDoc to this internal result and its validator: `historicalEndingCreditCents` is the exact transaction's immutable `ending_balance` observation, while `currentCreditCents` is a later, present-time Customer observation. Neither value may be documented or consumed as an alias for the other.
+
 - [ ] **Step 1: Add RED tests for intervening Customer activity**
 
 Create an operation prepared at 500 cents, credit amount 300, exact transaction `ending_balance: -650`, and refreshed Customer `balance: -125`. The exact transaction must verify despite both values differing from the preview-derived 800.
@@ -147,7 +149,8 @@ Prepare the operation as an authorized Admin, pause after Customer/subscription 
 ```js
 await assert.rejects(operationPromise, /full administrator access/i)
 assert.equal(stripeCalls.createBalanceTransaction, 0)
-assert.equal(fixture.state.operations.get("billing-op-1").status, "PREPARED")
+assert.equal(fixture.state.operations.get("billing-op-1").status, "FAILED_BEFORE_MUTATION")
+assert.equal(fixture.state.operations.get("billing-op-1").failureCode, "ADMIN_AUTHORITY_REVOKED")
 ```
 
 Also prove that a revoked actor may read/reconcile a known transaction only if the existing reconciliation contract permits a different freshly authorized Admin; the original revoked actor may not create.
@@ -173,7 +176,7 @@ Document why this read is intentionally outside the durable preparation transact
 
 - [ ] **Step 4: Handle a denied boundary without provider ambiguity**
 
-If the fresh authority check throws before create, persist `FAILED_BEFORE_MUTATION` with a static safe code such as `ADMIN_AUTHORITY_REVOKED` only when this invocation is the never-attempted PREPARED creator. Preserve `RECONCILIATION_REQUIRED` for replay/possibly-committed states. Do not expose the thrown error.
+If the fresh authority check throws before create, atomically transition `PREPARED -> FAILED_BEFORE_MUTATION` with the static safe code `ADMIN_AUTHORITY_REVOKED` only when this invocation created and still owns that never-attempted operation. The guarded update must still match the operation ID, originating request/idempotency identity, `PREPARED` status, and absent provider transaction ID. An invocation that loaded a pre-existing operation, lost ownership, or could be observing a possibly committed attempt must not make this transition; preserve its canonical unresolved state for reconciliation. Do not expose the thrown error.
 
 - [ ] **Step 5: Run focused tests and verify GREEN**
 
@@ -226,13 +229,15 @@ Add a small route-local helper:
 function balanceEvidenceMessage(result: BillingGoodwillResult): string {
   const historical = result.endingCreditCents === null
     ? ""
-    : ` The Stripe credit immediately after this transaction was ${formatUsd(result.endingCreditCents)}.`
+    : ` The Stripe credit immediately after this credit was ${formatUsd(result.endingCreditCents)}.`
   const current = result.currentCreditCents === null
     ? ""
     : ` The current Stripe credit is ${formatUsd(result.currentCreditCents)}.`
   return historical + current
 }
 ```
+
+Give this helper focused JSDoc stating that `endingCreditCents` is historical transaction evidence and `currentCreditCents` is an optional fresh Customer balance; the helper must not imply that the historical ending balance is still current.
 
 Use it for delivered and warning outcomes. Keep Activity/email bundle copy in `buildGoodwillBundle` historical-only because delivery may happen after the provider read.
 
