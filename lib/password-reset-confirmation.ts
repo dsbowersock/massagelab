@@ -14,12 +14,10 @@ export type ConfirmPasswordResetResult =
   | { status: "INVALID" }
 
 /**
- * Checks whether a password-reset token is presently eligible for consumption.
+ * Atomically consumes a valid reset link, replaces the password, and revokes sessions.
  *
- * The return value deliberately reveals no user or token state. Every successful
- * effect added by the complete reset flow is committed atomically; this initial
- * contract intentionally performs no mutation until its compare-and-set claim
- * is introduced.
+ * The predicate update is the authoritative token claim. The result deliberately
+ * reveals no user or token state, including when a concurrent request loses the claim.
  */
 export async function confirmPasswordReset(
   input: ConfirmPasswordResetInput,
@@ -31,15 +29,42 @@ export async function confirmPasswordReset(
   return runCommerceTransaction(input.prismaClient, async (tx) => {
     const token = await tx.passwordResetToken.findUnique({
       where: { tokenHash: input.tokenHash },
-      select: { id: true, userId: true, expiresAt: true, consumedAt: true },
+      select: { id: true, userId: true },
     })
 
-    if (!token || token.consumedAt || token.expiresAt.getTime() <= now.getTime()) {
+    if (!token) {
       return { status: "INVALID" }
     }
 
-    // Task 2 makes the predicate update claim authoritative for concurrent requests.
-    return { status: "INVALID" }
+    const claim = await tx.passwordResetToken.updateMany({
+      where: {
+        id: token.id,
+        userId: token.userId,
+        consumedAt: null,
+        expiresAt: { gt: now },
+      },
+      data: { consumedAt: now },
+    })
+    if (claim.count !== 1) {
+      return { status: "INVALID" }
+    }
+
+    await tx.passwordCredential.upsert({
+      where: { userId: token.userId },
+      create: { userId: token.userId, passwordHash: input.passwordHash },
+      update: { passwordHash: input.passwordHash },
+    })
+    await tx.passwordResetToken.updateMany({
+      where: { userId: token.userId, consumedAt: null },
+      data: { consumedAt: now },
+    })
+    await tx.user.update({
+      where: { id: token.userId },
+      data: { authSessionVersion: { increment: 1 } },
+    })
+    await tx.session.deleteMany({ where: { userId: token.userId } })
+
+    return { status: "UPDATED" }
   })
 }
 
