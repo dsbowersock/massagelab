@@ -34,6 +34,9 @@
 - Modify `app/admin/users/[userId]/page.tsx`: validated return link and section-link context preservation.
 - Modify `app/admin/page.tsx`: metric cards become canonical queue links.
 - Modify `tests/admin-user-directory.test.mjs`, `tests/admin-dashboard.test.mjs`, `tests/admin-user-detail.test.mjs`, `tests/admin-security-ui.test.mjs`, `tests/admin-user-operations-fixture.test.mjs`, and `tests/browser/admin-user-operations.spec.ts`.
+- Create `tests/types/admin-user-directory-query-contract.ts` and `tsconfig.admin-user-directory-contract.json`: tracked compile-fail fixture/config that executes the `@ts-expect-error` public-boundary contract.
+- Create `tests/browser/user-directory-query-contract.browser.spec.ts`: tracked browser-graph fixture that imports and executes the shared Web Crypto contract.
+- Create `scripts/verify-admin-user-directory-browser-contract.mjs`: repository-owned compiler/bundler runner that rejects Node builtins and server-only imports in the emitted browser graph.
 - Modify canonical state/log/Admin runbook/release checklist.
 
 ### Task 1: Define canonical queue and return-URL contracts
@@ -146,11 +149,14 @@ export async function buildAdminUserDirectoryHref(
 export async function sanitizeAdminUserDirectoryReturnTo(
   value: string | null | undefined,
 ): Promise<string>
+
+export function parseCanonicalAdminUserId(value: unknown): CanonicalAdminUserId
+export function parseAdminUserQueryFingerprint(value: unknown): AdminUserQueryFingerprint
 ```
 
 - [ ] **Step 1: Add RED URL tests**
 
-Assert `user-directory-query-contract.ts` is the single source for the parser, normalizers, Web Crypto fingerprint owner, cursor codec, canonical User-ID validator, and form/serializer sort/role/status allowlists. Both `user-directory-navigation.ts` and server-only `user-directory.ts` import that dependency-free contract; the contract/navigation import graph must not contain `node:crypto`, `@prisma/client`, `server-only`, `next/headers`, `lib/prisma`, auth, billing, database adapters, or any transitive Node/server-only module. Add a browser-targeted import/build test that imports the shared contract/navigation graph, supplies browser `globalThis.crypto.subtle`, executes the SHA-256 path, and fails on any Node builtin or server-only dependency. Prisma predicates and database operations remain exclusively in `user-directory.ts`. The async preparation owner normalizes/fingerprints raw noncursor input, rejects every unknown own key including `cursor` and `queryFingerprint`, and returns only a module-private-registry-backed `PreparedAdminDirectoryNonCursorQuery`; a plain object, clone/spread, or cast fails runtime verification. The awaited builder accepts only that opaque prepared handle plus one required explicit `ParsedAdminUserCursor | null`. Add `@ts-expect-error`/compile-fail coverage proving a variable typed as full `AdminDirectoryNavigationQuery` cannot satisfy the brand or provide two cursor sources, plus JavaScript/runtime tests rejecting that full object and forged/cloned handles. Canonical order remains `q`, filters, non-default sort, `pageSize`, then exactly one explicit cursor. Assert awaited parse -> prepare noncursor -> build -> parse is idempotent and no unresolved Promise is accepted.
+Assert `user-directory-query-contract.ts` is the single source for the parser, normalizers, Web Crypto fingerprint owner, cursor codec, canonical User-ID validator, and form/serializer sort/role/status allowlists. Both `user-directory-navigation.ts` and server-only `user-directory.ts` import that dependency-free contract; the contract/navigation import graph must not contain `node:crypto`, `@prisma/client`, `server-only`, `next/headers`, `lib/prisma`, auth, billing, database adapters, or any transitive Node/server-only module. `node scripts/verify-admin-user-directory-browser-contract.mjs` compiles/bundles tracked `tests/browser/user-directory-query-contract.browser.spec.ts`, inspects the emitted browser dependency graph, then executes it in Chromium so real `globalThis.crypto.subtle` runs; a Node/server-only edge or browser failure is blocking. Prisma predicates and database operations remain exclusively in `user-directory.ts`. The async preparation owner normalizes/fingerprints raw noncursor input, rejects every unknown own key including `cursor` and `queryFingerprint`, and returns only a module-private-registry-backed `PreparedAdminDirectoryNonCursorQuery`; a plain object, clone/spread, or cast fails runtime verification. The awaited builder accepts only that opaque prepared handle plus one required explicit `ParsedAdminUserCursor | null`. `npx tsc -p tsconfig.admin-user-directory-contract.json --noEmit` executes tracked `tests/types/admin-user-directory-query-contract.ts`, including `@ts-expect-error` assertions proving a full `AdminDirectoryNavigationQuery` cannot satisfy the private brand or provide two cursor sources; JavaScript tests reject the same full object and forged/cloned handles. Canonical order remains `q`, filters, non-default sort, `pageSize`, then exactly one explicit cursor. Assert awaited parse -> prepare noncursor -> build -> parse is idempotent and no unresolved Promise is accepted.
 
 Assert the sanitizer parses against one hard-coded inert origin such as `https://admin-navigation.invalid`, requires the raw input to begin with exactly one `/`, and then requires the parsed origin and `pathname === "/admin/users"` to match. It rejects credentials, host/origin changes, raw C0/DEL control characters, backslashes, encoded separators in the authority/path portion, fragments, duplicate singleton parameters, and every direct/double-encoded form below:
 
@@ -173,6 +179,23 @@ for (const unsafe of [
   "https%253a%252f%252fevil.example%252fadmin%252fusers",
   "/admin/users?returnTo=https%3A%2F%2Fevil.example",
   "/admin/users?returnTo=https%253A%252F%252Fevil.example",
+  "/admin/users#billing_reconciliation",
+  "/admin/users%23billing_reconciliation",
+  "/admin/users%2523billing_reconciliation",
+  "/admin/users?q=x#billing_reconciliation",
+  "/admin/users?queue=unresolved&queue=billing_reconciliation",
+  "/admin/users?queue=unresolved%26queue%3Dbilling_reconciliation",
+  "/admin/users?queue=unresolved%2526queue%253Dbilling_reconciliation",
+  "/admin/users?pageSize=25&pageSize=50",
+  "/admin/users?sort=account_asc&sort=account_desc",
+  "/admin/users?q=x&q=y",
+  "https://user:pass@admin-navigation.invalid/admin/users",
+  "//user:pass@evil.example/admin/users",
+  "/%2f%2fuser%3apass%40evil.example/admin/users",
+  "/%252f%252fuser%253apass%2540evil.example/admin/users",
+  "/admin/users?x=https://user:pass@evil.example",
+  "/admin/users?x=https%3A%2F%2Fuser%3Apass%40evil.example",
+  "/admin/users?x=https%253A%252F%252Fuser%253Apass%2540evil.example",
   "/admin/users?unknown=secret",
   "javascript:alert(1)",
 ]) {
@@ -186,19 +209,28 @@ for (const codePoint of [...Array.from({ length: 32 }, (_, index) => index), 127
 }
 ```
 
-Before choosing the ID validator, audit the `User.id` schema declaration, Prisma's actual `cuid()` generator output for the repository-pinned version, every Production creation/Auth-adapter/import path, and a sanitized aggregate of current Production IDs (length/character-class/version counts only; never log IDs). Record the resulting canonical grammar and its compatibility rationale in the Admin runbook. Do not assume that the schema default constrains explicitly supplied IDs or impose an arbitrary CUID regex. Tests include representative generated IDs and every sanitized historical/imported class found by the audit, plus empty, overlong, control/whitespace, invalid-Unicode, and out-of-grammar cases; if current IDs cannot be classified safely, stop for a migration/compatibility decision before cursor validation ships.
+Before choosing the ID validator, audit the `User.id` schema declaration, Prisma's actual `cuid()` generator output for the repository-pinned version, every Production creation/Auth-adapter/import path, and a sanitized aggregate of current Production IDs (length/character-class/version counts only; never log IDs). Record the resulting canonical grammar and its compatibility rationale in the Admin runbook. Do not assume that the schema default constrains explicitly supplied IDs or impose an arbitrary CUID regex. Enforce the audited exact runtime grammar through `parseCanonicalAdminUserId(unknown)` at every public encoder/decoder/builder boundary; runtime authority is either that grammar check on every call or a module-private registry with no exported constructor/brand/registration hook. Type erasure is never authority. Tests include representative generated IDs and every sanitized historical/imported class found by the audit, plus empty, overlong, control/whitespace, invalid-Unicode, and out-of-grammar cases. Direct JavaScript calls, `as CanonicalAdminUserId` strings, spread/structured clones, and plain objects reject unless the actual runtime string satisfies the audited grammar. If current IDs cannot be classified safely, stop for a migration/compatibility decision before cursor validation ships.
 
-Assert unsupported queue values are omitted, unsupported sort values become `account_asc`, and cursor may be stripped independently. Cursor tests must first await `computeAdminUserDirectoryQueryFingerprint`, whose implementation uses browser Web Crypto `subtle.digest("SHA-256", ...)` over the documented canonical serialization of every normalized non-cursor filter, sort, and page-size field, encodes the 32 digest bytes as exactly 64 lowercase hexadecimal characters, validates `^[0-9a-f]{64}$`, and returns branded `AdminUserQueryFingerprint`. No cast or arbitrary string may create the brand. Fix one golden vector in both browser-targeted and server tests: canonical UTF-8 bytes `pageSize=25` must produce `32f4c91b2ecbbdbdeb591ad1412b6c5359082e521c91fb7909b9933d741f99eb`. Then prove the pure encoder accepts only the branded fingerprint, canonicalizes exactly `{ "v": 1, "accountId": ..., "queryFingerprint": ... }` in documented field order to UTF-8 and unpadded base64url once, and returns a `ParsedAdminUserCursor`. The pure decoder validates the embedded exact alphabet/length before branding it, accepts an already branded expected fingerprint, validates canonical re-encoding/version/User-ID/query binding, and returns the same unchanged `token` plus separately named `accountId` and branded `queryFingerprint`. Reject uppercase, short, long, non-hex, or arbitrary strings in addition to invalid base64url, padding, empty/overlong payloads, non-UTF-8 bytes, duplicate/unknown JSON fields, noncanonical JSON or re-encoding, double encoding, wrong version, mismatch, and out-of-grammar IDs. The awaited builder recomputes/validates the normalized query fingerprint before emitting `.token` unchanged and never re-encodes the account ID; database source/tests may compare only `.accountId`.
+Assert unsupported queue values are omitted, unsupported sort values become `account_asc`, and cursor may be stripped independently. Fingerprints use one exact byte grammar. Normalize accepted strings to Unicode NFC and reject lone surrogates; serialize UTF-8 in fixed order `v`, `q`, `emailVerified`, `role`, `roleStatus`, `subscriptionStatus`, `creditState`, `temporaryAccess`, `unresolvedIssue`, `queue`, `sort`, `pageSize`. Each field is ASCII name, `=`, decimal UTF-8 byte length, `:`, raw UTF-8 value bytes, then LF. `v=1`, default `sort=account_asc`, and default `pageSize=25` are always present; empty `q` is present with length zero; an omitted nullable filter is the one-byte value `-`; unknown or duplicate keys reject. Decimal page size has no sign/leading zeros. JSON, percent encoding, locale rules, whitespace folding, and platform newlines never participate. Hash those bytes with Web Crypto SHA-256 and encode exactly 64 lowercase hex characters. Golden vectors shared byte-for-byte by browser/server cover defaults and omitted filters, explicit empty search, composed/decomposed Unicode producing identical NFC bytes, every populated filter, non-default sort/page size, delimiter-like values, and duplicate rejection. Replace the obsolete `pageSize=25` shorthand vector with the digest calculated from the complete grammar.
+
+`parseAdminUserQueryFingerprint(unknown)` validates `^[0-9a-f]{64}$` at every public encoder/decoder/builder boundary. The encoder and decoder likewise call `parseCanonicalAdminUserId`; no TypeScript cast is authority. Prove direct JavaScript calls, cast strings, clones/plain objects, uppercase/short/long/non-hex fingerprints, malformed IDs, invalid base64url, padding, duplicate/unknown JSON fields, noncanonical JSON/re-encoding, double encoding, wrong version, and query mismatch reject before database work. Valid encoding still uses exact field-order JSON `{ "v": 1, "accountId": ..., "queryFingerprint": ... }`, UTF-8, and unpadded base64url once.
 
 - [ ] **Step 2: Run focused tests and verify RED**
 
 Run: `node --test tests/admin-user-directory.test.mjs`
 
+Also run the tracked type and real browser-graph contracts:
+
+```bash
+npx tsc -p tsconfig.admin-user-directory-contract.json --noEmit
+node scripts/verify-admin-user-directory-browser-contract.mjs
+```
+
 Expected: FAIL because the navigation module and queue field do not exist.
 
 - [ ] **Step 3: Implement stable query serialization**
 
-Use `URLSearchParams`; allow only the documented fields. Hazard-inspect at most two decoded layers of authority/path only, stopping at `?`/`#`; reject malformed/control/backslash/origin/path hazards there, but preserve valid encoded slash/colon in allowlisted query values for normal parser normalization and canonical rebuilding. Never turn decoded query text into route authority. Normalize one noncursor value, await its fingerprint, decode one cursor, and call the builder with that noncursor value plus exactly one explicit cursor/null. The builder has no competing cursor field. Every caller awaits parse/preparation/build/sanitize.
+Use `URLSearchParams`; allow only documented singleton fields and reject duplicates before reading values. Apply the exact NFC/UTF-8 length-prefixed canonical byte grammar in browser and server. Hazard-inspect at most two decoded authority/path layers, stopping at `?`/`#`; reject malformed/control/backslash/origin/path hazards there, but preserve valid encoded slash/colon in allowlisted query values. Reject fragments and credential-bearing or duplicate-singleton direct/double-encoded return targets. Never turn decoded query text into route authority. Normalize one noncursor value, await its fingerprint, decode one cursor, and call the builder with exactly one explicit cursor/null. Every public codec/builder call runtime-validates IDs, fingerprints, and prepared handles despite JavaScript calls or TypeScript casts.
 
 - [ ] **Step 4: Implement stale-cursor stripping**
 
@@ -213,7 +245,7 @@ Expected: PASS for safe serialization and external/malformed URL rejection.
 - [ ] **Step 6: Commit the navigation contract**
 
 ```bash
-git add lib/admin/user-directory-query-contract.ts lib/admin/user-directory-navigation.ts tests/admin-user-directory.test.mjs
+git add lib/admin/user-directory-query-contract.ts lib/admin/user-directory-navigation.ts tests/admin-user-directory.test.mjs tests/types/admin-user-directory-query-contract.ts tsconfig.admin-user-directory-contract.json tests/browser/user-directory-query-contract.browser.spec.ts scripts/verify-admin-user-directory-browser-contract.mjs
 git commit -m "feat: define admin directory queue navigation"
 ```
 
@@ -433,6 +465,10 @@ git commit -m "feat: link admin metrics to support queues"
 **Files:**
 - Modify: `tests/browser/admin-user-operations.spec.ts`
 - Modify: `tests/admin-user-operations-fixture.test.mjs`
+- Modify: `tests/browser/user-directory-query-contract.browser.spec.ts`
+- Modify: `tests/types/admin-user-directory-query-contract.ts`
+- Modify: `tsconfig.admin-user-directory-contract.json`
+- Modify: `scripts/verify-admin-user-directory-browser-contract.mjs`
 - Modify: `docs/project-state.md`
 - Modify: `docs/project-log.md`
 - Modify: `docs/wiki/admin-user-operations.md`
@@ -454,6 +490,8 @@ Focus and activate metric/detail/back links by keyboard. Assert no horizontal ov
 
 ```bash
 node --test tests/admin-user-directory.test.mjs tests/admin-dashboard.test.mjs tests/admin-user-detail.test.mjs tests/admin-user-operations-fixture.test.mjs tests/browser-qa-harness.test.mjs
+npx tsc -p tsconfig.admin-user-directory-contract.json --noEmit
+node scripts/verify-admin-user-directory-browser-contract.mjs
 ```
 
 Expected: PASS after implementation.
@@ -503,7 +541,7 @@ Review exact shared-predicate/deduplicated-user count agreement, time boundaries
 - [ ] **Step 9: Commit docs and browser evidence**
 
 ```bash
-git add tests/browser/admin-user-operations.spec.ts tests/admin-user-operations-fixture.test.mjs docs/project-state.md docs/project-log.md docs/wiki/admin-user-operations.md docs/wiki/release-checklist.md
+git add tests/browser/admin-user-operations.spec.ts tests/browser/user-directory-query-contract.browser.spec.ts tests/types/admin-user-directory-query-contract.ts tsconfig.admin-user-directory-contract.json scripts/verify-admin-user-directory-browser-contract.mjs tests/admin-user-operations-fixture.test.mjs docs/project-state.md docs/project-log.md docs/wiki/admin-user-operations.md docs/wiki/release-checklist.md
 git commit -m "docs: record admin queue navigation evidence"
 ```
 
