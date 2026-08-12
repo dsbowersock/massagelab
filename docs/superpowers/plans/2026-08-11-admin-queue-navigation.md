@@ -4,7 +4,7 @@
 
 **Goal:** Turn existing Admin metrics into privacy-safe actionable queues and preserve validated directory context when an Admin opens and returns from account detail.
 
-**Architecture:** Add a pure browser-safe queue/navigation contract that owns queue, sort, role, and status allowlists, canonical query serialization, and fixed-origin internal return-URL validation. Extend the existing bounded directory query with canonical attention filters and direction-aware cursor traversal; run cursor usability, visible-page, and reverse-lookback reads in one consistent read transaction/snapshot so concurrency cannot mix navigation states. Derive deduplicated per-user dashboard counts and row badges from the same predicates, and carry a signed-by-validation internal return path into detail without treating cursor state as authority.
+**Architecture:** Add a browser-safe queue/navigation contract that owns queue, sort, role, and status allowlists, canonical query serialization, asynchronous Web Crypto SHA-256 query fingerprints, and fixed-origin internal return-URL validation. Every API that computes a fingerprint returns a `Promise` and every parser, URL builder, sanitizer, route, and test caller awaits it; only envelope encode/decode remains synchronous after receiving an already computed fingerprint. Extend the existing bounded directory query with canonical attention filters and direction-aware cursor traversal; run cursor usability, visible-page, and reverse-lookback reads in one consistent read transaction/snapshot so concurrency cannot mix navigation states. Derive deduplicated per-user dashboard counts and row badges from the same predicates, and carry a signed-by-validation internal return path into detail without treating cursor state as authority.
 
 **Tech Stack:** Next.js App Router, React Server Components, TypeScript, Prisma 7, URLSearchParams, Node test runner, Playwright.
 
@@ -14,6 +14,7 @@
 - Preserve search, supported filters, queue, and page size in return navigation.
 - Preserve the directory's supported deterministic sort. This branch exposes `account_asc` and `account_desc`; forward boundaries, reverse-lookback queries, result reversal, and emitted next/previous cursors must all follow the selected ID direction.
 - A cursor is navigation context only. Transport uses one opaque canonical unpadded base64url token that decodes exactly once into a canonical versioned JSON envelope containing `accountId` and the fingerprint of the normalized non-cursor query. Parsing returns one `ParsedAdminUserCursor` object containing both the unchanged token and validated decoded account ID; no API represents either value as an ambiguous bare cursor string. Reject malformed, non-canonical, double-encoded, wrong-version, or query-mismatched tokens before the transaction, and use only `parsedCursor.accountId` for existence checks and database comparisons. If that account is missing, deleted, or filtered out, fall back once to the first page while retaining safe non-cursor filters.
+- Compute the query fingerprint with `globalThis.crypto.subtle.digest("SHA-256", ...)` over the documented canonical UTF-8 bytes. Do not use `node:crypto`, a server helper, a hand-rolled hash, or a synchronous digest substitute. Every fingerprint-producing API is async and must be awaited before cursor decode/encode, URL emission, sanitizer success, or database work; pure envelope encode/decode may remain synchronous only when given an already computed fingerprint.
 - Cursor usability, first/forward page selection, and any previous-page lookback must share one repeatable consistent read snapshot. Concurrent deletion or filter-state changes cannot let validation and page evidence observe different database states.
 - Reject absolute, protocol-relative, encoded-external, malformed, and unsupported return URLs.
 - Canonical queues: billing reconciliation, failed notification, commerce review, temporary access expiring within 30 days, and broader unresolved.
@@ -26,8 +27,8 @@
 
 ## File Structure
 
-- Create `lib/admin/user-directory-query-contract.ts`: dependency-free browser-safe allowlists, query normalizer/parser, canonical User-ID grammar, and versioned cursor codec.
-- Create `lib/admin/user-directory-navigation.ts`: browser-safe URL builder and fixed-origin return-URL sanitizer consuming the query contract.
+- Create `lib/admin/user-directory-query-contract.ts`: dependency-free browser-safe allowlists, async Web Crypto query normalizer/parser/fingerprint owner, canonical User-ID grammar, and versioned cursor codec.
+- Create `lib/admin/user-directory-navigation.ts`: browser-safe async URL builder and fixed-origin return-URL sanitizer consuming the query contract.
 - Modify `lib/admin/user-directory.ts`: consume the query contract while retaining Prisma predicates, database operations, safe row counts, and stale-cursor fallback.
 - Modify `app/admin/users/page.tsx`: queue controls, context-carrying detail links, privacy-safe badges.
 - Modify `app/admin/users/[userId]/page.tsx`: validated return link and section-link context preservation.
@@ -97,38 +98,50 @@ export type AdminDirectoryNavigationQuery = {
   temporaryAccess: AdminUserTemporaryAccessFilter | null
   unresolvedIssue: AdminUserUnresolvedFilter | null
   queue: AdminUserQueue | null
+  queryFingerprint: AdminUserQueryFingerprint
 }
 
-export function parseUserDirectoryQuery(
+declare const adminUserQueryFingerprintBrand: unique symbol
+export type AdminUserQueryFingerprint = string & {
+  readonly [adminUserQueryFingerprintBrand]: true
+}
+
+export async function computeAdminUserDirectoryQueryFingerprint(
+  input: Omit<AdminDirectoryNavigationQuery, "cursor" | "queryFingerprint">,
+): Promise<AdminUserQueryFingerprint>
+
+export async function parseUserDirectoryQuery(
   input: URLSearchParams | Readonly<Record<string, string | readonly string[] | undefined>>,
-): AdminDirectoryNavigationQuery
+): Promise<AdminDirectoryNavigationQuery>
 
 export type ParsedAdminUserCursor = {
   token: string
   accountId: CanonicalAdminUserId
-  queryFingerprint: string
+  queryFingerprint: AdminUserQueryFingerprint
 }
 
 export function encodeAdminUserCursor(value: {
   accountId: CanonicalAdminUserId
-  queryFingerprint: string
+  queryFingerprint: AdminUserQueryFingerprint
 }): ParsedAdminUserCursor
 export function decodeAdminUserCursor(value: {
   token: string
-  expectedQueryFingerprint: string
+  expectedQueryFingerprint: AdminUserQueryFingerprint
 }): ParsedAdminUserCursor
 
-export function buildAdminUserDirectoryHref(
+export async function buildAdminUserDirectoryHref(
   query: AdminDirectoryNavigationQuery,
   cursor?: ParsedAdminUserCursor | null,
-): string
+): Promise<string>
 
-export function sanitizeAdminUserDirectoryReturnTo(value: string | null | undefined): string
+export async function sanitizeAdminUserDirectoryReturnTo(
+  value: string | null | undefined,
+): Promise<string>
 ```
 
 - [ ] **Step 1: Add RED URL tests**
 
-Assert `user-directory-query-contract.ts` is the single source for the parser, normalizers, cursor codec, canonical User-ID validator, and form/serializer sort/role/status allowlists. Both `user-directory-navigation.ts` and server-only `user-directory.ts` import that dependency-free contract; the contract/navigation import graph must not contain `@prisma/client`, `server-only`, `next/headers`, `lib/prisma`, auth, billing, database adapters, or any transitive server-only module. Prisma predicates and database operations remain exclusively in `user-directory.ts`. Add a source/import-graph contract that fails if a Client Component or browser-safe module imports `user-directory.ts`, or if the shared contract gains a forbidden direct/transitive import. Assert the builder produces a stable `/admin/users?...` query preserving all supported non-default fields and page size. Canonical serialization always includes `pageSize`, omits empty fields and the default `sort=account_asc`, emits `sort=account_desc` only when selected, and uses this fixed order: `q`, `emailVerified`, `role`, `roleStatus`, `subscriptionStatus`, `creditState`, `temporaryAccess`, `unresolvedIssue`, `queue`, non-default `sort`, `pageSize`, `cursor`. Assert parse -> build -> parse is idempotent.
+Assert `user-directory-query-contract.ts` is the single source for the parser, normalizers, Web Crypto fingerprint owner, cursor codec, canonical User-ID validator, and form/serializer sort/role/status allowlists. Both `user-directory-navigation.ts` and server-only `user-directory.ts` import that dependency-free contract; the contract/navigation import graph must not contain `node:crypto`, `@prisma/client`, `server-only`, `next/headers`, `lib/prisma`, auth, billing, database adapters, or any transitive Node/server-only module. Add a browser-targeted import/build test that imports the shared contract/navigation graph, supplies browser `globalThis.crypto.subtle`, executes the SHA-256 path, and fails on any Node builtin or server-only dependency. Prisma predicates and database operations remain exclusively in `user-directory.ts`. Add a source/import-graph contract that fails if a Client Component or browser-safe module imports `user-directory.ts`, or if the shared contract gains a forbidden direct/transitive import. Assert the awaited builder produces a stable `/admin/users?...` query preserving all supported non-default fields and page size. Canonical serialization always includes `pageSize`, omits empty fields and the default `sort=account_asc`, emits `sort=account_desc` only when selected, and uses this fixed order: `q`, `emailVerified`, `role`, `roleStatus`, `subscriptionStatus`, `creditState`, `temporaryAccess`, `unresolvedIssue`, `queue`, non-default `sort`, `pageSize`, `cursor`. Assert awaited parse -> build -> parse is idempotent and that no unresolved Promise is accepted as parsed query, sanitized return path, href, or fingerprint.
 
 Assert the sanitizer parses against one hard-coded inert origin such as `https://admin-navigation.invalid`, requires the raw input to begin with exactly one `/`, and then requires the parsed origin and `pathname === "/admin/users"` to match. It rejects credentials, host/origin changes, raw C0/DEL control characters, backslashes, encoded separators in the authority/path portion, fragments, duplicate singleton parameters, and every direct/double-encoded form below:
 
@@ -152,19 +165,19 @@ for (const unsafe of [
   "/admin/users?unknown=secret",
   "javascript:alert(1)",
 ]) {
-  assert.equal(sanitizeAdminUserDirectoryReturnTo(unsafe), "/admin/users")
+  assert.equal(await sanitizeAdminUserDirectoryReturnTo(unsafe), "/admin/users")
 }
 
 for (const codePoint of [...Array.from({ length: 32 }, (_, index) => index), 127]) {
   const rawControl = String.fromCodePoint(codePoint)
-  assert.equal(sanitizeAdminUserDirectoryReturnTo(`/admin/users${rawControl}?q=x`), "/admin/users")
-  assert.equal(sanitizeAdminUserDirectoryReturnTo(`/admin/users?q=x${rawControl}`), "/admin/users")
+  assert.equal(await sanitizeAdminUserDirectoryReturnTo(`/admin/users${rawControl}?q=x`), "/admin/users")
+  assert.equal(await sanitizeAdminUserDirectoryReturnTo(`/admin/users?q=x${rawControl}`), "/admin/users")
 }
 ```
 
 Before choosing the ID validator, audit the `User.id` schema declaration, Prisma's actual `cuid()` generator output for the repository-pinned version, every Production creation/Auth-adapter/import path, and a sanitized aggregate of current Production IDs (length/character-class/version counts only; never log IDs). Record the resulting canonical grammar and its compatibility rationale in the Admin runbook. Do not assume that the schema default constrains explicitly supplied IDs or impose an arbitrary CUID regex. Tests include representative generated IDs and every sanitized historical/imported class found by the audit, plus empty, overlong, control/whitespace, invalid-Unicode, and out-of-grammar cases; if current IDs cannot be classified safely, stop for a migration/compatibility decision before cursor validation ships.
 
-Assert unsupported queue values are omitted, unsupported sort values become `account_asc`, and cursor may be stripped independently. Cursor tests must prove the encoder canonicalizes exactly `{ "v": 1, "accountId": ..., "queryFingerprint": ... }` in documented field order to UTF-8 and unpadded base64url once, and returns a `ParsedAdminUserCursor`; `queryFingerprint` is SHA-256 over the documented canonical serialization of every normalized non-cursor filter, sort, and page-size field. The decoder accepts the transport token once, validates canonical re-encoding/version/User-ID/query binding, and returns the same unchanged `token` plus separately named `accountId` and `queryFingerprint`. Reject invalid base64url, padding, empty/overlong payloads, non-UTF-8 bytes, duplicate/unknown JSON fields, noncanonical JSON or re-encoding, a double-encoded token, wrong version, mismatched normalized query fingerprint, and any decoded ID outside the audited Production grammar. The builder accepts only the parsed structure, emits `.token` unchanged, and never re-encodes it; database source/tests may compare only `.accountId`.
+Assert unsupported queue values are omitted, unsupported sort values become `account_asc`, and cursor may be stripped independently. Cursor tests must first await `computeAdminUserDirectoryQueryFingerprint`, whose implementation uses browser Web Crypto `subtle.digest("SHA-256", ...)` over the documented canonical serialization of every normalized non-cursor filter, sort, and page-size field, encodes the 32 digest bytes as exactly 64 lowercase hexadecimal characters, validates `^[0-9a-f]{64}$`, and returns branded `AdminUserQueryFingerprint`. No cast or arbitrary string may create the brand. Fix one golden vector in both browser-targeted and server tests: canonical UTF-8 bytes `pageSize=25` must produce `32f4c91b2ecbbdbdeb591ad1412b6c5359082e521c91fb7909b9933d741f99eb`. Then prove the pure encoder accepts only the branded fingerprint, canonicalizes exactly `{ "v": 1, "accountId": ..., "queryFingerprint": ... }` in documented field order to UTF-8 and unpadded base64url once, and returns a `ParsedAdminUserCursor`. The pure decoder validates the embedded exact alphabet/length before branding it, accepts an already branded expected fingerprint, validates canonical re-encoding/version/User-ID/query binding, and returns the same unchanged `token` plus separately named `accountId` and branded `queryFingerprint`. Reject uppercase, short, long, non-hex, or arbitrary strings in addition to invalid base64url, padding, empty/overlong payloads, non-UTF-8 bytes, duplicate/unknown JSON fields, noncanonical JSON or re-encoding, double encoding, wrong version, mismatch, and out-of-grammar IDs. The awaited builder recomputes/validates the normalized query fingerprint before emitting `.token` unchanged and never re-encodes the account ID; database source/tests may compare only `.accountId`.
 
 - [ ] **Step 2: Run focused tests and verify RED**
 
@@ -174,7 +187,7 @@ Expected: FAIL because the navigation module and queue field do not exist.
 
 - [ ] **Step 3: Implement stable query serialization**
 
-Use `URLSearchParams`; allow only the fields in `AdminDirectoryNavigationQuery`. Before canonical parsing, perform a bounded hazard inspection of the raw string and at most two successful `decodeURIComponent` layers. At every inspected layer reject malformed percent encoding, `\u0000-\u001f`/`\u007f`, backslashes, credentials, absolute/protocol-relative origins, or a path other than exactly `/admin/users`; after the second layer, reject any remaining percent sequence that could decode into a control, slash, backslash, colon, or authority delimiter. This inspection never turns decoded query text into canonical state: after it passes, parse the original input once against the fixed inert origin, reject any origin/credential/path ambiguity, and round-trip every parameter through the dependency-free shared query parser before rebuilding the canonical URL. Never use a request header or caller-supplied origin as the sanitizer base. Normalize all non-cursor fields first, compute their canonical query fingerprint, then decode the cursor token exactly once and require the envelope's fingerprint to match. The canonical builder uses the documented fixed field order, always emits `pageSize`, omits `account_asc`, includes `account_desc`, and strips unsupported/default values consistently. It receives `ParsedAdminUserCursor | null` and emits only `parsedCursor.token` unchanged, so neither parser nor builder can re-encode the account ID or confuse the transport token with a database boundary.
+Use `URLSearchParams`; allow only the fields in `AdminDirectoryNavigationQuery`. Before canonical parsing, perform a bounded hazard inspection of the raw string and at most two successful `decodeURIComponent` layers. At every inspected layer reject malformed percent encoding, `\u0000-\u001f`/`\u007f`, backslashes, credentials, absolute/protocol-relative origins, or a path other than exactly `/admin/users`; after the second layer, reject any remaining percent sequence that could decode into a control, slash, backslash, colon, or authority delimiter. This inspection never turns decoded query text into canonical state: after it passes, parse the original input once against the fixed inert origin, reject any origin/credential/path ambiguity, and round-trip every parameter through the dependency-free shared query parser before rebuilding the canonical URL. Never use a request header or caller-supplied origin as the sanitizer base. Normalize all non-cursor fields first, await the browser Web Crypto query fingerprint, then decode the cursor token exactly once and require the envelope's fingerprint to match. The async canonical builder awaits the same fingerprint owner, uses the documented fixed field order, always emits `pageSize`, omits `account_asc`, includes `account_desc`, and strips unsupported/default values consistently. It receives `ParsedAdminUserCursor | null` and emits only `parsedCursor.token` unchanged, so neither parser nor builder can re-encode the account ID or confuse the transport token with a database boundary. The async sanitizer awaits parse and rebuild before returning; every route, component, server owner, and test caller must await parser, builder, and sanitizer results before use.
 
 - [ ] **Step 4: Implement stale-cursor stripping**
 
@@ -307,7 +320,7 @@ git commit -m "feat: add privacy-safe admin account queues"
 - Modify: `tests/admin-security-ui.test.mjs`
 
 **Interfaces:**
-- Consumes: `buildAdminUserDirectoryHref` and `sanitizeAdminUserDirectoryReturnTo`.
+- Consumes and awaits: `buildAdminUserDirectoryHref` and `sanitizeAdminUserDirectoryReturnTo`.
 - Adds detail query parameter `returnTo`, whose value is the encoded canonical internal directory path.
 
 - [ ] **Step 1: Add RED source and compiled-page tests**
@@ -322,11 +335,11 @@ Expected: FAIL because links currently hardcode the detail path and `/admin/user
 
 - [ ] **Step 3: Build one canonical current directory URL**
 
-In `AdminUserDirectoryPage`, build the current URL from the parsed query, selected sort, and effective cursor. Pass it to `AccountIdentity`; create the detail href with `URLSearchParams` rather than string concatenation.
+In `AdminUserDirectoryPage`, await parsing and build the current URL from the parsed query, selected sort, and effective cursor. Pass the resolved string to `AccountIdentity`; create the detail href with `URLSearchParams` rather than string concatenation.
 
 - [ ] **Step 4: Validate return context in detail**
 
-Read one `returnTo` string from `searchParams`, sanitize it, and use it for Back. Extend `sectionHref` so switching detail sections retains the same canonical return path.
+Read one `returnTo` string from `searchParams`, await its sanitizer, and use the resolved string for Back. Extend `sectionHref` so switching detail sections retains the same canonical return path.
 
 - [ ] **Step 5: Handle stale-cursor notice**
 
@@ -385,7 +398,7 @@ Expected: FAIL because dashboard stats are not links and rows expose only one co
 
 - [ ] **Step 4: Derive per-user metrics and render queue links/filters**
 
-Compute each dashboard queue metric as a deduplicated account count from the exact exported `queueWhere(queue, requestNow)` predicate. Each request owner captures its own `requestNow` exactly once: all dashboard metrics share the dashboard request time, while directory filtering and row evidence share the directory request time; deterministic predicate/count tests inject the same time. Use the shared URL builder for dashboard metrics and a directory queue select/chip group. Add a two-option sort select (`Account ID ascending`, `Account ID descending`) whose values, together with role and status controls, come from the browser-safe contract rather than route-local duplicate arrays. Show the active queue in the page heading/summary without trusting raw query text.
+Compute each dashboard queue metric as a deduplicated account count from the exact exported `queueWhere(queue, requestNow)` predicate. Each request owner captures its own `requestNow` exactly once: all dashboard metrics share the dashboard request time, while directory filtering and row evidence share the directory request time; deterministic predicate/count tests inject the same time. Await the shared URL builder for dashboard metrics and a directory queue select/chip group; never pass its unresolved Promise into an href. Add a two-option sort select (`Account ID ascending`, `Account ID descending`) whose values, together with role and status controls, come from the browser-safe contract rather than route-local duplicate arrays. Show the active queue in the page heading/summary without trusting raw query text.
 
 - [ ] **Step 5: Render responsive privacy-safe badges**
 
@@ -420,7 +433,7 @@ git commit -m "feat: link admin metrics to support queues"
 
 - [ ] **Step 1: Add browser RED coverage**
 
-Using deterministic fixture rows, including multiple matching records for one account, open a dashboard queue link, assert its deduplicated per-user metric, canonical active filter/default serialization, and safe badges, navigate to detail, switch sections, and activate Back. Assert the URL restores the queue/search/page-size/sort context. Add absolute, protocol-relative, encoded-separator/backslash, duplicate-parameter, and invalid external `returnTo` navigation cases and assert Back points to `/admin/users`.
+Using deterministic fixture rows, including multiple matching records for one account, open an awaited dashboard queue link, assert its deduplicated per-user metric, canonical active filter/default serialization, and safe badges, navigate to detail, switch sections, and activate Back. Assert the URL restores the queue/search/page-size/sort context. Add absolute, protocol-relative, encoded-separator/backslash, duplicate-parameter, and invalid external `returnTo` navigation cases and assert the awaited sanitizer makes Back point to `/admin/users`. Source/compiled tests must prove every parser, fingerprint, URL-builder, and sanitizer caller awaits its Promise and that the browser-targeted shared import/build graph contains no Node crypto or other server-only dependency.
 
 - [ ] **Step 2: Add keyboard and mobile assertions**
 
