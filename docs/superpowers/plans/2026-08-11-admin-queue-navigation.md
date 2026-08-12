@@ -13,7 +13,7 @@
 - This branch is read-only except for URL/navigation state; it adds no mutation authority.
 - Preserve search, supported filters, queue, and page size in return navigation.
 - Preserve the directory's supported deterministic sort. This branch exposes `account_asc` and `account_desc`; forward boundaries, reverse-lookback queries, result reversal, and emitted next/previous cursors must all follow the selected ID direction.
-- A cursor is navigation context only. Before using it in a page query, prove that it decodes to an existing account still matched by the current safe filters. If missing, deleted, or filtered out, fall back once to the first page while retaining safe non-cursor filters.
+- A cursor is navigation context only. `cursor` in parsed input, response fields, and URLs is an opaque canonical base64url token; it is never an account ID. Decode it exactly once into a separately named account ID, reject malformed, non-canonical, or double-encoded values, and use only that decoded ID for existence checks and database comparisons. If the decoded account is missing, deleted, or filtered out, fall back once to the first page while retaining safe non-cursor filters.
 - Cursor usability, first/forward page selection, and any previous-page lookback must share one repeatable consistent read snapshot. Concurrent deletion or filter-state changes cannot let validation and page evidence observe different database states.
 - Reject absolute, protocol-relative, encoded-external, malformed, and unsupported return URLs.
 - Canonical queues: billing reconciliation, failed notification, commerce review, temporary access expiring within 30 days, and broader unresolved.
@@ -95,6 +95,9 @@ export type AdminDirectoryNavigationQuery = {
   queue: AdminUserQueue | null
 }
 
+export function encodeAdminUserCursor(accountId: string): string
+export function decodeAdminUserCursor(cursorToken: string): string
+
 export function buildAdminUserDirectoryHref(
   query: AdminDirectoryNavigationQuery,
   cursor?: string | null,
@@ -139,7 +142,7 @@ for (const codePoint of [...Array.from({ length: 32 }, (_, index) => index), 127
 }
 ```
 
-Assert unsupported queue values are omitted, unsupported sort values become `account_asc`, and cursor may be stripped independently.
+Assert unsupported queue values are omitted, unsupported sort values become `account_asc`, and cursor may be stripped independently. Cursor tests must prove `encodeAdminUserCursor` emits canonical unpadded base64url exactly once and `decodeAdminUserCursor` decodes exactly once to a validated account ID. Reject invalid base64url, padding, empty or overlong decoded IDs, non-UTF-8 bytes, tokens whose decode/re-encode is not byte-for-byte canonical, a double-encoded token, and any decoded ID outside the account-ID grammar. The builder accepts only the already-canonical opaque token and never re-encodes it.
 
 - [ ] **Step 2: Run focused tests and verify RED**
 
@@ -149,7 +152,7 @@ Expected: FAIL because the navigation module and queue field do not exist.
 
 - [ ] **Step 3: Implement stable query serialization**
 
-Use `URLSearchParams`; allow only the fields in `AdminDirectoryNavigationQuery`. Before canonical parsing, perform a bounded hazard inspection of the raw string and at most two successful `decodeURIComponent` layers. At every inspected layer reject malformed percent encoding, `\u0000-\u001f`/`\u007f`, backslashes, credentials, absolute/protocol-relative origins, or a path other than exactly `/admin/users`; after the second layer, reject any remaining percent sequence that could decode into a control, slash, backslash, colon, or authority delimiter. This inspection never turns decoded query text into canonical state: after it passes, parse the original input once against the fixed inert origin, reject any origin/credential/path ambiguity, and round-trip every parameter through the shared directory parser before rebuilding the canonical URL. Never use a request header or caller-supplied origin as the sanitizer base. The canonical builder uses the documented fixed field order, always emits `pageSize`, omits `account_asc`, includes `account_desc`, and strips unsupported/default values consistently.
+Use `URLSearchParams`; allow only the fields in `AdminDirectoryNavigationQuery`. Before canonical parsing, perform a bounded hazard inspection of the raw string and at most two successful `decodeURIComponent` layers. At every inspected layer reject malformed percent encoding, `\u0000-\u001f`/`\u007f`, backslashes, credentials, absolute/protocol-relative origins, or a path other than exactly `/admin/users`; after the second layer, reject any remaining percent sequence that could decode into a control, slash, backslash, colon, or authority delimiter. This inspection never turns decoded query text into canonical state: after it passes, parse the original input once against the fixed inert origin, reject any origin/credential/path ambiguity, and round-trip every parameter through the shared directory parser before rebuilding the canonical URL. Never use a request header or caller-supplied origin as the sanitizer base. The canonical builder uses the documented fixed field order, always emits `pageSize`, omits `account_asc`, includes `account_desc`, and strips unsupported/default values consistently. Cursor parsing returns both the canonical opaque token for response/URL state and its separately named decoded account ID for the server query; serialization receives the token and emits it unchanged, so neither parser nor builder can accidentally double-encode it.
 
 - [ ] **Step 4: Implement stale-cursor stripping**
 
@@ -190,30 +193,32 @@ attention: {
 
 - [ ] **Step 1: Add exact parser and direction-aware query RED tests**
 
-For each queue, assert exact Prisma `where` shape in forward, cursor-usability, and previous-page lookback queries. Run multi-page cases with `account_asc` and `account_desc` and assert actual returned row order plus next/previous navigation targets, not only `orderBy` objects. The algorithm is explicit:
+For each queue, assert exact Prisma `where` shape in forward, cursor-usability, and previous-page lookback queries. Run multi-page cases with `account_asc` and `account_desc` and assert actual returned row order plus next/previous navigation targets, not only `orderBy` objects. Test names and fixtures must distinguish `cursorToken` from `decodedCursorAccountId`; assert no Prisma predicate or comparison receives the opaque token. The algorithm is explicit:
 
-- `account_asc`: forward rows use `id > cursor` ordered ascending; previous lookback uses `id < cursor` ordered descending, takes at most one page, and derives the earlier forward boundary from that reversed window.
-- `account_desc`: forward rows use `id < cursor` ordered descending; previous lookback uses `id > cursor` ordered ascending, takes at most one page, and derives the earlier forward boundary from that reversed window.
-- Any rows fetched in the opposite direction for previous-page calculation are private boundary evidence, not a page to expose. Reverse that window into forward order, then derive the earlier forward boundary from it. Keep the established exclusive forward predicates (`>` for ascending, `<` for descending); do not change them to inclusive comparisons. Next cursors come from the last visible row in the selected forward order. Previous cursors must reproduce the immediately preceding page with no gaps or duplicates; the first page emits no previous cursor.
+- `account_asc`: after decoding the transport token once, forward rows use `id > decodedCursorAccountId` ordered ascending; previous lookback uses `id < decodedCursorAccountId` ordered descending, takes at most one page, and derives a separate earlier decoded boundary ID from that reversed window.
+- `account_desc`: after decoding the transport token once, forward rows use `id < decodedCursorAccountId` ordered descending; previous lookback uses `id > decodedCursorAccountId` ordered ascending, takes at most one page, and derives a separate earlier decoded boundary ID from that reversed window.
+- Any rows fetched in the opposite direction for previous-page calculation are private decoded-ID boundary evidence, not a page to expose. Reverse that window into forward order, then derive the earlier decoded boundary ID from it. Keep the established exclusive decoded-ID predicates (`>` for ascending, `<` for descending); do not change them to inclusive comparisons. Encode the last visible decoded row ID exactly once to produce a next-cursor token, and encode a derived previous decoded boundary ID exactly once to produce a previous-cursor token. The opaque token is transport only and never appears in an `id`, `gt`, `lt`, equality, ordering, or boundary comparison. Previous tokens must reproduce the immediately preceding page with no gaps or duplicates; the first page emits no previous token.
 
-Add an explicit four-page numeric proof with `pageSize=2` and IDs `01` through `08`. Ascending must expose `[01,02]`, `[03,04]`, `[05,06]`, `[07,08]`; page 4's private descending lookback from exclusive cursor `06` is `[05,04]`, which reverses to `[04,05]` and derives earlier forward boundary `04`, so following Previous exposes page 3 `[05,06]` rather than exposing lookback rows. Page 3 similarly derives `02`, and page 2 returns to the cursorless first page. Descending must expose `[08,07]`, `[06,05]`, `[04,03]`, `[02,01]`; page 4's private ascending lookback from exclusive cursor `03` is `[04,05]`, which reverses to `[05,04]` and derives boundary `05`, reproducing page 3 `[04,03]`. Assert all forward and backward targets, and explicitly assert that neither lookback window is returned as visible items.
+Add an explicit four-page numeric proof with `pageSize=2` and decoded account IDs `01` through `08`. Ascending must expose `[01,02]`, `[03,04]`, `[05,06]`, `[07,08]`; page 4 receives opaque token `encode("06")`, decodes it once to `decodedCursorAccountId = "06"`, and its private descending lookback from that exclusive decoded boundary ID is `[05,04]`. Reversing to `[04,05]` derives earlier decoded boundary ID `04`, whose one-time encoding makes the Previous token and reproduces page 3 `[05,06]` rather than exposing lookback rows. Page 3 similarly derives decoded boundary ID `02`, and page 2 returns to the tokenless first page. Descending page 4 receives `encode("03")`, decodes once to `decodedCursorAccountId = "03"`, and its private ascending lookback from that exclusive decoded boundary ID is `[04,05]`; reversing to `[05,04]` derives decoded boundary ID `05`, whose one-time encoding reproduces page 3 `[04,03]`. Assert all forward and backward tokens/decoded boundaries, and explicitly assert that neither lookback window is returned as visible items or compared as an opaque token.
 
 The response and URL contract is exact; notably, `previousCursor: null` is a valid page-2 Previous target rather than evidence that Previous is unavailable:
 
-| Sort | Page | Input cursor | Visible IDs | `nextCursor` | `hasPreviousPage` | `previousCursor` | Previous URL |
+In this table, visible values are decoded account IDs. Every non-null cursor cell denotes the opaque canonical token `encodeAdminUserCursor("ID")`, not the literal ID; URL assertions contain that base64url token exactly once.
+
+| Sort | Page | Input cursor token | Visible decoded IDs | `nextCursor` token | `hasPreviousPage` | `previousCursor` token | Previous URL |
 | --- | ---: | --- | --- | --- | --- | --- | --- |
-| `account_asc` | 1 | `null` | `01,02` | `02` | `false` | `null` | none; do not render/enable Previous |
-| `account_asc` | 2 | `02` | `03,04` | `04` | `true` | `null` | canonical page-1 URL with the `cursor` parameter omitted |
-| `account_asc` | 3 | `04` | `05,06` | `06` | `true` | `02` | canonical URL with `cursor=02` |
-| `account_asc` | 4 | `06` | `07,08` | `null` | `true` | `04` | canonical URL with `cursor=04` |
-| `account_desc` | 1 | `null` | `08,07` | `07` | `false` | `null` | none; do not render/enable Previous |
-| `account_desc` | 2 | `07` | `06,05` | `05` | `true` | `null` | canonical page-1 URL with the `cursor` parameter omitted |
-| `account_desc` | 3 | `05` | `04,03` | `03` | `true` | `07` | canonical URL with `cursor=07` |
-| `account_desc` | 4 | `03` | `02,01` | `null` | `true` | `05` | canonical URL with `cursor=05` |
+| `account_asc` | 1 | `null` | `01,02` | `encode("02")` | `false` | `null` | none; do not render/enable Previous |
+| `account_asc` | 2 | `encode("02")` | `03,04` | `encode("04")` | `true` | `null` | canonical page-1 URL with the `cursor` parameter omitted |
+| `account_asc` | 3 | `encode("04")` | `05,06` | `encode("06")` | `true` | `encode("02")` | canonical URL with `cursor=${encode("02")}` |
+| `account_asc` | 4 | `encode("06")` | `07,08` | `null` | `true` | `encode("04")` | canonical URL with `cursor=${encode("04")}` |
+| `account_desc` | 1 | `null` | `08,07` | `encode("07")` | `false` | `null` | none; do not render/enable Previous |
+| `account_desc` | 2 | `encode("07")` | `06,05` | `encode("05")` | `true` | `null` | canonical page-1 URL with the `cursor` parameter omitted |
+| `account_desc` | 3 | `encode("05")` | `04,03` | `encode("03")` | `true` | `encode("07")` | canonical URL with `cursor=${encode("07")}` |
+| `account_desc` | 4 | `encode("03")` | `02,01` | `null` | `true` | `encode("05")` | canonical URL with `cursor=${encode("05")}` |
 
 The page component decides Previous availability from `hasPreviousPage`, never from truthiness of `previousCursor`. The shared URL builder deletes `cursor` when the chosen cursor is `null`, while retaining the validated queue, search, role, status, sort, and page-size parameters. Tests assert these exact response objects and hrefs for both sorts, including page 1 `false/null` and page 2 `true/null`.
 
-Make this a complete table-driven matrix across all five queues and both sorts. For every `(queue, sort)` pair, use enough matching deterministic IDs for at least three full pages, traverse forward page 1 -> page 2 -> page 3 using emitted next cursors, then traverse page 3 -> page 2 -> page 1 using emitted previous cursors. Assert each page's exact selected-direction ID order, exact round-trip equality for pages 1 and 2, no gaps, no duplicates, and no previous cursor on the restored first page.
+Make this a complete table-driven matrix across all five queues and both sorts. For every `(queue, sort)` pair, use enough matching deterministic IDs for at least three full pages, traverse forward page 1 -> page 2 -> page 3 using emitted opaque next-cursor tokens, then traverse page 3 -> page 2 -> page 1 using emitted opaque previous-cursor tokens. Assert each page's exact selected-direction decoded ID order, exact token and URL round-trip equality for pages 1 and 2, no gaps, no duplicates, no comparison against an opaque token, and no previous cursor on the restored first page. In both ascending and descending matrices, include malformed, double-encoded, and non-canonical token cases and prove they fail parsing before the transaction starts.
 
 - `billing_reconciliation`: `AdminBillingGoodwillOperation.status in PREPARED/APPLIED/RECONCILIATION_REQUIRED`.
 - `failed_notification`: `AdminEmailIntent.status === FAILED`.
@@ -243,7 +248,7 @@ Add relation counts only; do not select operation rows or provider fields. Map m
 
 - [ ] **Step 6: Add explicit cursor-usability checks and stale fallback**
 
-Inside one interactive read transaction with a repeatable consistent snapshot, perform the bounded identifier-only cursor-usability lookup, visible-page query, and any previous-page lookback using the same safe `where` filters. Require the decoded account to exist and remain matched before any boundary query. A missing/deleted ID or an account excluded by changed filters/queue is unusable even if other rows exist after it. Strip an unusable cursor, run only the first bounded page in that same snapshot with the same non-cursor query, and return `cursorReset: true`; do not rely on a thrown Prisma cursor error, recursively retry, or broaden filters. Tests must cover malformed cursors (rejected by parsing), nonexistent IDs, deleted rows, filter-changed rows, valid cursors at both sort directions, and a valid cursor whose following page is legitimately empty. Add deterministic concurrency tests that delete the cursor row or change its queue/filter match between the fake lookup and page query; the transaction snapshot must yield one coherent before-state or after-state, never a mixed state, and every read must be asserted against the same transaction client.
+Inside one interactive read transaction with a repeatable consistent snapshot, perform the bounded identifier-only cursor-usability lookup, visible-page query, and any previous-page lookback using the same safe `where` filters. Decode the canonical token once before the transaction, retain the opaque token only for navigation output, and require the separately named decoded account ID to exist and remain matched before any boundary query. Every `id`, `gt`, `lt`, and Prisma cursor comparison uses the decoded ID; none uses or decodes the opaque token again. A missing/deleted ID or an account excluded by changed filters/queue is unusable even if other rows exist after it. Strip an unusable cursor, run only the first bounded page in that same snapshot with the same non-cursor query, and return `cursorReset: true`; do not rely on a thrown Prisma cursor error, recursively retry, or broaden filters. Tests must cover malformed, double-encoded, and non-canonical cursor tokens (rejected by parsing), nonexistent decoded IDs, deleted rows, filter-changed rows, valid cursors at both sort directions, and a valid cursor whose following page is legitimately empty. Add deterministic concurrency tests that delete the cursor row or change its queue/filter match between the fake lookup and page query; the transaction snapshot must yield one coherent before-state or after-state, never a mixed state, and every read must be asserted against the same transaction client.
 
 ```ts
 return {
@@ -255,7 +260,7 @@ return {
 }
 ```
 
-When the visible page is the cursorless first page, return `hasPreviousPage: false` and `previousCursor: null`. When a valid cursor selects page 2, return `hasPreviousPage: true` and `previousCursor: null`; this deliberately means “Previous navigates to cursorless page 1.” Page 3 and later return `hasPreviousPage: true` plus the non-null exclusive boundary from the matrix above.
+When the visible page is the tokenless first page, return `hasPreviousPage: false` and `previousCursor: null`. When a valid decoded cursor account ID selects page 2, return `hasPreviousPage: true` and `previousCursor: null`; this deliberately means “Previous navigates to tokenless page 1.” Page 3 and later return `hasPreviousPage: true` plus the non-null opaque token produced by encoding the decoded exclusive boundary ID exactly once.
 
 - [ ] **Step 7: Run focused tests and verify GREEN**
 

@@ -91,6 +91,33 @@ describe("confirmPasswordReset", () => {
     )
 
     assert.equal(database.transactionAttempts, 1)
+    assert.equal(database.tokenReadCount, 0)
+  })
+
+  it("rejects non-Date clock values before reading token state", async () => {
+    const nonDateValues = [
+      NOW.toISOString(),
+      NOW.getTime(),
+      null,
+      { toString: () => NOW.toISOString() },
+    ]
+
+    for (const value of nonDateValues) {
+      const database = createResetDatabase()
+
+      await assert.rejects(
+        () => confirmPasswordReset({
+          prismaClient: database,
+          tokenHash: "active-token-hash-a",
+          passwordHash: "hash",
+          clock: () => value,
+        }),
+        /valid reset time/,
+      )
+
+      assert.equal(database.transactionAttempts, 1)
+      assert.equal(database.tokenReadCount, 0)
+    }
   })
 
   for (const [name, tokenHash] of [
@@ -329,6 +356,7 @@ function createResetDatabase({
   let transactionAttempts = 0
   let remainingSerializationConflicts = serializationConflicts
   let nextTransactionId = 1
+  let tokenReadCount = 0
   const claimedTokenIds = new Map()
   const contentionRetryCodes = []
 
@@ -341,6 +369,9 @@ function createResetDatabase({
     },
     get contentionRetryCodes() {
       return [...contentionRetryCodes]
+    },
+    get tokenReadCount() {
+      return tokenReadCount
     },
     async $transaction(callback, options) {
       transactionAttempts += 1
@@ -356,6 +387,7 @@ function createResetDatabase({
       const tx = {
         passwordResetToken: {
           async findUnique({ where, select }) {
+            tokenReadCount += 1
             assert.deepEqual(select, { id: true, userId: true })
             const token = snapshot.passwordResetTokens.find((candidate) => candidate.tokenHash === where.tokenHash)
             return token ? { id: token.id, userId: token.userId } : null

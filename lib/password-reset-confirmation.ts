@@ -2,6 +2,14 @@ import type { PrismaClient } from "@prisma/client"
 
 import { runCommerceTransaction } from "./commerce/transactions.ts"
 
+/**
+ * Inputs for the authoritative password-reset confirmation boundary.
+ *
+ * `tokenHash` and `passwordHash` are already-derived opaque hashes. `clock`
+ * supplies one real `Date` per transaction attempt so a retry never reuses an
+ * earlier expiry decision. The Prisma client must support the complete atomic
+ * reset bundle through `$transaction`.
+ */
 export type ConfirmPasswordResetInput = {
   prismaClient: Pick<PrismaClient, "$transaction">
   tokenHash: string
@@ -44,10 +52,15 @@ export async function isPasswordResetTokenEligible(
 }
 
 /**
- * Atomically consumes a valid reset link, replaces the password, and revokes sessions.
+ * Atomically consumes one eligible reset link, replaces the password, and revokes sessions.
  *
- * The predicate update is the authoritative token claim. The result deliberately
- * reveals no user or token state, including when a concurrent request loses the claim.
+ * Returns only the generic `UPDATED` or `INVALID` result. Each transaction
+ * attempt captures its own current time immediately before reading token state,
+ * so retries re-evaluate expiry. The compare-and-set predicate update is the
+ * authoritative claim; after it succeeds, password replacement, consumption of
+ * every outstanding account token, `authSessionVersion` increment, and adapter
+ * Session deletion commit or roll back together. A concurrent loser receives
+ * `INVALID` without revealing user or token state.
  */
 export async function confirmPasswordReset(
   input: ConfirmPasswordResetInput,
@@ -107,6 +120,7 @@ function systemResetClock(): Date {
 }
 
 function captureClockNow(value: Date): Date {
+  if (!(value instanceof Date)) throw new Error("Provide a valid reset time.")
   const now = new Date(value)
   if (!Number.isFinite(now.getTime())) throw new Error("Provide a valid reset time.")
   return now
