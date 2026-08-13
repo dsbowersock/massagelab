@@ -1354,6 +1354,8 @@ function createMutationFixture(overrides = {}) {
         const row = [...state.operations.values()].find((operation) => operation.id === where.id)
         const allowedStatuses = where.status?.in ?? (where.status ? [where.status] : null)
         const concurrentClaim = overrides.concurrentClaimBeforePreCallFailureSettlement
+        // Simulate a competing reconciler changing canonical ownership just before
+        // the creator's guarded pre-call failure settlement is evaluated below.
         if (row && concurrentClaim && concurrentClaim.failureCode === data.failureCode) {
           state.preCallFailureWhereClauses.push(structuredClone(where))
           Object.assign(row, {
@@ -1362,6 +1364,8 @@ function createMutationFixture(overrides = {}) {
             stripeBalanceTransactionId: concurrentClaim.stripeBalanceTransactionId ?? null,
           })
         }
+        // Simulate a concurrent verifier committing its complete evidence bundle
+        // before the losing invocation's guarded failure settlement is evaluated.
         if (row
           && data.failureCode === "LOCAL_VERIFICATION_WRITE_FAILED"
           && overrides.concurrentVerifiedBeforeFailureSettlement
