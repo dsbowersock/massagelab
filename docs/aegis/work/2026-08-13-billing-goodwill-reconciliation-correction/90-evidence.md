@@ -12,8 +12,9 @@
 
 ## Pending evidence
 
-- Ready PR #181 remains open and unmerged. Commit `6b1f8df8` contains and pushes all four verified hosted-review corrections; focused billing validation passed 78/78, typecheck and diff check passed, and independent spec/quality reviews were clean.
-- A fresh substantive local CodeRabbit review of all 14 changed files at `6b1f8df8` raised zero issues. At the last hosted observation, Vercel and CodeQL passed and CI QA remained in progress. The automatic fresh hosted CodeRabbit run was rate-limited before analysis with its next review published as available in 99 minutes; the rate-limited success status is not substantive review evidence. This lifecycle synchronization must be committed and pushed first; retry after that gate plus one minute at the resulting exact head and zero unresolved threads remain required before the user merge gate.
+- Ready PR #181 remains open and unmerged. Exact pushed head `182ed627` passed all non-CodeRabbit hosted checks, including Browser QA; the earlier focused billing validation passed 78/78, typecheck and diff check passed, and independent spec/quality reviews were clean.
+- A substantive hosted CodeRabbit review completed at `2026-08-13T19:54:03Z` as review `4931055672` / run `c4c9b211-a7ff-4ada-9155-379caaa0197f`. It verified the four earlier corrections, whose threads are resolved, and raised two valid minor follow-ups. The required follow-up head must contain both corrections: a fixture comment documenting per-actor initial versus final-authority loads and canonical/lifecycle evidence recording the exact hosted state. Fresh substantive review of that exact head and resolution of the two current threads remain required before the user merge gate.
+- No live Stripe/payment action, Production activation, migration deployment, or Admin Operations Closure Branch 3 work is authorized or claimed; all corresponding gates remain closed.
 
 ## Final local review
 

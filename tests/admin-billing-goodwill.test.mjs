@@ -1237,6 +1237,8 @@ function createMutationFixture(overrides = {}) {
     ["user-1", targetUser("user-1", "user@example.test")],
     ["user-2", targetUser("user-2", "user-2@example.test")],
   ])
+  // Count authority loads per actor rather than globally: each actor's first
+  // load is entry authorization, and the second models the final pre-provider recheck.
   const adminAuthorityLoads = new Map()
 
   const database = {

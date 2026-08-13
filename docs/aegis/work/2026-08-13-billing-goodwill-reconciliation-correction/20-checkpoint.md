@@ -40,15 +40,18 @@
 - Completed final whole-branch review: exact range `132b59cd..954b9f68` was clean with no findings; independent focused/adjacent validation passed 232/232 and the committed-range diff check passed.
 - Completed substantive local CodeRabbit review: CLI `0.7.2` reviewed all 14 changed files at exact head `954b9f68` and raised one identity-error transition concern. Independent verification classified the claimed overwrite invalid under the actual same-callback serializable transaction, bounded `P2034` retry, and same-key preparation/VERIFIED-finalization advisory locks; exact predicate conversion remains optional defense-in-depth, not a required correctness fix.
 - Completed PR entry: final local review classification and lifecycle evidence were committed as `6badc3c1`, pushed, and opened as ready PR #181 against `main`; the PR remains open and unmerged.
-- Hosted at last observation: the build passed and browser QA remained in progress. Hosted CodeRabbit completed an exact-head review and posted four comments.
+- Earlier hosted observation before the completed final retry: the build had passed while browser QA remained in progress, and hosted CodeRabbit had completed an exact-head review with four comments.
 - Completed hosted finding correction: all four CodeRabbit comments were verified as valid and corrected locally. Strict RED/GREEN fixed per-actor final-authority fixture counting, the focused billing suite passed 78/78, the shared case table was deduplicated, the Task 4 slice card and pushed-PR lifecycle status were synchronized, and the combined diff check passed.
 - Completed hosted finding correction commit/push: commit `6b1f8df8` is the pushed correction head in PR #181; focused billing validation passed 78/78, typecheck and diff check passed, and independent spec/quality reviews were clean.
 - Completed fresh local exact-head CodeRabbit: all 14 changed files at `6b1f8df8` were reviewed with zero issues.
-- Hosted at last observation: Vercel and CodeQL passed; CI QA remained in progress. The automatic exact-head CodeRabbit run was rate-limited before analysis with its next review published as available in 99 minutes.
-- Active: commit and push this final lifecycle synchronization, then wait through the published CodeRabbit gate plus a one-minute buffer and request a substantive hosted review at that new exact head.
-- Pending: lifecycle-sync commit/push, complete hosted QA, obtain substantive fresh exact-head CodeRabbit review, resolve every review thread, and stop at the user-controlled merge gate.
+- Completed lifecycle synchronization: commit `182ed627` is the exact pushed PR head that CodeRabbit reviewed substantively.
+- Completed hosted non-CodeRabbit checks: Vercel, CodeQL, CI, and Browser QA are green at exact head `182ed627`.
+- Completed substantive hosted CodeRabbit review: review `4931055672` / run `c4c9b211-a7ff-4ada-9155-379caaa0197f` finished at `2026-08-13T19:54:03Z`, verified the four earlier corrections, and raised two valid minor follow-ups.
+- Completed thread reconciliation: all four earlier hosted-review threads are resolved.
+- Active: the follow-up head must contain both verified minor corrections: document per-actor fixture load sequencing and synchronize canonical/lifecycle hosted status.
+- Pending: obtain a fresh substantive CodeRabbit review of the exact follow-up head; resolve the two current threads; and stop at the user-controlled merge gate.
 - Blocked on: nothing.
-- Next: commit/push this lifecycle-only sync; after the rate-limit buffer, request the fresh review at the resulting exact head and do not treat the rate-limited success status as review evidence.
+- Next gate: only a head containing both corrections may receive the required fresh substantive hosted review before their threads are resolved.
 
 ## ResumeStateHint
 
