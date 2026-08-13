@@ -772,6 +772,7 @@ test("Clock and Visual preserve their height caps with useful first-viewport den
       const visibleInteractiveElements = interactiveElements.filter((element) => {
         const box = element.getBoundingClientRect()
         const visibility = getComputedStyle(element).visibility
+        const isInScrollableBody = scrollerElement.contains(element)
         return visibility !== "hidden"
           && visibility !== "collapse"
           && box.width > 0
@@ -780,6 +781,12 @@ test("Clock and Visual preserve their height caps with useful first-viewport den
           && box.right <= dock.right + 1
           && box.bottom <= dock.bottom + 1
           && box.left >= dock.left - 1
+          && (!isInScrollableBody || (
+            box.top >= scroller.top - 1
+            && box.right <= scroller.right + 1
+            && box.bottom <= scroller.bottom + 1
+            && box.left >= scroller.left - 1
+          ))
       })
       const visibleDisabledInteractiveCount = visibleInteractiveElements.filter((element) => (
         element.matches(":disabled, [aria-disabled='true']")
