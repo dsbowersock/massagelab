@@ -781,6 +781,8 @@ test("Clock and Visual preserve their height caps with useful first-viewport den
           && box.right <= dock.right + 1
           && box.bottom <= dock.bottom + 1
           && box.left >= dock.left - 1
+          // Header controls use the dock bounds, while scroller descendants must
+          // also fit the scroll body so clipped controls do not count as visible.
           && (!isInScrollableBody || (
             box.top >= scroller.top - 1
             && box.right <= scroller.right + 1
