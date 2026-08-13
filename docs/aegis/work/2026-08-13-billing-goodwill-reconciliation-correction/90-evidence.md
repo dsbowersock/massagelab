@@ -12,8 +12,8 @@
 
 ## Pending evidence
 
-- Documentation-only exact-head CodeRabbit rerun after committing the final review classification.
-- Hosted PR checks, fresh exact-head CodeRabbit review, valid-finding resolution, and zero unresolved threads before the user merge gate.
+- Ready PR #181 remains open and unmerged at pushed head `6badc3c1`. The hosted build passed, while browser QA remained in progress at the last observation.
+- Hosted CodeRabbit completed its exact-head review with four comments. All four were verified valid and corrected locally; focused billing validation passed 78/78 and the combined diff check passed. Correction commit/push, fresh hosted revalidation, and zero unresolved threads remain required before the user merge gate.
 
 ## Final local review
 
@@ -77,4 +77,4 @@
 - `npm run build` passed; prebuild Prisma generation succeeded and Next generated 104/104 pages.
 - The earlier committed Task 4 documentation rechecks were spec compliant and quality-clean before the later whole-branch race correction.
 - Task 4 canonical documentation commit/readback: `8fa4e0931d5cbe7c5857caa37a03f3092689703b`, exactly the four planned docs.
-- No live Stripe/provider call, payment mutation, database write, email, browser action, Production activation, or Admin Operations Closure Branch 3 action occurred. The live gate remains closed.
+- No live Stripe/provider call, payment mutation, database write, email, local browser action, Production activation, or Admin Operations Closure Branch 3 action occurred. Hosted CI Browser QA is tracked separately in the PR status above. The live gate remains closed.

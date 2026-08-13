@@ -67,3 +67,12 @@ The current service still derives historical verification from the preview start
 - Boundary: no service/provider/authority/schema/docs changes; Activity/email bundle remains historical-only.
 - Verification: strict RED for divergent and unavailable current observations, then complete billing-goodwill/security UI suites.
 - Stop: Task 3 is independently spec/quality approved, coordinator-verified, and committed, or a presentation/contract conflict requires escalation.
+
+## Slice Card - Task 4
+
+- Goal: document the terminal Branch 2 behavior, run comprehensive validation, and complete the branch and PR review loop through the user-controlled merge gate.
+- Parent plan/spec: Branch 2 Task 4 plus the Billing acceptance, validation strategy, documentation/evidence, and rollout-order gates in the closure design.
+- Files: `docs/project-state.md`, `docs/project-log.md`, `docs/wiki/admin-user-operations.md`, `docs/wiki/release-checklist.md`.
+- Boundary: documentation, validation, and review only; no new service/UI/schema behavior, broader financial authority, Production activation, Branch 3 work, or live Stripe/payment action.
+- Verification: focused and adjacent tests, typecheck, lint, Prisma validation, full unit suite, Production build, diff check, independent spec and quality review, exact-head CodeRabbit review, hosted checks, and review-thread resolution.
+- Stop: stop at the user-controlled merge gate after the branch is independently approved, comprehensively validated, pushed in PR #181, hosted checks pass, valid findings are resolved, and zero review threads remain; escalate any blocker or scope drift.

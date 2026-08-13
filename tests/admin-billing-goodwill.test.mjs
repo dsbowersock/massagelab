@@ -14,6 +14,29 @@ import * as adminAccess from "../lib/admin/access.ts"
 
 const { AdminAuthorityDeniedError } = adminAccess
 
+const CREATOR_PRE_CALL_FAILURE_CASES = [
+  {
+    label: "closed live gate",
+    failureCode: "LIVE_STRIPE_DISABLED",
+    applyOverrides: { env: { STRIPE_SECRET_KEY: "sk_live_example" } },
+  },
+  {
+    label: "Customer retrieval",
+    failureCode: "STRIPE_CUSTOMER_INVALID",
+    fixtureOverrides: { customerRetrieveError: new Error("customer unavailable") },
+  },
+  {
+    label: "subscription validation",
+    failureCode: "STRIPE_SUBSCRIPTION_INVALID",
+    fixtureOverrides: { subscriptionCurrency: "eur" },
+  },
+  {
+    label: "stale starting credit",
+    failureCode: "STARTING_CREDIT_CHANGED",
+    fixtureOverrides: { customerBalance: -301 },
+  },
+]
+
 const schemaSource = await readFile(new URL("../prisma/schema.prisma", import.meta.url), "utf8")
 const moduleSource = await readFile(new URL("../lib/admin/billing-goodwill.ts", import.meta.url), "utf8")
 const migrationSource = await readFile(
@@ -419,30 +442,7 @@ describe("Admin invoice-credit mutation and reconciliation", () => {
   })
 
   it("preserves a reconciler's no-ID claim across every creator pre-call failure route", async () => {
-    const cases = [
-      {
-        label: "closed live gate",
-        failureCode: "LIVE_STRIPE_DISABLED",
-        applyOverrides: { env: { STRIPE_SECRET_KEY: "sk_live_example" } },
-      },
-      {
-        label: "Customer retrieval",
-        failureCode: "STRIPE_CUSTOMER_INVALID",
-        fixtureOverrides: { customerRetrieveError: new Error("customer unavailable") },
-      },
-      {
-        label: "subscription validation",
-        failureCode: "STRIPE_SUBSCRIPTION_INVALID",
-        fixtureOverrides: { subscriptionCurrency: "eur" },
-      },
-      {
-        label: "stale starting credit",
-        failureCode: "STARTING_CREDIT_CHANGED",
-        fixtureOverrides: { customerBalance: -301 },
-      },
-    ]
-
-    for (const testCase of cases) {
+    for (const testCase of CREATOR_PRE_CALL_FAILURE_CASES) {
       const fixture = createMutationFixture({
         ...testCase.fixtureOverrides,
         concurrentClaimBeforePreCallFailureSettlement: {
@@ -475,30 +475,7 @@ describe("Admin invoice-credit mutation and reconciliation", () => {
   })
 
   it("preserves a reconciler's applied transaction across every creator pre-call failure route", async () => {
-    const cases = [
-      {
-        label: "closed live gate",
-        failureCode: "LIVE_STRIPE_DISABLED",
-        applyOverrides: { env: { STRIPE_SECRET_KEY: "sk_live_example" } },
-      },
-      {
-        label: "Customer retrieval",
-        failureCode: "STRIPE_CUSTOMER_INVALID",
-        fixtureOverrides: { customerRetrieveError: new Error("customer unavailable") },
-      },
-      {
-        label: "subscription validation",
-        failureCode: "STRIPE_SUBSCRIPTION_INVALID",
-        fixtureOverrides: { subscriptionCurrency: "eur" },
-      },
-      {
-        label: "stale starting credit",
-        failureCode: "STARTING_CREDIT_CHANGED",
-        fixtureOverrides: { customerBalance: -301 },
-      },
-    ]
-
-    for (const testCase of cases) {
+    for (const testCase of CREATOR_PRE_CALL_FAILURE_CASES) {
       const fixture = createMutationFixture({
         ...testCase.fixtureOverrides,
         concurrentClaimBeforePreCallFailureSettlement: {
@@ -741,6 +718,20 @@ describe("Admin invoice-credit mutation and reconciliation", () => {
       assert.equal(JSON.stringify(operation).includes("raw"), false)
       assert.equal(JSON.stringify(operation).includes("target@example.test"), false)
     }
+  })
+
+  it("scopes final authority failures to each actor's second authority load", async () => {
+    const finalAuthorityError = new Error("final authority database outage")
+    const fixture = createMutationFixture({ finalAuthorityError })
+
+    const initial = await apply(fixture, { env: { STRIPE_SECRET_KEY: "sk_live_example" } })
+    assert.equal(initial.status, "FAILED_BEFORE_MUTATION")
+
+    await assert.rejects(
+      () => reconcile(fixture, { actorUserId: "admin-2" }),
+      (error) => error instanceof BillingGoodwillMutationError
+        && error.code === "OPERATION_NOT_RECONCILABLE",
+    )
   })
 
   it("does not rewrite a lost-owned or pre-existing operation as definitely unmutated", async () => {
@@ -1246,7 +1237,7 @@ function createMutationFixture(overrides = {}) {
     ["user-1", targetUser("user-1", "user@example.test")],
     ["user-2", targetUser("user-2", "user-2@example.test")],
   ])
-  let adminAuthorityLoads = 0
+  const adminAuthorityLoads = new Map()
 
   const database = {
     state,
@@ -1288,8 +1279,9 @@ function createMutationFixture(overrides = {}) {
     user: {
       async findUnique({ where }) {
         if (where.id === "admin-1" || where.id === "admin-2") {
-          adminAuthorityLoads += 1
-          if (adminAuthorityLoads >= 2) {
+          const authorityLoadCount = (adminAuthorityLoads.get(where.id) ?? 0) + 1
+          adminAuthorityLoads.set(where.id, authorityLoadCount)
+          if (authorityLoadCount >= 2) {
             overrides.onFinalAuthorityLoad?.(where.id)
             const authorityGate = overrides.finalAuthorityGates?.[where.id]
               ?? overrides.finalAuthorityGate

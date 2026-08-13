@@ -39,10 +39,13 @@
 - Completed corrected-head comprehensive validation and canonical/lifecycle evidence refresh.
 - Completed final whole-branch review: exact range `132b59cd..954b9f68` was clean with no findings; independent focused/adjacent validation passed 232/232 and the committed-range diff check passed.
 - Completed substantive local CodeRabbit review: CLI `0.7.2` reviewed all 14 changed files at exact head `954b9f68` and raised one identity-error transition concern. Independent verification classified the claimed overwrite invalid under the actual same-callback serializable transaction, bounded `P2034` retry, and same-key preparation/VERIFIED-finalization advisory locks; exact predicate conversion remains optional defense-in-depth, not a required correctness fix.
-- Active: commit this review classification and rerun the substantive local review against the resulting documentation-only exact head.
-- Pending: push/PR, hosted checks, fresh exact-head CodeRabbit review, valid fixes, and thread resolution.
+- Completed PR entry: final local review classification and lifecycle evidence were committed as `6badc3c1`, pushed, and opened as ready PR #181 against `main`; the PR remains open and unmerged.
+- Hosted at last observation: the build passed and browser QA remained in progress. Hosted CodeRabbit completed an exact-head review and posted four comments.
+- Completed hosted finding correction: all four CodeRabbit comments were verified as valid and corrected locally. Strict RED/GREEN fixed per-actor final-authority fixture counting, the focused billing suite passed 78/78, the shared case table was deduplicated, the Task 4 slice card and pushed-PR lifecycle status were synchronized, and the combined diff check passed.
+- Active: commit and push the reviewed hosted-finding corrections.
+- Pending: complete hosted QA, obtain fresh exact-head CodeRabbit review, resolve every review thread, and stop at the user-controlled merge gate.
 - Blocked on: nothing.
-- Next: complete the documentation-only exact-head review, then enter the PR loop.
+- Next: commit/push the correction, then recheck hosted status and resolve the superseded review threads.
 
 ## ResumeStateHint
 
