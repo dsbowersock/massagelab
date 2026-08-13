@@ -227,6 +227,33 @@
     --chimer-panel-bottom-offset: calc(var(--ml-safe-bottom) + var(--ml-audio-toolbar-height) + 0.75rem);
   }
 
+  /* The narrow shell reservation follows the toolbar's expanded or compact grid. */
+  @media (max-width: 39.999rem) {
+    body.ml-music-player-active:not(.ml-music-player-collapsed) {
+      --ml-audio-toolbar-height: 7rem;
+    }
+
+    body.ml-music-player-active.ml-music-player-collapsed {
+      --ml-audio-toolbar-height: 4.5rem;
+    }
+
+    /* Bound the complete narrow toolbar to the same height consumed by the
+       shell; the surface's existing safe-area padding stays inside that box. */
+    .ml-music-player-toolbar {
+      height: var(--ml-audio-toolbar-height);
+    }
+
+    .ml-music-player-toolbar-surface {
+      box-sizing: border-box;
+      height: 100%;
+    }
+
+    .ml-music-player-toolbar-layout {
+      height: 100%;
+      min-height: 100% !important;
+    }
+  }
+
   body.chimer-running aside,
   body.chimer-alerting aside,
   body.chimer-preview-capture aside,

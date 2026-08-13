@@ -91,6 +91,14 @@ describe("Music visualizer provider contract", () => {
 })
 
 describe("Persistent player visualizer boundary", () => {
+  it("uses one icon-only leaf toolbar without horizontal scrolling", () => {
+    assert.doesNotMatch(miniPlayerSource, /RefreshCw|Restart|overflow-x-auto/)
+    assert.match(miniPlayerSource, /variant="success"/)
+    assert.match(miniPlayerSource, /TooltipProvider/)
+    assert.match(miniPlayerSource, /ml-music-player-collapsed/)
+    assert.match(miniPlayerSource, /data-testid="music-player-toolbar-controls"/)
+  })
+
   it("replaces visualizer history on minimize but pushes on entry", () => {
     for (const contract of [
       /usePathname/, /useSearchParams/, /buildMusicVisualizerHref/,
