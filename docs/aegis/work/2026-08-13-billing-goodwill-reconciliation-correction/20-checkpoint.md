@@ -2,7 +2,7 @@
 
 ## TaskStartSnapshot
 
-- Worktree: `C:\Users\derri\.codex\worktrees\508f\massagelab`
+- Worktree: delegated isolated worktree
 - Branch: `codex/admin-billing-goodwill-reconciliation-correction`
 - HEAD/base: `132b59cdaf8a6b83601c565515cb03640e40b926`
 - Tracking: `HEAD`, refreshed `origin/main`, and `FETCH_HEAD` were exact matches.
