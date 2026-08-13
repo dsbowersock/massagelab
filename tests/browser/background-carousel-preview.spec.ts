@@ -432,6 +432,7 @@ test("production carousel remains poster-only when reduced motion is requested",
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.addInitScript(() => {
     localStorage.setItem("massage-lab-settings", JSON.stringify({ ambientMotionMode: "reduced" }))
+    localStorage.setItem("massagelab-background-preview-autoplay-v1", "true")
   })
   const panel = await openProductionBackgroundCarousel(page)
   const videos = panel.getByTestId("carousel-background-video")
@@ -443,6 +444,25 @@ test("production carousel remains poster-only when reduced motion is requested",
   await expect(panel.getByText("Paused by your reduced-motion setting. Your preview preference is still saved.")).toBeVisible()
   await expect(videos).toHaveCount(0)
   await expect(panel.getByTestId("background-preview-poster").first()).toBeVisible()
+})
+
+test("animated preview intent defaults on and persists on this device", async ({ page }) => {
+  await installPreviewRuntimeProbe(page)
+  let panel = await openProductionBackgroundCarousel(page)
+  let previewSwitch = panel.getByRole("switch", { name: /Animated previews/i })
+
+  await expect(previewSwitch).toHaveAttribute("aria-checked", "true")
+  await expect.poll(() => panel.getByTestId("carousel-background-video").count()).toBeGreaterThan(0)
+
+  await previewSwitch.click()
+  await expect(previewSwitch).toHaveAttribute("aria-checked", "false")
+  await expect(panel.getByTestId("carousel-background-video")).toHaveCount(0)
+
+  await page.reload({ waitUntil: "domcontentloaded" })
+  panel = page.getByRole("dialog", { name: "Background" })
+  previewSwitch = panel.getByRole("switch", { name: /Animated previews/i })
+  await expect(previewSwitch).toHaveAttribute("aria-checked", "false")
+  await expect(panel.getByTestId("carousel-background-video")).toHaveCount(0)
 })
 
 test("production Background controls stay off-card and visible in portrait and short landscape", async ({ page }) => {

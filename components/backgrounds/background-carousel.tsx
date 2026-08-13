@@ -18,6 +18,10 @@ import {
   userCanUseBackground,
 } from "@/components/backgrounds/backgroundRegistry"
 import { backgroundCardCommerceState } from "@/lib/background-commerce-client.js"
+import {
+  readBackgroundPreviewPreference,
+  writeBackgroundPreviewPreference,
+} from "@/lib/background-preview-preference.js"
 
 type BackgroundViewportProfile =
   | "phone-portrait"
@@ -64,15 +68,30 @@ export function BackgroundCarousel({
   const hostRef = useRef<HTMLDivElement | null>(null)
   const [profile, setProfile] =
     useState<BackgroundViewportProfile>("compact-desktop")
-  // Preference survives temporary reduced-motion playback pauses rather than being overwritten by them.
   const [previewPreferenceEnabled, setPreviewPreferenceEnabled] = useState(true)
+  const [preferenceHydrated, setPreferenceHydrated] = useState(false)
   const { settings } = useSettings()
   const { state: commerceClientState, signedIn } = useBackgroundCommerce()
   const snapshot = commerceClientState.snapshot
 
   // Keep the carousel, preview cards, and host on the shared ambient-motion source of truth.
   const reducedMotion = useAmbientReducedMotion(settings.ambientMotionMode)
-  const previewPlaybackActive = previewPreferenceEnabled && active && !reducedMotion
+  const previewPlaybackActive =
+    preferenceHydrated && previewPreferenceEnabled && active && !reducedMotion
+
+  useEffect(() => {
+    setPreviewPreferenceEnabled(readBackgroundPreviewPreference(window.localStorage))
+    setPreferenceHydrated(true)
+  }, [])
+
+  /**
+   * Keeps saved device intent distinct from a temporary reduced-motion pause.
+   * A blocked localStorage write must not prevent the current session changing.
+   */
+  function handlePreviewPreferenceChange(enabled: boolean) {
+    setPreviewPreferenceEnabled(enabled)
+    writeBackgroundPreviewPreference(window.localStorage, enabled)
+  }
 
   useEffect(() => {
     const host = hostRef.current
@@ -181,7 +200,7 @@ export function BackgroundCarousel({
               onLockedSelect={() => onLockedSelect?.(centeredOption)}
               onKeepPermanently={() => onKeepPermanently?.(centeredOption)}
               onToggleSaved={() => onToggleSaved(centeredOption.id)}
-              onPreviewPreferenceChange={setPreviewPreferenceEnabled}
+              onPreviewPreferenceChange={handlePreviewPreferenceChange}
             />
           )
         }}
