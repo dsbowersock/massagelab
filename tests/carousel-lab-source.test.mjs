@@ -177,14 +177,19 @@ describe("Carousel Lab source boundaries", () => {
   it("keeps Station artwork separate from actions and exposes lab-only details", () => {
     const sharedCard = read("components/atmosphere/station-carousel-card.tsx")
     const labCard = read("app/dev/buttons/carousel-lab/station-lab-card.tsx")
+    const controller = read("components/carousels/use-adaptive-carousel-controller.ts")
+    const stageCss = read("components/carousels/adaptive-carousel-stage.module.css")
 
     assert.match(sharedCard, /data-carousel-artwork/)
     assert.match(sharedCard, /data-carousel-station-details/)
+    assert.match(sharedCard, /data-carousel-drag-surface="true"/)
     assert.match(sharedCard, /DialogTrigger/)
     assert.match(sharedCard, /DialogContent/)
     assert.match(sharedCard, /displayMode === "carousel"/)
     assert.match(labCard, /displayMode="carousel"/)
     assert.match(sharedCard, /MetalFavoriteIcon kind="heart" selected=\{isFavorite\}/)
+    assert.match(controller, /dragSurface\.matches\(interactiveSlideSelector\)/)
+    assert.match(stageCss, /touch-action:\s*pan-y pinch-zoom/)
   })
 
   it("keeps readable Glow actions in the requested Background preview-card corners", () => {

@@ -146,6 +146,7 @@ export function AtmosphereStationCarouselCard({
             <button
               type="button"
               data-carousel-station-details
+              data-carousel-drag-surface="true"
               aria-label={`Show full information for ${station.title}`}
               className="absolute inset-x-0 bottom-0 top-[42%] z-20 grid min-w-0 content-start gap-1 bg-gradient-to-t from-black/95 via-black/85 to-transparent px-3 pb-3 pt-10 text-left text-white transition-colors hover:from-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
             >

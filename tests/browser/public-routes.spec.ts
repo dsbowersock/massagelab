@@ -985,6 +985,42 @@ test("Breathing guide route runs separately from Music stations", async ({ page 
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
+test("center station details support swipe and short tap while actions stay protected", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "Touch carousel behavior is covered in mobile Chromium.")
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto("/music", { waitUntil: "domcontentloaded" })
+  const centered = await centerCarouselItem(page, "mlab-proof-drone", "Next station")
+  const details = centered.locator("[data-carousel-station-details]")
+  const beforeId = await centered.getAttribute("data-carousel-item-id")
+  const box = await details.boundingBox()
+  if (!box) throw new Error("Station details surface has no drag bounds")
+
+  await page.mouse.move(box.x + box.width * 0.75, box.y + box.height * 0.5)
+  await page.mouse.down()
+  await page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.5, { steps: 8 })
+  await page.mouse.up()
+
+  await expect.poll(async () => page.locator('[data-carousel-slide][data-centered="true"]').getAttribute("data-carousel-item-id"))
+    .not.toBe(beforeId)
+  await expect(page.getByRole("dialog")).toHaveCount(0)
+
+  const proof = await centerCarouselItem(page, "mlab-proof-drone", "Next station")
+  await proof.locator("[data-carousel-station-details]").click()
+  await expect(page.getByRole("dialog").getByRole("heading", { name: "MassageLab Proof Drone" })).toBeVisible()
+  await page.keyboard.press("Escape")
+
+  await proof.locator("[data-carousel-station-details]").focus()
+  await page.keyboard.press("Enter")
+  await expect(page.getByRole("dialog").getByRole("heading", { name: "MassageLab Proof Drone" })).toBeVisible()
+  await page.keyboard.press("Escape")
+
+  await proof.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
+  await expect(proof).toHaveAttribute("data-centered", "true")
+  await proof.getByRole("button", { name: /Favorite MassageLab Proof Drone|Remove MassageLab Proof Drone from favorites/i }).click()
+  await expect(proof).toHaveAttribute("data-centered", "true")
+  await page.getByTestId("music-player-toolbar").getByRole("button", { name: "Stop", exact: true }).click()
+})
+
 test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample station", async ({ page }) => {
   const health = capturePageHealth(page)
 

@@ -11,11 +11,21 @@ import {
 
 const interactiveSlideSelector =
   "button, a, input, select, textarea, [role='button'], [role='option']"
+const interactiveDragSurfaceSelector = "[data-carousel-drag-surface='true']"
 
-/** Keeps carousel drag capture from suppressing controls rendered inside cards. */
+/**
+ * Keeps controls protected while allowing an explicitly marked interactive
+ * surface to share tap and Embla drag behavior.
+ */
 function shouldStartCarouselDrag(event: MouseEvent | TouchEvent) {
   const target = event.target
-  return !(target instanceof Element && target.closest(interactiveSlideSelector))
+  if (!(target instanceof Element)) return true
+
+  const interactive = target.closest(interactiveSlideSelector)
+  if (!interactive) return true
+
+  const dragSurface = target.closest(interactiveDragSurfaceSelector)
+  return dragSurface === interactive && dragSurface.matches(interactiveSlideSelector)
 }
 
 export interface AdaptiveCarouselItem {
