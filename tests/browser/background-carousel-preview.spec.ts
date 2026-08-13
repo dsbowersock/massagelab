@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test"
+import { expect, test, type BrowserContext, type Locator, type Page } from "@playwright/test"
+import { installSignedInSessionCookie } from "./signed-in-session-cookie"
 
 type PreviewRuntimeProbe = {
   playCalls: number
@@ -83,14 +84,137 @@ async function installPreviewRuntimeProbe(
   }, options)
 }
 
-/** Opens the real production Clock caller with its Background panel active. */
-async function openProductionBackgroundCarousel(page: Page) {
-  const response = await page.goto("/dev/clock?panel=background", { waitUntil: "domcontentloaded" })
+/** Opens a Clock caller with its Background panel active. */
+async function openProductionBackgroundCarousel(page: Page, path = "/dev/clock?panel=background") {
+  const response = await page.goto(path, { waitUntil: "domcontentloaded" })
   expect(response?.ok()).toBe(true)
   const panel = page.getByRole("dialog", { name: "Background" })
   await expect(panel).toBeVisible()
   await expect(panel.locator("[data-background-carousel]")).toBeVisible()
   return panel
+}
+
+/**
+ * Supplies the real signed-in commerce state needed for compact-action geometry
+ * coverage without depending on database-backed account records.
+ */
+async function installRestrictedCommerceFixture(
+  context: BrowserContext,
+  page: Page,
+  baseURL: string,
+  ownershipStatus?: "refund_pending",
+) {
+  await installSignedInSessionCookie(context, baseURL, {
+    id: "background-preview-unavailable-user",
+    name: "Preview unavailable QA",
+    email: "preview-unavailable@example.invalid",
+  })
+  await page.route("**/api/auth/session", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        user: {
+          id: "background-preview-unavailable-user",
+          email: "preview-unavailable@example.invalid",
+          emailVerified: true,
+        },
+      }),
+    })
+  })
+  await page.route("**/api/account/preferences", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        accessAuthoritative: true,
+        features: [],
+        ownedBackgroundIds: [],
+        chimerSettings: {},
+        appSettings: {},
+      }),
+    })
+  })
+  await page.route("**/api/background-commerce/state", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        creditBalance: 0,
+        ownedBackgroundIds: [],
+        ownerships: ownershipStatus ? [{
+          backgroundId: "massage-lab-moving-gradient",
+          source: "purchase",
+          status: ownershipStatus,
+          acquiredAt: "2026-08-08T00:00:00.000Z",
+        }] : [],
+        cart: {
+          items: [],
+          reservedOrder: null,
+          subtotalAmount: 0,
+          currency: "usd",
+          notices: [],
+        },
+        recentOrders: [],
+      }),
+    })
+  })
+}
+
+/** Verifies every compact tray action stays inside its owner and has no overlapping hit area. */
+async function expectCompactActionGeometry(controls: Locator) {
+  const geometry = await controls.evaluate((tray) => {
+    const trayBox = tray.getBoundingClientRect()
+    return Array.from(tray.querySelectorAll<HTMLElement>("[data-background-tray-action]")).map((action) => {
+      const box = action.getBoundingClientRect()
+      return {
+        action: action.getAttribute("data-background-tray-action"),
+        left: box.left,
+        right: box.right,
+        top: box.top,
+        bottom: box.bottom,
+        trayLeft: trayBox.left,
+        trayRight: trayBox.right,
+        trayTop: trayBox.top,
+        trayBottom: trayBox.bottom,
+      }
+    })
+  })
+
+  expect(geometry.length).toBeGreaterThan(3)
+  for (const action of geometry) {
+    expect(action.left).toBeGreaterThanOrEqual(action.trayLeft)
+    expect(action.right).toBeLessThanOrEqual(action.trayRight)
+    expect(action.top).toBeGreaterThanOrEqual(action.trayTop)
+    expect(action.bottom).toBeLessThanOrEqual(action.trayBottom)
+  }
+  for (let index = 0; index < geometry.length; index += 1) {
+    for (let compareIndex = index + 1; compareIndex < geometry.length; compareIndex += 1) {
+      const first = geometry[index]
+      const second = geometry[compareIndex]
+      const overlaps = first.left < second.right
+        && first.right > second.left
+        && first.top < second.bottom
+        && first.bottom > second.top
+      expect(overlaps, `${first.action} overlaps ${second.action}`).toBe(false)
+    }
+  }
+}
+
+/** Centers the next real restricted option before asserting its compact action layout. */
+async function centerLockedBackground(controls: Locator) {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const primary = controls.locator('[data-carousel-primary-state="locked"]')
+    if (await primary.count()) return primary
+
+    const currentLabel = await controls.locator("[data-carousel-primary-action]").getAttribute("aria-label")
+    await controls.getByRole("button", { name: "Next background" }).click()
+    await expect.poll(
+      () => controls.locator("[data-carousel-primary-action]").getAttribute("aria-label"),
+    ).not.toBe(currentLabel)
+  }
+
+  throw new Error("Expected a locked Background carousel option within eight next actions.")
 }
 
 async function readPreviewRuntimeProbe(page: Page): Promise<PreviewRuntimeProbe> {
@@ -109,23 +233,12 @@ test("production carousel stays within its request budget and changes rendition 
   const panel = await openProductionBackgroundCarousel(page)
   const videos = panel.getByTestId("carousel-background-video")
   const animatedCard = panel.locator('[data-background-id="massage-lab-moving-gradient"]')
-  const posterOnlyCards = ["static-gradient", "solid-color"].map((backgroundId) => (
-    panel.locator(`[data-background-id="${backgroundId}"]`)
-  ))
+  const previewToggle = panel.getByRole("switch", { name: /Animated previews/ })
 
-  await expect(videos).toHaveCount(0)
-  for (const card of posterOnlyCards) {
-    await expect(card.getByTestId("background-preview-poster")).toBeVisible()
-  }
-
-  await panel.getByRole("button", { name: "Play Preview" }).click()
+  await expect(previewToggle).toBeChecked()
   await expect.poll(() => videos.count()).toBeGreaterThan(0)
   const playingCount = await videos.count()
   expect(playingCount).toBeLessThanOrEqual(5)
-  for (const card of posterOnlyCards) {
-    await expect(card.getByTestId("carousel-background-video")).toHaveCount(0)
-    await expect(card.getByTestId("background-preview-poster")).toBeVisible()
-  }
 
   const mountedSlides = panel.locator(
     '[data-carousel-slide][data-detail-level="full"], [data-carousel-slide][data-detail-level="summary"]',
@@ -211,10 +324,11 @@ test("production carousel stays within its request budget and changes rendition 
   await expect(video).toHaveAttribute("data-probe-playing-source", /\/vertical\/high\.mp4$/)
   await expect(animatedCard.getByTestId("carousel-background-video")).toHaveCount(1)
 
-  await panel.getByRole("button", { name: "Pause Previews" }).click()
-  await expect(panel.getByRole("button", { name: "Play Preview" })).toHaveAttribute("aria-pressed", "false")
+  await previewToggle.click()
+  await expect(previewToggle).not.toBeChecked()
   await expect(videos).toHaveCount(0)
-  await panel.getByRole("button", { name: "Play Preview" }).click()
+  await previewToggle.click()
+  await expect(previewToggle).toBeChecked()
   await expect.poll(() => videos.count()).toBeGreaterThan(0)
 
   await page.evaluate(() => {
@@ -271,7 +385,6 @@ test("a rejected play retries the exact same tier with H.264 and keeps the playe
   const panel = await openProductionBackgroundCarousel(page)
   const animatedCard = panel.locator('[data-background-id="massage-lab-moving-gradient"]')
 
-  await panel.getByRole("button", { name: "Play Preview" }).click()
   const video = animatedCard.getByTestId("carousel-background-video")
   await expect.poll(async () => (await readPreviewRuntimeProbe(page)).rejectedPlayCalls).toBe(1)
   await expect(video).toHaveCount(1)
@@ -287,7 +400,6 @@ test("hidden documents retain failed-codec history and never retry the failed so
   const panel = await openProductionBackgroundCarousel(page)
   const animatedCard = panel.locator('[data-background-id="massage-lab-moving-gradient"]')
 
-  await panel.getByRole("button", { name: "Play Preview" }).click()
   const video = animatedCard.getByTestId("carousel-background-video")
   await expect(video).toHaveAttribute("data-preview-codec", "vp9")
   await video.dispatchEvent("error")
@@ -325,9 +437,10 @@ test("production carousel remains poster-only when reduced motion is requested",
   const videos = panel.getByTestId("carousel-background-video")
 
   await expect(videos).toHaveCount(0)
-  const reducedMotionStatus = panel.getByRole("button", { name: "Previews off (reduced motion)" })
-  await expect(reducedMotionStatus).toBeDisabled()
-  await expect(reducedMotionStatus).toHaveAttribute("aria-pressed", "false")
+  const previewToggle = panel.getByRole("switch", { name: "Animated previews: On" })
+  await expect(previewToggle).toBeEnabled()
+  await expect(previewToggle).toBeChecked()
+  await expect(panel.getByText("Paused by your reduced-motion setting. Your preview preference is still saved.")).toBeVisible()
   await expect(videos).toHaveCount(0)
   await expect(panel.getByTestId("background-preview-poster").first()).toBeVisible()
 })
@@ -361,4 +474,28 @@ test("production Background controls stay off-card and visible in portrait and s
   await controls.getByRole("button", { name: /More information about/i }).click()
   await expect(page.getByRole("dialog").getByRole("heading")).toBeVisible()
   await page.keyboard.press("Escape")
+})
+
+test("short-landscape Background tray keeps locked controls within the compact grid", async ({ context, page }, testInfo) => {
+  await installRestrictedCommerceFixture(context, page, String(testInfo.project.use.baseURL))
+  await page.setViewportSize({ width: 844, height: 390 })
+  const panel = await openProductionBackgroundCarousel(page, "/clock?panel=background")
+  const controls = panel.getByTestId("background-carousel-controls")
+  const lockedPrimary = await centerLockedBackground(controls)
+
+  await expect(lockedPrimary).toHaveAttribute("data-carousel-primary-state", "locked")
+  await expect(lockedPrimary).toBeVisible()
+  await expectCompactActionGeometry(controls)
+})
+
+test("short-landscape Background tray keeps unavailable controls within the compact grid", async ({ context, page }, testInfo) => {
+  await installRestrictedCommerceFixture(context, page, String(testInfo.project.use.baseURL), "refund_pending")
+  await page.setViewportSize({ width: 844, height: 390 })
+  const panel = await openProductionBackgroundCarousel(page)
+  const controls = panel.getByTestId("background-carousel-controls")
+  const unavailablePrimary = controls.getByRole("button", { name: /^Unavailable .* background$/ })
+
+  await expect(unavailablePrimary).toHaveAttribute("data-carousel-primary-state", "unavailable")
+  await expect(unavailablePrimary).toBeDisabled()
+  await expectCompactActionGeometry(controls)
 })

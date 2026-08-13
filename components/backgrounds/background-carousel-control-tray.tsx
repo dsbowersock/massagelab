@@ -161,12 +161,15 @@ export function BackgroundCarouselControlTray({
         ) : null}
       </div>
       <div className={styles.actions}>
-        <Button type="button" size="icon" variant="glow" aria-label="Previous background" disabled={!canGoPrevious} onClick={onPrevious}>
+        <Button className={styles.previousAction} data-background-tray-action="previous" type="button" size="icon" variant="glow" aria-label="Previous background" disabled={!canGoPrevious} onClick={onPrevious}>
           <StepBack aria-hidden="true" />
         </Button>
         <Button
+          className={styles.primaryAction}
           type="button"
           data-carousel-primary-action
+          data-carousel-primary-state={unavailable ? "unavailable" : locked ? "locked" : "available"}
+          data-background-tray-action="primary"
           disabled={unavailable}
           aria-describedby={locked ? acquisitionHintId : undefined}
           aria-label={`${primaryLabel} ${option.label} background`}
@@ -179,24 +182,24 @@ export function BackgroundCarouselControlTray({
           {primaryLabel}
         </Button>
         {commerceState.showKeepPermanently && onKeepPermanently ? (
-          <Button type="button" size="icon" variant="glow" onClick={onKeepPermanently} aria-label={`Open permanent ownership options for ${option.label}`} title="Keep permanently">
+          <Button className={styles.permanentAction} data-background-tray-action="permanent" type="button" size="icon" variant="glow" onClick={onKeepPermanently} aria-label={`Open permanent ownership options for ${option.label}`} title="Keep permanently">
             <DollarSign aria-hidden="true" />
           </Button>
         ) : null}
         {permanentlyOwned ? (
-          <span role="img" aria-label={`${option.label} is permanently owned`} title="Permanently owned">
+          <span className={styles.ownershipBadge} data-background-tray-action="permanent-ownership" role="img" aria-label={`${option.label} is permanently owned`} title="Permanently owned">
             <Crown aria-hidden="true" />
           </span>
         ) : null}
-        <Button type="button" data-carousel-favorite-action aria-pressed={saved} aria-label={`${saved ? "Unsave" : "Save"} ${option.label}`} onClick={onToggleSaved} size="icon" variant="glow">
+        <Button className={styles.favoriteAction} data-background-tray-action="favorite" type="button" data-carousel-favorite-action aria-pressed={saved} aria-label={`${saved ? "Unsave" : "Save"} ${option.label}`} onClick={onToggleSaved} size="icon" variant="glow">
           <MetalFavoriteIcon kind="star" selected={saved} />
         </Button>
-        <Button type="button" size="icon" variant="glow" aria-label="Next background" disabled={!canGoNext} onClick={onNext}>
+        <Button className={styles.nextAction} data-background-tray-action="next" type="button" size="icon" variant="glow" aria-label="Next background" disabled={!canGoNext} onClick={onNext}>
           <StepForward aria-hidden="true" />
         </Button>
         <Dialog>
           <DialogTrigger asChild>
-            <Button type="button" className={styles.infoTrigger} size="icon" variant="glow" aria-label={`More information about ${option.label}`} title="Background information">
+            <Button type="button" className={styles.infoTrigger} data-background-tray-action="info" size="icon" variant="glow" aria-label={`More information about ${option.label}`} title="Background information">
               <Info aria-hidden="true" />
             </Button>
           </DialogTrigger>

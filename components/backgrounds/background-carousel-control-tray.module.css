@@ -56,6 +56,10 @@
   display: none;
 }
 
+.primaryAction {
+  min-width: 0;
+}
+
 :global([data-carousel-responsive-profile="short-landscape"]) .tray {
   grid-template-areas:
     "metadata"
@@ -79,4 +83,33 @@
 :global([data-carousel-responsive-profile="short-landscape"]) .actions {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-areas:
+    "previous primary primary"
+    "permanent favorite next"
+    "info info info";
+}
+
+:global([data-carousel-responsive-profile="short-landscape"]) .previousAction {
+  grid-area: previous;
+}
+
+:global([data-carousel-responsive-profile="short-landscape"]) .primaryAction {
+  grid-area: primary;
+}
+
+:global([data-carousel-responsive-profile="short-landscape"]) .permanentAction,
+:global([data-carousel-responsive-profile="short-landscape"]) .ownershipBadge {
+  grid-area: permanent;
+}
+
+:global([data-carousel-responsive-profile="short-landscape"]) .favoriteAction {
+  grid-area: favorite;
+}
+
+:global([data-carousel-responsive-profile="short-landscape"]) .nextAction {
+  grid-area: next;
+}
+
+:global([data-carousel-responsive-profile="short-landscape"]) .infoTrigger {
+  grid-area: info;
 }
