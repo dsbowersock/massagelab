@@ -81,6 +81,20 @@ async function wakeLockRequestCount(page: Page) {
   ).requests)
 }
 
+/** Forces the asynchronous denial notice that competes with first-viewport panel space. */
+async function installWakeLockRejection(page: Page) {
+  await page.addInitScript(() => {
+    Object.defineProperty(Navigator.prototype, "wakeLock", {
+      configurable: true,
+      get: () => ({
+        request: async () => {
+          throw new DOMException("Wake Lock denied for browser QA", "NotAllowedError")
+        },
+      }),
+    })
+  })
+}
+
 async function startProofStation(page: Page, origin = "/music") {
   await page.goto(origin, { waitUntil: "domcontentloaded" })
   await expect(
@@ -713,6 +727,7 @@ test("Clock and Visual docks avoid protected digits at required viewport shapes"
 
 test("Clock and Visual preserve their height caps with useful first-viewport density", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-chromium", "single 539x597 rendered density proof")
+  await installWakeLockRejection(page)
   await page.setViewportSize({ width: 539, height: 597 })
   await openClock(page)
 
@@ -720,6 +735,13 @@ test("Clock and Visual preserve their height caps with useful first-viewport den
     await page.getByRole("button", { name: panelName, exact: true }).click()
     const dock = page.locator("[data-immersive-dock]")
     await expect(dock).toHaveAttribute("data-immersive-panel", panelName.toLowerCase())
+    if (panelName === "Visual") {
+      await expect(dock.getByText(
+        "Screen wake lock was denied. The display will continue normally.",
+        { exact: true },
+      )).toBeVisible()
+      await expect(dock.locator("[data-immersive-dock-header] button:disabled").first()).toBeVisible()
+    }
     await expect.poll(() => page.evaluate(() => {
       const display = document.querySelector<HTMLElement>("[data-protected-display]")
         ?.getBoundingClientRect()
@@ -742,39 +764,62 @@ test("Clock and Visual preserve their height caps with useful first-viewport den
         dockStyle.getPropertyValue("--immersive-visual-viewport-half-height"),
       )
       const dockMaxHeight = Number.parseFloat(dockStyle.maxHeight)
-      const visibleInteractiveCount = Array.from(scrollerElement.querySelectorAll<HTMLElement>(
+      // Header controls remain useful when an async notice pushes the scrollable
+      // body below the fold, so measure the complete visible panel surface.
+      const interactiveElements = Array.from(dockElement.querySelectorAll<HTMLElement>(
         "button, input, select, [role='switch'], [role='slider']",
-      )).filter((element) => {
+      ))
+      const visibleInteractiveElements = interactiveElements.filter((element) => {
         const box = element.getBoundingClientRect()
-        return box.width > 0
+        const visibility = getComputedStyle(element).visibility
+        return visibility !== "hidden"
+          && visibility !== "collapse"
+          && box.width > 0
           && box.height > 0
-          && box.top >= scroller.top - 1
-          && box.bottom <= scroller.bottom + 1
-      }).length
+          && box.top >= dock.top - 1
+          && box.right <= dock.right + 1
+          && box.bottom <= dock.bottom + 1
+          && box.left >= dock.left - 1
+      })
+      const visibleDisabledInteractiveCount = visibleInteractiveElements.filter((element) => (
+        element.matches(":disabled, [aria-disabled='true']")
+      )).length
+      const visibleEnabledInteractiveCount = visibleInteractiveElements.length
+        - visibleDisabledInteractiveCount
 
       return {
+        activePanelName,
         gapPx: Math.round(safeGap),
         dockHeightPx: Math.round(dock.height),
         availableHeightPx: Math.round(availableHeight),
         dockMaxHeightPx: Math.round(dockMaxHeight),
         visualHalfHeightPx: Math.round(visualHalfHeight),
-        visibleInteractiveCount,
+        visibleInteractiveCount: visibleInteractiveElements.length,
+        visibleDisabledInteractiveCount,
+        visibleEnabledInteractiveCount,
+        disabledControlsExcluded: activePanelName !== "visual"
+          || (visibleDisabledInteractiveCount > 0
+            && visibleEnabledInteractiveCount < visibleInteractiveElements.length),
         preservesDisplayGap: safeGap >= 14,
         respectsHeightCap: Number.isFinite(dockMaxHeight)
           && dock.height <= dockMaxHeight + 2,
         respectsVisualHalfHeight: activePanelName !== "visual"
           || (Number.isFinite(visualHalfHeight)
             && dock.height <= visualHalfHeight + 2),
-        usefulFirstViewport: visibleInteractiveCount >= 2,
+        usefulFirstViewport: visibleEnabledInteractiveCount >= 2,
         internallyScrollable: scrollerElement.scrollHeight > scrollerElement.clientHeight,
       }
     })).toEqual({
+      activePanelName: panelName.toLowerCase(),
       gapPx: expect.any(Number),
       dockHeightPx: expect.any(Number),
       availableHeightPx: expect.any(Number),
       dockMaxHeightPx: expect.any(Number),
       visualHalfHeightPx: expect.any(Number),
       visibleInteractiveCount: expect.any(Number),
+      visibleDisabledInteractiveCount: expect.any(Number),
+      visibleEnabledInteractiveCount: expect.any(Number),
+      disabledControlsExcluded: true,
       preservesDisplayGap: true,
       respectsHeightCap: true,
       respectsVisualHalfHeight: true,
