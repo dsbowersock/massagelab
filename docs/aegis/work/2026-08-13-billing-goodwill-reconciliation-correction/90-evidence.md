@@ -12,8 +12,8 @@
 
 ## Pending evidence
 
-- Ready PR #181 remains open and unmerged at pushed head `6badc3c1`. The hosted build passed, while browser QA remained in progress at the last observation.
-- Hosted CodeRabbit completed its exact-head review with four comments. All four were verified valid and corrected locally; focused billing validation passed 78/78 and the combined diff check passed. Correction commit/push, fresh hosted revalidation, and zero unresolved threads remain required before the user merge gate.
+- Ready PR #181 remains open and unmerged. Commit `6b1f8df8` contains and pushes all four verified hosted-review corrections; focused billing validation passed 78/78, typecheck and diff check passed, and independent spec/quality reviews were clean.
+- A fresh substantive local CodeRabbit review of all 14 changed files at `6b1f8df8` raised zero issues. At the last hosted observation, Vercel and CodeQL passed and CI QA remained in progress. The automatic fresh hosted CodeRabbit run was rate-limited before analysis with its next review published as available in 99 minutes; the rate-limited success status is not substantive review evidence. This lifecycle synchronization must be committed and pushed first; retry after that gate plus one minute at the resulting exact head and zero unresolved threads remain required before the user merge gate.
 
 ## Final local review
 

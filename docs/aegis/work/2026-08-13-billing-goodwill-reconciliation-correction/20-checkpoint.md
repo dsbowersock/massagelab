@@ -42,10 +42,13 @@
 - Completed PR entry: final local review classification and lifecycle evidence were committed as `6badc3c1`, pushed, and opened as ready PR #181 against `main`; the PR remains open and unmerged.
 - Hosted at last observation: the build passed and browser QA remained in progress. Hosted CodeRabbit completed an exact-head review and posted four comments.
 - Completed hosted finding correction: all four CodeRabbit comments were verified as valid and corrected locally. Strict RED/GREEN fixed per-actor final-authority fixture counting, the focused billing suite passed 78/78, the shared case table was deduplicated, the Task 4 slice card and pushed-PR lifecycle status were synchronized, and the combined diff check passed.
-- Active: commit and push the reviewed hosted-finding corrections.
-- Pending: complete hosted QA, obtain fresh exact-head CodeRabbit review, resolve every review thread, and stop at the user-controlled merge gate.
+- Completed hosted finding correction commit/push: commit `6b1f8df8` is the pushed correction head in PR #181; focused billing validation passed 78/78, typecheck and diff check passed, and independent spec/quality reviews were clean.
+- Completed fresh local exact-head CodeRabbit: all 14 changed files at `6b1f8df8` were reviewed with zero issues.
+- Hosted at last observation: Vercel and CodeQL passed; CI QA remained in progress. The automatic exact-head CodeRabbit run was rate-limited before analysis with its next review published as available in 99 minutes.
+- Active: commit and push this final lifecycle synchronization, then wait through the published CodeRabbit gate plus a one-minute buffer and request a substantive hosted review at that new exact head.
+- Pending: lifecycle-sync commit/push, complete hosted QA, obtain substantive fresh exact-head CodeRabbit review, resolve every review thread, and stop at the user-controlled merge gate.
 - Blocked on: nothing.
-- Next: commit/push the correction, then recheck hosted status and resolve the superseded review threads.
+- Next: commit/push this lifecycle-only sync; after the rate-limit buffer, request the fresh review at the resulting exact head and do not treat the rate-limited success status as review evidence.
 
 ## ResumeStateHint
 
