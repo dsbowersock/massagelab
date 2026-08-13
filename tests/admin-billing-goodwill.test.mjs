@@ -441,8 +441,8 @@ describe("Admin invoice-credit mutation and reconciliation", () => {
     assert.equal(fixture.stripeRequests.length, 0)
   })
 
-  it("preserves a reconciler's no-ID claim across every creator pre-call failure route", async () => {
-    for (const testCase of CREATOR_PRE_CALL_FAILURE_CASES) {
+  for (const testCase of CREATOR_PRE_CALL_FAILURE_CASES) {
+    it(`preserves a reconciler's no-ID claim across the ${testCase.label} route`, async () => {
       const fixture = createMutationFixture({
         ...testCase.fixtureOverrides,
         concurrentClaimBeforePreCallFailureSettlement: {
@@ -471,11 +471,11 @@ describe("Admin invoice-credit mutation and reconciliation", () => {
         stripeBalanceTransactionId: null,
       }], testCase.label)
       assert.equal(fixture.stripeRequests.length, 0, testCase.label)
-    }
-  })
+    })
+  }
 
-  it("preserves a reconciler's applied transaction across every creator pre-call failure route", async () => {
-    for (const testCase of CREATOR_PRE_CALL_FAILURE_CASES) {
+  for (const testCase of CREATOR_PRE_CALL_FAILURE_CASES) {
+    it(`preserves a reconciler's applied transaction across the ${testCase.label} route`, async () => {
       const fixture = createMutationFixture({
         ...testCase.fixtureOverrides,
         concurrentClaimBeforePreCallFailureSettlement: {
@@ -512,8 +512,8 @@ describe("Admin invoice-credit mutation and reconciliation", () => {
         stripeBalanceTransactionId: null,
       }], testCase.label)
       assert.equal(fixture.stripeRequests.length, 0, testCase.label)
-    }
-  })
+    })
+  }
 
   it("marks an ambiguous create exception RECONCILIATION_REQUIRED without notifying", async () => {
     const fixture = createMutationFixture({ createErrorOnce: new Error("provider payload secret") })
