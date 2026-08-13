@@ -31,14 +31,16 @@
 - Completed Task 3 commit/readback: `4ba4c8b64279ea3c3ef252f4e448067d498c1a85` (`fix: distinguish historical and current Stripe credit`), exactly the three necessary files; the already-faithful security double remained unchanged.
 - Completed Task 4 docs: canonical state/log/runbook/release guidance records exact historical/current evidence, final authority/ownership rules, truthful presentation, unchanged gates, official Stripe links, unambiguous closure/original-rollout branch namespaces, and local/unmerged status.
 - Completed Task 4 reviews: independent spec and quality reviews approved after branch-namespace/readiness corrections; final evidence rechecks approved with no findings.
-- Completed Task 4 focused/adjacent validation: 229/229 passed.
-- Completed Task 4 terminal validation: typecheck; lint with only the existing `app/chimer/running-timer.tsx` Babel large-file note; Prisma validation; full unit 2,476 passed, one intentional skip, zero failed; prebuild Prisma generation; Production build 104/104 pages.
+- Completed corrected-head focused/adjacent validation: 232/232 passed.
+- Completed corrected-head terminal validation: typecheck; lint with only the existing `app/chimer/running-timer.tsx` Babel large-file note; Prisma validation; full unit 2,479 passed, one intentional skip, zero failed; prebuild Prisma generation; Production build 104/104 pages.
 - Completed Task 4 commit/readback: `8fa4e0931d5cbe7c5857caa37a03f3092689703b` (`docs: clarify goodwill reconciliation evidence`), exactly the four canonical docs.
-- Active: commit lifecycle evidence, then request a final whole-branch independent review.
-- Pending: whole-branch review, local exact-head CodeRabbit review, push/PR, hosted checks, fresh exact-head CodeRabbit review, valid fixes, and thread resolution.
-- Pending: whole-branch validation, independent review, push/PR, hosted checks, exact-head CodeRabbit review, valid fixes, and thread resolution.
+- Completed whole-branch review correction: independent review found that a stale creator-side pre-provider failure could overwrite a reconciler's durable claim. Strict TDD added overlap coverage for all five pre-provider routes and centralized the exact creator-only `PREPARED`/null-ID compare-and-set; a lost claim now preserves canonical `RECONCILIATION_REQUIRED` or transaction-bearing `APPLIED` evidence.
+- Completed correction review/commit: focused billing tests passed 77/77, typecheck and diff check passed, independent spec and quality re-reviews were clean, and commit `6bda6746` (`fix: preserve reconciliation ownership`) contains exactly the service and focused test changes.
+- Completed corrected-head comprehensive validation and canonical/lifecycle evidence refresh.
+- Active: clean final whole-branch review, then substantive local exact-head CodeRabbit review.
+- Pending: push/PR, hosted checks, fresh exact-head CodeRabbit review, valid fixes, and thread resolution.
 - Blocked on: nothing.
-- Next: commit this lifecycle record, run final whole-branch review, and enter the PR loop.
+- Next: finish the clean final whole-branch review and substantive local exact-head CodeRabbit review, then enter the PR loop.
 
 ## ResumeStateHint
 

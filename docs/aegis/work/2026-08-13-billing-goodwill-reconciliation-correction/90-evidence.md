@@ -12,8 +12,8 @@
 
 ## Pending evidence
 
-- Lifecycle evidence commit.
-- Whole-branch independent review and local exact-head CodeRabbit review.
+- Clean final whole-branch independent review.
+- Substantive local exact-head CodeRabbit review.
 - Hosted PR checks, fresh exact-head CodeRabbit review, valid-finding resolution, and zero unresolved threads before the user merge gate.
 
 ## Task 1 - historical and current credit evidence
@@ -38,6 +38,16 @@
 - Commit/readback: `45691cd797669d8f81c6fe2705c3941ba6c15ba3`, exactly the four planned Task 2 files.
 - No provider network call, payment mutation, live database action, UI/doc/schema change, or Branch 3 activation occurred.
 
+## Task 2 final-review correction - reconciliation ownership
+
+- The first whole-branch review found a critical stale-owner race: generic creator-side pre-provider failures could overwrite a reconciler's durable claim and falsely record `FAILED_BEFORE_MUTATION` after reconciliation had entered provider work.
+- Strict RED proved the overwrite for both no-ID `RECONCILIATION_REQUIRED` and transaction-bearing `APPLIED` winners across the live gate, Customer read, subscription validation, and stale-credit routes. Follow-up RED also proved that a preserved `APPLIED` winner surfaced a non-returnable-state exception.
+- GREEN centralizes all five definite pre-provider routes, including typed authority denial, behind one exact creator-only compare-and-set matching operation ID, originating actor, target, idempotency key, `PREPARED`, and null transaction ID. CAS loss rereads and preserves canonical state; stored `APPLIED` evidence returns conservatively as `RECONCILIATION_REQUIRED` without changing the transaction ID.
+- Regression coverage asserts the complete predicate, both claim shapes, typed authority-denial propagation, and zero replacement Stripe creates. Independent spec and quality re-reviews returned clean verdicts.
+- Fresh coordinator verification: billing-goodwill tests passed 77/77; typecheck and diff check passed.
+- Commit/readback: `6bda6746` (`fix: preserve reconciliation ownership`), exactly `lib/admin/billing-goodwill.ts` and `tests/admin-billing-goodwill.test.mjs`.
+- No provider network call, payment mutation, live database action, email, browser action, or Branch 3 activation occurred.
+
 ## Task 3 - truthful historical/current presentation
 
 - Strict RED: the UI suites had 28 passes and 3 expected failures for missing projection qualification and stale post-verification resulting-credit wording.
@@ -52,12 +62,12 @@
 
 - Updated canonical project state/log, Admin runbook, and release checklist with exact historical/current evidence, final Admin authority/ownership classification, reconciliation claim, truthful presentation, unchanged gates, Branch 3 sequencing, and official Stripe transaction/idempotency links.
 - Independent documentation spec/quality reviews corrected ambiguous original-rollout versus closure branch numbering and surfaced local validation readiness explicitly; final re-reviews returned clean verdicts.
-- Focused and adjacent Admin/billing/Stripe validation passed 229/229.
+- Corrected-head focused and adjacent Admin/billing/Stripe validation passed 232/232.
 - `npm run typecheck` passed.
 - `npm run lint` passed with only the existing Babel large-file note for `app/chimer/running-timer.tsx`.
 - `npm run prisma:validate` passed; no schema change exists.
-- Full `npm run test` passed 2,476 tests with one intentional skip and zero failures (2,477 total).
+- Corrected-head full `npm run test` passed 2,479 tests with one intentional skip and zero failures (2,480 total).
 - `npm run build` passed; prebuild Prisma generation succeeded and Next generated 104/104 pages.
-- Final documentation evidence rechecks were spec compliant and quality-clean.
+- The earlier committed Task 4 documentation rechecks were spec compliant and quality-clean before the later whole-branch race correction.
 - Task 4 canonical documentation commit/readback: `8fa4e0931d5cbe7c5857caa37a03f3092689703b`, exactly the four planned docs.
 - No live Stripe/provider call, payment mutation, database write, email, browser action, Production activation, or Admin Operations Closure Branch 3 action occurred. The live gate remains closed.
