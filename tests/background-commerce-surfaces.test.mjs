@@ -11,6 +11,7 @@ import {
 } from "../lib/background-commerce-client.js"
 
 const cardPath = new URL("../components/backgrounds/background-carousel-card.tsx", import.meta.url)
+const trayPath = new URL("../components/backgrounds/background-carousel-control-tray.tsx", import.meta.url)
 const carouselPath = new URL("../components/backgrounds/background-carousel.tsx", import.meta.url)
 const selectorPath = new URL("../components/backgrounds/BackgroundSelector.tsx", import.meta.url)
 const setTimerPath = new URL("../app/chimer/set-timer.tsx", import.meta.url)
@@ -66,7 +67,10 @@ describe("production background commerce states", () => {
   })
 
   it("renders ownership, inclusion, cart, reservation, and inactive-status labels", async () => {
-    const source = await readFile(cardPath, "utf8")
+    const [cardSource, traySource] = await Promise.all([
+      readFile(cardPath, "utf8"),
+      readFile(trayPath, "utf8"),
+    ])
     for (const label of [
       "Owned",
       "Purchased",
@@ -81,28 +85,33 @@ describe("production background commerce states", () => {
       "DollarSign",
       "Crown",
     ]) {
-      assert.match(source, new RegExp(label))
+      assert.match(traySource, new RegExp(label))
     }
-    assert.match(source, /Open permanent ownership options for \$\{option\.label\}/)
-    assert.match(source, /commerceState\.showKeepPermanently && onKeepPermanently/)
-    assert.match(source, /\$\{option\.label\} is permanently owned/)
-    assert.match(source, /grid-cols-\[minmax\(0,1fr\)_auto\]/)
-    assert.match(source, /className=\{cn\("shrink-0", purpleGlowClassName\)\}/)
+    assert.match(traySource, /function accessLabel/)
+    assert.match(traySource, /data-background-carousel-controls/)
+    assert.match(traySource, /Open permanent ownership options for \$\{option\.label\}/)
+    assert.match(traySource, /commerceState\.showKeepPermanently && onKeepPermanently/)
+    assert.match(traySource, /\$\{option\.label\} is permanently owned/)
+    assert.doesNotMatch(cardSource, /commerceState|accessLabel|onLockedSelect|onKeepPermanently|data-background-carousel-controls/)
   })
 
   it("presents locked backgrounds as actionable Unlock controls", async () => {
-    const source = await readFile(cardPath, "utf8")
-    assert.match(source, /commerceState\.canSelect/)
-    assert.match(source, /onLockedSelect\?\.\(\)/)
-    assert.match(source, /onSelect\(\)/)
-    assert.match(source, /onClick=\{onKeepPermanently\}/)
-    assert.match(source, /hasActivePermanentOwnership\(commerceState\)/)
-    assert.match(source, /type="button"/)
-    assert.match(source, /locked \? "Unlock"/)
-    assert.match(source, /variant=\{locked \? "default" : "glow"\}/)
-    assert.match(source, /Add now; sign in or create an account at checkout\./)
-    assert.match(source, /locked && detailLevel === "full"/)
-    assert.match(source, /aria-describedby=\{acquisitionHintId\}/)
+    const [cardSource, traySource] = await Promise.all([
+      readFile(cardPath, "utf8"),
+      readFile(trayPath, "utf8"),
+    ])
+    assert.match(traySource, /commerceState\.canSelect/)
+    assert.match(traySource, /onLockedSelect\?\.\(\)/)
+    assert.match(traySource, /onSelect\(\)/)
+    assert.match(traySource, /onClick=\{onKeepPermanently\}/)
+    assert.match(traySource, /hasActivePermanentOwnership\(commerceState\)/)
+    assert.match(traySource, /data-carousel-primary-state/)
+    assert.match(traySource, /\? "Unlock"/)
+    assert.match(traySource, /variant=\{locked \? "default" : "glow"\}/)
+    assert.match(traySource, /Add this background now, then sign in or create an account at checkout\./)
+    assert.match(traySource, /aria-describedby=\{locked \? acquisitionHintId : undefined\}/)
+    assert.match(traySource, /<Lock aria-hidden="true" \/>/)
+    assert.doesNotMatch(cardSource, /<Button|<Lock|<DollarSign|<Crown|data-carousel-primary-action/)
   })
 
   it("feeds the same provider snapshot through the shared carousel adapter", async () => {
