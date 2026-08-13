@@ -37,10 +37,12 @@
 - Completed whole-branch review correction: independent review found that a stale creator-side pre-provider failure could overwrite a reconciler's durable claim. Strict TDD added overlap coverage for all five pre-provider routes and centralized the exact creator-only `PREPARED`/null-ID compare-and-set; a lost claim now preserves canonical `RECONCILIATION_REQUIRED` or transaction-bearing `APPLIED` evidence.
 - Completed correction review/commit: focused billing tests passed 77/77, typecheck and diff check passed, independent spec and quality re-reviews were clean, and commit `6bda6746` (`fix: preserve reconciliation ownership`) contains exactly the service and focused test changes.
 - Completed corrected-head comprehensive validation and canonical/lifecycle evidence refresh.
-- Active: clean final whole-branch review, then substantive local exact-head CodeRabbit review.
+- Completed final whole-branch review: exact range `132b59cd..954b9f68` was clean with no findings; independent focused/adjacent validation passed 232/232 and the committed-range diff check passed.
+- Completed substantive local CodeRabbit review: CLI `0.7.2` reviewed all 14 changed files at exact head `954b9f68` and raised one identity-error transition concern. Independent verification classified the claimed overwrite invalid under the actual same-callback serializable transaction, bounded `P2034` retry, and same-key preparation/VERIFIED-finalization advisory locks; exact predicate conversion remains optional defense-in-depth, not a required correctness fix.
+- Active: commit this review classification and rerun the substantive local review against the resulting documentation-only exact head.
 - Pending: push/PR, hosted checks, fresh exact-head CodeRabbit review, valid fixes, and thread resolution.
 - Blocked on: nothing.
-- Next: finish the clean final whole-branch review and substantive local exact-head CodeRabbit review, then enter the PR loop.
+- Next: complete the documentation-only exact-head review, then enter the PR loop.
 
 ## ResumeStateHint
 

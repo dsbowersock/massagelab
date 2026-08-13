@@ -12,9 +12,16 @@
 
 ## Pending evidence
 
-- Clean final whole-branch independent review.
-- Substantive local exact-head CodeRabbit review.
+- Documentation-only exact-head CodeRabbit rerun after committing the final review classification.
 - Hosted PR checks, fresh exact-head CodeRabbit review, valid-finding resolution, and zero unresolved threads before the user merge gate.
+
+## Final local review
+
+- A fresh independent whole-branch review of `132b59cd..954b9f68` returned clean with no Critical, Important, or Minor findings. Its independent focused and adjacent run passed 232/232, and the exact committed-range diff check passed.
+- Authenticated CodeRabbit CLI `0.7.2` completed a substantive exact-head review of all 14 changed files after two recoverable WebSocket failures on the Windows-mounted worktree; the successful review used a disposable WSL-native clone of exact commit `954b9f68` and base `132b59cd`.
+- CodeRabbit raised one major identity-error transition concern at `lib/admin/billing-goodwill.ts`. The two ID-only writes are real, but the claimed stale production overwrite is invalid: the initial operation read and writes occur in one PostgreSQL `SERIALIZABLE` transaction, the shared owner retries serialization conflicts through bounded `P2034`, and same-key preparation plus VERIFIED finalization use the transaction advisory lock. Intermediate `APPLIED` persistence relies on the serializable row-update conflict rather than that advisory lock. A settlement visible before the snapshot is read directly; a settlement committed after the snapshot aborts and retries the stale writer; a prior identity write is superseded by later `APPLIED` or `VERIFIED` settlement.
+- This differs from the corrected creator/reconciler defect, which carried a stale operation object across separate transactions and therefore required the exact creator-owned compare-and-set. Converting the identity-error writes to predicate updates would be defense-in-depth consistency, not a fix for a confirmed correctness failure, so no application change was made.
+- No provider, database, email, browser, Production activation, or Branch 3 action occurred during review.
 
 ## Task 1 - historical and current credit evidence
 
