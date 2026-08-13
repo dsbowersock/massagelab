@@ -270,6 +270,7 @@ describe("Admin invoice-credit mutation and reconciliation", () => {
         status: "VERIFIED",
         amountCents,
         endingCreditCents: 300 + amountCents,
+        currentCreditCents: 300 + amountCents,
         replayed: false,
         emailIntentId: "intent-1",
       })
@@ -321,6 +322,7 @@ describe("Admin invoice-credit mutation and reconciliation", () => {
       status: "FAILED_BEFORE_MUTATION",
       amountCents: 500,
       endingCreditCents: null,
+      currentCreditCents: null,
       replayed: false,
       emailIntentId: null,
     })
@@ -334,7 +336,8 @@ describe("Admin invoice-credit mutation and reconciliation", () => {
     const created = await apply(fixture)
     const replayed = await apply(fixture)
 
-    assert.deepEqual(replayed, { ...created, replayed: true })
+    assert.equal(created.currentCreditCents, 800)
+    assert.deepEqual(replayed, { ...created, currentCreditCents: null, replayed: true })
     assert.equal(fixture.stripeRequests.length, 1)
     assert.equal(fixture.state.actions.size, 1)
     assert.equal(fixture.state.activities.size, 1)
@@ -536,23 +539,123 @@ describe("Admin invoice-credit mutation and reconciliation", () => {
     }
   })
 
-  it("verifies an exact historical transaction after later Customer balance activity", async () => {
+  it("separates an exact historical transaction ending from the current Customer credit", async () => {
     const fixture = createMutationFixture({
-      transactionRetrieveErrorOnce: new Error("initial readback unavailable"),
-      readbackCustomerOverrides: { balance: 250 },
+      amountCents: 300,
+      customerBalance: -125,
+      transactionOverrides: { ending_balance: -650 },
     })
-    assert.equal((await apply(fixture)).status, "RECONCILIATION_REQUIRED")
+    seedUnresolvedOperation(fixture, { status: "APPLIED", stripeBalanceTransactionId: "cbtxn_test" })
+    fixture.state.operations.get("billing-op-1").startingBalanceCents = 500
 
-    const result = await reconcile(fixture)
+    const result = await reconcile(fixture, { expectedStartingCreditCents: 500 })
 
-    assert.equal(result.status, "VERIFIED")
-    assert.equal(result.endingCreditCents, 800)
-    assert.equal(fixture.stripeRequests.length, 1)
+    assert.deepEqual(result, {
+      operationId: "goodwill-1",
+      status: "VERIFIED",
+      amountCents: 300,
+      endingCreditCents: 650,
+      currentCreditCents: 125,
+      replayed: true,
+      emailIntentId: "intent-1",
+    })
+    assert.equal(fixture.state.operations.get("billing-op-1").endingBalanceCents, 650)
+    assert.equal(fixture.stripeRequests.length, 0)
     assert.equal(fixture.stripeCalls.includes("transactions.retrieve:cus_test:cbtxn_test"), true)
     const action = fixture.state.actions.get("billing-op-1")
-    assert.match(action.activity.explanation, /balance immediately after this credit was \$8\.00/)
-    assert.match(action.emailIntent.message, /balance immediately after this credit was \$8\.00/)
+    assert.match(action.activity.explanation, /balance immediately after this credit was \$6\.50/)
+    assert.match(action.emailIntent.message, /balance immediately after this credit was \$6\.50/)
     assert.doesNotMatch(`${action.activity.explanation} ${action.emailIntent.message}`, /invoice credit is now/i)
+
+    const providerCallCount = fixture.stripeCalls.length
+    const localReplay = await apply(fixture, { expectedStartingCreditCents: 500 })
+    assert.deepEqual(localReplay, { ...result, currentCreditCents: null })
+    assert.equal(fixture.stripeCalls.length, providerCallCount)
+  })
+
+  it("verifies first settlement when provider activity separates transaction and current balances", async () => {
+    const fixture = createMutationFixture({
+      amountCents: 300,
+      customerBalance: -500,
+      transactionOverrides: { ending_balance: -650 },
+      readbackCustomerOverrides: { balance: -125 },
+    })
+
+    const result = await apply(fixture, { expectedStartingCreditCents: 500 })
+
+    assert.deepEqual(result, {
+      operationId: "goodwill-1",
+      status: "VERIFIED",
+      amountCents: 300,
+      endingCreditCents: 650,
+      currentCreditCents: 125,
+      replayed: false,
+      emailIntentId: "intent-1",
+    })
+    assert.equal(fixture.state.operations.get("billing-op-1").endingBalanceCents, 650)
+    assert.equal(fixture.stripeRequests.length, 1)
+  })
+
+  it("verifies exact historical evidence when the refreshed Customer is unavailable", async () => {
+    const fixture = createMutationFixture({
+      readbackCustomerRetrieveError: new Error("current Customer unavailable"),
+    })
+
+    const result = await apply(fixture)
+
+    assert.deepEqual(result, {
+      operationId: "goodwill-1",
+      status: "VERIFIED",
+      amountCents: 500,
+      endingCreditCents: 800,
+      currentCreditCents: null,
+      replayed: false,
+      emailIntentId: "intent-1",
+    })
+    assert.equal(fixture.state.operations.get("billing-op-1").endingBalanceCents, 800)
+    assert.equal(fixture.state.actions.get("billing-op-1").afterState.endingCreditCents, 800)
+    assert.equal(fixture.stripeRequests.length, 1)
+  })
+
+  it("verifies exact historical evidence when the refreshed Customer has a safe debit balance", async () => {
+    const fixture = createMutationFixture({ readbackCustomerOverrides: { balance: 125 } })
+
+    const result = await apply(fixture)
+
+    assert.deepEqual(result, {
+      operationId: "goodwill-1",
+      status: "VERIFIED",
+      amountCents: 500,
+      endingCreditCents: 800,
+      currentCreditCents: null,
+      replayed: false,
+      emailIntentId: "intent-1",
+    })
+    assert.equal(fixture.state.operations.get("billing-op-1").endingBalanceCents, 800)
+    assert.equal(fixture.state.actions.get("billing-op-1").afterState.endingCreditCents, 800)
+    assert.equal(fixture.stripeRequests.length, 1)
+  })
+
+  it("fails closed for malformed refreshed Customer observations", async () => {
+    const cases = [
+      { label: "wrong ID", overrides: { id: "cus_other" } },
+      { label: "deleted", overrides: { deleted: true } },
+      { label: "wrong mode", overrides: { livemode: true } },
+      { label: "fractional balance", overrides: { balance: -0.5 } },
+      { label: "unsafe balance", overrides: { balance: Number.MAX_SAFE_INTEGER + 1 } },
+      { label: "non-number balance", overrides: { balance: "-800" } },
+    ]
+
+    for (const testCase of cases) {
+      const fixture = createMutationFixture({ readbackCustomerOverrides: testCase.overrides })
+      const result = await apply(fixture)
+
+      assert.equal(result.status, "RECONCILIATION_REQUIRED", testCase.label)
+      assert.equal(result.currentCreditCents, null, testCase.label)
+      assert.equal(fixture.state.operations.get("billing-op-1").failureCode, "STRIPE_CUSTOMER_INVALID", testCase.label)
+      assert.equal(fixture.stripeRequests.length, 1, testCase.label)
+      assert.equal(fixture.state.actions.size, 0, testCase.label)
+    }
   })
 
   it("lets another current full Admin reconcile while preserving the originating actor", async () => {
@@ -607,29 +710,34 @@ describe("Admin invoice-credit mutation and reconciliation", () => {
     assert.equal(fixture.state.intents.size, 1)
   })
 
-  it("requires the returned transaction to be the exact negative USD credit", async () => {
-    for (const transactionOverrides of [
-      { amount: 500 },
-      { amount: -499 },
-      { currency: "eur" },
-    ]) {
-      const fixture = createMutationFixture({ transactionOverrides })
-      const result = await apply(fixture)
-      assert.equal(result.status, "RECONCILIATION_REQUIRED")
-      assert.equal(fixture.state.operations.get("billing-op-1").failureCode, "STRIPE_TRANSACTION_INVALID")
-      assert.equal(fixture.state.intents.size, 0)
-    }
-  })
+  it("keeps every unsafe exact-transaction mismatch unresolved without a replacement", async () => {
+    const cases = [
+      { label: "wrong transaction ID", transactionOverrides: { id: "cbtxn_other" } },
+      { label: "wrong Customer", transactionOverrides: { customer: "cus_other" } },
+      { label: "positive ending balance", transactionOverrides: { ending_balance: 1 } },
+      { label: "unsafe ending balance", transactionOverrides: { ending_balance: Number.MAX_SAFE_INTEGER + 1 } },
+      { label: "wrong currency", transactionOverrides: { currency: "eur" } },
+      { label: "wrong amount", transactionOverrides: { amount: -499 } },
+      { label: "wrong mode", transactionOverrides: { livemode: true } },
+    ]
 
-  it("rejects transaction or customer identity mismatches during authoritative readback", async () => {
-    for (const overrides of [
-      { transactionOverrides: { customer: "cus_other" } },
-      { readbackCustomerOverrides: { id: "cus_other" } },
-    ]) {
-      const fixture = createMutationFixture(overrides)
-      const result = await apply(fixture)
-      assert.equal(result.status, "RECONCILIATION_REQUIRED")
-      assert.equal(fixture.state.intents.size, 0)
+    for (const testCase of cases) {
+      const fixture = createMutationFixture({ transactionOverrides: testCase.transactionOverrides })
+      const first = await apply(fixture)
+      const replay = await reconcile(fixture)
+      const operation = fixture.state.operations.get("billing-op-1")
+
+      assert.equal(first.status, "RECONCILIATION_REQUIRED", testCase.label)
+      assert.equal(replay.status, "RECONCILIATION_REQUIRED", testCase.label)
+      assert.equal(operation.failureCode, "STRIPE_TRANSACTION_INVALID", testCase.label)
+      assert.deepEqual(
+        Object.keys(operation).filter((key) => key.toLowerCase().includes("failure")),
+        ["failureCode"],
+        testCase.label,
+      )
+      assert.equal(fixture.stripeRequests.length, 1, testCase.label)
+      assert.equal(fixture.state.actions.size, 0, testCase.label)
+      assert.equal(fixture.state.intents.size, 0, testCase.label)
     }
   })
 
@@ -682,11 +790,35 @@ describe("Admin invoice-credit mutation and reconciliation", () => {
 
     assert.equal(result.status, "RECONCILIATION_REQUIRED")
     assert.equal(result.emailIntentId, null)
+    assert.equal(result.currentCreditCents, 800)
     assert.equal(fixture.state.operations.get("billing-op-1").failureCode, "LOCAL_VERIFICATION_WRITE_FAILED")
     assert.equal(fixture.stripeRequests.length, 1)
     assert.equal(fixture.state.actions.size, 0)
     assert.equal(fixture.state.activities.size, 0)
     assert.equal(fixture.state.intents.size, 0)
+  })
+
+  it("retains the fresh current credit when a concurrent verifier wins failure settlement", async () => {
+    const fixture = createMutationFixture({
+      failBundleWrite: true,
+      concurrentVerifiedBeforeFailureSettlement: true,
+    })
+
+    const result = await apply(fixture)
+
+    assert.deepEqual(result, {
+      operationId: "goodwill-1",
+      status: "VERIFIED",
+      amountCents: 500,
+      endingCreditCents: 800,
+      currentCreditCents: 800,
+      replayed: true,
+      emailIntentId: "intent-1",
+    })
+    assert.equal(fixture.stripeRequests.length, 1)
+    assert.equal(fixture.state.operations.get("billing-op-1").failureCode, null)
+    assert.equal(fixture.state.actions.size, 1)
+    assert.equal(fixture.state.intents.size, 1)
   })
 
   it("surfaces safe mutation errors without provider payloads", async () => {
@@ -786,6 +918,7 @@ function createMutationFixture(overrides = {}) {
   let transactionRetrieveAttempts = 0
   let preparedConflictUsed = false
   let created = false
+  let concurrentBundle = null
   let currentBalance = overrides.customerBalance ?? -300
   const livemode = overrides.livemode ?? false
   let transactionTail = Promise.resolve()
@@ -899,6 +1032,20 @@ function createMutationFixture(overrides = {}) {
       async updateMany({ where, data }) {
         const row = [...state.operations.values()].find((operation) => operation.id === where.id)
         const allowedStatuses = where.status?.in ?? (where.status ? [where.status] : null)
+        if (row
+          && data.failureCode === "LOCAL_VERIFICATION_WRITE_FAILED"
+          && overrides.concurrentVerifiedBeforeFailureSettlement
+          && concurrentBundle) {
+          Object.assign(row, {
+            status: "VERIFIED",
+            endingBalanceCents: concurrentBundle.action.afterState.endingCreditCents,
+            failureCode: null,
+            verifiedAt: new Date("2026-08-08T00:02:00.000Z"),
+          })
+          state.actions.set("billing-op-1", concurrentBundle.action)
+          state.activities.set(concurrentBundle.action.id, concurrentBundle.action.activity)
+          state.intents.set(concurrentBundle.action.id, concurrentBundle.emailIntent)
+        }
         if (!row || (allowedStatuses && !allowedStatuses.includes(row.status))) return { count: 0 }
         Object.assign(row, structuredClone(data))
         return { count: 1 }
@@ -925,13 +1072,22 @@ function createMutationFixture(overrides = {}) {
     },
     adminEmailIntent: {
       async create({ data }) {
-        if (overrides.failBundleWrite) throw new Error("intent write failed")
         const row = {
           id: "intent-1",
           attemptCount: 0,
           lastAttemptAt: null,
           deliveredAt: null,
           ...structuredClone(data),
+        }
+        if (overrides.failBundleWrite) {
+          if (overrides.concurrentVerifiedBeforeFailureSettlement) {
+            const action = [...state.actions.values()].find((candidate) => candidate.id === data.adminActionId)
+            concurrentBundle = {
+              action: { ...structuredClone(action), emailIntent: structuredClone(row) },
+              emailIntent: structuredClone(row),
+            }
+          }
+          throw new Error("intent write failed")
         }
         state.intents.set(data.adminActionId, row)
         const action = [...state.actions.values()].find((candidate) => candidate.id === data.adminActionId)
@@ -948,6 +1104,7 @@ function createMutationFixture(overrides = {}) {
         overrides.onCustomerRetrieve?.()
         if (overrides.customerRetrieveGate) await overrides.customerRetrieveGate
         if (overrides.customerRetrieveError) throw overrides.customerRetrieveError
+        if (created && overrides.readbackCustomerRetrieveError) throw overrides.readbackCustomerRetrieveError
         return {
           id: customerId,
           deleted: false,
