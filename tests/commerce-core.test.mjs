@@ -225,6 +225,72 @@ describe("Commerce domain contracts", () => {
     assert.equal(transactionCalls, 2)
   })
 
+  for (const originalCode of ["40P01", "55P03"]) {
+    it(`retries Prisma adapter P2039 transactions for nested ${originalCode}`, async () => {
+      let transactionCalls = 0
+      const adapterError = {
+        code: "P2039",
+        meta: {
+          driverAdapterError: {
+            cause: { originalCode },
+          },
+        },
+      }
+      const prisma = {
+        async $transaction(callback) {
+          transactionCalls += 1
+          if (transactionCalls === 1) throw adapterError
+          return callback({ startedAt: "adapter-retry" })
+        },
+      }
+
+      const result = await runCommerceTransaction(prisma, async (tx) => tx.startedAt)
+
+      assert.equal(result, "adapter-retry")
+      assert.equal(transactionCalls, 2)
+    })
+  }
+
+  for (const [name, error] of [
+    ["an unrelated nested code", {
+      code: "P2039",
+      meta: { driverAdapterError: { cause: { originalCode: "40001" } } },
+    }],
+    ["an adapter-wrapped uniqueness code", {
+      code: "P2039",
+      meta: { driverAdapterError: { cause: { originalCode: "23505" } } },
+    }],
+    ["a missing nested code", { code: "P2039", meta: {} }],
+    ["a malformed nested cause", {
+      code: "P2039",
+      meta: { driverAdapterError: { cause: "40P01" } },
+    }],
+    ["a provider message containing a retry code", {
+      code: "P2039",
+      message: "deadlock detected (40P01)",
+    }],
+    ["a uniqueness error with retry-looking metadata", {
+      code: "P2002",
+      meta: { driverAdapterError: { cause: { originalCode: "40P01" } } },
+    }],
+  ]) {
+    it(`does not retry ${name}`, async () => {
+      let transactionCalls = 0
+      const prisma = {
+        async $transaction() {
+          transactionCalls += 1
+          throw error
+        },
+      }
+
+      await assert.rejects(
+        () => runCommerceTransaction(prisma, async () => "unreachable"),
+        (caught) => caught === error,
+      )
+      assert.equal(transactionCalls, 1)
+    })
+  }
+
   it("caps caller-supplied transaction retries at three total attempts", async () => {
     let transactionCalls = 0
     const conflict = Object.assign(new Error("conflict"), { code: "P2034" })

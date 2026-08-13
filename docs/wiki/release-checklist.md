@@ -21,6 +21,14 @@ npm run test:browser -- tests/browser/public-routes.spec.ts --project=desktop-ch
 
 Then walk [../alpha-qa.md](../alpha-qa.md) with anonymous test data where it still applies.
 
+## Password-reset integrity gate
+
+- Confirm one successful reset-link consumption changes the password credential, consumes every outstanding reset link for the account, increments `User.authSessionVersion` exactly once, and deletes Prisma `Session` rows for compatibility in one transaction. Rollback evidence must leave all four effects unchanged, and same-link or different-link races must permit only one successful password change.
+- Apply the same consumption contract to self-service and Admin-requested links. Link consumption must not create an Admin action, target Activity entry, or account-change email intent; an Admin-requested reset retains the immutable request-time evidence and creates no second Admin evidence bundle.
+- Confirm an old JWT is rejected when it next reaches a successful database-backed refresh. Report Prisma `Session` deletion only as adapter-compatibility cleanup; its row count is not an active-JWT count or an exact signed-out-user count.
+- Run the focused password-reset confirmation, route, auth-security, auth-session-version, Admin security-service, and Admin security-UI tests before the comprehensive gate. Do not expose reset links, credentials, hashes, tokens, email addresses, database rows, or session artifacts in release evidence.
+- Completed 2026-08-11: Prisma client generation, all 69 focused and adjacent tests, typecheck, lint with only the existing Babel large-file note, the full 2,447-test suite with 2,446 passes and one intentional skip, the 104-page Production build, and `git diff --check` passed.
+
 ## Production Billing Gate
 
 Before changing the live catalog or running any live paid smoke:
