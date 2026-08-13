@@ -22,6 +22,10 @@ const backgroundCarouselSource = readFileSync(
   new URL("../components/backgrounds/background-carousel.tsx", import.meta.url),
   "utf8",
 )
+const backgroundControlTraySource = readFileSync(
+  new URL("../components/backgrounds/background-carousel-control-tray.tsx", import.meta.url),
+  "utf8",
+)
 
 describe("production adaptive carousel", () => {
   it("uses three Background renderers only in short landscape", () => {
@@ -72,19 +76,19 @@ describe("production adaptive carousel", () => {
     )
   })
 
-  it("offers one accessible carousel-wide preview toggle above the unchanged stage", () => {
-    const toggleContract = 'aria-pressed={previewPlaybackActive}'
-    const toggleIndex = backgroundCarouselSource.indexOf(toggleContract)
-    const stageIndex = backgroundCarouselSource.indexOf("<AdaptiveCarouselStage")
+  it("offers one tray-owned Animated previews switch wired to the saved preference", () => {
+    const switchContract = 'label="Animated previews"'
 
-    assert.notEqual(toggleIndex, -1)
     assert.equal(
-      backgroundCarouselSource.split(toggleContract).length - 1,
+      backgroundControlTraySource.split(switchContract).length - 1,
       1,
-      "the Background carousel renders exactly one carousel-wide preview toggle",
+      "the Background control tray renders exactly one Animated previews switch",
     )
-    assert.notEqual(stageIndex, -1)
-    assert.ok(toggleIndex < stageIndex, "the preview toggle is rendered above the stage")
+    assert.match(backgroundControlTraySource, /checked=\{previewPreferenceEnabled\}/)
+    assert.match(backgroundControlTraySource, /onCheckedChange=\{onPreviewPreferenceChange\}/)
+    assert.match(backgroundCarouselSource, /<BackgroundCarouselControlTray[\s\S]*previewPreferenceEnabled=\{previewPreferenceEnabled\}/)
+    assert.match(backgroundCarouselSource, /onPreviewPreferenceChange=\{setPreviewPreferenceEnabled\}/)
+    assert.doesNotMatch(backgroundCarouselSource, /aria-pressed=\{previewPlaybackActive\}/)
   })
 
   it("bounds non-looping renderers at the collection edges", () => {
