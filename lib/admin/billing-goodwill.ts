@@ -496,7 +496,7 @@ async function executeGoodwillRequest(
     })
   } catch (error) {
     if (error instanceof AdminAuthorityDeniedError && !prepared.replayed) {
-      await persistOwnedAuthorityRevocation(input.prismaClient, operation, input)
+      await persistCreatorOwnedPreCallFailure(input.prismaClient, operation, "ADMIN_AUTHORITY_REVOKED")
     }
     throw error
   }
@@ -896,34 +896,43 @@ async function persistPreCallFailure(
   failureCode: string,
   possiblyCommitted: boolean,
 ): Promise<BillingGoodwillOperation> {
-  const definitelyNotMutated = operation.status === "PREPARED" && !possiblyCommitted
+  if (!possiblyCommitted) {
+    return persistCreatorOwnedPreCallFailure(prismaClient, operation, failureCode)
+  }
   return persistGoodwillState(prismaClient, operation.id, {
-    status: definitelyNotMutated ? "FAILED_BEFORE_MUTATION" : "RECONCILIATION_REQUIRED",
+    status: "RECONCILIATION_REQUIRED",
     failureCode,
   }, [...BILLING_GOODWILL_UNRESOLVED_STATUSES])
 }
 
-/** Marks only this invocation's still-unattempted prepared request as revoked. */
-async function persistOwnedAuthorityRevocation(
+/**
+ * Marks a definite pre-provider failure only while the originating invocation
+ * still owns the exact never-attempted request. A lost CAS rereads and
+ * preserves the reconciler's canonical state instead of downgrading it.
+ */
+async function persistCreatorOwnedPreCallFailure(
   prismaClient: PrismaClient,
   operation: BillingGoodwillOperation,
-  input: BillingGoodwillMutationInput,
-): Promise<void> {
-  await runBillingGoodwillTransaction(prismaClient, async (tx) => {
+  failureCode: string,
+): Promise<BillingGoodwillOperation> {
+  return runBillingGoodwillTransaction(prismaClient, async (tx) => {
     await tx.adminBillingGoodwillOperation.updateMany({
       where: {
         id: operation.id,
-        actorUserId: input.actorUserId,
-        targetUserId: input.targetUserId,
-        idempotencyKey: input.idempotencyKey,
+        actorUserId: operation.actorUserId,
+        targetUserId: operation.targetUserId,
+        idempotencyKey: operation.idempotencyKey,
         status: "PREPARED",
         stripeBalanceTransactionId: null,
       },
       data: {
         status: "FAILED_BEFORE_MUTATION",
-        failureCode: "ADMIN_AUTHORITY_REVOKED",
+        failureCode,
       },
     })
+    const current = await tx.adminBillingGoodwillOperation.findUnique({ where: { id: operation.id } })
+    if (!current) throw new Error("Billing goodwill operation was not found.")
+    return current as BillingGoodwillOperation
   })
 }
 
@@ -953,6 +962,19 @@ async function settlePersistedOutcome(
 ): Promise<BillingGoodwillResult> {
   if (operation.status === "VERIFIED") {
     return finalizeVerifiedGoodwill(input, operation.endingBalanceCents, prepared.recipientEmail, true, currentCreditCents)
+  }
+  // APPLIED is intentionally retained as canonical transaction evidence, but
+  // remains operator-unresolved until authoritative readback verifies it.
+  if (operation.status === "APPLIED") {
+    return {
+      operationId: operation.id,
+      status: "RECONCILIATION_REQUIRED",
+      amountCents: operation.amountCents,
+      endingCreditCents: null,
+      currentCreditCents: null,
+      replayed: prepared.replayed,
+      emailIntentId: null,
+    }
   }
   return operationResult(operation, prepared.replayed, null, currentCreditCents)
 }

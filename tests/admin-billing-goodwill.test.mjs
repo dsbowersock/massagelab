@@ -418,6 +418,126 @@ describe("Admin invoice-credit mutation and reconciliation", () => {
     assert.equal(fixture.stripeRequests.length, 0)
   })
 
+  it("preserves a reconciler's no-ID claim across every creator pre-call failure route", async () => {
+    const cases = [
+      {
+        label: "closed live gate",
+        failureCode: "LIVE_STRIPE_DISABLED",
+        applyOverrides: { env: { STRIPE_SECRET_KEY: "sk_live_example" } },
+      },
+      {
+        label: "Customer retrieval",
+        failureCode: "STRIPE_CUSTOMER_INVALID",
+        fixtureOverrides: { customerRetrieveError: new Error("customer unavailable") },
+      },
+      {
+        label: "subscription validation",
+        failureCode: "STRIPE_SUBSCRIPTION_INVALID",
+        fixtureOverrides: { subscriptionCurrency: "eur" },
+      },
+      {
+        label: "stale starting credit",
+        failureCode: "STARTING_CREDIT_CHANGED",
+        fixtureOverrides: { customerBalance: -301 },
+      },
+    ]
+
+    for (const testCase of cases) {
+      const fixture = createMutationFixture({
+        ...testCase.fixtureOverrides,
+        concurrentClaimBeforePreCallFailureSettlement: {
+          failureCode: testCase.failureCode,
+          status: "RECONCILIATION_REQUIRED",
+          persistedFailureCode: "RECONCILER_PROVIDER_ATTEMPT",
+        },
+      })
+
+      const result = await apply(fixture, testCase.applyOverrides)
+      const operation = fixture.state.operations.get("billing-op-1")
+
+      assert.equal(result.status, "RECONCILIATION_REQUIRED", testCase.label)
+      assert.equal(operation.status, "RECONCILIATION_REQUIRED", testCase.label)
+      assert.equal(operation.failureCode, "RECONCILER_PROVIDER_ATTEMPT", testCase.label)
+      assert.equal(operation.stripeBalanceTransactionId, null, testCase.label)
+      assert.equal(operation.actorUserId, "admin-1", testCase.label)
+      assert.equal(operation.targetUserId, "user-1", testCase.label)
+      assert.equal(operation.idempotencyKey, "billing-op-1", testCase.label)
+      assert.deepEqual(fixture.state.preCallFailureWhereClauses, [{
+        id: "goodwill-1",
+        actorUserId: "admin-1",
+        targetUserId: "user-1",
+        idempotencyKey: "billing-op-1",
+        status: "PREPARED",
+        stripeBalanceTransactionId: null,
+      }], testCase.label)
+      assert.equal(fixture.stripeRequests.length, 0, testCase.label)
+    }
+  })
+
+  it("preserves a reconciler's applied transaction across every creator pre-call failure route", async () => {
+    const cases = [
+      {
+        label: "closed live gate",
+        failureCode: "LIVE_STRIPE_DISABLED",
+        applyOverrides: { env: { STRIPE_SECRET_KEY: "sk_live_example" } },
+      },
+      {
+        label: "Customer retrieval",
+        failureCode: "STRIPE_CUSTOMER_INVALID",
+        fixtureOverrides: { customerRetrieveError: new Error("customer unavailable") },
+      },
+      {
+        label: "subscription validation",
+        failureCode: "STRIPE_SUBSCRIPTION_INVALID",
+        fixtureOverrides: { subscriptionCurrency: "eur" },
+      },
+      {
+        label: "stale starting credit",
+        failureCode: "STARTING_CREDIT_CHANGED",
+        fixtureOverrides: { customerBalance: -301 },
+      },
+    ]
+
+    for (const testCase of cases) {
+      const fixture = createMutationFixture({
+        ...testCase.fixtureOverrides,
+        concurrentClaimBeforePreCallFailureSettlement: {
+          failureCode: testCase.failureCode,
+          status: "APPLIED",
+          stripeBalanceTransactionId: "cbtxn_reconciler",
+        },
+      })
+
+      const result = await apply(fixture, testCase.applyOverrides)
+      const operation = fixture.state.operations.get("billing-op-1")
+
+      assert.deepEqual(result, {
+        operationId: "goodwill-1",
+        status: "RECONCILIATION_REQUIRED",
+        amountCents: 500,
+        endingCreditCents: null,
+        currentCreditCents: null,
+        replayed: false,
+        emailIntentId: null,
+      }, testCase.label)
+      assert.equal(operation.status, "APPLIED", testCase.label)
+      assert.equal(operation.failureCode, null, testCase.label)
+      assert.equal(operation.stripeBalanceTransactionId, "cbtxn_reconciler", testCase.label)
+      assert.equal(operation.actorUserId, "admin-1", testCase.label)
+      assert.equal(operation.targetUserId, "user-1", testCase.label)
+      assert.equal(operation.idempotencyKey, "billing-op-1", testCase.label)
+      assert.deepEqual(fixture.state.preCallFailureWhereClauses, [{
+        id: "goodwill-1",
+        actorUserId: "admin-1",
+        targetUserId: "user-1",
+        idempotencyKey: "billing-op-1",
+        status: "PREPARED",
+        stripeBalanceTransactionId: null,
+      }], testCase.label)
+      assert.equal(fixture.stripeRequests.length, 0, testCase.label)
+    }
+  })
+
   it("marks an ambiguous create exception RECONCILIATION_REQUIRED without notifying", async () => {
     const fixture = createMutationFixture({ createErrorOnce: new Error("provider payload secret") })
     const result = await apply(fixture)
@@ -658,6 +778,36 @@ describe("Admin invoice-credit mutation and reconciliation", () => {
     assert.equal(replay.state.operations.get("billing-op-1").status, "RECONCILIATION_REQUIRED")
     assert.equal(replay.state.operations.get("billing-op-1").failureCode, null)
     assert.equal(replay.stripeRequests.length, 0)
+  })
+
+  it("propagates typed authority denial without downgrading a concurrent applied transaction", async () => {
+    const authorityStarted = deferred()
+    const authorityGate = deferred()
+    const fixture = createMutationFixture({
+      onFinalAuthorityLoad: () => authorityStarted.resolve(),
+      finalAuthorityGate: authorityGate.promise,
+    })
+    const resultPromise = apply(fixture)
+    await authorityStarted.promise
+
+    Object.assign(fixture.state.operations.get("billing-op-1"), {
+      status: "APPLIED",
+      stripeBalanceTransactionId: "cbtxn_reconciler",
+      failureCode: null,
+      appliedAt: new Date("2026-08-08T00:01:00.000Z"),
+    })
+    fixture.revokeAdmin("admin-1")
+    authorityGate.resolve()
+
+    await assert.rejects(
+      () => resultPromise,
+      (error) => error instanceof AdminAuthorityDeniedError,
+    )
+    const operation = fixture.state.operations.get("billing-op-1")
+    assert.equal(operation.status, "APPLIED")
+    assert.equal(operation.stripeBalanceTransactionId, "cbtxn_reconciler")
+    assert.equal(operation.failureCode, null)
+    assert.equal(fixture.stripeRequests.length, 0)
   })
 
   it("keeps a creator revocation unresolved once a different reconciler durably enters the provider attempt", async () => {
@@ -1059,6 +1209,7 @@ function createMutationFixture(overrides = {}) {
     activities: new Map(),
     intents: new Map(),
     transactionAttempts: 0,
+    preCallFailureWhereClauses: [],
   }
   if (overrides.unrelatedAdminAction) {
     state.actions.set("billing-op-1", {
@@ -1209,6 +1360,15 @@ function createMutationFixture(overrides = {}) {
       async updateMany({ where, data }) {
         const row = [...state.operations.values()].find((operation) => operation.id === where.id)
         const allowedStatuses = where.status?.in ?? (where.status ? [where.status] : null)
+        const concurrentClaim = overrides.concurrentClaimBeforePreCallFailureSettlement
+        if (row && concurrentClaim && concurrentClaim.failureCode === data.failureCode) {
+          state.preCallFailureWhereClauses.push(structuredClone(where))
+          Object.assign(row, {
+            status: concurrentClaim.status,
+            failureCode: concurrentClaim.persistedFailureCode ?? null,
+            stripeBalanceTransactionId: concurrentClaim.stripeBalanceTransactionId ?? null,
+          })
+        }
         if (row
           && data.failureCode === "LOCAL_VERIFICATION_WRITE_FAILED"
           && overrides.concurrentVerifiedBeforeFailureSettlement
