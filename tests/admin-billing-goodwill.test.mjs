@@ -10,6 +10,9 @@ import {
   previewInvoiceCredit,
   reconcileInvoiceCredit,
 } from "../lib/admin/billing-goodwill.ts"
+import * as adminAccess from "../lib/admin/access.ts"
+
+const { AdminAuthorityDeniedError } = adminAccess
 
 const schemaSource = await readFile(new URL("../prisma/schema.prisma", import.meta.url), "utf8")
 const moduleSource = await readFile(new URL("../lib/admin/billing-goodwill.ts", import.meta.url), "utf8")
@@ -573,6 +576,151 @@ describe("Admin invoice-credit mutation and reconciliation", () => {
     assert.equal(fixture.stripeCalls.length, providerCallCount)
   })
 
+  it("rejects typed denial when revoked before provider creation and records owned failure", async () => {
+    assert.equal(typeof AdminAuthorityDeniedError, "function")
+    const authorityLoadStarted = deferred()
+    const authorityGate = deferred()
+    const fixture = createMutationFixture({
+      onFinalAuthorityLoad: () => authorityLoadStarted.resolve(),
+      finalAuthorityGate: authorityGate.promise,
+    })
+    const resultPromise = apply(fixture)
+    await authorityLoadStarted.promise
+
+    fixture.revokeAdmin("admin-1")
+    authorityGate.resolve()
+
+    await assert.rejects(
+      () => resultPromise,
+      (error) => error instanceof AdminAuthorityDeniedError
+        && error.message === "Full administration requires verified database authority.",
+    )
+    assert.equal(fixture.stripeCalls.includes("customers.retrieve:cus_test"), true)
+    assert.equal(fixture.stripeCalls.includes("subscriptions.retrieve:sub_test"), true)
+    assert.equal(fixture.stripeRequests.length, 0)
+    assert.equal(fixture.state.operations.get("billing-op-1").status, "FAILED_BEFORE_MUTATION")
+    assert.equal(fixture.state.operations.get("billing-op-1").failureCode, "ADMIN_AUTHORITY_REVOKED")
+  })
+
+  it("keeps authority infrastructure failures unresolved and retryable without provider creation", async () => {
+    for (const failure of [
+      new Error("database target@example.test outage"),
+      Object.assign(new Error("adapter secret"), { code: "P1001" }),
+      Object.assign(new Error("timed out with raw details"), { name: "TimeoutError" }),
+      { unexpected: "unrecognized raw exception" },
+    ]) {
+      const fixture = createMutationFixture({ finalAuthorityError: failure })
+
+      await assert.rejects(() => apply(fixture), (error) => error === failure)
+
+      const operation = fixture.state.operations.get("billing-op-1")
+      assert.equal(operation.status, "PREPARED")
+      assert.equal(operation.failureCode, null)
+      assert.notEqual(operation.failureCode, "ADMIN_AUTHORITY_REVOKED")
+      assert.equal(fixture.stripeRequests.length, 0)
+      assert.equal(JSON.stringify(operation).includes("raw"), false)
+      assert.equal(JSON.stringify(operation).includes("target@example.test"), false)
+    }
+  })
+
+  it("does not rewrite a lost-owned or pre-existing operation as definitely unmutated", async () => {
+    const lostOwnerStarted = deferred()
+    const lostOwnerGate = deferred()
+    const lostOwner = createMutationFixture({
+      onFinalAuthorityLoad: () => lostOwnerStarted.resolve(),
+      finalAuthorityGate: lostOwnerGate.promise,
+    })
+    const lostOwnerPromise = apply(lostOwner)
+    await lostOwnerStarted.promise
+    Object.assign(lostOwner.state.operations.get("billing-op-1"), {
+      status: "RECONCILIATION_REQUIRED",
+      failureCode: "CONCURRENT_OWNER_CHANGED",
+    })
+    lostOwner.revokeAdmin("admin-1")
+    lostOwnerGate.resolve()
+    await assert.rejects(() => lostOwnerPromise, (error) => error instanceof AdminAuthorityDeniedError)
+    assert.equal(lostOwner.state.operations.get("billing-op-1").status, "RECONCILIATION_REQUIRED")
+    assert.equal(lostOwner.state.operations.get("billing-op-1").failureCode, "CONCURRENT_OWNER_CHANGED")
+    assert.equal(lostOwner.stripeRequests.length, 0)
+
+    const replayStarted = deferred()
+    const replayGate = deferred()
+    const replay = createMutationFixture({
+      onFinalAuthorityLoad: () => replayStarted.resolve(),
+      finalAuthorityGate: replayGate.promise,
+    })
+    seedUnresolvedOperation(replay, { status: "PREPARED", stripeBalanceTransactionId: null })
+    const replayPromise = reconcile(replay)
+    await replayStarted.promise
+    replay.revokeAdmin("admin-1")
+    replayGate.resolve()
+    await assert.rejects(() => replayPromise, (error) => error instanceof AdminAuthorityDeniedError)
+    assert.equal(replay.state.operations.get("billing-op-1").status, "RECONCILIATION_REQUIRED")
+    assert.equal(replay.state.operations.get("billing-op-1").failureCode, null)
+    assert.equal(replay.stripeRequests.length, 0)
+  })
+
+  it("keeps a creator revocation unresolved once a different reconciler durably enters the provider attempt", async () => {
+    const creatorAuthorityStarted = deferred()
+    const creatorAuthorityGate = deferred()
+    const reconcilerCreateStarted = deferred()
+    const reconcilerCreateGate = deferred()
+    const fixture = createMutationFixture({
+      onFinalAuthorityLoad: (actorUserId) => {
+        if (actorUserId === "admin-1") creatorAuthorityStarted.resolve()
+      },
+      finalAuthorityGates: { "admin-1": creatorAuthorityGate.promise },
+      onCreateBalanceTransaction: () => reconcilerCreateStarted.resolve(),
+      createBalanceTransactionGate: reconcilerCreateGate.promise,
+      createErrorOnce: new Error("reconciler provider outcome unknown"),
+    })
+
+    const creatorPromise = apply(fixture)
+    await creatorAuthorityStarted.promise
+
+    const reconcilerPromise = reconcile(fixture, { actorUserId: "admin-2" })
+    await reconcilerCreateStarted.promise
+    fixture.revokeAdmin("admin-1")
+    creatorAuthorityGate.resolve()
+
+    await assert.rejects(
+      () => creatorPromise,
+      (error) => error instanceof AdminAuthorityDeniedError,
+    )
+    reconcilerCreateGate.resolve()
+    const reconciled = await reconcilerPromise
+
+    const operation = fixture.state.operations.get("billing-op-1")
+    assert.equal(reconciled.status, "RECONCILIATION_REQUIRED")
+    assert.equal(operation.status, "RECONCILIATION_REQUIRED")
+    assert.notEqual(operation.failureCode, "ADMIN_AUTHORITY_REVOKED")
+    assert.equal(operation.actorUserId, "admin-1")
+    assert.equal(operation.idempotencyKey, "billing-op-1")
+    assert.equal(fixture.stripeRequests.length, 1)
+    assert.equal(fixture.stripeRequests[0].options.idempotencyKey, "billing-op-1")
+  })
+
+  it("keeps a post-check authority race ambiguous instead of claiming no mutation", async () => {
+    const providerStarted = deferred()
+    const providerGate = deferred()
+    const fixture = createMutationFixture({
+      onCreateBalanceTransaction: () => providerStarted.resolve(),
+      createBalanceTransactionGate: providerGate.promise,
+      createErrorOnce: new Error("provider outcome unknown"),
+    })
+    const resultPromise = apply(fixture)
+    await providerStarted.promise
+
+    fixture.revokeAdmin("admin-1")
+    providerGate.resolve()
+    const result = await resultPromise
+
+    assert.equal(result.status, "RECONCILIATION_REQUIRED")
+    assert.equal(fixture.state.operations.get("billing-op-1").status, "RECONCILIATION_REQUIRED")
+    assert.equal(fixture.state.operations.get("billing-op-1").failureCode, "STRIPE_CREATE_OUTCOME_UNKNOWN")
+    assert.equal(fixture.stripeRequests.length, 1)
+  })
+
   it("verifies first settlement when provider activity separates transaction and current balances", async () => {
     const fixture = createMutationFixture({
       amountCents: 300,
@@ -739,6 +887,24 @@ describe("Admin invoice-credit mutation and reconciliation", () => {
       assert.equal(fixture.state.actions.size, 0, testCase.label)
       assert.equal(fixture.state.intents.size, 0, testCase.label)
     }
+  })
+
+  it("denies the revoked originating actor while a different current Admin reconciles known evidence", async () => {
+    assert.equal(typeof AdminAuthorityDeniedError, "function")
+    const fixture = createMutationFixture({ transactionRetrieveErrorOnce: new Error("initial readback unavailable") })
+    assert.equal((await apply(fixture)).status, "RECONCILIATION_REQUIRED")
+    fixture.revokeAdmin("admin-1")
+
+    await assert.rejects(
+      () => reconcile(fixture),
+      (error) => error instanceof AdminAuthorityDeniedError,
+    )
+    assert.equal(fixture.stripeRequests.length, 1)
+
+    const result = await reconcile(fixture, { actorUserId: "admin-2" })
+    assert.equal(result.status, "VERIFIED")
+    assert.equal(fixture.stripeRequests.length, 1)
+    assert.equal(fixture.state.actions.get("billing-op-1").actorUserId, "admin-1")
   })
 
   it("gates live keys before Stripe unless both production and the explicit flag are present", async () => {
@@ -929,6 +1095,7 @@ function createMutationFixture(overrides = {}) {
     ["user-1", targetUser("user-1", "user@example.test")],
     ["user-2", targetUser("user-2", "user-2@example.test")],
   ])
+  let adminAuthorityLoads = 0
 
   const database = {
     state,
@@ -969,6 +1136,16 @@ function createMutationFixture(overrides = {}) {
     },
     user: {
       async findUnique({ where }) {
+        if (where.id === "admin-1" || where.id === "admin-2") {
+          adminAuthorityLoads += 1
+          if (adminAuthorityLoads >= 2) {
+            overrides.onFinalAuthorityLoad?.(where.id)
+            const authorityGate = overrides.finalAuthorityGates?.[where.id]
+              ?? overrides.finalAuthorityGate
+            if (authorityGate) await authorityGate
+            if (overrides.finalAuthorityError) throw overrides.finalAuthorityError
+          }
+        }
         return structuredClone(users.get(where.id) ?? null)
       },
     },
@@ -1046,7 +1223,12 @@ function createMutationFixture(overrides = {}) {
           state.activities.set(concurrentBundle.action.id, concurrentBundle.action.activity)
           state.intents.set(concurrentBundle.action.id, concurrentBundle.emailIntent)
         }
-        if (!row || (allowedStatuses && !allowedStatuses.includes(row.status))) return { count: 0 }
+        if (!row
+          || (where.actorUserId !== undefined && row.actorUserId !== where.actorUserId)
+          || (where.targetUserId !== undefined && row.targetUserId !== where.targetUserId)
+          || (where.idempotencyKey !== undefined && row.idempotencyKey !== where.idempotencyKey)
+          || (where.stripeBalanceTransactionId !== undefined && row.stripeBalanceTransactionId !== where.stripeBalanceTransactionId)
+          || (allowedStatuses && !allowedStatuses.includes(row.status))) return { count: 0 }
         Object.assign(row, structuredClone(data))
         return { count: 1 }
       },
@@ -1117,6 +1299,8 @@ function createMutationFixture(overrides = {}) {
         stripeCalls.push(`transactions.create:${customerId}`)
         createAttempts += 1
         stripeRequests.push(structuredClone({ customerId, payload, options }))
+        overrides.onCreateBalanceTransaction?.()
+        if (overrides.createBalanceTransactionGate) await overrides.createBalanceTransactionGate
         const firstForKey = !created
         if (firstForKey) {
           created = true
@@ -1151,7 +1335,19 @@ function createMutationFixture(overrides = {}) {
     invoices: { async createPreview() { throw new Error("preview not used") } },
   }
 
-  return { amountCents, billingState, prismaClient: database, state, stripeClient, stripeCalls, stripeRequests }
+  return {
+    amountCents,
+    billingState,
+    prismaClient: database,
+    state,
+    stripeClient,
+    stripeCalls,
+    stripeRequests,
+    revokeAdmin(id) {
+      const user = users.get(id)
+      if (user) user.roles = user.roles.map((assignment) => ({ ...assignment, status: "REVOKED" }))
+    },
+  }
 }
 
 function seedUnresolvedOperation(fixture, { status, stripeBalanceTransactionId }) {

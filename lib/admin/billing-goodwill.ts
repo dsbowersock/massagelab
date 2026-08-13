@@ -2,7 +2,7 @@ import type { Prisma, PrismaClient } from "@prisma/client"
 import type Stripe from "stripe"
 import { normalizeEmail } from "../auth-security.js"
 import { runCommerceTransaction } from "../commerce/transactions.ts"
-import { requireFullAdminUser } from "./access.ts"
+import { AdminAuthorityDeniedError, requireFullAdminUser } from "./access.ts"
 import { validateAdminReason, type AdminReasonCode } from "./operation-contract.ts"
 import {
   acquireAdminActionIdempotencyLock,
@@ -309,6 +309,7 @@ async function prepareGoodwillOperation(
 
     if (existing) {
       assertExactOperationReplay(existing, input, reconciliationOnly)
+      let preparedOperation = existing
       if (existing.status === "VERIFIED") {
         assertCoherentVerifiedOperation(existing)
         if (!existingAction) throw operationKeyInUse()
@@ -348,8 +349,36 @@ async function prepareGoodwillOperation(
           }) as BillingGoodwillOperation
           return { operation: blocked, recipientEmail: target.email, replayed: true, blocked: true }
         }
+        // Claim the existing no-ID request before any reconciliation provider
+        // attempt. The exact CAS plus readback preserves a concurrent applied
+        // or terminal state and prevents the original creator from later
+        // classifying this shared operation as definitely never attempted.
+        if (existing.status === "PREPARED") {
+          await tx.adminBillingGoodwillOperation.updateMany({
+            where: {
+              id: existing.id,
+              actorUserId: existing.actorUserId,
+              targetUserId: existing.targetUserId,
+              idempotencyKey: existing.idempotencyKey,
+              status: "PREPARED",
+              stripeBalanceTransactionId: null,
+            },
+            data: { status: "RECONCILIATION_REQUIRED" },
+          })
+          const claimed = await tx.adminBillingGoodwillOperation.findUnique({
+            where: { id: existing.id },
+          }) as BillingGoodwillOperation | null
+          if (!claimed) {
+            throw mutationError("OPERATION_NOT_FOUND", "The billing goodwill operation was not found.")
+          }
+          assertExactOperationReplay(claimed, input, true)
+          if (!isBillingGoodwillUnresolvedStatus(claimed.status)) {
+            throw mutationError("OPERATION_NOT_RECONCILABLE", "This billing goodwill operation no longer requires reconciliation.")
+          }
+          preparedOperation = claimed
+        }
       }
-      return { operation: existing, recipientEmail: target.email, replayed: true, blocked: false }
+      return { operation: preparedOperation, recipientEmail: target.email, replayed: true, blocked: false }
     }
     if (existingAction) throw operationKeyInUse()
     if (reconciliationOnly) {
@@ -448,12 +477,28 @@ async function executeGoodwillRequest(
     return settlePersistedOutcome(input, failed, prepared)
   }
 
-  if (prepared.replayed && !isInsideStripeRetryWindow(operation.createdAt, readMutationClock(input))) {
+  const providerBoundaryNow = readMutationClock(input)
+  if (prepared.replayed && !isInsideStripeRetryWindow(operation.createdAt, providerBoundaryNow)) {
     const unresolved = await persistGoodwillState(input.prismaClient, operation.id, {
       status: "RECONCILIATION_REQUIRED",
       failureCode: "IDEMPOTENCY_RETRY_WINDOW_EXPIRED",
     }, [...BILLING_GOODWILL_UNRESOLVED_STATUSES])
     return settlePersistedOutcome(input, unresolved, prepared)
+  }
+
+  // This intentionally runs outside durable preparation: it narrows the
+  // revocation window at the irreversible provider boundary, but authority can
+  // still change after this successful read and before Stripe returns.
+  try {
+    await requireFullAdminUser({
+      prismaClient: input.prismaClient,
+      sessionUserId: input.actorUserId,
+    })
+  } catch (error) {
+    if (error instanceof AdminAuthorityDeniedError && !prepared.replayed) {
+      await persistOwnedAuthorityRevocation(input.prismaClient, operation, input)
+    }
+    throw error
   }
 
   let createdTransactionId: string
@@ -856,6 +901,30 @@ async function persistPreCallFailure(
     status: definitelyNotMutated ? "FAILED_BEFORE_MUTATION" : "RECONCILIATION_REQUIRED",
     failureCode,
   }, [...BILLING_GOODWILL_UNRESOLVED_STATUSES])
+}
+
+/** Marks only this invocation's still-unattempted prepared request as revoked. */
+async function persistOwnedAuthorityRevocation(
+  prismaClient: PrismaClient,
+  operation: BillingGoodwillOperation,
+  input: BillingGoodwillMutationInput,
+): Promise<void> {
+  await runBillingGoodwillTransaction(prismaClient, async (tx) => {
+    await tx.adminBillingGoodwillOperation.updateMany({
+      where: {
+        id: operation.id,
+        actorUserId: input.actorUserId,
+        targetUserId: input.targetUserId,
+        idempotencyKey: input.idempotencyKey,
+        status: "PREPARED",
+        stripeBalanceTransactionId: null,
+      },
+      data: {
+        status: "FAILED_BEFORE_MUTATION",
+        failureCode: "ADMIN_AUTHORITY_REVOKED",
+      },
+    })
+  })
 }
 
 async function persistGoodwillState(

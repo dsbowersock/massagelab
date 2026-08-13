@@ -1,13 +1,19 @@
 import assert from "node:assert/strict"
+import { readFileSync } from "node:fs"
 import { describe, it } from "node:test"
-import {
+import * as adminAccess from "../lib/admin/access.ts"
+import { highestRole as highestAccountRole } from "../lib/account-permissions.js"
+
+const {
+  AdminAuthorityDeniedError,
   loadAdminActor,
   loadAnatomyReviewerActor,
   requireAnatomyEditorUser,
   requireAnatomyReviewerUser,
   requireFullAdminUser,
-} from "../lib/admin/access.ts"
-import { highestRole as highestAccountRole } from "../lib/account-permissions.js"
+} = adminAccess
+
+const accessSource = readFileSync(new URL("../lib/admin/access.ts", import.meta.url), "utf8")
 
 function createDatabase() {
   const users = new Map([
@@ -107,5 +113,67 @@ describe("fresh administrative actor access", () => {
       assert.equal(Boolean(actor), allowed, `${userId ?? "anonymous"} reviewer authorization`)
       if (allowed) assert.equal(actor.id, userId)
     }
+  })
+
+  it("uses a typed denial only after a fresh database load proves full authority is absent", async () => {
+    const backingDatabase = createDatabase()
+    let authorityLoads = 0
+    const database = {
+      user: {
+        async findUnique(input) {
+          authorityLoads += 1
+          return backingDatabase.user.findUnique(input)
+        },
+      },
+    }
+
+    assert.equal(typeof AdminAuthorityDeniedError, "function")
+
+    await assert.rejects(
+      () => requireFullAdminUser({ prismaClient: database, sessionUserId: "ordinary" }),
+      (error) => error instanceof AdminAuthorityDeniedError
+        && error.message === "Full administration requires verified database authority.",
+    )
+    assert.equal(authorityLoads, 1)
+  })
+
+  it("keeps an explicit null identity generic because no database authority load occurred", async () => {
+    let authorityLoads = 0
+    const database = {
+      user: {
+        async findUnique() {
+          authorityLoads += 1
+          return null
+        },
+      },
+    }
+
+    await assert.rejects(
+      () => requireFullAdminUser({ prismaClient: database, sessionUserId: null }),
+      (error) => error instanceof Error
+        && !(error instanceof AdminAuthorityDeniedError)
+        && error.message === "Full administration requires verified database authority.",
+    )
+    assert.equal(authorityLoads, 0)
+  })
+
+  it("passes authority infrastructure exceptions through by identity", async () => {
+    for (const failure of [
+      new Error("database outage"),
+      Object.assign(new Error("adapter failure"), { code: "P1001" }),
+      Object.assign(new Error("authority timeout"), { name: "TimeoutError" }),
+      { unexpected: "opaque failure" },
+    ]) {
+      const database = { user: { async findUnique() { throw failure } } }
+      await assert.rejects(
+        () => requireFullAdminUser({ prismaClient: database, sessionUserId: "admin" }),
+        (error) => error === failure,
+      )
+    }
+  })
+
+  it("keeps the no-input page redirect contract", () => {
+    assert.match(accessSource, /if \(input\) \{[\s\S]*AdminAuthorityDeniedError[\s\S]*const \{ redirect \} = await import\("next\/navigation"\)/)
+    assert.match(accessSource, /redirect\(resolved\.sessionUserId \? "\/account" : "\/login"\)/)
   })
 })
