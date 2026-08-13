@@ -233,7 +233,7 @@ async function presentGoodwillResult(
       : result.replayed
         ? "This invoice credit was already verified."
         : "The invoice credit was verified."
-    const balance = result.endingCreditCents === null ? "" : ` The resulting Stripe credit is ${formatUsd(result.endingCreditCents)}.`
+    const balance = formatGoodwillBalanceEvidence(result.endingCreditCents, result.currentCreditCents)
     return delivered
       ? { status: "success", message: `${verification}${balance} Email notification delivered.` }
       : { status: "warning", message: `${verification}${balance} Check Activity for the recorded notification status.` }
@@ -242,6 +242,20 @@ async function presentGoodwillResult(
     return { status: "warning", message: "The invoice credit was verified, but notification evidence is unavailable. Check Activity before taking another action." }
   }
   return { status: "error", message: "The billing goodwill result could not be confirmed safely." }
+}
+
+/** Keeps exact post-transaction evidence separate from an optional fresh Stripe Customer balance. */
+function formatGoodwillBalanceEvidence(
+  endingCreditCents: number | null,
+  currentCreditCents: number | null,
+) {
+  const historical = endingCreditCents === null
+    ? ""
+    : ` The Stripe credit immediately after this credit was ${formatUsd(endingCreditCents)}.`
+  const current = currentCreditCents === null
+    ? ""
+    : ` The current Stripe credit is ${formatUsd(currentCreditCents)}.`
+  return `${historical}${current}`
 }
 
 function revalidateBillingSurfaces(userId: string) {

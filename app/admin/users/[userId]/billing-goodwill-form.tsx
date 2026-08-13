@@ -120,6 +120,7 @@ function BillingGoodwillFields({ preview, action, userId }: {
         <Value label="Current Stripe credit" value={formatUsd(preview.currentCreditCents)} />
         <Value label="Projected next invoice" value={formatUsd(preview.projectedNextInvoiceCents)} />
         <Value label="Requested credit" value={formatUsd(amountCents)} />
+        {/* "Resulting credit" is a pre-provider projection, not stored reconciliation evidence. */}
         <Value label="Resulting credit" value={formatUsd(preview.currentCreditCents + amountCents)} />
       </dl>
 

@@ -38,6 +38,7 @@ describe("Admin billing-goodwill UI", () => {
     assert.match(formSource, /Current Stripe credit/)
     assert.match(formSource, /Requested credit/)
     assert.match(formSource, /Resulting credit/)
+    assert.match(formSource, /pre-provider projection/i)
     assert.doesNotMatch(formSource, /coupon|trial end|renewal date|payment method|debit|reversal/i)
   })
 
@@ -232,7 +233,7 @@ describe("Admin billing-goodwill UI", () => {
       assert.equal(harness.calls.some(([name]) => name === "applyInvoiceCredit"), false)
     }
     const unresolved = actionHarness({
-      applyResult: { operationId: "operation-row", status: "RECONCILIATION_REQUIRED", amountCents: 200, endingCreditCents: null, replayed: false, emailIntentId: null },
+      applyResult: { operationId: "operation-row", status: "RECONCILIATION_REQUIRED", amountCents: 200, endingCreditCents: null, currentCreditCents: null, replayed: false, emailIntentId: null },
     })
     const result = await unresolved.actions.applyBillingGoodwillAction("user-1", idleState, applyForm())
     assert.equal(result.status, "warning")
@@ -246,8 +247,9 @@ describe("Admin billing-goodwill UI", () => {
     const result = await harness.actions.reconcileBillingGoodwillAction("user-1", idleState, form)
     assert.deepEqual(result, {
       status: "success",
-      message: "The invoice credit is verified. The resulting Stripe credit is $5.00. Email notification delivered.",
+      message: "The invoice credit is verified. The Stripe credit immediately after this credit was $6.50. The current Stripe credit is $1.25. Email notification delivered.",
     })
+    assert.doesNotMatch(result.message, /resulting Stripe credit is now|resulting Stripe credit is/i)
     const call = harness.calls.find(([name]) => name === "reconcileInvoiceCredit")
     assert.ok(call, "expected reconcileInvoiceCredit to be called")
     assert.equal(call[1].targetUserId, "user-1")
@@ -298,18 +300,20 @@ describe("Admin billing-goodwill UI", () => {
 
   it("keeps apply replay truth while reconciliation pending-delivery copy stays context-neutral", async () => {
     const replay = actionHarness({
-      applyResult: { operationId: "operation-row", status: "VERIFIED", amountCents: 200, endingCreditCents: 500, replayed: true, emailIntentId: "intent-goodwill" },
+      applyResult: { operationId: "operation-row", status: "VERIFIED", amountCents: 200, endingCreditCents: 650, currentCreditCents: null, replayed: true, emailIntentId: "intent-goodwill" },
     })
-    assert.deepEqual(await replay.actions.applyBillingGoodwillAction("user-1", idleState, applyForm()), {
-      status: "success",
-      message: "This invoice credit was already verified. The resulting Stripe credit is $5.00. Email notification delivered.",
-    })
+    const replayResult = await replay.actions.applyBillingGoodwillAction("user-1", idleState, applyForm())
+    assert.equal(replayResult.status, "success")
+    assert.match(replayResult.message, /immediately after this credit was \$6\.50/)
+    assert.doesNotMatch(replayResult.message, /current Stripe credit|resulting Stripe credit is now|resulting Stripe credit is/i)
 
     const pendingDelivery = actionHarness({ deliveryResult: { status: "PENDING" } })
-    assert.deepEqual(await pendingDelivery.actions.reconcileBillingGoodwillAction("user-1", idleState, reconcileForm()), {
-      status: "warning",
-      message: "The invoice credit is verified. The resulting Stripe credit is $5.00. Check Activity for the recorded notification status.",
-    })
+    const pendingResult = await pendingDelivery.actions.reconcileBillingGoodwillAction("user-1", idleState, reconcileForm())
+    assert.equal(pendingResult.status, "warning")
+    assert.match(pendingResult.message, /immediately after this credit was \$6\.50/)
+    assert.match(pendingResult.message, /current Stripe credit is \$1\.25/)
+    assert.match(pendingResult.message, /Check Activity for the recorded notification status/)
+    assert.doesNotMatch(pendingResult.message, /resulting Stripe credit is now|resulting Stripe credit is/i)
   })
 
   it("blocks both mutation actions for the exact opted-in browser-QA identity before service or Stripe client construction", async () => {
@@ -342,8 +346,8 @@ describe("Admin billing-goodwill UI", () => {
 })
 
 function actionHarness({
-  applyResult = { operationId: "operation-row", status: "VERIFIED", amountCents: 200, endingCreditCents: 500, replayed: false, emailIntentId: "intent-goodwill" },
-  reconcileResult = { operationId: "operation-row", status: "VERIFIED", amountCents: 200, endingCreditCents: 500, replayed: true, emailIntentId: "intent-goodwill" },
+  applyResult = { operationId: "operation-row", status: "VERIFIED", amountCents: 200, endingCreditCents: 650, currentCreditCents: 125, replayed: false, emailIntentId: "intent-goodwill" },
+  reconcileResult = { operationId: "operation-row", status: "VERIFIED", amountCents: 200, endingCreditCents: 650, currentCreditCents: 125, replayed: true, emailIntentId: "intent-goodwill" },
   deliveryResult = { status: "DELIVERED" },
   operationRow = {},
   browserMutationBlocked = false,
