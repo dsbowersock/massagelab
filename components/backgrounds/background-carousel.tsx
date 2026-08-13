@@ -80,7 +80,7 @@ export function BackgroundCarousel({
     preferenceHydrated && previewPreferenceEnabled && active && !reducedMotion
 
   useEffect(() => {
-    setPreviewPreferenceEnabled(readBackgroundPreviewPreference(window.localStorage))
+    setPreviewPreferenceEnabled(readBackgroundPreviewPreference(() => window.localStorage))
     setPreferenceHydrated(true)
   }, [])
 
@@ -90,7 +90,7 @@ export function BackgroundCarousel({
    */
   function handlePreviewPreferenceChange(enabled: boolean) {
     setPreviewPreferenceEnabled(enabled)
-    writeBackgroundPreviewPreference(window.localStorage, enabled)
+    writeBackgroundPreviewPreference(() => window.localStorage, enabled)
   }
 
   useEffect(() => {

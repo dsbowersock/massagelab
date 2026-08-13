@@ -496,6 +496,26 @@ test("production Background controls stay off-card and visible in portrait and s
   await page.keyboard.press("Escape")
 })
 
+test("short-landscape Background tray shows free access without opening Info", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  const panel = await openProductionBackgroundCarousel(page)
+  const controls = panel.getByTestId("background-carousel-controls")
+
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    if (await controls.getAttribute("data-background-access-state") === "free") break
+    await controls.getByRole("button", { name: "Previous background" }).click()
+  }
+  await expect(controls).toHaveAttribute("data-background-access-state", "free")
+
+  await page.setViewportSize({ width: 844, height: 390 })
+  await expect(panel.getByRole("region", { name: "Background carousel" }))
+    .toHaveAttribute("data-carousel-responsive-profile", "short-landscape")
+  await expect(controls.locator("[data-background-access-label]"))
+    .toHaveText("Free")
+  await expect(controls.locator("[data-background-access-label]"))
+    .toBeVisible()
+})
+
 test("short-landscape Background tray keeps locked controls within the compact grid", async ({ context, page }, testInfo) => {
   await installRestrictedCommerceFixture(context, page, String(testInfo.project.use.baseURL))
   await page.setViewportSize({ width: 844, height: 390 })

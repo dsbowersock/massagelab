@@ -9,9 +9,11 @@ import {
   backgroundCardCommerceState,
   hasActivePermanentOwnership,
 } from "../lib/background-commerce-client.js"
+import { backgroundCarouselAccessLabel } from "../lib/background-carousel-access-label.js"
 
 const cardPath = new URL("../components/backgrounds/background-carousel-card.tsx", import.meta.url)
 const trayPath = new URL("../components/backgrounds/background-carousel-control-tray.tsx", import.meta.url)
+const accessLabelPath = new URL("../lib/background-carousel-access-label.js", import.meta.url)
 const carouselPath = new URL("../components/backgrounds/background-carousel.tsx", import.meta.url)
 const selectorPath = new URL("../components/backgrounds/BackgroundSelector.tsx", import.meta.url)
 const setTimerPath = new URL("../app/chimer/set-timer.tsx", import.meta.url)
@@ -29,6 +31,31 @@ function snapshot(overrides = {}) {
 }
 
 describe("production background commerce states", () => {
+  it("maps every carousel access state to a concise visible label", () => {
+    const base = {
+      canSelect: false,
+      ownershipStatus: null,
+    }
+    for (const [state, expected] of [
+      ["free", "Free"],
+      ["owned", "Owned"],
+      ["owned-credit", "Owned"],
+      ["owned-purchase", "Owned"],
+      ["included-subscription", "Included with membership"],
+      ["locked-credit-available", "Locked · credit available"],
+      ["locked-no-credit", "Locked · no credit"],
+      ["unavailable", "Unavailable"],
+    ]) {
+      assert.equal(backgroundCarouselAccessLabel({ ...base, state }), expected)
+    }
+
+    assert.equal(backgroundCarouselAccessLabel({
+      ...base,
+      state: "unavailable",
+      ownershipStatus: "refund_pending",
+    }), "Refund pending")
+  })
+
   it("uses an enabled premium registry card for authoritative ownership states", () => {
     const background = backgroundRegistry.find((entry) => entry.enabled && entry.requiresSubscription)
     assert.ok(background, "expected an enabled premium background")
@@ -67,27 +94,35 @@ describe("production background commerce states", () => {
   })
 
   it("renders ownership, inclusion, cart, reservation, and inactive-status labels", async () => {
-    const [cardSource, traySource] = await Promise.all([
+    const [cardSource, traySource, accessLabelSource] = await Promise.all([
       readFile(cardPath, "utf8"),
       readFile(trayPath, "utf8"),
+      readFile(accessLabelPath, "utf8"),
     ])
     for (const label of [
       "Owned",
-      "Purchased",
-      "Credit",
+      "Free",
+      "Locked · credit available",
+      "Locked · no credit",
       "Included with membership",
-      "In cart",
-      "Reserved",
       "Refund pending",
       "Dispute suspended",
       "Retired",
       "Unavailable",
+    ]) {
+      assert.match(accessLabelSource, new RegExp(label))
+    }
+    for (const label of [
+      "Purchased",
+      "Credit",
+      "In cart",
+      "Reserved",
       "DollarSign",
       "Crown",
     ]) {
       assert.match(traySource, new RegExp(label))
     }
-    assert.match(traySource, /function accessLabel/)
+    assert.match(traySource, /backgroundCarouselAccessLabel/)
     assert.match(traySource, /data-background-carousel-controls/)
     assert.match(traySource, /Open permanent ownership options for \$\{option\.label\}/)
     assert.match(traySource, /commerceState\.showKeepPermanently && onKeepPermanently/)

@@ -89,8 +89,8 @@ describe("production adaptive carousel", () => {
     assert.match(backgroundCarouselSource, /<BackgroundCarouselControlTray[\s\S]*previewPreferenceEnabled=\{previewPreferenceEnabled\}/)
     assert.match(backgroundCarouselSource, /onPreviewPreferenceChange=\{handlePreviewPreferenceChange\}/)
     assert.match(backgroundCarouselSource, /preferenceHydrated && previewPreferenceEnabled && active && !reducedMotion/)
-    assert.match(backgroundCarouselSource, /readBackgroundPreviewPreference\(window\.localStorage\)/)
-    assert.match(backgroundCarouselSource, /writeBackgroundPreviewPreference\(window\.localStorage, enabled\)/)
+    assert.match(backgroundCarouselSource, /readBackgroundPreviewPreference\(\(\) => window\.localStorage\)/)
+    assert.match(backgroundCarouselSource, /writeBackgroundPreviewPreference\(\(\) => window\.localStorage, enabled\)/)
     assert.doesNotMatch(backgroundCarouselSource, /aria-pressed=\{previewPlaybackActive\}/)
   })
 

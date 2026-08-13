@@ -45,4 +45,20 @@ describe("Background preview preference", () => {
     assert.equal(readBackgroundPreviewPreference(storage), true)
     assert.equal(writeBackgroundPreviewPreference(storage, false), false)
   })
+
+  it("falls back safely when the global localStorage getter throws", () => {
+    let getterCalls = 0
+    const browserGlobal = {}
+    Object.defineProperty(browserGlobal, "localStorage", {
+      get() {
+        getterCalls += 1
+        throw new DOMException("blocked", "SecurityError")
+      },
+    })
+    const acquireStorage = () => browserGlobal.localStorage
+
+    assert.equal(readBackgroundPreviewPreference(acquireStorage), true)
+    assert.equal(writeBackgroundPreviewPreference(acquireStorage, false), false)
+    assert.equal(getterCalls, 2)
+  })
 })

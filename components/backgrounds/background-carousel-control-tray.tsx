@@ -15,6 +15,7 @@ import {
 import { MetalFavoriteIcon } from "@/components/ui/metal-favorite-icon"
 import { ToggleControl } from "@/components/ui/toggle-control"
 import { getBackgroundVisualTags } from "@/lib/background-catalog"
+import { backgroundCarouselAccessLabel } from "@/lib/background-carousel-access-label.js"
 import { hasActivePermanentOwnership } from "@/lib/background-commerce-client.js"
 import styles from "./background-carousel-control-tray.module.css"
 
@@ -47,19 +48,6 @@ export interface BackgroundCarouselControlTrayProps {
   onPreviewPreferenceChange: (enabled: boolean) => void
 }
 
-/** Maps the authoritative commerce snapshot into its concise visible status. */
-function accessLabel(commerceState: BackgroundCardCommerceState) {
-  if (commerceState.ownershipStatus === "refund_pending") return "Refund pending"
-  if (commerceState.ownershipStatus === "dispute_suspended") return "Dispute suspended"
-  if (commerceState.ownershipStatus === "refund_revoked") return "Refund revoked"
-  if (commerceState.ownershipStatus === "dispute_revoked") return "Dispute revoked"
-  if (commerceState.ownershipStatus === "retired") return "Retired"
-  if (hasActivePermanentOwnership(commerceState)) return "Owned"
-  if (commerceState.state === "included-subscription") return "Included with membership"
-  if (commerceState.state === "unavailable") return "Unavailable"
-  return null
-}
-
 /** Maps permanent ownership provenance to the non-visual screen-reader detail. */
 function ownershipSourceLabel(source: string | null) {
   if (source === "purchase") return "Purchased"
@@ -89,7 +77,7 @@ export function BackgroundCarouselControlTray({
   onToggleSaved,
   onPreviewPreferenceChange,
 }: BackgroundCarouselControlTrayProps) {
-  const statusLabel = accessLabel(commerceState)
+  const statusLabel = backgroundCarouselAccessLabel(commerceState)
   const sourceLabel = ownershipSourceLabel(commerceState.ownershipSource)
   const permanentlyOwned = hasActivePermanentOwnership(commerceState)
   const unavailable = commerceState.state === "unavailable"
@@ -130,12 +118,10 @@ export function BackgroundCarouselControlTray({
         <h3>{option.label}</h3>
         <p className={styles.description}>{option.visualDescriptor}</p>
         <div className={styles.accessState}>
-          {statusLabel ? (
-            <span>
-              {statusLabel}
-              {statusLabel === "Owned" && sourceLabel ? <span className="sr-only"> - {sourceLabel}</span> : null}
-            </span>
-          ) : null}
+          <span data-background-access-label>
+            {statusLabel}
+            {statusLabel === "Owned" && sourceLabel ? <span className="sr-only"> - {sourceLabel}</span> : null}
+          </span>
           {commerceState.isReserved ? <span>Reserved</span> : commerceState.isInCart ? <span>In cart</span> : null}
         </div>
         <div className={styles.supplementaryMetadata}>
@@ -208,7 +194,7 @@ export function BackgroundCarouselControlTray({
               <DialogTitle>{option.label}</DialogTitle>
               <DialogDescription>{option.visualDescriptor}</DialogDescription>
             </DialogHeader>
-            <p>{statusLabel ?? (commerceState.canSelect ? "Available" : "Locked")}</p>
+            <p>{statusLabel}</p>
             {previewTags.length > 0 ? <p>{previewTags.join(" - ")}</p> : null}
             {locked ? <p>{acquisitionHint}</p> : null}
           </DialogContent>
