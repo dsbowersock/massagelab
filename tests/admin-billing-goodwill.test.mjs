@@ -1003,7 +1003,7 @@ describe("Admin invoice-credit mutation and reconciliation", () => {
       { label: "wrong transaction ID", transactionOverrides: { id: "cbtxn_other" } },
       { label: "wrong Customer", transactionOverrides: { customer: "cus_other" } },
       { label: "positive ending balance", transactionOverrides: { ending_balance: 1 } },
-      { label: "unsafe ending balance", transactionOverrides: { ending_balance: Number.MAX_SAFE_INTEGER + 1 } },
+      { label: "unsafe ending balance", transactionOverrides: { ending_balance: -(Number.MAX_SAFE_INTEGER + 1) } },
       { label: "wrong currency", transactionOverrides: { currency: "eur" } },
       { label: "wrong amount", transactionOverrides: { amount: -499 } },
       { label: "wrong mode", transactionOverrides: { livemode: true } },
