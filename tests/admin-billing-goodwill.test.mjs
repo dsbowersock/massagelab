@@ -700,23 +700,22 @@ describe("Admin invoice-credit mutation and reconciliation", () => {
   })
 
   it("keeps authority infrastructure failures unresolved and retryable without provider creation", async () => {
-    for (const failure of [
-      new Error("database target@example.test outage"),
-      Object.assign(new Error("adapter secret"), { code: "P1001" }),
-      Object.assign(new Error("timed out with raw details"), { name: "TimeoutError" }),
-      { unexpected: "unrecognized raw exception" },
+    for (const { label, failure } of [
+      { label: "database outage", failure: new Error("database target@example.test outage") },
+      { label: "adapter error", failure: Object.assign(new Error("adapter secret"), { code: "P1001" }) },
+      { label: "timeout", failure: Object.assign(new Error("timed out with raw details"), { name: "TimeoutError" }) },
+      { label: "unknown exception", failure: { unexpected: "unrecognized raw exception" } },
     ]) {
       const fixture = createMutationFixture({ finalAuthorityError: failure })
 
-      await assert.rejects(() => apply(fixture), (error) => error === failure)
+      await assert.rejects(() => apply(fixture), (error) => error === failure, label)
 
       const operation = fixture.state.operations.get("billing-op-1")
-      assert.equal(operation.status, "PREPARED")
-      assert.equal(operation.failureCode, null)
-      assert.notEqual(operation.failureCode, "ADMIN_AUTHORITY_REVOKED")
-      assert.equal(fixture.stripeRequests.length, 0)
-      assert.equal(JSON.stringify(operation).includes("raw"), false)
-      assert.equal(JSON.stringify(operation).includes("target@example.test"), false)
+      assert.equal(operation.status, "PREPARED", label)
+      assert.equal(operation.failureCode, null, label)
+      assert.equal(fixture.stripeRequests.length, 0, label)
+      assert.equal(JSON.stringify(operation).includes("raw"), false, label)
+      assert.equal(JSON.stringify(operation).includes("target@example.test"), false, label)
     }
   })
 
@@ -1283,7 +1282,7 @@ function createMutationFixture(overrides = {}) {
         if (where.id === "admin-1" || where.id === "admin-2") {
           const authorityLoadCount = (adminAuthorityLoads.get(where.id) ?? 0) + 1
           adminAuthorityLoads.set(where.id, authorityLoadCount)
-          if (authorityLoadCount >= 2) {
+          if (authorityLoadCount === 2) {
             overrides.onFinalAuthorityLoad?.(where.id)
             const authorityGate = overrides.finalAuthorityGates?.[where.id]
               ?? overrides.finalAuthorityGate
