@@ -87,6 +87,15 @@ describe("Carousel Lab source boundaries", () => {
     assert.ok(startIndexPosition >= 0 && startIndexPosition < firstSelectPosition)
   })
 
+  it("exposes when the shared stage has initialized Embla for browser gestures", () => {
+    const controller = read("components/carousels/use-adaptive-carousel-controller.ts")
+    const stage = read("components/carousels/adaptive-carousel-stage.tsx")
+
+    assert.match(controller, /const isCarouselReady = Boolean\(api\)/)
+    assert.match(controller, /isCarouselReady,/)
+    assert.match(stage, /data-carousel-ready=\{isCarouselReady \? "true" : "false"\}/)
+  })
+
   it("cancels stale dependency frames before scheduling current transforms", () => {
     const controller = read("components/carousels/use-adaptive-carousel-controller.ts")
     const listenerEffect = controller.match(

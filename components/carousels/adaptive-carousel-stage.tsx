@@ -86,6 +86,7 @@ export function AdaptiveCarouselStage<T extends AdaptiveCarouselItem>({
   )
   const {
     viewportRef,
+    isCarouselReady,
     centeredId,
     mountedIds,
     effectiveLoop,
@@ -172,6 +173,7 @@ export function AdaptiveCarouselStage<T extends AdaptiveCarouselItem>({
       className={styles.root}
       data-surface={surface}
       data-presentation={presentation}
+      data-carousel-ready={isCarouselReady ? "true" : "false"}
       data-reduced-motion={reducedMotion || tuning.motion === false}
       data-carousel-responsive-profile={viewportProfile}
       data-has-custom-controls={Boolean(renderControls)}

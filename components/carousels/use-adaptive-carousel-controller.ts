@@ -91,6 +91,8 @@ export function useAdaptiveCarouselController(
   const [centeredId, setCenteredId] = useState<string | null>(initialCenter.id)
   const [canGoPrevious, setCanGoPrevious] = useState(false)
   const [canGoNext, setCanGoNext] = useState(false)
+  /** True once Embla has initialized its drag and navigation listeners. */
+  const isCarouselReady = Boolean(api)
 
   const centeredIndex = Math.max(0, items.findIndex(({ id }) => id === centeredId))
   const mountedIds = useMemo(
@@ -211,6 +213,7 @@ export function useAdaptiveCarouselController(
 
   return {
     viewportRef,
+    isCarouselReady,
     centeredId,
     centeredIndex,
     mountedIds,

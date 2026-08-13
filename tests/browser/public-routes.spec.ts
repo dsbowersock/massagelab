@@ -989,6 +989,7 @@ test("center station details support swipe and short tap while actions stay prot
   test.skip(testInfo.project.name !== "mobile-chromium", "Touch carousel behavior is covered in mobile Chromium.")
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto("/music", { waitUntil: "domcontentloaded" })
+  await expect(page.getByRole("region", { name: "Station carousel" })).toHaveAttribute("data-carousel-ready", "true")
   const centered = await centerCarouselItem(page, "mlab-proof-drone", "Next station")
   const details = centered.locator("[data-carousel-station-details]")
   const beforeId = await centered.getAttribute("data-carousel-item-id")
