@@ -225,12 +225,15 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
             )}
           >
             <div className="min-w-0" data-testid="music-player-toolbar-identity">
-              <p className="truncate text-sm font-semibold">{title}</p>
-              <p className={cn("truncate text-xs text-muted-foreground", music.error && "text-destructive")}>
+              <p className="ml-music-player-toolbar-title truncate text-sm font-semibold">{title}</p>
+              <p className={cn(
+                "ml-music-player-toolbar-status truncate text-xs text-muted-foreground",
+                music.error && "text-destructive",
+              )}>
                 {music.error ?? playerStatusLabel(music.playbackState)}
               </p>
               {isLoading ? (
-                <div className="mt-1 w-full max-w-72">
+                <div className="ml-music-player-toolbar-progress mt-1 w-full max-w-72">
                   <MusicLoadingProgress compact progress={music.loadingProgress} startedAt={music.loadingStartedAt} />
                 </div>
               ) : null}
