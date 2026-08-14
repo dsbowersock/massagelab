@@ -22,6 +22,7 @@
 - Do not raise the existing sample batch/concurrency limits in this branch.
 - Add focused JSDoc to every new shared helper and every changed non-obvious lifecycle boundary.
 - Every task follows strict RED -> GREEN -> focused regression -> `git diff --check` -> scoped commit. Do not combine task commits.
+- New tests must assert observable behavior. Do not add source-regex checks merely to prove that implementation text exists or disappeared; existing repository source-contract tests may remain as regressions, but they are not evidence for new behavior.
 - Physical Android evidence is required before claiming this branch complete. Playwright WebKit is engine compatibility evidence, not iPhone/iPad certification.
 
 ---
@@ -396,13 +397,13 @@ git commit -m "perf: make atmosphere runtime latest request wins"
 - Create: `lib/atmosphere/generative-fm-piece-loader.js`
 - Create: `tests/atmosphere-generative-fm-piece-loader.test.mjs`
 - Modify: `lib/atmosphere/generative-fm-runtime.ts`
-- Modify: `tests/atmosphere-provider-lazy-boundary.test.mjs`
+- Run unchanged regression: `tests/atmosphere-provider-lazy-boundary.test.mjs`
 - Modify: `package.json`
 - Modify: `package-lock.json`
 
 - [ ] **Step 1: Write the failing loader contract**
 
-Assert the exact 57 IDs, one importer invocation, default-export resolution, unknown-ID rejection, and no aggregate package token in the normal runtime source:
+Assert the exact 57 IDs, one importer invocation, default-export resolution, and unknown-ID rejection through the real loader API:
 
 ```js
 assert.deepEqual(Object.keys(generativeFmPieceImporters).sort(), expectedPieceIds.sort())
@@ -410,7 +411,6 @@ assert.equal(calls.length, 0)
 const piece = await loadGenerativeFmPieceModule("trees", fakeImporters)
 assert.equal(piece, expectedPiece)
 assert.deepEqual(calls, ["trees"])
-assert.doesNotMatch(runtimeSource, /@generative-music\/pieces-alex-bainter/)
 ```
 
 - [ ] **Step 2: Add a failing early-activation ordering test**
@@ -430,7 +430,7 @@ Run:
 node --test tests/atmosphere-generative-fm-piece-loader.test.mjs tests/atmosphere-provider-lazy-boundary.test.mjs
 ```
 
-Expected: new module missing; current runtime still contains the aggregate package import.
+Expected: new module missing.
 
 - [ ] **Step 4: Add the direct package dependencies**
 
@@ -587,12 +587,12 @@ npm run build
 git diff --check
 ```
 
-Expected: exact 57-ID test passes; runtime source has no aggregate runtime import; production build resolves all dynamic imports.
+Expected: exact 57-ID behavior test passes; the unchanged lazy-boundary regression passes; production build resolves all dynamic imports. Review the runtime diff to verify it no longer imports the aggregate collection, but do not add a lexical test for that implementation detail.
 
 - [ ] **Step 8: Commit**
 
 ```powershell
-git add package.json package-lock.json lib/atmosphere/generative-fm-piece-loader.js lib/atmosphere/generative-fm-runtime.ts tests/atmosphere-generative-fm-piece-loader.test.mjs tests/atmosphere-provider-lazy-boundary.test.mjs
+git add package.json package-lock.json lib/atmosphere/generative-fm-piece-loader.js lib/atmosphere/generative-fm-runtime.ts tests/atmosphere-generative-fm-piece-loader.test.mjs
 git commit -m "perf: load atmosphere pieces on demand"
 ```
 
@@ -735,31 +735,36 @@ git commit -m "feat: observe atmosphere media interruptions"
 
 - Modify: `components/providers/music-provider.tsx`
 - Modify: `tests/music-visualizer-provider.test.mjs`
-- Modify: `tests/atmosphere-provider-lazy-boundary.test.mjs`
-- Create: `tests/atmosphere-media-provider.test.mjs`
+- Run unchanged regression: `tests/atmosphere-provider-lazy-boundary.test.mjs`
+- Create: `tests/browser/music-media-session.spec.ts`
 
-- [ ] **Step 1: Write failing provider source/integration contracts**
+- [ ] **Step 1: Write failing provider behavior tests**
 
-Keep the current repo-native source tests and add a focused provider contract that requires the new state union, helper ownership, carrier-before-runtime ordering, and distinct Pause/Stop paths. Assert semantics, not formatting:
+Install deterministic Media Session, Audio, and held generator-start fakes before the app loads. Exercise the real provider through `/music` and assert carrier-before-runtime ordering and distinct Pause/Stop behavior:
 
-```js
-assert.match(providerSource, /"interrupted"/)
-assert.match(providerSource, /"paused"/)
-assert.match(providerSource, /carrierRef\.current\.start\(\)/)
-assert.match(providerSource, /pauseCurrentForMediaSession/)
-assert.match(providerSource, /stopAndDismiss/)
-assert.doesNotMatch(providerSource, /setActionHandler[\s\S]*"pause"[\s\S]*stopCurrent/)
+```ts
+await startStation(page)
+await expect.poll(() => mediaCalls(page)).toMatchObject({ play: 1 })
+await expect(page.getByText("Preparing audio...")).toBeVisible()
+
+await invokeMediaAction(page, "pause")
+await expect(page.getByText("Paused")).toBeVisible()
+await expect.poll(() => carrierSource(page)).not.toBe("")
+
+await invokeMediaAction(page, "stop")
+await expect(page.getByText("Stopped")).toBeVisible()
+await expect.poll(() => carrierSource(page)).toBe("")
 ```
 
-Update the existing stop-retains-station test so it continues to protect selected identity after full in-app Stop.
+Also prove Play calls the carrier before the held generator preparation resolves, and update the existing stop-retains-station regression only as needed so it continues to protect selected identity after full in-app Stop.
 
 - [ ] **Step 2: Run RED**
 
 ```powershell
-node --test tests/atmosphere-media-provider.test.mjs tests/music-visualizer-provider.test.mjs tests/atmosphere-provider-lazy-boundary.test.mjs
+npm run test:browser -- tests/browser/music-media-session.spec.ts --project=desktop-chromium --grep "provider media ownership"
 ```
 
-Expected: provider lacks paused/interrupted state, carrier ownership, and separate Media Session Pause.
+Expected: carrier calls/state and separate Pause/Stop semantics are absent.
 
 - [ ] **Step 3: Initialize device/session state and browser adapters once**
 
@@ -803,7 +808,8 @@ Delete `AtmosphereMediaSession`, `mediaSessionActions`, `setAtmosphereMediaSessi
 - [ ] **Step 7: Run GREEN and focused provider regressions**
 
 ```powershell
-node --test tests/atmosphere-media-provider.test.mjs tests/music-visualizer-provider.test.mjs tests/atmosphere-provider-lazy-boundary.test.mjs tests/atmosphere-runtime-controller.test.mjs tests/atmosphere-playback-lifecycle.test.mjs tests/atmosphere-media-session-controller.test.mjs tests/atmosphere-media-interruption-monitor.test.mjs tests/atmosphere-media-playback-carrier.test.mjs
+node --test tests/music-visualizer-provider.test.mjs tests/atmosphere-provider-lazy-boundary.test.mjs tests/atmosphere-runtime-controller.test.mjs tests/atmosphere-playback-lifecycle.test.mjs tests/atmosphere-media-session-controller.test.mjs tests/atmosphere-media-interruption-monitor.test.mjs tests/atmosphere-media-playback-carrier.test.mjs
+npm run test:browser -- tests/browser/music-media-session.spec.ts --project=desktop-chromium --grep "provider media ownership"
 npm run typecheck
 git diff --check
 ```
@@ -811,7 +817,7 @@ git diff --check
 - [ ] **Step 8: Commit**
 
 ```powershell
-git add components/providers/music-provider.tsx tests/music-visualizer-provider.test.mjs tests/atmosphere-provider-lazy-boundary.test.mjs tests/atmosphere-media-provider.test.mjs
+git add components/providers/music-provider.tsx tests/music-visualizer-provider.test.mjs tests/browser/music-media-session.spec.ts
 git commit -m "feat: coordinate atmosphere media sessions"
 ```
 
@@ -823,15 +829,17 @@ git commit -m "feat: coordinate atmosphere media sessions"
 - Modify: `components/providers/music-mini-player.tsx`
 - Modify: `app/globals.css`
 - Modify: `tests/music-visualizer-provider.test.mjs`
-- Create: `tests/music-interruption-notice.test.mjs`
 - Modify: `tests/browser/app-shell.spec.ts`
 
-- [ ] **Step 1: Write failing component/source contracts**
+- [ ] **Step 1: Write failing rendered-control contracts**
 
-Require the expanded action order and exact accessible text:
+Render the real player and require the expanded action order and exact accessible text:
 
-```js
-assert.deepEqual(expandedActionNames, [
+```ts
+const expandedActionNames = await player.getByRole("button").evaluateAll((buttons) =>
+  buttons.map((button) => button.getAttribute("aria-label")),
+)
+expect(expandedActionNames).toEqual([
   "Previous station",
   "Play",
   "Next station",
@@ -839,11 +847,15 @@ assert.deepEqual(expandedActionNames, [
   "Player settings",
   "Collapse",
 ])
-assert.match(noticeSource, /Calls and other audio may temporarily pause or mute this station\./)
-assert.match(noticeSource, /Resume automatically when the interruption ends/)
+await expect(notice).toContainText(
+  "Calls and other audio may temporarily pause or mute this station.",
+)
+await expect(notice.getByRole("checkbox", {
+  name: "Resume automatically when the interruption ends",
+})).toBeChecked()
 ```
 
-Require six narrow columns, no change to the collapsed three-column structure, nonmodal region semantics, polite live text, labeled Close action, and menu use of `DropdownMenuCheckboxItem`.
+Require six narrow columns, no change to the collapsed three-control structure, nonmodal region semantics, polite live text, labeled Close action, and a functional settings checkbox. The existing source-oriented toolbar test may be updated to match the rendered implementation, but it is not the proof for these new behaviors.
 
 - [ ] **Step 2: Add failing browser tests before UI implementation**
 
@@ -864,7 +876,7 @@ Also prove hover and focus pause the deadline, Close works by keyboard, checkbox
 - [ ] **Step 3: Run RED**
 
 ```powershell
-node --test tests/music-interruption-notice.test.mjs tests/music-visualizer-provider.test.mjs
+node --test tests/music-visualizer-provider.test.mjs
 npm run test:browser -- tests/browser/app-shell.spec.ts --project=mobile-chromium --grep "Atmosphere interruption notice|six expanded player actions"
 ```
 
@@ -900,7 +912,7 @@ Change only the expanded narrow action grid from `grid-cols-5` to `grid-cols-6`.
 - [ ] **Step 6: Run GREEN and the full relevant shell matrix**
 
 ```powershell
-node --test tests/music-interruption-notice.test.mjs tests/music-visualizer-provider.test.mjs
+node --test tests/music-visualizer-provider.test.mjs
 npm run test:browser -- tests/browser/app-shell.spec.ts --project=mobile-chromium --grep "Atmosphere interruption notice|six expanded player actions|mobile top player|mobile bottom player|loading toolbar fits"
 npm run test:browser -- tests/browser/app-shell.spec.ts --project=desktop-chromium --grep "Atmosphere"
 npm run typecheck
@@ -910,7 +922,7 @@ git diff --check
 - [ ] **Step 7: Commit**
 
 ```powershell
-git add components/providers/music-interruption-notice.tsx components/providers/music-mini-player.tsx app/globals.css tests/music-interruption-notice.test.mjs tests/music-visualizer-provider.test.mjs tests/browser/app-shell.spec.ts
+git add components/providers/music-interruption-notice.tsx components/providers/music-mini-player.tsx app/globals.css tests/music-visualizer-provider.test.mjs tests/browser/app-shell.spec.ts
 git commit -m "feat: add atmosphere interruption preferences"
 ```
 
@@ -918,7 +930,7 @@ git commit -m "feat: add atmosphere interruption preferences"
 
 **Files:**
 
-- Create: `tests/browser/music-media-session.spec.ts`
+- Modify: `tests/browser/music-media-session.spec.ts`
 - Modify: `tests/browser/public-routes.spec.ts`
 - Modify: `playwright.config.ts`
 
