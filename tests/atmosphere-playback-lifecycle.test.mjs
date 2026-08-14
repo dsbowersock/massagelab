@@ -21,6 +21,12 @@ test("external sessions never open a notice and do not mutate the saved default"
   assert.equal(result.state.noticeSessionId, null)
 })
 
+test("successful and failed starts settle only an active loading session", () => {
+  const loading = transitionAtmospherePlayback(createAtmospherePlaybackLifecycle(true), { type: "BEGIN_IN_APP_SESSION", savedDefault: true }).state
+  assert.equal(transitionAtmospherePlayback(loading, { type: "START_SUCCEEDED" }).state.status, "playing")
+  assert.equal(transitionAtmospherePlayback(loading, { type: "START_FAILED" }).state.status, "failed")
+})
+
 test("interruption resumes when enabled and pauses when disabled", () => {
   const interrupted = transitionAtmospherePlayback(playing, { type: "INTERRUPTION_STARTED" })
   assert.equal(interrupted.state.status, "interrupted")
@@ -39,12 +45,26 @@ test("explicit stop wins over late recovery", () => {
   assert.deepEqual(lateRecovery.effects, ["NONE"])
 })
 
+test("explicit pause and stop win over delayed start completion", () => {
+  const loading = transitionAtmospherePlayback(createAtmospherePlaybackLifecycle(true), { type: "BEGIN_IN_APP_SESSION", savedDefault: true }).state
+  const paused = transitionAtmospherePlayback(loading, { type: "EXPLICIT_PAUSE" }).state
+  assert.equal(transitionAtmospherePlayback(paused, { type: "START_SUCCEEDED" }).state.status, "paused")
+  const stopped = transitionAtmospherePlayback(loading, { type: "EXPLICIT_STOP" }).state
+  assert.equal(transitionAtmospherePlayback(stopped, { type: "START_SUCCEEDED" }).state.status, "stopped")
+})
+
 test("ambiguous pause remains paused and session setting changes do not alter saved defaults", () => {
   const paused = transitionAtmospherePlayback({ ...playing, resumeAfterInterruption: true }, { type: "EXPLICIT_PAUSE" }).state
   assert.equal(paused.status, "paused")
   const changed = transitionAtmospherePlayback(paused, { type: "SET_SESSION_RESUME", value: false })
   assert.equal(changed.state.resumeAfterInterruption, false)
   assert.equal(changed.state.savedDefault, undefined)
+  assert.equal(transitionAtmospherePlayback(changed.state, { type: "INTERRUPTION_ENDED" }).state.status, "paused")
+})
+
+test("omitted in-app saved default retains the enabled default", () => {
+  const result = transitionAtmospherePlayback(createAtmospherePlaybackLifecycle(true), { type: "BEGIN_IN_APP_SESSION" })
+  assert.equal(result.state.resumeAfterInterruption, true)
 })
 
 test("notice is gated by visibility and integration support", () => {
@@ -52,6 +72,12 @@ test("notice is gated by visibility and integration support", () => {
     { type: "BEGIN_IN_APP_SESSION", savedDefault: true, documentVisible: false, integrationAvailable: true },
     { type: "BEGIN_IN_APP_SESSION", savedDefault: true, documentVisible: true, integrationAvailable: false },
   ]) assert.equal(transitionAtmospherePlayback(createAtmospherePlaybackLifecycle(true), event).state.noticeSessionId, null)
+})
+
+test("dismisses only the matching notice session", () => {
+  const visible = transitionAtmospherePlayback(createAtmospherePlaybackLifecycle(true), { type: "BEGIN_IN_APP_SESSION", savedDefault: true, documentVisible: true, integrationAvailable: true }).state
+  assert.equal(transitionAtmospherePlayback(visible, { type: "DISMISS_NOTICE", sessionId: 99 }).state.noticeSessionId, 1)
+  assert.equal(transitionAtmospherePlayback(visible, { type: "DISMISS_NOTICE", sessionId: 1 }).state.noticeSessionId, null)
 })
 
 test("unknown lifecycle events throw", () => {
