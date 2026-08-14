@@ -104,15 +104,15 @@ describe("Persistent player visualizer boundary", () => {
     assert.match(miniPlayerSource, /data-testid="music-player-toolbar-controls"/)
     assert.doesNotMatch(toolbarActions, /\btitle=/)
     assert.equal((toolbarActions.match(/<TooltipContent>/g) ?? []).length, 6)
-    for (const accessibleName of [
-      'aria-label="Previous station"',
-      "aria-label={playStopLabel}",
-      'aria-label="Next station"',
-      "aria-label={visualizerActionLabel}",
-      'aria-label="Collapse"',
-      'aria-label="Expand"',
+    for (const accessibleNamePattern of [
+      /aria-label="Previous station"/,
+      /aria-label=\{playStopLabel\}/,
+      /aria-label="Next station"/,
+      /aria-label=\{visualizerActionLabel\}/,
+      /aria-label="Collapse"/,
+      /aria-label="Expand"/,
     ]) {
-      assert.match(toolbarActions, new RegExp(accessibleName.replace(/[{}]/g, "\\$&")))
+      assert.match(toolbarActions, accessibleNamePattern)
     }
   })
 
