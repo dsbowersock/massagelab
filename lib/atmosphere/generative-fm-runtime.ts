@@ -8,6 +8,10 @@ import {
   startAbortableGenerativeFmPrewarm,
   waitForAbortableGenerativeFmPrewarm,
 } from "./generative-fm-provider"
+import {
+  loadGenerativeFmPieceModule,
+  prepareGenerativeFmPlayback,
+} from "./generative-fm-piece-loader"
 
 type HostedCompressedSampleFormat = "opus" | "aac" | "mp3"
 type HostedSampleFormat = HostedCompressedSampleFormat | "wav"
@@ -109,8 +113,8 @@ const HOSTED_SAMPLE_FORMAT_PREFERENCE: ReadonlyArray<{
 
 /**
  * Starts a Generative.fm package inside MassageLab's global audio lifecycle.
- * The adapter reuses any already prepared metadata/module promise, then starts
- * Tone only from the user-initiated playback path.
+ * The adapter reuses any already prepared metadata/module promise and requests
+ * Tone activation immediately from the user-initiated playback path.
  */
 export async function startGenerativeFmPiece({
   onLoadProgress,
@@ -123,12 +127,14 @@ export async function startGenerativeFmPiece({
 
   const startedAt = performance.now()
   reportLoadProgress(onLoadProgress, 0.04)
-  const prepared = await getPreparedGenerativeFmRuntime(station, "playback")
+  const prepared = await prepareGenerativeFmPlayback({
+    loadRuntimeModules: loadGenerativeFmRuntimeModules,
+    prepareRuntime: () => getPreparedGenerativeFmRuntime(station, "playback"),
+  }) as PreparedGenerativeFmRuntimeResult
   const preparedAt = performance.now()
   reportLoadProgress(onLoadProgress, 0.22)
   const { Tone, createWebProvider, createWebLibrary, piece, pieceId, sampleIndex } = prepared
 
-  await Tone.start()
   const toneStartedAt = performance.now()
   reportLoadProgress(onLoadProgress, 0.32)
 
@@ -530,25 +536,8 @@ function resolveToneContext(Tone: ToneModule) {
   return Tone.context
 }
 
-/**
- * Loads the requested Generative.fm package piece. Observable Streams stays on
- * the single-piece package because its exported runtime matches the hosted
- * rendered sample keys verified for MassageLab playback; the aggregate package
- * remains the catalog source for future sample-enabled stations.
- */
 async function loadGenerativeFmPiece(pieceId: string): Promise<GenerativeMusicPiece> {
-  if (pieceId === "observable-streams") {
-    const { default: piece } = await import("@generative-music/piece-observable-streams")
-    return piece
-  }
-
-  const { byId: piecesById } = await import("@generative-music/pieces-alex-bainter")
-  const piece = piecesById?.[pieceId] as GenerativeMusicPiece | undefined
-  if (!piece) {
-    throw new Error(`Generative.fm package did not expose piece id: ${pieceId}`)
-  }
-
-  return piece
+  return loadGenerativeFmPieceModule(pieceId) as Promise<GenerativeMusicPiece>
 }
 
 /**
