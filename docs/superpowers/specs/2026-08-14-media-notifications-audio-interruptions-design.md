@@ -1,7 +1,7 @@
 # Media Notifications and Audio Interruptions Design
 
 Date: 2026-08-14
-Status: Design approved; awaiting written-spec review.
+Status: Approved for implementation.
 
 ## Summary
 
