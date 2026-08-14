@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { readFileSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import { describe, it } from "node:test"
 import {
   normalizeAdaptiveCarouselItems,
@@ -87,6 +87,15 @@ describe("Carousel Lab source boundaries", () => {
     assert.ok(startIndexPosition >= 0 && startIndexPosition < firstSelectPosition)
   })
 
+  it("exposes when the shared stage has initialized Embla for browser gestures", () => {
+    const controller = read("components/carousels/use-adaptive-carousel-controller.ts")
+    const stage = read("components/carousels/adaptive-carousel-stage.tsx")
+
+    assert.match(controller, /const isCarouselReady = Boolean\(api\)/)
+    assert.match(controller, /isCarouselReady,/)
+    assert.match(stage, /data-carousel-ready=\{isCarouselReady \? "true" : "false"\}/)
+  })
+
   it("cancels stale dependency frames before scheduling current transforms", () => {
     const controller = read("components/carousels/use-adaptive-carousel-controller.ts")
     const listenerEffect = controller.match(
@@ -114,7 +123,12 @@ describe("Carousel Lab source boundaries", () => {
   it("does not let Embla drag capture suppress interactive card controls", () => {
     const controller = read("components/carousels/use-adaptive-carousel-controller.ts")
     assert.match(controller, /interactiveSlideSelector/)
-    assert.match(controller, /target\.closest\(interactiveSlideSelector\)/)
+    assert.match(
+      controller,
+      /const targetElement = target instanceof Element\s+\? target\s+: target instanceof Node\s+\? target\.parentElement\s+: null/,
+    )
+    assert.match(controller, /if\s*\(\s*!targetElement\s*\)\s*return true/)
+    assert.match(controller, /targetElement\.closest\(interactiveSlideSelector\)/)
     assert.match(controller, /watchDrag:\s*\(_api, event\) => shouldStartCarouselDrag\(event\)/)
   })
 
@@ -177,14 +191,19 @@ describe("Carousel Lab source boundaries", () => {
   it("keeps Station artwork separate from actions and exposes lab-only details", () => {
     const sharedCard = read("components/atmosphere/station-carousel-card.tsx")
     const labCard = read("app/dev/buttons/carousel-lab/station-lab-card.tsx")
+    const controller = read("components/carousels/use-adaptive-carousel-controller.ts")
+    const stageCss = read("components/carousels/adaptive-carousel-stage.module.css")
 
     assert.match(sharedCard, /data-carousel-artwork/)
     assert.match(sharedCard, /data-carousel-station-details/)
+    assert.match(sharedCard, /data-carousel-drag-surface="true"/)
     assert.match(sharedCard, /DialogTrigger/)
     assert.match(sharedCard, /DialogContent/)
     assert.match(sharedCard, /displayMode === "carousel"/)
     assert.match(labCard, /displayMode="carousel"/)
     assert.match(sharedCard, /MetalFavoriteIcon kind="heart" selected=\{isFavorite\}/)
+    assert.match(controller, /dragSurface\.matches\(interactiveSlideSelector\)/)
+    assert.match(stageCss, /touch-action:\s*pan-y pinch-zoom/)
   })
 
   it("keeps readable Glow actions in the requested Background preview-card corners", () => {
@@ -205,6 +224,19 @@ describe("Carousel Lab source boundaries", () => {
     assert.match(metalIcon, /fill=\{selected \? "hsl\(var\(--button-cta-face\)\)" : "none"\}/)
     assert.match(metalIcon, /animateTransform/)
     assert.match(metalIcon, /selected && !reducedMotion/)
+  })
+
+  it("keeps production Background actions and metadata off the preview artwork", () => {
+    const card = read("components/backgrounds/background-carousel-card.tsx")
+    assert.equal(existsSync(new URL("../components/backgrounds/background-carousel-control-tray.tsx", import.meta.url)), true)
+    const tray = read("components/backgrounds/background-carousel-control-tray.tsx")
+
+    assert.doesNotMatch(card, /data-carousel-primary-action|data-carousel-favorite-action/)
+    assert.doesNotMatch(card, /visualDescriptor|previewTags|acquisitionHint/)
+    assert.match(tray, /data-background-carousel-controls/)
+    assert.match(tray, /data-carousel-primary-action/)
+    assert.match(tray, /data-carousel-favorite-action/)
+    assert.match(tray, /DialogTrigger/)
   })
 
   it("sizes every retained card independently and hides distant shells", () => {

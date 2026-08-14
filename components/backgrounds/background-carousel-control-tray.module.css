@@ -1,0 +1,115 @@
+.tray {
+  display: grid;
+  grid-template-areas:
+    "metadata actions"
+    "preview actions";
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 0.9rem;
+  background: rgb(5 5 5 / 88%);
+}
+
+.metadata {
+  grid-area: metadata;
+  min-width: 0;
+}
+
+.previewRegion {
+  grid-area: preview;
+  min-width: 0;
+}
+
+.description {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.accessState,
+.supplementaryMetadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+}
+
+.supplementaryMetadata,
+.motionStatus {
+  color: rgb(255 255 255 / 72%);
+}
+
+.actions {
+  grid-area: actions;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.infoTrigger {
+  display: none;
+}
+
+.primaryAction {
+  min-width: 0;
+}
+
+:global([data-carousel-responsive-profile="short-landscape"]) .tray {
+  grid-template-areas:
+    "metadata"
+    "preview"
+    "actions";
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  height: 100%;
+  padding: 0.55rem;
+}
+
+:global([data-carousel-responsive-profile="short-landscape"]) .description,
+:global([data-carousel-responsive-profile="short-landscape"]) .supplementaryMetadata {
+  display: none;
+}
+
+:global([data-carousel-responsive-profile="short-landscape"]) .infoTrigger {
+  display: inline-flex;
+}
+
+:global([data-carousel-responsive-profile="short-landscape"]) .actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-areas:
+    "previous primary primary"
+    "permanent favorite next"
+    "info info info";
+}
+
+:global([data-carousel-responsive-profile="short-landscape"]) .previousAction {
+  grid-area: previous;
+}
+
+:global([data-carousel-responsive-profile="short-landscape"]) .primaryAction {
+  grid-area: primary;
+}
+
+:global([data-carousel-responsive-profile="short-landscape"]) .permanentAction,
+:global([data-carousel-responsive-profile="short-landscape"]) .ownershipBadge {
+  grid-area: permanent;
+}
+
+:global([data-carousel-responsive-profile="short-landscape"]) .favoriteAction {
+  grid-area: favorite;
+}
+
+:global([data-carousel-responsive-profile="short-landscape"]) .nextAction {
+  grid-area: next;
+}
+
+:global([data-carousel-responsive-profile="short-landscape"]) .infoTrigger {
+  grid-area: info;
+}

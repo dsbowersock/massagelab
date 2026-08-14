@@ -11,11 +11,28 @@ import {
 
 const interactiveSlideSelector =
   "button, a, input, select, textarea, [role='button'], [role='option']"
+const interactiveDragSurfaceSelector = "[data-carousel-drag-surface='true']"
 
-/** Keeps carousel drag capture from suppressing controls rendered inside cards. */
+/**
+ * Normalizes Element and Text-node event targets before deciding whether Embla
+ * may start a drag. Interactive controls may drag only when that same element
+ * is the explicitly approved drag surface, keeping Play/Stop and Favorite
+ * actions protected while station details can support both taps and swipes.
+ */
 function shouldStartCarouselDrag(event: MouseEvent | TouchEvent) {
   const target = event.target
-  return !(target instanceof Element && target.closest(interactiveSlideSelector))
+  const targetElement = target instanceof Element
+    ? target
+    : target instanceof Node
+      ? target.parentElement
+      : null
+  if (!targetElement) return true
+
+  const interactive = targetElement.closest(interactiveSlideSelector)
+  if (!interactive) return true
+
+  const dragSurface = targetElement.closest(interactiveDragSurfaceSelector)
+  return dragSurface === interactive && dragSurface.matches(interactiveSlideSelector)
 }
 
 export interface AdaptiveCarouselItem {
@@ -81,6 +98,8 @@ export function useAdaptiveCarouselController(
   const [centeredId, setCenteredId] = useState<string | null>(initialCenter.id)
   const [canGoPrevious, setCanGoPrevious] = useState(false)
   const [canGoNext, setCanGoNext] = useState(false)
+  /** True once Embla has initialized its drag and navigation listeners. */
+  const isCarouselReady = Boolean(api)
 
   const centeredIndex = Math.max(0, items.findIndex(({ id }) => id === centeredId))
   const mountedIds = useMemo(
@@ -201,6 +220,7 @@ export function useAdaptiveCarouselController(
 
   return {
     viewportRef,
+    isCarouselReady,
     centeredId,
     centeredIndex,
     mountedIds,

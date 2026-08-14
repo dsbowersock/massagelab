@@ -307,7 +307,9 @@ async function centerPremium(page: Page, backgroundId: string) {
 }
 
 function accessCard(slide: Awaited<ReturnType<typeof centerPremium>>) {
-  return slide.locator("[data-background-access-state]")
+  return slide
+    .locator("xpath=ancestor::section[@aria-label='Background carousel']")
+    .getByTestId("background-carousel-controls")
 }
 
 async function openChimerAfterPreferenceSeed(page: Page) {
@@ -374,7 +376,7 @@ test("guest cart persists locally and requires an account only at checkout", asy
     "Add this background now, then sign in or create an account at checkout.",
   )
   await expect(accessCard(guestAurora)).toContainText(
-    "Add now; sign in or create an account at checkout.",
+    "Add this background now, then sign in or create an account at checkout.",
   )
   await guestUnlock.click()
   const acquisition = page.getByRole("dialog", { name: `Unlock ${AURORA_NAME}` })

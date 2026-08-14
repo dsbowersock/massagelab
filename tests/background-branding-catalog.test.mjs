@@ -49,14 +49,17 @@ describe("approved background branding catalog", () => {
   })
 
   it("shows literal descriptors on primary picker and ownership surfaces", async () => {
-    const [card, acquisition, credit, account] = await Promise.all([
+    const [card, tray, acquisition, credit, account] = await Promise.all([
       readFile(new URL("../components/backgrounds/background-carousel-card.tsx", import.meta.url), "utf8"),
+      readFile(new URL("../components/backgrounds/background-carousel-control-tray.tsx", import.meta.url), "utf8"),
       readFile(new URL("../components/backgrounds/BackgroundAcquisitionDialog.tsx", import.meta.url), "utf8"),
       readFile(new URL("../components/backgrounds/BackgroundCreditConfirmationDialog.tsx", import.meta.url), "utf8"),
       readFile(new URL("../components/account/BackgroundCommercePanel.tsx", import.meta.url), "utf8"),
     ])
-    for (const source of [card, acquisition, credit, account]) {
+    for (const source of [tray, acquisition, credit, account]) {
       assert.match(source, /visualDescriptor/)
     }
+    assert.match(tray, /data-background-carousel-controls/)
+    assert.doesNotMatch(card, /visualDescriptor/)
   })
 })

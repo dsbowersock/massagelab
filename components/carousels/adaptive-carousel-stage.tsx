@@ -18,6 +18,18 @@ interface AdaptiveCarouselItemRenderState {
   detailLevel: AdaptiveCarouselDetailLevel
 }
 
+/**
+ * Exposes carousel navigation to surface-owned controls while preserving the
+ * stage's centralized navigation analytics and boundary state.
+ */
+export interface AdaptiveCarouselControlState {
+  centeredItemId: string | null
+  canGoPrevious: boolean
+  canGoNext: boolean
+  goPrevious: () => void
+  goNext: () => void
+}
+
 export interface AdaptiveCarouselStageProps<T extends AdaptiveCarouselItem> {
   items: readonly T[]
   initialItemId?: string | null
@@ -32,6 +44,7 @@ export interface AdaptiveCarouselStageProps<T extends AdaptiveCarouselItem> {
   onNavigate?: () => void
   testId?: string
   viewportProfile?: string
+  renderControls?: (state: AdaptiveCarouselControlState) => ReactNode
 }
 
 type CarouselRootStyle = CSSProperties & {
@@ -65,6 +78,7 @@ export function AdaptiveCarouselStage<T extends AdaptiveCarouselItem>({
   onNavigate,
   testId = "adaptive-carousel-stage",
   viewportProfile,
+  renderControls,
 }: AdaptiveCarouselStageProps<T>) {
   const items = useMemo(
     () => normalizeAdaptiveCarouselItems(sourceItems) as T[],
@@ -72,6 +86,7 @@ export function AdaptiveCarouselStage<T extends AdaptiveCarouselItem>({
   )
   const {
     viewportRef,
+    isCarouselReady,
     centeredId,
     mountedIds,
     effectiveLoop,
@@ -111,14 +126,57 @@ export function AdaptiveCarouselStage<T extends AdaptiveCarouselItem>({
     "--carousel-perspective": `${finiteTuningValue(tuning.perspective, 900)}px`,
   }
   const itemLabel = surface === "backgrounds" ? "background" : "station"
+  const controlState: AdaptiveCarouselControlState = {
+    centeredItemId: centeredId,
+    canGoPrevious,
+    canGoNext,
+    goPrevious: () => {
+      onNavigate?.()
+      goPrevious()
+    },
+    goNext: () => {
+      onNavigate?.()
+      goNext()
+    },
+  }
+  const defaultNavigation = (
+    <div className={styles.navigation}>
+      <Button
+        type="button"
+        className={styles.navigationButton}
+        aria-label={`Previous ${itemLabel}`}
+        title={`Previous ${itemLabel}`}
+        disabled={!canGoPrevious}
+        onClick={controlState.goPrevious}
+        size="icon"
+        variant="glow"
+      >
+        <StepBack aria-hidden="true" />
+      </Button>
+      <Button
+        type="button"
+        className={styles.navigationButton}
+        aria-label={`Next ${itemLabel}`}
+        title={`Next ${itemLabel}`}
+        disabled={!canGoNext}
+        onClick={controlState.goNext}
+        size="icon"
+        variant="glow"
+      >
+        <StepForward aria-hidden="true" />
+      </Button>
+    </div>
+  )
 
   return (
     <section
       className={styles.root}
       data-surface={surface}
       data-presentation={presentation}
+      data-carousel-ready={isCarouselReady ? "true" : "false"}
       data-reduced-motion={reducedMotion || tuning.motion === false}
       data-carousel-responsive-profile={viewportProfile}
+      data-has-custom-controls={Boolean(renderControls)}
       style={rootStyle}
       aria-label={`${surface === "backgrounds" ? "Background" : "Station"} carousel`}
     >
@@ -188,37 +246,8 @@ export function AdaptiveCarouselStage<T extends AdaptiveCarouselItem>({
         </div>
       </div>
 
-      <div className={styles.navigation}>
-        <Button
-          type="button"
-          className={styles.navigationButton}
-          aria-label={`Previous ${itemLabel}`}
-          title={`Previous ${itemLabel}`}
-          disabled={!canGoPrevious}
-          onClick={() => {
-            onNavigate?.()
-            goPrevious()
-          }}
-          size="icon"
-          variant="glow"
-        >
-          <StepBack aria-hidden="true" />
-        </Button>
-        <Button
-          type="button"
-          className={styles.navigationButton}
-          aria-label={`Next ${itemLabel}`}
-          title={`Next ${itemLabel}`}
-          disabled={!canGoNext}
-          onClick={() => {
-            onNavigate?.()
-            goNext()
-          }}
-          size="icon"
-          variant="glow"
-        >
-          <StepForward aria-hidden="true" />
-        </Button>
+      <div className={styles.controls}>
+        {renderControls ? renderControls(controlState) : defaultNavigation}
       </div>
 
       <p className={styles.status} aria-live="polite" aria-atomic="true">

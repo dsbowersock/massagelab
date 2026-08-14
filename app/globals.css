@@ -118,7 +118,8 @@
     --ml-safe-bottom: env(safe-area-inset-bottom, 0px);
     --ml-page-edge-gap: clamp(1rem, 3vw, 2rem);
     --ml-scroll-end-buffer: 1.5rem;
-    --ml-audio-toolbar-height: 5rem;
+    --ml-audio-toolbar-content-height: 5rem;
+    --ml-audio-toolbar-height: var(--ml-audio-toolbar-content-height);
     --ml-main-bar-height: 3.25rem;
     --ml-desktop-app-bar-height: 3.5rem;
     --ml-bottom-stack-height: var(--ml-safe-bottom);
@@ -225,6 +226,72 @@
   body.ml-music-player-active.ml-music-player-bottom {
     --chimer-bottom-control-offset: calc(var(--ml-safe-bottom) + var(--ml-audio-toolbar-height) + 0.75rem);
     --chimer-panel-bottom-offset: calc(var(--ml-safe-bottom) + var(--ml-audio-toolbar-height) + 0.75rem);
+  }
+
+  /* The narrow shell reservation follows the toolbar's expanded or compact grid. */
+  @media (max-width: 39.999rem) {
+    body.ml-music-player-active:not(.ml-music-player-collapsed) {
+      --ml-audio-toolbar-content-height: 7rem;
+    }
+
+    body.ml-music-player-active.ml-music-player-collapsed {
+      --ml-audio-toolbar-content-height: 4.5rem;
+    }
+
+    body.ml-music-player-active.ml-music-player-top {
+      --ml-audio-toolbar-height: calc(var(--ml-audio-toolbar-content-height) + var(--ml-safe-top));
+      --chimer-top-control-offset: calc(var(--ml-audio-toolbar-height) + 0.75rem);
+      --chimer-settings-panel-top-offset: calc(var(--ml-audio-toolbar-height) + 4.75rem);
+    }
+
+    body.ml-music-player-active.ml-music-player-bottom {
+      --ml-audio-toolbar-height: var(--ml-audio-toolbar-content-height);
+    }
+
+    /* The root owns the placement-specific reservation while the grid keeps
+       its full control height. The bottom stack already owns its safe inset. */
+    .ml-music-player-toolbar {
+      height: var(--ml-audio-toolbar-height);
+    }
+
+    .ml-music-player-toolbar-surface {
+      box-sizing: border-box;
+      height: 100%;
+      position: relative;
+    }
+
+    .ml-music-player-toolbar-layout {
+      height: var(--ml-audio-toolbar-content-height);
+      min-height: var(--ml-audio-toolbar-content-height) !important;
+      padding-bottom: 0.25rem;
+      padding-top: 0.25rem;
+      row-gap: 0.25rem;
+    }
+
+    /* Loading keeps one visible identity line plus the accessible progress bar,
+       avoiding duplicate status copy inside the bounded narrow grid. */
+    .ml-music-player-toolbar[data-playback-state="loading"] .ml-music-player-toolbar-status,
+    .ml-music-player-toolbar[data-playback-state="loading"] .ml-music-player-toolbar-progress [aria-live="polite"] {
+      display: none;
+    }
+
+    .ml-music-player-toolbar-surface::after {
+      background: hsl(var(--border) / 0.82);
+      content: "";
+      height: 1px;
+      left: 0;
+      pointer-events: none;
+      position: absolute;
+      right: 0;
+    }
+
+    .ml-music-player-toolbar[data-placement="top"] .ml-music-player-toolbar-surface::after {
+      bottom: 0;
+    }
+
+    .ml-music-player-toolbar[data-placement="bottom"] .ml-music-player-toolbar-surface::after {
+      top: 0;
+    }
   }
 
   body.chimer-running aside,
@@ -1873,6 +1940,16 @@
     --ml-page-top-safe: calc(var(--ml-safe-top) + var(--ml-audio-toolbar-height));
   }
 
+  @media (max-width: 39.999rem) {
+    body.ml-music-player-active.ml-music-player-top .ml-app-shell {
+      --ml-page-top-safe: var(--ml-audio-toolbar-height);
+    }
+
+    body.ml-music-player-active.ml-music-player-top .ml-app-scroll {
+      scroll-padding-top: calc(var(--ml-page-edge-gap) + var(--ml-page-top-safe));
+    }
+  }
+
   body.ml-music-player-active.ml-music-player-bottom .ml-app-shell {
     --ml-page-bottom-safe: calc(var(--ml-bottom-stack-height) + var(--ml-page-edge-gap) + var(--ml-scroll-end-buffer) + var(--ml-audio-toolbar-height));
     --chimer-bottom-control-offset: calc(var(--ml-bottom-stack-height) + var(--ml-audio-toolbar-height) + 0.75rem);
@@ -1931,6 +2008,18 @@
   .ml-music-player-toolbar[data-placement="bottom"] .ml-music-player-toolbar-surface {
     border-top: 1px solid hsl(var(--border) / 0.82);
     padding-bottom: var(--ml-safe-bottom);
+  }
+
+  @media (max-width: 39.999rem) {
+    /* Keep the edge rule visual-only so it cannot subtract from the grid. */
+    .ml-music-player-toolbar[data-placement="top"] .ml-music-player-toolbar-surface {
+      border-bottom-width: 0;
+    }
+
+    .ml-music-player-toolbar[data-placement="bottom"] .ml-music-player-toolbar-surface {
+      border-top-width: 0;
+      padding-bottom: 0;
+    }
   }
 
   .ml-app-tool-link[data-active="true"] {

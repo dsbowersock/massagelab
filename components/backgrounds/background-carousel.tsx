@@ -7,7 +7,7 @@ import {
   resolveAdaptiveCarouselViewportProfile,
 } from "@/components/carousels/adaptive-carousel-model"
 import { BackgroundCarouselCard } from "@/components/backgrounds/background-carousel-card"
-import { Button } from "@/components/ui/button"
+import { BackgroundCarouselControlTray } from "@/components/backgrounds/background-carousel-control-tray"
 import { useAmbientReducedMotion } from "@/components/backgrounds/use-ambient-reduced-motion"
 import { useBackgroundCommerce } from "@/components/backgrounds/BackgroundCommerceProvider"
 import { useSettings } from "@/components/providers/settings-provider"
@@ -18,6 +18,10 @@ import {
   resolveBackgroundCommerceAccessSource,
 } from "@/components/backgrounds/backgroundRegistry"
 import { backgroundCardCommerceState } from "@/lib/background-commerce-client.js"
+import {
+  readBackgroundPreviewPreference,
+  writeBackgroundPreviewPreference,
+} from "@/lib/background-preview-preference.js"
 
 type BackgroundViewportProfile =
   | "phone-portrait"
@@ -64,19 +68,30 @@ export function BackgroundCarousel({
   const hostRef = useRef<HTMLDivElement | null>(null)
   const [profile, setProfile] =
     useState<BackgroundViewportProfile>("compact-desktop")
-  const [playPreviews, setPlayPreviews] = useState(false)
+  const [previewPreferenceEnabled, setPreviewPreferenceEnabled] = useState(true)
+  const [preferenceHydrated, setPreferenceHydrated] = useState(false)
   const { settings } = useSettings()
   const { state: commerceClientState, signedIn } = useBackgroundCommerce()
   const snapshot = commerceClientState.snapshot
 
   // Keep the carousel, preview cards, and host on the shared ambient-motion source of truth.
   const reducedMotion = useAmbientReducedMotion(settings.ambientMotionMode)
-  const previewPlaybackActive = playPreviews && active && !reducedMotion
+  const previewPlaybackActive =
+    preferenceHydrated && previewPreferenceEnabled && active && !reducedMotion
 
   useEffect(() => {
-    // Do not silently resume previews if reduced motion is later turned off.
-    if (reducedMotion) setPlayPreviews(false)
-  }, [reducedMotion])
+    setPreviewPreferenceEnabled(readBackgroundPreviewPreference(() => window.localStorage))
+    setPreferenceHydrated(true)
+  }, [])
+
+  /**
+   * Keeps saved device intent distinct from a temporary reduced-motion pause.
+   * A blocked localStorage write must not prevent the current session changing.
+   */
+  function handlePreviewPreferenceChange(enabled: boolean) {
+    setPreviewPreferenceEnabled(enabled)
+    writeBackgroundPreviewPreference(() => window.localStorage, enabled)
+  }
 
   useEffect(() => {
     const host = hostRef.current
@@ -138,22 +153,6 @@ export function BackgroundCarousel({
 
   return (
     <div ref={hostRef} className="min-w-0" data-background-carousel>
-      <div className="mb-2 flex justify-end">
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          aria-pressed={previewPlaybackActive}
-          disabled={reducedMotion}
-          onClick={() => setPlayPreviews((current) => !current)}
-        >
-          {reducedMotion
-            ? "Previews off (reduced motion)"
-            : playPreviews
-              ? "Pause Previews"
-              : "Play Preview"}
-        </Button>
-      </div>
       <AdaptiveCarouselStage
         key={items.map(({ id }) => id).join("|")}
         items={items}
@@ -170,21 +169,39 @@ export function BackgroundCarousel({
         }}
         onEffectiveLoopChange={onEffectiveLoopChange}
         onNavigate={onNavigate}
+        renderControls={(controls) => {
+          const centeredOption = items.find(({ id }) => id === controls.centeredItemId)
+          if (!centeredOption) return null
+
+          return (
+            <BackgroundCarouselControlTray
+              option={centeredOption}
+              commerceState={centeredOption.commerceState}
+              selected={selectedId === centeredOption.id}
+              saved={savedIds.includes(centeredOption.id)}
+              signedIn={signedIn}
+              previewPreferenceEnabled={previewPreferenceEnabled}
+              reducedMotion={reducedMotion}
+              canGoPrevious={controls.canGoPrevious}
+              canGoNext={controls.canGoNext}
+              onPrevious={controls.goPrevious}
+              onNext={controls.goNext}
+              onSelect={() => onSelect(centeredOption.id)}
+              onLockedSelect={() => onLockedSelect?.(centeredOption)}
+              onKeepPermanently={() => onKeepPermanently?.(centeredOption)}
+              onToggleSaved={() => onToggleSaved(centeredOption.id)}
+              onPreviewPreferenceChange={handlePreviewPreferenceChange}
+            />
+          )
+        }}
         renderItem={(option, { detailLevel }) => (
           <BackgroundCarouselCard
             option={option}
             detailLevel={detailLevel}
-            commerceState={option.commerceState}
             selected={selectedId === option.id}
-            saved={savedIds.includes(option.id)}
             active={active}
             playPreviews={previewPlaybackActive}
-            signedIn={signedIn}
             reducedMotion={reducedMotion}
-            onSelect={() => onSelect(option.id)}
-            onLockedSelect={() => onLockedSelect?.(option)}
-            onKeepPermanently={() => onKeepPermanently?.(option)}
-            onToggleSaved={() => onToggleSaved(option.id)}
           />
         )}
       />

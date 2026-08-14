@@ -549,10 +549,30 @@ test("Atmosphere visualizer action retains selected station across client routes
 
   await expect(page.getByText("MassageLab Proof Drone").last()).toBeVisible()
   await expect(page.getByText(/Playing|Preparing audio|Preparing station/i).last()).toBeVisible()
-  await expect(page.getByRole("button", { name: /^Previous station$/i }).last()).toBeVisible()
-  await expect(page.getByRole("button", { name: /^Next station$/i }).last()).toBeVisible()
-  await expect(playerToolbar.getByRole("link", { name: /^Background$/i })).toBeVisible()
-  await playerToolbar.getByRole("link", { name: /^Background$/i }).click()
+  const overflow = await playerToolbar.evaluate((node) => ({
+    clientWidth: node.clientWidth,
+    scrollWidth: node.scrollWidth,
+  }))
+  expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth + 1)
+
+  const identityBox = await playerToolbar.getByTestId("music-player-toolbar-identity").boundingBox()
+  const controlsBox = await playerToolbar.getByTestId("music-player-toolbar-controls").boundingBox()
+  if ((page.viewportSize()?.width ?? 0) < 640) {
+    expect(controlsBox?.y ?? 0).toBeGreaterThan(identityBox?.y ?? 0)
+  }
+
+  for (const name of ["Previous station", "Stop", "Next station", "Background", "Collapse"]) {
+    await expect(playerToolbar.getByRole(name === "Background" ? "link" : "button", { name, exact: true })).toBeVisible()
+  }
+
+  await playerToolbar.getByRole("button", { name: "Collapse", exact: true }).click()
+  await expect(playerToolbar).toHaveAttribute("data-collapsed", "true")
+  await expect(playerToolbar.getByRole("link", { name: "Background", exact: true })).toHaveCount(0)
+  await expect(playerToolbar.getByRole("button", { name: "Stop", exact: true })).toBeVisible()
+  await expect(playerToolbar.getByRole("button", { name: "Expand", exact: true })).toBeVisible()
+  await playerToolbar.getByRole("button", { name: "Expand", exact: true }).click()
+
+  await playerToolbar.getByRole("link", { name: "Background", exact: true }).click()
   await expect(page).toHaveURL(/\/clock\?[^#]*source=music/)
   const backgroundDialog = page.getByRole("dialog", { name: "Background" })
   await expect(backgroundDialog).toBeVisible()
@@ -564,20 +584,9 @@ test("Atmosphere visualizer action retains selected station across client routes
   await page.goBack()
   await expect(page).toHaveURL(/\/music\?task8=public-route$/)
   await expect(playerToolbar.getByRole("link", { name: /^Background$/i })).toBeVisible()
-  const collapseButton = page.getByRole("button", { name: /^Collapse$/i }).last()
-  const canCollapsePlayer = (page.viewportSize()?.width ?? 0) >= 640
-  if (canCollapsePlayer) {
-    await collapseButton.click()
-    await expect(playerToolbar.getByRole("link", { name: /^Background$/i })).toBeVisible()
-  } else {
-    await expect(collapseButton).toHaveCount(0)
-  }
   await page.getByRole("button", { name: /^Stop$/i }).last().click()
   await expect(page.getByText("MassageLab Proof Drone").last()).toBeVisible()
   await expect(playerToolbar.getByRole("link", { name: /^Background$/i })).toBeVisible()
-  if (canCollapsePlayer) {
-    await page.getByRole("button", { name: /^Expand$/i }).last().click()
-  }
   await expect(page.getByText("Stopped").last()).toBeVisible()
   await expect(playerToolbar.getByRole("link", { name: /^Background$/i })).toBeVisible()
 
@@ -983,6 +992,124 @@ test("Breathing guide route runs separately from Music stations", async ({ page 
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
+})
+
+test("center station details support swipe and short tap while actions stay protected", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "Touch carousel behavior is covered in mobile Chromium.")
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto("/music", { waitUntil: "domcontentloaded" })
+  await expect(page.getByRole("region", { name: "Station carousel" })).toHaveAttribute("data-carousel-ready", "true")
+  const centered = await centerCarouselItem(page, "mlab-proof-drone", "Next station")
+  const details = centered.locator("[data-carousel-station-details]")
+  const beforeId = await centered.getAttribute("data-carousel-item-id")
+  const box = await details.boundingBox()
+  if (!box) throw new Error("Station details surface has no drag bounds")
+
+  await page.mouse.move(box.x + box.width * 0.75, box.y + box.height * 0.5)
+  await page.mouse.down()
+  await page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.5, { steps: 8 })
+  await page.mouse.up()
+
+  await expect.poll(async () => page.locator('[data-carousel-slide][data-centered="true"]').getAttribute("data-carousel-item-id"))
+    .not.toBe(beforeId)
+  await expect(page.getByRole("dialog")).toHaveCount(0)
+
+  const proof = await centerCarouselItem(page, "mlab-proof-drone", "Next station")
+  const protectedCenterId = await proof.getAttribute("data-carousel-item-id")
+  const playButton = proof.getByRole("button", { name: /^Play MassageLab Proof Drone$/i })
+  const pointerPrewarmAbortCount = await playButton.evaluate(async (button) => {
+    const textNode = Array.from(button.childNodes).find((node) => (
+      node.nodeType === Node.TEXT_NODE && node.textContent?.trim() === "Play"
+    ))
+    if (!textNode) throw new Error("Play control text node is unavailable")
+
+    const box = button.getBoundingClientRect()
+    const startX = box.left + box.width * 0.75
+    const startY = box.top + box.height * 0.5
+
+    const dispatchPointer = (type: "pointerdown" | "pointercancel", pointerId: number) => {
+      textNode.dispatchEvent(new PointerEvent(type, {
+        bubbles: true,
+        button: 0,
+        buttons: type === "pointerdown" ? 1 : 0,
+        cancelable: true,
+        clientX: startX,
+        clientY: startY,
+        isPrimary: true,
+        pointerId,
+        pointerType: "mouse",
+      }))
+    }
+
+    // A first pointerdown establishes the current prewarm controller. The
+    // second must reach the Play button's React onPointerDown handler and abort it.
+    dispatchPointer("pointerdown", 41)
+    dispatchPointer("pointercancel", 41)
+    const originalAbort = AbortController.prototype.abort
+    let abortCount = 0
+    try {
+      AbortController.prototype.abort = function (reason?: unknown) {
+        abortCount += 1
+        return originalAbort.call(this, reason)
+      }
+      dispatchPointer("pointerdown", 42)
+      dispatchPointer("pointercancel", 42)
+    } finally {
+      AbortController.prototype.abort = originalAbort
+    }
+
+    // Keep the MouseEvent sequence because Embla's watchDrag gate consumes
+    // MouseEvent | TouchEvent. Starting on the label preserves the Text-node
+    // target that previously bypassed interactive-control drag protection.
+    textNode.dispatchEvent(new MouseEvent("mousedown", {
+      bubbles: true,
+      button: 0,
+      buttons: 1,
+      cancelable: true,
+      clientX: startX,
+      clientY: startY,
+      view: window,
+    }))
+    for (let step = 1; step <= 8; step += 1) {
+      document.dispatchEvent(new MouseEvent("mousemove", {
+        bubbles: true,
+        buttons: 1,
+        cancelable: true,
+        clientX: startX - step * 20,
+        clientY: startY,
+        view: window,
+      }))
+      await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()))
+    }
+    document.dispatchEvent(new MouseEvent("mouseup", {
+      bubbles: true,
+      button: 0,
+      buttons: 0,
+      cancelable: true,
+      clientX: startX - 160,
+      clientY: startY,
+      view: window,
+    }))
+    return abortCount
+  })
+  expect(pointerPrewarmAbortCount).toBeGreaterThan(0)
+  await expect.poll(async () => page.locator('[data-carousel-slide][data-centered="true"]').getAttribute("data-carousel-item-id"))
+    .toBe(protectedCenterId)
+
+  await proof.locator("[data-carousel-station-details]").click()
+  await expect(page.getByRole("dialog").getByRole("heading", { name: "MassageLab Proof Drone" })).toBeVisible()
+  await page.keyboard.press("Escape")
+
+  await proof.locator("[data-carousel-station-details]").focus()
+  await page.keyboard.press("Enter")
+  await expect(page.getByRole("dialog").getByRole("heading", { name: "MassageLab Proof Drone" })).toBeVisible()
+  await page.keyboard.press("Escape")
+
+  await proof.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
+  await expect(proof).toHaveAttribute("data-centered", "true")
+  await proof.getByRole("button", { name: /Favorite MassageLab Proof Drone|Remove MassageLab Proof Drone from favorites/i }).click()
+  await expect(proof).toHaveAttribute("data-centered", "true")
+  await page.getByTestId("music-player-toolbar").getByRole("button", { name: "Stop", exact: true }).click()
 })
 
 test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample station", async ({ page }) => {
