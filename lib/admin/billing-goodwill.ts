@@ -2,7 +2,7 @@ import type { Prisma, PrismaClient } from "@prisma/client"
 import type Stripe from "stripe"
 import { normalizeEmail } from "../auth-security.js"
 import { runCommerceTransaction } from "../commerce/transactions.ts"
-import { requireFullAdminUser } from "./access.ts"
+import { AdminAuthorityDeniedError, requireFullAdminUser } from "./access.ts"
 import { validateAdminReason, type AdminReasonCode } from "./operation-contract.ts"
 import {
   acquireAdminActionIdempotencyLock,
@@ -51,6 +51,7 @@ export type BillingGoodwillResult = {
   status: "VERIFIED" | "RECONCILIATION_REQUIRED" | "FAILED_BEFORE_MUTATION"
   amountCents: number
   endingCreditCents: number | null
+  currentCreditCents: number | null
   replayed: boolean
   emailIntentId: string | null
 }
@@ -248,10 +249,16 @@ export async function applyInvoiceCredit(
   validateMutationInput(input)
   const prepared = await prepareGoodwillOperation(input, false)
   if (prepared.operation.status === "VERIFIED") {
-    return finalizeVerifiedGoodwill(input, prepared.operation, prepared.recipientEmail, true)
+    return finalizeVerifiedGoodwill(
+      input,
+      prepared.operation.endingBalanceCents,
+      prepared.recipientEmail,
+      true,
+      null,
+    )
   }
   if (prepared.operation.status === "FAILED_BEFORE_MUTATION") {
-    return operationResult(prepared.operation, prepared.replayed, null)
+    return operationResult(prepared.operation, prepared.replayed, null, null)
   }
   // Only the invocation that inserted PREPARED owns the initial provider
   // attempt. Every exact replay routes the operator to explicit reconciliation.
@@ -302,6 +309,7 @@ async function prepareGoodwillOperation(
 
     if (existing) {
       assertExactOperationReplay(existing, input, reconciliationOnly)
+      let preparedOperation = existing
       if (existing.status === "VERIFIED") {
         assertCoherentVerifiedOperation(existing)
         if (!existingAction) throw operationKeyInUse()
@@ -341,8 +349,36 @@ async function prepareGoodwillOperation(
           }) as BillingGoodwillOperation
           return { operation: blocked, recipientEmail: target.email, replayed: true, blocked: true }
         }
+        // Claim the existing no-ID request before any reconciliation provider
+        // attempt. The exact CAS plus readback preserves a concurrent applied
+        // or terminal state and prevents the original creator from later
+        // classifying this shared operation as definitely never attempted.
+        if (existing.status === "PREPARED") {
+          await tx.adminBillingGoodwillOperation.updateMany({
+            where: {
+              id: existing.id,
+              actorUserId: existing.actorUserId,
+              targetUserId: existing.targetUserId,
+              idempotencyKey: existing.idempotencyKey,
+              status: "PREPARED",
+              stripeBalanceTransactionId: null,
+            },
+            data: { status: "RECONCILIATION_REQUIRED" },
+          })
+          const claimed = await tx.adminBillingGoodwillOperation.findUnique({
+            where: { id: existing.id },
+          }) as BillingGoodwillOperation | null
+          if (!claimed) {
+            throw mutationError("OPERATION_NOT_FOUND", "The billing goodwill operation was not found.")
+          }
+          assertExactOperationReplay(claimed, input, true)
+          if (!isBillingGoodwillUnresolvedStatus(claimed.status)) {
+            throw mutationError("OPERATION_NOT_RECONCILABLE", "This billing goodwill operation no longer requires reconciliation.")
+          }
+          preparedOperation = claimed
+        }
       }
-      return { operation: existing, recipientEmail: target.email, replayed: true, blocked: false }
+      return { operation: preparedOperation, recipientEmail: target.email, replayed: true, blocked: false }
     }
     if (existingAction) throw operationKeyInUse()
     if (reconciliationOnly) {
@@ -441,12 +477,28 @@ async function executeGoodwillRequest(
     return settlePersistedOutcome(input, failed, prepared)
   }
 
-  if (prepared.replayed && !isInsideStripeRetryWindow(operation.createdAt, readMutationClock(input))) {
+  const providerBoundaryNow = readMutationClock(input)
+  if (prepared.replayed && !isInsideStripeRetryWindow(operation.createdAt, providerBoundaryNow)) {
     const unresolved = await persistGoodwillState(input.prismaClient, operation.id, {
       status: "RECONCILIATION_REQUIRED",
       failureCode: "IDEMPOTENCY_RETRY_WINDOW_EXPIRED",
     }, [...BILLING_GOODWILL_UNRESOLVED_STATUSES])
     return settlePersistedOutcome(input, unresolved, prepared)
+  }
+
+  // This intentionally runs outside durable preparation: it narrows the
+  // revocation window at the irreversible provider boundary, but authority can
+  // still change after this successful read and before Stripe returns.
+  try {
+    await requireFullAdminUser({
+      prismaClient: input.prismaClient,
+      sessionUserId: input.actorUserId,
+    })
+  } catch (error) {
+    if (error instanceof AdminAuthorityDeniedError && !prepared.replayed) {
+      await persistCreatorOwnedPreCallFailure(input.prismaClient, operation, "ADMIN_AUTHORITY_REVOKED")
+    }
+    throw error
   }
 
   let createdTransactionId: string
@@ -494,11 +546,8 @@ async function executeGoodwillRequest(
 }
 
 /**
- * Reads the exact provider transaction and Customer, then finalizes verified
- * local evidence or returns a safe unresolved result. Initial settlement must
- * prove that the current Customer balance still equals the transaction ending
- * balance; a replayed historical reconciliation validates the immutable
- * transaction ending balance without assuming later Customer activity stopped.
+ * Reads the exact provider transaction and a later Customer snapshot, then
+ * finalizes verified local evidence or returns a safe unresolved result.
  */
 async function readbackAndFinalizeGoodwill(
   input: BillingGoodwillMutationInput,
@@ -507,21 +556,23 @@ async function readbackAndFinalizeGoodwill(
   transactionId: string,
   expectedLivemode: boolean,
 ): Promise<BillingGoodwillResult> {
-  let endingCreditCents: number
+  let readback: ValidatedGoodwillReadback
   try {
     const [transaction, refreshedCustomer] = await Promise.all([
       input.stripeClient.customers.retrieveBalanceTransaction(
         operation.stripeCustomerId,
         transactionId,
       ),
-      input.stripeClient.customers.retrieve(operation.stripeCustomerId),
+      input.stripeClient.customers.retrieve(operation.stripeCustomerId).then(
+        (value) => ({ available: true, value }) as const,
+        () => ({ available: false }) as const,
+      ),
     ])
-    endingCreditCents = validateAuthoritativeReadback(
+    readback = validateAuthoritativeReadback(
       transaction,
       refreshedCustomer,
       { ...operation, stripeBalanceTransactionId: transactionId },
       expectedLivemode,
-      prepared.replayed,
     )
   } catch (error) {
     const failureCode = error instanceof GoodwillReadbackValidationError
@@ -534,27 +585,29 @@ async function readbackAndFinalizeGoodwill(
     return settlePersistedOutcome(input, unresolved, prepared)
   }
 
-  const verified = {
-    ...operation,
-    stripeBalanceTransactionId: transactionId,
-    endingBalanceCents: endingCreditCents,
-  }
   try {
-    return await finalizeVerifiedGoodwill(input, verified, prepared.recipientEmail, prepared.replayed)
+    return await finalizeVerifiedGoodwill(
+      input,
+      readback.historicalEndingCreditCents,
+      prepared.recipientEmail,
+      prepared.replayed,
+      readback.currentCreditCents,
+    )
   } catch {
     const unresolved = await persistGoodwillState(input.prismaClient, operation.id, {
       status: "RECONCILIATION_REQUIRED",
       failureCode: "LOCAL_VERIFICATION_WRITE_FAILED",
     }, ["APPLIED", "RECONCILIATION_REQUIRED"])
-    return settlePersistedOutcome(input, unresolved, prepared)
+    return settlePersistedOutcome(input, unresolved, prepared, readback.currentCreditCents)
   }
 }
 
 async function finalizeVerifiedGoodwill(
   input: BillingGoodwillMutationInput,
-  verifiedEvidence: BillingGoodwillOperation,
+  historicalEndingCreditCents: number | null,
   recipientEmail: string,
   replayed: boolean,
+  currentCreditCents: number | null,
 ): Promise<BillingGoodwillResult> {
   return runBillingGoodwillTransaction(input.prismaClient, async (tx) => {
     await acquireAdminActionIdempotencyLock(tx, input.idempotencyKey)
@@ -568,7 +621,7 @@ async function finalizeVerifiedGoodwill(
 
     const endingCreditCents = current.status === "VERIFIED"
       ? current.endingBalanceCents
-      : verifiedEvidence.endingBalanceCents
+      : historicalEndingCreditCents
     if (!Number.isSafeInteger(endingCreditCents) || (endingCreditCents as number) < 0) {
       throw new Error("Verified billing goodwill evidence is incomplete.")
     }
@@ -595,6 +648,7 @@ async function finalizeVerifiedGoodwill(
       status: "VERIFIED",
       amountCents: current.amountCents,
       endingCreditCents: endingCreditCents as number,
+      currentCreditCents,
       replayed: replayed || bundle.replayed,
       emailIntentId: bundle.emailIntentId,
     }
@@ -695,10 +749,9 @@ function assertExactOperationReplay(
 }
 
 function assertCoherentVerifiedOperation(operation: BillingGoodwillOperation): void {
-  const expectedEndingCreditCents = operation.startingBalanceCents + operation.amountCents
   if (!isStripeId(operation.stripeBalanceTransactionId, "cbtxn_")
-    || !Number.isSafeInteger(expectedEndingCreditCents)
-    || operation.endingBalanceCents !== expectedEndingCreditCents
+    || !Number.isSafeInteger(operation.endingBalanceCents)
+    || (operation.endingBalanceCents as number) < 0
     || operation.failureCode !== null) {
     throw operationKeyInUse()
   }
@@ -744,8 +797,14 @@ function operationKeyInUse(): BillingGoodwillMutationError {
   return mutationError("OPERATION_KEY_IN_USE", "This administrative operation key is already in use.")
 }
 
-function parseMutationCustomer(value: unknown, expectedId: string, expectedLivemode: boolean) {
-  const customer = parseStripeCustomer(value, expectedId)
+function parseMutationCustomer(
+  value: unknown,
+  expectedId: string,
+  expectedLivemode: boolean,
+  // A later debit is structurally valid but represents no current credit.
+  allowDebitBalance = false,
+) {
+  const customer = parseStripeCustomer(value, expectedId, allowDebitBalance)
   if (customer.livemode !== expectedLivemode) throw new Error("Stripe mode mismatch")
   return customer
 }
@@ -768,13 +827,34 @@ class GoodwillReadbackValidationError extends Error {
   }
 }
 
+/**
+ * Keeps the exact transaction's immutable ending-balance observation separate
+ * from the later present-time Customer observation. Current credit is null
+ * when that later read is unavailable or reports a debit; neither value may
+ * be consumed or documented as an alias for the other.
+ */
+type ValidatedGoodwillReadback = {
+  historicalEndingCreditCents: number
+  currentCreditCents: number | null
+}
+
+/** Distinguishes an unavailable current Customer read from malformed returned data. */
+type CurrentGoodwillCustomerReadback =
+  | { available: true; value: unknown }
+  | { available: false }
+
+/**
+ * Validates the immutable transaction and any returned Customer snapshot as
+ * independent observations. Customer unavailability or a valid debit produces
+ * no current-credit observation; neither value may be consumed or documented
+ * as an alias for the other.
+ */
 function validateAuthoritativeReadback(
   transaction: unknown,
-  customer: unknown,
+  customer: CurrentGoodwillCustomerReadback,
   operation: BillingGoodwillOperation,
   expectedLivemode: boolean,
-  historicalReconciliation: boolean,
-): number {
+): ValidatedGoodwillReadback {
   if (!isRecord(transaction)
     || transaction.id !== operation.stripeBalanceTransactionId
     || transaction.customer !== operation.stripeCustomerId
@@ -786,33 +866,27 @@ function validateAuthoritativeReadback(
     || transaction.livemode !== expectedLivemode) {
     throw new GoodwillReadbackValidationError("STRIPE_TRANSACTION_INVALID")
   }
-  if (!isRecord(customer)
-    || customer.id !== operation.stripeCustomerId
-    || customer.deleted === true
-    || typeof customer.livemode !== "boolean"
-    || customer.livemode !== expectedLivemode) {
+  if (!customer.available) {
+    return {
+      historicalEndingCreditCents: Math.abs(transaction.ending_balance),
+      currentCreditCents: null,
+    }
+  }
+  let customerEvidence: { balance: number; livemode: boolean }
+  try {
+    customerEvidence = parseMutationCustomer(
+      customer.value,
+      operation.stripeCustomerId,
+      expectedLivemode,
+      true,
+    )
+  } catch {
     throw new GoodwillReadbackValidationError("STRIPE_CUSTOMER_INVALID")
   }
-  const expectedEndingCreditCents = operation.startingBalanceCents + operation.amountCents
-  if (!Number.isSafeInteger(expectedEndingCreditCents)
-    || Math.abs(transaction.ending_balance) !== expectedEndingCreditCents) {
-    throw new GoodwillReadbackValidationError("STRIPE_TRANSACTION_INVALID")
+  return {
+    historicalEndingCreditCents: Math.abs(transaction.ending_balance),
+    currentCreditCents: customerEvidence.balance > 0 ? null : Math.abs(customerEvidence.balance),
   }
-  // Initial settlement proves both historical transaction and current Customer
-  // balance. Later reconciliation cannot assume no intervening invoice or balance event.
-  if (!historicalReconciliation) {
-    let customerEvidence: { balance: number; livemode: boolean }
-    try {
-      customerEvidence = parseMutationCustomer(customer, operation.stripeCustomerId, expectedLivemode)
-    } catch {
-      throw new GoodwillReadbackValidationError("STRIPE_CUSTOMER_INVALID")
-    }
-    if (Math.abs(customerEvidence.balance) !== expectedEndingCreditCents
-      || customerEvidence.balance !== transaction.ending_balance) {
-      throw new GoodwillReadbackValidationError("STRIPE_TRANSACTION_INVALID")
-    }
-  }
-  return expectedEndingCreditCents
 }
 
 /** A replayable operation is never downgraded to definitely-not-mutated. */
@@ -822,11 +896,44 @@ async function persistPreCallFailure(
   failureCode: string,
   possiblyCommitted: boolean,
 ): Promise<BillingGoodwillOperation> {
-  const definitelyNotMutated = operation.status === "PREPARED" && !possiblyCommitted
+  if (!possiblyCommitted) {
+    return persistCreatorOwnedPreCallFailure(prismaClient, operation, failureCode)
+  }
   return persistGoodwillState(prismaClient, operation.id, {
-    status: definitelyNotMutated ? "FAILED_BEFORE_MUTATION" : "RECONCILIATION_REQUIRED",
+    status: "RECONCILIATION_REQUIRED",
     failureCode,
   }, [...BILLING_GOODWILL_UNRESOLVED_STATUSES])
+}
+
+/**
+ * Marks a definite pre-provider failure only while the originating invocation
+ * still owns the exact never-attempted request. A lost CAS rereads and
+ * preserves the reconciler's canonical state instead of downgrading it.
+ */
+async function persistCreatorOwnedPreCallFailure(
+  prismaClient: PrismaClient,
+  operation: BillingGoodwillOperation,
+  failureCode: string,
+): Promise<BillingGoodwillOperation> {
+  return runBillingGoodwillTransaction(prismaClient, async (tx) => {
+    await tx.adminBillingGoodwillOperation.updateMany({
+      where: {
+        id: operation.id,
+        actorUserId: operation.actorUserId,
+        targetUserId: operation.targetUserId,
+        idempotencyKey: operation.idempotencyKey,
+        status: "PREPARED",
+        stripeBalanceTransactionId: null,
+      },
+      data: {
+        status: "FAILED_BEFORE_MUTATION",
+        failureCode,
+      },
+    })
+    const current = await tx.adminBillingGoodwillOperation.findUnique({ where: { id: operation.id } })
+    if (!current) throw new Error("Billing goodwill operation was not found.")
+    return current as BillingGoodwillOperation
+  })
 }
 
 async function persistGoodwillState(
@@ -851,11 +958,25 @@ async function settlePersistedOutcome(
   input: BillingGoodwillMutationInput,
   operation: BillingGoodwillOperation,
   prepared: PreparedGoodwill,
+  currentCreditCents: number | null = null,
 ): Promise<BillingGoodwillResult> {
   if (operation.status === "VERIFIED") {
-    return finalizeVerifiedGoodwill(input, operation, prepared.recipientEmail, true)
+    return finalizeVerifiedGoodwill(input, operation.endingBalanceCents, prepared.recipientEmail, true, currentCreditCents)
   }
-  return operationResult(operation, prepared.replayed, null)
+  // APPLIED is intentionally retained as canonical transaction evidence, but
+  // remains operator-unresolved until authoritative readback verifies it.
+  if (operation.status === "APPLIED") {
+    return {
+      operationId: operation.id,
+      status: "RECONCILIATION_REQUIRED",
+      amountCents: operation.amountCents,
+      endingCreditCents: null,
+      currentCreditCents: null,
+      replayed: prepared.replayed,
+      emailIntentId: null,
+    }
+  }
+  return operationResult(operation, prepared.replayed, null, currentCreditCents)
 }
 
 function unresolvedReplayResult(operation: BillingGoodwillOperation): BillingGoodwillResult {
@@ -864,6 +985,7 @@ function unresolvedReplayResult(operation: BillingGoodwillOperation): BillingGoo
     status: "RECONCILIATION_REQUIRED",
     amountCents: operation.amountCents,
     endingCreditCents: null,
+    currentCreditCents: null,
     replayed: true,
     emailIntentId: null,
   }
@@ -873,6 +995,7 @@ function operationResult(
   operation: BillingGoodwillOperation,
   replayed: boolean,
   emailIntentId: string | null,
+  currentCreditCents: number | null,
 ): BillingGoodwillResult {
   if (operation.status !== "VERIFIED"
     && operation.status !== "RECONCILIATION_REQUIRED"
@@ -884,6 +1007,7 @@ function operationResult(
     status: operation.status as BillingGoodwillResult["status"],
     amountCents: operation.amountCents,
     endingCreditCents: operation.endingBalanceCents,
+    currentCreditCents,
     replayed,
     emailIntentId,
   }
@@ -982,13 +1106,13 @@ function isBillingGoodwillUniqueRace(error: unknown): boolean {
     && (modelName === "AdminBillingGoodwillOperation" || modelName === "AdminAction")
 }
 
-function parseStripeCustomer(value: unknown, expectedId: string) {
+function parseStripeCustomer(value: unknown, expectedId: string, allowDebitBalance = false) {
   if (!isRecord(value)
     || value.id !== expectedId
     || value.deleted === true
     || typeof value.livemode !== "boolean"
     || !isSafeCents(value.balance)
-    || value.balance > 0) {
+    || (!allowDebitBalance && value.balance > 0)) {
     throw previewError("STRIPE_CUSTOMER_INVALID")
   }
   return { balance: value.balance, livemode: value.livemode }

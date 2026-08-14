@@ -22,6 +22,14 @@ type AdminAccessInput = {
   sessionUserId?: string | null
 }
 
+/** Programmatic full-Admin denial after a fresh database load proves authority is absent. */
+export class AdminAuthorityDeniedError extends Error {
+  constructor() {
+    super("Full administration requires verified database authority.")
+    this.name = "AdminAuthorityDeniedError"
+  }
+}
+
 /**
  * Loads the minimal, current database authority needed by all administrative
  * surfaces. Session claims deliberately provide identity only, never roles.
@@ -99,6 +107,7 @@ async function requireAdminActor(input: AdminAccessInput | undefined, capability
   if (allowed && actor) return actor
 
   if (input) {
+    if (capability === "full" && resolved.sessionUserId) throw new AdminAuthorityDeniedError()
     throw new Error(`${capability === "full" ? "Full administration" : "Anatomy administration"} requires verified database authority.`)
   }
 
