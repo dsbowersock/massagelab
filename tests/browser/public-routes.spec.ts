@@ -1017,7 +1017,7 @@ test("center station details support swipe and short tap while actions stay prot
   const proof = await centerCarouselItem(page, "mlab-proof-drone", "Next station")
   const protectedCenterId = await proof.getAttribute("data-carousel-item-id")
   const playButton = proof.getByRole("button", { name: /^Play MassageLab Proof Drone$/i })
-  await playButton.evaluate(async (button) => {
+  const pointerPrewarmAbortCount = await playButton.evaluate(async (button) => {
     const textNode = Array.from(button.childNodes).find((node) => (
       node.nodeType === Node.TEXT_NODE && node.textContent?.trim() === "Play"
     ))
@@ -1026,6 +1026,41 @@ test("center station details support swipe and short tap while actions stay prot
     const box = button.getBoundingClientRect()
     const startX = box.left + box.width * 0.75
     const startY = box.top + box.height * 0.5
+
+    const dispatchPointer = (type: "pointerdown" | "pointercancel", pointerId: number) => {
+      textNode.dispatchEvent(new PointerEvent(type, {
+        bubbles: true,
+        button: 0,
+        buttons: type === "pointerdown" ? 1 : 0,
+        cancelable: true,
+        clientX: startX,
+        clientY: startY,
+        isPrimary: true,
+        pointerId,
+        pointerType: "mouse",
+      }))
+    }
+
+    // A first pointerdown establishes the current prewarm controller. The
+    // second must reach the Play button's React onPointerDown handler and abort it.
+    dispatchPointer("pointerdown", 41)
+    dispatchPointer("pointercancel", 41)
+    const originalAbort = AbortController.prototype.abort
+    let abortCount = 0
+    try {
+      AbortController.prototype.abort = function (reason?: unknown) {
+        abortCount += 1
+        return originalAbort.call(this, reason)
+      }
+      dispatchPointer("pointerdown", 42)
+      dispatchPointer("pointercancel", 42)
+    } finally {
+      AbortController.prototype.abort = originalAbort
+    }
+
+    // Keep the MouseEvent sequence because Embla's watchDrag gate consumes
+    // MouseEvent | TouchEvent. Starting on the label preserves the Text-node
+    // target that previously bypassed interactive-control drag protection.
     textNode.dispatchEvent(new MouseEvent("mousedown", {
       bubbles: true,
       button: 0,
@@ -1055,7 +1090,9 @@ test("center station details support swipe and short tap while actions stay prot
       clientY: startY,
       view: window,
     }))
+    return abortCount
   })
+  expect(pointerPrewarmAbortCount).toBeGreaterThan(0)
   await expect.poll(async () => page.locator('[data-carousel-slide][data-centered="true"]').getAttribute("data-carousel-item-id"))
     .toBe(protectedCenterId)
 

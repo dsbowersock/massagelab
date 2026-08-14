@@ -127,6 +127,7 @@ describe("Carousel Lab source boundaries", () => {
       controller,
       /const targetElement = target instanceof Element\s+\? target\s+: target instanceof Node\s+\? target\.parentElement\s+: null/,
     )
+    assert.match(controller, /if\s*\(\s*!targetElement\s*\)\s*return true/)
     assert.match(controller, /targetElement\.closest\(interactiveSlideSelector\)/)
     assert.match(controller, /watchDrag:\s*\(_api, event\) => shouldStartCarouselDrag\(event\)/)
   })

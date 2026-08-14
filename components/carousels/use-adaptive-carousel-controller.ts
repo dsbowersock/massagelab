@@ -14,8 +14,10 @@ const interactiveSlideSelector =
 const interactiveDragSurfaceSelector = "[data-carousel-drag-surface='true']"
 
 /**
- * Keeps controls protected while allowing an explicitly marked interactive
- * surface to share tap and Embla drag behavior.
+ * Normalizes Element and Text-node event targets before deciding whether Embla
+ * may start a drag. Interactive controls may drag only when that same element
+ * is the explicitly approved drag surface, keeping Play/Stop and Favorite
+ * actions protected while station details can support both taps and swipes.
  */
 function shouldStartCarouselDrag(event: MouseEvent | TouchEvent) {
   const target = event.target
