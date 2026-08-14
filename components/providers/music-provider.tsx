@@ -146,9 +146,18 @@ type AtmosphereStation = RuntimeAdapterPayload["station"] & {
 
 type AtmosphereRuntimeAdapter = (payload: RuntimeAdapterPayload) => Promise<void | (() => void)> | void | (() => void)
 
+type AtmosphereRuntimeStartResult = {
+  status: "active" | "stale"
+  requestId: number
+}
+
+type AtmosphereRuntimeStopResult = {
+  requestId: number
+}
+
 type AtmosphereRuntimeController = {
-  start: (station: RuntimeAdapterPayload["station"]) => Promise<void>
-  stop: () => Promise<void>
+  start: (station: RuntimeAdapterPayload["station"]) => Promise<AtmosphereRuntimeStartResult>
+  stop: () => AtmosphereRuntimeStopResult
   getActiveStationId: () => string | null
 }
 
