@@ -127,15 +127,15 @@ export async function startGenerativeFmPiece({
 
   const startedAt = performance.now()
   reportLoadProgress(onLoadProgress, 0.04)
-  const prepared = await prepareGenerativeFmPlayback({
+  const playbackPreparation = await prepareGenerativeFmPlayback({
     loadRuntimeModules: loadGenerativeFmRuntimeModules,
     prepareRuntime: () => getPreparedGenerativeFmRuntime(station, "playback"),
-  }) as PreparedGenerativeFmRuntimeResult
-  const preparedAt = performance.now()
+  })
+  const prepared = playbackPreparation.prepared as PreparedGenerativeFmRuntimeResult
+  const { preparedAt, toneStartedAt } = playbackPreparation
   reportLoadProgress(onLoadProgress, 0.22)
   const { Tone, createWebProvider, createWebLibrary, piece, pieceId, sampleIndex } = prepared
 
-  const toneStartedAt = performance.now()
   reportLoadProgress(onLoadProgress, 0.32)
 
   const providerRequestStats = createGenerativeFmProviderRequestStats()

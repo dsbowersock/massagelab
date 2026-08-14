@@ -108,6 +108,13 @@ describe("Generative.fm piece loader", () => {
     assert.equal(importAttempted, false)
   })
 
+  it("rejects prototype-property ids that are not registered importers", async () => {
+    await assert.rejects(
+      () => loadGenerativeFmPieceModule("toString", { trees: async () => ({ default: () => "trees" }) }),
+      /Unknown Generative\.fm piece id: toString/,
+    )
+  })
+
   it("requests Tone activation while sample and piece preparation is still pending", async () => {
     const events = []
     let finishPreparation
@@ -139,7 +146,46 @@ describe("Generative.fm piece loader", () => {
     assert.equal(events.includes("activate-piece"), false)
 
     finishPreparation()
-    assert.equal(await preparedPromise, preparedRuntime)
+    assert.equal((await preparedPromise).prepared, preparedRuntime)
     assert.deepEqual(events, ["load-runtime-modules", "tone-start", "activate-piece"])
+  })
+
+  it("records preparation and Tone completion at their independent phase boundaries", async () => {
+    let clock = 0
+    let finishPreparation
+    let finishToneActivation
+    const preparedRuntime = { pieceId: "trees" }
+    const preparation = new Promise((resolve) => {
+      finishPreparation = resolve
+    })
+    const toneActivation = new Promise((resolve) => {
+      finishToneActivation = resolve
+    })
+
+    const playback = prepareGenerativeFmPlayback({
+      loadRuntimeModules: async () => ({
+        Tone: {
+          start: async () => toneActivation,
+        },
+      }),
+      prepareRuntime: async () => {
+        await preparation
+        return preparedRuntime
+      },
+      now: () => clock,
+    })
+    await new Promise((resolve) => setImmediate(resolve))
+
+    clock = 41
+    finishPreparation()
+    await new Promise((resolve) => setImmediate(resolve))
+    clock = 173
+    finishToneActivation()
+
+    assert.deepEqual(await playback, {
+      prepared: preparedRuntime,
+      preparedAt: 41,
+      toneStartedAt: 173,
+    })
   })
 })
