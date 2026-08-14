@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server"
-import { hashPassword, hashToken, isTokenUsable } from "@/lib/auth-security"
+import { hashPassword, hashToken } from "@/lib/auth-security"
+import {
+  confirmPasswordReset,
+  isPasswordResetTokenEligible,
+} from "@/lib/password-reset-confirmation"
 import { prisma } from "@/lib/prisma"
 
 export async function POST(request: Request) {
@@ -11,32 +15,31 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: "Use a valid reset link and a password with at least 12 characters." }, { status: 400 })
   }
 
-  const resetToken = await prisma.passwordResetToken.findUnique({
-    where: { tokenHash: hashToken(token) },
+  const tokenHash = hashToken(token)
+  const eligibilityNow = new Date()
+  // This read only avoids unnecessary Argon2 work; confirmPasswordReset's
+  // transactional compare-and-set remains the authority on token consumption.
+  const eligible = await isPasswordResetTokenEligible({
+    prismaClient: prisma,
+    tokenHash,
+    now: eligibilityNow,
   })
-
-  if (!resetToken || !isTokenUsable(resetToken)) {
+  if (!eligible) {
     return NextResponse.json({ message: "This reset link is expired or has already been used." }, { status: 400 })
   }
 
   const passwordHash = await hashPassword(password)
+  // The service captures authoritative time inside every transaction attempt,
+  // including retries after the deliberately expensive hash.
+  const result = await confirmPasswordReset({
+    prismaClient: prisma,
+    tokenHash,
+    passwordHash,
+  })
 
-  await prisma.$transaction([
-    prisma.passwordCredential.upsert({
-      where: { userId: resetToken.userId },
-      create: {
-        userId: resetToken.userId,
-        passwordHash,
-      },
-      update: {
-        passwordHash,
-      },
-    }),
-    prisma.passwordResetToken.update({
-      where: { id: resetToken.id },
-      data: { consumedAt: new Date() },
-    }),
-  ])
+  if (result.status === "INVALID") {
+    return NextResponse.json({ message: "This reset link is expired or has already been used." }, { status: 400 })
+  }
 
   return NextResponse.json({ message: "Password updated. You can sign in now." })
 }

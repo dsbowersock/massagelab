@@ -11,12 +11,34 @@ import {
 } from "@/components/backgrounds/backgroundPaletteRegistry"
 import { sanitizeAccessibleChimerSettings } from "@/lib/chimer-accessible-settings"
 import { objectRecord } from "@/lib/onboarding-preferences"
-import { getUserEntitlementState } from "@/lib/membership"
+import { FEATURE_KEYS, getUserEntitlementState } from "@/lib/membership"
 import { getBackgroundCommerceSnapshot } from "@/lib/commerce/snapshot-service"
 import { prisma } from "@/lib/prisma"
 
 function jsonObject(value: Record<string, unknown>) {
   return value as Prisma.InputJsonObject
+}
+
+/**
+ * Reduces additive entitlement provenance to the carousel's presentation
+ * source. Membership wins when both membership and temporary grants are active.
+ */
+function premiumBackgroundAccessSource(featureAccess: unknown) {
+  if (!Array.isArray(featureAccess)) return null
+  const premium = featureAccess.find((entry) => (
+    entry && typeof entry === "object" && "featureKey" in entry
+      && entry.featureKey === FEATURE_KEYS.premiumBackgrounds
+  ))
+  if (!premium || typeof premium !== "object" || !("sources" in premium) || !Array.isArray(premium.sources)) {
+    return null
+  }
+  if (premium.sources.some((source: unknown) => (
+    source !== null && typeof source === "object" && "source" in source && source.source === "membership"
+  ))) return "subscription" as const
+  if (premium.sources.some((source: unknown) => (
+    source !== null && typeof source === "object" && "source" in source && source.source === "temporary"
+  ))) return "temporary" as const
+  return null
 }
 
 export async function GET() {
@@ -74,6 +96,9 @@ export async function GET() {
     accessAuthoritative: access.authoritative,
     membershipLevel: access.authoritative ? access.entitlements.level : null,
     features: access.authoritative ? access.entitlements.features : [],
+    premiumBackgroundAccessSource: access.authoritative
+      ? premiumBackgroundAccessSource(access.entitlements.featureAccess)
+      : null,
     ownedBackgroundIds: access.authoritative ? access.commerceSnapshot.ownedBackgroundIds : [],
     updatedAt: preferences?.updatedAt ?? null,
   })
@@ -158,6 +183,7 @@ export async function PUT(request: Request) {
     calendarPreferences: preferences.calendarPreferences,
     membershipLevel: entitlements.level,
     features: entitlements.features,
+    premiumBackgroundAccessSource: premiumBackgroundAccessSource(entitlements.featureAccess),
     ownedBackgroundIds: commerceSnapshot.ownedBackgroundIds,
     accessAuthoritative: true,
     updatedAt: preferences.updatedAt,

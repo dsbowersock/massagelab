@@ -1,0 +1,647 @@
+import Link from "next/link"
+import { randomUUID } from "node:crypto"
+import { notFound } from "next/navigation"
+import { AppPageShell, appInsetClassName, appSurfaceClassName } from "@/components/ui/app-surface"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { requireFullAdminUser } from "@/lib/admin/access"
+import { RetryEmailForm } from "./retry-email-form"
+import { CreditGrantControls } from "./credit-action-form"
+import { TemporaryAccessControls, type TemporaryGrantPresentation } from "./temporary-access-form"
+import {
+  BillingGoodwillControls,
+  type BillingGoodwillPresentation,
+  type BillingGoodwillReconciliation,
+} from "./billing-goodwill-form"
+import { RoleChangeControls, SelfRoleManagementNotice, type RoleEvidence } from "./role-change-form"
+import {
+  FreshPasswordResetForm,
+  SecurityActionControls,
+  SelfSecurityManagementNotice,
+} from "./security-action-forms"
+import {
+  ADMIN_USER_DETAIL_SECTIONS,
+  getAdminUserDetailSection,
+  parseAdminUserDetailSection,
+  type AdminUserDetailSection,
+} from "@/lib/admin/user-detail"
+import { INITIAL_BACKGROUND_CREDIT_COUNT } from "@/lib/commerce/credit-service"
+import {
+  ADMIN_GRANTABLE_FEATURE_KEYS,
+  PER_FEATURE_ACTIVE_LIMIT,
+  TOTAL_ACTIVE_LIMIT,
+  isGrantableFeature,
+  isSafeRecordId,
+  type AdminGrantableFeatureKey,
+} from "@/lib/admin/temporary-access-contract"
+import { prisma } from "@/lib/prisma"
+import {
+  BILLING_GOODWILL_UNRESOLVED_STATUSES,
+  BillingGoodwillPreviewError,
+  isBillingGoodwillUnresolvedStatus,
+  previewInvoiceCredit,
+} from "@/lib/admin/billing-goodwill"
+import { browserBillingGoodwillPreviewClient } from "@/lib/admin/browser-billing-goodwill-preview"
+import { getStripeClient } from "@/lib/stripe-billing"
+
+type AdminUserDetailPageProps = {
+  params: Promise<{ userId: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}
+
+/** Server-rendered detail tabs deliberately load one bounded section per request. */
+export default async function AdminUserDetailPage({ params, searchParams }: AdminUserDetailPageProps) {
+  const actor = await requireFullAdminUser()
+  const { userId } = await params
+  const section = parseAdminUserDetailSection(singleValue((await searchParams).section))
+  const requestNow = new Date()
+  const detail = await getAdminUserDetailSection({ prismaClient: prisma, userId, section, now: requestNow })
+  if (!detail) notFound()
+  const billingGoodwill = section === "billing"
+    ? await loadBillingGoodwillPresentation(actor.id, userId, detail.target, detail.data)
+    : null
+
+  return (
+    <AppPageShell title="Account detail" className="p-3 sm:p-6 lg:p-8" contentClassName="gap-4">
+      <Card className={appSurfaceClassName}>
+        <CardContent className="space-y-5 p-4 sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-sm text-muted-foreground">Account detail</p>
+              <h1 className="text-2xl font-semibold">{detail.target.name?.trim() || detail.target.email?.trim() || "Unnamed account"}</h1>
+              <p className="mt-1 break-all font-mono text-xs text-muted-foreground">{detail.target.email ?? "No email"} · {detail.target.id}</p>
+            </div>
+            <Button asChild variant="outline"><Link href="/admin/users">Back to directory</Link></Button>
+          </div>
+
+          <nav aria-label="Account detail sections" className="flex flex-wrap gap-2">
+            {ADMIN_USER_DETAIL_SECTIONS.map((item) => (
+              <Button key={item} asChild variant={item === section ? "default" : "outline"} size="sm">
+                <Link href={sectionHref(userId, item)} aria-current={item === section ? "page" : undefined}>{sectionLabel(item)}</Link>
+              </Button>
+            ))}
+          </nav>
+
+          <section aria-labelledby={`${section}-heading`} className={`${appInsetClassName} space-y-4 p-4`}>
+            <h2 id={`${section}-heading`} className="text-lg font-semibold">{sectionLabel(section)}</h2>
+            {section === "activity"
+              ? <ActivitySection detail={detail.data} userId={userId} canMutate={actor.id !== userId} />
+              : section === "billing"
+                ? <BillingSection detail={detail.data} userId={userId} billingGoodwill={billingGoodwill} />
+                : section === "access"
+                  ? <AccessSection
+                      detail={detail.data}
+                      userId={userId}
+                      targetName={detail.target.name}
+                      targetEmail={detail.target.email}
+                      canManageRoles={actor.id !== userId}
+                      requestNow={requestNow}
+                    />
+                  : section === "security"
+                    ? <SecuritySection
+                        detail={detail.data}
+                        userId={userId}
+                        targetEmail={detail.target.email}
+                        canManageSecurity={actor.id !== userId}
+                      />
+                    : <DetailSection detail={detail.data} section={section} />}
+          </section>
+        </CardContent>
+      </Card>
+    </AppPageShell>
+  )
+}
+
+type ActivityEmail = {
+  intentId: string
+  kind: string
+  status: string
+  failureCode: string | null
+  attemptCount: number
+  lastAttemptAt: string | null
+  deliveredAt: string | null
+}
+
+type ActivityEntry = {
+  id: string
+  title: string
+  explanation: string
+  effectiveValue: string | null
+  occurredAt: string | null
+  action: { kind: string; outcome: string; occurredAt: string | null }
+  email: ActivityEmail | null
+}
+
+/** Renders safe activity plus either audited notification retry or fresh reset creation. */
+function ActivitySection({ detail, userId, canMutate }: { detail: Record<string, unknown>; userId: string; canMutate: boolean }) {
+  const entries = Array.isArray(detail.entries) ? detail.entries as ActivityEntry[] : []
+  if (entries.length === 0) return <p className="text-sm text-muted-foreground">No account activity yet.</p>
+
+  return <ol className="space-y-3">{entries.map((entry) => {
+    const email = entry.email
+    const canRetry = email?.status === "FAILED"
+      && email.kind !== "PASSWORD_RESET"
+      && email.failureCode !== "RECIPIENT_UNAVAILABLE"
+    const failedPasswordReset = email?.status === "FAILED" && email.kind === "PASSWORD_RESET"
+    // Each rendered retry form gets one key that useActionState submits
+    // unchanged. A consumed key replays; revalidatePath normally renders a
+    // fresh form with a fresh key after the action completes.
+    const operationId = randomUUID()
+    return (
+      <li key={entry.id} data-activity-id={entry.id} className="rounded-md border bg-background/60 p-3">
+        <p className="font-medium">{entry.title}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{entry.explanation}</p>
+        {entry.effectiveValue ? <p className="mt-1 text-sm">Effective value: {entry.effectiveValue}</p> : null}
+        <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+          <ActivityValue label="Occurred" value={entry.occurredAt} />
+          <ActivityValue label="Action outcome" value={`${entry.action.kind}: ${entry.action.outcome}`} />
+          {email ? <>
+            <ActivityValue label="Email delivery" value={email.status} />
+            <ActivityValue label="Attempts" value={String(email.attemptCount)} />
+            <ActivityValue label="Last attempt" value={email.lastAttemptAt} />
+            <ActivityValue label="Failure code" value={email.failureCode} />
+          </> : null}
+        </dl>
+        {canRetry && canMutate ? (
+          <RetryEmailForm userId={userId} intentId={email.intentId} operationId={operationId} />
+        ) : null}
+        {failedPasswordReset && canMutate ? (
+          <FreshPasswordResetForm
+            userId={userId}
+            operationId={operationId}
+            submitLabel="Send a new reset link"
+          />
+        ) : null}
+        {(canRetry || failedPasswordReset) && !canMutate ? (
+          <p className="mt-3 text-sm text-muted-foreground">Self-target account actions are read-only.</p>
+        ) : null}
+      </li>
+    )
+  })}</ol>
+}
+
+/** Keeps absent optional timestamps and failure codes visibly distinct from stored empty strings. */
+function ActivityValue({ label, value }: { label: string; value: string | null }) {
+  return <div><dt className="text-xs font-medium text-muted-foreground">{label}</dt><dd>{value ?? "None"}</dd></div>
+}
+
+function DetailSection({ detail, section }: { detail: Record<string, unknown>; section: AdminUserDetailSection }) {
+  const rows = detailRows(detail, section)
+  return <dl className="grid gap-3 sm:grid-cols-2">{rows.map(([label, value]) => (
+    <div key={label} data-detail-key={label} className="min-w-0 rounded-md border bg-background/60 p-3">
+      <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
+      <dd data-detail-value="" className="mt-1 break-words text-sm">{value}</dd>
+    </div>
+  ))}</dl>
+}
+
+/** Adds bounded mutation controls beneath the existing Access projection. */
+function AccessSection({
+  detail,
+  userId,
+  targetName,
+  targetEmail,
+  canManageRoles,
+  requestNow,
+}: {
+  detail: Record<string, unknown>
+  userId: string
+  targetName: string | null
+  targetEmail: string | null
+  canManageRoles: boolean
+  requestNow: Date
+}) {
+  const roles = Array.isArray(detail.roles)
+    ? detail.roles.filter(isAccessRoleEvidence)
+    : []
+  const operationIds = {
+    ANATOMY_REVIEWER: randomUUID(),
+    ANATOMY_EDITOR: randomUUID(),
+    creditGrant: randomUUID(),
+    temporaryGrant: randomUUID(),
+  }
+  const normalizedTargetEmail = normalizeEmail(targetEmail)
+  const hasVerifiedEmail = detail.emailVerified === true && Boolean(normalizedTargetEmail)
+  const hasVerifiedUsableEmail = detail.emailVerified === true && isUsableEmail(normalizedTargetEmail)
+  const creditEvidence = hasVerifiedEmail
+    ? readCreditGrantEvidence(detail.wallet)
+    : null
+  const targetLabel = targetName?.trim()
+    ? `${targetName.trim()} (${normalizedTargetEmail})`
+    : normalizedTargetEmail || "Unnamed account"
+  const temporaryEvidence = readTemporaryGrantEvidence(detail)
+  return (
+    <div className="space-y-5">
+      <DetailSection detail={detail} section="access" />
+      {canManageRoles ? (
+        <RoleChangeControls userId={userId} roles={roles} operationIds={operationIds} />
+      ) : <SelfRoleManagementNotice />}
+      {creditEvidence ? (
+        <CreditGrantControls
+          userId={userId}
+          targetLabel={targetLabel}
+          preparedBalance={creditEvidence.preparedBalance}
+          automaticInitialCredits={creditEvidence.automaticInitialCredits}
+          operationId={operationIds.creditGrant}
+        />
+      ) : !hasVerifiedEmail ? (
+        <p className="rounded-md border bg-background/60 p-4 text-sm text-muted-foreground">
+          Background-credit controls are unavailable because this account does not have a verified email.
+        </p>
+      ) : (
+        <p className="rounded-md border bg-background/60 p-4 text-sm text-muted-foreground">
+          Background-credit controls are unavailable because the wallet evidence is incomplete or unusable. Refresh the account before trying again.
+        </p>
+      )}
+      {hasVerifiedUsableEmail && temporaryEvidence ? (
+        <TemporaryAccessControls
+          userId={userId}
+          targetLabel={targetLabel}
+          preparedAt={requestNow.toISOString()}
+          grantOperationId={operationIds.temporaryGrant}
+          expectedActiveGrantIds={temporaryEvidence.expectedActiveGrantIds}
+          grants={temporaryEvidence.grants.map((grant) => ({ ...grant, revokeOperationId: randomUUID() }))}
+          totalGrantCount={temporaryEvidence.total}
+          truncated={temporaryEvidence.truncated}
+          controlsAvailable={temporaryEvidence.complete}
+        />
+      ) : !hasVerifiedUsableEmail ? (
+        <p className="rounded-md border bg-background/60 p-4 text-sm text-muted-foreground">
+          Temporary-access controls are unavailable because this account does not have a verified usable email.
+        </p>
+      ) : (
+        <p className="rounded-md border bg-background/60 p-4 text-sm text-muted-foreground">
+          Temporary-access controls are unavailable because a complete active grant snapshot could not be loaded safely. Refresh the account before trying again.
+        </p>
+      )}
+    </div>
+  )
+}
+
+/** Separates bounded display evidence from the complete optimistic mutation snapshot. */
+function readTemporaryGrantEvidence(detail: Record<string, unknown>): {
+  grants: Omit<TemporaryGrantPresentation, "revokeOperationId">[]
+  expectedActiveGrantIds: Record<AdminGrantableFeatureKey, string[]>
+  total: number
+  truncated: boolean
+  complete: boolean
+} | null {
+  const temporaryGrants = detail.temporaryGrants
+  const mutationSnapshot = detail.temporaryGrantMutationSnapshot
+  if (!isRecord(temporaryGrants)
+    || !Array.isArray(temporaryGrants.items)
+    || !Array.isArray(mutationSnapshot)
+    || temporaryGrants.items.length > 25
+    || !Number.isSafeInteger(temporaryGrants.total)
+    || (temporaryGrants.total as number) < temporaryGrants.items.length
+    || (temporaryGrants.total as number) !== mutationSnapshot.length
+    || mutationSnapshot.length > TOTAL_ACTIVE_LIMIT
+    || typeof temporaryGrants.truncated !== "boolean"
+    || temporaryGrants.truncated !== ((temporaryGrants.total as number) > temporaryGrants.items.length)) return null
+
+  const grants: Omit<TemporaryGrantPresentation, "revokeOperationId">[] = []
+  const snapshotFeatures = new Map<string, AdminGrantableFeatureKey>()
+  const expectedActiveGrantIds = Object.fromEntries(
+    ADMIN_GRANTABLE_FEATURE_KEYS.map((featureKey) => [featureKey, [] as string[]]),
+  ) as unknown as Record<AdminGrantableFeatureKey, string[]>
+  for (const item of mutationSnapshot) {
+    if (!isRecord(item)
+      || !isSafeRecordId(item.grantId)
+      || snapshotFeatures.has(item.grantId)
+      || !isGrantableFeature(item.featureKey)) return null
+    snapshotFeatures.set(item.grantId, item.featureKey)
+    expectedActiveGrantIds[item.featureKey].push(item.grantId)
+    if (expectedActiveGrantIds[item.featureKey].length > PER_FEATURE_ACTIVE_LIMIT) return null
+  }
+  const displayedGrantIds = new Set<string>()
+  for (const item of temporaryGrants.items) {
+    if (!isRecord(item)
+      || !isSafeRecordId(item.grantId)
+      || displayedGrantIds.has(item.grantId)
+      || !isGrantableFeature(item.featureKey)
+      || snapshotFeatures.get(item.grantId) !== item.featureKey
+      || typeof item.startsAt !== "string"
+      || typeof item.expiresAt !== "string"
+      || !isValidGrantWindow(item.startsAt, item.expiresAt)) return null
+    displayedGrantIds.add(item.grantId)
+    grants.push({
+      grantId: item.grantId,
+      featureKey: item.featureKey,
+      startsAt: item.startsAt,
+      expiresAt: item.expiresAt,
+    })
+  }
+  for (const grantIds of Object.values(expectedActiveGrantIds)) grantIds.sort()
+  const total = temporaryGrants.total as number
+  const truncated = temporaryGrants.truncated
+  return {
+    grants,
+    expectedActiveGrantIds,
+    total,
+    truncated,
+    complete: true,
+  }
+}
+
+/** Fails closed unless the Access projection explicitly identifies wallet presence and a safe balance. */
+function readCreditGrantEvidence(value: unknown): {
+  preparedBalance: number
+  automaticInitialCredits: number
+} | null {
+  if (!isRecord(value) || !Number.isSafeInteger(value.balance) || (value.balance as number) < 0) return null
+  if (value.state === "AVAILABLE") {
+    return { preparedBalance: value.balance as number, automaticInitialCredits: 0 }
+  }
+  if (value.state === "MISSING" && value.balance === 0) {
+    return { preparedBalance: 0, automaticInitialCredits: INITIAL_BACKGROUND_CREDIT_COUNT }
+  }
+  return null
+}
+
+/** Adds only bounded remediation controls beneath the safe Security projection. */
+function SecuritySection({
+  detail,
+  userId,
+  targetEmail,
+  canManageSecurity,
+}: {
+  detail: Record<string, unknown>
+  userId: string
+  targetEmail: string | null
+  canManageSecurity: boolean
+}) {
+  const expectedAuthSessionVersion = safeCount(detail.authSessionVersion)
+  const expectedSessionCount = safeCount(detail.compatibilitySessionCount)
+  const normalizedTargetEmail = normalizeEmail(targetEmail)
+  const operationIds = {
+    revokeSessions: randomUUID(),
+    passwordReset: randomUUID(),
+    twoFactorReset: randomUUID(),
+  }
+  const supportedState = expectedAuthSessionVersion !== null && expectedSessionCount !== null
+
+  return (
+    <div className="space-y-5">
+      <DetailSection detail={detail} section="security" />
+      <p className="text-sm text-muted-foreground">
+        User.authSessionVersion is the canonical sign-in-token invalidation owner. A version increment invalidates older tokens immediately; Auth.js observes the mismatch and signs the user out on the next successful database-backed refresh.
+      </p>
+      {!canManageSecurity ? <SelfSecurityManagementNotice /> : supportedState ? (
+        <SecurityActionControls
+          userId={userId}
+          targetEmail={normalizedTargetEmail || null}
+          emailVerified={detail.emailVerified === true}
+          passwordConfigured={detail.passwordConfigured === true}
+          twoFactorEnabled={detail.twoFactorEnabled === true}
+          expectedAuthSessionVersion={expectedAuthSessionVersion}
+          expectedSessionCount={expectedSessionCount}
+          operationIds={operationIds}
+        />
+      ) : (
+        <p className="rounded-md border bg-background/60 p-4 text-sm text-muted-foreground">
+          Security controls are unavailable because the current account state is incomplete. Refresh the account before trying again.
+        </p>
+      )}
+    </div>
+  )
+}
+
+function isAccessRoleEvidence(value: unknown): value is RoleEvidence {
+  return isRecord(value) && typeof value.role === "string" && typeof value.status === "string"
+}
+
+type BillingOrder = {
+  status: string
+  fulfillmentStatus: string
+  totalCents: number
+  currency: string
+  createdAt: string | null
+  reconciliationState: string
+  detailHref: string
+  items: unknown
+  refunds: unknown
+  disputes: unknown
+}
+
+/** Renders bounded local commerce evidence and links to the existing full commerce review owner. */
+function BillingSection({
+  detail,
+  userId,
+  billingGoodwill,
+}: {
+  detail: Record<string, unknown>
+  userId: string
+  billingGoodwill: {
+    preview: BillingGoodwillPresentation | null
+    reconciliations: BillingGoodwillReconciliation[]
+    reconciliationsTruncated: boolean
+  } | null
+}) {
+  const commerce = isRecord(detail.commerce) ? detail.commerce : {}
+  const orders = Array.isArray(commerce.recentOrders) ? commerce.recentOrders as BillingOrder[] : []
+  return (
+    <div className="space-y-4">
+      <DetailSection detail={{ subscriptions: detail.subscriptions }} section="billing" />
+      <BillingGoodwillControls
+        userId={userId}
+        preview={billingGoodwill?.preview ?? null}
+        reconciliations={billingGoodwill?.reconciliations ?? []}
+        reconciliationsTruncated={billingGoodwill?.reconciliationsTruncated ?? false}
+      />
+      <div className="space-y-2">
+        <h3 className="font-medium">Recent commerce orders</h3>
+        <p className="text-xs text-muted-foreground">
+          Showing {orders.length} of {String(commerce.totalOrderCount ?? 0)} local orders{commerce.truncated ? "; older orders are omitted." : "."}
+        </p>
+        {orders.length ? orders.map((order) => (
+          <article key={order.detailHref} className="min-w-0 space-y-2 rounded-md border bg-background/60 p-3 text-sm">
+            <p className="font-medium">{order.status} · {order.fulfillmentStatus}</p>
+            <p className="text-muted-foreground">
+              {formatMoney(order.totalCents, order.currency)} · {order.createdAt ?? "Time unavailable"} · Reconciliation: {order.reconciliationState}
+            </p>
+            <p className="break-words text-muted-foreground">Items: {objectValue(order.items)}</p>
+            <p className="break-words text-muted-foreground">Refunds: {objectValue(order.refunds)}</p>
+            <p className="break-words text-muted-foreground">Disputes: {objectValue(order.disputes)}</p>
+            <Button asChild size="sm" variant="outline"><Link href={order.detailHref}>Review order</Link></Button>
+          </article>
+        )) : <p className="text-sm text-muted-foreground">No commerce orders yet.</p>}
+      </div>
+    </div>
+  )
+}
+
+/** Loads read-only provider preview plus bounded local recovery evidence without exposing Stripe identifiers. */
+async function loadBillingGoodwillPresentation(
+  actorUserId: string,
+  targetUserId: string,
+  target: { name: string | null; email: string | null },
+  detail: Record<string, unknown>,
+): Promise<{
+  preview: BillingGoodwillPresentation | null
+  reconciliations: BillingGoodwillReconciliation[]
+  reconciliationsTruncated: boolean
+}> {
+  const reconciliationRows = await prisma.adminBillingGoodwillOperation.findMany({
+    where: { targetUserId, status: { in: [...BILLING_GOODWILL_UNRESOLVED_STATUSES] } },
+    select: {
+      id: true,
+      status: true,
+      amountCents: true,
+      startingBalanceCents: true,
+      failureCode: true,
+      createdAt: true,
+    },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: 26,
+  })
+  const reconciliationsTruncated = reconciliationRows.length > 25
+  const targetEmail = normalizeEmail(target.email)
+  const reconciliations = reconciliationRows.slice(0, 25).flatMap((operation) => isBillingGoodwillUnresolvedStatus(operation.status) ? [{
+    operationId: operation.id,
+    confirmationNonce: randomUUID(),
+    targetEmail,
+    status: operation.status,
+    amountCents: operation.amountCents,
+    startingCreditCents: operation.startingBalanceCents,
+    failureCode: operation.failureCode,
+    createdAt: operation.createdAt.toISOString(),
+  }] : [])
+  if (!isUsableEmail(targetEmail)) return { preview: null, reconciliations, reconciliationsTruncated }
+
+  try {
+    const stripeClient = browserBillingGoodwillPreviewClient(targetUserId) ?? getStripeClient()
+    const evidence = await previewInvoiceCredit({ prismaClient: prisma, actorUserId, targetUserId, stripeClient })
+    const pricing = readCurrentSupporterPricing(detail.subscriptions)
+    const targetLabel = target.name?.trim() ? `${target.name.trim()} (${targetEmail})` : targetEmail
+    return {
+      preview: {
+        operationId: randomUUID(),
+        targetLabel,
+        targetEmail,
+        subscriptionAmountCents: pricing.amountCents,
+        subscriptionInterval: pricing.interval,
+        subscriptionStatus: evidence.status,
+        currentCreditCents: evidence.currentCreditCents,
+        projectedNextInvoiceCents: evidence.projectedNextInvoiceCents,
+      },
+      reconciliations,
+      reconciliationsTruncated,
+    }
+  } catch (error) {
+    console.error("Admin billing-goodwill preview unavailable", {
+      code: error instanceof BillingGoodwillPreviewError ? error.code : "PREVIEW_UNAVAILABLE",
+    })
+    return { preview: null, reconciliations, reconciliationsTruncated }
+  }
+}
+
+/** Accepts only the single safe active/trialing Supporter pricing projection. */
+function readCurrentSupporterPricing(value: unknown): { amountCents: number | null; interval: string | null } {
+  if (!isRecord(value) || !Array.isArray(value.items)) return { amountCents: null, interval: null }
+  const eligible = value.items.filter((item) => isRecord(item)
+    && item.membershipLevel === "SUPPORTER"
+    && (item.status === "active" || item.status === "trialing"))
+  if (eligible.length !== 1) return { amountCents: null, interval: null }
+  const pricing = eligible[0].pricing
+  if (!isRecord(pricing)
+    || pricing.state !== "KNOWN"
+    || !Number.isSafeInteger(pricing.amountCents)
+    || (pricing.amountCents as number) < 0
+    || (pricing.interval !== "month" && pricing.interval !== "year")) {
+    return { amountCents: null, interval: null }
+  }
+  return { amountCents: pricing.amountCents as number, interval: pricing.interval }
+}
+
+/** Converts the already privacy-bounded loader result into readable operator labels without exposing hidden fields. */
+function detailRows(detail: Record<string, unknown>, section: AdminUserDetailSection): Array<[string, string]> {
+  if (section === "security") {
+    const compatibilitySessionCount = safeCount(detail.compatibilitySessionCount)
+    return [
+      ["Sign-in provider types", objectValue(detail.providers)], ["Connection rows", objectValue(detail.connections)],
+      ["Password configured", yesNo(detail.passwordConfigured)],
+      ["Verified email", yesNo(detail.emailVerified)],
+      ["Two-factor authentication", yesNo(detail.twoFactorEnabled)],
+      ["Compatibility Session rows", `${compatibilitySessionCount === null ? "Unavailable" : compatibilitySessionCount} (adapter evidence only; not a count of active JWT sessions or users signed out)`],
+    ]
+  }
+  if (section === "overview") return [
+    ["Email verification", yesNo(detail.emailVerified)], ["Profile image", String(detail.image ?? "Unavailable")], ["Profile", objectValue(detail.profile)],
+    ["Practice relationships", objectValue(detail.practices)], ["Credentials", objectValue(detail.credentials)],
+    ["Learning", objectValue(detail.learning)], ["Achievement count", nestedValue(detail.learning, "achievementCount")],
+  ]
+  if (section === "access") return [
+    ["Role assignments", listValue(detail.roles)], ["Effective feature keys", listValue(detail.features)],
+    ["Effective capabilities", objectValue(detail.capabilities)], ["Membership sources", objectValue(detail.subscriptions)],
+    ["Credit wallet", objectValue(detail.wallet)], ["Background ownership", objectValue(detail.ownership)],
+  ]
+  if (section === "billing") return [["Supporter subscriptions", objectValue(detail.subscriptions)]]
+  return [["Account activity", listValue(detail.entries)]]
+}
+
+function sectionHref(userId: string, section: AdminUserDetailSection) {
+  return `/admin/users/${encodeURIComponent(userId)}?section=${section}`
+}
+
+function sectionLabel(section: AdminUserDetailSection) {
+  return section[0].toUpperCase() + section.slice(1)
+}
+
+function singleValue(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value
+}
+
+function yesNo(value: unknown) {
+  return value ? "Yes" : "No"
+}
+
+function listValue(value: unknown): string {
+  if (!Array.isArray(value) || value.length === 0) return "None"
+  return value.map(objectValue).join(" · ")
+}
+
+function objectValue(value: unknown): string {
+  if (Array.isArray(value)) return listValue(value)
+  if (!value || typeof value !== "object") return String(value ?? "None")
+  return Object.entries(value as Record<string, unknown>)
+    .map(([key, item]) => `${humanize(key)}: ${typeof item === "object" ? objectValue(item) : String(item ?? "None")}`)
+    .join(", ")
+}
+
+function nestedValue(value: unknown, key: string) {
+  return isRecord(value) ? String(value[key] ?? "Unavailable") : "Unavailable"
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value)
+}
+
+function formatMoney(cents: number, currency: string) {
+  if (!Number.isSafeInteger(cents) || !/^[a-z]{3}$/i.test(currency)) return "Amount unavailable"
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: currency.toUpperCase() }).format(cents / 100)
+}
+
+function humanize(value: string): string {
+  return value.replaceAll(/([A-Z])/g, " $1").replace(/^./, (letter) => letter.toUpperCase())
+}
+
+/** Accepts only nonnegative safe integers for optimistic security-state comparisons. */
+function safeCount(value: unknown) {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null
+}
+
+/** Normalizes only the optional client-side comparison value; the server security service remains authoritative. */
+function normalizeEmail(value: string | null) {
+  return typeof value === "string" ? value.trim().toLowerCase() : ""
+}
+
+/** Mirrors the service boundary so unusable recipients never receive optimistic mutation controls. */
+function isUsableEmail(value: string) {
+  return value.length > 0 && value.length <= 320 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+}
+
+function isValidGrantWindow(startsAt: string, expiresAt: string) {
+  const start = new Date(startsAt).getTime()
+  const expiry = new Date(expiresAt).getTime()
+  return Number.isFinite(start) && Number.isFinite(expiry) && start < expiry
+}

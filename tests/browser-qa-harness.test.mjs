@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises"
 
 import {
   getPlaywrightFileFilterArguments,
+  isAdminUserOperationsInvocation,
   isDevelopmentPaletteReviewInvocation,
   matchesDevelopmentPaletteReviewArgument,
   resolveDevelopmentPaletteReviewIgnoreGlobs,
@@ -56,6 +57,27 @@ test("development review invocation ignores the leading Playwright subcommand", 
   assert.equal(isDevelopmentPaletteReviewInvocation(["test", "--grep", "dna-twisted"]), false)
   assert.equal(isDevelopmentPaletteReviewInvocation(["test", "--repeat-each", "background-palette"]), false)
   assert.equal(isDevelopmentPaletteReviewInvocation(["test", "dna-twisted"]), true)
+})
+
+test("Admin user operations QA disables stale-server reuse for unfiltered and explicit spec runs", () => {
+  assert.equal(isAdminUserOperationsInvocation(["test"]), true)
+  assert.equal(isAdminUserOperationsInvocation(["test", "--grep", "role change"]), true)
+  assert.equal(
+    isAdminUserOperationsInvocation(["test", "tests/browser/admin-user-operations.spec.ts"]),
+    true,
+  )
+  assert.equal(isAdminUserOperationsInvocation(["test", "admin-user-operations.spec.ts:42"]), true)
+  assert.equal(isAdminUserOperationsInvocation(["test", "tests/browser"]), true)
+  assert.equal(isAdminUserOperationsInvocation(["test", "admin-user-operations"]), true)
+  assert.equal(
+    isAdminUserOperationsInvocation(["test", String.raw`tests[\\/]browser[\\/]admin-user-operations\.spec\.ts$`]),
+    true,
+  )
+  assert.equal(isAdminUserOperationsInvocation(["test", "[invalid"]), false)
+  assert.equal(
+    isAdminUserOperationsInvocation(["test", "tests/browser/public-routes.spec.ts"]),
+    false,
+  )
 })
 
 test("Playwright file filters skip separate option values", () => {

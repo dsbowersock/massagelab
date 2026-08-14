@@ -109,6 +109,11 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
             <SignedOutAccountPrompt title="Sign in to verify credentials" />
           </TabsContent>
 
+          <TabsContent value="activity" className="flex flex-col gap-5">
+            <TabPanelIntro tabId="activity" />
+            <SignedOutAccountPrompt title="Sign in to review account activity" />
+          </TabsContent>
+
           <TabsContent value="app-settings" className="flex flex-col gap-5">
             <TabPanelIntro tabId="app-settings" />
             <AccountAppSettingsPanel />
@@ -161,6 +166,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
     profile: "Defaults",
     security: session.user.twoFactorEnabled ? "2FA enabled" : "2FA available",
     credentials: roleSummary,
+    activity: "Account history",
     sync: "Local-first",
     accessibility: "Coming later",
     notifications: "Coming later",
@@ -273,6 +279,10 @@ async function ActiveAccountTab({
 
   if (tabId === "credentials") {
     return <CredentialsTab userId={userId} sessionUser={sessionUser} />
+  }
+
+  if (tabId === "activity") {
+    return <ActivityTab userId={userId} sessionUser={sessionUser} />
   }
 
   if (tabId === "app-settings") {
@@ -613,6 +623,43 @@ async function CredentialsTab({ userId, sessionUser }: { userId: string; session
   )
 }
 
+/** Renders the signed-in account's safe, support-facing change history. */
+async function ActivityTab({ userId, sessionUser }: { userId: string; sessionUser: AccountSessionUser }) {
+  const data = await getAccountSurfaceData("activity", userId, sessionUser)
+
+  return (
+    <TabsContent value="activity" className="space-y-5">
+      <TabPanelIntro tabId="activity" />
+      <Card id="account-activity" className={settingsSurfaceClassName}>
+        <CardHeader>
+          <CardTitle>Account activity</CardTitle>
+          <CardDescription>Changes made to your account and the support updates that explain them.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {data.activity.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No account activity yet.</p>
+          ) : (
+            <ol className="space-y-3">
+              {data.activity.map((entry) => (
+                <li key={entry.id} className={`${settingsInsetClassName} space-y-1 p-3`}>
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                    <p className="font-medium">{entry.title}</p>
+                    <time dateTime={entry.occurredAt} className="text-xs text-muted-foreground">
+                      {new Date(entry.occurredAt).toLocaleString()}
+                    </time>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{entry.explanation}</p>
+                  {entry.effectiveValue ? <p className="text-sm">{entry.effectiveValue}</p> : null}
+                </li>
+              ))}
+            </ol>
+          )}
+        </CardContent>
+      </Card>
+    </TabsContent>
+  )
+}
+
 async function MembershipTab({ userId, sessionUser }: { userId: string; sessionUser: AccountSessionUser }) {
   const data = await getAccountSurfaceData("membership", userId, sessionUser)
   const membershipSummary = data.membershipSummary
@@ -626,6 +673,27 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
   // A stored billing profile keeps invoices and payment management reachable
   // even when terminal subscription history returns pricing to Checkout mode.
   const canOpenBillingPortal = Boolean(membershipSummary.stripeCustomer)
+  const temporaryFeatureLabels: Record<string, string> = {
+    premium_backgrounds: "Premium backgrounds",
+    therapist_documentation_tools: "Therapist documentation tools",
+    calendar_basic_scheduling: "Basic calendar scheduling",
+    calendar_full_scheduling: "Full calendar scheduling",
+    external_calendar_sync: "External calendar sync",
+  }
+  // The uncached membership loader already applies the request-time active
+  // predicate. This surface retains each overlapping expiration independently.
+  const temporaryAccess = Array.isArray(membershipSummary.entitlements.featureAccess)
+    ? membershipSummary.entitlements.featureAccess.flatMap((feature) => {
+      const label = temporaryFeatureLabels[feature.featureKey]
+      if (!label || !Array.isArray(feature.sources)) return []
+      return feature.sources.flatMap((source) => {
+        if (source.source !== "temporary" || typeof source.expiresAt !== "string") return []
+        const expiresAt = new Date(source.expiresAt)
+        if (!Number.isFinite(expiresAt.getTime())) return []
+        return [{ featureKey: feature.featureKey, label, expiresAt: source.expiresAt }]
+      })
+    }).sort((left, right) => left.label.localeCompare(right.label) || left.expiresAt.localeCompare(right.expiresAt))
+    : []
 
   return (
     <TabsContent value="membership" className="space-y-5">
@@ -654,6 +722,38 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
           </div>
         </CardContent>
       </Card>
+
+      {temporaryAccess.length > 0 ? (
+        <Card
+          id="temporary-feature-access"
+          data-account-temporary-access="active"
+          className={settingsSurfaceClassName}
+        >
+          <CardHeader>
+            <CardTitle>Temporary feature access</CardTitle>
+            <CardDescription>
+              Support-provided access expires automatically at request time. Each overlapping temporary source is listed separately.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2">
+              {temporaryAccess.map((access) => (
+                <li
+                  key={`${access.featureKey}:${access.expiresAt}`}
+                  data-temporary-feature-key={access.featureKey}
+                  data-temporary-expires-at={access.expiresAt}
+                  className={cn(settingsInsetClassName, "p-3 text-sm")}
+                >
+                  <p className="font-medium">{access.label}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Expires <time dateTime={access.expiresAt}>{access.expiresAt.slice(0, 10)} {access.expiresAt.slice(11, 16)} UTC</time>
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <SupporterInterestsPanel />
 
@@ -803,7 +903,7 @@ function ToolsTab({ sessionUser }: { sessionUser: AccountSessionUser }) {
               Anatomy browser
             </CardTitle>
             <CardDescription>
-              Access is limited to full admins and users with the dedicated anatomy admin role.
+              Access is limited to full Admins and users with the Anatomy Editor role.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-3">
@@ -835,6 +935,7 @@ const signedOutAccountItemStatuses = {
   profile: "Sign in",
   security: "Sign in",
   credentials: "Sign in",
+  activity: "Sign in",
   "app-settings": "Available",
   "therapist-defaults": "Local only",
   sync: "Sign in",

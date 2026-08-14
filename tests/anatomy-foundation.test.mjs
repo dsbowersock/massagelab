@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { readFileSync } from "node:fs"
 import { describe, it } from "node:test"
 import {
   ANATOMY_FOUNDATION_SEED,
@@ -5319,5 +5320,36 @@ describe("Anatomy data foundation", () => {
     assert.ok(relationships.includes("muscle:teres-major:deep_to:muscle:latissimus-dorsi"))
     assert.ok(relationships.includes("muscle:upper-trapezius:superficial_to:muscle:levator-scapulae"))
     assert.ok(relationships.includes("muscle:levator-scapulae:deep_to:muscle:upper-trapezius"))
+  })
+})
+
+describe("admin authorization persistence contract", () => {
+  it("keeps delegated anatomy roles and immutable admin records in the schema and migration", () => {
+    const schema = readFileSync(new URL("../prisma/schema.prisma", import.meta.url), "utf8")
+    const migration = readFileSync(new URL("../prisma/migrations/20260808090000_admin_authorization_audit_foundation/migration.sql", import.meta.url), "utf8")
+    const roleBlock = schema.match(/enum\s+Role\s*\{([\s\S]*?)^\s*\}/m)?.[1] ?? ""
+    const adminActionBlock = schema.match(/model\s+AdminAction\s*\{([\s\S]*?)^\s*\}/m)?.[1] ?? ""
+    const accountActivityBlock = schema.match(/model\s+UserAccountActivity\s*\{([\s\S]*?)^\s*\}/m)?.[1] ?? ""
+    const emailIntentBlock = schema.match(/model\s+AdminEmailIntent\s*\{([\s\S]*?)^\s*\}/m)?.[1] ?? ""
+
+    assert.match(roleBlock, /ANATOMY_ADMIN/)
+    assert.match(roleBlock, /ANATOMY_REVIEWER/)
+    assert.match(roleBlock, /ANATOMY_EDITOR/)
+    assert.match(adminActionBlock, /idempotencyKey\s+String\s+@unique/)
+    assert.match(adminActionBlock, /failureCode\s+String\?/)
+    assert.match(adminActionBlock, /@@unique\(\[id,\s*targetUserId\]\)/)
+    assert.match(accountActivityBlock, /adminActionId\s+String\s+@unique/)
+    assert.match(accountActivityBlock, /fields:\s*\[adminActionId,\s*userId\],\s*references:\s*\[id,\s*targetUserId\]/)
+    assert.match(emailIntentBlock, /adminActionId\s+String\s+@unique/)
+    assert.match(emailIntentBlock, /failureCode\s+String\?/)
+    assert.match(emailIntentBlock, /fields:\s*\[adminActionId,\s*userId\],\s*references:\s*\[id,\s*targetUserId\]/)
+    assert.match(migration, /ALTER TYPE "Role"\s+ADD VALUE\s+(?:IF NOT EXISTS\s+)?'ANATOMY_REVIEWER'/)
+    assert.match(migration, /ALTER TYPE "Role"\s+ADD VALUE\s+(?:IF NOT EXISTS\s+)?'ANATOMY_EDITOR'/)
+    assert.match(migration, /UPDATE "UserRole"\s+SET "role" = 'ANATOMY_EDITOR'\s+WHERE "role" = 'ANATOMY_ADMIN'/)
+    assert.match(migration, /CREATE UNIQUE INDEX "AdminAction_id_targetUserId_key"\s+ON "AdminAction"\("id",\s*"targetUserId"\)/)
+    assert.equal(
+      migration.match(/FOREIGN KEY \("adminActionId",\s*"userId"\) REFERENCES "AdminAction"\("id",\s*"targetUserId"\)/g)?.length,
+      2,
+    )
   })
 })

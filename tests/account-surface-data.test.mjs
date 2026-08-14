@@ -184,6 +184,59 @@ describe("account surface data loader", () => {
     assert.deepEqual(calls, ["passwordCredential.findUnique", "account.findFirst"])
   })
 
+  it("loads only the signed-in user's newest fifty safe activity rows", async () => {
+    const calls = []
+    let rows = [{
+      id: "activity-1",
+      title: "Background credits added",
+      explanation: "Support added credits to your account.",
+      effectiveValue: "+5 credits",
+      occurredAt: new Date("2026-08-08T12:00:00.000Z"),
+      internalNote: "must not reach Account",
+      actorUserId: "admin-1",
+    }]
+    const loader = createAccountSurfaceDataLoader({
+      prismaClient: {
+        userAccountActivity: {
+          async findMany(args) {
+            calls.push(args)
+            return rows
+          },
+        },
+      },
+    })
+
+    const data = await loader.getAccountSurfaceData("activity", "user-1", sessionUser)
+
+    assert.equal(data.surface, "activity")
+    assert.deepEqual(data.activity, [{
+      id: "activity-1",
+      title: "Background credits added",
+      explanation: "Support added credits to your account.",
+      effectiveValue: "+5 credits",
+      occurredAt: "2026-08-08T12:00:00.000Z",
+    }])
+    assert.deepEqual(calls, [{
+      where: { userId: "user-1" },
+      select: { id: true, title: true, explanation: true, effectiveValue: true, occurredAt: true },
+      orderBy: [{ occurredAt: "desc" }, { id: "desc" }],
+      take: 50,
+    }])
+    assert.doesNotMatch(JSON.stringify(data), /internalNote|actorUserId|failureCode/)
+
+    rows = [{
+      id: "activity-2",
+      title: "Email delivered",
+      explanation: "A requested email was delivered.",
+      effectiveValue: null,
+      occurredAt: new Date("2026-08-08T12:01:00.000Z"),
+    }, ...rows]
+    const refreshed = await loader.getAccountSurfaceData("activity", "user-1", sessionUser)
+
+    assert.deepEqual(refreshed.activity.map(({ id }) => id), ["activity-2", "activity-1"])
+    assert.equal(calls.length, 2)
+  })
+
   it("does not cache session-derived credential roles", async () => {
     const calls = []
     const loader = createLoader(calls)
@@ -205,7 +258,7 @@ describe("account surface data loader", () => {
     ])
   })
 
-  it("loads billing data only for the membership surface and reuses the short-lived cache", async () => {
+  it("reloads request-time membership access while reusing only the short-lived pricing catalog cache", async () => {
     const calls = []
     const loader = createLoader(calls)
 
@@ -214,7 +267,46 @@ describe("account surface data loader", () => {
 
     assert.equal(first.surface, "membership")
     assert.equal(second.surface, "membership")
-    assert.deepEqual(calls, ["getMembershipSummary", "getPricingCatalog"])
+    assert.deepEqual(calls, ["getMembershipSummary", "getPricingCatalog", "getMembershipSummary"])
+  })
+
+  it("passes one captured request time to the membership summary and exposes only safe feature expiration evidence", async () => {
+    const calls = []
+    const nowMs = Date.parse("2026-08-08T00:00:00.000Z")
+    const loader = createAccountSurfaceDataLoader({
+      prismaClient: {},
+      async getMembershipSummary(_prismaClient, userId, now) {
+        calls.push({ userId, now })
+        return {
+          stripeCustomer: null,
+          subscriptions: [],
+          entitlements: {
+            level: "FREE",
+            paidLevel: null,
+            features: ["calendar_basic_scheduling", "premium_backgrounds"],
+            featureAccess: [{
+              featureKey: "premium_backgrounds",
+              sources: [{ source: "temporary", expiresAt: "2026-09-01T00:00:00.000Z" }],
+            }],
+          },
+        }
+      },
+      async getPricingCatalog() {
+        return { plans: [], intervals: [], defaultInterval: "month" }
+      },
+      now: () => nowMs,
+    })
+
+    const data = await loader.getAccountSurfaceData("membership", "user-1", sessionUser)
+
+    assert.equal(calls.length, 1)
+    assert.equal(calls[0].userId, "user-1")
+    assert.equal(calls[0].now.toISOString(), "2026-08-08T00:00:00.000Z")
+    assert.deepEqual(data.membershipSummary.entitlements.featureAccess, [{
+      featureKey: "premium_backgrounds",
+      sources: [{ source: "temporary", expiresAt: "2026-09-01T00:00:00.000Z" }],
+    }])
+    assert.doesNotMatch(JSON.stringify(data.membershipSummary), /actorUserId|grantedById|internalNote|idempotencyKey/i)
   })
 
   it("loads no database data for local-only app settings surfaces", async () => {

@@ -32,6 +32,7 @@ describe("Account preference helpers", () => {
     const resolved = resolveChimerPreferenceSeedResult({
       accessAuthoritative: true,
       features: ["premium_backgrounds", "premium_backgrounds"],
+      premiumBackgroundAccessSource: "temporary",
       ownedBackgroundIds: ["massage-lab-stars", "massage-lab-stars"],
       chimerSettings: {
         backgroundId: "massage-lab-moving-gradient",
@@ -44,7 +45,15 @@ describe("Account preference helpers", () => {
     assert.equal(resolved.settings.minutes, 25)
     assert.notEqual(resolved.settings.massageLabStarsSpeed, submitted.massageLabStarsSpeed)
     assert.deepEqual(resolved.featureKeys, ["premium_backgrounds"])
+    assert.equal(resolved.premiumBackgroundAccessSource, "temporary")
     assert.deepEqual(resolved.ownedBackgroundIds, ["massage-lab-stars"])
+    assert.equal(resolveChimerPreferenceSeedResult({
+      accessAuthoritative: true,
+      features: ["premium_backgrounds"],
+      premiumBackgroundAccessSource: "unsupported",
+      ownedBackgroundIds: [],
+      chimerSettings: {},
+    }).premiumBackgroundAccessSource, null)
     assert.equal(resolveChimerPreferenceSeedResult({
       accessAuthoritative: false,
       chimerSettings: {},

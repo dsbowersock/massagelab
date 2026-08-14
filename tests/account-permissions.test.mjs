@@ -5,18 +5,21 @@ import {
 } from "../lib/membership.js"
 import {
   canAdministerAccounts,
+  canEditAnatomyContent,
   canManageClients,
   canManageAnatomyContent,
+  canReviewAnatomyContent,
   buildAccountCapabilities,
   hasRequiredRole,
   hasVerifiedRole,
+  highestRole,
   normalizeRoleAssignments,
   normalizeRoles,
 } from "../lib/account-permissions.js"
 
 describe("Account permission helpers", () => {
   it("normalizes supported roles and drops unknown values", () => {
-    assert.deepEqual(normalizeRoles(["user", "ADMIN", "licensed_therapist", "anatomy_admin", "owner", "admin", null]), ["USER", "ADMIN", "LICENSED_THERAPIST", "ANATOMY_ADMIN"])
+    assert.deepEqual(normalizeRoles(["user", "ADMIN", "licensed_therapist", "anatomy_admin", "owner", "admin", null]), ["USER", "ADMIN", "LICENSED_THERAPIST", "ANATOMY_EDITOR"])
   })
 
   it("normalizes multi-role assignments with verification status", () => {
@@ -49,6 +52,15 @@ describe("Account permission helpers", () => {
     assert.equal(canAdministerAccounts(["ANATOMY_ADMIN"]), false)
   })
 
+  it("splits anatomy review and editing while preserving legacy editor authority", () => {
+    assert.equal(canReviewAnatomyContent(["ANATOMY_REVIEWER"]), true)
+    assert.equal(canReviewAnatomyContent(["ANATOMY_EDITOR"]), true)
+    assert.equal(canEditAnatomyContent(["ANATOMY_REVIEWER"]), false)
+    assert.equal(canEditAnatomyContent(["ANATOMY_EDITOR"]), true)
+    assert.equal(canEditAnatomyContent(["ANATOMY_ADMIN"]), true)
+    assert.equal(canAdministerAccounts(["ANATOMY_EDITOR"]), false)
+  })
+
   it("keeps regular users out of anatomy administration", () => {
     assert.equal(canManageAnatomyContent(["USER"]), false)
     assert.equal(hasRequiredRole(["USER"], "EDITOR"), false)
@@ -58,6 +70,18 @@ describe("Account permission helpers", () => {
     assert.equal(canManageClients([{ role: "LICENSED_THERAPIST", status: "PENDING" }]), false)
     assert.equal(canManageClients([{ role: "LICENSED_THERAPIST", status: "VERIFIED" }]), true)
     assert.equal(hasVerifiedRole([{ role: "STUDENT", status: "VERIFIED" }], "STUDENT"), true)
+    assert.equal(hasVerifiedRole([{ role: "ANATOMY_ADMIN", status: "VERIFIED" }], "ANATOMY_ADMIN"), true)
+  })
+
+  it("excludes pending and revoked privileged assignments from effective account state", () => {
+    const pendingAdmin = [{ role: "USER", status: "VERIFIED" }, { role: "ADMIN", status: "PENDING" }]
+    const revokedEditor = [{ role: "USER", status: "VERIFIED" }, { role: "ANATOMY_EDITOR", status: "REVOKED" }]
+
+    assert.equal(highestRole(pendingAdmin), "USER")
+    assert.equal(highestRole(revokedEditor), "USER")
+    assert.equal(buildAccountCapabilities(pendingAdmin).canAdministerAccounts, false)
+    assert.equal(buildAccountCapabilities(pendingAdmin).canManageAnatomyContent, false)
+    assert.equal(buildAccountCapabilities(revokedEditor).canManageAnatomyContent, false)
   })
 
   it("builds conservative capabilities while hosted clinical sync is disabled", () => {

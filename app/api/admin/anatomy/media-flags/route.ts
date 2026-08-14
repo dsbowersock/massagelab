@@ -2,10 +2,9 @@ import { revalidatePath } from "next/cache"
 import { NextResponse } from "next/server"
 import type { AnatomyEntityType, AnatomyMediaRole } from "@prisma/client"
 import { getCurrentSession } from "@/auth"
-import { canManageAnatomyContent } from "@/lib/account-permissions"
+import { loadAnatomyReviewerActor } from "@/lib/admin/access"
 import { ANATOMY_MEDIA_REVIEW_REASONS, normalizeAnatomyMediaRole } from "@/lib/anatomy-media-review"
 import { buildAnatomyEntityHref, parseAnatomyEntitySelection } from "@/lib/anatomy-queries"
-import type { AccountRole } from "@/lib/domain-types"
 import { prisma } from "@/lib/prisma"
 
 const VALID_REVIEW_REASONS = new Set<string>(ANATOMY_MEDIA_REVIEW_REASONS)
@@ -23,23 +22,18 @@ function reviewReason(value: string) {
   return VALID_REVIEW_REASONS.has(normalized) ? normalized : "other"
 }
 
-async function requireAnatomyAdmin() {
+async function loadMediaFlagReviewer() {
   const session = await getCurrentSession()
-  if (!session?.user?.id) return null
-
-  const roles = await prisma.userRole.findMany({
-    where: { userId: session.user.id },
-    select: { role: true },
+  return loadAnatomyReviewerActor({
+    prismaClient: prisma,
+    sessionUserId: session?.user?.id ?? null,
   })
-  const roleValues = (roles as Array<{ role: AccountRole }>).map((roleRow) => roleRow.role)
-
-  return canManageAnatomyContent(roleValues) ? session.user : null
 }
 
 export async function POST(request: Request) {
-  const user = await requireAnatomyAdmin()
-  if (!user) {
-    return NextResponse.json({ error: "Anatomy media review requires anatomy admin access." }, { status: 403 })
+  const actor = await loadMediaFlagReviewer()
+  if (!actor) {
+    return NextResponse.json({ error: "Anatomy media review requires verified review access." }, { status: 403 })
   }
 
   const payload = await request.json().catch(() => null)
@@ -81,7 +75,7 @@ export async function POST(request: Request) {
       reviewReason: reviewReason(text(record.reason)),
       reviewNote: text(record.note) || null,
       displayPriority: 999,
-      reviewedById: user.id,
+      reviewedById: actor.id,
       reviewedAt: new Date(),
     },
     update: {
@@ -89,7 +83,7 @@ export async function POST(request: Request) {
       reviewReason: reviewReason(text(record.reason)),
       reviewNote: text(record.note) || null,
       displayPriority: 999,
-      reviewedById: user.id,
+      reviewedById: actor.id,
       reviewedAt: new Date(),
     },
   })

@@ -14,7 +14,28 @@ enum Role {
   CLIENT
   EDITOR
   ANATOMY_ADMIN
+  ANATOMY_REVIEWER
+  ANATOMY_EDITOR
   ADMIN
+}
+
+enum AdminActionOutcome {
+  SUCCEEDED
+  FAILED
+}
+
+enum AdminEmailIntentStatus {
+  PENDING
+  DELIVERED
+  FAILED
+}
+
+enum AdminBillingGoodwillStatus {
+  PREPARED
+  APPLIED
+  VERIFIED
+  FAILED_BEFORE_MUTATION
+  RECONCILIATION_REQUIRED
 }
 
 enum AuthAttemptPurpose {
@@ -461,6 +482,7 @@ model User {
   email                 String?                  @unique
   emailVerified         DateTime?
   image                 String?
+  authSessionVersion    Int                      @default(0)
   accounts              Account[]
   sessions              Session[]
   roles                 UserRole[]
@@ -535,6 +557,137 @@ model User {
   clientWellnessEntries ClientWellnessEntry[]
   clientWellnessPreference ClientWellnessPreference?
   clientWellnessVocabularySuggestions ClientWellnessVocabularySuggestion[]
+  adminActionsAsActor AdminAction[] @relation("AdminActionActor")
+  adminActionsAsTarget AdminAction[] @relation("AdminActionTarget")
+  accountActivities UserAccountActivity[]
+  adminEmailIntents AdminEmailIntent[]
+  temporaryFeatureGrants TemporaryFeatureGrant[] @relation("TemporaryFeatureGrantUser")
+  temporaryFeatureGrantsGranted TemporaryFeatureGrant[] @relation("TemporaryFeatureGrantGrantedBy")
+  temporaryFeatureGrantRevocations TemporaryFeatureGrantRevocation[] @relation("TemporaryFeatureGrantRevokedBy")
+  billingGoodwillOperationsAsActor AdminBillingGoodwillOperation[] @relation("BillingGoodwillActor")
+  billingGoodwillOperationsAsTarget AdminBillingGoodwillOperation[] @relation("BillingGoodwillTarget")
+}
+
+model AdminAction {
+  id             String             @id @default(cuid())
+  actorUserId    String
+  targetUserId   String
+  actionKind     String
+  reasonCode     String
+  internalNote   String?
+  idempotencyKey String             @unique
+  beforeState    Json               @default("{}")
+  afterState     Json               @default("{}")
+  outcome        AdminActionOutcome
+  failureCode    String?
+  occurredAt     DateTime           @default(now())
+  createdAt      DateTime           @default(now())
+  actor          User               @relation("AdminActionActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+  target         User               @relation("AdminActionTarget", fields: [targetUserId], references: [id], onDelete: Restrict)
+  activity       UserAccountActivity?
+  emailIntent    AdminEmailIntent?
+
+  @@index([targetUserId, occurredAt])
+  @@index([actorUserId, occurredAt])
+  @@unique([id, targetUserId])
+}
+
+model UserAccountActivity {
+  id             String      @id @default(cuid())
+  userId         String
+  adminActionId  String      @unique
+  title          String
+  explanation    String
+  effectiveValue String?
+  occurredAt     DateTime    @default(now())
+  createdAt      DateTime    @default(now())
+  user           User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  adminAction    AdminAction @relation(fields: [adminActionId, userId], references: [id, targetUserId], onDelete: Restrict, map: "UserAccountActivity_adminAction_target_consistency_fkey")
+
+  @@index([userId, occurredAt])
+  @@unique([adminActionId, userId])
+}
+
+model AdminEmailIntent {
+  id             String                 @id @default(cuid())
+  userId         String
+  adminActionId  String                 @unique
+  kind           String
+  recipientEmail String?
+  subject        String
+  message        String
+  status         AdminEmailIntentStatus @default(PENDING)
+  attemptCount   Int                    @default(0)
+  lastAttemptAt  DateTime?
+  deliveredAt    DateTime?
+  failureCode    String?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  user           User                   @relation(fields: [userId], references: [id], onDelete: Restrict)
+  adminAction    AdminAction            @relation(fields: [adminActionId, userId], references: [id, targetUserId], onDelete: Restrict, map: "AdminEmailIntent_adminAction_target_consistency_fkey")
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+  @@unique([adminActionId, userId])
+}
+
+model AdminBillingGoodwillOperation {
+  id                         String                     @id @default(cuid())
+  actorUserId                String
+  targetUserId               String
+  idempotencyKey             String                     @unique
+  reasonCode                 String
+  internalNote               String?
+  amountCents                Int
+  currency                   String                     @default("usd")
+  stripeCustomerId           String
+  stripeSubscriptionId       String
+  stripeBalanceTransactionId String?                    @unique
+  startingBalanceCents       Int
+  endingBalanceCents         Int?
+  projectedNextInvoiceCents  Int?
+  status                     AdminBillingGoodwillStatus @default(PREPARED)
+  failureCode                String?
+  appliedAt                  DateTime?
+  verifiedAt                 DateTime?
+  createdAt                  DateTime                   @default(now())
+  updatedAt                  DateTime                   @updatedAt
+  actor                      User                       @relation("BillingGoodwillActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+  target                     User                       @relation("BillingGoodwillTarget", fields: [targetUserId], references: [id], onDelete: Restrict)
+
+  @@index([targetUserId, createdAt])
+  @@index([status, createdAt])
+}
+
+model TemporaryFeatureGrant {
+  id             String   @id @default(cuid())
+  userId         String
+  featureKey     String
+  startsAt       DateTime
+  expiresAt      DateTime
+  grantedById    String
+  reasonCode     String
+  internalNote   String?
+  idempotencyKey String   @unique
+  createdAt      DateTime @default(now())
+  user           User     @relation("TemporaryFeatureGrantUser", fields: [userId], references: [id], onDelete: Restrict)
+  grantedBy      User     @relation("TemporaryFeatureGrantGrantedBy", fields: [grantedById], references: [id], onDelete: Restrict)
+  revocation     TemporaryFeatureGrantRevocation?
+
+  @@index([userId, featureKey, startsAt, expiresAt])
+  @@index([expiresAt])
+}
+
+model TemporaryFeatureGrantRevocation {
+  id             String                @id @default(cuid())
+  grantId        String                @unique
+  revokedById    String
+  reasonCode     String
+  internalNote   String?
+  idempotencyKey String                @unique
+  revokedAt      DateTime              @default(now())
+  grant          TemporaryFeatureGrant @relation(fields: [grantId], references: [id], onDelete: Restrict)
+  revokedBy      User                  @relation("TemporaryFeatureGrantRevokedBy", fields: [revokedById], references: [id], onDelete: Restrict)
 }
 
 model LegalAcceptance {

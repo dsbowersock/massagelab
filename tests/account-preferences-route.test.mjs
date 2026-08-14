@@ -50,7 +50,7 @@ function ownedOnlySettings() {
   }
 }
 
-function loadRoute({ savedSettings = ownedOnlySettings(), failAccess = false } = {}) {
+function loadRoute({ savedSettings = ownedOnlySettings(), failAccess = false, featureAccess = [] } = {}) {
   const calls = {
     snapshots: [],
     upserts: [],
@@ -105,13 +105,15 @@ function loadRoute({ savedSettings = ownedOnlySettings(), failAccess = false } =
         objectRecord,
       },
       "@/lib/membership": {
+        FEATURE_KEYS: { premiumBackgrounds: "premium_backgrounds" },
         getUserEntitlementState: async () => {
           if (failAccess) {
             throw new Error("temporary membership lookup failure")
           }
           return {
             level: "free",
-            features: [],
+            features: featureAccess.map(({ featureKey }) => featureKey),
+            featureAccess,
           }
         },
       },
@@ -180,6 +182,18 @@ describe("account preference route ownership boundary", () => {
     )
     assert.match(
       chimerPageSource,
+      /const nextPremiumBackgroundAccessSource = normalizePremiumBackgroundAccessSource\([\s\S]*?setFeatureKeys\(nextFeatureKeys\)[\s\S]*?setPremiumBackgroundAccessSource\(nextPremiumBackgroundAccessSource\)/,
+    )
+    assert.match(
+      chimerPageSource,
+      /setFeatureKeys\(reconciledSeed\.featureKeys\)[\s\S]*?setPremiumBackgroundAccessSource\(reconciledSeed\.premiumBackgroundAccessSource\)/,
+    )
+    assert.match(
+      chimerPageSource,
+      /mergeBackgroundAccessOwnership\(\{[\s\S]*?featureKeys,[\s\S]*?premiumBackgroundAccessSource,[\s\S]*?ownedBackgroundIds:/,
+    )
+    assert.match(
+      chimerPageSource,
       /settingsChangedWhileSeeding[\s\S]*?serverChangedSeed[\s\S]*?setAccountSyncStatus\("conflict"\)/,
     )
     assert.match(
@@ -188,7 +202,7 @@ describe("account preference route ownership boundary", () => {
     )
     assert.match(
       chimerPageSource,
-      /const reconciledWrite = resolveChimerPreferenceSeedResult\(responseBody,[\s\S]*?setFeatureKeys\(reconciledWrite\.featureKeys\)[\s\S]*?setPermanentlyOwnedBackgroundIds\(reconciledWrite\.ownedBackgroundIds\)[\s\S]*?doesChimerPreferenceWriteResponseMatch/,
+      /const reconciledWrite = resolveChimerPreferenceSeedResult\(responseBody,[\s\S]*?setFeatureKeys\(reconciledWrite\.featureKeys\)[\s\S]*?setPremiumBackgroundAccessSource\(reconciledWrite\.premiumBackgroundAccessSource\)[\s\S]*?setPermanentlyOwnedBackgroundIds\(reconciledWrite\.ownedBackgroundIds\)[\s\S]*?doesChimerPreferenceWriteResponseMatch/,
     )
     const conflictResolutionStart = chimerPageSource.indexOf("const useDeviceSettingsForAccount")
     const conflictResolutionEnd = chimerPageSource.indexOf(
@@ -201,7 +215,7 @@ describe("account preference route ownership boundary", () => {
     )
     assert.match(
       conflictResolutionSource,
-      /resolveChimerPreferenceSeedResult\(responseBody,[\s\S]*?setFeatureKeys\(reconciledWrite\.featureKeys\)[\s\S]*?setPermanentlyOwnedBackgroundIds\(reconciledWrite\.ownedBackgroundIds\)/,
+      /resolveChimerPreferenceSeedResult\(responseBody,[\s\S]*?setFeatureKeys\(reconciledWrite\.featureKeys\)[\s\S]*?setPremiumBackgroundAccessSource\(reconciledWrite\.premiumBackgroundAccessSource\)[\s\S]*?setPermanentlyOwnedBackgroundIds\(reconciledWrite\.ownedBackgroundIds\)/,
     )
     assert.match(
       conflictResolutionSource,
@@ -231,6 +245,33 @@ describe("account preference route ownership boundary", () => {
       JSON.stringify(response.body),
       /paymentIntent|customerId|stripeCustomer|checkoutSession/,
     )
+  })
+
+  it("GET and PUT preserve authoritative premium-background provenance", async () => {
+    const temporaryFeatureAccess = [{
+      featureKey: "premium_backgrounds",
+      sources: [{ source: "temporary", expiresAt: "2026-09-01T00:00:00.000Z" }],
+    }]
+    const overlappingFeatureAccess = [{
+      featureKey: "premium_backgrounds",
+      sources: [
+        { source: "membership", expiresAt: null },
+        { source: "temporary", expiresAt: "2026-09-01T00:00:00.000Z" },
+      ],
+    }]
+
+    const temporary = loadRoute({ featureAccess: temporaryFeatureAccess })
+    const temporaryGet = await temporary.GET()
+    const temporaryPut = await temporary.PUT(new Request("https://massagelab.app/api/account/preferences", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ chimerSettings: ownedOnlySettings() }),
+    }))
+    const overlapping = loadRoute({ featureAccess: overlappingFeatureAccess })
+
+    assert.equal(temporaryGet.body.premiumBackgroundAccessSource, "temporary")
+    assert.equal(temporaryPut.body.premiumBackgroundAccessSource, "temporary")
+    assert.equal((await overlapping.GET()).body.premiumBackgroundAccessSource, "subscription")
   })
 
   it("GET falls back when the saved background is not owned", async () => {
@@ -265,6 +306,7 @@ describe("account preference route ownership boundary", () => {
     assert.equal(response.body.accessAuthoritative, false)
     assert.equal(response.body.membershipLevel, null)
     assert.deepEqual(response.body.features, [])
+    assert.equal(response.body.premiumBackgroundAccessSource, null)
     assert.deepEqual(response.body.ownedBackgroundIds, [])
     assert.deepEqual(response.body.chimerSettings, {})
   })

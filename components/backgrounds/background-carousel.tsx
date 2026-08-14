@@ -15,7 +15,7 @@ import {
   type BackgroundAccessSnapshot,
   type BackgroundDefinition,
   type BackgroundId,
-  userCanUseBackground,
+  resolveBackgroundCommerceAccessSource,
 } from "@/components/backgrounds/backgroundRegistry"
 import { backgroundCardCommerceState } from "@/lib/background-commerce-client.js"
 import {
@@ -125,22 +125,12 @@ export function BackgroundCarousel({
 
   const items = useMemo(
     () => options.map((option) => {
-      const canUse = userCanUseBackground(option, access)
-      // Access-owned IDs are permanent acquisitions even while the provider
-      // refreshes; other usable premium IDs are subscription-backed membership
-      // access.
-      const isOwnedByAccess = access.ownedBackgroundIds.includes(option.id)
+      const accessSource = resolveBackgroundCommerceAccessSource(option, access)
       const commerceState = backgroundCardCommerceState({
         background: option,
         access: {
-          canUse,
-          accessSource: option.requiresSubscription && canUse
-            ? isOwnedByAccess
-              ? "ownership"
-              : "subscription"
-            : canUse
-              ? "free"
-              : "locked",
+          canUse: accessSource !== "locked",
+          accessSource,
         },
         snapshot,
       })

@@ -1,6 +1,8 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import { resolveBackgroundAccessForUser } from "../lib/commerce/background-access.ts"
+import { TEMPORARY_ACCESS_FEATURE_KEYS } from "../lib/membership.js"
+import { TOTAL_ACTIVE_LIMIT } from "../lib/admin/temporary-access-contract.ts"
 
 const PREMIUM_BACKGROUND = "massage-lab-aurora"
 const LATER_PREMIUM_BACKGROUND = "massage-lab-photon-beam"
@@ -8,6 +10,7 @@ const LATER_PREMIUM_BACKGROUND = "massage-lab-photon-beam"
 function createAccessDatabase({
   emailVerified = true,
   subscriptions = [],
+  temporaryGrants = [],
   ownership = null,
   balance = 2,
   reservation = null,
@@ -15,11 +18,14 @@ function createAccessDatabase({
   const state = {
     emailVerified,
     subscriptions,
+    temporaryGrants,
     ownership,
     balance,
     reservation,
     transactionCalls: 0,
     reads: [],
+    temporaryGrantQuery: null,
+    reservationQuery: null,
   }
 
   function record(model) {
@@ -45,6 +51,13 @@ function createAccessDatabase({
         return null
       },
     },
+    temporaryFeatureGrant: {
+      async findMany(query) {
+        record("temporaryFeatureGrant")
+        state.temporaryGrantQuery = query
+        return state.temporaryGrants
+      },
+    },
     backgroundOwnership: {
       async findUnique() {
         record("backgroundOwnership")
@@ -58,8 +71,9 @@ function createAccessDatabase({
       },
     },
     commerceOrder: {
-      async findFirst() {
+      async findFirst(query) {
         record("commerceOrder")
+        state.reservationQuery = query
         return state.reservation
       },
     },
@@ -125,7 +139,15 @@ describe("canonical background access", () => {
   })
 
   it("always enables an enabled free background without inventing permanent ownership", async () => {
-    const { database } = createAccessDatabase({ balance: 2 })
+    const { database } = createAccessDatabase({
+      balance: 2,
+      temporaryGrants: [{
+        id: "temporary-1",
+        featureKey: "premium_backgrounds",
+        startsAt: new Date("2026-01-01T00:00:00.000Z"),
+        expiresAt: new Date("2030-01-01T00:00:00.000Z"),
+      }],
+    })
 
     const decision = await resolve(database, "static-gradient")
 
@@ -161,6 +183,40 @@ describe("canonical background access", () => {
     assert.equal(decision.purchaseEligibility.eligible, true, "subscribers may purchase permanent access")
   })
 
+  it("uses active temporary premium-background access without calling it a subscription", async () => {
+    const { database } = createAccessDatabase({
+      temporaryGrants: [{
+        id: "temporary-1",
+        featureKey: "premium_backgrounds",
+        startsAt: new Date("2026-01-01T00:00:00.000Z"),
+        expiresAt: new Date("2030-01-01T00:00:00.000Z"),
+      }],
+    })
+
+    const decision = await resolve(database)
+
+    assert.equal(decision.canUse, true)
+    assert.equal(decision.canCustomizeColors, true)
+    assert.equal(decision.accessSource, "temporary")
+    assert.equal(decision.isPermanentlyOwned, false)
+    assert.equal(decision.creditEligibility.eligible, true)
+    assert.equal(decision.purchaseEligibility.eligible, true)
+  })
+
+  it("keeps membership provenance ahead of simultaneous temporary access", async () => {
+    const { database } = createAccessDatabase({
+      subscriptions: [{ status: "active", membershipLevel: "SUPPORTER", currentPeriodEnd: null }],
+      temporaryGrants: [{
+        id: "temporary-1",
+        featureKey: "premium_backgrounds",
+        startsAt: new Date("2026-01-01T00:00:00.000Z"),
+        expiresAt: new Date("2030-01-01T00:00:00.000Z"),
+      }],
+    })
+
+    assert.equal((await resolve(database)).accessSource, "subscription")
+  })
+
   for (const source of ["CREDIT_REDEMPTION", "PURCHASE"]) {
     it(`treats active ${source.toLowerCase()} ownership as permanent use and customization`, async () => {
       const { database } = createAccessDatabase({
@@ -179,9 +235,15 @@ describe("canonical background access", () => {
     })
   }
 
-  it("keeps permanent ownership authoritative while subscription access is also active", async () => {
+  it("keeps permanent ownership authoritative while membership and temporary access are also active", async () => {
     const { database } = createAccessDatabase({
       subscriptions: [{ status: "active", membershipLevel: "SUPPORTER", currentPeriodEnd: null }],
+      temporaryGrants: [{
+        id: "temporary-1",
+        featureKey: "premium_backgrounds",
+        startsAt: new Date("2026-01-01T00:00:00.000Z"),
+        expiresAt: new Date("2030-01-01T00:00:00.000Z"),
+      }],
       ownership: { status: "ACTIVE", source: "CREDIT_REDEMPTION" },
     })
 
@@ -271,7 +333,21 @@ describe("canonical background access", () => {
     })
     assert.equal(state.transactionCalls, 1)
     assert.ok(state.reads.every((read) => read.transaction === 1))
+    assert.deepEqual(state.temporaryGrantQuery, {
+      where: {
+        userId: "user-1",
+        featureKey: { in: [...TEMPORARY_ACCESS_FEATURE_KEYS] },
+        startsAt: { lte: state.reservationQuery.where.reservationExpiresAt.gt },
+        expiresAt: { gt: state.reservationQuery.where.reservationExpiresAt.gt },
+        revocation: null,
+      },
+      select: { id: true, featureKey: true, startsAt: true, expiresAt: true },
+      orderBy: [{ expiresAt: "asc" }, { id: "asc" }],
+      // The extra sentinel row detects overflow instead of silently truncating authorization input.
+      take: TOTAL_ACTIVE_LIMIT + 1,
+    })
 
+    const readsBeforeFreshSnapshot = state.reads.length
     state.reservation = null
     state.balance = 0
     const fresh = await resolve(database)
@@ -282,7 +358,7 @@ describe("canonical background access", () => {
     })
     assert.equal(fresh.purchaseEligibility.eligible, true)
     assert.equal(state.transactionCalls, 2)
-    assert.ok(state.reads.slice(6).every((read) => read.transaction === 2))
+    assert.ok(state.reads.slice(readsBeforeFreshSnapshot).every((read) => read.transaction === 2))
   })
 
   it("requires a freshly verified account before enabling acquisition", async () => {
