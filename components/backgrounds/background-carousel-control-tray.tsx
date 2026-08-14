@@ -120,7 +120,7 @@ export function BackgroundCarouselControlTray({
         <div className={styles.accessState}>
           <span data-background-access-label>
             {statusLabel}
-            {statusLabel === "Owned" && sourceLabel ? <span className="sr-only"> - {sourceLabel}</span> : null}
+            {permanentlyOwned && sourceLabel ? <span className="sr-only"> - {sourceLabel}</span> : null}
           </span>
           {commerceState.isReserved ? <span>Reserved</span> : commerceState.isInCart ? <span>In cart</span> : null}
         </div>

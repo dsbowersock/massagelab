@@ -79,6 +79,7 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
   const title = music.activeStationTitle ?? "Atmosphere"
 
   function handlePlayStop() {
+    // Loading is an active, cancellable playback intent, so Stop must invalidate pending startup.
     if (isPlayingOrLoading) {
       void music.stopCurrent()
       return
@@ -94,7 +95,6 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
           size="icon"
           variant="success"
           aria-label="Previous station"
-          title="Previous station"
           disabled={isLoading}
           onClick={() => void music.playPreviousStation()}
         >
@@ -114,7 +114,6 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
           size="icon"
           variant="success"
           aria-label={playStopLabel}
-          title={playStopLabel}
           disabled={!music.activeStationId}
           onClick={handlePlayStop}
         >
@@ -133,7 +132,6 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
           size="icon"
           variant="success"
           aria-label="Next station"
-          title="Next station"
           disabled={isLoading}
           onClick={() => void music.playNextStation()}
         >
@@ -156,7 +154,6 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
             replace={isMusicVisualizerRoute}
             data-visual-draft-navigation-mode={isMusicVisualizerRoute ? "replace" : undefined}
             aria-label={visualizerActionLabel}
-            title={visualizerActionLabel}
           >
             <Wallpaper aria-hidden="true" />
           </Link>
@@ -174,7 +171,6 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
           size="icon"
           variant="success"
           aria-label="Collapse"
-          title="Collapse"
           onClick={() => music.setMiniPlayerCollapsed(true)}
         >
           <ChevronDown aria-hidden="true" />
@@ -192,7 +188,6 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
           size="icon"
           variant="success"
           aria-label="Expand"
-          title="Expand"
           onClick={() => music.setMiniPlayerCollapsed(false)}
         >
           <ChevronUp aria-hidden="true" />

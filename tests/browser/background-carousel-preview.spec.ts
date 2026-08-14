@@ -531,7 +531,8 @@ test("short-landscape Background tray keeps locked controls within the compact g
 test("short-landscape Background tray keeps unavailable controls within the compact grid", async ({ context, page }, testInfo) => {
   await installRestrictedCommerceFixture(context, page, String(testInfo.project.use.baseURL), "refund_pending")
   await page.setViewportSize({ width: 844, height: 390 })
-  const panel = await openProductionBackgroundCarousel(page)
+  const panel = await openProductionBackgroundCarousel(page, "/clock?panel=background")
+  await expect(page).toHaveURL((url) => url.pathname === "/clock" && url.searchParams.get("panel") === "background")
   const controls = panel.getByTestId("background-carousel-controls")
   const unavailablePrimary = controls.getByRole("button", { name: /^Unavailable .* background$/ })
 

@@ -1,7 +1,7 @@
 # Mobile Media Carousel Controls Design
 
 Date: 2026-08-08
-Status: Approved design; implementation planning has not started
+Status: Implemented and locally validated; PR review in progress.
 
 ## Summary
 

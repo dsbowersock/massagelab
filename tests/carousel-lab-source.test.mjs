@@ -123,7 +123,11 @@ describe("Carousel Lab source boundaries", () => {
   it("does not let Embla drag capture suppress interactive card controls", () => {
     const controller = read("components/carousels/use-adaptive-carousel-controller.ts")
     assert.match(controller, /interactiveSlideSelector/)
-    assert.match(controller, /target\.closest\(interactiveSlideSelector\)/)
+    assert.match(
+      controller,
+      /const targetElement = target instanceof Element\s+\? target\s+: target instanceof Node\s+\? target\.parentElement\s+: null/,
+    )
+    assert.match(controller, /targetElement\.closest\(interactiveSlideSelector\)/)
     assert.match(controller, /watchDrag:\s*\(_api, event\) => shouldStartCarouselDrag\(event\)/)
   })
 

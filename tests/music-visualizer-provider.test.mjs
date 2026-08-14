@@ -92,11 +92,28 @@ describe("Music visualizer provider contract", () => {
 
 describe("Persistent player visualizer boundary", () => {
   it("uses one icon-only leaf toolbar without horizontal scrolling", () => {
+    const toolbarActions = miniPlayerSource.slice(
+      miniPlayerSource.indexOf("const previousAction"),
+      miniPlayerSource.indexOf("  return (", miniPlayerSource.indexOf("const previousAction")),
+    )
+
     assert.doesNotMatch(miniPlayerSource, /RefreshCw|Restart|overflow-x-auto/)
     assert.match(miniPlayerSource, /variant="success"/)
     assert.match(miniPlayerSource, /TooltipProvider/)
     assert.match(miniPlayerSource, /ml-music-player-collapsed/)
     assert.match(miniPlayerSource, /data-testid="music-player-toolbar-controls"/)
+    assert.doesNotMatch(toolbarActions, /\btitle=/)
+    assert.equal((toolbarActions.match(/<TooltipContent>/g) ?? []).length, 6)
+    for (const accessibleName of [
+      'aria-label="Previous station"',
+      "aria-label={playStopLabel}",
+      'aria-label="Next station"',
+      "aria-label={visualizerActionLabel}",
+      'aria-label="Collapse"',
+      'aria-label="Expand"',
+    ]) {
+      assert.match(toolbarActions, new RegExp(accessibleName.replace(/[{}]/g, "\\$&")))
+    }
   })
 
   it("replaces visualizer history on minimize but pushes on entry", () => {

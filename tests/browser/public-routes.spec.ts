@@ -1015,6 +1015,50 @@ test("center station details support swipe and short tap while actions stay prot
   await expect(page.getByRole("dialog")).toHaveCount(0)
 
   const proof = await centerCarouselItem(page, "mlab-proof-drone", "Next station")
+  const protectedCenterId = await proof.getAttribute("data-carousel-item-id")
+  const playButton = proof.getByRole("button", { name: /^Play MassageLab Proof Drone$/i })
+  await playButton.evaluate(async (button) => {
+    const textNode = Array.from(button.childNodes).find((node) => (
+      node.nodeType === Node.TEXT_NODE && node.textContent?.trim() === "Play"
+    ))
+    if (!textNode) throw new Error("Play control text node is unavailable")
+
+    const box = button.getBoundingClientRect()
+    const startX = box.left + box.width * 0.75
+    const startY = box.top + box.height * 0.5
+    textNode.dispatchEvent(new MouseEvent("mousedown", {
+      bubbles: true,
+      button: 0,
+      buttons: 1,
+      cancelable: true,
+      clientX: startX,
+      clientY: startY,
+      view: window,
+    }))
+    for (let step = 1; step <= 8; step += 1) {
+      document.dispatchEvent(new MouseEvent("mousemove", {
+        bubbles: true,
+        buttons: 1,
+        cancelable: true,
+        clientX: startX - step * 20,
+        clientY: startY,
+        view: window,
+      }))
+      await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()))
+    }
+    document.dispatchEvent(new MouseEvent("mouseup", {
+      bubbles: true,
+      button: 0,
+      buttons: 0,
+      cancelable: true,
+      clientX: startX - 160,
+      clientY: startY,
+      view: window,
+    }))
+  })
+  await expect.poll(async () => page.locator('[data-carousel-slide][data-centered="true"]').getAttribute("data-carousel-item-id"))
+    .toBe(protectedCenterId)
+
   await proof.locator("[data-carousel-station-details]").click()
   await expect(page.getByRole("dialog").getByRole("heading", { name: "MassageLab Proof Drone" })).toBeVisible()
   await page.keyboard.press("Escape")

@@ -70,6 +70,8 @@ async function resolvedShellSpacing(page: Page) {
     return {
       audioToolbar: measure("--ml-audio-toolbar-height"),
       bottomStack: measure("--ml-bottom-stack-height"),
+      chimerBottom: measure("--chimer-bottom-control-offset"),
+      chimerPanelBottom: measure("--chimer-panel-bottom-offset"),
       chimerSettingsTop: measure("--chimer-settings-panel-top-offset"),
       chimerTop: measure("--chimer-top-control-offset"),
       mainBar: measure("--ml-main-bar-height"),
@@ -134,12 +136,12 @@ async function placeRenderedToolbarAtTop(player: Locator, safeTop: number) {
   }, safeTop)
 }
 
-/** Verifies the toolbar reserves its safe inset outside the usable control grid. */
+/** Verifies the bottom stack owns its safe inset outside the full-height toolbar. */
 async function expectSafeAreaToolbarGeometry(
   player: Locator,
   expectedHeight: number,
   expectedContentHeight: number,
-  safeBottom: number,
+  expectedBottomStack: number,
   actionNames: string[],
 ) {
   const geometry = await player.evaluate((toolbar, args) => {
@@ -156,21 +158,35 @@ async function expectSafeAreaToolbarGeometry(
 
     return {
       actionBottom: Math.max(...actionBottoms),
-      contentBottom: toolbarBox.bottom - args.safeBottom,
+      contentBottom: toolbarBox.bottom,
       layoutClientHeight: layout.clientHeight,
       layoutScrollHeight: layout.scrollHeight,
       surfaceClientHeight: surface.clientHeight,
       surfaceScrollHeight: surface.scrollHeight,
       toolbarHeight: toolbarBox.height,
+      viewportBottomGap: window.innerHeight - toolbarBox.bottom,
     }
-  }, { actionNames, safeBottom })
+  }, { actionNames, expectedBottomStack })
 
   expect(geometry.toolbarHeight).toBeCloseTo(expectedHeight, 0)
-  expect(expectedHeight).toBeCloseTo(expectedContentHeight + safeBottom, 0)
+  expect(expectedHeight).toBeCloseTo(expectedContentHeight, 0)
   expect(geometry.layoutClientHeight).toBeCloseTo(expectedContentHeight, 0)
   expect(geometry.actionBottom).toBeLessThanOrEqual(geometry.contentBottom + 1)
+  expect(geometry.viewportBottomGap).toBeCloseTo(expectedBottomStack, 0)
   expect(geometry.surfaceScrollHeight).toBeLessThanOrEqual(geometry.surfaceClientHeight)
   expect(geometry.layoutScrollHeight).toBeLessThanOrEqual(geometry.layoutClientHeight)
+}
+
+/** Keeps the compact loading treatment semantically useful while removing duplicate copy. */
+async function expectCompactLoadingIdentity(player: Locator) {
+  const identity = player.getByTestId("music-player-toolbar-identity")
+  const progress = identity.locator(".ml-music-player-toolbar-progress")
+
+  await expect(identity.locator(":scope > p:visible")).toHaveCount(1)
+  await expect(identity.locator(".ml-music-player-toolbar-title")).toBeVisible()
+  await expect(identity.locator(".ml-music-player-toolbar-status")).toBeHidden()
+  await expect(progress.locator('[aria-live="polite"]')).toBeHidden()
+  await expect(progress.getByRole("progressbar", { name: "Station loading progress" })).toBeVisible()
 }
 
 function drawerControl(cluster: Locator) {
@@ -780,15 +796,18 @@ test("mobile top placement reserves the top edge and leaves the active music pla
     + activeSpacing.scrollEndBuffer
     + activeSpacing.audioToolbar
   expect(activeSpacing.bottomStack).toBeCloseTo(activeSpacing.safeBottom)
+  expect(activeSpacing.audioToolbar).toBeCloseTo(112, 0)
   expect(activeSpacing.pageBottom).toBeCloseTo(activeExpected)
   expect(activeSpacing.pageBottom).not.toBeCloseTo(activeExpected + activeSpacing.mainBar)
+  expect(activeSpacing.chimerBottom).toBeCloseTo(activeSpacing.bottomStack + 112 + 12, 0)
+  expect(activeSpacing.chimerPanelBottom).toBeCloseTo(activeSpacing.bottomStack + 112 + 12, 0)
   const expandedPlayerBox = await player.boundingBox()
   expect(expandedPlayerBox?.height ?? 0).toBeCloseTo(activeSpacing.audioToolbar, 0)
   await expectSafeAreaToolbarGeometry(
     player,
-    activeSpacing.audioToolbar,
     112,
-    activeSpacing.safeBottom,
+    112,
+    activeSpacing.bottomStack,
     ["Previous station", "Stop", "Next station", "Background", "Collapse"],
   )
   expect((expandedPlayerBox?.y ?? 0) + (expandedPlayerBox?.height ?? 0)).toBeGreaterThan(700)
@@ -797,14 +816,22 @@ test("mobile top placement reserves the top edge and leaves the active music pla
   await player.getByRole("button", { name: "Collapse", exact: true }).click()
   await expect(page.locator("body")).toHaveClass(/ml-music-player-collapsed/)
   const collapsedSpacing = await resolvedShellSpacing(page)
+  const collapsedExpected = collapsedSpacing.bottomStack
+    + collapsedSpacing.pageEdgeGap
+    + collapsedSpacing.scrollEndBuffer
+    + 72
+  expect(collapsedSpacing.audioToolbar).toBeCloseTo(72, 0)
   expect(collapsedSpacing.audioToolbar).toBeLessThan(activeSpacing.audioToolbar)
+  expect(collapsedSpacing.pageBottom).toBeCloseTo(collapsedExpected)
+  expect(collapsedSpacing.chimerBottom).toBeCloseTo(collapsedSpacing.bottomStack + 72 + 12, 0)
+  expect(collapsedSpacing.chimerPanelBottom).toBeCloseTo(collapsedSpacing.bottomStack + 72 + 12, 0)
   const collapsedPlayerBox = await player.boundingBox()
   expect(collapsedPlayerBox?.height ?? 0).toBeCloseTo(collapsedSpacing.audioToolbar, 0)
   await expectSafeAreaToolbarGeometry(
     player,
-    collapsedSpacing.audioToolbar,
     72,
-    collapsedSpacing.safeBottom,
+    72,
+    collapsedSpacing.bottomStack,
     ["Stop", "Expand"],
   )
   await player.getByRole("button", { name: "Expand", exact: true }).click()
@@ -846,15 +873,18 @@ test("mobile bottom placement adds the main bar when idle and the audio toolbar 
     + activeSpacing.scrollEndBuffer
     + activeSpacing.audioToolbar
   expect(activeSpacing.bottomStack).toBeCloseTo(activeSpacing.safeBottom + activeSpacing.mainBar)
+  expect(activeSpacing.audioToolbar).toBeCloseTo(112, 0)
   expect(activeSpacing.pageBottom).toBeCloseTo(activeExpected)
   expect(activeSpacing.pageBottom - idleSpacing.pageBottom).toBeCloseTo(activeSpacing.audioToolbar)
+  expect(activeSpacing.chimerBottom).toBeCloseTo(activeSpacing.bottomStack + 112 + 12, 0)
+  expect(activeSpacing.chimerPanelBottom).toBeCloseTo(activeSpacing.bottomStack + 112 + 12, 0)
   const expandedPlayerBox = await player.boundingBox()
   expect(expandedPlayerBox?.height ?? 0).toBeCloseTo(activeSpacing.audioToolbar, 0)
   await expectSafeAreaToolbarGeometry(
     player,
-    activeSpacing.audioToolbar,
     112,
-    activeSpacing.safeBottom,
+    112,
+    activeSpacing.bottomStack,
     ["Previous station", "Stop", "Next station", "Background", "Collapse"],
   )
   expect((expandedPlayerBox?.y ?? 0) + (expandedPlayerBox?.height ?? 0)).toBeLessThanOrEqual((barBox?.y ?? 0) + 1)
@@ -862,14 +892,22 @@ test("mobile bottom placement adds the main bar when idle and the audio toolbar 
   await player.getByRole("button", { name: "Collapse", exact: true }).click()
   await expect(page.locator("body")).toHaveClass(/ml-music-player-collapsed/)
   const collapsedSpacing = await resolvedShellSpacing(page)
+  const collapsedExpected = collapsedSpacing.bottomStack
+    + collapsedSpacing.pageEdgeGap
+    + collapsedSpacing.scrollEndBuffer
+    + 72
+  expect(collapsedSpacing.audioToolbar).toBeCloseTo(72, 0)
   expect(collapsedSpacing.audioToolbar).toBeLessThan(activeSpacing.audioToolbar)
+  expect(collapsedSpacing.pageBottom).toBeCloseTo(collapsedExpected)
+  expect(collapsedSpacing.chimerBottom).toBeCloseTo(collapsedSpacing.bottomStack + 72 + 12, 0)
+  expect(collapsedSpacing.chimerPanelBottom).toBeCloseTo(collapsedSpacing.bottomStack + 72 + 12, 0)
   const collapsedPlayerBox = await player.boundingBox()
   expect(collapsedPlayerBox?.height ?? 0).toBeCloseTo(collapsedSpacing.audioToolbar, 0)
   await expectSafeAreaToolbarGeometry(
     player,
-    collapsedSpacing.audioToolbar,
     72,
-    collapsedSpacing.safeBottom,
+    72,
+    collapsedSpacing.bottomStack,
     ["Stop", "Expand"],
   )
   await player.getByRole("button", { name: "Expand", exact: true }).click()
@@ -940,21 +978,25 @@ test("mobile loading toolbar fits expanded and collapsed increased-text content"
   await page.getByRole("button", { name: /^Play Observable Streams$/i }).click()
   const player = page.getByTestId("music-player-toolbar")
   await expect(player).toHaveAttribute("data-playback-state", "loading")
+  await expectCompactLoadingIdentity(player)
 
   let spacing = await resolvedShellSpacing(page)
+  expect(spacing.audioToolbar).toBeCloseTo(112, 0)
   await expectSafeAreaToolbarGeometry(
     player,
-    spacing.audioToolbar,
     112,
-    spacing.safeBottom,
+    112,
+    spacing.bottomStack,
     ["Previous station", "Stop", "Next station", "Background", "Collapse"],
   )
 
   await player.getByRole("button", { name: "Collapse", exact: true }).click()
   await expect(player).toHaveAttribute("data-collapsed", "true")
   await expect(player).toHaveAttribute("data-playback-state", "loading")
+  await expectCompactLoadingIdentity(player)
   spacing = await resolvedShellSpacing(page)
-  await expectSafeAreaToolbarGeometry(player, spacing.audioToolbar, 72, spacing.safeBottom, ["Stop", "Expand"])
+  expect(spacing.audioToolbar).toBeCloseTo(72, 0)
+  await expectSafeAreaToolbarGeometry(player, 72, 72, spacing.bottomStack, ["Stop", "Expand"])
 
   await player.getByRole("button", { name: "Stop", exact: true }).click()
   releaseSampleIndex()

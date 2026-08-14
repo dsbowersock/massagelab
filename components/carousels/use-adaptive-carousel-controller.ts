@@ -19,12 +19,17 @@ const interactiveDragSurfaceSelector = "[data-carousel-drag-surface='true']"
  */
 function shouldStartCarouselDrag(event: MouseEvent | TouchEvent) {
   const target = event.target
-  if (!(target instanceof Element)) return true
+  const targetElement = target instanceof Element
+    ? target
+    : target instanceof Node
+      ? target.parentElement
+      : null
+  if (!targetElement) return true
 
-  const interactive = target.closest(interactiveSlideSelector)
+  const interactive = targetElement.closest(interactiveSlideSelector)
   if (!interactive) return true
 
-  const dragSurface = target.closest(interactiveDragSurfaceSelector)
+  const dragSurface = targetElement.closest(interactiveDragSurfaceSelector)
   return dragSurface === interactive && dragSurface.matches(interactiveSlideSelector)
 }
 

@@ -245,11 +245,11 @@
     }
 
     body.ml-music-player-active.ml-music-player-bottom {
-      --ml-audio-toolbar-height: calc(var(--ml-audio-toolbar-content-height) + var(--ml-safe-bottom));
+      --ml-audio-toolbar-height: var(--ml-audio-toolbar-content-height);
     }
 
-    /* The root owns the total reservation while the grid keeps the full
-       control height above the placement-specific safe-area padding. */
+    /* The root owns the placement-specific reservation while the grid keeps
+       its full control height. The bottom stack already owns its safe inset. */
     .ml-music-player-toolbar {
       height: var(--ml-audio-toolbar-height);
     }
@@ -2018,6 +2018,7 @@
 
     .ml-music-player-toolbar[data-placement="bottom"] .ml-music-player-toolbar-surface {
       border-top-width: 0;
+      padding-bottom: 0;
     }
   }
 
