@@ -1,4 +1,4 @@
-import { expect, test, type APIResponse, type Page, type Route } from "@playwright/test"
+import { expect, test, type APIResponse, type Locator, type Page, type Route } from "@playwright/test"
 import { createHash } from "node:crypto"
 import { getVisibleAtmosphereStations } from "../../lib/atmosphere/stations.js"
 import { centerCarouselItem } from "./carousel-test-helpers"
@@ -790,6 +790,25 @@ async function startProofStation(page: Page) {
   return page.getByTestId("music-player-toolbar")
 }
 
+/** Returns the first enabled station Play action already intersecting the current viewport without scrolling it. */
+async function firstEnabledStationPlayInViewport(carousel: Locator) {
+  const playActions = carousel.locator("[data-carousel-primary-action]:not([disabled])")
+  const findVisibleIndex = () => playActions.evaluateAll((buttons) => {
+    return buttons.findIndex((button) => {
+      const bounds = button.getBoundingClientRect()
+      return bounds.width > 0
+        && bounds.height > 0
+        && bounds.bottom > 0
+        && bounds.right > 0
+        && bounds.top < window.innerHeight
+        && bounds.left < window.innerWidth
+    })
+  })
+  await expect.poll(findVisibleIndex).toBeGreaterThanOrEqual(0)
+  const visibleIndex = await findVisibleIndex()
+  return playActions.nth(visibleIndex)
+}
+
 for (const activation of ["tap", "click", "keyboard"] as const) {
   test(`first station Play activation accepts one ${activation} command after carousel readiness`, async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "mobile-chromium", "First-action coverage runs in mobile Chromium.")
@@ -798,12 +817,13 @@ for (const activation of ["tap", "click", "keyboard"] as const) {
 
     const carousel = page.getByRole("region", { name: "Station carousel" })
     await expect(carousel).toHaveAttribute("data-carousel-ready", "true")
-    const play = carousel.locator("[data-carousel-primary-action]:not([disabled])").first()
+    const play = await firstEnabledStationPlayInViewport(carousel)
     const toolbar = page.getByTestId("music-player-toolbar")
     await expect(play).toBeVisible()
     await beginPlaybackStateHistory(page)
 
     try {
+      await expect(play).toBeInViewport()
       if (activation === "tap") await play.tap()
       if (activation === "click") await play.click()
       if (activation === "keyboard") {
@@ -818,7 +838,9 @@ for (const activation of ["tap", "click", "keyboard"] as const) {
         .toBeGreaterThan(0)
       const firstGeneratorGeneration = (await readProbe(page)).audioContext.generatorGeneration
       await page.waitForTimeout(250)
-      expect((await readProbe(page)).audioContext.generatorGeneration).toBe(firstGeneratorGeneration)
+      const stabilizedProbe = await readProbe(page)
+      expect(stabilizedProbe.audio.playCalls).toBe(1)
+      expect(stabilizedProbe.audioContext.generatorGeneration).toBe(firstGeneratorGeneration)
     } finally {
       const history = await finishPlaybackStateHistory(page)
       expect(history).not.toContain("stopped-after-accepted-play")
