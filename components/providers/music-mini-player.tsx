@@ -4,6 +4,7 @@ import { useEffect } from "react"
 import {
   ChevronDown,
   ChevronUp,
+  MoreHorizontal,
   Play,
   SkipBack,
   SkipForward,
@@ -16,6 +17,12 @@ import { usePathname, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -27,6 +34,7 @@ import {
 } from "@/lib/music-visualizer"
 import { cn } from "@/lib/utils"
 import { MusicLoadingProgress } from "./music-loading-progress"
+import { MusicInterruptionNotice } from "./music-interruption-notice"
 import { useMusic } from "./music-provider"
 
 type MusicMiniPlayerPlacement = "top" | "bottom"
@@ -180,6 +188,38 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
     </Tooltip>
   )
 
+  const settingsAction = (
+    <DropdownMenu>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              size="icon"
+              variant="success"
+              aria-label="Player settings"
+            >
+              <MoreHorizontal aria-hidden="true" />
+            </Button>
+          </DropdownMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Player settings</TooltipContent>
+      </Tooltip>
+      <DropdownMenuContent align="end" className="min-w-56 border-border bg-card">
+        <DropdownMenuCheckboxItem
+          checked={music.resumeAfterInterruptionDefault}
+          disabled={!music.mediaIntegrationAvailable}
+          aria-description={music.mediaIntegrationAvailable
+            ? undefined
+            : "External interruption controls are unavailable in this browser."}
+          onCheckedChange={(checked) => music.setResumeAfterInterruptionDefault(checked === true)}
+        >
+          Resume after interruptions
+        </DropdownMenuCheckboxItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+
   const expandAction = (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -207,6 +247,7 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
       role="region"
       aria-label="Atmosphere audio player"
     >
+      <MusicInterruptionNotice placement={placement} />
       <div className="ml-music-player-toolbar-surface pointer-events-auto bg-card/95 shadow-2xl shadow-black/35 backdrop-blur">
         <TooltipProvider>
           {/* The grid owns responsive shape: two rows on narrow expanded
@@ -242,13 +283,14 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
             ) : (
               <>
                 <div
-                  className="grid min-w-0 grid-cols-5 gap-1 sm:flex sm:shrink-0 sm:items-center sm:gap-2"
+                  className="grid min-w-0 grid-cols-6 gap-1 sm:flex sm:shrink-0 sm:items-center sm:gap-2"
                   data-testid="music-player-toolbar-controls"
                 >
                   {previousAction}
                   {playStopAction}
                   {nextAction}
                   {visualizerAction}
+                  {settingsAction}
                   {collapseAction}
                 </div>
 
@@ -276,6 +318,8 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
 function playerStatusLabel(state: string) {
   if (state === "loading") return "Preparing audio..."
   if (state === "playing") return "Playing"
+  if (state === "interrupted") return "Interrupted"
+  if (state === "paused") return "Paused"
   if (state === "stopped") return "Stopped"
   return "Ready"
 }

@@ -9,6 +9,101 @@ async function gotoShell(page: Page, path: string) {
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined)
 }
 
+/** Supplies deterministic browser media capabilities for interruption-preference UI tests. */
+async function installInterruptionNoticeMediaFakes(page: Page) {
+  await page.addInitScript(() => {
+    class FakeAudio extends EventTarget {
+      loop = false
+      paused = true
+      preload = ""
+      private sourceAttribute: string | null = null
+
+      get src() {
+        return this.sourceAttribute
+          ? new URL(this.sourceAttribute, window.location.href).href
+          : ""
+      }
+
+      set src(value: string) {
+        this.sourceAttribute = value
+      }
+
+      getAttribute(name: string) {
+        return name === "src" ? this.sourceAttribute : null
+      }
+
+      removeAttribute(name: string) {
+        if (name === "src") this.sourceAttribute = null
+      }
+
+      canPlayType() {
+        return "probably"
+      }
+
+      play() {
+        this.paused = false
+        queueMicrotask(() => this.dispatchEvent(new Event("play")))
+        return Promise.resolve()
+      }
+
+      pause() {
+        if (this.paused) return
+        this.paused = true
+        queueMicrotask(() => this.dispatchEvent(new Event("pause")))
+      }
+
+      load() {}
+    }
+
+    class FakeAudioSession extends EventTarget {
+      state = "active"
+      type = "auto"
+    }
+
+    class FakeMediaMetadata {
+      constructor(init: Record<string, unknown>) {
+        Object.assign(this, init)
+      }
+    }
+
+    const mediaSession = {
+      metadata: null as Record<string, unknown> | null,
+      playbackState: "none",
+      setActionHandler() {},
+    }
+
+    Object.defineProperty(window, "Audio", { configurable: true, value: FakeAudio })
+    Object.defineProperty(window, "MediaMetadata", { configurable: true, value: FakeMediaMetadata })
+    const audioSession = new FakeAudioSession()
+    Object.defineProperty(Navigator.prototype, "mediaSession", {
+      configurable: true,
+      get: () => mediaSession,
+    })
+    Object.defineProperty(Navigator.prototype, "audioSession", {
+      configurable: true,
+      get: () => audioSession,
+    })
+    Reflect.set(window, "__interruptionNoticeAudioSession", audioSession)
+  })
+}
+
+async function setInterruptionNoticeAudioSession(page: Page, state: "active" | "interrupted") {
+  await page.evaluate((nextState) => {
+    const session = Reflect.get(window, "__interruptionNoticeAudioSession") as EventTarget & { state: string }
+    session.state = nextState
+    session.dispatchEvent(new Event("statechange"))
+  }, state)
+}
+
+async function startInterruptionNoticeSession(page: Page) {
+  await gotoShell(page, "/music")
+  await centerCarouselItem(page, "mlab-proof-drone", "Next station")
+  await page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
+  const player = page.getByTestId("music-player-toolbar")
+  await expect(player).toHaveAttribute("data-playback-state", /loading|playing/)
+  return player
+}
+
 async function openAccountMenu(page: Page) {
   const trigger = page.getByTestId("account-menu-trigger")
 
@@ -761,6 +856,132 @@ test("narrow mobile keeps every tool and collapses only the wordmark", async ({ 
   await expect(drawer).toBeFocused()
 })
 
+test("Atmosphere six expanded player actions expose session and saved interruption preferences", async ({ page }) => {
+  await installInterruptionNoticeMediaFakes(page)
+  await page.setViewportSize({ width: 390, height: 844 })
+  const player = await startInterruptionNoticeSession(page)
+  const controls = player.getByTestId("music-player-toolbar-controls")
+  const notice = page.getByRole("region", { name: "Interruption preference" })
+
+  await expect(notice).toBeVisible()
+  await expect(notice).toHaveAttribute("aria-live", "polite")
+  await expect(notice).toContainText("Calls and other audio may temporarily pause or mute this station.")
+  const sessionPreference = notice.getByRole("checkbox", {
+    name: "Resume automatically when the interruption ends",
+  })
+  await expect(sessionPreference).toBeChecked()
+  expect(await controls.locator("[aria-label]").evaluateAll((actions) => (
+    actions.map((action) => action.getAttribute("aria-label"))
+  ))).toEqual([
+    "Previous station",
+    "Stop",
+    "Next station",
+    "Background",
+    "Player settings",
+    "Collapse",
+  ])
+
+  await sessionPreference.uncheck()
+  await player.getByRole("button", { name: "Player settings" }).click()
+  const savedPreference = page.getByRole("menuitemcheckbox", { name: "Resume after interruptions" })
+  await expect(savedPreference).toBeChecked()
+  await savedPreference.click()
+  await expect.poll(() => page.evaluate(() => (
+    localStorage.getItem("massagelab-atmosphere-interruption-v1")
+  ))).toContain('"resumeAfterInterruption":false')
+  await page.keyboard.press("Escape")
+  await expect(sessionPreference).not.toBeChecked()
+
+  await setInterruptionNoticeAudioSession(page, "interrupted")
+  await expect(player).toHaveAttribute("data-playback-state", "paused")
+  await expect(player.getByText("Paused", { exact: true })).toBeVisible()
+  await setInterruptionNoticeAudioSession(page, "active")
+  await expect(player).toHaveAttribute("data-playback-state", "paused")
+  await player.getByRole("button", { name: "Play", exact: true }).click()
+  await expect(notice).toBeVisible()
+  await sessionPreference.check()
+  await setInterruptionNoticeAudioSession(page, "interrupted")
+  await expect(player).toHaveAttribute("data-playback-state", "interrupted")
+  await expect(player.getByText("Interrupted", { exact: true })).toBeVisible()
+  await setInterruptionNoticeAudioSession(page, "active")
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+
+  const close = notice.getByRole("button", { name: "Close" })
+  await close.focus()
+  await page.keyboard.press("Enter")
+  await expect(notice).toBeHidden()
+  await player.getByRole("button", { name: "Next station" }).click()
+  await expect(notice).toBeHidden()
+})
+
+test("Atmosphere interruption notice counts only active unhovered and unfocused time", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== mobileProject, "The notice timer contract is covered in mobile Chromium.")
+  await installInterruptionNoticeMediaFakes(page)
+  await page.clock.install()
+  await page.setViewportSize({ width: 390, height: 844 })
+  const player = await startInterruptionNoticeSession(page)
+  const notice = page.getByRole("region", { name: "Interruption preference" })
+  await expect(notice).toBeVisible()
+
+  await page.clock.fastForward("00:10")
+  await notice.hover()
+  await page.clock.fastForward("00:40")
+  await expect(notice).toBeVisible()
+  await page.mouse.move(1, 1)
+  await page.clock.fastForward(19_500)
+  await expect(notice).toBeVisible()
+  await page.clock.fastForward(500)
+  await expect(notice).toBeHidden()
+
+  await player.getByRole("button", { name: "Stop", exact: true }).click()
+  await player.getByRole("button", { name: "Play", exact: true }).click()
+  await expect(notice).toBeVisible()
+  await notice.getByRole("checkbox", {
+    name: "Resume automatically when the interruption ends",
+  }).focus()
+  await page.clock.fastForward("01:00")
+  await expect(notice).toBeVisible()
+  await player.getByRole("button", { name: "Collapse", exact: true }).focus()
+  await page.clock.fastForward(29_500)
+  await expect(notice).toBeVisible()
+  await page.clock.fastForward(500)
+  await expect(notice).toBeHidden()
+})
+
+test("Atmosphere interruption notice clears the toolbar in short landscape", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== mobileProject, "Short-landscape geometry is covered in mobile Chromium.")
+  await installInterruptionNoticeMediaFakes(page)
+  await page.setViewportSize({ width: 667, height: 375 })
+  const player = await startInterruptionNoticeSession(page)
+  const notice = page.getByRole("region", { name: "Interruption preference" })
+  const controls = player.getByTestId("music-player-toolbar-controls")
+
+  await expect(notice).toBeVisible()
+  const geometry = await page.evaluate(() => {
+    const toolbar = document.querySelector<HTMLElement>('[data-testid="music-player-toolbar"]')
+    const noticeElement = document.querySelector<HTMLElement>('[data-testid="music-interruption-notice"]')
+    const controlElement = document.querySelector<HTMLElement>('[data-testid="music-player-toolbar-controls"]')
+    if (!toolbar || !noticeElement || !controlElement) throw new Error("Player geometry elements are missing")
+    const toolbarBox = toolbar.getBoundingClientRect()
+    const noticeBox = noticeElement.getBoundingClientRect()
+    return {
+      bodyOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      controlsOverflow: controlElement.scrollWidth - controlElement.clientWidth,
+      noticeBottom: noticeBox.bottom,
+      toolbarTop: toolbarBox.top,
+      noticeLeft: noticeBox.left,
+      noticeRight: noticeBox.right,
+      viewportWidth: window.innerWidth,
+    }
+  })
+  expect(geometry.noticeBottom).toBeLessThanOrEqual(geometry.toolbarTop)
+  expect(geometry.bodyOverflow).toBeLessThanOrEqual(0)
+  expect(geometry.controlsOverflow).toBeLessThanOrEqual(0)
+  expect(geometry.noticeLeft).toBeGreaterThanOrEqual(0)
+  expect(geometry.noticeRight).toBeLessThanOrEqual(geometry.viewportWidth)
+  await expect(controls.locator("[aria-label]")).toHaveCount(6)
+})
+
 test("mobile top placement reserves the top edge and leaves the active music player bottom-based", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== mobileProject, "Mobile stacking is covered in mobile Chromium.")
   const safeBottom = 24
@@ -808,7 +1029,7 @@ test("mobile top placement reserves the top edge and leaves the active music pla
     112,
     112,
     activeSpacing.bottomStack,
-    ["Previous station", "Stop", "Next station", "Background", "Collapse"],
+    ["Previous station", "Stop", "Next station", "Background", "Player settings", "Collapse"],
   )
   expect((expandedPlayerBox?.y ?? 0) + (expandedPlayerBox?.height ?? 0)).toBeGreaterThan(700)
   expect(expandedPlayerBox?.y ?? 0).toBeGreaterThan((barBox?.y ?? 0) + (barBox?.height ?? 0))
@@ -885,7 +1106,7 @@ test("mobile bottom placement adds the main bar when idle and the audio toolbar 
     112,
     112,
     activeSpacing.bottomStack,
-    ["Previous station", "Stop", "Next station", "Background", "Collapse"],
+    ["Previous station", "Stop", "Next station", "Background", "Player settings", "Collapse"],
   )
   expect((expandedPlayerBox?.y ?? 0) + (expandedPlayerBox?.height ?? 0)).toBeLessThanOrEqual((barBox?.y ?? 0) + 1)
 
@@ -933,7 +1154,7 @@ test("mobile top player consumes its safe inset exactly once while expanded and 
     136,
     112,
     spacing.safeTop,
-    ["Previous station", "Stop", "Next station", "Background", "Collapse"],
+    ["Previous station", "Stop", "Next station", "Background", "Player settings", "Collapse"],
   )
   expect(spacing.pageTop).toBeCloseTo(136, 0)
   expect(spacing.chimerTop).toBeCloseTo(136 + 12, 0)
@@ -987,7 +1208,7 @@ test("mobile loading toolbar fits expanded and collapsed increased-text content"
     112,
     112,
     spacing.bottomStack,
-    ["Previous station", "Stop", "Next station", "Background", "Collapse"],
+    ["Previous station", "Stop", "Next station", "Background", "Player settings", "Collapse"],
   )
 
   await player.getByRole("button", { name: "Collapse", exact: true }).click()

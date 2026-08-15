@@ -2010,6 +2010,26 @@
     padding-bottom: var(--ml-safe-bottom);
   }
 
+  /* The session notice sits just beyond the reserved toolbar edge. Its own
+     active-time deadline pauses for hover/focus, so it remains nonmodal. */
+  .ml-music-interruption-notice {
+    left: max(0.75rem, env(safe-area-inset-left, 0px));
+    margin-inline: auto;
+    max-width: min(28rem, calc(100vw - 1.5rem));
+    position: absolute;
+    right: max(0.75rem, env(safe-area-inset-right, 0px));
+    width: auto;
+    z-index: 1;
+  }
+
+  .ml-music-interruption-notice[data-placement="top"] {
+    top: calc(var(--ml-audio-toolbar-height) + 0.5rem);
+  }
+
+  .ml-music-interruption-notice[data-placement="bottom"] {
+    bottom: calc(var(--ml-audio-toolbar-height) + 0.5rem);
+  }
+
   @media (max-width: 39.999rem) {
     /* Keep the edge rule visual-only so it cannot subtract from the grid. */
     .ml-music-player-toolbar[data-placement="top"] .ml-music-player-toolbar-surface {

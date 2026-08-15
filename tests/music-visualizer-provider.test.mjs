@@ -105,12 +105,13 @@ describe("Persistent player visualizer boundary", () => {
     assert.match(miniPlayerSource, /ml-music-player-collapsed/)
     assert.match(miniPlayerSource, /data-testid="music-player-toolbar-controls"/)
     assert.doesNotMatch(toolbarActions, /\btitle=/)
-    assert.equal((toolbarActions.match(/<TooltipContent>/g) ?? []).length, 6)
+    assert.equal((toolbarActions.match(/<TooltipContent>/g) ?? []).length, 7)
     for (const accessibleNamePattern of [
       /aria-label="Previous station"/,
       /aria-label=\{playStopLabel\}/,
       /aria-label="Next station"/,
       /aria-label=\{visualizerActionLabel\}/,
+      /aria-label="Player settings"/,
       /aria-label="Collapse"/,
       /aria-label="Expand"/,
     ]) {
