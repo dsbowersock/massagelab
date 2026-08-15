@@ -1,4 +1,5 @@
-import { expect, test, type Page, type Route } from "@playwright/test"
+import { expect, test, type APIResponse, type Page, type Route } from "@playwright/test"
+import { createHash } from "node:crypto"
 import { centerCarouselItem } from "./carousel-test-helpers"
 
 type MediaProbe = {
@@ -43,6 +44,10 @@ type MediaProbe = {
     phaseReached: string[]
     timings: Array<Record<string, unknown> & { observedAt: number }>
   }
+}
+
+async function sha256(response: APIResponse) {
+  return createHash("sha256").update(await response.body()).digest("hex")
 }
 
 async function installMediaOwnershipFakes(page: Page, options: {
@@ -1074,6 +1079,7 @@ test("Playing publishes complete metadata and all five actions while Pause retai
 
 test("station artwork route returns cacheable station-specific PNGs and rejects unknown stations", async ({ request }) => {
   const proofDrone = await request.get("/api/atmosphere/stations/mlab-proof-drone/artwork")
+  const proofDroneRepeat = await request.get("/api/atmosphere/stations/mlab-proof-drone/artwork")
   const trees = await request.get("/api/atmosphere/stations/generative-fm-trees/artwork")
   const unknown = await request.get("/api/atmosphere/stations/not-a-station/artwork")
 
@@ -1083,8 +1089,24 @@ test("station artwork route returns cacheable station-specific PNGs and rejects 
   expect(trees.headers()["content-type"]).toMatch(/^image\/png(?:;|$)/)
   expect(proofDrone.headers()["cache-control"]).toContain("public")
   expect(proofDrone.headers()["cache-control"]).toContain("max-age=")
-  expect(Buffer.compare(await proofDrone.body(), await trees.body())).not.toBe(0)
+  const proofDroneHash = await sha256(proofDrone)
+  expect(await sha256(proofDroneRepeat)).toBe(proofDroneHash)
+  expect(await sha256(trees)).not.toBe(proofDroneHash)
   expect(unknown.status()).toBe(404)
+})
+
+test("same-motif ring stations render different stable artwork bytes", async ({ request }) => {
+  const proofDrone = await request.get("/api/atmosphere/stations/mlab-proof-drone/artwork")
+  const documentaryFilms = await request.get("/api/atmosphere/stations/generative-fm-documentary-films/artwork")
+
+  expect(await sha256(documentaryFilms)).not.toBe(await sha256(proofDrone))
+})
+
+test("same-motif seed-line stations render different stable artwork bytes", async ({ request }) => {
+  const trees = await request.get("/api/atmosphere/stations/generative-fm-trees/artwork")
+  const impact = await request.get("/api/atmosphere/stations/generative-fm-impact/artwork")
+
+  expect(await sha256(impact)).not.toBe(await sha256(trees))
 })
 
 test("Loading publishes active intent and an external carrier Pause cancels held startup", async ({ page }) => {
