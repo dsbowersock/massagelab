@@ -10,8 +10,10 @@ async function gotoShell(page: Page, path: string) {
 }
 
 /** Supplies deterministic browser media capabilities for interruption-preference UI tests. */
-async function installInterruptionNoticeMediaFakes(page: Page) {
-  await page.addInitScript(() => {
+async function installInterruptionNoticeMediaFakes(page: Page, options: {
+  rejectCarrierPlay?: boolean
+} = {}) {
+  await page.addInitScript((fakeOptions) => {
     class FakeAudio extends EventTarget {
       loop = false
       paused = true
@@ -41,6 +43,7 @@ async function installInterruptionNoticeMediaFakes(page: Page) {
       }
 
       play() {
+        if (fakeOptions.rejectCarrierPlay) return Promise.reject(new Error("carrier unavailable"))
         this.paused = false
         queueMicrotask(() => this.dispatchEvent(new Event("play")))
         return Promise.resolve()
@@ -84,7 +87,7 @@ async function installInterruptionNoticeMediaFakes(page: Page) {
       get: () => audioSession,
     })
     Reflect.set(window, "__interruptionNoticeAudioSession", audioSession)
-  })
+  }, options)
 }
 
 async function setInterruptionNoticeAudioSession(page: Page, state: "active" | "interrupted") {
@@ -885,6 +888,9 @@ test("Atmosphere six expanded player actions expose session and saved interrupti
   await player.getByRole("button", { name: "Player settings" }).click()
   const savedPreference = page.getByRole("menuitemcheckbox", { name: "Resume after interruptions" })
   await expect(savedPreference).toBeChecked()
+  await page.keyboard.press("Escape")
+  await sessionPreference.check()
+  await player.getByRole("button", { name: "Player settings" }).click()
   await savedPreference.click()
   await expect.poll(() => page.evaluate(() => (
     localStorage.getItem("massagelab-atmosphere-interruption-v1")
@@ -899,6 +905,7 @@ test("Atmosphere six expanded player actions expose session and saved interrupti
   await expect(player).toHaveAttribute("data-playback-state", "paused")
   await player.getByRole("button", { name: "Play", exact: true }).click()
   await expect(notice).toBeVisible()
+  await expect(sessionPreference).not.toBeChecked()
   await sessionPreference.check()
   await setInterruptionNoticeAudioSession(page, "interrupted")
   await expect(player).toHaveAttribute("data-playback-state", "interrupted")
@@ -910,6 +917,9 @@ test("Atmosphere six expanded player actions expose session and saved interrupti
   await close.focus()
   await page.keyboard.press("Enter")
   await expect(notice).toBeHidden()
+  await player.getByRole("button", { name: "Previous station" }).click()
+  await expect(notice).toBeHidden()
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
   await player.getByRole("button", { name: "Next station" }).click()
   await expect(notice).toBeHidden()
 })
@@ -980,6 +990,87 @@ test("Atmosphere interruption notice clears the toolbar in short landscape", asy
   expect(geometry.noticeLeft).toBeGreaterThanOrEqual(0)
   expect(geometry.noticeRight).toBeLessThanOrEqual(geometry.viewportWidth)
   await expect(controls.locator("[aria-label]")).toHaveCount(6)
+})
+
+test("Atmosphere interruption notice follows the actual toolbar edge with safe insets", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== mobileProject, "Actual-edge landscape geometry is covered in mobile Chromium.")
+  await installInterruptionNoticeMediaFakes(page)
+  await page.setViewportSize({ width: 667, height: 375 })
+  const player = await startInterruptionNoticeSession(page)
+  const notice = page.getByRole("region", { name: "Interruption preference" })
+  await page.addStyleTag({ content: `
+    [data-testid="music-player-toolbar-identity"] > p {
+      font-size: 28px !important;
+      line-height: 36px !important;
+    }
+  ` })
+
+  async function expectNoticeBeyondActualEdge(placement: "top" | "bottom") {
+    const geometry = await page.evaluate((edge) => {
+      const toolbar = document.querySelector<HTMLElement>('[data-testid="music-player-toolbar"]')
+      const noticeElement = document.querySelector<HTMLElement>('[data-testid="music-interruption-notice"]')
+      const controls = document.querySelector<HTMLElement>('[data-testid="music-player-toolbar-controls"]')
+      if (!toolbar || !noticeElement || !controls) throw new Error("Player geometry elements are missing")
+      const toolbarBox = toolbar.getBoundingClientRect()
+      const noticeBox = noticeElement.getBoundingClientRect()
+      const controlsBox = controls.getBoundingClientRect()
+      return {
+        edgeGap: edge === "top"
+          ? noticeBox.top - toolbarBox.bottom
+          : toolbarBox.top - noticeBox.bottom,
+        noticeBottom: noticeBox.bottom,
+        noticeLeft: noticeBox.left,
+        noticeRight: noticeBox.right,
+        noticeTop: noticeBox.top,
+        controlsBottom: controlsBox.bottom,
+        controlsLeft: controlsBox.left,
+        controlsRight: controlsBox.right,
+        controlsTop: controlsBox.top,
+        viewportHeight: window.innerHeight,
+        viewportWidth: window.innerWidth,
+      }
+    }, placement)
+
+    expect(geometry.edgeGap).toBeCloseTo(8, 0)
+    expect(geometry.noticeTop).toBeGreaterThanOrEqual(0)
+    expect(geometry.noticeBottom).toBeLessThanOrEqual(geometry.viewportHeight)
+    expect(geometry.noticeLeft).toBeGreaterThanOrEqual(0)
+    expect(geometry.noticeRight).toBeLessThanOrEqual(geometry.viewportWidth)
+    expect(geometry.controlsLeft).toBeGreaterThanOrEqual(0)
+    expect(geometry.controlsRight).toBeLessThanOrEqual(geometry.viewportWidth)
+    if (placement === "top") {
+      expect(geometry.controlsBottom).toBeLessThanOrEqual(geometry.noticeTop)
+    } else {
+      expect(geometry.noticeBottom).toBeLessThanOrEqual(geometry.controlsTop)
+    }
+  }
+
+  await page.locator("body").evaluate((body) => {
+    body.style.setProperty("--ml-safe-bottom", "24px")
+  })
+  await expect(notice).toBeVisible()
+  await expectNoticeBeyondActualEdge("bottom")
+
+  await player.evaluate((toolbar) => {
+    toolbar.setAttribute("data-placement", "top")
+    toolbar.querySelector('[data-testid="music-interruption-notice"]')?.setAttribute("data-placement", "top")
+    document.body.style.setProperty("--ml-safe-bottom", "0px")
+    document.body.style.setProperty("--ml-safe-top", "24px")
+    document.body.classList.remove("ml-music-player-bottom")
+    document.body.classList.add("ml-music-player-top")
+  })
+  await expectNoticeBeyondActualEdge("top")
+})
+
+test("Atmosphere interruption controls disclose unsupported media integration", async ({ page }) => {
+  await installInterruptionNoticeMediaFakes(page, { rejectCarrierPlay: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  const player = await startInterruptionNoticeSession(page)
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+  await expect(page.getByRole("region", { name: "Interruption preference" })).toHaveCount(0)
+  await player.getByRole("button", { name: "Player settings" }).click()
+  await expect(page.getByRole("menuitemcheckbox", { name: "Resume after interruptions" }))
+    .toHaveAttribute("aria-disabled", "true")
 })
 
 test("mobile top placement reserves the top edge and leaves the active music player bottom-based", async ({ page }, testInfo) => {

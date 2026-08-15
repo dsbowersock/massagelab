@@ -2023,11 +2023,11 @@
   }
 
   .ml-music-interruption-notice[data-placement="top"] {
-    top: calc(var(--ml-audio-toolbar-height) + 0.5rem);
+    top: calc(100% + 0.5rem);
   }
 
   .ml-music-interruption-notice[data-placement="bottom"] {
-    bottom: calc(var(--ml-audio-toolbar-height) + 0.5rem);
+    bottom: calc(100% + 0.5rem);
   }
 
   @media (max-width: 39.999rem) {
