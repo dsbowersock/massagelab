@@ -73,8 +73,8 @@ describe("Music visualizer provider contract", () => {
   })
 
   it("retains station identity when stopCurrent stops the runtime", () => {
-    const start = providerSource.indexOf("const stopCurrent")
-    const end = providerSource.indexOf("// Expose the active station", start)
+    const start = providerSource.indexOf("const stopCurrent = useCallback")
+    const end = providerSource.indexOf("const handleInterruptionStarted", start)
     const stopCurrentSource = providerSource.slice(start, end)
     assert.notEqual(start, -1)
     assert.notEqual(end, -1)
@@ -82,7 +82,9 @@ describe("Music visualizer provider contract", () => {
     for (const contract of [
       /playbackRequestIdRef\.current = requestId/,
       /controller\.stop\(\)/,
-      /setPlaybackState\("stopped"\)/,
+      /EXPLICIT_STOP/,
+      /stopAndDismiss\(\)/,
+      /mediaSessionControllerRef\.current\?\.clear\(\)/,
       /setLoadingProgress\(null\)/,
       /setLoadingStartedAt\(null\)/,
       /setError\(null\)/,
