@@ -303,6 +303,7 @@ export function MusicProvider({
   const mediaCarrierRef = useRef<ReturnType<typeof createAtmosphereMediaCarrier> | null>(null)
   const mediaSessionControllerRef = useRef<ReturnType<typeof createAtmosphereMediaSessionController> | null>(null)
   const interruptionMonitorRef = useRef<ReturnType<typeof createAtmosphereInterruptionMonitor> | null>(null)
+  const interruptionMonitorUsesRuntimeContextRef = useRef(false)
   const carrierEventBridgeRef = useRef<EventTarget | null>(null)
   const playbackLifecycleRef = useRef(createAtmospherePlaybackLifecycle())
   const resumeAfterInterruptionDefaultRef = useRef(true)
@@ -339,7 +340,13 @@ export function MusicProvider({
           if (stationId) void playStationRef.current(stationId, { origin: "media-session" })
         },
         pause: () => {
-          if (!interruptionMonitorRef.current?.isInterrupted()) void pauseCurrentRef.current()
+          const monitor = interruptionMonitorRef.current
+          if (monitor?.isInterrupted()) return
+          if (monitor?.hasCurrentInterruptionSignal()) {
+            interruptionStartedRef.current()
+            return
+          }
+          void pauseCurrentRef.current()
         },
         stop: () => void stopCurrentRef.current(),
         previoustrack: () => void playPreviousStationRef.current(),
@@ -348,21 +355,20 @@ export function MusicProvider({
     })
   }, [])
 
-  /** Attach the interruption observer to the generator's existing audio context exactly once. */
+  /** Upgrade the early carrier observer with the generator's existing context once. */
   const ensureInterruptionMonitor = useCallback((runtime: LoadedAtmosphereRuntime) => {
-    if (interruptionMonitorRef.current || !carrierEventBridgeRef.current) return
+    if (interruptionMonitorUsesRuntimeContextRef.current || !carrierEventBridgeRef.current) return
     const audioSession = (navigator as unknown as {
       audioSession?: EventTarget & { state: unknown, type?: unknown }
     }).audioSession
     let audioContext: (EventTarget & { state: unknown }) | null = null
-    if (!audioSession) {
-      try {
-        audioContext = runtime.getAtmosphereAudioContext()
-      } catch {
-        // Tone context access is optional for interruption fallback.
-      }
+    try {
+      audioContext = runtime.getAtmosphereAudioContext()
+    } catch {
+      // Tone context access is optional for interruption fallback.
     }
     try {
+      interruptionMonitorRef.current?.dispose()
       const monitor = createAtmosphereInterruptionMonitor({
         audioSession,
         audioContext,
@@ -374,6 +380,7 @@ export function MusicProvider({
       })
       interruptionMonitorRef.current = monitor
       monitor.start()
+      interruptionMonitorUsesRuntimeContextRef.current = true
     } catch {
       // Interruption APIs are optional and can disappear independently of the
       // audible generator, which must remain usable when observation fails.
@@ -601,11 +608,26 @@ export function MusicProvider({
         ? (init) => new MediaMetadataConstructor(init)
         : null,
     })
+    const audioSession = (navigator as unknown as {
+      audioSession?: EventTarget & { state: unknown, type?: unknown }
+    }).audioSession
+    const earlyMonitor = createAtmosphereInterruptionMonitor({
+      audioSession,
+      audioContext: null,
+      carrier: bridge,
+      documentTarget: document,
+      onInterrupted: () => interruptionStartedRef.current(),
+      onRecovered: () => interruptionRecoveredRef.current(),
+      onAmbiguousPause: () => ambiguousPauseRef.current(),
+    })
+    interruptionMonitorRef.current = earlyMonitor
+    earlyMonitor.start()
 
     return () => {
       playbackRequestIdRef.current += 1
       interruptionMonitorRef.current?.dispose()
       interruptionMonitorRef.current = null
+      interruptionMonitorUsesRuntimeContextRef.current = false
       mediaSessionControllerRef.current?.dispose()
       mediaSessionControllerRef.current = null
       mediaCarrierRef.current?.dispose()
@@ -737,6 +759,9 @@ export function MusicProvider({
       })
     }
     const sessionGeneration = playbackSessionGenerationRef.current
+    const retainedMetadata = activeStationIdRef.current === stationId
+      ? activeStationMetadataRef.current
+      : null
     activeStationIdRef.current = stationId
     setActiveStationId(stationId)
     setActiveStationTitle(null)
@@ -744,6 +769,10 @@ export function MusicProvider({
     setLoadingStartedAt(Date.now())
     loadingStationIdRef.current = stationId
     setError(null)
+    publishMediaSession(
+      retainedMetadata ?? { title: "Atmosphere", artist: "MassageLab" },
+      "loading",
+    )
 
     // Start the carrier before the first await so media ownership is requested
     // in the same user-activation turn as the accepted Play intent.

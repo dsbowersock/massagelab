@@ -14,10 +14,11 @@ test("starts an in-app session and opens a visible supported notice", () => {
   assert.deepEqual(result.effects, ["START_GENERATOR"])
 })
 
-test("external sessions never open a notice and do not mutate the saved default", () => {
+test("external sessions copy the saved default and never inherit the prior session override", () => {
   const state = createAtmospherePlaybackLifecycle(true)
-  const result = transitionAtmospherePlayback(state, { type: "BEGIN_EXTERNAL_SESSION", savedDefault: false })
-  assert.equal(result.state.resumeAfterInterruption, true)
+  const overridden = transitionAtmospherePlayback(state, { type: "SET_SESSION_RESUME", value: true }).state
+  const result = transitionAtmospherePlayback(overridden, { type: "BEGIN_EXTERNAL_SESSION", savedDefault: false })
+  assert.equal(result.state.resumeAfterInterruption, false)
   assert.equal(result.state.noticeSessionId, null)
 })
 

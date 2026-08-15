@@ -3,6 +3,7 @@ import { centerCarouselItem } from "./carousel-test-helpers"
 
 type MediaProbe = {
   audio: {
+    created: number
     loadCalls: number
     pauseCalls: number
     playCalls: number
@@ -15,14 +16,21 @@ type MediaProbe = {
   }
 }
 
-async function installMediaOwnershipFakes(page: Page) {
-  await page.addInitScript(() => {
+async function installMediaOwnershipFakes(page: Page, options: {
+  holdCarrierPlay?: boolean
+  rejectCarrierPlay?: boolean
+  resumeAfterInterruption?: boolean
+} = {}) {
+  await page.addInitScript((fakeOptions) => {
     const audio = {
+      created: 0,
       loadCalls: 0,
       pauseCalls: 0,
       playCalls: 0,
       source: "",
     }
+    let currentAudio: FakeAudio | null = null
+    let releaseHeldPlay: (() => void) | null = null
     const handlers: Record<string, (() => void) | null> = {}
     const mediaSession = {
       handlers,
@@ -38,6 +46,12 @@ async function installMediaOwnershipFakes(page: Page) {
       preload = ""
       paused = true
       private sourceAttribute: string | null = null
+
+      constructor() {
+        super()
+        audio.created += 1
+        currentAudio = this
+      }
 
       get src() {
         return this.sourceAttribute
@@ -64,12 +78,21 @@ async function installMediaOwnershipFakes(page: Page) {
         return ""
       }
 
-      async play() {
+      play() {
         audio.playCalls += 1
-        if (this.paused) {
-          this.paused = false
-          queueMicrotask(() => this.dispatchEvent(new Event("play")))
+        if (fakeOptions.rejectCarrierPlay) return Promise.reject(new Error("carrier rejected"))
+        this.paused = false
+        if (fakeOptions.holdCarrierPlay) {
+          return new Promise<void>((resolve) => {
+            releaseHeldPlay = () => {
+              this.paused = false
+              queueMicrotask(() => this.dispatchEvent(new Event("play")))
+              resolve()
+            }
+          })
         }
+        queueMicrotask(() => this.dispatchEvent(new Event("play")))
+        return Promise.resolve()
       }
 
       pause() {
@@ -85,6 +108,13 @@ async function installMediaOwnershipFakes(page: Page) {
       }
     }
 
+    class FakeAudioSession extends EventTarget {
+      state = "active"
+      type = "auto"
+    }
+
+    const audioSession = new FakeAudioSession()
+
     class FakeMediaMetadata {
       constructor(init: Record<string, unknown>) {
         Object.assign(this, init)
@@ -97,8 +127,36 @@ async function installMediaOwnershipFakes(page: Page) {
       configurable: true,
       get: () => mediaSession,
     })
-    Reflect.set(window, "__massagelabMediaProbe", { audio, mediaSession })
-  })
+    Object.defineProperty(Navigator.prototype, "audioSession", {
+      configurable: true,
+      get: () => audioSession,
+    })
+    if (typeof fakeOptions.resumeAfterInterruption === "boolean") {
+      localStorage.setItem("massagelab-atmosphere-interruption-v1", JSON.stringify({
+        version: 1,
+        resumeAfterInterruption: fakeOptions.resumeAfterInterruption,
+      }))
+    }
+    Reflect.set(window, "__massagelabMediaProbe", {
+      audio,
+      audioSession,
+      emitExternalPause() {
+        if (!currentAudio) return
+        currentAudio.paused = true
+        currentAudio.dispatchEvent(new Event("pause"))
+      },
+      releaseHeldPlay() {
+        fakeOptions.holdCarrierPlay = false
+        releaseHeldPlay?.()
+        releaseHeldPlay = null
+      },
+      setAudioSessionState(state: string, emit: boolean) {
+        audioSession.state = state
+        if (emit) audioSession.dispatchEvent(new Event("statechange"))
+      },
+      mediaSession,
+    })
+  }, options)
 }
 
 async function readProbe(page: Page) {
@@ -110,6 +168,31 @@ async function invokeMediaAction(page: Page, action: string) {
     const probe = Reflect.get(window, "__massagelabMediaProbe") as MediaProbe
     probe.mediaSession.handlers[name]?.()
   }, action)
+}
+
+async function invokeProbeAction(page: Page, action: "emitExternalPause" | "releaseHeldPlay") {
+  await page.evaluate((name) => {
+    const probe = Reflect.get(window, "__massagelabMediaProbe") as Record<string, () => void>
+    probe[name]()
+  }, action)
+}
+
+async function setAudioSessionState(page: Page, state: "active" | "interrupted", emit = true) {
+  await page.evaluate(({ nextState, shouldEmit }) => {
+    const probe = Reflect.get(window, "__massagelabMediaProbe") as {
+      setAudioSessionState: (state: string, emit: boolean) => void
+    }
+    probe.setAudioSessionState(nextState, shouldEmit)
+  }, { nextState: state, shouldEmit: emit })
+}
+
+async function startProofStation(page: Page) {
+  await page.goto("/music", { waitUntil: "domcontentloaded" })
+  await expect(page.getByRole("region", { name: "Atmosphere audio stations" }))
+    .toHaveAttribute("data-music-storage-status", "available")
+  await centerCarouselItem(page, "mlab-proof-drone", "Next station")
+  await page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
+  return page.getByTestId("music-player-toolbar")
 }
 
 test("provider media ownership claims the carrier before preparation and separates Pause from Stop", async ({ page }) => {
@@ -167,4 +250,140 @@ test("provider media ownership claims the carrier before preparation and separat
   releaseSampleIndex()
   await page.waitForTimeout(250)
   await expect(page.getByText("Stopped").last()).toBeVisible()
+})
+
+test("provider media ownership cancels initial loading from carrier and Media Session Pause", async ({ page }) => {
+  await installMediaOwnershipFakes(page, { holdCarrierPlay: true })
+  const player = await startProofStation(page)
+
+  await expect.poll(async () => (await readProbe(page)).audio.playCalls).toBe(1)
+  await expect(player).toHaveAttribute("data-playback-state", "loading")
+  await expect.poll(async () => page.evaluate(() => {
+    const probe = Reflect.get(window, "__massagelabMediaProbe") as MediaProbe
+    return typeof probe.mediaSession.handlers.pause
+  })).toBe("function")
+
+  await invokeProbeAction(page, "emitExternalPause")
+  await expect(player).toHaveAttribute("data-playback-state", "paused")
+  await invokeMediaAction(page, "pause")
+  await invokeProbeAction(page, "releaseHeldPlay")
+  await page.waitForTimeout(500)
+  await expect(player).toHaveAttribute("data-playback-state", "paused")
+})
+
+test("provider media ownership lets Media Session Pause cancel the first held Play", async ({ page }) => {
+  await installMediaOwnershipFakes(page, { holdCarrierPlay: true })
+  const player = await startProofStation(page)
+
+  await expect.poll(async () => page.evaluate(() => {
+    const probe = Reflect.get(window, "__massagelabMediaProbe") as MediaProbe
+    return typeof probe.mediaSession.handlers.pause
+  })).toBe("function")
+  await invokeMediaAction(page, "pause")
+  await expect(player).toHaveAttribute("data-playback-state", "paused")
+  await invokeProbeAction(page, "releaseHeldPlay")
+  await page.waitForTimeout(500)
+  await expect(player).toHaveAttribute("data-playback-state", "paused")
+})
+
+test("provider media ownership classifies paired interruption and Pause in either event order", async ({ page }) => {
+  await installMediaOwnershipFakes(page)
+  const player = await startProofStation(page)
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+
+  await setAudioSessionState(page, "interrupted", false)
+  await invokeMediaAction(page, "pause")
+  await expect(player).toHaveAttribute("data-playback-state", "interrupted")
+  await setAudioSessionState(page, "interrupted", true)
+  await setAudioSessionState(page, "active", true)
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+
+  await setAudioSessionState(page, "interrupted", true)
+  await expect(player).toHaveAttribute("data-playback-state", "interrupted")
+  await invokeMediaAction(page, "pause")
+  await expect(player).toHaveAttribute("data-playback-state", "interrupted")
+  await setAudioSessionState(page, "active", true)
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+  await invokeMediaAction(page, "stop")
+})
+
+test("provider media ownership applies the saved default to external Play and never recovers disabled sessions", async ({ page }) => {
+  await installMediaOwnershipFakes(page, { resumeAfterInterruption: false })
+  const player = await startProofStation(page)
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+
+  await invokeMediaAction(page, "pause")
+  await expect(player).toHaveAttribute("data-playback-state", "paused")
+  await invokeMediaAction(page, "play")
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+
+  await setAudioSessionState(page, "interrupted", true)
+  await expect(player).toHaveAttribute("data-playback-state", "paused")
+  await setAudioSessionState(page, "active", true)
+  await page.waitForTimeout(300)
+  await expect(player).toHaveAttribute("data-playback-state", "paused")
+  await invokeMediaAction(page, "stop")
+})
+
+test("provider media ownership treats unpaired carrier Pause as ambiguous", async ({ page }) => {
+  await installMediaOwnershipFakes(page)
+  const player = await startProofStation(page)
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+
+  await invokeProbeAction(page, "emitExternalPause")
+  await expect(player).toHaveAttribute("data-playback-state", "paused")
+  await setAudioSessionState(page, "active", true)
+  await page.waitForTimeout(300)
+  await expect(player).toHaveAttribute("data-playback-state", "paused")
+  await invokeMediaAction(page, "stop")
+})
+
+test("provider media ownership keeps one owner across routes and publishes only the current adjacent station", async ({ page }) => {
+  let releaseSampleIndex!: () => void
+  const sampleIndexGate = new Promise<void>((resolve) => {
+    releaseSampleIndex = resolve
+  })
+  await page.route("**/atmosphere/generative-fm/420hz-gamma-waves-for-big-brain/sample-index.json", async (route) => {
+    await sampleIndexGate
+    await route.abort("aborted")
+  })
+  await installMediaOwnershipFakes(page, { resumeAfterInterruption: false })
+  const player = await startProofStation(page)
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+
+  await invokeMediaAction(page, "nexttrack")
+  await expect.poll(async () => (await readProbe(page)).mediaSession.metadata?.title)
+    .toBe("420hz Gamma Waves for Big Brain")
+  await invokeMediaAction(page, "previoustrack")
+  await expect.poll(async () => (await readProbe(page)).mediaSession.metadata?.title)
+    .toBe("MassageLab Proof Drone")
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+  releaseSampleIndex()
+  await page.waitForTimeout(300)
+  await expect.poll(async () => (await readProbe(page)).mediaSession.metadata?.title)
+    .toBe("MassageLab Proof Drone")
+
+  await page.getByRole("link", { name: "MassageLab home" }).click()
+  await expect(page).toHaveURL(/\/$/)
+  await expect.poll(async () => (await readProbe(page)).audio.created).toBe(1)
+  await expect.poll(async () => page.evaluate(() => {
+    const probe = Reflect.get(window, "__massagelabMediaProbe") as MediaProbe
+    return Object.values(probe.mediaSession.handlers).filter(Boolean).length
+  })).toBe(5)
+
+  await setAudioSessionState(page, "interrupted", true)
+  await expect(player).toHaveAttribute("data-playback-state", "paused")
+  await setAudioSessionState(page, "active", true)
+  await page.waitForTimeout(300)
+  await expect(player).toHaveAttribute("data-playback-state", "paused")
+  await invokeMediaAction(page, "stop")
+})
+
+test("provider media ownership keeps generator playback when carrier acquisition rejects", async ({ page }) => {
+  await installMediaOwnershipFakes(page, { rejectCarrierPlay: true })
+  const player = await startProofStation(page)
+
+  await expect.poll(async () => (await readProbe(page)).audio.playCalls).toBe(1)
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+  await invokeMediaAction(page, "stop")
 })

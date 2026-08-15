@@ -97,6 +97,48 @@ test("AudioContext is the specific interruption fallback when Audio Session is a
   assert.equal(monitor.isInterrupted(), false)
 })
 
+test("AudioContext remains the fallback when a partial Audio Session rejects listener registration", () => {
+  const audioSession = createEventTargetFake({ state: "active", type: "auto" })
+  audioSession.addEventListener = () => { throw new Error("unsupported") }
+  const audioContext = createEventTargetFake({ state: "running" })
+  const callbacks = createCallbacks()
+  const monitor = createAtmosphereInterruptionMonitor({
+    audioSession,
+    audioContext,
+    carrier: createEventTargetFake(),
+    documentTarget: createEventTargetFake({ hidden: false, visibilityState: "visible" }),
+    ...callbacks,
+  })
+
+  monitor.start()
+  assert.equal(monitor.isAvailable(), true)
+  assert.equal(audioContext.listenerCount("statechange"), 1)
+  audioContext.state = "interrupted"
+  assert.equal(monitor.hasCurrentInterruptionSignal(), true)
+  audioContext.emit("statechange")
+  assert.deepEqual(callbacks.calls, { interrupted: 1, recovered: 0, ambiguous: 0 })
+})
+
+test("authoritative signal query classifies a paired Pause before either event callback order", () => {
+  const audioSession = createEventTargetFake({ state: "active", type: "auto" })
+  const callbacks = createCallbacks()
+  const monitor = createAtmosphereInterruptionMonitor({
+    audioSession,
+    audioContext: createEventTargetFake({ state: "running" }),
+    carrier: createEventTargetFake(),
+    documentTarget: createEventTargetFake({ hidden: false, visibilityState: "visible" }),
+    ...callbacks,
+  })
+  monitor.start()
+
+  audioSession.state = "interrupted"
+  assert.equal(monitor.isInterrupted(), false)
+  assert.equal(monitor.hasCurrentInterruptionSignal(), true)
+  audioSession.emit("statechange")
+  assert.equal(monitor.isInterrupted(), true)
+  assert.equal(monitor.hasCurrentInterruptionSignal(), true)
+})
+
 test("Audio Session recovers only from active, never inactive or visibility alone", () => {
   const audioSession = createEventTargetFake({ state: "active", type: "auto" })
   const documentTarget = createEventTargetFake({ hidden: false, visibilityState: "visible" })
