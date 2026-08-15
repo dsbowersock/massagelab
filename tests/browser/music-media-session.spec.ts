@@ -1,5 +1,6 @@
 import { expect, test, type APIResponse, type Page, type Route } from "@playwright/test"
 import { createHash } from "node:crypto"
+import { getVisibleAtmosphereStations } from "../../lib/atmosphere/stations.js"
 import { centerCarouselItem } from "./carousel-test-helpers"
 
 type MediaProbe = {
@@ -1077,36 +1078,51 @@ test("Playing publishes complete metadata and all five actions while Pause retai
   expect(health.pageErrors).toEqual([])
 })
 
-test("station artwork route returns cacheable station-specific PNGs and rejects unknown stations", async ({ request }) => {
-  const proofDrone = await request.get("/api/atmosphere/stations/mlab-proof-drone/artwork")
-  const proofDroneRepeat = await request.get("/api/atmosphere/stations/mlab-proof-drone/artwork")
-  const trees = await request.get("/api/atmosphere/stations/generative-fm-trees/artwork")
-  const unknown = await request.get("/api/atmosphere/stations/not-a-station/artwork")
+test("canonical station artwork returns stable distinct PNGs and matches the centered card metadata", async ({ page, request }) => {
+  const artworkHashes = new Set<string>()
+  const stations = getVisibleAtmosphereStations()
 
-  expect(proofDrone.status()).toBe(200)
-  expect(trees.status()).toBe(200)
-  expect(proofDrone.headers()["content-type"]).toMatch(/^image\/png(?:;|$)/)
-  expect(trees.headers()["content-type"]).toMatch(/^image\/png(?:;|$)/)
-  expect(proofDrone.headers()["cache-control"]).toContain("public")
-  expect(proofDrone.headers()["cache-control"]).toContain("max-age=")
-  const proofDroneHash = await sha256(proofDrone)
-  expect(await sha256(proofDroneRepeat)).toBe(proofDroneHash)
-  expect(await sha256(trees)).not.toBe(proofDroneHash)
+  for (const station of stations) {
+    const response = await request.get(`/api/atmosphere/stations/${encodeURIComponent(station.id)}/artwork`)
+    expect(response.status()).toBe(200)
+    expect(response.headers()["content-type"]).toContain("image/png")
+    expect(response.headers()["cache-control"]).toContain("max-age=86400")
+    artworkHashes.add(await sha256(response))
+  }
+
+  expect(artworkHashes.size).toBe(stations.length)
+
+  for (const stationId of ["mlab-proof-drone", "generative-fm-documentary-films"]) {
+    const artworkUrl = `/api/atmosphere/stations/${encodeURIComponent(stationId)}/artwork`
+    const first = await request.get(artworkUrl)
+    const second = await request.get(artworkUrl)
+    expect(await sha256(second)).toBe(await sha256(first))
+  }
+
+  await installMediaOwnershipFakes(page)
+  await page.goto("/music", { waitUntil: "domcontentloaded" })
+  const centered = await centerCarouselItem(page, "mlab-proof-drone", "Next station")
+  const artworkUrl = "/api/atmosphere/stations/mlab-proof-drone/artwork"
+  await expect(centered.locator("[data-carousel-artwork] img")).toHaveAttribute("src", artworkUrl)
+  await centered.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
+  await expect.poll(async () => (await readProbe(page)).mediaSession.metadata?.artwork?.[0]?.src)
+    .toBe(artworkUrl)
+
+  const unknown = await request.get("/api/atmosphere/stations/not-a-station/artwork")
   expect(unknown.status()).toBe(404)
 })
 
-test("same-motif ring stations render different stable artwork bytes", async ({ request }) => {
-  const proofDrone = await request.get("/api/atmosphere/stations/mlab-proof-drone/artwork")
-  const documentaryFilms = await request.get("/api/atmosphere/stations/generative-fm-documentary-films/artwork")
-
-  expect(await sha256(documentaryFilms)).not.toBe(await sha256(proofDrone))
-})
-
-test("same-motif honeycomb stations render different stable artwork bytes", async ({ request }) => {
-  const trees = await request.get("/api/atmosphere/stations/generative-fm-trees/artwork")
-  const impact = await request.get("/api/atmosphere/stations/generative-fm-impact/artwork")
-
-  expect(await sha256(impact)).not.toBe(await sha256(trees))
+test("canonical station artwork failure keeps a labeled fallback while playback starts", async ({ page }) => {
+  await installMediaOwnershipFakes(page)
+  await page.route("**/api/atmosphere/stations/mlab-proof-drone/artwork", (route) => route.abort())
+  await page.goto("/music", { waitUntil: "domcontentloaded" })
+  const centered = await centerCarouselItem(page, "mlab-proof-drone", "Next station")
+  await expect(centered.getByRole("img", {
+    name: "MassageLab Proof Drone station artwork unavailable",
+  })).toBeVisible()
+  await centered.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
+  await expect(page.getByTestId("music-player-toolbar"))
+    .toHaveAttribute("data-playback-state", /loading|playing/)
 })
 
 test("Loading publishes active intent and an external carrier Pause cancels held startup", async ({ page }) => {
