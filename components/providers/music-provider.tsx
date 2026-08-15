@@ -1038,14 +1038,24 @@ export function MusicProvider({
     }
   }, [commitPlaybackLifecycle])
 
-  playStationRef.current = playStation
-  playNextStationRef.current = playNextStation
-  playPreviousStationRef.current = playPreviousStation
-  pauseCurrentRef.current = pauseCurrent
-  stopCurrentRef.current = stopCurrent
-  interruptionStartedRef.current = handleInterruptionStarted
-  interruptionRecoveredRef.current = handleInterruptionRecovered
-  ambiguousPauseRef.current = () => void pauseCurrentRef.current()
+  useEffect(() => {
+    playStationRef.current = playStation
+    playNextStationRef.current = playNextStation
+    playPreviousStationRef.current = playPreviousStation
+    pauseCurrentRef.current = pauseCurrent
+    stopCurrentRef.current = stopCurrent
+    interruptionStartedRef.current = handleInterruptionStarted
+    interruptionRecoveredRef.current = handleInterruptionRecovered
+    ambiguousPauseRef.current = () => void pauseCurrentRef.current()
+  }, [
+    handleInterruptionRecovered,
+    handleInterruptionStarted,
+    pauseCurrent,
+    playNextStation,
+    playPreviousStation,
+    playStation,
+    stopCurrent,
+  ])
 
   const setSessionResumeAfterInterruption = useCallback((value: boolean) => {
     commitPlaybackLifecycle({ type: "SET_SESSION_RESUME", value })
