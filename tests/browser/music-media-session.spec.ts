@@ -9,15 +9,28 @@ type MediaProbe = {
     playCalls: number
     source: string
   }
+  audioContext: {
+    constructorReads: number
+    created: number
+  }
+  audioSession: { state: string } | null
   mediaSession: {
     handlers: Record<string, (() => void) | null>
-    metadata: { title?: string } | null
+    handlerCalls: number
+    metadata: {
+      album?: string
+      artist?: string
+      artwork?: Array<{ sizes?: string; src?: string; type?: string }>
+      title?: string
+    } | null
     playbackState: string
   }
 }
 
 async function installMediaOwnershipFakes(page: Page, options: {
   holdCarrierPlay?: boolean
+  includeAudioSession?: boolean
+  mediaSessionSupported?: boolean
   rejectCarrierPlay?: boolean
   resumeAfterInterruption?: boolean
 } = {}) {
@@ -29,14 +42,17 @@ async function installMediaOwnershipFakes(page: Page, options: {
       playCalls: 0,
       source: "",
     }
+    const audioContext = { constructorReads: 0, created: 0 }
     let currentAudio: FakeAudio | null = null
     let releaseHeldPlay: (() => void) | null = null
     const handlers: Record<string, (() => void) | null> = {}
     const mediaSession = {
       handlers,
+      handlerCalls: 0,
       metadata: null as Record<string, unknown> | null,
       playbackState: "none",
       setActionHandler(action: string, handler: (() => void) | null) {
+        this.handlerCalls += 1
         handlers[action] = handler
       },
     }
@@ -113,7 +129,9 @@ async function installMediaOwnershipFakes(page: Page, options: {
       type = "auto"
     }
 
-    const audioSession = new FakeAudioSession()
+    const audioSession = fakeOptions.includeAudioSession === false
+      ? null
+      : new FakeAudioSession()
 
     class FakeMediaMetadata {
       constructor(init: Record<string, unknown>) {
@@ -121,11 +139,229 @@ async function installMediaOwnershipFakes(page: Page, options: {
       }
     }
 
+    // Preserve the real graph used by Tone while interposing a deterministic,
+    // pre-app constructor probe. Specific interruption state comes from the
+    // separately controlled Audio Session fake when that API is enabled.
+    const NativeAudioContext = window.AudioContext
+    if (NativeAudioContext) {
+      const requiresNativeConstructorIdentity = /AppleWebKit/i.test(navigator.userAgent)
+        && !/(Chrome|Chromium)/i.test(navigator.userAgent)
+      if (requiresNativeConstructorIdentity) {
+        // WebKit brand-checks graph objects against its exact native constructor.
+        // Interpose the lookup rather than replacing that constructor identity.
+        Object.defineProperty(window, "AudioContext", {
+          configurable: true,
+          get() {
+            audioContext.constructorReads += 1
+            return NativeAudioContext
+          },
+        })
+      } else {
+        function FakeAudioContext(...args: ConstructorParameters<typeof AudioContext>) {
+          audioContext.created += 1
+          return Reflect.construct(NativeAudioContext, args)
+        }
+        Object.setPrototypeOf(FakeAudioContext, NativeAudioContext)
+        FakeAudioContext.prototype = NativeAudioContext.prototype
+        Object.defineProperty(window, "AudioContext", {
+          configurable: true,
+          value: FakeAudioContext,
+        })
+      }
+    } else {
+      // Playwright's Windows WebKit port exposes no Web Audio globals. Supply
+      // a bounded graph fake so provider lifecycle can still execute there;
+      // this project is compatibility smoke, not Safari audio certification.
+      class FakeAudioParam {
+        defaultValue: number
+        maxValue = 3.4028234663852886e38
+        minValue = -3.4028234663852886e38
+        value: number
+
+        constructor(value = 0) {
+          this.defaultValue = value
+          this.value = value
+        }
+
+        cancelAndHoldAtTime() { return this }
+        cancelScheduledValues() { return this }
+        exponentialRampToValueAtTime(value: number) { this.value = value; return this }
+        linearRampToValueAtTime(value: number) { this.value = value; return this }
+        setTargetAtTime(value: number) { this.value = value; return this }
+        setValueAtTime(value: number) { this.value = value; return this }
+        setValueCurveAtTime(values: Float32Array) {
+          if (values.length > 0) this.value = values[values.length - 1]
+          return this
+        }
+      }
+
+      class FakeAudioNode extends EventTarget {
+        channelCount = 2
+        channelCountMode = "max"
+        channelInterpretation = "speakers"
+        context: FakeAudioContext
+        numberOfInputs = 1
+        numberOfOutputs = 1
+
+        constructor(context: FakeAudioContext) {
+          super()
+          this.context = context
+        }
+
+        connect(destination: unknown) { return destination }
+        disconnect() {}
+      }
+
+      class FakeAudioBuffer {
+        duration: number
+        length: number
+        numberOfChannels: number
+        sampleRate: number
+        private channels: Float32Array[]
+
+        constructor(options: { length: number; numberOfChannels?: number; sampleRate: number }) {
+          this.length = options.length
+          this.numberOfChannels = options.numberOfChannels ?? 1
+          this.sampleRate = options.sampleRate
+          this.duration = this.length / this.sampleRate
+          this.channels = Array.from(
+            { length: this.numberOfChannels },
+            () => new Float32Array(this.length),
+          )
+        }
+
+        copyFromChannel(destination: Float32Array, channel: number, offset = 0) {
+          destination.set(this.channels[channel]?.subarray(offset, offset + destination.length) ?? [])
+        }
+        copyToChannel(source: Float32Array, channel: number, offset = 0) {
+          this.channels[channel]?.set(source, offset)
+        }
+        getChannelData(channel: number) { return this.channels[channel] }
+      }
+
+      class FakeAudioContext extends EventTarget {
+        currentTime = 0
+        destination: FakeAudioNode
+        listener: Record<string, FakeAudioParam>
+        sampleRate = 44_100
+        state = "suspended"
+
+        constructor() {
+          super()
+          audioContext.created += 1
+          this.destination = new FakeAudioNode(this)
+          this.destination.numberOfInputs = 1
+          this.destination.numberOfOutputs = 0
+          this.listener = Object.fromEntries([
+            "positionX", "positionY", "positionZ", "forwardX", "forwardY", "forwardZ",
+            "upX", "upY", "upZ",
+          ].map((name) => [name, new FakeAudioParam(name === "forwardZ" ? -1 : name === "upY" ? 1 : 0)]))
+        }
+
+        close() { this.state = "closed"; this.dispatchEvent(new Event("statechange")); return Promise.resolve() }
+        createAnalyser() {
+          return Object.assign(new FakeAudioNode(this), {
+            fftSize: 2048,
+            frequencyBinCount: 1024,
+            getByteFrequencyData() {},
+            getByteTimeDomainData() {},
+            getFloatFrequencyData() {},
+            getFloatTimeDomainData() {},
+            maxDecibels: -30,
+            minDecibels: -100,
+            smoothingTimeConstant: 0.8,
+          })
+        }
+        createBiquadFilter() {
+          return Object.assign(new FakeAudioNode(this), {
+            Q: new FakeAudioParam(1),
+            detune: new FakeAudioParam(0),
+            frequency: new FakeAudioParam(350),
+            gain: new FakeAudioParam(0),
+            getFrequencyResponse() {},
+            type: "lowpass",
+          })
+        }
+        createBuffer(numberOfChannels: number, length: number, sampleRate: number) {
+          return new FakeAudioBuffer({ length, numberOfChannels, sampleRate })
+        }
+        createBufferSource() {
+          const node = Object.assign(new FakeAudioNode(this), {
+            buffer: null,
+            detune: new FakeAudioParam(0),
+            loop: false,
+            loopEnd: 0,
+            loopStart: 0,
+            onended: null as (() => void) | null,
+            playbackRate: new FakeAudioParam(1),
+            start() {},
+            stop() { queueMicrotask(() => node.onended?.()) },
+          })
+          return node
+        }
+        createChannelMerger() { return new FakeAudioNode(this) }
+        createChannelSplitter() { return new FakeAudioNode(this) }
+        createConstantSource() {
+          return Object.assign(new FakeAudioNode(this), {
+            offset: new FakeAudioParam(1), start() {}, stop() {},
+          })
+        }
+        createDelay() {
+          return Object.assign(new FakeAudioNode(this), { delayTime: new FakeAudioParam(0) })
+        }
+        createDynamicsCompressor() {
+          return Object.assign(new FakeAudioNode(this), {
+            attack: new FakeAudioParam(0.003),
+            knee: new FakeAudioParam(30),
+            ratio: new FakeAudioParam(12),
+            reduction: 0,
+            release: new FakeAudioParam(0.25),
+            threshold: new FakeAudioParam(-24),
+          })
+        }
+        createGain() {
+          return Object.assign(new FakeAudioNode(this), { gain: new FakeAudioParam(1) })
+        }
+        createOscillator() {
+          return Object.assign(new FakeAudioNode(this), {
+            detune: new FakeAudioParam(0),
+            frequency: new FakeAudioParam(440),
+            onended: null,
+            setPeriodicWave() {},
+            start() {},
+            stop() {},
+            type: "sine",
+          })
+        }
+        createPeriodicWave() { return {} }
+        createStereoPanner() {
+          return Object.assign(new FakeAudioNode(this), { pan: new FakeAudioParam(0) })
+        }
+        createWaveShaper() {
+          return Object.assign(new FakeAudioNode(this), { curve: null, oversample: "none" })
+        }
+        decodeAudioData() { return Promise.resolve(new FakeAudioBuffer({ length: 1, sampleRate: this.sampleRate })) }
+        resume() { this.state = "running"; this.dispatchEvent(new Event("statechange")); return Promise.resolve() }
+        suspend() { this.state = "suspended"; this.dispatchEvent(new Event("statechange")); return Promise.resolve() }
+      }
+
+      Object.defineProperties(window, {
+        AudioBuffer: { configurable: true, value: FakeAudioBuffer },
+        AudioContext: { configurable: true, value: FakeAudioContext },
+        AudioNode: { configurable: true, value: FakeAudioNode },
+        AudioParam: { configurable: true, value: FakeAudioParam },
+        BaseAudioContext: { configurable: true, value: FakeAudioContext },
+      })
+    }
+
     Object.defineProperty(window, "Audio", { configurable: true, value: FakeAudio })
-    Object.defineProperty(window, "MediaMetadata", { configurable: true, value: FakeMediaMetadata })
+    Object.defineProperty(window, "MediaMetadata", {
+      configurable: true,
+      value: fakeOptions.mediaSessionSupported === false ? undefined : FakeMediaMetadata,
+    })
     Object.defineProperty(Navigator.prototype, "mediaSession", {
       configurable: true,
-      get: () => mediaSession,
+      get: () => fakeOptions.mediaSessionSupported === false ? undefined : mediaSession,
     })
     Object.defineProperty(Navigator.prototype, "audioSession", {
       configurable: true,
@@ -139,6 +375,7 @@ async function installMediaOwnershipFakes(page: Page, options: {
     }
     Reflect.set(window, "__massagelabMediaProbe", {
       audio,
+      audioContext,
       audioSession,
       emitExternalPause() {
         if (!currentAudio) return
@@ -151,8 +388,13 @@ async function installMediaOwnershipFakes(page: Page, options: {
         releaseHeldPlay = null
       },
       setAudioSessionState(state: string, emit: boolean) {
+        if (!audioSession) return
         audioSession.state = state
         if (emit) audioSession.dispatchEvent(new Event("statechange"))
+      },
+      emitFocusAndVisibilityRecovery() {
+        window.dispatchEvent(new Event("focus"))
+        document.dispatchEvent(new Event("visibilitychange"))
       },
       mediaSession,
     })
@@ -170,7 +412,10 @@ async function invokeMediaAction(page: Page, action: string) {
   }, action)
 }
 
-async function invokeProbeAction(page: Page, action: "emitExternalPause" | "releaseHeldPlay") {
+async function invokeProbeAction(
+  page: Page,
+  action: "emitExternalPause" | "emitFocusAndVisibilityRecovery" | "releaseHeldPlay",
+) {
   await page.evaluate((name) => {
     const probe = Reflect.get(window, "__massagelabMediaProbe") as Record<string, () => void>
     probe[name]()
@@ -195,25 +440,20 @@ async function startProofStation(page: Page) {
   return page.getByTestId("music-player-toolbar")
 }
 
-test("provider media ownership claims the carrier before preparation and separates Pause from Stop", async ({ page }) => {
-  let releaseSampleIndex!: () => void
-  const sampleIndexGate = new Promise<void>((resolve) => {
-    releaseSampleIndex = resolve
-  })
-  await page.route("**/observable-streams-vsco-adaptation/sample-index.json", async (route) => {
-    await sampleIndexGate
-    await route.abort("aborted")
-  })
-  await installMediaOwnershipFakes(page)
+async function closeInterruptionNotice(page: Page) {
+  const notice = page.getByRole("region", { name: "Interruption preference" })
+  if (await notice.isVisible()) {
+    await notice.getByRole("button", { name: "Close" }).click()
+  }
+  await expect(notice).toHaveCount(0)
+}
 
-  await page.goto("/music", { waitUntil: "domcontentloaded" })
-  await expect(page.getByRole("region", { name: "Atmosphere audio stations" }))
-    .toHaveAttribute("data-music-storage-status", "available")
-  await centerCarouselItem(page, "observable-streams-probe", "Next station")
-  await page.getByRole("button", { name: /^Play Observable Streams$/i }).click()
+test("Playing publishes complete metadata and all five actions while Pause retains and Stop dismisses ownership", async ({ page }) => {
+  await installMediaOwnershipFakes(page)
+  const player = await startProofStation(page)
 
   await expect.poll(async () => (await readProbe(page)).audio.playCalls).toBe(1)
-  await expect(page.getByText("Preparing audio...").last()).toBeVisible()
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
   await expect.poll(async () => page.evaluate(() => {
     const probe = Reflect.get(window, "__massagelabMediaProbe") as MediaProbe
     return {
@@ -222,13 +462,26 @@ test("provider media ownership claims the carrier before preparation and separat
         .map(([action]) => action)
         .sort(),
       playbackState: probe.mediaSession.playbackState,
+      album: probe.mediaSession.metadata?.album,
+      artist: probe.mediaSession.metadata?.artist,
+      artwork: probe.mediaSession.metadata?.artwork,
       title: probe.mediaSession.metadata?.title,
     }
   })).toEqual({
     actions: ["nexttrack", "pause", "play", "previoustrack", "stop"],
+    album: "MassageLab Atmosphere",
+    artist: "MassageLab",
+    artwork: [
+      { sizes: "192x192", src: "/icons/icon-192.png", type: "image/png" },
+      { sizes: "512x512", src: "/icons/icon-512.png", type: "image/png" },
+    ],
     playbackState: "playing",
-    title: "Observable Streams",
+    title: "MassageLab Proof Drone",
   })
+  await expect.poll(async () => {
+    const probe = await readProbe(page)
+    return probe.audioContext.created + probe.audioContext.constructorReads
+  }).toBeGreaterThan(0)
 
   await invokeMediaAction(page, "pause")
   await expect(page.getByTestId("music-player-toolbar")).toHaveAttribute("data-playback-state", "paused")
@@ -247,12 +500,11 @@ test("provider media ownership claims the carrier before preparation and separat
     }
   })).toEqual({ activeActions: 0, metadata: null, playbackState: "none" })
 
-  releaseSampleIndex()
   await page.waitForTimeout(250)
   await expect(page.getByText("Stopped").last()).toBeVisible()
 })
 
-test("provider media ownership cancels initial loading from carrier and Media Session Pause", async ({ page }) => {
+test("Loading publishes active intent and an external carrier Pause cancels held startup", async ({ page }) => {
   await installMediaOwnershipFakes(page, { holdCarrierPlay: true })
   const player = await startProofStation(page)
 
@@ -260,8 +512,12 @@ test("provider media ownership cancels initial loading from carrier and Media Se
   await expect(player).toHaveAttribute("data-playback-state", "loading")
   await expect.poll(async () => page.evaluate(() => {
     const probe = Reflect.get(window, "__massagelabMediaProbe") as MediaProbe
-    return typeof probe.mediaSession.handlers.pause
-  })).toBe("function")
+    return {
+      pauseHandler: typeof probe.mediaSession.handlers.pause,
+      playbackState: probe.mediaSession.playbackState,
+      title: probe.mediaSession.metadata?.title,
+    }
+  })).toEqual({ pauseHandler: "function", playbackState: "playing", title: "Atmosphere" })
 
   await invokeProbeAction(page, "emitExternalPause")
   await expect(player).toHaveAttribute("data-playback-state", "paused")
@@ -271,7 +527,7 @@ test("provider media ownership cancels initial loading from carrier and Media Se
   await expect(player).toHaveAttribute("data-playback-state", "paused")
 })
 
-test("provider media ownership lets Media Session Pause cancel the first held Play", async ({ page }) => {
+test("Media Session Pause cancels the first held Play without a late restart", async ({ page }) => {
   await installMediaOwnershipFakes(page, { holdCarrierPlay: true })
   const player = await startProofStation(page)
 
@@ -286,7 +542,24 @@ test("provider media ownership lets Media Session Pause cancel the first held Pl
   await expect(player).toHaveAttribute("data-playback-state", "paused")
 })
 
-test("provider media ownership classifies paired interruption and Pause in either event order", async ({ page }) => {
+test("notification Play starts a fresh session without reopening the in-app notice", async ({ page }) => {
+  await installMediaOwnershipFakes(page)
+  const player = await startProofStation(page)
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+  await closeInterruptionNotice(page)
+  const initialPlayCalls = (await readProbe(page)).audio.playCalls
+
+  await invokeMediaAction(page, "pause")
+  await expect(player).toHaveAttribute("data-playback-state", "paused")
+  await invokeMediaAction(page, "play")
+
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+  await expect.poll(async () => (await readProbe(page)).audio.playCalls).toBe(initialPlayCalls + 1)
+  await expect(page.getByRole("region", { name: "Interruption preference" })).toHaveCount(0)
+  await invokeMediaAction(page, "stop")
+})
+
+test("a specific interruption recovers a session whose automatic-resume preference is enabled", async ({ page }) => {
   await installMediaOwnershipFakes(page)
   const player = await startProofStation(page)
   await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
@@ -307,7 +580,7 @@ test("provider media ownership classifies paired interruption and Pause in eithe
   await invokeMediaAction(page, "stop")
 })
 
-test("provider media ownership applies the saved default to external Play and never recovers disabled sessions", async ({ page }) => {
+test("a disabled automatic-resume preference pauses on interruption and never recovers", async ({ page }) => {
   await installMediaOwnershipFakes(page, { resumeAfterInterruption: false })
   const player = await startProofStation(page)
   await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
@@ -325,7 +598,7 @@ test("provider media ownership applies the saved default to external Play and ne
   await invokeMediaAction(page, "stop")
 })
 
-test("provider media ownership treats unpaired carrier Pause as ambiguous", async ({ page }) => {
+test("an ambiguous carrier Pause remains paused through focus and visibility recovery", async ({ page }) => {
   await installMediaOwnershipFakes(page)
   const player = await startProofStation(page)
   await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
@@ -333,12 +606,13 @@ test("provider media ownership treats unpaired carrier Pause as ambiguous", asyn
   await invokeProbeAction(page, "emitExternalPause")
   await expect(player).toHaveAttribute("data-playback-state", "paused")
   await setAudioSessionState(page, "active", true)
+  await invokeProbeAction(page, "emitFocusAndVisibilityRecovery")
   await page.waitForTimeout(300)
   await expect(player).toHaveAttribute("data-playback-state", "paused")
   await invokeMediaAction(page, "stop")
 })
 
-test("provider media ownership keeps one owner across routes and publishes only the current adjacent station", async ({ page }) => {
+test("Previous and Next retain the session preference and route changes keep one carrier and handler owner", async ({ page }) => {
   let releaseSampleIndex!: () => void
   const sampleIndexGate = new Promise<void>((resolve) => {
     releaseSampleIndex = resolve
@@ -347,9 +621,16 @@ test("provider media ownership keeps one owner across routes and publishes only 
     await sampleIndexGate
     await route.abort("aborted")
   })
-  await installMediaOwnershipFakes(page, { resumeAfterInterruption: false })
+  await installMediaOwnershipFakes(page, { resumeAfterInterruption: true })
   const player = await startProofStation(page)
   await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+
+  const notice = page.getByRole("region", { name: "Interruption preference" })
+  await expect(notice).toBeVisible()
+  await notice.getByRole("checkbox", {
+    name: "Resume automatically when the interruption ends",
+  }).uncheck()
+  await notice.getByRole("button", { name: "Close" }).click()
 
   await invokeMediaAction(page, "nexttrack")
   await expect.poll(async () => (await readProbe(page)).mediaSession.metadata?.title)
@@ -357,6 +638,7 @@ test("provider media ownership keeps one owner across routes and publishes only 
   await invokeMediaAction(page, "previoustrack")
   await expect.poll(async () => (await readProbe(page)).mediaSession.metadata?.title)
     .toBe("MassageLab Proof Drone")
+  const handlerCallsBeforeRouteChange = (await readProbe(page)).mediaSession.handlerCalls
   await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
   releaseSampleIndex()
   await page.waitForTimeout(300)
@@ -370,6 +652,8 @@ test("provider media ownership keeps one owner across routes and publishes only 
     const probe = Reflect.get(window, "__massagelabMediaProbe") as MediaProbe
     return Object.values(probe.mediaSession.handlers).filter(Boolean).length
   })).toBe(5)
+  await expect.poll(async () => (await readProbe(page)).mediaSession.handlerCalls)
+    .toBe(handlerCallsBeforeRouteChange)
 
   await setAudioSessionState(page, "interrupted", true)
   await expect(player).toHaveAttribute("data-playback-state", "paused")
@@ -379,7 +663,75 @@ test("provider media ownership keeps one owner across routes and publishes only 
   await invokeMediaAction(page, "stop")
 })
 
-test("provider media ownership keeps generator playback when carrier acquisition rejects", async ({ page }) => {
+test("explicit Pause and Stop cannot be reversed by later focus or visibility events", async ({ page }) => {
+  await installMediaOwnershipFakes(page)
+  const player = await startProofStation(page)
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+  await closeInterruptionNotice(page)
+
+  await invokeMediaAction(page, "pause")
+  await expect(player).toHaveAttribute("data-playback-state", "paused")
+  const pausePlayCalls = (await readProbe(page)).audio.playCalls
+  await setAudioSessionState(page, "active")
+  await invokeProbeAction(page, "emitFocusAndVisibilityRecovery")
+  await page.waitForTimeout(300)
+  await expect(player).toHaveAttribute("data-playback-state", "paused")
+  expect((await readProbe(page)).audio.playCalls).toBe(pausePlayCalls)
+
+  await invokeMediaAction(page, "play")
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+  await invokeMediaAction(page, "stop")
+  await expect(player).toHaveAttribute("data-playback-state", "stopped")
+  const stopPlayCalls = (await readProbe(page)).audio.playCalls
+  await setAudioSessionState(page, "active")
+  await invokeProbeAction(page, "emitFocusAndVisibilityRecovery")
+  await page.waitForTimeout(300)
+  await expect(player).toHaveAttribute("data-playback-state", "stopped")
+  expect((await readProbe(page)).audio.playCalls).toBe(stopPlayCalls)
+})
+
+test("the in-app session notice is polite, nonmodal, and keyboard dismissible", async ({ page }) => {
+  await installMediaOwnershipFakes(page)
+  const player = await startProofStation(page)
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+
+  const notice = page.getByRole("region", { name: "Interruption preference" })
+  await expect(notice).toBeVisible()
+  await expect(notice).toHaveAttribute("aria-live", "polite")
+  await expect(notice).toContainText("Calls and other audio may temporarily pause or mute this station.")
+  await expect(notice.getByRole("checkbox", {
+    name: "Resume automatically when the interruption ends",
+  })).toBeChecked()
+  const close = notice.getByRole("button", { name: "Close" })
+  await close.focus()
+  await page.keyboard.press("Enter")
+  await expect(notice).toHaveCount(0)
+  await invokeMediaAction(page, "stop")
+})
+
+test("unsupported media APIs keep ordinary in-app Play, Pause, and Stop available without a functional notice", async ({ page }) => {
+  await installMediaOwnershipFakes(page, {
+    includeAudioSession: false,
+    mediaSessionSupported: false,
+  })
+  const player = await startProofStation(page)
+
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+  await expect(page.getByRole("region", { name: "Interruption preference" })).toHaveCount(0)
+  await player.getByRole("button", { name: "Player settings" }).click()
+  await expect(page.getByRole("menuitemcheckbox", { name: "Resume after interruptions" }))
+    .toHaveAttribute("aria-disabled", "true")
+  await page.keyboard.press("Escape")
+
+  await player.getByRole("button", { name: "Stop", exact: true }).click()
+  await expect(player).toHaveAttribute("data-playback-state", "stopped")
+  await player.getByRole("button", { name: "Play", exact: true }).click()
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+  await expect(page.getByRole("region", { name: "Interruption preference" })).toHaveCount(0)
+  await player.getByRole("button", { name: "Stop", exact: true }).click()
+})
+
+test("carrier rejection keeps generator playback without exposing interruption controls", async ({ page }) => {
   await installMediaOwnershipFakes(page, { rejectCarrierPlay: true })
   const player = await startProofStation(page)
 

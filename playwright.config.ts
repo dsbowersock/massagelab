@@ -254,6 +254,15 @@ export default defineConfig({
         ...devices["Pixel 7"],
       },
     },
+    {
+      // Focused compatibility smoke only; this is not iPhone or iPad certification.
+      name: "webkit-media-smoke",
+      testMatch: /music-media-session\.spec\.ts/,
+      use: {
+        ...devices["Desktop Safari"],
+        viewport: { width: 1024, height: 768 },
+      },
+    },
   ],
   webServer: skipWebServer
     ? undefined
