@@ -34,6 +34,7 @@ type MediaProbe = {
       title?: string
     } | null
     playbackState: string
+    livePositionPublished: boolean
     positionStateCalls: Array<unknown>
   }
   startup: {
@@ -57,6 +58,7 @@ async function installMediaOwnershipFakes(page: Page, options: {
   includeAudioSession?: boolean
   mediaSessionSupported?: boolean
   rejectCarrierPlay?: boolean
+  rejectLivePositionState?: boolean
   resumeAfterInterruption?: boolean
   stopAtPhase?: "piece-activation" | "scheduling"
 } = {}) {
@@ -103,13 +105,20 @@ async function installMediaOwnershipFakes(page: Page, options: {
       handlerCalls: 0,
       metadata: null as Record<string, unknown> | null,
       playbackState: "none",
+      livePositionPublished: false,
       positionStateCalls: [] as unknown[],
       setActionHandler(action: string, handler: (() => void) | null) {
         this.handlerCalls += 1
         handlers[action] = handler
       },
-      setPositionState(positionState?: unknown) {
-        this.positionStateCalls.push(positionState)
+      setPositionState(state?: { duration?: number; position?: number; playbackRate?: number }) {
+        this.positionStateCalls.push(state)
+        this.livePositionPublished = state?.duration === Number.POSITIVE_INFINITY
+          && state.position === 0
+          && state.playbackRate === 1
+        if (fakeOptions.rejectLivePositionState && state) {
+          throw new DOMException("Position state rejected", "NotSupportedError")
+        }
       },
     }
     const stopAtControlledPhase = (phase: "piece-activation" | "scheduling") => {
@@ -1008,7 +1017,7 @@ for (const station of startupMeasurementStations) {
   })
 }
 
-test("Playing publishes complete metadata and all five actions while Pause retains and Stop dismisses ownership", async ({ page }) => {
+test("Live position stays published while Playing and clears after Stop", async ({ page }) => {
   const health = capturePageHealth(page)
   await installMediaOwnershipFakes(page)
   const player = await startProofStation(page)
@@ -1023,7 +1032,7 @@ test("Playing publishes complete metadata and all five actions while Pause retai
         .map(([action]) => action)
         .sort(),
       playbackState: probe.mediaSession.playbackState,
-      positionStateCalls: probe.mediaSession.positionStateCalls,
+      livePositionPublished: probe.mediaSession.livePositionPublished,
       album: probe.mediaSession.metadata?.album,
       artist: probe.mediaSession.metadata?.artist,
       artwork: probe.mediaSession.metadata?.artwork,
@@ -1040,8 +1049,8 @@ test("Playing publishes complete metadata and all five actions while Pause retai
         type: "image/png",
       },
     ],
+    livePositionPublished: true,
     playbackState: "playing",
-    positionStateCalls: [undefined, undefined],
     title: "MassageLab Proof Drone",
   })
   await expect.poll(async () => {
@@ -1069,13 +1078,46 @@ test("Playing publishes complete metadata and all five actions while Pause retai
       activeActions: Object.values(probe.mediaSession.handlers).filter(Boolean).length,
       metadata: probe.mediaSession.metadata,
       playbackState: probe.mediaSession.playbackState,
+      positionStateCleared: probe.mediaSession.positionStateCalls.at(-1) === undefined,
     }
-  })).toEqual({ activeActions: 0, metadata: null, playbackState: "none" })
+  })).toEqual({
+    activeActions: 0,
+    metadata: null,
+    playbackState: "none",
+    positionStateCleared: true,
+  })
 
   await page.waitForTimeout(250)
   await expect(page.getByText("Stopped").last()).toBeVisible()
   expect(health.consoleErrors).toEqual([])
   expect(health.pageErrors).toEqual([])
+})
+
+test("Live position rejection preserves Playing metadata and all five handlers", async ({ page }) => {
+  await installMediaOwnershipFakes(page, { rejectLivePositionState: true })
+  const player = await startProofStation(page)
+
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+  await expect.poll(async () => page.evaluate(() => {
+    const probe = Reflect.get(window, "__massagelabMediaProbe") as MediaProbe
+    return {
+      actions: Object.entries(probe.mediaSession.handlers)
+        .filter(([, handler]) => typeof handler === "function")
+        .map(([action]) => action)
+        .sort(),
+      livePositionPublished: probe.mediaSession.livePositionPublished,
+      playbackState: probe.mediaSession.playbackState,
+      title: probe.mediaSession.metadata?.title,
+    }
+  })).toEqual({
+    actions: ["nexttrack", "pause", "play", "previoustrack", "stop"],
+    livePositionPublished: false,
+    playbackState: "playing",
+    title: "MassageLab Proof Drone",
+  })
+  await expect.poll(async () => (await readProbe(page)).audioContext.activeGeneratorSources)
+    .toBeGreaterThan(0)
+  await invokeMediaAction(page, "stop")
 })
 
 test("canonical station artwork returns stable distinct PNGs and matches the centered card metadata", async ({ page, request }) => {
@@ -1125,7 +1167,7 @@ test("canonical station artwork failure keeps a labeled fallback while playback 
     .toHaveAttribute("data-playback-state", /loading|playing/)
 })
 
-test("Loading publishes active intent and an external carrier Pause cancels held startup", async ({ page }) => {
+test("Live position publishes while Loading and an external carrier Pause cancels held startup", async ({ page }) => {
   await installMediaOwnershipFakes(page, { holdCarrierPlay: true })
   let stateHistoryStarted = false
   try {
@@ -1136,11 +1178,17 @@ test("Loading publishes active intent and an external carrier Pause cancels held
     await expect.poll(async () => page.evaluate(() => {
       const probe = Reflect.get(window, "__massagelabMediaProbe") as MediaProbe
       return {
+        livePositionPublished: probe.mediaSession.livePositionPublished,
         pauseHandler: typeof probe.mediaSession.handlers.pause,
         playbackState: probe.mediaSession.playbackState,
         title: probe.mediaSession.metadata?.title,
       }
-    })).toEqual({ pauseHandler: "function", playbackState: "playing", title: "Atmosphere" })
+    })).toEqual({
+      livePositionPublished: true,
+      pauseHandler: "function",
+      playbackState: "playing",
+      title: "Atmosphere",
+    })
 
     await invokeProbeAction(page, "emitExternalPause")
     await expect(player).toHaveAttribute("data-playback-state", "paused")

@@ -8,7 +8,7 @@ const actions = ["play", "pause", "stop", "previoustrack", "nexttrack"]
 /**
  * Mirror the MediaSession boundary, including action rejection, so tests
  * exercise controller effects without depending on a browser navigator.
- * @param {{ unsupportedActions?: string[] }} [options]
+ * @param {{ rejectLivePositionState?: boolean, unsupportedActions?: string[] }} [options]
  */
 function createFakeMediaSession(options = {}) {
   const handlers = new Map()
@@ -30,7 +30,7 @@ function createFakeMediaSession(options = {}) {
     },
     setPositionState(positionState) {
       setPositionStateCalls.push(positionState)
-      if (options.rejectPositionState) {
+      if (options.rejectLivePositionState && positionState) {
         throw new DOMException("Position state rejected", "NotSupportedError")
       }
     },
@@ -58,7 +58,7 @@ test("reports unavailable and remains inert when Media Session is absent", () =>
   assert.equal(metadataConstructions, 0)
 })
 
-test("publishes constructed station metadata, playback state, and all five controls", () => {
+test("publishes constructed station metadata, indefinite position state, and all five controls", () => {
   const mediaSession = createFakeMediaSession()
   const metadataInputs = []
   const createMetadata = (init) => {
@@ -101,12 +101,19 @@ test("publishes constructed station metadata, playback state, and all five contr
     ],
   })
   assert.equal(mediaSession.playbackState, "paused")
-  assert.deepEqual(mediaSession.setPositionStateCalls, [undefined])
+  assert.deepEqual(mediaSession.setPositionStateCalls[0], {
+    duration: Number.POSITIVE_INFINITY,
+    playbackRate: 1,
+    position: 0,
+  })
   assert.deepEqual([...mediaSession.handlers.keys()].sort(), [...actions].sort())
   for (const action of actions) assert.equal(mediaSession.handlers.get(action), handlers[action])
+
+  controller.clear()
+  assert.equal(mediaSession.setPositionStateCalls.at(-1), undefined)
 })
 
-test("clears carrier-derived position state on every publication and ownership clear", () => {
+test("publishes a fresh indefinite position state and clears it on ownership clear", () => {
   const mediaSession = createFakeMediaSession()
   const controller = createAtmosphereMediaSessionController({
     mediaSession,
@@ -125,26 +132,33 @@ test("clears carrier-derived position state on every publication and ownership c
   })
   controller.clear()
 
-  assert.deepEqual(mediaSession.setPositionStateCalls, [undefined, undefined, undefined])
+  assert.deepEqual(mediaSession.setPositionStateCalls, [
+    { duration: Number.POSITIVE_INFINITY, playbackRate: 1, position: 0 },
+    { duration: Number.POSITIVE_INFINITY, playbackRate: 1, position: 0 },
+    undefined,
+  ])
 })
 
-test("guards rejected position-state clearing without losing metadata or controls", () => {
-  const mediaSession = createFakeMediaSession({ rejectPositionState: true })
+test("guards rejected live position publication without losing metadata or controls", () => {
+  const mediaSession = createFakeMediaSession({ rejectLivePositionState: true })
   const controller = createAtmosphereMediaSessionController({
     mediaSession,
     createMetadata: (init) => init,
   })
-  const play = () => "play"
+  const handlers = Object.fromEntries(actions.map((action) => [action, () => action]))
 
   assert.doesNotThrow(() => controller.publish({
     metadata: { id: "quiet-current", title: "Quiet Current" },
     playbackState: "playing",
-    handlers: { play },
+    handlers,
   }))
-  assert.deepEqual(mediaSession.setPositionStateCalls, [undefined])
+  assert.deepEqual(mediaSession.setPositionStateCalls, [
+    { duration: Number.POSITIVE_INFINITY, playbackRate: 1, position: 0 },
+    undefined,
+  ])
   assert.equal(mediaSession.metadata.title, "Quiet Current")
   assert.equal(mediaSession.playbackState, "playing")
-  assert.equal(mediaSession.handlers.get("play"), play)
+  for (const action of actions) assert.equal(mediaSession.handlers.get(action), handlers[action])
 })
 
 test("replaces prior handlers while guarding each unsupported action independently", () => {
