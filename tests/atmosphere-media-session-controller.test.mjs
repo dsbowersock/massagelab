@@ -13,10 +13,12 @@ const actions = ["play", "pause", "stop", "previoustrack", "nexttrack"]
 function createFakeMediaSession(options = {}) {
   const handlers = new Map()
   const setActionCalls = []
+  const setPositionStateCalls = []
   const unsupportedActions = new Set(options.unsupportedActions ?? [])
   return {
     handlers,
     setActionCalls,
+    setPositionStateCalls,
     metadata: null,
     playbackState: "none",
     setActionHandler(action, handler) {
@@ -25,6 +27,12 @@ function createFakeMediaSession(options = {}) {
         throw new DOMException(`Unsupported action: ${action}`, "NotSupportedError")
       }
       handlers.set(action, handler)
+    },
+    setPositionState(positionState) {
+      setPositionStateCalls.push(positionState)
+      if (options.rejectPositionState) {
+        throw new DOMException("Position state rejected", "NotSupportedError")
+      }
     },
   }
 }
@@ -61,7 +69,7 @@ test("publishes constructed station metadata, playback state, and all five contr
   const controller = createAtmosphereMediaSessionController({ mediaSession, createMetadata })
 
   controller.publish({
-    metadata: { title: "Quiet Current", artist: "Field Artist" },
+    metadata: { id: "quiet-current", title: "Quiet Current", artist: "Field Artist" },
     playbackState: "paused",
     handlers,
   })
@@ -72,8 +80,11 @@ test("publishes constructed station metadata, playback state, and all five contr
     artist: "Field Artist",
     album: "MassageLab Atmosphere",
     artwork: [
-      { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-      { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+      {
+        src: "/api/atmosphere/stations/quiet-current/artwork",
+        sizes: "512x512",
+        type: "image/png",
+      },
     ],
   }])
   assert.deepEqual(mediaSession.metadata, {
@@ -82,13 +93,58 @@ test("publishes constructed station metadata, playback state, and all five contr
     artist: "Field Artist",
     album: "MassageLab Atmosphere",
     artwork: [
-      { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-      { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+      {
+        src: "/api/atmosphere/stations/quiet-current/artwork",
+        sizes: "512x512",
+        type: "image/png",
+      },
     ],
   })
   assert.equal(mediaSession.playbackState, "paused")
+  assert.deepEqual(mediaSession.setPositionStateCalls, [undefined])
   assert.deepEqual([...mediaSession.handlers.keys()].sort(), [...actions].sort())
   for (const action of actions) assert.equal(mediaSession.handlers.get(action), handlers[action])
+})
+
+test("clears carrier-derived position state on every publication and ownership clear", () => {
+  const mediaSession = createFakeMediaSession()
+  const controller = createAtmosphereMediaSessionController({
+    mediaSession,
+    createMetadata: (init) => init,
+  })
+
+  controller.publish({
+    metadata: { id: "quiet-current", title: "Quiet Current" },
+    playbackState: "playing",
+    handlers: {},
+  })
+  controller.publish({
+    metadata: { id: "quiet-current", title: "Quiet Current" },
+    playbackState: "paused",
+    handlers: {},
+  })
+  controller.clear()
+
+  assert.deepEqual(mediaSession.setPositionStateCalls, [undefined, undefined, undefined])
+})
+
+test("guards rejected position-state clearing without losing metadata or controls", () => {
+  const mediaSession = createFakeMediaSession({ rejectPositionState: true })
+  const controller = createAtmosphereMediaSessionController({
+    mediaSession,
+    createMetadata: (init) => init,
+  })
+  const play = () => "play"
+
+  assert.doesNotThrow(() => controller.publish({
+    metadata: { id: "quiet-current", title: "Quiet Current" },
+    playbackState: "playing",
+    handlers: { play },
+  }))
+  assert.deepEqual(mediaSession.setPositionStateCalls, [undefined])
+  assert.equal(mediaSession.metadata.title, "Quiet Current")
+  assert.equal(mediaSession.playbackState, "playing")
+  assert.equal(mediaSession.handlers.get("play"), play)
 })
 
 test("replaces prior handlers while guarding each unsupported action independently", () => {

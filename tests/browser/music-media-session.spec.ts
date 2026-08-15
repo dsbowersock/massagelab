@@ -32,6 +32,7 @@ type MediaProbe = {
       title?: string
     } | null
     playbackState: string
+    positionStateCalls: Array<unknown>
   }
   startup: {
     carrierCalls: Array<{
@@ -96,9 +97,13 @@ async function installMediaOwnershipFakes(page: Page, options: {
       handlerCalls: 0,
       metadata: null as Record<string, unknown> | null,
       playbackState: "none",
+      positionStateCalls: [] as unknown[],
       setActionHandler(action: string, handler: (() => void) | null) {
         this.handlerCalls += 1
         handlers[action] = handler
+      },
+      setPositionState(positionState?: unknown) {
+        this.positionStateCalls.push(positionState)
       },
     }
     const stopAtControlledPhase = (phase: "piece-activation" | "scheduling") => {
@@ -1012,6 +1017,7 @@ test("Playing publishes complete metadata and all five actions while Pause retai
         .map(([action]) => action)
         .sort(),
       playbackState: probe.mediaSession.playbackState,
+      positionStateCalls: probe.mediaSession.positionStateCalls,
       album: probe.mediaSession.metadata?.album,
       artist: probe.mediaSession.metadata?.artist,
       artwork: probe.mediaSession.metadata?.artwork,
@@ -1022,10 +1028,14 @@ test("Playing publishes complete metadata and all five actions while Pause retai
     album: "MassageLab Atmosphere",
     artist: "MassageLab",
     artwork: [
-      { sizes: "192x192", src: "/icons/icon-192.png", type: "image/png" },
-      { sizes: "512x512", src: "/icons/icon-512.png", type: "image/png" },
+      {
+        sizes: "512x512",
+        src: "/api/atmosphere/stations/mlab-proof-drone/artwork",
+        type: "image/png",
+      },
     ],
     playbackState: "playing",
+    positionStateCalls: [undefined, undefined],
     title: "MassageLab Proof Drone",
   })
   await expect.poll(async () => {
@@ -1060,6 +1070,21 @@ test("Playing publishes complete metadata and all five actions while Pause retai
   await expect(page.getByText("Stopped").last()).toBeVisible()
   expect(health.consoleErrors).toEqual([])
   expect(health.pageErrors).toEqual([])
+})
+
+test("station artwork route returns cacheable station-specific PNGs and rejects unknown stations", async ({ request }) => {
+  const proofDrone = await request.get("/api/atmosphere/stations/mlab-proof-drone/artwork")
+  const trees = await request.get("/api/atmosphere/stations/generative-fm-trees/artwork")
+  const unknown = await request.get("/api/atmosphere/stations/not-a-station/artwork")
+
+  expect(proofDrone.status()).toBe(200)
+  expect(trees.status()).toBe(200)
+  expect(proofDrone.headers()["content-type"]).toMatch(/^image\/png(?:;|$)/)
+  expect(trees.headers()["content-type"]).toMatch(/^image\/png(?:;|$)/)
+  expect(proofDrone.headers()["cache-control"]).toContain("public")
+  expect(proofDrone.headers()["cache-control"]).toContain("max-age=")
+  expect(Buffer.compare(await proofDrone.body(), await trees.body())).not.toBe(0)
+  expect(unknown.status()).toBe(404)
 })
 
 test("Loading publishes active intent and an external carrier Pause cancels held startup", async ({ page }) => {

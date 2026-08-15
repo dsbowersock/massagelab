@@ -5,13 +5,15 @@ type AtmosphereStationArtworkProps = {
   title: string
 }
 
-type ArtworkPalette = {
+export type ArtworkPalette = {
   background: string
   foreground: string
   accent: string
   muted: string
   line: string
 }
+
+export type ArtworkMotif = "honeycomb" | "moon-waves" | "rings" | "seed-lines" | "spiral" | "sunrise"
 
 const palettes: ArtworkPalette[] = [
   { background: "#102a25", foreground: "#f28a19", accent: "#e7c06d", muted: "#6f8f78", line: "#f5d99c" },
@@ -34,9 +36,12 @@ export function AtmosphereStationArtwork({
   stationId,
   title,
 }: AtmosphereStationArtworkProps) {
-  const seed = hashString(`${stationId}:${title}:${groupId}`)
-  const palette = palettes[seed % palettes.length]
-  const motif = chooseMotif(`${title} ${description} ${groupId}`.toLowerCase(), seed)
+  const { motif, palette, seed } = getAtmosphereStationArtworkModel({
+    description,
+    groupId,
+    stationId,
+    title,
+  })
   const idPrefix = `station-art-${stationId.replace(/[^a-z0-9-]/gi, "-")}`
 
   return (
@@ -65,6 +70,25 @@ export function AtmosphereStationArtwork({
   )
 }
 
+/** Shares the card's deterministic palette and motif with raster artwork routes. */
+export function getAtmosphereStationArtworkModel({
+  description,
+  groupId,
+  stationId,
+  title,
+}: AtmosphereStationArtworkProps): {
+  motif: ArtworkMotif
+  palette: ArtworkPalette
+  seed: number
+} {
+  const seed = hashString(`${stationId}:${title}:${groupId}`)
+  return {
+    motif: chooseMotif(`${title} ${description} ${groupId}`.toLowerCase(), seed),
+    palette: palettes[seed % palettes.length],
+    seed,
+  }
+}
+
 /**
  * Chooses the organic-geometric artwork motif for a station.
  *
@@ -72,13 +96,21 @@ export function AtmosphereStationArtwork({
  * @param seed Stable station hash used only when no keyword rule matches.
  * @returns One of the motif ids supported by `renderMotif`; keyword matches win before the seeded fallback.
  */
-function chooseMotif(text: string, seed: number) {
+function chooseMotif(text: string, seed: number): ArtworkMotif {
   if (/bell|glock|mallet|piano|key|little/.test(text)) return "honeycomb"
   if (/wave|water|rain|ocean|lullaby|beneath/.test(text)) return "moon-waves"
   if (/drone|string|cinematic|soundtrack|enough/.test(text)) return "rings"
   if (/tree|nature|animal|field|forest|spring/.test(text)) return "seed-lines"
   if (/moment|neuro|ritual|impact|awash|otherness/.test(text)) return "spiral"
-  return ["sunrise", "moon-waves", "spiral", "rings", "seed-lines", "honeycomb"][seed % 6]
+  const fallbackMotifs: ArtworkMotif[] = [
+    "sunrise",
+    "moon-waves",
+    "spiral",
+    "rings",
+    "seed-lines",
+    "honeycomb",
+  ]
+  return fallbackMotifs[seed % fallbackMotifs.length]
 }
 
 function renderMotif(motif: string, palette: ArtworkPalette, seed: number) {

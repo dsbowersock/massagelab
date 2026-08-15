@@ -149,7 +149,10 @@ interface AtmosphereMediaSession {
     action: "play" | "pause" | "stop" | "previoustrack" | "nexttrack",
     handler: (() => void) | null,
   ) => void
+  setPositionState?: (state?: object) => void
 }
+
+type AtmosphereStationMetadata = { id: string, title: string, artist: string }
 
 type AtmosphereStation = RuntimeAdapterPayload["station"] & {
   id: string
@@ -299,7 +302,7 @@ export function MusicProvider({
   const failedAccountPayloadRef = useRef<MusicVisualizerAccountPreferences | null>(null)
   const isMountedRef = useRef(true)
   const activeStationIdRef = useRef<string | null>(null)
-  const activeStationMetadataRef = useRef<{ title: string, artist: string } | null>(null)
+  const activeStationMetadataRef = useRef<AtmosphereStationMetadata | null>(null)
   const mediaCarrierRef = useRef<ReturnType<typeof createAtmosphereMediaCarrier> | null>(null)
   const mediaSessionControllerRef = useRef<ReturnType<typeof createAtmosphereMediaSessionController> | null>(null)
   const interruptionMonitorRef = useRef<ReturnType<typeof createAtmosphereInterruptionMonitor> | null>(null)
@@ -326,7 +329,7 @@ export function MusicProvider({
   }, [])
 
   const publishMediaSession = useCallback((
-    station: { title: string, artist: string },
+    station: AtmosphereStationMetadata,
     state: PlaybackState,
   ) => {
     const controller = mediaSessionControllerRef.current
@@ -770,7 +773,7 @@ export function MusicProvider({
     loadingStationIdRef.current = stationId
     setError(null)
     publishMediaSession(
-      retainedMetadata ?? { title: "Atmosphere", artist: "MassageLab" },
+      retainedMetadata ?? { id: stationId, title: "Atmosphere", artist: "MassageLab" },
       "loading",
     )
 
@@ -848,6 +851,7 @@ export function MusicProvider({
       setActiveStationId(station.id)
       setActiveStationTitle(station.title)
       activeStationMetadataRef.current = {
+        id: station.id,
         title: station.title,
         artist: getStationArtist(station),
       }
@@ -861,7 +865,7 @@ export function MusicProvider({
       return
     }
 
-    const stationMetadata = { title: station.title, artist: getStationArtist(station) }
+    const stationMetadata = { id: station.id, title: station.title, artist: getStationArtist(station) }
     setActiveStationId(station.id)
     setActiveStationTitle(station.title)
     activeStationIdRef.current = station.id
