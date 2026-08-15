@@ -33,14 +33,25 @@ type MediaProbe = {
     } | null
     playbackState: string
   }
+  startup: {
+    carrierCalls: Array<{
+      calledAt: number
+      latencyMs: number | null
+      sameInitiatingTurn: boolean
+    }>
+    phaseReached: string[]
+    timings: Array<Record<string, unknown> & { observedAt: number }>
+  }
 }
 
 async function installMediaOwnershipFakes(page: Page, options: {
   holdCarrierPlay?: boolean
+  holdPhase?: "module-loading" | "provider-decode"
   includeAudioSession?: boolean
   mediaSessionSupported?: boolean
   rejectCarrierPlay?: boolean
   resumeAfterInterruption?: boolean
+  stopAtPhase?: "piece-activation" | "scheduling"
 } = {}) {
   await page.addInitScript((fakeOptions) => {
     const audio = {
@@ -62,8 +73,23 @@ async function installMediaOwnershipFakes(page: Page, options: {
       sourceStarts: 0,
       sourceTeardowns: 0,
     }
-    let currentAudio: FakeAudio | null = null
+    const audioElements: FakeAudio[] = []
     let releaseHeldPlay: (() => void) | null = null
+    let releaseHeldPhase: (() => void) | null = null
+    let initiatingPlayTurn = false
+    let lastPlayIntentAt: number | null = null
+    let phaseStopTriggered = false
+    let providerDecodeCompleted = false
+    const delayedDynamicScripts: Array<{ parent: Node; script: HTMLScriptElement }> = []
+    const startup = {
+      carrierCalls: [] as Array<{
+        calledAt: number
+        latencyMs: number | null
+        sameInitiatingTurn: boolean
+      }>,
+      phaseReached: [] as string[],
+      timings: [] as Array<Record<string, unknown> & { observedAt: number }>,
+    }
     const handlers: Record<string, (() => void) | null> = {}
     const mediaSession = {
       handlers,
@@ -75,6 +101,44 @@ async function installMediaOwnershipFakes(page: Page, options: {
         handlers[action] = handler
       },
     }
+    const stopAtControlledPhase = (phase: "piece-activation" | "scheduling") => {
+      if (fakeOptions.stopAtPhase !== phase || phaseStopTriggered) return
+      phaseStopTriggered = true
+      startup.phaseReached.push(phase)
+      handlers.stop?.()
+    }
+
+    if (fakeOptions.holdPhase === "module-loading") {
+      const nativeAppendChild = Node.prototype.appendChild
+      Node.prototype.appendChild = function <T extends Node>(child: T): T {
+        if (
+          child instanceof HTMLScriptElement
+          && child.src.includes("/_next/static/chunks/")
+          && !startup.phaseReached.includes("module-loading")
+        ) {
+          startup.phaseReached.push("module-loading")
+          delayedDynamicScripts.push({ parent: this, script: child })
+          return child
+        }
+        return Reflect.apply(nativeAppendChild, this, [child]) as T
+      }
+      releaseHeldPhase = () => {
+        for (const { parent, script } of delayedDynamicScripts.splice(0)) {
+          Reflect.apply(nativeAppendChild, parent, [script])
+        }
+      }
+    }
+
+    document.addEventListener("click", (event) => {
+      const target = event.target instanceof Element ? event.target.closest("button") : null
+      const accessibleLabel = target?.getAttribute("aria-label") ?? target?.textContent ?? ""
+      if (!/^\s*Play(?:\s|$)/i.test(accessibleLabel)) return
+      initiatingPlayTurn = true
+      lastPlayIntentAt = performance.now()
+      setTimeout(() => {
+        initiatingPlayTurn = false
+      }, 0)
+    }, { capture: true })
 
     class FakeAudio extends EventTarget {
       loop = false
@@ -85,7 +149,7 @@ async function installMediaOwnershipFakes(page: Page, options: {
       constructor() {
         super()
         audio.created += 1
-        currentAudio = this
+        audioElements.push(this)
       }
 
       get src() {
@@ -115,6 +179,12 @@ async function installMediaOwnershipFakes(page: Page, options: {
 
       play() {
         audio.playCalls += 1
+        const calledAt = performance.now()
+        startup.carrierCalls.push({
+          calledAt,
+          latencyMs: lastPlayIntentAt === null ? null : calledAt - lastPlayIntentAt,
+          sameInitiatingTurn: initiatingPlayTurn,
+        })
         if (fakeOptions.rejectCarrierPlay) return Promise.reject(new Error("carrier rejected"))
         this.paused = false
         if (fakeOptions.holdCarrierPlay) {
@@ -235,6 +305,23 @@ async function installMediaOwnershipFakes(page: Page, options: {
     const instrumentAudioContext = <T extends object>(context: T) => {
       if (instrumentedContexts.has(context)) return context
       instrumentedContexts.add(context)
+      const decodeAudioData = Reflect.get(context, "decodeAudioData")
+      if (typeof decodeAudioData === "function") {
+        replaceMethod(context, "decodeAudioData", (...args: unknown[]) => {
+          const decoded = Reflect.apply(decodeAudioData, context, args)
+          if (!decoded || typeof Reflect.get(decoded, "then") !== "function") return decoded
+          return Promise.resolve(decoded).then(async (buffer) => {
+            providerDecodeCompleted = true
+            if (fakeOptions.holdPhase === "provider-decode" && !startup.phaseReached.includes("provider-decode")) {
+              startup.phaseReached.push("provider-decode")
+              await new Promise<void>((resolve) => {
+                releaseHeldPhase = resolve
+              })
+            }
+            return buffer
+          })
+        })
+      }
       for (const factory of ["createBufferSource", "createOscillator"] as const) {
         const original = Reflect.get(context, factory)
         if (typeof original !== "function") continue
@@ -243,6 +330,14 @@ async function installMediaOwnershipFakes(page: Page, options: {
           return source && typeof source === "object"
             ? instrumentScheduledSource(source, factory === "createOscillator" ? "oscillator" : "buffer-source")
             : source
+        })
+      }
+      const createGain = Reflect.get(context, "createGain")
+      if (typeof createGain === "function") {
+        replaceMethod(context, "createGain", (...args: unknown[]) => {
+          const node = Reflect.apply(createGain, context, args)
+          if (providerDecodeCompleted) stopAtControlledPhase("piece-activation")
+          return node
         })
       }
       return context
@@ -494,6 +589,7 @@ async function installMediaOwnershipFakes(page: Page, options: {
       audioContext,
       audioSession,
       emitExternalPause() {
+        const currentAudio = audioElements.at(-1)
         if (!currentAudio) return
         currentAudio.paused = true
         currentAudio.dispatchEvent(new Event("pause"))
@@ -502,6 +598,11 @@ async function installMediaOwnershipFakes(page: Page, options: {
         fakeOptions.holdCarrierPlay = false
         releaseHeldPlay?.()
         releaseHeldPlay = null
+      },
+      releaseHeldPhase() {
+        fakeOptions.holdPhase = undefined
+        releaseHeldPhase?.()
+        releaseHeldPhase = null
       },
       setAudioSessionState(state: string, emit: boolean) {
         if (!audioSession) return
@@ -513,6 +614,16 @@ async function installMediaOwnershipFakes(page: Page, options: {
         document.dispatchEvent(new Event("visibilitychange"))
       },
       mediaSession,
+      startup,
+    })
+    window.addEventListener("massagelab:atmosphere-startup-timing", (event) => {
+      startup.timings.push({
+        ...(event instanceof CustomEvent && event.detail && typeof event.detail === "object"
+          ? event.detail as Record<string, unknown>
+          : {}),
+        observedAt: performance.now(),
+      })
+      stopAtControlledPhase("scheduling")
     })
   }, options)
 }
@@ -557,15 +668,75 @@ async function releaseHeldCarrierPlay(page: Page) {
   }).catch(() => undefined)
 }
 
+async function releaseHeldStartupPhase(page: Page) {
+  await page.evaluate(() => {
+    const probe = Reflect.get(window, "__massagelabMediaProbe") as
+      | { releaseHeldPhase?: () => void }
+      | undefined
+    probe?.releaseHeldPhase?.()
+  }).catch(() => undefined)
+}
+
+async function waitForStartupPhase(page: Page, phase: string) {
+  await expect.poll(async () => {
+    const probe = await readProbe(page)
+    return probe.startup.phaseReached.includes(phase)
+  }, { timeout: 45_000 }).toBe(true)
+}
+
+async function openStation(page: Page, station: {
+  category: string
+  id: string
+  title: string
+}) {
+  await page.goto("/music", { waitUntil: "domcontentloaded" })
+  await expect(page.getByRole("region", { name: "Atmosphere audio stations" }))
+    .toHaveAttribute("data-music-storage-status", "available")
+  if (station.category !== "Treatment room starters") {
+    await page.getByRole("group", { name: "Station category" })
+      .getByRole("button", { name: station.category })
+      .click()
+  }
+  await centerCarouselItem(page, station.id, "Next station")
+  return page.getByRole("button", { name: `Play ${station.title}` })
+}
+
+async function waitForStationTiming(page: Page, stationId: string, previousCount: number) {
+  await expect.poll(async () => {
+    const probe = await readProbe(page)
+    return probe.startup.timings.filter((timing) => timing.stationId === stationId).length
+  }, { timeout: 60_000 }).toBe(previousCount + 1)
+  return page.evaluate(({ expectedStationId, expectedPreviousCount }) => {
+    const probe = Reflect.get(window, "__massagelabMediaProbe") as MediaProbe
+    const matches = probe.startup.timings.filter((timing) => timing.stationId === expectedStationId)
+    return {
+      carrier: probe.startup.carrierCalls.at(-1) ?? null,
+      timing: matches[expectedPreviousCount] ?? null,
+    }
+  }, { expectedStationId: stationId, expectedPreviousCount: previousCount })
+}
+
 async function beginPlaybackStateHistory(page: Page) {
   await page.evaluate(() => {
-    const player = document.querySelector<HTMLElement>("[data-testid='music-player-toolbar']")
-    if (!player) throw new Error("Music player toolbar is unavailable")
-    const history = [player.dataset.playbackState ?? ""]
+    const history: string[] = []
+    let lastState: string | null = null
+    const recordCurrentState = () => {
+      const player = document.querySelector<HTMLElement>("[data-testid='music-player-toolbar']")
+      const currentState = player?.dataset.playbackState ?? null
+      if (currentState === null || currentState === lastState) return
+      lastState = currentState
+      history.push(currentState)
+    }
+    recordCurrentState()
     const observer = new MutationObserver(() => {
-      history.push(player.dataset.playbackState ?? "")
+      recordCurrentState()
     })
-    observer.observe(player, { attributeFilter: ["data-playback-state"], attributes: true })
+    observer.observe(document.documentElement, {
+      attributeFilter: ["data-playback-state"],
+      attributes: true,
+      childList: true,
+      subtree: true,
+    })
     Reflect.set(window, "__massagelabPlaybackStateHistory", { history, observer })
   })
 }
@@ -605,6 +776,225 @@ async function closeInterruptionNotice(page: Page) {
     await notice.getByRole("button", { name: "Close" }).click()
   }
   await expect(notice).toHaveCount(0)
+}
+
+test("immediate carrier claim precedes a held sample-index response and Stop stays authoritative", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "Deterministic startup timing coverage runs in desktop Chromium.")
+  await installMediaOwnershipFakes(page)
+  let releaseSampleIndex: () => void = () => undefined
+  let sampleIndexRequested: () => void = () => undefined
+  const sampleIndexRequest = new Promise<void>((resolve) => {
+    sampleIndexRequested = resolve
+  })
+  const sampleIndexGate = new Promise<void>((resolve) => {
+    releaseSampleIndex = resolve
+  })
+  const sampleIndexPattern = "**/observable-streams-vsco-adaptation/sample-index*.json"
+  const sampleIndexHandler = async (route: Route) => {
+    sampleIndexRequested()
+    await sampleIndexGate
+    await route.continue()
+  }
+  await page.route(sampleIndexPattern, sampleIndexHandler)
+  let stateHistoryStarted = false
+  try {
+    const play = await openStation(page, {
+      category: "Treatment room starters",
+      id: "observable-streams-probe",
+      title: "Observable Streams",
+    })
+    await play.click()
+    await sampleIndexRequest
+    const player = page.getByTestId("music-player-toolbar")
+    await expect(player).toHaveAttribute("data-playback-state", "loading")
+    const carrier = (await readProbe(page)).startup.carrierCalls.at(-1)
+    expect(carrier).toMatchObject({ sameInitiatingTurn: true })
+    expect(carrier?.latencyMs).not.toBeNull()
+    expect(carrier?.latencyMs ?? -1).toBeGreaterThanOrEqual(0)
+
+    await invokeMediaAction(page, "stop")
+    await expect(player).toHaveAttribute("data-playback-state", "stopped")
+    await beginPlaybackStateHistory(page)
+    stateHistoryStarted = true
+    releaseSampleIndex()
+    await page.waitForTimeout(1_800)
+    const states = await finishPlaybackStateHistory(page)
+    stateHistoryStarted = false
+    expect(states).not.toContain("playing")
+    expect((await readProbe(page)).audioContext.activeGeneratorSources).toBe(0)
+  } finally {
+    if (stateHistoryStarted) await finishPlaybackStateHistory(page)
+    releaseSampleIndex()
+    await page.unroute(sampleIndexPattern, sampleIndexHandler)
+  }
+})
+
+test("latest request wins when Stop occurs during runtime module loading", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "Deterministic startup timing coverage runs in desktop Chromium.")
+  await installMediaOwnershipFakes(page, { holdPhase: "module-loading" })
+  await page.goto("/music", { waitUntil: "domcontentloaded" })
+  await expect(page.getByRole("region", { name: "Atmosphere audio stations" }))
+    .toHaveAttribute("data-music-storage-status", "available")
+  await centerCarouselItem(page, "mlab-proof-drone", "Next station")
+  let stateHistoryStarted = false
+  try {
+    await page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
+    await waitForStartupPhase(page, "module-loading")
+    const player = page.getByTestId("music-player-toolbar")
+    await expect(player).toHaveAttribute("data-playback-state", "loading")
+    await invokeMediaAction(page, "stop")
+    await expect(player).toHaveAttribute("data-playback-state", "stopped")
+    await beginPlaybackStateHistory(page)
+    stateHistoryStarted = true
+    await releaseHeldStartupPhase(page)
+    await page.waitForTimeout(1_000)
+    const states = await finishPlaybackStateHistory(page)
+    stateHistoryStarted = false
+    expect(states).not.toContain("playing")
+    expect((await readProbe(page)).audioContext.activeGeneratorSources).toBe(0)
+  } finally {
+    if (stateHistoryStarted) await finishPlaybackStateHistory(page)
+    await releaseHeldStartupPhase(page)
+  }
+})
+
+test("latest request wins when Stop occurs during provider decode", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "Deterministic startup timing coverage runs in desktop Chromium.")
+  await installMediaOwnershipFakes(page, { holdPhase: "provider-decode" })
+  let stateHistoryStarted = false
+  try {
+    const play = await openStation(page, {
+      category: "Treatment room starters",
+      id: "observable-streams-probe",
+      title: "Observable Streams",
+    })
+    await play.click()
+    await waitForStartupPhase(page, "provider-decode")
+    const player = page.getByTestId("music-player-toolbar")
+    await expect(player).toHaveAttribute("data-playback-state", "loading")
+    await invokeMediaAction(page, "stop")
+    await expect(player).toHaveAttribute("data-playback-state", "stopped")
+    await beginPlaybackStateHistory(page)
+    stateHistoryStarted = true
+    await releaseHeldStartupPhase(page)
+    await page.waitForTimeout(1_800)
+    const states = await finishPlaybackStateHistory(page)
+    stateHistoryStarted = false
+    expect(states).not.toContain("playing")
+    expect((await readProbe(page)).audioContext.activeGeneratorSources).toBe(0)
+  } finally {
+    if (stateHistoryStarted) await finishPlaybackStateHistory(page)
+    await releaseHeldStartupPhase(page)
+  }
+})
+
+for (const phase of ["piece-activation", "scheduling"] as const) {
+  test(`latest request wins when Stop occurs during ${phase}`, async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop-chromium", "Deterministic startup timing coverage runs in desktop Chromium.")
+    await installMediaOwnershipFakes(page, { stopAtPhase: phase })
+    const play = await openStation(page, {
+      category: "Treatment room starters",
+      id: "observable-streams-probe",
+      title: "Observable Streams",
+    })
+    await beginPlaybackStateHistory(page)
+    await play.click()
+    await waitForStartupPhase(page, phase)
+    const player = page.getByTestId("music-player-toolbar")
+    await expect(player).toHaveAttribute("data-playback-state", "stopped")
+    await page.waitForTimeout(1_800)
+    const states = await finishPlaybackStateHistory(page)
+    expect(states).not.toContain("playing")
+    const probe = await readProbe(page)
+    expect(probe.audioContext.activeGeneratorSources).toBe(0)
+    if (probe.audioContext.generatorStarts > 0) {
+      expect(probe.audioContext.generatorTeardowns).toBeGreaterThan(0)
+    }
+  })
+}
+
+const startupMeasurementStations = [
+  {
+    category: "Treatment room starters",
+    id: "observable-streams-probe",
+    requestPathFragment: "/atmosphere/observable-streams-vsco-adaptation/",
+    pieceId: "observable-streams",
+    title: "Observable Streams",
+  },
+  {
+    category: "Piano, bells, and mallets",
+    id: "generative-fm-little-bells",
+    requestPathFragment: "/atmosphere/generative-fm/little-bells/",
+    pieceId: "little-bells",
+    title: "Little Bells",
+  },
+  {
+    category: "Rhythm and experimental texture",
+    id: "generative-fm-moment",
+    requestPathFragment: "/atmosphere/generative-fm/moment/",
+    pieceId: "moment",
+    title: "Moment",
+  },
+] as const
+
+for (const station of startupMeasurementStations) {
+  test(`startup timing records fresh-context cold and same-context warm ${station.pieceId}`, async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop-chromium", "Measurements are intentionally limited to desktop Chromium.")
+    test.setTimeout(150_000)
+    await installMediaOwnershipFakes(page)
+    const audioRequests: string[] = []
+    page.on("request", (request) => {
+      if (/\/(?:audio\/)?atmosphere\//i.test(request.url())) audioRequests.push(request.url())
+    })
+    const play = await openStation(page, station)
+    const player = page.getByTestId("music-player-toolbar")
+
+    const runs: Array<Record<string, unknown>> = []
+    for (const temperature of ["cold", "warm"] as const) {
+      const previousTimings = (await readProbe(page)).startup.timings
+        .filter((timing) => timing.stationId === station.id).length
+      const requestStart = temperature === "cold" ? 0 : audioRequests.length
+      const runPlay = temperature === "cold"
+        ? play
+        : player.getByRole("button", { name: "Play", exact: true })
+      await runPlay.click()
+      await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 60_000 })
+      const result = await waitForStationTiming(page, station.id, previousTimings)
+      expect(result.carrier).toMatchObject({ sameInitiatingTurn: true })
+      expect(result.timing).toMatchObject({ pieceId: station.pieceId, stationId: station.id })
+      for (const field of [
+        "prepareWaitMs",
+        "toneStartMs",
+        "pieceActivateMs",
+        "scheduleMs",
+        "totalMs",
+        "sampleRequestBatchCount",
+        "sampleRequestCount",
+        "sampleRequestMemoryHitUrlCount",
+      ] as const) {
+        expect(Number.isFinite(result.timing?.[field])).toBe(true)
+        expect(Number(result.timing?.[field])).toBeGreaterThanOrEqual(0)
+      }
+      const runRequests = audioRequests.slice(requestStart)
+        .filter((url) => url.includes(station.requestPathFragment))
+      runs.push({
+        carrierCallLatencyMs: result.carrier?.latencyMs,
+        networkIndexRequestCount: runRequests.filter((url) => /sample-index[^/]*\.json/i.test(url)).length,
+        networkSampleRequestCount: runRequests.filter((url) => !/sample-index[^/]*\.json/i.test(url)).length,
+        temperature,
+        timing: result.timing,
+      })
+      await player.getByRole("button", { name: "Stop", exact: true }).click()
+      await expect(player).toHaveAttribute("data-playback-state", "stopped")
+      await expect.poll(async () => (await readProbe(page)).audioContext.activeGeneratorSources, {
+        timeout: 10_000,
+      }).toBe(0)
+    }
+
+    const warmTiming = runs[1]?.timing as Record<string, unknown> | undefined
+    expect(Number(warmTiming?.sampleRequestMemoryHitUrlCount)).toBeGreaterThan(0)
+    console.log(`ATMOSPHERE_STARTUP_MEASUREMENT ${JSON.stringify({ station: station.pieceId, runs })}`)
+  })
 }
 
 test("Playing publishes complete metadata and all five actions while Pause retains and Stop dismisses ownership", async ({ page }) => {
