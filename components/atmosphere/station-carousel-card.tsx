@@ -119,9 +119,6 @@ export function AtmosphereStationCarouselCard({
                 void music.playStation(station.id)
               }}
               onFocus={() => prewarmStation(station.id)}
-              onPointerDown={() => {
-                if (!isActive) prewarmStation(station.id)
-              }}
               size="sm"
               variant="glow"
             >

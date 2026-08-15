@@ -3038,6 +3038,14 @@ html[data-theme-transition-fallback="toggle-light"]::before {
   }
 }
 
+[aria-label="Station carousel"][data-carousel-ready="false"]
+[data-carousel-primary-action],
+[aria-label="Station carousel"][data-carousel-ready="false"]
+[data-carousel-favorite-action] {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 @media (max-width: 639px) {
   [data-anatomy-browser-toolbar][data-compact="true"] [data-anatomy-search-label] {
     position: absolute;

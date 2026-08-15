@@ -790,6 +790,42 @@ async function startProofStation(page: Page) {
   return page.getByTestId("music-player-toolbar")
 }
 
+for (const activation of ["tap", "click", "keyboard"] as const) {
+  test(`first station Play activation accepts one ${activation} command after carousel readiness`, async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile-chromium", "First-action coverage runs in mobile Chromium.")
+    await installMediaOwnershipFakes(page)
+    await page.goto("/music", { waitUntil: "domcontentloaded" })
+
+    const carousel = page.getByRole("region", { name: "Station carousel" })
+    await expect(carousel).toHaveAttribute("data-carousel-ready", "true")
+    const play = carousel.locator("[data-carousel-primary-action]:not([disabled])").first()
+    const toolbar = page.getByTestId("music-player-toolbar")
+    await expect(play).toBeVisible()
+    await beginPlaybackStateHistory(page)
+
+    try {
+      if (activation === "tap") await play.tap()
+      if (activation === "click") await play.click()
+      if (activation === "keyboard") {
+        await play.focus()
+        await page.keyboard.press("Enter")
+      }
+
+      await expect.poll(async () => (await readProbe(page)).audio.playCalls).toBe(1)
+      await expect(toolbar).toHaveAttribute("data-playback-state", /loading|playing/)
+      await expect(toolbar.getByRole("button", { name: "Stop", exact: true })).toBeVisible()
+      await expect.poll(async () => (await readProbe(page)).audioContext.generatorGeneration)
+        .toBeGreaterThan(0)
+      const firstGeneratorGeneration = (await readProbe(page)).audioContext.generatorGeneration
+      await page.waitForTimeout(250)
+      expect((await readProbe(page)).audioContext.generatorGeneration).toBe(firstGeneratorGeneration)
+    } finally {
+      const history = await finishPlaybackStateHistory(page)
+      expect(history).not.toContain("stopped-after-accepted-play")
+    }
+  })
+}
+
 async function closeInterruptionNotice(page: Page) {
   const notice = page.getByRole("region", { name: "Interruption preference" })
   if (await notice.isVisible()) {

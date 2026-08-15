@@ -904,6 +904,21 @@ test("Breathing guide route runs separately from Music stations", async ({ page 
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
+test("first station Play activation stays hidden before carousel readiness", async ({ browser }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "Mobile Chromium owns the first-action contract.")
+  const context = await browser.newContext({ javaScriptEnabled: false })
+  const page = await context.newPage()
+  try {
+    await page.goto("/music", { waitUntil: "domcontentloaded" })
+    const carousel = page.getByRole("region", { name: "Station carousel" })
+    await expect(carousel).toHaveAttribute("data-carousel-ready", "false")
+    await expect(carousel.locator("[data-carousel-primary-action]").first()).toHaveCSS("visibility", "hidden")
+    await expect(carousel.locator("[data-carousel-favorite-action]").first()).toHaveCSS("visibility", "hidden")
+  } finally {
+    await context.close()
+  }
+})
+
 test("center station details support swipe and short tap while actions stay protected", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile-chromium", "Touch carousel behavior is covered in mobile Chromium.")
   await page.setViewportSize({ width: 390, height: 844 })
@@ -927,7 +942,7 @@ test("center station details support swipe and short tap while actions stay prot
   const proof = await centerCarouselItem(page, "mlab-proof-drone", "Next station")
   const protectedCenterId = await proof.getAttribute("data-carousel-item-id")
   const playButton = proof.getByRole("button", { name: /^Play MassageLab Proof Drone$/i })
-  const pointerPrewarmAbortCount = await playButton.evaluate(async (button) => {
+  await playButton.evaluate(async (button) => {
     const textNode = Array.from(button.childNodes).find((node) => (
       node.nodeType === Node.TEXT_NODE && node.textContent?.trim() === "Play"
     ))
@@ -937,40 +952,9 @@ test("center station details support swipe and short tap while actions stay prot
     const startX = box.left + box.width * 0.75
     const startY = box.top + box.height * 0.5
 
-    const dispatchPointer = (type: "pointerdown" | "pointercancel", pointerId: number) => {
-      textNode.dispatchEvent(new PointerEvent(type, {
-        bubbles: true,
-        button: 0,
-        buttons: type === "pointerdown" ? 1 : 0,
-        cancelable: true,
-        clientX: startX,
-        clientY: startY,
-        isPrimary: true,
-        pointerId,
-        pointerType: "mouse",
-      }))
-    }
-
-    // A first pointerdown establishes the current prewarm controller. The
-    // second must reach the Play button's React onPointerDown handler and abort it.
-    dispatchPointer("pointerdown", 41)
-    dispatchPointer("pointercancel", 41)
-    const originalAbort = AbortController.prototype.abort
-    let abortCount = 0
-    try {
-      AbortController.prototype.abort = function (reason?: unknown) {
-        abortCount += 1
-        return originalAbort.call(this, reason)
-      }
-      dispatchPointer("pointerdown", 42)
-      dispatchPointer("pointercancel", 42)
-    } finally {
-      AbortController.prototype.abort = originalAbort
-    }
-
     // Keep the MouseEvent sequence because Embla's watchDrag gate consumes
-    // MouseEvent | TouchEvent. Starting on the label preserves the Text-node
-    // target that previously bypassed interactive-control drag protection.
+    // MouseEvent | TouchEvent. Starting on the label proves drag protection
+    // still applies without the primary button's former pointerdown warmup.
     textNode.dispatchEvent(new MouseEvent("mousedown", {
       bubbles: true,
       button: 0,
@@ -1000,9 +984,7 @@ test("center station details support swipe and short tap while actions stay prot
       clientY: startY,
       view: window,
     }))
-    return abortCount
   })
-  expect(pointerPrewarmAbortCount).toBeGreaterThan(0)
   await expect.poll(async () => page.locator('[data-carousel-slide][data-centered="true"]').getAttribute("data-carousel-item-id"))
     .toBe(protectedCenterId)
 
