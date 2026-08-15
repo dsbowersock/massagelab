@@ -1102,7 +1102,7 @@ test("same-motif ring stations render different stable artwork bytes", async ({ 
   expect(await sha256(documentaryFilms)).not.toBe(await sha256(proofDrone))
 })
 
-test("same-motif seed-line stations render different stable artwork bytes", async ({ request }) => {
+test("same-motif honeycomb stations render different stable artwork bytes", async ({ request }) => {
   const trees = await request.get("/api/atmosphere/stations/generative-fm-trees/artwork")
   const impact = await request.get("/api/atmosphere/stations/generative-fm-impact/artwork")
 
