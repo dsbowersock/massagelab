@@ -97,6 +97,82 @@ test("AudioContext is the specific interruption fallback when Audio Session is a
   assert.equal(monitor.isInterrupted(), false)
 })
 
+test("Audio Session recovers only from active, never inactive or visibility alone", () => {
+  const audioSession = createEventTargetFake({ state: "active", type: "auto" })
+  const documentTarget = createEventTargetFake({ hidden: false, visibilityState: "visible" })
+  const callbacks = createCallbacks()
+  const monitor = createAtmosphereInterruptionMonitor({
+    audioSession,
+    audioContext: undefined,
+    carrier: createEventTargetFake(),
+    documentTarget,
+    ...callbacks,
+  })
+
+  monitor.start()
+  audioSession.state = "interrupted"
+  audioSession.emit("statechange")
+  audioSession.state = "inactive"
+  audioSession.emit("statechange")
+
+  assert.deepEqual(callbacks.calls, { interrupted: 1, recovered: 0, ambiguous: 0 })
+  assert.equal(monitor.isInterrupted(), true)
+
+  documentTarget.hidden = true
+  documentTarget.visibilityState = "hidden"
+  documentTarget.emit("visibilitychange")
+  documentTarget.hidden = false
+  documentTarget.visibilityState = "visible"
+  documentTarget.emit("visibilitychange")
+
+  assert.deepEqual(callbacks.calls, { interrupted: 1, recovered: 0, ambiguous: 0 })
+  assert.equal(monitor.isInterrupted(), true)
+
+  audioSession.state = "active"
+  audioSession.emit("statechange")
+  assert.deepEqual(callbacks.calls, { interrupted: 1, recovered: 1, ambiguous: 0 })
+  assert.equal(monitor.isInterrupted(), false)
+})
+
+test("AudioContext recovers only from running, never suspended, closed, or visibility alone", () => {
+  const audioContext = createEventTargetFake({ state: "running" })
+  const documentTarget = createEventTargetFake({ hidden: false, visibilityState: "visible" })
+  const callbacks = createCallbacks()
+  const monitor = createAtmosphereInterruptionMonitor({
+    audioSession: undefined,
+    audioContext,
+    carrier: createEventTargetFake(),
+    documentTarget,
+    ...callbacks,
+  })
+
+  monitor.start()
+  audioContext.state = "interrupted"
+  audioContext.emit("statechange")
+  audioContext.state = "suspended"
+  audioContext.emit("statechange")
+
+  assert.deepEqual(callbacks.calls, { interrupted: 1, recovered: 0, ambiguous: 0 })
+  assert.equal(monitor.isInterrupted(), true)
+
+  documentTarget.hidden = true
+  documentTarget.visibilityState = "hidden"
+  documentTarget.emit("visibilitychange")
+  documentTarget.hidden = false
+  documentTarget.visibilityState = "visible"
+  documentTarget.emit("visibilitychange")
+  audioContext.state = "closed"
+  audioContext.emit("statechange")
+
+  assert.deepEqual(callbacks.calls, { interrupted: 1, recovered: 0, ambiguous: 0 })
+  assert.equal(monitor.isInterrupted(), true)
+
+  audioContext.state = "running"
+  audioContext.emit("statechange")
+  assert.deepEqual(callbacks.calls, { interrupted: 1, recovered: 1, ambiguous: 0 })
+  assert.equal(monitor.isInterrupted(), false)
+})
+
 test("carrier external pause is ambiguous without a current specific signal", () => {
   const carrier = createEventTargetFake()
   const callbacks = createCallbacks()
