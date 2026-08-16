@@ -114,10 +114,21 @@ export async function getUserAuthState(userId: string) {
     await ensureVerifiedUserBackgroundCredits(prisma, userId)
   }
 
-  if (user?.email && isAdminEmail(user.email) && !roles.includes("ADMIN")) {
+  const hasVerifiedAdminRole = roleAssignments.some((assignment) => (
+    assignment.role === "ADMIN" && assignment.status === "VERIFIED"
+  ))
+  if (user?.email && isAdminEmail(user.email) && !hasVerifiedAdminRole) {
     await ensureUserRole(userId, user.email)
-    roles.push("ADMIN")
-    roleAssignments.push({ role: "ADMIN", status: "VERIFIED" })
+    const persistedAdminRole = await prisma.userRole.findUnique({
+      where: { userId_role: { userId, role: "ADMIN" } },
+      select: { role: true, status: true },
+    })
+    if (persistedAdminRole?.role === "ADMIN" && persistedAdminRole.status === "VERIFIED") {
+      if (!roles.includes(persistedAdminRole.role)) {
+        roles.push(persistedAdminRole.role)
+      }
+      roleAssignments.push(persistedAdminRole)
+    }
   }
   const adminAccess = roleAssignments.some((assignment) => (
     assignment.role === "ADMIN" && assignment.status === "VERIFIED"

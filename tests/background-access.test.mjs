@@ -42,6 +42,8 @@ function createAccessDatabase({
         record("user")
         state.userQuery = query
         const roleFilter = query?.select?.roles?.where
+        // Only satisfy the durable ADMIN + VERIFIED query so weakened
+        // authorization predicates fail the verified-admin tests.
         const matchesRequestedRole = state.adminRole
           && roleFilter?.role === state.adminRole.role
           && roleFilter?.status === state.adminRole.status

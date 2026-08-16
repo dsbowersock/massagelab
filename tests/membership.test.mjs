@@ -71,6 +71,25 @@ describe("Membership and entitlement helpers", () => {
     assert.doesNotMatch(authUsersSource, /temporaryFeatureGrant[\s\S]*take:/)
   })
 
+  it("reloads a repaired Admin role before granting request-time features", () => {
+    assert.match(
+      authUsersSource,
+      /await ensureUserRole\(userId, user\.email\)[\s\S]*await prisma\.userRole\.findUnique\([\s\S]*userId_role:[\s\S]*role: "ADMIN"/,
+    )
+    assert.match(
+      authUsersSource,
+      /persistedAdminRole\?\.role === "ADMIN" && persistedAdminRole\.status === "VERIFIED"/,
+    )
+    assert.match(
+      authUsersSource,
+      /hasVerifiedAdminRole[\s\S]*assignment\.role === "ADMIN" && assignment\.status === "VERIFIED"[\s\S]*!hasVerifiedAdminRole/,
+    )
+    assert.doesNotMatch(
+      authUsersSource,
+      /roleAssignments\.push\(\{ role: "ADMIN", status: "VERIFIED" \}\)/,
+    )
+  })
+
   it("grants one active temporary feature and records its request-time expiration source", () => {
     const entitlements = buildEntitlements({
       subscriptions: [],
