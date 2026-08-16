@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test"
+import { withPlayerViewportCollisionPadding } from "../../components/ui/use-player-viewport-insets"
 import { centerCarouselItem } from "./carousel-test-helpers"
 
 const desktopProject = "desktop-chromium"
@@ -1037,6 +1038,162 @@ test("compact landscape player rail keeps portrait bottom geometry and exposes o
   expectMusicRailOverflowBounded(await readMusicRailOverflow(toolbar))
 })
 
+test("player rail keeps overlays clear of dialog, sheet, tooltip, and interruption notice", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== mobileProject, "Compact-landscape overlay geometry is covered in mobile Chromium.")
+  await installInterruptionNoticeMediaFakes(page)
+  await page.setViewportSize({ width: 844, height: 390 })
+  const toolbar = await startProofDrone(page)
+  await expect(toolbar).toHaveAttribute("data-layout", "rail")
+  const geometryReceipt: Array<Record<string, number | string>> = []
+
+  const expectClearOfRail = async (surface: Locator, label: string) => {
+    const [rail, surfaceBox] = await Promise.all([toolbar.boundingBox(), surface.boundingBox()])
+    expect(rail, `${label} rail box`).not.toBeNull()
+    expect(surfaceBox, `${label} surface box`).not.toBeNull()
+    expect.soft(
+      (surfaceBox?.x ?? Number.POSITIVE_INFINITY) + (surfaceBox?.width ?? 0),
+      `${label} right edge`,
+    ).toBeLessThanOrEqual((rail?.x ?? Number.NEGATIVE_INFINITY) + 1)
+    geometryReceipt.push({
+      label,
+      railLeft: rail?.x ?? Number.NaN,
+      surfaceRight: (surfaceBox?.x ?? Number.NaN) + (surfaceBox?.width ?? 0),
+    })
+  }
+
+  const notice = page.getByTestId("music-interruption-notice")
+  await expect(notice).toBeVisible()
+  await expectClearOfRail(notice, "interruption notice")
+
+  const settingsTrigger = toolbar.getByRole("button", { name: "Player settings" })
+  await settingsTrigger.click()
+  const settings = page.getByRole("menu")
+  await expect(settings).toBeVisible()
+  await expectClearOfRail(settings, "player settings")
+  await page.keyboard.press("Escape")
+
+  const proofDrone = page.getByRole("group", { name: /MassageLab Proof Drone/ })
+  const stationDetailsTrigger = proofDrone.getByRole("button", {
+    name: /Show full information for MassageLab Proof Drone/i,
+  })
+  await stationDetailsTrigger.focus()
+  await page.keyboard.press("Enter")
+  const stationDialog = page.getByRole("dialog", { name: "MassageLab Proof Drone" })
+  await expect(stationDialog).toBeVisible()
+  await expectClearOfRail(stationDialog, "station dialog")
+  await stationDialog.getByRole("button", { name: "Close" }).click()
+
+  const previousStation = toolbar.getByRole("button", { name: "Previous station" })
+  await previousStation.hover()
+  const tooltip = page.getByRole("tooltip", { name: "Previous station" })
+  await expect(tooltip).toBeVisible()
+  await expectClearOfRail(tooltip, "player tooltip")
+  await page.mouse.move(1, 1)
+
+  // Returning to portrait clears the rail inset and restores ordinary viewport
+  // centering for the same shared Dialog component.
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(toolbar).toHaveAttribute("data-layout", "bottom")
+  await stationDetailsTrigger.focus()
+  await page.keyboard.press("Enter")
+  await expect(stationDialog).toBeVisible()
+  const portraitDialog = await stationDialog.boundingBox()
+  expect(portraitDialog, "portrait station dialog box").not.toBeNull()
+  const portraitCenter = (portraitDialog?.x ?? 0) + (portraitDialog?.width ?? 0) / 2
+  expect(portraitCenter).toBeCloseTo(195, 0)
+  geometryReceipt.push({ label: "portrait station dialog", surfaceCenter: portraitCenter, viewportCenter: 195 })
+  await stationDialog.getByRole("button", { name: "Close" }).click()
+
+  // The portrait drawer is the existing right Sheet fixture. Supplying the
+  // inherited exclusion directly isolates the shared Sheet contract from the
+  // shell's mutually exclusive portrait-drawer/landscape-rail render modes.
+  await page.evaluate(() => localStorage.setItem("massage-lab-settings", JSON.stringify({
+    appBarPosition: "bottom", sidebarPosition: "right", sidebarTriggerPosition: "bottom", themeMode: "dark",
+  })))
+  await page.reload({ waitUntil: "domcontentloaded" })
+  await expect(page.locator(".ml-main-bar-drawer-brand")).toHaveAttribute("data-drawer-edge", "right")
+  await page.locator("body").evaluate((body) => {
+    body.style.setProperty("--ml-player-right-safe", "112px")
+  })
+  const openNavigation = page.getByRole("button", { name: "Open navigation" })
+  await openNavigation.click()
+  const rightSheet = page.locator('[data-sidebar="sidebar"][data-mobile="true"]')
+  await expect(rightSheet).toBeVisible()
+  await expect.poll(async () => {
+    const sheetBox = await rightSheet.boundingBox()
+    return (sheetBox?.x ?? Number.POSITIVE_INFINITY) + (sheetBox?.width ?? 0)
+  }).toBeLessThanOrEqual(279)
+  const sheetBox = await rightSheet.boundingBox()
+  geometryReceipt.push({
+    label: "right navigation sheet",
+    surfaceRight: (sheetBox?.x ?? Number.NaN) + (sheetBox?.width ?? 0),
+    usableRight: 278,
+  })
+  await page.keyboard.press("Escape")
+  await testInfo.attach("task-5-core-geometry.json", {
+    body: JSON.stringify(geometryReceipt, null, 2),
+    contentType: "application/json",
+  })
+})
+
+test("player rail keeps overlays clear in the popover fixture", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== mobileProject, "Compact-landscape overlay geometry is covered in mobile Chromium.")
+  // The development gallery is the existing real Popover fixture. Positioning
+  // its trigger at the physical right edge makes the inherited exclusion
+  // observable without adding test-only production components.
+  await page.setViewportSize({ width: 844, height: 390 })
+  const response = await page.goto("/dev/buttons", { waitUntil: "domcontentloaded" })
+  test.skip(response?.status() === 404, "The real Popover fixture is intentionally development-only.")
+  await expect(page.getByRole("heading", { name: "Control system review" })).toBeVisible()
+  await page.locator("body").evaluate((body) => {
+    body.style.setProperty("--ml-player-right-safe", "320px")
+  })
+  await page.getByRole("tab", { name: "Navigation & surfaces" }).click()
+  const popoverTrigger = page.getByRole("button", { name: "Open popover" })
+  await popoverTrigger.evaluate((trigger) => {
+    trigger.style.position = "fixed"
+    trigger.style.right = "0"
+    trigger.style.top = "96px"
+    trigger.style.zIndex = "100"
+  })
+  await popoverTrigger.click()
+  const popover = page.getByText("Shared popover surface").locator("..")
+  await expect(popover).toBeVisible()
+  const popoverBox = await popover.boundingBox()
+  expect(popoverBox, "popover fixture box").not.toBeNull()
+  expect.soft(
+    (popoverBox?.x ?? Number.POSITIVE_INFINITY) + (popoverBox?.width ?? 0),
+    "popover right edge",
+  ).toBeLessThanOrEqual(525)
+  await testInfo.attach("task-5-popover-geometry.json", {
+    body: JSON.stringify({
+      surfaceRight: (popoverBox?.x ?? Number.NaN) + (popoverBox?.width ?? 0),
+      usableRight: 524,
+    }, null, 2),
+    contentType: "application/json",
+  })
+})
+
+test("player rail keeps overlays clear while preserving caller collision padding", () => {
+  expect(withPlayerViewportCollisionPadding(undefined, 20)).toEqual({
+    top: 8, right: 28, bottom: 8, left: 8,
+  })
+  expect(withPlayerViewportCollisionPadding(5, 20)).toEqual({
+    top: 5, right: 25, bottom: 5, left: 5,
+  })
+  expect(withPlayerViewportCollisionPadding(
+    { top: 1, right: 2, bottom: 3, left: 4 },
+    20,
+  )).toEqual({ top: 1, right: 22, bottom: 3, left: 4 })
+  expect(withPlayerViewportCollisionPadding({ top: 0, bottom: 6 }, 20)).toEqual({
+    top: 0, right: 20, bottom: 6,
+  })
+  expect(withPlayerViewportCollisionPadding(
+    { top: 1, right: 2, bottom: 3, left: 4 },
+    0,
+  )).toEqual({ top: 1, right: 2, bottom: 3, left: 4 })
+})
+
 test("carousel fits compact landscape rail", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== mobileProject, "Compact-landscape carousel geometry is covered in mobile Chromium.")
   await page.addInitScript(() => {
@@ -1487,15 +1644,19 @@ test("Atmosphere interruption notice clears the toolbar in short landscape", asy
       bodyOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
       controlsOverflow: controlElement.scrollWidth - controlElement.clientWidth,
       noticeBottom: noticeBox.bottom,
-      toolbarTop: toolbarBox.top,
       noticeLeft: noticeBox.left,
       noticeRight: noticeBox.right,
+      noticeTop: noticeBox.top,
+      toolbarLeft: toolbarBox.left,
+      viewportHeight: window.innerHeight,
       viewportWidth: window.innerWidth,
     }
   })
-  expect(geometry.noticeBottom).toBeLessThanOrEqual(geometry.toolbarTop)
+  expect(geometry.noticeRight).toBeLessThanOrEqual(geometry.toolbarLeft)
   expect(geometry.bodyOverflow).toBeLessThanOrEqual(0)
   expect(geometry.controlsOverflow).toBeLessThanOrEqual(0)
+  expect(geometry.noticeTop).toBeGreaterThanOrEqual(0)
+  expect(geometry.noticeBottom).toBeLessThanOrEqual(geometry.viewportHeight)
   expect(geometry.noticeLeft).toBeGreaterThanOrEqual(0)
   expect(geometry.noticeRight).toBeLessThanOrEqual(geometry.viewportWidth)
   await expect(controls.locator("[aria-label]")).toHaveCount(8)

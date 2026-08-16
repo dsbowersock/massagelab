@@ -249,7 +249,7 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
         </TooltipTrigger>
         <TooltipContent>Player settings</TooltipContent>
       </Tooltip>
-      <DropdownMenuContent align="end" className="min-w-56 border-border bg-card">
+      <DropdownMenuContent align="start" side="left" className="min-w-56 border-border bg-card">
         <DropdownMenuCheckboxItem
           checked={music.resumeAfterInterruptionDefault}
           disabled={!music.mediaIntegrationAvailable}

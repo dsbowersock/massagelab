@@ -63,7 +63,8 @@ const SheetContent = React.forwardRef<
     <SheetOverlay className={overlayClassName} />
     <SheetPrimitive.Content
       ref={ref}
-      className={cn(sheetVariants({ side }), className)}
+      className={cn("ml-player-viewport-safe-sheet", sheetVariants({ side }), className)}
+      data-ml-player-viewport-side={side}
       {...props}
     >
       {children}

@@ -2153,6 +2153,18 @@
     bottom: calc(100% + 0.5rem);
   }
 
+  /* Shared overlays use the CSS-owned rail inset while it is nonzero. The
+     default keeps existing viewport centering and right-edge placement. */
+  .ml-player-viewport-safe-modal {
+    left: calc((100dvw - var(--ml-player-right-safe)) / 2) !important;
+    max-width: min(32rem, max(0px, calc(100dvw - var(--ml-player-right-safe)))) !important;
+  }
+
+  .ml-player-viewport-safe-sheet[data-ml-player-viewport-side="right"] {
+    max-width: max(0px, calc(100dvw - var(--ml-player-right-safe))) !important;
+    right: var(--ml-player-right-safe) !important;
+  }
+
   @media (max-width: 39.999rem) {
     /* Keep the edge rule visual-only so it cannot subtract from the grid. */
     .ml-music-player-toolbar[data-placement="top"] .ml-music-player-toolbar-surface {
@@ -2176,6 +2188,14 @@
 
     body.ml-music-player-active.ml-music-player-music-route .ml-app-scroll {
       overflow: hidden;
+    }
+
+    body.ml-music-player-active.ml-music-player-music-route .ml-music-interruption-notice {
+      bottom: auto;
+      left: auto;
+      max-width: min(28rem, max(0px, calc(100dvw - var(--ml-player-right-safe) - 1.5rem)));
+      right: calc(100% + 0.75rem);
+      top: 0.75rem;
     }
 
     body.ml-music-player-active.ml-music-player-music-route [data-atmosphere-workspace="rails"] {
