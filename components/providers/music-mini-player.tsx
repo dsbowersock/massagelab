@@ -35,7 +35,6 @@ import {
   buildMusicVisualizerHref,
   sanitizeMusicVisualizerReturnTo,
 } from "@/lib/music-visualizer"
-import { getAtmosphereStationArtworkUrl } from "@/lib/atmosphere/station-artwork"
 import { cn } from "@/lib/utils"
 import { MusicLoadingProgress } from "./music-loading-progress"
 import { MusicInterruptionNotice } from "./music-interruption-notice"
@@ -54,9 +53,6 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
   const isCollapsed = music.miniPlayerCollapsed
   const isLoading = music.playbackState === "loading"
   const isPlayingOrLoading = music.playbackState === "playing" || isLoading
-  const activeArtworkSrc = music.activeStationId
-    ? getAtmosphereStationArtworkUrl(music.activeStationId)
-    : null
   const isVinylPlaying = music.playbackState === "playing"
   const isMusicRoute = pathname === "/music"
   const [isCompactLandscape, setIsCompactLandscape] = useState(false)
@@ -295,9 +291,9 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
     >
       <MusicInterruptionNotice placement={placement} />
       <div className="ml-music-player-toolbar-surface pointer-events-auto relative bg-card/95 shadow-2xl shadow-black/35 backdrop-blur">
-        {activeArtworkSrc ? (
+        {music.activeStationArtwork ? (
           <div className="ml-station-vinyl-layer" aria-hidden="true">
-            <StationVinyl artworkSrc={activeArtworkSrc} playing={isVinylPlaying} />
+            <StationVinyl artworkInput={music.activeStationArtwork} playing={isVinylPlaying} />
           </div>
         ) : null}
         <TooltipProvider>

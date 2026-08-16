@@ -1,8 +1,20 @@
+import { ATMOSPHERE_STATION_GROUP_DEFINITIONS } from "./station-groups.js"
+
 export type AtmosphereStationArtworkInput = {
   description: string
   groupId: string
   stationId: string
   title: string
+}
+
+export type AtmosphereStationArtworkSize = 256 | 512
+
+type AtmosphereStationArtworkSource = {
+  description?: unknown
+  groupId?: unknown
+  id?: unknown
+  stationId?: unknown
+  title?: unknown
 }
 
 export type ArtworkPalette = {
@@ -37,19 +49,47 @@ export function getAtmosphereStationArtworkModel(input: AtmosphereStationArtwork
   }
 }
 
-/** Serializes the canonical 240px station image with stable element ordering. */
+/**
+ * Resolves catalog and runtime station shapes to the one canonical artwork
+ * input, keeping group fallback and validation out of presentation adapters.
+ */
+export function resolveAtmosphereStationArtworkInput(
+  source: AtmosphereStationArtworkSource,
+  groupId?: string,
+): AtmosphereStationArtworkInput | null {
+  const stationId = nonEmptyString(source.stationId) ?? nonEmptyString(source.id)
+  const title = nonEmptyString(source.title)
+  const description = nonEmptyString(source.description)
+  if (!stationId || !title || !description) return null
+
+  const resolvedGroupId = nonEmptyString(groupId)
+    ?? nonEmptyString(source.groupId)
+    ?? ATMOSPHERE_STATION_GROUP_DEFINITIONS.find((group) => group.stationIds.includes(stationId))?.id
+    ?? "more-stations"
+
+  return { description, groupId: resolvedGroupId, stationId, title }
+}
+
+/** Serializes the canonical station image with stable element ordering. */
 export function renderAtmosphereStationArtworkSvg(input: AtmosphereStationArtworkInput): string {
   const { motif, palette, seed } = getAtmosphereStationArtworkModel(input)
   const idPrefix = escapeXml(`station-art-${input.stationId.replace(/[^a-z0-9-]/gi, "-")}`)
   const shadeId = `${idPrefix}-shade`
   const clipId = `${idPrefix}-clip`
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240"><defs><linearGradient id="${shadeId}" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="${palette.background}"/><stop offset="100%" stop-color="${shadeHex(palette.background, -16)}"/></linearGradient><clipPath id="${clipId}"><rect height="240" rx="10" width="240"/></clipPath></defs><g clip-path="url(#${clipId})"><rect fill="url(#${shadeId})" height="240" width="240"/>${renderMotifSvg(motif, palette, seed)}${renderSeedSignature(palette, seed)}<rect fill="none" height="218" opacity="0.5" stroke="${palette.line}" stroke-width="1.5" width="218" x="11" y="11"/></g></svg>`
+  return `<svg xmlns="http://www.w3.org/2000/svg" height="240" viewBox="0 0 240 240" width="240"><defs><linearGradient id="${shadeId}" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="${palette.background}"/><stop offset="100%" stop-color="${shadeHex(palette.background, -16)}"/></linearGradient><clipPath id="${clipId}"><rect height="240" rx="10" width="240"/></clipPath></defs><g clip-path="url(#${clipId})"><rect fill="url(#${shadeId})" height="240" width="240"/>${renderMotifSvg(motif, palette, seed)}${renderSeedSignature(palette, seed)}<rect fill="none" height="218" opacity="0.5" stroke="${palette.line}" stroke-width="1.5" width="218" x="11" y="11"/></g></svg>`
 }
 
-/** Returns the shared same-origin artwork endpoint for a station id. */
-export function getAtmosphereStationArtworkUrl(stationId: string): string {
-  return `/api/atmosphere/stations/${encodeURIComponent(stationId)}/artwork`
+/** Returns an honest same-origin PNG endpoint for one allowlisted output size. */
+export function getAtmosphereStationArtworkUrl(
+  stationId: string,
+  size: AtmosphereStationArtworkSize,
+): string {
+  return `/api/atmosphere/stations/${encodeURIComponent(stationId)}/artwork?size=${size}`
+}
+
+function nonEmptyString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value : null
 }
 
 function chooseMotif(text: string, seed: number): ArtworkMotif {

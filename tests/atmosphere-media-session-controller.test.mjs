@@ -81,7 +81,12 @@ test("publishes constructed station metadata, indefinite position state, and all
     album: "MassageLab Atmosphere",
     artwork: [
       {
-        src: "/api/atmosphere/stations/quiet-current/artwork",
+        src: "/api/atmosphere/stations/quiet-current/artwork?size=256",
+        sizes: "256x256",
+        type: "image/png",
+      },
+      {
+        src: "/api/atmosphere/stations/quiet-current/artwork?size=512",
         sizes: "512x512",
         type: "image/png",
       },
@@ -94,7 +99,12 @@ test("publishes constructed station metadata, indefinite position state, and all
     album: "MassageLab Atmosphere",
     artwork: [
       {
-        src: "/api/atmosphere/stations/quiet-current/artwork",
+        src: "/api/atmosphere/stations/quiet-current/artwork?size=256",
+        sizes: "256x256",
+        type: "image/png",
+      },
+      {
+        src: "/api/atmosphere/stations/quiet-current/artwork?size=512",
         sizes: "512x512",
         type: "image/png",
       },

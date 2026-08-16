@@ -1,7 +1,14 @@
 import { expect, test, type APIResponse, type Locator, type Page, type Route } from "@playwright/test"
 import { createHash } from "node:crypto"
 import { readdir, readFile } from "node:fs/promises"
-import { getVisibleAtmosphereStations } from "../../lib/atmosphere/stations.js"
+import {
+  renderAtmosphereStationArtworkSvg,
+  resolveAtmosphereStationArtworkInput,
+} from "../../lib/atmosphere/station-artwork.ts"
+import {
+  getAtmosphereStationById,
+  getVisibleAtmosphereStations,
+} from "../../lib/atmosphere/stations.js"
 import { centerCarouselItem } from "./carousel-test-helpers"
 
 type MediaProbe = {
@@ -71,6 +78,65 @@ type MediaOwnershipFakeOptions = {
 
 async function sha256(response: APIResponse) {
   return createHash("sha256").update(await response.body()).digest("hex")
+}
+
+function pngDimensions(body: Buffer) {
+  expect(body.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a")
+  return {
+    width: body.readUInt32BE(16),
+    height: body.readUInt32BE(20),
+  }
+}
+
+type BrowserPngDecodeSource = { url: string } | { bytes: number[] }
+
+/**
+ * Exercises the browser's actual image decoder instead of trusting PNG header
+ * metadata. Object URLs are always revoked, including on corrupt input.
+ */
+async function decodePngInBrowser(page: Page, source: BrowserPngDecodeSource) {
+  return page.evaluate(async (decodeSource) => {
+    const blob = "url" in decodeSource
+      ? await (async () => {
+          const response = await fetch(decodeSource.url, { cache: "no-store" })
+          if (!response.ok) throw new Error(`Artwork fetch failed with ${response.status}`)
+          return response.blob()
+        })()
+      : new Blob([Uint8Array.from(decodeSource.bytes)], { type: "image/png" })
+    const objectUrl = URL.createObjectURL(blob)
+    try {
+      const image = new Image()
+      image.src = objectUrl
+      await image.decode()
+      if (!image.complete || image.naturalWidth <= 0 || image.naturalHeight <= 0) {
+        throw new Error("Browser image decoder returned an incomplete PNG")
+      }
+      return {
+        bytes: blob.size,
+        height: image.naturalHeight,
+        mimeType: blob.type,
+        width: image.naturalWidth,
+      }
+    } finally {
+      URL.revokeObjectURL(objectUrl)
+    }
+  }, source)
+}
+
+async function artworkSvgHash(locator: Locator) {
+  const svg = await locator.locator("svg").evaluate((element) => element.outerHTML)
+  return createHash("sha256").update(svg).digest("hex")
+}
+
+async function canonicalArtworkHash(page: Page, stationId: string) {
+  const input = resolveAtmosphereStationArtworkInput(getAtmosphereStationById(stationId))
+  expect(input).not.toBeNull()
+  const normalizedSvg = await page.evaluate((svg) => {
+    const template = document.createElement("template")
+    template.innerHTML = svg
+    return template.content.firstElementChild?.outerHTML ?? ""
+  }, renderAtmosphereStationArtworkSvg(input!))
+  return createHash("sha256").update(normalizedSvg).digest("hex")
 }
 
 let actualRuntimeModulePathPromise: Promise<string> | null = null
@@ -1441,8 +1507,13 @@ test("Live position stays published while Playing and clears after Stop", async 
     artist: "MassageLab",
     artwork: [
       {
+        sizes: "256x256",
+        src: "/api/atmosphere/stations/mlab-proof-drone/artwork?size=256",
+        type: "image/png",
+      },
+      {
         sizes: "512x512",
-        src: "/api/atmosphere/stations/mlab-proof-drone/artwork",
+        src: "/api/atmosphere/stations/mlab-proof-drone/artwork?size=512",
         type: "image/png",
       },
     ],
@@ -1517,15 +1588,15 @@ test("Live position rejection preserves Playing metadata and all five handlers",
   await invokeMediaAction(page, "stop")
 })
 
-test("canonical station artwork returns stable distinct PNGs and matches the centered card metadata", async ({ page, request }) => {
+test("canonical station artwork renders inline immediately while the platform route publishes honest PNG sizes", async ({ page, request }) => {
   const artworkHashes = new Set<string>()
   const stations = getVisibleAtmosphereStations()
 
   for (const station of stations) {
-    const response = await request.get(`/api/atmosphere/stations/${encodeURIComponent(station.id)}/artwork`)
+    const response = await request.get(`/api/atmosphere/stations/${encodeURIComponent(station.id)}/artwork?size=256`)
     expect(response.status()).toBe(200)
     const body = Buffer.from(await response.body())
-    expect(body.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a")
+    expect(pngDimensions(body)).toEqual({ width: 256, height: 256 })
     expect(response.headers()["content-type"]).toBe("image/png")
     expect(response.headers()["cache-control"]).toContain("max-age=86400")
     artworkHashes.add(createHash("sha256").update(body).digest("hex"))
@@ -1534,36 +1605,105 @@ test("canonical station artwork returns stable distinct PNGs and matches the cen
   expect(artworkHashes.size).toBe(stations.length)
 
   for (const stationId of ["mlab-proof-drone", "generative-fm-documentary-films"]) {
-    const artworkUrl = `/api/atmosphere/stations/${encodeURIComponent(stationId)}/artwork`
+    const artworkUrl = `/api/atmosphere/stations/${encodeURIComponent(stationId)}/artwork?size=512`
     const first = await request.get(artworkUrl)
     const second = await request.get(artworkUrl)
+    expect(pngDimensions(Buffer.from(await first.body()))).toEqual({ width: 512, height: 512 })
     expect(await sha256(second)).toBe(await sha256(first))
   }
 
+  const decodePage = await page.context().newPage()
+  try {
+    await decodePage.goto("/music", { waitUntil: "domcontentloaded" })
+    for (const size of [256, 512]) {
+      await expect(decodePngInBrowser(decodePage, {
+        url: `/api/atmosphere/stations/mlab-proof-drone/artwork?size=${size}`,
+      })).resolves.toMatchObject({
+        height: size,
+        mimeType: "image/png",
+        width: size,
+      })
+    }
+    const truncatedPngHeader = [
+      137, 80, 78, 71, 13, 10, 26, 10,
+      0, 0, 0, 13, 73, 72, 68, 82,
+      0, 0, 1, 0, 0, 0, 1, 0,
+    ]
+    expect(pngDimensions(Buffer.from(truncatedPngHeader))).toEqual({ width: 256, height: 256 })
+    await expect(decodePngInBrowser(decodePage, {
+      bytes: truncatedPngHeader,
+    })).rejects.toThrow()
+  } finally {
+    await decodePage.close()
+  }
+
   await installMediaOwnershipFakes(page)
+  let artworkApiRequests = 0
+  await page.route("**/api/atmosphere/stations/**/artwork**", async (route) => {
+    artworkApiRequests += 1
+    await route.abort()
+  })
   await page.goto("/music", { waitUntil: "domcontentloaded" })
   const centered = await centerCarouselItem(page, "mlab-proof-drone", "Next station")
-  const artworkUrl = "/api/atmosphere/stations/mlab-proof-drone/artwork"
-  await expect(centered.locator("[data-carousel-artwork] img")).toHaveAttribute("src", artworkUrl)
+  const mountedCardArtwork = page.locator(
+    '[data-carousel-slide="true"]:not([data-detail-level="shell"]) [data-carousel-artwork]',
+  )
+  const mountedCardCount = await mountedCardArtwork.count()
+  expect(mountedCardCount).toBeGreaterThan(0)
+  await expect(mountedCardArtwork.locator("svg")).toHaveCount(mountedCardCount)
+  await expect(mountedCardArtwork.locator("img")).toHaveCount(0)
+  const cardArtwork = centered.locator("[data-carousel-artwork]").getByRole("img", {
+    name: "MassageLab Proof Drone station artwork",
+  })
+  await expect(cardArtwork.locator("svg")).toBeVisible()
+  await expect(centered.locator("[data-carousel-artwork] img")).toHaveCount(0)
+  expect(artworkApiRequests).toBe(0)
   await centered.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
-  await expect.poll(async () => (await readProbe(page)).mediaSession.metadata?.artwork?.[0]?.src)
-    .toBe(artworkUrl)
+  const player = page.getByTestId("music-player-toolbar")
+  const vinyl = player.getByTestId("station-vinyl")
+  await expect(vinyl.locator("svg")).toBeVisible()
+  await expect(vinyl.locator("img")).toHaveCount(0)
+  await expect.poll(() => artworkSvgHash(vinyl)).toBe(await artworkSvgHash(cardArtwork))
+  await expect.poll(async () => (await readProbe(page)).mediaSession.metadata?.artwork)
+    .toEqual([
+      {
+        sizes: "256x256",
+        src: "/api/atmosphere/stations/mlab-proof-drone/artwork?size=256",
+        type: "image/png",
+      },
+      {
+        sizes: "512x512",
+        src: "/api/atmosphere/stations/mlab-proof-drone/artwork?size=512",
+        type: "image/png",
+      },
+    ])
+  expect(artworkApiRequests).toBe(0)
 
   const unknown = await request.get("/api/atmosphere/stations/not-a-station/artwork")
   expect(unknown.status()).toBe(404)
+  const unsupportedSize = await request.get(
+    "/api/atmosphere/stations/mlab-proof-drone/artwork?size=240",
+  )
+  expect(unsupportedSize.status()).toBe(400)
+  expect(unsupportedSize.headers()["cache-control"]).toBe("no-store")
 })
 
-test("canonical station artwork failure keeps a labeled fallback while playback starts", async ({ page }) => {
+test("platform artwork route failure cannot break inline canonical art or playback", async ({ page }) => {
   await installMediaOwnershipFakes(page)
-  await page.route("**/api/atmosphere/stations/mlab-proof-drone/artwork", (route) => route.abort())
+  let artworkApiRequests = 0
+  await page.route("**/api/atmosphere/stations/**/artwork**", async (route) => {
+    artworkApiRequests += 1
+    await route.abort()
+  })
   await page.goto("/music", { waitUntil: "domcontentloaded" })
   const centered = await centerCarouselItem(page, "mlab-proof-drone", "Next station")
   await expect(centered.getByRole("img", {
-    name: "MassageLab Proof Drone station artwork unavailable",
-  })).toBeVisible()
+    name: "MassageLab Proof Drone station artwork",
+  }).locator("svg")).toBeVisible()
   await centered.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
   await expect(page.getByTestId("music-player-toolbar"))
     .toHaveAttribute("data-playback-state", /loading|playing/)
+  expect(artworkApiRequests).toBe(0)
 })
 
 test("Live position publishes while Loading and an external carrier Pause cancels held startup", async ({ page }) => {
@@ -1752,12 +1892,63 @@ test("Previous and Next retain the session preference and route changes keep one
     }).uncheck()
     await notice.getByRole("button", { name: "Close" }).click()
 
+    const proofCardArtwork = page.locator("#station-mlab-proof-drone [data-carousel-artwork]")
+    const nextArtworkHash = await canonicalArtworkHash(
+      page,
+      "generative-fm-420hz-gamma-waves-for-big-brain",
+    )
+    const proofArtworkHash = await artworkSvgHash(proofCardArtwork)
+
     await invokeMediaAction(page, "nexttrack")
-    await expect.poll(async () => (await readProbe(page)).mediaSession.metadata?.title)
-      .toBe("420hz Gamma Waves for Big Brain")
+    await expect.poll(async () => ({
+      title: await player.getByTestId("music-player-toolbar-identity").locator("p").first().textContent(),
+      vinylStationId: await player.getByTestId("station-vinyl").getAttribute("data-artwork-station-id"),
+      metadata: (await readProbe(page)).mediaSession.metadata,
+    })).toMatchObject({
+      title: "420hz Gamma Waves for Big Brain",
+      vinylStationId: "generative-fm-420hz-gamma-waves-for-big-brain",
+      metadata: {
+        title: "420hz Gamma Waves for Big Brain",
+        artwork: [
+          {
+            sizes: "256x256",
+            src: "/api/atmosphere/stations/generative-fm-420hz-gamma-waves-for-big-brain/artwork?size=256",
+            type: "image/png",
+          },
+          {
+            sizes: "512x512",
+            src: "/api/atmosphere/stations/generative-fm-420hz-gamma-waves-for-big-brain/artwork?size=512",
+            type: "image/png",
+          },
+        ],
+      },
+    })
+    expect(await artworkSvgHash(player.getByTestId("station-vinyl"))).toBe(nextArtworkHash)
     await invokeMediaAction(page, "previoustrack")
-    await expect.poll(async () => (await readProbe(page)).mediaSession.metadata?.title)
-      .toBe("MassageLab Proof Drone")
+    await expect.poll(async () => ({
+      title: await player.getByTestId("music-player-toolbar-identity").locator("p").first().textContent(),
+      vinylStationId: await player.getByTestId("station-vinyl").getAttribute("data-artwork-station-id"),
+      metadata: (await readProbe(page)).mediaSession.metadata,
+    })).toMatchObject({
+      title: "MassageLab Proof Drone",
+      vinylStationId: "mlab-proof-drone",
+      metadata: {
+        title: "MassageLab Proof Drone",
+        artwork: [
+          {
+            sizes: "256x256",
+            src: "/api/atmosphere/stations/mlab-proof-drone/artwork?size=256",
+            type: "image/png",
+          },
+          {
+            sizes: "512x512",
+            src: "/api/atmosphere/stations/mlab-proof-drone/artwork?size=512",
+            type: "image/png",
+          },
+        ],
+      },
+    })
+    expect(await artworkSvgHash(player.getByTestId("station-vinyl"))).toBe(proofArtworkHash)
     releaseSampleIndex()
     await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
     await expect.poll(async () => (await readProbe(page)).mediaSession.metadata?.title)
@@ -1793,10 +1984,9 @@ test("vinyl player controls keep decorative artwork outside the media owner", as
   await installMediaOwnershipFakes(page)
   const player = await startProofStation(page)
   await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
-  await expect(player.getByTestId("station-vinyl")).toHaveAttribute(
-    "data-artwork-src",
-    /\/api\/atmosphere\/stations\/mlab-proof-drone\/artwork$/,
-  )
+  await expect(player.getByTestId("station-vinyl")).toHaveAttribute("data-artwork-station-id", "mlab-proof-drone")
+  await expect(player.getByTestId("station-vinyl").locator("svg")).toHaveCount(1)
+  await expect(player.getByTestId("station-vinyl").locator("img")).toHaveCount(0)
   await expect(player.locator("audio, iframe")).toHaveCount(0)
   await expect.poll(async () => (await readProbe(page)).audio.created).toBe(1)
   await expect.poll(async () => page.evaluate(() => {
@@ -1819,7 +2009,7 @@ test("vinyl motion advances only while the station is Playing and freezes inacti
   const playingBefore = await readVinylMotion(vinyl)
   expect(playingBefore.animationName).toBe("ml-station-vinyl-spin")
   expect(playingBefore.animationPlayState).toBe("running")
-  expect(playingBefore.animationDuration).toBe("4s")
+  expect(playingBefore.animationDuration).toBe("16s")
   expect(playingBefore.prefersReducedMotion).toBe(false)
   await page.waitForTimeout(250)
   const playingAfter = await readVinylMotion(vinyl)
@@ -1906,7 +2096,7 @@ test("vinyl motion never animates when reduced motion is requested", async ({ pa
   await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
   await expect(vinyl).toHaveAttribute("data-playing", "true")
   const motion = await readVinylMotion(vinyl)
-  expect(motion.animationName === "none" || motion.animationPlayState === "paused").toBe(true)
+  expect(motion.animationName).toBe("none")
   await expectVinylTransformFrozen(vinyl)
   await invokeMediaAction(page, "stop")
 })

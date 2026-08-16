@@ -21,6 +21,10 @@ import { BACKGROUND_STORAGE_KEYS } from "@/lib/background-options"
 import { canSyncAccountPreferencesFromSession } from "@/lib/account-preferences"
 import { fetchWithTimeout } from "@/lib/client-fetch"
 import { startAbortableGenerativeFmPrewarm } from "@/lib/atmosphere/generative-fm-provider"
+import {
+  resolveAtmosphereStationArtworkInput,
+  type AtmosphereStationArtworkInput,
+} from "@/lib/atmosphere/station-artwork"
 import { createAtmosphereMediaCarrier } from "@/lib/atmosphere/media-playback-carrier"
 import { createAtmosphereMediaSessionController } from "@/lib/atmosphere/media-session-controller"
 import { createAtmosphereInterruptionMonitor } from "@/lib/atmosphere/media-interruption-monitor"
@@ -46,6 +50,7 @@ type RuntimeReadinessState = {
 }
 
 type PlaybackStartOptions = {
+  artworkInput?: AtmosphereStationArtworkInput
   origin?: "in-app" | "media-session"
   continueSession?: boolean
 }
@@ -64,6 +69,7 @@ export interface MusicVisualizerState {
 interface MusicContextType {
   activeStationId: string | null
   activeStationTitle: string | null
+  activeStationArtwork: AtmosphereStationArtworkInput | null
   playbackState: PlaybackState
   loadingProgress: number | null
   loadingStartedAt: number | null
@@ -132,6 +138,7 @@ interface RuntimeAdapterPayload {
   station: {
     id: string
     title?: string
+    description?: string
     artist?: string
     attribution?: {
       artist?: string
@@ -225,6 +232,7 @@ const defaultStorage = createDefaultAtmosphereStorage() as AtmosphereStorageStat
 const defaultMusicContext: MusicContextType = {
   activeStationId: null,
   activeStationTitle: null,
+  activeStationArtwork: null,
   playbackState: "stopped",
   loadingProgress: null,
   loadingStartedAt: null,
@@ -279,6 +287,7 @@ export function MusicProvider({
 }) {
   const [activeStationId, setActiveStationId] = useState<string | null>(null)
   const [activeStationTitle, setActiveStationTitle] = useState<string | null>(null)
+  const [activeStationArtwork, setActiveStationArtwork] = useState<AtmosphereStationArtworkInput | null>(null)
   const [playbackState, setPlaybackState] = useState<PlaybackState>("stopped")
   const [loadingProgress, setLoadingProgress] = useState<number | null>(null)
   const [loadingStartedAt, setLoadingStartedAt] = useState<number | null>(null)
@@ -316,6 +325,7 @@ export function MusicProvider({
   const isMountedRef = useRef(true)
   const activeStationIdRef = useRef<string | null>(null)
   const activeStationMetadataRef = useRef<AtmosphereStationMetadata | null>(null)
+  const activeStationArtworkRef = useRef<AtmosphereStationArtworkInput | null>(null)
   const mediaCarrierRef = useRef<ReturnType<typeof createAtmosphereMediaCarrier> | null>(null)
   const mediaSessionControllerRef = useRef<ReturnType<typeof createAtmosphereMediaSessionController> | null>(null)
   const interruptionMonitorRef = useRef<ReturnType<typeof createAtmosphereInterruptionMonitor> | null>(null)
@@ -831,15 +841,31 @@ export function MusicProvider({
     const retainedMetadata = activeStationIdRef.current === stationId
       ? activeStationMetadataRef.current
       : null
+    const resolvedSuppliedArtwork = options.artworkInput
+      ? resolveAtmosphereStationArtworkInput(options.artworkInput)
+      : null
+    const suppliedArtwork = resolvedSuppliedArtwork?.stationId === stationId
+      ? resolvedSuppliedArtwork
+      : null
+    const retainedArtwork = activeStationIdRef.current === stationId
+      ? activeStationArtworkRef.current
+      : null
+    const initialArtwork = suppliedArtwork ?? retainedArtwork
     activeStationIdRef.current = stationId
+    activeStationArtworkRef.current = initialArtwork
     setActiveStationId(stationId)
-    setActiveStationTitle(null)
+    setActiveStationTitle(initialArtwork?.title ?? retainedMetadata?.title ?? null)
+    setActiveStationArtwork(initialArtwork)
     setLoadingProgress(0.02)
     setLoadingStartedAt(Date.now())
     loadingStationIdRef.current = stationId
     setError(null)
     publishMediaSession(
-      retainedMetadata ?? { id: stationId, title: "Atmosphere", artist: "MassageLab" },
+      retainedMetadata ?? {
+        id: stationId,
+        title: initialArtwork?.title ?? "Atmosphere",
+        artist: "MassageLab",
+      },
       "loading",
     )
 
@@ -872,6 +898,7 @@ export function MusicProvider({
       return
     }
     const { runtime, station } = runtimeAndStation
+    const stationArtwork = suppliedArtwork ?? resolveAtmosphereStationArtworkInput(station)
 
     void carrierStartPromise
       .catch(() => ({ available: false }))
@@ -895,6 +922,8 @@ export function MusicProvider({
     if (!station.enabled) {
       setActiveStationId(station.id)
       setActiveStationTitle(station.title)
+      setActiveStationArtwork(stationArtwork)
+      activeStationArtworkRef.current = stationArtwork
       activeStationMetadataRef.current = {
         id: station.id,
         title: station.title,
@@ -913,7 +942,9 @@ export function MusicProvider({
     const stationMetadata = { id: station.id, title: station.title, artist: getStationArtist(station) }
     setActiveStationId(station.id)
     setActiveStationTitle(station.title)
+    setActiveStationArtwork(stationArtwork)
     activeStationIdRef.current = station.id
+    activeStationArtworkRef.current = stationArtwork
     activeStationMetadataRef.current = stationMetadata
     setPlaybackState("loading")
     setLoadingProgress(0.05)
@@ -979,7 +1010,12 @@ export function MusicProvider({
     const fallbackIndex = direction === 1 ? -1 : 0
     const nextIndex = (currentIndex >= 0 ? currentIndex : fallbackIndex) + direction
     const normalizedIndex = (nextIndex + playableStationIds.length) % playableStationIds.length
-    await playStation(playableStationIds[normalizedIndex], { continueSession: true })
+    const nextStation = runtime.getAtmosphereStationById(playableStationIds[normalizedIndex])
+    const artworkInput = resolveAtmosphereStationArtworkInput(nextStation)
+    await playStation(nextStation.id, {
+      artworkInput: artworkInput ?? undefined,
+      continueSession: true,
+    })
   }, [getRuntime, playStation])
 
   const playNextStation = useCallback(async () => {
@@ -1238,6 +1274,7 @@ export function MusicProvider({
   const value = useMemo<MusicContextType>(() => ({
     activeStationId,
     activeStationTitle,
+    activeStationArtwork,
     playbackState,
     loadingProgress,
     loadingStartedAt,
@@ -1285,6 +1322,7 @@ export function MusicProvider({
     accountSignedIn,
     accountStatus,
     activeStationId,
+    activeStationArtwork,
     activeStationTitle,
     dismissInterruptionNotice,
     error,

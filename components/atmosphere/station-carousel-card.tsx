@@ -16,6 +16,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import type { getVisibleAtmosphereStations } from "@/lib/atmosphere/stations"
+import { resolveAtmosphereStationArtworkInput } from "@/lib/atmosphere/station-artwork"
 import { cn } from "@/lib/utils"
 
 export type AtmosphereStation = ReturnType<typeof getVisibleAtmosphereStations>[number]
@@ -54,6 +55,7 @@ export function AtmosphereStationCarouselCard({
   const runtimePreparing = music.runtimeReadiness.status === "idle"
     || music.runtimeReadiness.status === "preparing"
   const runtimeFailed = music.runtimeReadiness.status === "error"
+  const stationArtworkInput = resolveAtmosphereStationArtworkInput(station, groupId)
 
   if (displayMode === "carousel" && detailLevel === "summary") {
     return (
@@ -67,10 +69,7 @@ export function AtmosphereStationCarouselCard({
       >
         <div className="absolute inset-x-0 top-0 aspect-square bg-background p-1" data-carousel-artwork>
           <AtmosphereStationArtwork
-            description={station.description}
-            groupId={groupId}
-            stationId={station.id}
-            title={station.title}
+            artworkInput={stationArtworkInput}
           />
           <div className="pointer-events-none absolute inset-x-1 bottom-1 z-10 bg-gradient-to-t from-black/95 via-black/75 to-transparent p-3 pt-10 text-white">
             <p className="truncate text-sm font-semibold tracking-normal">{station.title}</p>
@@ -97,10 +96,7 @@ export function AtmosphereStationCarouselCard({
         >
           <div className="absolute inset-x-0 top-0 aspect-square bg-background p-1" data-carousel-artwork>
             <AtmosphereStationArtwork
-              description={station.description}
-              groupId={groupId}
-              stationId={station.id}
-              title={station.title}
+              artworkInput={stationArtworkInput}
             />
             {isActive && music.playbackState === "loading" ? (
               <div className="absolute inset-x-2 bottom-20 rounded-md border border-background/30 bg-background/80 p-2 backdrop-blur">
@@ -134,7 +130,9 @@ export function AtmosphereStationCarouselCard({
                   void music.stopCurrent()
                   return
                 }
-                void music.playStation(station.id)
+                void music.playStation(station.id, {
+                  artworkInput: stationArtworkInput ?? undefined,
+                })
               }}
               onFocus={() => prewarmStation(station.id)}
               size="sm"
@@ -236,10 +234,7 @@ export function AtmosphereStationCarouselCard({
       >
         <div className="relative aspect-[4/3] rounded-[9px] bg-background p-1" data-carousel-artwork>
           <AtmosphereStationArtwork
-            description={station.description}
-            groupId={groupId}
-            stationId={station.id}
-            title={station.title}
+            artworkInput={stationArtworkInput}
           />
         </div>
         <div className="p-2">
@@ -264,10 +259,7 @@ export function AtmosphereStationCarouselCard({
     >
       <div className="relative aspect-[4/3] rounded-[9px] bg-background p-1" data-carousel-artwork>
         <AtmosphereStationArtwork
-          description={station.description}
-          groupId={groupId}
-          stationId={station.id}
-          title={station.title}
+          artworkInput={stationArtworkInput}
         />
         {isActive && music.playbackState === "loading" ? (
           <div className="absolute inset-x-2 bottom-2 rounded-md border border-background/30 bg-background/80 p-2 backdrop-blur">
@@ -308,7 +300,9 @@ export function AtmosphereStationCarouselCard({
             className="flex-1"
             disabled={!station.enabled || music.playbackState === "loading"}
             onClick={() => {
-              void music.playStation(station.id)
+              void music.playStation(station.id, {
+                artworkInput: stationArtworkInput ?? undefined,
+              })
             }}
             onFocus={() => prewarmStation(station.id)}
             onPointerDown={() => prewarmStation(station.id)}

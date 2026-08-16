@@ -2048,7 +2048,7 @@
   }
 
   .ml-station-vinyl-disc {
-    animation: ml-station-vinyl-spin 4s linear infinite;
+    animation: ml-station-vinyl-spin 16s linear infinite;
     animation-play-state: paused;
     border-radius: 9999px;
     height: 100%;
@@ -2064,7 +2064,8 @@
 
   .ml-station-vinyl-artwork {
     border-radius: inherit;
-    object-fit: cover;
+    inset: 0;
+    position: absolute;
   }
 
   .ml-station-vinyl-grooves,

@@ -122,6 +122,21 @@ describe("Music visualizer provider contract", () => {
       /role="status"[\s\S]*aria-live="polite"[\s\S]*Preparing audio/,
     ]) assert.match(stationCardSource, contract)
   })
+
+  it("transports canonical active artwork without bundling the full station catalog", () => {
+    for (const source of [providerSource, miniPlayerSource]) {
+      assert.doesNotMatch(source, /from\s+["']@\/lib\/atmosphere\/stations(?:\.js)?["']/)
+    }
+    for (const contract of [
+      /activeStationArtwork: AtmosphereStationArtworkInput \| null/,
+      /artworkInput\?: AtmosphereStationArtworkInput/,
+      /setActiveStationArtwork\(/,
+      /resolveAtmosphereStationArtworkInput\(nextStation\)/,
+      /resolvedSuppliedArtwork\?\.stationId === stationId/,
+    ]) assert.match(providerSource, contract)
+    assert.match(stationCardSource, /artworkInput:\s*stationArtworkInput/)
+    assert.match(miniPlayerSource, /artworkInput=\{music\.activeStationArtwork\}/)
+  })
 })
 
 describe("Persistent player visualizer boundary", () => {

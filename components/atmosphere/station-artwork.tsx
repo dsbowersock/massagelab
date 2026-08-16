@@ -1,39 +1,37 @@
-"use client"
-
-import Image from "next/image"
-import { useEffect, useState } from "react"
-
 import {
-  getAtmosphereStationArtworkUrl,
+  renderAtmosphereStationArtworkSvg,
+  resolveAtmosphereStationArtworkInput,
   type AtmosphereStationArtworkInput,
 } from "@/lib/atmosphere/station-artwork"
 import { cn } from "@/lib/utils"
 
-type AtmosphereStationArtworkProps = AtmosphereStationArtworkInput & {
+type AtmosphereStationArtworkProps = {
+  artworkInput: AtmosphereStationArtworkInput | null
   className?: string
+  decorative?: boolean
 }
 
 /**
- * Presents canonical server-rendered station art and preserves a readable
- * fallback when a same-origin artwork request is unavailable.
+ * Presents the canonical serializer inline so app artwork is synchronous and
+ * independent from the platform-only PNG adapter.
  */
-export function AtmosphereStationArtwork({ className, stationId, title }: AtmosphereStationArtworkProps) {
-  const artworkUrl = getAtmosphereStationArtworkUrl(stationId)
-  const [failedArtworkUrl, setFailedArtworkUrl] = useState<string | null>(null)
-
-  useEffect(() => {
-    setFailedArtworkUrl(null)
-  }, [artworkUrl])
-
-  if (failedArtworkUrl === artworkUrl) {
+export function AtmosphereStationArtwork({
+  artworkInput,
+  className,
+  decorative = false,
+}: AtmosphereStationArtworkProps) {
+  const resolvedInput = artworkInput
+    ? resolveAtmosphereStationArtworkInput(artworkInput)
+    : null
+  if (!resolvedInput) {
     return (
       <div
-        aria-label={`${title} station artwork unavailable`}
+        aria-label={decorative ? undefined : "MassageLab station artwork unavailable"}
         className={cn(
           "grid h-full w-full place-items-center rounded-[9px] bg-muted px-3 text-center text-xs font-medium text-muted-foreground",
           className,
         )}
-        role="img"
+        role={decorative ? undefined : "img"}
       >
         MassageLab station artwork unavailable
       </div>
@@ -41,14 +39,14 @@ export function AtmosphereStationArtwork({ className, stationId, title }: Atmosp
   }
 
   return (
-    <Image
-      unoptimized
-      alt={`${title} station artwork`}
-      className={cn("h-full w-full rounded-[9px] object-cover", className)}
-      height={512}
-      onError={() => setFailedArtworkUrl(artworkUrl)}
-      src={artworkUrl}
-      width={512}
+    <div
+      aria-label={decorative ? undefined : `${resolvedInput.title} station artwork`}
+      className={cn("h-full w-full overflow-hidden rounded-[9px] [&_svg]:block [&_svg]:h-full [&_svg]:w-full", className)}
+      data-artwork-station-id={resolvedInput.stationId}
+      dangerouslySetInnerHTML={{
+        __html: renderAtmosphereStationArtworkSvg(resolvedInput),
+      }}
+      role={decorative ? undefined : "img"}
     />
   )
 }
