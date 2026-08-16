@@ -96,13 +96,19 @@ export function AtmosphereWorkspace({ layout = "grid" }: { layout?: AtmosphereWo
 
   return (
     <div
-      className="relative min-h-screen overflow-hidden"
+      className={cn(
+        "relative overflow-hidden",
+        isRailLayout ? "h-full min-h-0" : "min-h-screen",
+      )}
       data-atmosphere-workspace={isRailLayout ? "rails" : "grid"}
     >
       <AppPageShell
         width="full"
-        className="relative z-10 bg-transparent"
-        contentClassName={cn("pb-28", isRailLayout && "ml-atmosphere-rail-content")}
+        className={cn(
+          "relative z-10 bg-transparent",
+          isRailLayout && "ml-atmosphere-workspace-page",
+        )}
+        contentClassName={cn(!isRailLayout && "pb-28", isRailLayout && "ml-atmosphere-rail-content")}
       >
       {isRailLayout ? (
         <h1 className="sr-only">Atmosphere audio stations</h1>
@@ -139,7 +145,7 @@ export function AtmosphereWorkspace({ layout = "grid" }: { layout?: AtmosphereWo
         </section>
       )}
 
-      <div className={isRailLayout ? "space-y-9" : "space-y-8"}>
+      <div className={isRailLayout ? "ml-atmosphere-carousel-slot" : "space-y-8"}>
         {isRailLayout ? (
           <AtmosphereStationCarousel />
         ) : (

@@ -72,7 +72,9 @@ export function getResponsiveStationCarouselTuning({ containerWidth, containerHe
   return {
     ...STATION_CAROUSEL_TUNING,
     cardWidth: Math.max(160, Math.min(192, Math.floor(safeWidth / 2.6))),
-    cardHeight: Math.max(168, Math.min(224, Math.floor(safeHeight - 72))),
+    // The caller measures the stage row after controls have been allocated,
+    // so card height can consume that box directly without a second estimate.
+    cardHeight: Math.max(72, Math.min(224, Math.floor(safeHeight))),
     visibleRadius: 1,
   }
 }

@@ -1037,6 +1037,10 @@ test("compact landscape player rail keeps portrait bottom geometry and exposes o
   await installInterruptionNoticeMediaFakes(page)
   await page.setViewportSize({ width: 390, height: 844 })
   const toolbar = await startProofDrone(page)
+  const interruptionNotice = page.getByTestId("music-interruption-notice")
+  if (await interruptionNotice.isVisible().catch(() => false)) {
+    await interruptionNotice.getByRole("button", { name: "Close" }).click()
+  }
 
   await expect(toolbar).toHaveAttribute("data-layout", "bottom")
   expect((await toolbar.boundingBox())?.width).toBe(390)
@@ -1080,6 +1084,186 @@ test("compact landscape player rail keeps portrait bottom geometry and exposes o
     .toEqual(["Stop", "Expand"])
 
   expectMusicRailOverflowBounded(await readMusicRailOverflow(toolbar))
+})
+
+test("Music workspace fits four constrained viewports and composes route-owned controls", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== mobileProject, "Constrained Music geometry is covered in mobile Chromium.")
+  await installInterruptionNoticeMediaFakes(page)
+  // Start from the known-roomy portrait baseline, then exercise the exact
+  // constrained viewport matrix against the already-active player.
+  await page.setViewportSize({ width: 390, height: 844 })
+  const toolbar = await startProofDrone(page)
+  const interruptionNotice = page.getByTestId("music-interruption-notice")
+  const appScroll = page.locator(".ml-app-scroll")
+  const carousel = page.getByRole("region", { name: "Atmosphere audio stations" })
+  const carouselRegion = page.getByRole("region", { name: "Station carousel" })
+  const stage = page.getByTestId("station-carousel-stage")
+  const categoryLabel = page.getByText("Station category", { exact: true })
+  const categoryGroup = page.getByRole("group", { name: "Station category" })
+  const selectedHeading = page.getByRole("heading", { name: "Treatment room starters" })
+  const selectedDescription = page.getByText(/Reliable first choices for a calm room/i)
+  const nonShellCards = carousel.locator('[data-carousel-slide]:not([data-detail-level="shell"])')
+  const center = carousel.locator('[data-carousel-slide][data-centered="true"]')
+  const geometryReceipt: Array<Record<string, unknown>> = []
+
+  const assertContained = async (locator: Locator, container: Locator, label: string) => {
+    const [box, containerBox] = await Promise.all([locator.boundingBox(), container.boundingBox()])
+    expect(box, `${label} box`).not.toBeNull()
+    expect(containerBox, `${label} container box`).not.toBeNull()
+    expect((box?.y ?? -1), `${label} top`).toBeGreaterThanOrEqual((containerBox?.y ?? 0) - 1)
+    expect(
+      (box?.y ?? 0) + (box?.height ?? 0),
+      `${label} bottom`,
+    ).toBeLessThanOrEqual((containerBox?.y ?? 0) + (containerBox?.height ?? 0) + 1)
+  }
+
+  const cases = [
+    { width: 360, height: 670, layout: "bottom", showCategoryLabel: true, showSelection: false },
+    { width: 746, height: 284, layout: "rail", showCategoryLabel: false, showSelection: false },
+    { width: 390, height: 844, layout: "bottom", showCategoryLabel: true, showSelection: true },
+    { width: 844, height: 390, layout: "rail", showCategoryLabel: false, showSelection: false },
+  ] as const
+
+  for (const viewport of cases) {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height })
+    await expect(toolbar).toHaveAttribute("data-layout", viewport.layout)
+    if (await interruptionNotice.isVisible().catch(() => false)) {
+      await interruptionNotice.getByRole("button", { name: "Close" }).click()
+    }
+    await expect(categoryGroup).toBeVisible()
+    if (viewport.showCategoryLabel) {
+      await expect(categoryLabel).toBeVisible()
+    } else {
+      await expect(categoryLabel).toBeAttached()
+      expect(await categoryLabel.evaluate((label) => {
+        const style = getComputedStyle(label)
+        const box = label.getBoundingClientRect()
+        return box.width <= 1 && box.height <= 1 && style.position === "absolute"
+      })).toBe(true)
+    }
+    await expect(selectedHeading)[viewport.showSelection ? "toBeVisible" : "toBeHidden"]()
+    await expect(selectedDescription)[viewport.showSelection ? "toBeVisible" : "toBeHidden"]()
+    await expect(nonShellCards).toHaveCount(3)
+    await expect(center).toHaveAttribute("data-carousel-item-id", "mlab-proof-drone")
+    const boxes = await page.evaluate(() => {
+      const selectors = {
+        appScroll: ".ml-app-scroll",
+        content: ".ml-app-content",
+        workspace: '[data-atmosphere-workspace="rails"]',
+        page: ".ml-atmosphere-workspace-page",
+        carousel: ".ml-atmosphere-station-carousel",
+        allocation: ".ml-atmosphere-station-stage-allocation",
+        stage: '[data-testid="station-carousel-stage"]',
+        controls: '[data-testid="station-carousel-controls"]',
+        toolbar: '[data-testid="music-player-toolbar"]',
+      }
+      return Object.fromEntries(Object.entries(selectors).map(([key, selector]) => {
+        const element = document.querySelector(selector)
+        const box = element?.getBoundingClientRect()
+        return [key, box ? { x: box.x, y: box.y, width: box.width, height: box.height } : null]
+      }))
+    })
+    geometryReceipt.push({ viewport, boxes })
+    await expect(carouselRegion.getByRole("button", { name: "Previous station" })).toBeInViewport()
+    await expect(carouselRegion.getByRole("button", { name: "Next station" })).toBeInViewport()
+
+    const scroll = await appScroll.evaluate((element) => ({
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+      scrollTop: element.scrollTop,
+      overflowY: getComputedStyle(element).overflowY,
+    }))
+    expect(scroll.scrollHeight).toBeLessThanOrEqual(scroll.clientHeight + 1)
+    expect(scroll.scrollTop).toBe(0)
+    expect(scroll.overflowY).toBe("hidden")
+    await assertContained(carousel, appScroll, `${viewport.width}x${viewport.height} carousel`)
+
+    for (let index = 0; index < 3; index += 1) {
+      await expect(nonShellCards.nth(index)).toBeInViewport({ ratio: 0.15 })
+      await assertContained(nonShellCards.nth(index), stage, `${viewport.width}x${viewport.height} card ${index}`)
+    }
+
+    if (viewport.width === 746 && viewport.height === 284) {
+      const centeredTitle = center.locator("[data-carousel-station-details] span").first()
+      const titleBox = await centeredTitle.boundingBox()
+      expect(titleBox, "746x284 centered station title box").not.toBeNull()
+      expect(titleBox?.width ?? 0).toBeGreaterThan(0)
+      expect(titleBox?.height ?? 0).toBeGreaterThan(0)
+      await assertContained(centeredTitle, center, "746x284 centered station title")
+      await assertContained(centeredTitle, stage, "746x284 centered station title within stage")
+    }
+
+    const centeredId = await center.getAttribute("data-carousel-item-id")
+    await toolbar.getByRole("button", { name: "Minimize", exact: true }).click()
+    await expect(toolbar).toHaveAttribute("data-collapsed", "true")
+    await expect(center).toHaveAttribute("data-carousel-item-id", centeredId ?? "")
+    await toolbar.getByRole("button", { name: "Expand", exact: true }).click()
+    await expect(toolbar).toHaveAttribute("data-collapsed", "false")
+    await expect(center).toHaveAttribute("data-carousel-item-id", centeredId ?? "")
+  }
+
+  await page.setViewportSize({ width: 746, height: 284 })
+  await expect(toolbar).toHaveAttribute("data-layout", "rail")
+  const transport = toolbar.getByTestId("music-player-toolbar-rail-transport")
+  const options = toolbar.getByTestId("music-player-toolbar-rail-options")
+  expect(await transport.locator('button[aria-label]').evaluateAll((elements) => (
+    elements.map((element) => element.getAttribute("aria-label"))
+  ))).toEqual(["Previous station", "Stop", "Next station"])
+  expect(await options.locator('button[aria-label], a[aria-label]').evaluateAll((elements) => (
+    elements.map((element) => element.getAttribute("aria-label"))
+  ))).toEqual([
+    "Player settings",
+    "Favorite MassageLab Proof Drone",
+    "Background",
+    "Minimize",
+  ])
+  await expect(toolbar.getByRole("slider", { name: "Atmosphere volume" })).toHaveCount(0)
+  const [transportBox, optionsBox] = await Promise.all([
+    transport.boundingBox(),
+    options.boundingBox(),
+  ])
+  expect(optionsBox?.y ?? 0).toBeGreaterThan((transportBox?.y ?? 0) + (transportBox?.height ?? 0) - 1)
+
+  await expect(carouselRegion).toHaveAttribute("data-has-custom-controls", "true")
+  const previous = carouselRegion.getByRole("button", { name: "Previous station" })
+  const next = carouselRegion.getByRole("button", { name: "Next station" })
+  const cards = nonShellCards
+  await expect.poll(async () => {
+    const [previousBox, nextBox, stageBox, visualCardBoxes] = await Promise.all([
+      previous.boundingBox(),
+      next.boundingBox(),
+      stage.boundingBox(),
+      cards.evaluateAll((elements) => elements
+        .map((element) => {
+          const box = element.getBoundingClientRect()
+          return { x: box.x, width: box.width }
+        })
+        .sort((left, right) => left.x - right.x)),
+    ])
+    const leftCardBox = visualCardBoxes[0]
+    const rightCardBox = visualCardBoxes[visualCardBoxes.length - 1]
+    const visibleCenter = (box: { x: number, width: number }) => {
+      const left = Math.max(box.x, stageBox?.x ?? box.x)
+      const right = Math.min(
+        box.x + box.width,
+        (stageBox?.x ?? box.x) + (stageBox?.width ?? box.width),
+      )
+      return (left + right) / 2
+    }
+    const previousDelta = Math.abs(
+        ((previousBox?.x ?? 0) + (previousBox?.width ?? 0) / 2)
+        - visibleCenter(leftCardBox),
+      )
+    const nextDelta = Math.abs(
+        ((nextBox?.x ?? 0) + (nextBox?.width ?? 0) / 2)
+        - visibleCenter(rightCardBox),
+      )
+    return previousDelta <= 0.5 && nextDelta <= 0.5
+  }).toBe(true)
+  await testInfo.attach("task-10-viewport-geometry.json", {
+    body: JSON.stringify(geometryReceipt, null, 2),
+    contentType: "application/json",
+  })
 })
 
 test("player rail keeps overlays clear of dialog, sheet, tooltip, and interruption notice", async ({ page }, testInfo) => {
@@ -1260,8 +1444,8 @@ test("carousel fits compact landscape rail", async ({ page }, testInfo) => {
       }
 
       observe(target: Element, options?: ResizeObserverOptions) {
-        this.record.targets.push(target.classList.contains("ml-atmosphere-station-carousel")
-          ? "station-carousel-root"
+        this.record.targets.push(target.getAttribute("data-testid") === "station-carousel-stage"
+          ? "station-carousel-stage"
           : target.tagName.toLowerCase())
         this.nativeObserver.observe(target, options)
       }
@@ -1276,6 +1460,7 @@ test("carousel fits compact landscape rail", async ({ page }, testInfo) => {
   const toolbar = await startProofDrone(page)
   const carousel = page.getByRole("region", { name: "Atmosphere audio stations" })
   const stationStage = page.getByRole("region", { name: "Station carousel" })
+  const stageViewport = page.getByTestId("station-carousel-stage")
   const proofDrone = page.getByRole("group", { name: /MassageLab Proof Drone/ })
   const nonShellCards = carousel.locator('[data-carousel-slide]:not([data-detail-level="shell"])')
   const readCenterOffset = async () => {
@@ -1286,6 +1471,24 @@ test("carousel fits compact landscape rail", async ({ page }, testInfo) => {
     )
   }
   const centeredStationId = await carousel.locator('[data-centered="true"]').getAttribute("data-carousel-item-id")
+  const assertResponsiveCenteredCard = async () => {
+    const [stageBox, cardBox] = await Promise.all([
+      stageViewport.boundingBox(),
+      proofDrone.boundingBox(),
+    ])
+    expect(stageBox, "station stage box").not.toBeNull()
+    expect(cardBox, "centered station card box").not.toBeNull()
+    if (!stageBox || !cardBox) return
+
+    const expectedWidth = Math.max(160, Math.min(192, Math.floor(stageBox.width / 2.6)))
+    const expectedHeight = Math.max(72, Math.min(224, Math.floor(stageBox.height)))
+    expect(cardBox.width).toBeCloseTo(expectedWidth, 0)
+    expect(cardBox.height).toBeCloseTo(expectedHeight, 0)
+    expect(cardBox.x).toBeGreaterThanOrEqual(stageBox.x - 1)
+    expect(cardBox.x + cardBox.width).toBeLessThanOrEqual(stageBox.x + stageBox.width + 1)
+    expect(cardBox.y).toBeGreaterThanOrEqual(stageBox.y - 1)
+    expect(cardBox.y + cardBox.height).toBeLessThanOrEqual(stageBox.y + stageBox.height + 1)
+  }
 
   await expect(toolbar).toHaveAttribute("data-layout", "rail")
   expect(centeredStationId).toBe("mlab-proof-drone")
@@ -1296,14 +1499,7 @@ test("carousel fits compact landscape rail", async ({ page }, testInfo) => {
   await expect(stationStage.getByRole("button", { name: "Previous station" })).toBeInViewport()
   await expect(stationStage.getByRole("button", { name: "Next station" })).toBeInViewport()
   await expect.poll(readCenterOffset).toBeLessThanOrEqual(0.5)
-  const [expandedContainer, expandedCard] = await Promise.all([
-    carousel.boundingBox(),
-    proofDrone.boundingBox(),
-  ])
-  expect(expandedContainer).toMatchObject({ width: 457.046875, height: 285 })
-  expect(expandedCard).toMatchObject({ width: 175, height: 213 })
-  expect((expandedCard?.x ?? 0) + (expandedCard?.width ?? 0) / 2)
-    .toBeCloseTo((expandedContainer?.x ?? 0) + (expandedContainer?.width ?? 0) / 2, 0)
+  await assertResponsiveCenteredCard()
 
   await toolbar.getByRole("button", { name: "Minimize", exact: true }).click()
   await expect(toolbar).toHaveAttribute("data-collapsed", "true")
@@ -1325,22 +1521,15 @@ test("carousel fits compact landscape rail", async ({ page }, testInfo) => {
   await expect(proofDrone).toHaveAttribute("data-centered", "true")
   await expect(nonShellCards).toHaveCount(3)
   await expect.poll(readCenterOffset).toBeLessThanOrEqual(0.5)
-  const [collapsedContainer, collapsedCard] = await Promise.all([
-    carousel.boundingBox(),
-    proofDrone.boundingBox(),
-  ])
-  expect(collapsedContainer).toMatchObject({ width: 632, height: 285 })
-  expect(collapsedCard).toMatchObject({ width: 192, height: 213 })
-  expect((collapsedCard?.x ?? 0) + (collapsedCard?.width ?? 0) / 2)
-    .toBeCloseTo((collapsedContainer?.x ?? 0) + (collapsedContainer?.width ?? 0) / 2, 0)
+  await assertResponsiveCenteredCard()
   expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
   expect(await page.evaluate(() => {
     const records = Reflect.get(window, "__stationCarouselObserverRecords") as Array<{
       targets: string[]
       disconnected: boolean
     }>
-    return records.filter(({ targets }) => targets.includes("station-carousel-root"))
-  })).toEqual([{ targets: ["station-carousel-root"], disconnected: false }])
+    return records.filter(({ targets }) => targets.includes("station-carousel-stage"))
+  })).toEqual([{ targets: ["station-carousel-stage"], disconnected: false }])
 
   await page.getByRole("button", { name: "About", exact: true }).click()
   await page.getByRole("link", { name: "About MassageLab" }).click()
@@ -1350,8 +1539,8 @@ test("carousel fits compact landscape rail", async ({ page }, testInfo) => {
       targets: string[]
       disconnected: boolean
     }>
-    return records.filter(({ targets }) => targets.includes("station-carousel-root"))
-  })).toEqual([{ targets: ["station-carousel-root"], disconnected: true }])
+    return records.filter(({ targets }) => targets.includes("station-carousel-stage"))
+  })).toEqual([{ targets: ["station-carousel-stage"], disconnected: true }])
 })
 
 test("Atmosphere expanded player actions expose session and saved interruption preferences", async ({ page }) => {
@@ -1431,10 +1620,8 @@ test("vinyl player controls expose grouped semantic actions and a minimal collap
   const primary = toolbar.getByTestId("music-player-toolbar-primary-controls")
   const right = toolbar.getByTestId("music-player-toolbar-right")
 
-  await expect(vinyl).toHaveAttribute(
-    "data-artwork-src",
-    /\/api\/atmosphere\/stations\/mlab-proof-drone\/artwork$/,
-  )
+  await expect(vinyl).toHaveAttribute("data-artwork-station-id", "mlab-proof-drone")
+  await expect(vinyl.locator("svg")).toHaveCount(1)
   await expect(vinyl).toHaveAttribute("aria-hidden", "true")
   await expect(vinyl).toHaveCSS("pointer-events", "none")
   await expect(vinyl.locator("button, a, input, select, textarea, [tabindex]")).toHaveCount(0)

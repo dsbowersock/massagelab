@@ -322,6 +322,30 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
                 {playStopAction}
                 {expandAction}
               </>
+            ) : isMusicRoute && isCompactLandscape ? (
+              <div
+                className="ml-music-player-toolbar-controls grid min-w-0 items-center gap-2"
+                data-control-layout="rail"
+                data-testid="music-player-toolbar-controls"
+              >
+                <div
+                  className="ml-music-player-toolbar-rail-row"
+                  data-testid="music-player-toolbar-rail-transport"
+                >
+                  {previousAction}
+                  {playStopAction}
+                  {nextAction}
+                </div>
+                <div
+                  className="ml-music-player-toolbar-rail-row"
+                  data-testid="music-player-toolbar-rail-options"
+                >
+                  {settingsAction}
+                  {favoriteAction}
+                  {visualizerAction}
+                  {collapseAction}
+                </div>
+              </div>
             ) : (
               <>
                 <div

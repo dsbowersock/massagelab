@@ -127,17 +127,22 @@
   gap: 0.75rem;
 }
 
-.root[data-surface="stations"][data-carousel-responsive-profile="compact-rail"] {
+.root[data-surface="stations"][data-carousel-responsive-profile="music-fit"] {
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
   height: 100%;
   min-height: 0;
 }
 
-.root[data-surface="stations"][data-carousel-responsive-profile="compact-rail"] .stage {
+.root[data-surface="stations"][data-carousel-responsive-profile="music-fit"] .stage {
   height: 100%;
   min-height: 0;
-  padding-block: 0.25rem;
+  padding-block: 0;
+}
+
+.root[data-surface="stations"][data-carousel-responsive-profile="music-fit"] .track {
+  align-items: center;
+  height: 100%;
 }
 
 .status {
@@ -169,7 +174,7 @@
 /* Preserve the approved roomy portrait layout while reclaiming vertical space
    in compact desktop and landscape immersive panels. */
 @media (max-height: 44rem) {
-  .root[data-surface="stations"] .stage {
+  .root[data-surface="stations"]:not([data-carousel-responsive-profile="music-fit"]) .stage {
     padding-block: 1.553125rem;
   }
 

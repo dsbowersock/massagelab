@@ -59,7 +59,7 @@ describe("production adaptive carousel", () => {
     assert.match(stageSource, /data-has-custom-controls=/)
   })
 
-  it("keeps Music cards fixed on every device and bounds Background media to five cards", () => {
+  it("keeps the Music baseline stable and bounds Background media to five cards", () => {
     assert.deepEqual(STATION_CAROUSEL_TUNING, {
       cardWidth: 192,
       cardHeight: 224,
@@ -83,17 +83,25 @@ describe("production adaptive carousel", () => {
       {
         ...STATION_CAROUSEL_TUNING,
         cardWidth: 192,
-        cardHeight: 174,
+        cardHeight: 224,
         visibleRadius: 1,
       },
     )
   })
 
-  it("station tuning clamps tiny containers without hiding the centered action", () => {
+  it("station tuning consumes the measured stage allocation without a fixed control subtraction", () => {
     const tuning = getResponsiveStationCarouselTuning({ containerWidth: 420, containerHeight: 210 })
     assert.equal(tuning.cardWidth, 161)
-    assert.equal(tuning.cardHeight, 168)
+    assert.equal(tuning.cardHeight, 210)
     assert.equal(tuning.visibleRadius, 1)
+
+    const severeHeight = getResponsiveStationCarouselTuning({
+      containerWidth: 360,
+      containerHeight: 96,
+    })
+    assert.equal(severeHeight.cardWidth, 160)
+    assert.equal(severeHeight.cardHeight, 96)
+    assert.equal(severeHeight.visibleRadius, 1)
   })
 
   it("offers one tray-owned Animated previews switch wired to the saved preference", () => {

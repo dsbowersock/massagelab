@@ -1,10 +1,10 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { StepBack, StepForward } from "lucide-react"
 import { AtmosphereStationCarouselCard } from "@/components/atmosphere/station-carousel-card"
 import { AdaptiveCarouselStage } from "@/components/carousels/adaptive-carousel-stage"
 import {
-  STATION_CAROUSEL_TUNING,
   getResponsiveStationCarouselTuning,
 } from "@/components/carousels/adaptive-carousel-model"
 import { useMusic } from "@/components/providers/music-provider"
@@ -24,9 +24,10 @@ function getInitialStationGroup(activeStationId: string | null) {
 }
 
 /**
- * Presents the real Atmosphere catalog through the approved fixed-size Music
- * carousel while retaining one centered station per category. Center changes
- * may prewarm audio, but playback and favorites remain explicit card actions.
+ * Presents the real Atmosphere catalog through a stage-allocation-responsive
+ * Music carousel while retaining one centered station per category. Center
+ * changes may prewarm audio, but playback and favorites remain explicit card
+ * actions.
  */
 export function AtmosphereStationCarousel() {
   const music = useMusic()
@@ -39,9 +40,8 @@ export function AtmosphereStationCarousel() {
       : initialGroup.stations[0]?.id
   })
   const [reducedMotion, setReducedMotion] = useState(false)
-  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 })
-  const [compactRailMode, setCompactRailMode] = useState(false)
-  const rootRef = useRef<HTMLElement | null>(null)
+  const [stageSize, setStageSize] = useState({ width: 0, height: 0 })
+  const stageAllocationRef = useRef<HTMLDivElement | null>(null)
   const positionsRef = useRef(new Map<string, string>())
   const prewarmAbortRef = useRef<AbortController | null>(null)
   const group = stationGroups.find(({ id }) => id === groupId) ?? stationGroups[0]
@@ -63,33 +63,23 @@ export function AtmosphereStationCarousel() {
     return () => query.removeEventListener("change", update)
   }, [])
 
+  // Category changes remount the keyed stage, so rebind measurement to the
+  // current stage row rather than retaining a disconnected zero-sized node.
   useEffect(() => {
-    const root = rootRef.current
-    if (!root) return
-    const compactLandscape = window.matchMedia(
-      "(orientation: landscape) and (max-width: 60rem) and (max-height: 31.25rem)",
-    )
-    const updateMode = () => setCompactRailMode(
-      compactLandscape.matches
-      && document.body.classList.contains("ml-music-player-active")
-      && document.body.classList.contains("ml-music-player-music-route"),
-    )
+    const allocation = stageAllocationRef.current
+    if (!allocation) return
+    const stage = allocation.querySelector<HTMLElement>('[data-testid="station-carousel-stage"]')
+    if (!stage) return
     const observer = new ResizeObserver(([entry]) => {
       if (!entry) return
-      setContainerSize({
+      setStageSize({
         width: entry.contentRect.width,
         height: entry.contentRect.height,
       })
-      updateMode()
     })
-    observer.observe(root)
-    compactLandscape.addEventListener("change", updateMode)
-    updateMode()
-    return () => {
-      observer.disconnect()
-      compactLandscape.removeEventListener("change", updateMode)
-    }
-  }, [])
+    observer.observe(stage)
+    return () => observer.disconnect()
+  }, [group?.id])
 
   const prewarmStation = useCallback((
     stationId: string,
@@ -124,13 +114,11 @@ export function AtmosphereStationCarousel() {
   }, [music.activeStationId])
 
   const tuning = useMemo(
-    () => compactRailMode
-      ? getResponsiveStationCarouselTuning({
-          containerWidth: containerSize.width,
-          containerHeight: containerSize.height,
-        })
-      : STATION_CAROUSEL_TUNING,
-    [compactRailMode, containerSize.height, containerSize.width],
+    () => getResponsiveStationCarouselTuning({
+      containerWidth: stageSize.width,
+      containerHeight: stageSize.height,
+    }),
+    [stageSize.height, stageSize.width],
   )
 
   if (!group) {
@@ -143,16 +131,15 @@ export function AtmosphereStationCarousel() {
 
   return (
     <section
-      ref={rootRef}
       className="ml-atmosphere-station-carousel grid gap-4"
       aria-label="Atmosphere audio stations"
       data-music-storage-status={music.visualizer.storageStatus}
     >
-      <div className="grid gap-3">
-        <div className="grid gap-1.5">
-          <p className="text-sm font-medium">Station category</p>
+      <div className="ml-atmosphere-station-heading grid gap-3">
+        <div className="ml-atmosphere-category-picker grid gap-1.5">
+          <p className="ml-atmosphere-category-label text-sm font-medium">Station category</p>
           <div
-            className="-mx-8 -my-8 flex gap-2 overflow-x-auto px-8 py-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="ml-atmosphere-category-pills -mx-8 -my-8 flex gap-2 overflow-x-auto px-8 py-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             role="group"
             aria-label="Station category"
           >
@@ -175,38 +162,66 @@ export function AtmosphereStationCarousel() {
           </div>
         </div>
 
-        <div>
+        <div className="ml-atmosphere-selected-category">
           <h2 className="font-semibold tracking-normal">{group.title}</h2>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">{group.description}</p>
         </div>
       </div>
 
-      <AdaptiveCarouselStage
-        key={group.id}
-        items={stationItems}
-        initialItemId={initialItemId}
-        surface="stations"
-        presentation="background-picker"
-        tuning={tuning}
-        reducedMotion={reducedMotion}
-        testId="station-carousel-stage"
-        viewportProfile={compactRailMode ? "compact-rail" : undefined}
-        onCenteredItemChange={handleCenteredItemChange}
-        renderItem={(station, { detailLevel }) => {
-          if (detailLevel === "shell") return null
-          return (
-            <AtmosphereStationCarouselCard
-              groupId={group.id}
-              station={station}
-              music={music}
-              prewarmStation={prewarmStation}
-              detailLevel={detailLevel}
-              displayMode="carousel"
-              favoriteClassName={purpleGlowClassName}
-            />
-          )
-        }}
-      />
+      <div ref={stageAllocationRef} className="ml-atmosphere-station-stage-allocation">
+        <AdaptiveCarouselStage
+          key={group.id}
+          items={stationItems}
+          initialItemId={initialItemId}
+          surface="stations"
+          presentation="background-picker"
+          tuning={tuning}
+          reducedMotion={reducedMotion}
+          testId="station-carousel-stage"
+          viewportProfile="music-fit"
+          onCenteredItemChange={handleCenteredItemChange}
+          renderControls={({ canGoPrevious, canGoNext, goPrevious, goNext }) => (
+            <div className="ml-atmosphere-station-controls" data-testid="station-carousel-controls">
+              <Button
+                type="button"
+                aria-label="Previous station"
+                className="ml-atmosphere-station-control ml-atmosphere-station-control-previous"
+                disabled={!canGoPrevious}
+                onClick={goPrevious}
+                size="icon"
+                variant="glow"
+              >
+                <StepBack aria-hidden="true" />
+              </Button>
+              <Button
+                type="button"
+                aria-label="Next station"
+                className="ml-atmosphere-station-control ml-atmosphere-station-control-next"
+                disabled={!canGoNext}
+                onClick={goNext}
+                size="icon"
+                variant="glow"
+              >
+                <StepForward aria-hidden="true" />
+              </Button>
+            </div>
+          )}
+          renderItem={(station, { detailLevel }) => {
+            if (detailLevel === "shell") return null
+            return (
+              <AtmosphereStationCarouselCard
+                groupId={group.id}
+                station={station}
+                music={music}
+                prewarmStation={prewarmStation}
+                detailLevel={detailLevel}
+                displayMode="carousel"
+                favoriteClassName={purpleGlowClassName}
+              />
+            )
+          }}
+        />
+      </div>
     </section>
   )
 }
