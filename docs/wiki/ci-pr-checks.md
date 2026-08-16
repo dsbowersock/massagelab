@@ -28,7 +28,7 @@ result.
 
 | Check | Owner | Purpose | Local command | A failure usually means |
 | --- | --- | --- | --- | --- |
-| Dependency install | Every CI job | Reproduce the lockfile dependency graph. | `npm ci` | The lockfile, package manifest, registry access, or platform dependency setup is inconsistent. |
+| Dependency install | `code_quality`, `browser_build`, and each `browser_qa` lane | Reproduce the lockfile dependency graph. | `npm ci` | The lockfile, package manifest, registry access, or platform dependency setup is inconsistent. |
 | Prisma validation | `code_quality` | Validate the Prisma schema before code-quality checks. | `npm run prisma:validate` | The schema is invalid or the checked-in Prisma configuration is inconsistent. |
 | Prisma generation | `code_quality`, `browser_build`, and each `browser_qa` lane | Generate the Prisma client needed by following commands. | `npm run prisma:generate` | Prisma generation cannot produce the client from the current schema and dependencies. |
 | Lint | `code_quality` | Enforce repository lint rules. | `npm run lint` | A source or configuration lint rule is violated. |
