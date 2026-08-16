@@ -734,6 +734,51 @@ export function MusicProvider({
     runtimeRef.current?.setGenerativeFmPieceVolume(storageState.volume)
   }, [storageState.volume])
 
+  /** Settle notification/interruption availability without owning generator playback. */
+  const settleMediaIntegrationAvailability = useCallback(({
+    available,
+    continueSession,
+    origin,
+    requestId,
+    sessionGeneration,
+  }: {
+    available: boolean
+    continueSession: boolean
+    origin: PlaybackStartOptions["origin"]
+    requestId: number
+    sessionGeneration: number
+  }) => {
+    if (
+      requestId !== playbackRequestIdRef.current
+      || sessionGeneration !== playbackSessionGenerationRef.current
+    ) return
+
+    const integrationAvailable = Boolean(
+      available
+      && mediaSessionControllerRef.current?.isAvailable()
+      && interruptionMonitorRef.current?.isAvailable(),
+    )
+    setMediaIntegrationAvailable(integrationAvailable)
+    if (
+      integrationAvailable
+      && origin !== "media-session"
+      && !continueSession
+      && document.visibilityState !== "hidden"
+    ) {
+      playbackLifecycleRef.current = {
+        ...playbackLifecycleRef.current,
+        noticeSessionId: playbackLifecycleRef.current.sessionId,
+      }
+      setInterruptionNoticeSessionId(playbackLifecycleRef.current.sessionId)
+    } else if (!integrationAvailable && !continueSession) {
+      playbackLifecycleRef.current = {
+        ...playbackLifecycleRef.current,
+        noticeSessionId: null,
+      }
+      setInterruptionNoticeSessionId(null)
+    }
+  }, [])
+
   const playStation = useCallback(async (
     stationId: string,
     options: PlaybackStartOptions = {},
@@ -781,47 +826,13 @@ export function MusicProvider({
     // in the same user-activation turn as the accepted Play intent.
     const carrierStartPromise = mediaCarrierRef.current?.start()
       ?? Promise.resolve({ available: false })
-    const runtimePromise = getRuntime()
 
-    let runtime: LoadedAtmosphereRuntime
-    let station: AtmosphereStation
-    let carrierAvailable = false
+    let runtimeAndStation: { runtime: LoadedAtmosphereRuntime, station: AtmosphereStation }
     try {
-      const [carrierResult, loadedRuntime] = await Promise.all([
-        carrierStartPromise,
-        runtimePromise,
-      ])
-      carrierAvailable = carrierResult.available
-      runtime = loadedRuntime
+      const runtime = await getRuntime()
       ensureInterruptionMonitor(runtime)
-      const integrationAvailable = Boolean(
-        carrierAvailable
-        && mediaSessionControllerRef.current?.isAvailable()
-        && interruptionMonitorRef.current?.isAvailable(),
-      )
-      const requestIsCurrent = requestId === playbackRequestIdRef.current
-        && sessionGeneration === playbackSessionGenerationRef.current
-      if (requestIsCurrent) setMediaIntegrationAvailable(integrationAvailable)
-      if (
-        integrationAvailable
-        && requestIsCurrent
-        && options.origin !== "media-session"
-        && !continueSession
-        && document.visibilityState !== "hidden"
-      ) {
-        playbackLifecycleRef.current = {
-          ...playbackLifecycleRef.current,
-          noticeSessionId: playbackLifecycleRef.current.sessionId,
-        }
-        setInterruptionNoticeSessionId(playbackLifecycleRef.current.sessionId)
-      } else if (requestIsCurrent && !integrationAvailable && !continueSession) {
-        playbackLifecycleRef.current = {
-          ...playbackLifecycleRef.current,
-          noticeSessionId: null,
-        }
-        setInterruptionNoticeSessionId(null)
-      }
-      station = runtime.getAtmosphereStationById(stationId)
+      const station = runtime.getAtmosphereStationById(stationId)
+      runtimeAndStation = { runtime, station }
     } catch (caughtError) {
       if (
         requestId !== playbackRequestIdRef.current
@@ -839,6 +850,19 @@ export function MusicProvider({
       setError(caughtError instanceof Error ? caughtError.message : "Audio runtime could not load.")
       return
     }
+    const { runtime, station } = runtimeAndStation
+
+    void carrierStartPromise
+      .catch(() => ({ available: false }))
+      .then(({ available }) => {
+        settleMediaIntegrationAvailability({
+          available,
+          continueSession,
+          origin: options.origin,
+          requestId,
+          sessionGeneration,
+        })
+      })
 
     if (
       requestId !== playbackRequestIdRef.current
@@ -879,6 +903,7 @@ export function MusicProvider({
 
     try {
       const runtimeResult = await runtime.controller.start(station)
+      await carrierStartPromise.catch(() => ({ available: false }))
       if (
         runtimeResult.status !== "active"
         || requestId !== playbackRequestIdRef.current
@@ -918,6 +943,7 @@ export function MusicProvider({
     getRuntime,
     mediaIntegrationAvailable,
     publishMediaSession,
+    settleMediaIntegrationAvailability,
   ])
 
   const playAdjacentStation = useCallback(async (direction: 1 | -1) => {

@@ -48,20 +48,23 @@ type MediaProbe = {
   }
 }
 
-async function sha256(response: APIResponse) {
-  return createHash("sha256").update(await response.body()).digest("hex")
-}
-
-async function installMediaOwnershipFakes(page: Page, options: {
+type MediaOwnershipFakeOptions = {
   holdCarrierPlay?: boolean
   holdPhase?: "module-loading" | "provider-decode"
   includeAudioSession?: boolean
   mediaSessionSupported?: boolean
   rejectCarrierPlay?: boolean
   rejectLivePositionState?: boolean
+  requireAudioContextResumeInPlayTurn?: boolean
   resumeAfterInterruption?: boolean
   stopAtPhase?: "piece-activation" | "scheduling"
-} = {}) {
+}
+
+async function sha256(response: APIResponse) {
+  return createHash("sha256").update(await response.body()).digest("hex")
+}
+
+async function installMediaOwnershipFakes(page: Page, options: MediaOwnershipFakeOptions = {}) {
   await page.addInitScript((fakeOptions) => {
     const audio = {
       created: 0,
@@ -300,8 +303,9 @@ async function installMediaOwnershipFakes(page: Page, options: {
             audioContext.sourceGeneration += 1
             audioContext.sourceStarts += 1
             if (generatorSource) {
+              const startsGeneratorGeneration = audioContext.activeGeneratorSources === 0
               audioContext.activeGeneratorSources += 1
-              audioContext.generatorGeneration += 1
+              if (startsGeneratorGeneration) audioContext.generatorGeneration += 1
               audioContext.generatorStarts += 1
             }
           }
@@ -325,6 +329,15 @@ async function installMediaOwnershipFakes(page: Page, options: {
     const instrumentAudioContext = <T extends object>(context: T) => {
       if (instrumentedContexts.has(context)) return context
       instrumentedContexts.add(context)
+      const resume = Reflect.get(context, "resume")
+      if (typeof resume === "function") {
+        replaceMethod(context, "resume", (...args: unknown[]) => {
+          if (fakeOptions.requireAudioContextResumeInPlayTurn && !initiatingPlayTurn) {
+            return Promise.reject(new DOMException("AudioContext resume lost user activation", "NotAllowedError"))
+          }
+          return Reflect.apply(resume, context, args)
+        })
+      }
       const decodeAudioData = Reflect.get(context, "decodeAudioData")
       if (typeof decodeAudioData === "function") {
         replaceMethod(context, "decodeAudioData", (...args: unknown[]) => {
@@ -572,7 +585,13 @@ async function installMediaOwnershipFakes(page: Page, options: {
           return Object.assign(new FakeAudioNode(this), { curve: null, oversample: "none" })
         }
         decodeAudioData() { return Promise.resolve(new FakeAudioBuffer({ length: 1, sampleRate: this.sampleRate })) }
-        resume() { this.state = "running"; this.dispatchEvent(new Event("statechange")); return Promise.resolve() }
+        async resume() {
+          if (fakeOptions.requireAudioContextResumeInPlayTurn && !initiatingPlayTurn) {
+            throw new DOMException("AudioContext resume lost user activation", "NotAllowedError")
+          }
+          this.state = "running"
+          this.dispatchEvent(new Event("statechange"))
+        }
         suspend() { this.state = "suspended"; this.dispatchEvent(new Event("statechange")); return Promise.resolve() }
       }
 
@@ -870,6 +889,24 @@ for (const activation of ["tap", "click", "keyboard"] as const) {
     }
   })
 }
+
+test("one cold touch starts the generator while carrier readiness is held", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "Physical-touch regression is mobile-owned.")
+  await installMediaOwnershipFakes(page, {
+    holdCarrierPlay: true,
+    requireAudioContextResumeInPlayTurn: true,
+  })
+  await page.goto("/music", { waitUntil: "domcontentloaded" })
+  const carousel = page.getByRole("region", { name: "Station carousel" })
+  await expect(carousel).toHaveAttribute("data-carousel-ready", "true")
+  const play = carousel.getByRole("button", { name: /^Play MassageLab Proof Drone$/i })
+  await play.tap()
+  await expect(page.getByTestId("music-player-toolbar")).toHaveAttribute("data-playback-state", "loading")
+  await expect.poll(async () => (await readProbe(page)).audioContext.generatorGeneration).toBe(1)
+  await releaseHeldCarrierPlay(page)
+  await expect(page.getByTestId("music-player-toolbar")).toHaveAttribute("data-playback-state", "playing")
+  expect((await readProbe(page)).audio.playCalls).toBe(1)
+})
 
 async function closeInterruptionNotice(page: Page) {
   const notice = page.getByRole("region", { name: "Interruption preference" })
@@ -1270,7 +1307,7 @@ test("Live position publishes while Loading and an external carrier Pause cancel
       livePositionPublished: true,
       pauseHandler: "function",
       playbackState: "playing",
-      title: "Atmosphere",
+      title: "MassageLab Proof Drone",
     })
 
     await invokeProbeAction(page, "emitExternalPause")

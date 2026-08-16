@@ -90,6 +90,13 @@ describe("Music visualizer provider contract", () => {
       /setError\(null\)/,
     ]) assert.match(stopCurrentSource, contract)
   })
+
+  it("starts the generator independently from guarded carrier settlement", () => {
+    assert.match(providerSource, /const carrierStartPromise[\s\S]*const runtime = await getRuntime\(\)/)
+    assert.match(providerSource, /void carrierStartPromise[\s\S]*settleMediaIntegrationAvailability/)
+    assert.match(providerSource, /const runtimeResult = await runtime\.controller\.start\(station\)/)
+    assert.doesNotMatch(providerSource, /await Promise\.all\(\[\s*carrierStartPromise,\s*runtimePromise/)
+  })
 })
 
 describe("Persistent player visualizer boundary", () => {
