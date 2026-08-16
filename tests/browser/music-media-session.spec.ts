@@ -331,17 +331,17 @@ async function installMediaOwnershipFakes(page: Page, options: MediaOwnershipFak
       instrumentedContexts.add(context)
       const resume = Reflect.get(context, "resume")
       if (typeof resume === "function") {
-        replaceMethod(context, "resume", (...args: unknown[]) => {
+        replaceMethod(context, "resume", function (this: object, ...args: unknown[]) {
           if (fakeOptions.requireAudioContextResumeInPlayTurn && !initiatingPlayTurn) {
             return Promise.reject(new DOMException("AudioContext resume lost user activation", "NotAllowedError"))
           }
-          return Reflect.apply(resume, context, args)
+          return Reflect.apply(resume, this, args)
         })
       }
       const decodeAudioData = Reflect.get(context, "decodeAudioData")
       if (typeof decodeAudioData === "function") {
-        replaceMethod(context, "decodeAudioData", (...args: unknown[]) => {
-          const decoded = Reflect.apply(decodeAudioData, context, args)
+        replaceMethod(context, "decodeAudioData", function (this: object, ...args: unknown[]) {
+          const decoded = Reflect.apply(decodeAudioData, this, args)
           if (!decoded || typeof Reflect.get(decoded, "then") !== "function") return decoded
           return Promise.resolve(decoded).then(async (buffer) => {
             providerDecodeCompleted = true
@@ -358,8 +358,8 @@ async function installMediaOwnershipFakes(page: Page, options: MediaOwnershipFak
       for (const factory of ["createBufferSource", "createOscillator"] as const) {
         const original = Reflect.get(context, factory)
         if (typeof original !== "function") continue
-        replaceMethod(context, factory, (...args: unknown[]) => {
-          const source = Reflect.apply(original, context, args)
+        replaceMethod(context, factory, function (this: object, ...args: unknown[]) {
+          const source = Reflect.apply(original, this, args)
           return source && typeof source === "object"
             ? instrumentScheduledSource(source, factory === "createOscillator" ? "oscillator" : "buffer-source")
             : source
@@ -367,8 +367,8 @@ async function installMediaOwnershipFakes(page: Page, options: MediaOwnershipFak
       }
       const createGain = Reflect.get(context, "createGain")
       if (typeof createGain === "function") {
-        replaceMethod(context, "createGain", (...args: unknown[]) => {
-          const node = Reflect.apply(createGain, context, args)
+        replaceMethod(context, "createGain", function (this: object, ...args: unknown[]) {
+          const node = Reflect.apply(createGain, this, args)
           if (providerDecodeCompleted) stopAtControlledPhase("piece-activation")
           return node
         })
@@ -381,7 +381,8 @@ async function installMediaOwnershipFakes(page: Page, options: MediaOwnershipFak
         && !/(Chrome|Chromium)/i.test(navigator.userAgent)
       if (requiresNativeConstructorIdentity) {
         // WebKit brand-checks graph objects against its exact native constructor.
-        // Interpose the lookup rather than replacing that constructor identity.
+        // Instrument its prototype and interpose the lookup without replacing that identity.
+        instrumentAudioContext(NativeAudioContext.prototype)
         Object.defineProperty(window, "AudioContext", {
           configurable: true,
           get() {
@@ -850,6 +851,29 @@ async function firstEnabledStationPlayInViewport(carousel: Locator) {
   const visibleIndex = await findVisibleIndex()
   return playActions.nth(visibleIndex)
 }
+
+test("Safari identity path instruments the native AudioContext source lifecycle", async ({ browser }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "Chromium supplies the native AudioContext for this branch contract.")
+  const context = await browser.newContext({
+    userAgent: "Mozilla/5.0 AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15",
+  })
+  const page = await context.newPage()
+
+  try {
+    await installMediaOwnershipFakes(page)
+    await page.goto("data:text/html,<title>native AudioContext probe</title>")
+    const probe = await page.evaluate(() => {
+      const audioContext = new AudioContext()
+      audioContext.createOscillator().start()
+      return (Reflect.get(window, "__massagelabMediaProbe") as MediaProbe).audioContext
+    })
+
+    expect(probe.constructorReads).toBeGreaterThan(0)
+    expect(probe.activeGeneratorSources).toBe(1)
+  } finally {
+    await context.close()
+  }
+})
 
 for (const activation of ["tap", "click", "keyboard"] as const) {
   test(`first station Play activation accepts one ${activation} command after carousel readiness`, async ({ page }, testInfo) => {
