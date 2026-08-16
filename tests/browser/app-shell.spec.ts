@@ -107,6 +107,16 @@ async function startInterruptionNoticeSession(page: Page) {
   return player
 }
 
+/** Starts the deterministic first-party station used by rendered player geometry contracts. */
+async function startProofDrone(page: Page) {
+  await gotoShell(page, "/music")
+  await centerCarouselItem(page, "mlab-proof-drone", "Next station")
+  await page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
+  const toolbar = page.getByTestId("music-player-toolbar")
+  await expect(toolbar).toHaveAttribute("data-playback-state", /loading|playing/)
+  return toolbar
+}
+
 async function openAccountMenu(page: Page) {
   const trigger = page.getByTestId("account-menu-trigger")
 
@@ -355,6 +365,54 @@ async function readVinylPlayerGeometry(toolbar: Locator) {
       volume: volume && volume.getBoundingClientRect().width > 0 ? rect(volume) : null,
     }
   })
+}
+
+/** Resolves the rail variables through rendered probes so clamp/calc values are measured, not parsed. */
+async function resolvedMusicRailSpacing(page: Page) {
+  return page.locator("body").evaluate((body) => {
+    const measureWidth = (variable: string) => {
+      const probe = document.createElement("div")
+      probe.style.cssText = `position:absolute;visibility:hidden;width:var(${variable});`
+      body.appendChild(probe)
+      const value = probe.getBoundingClientRect().width
+      probe.remove()
+      return value
+    }
+
+    return {
+      railWidth: measureWidth("--ml-music-player-rail-width"),
+      rightSafe: measureWidth("--ml-player-right-safe"),
+      safeRight: measureWidth("--ml-safe-right"),
+    }
+  })
+}
+
+/** Reads both bounded rail layers; the outer toolbar may host Task 5 overlays outside its edge. */
+async function readMusicRailOverflow(toolbar: Locator) {
+  return toolbar.evaluate((node) => {
+    const surface = node.querySelector<HTMLElement>(".ml-music-player-toolbar-surface")
+    const layout = node.querySelector<HTMLElement>(".ml-music-player-toolbar-layout")
+    if (!surface || !layout) throw new Error("Rail geometry owners are missing")
+    return {
+      layoutClientHeight: layout.clientHeight,
+      layoutClientWidth: layout.clientWidth,
+      layoutScrollHeight: layout.scrollHeight,
+      layoutScrollWidth: layout.scrollWidth,
+      surfaceClientHeight: surface.clientHeight,
+      surfaceClientWidth: surface.clientWidth,
+      surfaceScrollHeight: surface.scrollHeight,
+      surfaceScrollWidth: surface.scrollWidth,
+      toolbarOverflowY: getComputedStyle(node).overflowY,
+    }
+  })
+}
+
+function expectMusicRailOverflowBounded(overflow: Awaited<ReturnType<typeof readMusicRailOverflow>>) {
+  expect(overflow.surfaceScrollWidth).toBeLessThanOrEqual(overflow.surfaceClientWidth)
+  expect(overflow.surfaceScrollHeight).toBeLessThanOrEqual(overflow.surfaceClientHeight)
+  expect(overflow.layoutScrollWidth).toBeLessThanOrEqual(overflow.layoutClientWidth)
+  expect(overflow.layoutScrollHeight).toBeLessThanOrEqual(overflow.layoutClientHeight)
+  expect(overflow.toolbarOverflowY).not.toMatch(/auto|scroll/)
 }
 
 function drawerControl(cluster: Locator) {
@@ -929,6 +987,56 @@ test("narrow mobile keeps every tool and collapses only the wordmark", async ({ 
   await expect(drawer).toBeFocused()
 })
 
+test("compact landscape player rail keeps portrait bottom geometry and exposes only its minimal collapsed actions", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== mobileProject, "Compact-landscape rail geometry is covered in mobile Chromium.")
+  await installInterruptionNoticeMediaFakes(page)
+  await page.setViewportSize({ width: 390, height: 844 })
+  const toolbar = await startProofDrone(page)
+
+  await expect(toolbar).toHaveAttribute("data-layout", "bottom")
+  expect((await toolbar.boundingBox())?.width).toBe(390)
+
+  await page.setViewportSize({ width: 844, height: 390 })
+  await expect(toolbar).toHaveAttribute("data-layout", "rail")
+  await expect(page.locator("body")).toHaveClass(/ml-music-player-music-route/)
+  await expect(page.locator('[data-atmosphere-workspace="rails"]')).toBeVisible()
+  await page.locator("body").evaluate((body) => body.style.setProperty("--ml-safe-right", "24px"))
+  const expanded = await toolbar.boundingBox()
+  const expandedSpacing = await resolvedMusicRailSpacing(page)
+  const shellSpacing = await resolvedShellSpacing(page)
+  const layoutPaddingRight = await toolbar.locator(".ml-music-player-toolbar-layout").evaluate((layout) => (
+    Number.parseFloat(getComputedStyle(layout).paddingRight)
+  ))
+  expect((expanded?.x ?? 0) + (expanded?.width ?? 0)).toBeCloseTo(844, 0)
+  expect(expanded?.width ?? 0).toBeGreaterThanOrEqual(256)
+  expect(expanded?.width ?? 999).toBeLessThanOrEqual(320)
+  expect(expanded?.y).toBeCloseTo(0, 0)
+  expect(expanded?.height).toBeCloseTo(390 - shellSpacing.bottomStack, 0)
+  expect(expandedSpacing.railWidth).toBeCloseTo(expanded?.width ?? 0, 0)
+  expect(expandedSpacing.rightSafe).toBeCloseTo(
+    expandedSpacing.railWidth + expandedSpacing.safeRight,
+    0,
+  )
+  expect(layoutPaddingRight).toBeCloseTo(24, 0)
+  expectMusicRailOverflowBounded(await readMusicRailOverflow(toolbar))
+
+  await toolbar.getByRole("button", { name: "Minimize", exact: true }).click()
+  await expect(toolbar).toHaveAttribute("data-collapsed", "true")
+  const collapsed = await toolbar.boundingBox()
+  const collapsedSpacing = await resolvedMusicRailSpacing(page)
+  expect((collapsed?.x ?? 0) + (collapsed?.width ?? 0)).toBeCloseTo(844, 0)
+  expect(collapsed?.width).toBeCloseTo(112, 0)
+  expect(collapsed?.height).toBeCloseTo(390 - shellSpacing.bottomStack, 0)
+  expect(collapsedSpacing.rightSafe).toBeCloseTo(112 + collapsedSpacing.safeRight, 0)
+  await expect(toolbar.getByTestId("station-vinyl")).toBeVisible()
+  await expect(toolbar.getByTestId("music-player-toolbar-identity")).toBeHidden()
+  expect(await toolbar.locator('.ml-music-player-toolbar-layout button[aria-label], .ml-music-player-toolbar-layout a[aria-label], .ml-music-player-toolbar-layout input[aria-label]')
+    .evaluateAll((elements) => elements.map((element) => element.getAttribute("aria-label"))))
+    .toEqual(["Stop", "Expand"])
+
+  expectMusicRailOverflowBounded(await readMusicRailOverflow(toolbar))
+})
+
 test("Atmosphere expanded player actions expose session and saved interruption preferences", async ({ page }) => {
   await installInterruptionNoticeMediaFakes(page)
   await page.setViewportSize({ width: 390, height: 844 })
@@ -1145,6 +1253,10 @@ test("vinyl geometry keeps short landscape complete with exact safe-area offsets
   await installInterruptionNoticeMediaFakes(page)
   await page.setViewportSize({ width: 844, height: 390 })
   const toolbar = await startInterruptionNoticeSession(page)
+  await page.getByRole("button", { name: "Open quick actions" }).click()
+  await page.getByRole("link", { name: "Quick Log" }).click()
+  await expect(page).toHaveURL(/\/wellness#quick-log$/)
+  await expect(toolbar).toHaveAttribute("data-layout", "bottom")
   const notice = page.getByTestId("music-interruption-notice")
   await page.locator("body").evaluate((body) => {
     body.style.setProperty("--ml-safe-bottom", "24px")
@@ -1279,6 +1391,9 @@ test("Atmosphere interruption notice follows the actual toolbar edge with safe i
   await installInterruptionNoticeMediaFakes(page)
   await page.setViewportSize({ width: 667, height: 375 })
   const player = await startInterruptionNoticeSession(page)
+  await page.getByRole("link", { name: "Open clock" }).click()
+  await expect(page).toHaveURL(/\/clock$/)
+  await expect(player).toHaveAttribute("data-layout", "bottom")
   const notice = page.getByRole("region", { name: "Interruption preference" })
   await page.addStyleTag({ content: `
     [data-testid="music-player-toolbar-identity"] > p {

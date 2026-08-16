@@ -95,7 +95,10 @@ export function AtmosphereWorkspace({ layout = "grid" }: { layout?: AtmosphereWo
   }, [prewarmStation])
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
+    <div
+      className="relative min-h-screen overflow-hidden"
+      data-atmosphere-workspace={isRailLayout ? "rails" : "grid"}
+    >
       <AppPageShell
         width="full"
         className="relative z-10 bg-transparent"

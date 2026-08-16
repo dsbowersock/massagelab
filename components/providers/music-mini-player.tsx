@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import {
   ChevronDown,
   ChevronUp,
@@ -43,6 +43,8 @@ import { useMusic } from "./music-provider"
 
 type MusicMiniPlayerPlacement = "top" | "bottom"
 
+const compactLandscapePlayerQuery = "(orientation: landscape) and (max-width: 60rem) and (max-height: 31.25rem)"
+
 export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMiniPlayerPlacement }) {
   const music = useMusic()
   const pathname = usePathname()
@@ -56,6 +58,8 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
     ? getAtmosphereStationArtworkUrl(music.activeStationId)
     : null
   const isVinylPlaying = music.playbackState === "playing"
+  const isMusicRoute = pathname === "/music"
+  const [isCompactLandscape, setIsCompactLandscape] = useState(false)
   const isFavorite = music.activeStationId
     ? music.favorites.includes(music.activeStationId)
     : false
@@ -75,11 +79,20 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
       })
 
   useEffect(() => {
+    const mediaQuery = window.matchMedia(compactLandscapePlayerQuery)
+    const updateLayout = () => setIsCompactLandscape(mediaQuery.matches)
+    updateLayout()
+    mediaQuery.addEventListener("change", updateLayout)
+    return () => mediaQuery.removeEventListener("change", updateLayout)
+  }, [])
+
+  useEffect(() => {
     const { body } = document
     body.classList.toggle("ml-music-player-active", showPlayer)
     body.classList.toggle("ml-music-player-top", showPlayer && placement === "top")
     body.classList.toggle("ml-music-player-bottom", showPlayer && placement === "bottom")
     body.classList.toggle("ml-music-player-collapsed", showPlayer && isCollapsed)
+    body.classList.toggle("ml-music-player-music-route", showPlayer && isMusicRoute)
 
     return () => {
       body.classList.remove(
@@ -87,9 +100,10 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
         "ml-music-player-top",
         "ml-music-player-bottom",
         "ml-music-player-collapsed",
+        "ml-music-player-music-route",
       )
     }
-  }, [isCollapsed, placement, showPlayer])
+  }, [isCollapsed, isMusicRoute, placement, showPlayer])
 
   if (!showPlayer) {
     return null
@@ -271,6 +285,8 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
     <div
       className="ml-music-player-toolbar pointer-events-none absolute inset-x-0 z-[10020]"
       data-placement={placement}
+      data-layout={isMusicRoute && isCompactLandscape ? "rail" : "bottom"}
+      data-music-route={isMusicRoute}
       data-collapsed={isCollapsed}
       data-playback-state={music.playbackState}
       data-testid="music-player-toolbar"

@@ -122,6 +122,8 @@
     --ml-scroll-end-buffer: 1.5rem;
     --ml-audio-toolbar-content-height: 5rem;
     --ml-audio-toolbar-height: var(--ml-audio-toolbar-content-height);
+    --ml-music-player-rail-width: 0px;
+    --ml-player-right-safe: 0px;
     --ml-main-bar-height: 3.25rem;
     --ml-desktop-app-bar-height: 3.5rem;
     --ml-bottom-stack-height: var(--ml-safe-bottom);
@@ -2160,6 +2162,87 @@
     .ml-music-player-toolbar[data-placement="bottom"] .ml-music-player-toolbar-surface {
       border-top-width: 0;
       padding-bottom: 0;
+    }
+  }
+
+  @media (orientation: landscape) and (max-width: 60rem) and (max-height: 31.25rem) {
+    /* The root defaults stay inert everywhere else. This route-owned branch
+       overrides the bottom toolbar utilities without sizing the carousel. */
+    body.ml-music-player-active.ml-music-player-music-route {
+      --ml-music-player-rail-width: clamp(16rem, 34vw, 20rem);
+      --ml-player-right-safe: calc(var(--ml-music-player-rail-width) + var(--ml-safe-right));
+      --ml-audio-toolbar-height: 0px;
+    }
+
+    body.ml-music-player-active.ml-music-player-music-route.ml-music-player-collapsed {
+      --ml-music-player-rail-width: 7rem;
+    }
+
+    body.ml-music-player-active.ml-music-player-music-route .ml-music-player-toolbar {
+      bottom: var(--ml-bottom-stack-height);
+      height: calc(100dvh - var(--ml-bottom-stack-height));
+      left: auto !important;
+      right: 0 !important;
+      top: 0;
+      width: var(--ml-music-player-rail-width);
+    }
+
+    body.ml-music-player-active.ml-music-player-music-route .ml-music-player-toolbar-layout {
+      gap: 0.5rem !important;
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto minmax(0, 1fr);
+      height: 100%;
+      min-height: 0;
+      padding: 0.75rem max(0.75rem, var(--ml-safe-right)) 0.75rem 0.75rem !important;
+    }
+
+    body.ml-music-player-active.ml-music-player-music-route .ml-music-player-toolbar-layout > [data-testid="music-player-toolbar-identity"] {
+      margin-left: 0;
+      padding-top: 6.5rem;
+      text-align: center;
+    }
+
+    body.ml-music-player-active.ml-music-player-music-route .ml-music-player-toolbar-controls {
+      align-content: space-between;
+      grid-column: 1;
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      min-height: 0;
+    }
+
+    body.ml-music-player-active.ml-music-player-music-route [data-testid="music-player-toolbar-left"],
+    body.ml-music-player-active.ml-music-player-music-route [data-testid="music-player-toolbar-primary-controls"],
+    body.ml-music-player-active.ml-music-player-music-route [data-testid="music-player-toolbar-right"] {
+      justify-content: center !important;
+    }
+
+    body.ml-music-player-active.ml-music-player-music-route [data-testid="music-player-toolbar-primary-controls"] {
+      gap: 0.25rem !important;
+    }
+
+    body.ml-music-player-active.ml-music-player-music-route .ml-station-vinyl {
+      left: 50%;
+      top: 0.75rem;
+      transform: translateX(-50%);
+    }
+
+    body.ml-music-player-active.ml-music-player-music-route .ml-music-player-toolbar[data-collapsed="true"] .ml-music-player-toolbar-layout {
+      align-items: center;
+      display: flex !important;
+      flex-direction: column;
+      gap: 0.75rem;
+      justify-content: flex-end;
+      padding-bottom: 1rem !important;
+    }
+
+    body.ml-music-player-active.ml-music-player-music-route .ml-music-player-toolbar[data-collapsed="true"] .ml-music-player-toolbar-layout > [data-testid="music-player-toolbar-identity"] {
+      display: none;
+    }
+
+    body.ml-music-player-active.ml-music-player-music-route .ml-music-player-toolbar[data-collapsed="true"] .ml-station-vinyl {
+      left: 50%;
+      top: 1rem;
+      transform: translateX(-50%);
     }
   }
 
