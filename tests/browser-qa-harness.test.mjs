@@ -23,6 +23,12 @@ function assertWorkflowStepBefore(workflow, firstStep, secondStep) {
   assert.ok(firstIndex < secondIndex, `Expected ${firstStep} before ${secondStep}`)
 }
 
+test("CI installs Chromium and WebKit for configured browser QA projects", async () => {
+  const ciWorkflow = await readProjectFile(".github/workflows/ci.yml")
+
+  assert.match(ciWorkflow, /npx playwright install --with-deps chromium webkit/)
+})
+
 test("development review spec matching accepts Playwright line and column suffixes", () => {
   for (const spec of [
     "tests/browser/background-palette.spec.ts",
