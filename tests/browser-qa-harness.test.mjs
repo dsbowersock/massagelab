@@ -405,7 +405,12 @@ test("CI workflow parallelizes browser QA and aggregates every upstream result",
   assert.match(ciWorkflow, /CODE_QUALITY_RESULT: \$\{\{ needs\.code_quality\.result \}\}/)
   assert.match(ciWorkflow, /BROWSER_BUILD_RESULT: \$\{\{ needs\.browser_build\.result \}\}/)
   assert.match(ciWorkflow, /BROWSER_QA_RESULT: \$\{\{ needs\.browser_qa\.result \}\}/)
+  assert.match(ciWorkflow, /"code_quality=\$CODE_QUALITY_RESULT"/)
+  assert.match(ciWorkflow, /"browser_build=\$BROWSER_BUILD_RESULT"/)
+  assert.match(ciWorkflow, /"browser_qa=\$BROWSER_QA_RESULT"/)
+  assert.match(ciWorkflow, /echo "::error::\$dependency returned \$result"/)
   assert.match(ciWorkflow, /if \[ "\$result" != "success" \]; then/)
+  assert.match(ciWorkflow, /exit "\$failed"/)
 
   assert.match(ciWorkflow, /^  pull_request:/m)
   assert.match(ciWorkflow, /^  push:\r?\n    branches:\r?\n      - main$/m)
