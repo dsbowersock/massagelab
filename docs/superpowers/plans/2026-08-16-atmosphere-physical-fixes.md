@@ -801,3 +801,145 @@ Never merge PR #183.
 - [ ] **Step 8: Write the final task report**
 
 Record exact final head, all command counts, hosted PNG signatures/hashes, physical observations, remaining device gaps, PR checks, CodeRabbit review commit, unresolved-thread count, and clean tracked status in `task-7-report.md`.
+
+---
+
+## Physical Round 2 Amendment — 2026-08-16
+
+The Samsung Galaxy S24 Ultra retest at exact deployed head `4a698c44e9ee38445c8212adbd5e1cd15c8ea11e` supersedes Task 7's pending physical-green assumption. Hosted automation was green, but physical acceptance remains open because one centered Play touch still did not start playback, in-app artwork loaded progressively, the notification artwork was soft, the four-second vinyl rotation caused dizziness, portrait `/music` still scrolled, and the constrained-landscape rail/carousel composition did not fit the real browser viewport. Previous/Next title-and-art pairing, timeline removal, portrait bottom placement, and rail activation remain accepted.
+
+### Amendment authority and readiness
+
+**Baseline/Authority Refs:** this plan; `.superpowers/sdd/2026-08-16-atmosphere-physical-fixes/task-7-report.md`; the user-supplied Samsung screenshots (`720×1440` portrait and `1492×667` landscape raster); `docs/wiki/atmosphere-audio.md`; exact deployed head `4a698c44e9ee38445c8212adbd5e1cd15c8ea11e`.
+
+**Requirement Ready Check:** ready. The user explicitly requires one-touch playback, immediate matching artwork, a slower non-dizzying vinyl, honest high-resolution system artwork, a two-row landscape rail, side-card carousel navigation, and a non-scrolling `/music` workspace in both portrait and constrained landscape. Exact Chrome CSS viewport dimensions remain an evidence gap, not a blocker; automated coverage uses conservative Samsung-class estimates and the next physical pass records the actual visual viewport.
+
+**Change Necessity:** code-change. Documentation or user instructions cannot make the first touch authoritative, remove per-card artwork requests, increase the actual notification bitmap resolution, alter motion, or fit the workspace. Reuse the current playback, canonical artwork, player, carousel, and overlay owners; do not add a second audio context, artwork catalog, player, or carousel implementation.
+
+**Compatibility Boundary:** preserve the absence of seeking/duration, all authoritative Pause/Stop/Previous/Next guards, the canonical station-art seed/palette/motif, portrait bottom-player placement, non-Music scrolling, Background carousel behavior, shared zero-inset portal behavior, and PR #183's draft/unmerged state.
+
+**TDD Route:**
+- Mode: auto
+- Decision: strict
+- Strict authority: the parent plan's explicit rule that every production change begins with the smallest reproducing RED.
+- Test posture: causal diagnostic RED first, then focused GREEN and proportionate regression matrices.
+- Verification: every task records exact RED/GREEN evidence, receives independent spec and quality review, and produces one scoped commit.
+
+**Execution Readiness View:**
+- Intent Lock: physical Samsung acceptance, not a visual redesign outside `/music`.
+- Scope Fence: Tasks 8–12 below; no calls/meeting/PWA/Bluetooth/Apple claims.
+- Baseline Lock: `4a698c44e9ee38445c8212adbd5e1cd15c8ea11e` plus the accepted behaviors above.
+- Owner / Contract Constraints: provider owns playback; `station-artwork.ts` owns visual identity; mini-player owns player composition; station carousel/model own Music geometry; shared primitives consume only the existing zero-default inset.
+- Drift / Rewind Rules: if a diagnostic RED does not reproduce its hypothesized boundary, stop that production path and test the next ranked boundary; after three failed repairs, return to architecture review.
+- Review Gates: fresh implementer, spec review, quality review, coordinator verification, scoped commit, then next task.
+- Evidence Required Before Completion: automated gates plus a fresh S24 Ultra observation at the exact immutable deployment.
+
+### Task 8: Prove and repair the remaining one-touch activation boundary
+
+**Files:**
+- Modify first: `tests/browser/music-media-session.spec.ts`
+- Modify only after causal RED: `components/providers/music-provider.tsx`
+- Modify only if the proven owner requires it: `lib/atmosphere/tone-proof-runtime.ts`, `lib/atmosphere/generative-fm-piece-loader.js`, `components/atmosphere/station-carousel-card.tsx`
+- Modify focused source contract only if production changes: `tests/music-visualizer-provider.test.mjs`
+- Create ignored evidence: `.superpowers/sdd/2026-08-16-atmosphere-physical-fixes/task-8-report.md`
+
+**Why:** the accepted touch reaches `playStation`, but the first activation-sensitive Tone action can still occur after cold runtime imports or after the silent carrier consumes Android's activation opportunity.
+
+**Repair Track:** playback provider/runtime activation seam. Do not patch Embla, the shared Button, or the service worker without contrary evidence.
+
+**Retirement Track:** retire the current false confidence that `data-carousel-ready` or held-carrier coverage proves a cold, activation-safe runtime. Keep the existing test as carrier-order coverage.
+
+- [ ] Add a deterministic cold-runtime case that holds the actual runtime-module phase while the initial center prewarm is in flight, requires `AudioContext.resume()` in the initiating Play task, performs one real mobile tap, releases modules after that task, and records resume timing plus generator generation. Require the current code to reproduce zero generation, then optionally prove a second touch succeeds.
+- [ ] If the cold-runtime case does not reproduce, preload the runtime and add a separate one-use activation-token fake in which carrier `play()` can consume the token before Tone resume. Stop unless one boundary reproduces the physical two-touch shape.
+- [ ] For a proven cold-runtime owner, add explicit provider runtime-readiness state and make the centered Play action non-actionable with truthful `Preparing` semantics until the shared runtime promise is ready; do not expose a tappable Play that cannot use the gesture. A readiness failure must expose a visible retry/error state rather than withholding Play indefinitely. Once Play appears/enables, exactly one real tap—without earlier hover, focus, or pointer-down prewarm—must reach one generator generation and Playing. For a proven activation-order owner, move only the activation-sensitive generator claim ahead of carrier playback while retaining early metadata/handlers and request/session guards. Do not implement both branches without evidence.
+- [ ] Run the new exact reproduction and a fresh-page readiness case that forbids prior input prewarm, then the existing one-touch/held-carrier/module-loading/Stop/Pause/carrier-rejection cases, the provider/runtime Node suites, typecheck, build, and diff check.
+- [ ] Obtain independent spec and quality approval, then create one scoped commit and append exact causal evidence to `task-8-report.md`.
+
+### Task 9: Render canonical art immediately, publish honest system resolution, and slow the vinyl
+
+**Files:**
+- Modify: `lib/atmosphere/station-artwork.ts`
+- Modify: `components/atmosphere/station-artwork.tsx`
+- Modify: `components/providers/music-provider.tsx`
+- Modify: `components/providers/music-mini-player.tsx`
+- Modify: `components/ui/music-player.tsx`
+- Modify: `app/api/atmosphere/stations/[stationId]/artwork/route.tsx`
+- Modify: `lib/atmosphere/media-session-controller.js`
+- Modify: `app/globals.css`
+- Modify: `tests/atmosphere-station-artwork.test.mjs`
+- Modify: `tests/atmosphere-media-session-controller.test.mjs`
+- Modify: `tests/browser/music-media-session.spec.ts`
+- Create ignored evidence: `.superpowers/sdd/2026-08-16-atmosphere-physical-fixes/task-9-report.md`
+
+**Why:** current app surfaces lazy-load one Sharp-backed HTTP PNG per card/vinyl, while Media Session labels a real `240×240` bitmap as `512×512`; the vinyl spins once every four seconds.
+
+**Repair Track:** keep `station-artwork.ts` as the sole identity/model/serializer owner. Use inline canonical SVG for app cards and vinyl, and PNG adapters only for platform Media Session artwork.
+
+**Retirement Track:** retire HTTP-error-driven in-app artwork loading and the dishonest 512 descriptor. Retain the proven byte-safe `new Uint8Array(png)` route response and no-timeline behavior.
+
+- [ ] RED: decode route pixels and require honest allowlisted `256×256` and `512×512` variants; require mounted cards and vinyl to render canonical SVG with zero artwork API requests; require card/vinyl identity and Media Session descriptor pairing across Previous/Next; require a `16s` Playing-only animation and no animation under reduced motion.
+- [ ] Add a canonical station-to-artwork-input resolver. Render the serialized SVG inline for cards and decorative vinyl with the existing accessible card label and neutral invalid-input fallback. The centered card must supply its already-owned canonical artwork input synchronously with the accepted Play intent so the provider can publish vinyl art before the lazy runtime resolves. Previous/Next must derive the adjacent station's canonical input from the already-loaded runtime and atomically publish title plus art. The provider/mini-player must not statically import `stations.js` or the full 58-station catalog; add a source/bundle-boundary regression assertion.
+- [ ] Rasterize the same SVG at explicit native output dimensions. Publish honest 256 and 512 Media Session entries via the canonical URL helper. Keep unknown-station 404 behavior, bounded cache headers, non-cacheable generation failures, and the hosted `Uint8Array` response.
+- [ ] Change the vinyl baseline to one 16-second linear revolution; keep Loading, Paused, Interrupted, Stopped, and Failed frozen and `prefers-reduced-motion: reduce` set to no animation.
+- [ ] Run artwork/media-session Node suites, canonical artwork and lifecycle browser cases across Chromium/WebKit, typecheck, lint, build, hosted PNG byte/dimension proof, and diff check.
+- [ ] Obtain independent spec and quality approval, create one scoped commit, and append exact request counts, decoded sizes, identity hashes, and motion evidence to `task-9-report.md`.
+
+### Task 10: Fit the `/music` workspace and compose the requested rail/carousel controls
+
+**Files:**
+- Modify: `components/layout-wrapper.tsx`
+- Modify: `app/browse/workspace.tsx`
+- Modify: `components/providers/music-mini-player.tsx`
+- Modify: `components/atmosphere/station-carousel.tsx`
+- Modify: `components/carousels/adaptive-carousel-model.js`
+- Modify only through its existing extension point: `components/carousels/adaptive-carousel-stage.tsx`, `components/carousels/adaptive-carousel-stage.module.css`
+- Modify: `app/globals.css`
+- Modify: `tests/adaptive-carousel.test.mjs`
+- Modify: `tests/browser/app-shell.spec.ts`
+- Modify: `tests/browser/public-routes.spec.ts`
+- Create ignored evidence: `.superpowers/sdd/2026-08-16-atmosphere-physical-fixes/task-10-report.md`
+
+**Why:** portrait has no bounded workspace and scrolls inside `.ml-app-scroll`; landscape rail CSS stacks desktop groups; the station surface uses the shared center navigation strip and sizes from its enclosing section rather than the actual stage allocation.
+
+**Repair Track:** route-owned `/music` viewport sizing, mini-player presentation groups, and station-specific carousel controls. Playback callbacks and Background carousel defaults remain unchanged.
+
+**Retirement Track:** retire fixed portrait card sizing, magic `72px` stage subtraction, the Music center navigation strip, and tests that inspect only document scroll instead of `.ml-app-scroll`.
+
+- [ ] RED at `360×670`, `746×284`, `390×844`, and `844×390`: require `.ml-app-scroll` not to scroll on `/music`; the player remains `data-layout="bottom"` in every portrait case; selected/side cards and controls remain visible; no clipping; center persists through expanded/collapsed player transitions. When height is scarce, hide the selected category heading and description only. Keep the `Station category` label visible when it fits and otherwise visually hidden (not removed), while preserving the category control's accessible name and all pills.
+- [ ] RED the expanded rail's exact DOM/focus/visual grouping: top row `Previous station`, Play/Stop, `Next station`; bottom row `Player settings`, Favorite, `Background`, `Minimize`; no Volume control in rail mode. Collapsed remains decorative vinyl plus Play/Stop and Expand only.
+- [ ] RED Music-only custom navigation through `renderControls`: Previous centered beneath the left side card and Next beneath the right side card, with no separate center strip. Preserve shared/default Background navigation unchanged.
+- [ ] Bound the route workspace to the actual visual/dynamic viewport above the bottom app stack/player in portrait and beside the rail in landscape. Measure the allocated station stage box, remove fixed subtraction, and tune exactly three non-shell Music cards from available width and height. Hide presentational metadata rather than enabling page scroll when height is scarce.
+- [ ] Refactor mini-player presentation only into the two requested rail rows. At severe height, shrink/reflow vinyl and identity before transport; never make the rail independently scroll.
+- [ ] Run focused model and browser geometry suites, Background carousel regressions, non-Music scrolling regressions, increased-text and safe-area cases, typecheck, lint, build, and diff check.
+- [ ] Obtain independent spec and quality approval, create one scoped commit, and record actual bounding boxes/scroll owners/control order in `task-10-report.md`.
+
+### Task 11: Prove real-rail overlay clearance at Samsung-class viewports
+
+**Files:**
+- Modify first: `tests/browser/app-shell.spec.ts`
+- Modify only for a reproduced collision: `components/ui/use-player-viewport-insets.ts`, relevant shared Radix primitive, `components/providers/music-interruption-notice.tsx`, `app/globals.css`
+- Create ignored evidence: `.superpowers/sdd/2026-08-16-atmosphere-physical-fixes/task-11-report.md`
+
+**Why:** the physical tester could not confirm clearance, and prior coverage sometimes injected the inset on unrelated routes instead of using the actual rail bounding box.
+
+- [ ] At both Samsung-class and existing constrained-landscape sizes, open Player settings, interruption notice, station dialog, exposed right Sheet/drawer, production Popover, and Tooltip against the active expanded/collapsed rail. Use the toolbar's real left edge as the acceptance oracle and record each surface rectangle.
+- [ ] Require zero-inset portrait and non-Music parity, correct focus/escape behavior, and no hidden action or portal content. If every surface already passes, make no production edit and commit only a durable test correction if needed.
+- [ ] For each reproduced collision, repair only its canonical shared/fixed owner while preserving caller collision padding and zero-inset `undefined` semantics. Re-run shared/admin surface regressions, typecheck, lint, build, and diff check.
+- [ ] Obtain independent spec and quality approval, create one scoped commit only if tracked changes are necessary, and record exact geometry in `task-11-report.md`.
+
+### Task 12: Revalidate, deploy, repeat Samsung acceptance, and finish the draft PR loop
+
+**Files:** same documentation/report boundaries as Task 7; no canonical documentation edit before physical green.
+
+- [ ] Run the full Task 7 local gate plus the new Task 8–11 focused suites, audit exact scope/admin overlap, push reviewed commits, and require Vercel, CodeQL, and GitHub QA at one exact head.
+- [ ] Reprove `/music`, valid distinct 256/512 PNGs, browser SVG rendering with zero art-route requests, and bounded artwork-route runtime logs on the immutable deployment.
+- [ ] On the S24 Ultra/Chrome 151, record `innerWidth`, `innerHeight`, document client dimensions, `visualViewport` dimensions/offsets, DPR, and orientation. Re-run one-touch playback, all artwork surfaces, Previous/Next pairing, no timeline, portrait/landscape fit, expanded/collapsed rail, overlays, and Samsung Settings → Accessibility → Vision/Visibility enhancements → Reduce animations/Remove animations.
+- [ ] Only after physical green, update and stage the approved QA/state/log/wiki documentation paths; then mark PR #183 ready and run the substantive CodeRabbit check/thread-resolution loop. Never merge.
+
+### Amendment self-review
+
+- Every physical finding maps to Tasks 8–12; accepted behaviors are explicit compatibility boundaries.
+- No task introduces a second playback, artwork, player, or carousel owner.
+- Production branches are evidence-gated; a non-reproduced hypothesis cannot authorize a repair.
+- Exact Chrome CSS viewport remains intentionally captured at physical retest instead of inferred from screenshot pixels.
+- Deferred Task 4/5 test-quality notes remain in the SDD ledger and must be presented to final branch review.
