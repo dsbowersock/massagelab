@@ -30,6 +30,11 @@ function assertWorkflowStepBefore(workflow, firstStep, secondStep) {
   assert.ok(firstIndex < secondIndex, `Expected ${firstStep} before ${secondStep}`)
 }
 
+/**
+ * Extracts one job from this repository's CI workflow source. The matcher
+ * intentionally follows its two-space job indentation and lowercase-letter or
+ * underscore job IDs so the next top-level job forms an unambiguous boundary.
+ */
 function getWorkflowJob(workflow, jobId) {
   const match = workflow.match(new RegExp(`^  ${jobId}:\\r?\\n([\\s\\S]*?)(?=^  [a-z_]+:\\r?$|$)`, "m"))
 

@@ -235,6 +235,8 @@ const ordinaryProjects = [
   },
 ]
 const ciBrowserQaLaneProjects = resolveCiBrowserQaLaneProjects(process.env.PLAYWRIGHT_CI_LANE)
+// PLAYWRIGHT_CI_LANE narrows CI discovery to each lane's project/spec pairs;
+// spreading the ordinary project retains its established device and viewport settings.
 const browserQaProjects = ciBrowserQaLaneProjects
   ? ciBrowserQaLaneProjects.map((laneProject) => {
       const ordinaryProject = ordinaryProjects.find((project) => project.name === laneProject.name)
