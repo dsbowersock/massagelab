@@ -2174,6 +2174,39 @@
       --ml-audio-toolbar-height: 0px;
     }
 
+    body.ml-music-player-active.ml-music-player-music-route .ml-app-scroll {
+      overflow: hidden;
+    }
+
+    body.ml-music-player-active.ml-music-player-music-route [data-atmosphere-workspace="rails"] {
+      display: grid;
+      height: calc(100dvh - var(--ml-bottom-stack-height));
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    body.ml-music-player-active.ml-music-player-music-route [data-atmosphere-workspace="rails"] > div {
+      height: 100%;
+      min-height: 0;
+      padding-right: calc(1.5rem + var(--ml-player-right-safe));
+    }
+
+    body.ml-music-player-active.ml-music-player-music-route .ml-atmosphere-rail-content,
+    body.ml-music-player-active.ml-music-player-music-route .ml-atmosphere-rail-content > div,
+    body.ml-music-player-active.ml-music-player-music-route .ml-atmosphere-station-carousel {
+      height: 100%;
+      min-height: 0;
+    }
+
+    body.ml-music-player-active.ml-music-player-music-route .ml-atmosphere-rail-content {
+      display: grid;
+      grid-template-rows: minmax(0, 1fr);
+    }
+
+    body.ml-music-player-active.ml-music-player-music-route .ml-atmosphere-station-carousel {
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+
     body.ml-music-player-active.ml-music-player-music-route.ml-music-player-collapsed {
       --ml-music-player-rail-width: 7rem;
     }

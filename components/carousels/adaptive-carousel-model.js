@@ -61,6 +61,23 @@ export const STATION_CAROUSEL_TUNING = Object.freeze({
 })
 
 /**
+ * Fits the station carousel to its actual workspace while preserving one
+ * centered card and one summary neighbor on each side.
+ * @param {{ containerWidth: number, containerHeight: number }} dimensions
+ * @returns {AdaptiveCarouselTuning}
+ */
+export function getResponsiveStationCarouselTuning({ containerWidth, containerHeight }) {
+  const safeWidth = Number.isFinite(containerWidth) ? containerWidth : 556
+  const safeHeight = Number.isFinite(containerHeight) ? containerHeight : 246
+  return {
+    ...STATION_CAROUSEL_TUNING,
+    cardWidth: Math.max(160, Math.min(192, Math.floor(safeWidth / 2.6))),
+    cardHeight: Math.max(168, Math.min(224, Math.floor(safeHeight - 72))),
+    visibleRadius: 1,
+  }
+}
+
+/**
  * Selects Background geometry from the width available to the carousel. The
  * short-landscape override runs first so a rotated phone stays vertically
  * usable even when its inline width resembles a tablet.

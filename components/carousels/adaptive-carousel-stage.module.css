@@ -5,12 +5,15 @@
   --carousel-gap: 16px;
   min-width: 0;
   width: 100%;
+  container-type: inline-size;
 }
 
 .stage {
   perspective: var(--carousel-perspective, 900px);
   transform-style: preserve-3d;
   overflow: clip;
+  min-width: 0;
+  width: 100%;
   padding-block: clamp(1rem, 4vw, 3rem);
   touch-action: pan-y pinch-zoom;
 }
@@ -26,10 +29,9 @@
   position: relative;
   display: flex;
   align-items: center;
-  flex: 0 0 min(var(--carousel-card-width), calc(100vw - 5rem));
+  flex: 0 0 min(var(--carousel-card-width), calc(100cqw - 2rem));
   height: var(--carousel-card-height);
   min-width: 0;
-  container-type: inline-size;
   z-index: var(--carousel-z-index, 1);
 }
 
@@ -123,6 +125,19 @@
   grid-template-columns: minmax(0, 1fr) minmax(12.5rem, 17rem);
   grid-template-rows: minmax(0, 1fr);
   gap: 0.75rem;
+}
+
+.root[data-surface="stations"][data-carousel-responsive-profile="compact-rail"] {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  height: 100%;
+  min-height: 0;
+}
+
+.root[data-surface="stations"][data-carousel-responsive-profile="compact-rail"] .stage {
+  height: 100%;
+  min-height: 0;
+  padding-block: 0.25rem;
 }
 
 .status {

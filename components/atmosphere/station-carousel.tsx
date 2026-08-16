@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { AtmosphereStationCarouselCard } from "@/components/atmosphere/station-carousel-card"
 import { AdaptiveCarouselStage } from "@/components/carousels/adaptive-carousel-stage"
-import { STATION_CAROUSEL_TUNING } from "@/components/carousels/adaptive-carousel-model"
+import {
+  STATION_CAROUSEL_TUNING,
+  getResponsiveStationCarouselTuning,
+} from "@/components/carousels/adaptive-carousel-model"
 import { useMusic } from "@/components/providers/music-provider"
 import { Button } from "@/components/ui/button"
 import { purpleGlowClassName } from "@/components/ui/carousel-button-classes"
@@ -36,6 +39,9 @@ export function AtmosphereStationCarousel() {
       : initialGroup.stations[0]?.id
   })
   const [reducedMotion, setReducedMotion] = useState(false)
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 })
+  const [compactRailMode, setCompactRailMode] = useState(false)
+  const rootRef = useRef<HTMLElement | null>(null)
   const positionsRef = useRef(new Map<string, string>())
   const prewarmAbortRef = useRef<AbortController | null>(null)
   const group = stationGroups.find(({ id }) => id === groupId) ?? stationGroups[0]
@@ -55,6 +61,34 @@ export function AtmosphereStationCarousel() {
     update()
     query.addEventListener("change", update)
     return () => query.removeEventListener("change", update)
+  }, [])
+
+  useEffect(() => {
+    const root = rootRef.current
+    if (!root) return
+    const compactLandscape = window.matchMedia(
+      "(orientation: landscape) and (max-width: 60rem) and (max-height: 31.25rem)",
+    )
+    const updateMode = () => setCompactRailMode(
+      compactLandscape.matches
+      && document.body.classList.contains("ml-music-player-active")
+      && document.body.classList.contains("ml-music-player-music-route"),
+    )
+    const observer = new ResizeObserver(([entry]) => {
+      if (!entry) return
+      setContainerSize({
+        width: entry.contentRect.width,
+        height: entry.contentRect.height,
+      })
+      updateMode()
+    })
+    observer.observe(root)
+    compactLandscape.addEventListener("change", updateMode)
+    updateMode()
+    return () => {
+      observer.disconnect()
+      compactLandscape.removeEventListener("change", updateMode)
+    }
   }, [])
 
   const prewarmStation = useCallback((
@@ -89,6 +123,16 @@ export function AtmosphereStationCarousel() {
     setGroupId(nextGroupId)
   }, [music.activeStationId])
 
+  const tuning = useMemo(
+    () => compactRailMode
+      ? getResponsiveStationCarouselTuning({
+          containerWidth: containerSize.width,
+          containerHeight: containerSize.height,
+        })
+      : STATION_CAROUSEL_TUNING,
+    [compactRailMode, containerSize.height, containerSize.width],
+  )
+
   if (!group) {
     return (
       <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
@@ -99,7 +143,8 @@ export function AtmosphereStationCarousel() {
 
   return (
     <section
-      className="grid gap-4"
+      ref={rootRef}
+      className="ml-atmosphere-station-carousel grid gap-4"
       aria-label="Atmosphere audio stations"
       data-music-storage-status={music.visualizer.storageStatus}
     >
@@ -142,9 +187,10 @@ export function AtmosphereStationCarousel() {
         initialItemId={initialItemId}
         surface="stations"
         presentation="background-picker"
-        tuning={STATION_CAROUSEL_TUNING}
+        tuning={tuning}
         reducedMotion={reducedMotion}
         testId="station-carousel-stage"
+        viewportProfile={compactRailMode ? "compact-rail" : undefined}
         onCenteredItemChange={handleCenteredItemChange}
         renderItem={(station, { detailLevel }) => {
           if (detailLevel === "shell") return null

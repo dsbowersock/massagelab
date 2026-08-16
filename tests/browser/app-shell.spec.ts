@@ -1037,6 +1037,121 @@ test("compact landscape player rail keeps portrait bottom geometry and exposes o
   expectMusicRailOverflowBounded(await readMusicRailOverflow(toolbar))
 })
 
+test("carousel fits compact landscape rail", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== mobileProject, "Compact-landscape carousel geometry is covered in mobile Chromium.")
+  await page.addInitScript(() => {
+    const NativeResizeObserver = window.ResizeObserver
+    const records: Array<{ targets: string[], disconnected: boolean }> = []
+    Reflect.set(window, "__stationCarouselObserverRecords", records)
+    window.ResizeObserver = class InstrumentedResizeObserver implements ResizeObserver {
+      private nativeObserver: ResizeObserver
+      private record = { targets: [] as string[], disconnected: false }
+
+      constructor(callback: ResizeObserverCallback) {
+        records.push(this.record)
+        this.nativeObserver = new NativeResizeObserver((entries) => callback(entries, this))
+      }
+
+      disconnect() {
+        this.record.disconnected = true
+        this.nativeObserver.disconnect()
+      }
+
+      observe(target: Element, options?: ResizeObserverOptions) {
+        this.record.targets.push(target.classList.contains("ml-atmosphere-station-carousel")
+          ? "station-carousel-root"
+          : target.tagName.toLowerCase())
+        this.nativeObserver.observe(target, options)
+      }
+
+      unobserve(target: Element) {
+        this.nativeObserver.unobserve(target)
+      }
+    }
+  })
+  await installInterruptionNoticeMediaFakes(page)
+  await page.setViewportSize({ width: 844, height: 390 })
+  const toolbar = await startProofDrone(page)
+  const carousel = page.getByRole("region", { name: "Atmosphere audio stations" })
+  const stationStage = page.getByRole("region", { name: "Station carousel" })
+  const proofDrone = page.getByRole("group", { name: /MassageLab Proof Drone/ })
+  const nonShellCards = carousel.locator('[data-carousel-slide]:not([data-detail-level="shell"])')
+  const readCenterOffset = async () => {
+    const [containerBox, cardBox] = await Promise.all([carousel.boundingBox(), proofDrone.boundingBox()])
+    return Math.abs(
+      ((cardBox?.x ?? 0) + (cardBox?.width ?? 0) / 2)
+      - ((containerBox?.x ?? 0) + (containerBox?.width ?? 0) / 2),
+    )
+  }
+  const centeredStationId = await carousel.locator('[data-centered="true"]').getAttribute("data-carousel-item-id")
+
+  await expect(toolbar).toHaveAttribute("data-layout", "rail")
+  expect(centeredStationId).toBe("mlab-proof-drone")
+  await expect(nonShellCards).toHaveCount(3)
+  expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
+  await expect(proofDrone).toHaveAttribute("data-centered", "true")
+  await expect(proofDrone.getByRole("button", { name: /Play|Stop MassageLab Proof Drone/i })).toBeInViewport()
+  await expect(stationStage.getByRole("button", { name: "Previous station" })).toBeInViewport()
+  await expect(stationStage.getByRole("button", { name: "Next station" })).toBeInViewport()
+  await expect.poll(readCenterOffset).toBeLessThanOrEqual(0.5)
+  const [expandedContainer, expandedCard] = await Promise.all([
+    carousel.boundingBox(),
+    proofDrone.boundingBox(),
+  ])
+  expect(expandedContainer).toMatchObject({ width: 457.046875, height: 285 })
+  expect(expandedCard).toMatchObject({ width: 175, height: 213 })
+  expect((expandedCard?.x ?? 0) + (expandedCard?.width ?? 0) / 2)
+    .toBeCloseTo((expandedContainer?.x ?? 0) + (expandedContainer?.width ?? 0) / 2, 0)
+
+  await toolbar.getByRole("button", { name: "Minimize", exact: true }).click()
+  await expect(toolbar).toHaveAttribute("data-collapsed", "true")
+  await expect.poll(async () => (await proofDrone.boundingBox())?.width).toBe(192)
+  await expect(proofDrone).toHaveAttribute("data-centered", "true")
+  await expect(nonShellCards).toHaveCount(3)
+  await expect.poll(readCenterOffset).toBeLessThanOrEqual(0.5)
+
+  await toolbar.getByRole("button", { name: "Expand", exact: true }).click()
+  await expect(toolbar).toHaveAttribute("data-collapsed", "false")
+  await expect.poll(async () => (await proofDrone.boundingBox())?.width).toBe(175)
+  await expect(proofDrone).toHaveAttribute("data-centered", "true")
+  await expect(nonShellCards).toHaveCount(3)
+  await expect.poll(readCenterOffset).toBeLessThanOrEqual(0.5)
+
+  await toolbar.getByRole("button", { name: "Minimize", exact: true }).click()
+  await expect(toolbar).toHaveAttribute("data-collapsed", "true")
+  await expect.poll(async () => (await proofDrone.boundingBox())?.width).toBe(192)
+  await expect(proofDrone).toHaveAttribute("data-centered", "true")
+  await expect(nonShellCards).toHaveCount(3)
+  await expect.poll(readCenterOffset).toBeLessThanOrEqual(0.5)
+  const [collapsedContainer, collapsedCard] = await Promise.all([
+    carousel.boundingBox(),
+    proofDrone.boundingBox(),
+  ])
+  expect(collapsedContainer).toMatchObject({ width: 632, height: 285 })
+  expect(collapsedCard).toMatchObject({ width: 192, height: 213 })
+  expect((collapsedCard?.x ?? 0) + (collapsedCard?.width ?? 0) / 2)
+    .toBeCloseTo((collapsedContainer?.x ?? 0) + (collapsedContainer?.width ?? 0) / 2, 0)
+  expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
+  expect(await page.evaluate(() => {
+    const records = Reflect.get(window, "__stationCarouselObserverRecords") as Array<{
+      targets: string[]
+      disconnected: boolean
+    }>
+    return records.filter(({ targets }) => targets.includes("station-carousel-root"))
+  })).toEqual([{ targets: ["station-carousel-root"], disconnected: false }])
+
+  await page.getByRole("button", { name: "About", exact: true }).click()
+  await page.getByRole("link", { name: "About MassageLab" }).click()
+  await expect(page).toHaveURL(/\/about$/)
+  expect(await page.evaluate(() => {
+    const records = Reflect.get(window, "__stationCarouselObserverRecords") as Array<{
+      targets: string[]
+      disconnected: boolean
+    }>
+    return records.filter(({ targets }) => targets.includes("station-carousel-root"))
+  })).toEqual([{ targets: ["station-carousel-root"], disconnected: true }])
+})
+
 test("Atmosphere expanded player actions expose session and saved interruption preferences", async ({ page }) => {
   await installInterruptionNoticeMediaFakes(page)
   await page.setViewportSize({ width: 390, height: 844 })

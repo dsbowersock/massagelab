@@ -6,6 +6,7 @@ import {
   STATION_CAROUSEL_TUNING,
   getMountedAdaptiveCarouselItemIds,
   getResponsiveBackgroundCarouselTuning,
+  getResponsiveStationCarouselTuning,
   resolveAdaptiveCarouselViewportProfile,
 } from "../components/carousels/adaptive-carousel-model.js"
 
@@ -74,6 +75,25 @@ describe("production adaptive carousel", () => {
       [...getMountedAdaptiveCarouselItemIds(items, "d", 2, true)],
       ["b", "c", "d", "e", "f"],
     )
+  })
+
+  it("station tuning fits three cards inside a constrained rail workspace", () => {
+    assert.deepEqual(
+      getResponsiveStationCarouselTuning({ containerWidth: 556, containerHeight: 246 }),
+      {
+        ...STATION_CAROUSEL_TUNING,
+        cardWidth: 192,
+        cardHeight: 174,
+        visibleRadius: 1,
+      },
+    )
+  })
+
+  it("station tuning clamps tiny containers without hiding the centered action", () => {
+    const tuning = getResponsiveStationCarouselTuning({ containerWidth: 420, containerHeight: 210 })
+    assert.equal(tuning.cardWidth, 161)
+    assert.equal(tuning.cardHeight, 168)
+    assert.equal(tuning.visibleRadius, 1)
   })
 
   it("offers one tray-owned Animated previews switch wired to the saved preference", () => {
