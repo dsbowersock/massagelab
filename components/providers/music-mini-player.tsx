@@ -288,7 +288,7 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
           {/* CSS keeps the record in a bounded background layer while this
               foreground grid owns identity and breakpoint-stable actions. */}
           <div
-            className="ml-music-player-toolbar-layout mx-auto grid w-full max-w-screen-2xl gap-2 px-3 py-2 sm:px-4"
+            className="ml-music-player-toolbar-layout mx-auto grid w-full max-w-screen-2xl gap-2 py-2"
           >
             <div className="min-w-0" data-testid="music-player-toolbar-identity">
               <p className="ml-music-player-toolbar-title truncate text-sm font-semibold">{title}</p>

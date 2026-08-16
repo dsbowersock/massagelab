@@ -333,6 +333,9 @@ async function readVinylPlayerGeometry(toolbar: Locator) {
         clientHeight: layout.clientHeight,
         clientWidth: layout.clientWidth,
         contentLeft: layout.getBoundingClientRect().left + Number.parseFloat(layoutStyle.paddingLeft),
+        contentRight: layout.getBoundingClientRect().right - Number.parseFloat(layoutStyle.paddingRight),
+        paddingLeft: Number.parseFloat(layoutStyle.paddingLeft),
+        paddingRight: Number.parseFloat(layoutStyle.paddingRight),
         scrollHeight: layout.scrollHeight,
         scrollWidth: layout.scrollWidth,
       },
@@ -1143,6 +1146,8 @@ test("vinyl geometry keeps short landscape complete with exact safe-area offsets
   const notice = page.getByTestId("music-interruption-notice")
   await page.locator("body").evaluate((body) => {
     body.style.setProperty("--ml-safe-bottom", "24px")
+    body.style.setProperty("--ml-safe-left", "24px")
+    body.style.setProperty("--ml-safe-right", "32px")
   })
 
   let geometry = await readVinylPlayerGeometry(toolbar)
@@ -1153,6 +1158,13 @@ test("vinyl geometry keeps short landscape complete with exact safe-area offsets
   expect(geometry.vinyl.width).toBeLessThan(128)
   expect(geometry.vinyl.height).toBeCloseTo(geometry.vinyl.width, 0)
   expect(geometry.toolbar.height).toBeLessThan(160)
+  expect(geometry.layout.paddingLeft).toBeCloseTo(24, 0)
+  expect(geometry.layout.paddingRight).toBeCloseTo(32, 0)
+  expect(geometry.layout.contentLeft).toBeCloseTo(geometry.layout.left + 24, 0)
+  expect(geometry.layout.contentRight).toBeCloseTo(geometry.layout.right - 32, 0)
+  expect(geometry.vinyl.left).toBeCloseTo(geometry.layout.contentLeft, 0)
+  expect(geometry.left?.left ?? Number.NEGATIVE_INFINITY).toBeGreaterThanOrEqual(geometry.layout.contentLeft)
+  expect(geometry.right?.right ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(geometry.layout.contentRight)
   expect(geometry.vinyl.top).toBeGreaterThanOrEqual(geometry.toolbar.top)
   expect(geometry.vinyl.bottom).toBeLessThanOrEqual(geometry.toolbar.bottom)
   expect(geometry.layout.scrollHeight).toBeLessThanOrEqual(geometry.layout.clientHeight)
@@ -1181,6 +1193,13 @@ test("vinyl geometry keeps short landscape complete with exact safe-area offsets
   expect(spacing.chimerTop).toBeCloseTo(geometry.toolbar.height + 12, 0)
   expect(spacing.chimerSettingsTop).toBeCloseTo(geometry.toolbar.height + 76, 0)
   expect((noticeBox?.y ?? 0) - geometry.toolbar.bottom).toBeCloseTo(8, 0)
+  expect(geometry.layout.paddingLeft).toBeCloseTo(24, 0)
+  expect(geometry.layout.paddingRight).toBeCloseTo(32, 0)
+  expect(geometry.layout.contentLeft).toBeCloseTo(geometry.layout.left + 24, 0)
+  expect(geometry.layout.contentRight).toBeCloseTo(geometry.layout.right - 32, 0)
+  expect(geometry.vinyl.left).toBeCloseTo(geometry.layout.contentLeft, 0)
+  expect(geometry.left?.left ?? Number.NEGATIVE_INFINITY).toBeGreaterThanOrEqual(geometry.layout.contentLeft)
+  expect(geometry.right?.right ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(geometry.layout.contentRight)
   expect(geometry.vinyl.top).toBeGreaterThanOrEqual(geometry.toolbar.top + 24)
   expect(geometry.vinyl.bottom).toBeLessThanOrEqual(geometry.toolbar.bottom)
 })

@@ -116,6 +116,8 @@
     /* App shell spacing */
     --ml-safe-top: env(safe-area-inset-top, 0px);
     --ml-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --ml-safe-left: env(safe-area-inset-left, 0px);
+    --ml-safe-right: env(safe-area-inset-right, 0px);
     --ml-page-edge-gap: clamp(1rem, 3vw, 2rem);
     --ml-scroll-end-buffer: 1.5rem;
     --ml-audio-toolbar-content-height: 5rem;
@@ -269,23 +271,6 @@
       display: none;
     }
 
-    .ml-music-player-toolbar-surface::after {
-      background: hsl(var(--border) / 0.82);
-      content: "";
-      height: 1px;
-      left: 0;
-      pointer-events: none;
-      position: absolute;
-      right: 0;
-    }
-
-    .ml-music-player-toolbar[data-placement="top"] .ml-music-player-toolbar-surface::after {
-      bottom: 0;
-    }
-
-    .ml-music-player-toolbar[data-placement="bottom"] .ml-music-player-toolbar-surface::after {
-      top: 0;
-    }
   }
 
   body.chimer-running aside,
@@ -2025,6 +2010,10 @@
 
   .ml-music-player-toolbar-layout {
     grid-template-rows: minmax(0, 1fr) auto;
+    /* Safe insets replace the ordinary gutter only when they are larger, so
+       the physical screen edge is consumed once rather than added twice. */
+    padding-left: max(var(--ml-music-player-inline-padding), var(--ml-safe-left));
+    padding-right: max(var(--ml-music-player-inline-padding), var(--ml-safe-right));
     position: relative;
     z-index: 1;
   }
@@ -2043,9 +2032,9 @@
 
   .ml-station-vinyl {
     height: var(--ml-station-vinyl-size);
-    left: max(
-      var(--ml-music-player-inline-padding),
-      calc((100% - 96rem) / 2 + var(--ml-music-player-inline-padding))
+    left: calc(
+      max(0px, (100% - 96rem) / 2)
+      + max(var(--ml-music-player-inline-padding), var(--ml-safe-left))
     );
     position: absolute;
     top: calc(
