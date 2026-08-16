@@ -36,7 +36,7 @@ export async function GET(_request: Request, context: ArtworkRouteContext) {
   })
   const png = await sharp(Buffer.from(svg)).png({ compressionLevel: 9 }).toBuffer()
 
-  return new Response(png, {
+  return new Response(new Uint8Array(png), {
     headers: {
       "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
       "Content-Type": "image/png",

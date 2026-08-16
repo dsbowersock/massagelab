@@ -1208,9 +1208,11 @@ test("canonical station artwork returns stable distinct PNGs and matches the cen
   for (const station of stations) {
     const response = await request.get(`/api/atmosphere/stations/${encodeURIComponent(station.id)}/artwork`)
     expect(response.status()).toBe(200)
-    expect(response.headers()["content-type"]).toContain("image/png")
+    const body = Buffer.from(await response.body())
+    expect(body.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a")
+    expect(response.headers()["content-type"]).toBe("image/png")
     expect(response.headers()["cache-control"]).toContain("max-age=86400")
-    artworkHashes.add(await sha256(response))
+    artworkHashes.add(createHash("sha256").update(body).digest("hex"))
   }
 
   expect(artworkHashes.size).toBe(stations.length)
