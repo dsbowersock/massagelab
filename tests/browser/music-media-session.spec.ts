@@ -668,6 +668,27 @@ async function installMediaOwnershipFakes(page: Page, options: MediaOwnershipFak
   }, options)
 }
 
+/** Prevents a route-controlled test from losing requests to a claimed PWA service worker. */
+async function installRouteControlledServiceWorkerGuard(page: Page) {
+  await page.addInitScript(() => {
+    const state = { attempts: 0, forwarded: 0 }
+    Reflect.set(window, "__massagelabRouteTestServiceWorker", state)
+    if (!("serviceWorker" in navigator)) return
+
+    const container = navigator.serviceWorker
+    Object.defineProperty(container, "register", {
+      configurable: true,
+      value: () => {
+        state.attempts += 1
+        return Promise.reject(new DOMException(
+          "Route-controlled browser QA blocks service-worker registration.",
+          "NotSupportedError",
+        ))
+      },
+    })
+  })
+}
+
 async function readProbe(page: Page) {
   return page.evaluate(() => Reflect.get(window, "__massagelabMediaProbe") as MediaProbe)
 }
@@ -1596,12 +1617,18 @@ test("vinyl motion advances only while the station is Playing and freezes inacti
 })
 
 test("vinyl motion stays frozen while station startup is Loading and after failure", async ({ page }) => {
+  await installRouteControlledServiceWorkerGuard(page)
   await installMediaOwnershipFakes(page)
   let releaseSampleIndex!: () => void
+  let recordSampleIndexRequest!: (url: string) => void
   const sampleIndexGate = new Promise<void>((resolve) => {
     releaseSampleIndex = resolve
   })
+  const sampleIndexRequest = new Promise<string>((resolve) => {
+    recordSampleIndexRequest = resolve
+  })
   await page.route("**/observable-streams-vsco-adaptation/sample-index*.json", async (route) => {
+    recordSampleIndexRequest(route.request().url())
     await sampleIndexGate
     await route.fulfill({ status: 503, body: "unavailable" })
   })
@@ -1610,7 +1637,19 @@ test("vinyl motion stays frozen while station startup is Loading and after failu
     id: "observable-streams-probe",
     title: "Observable Streams",
   })
+  await expect.poll(() => page.evaluate(() => {
+    const state = Reflect.get(window, "__massagelabRouteTestServiceWorker") as { attempts: number }
+    return state?.attempts ?? 0
+  })).toBeGreaterThan(0)
+  await expect.poll(() => page.evaluate(() => {
+    const state = Reflect.get(window, "__massagelabRouteTestServiceWorker") as { forwarded: number }
+    return state?.forwarded ?? 0
+  })).toBe(0)
   await play.click()
+  const matchedSampleIndexUrl = await sampleIndexRequest
+  expect(matchedSampleIndexUrl).toMatch(
+    /\/observable-streams-vsco-adaptation\/sample-index(?:\.[^/?]+)?\.json(?:\?.*)?$/,
+  )
   const player = page.getByTestId("music-player-toolbar")
   const vinyl = player.getByTestId("station-vinyl")
   await expect(player).toHaveAttribute("data-playback-state", "loading")
