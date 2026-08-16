@@ -1175,6 +1175,7 @@ test("player rail keeps overlays clear in the popover fixture", async ({ page },
 })
 
 test("player rail keeps overlays clear while preserving caller collision padding", () => {
+  expect(withPlayerViewportCollisionPadding(undefined, 0)).toBeUndefined()
   expect(withPlayerViewportCollisionPadding(undefined, 20)).toEqual({
     top: 8, right: 28, bottom: 8, left: 8,
   })

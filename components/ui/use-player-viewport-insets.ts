@@ -11,8 +11,10 @@ type CollisionPadding = number | Partial<Record<"top" | "right" | "bottom" | "le
 export function withPlayerViewportCollisionPadding(
   collisionPadding: CollisionPadding | undefined,
   rightInset: number,
-): CollisionPadding {
+): CollisionPadding | undefined {
   if (collisionPadding === undefined) {
+    if (rightInset === 0) return undefined
+
     return { top: 8, right: rightInset + 8, bottom: 8, left: 8 }
   }
 
