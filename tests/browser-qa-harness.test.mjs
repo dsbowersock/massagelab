@@ -80,6 +80,14 @@ test("browser QA lanes cover each ordinary project and spec exactly once", () =>
     /background-(?:palette|carousel-preview|preview-pilot)\.spec\.ts|dna-twisted-cubes-backgrounds\.spec\.ts/,
   )
   assert.doesNotThrow(() => assertBrowserQaLaneCoverage())
+
+  const lanesWithWrongFourthId = Object.fromEntries(
+    Object.entries(BROWSER_QA_LANES).map(([laneId, lane]) => [laneId === "4" ? "5" : laneId, lane]),
+  )
+  assert.throws(
+    () => assertBrowserQaLaneCoverage(lanesWithWrongFourthId),
+    /exact lane IDs 1, 2, 3, and 4; found 1, 2, 3, 5/i,
+  )
 })
 
 test("browser QA lane resolver preserves ordinary runs and returns exact lane assignments", () => {

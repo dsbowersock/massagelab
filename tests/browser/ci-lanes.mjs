@@ -69,6 +69,11 @@ export function assertBrowserQaLaneCoverage(lanes = BROWSER_QA_LANES) {
   if (laneEntries.length !== 4) {
     throw new Error(`Browser QA lanes must contain exactly four lane IDs; found ${laneEntries.length}`)
   }
+  const expectedLaneIds = ["1", "2", "3", "4"]
+  const laneIds = laneEntries.map(([laneId]) => laneId)
+  if (!expectedLaneIds.every((laneId) => laneIds.includes(laneId))) {
+    throw new Error(`Browser QA lanes must use exact lane IDs 1, 2, 3, and 4; found ${laneIds.join(", ")}`)
+  }
 
   const expectedPairs = new Set(
     BROWSER_QA_PROJECT_NAMES.flatMap((projectName) => (
