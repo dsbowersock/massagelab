@@ -29,6 +29,23 @@ test("CI installs Chromium and WebKit for configured browser QA projects", async
   assert.match(ciWorkflow, /npx playwright install --with-deps chromium webkit/)
 })
 
+test("CI reserves the evidence-backed 45-minute budget for the complete QA job", async () => {
+  const ciWorkflow = await readProjectFile(".github/workflows/ci.yml")
+
+  assert.match(ciWorkflow, /jobs:\r?\n  qa:\r?\n    runs-on: ubuntu-latest\r?\n    timeout-minutes: 45/)
+})
+
+test("install-prompt QA dispatches only while the provider listener is proven active", async () => {
+  const appShellSpec = await readProjectFile("tests/browser/app-shell.spec.ts")
+
+  assert.equal((appShellSpec.match(/await installPwaPromptListenerProbe\(page\)/g) ?? []).length, 2)
+  assert.equal((appShellSpec.match(/await dispatchPwaInstallPromptWhenReady\(page,/g) ?? []).length, 2)
+  assert.match(
+    appShellSpec,
+    /if \(!Reflect\.get\(window, "__massagelabPwaInstallPromptListenerReady"\)\) return false[\s\S]*window\.dispatchEvent\(event\)/,
+  )
+})
+
 test("development review spec matching accepts Playwright line and column suffixes", () => {
   for (const spec of [
     "tests/browser/background-palette.spec.ts",

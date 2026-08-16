@@ -139,6 +139,64 @@ async function prepareAccountMenu(page: Page) {
   await expect(trigger).toBeVisible()
 }
 
+/** Tracks the live provider listener so synthetic install events cannot race React effect setup. */
+async function installPwaPromptListenerProbe(page: Page) {
+  await page.addInitScript(() => {
+    const activeListeners = new Set<EventListenerOrEventListenerObject>()
+    const originalAddEventListener = window.addEventListener.bind(window)
+    const originalRemoveEventListener = window.removeEventListener.bind(window)
+
+    Object.defineProperties(window, {
+      addEventListener: {
+        configurable: true,
+        value: ((
+          type: string,
+          listener: EventListenerOrEventListenerObject | null,
+          options?: boolean | AddEventListenerOptions,
+        ) => {
+          if (!listener) return
+          originalAddEventListener(type, listener, options)
+          if (type === "beforeinstallprompt") activeListeners.add(listener)
+        }) as typeof window.addEventListener,
+      },
+      removeEventListener: {
+        configurable: true,
+        value: ((
+          type: string,
+          listener: EventListenerOrEventListenerObject | null,
+          options?: boolean | EventListenerOptions,
+        ) => {
+          if (!listener) return
+          originalRemoveEventListener(type, listener, options)
+          if (type === "beforeinstallprompt") activeListeners.delete(listener)
+        }) as typeof window.removeEventListener,
+      },
+      __massagelabPwaInstallPromptListenerReady: {
+        configurable: true,
+        get: () => activeListeners.size > 0,
+      },
+    })
+  })
+}
+
+/** Dispatches exactly once in the same browser task that proves the provider listener is active. */
+async function dispatchPwaInstallPromptWhenReady(page: Page, outcome: "resolve" | "reject") {
+  await expect.poll(() => page.evaluate((shouldReject) => {
+    if (!Reflect.get(window, "__massagelabPwaInstallPromptListenerReady")) return false
+    const event = new Event("beforeinstallprompt") as Event & {
+      prompt: () => Promise<void>
+      userChoice: Promise<{ outcome: "dismissed"; platform: string }>
+    }
+    event.prompt = async () => {
+      if (shouldReject) throw new Error("prompt failed")
+      document.documentElement.dataset.installPromptCalled = "true"
+    }
+    event.userChoice = Promise.resolve({ outcome: "dismissed", platform: "web" })
+    window.dispatchEvent(event)
+    return true
+  }, outcome === "reject")).toBe(true)
+}
+
 async function reopenAccountMenu(page: Page, projectName: string) {
   if (projectName === mobileProject) {
     await expect(page.getByTestId("account-menu-trigger")).toHaveCount(0)
@@ -746,18 +804,11 @@ test("desktop tooltips open from hover and keyboard focus", async ({ page }, tes
 })
 
 test("account menu launches a captured install prompt and keeps help or feedback available", async ({ page }, testInfo) => {
+  await installPwaPromptListenerProbe(page)
   await gotoShell(page, "/")
   await prepareAccountMenu(page)
   await openAccountMenu(page)
-  await page.evaluate(() => {
-    const event = new Event("beforeinstallprompt") as Event & {
-      prompt: () => Promise<void>
-      userChoice: Promise<{ outcome: "dismissed"; platform: string }>
-    }
-    event.prompt = async () => { document.documentElement.dataset.installPromptCalled = "true" }
-    event.userChoice = Promise.resolve({ outcome: "dismissed", platform: "web" })
-    window.dispatchEvent(event)
-  })
+  await dispatchPwaInstallPromptWhenReady(page, "resolve")
   await expect(page.getByRole("menuitem", { name: "Install MassageLab" })).toBeVisible()
   await expect(page.getByRole("menuitem", { name: "Help & FAQ" })).toBeVisible()
   await expect(page.getByRole("menuitem", { name: "Send Feedback" })).toBeVisible()
@@ -842,17 +893,10 @@ test("account menu hides install on an unsupported browser", async ({ page }) =>
 })
 
 test("failed install prompt stays hidden after the failed attempt", async ({ page }, testInfo) => {
+  await installPwaPromptListenerProbe(page)
   await gotoShell(page, "/")
   await prepareAccountMenu(page)
-  await page.evaluate(() => {
-    const event = new Event("beforeinstallprompt") as Event & {
-      prompt: () => Promise<void>
-      userChoice: Promise<{ outcome: "dismissed"; platform: string }>
-    }
-    event.prompt = async () => { throw new Error("prompt failed") }
-    event.userChoice = Promise.resolve({ outcome: "dismissed", platform: "web" })
-    window.dispatchEvent(event)
-  })
+  await dispatchPwaInstallPromptWhenReady(page, "reject")
   await openAccountMenu(page)
   await page.getByRole("menuitem", { name: "Install MassageLab" }).click()
   await reopenAccountMenu(page, testInfo.project.name)
