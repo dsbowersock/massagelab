@@ -23,6 +23,10 @@ if (features.includes("premium_backgrounds")) {
 - Free access is the default when a user has no active paid subscription.
 - Free is not a Stripe product.
 - Student access is internal to MassageLab and is not a Stripe subscription.
+- A freshly verified full `ADMIN` database role grants the complete current
+  non-PHI feature set as an explicit administrative source. It does not create
+  a Stripe Customer or subscription, does not change `level` or `paidLevel`,
+  and never bypasses the separate cloud-storage or PHI compliance gates.
 - Public enrollment accepts only the six approved amount-specific Supporter
   Prices: $1, $2, and $5 monthly, plus $10, $20, and $50 annually. Every one of
   those Price IDs grants the same `SUPPORTER` membership and feature set.

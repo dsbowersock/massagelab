@@ -6,6 +6,12 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `Massage Laba Lamp` is the approved catalog label for the original free moving-gradient default. `MassageLaba Lamp` and general prose that says `MassageLab Lamp` are legacy references to that same stable `massage-lab-moving-gradient` entry, not separate backgrounds.
 
+## 2026-08-16 — Post-PR #181 Admin access and browser audit
+
+- Completed the user-approved cleanup after PR #181 and retained only the Admin-panel audit corrections. Verified full `ADMIN` assignments now receive every currently implemented non-PHI paid feature through explicit Admin entitlement provenance without fabricating a Stripe subscription or changing truthful billing level data. `cloud_storage` and `phi_storage_tools` remain excluded behind their existing compliance gates.
+- Preserved completed two-factor-reset feedback after server revalidation disables the form, and tightened the Admin browser selectors for the exact Security heading and `$20.00` billing row. Background and Chimer access responses now carry the explicit Admin provenance needed to render these entitlements consistently.
+- Validation passed 170 focused tests; the full 2,500-test suite with 2,499 passes and one intentional skip; typecheck; lint with only the existing Babel large-file note for `app/chimer/running-timer.tsx`; the 104-page Production build; and all 16 desktop/mobile Admin browser journeys against a disposable Neon branch. The disposable branch was removed afterward and verified absent. Production data was not mutated, and no live Stripe, email, deployment, or merge action occurred.
+
 ## 2026-08-13 — Mobile media carousel and player controls
 
 - Moved Background metadata, access/commerce state, favorite, navigation, automatic-preview preference, and compact accessible details from artwork cards into one permanent responsive tray. The tray sits below the carousel normally and to its right in short landscape; short landscape uses a radius-one three-card window while other Background profiles retain radius two. Cards now contain only preview media and selected styling, and the panel keeps the stage plus controls reachable without required horizontal or vertical scrolling.

@@ -520,7 +520,7 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
             }) as {
               settings: ChimerSettings
               featureKeys: string[]
-              premiumBackgroundAccessSource: "subscription" | "temporary" | null
+              premiumBackgroundAccessSource: "subscription" | "temporary" | "admin" | null
               ownedBackgroundIds: string[]
             } | null
           : null
@@ -1223,7 +1223,7 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
           }) as {
             settings: ChimerSettings
             featureKeys: string[]
-            premiumBackgroundAccessSource: "subscription" | "temporary" | null
+            premiumBackgroundAccessSource: "subscription" | "temporary" | "admin" | null
             ownedBackgroundIds: string[]
           } | null
         : null

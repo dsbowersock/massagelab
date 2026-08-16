@@ -50,6 +50,13 @@ describe("Account preference helpers", () => {
     assert.equal(resolveChimerPreferenceSeedResult({
       accessAuthoritative: true,
       features: ["premium_backgrounds"],
+      premiumBackgroundAccessSource: "admin",
+      ownedBackgroundIds: [],
+      chimerSettings: {},
+    }).premiumBackgroundAccessSource, "admin")
+    assert.equal(resolveChimerPreferenceSeedResult({
+      accessAuthoritative: true,
+      features: ["premium_backgrounds"],
       premiumBackgroundAccessSource: "unsupported",
       ownedBackgroundIds: [],
       chimerSettings: {},

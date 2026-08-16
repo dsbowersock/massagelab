@@ -9,7 +9,7 @@ import { runCommerceTransaction } from "./transactions.ts"
 export type BackgroundAccessDecision = {
   canUse: boolean
   canCustomizeColors: boolean
-  accessSource: "free" | "subscription" | "temporary" | "ownership" | "locked"
+  accessSource: "free" | "subscription" | "temporary" | "admin" | "ownership" | "locked"
   isPermanentlyOwned: boolean
   ownershipStatus: BackgroundOwnershipStatus | null
   creditEligibility: { eligible: boolean; disabledReason: string | null }
@@ -105,7 +105,14 @@ async function resolveBackgroundAccessInTransaction(
   const [user, subscriptions, studentAccess, temporaryGrants, ownership, wallet, reservedOrder] = await Promise.all([
     tx.user.findUnique({
       where: { id: userId },
-      select: { emailVerified: true },
+      select: {
+        emailVerified: true,
+        roles: {
+          where: { role: "ADMIN", status: "VERIFIED" },
+          select: { id: true },
+          take: 1,
+        },
+      },
     }),
     tx.membershipSubscription.findMany({
       where: { userId },
@@ -137,7 +144,13 @@ async function resolveBackgroundAccessInTransaction(
     }),
   ])
 
-  const entitlements = buildEntitlements({ subscriptions, studentAccess, temporaryGrants, now })
+  const entitlements = buildEntitlements({
+    adminAccess: Boolean(user?.roles?.length),
+    subscriptions,
+    studentAccess,
+    temporaryGrants,
+    now,
+  })
   const ownershipStatus = ownership?.status ?? null
   const isPermanentlyOwned = ownershipStatus === "ACTIVE"
   // Use additive provenance so a simultaneous membership source wins without
@@ -151,7 +164,10 @@ async function resolveBackgroundAccessInTransaction(
   const hasTemporaryAccess = premiumFeatureAccess?.sources.some(
     (source) => source.source === "temporary",
   ) ?? false
-  const hasPremiumAccess = hasMembershipAccess || hasTemporaryAccess
+  const hasAdminAccess = premiumFeatureAccess?.sources.some(
+    (source) => source.source === "admin",
+  ) ?? false
+  const hasPremiumAccess = hasMembershipAccess || hasTemporaryAccess || hasAdminAccess
   const isFree = !background.requiresSubscription
   const reservation = reservedOrder?.reservationExpiresAt
     ? {
@@ -170,9 +186,11 @@ async function resolveBackgroundAccessInTransaction(
       ? "ownership"
       : hasMembershipAccess
         ? "subscription"
-        : hasTemporaryAccess
-          ? "temporary"
-        : "locked"
+        : hasAdminAccess
+          ? "admin"
+          : hasTemporaryAccess
+            ? "temporary"
+            : "locked"
 
   return {
     canUse,

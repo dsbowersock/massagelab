@@ -21,7 +21,8 @@ function jsonObject(value: Record<string, unknown>) {
 
 /**
  * Reduces additive entitlement provenance to the carousel's presentation
- * source. Membership wins when both membership and temporary grants are active.
+ * source: membership wins over Admin, and Admin wins over temporary access.
+ * This presentation value neither changes billing level nor creates ownership.
  */
 function premiumBackgroundAccessSource(featureAccess: unknown) {
   if (!Array.isArray(featureAccess)) return null
@@ -35,6 +36,9 @@ function premiumBackgroundAccessSource(featureAccess: unknown) {
   if (premium.sources.some((source: unknown) => (
     source !== null && typeof source === "object" && "source" in source && source.source === "membership"
   ))) return "subscription" as const
+  if (premium.sources.some((source: unknown) => (
+    source !== null && typeof source === "object" && "source" in source && source.source === "admin"
+  ))) return "admin" as const
   if (premium.sources.some((source: unknown) => (
     source !== null && typeof source === "object" && "source" in source && source.source === "temporary"
   ))) return "temporary" as const
