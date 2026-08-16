@@ -219,55 +219,49 @@
   }
 
   body.ml-music-player-active.ml-music-player-top {
-    --chimer-top-control-offset: calc(var(--ml-safe-top) + var(--ml-audio-toolbar-height) + 0.75rem);
-    --chimer-settings-panel-top-offset: calc(var(--ml-safe-top) + var(--ml-audio-toolbar-height) + 4.75rem);
+    --ml-audio-toolbar-height: calc(var(--ml-audio-toolbar-content-height) + var(--ml-safe-top));
+    --chimer-top-control-offset: calc(var(--ml-audio-toolbar-height) + 0.75rem);
+    --chimer-settings-panel-top-offset: calc(var(--ml-audio-toolbar-height) + 4.75rem);
   }
 
   body.ml-music-player-active.ml-music-player-bottom {
+    --ml-audio-toolbar-height: var(--ml-audio-toolbar-content-height);
     --chimer-bottom-control-offset: calc(var(--ml-safe-bottom) + var(--ml-audio-toolbar-height) + 0.75rem);
     --chimer-panel-bottom-offset: calc(var(--ml-safe-bottom) + var(--ml-audio-toolbar-height) + 0.75rem);
   }
 
-  /* The narrow shell reservation follows the toolbar's expanded or compact grid. */
-  @media (max-width: 39.999rem) {
+  body.ml-music-player-active:not(.ml-music-player-collapsed) {
+    --ml-audio-toolbar-content-height: 10rem;
+  }
+
+  body.ml-music-player-active.ml-music-player-collapsed {
+    --ml-audio-toolbar-content-height: 4.5rem;
+  }
+
+  /* The root owns the placement-specific reservation while the grid keeps
+     its full control height. The bottom stack already owns its safe inset. */
+  .ml-music-player-toolbar {
+    height: var(--ml-audio-toolbar-height);
+  }
+
+  .ml-music-player-toolbar-surface {
+    box-sizing: border-box;
+    height: 100%;
+    position: relative;
+  }
+
+  .ml-music-player-toolbar-layout {
+    height: var(--ml-audio-toolbar-content-height);
+    min-height: var(--ml-audio-toolbar-content-height);
+  }
+
+  @media (min-width: 36.0625rem) and (max-height: 44rem) {
     body.ml-music-player-active:not(.ml-music-player-collapsed) {
-      --ml-audio-toolbar-content-height: 7rem;
+      --ml-audio-toolbar-content-height: 8rem;
     }
+  }
 
-    body.ml-music-player-active.ml-music-player-collapsed {
-      --ml-audio-toolbar-content-height: 4.5rem;
-    }
-
-    body.ml-music-player-active.ml-music-player-top {
-      --ml-audio-toolbar-height: calc(var(--ml-audio-toolbar-content-height) + var(--ml-safe-top));
-      --chimer-top-control-offset: calc(var(--ml-audio-toolbar-height) + 0.75rem);
-      --chimer-settings-panel-top-offset: calc(var(--ml-audio-toolbar-height) + 4.75rem);
-    }
-
-    body.ml-music-player-active.ml-music-player-bottom {
-      --ml-audio-toolbar-height: var(--ml-audio-toolbar-content-height);
-    }
-
-    /* The root owns the placement-specific reservation while the grid keeps
-       its full control height. The bottom stack already owns its safe inset. */
-    .ml-music-player-toolbar {
-      height: var(--ml-audio-toolbar-height);
-    }
-
-    .ml-music-player-toolbar-surface {
-      box-sizing: border-box;
-      height: 100%;
-      position: relative;
-    }
-
-    .ml-music-player-toolbar-layout {
-      height: var(--ml-audio-toolbar-content-height);
-      min-height: var(--ml-audio-toolbar-content-height) !important;
-      padding-bottom: 0.25rem;
-      padding-top: 0.25rem;
-      row-gap: 0.25rem;
-    }
-
+  @media (max-width: 39.999rem) {
     /* Loading keeps one visible identity line plus the accessible progress bar,
        avoiding duplicate status copy inside the bounded narrow grid. */
     .ml-music-player-toolbar[data-playback-state="loading"] .ml-music-player-toolbar-status,
@@ -1937,14 +1931,10 @@
   }
 
   body.ml-music-player-active.ml-music-player-top .ml-app-shell {
-    --ml-page-top-safe: calc(var(--ml-safe-top) + var(--ml-audio-toolbar-height));
+    --ml-page-top-safe: var(--ml-audio-toolbar-height);
   }
 
   @media (max-width: 39.999rem) {
-    body.ml-music-player-active.ml-music-player-top .ml-app-shell {
-      --ml-page-top-safe: var(--ml-audio-toolbar-height);
-    }
-
     body.ml-music-player-active.ml-music-player-top .ml-app-scroll {
       scroll-padding-top: calc(var(--ml-page-edge-gap) + var(--ml-page-top-safe));
     }
@@ -1992,6 +1982,148 @@
     }
   }
 
+  .ml-music-player-toolbar {
+    --ml-station-vinyl-size: 8rem;
+    --ml-music-player-expanded-content-height: 10rem;
+    --ml-music-player-inline-padding: 0.75rem;
+    --ml-music-player-safe-offset: 0px;
+  }
+
+  .ml-music-player-toolbar[data-placement="top"] {
+    --ml-music-player-safe-offset: var(--ml-safe-top);
+  }
+
+  .ml-music-player-toolbar-surface {
+    overflow: hidden;
+  }
+
+  .ml-music-player-toolbar-surface::after {
+    background: hsl(var(--border) / 0.82);
+    content: "";
+    height: 1px;
+    left: 0;
+    pointer-events: none;
+    position: absolute;
+    right: 0;
+  }
+
+  .ml-music-player-toolbar[data-placement="top"] .ml-music-player-toolbar-surface::after {
+    bottom: 0;
+  }
+
+  .ml-music-player-toolbar[data-placement="bottom"] .ml-music-player-toolbar-surface::after {
+    top: 0;
+  }
+
+  .ml-station-vinyl-layer {
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    position: absolute;
+    z-index: 0;
+  }
+
+  .ml-music-player-toolbar-layout {
+    grid-template-rows: minmax(0, 1fr) auto;
+    position: relative;
+    z-index: 1;
+  }
+
+  .ml-music-player-toolbar-layout > [data-testid="music-player-toolbar-identity"] {
+    align-self: center;
+    margin-left: calc(var(--ml-station-vinyl-size) + 1rem);
+    position: relative;
+    z-index: 1;
+  }
+
+  .ml-music-player-toolbar-controls {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  }
+
+  .ml-station-vinyl {
+    height: var(--ml-station-vinyl-size);
+    left: max(
+      var(--ml-music-player-inline-padding),
+      calc((100% - 96rem) / 2 + var(--ml-music-player-inline-padding))
+    );
+    position: absolute;
+    top: calc(
+      var(--ml-music-player-safe-offset)
+      + (var(--ml-music-player-expanded-content-height) - var(--ml-station-vinyl-size)) / 2
+    );
+    width: var(--ml-station-vinyl-size);
+    z-index: 0;
+  }
+
+  .ml-station-vinyl-disc {
+    animation: ml-station-vinyl-spin 4s linear infinite;
+    animation-play-state: paused;
+    border-radius: 9999px;
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+    transform-origin: center;
+    width: 100%;
+  }
+
+  .ml-station-vinyl[data-playing="true"] .ml-station-vinyl-disc {
+    animation-play-state: running;
+  }
+
+  .ml-station-vinyl-artwork {
+    border-radius: inherit;
+    object-fit: cover;
+  }
+
+  .ml-station-vinyl-grooves,
+  .ml-station-vinyl-glare,
+  .ml-station-vinyl-label {
+    border-radius: inherit;
+    inset: 0;
+    position: absolute;
+  }
+
+  .ml-music-player-toolbar[data-collapsed="true"] .ml-station-vinyl {
+    transform: translateY(1.5rem);
+  }
+
+  .ml-music-player-toolbar[data-collapsed="true"] .ml-music-player-toolbar-layout {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-rows: minmax(0, 1fr);
+    row-gap: 0;
+  }
+
+  .ml-music-player-toolbar[data-collapsed="true"] .ml-music-player-toolbar-layout > [data-testid="music-player-toolbar-identity"] {
+    margin-left: 0;
+    text-shadow: 0 1px 2px hsl(var(--card));
+  }
+
+  @media (min-width: 40rem) {
+    .ml-music-player-toolbar {
+      --ml-music-player-inline-padding: 1rem;
+    }
+  }
+
+  @media (min-width: 36.0625rem) and (max-height: 44rem) {
+    .ml-music-player-toolbar {
+      --ml-station-vinyl-size: 6rem;
+      --ml-music-player-expanded-content-height: 8rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ml-station-vinyl-disc {
+      animation: none;
+    }
+  }
+
+  @keyframes ml-station-vinyl-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
   .ml-music-player-toolbar[data-placement="top"] {
     top: 0;
   }
@@ -2001,13 +2133,13 @@
   }
 
   .ml-music-player-toolbar[data-placement="top"] .ml-music-player-toolbar-surface {
-    border-bottom: 1px solid hsl(var(--border) / 0.82);
+    border-bottom: 0;
     padding-top: var(--ml-safe-top);
   }
 
   .ml-music-player-toolbar[data-placement="bottom"] .ml-music-player-toolbar-surface {
-    border-top: 1px solid hsl(var(--border) / 0.82);
-    padding-bottom: var(--ml-safe-bottom);
+    border-top: 0;
+    padding-bottom: 0;
   }
 
   /* The session notice sits just beyond the reserved toolbar edge. Its own

@@ -38,7 +38,7 @@ export function StationVinyl({
           className="ml-station-vinyl-artwork"
           draggable={false}
           fill
-          sizes="8rem"
+          sizes="(min-width: 36.0625rem) and (max-height: 44rem) 6rem, 8rem"
           src={artworkSrc}
         />
         <span className="ml-station-vinyl-grooves" />

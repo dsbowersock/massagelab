@@ -280,18 +280,15 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
       <MusicInterruptionNotice placement={placement} />
       <div className="ml-music-player-toolbar-surface pointer-events-auto relative bg-card/95 shadow-2xl shadow-black/35 backdrop-blur">
         {activeArtworkSrc ? (
-          <StationVinyl artworkSrc={activeArtworkSrc} playing={isVinylPlaying} />
+          <div className="ml-station-vinyl-layer" aria-hidden="true">
+            <StationVinyl artworkSrc={activeArtworkSrc} playing={isVinylPlaying} />
+          </div>
         ) : null}
         <TooltipProvider>
-          {/* The grid owns responsive shape: two rows on narrow expanded
-              screens, one compact row when collapsed, and wide columns above. */}
+          {/* CSS keeps the record in a bounded background layer while this
+              foreground grid owns identity and breakpoint-stable actions. */}
           <div
-            className={cn(
-              "ml-music-player-toolbar-layout mx-auto grid w-full max-w-screen-2xl gap-2 px-3 py-2 sm:px-4",
-              isCollapsed
-                ? "min-h-[4.5rem] grid-cols-[minmax(0,1fr)_auto_auto] items-center"
-                : "min-h-[7rem] grid-cols-1 content-center sm:min-h-16 sm:grid-cols-[minmax(8rem,1fr)_auto] sm:items-center lg:grid-cols-[minmax(8rem,1fr)_auto_minmax(9rem,14rem)]",
-            )}
+            className="ml-music-player-toolbar-layout mx-auto grid w-full max-w-screen-2xl gap-2 px-3 py-2 sm:px-4"
           >
             <div className="min-w-0" data-testid="music-player-toolbar-identity">
               <p className="ml-music-player-toolbar-title truncate text-sm font-semibold">{title}</p>
@@ -316,14 +313,14 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
             ) : (
               <>
                 <div
-                  className="grid min-w-0 grid-cols-6 gap-1 sm:flex sm:shrink-0 sm:items-center sm:gap-2"
+                  className="ml-music-player-toolbar-controls grid min-w-0 items-center gap-1 sm:gap-2"
                   data-testid="music-player-toolbar-controls"
                 >
-                  <div data-testid="music-player-toolbar-left">
+                  <div className="flex items-center justify-start" data-testid="music-player-toolbar-left">
                     {settingsAction}
                   </div>
                   <div
-                    className="contents"
+                    className="flex min-w-0 items-center justify-center gap-1 sm:gap-2"
                     data-testid="music-player-toolbar-primary-controls"
                   >
                     {favoriteAction}
@@ -332,25 +329,24 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
                     {nextAction}
                     {visualizerAction}
                   </div>
-                </div>
-
-                <div
-                  className="flex min-w-0 items-center gap-2"
-                  data-testid="music-player-toolbar-right"
-                >
-                  <label className="hidden min-w-0 flex-1 items-center gap-2 text-xs text-muted-foreground lg:flex">
-                    <Volume2 aria-hidden="true" className="size-4 shrink-0" />
-                    <Slider
-                      aria-label="Atmosphere volume"
-                      className="ml-slider-fill-blue"
-                      min={0}
-                      max={1}
-                      step={0.05}
-                      value={[music.volume]}
-                      onValueChange={([value]) => music.setVolume(value ?? 0.75)}
-                    />
-                  </label>
-                  {collapseAction}
+                  <div
+                    className="flex min-w-0 items-center justify-end gap-2"
+                    data-testid="music-player-toolbar-right"
+                  >
+                    <label className="hidden min-w-0 flex-1 items-center gap-2 text-xs text-muted-foreground lg:flex">
+                      <Volume2 aria-hidden="true" className="size-4 shrink-0" />
+                      <Slider
+                        aria-label="Atmosphere volume"
+                        className="ml-slider-fill-blue"
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        value={[music.volume]}
+                        onValueChange={([value]) => music.setVolume(value ?? 0.75)}
+                      />
+                    </label>
+                    {collapseAction}
+                  </div>
                 </div>
               </>
             )}

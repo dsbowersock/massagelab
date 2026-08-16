@@ -790,6 +790,25 @@ async function startProofStation(page: Page) {
   return page.getByTestId("music-player-toolbar")
 }
 
+async function readVinylMotion(vinyl: Locator) {
+  return vinyl.locator(".ml-station-vinyl-disc").evaluate((disc) => {
+    const styles = getComputedStyle(disc)
+    return {
+      animationName: styles.animationName,
+      animationPlayState: styles.animationPlayState,
+      transform: styles.transform,
+    }
+  })
+}
+
+async function expectVinylTransformFrozen(vinyl: Locator) {
+  // Let the compositor observe the state transition before taking the stable baseline.
+  await vinyl.page().waitForTimeout(100)
+  const before = (await readVinylMotion(vinyl)).transform
+  await vinyl.page().waitForTimeout(250)
+  expect((await readVinylMotion(vinyl)).transform).toBe(before)
+}
+
 /** Returns the first enabled station Play action already intersecting the current viewport without scrolling it. */
 async function firstEnabledStationPlayInViewport(carousel: Locator) {
   const playActions = carousel.locator("[data-carousel-primary-action]:not([disabled])")
@@ -1465,6 +1484,82 @@ test("vinyl player controls keep decorative artwork outside the media owner", as
 
   await player.getByRole("button", { name: "Favorite MassageLab Proof Drone" }).click()
   await expect.poll(async () => (await readProbe(page)).audio.created).toBe(1)
+  await invokeMediaAction(page, "stop")
+})
+
+test("vinyl motion advances only while the station is Playing and freezes inactive states", async ({ page }) => {
+  await installMediaOwnershipFakes(page)
+  const player = await startProofStation(page)
+  const vinyl = player.getByTestId("station-vinyl")
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+  await expect(vinyl).toHaveAttribute("data-playing", "true")
+
+  const playingBefore = await readVinylMotion(vinyl)
+  expect(playingBefore.animationName).toBe("ml-station-vinyl-spin")
+  expect(playingBefore.animationPlayState).toBe("running")
+  await page.waitForTimeout(250)
+  expect((await readVinylMotion(vinyl)).transform).not.toBe(playingBefore.transform)
+
+  await invokeMediaAction(page, "pause")
+  await expect(player).toHaveAttribute("data-playback-state", "paused")
+  await expect(vinyl).toHaveAttribute("data-playing", "false")
+  expect((await readVinylMotion(vinyl)).animationPlayState).toBe("paused")
+  await expectVinylTransformFrozen(vinyl)
+
+  await invokeMediaAction(page, "play")
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+  await setAudioSessionState(page, "interrupted", true)
+  await expect(player).toHaveAttribute("data-playback-state", "interrupted")
+  await expect(vinyl).toHaveAttribute("data-playing", "false")
+  expect((await readVinylMotion(vinyl)).animationPlayState).toBe("paused")
+  await expectVinylTransformFrozen(vinyl)
+
+  await invokeMediaAction(page, "stop")
+  await expect(player).toHaveAttribute("data-playback-state", "stopped")
+  expect((await readVinylMotion(vinyl)).animationPlayState).toBe("paused")
+  await expectVinylTransformFrozen(vinyl)
+})
+
+test("vinyl motion stays frozen while station startup is Loading and after failure", async ({ page }) => {
+  await installMediaOwnershipFakes(page)
+  let releaseSampleIndex!: () => void
+  const sampleIndexGate = new Promise<void>((resolve) => {
+    releaseSampleIndex = resolve
+  })
+  await page.route("**/observable-streams-vsco-adaptation/sample-index*.json", async (route) => {
+    await sampleIndexGate
+    await route.fulfill({ status: 503, body: "unavailable" })
+  })
+  const play = await openStation(page, {
+    category: "Treatment room starters",
+    id: "observable-streams-probe",
+    title: "Observable Streams",
+  })
+  await play.click()
+  const player = page.getByTestId("music-player-toolbar")
+  const vinyl = player.getByTestId("station-vinyl")
+  await expect(player).toHaveAttribute("data-playback-state", "loading")
+  await expect(vinyl).toHaveAttribute("data-playing", "false")
+  expect((await readVinylMotion(vinyl)).animationPlayState).toBe("paused")
+  await expectVinylTransformFrozen(vinyl)
+
+  releaseSampleIndex()
+  await expect(player).toHaveAttribute("data-playback-state", "failed", { timeout: 30_000 })
+  await expect(vinyl).toHaveAttribute("data-playing", "false")
+  expect((await readVinylMotion(vinyl)).animationPlayState).toBe("paused")
+  await expectVinylTransformFrozen(vinyl)
+})
+
+test("vinyl motion never animates when reduced motion is requested", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await installMediaOwnershipFakes(page)
+  const player = await startProofStation(page)
+  const vinyl = player.getByTestId("station-vinyl")
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+  await expect(vinyl).toHaveAttribute("data-playing", "true")
+  const motion = await readVinylMotion(vinyl)
+  expect(motion.animationName === "none" || motion.animationPlayState === "paused").toBe(true)
+  await expectVinylTransformFrozen(vinyl)
   await invokeMediaAction(page, "stop")
 })
 

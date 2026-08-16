@@ -287,6 +287,73 @@ async function expectCompactLoadingIdentity(player: Locator) {
   await expect(progress.getByRole("progressbar", { name: "Station loading progress" })).toBeVisible()
 }
 
+/** Reads rendered player geometry without coupling assertions to implementation classes beyond the owned groups. */
+async function readVinylPlayerGeometry(toolbar: Locator) {
+  return toolbar.evaluate((root) => {
+    const required = <T extends Element>(selector: string) => {
+      const element = root.querySelector<T>(selector)
+      if (!element) throw new Error(`Vinyl player geometry element is missing: ${selector}`)
+      return element
+    }
+    const rect = (element: Element) => {
+      const bounds = element.getBoundingClientRect()
+      return {
+        bottom: bounds.bottom,
+        height: bounds.height,
+        left: bounds.left,
+        right: bounds.right,
+        top: bounds.top,
+        width: bounds.width,
+      }
+    }
+    const surface = required<HTMLElement>(".ml-music-player-toolbar-surface")
+    const layout = required<HTMLElement>(".ml-music-player-toolbar-layout")
+    const vinyl = required<HTMLElement>("[data-testid='station-vinyl']")
+    const identity = required<HTMLElement>("[data-testid='music-player-toolbar-identity']")
+    const primary = root.querySelector<HTMLElement>("[data-testid='music-player-toolbar-primary-controls']")
+    const left = root.querySelector<HTMLElement>("[data-testid='music-player-toolbar-left']")
+    const right = root.querySelector<HTMLElement>("[data-testid='music-player-toolbar-right']")
+    const playStop = required<HTMLElement>("button[aria-label='Stop'], button[aria-label='Play']")
+    const minimize = root.querySelector<HTMLElement>("button[aria-label='Minimize']")
+    const volume = root.querySelector<HTMLElement>("[aria-label='Atmosphere volume']")
+    const layoutStyle = getComputedStyle(layout)
+    const documentRoot = document.documentElement
+
+    return {
+      controls: primary ? rect(primary) : null,
+      document: {
+        clientHeight: documentRoot.clientHeight,
+        clientWidth: documentRoot.clientWidth,
+        scrollHeight: documentRoot.scrollHeight,
+        scrollWidth: documentRoot.scrollWidth,
+      },
+      identity: rect(identity),
+      layout: {
+        ...rect(layout),
+        clientHeight: layout.clientHeight,
+        clientWidth: layout.clientWidth,
+        contentLeft: layout.getBoundingClientRect().left + Number.parseFloat(layoutStyle.paddingLeft),
+        scrollHeight: layout.scrollHeight,
+        scrollWidth: layout.scrollWidth,
+      },
+      left: left ? rect(left) : null,
+      minimize: minimize ? rect(minimize) : null,
+      playStop: rect(playStop),
+      right: right ? rect(right) : null,
+      surface: {
+        ...rect(surface),
+        clientHeight: surface.clientHeight,
+        clientWidth: surface.clientWidth,
+        scrollHeight: surface.scrollHeight,
+        scrollWidth: surface.scrollWidth,
+      },
+      toolbar: rect(root),
+      vinyl: rect(vinyl),
+      volume: volume && volume.getBoundingClientRect().width > 0 ? rect(volume) : null,
+    }
+  })
+}
+
 function drawerControl(cluster: Locator) {
   return cluster.locator("button").first()
 }
@@ -985,6 +1052,139 @@ test("vinyl player controls expose grouped semantic actions and a minimal collap
   await expect(toolbar.getByRole("button", { name: "Play", exact: true })).toHaveClass(/ml-button-success/)
 })
 
+test("vinyl geometry keeps expanded desktop and phone controls bounded around a centered transport", async ({ page }, testInfo) => {
+  await installInterruptionNoticeMediaFakes(page)
+  const isDesktop = testInfo.project.name === desktopProject
+  await page.setViewportSize(isDesktop
+    ? { width: 1280, height: 900 }
+    : { width: 390, height: 844 })
+  const toolbar = await startInterruptionNoticeSession(page)
+  const geometry = await readVinylPlayerGeometry(toolbar)
+  const spacing = await resolvedShellSpacing(page)
+  const toolbarCenter = geometry.toolbar.left + geometry.toolbar.width / 2
+  const playStopCenter = geometry.playStop.left + geometry.playStop.width / 2
+
+  expect(geometry.vinyl.width).toBeCloseTo(128, 0)
+  expect(geometry.vinyl.height).toBeCloseTo(128, 0)
+  expect(geometry.toolbar.height).toBeCloseTo(160, 0)
+  expect(spacing.audioToolbar).toBeCloseTo(geometry.toolbar.height, 0)
+  expect(geometry.vinyl.left).toBeCloseTo(geometry.layout.contentLeft, 0)
+  expect(geometry.vinyl.top).toBeGreaterThanOrEqual(geometry.toolbar.top)
+  expect(geometry.vinyl.bottom).toBeLessThanOrEqual(geometry.toolbar.bottom)
+  expect(geometry.identity.left).toBeGreaterThanOrEqual(geometry.toolbar.left)
+  expect(geometry.identity.right).toBeLessThanOrEqual(geometry.toolbar.right)
+  expect(geometry.identity.top).toBeGreaterThanOrEqual(geometry.toolbar.top)
+  expect(geometry.identity.bottom).toBeLessThanOrEqual(geometry.toolbar.bottom)
+  expect(Math.abs(playStopCenter - toolbarCenter)).toBeLessThanOrEqual(1)
+  expect(geometry.left?.right ?? Number.POSITIVE_INFINITY)
+    .toBeLessThanOrEqual((geometry.controls?.left ?? Number.NEGATIVE_INFINITY) - 1)
+  expect(geometry.controls?.right ?? Number.POSITIVE_INFINITY)
+    .toBeLessThanOrEqual((geometry.right?.left ?? Number.NEGATIVE_INFINITY) - 1)
+  expect(geometry.minimize?.right ?? 0).toBeLessThanOrEqual(geometry.layout.right)
+
+  if (isDesktop) {
+    expect(geometry.volume).not.toBeNull()
+    expect(geometry.volume?.left ?? Number.POSITIVE_INFINITY)
+      .toBeGreaterThan(geometry.controls?.right ?? Number.NEGATIVE_INFINITY)
+    expect(geometry.volume?.right ?? Number.POSITIVE_INFINITY)
+      .toBeLessThan(geometry.minimize?.left ?? Number.NEGATIVE_INFINITY)
+  } else {
+    expect(geometry.volume).toBeNull()
+  }
+
+  expect(geometry.surface.scrollWidth).toBeLessThanOrEqual(geometry.surface.clientWidth)
+  expect(geometry.surface.scrollHeight).toBeLessThanOrEqual(geometry.surface.clientHeight)
+  expect(geometry.layout.scrollWidth).toBeLessThanOrEqual(geometry.layout.clientWidth)
+  expect(geometry.layout.scrollHeight).toBeLessThanOrEqual(geometry.layout.clientHeight)
+  expect(geometry.document.scrollWidth).toBeLessThanOrEqual(geometry.document.clientWidth)
+  expect(geometry.document.scrollHeight).toBeLessThanOrEqual(geometry.document.clientHeight)
+})
+
+test("vinyl geometry preserves the breakpoint diameter and exposes only its upper arc when minimized", async ({ page }, testInfo) => {
+  await installInterruptionNoticeMediaFakes(page)
+  await page.setViewportSize(testInfo.project.name === desktopProject
+    ? { width: 1280, height: 900 }
+    : { width: 390, height: 844 })
+  const toolbar = await startInterruptionNoticeSession(page)
+  const expanded = await readVinylPlayerGeometry(toolbar)
+
+  await toolbar.getByRole("button", { name: "Minimize" }).click()
+  await expect(toolbar).toHaveAttribute("data-collapsed", "true")
+  const collapsed = await readVinylPlayerGeometry(toolbar)
+  const spacing = await resolvedShellSpacing(page)
+  const visibleVinylHeight = collapsed.toolbar.bottom - collapsed.vinyl.top
+
+  expect(collapsed.vinyl.width).toBeCloseTo(expanded.vinyl.width, 0)
+  expect(collapsed.vinyl.top).toBeGreaterThan(expanded.vinyl.top)
+  expect(collapsed.vinyl.top).toBeLessThan(collapsed.toolbar.bottom)
+  expect(visibleVinylHeight).toBeGreaterThan(0)
+  expect(visibleVinylHeight).toBeLessThan(collapsed.vinyl.height / 2)
+  expect(collapsed.identity.width).toBeGreaterThan(0)
+  expect(collapsed.vinyl.left).toBeLessThan(collapsed.identity.right)
+  expect(collapsed.vinyl.top).toBeLessThan(collapsed.identity.bottom)
+  expect(collapsed.identity.top).toBeGreaterThanOrEqual(collapsed.toolbar.top)
+  expect(collapsed.identity.bottom).toBeLessThanOrEqual(collapsed.toolbar.bottom)
+  expect(collapsed.toolbar.height).toBeCloseTo(72, 0)
+  expect(spacing.audioToolbar).toBeCloseTo(collapsed.toolbar.height, 0)
+  expect(await toolbar.locator('.ml-music-player-toolbar-layout button[aria-label], .ml-music-player-toolbar-layout a[aria-label], .ml-music-player-toolbar-layout input[aria-label]')
+    .evaluateAll((elements) => elements.map((element) => element.getAttribute("aria-label"))))
+    .toEqual(["Stop", "Expand"])
+  expect(collapsed.surface.scrollWidth).toBeLessThanOrEqual(collapsed.surface.clientWidth)
+  expect(collapsed.surface.scrollHeight).toBeLessThanOrEqual(collapsed.surface.clientHeight)
+  expect(collapsed.layout.scrollWidth).toBeLessThanOrEqual(collapsed.layout.clientWidth)
+  expect(collapsed.layout.scrollHeight).toBeLessThanOrEqual(collapsed.layout.clientHeight)
+})
+
+test("vinyl geometry keeps short landscape complete with exact safe-area offsets", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== mobileProject, "Short-landscape vinyl geometry is covered in mobile Chromium.")
+  await installInterruptionNoticeMediaFakes(page)
+  await page.setViewportSize({ width: 844, height: 390 })
+  const toolbar = await startInterruptionNoticeSession(page)
+  const notice = page.getByTestId("music-interruption-notice")
+  await page.locator("body").evaluate((body) => {
+    body.style.setProperty("--ml-safe-bottom", "24px")
+  })
+
+  let geometry = await readVinylPlayerGeometry(toolbar)
+  let spacing = await resolvedShellSpacing(page)
+  let noticeBox = await notice.boundingBox()
+  const appScrollHeight = await page.locator(".ml-app-scroll").evaluate((element) => element.clientHeight)
+  expect(geometry.vinyl.width).toBeGreaterThanOrEqual(80)
+  expect(geometry.vinyl.width).toBeLessThan(128)
+  expect(geometry.vinyl.height).toBeCloseTo(geometry.vinyl.width, 0)
+  expect(geometry.toolbar.height).toBeLessThan(160)
+  expect(geometry.vinyl.top).toBeGreaterThanOrEqual(geometry.toolbar.top)
+  expect(geometry.vinyl.bottom).toBeLessThanOrEqual(geometry.toolbar.bottom)
+  expect(geometry.layout.scrollHeight).toBeLessThanOrEqual(geometry.layout.clientHeight)
+  expect(geometry.layout.scrollWidth).toBeLessThanOrEqual(geometry.layout.clientWidth)
+  expect(appScrollHeight).toBeGreaterThan(0)
+  expect(spacing.safeBottom).toBeCloseTo(24, 0)
+  expect(spacing.audioToolbar).toBeCloseTo(geometry.toolbar.height, 0)
+  expect(spacing.chimerBottom).toBeCloseTo(spacing.bottomStack + geometry.toolbar.height + 12, 0)
+  expect(spacing.chimerPanelBottom).toBeCloseTo(spacing.bottomStack + geometry.toolbar.height + 12, 0)
+  expect(geometry.toolbar.top - (noticeBox?.y ?? 0) - (noticeBox?.height ?? 0)).toBeCloseTo(8, 0)
+
+  await toolbar.evaluate((root) => {
+    root.setAttribute("data-placement", "top")
+    root.querySelector('[data-testid="music-interruption-notice"]')?.setAttribute("data-placement", "top")
+    document.body.style.setProperty("--ml-safe-bottom", "0px")
+    document.body.style.setProperty("--ml-safe-top", "24px")
+    document.body.classList.remove("ml-music-player-bottom")
+    document.body.classList.add("ml-music-player-top")
+  })
+  geometry = await readVinylPlayerGeometry(toolbar)
+  spacing = await resolvedShellSpacing(page)
+  noticeBox = await notice.boundingBox()
+  expect(spacing.safeTop).toBeCloseTo(24, 0)
+  expect(spacing.audioToolbar).toBeCloseTo(geometry.toolbar.height, 0)
+  expect(spacing.pageTop).toBeCloseTo(geometry.toolbar.height, 0)
+  expect(spacing.chimerTop).toBeCloseTo(geometry.toolbar.height + 12, 0)
+  expect(spacing.chimerSettingsTop).toBeCloseTo(geometry.toolbar.height + 76, 0)
+  expect((noticeBox?.y ?? 0) - geometry.toolbar.bottom).toBeCloseTo(8, 0)
+  expect(geometry.vinyl.top).toBeGreaterThanOrEqual(geometry.toolbar.top + 24)
+  expect(geometry.vinyl.bottom).toBeLessThanOrEqual(geometry.toolbar.bottom)
+})
+
 test("Atmosphere interruption notice counts only active unhovered and unfocused time", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== mobileProject, "The notice timer contract is covered in mobile Chromium.")
   await installInterruptionNoticeMediaFakes(page)
@@ -1012,7 +1212,7 @@ test("Atmosphere interruption notice counts only active unhovered and unfocused 
   }).focus()
   await page.clock.fastForward("01:00")
   await expect(notice).toBeVisible()
-  await player.getByRole("button", { name: "Collapse", exact: true }).focus()
+  await player.getByRole("button", { name: "Minimize", exact: true }).focus()
   await page.clock.fastForward(29_500)
   await expect(notice).toBeVisible()
   await page.clock.fastForward(500)
@@ -1169,24 +1369,24 @@ test("mobile top placement reserves the top edge and leaves the active music pla
     + activeSpacing.scrollEndBuffer
     + activeSpacing.audioToolbar
   expect(activeSpacing.bottomStack).toBeCloseTo(activeSpacing.safeBottom)
-  expect(activeSpacing.audioToolbar).toBeCloseTo(112, 0)
+  expect(activeSpacing.audioToolbar).toBeCloseTo(160, 0)
   expect(activeSpacing.pageBottom).toBeCloseTo(activeExpected)
   expect(activeSpacing.pageBottom).not.toBeCloseTo(activeExpected + activeSpacing.mainBar)
-  expect(activeSpacing.chimerBottom).toBeCloseTo(activeSpacing.bottomStack + 112 + 12, 0)
-  expect(activeSpacing.chimerPanelBottom).toBeCloseTo(activeSpacing.bottomStack + 112 + 12, 0)
+  expect(activeSpacing.chimerBottom).toBeCloseTo(activeSpacing.bottomStack + 160 + 12, 0)
+  expect(activeSpacing.chimerPanelBottom).toBeCloseTo(activeSpacing.bottomStack + 160 + 12, 0)
   const expandedPlayerBox = await player.boundingBox()
   expect(expandedPlayerBox?.height ?? 0).toBeCloseTo(activeSpacing.audioToolbar, 0)
   await expectSafeAreaToolbarGeometry(
     player,
-    112,
-    112,
+    160,
+    160,
     activeSpacing.bottomStack,
-    ["Previous station", "Stop", "Next station", "Background", "Player settings", "Collapse"],
+    ["Previous station", "Stop", "Next station", "Background", "Player settings", "Minimize"],
   )
   expect((expandedPlayerBox?.y ?? 0) + (expandedPlayerBox?.height ?? 0)).toBeGreaterThan(700)
   expect(expandedPlayerBox?.y ?? 0).toBeGreaterThan((barBox?.y ?? 0) + (barBox?.height ?? 0))
 
-  await player.getByRole("button", { name: "Collapse", exact: true }).click()
+  await player.getByRole("button", { name: "Minimize", exact: true }).click()
   await expect(page.locator("body")).toHaveClass(/ml-music-player-collapsed/)
   const collapsedSpacing = await resolvedShellSpacing(page)
   const collapsedExpected = collapsedSpacing.bottomStack
@@ -1246,23 +1446,23 @@ test("mobile bottom placement adds the main bar when idle and the audio toolbar 
     + activeSpacing.scrollEndBuffer
     + activeSpacing.audioToolbar
   expect(activeSpacing.bottomStack).toBeCloseTo(activeSpacing.safeBottom + activeSpacing.mainBar)
-  expect(activeSpacing.audioToolbar).toBeCloseTo(112, 0)
+  expect(activeSpacing.audioToolbar).toBeCloseTo(160, 0)
   expect(activeSpacing.pageBottom).toBeCloseTo(activeExpected)
   expect(activeSpacing.pageBottom - idleSpacing.pageBottom).toBeCloseTo(activeSpacing.audioToolbar)
-  expect(activeSpacing.chimerBottom).toBeCloseTo(activeSpacing.bottomStack + 112 + 12, 0)
-  expect(activeSpacing.chimerPanelBottom).toBeCloseTo(activeSpacing.bottomStack + 112 + 12, 0)
+  expect(activeSpacing.chimerBottom).toBeCloseTo(activeSpacing.bottomStack + 160 + 12, 0)
+  expect(activeSpacing.chimerPanelBottom).toBeCloseTo(activeSpacing.bottomStack + 160 + 12, 0)
   const expandedPlayerBox = await player.boundingBox()
   expect(expandedPlayerBox?.height ?? 0).toBeCloseTo(activeSpacing.audioToolbar, 0)
   await expectSafeAreaToolbarGeometry(
     player,
-    112,
-    112,
+    160,
+    160,
     activeSpacing.bottomStack,
-    ["Previous station", "Stop", "Next station", "Background", "Player settings", "Collapse"],
+    ["Previous station", "Stop", "Next station", "Background", "Player settings", "Minimize"],
   )
   expect((expandedPlayerBox?.y ?? 0) + (expandedPlayerBox?.height ?? 0)).toBeLessThanOrEqual((barBox?.y ?? 0) + 1)
 
-  await player.getByRole("button", { name: "Collapse", exact: true }).click()
+  await player.getByRole("button", { name: "Minimize", exact: true }).click()
   await expect(page.locator("body")).toHaveClass(/ml-music-player-collapsed/)
   const collapsedSpacing = await resolvedShellSpacing(page)
   const collapsedExpected = collapsedSpacing.bottomStack
@@ -1303,16 +1503,16 @@ test("mobile top player consumes its safe inset exactly once while expanded and 
   let spacing = await resolvedShellSpacing(page)
   await expectTopSafeAreaToolbarGeometry(
     player,
-    136,
-    112,
+    184,
+    160,
     spacing.safeTop,
-    ["Previous station", "Stop", "Next station", "Background", "Player settings", "Collapse"],
+    ["Previous station", "Stop", "Next station", "Background", "Player settings", "Minimize"],
   )
-  expect(spacing.pageTop).toBeCloseTo(136, 0)
-  expect(spacing.chimerTop).toBeCloseTo(136 + 12, 0)
-  expect(spacing.chimerSettingsTop).toBeCloseTo(136 + 76, 0)
+  expect(spacing.pageTop).toBeCloseTo(184, 0)
+  expect(spacing.chimerTop).toBeCloseTo(184 + 12, 0)
+  expect(spacing.chimerSettingsTop).toBeCloseTo(184 + 76, 0)
 
-  await player.getByRole("button", { name: "Collapse", exact: true }).click()
+  await player.getByRole("button", { name: "Minimize", exact: true }).click()
   await placeRenderedToolbarAtTop(player, safeTop)
   spacing = await resolvedShellSpacing(page)
   await expectTopSafeAreaToolbarGeometry(player, 96, 72, spacing.safeTop, ["Stop", "Expand"])
@@ -1354,16 +1554,16 @@ test("mobile loading toolbar fits expanded and collapsed increased-text content"
   await expectCompactLoadingIdentity(player)
 
   let spacing = await resolvedShellSpacing(page)
-  expect(spacing.audioToolbar).toBeCloseTo(112, 0)
+  expect(spacing.audioToolbar).toBeCloseTo(160, 0)
   await expectSafeAreaToolbarGeometry(
     player,
-    112,
-    112,
+    160,
+    160,
     spacing.bottomStack,
-    ["Previous station", "Stop", "Next station", "Background", "Player settings", "Collapse"],
+    ["Previous station", "Stop", "Next station", "Background", "Player settings", "Minimize"],
   )
 
-  await player.getByRole("button", { name: "Collapse", exact: true }).click()
+  await player.getByRole("button", { name: "Minimize", exact: true }).click()
   await expect(player).toHaveAttribute("data-collapsed", "true")
   await expect(player).toHaveAttribute("data-playback-state", "loading")
   await expectCompactLoadingIdentity(player)
