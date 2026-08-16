@@ -96,13 +96,14 @@ export async function loadAdminUserAccess(input: { prismaClient: DetailPrismaCli
     loadActiveTemporaryGrants(input.prismaClient, input.userId, now),
   ])
   if (!user) return null
+  const roles = normalizeRoleEvidence(user.roles)
   const entitlements = buildEntitlements({
+    adminAccess: roles.some((assignment) => assignment.role === "ADMIN" && assignment.status === "VERIFIED"),
     subscriptions: entitlementSubscriptions,
     studentAccess: user.studentAccess,
     temporaryGrants: entitlementTemporaryGrants,
     now,
   })
-  const roles = normalizeRoleEvidence(user.roles)
   const recentEntries = user.backgroundCreditWallet?.entries ?? []
 
   return result("access", user, {

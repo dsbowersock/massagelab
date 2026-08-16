@@ -36,6 +36,9 @@ function premiumBackgroundAccessSource(featureAccess: unknown) {
     source !== null && typeof source === "object" && "source" in source && source.source === "membership"
   ))) return "subscription" as const
   if (premium.sources.some((source: unknown) => (
+    source !== null && typeof source === "object" && "source" in source && source.source === "admin"
+  ))) return "admin" as const
+  if (premium.sources.some((source: unknown) => (
     source !== null && typeof source === "object" && "source" in source && source.source === "temporary"
   ))) return "temporary" as const
   return null

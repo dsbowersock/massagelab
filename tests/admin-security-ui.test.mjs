@@ -399,6 +399,33 @@ describe("Admin security controls", () => {
     assert.equal(findElements(rendered, (element) => element.type === "span" && elementText(element) === "After confirmation:").length, 3)
     assert.match(formSource, /grid gap-4 xl:grid-cols-3/)
   })
+
+  it("keeps completed two-factor reset feedback visible after refreshed evidence disables the form", () => {
+    const completedMessage = "Two-factor authentication was reset and existing sign-in tokens were invalidated."
+    const { SecurityActionControls } = uiHarness({ status: "success", message: completedMessage })
+    const controls = SecurityActionControls({
+      userId: "user-1",
+      targetEmail: "target@example.test",
+      emailVerified: true,
+      passwordConfigured: true,
+      twoFactorEnabled: false,
+      expectedAuthSessionVersion: 4,
+      expectedSessionCount: 0,
+      operationIds: {
+        revokeSessions: "9ed1d8b5-7941-4da6-9456-715cccf4afe4",
+        passwordReset: "c93e0806-4cbe-4d0b-a80d-93a611661ed8",
+        twoFactorReset: "6c9da6f1-c7f7-4a79-9bb2-12cb35643a2d",
+      },
+    })
+    const rendered = renderFunctionComponents(controls)
+    const twoFactorCard = findElement(rendered, (element) => (
+      element.type === "article" && /Reset two-factor authentication/.test(elementText(element))
+    ))
+
+    assert.ok(twoFactorCard)
+    assert.match(elementText(twoFactorCard), new RegExp(completedMessage.replaceAll(".", String.raw`\.`)))
+    assert.equal(findElement(twoFactorCard, (element) => element.type === "form"), null)
+  })
 })
 
 describe("Admin security browser contract", () => {

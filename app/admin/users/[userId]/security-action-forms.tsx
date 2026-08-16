@@ -113,11 +113,12 @@ export function SecurityActionControls({
           <p className="text-sm text-muted-foreground">
             Deletes enabled two-factor and recovery material, invalidates older sign-in tokens, and lets the user configure two-factor authentication again.
           </p>
-          {twoFactorEnabled && targetEmail ? (
+          {targetEmail ? (
             <TwoFactorResetForm
               userId={userId}
               operationId={operationIds.twoFactorReset}
               targetEmail={targetEmail}
+              twoFactorEnabled={twoFactorEnabled}
             />
           ) : (
             <UnavailableNotice>Two-factor authentication is not enabled for this account.</UnavailableNotice>
@@ -226,7 +227,13 @@ function RevokeSessionsForm({
   )
 }
 
-function TwoFactorResetForm({ userId, operationId, targetEmail }: CommonFormProps & { targetEmail: string }) {
+/** Keeps committed feedback mounted when revalidation changes enabled 2FA to disabled. */
+function TwoFactorResetForm({
+  userId,
+  operationId,
+  targetEmail,
+  twoFactorEnabled,
+}: CommonFormProps & { targetEmail: string; twoFactorEnabled: boolean }) {
   const [actionState, formAction, isPending] = useActionState(
     resetUserTwoFactorAction.bind(null, userId),
     INITIAL_SECURITY_STATE,
@@ -237,6 +244,15 @@ function TwoFactorResetForm({ userId, operationId, targetEmail }: CommonFormProp
   const [confirmationEmail, setConfirmationEmail] = useState("")
   const emailMatches = normalizeEmail(confirmationEmail) === targetEmail
   const canSubmit = reasonReady(reasonCode, internalNote) && emailMatches && !isPending
+
+  if (!twoFactorEnabled) {
+    return (
+      <div className="mt-3 space-y-3">
+        <UnavailableNotice>Two-factor authentication is not enabled for this account.</UnavailableNotice>
+        <ActionFeedback state={actionState} />
+      </div>
+    )
+  }
 
   return (
     <form action={formAction} className="mt-3 space-y-3">

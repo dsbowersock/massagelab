@@ -103,7 +103,6 @@ export async function getUserAuthState(userId: string) {
     status: role.status,
   })) ?? [{ role: "USER", status: "VERIFIED" }]) as Array<{ role: AccountRole; status: VerificationStatus }>
   const roles = roleAssignments.map((role) => role.role)
-
   // Safe deployment repair: the service independently reloads verification and
   // remains idempotent when this account state is loaded repeatedly.
   if (user?.emailVerified) {
@@ -115,6 +114,9 @@ export async function getUserAuthState(userId: string) {
     roles.push("ADMIN")
     roleAssignments.push({ role: "ADMIN", status: "VERIFIED" })
   }
+  const adminAccess = roleAssignments.some((assignment) => (
+    assignment.role === "ADMIN" && assignment.status === "VERIFIED"
+  ))
 
   return {
     authSessionVersion: user?.authSessionVersion,
@@ -123,6 +125,7 @@ export async function getUserAuthState(userId: string) {
     roleAssignments,
     capabilities: buildAccountCapabilities(roleAssignments, {
       features: buildEntitlements({
+        adminAccess,
         subscriptions: user?.membershipSubscriptions ?? [],
         studentAccess: user?.studentAccess ?? null,
         temporaryGrants,

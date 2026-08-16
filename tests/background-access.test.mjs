@@ -8,6 +8,7 @@ const PREMIUM_BACKGROUND = "massage-lab-aurora"
 const LATER_PREMIUM_BACKGROUND = "massage-lab-photon-beam"
 
 function createAccessDatabase({
+  admin = false,
   emailVerified = true,
   subscriptions = [],
   temporaryGrants = [],
@@ -17,6 +18,7 @@ function createAccessDatabase({
 } = {}) {
   const state = {
     emailVerified,
+    admin,
     subscriptions,
     temporaryGrants,
     ownership,
@@ -36,7 +38,10 @@ function createAccessDatabase({
     user: {
       async findUnique() {
         record("user")
-        return { emailVerified: state.emailVerified ? new Date("2026-07-01T00:00:00.000Z") : null }
+        return {
+          emailVerified: state.emailVerified ? new Date("2026-07-01T00:00:00.000Z") : null,
+          roles: state.admin ? [{ id: "admin-role-1" }] : [],
+        }
       },
     },
     membershipSubscription: {
@@ -201,6 +206,17 @@ describe("canonical background access", () => {
     assert.equal(decision.isPermanentlyOwned, false)
     assert.equal(decision.creditEligibility.eligible, true)
     assert.equal(decision.purchaseEligibility.eligible, true)
+  })
+
+  it("uses a freshly verified full-admin role without calling it a subscription", async () => {
+    const { database } = createAccessDatabase({ admin: true })
+
+    const decision = await resolve(database)
+
+    assert.equal(decision.canUse, true)
+    assert.equal(decision.canCustomizeColors, true)
+    assert.equal(decision.accessSource, "admin")
+    assert.equal(decision.isPermanentlyOwned, false)
   })
 
   it("keeps membership provenance ahead of simultaneous temporary access", async () => {

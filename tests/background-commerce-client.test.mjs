@@ -522,6 +522,15 @@ describe("background card commerce states", () => {
     assert.equal(temporary.showKeepPermanently, true)
     assert.doesNotMatch(temporary.state, /subscription|membership/)
 
+    const administrative = backgroundCardCommerceState({
+      background: premium,
+      access: { canUse: true, accessSource: "admin" },
+      snapshot: snapshot(),
+    })
+    assert.equal(administrative.state, "included-admin")
+    assert.equal(administrative.canSelect, true)
+    assert.equal(administrative.showKeepPermanently, true)
+
     const transientlyOwned = backgroundCardCommerceState({
       background: premium,
       access: { canUse: true, accessSource: "ownership" },

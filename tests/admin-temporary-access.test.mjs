@@ -673,6 +673,7 @@ describe("Admin temporary feature access", () => {
     const entitlementClient = {
       membershipSubscription: { findMany: async () => [] },
       studentAccess: { findUnique: async () => null },
+      userRole: { findFirst: async () => null },
       temporaryFeatureGrant: { findMany: async () => rows },
     }
     const entitlementState = await getUserEntitlementState(entitlementClient, "target-user", NOW)
