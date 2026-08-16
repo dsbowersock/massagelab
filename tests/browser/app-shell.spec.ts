@@ -446,6 +446,92 @@ async function resolvedMusicRailSpacing(page: Page) {
   })
 }
 
+type StableOverlayBox = { x: number, y: number, width: number, height: number }
+
+/** Waits only for bounded UI animations; infinite playback artwork remains intentionally active. */
+async function waitForFiniteOverlayAnimations(locator: Locator, label: string) {
+  const result = await locator.evaluate(async (node) => {
+    const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+    await nextFrame()
+    const animations = node.getAnimations({ subtree: true }).filter((animation) => {
+      const endTime = Number(animation.effect?.getComputedTiming().endTime)
+      return Number.isFinite(endTime)
+        && endTime > 0
+        && (animation.pending || animation.playState === "running")
+    })
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
+    const timedOut = await Promise.race([
+      Promise.all(animations.map((animation) => animation.finished.catch(() => undefined))).then(() => false),
+      new Promise<boolean>((resolve) => {
+        timeoutId = setTimeout(() => resolve(true), 2_000)
+      }),
+    ])
+    if (timeoutId !== undefined) clearTimeout(timeoutId)
+    await nextFrame()
+    return { animationCount: animations.length, timedOut }
+  })
+  expect(result.timedOut, `${label} finite animations timed out`).toBe(false)
+}
+
+/** Returns boxes only after the surface and its real rail are stable across three samples. */
+async function settledOverlayGeometry(
+  surface: Locator,
+  toolbar: Locator,
+  viewport: { width: number, height: number },
+  label: string,
+) {
+  await Promise.all([
+    waitForFiniteOverlayAnimations(surface, label),
+    waitForFiniteOverlayAnimations(toolbar, `${label} rail`),
+  ])
+
+  let previous: { rail: StableOverlayBox, surface: StableOverlayBox } | null = null
+  let stableComparisons = 0
+  const isNear = (first: StableOverlayBox, second: StableOverlayBox) => (
+    Math.max(
+      Math.abs(first.x - second.x),
+      Math.abs(first.y - second.y),
+      Math.abs(first.width - second.width),
+      Math.abs(first.height - second.height),
+    ) <= 0.25
+  )
+
+  await expect.poll(async () => {
+    const [rail, surfaceBox] = await Promise.all([toolbar.boundingBox(), surface.boundingBox()])
+    if (!rail || !surfaceBox) {
+      previous = null
+      stableComparisons = 0
+      return false
+    }
+    const current = { rail, surface: surfaceBox }
+    const fits = surfaceBox.width >= 8
+      && surfaceBox.height >= 8
+      && surfaceBox.x >= 0
+      && surfaceBox.y >= 0
+      && surfaceBox.x + surfaceBox.width <= rail.x + 1
+      && surfaceBox.y + surfaceBox.height <= viewport.height + 1
+    if (!fits) {
+      previous = current
+      stableComparisons = 0
+      return false
+    }
+    stableComparisons = previous
+      && isNear(previous.rail, rail)
+      && isNear(previous.surface, surfaceBox)
+      ? stableComparisons + 1
+      : 0
+    previous = current
+    return stableComparisons >= 2
+  }, {
+    message: `${label} settled inside usable viewport`,
+    intervals: [32, 32, 64, 64, 100],
+  }).toBe(true)
+
+  const [rail, surfaceBox] = await Promise.all([toolbar.boundingBox(), surface.boundingBox()])
+  if (!rail || !surfaceBox) throw new Error(`${label} lost stable geometry`)
+  return { rail, surface: surfaceBox }
+}
+
 /** Reads both bounded rail layers; the outer toolbar may host Task 5 overlays outside its edge. */
 async function readMusicRailOverflow(toolbar: Locator) {
   return toolbar.evaluate((node) => {
@@ -1364,6 +1450,249 @@ test("player rail keeps overlays clear of dialog, sheet, tooltip, and interrupti
   })
 })
 
+test("real music rail keeps every exposed overlay and action inside the usable viewport", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== mobileProject, "Compact-landscape overlay geometry is covered in mobile Chromium.")
+  test.setTimeout(120_000)
+  await installInterruptionNoticeMediaFakes(page)
+  await page.addInitScript(() => localStorage.setItem("massage-lab-settings", JSON.stringify({
+    appBarPosition: "bottom",
+    // The production Calendar drawer opens on the right, opposite this edge.
+    sidebarPosition: "left",
+    sidebarTriggerPosition: "bottom",
+    themeMode: "dark",
+  })))
+
+  const geometryReceipt: Array<Record<string, number | string>> = []
+  type ExpectedSurfaceAction = {
+    label: string
+    locator: Locator
+  }
+  const assertSurfaceClear = async (
+    surface: Locator,
+    toolbar: Locator,
+    viewport: { width: number, height: number },
+    label: string,
+    expectedActions: ExpectedSurfaceAction[],
+  ) => {
+    await expect(surface, `${label} visible`).toBeVisible()
+    const { rail, surface: surfaceBox } = await settledOverlayGeometry(surface, toolbar, viewport, label)
+    expect(surfaceBox.x, `${label} left edge`).toBeGreaterThanOrEqual(0)
+    expect(surfaceBox.y, `${label} top edge`).toBeGreaterThanOrEqual(0)
+    expect(
+      surfaceBox.x + surfaceBox.width,
+      `${label} right edge`,
+    ).toBeLessThanOrEqual(rail.x + 1)
+    expect(
+      surfaceBox.y + surfaceBox.height,
+      `${label} bottom edge`,
+    ).toBeLessThanOrEqual(viewport.height + 1)
+
+    const semanticActions = surface.locator([
+      "button",
+      "a[href]",
+      "input:not([type='hidden'])",
+      "select",
+      "textarea",
+      "[role='button']",
+      "[role='link']",
+      "[role='checkbox']",
+      "[role='menuitem']",
+      "[role='menuitemcheckbox']",
+      "[role='menuitemradio']",
+      "[role='option']",
+      "[role='radio']",
+      "[role='slider']",
+      "[role='spinbutton']",
+      "[role='switch']",
+      "[role='tab']",
+      "[role='textbox']",
+    ].join(", "))
+    await expect(semanticActions, `${label} semantic action set`).toHaveCount(expectedActions.length)
+
+    for (const expectedAction of expectedActions) {
+      const actionLabel = `${label} action ${expectedAction.label}`
+      await expect(expectedAction.locator, `${actionLabel} count`).toHaveCount(1)
+      await expect(expectedAction.locator, `${actionLabel} visible`).toBeVisible()
+      const actionBox = await expectedAction.locator.boundingBox()
+      expect(actionBox, `${actionLabel} box`).not.toBeNull()
+      expect(actionBox?.width ?? 0, `${actionLabel} width`).toBeGreaterThan(0)
+      expect(actionBox?.height ?? 0, `${actionLabel} height`).toBeGreaterThan(0)
+      expect(actionBox?.x ?? -1, `${actionLabel} left`).toBeGreaterThanOrEqual(0)
+      expect(actionBox?.y ?? -1, `${actionLabel} top`).toBeGreaterThanOrEqual(0)
+      expect(
+        (actionBox?.x ?? Number.POSITIVE_INFINITY) + (actionBox?.width ?? 0),
+        `${actionLabel} right`,
+      ).toBeLessThanOrEqual(rail.x + 1)
+      expect(
+        (actionBox?.y ?? Number.POSITIVE_INFINITY) + (actionBox?.height ?? 0),
+        `${actionLabel} bottom`,
+      ).toBeLessThanOrEqual(viewport.height + 1)
+      geometryReceipt.push({
+        label: actionLabel,
+        viewport: `${viewport.width}x${viewport.height}`,
+        railLeft: rail.x,
+        surfaceLeft: actionBox?.x ?? Number.NaN,
+        surfaceTop: actionBox?.y ?? Number.NaN,
+        surfaceRight: (actionBox?.x ?? Number.NaN) + (actionBox?.width ?? 0),
+        surfaceBottom: (actionBox?.y ?? Number.NaN) + (actionBox?.height ?? 0),
+      })
+    }
+
+    geometryReceipt.push({
+      label,
+      viewport: `${viewport.width}x${viewport.height}`,
+      railLeft: rail.x,
+      surfaceLeft: surfaceBox.x,
+      surfaceTop: surfaceBox.y,
+      surfaceRight: surfaceBox.x + surfaceBox.width,
+      surfaceBottom: surfaceBox.y + surfaceBox.height,
+    })
+  }
+
+  for (const viewport of [{ width: 844, height: 390 }, { width: 746, height: 284 }]) {
+    await page.setViewportSize(viewport)
+    const toolbar = await startProofDrone(page)
+    await expect(toolbar).toHaveAttribute("data-layout", "rail")
+
+    for (const collapsed of [false, true]) {
+      if (collapsed) {
+        await toolbar.getByRole("button", { name: "Minimize", exact: true }).click()
+        await expect(toolbar).toHaveAttribute("data-collapsed", "true")
+      }
+      const state = collapsed ? "collapsed" : "expanded"
+
+      const interruptionNotice = page.getByTestId("music-interruption-notice")
+      await assertSurfaceClear(
+        interruptionNotice,
+        toolbar,
+        viewport,
+        `${state} interruption notice`,
+        [
+          {
+            label: "Resume automatically when the interruption ends checkbox",
+            locator: interruptionNotice.getByRole("checkbox", {
+              name: "Resume automatically when the interruption ends",
+            }),
+          },
+          {
+            label: "Close button",
+            locator: interruptionNotice.getByRole("button", { name: "Close", exact: true }),
+          },
+        ],
+      )
+
+      if (!collapsed) {
+        const settingsTrigger = toolbar.getByRole("button", { name: "Player settings" })
+        await settingsTrigger.click()
+        const settings = page.getByRole("menu")
+        await assertSurfaceClear(settings, toolbar, viewport, `${state} player settings`, [
+          {
+            label: "Resume after interruptions menu checkbox",
+            locator: settings.getByRole("menuitemcheckbox", { name: "Resume after interruptions" }),
+          },
+        ])
+        await page.keyboard.press("Escape")
+        await expect(settings).toBeHidden()
+        await expect(settingsTrigger, `${state} settings focus return`).toBeFocused()
+      }
+
+      const proofDrone = page.getByRole("group", { name: /MassageLab Proof Drone/ })
+      const stationDetailsTrigger = proofDrone.getByRole("button", {
+        name: /Show full information for MassageLab Proof Drone/i,
+      })
+      await stationDetailsTrigger.focus()
+      await page.keyboard.press("Enter")
+      const stationDialog = page.getByRole("dialog", { name: "MassageLab Proof Drone" })
+      await assertSurfaceClear(stationDialog, toolbar, viewport, `${state} station dialog`, [
+        {
+          label: "MassageLab source link",
+          locator: stationDialog.getByRole("link", {
+            name: "MassageLab · MassageLab internal proof",
+            exact: true,
+          }),
+        },
+        {
+          label: "Close button",
+          locator: stationDialog.getByRole("button", { name: "Close", exact: true }),
+        },
+      ])
+      await page.keyboard.press("Escape")
+      await expect(stationDialog).toBeHidden()
+      await expect(stationDetailsTrigger, `${state} station dialog focus return`).toBeFocused()
+
+      // At the desktop-toolbar breakpoint the production Calendar control is
+      // the exposed right Sheet. The 746px compact-rail shell has no Sheet:
+      // its navigation control toggles the persistent sidebar rail instead.
+      if (viewport.width >= 768) {
+        const sheetTrigger = page.getByRole("button", { name: "Open calendar" })
+        await sheetTrigger.click()
+        const rightSheet = page.locator('[data-ml-player-viewport-side="right"]')
+        await assertSurfaceClear(rightSheet, toolbar, viewport, `${state} right Sheet`, [
+          {
+            label: "Sign in link",
+            locator: rightSheet.getByRole("link", { name: "Sign in", exact: true }),
+          },
+          {
+            label: "Close button",
+            locator: rightSheet.getByRole("button", { name: "Close", exact: true }),
+          },
+        ])
+        await page.keyboard.press("Escape")
+        await expect(rightSheet).toBeHidden()
+        await expect(sheetTrigger, `${state} right Sheet focus return`).toBeFocused()
+      }
+
+      const tooltipTrigger = collapsed
+        ? toolbar.getByRole("button", { name: "Expand", exact: true })
+        : toolbar.getByRole("button", { name: "Previous station" })
+      await tooltipTrigger.hover()
+      const tooltip = page.locator('[data-radix-popper-content-wrapper]').filter({
+        hasText: collapsed ? "Expand" : "Previous station",
+      })
+      await assertSurfaceClear(tooltip, toolbar, viewport, `${state} player tooltip`, [])
+      await page.keyboard.press("Escape")
+      await expect(tooltip).toBeHidden()
+
+      if (collapsed) {
+        await toolbar.getByRole("button", { name: "Expand", exact: true }).click()
+        await expect(toolbar).toHaveAttribute("data-collapsed", "false")
+      }
+    }
+  }
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  const portraitToolbar = page.getByTestId("music-player-toolbar")
+  await expect(portraitToolbar).toHaveAttribute("data-layout", "bottom")
+  await expect.poll(async () => (await resolvedMusicRailSpacing(page)).rightSafe).toBe(0)
+  const portraitStationTrigger = page.getByRole("group", { name: /MassageLab Proof Drone/ }).getByRole("button", {
+    name: /Show full information for MassageLab Proof Drone/i,
+  })
+  await portraitStationTrigger.focus()
+  await page.keyboard.press("Enter")
+  const portraitDialog = page.getByRole("dialog", { name: "MassageLab Proof Drone" })
+  await expect(portraitDialog).toBeVisible()
+  const portraitDialogBox = await portraitDialog.boundingBox()
+  expect(portraitDialogBox, "portrait station dialog box").not.toBeNull()
+  expect((portraitDialogBox?.x ?? 0) + (portraitDialogBox?.width ?? 0) / 2).toBeCloseTo(195, 0)
+  expect(portraitDialogBox?.y ?? -1).toBeGreaterThanOrEqual(0)
+  expect((portraitDialogBox?.y ?? 0) + (portraitDialogBox?.height ?? 0)).toBeLessThanOrEqual(845)
+  await page.keyboard.press("Escape")
+  await expect(portraitDialog).toBeHidden()
+  await expect(portraitStationTrigger).toBeFocused()
+
+  const homeLink = page.locator('a[aria-label="MassageLab home"]:visible').first()
+  await homeLink.click()
+  await expect(page).toHaveURL(/\/$/)
+  await expect(portraitToolbar).toHaveAttribute("data-layout", "bottom")
+  await expect(page.locator("body")).not.toHaveClass(/ml-music-player-music-route/)
+  await expect.poll(async () => (await resolvedMusicRailSpacing(page)).rightSafe).toBe(0)
+
+  await testInfo.attach("task-11-real-rail-overlay-geometry.json", {
+    body: JSON.stringify(geometryReceipt, null, 2),
+    contentType: "application/json",
+  })
+})
+
 test("player rail keeps overlays clear in the popover fixture", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== mobileProject, "Compact-landscape overlay geometry is covered in mobile Chromium.")
   // The development gallery is the existing real Popover fixture. Positioning
@@ -1891,7 +2220,7 @@ test("Atmosphere interruption notice clears the toolbar in short landscape", asy
   expect(geometry.noticeBottom).toBeLessThanOrEqual(geometry.viewportHeight)
   expect(geometry.noticeLeft).toBeGreaterThanOrEqual(0)
   expect(geometry.noticeRight).toBeLessThanOrEqual(geometry.viewportWidth)
-  await expect(controls.locator("[aria-label]")).toHaveCount(8)
+  await expect(controls.locator("[aria-label]")).toHaveCount(7)
 })
 
 test("Atmosphere interruption notice follows the actual toolbar edge with safe insets", async ({ page }, testInfo) => {
