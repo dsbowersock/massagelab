@@ -1,5 +1,6 @@
 import { expect, test, type APIResponse, type Locator, type Page, type Route } from "@playwright/test"
 import { createHash } from "node:crypto"
+import { readdir, readFile } from "node:fs/promises"
 import { getVisibleAtmosphereStations } from "../../lib/atmosphere/stations.js"
 import { centerCarouselItem } from "./carousel-test-helpers"
 
@@ -19,6 +20,11 @@ type MediaProbe = {
     generatorGeneration: number
     generatorStarts: number
     generatorTeardowns: number
+    resumeAttempts: Array<{
+      calledAt: number
+      latencyMs: number | null
+      sameInitiatingTurn: boolean
+    }>
     sourceGeneration: number
     sourceStarts: number
     sourceTeardowns: number
@@ -44,17 +50,20 @@ type MediaProbe = {
       sameInitiatingTurn: boolean
     }>
     phaseReached: string[]
+    playInputEvents: Array<{ observedAt: number; type: string }>
     timings: Array<Record<string, unknown> & { observedAt: number }>
   }
 }
 
 type MediaOwnershipFakeOptions = {
+  actualRuntimeModulePath?: string
   holdCarrierPlay?: boolean
   holdPhase?: "module-loading" | "provider-decode"
   includeAudioSession?: boolean
   mediaSessionSupported?: boolean
   rejectCarrierPlay?: boolean
   rejectLivePositionState?: boolean
+  rejectRuntimeModuleLoadOnce?: boolean
   requireAudioContextResumeInPlayTurn?: boolean
   resumeAfterInterruption?: boolean
   stopAtPhase?: "piece-activation" | "scheduling"
@@ -62,6 +71,25 @@ type MediaOwnershipFakeOptions = {
 
 async function sha256(response: APIResponse) {
   return createHash("sha256").update(await response.body()).digest("hex")
+}
+
+let actualRuntimeModulePathPromise: Promise<string> | null = null
+
+/** Resolves the current production chunk that owns the activation-sensitive proof runtime. */
+async function getActualRuntimeModulePath() {
+  actualRuntimeModulePathPromise = actualRuntimeModulePathPromise ?? (async () => {
+    const chunkDirectory = new URL("../../.next/static/chunks/", import.meta.url)
+    const entries = await readdir(chunkDirectory, { withFileTypes: true })
+    for (const entry of entries) {
+      if (!entry.isFile() || !entry.name.endsWith(".js")) continue
+      const source = await readFile(new URL(entry.name, chunkDirectory), "utf8")
+      if (source.includes("startToneProofDrone") && source.includes("getToneProofDroneDiagnostics")) {
+        return `/_next/static/chunks/${entry.name}`
+      }
+    }
+    throw new Error("Could not locate the built Tone proof runtime chunk.")
+  })()
+  return actualRuntimeModulePathPromise
 }
 
 async function installMediaOwnershipFakes(page: Page, options: MediaOwnershipFakeOptions = {}) {
@@ -81,6 +109,11 @@ async function installMediaOwnershipFakes(page: Page, options: MediaOwnershipFak
       generatorGeneration: 0,
       generatorStarts: 0,
       generatorTeardowns: 0,
+      resumeAttempts: [] as Array<{
+        calledAt: number
+        latencyMs: number | null
+        sameInitiatingTurn: boolean
+      }>,
       sourceGeneration: 0,
       sourceStarts: 0,
       sourceTeardowns: 0,
@@ -100,6 +133,7 @@ async function installMediaOwnershipFakes(page: Page, options: MediaOwnershipFak
         sameInitiatingTurn: boolean
       }>,
       phaseReached: [] as string[],
+      playInputEvents: [] as Array<{ observedAt: number; type: string }>,
       timings: [] as Array<Record<string, unknown> & { observedAt: number }>,
     }
     const handlers: Record<string, (() => void) | null> = {}
@@ -131,12 +165,39 @@ async function installMediaOwnershipFakes(page: Page, options: MediaOwnershipFak
       handlers.stop?.()
     }
 
-    if (fakeOptions.holdPhase === "module-loading") {
+    if (fakeOptions.holdPhase === "module-loading" || fakeOptions.rejectRuntimeModuleLoadOnce) {
       const nativeAppendChild = Node.prototype.appendChild
+      const runtimeRejectionKey = "__massagelabBrowserQaRuntimeModuleRejected"
+      let runtimeModuleLoadRejected = false
+      try {
+        runtimeModuleLoadRejected = sessionStorage.getItem(runtimeRejectionKey) === "true"
+      } catch {
+        // A storage-denied browser can still exercise the visible error state.
+      }
       Node.prototype.appendChild = function <T extends Node>(child: T): T {
-        if (
+        const isTargetRuntimeModule = (
           child instanceof HTMLScriptElement
           && child.src.includes("/_next/static/chunks/")
+          && (!fakeOptions.actualRuntimeModulePath || child.src.endsWith(fakeOptions.actualRuntimeModulePath))
+        )
+        if (
+          isTargetRuntimeModule
+          && fakeOptions.rejectRuntimeModuleLoadOnce
+          && !runtimeModuleLoadRejected
+        ) {
+          runtimeModuleLoadRejected = true
+          try {
+            sessionStorage.setItem(runtimeRejectionKey, "true")
+          } catch {
+            // The in-memory guard still prevents a second rejection in this document.
+          }
+          startup.phaseReached.push("module-load-rejected")
+          setTimeout(() => child.dispatchEvent(new Event("error")), 0)
+          return child
+        }
+        if (
+          fakeOptions.holdPhase === "module-loading"
+          && isTargetRuntimeModule
           && !startup.phaseReached.includes("module-loading")
         ) {
           startup.phaseReached.push("module-loading")
@@ -152,16 +213,36 @@ async function installMediaOwnershipFakes(page: Page, options: MediaOwnershipFak
       }
     }
 
-    document.addEventListener("click", (event) => {
+    const getPlayButton = (event: Event) => {
       const target = event.target instanceof Element ? event.target.closest("button") : null
       const accessibleLabel = target?.getAttribute("aria-label") ?? target?.textContent ?? ""
-      if (!/^\s*Play(?:\s|$)/i.test(accessibleLabel)) return
+      return /^\s*Play(?:\s|$)/i.test(accessibleLabel) ? target : null
+    }
+    for (const eventName of ["pointerover", "pointerdown", "focusin"] as const) {
+      document.addEventListener(eventName, (event) => {
+        if (!getPlayButton(event)) return
+        startup.playInputEvents.push({ observedAt: performance.now(), type: eventName })
+      }, { capture: true })
+    }
+    document.addEventListener("click", (event) => {
+      if (!getPlayButton(event)) return
+      startup.playInputEvents.push({ observedAt: performance.now(), type: "click" })
       initiatingPlayTurn = true
       lastPlayIntentAt = performance.now()
       setTimeout(() => {
         initiatingPlayTurn = false
+        startup.phaseReached.push("initiating-play-task-ended")
       }, 0)
     }, { capture: true })
+
+    const recordAudioContextResumeAttempt = () => {
+      const calledAt = performance.now()
+      audioContext.resumeAttempts.push({
+        calledAt,
+        latencyMs: lastPlayIntentAt === null ? null : calledAt - lastPlayIntentAt,
+        sameInitiatingTurn: initiatingPlayTurn,
+      })
+    }
 
     class FakeAudio extends EventTarget {
       loop = false
@@ -256,6 +337,7 @@ async function installMediaOwnershipFakes(page: Page, options: MediaOwnershipFak
     // separately controlled Audio Session fake when that API is enabled.
     const instrumentedSources = new WeakSet<object>()
     const instrumentedContexts = new WeakSet<object>()
+    const forcedSuspendedContexts = new WeakMap<object, boolean>()
     const replaceMethod = (
       target: object,
       name: string,
@@ -332,9 +414,11 @@ async function installMediaOwnershipFakes(page: Page, options: MediaOwnershipFak
       const resume = Reflect.get(context, "resume")
       if (typeof resume === "function") {
         replaceMethod(context, "resume", function (this: object, ...args: unknown[]) {
+          recordAudioContextResumeAttempt()
           if (fakeOptions.requireAudioContextResumeInPlayTurn && !initiatingPlayTurn) {
             return Promise.reject(new DOMException("AudioContext resume lost user activation", "NotAllowedError"))
           }
+          forcedSuspendedContexts.set(this, false)
           return Reflect.apply(resume, this, args)
         })
       }
@@ -393,7 +477,15 @@ async function installMediaOwnershipFakes(page: Page, options: MediaOwnershipFak
       } else {
         function FakeAudioContext(...args: ConstructorParameters<typeof AudioContext>) {
           audioContext.created += 1
-          return instrumentAudioContext(Reflect.construct(NativeAudioContext, args))
+          const context = Reflect.construct(NativeAudioContext, args)
+          if (fakeOptions.requireAudioContextResumeInPlayTurn) {
+            forcedSuspendedContexts.set(context, true)
+            Object.defineProperty(context, "state", {
+              configurable: true,
+              get: () => forcedSuspendedContexts.get(context) ? "suspended" : "running",
+            })
+          }
+          return instrumentAudioContext(context)
         }
         Object.setPrototypeOf(FakeAudioContext, NativeAudioContext)
         FakeAudioContext.prototype = NativeAudioContext.prototype
@@ -587,6 +679,7 @@ async function installMediaOwnershipFakes(page: Page, options: MediaOwnershipFak
         }
         decodeAudioData() { return Promise.resolve(new FakeAudioBuffer({ length: 1, sampleRate: this.sampleRate })) }
         async resume() {
+          recordAudioContextResumeAttempt()
           if (fakeOptions.requireAudioContextResumeInPlayTurn && !initiatingPlayTurn) {
             throw new DOMException("AudioContext resume lost user activation", "NotAllowedError")
           }
@@ -953,6 +1046,138 @@ test("one cold touch starts the generator while carrier readiness is held", asyn
   expect((await readProbe(page)).audio.playCalls).toBe(1)
 })
 
+test("fresh-page cold runtime exposes only an activation-safe centered Play action", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "Physical-touch regression is mobile-owned.")
+  const actualRuntimeModulePath = await getActualRuntimeModulePath()
+  await installMediaOwnershipFakes(page, {
+    actualRuntimeModulePath,
+    holdPhase: "module-loading",
+    requireAudioContextResumeInPlayTurn: true,
+  })
+  await page.goto("/music", { waitUntil: "domcontentloaded" })
+
+  const carousel = page.getByRole("region", { name: "Station carousel" })
+  await expect(carousel).toHaveAttribute("data-carousel-ready", "true")
+  await waitForStartupPhase(page, "module-loading")
+  const primaryAction = carousel.locator("[data-carousel-primary-action]")
+  await expect(primaryAction).toBeVisible()
+  await expect(primaryAction).toBeInViewport()
+  expect((await readProbe(page)).startup.playInputEvents).toEqual([])
+  expect(await primaryAction.evaluate((button) => document.activeElement === button)).toBe(false)
+
+  const generationBeforeTap = (await readProbe(page)).audioContext.generatorGeneration
+  const initiallyPreparing = /^Preparing\b/i.test(await primaryAction.getAttribute("aria-label") ?? "")
+  let centeredPlay: Locator
+  if (initiallyPreparing) {
+    await expect(primaryAction).toBeDisabled()
+    await releaseHeldStartupPhase(page)
+    centeredPlay = carousel.getByRole("button", { name: /^Play MassageLab Proof Drone$/i })
+    await expect(centeredPlay).toBeEnabled({ timeout: 30_000 })
+  } else {
+    centeredPlay = carousel.getByRole("button", { name: /^Play MassageLab Proof Drone$/i })
+  }
+
+  await centeredPlay.tap()
+  await waitForStartupPhase(page, "initiating-play-task-ended")
+  expect((await readProbe(page)).audio.playCalls).toBe(1)
+  if (!initiallyPreparing) await releaseHeldStartupPhase(page)
+  await expect.poll(async () => (await readProbe(page)).audioContext.resumeAttempts.length, {
+    timeout: 30_000,
+  }).toBeGreaterThan(0)
+
+  const firstTapProbe = await readProbe(page)
+  const firstTapGenerationCount = firstTapProbe.audioContext.generatorGeneration - generationBeforeTap
+  if (firstTapGenerationCount === 0) {
+    expect(firstTapProbe.audioContext.resumeAttempts.at(-1)?.sameInitiatingTurn).toBe(false)
+    const retryPlay = page.getByTestId("music-player-toolbar")
+      .getByRole("button", { name: "Play", exact: true })
+    await retryPlay.tap()
+    await expect(page.getByTestId("music-player-toolbar")).toHaveAttribute("data-playback-state", "playing", {
+      timeout: 30_000,
+    })
+    await expect.poll(async () => (await readProbe(page)).audioContext.generatorGeneration)
+      .toBe(generationBeforeTap + 1)
+  }
+
+  expect(firstTapGenerationCount).toBe(1)
+  expect(firstTapProbe.audioContext.resumeAttempts).toHaveLength(1)
+  expect(firstTapProbe.audioContext.resumeAttempts[0]).toMatchObject({ sameInitiatingTurn: true })
+  await expect(page.getByTestId("music-player-toolbar")).toHaveAttribute("data-playback-state", "playing")
+})
+
+test("runtime readiness failure exposes a visible retry before Play becomes actionable", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "Physical-touch regression is mobile-owned.")
+  const actualRuntimeModulePath = await getActualRuntimeModulePath()
+  await installMediaOwnershipFakes(page, {
+    actualRuntimeModulePath,
+    rejectRuntimeModuleLoadOnce: true,
+    requireAudioContextResumeInPlayTurn: true,
+  })
+  await page.goto("/music", { waitUntil: "domcontentloaded" })
+
+  const carousel = page.getByRole("region", { name: "Station carousel" })
+  await expect(carousel).toHaveAttribute("data-carousel-ready", "true")
+  await waitForStartupPhase(page, "module-load-rejected")
+  await expect(carousel.getByText("Audio setup failed. Try again.")).toBeVisible()
+  const retry = carousel.getByRole("button", { name: "Retry audio setup" })
+  await expect(retry).toBeEnabled()
+  await page.evaluate(() => {
+    const carouselRoot = document.querySelector("[aria-label='Station carousel']")
+    const labels: string[] = []
+    const recordLabel = () => {
+      const action = carouselRoot?.querySelector("[data-carousel-primary-action]")
+      const label = action?.getAttribute("aria-label")
+      if (label && labels.at(-1) !== label) labels.push(label)
+    }
+    recordLabel()
+    const observer = new MutationObserver(recordLabel)
+    if (carouselRoot) observer.observe(carouselRoot, {
+      attributes: true,
+      childList: true,
+      subtree: true,
+    })
+    Reflect.set(window, "__massagelabRuntimeReadinessHistory", { labels, observer })
+  })
+
+  await retry.hover()
+  await expect(retry).toBeEnabled()
+  await expect(carousel.getByText("Audio setup failed. Try again.")).toBeVisible()
+  await retry.focus()
+  await expect(retry).toBeFocused()
+  await expect(retry).toBeEnabled()
+  await expect(carousel.getByText("Audio setup failed. Try again.")).toBeVisible()
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+  }))
+  const readinessLabels = await page.evaluate(() => {
+    const history = Reflect.get(window, "__massagelabRuntimeReadinessHistory") as {
+      labels: string[]
+      observer: MutationObserver
+    }
+    history.observer.disconnect()
+    return history.labels
+  })
+  expect(readinessLabels).toEqual(["Retry audio setup"])
+
+  await Promise.all([
+    page.waitForEvent("domcontentloaded"),
+    retry.tap(),
+  ])
+
+  const reloadedCarousel = page.getByRole("region", { name: "Station carousel" })
+  await expect(reloadedCarousel).toHaveAttribute("data-carousel-ready", "true")
+  const play = reloadedCarousel.getByRole("button", { name: /^Play MassageLab Proof Drone$/i })
+  await expect(play).toBeEnabled({ timeout: 30_000 })
+  const generationBeforeTap = (await readProbe(page)).audioContext.generatorGeneration
+  await play.tap()
+  await expect(page.getByTestId("music-player-toolbar")).toHaveAttribute("data-playback-state", "playing", {
+    timeout: 30_000,
+  })
+  await expect.poll(async () => (await readProbe(page)).audioContext.generatorGeneration)
+    .toBe(generationBeforeTap + 1)
+  expect((await readProbe(page)).audioContext.resumeAttempts.at(-1)).toMatchObject({ sameInitiatingTurn: true })
+})
+
 async function closeInterruptionNotice(page: Page) {
   const notice = page.getByRole("region", { name: "Interruption preference" })
   if (await notice.isVisible()) {
@@ -1012,21 +1237,22 @@ test("immediate carrier claim precedes a held sample-index response and Stop sta
   }
 })
 
-test("latest request wins when Stop occurs during runtime module loading", async ({ page }, testInfo) => {
+test("runtime readiness withholds Play until module loading completes without a late start", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-chromium", "Deterministic startup timing coverage runs in desktop Chromium.")
-  await installMediaOwnershipFakes(page, { holdPhase: "module-loading" })
+  await installMediaOwnershipFakes(page, {
+    holdPhase: "module-loading",
+    actualRuntimeModulePath: await getActualRuntimeModulePath(),
+  })
   await page.goto("/music", { waitUntil: "domcontentloaded" })
   await expect(page.getByRole("region", { name: "Atmosphere audio stations" }))
     .toHaveAttribute("data-music-storage-status", "available")
   await centerCarouselItem(page, "mlab-proof-drone", "Next station")
   let stateHistoryStarted = false
   try {
-    await page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
     await waitForStartupPhase(page, "module-loading")
-    const player = page.getByTestId("music-player-toolbar")
-    await expect(player).toHaveAttribute("data-playback-state", "loading")
-    await invokeMediaAction(page, "stop")
-    await expect(player).toHaveAttribute("data-playback-state", "stopped")
+    const preparing = page.getByRole("button", { name: /^Preparing audio for MassageLab Proof Drone$/i })
+    await expect(preparing).toBeDisabled()
+    expect((await readProbe(page)).audioContext.generatorGeneration).toBe(0)
     await beginPlaybackStateHistory(page)
     stateHistoryStarted = true
     await releaseHeldStartupPhase(page)
@@ -1035,6 +1261,14 @@ test("latest request wins when Stop occurs during runtime module loading", async
     stateHistoryStarted = false
     expect(states).not.toContain("playing")
     expect((await readProbe(page)).audioContext.activeGeneratorSources).toBe(0)
+    const play = page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i })
+    await expect(play).toBeEnabled()
+    await play.click()
+    const player = page.getByTestId("music-player-toolbar")
+    await expect(player).toHaveAttribute("data-playback-state", "playing")
+    await page.getByRole("button", { name: /^Stop MassageLab Proof Drone$/i }).click()
+    await expect(player).toHaveAttribute("data-playback-state", "stopped")
+    await expect.poll(async () => (await readProbe(page)).audioContext.activeGeneratorSources).toBe(0)
   } finally {
     if (stateHistoryStarted) await finishPlaybackStateHistory(page)
     await releaseHeldStartupPhase(page)

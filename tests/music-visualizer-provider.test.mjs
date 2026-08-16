@@ -5,6 +5,7 @@ import { describe, it } from "node:test"
 const providerSource = await readFile(new URL("../components/providers/music-provider.tsx", import.meta.url), "utf8")
 const miniPlayerSource = await readFile(new URL("../components/providers/music-mini-player.tsx", import.meta.url), "utf8")
 const musicWorkspaceSource = await readFile(new URL("../app/browse/workspace.tsx", import.meta.url), "utf8")
+const stationCardSource = await readFile(new URL("../components/atmosphere/station-carousel-card.tsx", import.meta.url), "utf8")
 
 describe("Music visualizer provider contract", () => {
   it("exposes visualizer state and actions through MusicContext", () => {
@@ -96,6 +97,30 @@ describe("Music visualizer provider contract", () => {
     assert.match(providerSource, /void carrierStartPromise[\s\S]*settleMediaIntegrationAvailability/)
     assert.match(providerSource, /const runtimeResult = await runtime\.controller\.start\(station\)/)
     assert.doesNotMatch(providerSource, /await Promise\.all\(\[\s*carrierStartPromise,\s*runtimePromise/)
+  })
+
+  it("publishes retryable runtime readiness before the centered Play action", () => {
+    for (const contract of [
+      /type RuntimeReadinessState = {[\s\S]*status: "idle" \| "preparing" \| "ready" \| "error"/,
+      /runtimeReadiness: RuntimeReadinessState/,
+      /setRuntimeReadiness\({ status: "preparing", error: null }\)/,
+      /setRuntimeReadiness\({ status: "ready", error: null }\)/,
+      /setRuntimeReadiness\({ status: "error", error: "Audio setup failed\. Try again\." }\)/,
+      /const retryRuntimeReadiness = useCallback\(\(\) => {[\s\S]*window\.location\.reload\(\)/,
+    ]) assert.match(providerSource, contract)
+    assert.doesNotMatch(
+      providerSource,
+      /catch\(\(caughtError\) => {\s*runtimeLoadPromiseRef\.current = null/,
+      "failed runtime readiness must stay latched until the explicit page reload",
+    )
+
+    for (const contract of [
+      /music\.runtimeReadiness\.status === "preparing"/,
+      /Preparing audio for \$\{station\.title\}/,
+      /Retry audio setup/,
+      /music\.retryRuntimeReadiness\(\)/,
+      /role="status"[\s\S]*aria-live="polite"[\s\S]*Preparing audio/,
+    ]) assert.match(stationCardSource, contract)
   })
 })
 

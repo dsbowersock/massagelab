@@ -40,6 +40,11 @@ import type { ToneProofDroneDiagnostics } from "@/lib/atmosphere/tone-proof-runt
 
 type PlaybackState = "stopped" | "loading" | "playing" | "interrupted" | "paused" | "failed"
 
+type RuntimeReadinessState = {
+  status: "idle" | "preparing" | "ready" | "error"
+  error: string | null
+}
+
 type PlaybackStartOptions = {
   origin?: "in-app" | "media-session"
   continueSession?: boolean
@@ -63,6 +68,7 @@ interface MusicContextType {
   loadingProgress: number | null
   loadingStartedAt: number | null
   error: string | null
+  runtimeReadiness: RuntimeReadinessState
   favorites: string[]
   recentStations: string[]
   volume: number
@@ -75,6 +81,7 @@ interface MusicContextType {
     stationId: string,
     options?: { includeSamplePayloads?: boolean, signal?: AbortSignal },
   ) => Promise<void>
+  retryRuntimeReadiness: () => void
   stopCurrent: () => Promise<void>
   mediaIntegrationAvailable: boolean
   resumeAfterInterruptionDefault: boolean
@@ -222,6 +229,7 @@ const defaultMusicContext: MusicContextType = {
   loadingProgress: null,
   loadingStartedAt: null,
   error: null,
+  runtimeReadiness: { status: "idle", error: null },
   favorites: defaultStorage.favorites,
   recentStations: defaultStorage.recentStations,
   volume: defaultStorage.volume,
@@ -240,6 +248,7 @@ const defaultMusicContext: MusicContextType = {
   playNextStation: async () => undefined,
   playPreviousStation: async () => undefined,
   prewarmStation: async () => undefined,
+  retryRuntimeReadiness: () => undefined,
   stopCurrent: async () => undefined,
   mediaIntegrationAvailable: false,
   resumeAfterInterruptionDefault: true,
@@ -274,6 +283,10 @@ export function MusicProvider({
   const [loadingProgress, setLoadingProgress] = useState<number | null>(null)
   const [loadingStartedAt, setLoadingStartedAt] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [runtimeReadiness, setRuntimeReadiness] = useState<RuntimeReadinessState>({
+    status: "idle",
+    error: null,
+  })
   const [storageState, setStorageState] = useState(defaultStorage)
   const [storageHydrated, setStorageHydrated] = useState(false)
   const [storageStatus, setStorageStatus] = useState<MusicVisualizerState["storageStatus"]>("loading")
@@ -403,27 +416,35 @@ export function MusicProvider({
       return Promise.resolve(runtimeRef.current)
     }
 
-    runtimeLoadPromiseRef.current = runtimeLoadPromiseRef.current ?? loadAtmosphereRuntimeModules().then((modules) => {
-      const controller = modules.createAtmosphereRuntimeController({
-        adapters: {
-          "tone-proof-drone": async ({ station }) => modules.startToneProofDrone({
-            ...station.runtime?.defaultOptions,
-            volume: volumeRef.current,
-          }),
-          "generative-fm-piece": async ({ station }) => modules.startGenerativeFmPiece({
-            onLoadProgress: (progress) => reportStationLoadProgress(station.id, progress),
-            station,
-            volume: volumeRef.current,
-          }),
-        },
+    if (!runtimeLoadPromiseRef.current) {
+      setRuntimeReadiness({ status: "preparing", error: null })
+      runtimeLoadPromiseRef.current = loadAtmosphereRuntimeModules().then((modules) => {
+        const controller = modules.createAtmosphereRuntimeController({
+          adapters: {
+            "tone-proof-drone": async ({ station }) => modules.startToneProofDrone({
+              ...station.runtime?.defaultOptions,
+              volume: volumeRef.current,
+            }),
+            "generative-fm-piece": async ({ station }) => modules.startGenerativeFmPiece({
+              onLoadProgress: (progress) => reportStationLoadProgress(station.id, progress),
+              station,
+              volume: volumeRef.current,
+            }),
+          },
+        })
+        const runtime = { ...modules, controller }
+        runtimeRef.current = runtime
+        if (isMountedRef.current) {
+          setRuntimeReadiness({ status: "ready", error: null })
+        }
+        return runtime
+      }).catch((caughtError) => {
+        if (isMountedRef.current) {
+          setRuntimeReadiness({ status: "error", error: "Audio setup failed. Try again." })
+        }
+        throw caughtError
       })
-      const runtime = { ...modules, controller }
-      runtimeRef.current = runtime
-      return runtime
-    }).catch((error) => {
-      runtimeLoadPromiseRef.current = null
-      throw error
-    })
+    }
 
     return runtimeLoadPromiseRef.current
   }, [reportStationLoadProgress])
@@ -969,6 +990,11 @@ export function MusicProvider({
     await playAdjacentStation(-1)
   }, [playAdjacentStation])
 
+  /** Reloads the pre-play route after a failed dynamic import clears only with a fresh module graph. */
+  const retryRuntimeReadiness = useCallback(() => {
+    window.location.reload()
+  }, [])
+
   const prewarmStation = useCallback(async (
     stationId: string,
     options: { includeSamplePayloads?: boolean, signal?: AbortSignal } = {},
@@ -1216,6 +1242,7 @@ export function MusicProvider({
     loadingProgress,
     loadingStartedAt,
     error,
+    runtimeReadiness,
     favorites: storageState.favorites,
     recentStations: storageState.recentStations,
     volume: storageState.volume,
@@ -1234,6 +1261,7 @@ export function MusicProvider({
     playNextStation,
     playPreviousStation,
     prewarmStation,
+    retryRuntimeReadiness,
     stopCurrent,
     mediaIntegrationAvailable,
     resumeAfterInterruptionDefault,
@@ -1268,6 +1296,8 @@ export function MusicProvider({
     playStation,
     playbackState,
     prewarmStation,
+    retryRuntimeReadiness,
+    runtimeReadiness,
     mediaIntegrationAvailable,
     resumeAfterInterruptionDefault,
     resumeAfterInterruptionForSession,

@@ -1,6 +1,6 @@
 "use client"
 
-import { Heart, Play, Square } from "lucide-react"
+import { Heart, Play, RefreshCw, Square } from "lucide-react"
 import { AtmosphereStationArtwork } from "@/components/atmosphere/station-artwork"
 import { MusicLoadingProgress } from "@/components/providers/music-loading-progress"
 import type { useMusic } from "@/components/providers/music-provider"
@@ -51,6 +51,9 @@ export function AtmosphereStationCarouselCard({
   const isFavorite = music.favorites.includes(station.id)
   const attributionText = stationAttributionText(station)
   const attributionHref = station.attribution.notice ? "" : station.attribution.sourceUrl
+  const runtimePreparing = music.runtimeReadiness.status === "idle"
+    || music.runtimeReadiness.status === "preparing"
+  const runtimeFailed = music.runtimeReadiness.status === "error"
 
   if (displayMode === "carousel" && detailLevel === "summary") {
     return (
@@ -109,9 +112,24 @@ export function AtmosphereStationCarouselCard({
           <div className="absolute inset-x-3 top-3 z-20 flex items-start justify-between gap-2">
             <Button
               data-carousel-primary-action
-              aria-label={isActive ? `Stop ${station.title}` : `Play ${station.title}`}
-              disabled={!station.enabled || (!isActive && music.playbackState === "loading")}
+              aria-label={runtimeFailed
+                ? "Retry audio setup"
+                : runtimePreparing
+                  ? `Preparing audio for ${station.title}`
+                  : isActive
+                    ? `Stop ${station.title}`
+                    : `Play ${station.title}`}
+              disabled={
+                !station.enabled
+                || runtimePreparing
+                || (!isActive && music.playbackState === "loading")
+              }
               onClick={() => {
+                if (runtimeFailed) {
+                  music.retryRuntimeReadiness()
+                  return
+                }
+                if (runtimePreparing) return
                 if (isActive) {
                   void music.stopCurrent()
                   return
@@ -122,8 +140,14 @@ export function AtmosphereStationCarouselCard({
               size="sm"
               variant="glow"
             >
-              {isActive ? <Square aria-hidden="true" /> : <Play aria-hidden="true" />}
-              {isActive ? "Stop" : "Play"}
+              {runtimeFailed ? (
+                <RefreshCw aria-hidden="true" />
+              ) : isActive ? (
+                <Square aria-hidden="true" />
+              ) : (
+                <Play aria-hidden="true" />
+              )}
+              {runtimeFailed ? "Retry audio" : runtimePreparing ? "Preparing" : isActive ? "Stop" : "Play"}
             </Button>
             <Button
               data-carousel-favorite-action
@@ -138,6 +162,23 @@ export function AtmosphereStationCarouselCard({
               <MetalFavoriteIcon kind="heart" selected={isFavorite} />
             </Button>
           </div>
+
+          {runtimePreparing ? (
+            <p
+              role="status"
+              aria-live="polite"
+              className="absolute left-3 top-16 z-20 rounded-md border border-border/50 bg-background/90 px-2 py-1 text-xs text-muted-foreground backdrop-blur"
+            >
+              Preparing audio…
+            </p>
+          ) : runtimeFailed ? (
+            <p
+              role="alert"
+              className="absolute left-3 top-16 z-20 rounded-md border border-destructive/40 bg-background/90 px-2 py-1 text-xs text-destructive backdrop-blur"
+            >
+              {music.runtimeReadiness.error ?? "Audio setup failed. Try again."}
+            </p>
+          ) : null}
 
           <DialogTrigger asChild>
             <button
