@@ -30,6 +30,13 @@ function assertWorkflowStepBefore(workflow, firstStep, secondStep) {
   assert.ok(firstIndex < secondIndex, `Expected ${firstStep} before ${secondStep}`)
 }
 
+function getWorkflowJob(workflow, jobId) {
+  const match = workflow.match(new RegExp(`^  ${jobId}:\\r?\\n([\\s\\S]*?)(?=^  [a-z_]+:\\r?$|$)`, "m"))
+
+  assert.ok(match, `Expected workflow job ${jobId}`)
+  return match[1]
+}
+
 test("browser QA lanes cover each ordinary project and spec exactly once", () => {
   const expectedProjects = ["desktop-chromium", "mobile-chromium"]
   const expectedSpecs = [
@@ -353,4 +360,52 @@ test("browser QA harness is wired for public smoke, PWA, and local-first checks"
   assert.match(ciWorkflow, /npx playwright install --with-deps chromium/)
   assert.match(ciWorkflow, /^permissions:\r?\n  contents: read$/m)
   assertWorkflowStepBefore(ciWorkflow, "npm run prisma:generate", "npm run typecheck")
+})
+
+test("CI workflow parallelizes browser QA and aggregates every upstream result", async () => {
+  const ciWorkflow = await readProjectFile(".github/workflows/ci.yml")
+
+  assert.match(ciWorkflow, /^  code_quality:\r?$/m)
+  assert.match(ciWorkflow, /^  browser_build:\r?$/m)
+  assert.match(ciWorkflow, /^  browser_qa:\r?$/m)
+  assert.match(ciWorkflow, /^  qa:\r?$/m)
+  assert.match(ciWorkflow, /code_quality:\r?\n    name: Code quality[\s\S]*?timeout-minutes: 12/)
+  assert.match(ciWorkflow, /browser_build:\r?\n    name: Browser build[\s\S]*?timeout-minutes: 12/)
+  assert.match(ciWorkflow, /browser_qa:\r?\n    name: Browser QA \(lane \$\{\{ matrix\.lane \}\}\)[\s\S]*?needs: browser_build[\s\S]*?timeout-minutes: 15/)
+  assert.match(ciWorkflow, /qa:\r?\n    name: qa[\s\S]*?if: \$\{\{ always\(\) \}\}[\s\S]*?timeout-minutes: 2/)
+  assert.doesNotMatch(getWorkflowJob(ciWorkflow, "code_quality"), /^    needs:/m)
+  assert.doesNotMatch(getWorkflowJob(ciWorkflow, "browser_build"), /^    needs:/m)
+
+  assert.equal((ciWorkflow.match(/npm run build(?::next)?/g) ?? []).length, 1)
+  assert.match(ciWorkflow, /strategy:\r?\n      fail-fast: false\r?\n      matrix:\r?\n        lane: \["1", "2", "3", "4"\]/)
+  assert.match(ciWorkflow, /PLAYWRIGHT_CI_LANE: \$\{\{ matrix\.lane \}\}/)
+  assert.match(ciWorkflow, /key: \$\{\{ runner\.os \}\}-nextjs-v2-/)
+
+  const runtimeArtifact = "next-runtime-${{ github.sha }}-${{ github.run_attempt }}"
+  assert.match(ciWorkflow, new RegExp(`name: ${runtimeArtifact.replaceAll("$", "\\$").replaceAll("{", "\\{").replaceAll("}", "\\}")}`))
+  assert.match(
+    ciWorkflow,
+    /uses: actions\/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a\r?\n        with:\r?\n          name: next-runtime-\$\{\{ github\.sha \}\}-\$\{\{ github\.run_attempt \}\}\r?\n          path: \|\r?\n            \.next\r?\n            !\.next\/cache\/\*\*\r?\n          if-no-files-found: error\r?\n          retention-days: 1\r?\n          include-hidden-files: true/,
+  )
+  assert.match(
+    ciWorkflow,
+    /uses: actions\/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c\r?\n        with:\r?\n          name: next-runtime-\$\{\{ github\.sha \}\}-\$\{\{ github\.run_attempt \}\}\r?\n          path: \.next/,
+  )
+  assert.match(
+    ciWorkflow,
+    /if: \$\{\{ always\(\) \}\}\r?\n        uses: actions\/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a\r?\n        with:\r?\n          name: browser-diagnostics-\$\{\{ github\.sha \}\}-\$\{\{ github\.run_attempt \}\}-lane-\$\{\{ matrix\.lane \}\}\r?\n          path: test-results\r?\n          if-no-files-found: ignore\r?\n          retention-days: 7\r?\n          include-hidden-files: true/,
+  )
+
+  assert.match(ciWorkflow, /needs:\r?\n      - code_quality\r?\n      - browser_build\r?\n      - browser_qa/)
+  assert.match(ciWorkflow, /CODE_QUALITY_RESULT: \$\{\{ needs\.code_quality\.result \}\}/)
+  assert.match(ciWorkflow, /BROWSER_BUILD_RESULT: \$\{\{ needs\.browser_build\.result \}\}/)
+  assert.match(ciWorkflow, /BROWSER_QA_RESULT: \$\{\{ needs\.browser_qa\.result \}\}/)
+  assert.match(ciWorkflow, /if \[ "\$result" != "success" \]; then/)
+
+  assert.match(ciWorkflow, /^  pull_request:/m)
+  assert.match(ciWorkflow, /^  push:\r?\n    branches:\r?\n      - main$/m)
+  assert.match(ciWorkflow, /^permissions:\r?\n  contents: read$/m)
+  assert.match(ciWorkflow, /cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}/)
+  assertWorkflowStepBefore(ciWorkflow, "npm run prisma:generate", "npm run typecheck")
+  assertWorkflowStepBefore(ciWorkflow, "npm run prisma:generate", "npm run test:browser")
 })
