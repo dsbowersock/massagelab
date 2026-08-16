@@ -7,6 +7,7 @@ This directory is the repo-backed project wiki. Keep operational, implementation
 - [Project state](../project-state.md)
 - [Project log](../project-log.md)
 - [Local development](local-development.md)
+- [CI and PR checks](ci-pr-checks.md)
 - [Privacy and PHI posture](privacy-and-phi.md)
 - [Privacy-first data architecture](privacy-first-data-architecture.md)
 - [PWA offline strategy](pwa-offline-strategy.md)
