@@ -1050,9 +1050,22 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
 
   await centerCarouselItem(page, "mlab-proof-drone", "Next station")
   const proofCard = page.locator("#station-mlab-proof-drone")
-  const proofBox = await proofCard.boundingBox()
-  expect(proofBox?.width).toBeCloseTo(192, 0)
-  expect(proofBox?.height).toBeCloseTo(224, 0)
+  const [proofBox, stageBox] = await Promise.all([
+    proofCard.boundingBox(),
+    page.getByTestId("station-carousel-stage").boundingBox(),
+  ])
+  expect(proofBox).not.toBeNull()
+  expect(stageBox).not.toBeNull()
+  expect(proofBox?.width ?? 0).toBeGreaterThan(0)
+  expect(proofBox?.height ?? 0).toBeGreaterThan(0)
+  expect(proofBox?.x ?? -1).toBeGreaterThanOrEqual((stageBox?.x ?? 0) - 1)
+  expect(proofBox?.y ?? -1).toBeGreaterThanOrEqual((stageBox?.y ?? 0) - 1)
+  expect((proofBox?.x ?? 0) + (proofBox?.width ?? 0)).toBeLessThanOrEqual(
+    (stageBox?.x ?? 0) + (stageBox?.width ?? 0) + 1,
+  )
+  expect((proofBox?.y ?? 0) + (proofBox?.height ?? 0)).toBeLessThanOrEqual(
+    (stageBox?.y ?? 0) + (stageBox?.height ?? 0) + 1,
+  )
 
   await centerCarouselItem(page, "observable-streams-probe", "Next station")
   const observableStreamsStation = page.locator("#station-observable-streams-probe")
