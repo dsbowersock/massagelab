@@ -859,7 +859,7 @@ test("narrow mobile keeps every tool and collapses only the wordmark", async ({ 
   await expect(drawer).toBeFocused()
 })
 
-test("Atmosphere six expanded player actions expose session and saved interruption preferences", async ({ page }) => {
+test("Atmosphere expanded player actions expose session and saved interruption preferences", async ({ page }) => {
   await installInterruptionNoticeMediaFakes(page)
   await page.setViewportSize({ width: 390, height: 844 })
   const player = await startInterruptionNoticeSession(page)
@@ -876,12 +876,12 @@ test("Atmosphere six expanded player actions expose session and saved interrupti
   expect(await controls.locator("[aria-label]").evaluateAll((actions) => (
     actions.map((action) => action.getAttribute("aria-label"))
   ))).toEqual([
+    "Player settings",
+    "Favorite MassageLab Proof Drone",
     "Previous station",
     "Stop",
     "Next station",
     "Background",
-    "Player settings",
-    "Collapse",
   ])
 
   await sessionPreference.uncheck()
@@ -922,6 +922,67 @@ test("Atmosphere six expanded player actions expose session and saved interrupti
   await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
   await player.getByRole("button", { name: "Next station" }).click()
   await expect(notice).toBeHidden()
+})
+
+test("vinyl player controls expose grouped semantic actions and a minimal collapsed set", async ({ page }) => {
+  await installInterruptionNoticeMediaFakes(page)
+  await page.setViewportSize({ width: 1024, height: 768 })
+  const toolbar = await startInterruptionNoticeSession(page)
+  const stationTitle = "MassageLab Proof Drone"
+  const vinyl = toolbar.getByTestId("station-vinyl")
+  const left = toolbar.getByTestId("music-player-toolbar-left")
+  const primary = toolbar.getByTestId("music-player-toolbar-primary-controls")
+  const right = toolbar.getByTestId("music-player-toolbar-right")
+
+  await expect(vinyl).toHaveAttribute(
+    "data-artwork-src",
+    /\/api\/atmosphere\/stations\/mlab-proof-drone\/artwork$/,
+  )
+  await expect(vinyl).toHaveAttribute("aria-hidden", "true")
+  await expect(vinyl).toHaveCSS("pointer-events", "none")
+  await expect(vinyl.locator("button, a, input, select, textarea, [tabindex]")).toHaveCount(0)
+
+  await expect(left.getByRole("button", { name: "Player settings" })).toHaveClass(/ml-button-glow/)
+  await expect(right.getByRole("slider", { name: "Atmosphere volume" })).toBeVisible()
+  await expect(right.getByRole("button", { name: "Minimize" })).toHaveClass(/ml-button-glow/)
+
+  const actionLabels = await primary
+    .locator('button[aria-label], a[aria-label]')
+    .evaluateAll((elements) => elements.map((element) => element.getAttribute("aria-label")))
+  expect(actionLabels).toEqual([
+    `Favorite ${stationTitle}`,
+    "Previous station",
+    "Stop",
+    "Next station",
+    "Background",
+  ])
+
+  const favorite = primary.getByRole("button", { name: `Favorite ${stationTitle}` })
+  await expect(favorite).toHaveAttribute("aria-pressed", "false")
+  await expect(favorite).toHaveClass(/\[--brand-orange:var\(--button-cta-face\)\]/)
+  await expect(primary.getByRole("button", { name: "Previous station" })).toHaveClass(/ml-button-glow/)
+  await expect(primary.getByRole("button", { name: "Stop", exact: true })).toHaveClass(/ml-button-destructive/)
+  await expect(primary.getByRole("button", { name: "Next station" })).toHaveClass(/ml-button-glow/)
+  await expect(primary.getByRole("link", { name: "Background" })).toHaveClass(/ml-button-attention/)
+
+  await favorite.click()
+  const selectedFavorite = primary.getByRole("button", {
+    name: `Remove ${stationTitle} from favorites`,
+  })
+  await expect(selectedFavorite).toHaveAttribute("aria-pressed", "true")
+  await expect(selectedFavorite.locator('[data-metal-icon-trace="true"]')).toBeVisible()
+
+  await right.getByRole("button", { name: "Minimize" }).click()
+  await expect(toolbar).toHaveAttribute("data-collapsed", "true")
+  await expect(left).toHaveCount(0)
+  await expect(primary).toHaveCount(0)
+  await expect(right).toHaveCount(0)
+  expect(await toolbar.locator('.ml-music-player-toolbar-layout button[aria-label], .ml-music-player-toolbar-layout a[aria-label], .ml-music-player-toolbar-layout input[aria-label]')
+    .evaluateAll((elements) => elements.map((element) => element.getAttribute("aria-label"))))
+    .toEqual(["Stop", "Expand"])
+
+  await toolbar.getByRole("button", { name: "Stop", exact: true }).click()
+  await expect(toolbar.getByRole("button", { name: "Play", exact: true })).toHaveClass(/ml-button-success/)
 })
 
 test("Atmosphere interruption notice counts only active unhovered and unfocused time", async ({ page }, testInfo) => {

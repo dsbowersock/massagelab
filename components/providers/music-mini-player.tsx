@@ -14,7 +14,10 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useSearchParams } from "next/navigation"
+import { purpleGlowClassName } from "@/components/ui/carousel-button-classes"
 import { Button } from "@/components/ui/button"
+import { MetalFavoriteIcon } from "@/components/ui/metal-favorite-icon"
+import { StationVinyl } from "@/components/ui/music-player"
 import { Slider } from "@/components/ui/slider"
 import {
   DropdownMenu,
@@ -32,6 +35,7 @@ import {
   buildMusicVisualizerHref,
   sanitizeMusicVisualizerReturnTo,
 } from "@/lib/music-visualizer"
+import { getAtmosphereStationArtworkUrl } from "@/lib/atmosphere/station-artwork"
 import { cn } from "@/lib/utils"
 import { MusicLoadingProgress } from "./music-loading-progress"
 import { MusicInterruptionNotice } from "./music-interruption-notice"
@@ -48,6 +52,13 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
   const isCollapsed = music.miniPlayerCollapsed
   const isLoading = music.playbackState === "loading"
   const isPlayingOrLoading = music.playbackState === "playing" || isLoading
+  const activeArtworkSrc = music.activeStationId
+    ? getAtmosphereStationArtworkUrl(music.activeStationId)
+    : null
+  const isVinylPlaying = music.playbackState === "playing"
+  const isFavorite = music.activeStationId
+    ? music.favorites.includes(music.activeStationId)
+    : false
   const isMusicVisualizerRoute =
     pathname === "/clock"
     && searchParams.getAll("source").includes("music")
@@ -95,13 +106,32 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
     if (music.activeStationId) void music.playStation(music.activeStationId)
   }
 
+  const favoriteAction = music.activeStationId ? (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          size="icon"
+          variant="glow"
+          aria-label={isFavorite ? `Remove ${title} from favorites` : `Favorite ${title}`}
+          aria-pressed={isFavorite}
+          className={purpleGlowClassName}
+          onClick={() => music.toggleFavorite(music.activeStationId!)}
+        >
+          <MetalFavoriteIcon kind="heart" selected={isFavorite} />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{isFavorite ? "Favorited" : "Favorite"}</TooltipContent>
+    </Tooltip>
+  ) : null
+
   const previousAction = (
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
           type="button"
           size="icon"
-          variant="success"
+          variant="glow"
           aria-label="Previous station"
           disabled={isLoading}
           onClick={() => void music.playPreviousStation()}
@@ -120,7 +150,7 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
         <Button
           type="button"
           size="icon"
-          variant="success"
+          variant={isPlayingOrLoading ? "destructive" : "success"}
           aria-label={playStopLabel}
           disabled={!music.activeStationId}
           onClick={handlePlayStop}
@@ -138,7 +168,7 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
         <Button
           type="button"
           size="icon"
-          variant="success"
+          variant="glow"
           aria-label="Next station"
           disabled={isLoading}
           onClick={() => void music.playNextStation()}
@@ -153,7 +183,7 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
   const visualizerAction = (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button asChild size="icon" variant="success">
+        <Button asChild size="icon" variant="attention">
           {/* The shared dirty-draft guard intercepts this marker. On the
               visualizer route, href plus replace preserves the Music return
               target without stacking another /clock entry. */}
@@ -177,14 +207,14 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
         <Button
           type="button"
           size="icon"
-          variant="success"
-          aria-label="Collapse"
+          variant="glow"
+          aria-label="Minimize"
           onClick={() => music.setMiniPlayerCollapsed(true)}
         >
           <ChevronDown aria-hidden="true" />
         </Button>
       </TooltipTrigger>
-      <TooltipContent>Collapse</TooltipContent>
+      <TooltipContent>Minimize</TooltipContent>
     </Tooltip>
   )
 
@@ -196,7 +226,7 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
             <Button
               type="button"
               size="icon"
-              variant="success"
+              variant="glow"
               aria-label="Player settings"
             >
               <MoreHorizontal aria-hidden="true" />
@@ -226,7 +256,7 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
         <Button
           type="button"
           size="icon"
-          variant="success"
+          variant="glow"
           aria-label="Expand"
           onClick={() => music.setMiniPlayerCollapsed(false)}
         >
@@ -248,7 +278,10 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
       aria-label="Atmosphere audio player"
     >
       <MusicInterruptionNotice placement={placement} />
-      <div className="ml-music-player-toolbar-surface pointer-events-auto bg-card/95 shadow-2xl shadow-black/35 backdrop-blur">
+      <div className="ml-music-player-toolbar-surface pointer-events-auto relative bg-card/95 shadow-2xl shadow-black/35 backdrop-blur">
+        {activeArtworkSrc ? (
+          <StationVinyl artworkSrc={activeArtworkSrc} playing={isVinylPlaying} />
+        ) : null}
         <TooltipProvider>
           {/* The grid owns responsive shape: two rows on narrow expanded
               screens, one compact row when collapsed, and wide columns above. */}
@@ -286,26 +319,39 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
                   className="grid min-w-0 grid-cols-6 gap-1 sm:flex sm:shrink-0 sm:items-center sm:gap-2"
                   data-testid="music-player-toolbar-controls"
                 >
-                  {previousAction}
-                  {playStopAction}
-                  {nextAction}
-                  {visualizerAction}
-                  {settingsAction}
-                  {collapseAction}
+                  <div data-testid="music-player-toolbar-left">
+                    {settingsAction}
+                  </div>
+                  <div
+                    className="contents"
+                    data-testid="music-player-toolbar-primary-controls"
+                  >
+                    {favoriteAction}
+                    {previousAction}
+                    {playStopAction}
+                    {nextAction}
+                    {visualizerAction}
+                  </div>
                 </div>
 
-                <label className="hidden min-w-0 items-center gap-2 text-xs text-muted-foreground lg:flex">
-                  <Volume2 aria-hidden="true" className="size-4 shrink-0" />
-                  <Slider
-                    aria-label="Atmosphere volume"
-                    className="ml-slider-fill-blue"
-                    min={0}
-                    max={1}
-                    step={0.05}
-                    value={[music.volume]}
-                    onValueChange={([value]) => music.setVolume(value ?? 0.75)}
-                  />
-                </label>
+                <div
+                  className="flex min-w-0 items-center gap-2"
+                  data-testid="music-player-toolbar-right"
+                >
+                  <label className="hidden min-w-0 flex-1 items-center gap-2 text-xs text-muted-foreground lg:flex">
+                    <Volume2 aria-hidden="true" className="size-4 shrink-0" />
+                    <Slider
+                      aria-label="Atmosphere volume"
+                      className="ml-slider-fill-blue"
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      value={[music.volume]}
+                      onValueChange={([value]) => music.setVolume(value ?? 0.75)}
+                    />
+                  </label>
+                  {collapseAction}
+                </div>
               </>
             )}
           </div>

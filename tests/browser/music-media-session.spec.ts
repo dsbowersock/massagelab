@@ -1448,6 +1448,26 @@ test("Previous and Next retain the session preference and route changes keep one
   }
 })
 
+test("vinyl player controls keep decorative artwork outside the media owner", async ({ page }) => {
+  await installMediaOwnershipFakes(page)
+  const player = await startProofStation(page)
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+  await expect(player.getByTestId("station-vinyl")).toHaveAttribute(
+    "data-artwork-src",
+    /\/api\/atmosphere\/stations\/mlab-proof-drone\/artwork$/,
+  )
+  await expect(player.locator("audio, iframe")).toHaveCount(0)
+  await expect.poll(async () => (await readProbe(page)).audio.created).toBe(1)
+  await expect.poll(async () => page.evaluate(() => {
+    const probe = Reflect.get(window, "__massagelabMediaProbe") as MediaProbe
+    return Object.values(probe.mediaSession.handlers).filter(Boolean).length
+  })).toBe(5)
+
+  await player.getByRole("button", { name: "Favorite MassageLab Proof Drone" }).click()
+  await expect.poll(async () => (await readProbe(page)).audio.created).toBe(1)
+  await invokeMediaAction(page, "stop")
+})
+
 test("explicit Pause and Stop cannot be reversed by later focus or visibility events", async ({ page }) => {
   await installMediaOwnershipFakes(page)
   const player = await startProofStation(page)
