@@ -65,6 +65,11 @@ export async function ensureGoogleUserState(userId: string, email?: string | nul
   })
 }
 
+/**
+ * Loads the request-time account snapshot used by authentication. Full-Admin
+ * features come only from a verified persisted role, never from stale session
+ * claims, and remain separate from paid membership level.
+ */
 export async function getUserAuthState(userId: string) {
   // Capture one boundary for both the database predicate and defensive pure
   // resolver so a grant cannot change state midway through one auth refresh.

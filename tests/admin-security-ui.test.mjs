@@ -423,6 +423,7 @@ describe("Admin security controls", () => {
     ))
 
     assert.ok(twoFactorCard)
+    assert.match(elementText(twoFactorCard), /Two-factor authentication is not enabled for this account/)
     assert.match(elementText(twoFactorCard), new RegExp(completedMessage.replaceAll(".", String.raw`\.`)))
     assert.equal(findElement(twoFactorCard, (element) => element.type === "form"), null)
   })

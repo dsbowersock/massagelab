@@ -364,6 +364,32 @@ describe("Membership and entitlement helpers", () => {
     }
   })
 
+  it("keeps permanent Admin detail provenance when temporary access overlaps", () => {
+    const expiresAt = new Date("2026-09-15T00:00:00.000Z")
+    const entitlements = buildEntitlements({
+      adminAccess: true,
+      subscriptions: [],
+      studentAccess: null,
+      temporaryGrants: [{
+        featureKey: FEATURE_KEYS.premiumBackgrounds,
+        startsAt: new Date("2026-08-01T00:00:00.000Z"),
+        expiresAt,
+        revocation: null,
+      }],
+      now: new Date("2026-08-16T00:00:00.000Z"),
+    })
+
+    assert.deepEqual(entitlements.featureDetails.find(({ key }) => key === FEATURE_KEYS.premiumBackgrounds), {
+      key: FEATURE_KEYS.premiumBackgrounds,
+      source: "ADMIN",
+      expiresAt: null,
+    })
+    assert.deepEqual(entitlements.featureAccess.find(({ featureKey }) => featureKey === FEATURE_KEYS.premiumBackgrounds)?.sources, [
+      { source: "admin", expiresAt: null },
+      { source: "temporary", expiresAt: expiresAt.toISOString() },
+    ])
+  })
+
   it("loads administrative feature access only from a freshly verified full-admin database role", async () => {
     const roleQueries = []
     const state = await membership.getUserEntitlementState({

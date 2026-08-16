@@ -9,6 +9,7 @@ const LATER_PREMIUM_BACKGROUND = "massage-lab-photon-beam"
 
 function createAccessDatabase({
   admin = false,
+  adminStatus = "VERIFIED",
   emailVerified = true,
   subscriptions = [],
   temporaryGrants = [],
@@ -18,7 +19,7 @@ function createAccessDatabase({
 } = {}) {
   const state = {
     emailVerified,
-    admin,
+    adminRole: admin ? { role: "ADMIN", status: adminStatus } : null,
     subscriptions,
     temporaryGrants,
     ownership,
@@ -28,6 +29,7 @@ function createAccessDatabase({
     reads: [],
     temporaryGrantQuery: null,
     reservationQuery: null,
+    userQuery: null,
   }
 
   function record(model) {
@@ -36,11 +38,16 @@ function createAccessDatabase({
 
   const tx = {
     user: {
-      async findUnique() {
+      async findUnique(query) {
         record("user")
+        state.userQuery = query
+        const roleFilter = query?.select?.roles?.where
+        const matchesRequestedRole = state.adminRole
+          && roleFilter?.role === state.adminRole.role
+          && roleFilter?.status === state.adminRole.status
         return {
           emailVerified: state.emailVerified ? new Date("2026-07-01T00:00:00.000Z") : null,
-          roles: state.admin ? [{ id: "admin-role-1" }] : [],
+          roles: matchesRequestedRole ? [{ id: "admin-role-1" }] : [],
         }
       },
     },
@@ -209,14 +216,29 @@ describe("canonical background access", () => {
   })
 
   it("uses a freshly verified full-admin role without calling it a subscription", async () => {
-    const { database } = createAccessDatabase({ admin: true })
+    const { database, state } = createAccessDatabase({ admin: true })
 
     const decision = await resolve(database)
 
+    assert.deepEqual(state.userQuery?.select?.roles, {
+      where: { role: "ADMIN", status: "VERIFIED" },
+      select: { id: true },
+      take: 1,
+    })
     assert.equal(decision.canUse, true)
     assert.equal(decision.canCustomizeColors, true)
     assert.equal(decision.accessSource, "admin")
     assert.equal(decision.isPermanentlyOwned, false)
+  })
+
+  it("does not grant Admin background access from an unverified role", async () => {
+    const { database } = createAccessDatabase({ admin: true, adminStatus: "PENDING" })
+
+    const decision = await resolve(database)
+
+    assert.equal(decision.canUse, false)
+    assert.equal(decision.canCustomizeColors, false)
+    assert.equal(decision.accessSource, "locked")
   })
 
   it("keeps membership provenance ahead of simultaneous temporary access", async () => {
