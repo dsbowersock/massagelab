@@ -1,5 +1,6 @@
 import { defineConfig, devices } from "@playwright/test"
 import path from "node:path"
+import { resolveCiBrowserQaLaneProjects } from "./tests/browser/ci-lanes.mjs"
 
 const defaultBrowserQaPort = 3010
 const defaultBrowserQaBaseUrl = "http://localhost:3010"
@@ -218,6 +219,35 @@ Object.assign(playwrightWebServerEnvironment, {
   SMTP_PORT: "",
 })
 
+const ordinaryProjects = [
+  {
+    name: "desktop-chromium",
+    use: {
+      ...devices["Desktop Chrome"],
+      viewport: { width: 1280, height: 900 },
+    },
+  },
+  {
+    name: "mobile-chromium",
+    use: {
+      ...devices["Pixel 7"],
+    },
+  },
+]
+const ciBrowserQaLaneProjects = resolveCiBrowserQaLaneProjects(process.env.PLAYWRIGHT_CI_LANE)
+const browserQaProjects = ciBrowserQaLaneProjects
+  ? ciBrowserQaLaneProjects.map((laneProject) => {
+      const ordinaryProject = ordinaryProjects.find((project) => project.name === laneProject.name)
+      if (!ordinaryProject) {
+        throw new Error(`Browser QA lane references an unconfigured Playwright project: ${laneProject.name}`)
+      }
+      return {
+        ...ordinaryProject,
+        testMatch: laneProject.testMatch,
+      }
+    })
+  : ordinaryProjects
+
 export default defineConfig({
   testDir: "tests/browser",
   // The palette gallery is development-only. Ordinary production-server QA
@@ -240,21 +270,7 @@ export default defineConfig({
     actionTimeout: 15_000,
     navigationTimeout: 30_000,
   },
-  projects: [
-    {
-      name: "desktop-chromium",
-      use: {
-        ...devices["Desktop Chrome"],
-        viewport: { width: 1280, height: 900 },
-      },
-    },
-    {
-      name: "mobile-chromium",
-      use: {
-        ...devices["Pixel 7"],
-      },
-    },
-  ],
+  projects: browserQaProjects,
   webServer: skipWebServer
     ? undefined
     : {

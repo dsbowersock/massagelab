@@ -9,6 +9,13 @@ import {
   matchesDevelopmentPaletteReviewArgument,
   resolveDevelopmentPaletteReviewIgnoreGlobs,
 } from "../playwright.config.ts"
+import {
+  BROWSER_QA_LANES,
+  BROWSER_QA_PROJECT_NAMES,
+  ORDINARY_BROWSER_QA_SPEC_FILES,
+  assertBrowserQaLaneCoverage,
+  resolveCiBrowserQaLaneProjects,
+} from "./browser/ci-lanes.mjs"
 
 async function readProjectFile(path) {
   return readFile(new URL(`../${path}`, import.meta.url), "utf8")
@@ -22,6 +29,114 @@ function assertWorkflowStepBefore(workflow, firstStep, secondStep) {
   assert.notEqual(secondIndex, -1, `Expected workflow to include ${secondStep}`)
   assert.ok(firstIndex < secondIndex, `Expected ${firstStep} before ${secondStep}`)
 }
+
+test("browser QA lanes cover each ordinary project and spec exactly once", () => {
+  const expectedProjects = ["desktop-chromium", "mobile-chromium"]
+  const expectedSpecs = [
+    "admin-user-operations.spec.ts",
+    "app-shell.spec.ts",
+    "background-commerce.spec.ts",
+    "control-system-review.spec.ts",
+    "immersive-panel-shell.spec.ts",
+    "local-first.spec.ts",
+    "music-visualizer.spec.ts",
+    "public-routes.spec.ts",
+    "pwa.spec.ts",
+  ]
+
+  assert.deepEqual(BROWSER_QA_PROJECT_NAMES, expectedProjects)
+  assert.deepEqual(ORDINARY_BROWSER_QA_SPEC_FILES, expectedSpecs)
+  assert.equal(Object.keys(BROWSER_QA_LANES).length, 4)
+
+  const expectedPairs = new Set(
+    expectedProjects.flatMap((projectName) => expectedSpecs.map((spec) => `${projectName}:${spec}`)),
+  )
+  assert.equal(expectedPairs.size, 18)
+
+  const actualPairs = []
+  for (const lane of Object.values(BROWSER_QA_LANES)) {
+    assert.ok(Object.values(lane).some((specs) => specs.length > 0), "Expected every lane to be non-empty")
+    for (const [projectName, specs] of Object.entries(lane)) {
+      for (const spec of specs) actualPairs.push(`${projectName}:${spec}`)
+    }
+  }
+
+  assert.equal(new Set(actualPairs).size, expectedPairs.size)
+  assert.deepEqual(new Set(actualPairs), expectedPairs)
+  assert.doesNotMatch(
+    JSON.stringify(BROWSER_QA_LANES),
+    /background-(?:palette|carousel-preview|preview-pilot)\.spec\.ts|dna-twisted-cubes-backgrounds\.spec\.ts/,
+  )
+  assert.doesNotThrow(() => assertBrowserQaLaneCoverage())
+})
+
+test("browser QA lane resolver preserves ordinary runs and returns exact lane assignments", () => {
+  assert.equal(resolveCiBrowserQaLaneProjects(), null)
+  assert.equal(resolveCiBrowserQaLaneProjects("   "), null)
+  assert.throws(
+    () => resolveCiBrowserQaLaneProjects("unknown"),
+    /Unknown browser QA lane/i,
+  )
+
+  const expectedLaneProjects = {
+    "1": [
+      {
+        name: "desktop-chromium",
+        testMatch: [
+          "**/local-first.spec.ts",
+          "**/pwa.spec.ts",
+          "**/admin-user-operations.spec.ts",
+        ],
+      },
+      {
+        name: "mobile-chromium",
+        testMatch: [
+          "**/public-routes.spec.ts",
+          "**/admin-user-operations.spec.ts",
+        ],
+      },
+    ],
+    "2": [{
+      name: "desktop-chromium",
+      testMatch: [
+        "**/public-routes.spec.ts",
+        "**/app-shell.spec.ts",
+        "**/immersive-panel-shell.spec.ts",
+        "**/control-system-review.spec.ts",
+      ],
+    }],
+    "3": [{
+      name: "mobile-chromium",
+      testMatch: [
+        "**/background-commerce.spec.ts",
+        "**/app-shell.spec.ts",
+        "**/immersive-panel-shell.spec.ts",
+      ],
+    }],
+    "4": [
+      {
+        name: "desktop-chromium",
+        testMatch: [
+          "**/background-commerce.spec.ts",
+          "**/music-visualizer.spec.ts",
+        ],
+      },
+      {
+        name: "mobile-chromium",
+        testMatch: [
+          "**/music-visualizer.spec.ts",
+          "**/control-system-review.spec.ts",
+          "**/local-first.spec.ts",
+          "**/pwa.spec.ts",
+        ],
+      },
+    ],
+  }
+
+  for (const [laneId, expectedProjects] of Object.entries(expectedLaneProjects)) {
+    assert.deepEqual(resolveCiBrowserQaLaneProjects(` ${laneId} `), expectedProjects)
+  }
+})
 
 test("development review spec matching accepts Playwright line and column suffixes", () => {
   for (const spec of [
