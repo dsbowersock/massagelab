@@ -110,7 +110,10 @@ export const BROWSER_QA_LANES = {
       "pwa.spec.ts",
       "admin-user-operations.spec.ts",
     ],
-    "mobile-chromium": ["admin-user-operations.spec.ts"],
+    "mobile-chromium": [
+      "public-routes.spec.ts",
+      "admin-user-operations.spec.ts",
+    ],
   },
   "2": {
     "desktop-chromium": [
