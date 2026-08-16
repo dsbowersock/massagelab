@@ -561,11 +561,11 @@ test("Atmosphere visualizer action retains selected station across client routes
     expect(controlsBox?.y ?? 0).toBeGreaterThan(identityBox?.y ?? 0)
   }
 
-  for (const name of ["Previous station", "Stop", "Next station", "Background", "Collapse"]) {
+  for (const name of ["Previous station", "Stop", "Next station", "Background", "Minimize"]) {
     await expect(playerToolbar.getByRole(name === "Background" ? "link" : "button", { name, exact: true })).toBeVisible()
   }
 
-  await playerToolbar.getByRole("button", { name: "Collapse", exact: true }).click()
+  await playerToolbar.getByRole("button", { name: "Minimize", exact: true }).click()
   await expect(playerToolbar).toHaveAttribute("data-collapsed", "true")
   await expect(playerToolbar.getByRole("link", { name: "Background", exact: true })).toHaveCount(0)
   await expect(playerToolbar.getByRole("button", { name: "Stop", exact: true })).toBeVisible()

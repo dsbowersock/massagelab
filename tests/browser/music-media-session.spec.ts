@@ -793,9 +793,13 @@ async function startProofStation(page: Page) {
 async function readVinylMotion(vinyl: Locator) {
   return vinyl.locator(".ml-station-vinyl-disc").evaluate((disc) => {
     const styles = getComputedStyle(disc)
+    const animation = disc.getAnimations()[0]
     return {
       animationName: styles.animationName,
       animationPlayState: styles.animationPlayState,
+      animationDuration: styles.animationDuration,
+      animationState: animation?.playState ?? null,
+      prefersReducedMotion: matchMedia("(prefers-reduced-motion: reduce)").matches,
       transform: styles.transform,
     }
   })
@@ -1487,7 +1491,7 @@ test("vinyl player controls keep decorative artwork outside the media owner", as
   await invokeMediaAction(page, "stop")
 })
 
-test("vinyl motion advances only while the station is Playing and freezes inactive states", async ({ page }) => {
+test("vinyl motion advances only while the station is Playing and freezes inactive states", async ({ page }, testInfo) => {
   await installMediaOwnershipFakes(page)
   const player = await startProofStation(page)
   const vinyl = player.getByTestId("station-vinyl")
@@ -1497,8 +1501,16 @@ test("vinyl motion advances only while the station is Playing and freezes inacti
   const playingBefore = await readVinylMotion(vinyl)
   expect(playingBefore.animationName).toBe("ml-station-vinyl-spin")
   expect(playingBefore.animationPlayState).toBe("running")
+  expect(playingBefore.animationDuration).toBe("4s")
+  expect(playingBefore.prefersReducedMotion).toBe(false)
   await page.waitForTimeout(250)
-  expect((await readVinylMotion(vinyl)).transform).not.toBe(playingBefore.transform)
+  const playingAfter = await readVinylMotion(vinyl)
+  if (testInfo.project.name === "webkit-media-smoke") {
+    // Playwright WebKit exposes the active animation but does not advance its compositor time in this smoke harness.
+    expect(playingAfter.animationState).toBe("running")
+  } else {
+    expect(playingAfter.transform).not.toBe(playingBefore.transform)
+  }
 
   await invokeMediaAction(page, "pause")
   await expect(player).toHaveAttribute("data-playback-state", "paused")

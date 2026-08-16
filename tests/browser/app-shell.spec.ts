@@ -952,6 +952,8 @@ test("Atmosphere expanded player actions expose session and saved interruption p
     "Stop",
     "Next station",
     "Background",
+    "Atmosphere volume",
+    "Minimize",
   ])
 
   await sessionPreference.uncheck()
@@ -1269,7 +1271,7 @@ test("Atmosphere interruption notice clears the toolbar in short landscape", asy
   expect(geometry.controlsOverflow).toBeLessThanOrEqual(0)
   expect(geometry.noticeLeft).toBeGreaterThanOrEqual(0)
   expect(geometry.noticeRight).toBeLessThanOrEqual(geometry.viewportWidth)
-  await expect(controls.locator("[aria-label]")).toHaveCount(6)
+  await expect(controls.locator("[aria-label]")).toHaveCount(8)
 })
 
 test("Atmosphere interruption notice follows the actual toolbar edge with safe insets", async ({ page }, testInfo) => {

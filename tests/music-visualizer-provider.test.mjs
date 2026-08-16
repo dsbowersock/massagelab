@@ -100,7 +100,8 @@ describe("Persistent player visualizer boundary", () => {
     )
 
     assert.doesNotMatch(miniPlayerSource, /RefreshCw|Restart|overflow-x-auto/)
-    assert.match(miniPlayerSource, /variant="success"/)
+    assert.match(miniPlayerSource, /variant=\{isPlayingOrLoading \? "destructive" : "success"\}/)
+    assert.match(miniPlayerSource, /variant="attention"/)
     assert.match(miniPlayerSource, /TooltipProvider/)
     assert.match(miniPlayerSource, /ml-music-player-collapsed/)
     assert.match(miniPlayerSource, /data-testid="music-player-toolbar-controls"/)
@@ -112,7 +113,7 @@ describe("Persistent player visualizer boundary", () => {
       /aria-label="Next station"/,
       /aria-label=\{visualizerActionLabel\}/,
       /aria-label="Player settings"/,
-      /aria-label="Collapse"/,
+      /aria-label="Minimize"/,
       /aria-label="Expand"/,
     ]) {
       assert.match(toolbarActions, accessibleNamePattern)
