@@ -2170,7 +2170,7 @@
   }
 
   .ml-station-vinyl-disc {
-    animation: ml-station-vinyl-spin 16s linear infinite;
+    animation: ml-station-vinyl-spin 52s linear infinite;
     animation-play-state: paused;
     border-radius: 9999px;
     height: 100%;
@@ -2350,7 +2350,7 @@
     }
 
     body.ml-music-player-rail .ml-music-player-toolbar {
-      --ml-station-vinyl-size: var(--ml-music-player-expanded-rail-width);
+      --ml-station-vinyl-size: calc(var(--ml-music-player-expanded-rail-width) - 14px);
       bottom: var(--ml-bottom-stack-height);
       height: calc(100dvh - var(--ml-bottom-stack-height));
       left: auto !important;
@@ -2398,8 +2398,8 @@
     }
 
     body.ml-music-player-rail .ml-station-vinyl {
-      left: 0;
-      top: 0;
+      left: 7px;
+      top: 7px;
       transform: none;
     }
 
@@ -2417,8 +2417,8 @@
     }
 
     body.ml-music-player-rail .ml-music-player-toolbar[data-collapsed="true"] .ml-station-vinyl {
-      left: 0;
-      top: 0;
+      left: 7px;
+      top: 7px;
       transform: none;
     }
   }

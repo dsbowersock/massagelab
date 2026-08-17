@@ -2420,7 +2420,7 @@ test("vinyl motion advances only while the station is Playing and freezes inacti
   const playingBefore = await readVinylMotion(vinyl)
   expect(playingBefore.animationName).toBe("ml-station-vinyl-spin")
   expect(playingBefore.animationPlayState).toBe("running")
-  expect(playingBefore.animationDuration).toBe("16s")
+  expect(playingBefore.animationDuration).toBe("52s")
   expect(playingBefore.prefersReducedMotion).toBe(false)
   await page.waitForTimeout(250)
   const playingAfter = await readVinylMotion(vinyl)
@@ -2434,7 +2434,8 @@ test("vinyl motion advances only while the station is Playing and freezes inacti
   await invokeMediaAction(page, "pause")
   await expect(player).toHaveAttribute("data-playback-state", "paused")
   await expect(vinyl).toHaveAttribute("data-playing", "false")
-  expect((await readVinylMotion(vinyl)).animationPlayState).toBe("paused")
+  const paused = await readVinylMotion(vinyl)
+  expect(paused.animationPlayState).toBe("paused")
   await expectVinylTransformFrozen(vinyl)
 
   await invokeMediaAction(page, "play")
@@ -2442,13 +2443,21 @@ test("vinyl motion advances only while the station is Playing and freezes inacti
   await setAudioSessionState(page, "interrupted", true)
   await expect(player).toHaveAttribute("data-playback-state", "interrupted")
   await expect(vinyl).toHaveAttribute("data-playing", "false")
-  expect((await readVinylMotion(vinyl)).animationPlayState).toBe("paused")
+  const interrupted = await readVinylMotion(vinyl)
+  expect(interrupted.animationPlayState).toBe("paused")
   await expectVinylTransformFrozen(vinyl)
 
   await invokeMediaAction(page, "stop")
   await expect(player).toHaveAttribute("data-playback-state", "stopped")
-  expect((await readVinylMotion(vinyl)).animationPlayState).toBe("paused")
+  const stopped = await readVinylMotion(vinyl)
+  expect(stopped.animationPlayState).toBe("paused")
   await expectVinylTransformFrozen(vinyl)
+  console.log(`[task-19-motion-receipt] ${JSON.stringify({
+    interrupted,
+    paused,
+    playing: playingBefore,
+    stopped,
+  })}`)
 })
 
 test("vinyl motion stays frozen while station startup is Loading and after failure", async ({ page }) => {
@@ -2489,14 +2498,17 @@ test("vinyl motion stays frozen while station startup is Loading and after failu
   const vinyl = player.getByTestId("station-vinyl")
   await expect(player).toHaveAttribute("data-playback-state", "loading")
   await expect(vinyl).toHaveAttribute("data-playing", "false")
-  expect((await readVinylMotion(vinyl)).animationPlayState).toBe("paused")
+  const loading = await readVinylMotion(vinyl)
+  expect(loading.animationPlayState).toBe("paused")
   await expectVinylTransformFrozen(vinyl)
 
   releaseSampleIndex()
   await expect(player).toHaveAttribute("data-playback-state", "failed", { timeout: 30_000 })
   await expect(vinyl).toHaveAttribute("data-playing", "false")
-  expect((await readVinylMotion(vinyl)).animationPlayState).toBe("paused")
+  const failed = await readVinylMotion(vinyl)
+  expect(failed.animationPlayState).toBe("paused")
   await expectVinylTransformFrozen(vinyl)
+  console.log(`[task-19-inactive-motion-receipt] ${JSON.stringify({ failed, loading })}`)
 })
 
 test("vinyl motion never animates when reduced motion is requested", async ({ page }) => {
@@ -2509,6 +2521,7 @@ test("vinyl motion never animates when reduced motion is requested", async ({ pa
   const motion = await readVinylMotion(vinyl)
   expect(motion.animationName).toBe("none")
   await expectVinylTransformFrozen(vinyl)
+  console.log(`[task-19-reduced-motion-receipt] ${JSON.stringify(motion)}`)
   await invokeMediaAction(page, "stop")
 })
 

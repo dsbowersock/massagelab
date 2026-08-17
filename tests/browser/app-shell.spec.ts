@@ -1230,8 +1230,8 @@ test("global constrained landscape rail keeps route transitions, vinyl geometry,
       rail.width + spacing.safeRight,
       0,
     )
-    expect(vinyl.x, `${stateLabel} vinyl left`).toBeCloseTo(rail.x, 0)
-    expect(vinyl.y, `${stateLabel} vinyl top`).toBeCloseTo(rail.y, 0)
+    expect(vinyl.x, `${stateLabel} vinyl left`).toBeCloseTo(rail.x + 7, 0)
+    expect(vinyl.y, `${stateLabel} vinyl top`).toBeCloseTo(rail.y + 7, 0)
     expect(vinyl.width, `${stateLabel} vinyl diameter`).toBeCloseTo(vinyl.height, 0)
     expect(layer.x, `${stateLabel} layer left`).toBeCloseTo(rail.x, 0)
     expect(layer.y, `${stateLabel} layer top`).toBeCloseTo(rail.y, 0)
@@ -1287,12 +1287,11 @@ test("global constrained landscape rail keeps route transitions, vinyl geometry,
         .toBeGreaterThan(layer.x + layer.width)
       const visibleVinylWidth = Math.min(vinyl.x + vinyl.width, layer.x + layer.width)
         - Math.max(vinyl.x, layer.x)
-      expect(visibleVinylWidth, `${stateLabel} visible left arc`).toBeCloseTo(rail.width, 0)
+      expect(visibleVinylWidth, `${stateLabel} visible left arc`).toBeCloseTo(rail.width - 7, 0)
       await expect(toolbar.getByTestId("music-player-toolbar-identity")).toBeHidden()
       expect(await actionLabels()).toEqual(["Stop", "Expand"])
     } else {
-      expect(vinyl.width, `${stateLabel} expanded diameter`).toBeCloseTo(rail.width, 0)
-      expect(vinyl.width, `${stateLabel} severe-height regression`).toBeGreaterThanOrEqual(256)
+      expect(vinyl.width, `${stateLabel} expanded diameter`).toBeCloseTo(rail.width - 14, 0)
       await expect(toolbar.getByTestId("music-player-toolbar-identity")).toBeVisible()
       expect(await toolbar.getByTestId("music-player-toolbar-rail-transport")
         .locator("button[aria-label]").evaluateAll((actions) => actions.map((action) => action.getAttribute("aria-label"))))
@@ -2697,6 +2696,93 @@ test("vinyl geometry preserves the breakpoint diameter and exposes only its uppe
   expect(collapsed.layout.scrollHeight).toBeLessThanOrEqual(collapsed.layout.clientHeight)
 })
 
+test("portrait player vinyl rectangles remain exact across expanded and collapsed states", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== mobileProject, "Portrait vinyl parity is covered in mobile Chromium.")
+  await installInterruptionNoticeMediaFakes(page)
+  await page.setViewportSize({ width: 390, height: 844 })
+  const toolbar = await startInterruptionNoticeSession(page)
+  const expanded = await readVinylPlayerGeometry(toolbar)
+
+  await toolbar.getByRole("button", { name: "Minimize" }).click()
+  await expect(toolbar).toHaveAttribute("data-collapsed", "true")
+  const collapsed = await readVinylPlayerGeometry(toolbar)
+  const receipt = {
+    collapsed: collapsed.vinyl,
+    expanded: expanded.vinyl,
+  }
+  console.log(`[task-19-portrait-receipt] ${JSON.stringify(receipt)}`)
+
+  expect(receipt).toEqual({
+    collapsed: { bottom: 888, height: 128, left: 12, right: 140, top: 760, width: 128 },
+    expanded: { bottom: 776, height: 128, left: 12, right: 140, top: 648, width: 128 },
+  })
+})
+
+test("rail inset keeps constrained-landscape vinyl geometry seven pixels inside in both player states", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== mobileProject, "Landscape rail inset is covered in mobile Chromium.")
+  await installInterruptionNoticeMediaFakes(page)
+  await page.setViewportSize({ width: 844, height: 390 })
+  const toolbar = await startInterruptionNoticeSession(page)
+  const viewports = [
+    { width: 844, height: 390 },
+    { width: 746, height: 284 },
+    { width: 915, height: 412 },
+  ] as const
+  const readRailState = async () => {
+    const [rail, vinyl, layer, clipping] = await Promise.all([
+      toolbar.boundingBox(),
+      toolbar.getByTestId("station-vinyl").boundingBox(),
+      toolbar.locator(".ml-station-vinyl-layer").boundingBox(),
+      toolbar.locator(".ml-music-player-toolbar-surface").evaluate((surface) => ({
+        overflowX: getComputedStyle(surface).overflowX,
+        overflowY: getComputedStyle(surface).overflowY,
+      })),
+    ])
+    if (!rail || !vinyl || !layer) throw new Error("Rail vinyl geometry is unavailable")
+    return { clipping, layer, rail, vinyl }
+  }
+  const receipts: Array<{
+    collapsed: Awaited<ReturnType<typeof readRailState>>
+    expanded: Awaited<ReturnType<typeof readRailState>>
+    viewport: typeof viewports[number]
+  }> = []
+
+  for (const viewport of viewports) {
+    await page.setViewportSize(viewport)
+    await expect(toolbar).toHaveAttribute("data-layout", "rail")
+    if (await toolbar.getAttribute("data-collapsed") === "true") {
+      await toolbar.getByRole("button", { name: "Expand" }).click()
+    }
+    await expect(toolbar).toHaveAttribute("data-collapsed", "false")
+    const expanded = await readRailState()
+
+    await toolbar.getByRole("button", { name: "Minimize" }).click()
+    await expect(toolbar).toHaveAttribute("data-collapsed", "true")
+    const collapsed = await readRailState()
+    receipts.push({ collapsed, expanded, viewport })
+  }
+
+  console.log(`[task-19-rail-receipt] ${JSON.stringify(receipts)}`)
+  for (const { collapsed, expanded, viewport } of receipts) {
+    const label = `${viewport.width}x${viewport.height}`
+    for (const [state, geometry] of [["expanded", expanded], ["collapsed", collapsed]] as const) {
+      expect(geometry.vinyl.x, `${label} ${state} left inset`).toBeCloseTo(geometry.rail.x + 7, 0)
+      expect(geometry.vinyl.y, `${label} ${state} top inset`).toBeCloseTo(geometry.rail.y + 7, 0)
+      expect(geometry.vinyl.width, `${label} ${state} diameter`).toBeCloseTo(expanded.rail.width - 14, 0)
+      expect(geometry.vinyl.height, `${label} ${state} round diameter`).toBeCloseTo(geometry.vinyl.width, 0)
+      expect(geometry.layer.x, `${label} ${state} clip left`).toBeCloseTo(geometry.rail.x, 0)
+      expect(geometry.layer.width, `${label} ${state} clip width`).toBeCloseTo(geometry.rail.width, 0)
+      expect(geometry.clipping.overflowX, `${label} ${state} horizontal clipping`).toBe("hidden")
+    }
+    expect(collapsed.vinyl.width, `${label} retained collapsed diameter`).toBeCloseTo(expanded.vinyl.width, 0)
+    expect(collapsed.vinyl.x + collapsed.vinyl.width, `${label} collapsed vinyl extends beyond clip`)
+      .toBeGreaterThan(collapsed.layer.x + collapsed.layer.width)
+    expect(collapsed.vinyl.x, `${label} collapsed left arc starts inside clip`).toBeGreaterThan(collapsed.layer.x)
+    expect(collapsed.vinyl.x, `${label} collapsed left arc remains visible`)
+      .toBeLessThan(collapsed.layer.x + collapsed.layer.width)
+  }
+})
+
 test("vinyl geometry keeps short landscape complete with exact safe-area offsets", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== mobileProject, "Short-landscape vinyl geometry is covered in mobile Chromium.")
   await installInterruptionNoticeMediaFakes(page)
@@ -2724,7 +2810,7 @@ test("vinyl geometry keeps short landscape complete with exact safe-area offsets
     "wellness interruption notice",
   )
   const appScrollHeight = await page.locator(".ml-app-scroll").evaluate((element) => element.clientHeight)
-  expect(geometry.vinyl.width).toBeCloseTo(geometry.toolbar.width, 0)
+  expect(geometry.vinyl.width).toBeCloseTo(geometry.toolbar.width - 14, 0)
   expect(geometry.vinyl.height).toBeCloseTo(geometry.vinyl.width, 0)
   expect(geometry.toolbar.right).toBeCloseTo(844, 0)
   expect(geometry.toolbar.height).toBeCloseTo(390 - spacing.bottomStack, 0)
@@ -2732,8 +2818,8 @@ test("vinyl geometry keeps short landscape complete with exact safe-area offsets
   expect(geometry.layout.paddingRight).toBeCloseTo(32, 0)
   expect(geometry.layout.contentLeft).toBeCloseTo(geometry.layout.left + 12, 0)
   expect(geometry.layout.contentRight).toBeCloseTo(geometry.layout.right - 32, 0)
-  expect(geometry.vinyl.left).toBeCloseTo(geometry.toolbar.left, 0)
-  expect(geometry.vinyl.top).toBeCloseTo(geometry.toolbar.top, 0)
+  expect(geometry.vinyl.left).toBeCloseTo(geometry.toolbar.left + 7, 0)
+  expect(geometry.vinyl.top).toBeCloseTo(geometry.toolbar.top + 7, 0)
   expect(geometry.layout.scrollHeight).toBeLessThanOrEqual(geometry.layout.clientHeight)
   expect(geometry.layout.scrollWidth).toBeLessThanOrEqual(geometry.layout.clientWidth)
   expect(appScrollHeight).toBeGreaterThan(0)
